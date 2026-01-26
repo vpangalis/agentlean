@@ -182,6 +182,12 @@ def main() -> int:
     parser.add_argument("--repo-root", type=str, required=True, help="Path to repo root")
     parser.add_argument("--out", type=str, required=True, help="Output .docx path")
     parser.add_argument(
+        "--max-tree-entries",
+        type=int,
+        default=20_000,
+        help="Max number of entries to include in the directory tree (default: 20000)",
+    )
+    parser.add_argument(
         "--max-bytes-per-file",
         type=int,
         default=300_000,
@@ -213,8 +219,25 @@ def main() -> int:
     document = Document()
     document.add_heading(f"Repository export: {repo_root.name}", level=0)
 
+    document.add_heading("Export settings", level=1)
+    document.add_paragraph(f"Repo root: {repo_root}")
+    document.add_paragraph(f"Include .env files: {bool(args.include_env)}")
+    document.add_paragraph(f"Max tree entries: {args.max_tree_entries}")
+    document.add_paragraph(f"Max bytes per file: {args.max_bytes_per_file}")
+    document.add_paragraph(
+        "Excluded directories: " + ", ".join(sorted(EXCLUDE_DIR_NAMES))
+    )
+    document.add_paragraph(
+        "Excluded secret-like files: " + ", ".join(sorted(DOTENV_FILE_NAMES))
+    )
+    document.add_paragraph(
+        "Excluded key/cert suffixes: .pem, .key, .pfx, .p12"
+    )
+
     document.add_heading("Directory tree", level=1)
-    tree_text = build_tree(repo_root, include_env=args.include_env)
+    tree_text = build_tree(
+        repo_root, include_env=args.include_env, max_entries=args.max_tree_entries
+    )
     p = document.add_paragraph()
     run = p.add_run(tree_text)
     run.font.name = "Courier New"
@@ -223,14 +246,20 @@ def main() -> int:
     document.add_page_break()
     document.add_heading("Files", level=1)
 
+    included_text_files = 0
+    skipped_binary_files: list[str] = []
+    unreadable_files: list[str] = []
+
     for path in iter_files(repo_root, include_env=args.include_env):
         rel = path.relative_to(repo_root).as_posix()
         if not is_text_file(path):
+            skipped_binary_files.append(rel)
             continue
 
         try:
             data = path.read_bytes()
         except Exception:
+            unreadable_files.append(rel)
             continue
 
         if len(data) > args.max_bytes_per_file:
@@ -255,8 +284,32 @@ def main() -> int:
         run.font.name = "Courier New"
         run.font.size = Pt(9)
 
+        included_text_files += 1
+
+    document.add_page_break()
+    document.add_heading("Skipped files", level=1)
+    document.add_paragraph(f"Text files included: {included_text_files}")
+    document.add_paragraph(f"Binary/non-text files skipped: {len(skipped_binary_files)}")
+    document.add_paragraph(f"Unreadable files skipped: {len(unreadable_files)}")
+
+    if skipped_binary_files:
+        document.add_heading("Binary/non-text (listed for cross-checking)", level=2)
+        p = document.add_paragraph()
+        run = p.add_run("\n".join(skipped_binary_files))
+        run.font.name = "Courier New"
+        run.font.size = Pt(9)
+
+    if unreadable_files:
+        document.add_heading("Unreadable", level=2)
+        p = document.add_paragraph()
+        run = p.add_run("\n".join(unreadable_files))
+        run.font.name = "Courier New"
+        run.font.size = Pt(9)
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     document.save(out_path)
+
+    return 0
 
     print(f"Wrote: {out_path}")
     return 0

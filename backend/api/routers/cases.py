@@ -1,16 +1,16 @@
 from fastapi import APIRouter, HTTPException
-from app.config import settings
-from app.infrastructure.storage.blob_client import AzureBlobClient
-from app.infrastructure.storage.case_repository import CaseRepository
-from app.domain.case.service import CaseService
-from app.config import settings
 from pydantic import BaseModel, RootModel, field_validator
 from typing import Any, Dict
 import re
 
+from backend.main import build_backend_container
+from backend.application.case.CaseService import CaseService
+
+
 router = APIRouter(prefix="/cases", tags=["cases"])
 
 CASE_ID_REGEX = r"^INC-\d{8}-\d{4}$"
+
 
 class CaseCreateRequest(BaseModel):
     case_number: str
@@ -32,38 +32,31 @@ class CasePatchRequest(RootModel[Dict[str, Any]]):
     """
 
 
-blob_client = AzureBlobClient(
-    settings.AZURE_STORAGE_CONNECTION_STRING,
-    settings.AZURE_STORAGE_CONTAINER
-)
-
-case_service = CaseService(CaseRepository(blob_client))
+def _case_service() -> CaseService:
+    container = build_backend_container()
+    return container.application.case_service
 
 
 @router.post("/")
 def create_case(request: CaseCreateRequest):
+    service = _case_service()
     try:
-        case = case_service.create_case(
-            request.case_number,
-            request.opening_date
-        )
+        case = service.create_case(request.case_number, request.opening_date)
         return {
             "status": "created",
-            "case_number": case["case"]["case_number"]
+            "case_number": case["case"]["case_number"],
         }
-
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
-
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal error")
-
 
 
 @router.get("/{case_id}")
 def load_case(case_id: str):
+    service = _case_service()
     try:
-        return case_service.load_case(case_id)
+        return service.load_case(case_id)
     except Exception:
         raise HTTPException(status_code=404, detail="Case not found")
 
@@ -77,8 +70,9 @@ def patch_case(case_id: str, payload: CasePatchRequest):
     - Updates meta.updated_at and increments meta.version
     - Persists updated case.json back to Blob
     """
+    service = _case_service()
     try:
-        result = case_service.patch_case(case_id, payload.root)
+        result = service.patch_case(case_id, payload.root)
         return result
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Case not found")

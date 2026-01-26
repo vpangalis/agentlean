@@ -1,11 +1,10 @@
 from datetime import datetime
 import json
-from app.infrastructure.storage.blob_client import AzureBlobClient
- 
+
+from backend.infrastructure.storage.blob_client import AzureBlobClient
+
 
 class CaseRepository:
-    # existing __init__,create, load stay unchanged
-    
     def __init__(self, blob_client: AzureBlobClient):
         self.blob = blob_client
 
@@ -21,11 +20,11 @@ class CaseRepository:
     def save(self, case_number: str, case_doc: dict):
         path = f"{case_number}/case.json"
         self.blob.upload_json(path, json.dumps(case_doc, indent=2), overwrite=True)
-    
+
     def exists(self, case_number: str) -> bool:
         path = f"{case_number}/case.json"
         return self.blob.exists(path)
-    
+
     def _case_prefix(self, case_id: str) -> str:
         return f"{case_id}/evidence/"
 
@@ -38,12 +37,14 @@ class CaseRepository:
         files = self.blob.list_files(prefix)
         evidence = []
         for f in files:
-            evidence.append({
-                "filename": f["name"].replace(prefix, ""),
-                "size_bytes": f["size"],
-                "content_type": f["content_type"],
-                "uploaded_at": f["last_modified"]
-            })
+            evidence.append(
+                {
+                    "filename": f["name"].replace(prefix, ""),
+                    "size_bytes": f["size"],
+                    "content_type": f["content_type"],
+                    "uploaded_at": f["last_modified"],
+                }
+            )
         return evidence
 
     def get_evidence(self, case_id: str, filename: str) -> tuple[bytes, str]:

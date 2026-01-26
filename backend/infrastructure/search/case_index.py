@@ -17,8 +17,6 @@ from azure.search.documents.indexes.models import (
     VectorSearchProfile,
 )
 
-from app.config import settings
-
 CASE_INDEX_NAME = "case_index_v3"
 VECTOR_ALGORITHM_NAME = "case_hnsw_v1"
 VECTOR_PROFILE_NAME = "case_vector_profile_v1"
@@ -26,11 +24,11 @@ DOC_ID_SUFFIX = f"__{CASE_INDEX_NAME}"
 DOC_ID_PATTERN = re.compile(rf"^.+{re.escape(DOC_ID_SUFFIX)}$")
 
 
-def _collection_string() -> SearchFieldDataType:
+def _collection_string() -> str:
     return SearchFieldDataType.Collection(SearchFieldDataType.String)
 
 
-def _collection_float() -> SearchFieldDataType:
+def _collection_float() -> str:
     return SearchFieldDataType.Collection(SearchFieldDataType.Single)
 
 
@@ -40,7 +38,7 @@ def build_doc_id(case_id: str) -> str:
 
 
 def validate_doc_id(doc_id: str) -> None:
-    """Fail fast if a doc_id does not match {case_id}::case_index_v3."""
+    """Fail fast if a doc_id does not match {case_id}__case_index_v3."""
     if not DOC_ID_PATTERN.match(doc_id):
         raise ValueError("Invalid doc_id format. Expected '{case_id}__case_index_v3'.")
 
@@ -212,7 +210,6 @@ def _case_index_fields(vector_dimensions: int) -> Iterable[SearchField]:
 
 
 def build_case_index(index_name: str, vector_dimensions: int) -> SearchIndex:
-    # Schema changes require a new index version (e.g., case_index_v3).
     if index_name != CASE_INDEX_NAME:
         raise ValueError(
             "Index name override is not allowed for Sprint 3. "
@@ -240,35 +237,19 @@ def build_case_index(index_name: str, vector_dimensions: int) -> SearchIndex:
 
 
 def create_or_update_case_index(
-    endpoint: str | None = None,
-    admin_key: str | None = None,
-    vector_dimensions: int | None = None,
+    endpoint: str,
+    admin_key: str,
+    vector_dimensions: int,
 ) -> SearchIndex:
-    resolved_endpoint = endpoint or settings.AZURE_SEARCH_ENDPOINT
-    resolved_admin_key = admin_key or settings.AZURE_SEARCH_ADMIN_KEY
-    resolved_vector_dimensions = (
-        vector_dimensions or settings.AZURE_SEARCH_VECTOR_DIMENSIONS
-    )
-
-    # Prevent environment overrides of the index name for Sprint 3.
     if os.getenv("AZURE_SEARCH_INDEX_NAME"):
         raise ValueError(
             "AZURE_SEARCH_INDEX_NAME overrides are not allowed for Sprint 3. "
             "case_index_v3 is immutable; use case_index_v3 for schema changes."
         )
 
-    client = SearchIndexClient(
-        endpoint=resolved_endpoint,
-        credential=AzureKeyCredential(resolved_admin_key),
-    )
-
-    index = build_case_index(
-        index_name=CASE_INDEX_NAME,
-        vector_dimensions=resolved_vector_dimensions,
-    )
-
+    client = SearchIndexClient(endpoint, AzureKeyCredential(admin_key))
+    index = build_case_index(CASE_INDEX_NAME, vector_dimensions)
     return client.create_or_update_index(index)
 
 
-if __name__ == "__main__":
-    create_or_update_case_index()
+__all__ = ["CASE_INDEX_NAME", "build_doc_id", "validate_doc_id"]

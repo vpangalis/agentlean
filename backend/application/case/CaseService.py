@@ -1,7 +1,7 @@
 from datetime import datetime
-from app.domain.case.factory import CaseFactory
-from app.infrastructure.storage.case_repository import CaseRepository
 
+from backend.domain.case.factory import CaseFactory
+from backend.infrastructure.storage.CaseRepository import CaseRepository
 
 
 class CaseService:
@@ -39,7 +39,7 @@ class CaseService:
         return {
             "meta": {
                 "version": updated_meta.get("version"),
-                "updated_at": updated_meta.get("updated_at")
+                "updated_at": updated_meta.get("updated_at"),
             }
         }
 

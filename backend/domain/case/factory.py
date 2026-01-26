@@ -12,7 +12,7 @@ class CaseFactory:
                 "case_number": case_number,
                 "opening_date": opening_date or now,
                 "closure_date": None,
-                "status": "open"
+                "status": "open",
             },
             "evidence": [],
             "phases": {
@@ -22,16 +22,16 @@ class CaseFactory:
                 "D5": {"header": {"completed": False}, "data": {}},
                 "D6": {"header": {"completed": False}, "data": {}},
                 "D7": {"header": {"completed": False}, "data": {}},
-                "D8": {"header": {"completed": False}, "data": {}}
+                "D8": {"header": {"completed": False}, "data": {}},
             },
             "ai": {
                 "last_run": None,
                 "summary": "",
                 "identified_root_causes": [],
-                "recommended_actions": []
+                "recommended_actions": [],
             },
             "meta": {
                 "version": 1,
-                "created_at": now
-            }
+                "created_at": now,
+            },
         }
