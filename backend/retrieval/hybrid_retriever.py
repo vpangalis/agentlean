@@ -1,0 +1,253 @@
+from __future__ import annotations
+
+import logging
+from typing import Optional
+
+from backend.config import Settings
+from backend.infra.case_search_client import CaseSearchClient
+from backend.infra.evidence_search_client import EvidenceSearchClient
+from backend.infra.knowledge_search_client import KnowledgeSearchClient
+from backend.infra.embeddings import EmbeddingClient
+from backend.retrieval.models import CaseSummary, EvidenceSummary, KnowledgeSummary
+
+
+class HybridRetriever:
+    def __init__(
+        self,
+        case_search_client: CaseSearchClient,
+        evidence_search_client: EvidenceSearchClient,
+        knowledge_search_client: KnowledgeSearchClient,
+        embedding_client: EmbeddingClient,
+        settings: Settings,
+    ) -> None:
+        self._case_search_client = case_search_client
+        self._evidence_search_client = evidence_search_client
+        self._knowledge_search_client = knowledge_search_client
+        self._embedding_client = embedding_client
+        self._settings = settings
+        self._logger = logging.getLogger("hybrid_retriever")
+
+    def retrieve_similar_cases(
+        self,
+        query: str,
+        current_case_id: Optional[str],
+        country: Optional[str],
+        top_k: Optional[int] = None,
+    ) -> list[CaseSummary]:
+        effective_top_k = (
+            top_k if top_k is not None else self._settings.RETRIEVAL_SIMILAR_CASES_TOP_K
+        )
+        embedding = self._embedding_client.generate_embedding(query)
+
+        filters = ["status eq 'closed'"]
+        if current_case_id:
+            safe_case_id = current_case_id.replace("'", "''")
+            filters.append(f"case_id ne '{safe_case_id}'")
+        if country:
+            safe_country = country.replace("'", "''")
+            filters.append(f"organization_country eq '{safe_country}'")
+        filter_expression = " and ".join(filters)
+
+        self._logger.info(
+            "Retrieving similar cases",
+            extra={
+                "query": query,
+                "current_case_id": current_case_id,
+                "country": country,
+                "top_k": effective_top_k,
+            },
+        )
+        raw_results = self._case_search_client.hybrid_search(
+            search_text=query,
+            embedding=embedding,
+            filter_expression=filter_expression,
+            top_k=effective_top_k,
+        )
+
+        mapped: list[CaseSummary] = []
+        for item in raw_results:
+            case_id = item.get("case_id")
+            if not case_id:
+                continue
+            mapped.append(
+                CaseSummary(
+                    case_id=str(case_id),
+                    organization_country=item.get("organization_country"),
+                    organization_site=item.get("organization_site"),
+                    opening_date=item.get("opening_date"),
+                    closure_date=item.get("closure_date"),
+                    problem_description=item.get("problem_description"),
+                    five_whys_text=item.get("five_whys_text"),
+                    permanent_actions_text=item.get("permanent_actions_text"),
+                    ai_summary=item.get("ai_summary"),
+                )
+            )
+        return mapped
+
+    def retrieve_cases_for_pattern_analysis(
+        self,
+        query: str,
+        country: Optional[str],
+        top_k: Optional[int] = None,
+    ) -> list[CaseSummary]:
+        effective_top_k = (
+            top_k if top_k is not None else self._settings.RETRIEVAL_PATTERN_CASES_TOP_K
+        )
+        embedding = self._embedding_client.generate_embedding(query)
+
+        filters = ["status eq 'closed'"]
+        if country:
+            safe_country = country.replace("'", "''")
+            filters.append(f"organization_country eq '{safe_country}'")
+        filter_expression = " and ".join(filters)
+
+        self._logger.info(
+            "Retrieving cases for pattern analysis",
+            extra={
+                "query": query,
+                "country": country,
+                "top_k": effective_top_k,
+            },
+        )
+        raw_results = self._case_search_client.hybrid_search(
+            search_text=query,
+            embedding=embedding,
+            filter_expression=filter_expression,
+            top_k=effective_top_k,
+        )
+
+        mapped: list[CaseSummary] = []
+        for item in raw_results:
+            case_id = item.get("case_id")
+            if not case_id:
+                continue
+            mapped.append(
+                CaseSummary(
+                    case_id=str(case_id),
+                    organization_country=item.get("organization_country"),
+                    organization_site=item.get("organization_site"),
+                    opening_date=item.get("opening_date"),
+                    closure_date=item.get("closure_date"),
+                    problem_description=item.get("problem_description"),
+                    five_whys_text=item.get("five_whys_text"),
+                    permanent_actions_text=item.get("permanent_actions_text"),
+                    ai_summary=item.get("ai_summary"),
+                )
+            )
+        self._logger.info(
+            "[HYBRID_RETRIEVER_DEBUG] retrieve_cases_for_pattern_analysis '%s' → %d results",
+            query,
+            len(mapped),
+        )
+        return mapped
+
+    def retrieve_cases_for_kpi(
+        self,
+        country: Optional[str],
+    ) -> list[CaseSummary]:
+        effective_top_k = self._settings.RETRIEVAL_KPI_CASES_TOP_K
+        filters = ["status eq 'closed'"]
+        if country:
+            safe_country = country.replace("'", "''")
+            filters.append(f"organization_country eq '{safe_country}'")
+        filter_expression = " and ".join(filters)
+
+        self._logger.info(
+            "Retrieving cases for KPI",
+            extra={"country": country, "top_k": effective_top_k},
+        )
+        raw_results = self._case_search_client.filtered_search(
+            filter_expression=filter_expression,
+            top_k=effective_top_k,
+        )
+
+        mapped: list[CaseSummary] = []
+        for item in raw_results:
+            case_id = item.get("case_id")
+            if not case_id:
+                continue
+            mapped.append(
+                CaseSummary(
+                    case_id=str(case_id),
+                    organization_country=item.get("organization_country"),
+                    organization_site=item.get("organization_site"),
+                    opening_date=item.get("opening_date"),
+                    closure_date=item.get("closure_date"),
+                    problem_description=item.get("problem_description"),
+                    five_whys_text=item.get("five_whys_text"),
+                    permanent_actions_text=item.get("permanent_actions_text"),
+                    ai_summary=item.get("ai_summary"),
+                )
+            )
+        return mapped
+
+    def retrieve_knowledge(
+        self,
+        query: str,
+        top_k: Optional[int] = None,
+    ) -> list[KnowledgeSummary]:
+        effective_top_k = (
+            top_k if top_k is not None else self._settings.RETRIEVAL_KNOWLEDGE_TOP_K
+        )
+        embedding = self._embedding_client.generate_embedding(query)
+
+        self._logger.info(
+            "Retrieving knowledge",
+            extra={"query": query, "top_k": effective_top_k},
+        )
+        raw_results = self._knowledge_search_client.hybrid_search(
+            search_text=query,
+            embedding=embedding,
+            top_k=effective_top_k,
+        )
+
+        mapped: list[KnowledgeSummary] = []
+        for item in raw_results:
+            doc_id = item.get("doc_id")
+            if not doc_id:
+                continue
+            mapped.append(
+                KnowledgeSummary(
+                    doc_id=str(doc_id),
+                    title=item.get("title"),
+                    source=item.get("source"),
+                    created_at=item.get("created_at"),
+                )
+            )
+        return mapped
+
+    def retrieve_evidence_for_case(
+        self,
+        case_id: str,
+        top_k: Optional[int] = None,
+    ) -> list[EvidenceSummary]:
+        effective_top_k = (
+            top_k if top_k is not None else self._settings.RETRIEVAL_EVIDENCE_TOP_K
+        )
+        self._logger.info(
+            "Retrieving evidence for case",
+            extra={"case_id": case_id, "top_k": effective_top_k},
+        )
+        raw_results = self._evidence_search_client.search_by_case_id(
+            case_id=case_id,
+            top_k=effective_top_k,
+        )
+
+        mapped: list[EvidenceSummary] = []
+        for item in raw_results:
+            result_case_id = item.get("case_id")
+            filename = item.get("filename") or item.get("source")
+            if not result_case_id or not filename:
+                continue
+            mapped.append(
+                EvidenceSummary(
+                    case_id=str(result_case_id),
+                    filename=str(filename),
+                    content_type=item.get("content_type") or item.get("evidence_type"),
+                    created_at=item.get("created_at"),
+                )
+            )
+        return mapped
+
+
+__all__ = ["HybridRetriever"]

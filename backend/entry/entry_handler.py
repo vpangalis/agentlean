@@ -1,0 +1,455 @@
+from __future__ import annotations
+
+import base64
+import logging
+from typing import Any, Optional, Literal
+
+from pydantic import BaseModel
+
+from backend.ingestion.case_ingestion import CaseEntryService, CaseIngestionService
+from backend.ingestion.evidence_ingestion import EvidenceIngestionService
+from backend.ingestion.knowledge_ingestion import KnowledgeIngestionService
+from backend.workflow.unified_incident_graph import (
+    IncidentGraphState,
+    UnifiedIncidentGraph,
+)
+
+
+class SuggestionItem(BaseModel):
+    label: str
+    question: str
+
+
+class SuggestionsLLMResponse(BaseModel):
+    suggestions: list[SuggestionItem] = []
+
+
+_logger = logging.getLogger(__name__)
+
+
+class EntryEnvelope(BaseModel):
+    intent: Literal["CASE_INGESTION", "AI_REASONING"]
+    action: Optional[str] = None
+    payload: dict[str, Any] = {}
+    case_id: Optional[str] = None
+    event: Optional[str] = None
+
+
+class EntryResponseEnvelope(BaseModel):
+    intent: str
+    status: str
+    data: dict[str, Any] = {}
+    errors: list[str] = []
+
+
+class EntryHandler:
+    def __init__(
+        self,
+        case_entry: CaseEntryService,
+        evidence_ingestion: EvidenceIngestionService,
+        case_ingestion: CaseIngestionService,
+        knowledge_ingestion: KnowledgeIngestionService,
+        unified_graph: UnifiedIncidentGraph,
+        llm_client: Any | None = None,
+    ) -> None:
+        self._case_entry = case_entry
+        self._evidence_ingestion = evidence_ingestion
+        self._case_ingestion = case_ingestion
+        self._knowledge_ingestion = knowledge_ingestion
+        self._unified_graph = unified_graph
+        self._llm_client = llm_client
+
+    def handle_entry(self, envelope: EntryEnvelope) -> EntryResponseEnvelope:
+        intent = (envelope.intent or "").upper()
+        if intent == "CASE_INGESTION":
+            return self._handle_case_ingestion(envelope)
+        if intent == "AI_REASONING":
+            return self._handle_ai_reasoning(envelope)
+        raise ValueError(f"Unsupported intent: {envelope.intent}")
+
+    def _handle_case_ingestion(self, envelope: EntryEnvelope) -> EntryResponseEnvelope:
+        print(f"[DEBUG] Received action: {envelope.action}")
+        print(f"[DEBUG] Received event: {envelope.event}")
+        action = self._normalize_action(envelope.action or envelope.event)
+        print(f"[DEBUG] Normalized action: {action}")
+
+        if action == "CREATE_CASE":
+            print("[DEBUG] Branch taken: CREATE_CASE")
+            data = self._create_case(envelope)
+        elif action == "UPDATE_CASE":
+            print("[DEBUG] Branch taken: UPDATE_CASE")
+            data = self._update_case(envelope)
+        elif action == "CLOSE_CASE":
+            print("[DEBUG] Branch taken: CLOSE_CASE")
+            data = self._close_case(envelope)
+        elif action == "UPLOAD_EVIDENCE":
+            print("[DEBUG] Branch taken: UPLOAD_EVIDENCE")
+            data = self._upload_evidence(envelope)
+        elif action == "UPLOAD_KNOWLEDGE":
+            print("[DEBUG] Branch taken: UPLOAD_KNOWLEDGE")
+            data = self._upload_knowledge(envelope)
+        else:
+            print(f"[DEBUG] Unsupported action after normalization: {action}")
+            raise ValueError(f"Unsupported case intent: {action}")
+        return EntryResponseEnvelope(
+            intent=envelope.intent,
+            status="accepted",
+            data=data,
+        )
+
+    # Maps node_override value → LangGraph route + classification intent
+    _NODE_OVERRIDE_MAP: dict[str, str] = {
+        "operational": "OPERATIONAL_CASE",
+        "similarity": "SIMILARITY_SEARCH",
+        "strategy": "STRATEGY_ANALYSIS",
+    }
+
+    def _handle_ai_reasoning(self, envelope: EntryEnvelope) -> EntryResponseEnvelope:
+        print(f"[DEBUG AI ENTRY] raw envelope={envelope.model_dump()!r}")
+        payload = envelope.payload or {}
+        question = str(payload.get("question") or "").strip()
+        case_id = payload.get("case_id") or envelope.case_id
+
+        if not question:
+            response = {"status": "usage", "message": "Provide a non-empty question."}
+            return EntryResponseEnvelope(
+                intent=envelope.intent,
+                status="accepted",
+                data=response,
+            )
+
+        initial_state: IncidentGraphState = {
+            "case_id": str(case_id) if case_id else None,
+            "question": question,
+        }
+
+        # node_override bypass: skip AI classifier and route directly
+        node_override = str(payload.get("node_override") or "").strip().lower()
+        _logger.info(
+            "[ENTRY_DEBUG] node_override extracted: %s", node_override or "(none)"
+        )
+        if node_override in self._NODE_OVERRIDE_MAP:
+            intent_value = self._NODE_OVERRIDE_MAP[node_override]
+            initial_state["node_override"] = node_override
+            initial_state["route"] = intent_value
+            initial_state["classification"] = {  # type: ignore[typeddict-item]
+                "intent": intent_value,
+                "scope": "GLOBAL",
+                "confidence": 1.0,
+            }
+
+        _logger.info(
+            "[ENTRY_DEBUG] node_override=%s node_type=%s",
+            node_override or "(none)",
+            initial_state.get("route", "CLASSIFY"),
+        )
+        try:
+            graph_result = self._unified_graph.invoke(initial_state)
+        except Exception as e:
+            _logger.error("[ENTRY_DEBUG] exception in graph: %s", str(e), exc_info=True)
+            raise
+        response = graph_result.get("final_response") or {}
+        return EntryResponseEnvelope(
+            intent=envelope.intent,
+            status="accepted",
+            data=response,
+        )
+
+    def _create_case(self, envelope: EntryEnvelope) -> dict[str, Any]:
+        payload = envelope.payload or {}
+        print(
+            f"[DEBUG AI] payload keys: {list(payload.keys())}, question: {payload.get('question')!r}"
+        )
+
+        case_id = payload.get("case_id") or envelope.case_id
+        opened_at = payload.get("opened_at")
+        if not case_id:
+            raise ValueError("case_id is required")
+        doc = self._case_entry.create_case(case_id, opened_at)
+        _logger.info("[CREATE_CASE] blob save complete for %s, starting index", case_id)
+        try:
+            self._case_ingestion.index_open_case(str(case_id))
+            _logger.info("[CREATE_CASE] index complete for %s", case_id)
+        except Exception as exc:
+            _logger.exception("[CREATE_CASE] index FAILED for %s: %s", case_id, exc)
+        return {"status": "created", "case_id": doc.get("case_id")}
+
+    def _update_case(self, envelope: EntryEnvelope) -> dict[str, Any]:
+        case_id = envelope.case_id or (envelope.payload or {}).get("case_id")
+        if not case_id:
+            raise ValueError("case_id is required")
+        result = self._case_entry.patch_case(case_id, envelope.payload or {})
+        _logger.info("[UPDATE_CASE] patch complete for %s, starting re-index", case_id)
+        try:
+            self._case_ingestion.index_open_case(str(case_id))
+            _logger.info("[UPDATE_CASE] re-index complete for %s", case_id)
+        except Exception as exc:
+            _logger.exception("[UPDATE_CASE] re-index FAILED for %s: %s", case_id, exc)
+        return {"status": "updated", **result}
+
+    def reindex_case(self, case_id: str) -> dict[str, Any]:
+        """Force-index a single case by case_id (used by diagnostic endpoint)."""
+        _logger.info("[REINDEX] force-reindex requested for %s", case_id)
+        try:
+            self._case_ingestion.index_open_case(case_id)
+            return {"status": "indexed", "case_id": case_id}
+        except Exception as exc:
+            _logger.exception("[REINDEX] failed for %s: %s", case_id, exc)
+            return {"status": "error", "case_id": case_id, "error": str(exc)}
+
+    def _close_case(self, envelope: EntryEnvelope) -> dict[str, Any]:
+        case_id = envelope.case_id or (envelope.payload or {}).get("case_id")
+        if not case_id:
+            raise ValueError("case_id is required")
+        payload = envelope.payload or {}
+        if isinstance(payload, dict) and "case_id" not in payload:
+            payload = {**payload, "case_id": case_id}
+        existing = self._case_entry.get_case(case_id)
+        merged = self._case_entry.merge_case_document(existing, payload)
+        self._case_entry.save_case_document(case_id, merged)
+        self._case_ingestion.ingest_closed_case(case_id)
+        return {"status": "closed", "case_id": case_id}
+
+    def _upload_evidence(self, envelope: EntryEnvelope) -> dict[str, Any]:
+        case_id = envelope.case_id or (envelope.payload or {}).get("case_id")
+        if not case_id:
+            raise ValueError("case_id is required")
+        files = (envelope.payload or {}).get("files", [])
+        uploaded = []
+        for item in files:
+            filename = item.get("filename") or "unknown"
+            content_type = item.get("content_type") or "application/octet-stream"
+            data_base64 = item.get("data_base64") or ""
+            raw = self._decode_base64(data_base64)
+            self._evidence_ingestion.upload_evidence(
+                case_id, filename, raw, content_type
+            )
+            uploaded.append(
+                {
+                    "filename": filename,
+                    "content_type": content_type,
+                    "size_bytes": len(raw),
+                }
+            )
+        return {"case_id": case_id, "uploaded": uploaded}
+
+    def _upload_knowledge(self, envelope: EntryEnvelope) -> dict[str, Any]:
+        documents = (envelope.payload or {}).get("documents", [])
+        uploaded = []
+        for item in documents:
+            filename = item.get("filename") or "unknown"
+            content_type = item.get("content_type") or "application/octet-stream"
+            data_base64 = item.get("data_base64") or ""
+            raw = self._decode_base64(data_base64)
+            try:
+                self._knowledge_ingestion.upload_document(filename, raw, content_type)
+            except Exception as e:
+                _logger.error(
+                    "[KNOWLEDGE] upload failed for %r: %s: %s",
+                    filename,
+                    type(e).__name__,
+                    e,
+                )
+                raise
+            uploaded.append(
+                {
+                    "filename": filename,
+                    "content_type": content_type,
+                    "size_bytes": len(raw),
+                }
+            )
+        return {"status": "uploaded", "documents": uploaded}
+
+    def upload_knowledge(self, filename: str, data: bytes, content_type: str) -> None:
+        try:
+            self._knowledge_ingestion.upload_document(filename, data, content_type)
+        except Exception as e:
+            _logger.error(
+                "[KNOWLEDGE] upload failed for %r: %s: %s",
+                filename,
+                type(e).__name__,
+                e,
+            )
+            raise
+
+    def reindex_case(self, case_id: str) -> dict[str, str]:
+        """Force-index (or re-index) a case regardless of its status.
+        Useful for backfilling cases created before index-on-create was added.
+        """
+        try:
+            self._case_ingestion.index_open_case(case_id)
+            return {"status": "indexed", "case_id": case_id}
+        except RuntimeError as exc:
+            _logger.error(
+                "[REINDEX] Azure Search rejected document for %s: %s", case_id, exc
+            )
+            return {
+                "status": "rejected_by_azure",
+                "case_id": case_id,
+                "error": str(exc),
+            }
+        except Exception as exc:
+            _logger.exception("[REINDEX] unexpected error for %s: %s", case_id, exc)
+            return {
+                "status": "error",
+                "case_id": case_id,
+                "error": str(exc),
+                "type": type(exc).__name__,
+            }
+
+    def _normalize_action(self, action: Optional[str]) -> str:
+        value = (action or "").strip().upper()
+        value = value.replace("-", "_").replace(" ", "_")
+        return value
+
+    def _decode_base64(self, data_base64: str) -> bytes:
+        if not data_base64:
+            return b""
+        return base64.b64decode(data_base64)
+
+    # ------------------------------------------------------------------ #
+    # Suggestions — lightweight single-call endpoint                       #
+    # ------------------------------------------------------------------ #
+
+    _SUGGESTIONS_SYSTEM = (
+        "You are generating suggested questions for a problem-solving "
+        "assistant UI. Given a case summary, generate exactly 6 suggested "
+        "questions a user might want to ask.\n\n"
+        "Return ONLY this JSON:\n"
+        "{\n"
+        '  "suggestions": [\n'
+        '    { "label": "short 2-4 word label", "question": "full question text" },\n'
+        "    ...6 items...\n"
+        "  ]\n"
+        "}\n\n"
+        "Rules:\n"
+        "- 2 suggestions must be operational (current state / gaps / next steps)\n"
+        "- 2 suggestions must be similarity-focused (find similar cases)\n"
+        "- 1 suggestion must be strategic (systemic risks or patterns)\n"
+        "- 1 suggestion must be KPI-focused (trends or metrics)\n"
+        "- Every question must reference the actual problem, component, "
+        "or system from the case — no generic questions\n"
+        "- Labels must be short: 'Root cause gaps', 'Similar faults', "
+        "'Fleet trends', etc.\n"
+        "- Questions must be natural language, as a user would type them"
+    )
+
+    _FALLBACK_SUGGESTIONS: list[dict[str, str]] = [
+        {
+            "label": "Current gaps",
+            "question": "What are the current gaps in our investigation?",
+        },
+        {"label": "Next steps", "question": "What should the team focus on next?"},
+        {
+            "label": "Similar faults",
+            "question": "Are there similar cases in the closed case knowledge base?",
+        },
+        {
+            "label": "Past incidents",
+            "question": "Have we seen this type of failure before?",
+        },
+        {
+            "label": "Systemic risks",
+            "question": "Are there systemic risks highlighted by recurring incidents?",
+        },
+        {
+            "label": "KPI trends",
+            "question": "How are we trending on key reliability metrics?",
+        },
+    ]
+
+    def generate_suggestions(
+        self, case_id: str, case_context: dict[str, Any]
+    ) -> list[dict[str, str]]:
+        """Generate 6 AI-suggested questions for the given case context."""
+        if self._llm_client is None:
+            return list(self._FALLBACK_SUGGESTIONS)
+
+        try:
+            problem_description = self._extract_problem_description(case_context)
+            current_d_state = self._extract_current_d_state(case_context) or "D1_2"
+            status = str(case_context.get("case_status") or "open")
+
+            user_prompt = (
+                f"Case ID: {case_id}\n"
+                f"Problem: {problem_description}\n"
+                f"Current step: {current_d_state}\n"
+                f"Status: {status}"
+            )
+
+            result: SuggestionsLLMResponse = self._llm_client.complete_json(
+                system_prompt=self._SUGGESTIONS_SYSTEM,
+                user_prompt=user_prompt,
+                response_model=SuggestionsLLMResponse,
+                temperature=0.4,
+            )
+            suggestions = [
+                {"label": s.label, "question": s.question} for s in result.suggestions
+            ]
+            if len(suggestions) == 0:
+                return list(self._FALLBACK_SUGGESTIONS)
+            return suggestions
+        except Exception as exc:
+            _logger.warning(
+                "[SUGGESTIONS] LLM call failed, returning fallback: %s", exc
+            )
+            return list(self._FALLBACK_SUGGESTIONS)
+
+    def _extract_problem_description(self, case_context: dict[str, Any]) -> str:
+        # Try d_states.D1_2 (native format)
+        d_states = case_context.get("d_states")
+        if isinstance(d_states, dict):
+            block = d_states.get("D1_2")
+            if isinstance(block, dict):
+                data = block.get("data") or {}
+                desc = (
+                    data.get("problem_description")
+                    or data.get("description")
+                    or block.get("problem_description")
+                )
+                if desc:
+                    return str(desc)[:500]
+        # Try phases.D1_D2 (legacy format)
+        phases = case_context.get("phases")
+        if isinstance(phases, dict):
+            block = phases.get("D1_D2") or phases.get("D1_2")
+            if isinstance(block, dict):
+                data = block.get("data") or {}
+                desc = (
+                    data.get("problem_description")
+                    or data.get("description")
+                    or block.get("problem_description")
+                )
+                if desc:
+                    return str(desc)[:500]
+        # Fallback: top-level field
+        return str(case_context.get("problem_description") or "(no description)")[:500]
+
+    def _extract_current_d_state(self, case_context: dict[str, Any]) -> str | None:
+        reasoning_state = case_context.get("reasoning_state")
+        if not isinstance(reasoning_state, dict):
+            reasoning_state = case_context.get("d_states")
+        if not isinstance(reasoning_state, dict):
+            phases = case_context.get("phases")
+            if isinstance(phases, dict) and phases:
+                reasoning_state = {
+                    ("D1_2" if k == "D1_D2" else k): v for k, v in phases.items()
+                }
+        if not isinstance(reasoning_state, dict):
+            return None
+        progression = ["D8", "D7", "D6", "D5", "D4", "D3", "D1_2"]
+        for key in progression:
+            block = reasoning_state.get(key)
+            if not isinstance(block, dict):
+                continue
+            header = block.get("header")
+            if isinstance(header, dict) and header.get("completed"):
+                return key
+            status = str(block.get("status") or "").lower()
+            has_data = isinstance(block.get("data"), dict) and bool(block.get("data"))
+            if status in {"in_progress", "completed"} or has_data:
+                return key
+        return "D1_2"
+
+
+__all__ = ["EntryEnvelope", "EntryHandler", "EntryResponseEnvelope"]

@@ -1,0 +1,285 @@
+from __future__ import annotations
+
+import json
+from typing import Any
+
+from backend.config import Settings
+from backend.infra.llm_logging_client import LoggedLanguageModelClient
+from backend.retrieval.hybrid_retriever import HybridRetriever
+from backend.workflow.models import SimilarityDraftPayload, SimilarityNodeOutput
+
+_SIMILARITY_SYSTEM_PROMPT = """\
+You are a senior failure analysis expert with access to a library of \
+closed incident cases. Your role is to reason like an experienced \
+engineer asked: "Have we seen this before, and what can we learn?"
+
+You may be given an active case context, or just a question describing \
+a new problem. Both are valid — reason from whatever is available.
+
+Your internal reasoning follows this mandatory order:
+
+STEP 1 — UNDERSTAND THE PROBLEM
+Extract from the question and case context (if available):
+- What is the failure type or symptom?
+- What component, system, or process is affected?
+- What is the operational context (fleet, line, environment)?
+- How urgent or widespread does the problem appear to be?
+If no case is loaded, work entirely from the question text.
+
+STEP 2 — EVALUATE EACH RETRIEVED CASE INDIVIDUALLY
+For each retrieved closed case, reason explicitly:
+- What was the failure mode in that case?
+- How similar is it to the current problem — same component, same \
+  symptom pattern, same root cause category, or only superficially \
+  similar?
+- What did that case reveal in its root cause and corrective actions \
+  that could be directly relevant here?
+- Rate the match: STRONG | PARTIAL | WEAK
+Do not treat all retrieved cases as equally relevant.
+If a case is not relevant, say so explicitly and briefly explain why.
+
+STEP 3 — SYNTHESIZE AND ANSWER
+Only after Steps 1 and 2, structure your answer in exactly this order:
+
+  [SIMILAR CASES FOUND]
+  For each retrieved case, one short paragraph:
+  - Case ID and match rating (STRONG / PARTIAL / WEAK)
+  - What happened and why it is or is not analogous
+  - The single most relevant finding from that case for the current problem
+  Order from strongest to weakest match.
+  If no retrieved case is genuinely relevant, say so clearly and explain \
+  what type of precedent would be worth searching for.
+
+  [PATTERNS ACROSS CASES]
+  If two or more cases share a common thread — same root cause category,
+  same component family, same process weakness, same supplier — state it \
+  explicitly as a named pattern. This is the highest-value insight.
+  If no genuine pattern exists across the cases, say so in one sentence \
+  rather than forcing a connection.
+
+  [WHAT THIS MEANS FOR YOUR INVESTIGATION]
+  Concrete recommendations grounded in the closed cases:
+  - What the current team should check or investigate based on what \
+    past cases revealed
+  - Any corrective actions from closed cases that proved effective and \
+    could be directly applicable
+  - Any failure modes that were initially overlooked in similar cases \
+    that the team should proactively rule out
+  Every recommendation must trace back to a specific retrieved case.
+  No generic 8D advice here.
+
+  [GENERAL ADVICE]
+  \u26a0\ufe0f The following is general similarity analysis guidance not specific \
+  to this problem:
+  <general advice about using precedent cases in problem solving>
+
+  [WHAT TO EXPLORE NEXT]
+  Based on the cases found and patterns identified:
+
+  Questions to ask your team right now:
+  \u2022 "<specific investigative question grounded in what the similar \
+     cases revealed — something the team should verify or rule out>"
+  \u2022 "<second specific question about a failure mode or process gap \
+     that recurred across similar cases>"
+
+  Questions to ask CoSolve:
+  \u2699\ufe0f Operational deep-dive: "<specific question about the active case \
+     D-states if a case is loaded, or about how to structure the \
+     investigation if no case is loaded yet>"
+  \U0001f4ca Strategic view: "<specific question about whether the pattern \
+     across cases indicates a systemic supplier, process, or design issue>"
+  \U0001f4c8 KPI & trends: "<specific question about recurrence frequency, \
+     fleet-wide exposure, or time-between-failures for this failure type>"
+  \U0001f50d Dig deeper: "<specific question referencing one retrieved case by \
+     ID — asking to explore its root cause or corrective actions further>"
+
+  All questions must reference something specific from the retrieved \
+  cases or the problem description. No generic questions.
+
+CRITICAL RULES:
+- Every statement in [SIMILAR CASES FOUND] must reference an actual \
+  retrieved case by ID. Do not invent cases or failure details.
+- Match ratings must be honest — do not rate a weak match as STRONG.
+- [PATTERNS ACROSS CASES] must be genuine — do not force a pattern.
+- If no cases were retrieved, say so in [SIMILAR CASES FOUND] and \
+  explain what search terms or case types might yield better results.
+- The [GENERAL ADVICE] section must always carry the \u26a0\ufe0f prefix.
+- The [WHAT TO EXPLORE NEXT] section must always be last with all \
+  six questions present.
+- SECTION ORDER IS MANDATORY:
+  1. [SIMILAR CASES FOUND]
+  2. [PATTERNS ACROSS CASES]
+  3. [WHAT THIS MEANS FOR YOUR INVESTIGATION]
+  4. [GENERAL ADVICE]
+  5. [WHAT TO EXPLORE NEXT]
+- LENGTH RULE: Be concise. Target 300-400 words total. Each case in \
+  [SIMILAR CASES FOUND] should be 2-3 sentences maximum. If a section \
+  has nothing meaningful to add, write one sentence rather than padding.
+- Use plain language. No D-step codes (D1, D4 etc.) — use step names:
+  Problem Definition, Root Cause Analysis, Corrective Actions etc.
+- Return plain text. No JSON. No markdown beyond the section labels.\
+"""
+
+_D_STATE_LABELS: dict[str, str] = {
+    "D1_2": "Problem Definition",
+    "D3": "Containment Actions",
+    "D4": "Root Cause Analysis",
+    "D5": "Permanent Corrective Actions",
+    "D6": "Implementation & Validation",
+    "D7": "Prevention",
+    "D8": "Closure & Learnings",
+}
+
+
+def _normalize_d_states(case_context: dict[str, Any]) -> dict[str, Any] | None:
+    d_states = case_context.get("d_states")
+    if isinstance(d_states, dict) and d_states:
+        return d_states
+    phases = case_context.get("phases")
+    if isinstance(phases, dict) and phases:
+        normalized: dict[str, Any] = {}
+        for k, v in phases.items():
+            norm_key = "D1_2" if k == "D1_D2" else k
+            normalized[norm_key] = v
+        return normalized
+    return None
+
+
+def _format_d_states(case_context: dict[str, Any]) -> str:
+    d_states = _normalize_d_states(case_context)
+    if not isinstance(d_states, dict) or not d_states:
+        return "No case history available."
+    lines: list[str] = []
+    for key in ["D1_2", "D3", "D4", "D5", "D6", "D7", "D8"]:
+        if key not in d_states:
+            continue
+        label = _D_STATE_LABELS.get(key, key)
+        lines.append(f"{label}:")
+        entry = d_states[key]
+        data: dict[str, Any] = {}
+        if isinstance(entry, dict):
+            data = entry.get("data") or entry
+        if isinstance(data, dict) and data:
+            for field, value in data.items():
+                display = (
+                    str(value).strip()
+                    if value not in (None, "", [], {})
+                    else "NOT ENTERED"
+                )
+                lines.append(f"  {field}: {display}")
+        else:
+            lines.append("  (no data entered)")
+    return "\n".join(lines) if lines else "No case history available."
+
+
+class SimilarityNode:
+    def __init__(
+        self,
+        hybrid_retriever: HybridRetriever,
+        llm_client: LoggedLanguageModelClient,
+        settings: Settings,
+    ) -> None:
+        self._hybrid_retriever = hybrid_retriever
+        self._llm_client = llm_client
+        self._settings = settings
+
+    def run(
+        self,
+        question: str,
+        case_id: str | None,
+        country: str | None,
+        case_context: dict[str, Any] | None = None,
+    ) -> SimilarityNodeOutput:
+        cases = self._hybrid_retriever.retrieve_similar_cases(
+            query=question,
+            current_case_id=case_id,
+            country=country,
+        )
+
+        # Build case context summary
+        if case_context:
+            case_context_summary = _format_d_states(case_context)
+        else:
+            case_context_summary = (
+                "No active case loaded — reasoning from question description only."
+            )
+
+        # Format retrieved cases
+        supporting_cases_dicts = [item.model_dump(mode="json") for item in cases]
+        if supporting_cases_dicts:
+            formatted_cases = json.dumps(supporting_cases_dicts, indent=2, default=str)
+        else:
+            formatted_cases = "No cases retrieved from the knowledge base."
+
+        user_prompt = (
+            f"USER QUESTION: {question}\n\n"
+            "--- ACTIVE CASE CONTEXT ---\n"
+            f"{case_context_summary}\n\n"
+            "--- RETRIEVED CLOSED CASES ---\n"
+            f"{formatted_cases}"
+        )
+
+        response_text = self._llm_client.complete_text(
+            system_prompt=_SIMILARITY_SYSTEM_PROMPT,
+            user_prompt=user_prompt,
+            temperature=0.2,
+            user_question=question,
+        )
+
+        suggestions = self._extract_suggestions(response_text)
+
+        return SimilarityNodeOutput(
+            similarity_draft=SimilarityDraftPayload(
+                summary=response_text,
+                supporting_cases=cases,
+                suggestions=suggestions,
+            )
+        )
+
+    @staticmethod
+    def _extract_suggestions(response_text: str) -> list[dict]:
+        """Extract [WHAT TO EXPLORE NEXT] items as structured suggestions."""
+        suggestions: list[dict] = []
+        try:
+            marker = "[WHAT TO EXPLORE NEXT]"
+            if marker not in response_text:
+                return []
+            section = response_text.split(marker, 1)[1].strip()
+
+            label_map: dict[str, str] = {
+                "\u2699\ufe0f": "Operational deep-dive",
+                "\U0001f4ca": "Strategic view",
+                "\U0001f4c8": "KPI & trends",
+                "\U0001f50d": "Dig deeper",
+            }
+
+            for line in section.split("\n"):
+                line = line.strip()
+                if line.startswith("\u2022") or line.startswith("-"):
+                    question_text = line.lstrip("\u2022-").strip().strip('"')
+                    if question_text:
+                        suggestions.append(
+                            {
+                                "label": (
+                                    question_text[:40] + "..."
+                                    if len(question_text) > 40
+                                    else question_text
+                                ),
+                                "question": question_text,
+                                "type": "team",
+                            }
+                        )
+                for emoji, label in label_map.items():
+                    if line.startswith(emoji):
+                        parts = line.split(":", 1)
+                        if len(parts) > 1:
+                            raw = parts[1].strip().strip('"')
+                            suggestions.append(
+                                {"label": label, "question": raw, "type": "cosolve"}
+                            )
+        except Exception:
+            pass
+        return suggestions
+
+
+__all__ = ["SimilarityNode"]

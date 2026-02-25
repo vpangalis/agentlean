@@ -1,21 +1,94 @@
 // ===== API CONFIG (single source of truth) =====
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "http://127.0.0.1:8005";
 
 let caseState = {};
 
+// Tracks which node mode is manually selected (null = auto-classify).
+let activeNodeOverride = null;
+
 const PHASE_META = {
-  D1_D2: { name: "Problem Initiation", discipline: ["D1", "D2"] },
-  D3: { name: "Problem Definition", discipline: "D3" },
-  D4: { name: "Immediate Actions", discipline: "D4" },
-  D5: { name: "Root Cause Analysis", discipline: "D5" },
-  D6: { name: "Permanent Actions", discipline: "D6" },
-  D7: { name: "Prevention / Standardization", discipline: "D7" },
-  D8: { name: "Closure", discipline: "D8" }
+  D1_2: { name: "Problem Definition", discipline: ["D1", "D2"] },
+  D3: { name: "Containment Actions", discipline: "D3" },
+  D4: { name: "Root Cause Analysis", discipline: "D4" },
+  D5: { name: "Permanent Corrective Actions", discipline: "D5" },
+  D6: { name: "Implementation & Validation", discipline: "D6" },
+  D7: { name: "Prevention", discipline: "D7" },
+  D8: { name: "Closure & Learnings", discipline: "D8" }
 };
 
 const DEBOUNCE_MS = 900;
 let pendingPatch = {};
 let saveTimer = null;
+
+
+function buildEntryEnvelope(entry_mode, case_id, payload) {
+  const envelope = {
+    intent: "CASE_INGESTION",
+    action: entry_mode,
+    payload: payload || {}
+  };
+  if (case_id) envelope.case_id = case_id;
+  return envelope;
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("File read failed"));
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        reject(new Error("Unexpected FileReader result"));
+        return;
+      }
+      // data:<mime>;base64,<data>
+      const comma = result.indexOf(",");
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function parseCsvLine(line) {
+  const result = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (char === "\"") {
+      if (inQuotes && line[i + 1] === "\"") {
+        current += "\"";
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if (char === "," && !inQuotes) {
+      result.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function parseCsvToObjects(text) {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  if (!lines.length) return [];
+  const headers = parseCsvLine(lines[0]).map((h) => h.trim());
+  return lines.slice(1).map((line) => {
+    const values = parseCsvLine(line);
+    const obj = {};
+    headers.forEach((header, idx) => {
+      if (!header) return;
+      obj[header] = values[idx] ?? "";
+    });
+    return obj;
+  });
+}
 
 
 
@@ -25,22 +98,119 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
   const caseIdInput = document.getElementById("case-id-input");
+  const boardEl = document.querySelector(".board");
+  const leftColumn = document.querySelector(".column[data-column='left']");
+  const workspaceColumn = document.querySelector(".column[data-column='workspace']");
+  const aiColumn = document.querySelector(".column[data-column='ai']");
   const createBtn = document.getElementById("create-incident-btn");
   const loadBtn = document.getElementById("load-incident-btn");
 
+  const searchInput = document.getElementById("search_input");
+  const runCaseSearchBtn = document.getElementById("run_case_search_btn");
+  const caseSearchResults = document.getElementById("case_search_results");
+  const docBulkImportBtn = document.getElementById("doc_bulk_import_btn");
+  const docBulkImportInput = document.getElementById("doc_bulk_import_input");
+  const docBulkImportList = document.getElementById("doc_bulk_import_list");
+
+  const knowledgeUploadBtn = document.getElementById("knowledge_upload_btn");
+  const knowledgeUploadInput = document.getElementById("knowledge_upload_input");
+  const knowledgeUploadList = document.getElementById("knowledge_upload_list");
+
+  const aiResponseOutput = document.getElementById("ai_response_output");
+  const aiQuestionInput = document.getElementById("ai_question_input");
+  const aiSendBtn = document.getElementById("ai_send_btn");
+  const aiClearBtn = document.getElementById("ai_clear_btn");
+
+  // Clear inline input error as soon as the user starts typing
+  if (aiQuestionInput) {
+    aiQuestionInput.addEventListener("input", () => {
+      const errorEl = document.getElementById("ai_input_error");
+      if (errorEl) errorEl.textContent = "";
+    });
+  }
+
+  const navButtons = document.querySelectorAll(".d-state-btn");
+  const phaseCards = document.querySelectorAll(".phase-card[data-phase]");
+
   const actionButtons = document.querySelectorAll(
-    "[data-action='upload-evidence'], [data-action='run-agent'], .add-row-btn"
+    "[data-action='upload-evidence'], .add-row-btn, .confirm-phase-btn"
   );
 
-  const editFields = document.querySelectorAll(
-    ".column:not(.col-d0) input, .column:not(.col-d0) textarea"
-  );
+  const editFields = Array.from(
+    document.querySelectorAll("[data-json-path]")
+  ).filter((el) => el.id !== "case-id-input");
 
-  const incidentIdRegex = /^INC-\d{8}-\d{4}$/;
+  const incidentIdRegex = /^[A-Za-z]{3,4}-\d{8}-\d{4}$/i;
 
   const uploadBtn = document.getElementById("upload-evidence-btn");
   const fileInput = document.getElementById("evidence-file-input");
   const uploadStatus = document.getElementById("upload-status");
+
+  let evidenceMetadata = [];
+
+  let currentFocus = "workspace";
+  let currentExpanded = null; // key of the currently expanded panel, or null
+
+  const focusMap = {
+    workspace: { column: workspaceColumn, boardClass: "focus-workspace" },
+    ai: { column: aiColumn, boardClass: "focus-ai" },
+    documents: { column: leftColumn, boardClass: null },
+    default: { column: null, boardClass: null }
+  };
+
+  function setColumnFocus(mode) {
+    if (!boardEl) return;
+    const target = focusMap[mode] ? mode : "default";
+    if (currentFocus === target) return;
+    currentFocus = target;
+
+    boardEl.classList.remove("focus-workspace", "focus-ai");
+    leftColumn?.classList.remove("is-focused");
+    workspaceColumn?.classList.remove("is-focused");
+    aiColumn?.classList.remove("is-focused");
+
+    const next = focusMap[target];
+    if (next?.boardClass) {
+      boardEl.classList.add(next.boardClass);
+    }
+    if (next?.column) {
+      next.column.classList.add("is-focused");
+    }
+  }
+
+  // ── Click-to-expand panel behaviour ─────────────────────────────────────
+  // Clicking a panel title expands that panel (4fr) and collapses others (1fr).
+  // Clicking the same title again returns all panels to equal width.
+  const expandMap = {
+    left: { column: leftColumn, boardClass: "panel-expanded-left" },
+    workspace: { column: workspaceColumn, boardClass: "panel-expanded-workspace" },
+    ai: { column: aiColumn, boardClass: "panel-expanded-ai" },
+  };
+
+  function togglePanelExpand(mode) {
+    if (!boardEl) return;
+    const entry = expandMap[mode];
+    if (!entry) return;
+
+    // Toggle off: clicking the already-active title restores equal widths.
+    if (currentExpanded === mode) {
+      boardEl.classList.remove(entry.boardClass);
+      entry.column?.classList.remove("panel--active");
+      currentExpanded = null;
+      return;
+    }
+
+    // Collapse any previously expanded panel.
+    if (currentExpanded && expandMap[currentExpanded]) {
+      boardEl.classList.remove(expandMap[currentExpanded].boardClass);
+      expandMap[currentExpanded].column?.classList.remove("panel--active");
+    }
+
+    // Expand the clicked panel.
+    currentExpanded = mode;
+    boardEl.classList.add(entry.boardClass);
+    entry.column?.classList.add("panel--active");
+  }
 
 
   // --- Safety check
@@ -55,9 +225,16 @@ document.addEventListener("DOMContentLoaded", () => {
   actionButtons.forEach(btn => btn.disabled = true);
   editFields.forEach(el => el.disabled = true);
 
+  setColumnFocus("workspace");
+
+  // Load knowledge document library on page start.
+  refreshKnowledgeList();
+
   Object.keys(PHASE_META).forEach((phase) => {
     setPhaseStatus(phase, "not_started");
   });
+
+  setActivePhaseFromCase();
 
   // --- Case ID typing
   caseIdInput.addEventListener("input", () => {
@@ -67,7 +244,280 @@ document.addEventListener("DOMContentLoaded", () => {
     // Enable Create Incident when ID is valid
     createBtn.disabled = !isValid;
     if (loadBtn) loadBtn.disabled = !isValid;
+    updateCaseIdAttention();
   });
+
+  caseIdInput.addEventListener("focus", () => updateCaseIdAttention());
+  caseIdInput.addEventListener("blur", () => updateCaseIdAttention());
+  caseIdInput.addEventListener("change", () => updateCaseIdAttention());
+
+  updateCaseIdAttention();
+
+  workspaceColumn?.addEventListener("click", () => {
+    setColumnFocus("workspace");
+  });
+
+  workspaceColumn?.addEventListener("focusin", () => {
+    setColumnFocus("workspace");
+  });
+
+  workspaceColumn?.querySelector(".header")?.addEventListener("click", (e) => {
+    e.stopPropagation(); // prevent column body listener from also firing
+    togglePanelExpand("workspace");
+  });
+
+  leftColumn?.addEventListener("click", () => {
+    setColumnFocus("documents");
+  });
+
+  leftColumn?.addEventListener("focusin", () => {
+    setColumnFocus("documents");
+  });
+
+  leftColumn?.querySelector(".header")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    togglePanelExpand("left");
+  });
+
+  aiColumn?.addEventListener("click", () => {
+    setColumnFocus("ai");
+  });
+
+  aiColumn?.addEventListener("focusin", () => {
+    setColumnFocus("ai");
+  });
+
+  aiColumn?.querySelector(".header")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    togglePanelExpand("ai");
+  });
+
+  async function runCaseSearch() {
+    if (!searchInput || !caseSearchResults) return;
+    const query = searchInput.value.trim();
+
+    if (!query) {
+      caseSearchResults.innerHTML = "<div class='muted empty-state'>Enter a search query to run case search.</div>";
+      return;
+    }
+
+    const isCaseId = /^[A-Za-z]{3,4}-\d{8}-\d{4}$/i.test(query);
+    caseSearchResults.innerHTML = "<div class='muted empty-state'>Searching cases...</div>";
+
+    try {
+      const res = await fetch(`${API_BASE}/cases/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: query,
+          search_type: isCaseId ? "case_id" : "text",
+          limit: 10
+        })
+      });
+
+      if (!res.ok) {
+        let detail = "";
+        try { const err = await res.json(); detail = err?.detail || ""; } catch (_) { }
+        console.error("[Search] error", res.status, detail);
+        caseSearchResults.innerHTML = `<div class='error'>Search failed (${res.status})${detail ? ": " + detail : "."}</div>`;
+        return;
+      }
+
+      const data = await res.json();
+      renderCaseSearchResults(data);
+    } catch (err) {
+      console.error("[Search] fetch error", err);
+      caseSearchResults.innerHTML = "<div class='error'>Could not reach the search endpoint.</div>";
+    }
+  }
+
+  runCaseSearchBtn?.addEventListener("click", runCaseSearch);
+
+  searchInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") runCaseSearch();
+  });
+
+  docBulkImportBtn?.addEventListener("click", () => {
+    docBulkImportInput?.click();
+  });
+
+  docBulkImportInput?.addEventListener("change", () => {
+    const files = Array.from(docBulkImportInput.files || []);
+    if (!files.length || !docBulkImportList) return;
+
+    if (docBulkImportList.querySelector(".muted")) {
+      docBulkImportList.innerHTML = "";
+    }
+
+    files.forEach((file) => {
+      const row = document.createElement("div");
+      row.className = "doc-row";
+
+      const nameEl = document.createElement("div");
+      nameEl.textContent = file.name;
+
+      const metaEl = document.createElement("div");
+      metaEl.className = "doc-meta";
+      metaEl.textContent = new Date().toLocaleString();
+
+      const statusEl = document.createElement("div");
+      statusEl.className = "status-badge status-pending";
+      statusEl.textContent = "Pending";
+
+      row.appendChild(nameEl);
+      row.appendChild(metaEl);
+      row.appendChild(statusEl);
+
+      docBulkImportList.appendChild(row);
+    });
+  });
+
+  knowledgeUploadBtn?.addEventListener("click", () => {
+    knowledgeUploadInput?.click();
+  });
+
+  // ------------------------------------------------------------------
+  // Knowledge document library
+  // ------------------------------------------------------------------
+
+  async function refreshKnowledgeList() {
+    console.log("[KB] refreshKnowledgeList called");
+    const listEl = document.getElementById("knowledge_upload_list");
+    if (!listEl) return;
+    try {
+      const res = await fetch(`${API_BASE}/knowledge`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const docs = data.documents || [];
+
+      if (!docs.length) {
+        listEl.innerHTML = `<div class="muted empty-state">No knowledge documents uploaded yet.</div>`;
+        return;
+      }
+
+      listEl.innerHTML = "";
+      docs.forEach((doc) => {
+        const row = document.createElement("div");
+        row.className = "kb-doc-row";
+
+        // File icon + truncated name
+        const nameEl = document.createElement("div");
+        nameEl.className = "kb-doc-name";
+        const rawName = doc.title || doc.doc_id || "";
+        const displayName = rawName.length > 30 ? rawName.slice(0, 29) + "\u2026" : rawName;
+        nameEl.title = rawName;
+        nameEl.innerHTML = `<span class="kb-file-icon">📄</span>${displayName}`;
+
+        // Date
+        const dateEl = document.createElement("div");
+        dateEl.className = "kb-doc-date";
+        try {
+          dateEl.textContent = new Date(doc.created_at).toLocaleDateString();
+        } catch { dateEl.textContent = ""; }
+
+        // Status badge
+        const badgeEl = document.createElement("span");
+        badgeEl.className = doc.status === "no_text"
+          ? "kb-status-badge kb-status-no-text"
+          : "kb-status-badge kb-status-indexed";
+        badgeEl.textContent = doc.status === "no_text" ? "No text" : "Indexed";
+
+        // Trash button
+        const trashBtn = document.createElement("button");
+        trashBtn.className = "kb-trash-btn";
+        trashBtn.title = "Delete document";
+        trashBtn.textContent = "\uD83D\uDDD1";
+        trashBtn.addEventListener("click", async () => {
+          const name = doc.title || doc.doc_id;
+          if (!confirm(`Delete "${name}"?`)) return;
+          try {
+            const delRes = await fetch(`${API_BASE}/knowledge/${encodeURIComponent(doc.doc_id)}`, { method: "DELETE" });
+            if (!delRes.ok) throw new Error(`HTTP ${delRes.status}`);
+            await refreshKnowledgeList();
+          } catch (err) {
+            alert(`Delete failed: ${err.message}`);
+          }
+        });
+
+        // Right-aligned controls container
+        const controlsEl = document.createElement("div");
+        controlsEl.className = "kb-doc-controls";
+        controlsEl.appendChild(badgeEl);
+        controlsEl.appendChild(trashBtn);
+
+        row.appendChild(nameEl);
+        row.appendChild(dateEl);
+        row.appendChild(controlsEl);
+        listEl.appendChild(row);
+      });
+    } catch (err) {
+      console.warn("[KNOWLEDGE] refreshKnowledgeList error", err);
+    }
+  }
+
+  // Show an "Uploading..." placeholder while files are in flight.
+  // The real upload is handled by uploadKnowledgeDocuments() which then
+  // calls refreshKnowledgeList() when done.
+  knowledgeUploadInput?.addEventListener("change", () => {
+    const files = Array.from(knowledgeUploadInput.files || []);
+    if (!files.length || !knowledgeUploadList) return;
+    knowledgeUploadList.innerHTML = files
+      .map((f) => `<div class="kb-doc-row kb-uploading">
+        <div class="kb-doc-name"><span class="kb-file-icon">📄</span>${f.name}</div>
+        <div class="kb-doc-date"></div>
+        <div class="kb-doc-controls"><span class="kb-status-badge">Uploading…</span></div>
+      </div>`)
+      .join("");
+  });
+
+  navButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const dState = btn.dataset.dState;
+      if (!dState) return;
+      setActivePhase(dState);
+    });
+  });
+
+  document.addEventListener("keydown", async (event) => {
+    const inputEl = document.getElementById("ai_question_input");
+    if (event.target !== inputEl) return;
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    await submitAiQuestion();
+  });
+
+  if (aiSendBtn) {
+    aiSendBtn.addEventListener("click", submitAiQuestion);
+  }
+
+  if (aiClearBtn) {
+    aiClearBtn.addEventListener("click", (e) => {
+      // Stop the click from propagating to the column header (which toggles column expand)
+      e.stopPropagation();
+      clearAiConversation();
+    });
+  }
+
+  // ── Suggestion chip click delegation ─────────────────────────────────
+  if (aiResponseOutput) {
+    aiResponseOutput.addEventListener("click", (e) => {
+      const chip = e.target.closest(".ai-suggestion-chip");
+      if (!chip) return;
+      const input = document.getElementById("ai_question_input");
+      if (input) {
+        input.value = chip.dataset.question || chip.textContent.replace(/\s+/g, ' ').trim();
+        input.focus();
+        if (chip.closest(".ai-suggestions-bar")) {
+          input.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+        // Set activeNodeOverride from the welcome-screen section, if present
+        const section = chip.closest(".ai-welcome-section[data-node]");
+        if (section) {
+          activeNodeOverride = section.dataset.node || null;
+        }
+      }
+    });
+  }
 
   const evidenceListEl = document.getElementById("evidence-list");
 
@@ -91,11 +541,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const data = await res.json();
       const files = Array.isArray(data?.evidence) ? data.evidence : [];
-
-
+      evidenceMetadata = files.map((file) => ({
+        filename: file.file_name || file.filename || "",
+        size_bytes: file.size_bytes || 0,
+        content_type: file.content_type || ""
+      }));
 
       if (!files.length) {
-        evidenceListEl.innerHTML = "<em>No evidence uploaded</em>";
+        evidenceListEl.innerHTML = "<div class='muted empty-state'>No evidence uploaded</div>";
         return;
       }
 
@@ -105,8 +558,9 @@ document.addEventListener("DOMContentLoaded", () => {
         row.className = "evidence-row";
 
         const fileNameEl = document.createElement("a");
-        fileNameEl.textContent = f.filename || "(unnamed)";
-        fileNameEl.href = `${API_BASE}/cases/${encodeURIComponent(caseId)}/evidence/${encodeURIComponent(f.filename)}`;
+        const filename = f.file_name || f.filename || "";
+        fileNameEl.textContent = filename || "(unnamed)";
+        fileNameEl.href = `${API_BASE}/cases/${encodeURIComponent(caseId)}/evidence/${encodeURIComponent(filename)}`;
         fileNameEl.target = "_blank";
         fileNameEl.rel = "noopener noreferrer";
         fileNameEl.className = "evidence-link";
@@ -145,10 +599,16 @@ document.addEventListener("DOMContentLoaded", () => {
     createBtn.disabled = true;
 
     try {
-      const response = await fetch(`${API_BASE}/cases/`, {
+      const response = await fetch(`${API_BASE}/entry/case`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ case_number: incidentId })
+        body: JSON.stringify(
+          buildEntryEnvelope("CREATE_CASE", null, {
+            case_id: incidentId,
+            case_status: "open",
+            opened_at: nowIsoDate()
+          })
+        )
       });
 
       if (!response.ok) {
@@ -163,7 +623,9 @@ document.addEventListener("DOMContentLoaded", () => {
       editFields.forEach(el => el.disabled = false);
       actionButtons.forEach(btn => btn.disabled = false);
 
-      setByPath(caseState, "case.case_number", incidentId);
+      const nextState = buildEmptyCaseState(incidentId);
+      hydrateCase(nextState);
+      updateCaseIdAttention();
 
       loadEvidence(incidentId);
 
@@ -185,22 +647,8 @@ document.addEventListener("DOMContentLoaded", () => {
     loadBtn.disabled = true;
 
     try {
-      const response = await fetch(`${API_BASE}/cases/${encodeURIComponent(incidentId)}`);
-      if (!response.ok) {
-        alert("Case not found");
-        loadBtn.disabled = false;
-        return;
-      }
-
-      const caseDoc = await response.json();
-      hydrateCase(caseDoc);
-      caseIdInput.disabled = true;
-      editFields.forEach(el => el.disabled = false);
-      actionButtons.forEach(btn => btn.disabled = false);
-
-      loadEvidence(incidentId);
-    } catch (err) {
-      alert("Backend not reachable");
+      await loadCaseById(incidentId);
+    } finally {
       loadBtn.disabled = false;
     }
   });
@@ -227,16 +675,25 @@ document.addEventListener("DOMContentLoaded", () => {
     if (uploadBtn) uploadBtn.disabled = true;
     if (uploadStatus) uploadStatus.textContent = "Uploading files...";
 
-    const formData = new FormData();
-    files.forEach((f) => formData.append("files", f));
-
     try {
       const xhr = new XMLHttpRequest();
 
-      xhr.open(
-        "POST",
-        `${API_BASE}/cases/${encodeURIComponent(caseId)}/evidence`
+      const encodedFiles = [];
+      for (const f of files) {
+        const data_base64 = await readFileAsBase64(f);
+        encodedFiles.push({
+          filename: f.name,
+          content_type: f.type || "application/octet-stream",
+          data_base64
+        });
+      }
+
+      const body = JSON.stringify(
+        buildEntryEnvelope("UPLOAD_EVIDENCE", caseId, { files: encodedFiles })
       );
+
+      xhr.open("POST", `${API_BASE}/entry/case`);
+      xhr.setRequestHeader("Content-Type", "application/json");
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable && uploadStatus) {
@@ -262,7 +719,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (uploadBtn) uploadBtn.disabled = false;
       };
 
-      xhr.send(formData);
+      xhr.send(body);
     } catch (err) {
       if (uploadStatus) uploadStatus.textContent = "Unexpected upload error";
       if (uploadBtn) uploadBtn.disabled = false;
@@ -273,24 +730,37 @@ document.addEventListener("DOMContentLoaded", () => {
   const confirmButtons = document.querySelectorAll(".confirm-phase-btn");
   confirmButtons.forEach((btn) => {
     btn.addEventListener("click", async () => {
+      if (caseState?.case_status === "closed") return;
       const phase = btn.dataset.phase;
       if (!phase) return;
-      await flushSave();
-      const header = ensurePhaseHeader(phase);
-      header.completed = true;
-      header.status = "confirmed";
-      header.confirmed_at = nowIso();
-      header.last_updated = nowIso();
-      setPhaseStatus(phase, header.status);
+      if (phase === "D8") {
+        const closureDate = caseState?.d_states?.D8?.closure_date || null;
+        if (!closureDate) {
+          alert("Set a closure date before confirming Closure & Learnings.");
+          return;
+        }
+      }
 
-      const patch = buildHeaderPatch(phase, {
-        completed: header.completed,
-        status: header.status,
-        confirmed_at: header.confirmed_at,
-        last_updated: header.last_updated
-      });
+      const dState = ensureDState(phase);
+      dState.status = "completed";
+      setPhaseStatus(phase, dState.status);
 
-      await savePatchImmediately(patch);
+      if (phase === "D8") {
+        const closureDate = caseState?.d_states?.D8?.closure_date || null;
+        const statusValue = "closed";
+        setByPath(caseState, "closed_at", closureDate || null);
+        setByPath(caseState, "case_status", statusValue);
+        updateIncidentOverviewClosure(closureDate || "");
+        updateIncidentOverviewStatus(statusValue);
+        applyClosedState(Boolean(statusValue === "closed"));
+      }
+
+      clearPendingSave();
+      if (phase === "D8") {
+        await sendCaseClosureEnvelope();
+      } else {
+        await sendFullEnvelope("UPDATE_CASE");
+      }
     });
   });
 
@@ -304,8 +774,818 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // -------- helpers --------
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function simpleMarkdown(text) {
+    if (typeof text !== "string") return String(text);
+    return text
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>")
+      .replace(/^#{1,3}\s(.+)$/gm, "<h4>$1</h4>")
+      .replace(/^[•\-]\s(.+)$/gm, "<li>$1</li>")
+      .replace(/(<li>[\s\S]*?<\/li>)/g, "<ul>$1</ul>")
+      .replace(/\n\n/g, "</p><p>")
+      .replace(/\n/g, "<br>")
+      .replace(/^(?!<)/, "<p>")
+      .replace(/(?<!>)$/, "</p>");
+  }
+
+  function setAiResponse(message, isError) {
+    if (!aiResponseOutput) return;
+    // Only overwrite when the conversation history is empty (no exchanges yet).
+    // Once the user has exchanges, validation messages must not wipe them.
+    const hasHistory = aiResponseOutput.querySelector(".ai-exchange") !== null;
+    if (hasHistory) return;
+    aiResponseOutput.innerHTML = simpleMarkdown(message);
+    aiResponseOutput.classList.toggle("error", Boolean(isError));
+  }
+
+  const SEND_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <line x1="22" y1="2" x2="11" y2="13"></line>
+    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+  </svg>`;
+
+  const SPINNER_SVG = `<svg class="ai-spinner" viewBox="0 0 24 24" fill="none" stroke="white"
+    stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" stroke-dasharray="30" stroke-dashoffset="10"/>
+  </svg>`;
+
+  function setAiLoading(isLoading) {
+    if (!aiSendBtn) return;
+    aiSendBtn.disabled = isLoading;
+    aiSendBtn.innerHTML = isLoading ? SPINNER_SVG : SEND_ICON_SVG;
+  }
+
+  // ── Bug 1 + Bug 2: append a question+answer exchange block ─────────
+  function appendAiExchange(question, caseId, bodyHtml, isError, suggestions, nodeType) {
+    if (!aiResponseOutput) return;
+    suggestions = Array.isArray(suggestions) ? suggestions : [];
+    // Remove empty state if present
+    const emptyState = aiResponseOutput.querySelector(".ai-empty-state");
+    if (emptyState) emptyState.remove();
+    // Clear any plain validation-error text left behind (no .ai-exchange children)
+    if (!aiResponseOutput.querySelector(".ai-exchange")) {
+      aiResponseOutput.innerHTML = "";
+    }
+    aiResponseOutput.classList.remove("error");
+
+    const caseLabel = (caseId && String(caseId).trim()) ? escapeHtml(caseId) : "No case loaded";
+    const isStrategy = nodeType === "strategy";
+
+    const teamSuggestions = suggestions.filter((s) => s.type === "team");
+    const coSolveSuggestions = suggestions.filter((s) => s.type === "cosolve");
+    const coSolveChipClass = isStrategy
+      ? "ai-suggestion-chip ai-chip-cosolve strategy-chip"
+      : "ai-suggestion-chip ai-chip-cosolve";
+    const suggestionsBarHtml = suggestions.length > 0 ? (
+      `<div class="ai-suggestions-bar">` +
+      `<div class="ai-suggestions-label">Explore next:</div>` +
+      `<div class="ai-suggestions-chips">` +
+      (teamSuggestions.length > 0 ?
+        `<div class="ai-suggestions-group">` +
+        `<span class="ai-suggestions-group-label">Ask your team:</span>` +
+        teamSuggestions.map((s) =>
+          `<div class="ai-suggestion-chip ai-chip-team" data-question="${escapeHtml(s.question)}">${escapeHtml(s.label)}</div>`
+        ).join("") +
+        `</div>`
+        : "") +
+      (coSolveSuggestions.length > 0 ?
+        `<div class="ai-suggestions-group">` +
+        `<span class="ai-suggestions-group-label">Ask CoSolve:</span>` +
+        coSolveSuggestions.map((s) =>
+          `<div class="${coSolveChipClass}" data-question="${escapeHtml(s.question)}">${escapeHtml(s.label)}</div>`
+        ).join("") +
+        `</div>`
+        : "") +
+      `</div>` +
+      `</div>`
+    ) : "";
+
+    const exchange = document.createElement("div");
+    exchange.className = "ai-exchange";
+    exchange.innerHTML =
+      `<div class="ai-question-header">` +
+      `<span class="ai-case-ref">Case: ${caseLabel}</span>` +
+      `<span class="ai-question-text">${escapeHtml(question)}</span>` +
+      `</div>` +
+      `<div class="ai-answer-body${isError ? " error" : ""}">${bodyHtml}</div>` +
+      suggestionsBarHtml;
+    aiResponseOutput.appendChild(exchange);
+    exchange.scrollIntoView({ behavior: "smooth", block: "end" });
+  }
+
+  const AI_WELCOME_HTML =
+    `<div class="ai-empty-state">` +
+    `<div class="ai-welcome">` +
+    `<div class="ai-welcome-title">Welcome to CoSolve AI Reasoning</div>` +
+    `<div class="ai-welcome-subtitle">Collaborative problem solving, powered by AI</div>` +
+    `<div class="ai-welcome-section">` +
+    `<div class="ai-welcome-section-label">WORKING ON AN ACTIVE PROBLEM?</div>` +
+    `<div class="ai-welcome-section-hint">Load a case from the left panel first, then try:</div>` +
+    `<div class="ai-welcome-suggestions">` +
+    `<div class="ai-suggestion-chip">What should we focus on right now?</div>` +
+    `<div class="ai-suggestion-chip">Are there any gaps we might have missed?</div>` +
+    `<div class="ai-suggestion-chip">What should we prepare for the next step?</div>` +
+    `</div>` +
+    `</div>` +
+    `<div class="ai-welcome-section">` +
+    `<div class="ai-welcome-section-label">HAS THIS HAPPENED BEFORE?</div>` +
+    `<div class="ai-welcome-section-hint">Search across all closed cases in the knowledge base:</div>` +
+    `<div class="ai-welcome-suggestions">` +
+    `<div class="ai-suggestion-chip">Find similar incidents involving bearing failures</div>` +
+    `<div class="ai-suggestion-chip">Have we seen software faults on this fleet before?</div>` +
+    `</div>` +
+    `</div>` +
+    `<div class="ai-welcome-section">` +
+    `<div class="ai-welcome-section-label">LOOKING AT THE BIGGER PICTURE?</div>` +
+    `<div class="ai-welcome-section-hint">Ask about recurring patterns or performance trends across the fleet:</div>` +
+    `<div class="ai-welcome-suggestions">` +
+    `<div class="ai-suggestion-chip">What are the most recurring failure types we face?</div>` +
+    `<div class="ai-suggestion-chip">How are we trending on unplanned failures this year?</div>` +
+    `</div>` +
+    `</div>` +
+    `<div class="ai-welcome-section">` +
+    `<div class="ai-welcome-section-label">JUST DISCOVERED A NEW PROBLEM?</div>` +
+    `<div class="ai-welcome-section-hint">Not sure where to begin? Try:</div>` +
+    `<div class="ai-welcome-suggestions">` +
+    `<div class="ai-suggestion-chip">We just found a problem \u2014 what should we do first?</div>` +
+    `</div>` +
+    `</div>` +
+    `<div class="ai-welcome-hint">` +
+    `Load a case from the left panel to get case-specific guidance, ` +
+    `or ask any question directly to reason across the knowledge base.` +
+    `</div>` +
+    `</div>` +
+    `</div>`;
+
+  // ── Clear conversation (explicit user action only) ─────────────────
+  function clearAiConversation() {
+    if (!aiResponseOutput) return;
+    aiResponseOutput.innerHTML = AI_WELCOME_HTML;
+    aiResponseOutput.classList.remove("error");
+  }
+
+  // ── Dynamic AI suggestions for loaded case ─────────────────────────
+  async function generateCaseSuggestions(caseId, caseContext) {
+    // Only replace the welcome screen if no conversation has started yet
+    const welcome = aiResponseOutput ? aiResponseOutput.querySelector(".ai-welcome") : null;
+    if (!welcome) return;
+
+    const hint = welcome.querySelector(".ai-welcome-hint");
+    if (hint) hint.textContent = "Generating suggestions for this case...";
+
+    try {
+      const res = await fetch(`${API_BASE}/entry/suggestions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ case_id: caseId, case_context: caseContext })
+      });
+      if (!res.ok) return; // silently fall back to static chips
+      const data = await res.json();
+      const suggestions = data?.suggestions ?? [];
+      if (suggestions.length === 0) return;
+      renderDynamicChips(welcome, suggestions, caseId, caseContext);
+    } catch (e) {
+      // silent fallback — static chips remain, restore hint text
+      if (hint) {
+        hint.textContent =
+          "Load a case from the left panel to get case-specific guidance, " +
+          "or ask any question directly to reason across the knowledge base.";
+      }
+    }
+  }
+
+  function renderDynamicChips(welcome, suggestions, caseId, caseContext) {
+    const operational = suggestions.filter((_, i) => i < 2);
+    const similarity = suggestions.filter((_, i) => i >= 2 && i < 4);
+    const broader = suggestions.filter((_, i) => i >= 4);
+
+    function chipHtml(s) {
+      return (
+        `<div class="ai-suggestion-chip" data-question="${escapeHtml(s.question)}">` +
+        escapeHtml(s.label) +
+        `</div>`
+      );
+    }
+
+    welcome.innerHTML =
+      `<div class="ai-welcome-title">Case loaded: ${escapeHtml(caseId)}</div>` +
+      `<div class="ai-welcome-subtitle">Suggested questions based on this case</div>` +
+
+      `<div class="ai-welcome-section">` +
+      `<div class="ai-welcome-section-label">Current investigation</div>` +
+      `<div class="ai-welcome-section-hint">Questions about the active case state and next steps:</div>` +
+      `<div class="ai-welcome-suggestions">` +
+      operational.map(chipHtml).join("") +
+      `</div></div>` +
+
+      `<div class="ai-welcome-section">` +
+      `<div class="ai-welcome-section-label">Similar cases</div>` +
+      `<div class="ai-welcome-section-hint">Search the closed case knowledge base:</div>` +
+      `<div class="ai-welcome-suggestions">` +
+      similarity.map(chipHtml).join("") +
+      `</div></div>` +
+
+      `<div class="ai-welcome-section">` +
+      `<div class="ai-welcome-section-label">Broader view</div>` +
+      `<div class="ai-welcome-section-hint">Strategic patterns and performance trends:</div>` +
+      `<div class="ai-welcome-suggestions">` +
+      broader.map(chipHtml).join("") +
+      `</div></div>` +
+
+      `<div class="ai-welcome-hint">` +
+      `<button id="ai_refresh_suggestions" class="ai-refresh-btn">↻ Refresh suggestions</button>` +
+      `or type your own question below` +
+      `</div>`;
+
+    // Re-wire chip clicks (delegation lost after innerHTML replace)
+    welcome.addEventListener("click", (e) => {
+      const chip = e.target.closest(".ai-suggestion-chip");
+      if (chip) {
+        const input = document.getElementById("ai_question_input");
+        if (input) {
+          input.value = chip.dataset.question || chip.textContent.trim();
+          input.focus();
+        }
+      }
+      const refresh = e.target.closest("#ai_refresh_suggestions");
+      if (refresh) {
+        generateCaseSuggestions(caseId, caseContext);
+      }
+    });
+  }
+
+  function formatAiResponse(envelope) {
+    // Guard: envelope missing entirely
+    if (!envelope) return '<em>No response received.</em>';
+
+    // Guard: top-level error signalled by FastAPI wrapper
+    if (envelope.status === "error" || envelope.status === "failed") {
+      const errMsg = envelope?.data?.error
+        ?? envelope?.data?.message
+        ?? envelope?.message
+        ?? "An error occurred. Please try again.";
+      return `<p><strong>Error:</strong> ${errMsg}</p>`;
+    }
+
+    const payload = envelope?.data;
+    if (!payload) return '<em>No response data received.</em>';
+    if (payload.status === "usage") return `<p>${payload.message || "Provide a non-empty question."}</p>`;
+
+    const intent = payload.classification?.intent ?? "UNKNOWN";
+    const result = payload.result;
+
+    // DIAGNOSTIC — remove after validation confirms all 4 intents render correctly
+    console.group(`[AI Response] intent: ${intent}`);
+    console.log("full envelope:", envelope);
+    console.log("data:", payload);
+    console.log("result:", result);
+    console.log("result type:", typeof result);
+    if (result && typeof result === "object") {
+      console.log("result keys:", Object.keys(result));
+    }
+    console.groupEnd();
+
+    // Guard: result missing or empty
+    if (result === null || result === undefined) {
+      console.warn("[formatAiResponse] result is null/undefined. Full envelope:", envelope);
+      return "<em>The system returned a response but no answer content was found. Check the browser console for details.</em>";
+    }
+    if (typeof result === "object" && Object.keys(result).length === 0) {
+      return '<em>AI request completed with no content.</em>';
+    }
+
+    // Extract the main structured text per intent type.
+    // For OPERATIONAL_CASE the full LLM response is in current_state_recommendations.
+    // For all other intents it is in summary.
+    let mainText = "";
+    switch (intent) {
+      case "OPERATIONAL_CASE":
+        mainText = result?.current_state_recommendations ?? result?.current_state ?? result?.summary ?? "";
+        break;
+      case "SIMILARITY_SEARCH":
+        mainText = result?.summary ?? "";
+        break;
+      case "STRATEGY_ANALYSIS":
+        mainText = result?.summary ?? "";
+        break;
+      case "KPI_ANALYSIS":
+        mainText = result?.summary ?? "";
+        break;
+      default:
+        if (typeof result === "string") mainText = result;
+        else mainText = result?.summary ?? result?.answer ?? result?.result ?? JSON.stringify(result, null, 2);
+    }
+
+    return formatAiText(mainText);
+  }
+
+  function formatAiText(text) {
+    if (!text) return '<em>No response received.</em>';
+
+    // Define section labels and their display titles
+    const sections = [
+      { marker: '[SIMILAR CASES FOUND]', title: 'Similar Cases Found' },
+      { marker: '[PATTERNS ACROSS CASES]', title: 'Patterns Across Cases' },
+      { marker: '[WHAT THIS MEANS FOR YOUR INVESTIGATION]', title: 'What This Means For Your Investigation' },
+      { marker: '[SIMILAR CASES — CHECK FIRST]', title: 'Check If This Has Happened Before' },
+      { marker: '[IF THIS IS A NEW PROBLEM — HOW TO START]', title: 'How To Start' },
+      { marker: '[CURRENT STATE]', title: 'Current State' },
+      { marker: '[GAPS IN PREVIOUS STATES]', title: 'Gaps to Address' },
+      { marker: '[NEXT STATE PREVIEW]', title: 'Next Steps Preview' },
+      // Strategy-specific sections
+      { marker: '[SYSTEMIC PATTERNS IDENTIFIED]', title: 'Systemic Patterns Identified' },
+      { marker: '[ROOT CAUSE CATEGORIES]', title: 'Root Cause Categories' },
+      { marker: '[ORGANISATIONAL WEAKNESSES]', title: 'Organisational Weaknesses' },
+      { marker: '[GENERAL ADVICE]', title: null },  // render as callout, no header
+      { marker: '[WHAT TO EXPLORE NEXT]', title: null },  // rendered as chips only
+    ];
+
+    // Strip [WHAT TO EXPLORE NEXT] and everything after — chips handle that section
+    const exploreMarker = '[WHAT TO EXPLORE NEXT]';
+    const exploreIndex = text.indexOf(exploreMarker);
+    const mainText = exploreIndex > -1 ? text.substring(0, exploreIndex) : text;
+
+    // Build a regex that splits on any known marker
+    const allMarkers = sections
+      .filter((s) => s.marker !== exploreMarker)
+      .map((s) => s.marker.replace(/[\[\]]/g, '\\$&'))
+      .join('|');
+    const splitRegex = new RegExp(`(${allMarkers})`, 'g');
+
+    const parts = mainText.trim().split(splitRegex).filter((p) => p.trim());
+
+    let html = '';
+    let i = 0;
+    while (i < parts.length) {
+      const part = parts[i].trim();
+      const sectionDef = sections.find((s) => s.marker === part);
+
+      if (sectionDef) {
+        const content = (parts[i + 1] || '').trim();
+        i += 2;
+
+        if (sectionDef.marker === '[GENERAL ADVICE]') {
+          // Render general advice as an amber callout block
+          html += `<div class="ai-section-callout">${formatSectionContent(content)}</div>`;
+        } else if (sectionDef.title) {
+          // Render as a titled section
+          html +=
+            '<div class="ai-section">' +
+            `<div class="ai-section-title">${sectionDef.title}</div>` +
+            `<div class="ai-section-body">${formatSectionContent(content)}</div>` +
+            '</div>';
+        }
+      } else {
+        // Unlabelled text before first section — render as intro paragraph
+        if (part.length > 0) {
+          html += `<div class="ai-section-body">${formatSectionContent(part)}</div>`;
+        }
+        i++;
+      }
+    }
+
+    return html || '<em>No structured response received.</em>';
+  }
+
+  function formatSectionContent(text) {
+    if (!text) return '';
+
+    let html = text
+      // Convert bullet points (• or - at line start) to list items
+      .replace(/^[•\-]\s+(.+)$/gm, '<li>$1</li>')
+      // Convert numbered lines (1. 2. etc.) to list items
+      .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
+      // Wrap consecutive <li> elements in <ul>
+      .replace(/(<li>[\s\S]*?<\/li>(\s*<li>[\s\S]*?<\/li>)*)/g, '<ul>$1</ul>')
+      // Convert **bold** markdown
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      // Double newline → paragraph break
+      .replace(/\n\n+/g, '</p><p>')
+      // Single newline → <br>
+      .replace(/\n/g, '<br>')
+      // Wrap the whole thing in <p> tags
+      .replace(/^(.+)$/, '<p>$1</p>');
+
+    // Clean up artefacts
+    html = html.replace(/<p>\s*<\/p>/g, '');
+    html = html.replace(/<p>(<ul>)/g, '$1');
+    html = html.replace(/(<\/ul>)<\/p>/g, '$1');
+
+    return html;
+  }
+
+  function getCurrentState() {
+    const phases = ["D1_2", "D3", "D4", "D5", "D6", "D7", "D8"];
+    for (let i = phases.length - 1; i >= 0; i -= 1) {
+      const phase = phases[i];
+      const status = caseState?.d_states?.[phase]?.status;
+      if (status && status !== "not_started") return phase;
+    }
+    return "D1_2";
+  }
+
+  function buildCaseContext() {
+    const caseId = caseIdInput?.value.trim() || caseState?.case_id || "";
+    return {
+      case_id: caseId,
+      case_status: caseState?.case_status || "open",
+      opened_at: caseState?.opened_at || "",
+      closed_at: caseState?.closed_at || null,
+      d_states: caseState?.d_states || {}
+    };
+  }
+
+  function buildFullEnvelope() {
+    const base = buildCaseContext();
+    const phases = ["D1_2", "D3", "D4", "D5", "D6", "D7", "D8"];
+    const normalized = {};
+    phases.forEach((phase) => {
+      const dState = ensureDState(phase);
+      normalized[phase] = {
+        status: dState.status || "not_started",
+        data: dState.data || {},
+        closure_date: dState.closure_date ?? null
+      };
+    });
+    return {
+      case_id: base.case_id,
+      case_status: base.case_status,
+      opened_at: base.opened_at,
+      closed_at: base.closed_at,
+      d_states: normalized
+    };
+  }
+
+  function clearPendingSave() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = null;
+    pendingPatch = {};
+  }
+
+  async function sendFullEnvelope(entryMode) {
+    const caseId = caseState?.case_id || caseIdInput.value.trim();
+    if (!incidentIdRegex.test(caseId)) return;
+    const envelope = buildFullEnvelope();
+    try {
+      await fetch(`${API_BASE}/entry/case`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildEntryEnvelope(entryMode, caseId, envelope))
+      });
+    } catch (err) {
+      console.warn("Full envelope submit failed", err);
+    }
+  }
+
+  async function sendCaseClosureEnvelope() {
+    const caseId = caseState?.case_id || caseIdInput.value.trim();
+    if (!incidentIdRegex.test(caseId)) return;
+    const envelope = buildFullEnvelope();
+    try {
+      await fetch(`${API_BASE}/entry/case`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...buildEntryEnvelope("CLOSE_CASE", caseId, envelope),
+          event: "CASE_CLOSED"
+        })
+      });
+    } catch (err) {
+      console.warn("Case closure submit failed", err);
+    }
+  }
+
+  function collectKnowledgeReferences() {
+    const listEl = document.getElementById("knowledge_upload_list");
+    if (!listEl) return [];
+    const rows = Array.from(listEl.querySelectorAll(".doc-row"));
+    return rows
+      .map((row) => {
+        const filename = row.firstChild?.textContent?.trim() || "";
+        const uploadedAt = row.querySelector(".doc-meta")?.textContent?.trim() || "";
+        const status = row.querySelector(".evidence-link")?.textContent?.trim() || "";
+        return { filename, uploaded_at: uploadedAt, status };
+      })
+      .filter((ref) => ref.filename);
+  }
+
+  async function submitAiQuestion() {
+    const inputEl = document.getElementById("ai_question_input");
+    if (!inputEl || inputEl.disabled) return;
+    const question = inputEl.value.trim();
+    console.log("[AI] submitAiQuestion: question =", JSON.stringify(question));
+    const errorEl = document.getElementById("ai_input_error");
+    if (!question) {
+      if (errorEl) errorEl.textContent = "Please enter a question.";
+      return;
+    }
+    if (errorEl) errorEl.textContent = "";
+    await runAiQuestion(question);
+  }
+
+  function parseWhatToExploreNext(text) {
+    const suggestions = [];
+    const marker = "[WHAT TO EXPLORE NEXT]";
+    if (!text.includes(marker)) return suggestions;
+    const section = text.split(marker)[1] || "";
+    const lines = section.split("\n");
+    const emojiMap = {
+      "\u{1F50D}": { label: "Similar cases", type: "cosolve" },
+      "\u2699\uFE0F": { label: "Operational", type: "cosolve" },
+      "\u{1F4CA}": { label: "Strategic view", type: "cosolve" },
+      "\u{1F4C8}": { label: "KPI & trends", type: "cosolve" }
+    };
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // Strategy-style TEAM: / COSOLVE: prefix format
+      if (/^TEAM:/i.test(trimmed)) {
+        const q = trimmed.replace(/^TEAM:\s*/i, "").replace(/^"|"$/g, "");
+        if (q.length > 5) {
+          suggestions.push({
+            label: q.length > 40 ? q.substring(0, 40) + "..." : q,
+            question: q,
+            type: "team"
+          });
+        }
+        continue;
+      }
+      if (/^COSOLVE:/i.test(trimmed)) {
+        const q = trimmed.replace(/^COSOLVE:\s*/i, "").replace(/^"|"$/g, "");
+        if (q.length > 5) {
+          suggestions.push({
+            label: q.length > 40 ? q.substring(0, 40) + "..." : q,
+            question: q,
+            type: "cosolve"
+          });
+        }
+        continue;
+      }
+      // Team question bullets
+      if (trimmed.startsWith("\u2022") || trimmed.startsWith("-")) {
+        const q = trimmed.replace(/^[\u2022\-]\s*/, "").replace(/^"|"$/g, "");
+        if (q.length > 10) {
+          suggestions.push({
+            label: q.length > 40 ? q.substring(0, 40) + "..." : q,
+            question: q,
+            type: "team"
+          });
+        }
+      }
+      // CoSolve emoji questions
+      for (const [emoji, meta] of Object.entries(emojiMap)) {
+        if (trimmed.startsWith(emoji)) {
+          const parts = trimmed.split(":", 2);
+          if (parts[1]) {
+            const q = parts[1].trim().replace(/^"|"$/g, "");
+            if (q.length > 10) {
+              suggestions.push({ label: meta.label, question: q, type: meta.type });
+            }
+          }
+        }
+      }
+    }
+    return suggestions;
+  }
+
+  async function runAiQuestion(question) {
+    const caseContext = buildFullEnvelope();
+
+    // Capture identifiers now so they are always available in the exchange header
+    // case_id may be null when no case is loaded — backend handles this gracefully
+    const activeCaseId = caseContext.case_id || null;
+
+    const inputEl = document.getElementById("ai_question_input");
+    if (inputEl) inputEl.disabled = true;
+    setAiLoading(true);
+    // Bug 2 fix: do NOT overwrite history with a status string.
+    // The spinner on the send button already signals "in progress".
+
+    const payload = {
+      intent: "AI_REASONING",
+      case_id: activeCaseId,
+      payload: {
+        question,
+        case_context: caseContext,
+        evidence_metadata: evidenceMetadata,
+        knowledge_references: collectKnowledgeReferences(),
+        node_override: activeNodeOverride
+      }
+    };
+
+    try {
+      console.log("[UI_DEBUG] sending payload:", JSON.stringify(payload));
+      const res = await fetch(`${API_BASE}/entry/reasoning`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        let errText = "";
+        try { errText = await res.text(); } catch (_) { }
+        console.error("[AI] FastAPI error:", res.status, errText);
+        appendAiExchange(question, activeCaseId,
+          simpleMarkdown(`Server error ${res.status}${errText ? ": " + errText : "."}`), true);
+        return;
+      }
+
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        const rawText = await res.text();
+        appendAiExchange(question, activeCaseId,
+          simpleMarkdown(rawText || "AI request completed with no response."), false);
+        return;
+      }
+
+      const envelope = await res.json();
+      console.log("[AI] response envelope:", envelope);
+
+      // envelope = { intent, status, data: FinalResponsePayload }
+      const output = formatAiResponse(envelope);
+
+      // Determine node type for chip colouring
+      const responseIntent = envelope?.data?.classification?.intent ?? "";
+      const nodeType = responseIntent === "STRATEGY_ANALYSIS" ? "strategy" : "";
+
+      // Extract structured suggestions; fall back to text parsing
+      let suggestions = envelope?.data?.result?.suggestions ?? [];
+      if (!Array.isArray(suggestions) || suggestions.length === 0) {
+        const text = envelope?.data?.result?.current_state_recommendations ?? envelope?.data?.result?.summary ?? "";
+        suggestions = parseWhatToExploreNext(text);
+      }
+
+      appendAiExchange(question, activeCaseId, output, false, suggestions, nodeType);
+      activeNodeOverride = null; // reset after each response; next question goes through classifier
+    } catch (err) {
+      console.error("[AI] fetch error:", err);
+      appendAiExchange(question, activeCaseId,
+        simpleMarkdown("Could not reach the server. Check the console for details."), true);
+    } finally {
+      const inputElFinal = document.getElementById("ai_question_input");
+      if (inputElFinal) {
+        inputElFinal.value = "";
+        inputElFinal.disabled = false;
+      }
+      setAiLoading(false);
+    }
+  }
+
   function nowIso() {
     return new Date().toISOString();
+  }
+
+  function nowIsoDate() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function updateCaseIdAttention() {
+    if (!caseIdInput) return;
+    const isEmpty = caseIdInput.value.trim().length === 0;
+    caseIdInput.classList.toggle("case-id-attention", isEmpty);
+  }
+
+  function buildEmptyCaseState(caseId) {
+    return {
+      case_id: caseId,
+      case_status: "open",
+      opened_at: nowIsoDate(),
+      closed_at: null,
+      d_states: {
+        D1_2: { status: "not_started", closure_date: null, data: {} },
+        D3: { status: "not_started", closure_date: null, data: {} },
+        D4: { status: "not_started", closure_date: null, data: {} },
+        D5: { status: "not_started", closure_date: null, data: {} },
+        D6: { status: "not_started", closure_date: null, data: {} },
+        D7: { status: "not_started", closure_date: null, data: {} },
+        D8: { status: "not_started", closure_date: null, data: {} }
+      }
+    };
+  }
+
+  function applyClosedState(isClosed) {
+    const inputs = document.querySelectorAll(".phase-card input, .phase-card textarea");
+    inputs.forEach((el) => {
+      if (el.id === "case-id-input") return;
+      el.disabled = isClosed;
+    });
+
+    if (caseIdInput) caseIdInput.disabled = caseIdInput.disabled || isClosed;
+
+    const confirmBtns = document.querySelectorAll(".confirm-phase-btn");
+    confirmBtns.forEach((btn) => {
+      btn.disabled = isClosed;
+    });
+
+    const rowBtns = document.querySelectorAll(".add-row-btn");
+    rowBtns.forEach((btn) => {
+      btn.disabled = isClosed;
+    });
+
+    if (uploadBtn) uploadBtn.disabled = isClosed;
+    if (fileInput) fileInput.disabled = isClosed;
+    if (knowledgeUploadBtn) knowledgeUploadBtn.disabled = isClosed;
+    if (knowledgeUploadInput) knowledgeUploadInput.disabled = isClosed;
+    if (docBulkImportBtn) docBulkImportBtn.disabled = isClosed;
+    if (docBulkImportInput) docBulkImportInput.disabled = isClosed;
+  }
+
+  async function loadCaseById(caseId) {
+    if (!incidentIdRegex.test(caseId)) {
+      alert("Invalid Incident ID format.");
+      return;
+    }
+
+    caseIdInput.value = caseId;
+    updateCaseIdAttention();
+    if (createBtn) createBtn.disabled = true;
+
+    try {
+      const response = await fetch(`${API_BASE}/cases/${encodeURIComponent(caseId)}`);
+      if (!response.ok) {
+        alert("Case not found");
+        return;
+      }
+
+      const caseDoc = await response.json();
+      if (saveTimer) clearTimeout(saveTimer);
+      pendingPatch = {};
+
+      hydrateCase(caseDoc);
+      caseIdInput.disabled = true;
+      editFields.forEach(el => el.disabled = false);
+      actionButtons.forEach(btn => btn.disabled = false);
+
+      applyClosedState(Boolean(caseDoc?.case_status === "closed"));
+      loadEvidence(caseId);
+      generateCaseSuggestions(caseId, caseDoc);
+    } catch (err) {
+      alert("Backend not reachable");
+    }
+  }
+
+  // Expose for inline onclick handlers in search result cards
+  window.loadCaseById = loadCaseById;
+
+  function renderCaseSearchResults(payload) {
+    if (!caseSearchResults) return;
+
+    let results = [];
+    if (Array.isArray(payload)) {
+      results = payload;
+    } else if (Array.isArray(payload?.results)) {
+      results = payload.results;
+    } else if (Array.isArray(payload?.items)) {
+      results = payload.items;
+    } else if (Array.isArray(payload?.cases)) {
+      results = payload.cases;
+    }
+
+    if (!results.length) {
+      caseSearchResults.innerHTML = "<div class='muted empty-state'>No results found.</div>";
+      return;
+    }
+
+    caseSearchResults.innerHTML = results.map((c) => {
+      const id = c?.case_id ?? c?.case_number ?? (typeof c === "string" ? c : "");
+      const status = (c?.case_status ?? c?.status ?? "").toLowerCase();
+      const statusLabel = status || "unknown";
+      const title = c?.problem_description || c?.title || "No description";
+      const country = c?.country || c?.organization_country || "";
+      const site = c?.site || c?.organization_site || "";
+      const date = (c?.opening_date || "").slice(0, 10);
+      const summary = c?.summary || c?.ai_summary || "";
+      const locationStr = country
+        ? `<span>&#x1F4CD; ${country}${site ? " &middot; " + site : ""}</span>`
+        : "";
+      const dateStr = date ? `<span>&#x1F4C5; ${date}</span>` : "";
+
+      return `
+        <div class="case-result-card">
+          <div class="case-result-header">
+            <span class="case-id-tag">${id || "—"}</span>
+            <span class="case-status-badge status-${statusLabel}">${statusLabel}</span>
+          </div>
+          <div class="case-result-title">${title}</div>
+          ${locationStr || dateStr
+          ? `<div class="case-result-meta">${locationStr}${dateStr}</div>`
+          : ""}
+          ${summary
+          ? `<div class="case-result-summary">${summary}</div>`
+          : ""}
+          ${id
+          ? `<button class="open-case-btn" onclick="(async()=>{ await loadCaseById('${id}'); })()">Open Case &rarr;</button>`
+          : ""}
+        </div>`;
+    }).join("");
   }
 
   function bindJsonField(el) {
@@ -313,14 +1593,35 @@ document.addEventListener("DOMContentLoaded", () => {
     el.addEventListener(eventName, () => handleJsonFieldChange(el));
   }
 
+  /**
+   * Normalise a case document to the native d_states format before hydration.
+   * Mirrors operational_node.py _normalize_d_states():
+   *   Native:  doc.d_states  with key D1_2  (returned unchanged)
+   *   Phases:  doc.phases    with key D1_D2 (translated → d_states, D1_D2 → D1_2)
+   */
+  function normalizeCaseDoc(doc) {
+    if (doc.d_states && typeof doc.d_states === "object" && Object.keys(doc.d_states).length > 0) {
+      return doc; // already native format
+    }
+    if (doc.phases && typeof doc.phases === "object" && Object.keys(doc.phases).length > 0) {
+      const normalized = {};
+      Object.entries(doc.phases).forEach(([k, v]) => {
+        const normKey = k === "D1_D2" ? "D1_2" : k;
+        normalized[normKey] = v;
+      });
+      return { ...doc, d_states: normalized };
+    }
+    return doc;
+  }
+
   function hydrateCase(caseDoc) {
-    caseState = caseDoc || {};
+    caseState = normalizeCaseDoc(caseDoc || {});
 
     const dynamicArrays = [
-      { arrayPath: "phases.D4.data.actions", templateId: "d4-action-row" },
-      { arrayPath: "phases.D5.data.investigation_tasks", templateId: "d5-task-row" },
-      { arrayPath: "phases.D5.data.factors", templateId: "d5-factor-row" },
-      { arrayPath: "phases.D6.data.actions", templateId: "d6-action-row" }
+      { arrayPath: "d_states.D4.data.actions", templateId: "d4-action-row" },
+      { arrayPath: "d_states.D5.data.investigation_tasks", templateId: "d5-task-row" },
+      { arrayPath: "d_states.D5.data.factors", templateId: "d5-factor-row" },
+      { arrayPath: "d_states.D6.data.actions", templateId: "d6-action-row" }
     ];
 
     dynamicArrays.forEach(({ arrayPath, templateId }) => {
@@ -336,9 +1637,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     Object.keys(PHASE_META).forEach((phase) => {
-      const status = caseState?.phases?.[phase]?.header?.status || "not_started";
+      const status = caseState?.d_states?.[phase]?.status || "not_started";
       setPhaseStatus(phase, status);
     });
+
+    setActivePhaseFromCase();
+    applyClosedState(Boolean(caseState?.case_status === "closed"));
   }
 
   function setElementValue(el, value) {
@@ -354,12 +1658,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateIncidentOverviewClosure(value) {
-    const closureInput = document.querySelector('[data-json-path="case.closure_date"]');
+    const closureInput = document.querySelector('[data-json-path="closed_at"]');
     if (closureInput) closureInput.value = value || "";
   }
 
   function updateIncidentOverviewStatus(statusValue) {
-    const statusInput = document.querySelector('[data-json-path="case.status"]');
+    const statusInput = document.querySelector('[data-json-path="case_status"]');
     if (statusInput) statusInput.value = statusValue || "";
   }
 
@@ -368,39 +1672,85 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function setPhaseStatus(phase, status) {
-    const col = document.querySelector(`.column[data-phase="${phase}"]`);
-    if (!col) return;
-    col.dataset.status = status;
-    const statusEl = col.querySelector("[data-phase-status]");
+    const card = document.querySelector(`.phase-card[data-phase="${phase}"]`);
+    if (!card) return;
+    card.dataset.status = status;
+    const statusEl = card.querySelector("[data-phase-status]");
     if (statusEl) statusEl.textContent = formatStatus(status);
+    updateNavStatusForPhase(phase, status);
   }
 
-  function ensurePhaseHeader(phase) {
-    if (!caseState.phases) caseState.phases = {};
-    if (!caseState.phases[phase]) caseState.phases[phase] = {};
-    if (!caseState.phases[phase].header) {
-      caseState.phases[phase].header = {
-        name: PHASE_META[phase]?.name || phase,
-        discipline: PHASE_META[phase]?.discipline || phase,
-        completed: false,
-        last_updated: "",
-        confirmed_at: null,
-        status: "not_started"
+  function normalizePhaseKey(phaseKey) {
+    if (phaseKey === "D1" || phaseKey === "D2") return "D1_2";
+    return phaseKey;
+  }
+
+  function setActivePhase(dState) {
+    const phaseKey = normalizePhaseKey(dState);
+    phaseCards.forEach((card) => {
+      card.classList.toggle("is-active", card.dataset.phase === phaseKey);
+    });
+    navButtons.forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.dState === dState);
+    });
+  }
+
+  function setActivePhaseFromCase() {
+    const current = getCurrentState();
+    const normalized = normalizePhaseKey(current);
+    const defaultButton = normalized === "D1_2" ? "D1" : current;
+    setActivePhase(defaultButton);
+  }
+
+  function getStatusPresentation(status) {
+    if (status === "completed") return { label: "Completed", className: "status-completed" };
+    if (status === "in_progress") {
+      return { label: "In Progress", className: "status-in-progress" };
+    }
+    return { label: "Not Started", className: "status-not-started" };
+  }
+
+  function updateNavStatusForPhase(phase, status) {
+    const { label, className } = getStatusPresentation(status || "not_started");
+    const targets = phase === "D1_2" ? ["D1", "D2"] : [phase];
+    targets.forEach((dState) => {
+      const btn = document.querySelector(`.d-state-btn[data-d-state="${dState}"]`);
+      if (!btn) return;
+      const statusEl = btn.querySelector(".d-status");
+      if (!statusEl) return;
+      statusEl.textContent = label;
+      statusEl.classList.remove("status-not-started", "status-in-progress", "status-completed");
+      statusEl.classList.add(className);
+    });
+  }
+
+  function ensureDState(phase) {
+    if (!caseState.d_states) caseState.d_states = {};
+    if (!caseState.d_states[phase]) {
+      caseState.d_states[phase] = {
+        status: "not_started",
+        data: {},
+        closure_date: null
       };
     }
-    if (!caseState.phases[phase].header.status) {
-      caseState.phases[phase].header.status = "not_started";
+    if (!caseState.d_states[phase].status) {
+      caseState.d_states[phase].status = "not_started";
     }
-    if (caseState.phases[phase].header.completed === undefined) {
-      caseState.phases[phase].header.completed = false;
+    if (!caseState.d_states[phase].data) {
+      caseState.d_states[phase].data = {};
     }
-    return caseState.phases[phase].header;
+    if (caseState.d_states[phase].closure_date === undefined) {
+      caseState.d_states[phase].closure_date = null;
+    }
+    return caseState.d_states[phase];
   }
 
   function getPhaseFromPath(path) {
-    if (!path.startsWith("phases.")) return null;
-    const parts = path.split(".");
-    return parts[1] || null;
+    if (path.startsWith("d_states.")) {
+      const parts = path.split(".");
+      return parts[1] || null;
+    }
+    return null;
   }
 
   function handleJsonFieldChange(el) {
@@ -408,49 +1758,36 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!path) return;
     if (el.type === "file") return;
 
+    if (caseState?.case_status === "closed") return;
+
     const value = getElementValue(el);
     setByPath(caseState, path, value);
 
+    if (path === "case_id") return;
+
     const phase = getPhaseFromPath(path);
     let immediate = false;
-    let headerPatch = null;
+    let statePatch = null;
 
     if (phase) {
-      const header = ensurePhaseHeader(phase);
-      const prevStatus = header.status || "not_started";
-      header.last_updated = nowIso();
+      const dState = ensureDState(phase);
+      const prevStatus = dState.status || "not_started";
 
-      if (prevStatus === "not_started") {
-        header.status = "in_progress";
-      } else if (prevStatus === "confirmed") {
-        header.status = "reopened";
-        header.completed = false;
-        header.confirmed_at = null;
-        immediate = true;
+      if (prevStatus !== "in_progress") {
+        dState.status = "in_progress";
       }
 
-      setPhaseStatus(phase, header.status);
+      setPhaseStatus(phase, dState.status);
 
-      headerPatch = buildHeaderPatch(phase, {
-        status: header.status,
-        completed: header.completed,
-        confirmed_at: header.confirmed_at,
-        last_updated: header.last_updated
+      statePatch = buildDStatePatch(phase, {
+        status: dState.status
       });
     }
 
     let patch;
     let casePatch = null;
-    if (path === "phases.D8.data.closure_date") {
-      const statusValue = value ? "closed" : "open";
-      setByPath(caseState, "case.closure_date", value || null);
-      setByPath(caseState, "case.status", statusValue);
-      updateIncidentOverviewClosure(value || "");
-      updateIncidentOverviewStatus(statusValue);
-      casePatch = buildPatch("case", {
-        closure_date: value || null,
-        status: statusValue
-      });
+    if (path === "d_states.D8.closure_date") {
+      // closed_at is derived on D8 confirmation only
     }
     const tokens = parsePath(path);
     const lastIndexPos = tokens.reduce((pos, token, idx) => (typeof token === "number" ? idx : pos), -1);
@@ -471,8 +1808,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (casePatch) {
       patch = deepMerge(patch, casePatch);
     }
-    if (headerPatch) {
-      patch = deepMerge(patch, headerPatch);
+    if (statePatch) {
+      patch = deepMerge(patch, statePatch);
     }
 
     scheduleSave(patch, immediate);
@@ -639,12 +1976,10 @@ document.addEventListener("DOMContentLoaded", () => {
     return root;
   }
 
-  function buildHeaderPatch(phase, headerFields) {
+  function buildDStatePatch(phase, fields) {
     return {
-      phases: {
-        [phase]: {
-          header: headerFields
-        }
+      d_states: {
+        [phase]: fields
       }
     };
   }
@@ -679,7 +2014,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = null;
 
-    const caseId = caseIdInput.value.trim();
+    const caseId = caseState?.case_id || caseIdInput.value.trim();
     if (!incidentIdRegex.test(caseId)) return;
 
     const payload = pendingPatch;
@@ -690,23 +2025,189 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function savePatchImmediately(patch) {
-    const caseId = caseIdInput.value.trim();
+    const caseId = caseState?.case_id || caseIdInput.value.trim();
     if (!incidentIdRegex.test(caseId)) return;
     await patchCase(caseId, patch);
   }
 
   async function patchCase(caseId, patch) {
     try {
-      await fetch(`${API_BASE}/cases/${encodeURIComponent(caseId)}`, {
-        method: "PATCH",
+      await fetch(`${API_BASE}/entry/case`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch)
+        body: JSON.stringify(buildEntryEnvelope("UPDATE_CASE", caseId, patch))
       });
     } catch (err) {
       // Keep UI responsive even if save fails
       console.warn("Autosave failed", err);
     }
   }
+
+  async function uploadBulkClosedCases(files) {
+    const listEl = document.getElementById("doc_bulk_import_list");
+    if (!listEl) return;
+
+    const rows = Array.from(listEl.querySelectorAll(".doc-row"));
+    const byName = new Map();
+    rows.forEach((row) => {
+      const name = row.firstChild?.textContent || "";
+      const statusEl = row.querySelector(".status-badge");
+      if (name && statusEl) byName.set(name, statusEl);
+    });
+
+    const cases = [];
+    for (const f of files) {
+      const statusEl = byName.get(f.name);
+      if (statusEl) {
+        statusEl.textContent = "Uploading";
+        statusEl.className = "status-badge status-pending";
+      }
+      try {
+        const text = await f.text();
+        const lowerName = f.name.toLowerCase();
+
+        if (lowerName.endsWith(".csv")) {
+          const rows = parseCsvToObjects(text);
+          const validRows = rows.filter((row) => row?.case_id || row?.case_number);
+          if (!validRows.length) {
+            throw new Error("Missing case identifier in CSV");
+          }
+          validRows.forEach((row) => {
+            const inferredCaseId = row.case_id || row.case_number;
+            cases.push({
+              case_id: inferredCaseId,
+              case_doc: row,
+              filename: f.name
+            });
+          });
+        } else {
+          const doc = JSON.parse(text);
+          const inferredCaseId = doc?.case?.case_number || doc?.case_number || doc?.case_id;
+          if (!inferredCaseId) {
+            throw new Error("Missing case identifier in JSON");
+          }
+          cases.push({ case_id: inferredCaseId, case_doc: doc, filename: f.name });
+        }
+      } catch (e) {
+        if (statusEl) {
+          statusEl.textContent = "Failed";
+          statusEl.className = "status-badge status-failed";
+        }
+      }
+    }
+
+    if (!cases.length) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/entry/case`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildEntryEnvelope("UPDATE_CASE", null, { cases }))
+      });
+      const ok = res.ok;
+      cases.forEach((c) => {
+        const statusEl = byName.get(c.filename);
+        if (!statusEl) return;
+        statusEl.textContent = ok ? "Uploaded" : "Failed";
+        statusEl.className = ok
+          ? "status-badge status-success"
+          : "status-badge status-failed";
+      });
+    } catch (e) {
+      cases.forEach((c) => {
+        const statusEl = byName.get(c.filename);
+        if (!statusEl) return;
+        statusEl.textContent = "Failed";
+        statusEl.className = "status-badge status-failed";
+      });
+    }
+  }
+
+  async function uploadKnowledgeDocuments(files) {
+    const listEl = document.getElementById("knowledge_upload_list");
+    if (!listEl) return;
+
+    const rows = Array.from(listEl.querySelectorAll(".doc-row"));
+    const byName = new Map();
+    rows.forEach((row) => {
+      const name = row.firstChild?.textContent || "";
+      const linkEl = row.querySelector(".evidence-link");
+      if (name && linkEl) byName.set(name, linkEl);
+    });
+
+    const documents = [];
+    for (const f of files) {
+      const linkEl = byName.get(f.name);
+      if (linkEl) linkEl.textContent = "Uploading";
+      try {
+        const data_base64 = await readFileAsBase64(f);
+        documents.push({
+          filename: f.name,
+          content_type: f.type || "application/octet-stream",
+          data_base64
+        });
+      } catch (e) {
+        if (linkEl) linkEl.textContent = "Failed";
+      }
+    }
+
+    if (!documents.length) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/entry/case`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildEntryEnvelope("UPLOAD_KNOWLEDGE", null, { documents }))
+      });
+      const ok = res.ok;
+      documents.forEach((d) => {
+        const linkEl = byName.get(d.filename);
+        if (!linkEl) return;
+        linkEl.textContent = ok ? "Uploaded" : "Failed";
+      });
+      if (ok) {
+        // Wait briefly so Azure Search has time to commit the new document
+        // before we query the index — indexing is eventually consistent.
+        console.log("[KB] upload success, triggering refresh");
+        await new Promise((r) => setTimeout(r, 1500));
+        await refreshKnowledgeList();
+      }
+    } catch (e) {
+      documents.forEach((d) => {
+        const linkEl = byName.get(d.filename);
+        if (!linkEl) return;
+        linkEl.textContent = "Failed";
+      });
+    }
+  }
+
+  // Hook the two ingestion-only document actions into ENTRY.
+  docBulkImportInput?.addEventListener("change", async () => {
+    const files = Array.from(docBulkImportInput.files || []);
+    if (!files.length) return;
+    await uploadBulkClosedCases(files);
+  });
+
+  knowledgeUploadInput?.addEventListener("change", async () => {
+    const files = Array.from(knowledgeUploadInput.files || []);
+    if (!files.length) return;
+    await uploadKnowledgeDocuments(files);
+  });
+
+  // ── Collapsible left-panel sections ──────────────────────────────
+  // Clicking a .section-title inside .section-collapsible toggles its
+  // .section-body with a smooth max-height CSS transition.
+  (function initCollapsibles() {
+    const leftCol = document.querySelector(".column[data-column='left']");
+    if (!leftCol) return;
+    leftCol.querySelectorAll(".section-collapsible").forEach((section) => {
+      const title = section.querySelector(":scope > .section-title");
+      if (!title) return;
+      title.addEventListener("click", () => {
+        section.classList.toggle("is-collapsed");
+      });
+    });
+  })();
 
 });
 

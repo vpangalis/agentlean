@@ -3,407 +3,663 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Incident & Problem Management</title>
+    <title>CoSolve by Valuesims</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
 
+    <!-- BRANDING HEADER -->
+    <header class="app-header">
+        <div class="app-header-left">
+            <span class="app-header-logo">CoSolve</span>
+            <span class="app-header-by">by Valuesims</span>
+        </div>
+        <div class="app-header-center">Collaborative problem solving, powered by AI</div>
+        <div class="app-header-right">
+            <span class="app-header-dot">&#x25CF;</span>
+            <span class="app-header-status">System Ready</span>
+        </div>
+    </header>
+
     <div class="board">
 
-        <!-- D0 INCIDENT OVERVIEW -->
-        <div class="column col-d0">
-            <div class="header">Incident Overview & Evidence</div>
+        <!-- LEFT COLUMN: DOCUMENTS & SEARCH -->
+        <div class="column col-left" data-column="left">
+            <div class="header">Documents &amp; Search</div>
             <div class="content">
-
-                <label>Incident / Case ID</label>
-            <input id="case-id-input" placeholder="INC-YYYYMMDD-XXXX" data-json-path="case.case_number">
-                <small class="muted">
-                    Format: INC-YYYYMMDD-XXXX (e.g. INC-20260116-0001)
-                </small>
-                <button id="create-incident-btn" disabled>Create Incident</button>
-                <button id="load-incident-btn" disabled>Load Existing Case</button>
-                <small class="muted">
-                    This locks the Case ID and enables evidence upload and AI analysis.
-                </small>
-
-                <label>Status</label>
-                <input value="Open" data-json-path="case.status">
-
-                <label>Opening Date</label>
-                <input type="date" data-json-path="case.opening_date">
-
-                <label>Closure Date</label>
-                <input type="date" data-json-path="case.closure_date" readonly>
-
-                
-                <input id="evidence-file-input" type="file" multiple hidden data-json-path="evidence" />
-
-                <button id="upload-evidence-btn" data-action="upload-evidence" disabled>
-                    Upload Evidence
-                </button>
-
-                <div id="upload-status" class="muted"></div>
-
-
-                <div id="evidence-list" class="muted">No evidence uploaded yet.</div>
-            </div>
-            <div class="footer">Status updates automatically when any D1–D8 field is edited.
-            </div>
-        </div>
-
-        <!-- D1–D2 PROBLEM INITIATION -->
-        <div class="column col-d12" data-phase="D1_D2">
-            <div class="header"><span>Problem Initiation (D1–D2)</span><span class="phase-status" data-phase-status>not started</span></div>
-            <div class="content scroll-y">
-                <label>Problem Description</label>
-                <textarea data-json-path="phases.D1_D2.data.problem_description"></textarea>
-
-                <div class="two-col">
-                    <div>
-                        <label>Country</label>
-                        <input data-json-path="phases.D1_D2.data.organization.country">
-                    </div>
-                    <div>
-                        <label>Site / Location</label>
-                        <input data-json-path="phases.D1_D2.data.organization.site">
+                <div class="section section-collapsible">
+                    <div class="section-title">Evidence (Current Case)</div>
+                    <div class="section-body">
+                        <input id="evidence-file-input" type="file" multiple hidden />
+                        <button id="upload-evidence-btn" class="btn-standard btn-primary" data-action="upload-evidence"
+                            disabled>
+                            Upload Evidence
+                        </button>
+                        <div id="upload-status" class="muted"></div>
+                        <div id="evidence-list" class="muted empty-state">No evidence uploaded yet.</div>
                     </div>
                 </div>
 
-                <label>Department / Area</label>
-                <input data-json-path="phases.D1_D2.data.organization.department">
-
-                <label>Involved People / Teams</label>
-                <textarea data-json-path="phases.D1_D2.data.team_members" data-json-array="true"></textarea>
-            </div>
-            <div class="phase-actions">
-                <button class="confirm-phase-btn" data-phase="D1_D2">Confirm D1–D2</button>
-            </div>
-            <div class="footer">Define scope and context.</div>
-        </div>
-
-        <!-- D3 PROBLEM DEFINITION -->
-        <div class="column col-d3" data-phase="D3">
-            <div class="header"><span>Problem Definition (D3)</span><span class="phase-status" data-phase-status>not started</span></div>
-            <div class="content scroll-y">
-                <label>What happened?</label>
-                <textarea data-json-path="phases.D3.data.what_happened"></textarea>
-
-                <label>Why is this a problem?</label>
-                <textarea data-json-path="phases.D3.data.why_problem"></textarea>
-
-                <div class="two-col">
-                    <div>
-                        <label>When?</label>
-                        <input data-json-path="phases.D3.data.when">
-                    </div>
-                    <div>
-                        <label>Where?</label>
-                        <input data-json-path="phases.D3.data.where">
-                    </div>
-                </div>
-
-                <div class="two-col">
-                    <div>
-                        <label>Who?</label>
-                        <input data-json-path="phases.D3.data.who">
-                    </div>
-                    <div>
-                        <label>How identified?</label>
-                        <input data-json-path="phases.D3.data.how_identified">
-                    </div>
-                </div>
-
-                <label>Impact (how many / how much)</label>
-                <input data-json-path="phases.D3.data.impact">
-            </div>
-            <div class="phase-actions">
-                <button class="confirm-phase-btn" data-phase="D3">Confirm D3</button>
-            </div>
-            <div class="footer">Shared factual understanding.</div>
-        </div>
-
-        <!-- D4 IMMEDIATE ACTIONS -->
-        <div class="column col-d4 wide" data-phase="D4">
-            <div class="header"><span>Immediate Actions (D4)</span><span class="phase-status" data-phase-status>not started</span></div>
-            <div class="content scroll-y">
-                <table>
-                    <thead>
-                        <tr>
-                            <th class="w-action">Action</th>
-                            <th class="w-owner">Responsible</th>
-                            <th class="w-date">Due</th>
-                            <th class="w-date">Actual</th>
-                        </tr>
-                    </thead>
-                    <tbody data-array-path="phases.D4.data.actions">
-                        <!-- schema v1: actions[0] -->
-                        <tr>
-                            <td><input class="action-input" data-json-path="phases.D4.data.actions[0].action"></td>
-                            <td><input data-json-path="phases.D4.data.actions[0].responsible"></td>
-                            <td><input type="date" data-json-path="phases.D4.data.actions[0].due_date"></td>
-                            <td><input type="date" data-json-path="phases.D4.data.actions[0].actual_date"></td>
-                        </tr>
-                    </tbody>
-                </table>
-                <button class="add-row-btn" data-template-id="d4-action-row" data-array-path="phases.D4.data.actions">+ Add Action</button>
-                <template id="d4-action-row">
-                    <tr>
-                        <td><input class="action-input" data-field="action"></td>
-                        <td><input data-field="responsible"></td>
-                        <td><input type="date" data-field="due_date"></td>
-                        <td><input type="date" data-field="actual_date"></td>
-                    </tr>
-                </template>
-            </div>
-            <div class="phase-actions">
-                <button class="confirm-phase-btn" data-phase="D4">Confirm D4</button>
-            </div>
-            <div class="footer">Contain and protect stakeholders.</div>
-        </div>
-
-        <!-- D5 CAUSE ANALYSIS -->
-        <div class="column col-d5 huge" data-phase="D5">
-            <div class="header"><span>Cause Analysis (D5)</span><span class="phase-status" data-phase-status>not started</span></div>
-            <div class="content scroll-y">
-
-                <h3>Fishbone Analysis</h3>
-                <div class="fishbone">
-                    <!-- 6 categories -->
-                    <div class="fish">People / Organization
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.people[0]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.people[1]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.people[2]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.people[3]">
-                        </div>
-                    </div>
-                    <div class="fish">Process / Workflow
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.process[0]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.process[1]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.process[2]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.process[3]">
-                        </div>
-                    </div>
-                    <div class="fish">Tools / Systems
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.tools[0]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.tools[1]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.tools[2]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.tools[3]">
-                        </div>
-                    </div>
-                    <div class="fish">Environment / Context
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.environment[0]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.environment[1]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.environment[2]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.environment[3]">
-                        </div>
-                    </div>
-                    <div class="fish">Policy / Management
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.management[0]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.management[1]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.management[2]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.management[3]">
-                        </div>
-                    </div>
-                    <div class="fish">Mother Nature / Place
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.place[0]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.place[1]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.place[2]">
-                        </div>
-                        <div class="fish-row">
-                            <input placeholder=" " data-json-path="phases.D5.data.fishbone.place[3]">
+                <div class="section section-collapsible">
+                    <div class="section-title">Case Search</div>
+                    <div class="section-body">
+                        <input id="search_input" name="search_input" placeholder="Search by keyword, case ID, or owner">
+                        <button id="run_case_search_btn" class="btn-standard run-search-btn btn-primary">Run Case
+                            Search</button>
+                        <div id="case_search_results" class="case-results">
+                            <div class="muted empty-state">Search results will appear here.</div>
                         </div>
                     </div>
                 </div>
 
-                <div class="two-col">
-                    <div>
-                        <h3>5 WHYs – Analysis A</h3>
-                        <input data-json-path="phases.D5.data.five_whys.A[0]"><input data-json-path="phases.D5.data.five_whys.A[1]"><input data-json-path="phases.D5.data.five_whys.A[2]"><input data-json-path="phases.D5.data.five_whys.A[3]"><input data-json-path="phases.D5.data.five_whys.A[4]">
-                    </div>
-                    <div>
-                        <h3>5 WHYs – Analysis B</h3>
-                        <input data-json-path="phases.D5.data.five_whys.B[0]"><input data-json-path="phases.D5.data.five_whys.B[1]"><input data-json-path="phases.D5.data.five_whys.B[2]"><input data-json-path="phases.D5.data.five_whys.B[3]"><input data-json-path="phases.D5.data.five_whys.B[4]">
+                <div class="section section-collapsible">
+                    <div class="section-title">Knowledge Documents</div>
+                    <div class="section-body">
+                        <input id="knowledge_upload_input" type="file" multiple accept=".pdf,.docx,.txt" hidden>
+                        <button id="knowledge_upload_btn" class="btn-standard run-search-btn btn-primary">Upload
+                            Knowledge
+                            Documents</button>
+                        <div id="knowledge_upload_list" class="doc-list">
+                            <div class="muted empty-state">No documents uploaded yet.</div>
+                        </div>
                     </div>
                 </div>
 
-                <h3>Assignment Tasks for Investigation</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th class="w-action">Task</th>
-                            <th class="w-owner">Responsible</th>
-                            <th class="w-date">Due</th>
-                            <th class="w-date">Actual</th>
-                        </tr>
-                    </thead>
-                    <tbody data-array-path="phases.D5.data.investigation_tasks">
-                        <tr>
-                            <td><input data-json-path="phases.D5.data.investigation_tasks[0].task"></td>
-                            <td><input data-json-path="phases.D5.data.investigation_tasks[0].responsible"></td>
-                            <td><input type="date" data-json-path="phases.D5.data.investigation_tasks[0].due_date"></td>
-                            <td><input type="date" data-json-path="phases.D5.data.investigation_tasks[0].actual_date"></td>
-                        </tr>
-                    </tbody>
-                </table>
-                <button class="add-row-btn" data-template-id="d5-task-row" data-array-path="phases.D5.data.investigation_tasks">+ Add Task</button>
-                <template id="d5-task-row">
-                    <tr>
-                        <td><input data-field="task"></td>
-                        <td><input data-field="responsible"></td>
-                        <td><input type="date" data-field="due_date"></td>
-                        <td><input type="date" data-field="actual_date"></td>
-                    </tr>
-                </template>
-
-                <h3>Factor / Tree Analysis</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th class="w-action">Factor</th>
-                            <th class="w-owner">Owner</th>
-                            <th class="w-date">Reviewed</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody data-array-path="phases.D5.data.factors">
-                        <tr>
-                            <td><input data-json-path="phases.D5.data.factors[0].factor"></td>
-                            <td><input data-json-path="phases.D5.data.factors[0].owner"></td>
-                            <td><input data-json-path="phases.D5.data.factors[0].reviewed_date"></td>
-                            <td><input data-json-path="phases.D5.data.factors[0].status"></td>
-                        </tr>
-                    </tbody>
-                </table>
-                <button class="add-row-btn" data-template-id="d5-factor-row" data-array-path="phases.D5.data.factors">+ Add Factor</button>
-                <template id="d5-factor-row">
-                    <tr>
-                        <td><input data-field="factor"></td>
-                        <td><input data-field="owner"></td>
-                        <td><input data-field="reviewed_date"></td>
-                        <td><input data-field="status"></td>
-                    </tr>
-                </template>
-
+                <div class="section section-collapsible">
+                    <div class="section-title">Bulk Closed Case Import</div>
+                    <div class="section-body">
+                        <input id="doc_bulk_import_input" type="file" multiple accept=".json,.csv" hidden>
+                        <button id="doc_bulk_import_btn" class="btn-standard run-search-btn btn-primary">Import Closed
+                            Cases
+                            (Bulk)</button>
+                        <div id="doc_bulk_import_list" class="doc-list">
+                            <div class="muted empty-state">No uploads yet.</div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="phase-actions">
-                <button class="confirm-phase-btn" data-phase="D5">Confirm D5</button>
-            </div>
-            <div class="footer">Identify and validate root causes.</div>
+            <div class="footer">Left column is data-only. No AI logic.</div>
         </div>
 
-        <!-- D6 PERMANENT ACTIONS -->
-        <div class="column col-d6 wide" data-phase="D6">
-            <div class="header"><span>Permanent Actions (D6)</span><span class="phase-status" data-phase-status>not started</span></div>
-            <div class="content scroll-y">
-                <!-- same structure as D4 -->
-                <table>
-                    <thead>
-                        <tr>
-                            <th class="w-action">Action</th>
-                            <th class="w-owner">Responsible</th>
-                            <th class="w-date">Due</th>
-                            <th class="w-date">Actual</th>
-                        </tr>
-                    </thead>
-                    <tbody data-array-path="phases.D6.data.actions">
-                        <!-- schema v1: actions[0] -->
-                        <tr>
-                            <td><input class="action-input" data-json-path="phases.D6.data.actions[0].action"></td>
-                            <td><input data-json-path="phases.D6.data.actions[0].responsible"></td>
-                            <td><input type="date" data-json-path="phases.D6.data.actions[0].due_date"></td>
-                            <td><input type="date" data-json-path="phases.D6.data.actions[0].actual_date"></td>
-                        </tr>
-                    </tbody>
-                </table>
-                <button class="add-row-btn" data-template-id="d6-action-row" data-array-path="phases.D6.data.actions">+ Add Action</button>
-                <template id="d6-action-row">
-                    <tr>
-                        <td><input class="action-input" data-field="action"></td>
-                        <td><input data-field="responsible"></td>
-                        <td><input type="date" data-field="due_date"></td>
-                        <td><input type="date" data-field="actual_date"></td>
-                    </tr>
-                </template>
-            </div>
-            <div class="phase-actions">
-                <button class="confirm-phase-btn" data-phase="D6">Confirm D6</button>
-            </div>
-            <div class="footer">Prevent recurrence.</div>
-        </div>
-
-        <!-- D7–D8 PREVENTION & CLOSURE -->
-        <div class="column col-d7" data-phase="D7">
-            <div class="header"><span>Prevention / Standardization (D7)</span><span class="phase-status" data-phase-status>not started</span></div>
+        <!-- MIDDLE COLUMN: D1–D8 CASE CONTEXT -->
+        <div class="column col-middle" data-column="workspace">
+            <div class="header">CoSolve Case Board</div>
             <div class="content">
-                <label>Procedures updated?</label><input type="checkbox" data-json-path="phases.D7.data.procedures_updated">
-                <label>Training completed?</label><input type="checkbox" data-json-path="phases.D7.data.training_completed">
-            </div>
-            <div class="phase-actions">
-                <button class="confirm-phase-btn" data-phase="D7">Confirm D7</button>
-            </div>
-            <div class="footer">Standardisation and prevention.</div>
-        </div>
+                <div class="d-nav-bar" id="d-nav-bar">
+                    <button class="btn-standard d-state-btn" data-d-state="D1" data-phase-target="D1_2"
+                        title="Maps to D1–D2">
+                        <span class="d-label">Problem Definition</span>
+                        <span class="d-status status-not-started">Not Started</span>
+                    </button>
+                    <button class="btn-standard d-state-btn" data-d-state="D3" data-phase-target="D3" title="D3">
+                        <span class="d-label">Containment Actions</span>
+                        <span class="d-status status-not-started">Not Started</span>
+                    </button>
+                    <button class="btn-standard d-state-btn" data-d-state="D4" data-phase-target="D4" title="D4">
+                        <span class="d-label">Root Cause Analysis</span>
+                        <span class="d-status status-not-started">Not Started</span>
+                    </button>
+                    <button class="btn-standard d-state-btn" data-d-state="D5" data-phase-target="D5" title="D5">
+                        <span class="d-label">Permanent Corrective Actions</span>
+                        <span class="d-status status-not-started">Not Started</span>
+                    </button>
+                    <button class="btn-standard d-state-btn" data-d-state="D6" data-phase-target="D6" title="D6">
+                        <span class="d-label">Implementation &amp; Validation</span>
+                        <span class="d-status status-not-started">Not Started</span>
+                    </button>
+                    <button class="btn-standard d-state-btn" data-d-state="D7" data-phase-target="D7" title="D7">
+                        <span class="d-label">Prevention</span>
+                        <span class="d-status status-not-started">Not Started</span>
+                    </button>
+                    <button class="btn-standard d-state-btn" data-d-state="D8" data-phase-target="D8" title="D8">
+                        <span class="d-label">Closure &amp; Learnings</span>
+                        <span class="d-status status-not-started">Not Started</span>
+                    </button>
+                </div>
 
-        <div class="column col-d8" data-phase="D8">
-            <div class="header"><span>Closure (D8)</span><span class="phase-status" data-phase-status>not started</span></div>
-            <div class="content">
-                <label>Quality approved?</label><input type="checkbox" data-json-path="phases.D8.data.quality_approved">
-                <label>Closure Date</label><input type="date" data-json-path="phases.D8.data.closure_date">
-            </div>
-            <div class="phase-actions">
-                <button class="confirm-phase-btn" data-phase="D8">Confirm D8</button>
-            </div>
-            <div class="footer">Formal closure.</div>
-        </div>
+                <div class="phase-detail-panel" id="phase-detail-panel">
+                    <div class="phase-card" data-phase="D1_2">
+                        <div class="phase-header"><span>Problem Definition</span><span class="phase-status"
+                                data-phase-status>not started</span></div>
+                        <div class="phase-body">
+                            <aside class="guidance-panel">
+                                <div class="guidance-title">Case Details – What to Capture</div>
+                                <ul class="guidance-list">
+                                    <li>Describe the problem clearly and factually.</li>
+                                    <li>Specify where and when the issue occurred.</li>
+                                    <li>Identify affected areas, lines, or products.</li>
+                                    <li>List involved teams or roles.</li>
+                                    <li>Avoid assumptions or root cause statements at this stage.</li>
+                                </ul>
+                            </aside>
+                            <div class="phase-form scroll-y">
+                                <div class="section case-details">
+                                    <div class="section-title">Case Details</div>
+                                    <label>Incident / Case ID</label>
+                                    <input id="case-id-input" placeholder="XXX-YYYYMMDD-XXXX" data-json-path="case_id">
+                                    <small class="muted">
+                                        Format: XXX-YYYYMMDD-XXXX (e.g. TRM-20260115-0003)
+                                    </small>
+                                    <button id="create-incident-btn" class="btn-standard btn-primary" disabled>Create
+                                        Incident</button>
 
-        <!-- AI -->
-        <div class="column col-ai">
-            <div class="header">AI Analysis</div>
-            <div class="content">
-                <button data-action="run-agent" disabled>Run AI Analysis</button>
-                <div class="muted">Agent status: idle</div>
+                                    <label>Status</label>
+                                    <input value="Open" data-json-path="case_status" readonly>
+
+                                    <label>Opening Date</label>
+                                    <input type="date" data-json-path="opened_at" readonly>
+
+                                    <label>Closure Date</label>
+                                    <input type="date" data-json-path="closed_at" readonly>
+
+                                    <div class="three-col">
+                                        <div>
+                                            <label>Country</label>
+                                            <input data-json-path="d_states.D1_2.data.country">
+                                        </div>
+                                        <div>
+                                            <label>Site</label>
+                                            <input data-json-path="d_states.D1_2.data.site">
+                                        </div>
+                                        <div>
+                                            <label>Unit</label>
+                                            <input data-json-path="d_states.D1_2.data.organization_unit">
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <label>Problem Description</label>
+                                <textarea data-json-path="d_states.D1_2.data.problem_description"></textarea>
+
+                                <label>Involved People / Teams</label>
+                                <textarea data-json-path="d_states.D1_2.data.involved_people_teams"
+                                    data-json-array="true"></textarea>
+                            </div>
+                        </div>
+                        <div class="phase-actions">
+                            <button class="btn-standard confirm-phase-btn btn-primary" data-phase="D1_2">Confirm
+                                Problem Definition</button>
+                        </div>
+                    </div>
+
+                    <div class="phase-card" data-phase="D3">
+                        <div class="phase-header"><span>Containment Actions</span><span class="phase-status"
+                                data-phase-status>not started</span></div>
+                        <div class="phase-body">
+                            <aside class="guidance-panel">
+                                <div class="guidance-title">Containment Actions – What to Capture</div>
+                                <ul class="guidance-list">
+                                    <li>Document immediate steps taken to contain impact.</li>
+                                    <li>Clarify what was stopped, isolated, or safeguarded.</li>
+                                    <li>Note who approved containment actions and when.</li>
+                                    <li>Record any temporary controls put in place.</li>
+                                </ul>
+                            </aside>
+                            <div class="phase-form scroll-y">
+                                <label>What happened?</label>
+                                <textarea data-json-path="d_states.D3.data.what_happened"></textarea>
+
+                                <label>Why is this a problem?</label>
+                                <textarea data-json-path="d_states.D3.data.why_is_problem"></textarea>
+
+                                <div class="two-col">
+                                    <div>
+                                        <label>When detected?</label>
+                                        <input data-json-path="d_states.D3.data.when_detected">
+                                    </div>
+                                    <div>
+                                        <label>Who detected?</label>
+                                        <input data-json-path="d_states.D3.data.who_detected">
+                                    </div>
+                                </div>
+
+                                <div class="two-col">
+                                    <div>
+                                        <label>How detected?</label>
+                                        <input data-json-path="d_states.D3.data.how_detected">
+                                    </div>
+                                    <div></div>
+                                </div>
+
+                                <label>Quantified impact (how many / how much)</label>
+                                <input data-json-path="d_states.D3.data.quantified_impact">
+                            </div>
+                        </div>
+                        <div class="phase-actions">
+                            <button class="btn-standard confirm-phase-btn btn-primary" data-phase="D3">Confirm
+                                Containment Actions</button>
+                        </div>
+                    </div>
+
+                    <div class="phase-card" data-phase="D4">
+                        <div class="phase-header"><span>Root Cause Analysis</span><span class="phase-status"
+                                data-phase-status>not started</span></div>
+                        <div class="phase-body">
+                            <aside class="guidance-panel">
+                                <div class="guidance-title">Root Cause Analysis – What to Capture</div>
+                                <ul class="guidance-list">
+                                    <li>List suspected causes and evidence sources.</li>
+                                    <li>Differentiate symptoms from underlying causes.</li>
+                                    <li>Capture how the issue could recur without fixes.</li>
+                                    <li>Note any data gaps that require investigation.</li>
+                                </ul>
+                            </aside>
+                            <div class="phase-form scroll-y">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th class="w-action">Action</th>
+                                            <th class="w-owner">Responsible</th>
+                                            <th class="w-date">Due</th>
+                                            <th class="w-date">Actual</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody data-array-path="d_states.D4.data.actions">
+                                        <!-- schema v1: actions[0] -->
+                                        <tr>
+                                            <td><textarea class="action-text" rows="1"
+                                                    data-json-path="d_states.D4.data.actions[0].action"></textarea></td>
+                                            <td><input data-json-path="d_states.D4.data.actions[0].responsible"></td>
+                                            <td><input type="date"
+                                                    data-json-path="d_states.D4.data.actions[0].due_date">
+                                            </td>
+                                            <td><input type="date"
+                                                    data-json-path="d_states.D4.data.actions[0].actual_date"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <button class="btn-standard add-row-btn" data-template-id="d4-action-row"
+                                    data-array-path="d_states.D4.data.actions">+
+                                    Add Action</button>
+                                <template id="d4-action-row">
+                                    <tr>
+                                        <td><textarea class="action-text" rows="1" data-field="action"></textarea></td>
+                                        <td><input data-field="responsible"></td>
+                                        <td><input type="date" data-field="due_date"></td>
+                                        <td><input type="date" data-field="actual_date"></td>
+                                    </tr>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="phase-actions">
+                            <button class="btn-standard confirm-phase-btn btn-primary" data-phase="D4">Confirm
+                                Root Cause Analysis</button>
+                        </div>
+                    </div>
+
+                    <div class="phase-card" data-phase="D5">
+                        <div class="phase-header"><span>Permanent Corrective Actions</span><span class="phase-status"
+                                data-phase-status>not started</span></div>
+                        <div class="phase-body">
+                            <aside class="guidance-panel">
+                                <div class="guidance-title">Corrective Actions – What to Capture</div>
+                                <ul class="guidance-list">
+                                    <li>Define actions that eliminate the root cause.</li>
+                                    <li>Specify owners, due dates, and success criteria.</li>
+                                    <li>Record evidence supporting each corrective action.</li>
+                                    <li>Ensure actions are feasible and measurable.</li>
+                                </ul>
+                            </aside>
+                            <div class="phase-form scroll-y">
+                                <h3>Fishbone Analysis</h3>
+                                <div class="fishbone">
+                                    <div class="fish">People / Organization
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.people_organization[0]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.people_organization[1]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.people_organization[2]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.people_organization[3]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.people_organization[4]"></div>
+                                    </div>
+                                    <div class="fish">Process / Workflow
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.process_workflow[0]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.process_workflow[1]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.process_workflow[2]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.process_workflow[3]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.process_workflow[4]"></div>
+                                    </div>
+                                    <div class="fish">Tools / Systems
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.tools_systems[0]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.tools_systems[1]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.tools_systems[2]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.tools_systems[3]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.tools_systems[4]"></div>
+                                    </div>
+                                    <div class="fish">Environment / Context
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.environment_context[0]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.environment_context[1]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.environment_context[2]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.environment_context[3]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.environment_context[4]"></div>
+                                    </div>
+                                    <div class="fish">Policy / Management
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.policy_management[0]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.policy_management[1]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.policy_management[2]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.policy_management[3]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.policy_management[4]"></div>
+                                    </div>
+                                    <div class="fish">Material / Input
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.material_input[0]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.material_input[1]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.material_input[2]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.material_input[3]"></div>
+                                        <div class="fish-row"><input placeholder=" "
+                                                data-json-path="d_states.D5.data.fishbone.material_input[4]"></div>
+                                    </div>
+                                </div>
+
+                                <h3>Investigation Tasks</h3>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th class="w-action">Task</th>
+                                            <th class="w-owner">Responsible</th>
+                                            <th class="w-date">Due</th>
+                                            <th class="w-date">Actual</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody data-array-path="d_states.D5.data.investigation_tasks">
+                                        <tr>
+                                            <td><input data-json-path="d_states.D5.data.investigation_tasks[0].task">
+                                            </td>
+                                            <td><input
+                                                    data-json-path="d_states.D5.data.investigation_tasks[0].responsible">
+                                            </td>
+                                            <td><input type="date"
+                                                    data-json-path="d_states.D5.data.investigation_tasks[0].due_date">
+                                            </td>
+                                            <td><input type="date"
+                                                    data-json-path="d_states.D5.data.investigation_tasks[0].actual_date">
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <button class="btn-standard add-row-btn" data-template-id="d5-task-row"
+                                    data-array-path="d_states.D5.data.investigation_tasks">+ Add Task</button>
+                                <template id="d5-task-row">
+                                    <tr>
+                                        <td><input data-field="task"></td>
+                                        <td><input data-field="responsible"></td>
+                                        <td><input type="date" data-field="due_date"></td>
+                                        <td><input type="date" data-field="actual_date"></td>
+                                    </tr>
+                                </template>
+
+                                <h3>Factor / Tree Analysis</h3>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th class="w-action">Factor</th>
+                                            <th class="w-owner">Owner</th>
+                                            <th class="w-date">Reviewed</th>
+                                            <th>Status</th>
+                                            <th class="w-comment">Comment</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody data-array-path="d_states.D5.data.factors">
+                                        <tr>
+                                            <td><input data-json-path="d_states.D5.data.factors[0].factor"></td>
+                                            <td><input data-json-path="d_states.D5.data.factors[0].owner"></td>
+                                            <td><input type="date"
+                                                    data-json-path="d_states.D5.data.factors[0].reviewed_date"></td>
+                                            <td><input data-json-path="d_states.D5.data.factors[0].status"></td>
+                                            <td><input data-json-path="d_states.D5.data.factors[0].comment"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <button class="btn-standard add-row-btn" data-template-id="d5-factor-row"
+                                    data-array-path="d_states.D5.data.factors">+ Add Factor</button>
+                                <template id="d5-factor-row">
+                                    <tr>
+                                        <td><input data-field="factor"></td>
+                                        <td><input data-field="owner"></td>
+                                        <td><input type="date" data-field="reviewed_date"></td>
+                                        <td><input data-field="status"></td>
+                                        <td><input data-field="comment"></td>
+                                    </tr>
+                                </template>
+
+                                <h3>5-Why Analysis</h3>
+                                <div class="two-col">
+                                    <div>
+                                        <h3>Chain A</h3>
+                                        <input data-json-path="d_states.D5.data.five_whys.A[0]"><input
+                                            data-json-path="d_states.D5.data.five_whys.A[1]"><input
+                                            data-json-path="d_states.D5.data.five_whys.A[2]"><input
+                                            data-json-path="d_states.D5.data.five_whys.A[3]"><input
+                                            data-json-path="d_states.D5.data.five_whys.A[4]">
+                                    </div>
+                                    <div>
+                                        <h3>Chain B</h3>
+                                        <input data-json-path="d_states.D5.data.five_whys.B[0]"><input
+                                            data-json-path="d_states.D5.data.five_whys.B[1]"><input
+                                            data-json-path="d_states.D5.data.five_whys.B[2]"><input
+                                            data-json-path="d_states.D5.data.five_whys.B[3]"><input
+                                            data-json-path="d_states.D5.data.five_whys.B[4]">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="phase-actions">
+                            <button class="btn-standard confirm-phase-btn btn-primary" data-phase="D5">Confirm
+                                Permanent Corrective Actions</button>
+                        </div>
+                    </div>
+
+                    <div class="phase-card" data-phase="D6">
+                        <div class="phase-header"><span>Implementation &amp; Validation</span><span class="phase-status"
+                                data-phase-status>not started</span></div>
+                        <div class="phase-body">
+                            <aside class="guidance-panel">
+                                <div class="guidance-title">Validation – What to Capture</div>
+                                <ul class="guidance-list">
+                                    <li>List actions that permanently address the issue.</li>
+                                    <li>Confirm validation steps and measurable results.</li>
+                                    <li>Document who verified effectiveness and when.</li>
+                                    <li>Note any follow-up checks required.</li>
+                                </ul>
+                            </aside>
+                            <div class="phase-form scroll-y">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th class="w-action">Action</th>
+                                            <th class="w-owner">Responsible</th>
+                                            <th class="w-date">Due</th>
+                                            <th class="w-date">Actual</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody data-array-path="d_states.D6.data.actions">
+                                        <!-- schema v1: actions[0] -->
+                                        <tr>
+                                            <td><textarea class="action-text" rows="1"
+                                                    data-json-path="d_states.D6.data.actions[0].action"></textarea></td>
+                                            <td><input data-json-path="d_states.D6.data.actions[0].responsible"></td>
+                                            <td><input type="date"
+                                                    data-json-path="d_states.D6.data.actions[0].due_date">
+                                            </td>
+                                            <td><input type="date"
+                                                    data-json-path="d_states.D6.data.actions[0].actual_date"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <button class="btn-standard add-row-btn" data-template-id="d6-action-row"
+                                    data-array-path="d_states.D6.data.actions">+ Add Action</button>
+                                <template id="d6-action-row">
+                                    <tr>
+                                        <td><textarea class="action-text" rows="1" data-field="action"></textarea></td>
+                                        <td><input data-field="responsible"></td>
+                                        <td><input type="date" data-field="due_date"></td>
+                                        <td><input type="date" data-field="actual_date"></td>
+                                    </tr>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="phase-actions">
+                            <button class="btn-standard confirm-phase-btn btn-primary" data-phase="D6">Confirm
+                                Implementation &amp; Validation</button>
+                        </div>
+                    </div>
+
+                    <div class="phase-card" data-phase="D7">
+                        <div class="phase-header"><span>Prevention</span><span class="phase-status"
+                                data-phase-status>not started</span></div>
+                        <div class="phase-body">
+                            <aside class="guidance-panel">
+                                <div class="guidance-title">Prevention – What to Capture</div>
+                                <ul class="guidance-list">
+                                    <li>Update procedures or standards to prevent recurrence.</li>
+                                    <li>Capture training completed and impacted roles.</li>
+                                    <li>List preventive controls or audits added.</li>
+                                    <li>Note any documentation updates required.</li>
+                                </ul>
+                            </aside>
+                            <div class="phase-form scroll-y">
+                                <label>Procedures updated</label>
+                                <textarea class="d7-text"
+                                    data-json-path="d_states.D7.data.procedures_updated"></textarea>
+
+                                <label>Training completed</label>
+                                <textarea class="d7-text"
+                                    data-json-path="d_states.D7.data.training_completed"></textarea>
+
+                                <label>Preventive notes</label>
+                                <textarea data-json-path="d_states.D7.data.preventive_notes"></textarea>
+                            </div>
+                        </div>
+                        <div class="phase-actions">
+                            <button class="btn-standard confirm-phase-btn btn-primary" data-phase="D7">Confirm
+                                Prevention</button>
+                        </div>
+                    </div>
+
+                    <div class="phase-card" data-phase="D8">
+                        <div class="phase-header"><span>Closure &amp; Learnings</span><span class="phase-status"
+                                data-phase-status>not
+                                started</span></div>
+                        <div class="phase-body">
+                            <aside class="guidance-panel">
+                                <div class="guidance-title">Closure &amp; Learnings – What to Capture</div>
+                                <ul class="guidance-list">
+                                    <li>Confirm approvals and final sign-off.</li>
+                                    <li>Capture key learnings and outcomes.</li>
+                                    <li>Ensure evidence of completion is documented.</li>
+                                    <li>Note any handover or monitoring requirements.</li>
+                                </ul>
+                            </aside>
+                            <div class="phase-form scroll-y">
+                                <label>Quality approved by</label>
+                                <input data-json-path="d_states.D8.data.quality_approved_by">
+                                <label>Closure Date</label>
+                                <input type="date" data-json-path="d_states.D8.closure_date">
+                            </div>
+                        </div>
+                        <div class="phase-actions">
+                            <button class="btn-standard confirm-phase-btn btn-primary" data-phase="D8">Confirm
+                                Closure &amp; Learnings</button>
+                        </div>
+                    </div>
+                </div>
             </div>
+            <div class="footer">Case steps are structured inputs only.</div>
+        </div>
+        <!-- RIGHT COLUMN: AI REASONING -->
+        <div class="column col-right" data-column="ai">
+            <div class="header">AI Reasoning<button id="ai_clear_btn" class="ai-clear-btn"
+                    title="Clear conversation history">Clear</button></div>
+            <div class="content">
+                <div id="ai_response_output" class="ai-response-area">
+                    <div class="ai-empty-state">
+                        <div class="ai-welcome">
+                            <div class="ai-welcome-title">Welcome to CoSolve AI Reasoning</div>
+                            <div class="ai-welcome-subtitle">Collaborative problem solving, powered by AI</div>
+
+                            <div class="ai-welcome-section" data-node="operational">
+                                <div class="ai-welcome-section-label">Working on an open case?</div>
+                                <div class="ai-welcome-suggestions">
+                                    <div class="ai-suggestion-chip">What should we focus on in our root cause analysis?
+                                    </div>
+                                    <div class="ai-suggestion-chip">Are there any gaps in our containment actions?</div>
+                                    <div class="ai-suggestion-chip">What should the team prepare for the next step?
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="ai-welcome-section" data-node="similarity">
+                                <div class="ai-welcome-section-label">Looking for similar cases?</div>
+                                <div class="ai-welcome-suggestions">
+                                    <div class="ai-suggestion-chip">Find similar incidents involving bearing failures
+                                    </div>
+                                    <div class="ai-suggestion-chip">Have we seen software-related faults on this fleet
+                                        before?</div>
+                                </div>
+                            </div>
+
+                            <div class="ai-welcome-section" data-node="strategy">
+                                <div class="ai-welcome-section-label">Want a strategic portfolio view?</div>
+                                <div class="ai-welcome-suggestions">
+                                    <div class="ai-suggestion-chip strategy-chip">What are our most recurring failure
+                                        categories?</div>
+                                    <div class="ai-suggestion-chip strategy-chip">Are there systemic weaknesses across
+                                        the fleet?</div>
+                                    <div class="ai-suggestion-chip strategy-chip">Which areas need organisational
+                                        attention?</div>
+                                </div>
+                            </div>
+
+                            <div class="ai-welcome-hint">
+                                Load a case from the left panel to get case-specific guidance,
+                                or ask any question directly to reason across the knowledge base.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ai-input-wrapper">
+                    <textarea id="ai_question_input" class="ai-question-input"
+                        placeholder="Ask a question about this case…"></textarea>
+                    <button id="ai_send_btn" class="ai-send-btn" aria-label="Send" title="Send (Enter)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </div>
+                <div id="ai_input_error" class="ai-input-error"></div>
+            </div>
+            <div class="footer">CoSolve reasons over cases, evidence and knowledge.</div>
         </div>
 
     </div>

@@ -1,0 +1,58 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Any
+
+from backend.workflow.models import (
+    FinalResponsePayload,
+    IntentClassificationResult,
+    KPIInterpretation,
+    OperationalGuidance,
+    ResponseFormatterOutput,
+    SimilarityResultPayload,
+    StrategyResultPayload,
+)
+
+
+class ResponseFormatterNode:
+    def run(
+        self,
+        classification: IntentClassificationResult | None,
+        operational_result: OperationalGuidance | None,
+        similarity_result: SimilarityResultPayload | None,
+        strategy_result: StrategyResultPayload | None,
+        kpi_interpretation: KPIInterpretation | None,
+    ) -> ResponseFormatterOutput:
+        result_payload: dict[str, Any] = {}
+        if classification is not None:
+            if (
+                classification.intent == "OPERATIONAL_CASE"
+                and operational_result is not None
+            ):
+                result_payload = operational_result.model_dump()
+            elif (
+                classification.intent == "SIMILARITY_SEARCH"
+                and similarity_result is not None
+            ):
+                result_payload = similarity_result.model_dump()
+            elif (
+                classification.intent == "STRATEGY_ANALYSIS"
+                and strategy_result is not None
+            ):
+                result_payload = strategy_result.model_dump()
+            elif (
+                classification.intent == "KPI_ANALYSIS"
+                and kpi_interpretation is not None
+            ):
+                result_payload = kpi_interpretation.model_dump()
+
+        return ResponseFormatterOutput(
+            final_response=FinalResponsePayload(
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                classification=classification,
+                result=result_payload,
+            )
+        )
+
+
+__all__ = ["ResponseFormatterNode"]
