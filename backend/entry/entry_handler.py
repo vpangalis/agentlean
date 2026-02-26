@@ -123,6 +123,11 @@ class EntryHandler:
             _logger.error("[ENTRY_DEBUG] exception in graph: %s", str(e), exc_info=True)
             return self._clarifying_response(envelope)
 
+        # Early exit: QuestionReadinessNode decided the question needs clarification.
+        if graph_result.get("question_ready") is False:
+            clarifying_q = graph_result.get("clarifying_question") or ""
+            return self._clarifying_response(envelope, message_override=clarifying_q or None)
+
         if graph_result.get("classification_low_confidence", False):
             _logger.info("[ENTRY] low-confidence classification — returning clarifying response")
             return self._clarifying_response(envelope)
@@ -151,7 +156,12 @@ class EntryHandler:
         {"label": "Performance metrics", "question": "How is our overall incident resolution performance?", "type": "cosolve"},
     ]
 
-    def _clarifying_response(self, envelope: EntryEnvelope) -> EntryResponseEnvelope:
+    def _clarifying_response(
+        self,
+        envelope: EntryEnvelope,
+        message_override: str | None = None,
+    ) -> EntryResponseEnvelope:
+        summary = message_override if message_override else self._CLARIFYING_TEXT
         data = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "classification": {
@@ -160,7 +170,7 @@ class EntryHandler:
                 "confidence": 0.3,
             },
             "result": {
-                "summary": self._CLARIFYING_TEXT,
+                "summary": summary,
                 "supporting_cases": [],
                 "suggestions": list(self._CLARIFYING_SUGGESTIONS),
             },
