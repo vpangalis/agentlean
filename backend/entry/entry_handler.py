@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import logging
+from datetime import datetime, timezone
 from typing import Any, Optional, Literal
 
 from pydantic import BaseModel
@@ -120,17 +121,54 @@ class EntryHandler:
             graph_result = self._unified_graph.invoke(initial_state)
         except Exception as e:
             _logger.error("[ENTRY_DEBUG] exception in graph: %s", str(e), exc_info=True)
-            return EntryResponseEnvelope(
-                intent=envelope.intent,
-                status="error",
-                data={},
-                errors=["An internal error occurred while processing your request."],
-            )
+            return self._clarifying_response(envelope)
+
+        if graph_result.get("classification_low_confidence", False):
+            _logger.info("[ENTRY] low-confidence classification — returning clarifying response")
+            return self._clarifying_response(envelope)
+
         response = graph_result.get("final_response") or {}
         return EntryResponseEnvelope(
             intent=envelope.intent,
             status="accepted",
             data=response,
+        )
+
+    _CLARIFYING_TEXT = (
+        "I'm not sure what you're looking for with that question. "
+        "Here are some things I can help you with \u2014 you could ask about a specific case "
+        "you have loaded, look for similar past cases, explore recurring patterns across the "
+        "organisation, or check performance metrics. "
+        "Try rephrasing or pick one of the suggestions below."
+    )
+
+    _CLARIFYING_SUGGESTIONS = [
+        {"label": "Focus areas", "question": "What should we focus on right now?", "type": "cosolve"},
+        {"label": "Investigation gaps", "question": "Are there any gaps we might have missed?", "type": "cosolve"},
+        {"label": "Similar cases", "question": "Have we dealt with a problem like this before?", "type": "cosolve"},
+        {"label": "Past incidents", "question": "Has anything similar come up in other parts of the operation?", "type": "cosolve"},
+        {"label": "Recurring patterns", "question": "What are the most recurring failure types we face?", "type": "cosolve"},
+        {"label": "Performance metrics", "question": "How is our overall incident resolution performance?", "type": "cosolve"},
+    ]
+
+    def _clarifying_response(self, envelope: EntryEnvelope) -> EntryResponseEnvelope:
+        data = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "classification": {
+                "intent": "SIMILARITY_SEARCH",
+                "scope": "GLOBAL",
+                "confidence": 0.3,
+            },
+            "result": {
+                "summary": self._CLARIFYING_TEXT,
+                "supporting_cases": [],
+                "suggestions": list(self._CLARIFYING_SUGGESTIONS),
+            },
+        }
+        return EntryResponseEnvelope(
+            intent=envelope.intent,
+            status="accepted",
+            data=data,
         )
 
     def _create_case(self, envelope: EntryEnvelope) -> dict[str, Any]:

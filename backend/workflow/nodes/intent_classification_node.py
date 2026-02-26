@@ -118,7 +118,8 @@ class IntentClassificationNode:
                     intent="SIMILARITY_SEARCH",  # type: ignore[arg-type]
                     scope="GLOBAL",
                     confidence=0.3,
-                )
+                ),
+                classification_low_confidence=True,
             )
 
         # Post-parse validation: if LLM returns an unrecognised intent, default to SIMILARITY_SEARCH
@@ -127,6 +128,10 @@ class IntentClassificationNode:
                 intent="SIMILARITY_SEARCH",  # type: ignore[arg-type]
                 scope=classification.scope,
                 confidence=0.5,
+            )
+            return IntentNodeOutput(
+                classification=classification,
+                classification_low_confidence=True,
             )
 
         return IntentNodeOutput(classification=classification)

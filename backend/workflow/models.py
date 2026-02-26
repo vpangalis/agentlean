@@ -119,6 +119,7 @@ class ContextNodeOutput(BaseModel):
 
 class IntentNodeOutput(BaseModel):
     classification: IntentClassificationResult
+    classification_low_confidence: bool = False
 
 
 class IntentReflectionOutput(BaseModel):

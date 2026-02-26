@@ -67,6 +67,7 @@ class IncidentGraphState(TypedDict, total=False):
     kpi_metrics: KPIResult | None
     kpi_interpretation: KPIInterpretation | None
     final_response: dict | None
+    classification_low_confidence: bool
 
 
 class UnifiedIncidentGraph:
@@ -422,7 +423,8 @@ class UnifiedIncidentGraph:
             "KPI_ANALYSIS",
         }:
             _graph_logger.warning(
-                "[GRAPH_DEBUG] unexpected route value %r — falling back to SIMILARITY_SEARCH", route
+                "[GRAPH_DEBUG] unexpected route value %r — falling back to SIMILARITY_SEARCH",
+                route,
             )
             return "SIMILARITY_SEARCH"
         return str(route)
