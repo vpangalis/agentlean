@@ -71,23 +71,12 @@ COSOLVE: <question>
 COSOLVE: <question>
 COSOLVE: <question>
 
-CASE CITATION RULES:
-- For every case you reference, immediately after the case ID write the country and site
-  in brackets — for example: TRM-20250518-0002 (Belgium – Brussels Anderlecht Depot).
-- If country or site information is missing for a case, write "(location not recorded)"
-  immediately after the case ID — never silently omit location detail.
-- For each case cited, include one sentence explaining why it was selected — what made
-  it relevant to the pattern or weakness being discussed.
-
 CRITICAL RULES:
 - 300-400 words total across all five sections.
 - Every pattern and weakness must cite at least one named case ID.
 - Open cases must be flagged as EMERGING with their case ID.
 - No D-step codes (D1/D2 etc.) in output — use plain language labels only.
-- ONLY reference cases that were explicitly provided in the retrieved context above.
-  Never invent case IDs, case details, locations, or patterns not present in the
-  retrieved documents. If insufficient cases were retrieved to identify a pattern,
-  state that plainly rather than speculating.
+- Do not hallucinate cases not present in the retrieved context.
 - If fewer than 2 cases were retrieved, state the data limitation clearly in
   [SYSTEMIC PATTERNS IDENTIFIED] and reason conservatively throughout.
 - [WHAT TO EXPLORE NEXT] items must be portfolio/fleet/org level, not incident level.
