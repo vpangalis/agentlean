@@ -124,8 +124,24 @@ class EntryHandler:
             return self._clarifying_response(envelope)
 
         if graph_result.get("classification_low_confidence", False):
-            _logger.info("[ENTRY] low-confidence classification — returning clarifying response")
+            _logger.info(
+                "[ENTRY] low-confidence classification — returning clarifying response"
+            )
             return self._clarifying_response(envelope)
+
+        # Operational questions require a loaded case — redirect if none is present.
+        classified_intent = ""
+        raw_classification = graph_result.get("classification")
+        if raw_classification is not None:
+            if hasattr(raw_classification, "intent"):
+                classified_intent = str(raw_classification.intent or "")
+            elif isinstance(raw_classification, dict):
+                classified_intent = str(raw_classification.get("intent") or "")
+        if classified_intent == "OPERATIONAL_CASE" and not case_id:
+            _logger.info(
+                "[ENTRY] OPERATIONAL_CASE intent with no case loaded — returning redirect"
+            )
+            return self._no_case_redirect_response(envelope)
 
         response = graph_result.get("final_response") or {}
         return EntryResponseEnvelope(
@@ -143,13 +159,63 @@ class EntryHandler:
     )
 
     _CLARIFYING_SUGGESTIONS = [
-        {"label": "Focus areas", "question": "What should we focus on right now?", "type": "cosolve"},
-        {"label": "Investigation gaps", "question": "Are there any gaps we might have missed?", "type": "cosolve"},
-        {"label": "Similar cases", "question": "Have we dealt with a problem like this before?", "type": "cosolve"},
-        {"label": "Past incidents", "question": "Has anything similar come up in other parts of the operation?", "type": "cosolve"},
-        {"label": "Recurring patterns", "question": "What are the most recurring failure types we face?", "type": "cosolve"},
-        {"label": "Performance metrics", "question": "How is our overall incident resolution performance?", "type": "cosolve"},
+        {
+            "label": "Focus areas",
+            "question": "What should we focus on right now?",
+            "type": "cosolve",
+        },
+        {
+            "label": "Investigation gaps",
+            "question": "Are there any gaps we might have missed?",
+            "type": "cosolve",
+        },
+        {
+            "label": "Similar cases",
+            "question": "Have we dealt with a problem like this before?",
+            "type": "cosolve",
+        },
+        {
+            "label": "Past incidents",
+            "question": "Has anything similar come up in other parts of the operation?",
+            "type": "cosolve",
+        },
+        {
+            "label": "Recurring patterns",
+            "question": "What are the most recurring failure types we face?",
+            "type": "cosolve",
+        },
+        {
+            "label": "Performance metrics",
+            "question": "How is our overall incident resolution performance?",
+            "type": "cosolve",
+        },
     ]
+
+    _NO_CASE_REDIRECT_TEXT = (
+        "This question is best answered with a specific case loaded. "
+        "Please load a case from the left panel and try again — I can then tell you "
+        "exactly what gaps exist and what the team should focus on next."
+    )
+
+    def _no_case_redirect_response(self, envelope: EntryEnvelope) -> EntryResponseEnvelope:
+        data = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "classification": {
+                "intent": "SIMILARITY_SEARCH",
+                "scope": "GLOBAL",
+                "confidence": 0.5,
+            },
+            "result": {
+                "summary": self._NO_CASE_REDIRECT_TEXT,
+                "supporting_cases": [],
+                "suggestions": list(self._CLARIFYING_SUGGESTIONS),
+            },
+        }
+        return EntryResponseEnvelope(
+            intent=envelope.intent,
+            status="accepted",
+            data=data,
+        )
 
     def _clarifying_response(self, envelope: EntryEnvelope) -> EntryResponseEnvelope:
         data = {
