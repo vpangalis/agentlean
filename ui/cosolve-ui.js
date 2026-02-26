@@ -1687,6 +1687,17 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function applyClosedState(isClosed) {
+    // Show/hide the closed case banner
+    const banner = document.getElementById("case-closed-banner");
+    if (banner) {
+      if (isClosed) banner.removeAttribute("hidden");
+      else banner.setAttribute("hidden", "");
+    }
+
+    // Make stage tabs non-interactive when closed
+    const dNavBar = document.getElementById("d-nav-bar");
+    if (dNavBar) dNavBar.classList.toggle("is-closed", isClosed);
+
     const inputs = document.querySelectorAll(".phase-card input, .phase-card textarea");
     inputs.forEach((el) => {
       if (el.id === "case-id-input") return;
