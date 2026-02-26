@@ -309,9 +309,8 @@ body {
   display: none;
 }
 
-/* ── Closed nav-bar tabs — non-interactive ────────────────────────── */
+/* ── Closed nav-bar tabs — visually muted but still navigable ────── */
 .d-nav-bar.is-closed .d-state-btn {
-  pointer-events: none;
   opacity: 0.55;
 }
 

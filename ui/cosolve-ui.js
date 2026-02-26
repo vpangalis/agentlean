@@ -1694,27 +1694,23 @@ document.addEventListener("DOMContentLoaded", () => {
       else banner.setAttribute("hidden", "");
     }
 
-    // Make stage tabs non-interactive when closed
+    // Mark nav bar as closed (opacity signal) but leave tabs clickable
     const dNavBar = document.getElementById("d-nav-bar");
     if (dNavBar) dNavBar.classList.toggle("is-closed", isClosed);
 
-    const inputs = document.querySelectorAll(".phase-card input, .phase-card textarea");
-    inputs.forEach((el) => {
-      if (el.id === "case-id-input") return;
-      el.disabled = isClosed;
-    });
+    // Disable / enable all form controls inside the stage detail panel only
+    // (nav bar buttons are outside #phase-detail-panel and are unaffected)
+    const detailPanel = document.getElementById("phase-detail-panel");
+    if (detailPanel) {
+      detailPanel
+        .querySelectorAll("input, textarea, select, button")
+        .forEach((el) => {
+          if (el.id === "case-id-input") return; // always keep case-id editable
+          el.disabled = isClosed;
+        });
+    }
 
     if (caseIdInput) caseIdInput.disabled = caseIdInput.disabled || isClosed;
-
-    const confirmBtns = document.querySelectorAll(".confirm-phase-btn");
-    confirmBtns.forEach((btn) => {
-      btn.disabled = isClosed;
-    });
-
-    const rowBtns = document.querySelectorAll(".add-row-btn");
-    rowBtns.forEach((btn) => {
-      btn.disabled = isClosed;
-    });
 
     if (uploadBtn) uploadBtn.disabled = isClosed;
     if (fileInput) fileInput.disabled = isClosed;
