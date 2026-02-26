@@ -35,7 +35,6 @@ class LoggedLanguageModelClient:
         user_question: str | None = None,
         model_name: str | None = None,
         model_name_override: str | None = None,
-        max_tokens: int | None = None,
     ) -> Any:
         effective_model_name = model_name or model_name_override or self._model_name
         prompt_hash = hashlib.sha256(
@@ -48,7 +47,6 @@ class LoggedLanguageModelClient:
             response_model=response_model,
             temperature=temperature,
             model_name=effective_model_name,
-            max_tokens=max_tokens,
         )
         elapsed_ms = round((time.perf_counter() - started) * 1000.0, 3)
 

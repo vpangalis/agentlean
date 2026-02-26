@@ -122,16 +122,6 @@ class IntentNodeOutput(BaseModel):
     classification_low_confidence: bool = False
 
 
-class QuestionReadinessResult(BaseModel):
-    ready: bool
-    clarifying_question: str = ""
-
-
-class QuestionReadinessNodeOutput(BaseModel):
-    question_ready: bool
-    clarifying_question: str = ""
-
-
 class IntentReflectionOutput(BaseModel):
     classification: IntentClassificationResult
     intent_reflection: ReflectionVerdict
@@ -261,8 +251,6 @@ __all__ = [
     "ReflectionResult",
     "ContextNodeOutput",
     "IntentNodeOutput",
-    "QuestionReadinessResult",
-    "QuestionReadinessNodeOutput",
     "IntentReflectionOutput",
     "RouterNodeOutput",
     "OperationalDraftPayload",
