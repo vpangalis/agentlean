@@ -129,20 +129,6 @@ class EntryHandler:
             )
             return self._clarifying_response(envelope)
 
-        # Operational questions require a loaded case — redirect if none is present.
-        classified_intent = ""
-        raw_classification = graph_result.get("classification")
-        if raw_classification is not None:
-            if hasattr(raw_classification, "intent"):
-                classified_intent = str(raw_classification.intent or "")
-            elif isinstance(raw_classification, dict):
-                classified_intent = str(raw_classification.get("intent") or "")
-        if classified_intent == "OPERATIONAL_CASE" and not case_id:
-            _logger.info(
-                "[ENTRY] OPERATIONAL_CASE intent with no case loaded — returning redirect"
-            )
-            return self._no_case_redirect_response(envelope)
-
         response = graph_result.get("final_response") or {}
         return EntryResponseEnvelope(
             intent=envelope.intent,
@@ -190,32 +176,6 @@ class EntryHandler:
             "type": "cosolve",
         },
     ]
-
-    _NO_CASE_REDIRECT_TEXT = (
-        "This question is best answered with a specific case loaded. "
-        "Please load a case from the left panel and try again — I can then tell you "
-        "exactly what gaps exist and what the team should focus on next."
-    )
-
-    def _no_case_redirect_response(self, envelope: EntryEnvelope) -> EntryResponseEnvelope:
-        data = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "classification": {
-                "intent": "SIMILARITY_SEARCH",
-                "scope": "GLOBAL",
-                "confidence": 0.5,
-            },
-            "result": {
-                "summary": self._NO_CASE_REDIRECT_TEXT,
-                "supporting_cases": [],
-                "suggestions": list(self._CLARIFYING_SUGGESTIONS),
-            },
-        }
-        return EntryResponseEnvelope(
-            intent=envelope.intent,
-            status="accepted",
-            data=data,
-        )
 
     def _clarifying_response(self, envelope: EntryEnvelope) -> EntryResponseEnvelope:
         data = {
