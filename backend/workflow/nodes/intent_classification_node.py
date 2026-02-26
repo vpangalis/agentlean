@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import logging
 
-from pydantic import ValidationError
-
 from backend.infra.llm_logging_client import LoggedLanguageModelClient
 from backend.workflow.models import IntentClassificationResult, IntentNodeOutput
 
@@ -109,9 +107,9 @@ class IntentClassificationNode:
                 temperature=0.0,
                 user_question=clean_question,
             )
-        except ValidationError as exc:
+        except Exception as exc:  # noqa: BLE001 — catch all LLM/validation errors
             _logger.warning(
-                "IntentClassificationNode: LLM returned an invalid intent; "
+                "IntentClassificationNode: LLM call failed or returned an invalid intent; "
                 "falling back to SIMILARITY_SEARCH. Error: %s",
                 exc,
             )

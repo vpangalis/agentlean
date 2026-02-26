@@ -120,7 +120,12 @@ class EntryHandler:
             graph_result = self._unified_graph.invoke(initial_state)
         except Exception as e:
             _logger.error("[ENTRY_DEBUG] exception in graph: %s", str(e), exc_info=True)
-            raise
+            return EntryResponseEnvelope(
+                intent=envelope.intent,
+                status="error",
+                data={},
+                errors=["An internal error occurred while processing your request."],
+            )
         response = graph_result.get("final_response") or {}
         return EntryResponseEnvelope(
             intent=envelope.intent,
@@ -184,9 +189,7 @@ class EntryHandler:
                 self._case_ingestion.ingest_closed_case(case_id)
                 imported.append({"case_id": case_id, "status": "imported"})
             except Exception as exc:
-                _logger.exception(
-                    "[BULK_IMPORT] failed for %s: %s", case_id, exc
-                )
+                _logger.exception("[BULK_IMPORT] failed for %s: %s", case_id, exc)
                 failed.append({"case_id": case_id, "error": str(exc)})
         return {
             "status": "bulk_imported",

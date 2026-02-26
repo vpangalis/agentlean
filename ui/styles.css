@@ -1557,7 +1557,12 @@ select:focus-visible {
 }
 
 .ai-answer-body.error {
-  color: #b91c1c;
+  color: #92400e;
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-style: italic;
 }
 
 /* ── AI response section formatting ─────────────────────────────── */
