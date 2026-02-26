@@ -1599,7 +1599,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try { errText = await res.text(); } catch (_) { }
         console.error("[AI] FastAPI error:", res.status, errText);
         appendAiExchange(question, activeCaseId,
-          simpleMarkdown(`Server error ${res.status}${errText ? ": " + errText : "."}`), true);
+          simpleMarkdown("Something went wrong. Please try rephrasing your question."), true);
         return;
       }
 

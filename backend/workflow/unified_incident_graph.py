@@ -421,7 +421,10 @@ class UnifiedIncidentGraph:
             "STRATEGY_ANALYSIS",
             "KPI_ANALYSIS",
         }:
-            raise ValueError(f"Unsupported intent for routing: {route}")
+            _graph_logger.warning(
+                "[GRAPH_DEBUG] unexpected route value %r — falling back to SIMILARITY_SEARCH", route
+            )
+            return "SIMILARITY_SEARCH"
         return str(route)
 
     def _route_operational_escalation(self, state: IncidentGraphState) -> str:

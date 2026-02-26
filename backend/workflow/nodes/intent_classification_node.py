@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import logging
+
+from pydantic import ValidationError
+
 from backend.infra.llm_logging_client import LoggedLanguageModelClient
 from backend.workflow.models import IntentClassificationResult, IntentNodeOutput
+
+_logger = logging.getLogger(__name__)
 
 
 class IntentClassificationNode:
@@ -95,18 +101,32 @@ class IntentClassificationNode:
             f"question: {clean_question}"
         )
 
-        classification = self._llm_client.complete_json(
-            system_prompt=IntentClassificationNode._SYSTEM_PROMPT,
-            user_prompt=user_prompt,
-            response_model=IntentClassificationResult,
-            temperature=0.0,
-            user_question=clean_question,
-        )
+        try:
+            classification = self._llm_client.complete_json(
+                system_prompt=IntentClassificationNode._SYSTEM_PROMPT,
+                user_prompt=user_prompt,
+                response_model=IntentClassificationResult,
+                temperature=0.0,
+                user_question=clean_question,
+            )
+        except ValidationError as exc:
+            _logger.warning(
+                "IntentClassificationNode: LLM returned an invalid intent; "
+                "falling back to SIMILARITY_SEARCH. Error: %s",
+                exc,
+            )
+            return IntentNodeOutput(
+                classification=IntentClassificationResult(
+                    intent="SIMILARITY_SEARCH",  # type: ignore[arg-type]
+                    scope="GLOBAL",
+                    confidence=0.3,
+                )
+            )
 
-        # Validation: if LLM returns an unrecognised intent, default to OPERATIONAL_CASE
+        # Post-parse validation: if LLM returns an unrecognised intent, default to SIMILARITY_SEARCH
         if classification.intent not in IntentClassificationNode._VALID_INTENTS:
             classification = IntentClassificationResult(
-                intent="OPERATIONAL_CASE",  # type: ignore[arg-type]
+                intent="SIMILARITY_SEARCH",  # type: ignore[arg-type]
                 scope=classification.scope,
                 confidence=0.5,
             )
