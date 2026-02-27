@@ -1277,7 +1277,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const circumference = +(2 * Math.PI * r).toFixed(2);
       const dashOffset = +((circumference * (1 - pct / 100)).toFixed(2));
       const color = pct <= 60 ? "#22c55e" : pct <= 90 ? "#f59e0b" : "#ef4444";
-      html += '<div class="ai-section"><div class="ai-section-title">Case Progress</div><div class="ai-section-body">';
+      const gaugeTitle = metrics.gauge_label ? "Case Resolution" : "Case Progress";
+      html += '<div class="ai-section"><div class="ai-section-title">' + gaugeTitle + '</div><div class="ai-section-body">';
       html += '<div class="kpi-gauge-container">';
       html += '<svg class="kpi-gauge-svg" viewBox="0 0 100 100" width="140" height="140" role="img" aria-label="' + pct + '% of expected resolution time">';
       html += '<circle cx="50" cy="50" r="' + r + '" fill="none" stroke="#e5e7eb" stroke-width="8"/>';
@@ -1285,14 +1286,18 @@ document.addEventListener("DOMContentLoaded", () => {
       html += '<text x="50" y="47" text-anchor="middle" font-size="18" font-weight="700" fill="currentColor">' + pct + '%</text>';
       html += '<text x="50" y="62" text-anchor="middle" font-size="8" fill="#6b7280">of expected</text>';
       html += '</svg>';
-      html += '<div class="kpi-gauge-legend"><span>' + escapeHtml(String(elapsed)) + ' days open</span><span>Typical: ' + escapeHtml(String(Math.round(benchmark))) + ' days</span></div>';
+      if (metrics.gauge_label) {
+        html += '<div class="kpi-gauge-legend"><span>' + escapeHtml(metrics.gauge_label) + '</span></div>';
+      } else {
+        html += '<div class="kpi-gauge-legend"><span>' + escapeHtml(String(elapsed)) + ' days open</span><span>Typical: ' + escapeHtml(String(Math.round(benchmark))) + ' days</span></div>';
+      }
       html += '</div></div></div>';
     }
     const detailRows = [];
     if (metrics.current_stage) detailRows.push(["Current Stage", metrics.current_stage]);
     if (metrics.responsible_leader) detailRows.push(["Responsible Leader", metrics.responsible_leader]);
     if (metrics.department) detailRows.push(["Department", metrics.department]);
-    if (metrics.days_elapsed != null) detailRows.push(["Days Open", metrics.days_elapsed + " days"]);
+    if (metrics.days_elapsed != null) detailRows.push([metrics.gauge_label ? "Days to Closure" : "Days Open", metrics.days_elapsed + " days"]);
     if (metrics.category_benchmark_days != null) detailRows.push(["Typical Resolution", Math.round(metrics.category_benchmark_days) + " days"]);
     if (detailRows.length > 0) {
       html += '<div class="ai-section"><div class="ai-section-title">Case Details</div><div class="ai-section-body">';

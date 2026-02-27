@@ -74,6 +74,7 @@ class KPIResult(BaseModel):
 
     # ── Case-scope additions ───────────────────────────────────────────────
     days_elapsed: Optional[int] = None
+    gauge_label: Optional[str] = None
     category_benchmark_days: Optional[float] = None
     current_stage: Optional[str] = None
     responsible_leader: Optional[str] = None

@@ -220,7 +220,13 @@ class KPITool:
 
         now = self._utc_now()
         opening = self._to_utc(case.opening_date)  # type: ignore[arg-type]
-        days_elapsed = (now - opening).days if opening else None
+        is_closed = (case.status or "").lower() == "closed"
+        closure = self._to_utc(case.closure_date) if is_closed else None  # type: ignore[arg-type]
+
+        if is_closed and opening and closure:
+            days_elapsed = (closure - opening).days
+        else:
+            days_elapsed = (now - opening).days if opening else None
 
         similar = self._hybrid_retriever.retrieve_cases_for_kpi(country=None)
         benchmark = self._avg_duration(similar)
@@ -230,11 +236,21 @@ class KPITool:
             "gauge" if days_elapsed is not None else "summary_text"
         )
 
-        suggestions = [
-            f"How does case {case_id} compare to similar closed cases in resolution time?",
-            f"What happened in the {plain_stage or 'current'} phase of this case?",
-            "Show me the global average resolution time as a benchmark.",
-        ]
+        if is_closed and days_elapsed is not None and benchmark is not None:
+            benchmark_int = int(round(benchmark))
+            gauge_label: str | None = f"Closed in {days_elapsed} days vs {benchmark_int} day benchmark"
+            suggestions = [
+                f"What were the root causes identified in case {case_id}?",
+                f"Were the corrective actions in {case_id} effective long-term?",
+                "Have similar cases been resolved faster than this one?",
+            ]
+        else:
+            gauge_label = None
+            suggestions = [
+                f"How does case {case_id} compare to similar closed cases in resolution time?",
+                f"What happened in the {plain_stage or 'current'} phase of this case?",
+                "Show me the global average resolution time as a benchmark.",
+            ]
 
         return KPIResult(
             scope="case",
@@ -242,6 +258,7 @@ class KPITool:
             render_hint=render_hint,
             suggestions=suggestions,
             days_elapsed=days_elapsed,
+            gauge_label=gauge_label,
             category_benchmark_days=benchmark,
             current_stage=plain_stage,
             responsible_leader=case.responsible_leader,
