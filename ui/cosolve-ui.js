@@ -930,7 +930,9 @@ document.addEventListener("DOMContentLoaded", () => {
     `</div>` +
     `</div>`;
 
-  // ── Clear conversation (explicit user action only) ─────────────────
+  // ── Clear conversation (explicit user action or new case load) ──────
+  // Fully resets the AI panel: removes all exchange blocks, wipes the
+  // case ID header, and clears any error state — ready for a fresh context.
   function clearAiConversation() {
     if (!aiResponseOutput) return;
     aiResponseOutput.innerHTML = AI_WELCOME_HTML;
@@ -1764,6 +1766,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       applyClosedState(Boolean(caseState?.case_status === "closed"));
       loadEvidence(caseId);
+      // Reset AI panel: clear old exchanges, conversation history (DOM), and case ID header
+      // before generating new suggestions for the newly loaded case.
+      clearAiConversation();
       generateCaseSuggestions(caseId, caseDoc);
     } catch (err) {
       alert("Backend not reachable");
