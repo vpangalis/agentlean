@@ -219,7 +219,9 @@ class UnifiedIncidentGraph:
             intent = str(classification.get("intent") or "")
         elif classification is not None:
             intent = str(classification.intent)
-        case_loaded = bool(state.get("case_id") and str(state.get("case_id") or "").strip())
+        case_loaded = bool(
+            state.get("case_id") and str(state.get("case_id") or "").strip()
+        )
         output: QuestionReadinessNodeOutput = self._question_readiness_node.run(
             question=str(state.get("question") or ""),
             intent=intent,
@@ -229,7 +231,9 @@ class UnifiedIncidentGraph:
 
     def _route_question_readiness(self, state: IncidentGraphState) -> str:
         if not state.get("question_ready", True):
-            _graph_logger.info("[GRAPH_DEBUG] question not ready — short-circuiting to response_formatter")
+            _graph_logger.info(
+                "[GRAPH_DEBUG] question not ready — short-circuiting to response_formatter"
+            )
             return "NOT_READY"
         return "READY"
 
@@ -370,7 +374,7 @@ class UnifiedIncidentGraph:
 
     def _strategy_escalation(self, state: IncidentGraphState) -> IncidentGraphState:
         # Enrich state with strategy_response so the escalation node can do
-        # targeted section rewriting via run_with_model_override(state=...)
+        # targeted section rewriting via run(state=...)
         strategy_result = state.get("strategy_result")
         strategy_response = ""
         if isinstance(strategy_result, dict):

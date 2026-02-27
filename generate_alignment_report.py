@@ -638,9 +638,9 @@ def build(root: Path, output: Path):
     doc.add_heading("Critical Alignment Findings", level=2)
     findings = [
         (
-            "OperationalNode.run_with_model_override()",
-            "EXISTS — calls self._llm_client.complete_json() with OperationalReasoningDraft. "
-            "OperationalEscalationNode calls this method with model_name from ModelPolicy. ✅",
+            "OperationalNode.run(model_name=...)",
+            "EXISTS — calls self._llm_client.complete_text() with model_name override. "
+            "OperationalEscalationNode calls run(model_name=...) with model_name from ModelPolicy. ✅",
         ),
         (
             "OperationalReflectionNode → ReflectionResult",

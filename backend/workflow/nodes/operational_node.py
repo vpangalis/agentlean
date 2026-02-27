@@ -295,22 +295,7 @@ CRITICAL RULES:
         case_id: str,
         case_context: dict[str, Any],
         current_d_state: str | None,
-    ) -> OperationalNodeOutput:
-        return self.run_with_model_override(
-            question=question,
-            case_id=case_id,
-            case_context=case_context,
-            current_d_state=current_d_state,
-            model_name=None,
-        )
-
-    def run_with_model_override(
-        self,
-        question: str,
-        case_id: str,
-        case_context: dict[str, Any],
-        current_d_state: str | None,
-        model_name: str | None,
+        model_name: str | None = None,
     ) -> OperationalNodeOutput:
         # Route new-problem questions (no case loaded) to a dedicated prompt so the
         # LLM is not confused by the "embedded in an active case" framing.

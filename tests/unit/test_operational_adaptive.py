@@ -144,7 +144,7 @@ def test_operational_node_override_uses_given_model() -> None:
     llm = MockLLMClient(settings.MODEL_OPERATIONAL)
     node = OperationalNode(MockRetriever(), llm, settings)
 
-    node.run_with_model_override(
+    node.run(
         question="What next?",
         case_id="CASE-001",
         case_context={"organization_country": "GR"},

@@ -26,7 +26,7 @@ class OperationalEscalationNode:
     ) -> OperationalNodeOutput:
         state["operational_escalated"] = True
         model_name = self._model_policy.resolve_model("operational", state)
-        return self._operational_node.run_with_model_override(
+        return self._operational_node.run(
             question=question,
             case_id=case_id,
             case_context=case_context,

@@ -120,18 +120,11 @@ Retrieved cases for context:
         self._llm_client = llm_client
         self._settings = settings
 
-    def run(self, question: str, country: str | None) -> StrategyNodeOutput:
-        return self.run_with_model_override(
-            question=question,
-            country=country,
-            model_name=None,
-        )
-
-    def run_with_model_override(
+    def run(
         self,
         question: str,
         country: str | None,
-        model_name: str | None,
+        model_name: str | None = None,
         state: dict[str, Any] | None = None,
     ) -> StrategyNodeOutput:
         # Escalation path: rewrite only the failing section using premium model

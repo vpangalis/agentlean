@@ -23,7 +23,7 @@ class StrategyEscalationNode:
         state: dict[str, Any],
     ) -> StrategyNodeOutput:
         model_name = self._model_policy.resolve_model("strategy", state)
-        return self._strategy_node.run_with_model_override(
+        return self._strategy_node.run(
             question=question,
             country=country,
             model_name=model_name,

@@ -988,7 +988,7 @@ class OperationalNodeChecks:
     def test_required_methods_exist(self) -> CheckResult:
         source, tree = NodeCheckConfig._read_source(OperationalNode)
         methods = _ASTHelper.class_method_names(tree, "OperationalNode")
-        required = {"run", "run_with_model_override", "_extract_suggestions"}
+        required = {"run", "_extract_suggestions"}
         missing = required - set(methods)
         if missing:
             return CheckResult(
@@ -1642,7 +1642,7 @@ class StrategyNodeChecks:
     def test_required_methods_exist(self) -> CheckResult:
         source, tree = NodeCheckConfig._read_source(StrategyNode)
         methods = _ASTHelper.class_method_names(tree, "StrategyNode")
-        required = {"run", "run_with_model_override", "_extract_suggestions"}
+        required = {"run", "_extract_suggestions"}
         missing = required - set(methods)
         if missing:
             return CheckResult(
@@ -2465,7 +2465,9 @@ class QuestionReadinessNodeChecks:
 
     def test_ready_when_case_loaded(self) -> CheckResult:
         node = QuestionReadinessNode(
-            llm_client=_MockQuestionReadinessLLMClient(ready=True, clarifying_question="")
+            llm_client=_MockQuestionReadinessLLMClient(
+                ready=True, clarifying_question=""
+            )
         )
         try:
             result = node.run(
@@ -2498,7 +2500,9 @@ class QuestionReadinessNodeChecks:
     def test_not_ready_operational_no_case(self) -> CheckResult:
         cq = "Could you describe the problem you are currently investigating?"
         node = QuestionReadinessNode(
-            llm_client=_MockQuestionReadinessLLMClient(ready=False, clarifying_question=cq)
+            llm_client=_MockQuestionReadinessLLMClient(
+                ready=False, clarifying_question=cq
+            )
         )
         try:
             result = node.run(
@@ -2533,7 +2537,9 @@ class QuestionReadinessNodeChecks:
     def test_no_jargon_in_clarifying_question(self) -> CheckResult:
         cq = "Could you describe the specific problem your team is currently looking into?"
         node = QuestionReadinessNode(
-            llm_client=_MockQuestionReadinessLLMClient(ready=False, clarifying_question=cq)
+            llm_client=_MockQuestionReadinessLLMClient(
+                ready=False, clarifying_question=cq
+            )
         )
         try:
             result = node.run(
@@ -2599,7 +2605,10 @@ class NodeCheckRunner:
             ("SimilarityNode", SimilarityNodeChecks(self._config).run_all()),
             ("StrategyNode", StrategyNodeChecks(self._config).run_all()),
             ("KPINode", KPINodeChecks(self._config).run_all()),
-            ("QuestionReadinessNode", QuestionReadinessNodeChecks(self._config).run_all()),
+            (
+                "QuestionReadinessNode",
+                QuestionReadinessNodeChecks(self._config).run_all(),
+            ),
         ]
 
         total_pass = total_fail = total_skip = 0
@@ -2657,7 +2666,9 @@ class NodeCheckRunner:
             "SimilarityNode": SimilarityNodeChecks(self._config).run_all(),
             "StrategyNode": StrategyNodeChecks(self._config).run_all(),
             "KPINode": KPINodeChecks(self._config).run_all(),
-            "QuestionReadinessNode": QuestionReadinessNodeChecks(self._config).run_all(),
+            "QuestionReadinessNode": QuestionReadinessNodeChecks(
+                self._config
+            ).run_all(),
         }
 
 
