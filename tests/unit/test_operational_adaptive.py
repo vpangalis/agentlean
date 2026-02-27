@@ -38,6 +38,26 @@ class MockLLMClient:
         self.last_model_used: str | None = None
         self.call_count: int = 0
 
+    def complete_text(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float = 0.2,
+        user_question: str | None = None,
+        model_name: str | None = None,
+    ) -> str:
+        self.last_model_used = model_name or self._default_model_name
+        self.call_count += 1
+        return (
+            "Based on the findings in D4, the priority is to isolate and contain "
+            "the affected units immediately. Conduct a geometry check on all catenary "
+            "wire heights at the flagged kilometre points before returning vehicles to "
+            "normal service.\n\n"
+            "[NEXT STATE PREVIEW]\n"
+            "Once containment is confirmed and geometry deviations are documented, "
+            "proceed to D5 for permanent corrective action definition."
+        )
+
     def complete_json(
         self,
         system_prompt: str,
@@ -56,9 +76,11 @@ class MockLLMClient:
 
         if name == "OperationalReflectionAssessment":
             return response_model(
-                schema_valid=True,
-                completeness_score=0.85,
-                hallucination_risk="LOW",
+                case_grounding="GROUNDED",
+                gap_detection="SPECIFIC",
+                next_state_relevance="CONNECTED",
+                general_advice_flagged="PRESENT_FLAGGED",
+                explore_next_quality="SPECIFIC_MULTI_DOMAIN",
                 should_regenerate=False,
                 issues=[],
             )
@@ -74,17 +96,13 @@ class MockLLMClientLowQuality(MockLLMClient):
 
         if name == "OperationalReflectionAssessment":
             return response_model(
-                schema_valid=False,
-                completeness_score=0.3,
-                hallucination_risk="HIGH",
+                case_grounding="GENERIC",
+                gap_detection="MISSING",
+                next_state_relevance="MISSING",
+                general_advice_flagged="MISSING",
+                explore_next_quality="MISSING",
                 should_regenerate=True,
                 issues=["Incomplete recommendations", "Missing next state"],
-            )
-
-        if name == "OperationalReflectionRegeneration":
-            return response_model(
-                current_state_recommendations="Isolate and contain batch before root cause.",
-                next_state_preview="Proceed to D3 after containment confirmed.",
             )
 
         raise ValueError(f"MockLLMClientLowQuality: unexpected {name}")
