@@ -469,17 +469,6 @@ CRITICAL RULES:
                 lines.append("  (no data entered)")
         return "\n".join(lines) if lines else "No case history available."
 
-    @staticmethod
-    def _extract_section(text: str, start_marker: str, end_marker: str) -> str:
-        start_idx = text.find(start_marker)
-        if start_idx < 0:
-            return ""
-        content_start = start_idx + len(start_marker)
-        end_idx = text.find(end_marker, content_start)
-        if end_idx < 0:
-            return text[content_start:].strip()
-        return text[content_start:end_idx].strip()
-
     def _build_structured_prompt(
         self,
         case_context: dict[str, Any],
