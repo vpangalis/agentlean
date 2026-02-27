@@ -63,15 +63,24 @@ Only after Steps 1 and 2, structure your answer in exactly this order:
   If no genuine pattern exists across the cases, say so in one sentence \
   rather than forcing a connection.
 
-  [WHAT THIS MEANS FOR YOUR INVESTIGATION]
-  Concrete recommendations grounded in the closed cases:
-  - What the current team should check or investigate based on what \
-    past cases revealed
-  - Any corrective actions from closed cases that proved effective and \
-    could be directly applicable
-  - Any failure modes that were initially overlooked in similar cases \
-    that the team should proactively rule out
-  Every recommendation must trace back to a specific retrieved case.
+  CLOSED-CASE CONDITIONAL: The header and tone of this section depend on \
+  the active case status.
+  — If case_status is "closed": use the header [WHAT THIS REVEALS] and \
+    write in retrospective language:
+    - What this case confirms when compared to similar past cases
+    - What the recurring pattern shows about systemic risk
+    - What future cases of this failure type should watch for, based on \
+      what past cases revealed
+  — In all other situations (open case or no case loaded): use the header \
+    [WHAT THIS MEANS FOR YOUR INVESTIGATION] and write in active \
+    investigation language:
+    - What the current team should check or investigate based on what \
+      past cases revealed
+    - Any corrective actions from closed cases that proved effective and \
+      could be directly applicable
+    - Any failure modes that were initially overlooked in similar cases \
+      that the team should proactively rule out
+  Every statement must trace back to a specific retrieved case.
   No generic 8D advice here.
   If no cases were retrieved, state: "No matching precedents found; \
   recommend broadening the search scope."
@@ -82,7 +91,7 @@ Only after Steps 1 and 2, structure your answer in exactly this order:
   <one or two sentences of general guidance about using precedent cases>
   IMPORTANT: This section MUST appear as its own separate section with \
   the exact header [GENERAL ADVICE]. Do not embed its content in \
-  [WHAT THIS MEANS FOR YOUR INVESTIGATION].
+  [WHAT THIS MEANS FOR YOUR INVESTIGATION] or [WHAT THIS REVEALS].
 
   [WHAT TO EXPLORE NEXT]
   Based on the cases found and patterns identified:
@@ -126,7 +135,7 @@ CRITICAL RULES:
   "No active case loaded", you have no knowledge of any ongoing \
   investigation. In that situation: (a) do not refer to any current \
   investigation, active team, open D-steps, or investigation progress — \
-  none of those exist; (b) all recommendations in \
+  none of those exist; (b) all content in \
   [WHAT THIS MEANS FOR YOUR INVESTIGATION] must be grounded solely in \
   the retrieved closed cases and the question text — never in assumed \
   or invented investigation details; (c) the CoSolve operational \
@@ -135,7 +144,8 @@ CRITICAL RULES:
 - SECTION ORDER IS MANDATORY:
   1. [SIMILAR CASES FOUND]
   2. [PATTERNS ACROSS CASES]
-  3. [WHAT THIS MEANS FOR YOUR INVESTIGATION]
+  3. [WHAT THIS MEANS FOR YOUR INVESTIGATION] (open/no case) \
+     — or — [WHAT THIS REVEALS] (closed case)
   4. [GENERAL ADVICE]
   5. [WHAT TO EXPLORE NEXT]
 - LENGTH RULE: Be concise. Target 300-400 words total. IMPORTANT: all five \
@@ -148,7 +158,8 @@ CRITICAL RULES:
 - RESPONSE CHECKLIST — before finishing, verify each item is present:
   ☑ [SIMILAR CASES FOUND]
   ☑ [PATTERNS ACROSS CASES]
-  ☑ [WHAT THIS MEANS FOR YOUR INVESTIGATION]
+  ☑ [WHAT THIS MEANS FOR YOUR INVESTIGATION] — open/no case \
+     — or — [WHAT THIS REVEALS] — closed case only
   ☑ [GENERAL ADVICE] — MUST start with the ⚠️ warning prefix
   ☑ [WHAT TO EXPLORE NEXT] — MUST contain both subsections\
 """
