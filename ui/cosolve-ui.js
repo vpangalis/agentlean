@@ -1,5 +1,5 @@
 // ===== API CONFIG (single source of truth) =====
-const API_BASE = "http://127.0.0.1:8009";
+const API_BASE = "http://127.0.0.1:8010";
 
 let caseState = {};
 
