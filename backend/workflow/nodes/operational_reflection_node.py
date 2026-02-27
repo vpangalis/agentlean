@@ -6,8 +6,8 @@ from pydantic import BaseModel
 
 from backend.infra.llm_logging_client import LoggedLanguageModelClient
 from backend.workflow.nodes.node_parsing_utils import (
-    NEW_PROBLEM_KEYWORDS,
     extract_suggestions,
+    is_new_problem_question,
 )
 
 _debug_logger = logging.getLogger(__name__)
@@ -41,16 +41,10 @@ class OperationalReflectionNode:
         and reflection should be skipped entirely."""
         if case_loaded:
             return False
-        q = question.lower()
-        # keyword match
-        if any(kw in q for kw in NEW_PROBLEM_KEYWORDS):
+        # Delegate shared keyword and word-count checks to the canonical utility
+        if is_new_problem_question(question, case_id=""):
             return True
-        # short question + problem-domain word
-        if len(q.split()) <= 10 and any(
-            w in q for w in ("problem", "issue", "fault", "failure")
-        ):
-            return True
-        # the draft itself already uses the alternate section markers
+        # Unique additional check: the draft itself already uses the alternate section markers
         if any(
             m in draft_text
             for m in OperationalReflectionNode._NEW_PROBLEM_NO_CASE_MARKERS
