@@ -140,7 +140,7 @@ class KPITool:
         return KPIResult(
             scope="global",
             scope_label="Global",
-            render_hint="table",
+            render_hint="bar_chart" if country_ranking else "table",
             suggestions=suggestions,
             total_cases_opened_ytd=len(closed_ytd)
             + len([a for a in active if self._opened_after(a, ytd_start)]),
