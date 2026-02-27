@@ -1752,10 +1752,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
       hydrateCase(caseDoc);
       caseIdInput.disabled = true;
-      editFields.forEach(el => el.disabled = false);
-      actionButtons.forEach(btn => btn.disabled = false);
+      if (caseState?.case_status !== "closed") {
+        editFields.forEach(el => el.disabled = false);
+        actionButtons.forEach(btn => btn.disabled = false);
+      }
 
-      applyClosedState(Boolean(caseDoc?.case_status === "closed"));
+      applyClosedState(Boolean(caseState?.case_status === "closed"));
       loadEvidence(caseId);
       generateCaseSuggestions(caseId, caseDoc);
     } catch (err) {
@@ -1915,12 +1917,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // ── Transform 4 — Lift phase status from header to root of each d_state
     //    and normalise legacy status values to the three values the UI recognises.
     const phaseStatusMap = {
-      confirmed:   "completed",
-      done:        "completed",
-      complete:    "completed",
+      confirmed: "completed",
+      done: "completed",
+      complete: "completed",
       "in-progress": "in_progress",
-      active:      "in_progress",
-      started:     "in_progress",
+      active: "in_progress",
+      started: "in_progress",
     };
     const phaseKeys = ["D1_2", "D3", "D4", "D5", "D6", "D7", "D8"];
     phaseKeys.forEach((key) => {
