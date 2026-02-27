@@ -947,7 +947,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Closed cases get retrospective chips — skip the dynamic-suggestions API call entirely
     const isClosed =
-      (caseContext?.case_status ?? caseContext?.status ?? "").toLowerCase() === "closed";
+      (caseContext?.case?.status ?? caseContext?.case?.case_status ?? caseContext?.case_status ?? caseContext?.status ?? "").toLowerCase() === "closed";
     if (isClosed) {
       welcome.innerHTML =
         `<div class="ai-welcome-title">Case loaded: ${escapeHtml(caseId)}</div>` +
