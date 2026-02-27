@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import json
 import logging
 
 from backend.infra.llm_logging_client import LoggedLanguageModelClient
+from backend.workflow.nodes.base_reflection_node import BaseReflectionNode
 from backend.workflow.models import (
     SimilarityPayload,
     SimilarityReflectionAssessment,
@@ -13,7 +13,7 @@ from backend.workflow.models import (
 _debug_logger = logging.getLogger(__name__)
 
 
-class SimilarityReflectionNode:
+class SimilarityReflectionNode(BaseReflectionNode):
     _REFLECTION_SYSTEM_PROMPT = """\
 You are a quality auditor reviewing a similarity analysis response.
 Your job is to catch reasoning failures, not check JSON schema.
@@ -88,69 +88,52 @@ Question: {question}\
         llm_client: LoggedLanguageModelClient,
         regeneration_llm_client: LoggedLanguageModelClient,
     ) -> None:
-        self._llm_client = llm_client
-        self._regeneration_llm_client = regeneration_llm_client
-
-    def run(
-        self, question: str, draft: SimilarityPayload
-    ) -> SimilarityReflectionOutput:
-        cases_summary = json.dumps(
-            [c.model_dump(mode="json") for c in draft.supporting_cases],
-            indent=2,
-            default=str,
+        super().__init__(
+            llm_client=llm_client,
+            regeneration_llm_client=regeneration_llm_client,
+            reflection_prompt=self._REFLECTION_SYSTEM_PROMPT,
+            regeneration_prompt=self._REGENERATION_SYSTEM_PROMPT,
+            assessment_model=SimilarityReflectionAssessment,
+            score_fn=self._score,
+            output_builder=self._build_output,
         )
+        self._current_draft: SimilarityPayload | None = None
 
-        assessment = self._llm_client.complete_json(
-            system_prompt=SimilarityReflectionNode._REFLECTION_SYSTEM_PROMPT,
-            user_prompt=(
-                f"question: {question}\n"
-                f"retrieved_cases_summary: {cases_summary}\n"
-                f"draft_response: {draft.summary}"
-            ),
-            response_model=SimilarityReflectionAssessment,
-            temperature=0.0,
-            user_question=question,
-        )
+    def _score(self, assessment: SimilarityReflectionAssessment) -> float:
+        c = {"SPECIFIC": 1.0, "VAGUE": 0.5, "MISSING": 0.0}.get(assessment.case_specificity, 0.5)
+        r = {"HONEST": 1.0, "FORCED": 0.3, "MISSING": 0.0}.get(assessment.relevance_honesty, 0.5)
+        p = {"GENUINE": 1.0, "RESTATEMENT": 0.5, "MISSING": 0.0}.get(assessment.pattern_quality, 0.5)
+        a = {"PRESENT_FLAGGED": 1.0, "PRESENT_UNFLAGGED": 0.6, "MISSING": 0.0}.get(assessment.general_advice_flagged, 0.5)
+        e = {"SPECIFIC_MULTI_DOMAIN": 1.0, "GENERIC": 0.5, "INCOMPLETE": 0.3, "MISSING": 0.0}.get(assessment.explore_next_quality, 0.5)
+        return max(0.0, min(1.0, (c + r + p + a + e) / 5.0))
 
-        _debug_logger.info("SIMILARITY_REFLECTION: %s", assessment.model_dump())
+    def _build_output(self, draft_text: str, assessment: SimilarityReflectionAssessment) -> dict:
+        draft = self._current_draft
+        # Re-extract suggestions from the (possibly regenerated) text.
+        # Local import to avoid circular dependencies with similarity_node.
+        from backend.workflow.nodes.similarity_node import SimilarityNode
 
-        summary = draft.summary
-        suggestions = draft.suggestions
-
-        if assessment.needs_regeneration:
-            formatted_cases = json.dumps(
-                [c.model_dump(mode="json") for c in draft.supporting_cases],
-                indent=2,
-                default=str,
-            )
-            regen_prompt = SimilarityReflectionNode._REGENERATION_SYSTEM_PROMPT.format(
-                regeneration_focus=assessment.regeneration_focus or "",
-                draft=draft.summary,
-                formatted_cases=formatted_cases,
-                question=question,
-            )
-            summary = self._regeneration_llm_client.complete_text(
-                system_prompt=regen_prompt,
-                user_prompt=f"Question: {question}",
-                temperature=0.1,
-                user_question=question,
-            )
-            # Re-extract suggestions from regenerated text
-            from backend.workflow.nodes.similarity_node import SimilarityNode
-
-            suggestions = SimilarityNode._extract_suggestions(summary)
-
+        suggestions = SimilarityNode._extract_suggestions(draft_text)
         return SimilarityReflectionOutput(
             similarity_result=SimilarityPayload(
-                summary=summary,
+                summary=draft_text,
                 supporting_cases=draft.supporting_cases,
                 suggestions=suggestions,
             ),
             similarity_reflection=assessment,
-        )
+        ).model_dump()
 
+    def run(self, question: str, draft: SimilarityPayload) -> SimilarityReflectionOutput:
+        self._current_draft = draft
+        try:
+            result_dict = super().run(
+                draft_text=draft.summary,
+                question=question,
+                case_id="",
+            )
+            return SimilarityReflectionOutput.model_validate(result_dict)
+        finally:
+            self._current_draft = None
 
-# Remove module-level prompt names — they now live exclusively as
-# SimilarityReflectionNode class attributes.
 
 __all__ = ["SimilarityReflectionNode"]
