@@ -1893,11 +1893,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const d3 = result.d_states.D3;
     if (d3 && d3.data) {
       const d3Renames = [
-        ["why_problem",    "why_is_problem"],
-        ["when",           "when_detected"],
-        ["who",            "who_detected"],
+        ["why_problem", "why_is_problem"],
+        ["when", "when_detected"],
+        ["who", "who_detected"],
         ["how_identified", "how_detected"],
-        ["impact",         "quantified_impact"],
+        ["impact", "quantified_impact"],
       ];
       d3Renames.forEach(([oldKey, newKey]) => {
         if (d3.data[oldKey] !== undefined && d3.data[newKey] === undefined) {
@@ -1913,11 +1913,23 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ── Transform 4 — Lift phase status from header to root of each d_state
+    //    and normalise legacy status values to the three values the UI recognises.
+    const phaseStatusMap = {
+      confirmed:   "completed",
+      done:        "completed",
+      complete:    "completed",
+      "in-progress": "in_progress",
+      active:      "in_progress",
+      started:     "in_progress",
+    };
     const phaseKeys = ["D1_2", "D3", "D4", "D5", "D6", "D7", "D8"];
     phaseKeys.forEach((key) => {
       const phase = result.d_states[key];
       if (phase && phase.header && phase.header.status !== undefined && phase.status === undefined) {
-        phase.status = phase.header.status;
+        const raw = phase.header.status;
+        phase.status = phaseStatusMap[raw] ?? (
+          raw === "completed" || raw === "in_progress" || raw === "not_started" ? raw : "not_started"
+        );
       }
     });
 
