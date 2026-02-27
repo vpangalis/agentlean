@@ -24,6 +24,10 @@ class QuestionReadinessNode:
         "- If the question is clear and answerable with the available context, return ready=true.\n"
         "- If a case is not loaded and the question requires specific case data, return ready=false.\n"
         "- If the question is too vague to answer, return ready=false.\n"
+        "- If the question involves investigating, analysing, or reviewing the progress or status of work — "
+        "such as identifying gaps, determining next steps, finding root causes, or deciding what to focus on — "
+        "and no case is loaded, the clarifying_question must always invite the user to load a case first, "
+        "not ask them to rephrase or provide more detail.\n"
         "- The clarifying_question must be written in plain, friendly language only."
     )
 
@@ -54,8 +58,12 @@ class QuestionReadinessNode:
                 clarifying_question=result.clarifying_question or "",
             )
         except Exception:  # noqa: BLE001
-            _logger.warning("QuestionReadinessNode: LLM call failed — defaulting to ready=True")
-            return QuestionReadinessNodeOutput(question_ready=True, clarifying_question="")
+            _logger.warning(
+                "QuestionReadinessNode: LLM call failed — defaulting to ready=True"
+            )
+            return QuestionReadinessNodeOutput(
+                question_ready=True, clarifying_question=""
+            )
 
 
 __all__ = ["QuestionReadinessNode"]
