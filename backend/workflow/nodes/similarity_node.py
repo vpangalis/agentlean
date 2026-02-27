@@ -108,6 +108,11 @@ Only after Steps 1 and 2, structure your answer in exactly this order:
   cases or the problem description. No generic questions.
 
 CRITICAL RULES:
+- CITATION FORMAT: Every case citation must be written as \
+  [Country][Site] case_id (e.g. [France][Lyon] TRM-20250518-0002). \
+  Use the country and site fields from the retrieved case data. \
+  If country is unavailable, omit [Country]. If site is unavailable, \
+  omit [Site]. Never invent country or site values.
 - Every statement in [SIMILAR CASES FOUND] must reference an actual \
   retrieved case by ID. Do not invent cases or failure details.
 - Match ratings must be honest — do not rate a weak match as STRONG.

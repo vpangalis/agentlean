@@ -73,6 +73,11 @@ COSOLVE: <question>
 COSOLVE: <question>
 
 CRITICAL RULES:
+- CITATION FORMAT: Every case citation must be written as \
+  [Country][Site] case_id (e.g. [France][Lyon] TRM-20250518-0002). \
+  Use the country and site fields from the retrieved case data. \
+  If country is unavailable, omit [Country]. If site is unavailable, \
+  omit [Site]. Never invent country or site values.
 - Target 300-500 words total across all five sections. ALL FIVE sections are
   REQUIRED regardless of word count — write at minimum one sentence per section
   rather than omitting any section. Word count must never justify omitting a section.
