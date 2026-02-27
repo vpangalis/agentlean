@@ -1826,23 +1826,102 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /**
    * Normalise a case document to the native d_states format before hydration.
-   * Mirrors operational_node.py _normalize_d_states():
-   *   Native:  doc.d_states  with key D1_2  (returned unchanged)
-   *   Phases:  doc.phases    with key D1_D2 (translated → d_states, D1_D2 → D1_2)
+   * Handles legacy schema variants produced by seed scripts and the backend workflow.
+   * All transforms are idempotent: existing fields are never overwritten.
+   *
+   * Transform 1 — Lift case status to top level
+   *   doc.status or doc.case.status → doc.case_status
+   *
+   * Transform 2 — Flatten organisation sub-object onto D1_2.data
+   *   d_states.D1_2.data.organization.{country,site,unit} → d_states.D1_2.data.*
+   *   Original organization object is preserved in place.
+   *
+   * Transform 3 — Rename mismatched field names inside d_states
+   *   D3:   why_problem→why_is_problem, when→when_detected, who→who_detected,
+   *         how_identified→how_detected, impact→quantified_impact
+   *   D1_2: team_members→involved_people_teams (array joined to string)
+   *
+   * Transform 4 — Lift phase status from header to root of each d_state entry
+   *   d_states[key].header.status → d_states[key].status
+   *
+   * Original phases→d_states rename logic (D1_D2→D1_2) is retained.
    */
   function normalizeCaseDoc(doc) {
-    if (doc.d_states && typeof doc.d_states === "object" && Object.keys(doc.d_states).length > 0) {
-      return doc; // already native format
+    let result = { ...doc };
+
+    // ── Transform 1 — Lift case status to top level ───────────────────────
+    if (result.case_status === undefined) {
+      if (result.status !== undefined) {
+        result.case_status = result.status;
+      } else if (result.case && result.case.status !== undefined) {
+        result.case_status = result.case.status;
+      }
     }
-    if (doc.phases && typeof doc.phases === "object" && Object.keys(doc.phases).length > 0) {
-      const normalized = {};
-      Object.entries(doc.phases).forEach(([k, v]) => {
-        const normKey = k === "D1_D2" ? "D1_2" : k;
-        normalized[normKey] = v;
+
+    // ── Phases → d_states rename (original logic, kept intact) ───────────
+    if (!result.d_states || typeof result.d_states !== "object" || Object.keys(result.d_states).length === 0) {
+      if (result.phases && typeof result.phases === "object" && Object.keys(result.phases).length > 0) {
+        const normalized = {};
+        Object.entries(result.phases).forEach(([k, v]) => {
+          const normKey = k === "D1_D2" ? "D1_2" : k;
+          normalized[normKey] = v;
+        });
+        result.d_states = normalized;
+      }
+    }
+
+    if (!result.d_states || typeof result.d_states !== "object") {
+      return result;
+    }
+
+    // ── Transform 2 — Flatten organisation fields inside D1_2 ────────────
+    const d12 = result.d_states.D1_2;
+    if (d12 && d12.data && d12.data.organization && typeof d12.data.organization === "object") {
+      const org = d12.data.organization;
+      if (org.country !== undefined && d12.data.country === undefined) {
+        d12.data.country = org.country;
+      }
+      if (org.site !== undefined && d12.data.site === undefined) {
+        d12.data.site = org.site;
+      }
+      if (org.unit !== undefined && d12.data.unit === undefined) {
+        d12.data.unit = org.unit;
+      }
+    }
+
+    // ── Transform 3 — Rename mismatched field names inside d_states ───────
+    const d3 = result.d_states.D3;
+    if (d3 && d3.data) {
+      const d3Renames = [
+        ["why_problem",    "why_is_problem"],
+        ["when",           "when_detected"],
+        ["who",            "who_detected"],
+        ["how_identified", "how_detected"],
+        ["impact",         "quantified_impact"],
+      ];
+      d3Renames.forEach(([oldKey, newKey]) => {
+        if (d3.data[oldKey] !== undefined && d3.data[newKey] === undefined) {
+          d3.data[newKey] = d3.data[oldKey];
+        }
       });
-      return { ...doc, d_states: normalized };
     }
-    return doc;
+    if (d12 && d12.data) {
+      if (d12.data.team_members !== undefined && d12.data.involved_people_teams === undefined) {
+        const val = d12.data.team_members;
+        d12.data.involved_people_teams = Array.isArray(val) ? val.join(", ") : val;
+      }
+    }
+
+    // ── Transform 4 — Lift phase status from header to root of each d_state
+    const phaseKeys = ["D1_2", "D3", "D4", "D5", "D6", "D7", "D8"];
+    phaseKeys.forEach((key) => {
+      const phase = result.d_states[key];
+      if (phase && phase.header && phase.header.status !== undefined && phase.status === undefined) {
+        phase.status = phase.header.status;
+      }
+    });
+
+    return result;
   }
 
   function hydrateCase(caseDoc) {
