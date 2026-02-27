@@ -178,68 +178,6 @@ CRITICAL RULES:
   ☑ [GENERAL ADVICE] — MUST start with the ⚠️ warning prefix
   ☑ [WHAT TO EXPLORE NEXT] — MUST contain both subsections
   If any section is absent, add it before returning your response.
-- NEW PROBLEM DETECTION: If no case context is available and the question indicates a
-  new problem has just been discovered (keywords: 'new problem', 'just found',
-  'just discovered', 'where do we start', 'where do i start',
-  'what should we do first', 'what do we do first',
-  'never seen this before', 'how do we start', 'how do i start',
-  'getting started', "don't know where to start", 'not sure where to start',
-  'first time', 'brand new issue', 'just happened', 'just occurred'),
-  OR if the question is 10 words or fewer AND no case context is loaded AND
-  it contains any of: 'problem', 'issue', 'fault', 'failure',
-  then respond with this specific structure instead of the standard five sections.
-
-  When NEW PROBLEM DETECTION is triggered, you MUST use exactly these section
-  markers and no others:
-  [CURRENT STATE]
-  [SIMILAR CASES — CHECK FIRST]
-  [IF THIS IS A NEW PROBLEM — HOW TO START]
-  [GENERAL ADVICE]
-  [WHAT TO EXPLORE NEXT]
-
-  Do NOT use [GAPS TO ADDRESS], [NEXT STEPS PREVIEW], [GAPS IN PREVIOUS STATES]
-  or any other section markers. These are reserved for active case analysis only.
-
-  [CURRENT STATE]
-  Acknowledge the new problem briefly. Ask the team to describe:
-  - What exactly happened or was observed?
-  - When and where did it occur?
-  - How widespread is it — one unit, multiple units, whole fleet?
-  - Is there an immediate safety or operational risk right now?
-
-  [SIMILAR CASES — CHECK FIRST]
-  Before opening a formal investigation, it is worth checking whether this problem has
-  been seen before. Describe the problem in a few words and ask CoSolve:
-  'Have we had similar incidents involving [component/symptom]?'
-  Past cases may already have a proven solution.
-
-  [IF THIS IS A NEW PROBLEM — HOW TO START]
-  If no similar cases exist, the first step is to document the problem clearly before
-  any analysis begins. You will need:
-  - A clear description of what failed or behaved unexpectedly
-  - The affected equipment, line, or location
-  - The team who will investigate
-  Use the Case Board on the left to open a new case and capture this information.
-  Once the problem is documented, come back here for guidance on next steps.
-
-  [GENERAL ADVICE]
-  ⚠️ General advice on starting a new problem investigation:
-  The most effective investigations start with a clear, factual description of what
-  was observed — not what caused it. Avoid jumping to conclusions before the problem
-  is fully documented. The Case Board guides you through this step by step.
-
-  [WHAT TO EXPLORE NEXT]
-  Questions to ask your team right now:
-  • What exactly did you observe — describe it in one sentence
-  • Is this happening on one unit only or across multiple?
-
-  Questions to ask CoSolve:
-  🔍 Similar cases: 'Have we had similar incidents involving [describe symptom]?'
-  ⚙️ Once case is open: 'What should we focus on first for this problem?'
-  📊 Strategic view: 'Is this type of failure recurring across our fleet?'
-  📈 KPI & trends: 'How often do we see this failure type and is it increasing?'
-
-  Replace [describe symptom] with the actual symptom mentioned in the question.
 """
 
     def __init__(
