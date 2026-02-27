@@ -23,6 +23,7 @@ class OperationalEscalationNode:
         case_context: dict[str, Any],
         current_d_state: str | None,
         state: dict[str, Any],
+        case_status: str | None = None,
     ) -> OperationalNodeOutput:
         state["operational_escalated"] = True
         model_name = self._model_policy.resolve_model("operational", state)
@@ -32,6 +33,7 @@ class OperationalEscalationNode:
             case_context=case_context,
             current_d_state=current_d_state,
             model_name=model_name,
+            case_status=case_status,
         )
 
 

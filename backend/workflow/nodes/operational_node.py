@@ -180,6 +180,56 @@ CRITICAL RULES:
   If any section is absent, add it before returning your response.
 """
 
+    _CLOSED_CASE_SYSTEM_PROMPT = """\
+You are a senior quality advisor reviewing a CLOSED and fully resolved incident case.
+This case is closed. The investigation is complete. Do not suggest next steps,
+gaps to address, or further actions — the team has already finished.
+
+Your role is to summarise what was investigated, what the root cause was,
+what actions were taken, and what the organisation learned.
+
+Respond using EXACTLY these five sections in EXACTLY this order.
+
+[RESOLUTION SUMMARY]
+Briefly describe what the case was about, what symptom was investigated,
+and how the investigation concluded. Reference the case ID and the final resolved state.
+
+[ROOT CAUSE]
+State the root cause(s) identified during the investigation. Be specific — use
+actual data from the case history. If multiple root causes were found, list them clearly.
+
+[ACTIONS TAKEN]
+Describe the corrective and preventive actions that were implemented to resolve
+the case. Reference specific steps from the case history where available.
+
+[LESSONS LEARNED]
+Summarise what the organisation learned from this case: what process, technical,
+or organisational knowledge can be applied to future cases or fleet-wide prevention.
+
+[WHAT TO EXPLORE NEXT]
+Suggest related searches or portfolio-level questions the team could explore to build
+on the knowledge from this resolved case. These must be similarity searches or
+strategic/portfolio questions — never operational next steps for this case.
+
+Questions to ask CoSolve:
+🔍 Similar cases: "<a specific question about whether other cases share the same root cause,
+   failure mode, or component — grounded in actual details from this resolved case>"
+⚙️ Portfolio follow-up: "<a specific question about whether the corrective actions
+   from this case have been applied more broadly across similar assets or locations>"
+📊 Strategic view: "<a specific question about systemic patterns this case reveals
+   when viewed across the wider fleet or portfolio>"
+📈 KPI & trends: "<a specific question about whether recurrence metrics show the
+   effectiveness of the actions taken in this case>"
+
+RULES:
+- Use exactly the five section markers above. No others.
+- Do NOT suggest next steps, gaps, or further investigation. The case is closed.
+- Every section after [RESOLUTION SUMMARY] must reference actual data from the case.
+- Return plain text only. No JSON. No markdown.
+- [WHAT TO EXPLORE NEXT] must be the last section. Nothing may appear after it.
+- LENGTH RULE: Be concise. Target 250-350 words maximum across all five sections.
+"""
+
     def __init__(
         self,
         hybrid_retriever: HybridRetriever,
@@ -197,6 +247,7 @@ CRITICAL RULES:
         case_context: dict[str, Any],
         current_d_state: str | None,
         model_name: str | None = None,
+        case_status: str | None = None,
     ) -> OperationalNodeOutput:
         # Route new-problem questions (no case loaded) to a dedicated prompt so the
         # LLM is not confused by the "embedded in an active case" framing.
@@ -216,6 +267,46 @@ CRITICAL RULES:
                     next_state_preview="",
                     supporting_cases=[],
                     referenced_evidence=[],
+                    suggestions=suggestions,
+                )
+            )
+
+        # Closed case path: summarise history without suggesting next steps.
+        # Skip the escalation quality gate — historical summaries need no re-check.
+        if case_status == "closed" and case_id:
+            supporting_cases = self._hybrid_retriever.retrieve_similar_cases(
+                query=question,
+                current_case_id=case_id,
+                country=self._extract_country(case_context),
+            )
+            referenced_evidence = self._hybrid_retriever.retrieve_evidence_for_case(
+                case_id=case_id,
+            )
+            user_prompt = (
+                f"CLOSED CASE: {case_id}\n"
+                f"USER QUESTION: {question}\n"
+                "\n--- CASE HISTORY ---\n"
+                f"{format_d_states(case_context)}\n"
+                "\n--- SUPPORTING CLOSED CASES ---\n"
+                f"{json.dumps([item.model_dump(mode='json') for item in supporting_cases], indent=2)}\n"
+                "\n--- REFERENCED EVIDENCE ---\n"
+                f"{json.dumps([item.model_dump(mode='json') for item in referenced_evidence], indent=2)}"
+            )
+            response_text = self._llm_client.complete_text(
+                system_prompt=OperationalNode._CLOSED_CASE_SYSTEM_PROMPT,
+                user_prompt=user_prompt,
+                temperature=0.2,
+                user_question=question,
+                model_name=model_name,
+            )
+            suggestions = extract_suggestions(response_text)
+            return OperationalNodeOutput(
+                operational_draft=OperationalPayload(
+                    current_state="closed",
+                    current_state_recommendations=response_text,
+                    next_state_preview="",
+                    supporting_cases=supporting_cases,
+                    referenced_evidence=referenced_evidence,
                     suggestions=suggestions,
                 )
             )

@@ -45,6 +45,7 @@ class IncidentGraphState(TypedDict, total=False):
     case_id: str | None
     question: str
     case_context: dict | None
+    case_status: str | None
     current_d_state: str | None
     classification: IntentClassificationResult | None
     route: str | None
@@ -280,11 +281,14 @@ class UnifiedIncidentGraph:
                 next_state_preview="",
             )
             return cast(IncidentGraphState, {"operational_draft": stub.model_dump()})
+
+        case_status = self._extract_case_status(case_context)
         output = self._operational_node.run(
             question=question,
             case_id=case_id or "",
             case_context=case_context if isinstance(case_context, dict) else {},
             current_d_state=state.get("current_d_state"),
+            case_status=case_status,
         )
         return cast(IncidentGraphState, output.model_dump())
 
@@ -358,12 +362,14 @@ class UnifiedIncidentGraph:
                 IncidentGraphState,
                 {"operational_draft": stub.model_dump(), "operational_escalated": True},
             )
+        case_status = self._extract_case_status(case_context)
         output = self._operational_escalation_node.run(
             question=str(state.get("question") or ""),
             case_id=case_id,
             case_context=case_context,
             current_d_state=state.get("current_d_state"),
             state=dict(state),
+            case_status=case_status,
         )
         result = cast(IncidentGraphState, output.model_dump())
         result["operational_escalated"] = True
@@ -425,9 +431,7 @@ class UnifiedIncidentGraph:
             operational_result = OperationalPayload.model_validate(operational_result)
         similarity_result = state.get("similarity_result")
         if isinstance(similarity_result, dict):
-            similarity_result = SimilarityPayload.model_validate(
-                similarity_result
-            )
+            similarity_result = SimilarityPayload.model_validate(similarity_result)
         strategy_result = state.get("strategy_result")
         if isinstance(strategy_result, dict):
             strategy_result = StrategyPayload.model_validate(strategy_result)
@@ -467,6 +471,10 @@ class UnifiedIncidentGraph:
         return str(route)
 
     def _route_operational_escalation(self, state: IncidentGraphState) -> str:
+        # Closed case historical summaries skip the quality gate entirely.
+        case_context = state.get("case_context")
+        if self._extract_case_status(case_context) == "closed":
+            return "CONTINUE"
         if self._escalation_controller.should_escalate_operational(dict(state)):
             return "ESCALATE"
         return "CONTINUE"
@@ -493,6 +501,26 @@ class UnifiedIncidentGraph:
         if not trailing:
             return None
         return trailing.split()[0].strip(",.;")
+
+    @staticmethod
+    def _extract_case_status(case_context: dict | None) -> str | None:
+        """Extract the case status string from a case_context document.
+
+        Supports two document shapes:
+        - Nested:  case_context["case"]["status"]   (seeded/stored documents)
+        - Flat:    case_context["status"]            (legacy or test fixtures)
+        """
+        if not isinstance(case_context, dict):
+            return None
+        nested = case_context.get("case")
+        if isinstance(nested, dict):
+            status = nested.get("status")
+            if isinstance(status, str) and status.strip():
+                return status.strip().lower()
+        flat = case_context.get("status")
+        if isinstance(flat, str) and flat.strip():
+            return flat.strip().lower()
+        return None
 
 
 __all__ = ["IncidentGraphState", "UnifiedIncidentGraph"]
