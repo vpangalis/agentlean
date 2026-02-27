@@ -69,28 +69,28 @@ class EntryHandler:
         raise ValueError(f"Unsupported intent: {envelope.intent}")
 
     def _handle_case_ingestion(self, envelope: EntryEnvelope) -> EntryResponseEnvelope:
-        print(f"[DEBUG] Received action: {envelope.action}")
-        print(f"[DEBUG] Received event: {envelope.event}")
+        _logger.debug("[DEBUG] Received action: %s", envelope.action)
+        _logger.debug("[DEBUG] Received event: %s", envelope.event)
         action = self._normalize_action(envelope.action or envelope.event)
-        print(f"[DEBUG] Normalized action: {action}")
+        _logger.debug("[DEBUG] Normalized action: %s", action)
 
         if action == "CREATE_CASE":
-            print("[DEBUG] Branch taken: CREATE_CASE")
+            _logger.debug("[DEBUG] Branch taken: CREATE_CASE")
             data = self._create_case(envelope)
         elif action == "UPDATE_CASE":
-            print("[DEBUG] Branch taken: UPDATE_CASE")
+            _logger.debug("[DEBUG] Branch taken: UPDATE_CASE")
             data = self._update_case(envelope)
         elif action == "CLOSE_CASE":
-            print("[DEBUG] Branch taken: CLOSE_CASE")
+            _logger.debug("[DEBUG] Branch taken: CLOSE_CASE")
             data = self._close_case(envelope)
         elif action == "UPLOAD_EVIDENCE":
-            print("[DEBUG] Branch taken: UPLOAD_EVIDENCE")
+            _logger.debug("[DEBUG] Branch taken: UPLOAD_EVIDENCE")
             data = self._upload_evidence(envelope)
         elif action == "UPLOAD_KNOWLEDGE":
-            print("[DEBUG] Branch taken: UPLOAD_KNOWLEDGE")
+            _logger.debug("[DEBUG] Branch taken: UPLOAD_KNOWLEDGE")
             data = self._upload_knowledge(envelope)
         else:
-            print(f"[DEBUG] Unsupported action after normalization: {action}")
+            _logger.debug("[DEBUG] Unsupported action after normalization: %s", action)
             raise ValueError(f"Unsupported case intent: {action}")
         return EntryResponseEnvelope(
             intent=envelope.intent,
@@ -99,7 +99,7 @@ class EntryHandler:
         )
 
     def _handle_ai_reasoning(self, envelope: EntryEnvelope) -> EntryResponseEnvelope:
-        print(f"[DEBUG AI ENTRY] raw envelope={envelope.model_dump()!r}")
+        _logger.debug("[DEBUG AI ENTRY] raw envelope=%r", envelope.model_dump())
         payload = envelope.payload or {}
         question = str(payload.get("question") or "").strip()
         case_id = payload.get("case_id") or envelope.case_id
@@ -217,8 +217,8 @@ class EntryHandler:
 
     def _create_case(self, envelope: EntryEnvelope) -> dict[str, Any]:
         payload = envelope.payload or {}
-        print(
-            f"[DEBUG AI] payload keys: {list(payload.keys())}, question: {payload.get('question')!r}"
+        _logger.debug(
+            "[DEBUG AI] payload keys: %s, question: %r", list(payload.keys()), payload.get("question")
         )
 
         case_id = payload.get("case_id") or envelope.case_id

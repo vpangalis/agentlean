@@ -12,7 +12,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.ai.escalation_controller import EscalationController
 from backend.ai.model_policy import ModelPolicy
-from backend.ai.model_strategy import ModelStrategy
 from backend.config import settings
 from backend.api.routes import ApiRoutes
 from backend.entry.entry_handler import EntryHandler
@@ -131,8 +130,7 @@ class BackendContainer:
             settings=settings,
         )
         self.language_model_client = LanguageModelClient(settings_module=settings)
-        self.model_strategy = ModelStrategy(settings=settings)
-        self.model_policy = ModelPolicy(model_strategy=self.model_strategy)
+        self.model_policy = ModelPolicy(settings=settings)
         self.escalation_controller = EscalationController()
         self.classifier_llm = LoggedLanguageModelClient(
             base_client=self.language_model_client,

@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import Any
 
 from backend.ai.model_policy import ModelPolicy
-from backend.ai.model_strategy import ModelStrategy
 from backend.ai.escalation_controller import EscalationController
 from backend.workflow.models import (
     ReflectionResult,
@@ -212,7 +211,7 @@ def test_escalation_node_sets_escalated_flag() -> None:
     settings = MockSettings()
     llm = MockLLMClient(settings.MODEL_OPERATIONAL)
     node = OperationalNode(MockRetriever(), llm, settings)
-    policy = ModelPolicy(ModelStrategy(settings))
+    policy = ModelPolicy(settings)
     escalation_node = OperationalEscalationNode(node, policy)
 
     state: dict[str, Any] = {
@@ -235,7 +234,7 @@ def test_escalation_node_uses_premium_model() -> None:
     settings = MockSettings()
     llm = MockLLMClient(settings.MODEL_OPERATIONAL)
     node = OperationalNode(MockRetriever(), llm, settings)
-    policy = ModelPolicy(ModelStrategy(settings))
+    policy = ModelPolicy(settings)
     escalation_node = OperationalEscalationNode(node, policy)
 
     state: dict[str, Any] = {
@@ -258,7 +257,7 @@ def test_full_escalation_flow() -> None:
     settings = MockSettings()
     llm = MockLLMClientLowQuality(settings.MODEL_OPERATIONAL)
     node = OperationalNode(MockRetriever(), llm, settings)
-    policy = ModelPolicy(ModelStrategy(settings))
+    policy = ModelPolicy(settings)
     escalation_node = OperationalEscalationNode(node, policy)
     reflection_node = OperationalReflectionNode(llm, llm)
     controller = EscalationController()
