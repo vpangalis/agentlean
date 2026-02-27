@@ -225,8 +225,7 @@ class KPIReflectionNode:
             user_question=question,
         )
 
-    @staticmethod
-    def _compute_completeness(metrics: KPIResult, audit: KPISemanticAudit) -> float:
+    def _compute_completeness(self, metrics: KPIResult, audit: KPISemanticAudit) -> float:
         """Score 0.0–1.0 based on how many expected fields are populated and
         how clean the audit results are."""
         score = 0.5  # base
@@ -250,8 +249,7 @@ class KPIReflectionNode:
             score += 0.05
         return min(round(score, 2), 1.0)
 
-    @staticmethod
-    def _hallucination_risk(audit: KPISemanticAudit) -> str:
+    def _hallucination_risk(self, audit: KPISemanticAudit) -> str:
         if not audit.data_grounded or audit.banned_terms_found:
             return "HIGH"
         if not audit.scope_correct or not audit.render_hint_correct:

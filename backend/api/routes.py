@@ -30,13 +30,11 @@ class SuggestionsRequest(BaseModel):
 class ApiRoutes:
     _CASE_ID_RE = re.compile(r"^[A-Z]{3,4}-\d{8}-\d{4}$", re.IGNORECASE)
 
-    @staticmethod
-    def _sanitize(value: str) -> str:
+    def _sanitize(self, value: str) -> str:
         """Strip characters unsafe for OData filter string literals."""
         return value.replace("'", "").replace('"', "").strip()
 
-    @staticmethod
-    def _normalize_hit(hit: dict) -> dict:
+    def _normalize_hit(self, hit: dict) -> dict:
         """Project raw Azure Search hit to a stable UI-facing shape."""
         return {
             "case_id": hit.get("case_id") or hit.get("id", ""),
@@ -165,7 +163,7 @@ class ApiRoutes:
 
         try:
             if request.search_type == "case_id":
-                safe = ApiRoutes._sanitize(query).upper()
+                safe = self._sanitize(query).upper()
                 filter_expr = f"case_id eq '{safe}'"
                 logger.info("[SEARCH] Running exact case_id filter: %r", filter_expr)
                 hits = self._case_search_client.filtered_search(
@@ -173,7 +171,7 @@ class ApiRoutes:
                     top_k=1,
                 )
             elif request.search_type == "site_or_country":
-                safe = ApiRoutes._sanitize(query)
+                safe = self._sanitize(query)
                 safe_lower = safe.lower()
                 filter_expr = (
                     f"organization_country eq '{safe}' or organization_country eq '{safe_lower}' or "
@@ -195,7 +193,7 @@ class ApiRoutes:
             logger.exception("[SEARCH] Uncaught exception during search")
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        results = [ApiRoutes._normalize_hit(h) for h in hits]
+        results = [self._normalize_hit(h) for h in hits]
         logger.info(
             "[SEARCH] Returning %d result(s): %s",
             len(results),

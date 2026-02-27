@@ -400,12 +400,10 @@ class CaseIngestionService:
                 "[INDEX_OPEN] upload FAILED for %s: %s", case_id, exc
             )
 
-    @staticmethod
-    def _now_iso() -> str:
+    def _now_iso(self) -> str:
         return datetime.utcnow().isoformat() + "Z"
 
-    @staticmethod
-    def _to_search_datetime(value: Any) -> str | None:
+    def _to_search_datetime(self, value: Any) -> str | None:
         if value is None:
             return None
 
@@ -437,8 +435,7 @@ class CaseIngestionService:
             payload["reason"] = reason
         self._logger.info(json.dumps(payload))
 
-    @staticmethod
-    def _extract_case_id(path: str) -> str:
+    def _extract_case_id(self, path: str) -> str:
         parts = path.split("/")
         if len(parts) < 2 or parts[-1] != "case.json":
             raise ValueError(f"Invalid case path: {path}")
@@ -453,8 +450,7 @@ class CaseIngestionService:
         if not doc_id.endswith(suffix) or len(doc_id) == len(suffix):
             raise ValueError(f"Invalid doc_id format. Expected '{{case_id}}{suffix}'.")
 
-    @staticmethod
-    def _safe_get(data: dict, *keys: str, default: Any = "") -> Any:
+    def _safe_get(self, data: dict, *keys: str, default: Any = "") -> Any:
         cur: Any = data
         for key in keys:
             if not isinstance(cur, dict) or key not in cur:
@@ -462,28 +458,24 @@ class CaseIngestionService:
             cur = cur[key]
         return cur
 
-    @staticmethod
-    def _coerce_list(value: Any) -> list:
+    def _coerce_list(self, value: Any) -> list:
         if value is None:
             return []
         if isinstance(value, list):
             return value
         return [value]
 
-    @staticmethod
-    def _normalize_string(value: Any) -> str:
+    def _normalize_string(self, value: Any) -> str:
         if value is None:
             return ""
         if isinstance(value, str):
             return value.strip()
         return str(value)
 
-    @staticmethod
-    def _normalize_list(value: Any) -> list[str]:
-        return [CaseIngestionService._normalize_string(v) for v in (value or [])]
+    def _normalize_list(self, value: Any) -> list[str]:
+        return [self._normalize_string(v) for v in (value or [])]
 
-    @staticmethod
-    def _normalize_evidence_descriptions(evidence: list[dict]) -> str:
+    def _normalize_evidence_descriptions(self, evidence: list[dict]) -> str:
         values = []
         for item in evidence:
             description = item.get("description") if isinstance(item, dict) else ""
@@ -491,8 +483,7 @@ class CaseIngestionService:
                 values.append(description)
         return "\n".join(values)
 
-    @staticmethod
-    def _normalize_evidence_tags(evidence: list[dict]) -> list[str]:
+    def _normalize_evidence_tags(self, evidence: list[dict]) -> list[str]:
         tags: list[str] = []
         for item in evidence:
             if not isinstance(item, dict):
@@ -504,8 +495,7 @@ class CaseIngestionService:
                 tags.append(str(entry))
         return tags
 
-    @staticmethod
-    def _collect_discipline_completed(phases: dict[str, Any]) -> list[str]:
+    def _collect_discipline_completed(self, phases: dict[str, Any]) -> list[str]:
         completed = []
         for phase_key, phase in phases.items():
             header = phase.get("header", {}) if isinstance(phase, dict) else {}
@@ -661,8 +651,7 @@ class CaseIngestionService:
                 parts.append(f"{label}: {value}")
         return "\n".join(parts)
 
-    @staticmethod
-    def _normalize_team_members(value: object) -> list[str]:
+    def _normalize_team_members(self, value: object) -> list[str]:
         """Coerce team_members to a clean list of strings.
 
         Accepts:
@@ -693,8 +682,7 @@ class CaseIngestionService:
 
         return list(dict.fromkeys(normalized))  # deduplicate preserving order
 
-    @staticmethod
-    def _join_action_texts(items: list[dict]) -> str:
+    def _join_action_texts(self, items: list[dict]) -> str:
         if not items:
             return ""
         texts = []

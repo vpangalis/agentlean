@@ -163,11 +163,7 @@ def test_operational_node_extracts_country_from_d_states() -> None:
     result = node.run(
         question="What should we do?",
         case_id="CASE-002",
-        case_context={
-            "d_states": {
-                "D1_2": {"data": {"country": "FR"}}
-            }
-        },
+        case_context={"d_states": {"D1_2": {"data": {"country": "FR"}}}},
         current_d_state="D1_2",
     )
 

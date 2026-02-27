@@ -32,9 +32,8 @@ class OperationalReflectionNode:
         "[IF THIS IS A NEW PROBLEM — HOW TO START]",
     )
 
-    @staticmethod
     def _is_new_problem_bypass(
-        question: str, draft_text: str, case_loaded: bool
+        self, question: str, draft_text: str, case_loaded: bool
     ) -> bool:
         """Return True when the response used the NEW PROBLEM DETECTION path
         and reflection should be skipped entirely."""
@@ -160,7 +159,7 @@ Return plain text only. No JSON.\
         case_loaded = bool(
             draft.current_state and draft.current_state != "No case loaded"
         )
-        if OperationalReflectionNode._is_new_problem_bypass(
+        if self._is_new_problem_bypass(
             question, draft.current_state_recommendations, case_loaded
         ):
             result = OperationalGuidance(

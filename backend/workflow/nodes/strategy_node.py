@@ -258,8 +258,7 @@ Retrieved cases for context:
             )
         )
 
-    @staticmethod
-    def _extract_suggestions(response_text: str) -> list[dict]:
+    def _extract_suggestions(self, response_text: str) -> list[dict]:
         """Extract [WHAT TO EXPLORE NEXT] TEAM:/COSOLVE: items as structured chips."""
         suggestions: list[dict] = []
         try:

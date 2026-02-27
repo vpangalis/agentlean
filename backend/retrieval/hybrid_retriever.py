@@ -201,8 +201,7 @@ class HybridRetriever:
             return None
         return self._map_case_summary(raw_results[0])
 
-    @staticmethod
-    def _map_case_summary(item: dict) -> CaseSummary:
+    def _map_case_summary(self, item: dict) -> CaseSummary:
         """Map a raw search document to a CaseSummary, including the new
         KPI-relevant fields (current_stage, responsible_leader, department)."""
         team_members: list = item.get("team_members") or []
