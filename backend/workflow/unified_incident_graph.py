@@ -305,11 +305,14 @@ class UnifiedIncidentGraph:
         return cast(IncidentGraphState, output.model_dump())
 
     def _similarity(self, state: IncidentGraphState) -> IncidentGraphState:
+        case_context = state.get("case_context")
+        case_status_sim = self._extract_case_status(case_context) if isinstance(case_context, dict) else None
         output = self._similarity_node.run(
             question=str(state.get("question") or ""),
             case_id=state.get("case_id"),
             country=self._resolve_country(state),
-            case_context=state.get("case_context"),
+            case_context=case_context,
+            case_status=case_status_sim,
         )
         return cast(IncidentGraphState, output.model_dump())
 

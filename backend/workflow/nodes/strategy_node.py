@@ -38,7 +38,7 @@ No other sections are permitted.
 
 [SYSTEMIC PATTERNS IDENTIFIED]
 Name each pattern explicitly. For each pattern, cite the supporting case IDs.
-Flag any open case as [EMERGING — case_id]. Be specific: name the component or process,
+Flag any open case as [EMERGING — TRM-20250602-0007] (substituting the real case ID). Be specific: name the component or process,
 not a generic category. If fewer than 2 cases support a pattern, do not call it systemic.
 
 [ROOT CAUSE CATEGORIES]

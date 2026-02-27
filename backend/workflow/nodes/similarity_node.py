@@ -180,6 +180,7 @@ CRITICAL RULES:
         case_id: str | None,
         country: str | None,
         case_context: dict[str, Any] | None = None,
+        case_status: str | None = None,
     ) -> SimilarityNodeOutput:
         cases = self._hybrid_retriever.retrieve_similar_cases(
             query=question,
@@ -202,8 +203,10 @@ CRITICAL RULES:
         else:
             formatted_cases = "No cases retrieved from the knowledge base."
 
+        status_value = (case_status or "open").lower()
         user_prompt = (
-            f"USER QUESTION: {question}\n\n"
+            f"USER QUESTION: {question}\n"
+            f"ACTIVE CASE STATUS: {status_value}\n\n"
             "--- ACTIVE CASE CONTEXT ---\n"
             f"{case_context_summary}\n\n"
             "--- RETRIEVED CLOSED CASES ---\n"
