@@ -7,7 +7,7 @@ from backend.config import Settings
 from backend.infra.llm_logging_client import LoggedLanguageModelClient
 from backend.retrieval.hybrid_retriever import HybridRetriever
 from backend.workflow.models import SimilarityDraftPayload, SimilarityNodeOutput
-from backend.workflow.nodes.operational_node import OperationalNode
+from backend.workflow.nodes.node_parsing_utils import format_d_states
 
 
 class SimilarityNode:
@@ -170,7 +170,7 @@ CRITICAL RULES:
 
         # Build case context summary
         if case_context:
-            case_context_summary = OperationalNode._format_d_states(case_context)
+            case_context_summary = format_d_states(case_context)
         else:
             case_context_summary = (
                 "No active case loaded — reasoning from question description only."
@@ -208,8 +208,7 @@ CRITICAL RULES:
             )
         )
 
-    @staticmethod
-    def _extract_suggestions(response_text: str) -> list[dict]:
+    def _extract_suggestions(self, response_text: str) -> list[dict]:
         """Extract [WHAT TO EXPLORE NEXT] items as structured suggestions."""
         suggestions: list[dict] = []
         try:

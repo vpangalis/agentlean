@@ -52,6 +52,7 @@ from backend.workflow.models import (
     StrategyNodeOutput,
 )
 from backend.workflow.nodes.kpi_node import KPINode
+from backend.workflow.nodes.node_parsing_utils import is_new_problem_question
 from backend.workflow.nodes.operational_node import OperationalNode
 from backend.workflow.nodes.question_readiness_node import QuestionReadinessNode
 from backend.workflow.nodes.similarity_node import SimilarityNode
@@ -988,7 +989,7 @@ class OperationalNodeChecks:
     def test_required_methods_exist(self) -> CheckResult:
         source, tree = NodeCheckConfig._read_source(OperationalNode)
         methods = _ASTHelper.class_method_names(tree, "OperationalNode")
-        required = {"run", "_extract_suggestions"}
+        required = {"run"}
         missing = required - set(methods)
         if missing:
             return CheckResult(
@@ -1259,10 +1260,10 @@ class OperationalNodeChecks:
             ("analyse the root cause findings", "CASE-001"),
         ]
         for q, cid in positives:
-            if not OperationalNode._is_new_problem_question(q, cid):
+            if not is_new_problem_question(q, cid):
                 issues.append(f"Expected True for: q='{q}', case_id='{cid}'")
         for q, cid in negatives:
-            if OperationalNode._is_new_problem_question(q, cid):
+            if is_new_problem_question(q, cid):
                 issues.append(f"Expected False for: q='{q}', case_id='{cid}'")
         if issues:
             return CheckResult(

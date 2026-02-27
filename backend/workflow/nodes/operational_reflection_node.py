@@ -5,7 +5,10 @@ import logging
 from pydantic import BaseModel
 
 from backend.infra.llm_logging_client import LoggedLanguageModelClient
-from backend.workflow.nodes.operational_node import OperationalNode
+from backend.workflow.nodes.node_parsing_utils import (
+    NEW_PROBLEM_KEYWORDS,
+    extract_suggestions,
+)
 
 _debug_logger = logging.getLogger(__name__)
 from backend.workflow.models import (
@@ -41,7 +44,7 @@ class OperationalReflectionNode:
             return False
         q = question.lower()
         # keyword match
-        if any(kw in q for kw in OperationalNode._NEW_PROBLEM_KEYWORDS):
+        if any(kw in q for kw in NEW_PROBLEM_KEYWORDS):
             return True
         # short question + problem-domain word
         if len(q.split()) <= 10 and any(
@@ -168,7 +171,7 @@ Return plain text only. No JSON.\
                 next_state_preview=draft.next_state_preview,
                 supporting_cases=draft.supporting_cases,
                 referenced_evidence=draft.referenced_evidence,
-                suggestions=OperationalNode._extract_suggestions(
+                suggestions=extract_suggestions(
                     draft.current_state_recommendations
                 ),
             )
