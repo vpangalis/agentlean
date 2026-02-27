@@ -1596,6 +1596,12 @@ select:focus-visible {
   margin-bottom: 6px;
 }
 
+/* Indented sub-bullets (e.g. ROOT CAUSE CATEGORIES case IDs) — keep compact */
+.ai-section-body li.sub-bullet {
+  margin-bottom: 1px;
+  margin-top: 0;
+}
+
 .ai-section-callout {
   background: #fffbeb;
   border-left: 3px solid #f59e0b;

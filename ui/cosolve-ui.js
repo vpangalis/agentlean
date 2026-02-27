@@ -1388,7 +1388,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!text) return '';
 
     let html = text
-      // Convert bullet points (• or - at line start) to list items
+      // Convert indented sub-bullet lines (leading whitespace then •) before top-level bullets
+      .replace(/^[ \t]+[•]\s+(.+)$/gm, '<li class="sub-bullet">$1</li>')
+      // Convert top-level bullet points (• or - at line start) to list items
       .replace(/^[•\-]\s+(.+)$/gm, '<li>$1</li>')
       // Convert numbered lines (1. 2. etc.) to list items
       .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
