@@ -42,13 +42,13 @@ from backend.tools.kpi_tool import KPITool
 from backend.workflow.models import (
     KPINodeOutput,
     KPIResult,
-    OperationalDraftPayload,
+    OperationalPayload,
     OperationalNodeOutput,
     QuestionReadinessNodeOutput,
     QuestionReadinessResult,
-    SimilarityDraftPayload,
+    SimilarityPayload,
     SimilarityNodeOutput,
-    StrategyDraftPayload,
+    StrategyPayload,
     StrategyNodeOutput,
 )
 from backend.workflow.nodes.kpi_node import KPINode
@@ -1435,7 +1435,7 @@ class SimilarityNodeChecks:
         return CheckResult("SimilarityNode: I/O contract (no case)", passed=True)
 
     def test_supporting_cases_forwarded(self) -> CheckResult:
-        """Verify retrieved cases are forwarded into SimilarityDraftPayload."""
+        """Verify retrieved cases are forwarded into SimilarityPayload."""
         node = NodeCheckConfig._make_similarity_node(self._cfg)
         try:
             result = node.run(

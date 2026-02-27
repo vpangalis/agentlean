@@ -5,10 +5,9 @@ import logging
 
 from backend.infra.llm_logging_client import LoggedLanguageModelClient
 from backend.workflow.models import (
-    SimilarityDraftPayload,
+    SimilarityPayload,
     SimilarityReflectionAssessment,
     SimilarityReflectionOutput,
-    SimilarityResultPayload,
 )
 
 _debug_logger = logging.getLogger(__name__)
@@ -93,7 +92,7 @@ Question: {question}\
         self._regeneration_llm_client = regeneration_llm_client
 
     def run(
-        self, question: str, draft: SimilarityDraftPayload
+        self, question: str, draft: SimilarityPayload
     ) -> SimilarityReflectionOutput:
         cases_summary = json.dumps(
             [c.model_dump(mode="json") for c in draft.supporting_cases],
@@ -142,7 +141,7 @@ Question: {question}\
             suggestions = SimilarityNode._extract_suggestions(summary)
 
         return SimilarityReflectionOutput(
-            similarity_result=SimilarityResultPayload(
+            similarity_result=SimilarityPayload(
                 summary=summary,
                 supporting_cases=draft.supporting_cases,
                 suggestions=suggestions,

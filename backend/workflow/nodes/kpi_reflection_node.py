@@ -225,7 +225,9 @@ class KPIReflectionNode:
             user_question=question,
         )
 
-    def _compute_completeness(self, metrics: KPIResult, audit: KPISemanticAudit) -> float:
+    def _compute_completeness(
+        self, metrics: KPIResult, audit: KPISemanticAudit
+    ) -> float:
         """Score 0.0–1.0 based on how many expected fields are populated and
         how clean the audit results are."""
         score = 0.5  # base

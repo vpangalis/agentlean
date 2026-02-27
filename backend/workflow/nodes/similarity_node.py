@@ -6,7 +6,7 @@ from typing import Any
 from backend.config import Settings
 from backend.infra.llm_logging_client import LoggedLanguageModelClient
 from backend.retrieval.hybrid_retriever import HybridRetriever
-from backend.workflow.models import SimilarityDraftPayload, SimilarityNodeOutput
+from backend.workflow.models import SimilarityPayload, SimilarityNodeOutput
 from backend.workflow.nodes.node_parsing_utils import format_d_states
 
 
@@ -201,7 +201,7 @@ CRITICAL RULES:
         suggestions = self._extract_suggestions(response_text)
 
         return SimilarityNodeOutput(
-            similarity_draft=SimilarityDraftPayload(
+            similarity_draft=SimilarityPayload(
                 summary=response_text,
                 supporting_cases=cases,
                 suggestions=suggestions,

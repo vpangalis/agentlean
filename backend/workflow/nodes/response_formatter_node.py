@@ -7,10 +7,10 @@ from backend.workflow.models import (
     FinalResponsePayload,
     IntentClassificationResult,
     KPIInterpretation,
-    OperationalGuidance,
+    OperationalPayload,
     ResponseFormatterOutput,
-    SimilarityResultPayload,
-    StrategyResultPayload,
+    SimilarityPayload,
+    StrategyPayload,
 )
 
 
@@ -18,9 +18,9 @@ class ResponseFormatterNode:
     def run(
         self,
         classification: IntentClassificationResult | None,
-        operational_result: OperationalGuidance | None,
-        similarity_result: SimilarityResultPayload | None,
-        strategy_result: StrategyResultPayload | None,
+        operational_result: OperationalPayload | None,
+        similarity_result: SimilarityPayload | None,
+        strategy_result: StrategyPayload | None,
         kpi_interpretation: KPIInterpretation | None,
     ) -> ResponseFormatterOutput:
         result_payload: dict[str, Any] = {}

@@ -24,6 +24,7 @@ from backend.workflow.models import KPIResult
 
 logger = logging.getLogger("kpi_tool")
 
+
 class KPITool:
     """Computes KPI metrics for global, country, and case scopes."""
 
@@ -352,7 +353,8 @@ class KPITool:
             rows.append(
                 {
                     "case_id": c.case_id,
-                    "current_stage": self._translate_stage(c.current_stage) or "Unknown",
+                    "current_stage": self._translate_stage(c.current_stage)
+                    or "Unknown",
                     "responsible_leader": c.responsible_leader,
                     "department": c.department,
                     "days_open": (now - opening).days if opening else None,

@@ -8,9 +8,8 @@ from pydantic import BaseModel
 from backend.infra.llm_logging_client import LoggedLanguageModelClient
 from backend.workflow.models import (
     ReflectionResult,
-    StrategyDraftPayload,
+    StrategyPayload,
     StrategyReflectionOutput,
-    StrategyResultPayload,
 )
 
 _debug_logger = logging.getLogger(__name__)
@@ -94,7 +93,7 @@ fail_reason: one sentence, or NONE.\
         self._regeneration_llm_client = regeneration_llm_client
 
     def run(
-        self, question: str, draft: StrategyDraftPayload
+        self, question: str, draft: StrategyPayload
     ) -> StrategyReflectionOutput:
         cases_summary = json.dumps(
             [c.model_dump(mode="json") for c in draft.supporting_cases],
@@ -152,7 +151,7 @@ fail_reason: one sentence, or NONE.\
         suggestions = list(draft.suggestions)
 
         return StrategyReflectionOutput(
-            strategy_result=StrategyResultPayload(
+            strategy_result=StrategyPayload(
                 summary=summary,
                 strategic_recommendations=[],
                 supporting_cases=draft.supporting_cases,

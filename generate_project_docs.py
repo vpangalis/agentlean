@@ -319,9 +319,9 @@ CURATED: dict[str, dict] = {
         "purpose": "Typed payload and result models used across LangGraph workflow nodes.",
         "summary": (
             "Declares Pydantic/TypedDict models for every inter-node payload: "
-            "IntentClassificationResult, OperationalDraftPayload, "
-            "OperationalGuidance, SimilarityDraftPayload, SimilarityResultPayload, "
-            "StrategyDraftPayload, StrategyResultPayload, KPIMetrics, "
+            "IntentClassificationResult, OperationalPayload, "
+            "SimilarityPayload, "
+            "StrategyPayload, KPIMetrics, "
             "KPIInterpretation, ReflectionResult, ContextNodeOutput, and "
             "FinalResponsePayload. Provides static typing across the graph state."
         ),

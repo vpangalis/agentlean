@@ -14,15 +14,12 @@ from backend.workflow.models import (
     KPIResult,
     FinalResponsePayload,
     IntentClassificationResult,
-    OperationalDraftPayload,
-    OperationalGuidance,
+    OperationalPayload,
     QuestionReadinessNodeOutput,
     ReflectionResult,
-    SimilarityDraftPayload,
+    SimilarityPayload,
     SimilarityReflectionAssessment,
-    SimilarityResultPayload,
-    StrategyDraftPayload,
-    StrategyResultPayload,
+    StrategyPayload,
 )
 from backend.workflow.nodes.context_node import ContextNode
 from backend.workflow.nodes.end_node import EndNode
@@ -51,16 +48,16 @@ class IncidentGraphState(TypedDict, total=False):
     current_d_state: str | None
     classification: IntentClassificationResult | None
     route: str | None
-    operational_draft: OperationalDraftPayload | None
-    operational_result: OperationalGuidance | None
+    operational_draft: OperationalPayload | None
+    operational_result: OperationalPayload | None
     operational_reflection: ReflectionResult | None
     operational_escalated: bool
-    similarity_draft: SimilarityDraftPayload | None
-    similarity_result: SimilarityResultPayload | None
+    similarity_draft: SimilarityPayload | None
+    similarity_result: SimilarityPayload | None
     similarity_reflection: SimilarityReflectionAssessment | None
     similarity_escalated: bool
-    strategy_draft: StrategyDraftPayload | None
-    strategy_result: StrategyResultPayload | None
+    strategy_draft: StrategyPayload | None
+    strategy_result: StrategyPayload | None
     strategy_reflection: ReflectionResult | None
     strategy_escalated: bool
     strategy_fail_section: str | None
@@ -274,7 +271,7 @@ class UnifiedIncidentGraph:
         if (not case_id or not isinstance(case_context, dict)) and not is_new_problem:
             # No case loaded — return a stub draft so the graph can continue
             # through reflection and formatting without crashing.
-            stub = OperationalDraftPayload(
+            stub = OperationalPayload(
                 current_state="No case loaded",
                 current_state_recommendations=(
                     "No case is currently loaded. Please open or create a case "
@@ -296,7 +293,7 @@ class UnifiedIncidentGraph:
         if draft is None:
             raise ValueError("operational_draft is required before reflection")
         if isinstance(draft, dict):
-            draft = OperationalDraftPayload.model_validate(draft)
+            draft = OperationalPayload.model_validate(draft)
         output = self._operational_reflection_node.run(
             question=str(state.get("question") or ""),
             draft=draft,
@@ -317,7 +314,7 @@ class UnifiedIncidentGraph:
         if draft is None:
             raise ValueError("similarity_draft is required before reflection")
         if isinstance(draft, dict):
-            draft = SimilarityDraftPayload.model_validate(draft)
+            draft = SimilarityPayload.model_validate(draft)
         output = self._similarity_reflection_node.run(
             question=str(state.get("question") or ""),
             draft=draft,
@@ -336,7 +333,7 @@ class UnifiedIncidentGraph:
         if draft is None:
             raise ValueError("strategy_draft is required before reflection")
         if isinstance(draft, dict):
-            draft = StrategyDraftPayload.model_validate(draft)
+            draft = StrategyPayload.model_validate(draft)
         output = self._strategy_reflection_node.run(
             question=str(state.get("question") or ""),
             draft=draft,
@@ -349,7 +346,7 @@ class UnifiedIncidentGraph:
         if not case_id or not isinstance(case_context, dict):
             # No case loaded — return the same stub draft and mark escalated so
             # the controller routes to CONTINUE on the next reflection pass.
-            stub = OperationalDraftPayload(
+            stub = OperationalPayload(
                 current_state="No case loaded",
                 current_state_recommendations=(
                     "No case is currently loaded. Please open or create a case "
@@ -425,15 +422,15 @@ class UnifiedIncidentGraph:
             classification = IntentClassificationResult.model_validate(classification)
         operational_result = state.get("operational_result")
         if isinstance(operational_result, dict):
-            operational_result = OperationalGuidance.model_validate(operational_result)
+            operational_result = OperationalPayload.model_validate(operational_result)
         similarity_result = state.get("similarity_result")
         if isinstance(similarity_result, dict):
-            similarity_result = SimilarityResultPayload.model_validate(
+            similarity_result = SimilarityPayload.model_validate(
                 similarity_result
             )
         strategy_result = state.get("strategy_result")
         if isinstance(strategy_result, dict):
-            strategy_result = StrategyResultPayload.model_validate(strategy_result)
+            strategy_result = StrategyPayload.model_validate(strategy_result)
         kpi_interpretation = state.get("kpi_interpretation")
         if isinstance(kpi_interpretation, dict):
             kpi_interpretation = KPIInterpretation.model_validate(kpi_interpretation)

@@ -6,9 +6,8 @@ from backend.ai.model_strategy import ModelStrategy
 from backend.ai.escalation_controller import EscalationController
 from backend.workflow.models import (
     ReflectionResult,
-    OperationalDraftPayload,
+    OperationalPayload,
     OperationalReflectionOutput,
-    OperationalGuidance,
 )
 from backend.workflow.nodes.operational_escalation_node import OperationalEscalationNode
 from backend.workflow.nodes.operational_node import OperationalNode
@@ -56,13 +55,6 @@ class MockLLMClient:
         self.call_count += 1
         name = response_model.__name__
 
-        if name == "OperationalReasoningDraft":
-            return response_model(
-                current_state="D1_2",
-                current_state_recommendations="Isolate affected batch immediately.",
-                next_state_preview="Move to D3: identify root cause via 5-Why.",
-            )
-
         if name == "OperationalReflectionAssessment":
             return response_model(
                 schema_valid=True,
@@ -80,14 +72,6 @@ class MockLLMClientLowQuality(MockLLMClient):
         response_model = kwargs.get("response_model") or args[2]
         self.call_count += 1
         name = response_model.__name__
-
-        if name == "OperationalReasoningDraft":
-            self.last_model_used = kwargs.get("model_name") or self._default_model_name
-            return response_model(
-                current_state="D1_2",
-                current_state_recommendations="Check things.",
-                next_state_preview="",
-            )
 
         if name == "OperationalReflectionAssessment":
             return response_model(
@@ -174,7 +158,7 @@ def test_reflection_node_returns_high_quality_result() -> None:
     llm = MockLLMClient("operational-model")
     node = OperationalReflectionNode(llm, llm)
 
-    draft = OperationalDraftPayload(
+    draft = OperationalPayload(
         current_state="D1_2",
         current_state_recommendations="Isolate affected batch immediately.",
         next_state_preview="Move to D3.",
@@ -193,7 +177,7 @@ def test_reflection_node_sets_needs_escalation_on_low_quality() -> None:
     llm = MockLLMClientLowQuality("operational-model")
     node = OperationalReflectionNode(llm, llm)
 
-    draft = OperationalDraftPayload(
+    draft = OperationalPayload(
         current_state="D1_2",
         current_state_recommendations="Check things.",
         next_state_preview="",
@@ -211,7 +195,7 @@ def test_reflection_node_regenerates_when_should_regenerate() -> None:
     llm = MockLLMClientLowQuality("operational-model")
     node = OperationalReflectionNode(llm, llm)
 
-    draft = OperationalDraftPayload(
+    draft = OperationalPayload(
         current_state="D1_2",
         current_state_recommendations="Check things.",
         next_state_preview="",

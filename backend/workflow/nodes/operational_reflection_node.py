@@ -12,8 +12,7 @@ from backend.workflow.nodes.node_parsing_utils import (
 
 _debug_logger = logging.getLogger(__name__)
 from backend.workflow.models import (
-    OperationalDraftPayload,
-    OperationalGuidance,
+    OperationalPayload,
     OperationalReflectionOutput,
     ReflectionResult,
 )
@@ -155,7 +154,7 @@ Return plain text only. No JSON.\
         self._regeneration_llm_client = regeneration_llm_client
 
     def run(
-        self, question: str, draft: OperationalDraftPayload
+        self, question: str, draft: OperationalPayload
     ) -> OperationalReflectionOutput:
         # Bypass reflection entirely for new-problem / no-case responses so
         # the auditor does not fail them for missing active-case sections.
@@ -165,15 +164,13 @@ Return plain text only. No JSON.\
         if self._is_new_problem_bypass(
             question, draft.current_state_recommendations, case_loaded
         ):
-            result = OperationalGuidance(
+            result = OperationalPayload(
                 current_state=draft.current_state,
                 current_state_recommendations=draft.current_state_recommendations,
                 next_state_preview=draft.next_state_preview,
                 supporting_cases=draft.supporting_cases,
                 referenced_evidence=draft.referenced_evidence,
-                suggestions=extract_suggestions(
-                    draft.current_state_recommendations
-                ),
+                suggestions=extract_suggestions(draft.current_state_recommendations),
             )
             return OperationalReflectionOutput(
                 operational_result=result,
@@ -262,7 +259,7 @@ Return plain text only. No JSON.\
             # separate field while still appearing inline in the full text.
             next_preview = ""
 
-        result = OperationalGuidance(
+        result = OperationalPayload(
             current_state=draft.current_state,
             current_state_recommendations=recommendations,
             next_state_preview=next_preview,

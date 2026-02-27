@@ -19,19 +19,13 @@ class IntentClassificationResult(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
 
 
-class OperationalGuidance(BaseModel):
+class OperationalPayload(BaseModel):
     current_state: str
     current_state_recommendations: str
     next_state_preview: str
     supporting_cases: list[CaseSummary] = Field(default_factory=list)
     referenced_evidence: list[EvidenceSummary] = Field(default_factory=list)
     suggestions: list[dict[str, Any]] = Field(default_factory=list)
-
-
-class OperationalReasoningDraft(BaseModel):
-    current_state: str
-    current_state_recommendations: str
-    next_state_preview: str
 
 
 class ScopeContext(BaseModel):
@@ -136,38 +130,23 @@ class RouterNodeOutput(BaseModel):
     ]
 
 
-class OperationalDraftPayload(BaseModel):
-    current_state: str
-    current_state_recommendations: str
-    next_state_preview: str
-    supporting_cases: list[CaseSummary] = Field(default_factory=list)
-    referenced_evidence: list[EvidenceSummary] = Field(default_factory=list)
-    suggestions: list[dict[str, Any]] = Field(default_factory=list)
-
-
 class OperationalNodeOutput(BaseModel):
-    operational_draft: OperationalDraftPayload
+    operational_draft: OperationalPayload
 
 
 class OperationalReflectionOutput(BaseModel):
-    operational_result: OperationalGuidance
+    operational_result: OperationalPayload
     operational_reflection: ReflectionResult
 
 
-class SimilarityDraftPayload(BaseModel):
+class SimilarityPayload(BaseModel):
     summary: str
     supporting_cases: list[CaseSummary] = Field(default_factory=list)
     suggestions: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class SimilarityNodeOutput(BaseModel):
-    similarity_draft: SimilarityDraftPayload
-
-
-class SimilarityResultPayload(BaseModel):
-    summary: str
-    supporting_cases: list[CaseSummary] = Field(default_factory=list)
-    suggestions: list[dict[str, Any]] = Field(default_factory=list)
+    similarity_draft: SimilarityPayload
 
 
 class SimilarityReflectionAssessment(BaseModel):
@@ -181,22 +160,11 @@ class SimilarityReflectionAssessment(BaseModel):
 
 
 class SimilarityReflectionOutput(BaseModel):
-    similarity_result: SimilarityResultPayload
+    similarity_result: SimilarityPayload
     similarity_reflection: SimilarityReflectionAssessment
 
 
-class StrategyDraftPayload(BaseModel):
-    summary: str
-    supporting_cases: list[CaseSummary] = Field(default_factory=list)
-    supporting_knowledge: list[KnowledgeSummary] = Field(default_factory=list)
-    suggestions: list[dict[str, Any]] = Field(default_factory=list)
-
-
-class StrategyNodeOutput(BaseModel):
-    strategy_draft: StrategyDraftPayload
-
-
-class StrategyResultPayload(BaseModel):
+class StrategyPayload(BaseModel):
     summary: str
     strategic_recommendations: list[str] = Field(default_factory=list)
     supporting_cases: list[CaseSummary] = Field(default_factory=list)
@@ -204,8 +172,12 @@ class StrategyResultPayload(BaseModel):
     suggestions: list[dict[str, Any]] = Field(default_factory=list)
 
 
+class StrategyNodeOutput(BaseModel):
+    strategy_draft: StrategyPayload
+
+
 class StrategyReflectionOutput(BaseModel):
-    strategy_result: StrategyResultPayload
+    strategy_result: StrategyPayload
     strategy_reflection: ReflectionResult
     strategy_fail_section: str = ""
     strategy_fail_reason: str = ""
@@ -252,8 +224,7 @@ class ResponseFormatterOutput(BaseModel):
 
 __all__ = [
     "IntentClassificationResult",
-    "OperationalGuidance",
-    "OperationalReasoningDraft",
+    "OperationalPayload",
     "ScopeContext",
     "KPIResult",
     "KPIMetrics",
@@ -263,17 +234,14 @@ __all__ = [
     "IntentNodeOutput",
     "IntentReflectionOutput",
     "RouterNodeOutput",
-    "OperationalDraftPayload",
     "OperationalNodeOutput",
     "OperationalReflectionOutput",
-    "SimilarityDraftPayload",
+    "SimilarityPayload",
     "SimilarityNodeOutput",
-    "SimilarityResultPayload",
     "SimilarityReflectionAssessment",
     "SimilarityReflectionOutput",
-    "StrategyDraftPayload",
+    "StrategyPayload",
     "StrategyNodeOutput",
-    "StrategyResultPayload",
     "StrategyReflectionOutput",
     "KPINodeOutput",
     "KPIInterpretation",

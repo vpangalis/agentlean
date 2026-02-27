@@ -7,7 +7,7 @@ from typing import Any
 from backend.config import Settings
 from backend.infra.llm_logging_client import LoggedLanguageModelClient
 from backend.retrieval.hybrid_retriever import HybridRetriever
-from backend.workflow.models import StrategyDraftPayload, StrategyNodeOutput
+from backend.workflow.models import StrategyPayload, StrategyNodeOutput
 
 _logger = logging.getLogger("strategy_node")
 
@@ -250,7 +250,7 @@ Retrieved cases for context:
         suggestions = self._extract_suggestions(response_text)
 
         return StrategyNodeOutput(
-            strategy_draft=StrategyDraftPayload(
+            strategy_draft=StrategyPayload(
                 summary=response_text,
                 supporting_cases=all_cases,
                 supporting_knowledge=knowledge_docs,

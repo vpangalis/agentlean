@@ -7,7 +7,7 @@ from backend.config import Settings
 from backend.infra.llm_logging_client import LoggedLanguageModelClient
 from backend.retrieval.hybrid_retriever import HybridRetriever
 from backend.workflow.models import (
-    OperationalDraftPayload,
+    OperationalPayload,
     OperationalNodeOutput,
 )
 from backend.workflow.nodes.node_parsing_utils import (
@@ -272,7 +272,7 @@ CRITICAL RULES:
             )
             suggestions = extract_suggestions(response_text)
             return OperationalNodeOutput(
-                operational_draft=OperationalDraftPayload(
+                operational_draft=OperationalPayload(
                     current_state="No case loaded",
                     current_state_recommendations=response_text,
                     next_state_preview="",
@@ -315,7 +315,7 @@ CRITICAL RULES:
         # rendering it separately caused the section to appear twice in the UI.
         suggestions = extract_suggestions(response_text)
         return OperationalNodeOutput(
-            operational_draft=OperationalDraftPayload(
+            operational_draft=OperationalPayload(
                 current_state=current_state,
                 current_state_recommendations=response_text,
                 next_state_preview="",
