@@ -945,6 +945,36 @@ document.addEventListener("DOMContentLoaded", () => {
     const welcome = aiResponseOutput ? aiResponseOutput.querySelector(".ai-welcome") : null;
     if (!welcome) return;
 
+    // Closed cases get retrospective chips — skip the dynamic-suggestions API call entirely
+    const isClosed =
+      (caseContext?.case_status ?? caseContext?.status ?? "").toLowerCase() === "closed";
+    if (isClosed) {
+      welcome.innerHTML =
+        `<div class="ai-welcome-title">Case loaded: ${escapeHtml(caseId)}</div>` +
+        `<div class="ai-welcome-subtitle">This case is closed — review what happened and what was learned</div>` +
+
+        `<div class="ai-welcome-section">` +
+        `<div class="ai-welcome-section-label">ASK COSOLVE</div>` +
+        `<div class="ai-welcome-section-hint">Retrospective questions about this resolved case:</div>` +
+        `<div class="ai-welcome-suggestions">` +
+        `<div class="ai-suggestion-chip ai-chip-cosolve">What was the root cause?</div>` +
+        `<div class="ai-suggestion-chip ai-chip-cosolve">What corrective actions were taken?</div>` +
+        `<div class="ai-suggestion-chip ai-chip-cosolve">Are there similar cases in the portfolio?</div>` +
+        `<div class="ai-suggestion-chip ai-chip-cosolve">How long did this case take to resolve?</div>` +
+        `</div></div>` +
+
+        `<div class="ai-welcome-section">` +
+        `<div class="ai-welcome-section-label">ASK YOUR TEAM</div>` +
+        `<div class="ai-welcome-section-hint">Follow-up questions to verify closure quality:</div>` +
+        `<div class="ai-welcome-suggestions">` +
+        `<div class="ai-suggestion-chip ai-chip-team">Were all corrective actions fully implemented?</div>` +
+        `<div class="ai-suggestion-chip ai-chip-team">Have we seen this problem recur since closure?</div>` +
+        `</div></div>` +
+
+        `<div class="ai-welcome-hint">or type your own question below</div>`;
+      return;
+    }
+
     const hint = welcome.querySelector(".ai-welcome-hint");
     if (hint) hint.textContent = "Generating suggestions for this case...";
 
