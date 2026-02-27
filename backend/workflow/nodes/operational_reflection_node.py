@@ -77,7 +77,6 @@ or explore_next_quality is MISSING or INCOMPLETE.
 
 issues: list every specific criterion that failed, empty list if all pass.\
 """
-
     _REGENERATION_SYSTEM_PROMPT = """\
 You are a senior operational problem-solving advisor. A previous draft advisory response
 was rejected by the quality auditor for the following reasons:
