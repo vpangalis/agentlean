@@ -21,6 +21,11 @@ class QuestionReadinessNode:
         '{{"ready": true, "clarifying_question": ""}} or\n'
         '{{"ready": false, "clarifying_question": "<one plain sentence asking for clarification>"}}\n\n'
         "Rules:\n"
+        "- Portfolio-level questions about overall performance, trends, recurring problems, "
+        "organisational patterns, metrics, and KPIs are always answerable without a loaded case — "
+        "return ready=true regardless of whether a case is loaded.\n"
+        "- Only questions explicitly about a specific ongoing investigation — asking what to do next, "
+        "what gaps exist, what the root cause is, or what actions to take — require a loaded case.\n"
         "- If the question is clear and answerable with the available context, return ready=true.\n"
         "- If a case is not loaded and the question requires specific case data, return ready=false.\n"
         "- If the question is too vague to answer, return ready=false.\n"
