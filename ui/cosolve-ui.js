@@ -2069,6 +2069,11 @@ document.addEventListener("DOMContentLoaded", () => {
       el.value = value.join(", ");
       return;
     }
+    // <input type="date"> requires yyyy-MM-dd; strip any ISO time component
+    if (el.type === "date" && typeof value === "string" && value.includes("T")) {
+      el.value = value.split("T")[0];
+      return;
+    }
     el.value = value ?? "";
   }
 

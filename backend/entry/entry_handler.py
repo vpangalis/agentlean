@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Any, Optional, Literal
 
@@ -424,7 +425,12 @@ class EntryHandler:
         "or system from the case — no generic questions\n"
         "- Labels must be short: 'Root cause gaps', 'Similar faults', "
         "'Fleet trends', etc.\n"
-        "- Questions must be natural language, as a user would type them"
+        "- Questions must be natural language, as a user would type them\n"
+        "- NEVER use D-step codes (D1, D2, D3, D4, D5, D6, D7, D8) in labels "
+        "or question text — use plain language only. "
+        "Instead of 'Next steps for D8' use 'What should we do to close this case?'; "
+        "instead of 'D4 root cause' use 'What is the root cause?'; "
+        "instead of 'D3 containment' use 'What containment actions are in place?'"
     )
 
     _FALLBACK_SUGGESTIONS: list[dict[str, str]] = [
@@ -451,6 +457,19 @@ class EntryHandler:
         },
     ]
 
+    _D_STATE_FRIENDLY: dict[str, str] = {
+        "D1_2": "Problem Definition",
+        "D3": "Containment Actions",
+        "D4": "Root Cause Analysis",
+        "D5": "Permanent Corrective Actions",
+        "D6": "Implementation & Validation",
+        "D7": "Prevention",
+        "D8": "Closure & Learnings",
+    }
+
+    # Regex that matches any D-step token that may slip through from the LLM.
+    _DSTEP_RE = re.compile(r"\bD[1-8]\b", re.IGNORECASE)
+
     def generate_suggestions(
         self, case_id: str, case_context: dict[str, Any]
     ) -> list[dict[str, str]]:
@@ -460,13 +479,15 @@ class EntryHandler:
 
         try:
             problem_description = self._extract_problem_description(case_context)
-            current_d_state = self._extract_current_d_state(case_context) or "D1_2"
+            raw_d_state = self._extract_current_d_state(case_context) or "D1_2"
+            # Use plain-language step name so the LLM never sees D-step codes
+            current_step_label = self._D_STATE_FRIENDLY.get(raw_d_state, "Problem Definition")
             status = str(case_context.get("case_status") or "open")
 
             user_prompt = (
                 f"Case ID: {case_id}\n"
                 f"Problem: {problem_description}\n"
-                f"Current step: {current_d_state}\n"
+                f"Current investigation step: {current_step_label}\n"
                 f"Status: {status}"
             )
 
@@ -477,7 +498,11 @@ class EntryHandler:
                 temperature=0.4,
             )
             suggestions = [
-                {"label": s.label, "question": s.question} for s in result.suggestions
+                {
+                    "label": self._DSTEP_RE.sub("", s.label).strip(" -:"),
+                    "question": self._DSTEP_RE.sub("", s.question).strip(),
+                }
+                for s in result.suggestions
             ]
             if len(suggestions) == 0:
                 return list(self._FALLBACK_SUGGESTIONS)
