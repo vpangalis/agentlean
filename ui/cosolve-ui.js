@@ -397,13 +397,17 @@ document.addEventListener("DOMContentLoaded", () => {
         const row = document.createElement("div");
         row.className = "kb-doc-row";
 
-        // File icon + truncated name
+        // File icon + truncated name (clickable) + chunk count
         const nameEl = document.createElement("div");
         nameEl.className = "kb-doc-name";
         const rawName = doc.title || doc.doc_id || "";
+        const sourceFilename = doc.source || doc.title || doc.doc_id || "";
         const displayName = rawName.length > 30 ? rawName.slice(0, 29) + "\u2026" : rawName;
         nameEl.title = rawName;
-        nameEl.innerHTML = `<span class="kb-file-icon">📄</span>${displayName}`;
+        const fileUrl = `${API_BASE}/knowledge/file/${encodeURIComponent(sourceFilename)}`;
+        const chunkCount = doc.chunk_count || 1;
+        const chunkLabel = `(${chunkCount} chunk${chunkCount !== 1 ? "s" : ""})`;
+        nameEl.innerHTML = `<span class="kb-file-icon">📄</span><a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="kb-doc-link">${displayName}</a><span class="kb-chunk-count muted"> ${chunkLabel}</span>`;
 
         // Date
         const dateEl = document.createElement("div");

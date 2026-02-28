@@ -5,7 +5,7 @@ import re
 from typing import Optional
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
 from backend.entry.entry_handler import EntryEnvelope, EntryHandler
@@ -98,6 +98,9 @@ class ApiRoutes:
         # Knowledge library routes
         router.add_api_route(
             "/knowledge", self.list_knowledge_documents, methods=["GET"]
+        )
+        router.add_api_route(
+            "/knowledge/file/{filename}", self.get_knowledge_file, methods=["GET"]
         )
         router.add_api_route(
             "/knowledge/{doc_id}", self.delete_knowledge_document, methods=["DELETE"]
@@ -247,32 +250,77 @@ class ApiRoutes:
     # ------------------------------------------------------------------ #
 
     def list_knowledge_documents(self):
-        """Return all documents in the knowledge index as a list."""
+        """Return deduplicated documents from the knowledge index (one per source file)."""
         try:
             raw = self._knowledge_search_client._search_client.search(
                 search_text="*",
                 top=1000,
-                select=["doc_id", "title", "created_at", "content_text"],
+                select=["doc_id", "title", "source", "created_at", "content_text"],
             )
-            docs = []
+            # Group chunks by source filename → one entry per document
+            groups: dict[str, dict] = {}
             for r in raw:
+                source = r.get("source") or r.get("title") or r.get("doc_id", "")
                 content = r.get("content_text") or ""
-                docs.append(
-                    {
+                if source not in groups:
+                    groups[source] = {
                         "doc_id": r.get("doc_id", ""),
-                        "title": r.get("title", ""),
+                        "title": r.get("title", source),
+                        "source": source,
                         "created_at": r.get("created_at", ""),
-                        "status": (
-                            "no_text"
-                            if content == "[No extractable text]"
-                            else "indexed"
-                        ),
+                        "chunk_count": 1,
+                        "has_no_text": content == "[No extractable text]",
                     }
-                )
+                else:
+                    groups[source]["chunk_count"] += 1
+                    if content == "[No extractable text]":
+                        groups[source]["has_no_text"] = True
+            docs = [
+                {
+                    "doc_id": g["doc_id"],
+                    "title": g["title"],
+                    "source": g["source"],
+                    "created_at": g["created_at"],
+                    "chunk_count": g["chunk_count"],
+                    "status": "no_text" if g["has_no_text"] else "indexed",
+                }
+                for g in groups.values()
+            ]
             return {"count": len(docs), "documents": docs}
         except Exception as exc:
             logger.exception("[KNOWLEDGE] list_knowledge_documents failed")
             raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    def get_knowledge_file(self, filename: str):
+        """Stream a raw knowledge file blob so the browser can open it inline."""
+        import io
+        blob_path = f"knowledge/{filename}"
+        try:
+            data, content_type = self._blob_client.download_file(blob_path)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="Knowledge file not found") from exc
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        if ext == "pdf":
+            content_type = "application/pdf"
+        elif ext == "docx":
+            content_type = (
+                "application/vnd.openxmlformats-officedocument"
+                ".wordprocessingml.document"
+            )
+        elif ext == "pptx":
+            content_type = (
+                "application/vnd.openxmlformats-officedocument"
+                ".presentationml.presentation"
+            )
+
+        return StreamingResponse(
+            io.BytesIO(data),
+            media_type=content_type,
+            headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        )
 
     def delete_knowledge_document(self, doc_id: str):
         """Remove a knowledge document from the search index and its blob."""
