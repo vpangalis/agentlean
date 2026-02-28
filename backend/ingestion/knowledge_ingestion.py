@@ -59,39 +59,112 @@ class KnowledgeIngestionService:
         self._search_index = search_index
         self._logger = logging.getLogger("knowledge_ingestion")
 
+    # Maximum characters per chunk (≈ 6 000 tokens × 4 chars/token)
+    _CHUNK_MAX_CHARS: int = 24_000
+
     def upload_document(self, filename: str, data: bytes, content_type: str) -> None:
         path = f"{self._prefix}{filename}"
         self._blob_client.upload_file(path, data, content_type, overwrite=True)
         text = self._extract_text(data, content_type, filename)
-        embedding = self._embedding_client.generate_embedding(text)
-        if not isinstance(embedding, list) or len(embedding) != 3072:
-            raise ValueError(
-                f"Invalid embedding length for knowledge ingestion: expected 3072, got {len(embedding) if isinstance(embedding, list) else 'non-list'}"
-            )
 
-        doc_id = self._build_doc_id(filename)
-        document = {
-            "doc_id": doc_id,
-            "doc_type": "knowledge",
-            "title": filename,
-            "content_text": text,
-            "source": filename,
-            "version": "1",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "embedding": embedding,
-        }
+        chunks = self._chunk_text(text)
+        total_chunks = len(chunks)
+        base_doc_id = self._build_doc_id(filename)
+        created_at = datetime.now(timezone.utc).isoformat()
+
         self._logger.info(
-            "[KNOWLEDGE] uploading doc — keys=%s  content_text_len=%d  embedding_len=%d",
-            list(document.keys()),
-            len(document.get("content_text") or ""),
-            len(document.get("embedding") or []),
+            "[KNOWLEDGE] '%s' → %d chunk(s), total chars=%d",
+            filename,
+            total_chunks,
+            len(text),
         )
         print(
-            f"[KNOWLEDGE] pre-upload: keys={list(document.keys())}"
-            f"  content_text_len={len(document.get('content_text') or '')}"
-            f"  embedding_len={len(document.get('embedding') or [])}"
+            f"[KNOWLEDGE] '{filename}' → {total_chunks} chunk(s), "
+            f"total_chars={len(text)}"
         )
-        self._search_index.upload_documents([document])
+
+        documents_to_upload: list[dict] = []
+        for idx, chunk in enumerate(chunks):
+            doc_id = base_doc_id if total_chunks == 1 else f"{base_doc_id}_chunk_{idx}"
+
+            embedding = self._embedding_client.generate_embedding(chunk)
+            if not isinstance(embedding, list) or len(embedding) != 3072:
+                raise ValueError(
+                    f"Invalid embedding length for knowledge ingestion chunk {idx}: "
+                    f"expected 3072, got "
+                    f"{len(embedding) if isinstance(embedding, list) else 'non-list'}"
+                )
+
+            self._logger.info(
+                "[KNOWLEDGE] chunk %d/%d — doc_id=%s  chars=%d  embedding_len=%d",
+                idx,
+                total_chunks - 1,
+                doc_id,
+                len(chunk),
+                len(embedding),
+            )
+            print(
+                f"[KNOWLEDGE] chunk {idx}/{total_chunks - 1} — doc_id={doc_id}  "
+                f"chars={len(chunk)}  embedding_len={len(embedding)}"
+            )
+
+            documents_to_upload.append(
+                {
+                    "doc_id": doc_id,
+                    "doc_type": "knowledge",
+                    "title": filename,
+                    "content_text": chunk,
+                    "source": filename,
+                    "version": "1",
+                    "created_at": created_at,
+                    "embedding": embedding,
+                }
+            )
+
+        self._search_index.upload_documents(documents_to_upload)
+        self._logger.info(
+            "[KNOWLEDGE] uploaded %d chunk document(s) for '%s'",
+            len(documents_to_upload),
+            filename,
+        )
+
+    def delete_knowledge_blob(self, filename: str) -> None:
+        """Delete an orphaned blob from storage (no index record required)."""
+        path = f"{self._prefix}{filename}"
+        self._blob_client.delete_file(path)
+        self._logger.info(
+            "[KNOWLEDGE] deleted orphan blob: %s", path
+        )
+        print(f"[KNOWLEDGE] deleted orphan blob: {path}")
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _chunk_text(self, text: str) -> list[str]:
+        """Split *text* into chunks of at most _CHUNK_MAX_CHARS characters.
+
+        Splits on whitespace boundaries to avoid cutting mid-word.
+        Returns a list with at least one element (even if text is empty).
+        """
+        max_chars = self._CHUNK_MAX_CHARS
+        if len(text) <= max_chars:
+            return [text]
+
+        chunks: list[str] = []
+        start = 0
+        while start < len(text):
+            end = start + max_chars
+            if end >= len(text):
+                chunks.append(text[start:])
+                break
+            # Walk back to the last whitespace so we don't split mid-word
+            split_at = text.rfind(" ", start, end)
+            if split_at <= start:  # no whitespace found — hard split
+                split_at = end
+            chunks.append(text[start:split_at])
+            start = split_at + 1  # skip the space
+        return chunks
 
     def _build_doc_id(self, filename: str) -> str:
         digest = hashlib.sha1(filename.encode("utf-8")).hexdigest()
