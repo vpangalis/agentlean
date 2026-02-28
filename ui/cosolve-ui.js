@@ -2634,7 +2634,12 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!title) return;
       section.classList.add("is-collapsed");
       title.addEventListener("click", () => {
-        section.classList.toggle("is-collapsed");
+        const nowCollapsed = section.classList.toggle("is-collapsed");
+        if (!nowCollapsed) {
+          leftCol.querySelectorAll(".section-collapsible").forEach((other) => {
+            if (other !== section) other.classList.add("is-collapsed");
+          });
+        }
       });
     });
   })();
