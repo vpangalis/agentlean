@@ -1,21 +1,11 @@
 from __future__ import annotations
 
-import logging
-
 from backend.infra.llm_logging_client import LoggedLanguageModelClient
-from backend.workflow.models import IntentClassificationResult, IntentNodeOutput
-
-_logger = logging.getLogger(__name__)
+from backend.workflow.models import IntentNodeOutput
+from backend.workflow.nodes.intent_coercion import _RawClassification, coerce_raw
 
 
 class IntentClassificationNode:
-    _VALID_INTENTS = {
-        "OPERATIONAL_CASE",
-        "SIMILARITY_SEARCH",
-        "STRATEGY_ANALYSIS",
-        "KPI_ANALYSIS",
-    }
-
     # Promote module-level prompt to class attribute.
     _SYSTEM_PROMPT = (
         "You are the routing classifier for an industrial incident decision-support system. "
@@ -128,40 +118,14 @@ class IntentClassificationNode:
             f"question: {clean_question}"
         )
 
-        try:
-            classification = self._llm_client.complete_json(
-                system_prompt=IntentClassificationNode._SYSTEM_PROMPT,
-                user_prompt=user_prompt,
-                response_model=IntentClassificationResult,
-                temperature=0.0,
-                user_question=clean_question,
-            )
-        except Exception as exc:  # noqa: BLE001 — catch all LLM/validation errors
-            _logger.warning(
-                "IntentClassificationNode: LLM call failed or returned an invalid intent; "
-                "falling back to SIMILARITY_SEARCH. Error: %s",
-                exc,
-            )
-            return IntentNodeOutput(
-                classification=IntentClassificationResult(
-                    intent="SIMILARITY_SEARCH",  # type: ignore[arg-type]
-                    scope="GLOBAL",
-                    confidence=0.3,
-                ),
-                classification_low_confidence=True,
-            )
-
-        # Post-parse validation: if LLM returns an unrecognised intent, default to SIMILARITY_SEARCH
-        if classification.intent not in IntentClassificationNode._VALID_INTENTS:
-            classification = IntentClassificationResult(
-                intent="SIMILARITY_SEARCH",  # type: ignore[arg-type]
-                scope=classification.scope,
-                confidence=0.5,
-            )
-            return IntentNodeOutput(
-                classification=classification,
-                classification_low_confidence=True,
-            )
+        raw = self._llm_client.complete_json(
+            system_prompt=IntentClassificationNode._SYSTEM_PROMPT,
+            user_prompt=user_prompt,
+            response_model=_RawClassification,
+            temperature=0.0,
+            user_question=clean_question,
+        )
+        classification = coerce_raw(raw)
 
         return IntentNodeOutput(classification=classification)
 
