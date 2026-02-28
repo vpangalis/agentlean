@@ -1304,11 +1304,9 @@ select:focus-visible {
    above is the single source of truth for inactive-tab hover. */
 
 /* ── Collapsible left-panel sections ─────────────────────────────── */
-#section-evidence>.section-title {
+#section-evidence {
   background: #e8f0fe;
   border-radius: 4px;
-  padding: 4px 6px;
-  margin: -4px -6px;
 }
 
 .section-collapsible>.section-title {
