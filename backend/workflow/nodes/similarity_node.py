@@ -187,6 +187,10 @@ CRITICAL RULES:
             current_case_id=case_id,
             country=country,
         )
+        knowledge_docs = self._hybrid_retriever.retrieve_knowledge(
+            query=question,
+            top_k=4,
+        )
 
         # Build case context summary
         if case_context:
@@ -203,6 +207,14 @@ CRITICAL RULES:
         else:
             formatted_cases = "No cases retrieved from the knowledge base."
 
+        if knowledge_docs:
+            knowledge_block = "\n".join(
+                f"Per {(item.source or item.doc_id)}: {(item.content_text or '')[:800]}"
+                for item in knowledge_docs
+            )
+        else:
+            knowledge_block = "No relevant knowledge documents found for this case."
+
         status_value = (case_status or "open").lower()
         user_prompt = (
             f"USER QUESTION: {question}\n"
@@ -210,7 +222,9 @@ CRITICAL RULES:
             "--- ACTIVE CASE CONTEXT ---\n"
             f"{case_context_summary}\n\n"
             "--- RETRIEVED CLOSED CASES ---\n"
-            f"{formatted_cases}"
+            f"{formatted_cases}\n\n"
+            "--- KNOWLEDGE BASE REFERENCES ---\n"
+            f"{knowledge_block}"
         )
 
         response_text = self._llm_client.complete_text(
@@ -219,6 +233,23 @@ CRITICAL RULES:
             temperature=0.1,
             user_question=question,
         )
+        if knowledge_docs:
+            refs = "\n".join(
+                f"Per {(item.source or item.doc_id)}: referenced in this analysis."
+                for item in knowledge_docs
+            )
+            knowledge_section = "\n\n[KNOWLEDGE REFERENCES]\n" + refs
+            explore_marker = "[WHAT TO EXPLORE NEXT]"
+            if explore_marker in response_text:
+                idx = response_text.index(explore_marker)
+                response_text = (
+                    response_text[:idx].rstrip()
+                    + knowledge_section
+                    + "\n\n"
+                    + response_text[idx:]
+                )
+            else:
+                response_text = response_text + knowledge_section
 
         suggestions = extract_similarity_suggestions(response_text)
 

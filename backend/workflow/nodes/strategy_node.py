@@ -279,6 +279,23 @@ Retrieved cases for context:
             user_question=question,
             model_name=model_name,
         )
+        if knowledge_docs:
+            refs = "\n".join(
+                f"Per {(item.source or item.doc_id)}: referenced in this analysis."
+                for item in knowledge_docs
+            )
+            knowledge_section = "\n\n[KNOWLEDGE REFERENCES]\n" + refs
+            explore_marker = "[WHAT TO EXPLORE NEXT]"
+            if explore_marker in response_text:
+                idx = response_text.index(explore_marker)
+                response_text = (
+                    response_text[:idx].rstrip()
+                    + knowledge_section
+                    + "\n\n"
+                    + response_text[idx:]
+                )
+            else:
+                response_text = response_text + knowledge_section
         _logger.info(
             "[STRATEGY_DEBUG] LLM response length: %d chars", len(response_text)
         )

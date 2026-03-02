@@ -252,6 +252,7 @@ class HybridRetriever:
                     doc_id=str(doc_id),
                     title=item.get("title"),
                     source=item.get("source"),
+                    content_text=item.get("content_text"),
                     created_at=item.get("created_at"),
                 )
             )

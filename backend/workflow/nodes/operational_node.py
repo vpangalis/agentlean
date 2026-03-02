@@ -196,6 +196,16 @@ gaps to address, or further actions — the team has already finished.
 Your role is to summarise what was investigated, what the root cause was,
 what actions were taken, and what the organisation learned.
 
+If knowledge documents are provided in the user prompt under
+'--- KNOWLEDGE BASE REFERENCES ---', cite them inline using EXACTLY this format:
+Per [exact_filename.pdf]: [your point here].
+The filename must be copied character-for-character from the knowledge block line —
+including the .pdf extension. Do not shorten, paraphrase, or reformat the filename.
+Place citations naturally within [ROOT CAUSE] or [LESSONS LEARNED] where directly
+relevant to the failure mechanism or lessons identified. Only cite if the content
+is directly relevant to this specific case. Do not fabricate citations if no
+documents were provided.
+
 Respond using EXACTLY these five sections in EXACTLY this order.
 
 [RESOLUTION SUMMARY]
@@ -257,16 +267,49 @@ RULES:
         model_name: str | None = None,
         case_status: str | None = None,
     ) -> OperationalNodeOutput:
+        knowledge_docs = self._hybrid_retriever.retrieve_knowledge(
+            query=question,
+            top_k=4,
+        )
+        if knowledge_docs:
+            knowledge_block = "\n".join(
+                f"Per {(item.source or item.doc_id)}: {(item.content_text or '')[:800]}"
+                for item in knowledge_docs
+            )
+        else:
+            knowledge_block = "No relevant knowledge documents found for this case."
+
         # Route new-problem questions (no case loaded) to a dedicated prompt so the
         # LLM is not confused by the "embedded in an active case" framing.
         if is_new_problem_question(question, case_id):
+            user_prompt = f"USER QUESTION: {question}"
+            user_prompt = (
+                user_prompt + "\n--- KNOWLEDGE BASE REFERENCES ---\n" + knowledge_block
+            )
             response_text = self._llm_client.complete_text(
                 system_prompt=OperationalNode._NEW_PROBLEM_SYSTEM_PROMPT,
-                user_prompt=f"USER QUESTION: {question}",
+                user_prompt=user_prompt,
                 temperature=0.2,
                 user_question=question,
                 model_name=model_name,
             )
+            if knowledge_docs:
+                refs = "\n".join(
+                    f"Per {(item.source or item.doc_id)}: referenced in this analysis."
+                    for item in knowledge_docs
+                )
+                knowledge_section = "\n\n[KNOWLEDGE REFERENCES]\n" + refs
+                explore_marker = "[WHAT TO EXPLORE NEXT]"
+                if explore_marker in response_text:
+                    idx = response_text.index(explore_marker)
+                    response_text = (
+                        response_text[:idx].rstrip()
+                        + knowledge_section
+                        + "\n\n"
+                        + response_text[idx:]
+                    )
+                else:
+                    response_text = response_text + knowledge_section
             suggestions = extract_suggestions(response_text)
             return OperationalNodeOutput(
                 operational_draft=OperationalPayload(
@@ -300,6 +343,9 @@ RULES:
                 "\n--- REFERENCED EVIDENCE ---\n"
                 f"{json.dumps([item.model_dump(mode='json') for item in referenced_evidence], indent=2)}"
             )
+            user_prompt = (
+                user_prompt + "\n--- KNOWLEDGE BASE REFERENCES ---\n" + knowledge_block
+            )
             response_text = self._llm_client.complete_text(
                 system_prompt=OperationalNode._CLOSED_CASE_SYSTEM_PROMPT,
                 user_prompt=user_prompt,
@@ -307,6 +353,23 @@ RULES:
                 user_question=question,
                 model_name=model_name,
             )
+            if knowledge_docs:
+                refs = "\n".join(
+                    f"Per {(item.source or item.doc_id)}: referenced in this analysis."
+                    for item in knowledge_docs
+                )
+                knowledge_section = "\n\n[KNOWLEDGE REFERENCES]\n" + refs
+                explore_marker = "[WHAT TO EXPLORE NEXT]"
+                if explore_marker in response_text:
+                    idx = response_text.index(explore_marker)
+                    response_text = (
+                        response_text[:idx].rstrip()
+                        + knowledge_section
+                        + "\n\n"
+                        + response_text[idx:]
+                    )
+                else:
+                    response_text = response_text + knowledge_section
             suggestions = extract_suggestions(response_text)
             return OperationalNodeOutput(
                 operational_draft=OperationalPayload(
@@ -329,7 +392,6 @@ RULES:
         referenced_evidence = self._hybrid_retriever.retrieve_evidence_for_case(
             case_id=case_id,
         )
-
         user_prompt = self._build_structured_prompt(
             case_context=case_context,
             case_id=case_id,
@@ -337,6 +399,9 @@ RULES:
             current_state=current_state,
             supporting_cases=supporting_cases,
             referenced_evidence=referenced_evidence,
+        )
+        user_prompt = (
+            user_prompt + "\n--- KNOWLEDGE BASE REFERENCES ---\n" + knowledge_block
         )
 
         response_text = self._llm_client.complete_text(
@@ -346,6 +411,23 @@ RULES:
             user_question=question,
             model_name=model_name,
         )
+        if knowledge_docs:
+            refs = "\n".join(
+                f"Per {(item.source or item.doc_id)}: referenced in this analysis."
+                for item in knowledge_docs
+            )
+            knowledge_section = "\n\n[KNOWLEDGE REFERENCES]\n" + refs
+            explore_marker = "[WHAT TO EXPLORE NEXT]"
+            if explore_marker in response_text:
+                idx = response_text.index(explore_marker)
+                response_text = (
+                    response_text[:idx].rstrip()
+                    + knowledge_section
+                    + "\n\n"
+                    + response_text[idx:]
+                )
+            else:
+                response_text = response_text + knowledge_section
 
         # FIX 1: next_state_preview is suppressed as a separate field.
         # The full response_text already contains [NEXT STATE PREVIEW] inline;

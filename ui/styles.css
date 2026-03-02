@@ -731,6 +731,17 @@ td {
   text-decoration: none;
 }
 
+.knowledge-cite-link {
+  color: #1a73e8;
+  text-decoration: underline;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.knowledge-cite-link:hover {
+  color: #1558b0;
+}
+
 .evidence-row {
   display: grid;
   grid-template-columns: 1fr auto auto;

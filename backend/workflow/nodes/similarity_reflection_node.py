@@ -46,6 +46,13 @@ with specific failure details?
    Are all six questions specific to the retrieved cases?
    Score: SPECIFIC_MULTI_DOMAIN | GENERIC | INCOMPLETE | MISSING
 
+6. KNOWLEDGE GROUNDING
+   If knowledge documents were available for this case (i.e. the knowledge block was
+   not empty), does the response cite at least one document inline using the format
+   Per [Document Name]: [point]? Return CITED if yes, MISSING if documents were
+   available but not cited, NOT_APPLICABLE if the knowledge block was empty.
+   Score: CITED | NOT_APPLICABLE | MISSING
+
 Return ONLY this JSON:
 {
   "case_specificity": "SPECIFIC|VAGUE|MISSING",
@@ -53,6 +60,7 @@ Return ONLY this JSON:
   "pattern_quality": "GENUINE|RESTATEMENT|MISSING",
   "general_advice_flagged": "PRESENT_FLAGGED|PRESENT_UNFLAGGED|MISSING",
   "explore_next_quality": "SPECIFIC_MULTI_DOMAIN|GENERIC|INCOMPLETE|MISSING",
+  "knowledge_grounding": "CITED|NOT_APPLICABLE|MISSING",
   "needs_regeneration": true,
   "regeneration_focus": "one sentence if needs_regeneration true, else null"
 }

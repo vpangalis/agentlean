@@ -1369,6 +1369,7 @@ document.addEventListener("DOMContentLoaded", () => {
       { marker: '[LESSONS LEARNED]', title: 'Lessons Learned' },
       { marker: '[GENERAL ADVICE]', title: null },  // render as callout, no header
       { marker: '[WHAT TO EXPLORE NEXT]', title: null },  // rendered as chips only
+      { marker: '[KNOWLEDGE REFERENCES]', title: 'Knowledge References' },
     ];
 
     // Strip [WHAT TO EXPLORE NEXT] and everything after — chips handle that section
@@ -1420,6 +1421,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function formatSectionContent(text) {
     if (!text) return '';
+
+    text = text.replace(
+      /Per ([\w\-. ]+\.(?:pdf|docx|doc)):/g,
+      `Per <a href="${API_BASE}/knowledge/file/$1" target="_blank" rel="noopener noreferrer" class="knowledge-cite-link">$1</a>:`
+    );
 
     let html = text
       // Sub-bullet: bullet line whose content starts with [ — indicates a case ID citation
