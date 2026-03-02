@@ -25,7 +25,6 @@ from backend.workflow.nodes.context_node import ContextNode
 from backend.workflow.nodes.end_node import EndNode
 from backend.workflow.nodes.intent_classification_node import IntentClassificationNode
 from backend.workflow.nodes.question_readiness_node import QuestionReadinessNode
-from backend.workflow.nodes.intent_reflection_node import IntentReflectionNode
 from backend.workflow.nodes.kpi_node import KPINode
 from backend.workflow.nodes.kpi_reflection_node import KPIReflectionNode
 from backend.workflow.nodes.operational_node import OperationalNode
@@ -79,7 +78,6 @@ class UnifiedIncidentGraph:
         context_node: ContextNode,
         intent_classification_node: IntentClassificationNode,
         question_readiness_node: QuestionReadinessNode,
-        intent_reflection_node: IntentReflectionNode,
         router_node: RouterNode,
         operational_node: OperationalNode,
         operational_reflection_node: OperationalReflectionNode,
@@ -99,7 +97,6 @@ class UnifiedIncidentGraph:
         self._context_node = context_node
         self._intent_classification_node = intent_classification_node
         self._question_readiness_node = question_readiness_node
-        self._intent_reflection_node = intent_reflection_node
         self._router_node = router_node
         self._operational_node = operational_node
         self._operational_reflection_node = operational_reflection_node
@@ -120,7 +117,6 @@ class UnifiedIncidentGraph:
         graph.add_node("context_node", self._context)
         graph.add_node("intent_classification_node", self._intent_classification)
         graph.add_node("question_readiness_node", self._question_readiness)
-        graph.add_node("intent_reflection_node", self._intent_reflection)
         graph.add_node("router_node", self._router)
         graph.add_node("operational_node", self._operational)
         graph.add_node("operational_reflection_node", self._operational_reflection)
@@ -141,15 +137,19 @@ class UnifiedIncidentGraph:
         graph.add_edge("start_node", "context_node")
         graph.add_edge("context_node", "intent_classification_node")
         graph.add_edge("intent_classification_node", "question_readiness_node")
+        # IntentReflectionNode removed: coerce_raw() in intent_coercion.py
+        # guarantees schema validity before this point — LLM reflection
+        # cannot catch failures that coercion has already prevented.
+        # READY routes directly to router_node. Retired node retained in
+        # intent_reflection_node.py for reference.
         graph.add_conditional_edges(
             "question_readiness_node",
             self._route_question_readiness,
             {
-                "READY": "intent_reflection_node",
+                "READY": "router_node",
                 "NOT_READY": "response_formatter_node",
             },
         )
-        graph.add_edge("intent_reflection_node", "router_node")
 
         graph.add_conditional_edges(
             "router_node",
@@ -235,19 +235,6 @@ class UnifiedIncidentGraph:
             return "NOT_READY"
         return "READY"
 
-    def _intent_reflection(self, state: IncidentGraphState) -> IncidentGraphState:
-        classification = state.get("classification")
-        if classification is None:
-            raise ValueError("classification is required before intent reflection")
-        if isinstance(classification, dict):
-            classification = IntentClassificationResult.model_validate(classification)
-        output = self._intent_reflection_node.run(
-            question=str(state.get("question") or ""),
-            case_id=state.get("case_id"),
-            classification=classification,
-        )
-        return cast(IncidentGraphState, output.model_dump())
-
     def _router(self, state: IncidentGraphState) -> IncidentGraphState:
         classification = state.get("classification")
         if classification is None:
@@ -306,7 +293,11 @@ class UnifiedIncidentGraph:
 
     def _similarity(self, state: IncidentGraphState) -> IncidentGraphState:
         case_context = state.get("case_context")
-        case_status_sim = self._extract_case_status(case_context) if isinstance(case_context, dict) else None
+        case_status_sim = (
+            self._extract_case_status(case_context)
+            if isinstance(case_context, dict)
+            else None
+        )
         output = self._similarity_node.run(
             question=str(state.get("question") or ""),
             case_id=state.get("case_id"),

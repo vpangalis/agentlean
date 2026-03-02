@@ -1,3 +1,7 @@
+# RETIRED: No longer wired into the graph as of this commit.
+# coerce_raw() in intent_coercion.py provides deterministic schema
+# validation, making LLM-based reflection redundant here.
+# Retained for reference. Safe to delete in a future cleanup pass.
 from __future__ import annotations
 
 from pydantic import BaseModel
