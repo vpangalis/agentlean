@@ -91,6 +91,12 @@ def build_index_schema() -> SearchIndex:
             sortable=True,
         ),
         SimpleField(
+            name="current_stage",
+            type=SearchFieldDataType.String,
+            filterable=True,
+            sortable=False,
+        ),
+        SimpleField(
             name="opening_date",
             type=SearchFieldDataType.DateTimeOffset,
             filterable=True,
