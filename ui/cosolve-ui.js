@@ -298,7 +298,14 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const isCaseId = /^[A-Za-z]{3,4}-\d{8}-\d{4}$/i.test(query);
+    // Full case ID → exact OData filter path (case_id eq '...')
+    const isFullCaseId = /^[A-Za-z]{3,4}-\d{8}-\d{4}$/i.test(query);
+    // Partial case ID prefix/segment → text path with wildcard (e.g. "TRM", "0002", "TRM-2025")
+    const isPartialCaseId = /^[A-Za-z]{3,4}(-\d{0,8}(-\d{0,4})?)?$/i.test(query)
+                            || /^\d{4,8}$/.test(query);
+    const isCaseId = isFullCaseId;  // exact-filter path reserved for full IDs only
+    // Append wildcard for partial patterns so Azure returns prefix matches
+    const searchQuery = (isPartialCaseId && !isFullCaseId) ? query + "*" : query;
     caseSearchResults.innerHTML = "<div class='muted empty-state'>Searching cases...</div>";
 
     try {
@@ -306,7 +313,7 @@ document.addEventListener("DOMContentLoaded", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: query,
+          query: searchQuery,
           search_type: isCaseId ? "case_id" : "text",
           limit: 10
         })

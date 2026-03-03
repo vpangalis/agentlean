@@ -77,11 +77,12 @@ def build_index_schema() -> SearchIndex:
             filterable=True,
         ),
         # ── Case identity ─────────────────────────────────────────────────────
-        SimpleField(
+        SearchableField(
             name="case_id",
             type=SearchFieldDataType.String,
             filterable=True,
             sortable=True,
+            analyzer_name="standard",
         ),
         SimpleField(
             name="status",

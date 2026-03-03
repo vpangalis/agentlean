@@ -88,6 +88,7 @@ class CaseSearchClient:
         return hits
 
     _TEXT_SEARCH_FIELDS: list[str] = [
+        "case_id",            # searchable with standard analyser — tokens: TRM, 20250518, 0002
         "problem_description",
         "what_happened",
         "why_problem",
@@ -121,6 +122,8 @@ class CaseSearchClient:
         results = self._search_client.search(
             search_text=search_text,
             search_fields=self._TEXT_SEARCH_FIELDS,
+            query_type="full",       # enables Lucene syntax — required for trailing * wildcard
+            search_mode="any",       # any token match is sufficient
             top=top_k,
             select=self._default_select_fields(),
         )
