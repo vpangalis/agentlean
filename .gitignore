@@ -9,3 +9,7 @@ __pycache__/
 # OS / editor junk
 .DS_Store
 Thumbs.db
+
+# LLM evaluation logs
+logs/
+*.jsonl

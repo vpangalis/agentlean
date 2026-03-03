@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel
 
 from backend.config import Settings
 from backend.infra.language_model_client import LanguageModelClient
+
+_LLM_LOG_PATH = Path("logs/llm_calls.jsonl")
 
 
 class LoggedLanguageModelClient:
@@ -25,6 +29,19 @@ class LoggedLanguageModelClient:
         self._node_name = node_name
         self._model_name = model_name or settings.AZURE_OPENAI_CHAT_DEPLOYMENT
         self._logger = logging.getLogger("llm_prompt_logger")
+
+    def _write_llm_log(self, record: dict) -> None:
+        """Append one JSON record to the LLM evaluation log file.
+
+        Creates logs/ directory and the file if they do not exist.
+        Silently ignores write errors to avoid disrupting LLM calls.
+        """
+        try:
+            _LLM_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with _LLM_LOG_PATH.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        except Exception:  # noqa: BLE001
+            pass
 
     def complete_json(
         self,
@@ -69,6 +86,31 @@ class LoggedLanguageModelClient:
                 "total_tokens": usage.get("total_tokens"),
             },
         )
+        self._write_llm_log(
+            {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "call_type": "json",
+                "node_name": self._node_name,
+                "model_name": effective_model_name,
+                "response_time_ms": elapsed_ms,
+                "prompt_tokens": usage.get("prompt_tokens"),
+                "completion_tokens": usage.get("completion_tokens"),
+                "total_tokens": usage.get("total_tokens"),
+                "prompt_characters": len(system_prompt) + len(user_prompt),
+                "prompt_hash": prompt_hash,
+                "temperature": temperature,
+                "user_question": user_question,
+            }
+        )
+        self._logger.info(
+            "[LLM] %s | %s | %dms | prompt=%s completion=%s total=%s tokens",
+            self._node_name,
+            effective_model_name,
+            round(elapsed_ms),
+            usage.get("prompt_tokens"),
+            usage.get("completion_tokens"),
+            usage.get("total_tokens"),
+        )
         return response
 
     def complete_text(
@@ -109,6 +151,31 @@ class LoggedLanguageModelClient:
                 "prompt_tokens": usage.get("prompt_tokens"),
                 "total_tokens": usage.get("total_tokens"),
             },
+        )
+        self._write_llm_log(
+            {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "call_type": "text",
+                "node_name": self._node_name,
+                "model_name": effective_model_name,
+                "response_time_ms": elapsed_ms,
+                "prompt_tokens": usage.get("prompt_tokens"),
+                "completion_tokens": usage.get("completion_tokens"),
+                "total_tokens": usage.get("total_tokens"),
+                "prompt_characters": len(system_prompt) + len(user_prompt),
+                "prompt_hash": prompt_hash,
+                "temperature": temperature,
+                "user_question": user_question,
+            }
+        )
+        self._logger.info(
+            "[LLM] %s | %s | %dms | prompt=%s completion=%s total=%s tokens",
+            self._node_name,
+            effective_model_name,
+            round(elapsed_ms),
+            usage.get("prompt_tokens"),
+            usage.get("completion_tokens"),
+            usage.get("total_tokens"),
         )
         return response
 
