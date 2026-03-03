@@ -49,8 +49,35 @@ class QuestionReadinessNode:
         "- The clarifying_question must be written in plain, friendly language only."
     )
 
+    _ALWAYS_READY_INTENTS: frozenset[str] = frozenset(
+        {"KPI_ANALYSIS", "STRATEGY_ANALYSIS"}
+    )
+
     def __init__(self, llm_client: LoggedLanguageModelClient) -> None:
         self._llm_client = llm_client
+
+    def _deterministic_ready_check(
+        self, intent: str, case_loaded: bool
+    ) -> QuestionReadinessNodeOutput | None:
+        """Return a ready=True output immediately for cases that are
+        always ready by rule, without calling the LLM.
+
+        Rule 1: any intent with a loaded case → always ready.
+        Rule 2: KPI_ANALYSIS or STRATEGY_ANALYSIS → always ready
+                regardless of case_loaded.
+
+        Returns None when the deterministic rules do not apply —
+        the caller must then proceed to the LLM check.
+        """
+        if case_loaded:
+            return QuestionReadinessNodeOutput(
+                question_ready=True, clarifying_question=""
+            )
+        if intent in QuestionReadinessNode._ALWAYS_READY_INTENTS:
+            return QuestionReadinessNodeOutput(
+                question_ready=True, clarifying_question=""
+            )
+        return None
 
     def run(
         self,
@@ -58,6 +85,12 @@ class QuestionReadinessNode:
         intent: str,
         case_loaded: bool,
     ) -> QuestionReadinessNodeOutput:
+        fast_result = self._deterministic_ready_check(intent, case_loaded)
+        if fast_result is not None:
+            return fast_result
+
+        # LLM path: no case loaded + OPERATIONAL_CASE or
+        # SIMILARITY_SEARCH — semantic check required.
         user_prompt = QuestionReadinessNode._USER_PROMPT_TEMPLATE.format(
             case_loaded="true" if case_loaded else "false",
             intent=intent,
