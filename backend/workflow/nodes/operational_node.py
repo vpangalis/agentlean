@@ -198,16 +198,6 @@ gaps to address, or further actions — the team has already finished.
 Your role is to summarise what was investigated, what the root cause was,
 what actions were taken, and what the organisation learned.
 
-If knowledge documents are provided in the user prompt under
-'--- KNOWLEDGE BASE REFERENCES ---', cite them inline using EXACTLY this format:
-Per [exact_filename.pdf]: [your point here].
-The filename must be copied character-for-character from the knowledge block line —
-including the .pdf extension. Do not shorten, paraphrase, or reformat the filename.
-Place citations naturally within [ROOT CAUSE] or [LESSONS LEARNED] where directly
-relevant to the failure mechanism or lessons identified. Only cite if the content
-is directly relevant to this specific case. Do not fabricate citations if no
-documents were provided.
-
 Respond using EXACTLY these five sections in EXACTLY this order.
 
 [RESOLUTION SUMMARY]
