@@ -26,6 +26,11 @@ class LanguageModelClient:
     ) -> None:
         self._openai_client = openai_client
         self._settings = settings_module
+        self._last_usage: dict[str, int | None] = {
+            "prompt_tokens": None,
+            "completion_tokens": None,
+            "total_tokens": None,
+        }
 
     def complete_json(
         self,
@@ -91,6 +96,12 @@ class LanguageModelClient:
             ],
         )
         content = response.choices[0].message.content
+        usage = getattr(response, "usage", None)
+        self._last_usage = {
+            "prompt_tokens": getattr(usage, "prompt_tokens", None),
+            "completion_tokens": getattr(usage, "completion_tokens", None),
+            "total_tokens": getattr(usage, "total_tokens", None),
+        }
         if not content:
             raise ValueError("LLM returned empty response content.")
         return str(content)
@@ -141,6 +152,11 @@ class LanguageModelClient:
         message = (choices[0].get("message") or {}).get("content")
         if not message:
             raise RuntimeError("LLM response content was empty.")
+        self._last_usage = {
+            "prompt_tokens": None,
+            "completion_tokens": None,
+            "total_tokens": None,
+        }
         return str(message)
 
     def complete_text(
@@ -183,6 +199,12 @@ class LanguageModelClient:
             ],
         )
         content = response.choices[0].message.content
+        usage = getattr(response, "usage", None)
+        self._last_usage = {
+            "prompt_tokens": getattr(usage, "prompt_tokens", None),
+            "completion_tokens": getattr(usage, "completion_tokens", None),
+            "total_tokens": getattr(usage, "total_tokens", None),
+        }
         if not content:
             raise ValueError("LLM returned empty response content.")
         return str(content)
@@ -227,6 +249,11 @@ class LanguageModelClient:
         message = (choices[0].get("message") or {}).get("content")
         if not message:
             raise RuntimeError("LLM response content was empty.")
+        self._last_usage = {
+            "prompt_tokens": None,
+            "completion_tokens": None,
+            "total_tokens": None,
+        }
         return str(message)
 
     def _coerce_to_model(

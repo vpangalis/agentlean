@@ -48,6 +48,7 @@ class LoggedLanguageModelClient:
             temperature=temperature,
             model_name=effective_model_name,
         )
+        usage = getattr(self._base_client, "_last_usage", {})
         elapsed_ms = round((time.perf_counter() - started) * 1000.0, 3)
 
         self._logger.info(
@@ -63,9 +64,9 @@ class LoggedLanguageModelClient:
                 "user_question": user_question,
                 "temperature": temperature,
                 "prompt_characters": len(system_prompt) + len(user_prompt),
-                "completion_tokens": None,
-                "prompt_tokens": None,
-                "total_tokens": None,
+                "completion_tokens": usage.get("completion_tokens"),
+                "prompt_tokens": usage.get("prompt_tokens"),
+                "total_tokens": usage.get("total_tokens"),
             },
         )
         return response
@@ -89,6 +90,7 @@ class LoggedLanguageModelClient:
             temperature=temperature,
             model_name=effective_model_name,
         )
+        usage = getattr(self._base_client, "_last_usage", {})
         elapsed_ms = round((time.perf_counter() - started) * 1000.0, 3)
         self._logger.info(
             "llm_request",
@@ -103,9 +105,9 @@ class LoggedLanguageModelClient:
                 "user_question": user_question,
                 "temperature": temperature,
                 "prompt_characters": len(system_prompt) + len(user_prompt),
-                "completion_tokens": None,
-                "prompt_tokens": None,
-                "total_tokens": None,
+                "completion_tokens": usage.get("completion_tokens"),
+                "prompt_tokens": usage.get("prompt_tokens"),
+                "total_tokens": usage.get("total_tokens"),
             },
         )
         return response
