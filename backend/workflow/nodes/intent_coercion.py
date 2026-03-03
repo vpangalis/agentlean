@@ -5,6 +5,7 @@ multiple unrelated node classes (IntentClassificationNode and
 IntentReflectionNode). Moving them here eliminates the circular import that
 would arise if either node imported from the other.
 """
+
 from __future__ import annotations
 
 import re

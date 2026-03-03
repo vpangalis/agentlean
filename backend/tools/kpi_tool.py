@@ -238,7 +238,9 @@ class KPITool:
 
         if is_closed and days_elapsed is not None and benchmark is not None:
             benchmark_int = int(round(benchmark))
-            gauge_label: str | None = f"Closed in {days_elapsed} days vs {benchmark_int} day benchmark"
+            gauge_label: str | None = (
+                f"Closed in {days_elapsed} days vs {benchmark_int} day benchmark"
+            )
             suggestions = [
                 f"What were the root causes identified in case {case_id}?",
                 f"Were the corrective actions in {case_id} effective long-term?",

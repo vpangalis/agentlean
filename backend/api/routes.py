@@ -357,9 +357,7 @@ class ApiRoutes:
             logger.info("[KNOWLEDGE] deleted blob %r", blob_path)
         except Exception as exc:
             # Log but don't abort — index deletion is still useful even if blob is gone.
-            logger.warning(
-                "[KNOWLEDGE] blob delete failed for %r: %s", blob_path, exc
-            )
+            logger.warning("[KNOWLEDGE] blob delete failed for %r: %s", blob_path, exc)
 
         # 3. Batch-delete all chunks from the search index.
         try:

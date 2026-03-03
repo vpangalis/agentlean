@@ -17,6 +17,7 @@ from backend.workflow.nodes.node_parsing_utils import (
     is_new_problem_question,
     normalize_d_states,
 )
+from backend.workflow.services.knowledge_formatter import KnowledgeFormatter
 
 
 class OperationalNode:
@@ -81,6 +82,8 @@ RULES:
 - Reference the specific symptom or equipment from the question where possible.
 - Return plain text only. No JSON. No markdown.
 - [WHAT TO EXPLORE NEXT] must be the last section. Nothing may appear after it.
+Do not cite knowledge documents inline in your response text. All document
+references must appear only in the [KNOWLEDGE REFERENCES] block at the end.
 """
     _OPERATIONAL_SYSTEM_PROMPT = """\
 You are a senior 8D problem-solving advisor embedded in an active incident case.
@@ -183,6 +186,8 @@ CRITICAL RULES:
   ☑ [CURRENT STATE]  ☑ [GAPS IN PREVIOUS STATES]  ☑ [NEXT STATE PREVIEW]
   ☑ [GENERAL ADVICE] — must start with ⚠️  ☑ [WHAT TO EXPLORE NEXT]
   If any section is absent, add it before returning your response.
+Do not cite knowledge documents inline in your response text. All document
+references must appear only in the [KNOWLEDGE REFERENCES] block at the end.
 """
 
     _CLOSED_CASE_SYSTEM_PROMPT = """\
@@ -211,11 +216,13 @@ and how the investigation concluded. Reference the case ID and the final resolve
 
 [ROOT CAUSE]
 State the root cause(s) identified during the investigation. Be specific — use
-actual data from the case history. If multiple root causes were found, list them clearly.
+actual data from the case history. Always use bullet points (- item) for each
+root cause. Never write this section as a paragraph.
 
 [ACTIONS TAKEN]
 Describe the corrective and preventive actions that were implemented to resolve
-the case. Reference specific steps from the case history where available.
+the case. Always use bullet points (- item) for each action. Reference specific
+steps from the case history where available. Never write this section as a paragraph.
 
 [LESSONS LEARNED]
 Summarise what the organisation learned from this case: what process, technical,
@@ -243,6 +250,8 @@ RULES:
 - Return plain text only. No JSON. No markdown.
 - [WHAT TO EXPLORE NEXT] must be the last section. Nothing may appear after it.
 - LENGTH RULE: Be concise. Target 250-350 words maximum across all five sections.
+Do not cite knowledge documents inline in your response text. All document
+references must appear only in the [KNOWLEDGE REFERENCES] block at the end.
 """
 
     def __init__(
@@ -254,6 +263,7 @@ RULES:
         self._hybrid_retriever = hybrid_retriever
         self._llm_client = llm_client
         self._settings = settings
+        self._formatter = KnowledgeFormatter()
 
     def run(
         self,
@@ -264,13 +274,17 @@ RULES:
         model_name: str | None = None,
         case_status: str | None = None,
     ) -> OperationalNodeOutput:
+        op_phase = "root_cause" if case_status == "open" else "general"
         knowledge_docs = self._hybrid_retriever.retrieve_knowledge(
             query=question,
             top_k=4,
+            cosolve_phase=op_phase,
         )
         if knowledge_docs:
             knowledge_block = "\n".join(
-                f"Per {(item.source or item.doc_id)}: {(item.content_text or '')[:800]}"
+                f"Per {(item.source or item.doc_id)}"
+                f"{(' [' + item.section_title + ']') if item.section_title else ''}: "
+                f"{(item.content_text or '')[:600]}"
                 for item in knowledge_docs
             )
         else:
@@ -291,10 +305,7 @@ RULES:
                 model_name=model_name,
             )
             if knowledge_docs:
-                refs = "\n".join(
-                    f"Per {(item.source or item.doc_id)}: referenced in this analysis."
-                    for item in knowledge_docs
-                )
+                refs = self._formatter.build_refs_block(knowledge_docs)
                 knowledge_section = "\n\n[KNOWLEDGE REFERENCES]\n" + refs
                 explore_marker = "[WHAT TO EXPLORE NEXT]"
                 if explore_marker in response_text:
@@ -351,10 +362,7 @@ RULES:
                 model_name=model_name,
             )
             if knowledge_docs:
-                refs = "\n".join(
-                    f"Per {(item.source or item.doc_id)}: referenced in this analysis."
-                    for item in knowledge_docs
-                )
+                refs = self._formatter.build_refs_block(knowledge_docs)
                 knowledge_section = "\n\n[KNOWLEDGE REFERENCES]\n" + refs
                 explore_marker = "[WHAT TO EXPLORE NEXT]"
                 if explore_marker in response_text:
@@ -409,10 +417,7 @@ RULES:
             model_name=model_name,
         )
         if knowledge_docs:
-            refs = "\n".join(
-                f"Per {(item.source or item.doc_id)}: referenced in this analysis."
-                for item in knowledge_docs
-            )
+            refs = self._formatter.build_refs_block(knowledge_docs)
             knowledge_section = "\n\n[KNOWLEDGE REFERENCES]\n" + refs
             explore_marker = "[WHAT TO EXPLORE NEXT]"
             if explore_marker in response_text:

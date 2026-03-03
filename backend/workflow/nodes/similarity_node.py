@@ -11,6 +11,7 @@ from backend.workflow.nodes.node_parsing_utils import (
     extract_similarity_suggestions,
     format_d_states,
 )
+from backend.workflow.services.knowledge_formatter import KnowledgeFormatter
 
 
 class SimilarityNode:
@@ -161,7 +162,9 @@ CRITICAL RULES:
   ☑ [WHAT THIS MEANS FOR YOUR INVESTIGATION] — open/no case \
      — or — [WHAT THIS REVEALS] — closed case only
   ☑ [GENERAL ADVICE] — MUST start with the ⚠️ warning prefix
-  ☑ [WHAT TO EXPLORE NEXT] — MUST contain both subsections\
+  ☑ [WHAT TO EXPLORE NEXT] — MUST contain both subsections
+Do not cite knowledge documents inline in your response text. All document
+references must appear only in the [KNOWLEDGE REFERENCES] block at the end.
 """
 
     def __init__(
@@ -173,6 +176,7 @@ CRITICAL RULES:
         self._hybrid_retriever = hybrid_retriever
         self._llm_client = llm_client
         self._settings = settings
+        self._formatter = KnowledgeFormatter()
 
     def run(
         self,
@@ -190,6 +194,7 @@ CRITICAL RULES:
         knowledge_docs = self._hybrid_retriever.retrieve_knowledge(
             query=question,
             top_k=4,
+            cosolve_phase="root_cause",
         )
 
         # Build case context summary
@@ -209,7 +214,9 @@ CRITICAL RULES:
 
         if knowledge_docs:
             knowledge_block = "\n".join(
-                f"Per {(item.source or item.doc_id)}: {(item.content_text or '')[:800]}"
+                f"Per {(item.source or item.doc_id)}"
+                f"{(' [' + item.section_title + ']') if item.section_title else ''}: "
+                f"{(item.content_text or '')[:600]}"
                 for item in knowledge_docs
             )
         else:
@@ -234,10 +241,7 @@ CRITICAL RULES:
             user_question=question,
         )
         if knowledge_docs:
-            refs = "\n".join(
-                f"Per {(item.source or item.doc_id)}: referenced in this analysis."
-                for item in knowledge_docs
-            )
+            refs = self._formatter.build_refs_block(knowledge_docs)
             knowledge_section = "\n\n[KNOWLEDGE REFERENCES]\n" + refs
             explore_marker = "[WHAT TO EXPLORE NEXT]"
             if explore_marker in response_text:

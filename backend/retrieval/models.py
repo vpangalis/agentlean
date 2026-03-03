@@ -25,9 +25,18 @@ class CaseSummary(BaseModel):
 
 class KnowledgeSummary(BaseModel):
     doc_id: str
-    title: Optional[str]
-    source: Optional[str]
-    created_at: Optional[datetime]
+    title: Optional[str] = None
+    source: Optional[str] = None
+    content_text: Optional[str] = None
+    created_at: Optional[datetime] = None
+    chunk_type: Optional[str] = None
+    section_title: Optional[str] = None
+    parent_section_id: Optional[str] = None
+    page_start: Optional[int] = None
+    page_end: Optional[int] = None
+    cosolve_phase: Optional[str] = None
+    char_count: Optional[int] = None
+    score: Optional[float] = None
 
 
 class EvidenceSummary(BaseModel):

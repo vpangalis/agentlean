@@ -226,6 +226,7 @@ class HybridRetriever:
         self,
         query: str,
         top_k: Optional[int] = None,
+        cosolve_phase: Optional[str] = None,
     ) -> list[KnowledgeSummary]:
         effective_top_k = (
             top_k if top_k is not None else self._settings.RETRIEVAL_KNOWLEDGE_TOP_K
@@ -240,6 +241,7 @@ class HybridRetriever:
             search_text=query,
             embedding=embedding,
             top_k=effective_top_k,
+            cosolve_phase=cosolve_phase,
         )
 
         mapped: list[KnowledgeSummary] = []
@@ -254,8 +256,20 @@ class HybridRetriever:
                     source=item.get("source"),
                     content_text=item.get("content_text"),
                     created_at=item.get("created_at"),
+                    chunk_type=item.get("chunk_type"),
+                    section_title=item.get("section_title"),
+                    parent_section_id=item.get("parent_section_id"),
+                    page_start=item.get("page_start"),
+                    page_end=item.get("page_end"),
+                    cosolve_phase=item.get("cosolve_phase"),
+                    char_count=item.get("char_count"),
+                    score=item.get("@search.score"),
                 )
             )
+        if mapped:
+            max_score = max((k.score or 0.0) for k in mapped)
+            threshold = max_score * 0.55
+            mapped = [k for k in mapped if (k.score or 0.0) >= threshold]
         return mapped
 
     def retrieve_evidence_for_case(

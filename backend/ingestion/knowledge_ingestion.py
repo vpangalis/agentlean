@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import hashlib
 import os
+import re
 import logging
 from io import BytesIO
 from typing import Any
@@ -59,73 +60,152 @@ class KnowledgeIngestionService:
         self._search_index = search_index
         self._logger = logging.getLogger("knowledge_ingestion")
 
-    # Maximum characters per chunk (≈ 3 000 tokens × 4 chars/token, safely under 8 192 token limit)
-    _CHUNK_MAX_CHARS: int = 12_000
+    def delete_by_source(self, filename: str) -> int:
+        """
+        Delete all index documents whose source field matches filename.
+        Returns the count of documents deleted.
+        """
+        deleted = 0
+        try:
+            results = self._search_index._search_client.search(
+                search_text="*",
+                filter=f"source eq '{filename}'",
+                select=["doc_id"],
+                top=1000,
+            )
+            doc_ids = [r["doc_id"] for r in results if r.get("doc_id")]
+            if doc_ids:
+                delete_batch = [{"doc_id": doc_id} for doc_id in doc_ids]
+                self._search_index._search_client.delete_documents(
+                    documents=delete_batch
+                )
+                deleted = len(doc_ids)
+                self._logger.info(
+                    "[KNOWLEDGE] Deleted %d existing chunks for '%s' before re-ingestion",
+                    deleted,
+                    filename,
+                )
+        except Exception as e:
+            self._logger.warning(
+                "[KNOWLEDGE] delete_by_source failed for '%s': %s", filename, e
+            )
+        return deleted
 
     def upload_document(self, filename: str, data: bytes, content_type: str) -> None:
+        # Delete any existing index entries for this file before re-ingesting
+        self.delete_by_source(filename)
         path = f"{self._prefix}{filename}"
         self._blob_client.upload_file(path, data, content_type, overwrite=True)
         text = self._extract_text(data, content_type, filename)
 
-        chunks = self._chunk_text(text)
-        total_chunks = len(chunks)
         base_doc_id = self._build_doc_id(filename)
         created_at = datetime.now(timezone.utc).isoformat()
 
-        self._logger.info(
-            "[KNOWLEDGE] '%s' → %d chunk(s), total chars=%d",
-            filename,
-            total_chunks,
-            len(text),
-        )
-        print(
-            f"[KNOWLEDGE] '{filename}' → {total_chunks} chunk(s), "
-            f"total_chars={len(text)}"
-        )
+        # STEP 1 — Build document_summary entry
+        summary_text = text.strip()[:500]
+        summary_id = base_doc_id + "_summary"
+        summary_embedding = self._embedding_client.generate_embedding(summary_text)
+        if not isinstance(summary_embedding, list) or len(summary_embedding) != 3072:
+            raise ValueError(
+                f"Invalid embedding length for summary of '{filename}': "
+                f"expected 3072, got "
+                f"{len(summary_embedding) if isinstance(summary_embedding, list) else 'non-list'}"
+            )
+        summary_doc: dict = {
+            "doc_id": summary_id,
+            "doc_type": "knowledge",
+            "title": filename,
+            "content_text": summary_text,
+            "source": filename,
+            "version": "1",
+            "created_at": created_at,
+            "chunk_type": "document_summary",
+            "section_title": filename,
+            "parent_section_id": "",
+            "page_start": 0,
+            "page_end": 0,
+            "cosolve_phase": self._detect_cosolve_phase(text),
+            "char_count": len(summary_text),
+            "embedding": summary_embedding,
+        }
 
-        documents_to_upload: list[dict] = []
-        for idx, chunk in enumerate(chunks):
-            doc_id = base_doc_id if total_chunks == 1 else f"{base_doc_id}_chunk_{idx}"
+        # STEP 2 — Split into sections
+        sections = self._split_into_sections(text, filename)
+        section_docs: list[dict] = []
+        all_small_chunk_docs: list[dict] = []
 
-            embedding = self._embedding_client.generate_embedding(chunk)
-            if not isinstance(embedding, list) or len(embedding) != 3072:
+        for idx, section in enumerate(sections):
+            section_id = f"{base_doc_id}_sec_{idx}"
+            cosolve_phase = self._detect_cosolve_phase(section["content"])
+
+            section_embedding = self._embedding_client.generate_embedding(
+                section["content"]
+            )
+            if (
+                not isinstance(section_embedding, list)
+                or len(section_embedding) != 3072
+            ):
                 raise ValueError(
-                    f"Invalid embedding length for knowledge ingestion chunk {idx}: "
+                    f"Invalid embedding length for section {idx} of '{filename}': "
                     f"expected 3072, got "
-                    f"{len(embedding) if isinstance(embedding, list) else 'non-list'}"
+                    f"{len(section_embedding) if isinstance(section_embedding, list) else 'non-list'}"
                 )
-
-            self._logger.info(
-                "[KNOWLEDGE] chunk %d/%d — doc_id=%s  chars=%d  embedding_len=%d",
-                idx,
-                total_chunks - 1,
-                doc_id,
-                len(chunk),
-                len(embedding),
-            )
-            print(
-                f"[KNOWLEDGE] chunk {idx}/{total_chunks - 1} — doc_id={doc_id}  "
-                f"chars={len(chunk)}  embedding_len={len(embedding)}"
-            )
-
-            documents_to_upload.append(
+            section_docs.append(
                 {
-                    "doc_id": doc_id,
+                    "doc_id": section_id,
                     "doc_type": "knowledge",
                     "title": filename,
-                    "content_text": chunk,
+                    "content_text": section["content"],
                     "source": filename,
                     "version": "1",
                     "created_at": created_at,
-                    "embedding": embedding,
+                    "chunk_type": "section",
+                    "section_title": section["section_title"],
+                    "parent_section_id": "",
+                    "page_start": section["page_start"],
+                    "page_end": section["page_end"],
+                    "cosolve_phase": cosolve_phase,
+                    "char_count": len(section["content"]),
+                    "embedding": section_embedding,
                 }
             )
 
+            small_chunk_dicts = self._build_small_chunks(
+                section["content"],
+                section_id,
+                filename,
+                section["section_title"],
+                cosolve_phase,
+                created_at,
+            )
+            for sc in small_chunk_dicts:
+                sc_embedding = self._embedding_client.generate_embedding(
+                    sc["content_text"]
+                )
+                if not isinstance(sc_embedding, list) or len(sc_embedding) != 3072:
+                    raise ValueError(
+                        f"Invalid embedding length for small chunk of '{filename}': "
+                        f"expected 3072, got "
+                        f"{len(sc_embedding) if isinstance(sc_embedding, list) else 'non-list'}"
+                    )
+                sc["embedding"] = sc_embedding
+                all_small_chunk_docs.append(sc)
+
+        # STEP 3 — Collect all documents and upload in one batch
+        documents_to_upload = [summary_doc] + section_docs + all_small_chunk_docs
         self._search_index.upload_documents(documents_to_upload)
+
+        # STEP 4 — Log summary
+        total_small_chunks = len(all_small_chunk_docs)
         self._logger.info(
-            "[KNOWLEDGE] uploaded %d chunk document(s) for '%s'",
-            len(documents_to_upload),
+            "[KNOWLEDGE] '%s' → 1 summary + %d sections + %d small chunks",
             filename,
+            len(sections),
+            total_small_chunks,
+        )
+        print(
+            f"[KNOWLEDGE] '{filename}' → 1 summary + {len(sections)} sections "
+            f"+ {total_small_chunks} small chunks"
         )
 
     def delete_knowledge_blob(self, filename: str) -> None:
@@ -139,30 +219,327 @@ class KnowledgeIngestionService:
     # Helpers
     # ------------------------------------------------------------------
 
-    def _chunk_text(self, text: str) -> list[str]:
-        """Split *text* into chunks of at most _CHUNK_MAX_CHARS characters.
+    def _split_into_sections(self, text: str, filename: str) -> list[dict]:
+        """Split document text into logical sections.
 
-        Splits on whitespace boundaries to avoid cutting mid-word.
-        Returns a list with at least one element (even if text is empty).
+        STEP 1: heading-based splitting (3+ headings detected).
+        STEP 2: fixed-size 2000-char / 200-char-overlap fallback.
         """
-        max_chars = self._CHUNK_MAX_CHARS
-        if len(text) <= max_chars:
-            return [text]
+        lines = text.splitlines()
 
-        chunks: list[str] = []
+        # STEP 1 — Try heading detection
+        heading_indices: list[int] = []
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            is_heading = False
+            if re.match(r"^[A-Z][A-Z0-9 \-/&:,\.]{2,79}$", stripped):
+                is_heading = True
+            elif re.match(r"^\d{1,2}(\.\d+)*[\.\s]+\S", stripped):
+                is_heading = True
+            elif len(stripped) < 60:
+                next_line = lines[i + 1] if i + 1 < len(lines) else ""
+                if next_line.strip() == "":
+                    # Additional guards: reject if line contains sentence-ending
+                    # punctuation mid-string or looks like body text
+                    has_sentence_end = bool(re.search(r"[.!?]\s+\S", stripped))
+                    starts_with_lower = stripped[0].islower() if stripped else False
+                    is_conjunction_start = re.match(
+                        r"^(the|a|an|this|that|these|those|if|when|where|"
+                        r"as|by|for|in|on|or|and|but|to|of|with|from)\b",
+                        stripped,
+                        re.IGNORECASE,
+                    )
+                    if (
+                        not has_sentence_end
+                        and not starts_with_lower
+                        and not is_conjunction_start
+                    ):
+                        is_heading = True
+            if is_heading:
+                heading_indices.append(i)
+
+        if len(heading_indices) >= 3:
+            raw_sections: list[dict] = []
+            for n, hi in enumerate(heading_indices):
+                end_line = (
+                    heading_indices[n + 1]
+                    if n + 1 < len(heading_indices)
+                    else len(lines)
+                )
+                content = "\n".join(lines[hi:end_line]).strip()
+                title = lines[hi].strip()
+                if len(title) > 120:
+                    title = title[:120].rsplit(" ", 1)[0]
+                if len(content) < 200:
+                    continue  # likely a TOC entry
+                raw_sections.append(
+                    {
+                        "section_title": title,
+                        "content": content,
+                        "page_start": 0,
+                        "page_end": 0,
+                    }
+                )
+
+            # Sub-split sections exceeding 3000 chars at paragraph breaks
+            sections: list[dict] = []
+            for sec in raw_sections:
+                if len(sec["content"]) <= 3000:
+                    sections.append(sec)
+                else:
+                    content = sec["content"]
+                    start = 0
+                    part_n = 1
+                    while start < len(content):
+                        end = start + 3000
+                        if end >= len(content):
+                            sub = content[start:].strip()
+                            if sub:
+                                label = (
+                                    sec["section_title"]
+                                    if part_n == 1
+                                    else f"{sec['section_title']} (continued)"
+                                )
+                                sections.append(
+                                    {
+                                        "section_title": label,
+                                        "content": sub,
+                                        "page_start": 0,
+                                        "page_end": 0,
+                                    }
+                                )
+                            break
+                        split_at = content.rfind("\n\n", start, end)
+                        if split_at <= start:
+                            split_at = content.rfind("\n", start, end)
+                        if split_at <= start:
+                            split_at = end
+                        sub = content[start:split_at].strip()
+                        if sub:
+                            label = (
+                                sec["section_title"]
+                                if part_n == 1
+                                else f"{sec['section_title']} (continued)"
+                            )
+                            sections.append(
+                                {
+                                    "section_title": label,
+                                    "content": sub,
+                                    "page_start": 0,
+                                    "page_end": 0,
+                                }
+                            )
+                        # advance past the split point, skipping leading whitespace
+                        start = split_at
+                        while start < len(content) and content[start] in (
+                            "\n",
+                            " ",
+                            "\r",
+                        ):
+                            start += 1
+                        part_n += 1
+
+            if sections:
+                return sections
+
+        # STEP 2 — Fallback: fixed-size 2000-char split with 200-char overlap
+        fallback_sections: list[dict] = []
         start = 0
+        n = 1
         while start < len(text):
-            end = start + max_chars
+            end = start + 2000
             if end >= len(text):
-                chunks.append(text[start:])
+                chunk = text[start:].strip()
+                if chunk:
+                    fallback_sections.append(
+                        {
+                            "section_title": f"{filename} \u2014 Part {n}",
+                            "content": chunk,
+                            "page_start": 0,
+                            "page_end": 0,
+                        }
+                    )
                 break
-            # Walk back to the last whitespace so we don't split mid-word
-            split_at = text.rfind(" ", start, end)
-            if split_at <= start:  # no whitespace found — hard split
+            split_at = text.rfind("\n\n", start, end)
+            if split_at <= start:
+                split_at = text.rfind("\n", start, end)
+            if split_at <= start:
                 split_at = end
-            chunks.append(text[start:split_at])
-            start = split_at + 1  # skip the space
-        return chunks
+            chunk = text[start:split_at].strip()
+            if chunk:
+                fallback_sections.append(
+                    {
+                        "section_title": f"{filename} \u2014 Part {n}",
+                        "content": chunk,
+                        "page_start": 0,
+                        "page_end": 0,
+                    }
+                )
+            next_start = split_at - 200
+            if next_start <= start:
+                next_start = split_at
+            start = next_start
+            n += 1
+
+        if not fallback_sections:
+            fallback_sections = [
+                {
+                    "section_title": f"{filename} \u2014 Part 1",
+                    "content": text,
+                    "page_start": 0,
+                    "page_end": 0,
+                }
+            ]
+        return fallback_sections
+
+    def _detect_cosolve_phase(self, text: str) -> str:
+        """Tag text with the most relevant CoSolve reasoning phase.
+
+        Returns one of: 'diagnose' | 'root_cause' | 'correct' | 'prevent' | 'general'
+        """
+        lower = text.lower()
+        phase_keywords: dict[str, list[str]] = {
+            "diagnose": [
+                "symptom",
+                "alarm",
+                "temperature",
+                "observed",
+                "detected",
+                "failure",
+                "overheating",
+                "reading",
+                "telemetry",
+                "monitoring",
+                "measurement",
+            ],
+            "root_cause": [
+                "cause",
+                "root cause",
+                "failure mechanism",
+                "why",
+                "analysis",
+                "confirmed",
+                "investigation",
+                "factor",
+                "contributed",
+                "determined",
+                "evidence",
+            ],
+            "correct": [
+                "corrective action",
+                "replacement",
+                "revised",
+                "updated",
+                "repair",
+                "replaced",
+                "implemented",
+                "fixed",
+                "rework",
+                "modification",
+                "action taken",
+            ],
+            "prevent": [
+                "prevention",
+                "systemic",
+                "recurrence",
+                "policy",
+                "procedure",
+                "training",
+                "audit",
+                "qualification",
+                "specification",
+                "standard",
+                "requirement",
+                "incoming inspection",
+                "supplier",
+            ],
+        }
+        scores: dict[str, int] = {phase: 0 for phase in phase_keywords}
+        for phase, keywords in phase_keywords.items():
+            for kw in keywords:
+                if kw in lower:
+                    scores[phase] += 1
+        best_phase = max(scores, key=lambda p: scores[p])
+        if scores[best_phase] == 0:
+            return "general"
+        # Check for tie
+        top_score = scores[best_phase]
+        tied = [p for p, s in scores.items() if s == top_score]
+        if len(tied) > 1:
+            return "general"
+        return best_phase
+
+    def _build_small_chunks(
+        self,
+        section_content: str,
+        section_id: str,
+        source: str,
+        section_title: str,
+        cosolve_phase: str,
+        created_at: str,
+    ) -> list[dict]:
+        """Create small_chunk index documents (500 chars, 100-char overlap) from a section."""
+        small_chunks: list[dict] = []
+        text = section_content
+        start = 0
+        idx = 0
+        while start < len(text):
+            end = start + 500
+            if end >= len(text):
+                chunk_text = text[start:].strip()
+                if chunk_text:
+                    small_chunks.append(
+                        {
+                            "doc_id": f"{section_id}_sc_{idx}",
+                            "doc_type": "knowledge",
+                            "title": source,
+                            "content_text": chunk_text,
+                            "source": source,
+                            "version": "1",
+                            "created_at": created_at,
+                            "chunk_type": "small_chunk",
+                            "section_title": section_title,
+                            "parent_section_id": section_id,
+                            "page_start": 0,
+                            "page_end": 0,
+                            "cosolve_phase": cosolve_phase,
+                            "char_count": len(chunk_text),
+                            "embedding": None,
+                        }
+                    )
+                break
+            split_at = text.rfind(" ", start, end)
+            if split_at <= start:
+                split_at = end
+            chunk_text = text[start:split_at].strip()
+            if chunk_text:
+                small_chunks.append(
+                    {
+                        "doc_id": f"{section_id}_sc_{idx}",
+                        "doc_type": "knowledge",
+                        "title": source,
+                        "content_text": chunk_text,
+                        "source": source,
+                        "version": "1",
+                        "created_at": created_at,
+                        "chunk_type": "small_chunk",
+                        "section_title": section_title,
+                        "parent_section_id": section_id,
+                        "page_start": 0,
+                        "page_end": 0,
+                        "cosolve_phase": cosolve_phase,
+                        "char_count": len(chunk_text),
+                        "embedding": None,
+                    }
+                )
+            next_start = split_at - 100
+            if next_start <= start:
+                next_start = split_at
+            start = next_start
+            idx += 1
+        return small_chunks
 
     def _build_doc_id(self, filename: str) -> str:
         digest = hashlib.sha1(filename.encode("utf-8")).hexdigest()

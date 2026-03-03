@@ -219,7 +219,9 @@ class EntryHandler:
     def _create_case(self, envelope: EntryEnvelope) -> dict[str, Any]:
         payload = envelope.payload or {}
         _logger.debug(
-            "[DEBUG AI] payload keys: %s, question: %r", list(payload.keys()), payload.get("question")
+            "[DEBUG AI] payload keys: %s, question: %r",
+            list(payload.keys()),
+            payload.get("question"),
         )
 
         case_id = payload.get("case_id") or envelope.case_id
@@ -481,7 +483,9 @@ class EntryHandler:
             problem_description = self._extract_problem_description(case_context)
             raw_d_state = self._extract_current_d_state(case_context) or "D1_2"
             # Use plain-language step name so the LLM never sees D-step codes
-            current_step_label = self._D_STATE_FRIENDLY.get(raw_d_state, "Problem Definition")
+            current_step_label = self._D_STATE_FRIENDLY.get(
+                raw_d_state, "Problem Definition"
+            )
             status = str(case_context.get("case_status") or "open")
 
             user_prompt = (

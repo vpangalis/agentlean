@@ -46,6 +46,9 @@ Evaluate the draft response against these five criteria:
    PASS also if no knowledge docs were available (retrieved list was empty).
    FAIL only if knowledge documents were present in context but completely ignored
    and the response makes no reference to any knowledge source.
+   When evaluating, also check that any citation uses the correct inline format:
+   Per [Document Name]: [relevant point]. A response that references knowledge in
+   vague terms without naming the document should be treated as FAIL.
 
 5. EXPLORE NEXT QUALITY
    Does [WHAT TO EXPLORE NEXT] contain exactly 6 items with TEAM: and COSOLVE:

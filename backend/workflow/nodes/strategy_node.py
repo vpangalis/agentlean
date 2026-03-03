@@ -8,6 +8,7 @@ from backend.config import Settings
 from backend.infra.llm_logging_client import LoggedLanguageModelClient
 from backend.retrieval.hybrid_retriever import HybridRetriever
 from backend.workflow.models import StrategyPayload, StrategyNodeOutput
+from backend.workflow.services.knowledge_formatter import KnowledgeFormatter
 
 _logger = logging.getLogger("strategy_node")
 
@@ -122,7 +123,9 @@ CRITICAL RULES:
   ☑ [ORGANISATIONAL WEAKNESSES]
   ☑ [GENERAL ADVICE] — MUST start with the ⚠️ warning prefix
   ☑ [WHAT TO EXPLORE NEXT] — MUST have exactly 3 TEAM: and 3 COSOLVE: items
-  If any section is absent, add it before returning your response.\
+  If any section is absent, add it before returning your response.
+Do not cite knowledge documents inline in your response text. All document
+references must appear only in the [KNOWLEDGE REFERENCES] block at the end.
 """
     _ESCALATION_SYSTEM_PROMPT = """\
 A previous draft strategy response was rejected by the quality auditor.
@@ -156,6 +159,7 @@ Retrieved cases for context:
         self._hybrid_retriever = hybrid_retriever
         self._llm_client = llm_client
         self._settings = settings
+        self._formatter = KnowledgeFormatter()
 
     def run(
         self,
@@ -215,6 +219,7 @@ Retrieved cases for context:
         knowledge_docs = self._hybrid_retriever.retrieve_knowledge(
             query=question,
             top_k=4,
+            cosolve_phase="prevent",
         )
         _logger.info(
             "[strategy_node] knowledge retrieval '%s' → %d results from %s",
@@ -243,10 +248,11 @@ Retrieved cases for context:
             indent=2,
             default=str,
         )
-        formatted_knowledge = json.dumps(
-            [k.model_dump(mode="json") for k in knowledge_docs],
-            indent=2,
-            default=str,
+        formatted_knowledge = "\n".join(
+            f"Per {(item.source or item.doc_id)}"
+            f"{(' [' + item.section_title + ']') if item.section_title else ''}: "
+            f"{(item.content_text or '')[:600]}"
+            for item in knowledge_docs
         )
         _logger.info(
             "[STRATEGY_DEBUG] case_context length: %d chars", len(formatted_cases)
@@ -280,10 +286,7 @@ Retrieved cases for context:
             model_name=model_name,
         )
         if knowledge_docs:
-            refs = "\n".join(
-                f"Per {(item.source or item.doc_id)}: referenced in this analysis."
-                for item in knowledge_docs
-            )
+            refs = self._formatter.build_refs_block(knowledge_docs)
             knowledge_section = "\n\n[KNOWLEDGE REFERENCES]\n" + refs
             explore_marker = "[WHAT TO EXPLORE NEXT]"
             if explore_marker in response_text:
