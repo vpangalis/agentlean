@@ -302,10 +302,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const isFullCaseId = /^[A-Za-z]{3,4}-\d{8}-\d{4}$/i.test(query);
     // Partial case ID prefix/segment → text path with wildcard (e.g. "TRM", "0002", "TRM-2025")
     const isPartialCaseId = /^[A-Za-z]{3,4}(-\d{0,8}(-\d{0,4})?)?$/i.test(query)
-                            || /^\d{4,8}$/.test(query);
+      || /^\d{4,8}$/.test(query);
     const isCaseId = isFullCaseId;  // exact-filter path reserved for full IDs only
-    // Append wildcard for partial patterns so Azure returns prefix matches
-    const searchQuery = (isPartialCaseId && !isFullCaseId) ? query + "*" : query;
+    // Append wildcard for partial patterns so Azure returns prefix matches.
+    // Lowercase required: standard analyser stores tokens lowercased at index time,
+    // but Lucene wildcard queries bypass the analyser at query time → "TRM*" misses "trm".
+    const searchQuery = (isPartialCaseId && !isFullCaseId) ? query.toLowerCase() + "*" : query;
     caseSearchResults.innerHTML = "<div class='muted empty-state'>Searching cases...</div>";
 
     try {
@@ -1102,7 +1104,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const lineId = chartId();
     const timeSeries = sd.time_series || [];
     const tsLabels = timeSeries.map(t => t.hour.slice(11) + ":00");
-    const tsCalls  = timeSeries.map(t => t.calls);
+    const tsCalls = timeSeries.map(t => t.calls);
 
     // \u2500\u2500 Cost table \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
     const cost = sd.cost || {};

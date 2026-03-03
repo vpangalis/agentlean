@@ -252,16 +252,18 @@ class ApiRoutes:
     def list_knowledge_documents(self):
         """Return deduplicated documents from the knowledge index (one per source file)."""
         try:
+            # Fetch metadata only — intentionally excludes content_text (large body field).
+            # Requesting content_text × top=1000 produces a multi-MB Azure response that
+            # causes a read timeout and makes the browser panel hang indefinitely.
             raw = self._knowledge_search_client._search_client.search(
                 search_text="*",
                 top=1000,
-                select=["doc_id", "title", "source", "created_at", "content_text"],
+                select=["doc_id", "title", "source", "created_at"],
             )
             # Group chunks by source filename → one entry per document
             groups: dict[str, dict] = {}
             for r in raw:
                 source = r.get("source") or r.get("title") or r.get("doc_id", "")
-                content = r.get("content_text") or ""
                 if source not in groups:
                     groups[source] = {
                         "doc_id": r.get("doc_id", ""),
@@ -269,12 +271,30 @@ class ApiRoutes:
                         "source": source,
                         "created_at": r.get("created_at", ""),
                         "chunk_count": 1,
-                        "has_no_text": content == "[No extractable text]",
                     }
                 else:
                     groups[source]["chunk_count"] += 1
-                    if content == "[No extractable text]":
-                        groups[source]["has_no_text"] = True
+
+            # Determine which sources have no extractable text via a lightweight
+            # filter query (returns only doc_ids of no-text chunks — very small).
+            no_text_sources: set[str] = set()
+            try:
+                no_text_raw = self._knowledge_search_client._search_client.search(
+                    search_text="*",
+                    filter="content_text eq '[No extractable text]'",
+                    top=1000,
+                    select=["source"],
+                )
+                for r in no_text_raw:
+                    src = r.get("source")
+                    if src:
+                        no_text_sources.add(src)
+            except Exception:
+                # Non-fatal: status badge falls back to "indexed" if this query fails
+                logger.warning(
+                    "[KNOWLEDGE] no-text filter query failed — skipping status check"
+                )
+
             docs = [
                 {
                     "doc_id": g["doc_id"],
@@ -282,7 +302,9 @@ class ApiRoutes:
                     "source": g["source"],
                     "created_at": g["created_at"],
                     "chunk_count": g["chunk_count"],
-                    "status": "no_text" if g["has_no_text"] else "indexed",
+                    "status": (
+                        "no_text" if g["source"] in no_text_sources else "indexed"
+                    ),
                 }
                 for g in groups.values()
             ]

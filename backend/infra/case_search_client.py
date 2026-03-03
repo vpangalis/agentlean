@@ -88,7 +88,7 @@ class CaseSearchClient:
         return hits
 
     _TEXT_SEARCH_FIELDS: list[str] = [
-        "case_id",            # searchable with standard analyser — tokens: TRM, 20250518, 0002
+        "case_id",  # searchable with standard analyser — tokens: TRM, 20250518, 0002
         "problem_description",
         "what_happened",
         "why_problem",
@@ -113,17 +113,28 @@ class CaseSearchClient:
         search_text: str,
         top_k: int,
     ) -> list[dict]:
-        """Full-text search across searchable fields (no vector)."""
+        """Full-text search across searchable fields (no vector).
+
+        Wildcard queries (query ends with '*') use query_type='full' (Lucene)
+        with search_fields=None so Azure fans out across all searchable fields.
+        Passing search_fields alongside query_type='full' suppresses wildcard
+        matching for that field set — omitting it restores the expected behaviour.
+
+        Plain text queries use query_type='simple' + explicit search_fields so
+        that unrelated searchable fields don't inflate scores.
+        """
+        is_wildcard = search_text.strip().endswith("*")
         self._logger.info(
-            "[SEARCH_ALL] query=%r  fields=%s",
+            "[SEARCH_ALL] query=%r  wildcard=%s  fields=%s",
             search_text,
-            self._TEXT_SEARCH_FIELDS,
+            is_wildcard,
+            "<all>" if is_wildcard else self._TEXT_SEARCH_FIELDS,
         )
         results = self._search_client.search(
             search_text=search_text,
-            search_fields=self._TEXT_SEARCH_FIELDS,
-            query_type="full",       # enables Lucene syntax — required for trailing * wildcard
-            search_mode="any",       # any token match is sufficient
+            search_fields=None if is_wildcard else self._TEXT_SEARCH_FIELDS,
+            query_type="full" if is_wildcard else "simple",
+            search_mode="any",
             top=top_k,
             select=self._default_select_fields(),
         )
