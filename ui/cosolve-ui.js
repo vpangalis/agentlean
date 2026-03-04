@@ -2986,3 +2986,275 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 
+// ══════════════════════════════════════════════════════════════════════════════
+// PANEL SYSTEM — 5-panel tab-rail layout
+// States: board | case | ai | kpi | admin
+// ══════════════════════════════════════════════════════════════════════════════
+
+let panelState = 'board';
+const LP_GROUPS = ['grp-case', 'grp-docs', 'grp-admin'];
+
+function clearAllPanels() {
+  ['lp', 'kpi-panel', 'rp'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('open', 'maximized', 'collapsed', 'fullscreen');
+  });
+  document.getElementById('center')?.classList.remove('hidden');
+  document.getElementById('lp')?.classList.remove('admin-mode', 'case-mode');
+}
+
+function updateTabRail() {
+  ['tab-lp', 'tab-admin', 'tab-kpi', 'tab-center', 'tab-rp'].forEach(id =>
+    document.getElementById(id)?.classList.remove('active'));
+  const map = { board: 'tab-center', case: 'tab-lp', ai: 'tab-rp', kpi: 'tab-kpi', admin: 'tab-admin' };
+  document.getElementById(map[panelState] || 'tab-center')?.classList.add('active');
+}
+
+function setPanelState(newState) {
+  if (panelState === newState && newState !== 'board') {
+    panelState = 'board';
+    clearAllPanels();
+    updateTabRail();
+    return;
+  }
+  panelState = newState;
+  clearAllPanels();
+  if (newState === 'case') {
+    document.getElementById('lp')?.classList.add('open', 'case-mode');
+  } else if (newState === 'ai') {
+    document.getElementById('rp')?.classList.add('open', 'fullscreen');
+    document.getElementById('center')?.classList.add('hidden');
+  } else if (newState === 'kpi') {
+    document.getElementById('kpi-panel')?.classList.add('open', 'fullscreen');
+    document.getElementById('center')?.classList.add('hidden');
+    setTimeout(() => { renderCaseKPIs(); renderTokenChart(); onPerfOpen(); }, 150);
+  } else if (newState === 'admin') {
+    document.getElementById('lp')?.classList.add('open', 'admin-mode');
+    LP_GROUPS.forEach(gid => {
+      const g = document.getElementById(gid);
+      if (g) g.classList.toggle('open', gid === 'grp-admin');
+    });
+  }
+  updateTabRail();
+}
+
+function toggleLP()    { setPanelState(panelState === 'case' ? 'board' : 'case'); }
+function focusCenter() { setPanelState('board'); }
+function focusRP()     { setPanelState('ai'); }
+function focusKPI()    { setPanelState('kpi'); }
+
+function focusLP(groupId) {
+  panelState = groupId === 'grp-admin' ? 'admin' : 'case';
+  clearAllPanels();
+  const lp = document.getElementById('lp');
+  lp?.classList.add('open');
+  if (groupId === 'grp-admin') lp?.classList.add('admin-mode');
+  else lp?.classList.add('case-mode');
+  LP_GROUPS.forEach(gid => {
+    const g = document.getElementById(gid);
+    if (g) g.classList.toggle('open', gid === groupId);
+  });
+  updateTabRail();
+}
+
+function toggleGroup(id) {
+  const target = document.getElementById(id);
+  if (!target) return;
+  const isOpen = target.classList.contains('open');
+  LP_GROUPS.forEach(gid => {
+    const g = document.getElementById(gid);
+    if (g) g.classList.remove('open');
+  });
+  if (!isOpen) target.classList.add('open');
+}
+
+function toggleKPISection(id) {
+  document.getElementById(id)?.classList.toggle('collapsed');
+}
+
+function onKPISearch(val) {
+  const v = (val || '').toLowerCase().trim();
+  if (!v) { setKPIScope('global', document.querySelector('.kpi-chip')); return; }
+  const scopeMap = {
+    'belgium': 'be', 'belgique': 'be', 'brussels': 'be',
+    'france': 'fr', 'paris': 'fr', 'lyon': 'fr',
+    'germany': 'de', 'deutschland': 'de', 'berlin': 'de',
+    'greece': 'gr', 'athens': 'gr',
+    'global': 'global', 'all': 'global', 'worldwide': 'global'
+  };
+  const match = Object.keys(scopeMap).find(k => k.startsWith(v));
+  if (match) {
+    document.querySelectorAll('.kpi-chip').forEach(c =>
+      c.classList.toggle('active', c.textContent.toLowerCase().startsWith(v)));
+    setKPIScope(scopeMap[match], null);
+  }
+}
+
+function setKPIScope(scope, btn) {
+  document.querySelectorAll('.kpi-chip').forEach(c => c.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  if (scope === 'global') {
+    currentScope = 'global';
+  } else {
+    currentScope = 'country';
+    const sel = document.getElementById('country-sel');
+    if (sel) sel.value = scope;
+  }
+  renderCaseKPIs();
+}
+
+// ── PERFORMANCE DATA ──────────────────────────────────────────────────────────
+
+const PERF_DATA = {
+  global: {
+    open: 3, closed30d: 7, avgDays: 18,
+    byCountry: {
+      labels: ['Belgium', 'France', 'Germany', 'Greece'],
+      avgDays: [22, 31, 19, 78],
+      colors: ['#3b82f6', '#3b82f6', '#3b82f6', '#ef4444']
+    },
+    trend: {
+      labels: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+      opened: [4, 6, 3, 5, 7, 3],
+      closed:  [3, 5, 4, 4, 6, 7]
+    }
+  },
+  country: {
+    be: { open: 1, closed30d: 2, avgDays: 22,
+      bySite: { labels: ['Brussels', 'Ghent', 'Liège'], avgDays: [18, 28, 22], colors: ['#3b82f6', '#3b82f6', '#3b82f6'] },
+      trend: { labels: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'], opened: [1, 2, 1, 2, 1, 1], closed: [1, 1, 2, 1, 2, 2] } },
+    fr: { open: 1, closed30d: 3, avgDays: 31,
+      bySite: { labels: ['Paris', 'Lyon', 'Marseille'], avgDays: [25, 38, 30], colors: ['#3b82f6', '#f59e0b', '#3b82f6'] },
+      trend: { labels: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'], opened: [1, 2, 0, 2, 3, 1], closed: [1, 1, 1, 2, 2, 3] } },
+    de: { open: 0, closed30d: 1, avgDays: 19,
+      bySite: { labels: ['Berlin', 'Munich', 'Hamburg'], avgDays: [14, 22, 21], colors: ['#3b82f6', '#3b82f6', '#3b82f6'] },
+      trend: { labels: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'], opened: [1, 1, 1, 0, 1, 0], closed: [1, 0, 1, 1, 0, 1] } },
+    gr: { open: 1, closed30d: 1, avgDays: 78,
+      bySite: { labels: ['Athens', 'Thessaloniki'], avgDays: [82, 74], colors: ['#ef4444', '#ef4444'] },
+      trend: { labels: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'], opened: [1, 1, 1, 1, 2, 1], closed: [0, 1, 0, 0, 2, 1] } },
+    all: { open: 3, closed30d: 7, avgDays: 18,
+      bySite: { labels: ['Belgium', 'France', 'Germany', 'Greece'], avgDays: [22, 31, 19, 78], colors: ['#3b82f6', '#3b82f6', '#3b82f6', '#ef4444'] },
+      trend: { labels: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'], opened: [4, 6, 3, 5, 7, 3], closed: [3, 5, 4, 4, 6, 7] } }
+  },
+  tokens: {
+    labels: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+    values: [680, 820, 940, 1050, 1180, 1240]
+  }
+};
+
+let perfChartInst = null, trendChartInst = null, tokenChartInst = null;
+let currentScope = 'global';
+
+const CHART_DEFAULTS = {
+  plugins: {
+    legend: { display: false },
+    tooltip: { enabled: true, bodyFont: { family: 'Geist Mono', size: 10 }, titleFont: { family: 'Geist', size: 9 } }
+  },
+  animation: { duration: 600, easing: 'easeOutQuart' }
+};
+
+function destroyChart(inst) { try { inst && inst.destroy(); } catch (e) {} }
+
+function renderCaseKPIs() {
+  const scope = currentScope;
+  const country = document.getElementById('country-sel')?.value || 'all';
+  const d = scope === 'global' ? PERF_DATA.global : (PERF_DATA.country[country] || PERF_DATA.country.all);
+
+  const sr = document.getElementById('kpi-summary-row');
+  if (sr) sr.innerHTML = `
+    <div class="kpi-stat accent"><div class="kpi-stat-val">${d.open}</div><div class="kpi-stat-lbl">Open</div></div>
+    <div class="kpi-stat green"><div class="kpi-stat-val">${d.closed30d}</div><div class="kpi-stat-lbl">Closed 30d</div></div>
+    <div class="kpi-stat ${d.avgDays > 40 ? 'amber' : ''}"><div class="kpi-stat-val">${d.avgDays}d</div><div class="kpi-stat-lbl">Avg close</div></div>
+  `;
+
+  const barCtx = document.getElementById('perf-chart');
+  if (!barCtx) return;
+  destroyChart(perfChartInst);
+  const barData = scope === 'global' ? d.byCountry : d.bySite;
+  const lbl = document.getElementById('chart-label');
+  if (lbl) lbl.textContent = scope === 'global' ? 'Avg. days to close · by country' : 'Avg. days to close · by site';
+  perfChartInst = new Chart(barCtx, {
+    type: 'bar',
+    data: {
+      labels: barData.labels,
+      datasets: [{ data: barData.avgDays, backgroundColor: barData.colors.map(c => c + '99'), borderColor: barData.colors, borderWidth: 1.5, borderRadius: 4 }]
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      scales: {
+        x: { ticks: { font: { family: 'Geist', size: 8 }, color: '#8b93ad' }, grid: { display: false } },
+        y: { ticks: { font: { family: 'Geist Mono', size: 8 }, color: '#8b93ad' }, grid: { color: '#eef0f7' }, beginAtZero: true }
+      }
+    }
+  });
+
+  const trendCtx = document.getElementById('trend-chart');
+  if (!trendCtx) return;
+  destroyChart(trendChartInst);
+  trendChartInst = new Chart(trendCtx, {
+    type: 'line',
+    data: {
+      labels: d.trend.labels,
+      datasets: [
+        { label: 'Opened', data: d.trend.opened, borderColor: '#f59e0b', backgroundColor: '#fef3c720', borderWidth: 1.5, pointRadius: 2, fill: true, tension: 0.4 },
+        { label: 'Closed',  data: d.trend.closed,  borderColor: '#16a34a', backgroundColor: '#dcfce720', borderWidth: 1.5, pointRadius: 2, fill: true, tension: 0.4 }
+      ]
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      plugins: { ...CHART_DEFAULTS.plugins, legend: { display: true, position: 'top', labels: { font: { family: 'Geist', size: 8 }, boxWidth: 8, padding: 6, color: '#4a5068' } } },
+      scales: {
+        x: { ticks: { font: { family: 'Geist', size: 8 }, color: '#8b93ad' }, grid: { display: false } },
+        y: { ticks: { font: { family: 'Geist Mono', size: 8 }, color: '#8b93ad', stepSize: 2 }, grid: { color: '#eef0f7' }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+function renderTokenChart() {
+  const ctx = document.getElementById('token-chart');
+  if (!ctx) return;
+  destroyChart(tokenChartInst);
+  tokenChartInst = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: PERF_DATA.tokens.labels,
+      datasets: [{ data: PERF_DATA.tokens.values, borderColor: '#2563eb', backgroundColor: '#eff4ff80', borderWidth: 2, pointRadius: 2, fill: true, tension: 0.4 }]
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      scales: {
+        x: { ticks: { font: { family: 'Geist', size: 8 }, color: '#8b93ad' }, grid: { display: false } },
+        y: { ticks: { font: { family: 'Geist Mono', size: 8 }, color: '#8b93ad', callback: v => v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v }, grid: { color: '#eef0f7' }, beginAtZero: false }
+      }
+    }
+  });
+}
+
+function onPerfOpen() {
+  const kpiPanel = document.getElementById('kpi-panel');
+  if (!kpiPanel || !kpiPanel.classList.contains('open')) return;
+
+  const dot     = document.getElementById('agent-dot');
+  const lbl     = document.getElementById('agent-lbl');
+  const insight  = document.getElementById('agent-insight');
+  const text    = document.getElementById('agent-text');
+
+  setTimeout(() => {
+    if (dot) dot.classList.add('active');
+    if (lbl) lbl.innerHTML = '<strong>Reasoning agent</strong> — analysing…';
+  }, 250);
+
+  setTimeout(() => {
+    if (text) text.textContent = 'D4 is the current bottleneck — wire hardness evidence pending. D5 and D6 are blocked. Projected resolution ~8 days. Greece shows the highest avg. closure time (78d) — flag for regional review. Doc hit rate 73%: consider adding catenary spec documents.';
+    if (insight) insight.classList.remove('hidden');
+    if (lbl) lbl.innerHTML = '<strong>Reasoning agent</strong> — assessment ready';
+    setTimeout(() => { renderCaseKPIs(); renderTokenChart(); }, 100);
+  }, 1400);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('tab-center')?.classList.add('active');
+});
+

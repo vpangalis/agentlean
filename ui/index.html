@@ -4,687 +4,919 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>CoSolve by Valuesims</title>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 
 <body>
+<div id="app">
 
-    <!-- BRANDING HEADER -->
-    <header class="app-header">
-        <div class="app-header-left">
-            <span class="app-header-logo">CoSolve</span>
-            <span class="app-header-by">by Valuesims</span>
+<!-- TOP BAR -->
+<div id="top">
+    <div class="logo">
+        <span class="logo-co">Co</span><span class="logo-solve">Solve</span>
+        <span class="logo-by">by VALUESIMS</span>
+    </div>
+    <div class="top-center">Collaborative problem solving, powered by AI</div>
+    <div class="sys-ready">
+        <div class="sys-dot"></div>
+        <div class="sys-lbl">System Ready</div>
+    </div>
+</div>
+
+<div id="main">
+
+<!-- TAB RAIL -->
+<div id="tab-rail">
+    <button class="tab-rail-btn" id="tab-lp" onclick="toggleLP()" title="Case &amp; Documents">
+        <div class="tab-rail-icon">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <rect x="1" y="2" width="11" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
+                <path d="M4 2V1m5 1V1M1 5h11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
         </div>
-        <div class="app-header-center">Collaborative problem solving, powered by AI</div>
-        <div class="app-header-right">
-            <span class="app-header-dot">&#x25CF;</span>
-            <span class="app-header-status">System Ready</span>
+        <span class="tab-rail-lbl">Case</span>
+    </button>
+
+    <div class="tab-rail-sep"></div>
+
+    <button class="tab-rail-btn active" id="tab-center" onclick="focusCenter()" title="Case Board">
+        <div class="tab-rail-icon">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <rect x="1" y="1" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
+                <path d="M1 5h11M5 5v7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
         </div>
-    </header>
+        <span class="tab-rail-lbl">Board</span>
+    </button>
+    <button class="tab-rail-btn" id="tab-rp" onclick="focusRP()" title="AI Reasoning">
+        <div class="tab-rail-icon">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <circle cx="6.5" cy="5" r="2.2" stroke="currentColor" stroke-width="1.2"/>
+                <path d="M2 12c0-2.5 2-4.5 4.5-4.5S11 9.5 11 12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <span class="tab-rail-lbl">AI</span>
+    </button>
+    <button class="tab-rail-btn" id="tab-kpi" onclick="focusKPI()" title="Performance KPIs">
+        <div class="tab-rail-icon">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <path d="M1 11l3.5-4.5 3 2.5 3.5-6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+        <span class="tab-rail-lbl">KPIs</span>
+    </button>
 
-    <div class="board">
+    <div class="tab-rail-sep"></div>
 
-        <!-- LEFT COLUMN: DOCUMENTS & SEARCH -->
-        <div class="column col-left" data-column="left">
-            <div class="header">Documents &amp; Search</div>
-            <div class="content">
-                <div id="section-evidence" class="section section-collapsible">
-                    <div class="section-title">Evidence (Current Case)</div>
-                    <div class="section-body">
-                        <input id="evidence-file-input" type="file" multiple hidden />
-                        <button id="upload-evidence-btn" class="btn-standard btn-primary" data-action="upload-evidence"
-                            disabled>
-                            Upload Evidence
-                        </button>
-                        <div id="upload-status" class="muted"></div>
-                        <div id="evidence-list" class="muted empty-state">No evidence uploaded yet.</div>
-                    </div>
+    <button class="tab-rail-btn" id="tab-admin" onclick="focusLP('grp-admin')" title="Admin">
+        <div class="tab-rail-icon">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <circle cx="6.5" cy="6.5" r="2" stroke="currentColor" stroke-width="1.2"/>
+                <path d="M6.5 1v1.5M6.5 10v1.5M12 6.5h-1.5M2.5 6.5H1M10.3 2.7l-1 1M3.7 9.3l-1 1M10.3 10.3l-1-1M3.7 3.7l-1-1" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <span class="tab-rail-lbl">Admin</span>
+    </button>
+</div>
+
+<!-- LEFT PANEL -->
+<div id="lp">
+    <div class="lp-scroll-body">
+
+        <!-- CASE MANAGEMENT GROUP -->
+        <div class="lp-group open" id="grp-case">
+            <div class="lp-group-header" onclick="toggleGroup('grp-case')">
+                <div class="lp-group-title">
+                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                        <rect x="1" y="2" width="9" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
+                        <path d="M3 2V1m5 1V1M1 5h9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                    </svg>
+                    Case Management
                 </div>
-
-                <div class="section section-collapsible">
-                    <div class="section-title">Case Search</div>
-                    <div class="section-body">
-                        <input id="search_input" name="search_input" placeholder="Search by keyword, case ID, or owner">
-                        <button id="run_case_search_btn" class="btn-standard run-search-btn btn-primary">Run Case
-                            Search</button>
-                        <div id="case_search_results" class="case-results">
-                            <div class="muted empty-state">Search results will appear here.</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="section section-collapsible">
-                    <div class="section-title">Knowledge Documents</div>
-                    <div class="section-body">
-                        <input id="knowledge_upload_input" type="file" multiple accept=".pdf,.docx,.txt" hidden>
-                        <button id="knowledge_upload_btn" class="btn-standard run-search-btn btn-primary">Upload
-                            Knowledge
-                            Documents</button>
-                        <div id="knowledge_upload_list" class="doc-list">
-                            <div class="muted empty-state">No documents uploaded yet.</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="section section-collapsible">
-                    <div class="section-title">Bulk Closed Case Import</div>
-                    <div class="section-body">
-                        <input id="doc_bulk_import_input" type="file" multiple accept=".json,.csv" hidden>
-                        <button id="doc_bulk_import_btn" class="btn-standard run-search-btn btn-primary">Import Closed
-                            Cases
-                            (Bulk)</button>
-                        <div id="doc_bulk_import_list" class="doc-list">
-                            <div class="muted empty-state">No uploads yet.</div>
-                        </div>
-                    </div>
+                <div class="lp-group-right">
+                    <svg class="lp-group-chevron" width="9" height="9" viewBox="0 0 9 9" fill="none">
+                        <path d="M2.5 2l3 2.5-3 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
                 </div>
             </div>
-            <div class="footer">Left column is data-only. No AI logic.</div>
-        </div>
+            <div class="lp-group-body">
 
-        <!-- MIDDLE COLUMN: D1–D8 CASE CONTEXT -->
-        <div class="column col-middle" data-column="workspace">
-            <div class="header">CoSolve Case Board</div>
-            <div class="content">
-                <div id="case-closed-banner" class="case-closed-banner" hidden>🔒 This case is closed and is read-only.
-                    It is available for reference and analysis.</div>
-                <div class="d-nav-bar" id="d-nav-bar">
-                    <button class="btn-standard d-state-btn" data-d-state="D1" data-phase-target="D1_2"
-                        title="Maps to D1–D2">
-                        <span class="d-label">Problem Definition</span>
-                        <span class="d-status status-not-started">Not Started</span>
-                    </button>
-                    <button class="btn-standard d-state-btn" data-d-state="D3" data-phase-target="D3" title="D3">
-                        <span class="d-label">Containment Actions</span>
-                        <span class="d-status status-not-started">Not Started</span>
-                    </button>
-                    <button class="btn-standard d-state-btn" data-d-state="D4" data-phase-target="D4" title="D4">
-                        <span class="d-label">Root Cause Analysis</span>
-                        <span class="d-status status-not-started">Not Started</span>
-                    </button>
-                    <button class="btn-standard d-state-btn" data-d-state="D5" data-phase-target="D5" title="D5">
-                        <span class="d-label">Permanent Corrective Actions</span>
-                        <span class="d-status status-not-started">Not Started</span>
-                    </button>
-                    <button class="btn-standard d-state-btn" data-d-state="D6" data-phase-target="D6" title="D6">
-                        <span class="d-label">Implementation &amp; Validation</span>
-                        <span class="d-status status-not-started">Not Started</span>
-                    </button>
-                    <button class="btn-standard d-state-btn" data-d-state="D7" data-phase-target="D7" title="D7">
-                        <span class="d-label">Prevention</span>
-                        <span class="d-status status-not-started">Not Started</span>
-                    </button>
-                    <button class="btn-standard d-state-btn" data-d-state="D8" data-phase-target="D8" title="D8">
-                        <span class="d-label">Closure &amp; Learnings</span>
-                        <span class="d-status status-not-started">Not Started</span>
-                    </button>
-                </div>
-
-                <div class="phase-detail-panel" id="phase-detail-panel">
-                    <div class="phase-card" data-phase="D1_2">
-                        <div class="phase-header"><span>Problem Definition</span><span class="phase-status"
-                                data-phase-status>not started</span></div>
-                        <div class="phase-body">
-                            <aside class="guidance-panel">
-                                <div class="guidance-title">Case Details – What to Capture</div>
-                                <ul class="guidance-list">
-                                    <li>Describe the problem clearly and factually.</li>
-                                    <li>Specify where and when the issue occurred.</li>
-                                    <li>Identify affected areas, lines, or products.</li>
-                                    <li>List involved teams or roles.</li>
-                                    <li>Avoid assumptions or root cause statements at this stage.</li>
-                                </ul>
-                            </aside>
-                            <div class="phase-form scroll-y">
-                                <div class="section case-details">
-                                    <div class="section-title">Case Details</div>
-                                    <label>Incident / Case ID</label>
-                                    <input id="case-id-input" placeholder="XXX-YYYYMMDD-XXXX" data-json-path="case_id">
-                                    <small class="muted">
-                                        Format: XXX-YYYYMMDD-XXXX (e.g. TRM-20260115-0003)
-                                    </small>
-                                    <button id="create-incident-btn" class="btn-standard btn-primary" disabled>Create
-                                        Incident</button>
-
-                                    <label>Status</label>
-                                    <input value="Open" data-json-path="case_status" readonly>
-
-                                    <label>Opening Date</label>
-                                    <input type="date" data-json-path="opened_at" readonly>
-
-                                    <label>Closure Date</label>
-                                    <input type="date" data-json-path="closed_at" readonly>
-
-                                    <div class="three-col">
-                                        <div>
-                                            <label>Country</label>
-                                            <input data-json-path="d_states.D1_2.data.country">
-                                        </div>
-                                        <div>
-                                            <label>Site</label>
-                                            <input data-json-path="d_states.D1_2.data.site">
-                                        </div>
-                                        <div>
-                                            <label>Unit</label>
-                                            <input data-json-path="d_states.D1_2.data.organization_unit">
-                                        </div>
-                                    </div>
-
-                                </div>
-
-                                <label>Problem Description</label>
-                                <textarea data-json-path="d_states.D1_2.data.problem_description"></textarea>
-
-                                <label>Involved People / Teams</label>
-                                <textarea data-json-path="d_states.D1_2.data.involved_people_teams"
-                                    data-json-array="true"></textarea>
-                            </div>
-                        </div>
-                        <div class="phase-actions">
-                            <button class="btn-standard confirm-phase-btn btn-primary" data-phase="D1_2">Confirm
-                                Problem Definition</button>
-                        </div>
-                    </div>
-
-                    <div class="phase-card" data-phase="D3">
-                        <div class="phase-header"><span>Containment Actions</span><span class="phase-status"
-                                data-phase-status>not started</span></div>
-                        <div class="phase-body">
-                            <aside class="guidance-panel">
-                                <div class="guidance-title">Containment Actions – What to Capture</div>
-                                <ul class="guidance-list">
-                                    <li>Document immediate steps taken to contain impact.</li>
-                                    <li>Clarify what was stopped, isolated, or safeguarded.</li>
-                                    <li>Note who approved containment actions and when.</li>
-                                    <li>Record any temporary controls put in place.</li>
-                                </ul>
-                            </aside>
-                            <div class="phase-form scroll-y">
-                                <label>What happened?</label>
-                                <textarea data-json-path="d_states.D3.data.what_happened"></textarea>
-
-                                <label>Why is this a problem?</label>
-                                <textarea data-json-path="d_states.D3.data.why_is_problem"></textarea>
-
-                                <div class="two-col">
-                                    <div>
-                                        <label>When detected?</label>
-                                        <input data-json-path="d_states.D3.data.when_detected">
-                                    </div>
-                                    <div>
-                                        <label>Who detected?</label>
-                                        <input data-json-path="d_states.D3.data.who_detected">
-                                    </div>
-                                </div>
-
-                                <div class="two-col">
-                                    <div>
-                                        <label>How detected?</label>
-                                        <input data-json-path="d_states.D3.data.how_detected">
-                                    </div>
-                                    <div></div>
-                                </div>
-
-                                <label>Quantified impact (how many / how much)</label>
-                                <input data-json-path="d_states.D3.data.quantified_impact">
-                            </div>
-                        </div>
-                        <div class="phase-actions">
-                            <button class="btn-standard confirm-phase-btn btn-primary" data-phase="D3">Confirm
-                                Containment Actions</button>
-                        </div>
-                    </div>
-
-                    <div class="phase-card" data-phase="D4">
-                        <div class="phase-header"><span>Root Cause Analysis</span><span class="phase-status"
-                                data-phase-status>not started</span></div>
-                        <div class="phase-body">
-                            <aside class="guidance-panel">
-                                <div class="guidance-title">Root Cause Analysis – What to Capture</div>
-                                <ul class="guidance-list">
-                                    <li>List suspected causes and evidence sources.</li>
-                                    <li>Differentiate symptoms from underlying causes.</li>
-                                    <li>Capture how the issue could recur without fixes.</li>
-                                    <li>Note any data gaps that require investigation.</li>
-                                </ul>
-                            </aside>
-                            <div class="phase-form scroll-y">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th class="w-action">Action</th>
-                                            <th class="w-owner">Responsible</th>
-                                            <th class="w-date">Due</th>
-                                            <th class="w-date">Actual</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody data-array-path="d_states.D4.data.actions">
-                                        <!-- schema v1: actions[0] -->
-                                        <tr>
-                                            <td><textarea class="action-text" rows="1"
-                                                    data-json-path="d_states.D4.data.actions[0].action"></textarea></td>
-                                            <td><input data-json-path="d_states.D4.data.actions[0].responsible"></td>
-                                            <td><input type="date"
-                                                    data-json-path="d_states.D4.data.actions[0].due_date">
-                                            </td>
-                                            <td><input type="date"
-                                                    data-json-path="d_states.D4.data.actions[0].actual_date"></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                <button class="btn-standard add-row-btn" data-template-id="d4-action-row"
-                                    data-array-path="d_states.D4.data.actions">+
-                                    Add Action</button>
-                                <template id="d4-action-row">
-                                    <tr>
-                                        <td><textarea class="action-text" rows="1" data-field="action"></textarea></td>
-                                        <td><input data-field="responsible"></td>
-                                        <td><input type="date" data-field="due_date"></td>
-                                        <td><input type="date" data-field="actual_date"></td>
-                                    </tr>
-                                </template>
-                            </div>
-                        </div>
-                        <div class="phase-actions">
-                            <button class="btn-standard confirm-phase-btn btn-primary" data-phase="D4">Confirm
-                                Root Cause Analysis</button>
-                        </div>
-                    </div>
-
-                    <div class="phase-card" data-phase="D5">
-                        <div class="phase-header"><span>Permanent Corrective Actions</span><span class="phase-status"
-                                data-phase-status>not started</span></div>
-                        <div class="phase-body">
-                            <aside class="guidance-panel">
-                                <div class="guidance-title">Corrective Actions – What to Capture</div>
-                                <ul class="guidance-list">
-                                    <li>Define actions that eliminate the root cause.</li>
-                                    <li>Specify owners, due dates, and success criteria.</li>
-                                    <li>Record evidence supporting each corrective action.</li>
-                                    <li>Ensure actions are feasible and measurable.</li>
-                                </ul>
-                            </aside>
-                            <div class="phase-form scroll-y">
-                                <h3>Fishbone Analysis</h3>
-                                <div class="fishbone">
-                                    <div class="fish">People / Organization
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.people_organization[0]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.people_organization[1]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.people_organization[2]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.people_organization[3]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.people_organization[4]"></div>
-                                    </div>
-                                    <div class="fish">Process / Workflow
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.process_workflow[0]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.process_workflow[1]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.process_workflow[2]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.process_workflow[3]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.process_workflow[4]"></div>
-                                    </div>
-                                    <div class="fish">Tools / Systems
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.tools_systems[0]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.tools_systems[1]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.tools_systems[2]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.tools_systems[3]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.tools_systems[4]"></div>
-                                    </div>
-                                    <div class="fish">Environment / Context
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.environment_context[0]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.environment_context[1]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.environment_context[2]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.environment_context[3]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.environment_context[4]"></div>
-                                    </div>
-                                    <div class="fish">Policy / Management
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.policy_management[0]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.policy_management[1]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.policy_management[2]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.policy_management[3]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.policy_management[4]"></div>
-                                    </div>
-                                    <div class="fish">Material / Input
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.material_input[0]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.material_input[1]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.material_input[2]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.material_input[3]"></div>
-                                        <div class="fish-row"><input placeholder=" "
-                                                data-json-path="d_states.D5.data.fishbone.material_input[4]"></div>
-                                    </div>
-                                </div>
-
-                                <h3>Investigation Tasks</h3>
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th class="w-action">Task</th>
-                                            <th class="w-owner">Responsible</th>
-                                            <th class="w-date">Due</th>
-                                            <th class="w-date">Actual</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody data-array-path="d_states.D5.data.investigation_tasks">
-                                        <tr>
-                                            <td><input data-json-path="d_states.D5.data.investigation_tasks[0].task">
-                                            </td>
-                                            <td><input
-                                                    data-json-path="d_states.D5.data.investigation_tasks[0].responsible">
-                                            </td>
-                                            <td><input type="date"
-                                                    data-json-path="d_states.D5.data.investigation_tasks[0].due_date">
-                                            </td>
-                                            <td><input type="date"
-                                                    data-json-path="d_states.D5.data.investigation_tasks[0].actual_date">
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                <button class="btn-standard add-row-btn" data-template-id="d5-task-row"
-                                    data-array-path="d_states.D5.data.investigation_tasks">+ Add Task</button>
-                                <template id="d5-task-row">
-                                    <tr>
-                                        <td><input data-field="task"></td>
-                                        <td><input data-field="responsible"></td>
-                                        <td><input type="date" data-field="due_date"></td>
-                                        <td><input type="date" data-field="actual_date"></td>
-                                    </tr>
-                                </template>
-
-                                <h3>Factor / Tree Analysis</h3>
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th class="w-action">Factor</th>
-                                            <th class="w-owner">Owner</th>
-                                            <th class="w-date">Reviewed</th>
-                                            <th>Status</th>
-                                            <th class="w-comment">Comment</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody data-array-path="d_states.D5.data.factors">
-                                        <tr>
-                                            <td><input data-json-path="d_states.D5.data.factors[0].factor"></td>
-                                            <td><input data-json-path="d_states.D5.data.factors[0].owner"></td>
-                                            <td><input type="date"
-                                                    data-json-path="d_states.D5.data.factors[0].reviewed_date"></td>
-                                            <td><input data-json-path="d_states.D5.data.factors[0].status"></td>
-                                            <td><input data-json-path="d_states.D5.data.factors[0].comment"></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                <button class="btn-standard add-row-btn" data-template-id="d5-factor-row"
-                                    data-array-path="d_states.D5.data.factors">+ Add Factor</button>
-                                <template id="d5-factor-row">
-                                    <tr>
-                                        <td><input data-field="factor"></td>
-                                        <td><input data-field="owner"></td>
-                                        <td><input type="date" data-field="reviewed_date"></td>
-                                        <td><input data-field="status"></td>
-                                        <td><input data-field="comment"></td>
-                                    </tr>
-                                </template>
-
-                                <h3>5-Why Analysis</h3>
-                                <div class="two-col">
-                                    <div>
-                                        <h3>Chain A</h3>
-                                        <input data-json-path="d_states.D5.data.five_whys.A[0]"><input
-                                            data-json-path="d_states.D5.data.five_whys.A[1]"><input
-                                            data-json-path="d_states.D5.data.five_whys.A[2]"><input
-                                            data-json-path="d_states.D5.data.five_whys.A[3]"><input
-                                            data-json-path="d_states.D5.data.five_whys.A[4]">
-                                    </div>
-                                    <div>
-                                        <h3>Chain B</h3>
-                                        <input data-json-path="d_states.D5.data.five_whys.B[0]"><input
-                                            data-json-path="d_states.D5.data.five_whys.B[1]"><input
-                                            data-json-path="d_states.D5.data.five_whys.B[2]"><input
-                                            data-json-path="d_states.D5.data.five_whys.B[3]"><input
-                                            data-json-path="d_states.D5.data.five_whys.B[4]">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="phase-actions">
-                            <button class="btn-standard confirm-phase-btn btn-primary" data-phase="D5">Confirm
-                                Permanent Corrective Actions</button>
-                        </div>
-                    </div>
-
-                    <div class="phase-card" data-phase="D6">
-                        <div class="phase-header"><span>Implementation &amp; Validation</span><span class="phase-status"
-                                data-phase-status>not started</span></div>
-                        <div class="phase-body">
-                            <aside class="guidance-panel">
-                                <div class="guidance-title">Validation – What to Capture</div>
-                                <ul class="guidance-list">
-                                    <li>List actions that permanently address the issue.</li>
-                                    <li>Confirm validation steps and measurable results.</li>
-                                    <li>Document who verified effectiveness and when.</li>
-                                    <li>Note any follow-up checks required.</li>
-                                </ul>
-                            </aside>
-                            <div class="phase-form scroll-y">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th class="w-action">Action</th>
-                                            <th class="w-owner">Responsible</th>
-                                            <th class="w-date">Due</th>
-                                            <th class="w-date">Actual</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody data-array-path="d_states.D6.data.actions">
-                                        <!-- schema v1: actions[0] -->
-                                        <tr>
-                                            <td><textarea class="action-text" rows="1"
-                                                    data-json-path="d_states.D6.data.actions[0].action"></textarea></td>
-                                            <td><input data-json-path="d_states.D6.data.actions[0].responsible"></td>
-                                            <td><input type="date"
-                                                    data-json-path="d_states.D6.data.actions[0].due_date">
-                                            </td>
-                                            <td><input type="date"
-                                                    data-json-path="d_states.D6.data.actions[0].actual_date"></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                <button class="btn-standard add-row-btn" data-template-id="d6-action-row"
-                                    data-array-path="d_states.D6.data.actions">+ Add Action</button>
-                                <template id="d6-action-row">
-                                    <tr>
-                                        <td><textarea class="action-text" rows="1" data-field="action"></textarea></td>
-                                        <td><input data-field="responsible"></td>
-                                        <td><input type="date" data-field="due_date"></td>
-                                        <td><input type="date" data-field="actual_date"></td>
-                                    </tr>
-                                </template>
-                            </div>
-                        </div>
-                        <div class="phase-actions">
-                            <button class="btn-standard confirm-phase-btn btn-primary" data-phase="D6">Confirm
-                                Implementation &amp; Validation</button>
-                        </div>
-                    </div>
-
-                    <div class="phase-card" data-phase="D7">
-                        <div class="phase-header"><span>Prevention</span><span class="phase-status"
-                                data-phase-status>not started</span></div>
-                        <div class="phase-body">
-                            <aside class="guidance-panel">
-                                <div class="guidance-title">Prevention – What to Capture</div>
-                                <ul class="guidance-list">
-                                    <li>Update procedures or standards to prevent recurrence.</li>
-                                    <li>Capture training completed and impacted roles.</li>
-                                    <li>List preventive controls or audits added.</li>
-                                    <li>Note any documentation updates required.</li>
-                                </ul>
-                            </aside>
-                            <div class="phase-form scroll-y">
-                                <label>Procedures updated</label>
-                                <textarea class="d7-text"
-                                    data-json-path="d_states.D7.data.procedures_updated"></textarea>
-
-                                <label>Training completed</label>
-                                <textarea class="d7-text"
-                                    data-json-path="d_states.D7.data.training_completed"></textarea>
-
-                                <label>Preventive notes</label>
-                                <textarea data-json-path="d_states.D7.data.preventive_notes"></textarea>
-                            </div>
-                        </div>
-                        <div class="phase-actions">
-                            <button class="btn-standard confirm-phase-btn btn-primary" data-phase="D7">Confirm
-                                Prevention</button>
-                        </div>
-                    </div>
-
-                    <div class="phase-card" data-phase="D8">
-                        <div class="phase-header"><span>Closure &amp; Learnings</span><span class="phase-status"
-                                data-phase-status>not
-                                started</span></div>
-                        <div class="phase-body">
-                            <aside class="guidance-panel">
-                                <div class="guidance-title">Closure &amp; Learnings – What to Capture</div>
-                                <ul class="guidance-list">
-                                    <li>Confirm approvals and final sign-off.</li>
-                                    <li>Capture key learnings and outcomes.</li>
-                                    <li>Ensure evidence of completion is documented.</li>
-                                    <li>Note any handover or monitoring requirements.</li>
-                                </ul>
-                            </aside>
-                            <div class="phase-form scroll-y">
-                                <label>Quality approved by</label>
-                                <input data-json-path="d_states.D8.data.quality_approved_by">
-                                <label>Closure Date</label>
-                                <input type="date" data-json-path="d_states.D8.closure_date">
-                            </div>
-                        </div>
-                        <div class="phase-actions">
-                            <button class="btn-standard confirm-phase-btn btn-primary" data-phase="D8">Confirm
-                                Closure &amp; Learnings</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="footer">Case steps are structured inputs only.</div>
-        </div>
-        <!-- RIGHT COLUMN: AI REASONING -->
-        <div class="column col-right" data-column="ai">
-            <div class="header">AI Reasoning<button id="ai_clear_btn" class="ai-clear-btn"
-                    title="Clear conversation history">Clear</button></div>
-            <div class="content">
-                <div id="ai_response_output" class="ai-response-area">
-                    <div class="ai-empty-state">
-                        <div class="ai-welcome">
-                            <div class="ai-welcome-title">Welcome to CoSolve AI Reasoning</div>
-                            <div class="ai-welcome-subtitle">Collaborative problem solving, powered by AI</div>
-
-                            <div class="ai-welcome-section" data-node="operational">
-                                <div class="ai-welcome-section-label">WORKING ON AN ACTIVE PROBLEM?</div>
-                                <div class="ai-welcome-section-hint">Load a case from the left panel first, then try:
-                                </div>
-                                <div class="ai-welcome-suggestions">
-                                    <div class="ai-suggestion-chip">What should we focus on right now?</div>
-                                    <div class="ai-suggestion-chip">Are there any gaps we might have missed?</div>
-                                    <div class="ai-suggestion-chip">What should we prepare for the next step?</div>
-                                </div>
-                            </div>
-
-                            <div class="ai-welcome-section" data-node="kpi">
-                                <div class="ai-welcome-section-label">HOW ARE WE DOING?</div>
-                                <div class="ai-welcome-section-hint">Ask performance and KPI questions:</div>
-                                <div class="ai-welcome-suggestions">
-                                    <div class="ai-suggestion-chip strategy-chip">Show me incident counts, resolution
-                                        times, and performance trends across the case portfolio.</div>
-                                    <div class="ai-suggestion-chip strategy-chip">Which areas have the most open cases
-                                        right now?
-                                    </div>
-                                    <div class="ai-suggestion-chip strategy-chip">How long do cases typically take to
-                                        resolve?</div>
-                                </div>
-                            </div>
-
-                            <div class="ai-welcome-section" data-node="similarity">
-                                <div class="ai-welcome-section-label">HAVE WE SEEN THIS BEFORE?</div>
-                                <div class="ai-welcome-section-hint">Look through past resolved cases:</div>
-                                <div class="ai-welcome-suggestions">
-                                    <div class="ai-suggestion-chip">Have we dealt with a problem like this before?</div>
-                                    <div class="ai-suggestion-chip">Has anything similar come up in other parts of the
-                                        operation?</div>
-                                </div>
-                            </div>
-
-                            <div class="ai-welcome-section" data-node="strategy">
-                                <div class="ai-welcome-section-label">LOOKING AT THE BIGGER PICTURE?</div>
-                                <div class="ai-welcome-section-hint">Ask strategy and trend questions:</div>
-                                <div class="ai-welcome-suggestions">
-                                    <div class="ai-suggestion-chip strategy-chip">What are the most recurring failure
-                                        types we face?</div>
-                                    <div class="ai-suggestion-chip strategy-chip">How are we trending on unplanned
-                                        failures this year?</div>
-                                    <div class="ai-suggestion-chip strategy-chip">Which areas need organisational
-                                        attention?</div>
-                                </div>
-                            </div>
-
-                            <div class="ai-welcome-hint">
-                                Load a case from the left panel to get case-specific guidance,
-                                or ask any question directly to reason across the knowledge base.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="ai-input-wrapper">
-                    <textarea id="ai_question_input" class="ai-question-input"
-                        placeholder="Ask a question about this case…"></textarea>
-                    <button id="ai_send_btn" class="ai-send-btn" aria-label="Send" title="Send (Enter)">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-                            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <line x1="22" y1="2" x2="11" y2="13"></line>
-                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                <!-- Evidence -->
+                <div class="lp-sub-row">
+                    <div class="lp-sub-label">Evidence</div>
+                    <div class="spacer"></div>
+                    <input id="evidence-file-input" type="file" multiple hidden />
+                    <button id="upload-evidence-btn" class="btn-icon" title="Upload evidence" data-action="upload-evidence" disabled>
+                        <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                            <path d="M4.5 6V1m0 0L2.5 3M4.5 1L6.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M1 7.5h7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
                         </svg>
                     </button>
                 </div>
-                <div id="ai_input_error" class="ai-input-error"></div>
+                <div class="evidence-wrap">
+                    <div id="upload-status" class="muted"></div>
+                    <div id="evidence-list" class="evidence-empty">No evidence uploaded yet.</div>
+                </div>
+
+                <!-- Case Search -->
+                <div class="lp-sub-row" style="margin-top:6px;">
+                    <div class="lp-sub-label">Case Search</div>
+                </div>
+                <div class="case-search-wrap">
+                    <input class="lp-search" id="search_input" name="search_input" placeholder="Keyword, case ID, owner…" />
+                    <button id="run_case_search_btn" class="btn-standard btn-primary">Run Case Search</button>
+                    <div id="case_search_results" class="case-results">
+                        <div class="muted empty-state">Search results will appear here.</div>
+                    </div>
+                </div>
+
             </div>
-            <div class="footer">CoSolve reasons over cases, evidence and knowledge.</div>
         </div>
 
-    </div>
+        <!-- KNOWLEDGE DOCUMENTS GROUP -->
+        <div class="lp-group" id="grp-docs">
+            <div class="lp-group-header" onclick="toggleGroup('grp-docs')">
+                <div class="lp-group-title">
+                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                        <path d="M3 1h4l3 3v6a1 1 0 01-1 1H3a1 1 0 01-1-1V2a1 1 0 011-1z" stroke="currentColor" stroke-width="1.2"/>
+                        <path d="M7 1v3h3M3.5 6.5h4M3.5 8.5h2.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                    </svg>
+                    Knowledge Docs
+                </div>
+                <div class="lp-group-right">
+                    <svg class="lp-group-chevron" width="9" height="9" viewBox="0 0 9 9" fill="none">
+                        <path d="M2.5 2l3 2.5-3 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="lp-group-body">
+                <input id="knowledge_upload_input" type="file" multiple accept=".pdf,.docx,.txt" hidden>
+                <div class="lp-sub-row">
+                    <button id="knowledge_upload_btn" class="btn-standard btn-primary">Upload Knowledge Documents</button>
+                </div>
+                <div id="knowledge_upload_list" class="doc-list lp-doc-list">
+                    <div class="muted empty-state">No documents uploaded yet.</div>
+                </div>
+            </div>
+        </div>
 
-    <script src="cosolve-ui.js"></script>
+        <!-- ADMIN GROUP -->
+        <div class="lp-group" id="grp-admin">
+            <div class="lp-group-header" onclick="toggleGroup('grp-admin')">
+                <div class="lp-group-title">
+                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                        <circle cx="5.5" cy="5.5" r="1.8" stroke="currentColor" stroke-width="1.1"/>
+                        <path d="M5.5 1v1.2M5.5 8.8V10M10 5.5H8.8M2.2 5.5H1M8.7 2.3l-.85.85M3.15 7.85l-.85.85M8.7 8.7l-.85-.85M3.15 3.15l-.85-.85" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                    </svg>
+                    Admin
+                </div>
+                <div class="lp-group-right">
+                    <svg class="lp-group-chevron" width="9" height="9" viewBox="0 0 9 9" fill="none">
+                        <path d="M2.5 2l3 2.5-3 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="lp-group-body">
+                <input id="doc_bulk_import_input" type="file" multiple accept=".json,.csv" hidden>
+                <div class="lp-sub-row">
+                    <button id="doc_bulk_import_btn" class="btn-standard btn-primary">Import Closed Cases (Bulk)</button>
+                </div>
+                <div id="doc_bulk_import_list" class="doc-list lp-doc-list">
+                    <div class="muted empty-state">No uploads yet.</div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /lp-scroll-body -->
+</div><!-- #lp -->
+
+<!-- KPI PANEL -->
+<div id="kpi-panel">
+    <div class="kpi-panel-body">
+
+        <!-- SECTION 1: CASE KPIs -->
+        <div class="kpi-section" id="kpi-sec-case">
+            <div class="kpi-sec-header" onclick="toggleKPISection('kpi-sec-case')">
+                <div class="kpi-sec-title">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <rect x="1" y="1" width="8" height="8" rx="1" stroke="currentColor" stroke-width="1.1"/>
+                        <path d="M1 4h8M3.5 4v5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                    </svg>
+                    Case Performance
+                </div>
+                <svg class="kpi-sec-chevron" width="9" height="9" viewBox="0 0 9 9" fill="none">
+                    <path d="M2 3.5l2.5 2.5 2.5-2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div class="kpi-sec-body">
+                <div class="kpi-filter-row">
+                    <div class="kpi-search-wrap">
+                        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" class="kpi-search-icon">
+                            <circle cx="4.5" cy="4.5" r="3" stroke="currentColor" stroke-width="1.2"/>
+                            <path d="M7 7l2.5 2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                        </svg>
+                        <input class="kpi-search-input" id="kpi-search" placeholder="Search country, plant, site…" oninput="onKPISearch(this.value)"/>
+                    </div>
+                    <div class="kpi-chips" id="kpi-chips">
+                        <button class="kpi-chip active" onclick="setKPIScope('global',this)">Global</button>
+                        <button class="kpi-chip" onclick="setKPIScope('be',this)">Belgium</button>
+                        <button class="kpi-chip" onclick="setKPIScope('fr',this)">France</button>
+                        <button class="kpi-chip" onclick="setKPIScope('de',this)">Germany</button>
+                        <button class="kpi-chip" onclick="setKPIScope('gr',this)">Greece</button>
+                    </div>
+                </div>
+                <div class="agent-status">
+                    <div class="agent-dot" id="agent-dot"></div>
+                    <div class="agent-lbl" id="agent-lbl"><span class="idle">Reasoning agent idle</span></div>
+                </div>
+                <div class="agent-insight hidden" id="agent-insight">
+                    <div class="agent-insight-title">Agent self-assessment</div>
+                    <span id="agent-text"></span>
+                </div>
+                <div class="kpi-summary-row" id="kpi-summary-row"></div>
+                <div class="kpi-chart-block">
+                    <div class="kpi-chart-title" id="chart-label">Avg. days to close · by country</div>
+                    <canvas id="perf-chart" height="90"></canvas>
+                </div>
+                <div class="kpi-chart-block">
+                    <div class="kpi-chart-title">Cases opened vs closed · 6 months</div>
+                    <canvas id="trend-chart" height="70"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 2: LLM PERFORMANCE -->
+        <div class="kpi-section kpi-section-llm">
+            <div class="kpi-sec-header kpi-sec-header-llm">
+                <div class="kpi-sec-title">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <path d="M1 7.5l2.5-3.5 2 2 2.5-4.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    LLM Performance · this month
+                </div>
+            </div>
+            <div class="kpi-llm-body">
+                <div class="kpi-grid">
+                    <div class="kpi-cell">
+                        <div class="kpi-cell-label">Tokens used</div>
+                        <div class="kpi-cell-val">1.24M</div>
+                        <div class="kpi-cell-sub">of 5M limit</div>
+                        <div class="kpi-cell-bar"><div class="kpi-cell-fill blue" style="width:25%"></div></div>
+                    </div>
+                    <div class="kpi-cell">
+                        <div class="kpi-cell-label">Avg / case</div>
+                        <div class="kpi-cell-val">41k</div>
+                        <div class="kpi-cell-sub">tokens</div>
+                        <div class="kpi-cell-bar"><div class="kpi-cell-fill green" style="width:41%"></div></div>
+                    </div>
+                    <div class="kpi-cell">
+                        <div class="kpi-cell-label">Est. cost</div>
+                        <div class="kpi-cell-val">€18.60</div>
+                        <div class="kpi-cell-sub">of €75 budget</div>
+                        <div class="kpi-cell-bar"><div class="kpi-cell-fill amber" style="width:25%"></div></div>
+                    </div>
+                    <div class="kpi-cell">
+                        <div class="kpi-cell-label">Doc hit rate</div>
+                        <div class="kpi-cell-val">73%</div>
+                        <div class="kpi-cell-sub">refs matched</div>
+                        <div class="kpi-cell-bar"><div class="kpi-cell-fill teal" style="width:73%"></div></div>
+                    </div>
+                </div>
+                <div class="kpi-chart-block">
+                    <div class="kpi-chart-title">Token consumption · 6 months</div>
+                    <canvas id="token-chart" height="56"></canvas>
+                </div>
+                <div class="admin-note">
+                    Read-only · Model: <span style="color:var(--accent);font-family:'Geist Mono',monospace;font-size:9px;">claude-sonnet-4-6</span>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /kpi-panel-body -->
+</div><!-- #kpi-panel -->
+
+<!-- CENTER PANEL: Case Board -->
+<div id="center">
+    <div class="center-body">
+
+        <div id="case-closed-banner" class="case-closed-banner" hidden>🔒 This case is closed and is read-only.
+            It is available for reference and analysis.</div>
+
+        <!-- WORKFLOW TRACK -->
+        <div id="workflow">
+            <div class="wf-label">Case Workflow</div>
+            <div class="wf-track" id="d-nav-bar">
+
+                <div class="d-tab d-state-btn" data-d-state="D1" data-phase-target="D1_2" title="Maps to D1–D2">
+                    <div class="d-tab-top"><div class="d-tab-id">D1–D2</div></div>
+                    <div class="d-tab-label">Problem Def.</div>
+                    <div class="d-status-row"><div class="d-dot dot-pending"></div><div class="d-status status-not-started">Not Started</div></div>
+                    <div class="d-duration"><svg width="9" height="9" viewBox="0 0 9 9" fill="none"><circle cx="4.5" cy="4.5" r="3.5" stroke="currentColor" stroke-width="1"/><path d="M4.5 2.5v2.2l1.3.8" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg> —</div>
+                </div>
+
+                <div class="wf-connector"></div>
+
+                <div class="d-tab d-state-btn" data-d-state="D3" data-phase-target="D3" title="D3">
+                    <div class="d-tab-top"><div class="d-tab-id">D3</div></div>
+                    <div class="d-tab-label">Containment</div>
+                    <div class="d-status-row"><div class="d-dot dot-pending"></div><div class="d-status status-not-started">Not Started</div></div>
+                    <div class="d-duration"><svg width="9" height="9" viewBox="0 0 9 9" fill="none"><circle cx="4.5" cy="4.5" r="3.5" stroke="currentColor" stroke-width="1"/><path d="M4.5 2.5v2.2l1.3.8" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg> —</div>
+                </div>
+
+                <div class="wf-connector"></div>
+
+                <div class="d-tab d-state-btn" data-d-state="D4" data-phase-target="D4" title="D4">
+                    <div class="d-tab-top"><div class="d-tab-id">D4</div></div>
+                    <div class="d-tab-label">Root Cause</div>
+                    <div class="d-status-row"><div class="d-dot dot-pending"></div><div class="d-status status-not-started">Not Started</div></div>
+                    <div class="d-duration"><svg width="9" height="9" viewBox="0 0 9 9" fill="none"><circle cx="4.5" cy="4.5" r="3.5" stroke="currentColor" stroke-width="1"/><path d="M4.5 2.5v2.2l1.3.8" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg> —</div>
+                </div>
+
+                <div class="wf-connector"></div>
+
+                <div class="d-tab d-state-btn" data-d-state="D5" data-phase-target="D5" title="D5">
+                    <div class="d-tab-top"><div class="d-tab-id">D5</div></div>
+                    <div class="d-tab-label">Corrective</div>
+                    <div class="d-status-row"><div class="d-dot dot-pending"></div><div class="d-status status-not-started">Not Started</div></div>
+                    <div class="d-duration"><svg width="9" height="9" viewBox="0 0 9 9" fill="none"><circle cx="4.5" cy="4.5" r="3.5" stroke="currentColor" stroke-width="1"/><path d="M4.5 2.5v2.2l1.3.8" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg> —</div>
+                </div>
+
+                <div class="wf-connector"></div>
+
+                <div class="d-tab d-state-btn" data-d-state="D6" data-phase-target="D6" title="D6">
+                    <div class="d-tab-top"><div class="d-tab-id">D6</div></div>
+                    <div class="d-tab-label">Validation</div>
+                    <div class="d-status-row"><div class="d-dot dot-pending"></div><div class="d-status status-not-started">Not Started</div></div>
+                    <div class="d-duration"><svg width="9" height="9" viewBox="0 0 9 9" fill="none"><circle cx="4.5" cy="4.5" r="3.5" stroke="currentColor" stroke-width="1"/><path d="M4.5 2.5v2.2l1.3.8" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg> —</div>
+                </div>
+
+                <div class="wf-connector"></div>
+
+                <div class="d-tab d-state-btn" data-d-state="D7" data-phase-target="D7" title="D7">
+                    <div class="d-tab-top"><div class="d-tab-id">D7</div></div>
+                    <div class="d-tab-label">Prevention</div>
+                    <div class="d-status-row"><div class="d-dot dot-pending"></div><div class="d-status status-not-started">Not Started</div></div>
+                    <div class="d-duration"><svg width="9" height="9" viewBox="0 0 9 9" fill="none"><circle cx="4.5" cy="4.5" r="3.5" stroke="currentColor" stroke-width="1"/><path d="M4.5 2.5v2.2l1.3.8" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg> —</div>
+                </div>
+
+                <div class="wf-connector"></div>
+
+                <div class="d-tab d-state-btn" data-d-state="D8" data-phase-target="D8" title="D8">
+                    <div class="d-tab-top"><div class="d-tab-id">D8</div></div>
+                    <div class="d-tab-label">Closure</div>
+                    <div class="d-status-row"><div class="d-dot dot-pending"></div><div class="d-status status-not-started">Not Started</div></div>
+                    <div class="d-duration"><svg width="9" height="9" viewBox="0 0 9 9" fill="none"><circle cx="4.5" cy="4.5" r="3.5" stroke="currentColor" stroke-width="1"/><path d="M4.5 2.5v2.2l1.3.8" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg> —</div>
+                </div>
+
+                <div class="wf-total">
+                    <div class="wf-total-lbl">Total Elapsed</div>
+                    <div class="wf-total-val" id="wf-total-val">—</div>
+                    <div class="wf-total-sub" id="wf-total-sub"></div>
+                </div>
+
+            </div><!-- /wf-track -->
+        </div><!-- /workflow -->
+
+        <div class="phase-detail-panel" id="phase-detail-panel">
+            <div class="phase-card" data-phase="D1_2">
+                <div class="sec-head">
+                    <div class="sec-head-left">
+                        <div class="sec-title-row">
+                            <div class="sec-title">Problem Definition</div>
+                            <button class="btn-confirm-inline unconfirmed confirm-phase-btn" data-phase="D1_2" title="Mark confirmed">
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                            <span class="confirm-label" data-phase-status>not started</span>
+                        </div>
+                        <div class="sec-subtitle">Team formation and precise problem scoping.</div>
+                    </div>
+                </div>
+                <div class="phase-body">
+                    <aside class="guidance-panel">
+                        <div class="guidance-title">How to use this section</div>
+                        <ul class="guidance-list">
+                            <li>Describe the problem clearly and factually.</li>
+                            <li>Specify where and when the issue occurred.</li>
+                            <li>Identify affected areas, lines, or products.</li>
+                            <li>List involved teams or roles.</li>
+                            <li>Avoid assumptions or root cause statements at this stage.</li>
+                        </ul>
+                    </aside>
+                    <div class="phase-form scroll-y">
+                        <div class="section case-details">
+                            <div class="section-title">Case Details</div>
+                            <label>Incident / Case ID</label>
+                            <input id="case-id-input" placeholder="XXX-YYYYMMDD-XXXX" data-json-path="case_id">
+                            <small class="muted">Format: XXX-YYYYMMDD-XXXX (e.g. TRM-20260115-0003)</small>
+                            <button id="create-incident-btn" class="btn-standard btn-primary" disabled>Create Incident</button>
+
+                            <label>Status</label>
+                            <input value="Open" data-json-path="case_status" readonly>
+
+                            <label>Opening Date</label>
+                            <input type="date" data-json-path="opened_at" readonly>
+
+                            <label>Closure Date</label>
+                            <input type="date" data-json-path="closed_at" readonly>
+
+                            <div class="three-col">
+                                <div>
+                                    <label>Country</label>
+                                    <input data-json-path="d_states.D1_2.data.country">
+                                </div>
+                                <div>
+                                    <label>Site</label>
+                                    <input data-json-path="d_states.D1_2.data.site">
+                                </div>
+                                <div>
+                                    <label>Unit</label>
+                                    <input data-json-path="d_states.D1_2.data.organization_unit">
+                                </div>
+                            </div>
+                        </div>
+
+                        <label>Problem Description</label>
+                        <textarea data-json-path="d_states.D1_2.data.problem_description"></textarea>
+
+                        <label>Involved People / Teams</label>
+                        <textarea data-json-path="d_states.D1_2.data.involved_people_teams" data-json-array="true"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="phase-card" data-phase="D3">
+                <div class="sec-head">
+                    <div class="sec-head-left">
+                        <div class="sec-title-row">
+                            <div class="sec-title">Containment Actions</div>
+                            <button class="btn-confirm-inline unconfirmed confirm-phase-btn" data-phase="D3" title="Mark confirmed">
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                            <span class="confirm-label" data-phase-status>not started</span>
+                        </div>
+                        <div class="sec-subtitle">Immediate actions to contain the issue while root cause is investigated.</div>
+                    </div>
+                </div>
+                <div class="phase-body">
+                    <aside class="guidance-panel">
+                        <div class="guidance-title">How to use this section</div>
+                        <ul class="guidance-list">
+                            <li>Document immediate steps taken to contain impact.</li>
+                            <li>Clarify what was stopped, isolated, or safeguarded.</li>
+                            <li>Note who approved containment actions and when.</li>
+                            <li>Record any temporary controls put in place.</li>
+                        </ul>
+                    </aside>
+                    <div class="phase-form scroll-y">
+                        <label>What happened?</label>
+                        <textarea data-json-path="d_states.D3.data.what_happened"></textarea>
+
+                        <label>Why is this a problem?</label>
+                        <textarea data-json-path="d_states.D3.data.why_is_problem"></textarea>
+
+                        <div class="two-col">
+                            <div>
+                                <label>When detected?</label>
+                                <input data-json-path="d_states.D3.data.when_detected">
+                            </div>
+                            <div>
+                                <label>Who detected?</label>
+                                <input data-json-path="d_states.D3.data.who_detected">
+                            </div>
+                        </div>
+
+                        <div class="two-col">
+                            <div>
+                                <label>How detected?</label>
+                                <input data-json-path="d_states.D3.data.how_detected">
+                            </div>
+                            <div></div>
+                        </div>
+
+                        <label>Quantified impact (how many / how much)</label>
+                        <input data-json-path="d_states.D3.data.quantified_impact">
+                    </div>
+                </div>
+            </div>
+
+            <div class="phase-card" data-phase="D4">
+                <div class="sec-head">
+                    <div class="sec-head-left">
+                        <div class="sec-title-row">
+                            <div class="sec-title">Root Cause Analysis</div>
+                            <button class="btn-confirm-inline unconfirmed confirm-phase-btn" data-phase="D4" title="Mark confirmed">
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                            <span class="confirm-label" data-phase-status>not started</span>
+                        </div>
+                        <div class="sec-subtitle">Identify the verified root cause using structured analysis tools.</div>
+                    </div>
+                </div>
+                <div class="phase-body">
+                    <aside class="guidance-panel">
+                        <div class="guidance-title">How to use this section</div>
+                        <ul class="guidance-list">
+                            <li>List suspected causes and evidence sources.</li>
+                            <li>Differentiate symptoms from underlying causes.</li>
+                            <li>Capture how the issue could recur without fixes.</li>
+                            <li>Note any data gaps that require investigation.</li>
+                        </ul>
+                    </aside>
+                    <div class="phase-form scroll-y">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="w-action">Action</th>
+                                    <th class="w-owner">Responsible</th>
+                                    <th class="w-date">Due</th>
+                                    <th class="w-date">Actual</th>
+                                </tr>
+                            </thead>
+                            <tbody data-array-path="d_states.D4.data.actions">
+                                <tr>
+                                    <td><textarea class="action-text" rows="1" data-json-path="d_states.D4.data.actions[0].action"></textarea></td>
+                                    <td><input data-json-path="d_states.D4.data.actions[0].responsible"></td>
+                                    <td><input type="date" data-json-path="d_states.D4.data.actions[0].due_date"></td>
+                                    <td><input type="date" data-json-path="d_states.D4.data.actions[0].actual_date"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <button class="btn-standard add-row-btn" data-template-id="d4-action-row" data-array-path="d_states.D4.data.actions">+ Add Action</button>
+                        <template id="d4-action-row">
+                            <tr>
+                                <td><textarea class="action-text" rows="1" data-field="action"></textarea></td>
+                                <td><input data-field="responsible"></td>
+                                <td><input type="date" data-field="due_date"></td>
+                                <td><input type="date" data-field="actual_date"></td>
+                            </tr>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <div class="phase-card" data-phase="D5">
+                <div class="sec-head">
+                    <div class="sec-head-left">
+                        <div class="sec-title-row">
+                            <div class="sec-title">Permanent Corrective Actions</div>
+                            <button class="btn-confirm-inline unconfirmed confirm-phase-btn" data-phase="D5" title="Mark confirmed">
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                            <span class="confirm-label" data-phase-status>not started</span>
+                        </div>
+                        <div class="sec-subtitle">Define permanent actions that eliminate the verified root cause.</div>
+                    </div>
+                </div>
+                <div class="phase-body">
+                    <aside class="guidance-panel">
+                        <div class="guidance-title">How to use this section</div>
+                        <ul class="guidance-list">
+                            <li>Define actions that eliminate the root cause.</li>
+                            <li>Specify owners, due dates, and success criteria.</li>
+                            <li>Record evidence supporting each corrective action.</li>
+                            <li>Ensure actions are feasible and measurable.</li>
+                        </ul>
+                    </aside>
+                    <div class="phase-form scroll-y">
+                        <h3>Fishbone Analysis</h3>
+                        <div class="fishbone">
+                            <div class="fish">People / Organization
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.people_organization[0]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.people_organization[1]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.people_organization[2]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.people_organization[3]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.people_organization[4]"></div>
+                            </div>
+                            <div class="fish">Process / Workflow
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.process_workflow[0]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.process_workflow[1]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.process_workflow[2]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.process_workflow[3]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.process_workflow[4]"></div>
+                            </div>
+                            <div class="fish">Tools / Systems
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.tools_systems[0]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.tools_systems[1]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.tools_systems[2]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.tools_systems[3]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.tools_systems[4]"></div>
+                            </div>
+                            <div class="fish">Environment / Context
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.environment_context[0]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.environment_context[1]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.environment_context[2]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.environment_context[3]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.environment_context[4]"></div>
+                            </div>
+                            <div class="fish">Policy / Management
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.policy_management[0]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.policy_management[1]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.policy_management[2]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.policy_management[3]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.policy_management[4]"></div>
+                            </div>
+                            <div class="fish">Material / Input
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.material_input[0]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.material_input[1]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.material_input[2]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.material_input[3]"></div>
+                                <div class="fish-row"><input placeholder=" " data-json-path="d_states.D5.data.fishbone.material_input[4]"></div>
+                            </div>
+                        </div>
+
+                        <h3>Investigation Tasks</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="w-action">Task</th>
+                                    <th class="w-owner">Responsible</th>
+                                    <th class="w-date">Due</th>
+                                    <th class="w-date">Actual</th>
+                                </tr>
+                            </thead>
+                            <tbody data-array-path="d_states.D5.data.investigation_tasks">
+                                <tr>
+                                    <td><input data-json-path="d_states.D5.data.investigation_tasks[0].task"></td>
+                                    <td><input data-json-path="d_states.D5.data.investigation_tasks[0].responsible"></td>
+                                    <td><input type="date" data-json-path="d_states.D5.data.investigation_tasks[0].due_date"></td>
+                                    <td><input type="date" data-json-path="d_states.D5.data.investigation_tasks[0].actual_date"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <button class="btn-standard add-row-btn" data-template-id="d5-task-row" data-array-path="d_states.D5.data.investigation_tasks">+ Add Task</button>
+                        <template id="d5-task-row">
+                            <tr>
+                                <td><input data-field="task"></td>
+                                <td><input data-field="responsible"></td>
+                                <td><input type="date" data-field="due_date"></td>
+                                <td><input type="date" data-field="actual_date"></td>
+                            </tr>
+                        </template>
+
+                        <h3>Factor / Tree Analysis</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="w-action">Factor</th>
+                                    <th class="w-owner">Owner</th>
+                                    <th class="w-date">Reviewed</th>
+                                    <th>Status</th>
+                                    <th class="w-comment">Comment</th>
+                                </tr>
+                            </thead>
+                            <tbody data-array-path="d_states.D5.data.factors">
+                                <tr>
+                                    <td><input data-json-path="d_states.D5.data.factors[0].factor"></td>
+                                    <td><input data-json-path="d_states.D5.data.factors[0].owner"></td>
+                                    <td><input type="date" data-json-path="d_states.D5.data.factors[0].reviewed_date"></td>
+                                    <td><input data-json-path="d_states.D5.data.factors[0].status"></td>
+                                    <td><input data-json-path="d_states.D5.data.factors[0].comment"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <button class="btn-standard add-row-btn" data-template-id="d5-factor-row" data-array-path="d_states.D5.data.factors">+ Add Factor</button>
+                        <template id="d5-factor-row">
+                            <tr>
+                                <td><input data-field="factor"></td>
+                                <td><input data-field="owner"></td>
+                                <td><input type="date" data-field="reviewed_date"></td>
+                                <td><input data-field="status"></td>
+                                <td><input data-field="comment"></td>
+                            </tr>
+                        </template>
+
+                        <h3>5-Why Analysis</h3>
+                        <div class="two-col">
+                            <div>
+                                <h3>Chain A</h3>
+                                <input data-json-path="d_states.D5.data.five_whys.A[0]"><input
+                                    data-json-path="d_states.D5.data.five_whys.A[1]"><input
+                                    data-json-path="d_states.D5.data.five_whys.A[2]"><input
+                                    data-json-path="d_states.D5.data.five_whys.A[3]"><input
+                                    data-json-path="d_states.D5.data.five_whys.A[4]">
+                            </div>
+                            <div>
+                                <h3>Chain B</h3>
+                                <input data-json-path="d_states.D5.data.five_whys.B[0]"><input
+                                    data-json-path="d_states.D5.data.five_whys.B[1]"><input
+                                    data-json-path="d_states.D5.data.five_whys.B[2]"><input
+                                    data-json-path="d_states.D5.data.five_whys.B[3]"><input
+                                    data-json-path="d_states.D5.data.five_whys.B[4]">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="phase-card" data-phase="D6">
+                <div class="sec-head">
+                    <div class="sec-head-left">
+                        <div class="sec-title-row">
+                            <div class="sec-title">Implementation &amp; Validation</div>
+                            <button class="btn-confirm-inline unconfirmed confirm-phase-btn" data-phase="D6" title="Mark confirmed">
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                            <span class="confirm-label" data-phase-status>not started</span>
+                        </div>
+                        <div class="sec-subtitle">Implement corrective actions and verify their effectiveness.</div>
+                    </div>
+                </div>
+                <div class="phase-body">
+                    <aside class="guidance-panel">
+                        <div class="guidance-title">How to use this section</div>
+                        <ul class="guidance-list">
+                            <li>List actions that permanently address the issue.</li>
+                            <li>Confirm validation steps and measurable results.</li>
+                            <li>Document who verified effectiveness and when.</li>
+                            <li>Note any follow-up checks required.</li>
+                        </ul>
+                    </aside>
+                    <div class="phase-form scroll-y">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="w-action">Action</th>
+                                    <th class="w-owner">Responsible</th>
+                                    <th class="w-date">Due</th>
+                                    <th class="w-date">Actual</th>
+                                </tr>
+                            </thead>
+                            <tbody data-array-path="d_states.D6.data.actions">
+                                <tr>
+                                    <td><textarea class="action-text" rows="1" data-json-path="d_states.D6.data.actions[0].action"></textarea></td>
+                                    <td><input data-json-path="d_states.D6.data.actions[0].responsible"></td>
+                                    <td><input type="date" data-json-path="d_states.D6.data.actions[0].due_date"></td>
+                                    <td><input type="date" data-json-path="d_states.D6.data.actions[0].actual_date"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <button class="btn-standard add-row-btn" data-template-id="d6-action-row" data-array-path="d_states.D6.data.actions">+ Add Action</button>
+                        <template id="d6-action-row">
+                            <tr>
+                                <td><textarea class="action-text" rows="1" data-field="action"></textarea></td>
+                                <td><input data-field="responsible"></td>
+                                <td><input type="date" data-field="due_date"></td>
+                                <td><input type="date" data-field="actual_date"></td>
+                            </tr>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <div class="phase-card" data-phase="D7">
+                <div class="sec-head">
+                    <div class="sec-head-left">
+                        <div class="sec-title-row">
+                            <div class="sec-title">Prevention</div>
+                            <button class="btn-confirm-inline unconfirmed confirm-phase-btn" data-phase="D7" title="Mark confirmed">
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                            <span class="confirm-label" data-phase-status>not started</span>
+                        </div>
+                        <div class="sec-subtitle">Prevent recurrence across the fleet and organisation.</div>
+                    </div>
+                </div>
+                <div class="phase-body">
+                    <aside class="guidance-panel">
+                        <div class="guidance-title">How to use this section</div>
+                        <ul class="guidance-list">
+                            <li>Update procedures or standards to prevent recurrence.</li>
+                            <li>Capture training completed and impacted roles.</li>
+                            <li>List preventive controls or audits added.</li>
+                            <li>Note any documentation updates required.</li>
+                        </ul>
+                    </aside>
+                    <div class="phase-form scroll-y">
+                        <label>Procedures updated</label>
+                        <textarea class="d7-text" data-json-path="d_states.D7.data.procedures_updated"></textarea>
+
+                        <label>Training completed</label>
+                        <textarea class="d7-text" data-json-path="d_states.D7.data.training_completed"></textarea>
+
+                        <label>Preventive notes</label>
+                        <textarea data-json-path="d_states.D7.data.preventive_notes"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="phase-card" data-phase="D8">
+                <div class="sec-head">
+                    <div class="sec-head-left">
+                        <div class="sec-title-row">
+                            <div class="sec-title">Closure &amp; Learnings</div>
+                            <button class="btn-confirm-inline unconfirmed confirm-phase-btn" data-phase="D8" title="Mark confirmed">
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                            <span class="confirm-label" data-phase-status>not started</span>
+                        </div>
+                        <div class="sec-subtitle">Formally close the case and capture key learnings.</div>
+                    </div>
+                </div>
+                <div class="phase-body">
+                    <aside class="guidance-panel">
+                        <div class="guidance-title">How to use this section</div>
+                        <ul class="guidance-list">
+                            <li>Confirm approvals and final sign-off.</li>
+                            <li>Capture key learnings and outcomes.</li>
+                            <li>Ensure evidence of completion is documented.</li>
+                            <li>Note any handover or monitoring requirements.</li>
+                        </ul>
+                    </aside>
+                    <div class="phase-form scroll-y">
+                        <label>Quality approved by</label>
+                        <input data-json-path="d_states.D8.data.quality_approved_by">
+                        <label>Closure Date</label>
+                        <input type="date" data-json-path="d_states.D8.closure_date">
+                    </div>
+                </div>
+            </div>
+        </div><!-- /phase-detail-panel -->
+
+    </div><!-- /center-body -->
+</div><!-- #center -->
+
+<!-- RIGHT PANEL: AI Reasoning -->
+<div id="rp">
+    <div class="rp-header">
+        <div class="rp-title">AI Reasoning</div>
+        <button id="ai_clear_btn" class="ai-clear-btn" title="Clear conversation history">Clear</button>
+    </div>
+    <div class="rp-body">
+        <div id="ai_response_output" class="ai-response-area">
+            <div class="ai-empty-state">
+                <div class="ai-welcome">
+                    <div class="ai-welcome-title">Welcome to CoSolve AI Reasoning</div>
+                    <div class="ai-welcome-subtitle">Collaborative problem solving, powered by AI</div>
+
+                    <div class="ai-welcome-section" data-node="operational">
+                        <div class="ai-welcome-section-label">WORKING ON AN ACTIVE PROBLEM?</div>
+                        <div class="ai-welcome-section-hint">Load a case from the left panel first, then try:</div>
+                        <div class="ai-welcome-suggestions">
+                            <div class="ai-suggestion-chip">What should we focus on right now?</div>
+                            <div class="ai-suggestion-chip">Are there any gaps we might have missed?</div>
+                            <div class="ai-suggestion-chip">What should we prepare for the next step?</div>
+                        </div>
+                    </div>
+
+                    <div class="ai-welcome-section" data-node="kpi">
+                        <div class="ai-welcome-section-label">HOW ARE WE DOING?</div>
+                        <div class="ai-welcome-section-hint">Ask performance and KPI questions:</div>
+                        <div class="ai-welcome-suggestions">
+                            <div class="ai-suggestion-chip strategy-chip">Show me incident counts, resolution times, and performance trends across the case portfolio.</div>
+                            <div class="ai-suggestion-chip strategy-chip">Which areas have the most open cases right now?</div>
+                            <div class="ai-suggestion-chip strategy-chip">How long do cases typically take to resolve?</div>
+                        </div>
+                    </div>
+
+                    <div class="ai-welcome-section" data-node="similarity">
+                        <div class="ai-welcome-section-label">HAVE WE SEEN THIS BEFORE?</div>
+                        <div class="ai-welcome-section-hint">Look through past resolved cases:</div>
+                        <div class="ai-welcome-suggestions">
+                            <div class="ai-suggestion-chip">Have we dealt with a problem like this before?</div>
+                            <div class="ai-suggestion-chip">Has anything similar come up in other parts of the operation?</div>
+                        </div>
+                    </div>
+
+                    <div class="ai-welcome-section" data-node="strategy">
+                        <div class="ai-welcome-section-label">LOOKING AT THE BIGGER PICTURE?</div>
+                        <div class="ai-welcome-section-hint">Ask strategy and trend questions:</div>
+                        <div class="ai-welcome-suggestions">
+                            <div class="ai-suggestion-chip strategy-chip">What are the most recurring failure types we face?</div>
+                            <div class="ai-suggestion-chip strategy-chip">How are we trending on unplanned failures this year?</div>
+                            <div class="ai-suggestion-chip strategy-chip">Which areas need organisational attention?</div>
+                        </div>
+                    </div>
+
+                    <div class="ai-welcome-hint">
+                        Load a case from the left panel to get case-specific guidance,
+                        or ask any question directly to reason across the knowledge base.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div><!-- /rp-body -->
+    <div class="rp-footer">
+        <div class="ai-input-wrapper">
+            <textarea id="ai_question_input" class="ai-question-input" placeholder="Ask a question about this case…"></textarea>
+            <button id="ai_send_btn" class="ai-send-btn" aria-label="Send" title="Send (Enter)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+        </div>
+        <div id="ai_input_error" class="ai-input-error"></div>
+    </div>
+</div><!-- #rp -->
+
+</div><!-- #main -->
+</div><!-- #app -->
+
+<script src="cosolve-ui.js"></script>
 
 </body>
-
 </html>
