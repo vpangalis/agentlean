@@ -105,6 +105,24 @@
             </div>
             <div class="lp-group-body">
 
+                <!-- Create Case -->
+                <div class="lp-sub-row">
+                    <div class="lp-sub-label">Create Case</div>
+                </div>
+                <div class="create-case-wrap">
+                    <div class="case-id-row">
+                        <input class="case-id-input" id="lp-case-id-input" placeholder="XXX-YYYYMMDD-XXXX"
+                            onkeydown="if(event.key==='Enter'){document.getElementById('case-id-input').value=this.value;document.getElementById('create-incident-btn').click();}"/>
+                        <button class="btn-icon-action" title="Create case"
+                            onclick="document.getElementById('case-id-input').value=document.getElementById('lp-case-id-input').value;document.getElementById('create-incident-btn').click()">
+                            <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                                <path d="M4.5 1v7M1 4.5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="case-id-hint">e.g. <span>TRM-20260304-0001</span></div>
+                </div>
+
                 <!-- Evidence -->
                 <div class="lp-sub-row">
                     <div class="lp-sub-label">Evidence</div>
@@ -127,8 +145,17 @@
                     <div class="lp-sub-label">Case Search</div>
                 </div>
                 <div class="case-search-wrap">
-                    <input class="lp-search" id="search_input" name="search_input" placeholder="Keyword, case ID, owner…" />
-                    <button id="run_case_search_btn" class="btn-standard btn-primary">Run Case Search</button>
+                    <div class="case-id-row">
+                        <input class="lp-search" id="search_input" name="search_input" placeholder="Keyword, case ID, owner…"
+                            onkeydown="if(event.key==='Enter') document.getElementById('run_case_search_btn').click()" />
+                        <button class="btn-icon-action" title="Search" onclick="document.getElementById('run_case_search_btn').click()">
+                            <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                                <circle cx="3.8" cy="3.8" r="2.5" stroke="currentColor" stroke-width="1.4"/>
+                                <path d="M5.8 5.8l1.6 1.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <button id="run_case_search_btn" hidden>Run Case Search</button>
                     <div id="case_search_results" class="case-results">
                         <div class="muted empty-state">Search results will appear here.</div>
                     </div>
@@ -148,6 +175,16 @@
                     Knowledge Docs
                 </div>
                 <div class="lp-group-right">
+                    <button class="btn-icon" id="doc-sort-btn" onclick="event.stopPropagation()" title="Sort documents">
+                        <svg id="doc-sort-icon" width="9" height="9" viewBox="0 0 9 9" fill="none">
+                            <path d="M1 2h7M2 4.5h5M3 7h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                    <button class="btn-icon" id="knowledge-add-btn" onclick="event.stopPropagation();document.getElementById('knowledge_upload_input').click()" title="Add document">
+                        <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                            <path d="M4.5 1v7M1 4.5h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </button>
                     <svg class="lp-group-chevron" width="9" height="9" viewBox="0 0 9 9" fill="none">
                         <path d="M2.5 2l3 2.5-3 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
@@ -155,9 +192,7 @@
             </div>
             <div class="lp-group-body">
                 <input id="knowledge_upload_input" type="file" multiple accept=".pdf,.docx,.txt" hidden>
-                <div class="lp-sub-row">
-                    <button id="knowledge_upload_btn" class="btn-standard btn-primary">Upload Knowledge Documents</button>
-                </div>
+                <button id="knowledge_upload_btn" hidden>Upload Knowledge Documents</button>
                 <div id="knowledge_upload_list" class="doc-list lp-doc-list">
                     <div class="muted empty-state">No documents uploaded yet.</div>
                 </div>
@@ -182,8 +217,16 @@
             </div>
             <div class="lp-group-body">
                 <input id="doc_bulk_import_input" type="file" multiple accept=".json,.csv" hidden>
+                <button id="doc_bulk_import_btn" hidden>Import Closed Cases (Bulk)</button>
                 <div class="lp-sub-row">
-                    <button id="doc_bulk_import_btn" class="btn-standard btn-primary">Import Closed Cases (Bulk)</button>
+                    <div class="lp-sub-label">Data Import</div>
+                    <div class="spacer"></div>
+                    <button class="btn-icon" title="Import closed cases" onclick="document.getElementById('doc_bulk_import_btn').click()">
+                        <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                            <path d="M4.5 6V1m0 0L2.5 3M4.5 1L6.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M1 7.5h7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                        </svg>
+                    </button>
                 </div>
                 <div id="doc_bulk_import_list" class="doc-list lp-doc-list">
                     <div class="muted empty-state">No uploads yet.</div>
@@ -250,7 +293,7 @@
         </div>
 
         <!-- SECTION 2: LLM PERFORMANCE -->
-        <div class="kpi-section kpi-section-llm">
+        <div class="kpi-section kpi-section-llm kpi-section-llm-bg">
             <div class="kpi-sec-header kpi-sec-header-llm">
                 <div class="kpi-sec-title">
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -390,29 +433,20 @@
                             <button class="btn-confirm-inline unconfirmed confirm-phase-btn" data-phase="D1_2" title="Mark confirmed">
                                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             </button>
-                            <span class="confirm-label" data-phase-status>not started</span>
+                            <span class="confirm-label unconfirmed-lbl" data-phase-status>Mark confirmed</span>
                         </div>
                         <div class="sec-subtitle">Team formation and precise problem scoping.</div>
                     </div>
                 </div>
+                <div class="guidance"><strong>How to use this section</strong> &mdash; Assemble the team with clear roles. Define the problem precisely using facts — what IS happening and what IS NOT. Use 5W2H to bound scope. Avoid assumptions or root cause statements at this stage.</div>
                 <div class="phase-body">
-                    <aside class="guidance-panel">
-                        <div class="guidance-title">How to use this section</div>
-                        <ul class="guidance-list">
-                            <li>Describe the problem clearly and factually.</li>
-                            <li>Specify where and when the issue occurred.</li>
-                            <li>Identify affected areas, lines, or products.</li>
-                            <li>List involved teams or roles.</li>
-                            <li>Avoid assumptions or root cause statements at this stage.</li>
-                        </ul>
-                    </aside>
                     <div class="phase-form scroll-y">
                         <div class="section case-details">
                             <div class="section-title">Case Details</div>
                             <label>Incident / Case ID</label>
                             <input id="case-id-input" placeholder="XXX-YYYYMMDD-XXXX" data-json-path="case_id">
                             <small class="muted">Format: XXX-YYYYMMDD-XXXX (e.g. TRM-20260115-0003)</small>
-                            <button id="create-incident-btn" class="btn-standard btn-primary" disabled>Create Incident</button>
+                            <button id="create-incident-btn" hidden disabled>Create Incident</button>
 
                             <label>Status</label>
                             <input value="Open" data-json-path="case_status" readonly>
@@ -456,21 +490,13 @@
                             <button class="btn-confirm-inline unconfirmed confirm-phase-btn" data-phase="D3" title="Mark confirmed">
                                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             </button>
-                            <span class="confirm-label" data-phase-status>not started</span>
+                            <span class="confirm-label unconfirmed-lbl" data-phase-status>Mark confirmed</span>
                         </div>
                         <div class="sec-subtitle">Immediate actions to contain the issue while root cause is investigated.</div>
                     </div>
                 </div>
+                <div class="guidance"><strong>How to use this section</strong> &mdash; Document immediate steps to contain the impact. Clarify what was stopped or safeguarded, note who approved actions and when, and record any temporary controls put in place.</div>
                 <div class="phase-body">
-                    <aside class="guidance-panel">
-                        <div class="guidance-title">How to use this section</div>
-                        <ul class="guidance-list">
-                            <li>Document immediate steps taken to contain impact.</li>
-                            <li>Clarify what was stopped, isolated, or safeguarded.</li>
-                            <li>Note who approved containment actions and when.</li>
-                            <li>Record any temporary controls put in place.</li>
-                        </ul>
-                    </aside>
                     <div class="phase-form scroll-y">
                         <label>What happened?</label>
                         <textarea data-json-path="d_states.D3.data.what_happened"></textarea>
@@ -511,21 +537,13 @@
                             <button class="btn-confirm-inline unconfirmed confirm-phase-btn" data-phase="D4" title="Mark confirmed">
                                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             </button>
-                            <span class="confirm-label" data-phase-status>not started</span>
+                            <span class="confirm-label unconfirmed-lbl" data-phase-status>Mark confirmed</span>
                         </div>
                         <div class="sec-subtitle">Identify the verified root cause using structured analysis tools.</div>
                     </div>
                 </div>
+                <div class="guidance"><strong>How to use this section</strong> &mdash; List suspected causes with supporting evidence. Differentiate symptoms from underlying causes and capture how the issue could recur. Note any data gaps before moving to corrective actions.</div>
                 <div class="phase-body">
-                    <aside class="guidance-panel">
-                        <div class="guidance-title">How to use this section</div>
-                        <ul class="guidance-list">
-                            <li>List suspected causes and evidence sources.</li>
-                            <li>Differentiate symptoms from underlying causes.</li>
-                            <li>Capture how the issue could recur without fixes.</li>
-                            <li>Note any data gaps that require investigation.</li>
-                        </ul>
-                    </aside>
                     <div class="phase-form scroll-y">
                         <table>
                             <thead>
@@ -545,7 +563,10 @@
                                 </tr>
                             </tbody>
                         </table>
-                        <button class="btn-standard add-row-btn" data-template-id="d4-action-row" data-array-path="d_states.D4.data.actions">+ Add Action</button>
+                        <div class="add-row-wrap">
+                            <button class="add-row-btn btn-add-row" data-template-id="d4-action-row" data-array-path="d_states.D4.data.actions"><svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M4.5 1v7M1 4.5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+                            <span class="add-row-lbl">Add action</span>
+                        </div>
                         <template id="d4-action-row">
                             <tr>
                                 <td><textarea class="action-text" rows="1" data-field="action"></textarea></td>
@@ -566,21 +587,13 @@
                             <button class="btn-confirm-inline unconfirmed confirm-phase-btn" data-phase="D5" title="Mark confirmed">
                                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             </button>
-                            <span class="confirm-label" data-phase-status>not started</span>
+                            <span class="confirm-label unconfirmed-lbl" data-phase-status>Mark confirmed</span>
                         </div>
                         <div class="sec-subtitle">Define permanent actions that eliminate the verified root cause.</div>
                     </div>
                 </div>
+                <div class="guidance"><strong>How to use this section</strong> &mdash; Use the fishbone diagram to explore all cause categories, then narrow using 5-Why. Every identified cause must be supported by evidence — do not accept assumptions before moving forward.</div>
                 <div class="phase-body">
-                    <aside class="guidance-panel">
-                        <div class="guidance-title">How to use this section</div>
-                        <ul class="guidance-list">
-                            <li>Define actions that eliminate the root cause.</li>
-                            <li>Specify owners, due dates, and success criteria.</li>
-                            <li>Record evidence supporting each corrective action.</li>
-                            <li>Ensure actions are feasible and measurable.</li>
-                        </ul>
-                    </aside>
                     <div class="phase-form scroll-y">
                         <h3>Fishbone Analysis</h3>
                         <div class="fishbone">
@@ -647,7 +660,10 @@
                                 </tr>
                             </tbody>
                         </table>
-                        <button class="btn-standard add-row-btn" data-template-id="d5-task-row" data-array-path="d_states.D5.data.investigation_tasks">+ Add Task</button>
+                        <div class="add-row-wrap">
+                            <button class="add-row-btn btn-add-row" data-template-id="d5-task-row" data-array-path="d_states.D5.data.investigation_tasks"><svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M4.5 1v7M1 4.5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+                            <span class="add-row-lbl">Add task</span>
+                        </div>
                         <template id="d5-task-row">
                             <tr>
                                 <td><input data-field="task"></td>
@@ -678,7 +694,10 @@
                                 </tr>
                             </tbody>
                         </table>
-                        <button class="btn-standard add-row-btn" data-template-id="d5-factor-row" data-array-path="d_states.D5.data.factors">+ Add Factor</button>
+                        <div class="add-row-wrap">
+                            <button class="add-row-btn btn-add-row" data-template-id="d5-factor-row" data-array-path="d_states.D5.data.factors"><svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M4.5 1v7M1 4.5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+                            <span class="add-row-lbl">Add factor</span>
+                        </div>
                         <template id="d5-factor-row">
                             <tr>
                                 <td><input data-field="factor"></td>
@@ -720,21 +739,13 @@
                             <button class="btn-confirm-inline unconfirmed confirm-phase-btn" data-phase="D6" title="Mark confirmed">
                                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             </button>
-                            <span class="confirm-label" data-phase-status>not started</span>
+                            <span class="confirm-label unconfirmed-lbl" data-phase-status>Mark confirmed</span>
                         </div>
                         <div class="sec-subtitle">Implement corrective actions and verify their effectiveness.</div>
                     </div>
                 </div>
+                <div class="guidance"><strong>How to use this section</strong> &mdash; List actions that permanently address the root cause. Specify owners, due dates, and success criteria. Document who verified effectiveness and when, and note any follow-up checks required.</div>
                 <div class="phase-body">
-                    <aside class="guidance-panel">
-                        <div class="guidance-title">How to use this section</div>
-                        <ul class="guidance-list">
-                            <li>List actions that permanently address the issue.</li>
-                            <li>Confirm validation steps and measurable results.</li>
-                            <li>Document who verified effectiveness and when.</li>
-                            <li>Note any follow-up checks required.</li>
-                        </ul>
-                    </aside>
                     <div class="phase-form scroll-y">
                         <table>
                             <thead>
@@ -754,7 +765,10 @@
                                 </tr>
                             </tbody>
                         </table>
-                        <button class="btn-standard add-row-btn" data-template-id="d6-action-row" data-array-path="d_states.D6.data.actions">+ Add Action</button>
+                        <div class="add-row-wrap">
+                            <button class="add-row-btn btn-add-row" data-template-id="d6-action-row" data-array-path="d_states.D6.data.actions"><svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M4.5 1v7M1 4.5h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+                            <span class="add-row-lbl">Add action</span>
+                        </div>
                         <template id="d6-action-row">
                             <tr>
                                 <td><textarea class="action-text" rows="1" data-field="action"></textarea></td>
@@ -775,21 +789,13 @@
                             <button class="btn-confirm-inline unconfirmed confirm-phase-btn" data-phase="D7" title="Mark confirmed">
                                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             </button>
-                            <span class="confirm-label" data-phase-status>not started</span>
+                            <span class="confirm-label unconfirmed-lbl" data-phase-status>Mark confirmed</span>
                         </div>
                         <div class="sec-subtitle">Prevent recurrence across the fleet and organisation.</div>
                     </div>
                 </div>
+                <div class="guidance"><strong>How to use this section</strong> &mdash; Update procedures and standards to prevent recurrence beyond this case. Capture training completed, preventive controls added, and any documentation updates required across the organisation.</div>
                 <div class="phase-body">
-                    <aside class="guidance-panel">
-                        <div class="guidance-title">How to use this section</div>
-                        <ul class="guidance-list">
-                            <li>Update procedures or standards to prevent recurrence.</li>
-                            <li>Capture training completed and impacted roles.</li>
-                            <li>List preventive controls or audits added.</li>
-                            <li>Note any documentation updates required.</li>
-                        </ul>
-                    </aside>
                     <div class="phase-form scroll-y">
                         <label>Procedures updated</label>
                         <textarea class="d7-text" data-json-path="d_states.D7.data.procedures_updated"></textarea>
@@ -811,21 +817,13 @@
                             <button class="btn-confirm-inline unconfirmed confirm-phase-btn" data-phase="D8" title="Mark confirmed">
                                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l3 3 5-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             </button>
-                            <span class="confirm-label" data-phase-status>not started</span>
+                            <span class="confirm-label unconfirmed-lbl" data-phase-status>Mark confirmed</span>
                         </div>
                         <div class="sec-subtitle">Formally close the case and capture key learnings.</div>
                     </div>
                 </div>
+                <div class="guidance"><strong>How to use this section</strong> &mdash; Confirm final approvals and sign-off. Capture key learnings and outcomes. Ensure all evidence of completion is documented before formally closing, and note any handover or monitoring requirements.</div>
                 <div class="phase-body">
-                    <aside class="guidance-panel">
-                        <div class="guidance-title">How to use this section</div>
-                        <ul class="guidance-list">
-                            <li>Confirm approvals and final sign-off.</li>
-                            <li>Capture key learnings and outcomes.</li>
-                            <li>Ensure evidence of completion is documented.</li>
-                            <li>Note any handover or monitoring requirements.</li>
-                        </ul>
-                    </aside>
                     <div class="phase-form scroll-y">
                         <label>Quality approved by</label>
                         <input data-json-path="d_states.D8.data.quality_approved_by">

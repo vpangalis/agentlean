@@ -2440,8 +2440,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const card = document.querySelector(`.phase-card[data-phase="${phase}"]`);
     if (!card) return;
     card.dataset.status = status;
+    const isConfirmed = status === "completed";
     const statusEl = card.querySelector("[data-phase-status]");
-    if (statusEl) statusEl.textContent = formatStatus(status);
+    if (statusEl) {
+      statusEl.textContent = isConfirmed ? "Confirmed" : "Mark confirmed";
+      statusEl.classList.toggle("confirmed-lbl", isConfirmed);
+      statusEl.classList.toggle("unconfirmed-lbl", !isConfirmed);
+    }
+    const confirmBtn = card.querySelector(".confirm-phase-btn");
+    if (confirmBtn) {
+      confirmBtn.classList.toggle("confirmed", isConfirmed);
+      confirmBtn.classList.toggle("unconfirmed", !isConfirmed);
+    }
     updateNavStatusForPhase(phase, status);
   }
 
