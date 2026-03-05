@@ -3882,7 +3882,7 @@ function fetchAndRenderFlow(days) {
   const stats = document.getElementById('flow-viz-stats');
   if (container) container.innerHTML = '<div style="text-align:center;padding:40px;color:#8b93ad;font-size:11px;">Loading flow data...</div>';
 
-  const url = days > 0 ? `/admin/flow?days=${days}` : '/admin/flow?days=0';
+  const url = days > 0 ? `${API_BASE}/admin/flow?days=${days}` : `${API_BASE}/admin/flow?days=0`;
   fetch(url)
     .then(r => r.json())
     .then(data => {
