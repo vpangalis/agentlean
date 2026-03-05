@@ -3502,9 +3502,37 @@ function renderCaseKPIs(kpiData) {
     if (stageBlock) { destroyChart(stageChartInst); stageChartInst = null; stageBlock.style.display = 'none'; }
   }
 
-  // Trend chart — no time-series data in KPIResult; leave empty
+  // Trend chart — opened vs closed per month (last 6 months)
   const trendCtx = document.getElementById('trend-chart');
-  if (trendCtx) destroyChart(trendChartInst);
+  const trendBlock = trendCtx ? trendCtx.closest('.kpi-chart-block') : null;
+  const moc = kpiData.monthly_opened_closed;
+  if (trendCtx && moc && moc.length) {
+    destroyChart(trendChartInst);
+    if (trendBlock) trendBlock.style.display = '';
+    const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const labels = moc.map(e => { const p = e.month.split('-'); return MONTH_ABBR[parseInt(p[1], 10) - 1]; });
+    trendChartInst = new Chart(trendCtx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Opened', data: moc.map(e => e.opened), backgroundColor: 'rgba(114,158,220,0.8)', borderColor: '#7298dc', borderWidth: 1.5, borderRadius: 4 },
+          { label: 'Closed', data: moc.map(e => e.closed), backgroundColor: 'rgba(52,199,169,0.8)', borderColor: '#34c7a9', borderWidth: 1.5, borderRadius: 4 }
+        ]
+      },
+      options: {
+        ...CHART_DEFAULTS,
+        plugins: { ...CHART_DEFAULTS.plugins, legend: { display: true, labels: { boxWidth: 10, font: { family: 'Geist', size: 9 }, color: '#8b93ad' } } },
+        scales: {
+          x: { ticks: { font: { family: 'Geist', size: 8 }, color: '#8b93ad' }, grid: { display: false } },
+          y: { ticks: { stepSize: 1, font: { family: 'Geist Mono', size: 8 }, color: '#8b93ad' }, grid: { color: '#eef0f7' }, beginAtZero: true }
+        }
+      }
+    });
+  } else {
+    destroyChart(trendChartInst); trendChartInst = null;
+    if (trendBlock) trendBlock.style.display = 'none';
+  }
 }
 
 function renderStageDurationChart(stageData) {

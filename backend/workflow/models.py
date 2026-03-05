@@ -65,6 +65,7 @@ class KPIResult(BaseModel):
     overdue_pct: Optional[float] = None
     d_stage_distribution: Optional[dict[str, int]] = None
     avg_days_per_stage: Optional[dict[str, float]] = None
+    monthly_opened_closed: Optional[list[dict[str, Any]]] = None
 
     # ── Country-scope additions ────────────────────────────────────────────
     country_ranking: Optional[list[dict[str, Any]]] = None

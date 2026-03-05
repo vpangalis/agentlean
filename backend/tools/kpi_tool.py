@@ -168,6 +168,7 @@ class KPITool:
             open_count=status_counts["open"],
             in_progress_count=status_counts["in_progress"],
             avg_days_per_stage=stage_avgs or None,
+            monthly_opened_closed=self._build_monthly_opened_closed(closed, active),
         )
 
     def _country_scope(self, country: str | None, year: int) -> KPIResult:
@@ -216,6 +217,7 @@ class KPITool:
             open_count=status_counts["open"],
             in_progress_count=status_counts["in_progress"],
             avg_days_per_stage=stage_avgs or None,
+            monthly_opened_closed=self._build_monthly_opened_closed(closed, active),
         )
 
     def _case_scope(self, case_id: str | None, year: int) -> KPIResult:
@@ -488,6 +490,41 @@ class KPITool:
         except Exception:
             logger.exception("[KPI] _compute_stage_timeline failed for %s", case_id)
             return []
+
+    def _build_monthly_opened_closed(
+        self,
+        closed_cases: list[CaseSummary],
+        active_cases: list[CaseSummary],
+    ) -> list[dict[str, Any]]:
+        """Return opened/closed counts per month for the last 6 calendar months."""
+        now = self._utc_now()
+        # Build list of 6 month boundaries, most recent last.
+        months: list[tuple[int, int]] = []
+        y, m = now.year, now.month
+        for _ in range(6):
+            months.append((y, m))
+            m -= 1
+            if m < 1:
+                m = 12
+                y -= 1
+        months.reverse()  # oldest first
+
+        all_cases = list(closed_cases) + list(active_cases)
+        result: list[dict[str, Any]] = []
+        for yr, mo in months:
+            opened = sum(
+                1 for c in all_cases
+                if (d := self._to_utc(c.opening_date)) is not None  # type: ignore[arg-type]
+                and d.year == yr and d.month == mo
+            )
+            closed = sum(
+                1 for c in closed_cases
+                if (d := self._to_utc(c.closure_date)) is not None  # type: ignore[arg-type]
+                and d.year == yr and d.month == mo
+            )
+            label = datetime(yr, mo, 1).strftime("%Y-%m")
+            result.append({"month": label, "opened": opened, "closed": closed})
+        return result
 
     def _build_active_case_load(
         self,
