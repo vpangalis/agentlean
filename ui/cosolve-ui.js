@@ -13,6 +13,16 @@ const PHASE_META = {
   D8: { name: "Closure & Learnings", discipline: "D8" }
 };
 
+function toPhaseMetaKey(raw) {
+  // Backend uses D1_D2; PHASE_META uses D1_2
+  return raw === 'D1_D2' ? 'D1_2' : raw;
+}
+
+function phaseName(raw) {
+  const meta = PHASE_META[toPhaseMetaKey(raw)];
+  return meta ? meta.name : raw;
+}
+
 const DEBOUNCE_MS = 900;
 let pendingPatch = {};
 let saveTimer = null;
@@ -3341,9 +3351,6 @@ function renderCaseKPIs(kpiData) {
     if (barCtx) { destroyChart(perfChartInst); barCtx.style.display = 'none'; }
     const lbl = document.getElementById('chart-label');
     if (lbl) lbl.textContent = '';
-    const stageBlock = document.getElementById('stage-chart-block');
-    if (stageBlock) { destroyChart(stageChartInst); stageChartInst = null; stageBlock.style.display = 'none'; }
-
     const fmtDays = v => (v != null ? Math.round(v) + 'd' : '—');
     const sr = document.getElementById('kpi-summary-row');
     if (sr) sr.innerHTML = `
@@ -3351,10 +3358,64 @@ function renderCaseKPIs(kpiData) {
       <div class="kpi-stat green"><div class="kpi-stat-val">${kpiData.current_stage || '—'}</div><div class="kpi-stat-lbl">Current stage</div></div>
       <div class="kpi-stat"><div class="kpi-stat-val">${fmtDays(kpiData.category_benchmark_days)}</div><div class="kpi-stat-lbl">Benchmark</div></div>
     `;
-    if (kpiData.stage_timeline && kpiData.stage_timeline.length) {
-      renderStageTimeline(kpiData.stage_timeline);
-    } else {
-      document.getElementById('kpi-stage-timeline')?.classList.add('hidden');
+
+    // Hide text timeline — replaced by bar chart
+    document.getElementById('kpi-stage-timeline')?.classList.add('hidden');
+
+    // Case scope: horizontal bar chart of completed stage durations
+    const stageBlock = document.getElementById('stage-chart-block');
+    const stageCaseCanvas = document.getElementById('stage-chart');
+    if (stageBlock && stageCaseCanvas) {
+      destroyChart(stageChartInst); stageChartInst = null;
+      const completedStages = (kpiData.stage_timeline || []).filter(e => e.completed === true);
+      const caseLabels = completedStages.map(e => phaseName(e.stage));
+      const caseDays   = completedStages.map(e => e.days || 0);
+      if (caseLabels.length) {
+        stageBlock.style.display = '';
+        stageCaseCanvas.parentNode.style.height = '260px';
+        const stageCaseCtx = stageCaseCanvas.getContext('2d');
+        stageChartInst = new Chart(stageCaseCtx, {
+          type: 'bar',
+          data: {
+            labels: caseLabels,
+            datasets: [{
+              label: 'Days in Stage',
+              data: caseDays,
+              backgroundColor: completedStages.map(() => 'rgba(220,38,38,0.75)'),
+              borderColor:     completedStages.map(() => 'rgba(220,38,38,1)'),
+              borderWidth: 1,
+              borderRadius: 4
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: ctx => ` ${ctx.parsed.x}d`
+                }
+              }
+            },
+            scales: {
+              x: {
+                beginAtZero: true,
+                ticks: { stepSize: 1, color: '#9ca3af' },
+                grid:  { color: 'rgba(255,255,255,0.05)' },
+                title: { display: true, text: 'Days', color: '#9ca3af', font: { size: 11 } }
+              },
+              y: {
+                ticks: { color: '#d1d5db', font: { size: 11 } },
+                grid:  { display: false }
+              }
+            }
+          }
+        });
+      } else {
+        stageBlock.style.display = 'none';
+      }
     }
     return;
   }
@@ -3461,7 +3522,7 @@ function renderStageDurationChart(stageData) {
   stageChartInst = new Chart(stageCtx, {
     type: 'bar',
     data: {
-      labels,
+      labels: labels.map(k => phaseName(k)),
       datasets: [{ data: values, backgroundColor: blue + '99', borderColor: blue, borderWidth: 1.5, borderRadius: 4 }]
     },
     options: {
@@ -3486,7 +3547,7 @@ function renderStageTimeline(timeline) {
         : 'pending';
     const icon = isCompleted ? '✓' : '○';
     const cls = isCompleted ? 'stage-tl-row completed' : 'stage-tl-row pending';
-    return `<div class="${cls}"><span class="stage-tl-key">${entry.stage}</span><span class="stage-tl-days">${daysLbl}</span><span class="stage-tl-icon">${icon}</span></div>`;
+    return `<div class="${cls}"><span class="stage-tl-key">${phaseName(entry.stage)}</span><span class="stage-tl-days">${daysLbl}</span><span class="stage-tl-icon">${icon}</span></div>`;
   }).join('');
   el.innerHTML = rows;
   el.classList.remove('hidden');
