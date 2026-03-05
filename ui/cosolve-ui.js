@@ -3522,7 +3522,6 @@ function renderCaseKPIs(kpiData) {
       },
       options: {
         ...CHART_DEFAULTS,
-        maintainAspectRatio: false,
         plugins: { ...CHART_DEFAULTS.plugins, legend: { display: true, labels: { boxWidth: 10, font: { family: 'Geist', size: 9 }, color: '#8b93ad' } } },
         scales: {
           x: { ticks: { font: { family: 'Geist', size: 8 }, color: '#8b93ad' }, grid: { display: false } },
