@@ -118,6 +118,8 @@ class ApiRoutes:
         )
         # LLM stats
         router.add_api_route("/llm/stats", self.get_llm_stats, methods=["GET"])
+        # Admin flow visualizer
+        router.add_api_route("/admin/flow", self.get_flow_graph, methods=["GET"])
         # Temporary diagnostic routes — remove after debugging
         router.add_api_route(
             "/cases/debug/index-count", self.debug_index_count, methods=["GET"]
@@ -698,6 +700,55 @@ class ApiRoutes:
             "totals": {"total_tokens": total_tokens, "total_calls": total_calls, "avg_tokens_per_call": avg},
             "models": sorted(models_seen),
         }
+
+    def get_flow_graph(self, days: int = 30):
+        log_path = Path(__file__).parents[2] / "logs" / "node_transitions.jsonl"
+        if not log_path.exists():
+            return {"nodes": [], "edges": [], "total_traces": 0}
+
+        cutoff = None
+        if days > 0:
+            cutoff = datetime.now(timezone.utc) - __import__("datetime").timedelta(days=days)
+
+        node_counts: dict[str, int] = {}
+        edge_counts: dict[tuple[str, str], int] = {}
+        trace_ids: set[str] = set()
+
+        with open(log_path) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if cutoff:
+                    ts_str = entry.get("timestamp", "")
+                    try:
+                        ts = datetime.fromisoformat(ts_str).replace(tzinfo=timezone.utc)
+                    except (ValueError, TypeError):
+                        continue
+                    if ts < cutoff:
+                        continue
+
+                from_node = entry.get("from_node", "")
+                to_node = entry.get("to_node", "")
+                trace_id = entry.get("trace_id", "")
+
+                if to_node:
+                    node_counts[to_node] = node_counts.get(to_node, 0) + 1
+                if from_node:
+                    node_counts.setdefault(from_node, 0)
+                if from_node and to_node:
+                    key = (from_node, to_node)
+                    edge_counts[key] = edge_counts.get(key, 0) + 1
+                if trace_id:
+                    trace_ids.add(trace_id)
+
+        nodes = [{"id": nid, "count": cnt} for nid, cnt in sorted(node_counts.items())]
+        edges = [{"from": k[0], "to": k[1], "count": v} for k, v in sorted(edge_counts.items())]
+        return {"nodes": nodes, "edges": edges, "total_traces": len(trace_ids)}
 
     def _dispatch_entry_handler(self, envelope: EntryEnvelope):
         try:

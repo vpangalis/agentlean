@@ -196,7 +196,13 @@ class UnifiedIncidentGraph:
         self._graph = graph.compile()
 
     def invoke(self, initial_state: IncidentGraphState) -> IncidentGraphState:
-        return cast(IncidentGraphState, self._graph.invoke(initial_state))
+        import uuid as _uuid_mod
+        initial_state["_last_node"] = "entry"
+        initial_state["trace_id"] = str(_uuid_mod.uuid4())
+        with _tracer.start_as_current_span("cosolve.reasoning") as span:
+            span.set_attribute("cosolve.case_id", initial_state.get("case_id", "") or "")
+            span.set_attribute("cosolve.question", initial_state.get("question", "") or "")
+            return cast(IncidentGraphState, self._graph.invoke(initial_state))
 
     def _traced_node(
         self,
@@ -205,10 +211,32 @@ class UnifiedIncidentGraph:
         state: IncidentGraphState,
         **kwargs: Any,
     ) -> IncidentGraphState:
+        import json as _json, datetime as _dt, pathlib as _pathlib
         with _tracer.start_as_current_span(f"node.{name}") as span:
             span.set_attribute("cosolve.case_id", state.get("case_id", "") or "")
             span.set_attribute("cosolve.route", state.get("route", "") or "")
-            return fn(state, **kwargs)
+            _prev = state.get("_last_node", "start")
+            _t0 = _dt.datetime.utcnow()
+            result = fn(state, **kwargs)
+            _t1 = _dt.datetime.utcnow()
+            _log_path = _pathlib.Path(__file__).parents[2] / "logs" / "node_transitions.jsonl"
+            _log_path.parent.mkdir(exist_ok=True)
+            try:
+                with open(_log_path, "a") as _f:
+                    _f.write(_json.dumps({
+                        "timestamp": _t0.isoformat(),
+                        "trace_id": state.get("trace_id", ""),
+                        "from_node": _prev,
+                        "to_node": name,
+                        "route": state.get("route", "") or "",
+                        "case_id": state.get("case_id", "") or "",
+                        "duration_ms": round((_t1 - _t0).total_seconds() * 1000, 1)
+                    }) + "\n")
+            except OSError:
+                pass
+            if isinstance(result, dict):
+                result["_last_node"] = name
+            return result
 
     def _start(self, state: IncidentGraphState) -> IncidentGraphState:
         return self._traced_node("start", lambda s: cast(IncidentGraphState, self._start_node.run()), state)

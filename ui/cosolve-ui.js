@@ -3834,6 +3834,213 @@ async function onPerfOpen() {
   fetchKpiAssessment(assessUrl);
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// AI REASONING FLOW VISUALIZER
+// ══════════════════════════════════════════════════════════════════════════════
+
+let _flowVizOpen = false;
+let _flowVizLoaded = false;
+let _flowCurrentDays = 7;
+
+function _ensureD3() {
+  return new Promise((resolve, reject) => {
+    if (window.d3) return resolve(window.d3);
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js';
+    s.onload = () => resolve(window.d3);
+    s.onerror = () => reject(new Error('Failed to load D3'));
+    document.head.appendChild(s);
+  });
+}
+
+function toggleFlowViz() {
+  const sec = document.getElementById('flow-viz-section');
+  const chev = document.getElementById('flow-viz-chevron');
+  if (!sec) return;
+  _flowVizOpen = !_flowVizOpen;
+  sec.style.display = _flowVizOpen ? 'block' : 'none';
+  if (chev) chev.style.transform = _flowVizOpen ? 'rotate(90deg)' : '';
+  if (_flowVizOpen && !_flowVizLoaded) {
+    _flowVizLoaded = true;
+    fetchAndRenderFlow(_flowCurrentDays);
+  }
+}
+
+function setFlowRange(days) {
+  _flowCurrentDays = days;
+  document.querySelectorAll('.flow-range-btn').forEach(btn => {
+    const val = btn.textContent === 'All' ? 0 : parseInt(btn.textContent);
+    const isActive = val === days;
+    btn.classList.toggle('active', isActive);
+    btn.style.background = isActive ? '#eef1f8' : 'transparent';
+  });
+  fetchAndRenderFlow(days);
+}
+
+function fetchAndRenderFlow(days) {
+  const container = document.getElementById('flow-viz-container');
+  const stats = document.getElementById('flow-viz-stats');
+  if (container) container.innerHTML = '<div style="text-align:center;padding:40px;color:#8b93ad;font-size:11px;">Loading flow data...</div>';
+
+  const url = days > 0 ? `/admin/flow?days=${days}` : '/admin/flow?days=0';
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      if (stats) {
+        const label = days > 0 ? `last ${days} days` : 'all time';
+        stats.textContent = `${data.total_traces} traces · ${data.nodes.length} nodes · ${data.edges.length} edges · ${label}`;
+      }
+      if (!data.nodes.length) {
+        if (container) container.innerHTML = '<div style="text-align:center;padding:40px;color:#8b93ad;font-size:11px;">No flow data yet. Run a reasoning query first.</div>';
+        return;
+      }
+      _ensureD3().then(() => renderFlowGraph(data)).catch(() => {
+        if (container) container.innerHTML = '<div style="text-align:center;padding:40px;color:#e05c5c;font-size:11px;">Failed to load D3 library.</div>';
+      });
+    })
+    .catch(() => {
+      if (container) container.innerHTML = '<div style="text-align:center;padding:40px;color:#e05c5c;font-size:11px;">Failed to fetch flow data.</div>';
+    });
+}
+
+function _flowNodeColor(name) {
+  if (name === 'entry' || name === 'start' || name === 'end') return '#9ba3b5';
+  if (name.includes('reflection')) return '#f0a500';
+  if (name.includes('escalation')) return '#e05c5c';
+  if (name === 'router' || name === 'context' || name === 'intent_classification' || name === 'question_readiness' || name === 'response_formatter') return '#7298dc';
+  return '#7298dc';
+}
+
+function renderFlowGraph(data) {
+  const container = document.getElementById('flow-viz-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const width = container.clientWidth || 280;
+  const height = container.clientHeight || 300;
+
+  const maxCount = Math.max(...data.nodes.map(n => n.count), 1);
+  const maxEdge = Math.max(...data.edges.map(e => e.count), 1);
+
+  const nodes = data.nodes.map(n => ({
+    id: n.id,
+    label: n.id.replace(/^node\./, ''),
+    count: n.count,
+    r: 8 + (n.count / maxCount) * 16
+  }));
+
+  const nodeMap = new Set(nodes.map(n => n.id));
+  const links = data.edges
+    .filter(e => nodeMap.has(e.from) && nodeMap.has(e.to))
+    .map(e => ({
+      source: e.from,
+      target: e.to,
+      count: e.count,
+      width: 1 + (e.count / maxEdge) * 4
+    }));
+
+  const svg = d3.select(container).append('svg')
+    .attr('width', width)
+    .attr('height', height)
+    .attr('viewBox', `0 0 ${width} ${height}`);
+
+  svg.append('defs').append('marker')
+    .attr('id', 'flow-arrow')
+    .attr('viewBox', '0 -5 10 10')
+    .attr('refX', 20)
+    .attr('refY', 0)
+    .attr('markerWidth', 6)
+    .attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path')
+    .attr('d', 'M0,-4L10,0L0,4')
+    .attr('fill', '#b0b8cc');
+
+  const simulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(60))
+    .force('charge', d3.forceManyBody().strength(-200))
+    .force('center', d3.forceCenter(width / 2, height / 2))
+    .force('collision', d3.forceCollide().radius(d => d.r + 8));
+
+  const linkGroup = svg.append('g');
+  const link = linkGroup.selectAll('line')
+    .data(links)
+    .join('line')
+    .attr('stroke', '#b0b8cc')
+    .attr('stroke-width', d => d.width)
+    .attr('stroke-opacity', 0.6)
+    .attr('marker-end', 'url(#flow-arrow)');
+
+  const edgeLabel = linkGroup.selectAll('text')
+    .data(links)
+    .join('text')
+    .attr('font-size', '8px')
+    .attr('fill', '#8b93ad')
+    .attr('text-anchor', 'middle')
+    .text(d => d.count);
+
+  const nodeGroup = svg.append('g');
+  const node = nodeGroup.selectAll('g')
+    .data(nodes)
+    .join('g')
+    .call(d3.drag()
+      .on('start', (event, d) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y; })
+      .on('end', (event, d) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+    );
+
+  node.append('circle')
+    .attr('r', d => d.r)
+    .attr('fill', d => _flowNodeColor(d.id))
+    .attr('stroke', '#fff')
+    .attr('stroke-width', 1.5)
+    .attr('opacity', 0.9);
+
+  node.append('text')
+    .attr('dy', d => d.r + 10)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', '8px')
+    .attr('fill', '#4a5168')
+    .text(d => d.label);
+
+  // Tooltip on hover
+  const tooltip = d3.select(container).append('div')
+    .style('position', 'absolute')
+    .style('display', 'none')
+    .style('background', '#2c3040')
+    .style('color', '#fff')
+    .style('padding', '4px 8px')
+    .style('border-radius', '4px')
+    .style('font-size', '10px')
+    .style('pointer-events', 'none')
+    .style('white-space', 'nowrap')
+    .style('z-index', '10');
+
+  container.style.position = 'relative';
+
+  node.on('mouseenter', (event, d) => {
+    tooltip.style('display', 'block').text(`${d.id} · ${d.count} visits`);
+  }).on('mousemove', (event) => {
+    const rect = container.getBoundingClientRect();
+    tooltip.style('left', (event.clientX - rect.left + 10) + 'px')
+           .style('top', (event.clientY - rect.top - 20) + 'px');
+  }).on('mouseleave', () => {
+    tooltip.style('display', 'none');
+  });
+
+  simulation.on('tick', () => {
+    link
+      .attr('x1', d => d.source.x)
+      .attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x)
+      .attr('y2', d => d.target.y);
+    edgeLabel
+      .attr('x', d => (d.source.x + d.target.x) / 2)
+      .attr('y', d => (d.source.y + d.target.y) / 2 - 4);
+    node.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('tab-center')?.classList.add('active');
