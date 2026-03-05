@@ -3673,9 +3673,9 @@ function renderTokenChartFromCache(mode) {
   const data = llmStatsCache;
   const filtered = filterLlmMonths(data.monthly, mode);
 
+  if (tokenChartInst) { tokenChartInst.destroy(); tokenChartInst = null; }
   const ctx = document.getElementById('token-chart');
   if (!ctx) return;
-  destroyChart(tokenChartInst);
 
   // Inject toggle above canvas
   const block = ctx.closest('.kpi-chart-block');
