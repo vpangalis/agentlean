@@ -3254,6 +3254,13 @@ function focusLP(groupId) {
     const g = document.getElementById(gid);
     if (g) g.classList.toggle('open', gid === groupId);
   });
+  if (groupId === 'grp-admin') {
+    document.getElementById('workflow')?.style.setProperty('display', 'none');
+    document.getElementById('phase-detail-panel')?.style.setProperty('display', 'none');
+    document.getElementById('case-closed-banner')?.style.setProperty('display', 'none');
+    document.getElementById('admin-center')?.style.setProperty('display', 'block');
+    setTimeout(() => fetchAndRenderFlow(_flowCurrentDays, 'main'), 150);
+  }
   updateTabRail();
 }
 
