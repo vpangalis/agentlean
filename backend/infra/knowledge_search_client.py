@@ -15,6 +15,8 @@ class KnowledgeSearchClient:
             endpoint=endpoint,
             index_name=index_name,
             credential=AzureKeyCredential(admin_key),
+            connection_timeout=10,
+            read_timeout=10,
         )
 
     def hybrid_search(
