@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
@@ -305,6 +307,18 @@ class BackendApp:
             configure_azure_monitor(
                 connection_string=settings.APPLICATIONINSIGHTS_CONNECTION_STRING,
             )
+
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+        from opentelemetry import trace as otel_trace
+
+        otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+        if otlp_endpoint:
+            otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True)
+            provider = otel_trace.get_tracer_provider()
+            if hasattr(provider, "add_span_processor"):
+                provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+
         container = BackendContainer()
         app = FastAPI(title="ValueSims Decision Support API", debug=True)
         app.add_middleware(
