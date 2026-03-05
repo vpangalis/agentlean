@@ -449,7 +449,7 @@ class KPITool:
             return []
         try:
             case = self._case_repo.load_case(f"{case_id}/case.json")
-            d_states = case.get("d_states") or {}
+            d_states = case.get("phases") or {}
             opened_raw = case.get("opened_at") or case.get("opening_date")
             opened_dt: Optional[datetime] = None
             if opened_raw:
@@ -459,15 +459,17 @@ class KPITool:
                     pass
             timeline: list[dict] = []
             prev_dt: Optional[datetime] = None
-            for phase in self._PHASE_ORDER:
+            phase_order = ["D1_D2", "D3", "D4", "D5", "D6", "D7", "D8"]
+            for phase in phase_order:
                 st = d_states.get(phase) or {}
-                completed = st.get("status") == "completed"
-                confirmed_raw = st.get("confirmed_at")
+                header = st.get("header", {})
+                completed = header.get("completed", False)
+                confirmed_raw = header.get("confirmed_at")
                 days: Optional[int] = None
                 if completed and confirmed_raw:
                     try:
                         cur_dt = datetime.strptime(confirmed_raw, "%Y-%m-%d")
-                        if phase == self._PHASE_ORDER[0] and opened_dt is not None:
+                        if phase == phase_order[0] and opened_dt is not None:
                             days = (cur_dt - opened_dt).days
                         elif prev_dt is not None:
                             days = (cur_dt - prev_dt).days
