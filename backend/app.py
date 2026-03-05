@@ -300,6 +300,11 @@ class BackendContainer:
 
 class BackendApp:
     def __init__(self) -> None:
+        if settings.APPLICATIONINSIGHTS_CONNECTION_STRING:
+            from azure.monitor.opentelemetry import configure_azure_monitor
+            configure_azure_monitor(
+                connection_string=settings.APPLICATIONINSIGHTS_CONNECTION_STRING,
+            )
         container = BackendContainer()
         app = FastAPI(title="ValueSims Decision Support API", debug=True)
         app.add_middleware(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from typing import Optional
 
 from pydantic.v1 import BaseSettings, Field
 
@@ -123,6 +124,11 @@ class Settings(BaseSettings):
         env="MODEL_STRATEGY_PREMIUM",
         description="Adaptive policy premium model for strategy escalation.",
     )
+    APPLICATIONINSIGHTS_CONNECTION_STRING: Optional[str] = Field(
+        None,
+        env="APPLICATIONINSIGHTS_CONNECTION_STRING",
+        description="Azure Monitor Application Insights connection string for distributed tracing.",
+    )
 
     class Config(BaseSettings.Config):
         env_file = ".env"
@@ -170,6 +176,9 @@ settings = Settings(
     MODEL_STRATEGY_PREMIUM=os.getenv(
         "MODEL_STRATEGY_PREMIUM",
         os.getenv("LLM_MODEL_STRATEGY", ""),
+    ),
+    APPLICATIONINSIGHTS_CONNECTION_STRING=os.getenv(
+        "APPLICATIONINSIGHTS_CONNECTION_STRING"
     ),
 )
 

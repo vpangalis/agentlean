@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
-from typing import TypedDict, cast
+from typing import Any, Callable, TypedDict, cast
 
 from langgraph.graph import StateGraph
+from opentelemetry import trace
 
 _graph_logger = logging.getLogger("unified_incident_graph")
+_tracer = trace.get_tracer("cosolve.langgraph")
 
 from backend.ai.escalation_controller import EscalationController
 from backend.workflow.models import (
@@ -196,36 +198,54 @@ class UnifiedIncidentGraph:
     def invoke(self, initial_state: IncidentGraphState) -> IncidentGraphState:
         return cast(IncidentGraphState, self._graph.invoke(initial_state))
 
+    def _traced_node(
+        self,
+        name: str,
+        fn: Callable[..., Any],
+        state: IncidentGraphState,
+        **kwargs: Any,
+    ) -> IncidentGraphState:
+        with _tracer.start_as_current_span(f"node.{name}") as span:
+            span.set_attribute("cosolve.case_id", state.get("case_id", "") or "")
+            span.set_attribute("cosolve.route", state.get("route", "") or "")
+            return fn(state, **kwargs)
+
     def _start(self, state: IncidentGraphState) -> IncidentGraphState:
-        return cast(IncidentGraphState, self._start_node.run())
+        return self._traced_node("start", lambda s: cast(IncidentGraphState, self._start_node.run()), state)
 
     def _context(self, state: IncidentGraphState) -> IncidentGraphState:
-        output: ContextNodeOutput = self._context_node.run(state.get("case_id"))
-        return cast(IncidentGraphState, output.model_dump())
+        def _run(s: IncidentGraphState) -> IncidentGraphState:
+            output: ContextNodeOutput = self._context_node.run(s.get("case_id"))
+            return cast(IncidentGraphState, output.model_dump())
+        return self._traced_node("context", _run, state)
 
     def _intent_classification(self, state: IncidentGraphState) -> IncidentGraphState:
-        output = self._intent_classification_node.run(
-            question=str(state.get("question") or ""),
-            case_id=state.get("case_id"),
-        )
-        return cast(IncidentGraphState, output.model_dump())
+        def _run(s: IncidentGraphState) -> IncidentGraphState:
+            output = self._intent_classification_node.run(
+                question=str(s.get("question") or ""),
+                case_id=s.get("case_id"),
+            )
+            return cast(IncidentGraphState, output.model_dump())
+        return self._traced_node("intent_classification", _run, state)
 
     def _question_readiness(self, state: IncidentGraphState) -> IncidentGraphState:
-        classification = state.get("classification")
-        intent = ""
-        if isinstance(classification, dict):
-            intent = str(classification.get("intent") or "")
-        elif classification is not None:
-            intent = str(classification.intent)
-        case_loaded = bool(
-            state.get("case_id") and str(state.get("case_id") or "").strip()
-        )
-        output: QuestionReadinessNodeOutput = self._question_readiness_node.run(
-            question=str(state.get("question") or ""),
-            intent=intent,
-            case_loaded=case_loaded,
-        )
-        return cast(IncidentGraphState, output.model_dump())
+        def _run(s: IncidentGraphState) -> IncidentGraphState:
+            classification = s.get("classification")
+            intent = ""
+            if isinstance(classification, dict):
+                intent = str(classification.get("intent") or "")
+            elif classification is not None:
+                intent = str(classification.intent)
+            case_loaded = bool(
+                s.get("case_id") and str(s.get("case_id") or "").strip()
+            )
+            output: QuestionReadinessNodeOutput = self._question_readiness_node.run(
+                question=str(s.get("question") or ""),
+                intent=intent,
+                case_loaded=case_loaded,
+            )
+            return cast(IncidentGraphState, output.model_dump())
+        return self._traced_node("question_readiness", _run, state)
 
     def _route_question_readiness(self, state: IncidentGraphState) -> str:
         if not state.get("question_ready", True):
@@ -236,217 +256,234 @@ class UnifiedIncidentGraph:
         return "READY"
 
     def _router(self, state: IncidentGraphState) -> IncidentGraphState:
-        classification = state.get("classification")
-        if classification is None:
-            raise ValueError("classification is required before routing")
-        if isinstance(classification, dict):
-            classification = IntentClassificationResult.model_validate(classification)
-        output = self._router_node.run(classification)
-        return cast(IncidentGraphState, output.model_dump())
+        def _run(s: IncidentGraphState) -> IncidentGraphState:
+            classification = s.get("classification")
+            if classification is None:
+                raise ValueError("classification is required before routing")
+            if isinstance(classification, dict):
+                classification = IntentClassificationResult.model_validate(classification)
+            output = self._router_node.run(classification)
+            return cast(IncidentGraphState, output.model_dump())
+        return self._traced_node("router", _run, state)
 
     def _operational(self, state: IncidentGraphState) -> IncidentGraphState:
-        case_id = state.get("case_id")
-        case_context = state.get("case_context")
-        question = str(state.get("question") or "")
+        def _run(s: IncidentGraphState) -> IncidentGraphState:
+            case_id = s.get("case_id")
+            case_context = s.get("case_context")
+            question = str(s.get("question") or "")
 
-        # Allow the operational node to run (with empty context) for new-problem
-        # questions even when no case is loaded, so the NEW PROBLEM DETECTION
-        # prompt rule can produce the appropriate guidance.
-        is_new_problem = self._operational_reflection_node._is_new_problem_bypass(
-            question, "", case_loaded=False
-        )
-
-        if (not case_id or not isinstance(case_context, dict)) and not is_new_problem:
-            # No case loaded — return a stub draft so the graph can continue
-            # through reflection and formatting without crashing.
-            stub = OperationalPayload(
-                current_state="No case loaded",
-                current_state_recommendations=(
-                    "No case is currently loaded. Please open or create a case "
-                    "in the Case Board before asking operational questions."
-                ),
-                next_state_preview="",
+            is_new_problem = self._operational_reflection_node._is_new_problem_bypass(
+                question, "", case_loaded=False
             )
-            return cast(IncidentGraphState, {"operational_draft": stub.model_dump()})
 
-        case_status = self._extract_case_status(case_context)
-        output = self._operational_node.run(
-            question=question,
-            case_id=case_id or "",
-            case_context=case_context if isinstance(case_context, dict) else {},
-            current_d_state=state.get("current_d_state"),
-            case_status=case_status,
-        )
-        return cast(IncidentGraphState, output.model_dump())
+            if (not case_id or not isinstance(case_context, dict)) and not is_new_problem:
+                stub = OperationalPayload(
+                    current_state="No case loaded",
+                    current_state_recommendations=(
+                        "No case is currently loaded. Please open or create a case "
+                        "in the Case Board before asking operational questions."
+                    ),
+                    next_state_preview="",
+                )
+                return cast(IncidentGraphState, {"operational_draft": stub.model_dump()})
+
+            case_status = self._extract_case_status(case_context)
+            output = self._operational_node.run(
+                question=question,
+                case_id=case_id or "",
+                case_context=case_context if isinstance(case_context, dict) else {},
+                current_d_state=s.get("current_d_state"),
+                case_status=case_status,
+            )
+            return cast(IncidentGraphState, output.model_dump())
+        return self._traced_node("operational", _run, state)
 
     def _operational_reflection(self, state: IncidentGraphState) -> IncidentGraphState:
-        draft = state.get("operational_draft")
-        if draft is None:
-            raise ValueError("operational_draft is required before reflection")
-        if isinstance(draft, dict):
-            draft = OperationalPayload.model_validate(draft)
-        output = self._operational_reflection_node.run(
-            question=str(state.get("question") or ""),
-            draft=draft,
-        )
-        return cast(IncidentGraphState, output.model_dump())
+        def _run(s: IncidentGraphState) -> IncidentGraphState:
+            draft = s.get("operational_draft")
+            if draft is None:
+                raise ValueError("operational_draft is required before reflection")
+            if isinstance(draft, dict):
+                draft = OperationalPayload.model_validate(draft)
+            output = self._operational_reflection_node.run(
+                question=str(s.get("question") or ""),
+                draft=draft,
+            )
+            return cast(IncidentGraphState, output.model_dump())
+        return self._traced_node("operational_reflection", _run, state)
 
     def _similarity(self, state: IncidentGraphState) -> IncidentGraphState:
-        case_context = state.get("case_context")
-        case_status_sim = (
-            self._extract_case_status(case_context)
-            if isinstance(case_context, dict)
-            else None
-        )
-        output = self._similarity_node.run(
-            question=str(state.get("question") or ""),
-            case_id=state.get("case_id"),
-            country=self._resolve_country(state),
-            case_context=case_context,
-            case_status=case_status_sim,
-        )
-        return cast(IncidentGraphState, output.model_dump())
+        def _run(s: IncidentGraphState) -> IncidentGraphState:
+            case_context = s.get("case_context")
+            case_status_sim = (
+                self._extract_case_status(case_context)
+                if isinstance(case_context, dict)
+                else None
+            )
+            output = self._similarity_node.run(
+                question=str(s.get("question") or ""),
+                case_id=s.get("case_id"),
+                country=self._resolve_country(s),
+                case_context=case_context,
+                case_status=case_status_sim,
+            )
+            return cast(IncidentGraphState, output.model_dump())
+        return self._traced_node("similarity", _run, state)
 
     def _similarity_reflection(self, state: IncidentGraphState) -> IncidentGraphState:
-        draft = state.get("similarity_draft")
-        if draft is None:
-            raise ValueError("similarity_draft is required before reflection")
-        if isinstance(draft, dict):
-            draft = SimilarityPayload.model_validate(draft)
-        output = self._similarity_reflection_node.run(
-            question=str(state.get("question") or ""),
-            draft=draft,
-        )
-        return cast(IncidentGraphState, output.model_dump())
+        def _run(s: IncidentGraphState) -> IncidentGraphState:
+            draft = s.get("similarity_draft")
+            if draft is None:
+                raise ValueError("similarity_draft is required before reflection")
+            if isinstance(draft, dict):
+                draft = SimilarityPayload.model_validate(draft)
+            output = self._similarity_reflection_node.run(
+                question=str(s.get("question") or ""),
+                draft=draft,
+            )
+            return cast(IncidentGraphState, output.model_dump())
+        return self._traced_node("similarity_reflection", _run, state)
 
     def _strategy(self, state: IncidentGraphState) -> IncidentGraphState:
-        output = self._strategy_node.run(
-            question=str(state.get("question") or ""),
-            country=self._resolve_country(state),
-        )
-        return cast(IncidentGraphState, output.model_dump())
+        def _run(s: IncidentGraphState) -> IncidentGraphState:
+            output = self._strategy_node.run(
+                question=str(s.get("question") or ""),
+                country=self._resolve_country(s),
+            )
+            return cast(IncidentGraphState, output.model_dump())
+        return self._traced_node("strategy", _run, state)
 
     def _strategy_reflection(self, state: IncidentGraphState) -> IncidentGraphState:
-        draft = state.get("strategy_draft")
-        if draft is None:
-            raise ValueError("strategy_draft is required before reflection")
-        if isinstance(draft, dict):
-            draft = StrategyPayload.model_validate(draft)
-        output = self._strategy_reflection_node.run(
-            question=str(state.get("question") or ""),
-            draft=draft,
-        )
-        return cast(IncidentGraphState, output.model_dump())
+        def _run(s: IncidentGraphState) -> IncidentGraphState:
+            draft = s.get("strategy_draft")
+            if draft is None:
+                raise ValueError("strategy_draft is required before reflection")
+            if isinstance(draft, dict):
+                draft = StrategyPayload.model_validate(draft)
+            output = self._strategy_reflection_node.run(
+                question=str(s.get("question") or ""),
+                draft=draft,
+            )
+            return cast(IncidentGraphState, output.model_dump())
+        return self._traced_node("strategy_reflection", _run, state)
 
     def _operational_escalation(self, state: IncidentGraphState) -> IncidentGraphState:
-        case_id = state.get("case_id")
-        case_context = state.get("case_context")
-        if not case_id or not isinstance(case_context, dict):
-            # No case loaded — return the same stub draft and mark escalated so
-            # the controller routes to CONTINUE on the next reflection pass.
-            stub = OperationalPayload(
-                current_state="No case loaded",
-                current_state_recommendations=(
-                    "No case is currently loaded. Please open or create a case "
-                    "in the Case Board before asking operational questions."
-                ),
-                next_state_preview="",
+        def _run(s: IncidentGraphState) -> IncidentGraphState:
+            case_id = s.get("case_id")
+            case_context = s.get("case_context")
+            if not case_id or not isinstance(case_context, dict):
+                stub = OperationalPayload(
+                    current_state="No case loaded",
+                    current_state_recommendations=(
+                        "No case is currently loaded. Please open or create a case "
+                        "in the Case Board before asking operational questions."
+                    ),
+                    next_state_preview="",
+                )
+                return cast(
+                    IncidentGraphState,
+                    {"operational_draft": stub.model_dump(), "operational_escalated": True},
+                )
+            case_status = self._extract_case_status(case_context)
+            output = self._operational_escalation_node.run(
+                question=str(s.get("question") or ""),
+                case_id=case_id,
+                case_context=case_context,
+                current_d_state=s.get("current_d_state"),
+                state=dict(s),
+                case_status=case_status,
             )
-            return cast(
-                IncidentGraphState,
-                {"operational_draft": stub.model_dump(), "operational_escalated": True},
-            )
-        case_status = self._extract_case_status(case_context)
-        output = self._operational_escalation_node.run(
-            question=str(state.get("question") or ""),
-            case_id=case_id,
-            case_context=case_context,
-            current_d_state=state.get("current_d_state"),
-            state=dict(state),
-            case_status=case_status,
-        )
-        result = cast(IncidentGraphState, output.model_dump())
-        result["operational_escalated"] = True
-        return result
+            result = cast(IncidentGraphState, output.model_dump())
+            result["operational_escalated"] = True
+            return result
+        return self._traced_node("operational_escalation", _run, state)
 
     def _strategy_escalation(self, state: IncidentGraphState) -> IncidentGraphState:
-        # Enrich state with strategy_response so the escalation node can do
-        # targeted section rewriting via run(state=...)
-        strategy_result = state.get("strategy_result")
-        strategy_response = ""
-        if isinstance(strategy_result, dict):
-            strategy_response = str(strategy_result.get("summary") or "")
-        elif hasattr(strategy_result, "summary"):
-            strategy_response = str(strategy_result.summary)
-        escalation_state = dict(state)
-        escalation_state["strategy_response"] = strategy_response
-        output = self._strategy_escalation_node.run(
-            question=str(state.get("question") or ""),
-            country=self._resolve_country(state),
-            state=escalation_state,
-        )
-        result = cast(IncidentGraphState, output.model_dump())
-        result["strategy_escalated"] = True
-        return result
+        def _run(s: IncidentGraphState) -> IncidentGraphState:
+            strategy_result = s.get("strategy_result")
+            strategy_response = ""
+            if isinstance(strategy_result, dict):
+                strategy_response = str(strategy_result.get("summary") or "")
+            elif hasattr(strategy_result, "summary"):
+                strategy_response = str(strategy_result.summary)
+            escalation_state = dict(s)
+            escalation_state["strategy_response"] = strategy_response
+            output = self._strategy_escalation_node.run(
+                question=str(s.get("question") or ""),
+                country=self._resolve_country(s),
+                state=escalation_state,
+            )
+            result = cast(IncidentGraphState, output.model_dump())
+            result["strategy_escalated"] = True
+            return result
+        return self._traced_node("strategy_escalation", _run, state)
 
     def _kpi(self, state: IncidentGraphState) -> IncidentGraphState:
-        classification = state.get("classification")
-        if isinstance(classification, dict):
-            classification = IntentClassificationResult.model_validate(classification)
-        classification_scope = (
-            classification.scope if classification is not None else "GLOBAL"
-        )
-        output = self._kpi_node.run(
-            question=str(state.get("question") or ""),
-            case_id=state.get("case_id"),
-            classification_scope=classification_scope,
-            country=self._resolve_country(state),
-        )
-        return cast(IncidentGraphState, output.model_dump())
+        def _run(s: IncidentGraphState) -> IncidentGraphState:
+            classification = s.get("classification")
+            if isinstance(classification, dict):
+                classification = IntentClassificationResult.model_validate(classification)
+            classification_scope = (
+                classification.scope if classification is not None else "GLOBAL"
+            )
+            output = self._kpi_node.run(
+                question=str(s.get("question") or ""),
+                case_id=s.get("case_id"),
+                classification_scope=classification_scope,
+                country=self._resolve_country(s),
+            )
+            return cast(IncidentGraphState, output.model_dump())
+        return self._traced_node("kpi", _run, state)
 
     def _kpi_reflection(self, state: IncidentGraphState) -> IncidentGraphState:
-        metrics = state.get("kpi_metrics")
-        if metrics is None:
-            raise ValueError("kpi_metrics is required before reflection")
-        if isinstance(metrics, dict):
-            metrics = KPIResult.model_validate(metrics)
-        output = self._kpi_reflection_node.run(
-            question=str(state.get("question") or ""),
-            metrics=metrics,
-        )
-        return cast(IncidentGraphState, output.model_dump())
+        def _run(s: IncidentGraphState) -> IncidentGraphState:
+            metrics = s.get("kpi_metrics")
+            if metrics is None:
+                raise ValueError("kpi_metrics is required before reflection")
+            if isinstance(metrics, dict):
+                metrics = KPIResult.model_validate(metrics)
+            output = self._kpi_reflection_node.run(
+                question=str(s.get("question") or ""),
+                metrics=metrics,
+            )
+            return cast(IncidentGraphState, output.model_dump())
+        return self._traced_node("kpi_reflection", _run, state)
 
     def _response_formatter(self, state: IncidentGraphState) -> IncidentGraphState:
-        classification = state.get("classification")
-        if isinstance(classification, dict):
-            classification = IntentClassificationResult.model_validate(classification)
-        operational_result = state.get("operational_result")
-        if isinstance(operational_result, dict):
-            operational_result = OperationalPayload.model_validate(operational_result)
-        similarity_result = state.get("similarity_result")
-        if isinstance(similarity_result, dict):
-            similarity_result = SimilarityPayload.model_validate(similarity_result)
-        strategy_result = state.get("strategy_result")
-        if isinstance(strategy_result, dict):
-            strategy_result = StrategyPayload.model_validate(strategy_result)
-        kpi_interpretation = state.get("kpi_interpretation")
-        if isinstance(kpi_interpretation, dict):
-            kpi_interpretation = KPIInterpretation.model_validate(kpi_interpretation)
-        output = self._response_formatter_node.run(
-            classification=classification,
-            operational_result=operational_result,
-            similarity_result=similarity_result,
-            strategy_result=strategy_result,
-            kpi_interpretation=kpi_interpretation,
-        )
-        return cast(IncidentGraphState, output.model_dump())
+        def _run(s: IncidentGraphState) -> IncidentGraphState:
+            classification = s.get("classification")
+            if isinstance(classification, dict):
+                classification = IntentClassificationResult.model_validate(classification)
+            operational_result = s.get("operational_result")
+            if isinstance(operational_result, dict):
+                operational_result = OperationalPayload.model_validate(operational_result)
+            similarity_result = s.get("similarity_result")
+            if isinstance(similarity_result, dict):
+                similarity_result = SimilarityPayload.model_validate(similarity_result)
+            strategy_result = s.get("strategy_result")
+            if isinstance(strategy_result, dict):
+                strategy_result = StrategyPayload.model_validate(strategy_result)
+            kpi_interpretation = s.get("kpi_interpretation")
+            if isinstance(kpi_interpretation, dict):
+                kpi_interpretation = KPIInterpretation.model_validate(kpi_interpretation)
+            output = self._response_formatter_node.run(
+                classification=classification,
+                operational_result=operational_result,
+                similarity_result=similarity_result,
+                strategy_result=strategy_result,
+                kpi_interpretation=kpi_interpretation,
+            )
+            return cast(IncidentGraphState, output.model_dump())
+        return self._traced_node("response_formatter", _run, state)
 
     def _end(self, state: IncidentGraphState) -> IncidentGraphState:
-        response = state.get("final_response")
-        if response is None:
-            raise ValueError("final_response is required for end node")
-        payload = FinalResponsePayload.model_validate(response)
-        return {"final_response": self._end_node.run(payload).model_dump()}
+        def _run(s: IncidentGraphState) -> IncidentGraphState:
+            response = s.get("final_response")
+            if response is None:
+                raise ValueError("final_response is required for end node")
+            payload = FinalResponsePayload.model_validate(response)
+            return {"final_response": self._end_node.run(payload).model_dump()}
+        return self._traced_node("end", _run, state)
 
     def _route_intent(self, state: IncidentGraphState) -> str:
         route = state.get("route")
