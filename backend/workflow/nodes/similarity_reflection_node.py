@@ -59,8 +59,8 @@ Evaluate the draft against these five criteria:
    Is [WHAT TO EXPLORE NEXT] present with BOTH:
    (a) "Questions to ask your team right now" \u2014 2+ bullet questions
        grounded in the retrieved cases, AND
-   (b) "Questions to ask CoSolve" \u2014 3+ icon-prefixed questions
-       (\u2699\ufe0f operational, \U0001f4ca strategic, \U0001f4c8 KPI or \U0001f50d dig deeper)?
+   (b) "Questions to ask CoSolve" — exactly 4 icon-prefixed questions
+       (⚙️ operational, 📊 strategic, 📈 KPI, 🔍 dig deeper)?
    SPECIFIC_MULTI_DOMAIN: both subsections present, questions reference
      actual case details or failure patterns.
    GENERIC: questions present but could apply to any investigation.
@@ -114,8 +114,8 @@ Requirements:
 - [WHAT TO EXPLORE NEXT] must contain BOTH:
     "Questions to ask your team right now" (2 bullet questions grounded
     in the retrieved cases)
-    "Questions to ask CoSolve" (3+ icon-prefixed questions:
-    \u2699\ufe0f operational, \U0001f4ca strategic, \U0001f4c8 KPI or \U0001f50d dig deeper)
+    "Questions to ask CoSolve" (exactly 4 icon-prefixed questions:
+    ⚙️ operational, 📊 strategic, 📈 KPI, 🔍 dig deeper)
 - Target 300\u2013400 words. All five sections required regardless of count.
 - Return plain text only. No JSON. No markdown beyond section labels.
 """

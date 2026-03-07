@@ -205,8 +205,7 @@ class KPIReflectionNode:
                 "banned_terms_found: list any of these that appear in the summary or "
                 "insights: D1, D2, D3, D4, D5, D6, D7, D8, Azure, LangGraph, "
                 "'index', 'node'.\n"
-                "should_regenerate: true only if banned_terms_found is non-empty OR "
-                "completeness_score < 0.5."
+                "should_regenerate: true only if banned_terms_found is non-empty."
             )),
             HumanMessage(content=(
                 f"User question: {question}\n"
