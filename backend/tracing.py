@@ -107,7 +107,7 @@ def flush_langfuse() -> None:
     if not _is_configured():
         return
     try:
-        from langfuse import get_client
-        get_client().flush()
+        from langfuse.decorators import langfuse_context
+        langfuse_context.flush()
     except Exception:
         _logger.debug("Failed to flush Langfuse", exc_info=True)
