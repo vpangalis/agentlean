@@ -104,10 +104,10 @@ def apply_trace_metadata(handler) -> None:
 
 def flush_langfuse() -> None:
     """Flush any pending Langfuse events."""
-    lf = get_langfuse()
-    if lf is None:
+    if not _is_configured():
         return
     try:
-        lf.flush()
+        from langfuse import get_client
+        get_client().flush()
     except Exception:
         _logger.debug("Failed to flush Langfuse", exc_info=True)
