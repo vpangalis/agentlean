@@ -14,17 +14,28 @@ from langchain_openai import AzureChatOpenAI
 load_dotenv(override=True)  # MUST use override=True — project requirement
 
 
-@lru_cache(maxsize=16)
-def get_llm(deployment: str | None = None, temperature: float = 0.2) -> AzureChatOpenAI:
-    """Return a cached AzureChatOpenAI instance per (deployment, temperature) pair.
+class LLMProvider:
+    """Factory for cached AzureChatOpenAI instances."""
 
-    Falls back to AZURE_OPENAI_CHAT_DEPLOYMENT if deployment is None or empty.
-    """
-    return AzureChatOpenAI(
-        azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
-        azure_deployment=deployment or os.environ["AZURE_OPENAI_CHAT_DEPLOYMENT"],
-        api_version=os.environ.get("AZURE_OPENAI_API_VERSION", "2024-10-21"),
-        api_key=os.environ["AZURE_OPENAI_API_KEY"],
-        temperature=temperature,
-        max_retries=3,
-    )
+    @lru_cache(maxsize=16)
+    def get_llm(
+        self, deployment: str | None = None, temperature: float = 0.2
+    ) -> AzureChatOpenAI:
+        """Return a cached AzureChatOpenAI instance per (deployment, temperature) pair."""
+        return AzureChatOpenAI(
+            azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
+            azure_deployment=deployment or os.environ["AZURE_OPENAI_CHAT_DEPLOYMENT"],
+            api_version=os.environ.get("AZURE_OPENAI_API_VERSION", "2024-10-21"),
+            api_key=os.environ["AZURE_OPENAI_API_KEY"],
+            temperature=temperature,
+            max_retries=3,
+        )
+
+
+# ── Module-level singleton and shim (all existing callers unchanged) ──
+
+_provider = LLMProvider()
+
+
+def get_llm(deployment: str | None = None, temperature: float = 0.2) -> AzureChatOpenAI:
+    return _provider.get_llm(deployment=deployment, temperature=temperature)
