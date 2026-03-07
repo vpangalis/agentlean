@@ -200,6 +200,10 @@ class UnifiedIncidentGraph:
         graph.add_edge("response_formatter_node", "end_node")
         self._graph = graph.compile()
 
+        # Ensure Langfuse SDK singleton is alive in this worker process
+        from backend.tracing import get_langfuse
+        self._langfuse = get_langfuse()
+
     def invoke(self, initial_state: IncidentGraphState) -> IncidentGraphState:
         from backend.tracing import flush_langfuse
         result = self._observe_invoke(initial_state)
