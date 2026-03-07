@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable, TypedDict, cast
 
+from langfuse import observe
 from langgraph.graph import StateGraph
 from opentelemetry import trace
 
@@ -196,6 +197,7 @@ class UnifiedIncidentGraph:
         graph.add_edge("response_formatter_node", "end_node")
         self._graph = graph.compile()
 
+    @observe(name="cosolve-agent")
     def invoke(self, initial_state: IncidentGraphState) -> IncidentGraphState:
         import uuid as _uuid_mod
         from backend.tracing import (
