@@ -204,7 +204,7 @@ class UnifiedIncidentGraph:
         import os, sys
         _sk = os.getenv("LANGFUSE_SECRET_KEY", "")
         _pk = os.getenv("LANGFUSE_PUBLIC_KEY", "")
-        print(f"[TRACING] sk_set={bool(_sk)} pk_set={bool(_pk)} sk={_sk[:10] if _sk else 'MISSING'} pk={_pk[:10] if _pk else 'MISSING'}", flush=True)
+        print(f"[TRACING] sk={bool(_sk)} pk={bool(_pk)} sk_prefix={_sk[:10] if _sk else 'MISSING'}", flush=True)
         try:
             from langfuse import Langfuse
             _lf = Langfuse()
