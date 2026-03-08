@@ -1,3 +1,4 @@
+# DEPRECATED: dissolved into backend/tools.py in Phase 4
 from __future__ import annotations
 
 import logging
