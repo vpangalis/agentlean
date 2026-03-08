@@ -1,6 +1,11 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
+import logging
+
+from backend.state import IncidentGraphState
+from backend.llm import get_llm
 from langchain_openai import AzureChatOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage
 from backend.workflow.nodes.base_reflection_node import BaseReflectionNode
 from backend.workflow.nodes.node_parsing_utils import (
     extract_suggestions,
@@ -17,11 +22,132 @@ from backend.workflow.models import (
     ReflectionResult,
 )
 
+_logger = logging.getLogger(__name__)
+_REGENERATION_THRESHOLD: float = 0.65
+_NEW_PROBLEM_NO_CASE_MARKERS = (
+    "[SIMILAR CASES \u2014 CHECK FIRST]",
+    "[IF THIS IS A NEW PROBLEM \u2014 HOW TO START]",
+)
 
+
+def operational_reflection_node(state: IncidentGraphState) -> dict:
+    """Critically assess quality of the operational draft."""
+    draft = state.get("operational_draft") or {}
+    question = state.get("question", "")
+    draft_text = draft.get("current_state_recommendations", "")
+    current_state = draft.get("current_state", "")
+
+    case_loaded = bool(current_state and current_state != "No case loaded")
+
+    # Bypass reflection for new-problem-detection path
+    if _is_new_problem_bypass(question, draft_text, case_loaded):
+        return {
+            "operational_result": {
+                "current_state": current_state,
+                "current_state_recommendations": draft_text,
+                "next_state_preview": draft.get("next_state_preview", ""),
+                "supporting_cases": draft.get("supporting_cases", []),
+                "referenced_evidence": draft.get("referenced_evidence", []),
+                "suggestions": extract_suggestions(draft_text),
+            },
+            "operational_reflection": {
+                "quality_score": 1.0,
+                "needs_escalation": False,
+                "reasoning_feedback": "New problem detection \u2014 reflection bypassed.",
+            },
+            "_last_node": "operational_reflection_node",
+        }
+
+    llm = get_llm("gpt-4o", 0.0)
+    regen_llm = get_llm("gpt-4o", 0.0)
+
+    try:
+        assessment = llm.with_structured_output(OperationalReflectionAssessment).invoke([
+            SystemMessage(content=OPERATIONAL_REFLECTION_SYSTEM_PROMPT),
+            HumanMessage(content=f"question: {question}\n\ndraft_response:\n{draft_text}"),
+        ])
+
+        score = _score(assessment)
+        final_draft = draft_text
+
+        if score < _REGENERATION_THRESHOLD:
+            _logger.info(
+                "operational_reflection_node: score %.3f below threshold %.3f \u2014 triggering regeneration.",
+                score, _REGENERATION_THRESHOLD,
+            )
+            final_draft = regen_llm.invoke([
+                SystemMessage(content=OPERATIONAL_REGENERATION_SYSTEM_PROMPT),
+                HumanMessage(content=f"Question: {question}"),
+            ]).content
+
+        needs_escalation = (
+            assessment.case_grounding == "GENERIC"
+            or assessment.gap_detection == "MISSING"
+            or assessment.next_state_relevance in ("DISCONNECTED", "MISSING")
+            or assessment.general_advice_flagged == "MISSING"
+            or assessment.explore_next_quality in ("MISSING", "INCOMPLETE")
+        )
+        regenerated = final_draft != draft_text
+
+        return {
+            "operational_result": {
+                "current_state": current_state,
+                "current_state_recommendations": final_draft,
+                "next_state_preview": "" if regenerated else draft.get("next_state_preview", ""),
+                "supporting_cases": draft.get("supporting_cases", []),
+                "referenced_evidence": draft.get("referenced_evidence", []),
+                "suggestions": extract_suggestions(final_draft),
+            },
+            "operational_reflection": {
+                "quality_score": score,
+                "needs_escalation": needs_escalation,
+                "reasoning_feedback": (
+                    "; ".join(assessment.issues)
+                    if assessment.issues
+                    else "Operational draft accepted."
+                ),
+            },
+            "_last_node": "operational_reflection_node",
+        }
+
+    except Exception as exc:
+        _logger.exception("operational_reflection_node failed: %s", exc)
+        return {
+            "operational_result": draft,
+            "_last_node": "operational_reflection_node",
+        }
+
+
+# ---------------------------------------------------------------------------
+# Private helpers
+# ---------------------------------------------------------------------------
+
+def _score(assessment: OperationalReflectionAssessment) -> float:
+    g = {"GROUNDED": 1.0, "MIXED": 0.6, "GENERIC": 0.0}.get(assessment.case_grounding, 0.5)
+    d = {"SPECIFIC": 1.0, "VAGUE": 0.5, "MISSING": 0.0}.get(assessment.gap_detection, 0.5)
+    n = {"CONNECTED": 1.0, "DISCONNECTED": 0.3, "MISSING": 0.0}.get(assessment.next_state_relevance, 0.5)
+    a = {"PRESENT_FLAGGED": 1.0, "PRESENT_UNFLAGGED": 0.6, "MISSING": 0.0}.get(assessment.general_advice_flagged, 0.5)
+    e = {"SPECIFIC_MULTI_DOMAIN": 1.0, "GENERIC": 0.5, "INCOMPLETE": 0.3, "MISSING": 0.0}.get(
+        assessment.explore_next_quality, 0.5
+    )
+    return max(0.0, min(1.0, (g + d + n + a + e) / 5.0))
+
+
+def _is_new_problem_bypass(question: str, draft_text: str, case_loaded: bool) -> bool:
+    if case_loaded:
+        return False
+    if is_new_problem_question(question, case_id=""):
+        return True
+    if any(m in draft_text for m in _NEW_PROBLEM_NO_CASE_MARKERS):
+        return True
+    return False
+
+
+# DEPRECATED: replaced by operational_reflection_node() function above — remove in Phase 8
 class OperationalReflectionNode(BaseReflectionNode):
     _NEW_PROBLEM_NO_CASE_MARKERS = (
-        "[SIMILAR CASES — CHECK FIRST]",
-        "[IF THIS IS A NEW PROBLEM — HOW TO START]",
+        "[SIMILAR CASES \u2014 CHECK FIRST]",
+        "[IF THIS IS A NEW PROBLEM \u2014 HOW TO START]",
     )
 
     _REFLECTION_SYSTEM_PROMPT = OPERATIONAL_REFLECTION_SYSTEM_PROMPT
@@ -30,16 +156,11 @@ class OperationalReflectionNode(BaseReflectionNode):
     def _is_new_problem_bypass(
         self, question: str, draft_text: str, case_loaded: bool
     ) -> bool:
-        """Return True when the response used the NEW PROBLEM DETECTION path
-        and reflection should be skipped entirely."""
         if case_loaded:
             return False
         if is_new_problem_question(question, case_id=""):
             return True
-        if any(
-            m in draft_text
-            for m in OperationalReflectionNode._NEW_PROBLEM_NO_CASE_MARKERS
-        ):
+        if any(m in draft_text for m in OperationalReflectionNode._NEW_PROBLEM_NO_CASE_MARKERS):
             return True
         return False
 
@@ -60,29 +181,16 @@ class OperationalReflectionNode(BaseReflectionNode):
         self._current_draft: OperationalPayload | None = None
 
     def _score(self, assessment: OperationalReflectionAssessment) -> float:
-        g = {"GROUNDED": 1.0, "MIXED": 0.6, "GENERIC": 0.0}.get(
-            assessment.case_grounding, 0.5
+        g = {"GROUNDED": 1.0, "MIXED": 0.6, "GENERIC": 0.0}.get(assessment.case_grounding, 0.5)
+        d = {"SPECIFIC": 1.0, "VAGUE": 0.5, "MISSING": 0.0}.get(assessment.gap_detection, 0.5)
+        n = {"CONNECTED": 1.0, "DISCONNECTED": 0.3, "MISSING": 0.0}.get(assessment.next_state_relevance, 0.5)
+        a = {"PRESENT_FLAGGED": 1.0, "PRESENT_UNFLAGGED": 0.6, "MISSING": 0.0}.get(assessment.general_advice_flagged, 0.5)
+        e = {"SPECIFIC_MULTI_DOMAIN": 1.0, "GENERIC": 0.5, "INCOMPLETE": 0.3, "MISSING": 0.0}.get(
+            assessment.explore_next_quality, 0.5
         )
-        d = {"SPECIFIC": 1.0, "VAGUE": 0.5, "MISSING": 0.0}.get(
-            assessment.gap_detection, 0.5
-        )
-        n = {"CONNECTED": 1.0, "DISCONNECTED": 0.3, "MISSING": 0.0}.get(
-            assessment.next_state_relevance, 0.5
-        )
-        a = {"PRESENT_FLAGGED": 1.0, "PRESENT_UNFLAGGED": 0.6, "MISSING": 0.0}.get(
-            assessment.general_advice_flagged, 0.5
-        )
-        e = {
-            "SPECIFIC_MULTI_DOMAIN": 1.0,
-            "GENERIC": 0.5,
-            "INCOMPLETE": 0.3,
-            "MISSING": 0.0,
-        }.get(assessment.explore_next_quality, 0.5)
         return max(0.0, min(1.0, (g + d + n + a + e) / 5.0))
 
-    def _build_output(
-        self, draft_text: str, assessment: OperationalReflectionAssessment
-    ) -> dict:
+    def _build_output(self, draft_text: str, assessment: OperationalReflectionAssessment) -> dict:
         draft = self._current_draft
         needs_escalation = (
             assessment.case_grounding == "GENERIC"
@@ -105,22 +213,14 @@ class OperationalReflectionNode(BaseReflectionNode):
                 quality_score=self._score(assessment),
                 needs_escalation=needs_escalation,
                 reasoning_feedback=(
-                    "; ".join(assessment.issues)
-                    if assessment.issues
-                    else "Operational draft accepted."
+                    "; ".join(assessment.issues) if assessment.issues else "Operational draft accepted."
                 ),
             ),
         ).model_dump()
 
-    def run(
-        self, question: str, draft: OperationalPayload
-    ) -> OperationalReflectionOutput:
-        case_loaded = bool(
-            draft.current_state and draft.current_state != "No case loaded"
-        )
-        if self._is_new_problem_bypass(
-            question, draft.current_state_recommendations, case_loaded
-        ):
+    def run(self, question: str, draft: OperationalPayload) -> OperationalReflectionOutput:
+        case_loaded = bool(draft.current_state and draft.current_state != "No case loaded")
+        if self._is_new_problem_bypass(question, draft.current_state_recommendations, case_loaded):
             return OperationalReflectionOutput(
                 operational_result=OperationalPayload(
                     current_state=draft.current_state,
@@ -128,22 +228,18 @@ class OperationalReflectionNode(BaseReflectionNode):
                     next_state_preview=draft.next_state_preview,
                     supporting_cases=draft.supporting_cases,
                     referenced_evidence=draft.referenced_evidence,
-                    suggestions=extract_suggestions(
-                        draft.current_state_recommendations
-                    ),
+                    suggestions=extract_suggestions(draft.current_state_recommendations),
                 ),
                 operational_reflection=ReflectionResult(
                     quality_score=1.0,
                     needs_escalation=False,
-                    reasoning_feedback="New problem detection — reflection bypassed.",
+                    reasoning_feedback="New problem detection \u2014 reflection bypassed.",
                 ),
             )
         self._current_draft = draft
         try:
             result_dict = super().run(
-                draft_text=draft.current_state_recommendations,
-                question=question,
-                case_id="",
+                draft_text=draft.current_state_recommendations, question=question, case_id="",
             )
             return OperationalReflectionOutput.model_validate(result_dict)
         finally:

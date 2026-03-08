@@ -2,11 +2,80 @@ from __future__ import annotations
 
 from langchain_openai import AzureChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
+from backend.state import IncidentGraphState
+from backend.llm import get_llm
 from backend.workflow.models import IntentNodeOutput
 from backend.workflow.nodes.intent_coercion import _RawClassification, coerce_raw
 from backend.prompts import INTENT_CLASSIFICATION_SYSTEM_PROMPT
 
 
+def intent_classification_node(state: IncidentGraphState) -> dict:
+    """Classify the user's question into an intent and scope."""
+    question = (state.get("question") or "").strip()
+    if not question:
+        raise ValueError("question is required")
+
+    case_id = state.get("case_id")
+    case_loaded = bool(case_id and str(case_id).strip())
+    prev_q_line = "previous_question: (none)\n"
+
+    user_prompt = (
+        "Classify this request and return ONLY this JSON:\n"
+        "{\n"
+        '  "intent": "OPERATIONAL_CASE|SIMILARITY_SEARCH|STRATEGY_ANALYSIS|KPI_ANALYSIS",\n'
+        '  "scope": "LOCAL|COUNTRY|GLOBAL",\n'
+        '  "confidence": 0.0\n'
+        "}\n\n"
+        "=== NODE DEFINITIONS ===\n\n"
+        "OPERATIONAL_CASE \u2014 use when:\n"
+        "  \u2022 A case IS loaded AND the question is about next steps, current status, gaps,\n"
+        "    what to do now, or how complete the investigation is.\n"
+        "  \u2022 A case IS loaded AND the question asks what a procedure, standard,\n"
+        "    regulation, or obligation requires or specifies.\n"
+        "  EXCLUSION: Do NOT classify as OPERATIONAL_CASE if the question is about the\n"
+        "    portfolio as a whole.\n\n"
+        "SIMILARITY_SEARCH \u2014 use when:\n"
+        "  \u2022 The question asks to find, compare, or reference other past or closed cases.\n\n"
+        "STRATEGY_ANALYSIS \u2014 use when:\n"
+        "  \u2022 The question is portfolio-level: patterns, trends, systemic issues.\n"
+        "  \u2022 The question asks to LIST or IDENTIFY specific cases by status, location, country.\n\n"
+        "KPI_ANALYSIS \u2014 use when:\n"
+        "  \u2022 The question is about aggregate metrics, counts, frequencies, timelines.\n\n"
+        "=== TIEBREAKER RULES (apply in order) ===\n"
+        "0. If a case IS loaded AND the question asks what a procedure requires \u2192 OPERATIONAL_CASE.\n"
+        "1. If question explicitly mentions a specific case ID \u2192 OPERATIONAL_CASE.\n"
+        "2. If no case is loaded AND question could be operational \u2192 STRATEGY_ANALYSIS.\n"
+        "3. If previous_question was STRATEGY_ANALYSIS and new question is a follow-up \u2192 STRATEGY_ANALYSIS.\n"
+        "4. Counts/rates/trends \u2192 KPI_ANALYSIS. Listing/identifying cases \u2192 STRATEGY_ANALYSIS.\n"
+        "5. When truly ambiguous \u2192 OPERATIONAL_CASE.\n\n"
+        "=== SCOPE RULES ===\n"
+        "\u2022 LOCAL when local/site-level language appears.\n"
+        "\u2022 COUNTRY when country-level language appears.\n"
+        "\u2022 GLOBAL for cross-country or no geographic qualifier.\n\n"
+        "=== INPUT ===\n"
+        f"case_loaded: {'true' if case_loaded else 'false'}\n"
+        f"{prev_q_line}"
+        f"question: {question}"
+    )
+
+    llm = get_llm("gpt-4o-mini", 0.0)
+    raw = llm.with_structured_output(_RawClassification).invoke([
+        SystemMessage(content=INTENT_CLASSIFICATION_SYSTEM_PROMPT),
+        HumanMessage(content=user_prompt),
+    ])
+    result = coerce_raw(raw)
+
+    return {
+        "classification": {
+            "intent": result.intent,
+            "scope": result.scope,
+            "confidence": result.confidence,
+        },
+        "_last_node": "intent_classification_node",
+    }
+
+
+# DEPRECATED: replaced by intent_classification_node() function above — remove in Phase 8
 class IntentClassificationNode:
     _SYSTEM_PROMPT = INTENT_CLASSIFICATION_SYSTEM_PROMPT
 
@@ -38,17 +107,17 @@ class IntentClassificationNode:
             '  "confidence": 0.0\n'
             "}\n\n"
             "=== NODE DEFINITIONS ===\n\n"
-            "OPERATIONAL_CASE — use when:\n"
-            "  • A case IS loaded AND the question is about next steps, current status, gaps,\n"
+            "OPERATIONAL_CASE \u2014 use when:\n"
+            "  \u2022 A case IS loaded AND the question is about next steps, current status, gaps,\n"
             "    what to do now, or how complete the investigation is.\n"
-            "  • A case IS loaded AND the question asks what a procedure, standard,\n"
-            "    regulation, or obligation requires or specifies — e.g. 'what records\n"
+            "  \u2022 A case IS loaded AND the question asks what a procedure, standard,\n"
+            "    regulation, or obligation requires or specifies \u2014 e.g. 'what records\n"
             "    must be kept', 'what are the notification obligations', 'what does\n"
             "    the standard say', 'how often must X be done', 'what are the\n"
             "    requirements for Y'. These are knowledge-grounded questions best\n"
             "    answered in the context of the loaded case.\n"
             "  EXCLUSION: Do NOT classify as OPERATIONAL_CASE if the question is about the\n"
-            "    portfolio as a whole — asking how many cases exist, which cases are open or\n"
+            "    portfolio as a whole \u2014 asking how many cases exist, which cases are open or\n"
             "    closed, listing cases by status or country, or any question that could be\n"
             "    answered without reference to the currently loaded case. These are\n"
             "    KPI_ANALYSIS or STRATEGY_ANALYSIS questions regardless of whether a case\n"
@@ -57,20 +126,20 @@ class IntentClassificationNode:
             "    actions?', 'What does the team need for root cause analysis?',\n"
             "    'How complete is our problem definition?',\n"
             "    'What is missing from our investigation so far?'\n\n"
-            "SIMILARITY_SEARCH — use when:\n"
-            "  • The question asks to find, compare, or reference other past or closed cases.\n"
-            "  • A case may or may not be loaded.\n"
+            "SIMILARITY_SEARCH \u2014 use when:\n"
+            "  \u2022 The question asks to find, compare, or reference other past or closed cases.\n"
+            "  \u2022 A case may or may not be loaded.\n"
             "  Examples: 'Have we seen this type of failure before?',\n"
             "    'Find similar incidents involving bearing failures',\n"
             "    'Are there cases with the same root cause?',\n"
             "    'What do closed cases tell us about this problem?'\n\n"
-            "STRATEGY_ANALYSIS — use when:\n"
-            "  • The question is portfolio-level: patterns, trends, systemic issues,\n"
+            "STRATEGY_ANALYSIS \u2014 use when:\n"
+            "  \u2022 The question is portfolio-level: patterns, trends, systemic issues,\n"
             "    organisational weaknesses, fleet-wide recurring failures, supplier problems,\n"
             "    or a big-picture view of the entire case history.\n"
-            "  • No single case is the focus — the whole case portfolio is the subject.\n"
-            "  • The question asks to LIST or IDENTIFY specific cases by status, location,\n"
-            "    country, or any other filter — even if phrased as 'show me' or 'give me'.\n"
+            "  \u2022 No single case is the focus \u2014 the whole case portfolio is the subject.\n"
+            "  \u2022 The question asks to LIST or IDENTIFY specific cases by status, location,\n"
+            "    country, or any other filter \u2014 even if phrased as 'show me' or 'give me'.\n"
             "    NOTE: listing/identifying cases routes here, NOT to KPI_ANALYSIS.\n"
             "    KPI_ANALYSIS handles counts and aggregate metrics; STRATEGY_ANALYSIS\n"
             "    handles case identification and enumeration.\n"
@@ -90,10 +159,10 @@ class IntentClassificationNode:
             "    'List open cases by country',\n"
             "    'Which cases are currently open in Greece?',\n"
             "    'Give me the open case IDs for France'\n\n"
-            "KPI_ANALYSIS — use when:\n"
-            "  • The question is about aggregate metrics, counts, frequencies, timelines, or\n"
-            "    performance indicators — answers expressible as a number, rate, or chart.\n"
-            "  • The question asks HOW MANY, WHAT PERCENTAGE, WHAT IS THE RATE/AVERAGE/TREND —\n"
+            "KPI_ANALYSIS \u2014 use when:\n"
+            "  \u2022 The question is about aggregate metrics, counts, frequencies, timelines, or\n"
+            "    performance indicators \u2014 answers expressible as a number, rate, or chart.\n"
+            "  \u2022 The question asks HOW MANY, WHAT PERCENTAGE, WHAT IS THE RATE/AVERAGE/TREND \u2014\n"
             "    not which specific cases or IDs.\n"
             "  Examples: 'How many cases have we opened this year?',\n"
             "    'What is our average resolution time?',\n"
@@ -103,25 +172,25 @@ class IntentClassificationNode:
             "    'How is our overall performance this year?'\n\n"
             "=== TIEBREAKER RULES (apply in order) ===\n"
             "0. If a case IS loaded AND the question asks what a procedure, standard,\n"
-            "   regulation, or obligation requires or specifies → OPERATIONAL_CASE.\n"
+            "   regulation, or obligation requires or specifies \u2192 OPERATIONAL_CASE.\n"
             "   This takes priority over all other tiebreakers.\n"
-            "1. If question explicitly mentions a specific case ID → OPERATIONAL_CASE.\n"
-            "2. If no case is loaded AND question could be operational → STRATEGY_ANALYSIS.\n"
-            "3. If previous_question was STRATEGY_ANALYSIS and new question is a follow-up → STRATEGY_ANALYSIS.\n"
-            "4. TIEBREAKER — KPI_ANALYSIS vs STRATEGY_ANALYSIS: If the question asks for\n"
+            "1. If question explicitly mentions a specific case ID \u2192 OPERATIONAL_CASE.\n"
+            "2. If no case is loaded AND question could be operational \u2192 STRATEGY_ANALYSIS.\n"
+            "3. If previous_question was STRATEGY_ANALYSIS and new question is a follow-up \u2192 STRATEGY_ANALYSIS.\n"
+            "4. TIEBREAKER \u2014 KPI_ANALYSIS vs STRATEGY_ANALYSIS: If the question asks for\n"
             "   aggregate numbers, counts, rates, durations, frequencies, or trends that\n"
             "   could be expressed as a chart or metric, prefer KPI_ANALYSIS. If the\n"
             "   question asks to LIST, IDENTIFY, or ENUMERATE specific cases (by status,\n"
-            "   country, location, or any filter), prefer STRATEGY_ANALYSIS — even if the\n"
+            "   country, location, or any filter), prefer STRATEGY_ANALYSIS \u2014 even if the\n"
             "   word 'open' or a country name appears. Only use STRATEGY_ANALYSIS when the\n"
             "   question seeks narrative insight, case identification, patterns, or\n"
             "   organisational conclusions that cannot be answered with a single number.\n"
-            "5. When truly ambiguous → OPERATIONAL_CASE.\n\n"
+            "5. When truly ambiguous \u2192 OPERATIONAL_CASE.\n\n"
             "=== SCOPE RULES ===\n"
-            "• LOCAL when local/site-level language appears.\n"
-            "• COUNTRY when country-level language appears.\n"
-            "• GLOBAL for cross-country or no geographic qualifier.\n"
-            "  Example: 'by country', 'across countries', or 'grouped by country' without a named country → GLOBAL scope.\n\n"
+            "\u2022 LOCAL when local/site-level language appears.\n"
+            "\u2022 COUNTRY when country-level language appears.\n"
+            "\u2022 GLOBAL for cross-country or no geographic qualifier.\n"
+            "  Example: 'by country', 'across countries', or 'grouped by country' without a named country \u2192 GLOBAL scope.\n\n"
             "=== INPUT ===\n"
             f"case_loaded: {'true' if case_loaded else 'false'}\n"
             f"{prev_q_line}"
