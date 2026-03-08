@@ -1,193 +1,97 @@
-# CLAUDE.md — CoSolve by Valuesims
+# CLAUDE.md — CoSolve Hard Rules for Claude Code
+# Version: 2.0 — 2026-03-08
 
-> Project context for Claude Code. Read this before touching any file.
-
----
-
-## What This Project Is
-
-**CoSolve** is an AI-powered industrial decision support system with the tagline *"Collaborative problem solving, powered by AI."*
-
-It serves railway/tram operations teams analysing maintenance and procurement issues — helping them navigate complex technical problems through structured case management and AI-guided reasoning. The platform combines structured **8D methodology workflows** with intelligent knowledge surfacing from technical documentation (NSK Bearings manuals, Knorr-Bremse Quality Assurance Agreements, SAP procurement processes).
+READ THIS COMPLETELY BEFORE WRITING ANY CODE.
+Every rule is non-negotiable. Violation = reject output, start again.
 
 ---
 
-## Project Structure
+## BEFORE ANY CHANGE
 
-```
-valuesims-decision-support/   ← root (CLAUDE.md lives here)
-├── CLAUDE.md
-├── .env                      ← environment variables (always load with override=True)
-├── .gitignore
-├── .github/
-├── .venv/
-├── .vscode/
-├── ARTIFACTS/                ← build/output artefacts
-├── backend/                  ← FastAPI app, LangGraph nodes, Azure integrations
-├── docs/                     ← project documentation
-├── logs/                     ← runtime logs
-├── scripts/                  ← utility scripts
-├── tests/                    ← test suite
-├── ui/                       ← vanilla JS frontend (three-panel layout)
-├── generate_alignment_report.py
-├── generate_project_docs.py
-├── seed_50_cases.py          ← seeds case data into Azure Blob Storage & AI Search
-├── requirements.txt
-├── pytest.ini
-├── run1_out … run4_out       ← test run output logs
-├── runA_out … runC_out       ← test run output logs
-├── start.bat                 ← Windows start script
-└── start.ps1                 ← PowerShell start script
-```
+1. Read ARCHITECTURE.md
+2. Read REFERENCE.py
+3. Read the file you are about to change
+4. State what you will change and what you will NOT touch
 
 ---
 
-## Tech Stack
+## HARD RULES
 
-| Layer | Technology |
-|---|---|
-| Backend | FastAPI |
-| AI Workflow | LangGraph (multi-node agentic pipeline) |
-| Search | Azure AI Search — 3 indexes: `cases`, `evidence`, `knowledge_documents` |
-| LLM | Azure OpenAI (Foundry deployment keys, **not** general resource keys) |
-| Storage | Azure Blob Storage |
-| Frontend | Vanilla JavaScript (single-page, three-panel layout) |
-| Doc Processing | python-docx, PyPDF2, pypdf, pdfplumber |
+### Nodes
+- Nodes are module-level functions — NEVER classes
+- One node per file. Filename = function name = graph node name
+- Signature: `def node_name(state: IncidentGraphState) -> dict`
+- Return a dict slice — only the keys this node produces
+- NEVER return a Pydantic model from a node
+- NEVER call `.model_dump()` in a node
+- NEVER call `cast()` anywhere
+- NEVER define a prompt string inside a node file — import from prompts.py
+- Reflection nodes follow the exact same pattern — no base class, no inheritance
 
----
+### State
+- ONE state class: `IncidentGraphState` in `backend/state.py`
+- NEVER create a new TypedDict, dataclass, or Pydantic output model for nodes
+- Node outputs are plain dicts stored as state fields
+- State NEVER crosses the wire to the UI
 
-## Architecture Overview
+### LLM
+- NEVER instantiate `AzureChatOpenAI` directly in a node
+- ALWAYS use `get_llm(deployment, temperature)` from `backend/llm.py`
+- Each node declares its own deployment and temperature explicitly
+- See ARCHITECTURE.md LLM selection table
 
-### Three-Panel UI
-- **Left panel** — Documents & Search (accordion: opening one section collapses others)
-- **Centre panel** — CoSolve Case Board (structured case workflows)
-- **Right panel** — AI Reasoning (LangGraph pipeline output with citation chips)
+### Tools
+- ALL retrieval is done through @tool functions in `backend/tools.py`
+- NEVER call CaseSearchClient, EvidenceSearchClient, KnowledgeSearchClient directly from a node
+- NEVER create a new search client class
+- Tool docstrings are mandatory — they are what the LLM reads to decide which tool to use
+- The hybrid search logic from HybridRetriever is KEPT — only the class container is removed
 
-### LangGraph Workflow
-User questions are routed through a classifier to specialised reasoning nodes:
+### Prompts
+- ALL prompts live in `backend/prompts.py` as module-level string constants
+- NEVER define a prompt inline inside a node function
+- Prompt content is NOT changed during refactor — only moved to prompts.py
 
-| Node | Purpose |
-|---|---|
-| `operational` | Day-to-day maintenance questions |
-| `similarity` | Cross-references closed cases for precedents |
-| `strategy` | Portfolio and systemic questions |
-| `KPI` | Metrics and performance queries |
+### API Contract
+- ONLY `CoSolveRequest` and `CoSolveResponse` cross the UI/backend wire
+- `routes.py` is the only place that translates state ↔ envelope
+- NEVER expose IncidentGraphState fields directly in an API response
 
-Each node uses a **three-pass internal sequence**:
-1. Read case history sequentially
-2. Cross-reference closed cases for precedents
-3. Provide structured recommendations with citations
+### Files
+- Do NOT create new files without explicit instruction
+- Do NOT modify files outside the scope of the current phase
+- Files marked STAYS UNTOUCHED in ARCHITECTURE.md are never modified
+- Do NOT delete any code — mark deprecated code with `# DEPRECATED:` comment
 
-**Citation format:** `Per [Document Name]: [relevant point]`
+### Classes
+- Node files: no classes
+- tools.py: no classes — only @tool functions and client singletons
+- Permitted classes: `LLMProvider` in llm.py, Pydantic models in schemas.py,
+  `IncidentGraphState` in state.py
 
-Every AI response ends with **clickable suggestion chips** that guide users between the four reasoning agents.
-
-### Knowledge Document Infrastructure
-- Documents are chunked (~12,000 chars), indexed, and retrieved with proper citation formatting
-- Three-stage PDF extraction fallback: PyPDF2 → pypdf → pdfplumber
-- Scanned/image-only PDFs handled gracefully
-
----
-
-## Current State
-
-- ✅ Knowledge document infrastructure fully operational (chunking, indexing, UI management)
-- ✅ Knowledge retrieval wired into all reasoning nodes (operational, similarity, strategy)
-- ✅ Conversation history, dynamic suggestion generation, structured HTML rendering
-- ✅ Three sample railway/tram industry cases seeded into Azure Blob Storage & AI Search
-- ✅ Left panel accordion behaviour
-- ✅ Clickable file links for knowledge citations → `/knowledge/file/{filename}` endpoint
-- ✅ Operational and similarity nodes: ~15s response time, single LLM call
-- 🔄 Strategy node: pending design decisions (data source selection, retrieval triggers, scope filtering)
-
----
-
-## Commit Workflow — Standard Procedure
-
-Every change follows a two-stage process. **Never skip the audit stage.**
-
-### Stage 1 — Audit (read and report only, no edits)
-1. Read all files relevant to the requested change
-2. Report findings: what exists, what would need to change, and any risks
-3. Wait for explicit user confirmation before making any edits
-
-### Stage 2 — Change (only after user approves)
-1. Make the minimum targeted edits agreed in Stage 1
-2. Remove any diagnostic / debug print statements
-3. Update `docs/architecture.mmd` if new classes, routes, or LangGraph nodes were added/removed
-4. Stage files explicitly by name (never `git add -A`)
-5. Commit with a precise message — **then ask the user before pushing to remote**
-
-Commit message format:
-```
-feat/fix/chore(scope): short summary
-
-- file.py: what changed and why
-- file.js: what changed and why
-
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
-```
-
-> **Push policy:** commit locally after every change; only push to GitHub after user says "push" or "ship it".
+### Minimum Footprint
+- Smallest possible change that solves the problem
+- Audit existing code before writing anything new
 
 ---
 
-## Key Architectural Rules — NO-GO LIST
+## 4 POST-CHANGE CHECKS (run after EVERY change)
 
-> These apply to every prompt and every change. Non-negotiable.
-
-1. **Audit first, change second.** Every prompt must be two-stage: (1) read-and-report only, (2) targeted change with explicit restrictions.
-2. **No standalone / static functions.** All functions must belong to existing classes or closures.
-3. **No deleting tested code.** Major deletions are prohibited. If something must be removed, confirm explicitly first.
-4. **Minimum footprint.** Changes must be as small as possible. Do not refactor working code.
-5. **No 8D methodology jargon** (D1, D2, etc.) in user-facing text. Use plain language only.
-6. **Environment variables** — always use `override=True` in `load_dotenv()`. Windows system variables shadow `.env` values.
-7. **Azure OpenAI** — use Foundry deployment keys, not general resource keys.
+1. `python -m py_compile <modified_file>` — must pass
+2. No new standalone functions outside permitted locations
+3. No new classes outside permitted locations
+4. No import of infra clients directly from a node file
 
 ---
 
-## 4 Post-Change Checks (run after every edit)
+## NO-GO LIST
 
-1. **Does the FastAPI docs interface (`/docs`) still load and accept requests?**
-2. **Does the live UI render without JS console errors?**
-3. **Does the changed node still return properly cited responses?**
-4. **Are all existing suggestion chips still generated and clickable?**
-
----
-
-## Debugging Approach
-
-- Test at every stack layer: FastAPI `/docs` first, then live UI
-- Use browser console tests and defensive coding
-- Fresh DOM queries after dynamic renders
-- Event delegation for dynamically inserted elements
-- Validate fixes methodically before moving on
-
----
-
-## Domain Context
-
-**Key stakeholders:** Railway maintenance teams dealing with:
-- Bearing failures
-- Supplier specification errors
-- Incoming goods inspection issues
-
-**Success criteria:** Surface relevant precedents and technical documentation *before* users need to read lengthy manuals, while providing intelligent conversation flows that guide users toward logical next questions.
-
-**Upcoming knowledge base additions:**
-- NSK Bearings documentation
-- SAP procurement guides
-- 8D corrective action procedures
-
----
-
-## Visual / UX Direction
-
-- Business-like interface with panel differentiation via subtle background tints
-- Improved typography and comprehensive CoSolve branding
-- AI Reasoning panel: document filenames as clickable links
-- No emojis, no consumer-app aesthetics
-
----
-
-*Last updated from conversation memory — March 2026.*
+- `cast()` anywhere in the codebase
+- `.model_dump()` in any node file
+- `__init__` in any node file
+- `from backend.infra.* import` inside a node file
+- `from backend.retrieval.hybrid_retriever import` inside a node file
+- New Pydantic output models for nodes
+- Passing objects through constructors across modules
+- Prompts defined inline inside node functions
+- `AzureChatOpenAI(...)` instantiated directly in a node
