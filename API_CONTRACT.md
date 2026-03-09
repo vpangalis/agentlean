@@ -1,5 +1,6 @@
 # API_CONTRACT.md — CoSolve UI/Backend Envelope
-# Version: 2.0 — 2026-03-08
+# Version: 3.0 — 2026-03-09
+# Changes from v2.0: version bump only, contract unchanged
 
 ---
 
@@ -129,6 +130,6 @@ Backend is responsible for:
 
 ## VERSION CONTROL
 
-Contract version: 2.0
+Contract version: 3.0
 Any change to this contract requires updating BOTH schemas.py AND this document.
 Never change one without the other.

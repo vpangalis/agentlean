@@ -58,8 +58,8 @@ def operational_reflection_node(state: IncidentGraphState) -> dict:
             "_last_node": "operational_reflection_node",
         }
 
-    llm = get_llm("gpt-4o", 0.0)
-    regen_llm = get_llm("gpt-4o", 0.0)
+    llm = get_llm("reasoning", 0.0)
+    regen_llm = get_llm("reasoning", 0.0)
 
     try:
         assessment = llm.with_structured_output(OperationalReflectionAssessment).invoke([

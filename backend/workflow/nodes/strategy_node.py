@@ -37,7 +37,7 @@ def _run_strategy(state: IncidentGraphState, model_name: str | None = None) -> d
     question = state.get("question", "")
     country = _resolve_country(state)
 
-    llm = get_llm(model_name or "gpt-4o", 0.2)
+    llm = get_llm(model_name or "reasoning", 0.2)
 
     # Read escalation state
     strategy_escalated = bool(state.get("strategy_escalated"))

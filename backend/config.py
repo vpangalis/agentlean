@@ -129,6 +129,16 @@ class Settings(BaseSettings):
         env="APPLICATIONINSIGHTS_CONNECTION_STRING",
         description="Azure Monitor Application Insights connection string for distributed tracing.",
     )
+    LLM_INTENT_DEPLOYMENT: str = Field(
+        "intent-model",
+        env="LLM_INTENT_DEPLOYMENT",
+        description="Azure deployment name for fast/cheap intent classification and routing.",
+    )
+    LLM_REASONING_DEPLOYMENT: str = Field(
+        "operational-premium",
+        env="LLM_REASONING_DEPLOYMENT",
+        description="Azure deployment name for powerful analysis, reflection, and formatting.",
+    )
 
     class Config(BaseSettings.Config):
         env_file = ".env"
@@ -180,6 +190,8 @@ settings = Settings(
     APPLICATIONINSIGHTS_CONNECTION_STRING=os.getenv(
         "APPLICATIONINSIGHTS_CONNECTION_STRING"
     ),
+    LLM_INTENT_DEPLOYMENT=os.getenv("LLM_INTENT_DEPLOYMENT", "intent-model"),
+    LLM_REASONING_DEPLOYMENT=os.getenv("LLM_REASONING_DEPLOYMENT", "operational-premium"),
 )
 
 __all__ = ["Settings", "settings"]

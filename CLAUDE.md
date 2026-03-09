@@ -1,5 +1,6 @@
 # CLAUDE.md — CoSolve Hard Rules for Claude Code
-# Version: 2.0 — 2026-03-08
+# Version: 3.0 — 2026-03-09
+# Changes from v2.0: LLM roles replace Azure deployment names in node code
 
 READ THIS COMPLETELY BEFORE WRITING ANY CODE.
 Every rule is non-negotiable. Violation = reject output, start again.
@@ -28,24 +29,24 @@ Every rule is non-negotiable. Violation = reject output, start again.
 - NEVER define a prompt string inside a node file — import from prompts.py
 - Reflection nodes follow the exact same pattern — no base class, no inheritance
 
+### LLM — ROLE NAMES ONLY
+- NEVER pass an Azure deployment name directly to `get_llm()`
+- NEVER write `get_llm("gpt-4o", ...)` or `get_llm("gpt-4o-mini", ...)` or `get_llm("operational-premium", ...)`
+- ALWAYS use a logical role name: `get_llm("intent", ...)` or `get_llm("reasoning", ...)`
+- Role-to-deployment mapping lives ONLY in config.py (`LLM_INTENT_DEPLOYMENT`, `LLM_REASONING_DEPLOYMENT`)
+- Each node declares its own role and temperature explicitly
+
 ### State
-- ONE state class: `IncidentGraphState` in `backend/state.py`
+- ONE state class: `IncidentGraphState` in `backend/state/__init__.py`
 - NEVER create a new TypedDict, dataclass, or Pydantic output model for nodes
 - Node outputs are plain dicts stored as state fields
 - State NEVER crosses the wire to the UI
 
-### LLM
-- NEVER instantiate `AzureChatOpenAI` directly in a node
-- ALWAYS use `get_llm(deployment, temperature)` from `backend/llm.py`
-- Each node declares its own deployment and temperature explicitly
-- See ARCHITECTURE.md LLM selection table
-
 ### Tools
-- ALL retrieval is done through @tool functions in `backend/tools.py`
+- ALL retrieval is done through @tool functions in `backend/tools/__init__.py`
 - NEVER call CaseSearchClient, EvidenceSearchClient, KnowledgeSearchClient directly from a node
 - NEVER create a new search client class
 - Tool docstrings are mandatory — they are what the LLM reads to decide which tool to use
-- The hybrid search logic from HybridRetriever is KEPT — only the class container is removed
 
 ### Prompts
 - ALL prompts live in `backend/prompts.py` as module-level string constants
@@ -65,9 +66,9 @@ Every rule is non-negotiable. Violation = reject output, start again.
 
 ### Classes
 - Node files: no classes
-- tools.py: no classes — only @tool functions and client singletons
+- tools/__init__.py: no classes — only @tool functions and client singletons
 - Permitted classes: `LLMProvider` in llm.py, Pydantic models in schemas.py,
-  `IncidentGraphState` in state.py
+  `IncidentGraphState` in state/__init__.py
 
 ### Minimum Footprint
 - Smallest possible change that solves the problem
@@ -80,7 +81,7 @@ Every rule is non-negotiable. Violation = reject output, start again.
 1. `python -m py_compile <modified_file>` — must pass
 2. No new standalone functions outside permitted locations
 3. No new classes outside permitted locations
-4. No import of infra clients directly from a node file
+4. No Azure deployment name strings in any node file
 
 ---
 
@@ -92,6 +93,6 @@ Every rule is non-negotiable. Violation = reject output, start again.
 - `from backend.infra.* import` inside a node file
 - `from backend.retrieval.hybrid_retriever import` inside a node file
 - New Pydantic output models for nodes
-- Passing objects through constructors across modules
-- Prompts defined inline inside node functions
+- Azure deployment name strings inside node files (e.g. `"gpt-4o"`, `"operational-premium"`)
 - `AzureChatOpenAI(...)` instantiated directly in a node
+- Prompts defined inline inside node functions

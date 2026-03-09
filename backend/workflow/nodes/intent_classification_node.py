@@ -58,7 +58,7 @@ def intent_classification_node(state: IncidentGraphState) -> dict:
         f"question: {question}"
     )
 
-    llm = get_llm("gpt-4o-mini", 0.0)
+    llm = get_llm("intent", 0.0)
     raw = llm.with_structured_output(_RawClassification).invoke([
         SystemMessage(content=INTENT_CLASSIFICATION_SYSTEM_PROMPT),
         HumanMessage(content=user_prompt),

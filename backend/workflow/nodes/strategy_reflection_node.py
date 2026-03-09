@@ -30,7 +30,7 @@ def strategy_reflection_node(state: IncidentGraphState) -> dict:
     cases_summary = json.dumps(supporting_cases, indent=2, default=str)
     knowledge_summary = json.dumps(supporting_knowledge, indent=2, default=str)
 
-    llm = get_llm("gpt-4o", 0.0)
+    llm = get_llm("reasoning", 0.0)
 
     try:
         assessment = llm.with_structured_output(StrategyReflectionAssessment).invoke([

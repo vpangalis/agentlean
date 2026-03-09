@@ -46,7 +46,7 @@ def _run_operational(state: IncidentGraphState, model_name: str | None = None) -
     current_d_state = state.get("current_d_state")
     case_status = state.get("case_status")
 
-    llm = get_llm(model_name or "gpt-4o", 0.2)
+    llm = get_llm(model_name or "reasoning", 0.2)
     op_phase = "root_cause" if case_status == "open" else "general"
 
     knowledge_docs = search_knowledge_base.invoke(

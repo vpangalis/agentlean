@@ -11,7 +11,15 @@ from functools import lru_cache
 from dotenv import load_dotenv
 from langchain_openai import AzureChatOpenAI
 
+from backend.config import settings
+
 load_dotenv(override=True)  # MUST use override=True — project requirement
+
+# Role → Azure deployment name mapping
+_ROLE_MAP: dict[str, str] = {
+    "intent": settings.LLM_INTENT_DEPLOYMENT,
+    "reasoning": settings.LLM_REASONING_DEPLOYMENT,
+}
 
 
 class LLMProvider:
@@ -37,5 +45,21 @@ class LLMProvider:
 _provider = LLMProvider()
 
 
-def get_llm(deployment: str | None = None, temperature: float = 0.2) -> AzureChatOpenAI:
-    return _provider.get_llm(deployment=deployment, temperature=temperature)
+def get_llm(
+    role: str | None = None,
+    temperature: float = 0.2,
+    *,
+    deployment: str | None = None,
+) -> AzureChatOpenAI:
+    """Resolve a logical role name to an Azure deployment and return a cached LLM.
+
+    Roles:
+      "intent"    — fast, cheap model for classification and routing
+      "reasoning" — powerful model for analysis, reflection, formatting
+
+    Falls back to treating the value as a literal deployment name for backwards compat.
+    The ``deployment`` kwarg is kept for backwards compatibility with deprecated code.
+    """
+    name = role or deployment
+    resolved = _ROLE_MAP.get(name, name) if name else None
+    return _provider.get_llm(deployment=resolved, temperature=temperature)

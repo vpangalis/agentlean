@@ -32,7 +32,7 @@ def question_readiness_node(state: IncidentGraphState) -> dict:
         }
 
     # LLM path
-    llm = get_llm("gpt-4o-mini", 0.0)
+    llm = get_llm("intent", 0.0)
     user_prompt = QUESTION_READINESS_USER_PROMPT_TEMPLATE.format(
         case_loaded="false",
         intent=intent,

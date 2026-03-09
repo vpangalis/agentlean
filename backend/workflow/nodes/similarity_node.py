@@ -26,7 +26,7 @@ def similarity_node(state: IncidentGraphState) -> dict:
     case_context = state.get("case_context")
     case_status = state.get("case_status")
 
-    llm = get_llm("gpt-4o", 0.2)
+    llm = get_llm("reasoning", 0.2)
 
     cases = search_similar_cases.invoke(
         {"query": question, "current_case_id": case_id, "country": _resolve_country(state)}
