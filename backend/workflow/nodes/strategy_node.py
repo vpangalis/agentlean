@@ -11,7 +11,7 @@ from langchain_openai import AzureChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from backend.tools import search_cases_for_pattern_analysis, search_knowledge_base
 from backend.workflow.models import StrategyPayload, StrategyNodeOutput
-from backend.workflow.services.knowledge_formatter import knowledge_formatter
+from backend.workflow.services.knowledge_formatter import build_refs_block
 from backend.prompts import (
     STRATEGY_SYSTEM_PROMPT,
     STRATEGY_ESCALATION_SYSTEM_PROMPT,
@@ -113,7 +113,7 @@ def _run_strategy(state: IncidentGraphState, model_name: str | None = None) -> d
     ]).content
     response_text = _ensure_general_advice_prefix(response_text)
     if knowledge_docs:
-        refs = knowledge_formatter.build_refs_block(knowledge_docs)
+        refs = build_refs_block(knowledge_docs)
         knowledge_section = "\n\n[KNOWLEDGE REFERENCES]\n" + refs
         explore_marker = "[WHAT TO EXPLORE NEXT]"
         if explore_marker in response_text:

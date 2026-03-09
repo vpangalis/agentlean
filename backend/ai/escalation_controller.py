@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# DEPRECATED: Logic inlined into backend/workflow/routing.py. Do not use.
+
 
 class EscalationController:
     def should_escalate_operational(self, state: dict) -> bool:

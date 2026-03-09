@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# DEPRECATED: Superseded by per-node get_llm() calls in llm.py. Do not use.
+
 from backend.config import Settings
 
 

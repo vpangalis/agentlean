@@ -14,7 +14,7 @@ from backend.workflow.nodes.node_parsing_utils import (
     extract_similarity_suggestions,
     format_d_states,
 )
-from backend.workflow.services.knowledge_formatter import knowledge_formatter
+from backend.workflow.services.knowledge_formatter import build_refs_block
 from backend.prompts import SIMILARITY_SYSTEM_PROMPT
 
 
@@ -76,7 +76,7 @@ def similarity_node(state: IncidentGraphState) -> dict:
         HumanMessage(content=user_prompt),
     ]).content
     if knowledge_docs:
-        refs = knowledge_formatter.build_refs_block(knowledge_docs)
+        refs = build_refs_block(knowledge_docs)
         knowledge_section = "\n\n[KNOWLEDGE REFERENCES]\n" + refs
         explore_marker = "[WHAT TO EXPLORE NEXT]"
         if explore_marker in response_text:

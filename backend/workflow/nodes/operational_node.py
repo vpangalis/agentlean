@@ -24,7 +24,7 @@ from backend.workflow.nodes.node_parsing_utils import (
     is_new_problem_question,
     normalize_d_states,
 )
-from backend.workflow.services.knowledge_formatter import knowledge_formatter
+from backend.workflow.services.knowledge_formatter import build_refs_block
 from backend.prompts import (
     OPERATIONAL_NEW_PROBLEM_SYSTEM_PROMPT,
     OPERATIONAL_SYSTEM_PROMPT,
@@ -192,7 +192,7 @@ def _to_dict(obj: Any) -> dict:
 
 def _inject_knowledge_refs(response_text: str, knowledge_docs: list) -> str:
     """Insert [KNOWLEDGE REFERENCES] block before [WHAT TO EXPLORE NEXT] if present."""
-    refs = knowledge_formatter.build_refs_block(knowledge_docs)
+    refs = build_refs_block(knowledge_docs)
     knowledge_section = "\n\n[KNOWLEDGE REFERENCES]\n" + refs
     explore_marker = "[WHAT TO EXPLORE NEXT]"
     if explore_marker in response_text:
