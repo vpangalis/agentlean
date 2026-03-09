@@ -7,10 +7,10 @@ Write-Host "Activating virtual environment..." -ForegroundColor Cyan
 Write-Host "Checking for existing process on port 8010..." -ForegroundColor Cyan
 $existing = Get-NetTCPConnection -LocalPort 8010 -ErrorAction SilentlyContinue
 if ($existing) {
-    $pids = $existing | Select-Object -ExpandProperty OwningProcess -Unique
-    foreach ($pid in $pids) {
-        Write-Host "Killing stale process PID $pid on port 8010..." -ForegroundColor Yellow
-        Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+    $procIds = $existing | Select-Object -ExpandProperty OwningProcess -Unique
+    foreach ($procId in $procIds) {
+        Write-Host "Killing stale process PID $procId on port 8010..." -ForegroundColor Yellow
+        Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
     }
     Start-Sleep -Seconds 2
     Write-Host "Port 8010 cleared." -ForegroundColor Green
