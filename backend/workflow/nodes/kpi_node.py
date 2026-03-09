@@ -5,44 +5,21 @@ from typing import Literal, Optional
 from backend.state import IncidentGraphState
 from backend.config import Settings
 from backend.infra.case_search_client import CaseSearchClient
-from backend.infra.evidence_search_client import EvidenceSearchClient
-from backend.infra.knowledge_search_client import KnowledgeSearchClient
-from backend.infra.embeddings import EmbeddingClient
-from backend.infra.blob_storage import BlobStorageClient, CaseReadRepository
-from backend.retrieval.hybrid_retriever import HybridRetriever
+from backend.infra.blob_storage import CaseReadRepository
 from backend.tools.kpi_tool import KPITool
 from backend.workflow.models import KPINodeOutput, KPIResult
 
 _settings = Settings()
-_retriever = HybridRetriever(
-    case_search_client=CaseSearchClient(
-        endpoint=_settings.AZURE_SEARCH_ENDPOINT,
-        index_name=_settings.CASE_INDEX_NAME,
-        admin_key=_settings.AZURE_SEARCH_ADMIN_KEY,
-    ),
-    evidence_search_client=EvidenceSearchClient(
-        endpoint=_settings.AZURE_SEARCH_ENDPOINT,
-        index_name=_settings.EVIDENCE_INDEX_NAME,
-        admin_key=_settings.AZURE_SEARCH_ADMIN_KEY,
-    ),
-    knowledge_search_client=KnowledgeSearchClient(
-        endpoint=_settings.AZURE_SEARCH_ENDPOINT,
-        index_name=_settings.KNOWLEDGE_INDEX_NAME,
-        admin_key=_settings.AZURE_SEARCH_ADMIN_KEY,
-    ),
-    embedding_client=EmbeddingClient(),
-    settings=_settings,
-)
-_blob_client = BlobStorageClient(
-    _settings.AZURE_STORAGE_CONNECTION_STRING,
-    _settings.AZURE_STORAGE_CONTAINER,
-)
 _case_repo = CaseReadRepository(
     _settings.AZURE_STORAGE_CONNECTION_STRING,
     _settings.AZURE_STORAGE_CONTAINER,
 )
 _kpi_tool = KPITool(
-    hybrid_retriever=_retriever,
+    case_search_client=CaseSearchClient(
+        endpoint=_settings.AZURE_SEARCH_ENDPOINT,
+        index_name=_settings.CASE_INDEX_NAME,
+        admin_key=_settings.AZURE_SEARCH_ADMIN_KEY,
+    ),
     settings=_settings,
     case_repo=_case_repo,
 )
