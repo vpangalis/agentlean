@@ -129,7 +129,7 @@ class BackendContainer:
             case_ingestion=self.case_ingestion,
             knowledge_ingestion=self.knowledge_ingestion,
             unified_graph=compiled_graph,
-            llm_client=get_llm(temperature=0.4),
+            llm_client=get_llm("intent", temperature=0.4),
         )
 
     def _validate_search_indexes_exist(self) -> None:
