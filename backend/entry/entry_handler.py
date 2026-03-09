@@ -17,10 +17,7 @@ from backend.ingestion.case_ingestion import CaseEntryService, CaseIngestionServ
 from backend.utils.text import normalize_action
 from backend.ingestion.evidence_ingestion import EvidenceIngestionService
 from backend.ingestion.knowledge_ingestion import KnowledgeIngestionService
-from backend.workflow.unified_incident_graph import (
-    IncidentGraphState,
-    UnifiedIncidentGraph,
-)
+from backend.state import IncidentGraphState
 
 
 class SuggestionItem(BaseModel):
@@ -65,7 +62,7 @@ class EntryHandler:
         evidence_ingestion: EvidenceIngestionService,
         case_ingestion: CaseIngestionService,
         knowledge_ingestion: KnowledgeIngestionService,
-        unified_graph: UnifiedIncidentGraph,
+        unified_graph: Any,
         llm_client: AzureChatOpenAI | None = None,
     ) -> None:
         self._case_entry = case_entry

@@ -9,10 +9,3 @@ def end_node(state: IncidentGraphState) -> dict:
     return {"_last_node": "end_node"}
 
 
-# DEPRECATED: replaced by end_node() function above — remove in Phase 8
-class EndNode:
-    def run(self, final_response: FinalResponsePayload) -> FinalResponsePayload:
-        return final_response
-
-
-__all__ = ["EndNode"]

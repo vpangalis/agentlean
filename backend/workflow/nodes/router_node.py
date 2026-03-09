@@ -11,10 +11,3 @@ def router_node(state: IncidentGraphState) -> dict:
     return {"route": route, "_last_node": "router_node"}
 
 
-# DEPRECATED: replaced by router_node() function above — remove in Phase 8
-class RouterNode:
-    def run(self, classification: IntentClassificationResult) -> RouterNodeOutput:
-        return RouterNodeOutput(route=classification.intent)
-
-
-__all__ = ["RouterNode"]
