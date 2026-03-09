@@ -13,7 +13,6 @@ from backend.tools import (
     search_knowledge_base,
     search_similar_cases,
 )
-from backend.retrieval.hybrid_retriever import HybridRetriever
 from backend.workflow.models import (
     OperationalPayload,
     OperationalNodeOutput,
@@ -184,9 +183,11 @@ def _to_dict(obj: Any) -> dict:
     """Convert a Pydantic model or dict to a plain dict."""
     if isinstance(obj, dict):
         return obj
-    if hasattr(obj, "model_dump"):
-        return obj.model_dump(mode="json")
-    return dict(obj)
+    # Use __iter__ for Pydantic v2 models (iterates field_name, value pairs)
+    try:
+        return dict(obj)
+    except Exception:
+        return vars(obj)
 
 
 def _inject_knowledge_refs(response_text: str, knowledge_docs: list) -> str:

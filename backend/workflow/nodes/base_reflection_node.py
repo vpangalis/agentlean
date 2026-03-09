@@ -13,6 +13,8 @@ __all__ = ["BaseReflectionNode"]
 _logger = logging.getLogger(__name__)
 
 
+# DEPRECATED: BaseReflectionNode violates CLAUDE.md (class in node file).
+# This class is unused — reflection nodes implement logic directly.
 class BaseReflectionNode:
     """Shared scaffolding for all reflection nodes.
 

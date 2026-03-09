@@ -6,7 +6,6 @@ from backend.state import IncidentGraphState
 from backend.llm import get_llm
 from langchain_openai import AzureChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
-from backend.workflow.nodes.base_reflection_node import BaseReflectionNode
 from backend.workflow.nodes.node_parsing_utils import (
     extract_suggestions,
     is_new_problem_question,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Literal, Optional
 
 from backend.state import IncidentGraphState
@@ -9,20 +10,20 @@ from backend.infra.blob_storage import CaseReadRepository
 from backend.tools.kpi_tool import KPITool
 from backend.workflow.models import KPINodeOutput, KPIResult
 
-_settings = Settings()
-_case_repo = CaseReadRepository(
-    _settings.AZURE_STORAGE_CONNECTION_STRING,
-    _settings.AZURE_STORAGE_CONTAINER,
-)
-_kpi_tool = KPITool(
-    case_search_client=CaseSearchClient(
-        endpoint=_settings.AZURE_SEARCH_ENDPOINT,
-        index_name=_settings.CASE_INDEX_NAME,
-        admin_key=_settings.AZURE_SEARCH_ADMIN_KEY,
-    ),
-    settings=_settings,
-    case_repo=_case_repo,
-)
+
+@lru_cache(maxsize=1)
+def _get_kpi_tool() -> KPITool:
+    s = Settings()
+    repo = CaseReadRepository(
+        s.AZURE_STORAGE_CONNECTION_STRING,
+        s.AZURE_STORAGE_CONTAINER,
+    )
+    client = CaseSearchClient(
+        endpoint=s.AZURE_SEARCH_ENDPOINT,
+        index_name=s.CASE_INDEX_NAME,
+        admin_key=s.AZURE_SEARCH_ADMIN_KEY,
+    )
+    return KPITool(case_search_client=client, settings=s, case_repo=repo)
 
 
 def kpi_node(state: IncidentGraphState) -> dict:
@@ -39,13 +40,13 @@ def kpi_node(state: IncidentGraphState) -> dict:
 
     scope = _resolve_scope(classification_scope, case_id)
 
-    kpi_result: KPIResult = _kpi_tool.get_kpis(
+    kpi_result: KPIResult = _get_kpi_tool().get_kpis(
         scope=scope,
         country=country,
         case_id=case_id if scope == "case" else None,
     )
     return {
-        "kpi_metrics": kpi_result.model_dump(mode="json"),
+        "kpi_metrics": _kpi_result_to_dict(kpi_result),
         "_last_node": "kpi_node",
     }
 
@@ -53,6 +54,11 @@ def kpi_node(state: IncidentGraphState) -> dict:
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
+
+def _kpi_result_to_dict(result) -> dict:
+    """Convert KPIResult to plain dict for state storage."""
+    return result.model_dump(mode="json")
+
 
 def _resolve_scope(
     classification_scope: str,
@@ -90,5 +96,3 @@ def _extract_country_from_question(question: str) -> Optional[str]:
     if not trailing:
         return None
     return trailing.split()[0].strip(",.;")
-
-
