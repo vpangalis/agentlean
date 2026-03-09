@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import logging
 
-from langchain_openai import AzureChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from backend.state import IncidentGraphState
 from backend.llm import get_llm
-from backend.workflow.models import QuestionReadinessNodeOutput, QuestionReadinessResult
+from backend.workflow.models import QuestionReadinessResult
 from backend.prompts import QUESTION_READINESS_SYSTEM_PROMPT, QUESTION_READINESS_USER_PROMPT_TEMPLATE
 
 _logger = logging.getLogger(__name__)

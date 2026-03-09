@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from backend.state import IncidentGraphState
-from backend.workflow.models import IntentClassificationResult, RouterNodeOutput
 
 
 def router_node(state: IncidentGraphState) -> dict:

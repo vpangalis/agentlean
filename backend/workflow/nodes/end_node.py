@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from backend.state import IncidentGraphState
-from backend.workflow.models import FinalResponsePayload
 
 
 def end_node(state: IncidentGraphState) -> dict:

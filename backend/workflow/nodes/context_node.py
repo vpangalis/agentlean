@@ -1,20 +1,23 @@
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Any
 
 from backend.state import IncidentGraphState
 from backend.config import Settings
 from backend.infra.blob_storage import BlobStorageClient, CaseRepository
 from backend.ingestion.case_ingestion import CaseEntryService
-from backend.workflow.models import ContextNodeOutput
 
-_settings = Settings()
-_blob_client = BlobStorageClient(
-    _settings.AZURE_STORAGE_CONNECTION_STRING,
-    _settings.AZURE_STORAGE_CONTAINER,
-)
-_case_repository = CaseRepository(_blob_client)
-_case_entry_service = CaseEntryService(_case_repository)
+
+@lru_cache(maxsize=1)
+def _get_case_entry_service() -> CaseEntryService:
+    s = Settings()
+    blob = BlobStorageClient(
+        s.AZURE_STORAGE_CONNECTION_STRING,
+        s.AZURE_STORAGE_CONTAINER,
+    )
+    repo = CaseRepository(blob)
+    return CaseEntryService(repo)
 
 
 def context_node(state: IncidentGraphState) -> dict:
@@ -28,7 +31,7 @@ def context_node(state: IncidentGraphState) -> dict:
         }
 
     try:
-        case_doc = _case_entry_service.get_case(case_id)
+        case_doc = _get_case_entry_service().get_case(case_id)
     except FileNotFoundError:
         return {
             "case_context": None,
