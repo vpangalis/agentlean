@@ -37,7 +37,6 @@ from backend.ingestion.knowledge_ingestion import (
     KnowledgeIngestionService,
     KnowledgeSearchIndex,
 )
-from backend.retrieval.hybrid_retriever import HybridRetriever
 from backend.tools.kpi_tool import KPITool
 
 
@@ -101,17 +100,8 @@ class BackendContainer:
             index_name=settings.KNOWLEDGE_INDEX_NAME,
             admin_key=settings.AZURE_SEARCH_ADMIN_KEY,
         )
-        # DEPRECATED: HybridRetriever kept only for KPITool until KPITool is refactored
-        self.hybrid_retriever = HybridRetriever(
-            case_search_client=self.case_search_client,
-            evidence_search_client=self.evidence_search_client,
-            knowledge_search_client=self.knowledge_search_client,
-            embedding_client=self.embedding_client,
-            settings=settings,
-        )
-
         self.kpi_tool = KPITool(
-            hybrid_retriever=self.hybrid_retriever,
+            case_search_client=self.case_search_client,
             settings=settings,
             case_repo=self.case_read_repository,
         )

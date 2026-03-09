@@ -17,7 +17,7 @@ from typing import Any, List, Literal, Optional
 
 from backend.config import Settings
 from backend.infra.blob_storage import CaseReadRepository
-from backend.retrieval.hybrid_retriever import HybridRetriever
+from backend.infra.case_search_client import CaseSearchClient
 from backend.retrieval.models import CaseSummary
 from backend.workflow.models import KPIResult
 
@@ -75,13 +75,74 @@ class KPITool:
 
     def __init__(
         self,
-        hybrid_retriever: HybridRetriever,
+        case_search_client: CaseSearchClient,
         settings: Settings,
         case_repo: Optional[CaseReadRepository] = None,
     ) -> None:
-        self._hybrid_retriever = hybrid_retriever
+        self._case_client = case_search_client
         self._settings = settings
         self._case_repo = case_repo
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Inline retrieval helpers (moved from HybridRetriever)
+    # ──────────────────────────────────────────────────────────────────────
+
+    def _retrieve_cases_for_kpi(self, country: Optional[str]) -> list[CaseSummary]:
+        effective_top_k = self._settings.RETRIEVAL_KPI_CASES_TOP_K
+        filters = ["status eq 'closed'"]
+        if country:
+            safe_country = country.replace("'", "''")
+            filters.append(f"organization_country eq '{safe_country}'")
+        filter_expression = " and ".join(filters)
+        raw_results = self._case_client.filtered_search(
+            filter_expression=filter_expression,
+            top_k=effective_top_k,
+        )
+        return [self._map_case_summary(item) for item in raw_results if item.get("case_id")]
+
+    def _retrieve_active_cases_for_kpi(self, country: Optional[str], top_k: int = 200) -> list[CaseSummary]:
+        filters = ["status ne 'closed'"]
+        if country:
+            safe_country = country.replace("'", "''")
+            filters.append(f"organization_country eq '{safe_country}'")
+        filter_expression = " and ".join(filters)
+        raw_results = self._case_client.filtered_search(
+            filter_expression=filter_expression,
+            top_k=top_k,
+        )
+        return [self._map_case_summary(item) for item in raw_results if item.get("case_id")]
+
+    def _retrieve_case_by_id(self, case_id: str) -> Optional[CaseSummary]:
+        safe_id = case_id.replace("'", "''")
+        raw_results = self._case_client.filtered_search(
+            filter_expression=f"case_id eq '{safe_id}'",
+            top_k=1,
+        )
+        if not raw_results:
+            return None
+        return self._map_case_summary(raw_results[0])
+
+    def _map_case_summary(self, item: dict) -> CaseSummary:
+        """Map a raw search document to a CaseSummary, including the new
+        KPI-relevant fields (current_stage, responsible_leader, department)."""
+        team_members: list = item.get("team_members") or []
+        responsible_leader: Optional[str] = team_members[0] if team_members else None
+        return CaseSummary(
+            case_id=str(item.get("case_id")),
+            organization_country=item.get("organization_country"),
+            organization_site=item.get("organization_site"),
+            opening_date=item.get("opening_date"),
+            closure_date=item.get("closure_date"),
+            problem_description=item.get("problem_description"),
+            five_whys_text=item.get("five_whys_text"),
+            permanent_actions_text=item.get("permanent_actions_text"),
+            ai_summary=item.get("ai_summary"),
+            status=item.get("status"),
+            current_stage=item.get("current_stage"),
+            responsible_leader=responsible_leader,
+            department=item.get("organization_unit"),
+            discipline_completed=item.get("discipline_completed"),
+        )
 
     # ──────────────────────────────────────────────────────────────────────
     # Public API
@@ -121,8 +182,8 @@ class KPITool:
     # ──────────────────────────────────────────────────────────────────────
 
     def _global_scope(self, year: int) -> KPIResult:
-        closed = self._hybrid_retriever.retrieve_cases_for_kpi(country=None)
-        active = self._hybrid_retriever.retrieve_active_cases_for_kpi(country=None)
+        closed = self._retrieve_cases_for_kpi(country=None)
+        active = self._retrieve_active_cases_for_kpi(country=None)
         now = self._utc_now()
         ytd_start = datetime(year, 1, 1, tzinfo=timezone.utc)
         rolling_start = now - timedelta(days=365)
@@ -173,9 +234,9 @@ class KPITool:
         if not country:
             return self._global_scope(year=year)
 
-        closed = self._hybrid_retriever.retrieve_cases_for_kpi(country=country)
-        active = self._hybrid_retriever.retrieve_active_cases_for_kpi(country=country)
-        global_closed = self._hybrid_retriever.retrieve_cases_for_kpi(country=None)
+        closed = self._retrieve_cases_for_kpi(country=country)
+        active = self._retrieve_active_cases_for_kpi(country=country)
+        global_closed = self._retrieve_cases_for_kpi(country=None)
         ytd_start = datetime(year, 1, 1, tzinfo=timezone.utc)
 
         closed_ytd = [c for c in closed if self._opened_after(c, ytd_start)]
@@ -222,7 +283,7 @@ class KPITool:
         if not case_id:
             return self._global_scope(year=year)
 
-        case = self._hybrid_retriever.retrieve_case_by_id(case_id)
+        case = self._retrieve_case_by_id(case_id)
         if case is None:
             return KPIResult(
                 scope="case",
@@ -245,7 +306,7 @@ class KPITool:
         else:
             days_elapsed = (now - opening).days if opening else None
 
-        similar = self._hybrid_retriever.retrieve_cases_for_kpi(country=None)
+        similar = self._retrieve_cases_for_kpi(country=None)
         benchmark = self._avg_duration(similar)
         plain_stage = self._translate_stage(case.current_stage)
 
