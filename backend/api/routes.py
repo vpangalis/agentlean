@@ -15,6 +15,8 @@ router = APIRouter()
 @router.post("/ask", response_model=CoSolveResponse)
 def ask(request: CoSolveRequest) -> CoSolveResponse:
     """Accept CoSolveRequest, run graph, return CoSolveResponse."""
+    if not request.question or not request.question.strip():
+        raise HTTPException(status_code=422, detail="question must be non-empty")
     state: IncidentGraphState = {
         "question": request.question,
         "case_id": request.case_id,
@@ -37,6 +39,14 @@ def _build_response(state: IncidentGraphState) -> CoSolveResponse:
 
     if intent == "OPERATIONAL_CASE":
         answer = str(result.get("current_state_recommendations", ""))
+    elif intent == "KPI_ANALYSIS":
+        summary = str(result.get("summary", ""))
+        insights = result.get("insights") or []
+        if insights:
+            bullets = "\n".join(f"• {i}" for i in insights)
+            answer = f"{summary}\n\n{bullets}" if summary else bullets
+        else:
+            answer = summary
     else:
         answer = str(result.get("summary", ""))
 
@@ -52,20 +62,26 @@ def _build_response(state: IncidentGraphState) -> CoSolveResponse:
     raw_suggestions = result.get("suggestions") or []
     ask_team: list[str] = []
     ask_cosolve: list[str] = []
-    for sg in raw_suggestions:
-        if isinstance(sg, dict):
-            q = sg.get("question", "")
-            if not q:
-                continue
-            if sg.get("type") == "team":
-                ask_team.append(q)
-            else:
-                ask_cosolve.append(q)
+
+    if intent == "KPI_ANALYSIS":
+        # KPI suggestions are plain strings — all go to ask_cosolve chips
+        for sg in raw_suggestions:
+            if isinstance(sg, str) and sg.strip():
+                ask_cosolve.append(sg.strip())
+    else:
+        for sg in raw_suggestions:
+            if isinstance(sg, dict):
+                q = sg.get("question", "")
+                if not q:
+                    continue
+                if sg.get("type") == "team":
+                    ask_team.append(q)
+                else:
+                    ask_cosolve.append(q)
 
     suggested_questions = (
         SuggestedQuestions(ask_your_team=ask_team, ask_cosolve=ask_cosolve)
-        if (ask_team or ask_cosolve)
-        else None
+        if (ask_team or ask_cosolve) else None
     )
 
     return CoSolveResponse(
