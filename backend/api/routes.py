@@ -21,7 +21,7 @@ from backend.infra.blob_storage import BlobStorageClient, CaseRepository
 from backend.infra.case_search_client import CaseSearchClient
 from backend.infra.knowledge_search_client import KnowledgeSearchClient
 from backend.tools.kpi_tool import KPITool
-from backend.workflow.nodes.kpi_reflection_node import KPIReflectionNode
+from backend.workflow.nodes.kpi_reflection_node import kpi_reflection_node as _kpi_reflection_fn
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,6 @@ class ApiRoutes:
         knowledge_search_client: KnowledgeSearchClient,
         blob_client: BlobStorageClient,
         kpi_tool: KPITool,
-        kpi_reflection_node: KPIReflectionNode,
     ) -> None:
         self._entry_handler = entry_handler
         self._case_repository = case_repository
@@ -73,7 +72,6 @@ class ApiRoutes:
         self._knowledge_search_client = knowledge_search_client
         self._blob_client = blob_client
         self._kpi_tool = kpi_tool
-        self._kpi_reflection_node = kpi_reflection_node
         self._allowed_case_actions = {
             "CREATE_CASE",
             "UPDATE_CASE",
@@ -229,13 +227,11 @@ class ApiRoutes:
             question = "Provide a current global fleet performance overview."
 
         try:
-            reflection = self._kpi_reflection_node.run(
-                question=question,
-                metrics=kpi_result,
-            )
+            _result = _kpi_reflection_fn({"question": question, "kpi_metrics": kpi_result.model_dump(mode="json")})
+            _interp = _result.get("kpi_interpretation", {})
             return {
-                "summary": reflection.kpi_interpretation.summary,
-                "insights": reflection.kpi_interpretation.insights,
+                "summary": _interp.get("summary"),
+                "insights": _interp.get("insights", []),
             }
         except Exception:
             logger.exception("[KPI] Reflection node failed")

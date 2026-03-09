@@ -39,7 +39,6 @@ from backend.ingestion.knowledge_ingestion import (
 )
 from backend.retrieval.hybrid_retriever import HybridRetriever
 from backend.tools.kpi_tool import KPITool
-from backend.workflow.nodes.kpi_reflection_node import KPIReflectionNode
 
 
 class BackendContainer:
@@ -116,13 +115,6 @@ class BackendContainer:
             settings=settings,
             case_repo=self.case_read_repository,
         )
-        self.kpi_reflection_llm = get_llm(deployment=settings.LLM_MODEL_KPI_REFLECTION, temperature=0.1)
-        # DEPRECATED: KPIReflectionNode class kept only for /cases/kpi/assessment route
-        self.kpi_reflection_node = KPIReflectionNode(
-            llm_client=self.kpi_reflection_llm,
-            regeneration_llm_client=self.kpi_reflection_llm,
-        )
-
         self.entry_handler = EntryHandler(
             case_entry=self.case_entry,
             evidence_ingestion=self.evidence_ingestion,
@@ -183,7 +175,6 @@ class BackendApp:
             knowledge_search_client=container.knowledge_search_client,
             blob_client=container.blob_client,
             kpi_tool=container.kpi_tool,
-            kpi_reflection_node=container.kpi_reflection_node,
         )
         app.include_router(routes.router())
 
