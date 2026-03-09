@@ -9,9 +9,9 @@ $dirty = git status --porcelain
 if ($dirty) {
     Write-Host "WARNING: uncommitted local changes detected:" -ForegroundColor Yellow
     Write-Host $dirty -ForegroundColor Yellow
-    Write-Host "Resetting backend/ to origin state..." -ForegroundColor Yellow
+    Write-Host "Fetching and hard-resetting to origin/architecture-refactor..." -ForegroundColor Yellow
     git fetch origin architecture-refactor
-    git checkout origin/architecture-refactor -- backend/
+    git reset --hard origin/architecture-refactor
 } else {
     git pull origin architecture-refactor
 }
