@@ -32,6 +32,8 @@ def _get_knowledge_vectorstore() -> AzureSearch:
         azure_search_key=s.AZURE_SEARCH_ADMIN_KEY,
         index_name=s.KNOWLEDGE_INDEX_NAME,
         embedding_function=get_embeddings().embed_query,
+        content_key="content_text",
+        vector_field_name="embedding",
     )
 
 
