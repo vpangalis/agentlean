@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.config import settings
 from backend.api import routes
 from backend.api.support_routes import build_support_router
-from backend.entry.entry_handler import EntryHandler
+from backend.entry_handler import EntryHandler
 from backend.graph import compiled_graph
 from backend.infra.blob_storage import BlobStorageClient, CaseRepository, CaseReadRepository
 from backend.infra.embeddings import EmbeddingClient

@@ -13,7 +13,7 @@ from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import SearchIndex
 
-from backend.state.incident_state import (
+from backend.infra.incident_models import (
     IncidentFactory,
     LegacyCaseModel,
     IncidentStateAdapter,

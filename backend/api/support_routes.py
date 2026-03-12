@@ -13,7 +13,7 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
 
 from backend.api.schemas import CaseSearchRequest, SuggestionsRequest
-from backend.entry.entry_handler import EntryEnvelope
+from backend.entry_handler import EntryEnvelope
 from backend.utils.text import normalize_action
 from backend.workflow.nodes.kpi_reflection_node import kpi_reflection_node as _kpi_reflection_fn
 

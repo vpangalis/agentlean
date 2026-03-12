@@ -21,6 +21,7 @@ backend/
     graph.py                    ← compiles and wires the graph, nothing else
     tracing.py                  ← LangSmith config placeholder
     config.py                   ← settings
+    entry_handler.py            ← EntryHandler — case entry orchestration
     app.py                      ← FastAPI app, startup, shutdown
     api/
         schemas.py              ← CoSolveRequest, CoSolveResponse, Source, SuggestedQuestions
@@ -49,6 +50,7 @@ backend/
         model_policy.py         ← DEPRECATED model selection (retained for reference)
     infra/
         models.py               ← CaseSummary, KnowledgeSummary, EvidenceSummary
+        incident_models.py      ← case document Pydantic models (IncidentState, IncidentFactory, etc.)
         embeddings.py           ← embedding model singleton
         blob_storage.py         ← unchanged
         case_search_client.py   ← Azure case search client
