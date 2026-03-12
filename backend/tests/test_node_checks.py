@@ -37,9 +37,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
-from backend.infra.models import CaseSummary, EvidenceSummary, KnowledgeSummary
-from backend.tools import KPITool
-from backend.workflow.models import (
+from backend.knowledge.models import CaseSummary, EvidenceSummary, KnowledgeSummary
+from backend.knowledge.tools import KPITool
+from backend.core.models import (
     KPINodeOutput,
     KPIResult,
     OperationalPayload,
@@ -51,12 +51,12 @@ from backend.workflow.models import (
     StrategyPayload,
     StrategyNodeOutput,
 )
-from backend.workflow.nodes.kpi_node import KPINode
-from backend.workflow.nodes.node_parsing_utils import is_new_problem_question
-from backend.workflow.nodes.operational_node import OperationalNode
-from backend.workflow.nodes.question_readiness_node import QuestionReadinessNode
-from backend.workflow.nodes.similarity_node import SimilarityNode
-from backend.workflow.nodes.strategy_node import StrategyNode
+from backend.reasoning.nodes.kpi_node import KPINode
+from backend.reasoning.nodes.node_parsing_utils import is_new_problem_question
+from backend.reasoning.nodes.operational_node import OperationalNode
+from backend.reasoning.nodes.question_readiness_node import QuestionReadinessNode
+from backend.reasoning.nodes.similarity_node import SimilarityNode
+from backend.reasoning.nodes.strategy_node import StrategyNode
 
 __all__ = [
     "NodeCheckConfig",
@@ -544,12 +544,12 @@ root causes compared to internally-caused cases, across the full portfolio?
         so the suite never crashes in LIVE_MODE=False.
         """
         try:
-            from backend.config import settings as _settings
-            from backend.llm import get_llm
-            from backend.infra.embeddings import EmbeddingClient
-            from backend.infra.case_search_client import CaseSearchClient
-            from backend.infra.evidence_search_client import EvidenceSearchClient
-            from backend.infra.knowledge_search_client import KnowledgeSearchClient
+            from backend.core.config import settings as _settings
+            from backend.core.llm import get_llm
+            from backend.knowledge.embeddings import EmbeddingClient
+            from backend.knowledge.case_search_client import CaseSearchClient
+            from backend.knowledge.evidence_search_client import EvidenceSearchClient
+            from backend.knowledge.knowledge_search_client import KnowledgeSearchClient
 
             llm_client = get_llm()
             embedding_client = EmbeddingClient(settings_module=_settings)

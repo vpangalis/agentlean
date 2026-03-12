@@ -12,21 +12,21 @@ from azure.search.documents.indexes import SearchIndexClient
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.config import settings
-from backend.api import routes
-from backend.api.support_routes import build_support_router
-from backend.entry_handler import EntryHandler
-from backend.graph import compiled_graph
-from backend.infra.blob_storage import BlobStorageClient, CaseRepository, CaseReadRepository
-from backend.infra.embeddings import EmbeddingClient
-from backend.infra.case_search_client import CaseSearchClient
-from backend.infra.evidence_search_client import EvidenceSearchClient
-from backend.llm import get_llm
-from backend.infra.knowledge_search_client import KnowledgeSearchClient
-from backend.ingestion.case_ingestion import CaseEntryService, CaseIngestionService, CaseSearchIndex
-from backend.ingestion.evidence_ingestion import EvidenceIngestionService, EvidenceSearchIndex
-from backend.ingestion.knowledge_ingestion import KnowledgeIngestionService, KnowledgeSearchIndex
-from backend.tools import KPITool
+from backend.core.config import settings
+from backend.gateway.api import routes
+from backend.gateway.api.support_routes import build_support_router
+from backend.gateway.entry_handler import EntryHandler
+from backend.core.graph import compiled_graph
+from backend.storage.blob_storage import BlobStorageClient, CaseRepository, CaseReadRepository
+from backend.knowledge.embeddings import EmbeddingClient
+from backend.knowledge.case_search_client import CaseSearchClient
+from backend.knowledge.evidence_search_client import EvidenceSearchClient
+from backend.core.llm import get_llm
+from backend.knowledge.knowledge_search_client import KnowledgeSearchClient
+from backend.storage.ingestion.case_ingestion import CaseEntryService, CaseIngestionService, CaseSearchIndex
+from backend.storage.ingestion.evidence_ingestion import EvidenceIngestionService, EvidenceSearchIndex
+from backend.storage.ingestion.knowledge_ingestion import KnowledgeIngestionService, KnowledgeSearchIndex
+from backend.knowledge.tools import KPITool
 
 logger = logging.getLogger(__name__)
 

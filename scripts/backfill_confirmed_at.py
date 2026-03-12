@@ -30,8 +30,8 @@ if _PROJECT_ROOT not in sys.path:
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
-from backend.config import settings
-from backend.infra.blob_storage import BlobStorageClient, CaseRepository
+from backend.core.config import settings
+from backend.storage.blob_storage import BlobStorageClient, CaseRepository
 
 logging.basicConfig(
     level=logging.INFO,

@@ -15,24 +15,24 @@ Violation of any rule = reject the output and start again.
 - Never return a Pydantic model from a node. Never call `.model_dump()` in a node. Never call `cast()` in a node
 
 ### State
-- There is **exactly one state class**: `IncidentGraphState` in `backend/state.py`
+- There is **exactly one state class**: `IncidentGraphState` in `backend/core/state.py`
 - Never create a new TypedDict or dataclass for state
 - Never create a Pydantic output model for a node — collapse it into state fields instead
 - State never crosses the wire to the UI — it is internal to the graph
 
 ### LLM
 - Never instantiate `AzureChatOpenAI` directly in a node
-- Always use `get_llm(deployment, temperature)` from `backend/llm.py`
+- Always use `get_llm(deployment, temperature)` from `backend/core/llm.py`
 - Each node declares its own deployment and temperature explicitly
 
 ### Tools
-- Search indexes are exposed as `@tool` decorated functions in `backend/tools.py`
+- Search indexes are exposed as `@tool` decorated functions in `backend/knowledge/tools.py`
 - Never create a custom search client class
 - Never call Azure Search SDK directly from a node — always go through a tool
 - Tool docstrings are mandatory — they are what the LLM reads to decide which tool to use
 
 ### API Contract
-- The only objects that cross the UI/backend wire are `CoSolveRequest` and `CoSolveResponse` in `backend/api/schemas.py`
+- The only objects that cross the UI/backend wire are `CoSolveRequest` and `CoSolveResponse` in `backend/gateway/api/schemas.py`
 - `routes.py` is the only place where state is converted to/from the envelope
 - Never expose `IncidentGraphState` fields directly in an API response
 
@@ -44,7 +44,7 @@ Violation of any rule = reject the output and start again.
 ### Classes
 - Node files contain no classes
 - `tools.py` contains no classes — only `@tool` functions and retriever singletons
-- The only permitted classes are: `LLMProvider` in `llm.py`, `LangfuseTracer` in `tracing.py` (if re-enabled), Pydantic models in `schemas.py`, and `IncidentGraphState` in `state.py`
+- The only permitted classes are: `LLMProvider` in `core/llm.py`, `LangfuseTracer` in `core/tracing.py` (if re-enabled), Pydantic models in `gateway/api/schemas.py`, and `IncidentGraphState` in `core/state.py`
 
 ### Minimum Footprint
 - Make the smallest possible change that solves the problem
@@ -57,10 +57,28 @@ Violation of any rule = reject the output and start again.
 
 ---
 
+## Domain Architecture (added Session D)
+
+backend/ is organised into 5 domains: core/, gateway/, storage/, knowledge/, reasoning/
+
+Import rule:
+- A domain may import from: core/, its own domain, utils/
+- A domain may NOT import from another domain's internal files
+- Cross-domain imports are only permitted via the importing module's explicit
+  import (no __init__.py re-export required — just import the specific file)
+
+Permitted class locations (updated):
+- LLMProvider class: core/llm.py only
+- LangfuseTracer class: core/tracing.py only
+- IncidentGraphState TypedDict: core/state.py only
+- Shared Pydantic models: core/models.py (cross-domain) or domain/models.py (domain-only)
+- API contract Pydantic models: gateway/api/schemas.py only
+
+---
+
 ## REFERENCE FILES — READ BEFORE CODING
 
 - `ARCHITECTURE.md` — structural decisions and rationale
-- `REFERENCE.py` — canonical code patterns to follow exactly
 - `API_CONTRACT.md` — UI/backend envelope definition
 
 ---
@@ -73,4 +91,4 @@ Violation of any rule = reject the output and start again.
 - Direct Azure Search SDK calls in nodes
 - New Pydantic output models for nodes
 - Passing objects through node constructors
-- Module-level singletons outside `llm.py` and `tools.py`
+- Module-level singletons outside `core/llm.py` and `knowledge/tools.py`

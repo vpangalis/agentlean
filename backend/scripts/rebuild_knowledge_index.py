@@ -46,7 +46,7 @@ from azure.search.documents.indexes.models import (
     VectorSearchProfile,
 )
 
-from backend.config import settings
+from backend.core.config import settings
 
 logging.basicConfig(
     level=logging.INFO,

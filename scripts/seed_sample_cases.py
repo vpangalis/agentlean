@@ -20,14 +20,14 @@ if _PROJECT_ROOT not in sys.path:
 
 load_dotenv(override=True)
 
-from backend.config import settings
-from backend.infra.blob_storage import (
+from backend.core.config import settings
+from backend.storage.blob_storage import (
     BlobStorageClient,
     CaseRepository,
     CaseReadRepository,
 )
-from backend.infra.embeddings import EmbeddingClient
-from backend.ingestion.case_ingestion import CaseIngestionService, CaseSearchIndex
+from backend.knowledge.embeddings import EmbeddingClient
+from backend.storage.ingestion.case_ingestion import CaseIngestionService, CaseSearchIndex
 
 logging.basicConfig(
     level=logging.INFO,

@@ -39,10 +39,10 @@ from azure.search.documents.indexes.models import (
     VectorSearchProfile,
 )
 
-from backend.config import settings
-from backend.infra.blob_storage import CaseReadRepository
-from backend.infra.embeddings import EmbeddingClient
-from backend.ingestion.case_ingestion import CaseIngestionService, CaseSearchIndex
+from backend.core.config import settings
+from backend.storage.blob_storage import CaseReadRepository
+from backend.knowledge.embeddings import EmbeddingClient
+from backend.storage.ingestion.case_ingestion import CaseIngestionService, CaseSearchIndex
 
 logging.basicConfig(
     level=logging.INFO,

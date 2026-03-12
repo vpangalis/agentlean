@@ -29,7 +29,7 @@ load_dotenv(override=True)
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
 
-from backend.config import settings
+from backend.core.config import settings
 
 logging.basicConfig(
     level=logging.INFO,

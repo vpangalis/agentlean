@@ -14,23 +14,54 @@ Do not fight the framework — use it.
 
 ```
 backend/
-    state.py                    ← ONE file, ONE TypedDict: IncidentGraphState
-    prompts.py                  ← ALL prompts in one place, as constants
-    tools.py                    ← ALL @tool functions, retriever singletons
-    llm.py                      ← get_llm() factory with lru_cache
-    graph.py                    ← compiles and wires the graph, nothing else
-    tracing.py                  ← LangSmith config placeholder
-    config.py                   ← settings
-    entry_handler.py            ← thin dispatcher — Pydantic envelopes and EntryHandler orchestrator
-    case_manager.py             ← case lifecycle functions (create, update, close, reindex)
-    content_ingestion.py        ← evidence and knowledge upload functions
-    reasoning_handler.py        ← AI graph invocation and clarifying question handling
-    suggestion_engine.py        ← LLM-based suggestion generation
     app.py                      ← FastAPI app, startup, shutdown
-    api/
-        schemas.py              ← CoSolveRequest, CoSolveResponse, Source, SuggestedQuestions
-        routes.py               ← /ask endpoint ONLY, envelope translation
-    workflow/
+
+    core/
+        state.py                ← ONE file, ONE TypedDict: IncidentGraphState
+        prompts.py              ← ALL prompts in one place, as constants
+        llm.py                  ← get_llm() factory with lru_cache
+        graph.py                ← compiles and wires the graph, nothing else
+        tracing.py              ← LangSmith config placeholder
+        config.py               ← settings
+        models.py               ← shared cross-domain Pydantic models
+                                  (IntentClassificationResult, KPIResult,
+                                   QuestionReadinessResult, ScopeContext)
+
+    gateway/
+        entry_handler.py        ← thin dispatcher — Pydantic envelopes and EntryHandler orchestrator
+        case_manager.py         ← case lifecycle functions (create, update, close, reindex)
+        content_ingestion.py    ← evidence and knowledge upload functions
+        reasoning_handler.py    ← AI graph invocation and clarifying question handling
+        suggestion_engine.py    ← LLM-based suggestion generation
+        api/
+            schemas.py          ← CoSolveRequest, CoSolveResponse, Source, SuggestedQuestions
+            routes.py           ← /ask endpoint ONLY, envelope translation
+            support_routes.py   ← case, knowledge, KPI, suggestions endpoints
+
+    storage/
+        blob_storage.py         ← Azure Blob Storage client
+        incident_models.py      ← case document Pydantic models (IncidentState, IncidentFactory, etc.)
+        ingestion/
+            case_ingestion.py
+            evidence_ingestion.py
+            knowledge_ingestion.py
+
+    knowledge/
+        tools.py                ← ALL @tool functions, retriever singletons
+        models.py               ← CaseSummary, EvidenceSummary, KnowledgeSummary
+        embeddings.py           ← embedding model singleton
+        case_search_client.py   ← Azure case search client
+        evidence_search_client.py ← Azure evidence search client
+        knowledge_search_client.py ← Azure knowledge search client
+
+    reasoning/
+        models.py               ← reflection assessment Pydantic models
+                                  (OperationalReflectionAssessment,
+                                   SimilarityReflectionAssessment,
+                                   StrategyReflectionAssessment)
+        routing.py              ← ALL conditional edge functions
+        escalation_controller.py ← DEPRECATED escalation logic (retained for reference)
+        model_policy.py         ← DEPRECATED model selection (retained for reference)
         nodes/
             similarity_node.py
             similarity_reflection_node.py
@@ -49,20 +80,14 @@ backend/
             start_node.py
             response_formatter_node.py
             end_node.py
-        routing.py              ← ALL conditional edge functions
-        escalation_controller.py ← DEPRECATED escalation logic (retained for reference)
-        model_policy.py         ← DEPRECATED model selection (retained for reference)
-    infra/
-        models.py               ← CaseSummary, KnowledgeSummary, EvidenceSummary
-        incident_models.py      ← case document Pydantic models (IncidentState, IncidentFactory, etc.)
-        embeddings.py           ← embedding model singleton
-        blob_storage.py         ← unchanged
-        case_search_client.py   ← Azure case search client
-        evidence_search_client.py ← Azure evidence search client
-        knowledge_search_client.py ← Azure knowledge search client
-    ingestion/                  ← unchanged entirely
+        services/
+            knowledge_formatter.py
+
     utils/
-        text.py                 ← unchanged
+        text.py                 ← normalize_action + decode_base64 utilities
+
+    tests/
+        test_node_checks.py
 ```
 
 ---
@@ -72,7 +97,7 @@ backend/
 One state class. One file. All graph fields live here.
 
 ```python
-# backend/state.py
+# backend/core/state.py
 class IncidentGraphState(TypedDict, total=False):
     # Request fields — set at entry from CoSolveRequest
     case_id: str | None
@@ -149,7 +174,7 @@ def search_similar_cases(query: str) -> list[dict]:
     return case_retriever.get_relevant_documents(query)
 ```
 
-Tools live in `backend/tools.py`. Retrievers are module-level singletons.
+Tools live in `backend/knowledge/tools.py`. Retrievers are module-level singletons.
 Nodes import the tools they need — never the retriever directly.
 
 ---
@@ -170,14 +195,14 @@ Each node declares its own LLM. This is intentional and explicit.
 
 ## Graph
 
-`graph.py` does one thing: compile the graph.
+`core/graph.py` does one thing: compile the graph.
 No business logic. No LLM calls. No instantiation of anything except the graph builder.
 
 ```python
-# graph.py
+# core/graph.py
 from langgraph.graph import StateGraph
-from backend.state import IncidentGraphState
-from backend.workflow.nodes.similarity_node import similarity_node
+from backend.core.state import IncidentGraphState
+from backend.reasoning.nodes.similarity_node import similarity_node
 # ... all node imports
 
 def build_graph():
@@ -194,7 +219,7 @@ compiled_graph = build_graph()
 
 ## API Contract
 
-`routes.py` is the only place where the envelope meets the graph.
+`gateway/api/routes.py` is the only place where the envelope meets the graph.
 It does three things only:
 
 1. Validate incoming `CoSolveRequest`
@@ -212,7 +237,7 @@ Nothing from `CoSolveRequest` enters the graph directly.
 At startup per worker:
 - `compiled_graph` — one instance, shared
 - `get_llm()` instances — one per (deployment, temperature) pair, cached
-- Retriever instances — one per index, module-level singletons in `tools.py`
+- Retriever instances — one per index, module-level singletons in `knowledge/tools.py`
 
 Per request:
 - `IncidentGraphState` — one dict, lives for duration of graph invocation, then GC'd
@@ -221,11 +246,6 @@ Per request:
 
 ## What Does NOT Change
 
-- `backend/infra/blob_storage.py` — untouched
-- `backend/infra/embeddings.py` — untouched
-- `backend/ingestion/` — untouched entirely
-- `backend/utils/text.py` — normalize_action + decode_base64 utilities
-- `backend/config.py` — untouched
 - Azure indexes — untouched
 - UI — untouched
 - Graph topology — edges, conditional edges, routing logic all stay identical
