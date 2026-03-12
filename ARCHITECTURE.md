@@ -21,7 +21,11 @@ backend/
     graph.py                    ← compiles and wires the graph, nothing else
     tracing.py                  ← LangSmith config placeholder
     config.py                   ← settings
-    entry_handler.py            ← EntryHandler — case entry orchestration
+    entry_handler.py            ← thin dispatcher — Pydantic envelopes and EntryHandler orchestrator
+    case_manager.py             ← case lifecycle functions (create, update, close, reindex)
+    content_ingestion.py        ← evidence and knowledge upload functions
+    reasoning_handler.py        ← AI graph invocation and clarifying question handling
+    suggestion_engine.py        ← LLM-based suggestion generation
     app.py                      ← FastAPI app, startup, shutdown
     api/
         schemas.py              ← CoSolveRequest, CoSolveResponse, Source, SuggestedQuestions
@@ -220,7 +224,7 @@ Per request:
 - `backend/infra/blob_storage.py` — untouched
 - `backend/infra/embeddings.py` — untouched
 - `backend/ingestion/` — untouched entirely
-- `backend/utils/text.py` — untouched
+- `backend/utils/text.py` — normalize_action + decode_base64 utilities
 - `backend/config.py` — untouched
 - Azure indexes — untouched
 - UI — untouched
