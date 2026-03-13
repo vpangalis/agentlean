@@ -87,7 +87,10 @@ def _run_operational(state: IncidentGraphState, model_name: str | None = None) -
         supporting_cases = search_similar_cases.invoke(
             {"query": question, "current_case_id": case_id, "country": _extract_country(case_context)}
         )
-        referenced_evidence = search_evidence.invoke({"case_id": case_id})
+        referenced_evidence = search_evidence.invoke({
+            "query": state.get("question", ""),
+            "case_id": case_id,
+        })
         user_prompt = (
             f"CLOSED CASE: {case_id}\n"
             f"USER QUESTION: {question}\n"
@@ -126,7 +129,10 @@ def _run_operational(state: IncidentGraphState, model_name: str | None = None) -
     supporting_cases = search_similar_cases.invoke(
         {"query": question, "current_case_id": case_id, "country": country}
     )
-    referenced_evidence = search_evidence.invoke({"case_id": case_id})
+    referenced_evidence = search_evidence.invoke({
+        "query": state.get("question", ""),
+        "case_id": case_id,
+    })
 
     formatted_d_states = format_d_states(case_context)
     formatted_supporting_cases = json.dumps(
