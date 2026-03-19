@@ -1789,34 +1789,44 @@ document.addEventListener("DOMContentLoaded", () => {
           const otherLines = lines.filter(l => !l.startsWith('KNOWLEDGEREF|'));
 
           if (refLines.length > 0) {
-            innerHtml += '<ul class="knowledge-refs-list" style="list-style:none;padding:0;margin:0;">';
+            // Group refs by filename
+            const grouped = {};
             refLines.forEach(line => {
-              const parts = line.split('|');
-              // parts: [0]=KNOWLEDGEREF [1]=filename [2]=section [3]=page [4+]=excerpt
-              const filename = parts[1] || '';
-              const section = parts[2] || '';
-              const page = parts[3] || '';
-              const scorePct = (parts[5] && parts[5].match(/^\d+%$/)) ? parts[5] : '';
-              const excerpt = parts[4] || '';
+              const p = line.split('|');
+              const filename = p[1] || '';
+              if (!grouped[filename]) grouped[filename] = [];
+              grouped[filename].push({
+                section: p[2] || '',
+                page: p[3] || '',
+                excerpt: p[4] || '',
+                score: (p[5] && p[5].match(/^\d+%$/)) ? p[5] : ''
+              });
+            });
 
-              let meta = '';
-              if (section) meta += ` | \u00a7${section}`;
-              if (page) meta += ` (p.${page})`;
-
+            innerHtml += '<ul class="knowledge-refs-list" style="list-style:none;padding:0;margin:0;">';
+            Object.entries(grouped).forEach(([filename, refs]) => {
               innerHtml +=
-                '<li style="margin-bottom:12px;">' +
+                '<li style="margin-bottom:16px;">' +
                 `<a href="${API_BASE}/knowledge/file/${encodeURIComponent(filename)}" ` +
                 `target="_blank" rel="noopener noreferrer" class="knowledge-file-link" ` +
                 `data-filename="${filename}" style="font-weight:600;">` +
-                `${filename}</a>` +
-                `<span style="color:#666;">${meta}</span>` +
-                (excerpt
-                  ? `<div class="knowledge-excerpt" style="margin-top:4px;font-style:italic;` +
-                  `color:#444;font-size:0.9em;">"${excerpt}"` +
-                  (scorePct ? `<span class="kb-score-badge">${scorePct}</span>` : '') +
-                  `</div>`
-                  : '') +
-                '</li>';
+                `\uD83D\uDCC4 ${filename}</a>` +
+                '<ul style="list-style:none;padding-left:16px;margin:6px 0 0 0;">';
+              refs.forEach(ref => {
+                let meta = ref.section ? `<span style="font-weight:500;">${ref.section}</span>` : '';
+                if (ref.page) meta += ` (p.${ref.page})`;
+                innerHtml +=
+                  '<li style="margin-bottom:8px;font-size:0.92em;">' +
+                  (meta ? `${meta} — ` : '') +
+                  (ref.excerpt
+                    ? `<span style="font-style:italic;color:#444;">"${ref.excerpt}"</span>`
+                    : '') +
+                  (ref.score
+                    ? `<span class="kb-score-badge" style="margin-left:6px;">${ref.score}</span>`
+                    : '') +
+                  '</li>';
+              });
+              innerHtml += '</ul></li>';
             });
             innerHtml += '</ul>';
           } else {
