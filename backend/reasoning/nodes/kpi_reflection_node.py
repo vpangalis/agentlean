@@ -65,7 +65,7 @@ def kpi_reflection_node(state: IncidentGraphState) -> dict:
     metrics = KPIResult.model_validate(kpi_metrics_raw)
 
     llm = get_llm("reasoning", 0.0)
-    regen_llm = get_llm("reasoning", 0.0)
+    regen_llm = get_llm("reasoning", 0.2)
 
     # Step 1: Generate LLM interpretation
     interpretation = _generate_interpretation(llm, question, metrics)
