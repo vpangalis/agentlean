@@ -25,7 +25,7 @@ def operational_reflection_node(state: IncidentGraphState) -> dict:
     current_state = draft.get("current_state", "")
 
     llm = get_llm("reasoning", 0.0)
-    regen_llm = get_llm("reasoning", 0.0)
+    regen_llm = get_llm("reasoning", 0.2)
 
     try:
         assessment = llm.with_structured_output(OperationalReflectionAssessment).invoke([
