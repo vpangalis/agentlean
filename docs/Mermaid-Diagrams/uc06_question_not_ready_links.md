@@ -2,6 +2,7 @@
 
 Companion to [uc06_question_not_ready.mmd](./uc06_question_not_ready.mmd).
 The **#** column matches the Mermaid `autonumber` arrow number shown in the diagram exactly.
+See UC06b for the scenario where a case ID is detected in the question.
 
 ---
 
@@ -53,7 +54,7 @@ The **#** column matches the Mermaid `autonumber` arrow number shown in the diag
 | # | What | Link |
 |---|------|------|
 | 9 | context_node(state) L23 — case_id is None, skip blob | [context_node.py:23](../../backend/reasoning/nodes/context_node.py#L23) |
-| 10 | Returns: case_context=None immediately L27 | [context_node.py:27](../../backend/reasoning/nodes/context_node.py#L27) |
+| 10 | Scan question for TRM-XXXXXXXX-XXXX — not found → case_id_in_question=False L35 | [context_node.py:32](../../backend/reasoning/nodes/context_node.py#L32) |
 
 ---
 
@@ -70,8 +71,8 @@ The **#** column matches the Mermaid `autonumber` arrow number shown in the diag
 
 | # | What | Link |
 |---|------|------|
-| 13 | question_readiness_node(state) L18 — OPERATIONAL not in _ALWAYS_READY_INTENTS, case_loaded=False | [question_readiness_node.py:18](../../backend/reasoning/nodes/question_readiness_node.py#L18) |
-| 14 | LLM call — returns question_ready=False, clarifying_question | [question_readiness_node.py:38](../../backend/reasoning/nodes/question_readiness_node.py#L38) |
+| 13 | question_readiness_node(state) L18 — case_id_in_question=False, skips intercept | [question_readiness_node.py:18](../../backend/reasoning/nodes/question_readiness_node.py#L18) |
+| 14 | LLM: OPERATIONAL not in ALWAYS_READY, case_loaded=False, not HOW-TO → ready=False | [question_readiness_node.py:38](../../backend/reasoning/nodes/question_readiness_node.py#L38) |
 
 ---
 
@@ -80,7 +81,7 @@ The **#** column matches the Mermaid `autonumber` arrow number shown in the diag
 | # | What | Link |
 |---|------|------|
 | 15 | route_question_readiness(state) L15 — not question_ready L16 | [routing.py:15](../../backend/reasoning/routing.py#L15) |
-| 16 | NOT_READY — skips router_node + all domain nodes, goes to response_formatter | [routing.py:20](../../backend/reasoning/routing.py#L20) |
+| 16 | NOT_READY — skips router_node + all domain nodes → response_formatter | [routing.py:20](../../backend/reasoning/routing.py#L20) |
 
 ---
 
@@ -106,7 +107,7 @@ The **#** column matches the Mermaid `autonumber` arrow number shown in the diag
 | # | What | Link |
 |---|------|------|
 | 20 | question_ready==False L77 — build_clarifying_question_response(envelope, cq) L80 | [reasoning_handler.py:77](../../backend/gateway/reasoning_handler.py#L77) |
-| 21 | EntryResponseEnvelope status=ok L134 — summary=clarifying_question | [reasoning_handler.py:114](../../backend/gateway/reasoning_handler.py#L114) |
+| 21 | EntryResponseEnvelope status=ok L134 | [reasoning_handler.py:114](../../backend/gateway/reasoning_handler.py#L114) |
 
 ---
 

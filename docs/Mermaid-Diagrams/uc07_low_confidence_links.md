@@ -39,46 +39,55 @@ The **#** column matches the Mermaid `autonumber` arrow number shown in the diag
 
 ---
 
-## Arrows 7–10 — graph.py → intent_classification_node.py → Azure OpenAI
+## Arrows 7–8 — graph.py → context_node.py
 
 | # | What | Link |
 |---|------|------|
-| 7 | intent_classification_node(state) L11 | [intent_classification_node.py:11](../../backend/reasoning/nodes/intent_classification_node.py#L11) |
-| 8 | llm.with_structured_output(_RawClassification).invoke() | [intent_classification_node.py:11](../../backend/reasoning/nodes/intent_classification_node.py#L11) |
-| 9 | LLM returns intent, confidence=0.25 | [intent_classification_node.py:11](../../backend/reasoning/nodes/intent_classification_node.py#L11) |
-| 10 | coerce_raw() — classification_low_confidence=True set in state | [intent_coercion.py:78](../../backend/reasoning/nodes/intent_coercion.py#L78) |
+| 7 | context_node(state) L23 — case_id is None, skip blob | [context_node.py:23](../../backend/reasoning/nodes/context_node.py#L23) |
+| 8 | Scan question for TRM-XXXXXXXX-XXXX — not found → case_id_in_question=False L35 | [context_node.py:32](../../backend/reasoning/nodes/context_node.py#L32) |
 
 ---
 
-## Arrows 11–12 — graph continues → response_formatter_node.py
+## Arrows 9–12 — graph.py → intent_classification_node.py → Azure OpenAI
 
 | # | What | Link |
 |---|------|------|
-| 11 | Graph continues: question_readiness → router → domain node → response_formatter_node | [graph.py:65](../../backend/core/graph.py#L65) |
-| 12 | response_formatter_node returns final_response | [response_formatter_node.py:9](../../backend/reasoning/nodes/response_formatter_node.py#L9) |
+| 9 | intent_classification_node(state) L11 | [intent_classification_node.py:11](../../backend/reasoning/nodes/intent_classification_node.py#L11) |
+| 10 | llm.with_structured_output(_RawClassification).invoke() | [intent_classification_node.py:11](../../backend/reasoning/nodes/intent_classification_node.py#L11) |
+| 11 | LLM returns intent, confidence=0.25 | [intent_classification_node.py:11](../../backend/reasoning/nodes/intent_classification_node.py#L11) |
+| 12 | coerce_raw() — classification_low_confidence=True set in state | [intent_coercion.py:78](../../backend/reasoning/nodes/intent_coercion.py#L78) |
 
 ---
 
-## Arrow 13 — graph.py → reasoning_handler.py
+## Arrows 13–14 — graph continues → response_formatter_node.py
 
 | # | What | Link |
 |---|------|------|
-| 13 | graph.invoke() returns graph_result | [reasoning_handler.py:66](../../backend/gateway/reasoning_handler.py#L66) |
+| 13 | Graph continues: question_readiness → router → domain node → response_formatter | [graph.py:65](../../backend/core/graph.py#L65) |
+| 14 | response_formatter_node returns final_response | [response_formatter_node.py:9](../../backend/reasoning/nodes/response_formatter_node.py#L9) |
 
 ---
 
-## Arrows 14–15 — reasoning_handler.py (low confidence path)
+## Arrow 15 — graph.py → reasoning_handler.py
 
 | # | What | Link |
 |---|------|------|
-| 14 | classification_low_confidence==True L71 — build_clarifying_response(envelope) L75 | [reasoning_handler.py:71](../../backend/gateway/reasoning_handler.py#L71) |
-| 15 | EntryResponseEnvelope status=accepted — summary=_CLARIFYING_TEXT, suggestions=_CLARIFYING_SUGGESTIONS | [reasoning_handler.py:90](../../backend/gateway/reasoning_handler.py#L90) |
+| 15 | graph.invoke() returns graph_result | [reasoning_handler.py:66](../../backend/gateway/reasoning_handler.py#L66) |
 
 ---
 
-## Arrows 16–17 — support_routes.py → cosolve-ui.js
+## Arrows 16–17 — reasoning_handler.py (low confidence path)
 
 | # | What | Link |
 |---|------|------|
-| 16 | FastAPI auto-serializes to JSON — returned to browser | [support_routes.py:111](../../backend/gateway/api/support_routes.py#L111) |
-| 17 | fetch() resolves — UI displays clarifying message + 4 suggestion chips | [cosolve-ui.js:2117](../../ui/cosolve-ui.js#L2117) |
+| 16 | classification_low_confidence==True L71 — build_clarifying_response(envelope) L75 | [reasoning_handler.py:71](../../backend/gateway/reasoning_handler.py#L71) |
+| 17 | EntryResponseEnvelope status=accepted — summary=_CLARIFYING_TEXT, suggestions=_CLARIFYING_SUGGESTIONS | [reasoning_handler.py:90](../../backend/gateway/reasoning_handler.py#L90) |
+
+---
+
+## Arrows 18–19 — support_routes.py → cosolve-ui.js
+
+| # | What | Link |
+|---|------|------|
+| 18 | FastAPI auto-serializes to JSON — returned to browser | [support_routes.py:111](../../backend/gateway/api/support_routes.py#L111) |
+| 19 | fetch() resolves — UI displays clarifying message + 4 suggestion chips | [cosolve-ui.js:2117](../../ui/cosolve-ui.js#L2117) |

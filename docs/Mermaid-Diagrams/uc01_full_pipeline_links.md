@@ -1,7 +1,7 @@
 # UC01 — Full Pipeline: Code Navigation Links
 
 Companion to [uc01_full_pipeline.mmd](./uc01_full_pipeline.mmd).
-The **#** column matches the Mermaid autonumber arrow number shown in the diagram exactly.
+The **#** column matches the Mermaid `autonumber` arrow number shown in the diagram exactly.
 
 ---
 
@@ -18,7 +18,7 @@ The **#** column matches the Mermaid autonumber arrow number shown in the diagra
 
 | # | What | Link |
 |---|------|------|
-| 3 | _dispatch_entry_handler(envelope) L82 — wraps in HTTP error handling | [support_routes.py:82](../../backend/gateway/api/support_routes.py#L82) |
+| 3 | _dispatch_entry_handler(envelope) L82 | [support_routes.py:82](../../backend/gateway/api/support_routes.py#L82) |
 | 4 | entry_handler.handle_entry(envelope) L84 | [support_routes.py:84](../../backend/gateway/api/support_routes.py#L84) |
 
 ---
@@ -56,99 +56,102 @@ The **#** column matches the Mermaid autonumber arrow number shown in the diagra
 
 ---
 
-## Arrows 10–14 — graph.py → context_node.py → blob_storage.py
+## Arrows 10–15 — graph.py → context_node.py → blob_storage.py
 
 | # | What | Link |
 |---|------|------|
 | 10 | context_node(state) L23 — checks for case_id in state | [context_node.py:23](../../backend/reasoning/nodes/context_node.py#L23) |
 | 11 | CaseRepository.load(case_id) L102 — fetch case from Azure Blob | [context_node.py:34](../../backend/reasoning/nodes/context_node.py#L34) |
 | 12 | Azure Blob returns raw JSON bytes | [blob_storage.py:20](../../backend/storage/blob_storage.py#L20) |
-| 13 | Returns: case_context, case_status, current_d_state (case found) | [context_node.py:42](../../backend/reasoning/nodes/context_node.py#L42) |
-| 14 | Returns: case_context=None (no case_id) | [context_node.py:27](../../backend/reasoning/nodes/context_node.py#L27) |
+| 13 | Returns: case_context, case_status, current_d_state (case found) | [context_node.py:50](../../backend/reasoning/nodes/context_node.py#L50) |
+| 14 | No case_id: scan question for TRM-XXXXXXXX-XXXX — found → case_id_in_question=True | [context_node.py:32](../../backend/reasoning/nodes/context_node.py#L32) |
+| 15 | No case_id: scan question — not found → case_id_in_question=False | [context_node.py:35](../../backend/reasoning/nodes/context_node.py#L35) |
 
 ---
 
-## Arrows 15–16 — graph.py → intent_classification_node.py
+## Arrows 16–17 — graph.py → intent_classification_node.py
 
 | # | What | Link |
 |---|------|------|
-| 15 | intent_classification_node(state) L11 — LLM classifies intent + scope + confidence | [intent_classification_node.py:11](../../backend/reasoning/nodes/intent_classification_node.py#L11) |
-| 16 | Returns: classification{intent, scope, confidence} merged into state | [intent_classification_node.py:11](../../backend/reasoning/nodes/intent_classification_node.py#L11) |
+| 16 | intent_classification_node(state) L11 — LLM classifies intent + scope + confidence | [intent_classification_node.py:11](../../backend/reasoning/nodes/intent_classification_node.py#L11) |
+| 17 | Returns: classification{intent, scope, confidence} merged into state | [intent_classification_node.py:11](../../backend/reasoning/nodes/intent_classification_node.py#L11) |
 
 ---
 
-## Arrows 17–19 — graph.py → question_readiness_node.py
+## Arrows 18–22 — graph.py → question_readiness_node.py
 
 | # | What | Link |
 |---|------|------|
-| 17 | question_readiness_node(state) L18 — checks if question is clear enough | [question_readiness_node.py:18](../../backend/reasoning/nodes/question_readiness_node.py#L18) |
-| 18 | Fast path: case loaded OR KPI/Strategy — question_ready=True (no LLM) | [question_readiness_node.py:25](../../backend/reasoning/nodes/question_readiness_node.py#L25) |
-| 19 | LLM path: returns question_ready + clarifying_question | [question_readiness_node.py:38](../../backend/reasoning/nodes/question_readiness_node.py#L38) |
+| 18 | question_readiness_node(state) L18 | [question_readiness_node.py:18](../../backend/reasoning/nodes/question_readiness_node.py#L18) |
+| 19 | case_id_in_question==True + no case loaded — deterministic intercept L33-44 — ready=False | [question_readiness_node.py:33](../../backend/reasoning/nodes/question_readiness_node.py#L33) |
+| 20 | case loaded OR KPI/STRATEGY — fast path L26 — ready=True (no LLM) | [question_readiness_node.py:26](../../backend/reasoning/nodes/question_readiness_node.py#L26) |
+| 21 | HOW-TO/guidance question — prompt rule — ready=True | [prompts.py:45](../../backend/core/prompts.py#L45) |
+| 22 | LLM path — returns question_ready + clarifying_question | [question_readiness_node.py:38](../../backend/reasoning/nodes/question_readiness_node.py#L38) |
 
 ---
 
-## Arrows 20–22 — routing.py (question readiness conditional edge)
+## Arrows 23–25 — routing.py (question readiness conditional edge)
 
 | # | What | Link |
 |---|------|------|
-| 20 | route_question_readiness(state) L15 — reads question_ready flag | [routing.py:15](../../backend/reasoning/routing.py#L15) |
-| 21 | NOT_READY — short-circuits to response_formatter_node | [routing.py:20](../../backend/reasoning/routing.py#L20) |
-| 22 | READY — proceeds to router_node | [routing.py:21](../../backend/reasoning/routing.py#L21) |
+| 23 | route_question_readiness(state) L15 — reads question_ready flag | [routing.py:15](../../backend/reasoning/routing.py#L15) |
+| 24 | NOT_READY — short-circuits to response_formatter_node | [routing.py:20](../../backend/reasoning/routing.py#L20) |
+| 25 | READY — proceeds to router_node | [routing.py:21](../../backend/reasoning/routing.py#L21) |
 
 ---
 
-## Arrows 23–24 — router_node.py
+## Arrows 26–27 — router_node.py
 
 | # | What | Link |
 |---|------|------|
-| 23 | router_node(state) L6 — reads classification["intent"], sets route key | [router_node.py:6](../../backend/reasoning/nodes/router_node.py#L6) |
-| 24 | Returns: route = OPERATIONAL_CASE / SIMILARITY_SEARCH / STRATEGY_ANALYSIS / KPI_ANALYSIS | [router_node.py:9](../../backend/reasoning/nodes/router_node.py#L9) |
+| 26 | router_node(state) L6 — reads classification["intent"], sets route key | [router_node.py:6](../../backend/reasoning/nodes/router_node.py#L6) |
+| 27 | Returns: route = OPERATIONAL_CASE / SIMILARITY_SEARCH / STRATEGY_ANALYSIS / KPI_ANALYSIS | [router_node.py:9](../../backend/reasoning/nodes/router_node.py#L9) |
 
 ---
 
-## Arrows 25–26 — routing.py (intent conditional edge)
+## Arrows 28–29 — routing.py (intent conditional edge)
 
 | # | What | Link |
 |---|------|------|
-| 25 | route_intent(state) L24 — reads route key from state | [routing.py:24](../../backend/reasoning/routing.py#L24) |
-| 26 | Dispatches to the appropriate domain node | [routing.py:24](../../backend/reasoning/routing.py#L24) |
+| 28 | route_intent(state) L24 — reads route key from state | [routing.py:24](../../backend/reasoning/routing.py#L24) |
+| 29 | Dispatches to the appropriate domain node | [routing.py:24](../../backend/reasoning/routing.py#L24) |
 
 ---
 
-## Arrows 27–30 — Domain node → response_formatter_node.py
+## Arrows 30–33 — Domain node → response_formatter_node.py
 
 | # | What | Link |
 |---|------|------|
-| 27 | Domain node runs (operational / similarity / strategy / kpi) | [graph.py:74](../../backend/core/graph.py#L74) |
-| 28 | Domain node returns draft + result into state | [graph.py:85](../../backend/core/graph.py#L85) |
-| 29 | response_formatter_node(state) L9 — picks result by intent | [response_formatter_node.py:9](../../backend/reasoning/nodes/response_formatter_node.py#L9) |
-| 30 | Returns: final_response{answer, sources, chips, timestamp} | [response_formatter_node.py:25](../../backend/reasoning/nodes/response_formatter_node.py#L25) |
+| 30 | Domain node runs (operational / similarity / strategy / kpi) | [graph.py:74](../../backend/core/graph.py#L74) |
+| 31 | Domain node returns draft + result into state | [graph.py:85](../../backend/core/graph.py#L85) |
+| 32 | response_formatter_node(state) L9 — picks result by intent | [response_formatter_node.py:9](../../backend/reasoning/nodes/response_formatter_node.py#L9) |
+| 33 | Returns: final_response{answer, sources, chips, timestamp} | [response_formatter_node.py:25](../../backend/reasoning/nodes/response_formatter_node.py#L25) |
 
 ---
 
-## Arrow 31 — graph.py → reasoning_handler.py
+## Arrow 34 — graph.py → reasoning_handler.py
 
 | # | What | Link |
 |---|------|------|
-| 31 | graph.invoke() returns full graph_result dict | [reasoning_handler.py:66](../../backend/gateway/reasoning_handler.py#L66) |
+| 34 | graph.invoke() returns full graph_result dict | [reasoning_handler.py:66](../../backend/gateway/reasoning_handler.py#L66) |
 
 ---
 
-## Arrows 32–36 — reasoning_handler.py (response gates)
+## Arrows 35–39 — reasoning_handler.py (response gates)
 
 | # | What | Link |
 |---|------|------|
-| 32 | Gate 1: classification_low_confidence==True — build_clarifying_response() L75 | [reasoning_handler.py:71](../../backend/gateway/reasoning_handler.py#L71) |
-| 33 | Returns EntryResponseEnvelope status=accepted (low confidence path) | [reasoning_handler.py:90](../../backend/gateway/reasoning_handler.py#L90) |
-| 34 | Gate 2: question_ready==False — build_clarifying_question_response() L80 | [reasoning_handler.py:77](../../backend/gateway/reasoning_handler.py#L77) |
-| 35 | Returns EntryResponseEnvelope status=ok (not ready path) | [reasoning_handler.py:114](../../backend/gateway/reasoning_handler.py#L114) |
-| 36 | Gate 3 success: graph_result.get("final_response") L82 — EntryResponseEnvelope status=accepted | [reasoning_handler.py:83](../../backend/gateway/reasoning_handler.py#L83) |
+| 35 | Gate 1: classification_low_confidence==True — build_clarifying_response() L75 | [reasoning_handler.py:71](../../backend/gateway/reasoning_handler.py#L71) |
+| 36 | Returns EntryResponseEnvelope status=accepted (low confidence path) | [reasoning_handler.py:90](../../backend/gateway/reasoning_handler.py#L90) |
+| 37 | Gate 2: question_ready==False — build_clarifying_question_response() L80 | [reasoning_handler.py:77](../../backend/gateway/reasoning_handler.py#L77) |
+| 38 | Returns EntryResponseEnvelope status=ok (not ready / case-ID-in-question path) | [reasoning_handler.py:114](../../backend/gateway/reasoning_handler.py#L114) |
+| 39 | Gate 3 success: graph_result.get("final_response") L82 — EntryResponseEnvelope status=accepted | [reasoning_handler.py:83](../../backend/gateway/reasoning_handler.py#L83) |
 
 ---
 
-## Arrows 37–38 — support_routes.py → cosolve-ui.js
+## Arrows 40–41 — support_routes.py → cosolve-ui.js
 
 | # | What | Link |
 |---|------|------|
-| 37 | FastAPI auto-serializes EntryResponseEnvelope to JSON — returned to browser | [support_routes.py:111](../../backend/gateway/api/support_routes.py#L111) |
-| 38 | fetch() resolves — AI panel rendered: answer text + suggestion chips | [cosolve-ui.js:2117](../../ui/cosolve-ui.js#L2117) |
+| 40 | FastAPI auto-serializes EntryResponseEnvelope to JSON — returned to browser | [support_routes.py:111](../../backend/gateway/api/support_routes.py#L111) |
+| 41 | fetch() resolves — if status=ok + TRM pattern in question, inject Load Case button | [cosolve-ui.js:2155](../../ui/cosolve-ui.js#L2155) |

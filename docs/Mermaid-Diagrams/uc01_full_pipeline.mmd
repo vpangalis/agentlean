@@ -41,9 +41,14 @@ sequenceDiagram
         CN->>BL: CaseRepository.load() L102
         Note over BL: download_json("{case_id}.json") L20
         BL-->>CN: case_doc dict
-        CN-->>G: case_context, case_status
+        CN-->>G: case_context, case_status, current_d_state
     else no case_id
-        CN-->>G: case_context=None
+        Note over CN: scan question for TRM-XXXXXXXX-XXXX
+        alt case ID found in question text
+            CN-->>G: case_context=None, case_id_in_question=True
+        else no case ID in question
+            CN-->>G: case_context=None, case_id_in_question=False
+        end
     end
 
     G->>IC: intent_classification_node(state) L11
@@ -53,8 +58,14 @@ sequenceDiagram
     IC-->>G: classification{intent, scope, confidence}
 
     G->>QR: question_readiness_node(state) L18
-    alt KPI or STRATEGY or case_loaded
+    alt case_id_in_question==True and not case_loaded
+        Note over QR: deterministic intercept L33-44
+        QR-->>G: question_ready=False, clarifying=load case message
+    else KPI or STRATEGY or case_loaded
         Note over QR: _ALWAYS_READY_INTENTS L13
+        QR-->>G: question_ready=True
+    else HOW-TO or guidance question
+        Note over QR: guidance rule in prompt
         QR-->>G: question_ready=True
     else
         Note over QR: get_llm("intent", 0.0)
@@ -99,4 +110,6 @@ sequenceDiagram
     end
 
     SR-->>UI: EntryResponseEnvelope
+    Note over UI: status=ok + case ID detected
+    Note over UI: inject Load Case button via TRM regex
     UI-->>User: answer + suggestion chips

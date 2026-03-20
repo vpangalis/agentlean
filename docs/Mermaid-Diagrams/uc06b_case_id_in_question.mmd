@@ -13,10 +13,10 @@ sequenceDiagram
     participant RO as routing
     participant RF as response_formatter
 
-    User->>UI: vague question, no case_id
-    UI->>SR: POST /entry/reasoning
+    User->>UI: question containing a case ID, no case loaded
+    Note over UI: e.g. "What was the root cause of TRM-20230724-0006?"
+    UI->>SR: POST /entry/reasoning {case_id: null}
     Note over SR: handle_reasoning_entry() L108
-    Note over SR: validate intent==AI_REASONING L109
     SR->>SR: _dispatch_entry_handler() L82
     SR->>EH: handle_entry(envelope) L84
     Note over EH: intent == AI_REASONING L67
@@ -28,24 +28,21 @@ sequenceDiagram
     SN-->>G: escalated flags = False
 
     G->>CN: context_node(state) L23
-    Note over CN: case_id is None -> skip blob
-    Note over CN: scan question for TRM-XXXXXXXX-XXXX
-    Note over CN: no case ID found in question
-    CN-->>G: case_context=None, case_id_in_question=False
+    Note over CN: case_id is None -> skip blob L26
+    Note over CN: scan question for TRM-\d{8}-\d{4}
+    Note over CN: TRM-20230724-0006 found in question text
+    CN-->>G: case_context=None, case_id_in_question=True
 
     G->>IC: intent_classification_node(state) L11
-    Note over IC: case_loaded = False L18
+    Note over IC: case_loaded = False
     Note over IC: llm.with_structured_output(_RawClass)
-    IC-->>G: intent=OPERATIONAL, confidence=0.4
+    IC-->>G: classification{intent, scope, confidence}
 
     G->>QR: question_readiness_node(state) L18
-    Note over QR: case_id_in_question=False -> skip intercept
-    Note over QR: OPERATIONAL not in ALWAYS_READY L13
-    Note over QR: case_loaded = False
-    Note over QR: not HOW-TO -> LLM path
-    Note over QR: get_llm("intent", 0.0)
-    Note over QR: llm.with_structured_output(QRResult)
-    QR-->>G: question_ready=False, clarifying_question
+    Note over QR: case_id_in_question==True L33
+    Note over QR: case_loaded==False
+    Note over QR: deterministic intercept fires
+    QR-->>G: question_ready=False, clarifying=load case message L44
 
     G->>RO: route_question_readiness() L15
     Note over RO: not question_ready -> NOT_READY L16
@@ -54,15 +51,25 @@ sequenceDiagram
 
     G->>RF: response_formatter_node(state) L9
     Note over RF: question_ready=False path
-    RF-->>G: final_response{clarifying_question}
+    RF-->>G: final_response{clarifying_question=load case message}
 
     G-->>RH: graph_result
 
     Note over RH: question_ready==False L77
     RH->>RH: build_clarifying_question_response() L80
     Note over RH: status=ok L134
-    Note over RH: suggestions=_CLARIFYING_SUGGESTIONS
     RH-->>SR: EntryResponseEnvelope status=ok
 
-    SR-->>UI: EntryResponseEnvelope
-    UI-->>User: clarifying question + suggestion chips
+    SR-->>UI: EntryResponseEnvelope status=ok
+    Note over UI: question.match(/TRM-\d{8}-\d{4}/i) L2155
+    Note over UI: envelope.status==ok and caseIdMatch
+    Note over UI: inject Load Case button into output
+    UI-->>User: clarifying message + Load TRM-20230724-0006 button
+    Note over User: User clicks button
+    User->>UI: click Load TRM-20230724-0006
+    Note over UI: window.loadCaseById("TRM-20230724-0006") L2278
+    UI->>SR: GET /cases/TRM-20230724-0006
+    SR-->>UI: case_doc
+    Note over UI: hydrateCase(caseDoc) + clearAiConversation()
+    UI-->>User: Case Board loaded, AI panel reset
+    Note over User: User re-asks question with case now loaded

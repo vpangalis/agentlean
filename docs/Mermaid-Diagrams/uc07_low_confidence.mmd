@@ -6,6 +6,7 @@ sequenceDiagram
     participant EH as entry_handler.py
     participant RH as reasoning_handler.py
     participant G as graph
+    participant CN as context_node
     participant IC as intent_class_node
     participant LLM as Azure OpenAI
     participant RF as response_formatter
@@ -18,6 +19,12 @@ sequenceDiagram
     EH->>RH: handle_ai_reasoning() L68
     RH->>G: graph.invoke(initial_state) L66
     Note over G: start_node -> context_node
+
+    G->>CN: context_node(state) L23
+    Note over CN: case_id is None -> skip blob
+    Note over CN: scan question for TRM-XXXXXXXX-XXXX
+    Note over CN: no case ID found in question
+    CN-->>G: case_context=None, case_id_in_question=False
 
     G->>IC: intent_classification_node(state) L11
     Note over IC: get_llm("intent", 0.0)
