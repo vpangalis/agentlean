@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import re
 from functools import lru_cache
 from typing import Any
 
 from backend.core.state import IncidentGraphState
+
+_CASE_ID_RE = re.compile(r"TRM-\d{8}-\d{4}")
 from backend.core.config import Settings
 from backend.storage.blob_storage import BlobStorageClient, CaseRepository
 from backend.storage.ingestion.case_ingestion import CaseEntryService
@@ -24,9 +27,12 @@ def context_node(state: IncidentGraphState) -> dict:
     """Load case context from blob storage if a case_id is present."""
     case_id = state.get("case_id")
     if not case_id:
+        question = state.get("question") or ""
+        has_case_id = bool(_CASE_ID_RE.search(question))
         return {
             "case_context": None,
             "current_d_state": None,
+            "case_id_in_question": has_case_id,
             "_last_node": "context_node",
         }
 

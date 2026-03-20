@@ -22,6 +22,7 @@ class IncidentGraphState(TypedDict, total=False):
     route: str | None
     question_ready: bool
     clarifying_question: str | None
+    case_id_in_question: bool
 
     # Node outputs — plain dicts only
     operational_draft: dict | None

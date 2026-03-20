@@ -82,8 +82,26 @@ def _run_operational(state: IncidentGraphState, model_name: str | None = None) -
             "_last_node": "operational_node",
         }
 
+    # -- No case loaded, no new-problem signal --
+    if not case_id:
+        return {
+            "operational_draft": {
+                "current_state": "No case loaded",
+                "current_state_recommendations": (
+                    "No case is currently loaded. Please load a case using the "
+                    "Case Board on the left to get operational guidance, or ask "
+                    "a general question about patterns, KPIs, or similar cases."
+                ),
+                "next_state_preview": "",
+                "supporting_cases": [],
+                "referenced_evidence": [],
+                "suggestions": [],
+            },
+            "_last_node": "operational_node",
+        }
+
     # -- Closed-case path --
-    if case_status == "closed" and case_id:
+    if case_status == "closed":
         supporting_cases = search_similar_cases.invoke(
             {"query": question, "current_case_id": case_id, "country": _extract_country(case_context)}
         )

@@ -30,6 +30,19 @@ def question_readiness_node(state: IncidentGraphState) -> dict:
             "_last_node": "question_readiness_node",
         }
 
+    # Case ID mentioned but no case loaded — ask user to load it
+    if state.get("case_id_in_question") and not case_loaded:
+        return {
+            "question_ready": False,
+            "clarifying_question": (
+                "It looks like you're asking about a specific case. "
+                "Please load that case using the Case Board on the left, "
+                "then ask your question again — I'll have full access to "
+                "the case history, evidence, and D-state progress."
+            ),
+            "_last_node": "question_readiness_node",
+        }
+
     # LLM path
     llm = get_llm("intent", 0.0)
     user_prompt = QUESTION_READINESS_USER_PROMPT_TEMPLATE.format(
