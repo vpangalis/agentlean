@@ -38,6 +38,16 @@ def route_intent(state: IncidentGraphState) -> str:
     return str(route)
 
 
+def route_operational_reflection(state: IncidentGraphState) -> str:
+    """Skip reflection when no case is loaded — nothing to assess."""
+    if not state.get("case_id"):
+        _graph_logger.info(
+            "[GRAPH_DEBUG] no case loaded — skipping operational reflection"
+        )
+        return "SKIP"
+    return "REFLECT"
+
+
 def route_operational_escalation(state: IncidentGraphState) -> str:
     # Closed case historical summaries skip the quality gate entirely.
     case_context = state.get("case_context")

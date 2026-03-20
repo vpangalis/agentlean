@@ -26,6 +26,7 @@ from backend.reasoning.nodes.end_node import end_node
 from backend.reasoning.routing import (
     route_intent,
     route_question_readiness,
+    route_operational_reflection,
     route_operational_escalation,
     route_strategy_escalation,
 )
@@ -82,7 +83,14 @@ def build_graph():
         },
     )
 
-    graph.add_edge("operational_node", "operational_reflection_node")
+    graph.add_conditional_edges(
+        "operational_node",
+        route_operational_reflection,
+        {
+            "REFLECT": "operational_reflection_node",
+            "SKIP": "response_formatter_node",
+        },
+    )
     graph.add_conditional_edges(
         "operational_reflection_node",
         route_operational_escalation,

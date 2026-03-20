@@ -6,10 +6,7 @@ from backend.core.state import IncidentGraphState
 from backend.core.llm import get_llm
 from langchain_openai import AzureChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
-from backend.reasoning.nodes.node_parsing_utils import (
-    extract_suggestions,
-    is_new_problem_question,
-)
+from backend.reasoning.nodes.node_parsing_utils import extract_suggestions
 from backend.core.prompts import (
     OPERATIONAL_REFLECTION_SYSTEM_PROMPT,
     OPERATIONAL_REGENERATION_SYSTEM_PROMPT,
@@ -18,10 +15,6 @@ from backend.reasoning.models import OperationalReflectionAssessment
 
 _logger = logging.getLogger(__name__)
 _REGENERATION_THRESHOLD: float = 0.65
-_NEW_PROBLEM_NO_CASE_MARKERS = (
-    "[SIMILAR CASES \u2014 CHECK FIRST]",
-    "[IF THIS IS A NEW PROBLEM \u2014 HOW TO START]",
-)
 
 
 def operational_reflection_node(state: IncidentGraphState) -> dict:
@@ -30,27 +23,6 @@ def operational_reflection_node(state: IncidentGraphState) -> dict:
     question = state.get("question", "")
     draft_text = draft.get("current_state_recommendations", "")
     current_state = draft.get("current_state", "")
-
-    case_loaded = bool(current_state and current_state != "No case loaded")
-
-    # Bypass reflection for new-problem-detection path
-    if _is_new_problem_bypass(question, draft_text, case_loaded):
-        return {
-            "operational_result": {
-                "current_state": current_state,
-                "current_state_recommendations": draft_text,
-                "next_state_preview": draft.get("next_state_preview", ""),
-                "supporting_cases": draft.get("supporting_cases", []),
-                "referenced_evidence": draft.get("referenced_evidence", []),
-                "suggestions": extract_suggestions(draft_text),
-            },
-            "operational_reflection": {
-                "quality_score": 1.0,
-                "needs_escalation": False,
-                "reasoning_feedback": "New problem detection \u2014 reflection bypassed.",
-            },
-            "_last_node": "operational_reflection_node",
-        }
 
     llm = get_llm("reasoning", 0.0)
     regen_llm = get_llm("reasoning", 0.0)
@@ -125,15 +97,5 @@ def _score(assessment: OperationalReflectionAssessment) -> float:
         assessment.explore_next_quality, 0.5
     )
     return max(0.0, min(1.0, (g + d + n + a + e) / 5.0))
-
-
-def _is_new_problem_bypass(question: str, draft_text: str, case_loaded: bool) -> bool:
-    if case_loaded:
-        return False
-    if is_new_problem_question(question, case_id=""):
-        return True
-    if any(m in draft_text for m in _NEW_PROBLEM_NO_CASE_MARKERS):
-        return True
-    return False
 
 
