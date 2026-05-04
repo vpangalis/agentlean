@@ -5,7 +5,6 @@ import hashlib
 import json
 import logging
 from datetime import datetime, timezone
-from functools import lru_cache
 from typing import Any, Iterable
 
 from azure.core.credentials import AzureKeyCredential
@@ -14,27 +13,14 @@ from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import SearchIndex
 
-from langchain_community.vectorstores.azuresearch import AzureSearch
-
 from backend.core.config import settings
 from backend.storage.incident_models import (
     IncidentFactory,
     LegacyCaseModel,
     IncidentStateAdapter,
 )
-from backend.knowledge.embeddings import generate_embedding, get_embeddings
+from backend.knowledge.embeddings import generate_embedding
 from backend.storage.blob_storage import CaseReadRepository, CaseRepository
-
-
-@lru_cache(maxsize=1)
-def _get_case_vector_store() -> AzureSearch:
-    return AzureSearch(
-        azure_search_endpoint=settings.AZURE_SEARCH_ENDPOINT,
-        azure_search_key=settings.AZURE_SEARCH_ADMIN_KEY,
-        index_name=settings.CASE_INDEX_NAME,
-        embedding_function=get_embeddings(),
-        search_type="hybrid",
-    )
 
 
 class CaseSearchIndex:
@@ -244,7 +230,6 @@ class CaseIngestionService:
     ) -> None:
         self._search_index = search_index
         self._case_repository = case_repository
-        self._vector_store = _get_case_vector_store()
         self._logger = logger or logging.getLogger("case_ingestion")
 
     def ingest_all_closed_cases(self) -> None:
@@ -301,17 +286,24 @@ class CaseIngestionService:
             self._log_outcome("FAILED", case_id, "empty_embedding_input")
             return
 
-        document = self._build_index_document(case_model.model_dump(), doc_id)
+        document = self._build_index_document(case_doc, doc_id)
         document.pop("searchable_hash", None)
-        metadata = {k: v for k, v in document.items()
-                    if k not in ("doc_id", "content_text", "embedding")}
+
+        if bm25_text:
+            try:
+                document["embedding"] = generate_embedding(bm25_text)
+            except Exception as exc:
+                self._logger.warning(
+                    "[INGEST_CLOSED] embedding skipped for %s (non-fatal): %s",
+                    case_id, exc,
+                )
 
         try:
-            self._vector_store.add_texts(
-                texts=[document["content_text"]],
-                metadatas=[metadata],
-                ids=[document["doc_id"]],
-            )
+            results = self._search_index.merge_or_upload_documents([document])
+            for r in results:
+                if not r.succeeded:
+                    self._log_outcome("FAILED", case_id, f"index_upsert_failed: {r.error_message}")
+                    return
         except Exception as exc:
             self._log_outcome("FAILED", case_id, f"index_upsert_failed: {exc}")
             return
