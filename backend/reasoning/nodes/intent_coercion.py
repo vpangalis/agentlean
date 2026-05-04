@@ -27,7 +27,7 @@ class _RawClassification(BaseModel):
 
 
 _VALID_INTENTS: frozenset[str] = frozenset(
-    {"OPERATIONAL_CASE", "SIMILARITY_SEARCH", "STRATEGY_ANALYSIS", "KPI_ANALYSIS"}
+    {"OPERATIONAL_CASE", "SIMILARITY_SEARCH", "STRATEGY_ANALYSIS", "KPI_ANALYSIS", "KNOWLEDGE_BASE"}
 )
 _VALID_SCOPES: frozenset[str] = frozenset({"LOCAL", "COUNTRY", "GLOBAL"})
 

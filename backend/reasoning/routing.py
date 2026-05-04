@@ -29,6 +29,7 @@ def route_intent(state: IncidentGraphState) -> str:
         "SIMILARITY_SEARCH",
         "STRATEGY_ANALYSIS",
         "KPI_ANALYSIS",
+        "KNOWLEDGE_BASE",
     }:
         _graph_logger.warning(
             "[GRAPH_DEBUG] unexpected route value %r — falling back to SIMILARITY_SEARCH",

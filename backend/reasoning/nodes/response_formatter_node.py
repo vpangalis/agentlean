@@ -21,6 +21,8 @@ def response_formatter_node(state: IncidentGraphState) -> dict:
             result_payload = state.get("strategy_result") or {}
         elif intent == "KPI_ANALYSIS":
             result_payload = state.get("kpi_interpretation") or {}
+        elif intent == "KNOWLEDGE_BASE":
+            result_payload = state.get("knowledge_result") or {}
 
     return {
         "final_response": {

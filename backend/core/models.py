@@ -18,6 +18,7 @@ class IntentClassificationResult(BaseModel):
         "SIMILARITY_SEARCH",
         "STRATEGY_ANALYSIS",
         "KPI_ANALYSIS",
+        "KNOWLEDGE_BASE",
     ]
     scope: Literal["LOCAL", "COUNTRY", "GLOBAL"]
     confidence: float = Field(ge=0.0, le=1.0)

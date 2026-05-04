@@ -46,5 +46,7 @@ class IncidentGraphState(TypedDict, total=False):
     kpi_metrics: dict | None
     kpi_interpretation: dict | None
 
+    knowledge_result: dict | None
+
     final_response: dict | None
     _last_node: str

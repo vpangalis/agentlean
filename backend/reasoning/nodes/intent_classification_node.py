@@ -21,7 +21,7 @@ def intent_classification_node(state: IncidentGraphState) -> dict:
     user_prompt = (
         "Classify this request and return ONLY this JSON:\n"
         "{\n"
-        '  "intent": "OPERATIONAL_CASE|SIMILARITY_SEARCH|STRATEGY_ANALYSIS|KPI_ANALYSIS",\n'
+        '  "intent": "OPERATIONAL_CASE|SIMILARITY_SEARCH|STRATEGY_ANALYSIS|KPI_ANALYSIS|KNOWLEDGE_BASE",\n'
         '  "scope": "LOCAL|COUNTRY|GLOBAL",\n'
         '  "confidence": 0.0\n'
         "}\n\n"
@@ -49,10 +49,19 @@ def intent_classification_node(state: IncidentGraphState) -> dict:
         "  \u2022 The question asks for NUMBERS: counts, percentages, averages, rates, durations.\n"
         "  \u2022 'How many', 'what percentage', 'average time', 'how long', 'how often' \u2192 KPI_ANALYSIS.\n"
         "  \u2022 Do NOT use for qualitative pattern questions even if 'trend' or 'recurring' appears.\n\n"
+        "KNOWLEDGE_BASE \u2014 use when:\n"
+        "  \u2022 No case is loaded AND the question asks what a technical document, manual,\n"
+        "    standard, specification, or regulation says, requires, or specifies.\n"
+        "  \u2022 Examples: 'What does the NSK manual say about...',\n"
+        "    'What bearing specification does Knorr-Bremse require...',\n"
+        "    'What does the maintenance standard specify for...'\n"
+        "  \u2022 Do NOT use if a case IS loaded and the question is about that case's\n"
+        "    procedure \u2014 that is OPERATIONAL_CASE.\n\n"
         "=== TIEBREAKER RULES (apply in order) ===\n"
         "0. If a case IS loaded AND the question asks what a procedure requires \u2192 OPERATIONAL_CASE.\n"
         "1. If question explicitly mentions a specific case ID \u2192 OPERATIONAL_CASE.\n"
         "2. If no case loaded AND question is HOW-TO / procedural / guidance / how to start \u2192 OPERATIONAL_CASE.\n"
+        "2b. If no case loaded AND question asks what a document/manual/spec says or requires \u2192 KNOWLEDGE_BASE.\n"
         "3. If no case loaded AND question is analytical / pattern / systemic \u2192 STRATEGY_ANALYSIS.\n"
         "4. If previous_question was STRATEGY_ANALYSIS and new question is a follow-up \u2192 STRATEGY_ANALYSIS.\n"
         "5. Numeric metrics (counts/percentages/averages/durations) \u2192 KPI_ANALYSIS. "

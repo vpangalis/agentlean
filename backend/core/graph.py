@@ -21,6 +21,7 @@ from backend.reasoning.nodes.strategy_reflection_node import strategy_reflection
 from backend.reasoning.nodes.strategy_escalation_node import strategy_escalation_node
 from backend.reasoning.nodes.kpi_node import kpi_node
 from backend.reasoning.nodes.kpi_reflection_node import kpi_reflection_node
+from backend.reasoning.nodes.knowledge_node import knowledge_node
 from backend.reasoning.nodes.response_formatter_node import response_formatter_node
 from backend.reasoning.nodes.end_node import end_node
 from backend.reasoning.routing import (
@@ -51,6 +52,7 @@ def build_graph():
     graph.add_node("strategy_escalation_node", strategy_escalation_node)
     graph.add_node("kpi_node", kpi_node)
     graph.add_node("kpi_reflection_node", kpi_reflection_node)
+    graph.add_node("knowledge_node", knowledge_node)
     graph.add_node("response_formatter_node", response_formatter_node)
     graph.add_node("end_node", end_node)
 
@@ -80,6 +82,7 @@ def build_graph():
             "SIMILARITY_SEARCH": "similarity_node",
             "STRATEGY_ANALYSIS": "strategy_node",
             "KPI_ANALYSIS": "kpi_node",
+            "KNOWLEDGE_BASE": "knowledge_node",
         },
     )
 
@@ -117,6 +120,8 @@ def build_graph():
 
     graph.add_edge("kpi_node", "kpi_reflection_node")
     graph.add_edge("kpi_reflection_node", "response_formatter_node")
+
+    graph.add_edge("knowledge_node", "response_formatter_node")
 
     graph.add_edge("response_formatter_node", "end_node")
 
