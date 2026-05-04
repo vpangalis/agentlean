@@ -39,6 +39,11 @@ def _build_response(state: IncidentGraphState) -> CoSolveResponse:
 
     if intent == "OPERATIONAL_CASE":
         answer = str(result.get("current_state_recommendations", ""))
+        if not answer.strip():
+            answer = (
+                "No active case is currently selected. "
+                "Please select or create a case first, then ask your operational question."
+            )
     elif intent == "KPI_ANALYSIS":
         summary = str(result.get("summary", ""))
         insights = result.get("insights") or []
