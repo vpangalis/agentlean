@@ -125,4 +125,10 @@ app.include_router(
 )
 
 
+@app.get("/health")
+def health_check() -> dict:
+    """Liveness probe for Azure Container Apps."""
+    return {"status": "ok"}
+
+
 __all__ = ["app"]
