@@ -13,7 +13,7 @@ Do not fight the framework — use it.
 ## Directory Structure
 
 ```
-backend/
+agent-resolve/backend/
     app.py                      ← FastAPI app, startup, shutdown
 
     core/
@@ -97,7 +97,7 @@ backend/
 One state class. One file. All graph fields live here.
 
 ```python
-# backend/core/state.py
+# agent-resolve/backend/core/state.py
 class IncidentGraphState(TypedDict, total=False):
     # Request fields — set at entry from CoSolveRequest
     case_id: str | None
@@ -174,7 +174,7 @@ def search_similar_cases(query: str) -> list[dict]:
     return case_retriever.get_relevant_documents(query)
 ```
 
-Tools live in `backend/knowledge/tools.py`. Retrievers are module-level singletons.
+Tools live in `agent-resolve/backend/knowledge/tools.py`. Retrievers are module-level singletons.
 Nodes import the tools they need — never the retriever directly.
 
 ---
@@ -219,7 +219,7 @@ compiled_graph = build_graph()
 
 ## API Contract
 
-`gateway/api/routes.py` is the only place where the envelope meets the graph.
+`agent-resolve/backend/gateway/api/routes.py` is the only place where the envelope meets the graph.
 It does three things only:
 
 1. Validate incoming `CoSolveRequest`
@@ -237,7 +237,7 @@ Nothing from `CoSolveRequest` enters the graph directly.
 At startup per worker:
 - `compiled_graph` — one instance, shared
 - `get_llm()` instances — one per (deployment, temperature) pair, cached
-- Retriever instances — one per index, module-level singletons in `knowledge/tools.py`
+- Retriever instances — one per index, module-level singletons in `agent-resolve/backend/knowledge/tools.py`
 
 Per request:
 - `IncidentGraphState` — one dict, lives for duration of graph invocation, then GC'd

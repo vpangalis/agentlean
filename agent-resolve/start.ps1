@@ -1,4 +1,8 @@
-# CoSolve startup script
+# AgentLean — agent-resolve startup script
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$repoRoot = Split-Path -Parent $scriptDir
+Set-Location $repoRoot
+
 Write-Host "Activating virtual environment..." -ForegroundColor Cyan
 .venv\Scripts\activate
 
@@ -24,8 +28,6 @@ if ($dirty) {
     git pull origin main
 }
 
-Write-Host "Starting CoSolve server on port 8010..." -ForegroundColor Cyan
-# NOTE: Windows does not support uvicorn multiprocessing socket sharing reliably.
-# Single worker is correct for local dev/demo. For production, use a Linux host
-# with gunicorn or a process manager.
+Write-Host "Starting agent-resolve server on port 8010..." -ForegroundColor Cyan
+$env:PYTHONPATH = "agent-resolve"
 uvicorn backend.app:app --port 8010 --log-level info

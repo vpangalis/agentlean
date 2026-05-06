@@ -15,24 +15,24 @@ Violation of any rule = reject the output and start again.
 - Never return a Pydantic model from a node. Never call `.model_dump()` in a node. Never call `cast()` in a node
 
 ### State
-- There is **exactly one state class**: `IncidentGraphState` in `backend/core/state.py`
+- There is **exactly one state class**: `IncidentGraphState` in `agent-resolve/backend/core/state.py`
 - Never create a new TypedDict or dataclass for state
 - Never create a Pydantic output model for a node — collapse it into state fields instead
 - State never crosses the wire to the UI — it is internal to the graph
 
 ### LLM
 - Never instantiate `AzureChatOpenAI` directly in a node
-- Always use `get_llm(deployment, temperature)` from `backend/core/llm.py`
+- Always use `get_llm(deployment, temperature)` from `agent-resolve/backend/core/llm.py`
 - Each node declares its own deployment and temperature explicitly
 
 ### Tools
-- Search indexes are exposed as `@tool` decorated functions in `backend/knowledge/tools.py`
+- Search indexes are exposed as `@tool` decorated functions in `agent-resolve/backend/knowledge/tools.py`
 - Never create a custom search client class
 - Never call Azure Search SDK directly from a node — always go through a tool
 - Tool docstrings are mandatory — they are what the LLM reads to decide which tool to use
 
 ### API Contract
-- The only objects that cross the UI/backend wire are `CoSolveRequest` and `CoSolveResponse` in `backend/gateway/api/schemas.py`
+- The only objects that cross the UI/backend wire are `CoSolveRequest` and `CoSolveResponse` in `agent-resolve/backend/gateway/api/schemas.py`
 - `routes.py` is the only place where state is converted to/from the envelope
 - Never expose `IncidentGraphState` fields directly in an API response
 
