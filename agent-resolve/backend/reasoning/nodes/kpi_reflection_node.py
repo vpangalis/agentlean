@@ -1,4 +1,4 @@
-"""KPI reflection node for CoSolve.
+"""KPI reflection node for Agent Resolve.
 
 Performs two layers of quality auditing on the KPIResult produced by KPINode:
 

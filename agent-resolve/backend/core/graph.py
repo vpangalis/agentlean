@@ -1,4 +1,4 @@
-"""CoSolve graph compilation — wires nodes and edges, nothing else.
+"""Agent Resolve graph compilation — wires nodes and edges, nothing else.
 
 Topology is identical to UnifiedIncidentGraph.__init__ (now deprecated).
 No business logic, no LLM calls, no instantiation except the StateGraph builder.

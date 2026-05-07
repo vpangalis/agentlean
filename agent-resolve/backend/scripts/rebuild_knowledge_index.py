@@ -1,14 +1,14 @@
 """
-rebuild_knowledge_index.py — Creates (or updates) knowledge_index_v2 with the
+rebuild_knowledge_index.py — Creates (or updates) agent-resolve-knowledge-index with the
 hierarchical chunking schema.
 
-New fields vs knowledge_index_v1:
+New fields vs legacy v1 schema:
   chunk_type         — document_summary | section | small_chunk
   section_title      — heading text for section / small_chunk entries
   parent_section_id  — doc_id of the parent section for small_chunk entries
   page_start         — first page number covered by this chunk (0 = unknown)
   page_end           — last page number covered by this chunk (0 = unknown)
-  cosolve_phase      — diagnose | root_cause | correct | prevent | general
+  agent_resolve_phase      — diagnose | root_cause | correct | prevent | general
   char_count         — character count of content_text
 
 Run once from project root:
@@ -55,14 +55,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-INDEX_NAME = "knowledge_index_v2"
+INDEX_NAME = "agent-resolve-knowledge-index"
 VECTOR_PROFILE = "knowledge-vector-profile"
 VECTOR_ALGO = "knowledge-hnsw"
 EMBEDDING_DIM = 3072  # text-embedding-3-large
 
 
 class KnowledgeIndexBuilder:
-    """Creates or updates knowledge_index_v2 with the hierarchical chunking schema."""
+    """Creates or updates agent-resolve-knowledge-index with the hierarchical chunking schema."""
 
     def __init__(self) -> None:
         self._credential = AzureKeyCredential(settings.AZURE_SEARCH_ADMIN_KEY)
@@ -141,7 +141,7 @@ class KnowledgeIndexBuilder:
                 filterable=True,
             ),
             SearchableField(
-                name="cosolve_phase",
+                name="agent_resolve_phase",
                 type=SearchFieldDataType.String,
                 filterable=True,
             ),

@@ -107,7 +107,7 @@ class KnowledgeIngestionService:
             "parent_section_id": "",
             "page_start": 0,
             "page_end": 0,
-            "cosolve_phase": self._detect_cosolve_phase(text),
+            "agent_resolve_phase": self._detect_agent_resolve_phase(text),
             "char_count": len(summary_text),
         }
 
@@ -118,7 +118,7 @@ class KnowledgeIngestionService:
 
         for idx, section in enumerate(sections):
             section_id = f"{base_doc_id}_sec_{idx}"
-            cosolve_phase = self._detect_cosolve_phase(section["content"])
+            agent_resolve_phase = self._detect_agent_resolve_phase(section["content"])
 
             section_docs.append(
                 {
@@ -134,7 +134,7 @@ class KnowledgeIngestionService:
                     "parent_section_id": "",
                     "page_start": section["page_start"],
                     "page_end": section["page_end"],
-                    "cosolve_phase": cosolve_phase,
+                    "agent_resolve_phase": agent_resolve_phase,
                     "char_count": len(section["content"]),
                 }
             )
@@ -144,7 +144,7 @@ class KnowledgeIngestionService:
                 section_id,
                 filename,
                 section["section_title"],
-                cosolve_phase,
+                agent_resolve_phase,
                 created_at,
             )
             all_small_chunk_docs.extend(small_chunk_dicts)
@@ -360,8 +360,8 @@ class KnowledgeIngestionService:
             ]
         return fallback_sections
 
-    def _detect_cosolve_phase(self, text: str) -> str:
-        """Tag text with the most relevant CoSolve reasoning phase.
+    def _detect_agent_resolve_phase(self, text: str) -> str:
+        """Tag text with the most relevant Agent Resolve reasoning phase.
 
         Returns one of: 'diagnose' | 'root_cause' | 'correct' | 'prevent' | 'general'
         """
@@ -443,7 +443,7 @@ class KnowledgeIngestionService:
         section_id: str,
         source: str,
         section_title: str,
-        cosolve_phase: str,
+        agent_resolve_phase: str,
         created_at: str,
     ) -> list[dict]:
         """Create small_chunk index documents (500 chars, 100-char overlap) from a section."""
@@ -470,7 +470,7 @@ class KnowledgeIngestionService:
                             "parent_section_id": section_id,
                             "page_start": 0,
                             "page_end": 0,
-                            "cosolve_phase": cosolve_phase,
+                            "agent_resolve_phase": agent_resolve_phase,
                             "char_count": len(chunk_text),
                         }
                     )
@@ -494,7 +494,7 @@ class KnowledgeIngestionService:
                         "parent_section_id": section_id,
                         "page_start": 0,
                         "page_end": 0,
-                        "cosolve_phase": cosolve_phase,
+                        "agent_resolve_phase": agent_resolve_phase,
                         "char_count": len(chunk_text),
                         "embedding": None,
                     }

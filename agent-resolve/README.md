@@ -1,3 +1,3 @@
 # agent-resolve
-8D problem-solving agent for railway and tram maintenance operations (CoSolve).
+8D problem-solving agent for railway and tram maintenance operations (Agent Resolve).
 See ARCHITECTURE.md for system design and CLAUDE.md for development rules.

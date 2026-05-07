@@ -32,7 +32,7 @@ class MockRetriever:
         return []
 
     def retrieve_knowledge(
-        self, query: str, top_k: int | None = None, cosolve_phase: str | None = None
+        self, query: str, top_k: int | None = None, agent_resolve_phase: str | None = None
     ) -> list[Any]:
         return []
 

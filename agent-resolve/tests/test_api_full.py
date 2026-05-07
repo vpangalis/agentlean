@@ -1,4 +1,4 @@
-"""Full API functional test suite for CoSolve.
+"""Full API functional test suite for Agent Resolve.
 
 Exercises every FastAPI endpoint. Tests marked ``integration`` call real
 Azure services (OpenAI, Blob Storage, AI Search) and cost tokens.

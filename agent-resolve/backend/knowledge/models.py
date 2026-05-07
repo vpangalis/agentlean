@@ -35,7 +35,7 @@ class KnowledgeSummary(BaseModel):
     parent_section_id: Optional[str] = None
     page_start: Optional[int] = None
     page_end: Optional[int] = None
-    cosolve_phase: Optional[str] = None
+    agent_resolve_phase: Optional[str] = None
     char_count: Optional[int] = None
     score: Optional[float] = None
 

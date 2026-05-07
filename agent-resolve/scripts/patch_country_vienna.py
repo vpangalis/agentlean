@@ -39,12 +39,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-INDEX_NAME = settings.CASE_INDEX_NAME or "case_index_v3"
+INDEX_NAME = settings.CASE_INDEX_NAME or "agent-resolve-case-index"
 
 # doc_id  →  (new_country, new_site)
+# NOTE: existing docs in blob have IDs with case_index_v3 prefix
+#       — requires doc-ID migration before cutting over to new index
 PATCHES: dict[str, tuple[str, str]] = {
-    "INC-20260126-0003__case_index_v3": ("Austria", "Vienna"),
-    "INC-20260122-0001__case_index_v3": ("Austria", "Vienna"),
+    "INC-20260126-0003__agent-resolve-case-index": ("Austria", "Vienna"),
+    "INC-20260122-0001__agent-resolve-case-index": ("Austria", "Vienna"),
 }
 
 

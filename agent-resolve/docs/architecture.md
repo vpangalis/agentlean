@@ -110,7 +110,7 @@ flowchart TD
   end
 
   subgraph AZURE_SERVICES
-    AZAI[Azure AI Search Index 1 cases case_id problem_description organization actions_text ai_summary content_vector Index 2 evidence case_id filename content_text Index 3 knowledge doc_id parent_section_id source chunk_type content_text embedding cosolve_phase]
+    AZAI[Azure AI Search Index 1 cases case_id problem_description organization actions_text ai_summary content_vector Index 2 evidence case_id filename content_text Index 3 knowledge doc_id parent_section_id source chunk_type content_text embedding agent_resolve_phase]
     AZOAI[Azure OpenAI Foundry keys Chat deployments per node classifier operational plus premium similarity strategy plus premium kpi_reflection Embedding deployment API version 2024-10-21]
     AZBLOB[Azure Blob Storage Container AZURE_STORAGE_CONTAINER paths case_id case.json case_id evidence filename knowledge filename]
   end

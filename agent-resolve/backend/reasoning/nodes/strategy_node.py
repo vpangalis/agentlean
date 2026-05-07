@@ -60,7 +60,7 @@ def _run_strategy(state: IncidentGraphState, model_name: str | None = None) -> d
             anchor_cases.extend(results)
 
     knowledge_docs = search_knowledge_base.invoke(
-        {"query": question, "top_k": 4, "cosolve_phase": "prevent"}
+        {"query": question, "top_k": 4, "agent_resolve_phase": "prevent"}
     )
     _logger.info("[strategy_node] knowledge retrieval \u2192 %d results", len(knowledge_docs))
 

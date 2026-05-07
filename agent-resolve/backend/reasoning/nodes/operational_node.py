@@ -45,7 +45,7 @@ def _run_operational(state: IncidentGraphState, model_name: str | None = None) -
     op_phase = "root_cause" if case_status == "open" else "general"
 
     knowledge_docs = search_knowledge_base.invoke(
-        {"query": question, "top_k": 4, "cosolve_phase": op_phase}
+        {"query": question, "top_k": 4, "agent_resolve_phase": op_phase}
     )
     if knowledge_docs:
         knowledge_block = "\n".join(

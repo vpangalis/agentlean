@@ -30,7 +30,7 @@ def similarity_node(state: IncidentGraphState) -> dict:
         {"query": question, "current_case_id": case_id, "country": _resolve_country(state)}
     )
     knowledge_docs = search_knowledge_base.invoke(
-        {"query": question, "top_k": 4, "cosolve_phase": "root_cause"}
+        {"query": question, "top_k": 4, "agent_resolve_phase": "root_cause"}
     )
 
     # Build case context summary

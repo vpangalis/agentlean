@@ -1,4 +1,4 @@
-"""Conditional edge functions for the CoSolve LangGraph.
+"""Conditional edge functions for the Agent Resolve LangGraph.
 
 Extracted from UnifiedIncidentGraph._route_* methods.
 No classes. No business logic beyond routing decisions.

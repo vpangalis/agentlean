@@ -1,5 +1,5 @@
 """
-rebuild_index.py — Deletes and recreates case_index_v3 with corrected schema.
+rebuild_index.py — Deletes and recreates agent-resolve-case-index with corrected schema.
 
 Changes vs previous schema:
   - organization_department  →  organization_unit  (renamed)
@@ -50,7 +50,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-INDEX_NAME = settings.CASE_INDEX_NAME or "case_index_v3"
+INDEX_NAME = settings.CASE_INDEX_NAME or "agent-resolve-case-index"
 VECTOR_PROFILE = "case-vector-profile"
 VECTOR_ALGO = "case-hnsw"
 EMBEDDING_DIM = 3072  # text-embedding-3-large
@@ -62,7 +62,7 @@ EMBEDDING_DIM = 3072  # text-embedding-3-large
 
 
 def build_index_schema() -> SearchIndex:
-    """Corrected case_index_v3 schema with organization_unit."""
+    """Corrected agent-resolve-case-index schema with organization_unit."""
 
     # Collection helper
     Coll = SearchFieldDataType.Collection

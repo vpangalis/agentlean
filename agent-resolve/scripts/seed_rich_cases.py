@@ -251,7 +251,7 @@ def main() -> None:
     )
     search_index = CaseSearchIndex(
         endpoint=settings.AZURE_SEARCH_ENDPOINT,
-        index_name=settings.CASE_INDEX_NAME or "case_index_v3",
+        index_name=settings.CASE_INDEX_NAME or "agent-resolve-case-index",
         admin_key=settings.AZURE_SEARCH_ADMIN_KEY,
     )
     ingestion_service = CaseIngestionService(

@@ -271,12 +271,12 @@ def search_case_by_id(
 def search_knowledge_base(
     query: str,
     top_k: Optional[int] = None,
-    cosolve_phase: Optional[str] = None,
+    agent_resolve_phase: Optional[str] = None,
 ) -> list[KnowledgeSummary]:
     """Search the strategic knowledge base for best practices and guidance.
     Use when the question asks for methodology, strategy, engineering knowledge,
     or standards/procedures references.
-    Filter by cosolve_phase (root_cause, corrective_action, prevent, etc.) when relevant.
+    Filter by agent_resolve_phase (root_cause, corrective_action, prevent, etc.) when relevant.
     Returns doc_id, title, source, content_text, section_title, score."""
     effective_top_k = (
         top_k if top_k is not None else _get_settings().RETRIEVAL_KNOWLEDGE_TOP_K
@@ -289,7 +289,7 @@ def search_knowledge_base(
     raw_results = hybrid_search_knowledge(
         query=query,
         top_k=effective_top_k,
-        cosolve_phase=cosolve_phase,
+        agent_resolve_phase=agent_resolve_phase,
     )
 
     mapped: list[KnowledgeSummary] = []
@@ -309,7 +309,7 @@ def search_knowledge_base(
                 parent_section_id=item.get("parent_section_id"),
                 page_start=item.get("page_start"),
                 page_end=item.get("page_end"),
-                cosolve_phase=item.get("cosolve_phase"),
+                agent_resolve_phase=item.get("agent_resolve_phase"),
                 char_count=item.get("char_count"),
                 score=item.get("@search.score"),
             )

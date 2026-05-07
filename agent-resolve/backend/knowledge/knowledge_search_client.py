@@ -1,7 +1,7 @@
 """Knowledge search — module-level functions wrapping AzureSearch VectorStore.
 
 Searches directly on 'section' chunks which already contain the full
-content_text, source, section_title, cosolve_phase, and their own embedding.
+content_text, source, section_title, agent_resolve_phase, and their own embedding.
 """
 from __future__ import annotations
 
@@ -40,19 +40,19 @@ def _get_knowledge_vectorstore() -> AzureSearch:
 def hybrid_search_knowledge(
     query: str,
     top_k: int = 10,
-    cosolve_phase: Optional[str] = None,
+    agent_resolve_phase: Optional[str] = None,
 ) -> list[dict]:
     """Hybrid BM25 + vector search on section chunks.
 
     Searches directly on chunk_type='section' documents which contain the full
-    content_text, source filename, section_title, page range, and cosolve_phase.
+    content_text, source filename, section_title, page range, and agent_resolve_phase.
     """
-    logger.info("[KNOWLEDGE] hybrid_search query=%r top_k=%d phase=%r", query, top_k, cosolve_phase)
+    logger.info("[KNOWLEDGE] hybrid_search query=%r top_k=%d phase=%r", query, top_k, agent_resolve_phase)
 
     filters = ["chunk_type eq 'section'"]
-    if cosolve_phase:
-        safe_phase = cosolve_phase.replace("'", "''")
-        filters.append(f"cosolve_phase eq '{safe_phase}'")
+    if agent_resolve_phase:
+        safe_phase = agent_resolve_phase.replace("'", "''")
+        filters.append(f"agent_resolve_phase eq '{safe_phase}'")
     filter_expression = " and ".join(filters)
 
     docs_with_scores = _get_knowledge_vectorstore().similarity_search_with_relevance_scores(
