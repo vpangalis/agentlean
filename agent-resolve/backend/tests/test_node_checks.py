@@ -38,7 +38,6 @@ from pathlib import Path
 from typing import Any, Optional
 
 from backend.knowledge.models import CaseSummary, EvidenceSummary, KnowledgeSummary
-from backend.knowledge.tools import KPITool
 from backend.core.models import (
     KPINodeOutput,
     KPIResult,
@@ -51,7 +50,7 @@ from backend.core.models import (
     StrategyPayload,
     StrategyNodeOutput,
 )
-from backend.reasoning.nodes.kpi_node import KPINode
+from backend.reasoning.nodes.kpi_node import kpi_node
 from backend.reasoning.nodes.node_parsing_utils import is_new_problem_question
 from backend.reasoning.nodes.operational_node import OperationalNode
 from backend.reasoning.nodes.question_readiness_node import QuestionReadinessNode
@@ -529,12 +528,8 @@ root causes compared to internally-caused cases, across the full portfolio?
         )
 
     @classmethod
-    def _make_kpi_node(cls, config: "NodeCheckConfig") -> KPINode:
-        kpi_tool = KPITool(
-            hybrid_retriever=cls._make_mock_retriever(config),
-            settings=cls._make_mock_settings(),
-        )
-        return KPINode(kpi_tool=kpi_tool, settings=cls._make_mock_settings())
+    def _make_kpi_node(cls, config: "NodeCheckConfig"):
+        return kpi_node
 
     @classmethod
     def _try_build_live_node(cls, node_class: type) -> Any | None:
@@ -594,9 +589,8 @@ root causes compared to internally-caused cases, across the full portfolio?
                     llm_client=llm_client,
                     settings=_settings,
                 )
-            if node_class is KPINode:
-                kpi_tool = KPITool(hybrid_retriever=retriever, settings=_settings)
-                return KPINode(kpi_tool=kpi_tool, settings=_settings)
+            if node_class is kpi_node:
+                return kpi_node
         except Exception as exc:
             _log.warning("Live node build failed for %s: %s", node_class.__name__, exc)
         return None
