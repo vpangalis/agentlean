@@ -1,4 +1,4 @@
-# API_CONTRACT.md — CoSolve UI/Backend Envelope
+# API_CONTRACT.md — Agent Resolve UI/Backend Envelope
 # Version: 3.0 — 2026-03-09
 # Changes from v2.0: version bump only, contract unchanged
 
@@ -7,12 +7,12 @@
 ## Principle
 
 ```
-UI → CoSolveRequest → [routes.py] → IncidentGraphState → graph
-UI ← CoSolveResponse ← [routes.py] ← IncidentGraphState ← graph
+UI → AgentResolveRequest → [routes.py] → IncidentGraphState → graph
+UI ← AgentResolveResponse ← [routes.py] ← IncidentGraphState ← graph
 ```
 
 IncidentGraphState is internal — never reaches the UI.
-CoSolveRequest/CoSolveResponse are external — never enter the graph.
+AgentResolveRequest/AgentResolveResponse are external — never enter the graph.
 routes.py is the only translation point.
 
 ---
@@ -61,7 +61,7 @@ Rules:
             "What maintenance was performed before this failure?",
             "Which technician signed off the last inspection?"
         ],
-        "ask_cosolve": [
+        "ask_agent": [
             "What are the typical root causes of pantograph wear?",
             "Which depots have the highest pantograph failure rate?"
         ]
@@ -80,7 +80,7 @@ Rules:
 | sources[].relevance | float | no | Relevance score 0.0–1.0 |
 | suggested_questions | object | no | Follow-up questions split by audience |
 | suggested_questions.ask_your_team | array | yes if present | Questions for the human team |
-| suggested_questions.ask_cosolve | array | yes if present | Questions to ask CoSolve next |
+| suggested_questions.ask_agent | array | yes if present | Questions to ask Agent Resolve next |
 | warning | string | no | Non-fatal warning shown as banner in UI. Null if no warning |
 
 ---
@@ -116,12 +116,12 @@ UI is responsible for:
 - Sending case_id when loaded, null when not
 - Displaying warning as a banner when non-null
 - Rendering sources as reference links
-- Rendering suggested_questions.ask_your_team and ask_cosolve as chips
+- Rendering suggested_questions.ask_your_team and ask_agent as chips
 - Handling 422 and 500 gracefully
 
 Backend is responsible for:
-- Validating CoSolveRequest — reject unknown fields
-- Always returning CoSolveResponse shape — never raw state fields
+- Validating AgentResolveRequest — reject unknown fields
+- Always returning AgentResolveResponse shape — never raw state fields
 - Setting warning instead of throwing for expected no-case scenarios
 - Always populating intent — never null
 - Always returning sources array — empty if no sources, never null

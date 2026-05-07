@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from fastapi import APIRouter, HTTPException
 
-from backend.gateway.api.schemas import CoSolveRequest, CoSolveResponse, Source, SuggestedQuestions
+from backend.gateway.api.schemas import AgentResolveRequest, AgentResolveResponse, Source, SuggestedQuestions
 from backend.core.graph import compiled_graph
 from backend.core.state import IncidentGraphState
 
@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/ask", response_model=CoSolveResponse)
-def ask(request: CoSolveRequest) -> CoSolveResponse:
-    """Accept CoSolveRequest, run graph, return CoSolveResponse."""
+@router.post("/ask", response_model=AgentResolveResponse)
+def ask(request: AgentResolveRequest) -> AgentResolveResponse:
+    """Accept AgentResolveRequest, run graph, return AgentResolveResponse."""
     if not request.question or not request.question.strip():
         raise HTTPException(status_code=422, detail="question must be non-empty")
     state: IncidentGraphState = {
@@ -30,8 +30,8 @@ def ask(request: CoSolveRequest) -> CoSolveResponse:
     return _build_response(result)
 
 
-def _build_response(state: IncidentGraphState) -> CoSolveResponse:
-    """Translate graph result state → CoSolveResponse envelope."""
+def _build_response(state: IncidentGraphState) -> AgentResolveResponse:
+    """Translate graph result state → AgentResolveResponse envelope."""
     final = state.get("final_response") or {}
     classification = final.get("classification") or {}
     result = final.get("result") or {}
@@ -66,13 +66,13 @@ def _build_response(state: IncidentGraphState) -> CoSolveResponse:
 
     raw_suggestions = result.get("suggestions") or []
     ask_team: list[str] = []
-    ask_cosolve: list[str] = []
+    ask_agent: list[str] = []
 
     if intent == "KPI_ANALYSIS":
-        # KPI suggestions are plain strings — all go to ask_cosolve chips
+        # KPI suggestions are plain strings — all go to ask_agent chips
         for sg in raw_suggestions:
             if isinstance(sg, str) and sg.strip():
-                ask_cosolve.append(sg.strip())
+                ask_agent.append(sg.strip())
     else:
         for sg in raw_suggestions:
             if isinstance(sg, dict):
@@ -82,14 +82,14 @@ def _build_response(state: IncidentGraphState) -> CoSolveResponse:
                 if sg.get("type") == "team":
                     ask_team.append(q)
                 else:
-                    ask_cosolve.append(q)
+                    ask_agent.append(q)
 
     suggested_questions = (
-        SuggestedQuestions(ask_your_team=ask_team, ask_cosolve=ask_cosolve)
-        if (ask_team or ask_cosolve) else None
+        SuggestedQuestions(ask_your_team=ask_team, ask_agent=ask_agent)
+        if (ask_team or ask_agent) else None
     )
 
-    return CoSolveResponse(
+    return AgentResolveResponse(
         answer=answer,
         intent=intent,
         sources=sources,

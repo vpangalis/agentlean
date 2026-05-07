@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 
-class CoSolveRequest(BaseModel):
+class AgentResolveRequest(BaseModel):
     """What the UI sends. Nothing else crosses inbound."""
     question: str
     case_id: str | None = None
@@ -16,10 +16,10 @@ class Source(BaseModel):
 
 class SuggestedQuestions(BaseModel):
     ask_your_team: list[str] = []
-    ask_cosolve: list[str] = []
+    ask_agent: list[str] = []
 
 
-class CoSolveResponse(BaseModel):
+class AgentResolveResponse(BaseModel):
     """What the backend returns. Nothing else crosses outbound."""
     answer: str
     intent: str

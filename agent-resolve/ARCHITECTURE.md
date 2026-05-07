@@ -1,10 +1,10 @@
-# ARCHITECTURE.md — CoSolve Structural Decisions
+# ARCHITECTURE.md — Agent Resolve Structural Decisions
 
 ---
 
 ## Guiding Principle
 
-CoSolve is a LangGraph application. LangGraph IS the architecture.
+Agent Resolve is a LangGraph application. LangGraph IS the architecture.
 The graph, state, tools, and runnables replace all custom scaffolding.
 Do not fight the framework — use it.
 
@@ -34,7 +34,7 @@ agent-resolve/backend/
         reasoning_handler.py    ← AI graph invocation and clarifying question handling
         suggestion_engine.py    ← LLM-based suggestion generation
         api/
-            schemas.py          ← CoSolveRequest, CoSolveResponse, Source, SuggestedQuestions
+            schemas.py          ← AgentResolveRequest, AgentResolveResponse, Source, SuggestedQuestions
             routes.py           ← /ask endpoint ONLY, envelope translation
             support_routes.py   ← case, knowledge, KPI, suggestions endpoints
 
@@ -99,7 +99,7 @@ One state class. One file. All graph fields live here.
 ```python
 # agent-resolve/backend/core/state.py
 class IncidentGraphState(TypedDict, total=False):
-    # Request fields — set at entry from CoSolveRequest
+    # Request fields — set at entry from AgentResolveRequest
     case_id: str | None
     question: str
     session_id: str | None
@@ -222,13 +222,13 @@ compiled_graph = build_graph()
 `agent-resolve/backend/gateway/api/routes.py` is the only place where the envelope meets the graph.
 It does three things only:
 
-1. Validate incoming `CoSolveRequest`
+1. Validate incoming `AgentResolveRequest`
 2. Convert it to `IncidentGraphState`
 3. Run the graph
-4. Convert `IncidentGraphState` to `CoSolveResponse`
+4. Convert `IncidentGraphState` to `AgentResolveResponse`
 
 Nothing from `IncidentGraphState` leaks to the UI directly.
-Nothing from `CoSolveRequest` enters the graph directly.
+Nothing from `AgentResolveRequest` enters the graph directly.
 
 ---
 

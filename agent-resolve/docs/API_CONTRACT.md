@@ -1,21 +1,21 @@
-# API_CONTRACT.md — CoSolve UI/Backend Envelope
+# API_CONTRACT.md — Agent Resolve UI/Backend Envelope
 
 This document defines the exact shape of every message that crosses
 the boundary between the UI and the backend. Nothing else crosses this boundary.
 
-Enforced by `CoSolveRequest` and `CoSolveResponse` in `backend/api/schemas.py`.
+Enforced by `AgentResolveRequest` and `AgentResolveResponse` in `backend/api/schemas.py`.
 
 ---
 
 ## Principle
 
 ```
-UI  →  CoSolveRequest  →  [routes.py translation]  →  IncidentGraphState  →  graph
-UI  ←  CoSolveResponse ←  [routes.py translation]  ←  IncidentGraphState  ←  graph
+UI  →  AgentResolveRequest  →  [routes.py translation]  →  IncidentGraphState  →  graph
+UI  ←  AgentResolveResponse ←  [routes.py translation]  ←  IncidentGraphState  ←  graph
 ```
 
 `IncidentGraphState` is internal — it never reaches the UI.
-`CoSolveRequest` / `CoSolveResponse` are external — they never enter the graph.
+`AgentResolveRequest` / `AgentResolveResponse` are external — they never enter the graph.
 `routes.py` is the only place where translation happens.
 
 ---
@@ -68,7 +68,7 @@ UI  ←  CoSolveResponse ←  [routes.py translation]  ←  IncidentGraphState  
             "What maintenance was performed before this failure?",
             "Which technician signed off the last inspection?"
         ],
-        "ask_cosolve": [
+        "ask_agent": [
             "What are the typical root causes of pantograph wear?",
             "Which depots have the highest pantograph failure rate?"
         ]
@@ -89,7 +89,7 @@ UI  ←  CoSolveResponse ←  [routes.py translation]  ←  IncidentGraphState  
 | `sources[].relevance` | float | no | Relevance score 0.0–1.0 |
 | `suggested_questions` | object | no | Follow-up questions split by audience |
 | `suggested_questions.ask_your_team` | array | yes | Questions for the human team |
-| `suggested_questions.ask_cosolve` | array | yes | Questions to ask CoSolve next |
+| `suggested_questions.ask_agent` | array | yes | Questions to ask Agent Resolve next |
 | `warning` | string | no | Non-fatal warning shown as banner in UI. Null if no warning |
 
 ---
@@ -129,13 +129,13 @@ UI  ←  CoSolveResponse ←  [routes.py translation]  ←  IncidentGraphState  
 - Sending `case_id` when a case is loaded, null when not
 - Displaying `warning` as a banner when non-null
 - Rendering `sources` as reference links
-- Rendering `suggested_questions.ask_your_team` and `ask_cosolve` as chips
+- Rendering `suggested_questions.ask_your_team` and `ask_agent` as chips
 - Handling 422 and 500 responses gracefully
 
 ## WHAT THE BACKEND IS RESPONSIBLE FOR
 
-- Validating `CoSolveRequest` shape — reject unknown fields
-- Always returning `CoSolveResponse` shape — never return raw state fields
+- Validating `AgentResolveRequest` shape — reject unknown fields
+- Always returning `AgentResolveResponse` shape — never return raw state fields
 - Setting `warning` instead of throwing an error for expected no-case scenarios
 - Always populating `intent` — never null
 - Always returning `sources` array — empty array if no sources, never null

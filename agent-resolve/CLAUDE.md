@@ -1,4 +1,4 @@
-# CLAUDE.md — CoSolve Hard Rules for Claude Code
+# CLAUDE.md — Agent Resolve Hard Rules for Claude Code
 
 Read this file completely before writing any code. These rules are non-negotiable.
 Violation of any rule = reject the output and start again.
@@ -32,7 +32,7 @@ Violation of any rule = reject the output and start again.
 - Tool docstrings are mandatory — they are what the LLM reads to decide which tool to use
 
 ### API Contract
-- The only objects that cross the UI/backend wire are `CoSolveRequest` and `CoSolveResponse` in `agent-resolve/backend/gateway/api/schemas.py`
+- The only objects that cross the UI/backend wire are `AgentResolveRequest` and `AgentResolveResponse` in `agent-resolve/backend/gateway/api/schemas.py`
 - `routes.py` is the only place where state is converted to/from the envelope
 - Never expose `IncidentGraphState` fields directly in an API response
 

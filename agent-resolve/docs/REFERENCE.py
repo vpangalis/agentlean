@@ -1,8 +1,8 @@
 """
-REFERENCE.py — CoSolve Canonical Code Patterns
+REFERENCE.py — Agent Resolve Canonical Code Patterns
 
 This file is NOT executed. It is the reference every Claude Code session
-must read before writing any CoSolve code. Every pattern here must be
+must read before writing any Agent Resolve code. Every pattern here must be
 followed exactly. No deviations without explicit approval.
 """
 
@@ -17,7 +17,7 @@ class IncidentGraphState(TypedDict, total=False):
     """Single source of truth for all graph state.
     All fields are optional (total=False) — nodes only set what they produce.
     """
-    # Envelope fields — set from CoSolveRequest at entry
+    # Envelope fields — set from AgentResolveRequest at entry
     case_id: str | None
     question: str
     session_id: str | None
@@ -236,7 +236,7 @@ compiled_graph = build_graph()
 
 from pydantic import BaseModel
 
-class CoSolveRequest(BaseModel):
+class AgentResolveRequest(BaseModel):
     """What the UI sends to the backend. Nothing else crosses the wire inbound."""
     question: str
     case_id: str | None = None
@@ -249,9 +249,9 @@ class Source(BaseModel):
 
 class SuggestedQuestions(BaseModel):
     ask_your_team: list[str] = []
-    ask_cosolve: list[str] = []
+    ask_agent: list[str] = []
 
-class CoSolveResponse(BaseModel):
+class AgentResolveResponse(BaseModel):
     """What the backend returns to the UI. Nothing else crosses the wire outbound."""
     answer: str
     intent: str
@@ -267,14 +267,14 @@ class CoSolveResponse(BaseModel):
 # routes.py does ONE thing: translate envelope ↔ state
 
 from fastapi import APIRouter
-from backend.api.schemas import CoSolveRequest, CoSolveResponse
+from backend.api.schemas import AgentResolveRequest, AgentResolveResponse
 from backend.state import IncidentGraphState
 from backend.graph import compiled_graph
 
 router = APIRouter()
 
-@router.post("/ask", response_model=CoSolveResponse)
-async def ask(request: CoSolveRequest) -> CoSolveResponse:
+@router.post("/ask", response_model=AgentResolveResponse)
+async def ask(request: AgentResolveRequest) -> AgentResolveResponse:
     # 1 — envelope → state
     state: IncidentGraphState = {
         "question": request.question,
@@ -288,9 +288,9 @@ async def ask(request: CoSolveRequest) -> CoSolveResponse:
     # 3 — state → envelope
     return _build_response(result)
 
-def _build_response(state: IncidentGraphState) -> CoSolveResponse:
+def _build_response(state: IncidentGraphState) -> AgentResolveResponse:
     final = state.get("final_response") or {}
-    return CoSolveResponse(
+    return AgentResolveResponse(
         answer=final.get("answer", ""),
         intent=str(state.get("route") or ""),
         sources=[Source(**s) for s in final.get("sources", [])],
