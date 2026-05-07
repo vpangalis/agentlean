@@ -7,7 +7,7 @@ class IncidentGraphState(TypedDict, total=False):
     """Single source of truth. All fields optional (total=False).
     Nodes return dict slices — only the keys they produce."""
 
-    # Envelope fields — set from CoSolveRequest
+    # Envelope fields — set from AgentResolveRequest
     case_id: str | None
     question: str
     session_id: str | None
