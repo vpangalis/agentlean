@@ -1,6 +1,6 @@
 """backend/tests/test_node_checks.py
 
-Automated check suite for CoSolve's four primary agent nodes:
+Automated check suite for Agent Resolve's four primary agent nodes:
   - OperationalNode
   - SimilarityNode
   - StrategyNode
@@ -311,7 +311,7 @@ catenary certification, or were railway-grade tolerances applied?
         • Were Line 7 and Line 2 catenary sections also surveyed for geometry \
 deviations during the same maintenance window as Line 4?
 
-        Questions to ask CoSolve:
+        Questions to ask Agent Resolve:
         🔍 Similar cases: "Have we had other incidents where a catenary contractor \
 applied railway instead of tram-specific wire height tolerances on Citadis units?"
         ⚙️ Operational deep-dive: "What containment actions were applied to TRM-401 \
@@ -333,7 +333,7 @@ or the whole fleet? Is there an immediate safety or operational risk right now?
 
         [SIMILAR CASES — CHECK FIRST]
         Before opening a formal investigation, it is worth checking whether this \
-problem has been seen before. Describe the problem in a few words and ask CoSolve: \
+problem has been seen before. Describe the problem in a few words and ask Agent Resolve: \
 'Have we had similar incidents involving pantograph system failure?'
         Past cases may already have a proven solution.
 
@@ -356,7 +356,7 @@ problem is fully documented.
         • What exactly did you observe — describe it in one sentence
         • Is this happening on one unit only or across multiple?
 
-        Questions to ask CoSolve:
+        Questions to ask Agent Resolve:
         🔍 Similar cases: 'Have we had similar incidents involving pantograph system failure?'
         ⚙️ Once case is open: 'What should we focus on first for this problem?'
         📊 Strategic view: 'Is this type of failure recurring across our fleet?'
@@ -403,7 +403,7 @@ that was identified as missing in TRM-20250415-0002?
         • Has the updated catenary acceptance specification from TRM-20250415-0002 been \
 formally adopted and was it referenced in the Line 4 maintenance contract?
 
-        Questions to ask CoSolve:
+        Questions to ask Agent Resolve:
         ⚙️ Operational deep-dive: "What is the current Root Cause Analysis status in \
 TRM-20250310-0001 and has the geometry deviation at KP 3.4 been formally documented?"
         📊 Strategic view: "Does the pattern of contractor-caused post-maintenance \
@@ -457,11 +457,11 @@ tram-specific qualification and is this a mandatory pre-qualification requiremen
 before any infrastructure maintenance work returns to service fleet-wide?
         TEAM: How many post-maintenance rolling stock incidents in the last 24 months \
 involved external contractors, and are they concentrated in a particular country or depot?
-        COSOLVE: Which countries in our portfolio show the highest rate of \
+        AGENT_RESOLVE: Which countries in our portfolio show the highest rate of \
 post-maintenance corrective cases linked to external contractors?
-        COSOLVE: Are there any other open cases involving contractor-caused \
+        AGENT_RESOLVE: Are there any other open cases involving contractor-caused \
 infrastructure deviations that have not yet been escalated?
-        COSOLVE: What is the average resolution time for cases with contractor-related \
+        AGENT_RESOLVE: What is the average resolution time for cases with contractor-related \
 root causes compared to internally-caused cases, across the full portfolio?
         """
     )
@@ -855,7 +855,7 @@ class _QualityGateHelper:
 
     @staticmethod
     def explore_next_has_both_subsections(text: str) -> bool:
-        """Check [WHAT TO EXPLORE NEXT] has both team and CoSolve subsections."""
+        """Check [WHAT TO EXPLORE NEXT] has both team and Agent Resolve subsections."""
         section = _QualityGateHelper.extract_section(text, "[WHAT TO EXPLORE NEXT]", [])
         if not section:
             return False
@@ -865,12 +865,12 @@ class _QualityGateHelper:
             or "•" in section
             or "-" in section
         )
-        has_cosolve = (
-            "questions to ask cosolve" in section.lower()
-            or "cosolve:" in section.lower()
+        has_agent_resolve = (
+            "questions to ask agent resolve" in section.lower()
+            or "agent_resolve:" in section.lower()
             or any(emoji in section for emoji in ("🔍", "⚙️", "📊", "📈", "🔎"))
         )
-        return has_team and has_cosolve
+        return has_team and has_agent_resolve
 
     @staticmethod
     def scan_banned_terms(
@@ -903,20 +903,20 @@ class _QualityGateHelper:
         return case_id in text
 
     @staticmethod
-    def strategy_has_team_cosolve(text: str) -> tuple[int, int]:
-        """Return (team_count, cosolve_count) in [WHAT TO EXPLORE NEXT]."""
+    def strategy_has_team_agent_resolve(text: str) -> tuple[int, int]:
+        """Return (team_count, agent_resolve_count) in [WHAT TO EXPLORE NEXT]."""
         section = _QualityGateHelper.extract_section(text, "[WHAT TO EXPLORE NEXT]", [])
         team_count = sum(
             1
             for line in section.split("\n")
             if line.strip().upper().startswith("TEAM:")
         )
-        cosolve_count = sum(
+        agent_resolve_count = sum(
             1
             for line in section.split("\n")
-            if line.strip().upper().startswith("COSOLVE:")
+            if line.strip().upper().startswith("AGENT_RESOLVE:")
         )
-        return team_count, cosolve_count
+        return team_count, agent_resolve_count
 
     @staticmethod
     def kpi_has_no_d_codes(kpi_result: KPIResult) -> list[str]:
@@ -1158,7 +1158,7 @@ class OperationalNodeChecks:
                 issues.append("[GENERAL ADVICE] missing ⚠️ warning prefix")
             if not _QualityGateHelper.explore_next_has_both_subsections(text):
                 issues.append(
-                    "[WHAT TO EXPLORE NEXT] missing team or CoSolve subsection"
+                    "[WHAT TO EXPLORE NEXT] missing team or Agent Resolve subsection"
                 )
             if not _QualityGateHelper.references_case_id(
                 text, self._cfg.SAMPLE_CASE_ID
@@ -1197,7 +1197,7 @@ class OperationalNodeChecks:
         if not _QualityGateHelper.general_advice_is_flagged(text):
             issues.append("[GENERAL ADVICE] missing ⚠️ prefix")
         if not _QualityGateHelper.explore_next_has_both_subsections(text):
-            issues.append("[WHAT TO EXPLORE NEXT] missing team or CoSolve subsection")
+            issues.append("[WHAT TO EXPLORE NEXT] missing team or Agent Resolve subsection")
         if not _QualityGateHelper.references_case_id(text, self._cfg.SAMPLE_CASE_ID):
             issues.append("mock response does not reference sample case ID")
         if issues:
@@ -1781,16 +1781,16 @@ class StrategyNodeChecks:
                     issues.append(f"missing section: {section}")
             if not _QualityGateHelper.general_advice_is_flagged(text):
                 issues.append("[GENERAL ADVICE] missing ⚠️ prefix")
-            team_count, cosolve_count = _QualityGateHelper.strategy_has_team_cosolve(
+            team_count, agent_resolve_count = _QualityGateHelper.strategy_has_team_agent_resolve(
                 text
             )
             if team_count < 3:
                 issues.append(
                     f"[WHAT TO EXPLORE NEXT] has {team_count} TEAM: items (need 3)"
                 )
-            if cosolve_count < 3:
+            if agent_resolve_count < 3:
                 issues.append(
-                    f"[WHAT TO EXPLORE NEXT] has {cosolve_count} COSOLVE: items (need 3)"
+                    f"[WHAT TO EXPLORE NEXT] has {agent_resolve_count} AGENT_RESOLVE: items (need 3)"
                 )
             if issues:
                 return CheckResult(
@@ -1820,11 +1820,11 @@ class StrategyNodeChecks:
                 issues.append(f"missing section: {section}")
         if not _QualityGateHelper.general_advice_is_flagged(text):
             issues.append("[GENERAL ADVICE] missing ⚠️ prefix")
-        team_count, cosolve_count = _QualityGateHelper.strategy_has_team_cosolve(text)
+        team_count, agent_resolve_count = _QualityGateHelper.strategy_has_team_agent_resolve(text)
         if team_count < 3:
             issues.append(f"TEAM: items: {team_count} (need 3)")
-        if cosolve_count < 3:
-            issues.append(f"COSOLVE: items: {cosolve_count} (need 3)")
+        if agent_resolve_count < 3:
+            issues.append(f"AGENT_RESOLVE: items: {agent_resolve_count} (need 3)")
         if issues:
             return CheckResult(
                 "StrategyNode: quality gate (mock response structure)",
@@ -2609,7 +2609,7 @@ class NodeCheckRunner:
 
         print()
         print(self._SEPARATOR)
-        print("CoSolve Node Automated Check Report")
+        print("Agent Resolve Node Automated Check Report")
         print(f"LIVE_MODE = {self._config.LIVE_MODE}")
         print(self._SEPARATOR)
 

@@ -78,7 +78,7 @@ or equipment from their question where possible). Then ask the team to describe:
 
 [SIMILAR CASES \u2014 CHECK FIRST]
 Before opening a formal investigation, it is worth checking whether this problem
-has been seen before. Describe the problem in a few words and ask CoSolve:
+has been seen before. Describe the problem in a few words and ask Agent Resolve:
 'Have we had similar incidents involving [component/symptom]?'
 Past cases may already have a proven solution \u2014 use the specific symptom from
 the question when you fill in [component/symptom].
@@ -104,7 +104,7 @@ Questions to ask your team right now:
 \u2022 What exactly did you observe \u2014 describe it in one sentence
 \u2022 Is this happening on one unit only or across multiple?
 
-Questions to ask CoSolve:
+Questions to ask Agent Resolve:
 \U0001f50d Similar cases: 'Have we had similar incidents involving [describe symptom]?'
 \u2699\ufe0f Once case is open: 'What should we focus on first for this problem?'
 \U0001f4ca Strategic view: 'Is this type of failure recurring across our fleet?'
@@ -177,7 +177,7 @@ in exactly this order \u2014 do not reorder, do not skip sections:
   \u2022 "<a second specific investigative question about something the team
      may not have checked yet, referenced directly from the case data>"
 
-  Questions to ask CoSolve:
+  Questions to ask Agent Resolve:
   \U0001f50d Similar cases: "<a specific question about whether other incidents had the same
      failure pattern, component, or symptom \u2014 use actual details from this case>"
 
@@ -190,7 +190,7 @@ in exactly this order \u2014 do not reorder, do not skip sections:
   \U0001f4c8 KPI & trends: "<a specific question about metrics, frequency, or performance
      indicators relevant to this failure type>"
 
-  All questions \u2014 both team and CoSolve \u2014 must reference something specific found in
+  All questions \u2014 both team and Agent Resolve \u2014 must reference something specific found in
   the case data. Do not generate generic questions like "what are the root causes?" \u2014
   every suggestion must cite an actual detail from this case.
 
@@ -256,7 +256,7 @@ Suggest related searches or portfolio-level questions the team could explore to 
 on the knowledge from this resolved case. These must be similarity searches or
 strategic/portfolio questions \u2014 never operational next steps for this case.
 
-Questions to ask CoSolve:
+Questions to ask Agent Resolve:
 \U0001f50d Similar cases: "<a specific question about whether other cases share the same root cause,
    failure mode, or component \u2014 grounded in actual details from this resolved case>"
 \u2699\ufe0f Portfolio follow-up: "<a specific question about whether the corrective actions
@@ -310,7 +310,7 @@ Evaluate the draft response against these five criteria:
    Is [WHAT TO EXPLORE NEXT] present with BOTH subsections:
    (a) "Questions to ask your team right now" containing at least two bullet-point
        questions grounded in the actual case data, AND
-   (b) "Questions to ask CoSolve" containing all four icon-prefixed questions
+   (b) "Questions to ask Agent Resolve" containing all four icon-prefixed questions
        (\U0001f50d similar cases, \u2699\ufe0f operational, \U0001f4ca strategic, \U0001f4c8 KPI)?
    Are all six questions specific to this case, or are they generic?
    Score: SPECIFIC_MULTI_DOMAIN | GENERIC | INCOMPLETE | MISSING
@@ -359,7 +359,7 @@ Every section is mandatory. [CURRENT STATE] and [GAPS] must reference actual cas
 [GENERAL ADVICE] must carry the \u26a0\ufe0f warning prefix.
 [WHAT TO EXPLORE NEXT] must contain BOTH:
   - "Questions to ask your team right now" with two case-grounded bullet points
-  - "Questions to ask CoSolve" with all four icon-prefixed questions
+  - "Questions to ask Agent Resolve" with all four icon-prefixed questions
     (\U0001f50d similar cases, \u2699\ufe0f operational deep-dive, \U0001f4ca strategic view, \U0001f4c8 KPI & trends)
     all grounded in this case.
 Section order is mandatory: [CURRENT STATE], [GAPS IN PREVIOUS STATES],
@@ -461,7 +461,7 @@ Only after Steps 1 and 2, structure your answer in exactly this order:
   \u2022 "<second specific question about a failure mode or process gap \
      that recurred across similar cases>"
 
-  Questions to ask CoSolve:
+  Questions to ask Agent Resolve:
   \u2699\ufe0f Operational deep-dive: "<specific question about the active case \
      D-states if a case is loaded, or about how to structure the \
      investigation if no case is loaded yet>"
@@ -496,7 +496,7 @@ CRITICAL RULES:
   none of those exist; (b) all content in \
   [WHAT THIS MEANS FOR YOUR INVESTIGATION] must be grounded solely in \
   the retrieved closed cases and the question text \u2014 never in assumed \
-  or invented investigation details; (c) the CoSolve operational \
+  or invented investigation details; (c) the Agent Resolve operational \
   deep-dive question in [WHAT TO EXPLORE NEXT] must invite the user to \
   load a case to get specific guidance, not assume one is open.
 - SECTION ORDER IS MANDATORY:
@@ -575,7 +575,7 @@ Evaluate the draft against these five criteria:
    Is [WHAT TO EXPLORE NEXT] present with BOTH:
    (a) "Questions to ask your team right now" \u2014 2+ bullet questions
        grounded in the retrieved cases, AND
-   (b) "Questions to ask CoSolve" \u2014 exactly 4 icon-prefixed questions
+   (b) "Questions to ask Agent Resolve" \u2014 exactly 4 icon-prefixed questions
        (\u2699\ufe0f operational, \U0001f4ca strategic, \U0001f4c8 KPI, \U0001f50d dig deeper)?
    SPECIFIC_MULTI_DOMAIN: both subsections present, questions reference
      actual case details or failure patterns.
@@ -630,7 +630,7 @@ Requirements:
 - [WHAT TO EXPLORE NEXT] must contain BOTH:
     "Questions to ask your team right now" (2 bullet questions grounded
     in the retrieved cases)
-    "Questions to ask CoSolve" (exactly 4 icon-prefixed questions:
+    "Questions to ask Agent Resolve" (exactly 4 icon-prefixed questions:
     \u2699\ufe0f operational, \U0001f4ca strategic, \U0001f4c8 KPI, \U0001f50d dig deeper)
 - Target 300\u2013400 words. All five sections required regardless of count.
 - Return plain text only. No JSON. No markdown beyond section labels.
@@ -699,17 +699,17 @@ Provide 2-4 generic quality management / continuous improvement recommendations
 at the portfolio or fleet level. Do not give single-incident advice here.
 
 [WHAT TO EXPLORE NEXT]
-Provide exactly 6 items: 3 prefixed with TEAM: and 3 prefixed with COSOLVE:
+Provide exactly 6 items: 3 prefixed with TEAM: and 3 prefixed with AGENT_RESOLVE:
 TEAM items are questions for the management team to discuss internally.
-COSOLVE items are specific questions to ask the CoSolve system.
+AGENT_RESOLVE items are specific questions to ask the Agent Resolve system.
 All 6 questions must be at portfolio, fleet, or organisational scope \u2014 not incident-level.
 Format each item on its own line exactly like this:
 TEAM: <question>
 TEAM: <question>
 TEAM: <question>
-COSOLVE: <question>
-COSOLVE: <question>
-COSOLVE: <question>
+AGENT_RESOLVE: <question>
+AGENT_RESOLVE: <question>
+AGENT_RESOLVE: <question>
 
 CRITICAL RULES:
 - CITATION FORMAT: Every case citation in EVERY section (including
@@ -743,7 +743,7 @@ CRITICAL RULES:
   \u2611 [ROOT CAUSE CATEGORIES]
   \u2611 [ORGANISATIONAL WEAKNESSES]
   \u2611 [GENERAL ADVICE] \u2014 MUST start with the \u26a0\ufe0f warning prefix
-  \u2611 [WHAT TO EXPLORE NEXT] \u2014 MUST have exactly 3 TEAM: and 3 COSOLVE: items
+  \u2611 [WHAT TO EXPLORE NEXT] \u2014 MUST have exactly 3 TEAM: and 3 AGENT_RESOLVE: items
   If any section is absent, add it before returning your response.
 Do not cite knowledge documents inline in your response text. All document
 references must appear only in the [KNOWLEDGE REFERENCES] block at the end.
@@ -761,7 +761,7 @@ Return the COMPLETE response with all five sections in mandatory order:
 [GENERAL ADVICE], [WHAT TO EXPLORE NEXT]
 
 Requirements for [WHAT TO EXPLORE NEXT] if that is the failing section:
-- Exactly 6 items: 3 lines starting with TEAM: and 3 lines starting with COSOLVE:
+- Exactly 6 items: 3 lines starting with TEAM: and 3 lines starting with AGENT_RESOLVE:
 - All items at portfolio/fleet/org scope, not incident-level
 - Each on its own line
 
@@ -811,9 +811,9 @@ Evaluate the draft response against these five criteria:
    vague terms without naming the document should be treated as FAIL.
 
 5. EXPLORE NEXT QUALITY
-   Does [WHAT TO EXPLORE NEXT] contain exactly 6 items with TEAM: and COSOLVE:
+   Does [WHAT TO EXPLORE NEXT] contain exactly 6 items with TEAM: and AGENT_RESOLVE:
    prefix format, and are the questions at portfolio/fleet/org scope?
-   PASS: 6 items, 3 starting with TEAM: and 3 starting with COSOLVE:, all at
+   PASS: 6 items, 3 starting with TEAM: and 3 starting with AGENT_RESOLVE:, all at
          portfolio/fleet/org scope.
    FAIL: fewer than 6 items, incorrect prefix format, or questions are about a
          single incident rather than the portfolio.

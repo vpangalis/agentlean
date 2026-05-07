@@ -947,11 +947,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const isStrategy = nodeType === "strategy";
 
     const teamSuggestions = suggestions.filter((s) => s.type === "team");
-    const coSolveSuggestions = suggestions.filter((s) => s.type === "cosolve");
+    const agentResolveSuggestions = suggestions.filter((s) => s.type === "agent_resolve");
     const loadCaseSuggestions = suggestions.filter((s) => s.type === "load_case");
-    const coSolveChipClass = isStrategy
-      ? "ai-suggestion-chip ai-chip-cosolve strategy-chip"
-      : "ai-suggestion-chip ai-chip-cosolve";
+    const agentResolveChipClass = isStrategy
+      ? "ai-suggestion-chip ai-chip-agent-resolve strategy-chip"
+      : "ai-suggestion-chip ai-chip-agent-resolve";
     const suggestionsBarHtml = suggestions.length > 0 ? (
       `<div class="ai-suggestions-bar">` +
       `<div class="ai-suggestions-label">Explore next:</div>` +
@@ -964,11 +964,11 @@ document.addEventListener("DOMContentLoaded", () => {
         ).join("") +
         `</div>`
         : "") +
-      (coSolveSuggestions.length > 0 ?
+      (agentResolveSuggestions.length > 0 ?
         `<div class="ai-suggestions-group">` +
-        `<span class="ai-suggestions-group-label">Ask CoSolve:</span>` +
-        coSolveSuggestions.map((s) =>
-          `<div class="${coSolveChipClass}" data-question="${escapeHtml(s.question)}">${escapeHtml(s.label)}</div>`
+        `<span class="ai-suggestions-group-label">Ask Agent Resolve:</span>` +
+        agentResolveSuggestions.map((s) =>
+          `<div class="${agentResolveChipClass}" data-question="${escapeHtml(s.question)}">${escapeHtml(s.label)}</div>`
         ).join("") +
         `</div>`
         : "") +
@@ -1000,7 +1000,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const AI_WELCOME_HTML =
     `<div class="ai-empty-state">` +
     `<div class="ai-welcome">` +
-    `<div class="ai-welcome-title">Welcome to CoSolve AI Reasoning</div>` +
+    `<div class="ai-welcome-title">Welcome to Agent Resolve AI Reasoning</div>` +
     `<div class="ai-welcome-subtitle">Collaborative problem solving, powered by AI</div>` +
     `<div class="ai-welcome-section">` +
     `<div class="ai-welcome-section-label">WORKING ON AN ACTIVE PROBLEM?</div>` +
@@ -1068,13 +1068,13 @@ document.addEventListener("DOMContentLoaded", () => {
         `<div class="ai-welcome-subtitle">This case is closed — review what happened and what was learned</div>` +
 
         `<div class="ai-welcome-section">` +
-        `<div class="ai-welcome-section-label">ASK COSOLVE</div>` +
+        `<div class="ai-welcome-section-label">ASK AGENT RESOLVE</div>` +
         `<div class="ai-welcome-section-hint">Retrospective questions about this resolved case:</div>` +
         `<div class="ai-welcome-suggestions">` +
-        `<div class="ai-suggestion-chip ai-chip-cosolve">What was the root cause?</div>` +
-        `<div class="ai-suggestion-chip ai-chip-cosolve">What corrective actions were taken?</div>` +
-        `<div class="ai-suggestion-chip ai-chip-cosolve">Are there similar cases in the portfolio?</div>` +
-        `<div class="ai-suggestion-chip ai-chip-cosolve">How long did this case take to resolve?</div>` +
+        `<div class="ai-suggestion-chip ai-chip-agent-resolve">What was the root cause?</div>` +
+        `<div class="ai-suggestion-chip ai-chip-agent-resolve">What corrective actions were taken?</div>` +
+        `<div class="ai-suggestion-chip ai-chip-agent-resolve">Are there similar cases in the portfolio?</div>` +
+        `<div class="ai-suggestion-chip ai-chip-agent-resolve">How long did this case take to resolve?</div>` +
         `</div></div>` +
 
         `<div class="ai-welcome-section">` +
@@ -2018,14 +2018,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const section = text.split(marker)[1] || "";
     const lines = section.split("\n");
     const emojiMap = {
-      "\u{1F50D}": { label: "Similar cases", type: "cosolve" },
-      "\u2699\uFE0F": { label: "Operational", type: "cosolve" },
-      "\u{1F4CA}": { label: "Strategic view", type: "cosolve" },
-      "\u{1F4C8}": { label: "KPI & trends", type: "cosolve" }
+      "\u{1F50D}": { label: "Similar cases", type: "agent_resolve" },
+      "\u2699\uFE0F": { label: "Operational", type: "agent_resolve" },
+      "\u{1F4CA}": { label: "Strategic view", type: "agent_resolve" },
+      "\u{1F4C8}": { label: "KPI & trends", type: "agent_resolve" }
     };
     for (const line of lines) {
       const trimmed = line.trim();
-      // Strategy-style TEAM: / COSOLVE: prefix format
+      // Strategy-style TEAM: / AGENT_RESOLVE: prefix format
       if (/^TEAM:/i.test(trimmed)) {
         const q = trimmed.replace(/^TEAM:\s*/i, "").replace(/^"|"$/g, "");
         if (q.length > 5) {
@@ -2037,13 +2037,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         continue;
       }
-      if (/^COSOLVE:/i.test(trimmed)) {
-        const q = trimmed.replace(/^COSOLVE:\s*/i, "").replace(/^"|"$/g, "");
+      if (/^AGENT_RESOLVE:/i.test(trimmed)) {
+        const q = trimmed.replace(/^AGENT_RESOLVE:\s*/i, "").replace(/^"|"$/g, "");
         if (q.length > 5) {
           suggestions.push({
             label: q.length > 40 ? q.substring(0, 40) + "..." : q,
             question: q,
-            type: "cosolve"
+            type: "agent_resolve"
           });
         }
         continue;
@@ -2059,7 +2059,7 @@ document.addEventListener("DOMContentLoaded", () => {
           });
         }
       }
-      // CoSolve emoji questions
+      // Agent Resolve emoji questions
       for (const [emoji, meta] of Object.entries(emojiMap)) {
         if (trimmed.startsWith(emoji)) {
           const parts = trimmed.split(":", 2);
@@ -2146,7 +2146,7 @@ document.addEventListener("DOMContentLoaded", () => {
         suggestions = suggestions.map((s) => ({
           label: s.length > 40 ? s.substring(0, 40) + "..." : s,
           question: s,
-          type: "cosolve"
+          type: "agent_resolve"
         }));
       }
 
