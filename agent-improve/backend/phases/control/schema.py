@@ -1,2 +1,2 @@
-# ControlPhaseInput — Pydantic gate model for Control phase
-# Implementation pending — see ARCHITECTURE.md
+# ControlPhaseInput — Pydantic gate model
+# Implementation pending
