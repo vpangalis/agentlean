@@ -1,6 +1,4 @@
-# ImproveGraphState — ONE TypedDict for Agent Improve
-# Implementation pending — see ARCHITECTURE.md section 4
-from typing import TypedDict, Optional, Any
+from typing import TypedDict, Optional
 
 class ImproveGraphState(TypedDict):
     case_id: str
