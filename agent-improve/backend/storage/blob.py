@@ -1,2 +1,2 @@
 # Case load/save, registry read/write — Azure Blob Storage
-# Implementation pending — see ARCHITECTURE.md
+# Implementation pending
