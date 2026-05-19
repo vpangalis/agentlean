@@ -1,2 +1,2 @@
-# AnalysePhaseInput — Pydantic gate model for Analyse phase
-# Implementation pending — see ARCHITECTURE.md
+# AnalysePhaseInput — Pydantic gate model
+# Implementation pending
