@@ -1,8 +1,8 @@
-# Agent Improve — Architecture & Design Document
+# Agent Improve â Architecture & Design Document
 
-**Agentlean Platform · DMAIC Improvement Agent**
-Version 0.1 · May 2026
-Status: Scaffold created — implementation not yet started
+**Agentlean Platform Â· DMAIC Improvement Agent**
+Version 0.1 Â· May 2026
+Status: Scaffold created â implementation not yet started
 
 ---
 
@@ -10,18 +10,18 @@ Status: Scaffold created — implementation not yet started
 
 Agent Improve is the second agent in the Agentlean platform, following Agent Resolve. Where Agent Resolve handles individual maintenance incident resolution using an 8D methodology, Agent Improve guides cross-functional teams through structured DMAIC (Define, Measure, Analyse, Improve, Control) Lean Six Sigma improvement projects.
 
-**Core design principle:** Agent Improve must work for a team with no belt qualification at all. The AI guides the team through every step in plain language — no methodology jargon is presented to team members unless they explicitly ask.
+**Core design principle:** Agent Improve must work for a team with no belt qualification at all. The AI guides the team through every step in plain language â no methodology jargon is presented to team members unless they explicitly ask.
 
 | Property | Value |
 |---|---|
 | Backend port | 8020 (Agent Resolve: 8010, Agent Flow: 8030) |
 | Local path | `C:\Users\mavep\OneDrive - Vassilis Pangalis Valuesims\_DEVELOPMENT\agent-improve` |
-| GitHub | `vpangalis/agentlean` — `agent-improve/` folder |
-| Stack | Python 3.11 · FastAPI · LangGraph · Azure OpenAI · Azure AI Search · Azure Blob |
+| GitHub | `vpangalis/agentlean` â `agent-improve/` folder |
+| Stack | Python 3.11 Â· FastAPI Â· LangGraph Â· Azure OpenAI Â· Azure AI Search Â· Azure Blob |
 | Venv | Dedicated `agent-improve\.venv` |
-| Repo | Monorepo — `agent-improve/` inside `vpangalis/agentlean` |
-| Status | Scaffold created · implementation not yet started |
-| Azure migration | Deferred — stays on `valuesims-*` until all 3 agents built |
+| Repo | Monorepo â `agent-improve/` inside `vpangalis/agentlean` |
+| Status | Scaffold created Â· implementation not yet started |
+| Azure migration | Deferred â stays on `valuesims-*` until all 3 agents built |
 | Dockerization | Deferred until all 3 agents built |
 
 ---
@@ -40,7 +40,7 @@ Agent Improve is the second agent in the Agentlean platform, following Agent Res
 | Baseline | How bad the problem is right now, in numbers |
 
 ### 2.2 Every data request comes with a collection guide
-When the Orchestrator asks for data it explains what to collect, the format, and provides a concrete column-by-column example — both in chat and in the data collection table tab.
+When the Orchestrator asks for data it explains what to collect, the format, and provides a concrete column-by-column example â both in chat and in the data collection table tab.
 
 ### 2.3 Source citation is mandatory and transparent
 Every AI suggestion carries: agent_origin, index_name, document_id, relevance_summary. Non-negotiable for railway maintenance regulatory traceability.
@@ -63,22 +63,22 @@ Each case has a unique IMPR-YYYY-NNN number, its own blob file, and its own stat
 | **Upload Intelligence** | Classifies uploaded files by type and phase relevance. Validates format. | On every file upload |
 
 ### 3.1 Reflection
-Every `orchestrate_{phase}.py` contains a private `_reflect()` called before returning. Scoped second LLM call — not a standalone graph node.
+Every `orchestrate_{phase}.py` contains a private `_reflect()` called before returning. Scoped second LLM call â not a standalone graph node.
 
 ### 3.2 Escalation
 If gate_attempts reaches GATE_MAX_ATTEMPTS (default 3), routes to `escalate.py`. Sets escalated=True in state. Gate quality bar does not lower.
 
 ### 3.3 Graph topology (per phase)
 ```
-orchestrate_{phase} → validate_{phase}
-  fail + attempts < max  → loop back to orchestrate_{phase}
-  fail + attempts == max → escalate
-  pass                   → analyse_{phase} → next phase
+orchestrate_{phase} â validate_{phase}
+  fail + attempts < max  â loop back to orchestrate_{phase}
+  fail + attempts == max â escalate
+  pass                   â analyse_{phase} â next phase
 ```
 
 ---
 
-## 4. State Model — ImproveGraphState
+## 4. State Model â ImproveGraphState
 
 | Field | Type | Description |
 |---|---|---|
@@ -154,7 +154,7 @@ Full durable record: metadata, all phase records, conversation history, citation
 ### New (MVP)
 | Index | Content |
 |---|---|
-| improve_case_index | One doc per case per gate pass — phase summaries, RAG status |
+| improve_case_index | One doc per case per gate pass â phase summaries, RAG status |
 | improve_knowledge_index | DMAIC methodology, GB/BB training, Excel toolkit content |
 
 ### Cross-agent read-only (Agent Resolve)
@@ -175,22 +175,22 @@ Full durable record: metadata, all phase records, conversation history, citation
 ## 8. UI Structure
 
 ### Four screens
-1. **Landing** — New case / Open case / Recent cases list
-2. **Case creation** — Case number, title, belt level, team, initial uploads
-3. **Case search** — Find by number/title/leader, join by name
-4. **Phase workspace** — Five tabs per phase
+1. **Landing** â New case / Open case / Recent cases list
+2. **Case creation** â Case number, title, belt level, team, initial uploads
+3. **Case search** â Find by number/title/leader, join by name
+4. **Phase workspace** â Five tabs per phase
 
 ### Five tabs per phase
-1. Phase overview — welcome, DMAIC strip, explanation cards, tool pills, session history
-2. AI guide — live Orchestrator conversation, plain language, citation pills, suggestion chips
-3. Step-by-step plan — numbered plain-language questions with status indicators
-4. Data collection table — four-column table for data collectors
-5. Live diagram — phase-specific visual (5W2H map, data flow, fishbone tree, etc.)
+1. Phase overview â welcome, DMAIC strip, explanation cards, tool pills, session history
+2. AI guide â live Orchestrator conversation, plain language, citation pills, suggestion chips
+3. Step-by-step plan â numbered plain-language questions with status indicators
+4. Data collection table â four-column table for data collectors
+5. Live diagram â phase-specific visual (5W2H map, data flow, fishbone tree, etc.)
 
 ### Three upload moments
-1. At case creation — background documents
-2. During conversation — data files (persistent upload button always visible)
-3. At gate submission — evidence files (unlocks when gate criteria met)
+1. At case creation â background documents
+2. During conversation â data files (persistent upload button always visible)
+3. At gate submission â evidence files (unlocks when gate criteria met)
 
 ---
 
@@ -198,11 +198,11 @@ Full durable record: metadata, all phase records, conversation history, citation
 
 | Phase | Key requirements |
 |---|---|
-| Define | All 7 five-W-2H elements · baseline metric · target · process owner · charter approved |
-| Measure | Y variable · data plan with owners · sample size confirmed · MSA documented · data collected |
-| Analyse | Root cause identified · statistical evidence · process owner agrees · FMEA updated |
-| Improve | Solution selected · pilot plan · pilot results confirm · implementation plan approved |
-| Control | Control chart configured · monitoring owner · response plan · training · sponsor sign-off |
+| Define | All 7 five-W-2H elements Â· baseline metric Â· target Â· process owner Â· charter approved |
+| Measure | Y variable Â· data plan with owners Â· sample size confirmed Â· MSA documented Â· data collected |
+| Analyse | Root cause identified Â· statistical evidence Â· process owner agrees Â· FMEA updated |
+| Improve | Solution selected Â· pilot plan Â· pilot results confirm Â· implementation plan approved |
+| Control | Control chart configured Â· monitoring owner Â· response plan Â· training Â· sponsor sign-off |
 
 ---
 
@@ -211,13 +211,13 @@ Full durable record: metadata, all phase records, conversation history, citation
 - ImproveGraphState is the ONLY TypedDict
 - One node per file, file name = function name
 - Nodes return dict slices only
-- get_llm() always — never direct AzureChatOpenAI
+- get_llm() always â never direct AzureChatOpenAI
 - All prompts in core/prompts.py
 - All @tool functions in knowledge/tools.py
 - All PhaseInput models in phases/{phase}/schema.py
 - Source/CitationRecord only in core/citations.py
 - CaseDocument only in storage/models.py
-- _reflect() in every orchestrate node — no exceptions
+- _reflect() in every orchestrate node â no exceptions
 - No jargon in team-facing strings
 - Every data request includes a concrete column example
 - Every cross-agent suggestion includes a visible source citation
@@ -228,15 +228,15 @@ Full durable record: metadata, all phase records, conversation history, citation
 
 | Decision | Resolution |
 |---|---|
-| Monorepo vs separate repo | Monorepo — agent-improve/ inside vpangalis/agentlean |
-| Python venv | Dedicated — agent-improve\.venv |
+| Monorepo vs separate repo | Monorepo â agent-improve/ inside vpangalis/agentlean |
+| Python venv | Dedicated â agent-improve\.venv |
 
 ---
 
 ## 12. Out of Scope for MVP
 
 - Agent Flow
-- Azure migration (valuesims-* → agentlean-*)
+- Azure migration (valuesims-* â agentlean-*)
 - Dockerization
 - search_flow_vsm() active queries
 - Management dashboard drill-down
