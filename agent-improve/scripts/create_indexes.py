@@ -45,7 +45,7 @@ def get_index_client() -> SearchIndexClient:
 def create_improve_case_index() -> None:
     """
     improve_case_index
-    One document per case — written on every phase gate pass.
+    One document per case â written on every phase gate pass.
     Used by: management dashboard, Orchestrator context loading.
     """
     fields = [
@@ -72,7 +72,7 @@ def create_improve_case_index() -> None:
                     filterable=True, sortable=True),
         SimpleField(name="days_in_phase", type=SearchFieldDataType.Int32,
                     filterable=True, sortable=True),
-        # Phase summaries — one per DMAIC phase
+        # Phase summaries â one per DMAIC phase
         SearchableField(name="phase_summary_define",
                         type=SearchFieldDataType.String),
         SearchableField(name="phase_summary_measure",
@@ -130,12 +130,14 @@ def create_improve_case_index() -> None:
 def create_improve_knowledge_index() -> None:
     """
     improve_knowledge_index
-    DMAIC methodology content — chunked from PDF training + Excel toolkit.
+    DMAIC methodology content â chunked from PDF training + Excel toolkit.
     Used by: Orchestrator (all phases), Analyst agent.
     """
     fields = [
-        SimpleField(name="doc_id", type=SearchFieldDataType.String,
+        SimpleField(name="id", type=SearchFieldDataType.String,
                     key=True, filterable=True),
+        SimpleField(name="doc_id", type=SearchFieldDataType.String,
+                    filterable=True),
         SearchableField(name="title", type=SearchFieldDataType.String),
         SearchableField(name="section_title",
                         type=SearchFieldDataType.String),
@@ -206,7 +208,7 @@ def _create_or_skip(index: SearchIndex) -> None:
         client.create_index(index)
         logger.info("Created index: %s", index.name)
     except ResourceExistsError:
-        logger.info("Index already exists — skipping: %s", index.name)
+        logger.info("Index already exists â skipping: %s", index.name)
     except Exception as e:
         logger.error("Failed to create index %s: %s", index.name, e)
         raise
