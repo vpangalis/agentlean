@@ -100,7 +100,7 @@ def ingest_pdf(filepath: Path, vectorstore: AzureSearch,
         try:
             from pypdf import PdfReader
         except ImportError:
-            logger.error("No PDF library found — pip install pypdf")
+            logger.error("No PDF library found â pip install pypdf")
             return 0
 
     logger.info("Ingesting PDF: %s", filepath.name)
@@ -121,7 +121,7 @@ def ingest_pdf(filepath: Path, vectorstore: AzureSearch,
         doc = {
             "doc_id": doc_id,
             "title": filepath.stem,
-            "section_title": f"{filepath.stem} — chunk {i+1}",
+            "section_title": f"{filepath.stem} â chunk {i+1}",
             "content_text": chunk,
             "source": filepath.name,
             "phase": phase,
@@ -152,7 +152,7 @@ def ingest_excel(filepath: Path, vectorstore: AzureSearch,
     try:
         from pyxlsb import open_workbook
     except ImportError:
-        logger.error("pyxlsb not installed — pip install pyxlsb")
+        logger.error("pyxlsb not installed â pip install pyxlsb")
         return 0
 
     logger.info("Ingesting Excel toolkit: %s", filepath.name)
@@ -186,6 +186,7 @@ def ingest_excel(filepath: Path, vectorstore: AzureSearch,
 
             doc_id = make_doc_id(f"{filepath.name}_{sheet_name}", 0)
             doc = {
+                "id": doc_id,
                 "doc_id": doc_id,
                 "title": tool_name,
                 "section_title": sheet_name,
@@ -245,4 +246,4 @@ if __name__ == "__main__":
         else:
             logger.debug("Skipping: %s", f.name)
 
-    logger.info("Ingestion complete — %d documents added", total)
+    logger.info("Ingestion complete â %d documents added", total)
