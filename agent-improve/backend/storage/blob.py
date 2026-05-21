@@ -8,6 +8,7 @@ from typing import Optional
 from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient
 
+from dotenv import load_dotenv
 from backend.core.config import settings
 from backend.storage.models import (
     CaseDocument,
@@ -36,7 +37,7 @@ class ImproveBlobClient:
             settings.AZURE_BLOB_CONTAINER_IMPROVE
         )
 
-    # ── low-level helpers ──────────────────────────────────────────────────
+    # ââ low-level helpers ââââââââââââââââââââââââââââââââââââââââââââââââââ
 
     def _upload(self, path: str, data: str, overwrite: bool = True) -> None:
         self.container.upload_blob(path, data, overwrite=overwrite)
@@ -52,7 +53,7 @@ class ImproveBlobClient:
         except ResourceNotFoundError:
             return False
 
-    # ── case CRUD ──────────────────────────────────────────────────────────
+    # ââ case CRUD ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
     def case_path(self, case_id: str) -> str:
         return f"cases/case_{case_id}.json"
@@ -76,13 +77,13 @@ class ImproveBlobClient:
         )
 
     def create_case(self, case: CaseDocument) -> None:
-        """Create new case — raises if already exists."""
+        """Create new case â raises if already exists."""
         path = self.case_path(case.case_id)
         if self._exists(path):
             raise ValueError(f"Case {case.case_id} already exists")
         self._upload(path, case.model_dump_json(indent=2), overwrite=False)
 
-    # ── phase gate operations ──────────────────────────────────────────────
+    # ââ phase gate operations ââââââââââââââââââââââââââââââââââââââââââââââ
 
     def write_phase_gate(
         self,
@@ -128,7 +129,7 @@ class ImproveBlobClient:
             "Phase gate written: %s / %s by %s", case_id, phase, submitted_by
         )
 
-    # ── conversation history ───────────────────────────────────────────────
+    # ââ conversation history âââââââââââââââââââââââââââââââââââââââââââââââ
 
     def append_turn(self, case_id: str, turn: dict) -> None:
         """Append one conversation turn to case history."""
@@ -138,7 +139,7 @@ class ImproveBlobClient:
         case.conversation_history.append(turn)
         self.save_case(case)
 
-    # ── registry operations ────────────────────────────────────────────────
+    # ââ registry operations ââââââââââââââââââââââââââââââââââââââââââââââââ
 
     def load_registry(self) -> CaseRegistry:
         """Load registry. Returns empty registry if not found."""
@@ -182,7 +183,7 @@ class ImproveBlobClient:
                 entry.phase_started_at = now
                 entry.status = case.status
                 setattr(entry.phase_summary, phase, summary)
-                # RAG status — simple days-based calculation
+                # RAG status â simple days-based calculation
                 try:
                     target = date.fromisoformat(case.target_date)
                     days_left = (target - date.today()).days
@@ -200,7 +201,7 @@ class ImproveBlobClient:
                 break
         self.save_registry(registry)
 
-    # ── upload files ───────────────────────────────────────────────────────
+    # ââ upload files âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
     def upload_file(
         self,
@@ -222,7 +223,7 @@ class ImproveBlobClient:
         return blob_path
 
 
-# Module-level singleton — import and use directly in nodes.
+# Module-level singleton â import and use directly in nodes.
 # Wrapped so import succeeds when Azure credentials are absent.
 try:
     blob_client = ImproveBlobClient()
