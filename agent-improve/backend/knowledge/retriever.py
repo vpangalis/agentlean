@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import logging
+import os
 from functools import lru_cache
 
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
+from dotenv import load_dotenv
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings
 
@@ -15,12 +17,14 @@ logger = logging.getLogger(__name__)
 
 @lru_cache(maxsize=1)
 def get_embeddings() -> AzureOpenAIEmbeddings:
-    """Return cached embeddings instance — text-embedding-3-large."""
+    """Return cached embeddings instance — text-embedding-3-large.
+    Mirrors agent-resolve embeddings.py pattern: load_dotenv + os.environ."""
+    load_dotenv(override=True)
     return AzureOpenAIEmbeddings(
-        azure_deployment=settings.AZURE_OPENAI_EMBEDDING_DEPLOYMENT,
-        azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
-        api_key=settings.AZURE_OPENAI_API_KEY,
-        api_version=settings.AZURE_OPENAI_API_VERSION,
+        azure_deployment=os.environ.get("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", ""),
+        azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT", ""),
+        api_key=os.environ.get("AZURE_OPENAI_API_KEY", ""),
+        api_version=os.environ.get("AZURE_OPENAI_API_VERSION", ""),
     )
 
 
