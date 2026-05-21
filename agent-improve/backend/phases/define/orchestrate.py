@@ -32,7 +32,7 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
     chat_history = state.get("chat_history") or []
     phase_inputs = state.get("phase_inputs") or {}
 
-    # ── 1. Extract structured fields from conversation ──────────────
+    # ââ 1. Extract structured fields from conversation ââââââââââââââ
     extraction_prompt = EXTRACTION_MAP["define"]
     conversation_text = _format_conversation(chat_history)
     extracted = _run_extraction(extraction_prompt, conversation_text)
@@ -44,7 +44,7 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
             define_inputs[key] = value
     phase_inputs["define"] = define_inputs
 
-    # ── 2. Generate Orchestrator response ───────────────────────────
+    # ââ 2. Generate Orchestrator response âââââââââââââââââââââââââââ
     system_prompt = (
         ORCHESTRATOR_SYSTEM_BASE.format(department=department, title=title)
         + "\n\n"
@@ -52,10 +52,10 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
     )
     response_text = _run_orchestrator(system_prompt, chat_history, current_user)
 
-    # ── 3. Reflect on response quality ──────────────────────────────
+    # ââ 3. Reflect on response quality ââââââââââââââââââââââââââââââ
     response_text = _reflect(response_text)
 
-    # ── 4. Append AI turn to chat history ───────────────────────────
+    # ââ 4. Append AI turn to chat history âââââââââââââââââââââââââââ
     now = datetime.now(timezone.utc).isoformat()
     new_turn = {
         "turn": len(chat_history) + 1,
@@ -73,7 +73,7 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
     }
 
 
-# ── private helpers ────────────────────────────────────────────────
+# ââ private helpers ââââââââââââââââââââââââââââââââââââââââââââââââ
 
 
 def _format_conversation(chat_history: list) -> str:
@@ -97,6 +97,12 @@ def _run_extraction(prompt_template: str, conversation: str) -> dict:
             text = text.split("```")[1]
             if text.startswith("json"):
                 text = text[4:]
+        # Robustly find JSON object boundaries
+        text = text.strip()
+        start = text.find("{")
+        end = text.rfind("}") + 1
+        if start >= 0 and end > start:
+            text = text[start:end]
         return json.loads(text)
     except Exception as e:
         logger.warning("Extraction failed: %s", e)
@@ -131,7 +137,7 @@ def _run_orchestrator(
 
 def _reflect(response: str) -> str:
     """Check response quality. Returns revised response if issues found.
-    Private — called only from orchestrate_define."""
+    Private â called only from orchestrate_define."""
     llm = get_llm("reasoning", temperature=0.0)
     prompt = REFLECTION_CHECK.format(response=response)
     try:
