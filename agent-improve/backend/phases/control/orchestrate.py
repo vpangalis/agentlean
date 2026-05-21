@@ -32,7 +32,7 @@ def orchestrate_control(state: ImproveGraphState) -> dict:
     chat_history = state.get("chat_history") or []
     phase_inputs = state.get("phase_inputs") or {}
 
-    # ââ 1. Extract structured fields from conversation ââââââââââââââ
+    # Ã¢ÂÂÃ¢ÂÂ 1. Extract structured fields from conversation Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
     extraction_prompt = EXTRACTION_MAP["control"]
     conversation_text = _format_conversation(chat_history)
     extracted = _run_extraction(extraction_prompt, conversation_text)
@@ -44,7 +44,7 @@ def orchestrate_control(state: ImproveGraphState) -> dict:
             control_inputs[key] = value
     phase_inputs["control"] = control_inputs
 
-    # ââ 2. Generate Orchestrator response âââââââââââââââââââââââââââ
+    # Ã¢ÂÂÃ¢ÂÂ 2. Generate Orchestrator response Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
     system_prompt = (
         ORCHESTRATOR_SYSTEM_BASE.format(department=department, title=title)
         + "\n\n"
@@ -52,10 +52,10 @@ def orchestrate_control(state: ImproveGraphState) -> dict:
     )
     response_text = _run_orchestrator(system_prompt, chat_history, current_user)
 
-    # ââ 3. Reflect on response quality ââââââââââââââââââââââââââââââ
+    # Ã¢ÂÂÃ¢ÂÂ 3. Reflect on response quality Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
     response_text = _reflect(response_text)
 
-    # ââ 4. Append AI turn to chat history âââââââââââââââââââââââââââ
+    # Ã¢ÂÂÃ¢ÂÂ 4. Append AI turn to chat history Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
     now = datetime.now(timezone.utc).isoformat()
     new_turn = {
         "turn": len(chat_history) + 1,
@@ -73,7 +73,7 @@ def orchestrate_control(state: ImproveGraphState) -> dict:
     }
 
 
-# ââ private helpers ââââââââââââââââââââââââââââââââââââââââââââââââ
+# Ã¢ÂÂÃ¢ÂÂ private helpers Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
 
 
 def _format_conversation(chat_history: list) -> str:
@@ -88,7 +88,7 @@ def _format_conversation(chat_history: list) -> str:
 def _run_extraction(prompt_template: str, conversation: str) -> dict:
     """Run extraction LLM call. Returns partial dict, empty on failure."""
     llm = get_llm("extraction", temperature=0.0)
-    prompt = prompt_template.format(conversation=conversation)
+    prompt = prompt_template.replace("{conversation}", conversation)
     try:
         result = llm.invoke([HumanMessage(content=prompt)])
         text = result.content.strip()
@@ -137,7 +137,7 @@ def _run_orchestrator(
 
 def _reflect(response: str) -> str:
     """Check response quality. Returns revised response if issues found.
-    Private â called only from orchestrate_control."""
+    Private Ã¢ÂÂ called only from orchestrate_control."""
     llm = get_llm("reasoning", temperature=0.0)
     prompt = REFLECTION_CHECK.format(response=response)
     try:
