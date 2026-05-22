@@ -1086,13 +1086,13 @@ const TOOL_META = {
     exampleFields:[{q:'Improvement summary',a:'Average call handling time: 8.2 min → 5.4 min. 34% reduction. Annualised saving: €42k.'},{q:'What changed',a:'New billing call script (all agents). CRM index scheduled rebuild (IT, quarterly). FAQ document updated.'},{q:'Training completed',a:'All 23 agents trained on new script. Training record signed by each agent and team leader.'},{q:'Control in place',a:'Weekly control chart active. Anna Muller (owner). Response plan documented and distributed.'},{q:'Sign-off',a:'Process owner: Maria Kovac, signed 28 March. Sponsor: James Reed, signed 28 March.'}]}
 };
 function renderExample(toolName, meta){
-  const fields = (meta.exampleFields||[]).map(f=>
-    `<div class="ex-cell"><div class="ex-q">${f.q}</div><div class="ex-a">${f.a}</div></div>`
-  ).join('');
-  return `<div class="example-box">
-    <div class="ex-cell full"><div class="ex-q">In one sentence</div><div class="ex-a">${meta.exampleSummary}</div></div>
-    <div class="ex-grid">${fields}</div>
-  </div>`;
+  const fields = (meta.exampleFields||[]).map(function(f){
+    return '<div class="ex-cell"><div class="ex-q">'+f.q+'</div><div class="ex-a">'+f.a+'</div></div>';
+  }).join('');
+  return '<div class="example-box">'
+    + '<div class="ex-cell full"><div class="ex-q">In one sentence</div><div class="ex-a">'+meta.exampleSummary+'</div></div>'
+    + '<div class="ex-grid">'+fields+'</div>'
+    + '</div>';
 }
 function renderNoExample(){
   return '<div style="padding:14px 16px;font-size:12px;color:var(--text3)">Start the AI guide — it will build a customised example as you answer each question.</div>';
@@ -1142,19 +1142,18 @@ async function openToolBriefing(toolName, phase){
     </div>
 
     <div class="tb-card example" id="tb-example-section">
-      <div class="tb-card-hdr"><i class="ti ti-file-text"></i>Filled example — see what a completed one looks like</div>
+      <div class="tb-card-hdr"><i class="ti ti-file-text"></i>Filled example &#8212; see what a completed one looks like</div>
       ${meta.exampleSummary ? renderExample(toolName, meta) : renderNoExample()}
     </div>
 
     <div class="tb-card steps">
-      <div class="tb-card-hdr"><i class="ti ti-list-numbers"></i>How to complete yours — ${meta.steps.length} steps</div>
-      <div class="tb-steps">${meta.steps.map((s,i)=>`<div class="tb-step"><div class="tb-sn">${i+1}</div><div class="tb-st">${s}</div></div>`).join("")}</div>
+      <div class="tb-card-hdr"><i class="ti ti-list-numbers"></i>How to complete yours &#8212; ${meta.steps.length} steps</div>
+      <div class="tb-steps">${meta.steps.map((s,i)=>'<div class="tb-step"><div class="tb-sn">'+(i+1)+'</div><div class="tb-st">'+s+'</div></div>').join('')}</div>
     </div>
 
     ${renderOtherTools(otherTools, p.label, phase||S.phase)}
 
-    <button class="tb-start" onclick="startToolWithAI(encodeURIComponent('${toolName}'))"><i class="ti ti-player-play" style="font-size:16px"></i> Start ${toolName} with AI guide — the AI walks you through it question by question</button>`;
-
+    <button class="tb-start" onclick="startToolWithAI(encodeURIComponent('${toolName}'))"><i class="ti ti-player-play" style="font-size:16px"></i> Start ${toolName} with AI guide &#8212; the AI walks you through it question by question</button>`;
   // Generate AI example asynchronously
 }
 
