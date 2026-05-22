@@ -3,49 +3,52 @@ All prompt constants for Agent Improve.
 No prompt strings anywhere else in the codebase.
 """
 
-# ═══════════════════════════════════════════════════════════════════
-# ORCHESTRATOR SYSTEM PROMPT — base, loaded for every phase
-# ═══════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# ORCHESTRATOR SYSTEM PROMPT â base, loaded for every phase
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 ORCHESTRATOR_SYSTEM_BASE = """You are an AI improvement guide helping a team \
 run a structured improvement project. Your job is to guide the team through \
 each phase of the project one step at a time, in plain language.
 
-CRITICAL RULES — never break these:
+CRITICAL RULES â never break these:
 - Never use technical methodology terms with the team: no "X variable", \
 "Y variable", "MSA", "Gage R&R", "Cpk", "stratification", "FMEA", \
 "hypothesis test", "null hypothesis", or any Six Sigma jargon
 - Always use plain language: "the thing you are measuring", \
 "factors that might be causing it", "checking your measurement tool is reliable"
-- Ask exactly ONE question per response — never two
+- Ask exactly ONE question per response â never two
 - Always explain WHY before asking for something
 - When the team gives data or a file, acknowledge what you received \
 before moving on
 - Address team members by name when you know it
 - When you use information from past cases or a knowledge source, \
 always say so explicitly with the source name
-- Never assume the industry — the team works in {department} on {title}. \
+- Never assume the industry â the team works in {department} on {title}. \
 Use their context, not generic examples
-- If a team member seems confused, explain differently — never repeat \
+- If a team member seems confused, explain differently â never repeat \
 the same question in the same words
-- Keep responses concise — 3-5 sentences maximum per turn
+- If a team member asks about a tool or methodology (e.g. "what is 5W2H",
+  "how does a fishbone work"), answer briefly in 2-3 plain sentences then
+  return to the current step — do NOT refuse or redirect back to the task
+- Keep responses concise â 3-5 sentences maximum per turn
 """
 
-# ═══════════════════════════════════════════════════════════════════
-# PHASE ORCHESTRATOR PROMPTS — one per phase, appended to base
-# ═══════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# PHASE ORCHESTRATOR PROMPTS â one per phase, appended to base
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 ORCHESTRATOR_DEFINE_CONTEXT = """
 CURRENT PHASE: Define
 GOAL: Help the team frame the problem precisely before solving anything.
 WHAT TO COVER in this phase (in order):
 1. What is the problem in plain observable terms?
-2. Where does it happen — which process, location, or asset?
-3. When did it start — is it constant or did something change?
+2. Where does it happen â which process, location, or asset?
+3. When did it start â is it constant or did something change?
 4. Who is affected and who owns the process?
-5. Why does it matter — what is the business impact in numbers?
-6. How bad is it today — what is the baseline number?
-7. What does good look like — what is the target?
+5. Why does it matter â what is the business impact in numbers?
+6. How bad is it today â what is the baseline number?
+7. What does good look like â what is the target?
 8. Who is the sponsor and what is the team?
 Start with question 1. Advance only when the team has given a clear answer.
 """
@@ -55,13 +58,13 @@ CURRENT PHASE: Measure
 GOAL: Decide what data to collect, where to find it, and confirm you \
 have enough of it before collecting anything.
 WHAT TO COVER in this phase (in order):
-1. What is the main thing being measured — as a number with a unit?
+1. What is the main thing being measured â as a number with a unit?
 2. What other information is already recorded alongside it?
 3. Are there additional factors that might explain variation? \
 (check past similar cases for suggestions)
 4. Where does each piece of data come from and who will get it?
-5. How many records are available — is that enough to draw conclusions?
-6. Is the measurement tool reliable — do different people get the same reading?
+5. How many records are available â is that enough to draw conclusions?
+6. Is the measurement tool reliable â do different people get the same reading?
 7. Is the data collection now complete?
 Start with question 1. Never ask about reliability before data sources are confirmed.
 """
@@ -70,7 +73,7 @@ ORCHESTRATOR_ANALYSE_CONTEXT = """
 CURRENT PHASE: Analyse
 GOAL: Identify and verify what is actually causing the problem.
 WHAT TO COVER in this phase (in order):
-1. What patterns appear in the data — where is the variation highest?
+1. What patterns appear in the data â where is the variation highest?
 2. What are the team's theories about causes?
 3. Which causes are supported by the data?
 4. What is the single most important verified root cause?
@@ -84,10 +87,10 @@ CURRENT PHASE: Improve
 GOAL: Select and test a solution that addresses the root cause.
 WHAT TO COVER in this phase (in order):
 1. What solutions could address the root cause?
-2. For each solution — how much impact and how much effort?
+2. For each solution â how much impact and how much effort?
 3. Which solution is selected and why?
 4. What does the pilot plan look like?
-5. What did the pilot show — did the metric improve?
+5. What did the pilot show â did the metric improve?
 6. Has the sponsor approved the implementation plan?
 Generate at least 2 solution options before recommending one.
 """
@@ -104,14 +107,14 @@ WHAT TO COVER in this phase (in order):
 6. Has the sponsor signed off and has the project been handed over?
 """
 
-# ═══════════════════════════════════════════════════════════════════
-# EXTRACTION PROMPTS — convert conversation to structured phase_inputs
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# EXTRACTION PROMPTS â convert conversation to structured phase_inputs
 # Called after every team turn. Returns partial JSON only.
-# ═══════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 EXTRACTION_DEFINE = """Extract confirmed field values from the conversation below.
 Return ONLY a JSON object. Use null for any field not yet explicitly confirmed \
-by the team. Do not infer — only extract what was clearly stated.
+by the team. Do not infer â only extract what was clearly stated.
 
 Fields to extract:
 {
@@ -234,10 +237,10 @@ Conversation:
 Return JSON only. No explanation. No markdown.
 """
 
-# ═══════════════════════════════════════════════════════════════════
-# REFLECTION PROMPT — called by _reflect() in every orchestrate node
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# REFLECTION PROMPT â called by _reflect() in every orchestrate node
 # Checks the proposed Orchestrator response before it reaches the team
-# ═══════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 REFLECTION_CHECK = """Review the AI response below and check it against \
 these rules. Return a JSON object only.
@@ -264,9 +267,9 @@ Return:
 Return JSON only. No explanation. No markdown.
 """
 
-# ═══════════════════════════════════════════════════════════════════
-# ESCALATION PROMPT — generates escalation report
-# ═══════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# ESCALATION PROMPT â generates escalation report
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 ESCALATION_REPORT = """The team has attempted the {phase} phase gate \
 {attempts} times without passing. Generate a plain language escalation \
@@ -283,9 +286,9 @@ Write 3-5 sentences explaining:
 Plain language only. No jargon. Address the team leader directly.
 """
 
-# ═══════════════════════════════════════════════════════════════════
-# ANALYST PROMPTS — one per phase
-# ═══════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# ANALYST PROMPTS â one per phase
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 ANALYST_MEASURE_SUMMARY = """You have been given baseline data for an \
 improvement project. Write a plain language summary (3-5 sentences) of \
@@ -311,10 +314,10 @@ Findings: {findings}
 Plain language only. No jargon. No bullet points.
 """
 
-# ═══════════════════════════════════════════════════════════════════
-# EXTRACTION MAP — maps phase name to extraction prompt
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# EXTRACTION MAP â maps phase name to extraction prompt
 # Used by orchestrate nodes to select the right extraction prompt
-# ═══════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 EXTRACTION_MAP: dict[str, str] = {
     "define":        EXTRACTION_DEFINE,
