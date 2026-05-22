@@ -25,6 +25,8 @@ app.add_middleware(
 )
 
 app.include_router(router)
+from fastapi.staticfiles import StaticFiles
+app.mount("/", StaticFiles(directory="ui", html=True), name="ui")
 
 
 @app.on_event("startup")

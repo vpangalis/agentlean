@@ -1,11 +1,1151 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Agent Improve — by Agentlean</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Improve — by Agentlean</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+/* ─── RESET & BASE ─────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --brand:#534AB7;--brand-bg:#EEEDFE;--brand-mid:#AFA9EC;
+  --teal:#0F6E56;--teal-bg:#E1F5EE;--teal-mid:#5DCAA5;
+  --coral:#993C1D;--coral-bg:#FAECE7;
+  --amber:#BA7517;--amber-bg:#FAEEDA;
+  --green:#1D9E75;--green-bg:#EAF3DE;
+  --red:#E24B4A;--red-bg:#FCEBEB;
+  --blue:#185FA5;--blue-bg:#E6F1FB;
+  --bg:#F1EFE8;--surface:#FFFFFF;--surface2:#F8F7F4;
+  --border:#E4E2DC;--border2:#CCCAC4;
+  --text:#1A1917;--text2:#5C5A55;--text3:#99978F;
+  --radius:8px;--radius-sm:6px;--radius-lg:12px;--radius-pill:20px;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:0 4px 12px rgba(0,0,0,.1);
+  --font:'Söhne','SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+html,body{height:100%;font-family:var(--font);font-size:13px;color:var(--text);background:var(--bg);line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font-family:var(--font);cursor:pointer;border:none;outline:none}
+input,textarea,select{font-family:var(--font);outline:none}
+a{text-decoration:none;color:inherit}
+
+/* ─── SCREENS ─────────────────────────────────────────────────── */
+.screen{display:none;height:100vh;flex-direction:column;overflow:hidden}
+.screen.active{display:flex}
+
+/* ─── TOPBAR ─────────────────────────────────────────────────── */
+.topbar{height:48px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 18px;flex-shrink:0}
+.tb-logo{font-size:13px;font-weight:600;color:var(--text2);letter-spacing:.02em}
+.tb-logo span{color:var(--brand)}
+.tb-case{font-size:12px;font-weight:500;padding:4px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text)}
+.tb-back{margin-left:auto;font-size:12px;color:var(--brand);display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 8px;border-radius:var(--radius-sm);transition:background .12s}
+.tb-back:hover{background:var(--brand-bg)}
+.tb-team{margin-left:auto;display:flex;align-items:center;gap:6px}
+.av{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;flex-shrink:0;border:1.5px solid transparent}
+.av-p{background:var(--brand-bg);color:#26215C;border-color:var(--brand-mid)}
+.av-t{background:var(--teal-bg);color:#04342C;border-color:var(--teal-mid)}
+
+/* ─── LANDING ─────────────────────────────────────────────────── */
+.landing-body{flex:1;overflow-y:auto;padding:40px 20px;display:flex;flex-direction:column;align-items:center;gap:28px}
+.landing-hero{text-align:center}
+.landing-hero h1{font-size:24px;font-weight:600;margin-bottom:6px}
+.landing-hero p{font-size:13px;color:var(--text2);max-width:400px;margin:0 auto}
+.landing-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:520px}
+.landing-card{padding:20px;border-radius:var(--radius-lg);border:1px solid var(--border);background:var(--surface);cursor:pointer;transition:all .15s;text-align:left}
+.landing-card:hover{border-color:var(--brand);box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.lc-icon{width:36px;height:36px;border-radius:var(--radius);background:var(--brand-bg);display:flex;align-items:center;justify-content:center;color:var(--brand);font-size:18px;margin-bottom:10px}
+.lc-title{font-size:14px;font-weight:600;margin-bottom:4px}
+.lc-desc{font-size:12px;color:var(--text2);line-height:1.5}
+.recent-section{width:100%;max-width:520px}
+.section-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.recent-list{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);overflow:hidden}
+.recent-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.recent-row:last-child{border-bottom:none}
+.recent-row:hover{background:var(--surface2)}
+.rr-phase{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
+.rr-info{flex:1}
+.rr-title{font-size:12px;font-weight:500}
+.rr-meta{font-size:11px;color:var(--text3)}
+.rag-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.rag-green{background:var(--green)}
+.rag-amber{background:var(--amber)}
+.rag-red{background:var(--red)}
+.phase-badge{font-size:10px;padding:2px 8px;border-radius:var(--radius-pill);font-weight:500}
+
+/* ─── CREATION SCREEN ─────────────────────────────────────────── */
+.create-body{flex:1;overflow-y:auto;padding:24px 20px;display:flex;justify-content:center}
+.create-form{width:100%;max-width:600px;display:flex;flex-direction:column;gap:16px}
+.form-title{font-size:18px;font-weight:600;margin-bottom:2px}
+.form-sub{font-size:12px;color:var(--text2)}
+.card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);padding:16px}
+.card-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.card-title i{font-size:14px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.field-row.full{grid-template-columns:1fr}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11px;color:var(--text2)}
+.field input,.field select{padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--surface);color:var(--text);transition:border .12s}
+.field input:focus,.field select:focus{border-color:var(--brand)}
+.case-pill{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;background:var(--brand-bg);border:1px solid var(--brand-mid);border-radius:var(--radius-pill);font-size:13px;font-weight:600;color:#26215C}
+.belt-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.belt-card{padding:10px;border-radius:var(--radius);border:1px solid var(--border);cursor:pointer;text-align:center;transition:all .12s}
+.belt-card:hover{background:var(--surface2)}
+.belt-card.sel{border:1.5px solid var(--brand);background:var(--brand-bg)}
+.belt-card .bl{font-size:12px;font-weight:600;margin-bottom:2px}
+.belt-card .bs{font-size:10px;color:var(--text2);line-height:1.4}
+.belt-card.sel .bl{color:#26215C}
+.team-list{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.team-row{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm)}
+.tr-name{font-size:12px;font-weight:500;flex:1}
+.tr-role{font-size:11px;color:var(--text3)}
+.tr-badge{font-size:9px;padding:2px 6px;border-radius:var(--radius-pill);background:var(--brand-bg);color:var(--brand)}
+.add-member-btn{display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px dashed var(--border2);border-radius:var(--radius-sm);font-size:11px;color:var(--text3);background:none;width:100%;transition:all .12s}
+.add-member-btn:hover{background:var(--surface2);color:var(--text)}
+.add-member-form{display:none;gap:8px;align-items:flex-end;margin-top:6px}
+.add-member-form.show{display:flex}
+.up-zone{border:1px dashed var(--border2);border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;transition:background .12s}
+.up-zone:hover{background:var(--surface2)}
+.up-zone i{font-size:20px;color:var(--text3);display:block;margin-bottom:5px}
+.up-zone .uz-t{font-size:12px;font-weight:500;margin-bottom:2px}
+.up-zone .uz-s{font-size:11px;color:var(--text3)}
+.uploaded-files{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.uf-row{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--surface2);border-radius:var(--radius-sm);font-size:11px}
+.uf-row i{color:var(--brand);font-size:14px}
+.info-box{display:flex;gap:8px;padding:10px 12px;background:var(--blue-bg);border:1px solid #B5D4F4;border-radius:var(--radius)}
+.info-box i{font-size:14px;color:var(--blue);flex-shrink:0;margin-top:1px}
+.info-box p{font-size:11px;color:#0C447C;line-height:1.55}
+.btn-primary{display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:var(--radius);background:var(--brand);color:white;font-size:13px;font-weight:600;width:100%;transition:background .12s}
+.btn-primary:hover{background:#3C3489}
+.btn-secondary{display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 14px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid var(--border);font-size:12px;color:var(--text);transition:all .12s}
+.btn-secondary:hover{background:var(--surface2)}
+
+/* ─── SEARCH SCREEN ─────────────────────────────────────────────── */
+.search-body{flex:1;overflow-y:auto;padding:32px 20px;display:flex;justify-content:center}
+.search-form{width:100%;max-width:480px;display:flex;flex-direction:column;gap:16px}
+.search-row{display:flex;gap:8px}
+.search-row input{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px}
+.search-result{padding:14px;border-radius:var(--radius-lg);border:1.5px solid var(--teal-mid);background:var(--teal-bg);cursor:pointer;display:none}
+.sr-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.sr-title{font-size:14px;font-weight:600;color:#04342C}
+.sr-meta{font-size:11px;color:var(--teal)}
+.join-row{display:flex;gap:8px;margin-top:8px}
+.join-row input{flex:1;padding:7px 10px;border:1px solid var(--teal-mid);border-radius:var(--radius-sm);font-size:12px;background:white}
+
+/* ─── WORKSPACE ─────────────────────────────────────────────────── */
+.workspace{display:grid;grid-template-columns:196px 1fr 244px;gap:1px;background:var(--border);flex:1;overflow:hidden;min-height:0}
+
+/* LEFT NAV */
+.pnav{background:var(--surface);display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.pnav-label{font-size:10px;color:var(--text3);padding:12px 14px 6px;letter-spacing:.06em;text-transform:uppercase;font-weight:600}
+.pi{display:flex;align-items:center;gap:8px;padding:7px 14px;cursor:pointer;transition:background .1s;border-radius:0}
+.pi:hover{background:var(--surface2)}
+.pi.active{background:var(--brand-bg)}
+.pi.active .pl{color:#26215C;font-weight:600}
+.pi.active .pd{background:var(--brand);border-color:var(--brand)}
+.pi.done .pd{background:var(--green);border-color:var(--green)}
+.pi.done .pl{color:var(--text2)}
+.pi.locked{opacity:.38;pointer-events:none}
+.pd{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--border2);background:transparent;flex-shrink:0}
+.pl{font-size:12px;color:var(--text);flex:1}
+.pb{font-size:9px;padding:2px 6px;border-radius:var(--radius-pill);margin-left:auto;white-space:nowrap}
+.pb-done{background:var(--green-bg);color:#3B6D11}
+.pb-active{background:var(--brand-bg);color:var(--brand)}
+.pb-lock{background:var(--surface2);color:var(--text3)}
+.psub{font-size:10px;color:var(--text3);padding:0 14px 4px 31px;line-height:1.4}
+.psep{height:1px;background:var(--border);margin:3px 14px}
+.pnav-bot{padding:10px 14px;border-top:1px solid var(--border);margin-top:auto;flex-shrink:0}
+.prog-bar{height:3px;background:var(--border);border-radius:2px;margin-top:5px;overflow:hidden}
+.prog-fill{height:100%;background:var(--brand);border-radius:2px;transition:width .3s}
+
+/* MAIN PANEL */
+.main{background:var(--surface);display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.vtabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.vt{padding:8px 12px;font-size:11px;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;white-space:nowrap;transition:color .1s;margin-bottom:-1px}
+.vt:hover{color:var(--text)}
+.vt.active{color:var(--brand);border-bottom-color:var(--brand);font-weight:600}
+.view{display:none;flex:1;overflow-y:auto;padding:16px;flex-direction:column;gap:12px}
+.view.active{display:flex}
+
+/* OVERVIEW TAB */
+.ph-header{display:flex;align-items:flex-start;gap:12px}
+.ph-circle{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700;flex-shrink:0}
+.ph-title{font-size:17px;font-weight:700;margin-bottom:3px}
+.ph-desc{font-size:12px;color:var(--text2);line-height:1.6}
+.dstrip{display:flex;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border)}
+.ds{flex:1;padding:6px 4px;text-align:center;font-size:11px;background:var(--surface2);color:var(--text3);cursor:default;border-right:1px solid var(--border)}
+.ds:last-child{border-right:none}
+.ds.cur{font-weight:600}
+.ds.dn{background:var(--green-bg);color:#085041}
+.ds-lbl{font-size:9px;margin-top:1px;opacity:.8}
+.wh-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.wh{padding:10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2)}
+.wh-ttl{font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;display:flex;align-items:center;gap:5px}
+.wh-ttl i{font-size:13px}
+.wh p{font-size:11px;color:var(--text);line-height:1.5}
+.tool-row{display:flex;flex-wrap:wrap;gap:6px}
+.tool-pill{font-size:11px;padding:4px 10px;border-radius:var(--radius-pill);background:var(--brand-bg);color:#26215C;border:1px solid var(--brand-mid);cursor:pointer;transition:background .1s}
+.tool-pill:hover{background:#CECBF6}
+.start-btn{display:flex;align-items:center;justify-content:center;gap:7px;padding:10px;border-radius:var(--radius);background:var(--brand);color:white;font-size:13px;font-weight:600;cursor:pointer;border:none;width:100%;transition:background .12s}
+.start-btn:hover{background:#3C3489}
+.s-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.sess{display:flex;align-items:flex-start;gap:8px;padding:8px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);margin-bottom:5px}
+.sess-dot{width:8px;height:8px;border-radius:50%;background:var(--brand);flex-shrink:0;margin-top:4px}
+.sess-body{flex:1}
+.sess-p{font-size:11px;font-weight:600}
+.sess-m{font-size:10px;color:var(--text3)}
+
+/* CHAT TAB */
+.chat-header{padding:8px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.chat-phase-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill)}
+.chat-step{font-size:11px;color:var(--text3)}
+.chat-view{flex:1;overflow:hidden;display:flex;flex-direction:column;padding:0}
+.msgs{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.msg{display:flex;gap:6px;max-width:92%}
+.msg.user{align-self:flex-end;flex-direction:row-reverse}
+.mav{width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600}
+.mai{background:var(--brand-bg);color:#26215C}
+.mu{background:var(--teal-bg);color:#04342C}
+.bbl{padding:8px 11px;border-radius:var(--radius-lg);font-size:12px;line-height:1.6}
+.bbl-ai{background:var(--surface2);border:1px solid var(--border);border-radius:4px var(--radius-lg) var(--radius-lg) var(--radius-lg)}
+.bbl-user{background:var(--brand-bg);color:#1A1550;border-radius:var(--radius-lg) 4px var(--radius-lg) var(--radius-lg)}
+.bbl p{margin-bottom:4px}
+.bbl p:last-child{margin-bottom:0}
+.src-pill{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;background:var(--blue-bg);color:var(--blue);border-radius:var(--radius-pill);margin-top:5px;cursor:pointer}
+.chips{display:flex;flex-wrap:wrap;gap:5px;padding:6px 14px;flex-shrink:0}
+.chip{font-size:10px;padding:4px 9px;border:1px solid var(--border);border-radius:var(--radius-pill);cursor:pointer;color:var(--text2);background:var(--surface);transition:all .1s}
+.chip:hover{background:var(--surface2);color:var(--text);border-color:var(--border2)}
+.upload-bar{display:flex;align-items:center;gap:6px;padding:6px 14px;border-top:1px solid var(--border);background:var(--surface2);flex-shrink:0}
+.ub-btn{display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);font-size:10px;cursor:pointer;background:var(--surface);color:var(--text2);transition:all .1s}
+.ub-btn:hover{background:var(--surface2);color:var(--text)}
+.ub-sep{width:1px;height:14px;background:var(--border)}
+.ub-hint{font-size:10px;color:var(--text3);flex:1}
+.cinput{padding:8px 14px;border-top:1px solid var(--border);display:flex;gap:6px;align-items:flex-end;flex-shrink:0}
+.ctxt{flex:1;resize:none;border:1px solid var(--border);border-radius:var(--radius-lg);padding:7px 11px;font-size:12px;min-height:34px;max-height:80px;background:var(--surface);color:var(--text);transition:border .12s}
+.ctxt:focus{border-color:var(--brand)}
+.csend{width:32px;height:32px;border-radius:50%;background:var(--brand);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .12s;font-size:15px}
+.csend:hover{background:#3C3489}
+.typing{display:none;padding:4px 14px;font-size:11px;color:var(--text3)}
+.typing.show{display:block}
+
+/* STEPS TAB */
+.step-list{display:flex;flex-direction:column}
+.step-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:default}
+.step-item:last-child{border-bottom:none}
+.step-num{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;margin-top:1px}
+.sn-done{background:var(--green-bg);color:#085041;border:1px solid var(--teal-mid)}
+.sn-active{background:var(--brand);color:white}
+.sn-wait{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+.step-body{flex:1}
+.step-q{font-size:12px;font-weight:600;margin-bottom:3px}
+.step-a{font-size:11px;color:var(--text2);line-height:1.4}
+.step-tag{font-size:9px;padding:1px 6px;border-radius:var(--radius-pill);margin-left:5px}
+.st-done{background:var(--green-bg);color:#3B6D11}
+.st-ai{background:var(--brand-bg);color:var(--brand)}
+.st-wait{background:var(--surface2);color:var(--text3)}
+
+/* DIAGRAM TAB */
+.diag-intro{font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.5}
+.diag-svg{width:100%;border-radius:var(--radius-lg);border:1px solid var(--border);background:var(--surface2)}
+.diag-legend{font-size:10px;color:var(--text3);margin-top:6px;display:flex;gap:12px;flex-wrap:wrap}
+.dl-item{display:flex;align-items:center;gap:4px}
+.dl-dot{width:10px;height:10px;border-radius:2px}
+
+/* HISTORY TAB */
+.hist-group{margin-bottom:14px}
+.hist-date{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.hist-turn{padding:8px 10px;border-radius:var(--radius-sm);background:var(--surface2);border:1px solid var(--border);margin-bottom:4px}
+.ht-meta{font-size:10px;color:var(--text3);margin-bottom:2px}
+.ht-text{font-size:11px;color:var(--text);line-height:1.5}
+.open-items{margin-top:10px}
+.oi{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:4px;font-size:11px}
+.oi-red{border-color:#F09595;background:var(--red-bg);color:#A32D2D}
+.oi-amb{border-color:#FAC775;background:var(--amber-bg);color:#633806}
+
+/* RIGHT PANEL */
+.rpanel{background:var(--surface);display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.rp-hdr{padding:9px 12px;border-bottom:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:5px;flex-shrink:0}
+.rp-scroll{flex:1;overflow-y:auto;padding:10px}
+.cf{padding:7px 9px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:5px;background:var(--surface2)}
+.cf.ai{border-color:var(--brand-mid);background:var(--brand-bg)}
+.cf.empty .cfv{color:var(--text3);font-style:italic}
+.cf-lbl{font-size:9px;color:var(--text3);margin-bottom:1px;text-transform:uppercase;letter-spacing:.04em}
+.cfv{font-size:11px;color:var(--text);line-height:1.4}
+.cf.ai .cfv{color:#26215C}
+.ai-tag{font-size:9px;background:var(--brand-bg);color:var(--brand);padding:1px 5px;border-radius:var(--radius-pill);margin-left:4px}
+.rref{padding:7px 9px;border-radius:var(--radius-sm);background:var(--blue-bg);border:1px solid #B5D4F4;margin-top:6px}
+.rref-ttl{font-size:9px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;display:flex;align-items:center;gap:3px}
+.rref p{font-size:10px;color:#0C447C;line-height:1.4}
+.gate-box{padding:8px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-top:8px}
+.gate-ttl{font-size:10px;font-weight:600;color:var(--text2);margin-bottom:6px}
+.gr{display:flex;align-items:center;gap:5px;margin-bottom:4px;font-size:11px}
+.gr i{font-size:12px}
+.gr.ok i{color:var(--green)}
+.gr.miss i{color:var(--red)}
+.gr.wait i{color:var(--amber)}
+.gate-submit{display:flex;align-items:center;justify-content:center;gap:5px;padding:8px;border-radius:var(--radius-sm);background:var(--surface2);border:1px solid var(--border);font-size:11px;cursor:pointer;color:var(--text2);margin-top:8px;transition:all .12s;width:100%}
+.gate-submit:hover{background:var(--brand-bg);color:var(--brand);border-color:var(--brand-mid)}
+.rp-upload{border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:10px;text-align:center;margin-top:8px;cursor:pointer}
+.rp-upload:hover{background:var(--surface2)}
+.rp-upload i{font-size:16px;color:var(--text3);display:block;margin-bottom:3px}
+.rp-upload p{font-size:10px;color:var(--text3)}
+
+/* ─── TOAST ────────────────────────────────────────────────────── */
+.toast{position:fixed;bottom:24px;right:24px;padding:10px 16px;background:#1A1917;color:white;border-radius:var(--radius);font-size:12px;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;z-index:999}
+.toast.show{opacity:1;transform:none}
+
+/* ─── UTIL ─────────────────────────────────────────────────────── */
+.hidden{display:none!important}
+.rsec{margin-bottom:10px}
+.rsec-ttl{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+</style>
 </head>
 <body>
-  <h1>Agent Improve</h1>
-  <p>UI implementation pending — see ARCHITECTURE.md</p>
+
+<!-- ═══════════ SCREEN 1: LANDING ═══════════ -->
+<div class="screen active" id="scr-landing">
+  <div class="topbar">
+    <span class="tb-logo">agentlean · <span>agent improve</span></span>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button class="btn-secondary" onclick="showScreen('scr-search')"><i class="ti ti-search" style="font-size:13px"></i> Open case</button>
+      <button class="btn-primary" style="padding:6px 14px;width:auto" onclick="showScreen('scr-create')"><i class="ti ti-plus" style="font-size:13px"></i> New case</button>
+    </div>
+  </div>
+  <div class="landing-body">
+    <div class="landing-hero">
+      <h1>Agent Improve</h1>
+      <p>AI-guided improvement projects. Your team is walked through every step — no methodology experience required.</p>
+    </div>
+    <div class="landing-cards">
+      <div class="landing-card" onclick="showScreen('scr-create')">
+        <div class="lc-icon"><i class="ti ti-plus"></i></div>
+        <div class="lc-title">Start new case</div>
+        <div class="lc-desc">Register your team, describe the problem, and begin. The AI guides you from there.</div>
+      </div>
+      <div class="landing-card" onclick="showScreen('scr-search')">
+        <div class="lc-icon"><i class="ti ti-search"></i></div>
+        <div class="lc-title">Open existing case</div>
+        <div class="lc-desc">Find your case by number, title, or team leader and continue where you left off.</div>
+      </div>
+    </div>
+    <div class="recent-section">
+      <div class="section-label">Recent cases</div>
+      <div class="recent-list" id="recent-list">
+        <div style="padding:16px;text-align:center;color:var(--text3);font-size:12px">Loading cases...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN 2: CREATE ═══════════ -->
+<div class="screen" id="scr-create">
+  <div class="topbar">
+    <span class="tb-logo">agentlean · <span>agent improve</span></span>
+    <span class="tb-back" onclick="showScreen('scr-landing')"><i class="ti ti-arrow-left" style="font-size:13px"></i> Back</span>
+  </div>
+  <div class="create-body">
+    <div class="create-form">
+      <div>
+        <div class="form-title">Start a new improvement case</div>
+        <div class="form-sub">Fill in the basics. The AI will guide your team through everything else.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><i class="ti ti-hash"></i> Case reference</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span style="font-size:11px;color:var(--text2)">Case number</span>
+          <span class="case-pill" id="new-case-id">IMPR-2026-...</span>
+        </div>
+        <div class="field-row full">
+          <div class="field">
+            <label>What is this project about?</label>
+            <input type="text" id="create-title" placeholder="e.g. Reduce defect rate in production line 3">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Department or area</label>
+            <input type="text" id="create-dept" placeholder="e.g. Manufacturing, Dept 4">
+          </div>
+          <div class="field">
+            <label>Target completion date</label>
+            <input type="date" id="create-date">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><i class="ti ti-award"></i> Belt level</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:10px">Not sure? Choose Green Belt — the AI adjusts its guidance accordingly.</div>
+        <div class="belt-grid">
+          <div class="belt-card" onclick="selectBelt(this,'yellow')"><div class="bl">Yellow Belt</div><div class="bs">Small local improvement. Team lead guides.</div></div>
+          <div class="belt-card sel" onclick="selectBelt(this,'green')"><div class="bl">Green Belt</div><div class="bs">Cross-functional project. Part-time belt.</div></div>
+          <div class="belt-card" onclick="selectBelt(this,'black')"><div class="bl">Black Belt</div><div class="bs">Complex high-impact project. Dedicated belt.</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><i class="ti ti-users"></i> Project team</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:10px">Add everyone who will work on this case. They join using the case number — no passwords needed.</div>
+        <div class="team-list" id="team-list"></div>
+        <button class="add-member-btn" onclick="toggleAddMember()"><i class="ti ti-plus" style="font-size:13px"></i> Add team member</button>
+        <div class="add-member-form" id="add-member-form">
+          <div class="field" style="flex:1"><input type="text" id="new-member-name" placeholder="Name"></div>
+          <div class="field" style="flex:1"><input type="text" id="new-member-role" placeholder="Role"></div>
+          <button class="btn-secondary" onclick="addTeamMember()" style="height:34px">Add</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><i class="ti ti-paperclip"></i> Supporting documents <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text3)">(optional)</span></div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:10px">Any existing reports or data files. The AI reads these before your first session.</div>
+        <div class="up-zone" onclick="document.getElementById('create-file-input').click()">
+          <i class="ti ti-upload"></i>
+          <div class="uz-t">Drop files here or click to browse</div>
+          <div class="uz-s">PDF · Excel · Word · CSV · images accepted</div>
+        </div>
+        <input type="file" id="create-file-input" multiple style="display:none" onchange="handleCreateFiles(this)">
+        <div class="uploaded-files" id="create-uploaded"></div>
+      </div>
+
+      <div class="info-box">
+        <i class="ti ti-info-circle"></i>
+        <p>Once created, the AI guide opens in the Define phase. Team members join any time using the case number. No account or password needed.</p>
+      </div>
+
+      <button class="btn-primary" onclick="submitCreateCase()">
+        <i class="ti ti-player-play"></i> Create case and begin Define phase
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN 3: SEARCH ═══════════ -->
+<div class="screen" id="scr-search">
+  <div class="topbar">
+    <span class="tb-logo">agentlean · <span>agent improve</span></span>
+    <span class="tb-back" onclick="showScreen('scr-landing')"><i class="ti ti-arrow-left" style="font-size:13px"></i> Back</span>
+  </div>
+  <div class="search-body">
+    <div class="search-form">
+      <div>
+        <div class="form-title">Open an existing case</div>
+        <div class="form-sub">Search by case number, title, or team leader name.</div>
+      </div>
+      <div class="search-row">
+        <input type="text" id="search-input" placeholder="Case number, title, or leader name…" onkeydown="if(event.key==='Enter')doSearch()">
+        <button class="btn-primary" style="padding:8px 16px;width:auto" onclick="doSearch()">Search</button>
+      </div>
+      <div class="search-result" id="search-result">
+        <div class="sr-header">
+          <div class="rr-phase" id="sr-phase-circle"></div>
+          <div>
+            <div class="sr-title" id="sr-title"></div>
+            <div class="sr-meta" id="sr-meta"></div>
+          </div>
+          <span class="phase-badge" id="sr-badge" style="margin-left:auto"></span>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Enter your name to join this session</div>
+        <div class="join-row">
+          <input type="text" id="join-name" placeholder="Your name">
+          <button class="btn-primary" style="padding:8px 14px;width:auto" onclick="joinCase()"><i class="ti ti-door-enter" style="font-size:13px"></i> Join case</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN 4: WORKSPACE ═══════════ -->
+<div class="screen" id="scr-workspace">
+  <div class="topbar">
+    <span class="tb-logo">agentlean · <span>agent improve</span></span>
+    <span class="tb-case" id="ws-case-badge"></span>
+    <div class="tb-team" id="ws-team"></div>
+  </div>
+  <div class="workspace">
+
+    <!-- LEFT NAV -->
+    <div class="pnav">
+      <div class="pnav-label">DMAIC phases</div>
+      <div class="pi active" id="pi-define" onclick="selectPhase('define')">
+        <div class="pd"></div><span class="pl">Define</span><span class="pb pb-active">active</span>
+      </div>
+      <div class="psub">5W2H · charter · scope</div><div class="psep"></div>
+      <div class="pi locked" id="pi-measure" onclick="selectPhase('measure')">
+        <div class="pd"></div><span class="pl">Measure</span><span class="pb pb-lock">locked</span>
+      </div>
+      <div class="psub">Data plan · baseline</div><div class="psep"></div>
+      <div class="pi locked" id="pi-analyse_phase" onclick="selectPhase('analyse_phase')">
+        <div class="pd"></div><span class="pl">Analyse</span><span class="pb pb-lock">locked</span>
+      </div>
+      <div class="psub">Root cause · Fishbone</div><div class="psep"></div>
+      <div class="pi locked" id="pi-improve" onclick="selectPhase('improve')">
+        <div class="pd"></div><span class="pl">Improve</span><span class="pb pb-lock">locked</span>
+      </div>
+      <div class="psub">Solutions</div><div class="psep"></div>
+      <div class="pi locked" id="pi-control" onclick="selectPhase('control')">
+        <div class="pd"></div><span class="pl">Control</span><span class="pb pb-lock">locked</span>
+      </div>
+      <div class="psub">Control plan</div>
+      <div style="flex:1"></div>
+      <div class="pnav-bot">
+        <div style="font-size:10px;color:var(--text3)">Overall progress</div>
+        <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:5%"></div></div>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px" id="prog-label">Phase 1 of 5</div>
+      </div>
+    </div>
+
+    <!-- MAIN PANEL -->
+    <div class="main">
+      <div class="vtabs">
+        <div class="vt active" id="vt-overview" onclick="selectTab('overview')">Phase overview</div>
+        <div class="vt" id="vt-chat" onclick="selectTab('chat')">AI guide</div>
+        <div class="vt" id="vt-steps" onclick="selectTab('steps')">Step-by-step</div>
+        <div class="vt" id="vt-diagram" onclick="selectTab('diagram')">Live diagram</div>
+        <div class="vt" id="vt-history" onclick="selectTab('history')">Session history</div>
+      </div>
+
+      <!-- OVERVIEW VIEW -->
+      <div class="view active" id="view-overview"></div>
+
+      <!-- CHAT VIEW -->
+      <div class="view" id="view-chat" style="padding:0;gap:0">
+        <div class="chat-header">
+          <span class="chat-phase-badge" id="chat-phase-badge"></span>
+          <span class="chat-step" id="chat-step">AI guide</span>
+        </div>
+        <div class="chat-view">
+          <div class="msgs" id="msgs"></div>
+          <div class="typing" id="typing">AI is thinking...</div>
+          <div class="chips" id="chips"></div>
+          <div class="upload-bar">
+            <span class="ub-hint">Upload a file any time — AI identifies what it is</span>
+            <div class="ub-btn" onclick="document.getElementById('chat-file-input').click()"><i class="ti ti-upload" style="font-size:12px"></i> Upload</div>
+            <div class="ub-sep"></div>
+            <div class="ub-btn" onclick="submitGateReview()"><i class="ti ti-checkbox" style="font-size:12px"></i> Submit for review</div>
+          </div>
+          <input type="file" id="chat-file-input" style="display:none" onchange="handleChatFile(this)">
+          <div class="cinput">
+            <textarea class="ctxt" id="chat-input" placeholder="Reply to the AI guide…" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
+            <button class="csend" onclick="sendMessage()"><i class="ti ti-arrow-up"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEPS VIEW -->
+      <div class="view" id="view-steps">
+        <div class="diag-intro">Your step-by-step plan — each step builds on the last.</div>
+        <div class="step-list" id="step-list"></div>
+      </div>
+
+      <!-- DIAGRAM VIEW -->
+      <div class="view" id="view-diagram">
+        <div class="diag-intro" id="diag-intro">This diagram builds from your conversations — green nodes are confirmed, grey nodes are still being discussed.</div>
+        <div id="diag-container"></div>
+        <div class="diag-legend">
+          <div class="dl-item"><div class="dl-dot" style="background:var(--teal-bg);border:1px solid var(--teal-mid)"></div><span>confirmed by team</span></div>
+          <div class="dl-item"><div class="dl-dot" style="background:var(--brand-bg);border:1px solid var(--brand-mid)"></div><span>AI suggested</span></div>
+          <div class="dl-item"><div class="dl-dot" style="background:#F1EFE8;border:1px dashed var(--border2)"></div><span>not yet discussed</span></div>
+        </div>
+      </div>
+
+      <!-- HISTORY VIEW -->
+      <div class="view" id="view-history">
+        <div id="history-content"><div style="color:var(--text3);font-size:12px">No sessions yet for this phase.</div></div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="rpanel">
+      <div class="rp-hdr"><i class="ti ti-clipboard-list" style="font-size:13px"></i><span id="rp-title">Captured so far</span></div>
+      <div class="rp-scroll" id="rp-content">
+        <div style="color:var(--text3);font-size:11px;padding:4px 0">Start a conversation to see captured fields here.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'http://127.0.0.1:8020';
+
+// ─── STATE ────────────────────────────────────────────────────────
+const S = {
+  screen: 'landing',
+  case: null,
+  user: '',
+  phase: 'define',
+  tab: 'overview',
+  lastAsk: null,
+  localChat: [],
+  teamMembers: [],
+  beltLevel: 'green',
+  foundCase: null,
+};
+
+// ─── PHASE METADATA ───────────────────────────────────────────────
+const PHASES = {
+  define:{letter:'D',label:'Define',color:'#534AB7',bg:'#EEEDFE',
+    desc:'Frame the problem precisely before solving anything. The AI guides the team through a structured conversation to build a shared understanding of what is being improved, why it matters, and what success looks like.',
+    whatAsks:'What is the problem? Where and when? Who is affected? Why does it matter? What is the target?',
+    whatCaptures:'Problem statement, scope, baseline metric, project goal, process owner, team charter.',
+    gate:'All 7 problem elements answered, baseline metric defined, process owner confirmed, charter approved.',
+    duration:'1–3 sessions over 3–7 days.',
+    tools:['5W2H problem statement','Project charter','SIPOC diagram','Baseline metric setting'],
+    steps:['What is the problem in plain observable terms?','Where does it happen — which process or location?','When did it start — constant or new trend?','Who is affected and who owns the process?','Why does it matter — what is the business impact?','How bad is it today — what is the baseline number?','What does success look like — what is the target?']},
+  measure:{letter:'M',label:'Measure',color:'#0F6E56',bg:'#E1F5EE',
+    desc:'Decide what data to collect and confirm you have enough before collecting anything.',
+    whatAsks:'What are you measuring? Where does data come from? Who collects it? How many records? Is the measurement reliable?',
+    whatCaptures:'Data collection plan, primary measurement, data sources with owners, sample size, measurement reliability decision.',
+    gate:'Primary measurement defined, data plan complete with named owners, sample size confirmed, measurement reliability documented, data collected.',
+    duration:'2–4 sessions over 1–3 weeks.',
+    tools:['Data collection plan','Measurement reliability check','Process capability','Histogram'],
+    steps:['What is the main thing being measured — as a number with a unit?','What other information is already recorded alongside it?','Where does each piece of data come from and who will get it?','How many records are available — is that enough?','Is the measurement tool reliable — do different people get the same reading?','Is data collection now complete?']},
+  analyse_phase:{letter:'A',label:'Analyse',color:'#993C1D',bg:'#FAECE7',
+    desc:'Identify and verify what is actually causing the problem.',
+    whatAsks:'What patterns appear in the data? What are your theories? Which causes are supported? What is the verified root cause?',
+    whatCaptures:'Root cause analysis, verified root cause statement, supporting evidence, analysis tools used.',
+    gate:'Root cause identified and verified, process owner agrees, risk register updated.',
+    duration:'2–5 sessions over 2–4 weeks.',
+    tools:['Fishbone diagram','5Why drill-down','Pareto analysis','Correlation analysis'],
+    steps:["What patterns appear in the data — where is variation highest?","What are the team's theories about causes?","Which causes are supported by the data?","What is the single most important verified root cause?","Does the process owner agree with the conclusion?","Has the risk register been updated?"]},
+  improve:{letter:'I',label:'Improve',color:'#854F0B',bg:'#FAEEDA',
+    desc:'Select and test a solution that addresses the root cause.',
+    whatAsks:'What solutions could address the root cause? What is the effort and impact? Which do you pilot?',
+    whatCaptures:'Solution options, impact/effort scores, selected solution with justification, pilot plan and results.',
+    gate:'Solution selected and justified, pilot plan documented, pilot results confirm improvement, implementation plan approved.',
+    duration:'3–6 sessions over 3–8 weeks.',
+    tools:['Impact and effort matrix','Value analysis','Solution selection','Pilot planning'],
+    steps:['What solutions could address the root cause?','For each solution — how much impact and how much effort?','Which solution is selected and why?','What does the pilot plan look like?','What did the pilot show — did the metric improve?','Has the sponsor approved the implementation plan?']},
+  control:{letter:'C',label:'Control',color:'#185FA5',bg:'#E6F1FB',
+    desc:'Ensure the improvement is sustained and does not revert.',
+    whatAsks:'How will you detect if the process reverts? Who monitors it? What are the control limits?',
+    whatCaptures:'Control plan, monitoring owner, control limits, response plan, handover sign-off.',
+    gate:'Control chart configured, monitoring owner named, response plan documented, training complete, sponsor sign-off received.',
+    duration:'2–3 sessions over 1–2 weeks.',
+    tools:['Control chart','Monitoring plan','Response plan','Handover document'],
+    steps:['How will the team know if the process reverts?','Who monitors it, how often, and what triggers a response?','What are the control limits?','Has the team been trained on the new process?','Have the process documents been updated?','Has the sponsor signed off and the project been handed over?']}
+};
+const PHASE_ORDER = ['define','measure','analyse_phase','improve','control'];
+
+// ─── SCREEN NAVIGATION ────────────────────────────────────────────
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  S.screen = id;
+  if(id==='scr-landing') loadRegistry();
+  if(id==='scr-create') initCreate();
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────
+function toast(msg,dur=3000){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),dur);
+}
+
+// ─── LANDING ─────────────────────────────────────────────────────
+async function loadRegistry(){
+  const el=document.getElementById('recent-list');
+  try{
+    const data=await fetch(`${API}/registry`).then(r=>r.json());
+    if(!data.length){el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3);font-size:12px">No cases yet — create your first one.</div>';return;}
+    el.innerHTML=data.map(c=>{
+      const p=PHASES[c.current_phase]||PHASES.define;
+      const rag=c.rag_status==='red'?'rag-red':c.rag_status==='amber'?'rag-amber':'rag-green';
+      return `<div class="recent-row" onclick="quickOpenCase('${c.case_id}')">
+        <div class="rr-phase" style="background:${p.bg};color:${p.color}">${p.letter}</div>
+        <div class="rr-info"><div class="rr-title">${c.case_id} · ${c.title}</div>
+        <div class="rr-meta">${c.leader} · ${p.label} phase · day ${c.days_in_phase||0}</div></div>
+        <div class="rag-dot ${rag}"></div>
+      </div>`;
+    }).join('');
+  }catch(e){el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3);font-size:12px">Could not load cases — is the backend running?</div>';}
+}
+
+async function quickOpenCase(caseId){
+  const name=prompt('Enter your name to join this case:');
+  if(!name||!name.trim())return;
+  S.user=name.trim();
+  await openWorkspace(caseId);
+}
+
+// ─── CREATE ───────────────────────────────────────────────────────
+function initCreate(){
+  const year=new Date().getFullYear();
+  const rand=Math.random().toString(36).substr(2,3).toUpperCase();
+  document.getElementById('new-case-id').textContent=`IMPR-${year}-${rand}`;
+  S.teamMembers=[];
+  renderTeamList();
+  const d=new Date();d.setMonth(d.getMonth()+6);
+  document.getElementById('create-date').value=d.toISOString().split('T')[0];
+}
+
+function selectBelt(el,level){
+  document.querySelectorAll('.belt-card').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');S.beltLevel=level;
+}
+
+function toggleAddMember(){
+  const f=document.getElementById('add-member-form');
+  f.classList.toggle('show');
+  if(f.classList.contains('show'))document.getElementById('new-member-name').focus();
+}
+
+function addTeamMember(){
+  const name=document.getElementById('new-member-name').value.trim();
+  const role=document.getElementById('new-member-role').value.trim();
+  if(!name)return;
+  S.teamMembers.push({name,role:role||'Team member'});
+  document.getElementById('new-member-name').value='';
+  document.getElementById('new-member-role').value='';
+  document.getElementById('add-member-form').classList.remove('show');
+  renderTeamList();
+}
+
+function renderTeamList(){
+  const user=S.user||'You';
+  const all=[{name:user,role:'Project leader',leader:true},...S.teamMembers];
+  document.getElementById('team-list').innerHTML=all.map(m=>`
+    <div class="team-row">
+      <div class="av av-p">${m.name.split(' ').map(w=>w[0]).join('').substr(0,2).toUpperCase()}</div>
+      <div style="flex:1"><div class="tr-name">${m.name}</div><div class="tr-role">${m.role}</div></div>
+      ${m.leader?'<span class="tr-badge">leader</span>':''}
+    </div>`).join('');
+}
+
+function handleCreateFiles(input){
+  const el=document.getElementById('create-uploaded');
+  el.innerHTML=[...input.files].map(f=>`<div class="uf-row"><i class="ti ti-file"></i>${f.name}</div>`).join('');
+}
+
+async function submitCreateCase(){
+  const title=document.getElementById('create-title').value.trim();
+  const dept=document.getElementById('create-dept').value.trim();
+  const date=document.getElementById('create-date').value;
+  if(!title){toast('Please enter a project title');return;}
+  if(!S.user){S.user=prompt('Enter your name (you are the project leader):')||'Leader';}
+  const caseId=document.getElementById('new-case-id').textContent;
+  const team=[...S.teamMembers];
+  try{
+    const data=await fetch(`${API}/cases`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({title,belt_level:S.beltLevel,leader:S.user,department:dept||'General',
+        target_date:date||new Date().toISOString().split('T')[0],team})}).then(r=>r.json());
+    if(data.case_id){await openWorkspace(data.case_id);}
+    else{toast('Error creating case: '+(data.detail||'Unknown error'));}
+  }catch(e){toast('Could not connect to backend. Is it running?');}
+}
+
+// ─── SEARCH ───────────────────────────────────────────────────────
+async function doSearch(){
+  const q=document.getElementById('search-input').value.trim().toLowerCase();
+  if(!q)return;
+  try{
+    const data=await fetch(`${API}/registry`).then(r=>r.json());
+    const found=data.find(c=>c.case_id.toLowerCase().includes(q)||c.title.toLowerCase().includes(q)||(c.leader&&c.leader.toLowerCase().includes(q)));
+    if(!found){toast('No case found matching that search');return;}
+    S.foundCase=found;
+    const p=PHASES[found.current_phase]||PHASES.define;
+    document.getElementById('sr-phase-circle').style.cssText=`background:${p.bg};color:${p.color}`;
+    document.getElementById('sr-phase-circle').textContent=p.letter;
+    document.getElementById('sr-title').textContent=`${found.case_id} · ${found.title}`;
+    document.getElementById('sr-meta').textContent=`${found.leader} (leader) · ${found.belt_level} belt`;
+    document.getElementById('sr-badge').textContent=`${p.label} · day ${found.days_in_phase||0}`;
+    document.getElementById('sr-badge').style.cssText=`background:${p.bg};color:${p.color}`;
+    document.getElementById('search-result').style.display='block';
+  }catch(e){toast('Could not search — is the backend running?');}
+}
+
+async function joinCase(){
+  const name=document.getElementById('join-name').value.trim();
+  if(!name){toast('Please enter your name');return;}
+  if(!S.foundCase){return;}
+  S.user=name;
+  await openWorkspace(S.foundCase.case_id);
+}
+
+// ─── WORKSPACE ───────────────────────────────────────────────────
+async function openWorkspace(caseId){
+  try{
+    const caseData=await fetch(`${API}/cases/${caseId}`).then(r=>r.json());
+    S.case=caseData;
+    S.localChat=[];
+    // Find current phase
+    const phaseOrder=['define','measure','analyse_phase','improve','control'];
+    S.phase=caseData.current_phase||'define';
+    // Build workspace
+    document.getElementById('ws-case-badge').innerHTML=`<i class="ti ti-folder" style="font-size:11px;vertical-align:-1px;margin-right:4px"></i>${caseId} · ${caseData.title}`;
+    document.getElementById('ws-team').innerHTML=`<span style="font-size:11px;color:var(--text2)">${S.user}</span><div class="av av-p">${S.user.split(' ').map(w=>w[0]).join('').substr(0,2).toUpperCase()}</div>`;
+    showScreen('scr-workspace');
+    renderPhaseNav();
+    selectPhase(S.phase);
+  }catch(e){toast('Could not load case');}
+}
+
+function renderPhaseNav(){
+  const phaseOrder=['define','measure','analyse_phase','improve','control'];
+  const currentIdx=phaseOrder.indexOf(S.phase);
+  const progPct=[5,22,44,66,88];
+  document.getElementById('prog-fill').style.width=(progPct[currentIdx]||5)+'%';
+  document.getElementById('prog-label').textContent=`Phase ${currentIdx+1} of 5`;
+  phaseOrder.forEach((ph,i)=>{
+    const el=document.getElementById('pi-'+ph);
+    const pb=el.querySelector('.pb');
+    const pd=el.querySelector('.pd');
+    el.classList.remove('active','done','locked');
+    if(i<currentIdx){el.classList.add('done');pb.className='pb pb-done';pb.textContent='✓';}
+    else if(i===currentIdx){el.classList.add('active');pb.className='pb pb-active';pb.textContent='active';}
+    else{el.classList.add('locked');pb.className='pb pb-lock';pb.textContent='locked';}
+  });
+}
+
+function selectPhase(phase){
+  S.phase=phase;
+  S.localChat=[];
+  // Load chat history for this phase from case
+  if(S.case&&S.case.conversation_history){
+    S.localChat=S.case.conversation_history.filter(t=>true); // all turns for now
+  }
+  renderPhaseNav();
+  renderOverview();
+  renderSteps();
+  renderDiagram();
+  renderHistory();
+  renderRightPanel();
+  selectTab('overview');
+}
+
+function selectTab(tab){
+  S.tab=tab;
+  ['overview','chat','steps','diagram','history'].forEach(t=>{
+    document.getElementById('vt-'+t).classList.toggle('active',t===tab);
+    document.getElementById('view-'+t).classList.toggle('active',t===tab);
+  });
+  if(tab==='chat'){renderChat();}
+}
+
+// ─── OVERVIEW ─────────────────────────────────────────────────────
+function renderOverview(){
+  const p=PHASES[S.phase];
+  const phaseOrder=['define','measure','analyse_phase','improve','control'];
+  const curIdx=phaseOrder.indexOf(S.phase);
+  const dstrip=phaseOrder.map((ph,i)=>{
+    const pp=PHASES[ph];
+    const cls=i<curIdx?'ds dn':i===curIdx?'ds cur':'ds';
+    const style=i===curIdx?`style="background:${pp.bg};color:${pp.color};font-weight:600"`:'';
+    return `<div class="${cls}" ${style}>${pp.letter}<div class="ds-lbl">${pp.label}</div></div>`;
+  }).join('');
+  const tools=p.tools.map(t=>`<div class="tool-pill" onclick="sendToolQuestion('${t}')">${t} ↗</div>`).join('');
+  const sessions=S.localChat.length?`
+    <div class="s-label">Previous sessions</div>
+    <div class="sess"><div class="sess-dot"></div><div class="sess-body">
+      <div class="sess-p">Session from conversation history</div>
+      <div class="sess-m">${S.localChat.length} turns · ${S.user}</div>
+    </div></div>`:'';
+  document.getElementById('view-overview').innerHTML=`
+    <div class="ph-header">
+      <div class="ph-circle" style="background:${p.bg};border:1.5px solid;border-color:${p.color}40"><span style="color:${p.color}">${p.letter}</span></div>
+      <div><div class="ph-title">${p.label} phase</div><div class="ph-desc">${p.desc}</div></div>
+    </div>
+    <div class="dstrip">${dstrip}</div>
+    <div class="wh-grid">
+      <div class="wh"><div class="wh-ttl"><i class="ti ti-message-question"></i>What the AI will ask</div><p>${p.whatAsks}</p></div>
+      <div class="wh"><div class="wh-ttl"><i class="ti ti-clipboard-check"></i>What gets captured</div><p>${p.whatCaptures}</p></div>
+      <div class="wh"><div class="wh-ttl"><i class="ti ti-lock-open"></i>Gate to pass</div><p>${p.gate}</p></div>
+      <div class="wh"><div class="wh-ttl"><i class="ti ti-clock"></i>Typical duration</div><p>${p.duration}</p></div>
+    </div>
+    <div><div class="s-label">Tools used in this phase</div><div class="tool-row">${tools}</div></div>
+    ${sessions}
+    <button class="start-btn" onclick="selectTab('chat')">
+      <i class="ti ti-player-play"></i> Continue with AI guide — ${p.label} phase
+    </button>`;
+}
+
+function sendToolQuestion(tool){
+  selectTab('chat');
+  document.getElementById('chat-input').value=`Explain the ${tool} and how it is used in this phase`;
+  sendMessage();
+}
+
+// ─── CHAT ─────────────────────────────────────────────────────────
+function renderChat(){
+  const p=PHASES[S.phase];
+  const badge=document.getElementById('chat-phase-badge');
+  badge.textContent=p.label;badge.style.cssText=`background:${p.bg};color:${p.color}`;
+  document.getElementById('chat-step').textContent='AI guide';
+  const msgs=document.getElementById('msgs');
+  if(S.localChat.length===0){
+    msgs.innerHTML=`<div class="msg"><div class="mav mai">AI</div>
+      <div class="bbl bbl-ai"><p>Welcome to the ${p.label} phase${S.user?', '+S.user:''}! ${p.desc}</p>
+      <p>Let's start. ${p.steps[0]}</p></div></div>`;
+  }else{
+    msgs.innerHTML=S.localChat.map(t=>renderTurn(t)).join('');
+    msgs.scrollTop=msgs.scrollHeight;
+  }
+  renderChips();
+}
+
+function renderTurn(turn){
+  if(turn.role==='ai'){
+    const cites=(turn.citations||[]).map(c=>`<div class="src-pill"><i class="ti ti-link" style="font-size:11px"></i>${c.agent_origin||'Agent Improve'} · ${c.index_name||''}</div>`).join('');
+    return `<div class="msg"><div class="mav mai">AI</div>
+      <div class="bbl bbl-ai"><p>${turn.text}</p>${cites}</div></div>`;
+  }else{
+    const initials=(turn.user||S.user||'U').split(' ').map(w=>w[0]).join('').substr(0,2).toUpperCase();
+    return `<div class="msg user"><div class="mav mu">${initials}</div>
+      <div class="bbl bbl-user">${turn.text}</div></div>`;
+  }
+}
+
+function renderChips(){
+  const ask=S.lastAsk;
+  const chips=ask&&ask.suggestion_chips&&ask.suggestion_chips.length?ask.suggestion_chips:PHASES[S.phase].steps.slice(0,3).map(s=>s.length>50?s.substr(0,50)+'…':s);
+  document.getElementById('chips').innerHTML=chips.map(c=>`<div class="chip" onclick="chipClick(this)">${c}</div>`).join('');
+}
+
+function chipClick(el){
+  document.getElementById('chat-input').value=el.textContent;
+  sendMessage();
+}
+
+async function sendMessage(){
+  const input=document.getElementById('chat-input');
+  const text=input.value.trim();
+  if(!text||!S.case)return;
+  input.value='';
+  // Add user turn
+  const userTurn={turn:S.localChat.length+1,role:'user',user:S.user,text,timestamp:new Date().toISOString(),citations:[]};
+  S.localChat.push(userTurn);
+  appendMsgToDOM(renderTurn(userTurn));
+  document.getElementById('typing').classList.add('show');
+  try{
+    const resp=await fetch(`${API}/ask`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({case_id:S.case.case_id,user:S.user,message:text,phase:S.phase})}).then(r=>r.json());
+    document.getElementById('typing').classList.remove('show');
+    if(resp.answer){
+      S.lastAsk=resp;
+      const aiTurn={turn:S.localChat.length+1,role:'ai',user:null,text:resp.answer,timestamp:new Date().toISOString(),citations:resp.citations||[]};
+      S.localChat.push(aiTurn);
+      appendMsgToDOM(renderTurn(aiTurn));
+      renderChips();
+      updateRightPanel(resp);
+    }else if(resp.detail){toast('Error: '+resp.detail);}
+  }catch(e){document.getElementById('typing').classList.remove('show');toast('Could not reach backend');}
+}
+
+function appendMsgToDOM(html){
+  const msgs=document.getElementById('msgs');
+  msgs.insertAdjacentHTML('beforeend',html);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+async function handleChatFile(input){
+  if(!input.files.length||!S.case)return;
+  const file=input.files[0];
+  const form=new FormData();
+  form.append('file',file);form.append('case_id',S.case.case_id);
+  form.append('uploaded_by',S.user);form.append('phase',S.phase);
+  try{
+    appendMsgToDOM(`<div class="msg user"><div class="mav mu">${S.user.charAt(0)}</div><div class="bbl bbl-user">📎 ${file.name}</div></div>`);
+    const resp=await fetch(`${API}/upload`,{method:'POST',body:form}).then(r=>r.json());
+    const aiTurn={role:'ai',user:null,text:`I've received the file <strong>${file.name}</strong>. ${resp.classification?'Classification: '+resp.classification+'.':''} Let me process it.`,timestamp:new Date().toISOString(),citations:[]};
+    S.localChat.push(aiTurn);
+    appendMsgToDOM(renderTurn(aiTurn));
+  }catch(e){toast('Upload failed');}
+}
+
+async function submitGateReview(){
+  if(!S.case)return;
+  try{
+    const resp=await fetch(`${API}/gate`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({case_id:S.case.case_id,submitted_by:S.user,phase:S.phase})}).then(r=>r.json());
+    if(resp.passed){
+      toast(`${PHASES[S.phase].label} gate passed! ${resp.next_phase?'Moving to '+PHASES[resp.next_phase].label:'Project complete!'}`);
+      if(resp.next_phase){S.phase=resp.next_phase;renderPhaseNav();selectPhase(resp.next_phase);}
+    }else{
+      const missing=(resp.missing_fields||[]).slice(0,3).join(', ');
+      toast(`Not ready yet. Still needed: ${missing||'more information'}`,5000);
+    }
+  }catch(e){toast('Could not submit gate review');}
+}
+
+// ─── STEPS ────────────────────────────────────────────────────────
+function renderSteps(){
+  const p=PHASES[S.phase];
+  const captured=(S.lastAsk&&S.lastAsk.captured_fields)||[];
+  const capturedMap={};captured.forEach(f=>{if(f.value)capturedMap[f.label.toLowerCase()]=f.value;});
+  document.getElementById('step-list').innerHTML=p.steps.map((q,i)=>{
+    const key=q.toLowerCase().split(' ').slice(0,3).join(' ');
+    const val=capturedMap[key]||null;
+    const cls=val?'sn-done':i===0?'sn-active':'sn-wait';
+    const tag=val?`<span class="step-tag st-done">confirmed</span>`:`<span class="step-tag st-wait">upcoming</span>`;
+    return `<div class="step-item">
+      <div class="step-num ${cls}">${val?'<i class="ti ti-check" style="font-size:11px"></i>':i+1}</div>
+      <div class="step-body"><div class="step-q">${q} ${tag}</div>
+      ${val?`<div class="step-a" style="color:var(--teal)">${val}</div>`:`<div class="step-a">Not yet answered — AI will ask this question</div>`}
+      </div></div>`;
+  }).join('');
+}
+
+// ─── DIAGRAM ─────────────────────────────────────────────────────
+function renderDiagram(){
+  const p=PHASES[S.phase];
+  document.getElementById('diag-intro').textContent=`Live ${p.label.toLowerCase()} diagram — updates as your team answers questions.`;
+  const container=document.getElementById('diag-container');
+  if(S.phase==='define'){container.innerHTML=buildDefineDiagram();}
+  else if(S.phase==='measure'){container.innerHTML=buildMeasureDiagram();}
+  else{container.innerHTML=buildLockedDiagram(p.letter,p.label);}
+}
+
+function buildDefineDiagram(){
+  const captured=(S.lastAsk&&S.lastAsk.captured_fields)||[];
+  const capturedKeys=captured.filter(f=>f.value).map(f=>f.label.toLowerCase());
+  function nodeColor(key){return capturedKeys.some(k=>k.includes(key))?['#E1F5EE','#5DCAA5','#085041']:['#F1EFE8','#CCCAC4','#99978F'];}
+  function node(x,y,w,h,label,sublabel,key){const[fill,stroke,tc]=nodeColor(key);return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${fill}" stroke="${stroke}" stroke-width="0.8"/><text x="${x+w/2}" y="${y+14}" text-anchor="middle" font-size="8" font-weight="600" fill="${tc}" letter-spacing=".04em">${label}</text><text x="${x+w/2}" y="${y+27}" text-anchor="middle" font-size="9" fill="${tc}">${sublabel}</text>`;}
+  return `<svg viewBox="0 0 580 340" class="diag-svg">
+    <rect x="195" y="140" width="190" height="56" rx="8" fill="#EEEDFE" stroke="#AFA9EC" stroke-width="1"/>
+    <text x="290" y="162" text-anchor="middle" font-size="11" font-weight="600" fill="#26215C">Problem statement</text>
+    <text x="290" y="180" text-anchor="middle" font-size="10" fill="#3C3489">What we are improving</text>
+    ${node(18,40,130,40,'WHAT','the problem','what')}
+    ${node(18,120,130,40,'WHERE','location / asset','where')}
+    ${node(18,200,130,40,'WHO','affected parties','who')}
+    ${node(432,40,130,40,'WHEN','timing / trend','when')}
+    ${node(432,120,130,40,'WHY','business impact','why')}
+    ${node(432,200,130,40,'HOW MUCH','baseline number','baseline')}
+    ${node(195,280,130,40,'GOAL','target state','goal')}
+    <line x1="148" y1="60" x2="193" y2="155" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
+    <line x1="148" y1="140" x2="193" y2="168" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
+    <line x1="148" y1="220" x2="193" y2="182" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
+    <line x1="432" y1="60" x2="387" y2="155" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
+    <line x1="432" y1="140" x2="387" y2="168" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
+    <line x1="432" y1="220" x2="387" y2="182" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
+    <line x1="260" y1="280" x2="270" y2="198" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
+    <text x="18" y="16" font-size="9" fill="#085041">■</text><text x="28" y="16" font-size="9" fill="#5C5A55">confirmed</text>
+    <text x="100" y="16" font-size="9" fill="#99978F">■</text><text x="110" y="16" font-size="9" fill="#5C5A55">not yet discussed</text>
+  </svg>`;
+}
+
+function buildMeasureDiagram(){
+  return `<svg viewBox="0 0 580 300" class="diag-svg">
+    <rect x="215" y="120" width="150" height="52" rx="8" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="1"/>
+    <text x="290" y="140" text-anchor="middle" font-size="11" font-weight="600" fill="#04342C">Primary measurement</text>
+    <text x="290" y="158" text-anchor="middle" font-size="9" fill="#085041">Y variable</text>
+    <rect x="18" y="50" width="140" height="40" rx="6" fill="#F1EFE8" stroke="#CCCAC4" stroke-width="0.8" stroke-dasharray="4 2"/>
+    <text x="88" y="66" text-anchor="middle" font-size="10" fill="#99978F">Factor 1</text>
+    <text x="88" y="82" text-anchor="middle" font-size="9" fill="#99978F">not yet confirmed</text>
+    <rect x="18" y="110" width="140" height="40" rx="6" fill="#F1EFE8" stroke="#CCCAC4" stroke-width="0.8" stroke-dasharray="4 2"/>
+    <text x="88" y="126" text-anchor="middle" font-size="10" fill="#99978F">Factor 2</text>
+    <text x="88" y="142" text-anchor="middle" font-size="9" fill="#99978F">not yet confirmed</text>
+    <rect x="18" y="170" width="140" height="40" rx="6" fill="#EEEDFE" stroke="#AFA9EC" stroke-width="0.8" stroke-dasharray="4 2"/>
+    <text x="88" y="186" text-anchor="middle" font-size="10" fill="#534AB7">AI suggested factor</text>
+    <text x="88" y="202" text-anchor="middle" font-size="9" fill="#534AB7">from past cases</text>
+    <rect x="422" y="50" width="140" height="40" rx="6" fill="#F1EFE8" stroke="#CCCAC4" stroke-width="0.8" stroke-dasharray="4 2"/>
+    <text x="492" y="66" text-anchor="middle" font-size="10" fill="#99978F">Data source 1</text>
+    <text x="492" y="82" text-anchor="middle" font-size="9" fill="#99978F">not yet identified</text>
+    <rect x="422" y="110" width="140" height="40" rx="6" fill="#F1EFE8" stroke="#CCCAC4" stroke-width="0.8" stroke-dasharray="4 2"/>
+    <text x="492" y="126" text-anchor="middle" font-size="10" fill="#99978F">Data source 2</text>
+    <text x="492" y="142" text-anchor="middle" font-size="9" fill="#99978F">not yet identified</text>
+    <rect x="215" y="240" width="150" height="40" rx="6" fill="#EAF3DE" stroke="#97C459" stroke-width="0.8"/>
+    <text x="290" y="256" text-anchor="middle" font-size="10" fill="#27500A">Sample size</text>
+    <text x="290" y="272" text-anchor="middle" font-size="9" fill="#3B6D11">not yet confirmed</text>
+    <line x1="158" y1="70" x2="213" y2="140" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
+    <line x1="158" y1="130" x2="213" y2="150" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
+    <line x1="158" y1="190" x2="213" y2="160" stroke="#AFA9EC" stroke-width="0.7" stroke-dasharray="4 2"/>
+    <line x1="422" y1="70" x2="367" y2="140" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
+    <line x1="422" y1="130" x2="367" y2="150" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
+    <line x1="290" y1="172" x2="290" y2="238" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
+  </svg>`;
+}
+
+function buildLockedDiagram(letter,label){
+  return `<svg viewBox="0 0 580 240" class="diag-svg">
+    <rect x="190" y="80" width="200" height="80" rx="12" fill="var(--surface)" stroke="var(--border)" stroke-width="1" stroke-dasharray="6 3"/>
+    <text x="290" y="115" text-anchor="middle" font-size="20" fill="var(--text3)">${letter}</text>
+    <text x="290" y="138" text-anchor="middle" font-size="11" fill="var(--text3)">${label} — phase locked</text>
+    <text x="290" y="196" text-anchor="middle" font-size="10" fill="var(--text3)">Unlocks when previous phase gate passes</text>
+  </svg>`;
+}
+
+// ─── HISTORY ─────────────────────────────────────────────────────
+function renderHistory(){
+  if(!S.localChat.length){document.getElementById('history-content').innerHTML='<div style="color:var(--text3);font-size:12px">No sessions yet for this phase.</div>';return;}
+  const byDate={};
+  S.localChat.forEach(t=>{
+    const d=(t.timestamp||'').split('T')[0]||'Today';
+    if(!byDate[d])byDate[d]=[];
+    byDate[d].push(t);
+  });
+  document.getElementById('history-content').innerHTML=Object.entries(byDate).map(([date,turns])=>`
+    <div class="hist-group">
+      <div class="hist-date">${date}</div>
+      ${turns.map(t=>`<div class="hist-turn">
+        <div class="ht-meta">${t.role==='ai'?'AI Guide':t.user||'Team'} · ${(t.timestamp||'').replace('T',' ').split('.')[0]}</div>
+        <div class="ht-text">${t.text.substr(0,200)}${t.text.length>200?'…':''}</div>
+      </div>`).join('')}
+    </div>`).join('');
+}
+
+// ─── RIGHT PANEL ─────────────────────────────────────────────────
+function renderRightPanel(){
+  const p=PHASES[S.phase];
+  document.getElementById('rp-title').textContent=`Captured — ${p.label}`;
+  document.getElementById('rp-content').innerHTML=`<div style="color:var(--text3);font-size:11px;padding:4px 0">Start a conversation to see captured fields here.</div>
+    <div class="gate-box">
+      <div class="gate-ttl">What's needed to move forward</div>
+      <div class="gr wait"><i class="ti ti-clock"></i>Conversation not yet started</div>
+    </div>
+    <div class="rp-upload" onclick="document.getElementById('chat-file-input').click()">
+      <i class="ti ti-upload"></i><p>Upload data files</p><p style="font-size:9px;margin-top:1px">AI classifies and validates</p>
+    </div>
+    <button class="gate-submit" onclick="submitGateReview()"><i class="ti ti-checkbox" style="font-size:13px"></i> Submit for gate review ↗</button>`;
+}
+
+function updateRightPanel(resp){
+  if(!resp)return;
+  const p=PHASES[S.phase];
+  document.getElementById('rp-title').textContent=`Captured — ${p.label}`;
+  const fields=resp.captured_fields||[];
+  const gate=resp.gate_status||{};
+  const missing=gate.missing_fields||[];
+  let html='';
+  if(fields.length){
+    const rsec=document.createElement('div');rsec.className='rsec';
+    html+=`<div class="rsec-ttl">Captured fields</div>`;
+    html+=fields.map(f=>`<div class="cf ${f.ai_suggested?'ai':''}${!f.value?' empty':''}">
+      <div class="cf-lbl">${f.label}${f.ai_suggested?'<span class="ai-tag">AI suggested</span>':''}</div>
+      <div class="cfv">${f.value||'not yet captured'}</div></div>`).join('');
+  }else{
+    html+=`<div style="color:var(--text3);font-size:11px;padding:4px 0">Keep chatting — fields will appear here as you answer questions.</div>`;
+  }
+  // Citations
+  const cites=resp.citations||[];
+  if(cites.length){
+    html+=`<div class="rref"><div class="rref-ttl"><i class="ti ti-link" style="font-size:11px"></i>Sources used</div>`;
+    html+=cites.map(c=>`<p>${c.agent_origin} · ${c.index_name} — ${c.relevance_summary||''}</p>`).join('');
+    html+=`</div>`;
+  }
+  // Gate
+  html+=`<div class="gate-box"><div class="gate-ttl">What's needed to move forward</div>`;
+  if(gate.passed){html+=`<div class="gr ok"><i class="ti ti-circle-check"></i>Gate passed — ready to advance</div>`;}
+  else if(missing.length){
+    html+=missing.slice(0,6).map(m=>`<div class="gr miss"><i class="ti ti-circle-x"></i>${m.replace(/_/g,' ')}</div>`).join('');
+  }else{html+=`<div class="gr wait"><i class="ti ti-clock"></i>Still in progress</div>`;}
+  html+=`</div>`;
+  html+=`<div class="rp-upload" onclick="document.getElementById('chat-file-input').click()"><i class="ti ti-upload"></i><p>Upload data files</p><p style="font-size:9px;margin-top:1px">AI classifies and validates</p></div>`;
+  html+=`<button class="gate-submit" onclick="submitGateReview()"><i class="ti ti-checkbox" style="font-size:13px"></i> Submit for gate review ↗</button>`;
+  document.getElementById('rp-content').innerHTML=html;
+  renderSteps();
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+  loadRegistry();
+  // Auto-resize textarea
+  document.getElementById('chat-input').addEventListener('input',function(){
+    this.style.height='auto';this.style.height=Math.min(this.scrollHeight,80)+'px';
+  });
+});
+</script>
 </body>
 </html>
