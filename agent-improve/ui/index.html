@@ -1263,6 +1263,7 @@ async function sendMessage(){
       appendMsgToDOM(renderTurn(aiTurn));
       renderChips();
       updateRightPanel(resp);
+      renderDiagram();
     }else if(resp.detail){toast('Error: '+resp.detail);}
   }catch(e){document.getElementById('typing').classList.remove('show');toast('Could not reach backend');}
 }
@@ -1324,6 +1325,7 @@ function renderSteps(){
 // ─── DIAGRAM ─────────────────────────────────────────────────────
 function renderDiagram(){
   const p=PHASES[S.phase];
+  if(S.lastAsk) updateRightPanel(S.lastAsk);
   document.getElementById('diag-intro').textContent=`Live ${p.label.toLowerCase()} diagram — updates as your team answers questions.`;
   const container=document.getElementById('diag-container');
   if(S.phase==='define'){container.innerHTML=buildDefineDiagram();}
@@ -1332,8 +1334,14 @@ function renderDiagram(){
 }
 
 function buildDefineDiagram(){
-  const captured=(S.lastAsk&&S.lastAsk.captured_fields)||[];
-  const capturedKeys=captured.filter(f=>f.value).map(f=>f.label.toLowerCase());
+  // Merge captured fields from lastAsk response AND from blob structured data
+  const fromAsk=(S.lastAsk&&S.lastAsk.captured_fields)||[];
+  const fromBlob=S.case&&S.case.phases&&S.case.phases.define&&S.case.phases.define.structured
+    ? Object.keys(S.case.phases.define.structured) : [];
+  const capturedKeys=[
+    ...fromAsk.filter(f=>f.value).map(f=>f.label.toLowerCase()),
+    ...fromBlob.map(k=>k.replace(/_/g,' '))
+  ];
   function nodeColor(key){return capturedKeys.some(k=>k.includes(key))?['#E1F5EE','#5DCAA5','#085041']:['#F1EFE8','#CCCAC4','#99978F'];}
   function node(x,y,w,h,label,sublabel,key){const[fill,stroke,tc]=nodeColor(key);return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${fill}" stroke="${stroke}" stroke-width="0.8"/><text x="${x+w/2}" y="${y+14}" text-anchor="middle" font-size="8" font-weight="600" fill="${tc}" letter-spacing=".04em">${label}</text><text x="${x+w/2}" y="${y+27}" text-anchor="middle" font-size="9" fill="${tc}">${sublabel}</text>`;}
   return `<svg viewBox="0 0 580 340" class="diag-svg">
