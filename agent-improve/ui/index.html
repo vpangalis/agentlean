@@ -159,7 +159,7 @@ a{text-decoration:none;color:inherit}
 
 /* MAIN PANEL */
 .main{background:var(--surface);display:flex;flex-direction:column;overflow:hidden;min-height:0}
-.vtabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto}
+.vtabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;overflow:visible}
 .vt{padding:8px 12px;font-size:11px;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;white-space:nowrap;transition:color .1s;margin-bottom:-1px}
 .vt:hover{color:var(--text)}
 .vt.active{color:var(--brand);border-bottom-color:var(--brand);font-weight:600}
@@ -561,16 +561,16 @@ a{text-decoration:none;color:inherit}
         <div class="vt" id="vt-gate" onclick="selectTab('gate')">Gate</div>
         <div class="vt" id="vt-more" onclick="toggleMoreMenu(event)" style="position:relative">
           <span>··· More</span>
-          <div id="more-menu" style="display:none;position:absolute;top:100%;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow-md);z-index:50;min-width:160px;padding:4px 0">
-            <div class="more-item" onclick="event.stopPropagation();closeMoreMenu();selectTab('steps')" style="padding:8px 14px;font-size:12px;cursor:pointer;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">Step-by-step</div>
-            <div class="more-item" onclick="event.stopPropagation();closeMoreMenu();selectTab('diagram')" style="padding:8px 14px;font-size:12px;cursor:pointer;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">Live diagram</div>
-            <div class="more-item" onclick="event.stopPropagation();closeMoreMenu();selectTab('history')" style="padding:8px 14px;font-size:12px;cursor:pointer;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">Session history</div>
+          <div id="more-menu" style="display:none;position:absolute;top:100%;right:0;background:var(--surface,#fff);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.10);z-index:50;min-width:160px;padding:4px 0">
+            <div class="more-item" onclick="event.stopPropagation();closeMoreMenu();selectTab('steps')" style="padding:8px 14px;font-size:12px;cursor:pointer;color:var(--text, #1A1917)" onmouseover="this.style.background='#F8F7F4'" onmouseout="this.style.background=''">Step-by-step</div>
+            <div class="more-item" onclick="event.stopPropagation();closeMoreMenu();selectTab('diagram')" style="padding:8px 14px;font-size:12px;cursor:pointer;color:var(--text, #1A1917)" onmouseover="this.style.background='#F8F7F4'" onmouseout="this.style.background=''">Live diagram</div>
+            <div class="more-item" onclick="event.stopPropagation();closeMoreMenu();selectTab('history')" style="padding:8px 14px;font-size:12px;cursor:pointer;color:var(--text, #1A1917)" onmouseover="this.style.background='#F8F7F4'" onmouseout="this.style.background=''">Session history</div>
           </div>
         </div>
       </div>
 
       <!-- OVERVIEW VIEW -->
-      <div class="view active" id="view-overview"></div>
+      <div class="view active" id="view-overview" style="padding:0;gap:0"></div>
 
       <!-- TOOL BRIEFING VIEW -->
       <div class="view" id="view-tool" style="padding:16px"></div>
@@ -985,40 +985,295 @@ document.addEventListener('click', function(e){
 
 // ─── OVERVIEW ─────────────────────────────────────────────────────
 function renderOverview(){
-  const p=PHASES[S.phase];
-  const phaseOrder=['define','measure','analyse_phase','improve','control'];
-  const curIdx=phaseOrder.indexOf(S.phase);
-  const dstrip=phaseOrder.map((ph,i)=>{
-    const pp=PHASES[ph];
-    const cls=i<curIdx?'ds dn':i===curIdx?'ds cur':'ds';
-    const style=i===curIdx?`style="background:${pp.bg};color:${pp.color};font-weight:600"`:'';
-    return `<div class="${cls}" ${style}>${pp.letter}<div class="ds-lbl">${pp.label}</div></div>`;
+  const p = PHASES[S.phase];
+  const phaseOrder = ['define','measure','analyse_phase','improve','control'];
+  const curIdx = phaseOrder.indexOf(S.phase);
+
+  // DMAIC strip
+  const dstrip = phaseOrder.map((ph,i) => {
+    const pp = PHASES[ph];
+    const isDone = i < curIdx;
+    const isCur = i === curIdx;
+    const bg = isCur ? pp.bg : 'var(--surface2,#F8F7F4)';
+    const color = isCur ? pp.color : 'var(--text3,#99978F)';
+    const border = isCur ? pp.color+'40' : 'var(--border,#E4E2DC)';
+    const fw = isCur ? '600' : '400';
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;
+      gap:2px;padding:5px 4px;border-radius:6px;border:0.5px solid ${border};
+      background:${bg};font-size:10px;font-weight:${fw};color:${color}">
+      ${pp.letter}<span style="font-size:8px;font-weight:400">${pp.label}</span>
+    </div>`;
   }).join('');
-  const tools=p.tools.map(t=>`<div class="tool-pill" onclick="sendToolQuestion('${t}')">${t} ↗</div>`).join('');
-  const sessions=S.localChat.length?`
-    <div class="s-label">Previous sessions</div>
-    <div class="sess"><div class="sess-dot"></div><div class="sess-body">
-      <div class="sess-p">Session from conversation history</div>
-      <div class="sess-m">${S.localChat.length} turns · ${S.user}</div>
-    </div></div>`:'';
-  document.getElementById('view-overview').innerHTML=`
-    <div class="ph-header">
-      <div class="ph-circle" style="background:${p.bg};border:1.5px solid;border-color:${p.color}40"><span style="color:${p.color}">${p.letter}</span></div>
-      <div><div class="ph-title">${p.label} phase</div><div class="ph-desc">${p.desc}</div></div>
+
+  // Tools
+  const tools = p.tools.map(t =>
+    `<span onclick="sendToolQuestion('${t}')" style="display:inline-block;
+      padding:3px 9px;border-radius:20px;background:var(--surface2,#F8F7F4);
+      border:0.5px solid var(--border,#E4E2DC);font-size:10px;
+      color:var(--text2,#5C5A55);margin:0 3px 4px 0;cursor:pointer">${t}</span>`
+  ).join('');
+
+  // RIGHT COLUMN — progress narrative (only for define phase with a loaded case)
+  const rightCol = buildProgressNarrative();
+
+  document.getElementById('view-overview').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;height:100%;overflow:hidden">
+
+      <!-- LEFT: Educational -->
+      <div style="border-right:0.5px solid var(--border,#E4E2DC);overflow-y:auto;padding:16px">
+
+        <div style="display:inline-flex;align-items:center;gap:6px;
+          background:${p.bg};border-radius:20px;padding:4px 10px;margin-bottom:10px">
+          <span style="width:18px;height:18px;border-radius:50%;background:${p.color};
+            color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;
+            justify-content:center">${p.letter}</span>
+          <span style="font-size:11px;font-weight:500;color:${p.color}">${p.label} phase</span>
+        </div>
+
+        <p style="font-size:12px;color:var(--text2,#5C5A55);line-height:1.6;
+          margin-bottom:14px">${p.desc}</p>
+
+        <div style="display:flex;gap:4px;margin-bottom:14px">${dstrip}</div>
+
+        ${eduSection('What the AI will ask', p.whatAsks)}
+        ${eduSection('What gets captured', p.whatCaptures)}
+        ${eduSection('Gate to pass', p.gate)}
+        ${eduSection('Typical duration', p.duration)}
+
+        <div style="margin-bottom:12px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+            color:var(--text3,#99978F);text-transform:uppercase;
+            display:flex;align-items:center;gap:5px;margin-bottom:5px">
+            Tools used in this phase
+            <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
+              display:block"></span>
+          </div>
+          <div>${tools}</div>
+        </div>
+
+        <button onclick="selectTab('chat')" style="width:100%;padding:9px;
+          background:#534AB7;color:#fff;border:none;border-radius:6px;
+          font-size:11px;font-weight:500;cursor:pointer;display:flex;
+          align-items:center;justify-content:center;gap:6px">
+          <i class="ti ti-player-play" style="font-size:12px"></i>
+          Continue with AI guide — ${p.label} phase
+        </button>
+      </div>
+
+      <!-- RIGHT: Progress narrative -->
+      <div style="overflow-y:auto;padding:16px;
+        background:var(--surface2,#F8F7F4)">
+        ${rightCol}
+      </div>
+
+    </div>`;
+}
+
+// Helper: renders one educational section with label + line rule + text
+function eduSection(label, text) {
+  return `<div style="margin-bottom:12px">
+    <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+      color:var(--text3,#99978F);text-transform:uppercase;
+      display:flex;align-items:center;gap:5px;margin-bottom:5px">
+      ${label}
+      <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
+        display:block"></span>
     </div>
-    <div class="dstrip">${dstrip}</div>
-    <div class="wh-grid">
-      <div class="wh"><div class="wh-ttl"><i class="ti ti-message-question"></i>What the AI will ask</div><p>${p.whatAsks}</p></div>
-      <div class="wh"><div class="wh-ttl"><i class="ti ti-clipboard-check"></i>What gets captured</div><p>${p.whatCaptures}</p></div>
-      <div class="wh"><div class="wh-ttl"><i class="ti ti-lock-open"></i>Gate to pass</div><p>${p.gate}</p></div>
-      <div class="wh"><div class="wh-ttl"><i class="ti ti-clock"></i>Typical duration</div><p>${p.duration}</p></div>
+    <div style="font-size:11px;color:var(--text2,#5C5A55);line-height:1.6">
+      ${text}
     </div>
-    <div><div class="s-label">Tools used in this phase</div><div class="tool-row">${tools}</div></div>
-    ${sessions}
-    ${renderDefineChecklist()}
-    <button class="start-btn" onclick="selectTab('chat')">
-      <i class="ti ti-player-play"></i> Continue with AI guide — ${p.label} phase
-    </button>`;
+  </div>`;
+}
+
+// Helper: builds the right-column progress narrative
+// Returns static placeholder for non-define phases or when case not loaded
+function buildProgressNarrative() {
+  if (!S.case) {
+    return `<div style="font-size:12px;color:var(--text3,#99978F);
+      padding:20px 0;text-align:center">
+      Loading project status…
+    </div>`;
+  }
+
+  const phase = S.phase;
+  const structured = getStructured();
+
+  // Count captured vs total using DEFINE_GATE_FIELDS for define,
+  // simple non-null count for other phases
+  let total = 0, captured = 0, groups = [];
+
+  if (phase === 'define') {
+    const fieldsForCount = DEFINE_GATE_FIELDS;
+    total = fieldsForCount.length;
+    captured = fieldsForCount.filter(f => fieldHasValue(structured[f.key])).length;
+
+    // Group completion
+    const groupNames = ['PROBLEM','BASELINE & TARGET','PROJECT CHARTER','FINANCIAL & PLAN'];
+    groups = groupNames.map(g => {
+      const gFields = DEFINE_GATE_FIELDS.filter(f => f.group === g);
+      const gCaptured = gFields.filter(f => fieldHasValue(structured[f.key])).length;
+      return { label: g, total: gFields.length, captured: gCaptured };
+    });
+  } else {
+    // For other phases: count non-internal non-null keys in structured
+    const keys = Object.keys(structured).filter(k => !k.startsWith('_'));
+    total = keys.length || 1;
+    captured = keys.filter(k => fieldHasValue(structured[k])).length;
+    groups = [];
+  }
+
+  const pct = total > 0 ? Math.round(captured / total * 100) : 0;
+  const missing = total - captured;
+  const allDone = missing === 0;
+
+  // Progress bar fill colour
+  const fillColor = allDone ? '#0F6E56' : '#534AB7';
+  const statusLabel = allDone ? 'Ready for gate' : 'In progress';
+  const statusColor = allDone ? '#0F6E56' : '#BA7517';
+
+  // Narrative sentence — rule-based for define, generic for others
+  let narrative = '';
+  if (phase === 'define') {
+    const problemDone  = groups[0]?.captured === groups[0]?.total;
+    const baselineDone = groups[1]?.captured === groups[1]?.total;
+    const charterDone  = groups[2]?.captured === groups[2]?.total;
+    const financeDone  = groups[3]?.captured === groups[3]?.total;
+    if (allDone) {
+      narrative = 'All fields are captured. The project is ready for the Define gate review.';
+    } else if (problemDone && baselineDone && !charterDone && !financeDone) {
+      narrative = 'Problem and baseline are fully captured. Focus next on completing the project charter and financial impact sections.';
+    } else if (problemDone && baselineDone && charterDone && !financeDone) {
+      narrative = 'Problem, baseline, and charter are complete. Only the financial impact and project plan remain.';
+    } else if (!problemDone) {
+      narrative = 'Start by describing the problem — what it is, where it happens, and why it matters.';
+    } else {
+      narrative = `${captured} of ${total} fields captured. Continue the AI guide conversation to fill in the remaining ${missing} fields.`;
+    }
+  } else {
+    narrative = captured > 0
+      ? `${captured} of ${total} fields captured so far in this phase.`
+      : 'Start the AI guide conversation to begin capturing information for this phase.';
+  }
+
+  // Group status rows HTML
+  const groupRows = groups.map(g => {
+    const done = g.captured === g.total;
+    const partial = g.captured > 0 && !done;
+    const icon = done
+      ? `<i class="ti ti-circle-check" style="font-size:14px;color:#0F6E56"></i>`
+      : partial
+        ? `<i class="ti ti-alert-circle" style="font-size:14px;color:#BA7517"></i>`
+        : `<i class="ti ti-circle-dashed" style="font-size:14px;color:var(--text3,#99978F)"></i>`;
+    const countColor = done ? '#0F6E56' : partial ? '#BA7517' : 'var(--text3,#99978F)';
+    const countText = done
+      ? `${g.total} / ${g.total} complete`
+      : `${g.captured} / ${g.total} — ${g.total - g.captured} missing`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;
+      border-bottom:0.5px solid var(--border,#E4E2DC)">
+      ${icon}
+      <span style="font-size:11px;font-weight:500;color:var(--text,#1A1917);
+        flex:1">${g.label.charAt(0)+g.label.slice(1).toLowerCase()}</span>
+      <span style="font-size:10px;color:${countColor}">${countText}</span>
+    </div>`;
+  }).join('');
+
+  // Next actions — up to 3 missing fields with hints
+  const nextItems = phase === 'define'
+    ? DEFINE_GATE_FIELDS
+        .filter(f => !fieldHasValue(structured[f.key]))
+        .slice(0, 3)
+        .map((f, i) => `<div style="display:flex;align-items:flex-start;gap:8px;
+          padding:7px 0;border-bottom:0.5px solid var(--border,#E4E2DC);font-size:11px">
+          <span style="width:16px;height:16px;border-radius:50%;background:#EEEDFE;
+            color:#534AB7;font-size:9px;font-weight:700;display:flex;align-items:center;
+            justify-content:center;flex-shrink:0;margin-top:1px">${i+1}</span>
+          <div style="flex:1">
+            <div style="color:var(--text,#1A1917);line-height:1.5">${f.label}</div>
+            <div style="font-size:10px;color:var(--text3,#99978F);margin-top:1px">
+              Ask in AI guide to capture this field
+            </div>
+          </div>
+        </div>`)
+        .join('')
+    : '';
+
+  const nextSection = nextItems
+    ? `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+        border-radius:8px;padding:14px;margin-bottom:14px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:var(--text3,#99978F);text-transform:uppercase;
+          display:flex;align-items:center;gap:5px;margin-bottom:8px">
+          What to do next
+          <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
+            display:block"></span>
+        </div>
+        ${nextItems}
+      </div>`
+    : '';
+
+  // Gate button
+  const gateBtn = allDone
+    ? `<button onclick="selectTab('gate')" style="width:100%;padding:9px;
+        background:#534AB7;color:#fff;border:none;border-radius:6px;
+        font-size:11px;font-weight:500;cursor:pointer;display:flex;
+        align-items:center;justify-content:center;gap:6px">
+        <i class="ti ti-checkbox" style="font-size:12px"></i>
+        Review and submit gate →
+      </button>`
+    : `<button disabled style="width:100%;padding:9px;
+        background:var(--surface2,#F8F7F4);color:var(--text3,#99978F);
+        border:0.5px solid var(--border,#E4E2DC);border-radius:6px;
+        font-size:11px;cursor:not-allowed;display:flex;
+        align-items:center;justify-content:center;gap:6px">
+        <i class="ti ti-lock" style="font-size:12px"></i>
+        Gate not ready — ${missing} field${missing!==1?'s':''} missing
+      </button>`;
+
+  return `
+    <!-- Score card -->
+    <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+      border-radius:8px;padding:14px;margin-bottom:14px">
+      <div style="display:flex;align-items:flex-start;
+        justify-content:space-between;margin-bottom:8px">
+        <div>
+          <span style="font-size:24px;font-weight:500;color:${fillColor}">${captured}</span>
+          <span style="font-size:14px;color:var(--text3,#99978F)"> / ${total}</span>
+          <div style="font-size:10px;color:var(--text3,#99978F);margin-top:1px">
+            fields captured
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;font-weight:500;color:${statusColor}">
+            ${statusLabel}
+          </div>
+          <div style="font-size:10px;color:var(--text3,#99978F)">
+            ${allDone ? 'Ready to submit' : missing+' field'+(missing!==1?'s':'')+' remaining'}
+          </div>
+        </div>
+      </div>
+      <div style="height:5px;background:var(--surface2,#F8F7F4);border-radius:3px;
+        overflow:hidden;border:0.5px solid var(--border,#E4E2DC);margin-bottom:10px">
+        <div style="height:100%;background:${fillColor};border-radius:3px;
+          width:${pct}%"></div>
+      </div>
+      <div style="font-size:12px;color:var(--text2,#5C5A55);line-height:1.6;
+        border-top:0.5px solid var(--border,#E4E2DC);padding-top:8px">
+        ${narrative}
+      </div>
+    </div>
+
+    <!-- Group completion -->
+    ${groups.length ? `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+      border-radius:8px;padding:10px 14px;margin-bottom:14px">
+      ${groupRows}
+      </div>` : ''}
+
+    <!-- Next actions -->
+    ${nextSection}
+
+    <!-- Gate button -->
+    ${gateBtn}
+  `;
 }
 
 function renderDefineChecklist(){
