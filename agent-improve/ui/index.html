@@ -1264,6 +1264,7 @@ async function sendMessage(){
       renderChips();
       updateRightPanel(resp);
       renderDiagram();
+      renderSteps();
     }else if(resp.detail){toast('Error: '+resp.detail);}
   }catch(e){document.getElementById('typing').classList.remove('show');toast('Could not reach backend');}
 }
@@ -1307,18 +1308,32 @@ async function submitGateReview(){
 // ─── STEPS ────────────────────────────────────────────────────────
 function renderSteps(){
   const p=PHASES[S.phase];
-  const captured=(S.lastAsk&&S.lastAsk.captured_fields)||[];
-  const capturedMap={};captured.forEach(f=>{if(f.value)capturedMap[f.label.toLowerCase()]=f.value;});
-  document.getElementById('step-list').innerHTML=p.steps.map((q,i)=>{
-    const key=q.toLowerCase().split(' ').slice(0,3).join(' ');
-    const val=capturedMap[key]||null;
+  // Build value map from both lastAsk captured_fields and blob structured data
+  const vals={};
+  const fromAsk=(S.lastAsk&&S.lastAsk.captured_fields)||[];
+  fromAsk.forEach(function(f){if(f.value)vals[f.label.toLowerCase()]=f.value;});
+  const structured=(S.case&&S.case.phases&&S.case.phases[S.phase]&&S.case.phases[S.phase].structured)||{};
+  Object.entries(structured).forEach(function(e){
+    if(e[1]) vals[e[0].replace(/_/g,' ')]=String(e[1]);
+  });
+  // Map each step question to a field key
+  const stepKeys=['what','where','when','who affected','why','how much','how goal'];
+  document.getElementById('step-list').innerHTML=p.steps.map(function(q,i){
+    // Try matching step to a value by keyword
+    const qLow=q.toLowerCase();
+    let val=null;
+    Object.entries(vals).forEach(function(e){
+      const k=e[0];
+      if(qLow.includes(k)||k.split(' ').some(function(w){return w.length>3&&qLow.includes(w);})){
+        if(!val) val=e[1];
+      }
+    });
     const cls=val?'sn-done':i===0?'sn-active':'sn-wait';
-    const tag=val?`<span class="step-tag st-done">confirmed</span>`:`<span class="step-tag st-wait">upcoming</span>`;
-    return `<div class="step-item">
-      <div class="step-num ${cls}">${val?'<i class="ti ti-check" style="font-size:11px"></i>':i+1}</div>
-      <div class="step-body"><div class="step-q">${q} ${tag}</div>
-      ${val?`<div class="step-a" style="color:var(--teal)">${val}</div>`:`<div class="step-a">Not yet answered — AI will ask this question</div>`}
-      </div></div>`;
+    const tag=val?'<span class="step-tag st-done">confirmed</span>':'<span class="step-tag st-wait">upcoming</span>';
+    const icon=val?'<i class="ti ti-check" style="font-size:11px"></i>':(i+1);
+    const answer=val?('<div class="step-a" style="color:var(--teal);margin-top:2px">'+val+'</div>'):'<div class="step-a">Not yet answered — the AI will ask this</div>';
+    return '<div class="step-item"><div class="step-num '+cls+'">'+icon+'</div>'
+      +'<div class="step-body"><div class="step-q">'+q+' '+tag+'</div>'+answer+'</div></div>';
   }).join('');
 }
 
@@ -1433,21 +1448,42 @@ function buildLockedDiagram(letter,label){
 
 // ─── HISTORY ─────────────────────────────────────────────────────
 function renderHistory(){
-  if(!S.localChat.length){document.getElementById('history-content').innerHTML='<div style="color:var(--text3);font-size:12px">No sessions yet for this phase.</div>';return;}
+  // Load from case blob history, not just localChat
+  const history=(S.case&&S.case.conversation_history)||S.localChat||[];
+  if(!history.length){
+    document.getElementById('history-content').innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px 0">No sessions yet — start a conversation to see history here.</div>';
+    return;
+  }
+  // Group by date
   const byDate={};
-  S.localChat.forEach(t=>{
+  history.forEach(function(t){
     const d=(t.timestamp||'').split('T')[0]||'Today';
-    if(!byDate[d])byDate[d]=[];
+    if(!byDate[d]) byDate[d]=[];
     byDate[d].push(t);
   });
-  document.getElementById('history-content').innerHTML=Object.entries(byDate).map(([date,turns])=>`
-    <div class="hist-group">
-      <div class="hist-date">${date}</div>
-      ${turns.map(t=>`<div class="hist-turn">
-        <div class="ht-meta">${t.role==='ai'?'AI Guide':t.user||'Team'} · ${(t.timestamp||'').replace('T',' ').split('.')[0]}</div>
-        <div class="ht-text">${t.text.substr(0,200)}${t.text.length>200?'…':''}</div>
-      </div>`).join('')}
-    </div>`).join('');
+  document.getElementById('history-content').innerHTML=Object.entries(byDate).map(function(entry){
+    const date=entry[0];
+    const turns=entry[1];
+    const aiTurns=turns.filter(function(t){return t.role==='ai';});
+    const userTurns=turns.filter(function(t){return t.role==='user';});
+    const rows=turns.map(function(t){
+      const isAi=t.role==='ai';
+      const who=isAi?'AI Guide':(t.user||'Team');
+      const time=(t.timestamp||'').replace('T',' ').split('.')[0];
+      const bg=isAi?'var(--surface2)':'var(--brand-bg)';
+      const border=isAi?'var(--border)':'var(--brand-mid)';
+      const textCol=isAi?'var(--text)':'#26215C';
+      const whoCol=isAi?'var(--text3)':'var(--brand)';
+      const text=t.text.length>300?t.text.substr(0,298)+'…':t.text;
+      return '<div style="padding:9px 11px;border-radius:8px;border:1px solid '+border+';background:'+bg+';margin-bottom:6px">'
+        +'<div style="font-size:9px;font-weight:600;color:'+whoCol+';text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">'+who+' · '+time+'</div>'
+        +'<div style="font-size:12px;color:'+textCol+';line-height:1.6">'+text+'</div>'
+        +'</div>';
+    }).join('');
+    return '<div class="hist-group">'
+      +'<div class="hist-date">'+date+' · '+aiTurns.length+' AI responses · '+userTurns.length+' team messages</div>'
+      +rows+'</div>';
+  }).join('');
 }
 
 // ─── RIGHT PANEL ─────────────────────────────────────────────────
