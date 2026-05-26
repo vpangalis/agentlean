@@ -1017,7 +1017,7 @@ function renderOverview(){
   const rightCol = buildProgressNarrative();
 
   document.getElementById('view-overview').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;height:100%;overflow:hidden">
+    <div style="display:grid;grid-template-columns:3fr 2fr;height:100%;overflow:hidden">
 
       <!-- LEFT: Educational -->
       <div style="border-right:0.5px solid var(--border,#E4E2DC);overflow-y:auto;padding:16px">
@@ -1156,60 +1156,70 @@ function buildProgressNarrative() {
   }
 
   // Group status rows HTML
+  const expandedGroups = window._ovExpanded || {};
   const groupRows = groups.map(g => {
     const done = g.captured === g.total;
     const partial = g.captured > 0 && !done;
+    const empty = g.captured === 0;
+    const isExpanded = !!expandedGroups[g.label];
+
     const icon = done
       ? `<i class="ti ti-circle-check" style="font-size:14px;color:#0F6E56"></i>`
       : partial
         ? `<i class="ti ti-alert-circle" style="font-size:14px;color:#BA7517"></i>`
         : `<i class="ti ti-circle-dashed" style="font-size:14px;color:var(--text3,#99978F)"></i>`;
+
     const countColor = done ? '#0F6E56' : partial ? '#BA7517' : 'var(--text3,#99978F)';
     const countText = done
       ? `${g.total} / ${g.total} complete`
       : `${g.captured} / ${g.total} — ${g.total - g.captured} missing`;
-    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;
-      border-bottom:0.5px solid var(--border,#E4E2DC)">
-      ${icon}
-      <span style="font-size:11px;font-weight:500;color:var(--text,#1A1917);
-        flex:1">${g.label.charAt(0)+g.label.slice(1).toLowerCase()}</span>
-      <span style="font-size:10px;color:${countColor}">${countText}</span>
+
+    const chevron = !done
+      ? `<i class="ti ti-chevron-down" style="font-size:12px;
+          color:var(--text3,#99978F);transition:transform .15s;
+          transform:rotate(${isExpanded?'180':'0'}deg)"></i>`
+      : '';
+
+    const clickHandler = !done
+      ? `onclick="window._ovExpanded=window._ovExpanded||{};
+          window._ovExpanded['${g.label}']=!window._ovExpanded['${g.label}'];
+          renderOverview()" style="cursor:pointer"`
+      : '';
+
+    // Missing fields for this group
+    const missingFields = !done
+      ? DEFINE_GATE_FIELDS
+          .filter(f => f.group === g.label && !fieldHasValue(structured[f.key]))
+          .map(f => `<div style="display:flex;align-items:center;gap:6px;
+              padding:4px 0 4px 22px;font-size:11px;
+              border-top:0.5px solid var(--border,#E4E2DC)">
+              <i class="ti ti-circle-dashed"
+                style="font-size:11px;color:var(--text3,#99978F);flex-shrink:0"></i>
+              <span style="color:var(--text2,#5C5A55)">${f.label}</span>
+            </div>`)
+          .join('')
+      : '';
+
+    const expansion = isExpanded && missingFields
+      ? `<div style="border-top:0.5px solid var(--border,#E4E2DC)">
+          ${missingFields}
+        </div>`
+      : '';
+
+    return `<div style="border-bottom:0.5px solid var(--border,#E4E2DC)">
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 0"
+        ${clickHandler}>
+        ${icon}
+        <span style="font-size:11px;font-weight:500;
+          color:var(--text,#1A1917);flex:1">
+          ${g.label.charAt(0)+g.label.slice(1).toLowerCase()}
+        </span>
+        <span style="font-size:10px;color:${countColor}">${countText}</span>
+        ${chevron}
+      </div>
+      ${expansion}
     </div>`;
   }).join('');
-
-  // Next actions — up to 3 missing fields with hints
-  const nextItems = phase === 'define'
-    ? DEFINE_GATE_FIELDS
-        .filter(f => !fieldHasValue(structured[f.key]))
-        .slice(0, 3)
-        .map((f, i) => `<div style="display:flex;align-items:flex-start;gap:8px;
-          padding:7px 0;border-bottom:0.5px solid var(--border,#E4E2DC);font-size:11px">
-          <span style="width:16px;height:16px;border-radius:50%;background:#EEEDFE;
-            color:#534AB7;font-size:9px;font-weight:700;display:flex;align-items:center;
-            justify-content:center;flex-shrink:0;margin-top:1px">${i+1}</span>
-          <div style="flex:1">
-            <div style="color:var(--text,#1A1917);line-height:1.5">${f.label}</div>
-            <div style="font-size:10px;color:var(--text3,#99978F);margin-top:1px">
-              Ask in AI guide to capture this field
-            </div>
-          </div>
-        </div>`)
-        .join('')
-    : '';
-
-  const nextSection = nextItems
-    ? `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
-        border-radius:8px;padding:14px;margin-bottom:14px">
-        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
-          color:var(--text3,#99978F);text-transform:uppercase;
-          display:flex;align-items:center;gap:5px;margin-bottom:8px">
-          What to do next
-          <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
-            display:block"></span>
-        </div>
-        ${nextItems}
-      </div>`
-    : '';
 
   // Gate button
   const gateBtn = allDone
@@ -1267,9 +1277,6 @@ function buildProgressNarrative() {
       border-radius:8px;padding:10px 14px;margin-bottom:14px">
       ${groupRows}
       </div>` : ''}
-
-    <!-- Next actions -->
-    ${nextSection}
 
     <!-- Gate button -->
     ${gateBtn}
