@@ -211,23 +211,28 @@ a{text-decoration:none;color:inherit}
 .bbl p{margin-bottom:4px}
 .bbl p:last-child{margin-bottom:0}
 .src-pill{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;background:var(--blue-bg);color:var(--blue);border-radius:var(--radius-pill);margin-top:5px;cursor:pointer}
-.chips{display:flex;flex-wrap:wrap;gap:5px;padding:6px 14px;flex-shrink:0}
-.chip{font-size:10px;padding:4px 9px;border:1px solid var(--border);border-radius:var(--radius-pill);cursor:pointer;color:var(--text2);background:var(--surface);transition:all .1s}
-.chip:hover{background:var(--surface2);color:var(--text);border-color:var(--border2)}
-.upload-bar{display:flex;align-items:center;gap:6px;padding:6px 14px;border-top:1px solid var(--border);background:var(--surface2);flex-shrink:0}
-.ub-btn{display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);font-size:10px;cursor:pointer;background:var(--surface);color:var(--text2);transition:all .1s}
-.ub-btn:hover{background:var(--surface2);color:var(--text)}
-.ub-sep{width:1px;height:14px;background:var(--border)}
-.ub-hint{font-size:10px;color:var(--text3);flex:1}
-.cinput{padding:4px 14px 12px;border-top:2px solid var(--brand-bg);display:flex;flex-direction:column;gap:6px;flex-shrink:0;background:white}
-.cinput-row{display:flex;gap:8px;align-items:flex-end}
-.cinput-label{font-size:10px;font-weight:700;color:var(--brand);letter-spacing:.05em;padding:0 2px}
-.ctxt{flex:1;resize:none;border:1.5px solid var(--border2);border-radius:var(--radius-lg);padding:10px 14px;font-size:13px;min-height:44px;max-height:120px;background:var(--surface);color:var(--text);transition:border .12s;box-shadow:0 1px 4px rgba(0,0,0,.06)}
-.ctxt:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(83,74,183,.12)}
-.ctxt::placeholder{color:var(--text3);font-size:13px}
-.csend{width:40px;height:40px;border-radius:50%;background:var(--brand);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .12s;font-size:17px;box-shadow:0 2px 6px rgba(83,74,183,.35)}
+.input-container{background:var(--surface);border-top:1px solid var(--border);flex-shrink:0}
+.chips-row{display:flex;gap:6px;padding:8px 14px 7px;flex-wrap:wrap;border-bottom:1px solid var(--surface2);align-items:center}
+.chips-label{font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-right:2px;white-space:nowrap;flex-shrink:0}
+.chip{font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:var(--radius-pill);cursor:pointer;color:var(--text2);background:var(--surface2);transition:all .1s;white-space:nowrap}
+.chip:hover{background:var(--brand-bg);color:#26215C;border-color:var(--brand-mid)}
+.input-row{display:flex;gap:0;align-items:stretch;padding:10px 14px 8px}
+.input-wrap{flex:1;display:flex;flex-direction:column;border:1.5px solid var(--border2);border-radius:var(--radius-lg);overflow:hidden;transition:border .15s;background:var(--surface2)}
+.input-wrap:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px rgba(83,74,183,.1);background:var(--surface)}
+.cinput-label{font-size:9px;font-weight:700;color:var(--brand);letter-spacing:.06em;padding:6px 12px 0;text-transform:uppercase}
+.ctxt{border:none;outline:none;font-family:var(--font);font-size:13px;padding:4px 12px 8px;resize:none;background:transparent;color:var(--text);min-height:38px;max-height:100px}
+.ctxt::placeholder{color:var(--text3);font-size:12px}
+.input-actions{display:flex;flex-direction:column;gap:6px;padding-left:8px;justify-content:flex-end;padding-bottom:2px}
+.csend{width:38px;height:38px;border-radius:50%;background:var(--brand);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .12s;font-size:17px;box-shadow:0 2px 8px rgba(83,74,183,.35);border:none;cursor:pointer}
 .csend:hover{background:#3C3489;transform:scale(1.05)}
-.typing{display:none;padding:4px 14px;font-size:11px;color:var(--text3)}
+.cupload{width:38px;height:38px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;color:var(--text2);transition:all .12s;font-size:16px}
+.cupload:hover{background:var(--brand-bg);color:var(--brand);border-color:var(--brand-mid)}
+.gate-row{display:flex;align-items:center;justify-content:space-between;padding:6px 14px 10px;border-top:1px solid var(--surface2)}
+.gate-hint{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px}
+.gate-hint i{font-size:12px;color:var(--amber)}
+.btn-gate{display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--brand);color:white;border-radius:var(--radius-sm);font-size:11px;font-weight:600;cursor:pointer;border:none;transition:background .12s}
+.btn-gate:hover{background:#3C3489}
+.typing{display:none;padding:3px 14px;font-size:11px;color:var(--text3);background:var(--surface)}
 .typing.show{display:block}
 
 /* STEPS TAB */
@@ -571,22 +576,28 @@ a{text-decoration:none;color:inherit}
           <span class="chat-phase-badge" id="chat-phase-badge"></span>
           <span class="chat-step" id="chat-step">AI guide</span>
         </div>
-        <div class="chat-view">
+        <div class="chat-view" style="display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0">
           <div class="msgs" id="msgs"></div>
           <div class="typing" id="typing">AI is thinking...</div>
-          <div class="chips" id="chips"></div>
-          <div class="upload-bar">
-            <span class="ub-hint">Upload a file any time — AI identifies what it is</span>
-            <div class="ub-btn" onclick="document.getElementById('chat-file-input').click()"><i class="ti ti-upload" style="font-size:12px"></i> Upload</div>
-            <div class="ub-sep"></div>
-            <div class="ub-btn" onclick="submitGateReview()"><i class="ti ti-checkbox" style="font-size:12px"></i> Submit for review</div>
-          </div>
           <input type="file" id="chat-file-input" style="display:none" onchange="handleChatFile(this)">
-          <div class="cinput">
-            <div class="cinput-label">YOUR REPLY</div>
-            <div class="cinput-row">
-              <textarea class="ctxt" id="chat-input" placeholder="Type your reply here — press Enter to send, Shift+Enter for new line" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
-              <button class="csend" onclick="sendMessage()"><i class="ti ti-arrow-up"></i></button>
+          <div class="input-container">
+            <div class="chips-row">
+              <span class="chips-label">Suggestions</span>
+              <div id="chips" style="display:flex;flex-wrap:wrap;gap:6px;flex:1"></div>
+            </div>
+            <div class="input-row">
+              <div class="input-wrap">
+                <div class="cinput-label">Your reply</div>
+                <textarea class="ctxt" id="chat-input" placeholder="Type here — press Enter to send, Shift+Enter for new line" rows="2" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
+              </div>
+              <div class="input-actions">
+                <button class="csend" onclick="sendMessage()"><i class="ti ti-arrow-up"></i></button>
+                <div class="cupload" onclick="document.getElementById('chat-file-input').click()"><i class="ti ti-paperclip"></i></div>
+              </div>
+            </div>
+            <div class="gate-row">
+              <span class="gate-hint" id="gate-hint"><i class="ti ti-clock"></i>Keep going — answer each question to progress</span>
+              <button class="btn-gate" onclick="submitGateReview()"><i class="ti ti-checkbox" style="font-size:13px"></i> Submit for gate review</button>
             </div>
           </div>
         </div>
@@ -1217,8 +1228,18 @@ function renderTurn(turn){
 
 function renderChips(){
   const ask=S.lastAsk;
-  const chips=ask&&ask.suggestion_chips&&ask.suggestion_chips.length?ask.suggestion_chips:PHASES[S.phase].steps.slice(0,3).map(s=>s.length>50?s.substr(0,50)+'…':s);
+  const chips=ask&&ask.suggestion_chips&&ask.suggestion_chips.length?ask.suggestion_chips:PHASES[S.phase].steps.slice(0,3).map(s=>s.length>55?s.substr(0,55)+'…':s);
   document.getElementById('chips').innerHTML=chips.map(c=>`<div class="chip" onclick="chipClick(this)">${c}</div>`).join('');
+  // Update gate hint with captured field count
+  const fields=ask&&ask.captured_fields?ask.captured_fields.filter(f=>f.value).length:0;
+  const hint=document.getElementById('gate-hint');
+  if(hint){
+    if(fields>0){
+      hint.innerHTML=`<i class="ti ti-chart-bar" style="font-size:12px;color:var(--teal)"></i>${fields} field${fields===1?'':'s'} captured — keep answering to complete Define`;
+    }else{
+      hint.innerHTML=`<i class="ti ti-clock"></i>Keep going — answer each question to progress`;
+    }
+  }
 }
 
 function chipClick(el){
