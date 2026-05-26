@@ -105,7 +105,7 @@ def ask(request: AskRequest) -> AskResponse:
         },
     }
 
-    # Run ONE orchestrate step (not full graph — conversational turn)
+    # Run ONE orchestrate step (not full graph â conversational turn)
     graph = get_graph()
     orchestrate_node = f"orchestrate_{request.phase}"
     try:
@@ -131,6 +131,17 @@ def ask(request: AskRequest) -> AskResponse:
 
         # Update state with result
         state.update(result)
+
+        # Sync updated chat history and phase_inputs back to case before saving
+        updated_history = state.get("chat_history") or []
+        case.conversation_history = updated_history
+        updated_phase_inputs = state.get("phase_inputs") or {}
+        for phase_key, phase_data in updated_phase_inputs.items():
+            if phase_key in case.phases and phase_data:
+                # Store extracted (non-internal) fields in structured
+                clean = {k: v for k, v in phase_data.items() if not k.startswith("_") and v is not None and v != [] and v != {}}
+                if clean:
+                    case.phases[phase_key].structured = clean
 
         # Persist conversation to blob
         blob_client.save_case(case)
@@ -182,7 +193,7 @@ def upload_file(
     phase: str = Form(...),
     file: UploadFile = File(...),
 ):
-    """Upload a file — stub classification until Upload agent is implemented."""
+    """Upload a file â stub classification until Upload agent is implemented."""
     if blob_client is None:
         raise HTTPException(503, "Storage not configured")
     data = file.file.read()
@@ -195,7 +206,7 @@ def upload_file(
     return {
         "blob_path": blob_path,
         "filename": file.filename,
-        "classification": "pending — upload agent not yet implemented",
+        "classification": "pending â upload agent not yet implemented",
     }
 
 
@@ -284,7 +295,7 @@ def submit_gate(request: GateSubmitRequest) -> GateSubmitResponse:
 
 @router.get("/registry", response_model=list[RegistryEntryOut])
 def get_registry() -> list[RegistryEntryOut]:
-    """Management dashboard — returns all cases from registry."""
+    """Management dashboard â returns all cases from registry."""
     if blob_client is None:
         raise HTTPException(503, "Storage not configured")
     registry = blob_client.load_registry()
