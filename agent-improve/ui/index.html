@@ -651,6 +651,8 @@ const S = {
   foundCase: null,
 };
 
+const SESSION_SUMMARIES = {}; // keyed by date string e.g. "2026-05-26"
+
 // ─── PHASE METADATA ───────────────────────────────────────────────
 const PHASES = {
   define:{letter:'D',label:'Define',color:'#534AB7',bg:'#EEEDFE',
@@ -1447,79 +1449,90 @@ function buildLockedDiagram(letter,label){
 }
 
 // ─── HISTORY ─────────────────────────────────────────────────────
-function toggleSession(el){
-  var sid=el.getAttribute('data-sid');
-  var d=document.getElementById(sid);
-  if(d) d.style.display=d.style.display==='none'?'block':'none';
+async function generateSessionSummary(date, turns) {
+  if(SESSION_SUMMARIES[date]) return; // already cached
+  SESSION_SUMMARIES[date] = '__loading__';
+
+  const dialogue = turns.map(t => {
+    const who = t.role === 'ai' ? 'AI Guide' : (t.user || 'Team member');
+    return `${who}: ${t.text}`;
+  }).join('\n\n');
+
+  const prompt = `You are summarising a single working session from a Lean Six Sigma improvement project.
+
+The session below is from the ${S.phase ? S.phase.toUpperCase() : ''} phase of project: "${S.case?.title || 'improvement project'}".
+
+SESSION DIALOGUE:
+${dialogue}
+
+Write a summary of this session in exactly 2-3 sentences. Cover: what topics were discussed, what information was provided by the team, and what fields or decisions were captured. Be specific — mention actual numbers, names, or facts from the conversation. Do not use bullet points. Do not start with "In this session".`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content?.find(b => b.type === 'text')?.text || 'Summary unavailable.';
+    SESSION_SUMMARIES[date] = text;
+  } catch(e) {
+    SESSION_SUMMARIES[date] = 'Summary could not be generated.';
+  }
+
+  // Re-render history tab if still open
+  if(S.tab === 'history') renderHistory();
 }
 
-function renderHistory(){
-  const history=(S.case&&S.case.conversation_history)||S.localChat||[];
-  const el=document.getElementById('history-content');
-  if(!history.length){
-    el.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px 0">No sessions yet — start a conversation to see history here.</div>';
+function renderHistory() {
+  const history = (S.case && S.case.conversation_history) || S.localChat || [];
+  const el = document.getElementById('history-content');
+  if(!history.length) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px 0">No sessions yet — start a conversation to see history here.</div>';
     return;
   }
+
   // Group turns by calendar date
-  const byDate={};
-  history.forEach(function(t){
-    const d=(t.timestamp||'').split('T')[0]||'Today';
-    if(!byDate[d]) byDate[d]=[];
+  const byDate = {};
+  history.forEach(t => {
+    const d = (t.timestamp || '').split('T')[0] || 'Today';
+    if(!byDate[d]) byDate[d] = [];
     byDate[d].push(t);
   });
-  const dateKeys=Object.keys(byDate).sort();
-  el.innerHTML=dateKeys.map(function(date,idx){
-    const turns=byDate[date];
-    const aiTurns=turns.filter(function(t){return t.role==='ai';});
-    const userTurns=turns.filter(function(t){return t.role==='user';});
-    // Participants
-    const participants=[...new Set(userTurns.map(function(t){return t.user||'Team';}))].join(', ')||'Team';
-    // First AI question of the session
-    const firstAi=aiTurns[0];
-    const summary=firstAi?(firstAi.text.length>120?firstAi.text.substr(0,118)+'…':firstAi.text):'Session started';
-    // Fields captured this day - count from structured if last day, else estimate from user turns
-    const isToday=idx===dateKeys.length-1;
-    const structured=S.case&&S.case.phases&&S.case.phases[S.phase]&&S.case.phases[S.phase].structured;
-    const totalFields=structured?Object.values(structured).filter(function(v){return v;}).length:0;
-    // Session ID
-    const sid='sess-'+date.replace(/-/g,'');
-    // Format date nicely
-    const dateObj=new Date(date);
-    const dateStr=dateObj.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
-    // Build the detail rows (hidden by default)
-    const detailRows=turns.map(function(t){
-      const isAi=t.role==='ai';
-      const who=isAi?'AI Guide':(t.user||'Team');
-      const time=(t.timestamp||'').split('T')[1]||'';
-      const timeShort=time.split('.')[0].substr(0,5);
-      const bg=isAi?'var(--surface2)':'var(--brand-bg)';
-      const border=isAi?'var(--border)':'var(--brand-mid)';
-      const tc=isAi?'var(--text)':'#1A1550';
-      const wc=isAi?'var(--text3)':'var(--brand)';
-      const txt=t.text.length>250?t.text.substr(0,248)+'…':t.text;
-      return '<div style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">'
-        +'<div style="font-size:9px;font-weight:600;color:'+wc+';white-space:nowrap;padding-top:2px;min-width:70px">'+who+'<br>'+timeShort+'</div>'
-        +'<div style="font-size:12px;color:'+tc+';line-height:1.6;flex:1">'+txt+'</div>'
-        +'</div>';
-    }).join('');
-    return '<div style="border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:10px">'
-      // Header — clickable to expand
-      +'<div onclick="toggleSession(this)" data-sid="'+sid+'" '
-      +'style="padding:12px 14px;background:var(--surface);cursor:pointer;display:flex;align-items:flex-start;gap:10px">'
-      +'<div style="width:36px;height:36px;border-radius:50%;background:var(--brand-bg);border:1px solid var(--brand-mid);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--brand);flex-shrink:0">'+(idx+1)+'</div>'
-      +'<div style="flex:1">'
-      +'<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px">'+dateStr+'</div>'
-      +'<div style="font-size:11px;color:var(--text2);margin-bottom:4px">'+participants+' · '+aiTurns.length+' AI responses · '+userTurns.length+' messages</div>'
-      +'<div style="font-size:11px;color:var(--text3);font-style:italic;line-height:1.5">'+summary+'</div>'
-      +'</div>'
-      +(isToday?'<div style="font-size:9px;padding:2px 8px;background:var(--teal-bg);color:var(--teal);border-radius:var(--radius-pill);font-weight:600;align-self:flex-start;flex-shrink:0">TODAY</div>':'')
-      +'</div>'
-      // Expandable detail — hidden by default except today
-      +'<div id="'+sid+'" style="display:'+(isToday?'block':'none')+';">'
-      +'<div style="padding:8px 14px 12px;background:var(--surface2);border-top:1px solid var(--border)">'
-      +detailRows
-      +'</div></div>'
-      +'</div>';
+
+  const dateKeys = Object.keys(byDate).sort();
+
+  // Trigger summary generation for any date not yet cached
+  dateKeys.forEach(date => {
+    if(!SESSION_SUMMARIES[date]) {
+      generateSessionSummary(date, byDate[date]);
+    }
+  });
+
+  el.innerHTML = dateKeys.map(date => {
+    const turns = byDate[date];
+    const userTurns = turns.filter(t => t.role === 'user');
+    const aiCount = turns.filter(t => t.role === 'ai').length;
+    const participants = [...new Set(userTurns.map(t => t.user || 'Team'))].join(', ') || 'Team';
+    const dateObj = new Date(date);
+    const dateStr = dateObj.toLocaleDateString('en-GB', {weekday:'short', day:'numeric', month:'short', year:'numeric'});
+
+    const summary = SESSION_SUMMARIES[date];
+    const summaryHtml = !summary || summary === '__loading__'
+      ? `<div style="color:var(--text3);font-size:11px;font-style:italic">Summarising…</div>`
+      : `<div style="font-size:12px;color:var(--text);line-height:1.6">${summary}</div>`;
+
+    return `<div style="border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 14px;margin-bottom:10px;background:var(--surface)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div style="font-size:11px;font-weight:600;color:var(--text)">${dateStr}</div>
+        <div style="font-size:10px;color:var(--text3)">${userTurns.length + aiCount} messages · ${participants}</div>
+      </div>
+      ${summaryHtml}
+    </div>`;
   }).join('');
 }
 
@@ -1550,38 +1563,106 @@ function renderRightPanel(){
 }
 
 function updateRightPanel(resp){
-  if(!resp)return;
-  const p=PHASES[S.phase];
-  document.getElementById('rp-title').textContent=`Captured — ${p.label}`;
-  const fields=resp.captured_fields||[];
-  const gate=resp.gate_status||{};
-  const missing=gate.missing_fields||[];
-  let html='';
-  if(fields.length){
-    const rsec=document.createElement('div');rsec.className='rsec';
-    html+=`<div class="rsec-ttl">Captured fields</div>`;
-    html+=fields.map(f=>`<div class="cf ${f.ai_suggested?'ai':''}${!f.value?' empty':''}">
-      <div class="cf-lbl">${f.label}${f.ai_suggested?'<span class="ai-tag">AI suggested</span>':''}</div>
-      <div class="cfv">${f.value||'not yet captured'}</div></div>`).join('');
-  }else{
-    html+=`<div style="color:var(--text3);font-size:11px;padding:4px 0">Keep chatting — fields will appear here as you answer questions.</div>`;
+  if(!resp) return;
+  const p = PHASES[S.phase];
+  document.getElementById('rp-title').textContent = `Captured — ${p.label}`;
+  const fields = resp.captured_fields || [];
+  const gate = resp.gate_status || {};
+  const missing = gate.missing_fields || [];
+
+  // Group definitions: [groupKey, display label, field label keywords]
+  const GROUPS = [
+    ['problem', 'PROBLEM',  ['what','where','when','who']],
+    ['impact',  'IMPACT',   ['why','how much','baseline','how goal','goal']],
+    ['metrics', 'METRICS',  ['primary metric','secondary metric']],
+    ['project', 'PROJECT',  ['target','belt','process owner','sponsor','team']],
+  ];
+
+  // Merge primary_metric_unit into primary_metric label
+  let displayFields = [];
+  let unitValue = '';
+  fields.forEach(f => {
+    if(f.label && f.label.toLowerCase().includes('metric unit')) {
+      unitValue = f.value || '';
+    } else {
+      displayFields.push(f);
+    }
+  });
+  displayFields = displayFields.map(f => {
+    if(f.label && f.label.toLowerCase().includes('primary metric') && unitValue) {
+      return {...f, value: f.value ? `${f.value} (${unitValue})` : f.value};
+    }
+    return f;
+  });
+
+  // Assign fields to groups
+  const grouped = {problem:[], impact:[], metrics:[], project:[]};
+  const assigned = new Set();
+  GROUPS.forEach(([key,,keywords]) => {
+    displayFields.forEach((f,i) => {
+      if(assigned.has(i)) return;
+      const lbl = (f.label||'').toLowerCase();
+      if(keywords.some(k => lbl.includes(k))) {
+        grouped[key].push(f);
+        assigned.add(i);
+      }
+    });
+  });
+  // Remaining unmatched fields go to project
+  displayFields.forEach((f,i) => {
+    if(!assigned.has(i)) grouped.project.push(f);
+  });
+
+  // Render group
+  function renderGroup(key, label) {
+    const flds = grouped[key].filter(f => f.value);
+    if(!flds.length) return '';
+    const rows = flds.map(f =>
+      `<div class="cf${f.ai_suggested?' ai':''}">
+        <div class="cf-lbl">${f.label}${f.ai_suggested?'<span class="ai-tag">AI</span>':''}</div>
+        <div class="cfv">${f.value}</div>
+      </div>`
+    ).join('');
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <span style="font-size:9px;font-weight:700;letter-spacing:.08em;color:var(--text3)">${label}</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+      ${rows}
+    </div>`;
   }
+
+  let html = '';
+  if(displayFields.length) {
+    html += renderGroup('problem','PROBLEM');
+    html += renderGroup('impact','IMPACT');
+    html += renderGroup('metrics','METRICS');
+    html += renderGroup('project','PROJECT');
+  } else {
+    html += `<div style="color:var(--text3);font-size:11px;padding:4px 0">Keep chatting — fields will appear here as you answer questions.</div>`;
+  }
+
   // Citations
-  const cites=resp.citations||[];
-  if(cites.length){
-    html+=`<div class="rref"><div class="rref-ttl"><i class="ti ti-link" style="font-size:11px"></i>Sources used</div>`;
-    html+=cites.map(c=>`<p>${c.agent_origin} · ${c.index_name} — ${c.relevance_summary||''}</p>`).join('');
-    html+=`</div>`;
+  const cites = resp.citations || [];
+  if(cites.length) {
+    html += `<div class="rref"><div class="rref-ttl"><i class="ti ti-link" style="font-size:11px"></i>Sources used</div>`;
+    html += cites.map(c => `<p>${c.agent_origin} · ${c.index_name} — ${c.relevance_summary||''}</p>`).join('');
+    html += `</div>`;
   }
-  // Gate
-  html+=`<div class="gate-box"><div class="gate-ttl">What's needed to move forward</div>`;
-  if(gate.passed){html+=`<div class="gr ok"><i class="ti ti-circle-check"></i>Gate passed — ready to advance</div>`;}
-  else if(missing.length){
-    html+=missing.slice(0,6).map(m=>`<div class="gr miss"><i class="ti ti-circle-x"></i>${m.replace(/_/g,' ')}</div>`).join('');
-  }else{html+=`<div class="gr wait"><i class="ti ti-clock"></i>Still in progress</div>`;}
-  html+=`</div>`;
-  html+=`<button class="gate-submit" onclick="submitGateReview()"><i class="ti ti-checkbox" style="font-size:13px"></i> Submit for gate review ↗</button>`;
-  document.getElementById('rp-content').innerHTML=html;
+
+  // Gate status — no "still in progress"
+  if(gate.passed) {
+    html += `<div class="gate-box"><div class="gr ok"><i class="ti ti-circle-check"></i>All fields captured — ready to submit</div></div>`;
+  } else if(missing.length) {
+    html += `<div class="gate-box">
+      <div class="gate-ttl">Still needed</div>
+      ${missing.slice(0,6).map(m=>`<div class="gr miss"><i class="ti ti-circle-x"></i>${m.replace(/_/g,' ')}</div>`).join('')}
+    </div>`;
+  }
+  // If no missing fields info at all: show nothing (gate section hidden until Submit is clicked)
+
+  html += `<button class="gate-submit" onclick="submitGateReview()"><i class="ti ti-checkbox" style="font-size:13px"></i> Submit for gate review →</button>`;
+  document.getElementById('rp-content').innerHTML = html;
   renderSteps();
 }
 
