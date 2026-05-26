@@ -36,3 +36,19 @@ class DefinePhaseInput(BaseModel):
     belt_level: str = Field(..., description="yellow | green | black")
     target_date: str = Field(..., description="Target completion date ISO format")
     team_members: list[TeamMember] = Field(..., min_length=1)
+
+    # Financial impact
+    current_cost: str = Field(
+        ..., description="Current cost of the problem e.g. €35k/month revenue loss"
+    )
+    expected_saving: str = Field(
+        ..., description="Projected saving after improvement e.g. €20k/month"
+    )
+
+    # Project plan
+    project_milestones: str = Field(
+        ..., description="Key milestones as free text e.g. Define done Week 2, Measure done Week 6"
+    )
+    estimated_completion_date: str = Field(
+        ..., description="Expected project end date or duration e.g. end of Q3 2026"
+    )

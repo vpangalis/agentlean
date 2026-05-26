@@ -558,9 +558,15 @@ a{text-decoration:none;color:inherit}
         <div class="vt active" id="vt-overview" onclick="selectTab('overview')">Phase overview</div>
         <div class="vt hidden" id="vt-tool" onclick="selectTab('tool')"><span id="vt-tool-label">Tool</span></div>
         <div class="vt" id="vt-chat" onclick="selectTab('chat')">AI guide</div>
-        <div class="vt" id="vt-steps" onclick="selectTab('steps')">Step-by-step</div>
-        <div class="vt" id="vt-diagram" onclick="selectTab('diagram')">Live diagram</div>
-        <div class="vt" id="vt-history" onclick="selectTab('history')">Session history</div>
+        <div class="vt" id="vt-gate" onclick="selectTab('gate')">Gate</div>
+        <div class="vt" id="vt-more" onclick="toggleMoreMenu(event)" style="position:relative">
+          <span>··· More</span>
+          <div id="more-menu" style="display:none;position:absolute;top:100%;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow-md);z-index:50;min-width:160px;padding:4px 0">
+            <div class="more-item" onclick="event.stopPropagation();closeMoreMenu();selectTab('steps')" style="padding:8px 14px;font-size:12px;cursor:pointer;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">Step-by-step</div>
+            <div class="more-item" onclick="event.stopPropagation();closeMoreMenu();selectTab('diagram')" style="padding:8px 14px;font-size:12px;cursor:pointer;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">Live diagram</div>
+            <div class="more-item" onclick="event.stopPropagation();closeMoreMenu();selectTab('history')" style="padding:8px 14px;font-size:12px;cursor:pointer;color:var(--text)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">Session history</div>
+          </div>
+        </div>
       </div>
 
       <!-- OVERVIEW VIEW -->
@@ -598,6 +604,9 @@ a{text-decoration:none;color:inherit}
         </div>
       </div>
 
+      <!-- GATE VIEW -->
+      <div class="view" id="view-gate"></div>
+
       <!-- STEPS VIEW -->
       <div class="view" id="view-steps">
         <div class="diag-intro">Your step-by-step plan — each step builds on the last.</div>
@@ -623,7 +632,7 @@ a{text-decoration:none;color:inherit}
 
     <!-- RIGHT PANEL -->
     <div class="rpanel">
-      <div class="rp-hdr"><i class="ti ti-clipboard-list" style="font-size:13px"></i><span id="rp-title">Captured so far</span></div>
+      <div class="rp-hdr"><i class="ti ti-clipboard-list" style="font-size:13px"></i><span id="rp-title">Captured so far</span><span id="rp-score-pill" style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--brand-bg);color:var(--brand);border:1px solid var(--brand-mid)">0 / 19</span></div>
       <div class="rp-scroll" id="rp-content">
         <div style="color:var(--text3);font-size:11px;padding:4px 0">Start a conversation to see captured fields here.</div>
       </div>
@@ -652,6 +661,57 @@ const S = {
 };
 
 const SESSION_SUMMARIES = {}; // keyed by date string e.g. "2026-05-26"
+
+const DEFINE_GATE_FIELDS = [
+  { group: 'PROBLEM', key: 'what',             label: 'What is the problem' },
+  { group: 'PROBLEM', key: 'where',            label: 'Where does it happen' },
+  { group: 'PROBLEM', key: 'when',             label: 'When did it start' },
+  { group: 'PROBLEM', key: 'who_affected',     label: 'Who is affected' },
+  { group: 'PROBLEM', key: 'why_it_matters',   label: 'Why it matters' },
+  { group: 'BASELINE & TARGET', key: 'how_much_baseline', label: 'Baseline today' },
+  { group: 'BASELINE & TARGET', key: 'how_goal',          label: 'Target to achieve' },
+  { group: 'BASELINE & TARGET', key: 'primary_metric',    label: 'Primary metric' },
+  { group: 'BASELINE & TARGET', key: 'secondary_metric',  label: 'Secondary metric' },
+  { group: 'PROJECT CHARTER', key: 'process_owner',             label: 'Process owner' },
+  { group: 'PROJECT CHARTER', key: 'sponsor',                   label: 'Sponsor' },
+  { group: 'PROJECT CHARTER', key: 'team_members',              label: 'Team members' },
+  { group: 'PROJECT CHARTER', key: 'belt_level',                label: 'Belt level' },
+  { group: 'PROJECT CHARTER', key: 'target_date',               label: 'Target date' },
+  { group: 'PROJECT CHARTER', key: 'estimated_completion_date', label: 'Estimated completion' },
+  { group: 'FINANCIAL & PLAN', key: 'current_cost',       label: 'Current cost of problem' },
+  { group: 'FINANCIAL & PLAN', key: 'expected_saving',    label: 'Expected saving' },
+  { group: 'FINANCIAL & PLAN', key: 'project_milestones', label: 'Key milestones' },
+  { group: 'FINANCIAL & PLAN', key: 'primary_metric_unit', label: 'Metric unit' },
+];
+
+function getStructured() {
+  const phase = S.phase || 'define';
+  const phaseStructured = (S.case && S.case.phases && S.case.phases[phase] &&
+          S.case.phases[phase].structured) || {};
+  if(phase === 'define' && S.case){
+    const merged = Object.assign({}, phaseStructured);
+    if(!fieldHasValue(merged.belt_level) && S.case.belt_level) merged.belt_level = S.case.belt_level;
+    if(!fieldHasValue(merged.target_date) && S.case.target_date) merged.target_date = S.case.target_date;
+    if(!fieldHasValue(merged.team_members) && Array.isArray(S.case.team) && S.case.team.length) merged.team_members = S.case.team;
+    return merged;
+  }
+  return phaseStructured;
+}
+
+function fieldHasValue(v) {
+  if (v === null || v === undefined || v === '') return false;
+  if (Array.isArray(v)) return v.length > 0;
+  return true;
+}
+
+function formatFieldValue(v) {
+  if (Array.isArray(v)) {
+    return v.map(x => (x && typeof x === 'object')
+      ? (x.name ? (x.name + (x.role ? ' (' + x.role + ')' : '')) : JSON.stringify(x))
+      : String(x)).join(', ');
+  }
+  return String(v);
+}
 
 // ─── PHASE METADATA ───────────────────────────────────────────────
 const PHASES = {
@@ -887,18 +947,41 @@ function selectPhase(phase){
 
 function selectTab(tab){
   S.tab=tab;
-  const allTabs=['overview','tool','chat','steps','diagram','history'];
+  const allTabs=['overview','tool','chat','gate','steps','diagram','history'];
   allTabs.forEach(t=>{
     const vt=document.getElementById('vt-'+t);
     const vw=document.getElementById('view-'+t);
     if(vt)vt.classList.toggle('active',t===tab);
     if(vw)vw.classList.toggle('active',t===tab);
   });
+  // 'More' tab stays highlighted when one of its children is active
+  const moreTab=document.getElementById('vt-more');
+  if(moreTab){
+    moreTab.classList.toggle('active', tab==='steps'||tab==='diagram'||tab==='history');
+  }
   if(tab==='chat'){renderChat(); if(S.lastAsk) updateRightPanel(S.lastAsk);}
+  if(tab==='gate'){renderGate();}
   // Hide tool tab when not on tool view
   const toolTab=document.getElementById('vt-tool');
   if(toolTab&&tab!=='tool'){toolTab.classList.add('hidden');}
 }
+
+function toggleMoreMenu(e){
+  if(e) e.stopPropagation();
+  const m=document.getElementById('more-menu');
+  if(!m) return;
+  m.style.display = m.style.display==='block' ? 'none' : 'block';
+}
+
+function closeMoreMenu(){
+  const m=document.getElementById('more-menu');
+  if(m) m.style.display='none';
+}
+
+document.addEventListener('click', function(e){
+  const moreTab=document.getElementById('vt-more');
+  if(moreTab && !moreTab.contains(e.target)) closeMoreMenu();
+});
 
 // ─── OVERVIEW ─────────────────────────────────────────────────────
 function renderOverview(){
@@ -932,9 +1015,140 @@ function renderOverview(){
     </div>
     <div><div class="s-label">Tools used in this phase</div><div class="tool-row">${tools}</div></div>
     ${sessions}
+    ${renderDefineChecklist()}
     <button class="start-btn" onclick="selectTab('chat')">
       <i class="ti ti-player-play"></i> Continue with AI guide — ${p.label} phase
     </button>`;
+}
+
+function renderDefineChecklist(){
+  if(S.phase !== 'define' || !S.case) return '';
+  const structured = getStructured();
+  const groups = ['PROBLEM','BASELINE & TARGET','PROJECT CHARTER','FINANCIAL & PLAN'];
+  const fieldsForChecklist = DEFINE_GATE_FIELDS.filter(f => f.key !== 'primary_metric_unit');
+  let html = '<div style="margin-top:6px"><div style="font-size:11px;color:var(--text3);margin-bottom:8px">What needs to be captured for the Define gate</div>';
+  groups.forEach(g => {
+    const fields = fieldsForChecklist.filter(f => f.group === g);
+    if(!fields.length) return;
+    html += '<div style="margin-bottom:10px">'
+      + '<div style="font-size:9px;font-weight:700;letter-spacing:.08em;color:var(--text3);margin-bottom:4px">'+g+'</div>';
+    fields.forEach(f => {
+      let value = structured[f.key];
+      if(f.key === 'primary_metric' && fieldHasValue(value) && fieldHasValue(structured['primary_metric_unit'])){
+        value = formatFieldValue(value) + ' (' + formatFieldValue(structured['primary_metric_unit']) + ')';
+      }
+      const has = fieldHasValue(structured[f.key]);
+      if(has){
+        const valDisplay = (f.key === 'primary_metric') ? value : formatFieldValue(structured[f.key]);
+        html += '<div style="display:flex;align-items:flex-start;gap:6px;padding:3px 0;font-size:11px">'
+          + '<i class="ti ti-circle-check" style="font-size:13px;color:var(--green);flex-shrink:0;margin-top:1px"></i>'
+          + '<span style="color:var(--text2);min-width:140px">'+f.label+'</span>'
+          + '<span style="color:var(--text);flex:1">'+valDisplay+'</span>'
+          + '</div>';
+      } else {
+        html += '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px">'
+          + '<i class="ti ti-circle-dashed" style="font-size:13px;color:var(--text3);flex-shrink:0"></i>'
+          + '<span style="color:var(--text3);min-width:140px">'+f.label+'</span>'
+          + '<span style="color:var(--text3);font-style:italic">not yet captured</span>'
+          + '</div>';
+      }
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+// ─── GATE TAB ─────────────────────────────────────────────────────
+function renderGate(){
+  const view = document.getElementById('view-gate');
+  if(!view) return;
+  if(S.phase !== 'define'){
+    view.innerHTML = '<div style="padding:24px;color:var(--text3);font-size:12px">Gate view is currently available for the Define phase only.</div>';
+    return;
+  }
+  const structured = getStructured();
+  const total = DEFINE_GATE_FIELDS.length; // 19
+  const captured = DEFINE_GATE_FIELDS.filter(f => fieldHasValue(structured[f.key])).length;
+  const pct = Math.round(captured/total*100);
+  const missingFields = DEFINE_GATE_FIELDS.filter(f => !fieldHasValue(structured[f.key]));
+
+  // SCORE BAR
+  const scoreText = captured === total
+    ? 'All fields captured — ready to submit'
+    : captured + ' of ' + total + ' fields · ' + pct + '% complete';
+  const scoreBar = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;display:flex;align-items:center;gap:18px">
+      <div style="font-size:32px;font-weight:700;color:#534AB7;line-height:1;min-width:80px">${captured}<span style="font-size:16px;color:var(--text3);font-weight:500"> / ${total}</span></div>
+      <div style="flex:1">
+        <div style="height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;margin-bottom:6px">
+          <div style="height:100%;width:${pct}%;background:#534AB7;border-radius:4px;transition:width .3s"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text2)">${scoreText}</div>
+      </div>
+    </div>`;
+
+  // FIELD GRID — grouped
+  const groups = ['PROBLEM','BASELINE & TARGET','PROJECT CHARTER','FINANCIAL & PLAN'];
+  let gridHtml = '';
+  groups.forEach(g => {
+    let fields = DEFINE_GATE_FIELDS.filter(f => f.group === g);
+    // In the grid, do not render primary_metric_unit as its own card
+    fields = fields.filter(f => f.key !== 'primary_metric_unit');
+    if(!fields.length) return;
+    gridHtml += '<div style="margin-top:14px"><div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">'+g+'</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">';
+    fields.forEach(f => {
+      let value = structured[f.key];
+      const has = fieldHasValue(value);
+      // Merge primary_metric with primary_metric_unit
+      if(has && f.key === 'primary_metric' && fieldHasValue(structured['primary_metric_unit'])){
+        value = formatFieldValue(value) + ' (' + formatFieldValue(structured['primary_metric_unit']) + ')';
+      } else if(has){
+        value = formatFieldValue(value);
+      }
+      if(has){
+        gridHtml += '<div style="position:relative;background:#EEEDFE;border:1px solid #AFA9EC;border-radius:var(--radius-sm);padding:9px 10px">'
+          + '<i class="ti ti-check" style="position:absolute;top:6px;right:7px;font-size:12px;color:#0F6E56"></i>'
+          + '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#3C3489;margin-bottom:4px;padding-right:14px">'+f.label+'</div>'
+          + '<div style="font-size:11px;color:#26215C;line-height:1.4">'+value+'</div>'
+          + '</div>';
+      } else {
+        gridHtml += '<div style="position:relative;background:var(--surface2);border:1px dashed var(--border);border-radius:var(--radius-sm);padding:9px 10px">'
+          + '<i class="ti ti-circle-dashed" style="position:absolute;top:6px;right:7px;font-size:12px;color:var(--text3)"></i>'
+          + '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:4px;padding-right:14px">'+f.label+'</div>'
+          + '<div style="font-size:11px;color:var(--text3);font-style:italic">not yet captured</div>'
+          + '</div>';
+      }
+    });
+    gridHtml += '</div></div>';
+  });
+
+  // SUBMIT AREA
+  let submitArea = '';
+  if(missingFields.length === 0){
+    submitArea = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin-top:14px">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--green);margin-bottom:10px">
+          <i class="ti ti-circle-check" style="font-size:14px"></i>All fields captured — ready for gate review
+        </div>
+        <button onclick="submitGateReview()" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px;background:#534AB7;color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer">Submit for gate review →</button>
+      </div>`;
+  } else {
+    const missingList = missingFields.map(f =>
+      '<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);padding:2px 0"><i class="ti ti-circle-x" style="font-size:12px;color:var(--red)"></i>'+f.label+'</div>'
+    ).join('');
+    submitArea = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin-top:14px">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Continue the AI guide conversation to fill the remaining fields before submitting for gate review.</div>
+        <div style="margin-bottom:12px">${missingList}</div>
+        <button disabled style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px;background:var(--surface2);color:var(--text3);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:not-allowed">
+          <i class="ti ti-lock" style="font-size:13px"></i>Gate not ready — ${missingFields.length} field${missingFields.length===1?'':'s'} missing
+        </button>
+      </div>`;
+  }
+
+  view.innerHTML = scoreBar + gridHtml + submitArea;
 }
 
 // ─── TOOL BRIEFING ────────────────────────────────────────────────
@@ -1528,9 +1742,24 @@ function renderHistory() {
 }
 
 // ─── RIGHT PANEL ─────────────────────────────────────────────────
+function updateScorePill(){
+  const pill = document.getElementById('rp-score-pill');
+  if(!pill) return;
+  if(S.phase !== 'define' || !S.case){
+    pill.style.display = 'none';
+    return;
+  }
+  pill.style.display = 'inline-flex';
+  const structured = getStructured();
+  const total = DEFINE_GATE_FIELDS.length;
+  const captured = DEFINE_GATE_FIELDS.filter(f => fieldHasValue(structured[f.key])).length;
+  pill.textContent = captured + ' / ' + total;
+}
+
 function renderRightPanel(){
   const p=PHASES[S.phase];
   document.getElementById('rp-title').textContent=`Captured — ${p.label}`;
+  updateScorePill();
   // If we have a last response, show captured fields immediately
   if(S.lastAsk){updateRightPanel(S.lastAsk);return;}
   // If case has structured data in blob, show it
@@ -1557,6 +1786,7 @@ function updateRightPanel(resp){
   if(!resp) return;
   const p = PHASES[S.phase];
   document.getElementById('rp-title').textContent = `Captured — ${p.label}`;
+  updateScorePill();
   const fields = resp.captured_fields || [];
   const gate = resp.gate_status || {};
   const missing = gate.missing_fields || [];
