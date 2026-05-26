@@ -1453,33 +1453,24 @@ async function generateSessionSummary(date, turns) {
   if(SESSION_SUMMARIES[date]) return; // already cached
   SESSION_SUMMARIES[date] = '__loading__';
 
-  const dialogue = turns.map(t => {
-    const who = t.role === 'ai' ? 'AI Guide' : (t.user || 'Team member');
-    return `${who}: ${t.text}`;
-  }).join('\n\n');
-
-  const prompt = `You are summarising a single working session from a Lean Six Sigma improvement project.
-
-The session below is from the ${S.phase ? S.phase.toUpperCase() : ''} phase of project: "${S.case?.title || 'improvement project'}".
-
-SESSION DIALOGUE:
-${dialogue}
-
-Write a summary of this session in exactly 2-3 sentences. Cover: what topics were discussed, what information was provided by the team, and what fields or decisions were captured. Be specific — mention actual numbers, names, or facts from the conversation. Do not use bullet points. Do not start with "In this session".`;
-
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const payload = {
+      turns: turns.map(t => ({
+        role: t.role,
+        user: t.user || '',
+        text: t.text,
+        timestamp: t.timestamp || ''
+      })),
+      phase: S.phase || 'define',
+      case_title: S.case?.title || ''
+    };
+    const response = await fetch('http://127.0.0.1:8020/summarise', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
+      body: JSON.stringify(payload)
     });
     const data = await response.json();
-    const text = data.content?.find(b => b.type === 'text')?.text || 'Summary unavailable.';
-    SESSION_SUMMARIES[date] = text;
+    SESSION_SUMMARIES[date] = data.summary || 'Summary unavailable.';
   } catch(e) {
     SESSION_SUMMARIES[date] = 'Summary could not be generated.';
   }

@@ -121,3 +121,23 @@ class HealthResponse(BaseModel):
     agent: str = "agent-improve"
     port: int = 8020
     version: str = "0.1.0"
+
+
+# ── session summarisation ────────────────────────────────────────────────
+
+
+class SummariseTurn(BaseModel):
+    role: str          # "user" or "ai"
+    user: str = ""     # team member name, blank for AI turns
+    text: str
+    timestamp: str = ""
+
+
+class SummariseRequest(BaseModel):
+    turns: list[SummariseTurn]
+    phase: str
+    case_title: str = ""
+
+
+class SummariseResponse(BaseModel):
+    summary: str

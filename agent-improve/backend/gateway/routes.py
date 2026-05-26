@@ -18,6 +18,7 @@ from backend.gateway.schemas import (
     HealthResponse,
     UploadMetaRequest,
 )
+from backend.gateway.schemas import SummariseRequest, SummariseResponse
 from backend.storage.blob import blob_client
 from backend.storage.models import CaseDocument
 
@@ -29,6 +30,43 @@ router = APIRouter()
 @router.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     return HealthResponse()
+
+
+@router.post("/summarise", response_model=SummariseResponse)
+def summarise_session(request: SummariseRequest) -> SummariseResponse:
+    """Generate a 2-3 sentence AI summary of a session's conversation turns."""
+    from backend.core.llm import get_llm
+    from langchain_core.messages import HumanMessage, SystemMessage
+
+    dialogue = "\n\n".join(
+        f"{'AI Guide' if t.role == 'ai' else (t.user or 'Team member')}: {t.text}"
+        for t in request.turns
+    )
+
+    system = (
+        "You are summarising a working session from a Lean Six Sigma improvement project. "
+        "Write clear, factual summaries that capture what was discussed and decided."
+    )
+
+    prompt = (
+        f"Summarise the following session from the {request.phase.upper()} phase "
+        f"of project: \"{request.case_title}\".\n\n"
+        f"SESSION DIALOGUE:\n{dialogue}\n\n"
+        "Write exactly 2-3 sentences. Cover: what topics were discussed, what information "
+        "the team provided, and what fields or decisions were captured. "
+        "Be specific — mention actual numbers, names, or facts from the conversation. "
+        "Do not use bullet points. Do not start with 'In this session'."
+    )
+
+    try:
+        llm = get_llm(role="reasoning", temperature=0.3)
+        response = llm.invoke([SystemMessage(content=system), HumanMessage(content=prompt)])
+        summary = response.content.strip()
+    except Exception as e:
+        logger.error("summarise_session() error: %s", e)
+        summary = "Summary could not be generated."
+
+    return SummariseResponse(summary=summary)
 
 
 @router.post("/cases", response_model=CaseCreateResponse)
