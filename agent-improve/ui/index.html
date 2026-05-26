@@ -302,7 +302,7 @@ a{text-decoration:none;color:inherit}
 .tool-icon-lg{width:48px;height:48px;border-radius:var(--radius);background:white;border:1px solid var(--brand-mid);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--brand);flex-shrink:0;box-shadow:0 1px 3px rgba(83,74,183,.15)}
 .tool-name{font-size:20px;font-weight:700;margin-bottom:5px;color:#1A1550}
 .tool-tagline{font-size:13px;color:#3C3489;line-height:1.65;max-width:500px}
-.tb-card{border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border);margin-bottom:14px;box-shadow:var(--shadow);flex-shrink:0}
+.tb-card{border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border);margin-bottom:14px;box-shadow:var(--shadow)}
 .tb-card-hdr{display:flex;align-items:center;gap:10px;padding:12px 16px;font-size:13px;font-weight:600}
 .tb-card-hdr i{font-size:17px}
 .tb-card-body{padding:14px 16px;background:var(--surface);font-size:12.5px;line-height:1.7;color:var(--text)}
@@ -355,7 +355,7 @@ a{text-decoration:none;color:inherit}
 <!-- ═══════════ SCREEN 1: LANDING ═══════════ -->
 <div class="screen active" id="scr-landing">
   <div class="topbar">
-    <span class="tb-logo">agentlean · <span>agent improve</span></span>
+    <span class="tb-logo" onclick="showScreen('scr-landing')" style="cursor:pointer">agentlean · <span>agent improve</span></span>
     <div style="margin-left:auto;display:flex;gap:8px">
       <button class="btn-secondary" onclick="showScreen('scr-search')"><i class="ti ti-search" style="font-size:13px"></i> Open case</button>
       <button class="btn-primary" style="padding:6px 14px;width:auto" onclick="showScreen('scr-create')"><i class="ti ti-plus" style="font-size:13px"></i> New case</button>
@@ -390,7 +390,7 @@ a{text-decoration:none;color:inherit}
 <!-- ═══════════ SCREEN 2: CREATE ═══════════ -->
 <div class="screen" id="scr-create">
   <div class="topbar">
-    <span class="tb-logo">agentlean · <span>agent improve</span></span>
+    <span class="tb-logo" onclick="showScreen('scr-landing')" style="cursor:pointer">agentlean · <span>agent improve</span></span>
     <span class="tb-back" onclick="showScreen('scr-landing')"><i class="ti ti-arrow-left" style="font-size:13px"></i> Back</span>
   </div>
   <div class="create-body">
@@ -473,7 +473,7 @@ a{text-decoration:none;color:inherit}
 <!-- ═══════════ SCREEN 3: SEARCH ═══════════ -->
 <div class="screen" id="scr-search">
   <div class="topbar">
-    <span class="tb-logo">agentlean · <span>agent improve</span></span>
+    <span class="tb-logo" onclick="showScreen('scr-landing')" style="cursor:pointer">agentlean · <span>agent improve</span></span>
     <span class="tb-back" onclick="showScreen('scr-landing')"><i class="ti ti-arrow-left" style="font-size:13px"></i> Back</span>
   </div>
   <div class="search-body">
@@ -508,7 +508,7 @@ a{text-decoration:none;color:inherit}
 <!-- ═══════════ SCREEN 4: WORKSPACE ═══════════ -->
 <div class="screen" id="scr-workspace">
   <div class="topbar">
-    <span class="tb-logo">agentlean · <span>agent improve</span></span>
+    <span class="tb-logo" onclick="showScreen('scr-landing')" style="cursor:pointer">agentlean · <span>agent improve</span></span>
     <span class="tb-case" id="ws-case-badge"></span>
     <div class="tb-team" id="ws-team"></div>
   </div>
