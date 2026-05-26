@@ -251,8 +251,8 @@ a{text-decoration:none;color:inherit}
 .st-wait{background:var(--surface2);color:var(--text3)}
 
 /* DIAGRAM TAB */
-.diag-intro{font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.5}
-.diag-svg{width:100%;border-radius:var(--radius-lg);border:1px solid var(--border);background:var(--surface2)}
+.diag-intro{font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.6;font-weight:500}
+.diag-svg{width:100%;border-radius:var(--radius-lg);border:1px solid var(--border);background:var(--surface2);min-height:360px}
 .diag-legend{font-size:10px;color:var(--text3);margin-top:6px;display:flex;gap:12px;flex-wrap:wrap}
 .dl-item{display:flex;align-items:center;gap:4px}
 .dl-dot{width:10px;height:10px;border-radius:2px}
@@ -1336,25 +1336,48 @@ function renderDiagram(){
 function buildDefineDiagram(){
   // Merge captured fields from lastAsk response AND from blob structured data
   const fromAsk=(S.lastAsk&&S.lastAsk.captured_fields)||[];
-  const fromBlob=S.case&&S.case.phases&&S.case.phases.define&&S.case.phases.define.structured
-    ? Object.keys(S.case.phases.define.structured) : [];
-  const capturedKeys=[
-    ...fromAsk.filter(f=>f.value).map(f=>f.label.toLowerCase()),
-    ...fromBlob.map(k=>k.replace(/_/g,' '))
-  ];
-  function nodeColor(key){return capturedKeys.some(k=>k.includes(key))?['#E1F5EE','#5DCAA5','#085041']:['#F1EFE8','#CCCAC4','#99978F'];}
-  function node(x,y,w,h,label,sublabel,key){const[fill,stroke,tc]=nodeColor(key);return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${fill}" stroke="${stroke}" stroke-width="0.8"/><text x="${x+w/2}" y="${y+14}" text-anchor="middle" font-size="8" font-weight="600" fill="${tc}" letter-spacing=".04em">${label}</text><text x="${x+w/2}" y="${y+27}" text-anchor="middle" font-size="9" fill="${tc}">${sublabel}</text>`;}
-  return `<svg viewBox="0 0 580 340" class="diag-svg">
-    <rect x="195" y="140" width="190" height="56" rx="8" fill="#EEEDFE" stroke="#AFA9EC" stroke-width="1"/>
-    <text x="290" y="162" text-anchor="middle" font-size="11" font-weight="600" fill="#26215C">Problem statement</text>
-    <text x="290" y="180" text-anchor="middle" font-size="10" fill="#3C3489">What we are improving</text>
-    ${node(18,40,130,40,'WHAT','the problem','what')}
-    ${node(18,120,130,40,'WHERE','location / asset','where')}
-    ${node(18,200,130,40,'WHO','affected parties','who')}
-    ${node(432,40,130,40,'WHEN','timing / trend','when')}
-    ${node(432,120,130,40,'WHY','business impact','why')}
-    ${node(432,200,130,40,'HOW MUCH','baseline number','baseline')}
-    ${node(195,280,130,40,'GOAL','target state','goal')}
+  const structured=(S.case&&S.case.phases&&S.case.phases.define&&S.case.phases.define.structured)||{};
+
+  // Build a lookup: field key -> value
+  const vals={};
+  fromAsk.forEach(f=>{if(f.value)vals[f.label.toLowerCase().replace(/ /g,'_')]=f.value;});
+  Object.entries(structured).forEach(([k,v])=>{if(v)vals[k]=String(v);});
+
+  function getVal(key,fallback){
+    // Try exact key match then partial match
+    if(vals[key]) return vals[key];
+    const k2=Object.keys(vals).find(k=>k.includes(key)||key.includes(k));
+    return k2?vals[k2]:null;
+  }
+
+  function nodeColor(hasVal){return hasVal?['#E1F5EE','#5DCAA5','#085041']:['#F1EFE8','#CCCAC4','#99978F'];}
+
+  function node(x,y,w,h,label,key){
+    const val=getVal(key,null);
+    const[fill,stroke,tc]=nodeColor(!!val);
+    // Truncate value to fit in box
+    const display=val?(val.length>28?val.slice(0,26)+'…':val):label.toLowerCase().replace(/—.*/,'').trim();
+    const labelColor=val?'#085041':'#99978F';
+    const valueColor=val?tc:'#BCBAB4';
+    return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="7" fill="${fill}" stroke="${stroke}" stroke-width="1"/>
+      <text x="${x+w/2}" y="${y+14}" text-anchor="middle" font-size="8" font-weight="700" fill="${labelColor}" letter-spacing=".05em">${label.split('—')[0].trim().toUpperCase()}</text>
+      <text x="${x+w/2}" y="${y+29}" text-anchor="middle" font-size="9" fill="${valueColor}" font-style="${val?'normal':'italic'}">${display}</text>`;
+  }
+  // Build centre problem statement from captured what field
+  const whatVal=getVal('what',null);
+  const centreText=whatVal?(whatVal.length>32?whatVal.slice(0,30)+'…':whatVal):'What we are improving';
+
+  return `<svg viewBox="0 0 580 360" class="diag-svg">
+    <rect x="185" y="138" width="210" height="62" rx="10" fill="#EEEDFE" stroke="#AFA9EC" stroke-width="1.5"/>
+    <text x="290" y="160" text-anchor="middle" font-size="11" font-weight="700" fill="#26215C">Problem statement</text>
+    <text x="290" y="178" text-anchor="middle" font-size="10" fill="#3C3489">${centreText}</text>
+    ${node(14,30,145,46,'WHAT — the problem','what')}
+    ${node(14,110,145,46,'WHERE — location','where')}
+    ${node(14,190,145,46,'WHO — affected','who_affected')}
+    ${node(421,30,145,46,'WHEN — timing','when')}
+    ${node(421,110,145,46,'WHY — impact','why_it_matters')}
+    ${node(421,190,145,46,'HOW MUCH — baseline','how_much_baseline')}
+    ${node(185,285,145,46,'GOAL — target','how_goal')}
     <line x1="148" y1="60" x2="193" y2="155" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
     <line x1="148" y1="140" x2="193" y2="168" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
     <line x1="148" y1="220" x2="193" y2="182" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
