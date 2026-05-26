@@ -1447,42 +1447,79 @@ function buildLockedDiagram(letter,label){
 }
 
 // ─── HISTORY ─────────────────────────────────────────────────────
+function toggleSession(el){
+  var sid=el.getAttribute('data-sid');
+  var d=document.getElementById(sid);
+  if(d) d.style.display=d.style.display==='none'?'block':'none';
+}
+
 function renderHistory(){
-  // Load from case blob history, not just localChat
   const history=(S.case&&S.case.conversation_history)||S.localChat||[];
+  const el=document.getElementById('history-content');
   if(!history.length){
-    document.getElementById('history-content').innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px 0">No sessions yet — start a conversation to see history here.</div>';
+    el.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px 0">No sessions yet — start a conversation to see history here.</div>';
     return;
   }
-  // Group by date
+  // Group turns by calendar date
   const byDate={};
   history.forEach(function(t){
     const d=(t.timestamp||'').split('T')[0]||'Today';
     if(!byDate[d]) byDate[d]=[];
     byDate[d].push(t);
   });
-  document.getElementById('history-content').innerHTML=Object.entries(byDate).map(function(entry){
-    const date=entry[0];
-    const turns=entry[1];
+  const dateKeys=Object.keys(byDate).sort();
+  el.innerHTML=dateKeys.map(function(date,idx){
+    const turns=byDate[date];
     const aiTurns=turns.filter(function(t){return t.role==='ai';});
     const userTurns=turns.filter(function(t){return t.role==='user';});
-    const rows=turns.map(function(t){
+    // Participants
+    const participants=[...new Set(userTurns.map(function(t){return t.user||'Team';}))].join(', ')||'Team';
+    // First AI question of the session
+    const firstAi=aiTurns[0];
+    const summary=firstAi?(firstAi.text.length>120?firstAi.text.substr(0,118)+'…':firstAi.text):'Session started';
+    // Fields captured this day - count from structured if last day, else estimate from user turns
+    const isToday=idx===dateKeys.length-1;
+    const structured=S.case&&S.case.phases&&S.case.phases[S.phase]&&S.case.phases[S.phase].structured;
+    const totalFields=structured?Object.values(structured).filter(function(v){return v;}).length:0;
+    // Session ID
+    const sid='sess-'+date.replace(/-/g,'');
+    // Format date nicely
+    const dateObj=new Date(date);
+    const dateStr=dateObj.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+    // Build the detail rows (hidden by default)
+    const detailRows=turns.map(function(t){
       const isAi=t.role==='ai';
       const who=isAi?'AI Guide':(t.user||'Team');
-      const time=(t.timestamp||'').replace('T',' ').split('.')[0];
+      const time=(t.timestamp||'').split('T')[1]||'';
+      const timeShort=time.split('.')[0].substr(0,5);
       const bg=isAi?'var(--surface2)':'var(--brand-bg)';
       const border=isAi?'var(--border)':'var(--brand-mid)';
-      const textCol=isAi?'var(--text)':'#26215C';
-      const whoCol=isAi?'var(--text3)':'var(--brand)';
-      const text=t.text.length>300?t.text.substr(0,298)+'…':t.text;
-      return '<div style="padding:9px 11px;border-radius:8px;border:1px solid '+border+';background:'+bg+';margin-bottom:6px">'
-        +'<div style="font-size:9px;font-weight:600;color:'+whoCol+';text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">'+who+' · '+time+'</div>'
-        +'<div style="font-size:12px;color:'+textCol+';line-height:1.6">'+text+'</div>'
+      const tc=isAi?'var(--text)':'#1A1550';
+      const wc=isAi?'var(--text3)':'var(--brand)';
+      const txt=t.text.length>250?t.text.substr(0,248)+'…':t.text;
+      return '<div style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">'
+        +'<div style="font-size:9px;font-weight:600;color:'+wc+';white-space:nowrap;padding-top:2px;min-width:70px">'+who+'<br>'+timeShort+'</div>'
+        +'<div style="font-size:12px;color:'+tc+';line-height:1.6;flex:1">'+txt+'</div>'
         +'</div>';
     }).join('');
-    return '<div class="hist-group">'
-      +'<div class="hist-date">'+date+' · '+aiTurns.length+' AI responses · '+userTurns.length+' team messages</div>'
-      +rows+'</div>';
+    return '<div style="border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:10px">'
+      // Header — clickable to expand
+      +'<div onclick="toggleSession(this)" data-sid="'+sid+'" '
+      +'style="padding:12px 14px;background:var(--surface);cursor:pointer;display:flex;align-items:flex-start;gap:10px">'
+      +'<div style="width:36px;height:36px;border-radius:50%;background:var(--brand-bg);border:1px solid var(--brand-mid);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--brand);flex-shrink:0">'+(idx+1)+'</div>'
+      +'<div style="flex:1">'
+      +'<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px">'+dateStr+'</div>'
+      +'<div style="font-size:11px;color:var(--text2);margin-bottom:4px">'+participants+' · '+aiTurns.length+' AI responses · '+userTurns.length+' messages</div>'
+      +'<div style="font-size:11px;color:var(--text3);font-style:italic;line-height:1.5">'+summary+'</div>'
+      +'</div>'
+      +(isToday?'<div style="font-size:9px;padding:2px 8px;background:var(--teal-bg);color:var(--teal);border-radius:var(--radius-pill);font-weight:600;align-self:flex-start;flex-shrink:0">TODAY</div>':'')
+      +'</div>'
+      // Expandable detail — hidden by default except today
+      +'<div id="'+sid+'" style="display:'+(isToday?'block':'none')+';">'
+      +'<div style="padding:8px 14px 12px;background:var(--surface2);border-top:1px solid var(--border)">'
+      +detailRows
+      +'</div></div>'
+      +'</div>';
   }).join('');
 }
 
