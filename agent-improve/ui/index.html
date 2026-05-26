@@ -886,7 +886,7 @@ function selectTab(tab){
     if(vt)vt.classList.toggle('active',t===tab);
     if(vw)vw.classList.toggle('active',t===tab);
   });
-  if(tab==='chat'){renderChat();}
+  if(tab==='chat'){renderChat(); if(S.lastAsk) updateRightPanel(S.lastAsk);}
   // Hide tool tab when not on tool view
   const toolTab=document.getElementById('vt-tool');
   if(toolTab&&tab!=='tool'){toolTab.classList.add('hidden');}
@@ -1407,13 +1407,24 @@ function renderHistory(){
 function renderRightPanel(){
   const p=PHASES[S.phase];
   document.getElementById('rp-title').textContent=`Captured — ${p.label}`;
+  // If we have a last response, show captured fields immediately
+  if(S.lastAsk){updateRightPanel(S.lastAsk);return;}
+  // If case has structured data in blob, show it
+  if(S.case&&S.case.phases&&S.case.phases[S.phase]&&S.case.phases[S.phase].structured){
+    const structured=S.case.phases[S.phase].structured;
+    const fakeResp={
+      captured_fields:Object.entries(structured)
+        .filter(([k,v])=>!k.startsWith('_')&&v!==null&&v!==undefined&&v!=='')
+        .map(([k,v])=>({label:k.replace(/_/g,' ').replace(/\w/g,c=>c.toUpperCase()),value:String(v),ai_suggested:false,required_for_gate:true})),
+      gate_status:{phase:S.phase,passed:false,attempts:0,missing_fields:[]},
+      citations:[]
+    };
+    if(fakeResp.captured_fields.length){updateRightPanel(fakeResp);return;}
+  }
   document.getElementById('rp-content').innerHTML=`<div style="color:var(--text3);font-size:11px;padding:4px 0">Start a conversation to see captured fields here.</div>
     <div class="gate-box">
       <div class="gate-ttl">What's needed to move forward</div>
       <div class="gr wait"><i class="ti ti-clock"></i>Conversation not yet started</div>
-    </div>
-    <div class="rp-upload" onclick="document.getElementById('chat-file-input').click()">
-      <i class="ti ti-upload"></i><p>Upload data files</p><p style="font-size:9px;margin-top:1px">AI classifies and validates</p>
     </div>
     <button class="gate-submit" onclick="submitGateReview()"><i class="ti ti-checkbox" style="font-size:13px"></i> Submit for gate review ↗</button>`;
 }
@@ -1449,7 +1460,6 @@ function updateRightPanel(resp){
     html+=missing.slice(0,6).map(m=>`<div class="gr miss"><i class="ti ti-circle-x"></i>${m.replace(/_/g,' ')}</div>`).join('');
   }else{html+=`<div class="gr wait"><i class="ti ti-clock"></i>Still in progress</div>`;}
   html+=`</div>`;
-  html+=`<div class="rp-upload" onclick="document.getElementById('chat-file-input').click()"><i class="ti ti-upload"></i><p>Upload data files</p><p style="font-size:9px;margin-top:1px">AI classifies and validates</p></div>`;
   html+=`<button class="gate-submit" onclick="submitGateReview()"><i class="ti ti-checkbox" style="font-size:13px"></i> Submit for gate review ↗</button>`;
   document.getElementById('rp-content').innerHTML=html;
   renderSteps();
