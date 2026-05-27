@@ -632,7 +632,7 @@ a{text-decoration:none;color:inherit}
 
     <!-- RIGHT PANEL -->
     <div class="rpanel">
-      <div class="rp-hdr"><i class="ti ti-clipboard-list" style="font-size:13px"></i><span id="rp-title">Captured so far</span><span id="rp-score-pill" style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--brand-bg);color:var(--brand);border:1px solid var(--brand-mid)">0 / 19</span></div>
+      <div class="rp-hdr"><i class="ti ti-clipboard-list" style="font-size:13px"></i><span id="rp-title">Captured so far</span><span id="rp-score-pill" style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--brand-bg);color:var(--brand);border:1px solid var(--brand-mid)">0 / 20</span></div>
       <div class="rp-scroll" id="rp-content">
         <div style="color:var(--text3);font-size:11px;padding:4px 0">Start a conversation to see captured fields here.</div>
       </div>
@@ -682,6 +682,7 @@ const DEFINE_GATE_FIELDS = [
   { group: 'FINANCIAL & PLAN', key: 'expected_saving',    label: 'Expected saving' },
   { group: 'FINANCIAL & PLAN', key: 'project_milestones', label: 'Key milestones' },
   { group: 'FINANCIAL & PLAN', key: 'primary_metric_unit', label: 'Metric unit' },
+  { group: 'SIPOC', key: 'sipoc', label: 'SIPOC diagram' },
 ];
 
 function getStructured() {
@@ -1108,7 +1109,7 @@ function buildProgressNarrative() {
     captured = fieldsForCount.filter(f => fieldHasValue(structured[f.key])).length;
 
     // Group completion
-    const groupNames = ['PROBLEM','BASELINE & TARGET','PROJECT CHARTER','FINANCIAL & PLAN'];
+    const groupNames = ['PROBLEM','BASELINE & TARGET','SIPOC','PROJECT CHARTER','FINANCIAL & PLAN'];
     groups = groupNames.map(g => {
       const gFields = DEFINE_GATE_FIELDS.filter(f => f.group === g);
       const gCaptured = gFields.filter(f => fieldHasValue(structured[f.key])).length;
@@ -1136,14 +1137,17 @@ function buildProgressNarrative() {
   if (phase === 'define') {
     const problemDone  = groups[0]?.captured === groups[0]?.total;
     const baselineDone = groups[1]?.captured === groups[1]?.total;
-    const charterDone  = groups[2]?.captured === groups[2]?.total;
-    const financeDone  = groups[3]?.captured === groups[3]?.total;
+    const sipocDone    = groups[2]?.captured === groups[2]?.total;
+    const charterDone  = groups[3]?.captured === groups[3]?.total;
+    const financeDone  = groups[4]?.captured === groups[4]?.total;
     if (allDone) {
       narrative = 'All fields are captured. The project is ready for the Define gate review.';
-    } else if (problemDone && baselineDone && !charterDone && !financeDone) {
-      narrative = 'Problem and baseline are fully captured. Focus next on completing the project charter and financial impact sections.';
-    } else if (problemDone && baselineDone && charterDone && !financeDone) {
-      narrative = 'Problem, baseline, and charter are complete. Only the financial impact and project plan remain.';
+    } else if (problemDone && baselineDone && !sipocDone) {
+      narrative = 'Problem and baseline are captured. Next, work through the SIPOC diagram with the AI guide.';
+    } else if (problemDone && baselineDone && sipocDone && !charterDone && !financeDone) {
+      narrative = 'Problem, baseline, and SIPOC are complete. Focus next on the project charter and financial impact sections.';
+    } else if (problemDone && baselineDone && sipocDone && charterDone && !financeDone) {
+      narrative = 'Problem, baseline, SIPOC, and charter are complete. Only the financial impact and project plan remain.';
     } else if (!problemDone) {
       narrative = 'Start by describing the problem — what it is, where it happens, and why it matters.';
     } else {
@@ -1206,13 +1210,16 @@ function buildProgressNarrative() {
         </div>`
       : '';
 
+    const displayLabel = g.label === 'SIPOC'
+      ? 'SIPOC'
+      : g.label.charAt(0) + g.label.slice(1).toLowerCase();
     return `<div style="border-bottom:0.5px solid var(--border,#E4E2DC)">
       <div style="display:flex;align-items:center;gap:8px;padding:7px 0"
         ${clickHandler}>
         ${icon}
         <span style="font-size:11px;font-weight:500;
           color:var(--text,#1A1917);flex:1">
-          ${g.label.charAt(0)+g.label.slice(1).toLowerCase()}
+          ${displayLabel}
         </span>
         <span style="font-size:10px;color:${countColor}">${countText}</span>
         ${chevron}
@@ -1330,7 +1337,7 @@ function renderGate(){
     return;
   }
   const structured = getStructured();
-  const total = DEFINE_GATE_FIELDS.length; // 19
+  const total = DEFINE_GATE_FIELDS.length;
   const captured = DEFINE_GATE_FIELDS.filter(f => fieldHasValue(structured[f.key])).length;
   const pct = Math.round(captured/total*100);
   const missingFields = DEFINE_GATE_FIELDS.filter(f => !fieldHasValue(structured[f.key]));
@@ -1352,6 +1359,20 @@ function renderGate(){
 
   // FIELD GRID — grouped
   const groups = ['PROBLEM','BASELINE & TARGET','PROJECT CHARTER','FINANCIAL & PLAN'];
+  const sipocData = structured.sipoc;
+  const sipocSection = `
+    <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+      color:var(--text3,#99978F);text-transform:uppercase;
+      display:flex;align-items:center;gap:6px;margin:14px 0 8px">
+      SIPOC diagram
+      <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
+        display:block"></span>
+      ${sipocData
+        ? '<span style="font-size:9px;background:#E1F5EE;color:#085041;padding:1px 6px;border-radius:10px">Confirmed</span>'
+        : '<span style="font-size:9px;background:var(--surface2,#F8F7F4);color:var(--text3,#99978F);padding:1px 6px;border-radius:10px;border:0.5px dashed var(--border,#E4E2DC)">Not yet captured</span>'
+      }
+    </div>
+    <div id="gate-sipoc-container"></div>`;
   let gridHtml = '';
   groups.forEach(g => {
     let fields = DEFINE_GATE_FIELDS.filter(f => f.group === g);
@@ -1384,6 +1405,10 @@ function renderGate(){
       }
     });
     gridHtml += '</div></div>';
+    // Inject SIPOC section between BASELINE & TARGET and PROJECT CHARTER
+    if(g === 'BASELINE & TARGET'){
+      gridHtml += sipocSection;
+    }
   });
 
   // SUBMIT AREA
@@ -1411,6 +1436,16 @@ function renderGate(){
   }
 
   view.innerHTML = scoreBar + gridHtml + submitArea;
+  // Render the SIPOC diagram into its container (or a placeholder note)
+  if(sipocData){
+    renderSipocDiagram({...sipocData, draft: false}, 'gate-sipoc-container');
+  } else {
+    const el = document.getElementById('gate-sipoc-container');
+    if(el) el.innerHTML = `<div style="font-size:11px;color:var(--text3,#99978F);
+      font-style:italic;padding:6px 0">
+      Complete the SIPOC through the AI guide conversation to see it here.
+    </div>`;
+  }
 }
 
 // ─── TOOL BRIEFING ────────────────────────────────────────────────
@@ -1685,6 +1720,22 @@ function renderChat(){
     msgs.scrollTop=msgs.scrollHeight;
   }
   renderChips();
+  // Re-render SIPOC if last response has one
+  renderLiveSipoc();
+}
+
+function renderLiveSipoc(){
+  if(!S.lastAsk || !S.lastAsk.sipoc_diagram) return;
+  const msgs = document.getElementById('msgs');
+  if(!msgs) return;
+  let el = document.getElementById('sipoc-live');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'sipoc-live';
+    msgs.appendChild(el);
+  }
+  renderSipocDiagram(S.lastAsk.sipoc_diagram, 'sipoc-live');
+  msgs.scrollTop = msgs.scrollHeight;
 }
 
 function renderTurn(turn){
@@ -1738,11 +1789,14 @@ async function sendMessage(){
       S.lastAsk=resp;
       const aiTurn={turn:S.localChat.length+1,role:'ai',user:null,text:resp.answer,timestamp:new Date().toISOString(),citations:resp.citations||[]};
       S.localChat.push(aiTurn);
+      // Remove any stale sipoc-live container so the new one renders below this AI bubble
+      const stale=document.getElementById('sipoc-live'); if(stale) stale.remove();
       appendMsgToDOM(renderTurn(aiTurn));
       renderChips();
       updateRightPanel(resp);
       renderDiagram();
       renderSteps();
+      renderLiveSipoc();
     }else if(resp.detail){toast('Error: '+resp.detail);}
   }catch(e){document.getElementById('typing').classList.remove('show');toast('Could not reach backend');}
 }
@@ -2001,6 +2055,142 @@ function renderHistory() {
       ${summaryHtml}
     </div>`;
   }).join('');
+}
+
+// ─── SIPOC DIAGRAM ────────────────────────────────────────────────
+function renderSipocDiagram(sipoc, containerId) {
+  if (!sipoc) return;
+  const required = ['suppliers','inputs','process_steps','outputs','customers'];
+  if (!required.some(k => sipoc[k]?.length)) return;
+
+  const isDraft = sipoc.draft !== false;
+  const source = sipoc.source || 'generated';
+  const labels = {
+    suppliers: 'Suppliers',
+    inputs: 'Inputs',
+    process_steps: 'Process',
+    outputs: 'Outputs',
+    customers: 'Customers',
+  };
+
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const activeTab = container.dataset.sipocTab || 'table';
+
+  const draftBadge = isDraft
+    ? `<span style="background:#FEF3C7;color:#854F0B;font-size:9px;
+        padding:1px 6px;border-radius:10px;margin-left:6px">Draft</span>`
+    : `<span style="background:#E1F5EE;color:#085041;font-size:9px;
+        padding:1px 6px;border-radius:10px;margin-left:6px">Confirmed</span>`;
+  const sourceNote = source === 'upload'
+    ? `<span style="font-size:10px;color:var(--text3,#99978F);margin-left:6px">
+        · from uploaded document</span>`
+    : '';
+
+  const tabBtn = (name, label) => {
+    const active = activeTab === name;
+    return `<button onclick="
+      document.getElementById('${containerId}').dataset.sipocTab='${name}';
+      renderSipocDiagram(window._lastSipoc_${containerId},
+        '${containerId}')" style="padding:4px 12px;font-size:11px;
+      font-weight:${active?'600':'400'};cursor:pointer;border:none;
+      background:${active?'#534AB7':'var(--surface2,#F8F7F4)'};
+      color:${active?'#fff':'var(--text2,#5C5A55)'};
+      border-radius:${name==='table'?'4px 0 0 4px':'0 4px 4px 0'}">${label}</button>`;
+  };
+
+  // TABLE VIEW
+  const tableView = () => {
+    const cols = required.map(k => {
+      const vals = sipoc[k] || [];
+      const hasVals = vals.length > 0;
+      const headerBg = hasVals ? '#534AB7' : 'var(--surface2,#F8F7F4)';
+      const headerColor = hasVals ? '#fff' : 'var(--text3,#99978F)';
+      const cellBg = hasVals ? '#EEEDFE' : '#fff';
+      const cellColor = hasVals ? '#26215C' : 'var(--text3,#99978F)';
+      const cellStyle = hasVals ? '' : 'font-style:italic';
+      const rows = hasVals
+        ? vals.map(v => `<div style="padding:2px 0;font-size:11px;
+            color:${cellColor};${cellStyle}">${v}</div>`).join('')
+        : `<div style="padding:2px 0;font-size:11px;color:${cellColor};
+            font-style:italic">not yet captured</div>`;
+      return `<div style="flex:1;min-width:0">
+        <div style="padding:5px 6px;font-size:9px;font-weight:700;
+          letter-spacing:.06em;text-transform:uppercase;text-align:center;
+          background:${headerBg};color:${headerColor};border-radius:4px 4px 0 0;
+          border:0.5px solid var(--border,#E4E2DC);border-bottom:none">
+          ${labels[k]}${!hasVals?'<span style="font-size:8px;font-weight:400;margin-left:3px">draft</span>':''}
+        </div>
+        <div style="padding:6px 8px;background:${cellBg};
+          border:0.5px solid var(--border,#E4E2DC);border-top:none;
+          border-radius:0 0 4px 4px;min-height:40px">${rows}</div>
+      </div>`;
+    });
+    return `<div style="display:flex;gap:4px">${cols.join('')}</div>`;
+  };
+
+  // FLOW VIEW
+  const flowView = () => {
+    const parts = required.map((k, i) => {
+      const vals = sipoc[k] || [];
+      const hasVals = vals.length > 0;
+      const headerBg = hasVals ? '#534AB7' : 'var(--surface2,#F8F7F4)';
+      const headerColor = hasVals ? '#fff' : 'var(--text3,#99978F)';
+      const bodyBg = hasVals ? '#EEEDFE' : '#fff';
+      const bodyColor = hasVals ? '#26215C' : 'var(--text3,#99978F)';
+      const items = hasVals
+        ? vals.map(v => `<div style="padding:2px 0;font-size:10px;
+            line-height:1.4">${v}</div>`).join('')
+        : `<div style="font-size:10px;color:var(--text3,#99978F);
+            font-style:italic">not yet captured</div>`;
+      const col = `<div style="flex:1;min-width:0">
+        <div style="padding:5px 4px;font-size:9px;font-weight:700;
+          letter-spacing:.06em;text-transform:uppercase;text-align:center;
+          background:${headerBg};color:${headerColor};
+          border-radius:4px 4px 0 0">
+          ${labels[k]}
+        </div>
+        <div style="padding:6px;background:${bodyBg};color:${bodyColor};
+          border:0.5px solid var(--border,#E4E2DC);border-top:none;
+          border-radius:0 0 4px 4px;min-height:40px">${items}</div>
+      </div>`;
+      const arrow = i < required.length - 1
+        ? `<div style="align-self:center;padding:0 2px;color:var(--text3,#99978F);
+            font-size:16px;margin-top:18px">›</div>`
+        : '';
+      return col + arrow;
+    });
+    return `<div style="display:flex;align-items:stretch;gap:0">
+      ${parts.join('')}
+    </div>`;
+  };
+
+  const statusNote = `<div style="font-size:10px;color:#854F0B;
+    background:#FEF3C7;border-radius:4px;padding:5px 8px;margin-top:8px;
+    display:flex;align-items:center;gap:5px">
+    <i class="ti ti-info-circle" style="font-size:12px"></i>
+    ${isDraft
+      ? 'This is an AI-generated draft — confirm each column with your team'
+      : 'SIPOC confirmed by the team'}
+  </div>`;
+
+  container.innerHTML = `
+    <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+      border-radius:8px;padding:12px;margin-top:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;
+        margin-bottom:10px">
+        <div style="font-size:11px;font-weight:600;
+          color:var(--text,#1A1917)">
+          SIPOC diagram${draftBadge}${sourceNote}
+        </div>
+        <div style="display:flex">${tabBtn('table','Table')}${tabBtn('flow','Flow')}</div>
+      </div>
+      ${activeTab === 'flow' ? flowView() : tableView()}
+      ${statusNote}
+    </div>`;
+
+  // Store sipoc data on window for tab toggle re-renders
+  window[`_lastSipoc_${containerId}`] = sipoc;
 }
 
 // ─── RIGHT PANEL ─────────────────────────────────────────────────

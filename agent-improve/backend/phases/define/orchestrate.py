@@ -15,6 +15,7 @@ from backend.core.prompts import (
     REFLECTION_CHECK,
     SIPOC_DRAFT_PROMPT,
 )
+from backend.knowledge.retriever import search_evidence
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,10 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
         _problem_statement_complete(current_define)
         and not sipoc_already_captured
     ):
-        sipoc_diagram = _generate_sipoc_draft(current_define, case_meta)
+        case_id = state.get("case_id") or ""
+        sipoc_diagram = _generate_sipoc_draft(
+            current_define, case_meta, case_id=case_id
+        )
 
     elif sipoc_already_captured:
         # Return confirmed SIPOC (draft=False) so UI can display it
@@ -174,12 +178,46 @@ def _reflect(response: str) -> str:
         return response
 
 
-def _generate_sipoc_draft(define_inputs: dict, case_meta: dict) -> dict | None:
-    """Generate a plausible draft SIPOC from captured problem fields.
-    Returns dict with five SIPOC keys + draft:True, or None on failure."""
+def _generate_sipoc_draft(
+    define_inputs: dict,
+    case_meta: dict,
+    case_id: str = "",
+) -> dict | None:
+    """Generate a SIPOC draft.
+    Priority:
+      1. If uploaded evidence contains SIPOC columns -> use those
+         (draft=True, source='upload')
+      2. Otherwise -> generate from problem fields via LLM
+         (draft=True, source='generated')
+    Returns dict with five SIPOC keys + draft:True + source, or None.
+    """
     required = ["what", "where", "who_affected"]
     if not all(define_inputs.get(k) for k in required):
         return None
+
+    # -- Priority 1: search uploaded evidence for SIPOC content -----------
+    if case_id:
+        try:
+            evidence_results = search_evidence(
+                "SIPOC suppliers inputs process steps outputs customers",
+                case_id=case_id,
+                k=3,
+            )
+            for result in evidence_results:
+                content = result.get("content", "")
+                sipoc_from_upload = _extract_sipoc_from_text(content)
+                if sipoc_from_upload:
+                    sipoc_from_upload["draft"] = True
+                    sipoc_from_upload["source"] = "upload"
+                    logger.info(
+                        "SIPOC draft built from uploaded evidence for %s",
+                        case_id,
+                    )
+                    return sipoc_from_upload
+        except Exception as e:
+            logger.warning("Evidence SIPOC search failed: %s", e)
+
+    # -- Priority 2: generate from problem fields -------------------------
     prompt = SIPOC_DRAFT_PROMPT.format(
         what=define_inputs.get("what", ""),
         where=define_inputs.get("where", ""),
@@ -199,14 +237,66 @@ def _generate_sipoc_draft(define_inputs: dict, case_meta: dict) -> dict | None:
         start = text.find("{")
         end = text.rfind("}") + 1
         if start >= 0 and end > start:
-            data2 = json.loads(text[start:end])
-            required_keys = {"suppliers", "inputs", "process_steps",
-                             "outputs", "customers"}
-            if required_keys.issubset(data2.keys()):
-                data2["draft"] = True
-                return data2
+            data = json.loads(text[start:end])
+            required_keys = {
+                "suppliers", "inputs", "process_steps",
+                "outputs", "customers",
+            }
+            if required_keys.issubset(data.keys()):
+                data["draft"] = True
+                data["source"] = "generated"
+                return data
     except Exception as e:
         logger.warning("SIPOC draft generation failed: %s", e)
+    return None
+
+
+def _extract_sipoc_from_text(text: str) -> dict | None:
+    """Attempt to extract SIPOC columns from free text using LLM.
+    Returns dict with five SIPOC keys or None if extraction fails."""
+    if not text or len(text.strip()) < 20:
+        return None
+    llm = get_llm("extraction", temperature=0.0)
+    prompt = f"""Extract SIPOC columns from the following text.
+Return ONLY a JSON object with exactly these five keys:
+{{
+  "suppliers": [],
+  "inputs": [],
+  "process_steps": [],
+  "outputs": [],
+  "customers": []
+}}
+Each value is a list of short strings (5 words max per item).
+If a column cannot be determined from the text, return an empty list for it.
+If the text does not describe a process at all, return null.
+
+Text:
+{text[:2000]}
+
+Return JSON only. No explanation.
+"""
+    try:
+        result = llm.invoke([HumanMessage(content=prompt)])
+        raw = result.content.strip()
+        if raw.strip().lower() == "null":
+            return None
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        raw = raw.strip()
+        start = raw.find("{")
+        end = raw.rfind("}") + 1
+        if start >= 0 and end > start:
+            data = json.loads(raw[start:end])
+            required = {"suppliers", "inputs", "process_steps",
+                        "outputs", "customers"}
+            if required.issubset(data.keys()):
+                # Only return if at least one column has content
+                if any(data[k] for k in required):
+                    return data
+    except Exception as e:
+        logger.warning("_extract_sipoc_from_text failed: %s", e)
     return None
 
 
