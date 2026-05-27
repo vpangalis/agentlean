@@ -52,6 +52,18 @@ def get_knowledge_vectorstore() -> AzureSearch:
     )
 
 
+@lru_cache(maxsize=1)
+def get_evidence_vectorstore() -> AzureSearch:
+    """Cached vectorstore for improve_evidence_index."""
+    return AzureSearch(
+        azure_search_endpoint=settings.AZURE_SEARCH_ENDPOINT,
+        azure_search_key=settings.AZURE_SEARCH_API_KEY,
+        index_name=settings.AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX,
+        embedding_function=get_embeddings(),
+        search_type="hybrid",
+    )
+
+
 def search_knowledge(query: str, phase: str = None,
                      k: int = 4) -> list[dict]:
     """Search improve_knowledge_index. Filter by phase if provided."""
@@ -91,4 +103,56 @@ def search_cases(query: str, k: int = 3) -> list[dict]:
         ]
     except Exception as e:
         logger.warning("Case search failed: %s", e)
+        return []
+
+
+def search_evidence(query: str, case_id: str, k: int = 4) -> list[dict]:
+    """Search improve_evidence_index filtered by case_id.
+    Returns uploaded document extracts for this specific case only."""
+    try:
+        import json
+        from azure.search.documents import SearchClient
+        from azure.search.documents.models import VectorizedQuery
+
+        search_client = SearchClient(
+            endpoint=settings.AZURE_SEARCH_ENDPOINT,
+            index_name=settings.AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX,
+            credential=AzureKeyCredential(settings.AZURE_SEARCH_API_KEY),
+        )
+
+        # Generate embedding for the query
+        embeddings = get_embeddings()
+        query_vector = embeddings.embed_query(query)
+
+        vector_query = VectorizedQuery(
+            vector=query_vector,
+            k_nearest_neighbors=k,
+            fields="content_vector",
+        )
+
+        results = search_client.search(
+            search_text=query,
+            vector_queries=[vector_query],
+            filter=f"case_id eq '{case_id}'",
+            select=["content", "metadata", "case_id"],
+            top=k,
+        )
+
+        output = []
+        for r in results:
+            meta = {}
+            try:
+                meta = json.loads(r.get("metadata") or "{}")
+            except Exception:
+                pass
+            output.append({
+                "content": r.get("content", ""),
+                "filename": meta.get("filename", ""),
+                "upload_phase": meta.get("upload_phase", ""),
+                "content_type": meta.get("content_type", ""),
+            })
+        return output
+
+    except Exception as e:
+        logger.warning("Evidence search failed: %s", e)
         return []

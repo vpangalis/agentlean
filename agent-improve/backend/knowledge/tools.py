@@ -4,7 +4,7 @@ import logging
 
 from langchain_core.tools import tool
 
-from backend.knowledge.retriever import search_knowledge, search_cases
+from backend.knowledge.retriever import search_knowledge, search_cases, search_evidence
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,25 @@ def search_improve_cases(query: str) -> str:
         return "No similar improvement cases found."
     return "\n\n".join(
         f"[Case {r['case_id']}: {r['title']}] {r['content']}"
+        for r in results
+    )
+
+
+@tool
+def search_improve_evidence(query: str, case_id: str) -> str:
+    """Search uploaded project documents for this specific case.
+    Use when the team has uploaded process maps, SIPOC diagrams,
+    flipcharts, or other documents and you need to reference them.
+    Always requires case_id — never searches across cases.
+    Source: improve_evidence_index"""
+    if not case_id:
+        return "case_id is required for evidence search."
+    results = search_evidence(query, case_id=case_id)
+    if not results:
+        return "No uploaded documents found for this case."
+    return "\n\n".join(
+        f"[Uploaded: {r['filename']} · phase: {r['upload_phase']}] "
+        f"{r['content']}"
         for r in results
     )
 

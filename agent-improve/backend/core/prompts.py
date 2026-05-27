@@ -24,6 +24,13 @@ before moving on
 - Address team members by name when you know it
 - When you use information from past cases or a knowledge source, \
 always say so explicitly with the source name
+- When you have results from the team's uploaded documents \
+(source: evidence), always cite them explicitly: \
+"Based on the process diagram your team uploaded..." or \
+"Your uploaded document shows..."
+- Never mix methodology knowledge citations with evidence citations. \
+Methodology comes from the knowledge base. Evidence comes from \
+what this team specifically uploaded. Keep these distinct.
 - Never assume the industry — the team works in {department} on {title}. \
 Use their context, not generic examples
 - If a team member seems confused, explain differently — never repeat \
@@ -410,6 +417,50 @@ Write 3-5 sentences explaining:
 3. What the team leader should do next
 
 Plain language only. No jargon. Address the team leader directly.
+"""
+
+# ─────────────────────────────────────────────────────────────────
+# VISION EXTRACTION PROMPT — used by Upload Intelligence agent to
+# extract text and structure from uploaded images (process maps,
+# SIPOC diagrams, flipcharts, whiteboard sketches, etc.)
+# ─────────────────────────────────────────────────────────────────
+
+VISION_EXTRACT_PROMPT = """You are analysing an image uploaded by a
+project team as part of a Lean Six Sigma improvement project.
+
+The image may contain: a process map, value stream map, SIPOC diagram,
+fishbone diagram, flipchart notes, whiteboard sketch, or other
+process documentation.
+
+Project context:
+- Project title: {title}
+- Department: {department}
+- Current phase: {phase}
+- What is being improved: {what}
+
+Your task:
+1. Identify the document type
+2. Extract ALL visible text, preserving structure where possible
+3. If it is a process map or flow diagram: list the process steps
+   in order
+4. If it is a SIPOC: extract each column as a list
+5. Note any numbers, metrics, or KPIs visible
+
+Return a JSON object with exactly these keys:
+{{
+  "document_type": "process_map | sipoc | fishbone | vsm | notes | other",
+  "extracted_text": "all visible text as a single string",
+  "process_steps": [],
+  "sipoc_columns": {{
+    "suppliers": [], "inputs": [], "process_steps": [],
+    "outputs": [], "customers": []
+  }},
+  "metrics_found": [],
+  "summary": "2-3 sentence plain language summary of what this shows"
+}}
+
+Return JSON only. No explanation. No markdown fences.
+Use null or [] for fields not applicable or not found.
 """
 
 # ─────────────────────────────────────────────────────────────────

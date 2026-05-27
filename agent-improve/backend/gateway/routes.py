@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
@@ -20,7 +21,8 @@ from backend.gateway.schemas import (
 )
 from backend.gateway.schemas import SummariseRequest, SummariseResponse
 from backend.storage.blob import blob_client
-from backend.storage.models import CaseDocument
+from backend.storage.models import CaseDocument, UploadRecord
+from backend.upload.agent import process_upload
 
 logger = logging.getLogger(__name__)
 
@@ -234,21 +236,134 @@ def upload_file(
     phase: str = Form(...),
     file: UploadFile = File(...),
 ):
-    """Upload a file â stub classification until Upload agent is implemented."""
+    """Upload a file, extract content via Vision LLM if image,
+    store in blob, index into improve_evidence_index."""
     if blob_client is None:
         raise HTTPException(503, "Storage not configured")
-    data = file.file.read()
+
+    file_bytes = file.file.read()
+    mime_type = file.content_type or "application/octet-stream"
+
+    case = blob_client.load_case(case_id)
+    if case is None:
+        raise HTTPException(404, f"Case {case_id} not found")
+
+    define_phase = case.phases.get("define")
+    define_structured = (define_phase.structured or {}) if define_phase else {}
+    case_meta = {
+        "title": case.title,
+        "department": case.department,
+        "belt_level": case.belt_level,
+        "what": define_structured.get("what", ""),
+    }
+
+    # Save raw file to blob
     blob_path = blob_client.upload_file(
-        case_id,
-        file.filename,
-        data,
-        file.content_type or "application/octet-stream",
+        case_id, file.filename, file_bytes, mime_type,
     )
+
+    # Process: classify + extract via Upload Intelligence agent
+    upload_record = process_upload(
+        case_id=case_id,
+        filename=file.filename,
+        file_bytes=file_bytes,
+        mime_type=mime_type,
+        uploaded_by=uploaded_by,
+        phase=phase,
+        case_meta=case_meta,
+    )
+    upload_record["blob_path"] = blob_path
+
+    # Index into improve_evidence_index (best-effort)
+    indexed = False
+    try:
+        _index_upload(case_id, upload_record)
+        indexed = True
+        upload_record["indexed"] = True
+    except Exception as e:
+        logger.warning(
+            "Evidence indexing failed for %s: %s", file.filename, e,
+        )
+
+    # Persist upload record into case blob (canonical phases[phase].uploads)
+    phase_record = case.phases.get(phase)
+    if phase_record is not None:
+        classification = (
+            f"{upload_record['content_type']}"
+            f"{' · indexed' if indexed else ' · pending'}"
+        )
+        phase_record.uploads.append(UploadRecord(
+            filename=file.filename,
+            blob_path=blob_path,
+            uploaded_by=uploaded_by,
+            uploaded_at=upload_record["timestamp"],
+            classification=classification,
+        ))
+        blob_client.save_case(case)
+
     return {
         "blob_path": blob_path,
         "filename": file.filename,
-        "classification": "pending â upload agent not yet implemented",
+        "content_type": upload_record["content_type"],
+        "summary": upload_record["summary"],
+        "sipoc_columns": upload_record.get("sipoc_columns"),
+        "indexed": indexed,
     }
+
+
+def _index_upload(case_id: str, upload_record: dict) -> None:
+    """Index extracted text into improve_evidence_index."""
+    import hashlib
+    from azure.search.documents import SearchClient
+    from azure.core.credentials import AzureKeyCredential
+    from backend.core.config import settings
+    from backend.knowledge.retriever import get_embeddings
+
+    extracted_text = (upload_record.get("extracted_text") or "").strip()
+    if not extracted_text:
+        logger.info(
+            "Skipping evidence indexing - no extracted text for %s",
+            upload_record.get("filename"),
+        )
+        return
+
+    search_client = SearchClient(
+        endpoint=settings.AZURE_SEARCH_ENDPOINT,
+        index_name=settings.AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX,
+        credential=AzureKeyCredential(settings.AZURE_SEARCH_API_KEY),
+    )
+
+    embeddings = get_embeddings()
+    embedding = embeddings.embed_query(extracted_text)
+
+    doc_id = hashlib.sha256(
+        f"{case_id}_{upload_record['filename']}_{upload_record['timestamp']}"
+        .encode()
+    ).hexdigest()[:32]
+
+    metadata = json.dumps({
+        "case_id": case_id,
+        "upload_phase": upload_record.get("phase"),
+        "content_type": upload_record.get("content_type"),
+        "filename": upload_record.get("filename"),
+        "blob_path": upload_record.get("blob_path"),
+        "uploaded_by": upload_record.get("uploaded_by"),
+        "timestamp": upload_record.get("timestamp"),
+    })
+
+    document = {
+        "id": doc_id,
+        "content": extracted_text,
+        "content_vector": embedding,
+        "metadata": metadata,
+        "case_id": case_id,
+    }
+
+    search_client.upload_documents([document])
+    logger.info(
+        "Indexed %s -> improve_evidence_index doc %s",
+        upload_record["filename"], doc_id,
+    )
 
 
 @router.post("/gate", response_model=GateSubmitResponse)

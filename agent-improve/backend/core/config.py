@@ -65,6 +65,11 @@ class Settings(BaseSettings):
         env="AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX",
         description="Azure AI Search index for Agent Improve knowledge.",
     )
+    AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX: str = Field(
+        default="improve_evidence_index",
+        env="AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX",
+        description="Azure AI Search index for Agent Improve uploaded evidence.",
+    )
     AZURE_SEARCH_RESOLVE_CASE_INDEX: str = Field(
         "case_index_v3",
         env="AZURE_SEARCH_RESOLVE_CASE_INDEX",
@@ -154,6 +159,7 @@ settings = Settings(
     AZURE_SEARCH_API_KEY=os.getenv("AZURE_SEARCH_API_KEY", ""),
     AZURE_SEARCH_IMPROVE_CASE_INDEX=os.getenv("AZURE_SEARCH_IMPROVE_CASE_INDEX", "improve_case_index"),
     AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX=os.getenv("AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX", "improve_knowledge_index"),
+    AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX=os.getenv("AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX", "improve_evidence_index"),
     AZURE_SEARCH_RESOLVE_CASE_INDEX=os.getenv("AZURE_SEARCH_RESOLVE_CASE_INDEX", "case_index_v3"),
     AZURE_SEARCH_RESOLVE_KNOWLEDGE_INDEX=os.getenv("AZURE_SEARCH_RESOLVE_KNOWLEDGE_INDEX", "knowledge_index_v2"),
     AZURE_SEARCH_RESOLVE_EVIDENCE_INDEX=os.getenv("AZURE_SEARCH_RESOLVE_EVIDENCE_INDEX", "evidence_index_v1"),
