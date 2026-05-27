@@ -40,17 +40,14 @@ the same question in the same words
 
 ORCHESTRATOR_DEFINE_CONTEXT = """
 CURRENT PHASE: Define
-GOAL: Help the team frame the problem precisely and build a complete
-project charter before moving to Measure.
+GOAL: Guide the team through four work products in sequence before
+the gate: (1) Problem statement, (2) SIPOC diagram, (3) Baseline
+metric, (4) Project charter including financials and milestones.
 
-BELT-LEVEL TIMELINE GUIDANCE — use this to frame milestone questions:
-- Yellow Belt project: typically 30–40 days total
-- Green Belt project: typically 90 days total
-- Black Belt project: typically 120+ days, varies by complexity
-The belt level for this project is available in case_metadata["belt_level"].
-Use it to suggest realistic milestones and completion dates.
+WORK PRODUCT SEQUENCE — follow this order strictly:
 
-WHAT TO COVER in this phase (in order):
+WORK PRODUCT 1 — PROBLEM STATEMENT (5W2H)
+Cover questions 1–7 before moving to the SIPOC:
 1.  What is the problem in plain observable terms?
 2.  Where does it happen — which process, location, or asset?
 3.  When did it start — is it constant or did something change?
@@ -58,23 +55,55 @@ WHAT TO COVER in this phase (in order):
 5.  Why does it matter — what is the business impact in numbers?
 6.  How bad is it today — what is the baseline number?
 7.  What does good look like — what is the target?
-8.  Who is the sponsor and what is the team?
-9.  What is the current cost of the problem — complaints handling
-    time, churn, rework, downtime, or other measurable cost?
-    Ask for a number with a unit (e.g. €35k/month, 120 hours/week).
-10. What saving does the team expect if the target is achieved?
-    Ask for a projected number (e.g. €20k/month saving, 50% reduction
-    in rework hours).
-11. What are the key project milestones?
-    Frame this using the belt-level guidance above. For example for
-    a Green Belt: "With roughly 90 days for this project, when do
-    you expect to complete each phase — Define, Measure, Analyse,
-    Improve, Control?"
-12. When does the team aim to have the full project complete?
 
-Start with question 1. Advance only when the team has given a
-clear answer to the current step. Questions 9–12 come after the
-team and sponsor are confirmed (step 8).
+When all 7 questions are answered, announce the transition to
+SIPOC using a warm acknowledgement. Do NOT move to SIPOC until
+what/where/when/who_affected/why_it_matters/how_much_baseline/
+how_goal are all captured.
+
+WORK PRODUCT 2 — SIPOC DIAGRAM
+Explain the SIPOC briefly in plain language before asking questions.
+Cover each column in order — ask about one column at a time:
+S. Who or what supplies inputs to this process?
+   (people, systems, teams, or upstream processes)
+I. What goes into the process?
+   (requests, data, materials, information)
+P. What are the 4–6 main steps of the process?
+   (verb phrases, high level — not a detailed flowchart)
+O. What does the process produce or deliver?
+   (outputs, results, documents, decisions)
+C. Who receives the outputs?
+   (customers, downstream teams, systems)
+
+After each SIPOC answer, confirm what you heard before asking
+the next column. When all five columns are filled, summarise
+the complete SIPOC back to the team and ask for confirmation.
+
+WORK PRODUCT 3 — BASELINE METRIC
+After SIPOC is confirmed:
+8.  What is the primary metric — the one number that defines
+    success? (name and unit)
+9.  What is the secondary metric to watch for unintended effects?
+
+WORK PRODUCT 4 — PROJECT CHARTER
+After baseline is confirmed:
+10. Who is the sponsor and what is the team?
+11. What is the current cost of the problem?
+    Ask for a number with a unit (e.g. €35k/month).
+12. What saving does the team expect if the target is achieved?
+13. What are the key milestones?
+    Frame using belt-level guidance:
+    - Yellow Belt: 30–40 days total
+    - Green Belt: ~90 days total
+    - Black Belt: 120+ days
+14. When does the team aim to complete the full project?
+
+BELT-LEVEL TIMELINE GUIDANCE:
+The belt level is available in case_metadata["belt_level"].
+Use it when framing milestone and completion date questions.
+
+Start with question 1. Never skip ahead. Announce each work
+product transition explicitly so the team knows where they are.
 """
 
 ORCHESTRATOR_MEASURE_CONTEXT = """
@@ -132,13 +161,61 @@ WHAT TO COVER in this phase (in order):
 """
 
 # ─────────────────────────────────────────────────────────────────
+# SIPOC PROMPTS — used by orchestrate_define to seed and announce
+# the SIPOC work product once the problem statement is complete
+# ─────────────────────────────────────────────────────────────────
+
+SIPOC_DRAFT_PROMPT = """You are helping a team map their process
+using a SIPOC diagram. Based on the problem context below, generate
+a plausible draft SIPOC as a JSON object.
+
+A SIPOC has exactly five keys:
+- suppliers: list of 2-4 people, teams, or systems that provide
+  inputs to the process
+- inputs: list of 2-4 things that enter the process (data, materials,
+  requests, information)
+- process_steps: list of 4-6 high-level steps the process follows,
+  written as verb phrases (e.g. "Receive customer call")
+- outputs: list of 2-3 things the process produces
+- customers: list of 1-3 people or teams who receive the outputs
+
+Problem context:
+- What: {what}
+- Where: {where}
+- Who affected: {who_affected}
+- Process owner: {process_owner}
+- Department: {department}
+
+Return ONLY a JSON object with exactly these five keys.
+Each value is a list of short strings (5 words max per item).
+No explanation. No markdown. No extra keys.
+"""
+
+SIPOC_TRANSITION_MESSAGE = """The team has just confirmed their
+problem statement. Write a short transition message (3-4 sentences)
+that:
+1. Acknowledges the problem is well framed
+2. Introduces the SIPOC diagram — explain in plain language what
+   it is (a map of the process from end to end showing who supplies
+   it, what goes in, the main steps, what comes out, and who
+   receives it) and why it matters at this stage
+3. Tells the team what they will do next — work through the five
+   columns together
+
+Plain language only. No jargon. No bullet points. No questions —
+this is a transition announcement, not a question.
+Maximum 4 sentences.
+"""
+
+# ─────────────────────────────────────────────────────────────────
 # EXTRACTION PROMPTS — convert conversation to structured phase_inputs
 # Called after every team turn. Returns partial JSON only.
 # ─────────────────────────────────────────────────────────────────
 
-EXTRACTION_DEFINE = """Extract confirmed field values from the conversation below.
-Return ONLY a JSON object. Use null for any field not yet explicitly confirmed
-by the team. Do not infer — only extract what was clearly stated.
+EXTRACTION_DEFINE = """Extract confirmed field values from the
+conversation below. Return ONLY a JSON object. Use null for any
+field not yet explicitly confirmed by the team. Do not infer —
+only extract what was clearly stated.
 
 Fields to extract:
 {
@@ -160,24 +237,29 @@ Fields to extract:
   "current_cost": null,
   "expected_saving": null,
   "project_milestones": null,
-  "estimated_completion_date": null
+  "estimated_completion_date": null,
+  "sipoc": null
 }
 
 Field extraction rules:
-- "how_goal": extract the TARGET state the team wants to REACH
-  (e.g. "under 20 per week"). Never store the current/baseline
-  value here. If the team says "reduce FROM 28 TO under 20",
-  how_goal = "under 20 per week", how_much_baseline = "28 per week".
-- "current_cost": a number with unit representing the cost of the
-  problem today (e.g. "€35k/month", "120 hours/week lost").
-- "expected_saving": the projected saving after improvement
-  (e.g. "€20k/month", "reduce rework by 50%").
-- "project_milestones": free text describing key phase completion
-  dates or durations as stated by the team.
-- "estimated_completion_date": the final project end date or
-  duration (e.g. "end of Q3 2026", "within 6 months").
-- "team_members": list of objects with "name" and "role" keys.
-  Only include people explicitly named by the team.
+- "how_goal": extract the TARGET state only (e.g. "under 20 per
+  week"). Never store the baseline value here.
+- "current_cost": number with unit (e.g. "€35k/month").
+- "expected_saving": projected saving (e.g. "€20k/month").
+- "project_milestones": free text as stated by the team.
+- "estimated_completion_date": end date or duration.
+- "team_members": list of {name, role} objects.
+- "sipoc": extract ONLY when the team has explicitly confirmed all
+  five columns. Return as:
+  {
+    "suppliers": [],
+    "inputs": [],
+    "process_steps": [],
+    "outputs": [],
+    "customers": []
+  }
+  If any column is missing or unconfirmed, return null for the
+  entire sipoc field — do not return a partial dict.
 
 Conversation:
 {conversation}

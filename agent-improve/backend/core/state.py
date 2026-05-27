@@ -39,3 +39,8 @@ class ImproveGraphState(TypedDict, total=False):
     # Case metadata — loaded from blob at session start
     # {title, belt_level, leader, team, created_at, target_date, department}
     case_metadata: dict | None
+
+    # SIPOC diagram payload — written by orchestrate_define when the
+    # problem statement is complete, or when a confirmed SIPOC exists.
+    # Shape: {suppliers, inputs, process_steps, outputs, customers, draft}
+    sipoc_diagram: dict | None

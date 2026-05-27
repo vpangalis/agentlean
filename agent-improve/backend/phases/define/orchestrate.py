@@ -13,6 +13,7 @@ from backend.core.prompts import (
     ORCHESTRATOR_CONTEXT_MAP,
     EXTRACTION_MAP,
     REFLECTION_CHECK,
+    SIPOC_DRAFT_PROMPT,
 )
 
 logger = logging.getLogger(__name__)
@@ -67,9 +68,25 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
     }
     updated_history = chat_history + [new_turn]
 
+    # ── 5. Determine if sipoc_diagram should be included ──────────────
+    sipoc_diagram = None
+    current_define = phase_inputs.get("define") or {}
+    sipoc_already_captured = bool(current_define.get("sipoc"))
+
+    if (
+        _problem_statement_complete(current_define)
+        and not sipoc_already_captured
+    ):
+        sipoc_diagram = _generate_sipoc_draft(current_define, case_meta)
+
+    elif sipoc_already_captured:
+        # Return confirmed SIPOC (draft=False) so UI can display it
+        sipoc_diagram = {**current_define["sipoc"], "draft": False}
+
     return {
         "phase_inputs": phase_inputs,
         "chat_history": updated_history,
+        "sipoc_diagram": sipoc_diagram,   # None when not applicable
     }
 
 
@@ -155,3 +172,50 @@ def _reflect(response: str) -> str:
     except Exception as e:
         logger.warning("Reflection failed, returning original: %s", e)
         return response
+
+
+def _generate_sipoc_draft(define_inputs: dict, case_meta: dict) -> dict | None:
+    """Generate a plausible draft SIPOC from captured problem fields.
+    Returns dict with five SIPOC keys + draft:True, or None on failure."""
+    required = ["what", "where", "who_affected"]
+    if not all(define_inputs.get(k) for k in required):
+        return None
+    prompt = SIPOC_DRAFT_PROMPT.format(
+        what=define_inputs.get("what", ""),
+        where=define_inputs.get("where", ""),
+        who_affected=define_inputs.get("who_affected", ""),
+        process_owner=define_inputs.get("process_owner", "the process owner"),
+        department=case_meta.get("department", "the department"),
+    )
+    llm = get_llm("extraction", temperature=0.3)
+    try:
+        result = llm.invoke([HumanMessage(content=prompt)])
+        text = result.content.strip()
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        text = text.strip()
+        start = text.find("{")
+        end = text.rfind("}") + 1
+        if start >= 0 and end > start:
+            data2 = json.loads(text[start:end])
+            required_keys = {"suppliers", "inputs", "process_steps",
+                             "outputs", "customers"}
+            if required_keys.issubset(data2.keys()):
+                data2["draft"] = True
+                return data2
+    except Exception as e:
+        logger.warning("SIPOC draft generation failed: %s", e)
+    return None
+
+
+def _problem_statement_complete(define_inputs: dict) -> bool:
+    """Returns True when all 7 problem statement fields are captured."""
+    required = [
+        "what", "where", "when", "who_affected",
+        "why_it_matters", "how_much_baseline", "how_goal"
+    ]
+    return all(
+        define_inputs.get(k) for k in required
+    )

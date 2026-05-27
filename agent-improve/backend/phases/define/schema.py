@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -51,4 +53,13 @@ class DefinePhaseInput(BaseModel):
     )
     estimated_completion_date: str = Field(
         ..., description="Expected project end date or duration e.g. end of Q3 2026"
+    )
+
+    # SIPOC diagram
+    sipoc: Optional[dict] = Field(
+        default=None,
+        description=(
+            "SIPOC map with keys: suppliers (list[str]), inputs (list[str]), "
+            "process_steps (list[str]), outputs (list[str]), customers (list[str])"
+        )
     )

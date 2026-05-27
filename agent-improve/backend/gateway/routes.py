@@ -195,6 +195,8 @@ def ask(request: AskRequest) -> AskResponse:
             "Processing...",
         )
 
+        sipoc_diagram = result.get("sipoc_diagram")
+
         return AskResponse(
             answer=last_ai,
             phase=request.phase,
@@ -215,6 +217,7 @@ def ask(request: AskRequest) -> AskResponse:
                 for c in (state.get("citations") or [])
             ],
             suggestion_chips=_build_chips(request.phase, phase_data),
+            sipoc_diagram=sipoc_diagram,
             escalated=state.get("escalated", False),
         )
     except HTTPException:

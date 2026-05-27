@@ -80,6 +80,7 @@ class AskResponse(BaseModel):
     gate_status: GateStatus
     citations: list[CitationOut] = []
     suggestion_chips: list[str] = []             # 2-3 suggested follow-up questions
+    sipoc_diagram: Optional[dict] = None         # SIPOC map; draft:True when AI-generated
     escalated: bool = False
 
 
