@@ -51,6 +51,47 @@ class DefinePhaseInput(BaseModel):
     project_milestones: str = Field(
         ..., description="Key milestones as free text e.g. Define done Week 2, Measure done Week 6"
     )
+
+    # Goal & Scope
+    goal_statement: str = Field(
+        ...,
+        description=(
+            "Single precise goal sentence e.g. "
+            "'Reduce complaints from 28 to under 20 per week within 6 months'"
+        )
+    )
+    scope_in: str = Field(
+        ...,
+        description="What is explicitly in scope for this project"
+    )
+    scope_out: str = Field(
+        ...,
+        description="What is explicitly out of scope for this project"
+    )
+
+    # Business case & benefits
+    business_case_rationale: str = Field(
+        ...,
+        description=(
+            "Strategic rationale — why the organisation should invest "
+            "in this project, linked to business objectives"
+        )
+    )
+    hard_benefits: str = Field(
+        ...,
+        description=(
+            "Quantifiable financial benefits e.g. "
+            "'€20k/month cost reduction, 30% reduction in rework hours'"
+        )
+    )
+    soft_benefits: str = Field(
+        ...,
+        description=(
+            "Qualitative benefits e.g. "
+            "'Improved customer satisfaction, higher team morale'"
+        )
+    )
+
     estimated_completion_date: str = Field(
         ..., description="Expected project end date or duration e.g. end of Q3 2026"
     )

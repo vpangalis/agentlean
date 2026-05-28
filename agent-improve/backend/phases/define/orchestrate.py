@@ -41,6 +41,9 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
 
     # Merge extracted values into phase_inputs (null values do not overwrite)
     define_inputs = phase_inputs.get("define") or {}
+    # Snapshot the pre-merge state so section completion detection can tell
+    # which section crossed the completion threshold on THIS turn.
+    previous_define = dict(define_inputs)
     for key, value in extracted.items():
         if value is not None and value != [] and value != "":
             define_inputs[key] = value
@@ -99,11 +102,17 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
             current_define, case_meta
         )
 
+    # ── 7. Detect section completion ─────────────────────────
+    section_completed = _detect_section_completion(
+        current_define, previous_define
+    )
+
     return {
         "phase_inputs": phase_inputs,
         "chat_history": updated_history,
         "sipoc_diagram": sipoc_diagram,   # None when not applicable
         "visualisation": visualisation,
+        "section_completed": section_completed,
     }
 
 
@@ -322,6 +331,47 @@ def _problem_statement_complete(define_inputs: dict) -> bool:
     return all(
         define_inputs.get(k) for k in required
     )
+
+
+def _detect_section_completion(
+    define_inputs: dict,
+    previous_inputs: dict,
+) -> str | None:
+    """Detect which section just became complete this turn.
+    Compares current vs previous extraction to find the section
+    that crossed the completion threshold this turn.
+    Returns section key string or None.
+    """
+
+    def all_present(keys: list[str]) -> bool:
+        return all(define_inputs.get(k) for k in keys)
+
+    def was_incomplete(keys: list[str]) -> bool:
+        return not all(previous_inputs.get(k) for k in keys)
+
+    sections = [
+        ("problem_statement", [
+            "what", "where", "when", "who_affected",
+            "why_it_matters", "how_much_baseline", "how_goal",
+        ]),
+        ("sipoc", ["sipoc"]),
+        ("goal_scope", ["goal_statement", "scope_in", "scope_out"]),
+        ("business_case", [
+            "business_case_rationale", "current_cost",
+            "expected_saving", "hard_benefits", "soft_benefits",
+        ]),
+        ("charter", [
+            "process_owner", "sponsor", "team_members",
+            "belt_level", "target_date", "primary_metric",
+            "estimated_completion_date", "project_milestones",
+        ]),
+    ]
+
+    for section_key, required_fields in sections:
+        if all_present(required_fields) and was_incomplete(required_fields):
+            return section_key
+
+    return None
 
 
 def _build_5w2h_visualisation(define_inputs: dict, case_meta: dict) -> dict | None:

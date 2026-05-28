@@ -82,6 +82,7 @@ class AskResponse(BaseModel):
     suggestion_chips: list[str] = []             # 2-3 suggested follow-up questions
     sipoc_diagram: Optional[dict] = None         # SIPOC map; draft:True when AI-generated
     visualisation: Optional[dict] = None         # inline visual payload (e.g. 5W2H mindmap)
+    section_completed: Optional[str] = None      # which Gate section just completed this turn
     escalated: bool = False
 
 

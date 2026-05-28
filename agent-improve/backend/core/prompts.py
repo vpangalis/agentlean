@@ -47,70 +47,113 @@ the same question in the same words
 
 ORCHESTRATOR_DEFINE_CONTEXT = """
 CURRENT PHASE: Define
-GOAL: Guide the team through four work products in sequence before
-the gate: (1) Problem statement, (2) SIPOC diagram, (3) Baseline
-metric, (4) Project charter including financials and milestones.
+GOAL: Guide the team through five work products in sequence.
+Each work product maps to a section in the Define Gate document.
+When a work product is complete, announce it explicitly so the
+team knows the Gate tab has been updated.
 
-WORK PRODUCT SEQUENCE — follow this order strictly:
+WORK PRODUCT SEQUENCE:
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 WORK PRODUCT 1 — PROBLEM STATEMENT (5W2H)
-Cover questions 1–7 before moving to the SIPOC:
-1.  What is the problem in plain observable terms?
-2.  Where does it happen — which process, location, or asset?
-3.  When did it start — is it constant or did something change?
-4.  Who is affected and who owns the process?
-5.  Why does it matter — what is the business impact in numbers?
-6.  How bad is it today — what is the baseline number?
-7.  What does good look like — what is the target?
+Maps to: Gate section "Problem Statement"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Ask in order:
+1. What is the problem in plain observable terms?
+2. Where does it happen — which process, location, or asset?
+3. When did it start — constant or did something trigger it?
+4. Who is affected and who owns the process?
+5. Why does it matter — business impact in numbers?
+6. How bad is it today — baseline number?
+7. What does good look like — the target?
 
-When all 7 questions are answered, announce the transition to
-SIPOC using a warm acknowledgement. Do NOT move to SIPOC until
-what/where/when/who_affected/why_it_matters/how_much_baseline/
-how_goal are all captured.
+When all 7 are captured, confirm back to the team:
+"Your problem statement is complete. The Gate tab has been
+updated with your Problem Statement section. Next we will map
+the process using a SIPOC diagram."
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 WORK PRODUCT 2 — SIPOC DIAGRAM
-Explain the SIPOC briefly in plain language before asking questions.
-Cover each column in order — ask about one column at a time:
-S. Who or what supplies inputs to this process?
-   (people, systems, teams, or upstream processes)
-I. What goes into the process?
-   (requests, data, materials, information)
-P. What are the 4–6 main steps of the process?
-   (verb phrases, high level — not a detailed flowchart)
-O. What does the process produce or deliver?
-   (outputs, results, documents, decisions)
-C. Who receives the outputs?
-   (customers, downstream teams, systems)
+Maps to: Gate section "SIPOC"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Explain SIPOC briefly in plain language. Ask one column at a
+time: Suppliers → Inputs → Process steps → Outputs → Customers.
+Confirm each column before moving to the next.
 
-After each SIPOC answer, confirm what you heard before asking
-the next column. When all five columns are filled, summarise
-the complete SIPOC back to the team and ask for confirmation.
+When all 5 columns confirmed:
+"Your SIPOC diagram is complete. The Gate tab has been updated
+with your SIPOC section. Now let's set a clear goal and define
+the project scope."
 
-WORK PRODUCT 3 — BASELINE METRIC
-After SIPOC is confirmed:
-8.  What is the primary metric — the one number that defines
-    success? (name and unit)
-9.  What is the secondary metric to watch for unintended effects?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WORK PRODUCT 3 — GOAL STATEMENT & SCOPE
+Maps to: Gate section "Project Charter" (part 1)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+8. Goal statement — ask for ONE precise sentence:
+   "Reduce [metric] from [baseline] to [target] by [date/duration]"
+   Example: "Reduce complaints from 28 to under 20 per week
+   within 6 months"
+9. Scope in — what processes, teams, locations are included?
+10. Scope out — what is explicitly excluded? (prevents scope creep)
 
-WORK PRODUCT 4 — PROJECT CHARTER
-After baseline is confirmed:
-10. Who is the sponsor and what is the team?
-11. What is the current cost of the problem?
-    Ask for a number with a unit (e.g. €35k/month).
-12. What saving does the team expect if the target is achieved?
-13. What are the key milestones?
-    Frame using belt-level guidance:
-    - Yellow Belt: 30–40 days total
-    - Green Belt: ~90 days total
-    - Black Belt: 120+ days
-14. When does the team aim to complete the full project?
+When all three captured:
+"Goal and scope are confirmed. The Gate tab has been updated
+with your Goal and Scope. Now let's build the business case."
 
-BELT-LEVEL TIMELINE GUIDANCE:
-The belt level is available in case_metadata["belt_level"].
-Use it when framing milestone and completion date questions.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WORK PRODUCT 4 — BUSINESS CASE & BENEFITS
+Maps to: Gate sections "Business Case" + "Benefits Analysis"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+11. Business case rationale — why should the organisation invest?
+    Link to strategic objectives (customer satisfaction targets,
+    cost reduction goals, regulatory requirements, etc.)
+12. Current cost of the problem — ask for a number with unit
+    (e.g. €35k/month, 120 hours/week)
+13. Expected saving — projected benefit after improvement
+14. Hard benefits — quantifiable financial benefits
+    (cost reduction, revenue recovery, productivity gain)
+15. Soft benefits — qualitative benefits
+    (customer satisfaction, employee morale, brand reputation)
 
-Start with question 1. Never skip ahead. Announce each work
-product transition explicitly so the team knows where they are.
+When all five captured:
+"Business case and benefits analysis are complete. The Gate
+tab has been updated. Now let's finalise the project charter."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WORK PRODUCT 5 — PROJECT CHARTER
+Maps to: Gate section "Project Charter" (part 2)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+16. Primary metric — the one number that defines success
+    (name and unit)
+17. Secondary metric — to watch for unintended effects
+18. Process owner
+19. Sponsor
+20. Team members — names and roles
+21. Belt level
+22. Target date / duration
+23. Estimated completion date
+24. Key milestones — frame using belt-level guidance:
+    Yellow Belt: 30-40 days · Green Belt: ~90 days ·
+    Black Belt: 120+ days
+
+When all captured:
+"The project charter is complete. All five sections of your
+Define gate are now filled. The Gate tab is ready for review.
+When your team is satisfied, submit for gate review."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GENERAL RULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Follow the sequence strictly — do not skip ahead
+- Ask one question at a time
+- After each section completion, always tell the team
+  "The Gate tab has been updated with [section name]"
+- Use the knowledge base to explain any methodology concept
+  the team asks about (SIPOC, benefits analysis, etc.)
+- Belt-level timeline:
+  Yellow Belt 30-40 days · Green Belt ~90 days ·
+  Black Belt 120+ days
+  Use case_metadata["belt_level"] for milestone framing
 """
 
 ORCHESTRATOR_MEASURE_CONTEXT = """
@@ -220,11 +263,10 @@ Maximum 4 sentences.
 # ─────────────────────────────────────────────────────────────────
 
 EXTRACTION_DEFINE = """Extract confirmed field values from the
-conversation below. Return ONLY a JSON object. Use null for any
-field not yet explicitly confirmed by the team. Do not infer —
-only extract what was clearly stated.
+conversation. Return ONLY a JSON object. Use null for any field
+not yet explicitly confirmed. Do not infer — only extract what
+was clearly stated by the team.
 
-Fields to extract:
 {
   "what": null,
   "where": null,
@@ -233,6 +275,14 @@ Fields to extract:
   "why_it_matters": null,
   "how_much_baseline": null,
   "how_goal": null,
+  "goal_statement": null,
+  "scope_in": null,
+  "scope_out": null,
+  "business_case_rationale": null,
+  "current_cost": null,
+  "expected_saving": null,
+  "hard_benefits": null,
+  "soft_benefits": null,
   "process_owner": null,
   "sponsor": null,
   "primary_metric": null,
@@ -241,32 +291,31 @@ Fields to extract:
   "belt_level": null,
   "target_date": null,
   "team_members": [],
-  "current_cost": null,
-  "expected_saving": null,
-  "project_milestones": null,
   "estimated_completion_date": null,
+  "project_milestones": null,
   "sipoc": null
 }
 
-Field extraction rules:
-- "how_goal": extract the TARGET state only (e.g. "under 20 per
-  week"). Never store the baseline value here.
-- "current_cost": number with unit (e.g. "€35k/month").
-- "expected_saving": projected saving (e.g. "€20k/month").
+Extraction rules:
+- "how_goal": the TARGET state only (e.g. "under 20 per week").
+  Never store the baseline value here.
+- "goal_statement": a single precise sentence combining metric,
+  baseline, target, and timeframe. Only extract when the team
+  has stated it explicitly as a goal sentence.
+- "scope_in": what is explicitly included in the project scope.
+- "scope_out": what is explicitly excluded from scope.
+- "business_case_rationale": the strategic reason for investing
+  in this project — links to business objectives.
+- "hard_benefits": quantifiable financial benefits with numbers
+  and units where stated.
+- "soft_benefits": qualitative non-financial benefits.
+- "current_cost": cost of the problem today with unit.
+- "expected_saving": projected saving after improvement.
 - "project_milestones": free text as stated by the team.
-- "estimated_completion_date": end date or duration.
 - "team_members": list of {name, role} objects.
-- "sipoc": extract ONLY when the team has explicitly confirmed all
-  five columns. Return as:
-  {
-    "suppliers": [],
-    "inputs": [],
-    "process_steps": [],
-    "outputs": [],
-    "customers": []
-  }
-  If any column is missing or unconfirmed, return null for the
-  entire sipoc field — do not return a partial dict.
+- "sipoc": only when team has confirmed ALL five columns.
+  Return {suppliers:[], inputs:[], process_steps:[],
+  outputs:[], customers:[]}. Null if any column missing.
 
 Conversation:
 {conversation}

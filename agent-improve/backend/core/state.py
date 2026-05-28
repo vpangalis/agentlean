@@ -44,3 +44,8 @@ class ImproveGraphState(TypedDict, total=False):
     # problem statement is complete, or when a confirmed SIPOC exists.
     # Shape: {suppliers, inputs, process_steps, outputs, customers, draft}
     sipoc_diagram: dict | None
+
+    # Which Define gate section just became complete this turn — written
+    # by orchestrate_define. One of: problem_statement|sipoc|goal_scope|
+    # business_case|charter, or None.
+    section_completed: str | None
