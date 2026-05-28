@@ -633,7 +633,7 @@ a{text-decoration:none;color:inherit}
 
     <!-- RIGHT PANEL -->
     <div class="rpanel">
-      <div class="rp-hdr"><i class="ti ti-clipboard-list" style="font-size:13px"></i><span id="rp-title">Captured so far</span><span id="rp-score-pill" style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--brand-bg);color:var(--brand);border:1px solid var(--brand-mid)">0 / 20</span></div>
+      <div class="rp-hdr"><i class="ti ti-clipboard-list" style="font-size:13px"></i><span id="rp-title">Captured so far</span><span id="rp-score-pill" style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--brand-bg);color:var(--brand);border:1px solid var(--brand-mid)">0 / 26</span></div>
       <div class="rp-scroll" id="rp-content">
         <div style="color:var(--text3);font-size:11px;padding:4px 0">Start a conversation to see captured fields here.</div>
       </div>
@@ -673,6 +673,9 @@ const DEFINE_GATE_FIELDS = [
   { group: 'BASELINE & TARGET', key: 'how_goal',          label: 'Target to achieve' },
   { group: 'BASELINE & TARGET', key: 'primary_metric',    label: 'Primary metric' },
   { group: 'BASELINE & TARGET', key: 'secondary_metric',  label: 'Secondary metric' },
+  { group: 'GOAL & SCOPE', key: 'goal_statement',  label: 'Goal statement' },
+  { group: 'GOAL & SCOPE', key: 'scope_in',         label: 'In scope' },
+  { group: 'GOAL & SCOPE', key: 'scope_out',        label: 'Out of scope' },
   { group: 'PROJECT CHARTER', key: 'process_owner',             label: 'Process owner' },
   { group: 'PROJECT CHARTER', key: 'sponsor',                   label: 'Sponsor' },
   { group: 'PROJECT CHARTER', key: 'team_members',              label: 'Team members' },
@@ -683,6 +686,9 @@ const DEFINE_GATE_FIELDS = [
   { group: 'FINANCIAL & PLAN', key: 'expected_saving',    label: 'Expected saving' },
   { group: 'FINANCIAL & PLAN', key: 'project_milestones', label: 'Key milestones' },
   { group: 'FINANCIAL & PLAN', key: 'primary_metric_unit', label: 'Metric unit' },
+  { group: 'BUSINESS CASE', key: 'business_case_rationale', label: 'Strategic rationale' },
+  { group: 'BUSINESS CASE', key: 'hard_benefits',           label: 'Hard benefits' },
+  { group: 'BUSINESS CASE', key: 'soft_benefits',           label: 'Soft benefits' },
   { group: 'SIPOC', key: 'sipoc', label: 'SIPOC diagram' },
 ];
 
@@ -774,6 +780,61 @@ function toast(msg,dur=3000){
   const t=document.getElementById('toast');
   t.textContent=msg;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),dur);
+}
+
+function showSectionToast(sectionKey) {
+  const labels = {
+    problem_statement: 'Problem Statement',
+    sipoc:             'SIPOC Diagram',
+    goal_scope:        'Goal & Scope',
+    business_case:     'Business Case & Benefits',
+    charter:           'Project Charter',
+    baseline:          'Baseline & Measurement',
+  };
+  const label = labels[sectionKey] || sectionKey;
+  const toast = document.createElement('div');
+  toast.id = 'section-toast';
+  toast.innerHTML = `
+    <i class="ti ti-circle-check" style="font-size:14px;color:#0F6E56"></i>
+    <span style="flex:1">Gate updated — <strong>${label}</strong> complete</span>
+    <span onclick="selectTab('gate')" style="font-size:10px;color:#534AB7;
+      cursor:pointer;text-decoration:underline;white-space:nowrap">
+      View Gate →
+    </span>`;
+  Object.assign(toast.style, {
+    position: 'fixed',
+    bottom: '80px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: '#fff',
+    border: '0.5px solid #0F6E56',
+    borderRadius: '8px',
+    padding: '10px 14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '12px',
+    color: 'var(--text,#1A1917)',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+    zIndex: '9999',
+    maxWidth: '360px',
+    width: 'calc(100% - 40px)',
+  });
+
+  // Remove any existing toast
+  const existing = document.getElementById('section-toast');
+  if (existing) existing.remove();
+
+  document.body.appendChild(toast);
+
+  // Auto-dismiss after 5 seconds
+  setTimeout(() => {
+    if (document.getElementById('section-toast') === toast) {
+      toast.style.transition = 'opacity .4s';
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 400);
+    }
+  }, 5000);
 }
 
 // ─── LANDING ─────────────────────────────────────────────────────
@@ -1039,7 +1100,13 @@ function renderOverview(){
 
         ${eduSection('What the AI will ask', p.whatAsks)}
         ${eduSection('What gets captured', p.whatCaptures)}
-        ${eduSection('Gate to pass', p.gate)}
+        ${eduSection('Gate to pass', S.phase === 'define'
+          ? 'Five sections must be complete: Business Case (strategic rationale, ' +
+            'costs, savings, hard and soft benefits), Project Charter (goal statement, ' +
+            'scope, team, metrics, timeline), Benefits Analysis, SIPOC diagram, and ' +
+            'Baseline & Measurement. All ' + DEFINE_GATE_FIELDS.length +
+            ' fields must be captured before submitting.'
+          : p.gate)}
         ${eduSection('Typical duration', p.duration)}
 
         <div style="margin-bottom:12px">
@@ -1110,7 +1177,15 @@ function buildProgressNarrative() {
     captured = fieldsForCount.filter(f => fieldHasValue(structured[f.key])).length;
 
     // Group completion
-    const groupNames = ['PROBLEM','BASELINE & TARGET','SIPOC','PROJECT CHARTER','FINANCIAL & PLAN'];
+    const groupNames = [
+      'PROBLEM',
+      'BASELINE & TARGET',
+      'GOAL & SCOPE',
+      'SIPOC',
+      'PROJECT CHARTER',
+      'FINANCIAL & PLAN',
+      'BUSINESS CASE',
+    ];
     groups = groupNames.map(g => {
       const gFields = DEFINE_GATE_FIELDS.filter(f => f.group === g);
       const gCaptured = gFields.filter(f => fieldHasValue(structured[f.key])).length;
@@ -1136,23 +1211,35 @@ function buildProgressNarrative() {
   // Narrative sentence — rule-based for define, generic for others
   let narrative = '';
   if (phase === 'define') {
-    const problemDone  = groups[0]?.captured === groups[0]?.total;
-    const baselineDone = groups[1]?.captured === groups[1]?.total;
-    const sipocDone    = groups[2]?.captured === groups[2]?.total;
-    const charterDone  = groups[3]?.captured === groups[3]?.total;
-    const financeDone  = groups[4]?.captured === groups[4]?.total;
+    const problemDone = groups.find(g=>g.label==='PROBLEM')?.captured ===
+      groups.find(g=>g.label==='PROBLEM')?.total;
+    const baselineDone = groups.find(g=>g.label==='BASELINE & TARGET')?.captured ===
+      groups.find(g=>g.label==='BASELINE & TARGET')?.total;
+    const goalScopeDone = groups.find(g=>g.label==='GOAL & SCOPE')?.captured ===
+      groups.find(g=>g.label==='GOAL & SCOPE')?.total;
+    const businessCaseDone = groups.find(g=>g.label==='BUSINESS CASE')?.captured ===
+      groups.find(g=>g.label==='BUSINESS CASE')?.total;
+    const sipocDone = groups.find(g=>g.label==='SIPOC')?.captured ===
+      groups.find(g=>g.label==='SIPOC')?.total;
+    const charterDone = groups.find(g=>g.label==='PROJECT CHARTER')?.captured ===
+      groups.find(g=>g.label==='PROJECT CHARTER')?.total;
+    const financeDone = groups.find(g=>g.label==='FINANCIAL & PLAN')?.captured ===
+      groups.find(g=>g.label==='FINANCIAL & PLAN')?.total;
+
     if (allDone) {
-      narrative = 'All fields are captured. The project is ready for the Define gate review.';
+      narrative = 'All sections complete. The Define gate document is ready for review and submission.';
+    } else if (problemDone && baselineDone && sipocDone && goalScopeDone && businessCaseDone && charterDone && !financeDone) {
+      narrative = 'Almost there — only the financial and plan details remain.';
+    } else if (problemDone && baselineDone && sipocDone && goalScopeDone && !businessCaseDone) {
+      narrative = 'Goal and scope confirmed. Next: build the business case and benefits analysis.';
+    } else if (problemDone && baselineDone && sipocDone && !goalScopeDone) {
+      narrative = 'SIPOC complete. Next: define the goal statement and project scope.';
     } else if (problemDone && baselineDone && !sipocDone) {
-      narrative = 'Problem and baseline are captured. Next, work through the SIPOC diagram with the AI guide.';
-    } else if (problemDone && baselineDone && sipocDone && !charterDone && !financeDone) {
-      narrative = 'Problem, baseline, and SIPOC are complete. Focus next on the project charter and financial impact sections.';
-    } else if (problemDone && baselineDone && sipocDone && charterDone && !financeDone) {
-      narrative = 'Problem, baseline, SIPOC, and charter are complete. Only the financial impact and project plan remain.';
+      narrative = 'Problem and baseline captured. Next: map the process with a SIPOC diagram.';
     } else if (!problemDone) {
       narrative = 'Start by describing the problem — what it is, where it happens, and why it matters.';
     } else {
-      narrative = `${captured} of ${total} fields captured. Continue the AI guide conversation to fill in the remaining ${missing} fields.`;
+      narrative = `${captured} of ${total} fields captured. Continue the AI guide to fill remaining sections.`;
     }
   } else {
     narrative = captured > 0
@@ -1330,122 +1417,288 @@ function renderDefineChecklist(){
 }
 
 // ─── GATE TAB ─────────────────────────────────────────────────────
-function renderGate(){
-  const view = document.getElementById('view-gate');
-  if(!view) return;
-  if(S.phase !== 'define'){
-    view.innerHTML = '<div style="padding:24px;color:var(--text3);font-size:12px">Gate view is currently available for the Define phase only.</div>';
-    return;
-  }
+function renderGate() {
   const structured = getStructured();
-  const total = DEFINE_GATE_FIELDS.length;
-  const captured = DEFINE_GATE_FIELDS.filter(f => fieldHasValue(structured[f.key])).length;
-  const pct = Math.round(captured/total*100);
-  const missingFields = DEFINE_GATE_FIELDS.filter(f => !fieldHasValue(structured[f.key]));
+  const phase = S.phase || 'define';
 
-  // SCORE BAR
-  const scoreText = captured === total
-    ? 'All fields captured — ready to submit'
-    : captured + ' of ' + total + ' fields · ' + pct + '% complete';
-  const scoreBar = `
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;display:flex;align-items:center;gap:18px">
-      <div style="font-size:32px;font-weight:700;color:#534AB7;line-height:1;min-width:80px">${captured}<span style="font-size:16px;color:var(--text3);font-weight:500"> / ${total}</span></div>
-      <div style="flex:1">
-        <div style="height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;margin-bottom:6px">
-          <div style="height:100%;width:${pct}%;background:#534AB7;border-radius:4px;transition:width .3s"></div>
+  // Count captured fields
+  const captured = DEFINE_GATE_FIELDS.filter(
+    f => fieldHasValue(structured[f.key])
+  ).length;
+  const total = DEFINE_GATE_FIELDS.length;
+  const pct = Math.round(captured / total * 100);
+  const allDone = captured === total;
+
+  // Helper: section status
+  function sectionStatus(keys) {
+    const done = keys.filter(k => fieldHasValue(structured[k])).length;
+    if (done === keys.length) return 'complete';
+    if (done > 0) return 'partial';
+    return 'empty';
+  }
+
+  // Helper: status pill HTML
+  function statusPill(status) {
+    if (status === 'complete')
+      return `<span style="font-size:9px;background:#E1F5EE;color:#085041;
+        padding:2px 8px;border-radius:10px;font-weight:500">✓ Complete</span>`;
+    if (status === 'partial')
+      return `<span style="font-size:9px;background:#FEF3C7;color:#854F0B;
+        padding:2px 8px;border-radius:10px;font-weight:500">◑ In progress</span>`;
+    return `<span style="font-size:9px;background:var(--surface2,#F8F7F4);
+        color:var(--text3,#99978F);padding:2px 8px;border-radius:10px;
+        border:0.5px dashed var(--border,#E4E2DC)">○ Not started</span>`;
+  }
+
+  // Helper: field row in document
+  function fieldRow(label, value, multiline=false) {
+    const hasVal = fieldHasValue(value);
+    const displayVal = hasVal
+      ? (Array.isArray(value)
+          ? value.map(v => typeof v === 'object'
+              ? `${v.name}${v.role ? ' ('+v.role+')' : ''}`
+              : v).join(', ')
+          : (typeof value === 'object'
+              ? JSON.stringify(value)
+              : String(value)))
+      : null;
+    return `<div style="display:grid;grid-template-columns:140px 1fr;
+      gap:8px;padding:5px 0;border-bottom:0.5px solid var(--border,#E4E2DC)">
+      <span style="font-size:10px;color:var(--text3,#99978F);
+        font-weight:600;letter-spacing:.03em;padding-top:1px">${label}</span>
+      <span style="font-size:11px;color:${hasVal
+        ? 'var(--text,#1A1917)'
+        : 'var(--text3,#99978F)'};
+        font-style:${hasVal ? 'normal' : 'italic'};
+        line-height:1.5">${hasVal ? displayVal : 'not yet captured'}</span>
+    </div>`;
+  }
+
+  // Helper: section card
+  function sectionCard(num, title, statusKeys, bodyHtml) {
+    const status = sectionStatus(statusKeys);
+    return `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+      border-radius:8px;margin-bottom:12px;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;
+        padding:10px 14px;border-bottom:0.5px solid var(--border,#E4E2DC);
+        background:${status==='complete'?'#F0FBF7':status==='partial'?'#FFFBEB':'var(--surface2,#F8F7F4)'}">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="width:20px;height:20px;border-radius:50%;
+            background:${status==='complete'?'#0F6E56':status==='partial'?'#BA7517':'var(--text3,#99978F)'};
+            color:#fff;font-size:10px;font-weight:700;display:flex;
+            align-items:center;justify-content:center;flex-shrink:0">
+            ${num}
+          </span>
+          <span style="font-size:12px;font-weight:600;
+            color:var(--text,#1A1917)">${title}</span>
         </div>
-        <div style="font-size:11px;color:var(--text2)">${scoreText}</div>
+        ${statusPill(status)}
+      </div>
+      <div style="padding:10px 14px">${bodyHtml}</div>
+    </div>`;
+  }
+
+  // ── SECTION 1: BUSINESS CASE ────────────────────────────
+  const bc = sectionCard(1, 'Business Case',
+    ['business_case_rationale','current_cost','expected_saving',
+     'hard_benefits','soft_benefits'],
+    fieldRow('Strategic rationale', structured.business_case_rationale) +
+    fieldRow('Current cost', structured.current_cost) +
+    fieldRow('Expected saving', structured.expected_saving) +
+    fieldRow('Hard benefits', structured.hard_benefits) +
+    fieldRow('Soft benefits', structured.soft_benefits)
+  );
+
+  // ── SECTION 2: PROJECT CHARTER ──────────────────────────
+  // Assemble problem statement from 5W2H fields
+  const what = structured.what || '';
+  const where_ = structured.where || '';
+  const when_ = structured.when || '';
+  const problemSummary = what && where_ && when_
+    ? `${what} at ${where_} since ${when_}`
+    : what || null;
+
+  const charter = sectionCard(2, 'Project Charter',
+    ['goal_statement','scope_in','scope_out','process_owner',
+     'sponsor','team_members','belt_level','target_date',
+     'primary_metric','estimated_completion_date','project_milestones'],
+    fieldRow('Problem statement', problemSummary) +
+    fieldRow('Goal statement', structured.goal_statement) +
+    fieldRow('In scope', structured.scope_in) +
+    fieldRow('Out of scope', structured.scope_out) +
+    fieldRow('Primary metric', structured.primary_metric
+      ? structured.primary_metric +
+        (structured.primary_metric_unit
+          ? ' ('+structured.primary_metric_unit+')' : '')
+      : null) +
+    fieldRow('Secondary metric', structured.secondary_metric) +
+    fieldRow('Process owner', structured.process_owner) +
+    fieldRow('Sponsor', structured.sponsor) +
+    fieldRow('Team', structured.team_members) +
+    fieldRow('Belt level', structured.belt_level) +
+    fieldRow('Target date', structured.target_date) +
+    fieldRow('Est. completion', structured.estimated_completion_date) +
+    fieldRow('Milestones', structured.project_milestones)
+  );
+
+  // ── SECTION 3: BENEFITS ANALYSIS ───────────────────────
+  const benefits = sectionCard(3, 'Benefits Analysis',
+    ['hard_benefits','soft_benefits'],
+    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
+          color:var(--text3,#99978F);text-transform:uppercase;
+          margin-bottom:6px">Hard benefits</div>
+        <div style="font-size:11px;color:${fieldHasValue(structured.hard_benefits)
+          ? 'var(--text,#1A1917)':'var(--text3,#99978F)'};
+          font-style:${fieldHasValue(structured.hard_benefits)?'normal':'italic'};
+          line-height:1.5">
+          ${structured.hard_benefits || 'not yet captured'}
+        </div>
+      </div>
+      <div>
+        <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
+          color:var(--text3,#99978F);text-transform:uppercase;
+          margin-bottom:6px">Soft benefits</div>
+        <div style="font-size:11px;color:${fieldHasValue(structured.soft_benefits)
+          ? 'var(--text,#1A1917)':'var(--text3,#99978F)'};
+          font-style:${fieldHasValue(structured.soft_benefits)?'normal':'italic'};
+          line-height:1.5">
+          ${structured.soft_benefits || 'not yet captured'}
+        </div>
+      </div>
+    </div>`
+  );
+
+  // ── SECTION 4: SIPOC ────────────────────────────────────
+  const sipocData = structured.sipoc;
+  const sipocBody = sipocData
+    ? `<div id="gate-sipoc-container"></div>`
+    : `<div style="font-size:11px;color:var(--text3,#99978F);
+        font-style:italic;padding:4px 0">
+        Complete the SIPOC through the AI guide to see it here.
+      </div>`;
+  const sipoc = sectionCard(4, 'SIPOC Diagram',
+    ['sipoc'], sipocBody
+  );
+
+  // ── SECTION 5: BASELINE & MEASUREMENT ──────────────────
+  const baseline = sectionCard(5, 'Baseline & Measurement',
+    ['how_much_baseline','how_goal','primary_metric','secondary_metric'],
+    fieldRow('What', structured.what) +
+    fieldRow('Where', structured.where) +
+    fieldRow('When', structured.when) +
+    fieldRow('Who affected', structured.who_affected) +
+    fieldRow('Why it matters', structured.why_it_matters) +
+    fieldRow('Baseline', structured.how_much_baseline) +
+    fieldRow('Target', structured.how_goal)
+  );
+
+  // ── SCORE BAR ───────────────────────────────────────────
+  const scoreBar = `
+    <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+      border-radius:8px;padding:14px;margin-bottom:16px">
+      <div style="display:flex;align-items:flex-start;
+        justify-content:space-between;margin-bottom:8px">
+        <div>
+          <span style="font-size:24px;font-weight:500;
+            color:${allDone?'#0F6E56':'#534AB7'}">${captured}</span>
+          <span style="font-size:14px;color:var(--text3,#99978F)"> / ${total}</span>
+          <div style="font-size:10px;color:var(--text3,#99978F);margin-top:1px">
+            fields captured</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;font-weight:500;
+            color:${allDone?'#0F6E56':'#BA7517'}">
+            ${allDone?'Ready for gate':'In progress'}</div>
+          <div style="font-size:10px;color:var(--text3,#99978F)">
+            ${allDone?'All sections complete':(total-captured)+' fields remaining'}</div>
+        </div>
+      </div>
+      <div style="height:5px;background:var(--surface2,#F8F7F4);
+        border-radius:3px;overflow:hidden;border:0.5px solid var(--border,#E4E2DC)">
+        <div style="height:100%;background:${allDone?'#0F6E56':'#534AB7'};
+          border-radius:3px;width:${pct}%"></div>
+      </div>
+      <div style="font-size:10px;color:var(--text3,#99978F);margin-top:6px">
+        ${pct}% complete · Continue the AI guide to fill remaining fields
       </div>
     </div>`;
 
-  // FIELD GRID — grouped
-  const groups = ['PROBLEM','BASELINE & TARGET','PROJECT CHARTER','FINANCIAL & PLAN'];
-  const sipocData = structured.sipoc;
-  const sipocSection = `
-    <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
-      color:var(--text3,#99978F);text-transform:uppercase;
-      display:flex;align-items:center;gap:6px;margin:14px 0 8px">
-      SIPOC diagram
-      <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
-        display:block"></span>
-      ${sipocData
-        ? '<span style="font-size:9px;background:#E1F5EE;color:#085041;padding:1px 6px;border-radius:10px">Confirmed</span>'
-        : '<span style="font-size:9px;background:var(--surface2,#F8F7F4);color:var(--text3,#99978F);padding:1px 6px;border-radius:10px;border:0.5px dashed var(--border,#E4E2DC)">Not yet captured</span>'
-      }
-    </div>
-    <div id="gate-sipoc-container"></div>`;
-  let gridHtml = '';
-  groups.forEach(g => {
-    let fields = DEFINE_GATE_FIELDS.filter(f => f.group === g);
-    // In the grid, do not render primary_metric_unit as its own card
-    fields = fields.filter(f => f.key !== 'primary_metric_unit');
-    if(!fields.length) return;
-    gridHtml += '<div style="margin-top:14px"><div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);margin-bottom:8px">'+g+'</div>'
-      + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">';
-    fields.forEach(f => {
-      let value = structured[f.key];
-      const has = fieldHasValue(value);
-      // Merge primary_metric with primary_metric_unit
-      if(has && f.key === 'primary_metric' && fieldHasValue(structured['primary_metric_unit'])){
-        value = formatFieldValue(value) + ' (' + formatFieldValue(structured['primary_metric_unit']) + ')';
-      } else if(has){
-        value = formatFieldValue(value);
-      }
-      if(has){
-        gridHtml += '<div style="position:relative;background:#EEEDFE;border:1px solid #AFA9EC;border-radius:var(--radius-sm);padding:9px 10px">'
-          + '<i class="ti ti-check" style="position:absolute;top:6px;right:7px;font-size:12px;color:#0F6E56"></i>'
-          + '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#3C3489;margin-bottom:4px;padding-right:14px">'+f.label+'</div>'
-          + '<div style="font-size:11px;color:#26215C;line-height:1.4">'+value+'</div>'
-          + '</div>';
-      } else {
-        gridHtml += '<div style="position:relative;background:var(--surface2);border:1px dashed var(--border);border-radius:var(--radius-sm);padding:9px 10px">'
-          + '<i class="ti ti-circle-dashed" style="position:absolute;top:6px;right:7px;font-size:12px;color:var(--text3)"></i>'
-          + '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:4px;padding-right:14px">'+f.label+'</div>'
-          + '<div style="font-size:11px;color:var(--text3);font-style:italic">not yet captured</div>'
-          + '</div>';
-      }
-    });
-    gridHtml += '</div></div>';
-    // Inject SIPOC section between BASELINE & TARGET and PROJECT CHARTER
-    if(g === 'BASELINE & TARGET'){
-      gridHtml += sipocSection;
-    }
-  });
-
-  // SUBMIT AREA
-  let submitArea = '';
-  if(missingFields.length === 0){
-    submitArea = `
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin-top:14px">
-        <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--green);margin-bottom:10px">
-          <i class="ti ti-circle-check" style="font-size:14px"></i>All fields captured — ready for gate review
-        </div>
-        <button onclick="submitGateReview()" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px;background:#534AB7;color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer">Submit for gate review →</button>
-      </div>`;
-  } else {
-    const missingList = missingFields.map(f =>
-      '<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);padding:2px 0"><i class="ti ti-circle-x" style="font-size:12px;color:var(--red)"></i>'+f.label+'</div>'
-    ).join('');
-    submitArea = `
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px;margin-top:14px">
-        <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Continue the AI guide conversation to fill the remaining fields before submitting for gate review.</div>
-        <div style="margin-bottom:12px">${missingList}</div>
-        <button disabled style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px;background:var(--surface2);color:var(--text3);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:not-allowed">
-          <i class="ti ti-lock" style="font-size:13px"></i>Gate not ready — ${missingFields.length} field${missingFields.length===1?'':'s'} missing
-        </button>
-      </div>`;
-  }
-
-  view.innerHTML = scoreBar + gridHtml + submitArea;
-  // Render the SIPOC diagram into its container (or a placeholder note)
-  if(sipocData){
-    renderSipocDiagram({...sipocData, draft: false}, 'gate-sipoc-container');
-  } else {
-    const el = document.getElementById('gate-sipoc-container');
-    if(el) el.innerHTML = `<div style="font-size:11px;color:var(--text3,#99978F);
-      font-style:italic;padding:6px 0">
-      Complete the SIPOC through the AI guide conversation to see it here.
+  // ── DOCUMENT HEADER ─────────────────────────────────────
+  const caseTitle = S.case?.title || S.case?.case_metadata?.title || 'Improvement Project';
+  const docHeader = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+        color:var(--text3,#99978F);text-transform:uppercase;
+        margin-bottom:4px">Define Gate Document</div>
+      <div style="font-size:15px;font-weight:600;
+        color:var(--text,#1A1917);line-height:1.3">${caseTitle}</div>
+      <div style="font-size:11px;color:var(--text3,#99978F);margin-top:3px">
+        ${S.case?.case_metadata?.belt_level || ''} ·
+        ${S.case?.case_metadata?.leader || ''} ·
+        ${S.case?.case_metadata?.department || ''}
+      </div>
     </div>`;
+
+  // ── SUBMIT AREA ─────────────────────────────────────────
+  const missingFields = DEFINE_GATE_FIELDS
+    .filter(f => !fieldHasValue(structured[f.key]))
+    .slice(0, 5);
+
+  const submitArea = `
+    <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+      border-radius:8px;padding:14px;margin-top:4px">
+      ${!allDone ? `
+        <div style="font-size:11px;color:var(--text2,#5C5A55);
+          margin-bottom:8px;line-height:1.5">
+          Continue the AI guide conversation to complete all sections
+          before submitting for gate review.
+        </div>
+        ${missingFields.map(f => `
+          <div style="display:flex;align-items:center;gap:6px;
+            padding:3px 0;font-size:11px;color:#A32D2D">
+            <i class="ti ti-circle-x" style="font-size:12px"></i>
+            ${f.label}
+          </div>`).join('')}
+        ${(total - captured) > 5
+          ? `<div style="font-size:10px;color:var(--text3,#99978F);
+              margin-top:4px">…and ${total-captured-5} more</div>`
+          : ''}
+        <button disabled style="width:100%;margin-top:12px;padding:10px;
+          background:var(--surface2,#F8F7F4);color:var(--text3,#99978F);
+          border:0.5px solid var(--border,#E4E2DC);border-radius:6px;
+          font-size:11px;cursor:not-allowed;display:flex;
+          align-items:center;justify-content:center;gap:6px">
+          <i class="ti ti-lock" style="font-size:12px"></i>
+          Gate not ready — ${total-captured} field${total-captured!==1?'s':''} missing
+        </button>` : `
+        <div style="font-size:11px;color:#085041;margin-bottom:10px;
+          line-height:1.5">
+          All sections complete. Review the document above and submit
+          for gate review when your team is satisfied.
+          <strong>You can copy any section above to use in reports.</strong>
+        </div>
+        <button onclick="submitGateReview()" style="width:100%;padding:10px;
+          background:#534AB7;color:#fff;border:none;border-radius:6px;
+          font-size:12px;font-weight:500;cursor:pointer;display:flex;
+          align-items:center;justify-content:center;gap:6px">
+          <i class="ti ti-checkbox" style="font-size:13px"></i>
+          Submit for gate review →
+        </button>`}
+    </div>`;
+
+  // ── RENDER ──────────────────────────────────────────────
+  const el = document.getElementById('view-gate');
+  if (!el) return;
+  el.style.padding = '16px';
+  el.style.overflowY = 'auto';
+  el.innerHTML = docHeader + scoreBar + bc + charter +
+    benefits + sipoc + baseline + submitArea;
+
+  // Render SIPOC diagram inside gate if available
+  if (sipocData) {
+    renderSipocDiagram({...sipocData, draft: false}, 'gate-sipoc-container');
   }
 }
 
@@ -1742,19 +1995,63 @@ function renderLiveSipoc(){
 }
 
 function renderLiveViz(){
-  if(!S.lastAsk || !S.lastAsk.visualisation ||
-     S.lastAsk.visualisation.type !== 'mindmap_5w2h') return;
-  // SIPOC takes priority — if a SIPOC diagram is already rendered, skip the 5W2H mindmap
-  if(document.getElementById('sipoc-live')) return;
   const msgs = document.getElementById('msgs');
   if(!msgs) return;
-  let el = document.getElementById('viz-live');
-  if(!el){
-    el = document.createElement('div');
-    el.id = 'viz-live';
-    msgs.appendChild(el);
+  const chatEl = msgs;
+  const structured = getStructured();
+
+  // 5W2H mindmap — SIPOC takes priority; skip the mindmap when a SIPOC diagram is rendered
+  if(S.lastAsk && S.lastAsk.visualisation &&
+     S.lastAsk.visualisation.type === 'mindmap_5w2h' &&
+     !document.getElementById('sipoc-live')){
+    let el = document.getElementById('viz-live');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'viz-live';
+      msgs.appendChild(el);
+    }
+    render5W2HMindmap(S.lastAsk.visualisation, 'viz-live');
   }
-  render5W2HMindmap(S.lastAsk.visualisation, 'viz-live');
+
+  // Goal & Scope card
+  if (S.lastAsk?.visualisation?.type === 'goal_scope' ||
+      (S.phase === 'define' && structured.goal_statement)) {
+    const el = document.getElementById('viz-goal-scope')
+      || (() => {
+        const d = document.createElement('div');
+        d.id = 'viz-goal-scope';
+        chatEl?.appendChild(d);
+        return d;
+      })();
+    renderGoalScopeCard(structured, 'viz-goal-scope');
+  }
+
+  // Benefits card
+  if (S.lastAsk?.visualisation?.type === 'benefits' ||
+      (S.phase === 'define' && structured.business_case_rationale)) {
+    const el = document.getElementById('viz-benefits')
+      || (() => {
+        const d = document.createElement('div');
+        d.id = 'viz-benefits';
+        chatEl?.appendChild(d);
+        return d;
+      })();
+    renderBenefitsCard(structured, 'viz-benefits');
+  }
+
+  // Charter card
+  if (S.lastAsk?.visualisation?.type === 'charter' ||
+      (S.phase === 'define' && structured.process_owner)) {
+    const el = document.getElementById('viz-charter')
+      || (() => {
+        const d = document.createElement('div');
+        d.id = 'viz-charter';
+        chatEl?.appendChild(d);
+        return d;
+      })();
+    renderCharterCard(structured, 'viz-charter');
+  }
+
   msgs.scrollTop = msgs.scrollHeight;
 }
 
@@ -1807,6 +2104,12 @@ async function sendMessage(){
     document.getElementById('typing').classList.remove('show');
     if(resp.answer){
       S.lastAsk=resp;
+      // Show section completion toast if a section just completed
+      if (S.lastAsk && S.lastAsk.section_completed) {
+        showSectionToast(S.lastAsk.section_completed);
+        // Re-render gate tab in background so it's ready when user opens it
+        if (S.tab !== 'gate') renderGate();
+      }
       const aiTurn={turn:S.localChat.length+1,role:'ai',user:null,text:resp.answer,timestamp:new Date().toISOString(),citations:resp.citations||[]};
       S.localChat.push(aiTurn);
       // Remove any stale sipoc-live container so the new one renders below this AI bubble
@@ -2362,6 +2665,182 @@ function render5W2HMindmap(viz, containerId) {
   </div>`;
 
   window[`_lastViz_${containerId}`] = viz;
+}
+
+function renderGoalScopeCard(structured, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const goal = structured.goal_statement;
+  const scopeIn = structured.scope_in;
+  const scopeOut = structured.scope_out;
+  const hasGoal = fieldHasValue(goal);
+  const hasIn = fieldHasValue(scopeIn);
+  const hasOut = fieldHasValue(scopeOut);
+  if (!hasGoal && !hasIn && !hasOut) return;
+
+  el.innerHTML = `
+    <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+      border-radius:8px;padding:12px;margin-top:10px">
+      <div style="font-size:11px;font-weight:600;color:var(--text,#1A1917);
+        margin-bottom:10px">Goal & Scope</div>
+      <div style="background:${hasGoal?'#EEEDFE':'var(--surface2,#F8F7F4)'};
+        border-radius:6px;padding:8px 10px;margin-bottom:8px;
+        font-size:11px;color:${hasGoal?'#26215C':'var(--text3,#99978F)'};
+        font-style:${hasGoal?'normal':'italic'};line-height:1.5">
+        ${hasGoal ? '"'+goal+'"' : 'Goal statement not yet captured'}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="border:0.5px solid ${hasIn?'#AFA9EC':'var(--border,#E4E2DC)'};
+          border-radius:6px;padding:8px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
+            color:${hasIn?'#3C3489':'var(--text3,#99978F)'};
+            text-transform:uppercase;margin-bottom:4px">In scope</div>
+          <div style="font-size:11px;color:${hasIn?'#26215C':'var(--text3,#99978F)'};
+            font-style:${hasIn?'normal':'italic'};line-height:1.5">
+            ${scopeIn || 'not yet captured'}
+          </div>
+        </div>
+        <div style="border:0.5px solid ${hasOut?'#AFA9EC':'var(--border,#E4E2DC)'};
+          border-radius:6px;padding:8px;border-style:${hasOut?'solid':'dashed'}">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
+            color:${hasOut?'#3C3489':'var(--text3,#99978F)'};
+            text-transform:uppercase;margin-bottom:4px">Out of scope</div>
+          <div style="font-size:11px;color:${hasOut?'#26215C':'var(--text3,#99978F)'};
+            font-style:${hasOut?'normal':'italic'};line-height:1.5">
+            ${scopeOut || 'not yet captured'}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  window[`_lastViz_${containerId}`] = {type:'goal_scope', structured};
+}
+
+function renderBenefitsCard(structured, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const rationale = structured.business_case_rationale;
+  const cost = structured.current_cost;
+  const saving = structured.expected_saving;
+  const hard = structured.hard_benefits;
+  const soft = structured.soft_benefits;
+  if (!fieldHasValue(rationale) && !fieldHasValue(cost) &&
+      !fieldHasValue(hard) && !fieldHasValue(soft)) return;
+
+  const fv = (v) => fieldHasValue(v);
+  el.innerHTML = `
+    <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+      border-radius:8px;padding:12px;margin-top:10px">
+      <div style="font-size:11px;font-weight:600;color:var(--text,#1A1917);
+        margin-bottom:10px">Business Case & Benefits</div>
+      ${fv(rationale) ? `
+        <div style="font-size:11px;color:var(--text2,#5C5A55);
+          line-height:1.6;margin-bottom:8px;padding:8px;
+          background:var(--surface2,#F8F7F4);border-radius:6px">
+          ${rationale}
+        </div>` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;
+        gap:6px;margin-bottom:8px">
+        <div style="padding:8px;background:${fv(cost)?'#EEEDFE':'var(--surface2,#F8F7F4)'};
+          border-radius:6px;border:0.5px solid ${fv(cost)?'#AFA9EC':'var(--border,#E4E2DC)'}">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
+            color:${fv(cost)?'#3C3489':'var(--text3,#99978F)'};
+            text-transform:uppercase;margin-bottom:3px">Current cost</div>
+          <div style="font-size:12px;font-weight:600;
+            color:${fv(cost)?'#26215C':'var(--text3,#99978F)'};
+            font-style:${fv(cost)?'normal':'italic'}">
+            ${cost || 'not yet captured'}
+          </div>
+        </div>
+        <div style="padding:8px;background:${fv(saving)?'#E1F5EE':'var(--surface2,#F8F7F4)'};
+          border-radius:6px;border:0.5px solid ${fv(saving)?'#6FCF97':'var(--border,#E4E2DC)'}">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
+            color:${fv(saving)?'#085041':'var(--text3,#99978F)'};
+            text-transform:uppercase;margin-bottom:3px">Expected saving</div>
+          <div style="font-size:12px;font-weight:600;
+            color:${fv(saving)?'#085041':'var(--text3,#99978F)'};
+            font-style:${fv(saving)?'normal':'italic'}">
+            ${saving || 'not yet captured'}
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
+            color:var(--text3,#99978F);text-transform:uppercase;
+            margin-bottom:4px">Hard benefits</div>
+          <div style="font-size:11px;line-height:1.5;
+            color:${fv(hard)?'var(--text,#1A1917)':'var(--text3,#99978F)'};
+            font-style:${fv(hard)?'normal':'italic'}">
+            ${hard || 'not yet captured'}
+          </div>
+        </div>
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
+            color:var(--text3,#99978F);text-transform:uppercase;
+            margin-bottom:4px">Soft benefits</div>
+          <div style="font-size:11px;line-height:1.5;
+            color:${fv(soft)?'var(--text,#1A1917)':'var(--text3,#99978F)'};
+            font-style:${fv(soft)?'normal':'italic'}">
+            ${soft || 'not yet captured'}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  window[`_lastViz_${containerId}`] = {type:'benefits', structured};
+}
+
+function renderCharterCard(structured, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const fields = ['process_owner','sponsor','belt_level',
+                  'target_date','team_members'];
+  if (!fields.some(k => fieldHasValue(structured[k]))) return;
+
+  const fv = (v) => fieldHasValue(v);
+  const teamStr = Array.isArray(structured.team_members)
+    ? structured.team_members.map(m =>
+        typeof m === 'object' ? m.name : m).join(', ')
+    : structured.team_members;
+
+  el.innerHTML = `
+    <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+      border-radius:8px;padding:12px;margin-top:10px">
+      <div style="font-size:11px;font-weight:600;color:var(--text,#1A1917);
+        margin-bottom:10px">Project Charter</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+        ${[
+          ['Owner', structured.process_owner],
+          ['Sponsor', structured.sponsor],
+          ['Belt', structured.belt_level],
+          ['Target', structured.target_date],
+        ].map(([label, val]) => `
+          <div style="padding:5px 0;border-bottom:0.5px solid var(--border,#E4E2DC)">
+            <div style="font-size:9px;color:var(--text3,#99978F);
+              font-weight:600;margin-bottom:1px">${label}</div>
+            <div style="font-size:11px;color:${fv(val)?'var(--text,#1A1917)':'var(--text3,#99978F)'};
+              font-style:${fv(val)?'normal':'italic'}">
+              ${val || 'not yet captured'}
+            </div>
+          </div>`).join('')}
+      </div>
+      ${fv(teamStr) ? `
+        <div style="margin-top:6px;padding-top:6px;
+          border-top:0.5px solid var(--border,#E4E2DC)">
+          <div style="font-size:9px;color:var(--text3,#99978F);
+            font-weight:600;margin-bottom:2px">Team</div>
+          <div style="font-size:11px;color:var(--text,#1A1917);
+            line-height:1.5">${teamStr}</div>
+        </div>` : ''}
+      ${fv(structured.project_milestones) ? `
+        <div style="margin-top:6px;padding-top:6px;
+          border-top:0.5px solid var(--border,#E4E2DC)">
+          <div style="font-size:9px;color:var(--text3,#99978F);
+            font-weight:600;margin-bottom:2px">Milestones</div>
+          <div style="font-size:11px;color:var(--text,#1A1917);
+            line-height:1.5">${structured.project_milestones}</div>
+        </div>` : ''}
+    </div>`;
+  window[`_lastViz_${containerId}`] = {type:'charter', structured};
 }
 
 // ─── RIGHT PANEL ─────────────────────────────────────────────────
