@@ -67,3 +67,20 @@ The graph must remain: 10 phase nodes + 1 escalation node = 11 nodes total.
 - Never use methodology jargon in team-facing strings
 - Never add a new graph node type without architecture approval
 - Never add classes outside the designated schema files listed above
+
+## Prompt size management
+
+When a UI change touches more than 3 functions or adds more than
+~150 lines of new code, split into multiple focused prompts:
+
+- Prompt N: data constants + one major function replacement
+- Prompt N+1: helper functions + wiring
+
+This keeps each prompt under Claude Code's practical token limit
+and makes verification easier — confirm each step works before
+adding the next layer.
+
+For large index.html changes specifically:
+- Never include more than 2 full function replacements per prompt
+- Add helper functions in a separate follow-up prompt
+- Wire everything together in a final prompt after helpers are confirmed
