@@ -198,6 +198,7 @@ def ask(request: AskRequest) -> AskResponse:
         )
 
         sipoc_diagram = result.get("sipoc_diagram")
+        visualisation = result.get("visualisation")
 
         return AskResponse(
             answer=last_ai,
@@ -220,6 +221,7 @@ def ask(request: AskRequest) -> AskResponse:
             ],
             suggestion_chips=_build_chips(request.phase, phase_data),
             sipoc_diagram=sipoc_diagram,
+            visualisation=visualisation,
             escalated=state.get("escalated", False),
         )
     except HTTPException:

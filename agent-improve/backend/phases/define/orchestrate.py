@@ -87,10 +87,23 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
         # Return confirmed SIPOC (draft=False) so UI can display it
         sipoc_diagram = {**current_define["sipoc"], "draft": False}
 
+    # ── 6. Build 5W2H visualisation ──────────────────────────────────
+    visualisation = None
+    sipoc_confirmed = bool(current_define.get("sipoc"))
+
+    # Show 5W2H mindmap during problem statement work product only
+    # (before SIPOC is confirmed — once SIPOC is done, SIPOC diagram
+    # takes over as the primary inline visual)
+    if not sipoc_confirmed and current_define:
+        visualisation = _build_5w2h_visualisation(
+            current_define, case_meta
+        )
+
     return {
         "phase_inputs": phase_inputs,
         "chat_history": updated_history,
         "sipoc_diagram": sipoc_diagram,   # None when not applicable
+        "visualisation": visualisation,
     }
 
 
@@ -309,3 +322,55 @@ def _problem_statement_complete(define_inputs: dict) -> bool:
     return all(
         define_inputs.get(k) for k in required
     )
+
+
+def _build_5w2h_visualisation(define_inputs: dict, case_meta: dict) -> dict | None:
+    """Build the 5W2H mindmap visualisation payload.
+    Always returns a payload during the problem statement work product
+    (i.e. before SIPOC begins), even if most fields are still empty.
+    Returns None only if no fields at all are captured yet.
+    """
+    fields_5w2h = [
+        "what", "where", "when", "who_affected",
+        "why_it_matters", "how_much_baseline", "how_goal",
+    ]
+
+    field_values = {k: define_inputs.get(k) for k in fields_5w2h}
+    captured = [k for k in fields_5w2h if field_values.get(k)]
+
+    # Don't show if nothing captured yet
+    if not captured:
+        return None
+
+    # Assemble problem summary from what + where + when
+    what = field_values.get("what") or ""
+    where = field_values.get("where") or ""
+    when = field_values.get("when") or ""
+    case_title = case_meta.get("title", "")
+
+    if what and where and when:
+        # Full summary
+        problem_summary = f"{what} at {where} since {when}"
+    elif what and where:
+        problem_summary = f"{what} at {where}"
+    elif what:
+        problem_summary = what
+    else:
+        problem_summary = case_title or "Problem being defined…"
+
+    # Truncate to 80 chars for display
+    if len(problem_summary) > 80:
+        problem_summary = problem_summary[:77] + "…"
+
+    all_captured = len(captured) == len(fields_5w2h)
+
+    return {
+        "type": "mindmap_5w2h",
+        "data": {
+            "problem_summary": problem_summary,
+            "fields": field_values,
+        },
+        "draft": not all_captured,
+        "captured_count": len(captured),
+        "total_count": len(fields_5w2h),
+    }

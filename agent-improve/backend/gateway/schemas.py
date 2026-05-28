@@ -81,6 +81,7 @@ class AskResponse(BaseModel):
     citations: list[CitationOut] = []
     suggestion_chips: list[str] = []             # 2-3 suggested follow-up questions
     sipoc_diagram: Optional[dict] = None         # SIPOC map; draft:True when AI-generated
+    visualisation: Optional[dict] = None         # inline visual payload (e.g. 5W2H mindmap)
     escalated: bool = False
 
 
