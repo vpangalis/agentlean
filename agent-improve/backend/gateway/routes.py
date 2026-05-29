@@ -20,6 +20,7 @@ from backend.gateway.schemas import (
     UploadMetaRequest,
 )
 from backend.gateway.schemas import SummariseRequest, SummariseResponse
+from backend.gateway.schemas import ContextRequest, ContextResponse
 from backend.storage.blob import blob_client
 from backend.storage.models import CaseDocument, UploadRecord
 from backend.upload.agent import process_upload
@@ -69,6 +70,94 @@ def summarise_session(request: SummariseRequest) -> SummariseResponse:
         summary = "Summary could not be generated."
 
     return SummariseResponse(summary=summary)
+
+
+@router.post("/context", response_model=ContextResponse)
+def get_session_context(request: ContextRequest) -> ContextResponse:
+    """Generate a re-entry greeting based on current gate status.
+    Called when user opens the AI guide tab after a break."""
+    if blob_client is None:
+        raise HTTPException(503, "Storage not configured")
+    case = blob_client.load_case(request.case_id)
+    if case is None:
+        raise HTTPException(404, f"Case {request.case_id} not found")
+
+    # Get structured inputs for the phase.
+    # case.phases is dict[str, PhaseRecord]; structured lives on the record.
+    phase_data = {}
+    try:
+        phases = getattr(case, 'phases', {}) or {}
+        phase_record = (
+            phases.get(request.phase) if isinstance(phases, dict)
+            else getattr(phases, request.phase, None)
+        )
+        if phase_record is not None:
+            structured = getattr(phase_record, 'structured', None)
+            if structured is None and isinstance(phase_record, dict):
+                structured = phase_record.get('structured')
+            phase_data = structured or {}
+    except Exception:
+        phase_data = {}
+
+    # Determine missing sections for define phase
+    SECTION_FIELDS = {
+        'Problem Statement':   ['what','where','when','who_affected',
+                                'why_it_matters','how_much_baseline','how_goal'],
+        'Goal & Scope':        ['goal_statement','scope_in','scope_out'],
+        'SIPOC Diagram':       ['sipoc'],
+        'Business Case':       ['business_case_rationale','current_cost',
+                                'expected_saving','hard_benefits','soft_benefits'],
+        'Project Charter':     ['process_owner','sponsor','team_members',
+                                'belt_level','target_date','primary_metric',
+                                'estimated_completion_date','project_milestones'],
+        'Baseline & Metrics':  ['how_much_baseline','primary_metric',
+                                'secondary_metric'],
+    }
+
+    def field_has_value(v):
+        if v is None: return False
+        if isinstance(v, (list, dict)): return bool(v)
+        return bool(str(v).strip())
+
+    missing_sections = [
+        section for section, fields in SECTION_FIELDS.items()
+        if not all(field_has_value(phase_data.get(f)) for f in fields)
+    ]
+
+    completed_count = len(SECTION_FIELDS) - len(missing_sections)
+    total_count = len(SECTION_FIELDS)
+
+    # Build greeting
+    case_title = getattr(case, 'title', '') or ''
+    user_name = request.user or 'team'
+
+    if not missing_sections:
+        greeting = (
+            f"Welcome back{', '+user_name if user_name else ''}! "
+            f"All sections of your Define gate are complete. "
+            f"When your team is ready, you can submit for gate review."
+        )
+        next_action = "Submit the Define gate for review."
+    else:
+        missing_str = ', '.join(missing_sections[:2])
+        if len(missing_sections) > 2:
+            missing_str += f" and {len(missing_sections)-2} more"
+        greeting = (
+            f"Welcome back{', '+user_name if user_name else ''}! "
+            f"You've completed {completed_count} of {total_count} sections "
+            f"for the Define gate. "
+            f"Still needed: {missing_str}. "
+            f"Shall we continue?"
+        )
+        next_action = (
+            f"Let's work on: {missing_sections[0]}."
+        )
+
+    return ContextResponse(
+        greeting=greeting,
+        missing_sections=missing_sections,
+        next_action=next_action,
+    )
 
 
 @router.post("/cases", response_model=CaseCreateResponse)

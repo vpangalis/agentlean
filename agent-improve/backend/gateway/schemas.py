@@ -144,3 +144,18 @@ class SummariseRequest(BaseModel):
 
 class SummariseResponse(BaseModel):
     summary: str
+
+
+# ── session re-entry context ──────────────────────────────────────────────
+
+
+class ContextRequest(BaseModel):
+    case_id: str
+    phase: str
+    user: str = ""
+
+
+class ContextResponse(BaseModel):
+    greeting: str
+    missing_sections: list[str]
+    next_action: str

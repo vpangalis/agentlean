@@ -995,6 +995,7 @@ function renderPhaseNav(){
 function selectPhase(phase){
   S.phase=phase;
   S.localChat=[];
+  S._greetingShown=false;  // allow the re-entry greeting once per phase entry
   // Load chat history for this phase from case
   if(S.case&&S.case.conversation_history){
     S.localChat=S.case.conversation_history.filter(t=>true); // all turns for now
@@ -1023,7 +1024,7 @@ function selectTab(tab){
   if(moreTab){
     moreTab.classList.toggle('active', tab==='steps'||tab==='diagram'||tab==='history');
   }
-  if(tab==='chat'){renderChat(); if(S.lastAsk) updateRightPanel(S.lastAsk);}
+  if(tab==='chat'){renderChat(); if(S.lastAsk) updateRightPanel(S.lastAsk); loadSessionGreeting();}
   if(tab==='gate'){renderGate();}
   // Hide tool tab when not on tool view
   const toolTab=document.getElementById('vt-tool');
@@ -2189,6 +2190,82 @@ function renderChips(){
     }else{
       hint.innerHTML=`<i class="ti ti-clock"></i>Keep going — answer each question to progress`;
     }
+  }
+}
+
+async function loadSessionGreeting() {
+  if (!S.case) return;
+  // Show the re-entry greeting at most once per phase session.
+  // (renderChat() rebuilds #msgs on every chat-tab open, wiping the greeting
+  //  div, so a DOM-only guard is not enough — track it on state too.)
+  if (S._greetingShown) return;
+
+  // Only show greeting if chat has no messages yet this session
+  // or if returning after completing a section
+  const msgs = document.getElementById('chat-messages')
+    || document.getElementById('msgs');
+  const existingGreeting = document.getElementById('reentry-greeting');
+
+  // Don't show again if already shown this session
+  if (existingGreeting) return;
+
+  // Don't show if there are already many messages in the chat
+  const msgCount = msgs?.querySelectorAll('.msg-bubble, .ai-bubble, .user-bubble')?.length || 0;
+  if (msgCount > 4) return;
+
+  try {
+    const caseId = S.case?.case_id || S.case?.id || S.caseId;
+    const r = await fetch('http://127.0.0.1:8020/context', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        case_id: caseId,
+        phase: S.phase || 'define',
+        user: S.user || '',
+      })
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+
+    // Render greeting as a special non-chat UI element
+    const greetingDiv = document.createElement('div');
+    greetingDiv.id = 'reentry-greeting';
+    Object.assign(greetingDiv.style, {
+      background: '#EEEDFE',
+      border: '0.5px solid #AFA9EC',
+      borderRadius: '8px',
+      padding: '12px 14px',
+      marginBottom: '12px',
+      fontSize: '12px',
+      color: '#26215C',
+      lineHeight: '1.6',
+    });
+    // Escape the JSON-encoded action for safe use inside the double-quoted
+    // onclick attribute (it can contain both " and & characters).
+    const nextArg = JSON.stringify(data.next_action)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;');
+    greetingDiv.innerHTML = `
+      <div style="font-size:10px;font-weight:700;letter-spacing:.06em;
+        color:#534AB7;text-transform:uppercase;margin-bottom:4px">
+        Where we left off
+      </div>
+      <div>${data.greeting}</div>
+      ${data.missing_sections.length > 0 ? `
+        <button onclick="sendPresetMessage(${nextArg})"
+          style="margin-top:8px;padding:5px 14px;background:#534AB7;color:#fff;
+          border:none;border-radius:6px;font-size:11px;font-weight:500;
+          cursor:pointer">
+          Continue →
+        </button>` : ''}`;
+
+    // Insert at the top of the chat messages area
+    if (msgs) {
+      msgs.insertBefore(greetingDiv, msgs.firstChild);
+      S._greetingShown = true;
+    }
+  } catch(e) {
+    // Silent fail — greeting is non-critical
   }
 }
 
