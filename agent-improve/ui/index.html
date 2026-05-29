@@ -588,7 +588,7 @@ a{text-decoration:none;color:inherit}
           <input type="file" id="chat-file-input" style="display:none" onchange="handleChatFile(this)">
           <div class="input-container">
             <div class="reply-box">
-              <div class="chips-row" id="chips"></div>
+              <div class="chips-row" id="chat-chips"></div>
               <div class="reply-sep"></div>
               <div class="cinput-label">Your reply</div>
               <div class="input-row">
@@ -1005,6 +1005,7 @@ function selectPhase(phase){
   renderDiagram();
   renderHistory();
   renderRightPanel();
+  renderChatChips();
   selectTab('overview');
 }
 
@@ -2071,11 +2072,115 @@ function renderTurn(turn){
   }
 }
 
+function buildDynamicChips() {
+  // If no case loaded yet, show generic onboarding chips
+  if (!S.case) {
+    return [
+      { label: 'Start the Define phase', message: 'I would like to start defining the problem for this project.' },
+      { label: 'What happens in Define?', message: 'Can you explain what we need to do in the Define phase?' },
+    ];
+  }
+
+  const structured = getStructured();
+  const phase = S.phase || 'define';
+
+  // Find missing fields grouped by section
+  const missing = DEFINE_GATE_FIELDS.filter(
+    f => !fieldHasValue(structured[f.key])
+  );
+
+  if (missing.length === 0) {
+    return [
+      { label: 'Review the Gate document', message: 'All fields are captured. Can you summarise the complete Define gate document?' },
+      { label: 'Submit gate for review', message: 'We are ready to submit the Define gate for review.' },
+    ];
+  }
+
+  // Group missing fields by section
+  const missingGroups = {};
+  missing.forEach(f => {
+    if (!missingGroups[f.group]) missingGroups[f.group] = [];
+    missingGroups[f.group].push(f.label);
+  });
+
+  // Generate up to 3 action chips from the most incomplete sections
+  const chips = [];
+  const groupOrder = [
+    'PROBLEM',
+    'BASELINE & TARGET',
+    'GOAL & SCOPE',
+    'SIPOC',
+    'PROJECT CHARTER',
+    'FINANCIAL & PLAN',
+    'BUSINESS CASE',
+  ];
+
+  // Section → friendly action label mapping
+  const sectionActions = {
+    'PROBLEM':          { label: 'Define the problem',          message: 'Let\'s work on the problem statement. I need help describing what the problem is, where it happens, and when it started.' },
+    'BASELINE & TARGET':{ label: 'Set baseline and target',     message: 'Let\'s capture the baseline metric and target for this project.' },
+    'GOAL & SCOPE':     { label: 'Define goal and scope',       message: 'I need to define the goal statement and the project scope — what is in scope and out of scope.' },
+    'SIPOC':            { label: 'Map the process (SIPOC)',      message: 'Let\'s map the process using a SIPOC diagram. I need to identify suppliers, inputs, process steps, outputs, and customers.' },
+    'PROJECT CHARTER':  { label: 'Complete project charter',    message: 'I need to complete the project charter — including the team, sponsor, belt level, timeline, and milestones.' },
+    'FINANCIAL & PLAN': { label: 'Add financial details',       message: 'I need to add the financial details — current cost, expected saving, and project milestones.' },
+    'BUSINESS CASE':    { label: 'Build the business case',     message: 'I need to build the business case — the strategic rationale and the hard and soft benefits of this project.' },
+  };
+
+  for (const group of groupOrder) {
+    if (missingGroups[group] && chips.length < 3) {
+      const action = sectionActions[group];
+      if (action) chips.push(action);
+    }
+  }
+
+  // If still under 3, add a general "what's next" chip
+  if (chips.length < 3) {
+    chips.push({
+      label: 'What should we do next?',
+      message: 'What are the next steps to complete the Define phase?'
+    });
+  }
+
+  return chips.slice(0, 3);
+}
+
+function renderChatChips() {
+  const chips = buildDynamicChips();
+  const container = document.getElementById('chat-chips');
+  if (!container) return;
+  container.innerHTML = chips.map(chip => {
+    // Escape the JSON-encoded message for safe use inside the double-quoted
+    // onclick attribute (messages contain both " and ' characters).
+    const arg = JSON.stringify(chip.message)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;');
+    return `<button onclick="sendPresetMessage(${arg})"
+      style="padding:5px 12px;border-radius:20px;border:0.5px solid var(--border,#E4E2DC);
+      background:#fff;color:var(--text2,#5C5A55);font-size:11px;cursor:pointer;
+      white-space:nowrap;transition:background .15s"
+      onmouseover="this.style.background='#EEEDFE';this.style.color='#3C3489'"
+      onmouseout="this.style.background='#fff';this.style.color='var(--text2,#5C5A55)'">
+      ${chip.label}
+    </button>`;
+  }).join('');
+}
+
+function sendPresetMessage(message) {
+  const input = document.getElementById('chat-input')
+    || document.getElementById('msg-input')
+    || document.querySelector('textarea[placeholder]')
+    || document.querySelector('input[type="text"]');
+  if (input) {
+    input.value = message;
+    // Trigger send — find the send button or call sendMessage() directly
+    sendMessage();
+  }
+}
+
 function renderChips(){
-  const ask=S.lastAsk;
-  const chips=ask&&ask.suggestion_chips&&ask.suggestion_chips.length?ask.suggestion_chips:PHASES[S.phase].steps.slice(0,3).map(s=>s.length>55?s.substr(0,55)+'…':s);
-  document.getElementById('chips').innerHTML=chips.map(c=>`<div class="chip" onclick="chipClick(this)">${c}</div>`).join('');
+  renderChatChips();
   // Update gate hint with captured field count
+  const ask=S.lastAsk;
   const fields=ask&&ask.captured_fields?ask.captured_fields.filter(f=>f.value).length:0;
   const hint=document.getElementById('gate-hint');
   if(hint){
@@ -2085,11 +2190,6 @@ function renderChips(){
       hint.innerHTML=`<i class="ti ti-clock"></i>Keep going — answer each question to progress`;
     }
   }
-}
-
-function chipClick(el){
-  document.getElementById('chat-input').value=el.textContent;
-  sendMessage();
 }
 
 async function sendMessage(){
