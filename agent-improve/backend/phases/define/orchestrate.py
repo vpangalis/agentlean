@@ -50,33 +50,6 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
             define_inputs[key] = value
     phase_inputs["define"] = define_inputs
 
-    # Ã¢ÂÂÃ¢ÂÂ 2. Generate Orchestrator response Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-    system_prompt = (
-        ORCHESTRATOR_SYSTEM_BASE.format(department=department, title=title)
-        + "\n\n"
-        + ORCHESTRATOR_CONTEXT_MAP["define"]
-    )
-    state_summary = _build_state_summary(define_inputs)
-    logger.info("State summary injected into orchestrator:\n%s", state_summary)
-    response_text = _run_orchestrator(
-        system_prompt, chat_history, current_user, state_summary
-    )
-
-    # Ã¢ÂÂÃ¢ÂÂ 3. Reflect on response quality Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-    response_text = _reflect(response_text)
-
-    # Ã¢ÂÂÃ¢ÂÂ 4. Append AI turn to chat history Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-    now = datetime.now(timezone.utc).isoformat()
-    new_turn = {
-        "turn": len(chat_history) + 1,
-        "role": "ai",
-        "user": None,
-        "text": response_text,
-        "timestamp": now,
-        "citations": [],
-    }
-    updated_history = chat_history + [new_turn]
-
     # ── 5. Determine if sipoc_diagram should be included ──────────────
     sipoc_diagram = None
     current_define = phase_inputs.get("define") or {}
@@ -118,6 +91,33 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
                 "SIPOC from uploaded evidence persisted to structured "
                 "for case %s", state.get("case_id", "")
             )
+
+    # Ã¢ÂÂÃ¢ÂÂ 2. Generate Orchestrator response Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+    system_prompt = (
+        ORCHESTRATOR_SYSTEM_BASE.format(department=department, title=title)
+        + "\n\n"
+        + ORCHESTRATOR_CONTEXT_MAP["define"]
+    )
+    state_summary = _build_state_summary(define_inputs)
+    logger.info("State summary injected into orchestrator:\n%s", state_summary)
+    response_text = _run_orchestrator(
+        system_prompt, chat_history, current_user, state_summary
+    )
+
+    # Ã¢ÂÂÃ¢ÂÂ 3. Reflect on response quality Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+    response_text = _reflect(response_text)
+
+    # Ã¢ÂÂÃ¢ÂÂ 4. Append AI turn to chat history Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+    now = datetime.now(timezone.utc).isoformat()
+    new_turn = {
+        "turn": len(chat_history) + 1,
+        "role": "ai",
+        "user": None,
+        "text": response_text,
+        "timestamp": now,
+        "citations": [],
+    }
+    updated_history = chat_history + [new_turn]
 
     # ── 6. Build 5W2H visualisation ──────────────────────────────────
     visualisation = None
