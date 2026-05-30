@@ -95,6 +95,30 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
         # Return confirmed SIPOC (draft=False) so UI can display it
         sipoc_diagram = {**current_define["sipoc"], "draft": False}
 
+    # If SIPOC came from uploaded evidence, persist it into
+    # structured so it counts as captured in future turns
+    if (
+        sipoc_diagram is not None
+        and sipoc_diagram.get("source") == "upload"
+        and not sipoc_already_captured
+    ):
+        # Strip display-only keys before storing
+        sipoc_to_store = {
+            k: v for k, v in sipoc_diagram.items()
+            if k in {"suppliers", "inputs", "process_steps",
+                     "outputs", "customers"}
+        }
+        if all(sipoc_to_store.values()):
+            # Merge into phase_inputs
+            if "define" not in phase_inputs:
+                phase_inputs["define"] = {}
+            phase_inputs["define"]["sipoc"] = sipoc_to_store
+            current_define["sipoc"] = sipoc_to_store
+            logger.info(
+                "SIPOC from uploaded evidence persisted to structured "
+                "for case %s", state.get("case_id", "")
+            )
+
     # ── 6. Build 5W2H visualisation ──────────────────────────────────
     visualisation = None
     sipoc_confirmed = bool(current_define.get("sipoc"))
@@ -420,6 +444,20 @@ def _build_state_summary(define_inputs: dict) -> str:
     current_work_product = None
 
     for name, fields in WORK_PRODUCTS:
+        # Special case: SIPOC may be stored as nested dict
+        # Check if any columns are populated as a fallback
+        if name == "Work product 2 — SIPOC Diagram":
+            sipoc_val = define_inputs.get("sipoc")
+            if isinstance(sipoc_val, dict) and any(
+                sipoc_val.get(col)
+                for col in ["suppliers","inputs","process_steps",
+                            "outputs","customers"]
+            ):
+                lines.append(
+                    f"✓ {name} — COMPLETE (confirmed from uploaded document)"
+                )
+                continue
+
         done = all_captured(fields)
         missing = missing_list(fields)
         captured = captured_list(fields)
