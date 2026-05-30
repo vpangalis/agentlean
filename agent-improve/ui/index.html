@@ -1983,28 +1983,23 @@ function renderChat(){
   const lastAI = [...history].reverse().find(t => t.role === 'ai');
 
   if (lastAI) {
-    // Build a context-aware welcome instead of showing
-    // the raw last message (which may be mid-conversation)
     const structured = getStructured();
     const workProduct = detectCurrentWorkProduct(structured);
 
-    const workProductLabels = {
-      problem:       'describing the problem',
-      sipoc:         'mapping the process (SIPOC)',
-      goal_scope:    'defining the goal and scope',
-      business_case: 'building the business case',
-      charter:       'completing the project charter',
-      complete:      'reviewing the gate document',
+    const workProductPrompts = {
+      problem:       'What is the problem you are trying to solve?',
+      sipoc:         'Let\'s map the process. Who are the main suppliers — the people or systems that feed into this process?',
+      goal_scope:    'What is your goal statement? Describe in one sentence what success looks like.',
+      business_case: 'What is the strategic reason for investing in this project?',
+      charter:       'Let\'s complete the project charter. Who is the process owner?',
+      complete:      'All sections are complete. Open the Gate tab to review and submit for gate review.',
     };
 
-    const userName = S.user || S.case?.leader || '';
-    const greeting = userName ? `Welcome back, ${userName}.` : 'Welcome back.';
-    const action = workProduct === 'complete'
-      ? 'All sections are complete — open the Gate tab to review and submit.'
-      : `We are working on ${workProductLabels[workProduct] || 'the Define phase'}. ${S.lastAsk?.answer?.split('.')[0] || 'What would you like to share?'}.`;
+    const prompt = workProductPrompts[workProduct]
+      || 'What would you like to work on next?';
 
-    msgs.innerHTML = `<div class="msg"><div class="mav mai">AI</div>
-      <div class="bbl bbl-ai"><p><strong>${greeting}</strong> ${action}</p></div></div>`;
+    msgs.innerHTML = `<div class="msg"><div class="mav mai"></div>
+      <div class="bbl bbl-ai">${prompt}</div></div>`;
   } else {
     const phase = S.phase || 'define';
     const openers = {
@@ -2333,7 +2328,7 @@ async function loadSessionGreeting() {
       <i class="ti ti-map-pin" style="font-size:13px;
         color:#F59E0B;flex-shrink:0"></i>
       <div style="flex:1;line-height:1.4">
-        <strong>Welcome back</strong> — still needed:
+        <strong>Still needed:</strong>
         <span style="color:#92400E;font-weight:500">${missing}</span>
       </div>
       <button onclick="sendPresetMessage(${JSON.stringify(data.next_action).replace(/"/g,'&quot;')})"
