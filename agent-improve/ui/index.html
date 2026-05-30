@@ -2268,8 +2268,9 @@ async function loadSessionGreeting() {
     const banner = document.createElement('div');
     banner.id = 'reentry-banner';
     banner.style.cssText = `
-      background:#EEEDFE;
-      border-bottom:0.5px solid #AFA9EC;
+      background:#FFFBEB;
+      border-bottom:none;
+      border-left:3px solid #F59E0B;
       padding:8px 14px;
       display:flex;
       align-items:center;
@@ -2285,13 +2286,13 @@ async function loadSessionGreeting() {
 
     banner.innerHTML = `
       <i class="ti ti-map-pin" style="font-size:13px;
-        color:#534AB7;flex-shrink:0"></i>
+        color:#F59E0B;flex-shrink:0"></i>
       <div style="flex:1;line-height:1.4">
         <strong>Welcome back</strong> — still needed:
-        <span style="color:#534AB7">${missing}</span>
+        <span style="color:#92400E;font-weight:500">${missing}</span>
       </div>
       <button onclick="sendPresetMessage(${JSON.stringify(data.next_action).replace(/"/g,'&quot;')})"
-        style="padding:4px 10px;background:#534AB7;color:#fff;
+        style="padding:4px 10px;background:#D97706;color:#fff;
         border:none;border-radius:6px;font-size:10px;
         font-weight:500;cursor:pointer;white-space:nowrap;flex-shrink:0">
         Continue →
@@ -2631,14 +2632,24 @@ function renderSipocDiagram(sipoc, containerId) {
 
   const tabBtn = (name, label) => {
     const active = activeTab === name;
-    return `<button onclick="
-      document.getElementById('${containerId}').dataset.sipocTab='${name}';
-      renderSipocDiagram(window._lastSipoc_${containerId},
-        '${containerId}')" style="padding:4px 12px;font-size:11px;
+    return `<button
+      data-sipoc-tab="${name}"
+      data-sipoc-container="${containerId}"
+      onclick="(function(btn){
+        var cid=btn.getAttribute('data-sipoc-container');
+        var el=document.getElementById(cid);
+        if(el&&el._sipocData){
+          el.dataset.sipocTab=btn.getAttribute('data-sipoc-tab');
+          renderSipocDiagram(el._sipocData,cid);
+        }
+      })(this)"
+      style="padding:4px 12px;font-size:11px;
       font-weight:${active?'600':'400'};cursor:pointer;border:none;
       background:${active?'#534AB7':'var(--surface2,#F8F7F4)'};
       color:${active?'#fff':'var(--text2,#5C5A55)'};
-      border-radius:${name==='table'?'4px 0 0 4px':'0 4px 4px 0'}">${label}</button>`;
+      border-radius:${name==='table'?'4px 0 0 4px':'0 4px 4px 0'}">
+      ${label}
+    </button>`;
   };
 
   // TABLE VIEW
@@ -2731,8 +2742,8 @@ function renderSipocDiagram(sipoc, containerId) {
       ${statusNote}
     </div>`;
 
-  // Store sipoc data on window for tab toggle re-renders
-  window[`_lastSipoc_${containerId}`] = sipoc;
+  // Store sipoc data on the DOM element for toggle access
+  container._sipocData = sipoc;
 }
 
 function render5W2HMindmap(viz, containerId) {
