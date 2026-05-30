@@ -1980,85 +1980,107 @@ function renderChat(){
     msgs.scrollTop=msgs.scrollHeight;
   }
   renderChips();
-  // Re-render SIPOC if last response has one
-  renderLiveSipoc();
-  // Re-render 5W2H mindmap if last response has one (SIPOC takes priority)
   renderLiveViz();
 }
 
-function renderLiveSipoc(){
-  if(!S.lastAsk || !S.lastAsk.sipoc_diagram) return;
-  const msgs = document.getElementById('msgs');
-  if(!msgs) return;
-  let el = document.getElementById('sipoc-live');
-  if(!el){
-    el = document.createElement('div');
-    el.id = 'sipoc-live';
-    msgs.appendChild(el);
-  }
-  renderSipocDiagram(S.lastAsk.sipoc_diagram, 'sipoc-live');
-  msgs.scrollTop = msgs.scrollHeight;
-}
+function renderLiveViz() {
+  if (!S.case || S.phase !== 'define') return;
 
-function renderLiveViz(){
-  const msgs = document.getElementById('msgs');
-  if(!msgs) return;
-  const chatEl = msgs;
   const structured = getStructured();
+  const workProduct = detectCurrentWorkProduct(structured);
+  const lastAsk = S.lastAsk || {};
 
-  // 5W2H mindmap — SIPOC takes priority; skip the mindmap when a SIPOC diagram is rendered
-  if(S.lastAsk && S.lastAsk.visualisation &&
-     S.lastAsk.visualisation.type === 'mindmap_5w2h' &&
-     !document.getElementById('sipoc-live')){
-    let el = document.getElementById('viz-live');
-    if(!el){
-      el = document.createElement('div');
-      el.id = 'viz-live';
-      msgs.appendChild(el);
-    }
-    render5W2HMindmap(S.lastAsk.visualisation, 'viz-live');
+  // Find or create single viz container, placed after last AI bubble
+  const chatEl = document.getElementById('chat-messages')
+    || document.getElementById('msgs');
+  if (!chatEl) return;
+
+  let vizEl = document.getElementById('viz-live');
+  if (!vizEl) {
+    vizEl = document.createElement('div');
+    vizEl.id = 'viz-live';
+    vizEl.style.cssText = 'padding:0 12px 8px';
+    chatEl.appendChild(vizEl);
   }
 
-  // Goal & Scope card
-  if (S.lastAsk?.visualisation?.type === 'goal_scope' ||
-      (S.phase === 'define' && structured.goal_statement)) {
-    const el = document.getElementById('viz-goal-scope')
-      || (() => {
-        const d = document.createElement('div');
-        d.id = 'viz-goal-scope';
-        chatEl?.appendChild(d);
-        return d;
-      })();
-    renderGoalScopeCard(structured, 'viz-goal-scope');
+  // Render only the active work product visual
+  switch(workProduct) {
+    case 'problem':
+      if (lastAsk.visualisation?.type === 'mindmap_5w2h') {
+        render5W2HMindmap(lastAsk.visualisation, 'viz-live');
+      } else if (Object.values(structured).some(v => fieldHasValue(v))) {
+        // Build viz from structured data directly
+        const vizData = {
+          type: 'mindmap_5w2h',
+          data: {
+            problem_summary: structured.what || 'Problem being defined…',
+            fields: {
+              what: structured.what,
+              where: structured.where,
+              when: structured.when,
+              who_affected: structured.who_affected,
+              why_it_matters: structured.why_it_matters,
+              how_much_baseline: structured.how_much_baseline,
+              how_goal: structured.how_goal,
+            }
+          },
+          draft: !['what','where','when','who_affected',
+            'why_it_matters','how_much_baseline','how_goal']
+            .every(k => fieldHasValue(structured[k])),
+          captured_count: ['what','where','when','who_affected',
+            'why_it_matters','how_much_baseline','how_goal']
+            .filter(k => fieldHasValue(structured[k])).length,
+          total_count: 7,
+        };
+        render5W2HMindmap(vizData, 'viz-live');
+      }
+      break;
+
+    case 'sipoc':
+      const sipocData = lastAsk.sipoc_diagram
+        || (structured.sipoc
+            ? {...structured.sipoc, draft: false}
+            : null);
+      if (sipocData) {
+        renderSipocDiagram(sipocData, 'viz-live');
+      } else {
+        vizEl.innerHTML = `
+          <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+            border-radius:8px;padding:12px;text-align:center;
+            color:var(--text3,#99978F);font-size:11px;font-style:italic">
+            SIPOC diagram will appear here as you map the process
+          </div>`;
+      }
+      break;
+
+    case 'goal_scope':
+      renderGoalScopeCard(structured, 'viz-live');
+      break;
+
+    case 'business_case':
+      renderBenefitsCard(structured, 'viz-live');
+      break;
+
+    case 'charter':
+      renderCharterCard(structured, 'viz-live');
+      break;
+
+    case 'complete':
+      vizEl.innerHTML = `
+        <div style="background:#E1F5EE;border:0.5px solid #6FCF97;
+          border-radius:8px;padding:10px 14px;font-size:11px;
+          color:#085041;display:flex;align-items:center;gap:8px">
+          <i class="ti ti-circle-check" style="font-size:14px"></i>
+          All sections complete — open the Gate tab to review
+          and submit.
+        </div>`;
+      break;
+
+    default:
+      vizEl.innerHTML = '';
   }
 
-  // Benefits card
-  if (S.lastAsk?.visualisation?.type === 'benefits' ||
-      (S.phase === 'define' && structured.business_case_rationale)) {
-    const el = document.getElementById('viz-benefits')
-      || (() => {
-        const d = document.createElement('div');
-        d.id = 'viz-benefits';
-        chatEl?.appendChild(d);
-        return d;
-      })();
-    renderBenefitsCard(structured, 'viz-benefits');
-  }
-
-  // Charter card
-  if (S.lastAsk?.visualisation?.type === 'charter' ||
-      (S.phase === 'define' && structured.process_owner)) {
-    const el = document.getElementById('viz-charter')
-      || (() => {
-        const d = document.createElement('div');
-        d.id = 'viz-charter';
-        chatEl?.appendChild(d);
-        return d;
-      })();
-    renderCharterCard(structured, 'viz-charter');
-  }
-
-  msgs.scrollTop = msgs.scrollHeight;
+  chatEl.scrollTop = chatEl.scrollHeight;
 }
 
 function renderTurn(turn){
@@ -2071,6 +2093,25 @@ function renderTurn(turn){
     return `<div class="msg user"><div class="mav mu">${initials}</div>
       <div class="bbl bbl-user">${turn.text}</div></div>`;
   }
+}
+
+function detectCurrentWorkProduct(structured) {
+  if (!structured) return 'problem';
+  const fv = k => fieldHasValue(structured[k]);
+
+  const problemFields = ['what','where','when','who_affected',
+    'why_it_matters','how_much_baseline','how_goal'];
+  if (!problemFields.every(fv)) return 'problem';
+  if (!fv('sipoc')) return 'sipoc';
+  if (!['goal_statement','scope_in','scope_out'].every(fv))
+    return 'goal_scope';
+  if (!['business_case_rationale','current_cost','expected_saving',
+        'hard_benefits','soft_benefits'].every(fv))
+    return 'business_case';
+  if (!['process_owner','sponsor','team_members','belt_level',
+        'target_date','primary_metric'].every(fv))
+    return 'charter';
+  return 'complete';
 }
 
 function buildDynamicChips() {
@@ -2195,19 +2236,7 @@ function renderChips(){
 
 async function loadSessionGreeting() {
   if (!S.case) return;
-  // Show the re-entry greeting at most once per phase session.
-  // (renderChat() rebuilds #msgs on every chat-tab open, wiping the greeting
-  //  div, so a DOM-only guard is not enough — track it on state too.)
   if (S._greetingShown) return;
-
-  // Only show greeting if chat has no messages yet this session
-  // or if returning after completing a section
-  const msgs = document.getElementById('chat-messages')
-    || document.getElementById('msgs');
-  const existingGreeting = document.getElementById('reentry-greeting');
-
-  // Don't show again if already shown this session
-  if (existingGreeting) return;
 
   try {
     const caseId = S.case?.case_id || S.case?.id || S.caseId;
@@ -2223,45 +2252,60 @@ async function loadSessionGreeting() {
     if (!r.ok) return;
     const data = await r.json();
 
-    // Render greeting as a special non-chat UI element
-    const greetingDiv = document.createElement('div');
-    greetingDiv.id = 'reentry-greeting';
-    Object.assign(greetingDiv.style, {
-      background: '#EEEDFE',
-      border: '0.5px solid #AFA9EC',
-      borderRadius: '8px',
-      padding: '12px 14px',
-      marginBottom: '12px',
-      fontSize: '12px',
-      color: '#26215C',
-      lineHeight: '1.6',
-    });
-    // Escape the JSON-encoded action for safe use inside the double-quoted
-    // onclick attribute (it can contain both " and & characters).
-    const nextArg = JSON.stringify(data.next_action)
-      .replace(/&/g, '&amp;')
-      .replace(/"/g, '&quot;');
-    greetingDiv.innerHTML = `
-      <div style="font-size:10px;font-weight:700;letter-spacing:.06em;
-        color:#534AB7;text-transform:uppercase;margin-bottom:4px">
-        Where we left off
-      </div>
-      <div>${data.greeting}</div>
-      ${data.missing_sections.length > 0 ? `
-        <button onclick="sendPresetMessage(${nextArg})"
-          style="margin-top:8px;padding:5px 14px;background:#534AB7;color:#fff;
-          border:none;border-radius:6px;font-size:11px;font-weight:500;
-          cursor:pointer">
-          Continue →
-        </button>` : ''}`;
+    S._greetingShown = true;
 
-    // Insert at the top of the chat messages area
-    if (msgs) {
-      msgs.insertBefore(greetingDiv, msgs.firstChild);
-      S._greetingShown = true;
-    }
+    // If all complete, no banner needed
+    if (!data.missing_sections || data.missing_sections.length === 0) return;
+
+    // Find the chat tab content wrapper — insert banner ABOVE the msgs div
+    const chatView = document.getElementById('view-chat');
+    if (!chatView) return;
+
+    // Remove any existing banner
+    const existing = document.getElementById('reentry-banner');
+    if (existing) existing.remove();
+
+    const banner = document.createElement('div');
+    banner.id = 'reentry-banner';
+    banner.style.cssText = `
+      background:#EEEDFE;
+      border-bottom:0.5px solid #AFA9EC;
+      padding:8px 14px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-size:11px;
+      color:#26215C;
+      flex-shrink:0;
+    `;
+
+    const missing = data.missing_sections.slice(0, 3).join(' · ')
+      + (data.missing_sections.length > 3
+          ? ` +${data.missing_sections.length - 3} more` : '');
+
+    banner.innerHTML = `
+      <i class="ti ti-map-pin" style="font-size:13px;
+        color:#534AB7;flex-shrink:0"></i>
+      <div style="flex:1;line-height:1.4">
+        <strong>Welcome back</strong> — still needed:
+        <span style="color:#534AB7">${missing}</span>
+      </div>
+      <button onclick="sendPresetMessage(${JSON.stringify(data.next_action).replace(/"/g,'&quot;')})"
+        style="padding:4px 10px;background:#534AB7;color:#fff;
+        border:none;border-radius:6px;font-size:10px;
+        font-weight:500;cursor:pointer;white-space:nowrap;flex-shrink:0">
+        Continue →
+      </button>
+      <button onclick="document.getElementById('reentry-banner').remove()"
+        style="padding:4px 6px;background:none;border:none;
+        color:#534AB7;cursor:pointer;font-size:14px;
+        line-height:1;flex-shrink:0">×</button>`;
+
+    // Insert as first child of chat view (above the scroll area)
+    chatView.insertBefore(banner, chatView.firstChild);
+
   } catch(e) {
-    // Silent fail — greeting is non-critical
+    // Silent fail
   }
 }
 
@@ -2289,15 +2333,11 @@ async function sendMessage(){
       }
       const aiTurn={turn:S.localChat.length+1,role:'ai',user:null,text:resp.answer,timestamp:new Date().toISOString(),citations:resp.citations||[]};
       S.localChat.push(aiTurn);
-      // Remove any stale sipoc-live container so the new one renders below this AI bubble
-      const stale=document.getElementById('sipoc-live'); if(stale) stale.remove();
-      const staleViz=document.getElementById('viz-live'); if(staleViz) staleViz.remove();
       appendMsgToDOM(renderTurn(aiTurn));
       renderChips();
       updateRightPanel(resp);
       renderDiagram();
       renderSteps();
-      renderLiveSipoc();
       renderLiveViz();
     }else if(resp.detail){toast('Error: '+resp.detail);}
   }catch(e){document.getElementById('typing').classList.remove('show');toast('Could not reach backend');}
