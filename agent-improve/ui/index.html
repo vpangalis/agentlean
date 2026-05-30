@@ -1970,17 +1970,36 @@ function renderChat(){
   const badge=document.getElementById('chat-phase-badge');
   badge.textContent=p.label;badge.style.cssText=`background:${p.bg};color:${p.color}`;
   document.getElementById('chat-step').textContent='AI guide';
-  const msgs=document.getElementById('msgs');
-  if(S.localChat.length===0){
-    msgs.innerHTML=`<div class="msg"><div class="mav mai">AI</div>
-      <div class="bbl bbl-ai"><p>Welcome to the ${p.label} phase${S.user?', '+S.user:''}! ${p.desc}</p>
-      <p>Let's start. ${p.steps[0]}</p></div></div>`;
-  }else{
-    msgs.innerHTML=S.localChat.map(t=>renderTurn(t)).join('');
-    msgs.scrollTop=msgs.scrollHeight;
+  const msgs = document.getElementById('chat-messages')
+    || document.getElementById('msgs');
+  if (!msgs) return;
+
+  // Full history is still kept in S.localChat (used by sendMessage
+  // when building the conversation payload for /ask). Here we only
+  // render the LAST AI message so the chat area stays clean on load.
+  const history = S.case?.phases?.[S.phase]?.conversation_history
+    || S.localChat
+    || [];
+  const lastAI = [...history].reverse().find(t => t.role === 'ai');
+
+  if (lastAI) {
+    msgs.innerHTML = renderTurn(lastAI);
+  } else {
+    const phase = S.phase || 'define';
+    const openers = {
+      define: "Hello! I'm your AI guide for the Define phase. Let's start by understanding the problem. What is happening in your process that shouldn't be happening?",
+      measure: "Welcome to the Measure phase. Let's plan how to collect the right data. What do you currently know about how the process performs?",
+      analyse_phase: "Welcome to the Analyse phase. Now we dig into root causes. What patterns have you noticed in the data you collected?",
+      improve: "Welcome to the Improve phase. Let's design solutions. Based on the root causes identified, what improvement ideas does the team have?",
+      control: "Welcome to the Control phase. Let's make the improvement stick. What monitoring is currently in place for this process?",
+    };
+    msgs.innerHTML = `<div class="msg"><div class="mav mai">AI</div>
+      <div class="bbl bbl-ai"><p>${openers[phase] || openers.define}</p></div></div>`;
   }
+
   renderChips();
   renderLiveViz();
+  msgs.scrollTop = msgs.scrollHeight;
 }
 
 function renderLiveViz() {
