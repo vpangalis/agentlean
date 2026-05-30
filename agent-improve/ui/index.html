@@ -2209,10 +2209,6 @@ async function loadSessionGreeting() {
   // Don't show again if already shown this session
   if (existingGreeting) return;
 
-  // Don't show if there are already many messages in the chat
-  const msgCount = msgs?.querySelectorAll('.msg-bubble, .ai-bubble, .user-bubble')?.length || 0;
-  if (msgCount > 4) return;
-
   try {
     const caseId = S.case?.case_id || S.case?.id || S.caseId;
     const r = await fetch('http://127.0.0.1:8020/context', {
@@ -3051,7 +3047,7 @@ function renderRightPanel(){
     const fakeResp={
       captured_fields:Object.entries(structured)
         .filter(([k,v])=>!k.startsWith('_')&&v!==null&&v!==undefined&&v!=='')
-        .map(([k,v])=>({label:k.replace(/_/g,' ').replace(/\w/g,c=>c.toUpperCase()),value:String(v),ai_suggested:false,required_for_gate:true})),
+        .map(([k,v])=>({label:k.replace(/_/g,' ').replace(/\w/g,c=>c.toUpperCase()),value:formatFieldValue(v),ai_suggested:false,required_for_gate:true})),
       gate_status:{phase:S.phase,passed:false,attempts:0,missing_fields:[]},
       citations:[]
     };
@@ -3124,7 +3120,7 @@ function updateRightPanel(resp){
     const rows = flds.map(f =>
       `<div class="cf${f.ai_suggested?' ai':''}">
         <div class="cf-lbl">${f.label}${f.ai_suggested?'<span class="ai-tag">AI</span>':''}</div>
-        <div class="cfv">${f.value}</div>
+        <div class="cfv">${formatFieldValue(f.value)}</div>
       </div>`
     ).join('');
     return `<div style="margin-bottom:10px">
