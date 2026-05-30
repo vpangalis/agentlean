@@ -2614,6 +2614,14 @@ async function generateSessionSummary(date, turns) {
   if(SESSION_SUMMARIES[date]) return; // already cached
   SESSION_SUMMARIES[date] = '__loading__';
 
+  // Fallback: if still loading after 15s, show error
+  setTimeout(() => {
+    if (SESSION_SUMMARIES[date] === '__loading__') {
+      SESSION_SUMMARIES[date] = 'Summary timed out — reload to retry.';
+      if (S.tab === 'history') renderHistory();
+    }
+  }, 15000);
+
   try {
     const payload = {
       turns: turns.map(t => ({
@@ -2658,12 +2666,23 @@ function renderHistory() {
 
   const dateKeys = Object.keys(byDate).sort();
 
-  // Trigger summary generation for any date not yet cached
-  dateKeys.forEach(date => {
-    if(!SESSION_SUMMARIES[date]) {
-      generateSessionSummary(date, byDate[date]);
-    }
-  });
+  // Summarise lazily — most recent first, then others
+  // sequentially with 2s gaps to avoid hammering the LLM
+  const unsummarised = dateKeys.filter(d => !SESSION_SUMMARIES[d]);
+  if (unsummarised.length > 0) {
+    // Most recent session first (last in sorted array)
+    const mostRecent = unsummarised[unsummarised.length - 1];
+    generateSessionSummary(mostRecent, byDate[mostRecent]);
+
+    // Rest sequentially with 2s gap each
+    unsummarised.slice(0, -1).forEach((date, i) => {
+      setTimeout(() => {
+        if (!SESSION_SUMMARIES[date]) {
+          generateSessionSummary(date, byDate[date]);
+        }
+      }, (i + 1) * 2000);
+    });
+  }
 
   el.innerHTML = dateKeys.map(date => {
     const turns = byDate[date];
