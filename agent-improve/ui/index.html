@@ -133,7 +133,7 @@ a{text-decoration:none;color:inherit}
 .join-row input{flex:1;padding:7px 10px;border:1px solid var(--teal-mid);border-radius:var(--radius-sm);font-size:12px;background:white}
 
 /* ─── WORKSPACE ─────────────────────────────────────────────────── */
-.workspace{display:grid;grid-template-columns:196px 1fr 244px;gap:1px;background:var(--border);flex:1;overflow:hidden;min-height:0}
+.workspace{display:grid;grid-template-columns:196px 1fr;gap:1px;background:var(--border);flex:1;overflow:hidden;min-height:0}
 
 /* LEFT NAV */
 .pnav{background:var(--surface);display:flex;flex-direction:column;overflow:hidden;min-height:0}
@@ -631,14 +631,6 @@ a{text-decoration:none;color:inherit}
       </div>
     </div>
 
-    <!-- RIGHT PANEL -->
-    <div class="rpanel">
-      <div class="rp-hdr"><i class="ti ti-clipboard-list" style="font-size:13px"></i><span id="rp-title">Captured so far</span><span id="rp-score-pill" style="margin-left:auto;font-size:10px;font-weight:600;padding:2px 8px;border-radius:var(--radius-pill);background:var(--brand-bg);color:var(--brand);border:1px solid var(--brand-mid)">0 / 26</span></div>
-      <div class="rp-scroll" id="rp-content">
-        <div style="color:var(--text3);font-size:11px;padding:4px 0">Start a conversation to see captured fields here.</div>
-      </div>
-    </div>
-
   </div>
 </div>
 
@@ -990,6 +982,64 @@ function renderPhaseNav(){
     else if(i===currentIdx){el.classList.add('active');pb.className='pb pb-active';pb.textContent='active';}
     else{el.classList.add('locked');pb.className='pb pb-lock';pb.textContent='locked';}
   });
+
+  // Append captured-state status under the active Define phase
+  const definePsub = document.getElementById('pi-define').nextElementSibling;
+  if (definePsub && definePsub.classList.contains('psub')) {
+    definePsub.innerHTML = '5W2H · charter · scope' + buildNavDefineStatus();
+  }
+}
+
+function buildNavDefineStatus() {
+  if (!S.case || S.phase !== 'define') return '';
+  const structured = getStructured();
+  const total = DEFINE_GATE_FIELDS.length;
+  const captured = DEFINE_GATE_FIELDS.filter(
+    f => fieldHasValue(structured[f.key])
+  ).length;
+  const pct = Math.round(captured / total * 100);
+  const allDone = captured === total;
+  const barColor = allDone ? '#0F6E56' : '#534AB7';
+
+  const groups = [
+    { label: 'Problem',        keys: ['what','where','when','who_affected','why_it_matters','how_much_baseline','how_goal'] },
+    { label: 'Baseline',       keys: ['how_much_baseline','how_goal','primary_metric','secondary_metric'] },
+    { label: 'Goal & scope',   keys: ['goal_statement','scope_in','scope_out'] },
+    { label: 'SIPOC',          keys: ['sipoc'] },
+    { label: 'Charter',        keys: ['process_owner','sponsor','team_members','belt_level','target_date','primary_metric','estimated_completion_date','project_milestones'] },
+    { label: 'Business case',  keys: ['business_case_rationale','current_cost','expected_saving','hard_benefits','soft_benefits'] },
+  ];
+
+  const rows = groups.map(g => {
+    const done = g.keys.every(k => fieldHasValue(structured[k]));
+    const partialCount = g.keys.filter(k => fieldHasValue(structured[k])).length;
+    const partial = partialCount > 0 && !done;
+    const color = done ? '#99978F' : partial ? '#BA7517' : '#99978F';
+    const icon = done ? '✓' : partial ? '◑' : '○';
+    return `<div style="display:flex;align-items:center;gap:4px;
+      padding:2px 0;font-size:10px;color:${color}">
+      <span>${icon}</span>
+      <span style="flex:1">${g.label}</span>
+      <span>${partialCount}/${g.keys.length}</span>
+    </div>`;
+  }).join('');
+
+  return `
+    <div style="margin-top:6px;padding-top:6px;
+      border-top:0.5px solid var(--border,#E4E2DC)">
+      <div style="display:flex;align-items:center;
+        justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:10px;font-weight:600;
+          color:${allDone?'#0F6E56':'#534AB7'}">${captured} / ${total}</span>
+        <span style="font-size:10px;color:var(--text3,#99978F)">${pct}%</span>
+      </div>
+      <div style="height:3px;background:var(--surface2,#F8F7F4);
+        border-radius:2px;overflow:hidden;margin-bottom:6px">
+        <div style="height:100%;background:${barColor};
+          width:${pct}%;border-radius:2px"></div>
+      </div>
+      ${rows}
+    </div>`;
 }
 
 function selectPhase(phase){
@@ -1005,7 +1055,6 @@ function selectPhase(phase){
   renderSteps();
   renderDiagram();
   renderHistory();
-  renderRightPanel();
   renderChatChips();
   selectTab('overview');
 }
@@ -1024,7 +1073,7 @@ function selectTab(tab){
   if(moreTab){
     moreTab.classList.toggle('active', tab==='steps'||tab==='diagram'||tab==='history');
   }
-  if(tab==='chat'){renderChat(); if(S.lastAsk) updateRightPanel(S.lastAsk); loadSessionGreeting();}
+  if(tab==='chat'){renderChat(); loadSessionGreeting();}
   if(tab==='gate'){renderGate();}
   // Hide tool tab when not on tool view
   const toolTab=document.getElementById('vt-tool');
@@ -2376,7 +2425,7 @@ async function sendMessage(){
       S.localChat.push(aiTurn);
       appendMsgToDOM(renderTurn(aiTurn));
       renderChips();
-      updateRightPanel(resp);
+      renderPhaseNav();
       renderDiagram();
       renderSteps();
       renderLiveViz();
@@ -2455,7 +2504,6 @@ function renderSteps(){
 // ─── DIAGRAM ─────────────────────────────────────────────────────
 function renderDiagram(){
   const p=PHASES[S.phase];
-  if(S.lastAsk) updateRightPanel(S.lastAsk);
   document.getElementById('diag-intro').textContent=`Live ${p.label.toLowerCase()} diagram — updates as your team answers questions.`;
   const container=document.getElementById('diag-container');
   if(S.phase==='define'){container.innerHTML=buildDefineDiagram();}
