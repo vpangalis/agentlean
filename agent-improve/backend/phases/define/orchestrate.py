@@ -14,6 +14,7 @@ from backend.core.prompts import (
     EXTRACTION_MAP,
     REFLECTION_CHECK,
     SIPOC_DRAFT_PROMPT,
+    STATE_SUMMARY_TEMPLATE,
 )
 from backend.knowledge.retriever import search_evidence
 
@@ -55,7 +56,11 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
         + "\n\n"
         + ORCHESTRATOR_CONTEXT_MAP["define"]
     )
-    response_text = _run_orchestrator(system_prompt, chat_history, current_user)
+    state_summary = _build_state_summary(define_inputs)
+    logger.info("State summary injected into orchestrator:\n%s", state_summary)
+    response_text = _run_orchestrator(
+        system_prompt, chat_history, current_user, state_summary
+    )
 
     # Ã¢ÂÂÃ¢ÂÂ 3. Reflect on response quality Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
     response_text = _reflect(response_text)
@@ -156,10 +161,13 @@ def _run_orchestrator(
     system_prompt: str,
     chat_history: list,
     current_user: str,
+    state_summary: str | None = None,
 ) -> str:
     """Run orchestrator LLM call. Returns response text."""
     llm = get_llm("reasoning", temperature=0.3)
     messages = [SystemMessage(content=system_prompt)]
+    if state_summary:
+        messages.append(SystemMessage(content=state_summary))
     for turn in chat_history[-12:]:  # last 12 turns for context window
         role = "ai" if turn.get("role") == "ai" else "human"
         content = turn.get("text", "")
@@ -372,6 +380,78 @@ def _detect_section_completion(
             return section_key
 
     return None
+
+
+def _build_state_summary(define_inputs: dict) -> str:
+    """Build a plain-text state summary of captured vs missing
+    fields for each work product. Injected into every orchestrator
+    call so the LLM always knows exactly where the team stands."""
+
+    def all_captured(keys: list[str]) -> bool:
+        return all(define_inputs.get(k) for k in keys)
+
+    def captured_list(keys: list[str]) -> list[str]:
+        return [k for k in keys if define_inputs.get(k)]
+
+    def missing_list(keys: list[str]) -> list[str]:
+        return [k for k in keys if not define_inputs.get(k)]
+
+    WORK_PRODUCTS = [
+        ("Work product 1 — Problem Statement", [
+            "what", "where", "when", "who_affected",
+            "why_it_matters", "how_much_baseline", "how_goal",
+        ]),
+        ("Work product 2 — SIPOC Diagram", ["sipoc"]),
+        ("Work product 3 — Goal & Scope", [
+            "goal_statement", "scope_in", "scope_out",
+        ]),
+        ("Work product 4 — Business Case & Benefits", [
+            "business_case_rationale", "current_cost",
+            "expected_saving", "hard_benefits", "soft_benefits",
+        ]),
+        ("Work product 5 — Project Charter", [
+            "process_owner", "sponsor", "team_members",
+            "belt_level", "target_date", "primary_metric",
+            "estimated_completion_date", "project_milestones",
+        ]),
+    ]
+
+    lines = []
+    current_work_product = None
+
+    for name, fields in WORK_PRODUCTS:
+        done = all_captured(fields)
+        missing = missing_list(fields)
+        captured = captured_list(fields)
+
+        if done:
+            lines.append(f"✓ {name} — COMPLETE ({len(fields)}/{len(fields)} fields)")
+        else:
+            status = "IN PROGRESS" if captured else "NOT STARTED"
+            lines.append(f"○ {name} — {status}")
+            lines.append(f"  Captured ({len(captured)}/{len(fields)}): "
+                        f"{', '.join(captured) if captured else 'none'}")
+            lines.append(f"  Still needed: {', '.join(missing)}")
+            if current_work_product is None:
+                current_work_product = name
+
+    # Determine next action
+    if current_work_product is None:
+        next_action = (
+            "All work products are complete. "
+            "Summarise the gate document and invite the team to submit."
+        )
+    else:
+        next_action = (
+            f"Continue with {current_work_product}. "
+            f"Ask for the first missing field only."
+        )
+
+    summary_text = "\n".join(lines)
+    return STATE_SUMMARY_TEMPLATE.format(
+        state_summary=summary_text,
+        next_action=next_action,
+    )
 
 
 def _build_5w2h_visualisation(define_inputs: dict, case_meta: dict) -> dict | None:

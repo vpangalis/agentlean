@@ -297,6 +297,20 @@ this is a transition announcement, not a question.
 Maximum 4 sentences.
 """
 
+STATE_SUMMARY_TEMPLATE = """
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CURRENT PROJECT STATE — READ THIS FIRST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The following fields have already been captured and
+confirmed. Do NOT ask about these again. Pick up
+exactly where the team left off.
+
+{state_summary}
+
+NEXT ACTION: {next_action}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+
 # ─────────────────────────────────────────────────────────────────
 # EXTRACTION PROMPTS — convert conversation to structured phase_inputs
 # Called after every team turn. Returns partial JSON only.
