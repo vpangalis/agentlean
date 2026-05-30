@@ -212,16 +212,16 @@ a{text-decoration:none;color:inherit}
 .bbl p{margin-bottom:4px}
 .bbl p:last-child{margin-bottom:0}
 .src-pill{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;background:var(--blue-bg);color:var(--blue);border-radius:var(--radius-pill);margin-top:5px;cursor:pointer}
-.input-container{background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;padding:8px 14px 10px;display:flex;flex-direction:column;gap:0}
+.input-container{background:#F8F7FF;border-top:2px solid #534AB7;flex-shrink:0;padding:10px 12px 12px;display:flex;flex-direction:column;gap:0;box-shadow:0 -2px 8px rgba(83,74,183,0.08)}
 .reply-box{background:var(--surface);border:1.5px solid var(--border2);border-radius:14px;overflow:hidden;transition:border .15s,box-shadow .15s}
 .reply-box:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px rgba(83,74,183,.1)}
 .chips-row{display:flex;gap:5px;flex-wrap:wrap;padding:9px 12px 8px}
 .chip{font-size:11px;padding:4px 10px;border:1px solid var(--brand-mid);border-radius:var(--radius-pill);cursor:pointer;color:var(--brand);background:var(--brand-bg);transition:all .1s;white-space:nowrap;font-weight:500}
 .chip:hover{background:var(--brand);color:white;border-color:var(--brand)}
 .reply-sep{height:1px;background:#F1EFE8;margin:0 12px}
-.cinput-label{font-size:9px;font-weight:700;color:var(--brand);letter-spacing:.06em;text-transform:uppercase;padding:7px 12px 0}
+.cinput-label{font-size:10px;font-weight:700;color:#534AB7;letter-spacing:.08em;text-transform:uppercase;padding:7px 12px 0;margin-bottom:6px}
 .input-row{display:flex;align-items:flex-end;gap:6px;padding:4px 8px 8px 12px}
-.ctxt{flex:1;border:none;outline:none;font-family:var(--font);font-size:13px;padding:0;resize:none;background:transparent;color:var(--text);min-height:36px;max-height:90px}
+.ctxt{flex:1;border:1px solid #AFA9EC;border-radius:6px;outline:none;font-family:var(--font);font-size:13px;padding:8px 10px;resize:none;background:#fff;color:var(--text);min-height:36px;max-height:90px}
 .ctxt::placeholder{color:var(--text3);font-size:12px}
 .csend{width:36px;height:36px;border-radius:50%;background:#534AB7;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .12s;font-size:16px;box-shadow:0 2px 6px rgba(83,74,183,.35);border:none;cursor:pointer}
 .csend:hover{background:#3C3489;transform:scale(1.05)}
@@ -2102,7 +2102,12 @@ function detectCurrentWorkProduct(structured) {
   const problemFields = ['what','where','when','who_affected',
     'why_it_matters','how_much_baseline','how_goal'];
   if (!problemFields.every(fv)) return 'problem';
-  if (!fv('sipoc')) return 'sipoc';
+  // SIPOC complete if in structured, or if backend returned
+  // a confirmed sipoc_diagram from uploaded evidence
+  const sipocConfirmed = fv('sipoc') ||
+    (S.lastAsk?.sipoc_diagram &&
+     S.lastAsk.sipoc_diagram.draft === false);
+  if (!sipocConfirmed) return 'sipoc';
   if (!['goal_statement','scope_in','scope_out'].every(fv))
     return 'goal_scope';
   if (!['business_case_rationale','current_cost','expected_saving',
