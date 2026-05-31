@@ -35,6 +35,36 @@ def health() -> HealthResponse:
     return HealthResponse()
 
 
+@router.get("/search-knowledge")
+def search_knowledge_content(q: str = "", top: int = 3):
+    """Temporary endpoint to read knowledge index content."""
+    from azure.search.documents import SearchClient
+    from azure.core.credentials import AzureKeyCredential
+    from backend.core.config import settings
+    search_client = SearchClient(
+        endpoint=settings.AZURE_SEARCH_ENDPOINT,
+        index_name="improve_knowledge_index",
+        credential=AzureKeyCredential(settings.AZURE_SEARCH_API_KEY),
+    )
+    try:
+        results = list(search_client.search(
+            search_text=q,
+            filter="phase_relevance eq 'define'",
+            select=["content","source_file","page_number"],
+            top=top,
+        ))
+        return {"results": [
+            {
+                "content": r["content"],
+                "source": r["source_file"],
+                "page": r["page_number"]
+            }
+            for r in results
+        ]}
+    except Exception as e:
+        return {"error": str(e), "results": []}
+
+
 @router.post("/summarise", response_model=SummariseResponse)
 def summarise_session(request: SummariseRequest) -> SummariseResponse:
     """Generate a 2-3 sentence AI summary of a session's conversation turns."""
@@ -62,7 +92,7 @@ def summarise_session(request: SummariseRequest) -> SummariseResponse:
     )
 
     try:
-        llm = get_llm(role="reasoning", temperature=0.3)
+        llm = get_llm(role="operational", temperature=0.3)
         response = llm.invoke([SystemMessage(content=system), HumanMessage(content=prompt)])
         summary = response.content.strip()
     except Exception as e:

@@ -125,12 +125,12 @@ a{text-decoration:none;color:inherit}
 .search-form{width:100%;max-width:480px;display:flex;flex-direction:column;gap:16px}
 .search-row{display:flex;gap:8px}
 .search-row input{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px}
-.search-result{padding:14px;border-radius:var(--radius-lg);border:1.5px solid var(--teal-mid);background:var(--teal-bg);cursor:pointer;display:none}
+.search-result{padding:14px;border-radius:var(--radius-lg);border:1.5px solid #A8CDE8;background:#EAF4FC;cursor:pointer;display:none}
 .sr-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.sr-title{font-size:14px;font-weight:600;color:#04342C}
-.sr-meta{font-size:11px;color:var(--teal)}
+.sr-title{font-size:14px;font-weight:600;color:#00305A}
+.sr-meta{font-size:11px;color:#3A90CC}
 .join-row{display:flex;gap:8px;margin-top:8px}
-.join-row input{flex:1;padding:7px 10px;border:1px solid var(--teal-mid);border-radius:var(--radius-sm);font-size:12px;background:white}
+.join-row input{flex:1;padding:7px 10px;border:1px solid #A8CDE8;border-radius:var(--radius-sm);font-size:12px;background:white}
 
 /* ─── WORKSPACE ─────────────────────────────────────────────────── */
 .workspace{display:grid;grid-template-columns:210px 1fr;gap:0;background:transparent;flex:1;overflow:hidden;min-height:0}
@@ -559,14 +559,7 @@ a{text-decoration:none;color:inherit}
         <div class="vt hidden" id="vt-tool" onclick="selectTab('tool')"><span id="vt-tool-label">Tool</span></div>
         <div class="vt" id="vt-chat" onclick="selectTab('chat')">AI guide</div>
         <div class="vt" id="vt-gate" onclick="selectTab('gate')">Gate</div>
-        <div class="vt" id="vt-more" onclick="toggleMoreMenu(event)" style="position:relative">
-          <span>··· More</span>
-          <div id="more-menu" style="display:none;position:absolute;top:100%;right:0;background:var(--surface,#fff);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.10);z-index:50;min-width:160px;padding:4px 0">
-            <div class="more-item" onclick="event.stopPropagation();closeMoreMenu();selectTab('steps')" style="padding:8px 14px;font-size:12px;cursor:pointer;color:var(--text, #1A1917)" onmouseover="this.style.background='#F8F7F4'" onmouseout="this.style.background=''">Step-by-step</div>
-            <div class="more-item" onclick="event.stopPropagation();closeMoreMenu();selectTab('diagram')" style="padding:8px 14px;font-size:12px;cursor:pointer;color:var(--text, #1A1917)" onmouseover="this.style.background='#F8F7F4'" onmouseout="this.style.background=''">Live diagram</div>
-            <div class="more-item" onclick="event.stopPropagation();closeMoreMenu();selectTab('history')" style="padding:8px 14px;font-size:12px;cursor:pointer;color:var(--text, #1A1917)" onmouseover="this.style.background='#F8F7F4'" onmouseout="this.style.background=''">Session history</div>
-          </div>
-        </div>
+        <div class="vt" id="vt-history" onclick="selectTab('history')">History</div>
       </div>
 
       <!-- OVERVIEW VIEW -->
@@ -1061,34 +1054,13 @@ function selectTab(tab){
     if(vt)vt.classList.toggle('active',t===tab);
     if(vw)vw.classList.toggle('active',t===tab);
   });
-  // 'More' tab stays highlighted when one of its children is active
-  const moreTab=document.getElementById('vt-more');
-  if(moreTab){
-    moreTab.classList.toggle('active', tab==='steps'||tab==='diagram'||tab==='history');
-  }
   if(tab==='chat'){renderChat(); loadSessionGreeting();}
   if(tab==='gate'){renderGate();}
+  if(tab==='history'){renderHistory();}
   // Hide tool tab when not on tool view
   const toolTab=document.getElementById('vt-tool');
   if(toolTab&&tab!=='tool'){toolTab.classList.add('hidden');}
 }
-
-function toggleMoreMenu(e){
-  if(e) e.stopPropagation();
-  const m=document.getElementById('more-menu');
-  if(!m) return;
-  m.style.display = m.style.display==='block' ? 'none' : 'block';
-}
-
-function closeMoreMenu(){
-  const m=document.getElementById('more-menu');
-  if(m) m.style.display='none';
-}
-
-document.addEventListener('click', function(e){
-  const moreTab=document.getElementById('vt-more');
-  if(moreTab && !moreTab.contains(e.target)) closeMoreMenu();
-});
 
 // ─── OVERVIEW ─────────────────────────────────────────────────────
 function renderOverview(){
@@ -2770,7 +2742,7 @@ async function generateSessionSummary(date, turns) {
 
   try {
     const payload = {
-      turns: turns.map(t => ({
+      turns: turns.slice(0, 20).map(t => ({
         role: t.role,
         user: t.user || '',
         text: t.text,
@@ -2840,7 +2812,13 @@ function renderHistory() {
 
     const summary = SESSION_SUMMARIES[date];
     const summaryHtml = !summary || summary === '__loading__'
-      ? `<div style="color:var(--text3);font-size:11px;font-style:italic">Summarising…</div>`
+      ? `<div style="display:flex;align-items:center;gap:6px;
+          color:var(--text3,#99978F);font-size:11px">
+          <div style="width:12px;height:12px;border-radius:50%;
+            border:1.5px solid #A8CDE8;border-top-color:#0070BA;
+            animation:spin .8s linear infinite"></div>
+          Summarising…
+        </div>`
       : `<div style="font-size:12px;color:var(--text);line-height:1.6">${summary}</div>`;
 
     return `<div style="border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 14px;margin-bottom:10px;background:var(--surface)">
