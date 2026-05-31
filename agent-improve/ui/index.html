@@ -1112,73 +1112,259 @@ function renderOverview(){
     </div>`;
   }).join('');
 
-  // Tools
-  const tools = p.tools.map(t =>
-    `<span onclick="sendToolQuestion('${t}')" style="display:inline-block;
-      padding:3px 9px;border-radius:20px;background:var(--surface2,#F8F7F4);
-      border:0.5px solid var(--border,#E4E2DC);font-size:10px;
-      color:var(--text2,#5C5A55);margin:0 3px 4px 0;cursor:pointer">${t}</span>`
-  ).join('');
+  // Phase badge (shared)
+  const phaseBadgeHtml = `
+    <div style="display:inline-flex;align-items:center;gap:6px;
+      background:${p.bg};border-radius:20px;padding:4px 10px;margin-bottom:10px">
+      <span style="width:18px;height:18px;border-radius:50%;background:${p.color};
+        color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;
+        justify-content:center">${p.letter}</span>
+      <span style="font-size:11px;font-weight:500;color:${p.color}">${p.label} phase</span>
+    </div>`;
 
-  // RIGHT COLUMN — progress narrative (only for define phase with a loaded case)
-  const rightCol = buildProgressNarrative();
+  // DMAIC strip wrapper (shared)
+  const dmacStripHtml = `<div style="display:flex;gap:4px;margin-bottom:20px">${dstrip}</div>`;
+
+  let leftColHtml = '';
+
+  if (S.phase === 'define') {
+    // ── Define phase: enriched orientation content ───────────────────
+    const descHtml = `
+      <p style="font-size:12px;color:var(--text2,#5C5A55);line-height:1.7;
+        margin-bottom:10px">
+        The Define phase is the starting point of your improvement project.
+        Before collecting data or looking for solutions, the team needs to
+        agree on <strong>what problem you are solving</strong>,
+        <strong>why it matters</strong>, and
+        <strong>what success looks like</strong>. This phase produces a
+        shared, documented understanding that guides every decision in
+        later phases.
+      </p>
+      <div style="font-size:11px;color:#534AB7;background:#EEEDFE;
+        border-radius:6px;padding:8px 12px;margin-bottom:20px;line-height:1.5">
+        <i class="ti ti-robot" style="font-size:13px;margin-right:5px"
+          aria-hidden="true"></i>
+        The AI guide walks you through each step in sequence with questions
+        and explanations. You do not need to know Lean Six Sigma to proceed —
+        just answer what you know.
+      </div>`;
+
+    const uiOrientationHtml = `
+      <div style="margin-bottom:28px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:var(--text3,#99978F);text-transform:uppercase;
+          display:flex;align-items:center;gap:6px;margin-bottom:14px">
+          How this workspace is organised
+          <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
+            display:block"></span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          ${[
+            { icon:'ti-map',      name:'Phase overview',   note:'you are here',
+              desc:'Explains what happens in this phase, what you will do, and how long it takes. Read this first.' },
+            { icon:'ti-robot',    name:'AI guide',          note:'',
+              desc:'Your working area. The AI asks questions, captures your answers, and builds the gate document as you go.' },
+            { icon:'ti-checkbox', name:'Gate',              note:'',
+              desc:'Shows the live gate document — all captured information assembled into a formal Define report. Submit here when complete.' },
+            { icon:'ti-history',  name:'Session history',   note:'under ···',
+              desc:'A summary of every conversation session — what was discussed and what was captured. Useful for catching up after a break.' },
+          ].map(t => `
+            <div style="border:0.5px solid var(--border,#E4E2DC);border-radius:8px;
+              padding:10px 12px;display:flex;gap:10px;align-items:flex-start">
+              <div style="width:28px;height:28px;border-radius:6px;background:#EEEDFE;
+                display:flex;align-items:center;justify-content:center;flex-shrink:0;
+                margin-top:1px">
+                <i class="ti ${t.icon}" style="font-size:15px;color:#534AB7"
+                  aria-hidden="true"></i>
+              </div>
+              <div>
+                <div style="font-size:11px;font-weight:600;color:#3C3489;margin-bottom:3px">
+                  ${t.name}
+                  ${t.note ? `<span style="font-size:9px;color:#99978F;
+                    font-weight:400;margin-left:4px">(${t.note})</span>` : ''}
+                </div>
+                <div style="font-size:11px;color:var(--text2,#5C5A55);line-height:1.45">
+                  ${t.desc}
+                </div>
+              </div>
+            </div>`
+          ).join('')}
+        </div>
+      </div>`;
+
+    const steps = [
+      {
+        num: '1', gate: false,
+        action: 'Describe the problem',
+        tool: 'Tool: 5W2H framework',
+        desc: 'Answer 7 guided questions: what is going wrong, where it happens, when it started, who is affected, why it matters, how bad it is today, and what the target is. The AI turns your answers into a structured problem statement.',
+        time: '15–20 min',
+      },
+      {
+        num: '2', gate: false,
+        action: 'Map the process',
+        tool: 'Tool: SIPOC diagram',
+        desc: 'Draw a high-level picture of the process — who supplies it, what goes in, what the main steps are, what it produces, and who receives the result. You can upload an existing process map and the AI will read it automatically.',
+        time: '20–30 min',
+      },
+      {
+        num: '3', gate: false,
+        action: 'Set the goal and boundaries',
+        tool: 'Goal statement & scope',
+        desc: 'Write the goal in one precise sentence — what you will improve, from what level to what level, by when. Define what is included in this project and what is deliberately left out. Boundaries prevent the project from growing beyond what the team can handle.',
+        time: '10–15 min',
+      },
+      {
+        num: '4', gate: false,
+        action: 'Make the financial case',
+        tool: 'Business case & benefits analysis',
+        desc: 'Capture the current cost of the problem and the expected saving. Split into hard benefits (measurable savings) and soft benefits (customer satisfaction, morale). This is what justifies the investment to management.',
+        time: '15–20 min',
+      },
+      {
+        num: '5', gate: false,
+        action: 'Plan the team and timeline',
+        tool: 'Project charter',
+        desc: 'Document who is on the team, who is sponsoring the project, which metrics you will track, the target completion date, and the key milestones. This is the formal communication of the project to the organisation.',
+        time: '20–30 min',
+      },
+      {
+        num: '✓', gate: true,
+        action: 'Submit for AI gate review',
+        tool: 'Gate tab → Submit button',
+        desc: 'When all 5 sections are complete, open the Gate tab and submit for review. The AI checks that all required information is captured, assesses the quality of the problem statement, business case, and charter, and either approves the gate or highlights what still needs work. Once approved, the project advances to the Measure phase.',
+        time: 'AI reviews instantly',
+      },
+    ];
+
+    const roadmapHtml = `
+      <div style="margin-bottom:28px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:var(--text3,#99978F);text-transform:uppercase;
+          display:flex;align-items:center;gap:6px;margin-bottom:14px">
+          What you will do — in this order
+          <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
+            display:block"></span>
+        </div>
+        ${steps.map((s, i) => `
+          <div style="display:flex;align-items:stretch;gap:0">
+            <div style="display:flex;flex-direction:column;align-items:center;
+              width:48px;flex-shrink:0">
+              <div style="width:40px;height:40px;border-radius:50%;
+                background:${s.gate ? '#534AB7' : '#EEEDFE'};
+                border:1.5px solid ${s.gate ? '#3C3489' : '#AFA9EC'};
+                display:flex;align-items:center;justify-content:center;
+                font-size:${s.gate ? '16px' : '13px'};font-weight:700;
+                color:${s.gate ? '#fff' : '#534AB7'};
+                flex-shrink:0;z-index:1">
+                ${s.num}
+              </div>
+              ${i < steps.length - 1 ? `
+                <div style="width:1.5px;flex:1;background:#AFA9EC;
+                  margin:0 auto;min-height:16px"></div>` : ''}
+            </div>
+            <div style="flex:1;padding:4px 0 ${i < steps.length-1 ? '20px' : '0'} 16px">
+              <div style="font-size:13px;font-weight:600;
+                color:${s.gate ? '#534AB7' : '#26215C'};margin-bottom:2px">
+                ${s.action}
+              </div>
+              <div style="font-size:10px;color:#7F77DD;font-weight:500;
+                margin-bottom:5px">${s.tool}</div>
+              <div style="font-size:11px;color:var(--text2,#5C5A55);
+                line-height:1.55;margin-bottom:6px">${s.desc}</div>
+              <span style="display:inline-flex;align-items:center;gap:4px;
+                font-size:10px;
+                color:${s.gate ? '#534AB7' : 'var(--text3,#99978F)'};
+                background:${s.gate ? '#EEEDFE' : '#F4F3F2'};
+                border-radius:20px;padding:2px 8px">
+                <i class="ti ${s.gate ? 'ti-sparkles' : 'ti-clock'}"
+                  style="font-size:11px" aria-hidden="true"></i>
+                ${s.time}
+              </span>
+            </div>
+          </div>`
+        ).join('')}
+      </div>`;
+
+    const durationHtml = `
+      <div style="margin-bottom:28px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:var(--text3,#99978F);text-transform:uppercase;
+          display:flex;align-items:center;gap:6px;margin-bottom:12px">
+          Total time by belt level
+          <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
+            display:block"></span>
+        </div>
+        <div style="display:flex;gap:8px">
+          ${[
+            { name:'Yellow Belt', total:'30–40 days total project',   define:'Define: 1–2 sessions' },
+            { name:'Green Belt',  total:'~90 days total project',     define:'Define: 1–3 sessions over 3–7 days' },
+            { name:'Black Belt',  total:'120+ days total project',    define:'Define: multiple sessions with broader team' },
+          ].map(b => `
+            <div style="flex:1;border:0.5px solid var(--border,#E4E2DC);
+              border-radius:8px;padding:10px 12px">
+              <div style="font-size:10px;font-weight:600;color:#534AB7;
+                margin-bottom:3px">${b.name}</div>
+              <div style="font-size:11px;color:var(--text2,#5C5A55);
+                line-height:1.4">${b.total}</div>
+              <div style="font-size:10px;color:var(--text3,#99978F);
+                margin-top:2px">${b.define}</div>
+            </div>`
+          ).join('')}
+        </div>
+      </div>`;
+
+    const ctaBtnHtml = `
+      <button onclick="selectTab('chat')" style="display:block;max-width:480px;
+        margin:0 auto;width:100%;padding:12px;
+        background:#534AB7;color:#fff;border:none;border-radius:6px;
+        font-size:13px;font-weight:600;cursor:pointer;text-align:center">
+        ▷  Start the AI guide — Define phase
+      </button>`;
+
+    leftColHtml = phaseBadgeHtml + descHtml + dmacStripHtml
+      + uiOrientationHtml + roadmapHtml + durationHtml + ctaBtnHtml;
+  } else {
+    // ── Non-define phases: existing simple content ───────────────────
+    const tools = p.tools.map(t =>
+      `<span onclick="sendToolQuestion('${t}')" style="display:inline-block;
+        padding:3px 9px;border-radius:20px;background:var(--surface2,#F8F7F4);
+        border:0.5px solid var(--border,#E4E2DC);font-size:10px;
+        color:var(--text2,#5C5A55);margin:0 3px 4px 0;cursor:pointer">${t}</span>`
+    ).join('');
+
+    leftColHtml = phaseBadgeHtml + `
+      <p style="font-size:12px;color:var(--text2,#5C5A55);line-height:1.6;
+        margin-bottom:14px">${p.desc}</p>
+      ${dmacStripHtml}
+      ${eduSection('What the AI will ask', p.whatAsks)}
+      ${eduSection('What gets captured', p.whatCaptures)}
+      ${eduSection('Gate to pass', p.gate)}
+      ${eduSection('Typical duration', p.duration)}
+      <div style="margin-bottom:12px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:var(--text3,#99978F);text-transform:uppercase;
+          display:flex;align-items:center;gap:5px;margin-bottom:5px">
+          Tools used in this phase
+          <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
+            display:block"></span>
+        </div>
+        <div>${tools}</div>
+      </div>
+      <button onclick="selectTab('chat')" style="width:100%;padding:9px;
+        background:#534AB7;color:#fff;border:none;border-radius:6px;
+        font-size:11px;font-weight:500;cursor:pointer;display:flex;
+        align-items:center;justify-content:center;gap:6px">
+        <i class="ti ti-player-play" style="font-size:12px"></i>
+        Continue with AI guide — ${p.label} phase
+      </button>`;
+  }
 
   document.getElementById('view-overview').innerHTML = `
-    <div style="display:grid;grid-template-columns:3fr 2fr;height:100%;overflow:hidden">
-
-      <!-- LEFT: Educational -->
-      <div style="border-right:0.5px solid var(--border,#E4E2DC);overflow-y:auto;padding:16px">
-
-        <div style="display:inline-flex;align-items:center;gap:6px;
-          background:${p.bg};border-radius:20px;padding:4px 10px;margin-bottom:10px">
-          <span style="width:18px;height:18px;border-radius:50%;background:${p.color};
-            color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;
-            justify-content:center">${p.letter}</span>
-          <span style="font-size:11px;font-weight:500;color:${p.color}">${p.label} phase</span>
-        </div>
-
-        <p style="font-size:12px;color:var(--text2,#5C5A55);line-height:1.6;
-          margin-bottom:14px">${p.desc}</p>
-
-        <div style="display:flex;gap:4px;margin-bottom:14px">${dstrip}</div>
-
-        ${eduSection('What the AI will ask', p.whatAsks)}
-        ${eduSection('What gets captured', p.whatCaptures)}
-        ${eduSection('Gate to pass', S.phase === 'define'
-          ? 'Five sections must be complete: Business Case (strategic rationale, ' +
-            'costs, savings, hard and soft benefits), Project Charter (goal statement, ' +
-            'scope, team, metrics, timeline), Benefits Analysis, SIPOC diagram, and ' +
-            'Baseline & Measurement. All ' + DEFINE_GATE_FIELDS.length +
-            ' fields must be captured before submitting.'
-          : p.gate)}
-        ${eduSection('Typical duration', p.duration)}
-
-        <div style="margin-bottom:12px">
-          <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
-            color:var(--text3,#99978F);text-transform:uppercase;
-            display:flex;align-items:center;gap:5px;margin-bottom:5px">
-            Tools used in this phase
-            <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
-              display:block"></span>
-          </div>
-          <div>${tools}</div>
-        </div>
-
-        <button onclick="selectTab('chat')" style="width:100%;padding:9px;
-          background:#534AB7;color:#fff;border:none;border-radius:6px;
-          font-size:11px;font-weight:500;cursor:pointer;display:flex;
-          align-items:center;justify-content:center;gap:6px">
-          <i class="ti ti-player-play" style="font-size:12px"></i>
-          Continue with AI guide — ${p.label} phase
-        </button>
+    <div style="display:block;height:100%;overflow:hidden">
+      <div style="overflow-y:auto;height:100%;padding:24px 32px">
+        ${leftColHtml}
       </div>
-
-      <!-- RIGHT: Progress narrative -->
-      <div style="overflow-y:auto;padding:16px;
-        background:var(--surface2,#F8F7F4)">
-        ${rightCol}
-      </div>
-
     </div>`;
 }
 
