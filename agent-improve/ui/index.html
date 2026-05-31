@@ -136,20 +136,21 @@ a{text-decoration:none;color:inherit}
 .workspace{display:grid;grid-template-columns:210px 1fr;gap:0;background:transparent;flex:1;overflow:hidden;min-height:0}
 
 /* LEFT NAV */
-.pnav{background:#F4F3F0;border-right:none;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.pnav{background:#EEEDFE;border-right:none;display:flex;flex-direction:column;overflow:hidden;min-height:0}
 .pnav-label{font-size:10px;color:var(--text3);padding:12px 14px 6px;letter-spacing:.06em;text-transform:uppercase;font-weight:600}
 .pi{display:flex;align-items:center;gap:8px;padding:7px 14px;cursor:pointer;transition:background .1s;border-radius:0}
 .pi:hover{background:var(--surface2)}
-.pi.active{background:var(--brand-bg)}
-.pi.active .pl{color:#26215C;font-weight:600}
+.pi.active{background:#534AB7}
+.pi.active .pl{color:#fff;font-weight:600}
+.pi.locked .pl{color:#99978F}
 .pi.active .pd{background:var(--brand);border-color:var(--brand)}
-.pi.done .pd{background:var(--green);border-color:var(--green)}
+.pi.done .pd{background:#99978F;border-color:#99978F}
 .pi.done .pl{color:var(--text2)}
 .pi.locked{opacity:.38;pointer-events:none}
 .pd{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--border2);background:transparent;flex-shrink:0}
-.pl{font-size:12px;color:var(--text);flex:1}
+.pl{font-size:12px;color:#3C3489;flex:1}
 .pb{font-size:9px;padding:2px 6px;border-radius:var(--radius-pill);margin-left:auto;white-space:nowrap}
-.pb-done{background:var(--green-bg);color:#3B6D11}
+.pb-done{background:#F0F0EE;color:#5F5E5A}
 .pb-active{background:var(--brand-bg);color:var(--brand)}
 .pb-lock{background:var(--surface2);color:var(--text3)}
 .psub{font-size:10px;color:var(--text3);padding:0 14px 4px 31px;line-height:1.4}
@@ -160,7 +161,7 @@ a{text-decoration:none;color:inherit}
 
 /* MAIN PANEL */
 .main{background:var(--surface);border-left:none;display:flex;flex-direction:column;overflow:hidden;min-height:0}
-.vtabs{display:flex;border-bottom:none;flex-shrink:0;overflow:visible}
+.vtabs{display:flex;background:#fff;border-bottom:0.5px solid #E4E2DC;flex-shrink:0;overflow:visible}
 .vt{padding:8px 12px;font-size:11px;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;white-space:nowrap;transition:color .1s;margin-bottom:-1px}
 .vt:hover{color:var(--text)}
 .vt.active{color:var(--brand);border-bottom-color:var(--brand);font-weight:600}
@@ -204,21 +205,22 @@ a{text-decoration:none;color:inherit}
 .mai{background:var(--brand-bg);color:#26215C}
 .mu{background:var(--teal-bg);color:#04342C}
 .bbl{padding:8px 11px;border-radius:var(--radius-lg);font-size:12px;line-height:1.6}
-.bbl-ai{background:var(--surface2);border:1px solid var(--border);border-radius:4px var(--radius-lg) var(--radius-lg) var(--radius-lg);max-width:85%}
+.bbl-ai{background:#F8F7FF;border:0.5px solid #AFA9EC;color:#26215C;border-radius:4px var(--radius-lg) var(--radius-lg) var(--radius-lg);max-width:85%}
 .bbl-user{background:var(--brand-bg);color:#1A1550;border-radius:var(--radius-lg) 4px var(--radius-lg) var(--radius-lg);max-width:75%}
 .bbl p{margin-bottom:4px}
 .bbl p:last-child{margin-bottom:0}
 .src-pill{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;background:var(--blue-bg);color:var(--blue);border-radius:var(--radius-pill);margin-top:5px;cursor:pointer}
-.input-container{background:#F5F4F1;border-top:0.5px solid #E4E2DC;box-shadow:none;padding:12px 16px 14px;flex-shrink:0}
+.input-container{background:#fff;border-top:none;box-shadow:none;padding:10px 14px 12px;flex-shrink:0}
+.input-box{border-radius:10px;border:1px solid #AFA9EC;box-shadow:0 1px 0 0 #7F77DD,0 2px 4px rgba(83,74,183,0.10),inset 0 1px 3px rgba(83,74,183,0.05);background:#FFFFFF;padding:8px 10px 8px 12px;display:flex;align-items:flex-end;gap:8px}
 .reply-box{background:var(--surface);border:1.5px solid var(--border2);border-radius:14px;overflow:hidden;transition:border .15s,box-shadow .15s}
 .reply-box:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px rgba(83,74,183,.1)}
 .chips-row{display:flex;gap:5px;flex-wrap:wrap;padding:9px 12px 8px}
 .chip{font-size:11px;padding:4px 10px;border:1px solid var(--brand-mid);border-radius:var(--radius-pill);cursor:pointer;color:var(--brand);background:var(--brand-bg);transition:all .1s;white-space:nowrap;font-weight:500}
 .chip:hover{background:var(--brand);color:white;border-color:var(--brand)}
 .reply-sep{height:1px;background:#F1EFE8;margin:0 12px}
-.cinput-label{font-size:10px;font-weight:700;letter-spacing:.08em;color:#99978F;text-transform:uppercase;margin-bottom:6px}
+.cinput-label{font-size:10px;font-weight:700;letter-spacing:.06em;color:#7F77DD;text-transform:uppercase;margin-bottom:6px}
 .input-row{display:flex;align-items:flex-end;gap:6px;padding:4px 8px 8px 12px}
-.ctxt{flex:1;border:1px solid #E4E2DC;border-radius:6px;outline:none;font-family:var(--font);font-size:13px;padding:8px 10px;resize:none;background:#FAFAF9;color:var(--text);min-height:80px;max-height:200px}
+.ctxt{flex:1;border:none;box-shadow:none;background:transparent;padding:0;resize:none;outline:none;font-family:var(--font);font-size:13px;color:var(--text);min-height:40px;max-height:160px}
 .ctxt::placeholder{color:var(--text3);font-size:12px}
 .csend{width:36px;height:36px;border-radius:50%;background:#534AB7;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .12s;font-size:16px;box-shadow:0 2px 6px rgba(83,74,183,.35);border:none;cursor:pointer}
 .csend:hover{background:#3C3489;transform:scale(1.05)}
@@ -270,7 +272,7 @@ a{text-decoration:none;color:inherit}
 .rpanel{background:var(--surface);display:flex;flex-direction:column;overflow:hidden;min-height:0}
 .rp-hdr{padding:9px 12px;border-bottom:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:5px;flex-shrink:0}
 .rp-scroll{flex:1;overflow-y:auto;padding:10px}
-.cf{padding:7px 9px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:5px;background:var(--surface2)}
+.cf{padding:7px 9px;border-radius:var(--radius-sm);border:0.5px solid #AFA9EC;margin-bottom:5px;background:#F8F7FF}
 .cf.ai{border-color:var(--brand-mid);background:var(--brand-bg)}
 .cf.empty .cfv{color:var(--text3);font-style:italic}
 .cf-lbl{font-size:9px;color:var(--text3);margin-bottom:1px;text-transform:uppercase;letter-spacing:.04em}
@@ -582,7 +584,7 @@ a{text-decoration:none;color:inherit}
           <div class="input-container">
             <div class="reply-box">
               <div class="cinput-label">Your reply</div>
-              <div class="input-row">
+              <div class="input-box">
                 <textarea class="ctxt" id="chat-input" placeholder="Type here — Enter to send, Shift+Enter for new line" rows="2" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
                 <div class="cupload" onclick="document.getElementById('chat-file-input').click()"><i class="ti ti-paperclip"></i></div>
                 <button class="csend" onclick="sendMessage()"><i class="ti ti-arrow-up"></i></button>
@@ -990,7 +992,7 @@ function buildNavDefineStatus() {
   ).length;
   const pct = Math.round(captured / total * 100);
   const allDone = captured === total;
-  const barColor = allDone ? '#0F6E56' : '#534AB7';
+  const barColor = '#534AB7';
 
   const groups = [
     { label: 'Problem',        keys: ['what','where','when','who_affected','why_it_matters','how_much_baseline','how_goal'] },
@@ -1005,7 +1007,7 @@ function buildNavDefineStatus() {
     const done = g.keys.every(k => fieldHasValue(structured[k]));
     const partialCount = g.keys.filter(k => fieldHasValue(structured[k])).length;
     const partial = partialCount > 0 && !done;
-    const color = done ? '#99978F' : partial ? '#BA7517' : '#99978F';
+    const color = partial ? '#BA7517' : '#99978F';
     const icon = done ? '✓' : partial ? '◑' : '○';
     return `<div style="display:flex;align-items:center;gap:4px;
       padding:2px 0;font-size:10px;color:${color}">
@@ -1021,7 +1023,7 @@ function buildNavDefineStatus() {
       <div style="display:flex;align-items:center;
         justify-content:space-between;margin-bottom:4px">
         <span style="font-size:10px;font-weight:600;
-          color:${allDone?'#0F6E56':'#534AB7'}">${captured} / ${total}</span>
+          color:#534AB7">${captured} / ${total}</span>
         <span style="font-size:10px;color:var(--text3,#99978F)">${pct}%</span>
       </div>
       <div style="height:3px;background:var(--surface2,#F8F7F4);
@@ -1246,9 +1248,9 @@ function buildProgressNarrative() {
   const allDone = missing === 0;
 
   // Progress bar fill colour
-  const fillColor = allDone ? '#0F6E56' : '#534AB7';
+  const fillColor = '#534AB7';
   const statusLabel = allDone ? 'Ready for gate' : 'In progress';
-  const statusColor = allDone ? '#0F6E56' : '#BA7517';
+  const statusColor = allDone ? '#534AB7' : '#BA7517';
 
   // Narrative sentence — rule-based for define, generic for others
   let narrative = '';
@@ -1298,12 +1300,12 @@ function buildProgressNarrative() {
     const isExpanded = !!expandedGroups[g.label];
 
     const icon = done
-      ? `<i class="ti ti-circle-check" style="font-size:14px;color:#0F6E56"></i>`
+      ? `<i class="ti ti-circle-check" style="font-size:14px;color:#99978F"></i>`
       : partial
         ? `<i class="ti ti-alert-circle" style="font-size:14px;color:#BA7517"></i>`
         : `<i class="ti ti-circle-dashed" style="font-size:14px;color:var(--text3,#99978F)"></i>`;
 
-    const countColor = done ? '#0F6E56' : partial ? '#BA7517' : 'var(--text3,#99978F)';
+    const countColor = done ? '#99978F' : partial ? '#BA7517' : 'var(--text3,#99978F)';
     const countText = done
       ? `${g.total} / ${g.total} complete`
       : `${g.captured} / ${g.total} — ${g.total - g.captured} missing`;
@@ -1482,7 +1484,7 @@ function renderGate() {
   // Helper: status pill HTML
   function statusPill(status) {
     if (status === 'complete')
-      return `<span style="font-size:9px;background:#E1F5EE;color:#085041;
+      return `<span style="font-size:9px;background:#F0F0EE;color:#5F5E5A;
         padding:2px 8px;border-radius:10px;font-weight:500">✓ Complete</span>`;
     if (status === 'partial')
       return `<span style="font-size:9px;background:#FEF3C7;color:#854F0B;
@@ -1508,9 +1510,7 @@ function renderGate() {
       gap:8px;padding:5px 0;border-bottom:0.5px solid var(--border,#E4E2DC)">
       <span style="font-size:10px;color:var(--text3,#99978F);
         font-weight:600;letter-spacing:.03em;padding-top:1px">${label}</span>
-      <span style="font-size:11px;color:${hasVal
-        ? 'var(--text,#1A1917)'
-        : 'var(--text3,#99978F)'};
+      <span style="font-size:11px;color:${hasVal ? '#26215C' : '#99978F'};
         font-style:${hasVal ? 'normal' : 'italic'};
         line-height:1.5">${hasVal ? displayVal : 'not yet captured'}</span>
     </div>`;
@@ -1523,10 +1523,10 @@ function renderGate() {
       border-radius:8px;margin-bottom:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;
         padding:10px 14px;border-bottom:0.5px solid var(--border,#E4E2DC);
-        background:${status==='complete'?'#F0FBF7':status==='partial'?'#FFFBEB':'var(--surface2,#F8F7F4)'}">
+        background:${status==='complete'?'#F9F8F7':status==='partial'?'#FFFBEB':'#F4F3F2'}">
         <div style="display:flex;align-items:center;gap:8px">
           <span style="width:20px;height:20px;border-radius:50%;
-            background:${status==='complete'?'#0F6E56':status==='partial'?'#BA7517':'var(--text3,#99978F)'};
+            background:${status==='complete'?'#99978F':status==='partial'?'#BA7517':'#D3D1C7'};
             color:#fff;font-size:10px;font-weight:700;display:flex;
             align-items:center;justify-content:center;flex-shrink:0">
             ${num}
@@ -1646,14 +1646,14 @@ function renderGate() {
         justify-content:space-between;margin-bottom:8px">
         <div>
           <span style="font-size:24px;font-weight:500;
-            color:${allDone?'#0F6E56':'#534AB7'}">${captured}</span>
+            color:#534AB7">${captured}</span>
           <span style="font-size:14px;color:var(--text3,#99978F)"> / ${total}</span>
           <div style="font-size:10px;color:var(--text3,#99978F);margin-top:1px">
             fields captured</div>
         </div>
         <div style="text-align:right">
           <div style="font-size:11px;font-weight:500;
-            color:${allDone?'#0F6E56':'#BA7517'}">
+            color:${allDone?'#534AB7':'#BA7517'}">
             ${allDone?'Ready for gate':'In progress'}</div>
           <div style="font-size:10px;color:var(--text3,#99978F)">
             ${allDone?'All sections complete':(total-captured)+' fields remaining'}</div>
@@ -1661,7 +1661,7 @@ function renderGate() {
       </div>
       <div style="height:5px;background:var(--surface2,#F8F7F4);
         border-radius:3px;overflow:hidden;border:0.5px solid var(--border,#E4E2DC)">
-        <div style="height:100%;background:${allDone?'#0F6E56':'#534AB7'};
+        <div style="height:100%;background:#534AB7;
           border-radius:3px;width:${pct}%"></div>
       </div>
       <div style="font-size:10px;color:var(--text3,#99978F);margin-top:6px">
