@@ -9,10 +9,10 @@
 /* ─── RESET & BASE ─────────────────────────────────────────────── */
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --brand:#534AB7;--brand-bg:#EEEDFE;--brand-mid:#AFA9EC;
+  --brand:#0070BA;--brand-bg:#EAF4FC;--brand-mid:#A8CDE8;
   --teal:#0F6E56;--teal-bg:#E1F5EE;--teal-mid:#5DCAA5;
   --coral:#993C1D;--coral-bg:#FAECE7;
-  --amber:#BA7517;--amber-bg:#FAEEDA;
+  --amber:#C55A00;--amber-bg:#FAEEDA;
   --green:#1D9E75;--green-bg:#EAF3DE;
   --red:#E24B4A;--red-bg:#FCEBEB;
   --blue:#185FA5;--blue-bg:#E6F1FB;
@@ -43,7 +43,7 @@ a{text-decoration:none;color:inherit}
 .tb-back:hover{background:var(--brand-bg)}
 .tb-team{margin-left:auto;display:flex;align-items:center;gap:6px}
 .av{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;flex-shrink:0;border:1.5px solid transparent}
-.av-p{background:var(--brand-bg);color:#26215C;border-color:var(--brand-mid)}
+.av-p{background:var(--brand-bg);color:#00305A;border-color:var(--brand-mid)}
 .av-t{background:var(--teal-bg);color:#04342C;border-color:var(--teal-mid)}
 
 /* ─── LANDING ─────────────────────────────────────────────────── */
@@ -87,14 +87,14 @@ a{text-decoration:none;color:inherit}
 .field label{font-size:11px;color:var(--text2)}
 .field input,.field select{padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;background:var(--surface);color:var(--text);transition:border .12s}
 .field input:focus,.field select:focus{border-color:var(--brand)}
-.case-pill{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;background:var(--brand-bg);border:1px solid var(--brand-mid);border-radius:var(--radius-pill);font-size:13px;font-weight:600;color:#26215C}
+.case-pill{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;background:var(--brand-bg);border:1px solid var(--brand-mid);border-radius:var(--radius-pill);font-size:13px;font-weight:600;color:#00305A}
 .belt-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .belt-card{padding:10px;border-radius:var(--radius);border:1px solid var(--border);cursor:pointer;text-align:center;transition:all .12s}
 .belt-card:hover{background:var(--surface2)}
 .belt-card.sel{border:1.5px solid var(--brand);background:var(--brand-bg)}
 .belt-card .bl{font-size:12px;font-weight:600;margin-bottom:2px}
 .belt-card .bs{font-size:10px;color:var(--text2);line-height:1.4}
-.belt-card.sel .bl{color:#26215C}
+.belt-card.sel .bl{color:#00305A}
 .team-list{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
 .team-row{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm)}
 .tr-name{font-size:12px;font-weight:500;flex:1}
@@ -116,7 +116,7 @@ a{text-decoration:none;color:inherit}
 .info-box i{font-size:14px;color:var(--blue);flex-shrink:0;margin-top:1px}
 .info-box p{font-size:11px;color:#0C447C;line-height:1.55}
 .btn-primary{display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:var(--radius);background:var(--brand);color:white;font-size:13px;font-weight:600;width:100%;transition:background .12s}
-.btn-primary:hover{background:#3C3489}
+.btn-primary:hover{background:#005A96}
 .btn-secondary{display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 14px;border-radius:var(--radius-sm);background:var(--surface);border:1px solid var(--border);font-size:12px;color:var(--text);transition:all .12s}
 .btn-secondary:hover{background:var(--surface2)}
 
@@ -136,19 +136,19 @@ a{text-decoration:none;color:inherit}
 .workspace{display:grid;grid-template-columns:210px 1fr;gap:0;background:transparent;flex:1;overflow:hidden;min-height:0}
 
 /* LEFT NAV */
-.pnav{background:#EEEDFE;border-right:none;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.pnav{background:#F0F2F5;border-right:0.5px solid #D8DCE3;display:flex;flex-direction:column;overflow:hidden;min-height:0}
 .pnav-label{font-size:10px;color:var(--text3);padding:12px 14px 6px;letter-spacing:.06em;text-transform:uppercase;font-weight:600}
 .pi{display:flex;align-items:center;gap:8px;padding:7px 14px;cursor:pointer;transition:background .1s;border-radius:0}
 .pi:hover{background:var(--surface2)}
-.pi.active{background:#534AB7}
+.pi.active{background:#0070BA}
 .pi.active .pl{color:#fff;font-weight:600}
-.pi.locked .pl{color:#99978F}
+.pi.locked .pl{color:#A0AABB}
 .pi.active .pd{background:var(--brand);border-color:var(--brand)}
 .pi.done .pd{background:#99978F;border-color:#99978F}
 .pi.done .pl{color:var(--text2)}
 .pi.locked{opacity:.38;pointer-events:none}
 .pd{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--border2);background:transparent;flex-shrink:0}
-.pl{font-size:12px;color:#3C3489;flex:1}
+.pl{font-size:12px;color:#2C3E50;flex:1}
 .pb{font-size:9px;padding:2px 6px;border-radius:var(--radius-pill);margin-left:auto;white-space:nowrap}
 .pb-done{background:#F0F0EE;color:#5F5E5A}
 .pb-active{background:var(--brand-bg);color:var(--brand)}
@@ -185,10 +185,10 @@ a{text-decoration:none;color:inherit}
 .wh-ttl i{font-size:13px}
 .wh p{font-size:11px;color:var(--text);line-height:1.5}
 .tool-row{display:flex;flex-wrap:wrap;gap:6px}
-.tool-pill{font-size:11px;padding:4px 10px;border-radius:var(--radius-pill);background:var(--brand-bg);color:#26215C;border:1px solid var(--brand-mid);cursor:pointer;transition:background .1s}
-.tool-pill:hover{background:#CECBF6}
+.tool-pill{font-size:11px;padding:4px 10px;border-radius:var(--radius-pill);background:var(--brand-bg);color:#00305A;border:1px solid var(--brand-mid);cursor:pointer;transition:background .1s}
+.tool-pill:hover{background:#B8D9F0}
 .start-btn{display:flex;align-items:center;justify-content:center;gap:7px;padding:10px;border-radius:var(--radius);background:var(--brand);color:white;font-size:13px;font-weight:600;cursor:pointer;border:none;width:100%;transition:background .12s}
-.start-btn:hover{background:#3C3489}
+.start-btn:hover{background:#005A96}
 .s-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
 .sess{display:flex;align-items:flex-start;gap:8px;padding:8px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);margin-bottom:5px}
 .sess-dot{width:8px;height:8px;border-radius:50%;background:var(--brand);flex-shrink:0;margin-top:4px}
@@ -202,35 +202,35 @@ a{text-decoration:none;color:inherit}
 .msg{display:flex;gap:6px;max-width:92%}
 .msg.user{align-self:flex-end;flex-direction:row-reverse}
 .mav{width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600}
-.mai{background:var(--brand-bg);color:#26215C}
+.mai{background:var(--brand-bg);color:#00305A}
 .mu{background:var(--teal-bg);color:#04342C}
 .bbl{padding:8px 11px;border-radius:var(--radius-lg);font-size:12px;line-height:1.6}
-.bbl-ai{background:#F8F7FF;border:0.5px solid #AFA9EC;color:#26215C;border-radius:4px var(--radius-lg) var(--radius-lg) var(--radius-lg);max-width:85%}
+.bbl-ai{background:#EAF4FC;border:0.5px solid #A8CDE8;color:#00305A;border-radius:4px var(--radius-lg) var(--radius-lg) var(--radius-lg);max-width:85%}
 .bbl-user{background:var(--brand-bg);color:#1A1550;border-radius:var(--radius-lg) 4px var(--radius-lg) var(--radius-lg);max-width:75%}
 .bbl p{margin-bottom:4px}
 .bbl p:last-child{margin-bottom:0}
 .src-pill{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;background:var(--blue-bg);color:var(--blue);border-radius:var(--radius-pill);margin-top:5px;cursor:pointer}
-.input-container{background:#fff;border-top:none;box-shadow:none;padding:10px 14px 12px;flex-shrink:0}
-.input-box{border-radius:10px;border:1px solid #AFA9EC;box-shadow:0 1px 0 0 #7F77DD,0 2px 4px rgba(83,74,183,0.10),inset 0 1px 3px rgba(83,74,183,0.05);background:#FFFFFF;padding:8px 10px 8px 12px;display:flex;align-items:flex-end;gap:8px}
+.input-container{background:#F5F7FA;border-top:none;box-shadow:none;padding:10px 14px 12px;flex-shrink:0}
+.input-box{border-radius:10px;border:1px solid #A8CDE8;box-shadow:0 1px 0 0 #0070BA,0 2px 4px rgba(0,112,186,0.10),inset 0 1px 3px rgba(0,112,186,0.04);background:#FFFFFF;padding:8px 10px 8px 12px;display:flex;align-items:flex-end;gap:8px}
 .reply-box{background:var(--surface);border:1.5px solid var(--border2);border-radius:14px;overflow:hidden;transition:border .15s,box-shadow .15s}
-.reply-box:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px rgba(83,74,183,.1)}
+.reply-box:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px rgba(0,112,186,.1)}
 .chips-row{display:flex;gap:5px;flex-wrap:wrap;padding:9px 12px 8px}
 .chip{font-size:11px;padding:4px 10px;border:1px solid var(--brand-mid);border-radius:var(--radius-pill);cursor:pointer;color:var(--brand);background:var(--brand-bg);transition:all .1s;white-space:nowrap;font-weight:500}
 .chip:hover{background:var(--brand);color:white;border-color:var(--brand)}
 .reply-sep{height:1px;background:#F1EFE8;margin:0 12px}
-.cinput-label{font-size:10px;font-weight:700;letter-spacing:.06em;color:#7F77DD;text-transform:uppercase;margin-bottom:6px}
+.cinput-label{font-size:10px;font-weight:700;letter-spacing:.06em;color:#6B7A8D;text-transform:uppercase;margin-bottom:6px}
 .input-row{display:flex;align-items:flex-end;gap:6px;padding:4px 8px 8px 12px}
 .ctxt{flex:1;border:none;box-shadow:none;background:transparent;padding:0;resize:none;outline:none;font-family:var(--font);font-size:13px;color:var(--text);min-height:40px;max-height:160px}
 .ctxt::placeholder{color:var(--text3);font-size:12px}
-.csend{width:36px;height:36px;border-radius:50%;background:#534AB7;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .12s;font-size:16px;box-shadow:0 2px 6px rgba(83,74,183,.35);border:none;cursor:pointer}
-.csend:hover{background:#3C3489;transform:scale(1.05)}
+.csend{width:36px;height:36px;border-radius:50%;background:#0070BA;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .12s;font-size:16px;box-shadow:0 2px 6px rgba(0,112,186,.35);border:none;cursor:pointer}
+.csend:hover{background:#005A96;transform:scale(1.05)}
 .cupload{width:36px;height:36px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;color:var(--text2);transition:all .12s;font-size:15px}
 .cupload:hover{background:var(--brand-bg);color:var(--brand);border-color:var(--brand-mid)}
 .gate-row{display:flex;align-items:center;justify-content:space-between;padding:8px 2px 0}
 .gate-hint{font-size:10px;color:var(--text3);display:flex;align-items:center;gap:4px}
 .gate-hint i{font-size:12px;color:var(--teal)}
-.btn-gate{display:flex;align-items:center;gap:5px;padding:6px 14px;background:#534AB7;color:white;border-radius:var(--radius-sm);font-size:11px;font-weight:600;cursor:pointer;border:none;transition:background .12s;box-shadow:0 1px 4px rgba(83,74,183,.25)}
-.btn-gate:hover{background:#3C3489}
+.btn-gate{display:flex;align-items:center;gap:5px;padding:6px 14px;background:#0070BA;color:white;border-radius:var(--radius-sm);font-size:11px;font-weight:600;cursor:pointer;border:none;transition:background .12s;box-shadow:0 1px 4px rgba(0,112,186,.25)}
+.btn-gate:hover{background:#005A96}
 .typing{display:none;padding:3px 14px;font-size:11px;color:var(--text3);background:var(--surface)}
 .typing.show{display:block}
 
@@ -272,12 +272,12 @@ a{text-decoration:none;color:inherit}
 .rpanel{background:var(--surface);display:flex;flex-direction:column;overflow:hidden;min-height:0}
 .rp-hdr{padding:9px 12px;border-bottom:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:5px;flex-shrink:0}
 .rp-scroll{flex:1;overflow-y:auto;padding:10px}
-.cf{padding:7px 9px;border-radius:var(--radius-sm);border:0.5px solid #AFA9EC;margin-bottom:5px;background:#F8F7FF}
+.cf{padding:7px 9px;border-radius:var(--radius-sm);border:0.5px solid #A8CDE8;margin-bottom:5px;background:#EAF4FC}
 .cf.ai{border-color:var(--brand-mid);background:var(--brand-bg)}
 .cf.empty .cfv{color:var(--text3);font-style:italic}
 .cf-lbl{font-size:9px;color:var(--text3);margin-bottom:1px;text-transform:uppercase;letter-spacing:.04em}
 .cfv{font-size:11px;color:var(--text);line-height:1.4}
-.cf.ai .cfv{color:#26215C}
+.cf.ai .cfv{color:#00305A}
 .ai-tag{font-size:9px;background:var(--brand-bg);color:var(--brand);padding:1px 5px;border-radius:var(--radius-pill);margin-left:4px}
 .rref{padding:7px 9px;border-radius:var(--radius-sm);background:var(--blue-bg);border:1px solid #B5D4F4;margin-top:6px}
 .rref-ttl{font-size:9px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;display:flex;align-items:center;gap:3px}
@@ -306,14 +306,14 @@ a{text-decoration:none;color:inherit}
 .tb-breadcrumb span.cur{color:var(--text);font-weight:600}
 .tb-breadcrumb .sep{opacity:.4}
 .tool-hdr{display:flex;align-items:flex-start;gap:16px;margin-bottom:14px;padding:16px;background:var(--brand-bg);border-radius:var(--radius-lg);border:1px solid var(--brand-mid)}
-.tool-icon-lg{width:48px;height:48px;border-radius:var(--radius);background:white;border:1px solid var(--brand-mid);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--brand);flex-shrink:0;box-shadow:0 1px 3px rgba(83,74,183,.15)}
+.tool-icon-lg{width:48px;height:48px;border-radius:var(--radius);background:white;border:1px solid var(--brand-mid);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--brand);flex-shrink:0;box-shadow:0 1px 3px rgba(0,112,186,.15)}
 .tool-name{font-size:20px;font-weight:700;margin-bottom:5px;color:#1A1550}
-.tool-tagline{font-size:13px;color:#3C3489;line-height:1.65;max-width:500px}
+.tool-tagline{font-size:13px;color:#005A96;line-height:1.65;max-width:500px}
 .tb-card{border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border);margin-bottom:14px;box-shadow:var(--shadow)}
 .tb-card-hdr{display:flex;align-items:center;gap:10px;padding:12px 16px;font-size:13px;font-weight:600}
 .tb-card-hdr i{font-size:17px}
 .tb-card-body{padding:14px 16px;background:var(--surface);font-size:12.5px;line-height:1.7;color:var(--text)}
-.tb-card.why .tb-card-hdr{background:var(--brand-bg);color:#26215C}
+.tb-card.why .tb-card-hdr{background:var(--brand-bg);color:#00305A}
 .tb-card.why .tb-card-hdr i{color:var(--brand)}
 .tb-card.example .tb-card-hdr{background:var(--teal-bg);color:#04342C}
 .tb-card.example .tb-card-hdr i{color:var(--teal)}
@@ -338,10 +338,10 @@ a{text-decoration:none;color:inherit}
 .tb-step:last-child{border-bottom:none}
 .tb-step:nth-child(even){background:#FAFAF8}
 .tb-step:hover{background:var(--brand-bg)}
-.tb-sn{width:28px;height:28px;border-radius:50%;background:var(--brand);color:white;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;box-shadow:0 1px 4px rgba(83,74,183,.3)}
+.tb-sn{width:28px;height:28px;border-radius:50%;background:var(--brand);color:white;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;box-shadow:0 1px 4px rgba(0,112,186,.3)}
 .tb-st{font-size:13px;color:var(--text);line-height:1.6;padding-top:3px}
-.tb-start{display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;background:var(--brand);color:white;border-radius:var(--radius-lg);font-size:14px;font-weight:700;cursor:pointer;border:none;width:100%;transition:all .15s;letter-spacing:.01em;box-shadow:0 3px 10px rgba(83,74,183,.35);margin-top:4px}
-.tb-start:hover{background:#3C3489;transform:translateY(-1px);box-shadow:0 5px 14px rgba(83,74,183,.45)}
+.tb-start{display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;background:var(--brand);color:white;border-radius:var(--radius-lg);font-size:14px;font-weight:700;cursor:pointer;border:none;width:100%;transition:all .15s;letter-spacing:.01em;box-shadow:0 3px 10px rgba(0,112,186,.35);margin-top:4px}
+.tb-start:hover{background:#005A96;transform:translateY(-1px);box-shadow:0 5px 14px rgba(0,112,186,.45)}
 .tb-loading{display:flex;align-items:center;gap:8px;padding:20px;color:var(--text3);font-size:12px}
 .spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--brand);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -349,7 +349,7 @@ a{text-decoration:none;color:inherit}
 .ot{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2);cursor:pointer;transition:all .12s;background:var(--surface)}
 .ot:last-child{border-bottom:none}
 .ot:after{content:"→";opacity:.4;font-size:13px}
-.ot:hover{background:var(--brand-bg);color:#26215C;padding-left:20px}
+.ot:hover{background:var(--brand-bg);color:#00305A;padding-left:20px}
 
 /* ─── UTIL ─────────────────────────────────────────────────────── */
 .hidden{display:none!important}
@@ -708,7 +708,7 @@ function formatFieldValue(v) {
 
 // ─── PHASE METADATA ───────────────────────────────────────────────
 const PHASES = {
-  define:{letter:'D',label:'Define',color:'#534AB7',bg:'#EEEDFE',
+  define:{letter:'D',label:'Define',color:'#0070BA',bg:'#EAF4FC',
     desc:'Frame the problem precisely before solving anything. The AI guides the team through a structured conversation to build a shared understanding of what is being improved, why it matters, and what success looks like.',
     whatAsks:'What is the problem? Where and when? Who is affected? Why does it matter? What is the target?',
     whatCaptures:'Problem statement, scope, baseline metric, project goal, process owner, team charter.',
@@ -732,7 +732,7 @@ const PHASES = {
     duration:'2–5 sessions over 2–4 weeks.',
     tools:['Fishbone diagram','5Why drill-down','Pareto analysis','Correlation analysis'],
     steps:["What patterns appear in the data — where is variation highest?","What are the team's theories about causes?","Which causes are supported by the data?","What is the single most important verified root cause?","Does the process owner agree with the conclusion?","Has the risk register been updated?"]},
-  improve:{letter:'I',label:'Improve',color:'#854F0B',bg:'#FAEEDA',
+  improve:{letter:'I',label:'Improve',color:'#A04800',bg:'#FAEEDA',
     desc:'Select and test a solution that addresses the root cause.',
     whatAsks:'What solutions could address the root cause? What is the effort and impact? Which do you pilot?',
     whatCaptures:'Solution options, impact/effort scores, selected solution with justification, pilot plan and results.',
@@ -782,7 +782,7 @@ function showSectionToast(sectionKey) {
   toast.innerHTML = `
     <i class="ti ti-circle-check" style="font-size:14px;color:#0F6E56"></i>
     <span style="flex:1">Gate updated — <strong>${label}</strong> complete</span>
-    <span onclick="selectTab('gate')" style="font-size:10px;color:#534AB7;
+    <span onclick="selectTab('gate')" style="font-size:10px;color:#0070BA;
       cursor:pointer;text-decoration:underline;white-space:nowrap">
       View Gate →
     </span>`;
@@ -992,7 +992,7 @@ function buildNavDefineStatus() {
   ).length;
   const pct = Math.round(captured / total * 100);
   const allDone = captured === total;
-  const barColor = '#534AB7';
+  const barColor = '#0070BA';
 
   const groups = [
     { label: 'Problem',        keys: ['what','where','when','who_affected','why_it_matters','how_much_baseline','how_goal'] },
@@ -1007,7 +1007,7 @@ function buildNavDefineStatus() {
     const done = g.keys.every(k => fieldHasValue(structured[k]));
     const partialCount = g.keys.filter(k => fieldHasValue(structured[k])).length;
     const partial = partialCount > 0 && !done;
-    const color = partial ? '#BA7517' : '#99978F';
+    const color = partial ? '#C55A00' : '#99978F';
     const icon = done ? '✓' : partial ? '◑' : '○';
     return `<div style="display:flex;align-items:center;gap:4px;
       padding:2px 0;font-size:10px;color:${color}">
@@ -1023,7 +1023,7 @@ function buildNavDefineStatus() {
       <div style="display:flex;align-items:center;
         justify-content:space-between;margin-bottom:4px">
         <span style="font-size:10px;font-weight:600;
-          color:#534AB7">${captured} / ${total}</span>
+          color:#0070BA">${captured} / ${total}</span>
         <span style="font-size:10px;color:var(--text3,#99978F)">${pct}%</span>
       </div>
       <div style="height:3px;background:var(--surface2,#F8F7F4);
@@ -1140,7 +1140,7 @@ function renderOverview(){
         shared, documented understanding that guides every decision in
         later phases.
       </p>
-      <div style="font-size:11px;color:#534AB7;background:#EEEDFE;
+      <div style="font-size:11px;color:#0070BA;background:#EAF4FC;
         border-radius:6px;padding:8px 12px;margin-bottom:20px;line-height:1.5">
         <i class="ti ti-robot" style="font-size:13px;margin-right:5px"
           aria-hidden="true"></i>
@@ -1171,14 +1171,14 @@ function renderOverview(){
           ].map(t => `
             <div style="border:0.5px solid var(--border,#E4E2DC);border-radius:8px;
               padding:10px 12px;display:flex;gap:10px;align-items:flex-start">
-              <div style="width:28px;height:28px;border-radius:6px;background:#EEEDFE;
+              <div style="width:28px;height:28px;border-radius:6px;background:#EAF4FC;
                 display:flex;align-items:center;justify-content:center;flex-shrink:0;
                 margin-top:1px">
-                <i class="ti ${t.icon}" style="font-size:15px;color:#534AB7"
+                <i class="ti ${t.icon}" style="font-size:15px;color:#0070BA"
                   aria-hidden="true"></i>
               </div>
               <div>
-                <div style="font-size:11px;font-weight:600;color:#3C3489;margin-bottom:3px">
+                <div style="font-size:11px;font-weight:600;color:#005A96;margin-bottom:3px">
                   ${t.name}
                   ${t.note ? `<span style="font-size:9px;color:#99978F;
                     font-weight:400;margin-left:4px">(${t.note})</span>` : ''}
@@ -1251,31 +1251,31 @@ function renderOverview(){
             <div style="display:flex;flex-direction:column;align-items:center;
               width:48px;flex-shrink:0">
               <div style="width:40px;height:40px;border-radius:50%;
-                background:${s.gate ? '#534AB7' : '#EEEDFE'};
-                border:1.5px solid ${s.gate ? '#3C3489' : '#AFA9EC'};
+                background:${s.gate ? '#0070BA' : '#EAF4FC'};
+                border:1.5px solid ${s.gate ? '#005A96' : '#A8CDE8'};
                 display:flex;align-items:center;justify-content:center;
                 font-size:${s.gate ? '16px' : '13px'};font-weight:700;
-                color:${s.gate ? '#fff' : '#534AB7'};
+                color:${s.gate ? '#fff' : '#0070BA'};
                 flex-shrink:0;z-index:1">
                 ${s.num}
               </div>
               ${i < steps.length - 1 ? `
-                <div style="width:1.5px;flex:1;background:#AFA9EC;
+                <div style="width:1.5px;flex:1;background:#A8CDE8;
                   margin:0 auto;min-height:16px"></div>` : ''}
             </div>
             <div style="flex:1;padding:4px 0 ${i < steps.length-1 ? '20px' : '0'} 16px">
               <div style="font-size:13px;font-weight:600;
-                color:${s.gate ? '#534AB7' : '#26215C'};margin-bottom:2px">
+                color:${s.gate ? '#0070BA' : '#00305A'};margin-bottom:2px">
                 ${s.action}
               </div>
-              <div style="font-size:10px;color:#7F77DD;font-weight:500;
+              <div style="font-size:10px;color:#3A90CC;font-weight:500;
                 margin-bottom:5px">${s.tool}</div>
               <div style="font-size:11px;color:var(--text2,#5C5A55);
                 line-height:1.55;margin-bottom:6px">${s.desc}</div>
               <span style="display:inline-flex;align-items:center;gap:4px;
                 font-size:10px;
-                color:${s.gate ? '#534AB7' : 'var(--text3,#99978F)'};
-                background:${s.gate ? '#EEEDFE' : '#F4F3F2'};
+                color:${s.gate ? '#0070BA' : 'var(--text3,#99978F)'};
+                background:${s.gate ? '#EAF4FC' : '#F0F2F5'};
                 border-radius:20px;padding:2px 8px">
                 <i class="ti ${s.gate ? 'ti-sparkles' : 'ti-clock'}"
                   style="font-size:11px" aria-hidden="true"></i>
@@ -1303,7 +1303,7 @@ function renderOverview(){
           ].map(b => `
             <div style="flex:1;border:0.5px solid var(--border,#E4E2DC);
               border-radius:8px;padding:10px 12px">
-              <div style="font-size:10px;font-weight:600;color:#534AB7;
+              <div style="font-size:10px;font-weight:600;color:#0070BA;
                 margin-bottom:3px">${b.name}</div>
               <div style="font-size:11px;color:var(--text2,#5C5A55);
                 line-height:1.4">${b.total}</div>
@@ -1317,7 +1317,7 @@ function renderOverview(){
     const ctaBtnHtml = `
       <button onclick="selectTab('chat')" style="display:block;max-width:480px;
         margin:0 auto;width:100%;padding:12px;
-        background:#534AB7;color:#fff;border:none;border-radius:6px;
+        background:#0070BA;color:#fff;border:none;border-radius:6px;
         font-size:13px;font-weight:600;cursor:pointer;text-align:center">
         ▷  Start the AI guide — Define phase
       </button>`;
@@ -1352,7 +1352,7 @@ function renderOverview(){
         <div>${tools}</div>
       </div>
       <button onclick="selectTab('chat')" style="width:100%;padding:9px;
-        background:#534AB7;color:#fff;border:none;border-radius:6px;
+        background:#0070BA;color:#fff;border:none;border-radius:6px;
         font-size:11px;font-weight:500;cursor:pointer;display:flex;
         align-items:center;justify-content:center;gap:6px">
         <i class="ti ti-player-play" style="font-size:12px"></i>
@@ -1434,9 +1434,9 @@ function buildProgressNarrative() {
   const allDone = missing === 0;
 
   // Progress bar fill colour
-  const fillColor = '#534AB7';
+  const fillColor = '#0070BA';
   const statusLabel = allDone ? 'Ready for gate' : 'In progress';
-  const statusColor = allDone ? '#534AB7' : '#BA7517';
+  const statusColor = allDone ? '#0070BA' : '#C55A00';
 
   // Narrative sentence — rule-based for define, generic for others
   let narrative = '';
@@ -1488,10 +1488,10 @@ function buildProgressNarrative() {
     const icon = done
       ? `<i class="ti ti-circle-check" style="font-size:14px;color:#99978F"></i>`
       : partial
-        ? `<i class="ti ti-alert-circle" style="font-size:14px;color:#BA7517"></i>`
+        ? `<i class="ti ti-alert-circle" style="font-size:14px;color:#C55A00"></i>`
         : `<i class="ti ti-circle-dashed" style="font-size:14px;color:var(--text3,#99978F)"></i>`;
 
-    const countColor = done ? '#99978F' : partial ? '#BA7517' : 'var(--text3,#99978F)';
+    const countColor = done ? '#99978F' : partial ? '#C55A00' : 'var(--text3,#99978F)';
     const countText = done
       ? `${g.total} / ${g.total} complete`
       : `${g.captured} / ${g.total} — ${g.total - g.captured} missing`;
@@ -1549,7 +1549,7 @@ function buildProgressNarrative() {
   // Gate button
   const gateBtn = allDone
     ? `<button onclick="selectTab('gate')" style="width:100%;padding:9px;
-        background:#534AB7;color:#fff;border:none;border-radius:6px;
+        background:#0070BA;color:#fff;border:none;border-radius:6px;
         font-size:11px;font-weight:500;cursor:pointer;display:flex;
         align-items:center;justify-content:center;gap:6px">
         <i class="ti ti-checkbox" style="font-size:12px"></i>
@@ -1673,7 +1673,7 @@ function renderGate() {
       return `<span style="font-size:9px;background:#F0F0EE;color:#5F5E5A;
         padding:2px 8px;border-radius:10px;font-weight:500">✓ Complete</span>`;
     if (status === 'partial')
-      return `<span style="font-size:9px;background:#FEF3C7;color:#854F0B;
+      return `<span style="font-size:9px;background:#FFF0E6;color:#A04800;
         padding:2px 8px;border-radius:10px;font-weight:500">◑ In progress</span>`;
     return `<span style="font-size:9px;background:var(--surface2,#F8F7F4);
         color:var(--text3,#99978F);padding:2px 8px;border-radius:10px;
@@ -1696,7 +1696,7 @@ function renderGate() {
       gap:8px;padding:5px 0;border-bottom:0.5px solid var(--border,#E4E2DC)">
       <span style="font-size:10px;color:var(--text3,#99978F);
         font-weight:600;letter-spacing:.03em;padding-top:1px">${label}</span>
-      <span style="font-size:11px;color:${hasVal ? '#26215C' : '#99978F'};
+      <span style="font-size:11px;color:${hasVal ? '#00305A' : '#99978F'};
         font-style:${hasVal ? 'normal' : 'italic'};
         line-height:1.5">${hasVal ? displayVal : 'not yet captured'}</span>
     </div>`;
@@ -1709,10 +1709,10 @@ function renderGate() {
       border-radius:8px;margin-bottom:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;
         padding:10px 14px;border-bottom:0.5px solid var(--border,#E4E2DC);
-        background:${status==='complete'?'#F9F8F7':status==='partial'?'#FFFBEB':'#F4F3F2'}">
+        background:${status==='complete'?'#F0F2F5':status==='partial'?'#FFF5EE':'#F0F2F5'}">
         <div style="display:flex;align-items:center;gap:8px">
           <span style="width:20px;height:20px;border-radius:50%;
-            background:${status==='complete'?'#99978F':status==='partial'?'#BA7517':'#D3D1C7'};
+            background:${status==='complete'?'#99978F':status==='partial'?'#C55A00':'#D3D1C7'};
             color:#fff;font-size:10px;font-weight:700;display:flex;
             align-items:center;justify-content:center;flex-shrink:0">
             ${num}
@@ -1832,14 +1832,14 @@ function renderGate() {
         justify-content:space-between;margin-bottom:8px">
         <div>
           <span style="font-size:24px;font-weight:500;
-            color:#534AB7">${captured}</span>
+            color:#0070BA">${captured}</span>
           <span style="font-size:14px;color:var(--text3,#99978F)"> / ${total}</span>
           <div style="font-size:10px;color:var(--text3,#99978F);margin-top:1px">
             fields captured</div>
         </div>
         <div style="text-align:right">
           <div style="font-size:11px;font-weight:500;
-            color:${allDone?'#534AB7':'#BA7517'}">
+            color:${allDone?'#0070BA':'#C55A00'}">
             ${allDone?'Ready for gate':'In progress'}</div>
           <div style="font-size:10px;color:var(--text3,#99978F)">
             ${allDone?'All sections complete':(total-captured)+' fields remaining'}</div>
@@ -1847,7 +1847,7 @@ function renderGate() {
       </div>
       <div style="height:5px;background:var(--surface2,#F8F7F4);
         border-radius:3px;overflow:hidden;border:0.5px solid var(--border,#E4E2DC)">
-        <div style="height:100%;background:#534AB7;
+        <div style="height:100%;background:#0070BA;
           border-radius:3px;width:${pct}%"></div>
       </div>
       <div style="font-size:10px;color:var(--text3,#99978F);margin-top:6px">
@@ -1910,7 +1910,7 @@ function renderGate() {
           <strong>You can copy any section above to use in reports.</strong>
         </div>
         <button onclick="submitGateReview()" style="width:100%;padding:10px;
-          background:#534AB7;color:#fff;border:none;border-radius:6px;
+          background:#0070BA;color:#fff;border:none;border-radius:6px;
           font-size:12px;font-weight:500;cursor:pointer;display:flex;
           align-items:center;justify-content:center;gap:6px">
           <i class="ti ti-checkbox" style="font-size:13px"></i>
@@ -2245,12 +2245,12 @@ function renderChat(){
         const hint = FIELD_HINTS[f.key];
         return hint
           ? `<div style="margin-top:8px;padding:8px 10px;
-              background:#F8F7FF;border-radius:6px;
-              border-left:2px solid #534AB7;
-              font-size:12px;color:#26215C;line-height:1.5;
+              background:#D6EBFA;border-radius:6px;
+              border-left:2px solid #0070BA;
+              font-size:12px;color:#00305A;line-height:1.5;
               cursor:pointer"
               onclick="sendPresetMessage(${JSON.stringify(hint.q).replace(/"/g,'&quot;')})">
-              <span style="font-size:10px;color:#534AB7;
+              <span style="font-size:10px;color:#0070BA;
                 font-weight:600;text-transform:uppercase;
                 letter-spacing:.04em">Ask this →</span><br>
               ${hint.q}
@@ -2287,11 +2287,11 @@ function renderChat(){
           Let's start by understanding the problem you are trying to solve.
         </div>
         <div style="margin-top:8px;padding:8px 10px;
-          background:#F8F7FF;border-radius:6px;
-          border-left:2px solid #534AB7;font-size:12px;
-          color:#26215C;line-height:1.5;cursor:pointer"
+          background:#D6EBFA;border-radius:6px;
+          border-left:2px solid #0070BA;font-size:12px;
+          color:#00305A;line-height:1.5;cursor:pointer"
           onclick="sendPresetMessage('What is the problem happening in your process?')">
-          <span style="font-size:10px;color:#534AB7;font-weight:600;
+          <span style="font-size:10px;color:#0070BA;font-weight:600;
             text-transform:uppercase;letter-spacing:.04em">Ask this →</span><br>
           What is the problem happening in your process?
         </div>
@@ -2691,7 +2691,7 @@ function buildDefineDiagram(){
   var pct=Math.round(c7/7*100);
   var bw=Math.round(120*c7/7);
   var readyText=c7===7?"\u2713 Ready for gate":(7-c7)+" field"+(7-c7===1?"":"s")+" remaining";
-  var readyCol=c7===7?"#1D9E75":"#BA7517";
+  var readyCol=c7===7?"#1D9E75":"#C55A00";
   return '<svg viewBox="0 0 640 360" class="diag-svg">'
     +card(12,10,200,74,"WHAT \u2014 the problem","what")
     +card(12,96,200,74,"WHERE \u2014 location","where")
@@ -2700,13 +2700,13 @@ function buildDefineDiagram(){
     +card(224,10,200,74,"WHY \u2014 business impact","why_it_matters")
     +card(224,96,200,74,"HOW MUCH \u2014 baseline","how_much_baseline")
     +card(224,182,200,74,"GOAL \u2014 target state","how_goal")
-    +'<rect x="438" y="10" width="192" height="332" rx="10" fill="#EEEDFE" stroke="#AFA9EC" stroke-width="1"/>'
-    +'<text x="534" y="38" text-anchor="middle" font-size="12" font-weight="700" fill="#26215C">5W2H progress</text>'
-    +'<text x="534" y="108" text-anchor="middle" font-size="38" font-weight="700" fill="#534AB7">'+c7+"/7</text>"
-    +'<text x="534" y="130" text-anchor="middle" font-size="10" fill="#3C3489">fields captured</text>'
+    +'<rect x="438" y="10" width="192" height="332" rx="10" fill="#EAF4FC" stroke="#A8CDE8" stroke-width="1"/>'
+    +'<text x="534" y="38" text-anchor="middle" font-size="12" font-weight="700" fill="#00305A">5W2H progress</text>'
+    +'<text x="534" y="108" text-anchor="middle" font-size="38" font-weight="700" fill="#0070BA">'+c7+"/7</text>"
+    +'<text x="534" y="130" text-anchor="middle" font-size="10" fill="#005A96">fields captured</text>'
     +'<rect x="474" y="146" width="120" height="7" rx="3" fill="#E4E2DC"/>'  
-    +'<rect x="474" y="146" width="'+bw+'" height="7" rx="3" fill="#534AB7"/>'
-    +'<text x="534" y="170" text-anchor="middle" font-size="10" fill="#3C3489">'+pct+"% complete</text>"
+    +'<rect x="474" y="146" width="'+bw+'" height="7" rx="3" fill="#0070BA"/>'
+    +'<text x="534" y="170" text-anchor="middle" font-size="10" fill="#005A96">'+pct+"% complete</text>"
     +'<text x="534" y="192" text-anchor="middle" font-size="10" fill="'+readyCol+'">'+readyText+"</text>"
     +'<rect x="454" y="270" width="160" height="22" rx="6" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="1"/>'
     +'<text x="534" y="285" text-anchor="middle" font-size="9" fill="#085041">\u25cf confirmed</text>'
@@ -2725,9 +2725,9 @@ function buildMeasureDiagram(){
     <rect x="18" y="110" width="140" height="40" rx="6" fill="#F1EFE8" stroke="#CCCAC4" stroke-width="0.8" stroke-dasharray="4 2"/>
     <text x="88" y="126" text-anchor="middle" font-size="10" fill="#99978F">Factor 2</text>
     <text x="88" y="142" text-anchor="middle" font-size="9" fill="#99978F">not yet confirmed</text>
-    <rect x="18" y="170" width="140" height="40" rx="6" fill="#EEEDFE" stroke="#AFA9EC" stroke-width="0.8" stroke-dasharray="4 2"/>
-    <text x="88" y="186" text-anchor="middle" font-size="10" fill="#534AB7">AI suggested factor</text>
-    <text x="88" y="202" text-anchor="middle" font-size="9" fill="#534AB7">from past cases</text>
+    <rect x="18" y="170" width="140" height="40" rx="6" fill="#EAF4FC" stroke="#A8CDE8" stroke-width="0.8" stroke-dasharray="4 2"/>
+    <text x="88" y="186" text-anchor="middle" font-size="10" fill="#0070BA">AI suggested factor</text>
+    <text x="88" y="202" text-anchor="middle" font-size="9" fill="#0070BA">from past cases</text>
     <rect x="422" y="50" width="140" height="40" rx="6" fill="#F1EFE8" stroke="#CCCAC4" stroke-width="0.8" stroke-dasharray="4 2"/>
     <text x="492" y="66" text-anchor="middle" font-size="10" fill="#99978F">Data source 1</text>
     <text x="492" y="82" text-anchor="middle" font-size="9" fill="#99978F">not yet identified</text>
@@ -2739,7 +2739,7 @@ function buildMeasureDiagram(){
     <text x="290" y="272" text-anchor="middle" font-size="9" fill="#3B6D11">not yet confirmed</text>
     <line x1="158" y1="70" x2="213" y2="140" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
     <line x1="158" y1="130" x2="213" y2="150" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
-    <line x1="158" y1="190" x2="213" y2="160" stroke="#AFA9EC" stroke-width="0.7" stroke-dasharray="4 2"/>
+    <line x1="158" y1="190" x2="213" y2="160" stroke="#A8CDE8" stroke-width="0.7" stroke-dasharray="4 2"/>
     <line x1="422" y1="70" x2="367" y2="140" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
     <line x1="422" y1="130" x2="367" y2="150" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
     <line x1="290" y1="172" x2="290" y2="238" stroke="#CCCAC4" stroke-width="0.7" stroke-dasharray="3 2"/>
@@ -2874,7 +2874,7 @@ function renderSipocDiagram(sipoc, containerId) {
   const activeTab = container.dataset.sipocTab || 'table';
 
   const draftBadge = isDraft
-    ? `<span style="background:#FEF3C7;color:#854F0B;font-size:9px;
+    ? `<span style="background:#FFF0E6;color:#A04800;font-size:9px;
         padding:1px 6px;border-radius:10px;margin-left:6px">Draft</span>`
     : `<span style="background:#E1F5EE;color:#085041;font-size:9px;
         padding:1px 6px;border-radius:10px;margin-left:6px">Confirmed</span>`;
@@ -2898,7 +2898,7 @@ function renderSipocDiagram(sipoc, containerId) {
       })(this)"
       style="padding:4px 12px;font-size:11px;
       font-weight:${active?'600':'400'};cursor:pointer;border:none;
-      background:${active?'#534AB7':'var(--surface2,#F8F7F4)'};
+      background:${active?'#0070BA':'var(--surface2,#F8F7F4)'};
       color:${active?'#fff':'var(--text2,#5C5A55)'};
       border-radius:${name==='table'?'4px 0 0 4px':'0 4px 4px 0'}">
       ${label}
@@ -2910,10 +2910,10 @@ function renderSipocDiagram(sipoc, containerId) {
     const cols = required.map(k => {
       const vals = sipoc[k] || [];
       const hasVals = vals.length > 0;
-      const headerBg = hasVals ? '#534AB7' : 'var(--surface2,#F8F7F4)';
+      const headerBg = hasVals ? '#0070BA' : 'var(--surface2,#F8F7F4)';
       const headerColor = hasVals ? '#fff' : 'var(--text3,#99978F)';
-      const cellBg = hasVals ? '#EEEDFE' : '#fff';
-      const cellColor = hasVals ? '#26215C' : 'var(--text3,#99978F)';
+      const cellBg = hasVals ? '#EAF4FC' : '#fff';
+      const cellColor = hasVals ? '#00305A' : 'var(--text3,#99978F)';
       const cellStyle = hasVals ? '' : 'font-style:italic';
       const rows = hasVals
         ? vals.map(v => `<div style="padding:2px 0;font-size:11px;
@@ -2940,10 +2940,10 @@ function renderSipocDiagram(sipoc, containerId) {
     const parts = required.map((k, i) => {
       const vals = sipoc[k] || [];
       const hasVals = vals.length > 0;
-      const headerBg = hasVals ? '#534AB7' : 'var(--surface2,#F8F7F4)';
+      const headerBg = hasVals ? '#0070BA' : 'var(--surface2,#F8F7F4)';
       const headerColor = hasVals ? '#fff' : 'var(--text3,#99978F)';
-      const bodyBg = hasVals ? '#EEEDFE' : '#fff';
-      const bodyColor = hasVals ? '#26215C' : 'var(--text3,#99978F)';
+      const bodyBg = hasVals ? '#EAF4FC' : '#fff';
+      const bodyColor = hasVals ? '#00305A' : 'var(--text3,#99978F)';
       const items = hasVals
         ? vals.map(v => `<div style="padding:2px 0;font-size:10px;
             line-height:1.4">${v}</div>`).join('')
@@ -2971,8 +2971,8 @@ function renderSipocDiagram(sipoc, containerId) {
     </div>`;
   };
 
-  const statusNote = `<div style="font-size:10px;color:#854F0B;
-    background:#FEF3C7;border-radius:4px;padding:5px 8px;margin-top:8px;
+  const statusNote = `<div style="font-size:10px;color:#A04800;
+    background:#FFF0E6;border-radius:4px;padding:5px 8px;margin-top:8px;
     display:flex;align-items:center;gap:5px">
     <i class="ti ti-info-circle" style="font-size:12px"></i>
     ${isDraft
@@ -3012,8 +3012,8 @@ function render5W2HMindmap(viz, containerId) {
   const total = viz.total_count || 7;
   const allDone = !isDraft;
 
-  const badgeBg = allDone ? '#E1F5EE' : '#FEF3C7';
-  const badgeColor = allDone ? '#085041' : '#854F0B';
+  const badgeBg = allDone ? '#E1F5EE' : '#FFF0E6';
+  const badgeColor = allDone ? '#085041' : '#A04800';
   const badgeText = allDone
     ? 'Confirmed — 7 / 7'
     : `Draft — ${captured} / ${total}`;
@@ -3024,12 +3024,12 @@ function render5W2HMindmap(viz, containerId) {
   // Helper: branch node HTML (captured = purple, missing = dashed grey)
   const node = (label, value, x, y, w, h, anchor='middle') => {
     const has = !!value;
-    const fill = has ? '#EEEDFE' : 'none';
-    const stroke = has ? '#AFA9EC' : 'var(--color-text-tertiary)';
+    const fill = has ? '#EAF4FC' : 'none';
+    const stroke = has ? '#A8CDE8' : 'var(--color-text-tertiary)';
     const strokeW = has ? '0.5' : '1';
     const dash = has ? '' : 'stroke-dasharray="5 4"';
-    const labelColor = has ? '#3C3489' : 'var(--color-text-tertiary)';
-    const valColor = has ? '#26215C' : 'var(--color-text-tertiary)';
+    const labelColor = has ? '#005A96' : 'var(--color-text-tertiary)';
+    const valColor = has ? '#00305A' : 'var(--color-text-tertiary)';
     const valStyle = has ? '' : 'font-style="italic"';
     const displayVal = has ? trunc(value) : 'not yet captured';
     const lines = displayVal.length > 22
@@ -3087,10 +3087,10 @@ function render5W2HMindmap(viz, containerId) {
 
       <!-- Center node -->
       <rect x="220" y="${centerY}" width="240" height="${centerH}"
-        rx="14" fill="#534AB7" stroke="#3C3489" stroke-width="1"/>
+        rx="14" fill="#0070BA" stroke="#005A96" stroke-width="1"/>
       <text x="340" y="${centerY+16}" text-anchor="middle"
         font-family="sans-serif" font-size="9" font-weight="700"
-        fill="#AFA9EC" letter-spacing="0.08em">PROBLEM STATEMENT</text>
+        fill="#A8CDE8" letter-spacing="0.08em">PROBLEM STATEMENT</text>
       ${summaryLines.map((line, i) =>
         `<text x="340" y="${centerY + 32 + (i*15)}" text-anchor="middle"
           font-family="sans-serif" font-size="11" font-weight="600"
@@ -3099,26 +3099,26 @@ function render5W2HMindmap(viz, containerId) {
 
       <!-- Connectors -->
       <line x1="262" y1="${centerY+6}" x2="144" y2="${centerY-76}"
-        stroke="#534AB7" stroke-width="1.5"
+        stroke="#0070BA" stroke-width="1.5"
         ${!fields.what ? 'stroke-dasharray="5 4" stroke="var(--color-text-tertiary)"' : ''}/>
       <line x1="316" y1="${centerY}" x2="278" y2="${centerY-110}"
-        stroke="#534AB7" stroke-width="1.5"
+        stroke="#0070BA" stroke-width="1.5"
         ${!fields.where ? 'stroke-dasharray="5 4" stroke="var(--color-text-tertiary)"' : ''}/>
       <line x1="400" y1="${centerY+2}" x2="500" y2="${centerY-86}"
-        stroke="#534AB7" stroke-width="1.5"
+        stroke="#0070BA" stroke-width="1.5"
         ${!fields.when ? 'stroke-dasharray="5 4" stroke="var(--color-text-tertiary)"' : ''}/>
       <line x1="460" y1="${centerY + centerH/2}" x2="538" y2="${centerY + centerH/2}"
-        stroke="#534AB7" stroke-width="1.5"
+        stroke="#0070BA" stroke-width="1.5"
         ${!fields.who_affected ? 'stroke-dasharray="5 4" stroke="var(--color-text-tertiary)"' : ''}/>
       <line x1="430" y1="${centerY+centerH-10}" x2="498" y2="${centerY+centerH+76}"
-        stroke="#534AB7" stroke-width="1.5"
+        stroke="#0070BA" stroke-width="1.5"
         ${!fields.why_it_matters ? 'stroke-dasharray="5 4" stroke="var(--color-text-tertiary)"' : ''}/>
       <line x1="340" y1="${centerY+centerH}" x2="340" y2="${centerY+centerH+78}"
-        stroke="${fields.how_goal ? '#534AB7' : 'var(--color-text-tertiary)'}"
+        stroke="${fields.how_goal ? '#0070BA' : 'var(--color-text-tertiary)'}"
         stroke-width="1.5"
         ${!fields.how_goal ? 'stroke-dasharray="5 4"' : ''}/>
       <line x1="268" y1="${centerY+centerH-8}" x2="196" y2="${centerY+centerH+76}"
-        stroke="#534AB7" stroke-width="1.5"
+        stroke="#0070BA" stroke-width="1.5"
         ${!fields.how_much_baseline ? 'stroke-dasharray="5 4" stroke="var(--color-text-tertiary)"' : ''}/>
 
       <!-- Branch nodes -->
@@ -3132,7 +3132,7 @@ function render5W2HMindmap(viz, containerId) {
 
       <!-- Legend -->
       <rect x="22" y="${centerY+centerH+148}" width="14" height="14"
-        rx="3" fill="#EEEDFE" stroke="#AFA9EC" stroke-width="0.5"/>
+        rx="3" fill="#EAF4FC" stroke="#A8CDE8" stroke-width="0.5"/>
       <text x="42" y="${centerY+centerH+159}"
         font-family="sans-serif" font-size="11"
         fill="var(--color-text-secondary)">Captured</text>
@@ -3164,29 +3164,29 @@ function renderGoalScopeCard(structured, containerId) {
       border-radius:8px;padding:12px;margin-top:10px">
       <div style="font-size:11px;font-weight:600;color:var(--text,#1A1917);
         margin-bottom:10px">Goal & Scope</div>
-      <div style="background:${hasGoal?'#EEEDFE':'var(--surface2,#F8F7F4)'};
+      <div style="background:${hasGoal?'#EAF4FC':'var(--surface2,#F8F7F4)'};
         border-radius:6px;padding:8px 10px;margin-bottom:8px;
-        font-size:11px;color:${hasGoal?'#26215C':'var(--text3,#99978F)'};
+        font-size:11px;color:${hasGoal?'#00305A':'var(--text3,#99978F)'};
         font-style:${hasGoal?'normal':'italic'};line-height:1.5">
         ${hasGoal ? '"'+goal+'"' : 'Goal statement not yet captured'}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div style="border:0.5px solid ${hasIn?'#AFA9EC':'var(--border,#E4E2DC)'};
+        <div style="border:0.5px solid ${hasIn?'#A8CDE8':'var(--border,#E4E2DC)'};
           border-radius:6px;padding:8px">
           <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
-            color:${hasIn?'#3C3489':'var(--text3,#99978F)'};
+            color:${hasIn?'#005A96':'var(--text3,#99978F)'};
             text-transform:uppercase;margin-bottom:4px">In scope</div>
-          <div style="font-size:11px;color:${hasIn?'#26215C':'var(--text3,#99978F)'};
+          <div style="font-size:11px;color:${hasIn?'#00305A':'var(--text3,#99978F)'};
             font-style:${hasIn?'normal':'italic'};line-height:1.5">
             ${scopeIn || 'not yet captured'}
           </div>
         </div>
-        <div style="border:0.5px solid ${hasOut?'#AFA9EC':'var(--border,#E4E2DC)'};
+        <div style="border:0.5px solid ${hasOut?'#A8CDE8':'var(--border,#E4E2DC)'};
           border-radius:6px;padding:8px;border-style:${hasOut?'solid':'dashed'}">
           <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
-            color:${hasOut?'#3C3489':'var(--text3,#99978F)'};
+            color:${hasOut?'#005A96':'var(--text3,#99978F)'};
             text-transform:uppercase;margin-bottom:4px">Out of scope</div>
-          <div style="font-size:11px;color:${hasOut?'#26215C':'var(--text3,#99978F)'};
+          <div style="font-size:11px;color:${hasOut?'#00305A':'var(--text3,#99978F)'};
             font-style:${hasOut?'normal':'italic'};line-height:1.5">
             ${scopeOut || 'not yet captured'}
           </div>
@@ -3221,13 +3221,13 @@ function renderBenefitsCard(structured, containerId) {
         </div>` : ''}
       <div style="display:grid;grid-template-columns:1fr 1fr;
         gap:6px;margin-bottom:8px">
-        <div style="padding:8px;background:${fv(cost)?'#EEEDFE':'var(--surface2,#F8F7F4)'};
-          border-radius:6px;border:0.5px solid ${fv(cost)?'#AFA9EC':'var(--border,#E4E2DC)'}">
+        <div style="padding:8px;background:${fv(cost)?'#EAF4FC':'var(--surface2,#F8F7F4)'};
+          border-radius:6px;border:0.5px solid ${fv(cost)?'#A8CDE8':'var(--border,#E4E2DC)'}">
           <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
-            color:${fv(cost)?'#3C3489':'var(--text3,#99978F)'};
+            color:${fv(cost)?'#005A96':'var(--text3,#99978F)'};
             text-transform:uppercase;margin-bottom:3px">Current cost</div>
           <div style="font-size:12px;font-weight:600;
-            color:${fv(cost)?'#26215C':'var(--text3,#99978F)'};
+            color:${fv(cost)?'#00305A':'var(--text3,#99978F)'};
             font-style:${fv(cost)?'normal':'italic'}">
             ${cost || 'not yet captured'}
           </div>
