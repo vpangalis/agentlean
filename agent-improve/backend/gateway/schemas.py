@@ -77,6 +77,7 @@ class AskResponse(BaseModel):
     answer: str                                  # Orchestrator plain language response
     phase: str                                   # current phase
     captured_fields: list[CapturedField] = []    # right panel content
+    phase_inputs: Optional[dict] = None          # full structured dict for live UI sync
     gate_status: GateStatus
     citations: list[CitationOut] = []
     suggestion_chips: list[str] = []             # 2-3 suggested follow-up questions

@@ -320,10 +320,25 @@ def ask(request: AskRequest) -> AskResponse:
         visualisation = result.get("visualisation")
         section_completed = result.get("section_completed")
 
+        # Extract the current structured phase inputs
+        phase_inputs_dict = None
+        try:
+            pi = result.get("phase_inputs") or {}
+            phase_data_for_response = pi.get(request.phase) or {}
+            if isinstance(phase_data_for_response, dict):
+                phase_inputs_dict = phase_data_for_response
+            elif hasattr(phase_data_for_response, 'model_dump'):
+                phase_inputs_dict = phase_data_for_response.model_dump()
+            elif hasattr(phase_data_for_response, '__dict__'):
+                phase_inputs_dict = phase_data_for_response.__dict__
+        except Exception:
+            phase_inputs_dict = None
+
         return AskResponse(
             answer=last_ai,
             phase=request.phase,
             captured_fields=captured,
+            phase_inputs=phase_inputs_dict,
             gate_status=GateStatus(
                 phase=request.phase,
                 passed=phase_data.get("_gate_passed", False),

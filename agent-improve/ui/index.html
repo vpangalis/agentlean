@@ -2616,26 +2616,13 @@ async function sendMessage(){
     document.getElementById('typing').classList.remove('show');
     if(resp.answer){
       S.lastAsk=resp;
-      // Sync captured fields back into S.case so getStructured()
-      // always returns fresh data without requiring a case reload
-      if (resp.captured_fields && S.case) {
+      // Sync fresh phase_inputs from response into S.case
+      if (resp.phase_inputs && S.case) {
         if (!S.case.phase_inputs) S.case.phase_inputs = {};
-        if (!S.case.phase_inputs[S.phase]) S.case.phase_inputs[S.phase] = {};
-
-        // captured_fields may be array [{key,value}] or plain dict
-        if (Array.isArray(resp.captured_fields)) {
-          resp.captured_fields.forEach(f => {
-            if (f.key && f.value !== undefined && f.value !== null && f.value !== '') {
-              S.case.phase_inputs[S.phase][f.key] = f.value;
-            }
-          });
-        } else if (typeof resp.captured_fields === 'object') {
-          Object.entries(resp.captured_fields).forEach(([k, v]) => {
-            if (v !== undefined && v !== null && v !== '') {
-              S.case.phase_inputs[S.phase][k] = v;
-            }
-          });
-        }
+        S.case.phase_inputs[S.phase] = Object.assign(
+          S.case.phase_inputs[S.phase] || {},
+          resp.phase_inputs
+        );
       }
       // Show section completion toast if a section just completed
       if (S.lastAsk && S.lastAsk.section_completed) {
