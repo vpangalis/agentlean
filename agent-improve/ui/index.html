@@ -645,6 +645,7 @@ const S = {
   teamMembers: [],
   beltLevel: 'green',
   foundCase: null,
+  gateViewPhase: null,
 };
 
 const SESSION_SUMMARIES = {}; // keyed by date string e.g. "2026-05-26"
@@ -678,10 +679,11 @@ const DEFINE_GATE_FIELDS = [
   { group: 'SIPOC', key: 'sipoc', label: 'SIPOC diagram' },
 ];
 
-function getStructured() {
-  if (!S.case || !S.phase) return {};
-  const fromPhases = S.case?.phases?.[S.phase]?.structured || {};
-  const fromPhaseInputs = S.case?.phase_inputs?.[S.phase] || {};
+function getStructured(phase) {
+  const usePhase = phase || S.phase;
+  if (!S.case || !usePhase) return {};
+  const fromPhases = S.case?.phases?.[usePhase]?.structured || {};
+  const fromPhaseInputs = S.case?.phase_inputs?.[usePhase] || {};
   // Top-level case fields as fallback (set at case creation)
   const fromCaseMeta = {
     belt_level: S.case.belt_level || undefined,
@@ -1960,8 +1962,125 @@ function renderDefineChecklist(){
 
 // ─── GATE TAB ─────────────────────────────────────────────────────
 function renderGate() {
-  const structured = getStructured();
-  const phase = S.phase || 'define';
+  // ── Phase selector setup ──────────────────────────────────
+  const phaseOrder = ['define','measure','analyse_phase','improve','control'];
+  const phaseLabels = {
+    define: 'Define',
+    measure: 'Measure',
+    analyse_phase: 'Analyse',
+    improve: 'Improve',
+    control: 'Control',
+  };
+  const activePhase = S.phase || 'define';
+  const viewingPhase = S.gateViewPhase || activePhase;
+  const viewingIdx = phaseOrder.indexOf(viewingPhase);
+  const activeIdx = phaseOrder.indexOf(activePhase);
+  const isPassed = viewingIdx >= 0 && viewingIdx < activeIdx;
+  const isFuture = viewingIdx > activeIdx;
+
+  const phaseSelector = `
+    <div style="display:flex;gap:0;margin-bottom:20px;
+      border:0.5px solid var(--border,#E4E2DC);
+      border-radius:8px;overflow:hidden">
+      ${phaseOrder.map(p => {
+        const pIdx = phaseOrder.indexOf(p);
+        const pIsViewing = p === viewingPhase;
+        const pIsActive = p === activePhase;
+        const pIsPassed = pIdx < activeIdx;
+        const clickable = pIsActive || pIsPassed;
+        const label = phaseLabels[p] || p;
+        const bg = pIsViewing ? '#0070BA'
+          : pIsPassed ? '#F0F2F5' : '#fff';
+        const color = pIsViewing ? '#fff'
+          : pIsPassed ? '#2C3E50' : '#A0AABB';
+        const cursor = clickable ? 'pointer' : 'default';
+        const tickColor = pIsViewing ? '#fff' : '#0070BA';
+        const tick = pIsPassed
+          ? `<span style="font-size:9px;color:${tickColor};margin-left:4px">✓</span>`
+          : '';
+        const click = clickable ? `renderGateForPhase('${p}')` : '';
+        return `<div onclick="${click}"
+          style="flex:1;padding:8px 4px;text-align:center;
+            font-size:11px;font-weight:${pIsViewing?'600':'400'};
+            color:${color};background:${bg};cursor:${cursor};
+            border-right:0.5px solid var(--border,#E4E2DC);
+            transition:background .15s">${label}${tick}</div>`;
+      }).join('')}
+    </div>`;
+
+  const el = document.getElementById('view-gate');
+  if (!el) return;
+  el.style.padding = '0';
+  el.style.overflowY = 'auto';
+
+  // ── Future phase: placeholder ─────────────────────────────
+  if (isFuture) {
+    el.innerHTML = `<div style="max-width:860px;margin:0 auto;padding:16px">
+      ${phaseSelector}
+      <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+        border-radius:8px;padding:32px;text-align:center;
+        color:var(--text3,#99978F);font-size:12px">
+        <i class="ti ti-lock" style="font-size:20px;display:block;
+          margin-bottom:8px"></i>
+        This phase is not yet active.
+        <div style="font-size:11px;margin-top:4px">
+          Complete the ${phaseLabels[activePhase]} phase to unlock
+          ${phaseLabels[viewingPhase]}.
+        </div>
+      </div>
+    </div>`;
+    return;
+  }
+
+  // ── Non-define viewing (active or passed): stub view ──────
+  if (viewingPhase !== 'define') {
+    const phaseLabel = phaseLabels[viewingPhase];
+    const stubStructured = getStructured(viewingPhase);
+    const itemCount = Object.keys(stubStructured)
+      .filter(k => !k.startsWith('_') && fieldHasValue(stubStructured[k]))
+      .length;
+    const banner = isPassed
+      ? `<div style="background:#E1F5EE;border:0.5px solid #5DCAA5;
+          border-radius:8px;padding:12px 14px;margin-bottom:12px;
+          display:flex;align-items:center;gap:8px">
+          <i class="ti ti-circle-check-filled"
+            style="font-size:16px;color:#0F6E56"></i>
+          <span style="font-size:12px;font-weight:600;color:#04342C">
+            Gate passed ✓
+          </span>
+          <span style="font-size:11px;color:#085041;margin-left:auto">
+            This phase is complete.
+          </span>
+        </div>` : '';
+    const caseTitle = S.case?.title
+      || S.case?.case_metadata?.title
+      || 'Improvement Project';
+    el.innerHTML = `<div style="max-width:860px;margin:0 auto;padding:16px">
+      ${phaseSelector}
+      ${banner}
+      <div style="margin-bottom:16px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:var(--text3,#99978F);text-transform:uppercase;
+          margin-bottom:4px">${phaseLabel} Gate Document</div>
+        <div style="font-size:15px;font-weight:600;
+          color:var(--text,#1A1917);line-height:1.3">${caseTitle}</div>
+      </div>
+      <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+        border-radius:8px;padding:20px;color:var(--text2,#5C5A55);
+        font-size:12px;line-height:1.6">
+        ${isPassed
+          ? `The ${phaseLabel} gate was approved. ${itemCount} item${
+              itemCount===1?'':'s'} captured before the phase advanced.`
+          : `Continue the AI guide to build the ${phaseLabel} gate document.
+             ${itemCount} item${itemCount===1?'':'s'} captured so far.`}
+      </div>
+    </div>`;
+    return;
+  }
+
+  // ── Define viewing (active or passed): full gate document ──
+  const structured = getStructured(viewingPhase);
+  const phase = viewingPhase;
 
   // Count captured fields
   const captured = DEFINE_GATE_FIELDS.filter(
@@ -2151,19 +2270,19 @@ function renderGate() {
         </div>
         <div style="text-align:right">
           <div style="font-size:11px;font-weight:500;
-            color:${allDone?'#0070BA':'#C55A00'}">
-            ${allDone?'Ready for gate':'In progress'}</div>
+            color:${isPassed?'#0F6E56':(allDone?'#0070BA':'#C55A00')}">
+            ${isPassed?'Gate passed':(allDone?'Ready for gate':'In progress')}</div>
           <div style="font-size:10px;color:var(--text3,#99978F)">
-            ${allDone?'All sections complete':(total-captured)+' fields remaining'}</div>
+            ${isPassed?'Phase complete':(allDone?'All sections complete':(total-captured)+' fields remaining')}</div>
         </div>
       </div>
       <div style="height:5px;background:var(--surface2,#F8F7F4);
         border-radius:3px;overflow:hidden;border:0.5px solid var(--border,#E4E2DC)">
-        <div style="height:100%;background:#0070BA;
+        <div style="height:100%;background:${isPassed?'#0F6E56':'#0070BA'};
           border-radius:3px;width:${pct}%"></div>
       </div>
       <div style="font-size:10px;color:var(--text3,#99978F);margin-top:6px">
-        ${pct}% complete · Continue the AI guide to fill remaining fields
+        ${pct}% complete · ${isPassed?'This gate was approved':'Continue the AI guide to fill remaining fields'}
       </div>
     </div>`;
 
@@ -2231,13 +2350,24 @@ function renderGate() {
     </div>`;
 
   // ── RENDER ──────────────────────────────────────────────
-  const el = document.getElementById('view-gate');
-  if (!el) return;
-  el.style.padding = '0';
-  el.style.overflowY = 'auto';
+  // `el` was already resolved at the top of the function for early returns
+  const passedBanner = isPassed
+    ? `<div style="background:#E1F5EE;border:0.5px solid #5DCAA5;
+        border-radius:8px;padding:12px 14px;margin-bottom:12px;
+        display:flex;align-items:center;gap:8px">
+        <i class="ti ti-circle-check-filled"
+          style="font-size:16px;color:#0F6E56"></i>
+        <span style="font-size:12px;font-weight:600;color:#04342C">
+          Gate passed ✓
+        </span>
+        <span style="font-size:11px;color:#085041;margin-left:auto">
+          This phase is complete — document shown read-only.
+        </span>
+      </div>` : '';
+  const finalSubmitArea = isPassed ? '' : submitArea;
   el.innerHTML = `<div style="max-width:860px;margin:0 auto;padding:16px">` +
-    docHeader + scoreBar + bc + charter +
-    benefits + sipoc + baseline + submitArea +
+    phaseSelector + passedBanner + docHeader + scoreBar + bc + charter +
+    benefits + sipoc + baseline + finalSubmitArea +
     `</div>`;
 
   // Render SIPOC diagram inside gate if available
@@ -2257,6 +2387,15 @@ function renderGate() {
       if (strip) strip.remove();
     }
   }
+}
+
+// Switch the Gate view to another phase without changing S.phase
+// (the active phase). gateViewPhase is read by renderGate() to
+// determine which phase's gate document to display.
+function renderGateForPhase(phase) {
+  S.gateViewPhase = phase;
+  renderGate();
+  S.gateViewPhase = null;
 }
 
 // ─── TOOL BRIEFING ────────────────────────────────────────────────
