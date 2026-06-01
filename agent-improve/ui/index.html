@@ -2029,6 +2029,23 @@ function renderGate() {
         </div>
       </div>
     </div>`;
+    // Render SIPOC diagram if data exists
+    {
+      const sipocData = getStructured(viewingPhase).sipoc;
+      if (sipocData) {
+        const gateContainer = document.getElementById(
+          'gate-sipoc-container');
+        if (gateContainer) {
+          renderSipocDiagram(
+            {...sipocData, draft: false, confirmed: true},
+            'gate-sipoc-container'
+          );
+          const strip = gateContainer.querySelector(
+            '[class*="confirm"], .sipoc-confirm');
+          if (strip) strip.remove();
+        }
+      }
+    }
     return;
   }
 
@@ -2075,6 +2092,23 @@ function renderGate() {
              ${itemCount} item${itemCount===1?'':'s'} captured so far.`}
       </div>
     </div>`;
+    // Render SIPOC diagram if data exists
+    {
+      const sipocData = getStructured(viewingPhase).sipoc;
+      if (sipocData) {
+        const gateContainer = document.getElementById(
+          'gate-sipoc-container');
+        if (gateContainer) {
+          renderSipocDiagram(
+            {...sipocData, draft: false, confirmed: true},
+            'gate-sipoc-container'
+          );
+          const strip = gateContainer.querySelector(
+            '[class*="confirm"], .sipoc-confirm');
+          if (strip) strip.remove();
+        }
+      }
+    }
     return;
   }
 
@@ -2370,21 +2404,21 @@ function renderGate() {
     benefits + sipoc + baseline + finalSubmitArea +
     `</div>`;
 
-  // Render SIPOC diagram inside gate if available
-  if (sipocData) {
-    renderSipocDiagram({...sipocData, draft: false}, 'gate-sipoc-container');
-    // Remove the confirmation strip inside gate — redundant here
-    const sipocBox = document.getElementById('gate-sipoc-container');
-    if (sipocBox) {
-      let strip = sipocBox.querySelector(
-        '.sipoc-confirm-strip, [class*="confirm"]'
-      );
-      if (!strip) {
-        strip = [...sipocBox.querySelectorAll('div')].find(d =>
-          /SIPOC confirmed by the team|AI-generated draft/.test(d.textContent)
+  // Render SIPOC diagram if data exists
+  {
+    const sipocData = structured.sipoc;
+    if (sipocData) {
+      const gateContainer = document.getElementById(
+        'gate-sipoc-container');
+      if (gateContainer) {
+        renderSipocDiagram(
+          {...sipocData, draft: false, confirmed: true},
+          'gate-sipoc-container'
         );
+        const strip = gateContainer.querySelector(
+          '[class*="confirm"], .sipoc-confirm');
+        if (strip) strip.remove();
       }
-      if (strip) strip.remove();
     }
   }
 }
