@@ -682,13 +682,12 @@ function getStructured() {
   if (!S.case || !S.phase) return {};
   const fromPhases = S.case?.phases?.[S.phase]?.structured || {};
   const fromPhaseInputs = S.case?.phase_inputs?.[S.phase] || {};
-  const merged = Object.assign({}, fromPhases, fromPhaseInputs);
-  if (S.phase === 'define') {
-    if (!fieldHasValue(merged.belt_level) && S.case.belt_level) merged.belt_level = S.case.belt_level;
-    if (!fieldHasValue(merged.target_date) && S.case.target_date) merged.target_date = S.case.target_date;
-    if (!fieldHasValue(merged.team_members) && Array.isArray(S.case.team) && S.case.team.length) merged.team_members = S.case.team;
-  }
-  return merged;
+  // Top-level case fields as fallback (set at case creation)
+  const fromCaseMeta = {
+    belt_level: S.case.belt_level || undefined,
+    process_owner: S.case.leader || undefined,
+  };
+  return Object.assign({}, fromCaseMeta, fromPhases, fromPhaseInputs);
 }
 
 function fieldHasValue(v) {
