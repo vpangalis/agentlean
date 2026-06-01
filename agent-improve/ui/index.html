@@ -1074,7 +1074,22 @@ function selectTab(tab){
       }
     }
   }
-  if(tab==='gate'){renderGate();}
+  if(tab==='gate'){
+    // Reload case to get latest extracted fields before rendering gate
+    (async () => {
+      try {
+        const caseId = S.case?.case_id || S.caseId;
+        if (caseId) {
+          const r = await fetch(`${API}/cases/${caseId}`);
+          if (r.ok) {
+            const fresh = await r.json();
+            S.case = fresh;
+          }
+        }
+      } catch(e) {}
+      renderGate();
+    })();
+  }
   if(tab==='history'){renderHistory();}
   // Hide tool tab when not on tool view
   const toolTab=document.getElementById('vt-tool');
@@ -1983,6 +1998,19 @@ function renderGate() {
   // Render SIPOC diagram inside gate if available
   if (sipocData) {
     renderSipocDiagram({...sipocData, draft: false}, 'gate-sipoc-container');
+    // Remove the confirmation strip inside gate — redundant here
+    const sipocBox = document.getElementById('gate-sipoc-container');
+    if (sipocBox) {
+      let strip = sipocBox.querySelector(
+        '.sipoc-confirm-strip, [class*="confirm"]'
+      );
+      if (!strip) {
+        strip = [...sipocBox.querySelectorAll('div')].find(d =>
+          /SIPOC confirmed by the team|AI-generated draft/.test(d.textContent)
+        );
+      }
+      if (strip) strip.remove();
+    }
   }
 }
 
