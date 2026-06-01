@@ -646,6 +646,7 @@ const S = {
   beltLevel: 'green',
   foundCase: null,
   gateViewPhase: null,
+  previewPhase: null,
 };
 
 const SESSION_SUMMARIES = {}; // keyed by date string e.g. "2026-05-26"
@@ -983,8 +984,18 @@ function navClickPhase(phase) {
   }
 
   if (clickedIdx < currentIdx) {
-    selectTab('gate');
-    setTimeout(() => renderGateForPhase(phase), 50);
+    // Completed phase — show overview or gate depending
+    // on which tab is currently active
+    if (S.tab === 'gate') {
+      // Already on gate — switch gate view to this phase
+      renderGateForPhase(phase);
+    } else {
+      // On any other tab — show this phase's overview
+      // without changing S.phase
+      S.previewPhase = phase;
+      selectTab('overview');
+      S.previewPhase = null;
+    }
     return;
   }
 
@@ -1144,6 +1155,7 @@ function selectTab(tab){
     })();
   }
   if(tab==='history'){renderHistory();}
+  if(tab==='overview'){renderOverview();}
   // Hide tool tab when not on tool view
   const toolTab=document.getElementById('vt-tool');
   if(toolTab&&tab!=='tool'){toolTab.classList.add('hidden');}
@@ -1151,9 +1163,12 @@ function selectTab(tab){
 
 // ─── OVERVIEW ─────────────────────────────────────────────────────
 function renderOverview(){
-  const p = PHASES[S.phase];
+  // Preview mode: when set by navClickPhase, render a completed phase's
+  // overview without mutating S.phase (the working phase).
+  const viewPhase = S.previewPhase || S.phase;
+  const p = PHASES[viewPhase];
   const phaseOrder = ['define','measure','analyse_phase','improve','control'];
-  const curIdx = phaseOrder.indexOf(S.phase);
+  const curIdx = phaseOrder.indexOf(viewPhase);
 
   // DMAIC strip
   const dstrip = phaseOrder.map((ph,i) => {
@@ -1186,7 +1201,7 @@ function renderOverview(){
 
   let leftColHtml = '';
 
-  if (S.phase === 'define') {
+  if (viewPhase === 'define') {
     // ── Define phase: enriched orientation content ───────────────────
     const descHtml = `
       <p style="font-size:12px;color:var(--text2,#5C5A55);line-height:1.7;
@@ -1430,7 +1445,7 @@ function renderOverview(){
 
     leftColHtml = phaseBadgeHtml + descHtml + dmacStripHtml
       + uiOrientationHtml + roadmapHtml + durationHtml + ctaBtnHtml;
-  } else if (S.phase === 'measure') {
+  } else if (viewPhase === 'measure') {
     // ── Measure phase: enriched orientation content ──────────────────
     const descHtml = `
       <p style="font-size:12px;color:var(--text2,#5C5A55);line-height:1.7;
