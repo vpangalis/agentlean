@@ -679,17 +679,16 @@ const DEFINE_GATE_FIELDS = [
 ];
 
 function getStructured() {
-  const phase = S.phase || 'define';
-  const phaseStructured = (S.case && S.case.phases && S.case.phases[phase] &&
-          S.case.phases[phase].structured) || {};
-  if(phase === 'define' && S.case){
-    const merged = Object.assign({}, phaseStructured);
-    if(!fieldHasValue(merged.belt_level) && S.case.belt_level) merged.belt_level = S.case.belt_level;
-    if(!fieldHasValue(merged.target_date) && S.case.target_date) merged.target_date = S.case.target_date;
-    if(!fieldHasValue(merged.team_members) && Array.isArray(S.case.team) && S.case.team.length) merged.team_members = S.case.team;
-    return merged;
+  if (!S.case || !S.phase) return {};
+  const fromPhases = S.case?.phases?.[S.phase]?.structured || {};
+  const fromPhaseInputs = S.case?.phase_inputs?.[S.phase] || {};
+  const merged = Object.assign({}, fromPhases, fromPhaseInputs);
+  if (S.phase === 'define') {
+    if (!fieldHasValue(merged.belt_level) && S.case.belt_level) merged.belt_level = S.case.belt_level;
+    if (!fieldHasValue(merged.target_date) && S.case.target_date) merged.target_date = S.case.target_date;
+    if (!fieldHasValue(merged.team_members) && Array.isArray(S.case.team) && S.case.team.length) merged.team_members = S.case.team;
   }
-  return phaseStructured;
+  return merged;
 }
 
 function fieldHasValue(v) {
@@ -2621,10 +2620,22 @@ async function sendMessage(){
       // always returns fresh data without requiring a case reload
       if (resp.captured_fields && S.case) {
         if (!S.case.phase_inputs) S.case.phase_inputs = {};
-        if (!S.case.phase_inputs[S.phase]) {
-          S.case.phase_inputs[S.phase] = {};
+        if (!S.case.phase_inputs[S.phase]) S.case.phase_inputs[S.phase] = {};
+
+        // captured_fields may be array [{key,value}] or plain dict
+        if (Array.isArray(resp.captured_fields)) {
+          resp.captured_fields.forEach(f => {
+            if (f.key && f.value !== undefined && f.value !== null && f.value !== '') {
+              S.case.phase_inputs[S.phase][f.key] = f.value;
+            }
+          });
+        } else if (typeof resp.captured_fields === 'object') {
+          Object.entries(resp.captured_fields).forEach(([k, v]) => {
+            if (v !== undefined && v !== null && v !== '') {
+              S.case.phase_inputs[S.phase][k] = v;
+            }
+          });
         }
-        Object.assign(S.case.phase_inputs[S.phase], resp.captured_fields);
       }
       // Show section completion toast if a section just completed
       if (S.lastAsk && S.lastAsk.section_completed) {
