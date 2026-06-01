@@ -84,3 +84,53 @@ For large index.html changes specifically:
 - Never include more than 2 full function replacements per prompt
 - Add helper functions in a separate follow-up prompt
 - Wire everything together in a final prompt after helpers are confirmed
+
+## Implementation status (this session)
+
+The hard rules above remain authoritative. This section is a quick
+reference for what currently exists in Agent Improve. Update as
+features ship.
+
+### Visual design
+- Steel blue enterprise color system applied across the UI
+  (brand `#0070BA`, brand-bg `#EAF4FC`, brand-mid `#A8CDE8`)
+
+### Define phase (complete)
+- 26 captured fields organised into 5 gate sections:
+  Business Case, Project Charter, Benefits Analysis,
+  SIPOC Diagram, Baseline & Measurement
+- Living gate document that updates as the AI extracts fields
+- Section completion detection drives gate readiness
+  (Submit unlocks only when every section is complete)
+
+### Phase overview (Define + Measure)
+- Rich orientation content per phase:
+  - Description + reassurance strip
+  - DMAIC strip
+  - UI orientation grid (4 cards)
+  - Vertical roadmap with expandable explainers
+  - Duration by belt (Yellow / Green / Black)
+  - Start-AI-guide CTA
+
+### AI guide (chat)
+- Clean welcome screen on session start
+- Context-aware hints from the orchestrator
+- No chat history loaded on tab open (lazy fetch when requested)
+- phase_inputs sync after each turn
+
+### Session history
+- Working on gpt-4o-mini
+- Lazy loading on tab open
+
+### Navigation
+- Phase preview mode in the left nav: clicking a completed
+  phase previews it without mutating S.phase. Highlight tracks
+  the previewed phase; the working phase stays neutral but
+  the badge still reads "active" so the user can locate it.
+- Gate tab phase selector strip: jump between completed and
+  active gate documents. Completed phases show a
+  "Gate passed" banner and no Submit button.
+
+### Knowledge index
+- Rebuilt: 1,369 chunks across 3 sources
+- phase_relevance filter wired into retriever calls
