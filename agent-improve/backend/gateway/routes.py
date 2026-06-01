@@ -334,6 +334,12 @@ def ask(request: AskRequest) -> AskResponse:
         except Exception:
             phase_inputs_dict = None
 
+        if phase_inputs_dict:
+            phase_inputs_dict = {
+                k: v for k, v in phase_inputs_dict.items()
+                if not k.startswith('_')
+            }
+
         return AskResponse(
             answer=last_ai,
             phase=request.phase,
