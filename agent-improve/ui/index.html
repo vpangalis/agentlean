@@ -2743,10 +2743,8 @@ async function generateSessionSummary(date, turns) {
   try {
     const payload = {
       turns: turns.slice(0, 20).map(t => ({
-        role: t.role,
-        user: t.user || '',
-        text: t.text,
-        timestamp: t.timestamp || ''
+        role: t.role === 'ai' ? 'assistant' : t.role,
+        text: t.text || t.content || '',
       })),
       phase: S.phase || 'define',
       case_title: S.case?.title || ''
@@ -2767,7 +2765,7 @@ async function generateSessionSummary(date, turns) {
 }
 
 function renderHistory() {
-  const history = (S.case && S.case.conversation_history) || S.localChat || [];
+  const history = S.case?.conversation_history || [];
   const el = document.getElementById('history-content');
   if(!history.length) {
     el.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px 0">No sessions yet — start a conversation to see history here.</div>';
