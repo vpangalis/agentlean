@@ -1039,10 +1039,6 @@ function selectPhase(phase){
   S.phase=phase;
   S.localChat=[];
   S._greetingShown=false;  // allow the re-entry greeting once per phase entry
-  // Load chat history for this phase from case
-  if(S.case&&S.case.conversation_history){
-    S.localChat=S.case.conversation_history.filter(t=>true); // all turns for now
-  }
   renderPhaseNav();
   renderOverview();
   renderSteps();
