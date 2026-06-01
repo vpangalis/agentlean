@@ -1062,7 +1062,23 @@ function selectTab(tab){
     if(vt)vt.classList.toggle('active',t===tab);
     if(vw)vw.classList.toggle('active',t===tab);
   });
-  if(tab==='chat'){renderChat(); loadSessionGreeting();}
+  if(tab==='chat'){
+    renderChat();
+    loadSessionGreeting();
+    // Re-append any in-session messages that were sent during this
+    // session (not in conversation_history yet) so they persist when
+    // returning from another tab.
+    if (S.localChat && S.localChat.length > 0) {
+      const msgs = document.getElementById('msgs')
+        || document.getElementById('chat-messages');
+      if (msgs) {
+        S.localChat.forEach(turn => {
+          appendMsgToDOM(renderTurn(turn));
+        });
+        msgs.scrollTop = msgs.scrollHeight;
+      }
+    }
+  }
   if(tab==='gate'){renderGate();}
   if(tab==='history'){renderHistory();}
   // Hide tool tab when not on tool view
@@ -2601,6 +2617,15 @@ async function sendMessage(){
     document.getElementById('typing').classList.remove('show');
     if(resp.answer){
       S.lastAsk=resp;
+      // Sync captured fields back into S.case so getStructured()
+      // always returns fresh data without requiring a case reload
+      if (resp.captured_fields && S.case) {
+        if (!S.case.phase_inputs) S.case.phase_inputs = {};
+        if (!S.case.phase_inputs[S.phase]) {
+          S.case.phase_inputs[S.phase] = {};
+        }
+        Object.assign(S.case.phase_inputs[S.phase], resp.captured_fields);
+      }
       // Show section completion toast if a section just completed
       if (S.lastAsk && S.lastAsk.section_completed) {
         showSectionToast(S.lastAsk.section_completed);
