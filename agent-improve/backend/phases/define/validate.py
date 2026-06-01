@@ -17,6 +17,19 @@ def validate_define(state: ImproveGraphState) -> dict:
     Returns gate result as dict slice for graph routing."""
 
     inputs = (state.get("phase_inputs") or {}).get("define") or {}
+
+    # Apply case metadata fallbacks for fields set at case creation
+    # but not extracted into structured from the conversation.
+    case_meta = state.get("case_metadata") or {}
+    if not inputs.get("belt_level"):
+        case_belt = case_meta.get("belt_level") or ""
+        if case_belt:
+            inputs = {**inputs, "belt_level": case_belt}
+    if not inputs.get("process_owner"):
+        case_leader = case_meta.get("leader") or ""
+        if case_leader:
+            inputs = {**inputs, "process_owner": case_leader}
+
     attempts = state.get("gate_attempts") or 0
 
     try:
