@@ -355,6 +355,14 @@ a{text-decoration:none;color:inherit}
 .hidden{display:none!important}
 .rsec{margin-bottom:10px}
 .rsec-ttl{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+
+/* ─── EXPLAINER TOGGLES (Define overview) ─────────────────────── */
+.expl-toggle{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#0070BA;cursor:pointer;padding:4px 10px;border-radius:6px;border:0.5px solid #A8CDE8;background:#EAF4FC;margin-top:4px;user-select:none}
+.expl-box{display:none;margin-top:8px;padding:10px 14px;background:var(--surface2,#F8F7F4);border-radius:8px;border-left:3px solid #0070BA}
+.expl-chevron{transition:transform .2s;font-size:11px}
+.expl-term{font-size:12px;font-weight:600;color:#00305A;margin-bottom:4px}
+.expl-body{font-size:12px;color:var(--text2,#5C5A55);line-height:1.6}
+.expl-example{font-size:11px;color:var(--text3,#99978F);margin-top:6px;padding-top:6px;border-top:0.5px solid var(--border,#E4E2DC)}
 </style>
 </head>
 <body>
@@ -1169,43 +1177,76 @@ function renderOverview(){
         num: '1', gate: false,
         action: 'Describe the problem',
         tool: 'Tool: 5W2H framework',
-        desc: 'Answer 7 guided questions: what is going wrong, where it happens, when it started, who is affected, why it matters, how bad it is today, and what the target is. The AI turns your answers into a structured problem statement.',
+        desc: 'Answer 7 guided questions about what is going wrong, where, when, who is affected, why it matters, how bad it is today, and what the target is.',
         time: '15–20 min',
+        explainer: {
+          label: 'What is 5W2H?',
+          term: '5W2H is a structured way to describe a problem precisely',
+          body: 'The 7 letters stand for: <strong>What</strong> is the problem · <strong>Where</strong> does it happen · <strong>When</strong> did it start · <strong>Who</strong> is affected · <strong>Why</strong> does it matter to the business · <strong>How Much</strong> is the baseline today · <strong>How Goal</strong> — what does the target look like.',
+          example: 'Example: "Billing agents are receiving 28 complaints/week since February 2026 due to unresolved queries, causing €35k/month revenue loss. Target: under 20/week within 6 months."',
+        },
       },
       {
         num: '2', gate: false,
         action: 'Map the process',
         tool: 'Tool: SIPOC diagram',
-        desc: 'Draw a high-level picture of the process — who supplies it, what goes in, what the main steps are, what it produces, and who receives the result. You can upload an existing process map and the AI will read it automatically.',
+        desc: 'Draw a high-level picture of the process from end to end. You can upload an existing process map and the AI will read it automatically.',
         time: '20–30 min',
+        explainer: {
+          label: 'What is a SIPOC diagram?',
+          term: 'SIPOC is a one-page map of a process with 5 columns',
+          body: '<strong>S</strong>uppliers — who provides the inputs · <strong>I</strong>nputs — what goes into the process · <strong>P</strong>rocess — the main steps (4–6 is enough) · <strong>O</strong>utputs — what the process produces · <strong>C</strong>ustomers — who receives the output.',
+          example: 'Why it matters: before collecting data or looking for solutions, the whole team needs to agree on what process they are improving. SIPOC ensures everyone is looking at the same thing.',
+        },
       },
       {
         num: '3', gate: false,
         action: 'Set the goal and boundaries',
         tool: 'Goal statement & scope',
-        desc: 'Write the goal in one precise sentence — what you will improve, from what level to what level, by when. Define what is included in this project and what is deliberately left out. Boundaries prevent the project from growing beyond what the team can handle.',
+        desc: 'Write the goal in one sentence and define what is included in this project and what is deliberately left out.',
         time: '10–15 min',
+        explainer: {
+          label: 'What is the goal statement and scope?',
+          term: 'The goal statement answers: what will we improve, by how much, by when?',
+          body: 'A good goal has four parts: the metric, the baseline, the target, and the deadline. Example: "Reduce customer complaints from 28 to under 20 per week within 6 months."<br><br>The scope defines the boundaries: <strong>In scope</strong> = what this project covers. <strong>Out of scope</strong> = what it deliberately does not cover. Defining both early prevents scope creep — the tendency for projects to grow beyond what the team can handle.',
+        },
       },
       {
         num: '4', gate: false,
         action: 'Make the financial case',
         tool: 'Business case & benefits analysis',
-        desc: 'Capture the current cost of the problem and the expected saving. Split into hard benefits (measurable savings) and soft benefits (customer satisfaction, morale). This is what justifies the investment to management.',
+        desc: 'Capture the current cost of the problem and the expected saving. Split into hard benefits and soft benefits.',
         time: '15–20 min',
+        explainer: {
+          label: 'What are hard and soft benefits?',
+          term: 'Hard benefits are quantifiable. Soft benefits are real but harder to measure.',
+          body: '<strong>Hard benefits</strong>: savings or revenue you can put a number on. Example: "€20k/month in recovered revenue from reduced churn."<br><br><strong>Soft benefits</strong>: improvements that matter but are harder to quantify. Example: "Improved customer trust, higher agent morale, reduced escalations." Both types matter — management wants the financial return, but sponsors also care about cultural and reputational impact.',
+        },
       },
       {
         num: '5', gate: false,
         action: 'Plan the team and timeline',
         tool: 'Project charter',
-        desc: 'Document who is on the team, who is sponsoring the project, which metrics you will track, the target completion date, and the key milestones. This is the formal communication of the project to the organisation.',
+        desc: 'Document who is on the team, who is sponsoring the project, which metrics you will track, the target date, and key milestones.',
         time: '20–30 min',
+        explainer: {
+          label: 'What is a project charter?',
+          term: 'The project charter is the formal communication of the project to the organisation',
+          body: 'It captures everything in one document: the problem, the goal, who owns the process, who is sponsoring it at management level, the team and their roles, the primary metric (the number that defines success), the secondary metric (to watch for side effects), the target completion date, and key milestones for each phase.<br><br>Think of it as the project contract — once approved by the sponsor, the team has a mandate to proceed.',
+          example: 'Milestone example for a Green Belt: Define complete Week 2 · Measure Week 6 · Analyse Week 10 · Improve Week 14 · Control and close Week 18.',
+        },
       },
       {
         num: '✓', gate: true,
         action: 'Submit for AI gate review',
         tool: 'Gate tab → Submit button',
-        desc: 'When all 5 sections are complete, open the Gate tab and submit for review. The AI checks that all required information is captured, assesses the quality of the problem statement, business case, and charter, and either approves the gate or highlights what still needs work. Once approved, the project advances to the Measure phase.',
+        desc: 'When all 5 sections are complete, open the Gate tab and submit. The AI checks everything and either approves the gate or highlights what still needs work. Once approved, the project advances to Measure.',
         time: 'AI reviews instantly',
+        explainer: {
+          label: 'What does the AI check?',
+          term: 'The AI reviews the Define gate like a Master Black Belt would',
+          body: 'It checks that all 26 required fields are captured, that the problem statement is specific and measurable, that the goal has a clear metric and deadline, that the SIPOC covers all 5 columns, and that the business case has a financial estimate. If anything is missing or unclear, it will tell you exactly what to fix before approving.',
+        },
       },
     ];
 
@@ -1220,13 +1261,13 @@ function renderOverview(){
         </div>
         ${steps.map((s, i) => `
           <div style="display:flex;align-items:stretch;gap:0">
-            <div style="display:flex;flex-direction:column;align-items:center;
-              width:48px;flex-shrink:0">
+            <div style="display:flex;flex-direction:column;
+              align-items:center;width:48px;flex-shrink:0">
               <div style="width:40px;height:40px;border-radius:50%;
                 background:${s.gate ? '#0070BA' : '#EAF4FC'};
                 border:1.5px solid ${s.gate ? '#005A96' : '#A8CDE8'};
                 display:flex;align-items:center;justify-content:center;
-                font-size:${s.gate ? '16px' : '13px'};font-weight:700;
+                font-size:${s.gate ? '16px' : '13px'};font-weight:500;
                 color:${s.gate ? '#fff' : '#0070BA'};
                 flex-shrink:0;z-index:1">
                 ${s.num}
@@ -1236,10 +1277,9 @@ function renderOverview(){
                   margin:0 auto;min-height:16px"></div>` : ''}
             </div>
             <div style="flex:1;padding:4px 0 ${i < steps.length-1 ? '20px' : '0'} 16px">
-              <div style="font-size:13px;font-weight:600;
-                color:${s.gate ? '#0070BA' : '#00305A'};margin-bottom:2px">
-                ${s.action}
-              </div>
+              <div style="font-size:13px;font-weight:500;
+                color:${s.gate ? '#0070BA' : 'var(--text,#1A1917)'};
+                margin-bottom:2px">${s.action}</div>
               <div style="font-size:10px;color:#3A90CC;font-weight:500;
                 margin-bottom:5px">${s.tool}</div>
               <div style="font-size:11px;color:var(--text2,#5C5A55);
@@ -1248,11 +1288,26 @@ function renderOverview(){
                 font-size:10px;
                 color:${s.gate ? '#0070BA' : 'var(--text3,#99978F)'};
                 background:${s.gate ? '#EAF4FC' : '#F0F2F5'};
-                border-radius:20px;padding:2px 8px">
+                border-radius:20px;padding:2px 8px;margin-bottom:6px">
                 <i class="ti ${s.gate ? 'ti-sparkles' : 'ti-clock'}"
                   style="font-size:11px" aria-hidden="true"></i>
                 ${s.time}
               </span>
+              ${s.explainer ? `
+                <br>
+                <span class="expl-toggle" onclick="toggleExplainer(this)">
+                  <i class="ti ti-info-circle" style="font-size:12px"
+                    aria-hidden="true"></i>
+                  ${s.explainer.label}
+                  <i class="ti ti-chevron-down expl-chevron"
+                    aria-hidden="true"></i>
+                </span>
+                <div class="expl-box">
+                  <div class="expl-term">${s.explainer.term}</div>
+                  <div class="expl-body">${s.explainer.body}</div>
+                  ${s.explainer.example ? `
+                    <div class="expl-example">${s.explainer.example}</div>` : ''}
+                </div>` : ''}
             </div>
           </div>`
         ).join('')}
@@ -1338,6 +1393,20 @@ function renderOverview(){
         ${leftColHtml}
       </div>
     </div>`;
+}
+
+// Helper: toggle inline explainer panel under a step in Define overview
+function toggleExplainer(el) {
+  el.classList.toggle('explainer-open');
+  const box = el.nextElementSibling;
+  if (box) {
+    box.style.display = box.style.display === 'block' ? 'none' : 'block';
+  }
+  const chevron = el.querySelector('.expl-chevron');
+  if (chevron) {
+    chevron.style.transform = el.classList.contains('explainer-open')
+      ? 'rotate(180deg)' : 'rotate(0deg)';
+  }
 }
 
 // Helper: renders one educational section with label + line rule + text
