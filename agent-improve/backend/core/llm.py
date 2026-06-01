@@ -19,6 +19,7 @@ load_dotenv(override=True)  # MUST use override=True — project requirement
 _ROLE_MAP: dict[str, str] = {
     "intent": settings.LLM_INTENT_DEPLOYMENT,
     "reasoning": settings.LLM_REASONING_DEPLOYMENT,
+    "operational": settings.LLM_REASONING_DEPLOYMENT,
     "premium": settings.LLM_PREMIUM_DEPLOYMENT,
     "extraction": settings.LLM_REASONING_DEPLOYMENT,
 }
