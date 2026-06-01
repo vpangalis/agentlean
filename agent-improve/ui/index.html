@@ -532,23 +532,23 @@ a{text-decoration:none;color:inherit}
     <!-- LEFT NAV -->
     <div class="pnav">
       <div class="pnav-label">DMAIC phases</div>
-      <div class="pi active" id="pi-define" onclick="selectPhase('define')">
+      <div class="pi active" id="pi-define" onclick="navClickPhase('define')">
         <div class="pd"></div><span class="pl">Define</span><span class="pb pb-active">active</span>
       </div>
       <div class="psub">5W2H · charter · scope</div><div class="psep"></div>
-      <div class="pi locked" id="pi-measure" onclick="selectPhase('measure')">
+      <div class="pi locked" id="pi-measure" onclick="navClickPhase('measure')">
         <div class="pd"></div><span class="pl">Measure</span><span class="pb pb-lock">locked</span>
       </div>
       <div class="psub">Data plan · baseline</div><div class="psep"></div>
-      <div class="pi locked" id="pi-analyse_phase" onclick="selectPhase('analyse_phase')">
+      <div class="pi locked" id="pi-analyse_phase" onclick="navClickPhase('analyse_phase')">
         <div class="pd"></div><span class="pl">Analyse</span><span class="pb pb-lock">locked</span>
       </div>
       <div class="psub">Root cause · Fishbone</div><div class="psep"></div>
-      <div class="pi locked" id="pi-improve" onclick="selectPhase('improve')">
+      <div class="pi locked" id="pi-improve" onclick="navClickPhase('improve')">
         <div class="pd"></div><span class="pl">Improve</span><span class="pb pb-lock">locked</span>
       </div>
       <div class="psub">Solutions</div><div class="psep"></div>
-      <div class="pi locked" id="pi-control" onclick="selectPhase('control')">
+      <div class="pi locked" id="pi-control" onclick="navClickPhase('control')">
         <div class="pd"></div><span class="pl">Control</span><span class="pb pb-lock">locked</span>
       </div>
       <div class="psub">Control plan</div>
@@ -961,6 +961,36 @@ async function openWorkspace(caseId){
   }catch(e){toast('Could not load case');}
 }
 
+const PHASE_NAV_SUBTITLES = {
+  define: '5W2H · charter · scope',
+  measure: 'Data plan · baseline',
+  analyse_phase: 'Root cause · Fishbone',
+  improve: 'Solutions',
+  control: 'Control plan',
+};
+
+// Left-nav click handler. Previewing a completed phase opens its gate
+// document via renderGateForPhase() without mutating S.phase. Clicking
+// the active phase routes to its overview. Future locked phases no-op.
+function navClickPhase(phase) {
+  const phaseOrder = ['define','measure','analyse_phase','improve','control'];
+  const currentIdx = phaseOrder.indexOf(S.phase);
+  const clickedIdx = phaseOrder.indexOf(phase);
+
+  if (phase === S.phase) {
+    selectTab('overview');
+    return;
+  }
+
+  if (clickedIdx < currentIdx) {
+    selectTab('gate');
+    setTimeout(() => renderGateForPhase(phase), 50);
+    return;
+  }
+
+  // Future locked phase — do nothing
+}
+
 function renderPhaseNav(){
   const phaseOrder=['define','measure','analyse_phase','improve','control'];
   const currentIdx=phaseOrder.indexOf(S.phase);
@@ -970,18 +1000,40 @@ function renderPhaseNav(){
   phaseOrder.forEach((ph,i)=>{
     const el=document.getElementById('pi-'+ph);
     const pb=el.querySelector('.pb');
-    const pd=el.querySelector('.pd');
     el.classList.remove('active','done','locked');
     if(i<currentIdx){el.classList.add('done');pb.className='pb pb-done';pb.textContent='✓';}
     else if(i===currentIdx){el.classList.add('active');pb.className='pb pb-active';pb.textContent='active';}
     else{el.classList.add('locked');pb.className='pb pb-lock';pb.textContent='locked';}
-  });
 
-  // Append captured-state status under the active Define phase
-  const definePsub = document.getElementById('pi-define').nextElementSibling;
-  if (definePsub && definePsub.classList.contains('psub')) {
-    definePsub.innerHTML = '5W2H · charter · scope' + buildNavDefineStatus();
-  }
+    // Update psub for this phase based on status
+    const psub = el.nextElementSibling;
+    if (psub && psub.classList.contains('psub')) {
+      if (i < currentIdx) {
+        // Completed phase — show gate status (compact)
+        if (ph === 'define') {
+          const structured = getStructured('define');
+          const captured = DEFINE_GATE_FIELDS.filter(
+            f => fieldHasValue(structured[f.key])
+          ).length;
+          psub.innerHTML =
+            `✓ ${captured}/${DEFINE_GATE_FIELDS.length} · Gate passed`;
+        } else {
+          psub.innerHTML = '✓ Gate passed';
+        }
+      } else if (i === currentIdx) {
+        // Active phase — subtitle (+ Define gets capture progress)
+        if (ph === 'define') {
+          psub.innerHTML =
+            PHASE_NAV_SUBTITLES.define + buildNavDefineStatus();
+        } else {
+          psub.innerHTML = PHASE_NAV_SUBTITLES[ph] || '';
+        }
+      } else {
+        // Locked future phase — original subtitle
+        psub.innerHTML = PHASE_NAV_SUBTITLES[ph] || '';
+      }
+    }
+  });
 }
 
 function buildNavDefineStatus() {
@@ -1985,20 +2037,20 @@ function renderGate() {
       ${phaseOrder.map(p => {
         const pIdx = phaseOrder.indexOf(p);
         const pIsViewing = p === viewingPhase;
-        const pIsActive = p === activePhase;
         const pIsPassed = pIdx < activeIdx;
-        const clickable = pIsActive || pIsPassed;
+        // Active phase tab stays clickable even when previewing another
+        const isClickable = pIsPassed || p === S.phase;
         const label = phaseLabels[p] || p;
         const bg = pIsViewing ? '#0070BA'
           : pIsPassed ? '#F0F2F5' : '#fff';
         const color = pIsViewing ? '#fff'
           : pIsPassed ? '#2C3E50' : '#A0AABB';
-        const cursor = clickable ? 'pointer' : 'default';
+        const cursor = isClickable ? 'pointer' : 'default';
         const tickColor = pIsViewing ? '#fff' : '#0070BA';
         const tick = pIsPassed
           ? `<span style="font-size:9px;color:${tickColor};margin-left:4px">✓</span>`
           : '';
-        const click = clickable ? `renderGateForPhase('${p}')` : '';
+        const click = isClickable ? `renderGateForPhase('${p}')` : '';
         return `<div onclick="${click}"
           style="flex:1;padding:8px 4px;text-align:center;
             font-size:11px;font-weight:${pIsViewing?'600':'400'};
