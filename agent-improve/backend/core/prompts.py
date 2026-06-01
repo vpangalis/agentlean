@@ -297,6 +297,180 @@ this is a transition announcement, not a question.
 Maximum 4 sentences.
 """
 
+# ─────────────────────────────────────────────
+# MEASURE PHASE PROMPTS
+# ─────────────────────────────────────────────
+
+ORCHESTRATOR_MEASURE_CONTEXT = """
+CURRENT PHASE: Measure
+GOAL: Help the team build a reliable data collection plan,
+confirm baseline performance, and prepare for root cause
+analysis in the Analyse phase.
+
+WORK PRODUCT SEQUENCE:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WORK PRODUCT 1 — METRICS CONFIRMATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The primary and secondary metrics were set in Define.
+Confirm they are still the right things to measure.
+Ask: "Your primary metric from Define was [metric]. Is
+this still the right metric, or has the team decided
+to track something different?"
+One confirmation per metric. Move on quickly.
+
+When confirmed:
+"Metrics confirmed. The Gate tab has been updated.
+Now let's build the data collection plan."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WORK PRODUCT 2 — DATA COLLECTION PLAN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Build one entry per metric/source. Ask in sequence:
+1. Where does the data come from? (system, file, person)
+2. Who is responsible for collecting it?
+3. Is this continuous data (measured values like time,
+   cost, temperature) or discrete data (counts like
+   complaints, defects, errors)?
+4. How often is data available?
+5. How many records do you have?
+6. In one sentence, what exactly counts as a
+   [defect/event] for this metric?
+
+After the first metric source, ask:
+"Does your secondary metric come from the same source,
+or a different one?"
+If different: repeat questions 1–6 for the second source.
+
+When plan is complete:
+"Data collection plan is complete. The Gate tab has been
+updated. Now let's address measurement reliability."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WORK PRODUCT 3 — MEASUREMENT RELIABILITY (OPTIONAL)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Ask ONE question only:
+"Does your team need to verify that the measurement
+system is reliable? This matters if there is a risk
+that different people would classify the same event
+differently. Answer yes or no."
+
+If YES: "What was the result of the reliability check?
+  Was the system found to be reliable, unreliable,
+  or acceptable with conditions?"
+If NO: Move immediately to Work product 4.
+
+When done:
+"Measurement reliability confirmed. Moving to baseline
+data collection."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WORK PRODUCT 4 — BASELINE DATA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Ask in sequence:
+1. What time period does your baseline data cover?
+2. How many records did you collect?
+3. What is the average value of the primary metric
+   over this period?
+4. What is the range (highest and lowest values)?
+5. In plain language, what does the baseline tell you
+   about the process?
+
+All answers are optional — if the team does not have
+data yet, record what they know and note the gaps.
+
+When done:
+"Baseline captured. The Gate tab has been updated.
+One more step — process capability."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WORK PRODUCT 5 — PROCESS CAPABILITY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Ask:
+1. How did you assess the current process capability?
+   (defect rate, complaints per week, sigma estimate,
+   or other method)
+2. What is the current performance level in numbers?
+3. In one sentence, summarise what this means for the
+   improvement project.
+
+When done:
+"All Measure work products are complete. The Gate tab
+is ready for review. When your team is satisfied,
+submit for gate review to advance to Analyse."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SEQUENCING RULES — NON-NEGOTIABLE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Follow the sequence strictly.
+2. Ask ONE question at a time.
+3. If the user asks a methodology question, answer
+   briefly then return to the current work product.
+4. Always announce gate updates when a work product
+   is complete.
+5. Use plain language — no jargon without explanation.
+6. If the user does not have data yet, record what
+   they know and note the gap. Do not block progress.
+"""
+
+
+EXTRACTION_MEASURE = """Extract confirmed field values from the
+conversation. Return ONLY a JSON object. Use null for any field
+not yet explicitly confirmed. Do not infer.
+
+{
+  "primary_metric_confirmed": null,
+  "secondary_metric_confirmed": null,
+  "data_collection_plan": null,
+  "msa_required": null,
+  "msa_result": null,
+  "baseline_period": null,
+  "baseline_sample_size": null,
+  "baseline_mean": null,
+  "baseline_variation": null,
+  "baseline_summary": null,
+  "capability_method": null,
+  "current_sigma_level": null,
+  "capability_summary": null
+}
+
+Extraction rules:
+- "data_collection_plan": list of objects, each with:
+  {metric, data_source, data_owner, data_type,
+   sample_size, frequency, operational_definition}
+  Only populate when the team has confirmed AT LEAST
+  metric, data_source, and data_owner for an entry.
+  Use null for optional sub-fields not yet stated.
+  Return null for the whole field if no complete
+  entry exists yet.
+- "msa_required": "yes" or "no" only.
+- "msa_result": only populate if msa_required is "yes"
+  and result has been stated.
+- All baseline and capability fields: populate only
+  when explicitly stated by the team. These are optional.
+
+Conversation:
+{conversation}
+
+Return JSON only. No explanation. No markdown.
+"""
+
+
+MEASURE_GATE_FIELDS = [
+    "primary_metric_confirmed",
+    "secondary_metric_confirmed",
+    "data_collection_plan",
+    "msa_required",
+    "baseline_period",
+    "baseline_sample_size",
+    "baseline_mean",
+    "baseline_variation",
+    "baseline_summary",
+    "capability_method",
+    "current_sigma_level",
+    "capability_summary",
+]
+
 STATE_SUMMARY_TEMPLATE = """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CURRENT PROJECT STATE — READ THIS FIRST

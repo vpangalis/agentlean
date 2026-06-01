@@ -1,65 +1,89 @@
-from __future__ import annotations
-
-from typing import Optional
-
 from pydantic import BaseModel, Field
+from typing import Optional, List
 
 
-class YVariable(BaseModel):
-    """One metric being measured — primary or secondary."""
-
-    name: str = Field(..., description="Plain name e.g. brake pad thickness")
-    unit: str = Field(..., description="Unit of measurement e.g. mm per inspection")
-    source_system: str = Field(..., description="System where data lives")
-    is_primary: bool = Field(..., description="True for the main Y, False for secondary")
-
-
-class DataSource(BaseModel):
-    """One source of data for the measure phase."""
-
-    name: str = Field(..., description="Short name e.g. IBIS load data")
-    system: str = Field(..., description="System name e.g. IBIS passenger system")
-    owner: str = Field(..., description="Named person responsible for getting this data")
-    status: str = Field(
+class DataCollectionEntry(BaseModel):
+    """One row in the data collection plan — one metric/source pair."""
+    metric: str = Field(..., description="Which metric this covers")
+    data_source: str = Field(..., description="System, file, or person")
+    data_owner: str = Field(..., description="Who collects it")
+    data_type: str = Field(
         ...,
-        description="e.g. ready to export / request submitted / received",
+        description="'continuous' (measured values) or 'discrete' (counts/categories)"
     )
-    rows: Optional[int] = Field(None, description="Row count once received")
+    sample_size: Optional[str] = Field(
+        None, description="Number of records or time period"
+    )
+    frequency: Optional[str] = Field(
+        None, description="How often data is collected"
+    )
+    operational_definition: Optional[str] = Field(
+        None,
+        description="Precise definition of what counts as a defect/event"
+    )
 
 
 class MeasurePhaseInput(BaseModel):
-    """Gate model for Measure phase. All fields required.
-    Validator instantiates this from phase_inputs['measure'].
-    ValidationError → specific missing fields → Orchestrator asks team."""
+    """All fields captured during the Measure phase."""
 
-    y_variables: list[YVariable] = Field(
-        ...,
-        min_length=1,
-        description="At least one Y variable. First is primary.",
+    # Work product 1 — Metrics confirmation
+    primary_metric_confirmed: Optional[str] = Field(
+        None,
+        description="Confirmed primary metric name and unit"
     )
-    confirmed_factors: list[str] = Field(
-        ...,
-        min_length=1,
-        description="Factors team already records alongside Y",
+    secondary_metric_confirmed: Optional[str] = Field(
+        None,
+        description="Confirmed secondary metric name and unit"
     )
-    ai_suggested_factors: list[str] = Field(
-        default_factory=list,
-        description="Additional factors AI suggested from past cases",
+
+    # Work product 2 — Data collection plan
+    data_collection_plan: Optional[List[DataCollectionEntry]] = Field(
+        None,
+        description="List of data sources, one entry per metric/source"
     )
-    data_sources: list[DataSource] = Field(
-        ...,
-        min_length=1,
-        description="One entry per data source needed",
+
+    # Work product 3 — Measurement reliability (optional)
+    msa_required: Optional[str] = Field(
+        None,
+        description="'yes' or 'no' — does this process need MSA?"
     )
-    sample_size_available: int = Field(..., gt=0)
-    sample_size_minimum: int = Field(..., gt=0)
-    sample_size_sufficient: bool = Field(...)
-    msa_decision: str = Field(
-        ...,
-        description="'required' | 'not required' | 'completed'",
+    msa_result: Optional[str] = Field(
+        None,
+        description="Result of MSA if conducted (reliable/unreliable/acceptable)"
     )
-    msa_justification: str = Field(
-        ...,
-        description="Plain language justification for MSA decision",
+
+    # Work product 4 — Baseline data (all optional)
+    baseline_period: Optional[str] = Field(
+        None,
+        description="Time period covered by baseline data"
     )
-    data_collection_complete: bool = Field(...)
+    baseline_sample_size: Optional[str] = Field(
+        None,
+        description="Number of records collected"
+    )
+    baseline_mean: Optional[str] = Field(
+        None,
+        description="Average value with unit"
+    )
+    baseline_variation: Optional[str] = Field(
+        None,
+        description="Range or standard deviation"
+    )
+    baseline_summary: Optional[str] = Field(
+        None,
+        description="Plain language summary of baseline findings"
+    )
+
+    # Work product 5 — Process capability (all optional)
+    capability_method: Optional[str] = Field(
+        None,
+        description="How capability was assessed"
+    )
+    current_sigma_level: Optional[str] = Field(
+        None,
+        description="Estimated sigma level or defect rate"
+    )
+    capability_summary: Optional[str] = Field(
+        None,
+        description="Plain language summary of capability findings"
+    )
