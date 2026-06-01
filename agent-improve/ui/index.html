@@ -991,10 +991,12 @@ function navClickPhase(phase) {
       renderGateForPhase(phase);
     } else {
       // On any other tab — show this phase's overview
-      // without changing S.phase
+      // without changing S.phase. Clear previewPhase after the
+      // current macrotask so the synchronous renders triggered by
+      // selectTab (renderOverview, renderPhaseNav) read it.
       S.previewPhase = phase;
       selectTab('overview');
-      S.previewPhase = null;
+      setTimeout(() => { S.previewPhase = null; }, 0);
     }
     return;
   }
@@ -1005,6 +1007,11 @@ function navClickPhase(phase) {
 function renderPhaseNav(){
   const phaseOrder=['define','measure','analyse_phase','improve','control'];
   const currentIdx=phaseOrder.indexOf(S.phase);
+  // Highlighted (blue 'active') row tracks S.previewPhase if it is set,
+  // otherwise the working phase. During preview the actual working phase
+  // gets no .active class — only the previewed row pops.
+  const highlightPhase = S.previewPhase || S.phase;
+  const highlightIdx = phaseOrder.indexOf(highlightPhase);
   const progPct=[5,22,44,66,88];
   document.getElementById('prog-fill').style.width=(progPct[currentIdx]||5)+'%';
   document.getElementById('prog-label').textContent=`Phase ${currentIdx+1} of 5`;
@@ -1012,9 +1019,25 @@ function renderPhaseNav(){
     const el=document.getElementById('pi-'+ph);
     const pb=el.querySelector('.pb');
     el.classList.remove('active','done','locked');
-    if(i<currentIdx){el.classList.add('done');pb.className='pb pb-done';pb.textContent='✓';}
-    else if(i===currentIdx){el.classList.add('active');pb.className='pb pb-active';pb.textContent='active';}
-    else{el.classList.add('locked');pb.className='pb pb-lock';pb.textContent='locked';}
+    if (i === highlightIdx) {
+      el.classList.add('active');
+      pb.className = 'pb pb-active';
+      pb.textContent = (i === currentIdx) ? 'active' : 'viewing';
+    } else if (i < currentIdx) {
+      el.classList.add('done');
+      pb.className = 'pb pb-done';
+      pb.textContent = '✓';
+    } else if (i === currentIdx) {
+      // Working phase but not highlighted (preview mode):
+      // no .active class so the row stays neutral; badge still
+      // reads "active" so the user can locate the working phase.
+      pb.className = 'pb pb-active';
+      pb.textContent = 'active';
+    } else {
+      el.classList.add('locked');
+      pb.className = 'pb pb-lock';
+      pb.textContent = 'locked';
+    }
 
     // Update psub for this phase based on status
     const psub = el.nextElementSibling;
@@ -1156,6 +1179,8 @@ function selectTab(tab){
   }
   if(tab==='history'){renderHistory();}
   if(tab==='overview'){renderOverview();}
+  // Refresh nav highlight (reads S.previewPhase when set)
+  renderPhaseNav();
   // Hide tool tab when not on tool view
   const toolTab=document.getElementById('vt-tool');
   if(toolTab&&tab!=='tool'){toolTab.classList.add('hidden');}
