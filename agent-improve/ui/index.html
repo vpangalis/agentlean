@@ -680,6 +680,21 @@ const DEFINE_GATE_FIELDS = [
   { group: 'SIPOC', key: 'sipoc', label: 'SIPOC diagram' },
 ];
 
+const MEASURE_GATE_FIELDS = [
+  { group: 'METRICS',      key: 'primary_metric_confirmed',   label: 'Primary metric' },
+  { group: 'METRICS',      key: 'secondary_metric_confirmed', label: 'Secondary metric' },
+  { group: 'DATA PLAN',    key: 'data_collection_plan',       label: 'Data collection plan' },
+  { group: 'RELIABILITY',  key: 'msa_required',               label: 'Measurement reliability' },
+  { group: 'BASELINE',     key: 'baseline_period',            label: 'Baseline period' },
+  { group: 'BASELINE',     key: 'baseline_sample_size',       label: 'Sample size' },
+  { group: 'BASELINE',     key: 'baseline_mean',              label: 'Baseline average' },
+  { group: 'BASELINE',     key: 'baseline_variation',         label: 'Baseline variation' },
+  { group: 'BASELINE',     key: 'baseline_summary',           label: 'Baseline summary' },
+  { group: 'CAPABILITY',   key: 'capability_method',          label: 'Capability method' },
+  { group: 'CAPABILITY',   key: 'current_sigma_level',        label: 'Current sigma level' },
+  { group: 'CAPABILITY',   key: 'capability_summary',         label: 'Capability summary' },
+];
+
 function getStructured(phase) {
   const usePhase = phase || S.phase;
   if (!S.case || !usePhase) return {};
@@ -2105,6 +2120,77 @@ function renderGate() {
   el.style.padding = '0';
   el.style.overflowY = 'auto';
 
+  // ── Shared helpers (used by Define + Measure gate documents) ──
+  // When no structuredData is passed, the helpers fall back to the
+  // closure-bound `structured` declared later in the Define branch.
+  // The fallback is only reached after Define declares it, so TDZ
+  // is not triggered by the Measure branch (which always passes sd).
+  function sectionStatus(keys, sd) {
+    const s = sd || structured;
+    const done = keys.filter(k => fieldHasValue(s[k])).length;
+    if (done === keys.length) return 'complete';
+    if (done > 0) return 'partial';
+    return 'empty';
+  }
+
+  function statusPill(status) {
+    if (status === 'complete')
+      return `<span style="font-size:9px;background:#F0F0EE;color:#5F5E5A;
+        padding:2px 8px;border-radius:10px;font-weight:500">✓ Complete</span>`;
+    if (status === 'partial')
+      return `<span style="font-size:9px;background:#FFF0E6;color:#A04800;
+        padding:2px 8px;border-radius:10px;font-weight:500">◑ In progress</span>`;
+    return `<span style="font-size:9px;background:var(--surface2,#F8F7F4);
+        color:var(--text3,#99978F);padding:2px 8px;border-radius:10px;
+        border:0.5px dashed var(--border,#E4E2DC)">○ Not started</span>`;
+  }
+
+  function fieldRow(label, value, multiline=false) {
+    const hasVal = fieldHasValue(value);
+    const displayVal = hasVal
+      ? (Array.isArray(value)
+          ? value.map(v => typeof v === 'object'
+              ? `${v.name}${v.role ? ' ('+v.role+')' : ''}`
+              : v).join(', ')
+          : (typeof value === 'object'
+              ? JSON.stringify(value)
+              : String(value)))
+      : null;
+    return `<div style="display:grid;grid-template-columns:140px 1fr;
+      gap:8px;padding:5px 0;border-bottom:0.5px solid var(--border,#E4E2DC)">
+      <span style="font-size:10px;color:var(--text3,#99978F);
+        font-weight:600;letter-spacing:.03em;padding-top:1px">${label}</span>
+      <span style="font-size:11px;color:${hasVal ? '#00305A' : '#99978F'};
+        font-style:${hasVal ? 'normal' : 'italic'};
+        line-height:1.5">${hasVal ? displayVal : 'not yet captured'}</span>
+    </div>`;
+  }
+
+  function sectionCard(num, title, statusKeys, bodyHtml, structuredData) {
+    const sd = structuredData || structured;
+    const status = sectionStatus(statusKeys, sd);
+    return `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+      border-radius:8px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;
+        padding:10px 14px;border-bottom:0.5px solid var(--border,#E4E2DC);
+        background:${status==='complete'?'#F0F2F5':status==='partial'?'#FFF5EE':'#F0F2F5'}">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="width:20px;height:20px;border-radius:50%;
+            background:${status==='complete'?'#99978F':status==='partial'?'#C55A00':'#D3D1C7'};
+            color:#fff;font-size:10px;font-weight:700;display:flex;
+            align-items:center;justify-content:center;flex-shrink:0">
+            ${num}
+          </span>
+          <span style="font-size:12px;font-weight:600;
+            color:var(--text,#1A1917)">${title}</span>
+        </div>
+        ${statusPill(status)}
+      </div>
+      <div style="padding:10px 14px;display:block;
+        min-height:20px">${bodyHtml}</div>
+    </div>`;
+  }
+
   // ── Future phase: placeholder ─────────────────────────────
   if (isFuture) {
     el.innerHTML = `<div style="max-width:860px;margin:0 auto;padding:16px">
@@ -2138,6 +2224,183 @@ function renderGate() {
         }
       }
     }
+    return;
+  }
+
+  // ── Measure viewing (active or passed): full gate document ──
+  if (viewingPhase === 'measure') {
+    const mStructured = getStructured('measure');
+    const mFields = MEASURE_GATE_FIELDS;
+    const mCaptured = mFields.filter(
+      f => fieldHasValue(mStructured[f.key])
+    ).length;
+    const mTotal = mFields.length;
+    const mPct = Math.round(mCaptured / mTotal * 100);
+    const mAllDone = mCaptured === mTotal;
+
+    const caseTitle = S.case?.title
+      || S.case?.case_metadata?.title
+      || 'Improvement Project';
+
+    const gatePassedBanner = `<div style="background:#E1F5EE;
+      border:0.5px solid #5DCAA5;border-radius:8px;padding:12px 14px;
+      margin-bottom:12px;display:flex;align-items:center;gap:8px">
+      <i class="ti ti-circle-check-filled"
+        style="font-size:16px;color:#0F6E56"></i>
+      <span style="font-size:12px;font-weight:600;color:#04342C">
+        Gate passed ✓
+      </span>
+      <span style="font-size:11px;color:#085041;margin-left:auto">
+        This phase is complete — document shown read-only.
+      </span>
+    </div>`;
+
+    // Section 1: Metrics
+    const metricsCard = sectionCard(1, 'Metrics Confirmation',
+      ['primary_metric_confirmed','secondary_metric_confirmed'],
+      fieldRow('Primary metric', mStructured.primary_metric_confirmed) +
+      fieldRow('Secondary metric', mStructured.secondary_metric_confirmed),
+      mStructured
+    );
+
+    // Section 2: Data collection plan
+    const dcp = mStructured.data_collection_plan;
+    const dcpBody = dcp && Array.isArray(dcp) && dcp.length > 0
+      ? `<div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead>
+              <tr style="background:#F0F2F5">
+                ${['Metric','Source','Owner','Type','Sample','Frequency','Definition'].map(h =>
+                  `<th style="padding:6px 8px;text-align:left;font-size:9px;
+                    font-weight:700;letter-spacing:.04em;color:#6B7A8D;
+                    border-bottom:0.5px solid #D8DCE3">${h}</th>`
+                ).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${dcp.map((entry, i) => `
+                <tr style="border-bottom:0.5px solid #E4E2DC;
+                  background:${i%2===0?'#fff':'#F9FAFB'}">
+                  <td style="padding:6px 8px;color:#00305A;font-weight:500">
+                    ${entry.metric || ''}</td>
+                  <td style="padding:6px 8px;color:#2C3E50">
+                    ${entry.data_source || ''}</td>
+                  <td style="padding:6px 8px;color:#2C3E50">
+                    ${entry.data_owner || ''}</td>
+                  <td style="padding:6px 8px;color:#2C3E50">
+                    ${entry.data_type || ''}</td>
+                  <td style="padding:6px 8px;color:#2C3E50">
+                    ${entry.sample_size || '—'}</td>
+                  <td style="padding:6px 8px;color:#2C3E50">
+                    ${entry.frequency || '—'}</td>
+                  <td style="padding:6px 8px;color:#2C3E50;max-width:200px">
+                    ${entry.operational_definition || '—'}</td>
+                </tr>`
+              ).join('')}
+            </tbody>
+          </table>
+        </div>`
+      : `<div style="font-size:11px;color:#99978F;font-style:italic;padding:4px 0">
+          Complete the data collection plan through the AI guide.
+        </div>`;
+
+    const dcpCard = sectionCard(2, 'Data Collection Plan',
+      ['data_collection_plan'], dcpBody, mStructured
+    );
+
+    // Section 3: Reliability
+    const reliabilityCard = sectionCard(3, 'Measurement Reliability',
+      ['msa_required'],
+      fieldRow('MSA required', mStructured.msa_required) +
+      (mStructured.msa_required === 'yes'
+        ? fieldRow('MSA result', mStructured.msa_result)
+        : ''),
+      mStructured
+    );
+
+    // Section 4: Baseline
+    const baselineCard = sectionCard(4, 'Baseline Data',
+      ['baseline_period','baseline_sample_size','baseline_mean',
+       'baseline_variation','baseline_summary'],
+      fieldRow('Period', mStructured.baseline_period) +
+      fieldRow('Sample size', mStructured.baseline_sample_size) +
+      fieldRow('Average', mStructured.baseline_mean) +
+      fieldRow('Variation', mStructured.baseline_variation) +
+      fieldRow('Summary', mStructured.baseline_summary),
+      mStructured
+    );
+
+    // Section 5: Capability
+    const capabilityCard = sectionCard(5, 'Process Capability',
+      ['capability_method','current_sigma_level','capability_summary'],
+      fieldRow('Method', mStructured.capability_method) +
+      fieldRow('Current sigma level', mStructured.current_sigma_level) +
+      fieldRow('Summary', mStructured.capability_summary),
+      mStructured
+    );
+
+    // Score bar
+    const mScoreBar = `
+      <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+        border-radius:8px;padding:14px;margin-bottom:16px">
+        <div style="display:flex;align-items:flex-start;
+          justify-content:space-between;margin-bottom:8px">
+          <div>
+            <span style="font-size:24px;font-weight:500;color:#0070BA">
+              ${mCaptured}</span>
+            <span style="font-size:14px;color:#99978F"> / ${mTotal}</span>
+            <div style="font-size:10px;color:#99978F;margin-top:1px">
+              fields captured</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;font-weight:500;
+              color:${isPassed?'#0F6E56':(mAllDone?'#0070BA':'#C55A00')}">
+              ${isPassed?'Gate passed':(mAllDone?'Ready for gate':'In progress')}</div>
+            <div style="font-size:10px;color:#99978F">
+              ${isPassed?'Phase complete':(mAllDone?'All sections complete'
+                :(mTotal-mCaptured)+' fields remaining')}</div>
+          </div>
+        </div>
+        <div style="height:5px;background:#EAF4FC;border-radius:3px;
+          overflow:hidden">
+          <div style="height:100%;background:${isPassed?'#0F6E56':'#0070BA'};
+            border-radius:3px;width:${mPct}%"></div>
+        </div>
+      </div>`;
+
+    // Submit area (only when active and complete)
+    const mSubmit = mAllDone
+      ? `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+          border-radius:8px;padding:14px;margin-top:4px">
+          <button onclick="submitGateReview()" style="width:100%;
+            padding:10px;background:#0070BA;color:#fff;border:none;
+            border-radius:6px;font-size:12px;font-weight:500;cursor:pointer">
+            Submit for gate review →
+          </button>
+        </div>`
+      : `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+          border-radius:8px;padding:14px;margin-top:4px;
+          font-size:11px;color:#5C5A55">
+          Continue the AI guide to complete all sections before submitting.
+        </div>`;
+
+    const mDocHeader = `
+      <div style="margin-bottom:16px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:#99978F;text-transform:uppercase;margin-bottom:4px">
+          Measure Gate Document</div>
+        <div style="font-size:15px;font-weight:600;color:#1A1917;
+          line-height:1.3">${caseTitle}</div>
+      </div>`;
+
+    el.innerHTML = `<div style="max-width:860px;margin:0 auto;padding:16px">
+      ${phaseSelector}
+      ${isPassed ? gatePassedBanner : ''}
+      ${mDocHeader}${mScoreBar}
+      ${metricsCard}${dcpCard}${reliabilityCard}
+      ${baselineCard}${capabilityCard}
+      ${isPassed ? '' : mSubmit}
+    </div>`;
     return;
   }
 
@@ -2216,73 +2479,9 @@ function renderGate() {
   const pct = Math.round(captured / total * 100);
   const allDone = captured === total;
 
-  // Helper: section status
-  function sectionStatus(keys) {
-    const done = keys.filter(k => fieldHasValue(structured[k])).length;
-    if (done === keys.length) return 'complete';
-    if (done > 0) return 'partial';
-    return 'empty';
-  }
-
-  // Helper: status pill HTML
-  function statusPill(status) {
-    if (status === 'complete')
-      return `<span style="font-size:9px;background:#F0F0EE;color:#5F5E5A;
-        padding:2px 8px;border-radius:10px;font-weight:500">✓ Complete</span>`;
-    if (status === 'partial')
-      return `<span style="font-size:9px;background:#FFF0E6;color:#A04800;
-        padding:2px 8px;border-radius:10px;font-weight:500">◑ In progress</span>`;
-    return `<span style="font-size:9px;background:var(--surface2,#F8F7F4);
-        color:var(--text3,#99978F);padding:2px 8px;border-radius:10px;
-        border:0.5px dashed var(--border,#E4E2DC)">○ Not started</span>`;
-  }
-
-  // Helper: field row in document
-  function fieldRow(label, value, multiline=false) {
-    const hasVal = fieldHasValue(value);
-    const displayVal = hasVal
-      ? (Array.isArray(value)
-          ? value.map(v => typeof v === 'object'
-              ? `${v.name}${v.role ? ' ('+v.role+')' : ''}`
-              : v).join(', ')
-          : (typeof value === 'object'
-              ? JSON.stringify(value)
-              : String(value)))
-      : null;
-    return `<div style="display:grid;grid-template-columns:140px 1fr;
-      gap:8px;padding:5px 0;border-bottom:0.5px solid var(--border,#E4E2DC)">
-      <span style="font-size:10px;color:var(--text3,#99978F);
-        font-weight:600;letter-spacing:.03em;padding-top:1px">${label}</span>
-      <span style="font-size:11px;color:${hasVal ? '#00305A' : '#99978F'};
-        font-style:${hasVal ? 'normal' : 'italic'};
-        line-height:1.5">${hasVal ? displayVal : 'not yet captured'}</span>
-    </div>`;
-  }
-
-  // Helper: section card
-  function sectionCard(num, title, statusKeys, bodyHtml) {
-    const status = sectionStatus(statusKeys);
-    return `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
-      border-radius:8px;margin-bottom:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;
-        padding:10px 14px;border-bottom:0.5px solid var(--border,#E4E2DC);
-        background:${status==='complete'?'#F0F2F5':status==='partial'?'#FFF5EE':'#F0F2F5'}">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="width:20px;height:20px;border-radius:50%;
-            background:${status==='complete'?'#99978F':status==='partial'?'#C55A00':'#D3D1C7'};
-            color:#fff;font-size:10px;font-weight:700;display:flex;
-            align-items:center;justify-content:center;flex-shrink:0">
-            ${num}
-          </span>
-          <span style="font-size:12px;font-weight:600;
-            color:var(--text,#1A1917)">${title}</span>
-        </div>
-        ${statusPill(status)}
-      </div>
-      <div style="padding:10px 14px;display:block;
-        min-height:20px">${bodyHtml}</div>
-    </div>`;
-  }
+  // Helpers (sectionStatus / statusPill / fieldRow / sectionCard)
+  // are defined near the top of renderGate for reuse by both
+  // Define and Measure branches.
 
   // ── SECTION 1: BUSINESS CASE ────────────────────────────
   const bc = sectionCard(1, 'Business Case',
