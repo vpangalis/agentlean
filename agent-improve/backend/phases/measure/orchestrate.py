@@ -19,6 +19,18 @@ from backend.core.prompts import (
 logger = logging.getLogger(__name__)
 
 
+# Keys defined by the current MeasurePhaseInput schema. Used to filter
+# stale data persisted by previous scaffolds (e.g. y_variables,
+# confirmed_factors, data_sources) out of the response.
+VALID_MEASURE_KEYS = {
+    "primary_metric_confirmed", "secondary_metric_confirmed",
+    "data_collection_plan", "msa_required", "msa_result",
+    "baseline_period", "baseline_sample_size", "baseline_mean",
+    "baseline_variation", "baseline_summary",
+    "capability_method", "current_sigma_level", "capability_summary",
+}
+
+
 MEASURE_WORK_PRODUCTS = [
     ("Work product 1 — Metrics confirmation", [
         "primary_metric_confirmed",
@@ -72,6 +84,14 @@ def orchestrate_measure(state: ImproveGraphState) -> dict:
     for key, value in extracted.items():
         if value is not None and value != [] and value != "":
             measure_inputs[key] = value
+    # Filter out stale keys from the previous Measure scaffold
+    # (y_variables, confirmed_factors, data_sources, etc. persisted
+    # in the case blob before the schema was rewritten). Also drops
+    # any unexpected keys the extraction LLM might emit.
+    measure_inputs = {
+        k: v for k, v in measure_inputs.items()
+        if k in VALID_MEASURE_KEYS
+    }
     phase_inputs["measure"] = measure_inputs
     current_measure = measure_inputs
 
