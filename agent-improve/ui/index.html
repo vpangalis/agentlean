@@ -1075,8 +1075,7 @@ function renderPhaseNav(){
           psub.innerHTML =
             PHASE_NAV_SUBTITLES.define + buildNavDefineStatus();
         } else if (ph === 'measure') {
-          psub.innerHTML =
-            PHASE_NAV_SUBTITLES.measure + buildNavMeasureStatus();
+          psub.innerHTML = buildNavMeasureStatus();
         } else {
           psub.innerHTML = PHASE_NAV_SUBTITLES[ph] || '';
         }
