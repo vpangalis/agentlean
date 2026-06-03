@@ -3100,11 +3100,38 @@ function renderChat(){
       sipoc:                   { q: 'Let\'s map the process: who supplies it, what goes in, the main steps, what comes out, and who receives it?' },
     };
 
-    const missingHints = DEFINE_GATE_FIELDS
+    const MEASURE_FIELD_HINTS = {
+      data_collection_plan:    { q: 'Where does the data come from? Which system, file, or person holds the records for the primary metric?' },
+      msa_required:            { q: 'Does the team need to verify that the measurement system is reliable? Answer yes or no.' },
+      baseline_period:         { q: 'What time period does the baseline data cover — for example, the last 6 months?' },
+      baseline_sample_size:    { q: 'How many records or data points did you collect for the baseline?' },
+      baseline_mean:           { q: 'What is the average value of the primary metric over the baseline period?' },
+      baseline_variation:      { q: 'What is the range — what were the highest and lowest values during the baseline period?' },
+      baseline_summary:        { q: 'In plain language, what does the baseline data tell you about the process?' },
+      capability_method:       { q: 'How did you assess the current process capability — defect rate, sigma estimate, or another method?' },
+      current_sigma_level:     { q: 'What is the current performance level — sigma level, defect rate, or complaints per week?' },
+      capability_summary:      { q: 'In one sentence, what does the capability analysis tell you about where the process stands today?' },
+    };
+
+    // Phase-specific gate fields and hints
+    const isDefine = S.phase === 'define';
+    const isMeasure = S.phase === 'measure';
+    const gateFields = isDefine
+      ? DEFINE_GATE_FIELDS
+      : isMeasure
+        ? MEASURE_GATE_FIELDS
+        : [];
+    const fieldHints = isDefine
+      ? FIELD_HINTS
+      : isMeasure
+        ? MEASURE_FIELD_HINTS
+        : {};
+
+    const missingHints = gateFields
       .filter(f => !fieldHasValue(structured[f.key]))
       .slice(0, 3)
       .map(f => {
-        const hint = FIELD_HINTS[f.key];
+        const hint = fieldHints[f.key];
         return hint
           ? `<div style="margin-top:8px;padding:8px 10px;
               background:#D6EBFA;border-radius:6px;
@@ -3120,42 +3147,68 @@ function renderChat(){
           : '';
       }).join('');
 
-    const allDone = DEFINE_GATE_FIELDS.every(
-      f => fieldHasValue(structured[f.key])
-    );
+    const allDone = gateFields.length > 0 &&
+      gateFields.every(f => fieldHasValue(structured[f.key]));
 
     const bodyText = allDone
       ? 'All sections are complete. Open the Gate tab to review and submit for gate review.'
-      : `Here is what still needs to be captured to complete the Define gate:`;
+      : gateFields.length === 0
+        ? 'Continue the conversation to progress through this phase.'
+        : 'Here is what still needs to be captured to complete the gate:';
 
     msgs.innerHTML = `<div class="msg"><div class="mav mai"></div>
       <div class="bbl bbl-ai">
         <div style="font-weight:600;margin-bottom:4px">${greeting}</div>
         <div style="color:var(--text2,#5C5A55);line-height:1.6">${bodyText}</div>
         ${missingHints}
-        ${!allDone ? `<div style="margin-top:10px;font-size:11px;
+        ${!allDone && gateFields.length > 0 ? `<div style="margin-top:10px;font-size:11px;
           color:var(--text3,#99978F)">
           Click any question above to send it, or type your own reply below.
         </div>` : ''}
       </div></div>`;
   } else {
+    // Fresh case (no AI turn yet) — phase-specific opener
+    const openers = {
+      define: {
+        greeting: `Hello${S.user ? ', '+S.user : ''}!`,
+        body: 'I am your AI guide for the Define phase. Let\'s start by understanding the problem you are trying to solve.',
+        hint: 'What is the problem happening in your process?',
+      },
+      measure: {
+        greeting: `Hello${S.user ? ', '+S.user : ''}!`,
+        body: 'I am your AI guide for the Measure phase. Let\'s build the data collection plan and establish the process baseline.',
+        hint: 'Where does the data for the primary metric come from — which system, file, or person?',
+      },
+      analyse_phase: {
+        greeting: `Hello${S.user ? ', '+S.user : ''}!`,
+        body: 'I am your AI guide for the Analyse phase. Let\'s identify the root causes of the problem.',
+        hint: 'What patterns or trends did you notice in the baseline data?',
+      },
+      improve: {
+        greeting: `Hello${S.user ? ', '+S.user : ''}!`,
+        body: 'I am your AI guide for the Improve phase. Let\'s design and test the best solution.',
+        hint: 'Based on the root causes identified, what improvement ideas does the team have?',
+      },
+      control: {
+        greeting: `Hello${S.user ? ', '+S.user : ''}!`,
+        body: 'I am your AI guide for the Control phase. Let\'s make the improvement stick.',
+        hint: 'What monitoring is currently in place for this process?',
+      },
+    };
+    const opener = openers[S.phase] || openers.define;
     msgs.innerHTML = `<div class="msg"><div class="mav mai"></div>
       <div class="bbl bbl-ai">
-        <div style="font-weight:600;margin-bottom:4px">
-          Hello${S.user ? ', ' + S.user : ''}!
-        </div>
-        <div style="color:var(--text2,#5C5A55);line-height:1.6">
-          I am your AI guide for the ${PHASES[S.phase || 'define']?.label || 'Define'} phase.
-          Let's start by understanding the problem you are trying to solve.
-        </div>
-        <div style="margin-top:8px;padding:8px 10px;
-          background:#D6EBFA;border-radius:6px;
-          border-left:2px solid #0070BA;font-size:12px;
-          color:#00305A;line-height:1.5;cursor:pointer"
-          onclick="sendPresetMessage('What is the problem happening in your process?')">
+        <div style="font-weight:600;margin-bottom:4px">${opener.greeting}</div>
+        <div style="color:var(--text2,#5C5A55);line-height:1.6;
+          margin-bottom:8px">${opener.body}</div>
+        <div style="padding:8px 10px;background:#D6EBFA;
+          border-radius:6px;border-left:2px solid #0070BA;
+          font-size:12px;color:#00305A;line-height:1.5;
+          cursor:pointer"
+          onclick="sendPresetMessage(${JSON.stringify(opener.hint).replace(/"/g,'&quot;')})">
           <span style="font-size:10px;color:#0070BA;font-weight:600;
             text-transform:uppercase;letter-spacing:.04em">Ask this →</span><br>
-          What is the problem happening in your process?
+          ${opener.hint}
         </div>
       </div></div>`;
   }
