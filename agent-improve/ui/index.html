@@ -1070,10 +1070,13 @@ function renderPhaseNav(){
           psub.innerHTML = '✓ Gate passed';
         }
       } else if (i === currentIdx) {
-        // Active phase — subtitle (+ Define gets capture progress)
+        // Active phase — subtitle + dynamic capture progress when wired
         if (ph === 'define') {
           psub.innerHTML =
             PHASE_NAV_SUBTITLES.define + buildNavDefineStatus();
+        } else if (ph === 'measure') {
+          psub.innerHTML =
+            PHASE_NAV_SUBTITLES.measure + buildNavMeasureStatus();
         } else {
           psub.innerHTML = PHASE_NAV_SUBTITLES[ph] || '';
         }
@@ -1129,6 +1132,60 @@ function buildNavDefineStatus() {
         <span style="font-size:10px;color:var(--text3,#99978F)">${pct}%</span>
       </div>
       <div style="height:3px;background:var(--surface2,#F8F7F4);
+        border-radius:2px;overflow:hidden;margin-bottom:6px">
+        <div style="height:100%;background:${barColor};
+          width:${pct}%;border-radius:2px"></div>
+      </div>
+      ${rows}
+    </div>`;
+}
+
+function buildNavMeasureStatus() {
+  if (!S.case || S.phase !== 'measure') return '';
+  const structured = getStructured('measure');
+  const total = MEASURE_GATE_FIELDS.length;
+  const captured = MEASURE_GATE_FIELDS.filter(
+    f => fieldHasValue(structured[f.key])
+  ).length;
+  const pct = Math.round(captured / total * 100);
+  const allDone = captured === total;
+  const barColor = allDone ? '#0F6E56' : '#0070BA';
+
+  const groups = [
+    { label: 'Metrics',     keys: ['primary_metric_confirmed','secondary_metric_confirmed'] },
+    { label: 'Data plan',   keys: ['data_collection_plan'] },
+    { label: 'Reliability', keys: ['msa_required'] },
+    { label: 'Baseline',    keys: ['baseline_period','baseline_sample_size',
+                                    'baseline_mean','baseline_variation',
+                                    'baseline_summary'] },
+    { label: 'Capability',  keys: ['capability_method','current_sigma_level',
+                                    'capability_summary'] },
+  ];
+
+  const rows = groups.map(g => {
+    const groupCaptured = g.keys.filter(k => fieldHasValue(structured[k])).length;
+    const done = groupCaptured === g.keys.length;
+    const partial = groupCaptured > 0 && !done;
+    const color = partial ? '#C55A00' : '#99978F';
+    const icon = done ? '✓' : partial ? '◑' : '○';
+    return `<div style="display:flex;align-items:center;gap:4px;
+      padding:2px 0;font-size:10px;color:${color}">
+      <span>${icon}</span>
+      <span style="flex:1">${g.label}</span>
+      <span>${groupCaptured}/${g.keys.length}</span>
+    </div>`;
+  }).join('');
+
+  return `
+    <div style="margin-top:6px;padding-top:6px;
+      border-top:0.5px solid var(--border,#E4E2DC)">
+      <div style="display:flex;align-items:center;
+        justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:10px;font-weight:600;
+          color:#0070BA">${captured} / ${total}</span>
+        <span style="font-size:10px;color:#99978F">${pct}%</span>
+      </div>
+      <div style="height:3px;background:#EAF4FC;
         border-radius:2px;overflow:hidden;margin-bottom:6px">
         <div style="height:100%;background:${barColor};
           width:${pct}%;border-radius:2px"></div>
@@ -2238,6 +2295,23 @@ function renderGate() {
     const mPct = Math.round(mCaptured / mTotal * 100);
     const mAllDone = mCaptured === mTotal;
 
+    // Submit unlocks at the 6-field required subset (the validator
+    // enforces this subset; the other 6 fields are nice-to-have).
+    // Score bar percentage and "fields remaining" continue to use
+    // mAllDone so total completeness stays visible.
+    const MEASURE_REQUIRED_FOR_GATE = [
+      'primary_metric_confirmed',
+      'secondary_metric_confirmed',
+      'data_collection_plan',
+      'msa_required',
+      'baseline_summary',
+      'capability_summary',
+    ];
+    const mRequiredCaptured = MEASURE_REQUIRED_FOR_GATE.filter(
+      f => fieldHasValue(mStructured[f])
+    ).length;
+    const mGateReady = mRequiredCaptured === MEASURE_REQUIRED_FOR_GATE.length;
+
     const caseTitle = S.case?.title
       || S.case?.case_metadata?.title
       || 'Improvement Project';
@@ -2354,8 +2428,8 @@ function renderGate() {
           </div>
           <div style="text-align:right">
             <div style="font-size:11px;font-weight:500;
-              color:${isPassed?'#0F6E56':(mAllDone?'#0070BA':'#C55A00')}">
-              ${isPassed?'Gate passed':(mAllDone?'Ready for gate':'In progress')}</div>
+              color:${isPassed?'#0F6E56':(mGateReady?'#0070BA':'#C55A00')}">
+              ${isPassed?'Gate passed':(mGateReady?'Ready for gate':'In progress')}</div>
             <div style="font-size:10px;color:#99978F">
               ${isPassed?'Phase complete':(mAllDone?'All sections complete'
                 :(mTotal-mCaptured)+' fields remaining')}</div>
@@ -2368,8 +2442,8 @@ function renderGate() {
         </div>
       </div>`;
 
-    // Submit area (only when active and complete)
-    const mSubmit = mAllDone
+    // Submit area unlocks once the 6 required fields are captured
+    const mSubmit = mGateReady
       ? `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
           border-radius:8px;padding:14px;margin-top:4px">
           <button onclick="submitGateReview()" style="width:100%;
@@ -2381,7 +2455,7 @@ function renderGate() {
       : `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
           border-radius:8px;padding:14px;margin-top:4px;
           font-size:11px;color:#5C5A55">
-          Continue the AI guide to complete all sections before submitting.
+          Continue the AI guide to capture the required fields before submitting.
         </div>`;
 
     const mDocHeader = `
