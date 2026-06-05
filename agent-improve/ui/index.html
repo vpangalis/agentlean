@@ -3059,13 +3059,17 @@ function renderChat(){
     || document.getElementById('msgs');
   if (!msgs) return;
 
-  // Full history is still kept in S.localChat (used by sendMessage
-  // when building the conversation payload for /ask). Here we only
-  // render the LAST AI message so the chat area stays clean on load.
-  const history = S.case?.phases?.[S.phase]?.conversation_history
-    || S.localChat
-    || [];
-  const lastAI = [...history].reverse().find(t => t.role === 'ai');
+  // Prefer the most recent AI turn from S.localChat (current session),
+  // otherwise fall back to the case-level conversation_history so a
+  // returning user still sees a welcome recap even before localChat
+  // has been hydrated.
+  const localAI = [...(S.localChat||[])].reverse()
+    .find(t => t.role === 'ai' || t.role === 'assistant');
+  const historyAI = !localAI
+    ? [...(S.case?.conversation_history||[])].reverse()
+      .find(t => t.role === 'ai' || t.role === 'assistant')
+    : null;
+  const lastAI = localAI || historyAI;
 
   if (lastAI) {
     const structured = getStructured();
@@ -3127,98 +3131,154 @@ function renderChat(){
         ? MEASURE_FIELD_HINTS
         : {};
 
-    const missingHints = gateFields
-      .filter(f => !fieldHasValue(structured[f.key]))
-      .slice(0, 3)
-      .map(f => {
-        const hint = fieldHints[f.key];
-        return hint
-          ? `<div style="margin-top:8px;padding:8px 10px;
-              background:#D6EBFA;border-radius:6px;
-              border-left:2px solid #0070BA;
-              font-size:12px;color:#00305A;line-height:1.5;
-              cursor:pointer"
-              onclick="sendPresetMessage(${JSON.stringify(hint.q).replace(/"/g,'&quot;')})">
-              <span style="font-size:10px;color:#0070BA;
-                font-weight:600;text-transform:uppercase;
-                letter-spacing:.04em">Ask this →</span><br>
-              ${hint.q}
-            </div>`
-          : '';
-      }).join('');
+    // Work product groups: each carries a label, the keys that fall
+    // under it, a plain-language next-step prompt, and the field key
+    // whose hint should anchor the first "Ask this" card.
+    const measureGroups = [
+      {
+        label: 'Metrics confirmation',
+        keys: ['primary_metric_confirmed','secondary_metric_confirmed'],
+        nextAction: 'Confirm whether the metrics set in Define are still the right ones to measure.',
+        nextHintKey: 'primary_metric_confirmed',
+      },
+      {
+        label: 'Data collection plan',
+        keys: ['data_collection_plan'],
+        nextAction: 'Tell me where the data comes from — which system, file, or person holds the records.',
+        nextHintKey: 'data_collection_plan',
+      },
+      {
+        label: 'Measurement reliability',
+        keys: ['msa_required'],
+        nextAction: 'Decide whether your team needs to verify the measurement system is reliable — a simple yes or no.',
+        nextHintKey: 'msa_required',
+      },
+      {
+        label: 'Baseline data',
+        keys: ['baseline_period','baseline_sample_size',
+               'baseline_mean','baseline_variation','baseline_summary'],
+        nextAction: 'Share the baseline data — the time period, number of records, average value, and a one-line summary.',
+        nextHintKey: 'baseline_period',
+      },
+      {
+        label: 'Process capability',
+        keys: ['capability_method','current_sigma_level','capability_summary'],
+        nextAction: 'Assess the current process capability — how often does the process meet the target?',
+        nextHintKey: 'capability_method',
+      },
+    ];
 
-    const allDone = gateFields.length > 0 &&
-      gateFields.every(f => fieldHasValue(structured[f.key]));
+    const defineGroups = [
+      {
+        label: 'Problem statement',
+        keys: ['what','where','when','who_affected','why_it_matters'],
+        nextAction: 'Describe the problem — what is going wrong, where, when, and who is affected.',
+        nextHintKey: 'what',
+      },
+      {
+        label: 'Goal & scope',
+        keys: ['goal_statement','scope_in','scope_out'],
+        nextAction: 'Write the goal in one sentence and define what is included and excluded.',
+        nextHintKey: 'goal_statement',
+      },
+      {
+        label: 'Business case',
+        keys: ['business_case_rationale','current_cost','expected_saving',
+               'hard_benefits','soft_benefits'],
+        nextAction: 'Capture the current cost of the problem and the expected savings.',
+        nextHintKey: 'business_case_rationale',
+      },
+      {
+        label: 'SIPOC diagram',
+        keys: ['sipoc'],
+        nextAction: 'Map the process — who supplies inputs, what the main steps are, and who receives the output.',
+        nextHintKey: 'sipoc',
+      },
+      {
+        label: 'Project charter',
+        keys: ['process_owner','sponsor','team_members','belt_level',
+               'target_date','primary_metric','secondary_metric','project_milestones'],
+        nextAction: 'Document the team, sponsor, metrics, target date, and key milestones.',
+        nextHintKey: 'process_owner',
+      },
+    ];
 
-    // Build status recap of completed and in-progress work products
-    const completedGroups = [];
-    const partialGroups = [];
+    const groups = isMeasure ? measureGroups : isDefine ? defineGroups : [];
+    const completedLabels = [];
+    let nextGroup = null;
 
-    if (isMeasure) {
-      const groups = [
-        { label: 'Metrics confirmation',    keys: ['primary_metric_confirmed','secondary_metric_confirmed'] },
-        { label: 'Data collection plan',    keys: ['data_collection_plan'] },
-        { label: 'Measurement reliability', keys: ['msa_required'] },
-        { label: 'Baseline data',           keys: ['baseline_period','baseline_sample_size','baseline_mean','baseline_variation','baseline_summary'] },
-        { label: 'Process capability',      keys: ['capability_method','current_sigma_level','capability_summary'] },
-      ];
-      groups.forEach(g => {
-        const done = g.keys.filter(k => fieldHasValue(structured[k])).length;
-        if (done === g.keys.length) completedGroups.push(g.label);
-        else if (done > 0) partialGroups.push(g.label + ' (in progress)');
-      });
-    } else if (isDefine) {
-      // Keys aligned to DEFINE_GATE_FIELDS — problem_statement is
-      // synthesized from the 5W2H fields, strategic_rationale lives
-      // under business_case_rationale.
-      const groups = [
-        { label: 'Problem statement', keys: ['what','where','when','who_affected','why_it_matters'] },
-        { label: 'Goal & scope',      keys: ['goal_statement','scope_in','scope_out'] },
-        { label: 'Business case',     keys: ['business_case_rationale','current_cost','expected_saving','hard_benefits','soft_benefits'] },
-        { label: 'SIPOC diagram',     keys: ['sipoc'] },
-        { label: 'Project charter',   keys: ['process_owner','sponsor','team_members','belt_level','target_date','primary_metric','secondary_metric','project_milestones'] },
-      ];
-      groups.forEach(g => {
-        const done = g.keys.filter(k => fieldHasValue(structured[k])).length;
-        if (done === g.keys.length) completedGroups.push(g.label);
-        else if (done > 0) partialGroups.push(g.label + ' (in progress)');
-      });
+    for (const g of groups) {
+      const done = g.keys.filter(k => fieldHasValue(structured[k])).length;
+      if (done === g.keys.length) {
+        completedLabels.push(g.label);
+      } else if (!nextGroup) {
+        nextGroup = g;
+      }
     }
 
-    const hasRecap = completedGroups.length > 0 || partialGroups.length > 0;
-    const recapHtml = hasRecap ? `
-      <div style="margin:8px 0;padding:8px 10px;background:#F0F2F5;
-        border-radius:6px;font-size:11px;line-height:1.6">
-        ${completedGroups.length > 0
-          ? `<div style="color:#2C3E50;margin-bottom:2px">
-              <span style="color:#0F6E56;font-weight:600">✓ Complete: </span>
-              ${completedGroups.join(' · ')}
-            </div>`
-          : ''}
-        ${partialGroups.length > 0
-          ? `<div style="color:#C55A00">
-              <span style="font-weight:600">◑ In progress: </span>
-              ${partialGroups.join(' · ')}
-            </div>`
-          : ''}
-      </div>` : '';
+    const doneHtml = completedLabels.length > 0
+      ? `<div style="margin:8px 0 6px;font-size:12px;
+          color:#0F6E56;line-height:1.6">
+          <span style="font-weight:600">✓ Completed:</span>
+          ${completedLabels.join(' · ')}
+        </div>`
+      : '';
 
-    const bodyText = allDone
-      ? 'All sections are complete. Open the Gate tab to review and submit for gate review.'
-      : gateFields.length === 0
-        ? 'Continue the conversation to progress through this phase.'
-        : 'Here is what still needs to be captured to complete the gate:';
+    let suggestionHtml = '';
+    let hintCardsHtml = '';
+
+    if (!nextGroup) {
+      // All work products complete — suggest gate submission
+      suggestionHtml = `<div style="margin:8px 0;padding:8px 10px;
+        background:#EAF4FC;border-radius:6px;
+        border-left:2px solid #0070BA;font-size:12px;
+        color:#00305A;line-height:1.6">
+        <span style="font-size:10px;color:#0070BA;font-weight:600;
+          text-transform:uppercase;letter-spacing:.04em">
+          Suggested next step</span><br>
+        All ${gateFields.length} fields are captured. Open the
+        <strong>Gate tab</strong> and submit for gate review —
+        the AI will check all sections and advance the project
+        to the next phase.
+      </div>`;
+    } else {
+      suggestionHtml = `<div style="margin:8px 0;padding:8px 10px;
+        background:#EAF4FC;border-radius:6px;
+        border-left:2px solid #0070BA;font-size:12px;
+        color:#00305A;line-height:1.6">
+        <span style="font-size:10px;color:#0070BA;font-weight:600;
+          text-transform:uppercase;letter-spacing:.04em">
+          Suggested next step</span><br>
+        <strong>${nextGroup.label}:</strong>
+        ${nextGroup.nextAction}
+      </div>`;
+
+      // Show up to 2 hint cards for the still-missing gate fields
+      hintCardsHtml = gateFields
+        .filter(f => !fieldHasValue(structured[f.key]))
+        .slice(0, 2)
+        .map(f => {
+          const hint = fieldHints[f.key];
+          return hint
+            ? `<div style="margin-top:6px;padding:7px 10px;
+                background:#F0F2F5;border-radius:6px;
+                font-size:11px;color:#2C3E50;line-height:1.5;
+                cursor:pointer"
+                onclick="sendPresetMessage(${JSON.stringify(hint.q).replace(/"/g,'&quot;')})">
+                <span style="font-size:9px;color:#0070BA;font-weight:600;
+                  text-transform:uppercase;letter-spacing:.04em">Ask this →</span><br>
+                ${hint.q}
+              </div>`
+            : '';
+        }).join('');
+    }
 
     msgs.innerHTML = `<div class="msg"><div class="mav mai"></div>
       <div class="bbl bbl-ai">
         <div style="font-weight:600;margin-bottom:4px">${greeting}</div>
-        ${recapHtml}
-        <div style="color:var(--text2,#5C5A55);line-height:1.6">${bodyText}</div>
-        ${missingHints}
-        ${!allDone && gateFields.length > 0 ? `<div style="margin-top:10px;font-size:11px;
-          color:var(--text3,#99978F)">
-          Click any question above to send it, or type your own reply below.
-        </div>` : ''}
+        ${doneHtml}
+        ${suggestionHtml}
+        ${hintCardsHtml}
       </div></div>`;
   } else {
     // Fresh case (no AI turn yet) — phase-specific opener
