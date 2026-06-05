@@ -134,3 +134,26 @@ features ship.
 ### Knowledge index
 - Rebuilt: 1,369 chunks across 3 sources
 - phase_relevance filter wired into retriever calls
+
+### Session additions (current session)
+- Measure phase complete: schema (`DataCollectionEntry` +
+  `MeasurePhaseInput`), orchestrator with Define metric
+  pre-seeding, validator with 6 required fields, gate
+  document with 5 sections including the data collection
+  plan table
+- `EXTRACTION_MEASURE` duplicate bug fixed — old scaffold
+  prompt at prompts.py lines 554-579 was overriding the
+  new schema-aligned definition
+- Smart AI guide welcome screen: status recap panel with
+  actual captured values per work product + suggested
+  next step. Falls back to `S.case.conversation_history`
+  on fresh page load when `S.localChat` is empty
+- `baseline_variation` coerced to string in the UI
+  (`buildGroupSummary` handles `string | {range} | {range:{min,max}}`)
+  and extraction prompt updated to forbid object shape
+- Case Files panel in the left nav: phase-grouped file
+  rows, purpose auto-detection by filename keywords,
+  upload to Azure Blob + evidence index, DELETE endpoint,
+  × button per file row with hover-coral styling
+- Phase-aware welcome opener for all 5 DMAIC phases via
+  `openers` map keyed by phase
