@@ -3216,11 +3216,106 @@ function renderChat(){
       }
     }
 
-    const doneHtml = completedLabels.length > 0
-      ? `<div style="margin:8px 0 6px;font-size:12px;
-          color:#0F6E56;line-height:1.6">
-          <span style="font-weight:600">✓ Completed:</span>
-          ${completedLabels.join(' · ')}
+    // Plain-text summary of the actual values captured under each
+    // completed work product. Keeps the welcome bubble informative
+    // without forcing the user back to the Gate tab to check.
+    function buildGroupSummary(group, s) {
+      switch(group.label) {
+        case 'Metrics confirmation':
+          return [s.primary_metric_confirmed,
+                  s.secondary_metric_confirmed]
+            .filter(Boolean).join(' · ');
+
+        case 'Data collection plan': {
+          const dcp = s.data_collection_plan;
+          if (!Array.isArray(dcp) || !dcp.length) return '';
+          return dcp.map(e =>
+            `${e.data_source||''}${e.data_owner ? ' ('+e.data_owner+')' : ''}`
+          ).join(' · ');
+        }
+
+        case 'Measurement reliability':
+          return s.msa_required === 'yes'
+            ? 'MSA required — ' + (s.msa_result || 'result pending')
+            : 'MSA not required';
+
+        case 'Baseline data':
+          return [
+            s.baseline_period,
+            s.baseline_sample_size ? s.baseline_sample_size + ' readings' : null,
+            s.baseline_mean ? 'avg ' + s.baseline_mean : null,
+            s.baseline_variation ? 'range ' + s.baseline_variation : null,
+          ].filter(Boolean).join(' · ');
+
+        case 'Process capability':
+          return [
+            s.current_sigma_level ? s.current_sigma_level + ' sigma' : null,
+            s.capability_summary
+              ? s.capability_summary.substring(0, 80) +
+                (s.capability_summary.length > 80 ? '…' : '')
+              : null,
+          ].filter(Boolean).join(' — ');
+
+        // Define groups
+        case 'Problem statement':
+          return [s.what, s.where, s.when]
+            .filter(Boolean).join(' · ');
+
+        case 'Goal & scope':
+          return [
+            s.goal_statement
+              ? s.goal_statement.substring(0, 80) +
+                (s.goal_statement.length > 80 ? '…' : '')
+              : null,
+            s.scope_in ? 'In: ' + s.scope_in : null,
+            s.scope_out ? 'Out: ' + s.scope_out : null,
+          ].filter(Boolean).join(' | ');
+
+        case 'Business case':
+          return [
+            s.current_cost ? 'Cost: ' + s.current_cost : null,
+            s.expected_saving ? 'Saving: ' + s.expected_saving : null,
+          ].filter(Boolean).join(' → ');
+
+        case 'SIPOC diagram':
+          return 'Confirmed';
+
+        case 'Project charter':
+          return [
+            s.process_owner ? 'Owner: ' + s.process_owner : null,
+            s.sponsor ? 'Sponsor: ' + s.sponsor : null,
+            s.target_date ? 'Target: ' + s.target_date : null,
+          ].filter(Boolean).join(' · ');
+
+        default:
+          return '';
+      }
+    }
+
+    const doneRows = completedLabels.map(label => {
+      const group = groups.find(g => g.label === label);
+      const summary = group ? buildGroupSummary(group, structured) : '';
+      return `<div style="display:flex;gap:6px;
+        padding:4px 0;border-bottom:0.5px solid #E4E2DC;
+        font-size:11px;line-height:1.5">
+        <span style="color:#0F6E56;font-weight:600;
+          white-space:nowrap;min-width:16px">✓</span>
+        <div>
+          <span style="font-weight:600;color:#2C3E50">${label}:</span>
+          <span style="color:#5C5A55;margin-left:4px">${summary || '—'}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    const doneHtml = doneRows
+      ? `<div style="margin:8px 0 6px;padding:8px 10px;
+          background:#F0F2F5;border-radius:6px">
+          <div style="font-size:9px;font-weight:700;
+            letter-spacing:.06em;color:#6B7A8D;
+            text-transform:uppercase;margin-bottom:6px">
+            What has been captured
+          </div>
+          ${doneRows}
         </div>`
       : '';
 
