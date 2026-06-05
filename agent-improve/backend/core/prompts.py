@@ -551,33 +551,6 @@ Conversation:
 Return JSON only. No explanation. No markdown.
 """
 
-EXTRACTION_MEASURE = """Extract confirmed field values from the conversation below.
-Return ONLY a JSON object. Use null for unconfirmed fields. \
-Use empty list [] for unconfirmed lists.
-
-Fields to extract:
-{
-  "y_variables": [],
-  "confirmed_factors": [],
-  "ai_suggested_factors": [],
-  "data_sources": [],
-  "sample_size_available": null,
-  "sample_size_minimum": null,
-  "sample_size_sufficient": null,
-  "msa_decision": null,
-  "msa_justification": null,
-  "data_collection_complete": null
-}
-
-For y_variables each item has: name, unit, source_system, is_primary
-For data_sources each item has: name, system, owner, status, rows (null if unknown)
-
-Conversation:
-{conversation}
-
-Return JSON only. No explanation. No markdown.
-"""
-
 EXTRACTION_ANALYSE = """Extract confirmed field values from the conversation below.
 Return ONLY a JSON object. Use null for unconfirmed fields.
 
