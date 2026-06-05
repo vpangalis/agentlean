@@ -3239,13 +3239,28 @@ function renderChat(){
             ? 'MSA required — ' + (s.msa_result || 'result pending')
             : 'MSA not required';
 
-        case 'Baseline data':
+        case 'Baseline data': {
+          // baseline_variation may arrive as a string (preferred) or
+          // as a {range:..., trend:...} object from older extractions —
+          // coerce to a single readable phrase either way.
+          const varStr = (() => {
+            const v = s.baseline_variation;
+            if (!v) return null;
+            if (typeof v === 'string') return 'range ' + v;
+            if (v.range) {
+              if (typeof v.range === 'string') return 'range ' + v.range;
+              if (v.range.min != null && v.range.max != null)
+                return 'range ' + v.range.min + '–' + v.range.max;
+            }
+            return null;
+          })();
           return [
             s.baseline_period,
             s.baseline_sample_size ? s.baseline_sample_size + ' readings' : null,
             s.baseline_mean ? 'avg ' + s.baseline_mean : null,
-            s.baseline_variation ? 'range ' + s.baseline_variation : null,
+            varStr,
           ].filter(Boolean).join(' · ');
+        }
 
         case 'Process capability':
           return [

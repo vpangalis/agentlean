@@ -446,6 +446,12 @@ Extraction rules:
 - "msa_required": "yes" or "no" only.
 - "msa_result": only populate if msa_required is "yes"
   and result has been stated.
+- "baseline_mean": always return as a plain string with
+  unit. Example: "38 complaints per week" or "38/week".
+- "baseline_variation": always return as a plain string,
+  never as an object. Example: "28 to 45 per week" or
+  "range 28-45". If you have min/max values, format as
+  "{min} to {max}".
 - All baseline and capability fields: populate only
   when explicitly stated by the team. These are optional.
 
