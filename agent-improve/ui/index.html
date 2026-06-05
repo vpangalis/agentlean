@@ -3403,7 +3403,8 @@ function renderChat(){
     const defineGroups = [
       {
         label: 'Problem statement',
-        keys: ['what','where','when','who_affected','why_it_matters'],
+        keys: ['what','where','when','who_affected',
+               'why_it_matters','how_much_baseline','how_goal'],
         nextAction: 'Describe the problem — what is going wrong, where, when, and who is affected.',
         nextHintKey: 'what',
       },
@@ -3511,8 +3512,8 @@ function renderChat(){
         case 'Goal & scope':
           return [
             s.goal_statement
-              ? s.goal_statement.substring(0, 80) +
-                (s.goal_statement.length > 80 ? '…' : '')
+              ? s.goal_statement.substring(0, 70) +
+                (s.goal_statement.length > 70 ? '…' : '')
               : null,
             s.scope_in ? 'In: ' + s.scope_in : null,
             s.scope_out ? 'Out: ' + s.scope_out : null,
@@ -3525,7 +3526,7 @@ function renderChat(){
           ].filter(Boolean).join(' → ');
 
         case 'SIPOC diagram':
-          return 'Confirmed';
+          return s.sipoc ? 'Confirmed' : '';
 
         case 'Project charter':
           return [
@@ -3979,19 +3980,272 @@ async function handleChatFile(input){
   }catch(e){toast('Upload failed');}
 }
 
-async function submitGateReview(){
-  if(!S.case)return;
-  try{
-    const resp=await fetch(`${API}/gate`,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({case_id:S.case.case_id,submitted_by:S.user,phase:S.phase})}).then(r=>r.json());
-    if(resp.passed){
-      toast(`${PHASES[S.phase].label} gate passed! ${resp.next_phase?'Moving to '+PHASES[resp.next_phase].label:'Project complete!'}`);
-      if(resp.next_phase){S.phase=resp.next_phase;renderPhaseNav();selectPhase(resp.next_phase);}
-    }else{
-      const missing=(resp.missing_fields||[]).slice(0,3).join(', ');
-      toast(`Not ready yet. Still needed: ${missing||'more information'}`,5000);
-    }
-  }catch(e){toast('Could not submit gate review');}
+async function submitGateReview() {
+  if (!S.case) return;
+
+  // Show loading state in the gate panel. The fallback chain matches
+  // current DOM (#view-gate) plus two possible future container IDs.
+  const el = document.getElementById('gate-content')
+    || document.querySelector('.gate-view')
+    || document.getElementById('view-gate');
+  if (el) {
+    el.innerHTML = `<div style="max-width:680px;margin:0 auto;
+      padding:32px 16px;text-align:center;color:#6B7A8D;
+      font-size:13px">
+      <i class="ti ti-loader" style="font-size:24px;
+        animation:spin .8s linear infinite;display:block;
+        margin-bottom:8px" aria-hidden="true"></i>
+      Reviewing gate…
+    </div>`;
+  }
+
+  try {
+    const resp = await fetch(`${API}/gate`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        case_id: S.case.case_id,
+        submitted_by: S.user,
+        phase: S.phase,
+      })
+    }).then(r => r.json());
+
+    renderGateResult(resp);
+
+  } catch (e) {
+    toast('Could not submit gate review: ' + (e.message || e), 5000);
+    renderGate();
+  }
+}
+
+// Render the gate review outcome inline in the gate panel. The "Back
+// to gate document" button at the bottom calls renderGate() to restore
+// the regular gate view without re-submitting.
+function renderGateResult(resp) {
+  const el = document.getElementById('gate-content')
+    || document.querySelector('.gate-view')
+    || document.getElementById('view-gate');
+  if (!el) return;
+
+  const passed = resp.passed;
+  const missing = resp.missing_fields || [];
+  const nextPhase = resp.next_phase;
+  const structured = getStructured();
+
+  // Phase-specific gate checks. Each check carries the key it
+  // depends on, a plain-language label, a detail accessor for
+  // captured values, and a fix prompt for failed checks.
+  const GATE_CHECKS = {
+    define: [
+      { key: 'what', label: 'Problem description',
+        detail: () => structured.what
+          ? 'What: ' + structured.what.substring(0, 60)
+          : null,
+        fix: 'Describe the problem — what is going wrong.' },
+      { key: 'goal_statement', label: 'Goal statement',
+        detail: () => structured.goal_statement
+          ? structured.goal_statement.substring(0, 70)
+          : null,
+        fix: 'Write the goal — what will we improve, by how much, by when.' },
+      { key: 'scope_out', label: 'Scope boundaries defined',
+        detail: () => structured.scope_in
+          ? 'In: ' + structured.scope_in
+          : null,
+        fix: 'Define what is in scope and what is explicitly excluded.' },
+      { key: 'sipoc', label: 'SIPOC diagram confirmed',
+        detail: () => structured.sipoc ? 'Confirmed by team' : null,
+        fix: 'Complete the SIPOC diagram in the AI guide.' },
+      { key: 'hard_benefits', label: 'Business case complete',
+        detail: () => structured.current_cost
+          ? 'Cost: ' + structured.current_cost
+          : null,
+        fix: 'Capture the current cost and expected savings.' },
+      { key: 'project_milestones', label: 'Project charter complete',
+        detail: () => structured.process_owner
+          ? 'Owner: ' + structured.process_owner
+          : null,
+        fix: 'Document the team, sponsor, metrics, and milestones.' },
+    ],
+    measure: [
+      { key: 'primary_metric_confirmed',
+        label: 'Metrics confirmed',
+        detail: () => structured.primary_metric_confirmed
+          ? structured.primary_metric_confirmed
+          : null,
+        fix: 'Confirm the primary and secondary metrics.' },
+      { key: 'data_collection_plan',
+        label: 'Data collection plan complete',
+        detail: () => {
+          const dcp = structured.data_collection_plan;
+          return Array.isArray(dcp) && dcp.length
+            ? dcp.length + ' source' + (dcp.length > 1 ? 's' : '')
+              + ' documented'
+            : null;
+        },
+        fix: 'Document where the data comes from and who owns it.' },
+      { key: 'msa_required',
+        label: 'Measurement reliability assessed',
+        detail: () => structured.msa_required === 'yes'
+          ? 'MSA conducted — ' + (structured.msa_result || '')
+          : structured.msa_required === 'no'
+            ? 'MSA not required'
+            : null,
+        fix: 'Decide yes or no — does the measurement system need verification?' },
+      { key: 'baseline_summary',
+        label: 'Baseline data documented',
+        detail: () => structured.baseline_period
+          ? structured.baseline_period
+            + (structured.baseline_mean ? ' · avg '
+              + structured.baseline_mean : '')
+          : null,
+        fix: 'Collect and summarise the baseline data.' },
+      { key: 'capability_summary',
+        label: 'Process capability established',
+        detail: () => structured.current_sigma_level
+          ? structured.current_sigma_level + ' sigma'
+          : null,
+        fix: 'Assess and summarise the current process capability.' },
+    ],
+  };
+
+  const checks = GATE_CHECKS[S.phase] || [];
+  const phaseLabel = PHASES[S.phase]?.label || S.phase;
+  const nextLabel = nextPhase
+    ? (PHASES[nextPhase]?.label || nextPhase)
+    : null;
+
+  const checkRows = checks.map(c => {
+    const isMissing = missing.includes(c.key)
+      || !fieldHasValue(structured[c.key]);
+    const failed = !passed && isMissing;
+    const detail = c.detail();
+    return `
+      <div style="display:flex;align-items:flex-start;gap:10px;
+        padding:8px 0;border-bottom:0.5px solid #E4E2DC">
+        <i class="ti ${failed ? 'ti-x' : 'ti-check'}"
+          style="font-size:14px;margin-top:1px;flex-shrink:0;
+            color:${failed ? '#A32D2D' : '#3B6D11'}"
+          aria-hidden="true"></i>
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:500;
+            color:${failed ? '#791F1F' : '#2C3E50'}">
+            ${c.label}
+          </div>
+          ${detail
+            ? `<div style="font-size:11px;color:#6B7A8D;
+                margin-top:2px">${detail}</div>`
+            : ''}
+          ${failed
+            ? `<div style="font-size:11px;color:#A32D2D;
+                margin-top:3px">${c.fix}</div>
+              <div style="font-size:11px;color:#0070BA;
+                cursor:pointer;margin-top:3px"
+                onclick="selectTab('chat')">
+                → Go to AI guide to fix this
+              </div>`
+            : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  const passBanner = `
+    <div style="display:flex;align-items:center;gap:10px;
+      padding:12px;background:#EAF3DE;border-radius:8px;
+      margin-bottom:14px">
+      <div style="width:36px;height:36px;border-radius:50%;
+        background:#D0EABC;display:flex;align-items:center;
+        justify-content:center;flex-shrink:0">
+        <i class="ti ti-circle-check"
+          style="font-size:18px;color:#3B6D11"
+          aria-hidden="true"></i>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:500;
+          color:#27500A">${phaseLabel} gate approved</div>
+        <div style="font-size:11px;color:#3B6D11;
+          margin-top:1px">
+          Reviewed by AI · all required checks passed
+        </div>
+      </div>
+    </div>`;
+
+  const failBanner = `
+    <div style="display:flex;align-items:center;gap:10px;
+      padding:12px;background:#FCEBEB;border-radius:8px;
+      margin-bottom:14px">
+      <div style="width:36px;height:36px;border-radius:50%;
+        background:#F7C1C1;display:flex;align-items:center;
+        justify-content:center;flex-shrink:0">
+        <i class="ti ti-alert-circle"
+          style="font-size:18px;color:#A32D2D"
+          aria-hidden="true"></i>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:500;
+          color:#791F1F">Gate not ready yet</div>
+        <div style="font-size:11px;color:#A32D2D;
+          margin-top:1px">
+          ${missing.length} check${missing.length !== 1 ? 's' : ''}
+          failed — fix these before submitting
+        </div>
+      </div>
+    </div>`;
+
+  const nextNote = passed && nextLabel
+    ? `<div style="font-size:11px;color:#27500A;
+        padding:8px 10px;background:#EAF3DE;
+        border-radius:6px;margin:12px 0">
+        The project is ready to advance to
+        <strong>${nextLabel}</strong>.
+        ${S.phase === 'measure'
+          ? 'The root cause analysis phase will use this baseline to identify what is driving the problem.'
+          : S.phase === 'define'
+            ? 'The Measure phase will establish what data to collect and confirm the current process performance.'
+            : ''}
+      </div>`
+    : '';
+
+  const actionBtn = passed && nextLabel
+    ? `<button onclick="selectTab('overview')"
+        style="width:100%;padding:10px;background:#0070BA;
+          color:#fff;border:none;border-radius:6px;
+          font-size:12px;font-weight:500;cursor:pointer">
+        Continue to ${nextLabel} phase →
+      </button>`
+    : !passed
+      ? `<button onclick="selectTab('chat')"
+          style="width:100%;padding:10px;background:#0070BA;
+            color:#fff;border:none;border-radius:6px;
+            font-size:12px;font-weight:500;cursor:pointer">
+          Go to AI guide →
+        </button>`
+      : '';
+
+  const reviewBtn = `
+    <button onclick="renderGate()"
+      style="width:100%;padding:8px;background:#F0F2F5;
+        color:#2C3E50;border:0.5px solid #D8DCE3;
+        border-radius:6px;font-size:12px;cursor:pointer;
+        margin-top:8px">
+      Back to gate document
+    </button>`;
+
+  el.innerHTML = `
+    <div style="max-width:680px;margin:0 auto;padding:16px">
+      ${passed ? passBanner : failBanner}
+      <div style="background:#fff;border:0.5px solid #E4E2DC;
+        border-radius:8px;padding:12px;margin-bottom:12px">
+        <div style="font-size:9px;font-weight:700;
+          letter-spacing:.06em;color:#6B7A8D;
+          text-transform:uppercase;margin-bottom:8px">
+          What was checked
+        </div>
+        ${checkRows || '<div style="font-size:12px;color:#99978F;padding:8px 0">No checks defined for this phase yet.</div>'}
+      </div>
+      ${nextNote}
+      ${actionBtn}
+      ${reviewBtn}
+    </div>`;
 }
 
 // ─── STEPS ────────────────────────────────────────────────────────
