@@ -552,6 +552,8 @@ a{text-decoration:none;color:inherit}
         <div class="pd"></div><span class="pl">Control</span><span class="pb pb-lock">locked</span>
       </div>
       <div class="psub">Control plan</div>
+      <!-- Case files panel — populated by buildCaseFilesNav() -->
+      <div id="case-files-nav"></div>
       <div style="flex:1"></div>
       <div class="pnav-bot">
         <div style="font-size:10px;color:var(--text3)">Overall progress</div>
@@ -1085,6 +1087,10 @@ function renderPhaseNav(){
       }
     }
   });
+
+  // Refresh the case files section beneath the DMAIC phases
+  const filesMount = document.getElementById('case-files-nav');
+  if (filesMount) filesMount.innerHTML = buildCaseFilesNav();
 }
 
 function buildNavDefineStatus() {
@@ -1191,6 +1197,198 @@ function buildNavMeasureStatus() {
       </div>
       ${rows}
     </div>`;
+}
+
+// Case files left-nav panel. Groups uploaded files by phase, shows a
+// dashed "Upload file" button at the bottom. S.case.files is populated
+// from GET /cases/{case_id} (projected from per-phase uploads) and
+// appended to in-memory by triggerFileUpload() after every /upload.
+function buildCaseFilesNav() {
+  const files = S.case?.files || [];
+
+  function fileIcon(filename) {
+    const ext = (filename||'').split('.').pop().toLowerCase();
+    if (ext === 'pdf') return 'ti-file-type-pdf';
+    if (['xlsx','xls','csv'].includes(ext)) return 'ti-file-spreadsheet';
+    if (['png','jpg','jpeg'].includes(ext)) return 'ti-photo';
+    return 'ti-file';
+  }
+  function fileIconColor(filename) {
+    const ext = (filename||'').split('.').pop().toLowerCase();
+    if (ext === 'pdf') return '#C55A00';
+    if (['xlsx','xls','csv'].includes(ext)) return '#0F6E56';
+    if (['png','jpg','jpeg'].includes(ext)) return '#534AB7';
+    return '#6B7A8D';
+  }
+
+  if (files.length === 0) {
+    return `
+      <div style="padding:6px 0 2px">
+        <div style="height:0.5px;background:#D8DCE3;margin:0 0 6px"></div>
+        <div style="font-size:9px;font-weight:700;
+          letter-spacing:.06em;color:#6B7A8D;
+          text-transform:uppercase;
+          padding:6px 12px 4px;
+          display:flex;align-items:center;
+          justify-content:space-between">
+          <span>Case files</span>
+          <span style="font-size:9px;background:#EAF4FC;
+            color:#0070BA;border-radius:10px;
+            padding:1px 6px;font-weight:600">0</span>
+        </div>
+        <div onclick="triggerFileUpload()"
+          style="margin:4px 10px 6px;padding:6px 8px;
+          border:0.5px dashed #A8CDE8;border-radius:6px;
+          display:flex;align-items:center;gap:5px;
+          font-size:10px;color:#0070BA;cursor:pointer;
+          background:transparent">
+          <i class="ti ti-upload" style="font-size:11px"
+            aria-hidden="true"></i>
+          Upload file
+        </div>
+      </div>`;
+  }
+
+  // Group files by phase
+  const phaseOrder = ['define','measure','analyse_phase','improve','control'];
+  const phaseLabels = {
+    define:'Define', measure:'Measure',
+    analyse_phase:'Analyse', improve:'Improve',
+    control:'Control'
+  };
+  const grouped = {};
+  files.forEach(f => {
+    const p = f.phase || 'define';
+    if (!grouped[p]) grouped[p] = [];
+    grouped[p].push(f);
+  });
+
+  const currentIdx = phaseOrder.indexOf(S.phase);
+
+  const phaseGroups = phaseOrder
+    .filter(p => grouped[p])
+    .map(p => {
+      const isActive = p === S.phase;
+      const isDone = phaseOrder.indexOf(p) < currentIdx;
+      const groupLabel = phaseLabels[p] || p;
+      const labelColor = isActive ? '#0070BA'
+        : isDone ? '#6B7A8D' : '#A0AABB';
+      const prefix = isDone
+        ? `<i class="ti ti-check" style="font-size:9px;color:#0F6E56" aria-hidden="true"></i>`
+        : isActive
+          ? `<i class="ti ti-chart-bar" style="font-size:9px;color:#0070BA" aria-hidden="true"></i>`
+          : '';
+
+      const rows = grouped[p].map(f => {
+        const safeName = (f.filename || '').replace(/"/g, '&quot;');
+        const safePurpose = (f.purpose || '').replace(/"/g, '&quot;');
+        const safeId = (f.file_id || '').replace(/'/g, "\\'");
+        return `
+        <div style="display:flex;align-items:center;
+          gap:5px;padding:3px 12px;cursor:pointer;
+          border-radius:4px;margin:0 2px"
+          onclick="previewCaseFile('${safeId}')"
+          title="${safeName}">
+          <i class="ti ${fileIcon(f.filename)}"
+            style="font-size:12px;
+              color:${fileIconColor(f.filename)};
+              flex-shrink:0"
+            aria-hidden="true"></i>
+          <span style="flex:1;font-size:10px;
+            color:#2C3E50;white-space:nowrap;
+            overflow:hidden;text-overflow:ellipsis;
+            max-width:100px">
+            ${safeName}
+          </span>
+          ${safePurpose ? `<span style="font-size:8px;
+            background:#F0F2F5;color:#6B7A8D;
+            border-radius:3px;padding:1px 4px;
+            white-space:nowrap;flex-shrink:0">
+            ${safePurpose}</span>` : ''}
+        </div>`;
+      }).join('');
+
+      return `
+        <div style="font-size:9px;font-weight:600;
+          color:${labelColor};text-transform:uppercase;
+          letter-spacing:.05em;padding:4px 12px 2px;
+          display:flex;align-items:center;gap:4px">
+          ${prefix}
+          ${groupLabel}${isActive ? ' (current)' : ''}
+        </div>
+        ${rows}`;
+    }).join('');
+
+  return `
+    <div style="padding:6px 0 2px">
+      <div style="height:0.5px;background:#D8DCE3;margin:0 0 6px"></div>
+      <div style="font-size:9px;font-weight:700;
+        letter-spacing:.06em;color:#6B7A8D;
+        text-transform:uppercase;
+        padding:2px 12px 4px;
+        display:flex;align-items:center;
+        justify-content:space-between">
+        <span>Case files</span>
+        <span style="font-size:9px;background:#EAF4FC;
+          color:#0070BA;border-radius:10px;
+          padding:1px 6px;font-weight:600">
+          ${files.length}
+        </span>
+      </div>
+      ${phaseGroups}
+      <div onclick="triggerFileUpload()"
+        style="margin:4px 10px 6px;padding:5px 8px;
+        border:0.5px dashed #A8CDE8;border-radius:6px;
+        display:flex;align-items:center;gap:5px;
+        font-size:10px;color:#0070BA;cursor:pointer;
+        background:transparent">
+        <i class="ti ti-upload" style="font-size:11px"
+          aria-hidden="true"></i>
+        Upload file
+      </div>
+    </div>`;
+}
+
+// Open the system file picker, POST the chosen file to /upload, then
+// merge the returned CaseFile dict into S.case.files and re-render
+// the nav so it shows up immediately.
+function triggerFileUpload() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg,.docx';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !S.case?.case_id) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('case_id', S.case.case_id);
+    fd.append('phase', S.phase || 'define');
+    fd.append('uploaded_by', S.user || 'team');
+    try {
+      const r = await fetch(`${API}/upload`, {
+        method: 'POST', body: fd
+      });
+      const d = await r.json();
+      if (d.file) {
+        if (!S.case.files) S.case.files = [];
+        S.case.files.push(d.file);
+        renderPhaseNav();
+        toast('File uploaded: ' + file.name);
+      } else if (d.detail) {
+        toast('Upload failed: ' + d.detail, 4000);
+      }
+    } catch (err) {
+      toast('Upload failed: ' + (err.message || err), 4000);
+    }
+  };
+  input.click();
+}
+
+// Stub: clicking a file in the nav shows a toast for now. Future:
+// open in a modal or new tab using f.blob_url.
+function previewCaseFile(fileId) {
+  const f = (S.case?.files || []).find(x => x.file_id === fileId);
+  if (f) toast('Opening: ' + f.filename);
 }
 
 function selectPhase(phase){

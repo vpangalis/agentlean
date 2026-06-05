@@ -36,8 +36,8 @@ def health() -> HealthResponse:
 
 
 @router.get("/search-knowledge")
-def search_knowledge_content(q: str = "", top: int = 3):
-    """Temporary endpoint to read knowledge index content."""
+def search_knowledge_temp(q: str = "", top: int = 3):
+    """Temporary read-only knowledge search endpoint."""
     from azure.search.documents import SearchClient
     from azure.core.credentials import AzureKeyCredential
     from backend.core.config import settings
@@ -49,16 +49,14 @@ def search_knowledge_content(q: str = "", top: int = 3):
     try:
         results = list(search_client.search(
             search_text=q,
-            filter="phase_relevance eq 'define'",
+            filter="phase_relevance eq 'measure'",
             select=["content","source_file","page_number"],
             top=top,
         ))
         return {"results": [
-            {
-                "content": r["content"],
-                "source": r["source_file"],
-                "page": r["page_number"]
-            }
+            {"content": r["content"],
+             "source": r["source_file"],
+             "page": r["page_number"]}
             for r in results
         ]}
     except Exception as e:
@@ -373,15 +371,77 @@ def ask(request: AskRequest) -> AskResponse:
         raise HTTPException(500, f"Graph error: {str(e)}")
 
 
+_PURPOSE_PREFIX = "purpose="
+
+
+def auto_detect_purpose(filename: str) -> str:
+    """Guess a purpose label from a filename. Used when the UI does
+    not supply an explicit purpose."""
+    name = (filename or "").lower()
+    if any(x in name for x in ("sipoc", "process map", "map")):
+        return "Process map"
+    if any(x in name for x in ("data", "complaint", "measurement", "baseline")):
+        return "Data file"
+    if any(x in name for x in ("survey", "nps", "satisfaction")):
+        return "Survey data"
+    if any(x in name for x in ("capability", "sigma", "control")):
+        return "Capability report"
+    if any(x in name for x in ("charter", "project", "scope")):
+        return "Project document"
+    if any(x in name for x in ("fishbone", "pareto", "cause", "analyse", "analyze")):
+        return "Analysis"
+    if any(x in name for x in ("solution", "improve", "pilot")):
+        return "Improvement plan"
+    ext = filename.rsplit(".", 1)[-1].lower() if filename and "." in filename else ""
+    if ext in ("xlsx", "xls", "csv"):
+        return "Data file"
+    if ext == "pdf":
+        return "Document"
+    return "File"
+
+
+def _case_file_id(case_id: str, filename: str, uploaded_at: str) -> str:
+    """Deterministic 16-char id for a case file. Computed from
+    (case_id, filename, uploaded_at) so both /upload and /cases agree
+    without persisting a separate id field."""
+    import hashlib
+    raw = f"{case_id}|{filename}|{uploaded_at}".encode()
+    return hashlib.sha256(raw).hexdigest()[:16]
+
+
+def _classification_for(purpose: str, content_type: str, indexed: bool) -> str:
+    """Encode purpose+content_type+indexed into the existing
+    UploadRecord.classification field so the projection can recover
+    the purpose later. New format: 'purpose=<p> · <type> · <status>'."""
+    status = "indexed" if indexed else "pending"
+    return f"{_PURPOSE_PREFIX}{purpose} · {content_type} · {status}"
+
+
+def _purpose_from_classification(classification: str, fallback_filename: str) -> str:
+    """Recover a purpose label from a UploadRecord.classification.
+    Records persisted before the purpose tag was added fall back to
+    auto-detect on the filename."""
+    if not classification:
+        return auto_detect_purpose(fallback_filename)
+    if classification.startswith(_PURPOSE_PREFIX):
+        head = classification[len(_PURPOSE_PREFIX):]
+        return head.split(" · ", 1)[0] if " · " in head else head
+    return auto_detect_purpose(fallback_filename)
+
+
 @router.post("/upload")
 def upload_file(
     case_id: str = Form(...),
     uploaded_by: str = Form(...),
     phase: str = Form(...),
     file: UploadFile = File(...),
+    purpose: str = Form(""),
 ):
     """Upload a file, extract content via Vision LLM if image,
-    store in blob, index into improve_evidence_index."""
+    store in blob, index into improve_evidence_index.
+
+    Returns a flat ``file`` dict in the new CaseFile shape alongside
+    the legacy response fields for backward compatibility."""
     if blob_client is None:
         raise HTTPException(503, "Storage not configured")
 
@@ -429,23 +489,40 @@ def upload_file(
             "Evidence indexing failed for %s: %s", file.filename, e,
         )
 
+    # Resolve purpose (form value wins; otherwise auto-detect)
+    resolved_purpose = (purpose or "").strip() or auto_detect_purpose(
+        file.filename
+    )
+
     # Persist upload record into case blob (canonical phases[phase].uploads)
     phase_record = case.phases.get(phase)
     if phase_record is not None:
-        classification = (
-            f"{upload_record['content_type']}"
-            f"{' · indexed' if indexed else ' · pending'}"
-        )
         phase_record.uploads.append(UploadRecord(
             filename=file.filename,
             blob_path=blob_path,
             uploaded_by=uploaded_by,
             uploaded_at=upload_record["timestamp"],
-            classification=classification,
+            classification=_classification_for(
+                resolved_purpose, upload_record["content_type"], indexed
+            ),
         ))
         blob_client.save_case(case)
 
+    # CaseFile-shaped dict for the UI (matches gateway.schemas.CaseFile)
+    case_file = {
+        "file_id": _case_file_id(case_id, file.filename, upload_record["timestamp"]),
+        "filename": file.filename,
+        "phase": phase,
+        "purpose": resolved_purpose,
+        "blob_url": blob_path,
+        "uploaded_at": upload_record["timestamp"],
+        "uploaded_by": uploaded_by,
+        "size_bytes": len(file_bytes) if file_bytes else None,
+    }
+
     return {
+        "file": case_file,
+        # Legacy fields kept for callers that read them
         "blob_path": blob_path,
         "filename": file.filename,
         "content_type": upload_record["content_type"],
@@ -618,13 +695,35 @@ def get_registry() -> list[RegistryEntryOut]:
 
 @router.get("/cases/{case_id}")
 def get_case(case_id: str):
-    """Load full case document."""
+    """Load full case document. Also projects every per-phase upload
+    into a flat ``files`` array in CaseFile shape so the UI can render
+    a single grouped files panel without walking each phase record."""
     if blob_client is None:
         raise HTTPException(503, "Storage not configured")
     case = blob_client.load_case(case_id)
     if case is None:
         raise HTTPException(404, f"Case {case_id} not found")
-    return case.model_dump()
+
+    payload = case.model_dump()
+    files: list[dict] = []
+    for phase_name, phase_record in (payload.get("phases") or {}).items():
+        for upload in (phase_record or {}).get("uploads") or []:
+            filename = upload.get("filename", "")
+            uploaded_at = upload.get("uploaded_at", "")
+            files.append({
+                "file_id": _case_file_id(case_id, filename, uploaded_at),
+                "filename": filename,
+                "phase": phase_name,
+                "purpose": _purpose_from_classification(
+                    upload.get("classification", ""), filename
+                ),
+                "blob_url": upload.get("blob_path", ""),
+                "uploaded_at": uploaded_at,
+                "uploaded_by": upload.get("uploaded_by", ""),
+                "size_bytes": None,
+            })
+    payload["files"] = files
+    return payload
 
 
 def _build_captured_fields(phase_data: dict, phase: str) -> list:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Any
+from typing import Optional, Any, List
 
 from pydantic import BaseModel
 
@@ -125,6 +125,26 @@ class HealthResponse(BaseModel):
     agent: str = "agent-improve"
     port: int = 8020
     version: str = "0.1.0"
+
+
+# ── case files ────────────────────────────────────────────────────────────
+
+
+class CaseFile(BaseModel):
+    """One uploaded file attached to a case. Shape returned by /upload
+    and embedded as a flat list on the /cases/{case_id} response.
+    Persistence is currently stored under phases[phase].uploads as
+    UploadRecord; the gateway projects those into CaseFile shape on
+    read so the UI sees a single flat list grouped by phase."""
+
+    file_id: str                       # deterministic hash
+    filename: str                      # original filename
+    phase: str                         # which phase this belongs to
+    purpose: str                       # auto-tagged or user-supplied
+    blob_url: str                      # Azure blob URL / path
+    uploaded_at: str                   # ISO timestamp
+    uploaded_by: str                   # user name
+    size_bytes: Optional[int] = None
 
 
 # ── session summarisation ────────────────────────────────────────────────
