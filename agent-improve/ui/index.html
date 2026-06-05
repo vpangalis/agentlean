@@ -3150,6 +3150,59 @@ function renderChat(){
     const allDone = gateFields.length > 0 &&
       gateFields.every(f => fieldHasValue(structured[f.key]));
 
+    // Build status recap of completed and in-progress work products
+    const completedGroups = [];
+    const partialGroups = [];
+
+    if (isMeasure) {
+      const groups = [
+        { label: 'Metrics confirmation',    keys: ['primary_metric_confirmed','secondary_metric_confirmed'] },
+        { label: 'Data collection plan',    keys: ['data_collection_plan'] },
+        { label: 'Measurement reliability', keys: ['msa_required'] },
+        { label: 'Baseline data',           keys: ['baseline_period','baseline_sample_size','baseline_mean','baseline_variation','baseline_summary'] },
+        { label: 'Process capability',      keys: ['capability_method','current_sigma_level','capability_summary'] },
+      ];
+      groups.forEach(g => {
+        const done = g.keys.filter(k => fieldHasValue(structured[k])).length;
+        if (done === g.keys.length) completedGroups.push(g.label);
+        else if (done > 0) partialGroups.push(g.label + ' (in progress)');
+      });
+    } else if (isDefine) {
+      // Keys aligned to DEFINE_GATE_FIELDS — problem_statement is
+      // synthesized from the 5W2H fields, strategic_rationale lives
+      // under business_case_rationale.
+      const groups = [
+        { label: 'Problem statement', keys: ['what','where','when','who_affected','why_it_matters'] },
+        { label: 'Goal & scope',      keys: ['goal_statement','scope_in','scope_out'] },
+        { label: 'Business case',     keys: ['business_case_rationale','current_cost','expected_saving','hard_benefits','soft_benefits'] },
+        { label: 'SIPOC diagram',     keys: ['sipoc'] },
+        { label: 'Project charter',   keys: ['process_owner','sponsor','team_members','belt_level','target_date','primary_metric','secondary_metric','project_milestones'] },
+      ];
+      groups.forEach(g => {
+        const done = g.keys.filter(k => fieldHasValue(structured[k])).length;
+        if (done === g.keys.length) completedGroups.push(g.label);
+        else if (done > 0) partialGroups.push(g.label + ' (in progress)');
+      });
+    }
+
+    const hasRecap = completedGroups.length > 0 || partialGroups.length > 0;
+    const recapHtml = hasRecap ? `
+      <div style="margin:8px 0;padding:8px 10px;background:#F0F2F5;
+        border-radius:6px;font-size:11px;line-height:1.6">
+        ${completedGroups.length > 0
+          ? `<div style="color:#2C3E50;margin-bottom:2px">
+              <span style="color:#0F6E56;font-weight:600">✓ Complete: </span>
+              ${completedGroups.join(' · ')}
+            </div>`
+          : ''}
+        ${partialGroups.length > 0
+          ? `<div style="color:#C55A00">
+              <span style="font-weight:600">◑ In progress: </span>
+              ${partialGroups.join(' · ')}
+            </div>`
+          : ''}
+      </div>` : '';
+
     const bodyText = allDone
       ? 'All sections are complete. Open the Gate tab to review and submit for gate review.'
       : gateFields.length === 0
@@ -3159,6 +3212,7 @@ function renderChat(){
     msgs.innerHTML = `<div class="msg"><div class="mav mai"></div>
       <div class="bbl bbl-ai">
         <div style="font-weight:600;margin-bottom:4px">${greeting}</div>
+        ${recapHtml}
         <div style="color:var(--text2,#5C5A55);line-height:1.6">${bodyText}</div>
         ${missingHints}
         ${!allDone && gateFields.length > 0 ? `<div style="margin-top:10px;font-size:11px;
@@ -3446,8 +3500,9 @@ function renderChips(){
   const fields=ask&&ask.captured_fields?ask.captured_fields.filter(f=>f.value).length:0;
   const hint=document.getElementById('gate-hint');
   if(hint){
+    const phaseLabel = PHASES[S.phase]?.label || 'this phase';
     if(fields>0){
-      hint.innerHTML=`<i class="ti ti-chart-bar" style="font-size:12px;color:var(--teal)"></i>${fields} field${fields===1?'':'s'} captured — keep answering to complete Define`;
+      hint.innerHTML=`<i class="ti ti-chart-bar" style="font-size:12px;color:var(--teal)"></i>${fields} field${fields===1?'':'s'} captured — keep answering to complete ${phaseLabel}`;
     }else{
       hint.innerHTML=`<i class="ti ti-clock"></i>Keep going — answer each question to progress`;
     }
