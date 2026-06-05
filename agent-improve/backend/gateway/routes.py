@@ -532,6 +532,49 @@ def upload_file(
     }
 
 
+@router.delete("/files/{case_id}/{file_id}")
+def delete_case_file(case_id: str, file_id: str):
+    """Remove a file record from the case. The corresponding blob is
+    deleted on a best-effort basis if blob_client exposes a delete
+    method; otherwise the upload record is removed from the case and
+    the blob is left orphaned until a background sweep cleans it up."""
+    if blob_client is None:
+        raise HTTPException(503, "Storage not configured")
+
+    case = blob_client.load_case(case_id)
+    if case is None:
+        raise HTTPException(404, "Case not found")
+
+    # Find and remove the upload from whichever phase contains it
+    removed_blob_path = None
+    for phase_data in case.phases.values():
+        uploads = getattr(phase_data, "uploads", []) or []
+        for i, u in enumerate(uploads):
+            fid = _case_file_id(case_id, u.filename, u.uploaded_at)
+            if fid == file_id:
+                removed_blob_path = u.blob_path
+                uploads.pop(i)
+                break
+        if removed_blob_path is not None:
+            break
+
+    if removed_blob_path is None:
+        raise HTTPException(404, "File not found")
+
+    # Best-effort blob removal (skip silently if no delete method)
+    delete_fn = getattr(blob_client, "delete_blob", None)
+    if callable(delete_fn):
+        try:
+            delete_fn(removed_blob_path)
+        except Exception as e:
+            logger.warning(
+                "Blob delete failed for %s: %s", removed_blob_path, e
+            )
+
+    blob_client.save_case(case)
+    return {"deleted": True, "file_id": file_id}
+
+
 def _index_upload(case_id: str, upload_record: dict) -> None:
     """Index extracted text into improve_evidence_index."""
     import hashlib

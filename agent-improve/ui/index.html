@@ -1305,6 +1305,17 @@ function buildCaseFilesNav() {
             border-radius:3px;padding:1px 4px;
             white-space:nowrap;flex-shrink:0">
             ${safePurpose}</span>` : ''}
+          <span onclick="event.stopPropagation();
+            deleteCaseFile('${safeId}', '${safeName.replace(/'/g,"\\'")}');"
+            title="Remove file"
+            style="flex-shrink:0;cursor:pointer;color:#A0AABB;
+              font-size:11px;padding:0 2px;line-height:1;
+              border-radius:3px"
+            onmouseover="this.style.color='#C55A00'"
+            onmouseout="this.style.color='#A0AABB'">
+            <i class="ti ti-x" style="font-size:10px"
+              aria-hidden="true"></i>
+          </span>
         </div>`;
       }).join('');
 
@@ -1389,6 +1400,29 @@ function triggerFileUpload() {
 function previewCaseFile(fileId) {
   const f = (S.case?.files || []).find(x => x.file_id === fileId);
   if (f) toast('Opening: ' + f.filename);
+}
+
+// Remove a file from the case after confirmation. Updates S.case.files
+// in-memory and re-renders the nav so the row disappears immediately.
+async function deleteCaseFile(fileId, filename) {
+  if (!confirm('Remove "' + filename + '" from this case?')) return;
+  try {
+    const r = await fetch(
+      `${API}/files/${S.case.case_id}/${fileId}`,
+      { method: 'DELETE' }
+    );
+    const d = await r.json();
+    if (d.deleted) {
+      S.case.files = (S.case.files || [])
+        .filter(f => f.file_id !== fileId);
+      renderPhaseNav();
+      toast('File removed: ' + filename);
+    } else {
+      toast('Could not remove file', 4000);
+    }
+  } catch (e) {
+    toast('Error: ' + (e.message || e), 4000);
+  }
 }
 
 function selectPhase(phase){
