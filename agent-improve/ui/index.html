@@ -2019,6 +2019,248 @@ function renderOverview(){
 
     leftColHtml = phaseBadgeHtml + descHtml + dmacStripHtml
       + uiOrientationHtml + roadmapHtml + durationHtml + ctaBtnHtml;
+  } else if (viewPhase === 'analyse_phase') {
+    // ── Analyse phase: enriched orientation content ──────────────────
+    const descHtml = `
+      <p style="font-size:12px;color:var(--text2,#5C5A55);line-height:1.7;
+        margin-bottom:10px">
+        The Analyse phase is where the team stops guessing and starts
+        proving. Using the baseline data from Measure, you will
+        systematically identify every possible cause of the problem,
+        narrow them down to the <strong>vital few</strong>, and verify
+        which ones actually drive the poor performance. This phase
+        prevents the most common Six Sigma mistake — jumping to
+        solutions before understanding the real cause.
+      </p>
+      <div style="font-size:11px;color:#0070BA;background:#EAF4FC;
+        border-radius:6px;padding:8px 12px;margin-bottom:20px;line-height:1.5">
+        <i class="ti ti-robot" style="font-size:13px;margin-right:5px"
+          aria-hidden="true"></i>
+        The AI guide walks you through each analysis tool with
+        plain-language questions. You do not need statistics software.
+        The goal is structured thinking, not complex mathematics.
+      </div>`;
+
+    const uiOrientationHtml = `
+      <div style="margin-bottom:28px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:var(--text3,#99978F);text-transform:uppercase;
+          display:flex;align-items:center;gap:6px;margin-bottom:14px">
+          How this workspace is organised
+          <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
+            display:block"></span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          ${[
+            { icon:'ti-map',      name:'Phase overview',   note:'you are here',
+              desc:'Explains what happens in this phase, what you will do, and how long it takes. Read this first.' },
+            { icon:'ti-robot',    name:'AI guide',          note:'',
+              desc:'Your working area. The AI asks questions, captures your answers, and builds the gate document as you go.' },
+            { icon:'ti-checkbox', name:'Gate',              note:'',
+              desc:'Shows the live gate document — all captured information assembled into a formal Analyse report. Submit here when complete.' },
+            { icon:'ti-history',  name:'Session history',   note:'under ···',
+              desc:'A summary of every conversation session — what was discussed and what was captured. Useful for catching up after a break.' },
+          ].map(t => `
+            <div style="border:0.5px solid var(--border,#E4E2DC);border-radius:8px;
+              padding:10px 12px;display:flex;gap:10px;align-items:flex-start">
+              <div style="width:28px;height:28px;border-radius:6px;background:#EAF4FC;
+                display:flex;align-items:center;justify-content:center;flex-shrink:0;
+                margin-top:1px">
+                <i class="ti ${t.icon}" style="font-size:15px;color:#0070BA"
+                  aria-hidden="true"></i>
+              </div>
+              <div>
+                <div style="font-size:11px;font-weight:600;color:#005A96;margin-bottom:3px">
+                  ${t.name}
+                  ${t.note ? `<span style="font-size:9px;color:#99978F;
+                    font-weight:400;margin-left:4px">(${t.note})</span>` : ''}
+                </div>
+                <div style="font-size:11px;color:var(--text2,#5C5A55);line-height:1.45">
+                  ${t.desc}
+                </div>
+              </div>
+            </div>`
+          ).join('')}
+        </div>
+      </div>`;
+
+    const steps = [
+      {
+        num: '1', gate: false,
+        action: 'List all possible causes',
+        tool: 'Cause and effect diagram (Fishbone)',
+        desc: 'Brainstorm every possible reason the problem could be happening. Organise causes into 6 categories: People, Process, Equipment, Materials, Measurement, and Environment. This is a team exercise — more ideas is better at this stage.',
+        time: '1–2 sessions',
+        explainer: {
+          label: 'What is a fishbone diagram?',
+          term: 'A fishbone diagram organises all possible causes of a problem into categories',
+          body: 'The problem goes at the head of the fish. The 6 categories are the main bones. Each bone can have sub-causes (smaller bones). The goal is to be exhaustive — capture every possible cause before filtering.<br><br>It is called a fishbone or Ishikawa diagram after its creator, Kaoru Ishikawa. It is one of the most widely used tools in quality improvement across all industries.',
+          example: 'For the billing complaint example: under "People" you might list "agents not trained on new billing system", "high agent turnover", "insufficient staffing at peak times".',
+        },
+      },
+      {
+        num: '2', gate: false,
+        action: 'Drill down to root causes',
+        tool: '5 Whys analysis',
+        desc: 'For each potential cause, ask "why?" up to five times to get from a symptom to the underlying root cause. Stop when you reach a cause the team can actually fix.',
+        time: '1 session',
+        explainer: {
+          label: 'What is 5 Whys?',
+          term: '5 Whys drills down from a symptom to its root cause by repeatedly asking why',
+          body: 'Example: "Complaints are rising" → Why? "Agents cannot resolve billing queries on the first call" → Why? "Agents do not have access to the full billing history" → Why? "The billing system was upgraded 3 months ago and access rights were not migrated" → Root cause found.<br><br>You rarely need exactly 5 — stop when you reach something the team can control and change.',
+        },
+      },
+      {
+        num: '3', gate: false,
+        action: 'Find the vital few causes',
+        tool: 'Pareto analysis',
+        desc: 'Rank the potential causes by frequency or impact. The Pareto principle states that roughly 80% of problems come from 20% of causes. Focus your team on the vital few, not the trivial many.',
+        time: '1 session',
+        explainer: {
+          label: 'What is Pareto analysis?',
+          term: 'Pareto analysis identifies the few causes responsible for most of the problem',
+          body: 'Create a bar chart of causes sorted from most to least frequent. Draw a line at 80% of the total. The causes to the left of that line are the vital few — fix these first.<br><br>Named after Vilfredo Pareto, who observed that 20% of factors typically drive 80% of outcomes. In a call centre context: if 3 complaint types account for 80% of all complaints, fixing those 3 is far more impactful than trying to fix all 10 types at once.',
+        },
+      },
+      {
+        num: '4', gate: false,
+        action: 'Verify the causes with data',
+        tool: 'Data analysis and correlation',
+        desc: 'Before committing to a solution, verify that the suspected causes actually correlate with the problem metric. Use the baseline data to test whether the cause and effect relationship is real.',
+        time: '1–2 sessions',
+        explainer: {
+          label: 'Why verify before solving?',
+          term: 'Verification prevents the most common improvement mistake: fixing the wrong thing',
+          body: 'A cause that seems obvious may not actually drive the metric. For example, a team might assume "long hold times cause complaints" — but the data might show that complaints are actually driven by "incorrect billing amounts" regardless of hold time.<br><br>Simple verification methods: compare complaint rates before and after a known change, split data by suspected cause category, or ask: does this cause explain the timing and location pattern in the baseline data?',
+        },
+      },
+      {
+        num: '5', gate: false,
+        action: 'Write the root cause statement',
+        tool: 'Root cause statement',
+        desc: 'Summarise the verified root cause in one or two clear sentences. This statement becomes the foundation for the Improve phase — every solution must address this cause.',
+        time: '1 session',
+        explainer: {
+          label: 'What makes a good root cause statement?',
+          term: 'A root cause statement is specific, evidence-based, and actionable',
+          body: 'A weak root cause: "The process is inefficient." A strong root cause: "Billing complaints are driven primarily by agents lacking access to complete billing history in the upgraded CRM system, causing 65% of calls to require a callback rather than first-call resolution."<br><br>The statement should name the specific cause, link it to the metric, and imply what needs to change. If the team cannot describe a solution after reading it, the statement is not specific enough.',
+        },
+      },
+      {
+        num: '✓', gate: true,
+        action: 'Submit for AI gate review',
+        tool: 'Gate tab → Submit button',
+        desc: 'When the root cause is identified and verified, submit for gate review. The AI checks that the root cause is specific and evidence-based, that analysis tools were used, and that the process owner agrees. Once approved, the project advances to Improve.',
+        time: 'AI reviews instantly',
+        explainer: {
+          label: 'What does the AI check at Analyse gate?',
+          term: 'The AI checks that the root cause is proven, not just suspected',
+          body: 'It verifies: at least one analysis tool was used (fishbone, Pareto, 5 Whys, or data analysis), the root cause statement is specific and measurable, the cause links to the baseline metric, and the process owner has been involved. Without a verified root cause, solutions developed in Improve will likely miss the mark.',
+        },
+      },
+    ];
+
+    const roadmapHtml = `
+      <div style="margin-bottom:28px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:var(--text3,#99978F);text-transform:uppercase;
+          display:flex;align-items:center;gap:6px;margin-bottom:14px">
+          What you will do — in this order
+          <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
+            display:block"></span>
+        </div>
+        ${steps.map((s, i) => `
+          <div style="display:flex;align-items:stretch;gap:0">
+            <div style="display:flex;flex-direction:column;
+              align-items:center;width:48px;flex-shrink:0">
+              <div style="width:40px;height:40px;border-radius:50%;
+                background:${s.gate ? '#0070BA' : '#EAF4FC'};
+                border:1.5px solid ${s.gate ? '#005A96' : '#A8CDE8'};
+                display:flex;align-items:center;justify-content:center;
+                font-size:${s.gate ? '16px' : '13px'};font-weight:500;
+                color:${s.gate ? '#fff' : '#0070BA'};
+                flex-shrink:0;z-index:1">
+                ${s.num}
+              </div>
+              ${i < steps.length - 1 ? `
+                <div style="width:1.5px;flex:1;background:#A8CDE8;
+                  margin:0 auto;min-height:16px"></div>` : ''}
+            </div>
+            <div style="flex:1;padding:4px 0 ${i < steps.length-1 ? '20px' : '0'} 16px">
+              <div style="font-size:13px;font-weight:500;
+                color:${s.gate ? '#0070BA' : 'var(--text,#1A1917)'};
+                margin-bottom:2px">${s.action}</div>
+              <div style="font-size:10px;color:#3A90CC;font-weight:500;
+                margin-bottom:5px">${s.tool}</div>
+              <div style="font-size:11px;color:var(--text2,#5C5A55);
+                line-height:1.55;margin-bottom:6px">${s.desc}</div>
+              <span style="display:inline-flex;align-items:center;gap:4px;
+                font-size:10px;
+                color:${s.gate ? '#0070BA' : 'var(--text3,#99978F)'};
+                background:${s.gate ? '#EAF4FC' : '#F0F2F5'};
+                border-radius:20px;padding:2px 8px;margin-bottom:6px">
+                <i class="ti ${s.gate ? 'ti-sparkles' : 'ti-clock'}"
+                  style="font-size:11px" aria-hidden="true"></i>
+                ${s.time}
+              </span>
+              ${s.explainer ? `
+                <br>
+                <span class="expl-toggle" onclick="toggleExplainer(this)">
+                  <i class="ti ti-info-circle" style="font-size:12px"
+                    aria-hidden="true"></i>
+                  ${s.explainer.label}
+                  <i class="ti ti-chevron-down expl-chevron"
+                    aria-hidden="true"></i>
+                </span>
+                <div class="expl-box">
+                  <div class="expl-term">${s.explainer.term}</div>
+                  <div class="expl-body">${s.explainer.body}</div>
+                  ${s.explainer.example ? `
+                    <div class="expl-example">${s.explainer.example}</div>` : ''}
+                </div>` : ''}
+            </div>
+          </div>`
+        ).join('')}
+      </div>`;
+
+    const durationHtml = `
+      <div style="margin-bottom:28px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:var(--text3,#99978F);text-transform:uppercase;
+          display:flex;align-items:center;gap:6px;margin-bottom:12px">
+          Total time by belt level
+          <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
+            display:block"></span>
+        </div>
+        <div style="display:flex;gap:8px">
+          ${[
+            { name:'Yellow Belt', total:'30–40 days total project',   analyse:'Analyse: 1–2 sessions' },
+            { name:'Green Belt',  total:'~90 days total project',     analyse:'Analyse: 2–5 sessions over 2–4 weeks' },
+            { name:'Black Belt',  total:'120+ days total project',    analyse:'Analyse: multiple sessions, 2–4 weeks' },
+          ].map(b => `
+            <div style="flex:1;border:0.5px solid var(--border,#E4E2DC);
+              border-radius:8px;padding:10px 12px">
+              <div style="font-size:10px;font-weight:600;color:#0070BA;
+                margin-bottom:3px">${b.name}</div>
+              <div style="font-size:11px;color:var(--text2,#5C5A55);
+                line-height:1.4">${b.total}</div>
+              <div style="font-size:10px;color:var(--text3,#99978F);
+                margin-top:2px">${b.analyse}</div>
+            </div>`
+          ).join('')}
+        </div>
+      </div>`;
+
+    const ctaBtnHtml = `
+      <button onclick="selectTab('chat')" style="display:block;max-width:480px;
+        margin:0 auto;width:100%;padding:12px;
+        background:#0070BA;color:#fff;border:none;border-radius:6px;
+        font-size:13px;font-weight:600;cursor:pointer;text-align:center">
+        ▷  Start the AI guide — Analyse phase
+      </button>`;
+
+    leftColHtml = phaseBadgeHtml + descHtml + dmacStripHtml
+      + uiOrientationHtml + roadmapHtml + durationHtml + ctaBtnHtml;
   } else {
     // ── Non-define phases: existing simple content ───────────────────
     const tools = p.tools.map(t =>
