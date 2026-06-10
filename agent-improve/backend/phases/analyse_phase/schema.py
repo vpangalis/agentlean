@@ -1,44 +1,72 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
 
-class RootCause(BaseModel):
-    description: str = Field(..., description="Plain language root cause statement")
-    evidence: str = Field(..., description="What data or analysis supports this")
-    verified: bool = Field(..., description="True if statistically verified")
-
-
-class HypothesisTest(BaseModel):
-    test_name: str = Field(..., description="e.g. chi-square, t-test, correlation")
-    result: str = Field(..., description="Plain language result")
-    significant: bool = Field(..., description="True if statistically significant")
-
-
 class AnalysePhaseInput(BaseModel):
-    """Gate model for Analyse phase — root cause identification and verification."""
+    """Analyse phase structured data — root cause investigation."""
 
-    root_causes: list[RootCause] = Field(
-        ...,
-        min_length=1,
-        description="At least one verified root cause",
+    # Work product 1 — Cause brainstorming (Fishbone)
+    possible_causes: Optional[List[str]] = Field(
+        None,
+        description="All possible causes identified. Gate requires ≥3."
     )
-    hypothesis_tests: list[HypothesisTest] = Field(
-        default_factory=list,
-        description="Statistical tests run — empty if graphical analysis only",
+    cause_categories: Optional[dict] = Field(
+        None,
+        description=(
+            "Causes grouped by category. "
+            "e.g. {'People': ['...'], 'Process': ['...']}. "
+            "Optional — not gate-required."
+        )
     )
-    primary_root_cause: str = Field(
-        ...,
-        description="Single plain language statement of the main root cause",
+
+    # Work product 2 — Root cause drilling (5 Whys)
+    five_whys_analysis: Optional[List[dict]] = Field(
+        None,
+        description=(
+            "Each entry: {'symptom': str, 'whys': [str, ...]}. "
+            "Optional — enriches root cause confidence."
+        )
     )
-    process_owner_agrees: bool = Field(
-        ..., description="Process owner has confirmed the root cause"
+
+    # Work product 3 — Prioritisation (vital few)
+    pareto_top_causes: Optional[List[str]] = Field(
+        None,
+        description="Causes ranked by frequency or impact, highest first."
     )
-    fmea_updated: bool = Field(..., description="FMEA updated to reflect findings")
-    analysis_tools_used: list[str] = Field(
-        ...,
-        min_length=1,
-        description="e.g. fishbone, 5why, pareto, regression",
+    vital_few_causes: Optional[str] = Field(
+        None,
+        description=(
+            "Plain-English summary of the 1–3 causes that account "
+            "for the majority of the problem. Gate-required."
+        )
+    )
+
+    # Work product 4 — Verification
+    cause_verified: Optional[str] = Field(
+        None,
+        description="'yes', 'partial', or 'no'. Gate-required."
+    )
+    verification_method: Optional[str] = Field(
+        None,
+        description="How the cause was verified (data, test, correlation…)"
+    )
+    evidence_summary: Optional[str] = Field(
+        None,
+        description="What the data or evidence actually showed."
+    )
+
+    # Work product 5 — Root cause statement
+    root_cause_statement: Optional[str] = Field(
+        None,
+        description=(
+            "Specific, measurable, solution-agnostic root cause. "
+            "Gate-required. Format: 'The primary driver of X is Y because Z.'"
+        )
+    )
+    root_cause_agreed_by: Optional[str] = Field(
+        None,
+        description="Process owner or sponsor who reviewed and agreed."
     )

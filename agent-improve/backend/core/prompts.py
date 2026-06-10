@@ -215,14 +215,23 @@ Start with question 1. Never ask about reliability before data sources are confi
 ORCHESTRATOR_ANALYSE_CONTEXT = """
 CURRENT PHASE: Analyse
 GOAL: Identify and verify what is actually causing the problem.
-WHAT TO COVER in this phase (in order):
-1. What patterns appear in the data — where is the variation highest?
-2. What are the team's theories about causes?
-3. Which causes are supported by the data?
-4. What is the single most important verified root cause?
-5. Does the process owner agree with the conclusion?
-6. Has the risk register or failure mode document been updated?
-Start with reviewing what the data shows before asking for theories.
+WORK THROUGH FIVE WORK PRODUCTS, in order:
+1. Cause brainstorming — capture all possible causes. Group them by
+   category (People, Process, Technology, Policy/Procedure, Environment).
+   Encourage quantity; aim for at least three before narrowing down.
+2. Root cause drilling — for the most likely causes, keep asking
+   "why does that happen?" until reaching the level where fixing it
+   prevents recurrence.
+3. Prioritisation — identify the vital few: which 1–3 causes likely
+   account for most of the problem? Use frequency or impact data from
+   Measure where available.
+4. Verification — confirm whether the vital few are proven by data.
+   When the cause is present, is the problem worse? When absent, better?
+5. Root cause statement — write a specific, measurable, solution-agnostic
+   statement and confirm the process owner or sponsor agrees with it.
+Start from what the Measure data shows before asking for theories.
+Ask for one missing item at a time. Keep language plain — no methodology
+jargon in what the team sees.
 """
 
 ORCHESTRATOR_IMPROVE_CONTEXT = """
@@ -558,20 +567,39 @@ Return JSON only. No explanation. No markdown.
 """
 
 EXTRACTION_ANALYSE = """Extract confirmed field values from the conversation below.
-Return ONLY a JSON object. Use null for unconfirmed fields.
+Return ONLY a JSON object. Use null for unconfirmed fields and [] for
+lists with no confirmed entries. Do not infer — only extract what the
+team clearly stated.
 
 Fields to extract:
 {
-  "root_causes": [],
-  "hypothesis_tests": [],
-  "primary_root_cause": null,
-  "process_owner_agrees": null,
-  "fmea_updated": null,
-  "analysis_tools_used": []
+  "possible_causes": [],
+  "cause_categories": null,
+  "five_whys_analysis": [],
+  "pareto_top_causes": [],
+  "vital_few_causes": null,
+  "cause_verified": null,
+  "verification_method": null,
+  "evidence_summary": null,
+  "root_cause_statement": null,
+  "root_cause_agreed_by": null
 }
 
-For root_causes each item has: description, evidence, verified (bool)
-For hypothesis_tests each item has: test_name, result, significant (bool)
+Field guidance:
+- possible_causes: a flat list of strings, one per candidate cause.
+- cause_categories: an object grouping causes by category, e.g.
+  {"People": ["..."], "Process": ["..."]}. Use null if not grouped.
+- five_whys_analysis: a list where each item is
+  {"symptom": "...", "whys": ["...", "..."]}.
+- pareto_top_causes: causes ranked highest-impact first (list of strings).
+- vital_few_causes: plain-English summary of the 1–3 causes that account
+  for most of the problem.
+- cause_verified: exactly one of "yes", "partial", or "no".
+- verification_method: how the cause was verified (data, test, correlation…).
+- evidence_summary: what the data or evidence actually showed.
+- root_cause_statement: a specific, measurable, solution-agnostic statement,
+  e.g. "The primary driver of [metric] is [cause] because [evidence]."
+- root_cause_agreed_by: the process owner or sponsor who agreed, if named.
 
 Conversation:
 {conversation}
