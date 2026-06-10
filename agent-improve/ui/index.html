@@ -3968,6 +3968,7 @@ function renderChat(){
     // stand before hunting root causes. Mirrors the Measure recap card
     // style (steel-blue left border).
     let contextHtml = '';
+    let questionsHtml = '';
     if (isAnalyse) {
       const def = getStructured('define') || {};
       const mea = getStructured('measure') || {};
@@ -4019,12 +4020,66 @@ function renderChat(){
           ${ctxRowsHtml}
         </div>`;
       }
+
+      // Dynamic suggested questions — no LLM call
+      const analyseQuestions = [];
+
+      if (period) {
+        analyseQuestions.push(
+          `What changed around ${period} that might have
+           triggered the rise in ${primaryMetric || 'the metric'}?`
+        );
+      }
+
+      const sigmaNum = parseFloat(mea.current_sigma_level);
+      if (!isNaN(sigmaNum) && sigmaNum < 2.5) {
+        analyseQuestions.push(
+          'Where in the process does performance vary the most — and what drives that inconsistency?'
+        );
+      }
+
+      if (primaryMetric) {
+        analyseQuestions.push(
+          `Are all ${primaryMetric.toLowerCase()} cases similar, or do a few types account for the majority of the problem?`
+        );
+      }
+
+      analyseQuestions.push(
+        'Is the problem spread evenly across people, teams, or time periods — or concentrated in specific areas?'
+      );
+
+      analyseQuestions.push(
+        'Has the process changed recently — new system, new procedure, new policy, or new team members?'
+      );
+
+      const shownQuestions = analyseQuestions.slice(0, 4);
+
+      if (shownQuestions.length) {
+        const qRows = shownQuestions.map(q => {
+          const qc = q.replace(/\s+/g, ' ').trim();
+          return `<div style="margin-top:6px;padding:7px 10px;
+            background:#F0F2F5;border-radius:6px;
+            font-size:11px;color:#2C3E50;line-height:1.5;
+            cursor:pointer"
+            onclick="sendPresetMessage(${JSON.stringify(qc).replace(/"/g,'&quot;')})">
+            <span style="color:#0070BA;font-weight:600;margin-right:4px">→</span>${qc}
+          </div>`;
+        }).join('');
+        questionsHtml = `<div style="margin:8px 0 0">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
+            color:#6B7A8D;text-transform:uppercase;margin-bottom:2px">
+            Suggested starting questions
+          </div>
+          ${qRows}
+        </div>`;
+      }
     }
 
     msgs.innerHTML = `<div class="msg"><div class="mav mai"></div>
       <div class="bbl bbl-ai">
         <div style="font-weight:600;margin-bottom:4px">${greeting}</div>
         ${contextHtml}
+        ${questionsHtml}
         ${doneHtml}
         ${suggestionHtml}
         ${hintCardsHtml}
