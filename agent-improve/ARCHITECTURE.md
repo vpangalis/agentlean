@@ -2,7 +2,7 @@
 
 **Agentlean Platform Â· DMAIC Improvement Agent**
 Version 0.1 Â· May 2026
-Status: Define phase complete, Measure phase scaffolded
+Status: Define ✓ complete · Measure ✓ complete · Analyse overview built · schema/orchestrator pending
 
 ---
 
@@ -20,7 +20,7 @@ Agent Improve is the second agent in the Agentlean platform, following Agent Res
 | Stack | Python 3.11 Â· FastAPI Â· LangGraph Â· Azure OpenAI Â· Azure AI Search Â· Azure Blob |
 | Venv | Dedicated `agent-improve\.venv` |
 | Repo | Monorepo â `agent-improve/` inside `vpangalis/agentlean` |
-| Status | Define phase complete, Measure phase scaffolded |
+| Status | Define ✓ complete · Measure ✓ complete · Analyse overview built · schema/orchestrator pending |
 | Azure migration | Deferred â stays on `valuesims-*` until all 3 agents built |
 | Dockerization | Deferred until all 3 agents built |
 

@@ -157,3 +157,31 @@ features ship.
   × button per file row with hover-coral styling
 - Phase-aware welcome opener for all 5 DMAIC phases via
   `openers` map keyed by phase
+
+### Session 3 additions
+- Gate review result panel: inline pass/fail result with
+  checklist of what was verified, specific fix instructions
+  per failed check, "Back to gate document" button. Replaces
+  the previous toast-only UX. GATE_CHECKS defined for Define
+  (6 checks) and Measure (5 checks).
+- Define welcome recap: fixed defineGroups to use correct
+  DEFINE_GATE_FIELDS keys (how_much_baseline, how_goal
+  were missing). buildGroupSummary updated for all 5 groups.
+- Case Files panel: phase-grouped file display, upload to
+  Azure Blob + evidence index, purpose auto-detection,
+  delete endpoint (DELETE /files/{case_id}/{file_id}),
+  × button per file row with confirm dialog.
+- Analyse phase overview: 6-step roadmap with expandable
+  explainers (Fishbone, 5 Whys, Pareto, Data verification,
+  Root cause statement, Gate). Same structure as Define/Measure.
+- Temp /search-knowledge endpoint permanently removed.
+- Measure gate passed on IMPR-2026-E9D → advanced to Analyse.
+
+#### Current test case state
+- IMPR-2026-E9D: Define ✓ · Measure ✓ · Analyse active (Phase 3/5)
+
+#### Pending (next session)
+- Analyse schema + orchestrator + validator + gate document
+- Analyse welcome screen: cross-phase context brief
+- Analyse nav: dynamic group status rows
+- Improve and Control phases
