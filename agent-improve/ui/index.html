@@ -697,6 +697,19 @@ const MEASURE_GATE_FIELDS = [
   { group: 'CAPABILITY',   key: 'capability_summary',         label: 'Capability summary' },
 ];
 
+const ANALYSE_GATE_FIELDS = [
+  { group: 'CAUSES',         key: 'possible_causes',      label: 'Possible causes' },
+  { group: 'CAUSES',         key: 'cause_categories',     label: 'Cause categories' },
+  { group: 'ROOT DRILLING',  key: 'five_whys_analysis',   label: '5 Whys analysis' },
+  { group: 'PRIORITISATION', key: 'pareto_top_causes',    label: 'Prioritised causes' },
+  { group: 'PRIORITISATION', key: 'vital_few_causes',     label: 'Vital few causes' },
+  { group: 'VERIFICATION',   key: 'cause_verified',       label: 'Cause verified' },
+  { group: 'VERIFICATION',   key: 'verification_method',  label: 'Verification method' },
+  { group: 'VERIFICATION',   key: 'evidence_summary',     label: 'Evidence summary' },
+  { group: 'ROOT CAUSE',     key: 'root_cause_statement', label: 'Root cause statement' },
+  { group: 'ROOT CAUSE',     key: 'root_cause_agreed_by', label: 'Agreed by' },
+];
+
 function getStructured(phase) {
   const usePhase = phase || S.phase;
   if (!S.case || !usePhase) return {};
@@ -3591,19 +3604,37 @@ function renderChat(){
       capability_summary:      { q: 'In one sentence, what does the capability analysis tell you about where the process stands today?' },
     };
 
+    const ANALYSE_FIELD_HINTS = {
+      possible_causes:      { q: 'What are the possible causes of the problem? List as many as the team can think of — quantity first.' },
+      cause_categories:     { q: 'Can we group those causes — for example by People, Process, Technology, Policy, or Environment?' },
+      five_whys_analysis:   { q: 'For the most likely cause, let\'s ask why it happens — and keep asking why until we reach the root.' },
+      pareto_top_causes:    { q: 'Which causes have the biggest impact? Rank them from most to least significant.' },
+      vital_few_causes:     { q: 'Which 1–3 causes account for most of the problem?' },
+      cause_verified:       { q: 'Have you confirmed the cause with data — yes, partly, or no?' },
+      verification_method:  { q: 'How did you verify the cause — data analysis, a test, or correlation?' },
+      evidence_summary:     { q: 'What did the data or evidence actually show?' },
+      root_cause_statement: { q: 'In one sentence, what is the root cause? e.g. "The primary driver of X is Y because Z."' },
+      root_cause_agreed_by: { q: 'Who reviewed and agreed the root cause — the process owner or sponsor?' },
+    };
+
     // Phase-specific gate fields and hints
     const isDefine = S.phase === 'define';
     const isMeasure = S.phase === 'measure';
+    const isAnalyse = S.phase === 'analyse_phase';
     const gateFields = isDefine
       ? DEFINE_GATE_FIELDS
       : isMeasure
         ? MEASURE_GATE_FIELDS
-        : [];
+        : isAnalyse
+          ? ANALYSE_GATE_FIELDS
+          : [];
     const fieldHints = isDefine
       ? FIELD_HINTS
       : isMeasure
         ? MEASURE_FIELD_HINTS
-        : {};
+        : isAnalyse
+          ? ANALYSE_FIELD_HINTS
+          : {};
 
     // Work product groups: each carries a label, the keys that fall
     // under it, a plain-language next-step prompt, and the field key
@@ -3678,7 +3709,41 @@ function renderChat(){
       },
     ];
 
-    const groups = isMeasure ? measureGroups : isDefine ? defineGroups : [];
+    const analyseGroups = [
+      {
+        label: 'Cause brainstorming',
+        keys: ['possible_causes','cause_categories'],
+        nextAction: 'Brainstorm the possible causes — list as many as the team can think of, then group them.',
+        nextHintKey: 'possible_causes',
+      },
+      {
+        label: 'Root cause drilling',
+        keys: ['five_whys_analysis'],
+        nextAction: 'Take the most likely cause and ask "why does that happen?" until you reach the root.',
+        nextHintKey: 'five_whys_analysis',
+      },
+      {
+        label: 'Prioritisation',
+        keys: ['pareto_top_causes','vital_few_causes'],
+        nextAction: 'Identify the vital few — which 1–3 causes account for most of the problem?',
+        nextHintKey: 'vital_few_causes',
+      },
+      {
+        label: 'Verification',
+        keys: ['cause_verified','verification_method','evidence_summary'],
+        nextAction: 'Confirm the cause with data — what evidence shows it really drives the problem?',
+        nextHintKey: 'cause_verified',
+      },
+      {
+        label: 'Root cause statement',
+        keys: ['root_cause_statement','root_cause_agreed_by'],
+        nextAction: 'Write the root cause in one sentence and confirm the process owner agrees.',
+        nextHintKey: 'root_cause_statement',
+      },
+    ];
+
+    const groups = isMeasure ? measureGroups : isDefine ? defineGroups
+      : isAnalyse ? analyseGroups : [];
     const completedLabels = [];
     let nextGroup = null;
 
@@ -3777,6 +3842,46 @@ function renderChat(){
             s.target_date ? 'Target: ' + s.target_date : null,
           ].filter(Boolean).join(' · ');
 
+        // Analyse groups
+        case 'Cause brainstorming': {
+          const pc = s.possible_causes;
+          const n = Array.isArray(pc) ? pc.length : 0;
+          const cats = s.cause_categories && typeof s.cause_categories === 'object'
+            ? Object.keys(s.cause_categories).join(', ')
+            : '';
+          return [
+            n ? n + ' cause' + (n > 1 ? 's' : '') + ' identified' : null,
+            cats ? 'grouped: ' + cats : null,
+          ].filter(Boolean).join(' · ');
+        }
+
+        case 'Root cause drilling': {
+          const fw = s.five_whys_analysis;
+          if (!Array.isArray(fw) || !fw.length) return '';
+          return '5 Whys on ' + fw.length + ' symptom' + (fw.length > 1 ? 's' : '');
+        }
+
+        case 'Prioritisation':
+          return s.vital_few_causes
+            ? s.vital_few_causes.substring(0, 80) +
+              (s.vital_few_causes.length > 80 ? '…' : '')
+            : '';
+
+        case 'Verification':
+          return [
+            s.cause_verified ? 'Verified: ' + s.cause_verified : null,
+            s.verification_method,
+          ].filter(Boolean).join(' · ');
+
+        case 'Root cause statement':
+          return [
+            s.root_cause_statement
+              ? s.root_cause_statement.substring(0, 90) +
+                (s.root_cause_statement.length > 90 ? '…' : '')
+              : null,
+            s.root_cause_agreed_by ? 'agreed by ' + s.root_cause_agreed_by : null,
+          ].filter(Boolean).join(' — ');
+
         default:
           return '';
       }
@@ -3858,9 +3963,68 @@ function renderChat(){
         }).join('');
     }
 
+    // Cross-phase context brief — only for Analyse. Carries forward the
+    // Define framing and Measure baseline so the team sees where they
+    // stand before hunting root causes. Mirrors the Measure recap card
+    // style (steel-blue left border).
+    let contextHtml = '';
+    if (isAnalyse) {
+      const def = getStructured('define') || {};
+      const mea = getStructured('measure') || {};
+
+      const problemStatement = def.what || null;
+      const primaryMetric    = def.primary_metric || null;
+      const target           = def.how_goal || null;
+      const baseline         = mea.baseline_mean || null;
+      const sigmaRaw         = mea.current_sigma_level || null;
+      const period           = mea.baseline_period || null;
+
+      const ctxRows = [];
+      if (problemStatement) {
+        ctxRows.push(`<span style="font-weight:600;color:#2C3E50">📋 Problem:</span> ${problemStatement}`);
+      }
+      if (primaryMetric && baseline) {
+        ctxRows.push(`<span style="font-weight:600;color:#2C3E50">📊 Metric:</span> ${primaryMetric}, baseline ${baseline}${period ? ' (' + period + ')' : ''}`);
+      }
+      if (target) {
+        ctxRows.push(`<span style="font-weight:600;color:#2C3E50">🎯 Target:</span> ${target}`);
+      }
+      if (sigmaRaw) {
+        const sigmaNum = parseFloat(sigmaRaw);
+        let sigmaGloss = '';
+        if (!isNaN(sigmaNum)) {
+          if (sigmaNum < 2.0)
+            sigmaGloss = '— significant gap, most periods miss target';
+          else if (sigmaNum < 3.0)
+            sigmaGloss = '— below target often, clear room to improve';
+          else if (sigmaNum < 4.0)
+            sigmaGloss = '— roughly on target, some variation remains';
+          else
+            sigmaGloss = '— strong, target met consistently';
+        }
+        ctxRows.push(`<span style="font-weight:600;color:#2C3E50">⚡ Capability:</span> ~${sigmaRaw} sigma${sigmaGloss ? ' <span style="color:#6B7A8D">' + sigmaGloss + '</span>' : ''}`);
+      }
+
+      if (ctxRows.length) {
+        const ctxRowsHtml = ctxRows.map(r =>
+          `<div style="padding:3px 0;font-size:11px;line-height:1.5;
+            color:#5C5A55">${r}</div>`).join('');
+        contextHtml = `<div style="margin:8px 0;padding:8px 10px;
+          background:#EAF4FC;border-radius:6px;
+          border-left:2px solid #0070BA">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
+            color:#0070BA;text-transform:uppercase;margin-bottom:6px">
+            Where you stand going into Analyse
+          </div>
+          ${ctxRowsHtml}
+        </div>`;
+      }
+    }
+
     msgs.innerHTML = `<div class="msg"><div class="mav mai"></div>
       <div class="bbl bbl-ai">
         <div style="font-weight:600;margin-bottom:4px">${greeting}</div>
+        ${contextHtml}
         ${doneHtml}
         ${suggestionHtml}
         ${hintCardsHtml}
