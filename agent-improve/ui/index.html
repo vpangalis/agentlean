@@ -2964,6 +2964,248 @@ function renderGate() {
     return;
   }
 
+  // ── Analyse viewing (active or passed): full gate document ──
+  if (viewingPhase === 'analyse_phase') {
+
+    const aStructured = getStructured('analyse_phase');
+    const aTotal = ANALYSE_GATE_FIELDS.length;  // already defined
+    const aCaptured = ANALYSE_GATE_FIELDS.filter(
+      f => fieldHasValue(aStructured[f.key])
+    ).length;
+    const aPct = Math.round(aCaptured / aTotal * 100);
+
+    // Gate readiness: 3 string fields + possible_causes list ≥3
+    const ANALYSE_REQUIRED_FOR_GATE = [
+      'vital_few_causes',
+      'cause_verified',
+      'root_cause_statement',
+    ];
+    const causesOk = Array.isArray(aStructured.possible_causes)
+      && aStructured.possible_causes.length >= 3;
+    const aRequiredCaptured = ANALYSE_REQUIRED_FOR_GATE.filter(
+      f => fieldHasValue(aStructured[f])
+    ).length;
+    const aGateReady = causesOk
+      && aRequiredCaptured === ANALYSE_REQUIRED_FOR_GATE.length;
+    const aAllDone = aCaptured === aTotal;
+
+    const caseTitle = S.case?.title
+      || S.case?.case_metadata?.title
+      || 'Improvement Project';
+
+    // ── Gate passed banner (reuse Measure HTML pattern) ──
+    const gatePassedBanner = `<div style="background:#E1F5EE;
+      border:0.5px solid #5DCAA5;border-radius:8px;padding:12px 14px;
+      margin-bottom:12px;display:flex;align-items:center;gap:8px">
+      <i class="ti ti-circle-check-filled"
+        style="font-size:16px;color:#0F6E56"></i>
+      <span style="font-size:12px;font-weight:600;color:#04342C">
+        Gate passed ✓</span>
+      <span style="font-size:11px;color:#085041;margin-left:auto">
+        This phase is complete — document shown read-only.</span>
+    </div>`;
+
+    // ── Section 1 — Possible causes ──
+    const causes = aStructured.possible_causes;
+    const cats   = aStructured.cause_categories;
+    let causesBody;
+    if (cats && typeof cats === 'object' && Object.keys(cats).length) {
+      causesBody = Object.entries(cats).map(([cat, items]) =>
+        `<div style="margin-bottom:8px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.05em;
+            color:#6B7A8D;text-transform:uppercase;margin-bottom:4px">
+            ${cat}</div>
+          ${(items||[]).map(c =>
+            `<div style="font-size:11px;color:#2C3E50;padding:2px 0;
+              padding-left:8px;border-left:2px solid #D8DCE3">${c}</div>`
+          ).join('')}
+        </div>`
+      ).join('');
+    } else if (causes && causes.length) {
+      causesBody = causes.map(c =>
+        `<div style="font-size:11px;color:#2C3E50;padding:2px 0">• ${c}</div>`
+      ).join('');
+    } else {
+      causesBody = `<div style="font-size:11px;color:#99978F;font-style:italic">
+        Use the AI guide to brainstorm causes with your team.</div>`;
+    }
+    const section1 = sectionCard(1, 'Possible causes',
+      ['possible_causes','cause_categories'], causesBody, aStructured);
+
+    // ── Section 2 — 5 Whys (optional) ──
+    const whys = aStructured.five_whys_analysis;
+    let whysBody;
+    if (whys && whys.length) {
+      whysBody = whys.map(chain =>
+        `<div style="margin-bottom:10px">
+          <div style="font-size:10px;font-weight:700;color:#6B7A8D;
+            margin-bottom:3px">Starting cause: ${chain.symptom || '—'}</div>
+          ${(chain.whys||[]).map((w,i) =>
+            `<div style="font-size:11px;color:#2C3E50;padding:2px 0 2px
+              ${(i+1)*12}px">→ ${w}</div>`
+          ).join('')}
+        </div>`
+      ).join('');
+    } else {
+      whysBody = `<div style="font-size:11px;color:#99978F;font-style:italic">
+        Optional — use if you need to drill deeper on a cause.</div>`;
+    }
+    const section2 = sectionCard(2, 'Root cause drilling — 5 Whys (optional)',
+      ['five_whys_analysis'], whysBody, aStructured);
+
+    // ── Section 3 — Prioritisation ──
+    const topCauses = aStructured.pareto_top_causes;
+    const vitalFew  = aStructured.vital_few_causes;
+    let prioBody = '';
+    if (topCauses && topCauses.length) {
+      prioBody += `<div style="margin-bottom:8px">` +
+        topCauses.map((c,i) =>
+          `<div style="font-size:11px;color:#2C3E50;padding:2px 0">
+            <span style="font-weight:600;color:#0070BA">${i+1}.</span> ${c}
+          </div>`
+        ).join('') + `</div>`;
+    }
+    prioBody += fieldRow('Vital few summary', vitalFew);
+    if (!topCauses && !vitalFew) {
+      prioBody = `<div style="font-size:11px;color:#99978F;font-style:italic">
+        Identify which 1–3 causes account for most of the problem.</div>`;
+    }
+    const section3 = sectionCard(3, 'Prioritisation — vital few causes',
+      ['pareto_top_causes','vital_few_causes'], prioBody, aStructured);
+
+    // ── Section 4 — Verification ──
+    const cv = aStructured.cause_verified || '';
+    const cvColour = cv==='yes'?'#0F6E56':cv==='partial'?'#C55A00':'#99978F';
+    const cvBg     = cv==='yes'?'#E1F5EE':cv==='partial'?'#FFF5EE':'#F0F2F5';
+    const cvPill   = cv
+      ? `<span style="background:${cvBg};color:${cvColour};border-radius:4px;
+          padding:2px 6px;font-size:10px;font-weight:600">${cv}</span>`
+      : '';
+    const verifyBody = `
+      <div style="margin-bottom:6px;display:flex;align-items:center;gap:6px">
+        <span style="font-size:11px;color:#6B7A8D">Verified:</span>
+        ${cvPill || '<span style="font-size:11px;color:#99978F;font-style:italic">not yet</span>'}
+      </div>` +
+      fieldRow('Method', aStructured.verification_method) +
+      fieldRow('Evidence', aStructured.evidence_summary);
+    const section4 = sectionCard(4, 'Root cause verification',
+      ['cause_verified','verification_method','evidence_summary'],
+      verifyBody, aStructured);
+
+    // ── Section 5 — Root cause statement (prominent) ──
+    const rcs = aStructured.root_cause_statement;
+    const agreedBy = aStructured.root_cause_agreed_by;
+    const rcsBody = rcs
+      ? `<div style="border-left:3px solid #0070BA;background:#F0F7FF;
+          border-radius:0 6px 6px 0;padding:10px 12px;margin-bottom:8px;
+          font-size:12px;color:#00305A;font-weight:500;line-height:1.5">
+          "${rcs}"
+        </div>` +
+        (agreedBy
+          ? `<div style="font-size:11px;color:#6B7A8D">
+              Agreed by: <strong>${agreedBy}</strong></div>`
+          : '')
+      : `<div style="font-size:11px;color:#99978F;font-style:italic;
+          margin-bottom:6px">
+          Root cause statement not yet written.
+        </div>
+        <div style="font-size:10px;color:#6B7A8D;background:#F0F2F5;
+          border-radius:6px;padding:8px 10px">
+          Template: "The primary driver of [metric] is [cause]
+          because [evidence]."
+        </div>`;
+    // Use a highlighted header for section 5
+    const section5 = `<div style="background:#fff;
+      border:1.5px solid ${rcs?'#0070BA':'#E4A265'};
+      border-radius:8px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;
+        justify-content:space-between;padding:10px 14px;
+        border-bottom:1px solid ${rcs?'#C8DFF5':'#F0D5B8'};
+        background:${rcs?'#F0F7FF':'#FFF5EE'}">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="width:20px;height:20px;border-radius:50%;
+            background:${rcs?'#0070BA':'#C55A00'};color:#fff;
+            font-size:10px;font-weight:700;display:flex;
+            align-items:center;justify-content:center;flex-shrink:0">5</span>
+          <span style="font-size:12px;font-weight:600;color:#1A1917">
+            Root cause statement</span>
+        </div>
+        <span style="font-size:9px;font-weight:700;letter-spacing:.05em;
+          color:${rcs?'#0070BA':'#C55A00'};text-transform:uppercase">
+          ${rcs?'Captured':'Required'}</span>
+      </div>
+      <div style="padding:10px 14px">${rcsBody}</div>
+    </div>`;
+
+    // ── Score bar (mirror Measure) ──
+    const aScoreBar = `
+      <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+        border-radius:8px;padding:14px;margin-bottom:16px">
+        <div style="display:flex;align-items:flex-start;
+          justify-content:space-between;margin-bottom:8px">
+          <div>
+            <span style="font-size:24px;font-weight:500;color:#0070BA">
+              ${aCaptured}</span>
+            <span style="font-size:14px;color:#99978F"> / ${aTotal}</span>
+            <div style="font-size:10px;color:#99978F;margin-top:1px">
+              fields captured</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;font-weight:500;
+              color:${isPassed?'#0F6E56':(aGateReady?'#0070BA':'#C55A00')}">
+              ${isPassed?'Gate passed':(aGateReady?'Ready for gate':'In progress')}
+            </div>
+            <div style="font-size:10px;color:#99978F">
+              ${isPassed?'Phase complete':(aAllDone?'All sections complete'
+                :(aTotal-aCaptured)+' fields remaining')}</div>
+          </div>
+        </div>
+        <div style="height:5px;background:#EAF4FC;border-radius:3px;
+          overflow:hidden">
+          <div style="height:100%;background:${isPassed?'#0F6E56':'#0070BA'};
+            border-radius:3px;width:${aPct}%"></div>
+        </div>
+      </div>`;
+
+    // ── Submit area (mirror Measure) ──
+    const aSubmit = aGateReady
+      ? `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+          border-radius:8px;padding:14px;margin-top:4px">
+          <button onclick="submitGateReview()" style="width:100%;
+            padding:10px;background:#0070BA;color:#fff;border:none;
+            border-radius:6px;font-size:12px;font-weight:500;cursor:pointer">
+            Submit Analyse gate for review →
+          </button>
+        </div>`
+      : `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+          border-radius:8px;padding:14px;margin-top:4px;
+          font-size:11px;color:#5C5A55">
+          Complete the required fields in the AI guide before submitting.
+          <div style="margin-top:6px;font-size:10px;color:#99978F">
+            Required: at least 3 causes · vital few summary ·
+            cause verified · root cause statement
+          </div>
+        </div>`;
+
+    const aDocHeader = `
+      <div style="margin-bottom:16px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:#99978F;text-transform:uppercase;margin-bottom:4px">
+          Analyse Gate Document</div>
+        <div style="font-size:15px;font-weight:600;color:#1A1917;
+          line-height:1.3">${caseTitle}</div>
+      </div>`;
+
+    el.innerHTML = `<div style="max-width:860px;margin:0 auto;padding:16px">
+      ${phaseSelector}
+      ${isPassed ? gatePassedBanner : ''}
+      ${aDocHeader}${aScoreBar}
+      ${section1}${section2}${section3}${section4}${section5}
+      ${isPassed ? '' : aSubmit}
+    </div>`;
+    return;
+  }
+
   // ── Non-define viewing (active or passed): stub view ──────
   if (viewingPhase !== 'define') {
     const phaseLabel = phaseLabels[viewingPhase];
