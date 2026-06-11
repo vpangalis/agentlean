@@ -1,39 +1,63 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
 
-class SolutionCandidate(BaseModel):
-    description: str = Field(..., description="Plain language solution description")
-    impact_score: int = Field(..., ge=1, le=5, description="1=low 5=high impact")
-    effort_score: int = Field(..., ge=1, le=5, description="1=low 5=high effort")
-    selected: bool = Field(..., description="True for the chosen solution")
-
-
-class PilotResult(BaseModel):
-    metric: str = Field(..., description="What was measured in the pilot")
-    before: str = Field(..., description="Value before pilot")
-    after: str = Field(..., description="Value after pilot")
-    improvement_confirmed: bool
-
-
 class ImprovePhaseInput(BaseModel):
-    """Gate model for Improve phase — solution selection and pilot."""
+    """Improve phase structured data — solution design and validation."""
 
-    solution_candidates: list[SolutionCandidate] = Field(
-        ...,
-        min_length=2,
-        description="At least 2 options evaluated — shows selection was rigorous",
+    # Work product 1 — Solution generation
+    solution_ideas: Optional[List[str]] = Field(
+        None,
+        description="All solution ideas brainstormed. One idea per string."
     )
-    selected_solution_summary: str = Field(
-        ..., description="Plain language description of chosen solution"
+    solution_evaluation: Optional[str] = Field(
+        None,
+        description="How ideas were compared (impact, effort, cost, etc.)"
     )
-    selection_justification: str = Field(
-        ..., description="Why this solution was chosen over alternatives"
+
+    # Work product 2 — Solution selection
+    selected_solution: Optional[str] = Field(
+        None,
+        description="The chosen solution. Gate-required."
     )
-    pilot_results: list[PilotResult] = Field(..., min_length=1)
-    pilot_confirms_improvement: bool = Field(...)
-    implementation_plan_approved: bool = Field(...)
-    sponsor_approved: bool = Field(...)
+    selection_rationale: Optional[str] = Field(
+        None,
+        description="Why this solution was chosen over alternatives."
+    )
+
+    # Work product 3 — Pilot plan
+    pilot_plan: Optional[str] = Field(
+        None,
+        description="How the pilot or test will be run."
+    )
+    pilot_scope: Optional[str] = Field(
+        None,
+        description="Where, who, and when the pilot will run."
+    )
+
+    # Work product 4 — Results
+    pilot_result: Optional[str] = Field(
+        None,
+        description="What happened in the pilot. Gate-required."
+    )
+    improvement_confirmed: Optional[str] = Field(
+        None,
+        description="'yes', 'partial', or 'no'. Gate-required."
+    )
+    projected_improvement: Optional[str] = Field(
+        None,
+        description="Expected gain once fully implemented, linked to metric."
+    )
+
+    # Work product 5 — Implementation
+    implementation_plan: Optional[str] = Field(
+        None,
+        description="Rollout plan: steps, owners, timeline."
+    )
+    sponsor_sign_off: Optional[str] = Field(
+        None,
+        description="Name of sponsor or process owner who approved."
+    )

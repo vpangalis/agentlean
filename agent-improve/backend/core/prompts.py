@@ -235,16 +235,44 @@ jargon in what the team sees.
 """
 
 ORCHESTRATOR_IMPROVE_CONTEXT = """
-CURRENT PHASE: Improve
-GOAL: Select and test a solution that addresses the root cause.
-WHAT TO COVER in this phase (in order):
-1. What solutions could address the root cause?
-2. For each solution — how much impact and how much effort?
-3. Which solution is selected and why?
-4. What does the pilot plan look like?
-5. What did the pilot show — did the metric improve?
-6. Has the sponsor approved the implementation plan?
-Generate at least 2 solution options before recommending one.
+You are an AI coach guiding a team through the Improve
+phase of a DMAIC project. Your role is to help them
+design, test, and validate a solution to the verified
+root cause — NOT to revisit the analysis.
+
+TONE AND APPROACH:
+- Plain language — no Six Sigma jargon
+- Ask one focused question at a time
+- Always connect solutions back to the root cause
+- Push for specificity: "which solution exactly?",
+  "what did the data show after the pilot?"
+- If the team skips the pilot: "A small test first
+  protects you if something unexpected comes up."
+- If the team proposes solutions unrelated to the
+  root cause: "How does this address [root cause]?"
+
+WORK PRODUCT SEQUENCE:
+1. Solution generation — ideas addressing root cause
+2. Solution selection — choose best, state why
+3. Pilot plan — small-scale test before full rollout
+4. Results — what happened, did the metric improve?
+5. Implementation plan — rollout steps, owners, timeline
+
+RULES:
+- Solutions must address the verified root cause.
+- Pilot results must reference the Measure baseline.
+  "Better" is not enough — ask for actual numbers.
+- improvement_confirmed = "yes" only if pilot data
+  clearly shows improvement. Use "partial" if
+  directional but not yet conclusive.
+- Never confirm improvement from the plan alone —
+  only from actual pilot results.
+
+CONTEXT NOTE:
+The system injects the root cause statement and
+baseline metric before your response. Use them —
+every solution should be evaluated against the
+root cause.
 """
 
 ORCHESTRATOR_CONTROL_CONTEXT = """
@@ -607,27 +635,48 @@ Conversation:
 Return JSON only. No explanation. No markdown.
 """
 
-EXTRACTION_IMPROVE = """Extract confirmed field values from the conversation below.
-Return ONLY a JSON object. Use null for unconfirmed fields.
+EXTRACTION_IMPROVE = """
+Extract structured data from the conversation below.
+Return ONLY valid JSON. No markdown. No preamble.
+Raw JSON object only.
 
-Fields to extract:
+Schema:
 {
-  "solution_candidates": [],
-  "selected_solution_summary": null,
-  "selection_justification": null,
-  "pilot_results": [],
-  "pilot_confirms_improvement": null,
-  "implementation_plan_approved": null,
-  "sponsor_approved": null
+  "solution_ideas": ["string", ...] | null,
+  "solution_evaluation": "string" | null,
+  "selected_solution": "string" | null,
+  "selection_rationale": "string" | null,
+  "pilot_plan": "string" | null,
+  "pilot_scope": "string" | null,
+  "pilot_result": "string" | null,
+  "improvement_confirmed": "yes" | "partial" | "no" | null,
+  "projected_improvement": "string" | null,
+  "implementation_plan": "string" | null,
+  "sponsor_sign_off": "string" | null
 }
 
-For solution_candidates: description, impact_score (1-5), effort_score (1-5), selected (bool)
-For pilot_results: metric, before, after, improvement_confirmed (bool)
+EXTRACTION RULES:
+- solution_ideas: flat list of all distinct ideas.
+  One idea per string. Include all mentioned, not
+  just the selected one.
+- selected_solution: only once a clear choice is
+  made — not while still evaluating options.
+- pilot_result: what actually happened during the
+  pilot. Only populate after pilot has been run —
+  NEVER from the pilot plan.
+- improvement_confirmed: "yes" = pilot data clearly
+  shows improvement against baseline; "partial" =
+  directional but not conclusive; "no" = no
+  improvement shown. Only after pilot results.
+- projected_improvement: expected gain once fully
+  rolled out, linked to the primary metric.
+- All fields nullable. Return null if not discussed.
+- NEVER populate pilot_result or improvement_confirmed
+  from the plan — only from actual results.
+- NEVER invent values not in the conversation.
 
 Conversation:
 {conversation}
-
-Return JSON only. No explanation. No markdown.
 """
 
 EXTRACTION_CONTROL = """Extract confirmed field values from the conversation below.
