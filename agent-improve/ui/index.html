@@ -4909,7 +4909,7 @@ function renderGateResult(resp) {
     : '';
 
   const actionBtn = passed && nextLabel
-    ? `<button onclick="selectTab('overview')"
+    ? `<button onclick="openWorkspace(S.case?.case_id || S.case?.id)"
         style="width:100%;padding:10px;background:#0070BA;
           color:#fff;border:none;border-radius:6px;
           font-size:12px;font-weight:500;cursor:pointer">
