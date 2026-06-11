@@ -710,6 +710,34 @@ const ANALYSE_GATE_FIELDS = [
   { group: 'ROOT CAUSE',     key: 'root_cause_agreed_by', label: 'Agreed by' },
 ];
 
+const IMPROVE_GATE_FIELDS = [
+  { key: 'solution_ideas',        label: 'Solution ideas' },
+  { key: 'solution_evaluation',   label: 'Solution evaluation' },
+  { key: 'selected_solution',     label: 'Selected solution' },
+  { key: 'selection_rationale',   label: 'Selection rationale' },
+  { key: 'pilot_plan',            label: 'Pilot plan' },
+  { key: 'pilot_scope',           label: 'Pilot scope' },
+  { key: 'pilot_result',          label: 'Pilot result' },
+  { key: 'improvement_confirmed', label: 'Improvement confirmed' },
+  { key: 'projected_improvement', label: 'Projected improvement' },
+  { key: 'implementation_plan',   label: 'Implementation plan' },
+  { key: 'sponsor_sign_off',      label: 'Sponsor sign-off' },
+];
+
+const IMPROVE_FIELD_HINTS = {
+  solution_ideas:        { q: 'What solutions could address the root cause?' },
+  solution_evaluation:   { q: 'How did you compare solutions — by impact, effort, or cost?' },
+  selected_solution:     { q: 'Which solution did the team select and why?' },
+  selection_rationale:   { q: 'What was the reason for choosing this over alternatives?' },
+  pilot_plan:            { q: 'How will you test the solution before full rollout?' },
+  pilot_scope:           { q: 'Where, who, and for how long will the pilot run?' },
+  pilot_result:          { q: 'What happened in the pilot — did the metric improve?' },
+  improvement_confirmed: { q: 'Is the improvement confirmed — yes, partial, or no?' },
+  projected_improvement: { q: 'What improvement do you expect once fully implemented?' },
+  implementation_plan:   { q: 'What are the steps to roll out the solution fully?' },
+  sponsor_sign_off:      { q: 'Who approved the implementation plan?' },
+};
+
 function getStructured(phase) {
   const usePhase = phase || S.phase;
   if (!S.case || !usePhase) return {};
@@ -2270,6 +2298,246 @@ function renderOverview(){
         background:#0070BA;color:#fff;border:none;border-radius:6px;
         font-size:13px;font-weight:600;cursor:pointer;text-align:center">
         ▷  Start the AI guide — Analyse phase
+      </button>`;
+
+    leftColHtml = phaseBadgeHtml + descHtml + dmacStripHtml
+      + uiOrientationHtml + roadmapHtml + durationHtml + ctaBtnHtml;
+  } else if (viewPhase === 'improve') {
+    // ── Improve phase: enriched orientation content ──────────────────
+    const descHtml = `
+      <p style="font-size:12px;color:var(--text2,#5C5A55);line-height:1.7;
+        margin-bottom:10px">
+        The Improve phase is where the team designs and tests
+        a solution to the verified root cause. You will
+        brainstorm options, select the best one, run a small
+        pilot to confirm it works, and plan the full rollout.
+        No solution should be implemented without a pilot —
+        even a simple one.
+      </p>
+      <div style="font-size:11px;color:#0070BA;background:#EAF4FC;
+        border-radius:6px;padding:8px 12px;margin-bottom:20px;line-height:1.5">
+        <i class="ti ti-robot" style="font-size:13px;margin-right:5px"
+          aria-hidden="true"></i>
+        The AI guide helps you evaluate options and design
+        a pilot. You do not need to be an expert — the AI
+        asks the right questions and captures your answers.
+      </div>`;
+
+    const uiOrientationHtml = `
+      <div style="margin-bottom:28px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:var(--text3,#99978F);text-transform:uppercase;
+          display:flex;align-items:center;gap:6px;margin-bottom:14px">
+          How this workspace is organised
+          <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
+            display:block"></span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          ${[
+            { icon:'ti-map',      name:'Phase overview',   note:'you are here',
+              desc:'Explains what happens in this phase, what you will do, and how long it takes. Read this first.' },
+            { icon:'ti-robot',    name:'AI guide',          note:'',
+              desc:'Your working area. The AI asks questions, captures your answers, and builds the gate document as you go.' },
+            { icon:'ti-checkbox', name:'Gate',              note:'',
+              desc:'Shows the live gate document — all captured information assembled into a formal Improve report. Submit here when complete.' },
+            { icon:'ti-history',  name:'Session history',   note:'under ···',
+              desc:'A summary of every conversation session — what was discussed and what was captured. Useful for catching up after a break.' },
+          ].map(t => `
+            <div style="border:0.5px solid var(--border,#E4E2DC);border-radius:8px;
+              padding:10px 12px;display:flex;gap:10px;align-items:flex-start">
+              <div style="width:28px;height:28px;border-radius:6px;background:#EAF4FC;
+                display:flex;align-items:center;justify-content:center;flex-shrink:0;
+                margin-top:1px">
+                <i class="ti ${t.icon}" style="font-size:15px;color:#0070BA"
+                  aria-hidden="true"></i>
+              </div>
+              <div>
+                <div style="font-size:11px;font-weight:600;color:#005A96;margin-bottom:3px">
+                  ${t.name}
+                  ${t.note ? `<span style="font-size:9px;color:#99978F;
+                    font-weight:400;margin-left:4px">(${t.note})</span>` : ''}
+                </div>
+                <div style="font-size:11px;color:var(--text2,#5C5A55);line-height:1.45">
+                  ${t.desc}
+                </div>
+              </div>
+            </div>`
+          ).join('')}
+        </div>
+      </div>`;
+
+    const steps = [
+      {
+        num: 1, gate: false,
+        action: 'Brainstorm solution ideas',
+        tool: 'AI guide → Solution generation',
+        desc: 'Generate as many solution ideas as possible that directly address the root cause. Consider process changes, training, technology, and policy. Quantity first — evaluation comes later.',
+        time: '1 session',
+        explainer: {
+          label: 'Why generate many ideas first?',
+          term: 'More options means a better final choice',
+          body: 'Teams that jump to the first idea often miss better solutions. Generating at least 5–10 options then filtering consistently leads to more effective and sustainable improvements.',
+        },
+      },
+      {
+        num: 2, gate: false,
+        action: 'Evaluate and select the solution',
+        tool: 'AI guide → Solution selection',
+        desc: 'Compare solutions on impact and effort. Select the solution with the best balance. Document why you chose it over alternatives.',
+        time: '1 session',
+        explainer: {
+          label: 'What is an impact/effort matrix?',
+          term: 'A simple tool to prioritise solutions',
+          body: 'Rate each solution 1–5 on impact (how much it reduces the problem) and 1–5 on effort (how hard to implement). High impact, low effort solutions come first.',
+        },
+      },
+      {
+        num: 3, gate: false,
+        action: 'Design the pilot',
+        tool: 'AI guide → Pilot plan',
+        desc: 'Before full rollout, test the solution at small scale. Define where, who, how long, and how you will measure success. A good pilot is safe to fail.',
+        time: '1 session to design',
+        explainer: {
+          label: 'Why run a pilot first?',
+          term: 'A pilot protects the organisation from risk',
+          body: 'Even well-designed solutions can have unexpected effects. A pilot in one team or location lets you confirm the solution works before committing to full rollout.',
+        },
+      },
+      {
+        num: 4, gate: false,
+        action: 'Run the pilot and capture results',
+        tool: 'AI guide → Results',
+        desc: 'Implement the solution in the pilot scope. Measure the primary metric before and after. Compare to the Measure baseline. Confirm whether improvement is real, partial, or absent.',
+        time: '1–4 weeks depending on scope',
+        explainer: {
+          label: 'What counts as confirmed improvement?',
+          term: 'The metric moves in the right direction with evidence',
+          body: '"Confirmed" means the primary metric improved toward target and is visible in data. "Partial" means directional but more work needed. The Measure baseline is your reference point.',
+        },
+      },
+      {
+        num: 5, gate: false,
+        action: 'Build the implementation plan',
+        tool: 'AI guide → Implementation plan',
+        desc: 'Plan the full rollout: steps, owners, timeline, resources. Document what changes permanently. Get sponsor sign-off before moving to Control.',
+        time: '1 session',
+        explainer: {
+          label: 'What should an implementation plan include?',
+          term: 'Steps, owners, timeline, and sign-off',
+          body: 'Name who does what and by when. List process changes made permanent, training required, and systems to update. Sponsor sign-off confirms organisational commitment.',
+        },
+      },
+      {
+        num: '✓', gate: true,
+        action: 'Submit for AI gate review',
+        tool: 'Gate tab → Submit button',
+        desc: 'When the pilot confirms improvement and the implementation plan is approved, submit for gate review. Once approved, the project advances to Control.',
+        time: 'AI reviews instantly',
+        explainer: {
+          label: 'What does the AI check at Improve gate?',
+          term: 'The AI checks that the solution is proven, not just planned',
+          body: 'It verifies: solution selected with justification, pilot run and results captured, improvement confirmed against baseline, implementation plan exists. Without confirmed pilot results, Control cannot lock in the gains.',
+        },
+      },
+    ];
+
+    const roadmapHtml = `
+      <div style="margin-bottom:28px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:var(--text3,#99978F);text-transform:uppercase;
+          display:flex;align-items:center;gap:6px;margin-bottom:14px">
+          What you will do — in this order
+          <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
+            display:block"></span>
+        </div>
+        ${steps.map((s, i) => `
+          <div style="display:flex;align-items:stretch;gap:0">
+            <div style="display:flex;flex-direction:column;
+              align-items:center;width:48px;flex-shrink:0">
+              <div style="width:40px;height:40px;border-radius:50%;
+                background:${s.gate ? '#0070BA' : '#EAF4FC'};
+                border:1.5px solid ${s.gate ? '#005A96' : '#A8CDE8'};
+                display:flex;align-items:center;justify-content:center;
+                font-size:${s.gate ? '16px' : '13px'};font-weight:500;
+                color:${s.gate ? '#fff' : '#0070BA'};
+                flex-shrink:0;z-index:1">
+                ${s.num}
+              </div>
+              ${i < steps.length - 1 ? `
+                <div style="width:1.5px;flex:1;background:#A8CDE8;
+                  margin:0 auto;min-height:16px"></div>` : ''}
+            </div>
+            <div style="flex:1;padding:4px 0 ${i < steps.length-1 ? '20px' : '0'} 16px">
+              <div style="font-size:13px;font-weight:500;
+                color:${s.gate ? '#0070BA' : 'var(--text,#1A1917)'};
+                margin-bottom:2px">${s.action}</div>
+              <div style="font-size:10px;color:#3A90CC;font-weight:500;
+                margin-bottom:5px">${s.tool}</div>
+              <div style="font-size:11px;color:var(--text2,#5C5A55);
+                line-height:1.55;margin-bottom:6px">${s.desc}</div>
+              <span style="display:inline-flex;align-items:center;gap:4px;
+                font-size:10px;
+                color:${s.gate ? '#0070BA' : 'var(--text3,#99978F)'};
+                background:${s.gate ? '#EAF4FC' : '#F0F2F5'};
+                border-radius:20px;padding:2px 8px;margin-bottom:6px">
+                <i class="ti ${s.gate ? 'ti-sparkles' : 'ti-clock'}"
+                  style="font-size:11px" aria-hidden="true"></i>
+                ${s.time}
+              </span>
+              ${s.explainer ? `
+                <br>
+                <span class="expl-toggle" onclick="toggleExplainer(this)">
+                  <i class="ti ti-info-circle" style="font-size:12px"
+                    aria-hidden="true"></i>
+                  ${s.explainer.label}
+                  <i class="ti ti-chevron-down expl-chevron"
+                    aria-hidden="true"></i>
+                </span>
+                <div class="expl-box">
+                  <div class="expl-term">${s.explainer.term}</div>
+                  <div class="expl-body">${s.explainer.body}</div>
+                  ${s.explainer.example ? `
+                    <div class="expl-example">${s.explainer.example}</div>` : ''}
+                </div>` : ''}
+            </div>
+          </div>`
+        ).join('')}
+      </div>`;
+
+    const durationHtml = `
+      <div style="margin-bottom:28px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:var(--text3,#99978F);text-transform:uppercase;
+          display:flex;align-items:center;gap:6px;margin-bottom:12px">
+          Total time by belt level
+          <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
+            display:block"></span>
+        </div>
+        <div style="display:flex;gap:8px">
+          ${[
+            { name:'Yellow Belt', total:'30–40 days total project',   improve:'Improve: 1–2 sessions' },
+            { name:'Green Belt',  total:'~90 days total project',     improve:'Improve: 2–5 sessions over 3–6 weeks' },
+            { name:'Black Belt',  total:'120+ days total project',    improve:'Improve: multiple sessions, 3–8 weeks' },
+          ].map(b => `
+            <div style="flex:1;border:0.5px solid var(--border,#E4E2DC);
+              border-radius:8px;padding:10px 12px">
+              <div style="font-size:10px;font-weight:600;color:#0070BA;
+                margin-bottom:3px">${b.name}</div>
+              <div style="font-size:11px;color:var(--text2,#5C5A55);
+                line-height:1.4">${b.total}</div>
+              <div style="font-size:10px;color:var(--text3,#99978F);
+                margin-top:2px">${b.improve}</div>
+            </div>`
+          ).join('')}
+        </div>
+      </div>`;
+
+    const ctaBtnHtml = `
+      <button onclick="selectTab('chat')" style="display:block;max-width:480px;
+        margin:0 auto;width:100%;padding:12px;
+        background:#0070BA;color:#fff;border:none;border-radius:6px;
+        font-size:13px;font-weight:600;cursor:pointer;text-align:center">
+        ▷  Start the AI guide — Improve phase
       </button>`;
 
     leftColHtml = phaseBadgeHtml + descHtml + dmacStripHtml
