@@ -3474,6 +3474,216 @@ function renderGate() {
     return;
   }
 
+  // ── Improve viewing (active or passed): full gate document ──
+  if (viewingPhase === 'improve') {
+
+    const iStructured = getStructured('improve');
+    const iTotal = IMPROVE_GATE_FIELDS.length;
+    const iCaptured = IMPROVE_GATE_FIELDS.filter(
+      f => fieldHasValue(iStructured[f.key])
+    ).length;
+    const iPct = Math.round(iCaptured / iTotal * 100);
+
+    // Gate readiness: 3 required fields, with a value-domain check on
+    // improvement_confirmed (must be "yes" or "partial").
+    const IMPROVE_REQUIRED_FOR_GATE = [
+      'selected_solution',
+      'pilot_result',
+      'improvement_confirmed',
+    ];
+    const icOk = ['yes','partial'].includes(
+      (iStructured.improvement_confirmed||'').toLowerCase());
+    const iRequiredCaptured = IMPROVE_REQUIRED_FOR_GATE.filter(
+      f => fieldHasValue(iStructured[f])
+    ).length;
+    const iGateReady = icOk
+      && iRequiredCaptured === IMPROVE_REQUIRED_FOR_GATE.length;
+    const iAllDone = iCaptured === iTotal;
+
+    const caseTitle = S.case?.title
+      || S.case?.case_metadata?.title
+      || 'Improvement Project';
+
+    // ── Gate passed banner (reuse Measure HTML pattern) ──
+    const gatePassedBanner = `<div style="background:#E1F5EE;
+      border:0.5px solid #5DCAA5;border-radius:8px;padding:12px 14px;
+      margin-bottom:12px;display:flex;align-items:center;gap:8px">
+      <i class="ti ti-circle-check-filled"
+        style="font-size:16px;color:#0F6E56"></i>
+      <span style="font-size:12px;font-weight:600;color:#04342C">
+        Gate passed ✓</span>
+      <span style="font-size:11px;color:#085041;margin-left:auto">
+        This phase is complete — document shown read-only.</span>
+    </div>`;
+
+    // ── Section 1 — Solution ideas ──
+    const ideas = iStructured.solution_ideas;
+    let ideasBody;
+    if (ideas && ideas.length) {
+      ideasBody = ideas.map(c =>
+        `<div style="font-size:11px;color:#2C3E50;padding:2px 0">• ${c}</div>`
+      ).join('');
+    } else {
+      ideasBody = `<div style="font-size:11px;color:#99978F;font-style:italic">
+        Use the AI guide to brainstorm solutions that address the root cause.</div>`;
+    }
+    const section1 = sectionCard(1, 'Solution ideas',
+      ['solution_ideas','solution_evaluation'], ideasBody, iStructured);
+
+    // ── Section 2 — Selected solution ──
+    const selBody = (iStructured.selected_solution || iStructured.selection_rationale)
+      ? fieldRow('Selected solution', iStructured.selected_solution) +
+        fieldRow('Why chosen', iStructured.selection_rationale)
+      : `<div style="font-size:11px;color:#99978F;font-style:italic">
+          Evaluate your options and select the best one.</div>`;
+    const section2 = sectionCard(2, 'Selected solution',
+      ['selected_solution','selection_rationale'], selBody, iStructured);
+
+    // ── Section 3 — Pilot plan ──
+    const pilotBody = (iStructured.pilot_plan || iStructured.pilot_scope)
+      ? fieldRow('Plan', iStructured.pilot_plan) +
+        fieldRow('Scope', iStructured.pilot_scope)
+      : `<div style="font-size:11px;color:#99978F;font-style:italic">
+          Design a small-scale test before full rollout.</div>`;
+    const section3 = sectionCard(3, 'Pilot plan',
+      ['pilot_plan','pilot_scope'], pilotBody, iStructured);
+
+    // ── Section 4 — Results (gate-critical) ──
+    const ic = iStructured.improvement_confirmed || '';
+    const icColour = ic==='yes'?'#0F6E56':ic==='partial'?'#C55A00':'#99978F';
+    const icBg     = ic==='yes'?'#E1F5EE':ic==='partial'?'#FFF5EE':'#F0F2F5';
+    const icPill   = ic
+      ? `<span style="background:${icBg};color:${icColour};border-radius:4px;
+          padding:2px 6px;font-size:10px;font-weight:600">${ic}</span>`
+      : '';
+    let resultsBody = `
+      <div style="margin-bottom:6px;display:flex;align-items:center;gap:6px">
+        <span style="font-size:11px;color:#6B7A8D">Improvement confirmed:</span>
+        ${icPill || '<span style="font-size:11px;color:#99978F;font-style:italic">not yet</span>'}
+      </div>` +
+      fieldRow('Pilot result', iStructured.pilot_result) +
+      fieldRow('Projected improvement', iStructured.projected_improvement);
+    if (!iStructured.pilot_result && !iStructured.improvement_confirmed
+        && !iStructured.projected_improvement) {
+      resultsBody = `<div style="font-size:11px;color:#99978F;font-style:italic">
+        Run the pilot and capture what happened.</div>`;
+    }
+    const section4 = sectionCard(4, 'Results',
+      ['pilot_result','improvement_confirmed','projected_improvement'],
+      resultsBody, iStructured);
+
+    // ── Section 5 — Implementation plan (prominent) ──
+    const impPlan = iStructured.implementation_plan;
+    const signOff = iStructured.sponsor_sign_off;
+    const impBody = impPlan
+      ? `<div style="border-left:3px solid #0070BA;background:#F0F7FF;
+          border-radius:0 6px 6px 0;padding:10px 12px;margin-bottom:8px;
+          font-size:12px;color:#00305A;font-weight:500;line-height:1.5">
+          "${impPlan}"
+        </div>` +
+        (signOff
+          ? `<div style="font-size:11px;color:#6B7A8D">
+              Approved by: <strong>${signOff}</strong></div>`
+          : '')
+      : `<div style="font-size:11px;color:#99978F;font-style:italic;
+          margin-bottom:6px">
+          Implementation plan not yet written.
+        </div>
+        <div style="font-size:10px;color:#6B7A8D;background:#F0F2F5;
+          border-radius:6px;padding:8px 10px">
+          Document the rollout steps, owners, and timeline.
+        </div>`;
+    const section5 = `<div style="background:#fff;
+      border:1.5px solid ${impPlan?'#0070BA':'#E4A265'};
+      border-radius:8px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;
+        justify-content:space-between;padding:10px 14px;
+        border-bottom:1px solid ${impPlan?'#C8DFF5':'#F0D5B8'};
+        background:${impPlan?'#F0F7FF':'#FFF5EE'}">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="width:20px;height:20px;border-radius:50%;
+            background:${impPlan?'#0070BA':'#C55A00'};color:#fff;
+            font-size:10px;font-weight:700;display:flex;
+            align-items:center;justify-content:center;flex-shrink:0">5</span>
+          <span style="font-size:12px;font-weight:600;color:#1A1917">
+            Implementation plan</span>
+        </div>
+        <span style="font-size:9px;font-weight:700;letter-spacing:.05em;
+          color:${impPlan?'#0070BA':'#C55A00'};text-transform:uppercase">
+          ${impPlan?'Captured':'Required'}</span>
+      </div>
+      <div style="padding:10px 14px">${impBody}</div>
+    </div>`;
+
+    // ── Score bar (mirror Analyse) ──
+    const iScoreBar = `
+      <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+        border-radius:8px;padding:14px;margin-bottom:16px">
+        <div style="display:flex;align-items:flex-start;
+          justify-content:space-between;margin-bottom:8px">
+          <div>
+            <span style="font-size:24px;font-weight:500;color:#0070BA">
+              ${iCaptured}</span>
+            <span style="font-size:14px;color:#99978F"> / ${iTotal}</span>
+            <div style="font-size:10px;color:#99978F;margin-top:1px">
+              fields captured</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;font-weight:500;
+              color:${isPassed?'#0F6E56':(iGateReady?'#0070BA':'#C55A00')}">
+              ${isPassed?'Gate passed':(iGateReady?'Ready for gate':'In progress')}
+            </div>
+            <div style="font-size:10px;color:#99978F">
+              ${isPassed?'Phase complete':(iAllDone?'All sections complete'
+                :(iTotal-iCaptured)+' fields remaining')}</div>
+          </div>
+        </div>
+        <div style="height:5px;background:#EAF4FC;border-radius:3px;
+          overflow:hidden">
+          <div style="height:100%;background:${isPassed?'#0F6E56':'#0070BA'};
+            border-radius:3px;width:${iPct}%"></div>
+        </div>
+      </div>`;
+
+    // ── Submit area (mirror Analyse) ──
+    const iSubmit = iGateReady
+      ? `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+          border-radius:8px;padding:14px;margin-top:4px">
+          <button onclick="submitGateReview()" style="width:100%;
+            padding:10px;background:#0070BA;color:#fff;border:none;
+            border-radius:6px;font-size:12px;font-weight:500;cursor:pointer">
+            Submit Improve gate for review →
+          </button>
+        </div>`
+      : `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+          border-radius:8px;padding:14px;margin-top:4px;
+          font-size:11px;color:#5C5A55">
+          Complete the required fields in the AI guide before submitting.
+          <div style="margin-top:6px;font-size:10px;color:#99978F">
+            Required: selected solution · pilot result ·
+            improvement confirmed (yes or partial)
+          </div>
+        </div>`;
+
+    const iDocHeader = `
+      <div style="margin-bottom:16px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:#99978F;text-transform:uppercase;margin-bottom:4px">
+          Improve Gate Document</div>
+        <div style="font-size:15px;font-weight:600;color:#1A1917;
+          line-height:1.3">${caseTitle}</div>
+      </div>`;
+
+    el.innerHTML = `<div style="max-width:860px;margin:0 auto;padding:16px">
+      ${phaseSelector}
+      ${isPassed ? gatePassedBanner : ''}
+      ${iDocHeader}${iScoreBar}
+      ${section1}${section2}${section3}${section4}${section5}
+      ${isPassed ? '' : iSubmit}
+    </div>`;
+    return;
+  }
+
   // ── Non-define viewing (active or passed): stub view ──────
   if (viewingPhase !== 'define') {
     const phaseLabel = phaseLabels[viewingPhase];
@@ -4131,20 +4341,25 @@ function renderChat(){
     const isDefine = S.phase === 'define';
     const isMeasure = S.phase === 'measure';
     const isAnalyse = S.phase === 'analyse_phase';
+    const isImprove = S.phase === 'improve';
     const gateFields = isDefine
       ? DEFINE_GATE_FIELDS
       : isMeasure
         ? MEASURE_GATE_FIELDS
         : isAnalyse
           ? ANALYSE_GATE_FIELDS
-          : [];
+          : isImprove
+            ? IMPROVE_GATE_FIELDS
+            : [];
     const fieldHints = isDefine
       ? FIELD_HINTS
       : isMeasure
         ? MEASURE_FIELD_HINTS
         : isAnalyse
           ? ANALYSE_FIELD_HINTS
-          : {};
+          : isImprove
+            ? IMPROVE_FIELD_HINTS
+            : {};
 
     // Work product groups: each carries a label, the keys that fall
     // under it, a plain-language next-step prompt, and the field key
@@ -4252,8 +4467,42 @@ function renderChat(){
       },
     ];
 
+    const improveGroups = [
+      {
+        label: 'Solution generation',
+        keys: ['solution_ideas', 'solution_evaluation'],
+        nextAction: 'Brainstorm solutions that address the root cause',
+        nextHintKey: 'solution_ideas',
+      },
+      {
+        label: 'Solution selection',
+        keys: ['selected_solution', 'selection_rationale'],
+        nextAction: 'Select the best solution and explain why',
+        nextHintKey: 'selected_solution',
+      },
+      {
+        label: 'Pilot plan',
+        keys: ['pilot_plan', 'pilot_scope'],
+        nextAction: 'Design a small-scale pilot test',
+        nextHintKey: 'pilot_plan',
+      },
+      {
+        label: 'Results',
+        keys: ['pilot_result', 'improvement_confirmed',
+               'projected_improvement'],
+        nextAction: 'Capture what happened in the pilot',
+        nextHintKey: 'pilot_result',
+      },
+      {
+        label: 'Implementation plan',
+        keys: ['implementation_plan', 'sponsor_sign_off'],
+        nextAction: 'Plan the full rollout and get sign-off',
+        nextHintKey: 'implementation_plan',
+      },
+    ];
+
     const groups = isMeasure ? measureGroups : isDefine ? defineGroups
-      : isAnalyse ? analyseGroups : [];
+      : isAnalyse ? analyseGroups : isImprove ? improveGroups : [];
     const completedLabels = [];
     let nextGroup = null;
 
@@ -4391,6 +4640,31 @@ function renderChat(){
               : null,
             s.root_cause_agreed_by ? 'agreed by ' + s.root_cause_agreed_by : null,
           ].filter(Boolean).join(' — ');
+
+        // Improve groups
+        case 'Solution generation': {
+          const ideas = (s.solution_ideas||[]).length;
+          if (ideas) return `${ideas} idea${ideas!==1?'s':''} captured`;
+          return null;
+        }
+
+        case 'Solution selection':
+          if (s.selected_solution) return `Selected: ${s.selected_solution.slice(0,40)}${s.selected_solution.length>40?'…':''}`;
+          return null;
+
+        case 'Pilot plan':
+          if (s.pilot_plan) return 'Pilot plan captured';
+          return null;
+
+        case 'Results':
+          if (s.improvement_confirmed) return `Improvement: ${s.improvement_confirmed}`;
+          if (s.pilot_result) return 'Pilot run, result captured';
+          return null;
+
+        case 'Implementation plan':
+          if (s.sponsor_sign_off) return `Approved by ${s.sponsor_sign_off}`;
+          if (s.implementation_plan) return 'Implementation plan captured';
+          return null;
 
         default:
           return '';
@@ -4566,6 +4840,104 @@ function renderChat(){
 
       if (shownQuestions.length) {
         const qRows = shownQuestions.map(q => {
+          const qc = q.replace(/\s+/g, ' ').trim();
+          return `<div style="margin-top:6px;padding:7px 10px;
+            background:#F0F2F5;border-radius:6px;
+            font-size:11px;color:#2C3E50;line-height:1.5;
+            cursor:pointer"
+            onclick="sendPresetMessage(${JSON.stringify(qc).replace(/"/g,'&quot;')})">
+            <span style="color:#0070BA;font-weight:600;margin-right:4px">→</span>${qc}
+          </div>`;
+        }).join('');
+        questionsHtml = `<div style="margin:8px 0 0">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
+            color:#6B7A8D;text-transform:uppercase;margin-bottom:2px">
+            Suggested starting questions
+          </div>
+          ${qRows}
+        </div>`;
+      }
+    }
+
+    if (isImprove) {
+      const def = getStructured('define') || {};
+      const mea = getStructured('measure') || {};
+      const ana = getStructured('analyse_phase') || {};
+
+      const problemStatement   = def.what || null;
+      const primaryMetric      = def.primary_metric || null;
+      const target             = def.how_goal || null;
+      const baseline           = mea.baseline_mean || null;
+      const sigmaRaw           = mea.current_sigma_level || null;
+      const rootCause          = ana.root_cause_statement || null;
+      const vitalFew           = ana.vital_few_causes || null;
+
+      // Context card — "Where you stand going into Improve"
+      const ctxRows = [];
+      if (problemStatement) {
+        ctxRows.push(`<span style="font-weight:600;color:#2C3E50">📋 Problem:</span> ${problemStatement}`);
+      }
+      if (primaryMetric && baseline) {
+        ctxRows.push(`<span style="font-weight:600;color:#2C3E50">📊 Metric:</span> ${primaryMetric}, baseline ${baseline}`);
+      }
+      if (target) {
+        ctxRows.push(`<span style="font-weight:600;color:#2C3E50">🎯 Target:</span> ${target}`);
+      }
+      if (rootCause) {
+        ctxRows.push(`<span style="font-weight:600;color:#2C3E50">🔍 Root cause:</span> ${rootCause}`);
+      }
+      if (vitalFew) {
+        ctxRows.push(`<span style="font-weight:600;color:#2C3E50">⚡ Vital few:</span> ${vitalFew}`);
+      }
+
+      if (ctxRows.length) {
+        const ctxRowsHtml = ctxRows.map(r =>
+          `<div style="padding:3px 0;font-size:11px;line-height:1.5;
+            color:#5C5A55">${r}</div>`).join('');
+        contextHtml = `<div style="margin:8px 0;padding:8px 10px;
+          background:#EAF4FC;border-radius:6px;
+          border-left:2px solid #0070BA">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
+            color:#0070BA;text-transform:uppercase;margin-bottom:6px">
+            Where you stand going into Improve
+          </div>
+          ${ctxRowsHtml}
+        </div>`;
+      }
+
+      // Dynamic questions — deterministic, no LLM call
+      const improveQuestions = [];
+
+      if (rootCause) {
+        improveQuestions.push(
+          `What solutions could directly prevent or eliminate: "${rootCause.slice(0,80)}${rootCause.length>80?'…':''}"?`
+        );
+      }
+
+      if (vitalFew) {
+        improveQuestions.push(
+          'Which of the vital few causes is the most practical to address first — and what would fixing it involve?'
+        );
+      }
+
+      improveQuestions.push(
+        'What process change, training, or technology could prevent this problem from recurring?'
+      );
+
+      improveQuestions.push(
+        'Which solution could you test quickly in a small area or team before rolling it out everywhere?'
+      );
+
+      if (primaryMetric && target) {
+        improveQuestions.push(
+          `What would need to change for ${primaryMetric.toLowerCase()} to reach ${target}?`
+        );
+      }
+
+      const shownImproveQuestions = improveQuestions.slice(0, 4);
+
+      if (shownImproveQuestions.length) {
+        const qRows = shownImproveQuestions.map(q => {
           const qc = q.replace(/\s+/g, ' ').trim();
           return `<div style="margin-top:6px;padding:7px 10px;
             background:#F0F2F5;border-radius:6px;
