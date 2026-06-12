@@ -6088,6 +6088,78 @@ function renderGateResult(resp) {
     ],
   };
 
+  // Detail is stored as a function to match the define/measure entries
+  // above — renderGateResult calls c.detail(). The Analyse/Improve/Control
+  // details are static descriptions, so each returns its string.
+  GATE_CHECKS['analyse_phase'] = [
+    {
+      key: 'possible_causes',
+      label: 'At least 3 possible causes identified',
+      detail: () => 'The team brainstormed possible causes using the Fishbone method.',
+      fix: 'Go to AI guide → Work product 1 and list at least 3 causes.',
+    },
+    {
+      key: 'vital_few_causes',
+      label: 'Vital few causes identified',
+      detail: () => 'The team prioritised the 1–3 causes driving most of the problem.',
+      fix: 'Go to AI guide → Work product 3 and identify the vital few.',
+    },
+    {
+      key: 'cause_verified',
+      label: 'Root cause verified with data',
+      detail: () => 'The team confirmed the cause with evidence.',
+      fix: 'Go to AI guide → Work product 4 and describe the verification.',
+    },
+    {
+      key: 'root_cause_statement',
+      label: 'Root cause statement written',
+      detail: () => 'A specific, measurable root cause statement was agreed.',
+      fix: 'Go to AI guide → Work product 5 and write the root cause statement.',
+    },
+  ];
+
+  GATE_CHECKS['improve'] = [
+    {
+      key: 'selected_solution',
+      label: 'Solution selected',
+      detail: () => 'The team chose a solution that addresses the root cause.',
+      fix: 'Go to AI guide → Work product 2 and select a solution.',
+    },
+    {
+      key: 'pilot_result',
+      label: 'Pilot or test completed',
+      detail: () => 'The solution was tested at small scale before full rollout.',
+      fix: 'Go to AI guide → Work product 4 and capture the pilot results.',
+    },
+    {
+      key: 'improvement_confirmed',
+      label: 'Improvement confirmed with data',
+      detail: () => 'The pilot data showed improvement against the Measure baseline.',
+      fix: 'Go to AI guide → Work product 4 and confirm the improvement.',
+    },
+  ];
+
+  GATE_CHECKS['control'] = [
+    {
+      key: 'control_plan',
+      label: 'Control plan documented',
+      detail: () => 'The team documented what changed and who is responsible.',
+      fix: 'Go to AI guide → Work product 1 and build the control plan.',
+    },
+    {
+      key: 'monitoring_method',
+      label: 'Monitoring method defined',
+      detail: () => 'A named method, owner, and frequency for tracking the metric.',
+      fix: 'Go to AI guide → Work product 2 and define the monitoring.',
+    },
+    {
+      key: 'sustainability_confirmed',
+      label: 'Sustainability confirmed',
+      detail: () => 'The team confirmed the improvement will hold without the project team.',
+      fix: 'Go to AI guide → Work product 5 and confirm sustainability.',
+    },
+  ];
+
   const checks = GATE_CHECKS[S.phase] || [];
   const phaseLabel = PHASES[S.phase]?.label || S.phase;
   const nextLabel = nextPhase
