@@ -551,7 +551,7 @@ a{text-decoration:none;color:inherit}
       <div class="pi locked" id="pi-control" onclick="navClickPhase('control')">
         <div class="pd"></div><span class="pl">Control</span><span class="pb pb-lock">locked</span>
       </div>
-      <div class="psub">Control plan</div>
+      <div class="psub">Control plan · Monitoring · Sustainability</div>
       <!-- Case files panel — populated by buildCaseFilesNav() -->
       <div id="case-files-nav"></div>
       <div style="flex:1"></div>
@@ -1053,7 +1053,7 @@ const PHASE_NAV_SUBTITLES = {
   measure: 'Data plan · baseline',
   analyse_phase: 'Cause analysis · Root cause statement',
   improve: 'Solution design · Pilot · Implementation',
-  control: 'Control plan',
+  control: 'Control plan · Monitoring · Sustainability',
 };
 
 // Left-nav click handler. Previewing a completed phase opens its gate
@@ -3955,6 +3955,215 @@ function renderGate() {
     return;
   }
 
+  // ── Control viewing (active or passed): full gate document ──
+  if (viewingPhase === 'control') {
+
+    const cStructured = getStructured('control');
+    const cTotal = CONTROL_GATE_FIELDS.length;
+    const cCaptured = CONTROL_GATE_FIELDS.filter(
+      f => fieldHasValue(cStructured[f.key])
+    ).length;
+    const cPct = Math.round(cCaptured / cTotal * 100);
+
+    // Gate readiness: control_plan + monitoring_method present, and
+    // sustainability_confirmed must be "yes" (project can only close
+    // when the team confirms the improvement will hold).
+    const CONTROL_REQUIRED_FOR_GATE = [
+      'control_plan',
+      'monitoring_method',
+    ];
+    const crCaptured = CONTROL_REQUIRED_FOR_GATE.filter(
+      f => fieldHasValue(cStructured[f])
+    ).length;
+    const sustainOk =
+      (cStructured.sustainability_confirmed||'')
+      .toLowerCase() === 'yes';
+    const cGateReady =
+      crCaptured === CONTROL_REQUIRED_FOR_GATE.length
+      && sustainOk;
+    const cAllDone = cCaptured === cTotal;
+
+    const caseTitle = S.case?.title
+      || S.case?.case_metadata?.title
+      || 'Improvement Project';
+
+    // ── Gate passed banner (reuse Measure HTML pattern) ──
+    const gatePassedBanner = `<div style="background:#E1F5EE;
+      border:0.5px solid #5DCAA5;border-radius:8px;padding:12px 14px;
+      margin-bottom:12px;display:flex;align-items:center;gap:8px">
+      <i class="ti ti-circle-check-filled"
+        style="font-size:16px;color:#0F6E56"></i>
+      <span style="font-size:12px;font-weight:600;color:#04342C">
+        Gate passed ✓</span>
+      <span style="font-size:11px;color:#085041;margin-left:auto">
+        This phase is complete — document shown read-only.</span>
+    </div>`;
+
+    // ── Section 1 — Control plan ──
+    const cMeasures = cStructured.control_measures;
+    let cpBody;
+    if (cStructured.control_plan || (cMeasures && cMeasures.length)) {
+      cpBody = fieldRow('Control plan', cStructured.control_plan) +
+        ((cMeasures && cMeasures.length)
+          ? cMeasures.map(c =>
+              `<div style="font-size:11px;color:#2C3E50;padding:2px 0">• ${c}</div>`
+            ).join('')
+          : '');
+    } else {
+      cpBody = `<div style="font-size:11px;color:#99978F;font-style:italic">
+        Document what changed and who is responsible.</div>`;
+    }
+    const section1 = sectionCard(1, 'Control plan',
+      ['control_plan','control_measures'], cpBody, cStructured);
+
+    // ── Section 2 — Monitoring ──
+    const monBody = (cStructured.monitoring_method
+        || cStructured.monitoring_frequency || cStructured.control_chart_type)
+      ? fieldRow('Method', cStructured.monitoring_method) +
+        fieldRow('Frequency', cStructured.monitoring_frequency) +
+        fieldRow('Chart/tool', cStructured.control_chart_type)
+      : `<div style="font-size:11px;color:#99978F;font-style:italic">
+          Define how the primary metric will be tracked.</div>`;
+    const section2 = sectionCard(2, 'Monitoring',
+      ['monitoring_method','monitoring_frequency','control_chart_type'],
+      monBody, cStructured);
+
+    // ── Section 3 — Response plan ──
+    const respBody = (cStructured.response_plan || cStructured.trigger_threshold)
+      ? fieldRow('Response plan', cStructured.response_plan) +
+        fieldRow('Trigger threshold', cStructured.trigger_threshold)
+      : `<div style="font-size:11px;color:#99978F;font-style:italic">
+          Define what happens if performance deteriorates.</div>`;
+    const section3 = sectionCard(3, 'Response plan',
+      ['response_plan','trigger_threshold'], respBody, cStructured);
+
+    // ── Section 4 — Documentation ──
+    const docBody = (cStructured.documentation_updated || cStructured.training_completed)
+      ? fieldRow('Documentation', cStructured.documentation_updated) +
+        fieldRow('Training', cStructured.training_completed)
+      : `<div style="font-size:11px;color:#99978F;font-style:italic">
+          Update SOPs and confirm team training.</div>`;
+    const section4 = sectionCard(4, 'Documentation',
+      ['documentation_updated','training_completed'], docBody, cStructured);
+
+    // ── Section 5 — Sustainability (prominent) ──
+    const sc = cStructured.sustainability_confirmed || '';
+    const confirmed = sc.toLowerCase() === 'yes';
+    const scColour = confirmed ? '#0F6E56' : '#C55A00';
+    const scBg     = confirmed ? '#E1F5EE' : '#FFF5EE';
+    const scPill   = sc
+      ? `<span style="background:${scBg};color:${scColour};border-radius:4px;
+          padding:2px 6px;font-size:10px;font-weight:600">${sc}</span>`
+      : '';
+    const sustSignOff = cStructured.sponsor_final_sign_off;
+    let sustBody;
+    if (confirmed && sustSignOff) {
+      sustBody = `<div style="border-left:3px solid #0070BA;background:#F0F7FF;
+          border-radius:0 6px 6px 0;padding:10px 12px;margin-bottom:8px;
+          font-size:12px;color:#00305A;font-weight:500;line-height:1.5">
+          Project closed
+        </div>
+        <div style="font-size:11px;color:#6B7A8D">
+          Closed by: <strong>${sustSignOff}</strong></div>`;
+    } else {
+      sustBody = `
+        <div style="margin-bottom:6px;display:flex;align-items:center;gap:6px">
+          <span style="font-size:11px;color:#6B7A8D">Sustainability confirmed:</span>
+          ${scPill || '<span style="font-size:11px;color:#99978F;font-style:italic">not yet</span>'}
+        </div>` +
+        fieldRow('Sponsor sign-off', sustSignOff);
+    }
+    const section5 = `<div style="background:#fff;
+      border:1.5px solid ${confirmed?'#0070BA':'#E4A265'};
+      border-radius:8px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;
+        justify-content:space-between;padding:10px 14px;
+        border-bottom:1px solid ${confirmed?'#C8DFF5':'#F0D5B8'};
+        background:${confirmed?'#F0F7FF':'#FFF5EE'}">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="width:20px;height:20px;border-radius:50%;
+            background:${confirmed?'#0070BA':'#C55A00'};color:#fff;
+            font-size:10px;font-weight:700;display:flex;
+            align-items:center;justify-content:center;flex-shrink:0">5</span>
+          <span style="font-size:12px;font-weight:600;color:#1A1917">
+            Sustainability</span>
+        </div>
+        <span style="font-size:9px;font-weight:700;letter-spacing:.05em;
+          color:${confirmed?'#0070BA':'#C55A00'};text-transform:uppercase">
+          ${confirmed?'Confirmed':'Required'}</span>
+      </div>
+      <div style="padding:10px 14px">${sustBody}</div>
+    </div>`;
+
+    // ── Score bar (mirror Improve) ──
+    const cScoreBar = `
+      <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+        border-radius:8px;padding:14px;margin-bottom:16px">
+        <div style="display:flex;align-items:flex-start;
+          justify-content:space-between;margin-bottom:8px">
+          <div>
+            <span style="font-size:24px;font-weight:500;color:#0070BA">
+              ${cCaptured}</span>
+            <span style="font-size:14px;color:#99978F"> / ${cTotal}</span>
+            <div style="font-size:10px;color:#99978F;margin-top:1px">
+              fields captured</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;font-weight:500;
+              color:${isPassed?'#0F6E56':(cGateReady?'#0070BA':'#C55A00')}">
+              ${isPassed?'Gate passed':(cGateReady?'Ready for gate':'In progress')}
+            </div>
+            <div style="font-size:10px;color:#99978F">
+              ${isPassed?'Phase complete':(cAllDone?'All sections complete'
+                :(cTotal-cCaptured)+' fields remaining')}</div>
+          </div>
+        </div>
+        <div style="height:5px;background:#EAF4FC;border-radius:3px;
+          overflow:hidden">
+          <div style="height:100%;background:${isPassed?'#0F6E56':'#0070BA'};
+            border-radius:3px;width:${cPct}%"></div>
+        </div>
+      </div>`;
+
+    // ── Submit area (mirror Improve) ──
+    const cSubmit = cGateReady
+      ? `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+          border-radius:8px;padding:14px;margin-top:4px">
+          <button onclick="submitGateReview()" style="width:100%;
+            padding:10px;background:#0070BA;color:#fff;border:none;
+            border-radius:6px;font-size:12px;font-weight:500;cursor:pointer">
+            Submit Control gate for review →
+          </button>
+        </div>`
+      : `<div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
+          border-radius:8px;padding:14px;margin-top:4px;
+          font-size:11px;color:#5C5A55">
+          Complete the required fields in the AI guide before submitting.
+          <div style="margin-top:6px;font-size:10px;color:#99978F">
+            Required: control plan · monitoring method ·
+            sustainability confirmed (yes)
+          </div>
+        </div>`;
+
+    const cDocHeader = `
+      <div style="margin-bottom:16px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:#99978F;text-transform:uppercase;margin-bottom:4px">
+          Control Gate Document</div>
+        <div style="font-size:15px;font-weight:600;color:#1A1917;
+          line-height:1.3">${caseTitle}</div>
+      </div>`;
+
+    el.innerHTML = `<div style="max-width:860px;margin:0 auto;padding:16px">
+      ${phaseSelector}
+      ${isPassed ? gatePassedBanner : ''}
+      ${cDocHeader}${cScoreBar}
+      ${section1}${section2}${section3}${section4}${section5}
+      ${isPassed ? '' : cSubmit}
+    </div>`;
+    return;
+  }
+
   // ── Non-define viewing (active or passed): stub view ──────
   if (viewingPhase !== 'define') {
     const phaseLabel = phaseLabels[viewingPhase];
@@ -4613,6 +4822,7 @@ function renderChat(){
     const isMeasure = S.phase === 'measure';
     const isAnalyse = S.phase === 'analyse_phase';
     const isImprove = S.phase === 'improve';
+    const isControl = S.phase === 'control';
     const gateFields = isDefine
       ? DEFINE_GATE_FIELDS
       : isMeasure
@@ -4621,7 +4831,9 @@ function renderChat(){
           ? ANALYSE_GATE_FIELDS
           : isImprove
             ? IMPROVE_GATE_FIELDS
-            : [];
+            : isControl
+              ? CONTROL_GATE_FIELDS
+              : [];
     const fieldHints = isDefine
       ? FIELD_HINTS
       : isMeasure
@@ -4630,7 +4842,9 @@ function renderChat(){
           ? ANALYSE_FIELD_HINTS
           : isImprove
             ? IMPROVE_FIELD_HINTS
-            : {};
+            : isControl
+              ? CONTROL_FIELD_HINTS
+              : {};
 
     // Work product groups: each carries a label, the keys that fall
     // under it, a plain-language next-step prompt, and the field key
@@ -4772,8 +4986,43 @@ function renderChat(){
       },
     ];
 
+    const controlGroups = [
+      {
+        label: 'Control plan',
+        keys: ['control_plan', 'control_measures'],
+        nextAction: 'Document what changed and who owns it',
+        nextHintKey: 'control_plan',
+      },
+      {
+        label: 'Monitoring',
+        keys: ['monitoring_method', 'monitoring_frequency',
+               'control_chart_type'],
+        nextAction: 'Define how the metric will be tracked',
+        nextHintKey: 'monitoring_method',
+      },
+      {
+        label: 'Response plan',
+        keys: ['response_plan', 'trigger_threshold'],
+        nextAction: 'Define what happens if performance slips',
+        nextHintKey: 'response_plan',
+      },
+      {
+        label: 'Documentation',
+        keys: ['documentation_updated', 'training_completed'],
+        nextAction: 'Update SOPs and confirm training is done',
+        nextHintKey: 'documentation_updated',
+      },
+      {
+        label: 'Sustainability',
+        keys: ['sustainability_confirmed', 'sponsor_final_sign_off'],
+        nextAction: 'Confirm sustainability and close the project',
+        nextHintKey: 'sustainability_confirmed',
+      },
+    ];
+
     const groups = isMeasure ? measureGroups : isDefine ? defineGroups
-      : isAnalyse ? analyseGroups : isImprove ? improveGroups : [];
+      : isAnalyse ? analyseGroups : isImprove ? improveGroups
+      : isControl ? controlGroups : [];
     const completedLabels = [];
     let nextGroup = null;
 
@@ -4935,6 +5184,30 @@ function renderChat(){
         case 'Implementation plan':
           if (s.sponsor_sign_off) return `Approved by ${s.sponsor_sign_off}`;
           if (s.implementation_plan) return 'Implementation plan captured';
+          return null;
+
+        // Control groups
+        case 'Control plan':
+          if (s.control_plan) return 'Control plan documented';
+          return null;
+
+        case 'Monitoring':
+          if (s.monitoring_method) return `Monitoring: ${s.monitoring_method.slice(0,40)}${s.monitoring_method.length>40?'…':''}`;
+          return null;
+
+        case 'Response plan':
+          if (s.trigger_threshold) return `Trigger: ${s.trigger_threshold}`;
+          if (s.response_plan) return 'Response plan captured';
+          return null;
+
+        case 'Documentation':
+          if (s.training_completed) return `Training: ${s.training_completed}`;
+          if (s.documentation_updated) return 'Documentation updated';
+          return null;
+
+        case 'Sustainability':
+          if (s.sponsor_final_sign_off) return `Closed by ${s.sponsor_final_sign_off}`;
+          if (s.sustainability_confirmed) return `Sustainability: ${s.sustainability_confirmed}`;
           return null;
 
         default:
@@ -5209,6 +5482,99 @@ function renderChat(){
 
       if (shownImproveQuestions.length) {
         const qRows = shownImproveQuestions.map(q => {
+          const qc = q.replace(/\s+/g, ' ').trim();
+          return `<div style="margin-top:6px;padding:7px 10px;
+            background:#F0F2F5;border-radius:6px;
+            font-size:11px;color:#2C3E50;line-height:1.5;
+            cursor:pointer"
+            onclick="sendPresetMessage(${JSON.stringify(qc).replace(/"/g,'&quot;')})">
+            <span style="color:#0070BA;font-weight:600;margin-right:4px">→</span>${qc}
+          </div>`;
+        }).join('');
+        questionsHtml = `<div style="margin:8px 0 0">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
+            color:#6B7A8D;text-transform:uppercase;margin-bottom:2px">
+            Suggested starting questions
+          </div>
+          ${qRows}
+        </div>`;
+      }
+    }
+
+    if (isControl) {
+      const def = getStructured('define') || {};
+      const mea = getStructured('measure') || {};
+      const ana = getStructured('analyse_phase') || {};
+      const imp = getStructured('improve') || {};
+
+      const primaryMetric  = def.primary_metric || null;
+      const target         = def.how_goal || null;
+      const baseline       = mea.baseline_mean || null;
+      const rootCause      = ana.root_cause_statement || null;
+      const solution       = imp.selected_solution || null;
+      const pilotResult    = imp.pilot_result || null;
+      const projectedGain  = imp.projected_improvement || null;
+
+      const ctxRows = [];
+      if (primaryMetric && baseline) {
+        ctxRows.push(`<span style="font-weight:600;color:#2C3E50">📊 Metric:</span> ${primaryMetric}, baseline ${baseline}`);
+      }
+      if (target) {
+        ctxRows.push(`<span style="font-weight:600;color:#2C3E50">🎯 Target:</span> ${target}`);
+      }
+      if (solution) {
+        ctxRows.push(`<span style="font-weight:600;color:#2C3E50">✅ Solution implemented:</span> ${solution}`);
+      }
+      if (pilotResult) {
+        ctxRows.push(`<span style="font-weight:600;color:#2C3E50">📈 Pilot result:</span> ${pilotResult.slice(0,80)}${pilotResult.length>80?'…':''}`);
+      }
+      if (projectedGain) {
+        ctxRows.push(`<span style="font-weight:600;color:#2C3E50">⚡ Projected gain:</span> ${projectedGain}`);
+      }
+
+      if (ctxRows.length) {
+        const ctxRowsHtml = ctxRows.map(r =>
+          `<div style="padding:3px 0;font-size:11px;line-height:1.5;
+            color:#5C5A55">${r}</div>`).join('');
+        contextHtml = `<div style="margin:8px 0;padding:8px 10px;
+          background:#EAF4FC;border-radius:6px;
+          border-left:2px solid #0070BA">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
+            color:#0070BA;text-transform:uppercase;margin-bottom:6px">
+            Where you stand going into Control
+          </div>
+          ${ctxRowsHtml}
+        </div>`;
+      }
+
+      const controlQuestions = [];
+
+      if (solution) {
+        controlQuestions.push(
+          `How will you make sure "${solution.slice(0,60)}${solution.length>60?'…':''}" stays in place once the project team moves on?`
+        );
+      }
+
+      controlQuestions.push(
+        `Who will own the monitoring of ${primaryMetric ? primaryMetric.toLowerCase() : 'the metric'} going forward — and how often will they review it?`
+      );
+
+      controlQuestions.push(
+        'What is the trigger point at which someone needs to take action if performance starts slipping?'
+      );
+
+      controlQuestions.push(
+        'Have the SOPs or work instructions been updated to reflect the new process?'
+      );
+
+      controlQuestions.push(
+        'Is the team trained on the new way of working, and does the sponsor agree the project can close?'
+      );
+
+      const shownControlQuestions = controlQuestions.slice(0, 4);
+
+      if (shownControlQuestions.length) {
+        const qRows = shownControlQuestions.map(q => {
           const qc = q.replace(/\s+/g, ' ').trim();
           return `<div style="margin-top:6px;padding:7px 10px;
             background:#F0F2F5;border-radius:6px;
