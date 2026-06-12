@@ -22,6 +22,7 @@ _ROLE_MAP: dict[str, str] = {
     "operational": settings.LLM_REASONING_DEPLOYMENT,
     "premium": settings.LLM_PREMIUM_DEPLOYMENT,
     "extraction": settings.LLM_REASONING_DEPLOYMENT,
+    "coach": settings.LLM_PREMIUM_DEPLOYMENT,
 }
 
 
@@ -30,9 +31,11 @@ class LLMProvider:
 
     @lru_cache(maxsize=16)
     def get_llm(
-        self, deployment: str | None = None, temperature: float = 0.2
+        self, deployment: str | None = None, temperature: float = 0.2,
+        max_tokens: int | None = None,
     ) -> AzureChatOpenAI:
-        """Return a cached AzureChatOpenAI instance per (deployment, temperature) pair."""
+        """Return a cached AzureChatOpenAI instance per
+        (deployment, temperature, max_tokens) tuple."""
         return AzureChatOpenAI(
             azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
             azure_deployment=deployment or settings.LLM_REASONING_DEPLOYMENT,
@@ -41,6 +44,7 @@ class LLMProvider:
             ),
             api_key=os.environ["AZURE_OPENAI_API_KEY"],
             temperature=temperature,
+            max_tokens=max_tokens,
             max_retries=3,
         )
 
@@ -50,7 +54,8 @@ class LLMProvider:
 llm_provider = LLMProvider()
 
 
-def get_llm(role: str | None = None, temperature: float = 0.2) -> AzureChatOpenAI:
+def get_llm(role: str | None = None, temperature: float = 0.2,
+            max_tokens: int | None = None) -> AzureChatOpenAI:
     """Resolve a logical role name to an Azure deployment and return a cached LLM.
 
     Roles:
@@ -58,8 +63,14 @@ def get_llm(role: str | None = None, temperature: float = 0.2) -> AzureChatOpenA
       "reasoning"  — operational model for analysis, reflection, formatting
       "premium"    — premium model for escalation and hard reasoning
       "extraction" — operational model used for phase input extraction
+      "coach"      — premium model for structured Black Belt coaching turns
+
+    Pass max_tokens to lift the response cap (e.g. 1500 for coaching turns);
+    None leaves the Azure default in place.
 
     Falls back to treating the value as a literal deployment name when no role matches.
     """
     resolved = _ROLE_MAP.get(role, role) if role else None
-    return llm_provider.get_llm(deployment=resolved, temperature=temperature)
+    return llm_provider.get_llm(
+        deployment=resolved, temperature=temperature, max_tokens=max_tokens
+    )

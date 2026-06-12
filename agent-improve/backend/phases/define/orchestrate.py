@@ -109,7 +109,11 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
     )
 
     # Ã¢ÂÂÃ¢ÂÂ 3. Reflect on response quality Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-    response_text = _reflect(response_text)
+    # TODO(coaching): reflect disabled — it was tuned for the previous
+    # terse output style and compresses the new structured coaching
+    # responses, defeating the prompt rewrite. Reintroduce a
+    # coaching-aware reflect later.
+    # response_text = _reflect(response_text)
 
     # Ã¢ÂÂÃ¢ÂÂ 4. Append AI turn to chat history Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
     now = datetime.now(timezone.utc).isoformat()
@@ -192,7 +196,7 @@ def _run_orchestrator(
     state_summary: str | None = None,
 ) -> str:
     """Run orchestrator LLM call. Returns response text."""
-    llm = get_llm("reasoning", temperature=0.3)
+    llm = get_llm("coach", temperature=0.4, max_tokens=1500)
     messages = [SystemMessage(content=system_prompt)]
     if state_summary:
         messages.append(SystemMessage(content=state_summary))
