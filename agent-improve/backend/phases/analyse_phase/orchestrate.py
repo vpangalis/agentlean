@@ -15,6 +15,10 @@ from backend.core.prompts import (
     REFLECTION_CHECK,
     STATE_SUMMARY_TEMPLATE,
 )
+from backend.knowledge.retriever import (
+    build_knowledge_context,
+    active_work_product_label,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -209,6 +213,21 @@ def _run_orchestrator(
     messages = [SystemMessage(content=system_prompt)]
     if state_summary:
         messages.append(SystemMessage(content=state_summary))
+
+    # RAG — ground this turn in retrieved Black Belt methodology
+    last_human = next(
+        (t.get("text", "") for t in reversed(chat_history)
+         if t.get("role") != "ai"),
+        "",
+    )
+    knowledge_block = build_knowledge_context(
+        phase="analyse_phase",
+        user_message=last_human,
+        work_product_label=active_work_product_label(state_summary),
+    )
+    if knowledge_block:
+        messages.append(SystemMessage(content=knowledge_block))
+
     for turn in chat_history[-12:]:  # last 12 turns for context window
         role = "ai" if turn.get("role") == "ai" else "human"
         content = turn.get("text", "")

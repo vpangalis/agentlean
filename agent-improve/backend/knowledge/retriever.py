@@ -29,18 +29,6 @@ def get_embeddings() -> AzureOpenAIEmbeddings:
 
 
 @lru_cache(maxsize=1)
-def get_case_vectorstore() -> AzureSearch:
-    """Cached vectorstore for improve_case_index."""
-    return AzureSearch(
-        azure_search_endpoint=settings.AZURE_SEARCH_ENDPOINT,
-        azure_search_key=settings.AZURE_SEARCH_API_KEY,
-        index_name=settings.AZURE_SEARCH_IMPROVE_CASE_INDEX,
-        embedding_function=get_embeddings(),
-        search_type="hybrid",
-    )
-
-
-@lru_cache(maxsize=1)
 def get_knowledge_vectorstore() -> AzureSearch:
     """Cached vectorstore for improve_knowledge_index."""
     return AzureSearch(
@@ -87,19 +75,48 @@ def search_knowledge(query: str, phase: str = None,
 
 
 def search_cases(query: str, k: int = 3) -> list[dict]:
-    """Search improve_case_index for similar past improvement cases."""
-    vs = get_case_vectorstore()
+    """Search improve_case_index for similar past improvement cases.
+
+    Uses a raw SearchClient with the case index's own field names
+    (content_text / embedding) rather than the LangChain AzureSearch
+    wrapper. The wrapper resolves its content/vector field names from
+    process-global settings, which here default to content/content_vector
+    to serve improve_knowledge_index and improve_evidence_index; the case
+    index uses a different schema, so it is queried directly instead.
+    Mirrors the search_evidence() raw-client pattern below."""
     try:
-        docs = vs.similarity_search(query, k=k)
+        from azure.search.documents.models import VectorizedQuery
+
+        search_client = SearchClient(
+            endpoint=settings.AZURE_SEARCH_ENDPOINT,
+            index_name=settings.AZURE_SEARCH_IMPROVE_CASE_INDEX,
+            credential=AzureKeyCredential(settings.AZURE_SEARCH_API_KEY),
+        )
+
+        query_vector = get_embeddings().embed_query(query)
+        vector_query = VectorizedQuery(
+            vector=query_vector,
+            k_nearest_neighbors=k,
+            fields="embedding",
+        )
+
+        results = search_client.search(
+            search_text=query,
+            vector_queries=[vector_query],
+            select=["content_text", "case_id", "title",
+                    "current_phase", "rag_status"],
+            top=k,
+        )
+
         return [
             {
-                "content": d.page_content,
-                "case_id": d.metadata.get("case_id", ""),
-                "title": d.metadata.get("title", ""),
-                "phase": d.metadata.get("current_phase", ""),
-                "rag_status": d.metadata.get("rag_status", ""),
+                "content": r.get("content_text", ""),
+                "case_id": r.get("case_id", ""),
+                "title": r.get("title", ""),
+                "phase": r.get("current_phase", ""),
+                "rag_status": r.get("rag_status", ""),
             }
-            for d in docs
+            for r in results
         ]
     except Exception as e:
         logger.warning("Case search failed: %s", e)
@@ -156,3 +173,78 @@ def search_evidence(query: str, case_id: str, k: int = 4) -> list[dict]:
     except Exception as e:
         logger.warning("Evidence search failed: %s", e)
         return []
+
+
+def active_work_product_label(state_summary: str | None) -> str | None:
+    """Best-effort extraction of the active work product label from a
+    phase state summary. Every phase summary ends with a 'Continue with
+    <label> ...' next-action hint; return the label that follows, or
+    None when it cannot be determined."""
+    if not state_summary:
+        return None
+    marker = "Continue with "
+    idx = state_summary.find(marker)
+    if idx == -1:
+        return None
+    tail = state_summary[idx + len(marker):]
+    for sep in (". ", " — ", "—", "\n"):
+        cut = tail.find(sep)
+        if cut != -1:
+            tail = tail[:cut]
+    label = tail.strip()
+    return label or None
+
+
+def build_knowledge_context(
+    phase: str,
+    user_message: str,
+    work_product_label: str | None = None,
+    top_k: int = 3,
+) -> str | None:
+    """Retrieve relevant Black Belt methodology chunks for the current
+    conversation turn and format them as a SystemMessage content block.
+
+    Returns the formatted reference block, or None when nothing relevant
+    is found. The query is built from the user's latest message and, when
+    known, the active work product label (high-signal). Queries
+    improve_knowledge_index via search_knowledge() across all phases
+    (the live index has no per-phase filter field)."""
+    query_parts = []
+    if work_product_label:
+        query_parts.append(work_product_label)
+    query_parts.append((user_message or "")[:200])
+    query = " ".join(p for p in query_parts if p).strip()
+    if not query:
+        return None
+
+    try:
+        results = search_knowledge(query, k=top_k)
+    except Exception as e:
+        logger.warning("build_knowledge_context retrieval failed: %s", e)
+        return None
+
+    if not results:
+        return None
+
+    blocks = []
+    for i, r in enumerate(results, 1):
+        text = (
+            r.get("content") if isinstance(r, dict)
+            else getattr(r, "page_content", "")
+        )
+        if not text:
+            continue
+        blocks.append(f"[Reference {i}]\n{text.strip()[:1200]}")
+
+    if not blocks:
+        return None
+
+    return (
+        "BLACK BELT METHODOLOGY REFERENCES "
+        "(retrieved from training material for this turn):\n\n"
+        + "\n\n".join(blocks)
+        + "\n\nUse these references to ground your coaching. "
+        "Cite or paraphrase the methodology where relevant. "
+        "Do not invent methodology not present in these references "
+        "or your training."
+    )
