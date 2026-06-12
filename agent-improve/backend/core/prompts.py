@@ -663,12 +663,19 @@ Extraction rules:
   and result has been stated.
 - "baseline_mean": always return as a plain string with
   unit. Example: "38 complaints per week" or "38/week".
+  NEVER infer or estimate. Only populate if the team
+  stated a specific numeric value.
 - "baseline_variation": always return as a plain string,
   never as an object. Example: "28 to 45 per week" or
   "range 28-45". If you have min/max values, format as
   "{min} to {max}".
 - All baseline and capability fields: populate only
   when explicitly stated by the team. These are optional.
+- "current_sigma_level": NEVER infer or calculate. Only
+  populate if the team stated a sigma level value.
+- Any other numeric field (sample size, frequency, etc.):
+  same pattern — NEVER infer or estimate. Only populate
+  when the team stated a specific value.
 - "baseline_summary" / "capability_summary": NEVER
   auto-compose these from AI templates. Only populate
   when the team explicitly stated this.
@@ -770,8 +777,15 @@ CRITICAL ANTI-HALLUCINATION RULES:
 }
 
 Extraction rules:
+- "how_much_baseline": NEVER infer a baseline value. If the team
+  stated a from/to pair (e.g. 'from 3% to 12%'), the baseline is
+  the CURRENT level (Y), not the starting point (X). The baseline
+  represents today's state-to-improve.
 - "how_goal": the TARGET state only (e.g. "under 20 per week").
   Never store the baseline value here.
+  NEVER infer or invent a target/goal value.
+  Return null unless the team explicitly stated
+  a target number, percentage, or value.
 - "goal_statement": a single precise sentence combining metric,
   baseline, target, and timeframe. Only extract when the team
   has stated it explicitly as a goal sentence.
@@ -850,6 +864,9 @@ Field guidance:
 - vital_few_causes: plain-English summary of the 1–3 causes that account
   for most of the problem.
 - cause_verified: exactly one of "yes", "partial", or "no".
+  NEVER infer 'yes' from the team agreeing the cause sounds
+  plausible. Only set to 'yes' or 'partial' when the team
+  explicitly states they verified with data.
 - verification_method: how the cause was verified (data, test, correlation…).
 - evidence_summary: what the data or evidence actually showed.
 - root_cause_statement: a specific, measurable, solution-agnostic statement,
@@ -911,6 +928,9 @@ EXTRACTION RULES:
   just the selected one.
 - selected_solution: only once a clear choice is
   made — not while still evaluating options.
+  NEVER populate from the AI's example solutions or template
+  suggestions. Only populate when the team explicitly chose
+  a solution.
 - pilot_result: what actually happened during the
   pilot. Only populate after pilot has been run —
   NEVER from the pilot plan.
@@ -918,6 +938,11 @@ EXTRACTION RULES:
   shows improvement against baseline; "partial" =
   directional but not conclusive; "no" = no
   improvement shown. Only after pilot results.
+  NEVER infer from optimistic language. Only set to 'yes'
+  when the team explicitly stated the pilot data confirmed
+  improvement against baseline. Set to 'partial' or 'no'
+  only when the team used those terms or equivalent.
+  Return null otherwise.
 - projected_improvement: expected gain once fully
   rolled out, linked to the primary metric.
   NEVER auto-compose this from AI templates. Only populate when
@@ -983,6 +1008,8 @@ EXTRACTION RULES:
   on an ongoing basis (chart, report, audit, etc.).
 - monitoring_frequency: how often monitoring occurs
   (daily, weekly, per cycle, etc.).
+  NEVER infer (e.g. assume 'weekly'). Only populate when
+  the team explicitly stated a frequency.
 - response_plan: what happens if the metric deteriorates.
 - trigger_threshold: the value or condition that triggers
   the response plan.
@@ -993,6 +1020,9 @@ EXTRACTION RULES:
 - sustainability_confirmed: "yes" only when the team
   confirms the improvement will hold (controls actually
   in place); "no" otherwise.
+  NEVER infer 'yes' from positive tone. Only set to 'yes'
+  when the team explicitly confirmed sustainability and the
+  project can close. Return null otherwise.
 - sponsor_final_sign_off: name of the sponsor who
   confirmed project closure.
 - All fields nullable. Return null if not discussed.
