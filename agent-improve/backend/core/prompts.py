@@ -612,6 +612,27 @@ EXTRACTION_MEASURE = """Extract confirmed field values from the
 conversation. Return ONLY a JSON object. Use null for any field
 not yet explicitly confirmed. Do not infer.
 
+CRITICAL ANTI-HALLUCINATION RULES:
+- The conversation contains both TEAM messages and AI
+  COACHING messages. The AI may present templates with
+  [bracketed placeholders] and example values.
+  These are NOT team statements.
+- ONLY extract values that the TEAM explicitly stated.
+  Never extract values from:
+    * AI coaching templates (e.g. "[metric]", "[target]")
+    * AI examples (e.g. "for example, 5%")
+    * AI suggestions or paraphrases
+    * Inferred values that "complete" the picture
+- If the team did not explicitly state a value for a
+  field, return null for that field. Do not invent a
+  target/goal/baseline to make the data look complete.
+- If the team stated "from X to Y", interpret X as the
+  starting point and Y as the current level — never
+  collapse them into a single baseline.
+- Never compose a sentence (like a goal_statement)
+  unless every component of it was explicitly stated
+  by the team.
+
 {
   "primary_metric_confirmed": null,
   "secondary_metric_confirmed": null,
@@ -648,6 +669,9 @@ Extraction rules:
   "{min} to {max}".
 - All baseline and capability fields: populate only
   when explicitly stated by the team. These are optional.
+- "baseline_summary" / "capability_summary": NEVER
+  auto-compose these from AI templates. Only populate
+  when the team explicitly stated this.
 
 Conversation:
 {conversation}
@@ -695,6 +719,27 @@ conversation. Return ONLY a JSON object. Use null for any field
 not yet explicitly confirmed. Do not infer — only extract what
 was clearly stated by the team.
 
+CRITICAL ANTI-HALLUCINATION RULES:
+- The conversation contains both TEAM messages and AI
+  COACHING messages. The AI may present templates with
+  [bracketed placeholders] and example values.
+  These are NOT team statements.
+- ONLY extract values that the TEAM explicitly stated.
+  Never extract values from:
+    * AI coaching templates (e.g. "[metric]", "[target]")
+    * AI examples (e.g. "for example, 5%")
+    * AI suggestions or paraphrases
+    * Inferred values that "complete" the picture
+- If the team did not explicitly state a value for a
+  field, return null for that field. Do not invent a
+  target/goal/baseline to make the data look complete.
+- If the team stated "from X to Y", interpret X as the
+  starting point and Y as the current level — never
+  collapse them into a single baseline.
+- Never compose a sentence (like a goal_statement)
+  unless every component of it was explicitly stated
+  by the team.
+
 {
   "what": null,
   "where": null,
@@ -730,6 +775,10 @@ Extraction rules:
 - "goal_statement": a single precise sentence combining metric,
   baseline, target, and timeframe. Only extract when the team
   has stated it explicitly as a goal sentence.
+  NEVER auto-compose this field by filling in the AI's
+  problem statement template. Only populate when the
+  team has written or spoken a complete goal sentence
+  themselves.
 - "scope_in": what is explicitly included in the project scope.
 - "scope_out": what is explicitly excluded from scope.
 - "business_case_rationale": the strategic reason for investing
@@ -755,6 +804,27 @@ EXTRACTION_ANALYSE = """Extract confirmed field values from the conversation bel
 Return ONLY a JSON object. Use null for unconfirmed fields and [] for
 lists with no confirmed entries. Do not infer — only extract what the
 team clearly stated.
+
+CRITICAL ANTI-HALLUCINATION RULES:
+- The conversation contains both TEAM messages and AI
+  COACHING messages. The AI may present templates with
+  [bracketed placeholders] and example values.
+  These are NOT team statements.
+- ONLY extract values that the TEAM explicitly stated.
+  Never extract values from:
+    * AI coaching templates (e.g. "[metric]", "[target]")
+    * AI examples (e.g. "for example, 5%")
+    * AI suggestions or paraphrases
+    * Inferred values that "complete" the picture
+- If the team did not explicitly state a value for a
+  field, return null for that field. Do not invent a
+  target/goal/baseline to make the data look complete.
+- If the team stated "from X to Y", interpret X as the
+  starting point and Y as the current level — never
+  collapse them into a single baseline.
+- Never compose a sentence (like a goal_statement)
+  unless every component of it was explicitly stated
+  by the team.
 
 Fields to extract:
 {
@@ -784,6 +854,8 @@ Field guidance:
 - evidence_summary: what the data or evidence actually showed.
 - root_cause_statement: a specific, measurable, solution-agnostic statement,
   e.g. "The primary driver of [metric] is [cause] because [evidence]."
+  NEVER auto-compose this from AI templates. Only populate when
+  the team explicitly stated this.
 - root_cause_agreed_by: the process owner or sponsor who agreed, if named.
 
 Conversation:
@@ -796,6 +868,27 @@ EXTRACTION_IMPROVE = """
 Extract structured data from the conversation below.
 Return ONLY valid JSON. No markdown. No preamble.
 Raw JSON object only.
+
+CRITICAL ANTI-HALLUCINATION RULES:
+- The conversation contains both TEAM messages and AI
+  COACHING messages. The AI may present templates with
+  [bracketed placeholders] and example values.
+  These are NOT team statements.
+- ONLY extract values that the TEAM explicitly stated.
+  Never extract values from:
+    * AI coaching templates (e.g. "[metric]", "[target]")
+    * AI examples (e.g. "for example, 5%")
+    * AI suggestions or paraphrases
+    * Inferred values that "complete" the picture
+- If the team did not explicitly state a value for a
+  field, return null for that field. Do not invent a
+  target/goal/baseline to make the data look complete.
+- If the team stated "from X to Y", interpret X as the
+  starting point and Y as the current level — never
+  collapse them into a single baseline.
+- Never compose a sentence (like a goal_statement)
+  unless every component of it was explicitly stated
+  by the team.
 
 Schema:
 {
@@ -827,6 +920,8 @@ EXTRACTION RULES:
   improvement shown. Only after pilot results.
 - projected_improvement: expected gain once fully
   rolled out, linked to the primary metric.
+  NEVER auto-compose this from AI templates. Only populate when
+  the team explicitly stated this.
 - All fields nullable. Return null if not discussed.
 - NEVER populate pilot_result or improvement_confirmed
   from the plan — only from actual results.
@@ -840,6 +935,27 @@ EXTRACTION_CONTROL = """
 Extract structured data from the conversation below.
 Return ONLY valid JSON. No markdown. No preamble.
 Raw JSON object only.
+
+CRITICAL ANTI-HALLUCINATION RULES:
+- The conversation contains both TEAM messages and AI
+  COACHING messages. The AI may present templates with
+  [bracketed placeholders] and example values.
+  These are NOT team statements.
+- ONLY extract values that the TEAM explicitly stated.
+  Never extract values from:
+    * AI coaching templates (e.g. "[metric]", "[target]")
+    * AI examples (e.g. "for example, 5%")
+    * AI suggestions or paraphrases
+    * Inferred values that "complete" the picture
+- If the team did not explicitly state a value for a
+  field, return null for that field. Do not invent a
+  target/goal/baseline to make the data look complete.
+- If the team stated "from X to Y", interpret X as the
+  starting point and Y as the current level — never
+  collapse them into a single baseline.
+- Never compose a sentence (like a goal_statement)
+  unless every component of it was explicitly stated
+  by the team.
 
 Schema:
 {
@@ -859,6 +975,8 @@ Schema:
 EXTRACTION RULES:
 - control_plan: what is controlled and how — the new
   standard and who maintains it.
+  NEVER auto-compose this from AI templates. Only populate when
+  the team explicitly stated this.
 - control_measures: flat list of distinct control
   measures put in place. One measure per string.
 - monitoring_method: how the primary metric is tracked
