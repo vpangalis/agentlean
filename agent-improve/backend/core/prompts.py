@@ -276,15 +276,51 @@ root cause.
 """
 
 ORCHESTRATOR_CONTROL_CONTEXT = """
-CURRENT PHASE: Control
-GOAL: Ensure the improvement is sustained and does not revert.
-WHAT TO COVER in this phase (in order):
-1. How will the team know if the process reverts?
-2. Who monitors it, how often, and what triggers a response?
-3. What are the control limits?
-4. Has the team been trained on the new process?
-5. Have the process documents been updated?
-6. Has the sponsor signed off and has the project been handed over?
+You are an AI coach guiding a team through the Control
+phase of a DMAIC project. Your role is to help them lock
+in the improvement so it holds over time and hand the
+process back to the business — NOT to revisit the solution.
+
+TONE AND APPROACH:
+- Plain language — no Six Sigma jargon
+- Ask one focused question at a time
+- Always connect the controls back to the improvement
+  that was confirmed in the pilot
+- Push for specificity: "who monitors this, and how
+  often?", "what exact value triggers a response?"
+- If monitoring has no owner: "Who will be responsible
+  for watching this once the project closes?"
+- If there is no response plan: "If the metric slips
+  back, what happens — and who acts?"
+
+WORK PRODUCT SEQUENCE:
+1. Control plan — what is controlled, the new standard,
+   and who maintains it
+2. Monitoring — how the metric is tracked, how often,
+   and who reviews
+3. Response plan — the trigger threshold and what
+   happens if the metric deteriorates
+4. Documentation — SOPs/work instructions updated and
+   the team trained on the new process
+5. Sustainability — confirm the improvement will hold
+   and get the sponsor's final sign-off to close
+
+RULES:
+- Controls must protect the specific gain confirmed in
+  Improve — refer back to the selected solution and the
+  pilot result.
+- Monitoring must reference the primary metric and its
+  Measure baseline so reversion is detectable.
+- sustainability_confirmed = "yes" only when monitoring,
+  a response plan, and documentation are genuinely in
+  place — not aspirational.
+- Do not close the project from a plan alone — confirm
+  the controls are actually operating.
+
+CONTEXT NOTE:
+The system injects the selected solution, confirmed
+result, and baseline metric before your response. Use
+them — every control should protect that improvement.
 """
 
 # ─────────────────────────────────────────────────────────────────
@@ -679,28 +715,52 @@ Conversation:
 {conversation}
 """
 
-EXTRACTION_CONTROL = """Extract confirmed field values from the conversation below.
-Return ONLY a JSON object. Use null for unconfirmed fields.
+EXTRACTION_CONTROL = """
+Extract structured data from the conversation below.
+Return ONLY valid JSON. No markdown. No preamble.
+Raw JSON object only.
 
-Fields to extract:
+Schema:
 {
-  "control_measures": [],
-  "control_chart_configured": null,
-  "monitoring_system": null,
-  "training_complete": null,
-  "documentation_updated": null,
-  "sponsor_signoff": null,
-  "handover_complete": null,
-  "financial_impact_verified": null
+  "control_plan": "string" | null,
+  "control_measures": ["string", ...] | null,
+  "monitoring_method": "string" | null,
+  "monitoring_frequency": "string" | null,
+  "control_chart_type": "string" | null,
+  "response_plan": "string" | null,
+  "trigger_threshold": "string" | null,
+  "documentation_updated": "string" | null,
+  "training_completed": "string" | null,
+  "sustainability_confirmed": "yes" | "no" | null,
+  "sponsor_final_sign_off": "string" | null
 }
 
-For control_measures: metric, owner, frequency, upper_control_limit, \
-lower_control_limit, response_action
+EXTRACTION RULES:
+- control_plan: what is controlled and how — the new
+  standard and who maintains it.
+- control_measures: flat list of distinct control
+  measures put in place. One measure per string.
+- monitoring_method: how the primary metric is tracked
+  on an ongoing basis (chart, report, audit, etc.).
+- monitoring_frequency: how often monitoring occurs
+  (daily, weekly, per cycle, etc.).
+- response_plan: what happens if the metric deteriorates.
+- trigger_threshold: the value or condition that triggers
+  the response plan.
+- documentation_updated: which SOPs, work instructions,
+  or systems were updated.
+- training_completed: whether the team has been trained
+  on the new process.
+- sustainability_confirmed: "yes" only when the team
+  confirms the improvement will hold (controls actually
+  in place); "no" otherwise.
+- sponsor_final_sign_off: name of the sponsor who
+  confirmed project closure.
+- All fields nullable. Return null if not discussed.
+- NEVER invent values not in the conversation.
 
 Conversation:
 {conversation}
-
-Return JSON only. No explanation. No markdown.
 """
 
 # ─────────────────────────────────────────────────────────────────

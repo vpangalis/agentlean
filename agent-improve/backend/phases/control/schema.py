@@ -1,33 +1,63 @@
 from __future__ import annotations
 
+from typing import List, Optional
+
 from pydantic import BaseModel, Field
 
 
-class ControlMeasure(BaseModel):
-    metric: str = Field(..., description="What is being monitored")
-    owner: str = Field(..., description="Named person responsible for monitoring")
-    frequency: str = Field(..., description="e.g. weekly, per inspection cycle")
-    upper_control_limit: str = Field(..., description="Value that triggers response")
-    lower_control_limit: str = Field(..., description="Value that triggers response")
-    response_action: str = Field(..., description="What to do if limit breached")
-
-
 class ControlPhaseInput(BaseModel):
-    """Gate model for Control phase — sustain and hand over."""
+    """Control phase structured data — sustain the improvement."""
 
-    control_measures: list[ControlMeasure] = Field(..., min_length=1)
-    control_chart_configured: bool = Field(...)
-    monitoring_system: str = Field(
-        ..., description="Where monitoring data will be recorded"
+    # Work product 1 — Control plan
+    control_plan: Optional[str] = Field(
+        None,
+        description="What will be controlled and how. Gate-required."
     )
-    training_complete: bool = Field(
-        ..., description="Team trained on new process and response plan"
+    control_measures: Optional[List[str]] = Field(
+        None,
+        description="Specific control measures put in place."
     )
-    documentation_updated: bool = Field(
-        ..., description="SOPs or work instructions updated"
+
+    # Work product 2 — Monitoring
+    monitoring_method: Optional[str] = Field(
+        None,
+        description="How the primary metric will be tracked. Gate-required."
     )
-    sponsor_signoff: bool = Field(...)
-    handover_complete: bool = Field(...)
-    financial_impact_verified: str = Field(
-        ..., description="Confirmed saving or cost reduction vs baseline"
+    monitoring_frequency: Optional[str] = Field(
+        None,
+        description="How often monitoring occurs (daily, weekly, etc.)"
+    )
+    control_chart_type: Optional[str] = Field(
+        None,
+        description="Type of control chart or tracking tool used, if any."
+    )
+
+    # Work product 3 — Response plan
+    response_plan: Optional[str] = Field(
+        None,
+        description="What happens if the metric deteriorates."
+    )
+    trigger_threshold: Optional[str] = Field(
+        None,
+        description="The threshold that triggers the response plan."
+    )
+
+    # Work product 4 — Documentation
+    documentation_updated: Optional[str] = Field(
+        None,
+        description="Which documents, SOPs, or systems were updated."
+    )
+    training_completed: Optional[str] = Field(
+        None,
+        description="Whether team training on the new process is done."
+    )
+
+    # Work product 5 — Sustainability
+    sustainability_confirmed: Optional[str] = Field(
+        None,
+        description="'yes' or 'no'. Gate-required."
+    )
+    sponsor_final_sign_off: Optional[str] = Field(
+        None,
+        description="Name of sponsor who confirmed project closure."
     )
