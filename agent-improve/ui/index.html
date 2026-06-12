@@ -738,6 +738,34 @@ const IMPROVE_FIELD_HINTS = {
   sponsor_sign_off:      { q: 'Who approved the implementation plan?' },
 };
 
+const CONTROL_GATE_FIELDS = [
+  { key: 'control_plan',            label: 'Control plan' },
+  { key: 'control_measures',        label: 'Control measures' },
+  { key: 'monitoring_method',       label: 'Monitoring method' },
+  { key: 'monitoring_frequency',    label: 'Monitoring frequency' },
+  { key: 'control_chart_type',      label: 'Control chart / tool' },
+  { key: 'response_plan',           label: 'Response plan' },
+  { key: 'trigger_threshold',       label: 'Trigger threshold' },
+  { key: 'documentation_updated',   label: 'Documentation updated' },
+  { key: 'training_completed',      label: 'Training completed' },
+  { key: 'sustainability_confirmed', label: 'Sustainability confirmed' },
+  { key: 'sponsor_final_sign_off',  label: 'Sponsor final sign-off' },
+];
+
+const CONTROL_FIELD_HINTS = {
+  control_plan:            { q: 'What is the overall plan to keep the improvement in place?' },
+  control_measures:        { q: 'What specific measures are in place to control the process?' },
+  monitoring_method:       { q: 'How will you track the primary metric going forward?' },
+  monitoring_frequency:    { q: 'How often will the metric be reviewed — daily, weekly?' },
+  control_chart_type:      { q: 'What chart or tool will you use to monitor performance?' },
+  response_plan:           { q: 'What happens if the metric starts deteriorating?' },
+  trigger_threshold:       { q: 'At what point does the response plan activate?' },
+  documentation_updated:   { q: 'Which SOPs or documents have been updated?' },
+  training_completed:      { q: 'Has the team been trained on the new process?' },
+  sustainability_confirmed:{ q: 'Can you confirm the improvement will hold without the project team?' },
+  sponsor_final_sign_off:  { q: 'Who gave final approval to close the project?' },
+};
+
 function getStructured(phase) {
   const usePhase = phase || S.phase;
   if (!S.case || !usePhase) return {};
@@ -2538,6 +2566,249 @@ function renderOverview(){
         background:#0070BA;color:#fff;border:none;border-radius:6px;
         font-size:13px;font-weight:600;cursor:pointer;text-align:center">
         ▷  Start the AI guide — Improve phase
+      </button>`;
+
+    leftColHtml = phaseBadgeHtml + descHtml + dmacStripHtml
+      + uiOrientationHtml + roadmapHtml + durationHtml + ctaBtnHtml;
+  } else if (viewPhase === 'control') {
+    // ── Control phase: enriched orientation content ──────────────────
+    const descHtml = `
+      <p style="font-size:12px;color:var(--text2,#5C5A55);line-height:1.7;
+        margin-bottom:10px">
+        The Control phase locks in the improvement from the
+        Improve phase so it holds over time. You will build a
+        control plan, set up ongoing monitoring, agree a
+        response plan for when performance slips, update
+        documentation, and confirm the gains are sustainable
+        before handing the process back to the business.
+        The hardest part of improvement is not making the
+        change — it is making it stick.
+      </p>
+      <div style="font-size:11px;color:#0070BA;background:#EAF4FC;
+        border-radius:6px;padding:8px 12px;margin-bottom:20px;line-height:1.5">
+        <i class="ti ti-robot" style="font-size:13px;margin-right:5px"
+          aria-hidden="true"></i>
+        The AI guide helps you put the right controls in place
+        and confirm the improvement will last. You do not need
+        to be an expert — the AI asks the right questions and
+        captures your answers.
+      </div>`;
+
+    const uiOrientationHtml = `
+      <div style="margin-bottom:28px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:var(--text3,#99978F);text-transform:uppercase;
+          display:flex;align-items:center;gap:6px;margin-bottom:14px">
+          How this workspace is organised
+          <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
+            display:block"></span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          ${[
+            { icon:'ti-map',      name:'Phase overview',   note:'you are here',
+              desc:'Explains what happens in this phase, what you will do, and how long it takes. Read this first.' },
+            { icon:'ti-robot',    name:'AI guide',          note:'',
+              desc:'Your working area. The AI asks questions, captures your answers, and builds the gate document as you go.' },
+            { icon:'ti-checkbox', name:'Gate',              note:'',
+              desc:'Shows the live gate document — all captured information assembled into a formal Control report. Submit here when complete.' },
+            { icon:'ti-history',  name:'Session history',   note:'under ···',
+              desc:'A summary of every conversation session — what was discussed and what was captured. Useful for catching up after a break.' },
+          ].map(t => `
+            <div style="border:0.5px solid var(--border,#E4E2DC);border-radius:8px;
+              padding:10px 12px;display:flex;gap:10px;align-items:flex-start">
+              <div style="width:28px;height:28px;border-radius:6px;background:#EAF4FC;
+                display:flex;align-items:center;justify-content:center;flex-shrink:0;
+                margin-top:1px">
+                <i class="ti ${t.icon}" style="font-size:15px;color:#0070BA"
+                  aria-hidden="true"></i>
+              </div>
+              <div>
+                <div style="font-size:11px;font-weight:600;color:#005A96;margin-bottom:3px">
+                  ${t.name}
+                  ${t.note ? `<span style="font-size:9px;color:#99978F;
+                    font-weight:400;margin-left:4px">(${t.note})</span>` : ''}
+                </div>
+                <div style="font-size:11px;color:var(--text2,#5C5A55);line-height:1.45">
+                  ${t.desc}
+                </div>
+              </div>
+            </div>`
+          ).join('')}
+        </div>
+      </div>`;
+
+    const steps = [
+      {
+        num: 1, gate: false,
+        action: 'Build the control plan',
+        tool: 'AI guide → Control plan',
+        desc: 'Define what needs to be controlled to keep the improvement in place: the process steps that changed, the new standard, and who is responsible for maintaining it day to day.',
+        time: '1 session',
+        explainer: {
+          label: 'What is a control plan?',
+          term: 'A control plan documents how the new standard is held',
+          body: 'It names what changed, the new target or standard for each step, how it is checked, and who owns it. A good control plan means the improvement does not depend on the project team being in the room.',
+        },
+      },
+      {
+        num: 2, gate: false,
+        action: 'Set up ongoing monitoring',
+        tool: 'AI guide → Monitoring',
+        desc: 'Decide how the primary metric will be tracked going forward, how often it is reviewed, and who reviews it. Use the Measure baseline as the reference so any slip is visible.',
+        time: '1 session',
+        explainer: {
+          label: 'Why keep monitoring after the project ends?',
+          term: 'Monitoring is how you detect reversion early',
+          body: 'Processes drift. Without ongoing measurement, a slow return to the old performance can go unnoticed for months. A simple chart or report reviewed on a regular cadence catches it while it is still cheap to fix.',
+        },
+      },
+      {
+        num: 3, gate: false,
+        action: 'Define the response plan',
+        tool: 'AI guide → Response plan',
+        desc: 'Agree what happens if the metric deteriorates: the threshold that triggers action, who is notified, and what they do. A control without a response is just a chart nobody acts on.',
+        time: '1 session',
+        explainer: {
+          label: 'What makes a good response plan?',
+          term: 'A clear trigger and a named action',
+          body: 'State the exact value or condition that triggers action, who is responsible for responding, and the first steps they take. The team should be able to act without re-opening the project.',
+        },
+      },
+      {
+        num: 4, gate: false,
+        action: 'Update documentation and train the team',
+        tool: 'AI guide → Documentation',
+        desc: 'Capture the new way of working for good. Update SOPs, work instructions, or systems, and confirm the team has been trained on the new process and the response plan.',
+        time: '1–2 sessions',
+        explainer: {
+          label: 'Why update documentation now?',
+          term: 'Undocumented changes do not survive staff turnover',
+          body: 'If the improvement lives only in people\'s heads, it leaves when they do. Updated SOPs and trained staff make the new standard the default — the way the work is simply done.',
+        },
+      },
+      {
+        num: 5, gate: false,
+        action: 'Confirm sustainability and close',
+        tool: 'AI guide → Sustainability',
+        desc: 'Confirm the improvement will hold without the project team, and get the sponsor\'s final sign-off to hand the process back to the business and close the project.',
+        time: '1 session',
+        explainer: {
+          label: 'What does "sustainable" mean here?',
+          term: 'The gain holds without the project team',
+          body: 'Sustainability means monitoring, a response plan, and documentation are genuinely in place and operating. The sponsor sign-off confirms the organisation accepts ownership of the new standard.',
+        },
+      },
+      {
+        num: '✓', gate: true,
+        action: 'Submit for AI gate review',
+        tool: 'Gate tab → Submit button',
+        desc: 'When the control plan, monitoring, and response plan are in place and sustainability is confirmed, submit for gate review. Once approved, the project is complete.',
+        time: 'AI reviews instantly',
+        explainer: {
+          label: 'What does the AI check at Control gate?',
+          term: 'The AI checks that the gains are protected, not just achieved',
+          body: 'It verifies: a control plan exists, the metric is monitored on a defined cadence, a response plan with a trigger is in place, documentation is updated, and sustainability is confirmed. Without these, the improvement is likely to quietly revert.',
+        },
+      },
+    ];
+
+    const roadmapHtml = `
+      <div style="margin-bottom:28px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:var(--text3,#99978F);text-transform:uppercase;
+          display:flex;align-items:center;gap:6px;margin-bottom:14px">
+          What you will do — in this order
+          <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
+            display:block"></span>
+        </div>
+        ${steps.map((s, i) => `
+          <div style="display:flex;align-items:stretch;gap:0">
+            <div style="display:flex;flex-direction:column;
+              align-items:center;width:48px;flex-shrink:0">
+              <div style="width:40px;height:40px;border-radius:50%;
+                background:${s.gate ? '#0070BA' : '#EAF4FC'};
+                border:1.5px solid ${s.gate ? '#005A96' : '#A8CDE8'};
+                display:flex;align-items:center;justify-content:center;
+                font-size:${s.gate ? '16px' : '13px'};font-weight:500;
+                color:${s.gate ? '#fff' : '#0070BA'};
+                flex-shrink:0;z-index:1">
+                ${s.num}
+              </div>
+              ${i < steps.length - 1 ? `
+                <div style="width:1.5px;flex:1;background:#A8CDE8;
+                  margin:0 auto;min-height:16px"></div>` : ''}
+            </div>
+            <div style="flex:1;padding:4px 0 ${i < steps.length-1 ? '20px' : '0'} 16px">
+              <div style="font-size:13px;font-weight:500;
+                color:${s.gate ? '#0070BA' : 'var(--text,#1A1917)'};
+                margin-bottom:2px">${s.action}</div>
+              <div style="font-size:10px;color:#3A90CC;font-weight:500;
+                margin-bottom:5px">${s.tool}</div>
+              <div style="font-size:11px;color:var(--text2,#5C5A55);
+                line-height:1.55;margin-bottom:6px">${s.desc}</div>
+              <span style="display:inline-flex;align-items:center;gap:4px;
+                font-size:10px;
+                color:${s.gate ? '#0070BA' : 'var(--text3,#99978F)'};
+                background:${s.gate ? '#EAF4FC' : '#F0F2F5'};
+                border-radius:20px;padding:2px 8px;margin-bottom:6px">
+                <i class="ti ${s.gate ? 'ti-sparkles' : 'ti-clock'}"
+                  style="font-size:11px" aria-hidden="true"></i>
+                ${s.time}
+              </span>
+              ${s.explainer ? `
+                <br>
+                <span class="expl-toggle" onclick="toggleExplainer(this)">
+                  <i class="ti ti-info-circle" style="font-size:12px"
+                    aria-hidden="true"></i>
+                  ${s.explainer.label}
+                  <i class="ti ti-chevron-down expl-chevron"
+                    aria-hidden="true"></i>
+                </span>
+                <div class="expl-box">
+                  <div class="expl-term">${s.explainer.term}</div>
+                  <div class="expl-body">${s.explainer.body}</div>
+                  ${s.explainer.example ? `
+                    <div class="expl-example">${s.explainer.example}</div>` : ''}
+                </div>` : ''}
+            </div>
+          </div>`
+        ).join('')}
+      </div>`;
+
+    const durationHtml = `
+      <div style="margin-bottom:28px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
+          color:var(--text3,#99978F);text-transform:uppercase;
+          display:flex;align-items:center;gap:6px;margin-bottom:12px">
+          Total time by belt level
+          <span style="flex:1;height:0.5px;background:var(--border,#E4E2DC);
+            display:block"></span>
+        </div>
+        <div style="display:flex;gap:8px">
+          ${[
+            { name:'Yellow Belt', total:'30–40 days total project',   control:'Control: 1–2 sessions' },
+            { name:'Green Belt',  total:'~90 days total project',     control:'Control: 2–3 sessions over 1–2 weeks' },
+            { name:'Black Belt',  total:'120+ days total project',    control:'Control: multiple sessions, 2–4 weeks' },
+          ].map(b => `
+            <div style="flex:1;border:0.5px solid var(--border,#E4E2DC);
+              border-radius:8px;padding:10px 12px">
+              <div style="font-size:10px;font-weight:600;color:#0070BA;
+                margin-bottom:3px">${b.name}</div>
+              <div style="font-size:11px;color:var(--text2,#5C5A55);
+                line-height:1.4">${b.total}</div>
+              <div style="font-size:10px;color:var(--text3,#99978F);
+                margin-top:2px">${b.control}</div>
+            </div>`
+          ).join('')}
+        </div>
+      </div>`;
+
+    const ctaBtnHtml = `
+      <button onclick="selectTab('chat')" style="display:block;max-width:480px;
+        margin:0 auto;width:100%;padding:12px;
+        background:#0070BA;color:#fff;border:none;border-radius:6px;
+        font-size:13px;font-weight:600;cursor:pointer;text-align:center">
+        ▷  Start the AI guide — Control phase
       </button>`;
 
     leftColHtml = phaseBadgeHtml + descHtml + dmacStripHtml
