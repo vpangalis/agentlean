@@ -5,6 +5,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.core.tracing import init_tracing
 from backend.gateway.routes import router
 
 logging.basicConfig(level="INFO")
@@ -31,6 +32,7 @@ app.mount("/", StaticFiles(directory="ui", html=True), name="ui")
 
 @app.on_event("startup")
 async def startup():
+    init_tracing()
     logger.info("Agent Improve starting on port 8020")
 
 

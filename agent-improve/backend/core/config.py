@@ -123,6 +123,26 @@ class Settings(BaseSettings):
         env="LANGSMITH_PROJECT",
         description="LangSmith project name for tracing.",
     )
+    LANGCHAIN_API_KEY: Optional[str] = Field(
+        None,
+        env="LANGCHAIN_API_KEY",
+        description="LangChain/LangSmith API key for tracing (CLAUDE.md §1.8).",
+    )
+    LANGCHAIN_PROJECT: str = Field(
+        "agentlean-improve",
+        env="LANGCHAIN_PROJECT",
+        description="LangSmith project name for tracing (CLAUDE.md §9).",
+    )
+    LANGCHAIN_ENDPOINT: Optional[str] = Field(
+        None,
+        env="LANGCHAIN_ENDPOINT",
+        description="LangSmith endpoint override; default is LangSmith Cloud.",
+    )
+    ENVIRONMENT: str = Field(
+        "development",
+        env="ENVIRONMENT",
+        description="Deployment environment; 'production' makes tracing mandatory.",
+    )
     LANGFUSE_PUBLIC_KEY: Optional[str] = Field(
         None,
         env="LANGFUSE_PUBLIC_KEY",
@@ -170,6 +190,10 @@ settings = Settings(
     LOG_LEVEL=os.getenv("LOG_LEVEL", "INFO"),
     LANGSMITH_API_KEY=os.getenv("LANGSMITH_API_KEY"),
     LANGSMITH_PROJECT=os.getenv("LANGSMITH_PROJECT"),
+    LANGCHAIN_API_KEY=os.getenv("LANGCHAIN_API_KEY") or os.getenv("LANGSMITH_API_KEY"),
+    LANGCHAIN_PROJECT=os.getenv("LANGCHAIN_PROJECT") or os.getenv("LANGSMITH_PROJECT") or "agentlean-improve",
+    LANGCHAIN_ENDPOINT=os.getenv("LANGCHAIN_ENDPOINT"),
+    ENVIRONMENT=os.getenv("ENVIRONMENT", "development"),
     LANGFUSE_PUBLIC_KEY=os.getenv("LANGFUSE_PUBLIC_KEY"),
     LANGFUSE_SECRET_KEY=os.getenv("LANGFUSE_SECRET_KEY"),
     LANGFUSE_HOST=os.getenv("LANGFUSE_HOST"),
