@@ -36,3 +36,6 @@ pyxlsb==1.0.10
 httpx==0.28.1
 python-multipart==0.0.9
 aiofiles==23.2.1
+
+# Testing
+pytest==9.0.3
