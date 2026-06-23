@@ -1,6 +1,6 @@
 # Agent Improve — Architecture & Design Document
 **Agentlean Platform · DMAIC Improvement Agent**
-Version 2.1 · June 2026
+Version 2.1.1 · June 2026
 Status: v2.1 architecture defined · migration not yet started
 
 ---
@@ -264,6 +264,29 @@ Major v1 → v2.1 changes:
 - Files: `case_{id}.json` (full case), `registry.json` (index)
 - Owner: `storage/blob.py` → `ImproveBlobClient`
 - Lifecycle: written on create, gate pass, upload — not per turn
+
+### 6.1.1 On-blob format
+
+Each checkpoint blob (both `latest.json` and
+`history/{id}.json`) is a JSON document with this envelope:
+
+```json
+{
+  "checkpoint_type": "msgpack",
+  "checkpoint_data": "<base64-encoded msgpack bytes>",
+  "metadata_type": "msgpack",
+  "metadata_data": "<base64-encoded msgpack bytes>",
+  "checkpoint_id": "<id>",
+  "parent_checkpoint_id": "<id|null>"
+}
+```
+
+The base64 wrapping is required because
+`JsonPlusSerializer.dumps_typed()` (LangGraph
+`langgraph-checkpoint` 4.x) returns binary msgpack rather
+than utf-8 text. Wrapping the bytes in base64 keeps the
+blob a valid JSON document while preserving exact
+round-trip semantics.
 
 ### 6.2 Why blob and not Cosmos / Tables / SQLite
 
@@ -537,3 +560,4 @@ behaviour.
 | Jun 2026 | 1.0 | Analyse + Improve + Control complete. v1 architecture in production. |
 | Jun 2026 | 2.0 | DRAFT — Path C architecture proposed |
 | Jun 2026 | 2.1 | Path C ratified: hierarchical subgraphs, tool-calling coach, Azure Blob checkpointer, interrupt-based gates, SSE streaming, LangSmith mandatory. |
+| Jun 2026 | 2.1.1 | ARCHITECTURE.md amendment: §6.1.1 documents the base64 envelope for checkpoint blobs (deviation from initial spec, surfaced during commit 2.1 implementation). |

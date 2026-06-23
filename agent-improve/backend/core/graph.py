@@ -7,6 +7,7 @@ from langgraph.graph import StateGraph, END
 
 from backend.core.state import ImproveGraphState
 from backend.core.config import settings
+from backend.core.checkpointer import get_checkpointer
 
 # Phase orchestrate nodes
 from backend.phases.define.orchestrate import orchestrate_define
@@ -134,6 +135,15 @@ def get_graph():
     # ── escalation always ends ─────────────────────────────────────
     builder.add_edge("escalate", END)
 
-    graph = builder.compile()
+    try:
+        checkpointer = get_checkpointer()
+    except RuntimeError as e:
+        logger.critical(
+            "Checkpointer unavailable — graph will not persist state. "
+            "This is acceptable for offline dev only. Error: %s", e
+        )
+        checkpointer = None
+
+    graph = builder.compile(checkpointer=checkpointer)
     logger.info("Agent Improve graph compiled — %d nodes", len(PHASE_ORDER) * 2 + 1)
     return graph
