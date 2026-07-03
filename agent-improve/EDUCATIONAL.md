@@ -4540,13 +4540,16 @@ This directly prevents the root cause #2 identified in Section 44 — code gener
 
 ---
 
-### Mechanism 2 — Hook: PostToolUse Drift Detection in VS Code
+### Mechanism 2 — Hook: PreToolUse Drift Detection in VS Code
 
 A Hook is automatic and deterministic — it fires regardless of what Claude Code "decides" to do, closing the gap that Skills leave open (Skills can simply not be invoked).
 
+**Correction (July 2026):** an earlier draft of this section documented this as a PostToolUse hook. Verification against current Claude Code hooks reference during the Step 0.5 scaffold build showed PostToolUse cannot block writes — it fires AFTER the tool call completes, meaning the file is already on disk when the hook runs, and exit code 2 only signals an error to Claude in the next turn. The correct event for pre-write blocking is PreToolUse matched on Write|Edit|MultiEdit. Exit code 2 there is fed back as a blocking error before the write happens. See Section 86 for the full verified hook mechanics.
+
 ```python
-# .claude/hooks/post-tool-use-drift-check.py
-# Fires after every file write in Claude Code
+# .claude/hooks/pre-tool-use-drift-check.py
+# Registered as PreToolUse matcher: Write|Edit|MultiEdit
+# Fires BEFORE each file write; exit 2 blocks the write from happening
 
 DEPRECATED_PATTERNS = {
     r"add_conditional_edges\(": "Use Command(goto=...) pattern instead (LangGraph 1.2.x)",
@@ -4568,6 +4571,10 @@ def check_file_for_drift(file_path: str, content: str) -> int:
 ```
 
 **Critical implementation detail (from Section 44):** exit code 2 is mandatory for blocking. Exit code 1 is silently non-blocking — the most common implementation bug. This hook must use exit 2.
+
+**Second critical implementation detail (learned during scaffold build):** deprecated-pattern regexes are stored in a YAML registry read by the hook at runtime. Patterns containing both single and double quotes (e.g. matching either 'next' or "next" in dict keys) must use doubled-embedded-quote encoding — `["\''] ` — not a bare embedded quote. A bare quote closes the YAML scalar early and produces a ParserError at load time. Because the hook fail-softs on load error (to avoid blocking all writes when the config is broken), a malformed pattern registry SILENTLY DISABLES all drift checks. Validate the YAML loads before assuming the hook is armed.
+
+**Third critical implementation detail (learned on Windows):** hook scripts writing non-ASCII characters (── ✓ ⚠ — §) to stdout or stderr must call `sys.stdout.reconfigure("utf-8")` and `sys.stderr.reconfigure("utf-8")` before any output. Windows consoles with legacy code pages otherwise raise UnicodeEncodeError, which the hook's broad exception handler swallows — resulting in empty stderr fed back to Claude, so the block is registered but the pattern name and message are lost. Reconfigure at the top of every hook script.
 
 **What this catches that the Skill above does not:** the Skill is checked before design decisions. The Hook is checked on every single file write, catching drift introduced during implementation even when the original design was correct — for example, Claude Code falling back to a familiar pre-1.0 pattern out of habit while writing code, even after the architecture was correctly designed with Command-based routing.
 
@@ -4648,7 +4655,9 @@ This restates and sharpens the "all four layers must coexist" principle from Sec
 
 ### Gap Register Addition
 
-**Gap 27 — No anti-drift mechanisms implemented.** Specifically: no `/verify-current-version` skill exists, no `PostToolUse` deprecated-pattern hook exists, no `SessionStart` version-injection hook exists, no deliberate forum/changelog monitoring habit established. This gap is meta — it is the mechanism that prevents Gap 25 (version drift) from recurring after it is fixed once. Should be implemented alongside or immediately after Gap 25 resolution, before Step 3.1 resumes.
+**Gap 27 — CLOSED (July 2026, verified 2026-07-03).** Anti-drift mechanisms implemented as Step 0.5 anti-drift scaffold, commits 0.5.0 through 0.5.5 (git range de875ba..9d065a0). Specifically: `/verify-current-version` skill at `.claude/skills/verify-current-version/SKILL.md` (commit b9aec22), PreToolUse deprecated-pattern hook at `.claude/hooks/pre-tool-use-drift-check.py` (commit ad5bbf9, registered in `.claude/settings.json` at commit 0ddcff9), SessionStart context-injection hook at `.claude/hooks/session-start-context.py` (commit 9ea3e2a). Human-side forum monitoring embedded in the `/verify-current-version` skill's source list. Verified operational by smoke test on 2026-07-03: SessionStart hook injects git HEAD and refactor step into every session, PreToolUse hook blocks writes containing deprecated patterns with exit code 2.
+
+Original PostToolUse mechanism documented above has been corrected to PreToolUse (see Mechanism 2 correction).
 
 ---
 
