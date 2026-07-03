@@ -23,6 +23,8 @@ This document records concepts learned during development and coursework that ar
 - Section 44 — Architectural Diagnosis and Refactor Blueprint
 - Section 52 — Checkpointer + BaseStore Split (LangGraph 2026 memory architecture)
 - Section 53 — HumanInTheLoopMiddleware, Command(resume=...)
+- Section 79 — **LangGraph 1.2 Native Reliability Primitives** (per-node timeouts, error handlers, DeltaChannel)
+- Section 81 — **LangChain 1.0 Standard Content Blocks** (typed model responses)
 
 ### B. Orchestration and Multi-Agent Patterns
 - Section 5 — Planner/Executor Pattern
@@ -32,6 +34,9 @@ This document records concepts learned during development and coursework that ar
 - Section 43 — Coordinator / Worker / Decision Agent Roles
 - Section 44 — Full architecture refactor blueprint
 - Section 70 — Inter-Stage Data Dependency (outputs become inputs)
+- Section 80 — **LangChain 1.0 AgentMiddleware Six Hooks Foundation**
+- Section 82 — **LangChain 1.0 ProviderStrategy** (native structured output)
+- Section 84 — **SkillsMiddleware** (solves system prompt bloat)
 
 ### C. Reasoning, Reflection, and Correction
 - Section 28 — Multi-Query Retrieval (parallel variants)
@@ -46,10 +51,11 @@ This document records concepts learned during development and coursework that ar
 
 ### D. Reliability, Recovery, and Failure Handling
 - Section 20 — Fallback Chains
-- Section 49 — Saga Pattern and Compensating Actions
+- Section 49 — Saga Pattern and Compensating Actions (**UPDATED by Section 79 — now use native `error_handler=`**)
 - Section 64 — MCP Production Architecture (structured errors, circuit breaker foundations)
 - Section 66 — Circuit Breaker, Context Recovery, Safe Reopen, Six-Step Failure Pipeline
 - Section 67 — Complete Self-Healing Reference Implementation + Agent Improve Exception Mapping
+- Section 79 — **LangGraph 1.2 Native Reliability Primitives** (also Category A)
 
 ### E. MCP — Model Context Protocol
 - Section 39, 57–63 — MCP fundamentals, transport, host/client/server model, AgentLean MCP scope
@@ -68,17 +74,20 @@ This document records concepts learned during development and coursework that ar
 - Section 74 — API Versioning (framework-agnostic patterns for v2.1 refactor)
 - Section 75 — Evaluation Dataset Design and Regression Testing
 - Section 76 — Docker Containerisation for AgentLean
+- Section 85 — **LangSmith 2026 Additions** (Fleet, Sandboxes, Context Hub, Engine)
 
 ### G. Frontend and User Experience
 - Section 77 — AgentLean Frontend Feedback Requirements (six UI patterns)
 
 ### H. Governance, Skills, Hooks, and Anti-Drift
 - Section 24 — Observer Agent Role
-- Section 26 — Skills and Hooks Governance Framework
+- Section 26 — Skills and Hooks Governance Framework (**UPDATED by Section 83 — now follows agentskills.io spec**)
 - Section 27 — Gap 27 (`/verify-current-version` skill)
 - Section 45 — Three-Layer Governance System
 - Section 50 — Anti-Drift Mechanisms
 - Section 78 — Menu-Driven Developer Orchestration (replaces destructive `start.ps1`)
+- Section 83 — **Agent Skills Specification** (SKILL.md standard)
+- Section 84 — **SkillsMiddleware** (also Category B)
 
 ### I. Course-Specific Concepts (Framework-Agnostic Foundations)
 - Section 25 — Actor-Critic Pattern (RL conceptual foundation, not directly implemented)
@@ -9685,3 +9694,714 @@ This separation is useful for debugging: if a coaching turn fails, you can isola
 
 ### Gap Register Note
 No new gap number — this is a developer experience pattern that should be adopted as part of the pre-refactor tooling setup. Replaces the destructive `start.ps1` with an explicit, opt-in orchestrator. Suggest building this alongside the eval suite from Section 75, before Step 3.1 of the refactor resumes.
+
+---
+
+## 79. LangGraph 1.2 Native Reliability Primitives — Per-Node Timeouts, Error Handlers, DeltaChannel
+
+*Source: LangChain official changelog (docs.langchain.com/oss/python/releases/changelog), LangGraph 1.2 release May 11, 2026. Verified against docs and multiple independent 2026 sources.*
+
+### What Changed
+
+LangGraph 1.2 (May 11, 2026) added three production-grade reliability primitives that are now **built into LangGraph itself** — no custom implementation needed. Several concepts previously documented as custom patterns in Sections 49 and 66 are now framework-native.
+
+---
+
+### 1. Per-Node Timeouts — `add_node(timeout=)`
+
+```python
+from langgraph.graph import StateGraph
+from langgraph.types import TimeoutPolicy
+
+builder.add_node(
+    "phase_executor",
+    phase_executor_fn,
+    timeout=TimeoutPolicy(
+        run_timeout=30,    # Hard wall-clock limit per attempt
+        idle_timeout=10,   # Resets on progress
+    )
+)
+```
+
+**Semantics:**
+- When limit fires, LangGraph raises `NodeTimeoutError`
+- Writes from that attempt are cleared
+- Hands off to the retry policy
+- **Async nodes only** — this is a hard constraint
+
+**Applied to Agent Improve:** every phase executor node should have a `run_timeout` set. A coaching turn that takes >60 seconds is degraded experience regardless of eventual success. Setting `run_timeout=45` means the fallback chain (Section 67) fires before the Belt notices the delay.
+
+---
+
+### 2. Node-Level Error Handlers — `add_node(error_handler=)`
+
+```python
+from langgraph.graph import StateGraph
+from langgraph.types import Command, NodeError
+
+def define_error_recovery(error: NodeError, state: DefineState) -> Command:
+    """Called after all retries exhausted for define_executor."""
+    return Command(
+        update={
+            "extraction_error": str(error),
+            "extraction_incomplete": True,
+            "partial_fields": state.get("captured_fields", {}),
+        },
+        goto="degraded_coaching_response"
+    )
+
+builder.add_node(
+    "define_executor",
+    define_executor_fn,
+    error_handler=define_error_recovery
+)
+```
+
+**Semantics:**
+- Receives typed `NodeError` after all retries exhausted
+- Returns `Command` to update state and route to a different node
+- **Purpose-built for Saga/compensation patterns**
+
+**This directly changes Section 49's Saga implementation.** Section 49 documented Saga as a custom pattern. LangGraph 1.2 provides native support — the compensating action IS the `error_handler`, and the routing to it is automatic. Rewrite Section 49's pattern to use `error_handler=` rather than custom compensating nodes.
+
+---
+
+### 3. Graceful Shutdown — `RunControl.request_drain()`
+
+```python
+from langgraph.types import RunControl
+
+# From another thread — e.g. Ctrl+C handler, deployment shutdown
+control = RunControl(config)
+control.request_drain()
+# Current run raises GraphDrained after current superstep completes
+# Checkpoint is saved — resumable with the same config later
+```
+
+**Semantics:**
+- Stop in-flight run cooperatively after current superstep
+- Save resumable checkpoint
+- Run raises `GraphDrained`
+- Can be resumed with the same config
+
+**Applied to Agent Improve:** during deployment rollouts or `Ctrl+C` shutdowns, mid-coaching sessions are not lost. The Belt returns and the coaching resumes from exactly where the drain happened. This is production-grade session preservation that would otherwise require custom code.
+
+---
+
+### 4. DeltaChannel (beta) — Checkpoint Overhead Reduction
+
+**Problem it solves:** as DMAIC projects grow across many sessions, checkpoint size grows because each checkpoint re-serializes the full accumulated state. For a 6-week DMAIC project with hundreds of coaching turns, this becomes significant.
+
+**How it works:** `DeltaChannel` stores only the incremental delta at each step rather than re-serializing the full accumulated value. Configurable `snapshot_frequency` bounds rebuild latency.
+
+```python
+from langgraph.channels import DeltaChannel
+
+# In state definition
+class DMAICState(TypedDict):
+    messages: Annotated[list, DeltaChannel(snapshot_frequency=50)]
+    # every 50 steps, a full snapshot is written
+    # steps in between store only deltas
+```
+
+**When to enable for AgentLean:**
+- Not needed during v2.1 refactor initial rollout
+- Enable when a real DMAIC project accumulates >200 coaching turns
+- The trade-off: rebuild latency (small) vs storage growth (significant over weeks)
+
+---
+
+### Cross-Reference Impact on Existing Sections
+
+| Existing Section | Change Required |
+|---|---|
+| Section 49 (Saga) | Rewrite implementation to use `error_handler=` — pattern still valid, mechanism is now native |
+| Section 66 (Failure pipeline) | Add per-node timeouts as Step 0 (before retries fire) |
+| Section 67 (Fallback chain) | Wrap top-level LLM calls in `TimeoutPolicy` — fallback fires on timeout, not just exceptions |
+| Section 52 (Checkpointer + BaseStore) | Add DeltaChannel note as future optimization for long-lived DMAIC projects |
+
+### Gap Register Note
+No new gap number — Sections 49 and 66 gap closures are UPDATED. LangGraph 1.2 provides native primitives that replace custom Saga and timeout patterns. Rewrite implementation approach during v2.1 refactor. Requires LangGraph >= 1.2.6 (verified current pinned version).
+
+---
+
+## 80. LangChain 1.0 AgentMiddleware — The Six Hooks Foundation
+
+*Source: LangChain official reference (reference.langchain.com/python/langchain/agents/middleware/types/AgentMiddleware), LangChain 1.0 GA October 22, 2025, LangChain 1.1 December 2, 2025. Verified against docs and multiple independent 2026 sources.*
+
+### Why This Section Exists
+
+Section 42 documented RubricMiddleware and Section 48 introduced middleware conceptually. Neither section documented the **six hooks that all middleware — built-in AND custom — is built from**. Understanding these primitives is essential before the v2.1 refactor writes any custom middleware for Agent Improve.
+
+---
+
+### The Six Middleware Hooks
+
+The core agent loop calls a model, lets it choose tools, and finishes when no more tools are called. Middleware exposes hooks before and after each of those steps:
+
+| Hook | When It Fires | Typical Use |
+|---|---|---|
+| `before_agent` | Once on invocation | Load memory, validate input, connect resources |
+| `before_model` | Before each model call | Trim history, redact PII, inject context |
+| `wrap_model_call` | Wraps whole model call | Caching, retries, dynamic model swap |
+| `wrap_tool_call` | Wraps tool execution | Inject context, intercept results, gate tools |
+| `after_model` | After model responds, before tools run | HITL approval, output validation |
+| `after_agent` | Once at completion | Persist results, cleanup, audit |
+
+Multiple middleware compose with **first defined = outermost layer**.
+
+---
+
+### Implementation Patterns
+
+**Pattern A — Decorator-based (simple, stateless):**
+```python
+from langchain.agents.middleware import before_model, after_model
+
+@before_model
+def log_before_model(state, runtime):
+    print(f"[LOG] About to call model with {len(state['messages'])} messages")
+    return None
+
+@after_model
+def log_after_model(state, runtime):
+    print(f"[LOG] Model returned: {state['messages'][-1].content[:100]}")
+    return None
+```
+
+**Pattern B — Class-based (stateful, complex):**
+```python
+from langchain.agents.middleware import AgentMiddleware
+
+class GateValidationMiddleware(AgentMiddleware):
+    """Custom middleware for Agent Improve gate validation."""
+
+    def __init__(self, gate_rubric: dict):
+        self.gate_rubric = gate_rubric
+        self.failure_count = 0
+
+    def before_model(self, state, runtime):
+        return {"context_note": "Gate review imminent"}
+
+    def after_model(self, state, runtime):
+        if self._detects_gate_readiness(state):
+            return {"gate_check_pending": True}
+        return None
+```
+
+**Pattern C — `wrap_model_call` (retry, fallback, model swap):**
+```python
+from langchain.agents.middleware import wrap_model_call
+
+@wrap_model_call
+def azure_fallback_wrapper(request, handler):
+    """Retry with backup model on primary failure."""
+    try:
+        return handler(request)
+    except (RateLimitError, APIStatusError):
+        request.model = "operational-model"
+        return handler(request)
+```
+
+---
+
+### Built-in Middleware Available Out-of-the-Box
+
+These are provided by LangChain — no custom implementation needed:
+
+| Middleware | Hook Used | Purpose |
+|---|---|---|
+| `SummarizationMiddleware` | `before_model` | Context overflow — summarize when approaching token limits |
+| `HumanInTheLoopMiddleware` | `after_model` | Interrupt tool calls for human approval (Section 53) |
+| `PIIMiddleware` | `before_model`, `after_model` | Mask/redact/hash PII in inputs/outputs/tool results |
+| `ModelRetryMiddleware` | `wrap_model_call` | Retry with configurable exponential backoff (added in 1.1) |
+| `LLMToolSelectorMiddleware` | `wrap_model_call` | Dynamically narrow tool list — fast LLM picks which tools to bind |
+
+**Agent Improve should use built-in middleware wherever possible** — do not reimplement what LangChain already provides. Custom middleware should be reserved for genuinely domain-specific logic (DMAIC gate detection, phase transition rules).
+
+---
+
+### The Composition Order Rule
+
+```python
+agent = create_agent(
+    model="gpt-4o",
+    tools=[...],
+    middleware=[
+        PIIMiddleware(),
+        SummarizationMiddleware(),
+        ModelRetryMiddleware(retries=3),
+        HumanInTheLoopMiddleware(...),
+        GateValidationMiddleware(...)
+    ]
+)
+```
+
+Middleware compose like nested wrappers. First in the list is the outermost layer. This ordering matters — PII redaction MUST fire before summarization sees the content, or PII leaks into summaries.
+
+---
+
+### Cross-Reference Impact on Existing Sections
+
+| Existing Section | Update Needed |
+|---|---|
+| Section 42 (RubricMiddleware) | Note that RubricMiddleware is one of many — it uses `after_model` hook internally |
+| Section 48 (three-prompt separation) | The three prompts can now be implemented as three middleware layers rather than three explicit prompt calls |
+| Section 53 (HumanInTheLoopMiddleware) | Confirmed built-in — no custom implementation needed |
+| Section 66 (failure handling) | `ModelRetryMiddleware` replaces custom retry code |
+
+### Gap Register Note
+No new gap number — this section provides the foundation understanding required to correctly implement Sections 42, 48, and 53 during the v2.1 refactor. Read this before writing any custom middleware. Prefer built-in middleware; only write custom when domain-specific.
+
+---
+
+## 81. LangChain 1.0 Standard Content Blocks — Typed Model Responses
+
+*Source: LangChain official docs (docs.langchain.com/oss/python/releases/langchain-v1), LangChain 1.0 GA October 22, 2025. Verified against docs and multiple independent 2026 sources.*
+
+### What Changed
+
+Before LangChain 1.0, `response.content` was a single opaque string. Parsing reasoning traces, citations, tool calls, and text out of it required provider-specific string parsing that broke when switching models.
+
+LangChain 1.0 introduced `response.content_blocks` — a **provider-agnostic typed list** that works consistently across OpenAI, Anthropic, Google, and other providers.
+
+---
+
+### The Content Block Types
+
+```python
+from langchain_anthropic import ChatAnthropic
+
+model = ChatAnthropic(model="claude-sonnet-4-6")
+response = model.invoke("Analyse this DMAIC case")
+
+for block in response.content_blocks:
+    if block["type"] == "text":
+        print(f"Response: {block['text']}")
+
+    elif block["type"] == "reasoning":
+        print(f"Reasoning: {block['reasoning']}")
+
+    elif block["type"] == "tool_call":
+        print(f"Tool: {block['name']}({block['args']})")
+
+    elif block["type"] == "citation":
+        print(f"Cited: {block['url']} at chars {block['start_index']}-{block['end_index']}")
+```
+
+---
+
+### Why This Matters for Agent Improve
+
+**Two specific advantages** directly relevant to the v2.1 refactor:
+
+**1. Reasoning traces become first-class data.**
+When Agent Improve coaches on a complex root cause validation (Section 71's multi-hop pattern), the model's reasoning is now inspectable. This can be:
+- Logged to LangSmith automatically via `@traceable`
+- Stored in `step_log` for audit trails
+- Analysed later for coaching quality patterns
+
+Before LangChain 1.0, extracting reasoning required parsing model-specific string formats. Now it's a typed field.
+
+**2. Citations for methodology retrieval.**
+When Agent Improve's coaching response is grounded in the Black Belt eBook (Section 63's `search_knowledge`), the model can now return citations as typed blocks. This closes Gap 33 (knowledge source traceability in coaching responses) — cited sources appear as structured data, not embedded in prose that must be regex-parsed.
+
+```python
+# Belt asks: "How do I validate this root cause?"
+# Agent Improve returns:
+{
+  "text": "Validate the root cause using hypothesis testing...",
+  "citations": [
+    {"url": "black_belt_ebook.pdf", "page": 47, "start_index": 12, "end_index": 89}
+  ],
+  "reasoning": "The Belt provided a root cause that requires statistical validation..."
+}
+```
+
+---
+
+### Backward Compatibility
+
+`response.content` still works — it's now derived from `content_blocks`. Existing code that reads `response.content` as a string continues to function. **New code should read `content_blocks`** to get typed access.
+
+---
+
+### Cross-Reference Impact on Existing Sections
+
+| Existing Section | Update Needed |
+|---|---|
+| Section 44 (typed Pydantic boundaries) | Extend to LLM response boundary — no more parsing `response.content` strings |
+| Section 71 (multi-hop retrieval) | Store reasoning traces per hop for auditability |
+| Gap 33 (knowledge source traceability) | CLOSED via citation content blocks — implement during v2.1 refactor |
+
+### Gap Register Update
+**Gap 33 — CLOSED.** Knowledge source traceability now provided by LangChain 1.0 typed citation content blocks. Implement citation reading in Phase Executor nodes during v2.1 refactor.
+
+---
+
+## 82. LangChain 1.0 ProviderStrategy — Native Structured Output
+
+*Source: LangChain official reference (reference.langchain.com/python/langchain/agents/structured_output/ProviderStrategy), LangChain 1.1 December 2, 2025. Verified against docs.*
+
+### What Changed
+
+Previously, structured output from `create_agent` required an additional LLM call after the main loop — expensive and slow. LangChain 1.1 integrated structured output into the main model-tools loop.
+
+Two strategies now available:
+
+**`ToolStrategy`** — model uses tool calling to produce structured output (works across all providers)
+**`ProviderStrategy`** — model uses provider-native structured output (OpenAI, Anthropic native JSON mode)
+
+```python
+from langchain.agents import create_agent
+from langchain.agents.structured_output import ToolStrategy, ProviderStrategy
+from pydantic import BaseModel
+
+class DefineOutput(BaseModel):
+    problem_statement: str
+    baseline_metric: float
+    scope: str
+
+# Option A — ToolStrategy (universal, works everywhere)
+agent = create_agent(
+    "gpt-4o",
+    tools=[retrieve_methodology, extract_fields],
+    response_format=ToolStrategy(DefineOutput),
+    prompt="Coach the Belt through the Define phase."
+)
+
+# Option B — ProviderStrategy (native, more efficient where supported)
+agent = create_agent(
+    "gpt-4o",
+    tools=[retrieve_methodology, extract_fields],
+    response_format=ProviderStrategy(DefineOutput),
+    prompt="Coach the Belt through the Define phase."
+)
+```
+
+**ProviderStrategy advantages:**
+- Native structured output — model returns JSON directly, no extra call
+- Latency reduction — one round-trip instead of two
+- Cost reduction — no additional LLM invocation
+- **Inferred from model profiles in LangChain 1.2** — can be applied automatically when model supports it
+
+**When to use which:**
+- `ProviderStrategy` when using OpenAI, Anthropic, or other providers with native JSON mode
+- `ToolStrategy` when using models without native JSON mode
+- LangChain 1.2 can infer the choice automatically via `.profile` attribute
+
+---
+
+### Applied to Agent Improve
+
+The Define phase currently uses `.with_structured_output(DefineOutput)` which creates a separate LLM call. Switching to `ProviderStrategy` during v2.1 refactor:
+
+```python
+define_agent = create_agent(
+    "operational-premium",
+    tools=[
+        retrieve_methodology,
+        search_similar_cases,
+        extract_define_fields
+    ],
+    response_format=ProviderStrategy(DefineOutput),
+    middleware=[
+        HumanInTheLoopMiddleware(interrupt_on={"advance_to_measure": True}),
+        RubricMiddleware(rubric=define_gate_rubric, max_iterations=3),
+    ],
+    prompt=DEFINE_COACHING_PROMPT
+)
+```
+
+Every phase subagent gets typed output with no additional LLM cost.
+
+---
+
+### Cross-Reference Impact on Existing Sections
+
+| Existing Section | Update Needed |
+|---|---|
+| Section 44 (typed boundaries) | Prefer `ProviderStrategy` over `.with_structured_output()` for `DefineOutput`, `MeasureOutput`, etc. |
+| Section 42 (RubricMiddleware) | RubricMiddleware works with both strategies |
+
+### Gap Register Note
+No new gap number — architectural refinement for the v2.1 refactor. Reduces latency and cost for every gate transition without changing the graph structure.
+
+---
+
+## 83. Agent Skills Specification — SKILL.md Standard
+
+*Source: LangChain official docs (docs.langchain.com/oss/python/deepagents/skills), agentskills.io specification, LangChain Skills repository (github.com/langchain-ai/langchain-skills). Verified May-June 2026.*
+
+### What Changed
+
+Section 26 introduced Skills conceptually as part of AgentLean's governance framework. Since Section 26 was written, an **official Agent Skills specification** has emerged at agentskills.io, adopted by LangChain, Claude Code, Cursor, and other agent frameworks.
+
+This section documents the current standard so AgentLean skills conform to it and remain portable across tools.
+
+---
+
+### The SKILL.md Standard
+
+Each skill is a directory containing a `SKILL.md` file:
+
+```yaml
+---
+name: dmaic-define-phase
+description: Use this skill when coaching a Black Belt through the DMAIC Define phase. Fetch problem statement templates, scope definition patterns, and SMART goal validation criteria.
+license: MIT
+compatibility: Requires Azure AI Search access for improve_knowledge_index
+metadata:
+  author: valuesims/agentlean
+  version: "1.0"
+allowed-tools: search_knowledge, search_cases, extract_fields
+---
+
+# DMAIC Define Phase Coaching Skill
+
+## Overview
+This skill guides coaching for the Define phase of DMAIC projects.
+
+## Instructions
+
+### 1. Assess Belt's current input
+
+### 2. Retrieve methodology grounding
+Use search_knowledge with phase="define"
+
+### 3. Validate against SMART criteria
+```
+
+**Frontmatter fields:**
+- `name` — required, kebab-case identifier
+- `description` — required, keyword-rich for LLM routing (see below)
+- `license` — recommended (MIT for open sharing)
+- `compatibility` — free-text environmental requirements
+- `metadata` — arbitrary structured metadata
+- `allowed-tools` — comma-separated tool names the skill uses
+
+---
+
+### The Description Field — Most Critical Text in the System
+
+The `description` field is what the LLM sees at startup to decide when to load the skill. It should be:
+
+**Keyword-rich** — mention every scenario, phrasing, and context where the skill triggers
+**Specific** — mention exact trigger phrases like "coaching", "Define phase", "problem statement"
+**Slightly pushy** — overstate when to use the skill so the LLM errs on the side of using it
+
+Poor description → wrong skill selected → wrong coaching. This is the single most important thing to get right when creating skills.
+
+---
+
+### Three Storage Backends
+
+deepagents supports three backends for skill storage:
+
+| Backend | Storage | Use Case |
+|---|---|---|
+| `StateBackend` | LangGraph agent state for current thread | Ephemeral, per-session |
+| `StoreBackend` | LangGraph store for durable cross-thread | Persistent skills across sessions |
+| `FilesystemBackend` | Disk under configurable `root_dir` | Standard for development, git-versioned |
+| `ContextHubBackend` | LangSmith Hub agent repo | Version history via Hub commits |
+
+For AgentLean during v2.1 refactor: **`FilesystemBackend` under `agent-improve/skills/`**. This keeps skills git-versioned alongside the code and works with Claude Code's SKILL.md discovery.
+
+---
+
+### The Progressive Disclosure Pattern
+
+Skills solve context bloat via progressive disclosure:
+
+```
+Level 1 — Startup (always loaded):
+  Skill descriptions only (frontmatter)
+  Small — under 2K tokens for 20 skills
+  Model sees: "I have skills for A, B, C..."
+
+Level 2 — Skill loaded on demand:
+  Full SKILL.md instructions
+  Loaded when the agent decides the skill applies
+
+Level 3 — Reference files loaded on demand:
+  Additional files referenced by the SKILL.md
+  Loaded only when explicitly needed
+```
+
+**Applied to Agent Improve:** each of the five DMAIC phases becomes a skill. Startup loads 5 descriptions. When the Belt is in the Analyse phase, only the Analyse skill's full instructions load. This dramatically reduces context bloat vs current pattern of stuffing all phase methodology into system prompt.
+
+---
+
+### Cross-Reference Impact on Existing Sections
+
+| Existing Section | Update Needed |
+|---|---|
+| Section 26 (Skills/Hooks governance) | Framework confirmed — now follows agentskills.io spec |
+| Section 27 (`/verify-current-version`) | Should be implemented as a skill following this spec |
+| Section 42 (system prompt bloat) | Skills solve this — implement during v2.1 refactor |
+
+### Gap Register Note
+No new gap number — this section formalises the specification that Section 26's governance framework should follow. Section 26 was conceptually correct but predates the formal spec. Skills should be authored in this format from v2.1 onward.
+
+---
+
+## 84. SkillsMiddleware in deepagents — Solving System Prompt Bloat
+
+*Source: LangChain official reference (reference.langchain.com/python/deepagents), deepagents 0.6.10 May 2026. Verified against docs.*
+
+### What Changed
+
+Section 42's RubricMiddleware discussion mentioned system prompt bloat as a problem but did not resolve it. deepagents' `SkillsMiddleware` (part of the Deep Agents harness) is the direct solution.
+
+### How It Works
+
+```python
+from deepagents import create_deep_agent
+from deepagents.backends.filesystem import FilesystemBackend
+
+agent = create_deep_agent(
+    model="operational-premium",
+    backend=FilesystemBackend(root_dir="./agent-improve/skills/"),
+    skills=[
+        "./agent-improve/skills/dmaic-define/",
+        "./agent-improve/skills/dmaic-measure/",
+        "./agent-improve/skills/dmaic-analyse/",
+        "./agent-improve/skills/dmaic-improve/",
+        "./agent-improve/skills/dmaic-control/",
+    ],
+    tools=[search_knowledge, search_cases, extract_fields],
+    middleware=[
+        HumanInTheLoopMiddleware(interrupt_on={"advance_phase": True}),
+        RubricMiddleware(),
+    ]
+)
+```
+
+At startup, `SkillsMiddleware`:
+1. Reads all SKILL.md frontmatter (Level 1 disclosure — descriptions only)
+2. Adds a compact summary to the system prompt
+3. Registers `load_skill(name)` as a tool the agent can call
+4. When agent calls `load_skill("dmaic-analyse")`, the full instructions load into context (Level 2)
+
+### Cross-Reference Impact
+
+| Existing Section | Update Needed |
+|---|---|
+| Section 42 (RubricMiddleware) | Combine with SkillsMiddleware — RubricMiddleware evaluates gate quality, SkillsMiddleware provides phase context |
+| Section 44 (architectural refactor) | Skills become the mechanism for phase-specific coaching context, not the graph structure |
+| Section 83 (agentskills.io spec) | Implementation companion — this is HOW skills get loaded |
+
+### Gap Register Note
+No new gap number — SkillsMiddleware is the concrete implementation of Section 83's progressive disclosure pattern. Use `FilesystemBackend` during v2.1 refactor for git-versioned skills.
+
+---
+
+## 85. LangSmith 2026 Additions — Fleet, Sandboxes, Context Hub, Engine
+
+*Source: LangChain official announcements (Interrupt 2026 conference blog), LangSmith Fleet documentation (langchain.com/langsmith/fleet), multiple independent 2026 sources. Verified March-June 2026.*
+
+### What Changed
+
+Section 1 and Section 75 documented LangSmith as it stood mid-2025 — primarily observability and evaluation. LangSmith has significantly expanded into a full agent engineering platform. This section documents the additions.
+
+---
+
+### 1. LangSmith Fleet (March 2026 — formerly Agent Builder)
+
+**What it is:** No-code agent builder plus enterprise fleet management for organizations running many agents in production.
+
+**Fleet's four capabilities:**
+- **Identity and permissions** — role-based access control (viewers, editors, deployers, administrators)
+- **Skills-as-service** — skills attachable to any agent in the fleet (open-source Skills ecosystem)
+- **Fleet-level observability** — organizational views: which agents have highest error rates, which teams consume most tokens
+- **Sharing mechanisms** — cross-team agent reuse without JSON export/import
+
+**Relevance to AgentLean:**
+
+**Not directly needed during v2.1 refactor** — Fleet is enterprise-scale multi-agent management. AgentLean has three agents (Resolve, Improve, Flow). Fleet becomes relevant when:
+- Multiple customer organizations run AgentLean instances
+- Cross-customer governance (permissions, cost tracking) is needed
+- Skills are shared across customer deployments
+
+**Honest assessment:** Fleet is a productized version of what your CLAUDE.md governance framework does at the code level. When AgentLean scales to multi-customer, revisit — until then, code-level governance is sufficient and gives more control.
+
+---
+
+### 2. LangSmith Sandboxes (Public Beta, June 2026)
+
+**What it is:** Secure code execution environments for agents. Snapshots, cheap forks via copy-on-write, blueprints for reusable base environments.
+
+**Key features:**
+- **Snapshots and forks** — capture sandbox state, fork parallel sandboxes with copy-on-write
+- **Blueprints** — refreshable base environments with warmed caches
+- **Pause when inactive** — idle sandboxes pause automatically, no charge for unused resources
+- **Auth Proxy** — inject credentials at network layer, secrets never enter runtime
+- **Sandbox CLI** — manage sandboxes, build snapshots, tunnel TCP
+
+**Relevance to AgentLean:**
+
+Directly useful during the v2.1 refactor for **testing Agent Improve without hitting production Azure**. Set up a sandbox with a mock Azure OpenAI endpoint and mock Azure AI Search, run the eval suite from Section 75 against it, verify no production credentials are consumed during development testing.
+
+Complements Section 76's Docker containerisation — Sandboxes are for testing, containers are for deployment.
+
+---
+
+### 3. Context Hub (June 2026)
+
+**What it is:** Versioned storage for the instructions and policies agents follow. Direct answer to Section 27's `/verify-current-version` concern.
+
+**Key features:**
+- Every write is a Hub commit (git-like version history)
+- LangSmith-native durability
+- No separate LangGraph store needed
+- Integrates with `ContextHubBackend` for skill storage
+
+**Relevance to AgentLean:**
+
+For the **living reference document** you plan to build in Cowork, Context Hub is the productized version of what you were considering assembling yourself. When we build the living reference document, Context Hub becomes the storage backend option.
+
+For v2.1 refactor: not needed yet. Skills remain in `FilesystemBackend` under git. Context Hub becomes relevant when AgentLean skills are shared across multiple deployments.
+
+---
+
+### 4. LangSmith Engine (Public Beta, June 2026)
+
+**What it is:** Automated failure pattern detection. Clusters production failures into prioritized issues, finds root cause in traces + code, proposes fixes for review.
+
+**How it works:**
+- Reads production traces from LangSmith
+- Identifies recurring failure patterns
+- Correlates trace patterns with code and prompt changes
+- Proposes fixes as PRs
+
+**Relevance to AgentLean:**
+
+**Directly complements Section 75's regression testing.** Section 75 documented reactive regression testing (run evals on every PR). Engine is proactive — it finds failure patterns in production traces before you write tests for them.
+
+Enable Engine once AgentLean has enough production traffic that patterns emerge (>1000 coaching turns/week). For the v2.1 refactor phase, standard LangSmith tracing is sufficient.
+
+---
+
+### 5. Messages View + LLM Gateway + SmithDB
+
+**Messages View:** Multi-turn traces rendered readably at a glance. Fixes the "wall of JSON" problem for long conversations. Automatic — no code changes needed.
+
+**LLM Gateway:** Enforces spend limits and redacts PII **before requests leave your environment**. Alternative to per-call middleware for organizational controls.
+
+**SmithDB:** Purpose-built database backing core LangSmith workloads. Up to 15x faster on core queries. Automatic — no code changes needed.
+
+---
+
+### Cross-Reference Impact on Existing Sections
+
+| Existing Section | Update Needed |
+|---|---|
+| Section 1 (LangSmith basics) | Note SmithDB, Messages View as automatic upgrades |
+| Section 27 (`/verify-current-version` skill) | Context Hub is the productized version — evaluate at multi-deployment stage |
+| Section 44 (governance framework) | Fleet is enterprise version — code-level governance sufficient for AgentLean current scale |
+| Section 75 (regression testing) | Engine complements — proactive vs reactive |
+| Section 76 (Docker) | Sandboxes complement — testing vs deployment |
+| Section 78 (developer orchestration) | Sandboxes can replace parts of the menu-driven testing pattern |
+
+### Gap Register Note
+No new gap number — LangSmith additions documented for awareness. None are required for v2.1 refactor. Fleet becomes relevant at multi-customer scale; Sandboxes useful during refactor for isolated testing; Context Hub relevant when building the living reference document; Engine when production traffic emerges.
