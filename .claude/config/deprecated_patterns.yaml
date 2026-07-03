@@ -1,0 +1,68 @@
+# Deprecated-pattern registry for the PreToolUse drift-check hook.
+#
+# Read by .claude/hooks/pre-tool-use-drift-check.py, which blocks Write/Edit/
+# MultiEdit operations whose content matches a pattern (unless the target path
+# is grandfathered by a path_exclusion). Additions and exclusions are made as
+# audit-trailed commits — this file is the versioned governance record.
+#
+# path_exclusions use gitignore-style globs; they grandfather existing v1 code
+# scheduled for deletion during the arch-v2 migration.
+#
+# Not active until commit 0.5.3 registers the hook in .claude/settings.json.
+
+version: 1
+patterns:
+  - id: pattern-1-create-react-agent
+    regex: 'from\s+langgraph\.prebuilt\s+import.*create_react_agent'
+    message: "create_react_agent is superseded by create_agent (LangChain 1.0+, EDUCATIONAL §25b). Import from langchain.agents instead."
+    severity: block
+    path_exclusions: []
+
+  - id: pattern-3-response-content-parsing
+    regex: 'response\.content\s*\['
+    message: "Do not string-parse response.content in phase executors. Read response.content_blocks (typed) per LangChain 1.0 (EDUCATIONAL §81). CLAUDE.md §4.5."
+    severity: block
+    path_exclusions: []
+
+  - id: pattern-4-custom-saga
+    regex: '(class\s+\w*Saga\b|def\s+\w*compensat)'
+    message: "Custom Saga/compensating-action code is superseded by native error_handler= on LangGraph 1.2+ nodes (EDUCATIONAL §79). CLAUDE.md §3.6."
+    severity: block
+    path_exclusions: []
+
+  - id: pattern-6-set-entry-point
+    regex: '\.set_entry_point\s*\('
+    message: "set_entry_point() is superseded. Use add_edge(START, ...) per LangGraph 1.x pattern (EDUCATIONAL §45 example code)."
+    severity: block
+    path_exclusions: []
+
+  - id: pattern-7-sync-graph-invoke
+    regex: '(?<!a)graph\.invoke\s*\('
+    message: "Synchronous graph.invoke() violates CLAUDE.md §1.4 (async by default). Use await graph.ainvoke(...) instead."
+    severity: block
+    path_exclusions: []
+
+  - id: pattern-2-with-structured-output
+    regex: '\.with_structured_output\s*\('
+    message: ".with_structured_output() is deprecated in v2.2. Prefer response_format= on create_agent with LangChain 1.2 auto-inference (EDUCATIONAL §82). CLAUDE.md §4.6."
+    severity: block
+    path_exclusions:
+      - 'agent-resolve/**'
+      - 'agent-improve/backend/phases/**/orchestrate.py'
+      - 'agent-improve/backend/phases/**/validate.py'
+
+  - id: pattern-5-plain-dict-routing
+    regex: 'return\s+\{\s*["\'']next["\'']:'
+    message: "Plain dict routing {'next': ...} is superseded. Return Command(goto=...) per LangGraph 1.2+ (EDUCATIONAL §44)."
+    severity: block
+    path_exclusions:
+      - 'agent-resolve/**'
+      - 'agent-improve/backend/phases/**/orchestrate.py'
+
+  - id: pattern-8-bind-tools-in-phase-executor
+    regex: 'llm\.bind_tools\s*\('
+    message: "In phase executors, prefer create_agent(tools=[...]) over llm.bind_tools([...]). Governance rule CLAUDE.md §4.4 (middleware discipline)."
+    severity: block
+    path_exclusions:
+      - 'agent-resolve/**'
+      - 'agent-improve/backend/phases/**/orchestrate.py'
