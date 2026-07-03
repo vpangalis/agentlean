@@ -14,11 +14,14 @@ Thumbs.db
 logs/
 *.jsonl
 
-# Local working files — not part of the repo
+# Local working files ï¿½ not part of the repo
 ARTIFACTS/
 PROMPT_AUDIT.md
 quick_test_langfuse.py
 uvicorn_err.txt
 uvicorn_out.txt
-.claude/
+# .claude/ scaffold: track shared governance, ignore local-only overrides
+.claude/settings.local.json
+.claude/**/local/
+.claude/**/.cache/
 docs/CLAUDE.md
