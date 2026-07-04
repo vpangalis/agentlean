@@ -10,8 +10,8 @@ description: |
   Code hooks/skills. Reports "confirmed current" or a specific version mismatch with the
   replacement pattern. Fire this skill deliberately — it is a discipline checkpoint, not
   background context.
-disable-model-invocation: true
-allowed-tools: WebFetch, WebSearch, Read
+disable-model-invocation: false
+allowed-tools: WebFetch, WebSearch, Read, Grep
 version: "0.1"
 ---
 
