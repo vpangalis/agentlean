@@ -1,6 +1,6 @@
 # Agent Improve — Architecture & Design Document
 **Agentlean Platform · DMAIC Improvement Agent**
-Version 2.2.2 · August 2026
+Version 2.2.4 · August 2026
 Status: v2.2 architecture ratified · refactor in progress (Step 2.2 complete;
 Step 3.6 index schema rename applied)
 
@@ -1002,14 +1002,94 @@ Never updated at runtime.
 
 **Filter:**
 ```
-phase_relevance eq '{phase}' or phase_relevance eq 'all'
+phase_relevance eq '{phase}' or phase_relevance eq 'general'
 ```
-The `or 'all'` term is required: cross-phase eBook content must remain
+The second term is required: cross-phase eBook content must remain
 reachable from any phase, so filtering strictly to the current phase
 would over-narrow.
 
-**Open item:** confirm the exact enumeration of `phase_relevance`
-values present in the index before implementing the filter.
+**Enumeration confirmed against the live index (Aug 2026)** — this
+closes the former open item, and corrects the value:
+
+| `phase_relevance` | Docs |
+|---|---:|
+| `measure` | 378 |
+| `analyse` | 348 |
+| `general` | 218 |
+| `define` | 156 |
+| `control` | 135 |
+| `improve` | 134 |
+| **total** | **1369** |
+
+**The cross-phase bucket is `general`, not `all`.** No document carries
+`all`; earlier revisions of this section specified it, which would have
+silently excluded all 218 cross-phase documents from every phase-filtered
+query — a wrong-results bug, not an error. The implementation constant is
+`retriever.CROSS_PHASE_RELEVANCE`.
+
+**The field is `phase_relevance`, not `phase`.** There is no `phase`
+field on this index; Azure rejects the entire query if one is requested.
+See §7.1.1.
+
+#### 7.1.1 Retrieval failure is not an empty result
+
+**All three retrieval functions in `knowledge/retriever.py` —
+`search_knowledge`, `search_cases`, `search_evidence` — return `[]` only
+when the search ran and matched nothing.** When the search itself fails
+they raise `KnowledgeSearchError` (`core/errors.py`), carrying an
+`AgentImproveError` (§12.3).
+
+This distinction is load-bearing, and its absence hid a real bug. The
+function previously filtered on `phase eq '{phase}'` — a field that does
+not exist — so Azure rejected every phase-filtered query with
+`HttpResponseError`. A bare `except Exception` turned that into `[]`, and
+the caller rendered `[]` as *"No relevant methodology content found."*
+Phase-filtered methodology retrieval had therefore never returned a
+single document, and it reported the corpus as silent rather than itself
+as broken.
+
+Binding consequences:
+
+- **Never catch bare `Exception` around a retrieval call.** Catch
+  `retriever.RETRIEVAL_EXCEPTIONS` and classify via
+  `retriever._search_error()`; `retriever._fail()` is the single
+  classify-log-raise exit path all three functions share.
+- **`RETRIEVAL_EXCEPTIONS` covers two services, not one.** Azure AI Search
+  raises `HttpResponseError` / `ServiceRequestError` /
+  `ClientAuthenticationError`; the query-embedding call to Azure OpenAI
+  raises `OpenAIError`. The embedding call sits inside the same `try`, so
+  omitting it would let a raw provider exception escape and take down the
+  coaching turn. Embedding failures carry an `EMBEDDING_` code prefix so
+  the failing service is readable in the log.
+- **`ClientAuthenticationError` must be tested before `HttpResponseError`**
+  — it is a subclass, so the reverse order classifies a bad key as a
+  generic 4xx and marks a permanent auth failure retryable.
+- **A 4xx from Search is `permanent` / `do_not_retry`.** It means a
+  malformed query — our bug. Retrying spends latency to fail identically.
+  Only 429 and 5xx are `transient`.
+- **Materialise results inside the `try`.** `SearchClient.search()` returns
+  a lazy pager; the HTTP call fires on iteration, so a list comprehension
+  moved outside the `try` would raise unclassified.
+- **Filter values are OData-escaped** (`'` → `''`) in `_phase_filter` and
+  on `case_id` in `search_evidence`.
+- **No coach-facing failure message may read as an absence of content.**
+  Each of the three tools returns an explicit retrieval-failure string
+  telling the coach not to claim the methodology is silent / no precedent
+  exists / nothing was uploaded, and not to cite what it could not
+  retrieve. The three failure strings are distinct from the three
+  empty-result strings — that pairing is the whole point.
+- **Node-level callers degrade, they do not propagate.**
+  `build_knowledge_context` returns `None`, and `_generate_sipoc_draft`
+  falls through to generating the SIPOC from problem fields. Coaching
+  continues ungrounded rather than failing — the Search-breaker posture in
+  §9.4. Both catch `KnowledgeSearchError` specifically; a bare `except`
+  there would re-swallow exactly what this contract exists to surface.
+
+**`step_log` wiring is outstanding.** `AgentImproveError.to_step_log_entry()`
+already emits the §4.4 dict shape and is logged through `logging` today,
+but `step_log` does not exist on `ImproveGraphState` — it arrives with
+`PhaseState` in step 4.1. At that point the node holding the error appends
+that same dict; no reshaping.
 
 ### 7.2 `improve_evidence_index` — uploaded evidence
 
@@ -1898,6 +1978,10 @@ load-bearing in more places than it appears.
 | Aug 2026 | **2.2.1** | **Index schema facts resolved against the live service (§7).** `improve_case_index.phase_summary_analyse_phase` renamed to `phase_summary_analyse` by delete + recreate (index empty, no reindex required) — Step 3.6 closed; writer-side phase-key alignment carried forward in §7.3. `improve_evidence_index` confirmed to have **no** `uploaded_at` field — the timestamp lives in the non-sortable `metadata` blob, so the `uploaded_at desc` ordering clause is dropped from §7.2 and `rag_lookup_evidence` takes no `order_by`. `improve_case_index.embedding` confirmed 3072d on profile `improve-vector-profile`. |
 
 | Aug 2026 | **2.2.2** | **Internal phase key `analyse_phase` renamed to `analyse` across the codebase (§7.3.1)** — completes the schema rename in 2.2.1 on the writer side. Directory `phases/analyse_phase/` → `phases/analyse/`; `orchestrate_analyse_phase` / `validate_analyse_phase` and their graph node names lose the suffix; the key is now `analyse` in `PHASE_ORDER`, `phase_inputs`, `EXTRACTION_MAP`, `ORCHESTRATOR_CONTEXT_MAP`, `GATE_CHECKS`, `PhaseSummaryRecord`, and `CaseDocument.phases`. `AnalysePhaseInput` unchanged — it already matched convention. Node rename was free only because no checkpoints existed yet. |
+
+| Aug 2026 | **2.2.3** | **Methodology retrieval fixed and its failure contract defined (§7.1, §7.1.1).** `search_knowledge` filtered on `phase`, a field that does not exist on `improve_knowledge_index`, so Azure rejected every phase-filtered query and a bare `except Exception` rendered it as "No relevant methodology content found" — phase-filtered retrieval had never returned a document. Filter corrected to `phase_relevance`; cross-phase value corrected from the non-existent `all` to `general` (218 docs), closing the §7.1 open item with the confirmed enumeration. Failures now raise `KnowledgeSearchError` carrying an `AgentImproveError` (§12.3, `core/errors.py` added), classified by Azure exception type with 4xx as permanent/do-not-retry. `step_log` wiring deferred to step 4.1 — the dict shape is already emitted. |
+
+| Aug 2026 | **2.2.4** | **Failure contract extended to all three retrieval functions (§7.1.1).** `search_cases` and `search_evidence` carried the same bare `except Exception` → `[]` as `search_knowledge`, so a broken case or evidence query also read as "nothing found". Both now raise `KnowledgeSearchError` with the same classification. `RETRIEVAL_EXCEPTIONS` additionally covers `OpenAIError`, since the query-embedding call runs inside the same `try` and would otherwise escape raw; embedding failures carry an `EMBEDDING_` code prefix. Result materialisation moved inside the `try` (the pager is lazy), imports hoisted out of it, `case_id` OData-escaped, and the metadata-blob parse narrowed to `JSONDecodeError`/`TypeError` with a warning instead of a silent `pass`. Callers `search_improve_cases`, `search_improve_evidence`, and `_generate_sipoc_draft` updated to catch the typed exception. |
 
 ### 18.1 Amendment procedure
 

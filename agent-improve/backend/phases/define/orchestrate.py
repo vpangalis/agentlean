@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from backend.core.state import ImproveGraphState
+from backend.core.errors import KnowledgeSearchError
 from backend.core.llm import get_llm
 from backend.core.prompts import (
     ORCHESTRATOR_SYSTEM_BASE,
@@ -291,8 +292,11 @@ def _generate_sipoc_draft(
                         case_id,
                     )
                     return sipoc_from_upload
-        except Exception as e:
-            logger.warning("Evidence SIPOC search failed: %s", e)
+        except KnowledgeSearchError:
+            # Already logged with full classification in search_evidence.
+            # Fall through to Priority 2 and generate the SIPOC from the
+            # problem fields — a degraded draft beats no draft.
+            pass
 
     # -- Priority 2: generate from problem fields -------------------------
     prompt = SIPOC_DRAFT_PROMPT.format(

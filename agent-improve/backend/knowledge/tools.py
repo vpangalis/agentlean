@@ -4,6 +4,7 @@ import logging
 
 from langchain_core.tools import tool
 
+from backend.core.errors import KnowledgeSearchError
 from backend.knowledge.retriever import search_knowledge, search_cases, search_evidence
 
 logger = logging.getLogger(__name__)
@@ -17,7 +18,23 @@ def search_improve_knowledge(query: str, phase: str = "") -> str:
     """Search DMAIC methodology knowledge base.
     Use for tool explanations, phase guidance, worked examples.
     Optionally filter by phase: define/measure/analyse/improve/control"""
-    results = search_knowledge(query, phase=phase or None)
+    try:
+        results = search_knowledge(query, phase=phase or None)
+    except KnowledgeSearchError as e:
+        # Distinct from the empty-result message below: the coach must not
+        # tell the Belt the methodology is silent when retrieval never ran.
+        logger.error(
+            "search_improve_knowledge failed | %s",
+            e.error.to_step_log_entry(tool="search_improve_knowledge", phase=phase),
+        )
+        return (
+            "Methodology search is unavailable right now "
+            f"({e.error.error_code}). This is a retrieval failure, not an "
+            "absence of guidance — do not tell the team the methodology has "
+            "nothing on this. Answer from your own DMAIC knowledge, say the "
+            "reference lookup failed, and avoid citing sources you could not "
+            "retrieve."
+        )
     if not results:
         return "No relevant methodology content found."
     return "\n\n".join(
@@ -29,7 +46,19 @@ def search_improve_knowledge(query: str, phase: str = "") -> str:
 @tool
 def search_improve_cases(query: str) -> str:
     """Search past improvement cases for similar projects and outcomes."""
-    results = search_cases(query)
+    try:
+        results = search_cases(query)
+    except KnowledgeSearchError as e:
+        logger.error(
+            "search_improve_cases failed | %s",
+            e.error.to_step_log_entry(tool="search_improve_cases"),
+        )
+        return (
+            "Case history search is unavailable right now "
+            f"({e.error.error_code}). This is a retrieval failure, not an "
+            "absence of precedent — do not tell the team no similar cases "
+            "exist, and do not cite cases you could not retrieve."
+        )
     if not results:
         return "No similar improvement cases found."
     return "\n\n".join(
@@ -47,7 +76,19 @@ def search_improve_evidence(query: str, case_id: str) -> str:
     Source: improve_evidence_index"""
     if not case_id:
         return "case_id is required for evidence search."
-    results = search_evidence(query, case_id=case_id)
+    try:
+        results = search_evidence(query, case_id=case_id)
+    except KnowledgeSearchError as e:
+        logger.error(
+            "search_improve_evidence failed | %s",
+            e.error.to_step_log_entry(tool="search_improve_evidence", case_id=case_id),
+        )
+        return (
+            "Evidence search is unavailable right now "
+            f"({e.error.error_code}). This is a retrieval failure, not an "
+            "empty upload folder — do not tell the team they have uploaded "
+            "nothing, and do not cite documents you could not retrieve."
+        )
     if not results:
         return "No uploaded documents found for this case."
     return "\n\n".join(

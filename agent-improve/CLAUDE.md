@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.2 — August 2026
+# Version 2.2.4 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -820,7 +820,7 @@ it is a violation.
 
 | Tool | Index | Filter | Ordering | Vector field |
 |---|---|---|---|---|
-| `rag_lookup_methodology` | `improve_knowledge_index` | `phase_relevance eq '{phase}' or phase_relevance eq 'all'` | — | `content_vector` |
+| `rag_lookup_methodology` | `improve_knowledge_index` | `phase_relevance eq '{phase}' or phase_relevance eq 'general'` | — | `content_vector` |
 | `rag_lookup_evidence` | `improve_evidence_index` | `case_id` | — *(no ordering — see below)* | `content_vector` |
 | `rag_lookup_case_history` | `improve_case_index` | `status eq 'completed'` | `created_at desc` | `embedding` |
 
@@ -835,6 +835,30 @@ cases. Available as an optional parameter.
 
 `source_file` and `page_number` are **returned as metadata for
 citation transparency**, never used as filters.
+
+**The methodology filter field is `phase_relevance`, and its cross-phase
+value is `general` — never `phase`, never `all`.** Both were wrong in
+earlier revisions; `phase` does not exist on the index (Azure rejects the
+whole query) and no document carries `all` (218 carry `general`). One
+fails loudly, the other silently returns a narrowed corpus.
+
+**Retrieval failure is never an empty result.** All three retrieval
+functions — `search_knowledge`, `search_cases`, `search_evidence` — return
+`[]` only when the search ran and matched nothing; when they fail they
+raise `KnowledgeSearchError`. **Never wrap a retrieval call in a bare
+`except Exception` that returns `[]`** — that is what hid the `phase`
+filter bug, by reporting a broken index as a silent corpus. Catch
+`retriever.RETRIEVAL_EXCEPTIONS` and classify via `_fail()`.
+
+Three rules that fall out of it, each of which has already bitten:
+- **`RETRIEVAL_EXCEPTIONS` spans two services.** Azure AI Search *and* the
+  Azure OpenAI query embedding, which runs inside the same `try`.
+- **A 4xx is `permanent` / `do_not_retry`**, not transient — it is our
+  malformed query, and retrying fails identically.
+- **Materialise results inside the `try`** — `SearchClient.search()` is
+  lazy and the HTTP call fires on iteration.
+
+Full rationale: ARCHITECTURE.md §7.1.1.
 
 **`rag_lookup_evidence` takes no `order_by` argument.** Verified
 against the live index (Aug 2026): `improve_evidence_index` has **no
@@ -1589,6 +1613,12 @@ to choose backoff strategy (§4.8).
 
 **Retrieval and data**
 - Never build an unconditional retrieval pipeline
+- Never catch bare `Exception` around a retrieval call and return `[]` —
+  retrieval failure must be distinguishable from no matches (§7.1.1)
+- Never let a coach-facing failure message read as an absence of content
+  ("no cases found" when the search never ran) (§7.1.1)
+- Never filter methodology on `phase`; the field is `phase_relevance` and
+  its cross-phase value is `general`, not `all` (§7.2)
 - Never write to Agent Resolve indexes — read only, via tools
 - Never add an MCP server, client, or dependency
 - Never build a fallback path that fetches data the Belt did not upload
