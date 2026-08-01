@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 def search_improve_knowledge(query: str, phase: str = "") -> str:
     """Search DMAIC methodology knowledge base.
     Use for tool explanations, phase guidance, worked examples.
-    Optionally filter by phase: define/measure/analyse_phase/improve/control"""
+    Optionally filter by phase: define/measure/analyse/improve/control"""
     results = search_knowledge(query, phase=phase or None)
     if not results:
         return "No relevant methodology content found."

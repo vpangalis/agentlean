@@ -241,14 +241,14 @@ def ask(request: AskRequest) -> AskResponse:
         # Invoke just the orchestrate node for this turn
         from backend.phases.define.orchestrate import orchestrate_define
         from backend.phases.measure.orchestrate import orchestrate_measure
-        from backend.phases.analyse_phase.orchestrate import orchestrate_analyse_phase
+        from backend.phases.analyse.orchestrate import orchestrate_analyse
         from backend.phases.improve.orchestrate import orchestrate_improve
         from backend.phases.control.orchestrate import orchestrate_control
 
         node_map = {
             "define":        orchestrate_define,
             "measure":       orchestrate_measure,
-            "analyse_phase": orchestrate_analyse_phase,
+            "analyse":       orchestrate_analyse,
             "improve":       orchestrate_improve,
             "control":       orchestrate_control,
         }
@@ -613,14 +613,14 @@ def submit_gate(request: GateSubmitRequest) -> GateSubmitResponse:
     from backend.core.state import ImproveGraphState
     from backend.phases.define.validate import validate_define
     from backend.phases.measure.validate import validate_measure
-    from backend.phases.analyse_phase.validate import validate_analyse_phase
+    from backend.phases.analyse.validate import validate_analyse
     from backend.phases.improve.validate import validate_improve
     from backend.phases.control.validate import validate_control
 
     validate_map = {
         "define":        validate_define,
         "measure":       validate_measure,
-        "analyse_phase": validate_analyse_phase,
+        "analyse":       validate_analyse,
         "improve":       validate_improve,
         "control":       validate_control,
     }
@@ -664,7 +664,7 @@ def submit_gate(request: GateSubmitRequest) -> GateSubmitResponse:
             submitted_by=request.submitted_by,
             summary=f"Gate passed by {request.submitted_by}",
         )
-        phase_order = ["define", "measure", "analyse_phase", "improve", "control"]
+        phase_order = ["define", "measure", "analyse", "improve", "control"]
         idx = phase_order.index(request.phase)
         next_phase = phase_order[idx + 1] if idx < len(phase_order) - 1 else None
         return GateSubmitResponse(
@@ -777,7 +777,7 @@ def _build_chips(phase: str, phase_data: dict) -> list[str]:
             "Do we need to check our measurement tool?",
             "What format should the data export be in?",
         ],
-        "analyse_phase": [
+        "analyse":       [
             "How do we verify a root cause?",
             "What analysis tools can we use here?",
             "How do we build a fishbone diagram?",

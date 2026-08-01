@@ -540,7 +540,7 @@ a{text-decoration:none;color:inherit}
         <div class="pd"></div><span class="pl">Measure</span><span class="pb pb-lock">locked</span>
       </div>
       <div class="psub">Data plan · baseline</div><div class="psep"></div>
-      <div class="pi locked" id="pi-analyse_phase" onclick="navClickPhase('analyse_phase')">
+      <div class="pi locked" id="pi-analyse" onclick="navClickPhase('analyse')">
         <div class="pd"></div><span class="pl">Analyse</span><span class="pb pb-lock">locked</span>
       </div>
       <div class="psub">Cause analysis · Root cause statement</div><div class="psep"></div>
@@ -812,7 +812,7 @@ const PHASES = {
     duration:'2–4 sessions over 1–3 weeks.',
     tools:['Data collection plan','Measurement reliability check','Process capability','Histogram'],
     steps:['What is the main thing being measured — as a number with a unit?','What other information is already recorded alongside it?','Where does each piece of data come from and who will get it?','How many records are available — is that enough?','Is the measurement tool reliable — do different people get the same reading?','Is data collection now complete?']},
-  analyse_phase:{letter:'A',label:'Analyse',color:'#993C1D',bg:'#FAECE7',
+  analyse:{letter:'A',label:'Analyse',color:'#993C1D',bg:'#FAECE7',
     desc:'Identify and verify what is actually causing the problem.',
     whatAsks:'What patterns appear in the data? What are your theories? Which causes are supported? What is the verified root cause?',
     whatCaptures:'Root cause analysis, verified root cause statement, supporting evidence, analysis tools used.',
@@ -837,7 +837,7 @@ const PHASES = {
     tools:['Control chart','Monitoring plan','Response plan','Handover document'],
     steps:['How will the team know if the process reverts?','Who monitors it, how often, and what triggers a response?','What are the control limits?','Has the team been trained on the new process?','Have the process documents been updated?','Has the sponsor signed off and the project been handed over?']}
 };
-const PHASE_ORDER = ['define','measure','analyse_phase','improve','control'];
+const PHASE_ORDER = ['define','measure','analyse','improve','control'];
 
 // ─── SCREEN NAVIGATION ────────────────────────────────────────────
 function showScreen(id){
@@ -1037,7 +1037,7 @@ async function openWorkspace(caseId){
     S.case=caseData;
     S.localChat=[];
     // Find current phase
-    const phaseOrder=['define','measure','analyse_phase','improve','control'];
+    const phaseOrder=['define','measure','analyse','improve','control'];
     S.phase=caseData.current_phase||'define';
     // Build workspace
     document.getElementById('ws-case-badge').innerHTML=`<i class="ti ti-folder" style="font-size:11px;vertical-align:-1px;margin-right:4px"></i>${caseId} · ${caseData.title}`;
@@ -1051,7 +1051,7 @@ async function openWorkspace(caseId){
 const PHASE_NAV_SUBTITLES = {
   define: '5W2H · charter · scope',
   measure: 'Data plan · baseline',
-  analyse_phase: 'Cause analysis · Root cause statement',
+  analyse: 'Cause analysis · Root cause statement',
   improve: 'Solution design · Pilot · Implementation',
   control: 'Control plan · Monitoring · Sustainability',
 };
@@ -1060,7 +1060,7 @@ const PHASE_NAV_SUBTITLES = {
 // document via renderGateForPhase() without mutating S.phase. Clicking
 // the active phase routes to its overview. Future locked phases no-op.
 function navClickPhase(phase) {
-  const phaseOrder = ['define','measure','analyse_phase','improve','control'];
+  const phaseOrder = ['define','measure','analyse','improve','control'];
   const currentIdx = phaseOrder.indexOf(S.phase);
   const clickedIdx = phaseOrder.indexOf(phase);
 
@@ -1091,7 +1091,7 @@ function navClickPhase(phase) {
 }
 
 function renderPhaseNav(){
-  const phaseOrder=['define','measure','analyse_phase','improve','control'];
+  const phaseOrder=['define','measure','analyse','improve','control'];
   const currentIdx=phaseOrder.indexOf(S.phase);
   // Highlighted (blue 'active') row tracks S.previewPhase if it is set,
   // otherwise the working phase. During preview the actual working phase
@@ -1319,10 +1319,10 @@ function buildCaseFilesNav() {
   }
 
   // Group files by phase
-  const phaseOrder = ['define','measure','analyse_phase','improve','control'];
+  const phaseOrder = ['define','measure','analyse','improve','control'];
   const phaseLabels = {
     define:'Define', measure:'Measure',
-    analyse_phase:'Analyse', improve:'Improve',
+    analyse:'Analyse', improve:'Improve',
     control:'Control'
   };
   const grouped = {};
@@ -1564,7 +1564,7 @@ function renderOverview(){
   // overview without mutating S.phase (the working phase).
   const viewPhase = S.previewPhase || S.phase;
   const p = PHASES[viewPhase];
-  const phaseOrder = ['define','measure','analyse_phase','improve','control'];
+  const phaseOrder = ['define','measure','analyse','improve','control'];
   const curIdx = phaseOrder.indexOf(viewPhase);
 
   // DMAIC strip
@@ -2088,7 +2088,7 @@ function renderOverview(){
 
     leftColHtml = phaseBadgeHtml + descHtml + dmacStripHtml
       + uiOrientationHtml + roadmapHtml + durationHtml + ctaBtnHtml;
-  } else if (viewPhase === 'analyse_phase') {
+  } else if (viewPhase === 'analyse') {
     // ── Analyse phase: enriched orientation content ──────────────────
     const descHtml = `
       <p style="font-size:12px;color:var(--text2,#5C5A55);line-height:1.7;
@@ -3152,11 +3152,11 @@ function renderDefineChecklist(){
 // ─── GATE TAB ─────────────────────────────────────────────────────
 function renderGate() {
   // ── Phase selector setup ──────────────────────────────────
-  const phaseOrder = ['define','measure','analyse_phase','improve','control'];
+  const phaseOrder = ['define','measure','analyse','improve','control'];
   const phaseLabels = {
     define: 'Define',
     measure: 'Measure',
-    analyse_phase: 'Analyse',
+    analyse: 'Analyse',
     improve: 'Improve',
     control: 'Control',
   };
@@ -3504,9 +3504,9 @@ function renderGate() {
   }
 
   // ── Analyse viewing (active or passed): full gate document ──
-  if (viewingPhase === 'analyse_phase') {
+  if (viewingPhase === 'analyse') {
 
-    const aStructured = getStructured('analyse_phase');
+    const aStructured = getStructured('analyse');
     const aTotal = ANALYSE_GATE_FIELDS.length;  // already defined
     const aCaptured = ANALYSE_GATE_FIELDS.filter(
       f => fieldHasValue(aStructured[f.key])
@@ -4820,7 +4820,7 @@ function renderChat(){
     // Phase-specific gate fields and hints
     const isDefine = S.phase === 'define';
     const isMeasure = S.phase === 'measure';
-    const isAnalyse = S.phase === 'analyse_phase';
+    const isAnalyse = S.phase === 'analyse';
     const isImprove = S.phase === 'improve';
     const isControl = S.phase === 'control';
     const gateFields = isDefine
@@ -5406,7 +5406,7 @@ function renderChat(){
     if (isImprove) {
       const def = getStructured('define') || {};
       const mea = getStructured('measure') || {};
-      const ana = getStructured('analyse_phase') || {};
+      const ana = getStructured('analyse') || {};
 
       const problemStatement   = def.what || null;
       const primaryMetric      = def.primary_metric || null;
@@ -5504,7 +5504,7 @@ function renderChat(){
     if (isControl) {
       const def = getStructured('define') || {};
       const mea = getStructured('measure') || {};
-      const ana = getStructured('analyse_phase') || {};
+      const ana = getStructured('analyse') || {};
       const imp = getStructured('improve') || {};
 
       const primaryMetric  = def.primary_metric || null;
@@ -5616,7 +5616,7 @@ function renderChat(){
         body: 'I am your AI guide for the Measure phase. Let\'s build the data collection plan and establish the process baseline.',
         hint: 'Where does the data for the primary metric come from — which system, file, or person?',
       },
-      analyse_phase: {
+      analyse: {
         greeting: `Hello${S.user ? ', '+S.user : ''}!`,
         body: 'I am your AI guide for the Analyse phase. Let\'s identify the root causes of the problem.',
         hint: 'What patterns or trends did you notice in the baseline data?',
@@ -6091,7 +6091,7 @@ function renderGateResult(resp) {
   // Detail is stored as a function to match the define/measure entries
   // above — renderGateResult calls c.detail(). The Analyse/Improve/Control
   // details are static descriptions, so each returns its string.
-  GATE_CHECKS['analyse_phase'] = [
+  GATE_CHECKS['analyse'] = [
     {
       key: 'possible_causes',
       label: 'At least 3 possible causes identified',

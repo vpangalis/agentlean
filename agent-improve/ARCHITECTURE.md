@@ -1,7 +1,50 @@
 # Agent Improve — Architecture & Design Document
 **Agentlean Platform · DMAIC Improvement Agent**
-Version 2.1.1 · June 2026
-Status: v2.1 architecture defined · migration not yet started
+Version 2.2.2 · August 2026
+Status: v2.2 architecture ratified · refactor in progress (Step 2.2 complete;
+Step 3.6 index schema rename applied)
+
+---
+
+## 0. How to Read This Document
+
+v2.2 is a **ground-up rewrite**, not an amendment. It aligns this
+document with every decision ratified in the EDUCATIONAL.md
+architectural review.
+
+| Document | Answers | Binding? |
+|---|---|---|
+| CLAUDE.md v2.2 | **What the rule is** | Yes — quoted in every prompt |
+| ARCHITECTURE.md (this file) | **How the system is shaped** | Yes — component design, contracts, sequencing |
+| REFACTORING_AGENT_IMPROVE.md | **Why the decision was made** | No — evidence and rationale |
+
+Where this document and CLAUDE.md describe the same thing, CLAUDE.md
+states the rule and this document states the design. Neither restates
+the other's job.
+
+### 0.1 Anchor changes from v2.1.1
+
+Existing cross-references from the review log and code comments land
+as follows:
+
+| Old reference | Now |
+|---|---|
+| §B2 "tool-calling coach agent" | §3.3 — `phase_executor` built with `create_agent` |
+| §3.2 "bound tools list" | §3.3 (executor construction) and §8 (the tool tables) |
+| §3.3 "coach subgraph" | §3.2 — the phase subgraph diagram |
+| §7 "indexes" | §7 — unchanged anchor, now carries the **canonical schemas** |
+| §15 "migration sequence" | §15 — unchanged anchor |
+
+### 0.2 Canonical ownership of shared facts
+
+To prevent the two governance documents drifting:
+
+| Fact | Canonical home |
+|---|---|
+| **Azure AI Search index schemas** | **§7 of this document** |
+| Rule numbers cited by the drift registry | CLAUDE.md §0.2 |
+| Canonical tool names and signatures | CLAUDE.md §5.1 |
+| Rubric and constraint text | CLAUDE.md §8.2 / §9.2 |
 
 ---
 
@@ -15,18 +58,58 @@ Analyse, Improve, Control) Lean Six Sigma improvement projects.
 Sigma qualification. The AI guides every step in plain language. No
 methodology jargon reaches the user unless they ask.
 
-**Architectural principle (v2.1)**: One state, one runtime, one source
-of truth. The LangGraph compiled graph IS the orchestrator. Routes are
-thin transport. Persistence is Blob via two distinct concerns.
+**Architectural principle (v2.2)**: Two state schemas, one runtime,
+two persistence systems. The LangGraph compiled graph IS the
+orchestrator. Routes are thin transport. Coaching strategy is explicit
+and inspectable, never implicit in a prompt.
 
 | Property | Value |
 |---|---|
 | Backend port | 8020 |
 | Repo | `vpangalis/agentlean` → `agent-improve/` |
-| Stack | Python 3.11 · FastAPI · LangGraph 0.2+ · Azure OpenAI · Azure AI Search · Azure Blob |
-| LangChain Version | 0.3+ (tool-calling, structured output, async) |
-| Persistence | Azure Blob — checkpoints + case records (separate paths) |
+| Stack | Python 3.11 · FastAPI · LangGraph 1.2.7 · LangChain 1.x · Azure OpenAI · Azure AI Search · Azure Blob · Azure Cache for Redis |
+| Persistence | Checkpointer + Store (Blob now → PostgreSQL before production) |
 | Tracing | LangSmith (mandatory) |
+| Protocol layer | **None. MCP is architecturally excluded (§1.2).** |
+
+### 1.1 What changed from v2.1.1
+
+| Area | v2.1.1 | v2.2 |
+|---|---|---|
+| LangGraph | 0.2+ (stated), 1.1.10 (pinned) | **1.2.7** — required for subgraph `checkpoint_ns` and native reliability primitives |
+| Phase subgraph | 5 nodes, linear with one conditional | **6 nodes, conditional edges and cycles** (§3.2) |
+| Coach | Bare LLM with 7 bound tools | **`create_agent`, 4 middlewares, per-phase tool subset** (§3.3, §3.4, §8) |
+| Retrieval | 2 tools, single query | **3 tools, multi-query + RRF, metadata filters** (§7.4, §8.1) |
+| Computation | None | **18 tools, bound per phase** (§8.2) |
+| Gate | Interrupt → approve | **Nine steps, two nodes, four validation layers** (§3.6, §3.7) |
+| Cross-phase data | Parent state | **Store-mediated boundary mappers** (§4.3, §6.3) |
+| Phase routing | `phase_router` node | **Static edges** (§3.1) |
+| Reliability | Retry ad hoc | **Timeouts, `error_handler=`, circuit breakers, 4-level fallback** (§9) |
+| `improve_case_index` | Out of scope | **Active — `rag_lookup_case_history`** (§7.3) |
+
+### 1.2 The data architecture principle
+
+**`improve_evidence_index` is the only channel through which external,
+real-world data enters AgentLean.**
+
+Agent Improve, Agent Resolve, and Agent Flow will never use MCP or any
+other protocol to connect to a live system. Users upload the data they
+collect; the agent's job includes coaching them on what to collect and
+how to structure it.
+
+Three architectural consequences:
+
+1. **Data-collection coaching is a first-class product surface**, not
+   a workaround for missing integrations. Phase skills (§8.4) carry
+   guidance on what to upload.
+2. **Belt data-collection discipline is what the system's grounding
+   depends on.** There is no automated substitute.
+3. **No fallback path fetches a number the Belt did not provide.**
+   The system asks; it does not reach.
+
+The `@tool` decorator handles all tool composition. Cross-agent access
+(Agent Improve reading Agent Resolve's indexes) is a Python import
+from a shared module, read-only.
 
 ---
 
@@ -38,237 +121,758 @@ hidden until explicitly requested.
 
 ### 2.2 Every data request comes with a collection guide
 When the coach asks for data it explains what, how, and shows a
-concrete example.
+concrete example with column names.
 
 ### 2.3 Source citation is mandatory and transparent
-Every AI suggestion carries: `agent_origin`, `index_name`,
-`document_id`, `relevance_summary`.
+Every AI suggestion carries `agent_origin`, `index_name`,
+`document_id`, `relevance_summary`. Methodology retrieval additionally
+surfaces `source_file` and `page_number` — "this came from page 47 of
+the BB eBook."
 
-### 2.4 Phase gates are one-way doors
-Once a gate passes and the phase record commits to the case blob,
-that phase is locked.
+### 2.4 Phase gates are one-way doors — with one defined exception
+Once a gate passes and the phase record commits, that phase is locked.
+The **only** way back is the re-approval cascade (§3.8), which is
+deliberately heavy: it makes the affected phase and every downstream
+phase provisional, and runs compensating actions against external
+systems.
 
 ### 2.5 Multiple parallel cases from day one
 Each case has its own `IMPR-YYYY-NNN` id, its own checkpoint thread,
 its own case blob, its own state.
 
-### 2.6 The graph is the orchestrator (v2.1 NEW)
+### 2.6 The graph is the orchestrator
 Routes do not orchestrate. Routes invoke the compiled graph. All
 dispatch, conditional logic, gating, and escalation live inside the
 graph.
+
+### 2.7 Planning is explicit, never implicit in a prompt
+Coaching strategy lives in a structured plan object produced by a
+planner node, not buried in a system prompt. This is what makes
+coaching inspectable, testable, and auditable.
+
+### 2.8 Transparency is the default; silence is the narrow exception
+The Belt sees what the system is doing and participates in fixing it.
+The single exception is a coherence failure mid-turn, where showing the
+Belt that the AI produced gibberish adds no value and erodes trust.
+Everything else — constraint failures, completeness, quality, value
+contradictions — is visible and collaborative (§3.7).
+
+### 2.9 Gate quality is a data integrity guarantee
+Each phase consumes the previous phase's structured output. A problem
+statement without a measurable baseline produces a Measure phase that
+cannot establish a valid sigma level, which produces an Analyse phase
+that cannot validate root causes. Gate validation is not bureaucracy —
+it is the guarantee that downstream phases are operating on real
+inputs.
 
 ---
 
 ## 3. Agent Architecture
 
-### 3.1 Hierarchical subgraph composition
+### 3.1 Three levels, and the supervisor graph
+
+The architecture is a **Planner-Executor pair applied recursively**.
+At every non-leaf level a Planner reasons and an Executor dispatches.
+The recursion stops at leaf tools, which are plain functions.
+
+| Level | Planner | Executor | Dispatches to |
+|---|---|---|---|
+| 1 — Global | **Deterministic gate-checker** — reads `gate_passed[]`. No LLM. | Static edges | Phase subgraphs |
+| 2 — Phase | `phase_planner` (LLM) | `phase_executor` (`create_agent`) | Leaf tools |
+| 3 — Leaf | — | — | Tools are functions, not pairs |
 
 ```
-supervisor_graph
-├── phase_router            (1 node — routes by current_phase)
-├── define_subgraph         (5 nodes)
-├── measure_subgraph        (5 nodes)
-├── analyse_subgraph        (5 nodes)
-├── improve_subgraph        (5 nodes)
-├── control_subgraph        (5 nodes)
-└── escalation_subgraph     (1 node)
+supervisor_graph                     thread_id = project_id ("IMPR-2026-FS1")
+                                     checkpointer + store attached HERE ONLY
+  START
+    │  add_edge(START, "define")
+    ▼
+ ┌────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐
+ │ define │──▶│ measure │──▶│ analyse │──▶│ improve │──▶│ control │──▶ END
+ └────────┘   └─────────┘   └─────────┘   └─────────┘   └─────────┘
+   static        static        static        static        static
+    edge          edge          edge          edge          edge
+      │             │             │             │             │
+      └─────────────┴──────┬──────┴─────────────┴─────────────┘
+                           │  conditional edge on gate_attempts
+                           ▼
+                  ┌────────────────────┐
+                  │ escalation_subgraph│
+                  └────────────────────┘
+
+Each phase subgraph:
+  · compiled WITHOUT a checkpointer and WITHOUT a store
+  · gets its own auto-managed checkpoint_ns from LangGraph
+  · owns its own interrupt
 ```
 
-Each phase subgraph has the canonical 5-node structure:
+**Why static edges between phases.** Apply the decision test: *"Could
+this transition vary at runtime?"* → dynamic. *"Always exactly once, in
+this order?"* → static. DMAIC phase order is fixed, so there is nothing
+to reason about. The `phase_router` node of v2.1.1 is deleted; an LLM
+call to choose the next phase would be cost and latency purchasing no
+decision.
+
+**`Command` routing is used inside phase subgraphs**, where step order
+genuinely is data-dependent. **Static edges and `Command` are never
+mixed from the same node** — both paths execute, silently.
+
+**Threading model.** One `thread_id` per project. LangGraph assigns
+each subgraph its own `checkpoint_ns` within that thread. Per-subgraph
+or concatenated thread ids (`{case_id}-define`) cause duplicate storage
+and state-persistence problems, and are prohibited.
+
+### 3.2 The phase subgraph — six nodes, conditional edges, cycles
+
+**A phase subgraph is not a pipeline.** It has five functional stages;
+the gate stage splits into two nodes (collection and application), so
+six nodes total.
 
 ```
-retrieve_node     → coach_node → reflect_node? → validate_node → gate_interrupt
-                                       ↑                              │
-                                       └──────────loop───────────────┘
+                     ┌──────────────────────────────────────────────┐
+                     │                                              │
+                     ▼                                              │
+              ┌─────────────┐                                       │
+   START ────▶│phase_planner│◀──────────────────────────┐           │
+              └──────┬──────┘                           │           │
+                     │ coaching_plan                    │           │
+                     │ (structured — §3.5)              │ not clean │
+                     ▼                                  │           │
+              ┌─────────────┐                           │           │
+              │phase_executor│  create_agent            │           │
+              │              │  ReAct loop, ≤5 hops     │           │
+              │  ┌────────┐  │  recursion_limit=11      │           │
+              │  │ tools  │  │  8 universal +           │           │
+              │  │ 9–16   │  │  phase computation       │           │
+              │  └────────┘  │                          │           │
+              └──────┬───────┘                          │           │
+                     │ draft (dict)                     │           │
+                     ▼                                  │           │
+             ┌────────────────┐                         │           │
+             │policy_advisory │  contradiction check    │           │
+             │                │  vs prior gates (§3.8)  │           │
+             └───────┬────────┘  no LLM call            │           │
+                     │                                  │           │
+        ┌────────────┴─────────────┐                    │           │
+        │ conditional edge         │                    │           │
+        │                          │                    │           │
+   contradiction?             field complete?           │           │
+        │ yes                      │ no ────────────────┘           │
+        ▼                          │ yes                            │
+  ┌───────────┐                    │                                │
+  │ interrupt │                    │ more fields? ──────────────────┘
+  │ (mini-gate)│                   │ (field_index++, back to planner)
+  └───────────┘                    │ all fields captured
+                                   ▼
+                       ┌─────────────────────┐
+                       │  VALIDATION STACK   │  §3.7 — four layers
+                       │  2a coherence       │  cheapest first
+                       │  2b field presence  │  shared cap: 3 attempts
+                       │  2c constraints     │
+                       │  2d rubric grader   │
+                       └──────────┬──────────┘
+                          fail    │    pass
+                     ┌────────────┘
+                     ▼                          ▼
+              ┌────────────┐          ┌──────────────────┐
+              │  revise    │          │ gate_review_node │  interrupt()
+              └─────┬──────┘          └────────┬─────────┘  Belt sees fields
+                    │                          │
+                    └──▶ back to planner        │ Command(resume=...)
+                         (accumulated feedback) ▼
+                                       ┌──────────────────┐
+                                       │ gate_apply_node  │
+                                       │ · apply edits    │
+                                       │ · policy advisory│
+                                       │ · output mapper  │
+                                       │   → store.put()  │
+                                       └────────┬─────────┘
+                                                ▼
+                                               END
+                                       (parent's static edge
+                                        advances the phase)
 ```
 
-The `reflect_node?` indicates a conditional edge — reflection runs
-only when triggered by content rules.
+**The planner fires many times per phase, not once.** After each
+executor step, control returns to the planner to decide whether to
+keep coaching the current field, advance to the next, or trigger the
+gate. That cycle is why LangGraph rather than a DAG engine is the
+runtime.
 
-### 3.2 Inside coach_node — tool-calling agent
+**The two-level cycle.** Level 1 is the phase chain
+(Plan → Execute → Review → Revise, where Review is the gate
+interrupt). Level 2 is the per-field cycle nested inside Level 1
+Execute — plan the coaching action, run the coaching LLM and
+extraction, check the captured field, loop or advance. For Define's six
+required fields, Level 2 fires roughly 6–10 times inside a single
+Level 1 Execute.
 
-The coach LLM is bound to seven universal tools (CLAUDE.md §5).
-The LLM decides which tools to call. Tool calls:
+**Leaf tools are not nodes.** Extraction, retrieval, computation, gate
+validation, and the advisory tool are bound to the executor. From the
+subgraph's perspective the executor is one node; from inside it,
+several tools can fire per invocation.
 
-- `record_field(field_name, value)` — writes to phase_inputs
-- `search_methodology(query, top_k)` — RAG against knowledge index
-- `search_evidence(query, top_k)` — RAG against case evidence
-- `propose_template(template_type, fill_data)` — coaching template
-- `propose_diagram(diagram_type, data)` — diagram JSON for UI
-- `check_gate_status()` — gate readiness check
-- `request_human_approval(reason)` — out-of-band interrupt
-
-The coach is a true ReAct agent within the constrained scope of a
-single phase node.
-
-### 3.3 Reflection — conditional node
-
-`reflect_node` is reached via a conditional edge from `coach_node`.
-Routing rule:
+### 3.3 Inside `phase_executor` — `create_agent` with per-phase tools
 
 ```python
-def should_reflect(state):
-    last_response = state["chat_history"][-1]["content"]
-    if len(last_response) > 800:
-        return "reflect"
-    if contains_numeric_commitment(last_response):
-        return "reflect"
-    if state.get("force_reflect"):
-        return "reflect"
-    return "validate"
+executor = create_agent(
+    model=get_llm("coach"),                          # operational-premium
+    tools=UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase],
+    response_format=ProviderStrategy(PhaseOutput),   # CLAUDE.md §4.6
+    middleware=[                                      # §3.4 — order matters
+        DMAICSkillsMiddleware(...),
+        DMAICGraderMiddleware(...),
+        SummarizationMiddleware(...),
+        BeforeModelStateInjection(...),
+    ],
+    prompt=PHASE_COACH_PROMPT[phase],
+)
 ```
 
-Turning reflection on/off requires no code change — just a routing
-edit.
+The executor is a **ReAct agent within the constrained scope of a
+single phase**. It reasons about which tool it needs, calls it,
+observes, and continues.
 
-### 3.4 Escalation — its own subgraph
+**Hop cap.** LangGraph counts steps, not hops. Each hop is two steps
+(LLM node → tool node) plus one final synthesis step:
 
-`escalation_subgraph` is entered when any phase's `validate_node`
-sees `gate_attempts >= GATE_MAX_ATTEMPTS`. The subgraph:
+```
+recursion_limit = 2 × max_hops + 1 = 2 × 5 + 1 = 11
+```
 
-1. Calls escalation LLM to produce a structured "stuck" report
+```python
+await graph.ainvoke(
+    state,
+    config={"recursion_limit": 11,
+            "configurable": {"thread_id": project_id}},
+)
+```
+
+`GraphRecursionError` is caught in the executor and turned into a
+partial answer for the Belt. Hitting the cap is a **monitoring
+signal** — it means the system prompt is encouraging too-broad
+exploration, or the question warrants `operational-premium` for that
+turn.
+
+**Model tiering inside the loop.** Intermediate multi-hop retrieval
+runs on `operational-model` (gpt-4o-mini); only the final synthesis
+runs on `operational-premium` (gpt-4o). gpt-4o-mini is roughly 15×
+cheaper, and this is the single largest cost lever in the design.
+
+**Binding tools directly onto a bare LLM in a phase executor is an
+architectural violation** — it bypasses the middleware stack.
+
+### 3.4 The middleware stack
+
+Four middlewares on every phase executor, built on the six
+`AgentMiddleware` hooks.
+
+| Order | Middleware | Hook | Purpose | Source |
+|---|---|---|---|---|
+| 1 | `DMAICSkillsMiddleware` | `before_agent` + registered tool | Progressive disclosure of phase coaching instructions | **Custom** |
+| 2 | `DMAICGraderMiddleware` | `after_agent` | Per-criterion quality evaluation against the phase rubric | **Custom** |
+| 3 | `SummarizationMiddleware` | `before_model` | Context compression for long coaching sessions | LangChain core |
+| 4 | `BeforeModelStateInjection` | `before_model` | Prepend structured project state at the top of the prompt | **Custom** |
+
+**Three are custom by decision, not by necessity.** deepagents ships
+`RubricMiddleware` and `SkillsMiddleware`, but the package is pre-1.0
+with breaking changes shipping between minor versions, and adopting it
+is all-or-nothing (`create_deep_agent` replaces `create_agent`).
+Carrying a bounded amount of our own code is preferable to an unbounded
+amount of someone else's pre-1.0 churn. All three migrate together
+when deepagents reaches 1.0.
+
+**`DMAICGraderMiddleware`** — `grader` role at temperature 0.1,
+`max_iterations=3`, per-criterion verdicts, `on_evaluation` callback
+writing each iteration into `step_log`. Grader internals stay private
+to the middleware and never reach `PhaseState`. The Belt never sees
+the grader loop.
+
+**`DMAICSkillsMiddleware`** — reads SKILL.md frontmatter at startup
+(Level 1, under 2K tokens for all five phases), registers
+`load_skill(name)` for the coach to call (Level 2), reference files on
+demand (Level 3). `FilesystemBackend`, git-versioned alongside the
+code.
+
+**`SummarizationMiddleware`** — triggers at 100k tokens (~78% of
+gpt-4o's window), keeps the last 20 messages raw. Prose summarisation
+is safe here **because facts do not live in `messages[]`** — they live
+in typed state and the store (§4).
+
+**`BeforeModelStateInjection`** — models weight earlier prompt content
+more heavily. Injecting project facts after the Belt's message lets the
+response drift toward the Belt's framing rather than the project's
+established state.
+
+**Not used:** `HumanInTheLoopMiddleware` (two confirmed bugs — edited
+tool-call args silently re-overwritten, and edit/reject broken in
+subgraph contexts where only approve is reliable; both would discard a
+Belt's correction), and `LLMToolSelectorMiddleware` (per-phase binding
+already solves tool-count structurally).
+
+### 3.5 The Planner / Executor contract
+
+The planner produces a structured plan. The executor consumes it.
+Neither does the other's job.
+
+```python
+coaching_plan = {
+    "next_action":        "coach_root_cause_validation",
+    "rationale":          "3 causes listed, none validated against data",
+    "focus_field":        "root_cause_statement",
+    "tools_needed":       ["rag_lookup_methodology", "chi_square_test",
+                           "record_field"],
+    "retrieval_strategy": "multi_hop",          # §7.5 — planner decides
+    "retrieval_hops": [
+        "what tools validate root cause in DMAIC analyse phase",
+        "how is {hop1_answer} applied to {root_cause_candidate}",
+        "what threshold applies for {hop2_answer} in a call centre context",
+    ],
+    "expected_fields":    ["root_cause_statement", "validation_method"],
+}
+```
+
+Produced with structured output (CLAUDE.md §4.6) — never prose parsed
+downstream.
+
+**Contract rules:**
+- The planner never dispatches to tools directly
+- The executor never decides strategy
+- `retrieval_strategy` is decided at **plan** time, not retrieval time
+- The two are separate nodes and are never fused — fusing them loses
+  the boundary that makes cost, tracing, and testing separable
+
+### 3.6 Gate flow — nine steps across two nodes
+
+| Step | Node | What happens |
+|---|---|---|
+| 1 | `phase_executor` | Coach produces output; extraction captures fields |
+| 2 | validation stack | Four layers (§3.7). **Belt does not see this loop.** |
+| 3 | `gate_review_node` | `interrupt()` — Belt sees validated fields |
+| 4–5 | *(frontend)* | Belt reviews, optionally edits |
+| 6 | `gate_apply_node` | Policy advisory on the Belt's edits — **non-blocking** |
+| 7 | `gate_apply_node` | Belt approves |
+| 8 | checkpointer | State commits **only now** |
+| 9 | output mapper → parent | `store.put()`, static edge advances the phase |
+
+**Two nodes, not one.** `gate_review_node` fires the interrupt and
+stops; it does nothing with the response. `gate_apply_node` reads the
+Belt's response, applies corrections, runs the advisory, and routes.
+Separating collection from application keeps the interrupt boundary
+clean and makes the resume path testable.
+
+**Two quality checks, two actors, two moments.** The grader blocks at
+step 2 because it is checking the AI's own output — there is no reason
+to show the Belt work already known to be below standard. The advisory
+does not block at step 6 because the Belt is the domain expert: it
+offers a second opinion before the decision, not a veto after it.
+
+**Implementation:** graph-level `interrupt()` + `Command(resume=...)`.
+Not `HumanInTheLoopMiddleware` (§3.4).
+
+**Frontend sequence:**
+1. Belt clicks **Submit Gate** → `POST /gate/submit`
+2. Backend resumes the graph; validation stack runs; `gate_review_node`
+   interrupts with the validated field payload
+3. Payload returned to the frontend and rendered for review
+4. Belt edits if needed, then `POST /gate/approve` (or `/gate/reject`)
+5. Backend resumes from the interrupt; `gate_apply_node` runs the
+   advisory, applies edits, commits the checkpoint, writes artifacts to
+   the store, and the parent's static edge advances the phase
+
+### 3.7 The four-layer validation stack
+
+All four run inside step 2, before the interrupt fires.
+
+| Layer | Checks | Mechanism | Model | Fires |
+|---|---|---|---|---|
+| **2a** Coherence | Real, meaningful, conclusive? Catches gibberish, vague non-answers, self-contradiction, off-topic, parroting the Belt | Lightweight LLM | `coherence`, 0.1 | **Every turn** |
+| **2b** Field presence | All required fields populated? `DMAICGateValidator` static methods | **Deterministic** | None | Gate only |
+| **2c** Constraints | Addresses budget / timeline / risk / measurement? | Lightweight LLM | `constraint`, 0.1 | Gate + key mid-conversation decisions |
+| **2d** Quality rubric | Meets DMAIC standards per criterion? `DMAICGraderMiddleware` | LLM grader | `grader`, 0.1 | Gate only |
+
+**Cheapest first; each fires only if the previous passes. The
+iteration cap is 3, shared across all four**, with accumulated
+feedback — never three per layer.
+
+**Only 2b is deterministic.** 2a and 2c are LLM calls because format
+checks cannot detect content failures: a length check does not detect
+fluent nonsense, and a keyword check rejects a decision that addresses
+cost thoroughly without using the word "budget." Layer 2a costs roughly
+$0.01–0.02 per phase session across 20–40 turns.
+
+**Failure visibility — the self-healing hierarchy:**
+
+| Level | Trigger | Belt sees | Retry |
+|---|---|---|---|
+| 1 Silent | Coherence failure mid-turn | Nothing — corrected response only | Max 2, then degraded mode |
+| 2 Coached | Constraint failure on a Belt proposal | Teaching moment, collaborative | **No cap** — this is dialogue |
+| 3 Validated | Full stack at gate | Pass/fail per criterion; corrects and approves | Max 3, accumulated feedback |
+| 4 Escalated | Attempts exhausted | Unresolved constraints named | None — Belt decides |
+
+Level 2 has no retry cap deliberately. Capping it would mean the coach
+eventually accepts a weak root cause — the exact outcome DMAIC
+discipline exists to prevent.
+
+Every attempt at every layer writes a dict entry to `step_log` (§4.4).
+
+### 3.8 Mid-phase conflict detection and the re-approval cascade
+
+`policy_advisory` runs **before each coach response reaches the Belt**,
+not only at gate boundaries.
+
+**Detection.** A structured diff — no LLM call, negligible latency —
+comparing values extracted this turn against `captured_fields`
+committed at prior gates. If any numeric or categorical value differs,
+the coach's response is **suppressed** and an interrupt payload is
+emitted carrying: field name, previously approved value, its approval
+timestamp and gate, the proposed new value, and two options.
+
+| Belt chooses | Consequence |
+|---|---|
+| Update the approved value | Affected phase's gate document becomes provisional; the cascade fires |
+| Keep the approved value | Belt clarifies they misspoke; no state change |
+
+**No tolerance threshold exists, and none may be added.** In production
+DMAIC, baseline means, sigma levels, and target metrics are taken
+seriously; silent drift across weeks is precisely the failure mode a
+coaching system exists to prevent.
+
+**The cascade.** If the Belt confirms the new value, the affected phase
+and **every downstream phase that depends on it** return to provisional
+and require re-review. A root cause validated against a baseline of 4.2
+is not automatically valid against 3.8.
+
+**Hard dependency on §9.2.** When the cascade fires, the affected
+phase's `error_handler` compensating logic must run to clean up stale
+values already written to Azure Blob and `improve_case_index`. A
+cascade that marks phases provisional but leaves published values in
+place is worse than no cascade — state and index then disagree
+silently.
+
+### 3.9 Escalation
+
+`escalation_subgraph` is entered via conditional edge when the
+validation stack exhausts its shared cap of 3 attempts, or when the
+coach calls `request_human_approval`.
+
+1. Produces a structured "stuck" report naming the unresolved
+   constraints — not a generic failure message
 2. Sets `escalated=True` in checkpointed state
-3. Routes to END (graph terminates this turn)
+3. Routes to END; the graph terminates this turn
 
-The frontend reads `escalated` and renders the escalation banner.
-
-### 3.5 Interrupt-based gates
-
-`gate_interrupt` is a node that calls LangGraph `interrupt()`. The
-graph pauses with `validate_node`'s output as the interrupt payload.
-
-Frontend flow:
-1. User clicks **Submit Gate** → `POST /gate/submit`
-2. Backend resumes graph from coach checkpoint, runs through
-   `validate_node` → `gate_interrupt`
-3. Interrupt fires with payload `{passed: bool, checks: [...]}`
-4. Response returned to frontend
-5. If passed, frontend immediately calls `POST /gate/approve`
-6. Backend resumes from interrupt with approval, graph advances
-   phase, persists to case blob, returns
-
-User experience: instant. Architecture: properly interrupt-based.
+`gate_attempts` is persisted in checkpointed state, never in route
+scope. The frontend reads `escalated` and renders the escalation
+banner.
 
 ---
 
 ## 4. State Model
 
-### 4.1 ImproveGraphState (supervisor level)
+### 4.1 `SupervisorState` — orchestration only
 
-`core/state.py` — TypedDict (total=False)
+`core/state.py`
 
-| Field | Type | Purpose |
+```python
+class SupervisorState(TypedDict):
+    messages:        Annotated[list[BaseMessage], operator.add]
+    history:         Annotated[list[str], operator.add]
+    project_id:      str
+    project_context: str                                  # set once after Define
+    dmaic_plan:      list[dict[str, Any]]
+    phase_index:     int                                  # 0=Define … 4=Control
+    current_phase:   str
+    key_decisions:   Annotated[list[str], operator.add]   # appended at each gate
+    open_items:      list[str]                            # replaced at each gate
+    final_output:    str
+```
+
+| Field | Reducer | Notes |
 |---|---|---|
-| case_id | str | The case in flight |
-| current_phase | str | define / measure / analyse / improve / control |
-| current_user | str | Active team member |
-| phase_inputs | dict | Per-phase structured field captures |
-| chat_history | list[dict] | role, content, timestamp, tool_calls |
-| gate_attempts | int | Per-phase counter, persisted via checkpoint |
-| escalated | bool | Set by escalation subgraph |
-| citations | list[dict] | Per-session citation accumulator |
-| uploaded_files | list[dict] | name, classification, phase, blob path |
-| case_metadata | dict | title, belt_level, leader, team |
-| pending_interrupt | dict \| None | Active interrupt payload if any |
+| `messages` | append | Compressed by `SummarizationMiddleware` |
+| `key_decisions` | **append** | Decisions accumulate across the project |
+| `open_items` | **replace** | Always reflects *currently* outstanding items |
+| `phase_index` | last write | Distinct from `field_index` on `PhaseState` |
 
-### 4.2 Phase substates (subgraph level)
+**`captured_fields` and `gate_documents` are deliberately absent.**
+They live in the store (§6.3). Two reasons: parent state stays small
+enough to checkpoint cheaply, and subgraph state does not reliably
+propagate to the parent anyway (§4.3).
 
-`core/substate.py` — one TypedDict per phase, inheriting from
-`ImproveGraphState`. Each adds phase-specific transient fields
-(e.g. `define.sipoc_draft`, `analyse.fishbone_in_progress`).
+**`key_decisions` and `open_items` exist because of context
+compression.** Anything that must survive `messages[]` compression has
+to live in typed state, because it never lived in `messages[]`.
 
-### 4.3 Persistence boundary
+### 4.2 `PhaseState` — per-phase subgraph state
 
-- **Checkpointed (graph-managed)**: full state above, every node
-  transition
-- **Persisted to case blob (lifecycle-managed)**: on gate pass —
-  `phase_inputs[phase]` → `case.phases[phase].structured`;
-  `chat_history` slice for that phase → `case.phases[phase].conversation`
+`core/substate.py`
+
+```python
+class PhaseState(TypedDict):
+    messages:      Annotated[list[BaseMessage], operator.add]
+    history:       Annotated[list[str], operator.add]
+    phase_context: str                                    # what this phase coaches toward
+    coaching_plan: list[dict[str, Any]]                   # planner output (§3.5)
+    field_index:   int                                    # field within the phase
+    draft:         dict[str, Any]                         # this turn's extraction
+    artifacts:     dict[str, Any]                         # accumulated for the phase
+    step_log:      Annotated[list[dict[str, Any]], operator.add]
+    feedback:      dict[str, Any]                         # Belt corrections at gate
+    final:         str                                    # approved gate document
+    turn_count:    int                                    # coaching turns before the gate
+```
+
+**`draft` and `feedback` are `dict`, never `str`.** String-typed
+handoffs force downstream nodes to parse prose out of an upstream
+node's output — the anti-pattern this architecture exists to remove.
+
+**`artifacts` and `step_log` are separate and stay separate.**
+`artifacts` is WHAT was captured; `step_log` is HOW. A DMAIC quality
+system must show not just what the root cause was, but how it was
+determined.
+
+Per-phase variants (`DefineState`, `MeasureState`, …) extend
+`PhaseState` with phase-specific transient fields. All use explicit
+`TypedDict`, not `MessagesState` inheritance — their dominant content
+is structured fields, not conversation.
+
+### 4.3 Boundary mappers — the store-mediated handoff
+
+`SupervisorState` and `PhaseState` are different schemas, so something
+must translate at the subgraph boundary. Two plain functions per phase,
+in `phases/{phase}/mappers.py`.
+
+```python
+def define_input_mapper(parent: SupervisorState, store: BaseStore) -> PhaseState:
+    """SupervisorState → DefineState. Prior artifacts come from the
+    store, never from parent state."""
+    return {
+        "messages":      parent["messages"],
+        "history":       [],
+        "phase_context": parent["project_context"],
+        "coaching_plan": [],
+        "field_index":   0,
+        "draft":         {},
+        "artifacts":     {},
+        "step_log":      [],
+        "feedback":      {},
+        "final":         "",
+        "turn_count":    0,
+    }
+
+
+def define_output_mapper(child: PhaseState, parent: SupervisorState,
+                         store: BaseStore) -> dict[str, Any]:
+    """DefineState → SupervisorState update. Artifacts go to the store;
+    only orchestration-relevant values return to the parent."""
+    store.put(
+        ("projects", parent["project_id"], "artifacts"),
+        "define",
+        child["artifacts"],
+    )
+    return {
+        "current_phase": "measure",
+        "phase_index":   1,
+        "key_decisions": child["artifacts"].get("key_decisions", []),
+        "open_items":    child["artifacts"].get("open_items", []),
+    }
+```
+
+**Why the store and not shared state keys.** LangGraph documents that a
+subgraph's state updates may not be visible to the parent immediately,
+because each subgraph manages its own checkpoint namespace — and names
+the Store as the fix for data that must cross graph boundaries. The
+design follows that guidance rather than testing around it.
+
+**Concrete Define → Measure sequence:**
+
+```
+1. Define subgraph runs; Level 2 cycles capture six fields into
+   PhaseState.artifacts. Nothing is written outside the subgraph yet.
+2. Gate: validation stack → interrupt → Belt reviews, edits, advisory
+   fires, Belt approves.
+3. Checkpoint commits. THEN define_output_mapper writes artifacts to
+   the store and returns orchestration values to the parent.
+4. Static edge fires: define → measure.
+5. measure_input_mapper reads Define's artifacts from the store and
+   builds Measure's phase_context.
+6. Measure's planner reads that context plus Measure's required fields
+   and plans its first coaching turn.
+```
+
+At no point does Measure parse Define's output from a message. If it
+needs Define's baseline metric it reads a float — and if that float
+later changes, §3.8 fires.
+
+**String-interpolating a previous phase's output into the next phase's
+prompt is prohibited.**
+
+### 4.4 `step_log` — the audit trail
+
+Dict entries with named keys. Tuples are prohibited: field names make
+the log self-documenting and queryable.
+
+```python
+{"layer": "constraint", "attempt": 2, "status": "failed",
+ "reason": "does not address timeline", "decision_excerpt": "..."}
+
+{"service": "gpt-4o", "attempt": 2, "status": "failed",
+ "reason": "timeout after 45s", "timestamp": "..."}
+
+{"iteration": 1, "result": "needs_revision",
+ "criteria": [{"criterion": "goal_statement", "passed": False,
+               "feedback": "no time-bound element"}]}
+```
+
+Writers: the four validation layers (§3.7), each grader iteration via
+`on_evaluation` (§3.4), every fallback attempt (§9.3), and every
+compensating action (§9.2).
+
+**The four-part audit answer** — for any completed run:
+
+| Question | Source |
+|---|---|
+| What happened | `artifacts`, `step_log`, LangSmith node spans |
+| Why | `coaching_plan`, grader verdicts in `step_log`, validation entries |
+| Who approved | Reviewer id + timestamp recorded at gate step 7 |
+| When | Checkpoint timestamps; `created_at`, `days_in_phase` on the case index |
+
+### 4.5 Persistence boundary
+
+| Written | Where | When |
+|---|---|---|
+| Full graph state | Checkpointer | After every node transition |
+| Phase artifacts | Store | At gate approval (output mapper) |
+| Gate document | Store | At gate approval |
+| Case record | Case blob | On create, gate pass, upload — **never per turn** |
+| Case summary + embedding | `improve_case_index` | On gate pass |
 
 ---
 
-## 5. Folder Structure (v2.1 target)
+## 5. Folder Structure (v2.2 target)
 
 ```
 agent-improve/
 backend/
-  app.py                          FastAPI app, lifespan management
+  app.py                          FastAPI app, lifespan, fail-fast env validation
   core/
-    state.py                      ImproveGraphState
-    substate.py                   Per-phase substates (NEW)
-    graph.py                      Supervisor graph compilation
-    llm.py                        get_llm() factory
-    checkpointer.py               AzureBlobCheckpointSaver (NEW)
+    state.py                      SupervisorState
+    substate.py                   PhaseState + per-phase variants
+    graph.py                      Supervisor graph — static edges
+    llm.py                        get_llm() factory, role → deployment map
+    checkpointer.py               AzureBlobCheckpointSaver
+    store.py                      AzureBlobStore                        (NEW)
+    reliability.py                CircuitBreaker, backoff strategies    (NEW)
+    errors.py                     AgentImproveError schema              (NEW)
+    cache.py                      Azure Redis response cache            (NEW)
     config.py                     Settings
-    prompts.py                    All prompt constants
+    prompts.py                    Prompts, rubrics, constraint sets
     citations.py                  Citation models
-    diagrams.py                   Diagram type schemas (NEW)
-    tracing.py                    LangSmith integration (NEW)
+    diagrams.py                   Diagram type schemas
+    tracing.py                    LangSmith integration
+  middleware/                                                           (NEW)
+    grader.py                     DMAICGraderMiddleware
+    skills.py                     DMAICSkillsMiddleware
+    state_injection.py            before_model injection
+  validation/                                                           (NEW)
+    gate_validator.py             DMAICGateValidator (static methods)
+    coherence.py                  Layer 2a
+    constraints.py                Layer 2c
+    schemas.py                    Verdict models
   phases/
     define/
-      graph.py                    Subgraph compilation
-      nodes.py                    retrieve, coach, reflect, validate
-      gate.py                     gate_interrupt node
-      schema.py                   DefinePhaseInput
-    measure/  (same shape)
-    analyse_phase/  (same shape)
-    improve/  (same shape)
-    control/  (same shape)
+      graph.py                    Subgraph compilation (no checkpointer)
+      nodes.py                    planner, executor, policy_advisory, revise
+      gate.py                     gate_review_node, gate_apply_node
+      mappers.py                  input/output boundary mappers         (NEW)
+      schema.py                   DefinePhaseInput, DefineOutput
+    measure/  analyse/  improve/  control/          (same shape)
   knowledge/
-    retriever.py                  AzureSearch clients
-    tools.py                      Universal coach tools
-    tool_args.py                  Pydantic arg schemas (NEW)
+    retriever.py                  Azure AI Search clients
+    tools.py                      The universal eight
+    computation.py                The 18 per-phase computation tools    (NEW)
+    fusion.py                     reciprocal_rank_fusion                (NEW)
+    tool_args.py                  Pydantic arg schemas
   storage/
     blob.py                       Case blob CRUD (lifecycle only)
-    models.py                     CaseDocument, PhaseRecord, etc
+    models.py                     CaseDocument, PhaseRecord, RegistryEntry
   gateway/
-    routes.py                     Thin transport: invoke graph
+    routes.py                     Thin transport
     schemas.py                    API envelopes
-    sse.py                        SSE streaming (NEW)
+    sse.py                        SSE streaming
   escalate.py                     Escalation subgraph
   upload/
     agent.py
     classifier.py
+skills/                                                                 (NEW)
+  dmaic-define-phase/SKILL.md
+  dmaic-measure-phase/SKILL.md
+  dmaic-analyse-phase/SKILL.md
+  dmaic-improve-phase/SKILL.md
+  dmaic-control-phase/SKILL.md
+eval/                                                                   (NEW)
+  dataset.py                      LangSmith evaluation dataset
+  evaluators.py                   Deterministic + LLM-judge evaluators
 ui/
   index.html
+menu.py                           Developer orchestrator (replaces start.ps1)
 CLAUDE.md
 ARCHITECTURE.md
+REFACTORING_AGENT_IMPROVE.md
 requirements.txt
 ```
 
-Major v1 → v2.1 changes:
-- Each phase grows from 4 files to 4 files but with different content
-- `core/checkpointer.py`, `core/diagrams.py`, `core/tracing.py`,
-  `core/substate.py`, `knowledge/tool_args.py`, `gateway/sse.py` are
-  new
-- `phases/{phase}/orchestrate.py` and `validate.py` are deleted —
-  replaced by `nodes.py` and `gate.py`
-- `phases/{phase}/analyse.py` (the 2-line vestigial stub) is deleted
+**Deleted from v2.1.1:** `phases/{phase}/orchestrate.py`,
+`phases/{phase}/validate.py`, `phases/{phase}/analyse.py` stub, and
+the `phase_router` node.
 
 ---
 
-## 6. Storage
+## 6. Storage and Persistence
 
-### 6.1 Two concerns, one Azure Storage account
+### 6.1 Two systems, not one
 
-**Concern A — Checkpoints (in-flight)**
-- Container: `agent-improve-cases` (existing)
-- Prefix: `checkpoints/{case_id}/`
+| System | Scope | Lifecycle | Injected |
+|---|---|---|---|
+| **Checkpointer** | Thread-scoped (one project) | Automatic — LangGraph writes after every node | `graph.compile(checkpointer=...)` |
+| **Store** | Cross-thread, cross-phase | **Explicit** — nodes call `put`/`get` | `graph.compile(store=...)` + node parameter |
+
+The asymmetry is deliberate: conversation history is structural, so
+LangGraph manages it; long-term memory is a product decision, so we
+write the code. **Passing only a checkpointer is the most common
+architecture mistake.**
+
+Both attach to the **parent graph only**. Phase subgraphs receive
+neither.
+
+### 6.2 Checkpointer — phased
+
+| Stage | Implementation |
+|---|---|
+| During the refactor | `AzureBlobCheckpointSaver` — `core/checkpointer.py` |
+| Post-refactor, pre-production | `PostgresSaver` |
+
+**`InMemorySaver` is not used at any stage.**
+
+- Container: `agent-improve-cases`
+- Prefix: `checkpoints/{project_id}/`
 - Files: `latest.json` (active) + `history/{checkpoint_id}.json`
-- Owner: `core/checkpointer.py` → `AzureBlobCheckpointSaver`
-- Lifecycle: written by graph after every node, read on resume
 
-**Concern B — Case records (durable)**
-- Container: `agent-improve-cases` (existing)
-- Prefix: `cases/`
-- Files: `case_{id}.json` (full case), `registry.json` (index)
-- Owner: `storage/blob.py` → `ImproveBlobClient`
-- Lifecycle: written on create, gate pass, upload — not per turn
+**Known limitation.** The Blob implementation was not tested for
+concurrent access, and Azure Blob has no row-level locking. Acceptable
+for single-developer refactoring; **not** acceptable for production.
+`PostgresSaver` is the officially maintained path, handles concurrency
+correctly, is SQL-queryable for debugging, and is updated by the
+LangChain team on every LangGraph release.
 
-### 6.1.1 On-blob format
+**Migration cost:** constructor and connection string. Both sides are
+defined by LangGraph interfaces, so nothing above the persistence layer
+changes. Run the existing unit tests against PostgreSQL before
+switching.
 
-Each checkpoint blob (both `latest.json` and
-`history/{id}.json`) is a JSON document with this envelope:
+#### 6.2.1 On-blob checkpoint format
+
+Each checkpoint blob is a JSON document with this envelope:
 
 ```json
 {
@@ -282,52 +886,648 @@ Each checkpoint blob (both `latest.json` and
 ```
 
 The base64 wrapping is required because
-`JsonPlusSerializer.dumps_typed()` (LangGraph
-`langgraph-checkpoint` 4.x) returns binary msgpack rather
-than utf-8 text. Wrapping the bytes in base64 keeps the
-blob a valid JSON document while preserving exact
-round-trip semantics.
+`JsonPlusSerializer.dumps_typed()` (`langgraph-checkpoint` 4.x) returns
+binary msgpack rather than utf-8 text. Wrapping the bytes in base64
+keeps the blob a valid JSON document while preserving exact round-trip
+semantics.
 
-### 6.2 Why blob and not Cosmos / Tables / SQLite
+*This was surfaced during commit 2.1 implementation and is preserved
+from v2.1.1 — it is a real deviation from the initial spec.*
 
-- Already provisioned, already secured, already monitored
-- Single Azure SDK dependency (no new service to deploy)
-- Append-only checkpoint history → simple time-travel debugging
-- LangGraph `BaseCheckpointSaver` interface lets us swap to Cosmos
-  later if scale requires, with no other code changes
+### 6.3 `AzureBlobStore` — cross-phase artifacts
 
-### 6.3 Concurrency
+`core/store.py`, implementing `langgraph.store.base.BaseStore`.
 
-Checkpoint writes use blob ETag conditional writes. Concurrent turns
-on the same case are detected and the second turn retries. Case
-blob writes are non-concurrent (gate pass is rare, single-user).
+```python
+class AzureBlobStore(BaseStore):
+    """BaseStore backed by Azure Blob Storage. Transitional —
+    migrates to PostgresStore alongside the checkpointer."""
 
----
+    def put(self, namespace: tuple[str, ...], key: str, value: dict) -> None: ...
+    def get(self, namespace: tuple[str, ...], key: str) -> Item | None: ...
+    def search(self, namespace: tuple[str, ...], *, query: str | None = None,
+               limit: int = 10) -> list[Item]: ...
+    def delete(self, namespace: tuple[str, ...], key: str) -> None: ...
+```
 
-## 7. Azure AI Search Indexes (unchanged from v1)
+**Namespace convention:** `("projects", project_id, <kind>)`
 
-### Active
-| Index | Content | Used by |
+| Namespace | Keys | Contents |
 |---|---|---|
-| `improve_knowledge_index` | DMAIC methodology, BB content | `search_methodology` tool |
-| `improve_evidence_index` | Uploaded case evidence | `search_evidence` tool |
+| `("projects", pid, "artifacts")` | `"define"`, `"measure"`, … | Each phase's approved artifacts |
+| `("projects", pid, "gate_documents")` | `"define"`, `"measure"`, … | Final approved gate document per phase |
+| `("projects", pid, "step_log")` | timestamped | Append-only cross-phase audit trail |
 
-### Cross-agent read-only (Agent Resolve, future)
-| Index | Tool |
-|---|---|
-| `case_index_v3` | `search_resolve_cases` |
-| `knowledge_index_v2` | `search_resolve_knowledge` |
-| `evidence_index_v1` | `search_resolve_evidence` |
+- Container: `agent-improve-cases`
+- Prefix: `store/{project_id}/{kind}/{key}.json`
+- `project_id` is the same value as the graph's `thread_id`
 
-### Out of scope for refactor
-| Index | Status |
-|---|---|
-| `improve_case_index` | Indexed on gate pass, queried on demand (existing) |
-| `vsm_index` etc | Agent Flow, not built |
+**Ordering constraint:** implement the store **after** `thread_id` is
+wired through `graph.ainvoke` (Step 6). A store is meaningless without
+working checkpoint persistence — if the graph cannot resume, there is
+no second session for stored artifacts to serve.
+
+**The store is not the case index.** Cross-*case* retrieval for yokoten
+is `rag_lookup_case_history` against `improve_case_index` (§7.3). The
+store carries cross-*phase* data within one project. Two mechanisms,
+two purposes, no overlap.
+
+### 6.4 Case records — the system of record
+
+- Container: `agent-improve-cases`
+- Prefix: `cases/`
+- Files: `case_{id}.json`, `registry.json`, `uploads/{case_id}/{file}`
+- Owner: `storage/blob.py` → `ImproveBlobClient`
+- Written on create, gate pass, upload — **never per turn**
+
+### 6.5 Concurrency and atomicity
+
+Checkpoint writes use blob ETag conditional writes; concurrent turns on
+the same case are detected and the second retries. This is the
+mitigation that the `PostgresSaver` migration replaces properly.
+
+Gate-pass case blob write and registry update remain two separate
+writes. Both are covered by the node's `error_handler` (§9.2), which is
+the ratified answer to what v2.1.1 listed as "Saga pattern for
+case-vs-registry atomicity — deferred."
+
+### 6.6 Response cache — Azure Cache for Redis
+
+**New infrastructure component, not yet provisioned.**
+
+- Purpose: Level 3 of the fallback chain (§9.3)
+- Stores: recent retrieval results keyed by query hash + phase; recent
+  coaching responses for similar questions
+- **Session-scoped, not global** — different projects have different
+  context, and a cached answer from another Belt's project is worse
+  than no answer
+- Cache-key design, TTL, and invalidation follow the principles in
+  REFACTORING_AGENT_IMPROVE.md §65. Methodology retrieval is stable
+  (the eBook does not change); evidence and case history are not.
+  A gate approval changes the project's artifacts and must invalidate
+  the affected entries.
+
+### 6.7 Why Blob and not Cosmos / Tables / SQLite
+
+- Already provisioned, secured, and monitored
+- Single Azure SDK dependency
+- Append-only checkpoint history → simple time-travel debugging
+- `BaseCheckpointSaver` / `BaseStore` interfaces make the PostgreSQL
+  migration a constructor change
 
 ---
 
-## 8. API Surface (v2.1)
+## 7. Azure AI Search Indexes — CANONICAL SCHEMAS
+
+**This section is the single canonical record of the index schemas.**
+CLAUDE.md §7.3 references it. Any schema change lands here first, in
+the same commit as the Azure AI Search change.
+
+### 7.1 `improve_knowledge_index` — methodology (semantic memory)
+
+LSS Black Belt eBook. Static: same for every project, every Belt.
+Never updated at runtime.
+
+| Field | Type | Role |
+|---|---|---|
+| `id` | String | Key |
+| `content` | String | Chunk text |
+| `content_vector` | SingleCollection (3072d) | **Vector field** |
+| `metadata` | String | JSON blob |
+| `source_file` | String | **Returned for citation** — not a filter |
+| `phase_relevance` | String | **Filter** — see below |
+| `page_number` | Int32 | **Returned for citation** — not a filter |
+
+**Retrieved by:** `rag_lookup_methodology(query, phase, top_k)`
+
+**Filter:**
+```
+phase_relevance eq '{phase}' or phase_relevance eq 'all'
+```
+The `or 'all'` term is required: cross-phase eBook content must remain
+reachable from any phase, so filtering strictly to the current phase
+would over-narrow.
+
+**Open item:** confirm the exact enumeration of `phase_relevance`
+values present in the index before implementing the filter.
+
+### 7.2 `improve_evidence_index` — uploaded evidence
+
+Case-specific documents uploaded by the Belt. **Per §1.2 this is the
+only channel through which external, real-world data enters
+AgentLean** — which makes it architecturally more important than
+"uploaded files" suggests.
+
+| Field | Type | Role |
+|---|---|---|
+| `id` | String | Key |
+| `content` | String | Chunk text |
+| `content_vector` | SingleCollection (3072d) | **Vector field** |
+| `metadata` | String | JSON blob |
+| `case_id` | String | **Filter** — scopes to the current case |
+
+**Retrieved by:** `rag_lookup_evidence(query, case_id, top_k)`
+
+**Filter:** `case_id eq '{case_id}'`
+**Ordering:** none — see below.
+
+> **Verified against the live index (Aug 2026) — there is no
+> `uploaded_at` field, and the ordering clause is dropped.**
+>
+> The live schema is exactly the five fields above. The upload
+> timestamp *does* exist, but inside the `metadata` JSON blob, as
+> `"timestamp"` — not `"uploaded_at"`:
+>
+> ```json
+> {"case_id": "IMPR-2026-E9D", "upload_phase": "define",
+>  "content_type": "image", "filename": "test_sipoc.png",
+>  "blob_path": "uploads/IMPR-2026-E9D/test_sipoc.png",
+>  "uploaded_by": "Vassilis", "timestamp": "2026-05-27T09:19:24+00:00"}
+> ```
+>
+> `metadata` is a non-sortable `Edm.String`, so `$orderby` cannot reach
+> the timestamp inside it. **`rag_lookup_evidence` therefore takes no
+> `order_by` argument.** Recency ranking is not available on this index
+> as currently shaped.
+>
+> If recency ordering is later judged necessary, it is a **schema
+> change under §7.7**, not a tool change: add a first-class sortable
+> `uploaded_at` field (`Edm.DateTimeOffset`, `sortable=True`) and
+> backfill it from `metadata.timestamp` at reindex time. Do not attempt
+> to sort client-side on the parsed blob — that reorders only the
+> `top_k` already returned, which is not the same result.
+
+### 7.3 `improve_case_index` — case records (episodic memory)
+
+Live case data with per-phase summaries and a vector embedding. This
+index **is** the long-term cross-case memory mechanism, and it moves
+from "out of scope" in v2.1.1 to **active** in v2.2.
+
+| Field | Type | Role |
+|---|---|---|
+| `id` | String | Key |
+| `case_id` | String | Case identifier |
+| `title` | String | Case title |
+| `belt_level` | String | **Optional filter, OFF by default** |
+| `leader` | String | Project leader |
+| `department` | String | Owning department |
+| `current_phase` | String | Phase in flight |
+| `rag_status` | String | Red / Amber / Green |
+| `status` | String | **Filter** — `status eq 'completed'` |
+| `created_at` | String | **Order by** — `created_at desc` |
+| `target_date` | String | Planned completion |
+| `days_in_phase` | Int32 | Duration metric |
+| `phase_summary_define` | String | Pre-computed phase summary |
+| `phase_summary_measure` | String | Pre-computed phase summary |
+| `phase_summary_analyse` | String | Pre-computed phase summary — *renamed, landed Aug 2026* |
+| `phase_summary_improve` | String | Pre-computed phase summary |
+| `phase_summary_control` | String | Pre-computed phase summary |
+| `content_text` | String | Concatenated case text |
+| `embedding` | SingleCollection (3072d) | **Vector field** — note the name |
+
+**Retrieved by:**
+`rag_lookup_case_history(query, top_k, exclude_current_case=True)`
+
+**Filter:** `status eq 'completed'` — completed cases are more
+authoritative than in-progress ones.
+**Ordering:** `created_at desc` — freshness matters for yokoten.
+**`belt_level` filtering is OFF by default** — over-narrowing risk,
+since a Green Belt often benefits from Black Belt cases. Available as
+an optional parameter.
+
+**The five `phase_summary_*` fields are pre-computed per-phase
+summaries.** The tool can retrieve compact per-phase context rather
+than only raw chunks, and its docstring says so.
+
+> ### ✅ Breaking schema change — LANDED Aug 2026
+>
+> **`phase_summary_analyse_phase` → `phase_summary_analyse`**
+>
+> Required for consistency with `_define`, `_measure`, `_improve`,
+> `_control`. The naive pattern `phase_summary_{phase.lower()}` is now
+> correct for all five phases.
+>
+> **How it was applied.** Azure AI Search does not support field
+> renaming, so the index was deleted and recreated from
+> `scripts/create_indexes.py`. **The live index held 0 documents at the
+> time**, so no data was lost and there was nothing to reindex — the
+> reindex step in §7.7 was a no-op for this change. Verified after
+> recreation: 19 fields before and after, symmetric difference exactly
+> `{phase_summary_analyse_phase, phase_summary_analyse}`, semantic
+> configuration `improve-case-semantic` intact.
+>
+> A `PHASE_SUMMARY_FIELD_MAP` mapping constant was considered and
+> **rejected**: fixing the name at the source means no permanent
+> workaround exists in the codebase and no future reader is surprised
+> by the inconsistency.
+>
+> **Writer side aligned — the internal phase key was renamed too.**
+> The index field alone was not enough: the *internal phase key* was
+> also `analyse_phase`, so `f"phase_summary_{phase}"` built from it
+> would have targeted a field that no longer exists. The key is now
+> `analyse` across the codebase — directory `phases/analyse/`, every
+> `phase_order` list, `PhaseSummaryRecord.analyse`, the graph node
+> names, and `EXTRACTION_MAP` / `ORCHESTRATOR_CONTEXT_MAP`. See §7.3.1.
+>
+> **Deferred:** a schema audit across all three indexes for other
+> naming inconsistencies.
+
+#### 7.3.1 The internal phase key — `analyse`, not `analyse_phase`
+
+**The phase key is `analyse`.** It matches the index field suffix
+(`phase_summary_analyse`), the `phase_relevance` values already present
+in `improve_knowledge_index` (348 documents on `analyse`), and the bare
+naming every other phase already used (`define`, `measure`, `improve`,
+`control`).
+
+`analyse_phase` was the anomaly in **four** places at once, all now
+renamed together:
+
+| Was | Now |
+|---|---|
+| `backend/phases/analyse_phase/` | `backend/phases/analyse/` |
+| `orchestrate_analyse_phase`, `validate_analyse_phase` | `orchestrate_analyse`, `validate_analyse` |
+| graph nodes `"orchestrate_analyse_phase"`, `"validate_analyse_phase"` | `"orchestrate_analyse"`, `"validate_analyse"` |
+| key `"analyse_phase"` in `PHASE_ORDER`, `phase_inputs`, `EXTRACTION_MAP`, `ORCHESTRATOR_CONTEXT_MAP`, `GATE_CHECKS`, `PhaseSummaryRecord`, `CaseDocument.phases` | `"analyse"` |
+
+**`AnalysePhaseInput` keeps its name** — `{Phase}PhaseInput` is the
+convention every phase follows (`DefinePhaseInput`, `MeasurePhaseInput`,
+…), so it was never part of the inconsistency.
+
+**Renaming the graph node names was safe only because no checkpoints
+existed.** LangGraph checkpoints record node names; had any been
+present, the rename would have orphaned them. Verified before applying:
+the blob container held no `checkpoints/` prefix. **Any future rename of
+a graph node name must re-check this** — the checkpointer is being wired
+in during this same refactor (§6.2), so the window in which this is free
+is closing.
+
+**Vector dimension — confirmed against the live index (Aug 2026):**
+`embedding` is 3072-dimensional, consistent with
+`text-embedding-3-large` and with `content_vector` on the other two
+indexes. HNSW profile `improve-vector-profile`, cosine metric,
+`m=4`, `efConstruction=400`, `efSearch=500`. Note the profile name
+differs from the other two indexes, which use `default` — the
+asymmetry is safe by construction (§7.4).
+
+### 7.4 The retrieval pipeline
+
+All three tools share one shape. The differences are index, filter,
+ordering, and vector field name.
+
+```
+Belt message
+    ↓
+phase_planner decides retrieval_strategy (§3.5)
+    ↓
+rag_lookup_* invoked by the executor
+    ↓
+  ┌─── INSIDE THE TOOL ─────────────────────────────────┐
+  │  1. Variant generation — 3–5 alternative phrasings, │
+  │     phase-shaped prompt, structured output          │
+  │  2. Per-variant retrieval with the index's          │
+  │     metadata filters applied                        │
+  │  3. Reciprocal Rank Fusion, k=60                    │
+  │  4. top_k returned, with source metadata            │
+  └─────────────────────────────────────────────────────┘
+    ↓
+Executor may call again (multi-hop, ≤5 — §3.3)
+```
+
+**Multi-query + RRF is mandatory, not an enhancement.** Agent Resolve
+production experience showed Azure AI Search ranking unreliable for
+this corpus: with a single query it was not reliably returning the
+right matches. RRF operationalises cross-variant consistency — when
+several variants return the same document at moderate ranks, that
+document is more likely genuinely relevant than one appearing once at
+the top of a single variant. Native single-query ranking cannot make
+that judgment, because it does not know the variants exist.
+
+```python
+def reciprocal_rank_fusion(ranked_lists, k: int = 60):
+    """score(doc) = Σ 1/(k + rank) across variant result sets."""
+```
+
+Roughly fifteen lines, no LangChain class, no third-party dependency,
+stable across framework versions. `MultiQueryRetriever` and
+`EnsembleRetriever` both moved to `langchain-classic` in the 1.0
+namespace split and are prohibited.
+
+**The vector field asymmetry is safe by construction.** Each tool is
+bound to exactly one index and knows that index's vector field name
+locally. There is no shared retriever, so no shared code can hide the
+`content_vector` / `embedding` difference and fail silently on it.
+
+### 7.5 Multi-hop policy per phase
+
+The **planner** decides at plan time; the executor does not decide at
+retrieval time.
+
+| Phase | Default | Multi-hop when |
+|---|---|---|
+| Define | Single-hop | Never — scoping questions are direct |
+| Measure | Single-hop | Complex measurement system validation (GR&R) |
+| **Analyse** | **Multi-hop, planned — 3 typed hops** | Almost always — root cause validation is layered |
+| Improve | Single-hop | Belt is comparing competing approaches |
+| Control | Single-hop | Never — documentation questions are direct |
+| **Gate validation** | **No retrieval** | **Never** |
+
+**Analyse uses *planned* multi-hop:** the planner pre-decomposes the
+question into a typed hop plan before any retrieval fires. More
+predictable and fully inspectable in LangSmith — you can see each hop's
+question and result. Correct for Analyse because root cause validation
+is inherently layered and inspectability matters in a quality system.
+
+**Other phases use *emergent* multi-hop:** the coach calls the tool
+again when its own reasoning requires it. A structured planner is not
+justified for rare occurrences.
+
+**Gate validation never retrieves.** The rubric already encodes the
+methodology standards; retrieval there is redundant *and* adds latency
+at exactly the moment the Belt is waiting.
+
+Multi-query and multi-hop compose: multi-query broadens within a hop,
+multi-hop deepens across hops.
+
+### 7.6 Cross-agent indexes — read-only
+
+| Index | Tool | Notes |
+|---|---|---|
+| `case_index_v3` | `search_resolve_cases` | Agent Resolve |
+| `knowledge_index_v2` | `search_resolve_knowledge` | Agent Resolve |
+| `evidence_index_v1` | `search_resolve_evidence` | Agent Resolve |
+
+These are `@tool` functions reading Agent Resolve's Azure AI Search
+indexes directly via a shared Python module. **Not MCP servers**
+(§1.2). Read-only — Agent Improve never writes to an Agent Resolve
+index.
+
+### 7.7 Schema change procedure
+
+1. Update this section **first**, in the same commit
+2. Apply the change in Azure AI Search
+3. Reindex or migrate existing documents
+4. Sweep the codebase for field-name references
+5. Update the affected tool docstrings (§8.1)
+
+Schema facts that are not written down here get rediscovered during
+implementation — which is how the `phase_summary_analyse_phase`
+inconsistency survived as long as it did.
+
+---
+
+## 8. Tool Architecture
+
+### 8.1 The universal eight
+
+Bound to every phase executor. Defined in `knowledge/tools.py`,
+argument schemas in `knowledge/tool_args.py`.
+
+| Tool | Purpose |
+|---|---|
+| `record_field(field_name, value)` | Writes a field to the phase artifacts |
+| `rag_lookup_methodology(query, phase, top_k)` | `improve_knowledge_index` — methodology grounding |
+| `rag_lookup_evidence(query, case_id, top_k)` | `improve_evidence_index` — this project's uploaded data |
+| `rag_lookup_case_history(query, top_k, exclude_current_case)` | `improve_case_index` — yokoten, cross-case precedent |
+| `propose_template(template_type, fill_data)` | Fill-in template for the team |
+| `propose_diagram(diagram_type, data)` | Structured diagram JSON (not SVG) |
+| `check_gate_status()` | Gate readiness — which required fields are populated |
+| `request_human_approval(reason)` | Out-of-band interrupt |
+
+`search_methodology` and `search_evidence` are renamed and superseded.
+`rag_lookup_case_history` is new — added on methodology grounds:
+**yokoten (horizontal deployment) is explicit Lean/DMAIC discipline**,
+and an agent that coaches DMAIC while withholding cross-case learning
+undermines its own methodology.
+
+**Docstrings are interface, not commentary.** They are how the model
+chooses between the three retrieval tools. Each must state when to use
+it, which index it queries, which vector field it uses, and which
+filters apply. `rag_lookup_case_history` additionally carries the
+multi-tenancy note for future engineers.
+
+### 8.2 Per-phase computation tools
+
+18 tools, `knowledge/computation.py`. Each is a `@tool(args_schema=...)`
+**pure function** — no LLM call, deterministic, unit-tested.
+
+| Phase | Universal | Computation tools | Total |
+|---|---|---|---|
+| Define | 8 | `calculate_expected_savings` | **9** |
+| Measure | 8 | `calculate_sigma_level`, `calculate_cpk`, `calculate_dpmo`, `calculate_yield_rty`, `calculate_ftq`, `calculate_grr`, `calculate_sample_size_proportion`, `calculate_sample_size_mean` | **16** |
+| Analyse | 8 | `t_test`, `chi_square_test`, `anova`, `pearson_correlation`, `linear_regression` | **13** |
+| Improve | 8 | `calculate_doe_main_effects` | **9** |
+| Control | 8 | `xbar_r_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | **12** |
+
+**Why per-phase binding.** Tool selection quality degrades past roughly
+10–15 tools per agent. Binding all 26 everywhere would make every coach
+carry 26 options per turn, most irrelevant to its phase. Under
+per-phase binding no phase exceeds 16; most sit at 9–13.
+
+**Why separate named tools rather than parameterised groups.**
+Parameterisation moves the selection burden from the tool namespace
+into the argument space, and models handle distinct named tools more
+reliably than mode arguments. Each canonical DMAIC calculation gets its
+own name.
+
+**Architectural consequence:** the phase subgraph builder takes the
+phase as a parameter, because it must select the correct computation
+subset:
+
+```python
+def build_phase_subgraph(phase: str, llm):
+    tools = UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase]
+    ...
+    return builder.compile()          # no checkpointer, no store
+```
+
+### 8.3 Where multi-query and RRF live
+
+**Inside the tool.** Not a subgraph node, not a wrapper class around
+the retriever. From the executor's perspective `rag_lookup_*` returns
+documents; the variant generation and fusion are encapsulated.
+
+The same holds for the gate validator, the coherence check, and the
+constraint check — these are bound tools or middleware, not pipeline
+stages and not nodes.
+
+### 8.4 Phase skills
+
+Five SKILL.md files under `skills/`, following the agentskills.io
+standard, loaded by `DMAICSkillsMiddleware` (§3.4).
+
+Each skill carries: phase coaching instructions, the phase rubric,
+the phase-specific computation tool list, and coaching strategy
+guidance.
+
+**`allowed-tools` in each skill must match §8.2 for that phase.** The
+skill and the tool binding must not drift apart.
+
+**Two distinct kinds of skill exist in this repository:**
+
+| Location | Consumed by | Example |
+|---|---|---|
+| `.claude/skills/` | Claude Code, during development | `/verify-current-version` |
+| `agent-improve/skills/` | The coach, at runtime | `dmaic-analyse-phase` |
+
+---
+
+## 9. Reliability Architecture
+
+### 9.1 The six-step failure pipeline, plus Step 0
+
+```
+Step 0. Per-node timeout        TimeoutPolicy(run_timeout=45)
+Step 1. Error classification    transient vs permanent (§9.5)
+Step 2. Context recovery        save partial results, resume
+Step 3. Circuit breaker         3 failures / 30s → OPEN, 60s reset
+Step 4. Safe reopen             one probe in HALF-OPEN
+Step 5. Graceful degradation    four-level fallback chain (§9.3)
+Step 6. Smart fallbacks         alternative model, cache, degraded mode
+```
+
+**Step 0 is the addition.** LangGraph 1.2's per-node `TimeoutPolicy`
+bounds wall-clock at 45 seconds, and `NodeTimeoutError` triggers the
+fallback chain — the timeout fires *before* the Belt notices the delay,
+rather than after retries have already burned the budget.
+
+**Backoff discipline:** exponential for managed services (Azure OpenAI
+rate-limits predictably); jittered for shared resources (the cache,
+which several subagents may hit simultaneously — lock-step retries
+create their own thundering herd).
+
+### 9.2 Compensation via native `error_handler=` — not a Saga framework
+
+**No custom Saga orchestrator is built.** LangGraph 1.2 provides the
+mechanism; hand-rolling a coordinator on top of it is redundant
+machinery.
+
+```python
+def define_error_recovery(error: NodeError, state: PhaseState) -> Command:
+    """Undoes external writes for define_executor."""
+    delete_or_flag_stale_in_case_index(state["case_id"], "define")
+    return Command(
+        update={"extraction_error": str(error), "extraction_incomplete": True},
+        goto="degraded_coaching_response",
+    )
+
+
+builder.add_node(
+    "define_executor",
+    define_executor_fn,
+    timeout=TimeoutPolicy(run_timeout=45),
+    error_handler=define_error_recovery,
+)
+```
+
+**Every node that writes to an external system gets one.** The external
+systems are Azure Blob, `improve_case_index`, and
+`improve_evidence_index` — and that set is closed by design (§1.2).
+
+| Phase | External write | Handler required |
+|---|---|---|
+| Define | artifacts → store + case index | ✅ |
+| Measure | baseline + case index update | ✅ |
+| Analyse | root cause + case index | ✅ |
+| Improve | hypothesis + pilot results | ✅ |
+| Control | control plan, final record | ✅ |
+
+**Two dependencies, both correctness-critical:**
+
+1. **Gate reopening (§3.8).** When the re-approval cascade fires, the
+   affected phase's handler must run, or graph state and the index
+   disagree silently.
+2. **Time-travel debugging.** Resuming from an earlier checkpoint rolls
+   back *state*, not *external writes*. Time travel is only correct for
+   nodes that have a handler — these are not independent features.
+
+**Graceful shutdown:** `RunControl.request_drain()` for deployment
+rollouts. Mid-coaching sessions save their checkpoint and resume.
+
+**`DeltaChannel` is not used** — beta API, and not needed until
+sessions exceed roughly 200 turns.
+
+### 9.3 The four-level fallback chain
+
+```
+Level 0: TimeoutPolicy(run_timeout=45)              fires first
+    ↓ NodeTimeoutError
+Level 1: Azure OpenAI gpt-4o  (operational-premium)
+         exponential backoff — managed service
+    ↓ rate-limited or unavailable
+Level 2: Azure OpenAI gpt-4o-mini (operational-model)
+         exponential backoff — same managed tier
+    ↓ also unavailable
+Level 3: Azure Cache for Redis, session-scoped       ← §6.6
+         jittered backoff — shared resource
+    ↓ cache miss or unavailable
+Level 4: Degraded mode — always succeeds, never crashes
+```
+
+**Degraded mode uses actual state, never a generic error:**
+
+```python
+def degraded_mode_response(state: PhaseState) -> str:
+    return (
+        f"I'm experiencing a temporary connection issue. "
+        f"Based on what we've captured so far in the {phase} phase "
+        f"({n_captured} of {n_total} fields complete), "
+        f"I'd suggest we pause here and continue once the system recovers. "
+        f"Your progress is saved and nothing has been lost."
+    )
+```
+
+Degraded mode is still a coaching interaction, not an error page. The
+Belt knows what happened, that their work is safe, and how to continue.
+
+**HTTP 400 (token limit exceeded) is not a fallback case.** It is a
+context-management failure — retrying against a smaller model does not
+fix it. Fix the context (§3.4).
+
+### 9.4 Two circuit breakers, three states
+
+| Breaker | Wraps | When OPEN |
+|---|---|---|
+| **LLM** | Azure OpenAI | Coaching turn cannot happen — fall to Level 2, then degraded |
+| **Search** | Azure AI Search | Coaching **continues** without RAG grounding — **quality** degradation, not **availability** failure |
+
+Threshold 3 failures in 30s trips open; 60s reset; one probe request in
+HALF-OPEN before resuming full traffic.
+
+**Two-state (CLOSED/OPEN) breakers are prohibited.** This is a
+long-running FastAPI service and must recover without a restart — a
+two-state breaker turns a 30-second Azure blip into an outage lasting
+until someone redeploys.
+
+When the search breaker is open, the coach's system prompt must
+acknowledge the reduced grounding rather than presenting ungrounded
+methodology as if it had been retrieved.
+
+### 9.5 Structured error schema
+
+`core/errors.py`
+
+```python
+class AgentImproveError(BaseModel):
+    error_code: str              # "TIMEOUT", "RATE_LIMIT", "AUTH_FAILURE", …
+    severity: str                # "transient" | "permanent"
+    retry_recommendation: str    # "retry_after_backoff" | "do_not_retry" | …
+    affected_identifier: str     # which service failed
+    message: str
+    timestamp: datetime
+```
+
+Used by the circuit breaker, the fallback chain, and the `step_log`
+audit trail. `severity` is what lets the breaker distinguish "retry
+this" from "stop trying"; `retry_recommendation` is what the fallback
+chain reads to choose its backoff strategy.
+
+Applies to **all** external service calls — Azure OpenAI, Azure AI
+Search, Azure Blob, Redis.
+
+---
+
+## 10. API Surface
 
 | Endpoint | Method | Purpose |
 |---|---|---|
@@ -337,227 +1537,376 @@ blob writes are non-concurrent (gate pass is rare, single-user).
 | `/registry` | GET | Case list |
 | `/ask` | POST | Non-streaming turn (legacy clients) |
 | `/ask/stream` | POST | SSE streaming turn (primary) |
-| `/gate/submit` | POST | Submit current phase for review |
-| `/gate/approve` | POST | Resume from gate interrupt with approval |
-| `/gate/reject` | POST | Resume from gate interrupt with rejection |
+| `/gate/submit` | POST | Run validation stack, fire `gate_review_node` interrupt |
+| `/gate/approve` | POST | Resume from interrupt with approval + edits |
+| `/gate/reject` | POST | Resume from interrupt with rejection |
+| `/conflict/resolve` | POST | **NEW** — resolve a mid-phase value contradiction (§3.8) |
 | `/upload` | POST | File upload to evidence |
 | `/files/{case_id}/{file_id}` | DELETE | Remove uploaded file |
-| `/context` | POST | Re-entry greeting (preserved for now) |
-| `/summarise` | POST | Session summary (preserved for now) |
+| `/context` | POST | Re-entry greeting |
+| `/summarise` | POST | Session summary |
 
-All endpoints are `async def`. All return Pydantic models from
+All endpoints are `async def` and return Pydantic models from
 `gateway/schemas.py`.
 
+**Versioning** (`/v1`, `/v2` parallel) becomes relevant **after** first
+production launch. No production system exists yet, so there is nothing
+live to avoid breaking.
+
 ---
 
-## 9. UI Architecture (unchanged structurally; some integration changes)
+## 11. UI Architecture
 
-The UI structure (4 screens, 5 tabs per phase) is preserved. Two
-integration changes:
+The structure (4 screens, 5 tabs per phase) is preserved. Integration
+changes:
 
-### 9.1 Streaming chat (`/ask/stream`)
+### 11.1 Streaming chat
 The AI Guide tab connects to `/ask/stream` via EventSource and renders
-tokens as they arrive. Replaces the current 16-22s wait.
+tokens as they arrive.
 
-### 9.2 Gate interrupt flow
-The Gate tab's Submit button calls `/gate/submit`, then immediately
-`/gate/approve` (or `/gate/reject` if validation failed). The
-interrupt payload drives the gate result panel.
+### 11.2 Contextual progress messages
+Spinner text is contextual, never generic: "Retrieving methodology…",
+"Validating your root cause against Six Sigma standards…", "Checking
+gate completeness…". A multi-hop turn takes longer than a simple
+coaching response, and the message should say which operation is
+running.
 
-UI files (`index.html`) split into modules is a separate roadmap
-item; for now the file stays monolithic.
+### 11.3 Connection status before first interaction
+A status panel on session load shows Azure OpenAI, knowledge base, and
+case index reachability, plus session id and phase. Without it, the
+first coaching turn fails with a confusing error and the Belt does not
+know why.
+
+### 11.4 Gate review — extracted field transparency
+Before approval, the Belt sees every extracted field in a readable,
+editable panel with an explicit approve action. This is steps 4–7 of
+§3.6 made concrete. Edits flow to `/gate/approve` and are validated by
+the policy advisory before commit.
+
+### 11.5 Conflict resolution panel
+**New.** When §3.8 fires, the Belt sees the field name, the previously
+approved value with its approval timestamp and gate, the proposed new
+value, and the two options. Choosing "update" surfaces which downstream
+phases become provisional **before** the Belt confirms.
+
+### 11.6 Completeness and trace surfacing
+`completeness_score` is surfaced visually at gate review. The LangSmith
+run id is available for support escalation.
+
+UI modularisation of `index.html` remains a separate roadmap item.
 
 ---
 
-## 10. Tracing and Observability
+## 12. Tracing and Observability
 
-### 10.1 LangSmith integration
+### 12.1 LangSmith integration
+`core/tracing.py` initialises tracing at app startup. Production
+without LangSmith credentials fails startup with a clear error.
 
-`core/tracing.py` initialises tracing at app startup:
-- Sets `LANGCHAIN_TRACING_V2=true`
-- Sets `LANGCHAIN_API_KEY` from settings
-- Sets `LANGCHAIN_PROJECT=agentlean-improve` (configurable)
-
-If LangSmith credentials are missing in production, app fails
-startup with a clear error.
-
-### 10.2 What's traced
-
+### 12.2 What is traced
 - Every `graph.ainvoke` call → top-level trace
 - Every node → child span with input/output state slices
 - Every LLM call → token cost, latency, model name
 - Every tool call → args, result, duration
 - Every retrieval → query, top-k, scores
+- **Every validation layer** → via `@traceable`
 
-### 10.3 Logs
+### 12.3 `@traceable` on custom functions
+LangSmith traces LangChain runnables and LangGraph nodes
+automatically. It does **not** trace plain Python functions. Without
+`@traceable`, the logic *between* nodes is invisible and a gate failure
+surfaces as a 500 with no indication of which layer failed.
 
+Required on: field extraction, **all four validation layers**,
+completeness scoring, routing decisions outside LangGraph routing, and
+direct Azure service calls made outside a LangChain runnable.
+
+### 12.4 Diagnostic patterns
+P50/P99 latency is a **coaching quality signal**, not only an ops
+metric. The usual P99 outlier is multi-hop retrieval combined with a
+grader call on the same turn. Fixes in order of preference: cache
+(§9.3 Level 3), faster grader model, reorder the validation stack
+cheapest-first (already mandated).
+
+### 12.5 Fail-fast environment validation
+`AZURE_OPENAI_KEY`, `AZURE_SEARCH_API_KEY` (**not**
+`AZURE_SEARCH_KEY`), `LANGCHAIN_API_KEY` validated at startup; missing
+credentials exit 1 with a clear message. Integrates with container
+health checks — a container failing startup receives no traffic.
+
+### 12.6 Logs
 Structured logs via `logging.Logger`. Every request gets a
-`request_id` (UUID4), propagated to all child operations. Logs
-include `request_id`, `case_id`, `phase`, `node_name`, `duration_ms`.
+`request_id` (UUID4) propagated to child operations. Logs include
+`request_id`, `project_id`, `phase`, `node_name`, `duration_ms`.
 
 ---
 
-## 11. Phase Gate Requirements (mostly preserved from v1)
+## 13. Phase Gate Requirements
 
-| Phase | Required for gate (3-4 fields each, see schema) |
+| Phase | Required for gate |
 |---|---|
-| Define | problem statement, primary metric, target, process owner, SIPOC |
-| Measure | metric confirmed, data collection plan, baseline data, sigma |
-| Analyse | ≥3 causes, vital few, cause verified, root cause statement |
-| Improve | selected solution, pilot result, improvement confirmed |
-| Control | control plan, monitoring method, sustainability confirmed |
+| Define | problem statement, business case, project scope, team, goal statement |
+| Measure | baseline mean, baseline sigma, measurement system validated, data collection plan |
+| Analyse | root causes, root cause validation, causal hypothesis, ruled-out causes |
+| Improve | solution selected, solution linked to root cause, pilot results, implementation plan |
+| Control | control plan, sustainability check, post-improvement metric, handover documented |
 
-Detailed schemas in `phases/{phase}/schema.py`. Gate validators
-in `phases/{phase}/nodes.py` (validate_node).
+**Three distinct things check these fields**, and conflating them is a
+design error:
+
+| Mechanism | Checks | Where |
+|---|---|---|
+| `PhaseInput` schema | Types and shape | `phases/{phase}/schema.py` |
+| `DMAICGateValidator` | Presence and objective properties | Layer 2b |
+| Phase rubric | Meaningful quality per criterion | Layer 2d |
+
+A `root_cause_statement` reading "there are problems" satisfies the
+schema and the presence check and fails the rubric. That gap is the
+reason Layer 2d exists.
+
+Rubric and constraint text are canonical in CLAUDE.md §8.2 / §9.2.
 
 ---
 
-## 12. Out of Scope (v2.1 refactor)
+## 14. Evaluation and Regression Testing
+
+**Built alongside the refactor, not before it.** Establishing a
+baseline against the current system would produce a baseline of "bad."
+The suite becomes load-bearing when the coach, retrieval tools, and
+grader are wired — that is when output quality changes. Infrastructure
+steps do not affect coaching quality.
+
+**Authored jointly, not generated.** Coaching quality judgments are
+domain judgments; a generated dataset measures agreement with a model
+rather than correctness.
+
+| Dimension | Target |
+|---|---|
+| Size | 20–30 examples, 4–6 per phase |
+| Categories | Realistic turns · edge cases · tool-calling · failure/ambiguous · historical production data |
+| Metrics | Accuracy · relevance · reasoning quality · tool usage · safety |
+| Evaluator order | Deterministic ($0) → LLM-judge relevance (~$0.01) → LLM-judge reasoning (~$0.02) |
+| Regression gate | **Block release if any metric drops >10% from baseline** |
+| Frequency | Every commit touching prompts, graph structure, or model config |
+| Cost | ~$0.60 per 20-example run |
+
+Lives in `eval/`. Output format is ready for LangSmith's
+`create_dataset` API.
+
+**Rubrics and the eval dataset are complementary.** Rubrics define what
+good looks like *for the grader*, in production, at every gate. The
+eval dataset tests whether the whole system produces good outcomes, in
+CI, at every commit.
+
+---
+
+## 15. Migration Sequence — v1 → v2.2
+
+**Option B is the ratified sequence: refactor the foundation first,
+then build Improve and Control on it.** Building two more phases on the
+current foundation and rewriting them later was rejected — the cost is
+building each twice.
+
+Each step is one commit with prefix `refactor(arch-v2):`. Each step
+must compile, tests pass, and IMPR-2026-E9D load, before the next
+begins.
+
+### Step 0 — Foundation ✅ COMPLETE
+- **0.1** CLAUDE.md + ARCHITECTURE.md committed
+- **0.5.0–0.5.5** Anti-drift scaffold: `/verify-current-version` skill,
+  `PreToolUse` drift hook, `SessionStart` context hook. Smoke tested
+  2026-07-03.
+
+### Step 1 — Tracing first ✅ COMPLETE
+- **1.1** `core/tracing.py`, LangSmith wired, fail-fast on missing creds
+- **1.2** `request_id` middleware, structured logging
+
+### Step 2 — Checkpointer ✅ COMPLETE
+- **2.1** `AzureBlobCheckpointSaver` with unit tests
+- **2.2** Wired into graph compilation
+
+### Step 2.5 — Dependency upgrade ⬅ NEXT
+- **2.5.1** Upgrade `langgraph` 1.1.10 → **1.2.7**. Required for the
+  subgraph `checkpoint_ns` fix (§3.1) **and** the native reliability
+  primitives (§9.2). Both need ≥1.2.6.
+- **2.5.2** Upgrade `langchain` → 1.3.11. Sweep for imports from
+  `langgraph.prebuilt`; migrate to `langchain.agents`.
+- **2.5.3** Repin adjacent packages after pip resolution.
+
+### Step 3 — Tools and schemas
+- **3.1** `knowledge/tool_args.py` — Pydantic arg schemas
+- **3.2** `knowledge/fusion.py` — `reciprocal_rank_fusion`
+- **3.3** `knowledge/tools.py` — the universal eight with multi-query + RRF
+- **3.4** `knowledge/computation.py` — 18 computation tools, pure functions, unit tested
+- **3.5** `core/diagrams.py` — diagram type schemas
+- **3.6** ✔ **Index schema rename** — `phase_summary_analyse_phase` →
+  `phase_summary_analyse` applied in Azure AI Search by delete +
+  recreate (index was empty; no reindex needed); codebase sweep done —
+  `scripts/create_indexes.py` was the only live reference (§7.3).
+  Writer-side phase-key alignment still outstanding — see §7.3.
+
+### Step 4 — State and store
+- **4.1** `core/state.py` `SupervisorState`, `core/substate.py` `PhaseState`
+- **4.2** `core/store.py` `AzureBlobStore` with unit tests
+- **4.3** `phases/{phase}/mappers.py` — boundary mappers, all five phases
+
+### Step 5 — Validation and middleware
+- **5.1** `validation/` — gate validator, coherence, constraints, verdict schemas
+- **5.2** `middleware/grader.py` — `DMAICGraderMiddleware`; five rubrics in prompts.py
+- **5.3** `middleware/skills.py` — `DMAICSkillsMiddleware`; five SKILL.md files
+- **5.4** `middleware/state_injection.py` — `before_model` injection
+- **5.5** Wire `SummarizationMiddleware`
+
+### Step 6 — Phase subgraph migration (Define first)
+- **6.1** Migrate Define: `nodes.py` (planner, executor, policy_advisory,
+  revise), `gate.py` (gate_review_node, gate_apply_node), `graph.py`.
+  Delete `orchestrate.py`, `validate.py`, `analyse.py` stub.
+- **6.2 → 6.5** Same for Measure, Analyse, Improve, Control — one
+  commit per phase, each independently verifiable
+
+### Step 7 — Supervisor and routing
+- **7.1** `core/graph.py` — static edges, checkpointer + store on the
+  parent only. Delete `phase_router`.
+- **7.2** `escalate.py` — escalation subgraph
+
+### Step 8 — Reliability
+- **8.1** `core/errors.py`, `core/reliability.py` — circuit breakers, backoff
+- **8.2** Provision **Azure Cache for Redis**; `core/cache.py`
+- **8.3** Wire `TimeoutPolicy` and `error_handler=` on every node with
+  external writes
+- **8.4** Four-level fallback chain
+
+### Step 9 — Routes
+- **9.1** Rewrite `gateway/routes.py` — thin transport. Wire `thread_id`
+  through `graph.ainvoke` and `recursion_limit=11`. *(This is the
+  `routes.py:238` fix.)*
+- **9.2** `/ask/stream` SSE endpoint
+- **9.3** `/gate/submit`, `/gate/approve`, `/gate/reject`
+- **9.4** `/conflict/resolve`
+
+### Step 10 — UI integration
+- **10.1** AI Guide tab — streaming, contextual progress messages
+- **10.2** Gate tab — review/edit/approve against the new endpoints
+- **10.3** Conflict resolution panel
+- **10.4** Diagram rendering from `propose_diagram` JSON
+
+### Step 11 — Cleanup and validation
+- **11.1** Delete remaining v1 code; verify no dead imports
+- **11.2** Run IMPR-2026-E9D end-to-end; document behavioural deltas
+- **11.3** Create and run IMPR-2026-FS1 (financial services showcase)
+
+### Step 12 — Then, and only then
+- Build **Improve** phase on the correct foundation
+- Build **Control** phase on the correct foundation
+
+### Step 13 — Pre-production
+- **13.1** Provision Azure Database for PostgreSQL
+- **13.2** Migrate to `PostgresSaver` + `PostgresStore`; run existing
+  tests against PostgreSQL
+- **13.3** Multi-user identity, session isolation, tagged observability
+
+**Parallel workstreams**, run alongside rather than after: the
+evaluation dataset (§14) and the five phase skills (§8.4). Both encode
+Black Belt domain judgment and are authored jointly.
+
+**Early, cheap, do it first:** `menu.py`, the developer orchestrator
+that replaces the destructive `start.ps1` (which hard-resets to
+`origin/main` on every run). Roughly 30 minutes, removes a live
+data-loss hazard.
+
+---
+
+## 16. Out of Scope
+
+### 16.1 Architecturally excluded — not deferred
+
+| Item | Why |
+|---|---|
+| **MCP — server, client, or dependency** | §1.2. No promotion trigger exists. |
+| Live system integrations (SAP, KPI feeds) | §1.2 — the Belt uploads data |
+| External verification benchmarks | Requires a live integration |
+| deepagents dependency | Pre-1.0 with breaking changes between minors (§3.4) |
+
+### 16.2 Out of scope for this refactor
 
 - Agent Flow build-out
-- Cosmos DB migration (Blob suffices)
-- Tool-calling for cross-agent search (`search_resolve_*` stays as a
-  no-op tool until Agent Resolve integration is wired)
-- LangChain Hub for prompts (deferred indefinitely)
+- Cosmos DB migration
+- LangChain Hub for prompts
 - Mobile UI
+- `index.html` modularisation
+
+### 16.3 Deferred to v2.2+ with promotion triggers
+
+Fourteen tracked items with explicit triggers live in
+REFACTORING_AGENT_IMPROVE.md §87. Architecturally significant ones:
+
+| Item | Trigger |
+|---|---|
+| PostgreSQL migration | **Scheduled** — before production launch |
+| Debate subgraph for root cause validation (Analyse) | Base coaching loop stable in production |
+| Observer Agent — cross-project monitoring | Multiple concurrent projects in production |
+| Multi-tenant filtering on `improve_case_index` | Deployment to multiple organisations |
+| `DeltaChannel` checkpoint compression | Sessions exceeding ~200 turns |
+| Feedback-driven chunk score adaptation | Retrieval evaluation shows systematic misses |
+
+**Note the shape:** most triggers reduce to *"more than one deployment
+or more than one customer."* The single-tenant assumption is
+load-bearing in more places than it appears.
 
 ---
 
-## 13. Decisions Resolved (v2.1)
+## 17. Decisions Resolved (v2.2)
 
 | Decision | Resolution |
 |---|---|
-| Graph topology | Hierarchical subgraphs (Option A2) |
-| Coach pattern | Tool-calling agent inside explicit node (Option B2) |
-| Checkpointer backend | Azure Blob via custom `BaseCheckpointSaver` |
-| Gate flow | Interrupt-based, triggered on user Submit (Q4c) |
-| Streaming | SSE via `/ask/stream` (Q5a) |
-| Tools per phase | Universal toolset, ~7 tools (Q1a) |
-| Diagram generation | LLM emits JSON, frontend renders SVG from templates (Q2b) |
-| Prompt management | Constants in `core/prompts.py` (no Hub migration) |
+| Graph topology | Hierarchical subgraphs, **static edges between phases** |
+| Threading | **One `thread_id` per project**, auto `checkpoint_ns` per subgraph |
+| Checkpointer placement | **Parent graph only** — subgraphs compile without one |
+| Checkpointer backend | **Phased** — Azure Blob → PostgreSQL before production |
+| Cross-phase handoff | **Store-mediated boundary mappers**, not parent state |
+| Coach pattern | **`create_agent`** with four middlewares and a per-phase tool subset |
+| Planner | Explicit node producing a structured plan; Level 1 planner is deterministic |
+| Rubric grading | **Custom `DMAICGraderMiddleware`** on `create_agent`, not deepagents |
+| HITL mechanism | **Graph-level `interrupt()`**, not `HumanInTheLoopMiddleware` |
+| Gate flow | **Nine steps, two nodes, four validation layers** |
+| Coherence and constraint checks | **Lightweight LLM**, not format checks |
+| Mid-phase value conflicts | **Auto-flag, no threshold**, with re-approval cascade |
+| Retrieval | **Three tools**, multi-query + RRF mandatory, metadata filters |
+| `improve_case_index` | **Active** — yokoten via `rag_lookup_case_history` |
+| Computation | **18 tools**, per-phase binding, pure functions |
+| Context compression | `SummarizationMiddleware` + typed state fields |
+| Compensation | **Native `error_handler=`**, no custom Saga framework |
+| Fallback Level 3 | **Azure Cache for Redis** — new infrastructure |
+| Deployment layer | **FastAPI** — LangGraph Server requires a commercial licence |
+| Protocol layer | **None** — MCP architecturally excluded |
+| Diagram generation | LLM emits JSON, frontend renders SVG from templates |
+| Prompt management | Constants in `core/prompts.py` |
 
 ---
 
-## 14. Out-of-band Roadmap Items (for future versions)
-
-These are explicit decisions to DEFER, not silent gaps:
-
-- LangChain Hub prompt versioning
-- Cosmos DB checkpointer (swap when scale needs it)
-- Tool-calling for cross-agent search
-- Saga pattern for case-vs-registry atomicity
-- index.html modularisation
-- Human-in-the-loop interrupts beyond gate (sponsor approvals etc)
-- Cost & latency dashboards
-
----
-
-## 15. Migration Sequence — v1 → v2.1
-
-The refactor proceeds in this strict order. Each step is one commit
-with prefix `refactor(arch-v2):`. Each step must compile, tests pass,
-existing demo case (IMPR-2026-E9D) loads, before next step begins.
-
-### Step 0 — Foundation
-**Commit 0.1**: Save CLAUDE.md v2.1 + ARCHITECTURE.md v2.1 to repo.
-No code changes. Establishes the constitution.
-
-### Step 1 — Tracing first (so we can debug the rest)
-**Commit 1.1**: `core/tracing.py` — initialise LangSmith at startup.
-Wire `LANGCHAIN_TRACING_V2=true`. Update `.env.example`. App fails
-startup in production if credentials missing.
-
-**Commit 1.2**: Add `request_id` middleware. Structured logging.
-
-### Step 2 — Checkpointer
-**Commit 2.1**: `core/checkpointer.py` — `AzureBlobCheckpointSaver`
-implementing `BaseCheckpointSaver`. Write/read/list to blob via
-`checkpoints/{case_id}/` paths. Unit tests with mock blob client.
-
-**Commit 2.2**: Wire checkpointer into graph compilation. Graph
-still uses v1 node structure for now — only persistence changes.
-
-### Step 3 — Universal toolset
-**Commit 3.1**: `knowledge/tool_args.py` — Pydantic arg schemas for
-all 7 tools.
-
-**Commit 3.2**: `knowledge/tools.py` — define all 7 tools with
-`@tool(args_schema=...)`. `record_field`, `search_methodology`,
-`search_evidence`, `propose_template`, `propose_diagram`,
-`check_gate_status`, `request_human_approval`.
-
-**Commit 3.3**: `core/diagrams.py` — diagram type schemas (Pydantic
-models for fishbone, SIPOC, pareto, impact-effort, control chart).
-
-### Step 4 — Phase subgraph migration (one phase at a time, Define first)
-**Commit 4.1**: `core/substate.py` — DefineSubState, MeasureSubState,
-AnalyseSubState, ImproveSubState, ControlSubState.
-
-**Commit 4.2**: Migrate Define phase
-- New `phases/define/nodes.py` (retrieve, coach, reflect, validate)
-- New `phases/define/gate.py` (gate_interrupt)
-- New `phases/define/graph.py` (subgraph compilation)
-- Delete old `phases/define/orchestrate.py`, `validate.py`,
-  `analyse.py`
-- New `DEFINE_COACH_PROMPT`, `DEFINE_REFLECT_PROMPT` in prompts.py
-- Delete `ORCHESTRATOR_DEFINE_CONTEXT`, `EXTRACTION_DEFINE`
-
-**Commits 4.3 → 4.6**: Same migration for Measure, Analyse, Improve,
-Control. One commit per phase, each independently verifiable.
-
-### Step 5 — Supervisor and routing
-**Commit 5.1**: New `core/graph.py` — supervisor graph composing
-phase subgraphs + escalation subgraph. Replaces v1 graph.py
-entirely.
-
-**Commit 5.2**: New `escalate.py` — escalation subgraph (was a
-single node, now a subgraph of 1-2 nodes for trace clarity).
-
-### Step 6 — Routes refactor (the big simplification)
-**Commit 6.1**: Rewrite `gateway/routes.py`. Each endpoint becomes
-a few lines: load case meta, invoke graph, format response. All v1
-manual orchestration is deleted.
-
-**Commit 6.2**: New `/ask/stream` SSE endpoint. New `gateway/sse.py`
-for the SSE plumbing.
-
-**Commit 6.3**: New `/gate/submit`, `/gate/approve`, `/gate/reject`
-endpoints replacing the v1 `/gate`.
-
-### Step 7 — UI integration
-**Commit 7.1**: AI Guide tab — connect to `/ask/stream`. Render
-streaming tokens. (Tests against the working backend from step 6.)
-
-**Commit 7.2**: Gate tab — submit/approve flow against new endpoints.
-
-**Commit 7.3**: Diagram rendering — frontend SVG templates that
-consume diagram JSON from `propose_diagram` tool results. One
-template per diagram type.
-
-### Step 8 — Cleanup
-**Commit 8.1**: Delete all v1 code that hasn't already been removed.
-Verify no dead imports.
-
-**Commit 8.2**: Update CLAUDE.md migration section to mark v1 → v2.1
-complete.
-
-### Step 9 — End-to-end validation
-**Commit 9.1**: Run IMPR-2026-E9D end-to-end on v2.1. Confirm all
-phases work with the new architecture. Document any deltas in
-behaviour.
-
-**Commit 9.2**: Create financial services demo case
-(IMPR-2026-FS1). Run end-to-end as the showcase.
-
----
-
-## 16. Change Log
+## 18. Change Log
 
 | Date | Version | Change |
 |---|---|---|
 | May 2026 | 0.1 | Initial scaffold |
 | Jun 2026 | 0.2 | Define + Measure complete |
-| Jun 2026 | 1.0 | Analyse + Improve + Control complete. v1 architecture in production. |
+| Jun 2026 | 1.0 | Analyse + Improve + Control complete. v1 in production. |
 | Jun 2026 | 2.0 | DRAFT — Path C architecture proposed |
 | Jun 2026 | 2.1 | Path C ratified: hierarchical subgraphs, tool-calling coach, Azure Blob checkpointer, interrupt-based gates, SSE streaming, LangSmith mandatory. |
-| Jun 2026 | 2.1.1 | ARCHITECTURE.md amendment: §6.1.1 documents the base64 envelope for checkpoint blobs (deviation from initial spec, surfaced during commit 2.1 implementation). |
+| Jun 2026 | 2.1.1 | §6.1.1 base64 envelope for checkpoint blobs (surfaced during commit 2.1). |
+| Aug 2026 | **2.2** | **Ground-up rewrite aligning with the EDUCATIONAL.md review.** Static edges between phases; one `thread_id` with auto `checkpoint_ns`; checkpointer and store on the parent only; phased Blob → PostgreSQL; `AzureBlobStore` and store-mediated boundary mappers; six-node phase subgraph with conditional edges and cycles; `create_agent` with a four-middleware stack; three retrieval tools with multi-query + RRF; 18 per-phase computation tools; nine-step gate across two nodes; four-layer validation stack; mid-phase conflict detection with re-approval cascade; native `error_handler=` compensation; per-node timeouts; two three-state circuit breakers; four-level fallback chain with Redis cache; `recursion_limit=11` hop cap; **canonical index schemas in §7**; MCP architecturally excluded; FastAPI confirmed as the deployment layer. |
+| Aug 2026 | **2.2.1** | **Index schema facts resolved against the live service (§7).** `improve_case_index.phase_summary_analyse_phase` renamed to `phase_summary_analyse` by delete + recreate (index empty, no reindex required) — Step 3.6 closed; writer-side phase-key alignment carried forward in §7.3. `improve_evidence_index` confirmed to have **no** `uploaded_at` field — the timestamp lives in the non-sortable `metadata` blob, so the `uploaded_at desc` ordering clause is dropped from §7.2 and `rag_lookup_evidence` takes no `order_by`. `improve_case_index.embedding` confirmed 3072d on profile `improve-vector-profile`. |
+
+| Aug 2026 | **2.2.2** | **Internal phase key `analyse_phase` renamed to `analyse` across the codebase (§7.3.1)** — completes the schema rename in 2.2.1 on the writer side. Directory `phases/analyse_phase/` → `phases/analyse/`; `orchestrate_analyse_phase` / `validate_analyse_phase` and their graph node names lose the suffix; the key is now `analyse` in `PHASE_ORDER`, `phase_inputs`, `EXTRACTION_MAP`, `ORCHESTRATOR_CONTEXT_MAP`, `GATE_CHECKS`, `PhaseSummaryRecord`, and `CaseDocument.phases`. `AnalysePhaseInput` unchanged — it already matched convention. Node rename was free only because no checkpoints existed yet. |
+
+### 18.1 Amendment procedure
+
+1. The decision is recorded in REFACTORING_AGENT_IMPROVE.md with its
+   rationale
+2. The rule lands in CLAUDE.md
+3. The design lands here
+4. Version number incremented, change log entry added
+5. **If the change touches an index schema, §7 is updated in the same
+   commit as the Azure AI Search change** (§7.7)
+
+Architecture changes are separate commits from feature changes.

@@ -92,7 +92,7 @@ ANALYSE_WORK_PRODUCTS = [
 ]
 
 
-def orchestrate_analyse_phase(state: ImproveGraphState) -> dict:
+def orchestrate_analyse(state: ImproveGraphState) -> dict:
     """Orchestrator node for Analyse phase.
     1. Runs extraction to update phase_inputs from chat history
     2. Generates next Orchestrator response with a cross-phase context brief
@@ -107,11 +107,11 @@ def orchestrate_analyse_phase(state: ImproveGraphState) -> dict:
     phase_inputs = state.get("phase_inputs") or {}
 
     # ── 1. Extract structured fields from conversation ────────────────
-    extraction_prompt = EXTRACTION_MAP["analyse_phase"]
+    extraction_prompt = EXTRACTION_MAP["analyse"]
     conversation_text = _format_conversation(chat_history)
     extracted = _run_extraction(extraction_prompt, conversation_text)
 
-    analyse_inputs = phase_inputs.get("analyse_phase") or {}
+    analyse_inputs = phase_inputs.get("analyse") or {}
     # Snapshot pre-merge so section completion can tell which section
     # crossed the threshold on THIS turn.
     previous_analyse = dict(analyse_inputs)
@@ -126,14 +126,14 @@ def orchestrate_analyse_phase(state: ImproveGraphState) -> dict:
         k: v for k, v in analyse_inputs.items()
         if k in VALID_ANALYSE_KEYS
     }
-    phase_inputs["analyse_phase"] = analyse_inputs
+    phase_inputs["analyse"] = analyse_inputs
     current_analyse = analyse_inputs
 
     # ── 2. Generate Orchestrator response with cross-phase context ────
     system_prompt = (
         ORCHESTRATOR_SYSTEM_BASE.format(department=department, title=title)
         + "\n\n"
-        + ORCHESTRATOR_CONTEXT_MAP["analyse_phase"]
+        + ORCHESTRATOR_CONTEXT_MAP["analyse"]
     )
     state_summary = _build_analyse_context(state)
     logger.info("Analyse context injected:\n%s", state_summary)
@@ -225,7 +225,7 @@ def _run_orchestrator(
         "",
     )
     knowledge_block = build_knowledge_context(
-        phase="analyse_phase",
+        phase="analyse",
         user_message=last_human,
         work_product_label=active_work_product_label(state_summary),
     )
@@ -252,7 +252,7 @@ def _run_orchestrator(
 
 def _reflect(response: str) -> str:
     """Check response quality. Returns revised response if issues found.
-    Private — called only from orchestrate_analyse_phase."""
+    Private — called only from orchestrate_analyse."""
     llm = get_llm("reasoning", temperature=0.0)
     prompt = REFLECTION_CHECK.format(response=response)
     try:
@@ -307,7 +307,7 @@ def _build_analyse_context(state: ImproveGraphState) -> str:
     phase_inputs = state.get("phase_inputs") or {}
     define = phase_inputs.get("define") or {}
     measure = phase_inputs.get("measure") or {}
-    analyse = phase_inputs.get("analyse_phase") or {}
+    analyse = phase_inputs.get("analyse") or {}
 
     # ── Cross-phase brief: Define ─────────────────────────────────────
     # NB: DefinePhaseInput has no dedicated process-name field, so the

@@ -77,7 +77,7 @@ def create_improve_case_index() -> None:
                         type=SearchFieldDataType.String),
         SearchableField(name="phase_summary_measure",
                         type=SearchFieldDataType.String),
-        SearchableField(name="phase_summary_analyse_phase",
+        SearchableField(name="phase_summary_analyse",
                         type=SearchFieldDataType.String),
         SearchableField(name="phase_summary_improve",
                         type=SearchFieldDataType.String),

@@ -4,7 +4,7 @@ import logging
 
 from backend.core.state import ImproveGraphState
 from backend.core.config import settings
-from backend.phases.analyse_phase.schema import AnalysePhaseInput
+from backend.phases.analyse.schema import AnalysePhaseInput
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ ANALYSE_REQUIRED_FOR_GATE = [
 ]
 
 
-def validate_analyse_phase(state: ImproveGraphState) -> dict:
+def validate_analyse(state: ImproveGraphState) -> dict:
     """Validator node for Analyse phase.
 
     AnalysePhaseInput fields are all optional at the schema level, so gate
@@ -32,7 +32,7 @@ def validate_analyse_phase(state: ImproveGraphState) -> dict:
     """
 
     phase_inputs = state.get("phase_inputs") or {}
-    data = dict(phase_inputs.get("analyse_phase") or {})
+    data = dict(phase_inputs.get("analyse") or {})
     attempts = state.get("gate_attempts") or 0
 
     # ── Completeness check against required fields ────────────────────
@@ -68,7 +68,7 @@ def validate_analyse_phase(state: ImproveGraphState) -> dict:
             "escalated": False,
             "phase_inputs": {
                 **phase_inputs,
-                "analyse_phase": {
+                "analyse": {
                     **data,
                     "_gate_passed": True,
                     "_validated": validated,
@@ -89,7 +89,7 @@ def validate_analyse_phase(state: ImproveGraphState) -> dict:
         "escalated": escalate,
         "phase_inputs": {
             **phase_inputs,
-            "analyse_phase": {
+            "analyse": {
                 **data,
                 "_gate_passed": False,
                 "_missing_fields": missing,

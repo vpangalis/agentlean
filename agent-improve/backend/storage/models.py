@@ -49,7 +49,7 @@ class PhaseSummaryRecord(BaseModel):
 
     define: Optional[str] = None
     measure: Optional[str] = None
-    analyse_phase: Optional[str] = None
+    analyse: Optional[str] = None
     improve: Optional[str] = None
     control: Optional[str] = None
 
@@ -72,7 +72,7 @@ class CaseDocument(BaseModel):
         default_factory=lambda: {
             "define":        PhaseRecord(),
             "measure":       PhaseRecord(),
-            "analyse_phase": PhaseRecord(),
+            "analyse":       PhaseRecord(),
             "improve":       PhaseRecord(),
             "control":       PhaseRecord(),
         }

@@ -310,7 +310,7 @@ def _build_control_context(state: ImproveGraphState) -> str:
     phase_inputs = state.get("phase_inputs") or {}
     define = phase_inputs.get("define") or {}
     measure = phase_inputs.get("measure") or {}
-    analyse = phase_inputs.get("analyse_phase") or {}
+    analyse = phase_inputs.get("analyse") or {}
     improve = phase_inputs.get("improve") or {}
     control = phase_inputs.get("control") or {}
 

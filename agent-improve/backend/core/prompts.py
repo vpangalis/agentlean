@@ -1161,7 +1161,7 @@ Plain language only. No jargon. No bullet points.
 EXTRACTION_MAP: dict[str, str] = {
     "define":        EXTRACTION_DEFINE,
     "measure":       EXTRACTION_MEASURE,
-    "analyse_phase": EXTRACTION_ANALYSE,
+    "analyse":       EXTRACTION_ANALYSE,
     "improve":       EXTRACTION_IMPROVE,
     "control":       EXTRACTION_CONTROL,
 }
@@ -1169,7 +1169,7 @@ EXTRACTION_MAP: dict[str, str] = {
 ORCHESTRATOR_CONTEXT_MAP: dict[str, str] = {
     "define":        ORCHESTRATOR_DEFINE_CONTEXT,
     "measure":       ORCHESTRATOR_MEASURE_CONTEXT,
-    "analyse_phase": ORCHESTRATOR_ANALYSE_CONTEXT,
+    "analyse":       ORCHESTRATOR_ANALYSE_CONTEXT,
     "improve":       ORCHESTRATOR_IMPROVE_CONTEXT,
     "control":       ORCHESTRATOR_CONTROL_CONTEXT,
 }

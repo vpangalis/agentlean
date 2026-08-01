@@ -10,7 +10,7 @@ class ImproveGraphState(TypedDict, total=False):
 
     # Case identity — set at session start from blob
     case_id: str | None
-    current_phase: str | None          # define|measure|analyse_phase|improve|control
+    current_phase: str | None          # define|measure|analyse|improve|control
     current_user: str | None           # name of team member active this turn
 
     # Phase inputs — partial dict built turn by turn from extraction

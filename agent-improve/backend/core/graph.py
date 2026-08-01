@@ -14,8 +14,8 @@ from backend.phases.define.orchestrate import orchestrate_define
 from backend.phases.define.validate import validate_define
 from backend.phases.measure.orchestrate import orchestrate_measure
 from backend.phases.measure.validate import validate_measure
-from backend.phases.analyse_phase.orchestrate import orchestrate_analyse_phase
-from backend.phases.analyse_phase.validate import validate_analyse_phase
+from backend.phases.analyse.orchestrate import orchestrate_analyse
+from backend.phases.analyse.validate import validate_analyse
 from backend.phases.improve.orchestrate import orchestrate_improve
 from backend.phases.improve.validate import validate_improve
 from backend.phases.control.orchestrate import orchestrate_control
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 PHASE_ORDER = [
     "define",
     "measure",
-    "analyse_phase",
+    "analyse",
     "improve",
     "control",
 ]
@@ -61,8 +61,8 @@ def get_graph():
     builder.add_node("validate_define",           validate_define)
     builder.add_node("orchestrate_measure",       orchestrate_measure)
     builder.add_node("validate_measure",          validate_measure)
-    builder.add_node("orchestrate_analyse_phase", orchestrate_analyse_phase)
-    builder.add_node("validate_analyse_phase",    validate_analyse_phase)
+    builder.add_node("orchestrate_analyse",       orchestrate_analyse)
+    builder.add_node("validate_analyse",          validate_analyse)
     builder.add_node("orchestrate_improve",       orchestrate_improve)
     builder.add_node("validate_improve",          validate_improve)
     builder.add_node("orchestrate_control",       orchestrate_control)
@@ -90,20 +90,20 @@ def get_graph():
         "validate_measure",
         _gate_router("measure"),
         {
-            "pass":     "orchestrate_analyse_phase",
+            "pass":     "orchestrate_analyse",
             "fail":     "orchestrate_measure",
             "escalate": "escalate",
         },
     )
 
     # ── analyse phase ──────────────────────────────────────────────
-    builder.add_edge("orchestrate_analyse_phase", "validate_analyse_phase")
+    builder.add_edge("orchestrate_analyse", "validate_analyse")
     builder.add_conditional_edges(
-        "validate_analyse_phase",
-        _gate_router("analyse_phase"),
+        "validate_analyse",
+        _gate_router("analyse"),
         {
             "pass":     "orchestrate_improve",
-            "fail":     "orchestrate_analyse_phase",
+            "fail":     "orchestrate_analyse",
             "escalate": "escalate",
         },
     )

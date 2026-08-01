@@ -115,7 +115,7 @@ class ImproveBlobClient:
         )
 
         # Advance current phase
-        phase_order = ["define", "measure", "analyse_phase", "improve", "control"]
+        phase_order = ["define", "measure", "analyse", "improve", "control"]
         current_idx = phase_order.index(phase)
         if current_idx < len(phase_order) - 1:
             case.current_phase = phase_order[current_idx + 1]
