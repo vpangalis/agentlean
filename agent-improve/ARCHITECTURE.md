@@ -1,6 +1,6 @@
 # Agent Improve — Architecture & Design Document
 **Agentlean Platform · DMAIC Improvement Agent**
-Version 2.2.4 · August 2026
+Version 2.2.5 · August 2026
 Status: v2.2 architecture ratified · refactor in progress (Step 2.2 complete;
 Step 3.6 index schema rename applied)
 
@@ -1091,6 +1091,84 @@ but `step_log` does not exist on `ImproveGraphState` — it arrives with
 `PhaseState` in step 4.1. At that point the node holding the error appends
 that same dict; no reshaping.
 
+#### 7.1.2 Ingestion contract — how a value becomes a filterable field
+
+Owned by `scripts/ingest_knowledge.py`. Two rules, both of which have
+already produced a silent failure.
+
+**Rule 1 — the metadata key name is the field name.** Documents are
+written via LangChain's `AzureSearch.add_texts`, which stores the whole
+metadata dict as a JSON blob in `metadata` and then promotes individual
+keys to top-level fields with:
+
+```python
+additional_fields = {k: v for k, v in metadata.items()
+                     if k in [x.name for x in self.fields]}
+```
+
+A key is promoted **only if its name matches a field**. The script
+originally emitted `phase`, which is not a field on this index, so
+`phase_relevance` was never written by it and phase filtering could not
+work. There is no error for this — the value lands in the blob, where
+`$filter` cannot see it.
+
+**Rule 2 — `self.fields` is what the client was constructed with, not the
+live schema.** LangChain never introspects the index. Left to its default,
+`self.fields` is only `[id, content, content_vector, metadata]`, so Rule 1
+can never match `source_file`, `phase_relevance`, or `page_number` however
+carefully they are named. `get_knowledge_vectorstore()` therefore passes
+`fields=KNOWLEDGE_INDEX_FIELDS` (`knowledge/retriever.py`), declaring the
+real schema. Passing `fields` is safe on an existing index — LangChain
+inspects it only when the index is absent, so it cannot mutate a schema.
+
+Renaming the key without Rule 2, or applying Rule 2 without the rename,
+both leave the index unfilterable. **They only work together.**
+
+`char_count` is deliberately left unpromoted and lives in the blob only,
+matching the shape of the documents already in the index.
+
+**Document keys are deterministic** — `md5(source_file_page_chunkidx)`,
+passed explicitly via `ids=`. LangChain generates a random UUID key when
+none is given, which would make every re-ingest duplicate the corpus
+instead of upserting it.
+
+**Chunking is per page, never across pages.** `page_number` is a citation
+field (§13); a chunk spanning a page boundary could not be cited honestly.
+Long pages split at `CHUNK_CHARS` with `CHUNK_OVERLAP_CHARS` overlap.
+
+##### Phase mapping — per-chunk keywords, not chapters
+
+**`phase_relevance` is assigned by scoring each chunk against
+`PHASE_KEYWORDS`; the highest-scoring phase wins, and a chunk matching
+nothing becomes `general`.** It is not a chapter or section mapping. That
+was checked against the live corpus rather than assumed:
+
+- the BB eBook PDF carries **no outline or bookmarks**, so there is no
+  chapter structure to read;
+- DMAIC terms do not appear as sustained page headings;
+- every 50-page band holds a **mix** of phases, where a chapter mapping
+  would make each band almost entirely one phase:
+
+| Pages | Top three |
+|---|---|
+| 100–149 | define 28 · analyse 25 · general 21 |
+| 300–349 | analyse 44 · general 6 · measure 4 |
+| 600–649 | measure 39 · control 34 · improve 9 |
+
+The *dominant* phase per band does advance in DMAIC order, which is why a
+chapter mapping looks plausible at a glance — the book is ordered by
+phase, but its content is not partitioned by it.
+
+**Excel toolkit sheets are exempt:** `EXCEL_SHEET_TOOL_MAP` assigns each
+sheet a phase explicitly. That mapping is exact and is preferred wherever
+a source has real structure to exploit.
+
+**Re-ingestion reclassifies.** This classifier reproduces ~58% of the
+existing `phase_relevance` values exactly; the pipeline that first
+populated the index is not in the repository and cannot be recovered. A
+re-ingest is therefore a **content change, not an idempotent refresh** —
+ingest into a fresh index and compare before replacing a working one.
+
 ### 7.2 `improve_evidence_index` — uploaded evidence
 
 Case-specific documents uploaded by the Belt. **Per §1.2 this is the
@@ -1982,6 +2060,8 @@ load-bearing in more places than it appears.
 | Aug 2026 | **2.2.3** | **Methodology retrieval fixed and its failure contract defined (§7.1, §7.1.1).** `search_knowledge` filtered on `phase`, a field that does not exist on `improve_knowledge_index`, so Azure rejected every phase-filtered query and a bare `except Exception` rendered it as "No relevant methodology content found" — phase-filtered retrieval had never returned a document. Filter corrected to `phase_relevance`; cross-phase value corrected from the non-existent `all` to `general` (218 docs), closing the §7.1 open item with the confirmed enumeration. Failures now raise `KnowledgeSearchError` carrying an `AgentImproveError` (§12.3, `core/errors.py` added), classified by Azure exception type with 4xx as permanent/do-not-retry. `step_log` wiring deferred to step 4.1 — the dict shape is already emitted. |
 
 | Aug 2026 | **2.2.4** | **Failure contract extended to all three retrieval functions (§7.1.1).** `search_cases` and `search_evidence` carried the same bare `except Exception` → `[]` as `search_knowledge`, so a broken case or evidence query also read as "nothing found". Both now raise `KnowledgeSearchError` with the same classification. `RETRIEVAL_EXCEPTIONS` additionally covers `OpenAIError`, since the query-embedding call runs inside the same `try` and would otherwise escape raw; embedding failures carry an `EMBEDDING_` code prefix. Result materialisation moved inside the `try` (the pager is lazy), imports hoisted out of it, `case_id` OData-escaped, and the metadata-blob parse narrowed to `JSONDecodeError`/`TypeError` with a warning instead of a silent `pass`. Callers `search_improve_cases`, `search_improve_evidence`, and `_generate_sipoc_draft` updated to catch the typed exception. |
+
+| Aug 2026 | **2.2.5** | **Ingestion contract fixed and documented (§7.1.2).** `ingest_knowledge.py` emitted `phase`, not a field on the index, so `phase_relevance` was never populated by the script. Fixing the key name alone proved insufficient: LangChain promotes metadata keys only against `self.fields`, which defaults to `[id, content, content_vector, metadata]` and never introspects the live index — so `get_knowledge_vectorstore()` now passes `fields=KNOWLEDGE_INDEX_FIELDS`. Both changes are required; either alone leaves the index unfilterable. Also: metadata reduced to the live four-key shape, `source_file` emitted as a stable label rather than a filename, chunking moved to per-page so `page_number` is a real page rather than a chunk index, and document keys made deterministic and passed via `ids=` so re-ingest upserts instead of duplicating. Phase mapping confirmed empirically as per-chunk keyword scoring, not chapter mapping, and documented with the evidence. |
 
 ### 18.1 Amendment procedure
 

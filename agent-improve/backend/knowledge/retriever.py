@@ -13,6 +13,12 @@ from azure.core.exceptions import (
     ServiceRequestError,
 )
 from azure.search.documents import SearchClient
+from azure.search.documents.indexes.models import (
+    SearchableField,
+    SearchField,
+    SearchFieldDataType,
+    SimpleField,
+)
 from azure.search.documents.models import VectorizedQuery
 from dotenv import load_dotenv
 from langchain_community.vectorstores.azuresearch import AzureSearch
@@ -121,6 +127,43 @@ def get_embeddings() -> AzureOpenAIEmbeddings:
     )
 
 
+# The full field list of improve_knowledge_index (ARCHITECTURE.md §7.1).
+#
+# This is NOT decoration, and it is not for index creation — the index
+# already exists. LangChain's AzureSearch never introspects the live index;
+# it defaults `self.fields` to [id, content, content_vector, metadata] and
+# promotes a metadata key to a top-level field only when the key matches a
+# name in THAT list:
+#
+#     additional_fields = {k: v for k, v in metadata.items()
+#                          if k in [x.name for x in self.fields]}
+#
+# So without declaring source_file / phase_relevance / page_number here,
+# writes silently bury them in the metadata JSON blob, where `$filter`
+# cannot reach them — no error, just a permanently unfilterable index.
+# Passing `fields` is safe for reads: LangChain only inspects it when the
+# index is absent, so it cannot mutate an existing schema.
+KNOWLEDGE_INDEX_FIELDS = [
+    SimpleField(name="id", type=SearchFieldDataType.String,
+                key=True, filterable=True),
+    SearchableField(name="content", type=SearchFieldDataType.String),
+    SearchField(
+        name="content_vector",
+        type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
+        searchable=True,
+        vector_search_dimensions=3072,          # text-embedding-3-large
+        vector_search_profile_name="default",
+    ),
+    SearchableField(name="metadata", type=SearchFieldDataType.String),
+    SimpleField(name="source_file", type=SearchFieldDataType.String,
+                filterable=True),
+    SimpleField(name="phase_relevance", type=SearchFieldDataType.String,
+                filterable=True),
+    SimpleField(name="page_number", type=SearchFieldDataType.Int32,
+                filterable=True),
+]
+
+
 @lru_cache(maxsize=1)
 def get_knowledge_vectorstore() -> AzureSearch:
     """Cached vectorstore for improve_knowledge_index."""
@@ -130,6 +173,7 @@ def get_knowledge_vectorstore() -> AzureSearch:
         index_name=settings.AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX,
         embedding_function=get_embeddings(),
         search_type="hybrid",
+        fields=KNOWLEDGE_INDEX_FIELDS,
     )
 
 

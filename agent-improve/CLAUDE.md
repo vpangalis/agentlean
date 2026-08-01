@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.4 — August 2026
+# Version 2.2.5 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -842,6 +842,18 @@ earlier revisions; `phase` does not exist on the index (Azure rejects the
 whole query) and no document carries `all` (218 carry `general`). One
 fails loudly, the other silently returns a narrowed corpus.
 
+**A metadata key becomes a filterable field only if it is named after one
+AND the vectorstore declares it.** LangChain's `AzureSearch` promotes a
+metadata key to a top-level field only when the key matches a name in
+`self.fields` — and `self.fields` defaults to
+`[id, content, content_vector, metadata]`, never the live schema. So
+writing methodology requires both the correct key name *and*
+`fields=KNOWLEDGE_INDEX_FIELDS` on the vectorstore. Either alone leaves
+the value buried in the `metadata` JSON blob, unreachable by `$filter`,
+with no error raised. This is how `phase_relevance` went unpopulated.
+`ingest_knowledge.py` owns this contract; full detail in
+ARCHITECTURE.md §7.1.2.
+
 **Retrieval failure is never an empty result.** All three retrieval
 functions — `search_knowledge`, `search_cases`, `search_evidence` — return
 `[]` only when the search ran and matched nothing; when they fail they
@@ -1619,6 +1631,11 @@ to choose backoff strategy (§4.8).
   ("no cases found" when the search never ran) (§7.1.1)
 - Never filter methodology on `phase`; the field is `phase_relevance` and
   its cross-phase value is `general`, not `all` (§7.2)
+- Never write to an index through LangChain without declaring the real
+  schema via `fields=` — unmatched metadata keys are silently demoted to
+  the JSON blob and become unfilterable (§7.1.2)
+- Never call `add_texts` without explicit `ids=` — LangChain assigns a
+  random UUID key, so re-ingestion duplicates the corpus (§7.1.2)
 - Never write to Agent Resolve indexes — read only, via tools
 - Never add an MCP server, client, or dependency
 - Never build a fallback path that fetches data the Belt did not upload
