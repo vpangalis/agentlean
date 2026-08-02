@@ -48,6 +48,13 @@ patterns:
     severity: block
     path_exclusions:
       - 'agent-resolve/**'
+      # Architecture markdown deliberately shows the superseded and the ratified
+      # form side by side; this registry guards code, not documentation.
+      # REVIEW_DECISIONS.md ratifies the builder-style structured-output call for
+      # plain LLM invocations inside tools and middleware, where response_format=
+      # on create_agent does not apply (§32, §33, §37, §42, §48, §68).
+      - 'agent-improve/*.md'
+      - 'agent-improve/**/*.md'
       - 'agent-improve/backend/phases/**/orchestrate.py'
       - 'agent-improve/backend/phases/**/validate.py'
 
