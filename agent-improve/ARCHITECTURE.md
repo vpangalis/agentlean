@@ -1,6 +1,6 @@
 # Agent Improve — Architecture & Design Document
 **Agentlean Platform · DMAIC Improvement Agent**
-Version 2.2.5 · August 2026
+Version 2.2.6 · August 2026
 Status: v2.2 architecture ratified · refactor in progress (Step 2.2 complete;
 Step 3.6 index schema rename applied)
 
@@ -67,7 +67,7 @@ and inspectable, never implicit in a prompt.
 |---|---|
 | Backend port | 8020 |
 | Repo | `vpangalis/agentlean` → `agent-improve/` |
-| Stack | Python 3.11 · FastAPI · LangGraph 1.2.7 · LangChain 1.x · Azure OpenAI · Azure AI Search · Azure Blob · Azure Cache for Redis |
+| Stack | Python 3.11 · FastAPI · LangGraph 1.2.10 · LangChain 1.x · Azure OpenAI · Azure AI Search · Azure Blob · Azure Cache for Redis |
 | Persistence | Checkpointer + Store (Blob now → PostgreSQL before production) |
 | Tracing | LangSmith (mandatory) |
 | Protocol layer | **None. MCP is architecturally excluded (§1.2).** |
@@ -76,7 +76,7 @@ and inspectable, never implicit in a prompt.
 
 | Area | v2.1.1 | v2.2 |
 |---|---|---|
-| LangGraph | 0.2+ (stated), 1.1.10 (pinned) | **1.2.7** — required for subgraph `checkpoint_ns` and native reliability primitives |
+| LangGraph | 0.2+ (stated), 1.1.10 (pinned) | **1.2.10** — required for subgraph `checkpoint_ns` and native reliability primitives (floor ≥1.2.6) |
 | Phase subgraph | 5 nodes, linear with one conditional | **6 nodes, conditional edges and cycles** (§3.2) |
 | Coach | Bare LLM with 7 bound tools | **`create_agent`, 4 middlewares, per-phase tool subset** (§3.3, §3.4, §8) |
 | Retrieval | 2 tools, single query | **3 tools, multi-query + RRF, metadata filters** (§7.4, §8.1) |
@@ -1884,9 +1884,9 @@ begins.
 - **2.2** Wired into graph compilation
 
 ### Step 2.5 — Dependency upgrade ⬅ NEXT
-- **2.5.1** Upgrade `langgraph` 1.1.10 → **1.2.7**. Required for the
+- **2.5.1** Upgrade `langgraph` 1.1.10 → **1.2.10**. Required for the
   subgraph `checkpoint_ns` fix (§3.1) **and** the native reliability
-  primitives (§9.2). Both need ≥1.2.6.
+  primitives (§9.2). Both need ≥1.2.6; 1.2.10 is the latest release.
 - **2.5.2** Upgrade `langchain` → 1.3.11. Sweep for imports from
   `langgraph.prebuilt`; migrate to `langchain.agents`.
 - **2.5.3** Repin adjacent packages after pip resolution.
@@ -2062,6 +2062,8 @@ load-bearing in more places than it appears.
 | Aug 2026 | **2.2.4** | **Failure contract extended to all three retrieval functions (§7.1.1).** `search_cases` and `search_evidence` carried the same bare `except Exception` → `[]` as `search_knowledge`, so a broken case or evidence query also read as "nothing found". Both now raise `KnowledgeSearchError` with the same classification. `RETRIEVAL_EXCEPTIONS` additionally covers `OpenAIError`, since the query-embedding call runs inside the same `try` and would otherwise escape raw; embedding failures carry an `EMBEDDING_` code prefix. Result materialisation moved inside the `try` (the pager is lazy), imports hoisted out of it, `case_id` OData-escaped, and the metadata-blob parse narrowed to `JSONDecodeError`/`TypeError` with a warning instead of a silent `pass`. Callers `search_improve_cases`, `search_improve_evidence`, and `_generate_sipoc_draft` updated to catch the typed exception. |
 
 | Aug 2026 | **2.2.5** | **Ingestion contract fixed and documented (§7.1.2).** `ingest_knowledge.py` emitted `phase`, not a field on the index, so `phase_relevance` was never populated by the script. Fixing the key name alone proved insufficient: LangChain promotes metadata keys only against `self.fields`, which defaults to `[id, content, content_vector, metadata]` and never introspects the live index — so `get_knowledge_vectorstore()` now passes `fields=KNOWLEDGE_INDEX_FIELDS`. Both changes are required; either alone leaves the index unfilterable. Also: metadata reduced to the live four-key shape, `source_file` emitted as a stable label rather than a filename, chunking moved to per-page so `page_number` is a real page rather than a chunk index, and document keys made deterministic and passed via `ids=` so re-ingest upserts instead of duplicating. Phase mapping confirmed empirically as per-chunk keyword scoring, not chapter mapping, and documented with the evidence. |
+
+| Aug 2026 | **2.2.6** | **LangGraph upgrade target moved 1.2.7 → 1.2.10 (§1, §2.5.1).** Verified against PyPI and the verbatim GitHub release bodies for 1.2.6–1.2.10 via `/verify-current-version`. The **floor is unchanged at ≥1.2.6** — the nested-subgraph `checkpoint_ns` inheritance fix (#8053, a regression introduced in 1.2.3) landed there and nothing since has touched it. Of the three intervening releases, 1.2.7, 1.2.8 and 1.2.9 are **entirely `DeltaChannel` fixes**, and `DeltaChannel` is not used (CLAUDE.md §3.6, backlog item 12) — so they are no-ops for us. 1.2.10 adds v3 `stream_events` return typing with native projections, and exposes `trace_policy` as a **new additive kwarg on `add_node`** alongside the existing `timeout=` and `error_handler=`; no existing signature changes, no deprecations, no breaking changes. **`trace_policy` is deliberately not adopted:** the same release contains both "drop tags from TracePolicy" (#8402) and "revert: delete TracePolicy" (#8403), so the API is unsettled. Per-node `TimeoutPolicy` and node-level `error_handler=` are unchanged across all four releases, so §9.2 needs no revision. No code change accompanies this amendment — the upgrade itself is still step 2.5.1, not yet executed. |
 
 ### 18.1 Amendment procedure
 

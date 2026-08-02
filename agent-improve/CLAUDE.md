@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.5 — August 2026
+# Version 2.2.6 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -243,7 +243,7 @@ Dead tracing config (the v1 state) is a CRITICAL violation.
 connect to a live system.** This is an architectural exclusion, not a
 deferral. There is no promotion trigger.
 
-**The runtime stack is:** FastAPI, LangGraph 1.2.7+, LangChain 1.x,
+**The runtime stack is:** FastAPI, LangGraph 1.2.10+, LangChain 1.x,
 Azure OpenAI, Azure AI Search, Azure Blob Storage, Azure Cache for
 Redis. No MCP.
 
@@ -1667,7 +1667,7 @@ more than 2 full function replacements per prompt for `index.html`.
 
 | Package | Current | Target | Why |
 |---|---|---|---|
-| `langgraph` | 1.1.10 | **1.2.7** | Subgraph `checkpoint_ns` fix (§1.2) **and** native reliability primitives (§3.6). Both require ≥1.2.6. |
+| `langgraph` | 1.1.10 | **1.2.10** | Subgraph `checkpoint_ns` fix (§1.2) **and** native reliability primitives (§3.6). Both require ≥1.2.6; 1.2.10 is latest. |
 | `langchain` | 1.2.13 | 1.3.11 | Optional but recommended; backward compatible per the 1.0 stability commitment |
 | `langchain-classic` | 1.0.3 | 1.0.3 | Keep pinned. Retains legacy classes we do **not** use — presence is not permission. |
 
