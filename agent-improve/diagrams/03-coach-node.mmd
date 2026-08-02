@@ -1,0 +1,62 @@
+flowchart TB
+    PLAN(["coaching_plan from phase_planner"]) --> MW1
+
+    subgraph AGENT["phase_executor — built with create_agent — ONE node to the subgraph"]
+        direction TB
+
+        MW1["1 · BeforeModelStateInjection — CUSTOM<br>hook: before_model<br>prepends captured fields, phase requirements,<br>missing fields, key_decisions, open_items<br>at the TOP of the prompt, ahead of the conversation"]
+
+        MW2["2 · DMAICSkillsMiddleware — CUSTOM<br>progressive disclosure, three levels<br>L1 descriptions under 2K tokens for all five phases<br>L2 full phase SKILL.md via the load_skill tool<br>allowed-tools must match this phase's tool subset"]
+
+        MW3["3 · SummarizationMiddleware — LANGCHAIN CORE, as shipped<br>trigger 100k tokens · keep last 20 messages raw<br>model: operational-model, gpt-4o-mini for cost<br>compresses CONVERSATION — facts live in typed state"]
+
+        LOOP["model + tool-calling loop<br>get_llm coach · temperature 0.5-0.7<br>response_format=ProviderStrategy PhaseOutput<br>recursion_limit=11 — max 5 tool calls per Belt turn"]
+
+        MW4["4 · DMAICGraderMiddleware — CUSTOM<br>hook: after_agent · grader role · temperature 0.1<br>per-criterion verdicts, not one overall verdict<br>max_iterations=3, on_evaluation writes to step_log<br>THE BELT NEVER SEES THIS LOOP"]
+
+        MW1 --> MW2 --> MW3 --> LOOP
+        LOOP --> MW4
+    end
+
+    subgraph UNI["tools tier 1 — the universal eight, bound to EVERY phase executor"]
+        direction TB
+        U1["record_field — extraction is a tool call, not a node"]
+        U2["rag_lookup_methodology → improve_knowledge_index"]
+        U3["rag_lookup_evidence → improve_evidence_index"]
+        U4["rag_lookup_case_history → improve_case_index"]
+        U5["propose_template"]
+        U6["propose_diagram — structured JSON, not SVG"]
+        U7["check_gate_status"]
+        U8["request_human_approval"]
+    end
+
+    subgraph COMP["tools tier 2 — computation, 18 total, PURE FUNCTIONS, no LLM, unit-tested"]
+        direction TB
+        C1["Define · +1 → 9 tools<br>calculate_expected_savings"]
+        C2["Measure · +8 → 16 tools<br>sigma_level, cpk, dpmo, yield_rty, ftq,<br>grr, sample_size_proportion, sample_size_mean"]
+        C3["Analyse · +5 → 13 tools<br>t_test, chi_square_test, anova,<br>pearson_correlation, linear_regression"]
+        C4["Improve · +1 → 9 tools<br>calculate_doe_main_effects"]
+        C5["Control · +4 → 12 tools<br>xbar_r_chart_limits, p_chart_limits,<br>c_chart_limits, post_improvement_cpk"]
+    end
+
+    LOOP <==>|"the LLM decides which tool to call — the graph never decides"| UNI
+    LOOP <==>|"ONLY this phase's subset is bound — no phase exceeds 16 tools"| COMP
+
+    %% invisible link: stacks the two tool tiers vertically instead of
+    %% side by side, which otherwise makes the rendered SVG ~4300px wide
+    UNI ~~~ COMP
+
+    MW4 --> OUT(["typed PhaseOutput + step_log entries<br>→ the four-layer validation stack, Diagram 2"])
+
+    classDef custom fill:#e1bee7,stroke:#6a1b9a,stroke-width:2px,color:#000
+    classDef core fill:#b3e5fc,stroke:#0277bd,stroke-width:2px,color:#000
+    classDef loop fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px,color:#000
+    classDef tool fill:#fff9c4,stroke:#f9a825,stroke-width:1px,color:#000
+    classDef terminal fill:#eceff1,stroke:#455a64,stroke-width:2px,color:#000
+
+    class MW1,MW2,MW4 custom
+    class MW3 core
+    class LOOP loop
+    class U1,U2,U3,U4,U5,U6,U7,U8 tool
+    class C1,C2,C3,C4,C5 tool
+    class PLAN,OUT terminal

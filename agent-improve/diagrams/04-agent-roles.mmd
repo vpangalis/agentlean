@@ -1,0 +1,38 @@
+flowchart TB
+    subgraph LV1["LEVEL 1 — supervisor"]
+        S["supervisor router<br>global_planner + global_executor<br><br>❌ NOT AN AGENT<br>Deterministic. No LLM anywhere in it.<br>Gate-check on gate_passed plus static edges.<br>Nothing to reason about, so nothing reasons.<br>'Supervisor' here is the multi-agent ROLE name<br>for a router — not a claim that it reasons."]
+    end
+
+    subgraph LV2["LEVEL 2 — one per DMAIC phase"]
+        SG["define / measure / analyse / improve / control subgraph<br><br>◆ CALLED A 'PHASE SUBAGENT' — ROLE LABEL ONLY<br>It is a compiled StateGraph, i.e. a SUBGRAPH.<br>There is no class, no create_agent call, and no<br>object named 'subagent' anywhere in the code.<br>Where §23 says 'subagent', it means 'subgraph'."]
+    end
+
+    subgraph LV2N["INSIDE one phase subagent — node by node"]
+        direction TB
+
+        N1["phase_planner<br><br>❌ NOT AN AGENT — a planner node<br>An LLM call with structured output.<br>NO tools bound, so nothing to select between.<br>An agent decides WHICH TOOL to call;<br>this decides WHAT THE EXECUTOR should do next."]
+
+        N2["phase_executor<br><br>✅ THIS IS THE AGENT<br>Built with create_agent. Has an LLM AND bound tools,<br>and decides which tool to call — the LangChain<br>classic sense, exactly. The ONLY box in Diagrams 1–4<br>that satisfies it. One per phase, five in the system."]
+
+        N3["four-layer validation stack<br><br>❌ NOT AN AGENT<br>2b field presence is a plain deterministic function.<br>2a, 2c, 2d are single LLM calls with no bound tools —<br>an LLM call is not an agent. 2d is MIDDLEWARE,<br>which is neither a node nor a tool."]
+
+        N4["gate_review_node<br><br>❌ NOT AN AGENT — an interrupt point<br>Calls interrupt(), presents fields, stops.<br>No model call at all. Its whole job is to<br>hand control to a human and wait."]
+
+        N5["gate_apply_node<br><br>❌ NOT AN AGENT — a plain function<br>Applies the Belt's corrections, runs the policy<br>advisory as a structured diff with NO LLM call,<br>commits the checkpoint, routes onward."]
+    end
+
+    subgraph LV3["LEAF LEVEL"]
+        T["8 universal tools + 18 computation tools<br><br>❌ NOT AGENTS — plain Python functions<br>The 18 computation tools make no LLM call at all.<br>Leaf tools are NEVER planner-executor pairs —<br>this is where the two-level recursion terminates."]
+    end
+
+    S ==>|"dispatches via static edges"| SG
+    SG ==>|"contains"| LV2N
+    N2 ==>|"binds and invokes"| T
+
+    classDef isagent fill:#c8e6c9,stroke:#1b5e20,stroke-width:4px,color:#000
+    classDef notagent fill:#ffcdd2,stroke:#b71c1c,stroke-width:1px,color:#000
+    classDef rolelabel fill:#fff9c4,stroke:#f9a825,stroke-width:2px,stroke-dasharray: 6 4,color:#000
+
+    class N2 isagent
+    class S,N1,N3,N4,N5,T notagent
+    class SG rolelabel

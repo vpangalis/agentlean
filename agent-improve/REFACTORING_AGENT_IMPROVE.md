@@ -443,7 +443,20 @@ A recurring source of confusion in EDUCATIONAL.md was treating composition tools
 
 *In the architectural sense of **harness**, all four diagrams together **are** the harness: the graph, the state schemas, the tools, the middleware, the validation stack, the persistence layer. The model appears in exactly two places across all four — inside `phase_planner` and inside `phase_executor`. Everything else on these pages is engineered control plane, which is the point of the framing.*
 
-*Rendered with Mermaid. In VS Code, `Ctrl+Shift+V` opens the markdown preview.*
+*The diagrams are committed as **images**, so they render in any markdown viewer with no extension and no live rendering step. The Mermaid source of each is a `.mmd` file in [`diagrams/`](diagrams/) and is the thing to edit — the `.png` and `.svg` beside it are build artifacts.*
+
+*They were originally inline Mermaid code fences. Live-rendering them in the VS Code markdown preview proved unreliable in this document: the preview re-renders on every content update, and both Mermaid extensions tried would draw the diagrams and then blank them a moment later, leaving an empty gap. Static images remove the failure mode entirely.*
+
+**To change a diagram:** edit the `.mmd`, then re-render both artifacts.
+
+```bash
+npm install @mermaid-js/mermaid-cli          # provides mmdc, bundles Chromium
+cd agent-improve/diagrams
+mmdc -i 01-overview.mmd -o 01-overview.png -b white -w 2000 -s 2
+mmdc -i 01-overview.mmd -o 01-overview.svg -b white -w 1800
+```
+
+*`-b white` matters: several node labels rely on dark text, so a transparent background makes edge labels and subgraph titles unreadable in a dark-themed viewer.*
 
 ---
 
@@ -451,69 +464,9 @@ A recurring source of confusion in EDUCATIONAL.md was treating composition tools
 
 The top-level view. The **supervisor** is the Level 1 router from *The recursion is two-level, not infinite* — and it contains no LLM: phase sequencing is a deterministic gate-check plus static edges, so there is nothing to reason about. Each DMAIC phase is a **subgraph** (a compiled `StateGraph` embedded as a node in the parent; the parent sees only its input and output). Both persistence primitives attach to the parent graph **only** — subgraphs compile without either, and LangGraph routes their writes through the parent's saver under an auto-managed `checkpoint_ns`. The three Azure AI Search indexes sit below the graph because they are reached through **tools** invoked from inside a phase executor, never through a prepended context block (§7.1).
 
-```mermaid
-flowchart TD
-    ENTRY(["START"]) --> ROUTER
+![Diagram 1 — supervisor router, five phase subgraphs joined by static edges, checkpointer and store on the parent graph only, three Azure AI Search indexes below](diagrams/01-overview.png)
 
-    subgraph PARENT["supervisor_graph — the only compiled runtime — one thread_id = project_id"]
-        direction TB
-        ROUTER["supervisor router<br>global_planner + global_executor<br>deterministic gate-check on gate_passed<br>NO LLM — static edges only"]
-        SGD["define_subgraph"]
-        SGM["measure_subgraph"]
-        SGA["analyse_subgraph"]
-        SGI["improve_subgraph"]
-        SGC["control_subgraph"]
-        SGE["escalation_subgraph"]
-
-        ROUTER ==>|static edge| SGD
-        SGD ==>|static edge| SGM
-        SGM ==>|static edge| SGA
-        SGA ==>|static edge| SGI
-        SGI ==>|static edge| SGC
-
-        SGD -.->|"conditional edge: 3 validation attempts exhausted, or request_human_approval"| SGE
-        SGM -.-> SGE
-        SGA -.-> SGE
-        SGI -.-> SGE
-        SGC -.-> SGE
-    end
-
-    SGC ==> DONE(["END"])
-
-    subgraph PERSIST["Persistence — two distinct primitives, parent graph ONLY"]
-        direction TB
-        CKPT["AzureBlobCheckpointSaver — implements BaseCheckpointSaver<br>in-flight graph state, thread-scoped<br>checkpoints / project_id / latest.json + history<br>gate_attempts lives here, never in route scope"]
-        STORE["AzureBlobStore — implements BaseStore<br>cross-phase artifacts and gate documents<br>namespace: projects / project_id / kind<br>the ONLY cross-phase data path — never parent state"]
-    end
-
-    subgraph IDX["Azure AI Search — three indexes, one retrieval tool bound to each"]
-        direction TB
-        IK["improve_knowledge_index<br>LSS Black Belt eBook, static corpus<br>vector field: content_vector<br>filter: phase_relevance eq phase or general"]
-        IE["improve_evidence_index<br>Belt-uploaded documents, per case<br>vector field: content_vector · filter: case_id<br>THE ONLY channel for external real-world data"]
-        IC["improve_case_index<br>completed case records — yokoten<br>vector field: embedding<br>filter: status · order: created_at desc"]
-    end
-
-    PARENT -.->|"state saved after every node"| CKPT
-    PARENT -.->|"artifacts written at gate approval, read by the next phase"| STORE
-
-    PARENT -.->|"rag_lookup_methodology"| IK
-    PARENT -.->|"rag_lookup_evidence"| IE
-    PARENT -.->|"rag_lookup_case_history"| IC
-
-    classDef router fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,color:#000
-    classDef sub fill:#f1f8e9,stroke:#558b2f,stroke-width:2px,color:#000
-    classDef esc fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#000
-    classDef store fill:#ede7f6,stroke:#4527a0,stroke-width:2px,color:#000
-    classDef index fill:#fce4ec,stroke:#ad1457,stroke-width:2px,color:#000
-    classDef terminal fill:#eceff1,stroke:#455a64,stroke-width:2px,color:#000
-
-    class ROUTER router
-    class SGD,SGM,SGA,SGI,SGC sub
-    class SGE esc
-    class CKPT,STORE store
-    class IK,IE,IC index
-    class ENTRY,DONE terminal
-```
+*Source: [`diagrams/01-overview.mmd`](diagrams/01-overview.mmd) · [full-size SVG](diagrams/01-overview.svg). Edit the `.mmd` and re-render — never hand-edit the image.*
 
 Two rules are visible in the shape rather than the labels. **Solid double arrows are static edges; dashed arrows are conditional edges** — and no node ever emits both, because mixing them means both paths execute silently (§1.2). And the persistence and index clusters hang off the *parent*, not off any phase — that placement is the architecture, not the drawing.
 
@@ -523,53 +476,9 @@ Two rules are visible in the shape rather than the labels. **Solid double arrows
 
 Expanding one of the five phase subgraphs from Diagram 1. Every box here is a **node** — a Python function that reads state, does work, and returns a state-update dict. The two loops are the substance of this diagram: the planner and executor cycle many times per phase, once per field rather than once per phase, and the validation stack loops back to the executor on failure with accumulated per-layer feedback. Leaf **tools** do not appear as boxes at all — from the subgraph's point of view the executor is a single node, and what happens inside it is Diagram 3.
 
-```mermaid
-flowchart TD
-    IN(["subgraph entry — input mapper reads the prior phase's artifacts from the store, typed"])
-    IN --> P
+![Diagram 2 — inside a phase subgraph: planner, executor, four-layer validation, gate review interrupt, gate apply, and the two cycles](diagrams/02-phase-subgraph.png)
 
-    P["phase_planner — NODE<br>LLM call, structured output, NO tools bound<br>decides focus_field, next_action,<br>retrieval_strategy, tools_needed"]
-
-    X["phase_executor — NODE — the coach<br>built with create_agent, see Diagram 3<br>TimeoutPolicy run_timeout=45s<br>error_handler=phase_error_recovery"]
-
-    V["four-layer validation stack<br>2a coherence LLM · 2b field presence DETERMINISTIC<br>2c constraint LLM · 2d rubric grader middleware<br>cheapest first, each fires only if the previous passes<br>iteration cap of 3 SHARED across all four layers"]
-
-    GR["gate_review_node — NODE<br>calls interrupt() — EXECUTION STOPS HERE<br>Belt sees the validated fields, edits, approves<br>no checkpoint has been committed yet"]
-
-    GA["gate_apply_node — NODE<br>applies the Belt's corrections<br>runs the policy advisory — non-blocking<br>CHECKPOINT COMMITS ONLY HERE"]
-
-    ESC["escalation_subgraph"]
-    OUT(["subgraph exit — output mapper writes artifacts to the store,<br>returns only orchestration values to the parent"])
-
-    TOOLS["leaf tools — NOT nodes<br>invoked by the LLM from inside the executor,<br>at runtime. See Diagram 3."]
-
-    P ==>|"structured plan"| X
-    X -.->|"CYCLE 1 — field captured, more fields remain in this phase"| P
-    P -.->|"conditional edge: all required fields captured, attempt the gate"| V
-    V -.->|"CYCLE 2 — any layer fails: revise, with accumulated per-layer feedback"| X
-    V ==>|"all four layers pass"| GR
-    GR ==>|"Command resume — the Belt's response"| GA
-    GA -.->|"conditional edge: Belt's edits reopen work in this phase"| P
-    GA ==>|"gate approved"| OUT
-    V -.->|"conditional edge: 3 attempts exhausted"| ESC
-
-    X -.- TOOLS
-
-    classDef planner fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000
-    classDef exec fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px,color:#000
-    classDef valid fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#000
-    classDef hitl fill:#ffe0b2,stroke:#e65100,stroke-width:3px,color:#000
-    classDef plain fill:#eceff1,stroke:#455a64,stroke-width:2px,color:#000
-    classDef note fill:#fafafa,stroke:#9e9e9e,stroke-width:1px,stroke-dasharray: 4 4,color:#000
-
-    class P planner
-    class X exec
-    class V valid
-    class GR hitl
-    class GA,ESC plain
-    class IN,OUT plain
-    class TOOLS note
-```
+*Source: [`diagrams/02-phase-subgraph.mmd`](diagrams/02-phase-subgraph.mmd) · [full-size SVG](diagrams/02-phase-subgraph.svg). Edit the `.mmd` and re-render — never hand-edit the image.*
 
 `Command` routing is legitimate **inside** a phase subgraph — this is the level where step order is genuinely data-dependent — and it is the only level where it is legitimate. Note also what the ordering buys: the grader loop in layer 2d runs *before* the interrupt, so the Belt is never shown work already known to be below standard, and the policy advisory runs *after* the Belt's edits, where it offers a second opinion rather than a veto (§9.1).
 
@@ -579,66 +488,9 @@ flowchart TD
 
 Expanding the `phase_executor` box from Diagram 2. Everything here lives inside what the subgraph sees as one node. **Middleware** is an `AgentMiddleware` attached via `create_agent(middleware=...)` that wraps the agent loop through its hooks — it is not a node and not a tool. **Tools** are Python functions bound to the LLM, invoked from inside this node by the model at runtime — also not nodes. The diagram orders the middlewares by when their hooks fire, which is what matters at runtime; the declaration order in `middleware=[...]` is given in §8.1.
 
-```mermaid
-flowchart TB
-    PLAN(["coaching_plan from phase_planner"]) --> MW1
+![Diagram 3 — the phase executor built with create_agent: four middleware layers and the two tool tiers](diagrams/03-coach-node.png)
 
-    subgraph AGENT["phase_executor — built with create_agent — ONE node to the subgraph"]
-        direction TB
-
-        MW1["1 · BeforeModelStateInjection — CUSTOM<br>hook: before_model<br>prepends captured fields, phase requirements,<br>missing fields, key_decisions, open_items<br>at the TOP of the prompt, ahead of the conversation"]
-
-        MW2["2 · DMAICSkillsMiddleware — CUSTOM<br>progressive disclosure, three levels<br>L1 descriptions under 2K tokens for all five phases<br>L2 full phase SKILL.md via the load_skill tool<br>allowed-tools must match this phase's tool subset"]
-
-        MW3["3 · SummarizationMiddleware — LANGCHAIN CORE, as shipped<br>trigger 100k tokens · keep last 20 messages raw<br>model: operational-model, gpt-4o-mini for cost<br>compresses CONVERSATION — facts live in typed state"]
-
-        LOOP["model + tool-calling loop<br>get_llm coach · temperature 0.5-0.7<br>response_format=ProviderStrategy PhaseOutput<br>recursion_limit=11 — max 5 tool calls per Belt turn"]
-
-        MW4["4 · DMAICGraderMiddleware — CUSTOM<br>hook: after_agent · grader role · temperature 0.1<br>per-criterion verdicts, not one overall verdict<br>max_iterations=3, on_evaluation writes to step_log<br>THE BELT NEVER SEES THIS LOOP"]
-
-        MW1 --> MW2 --> MW3 --> LOOP
-        LOOP --> MW4
-    end
-
-    subgraph UNI["tools tier 1 — the universal eight, bound to EVERY phase executor"]
-        direction TB
-        U1["record_field — extraction is a tool call, not a node"]
-        U2["rag_lookup_methodology → improve_knowledge_index"]
-        U3["rag_lookup_evidence → improve_evidence_index"]
-        U4["rag_lookup_case_history → improve_case_index"]
-        U5["propose_template"]
-        U6["propose_diagram — structured JSON, not SVG"]
-        U7["check_gate_status"]
-        U8["request_human_approval"]
-    end
-
-    subgraph COMP["tools tier 2 — computation, 18 total, PURE FUNCTIONS, no LLM, unit-tested"]
-        direction TB
-        C1["Define · +1 → 9 tools<br>calculate_expected_savings"]
-        C2["Measure · +8 → 16 tools<br>sigma_level, cpk, dpmo, yield_rty, ftq,<br>grr, sample_size_proportion, sample_size_mean"]
-        C3["Analyse · +5 → 13 tools<br>t_test, chi_square_test, anova,<br>pearson_correlation, linear_regression"]
-        C4["Improve · +1 → 9 tools<br>calculate_doe_main_effects"]
-        C5["Control · +4 → 12 tools<br>xbar_r_chart_limits, p_chart_limits,<br>c_chart_limits, post_improvement_cpk"]
-    end
-
-    LOOP <==>|"the LLM decides which tool to call — the graph never decides"| UNI
-    LOOP <==>|"ONLY this phase's subset is bound — no phase exceeds 16 tools"| COMP
-
-    MW4 --> OUT(["typed PhaseOutput + step_log entries<br>→ the four-layer validation stack, Diagram 2"])
-
-    classDef custom fill:#e1bee7,stroke:#6a1b9a,stroke-width:2px,color:#000
-    classDef core fill:#b3e5fc,stroke:#0277bd,stroke-width:2px,color:#000
-    classDef loop fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px,color:#000
-    classDef tool fill:#fff9c4,stroke:#f9a825,stroke-width:1px,color:#000
-    classDef terminal fill:#eceff1,stroke:#455a64,stroke-width:2px,color:#000
-
-    class MW1,MW2,MW4 custom
-    class MW3 core
-    class LOOP loop
-    class U1,U2,U3,U4,U5,U6,U7,U8 tool
-    class C1,C2,C3,C4,C5 tool
-    class PLAN,OUT terminal
-```
+*Source: [`diagrams/03-coach-node.mmd`](diagrams/03-coach-node.mmd) · [full-size SVG](diagrams/03-coach-node.svg). Edit the `.mmd` and re-render — never hand-edit the image.*
 
 Two structural facts worth reading off the picture. **The tool count is bounded by construction, not by discipline** — per-phase binding keeps every coach between 9 and 16 tools, which is why no tool-selector middleware is needed. And **the grader is middleware, not a subgraph node** — it wraps the agent loop, so it is invisible both to the subgraph in Diagram 2 and to the Belt.
 
@@ -648,46 +500,9 @@ Two structural facts worth reading off the picture. **The tool count is bounded 
 
 The word "agent" carries two senses in this document — the LangChain classic sense (an LLM with bound tools that decides which tool to call) and the multi-agent sense (a named role: supervisor, subagent, worker). This diagram applies both senses to every box in Diagrams 1–3 and labels each one explicitly. Read it as the answer to "so how many agents are in this system?" The answer is: **one per phase, and it is the executor node.**
 
-```mermaid
-flowchart TB
-    subgraph LV1["LEVEL 1 — supervisor"]
-        S["supervisor router<br>global_planner + global_executor<br><br>❌ NOT AN AGENT<br>Deterministic. No LLM anywhere in it.<br>Gate-check on gate_passed plus static edges.<br>Nothing to reason about, so nothing reasons.<br>'Supervisor' here is the multi-agent ROLE name<br>for a router — not a claim that it reasons."]
-    end
+![Diagram 4 — agent role mapping: phase_executor is the only actual agent](diagrams/04-agent-roles.png)
 
-    subgraph LV2["LEVEL 2 — one per DMAIC phase"]
-        SG["define / measure / analyse / improve / control subgraph<br><br>◆ CALLED A 'PHASE SUBAGENT' — ROLE LABEL ONLY<br>It is a compiled StateGraph, i.e. a SUBGRAPH.<br>There is no class, no create_agent call, and no<br>object named 'subagent' anywhere in the code.<br>Where §23 says 'subagent', it means 'subgraph'."]
-    end
-
-    subgraph LV2N["INSIDE one phase subagent — node by node"]
-        direction TB
-
-        N1["phase_planner<br><br>❌ NOT AN AGENT — a planner node<br>An LLM call with structured output.<br>NO tools bound, so nothing to select between.<br>An agent decides WHICH TOOL to call;<br>this decides WHAT THE EXECUTOR should do next."]
-
-        N2["phase_executor<br><br>✅ THIS IS THE AGENT<br>Built with create_agent. Has an LLM AND bound tools,<br>and decides which tool to call — the LangChain<br>classic sense, exactly. The ONLY box in Diagrams 1–4<br>that satisfies it. One per phase, five in the system."]
-
-        N3["four-layer validation stack<br><br>❌ NOT AN AGENT<br>2b field presence is a plain deterministic function.<br>2a, 2c, 2d are single LLM calls with no bound tools —<br>an LLM call is not an agent. 2d is MIDDLEWARE,<br>which is neither a node nor a tool."]
-
-        N4["gate_review_node<br><br>❌ NOT AN AGENT — an interrupt point<br>Calls interrupt(), presents fields, stops.<br>No model call at all. Its whole job is to<br>hand control to a human and wait."]
-
-        N5["gate_apply_node<br><br>❌ NOT AN AGENT — a plain function<br>Applies the Belt's corrections, runs the policy<br>advisory as a structured diff with NO LLM call,<br>commits the checkpoint, routes onward."]
-    end
-
-    subgraph LV3["LEAF LEVEL"]
-        T["8 universal tools + 18 computation tools<br><br>❌ NOT AGENTS — plain Python functions<br>The 18 computation tools make no LLM call at all.<br>Leaf tools are NEVER planner-executor pairs —<br>this is where the two-level recursion terminates."]
-    end
-
-    S ==>|"dispatches via static edges"| SG
-    SG ==>|"contains"| LV2N
-    N2 ==>|"binds and invokes"| T
-
-    classDef isagent fill:#c8e6c9,stroke:#1b5e20,stroke-width:4px,color:#000
-    classDef notagent fill:#ffcdd2,stroke:#b71c1c,stroke-width:1px,color:#000
-    classDef rolelabel fill:#fff9c4,stroke:#f9a825,stroke-width:2px,stroke-dasharray: 6 4,color:#000
-
-    class N2 isagent
-    class S,N1,N3,N4,N5,T notagent
-    class SG rolelabel
-```
+*Source: [`diagrams/04-agent-roles.mmd`](diagrams/04-agent-roles.mmd) · [full-size SVG](diagrams/04-agent-roles.svg). Edit the `.mmd` and re-render — never hand-edit the image.*
 
 **Legend:** ✅ green, thick border — an agent in the LangChain classic sense: an LLM with bound tools that decides which tool to call. ❌ red — not an agent, whatever it is named. ◆ yellow, dashed border — a role label applied to a structural primitive, with no corresponding code object.
 

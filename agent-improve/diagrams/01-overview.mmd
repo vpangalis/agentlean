@@ -1,0 +1,61 @@
+flowchart TD
+    ENTRY(["START"]) --> ROUTER
+
+    subgraph PARENT["supervisor_graph — the only compiled runtime — one thread_id = project_id"]
+        direction TB
+        ROUTER["supervisor router<br>global_planner + global_executor<br>deterministic gate-check on gate_passed<br>NO LLM — static edges only"]
+        SGD["define_subgraph"]
+        SGM["measure_subgraph"]
+        SGA["analyse_subgraph"]
+        SGI["improve_subgraph"]
+        SGC["control_subgraph"]
+        SGE["escalation_subgraph"]
+
+        ROUTER ==>|static edge| SGD
+        SGD ==>|static edge| SGM
+        SGM ==>|static edge| SGA
+        SGA ==>|static edge| SGI
+        SGI ==>|static edge| SGC
+
+        SGD -.->|"conditional edge: 3 validation attempts exhausted, or request_human_approval"| SGE
+        SGM -.-> SGE
+        SGA -.-> SGE
+        SGI -.-> SGE
+        SGC -.-> SGE
+    end
+
+    SGC ==> DONE(["END"])
+
+    subgraph PERSIST["Persistence — two distinct primitives, parent graph ONLY"]
+        direction TB
+        CKPT["AzureBlobCheckpointSaver — implements BaseCheckpointSaver<br>in-flight graph state, thread-scoped<br>checkpoints / project_id / latest.json + history<br>gate_attempts lives here, never in route scope"]
+        STORE["AzureBlobStore — implements BaseStore<br>cross-phase artifacts and gate documents<br>namespace: projects / project_id / kind<br>the ONLY cross-phase data path — never parent state"]
+    end
+
+    subgraph IDX["Azure AI Search — three indexes, one retrieval tool bound to each"]
+        direction TB
+        IK["improve_knowledge_index<br>LSS Black Belt eBook, static corpus<br>vector field: content_vector<br>filter: phase_relevance eq phase or general"]
+        IE["improve_evidence_index<br>Belt-uploaded documents, per case<br>vector field: content_vector · filter: case_id<br>THE ONLY channel for external real-world data"]
+        IC["improve_case_index<br>completed case records — yokoten<br>vector field: embedding<br>filter: status · order: created_at desc"]
+    end
+
+    PARENT -.->|"state saved after every node"| CKPT
+    PARENT -.->|"artifacts written at gate approval, read by the next phase"| STORE
+
+    PARENT -.->|"rag_lookup_methodology"| IK
+    PARENT -.->|"rag_lookup_evidence"| IE
+    PARENT -.->|"rag_lookup_case_history"| IC
+
+    classDef router fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,color:#000
+    classDef sub fill:#f1f8e9,stroke:#558b2f,stroke-width:2px,color:#000
+    classDef esc fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#000
+    classDef store fill:#ede7f6,stroke:#4527a0,stroke-width:2px,color:#000
+    classDef index fill:#fce4ec,stroke:#ad1457,stroke-width:2px,color:#000
+    classDef terminal fill:#eceff1,stroke:#455a64,stroke-width:2px,color:#000
+
+    class ROUTER router
+    class SGD,SGM,SGA,SGI,SGC sub
+    class SGE esc
+    class CKPT,STORE store
+    class IK,IE,IC index
+    class ENTRY,DONE terminal
