@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.8 — August 2026
+# Version 2.2.9 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -63,6 +63,23 @@ hook — see REFACTORING_AGENT_IMPROVE.md §86.
 | MCP | In the stack description | **Architecturally excluded** (§1.9) |
 | Index schemas | Partial, in prose | **Canonical in ARCHITECTURE.md §7**; rule-bearing facts in §7.3 |
 
+### 0.4 — What Changed in 2.2.9 — the state design closed
+
+All 15 findings from the state design audit landed in one commit. The
+rules that bind, and where they live:
+
+| Area | v2.2.8 | v2.2.9 |
+|---|---|---|
+| Identifier | `project_id` in docs, `case_id` in code | **`case_id` everywhere** (§10.5) |
+| Name for captured fields | `artifacts` / `captured_fields` / `phase_inputs` | **`artifacts` only** (§10.5) |
+| `SupervisorState` | 7 fields, `gate_passed: list[str]` | 7 fields, **`gate_passed: dict[str, bool]`**, `final_output: Optional[dict]` (§10.1) |
+| `PhaseState` | 11 fields, `feedback`, `final: str` | **15 fields** — adds `gate_attempts`, `validator_feedback`, `citations`, `uploads`; `feedback` → **`belt_edits`**; `final: dict` (§10.1) |
+| `coaching_plan` | `list[dict]` in some places | **single `dict`**, transient (§10.1) |
+| Gate document write | Unspecified | **`gate_apply_node` writes store + `PhaseState.final`** (§9.6) |
+| Captured field typing | Prose promised typed floats | **All `str`**, three cross-phase reference dicts excepted (§10.6) |
+| Computation results | Nowhere | **`artifacts["computation_results"]`** (§10.6) |
+| Gate-required fields | One flat list, contradicting the rubric | **Two tiers**; grader verdict gains `"warning"` (§9.7) |
+
 ---
 
 ## 1. ARCHITECTURE PRINCIPLES
@@ -93,7 +110,7 @@ hook — see REFACTORING_AGENT_IMPROVE.md §86.
 ### 1.2 — Hierarchical Subgraphs, One Thread, Auto Namespacing
 
 ```
-supervisor_graph                    thread_id = project_id, e.g. "IMPR-2026-FS1"
+supervisor_graph                    thread_id = case_id, e.g. "IMPR-2026-FS1"
 ├── define_subgraph                 checkpoint_ns auto-managed by LangGraph
 ├── measure_subgraph
 ├── analyse_subgraph
@@ -143,7 +160,7 @@ costs the ability to test either half.
 Extraction is a tool call (`record_field`), not a separate node.
 
 **Level 1 (supervisor) has no LLM planner.** Phase sequencing is a
-deterministic gate-check on `gate_passed[]` plus static edges. There
+deterministic gate-check on `gate_passed` plus static edges. There
 is nothing to reason about, so nothing reasons.
 
 *Rationale: REFACTORING_AGENT_IMPROVE.md §5, §11, §20, §23, plus the
@@ -202,7 +219,7 @@ implements `BaseCheckpointSaver`. `AzureBlobStore` lives at
 
 **Blob layout for checkpoints:**
 ```
-checkpoints/{project_id}/
+checkpoints/{case_id}/
   latest.json                    — most recent checkpoint (fast resume)
   history/{checkpoint_id}.json   — historical checkpoints for time-travel
 ```
@@ -211,7 +228,9 @@ checkpoints/{project_id}/
 - One blob write per checkpoint (no per-key writes)
 - Atomic via blob ETag conditional writes to handle concurrent turns
 - `gate_attempts` MUST be in the checkpointed state, never in route
-  scope — this is what fixes the v1 "attempts always reset to 0" bug
+  scope — this is what fixes the v1 "attempts always reset to 0" bug.
+  It lives on `PhaseState` (§10.1), per phase, because each phase runs
+  its own validation loop with its own cap
 
 **Migration is a constructor and connection-string change.** Both
 sides of the split are defined by LangGraph interfaces, so nothing
@@ -466,7 +485,7 @@ recursion_limit = 2 * max_hops + 1 = 11
 await graph.ainvoke(
     state,
     config={"recursion_limit": 11,
-            "configurable": {"thread_id": project_id}},
+            "configurable": {"thread_id": case_id}},
 )
 ```
 
@@ -946,7 +965,7 @@ source so no permanent workaround exists.
 key was renamed across the codebase in the same change, so
 `f"phase_summary_{phase}"` is correct for all five phases with no
 mapping constant anywhere. This binds on: `PHASE_ORDER` and every
-`phase_order` list, `phase_inputs` keys, `EXTRACTION_MAP`,
+`phase_order` list, v1 `phase_inputs` keys, `EXTRACTION_MAP`,
 `ORCHESTRATOR_CONTEXT_MAP`, `GATE_CHECKS`, `PhaseSummaryRecord`,
 `CaseDocument.phases`, the graph node names, and the module path
 `backend.phases.analyse`. `AnalysePhaseInput` keeps its name —
@@ -1028,23 +1047,37 @@ reserved for genuinely domain-specific logic.
 - `max_iterations=3`. On `max_iterations_reached`, output passes
   through **with a warning flag visible to the Belt**.
 - Verdict is per criterion, not overall: `GraderVerdict` carries a
-  `list[CriterionVerdict]`, each with `criterion`, `passed`, `feedback`.
+  `list[CriterionVerdict]`, each with `criterion`, `tier`, `status`
+  (`"pass" | "warning" | "fail"`) and `feedback` (§9.7).
 - Feedback injected back to the coach is **per criterion and specific**
   — never "try again."
+- **Belt-level aware** — reads `belt_level` from the case record and
+  suppresses Black-Belt-only recommendations for a Green Belt (§9.7).
 
 **Rubric management.** Five rubric constants in `core/prompts.py`, one
 per phase. The grader receives the phase-appropriate rubric based on
 `current_phase`. Rubrics evolve from production experience **without
 changing the grader mechanism** — that separation is the point.
 
-The ratified rubrics cover: Define (problem_statement, business_case,
-project_scope, team, goal_statement), Measure (baseline_mean,
-baseline_sigma, measurement_system_validated, data_collection_plan),
-Analyse (root_causes, root_cause_validation, causal_hypothesis,
-ruled_out_causes), Improve (solution_selected,
-solution_linked_to_root_cause, pilot_results, implementation_plan),
-Control (control_plan, sustainability_check, post_improvement_metric,
-handover_documented). Full text in REFACTORING_AGENT_IMPROVE.md §42.
+The ratified rubrics cover: Define (problem_statement, voc_summary,
+business_case, project_scope, team, goal_statement), Measure
+(baseline_mean, baseline_sigma, measurement_system_validated,
+data_collection_plan, stability), Analyse (root_cause_statement,
+root_cause_validation, causal_hypothesis, ruled_out_causes), Improve
+(selected_solution, solution_linked_to_root_cause, pilot_result,
+implementation_plan), Control (control_plan, sustainability_check,
+post_improvement_metric, improvement_delta, financial_impact_verified,
+handover_documented, lessons_learned, transferability). Each criterion
+carries its tier (§9.7). Full text in REFACTORING_AGENT_IMPROVE.md §42;
+the tier table is ARCHITECTURE.md §13.
+
+**Three criteria are verified deterministically, not by judgment.**
+`causal_hypothesis`, `solution_linked_to_root_cause` and
+`post_improvement_metric` are cross-phase reference dicts (§10.6); the
+grader reads the referenced phase's gate document from the store and
+checks the named field carries the named value. Criteria that depend on
+a computation are checked the same way, by scanning
+`artifacts["computation_results"]` for the relevant `tool` entry.
 
 **Audit trail integration.** The `on_evaluation` callback writes each
 grading iteration to `step_log` (§10.3). Grader internals — iteration
@@ -1118,8 +1151,8 @@ state:
 | Lives in | Field |
 |---|---|
 | `SupervisorState` | `current_phase`, `phase_index`, `gate_passed` — orchestration only |
-| `PhaseState` | `artifacts`, `draft`, `feedback`, `step_log` |
-| Store | Cross-phase artifacts, gate documents (§10.2) |
+| `PhaseState` | `artifacts`, `draft`, `belt_edits`, `step_log`, `citations`, `uploads`, `validator_feedback`, `final` |
+| Store | Cross-phase gate documents (§10.2) |
 
 Summarising *conversation* into prose is correct — that is what
 conversation is. Summarising *facts* into prose is the failure this
@@ -1185,9 +1218,9 @@ coaching event.
 | 4. Belt reviews | Belt checks AI-captured values for accuracy | — |
 | 5. Belt edits *(optional)* | Belt corrects wrong fields | — |
 | 6. **Policy advisory** | Validates the Belt's edits against required-field policy, cross-phase consistency, and previously approved values (§9.4). **Non-blocking.** | **Human's edits** |
-| 7. Belt approves | Belt confirms the gate is ready | — |
+| 7. Belt approves | Belt confirms the gate is ready; the gate document is assembled and written to the store **and** `PhaseState.final` (§9.6) | — |
 | 8. Checkpoint saves | State committed **only now** | — |
-| 9. Next task | Supervisor reads `gate_passed[]`, routes onward | — |
+| 9. Next task | Supervisor reads `gate_passed`, routes onward | — |
 
 **Two quality checks, two actors, two moments.** The grader blocks
 (step 2) because it checks the AI's own output and there is no reason
@@ -1202,11 +1235,15 @@ All four run inside step 2, before the interrupt.
 | Layer | Checks | Mechanism | Model | Fires |
 |---|---|---|---|---|
 | **2a. Coherence** | Real, meaningful, conclusive? Catches gibberish, vague non-answers, self-contradiction, off-topic replies, parroting the Belt's own words | Lightweight LLM | `coherence`, temp 0.1 | **Every coaching turn** |
-| **2b. Field presence** | All required fields for this phase populated? (`DMAICGateValidator`) | **Deterministic** | No LLM | Gate boundary only |
+| **2b. Field presence** | All **Tier 1** fields for this phase populated? (`DMAICGateValidator`) | **Deterministic** | No LLM | Gate boundary only |
 | **2c. Constraint** | Addresses budget / timeline / risk / measurement? | Lightweight LLM | `constraint`, temp 0.1 | Gate boundary + mid-conversation for key decisions |
-| **2d. Quality rubric** | Meets DMAIC standards per criterion? (`DMAICGraderMiddleware`) | LLM grader | `grader`, temp 0.1 | Gate boundary only |
+| **2d. Quality rubric** | Meets DMAIC standards per criterion? **Tier 1 fails, Tier 2 warns.** (`DMAICGraderMiddleware`) | LLM grader | `grader`, temp 0.1 | Gate boundary only |
 
 **Run cheapest first. Each layer fires only if the previous passes.**
+
+**The counter is `PhaseState.gate_attempts` and the accumulated feedback
+is `PhaseState.validator_feedback`** (§10.1). Neither may live in route
+scope, and neither may be per layer.
 
 **Layer 2b is the only deterministic layer.** Coherence and constraint
 checks are LLM calls because format checks cannot detect content
@@ -1271,8 +1308,8 @@ The policy advisory does **not** only run at gate boundaries. It runs
 **before each coach response is returned to the Belt**.
 
 **Mechanics:**
-- Compares the Belt's most recent statements against `captured_fields`
-  already committed at prior gates
+- Compares the Belt's most recent statements against the `artifacts`
+  already committed in prior gate documents
 - **If any numeric or categorical value differs, the coach's response
   is suppressed and a HITL interrupt payload is emitted**
 - Payload: field name, previously approved value, its approval
@@ -1312,6 +1349,118 @@ A cascade that marks phases provisional but leaves published values in
 place is worse than no cascade — state and index then disagree,
 silently.
 
+### 9.6 — `gate_apply_node` writes the gate document TWICE
+
+**This is the write the whole store-mediated handoff depends on.** Every
+cross-phase read in §10.2 assumes the previous phase's gate document is
+in the store. `gate_apply_node` is what puts it there.
+
+After Belt approval, at step 7, `gate_apply_node` writes to **both**:
+
+```python
+# 1. The store — what the next phase's input mapper reads
+store.put(("projects", case_id, "artifacts"), phase_name, gate_document)
+
+# 2. PhaseState — so the checkpoint is self-sufficient for crash recovery
+return {"final": gate_document, "gate_attempts": 0, "validator_feedback": []}
+```
+
+**Both writes are required.** The store write and the checkpoint commit
+are separate operations; a crash between them would leave state saying
+the gate was not applied while the store says it was. `final` holding
+the same dict means the resumed graph can see what was approved without
+re-reading the store — which is why `final` is a `dict` and not a `str`.
+
+**Store path:** `store/projects/{case_id}/artifacts/{phase}.json`
+
+**The gate document contains, and nothing may be omitted from it:**
+
+| Part | Source |
+|---|---|
+| All captured fields (strings — §10.6) | `artifacts` |
+| The three cross-phase reference dicts, where they apply | `artifacts` |
+| `computation_results` | `artifacts["computation_results"]` |
+| `citations` | `PhaseState.citations` |
+| `uploads` | `PhaseState.uploads` |
+| `acknowledged_gaps` | Tier 2 fields the Belt chose to proceed without (§9.7) |
+
+**`gate_attempts` and `validator_feedback` reset here, and only here.**
+The retry budget is per gate passage.
+
+### 9.7 — Two tiers of field; the grader gains a `warning` verdict
+
+**Layer 2b and Layer 2d must not be able to contradict each other.**
+Before this rule, the gate blocked on a required-field list while the
+grader graded against a rubric covering a different set — so a phase
+could pass the gate and then be failed by the grader on a criterion the
+gate never asked for.
+
+**Every rubric criterion is classified into one of two tiers.**
+
+| Tier | Layer 2b | Layer 2d | Belt |
+|---|---|---|---|
+| **Tier 1 — gate-required** | **Blocks** | Can `fail` | Must supply it |
+| **Tier 2 — rubric-recommended** | Not checked | At worst `warning` | Add it, or proceed with an acknowledged gap |
+
+**Tier 1, by phase:**
+
+| Phase | Tier 1 |
+|---|---|
+| Define | `problem_statement`, `voc_summary`, `project_scope`, `goal_statement` |
+| Measure | `baseline_mean`, `data_collection_plan` |
+| Analyse | `root_cause_statement`, `root_cause_validation` |
+| Improve | `selected_solution`, `pilot_result` |
+| Control | `control_plan`, `post_improvement_metric` |
+
+**Everything else in the rubric is Tier 2** — `baseline_sigma`,
+`ruled_out_causes`, `handover_documented`, `financial_impact_verified`,
+`implementation_plan`, `lessons_learned`, `transferability`, and the
+rest.
+
+**The grader's verdict has three statuses, not two:**
+
+```python
+class CriterionVerdict(BaseModel):
+    criterion: str
+    tier:      int                                     # 1 or 2
+    status:    Literal["pass", "warning", "fail"]
+    feedback:  str                                     # specific, per criterion
+```
+
+**A gate MAY pass with warnings. A gate may NEVER pass with failures.**
+Only Tier 1 criteria may produce `fail`.
+
+**A Tier 2 gap the Belt proceeds past MUST be recorded**, never silently
+dropped:
+
+```python
+"acknowledged_gaps": ["baseline_sigma — Belt accepted gap"]
+```
+
+The next phase's planner reads it from the store and factors it into the
+coaching plan.
+
+**Why two tiers.** A gate that blocks on every criterion teaches Belts
+to fill fields mechanically — complete gate documents, worse projects.
+Tier 1 catches genuinely incomplete phases; Tier 2 coaches toward best
+practice while leaving the judgment with the Belt, who knows the
+project. The audit trail then records conscious decisions rather than
+silent omissions.
+
+**The grader is belt-level aware.** It reads `belt_level` from the case
+record:
+
+```
+if belt_level == "Black Belt":
+    flag FMEA, DOE, X-Y matrix, statistical problem statement as Tier 2
+if belt_level == "Green Belt":
+    suppress these — do not recommend heavy methodology GB isn't trained for
+```
+
+**Stability / special-cause analysis is NOT suppressed for either
+level** — a baseline computed across an unstable process is not a
+baseline. It is Tier 2 with a strong warning for both.
+
 *Rationale: REFACTORING_AGENT_IMPROVE.md §2, §38, §42, §48, §49, §68, §69.*
 
 ---
@@ -1326,15 +1475,25 @@ silently.
 class SupervisorState(TypedDict):
     messages:        Annotated[list[BaseMessage], operator.add]
     history:         Annotated[list[str], operator.add]
-    project_id:      str
+    case_id:         str                                  # canonical id — §10.5
     phase_index:     int                                  # 0=Define … 4=Control
     current_phase:   str
-    gate_passed:     list[str]                            # phases approved so far
-    final_output:    str
+    gate_passed:     dict[str, bool]                      # {"define": True, …}
+    final_output:    Optional[dict]                       # set at the Control gate
 ```
 
-**`captured_fields` and `gate_documents` are NOT on `SupervisorState`.**
-They live in the store (§10.2). Adding them back is a violation.
+**Seven fields. That is the entire schema.** An eighth requires an
+ARCHITECTURE.md amendment (§18).
+
+**`gate_passed` is a `dict[str, bool]`, not a `list[str]`.**
+`gate_passed["measure"]` is a direct lookup, and the re-approval cascade
+(§9.5) sets a phase back to `False` rather than removing it from a list.
+
+**`final_output` is `Optional[dict]`, never `str`** — same rule as
+`PhaseState.final` (§10.1, §10.6).
+
+**Artifacts and gate documents are NOT on `SupervisorState`.** They live
+in the store (§10.2). Adding them back is a violation.
 
 **`dmaic_plan`, `key_decisions`, `open_items` and `project_context` are
 NOT on `SupervisorState` either.** All four were removed as redundant —
@@ -1358,26 +1517,70 @@ after Define," yet nothing set it, and its only reader —
 built `phase_context` from the store. **Context is composed at the
 boundary, never carried on parent state.**
 
+**`current_phase` and `phase_index` are derived from `gate_passed` and
+kept anyway** — a documented exemption for readability, not an
+oversight. They are read in dozens of places, and they are written in
+exactly one: the output mapper at gate approval (§10.2). **Nothing else
+may write them**, and the supervisor is responsible for keeping them
+consistent with `gate_passed`. Full rationale: ARCHITECTURE.md §4.1.2.
+
 **`PhaseState`** — per-phase subgraph state:
 
 ```python
 class PhaseState(TypedDict):
-    messages:      Annotated[list[BaseMessage], operator.add]
-    history:       Annotated[list[str], operator.add]
-    phase_context: str
-    coaching_plan: list[dict[str, Any]]
-    field_index:   int                                    # field within the phase
-    draft:         dict[str, Any]                         # this turn's extraction
-    artifacts:     dict[str, Any]                         # accumulated for the phase
-    step_log:      Annotated[list[dict[str, Any]], operator.add]
-    feedback:      dict[str, Any]                         # Belt corrections at gate
-    final:         str
-    turn_count:    int
+    # conversation plumbing
+    messages:           Annotated[list[BaseMessage], operator.add]
+    history:            Annotated[list[str], operator.add]
+    phase_context:      str                # composed at the boundary — §10.2
+
+    # the twelve content fields
+    coaching_plan:      dict[str, Any]     # ONE plan per planner turn
+    field_index:        int                # field within the phase
+    draft:              dict[str, Any]     # this turn's extraction
+    artifacts:          dict[str, Any]     # accumulated for the phase
+    step_log:           Annotated[list[dict[str, Any]], operator.add]
+    belt_edits:         dict[str, Any]     # Belt corrections at the gate
+    turn_count:         int
+    final:              dict[str, Any]     # approved gate document — §9.6
+    gate_attempts:      int                # retry counter, cap 3
+    validator_feedback: list[dict]         # accumulated per-attempt feedback
+    citations:          list[dict]         # sources cited this phase
+    uploads:            list[dict]         # files the Belt uploaded this phase
 ```
 
-**`draft` and `feedback` are `dict`, never `str`.** String-typed
-handoffs force downstream nodes to parse prose, which is the anti-pattern
-this architecture exists to remove.
+**`draft`, `belt_edits` and `final` are `dict`, never `str`.**
+String-typed handoffs force downstream nodes to parse prose, which is
+the anti-pattern this architecture exists to remove.
+
+**`coaching_plan` is a single `dict`, never `list[dict]`.** One plan per
+planner turn, overwritten each time the planner fires. There is no
+upfront queue — the planner reads `artifacts` to know what is captured
+and what is next, and a plan made at turn 1 cannot anticipate turn 4.
+
+**`gate_attempts` MUST be on `PhaseState` and in the checkpoint.** It is
+the shared counter for the four-layer stack (§9.2): incremented per
+failed attempt, reset to 0 when the gate passes, escalating at 3.
+Holding it in route scope is what produced the v1 "attempts always reset
+to 0" bug — it is per phase, because each phase runs its own loop with
+its own cap (§1.7, §3.5).
+
+**`validator_feedback` and `belt_edits` are different things and must
+stay separate.** `validator_feedback` is what the system's validation
+layers said about the AI's output at step 2; `belt_edits` is what the
+Belt corrected at step 5. Two actors, two moments (§9.1). The single
+`feedback` field they replace conflated them, which would have had the
+coach reading the Belt's corrections as validation failures.
+
+**`validator_feedback` is what makes the shared cap of 3 defensible.**
+Each entry records attempt, layer, criteria failed, and specific
+feedback; the coach reads the full list on retry. Reset to `[]` when the
+gate passes. A cap on retries that carry no memory of the previous
+failure is just a cap on repetition.
+
+**`citations` and `uploads` are the evidence trail.** Both are written
+into the gate document (§9.6) — the coach cites BB eBook sources and the
+Belt uploads files, and without these the gate document cannot show what
+the phase was grounded in.
 
 **Naming discipline:** `phase_index` (which phase) and `field_index`
 (which field within a phase) are distinct. Never reuse `step_index`.
@@ -1391,17 +1594,23 @@ debate subgraph, which is not in scope.
 
 **Namespace convention:**
 ```
-("projects", project_id, <kind>)
+("projects", case_id, <kind>)
 ```
 
 | Namespace | Keys | Contents |
 |---|---|---|
-| `("projects", project_id, "case")` | `"record"` | Case framing — title, department, belt level, leader, target date. Written once at session start from `cases/case_{id}.json`, never mid-conversation |
-| `("projects", project_id, "artifacts")` | `"define"`, `"measure"`, … | Each phase's approved artifacts |
-| `("projects", project_id, "gate_documents")` | `"define"`, `"measure"`, … | Final approved gate document per phase |
-| `("projects", project_id, "step_log")` | timestamped | Append-only cross-phase audit trail |
+| `("projects", case_id, "case")` | `"record"` | Case framing — title, department, belt level, leader, target date. Written once at session start from `cases/case_{id}.json`, never mid-conversation |
+| `("projects", case_id, "artifacts")` | `"define"`, `"measure"`, … | **Each phase's approved gate document** — written by `gate_apply_node` (§9.6) |
+| `("projects", case_id, "step_log")` | timestamped | Append-only cross-phase audit trail |
 
-`project_id` is the same value as the graph's `thread_id`.
+**Blob prefix:** `store/projects/{case_id}/{kind}/{key}.json`
+
+`case_id` is the same value as the graph's `thread_id` (§10.5).
+
+**The `gate_documents` namespace is retired.** A phase's approved
+artifacts and its gate document are the same object; two keys holding
+the same content is a question about which is authoritative with no
+answer. Reintroducing it is a violation.
 
 **Cross-phase handoff uses boundary mappers**, in
 `phases/{phase}/mappers.py`:
@@ -1420,8 +1629,10 @@ I/O in a translation function.
 `cases/case_{id}.json` (§10.4) stays authoritative.
 
 **String-interpolating a previous phase's output into the next
-phase's prompt is BANNED.** Measure reads Define's baseline metric as
-a typed float, not out of prose.
+phase's prompt is BANNED.** Measure reads Define's baseline metric as a
+named field out of a structured gate document, not out of prose. The
+field's *value* is a string (§10.6) — the prohibition is on parsing a
+value out of an interpolated prompt, not on the value's type.
 
 **The store is not the case index.** Cross-*case* retrieval for yokoten
 is `rag_lookup_case_history` (§7.2). The store carries cross-*phase*
@@ -1456,7 +1667,7 @@ root cause was, but how it was determined.
 ### 10.4 — Azure Blob — two distinct concerns
 
 **Concern 1: Checkpoints (in-flight graph state)**
-- Path: `checkpoints/{project_id}/latest.json` + `history/{id}.json`
+- Path: `checkpoints/{case_id}/latest.json` + `history/{id}.json`
 - Written by `AzureBlobCheckpointSaver` after every graph node
 - Owner: `core/checkpointer.py`
 
@@ -1475,6 +1686,64 @@ history lives in the checkpoint until gate pass.
 **Case-vs-registry atomicity:** gate-pass case blob write and registry
 update remain two separate writes. Both are covered by the node's
 `error_handler` (§3.6).
+
+### 10.5 — Naming: `case_id` and `artifacts` are the only names
+
+**The project identifier is `case_id`. Everywhere.** State field, store
+namespace segment, `thread_id`, blob path, log field, index field,
+prose. **`project_id` is retired and may not be reintroduced.**
+
+This was never a design question — it was documents disagreeing with
+code. `improve_case_index.case_id`, `improve_evidence_index.case_id`
+(§7.3), `cases/case_{id}.json`, `uploads/{case_id}/{file}` and every
+storage model already said `case_id`.
+
+**A phase's captured fields are `artifacts`. Everywhere.**
+
+| Retired name | Was | Rule |
+|---|---|---|
+| `captured_fields` | Prose name in these documents | Never use in prose — say `artifacts` |
+| `phase_inputs` | v1 code field name | Never add to v2 code; replaced during the refactor |
+
+`PhaseState.artifacts` holds the fields the Belt has produced in this
+phase. Three names for one concept is how a reader ends up believing
+there are three things.
+
+### 10.6 — Every captured field is a string
+
+**All captured fields are `str`.** No phase schema declares a typed
+numeric. **Computation tools parse at the point of use** — each of the
+18 (§5.2) extracts what it needs from the string it is given and returns
+a clear reformatting request to the Belt when it cannot.
+
+```python
+baseline_mean = "12.3% invoice error rate, measured over Q2 2026"
+```
+
+**The gate document shows the Belt's exact words.** That is a
+requirement of a quality system: the Belt must be able to show what they
+stated, not what the system parsed out of it.
+
+> **This corrects the previous §10.2, which claimed "Measure reads
+> Define's baseline metric as a typed float."** No baseline field has
+> ever been typed as a float in any schema in this project. The prose
+> promised a guarantee the schemas did not provide.
+
+**The one exception — three cross-phase reference fields are `dict`:**
+`causal_hypothesis` (Analyse), `solution_linked_to_root_cause`
+(Improve), `post_improvement_metric` (Control). Each carries the Belt's
+content plus `references_phase`, `references_field` and
+`references_value`, so the grader verifies the link by reading the
+referenced phase's gate document from the store — deterministic, no LLM
+judgment in the linkage check. The values inside the dict are still
+strings. Design detail: ARCHITECTURE.md §4.7.
+
+**Computation tool output goes in `artifacts["computation_results"]`**
+as a list of typed dicts, all values strings. No new top-level
+`PhaseState` field, and no per-phase typed destinations — the grader
+answers "was a hypothesis test run?" by scanning that list for
+`"tool": "t_test"`. Adding typed per-phase computation fields is a
+violation (ARCHITECTURE.md §4.8).
 
 *Rationale: REFACTORING_AGENT_IMPROVE.md §17, §18, §19, §21, §52, §52a, §68, §70.*
 
@@ -1618,10 +1887,28 @@ to choose backoff strategy (§4.8).
 ## 14. NO-GO LIST
 
 **State and persistence**
-- Never add `captured_fields` or `gate_documents` to `SupervisorState`
+- Never add artifacts or gate documents to `SupervisorState` — seven
+  fields, and an eighth needs an amendment (§10.1)
 - Never add `dmaic_plan`, `key_decisions`, `open_items` or
   `project_context` to `SupervisorState` — all four were removed as
   redundant (§10.1)
+- Never write `project_id` — the identifier is `case_id` everywhere
+  (§10.5)
+- Never write `captured_fields` in prose or `phase_inputs` in v2 code —
+  the name is `artifacts` (§10.5)
+- Never reintroduce the `gate_documents` store namespace — the gate
+  document lives under `artifacts` (§10.2)
+- Never type a captured field as a numeric — all captured fields are
+  `str`, and the computation tools parse at the point of use (§10.6)
+- Never add typed per-phase destinations for computation results — they
+  go in `artifacts["computation_results"]` (§10.6)
+- Never hold `gate_attempts` in route scope — it is on `PhaseState` and
+  in the checkpoint, or the v1 reset bug returns (§10.1, §1.7)
+- Never merge `validator_feedback` and `belt_edits` — system validation
+  and Belt corrections are different actors at different moments (§10.1)
+- Never write `current_phase` or `phase_index` outside the output mapper
+  — they are derived values kept for readability, and one write site is
+  what keeps them honest (§10.1)
 - Never store a derived list of missing fields or blockers — derive them
   from `check_gate_status()` and the validation stack at the moment they
   are needed (§9.2, §10.1)
@@ -1664,6 +1951,14 @@ to choose backoff strategy (§4.8).
   `VectorStoreRetrieverMemory` classes
 
 **Validation and gates**
+- Never let a gate pass with a Tier 1 failure; never let a Tier 2 gap
+  block a gate (§9.7)
+- Never drop a Tier 2 gap the Belt proceeded past — it goes in
+  `acknowledged_gaps` in the gate document (§9.6, §9.7)
+- Never recommend FMEA, DOE, X-Y matrix or a statistical problem
+  statement to a Green Belt (§9.7)
+- Never approve a gate without writing the gate document to **both** the
+  store and `PhaseState.final` (§9.6)
 - Never let the Belt see the grader loop
 - Never add a tolerance threshold to mid-phase conflict detection
 - Never cap Level 2 coached improvement with a retry limit
