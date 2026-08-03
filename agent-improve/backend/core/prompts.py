@@ -1125,33 +1125,13 @@ Return JSON only. No explanation. No markdown fences.
 Use null or [] for fields not applicable or not found.
 """
 
-# ─────────────────────────────────────────────────────────────────
-# ANALYST PROMPTS — one per phase
-# ─────────────────────────────────────────────────────────────────
-
-ANALYST_MEASURE_SUMMARY = """You have been given baseline data for an \
-improvement project. Write a plain language summary (3-5 sentences) of \
-what the data shows. Include:
-- The current performance level with numbers
-- Whether the data is stable or shows a trend
-- Any obvious patterns worth investigating
-
-Data summary: {data_summary}
-Project context: {project_context}
-
-Plain language only. No jargon. No bullet points.
-"""
-
-ANALYST_ANALYSE_SUMMARY = """Summarise the root cause analysis findings \
-in plain language (3-5 sentences). Include:
-- The verified root cause
-- The evidence that supports it
-- The statistical or analytical method used
-
-Findings: {findings}
-
-Plain language only. No jargon. No bullet points.
-"""
+# ANALYST_MEASURE_SUMMARY and ANALYST_ANALYSE_SUMMARY were removed here
+# (v2.2.8). Both were v1 remnants that nothing imported or referenced,
+# and ANALYST_* is not a naming pattern CLAUDE.md §6.2 recognises. The
+# first carried a {project_context} placeholder — the only trace in code
+# of a SupervisorState field that never had a writer (ARCHITECTURE.md
+# §4.1). Analyst summaries are produced by the phase executor under the
+# phase rubric, not from a standalone template.
 
 # ─────────────────────────────────────────────────────────────────
 # EXTRACTION MAP — maps phase name to extraction prompt

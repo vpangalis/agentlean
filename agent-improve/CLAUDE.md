@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.7 — August 2026
+# Version 2.2.8 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -1117,7 +1117,7 @@ state:
 
 | Lives in | Field |
 |---|---|
-| `SupervisorState` | `project_context`, `current_phase`, `phase_index`, `gate_passed` — orchestration only |
+| `SupervisorState` | `current_phase`, `phase_index`, `gate_passed` — orchestration only |
 | `PhaseState` | `artifacts`, `draft`, `feedback`, `step_log` |
 | Store | Cross-phase artifacts, gate documents (§10.2) |
 
@@ -1327,7 +1327,6 @@ class SupervisorState(TypedDict):
     messages:        Annotated[list[BaseMessage], operator.add]
     history:         Annotated[list[str], operator.add]
     project_id:      str
-    project_context: str                                  # set once after Define
     phase_index:     int                                  # 0=Define … 4=Control
     current_phase:   str
     gate_passed:     list[str]                            # phases approved so far
@@ -1337,20 +1336,27 @@ class SupervisorState(TypedDict):
 **`captured_fields` and `gate_documents` are NOT on `SupervisorState`.**
 They live in the store (§10.2). Adding them back is a violation.
 
-**`dmaic_plan`, `key_decisions` and `open_items` are NOT on
-`SupervisorState` either.** All three were removed as redundant — each
-duplicated something an existing mechanism already carries:
+**`dmaic_plan`, `key_decisions`, `open_items` and `project_context` are
+NOT on `SupervisorState` either.** All four were removed as redundant —
+each duplicated something an existing mechanism already carries:
 
 | Removed field | What covers it instead |
 |---|---|
 | `dmaic_plan` | DMAIC order is fixed and static (§1.2), so there is no plan to store. The project's actual plan is Define's gate document in the store plus `improve_case_index` metadata |
 | `key_decisions` | Decisions the Belt commits are captured fields, written by `record_field` and approved at a gate. A decision that is not worth a field is not worth replaying into every prompt |
 | `open_items` | Outstanding work is derived, not stored: `check_gate_status()` reports which required fields are unpopulated, and the four-layer validation stack (§9.2) is what surfaces blockers |
+| `project_context` | Composed at the boundary by each input mapper (§10.2). Define reads the case record from the store; every later phase reads the prior phase's artifacts. The substance is Define's gate document; the framing is the case record and the `improve_case_index` row (§7.3). `before_model` injection (§8.5) already puts both in front of every coach |
 
 Deriving these on demand is what keeps them correct. A stored
 `open_items` list is a second source of truth for gate readiness that
 can disagree with `DMAICGateValidator`; a derived one cannot. Adding
-any of the three back is a violation.
+any of the four back is a violation.
+
+**`project_context` had no writer at all.** Its comment said "set once
+after Define," yet nothing set it, and its only reader —
+`define_input_mapper` — runs before Define. Every later phase already
+built `phase_context` from the store. **Context is composed at the
+boundary, never carried on parent state.**
 
 **`PhaseState`** — per-phase subgraph state:
 
@@ -1390,6 +1396,7 @@ debate subgraph, which is not in scope.
 
 | Namespace | Keys | Contents |
 |---|---|---|
+| `("projects", project_id, "case")` | `"record"` | Case framing — title, department, belt level, leader, target date. Written once at session start from `cases/case_{id}.json`, never mid-conversation |
 | `("projects", project_id, "artifacts")` | `"define"`, `"measure"`, … | Each phase's approved artifacts |
 | `("projects", project_id, "gate_documents")` | `"define"`, `"measure"`, … | Final approved gate document per phase |
 | `("projects", project_id, "step_log")` | timestamped | Append-only cross-phase audit trail |
@@ -1401,6 +1408,16 @@ debate subgraph, which is not in scope.
 - The output mapper writes artifacts to the store at gate approval and
   returns **only orchestration-relevant values** to the parent
 - The input mapper reads the prior phase's artifacts from the store
+
+**Every input mapper composes `phase_context` from the store** — Define
+from the case record, later phases from the prior phase's artifacts. An
+input mapper's only dependency is `BaseStore`. Reading context off
+parent state, or handing a mapper a blob client, is a violation: the
+first creates a parent field to keep in sync, the second puts untracked
+I/O in a translation function.
+
+**The `case` namespace is not a second system of record.**
+`cases/case_{id}.json` (§10.4) stays authoritative.
 
 **String-interpolating a previous phase's output into the next
 phase's prompt is BANNED.** Measure reads Define's baseline metric as
@@ -1602,11 +1619,14 @@ to choose backoff strategy (§4.8).
 
 **State and persistence**
 - Never add `captured_fields` or `gate_documents` to `SupervisorState`
-- Never add `dmaic_plan`, `key_decisions` or `open_items` to
-  `SupervisorState` — all three were removed as redundant (§10.1)
+- Never add `dmaic_plan`, `key_decisions`, `open_items` or
+  `project_context` to `SupervisorState` — all four were removed as
+  redundant (§10.1)
 - Never store a derived list of missing fields or blockers — derive them
   from `check_gate_status()` and the validation stack at the moment they
   are needed (§9.2, §10.1)
+- Never carry phase context on parent state — every input mapper
+  composes `phase_context` from the store (§10.2)
 - Never create a per-phase or concatenated `thread_id`
 - Never compile a checkpointer or store onto a phase subgraph
 - Never use `InMemorySaver`

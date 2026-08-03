@@ -1317,7 +1317,7 @@ Agent Improve's actual state is richer at both levels, and deliberately differen
 
 | Level | State | Contains |
 |---|---|---|
-| 1 | `SupervisorState` (§17) | `phase_index`, `current_phase`, `gate_passed`, `project_context` — orchestration only |
+| 1 | `SupervisorState` (§17) | `phase_index`, `current_phase`, `gate_passed` — orchestration only |
 | 2 | `PhaseState` (§18) | `coaching_plan`, `field_index`, `draft`, `artifacts`, `step_log`, `feedback` — phase-internal detail the parent never sees |
 
 The level-by-level state distinction is the structural expression of the recursion. If both levels shared one state object, the encapsulation §10 argues for would not exist.
@@ -6117,7 +6117,6 @@ class SupervisorState(TypedDict):
     messages:        Annotated[list[BaseMessage], operator.add]
     history:         Annotated[list[str], operator.add]    # node execution order
     project_id:      str
-    project_context: str                                    # never changes after Define
     phase_index:     int                                    # 0=Define … 4=Control
     current_phase:   str
     gate_passed:     list[str]                              # phases approved so far
@@ -6133,7 +6132,7 @@ class SupervisorState(TypedDict):
 | `step_log` | **Removed** — moved to the store, and to `PhaseState` for in-phase entries | Append-only cross-phase audit trail; §18 owns the per-phase slice |
 | `step_index` | **Renamed** → `phase_index` | Disambiguates from `field_index`, the field-level pointer in §18 |
 | `dmaic_plan` | **Removed** — redundant | DMAIC order is fixed and lives in static edges (§44). The project's substantive plan is Define's gate document in the store, plus `improve_case_index` metadata |
-| — | **Added** `project_context` | Set once after Define; every phase reads it |
+| `project_context` | **Added, then removed** — redundant | Inherited from the course lab's `task: str` (§18). Had no writer anywhere, and its one reader ran before the phase that was meant to set it. Context is now composed at the boundary by each input mapper — see below |
 | — | **Added** `gate_passed` | The list of phases approved so far. This is what the deterministic Level 1 gate-checker actually routes on (§44), and it was referenced throughout this document long before it was declared here |
 
 **A later revision removed two more fields — `key_decisions` and `open_items` — that an earlier version of this section had added.** They were introduced by §36's context-compression decision, on reasoning that was sound but arrived at the wrong conclusion. The reasoning: `SummarizationMiddleware` compresses `messages[]`, so anything that must survive compression has to live in typed state. True. The error was assuming that required *new* fields.
@@ -6142,7 +6141,21 @@ It did not. A decision the Belt commits already goes through `record_field`, is 
 
 `open_items` failed the same way against a different mechanism. Outstanding work is a *derived* property: `check_gate_status()` reports which required fields are unpopulated, and the four-layer validation stack (§68) is what surfaces blockers. A stored list is a second answer to "is this gate ready?" capable of contradicting `DMAICGateValidator`. A derived one is not capable of it.
 
-**The general rule this leaves behind:** state carries what cannot be recomputed. Anything derivable from captured fields, gate documents, or the validation stack is derived at the moment it is needed, not stored and refreshed. See §68 for the validation stack, §52a for the store, and CLAUDE.md §10.1 for the binding form of the schema.
+**A later audit removed a fourth field — `project_context` — and it is the cleanest illustration of the rule.** The audit asked three questions of it: what is it, who reads it, who writes it.
+
+It was `project_context: str`, and **no document anywhere states what goes in it.** The only characterisation was the schema comment, "never changes after Define."
+
+**One reader:** `define_input_mapper`, which sets `phase_context` from it. That is the entire consumer list. The Level 1 gate-checker does not read it — there is no LLM at Level 1 to consume prose, and routing is `gate_passed[]` plus static edges (§44). Every other phase already built `phase_context` from the store: Measure reads Define's artifacts, and so on down the chain.
+
+**No writer.** Not a node, not a mapper, not a middleware, in any document or any code path. `define_output_mapper` returns orchestration values only, by rule.
+
+Those three answers do not compose. The field was declared to be written *after* Define and read *before* it, so as specified its single read would return an empty string every time. That contradiction survived several revisions because nothing in the design depended on the value — which is the tell.
+
+Its provenance explains the rest. The AgentLean Field Mapping in §18 maps the course lab's `task: str` onto Agent Improve, and `project_context` is what `task` became. It is an **inherited field, not a designed one** — the same lineage as `step_index`, which was renamed rather than kept, and `dmaic_plan`, which was removed. In the lab, `task` is the one-line instruction a single-level planner decomposes. Agent Improve has no such instruction: the work is fixed by DMAIC, and the project's substance is the Belt's captured fields.
+
+**What covers the use case.** `phase_context` is real and still exists on `PhaseState` — what changed is where it comes from. Each input mapper now composes it from the store: Define from the case record loaded at session start, every later phase from the prior phase's artifacts. The rule is uniform, and an input mapper's only dependency is `BaseStore`. Underneath, nothing was lost — the substance (problem, goal, scope, business case) is Define's gate document in the store, the framing (title, department, belt level, target date) is the case record and the `improve_case_index` row (§60), and `before_model` injection (§38) already places captured fields and prior gate documents at the top of every coach prompt. The v1 codebase had in fact been doing this all along: `VISION_EXTRACT_PROMPT` composes a literal "Project context:" block from title, department, phase and Define's `what` at the point of use, storing nothing.
+
+**The general rule this leaves behind:** state carries what cannot be recomputed. Anything derivable from captured fields, gate documents, or the validation stack is derived at the moment it is needed, not stored and refreshed. `project_context` adds a corollary — **a field with no writer is not state, it is a comment** — and the check that catches it is cheap: for every field on a schema, name the node that writes it and the node that reads it. If either list is empty, or the two are ordered impossibly, the field is not carrying anything. See §68 for the validation stack, §52a for the store, and CLAUDE.md §10.1 for the binding form of the schema.
 
 **2. Phase Routing — Static Edges, Not a Conditional Router**
 
@@ -6296,12 +6309,19 @@ def define_input_mapper(
     parent: SupervisorState,
     store: BaseStore,
 ) -> PhaseState:
-    """SupervisorState → DefineState. Reads prior artifacts from the store,
-    never from parent state (§23 — subgraph state does not propagate)."""
+    """SupervisorState → DefineState. Context is composed from the store,
+    never carried on parent state (§23 — subgraph state does not
+    propagate). Define has no prior phase, so its source is the case
+    record loaded at session start (§52a)."""
+    case = store.get(("projects", parent["project_id"], "case"), "record").value
     return {
         "messages":      parent["messages"],
         "history":       [],
-        "phase_context": parent["project_context"],
+        "phase_context": (
+            f"{case['title']} — {case['department']}. "
+            f"{case['belt_level']} belt, led by {case['leader']}, "
+            f"target {case['target_date']}."
+        ),
         "coaching_plan": [],
         "field_index":   0,
         "draft":         {},
@@ -6334,11 +6354,15 @@ def define_output_mapper(
 
 The rule the mappers enforce: **the parent never sees the subgraph's coaching turns, tool calls, or extraction attempts — only the structured output at exit.** See §19 for the concrete Define→Measure walkthrough and §23 for why the store rather than parent state carries the artifacts.
 
+**Every input mapper composes `phase_context` from the store**, Define from the case record and every later phase from the prior phase's artifacts. That uniformity is the point: an input mapper's only dependency is `BaseStore`, so no parent-state field has to be kept current and no phase's context can go stale because a write was missed. An earlier revision made Define the exception by reading `parent["project_context"]` — the field §17 removed for having no writer.
+
+The case record reaches the store once, at session start, from `cases/case_{id}.json` into `("projects", pid, "case")`. It is not re-read per phase entry, and the case blob remains the system of record. Mappers are pure translation functions; handing one a blob client would put untracked I/O inside the boundary.
+
 ### AgentLean Field Mapping
 
 | Course Lab Field | Agent Improve Equivalent |
 |---|---|
-| `task: str` | `phase_context` — derived from `project_context` in `SupervisorState` |
+| `task: str` | **No equivalent.** It became `project_context` on `SupervisorState`, which §17 later removed as an inherited field with no writer. `phase_context` on `PhaseState` is composed at the boundary from the store — the lab's single fixed task has no counterpart in a five-phase methodology where the work is fixed and the substance is the Belt's captured fields |
 | `plan: List[Dict]` | `coaching_plan` — the phase planner's output for this phase |
 | `step_index: int` | Split in two: `phase_index` on `SupervisorState`, `field_index` on `PhaseState` |
 | `artifacts: Dict` | `artifacts` — written to the store at gate approval |
@@ -6772,11 +6796,14 @@ class AzureBlobStore(BaseStore):
 
 | Namespace | Keys | Contents |
 |---|---|---|
+| `("projects", project_id, "case")` | `"record"` | Case framing — title, department, belt level, leader, target date. Written once at session start from `cases/case_{id}.json` |
 | `("projects", project_id, "artifacts")` | `"define"`, `"measure"`, … | Each phase's approved artifacts |
 | `("projects", project_id, "gate_documents")` | `"define"`, `"measure"`, … | The final approved gate document per phase |
 | `("projects", project_id, "step_log")` | timestamped keys | Append-only cross-phase audit trail |
 
 `project_id` is the same value as the graph's `thread_id`. One identifier for the project, used by both persistence systems.
+
+The `case` namespace was added when §17 removed `project_context`. Define's input mapper needs *some* framing for `phase_context`, and every other phase gets its framing from the store already — so putting the case record there makes the rule uniform and keeps an input mapper's dependency list at `BaseStore` alone. It is a session-start copy, not a second system of record: `cases/case_{id}.json` stays authoritative, and the copy is never written mid-conversation.
 
 ### Compile-Time Wiring
 
@@ -8543,7 +8570,7 @@ Main Graph
 **The parent still only sees the validated final result:**
 ```
 SupervisorState (parent, thread_id="IMPR-2026-FS1")
-  current_phase, phase_index, gate_passed, project_context ← orchestration only
+  current_phase, phase_index, gate_passed                 ← orchestration only
 
 PhaseState (subgraph, checkpoint_ns auto-assigned)
   coaching_plan, field_index, draft, artifacts, step_log  ← private working memory,
