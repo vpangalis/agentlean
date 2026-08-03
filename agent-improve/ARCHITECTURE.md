@@ -1,6 +1,6 @@
 # Agent Improve — Architecture & Design Document
 **Agentlean Platform · DMAIC Improvement Agent**
-Version 2.2.6 · August 2026
+Version 2.2.7 · August 2026
 Status: v2.2 architecture ratified · refactor in progress (Step 2.2 complete;
 Step 3.6 index schema rename applied)
 
@@ -579,19 +579,16 @@ class SupervisorState(TypedDict):
     history:         Annotated[list[str], operator.add]
     project_id:      str
     project_context: str                                  # set once after Define
-    dmaic_plan:      list[dict[str, Any]]
     phase_index:     int                                  # 0=Define … 4=Control
     current_phase:   str
-    key_decisions:   Annotated[list[str], operator.add]   # appended at each gate
-    open_items:      list[str]                            # replaced at each gate
+    gate_passed:     list[str]                            # phases approved so far
     final_output:    str
 ```
 
 | Field | Reducer | Notes |
 |---|---|---|
 | `messages` | append | Compressed by `SummarizationMiddleware` |
-| `key_decisions` | **append** | Decisions accumulate across the project |
-| `open_items` | **replace** | Always reflects *currently* outstanding items |
+| `gate_passed` | **replace** | What the supervisor routes on (§3.2) |
 | `phase_index` | last write | Distinct from `field_index` on `PhaseState` |
 
 **`captured_fields` and `gate_documents` are deliberately absent.**
@@ -599,9 +596,26 @@ They live in the store (§6.3). Two reasons: parent state stays small
 enough to checkpoint cheaply, and subgraph state does not reliably
 propagate to the parent anyway (§4.3).
 
-**`key_decisions` and `open_items` exist because of context
-compression.** Anything that must survive `messages[]` compression has
-to live in typed state, because it never lived in `messages[]`.
+**`dmaic_plan`, `key_decisions` and `open_items` are also deliberately
+absent.** All three were removed as redundant. Each duplicated
+something an existing mechanism already carries, and a duplicate is a
+second source of truth that can drift out of agreement with the first:
+
+| Removed | Covered instead by |
+|---|---|
+| `dmaic_plan` | DMAIC order is fixed and encoded in static edges (§3.2) — there is no plan to store. The project's substantive plan is Define's gate document in the store, plus `improve_case_index` metadata (§7.3) |
+| `key_decisions` | Decisions the Belt commits become captured fields via `record_field`, approved at a gate, written to `artifacts` and then the store. All three locations are outside `messages[]`, so they already survive compression |
+| `open_items` | Derived on demand: `check_gate_status()` reports unpopulated required fields, and the four-layer validation stack (§9) is what surfaces blockers |
+
+The compression argument that originally motivated `key_decisions` and
+`open_items` still holds — facts must not live only in `messages[]` —
+but it is satisfied without them. Captured fields and gate documents
+were already outside `messages[]`, so the two fields added a parallel
+copy rather than a new guarantee.
+
+**Blockers and outstanding work are computed, never stored.** A stored
+`open_items` list is a second answer to "is this gate ready?" that can
+disagree with `DMAICGateValidator`. A derived one cannot.
 
 ### 4.2 `PhaseState` — per-phase subgraph state
 
@@ -673,10 +687,16 @@ def define_output_mapper(child: PhaseState, parent: SupervisorState,
     return {
         "current_phase": "measure",
         "phase_index":   1,
-        "key_decisions": child["artifacts"].get("key_decisions", []),
-        "open_items":    child["artifacts"].get("open_items", []),
+        "gate_passed":   parent["gate_passed"] + ["define"],
     }
 ```
+
+**The output mapper returns orchestration values and nothing else.**
+Everything the Belt produced is already in the store by the time it
+returns. An earlier revision also lifted `key_decisions` and
+`open_items` out of `child["artifacts"]` and back onto the parent;
+that was the redundancy §4.1 removed — the values were in the store
+already, and copying them up created a second copy to keep in sync.
 
 **Why the store and not shared state keys.** LangGraph documents that a
 subgraph's state updates may not be visible to the parent immediately,
@@ -2064,6 +2084,8 @@ load-bearing in more places than it appears.
 | Aug 2026 | **2.2.5** | **Ingestion contract fixed and documented (§7.1.2).** `ingest_knowledge.py` emitted `phase`, not a field on the index, so `phase_relevance` was never populated by the script. Fixing the key name alone proved insufficient: LangChain promotes metadata keys only against `self.fields`, which defaults to `[id, content, content_vector, metadata]` and never introspects the live index — so `get_knowledge_vectorstore()` now passes `fields=KNOWLEDGE_INDEX_FIELDS`. Both changes are required; either alone leaves the index unfilterable. Also: metadata reduced to the live four-key shape, `source_file` emitted as a stable label rather than a filename, chunking moved to per-page so `page_number` is a real page rather than a chunk index, and document keys made deterministic and passed via `ids=` so re-ingest upserts instead of duplicating. Phase mapping confirmed empirically as per-chunk keyword scoring, not chapter mapping, and documented with the evidence. |
 
 | Aug 2026 | **2.2.6** | **LangGraph upgrade target moved 1.2.7 → 1.2.10 (§1, §2.5.1).** Verified against PyPI and the verbatim GitHub release bodies for 1.2.6–1.2.10 via `/verify-current-version`. The **floor is unchanged at ≥1.2.6** — the nested-subgraph `checkpoint_ns` inheritance fix (#8053, a regression introduced in 1.2.3) landed there and nothing since has touched it. Of the three intervening releases, 1.2.7, 1.2.8 and 1.2.9 are **entirely `DeltaChannel` fixes**, and `DeltaChannel` is not used (CLAUDE.md §3.6, backlog item 12) — so they are no-ops for us. 1.2.10 adds v3 `stream_events` return typing with native projections, and exposes `trace_policy` as a **new additive kwarg on `add_node`** alongside the existing `timeout=` and `error_handler=`; no existing signature changes, no deprecations, no breaking changes. **`trace_policy` is deliberately not adopted:** the same release contains both "drop tags from TracePolicy" (#8402) and "revert: delete TracePolicy" (#8403), so the API is unsettled. Per-node `TimeoutPolicy` and node-level `error_handler=` are unchanged across all four releases, so §9.2 needs no revision. No code change accompanies this amendment — the upgrade itself is still step 2.5.1, not yet executed. |
+
+| Aug 2026 | **2.2.7** | **`dmaic_plan`, `key_decisions` and `open_items` removed from `SupervisorState` (§4.1, §4.3).** All three were redundant against mechanisms that already existed, and each was a second source of truth able to drift out of agreement with the first. `dmaic_plan` stored a plan that is not variable — DMAIC order is fixed in static edges (§3.2) — while the project's substantive plan is Define's gate document in the store plus `improve_case_index` metadata. `key_decisions` duplicated captured fields: a decision the Belt commits goes through `record_field`, is approved at a gate, and lands in `artifacts` and then the store, all outside `messages[]`, so the compression guarantee that motivated the field was already satisfied without it. `open_items` duplicated gate readiness, which `check_gate_status()` and the four-layer validation stack (§9) compute on demand — and a stored copy can contradict `DMAICGateValidator`, which a derived one cannot. `gate_passed` added to the schema block: it is what the supervisor routes on and was referenced throughout while never being declared. The Define output mapper no longer lifts `key_decisions`/`open_items` back onto the parent; it returns orchestration values only. Parent state is now `messages`, `history`, `project_id`, `project_context`, `phase_index`, `current_phase`, `gate_passed`, `final_output`. No code change accompanies this amendment — `core/state.py` is written at the `SupervisorState`/`PhaseState` split, which is still ahead in the sequence. |
 
 ### 18.1 Amendment procedure
 

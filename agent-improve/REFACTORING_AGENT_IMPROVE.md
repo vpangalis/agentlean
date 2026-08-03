@@ -1317,7 +1317,7 @@ Agent Improve's actual state is richer at both levels, and deliberately differen
 
 | Level | State | Contains |
 |---|---|---|
-| 1 | `SupervisorState` (§17) | `dmaic_plan`, `phase_index`, `current_phase`, `key_decisions`, `open_items` — orchestration only |
+| 1 | `SupervisorState` (§17) | `phase_index`, `current_phase`, `gate_passed`, `project_context` — orchestration only |
 | 2 | `PhaseState` (§18) | `coaching_plan`, `field_index`, `draft`, `artifacts`, `step_log`, `feedback` — phase-internal detail the parent never sees |
 
 The level-by-level state distinction is the structural expression of the recursion. If both levels shared one state object, the encapsulation §10 argues for would not exist.
@@ -1493,8 +1493,8 @@ Scope: milliseconds, one tool call at a time.
 Belt sends message
        ↓
 LEVEL 1 — SUPERVISOR PLANNER
-  Reads full dmaic_plan + captured_fields
-  "Analyse phase, root_cause_statement missing"
+  Reads gate_passed (deterministic gate-check, no LLM — §44)
+  "Analyse phase not yet approved"
   Decision: invoke Analyse subagent
        ↓
 LEVEL 2 — ANALYSE PHASE PLANNER
@@ -1522,7 +1522,7 @@ Results bubble back up:
 
 ### Across Multiple Weeks — Continuity
 
-The supervisor's `dmaic_plan` and the phase artifacts persist across all sessions via the checkpointer (`AzureBlobCheckpointSaver` during the refactor, `PostgresSaver` post-refactor) plus the store (`AzureBlobStore` → `PostgresStore`) for cross-phase artifacts. Each session the supervisor resumes on the project's `thread_id` and picks up exactly where the project left off. The Belt never re-explains what they have done.
+The supervisor's orchestration state and the phase artifacts persist across all sessions via the checkpointer (`AzureBlobCheckpointSaver` during the refactor, `PostgresSaver` post-refactor) plus the store (`AzureBlobStore` → `PostgresStore`) for cross-phase artifacts. Each session the supervisor resumes on the project's `thread_id` and picks up exactly where the project left off. The Belt never re-explains what they have done.
 
 ```
 Week 1  Sessions 1-3   Define Subagent executes    → gate passed
@@ -2631,19 +2631,20 @@ The original section was right that prose summary is the wrong carrier for facts
 | Hallucination risk | LLM interprets a summary | LLM reads exact values |
 | Survives compression | No — it *is* the compression | Yes — never lived in `messages[]` |
 
-The correct application is not a custom compression function. It is **two new typed fields on `SupervisorState`**, populated at gate boundaries:
+The correct application is not a custom compression function. It is that **the facts were never in `messages[]` to begin with** — so compressing the conversation cannot lose them.
 
-```python
-key_decisions: Annotated[list[str], operator.add]   # append-only — decisions accumulate
-open_items:    list[str]                            # replaced at each gate boundary
-```
+This section originally concluded differently. It proposed **two new typed fields on `SupervisorState`**, `key_decisions` and `open_items`, populated at gate boundaries, on the grounds that anything which must survive compression has to live in typed state. **Both were later removed as redundant (§17).** The premise was right and the conclusion did not follow from it:
 
-- `key_decisions` — explicit decisions made during coaching that do not fit as captured fields ("scope limited to billing calls only", "measurement system validated via GR&R")
-- `open_items` — outstanding questions or unresolved threads
+| What must survive compression | Where it already lives | Outside `messages[]`? |
+|---|---|---|
+| A decision the Belt commits | `record_field` → `PhaseState.artifacts` → the store at gate approval | Yes, in all three |
+| A captured field value | Same path | Yes |
+| Which fields are still missing | Not stored at all — `check_gate_status()` computes it | N/A — derived |
+| Whether a gate is ready | `DMAICGateValidator`, layer 2b of the validation stack (§68) | N/A — derived |
 
-Both survive `messages[]` compression, because they never lived in `messages[]` in the first place. `key_decisions` uses an append-only reducer so decisions accumulate across the project; `open_items` is replaced at each gate, so it always reflects *currently* outstanding items rather than a growing historical list.
+`key_decisions` would have held a second copy of facts that were durable already. `open_items` would have held a stored answer to a question the validation stack answers on demand — and a stored answer can contradict `DMAICGateValidator`, which is strictly worse than having no field at all.
 
-Captured field values are not duplicated into either field — they live in `PhaseState.artifacts` and, at gate approval, in the store (§18, §52a). The `before_model` middleware (§38) is what prepends this structured project state early in the prompt each turn.
+**What §36 actually establishes, then, is a constraint rather than a schema:** durable facts must not live *only* in `messages[]`. `record_field`, `artifacts`, and the store already satisfy it. The `before_model` middleware (§38) prepends that structured project state early in the prompt each turn, deriving the missing-field list at injection time rather than reading a stored one.
 
 **The principle connection:** prose summary is planning buried in a prompt. Typed state is explicit, inspectable, and durable. Same principle as planner/executor — make the reasoning explicit and structured rather than hidden in natural language. What changed is only *who implements the compression*: LangChain, not us.
 
@@ -2976,7 +2977,7 @@ Late injection (conversation first):
 | High-scoring RAG chunks | Superseded values |
 | System prompt | Conversational filler |
 
-**Gap 22b — the mechanism is `before_model` middleware.** LangChain 1.0's `AgentMiddleware` exposes a `before_model` hook (§80) that runs immediately before each model call. A small custom middleware prepends the structured project state — captured fields, current phase requirements, missing fields, `key_decisions`, `open_items` — at the top of the prompt, ahead of the conversation. That is the whole of the injection-timing control, and it is one hook rather than a component.
+**Gap 22b — the mechanism is `before_model` middleware.** LangChain 1.0's `AgentMiddleware` exposes a `before_model` hook (§80) that runs immediately before each model call. A small custom middleware prepends the structured project state — captured fields, current phase requirements, and the missing fields computed by `check_gate_status()` — at the top of the prompt, ahead of the conversation. Every one of those is read or derived at injection time, so the prompt cannot disagree with the gate (§17). That is the whole of the injection-timing control, and it is one hook rather than a component.
 
 Injecting everything in the order it happened to land in `messages[]`, which is what the pre-refactor code does, is what this replaces.
 
@@ -3765,15 +3766,18 @@ LLMs have limited context windows — memory management is essential.
 - Balances focus on present task with long-term recall capability
 
 **AgentLean mapping:**
-This was **Gap 19**, discussed at length in §36. It is closed by `SummarizationMiddleware` plus the two typed `SupervisorState` fields.
+This was **Gap 19**, discussed at length in §36. It is closed by `SummarizationMiddleware` alone — the facts that must survive compression were never in `messages[]` to begin with.
 
 **Ratified implementation:**
 ```
 Recent messages (last 20)  → kept raw in messages[]        (keep=("messages", 20))
 Older messages             → compressed by SummarizationMiddleware
                              at ~100k tokens               (trigger=("tokens", 100_000))
-key_decisions, open_items  → typed state fields, never in messages[],
-                             so compression cannot touch them
+Captured fields            → record_field → PhaseState.artifacts → the store
+                             at gate approval. Never in messages[], so
+                             compression cannot touch them.
+Missing fields, blockers   → not stored at all. Derived on demand from
+                             check_gate_status() and the validation stack (§68).
 ```
 
 **Mid-phase summary persistence to `improve_case_index` — deferred (§87 item 4).** `SummarizationMiddleware` keeps the compressed summary in `messages[]` for the current session, and gate-pass writes cover durability. Promotion trigger: Belts frequently resume in-flight cases weeks later and the coach needs historical mid-phase context.
@@ -6070,7 +6074,7 @@ Common failure patterns in long-running agent workflows typically include:
 | Failure Pattern | Agent Improve Risk | Ratified Mitigation |
 |---|---|---|
 | State drift | Belt's situation changes but old fields persist | Nine-step gate review + field correction (§2); mid-phase contradiction auto-flag with re-approval cascade (§38) |
-| Context window overflow | Multi-week projects accumulate long histories | `SummarizationMiddleware` — trigger at 100k tokens, keep last 20 messages (§36); `key_decisions` and `open_items` live in typed state so they survive compression |
+| Context window overflow | Multi-week projects accumulate long histories | `SummarizationMiddleware` — trigger at 100k tokens, keep last 20 messages (§36); captured fields live in `artifacts` and the store, never in `messages[]`, so compression cannot reach them |
 | Stale plan | Phase fields defined in Define may be wrong by Analyse | HITL edit loop (§2) plus the cross-phase consistency check in the policy advisory (§38) |
 | Orphaned checkpoints | Checkpoint volume grows across a multi-week project | Not yet a problem at current session lengths. `DeltaChannel` (§79) is the compression mechanism, deferred to §87 item 12 until sessions exceed ~200 turns. |
 | Partial task completion | Node fails after writing to Blob or an index, leaving external state inconsistent | Saga compensating actions via LangGraph's native `error_handler=` (§49, §79); per-node `TimeoutPolicy(run_timeout=45)` bounds how long a partial state can hang |
@@ -6114,11 +6118,9 @@ class SupervisorState(TypedDict):
     history:         Annotated[list[str], operator.add]    # node execution order
     project_id:      str
     project_context: str                                    # never changes after Define
-    dmaic_plan:      list[dict[str, Any]]
     phase_index:     int                                    # 0=Define … 4=Control
     current_phase:   str
-    key_decisions:   Annotated[list[str], operator.add]     # appended at each gate (§36)
-    open_items:      list[str]                              # replaced at each gate (§36)
+    gate_passed:     list[str]                              # phases approved so far
     final_output:    str                                    # populated on Control gate approval
 ```
 
@@ -6130,11 +6132,17 @@ class SupervisorState(TypedDict):
 | `gate_documents` | **Removed** — moved to the store | Same reason; also keeps parent state small enough to checkpoint cheaply |
 | `step_log` | **Removed** — moved to the store, and to `PhaseState` for in-phase entries | Append-only cross-phase audit trail; §18 owns the per-phase slice |
 | `step_index` | **Renamed** → `phase_index` | Disambiguates from `field_index`, the field-level pointer in §18 |
+| `dmaic_plan` | **Removed** — redundant | DMAIC order is fixed and lives in static edges (§44). The project's substantive plan is Define's gate document in the store, plus `improve_case_index` metadata |
 | — | **Added** `project_context` | Set once after Define; every phase reads it |
-| — | **Added** `key_decisions` | Explicit decisions made during coaching that do not fit as captured fields. Append-only reducer — decisions accumulate (§36) |
-| — | **Added** `open_items` | Outstanding questions or unresolved threads. Replaced at each gate boundary, so it always reflects *current* outstanding items (§36) |
+| — | **Added** `gate_passed` | The list of phases approved so far. This is what the deterministic Level 1 gate-checker actually routes on (§44), and it was referenced throughout this document long before it was declared here |
 
-`key_decisions` and `open_items` exist because of §36's context-compression decision. `SummarizationMiddleware` compresses `messages[]`; anything that must survive compression has to live in typed state, because it never lived in `messages[]` in the first place.
+**A later revision removed two more fields — `key_decisions` and `open_items` — that an earlier version of this section had added.** They were introduced by §36's context-compression decision, on reasoning that was sound but arrived at the wrong conclusion. The reasoning: `SummarizationMiddleware` compresses `messages[]`, so anything that must survive compression has to live in typed state. True. The error was assuming that required *new* fields.
+
+It did not. A decision the Belt commits already goes through `record_field`, is approved at a gate, and lands in `PhaseState.artifacts` and then the store — three locations, none of them `messages[]`. The compression guarantee was already satisfied. `key_decisions` added a parallel copy of facts that were durable anyway, and a parallel copy is a second source of truth that can disagree with the first.
+
+`open_items` failed the same way against a different mechanism. Outstanding work is a *derived* property: `check_gate_status()` reports which required fields are unpopulated, and the four-layer validation stack (§68) is what surfaces blockers. A stored list is a second answer to "is this gate ready?" capable of contradicting `DMAICGateValidator`. A derived one is not capable of it.
+
+**The general rule this leaves behind:** state carries what cannot be recomputed. Anything derivable from captured fields, gate documents, or the validation stack is derived at the moment it is needed, not stored and refreshed. See §68 for the validation stack, §52a for the store, and CLAUDE.md §10.1 for the binding form of the schema.
 
 **2. Phase Routing — Static Edges, Not a Conditional Router**
 
@@ -6320,8 +6328,7 @@ def define_output_mapper(
     return {
         "current_phase": "measure",
         "phase_index":   1,
-        "key_decisions": child["artifacts"].get("key_decisions", []),
-        "open_items":    child["artifacts"].get("open_items", []),
+        "gate_passed":   parent["gate_passed"] + ["define"],
     }
 ```
 
@@ -6425,7 +6432,7 @@ An earlier draft of this section had each phase running on its own `thread_id` (
                 {"problem_statement": ..., "baseline_metric": 4.2, ...})
    and returns to the parent only:
       {"current_phase": "measure", "phase_index": 1,
-       "key_decisions": [...], "open_items": [...]}
+       "gate_passed": ["define"]}
 
 4. Static edge fires: define → measure.
 
@@ -7989,7 +7996,7 @@ Nodes that score high on either get `interrupt_before`.
 
 | Gate | Why | LangGraph Implementation |
 |---|---|---|
-| Plan approval | Human reviews `dmaic_plan` before any coaching fires | `interrupt_before=["start_coaching"]` |
+| Plan approval | Not applicable — DMAIC order is fixed (§44), so there is no plan to approve. The equivalent moment is the Belt approving Define's gate document, which is what scopes the project | Covered by the Define gate below |
 | Gate evaluation | Belt reviews AI-extracted fields before the phase advances | `interrupt_before=["gate_review_node"]` (§44 two-node pattern) |
 | Field correction | Belt corrects wrong values before they are committed | `Command(resume={"corrections": {...}})`, processed by `gate_apply_node` |
 | Value contradiction | Belt resolves a conflict with a previously approved value | Interrupt payload emitted by `policy_advisory` (§38) |
@@ -8536,7 +8543,7 @@ Main Graph
 **The parent still only sees the validated final result:**
 ```
 SupervisorState (parent, thread_id="IMPR-2026-FS1")
-  current_phase, phase_index, key_decisions, open_items   ← orchestration only
+  current_phase, phase_index, gate_passed, project_context ← orchestration only
 
 PhaseState (subgraph, checkpoint_ns auto-assigned)
   coaching_plan, field_index, draft, artifacts, step_log  ← private working memory,
@@ -9084,7 +9091,6 @@ Option C — Hybrid: use SummarizationMiddleware's trigger/threshold mechanics,
 
 **Resolution: Option A, because the tension dissolves.** §36's ratified design does not put facts into the summary at all. Facts live in typed fields that `messages[]` compression never touches:
 
-- `key_decisions` and `open_items` on `SupervisorState` (§17)
 - `artifacts` on `PhaseState` (§18), written to the store at gate approval (§52a)
 - The `before_model` middleware prepends that structured state to every prompt (§38 Gap 22b)
 
@@ -11702,7 +11708,7 @@ Human-in-the-loop?    ← interrupt point
 ### Three Key Insights From This Slide
 
 **1. Task Plan is a first-class object.**
-Shown as stacked pages — a structured artifact the planner creates and the executor consumes task by task. Not buried in a prompt. In Agent Improve this maps to `dmaic_plan` with phase fields as individual tasks.
+Shown as stacked pages — a structured artifact the planner creates and the executor consumes task by task. Not buried in a prompt. **Agent Improve has no parent-level equivalent, deliberately.** DMAIC order is fixed rather than planned (§44), so a stored plan object would encode a constant. The first-class-object principle still applies one level down, at `coaching_plan` on `PhaseState` (§18), where the planner genuinely decides which field to work on next.
 
 **2. Human-in-the-loop sits between Executor and Checkpoint.**
 The human reviews AFTER the executor runs but BEFORE state is saved. The Belt reviews what was captured before it is committed. This is the correct gate pattern — currently we save at gate boundary without a human review step.
@@ -11762,7 +11768,7 @@ Section 2 described interrupts as approve/reject only. This slide shows the full
 |---|---|
 | User Objectives | Belt's DMAIC project goal |
 | Planner Node | Supervisor Planner (Level 1) |
-| Task Plan | `dmaic_plan` with phase fields as tasks |
+| Task Plan | `coaching_plan` on `PhaseState` — fields as tasks within a phase. No parent-level plan: DMAIC order is static (§44) |
 | Executor | Phase Subagent (Levels 2 + 3) |
 | Human-in-the-loop | Belt reviews extracted fields at gate |
 | Edited | Belt corrects wrong AI-extracted field values |
@@ -11843,7 +11849,7 @@ The right side was cut off before. The complete flow adds:
 |---|---|
 | User Objectives | Belt's DMAIC project goal |
 | Planner Node | Supervisor Planner (Level 1) |
-| Task Plan | `dmaic_plan` — phase fields as individual tasks |
+| Task Plan | `coaching_plan` on `PhaseState` — fields as individual tasks within a phase. No parent-level plan: DMAIC order is static (§44) |
 | Executor | Phase Subagent (Levels 2 + 3) |
 | Human-in-the-loop | Belt reviews AI-extracted fields at gate |
 | Edited | Belt corrects wrong field values — loops back to Task Plan |

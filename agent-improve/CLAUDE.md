@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.6 — August 2026
+# Version 2.2.7 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -1117,13 +1117,19 @@ state:
 
 | Lives in | Field |
 |---|---|
-| `SupervisorState` | `key_decisions` (append-only), `open_items` (replaced at each gate) |
+| `SupervisorState` | `project_context`, `current_phase`, `phase_index`, `gate_passed` — orchestration only |
 | `PhaseState` | `artifacts`, `draft`, `feedback`, `step_log` |
 | Store | Cross-phase artifacts, gate documents (§10.2) |
 
 Summarising *conversation* into prose is correct — that is what
 conversation is. Summarising *facts* into prose is the failure this
 policy prevents.
+
+**Decisions survive compression as captured fields, not as a decision
+list.** When the Belt commits a decision it is written by `record_field`
+and approved at a gate, which puts it in `artifacts` and then the store
+— all three outside `messages[]`. That is why no `key_decisions` field
+is needed here (§10.1).
 
 **Deprecated memory classes are BANNED:** `ConversationBufferMemory`,
 `ConversationBufferWindowMemory`, `ConversationSummaryMemory`,
@@ -1135,8 +1141,14 @@ The replacement is checkpointer (thread-scoped) + store (cross-thread)
 ### 8.5 — `before_model` state injection — injection timing
 
 **Custom.** Prepends structured project state at the **top** of the
-prompt, ahead of the conversation: captured fields, current phase
-requirements, missing fields, `key_decisions`, `open_items`.
+prompt, ahead of the conversation: captured fields (this phase's
+`artifacts` plus prior phases' gate documents from the store), current
+phase requirements, and the missing fields reported by
+`check_gate_status()`.
+
+**Missing fields are computed at injection time, never read from a
+stored list.** The middleware derives them the same way the gate does,
+so the prompt and `DMAICGateValidator` cannot disagree (§10.1).
 
 Models weight earlier prompt content more heavily. Injecting project
 facts *after* the Belt's message lets the response drift toward the
@@ -1316,16 +1328,29 @@ class SupervisorState(TypedDict):
     history:         Annotated[list[str], operator.add]
     project_id:      str
     project_context: str                                  # set once after Define
-    dmaic_plan:      list[dict[str, Any]]
     phase_index:     int                                  # 0=Define … 4=Control
     current_phase:   str
-    key_decisions:   Annotated[list[str], operator.add]   # appended at each gate
-    open_items:      list[str]                            # replaced at each gate
+    gate_passed:     list[str]                            # phases approved so far
     final_output:    str
 ```
 
 **`captured_fields` and `gate_documents` are NOT on `SupervisorState`.**
 They live in the store (§10.2). Adding them back is a violation.
+
+**`dmaic_plan`, `key_decisions` and `open_items` are NOT on
+`SupervisorState` either.** All three were removed as redundant — each
+duplicated something an existing mechanism already carries:
+
+| Removed field | What covers it instead |
+|---|---|
+| `dmaic_plan` | DMAIC order is fixed and static (§1.2), so there is no plan to store. The project's actual plan is Define's gate document in the store plus `improve_case_index` metadata |
+| `key_decisions` | Decisions the Belt commits are captured fields, written by `record_field` and approved at a gate. A decision that is not worth a field is not worth replaying into every prompt |
+| `open_items` | Outstanding work is derived, not stored: `check_gate_status()` reports which required fields are unpopulated, and the four-layer validation stack (§9.2) is what surfaces blockers |
+
+Deriving these on demand is what keeps them correct. A stored
+`open_items` list is a second source of truth for gate readiness that
+can disagree with `DMAICGateValidator`; a derived one cannot. Adding
+any of the three back is a violation.
 
 **`PhaseState`** — per-phase subgraph state:
 
@@ -1577,6 +1602,11 @@ to choose backoff strategy (§4.8).
 
 **State and persistence**
 - Never add `captured_fields` or `gate_documents` to `SupervisorState`
+- Never add `dmaic_plan`, `key_decisions` or `open_items` to
+  `SupervisorState` — all three were removed as redundant (§10.1)
+- Never store a derived list of missing fields or blockers — derive them
+  from `check_gate_status()` and the validation stack at the moment they
+  are needed (§9.2, §10.1)
 - Never create a per-phase or concatenated `thread_id`
 - Never compile a checkpointer or store onto a phase subgraph
 - Never use `InMemorySaver`
