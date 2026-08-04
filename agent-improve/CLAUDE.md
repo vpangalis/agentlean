@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.9 — August 2026
+# Version 2.2.10 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -55,8 +55,8 @@ hook — see REFACTORING_AGENT_IMPROVE.md §86.
 | Gate approval | Interrupt → approve | **Nine-step HITL** (§9.1) |
 | Gate validation | Field presence | **Four-layer stack** (§9.2) |
 | Retrieval tools | 2 (`search_methodology`, `search_evidence`) | **3 `rag_lookup_*`** (§7.2) |
-| Tool binding | 7 universal tools, same for all phases | **8 universal + 18 per-phase computation** (§5) |
-| Coach construction | `bind_tools` on the coach LLM | **`create_agent` + four middlewares** (§4.4, §8) |
+| Tool binding | 7 universal tools, same for all phases | **7 universal + 18 per-phase computation** (§5) |
+| Coach construction | `bind_tools` on the coach LLM | **`create_agent` + five middlewares** (§4.4, §8) |
 | Structured output | `with_structured_output` mandated everywhere | **Scoped by call type** (§4.6) |
 | Cross-phase data | Parent state | **Store** (§10.2) |
 | Persistence | Azure Blob only | **Phased Blob → PostgreSQL** (§1.7) |
@@ -79,6 +79,22 @@ rules that bind, and where they live:
 | Captured field typing | Prose promised typed floats | **All `str`**, three cross-phase reference dicts excepted (§10.6) |
 | Computation results | Nowhere | **`artifacts["computation_results"]`** (§10.6) |
 | Gate-required fields | One flat list, contradicting the rubric | **Two tiers**; grader verdict gains `"warning"` (§9.7) |
+
+### 0.5 — What Changed in 2.2.10 — the executor contract closed
+
+| Area | v2.2.9 | v2.2.10 |
+|---|---|---|
+| Subgraph nodes | `policy_advisory`, `revise` | **`validation_stack`, `gate_apply`** (§3.3) |
+| Validation stack | Listed as an executor tool | **A node**, reached by an edge (§3.3) |
+| Policy advisory | Listed as an executor tool | **Logic inside `gate_apply`** (§3.3) |
+| Graders | One, conflated | **Two** — `COACHING_QUALITY_RUBRIC` every turn, `PHASE_RUBRIC` at the gate (§8.2) |
+| Middleware | Four | **Five** — `ModelRetryMiddleware` added (§8.7) |
+| Middleware order | State injection last | **State injection first** (§8.1) |
+| Executor `response_format` | `ProviderStrategy(PhaseOutput)` | **`CoachingResponse`** (§4.6, §10.7) |
+| Field capture | `record_field` tool | **`CoachingResponse.fields_captured`** (§5.1) |
+| Universal tools | 8 | **7** (§5.1) |
+| Per-phase totals | 9 / 16 / 13 / 9 / 12 | **8 / 15 / 12 / 8 / 11** (§5.2) |
+| Gate document schemas | Undefined, or two conflicting | **Five canonical `{Phase}Output`** (§10.7) |
 
 ---
 
@@ -157,7 +173,9 @@ The Planner and Executor are distinct nodes and are **never fused**.
 Fusing them loses the boundary that makes coaching inspectable and
 costs the ability to test either half.
 
-Extraction is a tool call (`record_field`), not a separate node.
+Extraction is structured output on the executor
+(`response_format=CoachingResponse`, §4.6), not a separate node and no
+longer a tool call.
 
 **Level 1 (supervisor) has no LLM planner.** Phase sequencing is a
 deterministic gate-check on `gate_passed` plus static edges. There
@@ -382,23 +400,40 @@ async def phase_executor(state: PhaseState) -> dict:
 Each phase subgraph contains exactly these nodes:
 
 ```
-phase_planner      — structured plan: focus_field, next_action,
+planner            — structured plan: focus_field, next_action,
                      retrieval_strategy, tools_needed
-phase_executor     — create_agent with the phase's tool subset
-policy_advisory    — mid-phase contradiction detection (§9.4)
-gate_review_node   — interrupt() — presents validated fields, stops
-gate_apply_node    — applies corrections, runs advisory, routes on
-revise             — loop-back target on validation failure
+executor           — create_agent with the phase's tool subset
+validation_stack   — the four layers (§9.2), shared cap of 3
+gate_review        — interrupt() — presents validated fields, stops
+gate_apply         — policy advisory, applies corrections, assembles
+                     and writes the gate document (§9.6), routes on
 ```
+
+**Five nodes. `policy_advisory` and `revise` are BANNED as node
+names.** Both appeared in earlier revisions:
+
+| Retired | Ratified | Why |
+|---|---|---|
+| `policy_advisory` | `validation_stack` | The four-layer stack was missing from the node list entirely. The policy advisory is logic inside `gate_apply`, not a node |
+| `revise` | `gate_apply` | Revision is an **edge** — the validation stack routes back to the planner with `validator_feedback`. `gate_apply` does advisory + approval + store write |
 
 **The subgraph is a cycle, not a pipeline.** The planner fires many
 times per phase, not once: after each executor step, control returns
 to the planner to decide whether to continue on the current field,
 advance to the next, or trigger the gate.
 
-**Leaf tools are NOT subgraph nodes.** Extraction, retrieval,
-computation, gate validation, and the advisory tool are bound to the
-executor. From the subgraph's perspective the executor is one node.
+**Leaf tools are NOT subgraph nodes.** The universal seven (§5.1) and
+the phase's computation tools are passed to the executor via `tools=`
+on `create_agent`. From the subgraph's perspective the executor is one
+node.
+
+**The validation stack and the policy advisory are NOT tools, and
+adding either to a tool list is a violation.**
+
+| Component | What it is |
+|---|---|
+| Validation stack | A **node**, reached by an edge after the executor finishes. As a tool, the coach would decide whether to be validated — backwards |
+| Policy advisory | **Logic inside `gate_apply`**. It runs after the Belt edits, when the coach is no longer in the loop |
 
 NEW node types may not be added to a subgraph without an
 ARCHITECTURE.md amendment.
@@ -587,17 +622,45 @@ what is being called — not by preference.**
 
 | The call is… | Use | Example |
 |---|---|---|
-| An agent built with `create_agent` | `response_format=ProviderStrategy(Schema)` | Phase executor typed output |
+| An agent built with `create_agent` | `response_format=Schema` (ProviderStrategy auto-selected) | Phase executor → `CoachingResponse` |
 | A plain model invocation inside a tool, middleware, or validator | The builder-style structured-output call on the model | Query variants, grader verdict, constraint verdict |
+| Assembling a gate document from already-captured fields | **No LLM call** — Pydantic construction | `DefineOutput(**artifacts)` at `gate_apply` |
 
-**Why both exist:** `response_format=` attaches to an agent's
-model-tools loop. A tool generating query variants, a middleware
-grading a transcript, and a validator returning per-constraint
-verdicts are not agents — there is no loop to attach to.
+**Why the first two exist separately:** `response_format=` attaches to
+an agent's model-tools loop. A tool generating query variants, a
+middleware grading a transcript, and a validator returning
+per-constraint verdicts are not agents — there is no loop to attach to.
 
 Prefer `ProviderStrategy` over `ToolStrategy` where the provider
 supports native JSON mode. LangChain 1.2 can infer the choice from the
 model profile.
+
+**Complete mapping — every structured output in the system:**
+
+| Component | Built with | Schema | Mechanism |
+|---|---|---|---|
+| Phase planner | Plain LLM call | `CoachingPlan` | `with_structured_output` |
+| **Phase executor (coach)** | **`create_agent` + tools** | **`CoachingResponse`** | **`response_format=`** |
+| Validation Layer 2a (coherence) | Plain LLM call | `CoherenceResult` | `with_structured_output` |
+| Validation Layer 2c (constraints) | Plain LLM call | `ConstraintCheckResult` | `with_structured_output` |
+| Validation Layer 2d (gate grader) | Plain LLM call | `GraderVerdict` | `with_structured_output` |
+| `gate_review` | **No LLM** | Interrupt payload | `interrupt()` |
+| `gate_apply` — policy advisory | Plain LLM call | `PolicyAdvisoryResult` | `with_structured_output` |
+| `DMAICGraderMiddleware` | Plain LLM call in middleware | `CoachingGraderVerdict` | `with_structured_output` |
+| Inside `rag_lookup_*` | Plain LLM call | `QueryVariants` | `with_structured_output` |
+| Gate document assembly | **No LLM** | `DefineOutput` … `ControlOutput` | `Schema(**artifacts)` |
+
+**The executor's `response_format` is `CoachingResponse`, never a phase
+Output schema.** The executor runs once per coaching turn; the gate
+document is assembled once per phase. Asking the coach to emit a
+complete `DefineOutput` every turn requests fields it has not yet
+coached. See §10.7.
+
+**The structured response and the coaching text coexist.** The agent
+still calls tools normally through the ReAct loop and still writes
+coaching prose into `messages`; only the terminal response is
+additionally structured, and it arrives in `result["structured_response"]`.
+Reading one does not cost you the other.
 
 **What structured output does NOT give you:** truth. It guarantees
 shape. A schema-valid `baseline_metric: 4.2` invented by the model is
@@ -677,15 +740,11 @@ Defined in `knowledge/tools.py` (universal) and
 `knowledge/computation.py` (per-phase), with Pydantic arg schemas in
 `knowledge/tool_args.py`.
 
-### 5.1 — The universal eight
+### 5.1 — The universal seven
 
-Bound to every phase executor:
+Passed to every phase executor via `tools=`:
 
 ```
-record_field(field_name: str, value: Any) -> str
-  Writes a field to the phase artifacts. Field must exist in the
-  current phase schema; otherwise the tool errors.
-
 rag_lookup_methodology(query: str, phase: str, top_k: int = 10) -> list[Document]
   improve_knowledge_index. Multi-query + RRF. Filters phase_relevance.
 
@@ -716,6 +775,13 @@ request_human_approval(reason: str) -> str
 `search_methodology` and `search_evidence` are **renamed and
 superseded**. No code may reference the old names.
 
+**`record_field` is RETIRED and may not be reintroduced.** Field capture
+happens through `response_format=CoachingResponse` on the executor
+(§4.6) — the coach emits `fields_captured` as structured output on every
+turn, and the executor node writes each entry to `artifacts`. A tool
+would make capture a decision the coach might skip; structured output
+makes it part of every response by construction.
+
 ### 5.2 — Per-phase tool binding
 
 **Tool sets are per phase, not universal.** Tool selection quality
@@ -724,13 +790,14 @@ every coach inside the tractable range.
 
 | Phase | Universal | Computation tools | Total |
 |---|---|---|---|
-| Define | 8 | `calculate_expected_savings` | 9 |
-| Measure | 8 | `calculate_sigma_level`, `calculate_cpk`, `calculate_dpmo`, `calculate_yield_rty`, `calculate_ftq`, `calculate_grr`, `calculate_sample_size_proportion`, `calculate_sample_size_mean` | 16 |
-| Analyse | 8 | `t_test`, `chi_square_test`, `anova`, `pearson_correlation`, `linear_regression` | 13 |
-| Improve | 8 | `calculate_doe_main_effects` | 9 |
-| Control | 8 | `xbar_r_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | 12 |
+| Define | 7 | `calculate_expected_savings` | **8** |
+| Measure | 7 | `calculate_sigma_level`, `calculate_cpk`, `calculate_dpmo`, `calculate_yield_rty`, `calculate_ftq`, `calculate_grr`, `calculate_sample_size_proportion`, `calculate_sample_size_mean` | **15** |
+| Analyse | 7 | `t_test`, `chi_square_test`, `anova`, `pearson_correlation`, `linear_regression` | **12** |
+| Improve | 7 | `calculate_doe_main_effects` | **8** |
+| Control | 7 | `xbar_r_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | **11** |
 
-**No phase exceeds 16 tools.** If a new tool would push a phase past
+**No phase exceeds 16 tools**, and after `record_field` was retired the
+actual maximum is 15 (Measure). If a new tool would push a phase past
 16, that is an ARCHITECTURE.md amendment, not a routine addition.
 
 **Each of the 18 computation tools is a separate named tool.**
@@ -1020,29 +1087,73 @@ multi-hop deepens across hops.
 
 ## 8. MIDDLEWARE STACK
 
-### 8.1 — Four middlewares, all on `create_agent`
+### 8.1 — Five middlewares, all on `create_agent`
 
 ```python
 middleware=[
-    DMAICSkillsMiddleware(...),        # §8.3 — custom
-    DMAICGraderMiddleware(...),        # §8.2 — custom
-    SummarizationMiddleware(...),      # §8.4 — LangChain core
-    BeforeModelStateInjection(...),    # §8.5 — custom
+    BeforeModelStateInjection(...),    # §8.5 — custom        · before_model
+    DMAICSkillsMiddleware(...),        # §8.3 — custom        · before_agent
+    SummarizationMiddleware(...),      # §8.4 — LangChain core · before_model
+    ModelRetryMiddleware(retries=2),   # §8.7 — LangChain core · wrap_model_call
+    DMAICGraderMiddleware(...),        # §8.2 — custom        · after_agent
 ]
 ```
 
-Three are custom, one is core. All are built on the six
+Three are custom, two are core. All are built on the six
 `AgentMiddleware` hooks (`before_agent`, `after_agent`,
 `before_model`, `after_model`, `wrap_model_call`, `wrap_tool_call`).
+
+**Declaration order is execution order for hooks of the same kind, so
+this order is binding.** `BeforeModelStateInjection` MUST be first —
+project facts have to reach the top of the prompt before skills loading
+and summarisation shape it. Listing it last, as an earlier revision did,
+defeats the ordering rule §8.5 exists to enforce.
 
 **Prefer built-in middleware wherever it exists.** Custom middleware is
 reserved for genuinely domain-specific logic.
 
-### 8.2 — `DMAICGraderMiddleware` — rubric grading
+### 8.2 — `DMAICGraderMiddleware` — coaching-quality grading
 
 **Custom, on `create_agent`. Not deepagents' `RubricMiddleware`** (§4.4).
 
-- Hook: `after_agent`
+**THERE ARE TWO GRADERS IN THIS ARCHITECTURE. They are not redundant,
+and confusing them is a violation.**
+
+| | `DMAICGraderMiddleware` (this rule) | Validation stack Layer 2d (§9.2) |
+|---|---|---|
+| Where | Middleware, inside the executor | The `validation_stack` node |
+| When | **Every coaching turn** (`after_agent`) | **Once**, at the gate boundary |
+| Rubric | **`COACHING_QUALITY_RUBRIC`** — one, shared | **`PHASE_RUBRIC`** — five, one per phase |
+| Grades | The coach's **process** | The **gate document** |
+| Sees | One response | The complete field set |
+
+**Never point `DMAICGraderMiddleware` at a phase rubric, and never
+point Layer 2d at `COACHING_QUALITY_RUBRIC`.**
+
+**`COACHING_QUALITY_RUBRIC`** — a single constant in `core/prompts.py`,
+identical for all five phases:
+
+```
+- Coach must not accept vague or unmeasurable statements as captured fields
+- Coach must not invent data, metrics, or values the Belt didn't provide
+- Coach must not do the Belt's work (writing their problem statement for them)
+- Coach must stay on the current phase's topic
+- Coach must challenge weak inputs with specific follow-up questions
+- Coach must reference methodology when guiding (not just opinion)
+```
+
+**Why both exist.** The middleware catches coaching-process failures in
+real time — a coach that accepts "poor morale" as a root cause is
+corrected before the Belt sees the response, preventing eight further
+turns on a weak foundation. The validation node catches document-product
+failures a per-turn check cannot see: four Analyse fields can each look
+sound while the root cause discusses "error rate" and the baseline it
+references is "cycle time." Cross-field and cross-phase consistency is
+only visible once the document is complete.
+
+**Mechanism, both graders:**
+
+- Hook: `after_agent` (middleware) / node logic (Layer 2d)
 - Model: `grader` role, temperature 0.1 (§4.7)
 - `max_iterations=3`. On `max_iterations_reached`, output passes
   through **with a warning flag visible to the Belt**.
@@ -1051,13 +1162,16 @@ reserved for genuinely domain-specific logic.
   (`"pass" | "warning" | "fail"`) and `feedback` (§9.7).
 - Feedback injected back to the coach is **per criterion and specific**
   — never "try again."
-- **Belt-level aware** — reads `belt_level` from the case record and
-  suppresses Black-Belt-only recommendations for a Green Belt (§9.7).
+- **Layer 2d is belt-level aware** — reads `belt_level` from the case
+  record and suppresses Black-Belt-only recommendations for a Green Belt
+  (§9.7).
 
-**Rubric management.** Five rubric constants in `core/prompts.py`, one
-per phase. The grader receives the phase-appropriate rubric based on
-`current_phase`. Rubrics evolve from production experience **without
-changing the grader mechanism** — that separation is the point.
+**Rubric management.** Five `PHASE_RUBRIC` constants in
+`core/prompts.py`, one per phase, plus the single
+`COACHING_QUALITY_RUBRIC`. Layer 2d receives the phase-appropriate
+rubric based on `current_phase`. Rubrics evolve from production
+experience **without changing the grader mechanism** — that separation
+is the point.
 
 The ratified rubrics cover: Define (problem_statement, voc_summary,
 business_case, project_scope, team, goal_statement), Measure
@@ -1159,8 +1273,9 @@ conversation is. Summarising *facts* into prose is the failure this
 policy prevents.
 
 **Decisions survive compression as captured fields, not as a decision
-list.** When the Belt commits a decision it is written by `record_field`
-and approved at a gate, which puts it in `artifacts` and then the store
+list.** When the Belt commits a decision it arrives via
+`CoachingResponse.fields_captured` and is approved at a gate, which puts
+it in `artifacts` and then the store
 — all three outside `messages[]`. That is why no `key_decisions` field
 is needed here (§10.1).
 
@@ -1195,12 +1310,30 @@ Belt's framing rather than the project's established state.
 | Middleware | Why not |
 |---|---|
 | `HumanInTheLoopMiddleware` | **Two confirmed bugs hit our exact use case.** Edited tool-call args can be silently re-overwritten by the agent re-attempting the original call; and edit/reject are broken in subgraph contexts, where only approve is reliable. Both would silently discard a Belt's correction. Use graph-level `interrupt()` (§1.6, §9.1). |
-| `LLMToolSelectorMiddleware` | Per-phase binding (§5.2) already keeps every coach at 9–16 tools. Adding a selector LLM spends a model call solving a problem solved structurally. |
+| `LLMToolSelectorMiddleware` | Per-phase binding (§5.2) already keeps every coach at 8–15 tools. Adding a selector LLM spends a model call solving a problem solved structurally. |
 | deepagents `RubricMiddleware` / `SkillsMiddleware` | Pre-1.0 dependency (§4.4). |
 
-`ModelRetryMiddleware` is permitted for the invisible-retry tier of the
-fallback chain (§4.8), where retry is mechanical rather than a
-coaching event.
+### 8.7 — `ModelRetryMiddleware` — the invisible-retry tier
+
+**LangChain core, used as shipped, ADOPTED.** `retries=2` with
+exponential backoff, on the `wrap_model_call` hook. It wraps each model
+call and silently retries transient timeouts and rate limits.
+
+**Hand-writing retry plumbing is BANNED.** Do not write
+try / except / sleep / counter loops around an LLM call — this
+middleware provides the wrap, the backoff, and the attempt counter.
+
+**Its tier is distinct from the fallback chain (§4.8), and the two must
+not be conflated:**
+
+| | `ModelRetryMiddleware` | Fallback chain (§4.8) |
+|---|---|---|
+| Handles | Mechanical failure — the network flaked | Service-level failure |
+| Action | Retry **the same call** | **Swap the model**: gpt-4o → gpt-4o-mini → cache → degraded |
+| Visible | Never | Degraded mode is visible to the Belt |
+
+This is the invisible-retry tier named in §9.3's self-healing
+hierarchy: mechanical, never a coaching event.
 
 *Rationale: REFACTORING_AGENT_IMPROVE.md §36, §42, §53, §80, §83, §84.*
 
@@ -1237,7 +1370,7 @@ All four run inside step 2, before the interrupt.
 | **2a. Coherence** | Real, meaningful, conclusive? Catches gibberish, vague non-answers, self-contradiction, off-topic replies, parroting the Belt's own words | Lightweight LLM | `coherence`, temp 0.1 | **Every coaching turn** |
 | **2b. Field presence** | All **Tier 1** fields for this phase populated? (`DMAICGateValidator`) | **Deterministic** | No LLM | Gate boundary only |
 | **2c. Constraint** | Addresses budget / timeline / risk / measurement? | Lightweight LLM | `constraint`, temp 0.1 | Gate boundary + mid-conversation for key decisions |
-| **2d. Quality rubric** | Meets DMAIC standards per criterion? **Tier 1 fails, Tier 2 warns.** (`DMAICGraderMiddleware`) | LLM grader | `grader`, temp 0.1 | Gate boundary only |
+| **2d. Quality rubric** | Does the **gate document** meet DMAIC standards per criterion? **Tier 1 fails, Tier 2 warns.** Uses `PHASE_RUBRIC` — *not* `DMAICGraderMiddleware`, which is a different grader (§8.2) | LLM grader | `grader`, temp 0.1 | Gate boundary only |
 
 **Run cheapest first. Each layer fires only if the previous passes.**
 
@@ -1502,7 +1635,7 @@ each duplicated something an existing mechanism already carries:
 | Removed field | What covers it instead |
 |---|---|
 | `dmaic_plan` | DMAIC order is fixed and static (§1.2), so there is no plan to store. The project's actual plan is Define's gate document in the store plus `improve_case_index` metadata |
-| `key_decisions` | Decisions the Belt commits are captured fields, written by `record_field` and approved at a gate. A decision that is not worth a field is not worth replaying into every prompt |
+| `key_decisions` | Decisions the Belt commits are captured fields, arriving via `CoachingResponse.fields_captured` and approved at a gate. A decision that is not worth a field is not worth replaying into every prompt |
 | `open_items` | Outstanding work is derived, not stored: `check_gate_status()` reports which required fields are unpopulated, and the four-layer validation stack (§9.2) is what surfaces blockers |
 | `project_context` | Composed at the boundary by each input mapper (§10.2). Define reads the case record from the store; every later phase reads the prior phase's artifacts. The substance is Define's gate document; the framing is the case record and the `improve_case_index` row (§7.3). `before_model` injection (§8.5) already puts both in front of every coach |
 
@@ -1745,7 +1878,64 @@ answers "was a hypothesis test run?" by scanning that list for
 `"tool": "t_test"`. Adding typed per-phase computation fields is a
 violation (ARCHITECTURE.md §4.8).
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §17, §18, §19, §21, §52, §52a, §68, §70.*
+### 10.7 — `CoachingResponse` in, `{Phase}Output` out
+
+**Two schemas, two moments. Never substitute one for the other.**
+
+| | `CoachingResponse` | `{Phase}Output` |
+|---|---|---|
+| Fires | **Every coaching turn** | **Once**, at `gate_apply` |
+| Produced by | The executor, via `response_format=` | Pydantic construction — no LLM |
+| Holds | This turn's extraction | The complete gate document |
+
+**`CoachingResponse` — the per-turn schema:**
+
+```python
+class CoachingResponse(BaseModel):
+    """Structured extraction from each coaching turn."""
+    message: str                        # coaching text the Belt sees
+    fields_captured: list[dict] = []    # [{field_name: str, value: Any, source: str}]
+    citations: list[dict] = []          # sources referenced this turn
+```
+
+**`value` is `Any`, not `str`, and that is deliberate** — it must carry
+both plain string fields and the three cross-phase reference dicts
+(§10.6). Typing it `str` would make `causal_hypothesis`,
+`solution_linked_to_root_cause` and `post_improvement_metric`
+uncapturable. This is the one place `Any` is correct; the *values inside*
+those dicts are still strings.
+
+**The executor node writes the response into state:**
+
+```python
+result = await executor.ainvoke(state)
+resp = result["structured_response"]              # CoachingResponse
+
+for f in resp.fields_captured:
+    artifacts[f["field_name"]] = f["value"]       # str or dict
+citations.extend(resp.citations)
+```
+
+**`{Phase}Output` schemas are canonical** — `DefineOutput`,
+`MeasureOutput`, `AnalyseOutput`, `ImproveOutput`, `ControlOutput`, in
+`phases/{phase}/schema.py`. Full definitions and per-phase gate assembly
+are in ARCHITECTURE.md §4.10. The binding rules:
+
+- **Every field is `str`** except the three cross-phase reference dicts
+  (§10.6)
+- **Every schema carries the same four gate-metadata fields** —
+  `computation_results`, `acknowledged_gaps`, `citations`, `uploads`
+- **Tier 1 fields are assembled with `artifacts["field"]`** — a
+  `KeyError` here is correct, because Layer 2b should have blocked the
+  gate
+- **Tier 2 fields use `artifacts.get("field", "")`**, cross-phase dicts
+  `artifacts.get("field", {})` — an empty value records that the Belt
+  proceeded without it (§9.7)
+- **Gate assembly must reference every field in the schema.** A field in
+  the schema that assembly never sets is a field that silently never
+  reaches the store
+
+*Rationale: REFACTORING_AGENT_IMPROVE.md §17, §18, §19, §21, §52, §52a, §68, §70, §82.*
 
 ---
 

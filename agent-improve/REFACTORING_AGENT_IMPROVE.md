@@ -294,9 +294,9 @@ None of those are usage.
                     │  └──────────┬────────────┘  │
                     │             │               │
                     │  ┌──────────▼────────────┐  │
-                    │  │ policy_advisory (S.2, │  │
+                    │  │ policy advisory (S.2, │  │
                     │  │ 38) — mid-phase       │  │
-                    │  │ captured_field        │  │
+                    │  │ artifacts             │  │
                     │  │ contradiction check   │  │
                     │  └──────────┬────────────┘  │
                     │             │               │
@@ -320,7 +320,7 @@ None of those are usage.
 │                 │   │  (Sections 39, 60)    │   │                      │
 │  Checkpointer   │   │                       │   │  LangSmith           │
 │  (Sections 1,52)│   │  Universal 8:         │   │  (Sections 1, 73, 75)│
-│  AzureBlob      │   │   record_field        │   │  @traceable on       │
+│  AzureBlob      │   │  CoachingResponse     │   │  @traceable on       │
 │   CheckpointSvr │   │   rag_lookup_         │   │  custom functions    │
 │   (refactor)    │   │     methodology       │   │  and all four        │
 │  → PostgresSaver│   │   rag_lookup_evidence │   │  validation layers   │
@@ -500,11 +500,11 @@ Expanding one of the five phase subgraphs from Diagram 1. Every box here is a **
 
 ---
 
-#### Diagram 3 — Inside the coach node: `create_agent`, four middlewares, two tool tiers
+#### Diagram 3 — Inside the coach node: `create_agent`, five middlewares, two tool tiers
 
 Expanding the `phase_executor` box from Diagram 2. Everything here lives inside what the subgraph sees as one node. **Middleware** is an `AgentMiddleware` attached via `create_agent(middleware=...)` that wraps the agent loop through its hooks — it is not a node and not a tool. **Tools** are Python functions bound to the LLM, invoked from inside this node by the model at runtime — also not nodes. The diagram orders the middlewares by when their hooks fire, which is what matters at runtime; the declaration order in `middleware=[...]` is given in §8.1.
 
-![Diagram 3 — the phase executor built with create_agent: four middleware layers and the two tool tiers](diagrams/03-coach-node.png)
+![Diagram 3 — the phase executor built with create_agent: the middleware layers and the two tool tiers](diagrams/03-coach-node.png)
 
 *Source: [`diagrams/03-coach-node.mmd`](diagrams/03-coach-node.mmd) · [full-size SVG](diagrams/03-coach-node.svg). Edit the `.mmd` and re-render — never hand-edit the image.*
 
@@ -535,7 +535,7 @@ The same mapping in table form, since it is the distinction most often lost when
 | Validation layer 2d | Middleware | Yes | No | **No** — middleware is not a node |
 | `gate_review_node` | Node — `interrupt()` | No | No | **No** — interrupt point |
 | `gate_apply_node` | Node | No | No | **No** — plain function |
-| 8 universal tools | Tools | No | — | **No** |
+| 7 universal tools | Tools | No | — | **No** |
 | 18 computation tools | Tools — pure functions | No | — | **No** |
 
 Five agents exist in Agent Improve: one `phase_executor` per DMAIC phase. Everything above them is routing, everything beside them is validation, and everything below them is functions.
@@ -789,9 +789,21 @@ Interrupts are not a binary approve/reject. The correct pattern is a nine-step s
 | Sub-step | Layer | Mechanism | Model |
 |---|---|---|---|
 | 2a | Coherence | Is this a real, meaningful, conclusive statement? Catches gibberish, vague non-answers, self-contradiction, off-topic replies, and parroting the Belt's own words. | Lightweight LLM — `operational-model`, temp 0.1 |
-| 2b | Field presence | Are all required fields for this phase populated? (`DMAICGateValidator`, §48) | Deterministic — no LLM |
+| 2b | Field presence | Are all **Tier 1** fields for this phase populated? (`DMAICGateValidator`, §48) | Deterministic — no LLM |
 | 2c | Constraint validation | Does the decision address budget / timeline / risk / measurement? (§68) | Lightweight LLM — `operational-model`, temp 0.1 |
-| 2d | Quality rubric | Does it meet DMAIC quality standards per criterion? (`DMAICGraderMiddleware`, §42) | LLM grader — `operational-model`, temp 0.1 |
+| 2d | Quality rubric | Does the **gate document** meet DMAIC quality standards per criterion? Gate document grader using `PHASE_RUBRIC` (e.g. `ANALYSE_RUBRIC`, §42) | LLM grader — `operational-model`, temp 0.1 |
+
+> **Step 2d is NOT `DMAICGraderMiddleware`.** An earlier revision of this table named it, and that was wrong. **Two graders exist, and they are complementary rather than redundant** (§42 Finding 18):
+>
+> | | `DMAICGraderMiddleware` | Step 2d |
+> |---|---|---|
+> | Where | Middleware, inside the executor | The `validation_stack` node |
+> | When | **Every coaching turn**, via `after_agent` | **Once**, at the gate boundary |
+> | Rubric | `COACHING_QUALITY_RUBRIC` | `PHASE_RUBRIC` — `DEFINE_RUBRIC`, `MEASURE_RUBRIC`, … |
+> | Grades | The coach's **process** | The **gate document** |
+> | Sees | One response at a time | The complete captured field set |
+>
+> By the time step 2d fires, the middleware grader has already done its job across every turn of the conversation. Step 2d checks what no per-turn grader can see: cross-field consistency and cross-phase linkage in the finished document.
 
 Each layer fires only if the previous one passes. Layer 2b is the only deterministic layer — checking whether a key exists in a dict genuinely does not need an LLM. Layer 2a *was* specified as deterministic (length plus question-mark checks) and was upgraded on the grounds that "I can write garbage in and a length check will not detect it." At roughly 250 tokens per check on `gpt-4o-mini` fired 20–40 times per phase session, Layer 2a costs about $0.01–0.02 per phase — negligible against the quality it buys.
 
@@ -1156,7 +1168,7 @@ The LLM figures out what to do. No structured plan. Coaching strategy invisible.
 {
   "next_action": "ask_for_baseline_data",
   "rationale": "baseline_mean missing, process scope confirmed",
-  "tools_needed": ["rag_lookup_methodology", "record_field"],
+  "tools_needed": ["rag_lookup_methodology"],
   "retrieval_strategy": "single_hop",          # §71 — planner decides, not the executor
   "focus_field": "baseline_mean",
   "expected_fields": ["baseline_mean", "baseline_std"]
@@ -1415,21 +1427,37 @@ The subgraph's internal state (`DefineState`, `MeasureState`, …) is the `Phase
 
 Cross-phase artifacts do **not** flow through the parent's state. That is why §17 removed `captured_fields` from `SupervisorState`. They flow through the store (§52a), because LangGraph subgraph state does not automatically propagate to the parent's visibility.
 
-**The Define subgraph is not a straight pipeline.** §23's `researcher → summarizer` example above shows the mechanism, but it is too simple to represent a DMAIC phase. The Define subgraph has about five nodes — planner, executor, gate_review (interrupt), policy_advisory, revise — connected by **conditional edges** and **cycles**. The graph structure is fixed at compile time; routing is dynamic based on state. The planner fires many times per phase, not once: after each executor step, control returns to the planner to decide whether to keep coaching the current field, move to the next field, or trigger the gate.
+**The Define subgraph is not a straight pipeline.** §23's `researcher → summarizer` example above shows the mechanism, but it is too simple to represent a DMAIC phase. The Define subgraph has five nodes — planner, executor, validation_stack, gate_review (interrupt), gate_apply — connected by **conditional edges** and **cycles**. The graph structure is fixed at compile time; routing is dynamic based on state. The planner fires many times per phase, not once: after each executor step, control returns to the planner to decide whether to keep coaching the current field, move to the next field, or trigger the gate.
 
 ```python
 def build_phase_subgraph(phase: str, llm, tools_for_phase):
     graph = StateGraph(PhaseState)
-    graph.add_node("planner",         make_phase_planner(phase, llm))
-    graph.add_node("executor",        make_phase_executor(phase, llm, tools_for_phase))
-    graph.add_node("policy_advisory", make_policy_advisory(phase))
-    graph.add_node("gate_review",     make_gate_review(phase))     # interrupt fires here
-    graph.add_node("revise",          make_revise(phase))
+    graph.add_node("planner",          make_phase_planner(phase, llm))
+    graph.add_node("executor",         make_phase_executor(phase, llm, tools_for_phase))
+    graph.add_node("validation_stack", make_validation_stack(phase, llm))
+    graph.add_node("gate_review",      make_gate_review(phase))     # interrupt fires here
+    graph.add_node("gate_apply",       make_gate_apply(phase))      # policy advisory + store write
     # … conditional edges and cycles; see §4 for the shape
     return graph.compile()        # NO checkpointer — the parent owns it
 ```
 
-**Leaf tools are not subgraph nodes.** Extraction, `rag_lookup_*`, the gate validator, the computation tools, and the policy advisory tool are bound to the executor node via `bind_tools()`. This is the tool-calling coach agent pattern from ARCHITECTURE.md §B2. From the subgraph's perspective the executor is one node; from inside that node, multiple tools can fire per invocation — up to the 5-hop cap of §34.
+**Two node names were wrong in earlier revisions, and both mattered.**
+
+| Earlier revision | Ratified | Why the earlier name was wrong |
+|---|---|---|
+| `policy_advisory` as node 3 | **`validation_stack`** | The four-layer stack (§68) was missing from the node list entirely. The policy advisory is not a node — it is logic inside `gate_apply` |
+| `revise` as node 5 | **`gate_apply`** | Different name *and* larger scope. `gate_apply` runs the policy advisory (step 6 of §2), processes the Belt's approval (step 7), and writes the gate document to the store (§18) |
+
+`gate_review` was correct and is unchanged. Revision is still a behaviour — the validation stack routes back to the planner with accumulated `validator_feedback` — but it is an edge, not a node.
+
+**Leaf tools are not subgraph nodes.** `rag_lookup_methodology`, `rag_lookup_evidence`, `rag_lookup_case_history`, `propose_template`, `propose_diagram`, `check_gate_status`, `request_human_approval`, and the phase-specific computation tools are passed to the executor through the `tools=` parameter of `create_agent` (§84 — never `bind_tools()` on a bare LLM, which would bypass the middleware stack). From the subgraph's perspective the executor is one node; from inside that node, multiple tools can fire per invocation — up to the 5-hop cap of §34.
+
+**The validation stack and the policy advisory are NOT tools.**
+
+- **The validation stack is a separate node.** It runs *after* the executor finishes, reached by an edge. Making it a tool would put the decision of whether to validate in the coach's hands, which is exactly backwards — the coach is the thing being validated.
+- **The policy advisory is logic inside `gate_apply`.** It fires after the Belt reviews and edits, checking whether those edits break cross-phase consistency (§38). It cannot be a coach tool because at the moment it runs, the coach is no longer in the loop.
+
+**`record_field` is also not in that list, and no longer exists as a tool.** Field capture happens through `response_format=CoachingResponse` on the executor — see §82.
 
 ### How This Section Aligns With the Rest
 
@@ -1456,7 +1484,7 @@ SUPERVISOR
        ↓
   ANALYSE SUBAGENT
     Planner: "Root cause missing. Belt confirmed 3 causes. Ask to validate with data."
-    Executor: rag_lookup_methodology + coaching LLM + record_field
+    Executor: rag_lookup_methodology + coaching LLM + CoachingResponse
 ```
 
 *Terminology: this section's "Level 3 — Tool Executor" is the leaf level of the Terminology Reference's table. Leaf tools are functions, not Planner-Executor pairs; the recursion stops at Level 2.*
@@ -1518,7 +1546,7 @@ LEVEL 2 — ANALYSE PHASE PLANNER
   "Belt listed 3 causes, none validated yet"
   Decision: {
     next_action: "validate_causes",
-    tools: ["rag_lookup_methodology", "record_field", "chi_square_test"],
+    tools: ["rag_lookup_methodology", "chi_square_test"],
     retrieval_strategy: "multi_hop",        # Analyse defaults to planned multi-hop (§71)
     focus_field: "root_cause_statement"
   }
@@ -1526,7 +1554,7 @@ LEVEL 2 — ANALYSE PHASE PLANNER
 LEVEL 3 — TOOL EXECUTOR (leaf tools bound via bind_tools)
   → rag_lookup_methodology: "how to validate root causes with hypothesis testing"
   → Coaching LLM: generates Black Belt response
-  → record_field: captures root_cause_statement
+  → CoachingResponse.fields_captured: root_cause_statement
        ↓
 Results bubble back up:
   Extraction result → Phase Planner (field captured? yes/no)
@@ -1560,18 +1588,18 @@ Each session:
 
 The supervisor has no tools. It only routes.
 
-*This diagram was an early sketch of what §39 later ratified as per-phase tool binding. Tool names below are the canonical ones. Every phase carries the same universal eight; the computation tools differ per phase. Note that "fishbone" is **not** a tool — it is a coaching template surfaced through `propose_template` / `propose_diagram`, not a computation call.*
+*This diagram was an early sketch of what §39 later ratified as per-phase tool binding. Tool names below are the canonical ones. Every phase carries the same universal seven; the computation tools differ per phase. Note that "fishbone" is **not** a tool — it is a coaching template surfaced through `propose_template` / `propose_diagram`, not a computation call.*
 
 ```
 Supervisor (routing only — no tools)
 
 UNIVERSAL 8 — bound to every phase executor:
-  record_field · rag_lookup_methodology · rag_lookup_evidence ·
+  rag_lookup_methodology · rag_lookup_evidence ·
   rag_lookup_case_history · propose_template · propose_diagram ·
   check_gate_status · request_human_approval
 
 Define (9 tools)          Measure (16 tools)              Analyse (13 tools)
-└── universal 8           └── universal 8                 └── universal 8
+└── universal 7           └── universal 7                 └── universal 7
 └── calculate_expected_   ├── calculate_sigma_level       ├── t_test
     savings               ├── calculate_cpk               ├── chi_square_test
                           ├── calculate_dpmo              ├── anova
@@ -1583,7 +1611,7 @@ Define (9 tools)          Measure (16 tools)              Analyse (13 tools)
                           └── calculate_sample_size_mean
 
 Improve (9 tools)         Control (12 tools)
-└── universal 8           └── universal 8
+└── universal 7           └── universal 7
 └── calculate_doe_main_   ├── xbar_r_chart_limits
     effects               ├── p_chart_limits
                           ├── c_chart_limits
@@ -1669,27 +1697,36 @@ from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy, ProviderStrategy
 from pydantic import BaseModel
 
-class DefineOutput(BaseModel):
-    problem_statement: str
-    baseline_metric: str            # captured fields are str — §17
-    scope: str
+class CoachingResponse(BaseModel):
+    """Structured extraction from each coaching turn — NOT the gate document."""
+    message: str                        # coaching text the Belt sees
+    fields_captured: list[dict] = []    # [{field_name: str, value: Any, source: str}]
+    citations: list[dict] = []          # sources referenced this turn
 
 # Option A — ToolStrategy (universal, works everywhere)
 agent = create_agent(
     "gpt-4o",
-    tools=[rag_lookup_methodology, extract_fields],
-    response_format=ToolStrategy(DefineOutput),
+    tools=[rag_lookup_methodology],
+    response_format=ToolStrategy(CoachingResponse),
     prompt="Coach the Belt through the Define phase."
 )
 
 # Option B — ProviderStrategy (native, more efficient where supported)
 agent = create_agent(
     "gpt-4o",
-    tools=[rag_lookup_methodology, extract_fields],
-    response_format=ProviderStrategy(DefineOutput),
+    tools=[rag_lookup_methodology],
+    response_format=ProviderStrategy(CoachingResponse),
     prompt="Coach the Belt through the Define phase."
 )
 ```
+
+**These examples previously used `DefineOutput`, and that was the real
+error in this section — not the use of `response_format` itself.**
+`DefineOutput` is the complete Define gate document. The executor runs
+once per **coaching turn**; the gate document is assembled once per
+**phase**. Asking the coach to emit a full `DefineOutput` on every turn
+requests eight fields it has not yet coached, five of which the Belt has
+not been asked about. The per-turn schema is `CoachingResponse`.
 
 **ProviderStrategy advantages:**
 - Native structured output — model returns JSON directly, no extra call
@@ -1706,29 +1743,272 @@ agent = create_agent(
 
 ### Applied to Agent Improve
 
-The Define phase currently uses `.with_structured_output(DefineOutput)` which creates a separate LLM call. Switching to `ProviderStrategy` during v2.1 refactor:
+The Define phase currently uses a separate `.with_structured_output(...)` call for extraction. `response_format` folds that into the agent's own loop:
 
 ```python
 define_agent = create_agent(
-    "operational-premium",
-    tools=UNIVERSAL_TOOLS + [calculate_expected_savings],   # §39 — 9 tools for Define
-    response_format=ProviderStrategy(DefineOutput),
-    middleware=[                                            # §84 — the ratified stack
+    model="operational-premium",
+    tools=UNIVERSAL_TOOLS + [calculate_expected_savings],   # §39 — 8 tools for Define
+    response_format=CoachingResponse,                       # ProviderStrategy auto-selected
+    middleware=[                                            # §84 — the ratified five
+        BeforeModelStateInjection(),                          # before_model — FIRST
         DMAICSkillsMiddleware(skills_dir="agent-improve/skills"),
-        DMAICGraderMiddleware(model=grader_llm, max_iterations=3,
-                              on_evaluation=write_to_step_log),
         SummarizationMiddleware(model="azure/operational-model",
                                 trigger=("tokens", 100_000),
                                 keep=("messages", 20)),
-        BeforeModelStateInjection(),
+        ModelRetryMiddleware(retries=2),                      # wrap_model_call
+        DMAICGraderMiddleware(model=grader_llm, max_iterations=3,
+                              rubric=COACHING_QUALITY_RUBRIC, # §42 — NOT a phase rubric
+                              on_evaluation=write_to_step_log),
     ],
     prompt=DEFINE_COACHING_PROMPT,
 )
 ```
 
-*Corrected from the original example: `HumanInTheLoopMiddleware` is replaced by graph-level interrupts (§53 bugs, §2 pattern), and deepagents' `RubricMiddleware` by the custom `DMAICGraderMiddleware` (§42 Option B). The tool list uses the canonical names and the per-phase subset (§39).*
+*Corrected from the original example on five counts:* `HumanInTheLoopMiddleware` is replaced by graph-level interrupts (§53 bugs, §2 pattern); deepagents' `RubricMiddleware` by the custom `DMAICGraderMiddleware` (§42 Option B); the tool list uses the canonical names and the per-phase subset (§39), now **8** rather than 9 since `record_field` was retired; `BeforeModelStateInjection` moved from **last to first**; and `ModelRetryMiddleware` was added as the fifth (§80).
 
-Every phase subagent gets typed output with no additional LLM call.
+**Middleware order is execution order for hooks of the same kind.** The original listed `BeforeModelStateInjection` last, which placed the project's established facts *after* skills loading and summarisation had already shaped the prompt — the opposite of what §38's injection-timing argument requires. State injection must fire first.
+
+#### How `response_format` behaves at runtime
+
+**Verified against the official LangChain documentation, August 2026.** The structured response is returned in the `structured_response` key of the agent's final state. **The agent still calls tools normally during the ReAct loop, and still writes coaching prose into `messages`.** Only the terminal response carries the additional structure. Both exist simultaneously — reading one does not cost you the other.
+
+```python
+result = agent.invoke(state)
+
+# What the Belt sees:
+result["messages"][-1]
+  → "Good — I've captured your baseline at 12.3%. How was that measured?"
+
+# What the system reads:
+result["structured_response"]
+  → CoachingResponse(
+        message="Good — I've captured your baseline at 12.3%…",
+        fields_captured=[{"field_name": "baseline_metric",
+                          "value": "12.3%", "source": "belt_stated"}],
+        citations=[],
+    )
+```
+
+The executor node then writes `fields_captured` into `artifacts` and appends `citations` to `state["citations"]` (§18).
+
+#### `record_field` is retired — capture is structural, not a tool call
+
+**`record_field` is removed from the universal tools. The universal eight become the universal seven:** `rag_lookup_methodology`, `rag_lookup_evidence`, `rag_lookup_case_history`, `propose_template`, `propose_diagram`, `check_gate_status`, `request_human_approval`.
+
+**Why this is a real improvement and not a rename.** A tool call is a decision the model may or may not make. A turn where the Belt states their baseline and the coach — mid-way through a multi-hop retrieval — never calls `record_field` loses that value silently, and nothing downstream knows a capture was missed. `fields_captured` is part of the response shape: the model cannot return a well-formed `CoachingResponse` without addressing it. Capture stops being an action the coach might forget and becomes a property of every response.
+
+**Revised per-phase tool counts (§39):**
+
+| Phase | Universal | Phase-specific | Total |
+|---|---|---|---|
+| Define | 7 | 1 — `calculate_expected_savings` | **8** |
+| Measure | 7 | 8 computation tools | **15** |
+| Analyse | 7 | 5 computation tools | **12** |
+| Improve | 7 | 1 — `calculate_doe_main_effects` | **8** |
+| Control | 7 | 4 computation tools | **11** |
+
+Every phase drops by one, and Measure moves off the top edge of the 10–15 degradation range it previously sat on at 16.
+
+#### Complete structured output mapping
+
+| Node / Component | Built with | Output schema | Mechanism |
+|---|---|---|---|
+| Phase planner | Plain LLM call | `CoachingPlan` | `model.with_structured_output(CoachingPlan)` |
+| **Phase executor (coach)** | **`create_agent` + tools** | **`CoachingResponse`** | **`response_format=CoachingResponse`** (ProviderStrategy auto-selected) |
+| Validation Layer 1 (coherence) | Plain LLM call | `CoherenceResult` | `model.with_structured_output(...)` |
+| Validation Layer 3 (constraints) | Plain LLM call | `ConstraintCheckResult` | `model.with_structured_output(...)` |
+| Validation Layer 4 (gate grader) | Plain LLM call | `GraderVerdict` | `model.with_structured_output(...)` |
+| `gate_review` | **No LLM** | Interrupt payload | `interrupt()` |
+| `gate_apply` — policy advisory | Plain LLM call | `PolicyAdvisoryResult` | `model.with_structured_output(...)` |
+| `DMAICGraderMiddleware` | Plain LLM call inside middleware | `CoachingGraderVerdict` | `model.with_structured_output(...)` |
+| Inside `rag_lookup_*` | Plain LLM call | `QueryVariants` | `model.with_structured_output(...)` |
+| Gate document assembly | **No LLM call** | `DefineOutput` … `ControlOutput` | `DefineOutput(**artifacts)` — Pydantic validation only |
+
+**Three distinct mechanisms, and the distinction is what this section exists to fix:**
+
+- **`response_format=CoachingResponse` on `create_agent`** — structured extraction on **every turn**, alongside normal coaching text, inside the agent's own loop.
+- **`model.with_structured_output(Schema)`** — a plain LLM call wrapped for a **one-shot** structured response, inside tools, middleware, and non-agent nodes. There is no agent loop to attach `response_format` to in any of those places.
+- **`DefineOutput(**artifacts)`** — Pydantic **validation at gate time, no LLM call at all**. The values were captured turn by turn; assembly only checks and packages them.
+
+---
+
+### The Five Canonical Gate Document Schemas
+
+**One definition per phase, in `phases/{phase}/schema.py`.** Two conflicting `DefineOutput` definitions previously existed in this document — one here in §82 and one in §44 — neither matching the ratified fields, both using `float` against Finding 3. `MeasureOutput`, `AnalyseOutput`, `ImproveOutput` and `ControlOutput` were referenced repeatedly and defined nowhere.
+
+**Every field is `str`** except the three cross-phase reference dicts (§17 Finding 5). **Every schema carries the same four gate-metadata fields.** Tier classification per §17 Finding 11.
+
+```python
+class DefineOutput(BaseModel):
+    """Gate document for the Define phase."""
+    # Tier 1 — gate-required
+    problem_statement: str                  # measurable problem, baseline and target
+    project_scope: str                      # explicit inclusions and exclusions
+    goal_statement: str                     # SMART
+    voc_summary: str                        # voice of customer (Finding 12)
+    # Tier 2 — rubric-recommended
+    business_case: str                      # quantifiable business impact
+    team: str                               # Belt, sponsor, 2+ members with roles
+    baseline_metric: str                    # current measured state
+    target_metric: str                      # target value
+    # Gate metadata — assembled at gate time, not captured per turn
+    computation_results: list[dict] = []    # from tool calls during the phase (Finding 7)
+    acknowledged_gaps:   list[str]  = []    # Tier 2 fields skipped (Finding 11)
+    citations:           list[dict] = []    # sources referenced (Finding 8)
+    uploads:             list[dict] = []    # files the Belt uploaded (Finding 8)
+
+
+class MeasureOutput(BaseModel):
+    """Gate document for the Measure phase."""
+    # Tier 1
+    baseline_mean: str                      # value with units, as a string
+    data_collection_plan: str               # sample size, frequency, responsible person
+    # Tier 2
+    baseline_sigma: str                     # calculated sigma level (Finding 5)
+    measurement_system_validated: str       # GR&R or equivalent evidence
+    # Gate metadata
+    computation_results: list[dict] = []
+    acknowledged_gaps:   list[str]  = []
+    citations:           list[dict] = []
+    uploads:             list[dict] = []
+
+
+class AnalyseOutput(BaseModel):
+    """Gate document for the Analyse phase."""
+    # Tier 1
+    root_cause_statement: str               # identified and prioritised
+    root_cause_validation: str              # statistical or observational evidence
+    # Tier 2
+    causal_hypothesis: dict                 # cross-phase ref → Measure baseline (Finding 5)
+    ruled_out_causes: str                   # alternatives rejected, with rationale
+    # Gate metadata
+    computation_results: list[dict] = []
+    acknowledged_gaps:   list[str]  = []
+    citations:           list[dict] = []
+    uploads:             list[dict] = []
+
+
+class ImproveOutput(BaseModel):
+    """Gate document for the Improve phase."""
+    # Tier 1
+    selected_solution: str                  # criteria-based selection documented
+    pilot_result: str                       # measurable improvement demonstrated
+    # Tier 2
+    solution_linked_to_root_cause: dict     # cross-phase ref → Analyse root cause (Finding 5)
+    implementation_plan: str                # timeline, responsible person, resources
+    # Gate metadata
+    computation_results: list[dict] = []
+    acknowledged_gaps:   list[str]  = []
+    citations:           list[dict] = []
+    uploads:             list[dict] = []
+
+
+class ControlOutput(BaseModel):
+    """Gate document for the Control phase."""
+    # Tier 1
+    control_plan: str                       # frequency, thresholds, responsible person
+    post_improvement_metric: dict           # cross-phase ref → Measure baseline (Finding 5)
+    # Tier 2
+    improvement_delta: str                  # change from baseline (Finding 4)
+    financial_impact_verified: str          # quantified savings (Finding 4)
+    sustainability_check: str               # process for maintaining gains
+    handover_documented: str                # process owner accepting (Finding 5)
+    lessons_learned: str                    # what went well, what didn't (Finding 12)
+    transferability: str                    # applicable elsewhere (Finding 12)
+    # Gate metadata
+    computation_results: list[dict] = []
+    acknowledged_gaps:   list[str]  = []
+    citations:           list[dict] = []
+    uploads:             list[dict] = []
+```
+
+**`citations` and `uploads` were the cross-check catch.** Both were added to `PhaseState` by Finding 8 and then omitted from the Output schemas — so the evidence trail reached state and stopped there, never arriving in the document that is supposed to record what the phase was grounded in. `computation_results` and `acknowledged_gaps` had the same shape of problem from the other direction: they are assembled *at gate time* from `artifacts` and the validation stack, not captured per turn by `CoachingResponse`, and nothing said where they came from.
+
+### Gate Assembly — All Five Phases
+
+Runs in `gate_apply` after Belt approval. **No LLM call.**
+
+```python
+# ── DEFINE ────────────────────────────────────────────────────────────
+gate_document = DefineOutput(
+    problem_statement=artifacts["problem_statement"],
+    project_scope=artifacts["project_scope"],
+    goal_statement=artifacts["goal_statement"],
+    voc_summary=artifacts["voc_summary"],
+    business_case=artifacts.get("business_case", ""),
+    team=artifacts.get("team", ""),
+    baseline_metric=artifacts.get("baseline_metric", ""),
+    target_metric=artifacts.get("target_metric", ""),
+    computation_results=artifacts.get("computation_results", []),
+    acknowledged_gaps=validation_stack.get_acknowledged_gaps(),
+    citations=state["citations"],
+    uploads=state["uploads"],
+)
+
+# ── MEASURE ───────────────────────────────────────────────────────────
+gate_document = MeasureOutput(
+    baseline_mean=artifacts["baseline_mean"],
+    data_collection_plan=artifacts["data_collection_plan"],
+    baseline_sigma=artifacts.get("baseline_sigma", ""),
+    measurement_system_validated=artifacts.get("measurement_system_validated", ""),
+    computation_results=artifacts.get("computation_results", []),
+    acknowledged_gaps=validation_stack.get_acknowledged_gaps(),
+    citations=state["citations"],
+    uploads=state["uploads"],
+)
+
+# ── ANALYSE ───────────────── causal_hypothesis is a dict ─────────────
+gate_document = AnalyseOutput(
+    root_cause_statement=artifacts["root_cause_statement"],
+    root_cause_validation=artifacts["root_cause_validation"],
+    causal_hypothesis=artifacts.get("causal_hypothesis", {}),
+    ruled_out_causes=artifacts.get("ruled_out_causes", ""),
+    computation_results=artifacts.get("computation_results", []),
+    acknowledged_gaps=validation_stack.get_acknowledged_gaps(),
+    citations=state["citations"],
+    uploads=state["uploads"],
+)
+
+# ── IMPROVE ──────────── solution_linked_to_root_cause is a dict ──────
+gate_document = ImproveOutput(
+    selected_solution=artifacts["selected_solution"],
+    pilot_result=artifacts["pilot_result"],
+    solution_linked_to_root_cause=artifacts.get("solution_linked_to_root_cause", {}),
+    implementation_plan=artifacts.get("implementation_plan", ""),
+    computation_results=artifacts.get("computation_results", []),
+    acknowledged_gaps=validation_stack.get_acknowledged_gaps(),
+    citations=state["citations"],
+    uploads=state["uploads"],
+)
+
+# ── CONTROL ──────────────── post_improvement_metric is a dict ────────
+gate_document = ControlOutput(
+    control_plan=artifacts["control_plan"],
+    post_improvement_metric=artifacts.get("post_improvement_metric", {}),
+    improvement_delta=artifacts.get("improvement_delta", ""),
+    financial_impact_verified=artifacts.get("financial_impact_verified", ""),
+    sustainability_check=artifacts.get("sustainability_check", ""),
+    handover_documented=artifacts.get("handover_documented", ""),
+    lessons_learned=artifacts.get("lessons_learned", ""),
+    transferability=artifacts.get("transferability", ""),
+    computation_results=artifacts.get("computation_results", []),
+    acknowledged_gaps=validation_stack.get_acknowledged_gaps(),
+    citations=state["citations"],
+    uploads=state["uploads"],
+)
+```
+
+**One pattern across all five, and the access style encodes the tier:**
+
+| Field kind | Access | If absent |
+|---|---|---|
+| Tier 1 | `artifacts["field"]` | **`KeyError`** — correct; Layer 2b should have blocked the gate |
+| Tier 2 | `artifacts.get("field", "")` | Empty string — records that the Belt proceeded without it |
+| Cross-phase dict | `artifacts.get("field", {})` | Empty dict |
+| Gate metadata | Always the same four sources | `artifacts["computation_results"]`, `validation_stack.get_acknowledged_gaps()`, `state["citations"]`, `state["uploads"]` |
+
+**Letting a Tier 1 `KeyError` propagate is deliberate.** It signals a bug in the validation stack — Layer 2b passed a gate missing a field it must block on. Defaulting Tier 1 to `""` instead would write a gate document with a silently empty required field into the store, and the next phase would build on it.
 
 ---
 
@@ -1750,7 +2030,7 @@ No new gap number — an architectural refinement that reduces latency and cost 
 
 *Source: LangChain official reference (reference.langchain.com/python/langchain/agents/middleware/types/AgentMiddleware), LangChain 1.0 GA October 22, 2025, LangChain 1.1 December 2, 2025. Verified against docs and multiple independent 2026 sources.*
 
-> **Status: foundation reference. Preserve as-is — no decision needed.** These six hooks are what the entire ratified middleware stack is built on, and three of the four middlewares are custom, so this is not background reading. See §84 for the complete stack.
+> **Status: foundation reference. Preserve as-is — no decision needed.** These six hooks are what the entire ratified middleware stack is built on, and three of the five middlewares are custom, so this is not background reading. See §84 for the complete stack.
 
 ### Why This Section Exists
 
@@ -1853,9 +2133,21 @@ These are provided by LangChain — no custom implementation needed:
 
 Two built-ins are deliberately **not** used:
 - **`HumanInTheLoopMiddleware`** — two confirmed bugs hit our exact use case; §2 uses graph-level `interrupt()` instead (§53).
-- **`LLMToolSelectorMiddleware`** — per-phase tool binding (§39) already keeps every coach at 9–16 tools, inside the range where selection quality holds. Adding a selector LLM would spend a model call to solve a problem we solved structurally.
+- **`LLMToolSelectorMiddleware`** — per-phase tool binding (§39) already keeps every coach at 8–15 tools, inside the range where selection quality holds. Adding a selector LLM would spend a model call to solve a problem we solved structurally.
 
-`ModelRetryMiddleware` is worth evaluating for the invisible-retry tier of §67's fallback chain, where retry is a mechanical concern rather than a coaching event.
+**`ModelRetryMiddleware` is ADOPTED** as the invisible-retry tier of §67's fallback chain, where retry is a mechanical concern rather than a coaching event. `retries=2`, exponential backoff, on `wrap_model_call`.
+
+*This was previously recorded as "worth evaluating" with no decision attached.* The evaluation is short: without it we hand-write try/except, a sleep with backoff, and a counter increment around every model call — mechanical plumbing the built-in already provides, on a hook designed for exactly this. The rule "prefer built-in middleware wherever it exists" decides it.
+
+**The distinction that matters, and the reason this is not a duplicate of §67:**
+
+| | `ModelRetryMiddleware` | The fallback chain (§67) |
+|---|---|---|
+| Handles | Mechanical failure — the network flaked | Service-level failure |
+| Action | Retry **the same call** | **Swap the model**: gpt-4o → gpt-4o-mini → cache → degraded |
+| Visible to the Belt | Never | Degraded mode is |
+
+Different tiers, different mechanisms. The middleware sits below the chain and absorbs the transient failures that never need to reach it.
 
 ---
 
@@ -2053,7 +2345,7 @@ They are not redundant, because they check different actors' work at different m
 
 | | Checks | Fires | Blocking? |
 |---|---|---|---|
-| `DMAICGraderMiddleware` | The **AI's** output, against the phase rubric | Step 2d, before the Belt sees anything | Yes — retries the coach, cap 3 |
+| `DMAICGraderMiddleware` | The **AI's** coaching, against COACHING_QUALITY_RUBRIC | Every turn, before the Belt sees anything | Yes — retries the coach, cap 3 |
 | Policy advisory | The **Belt's** edits, against policy and prior gate values | Step 6, after the Belt edits | No — second opinion, Belt may override |
 
 Two different actors producing output at two different moments. Each needs its own quality check. See §2 for the full nine-step sequence.
@@ -2333,7 +2625,7 @@ The grader is **Layer 2d of four** (§68), not the whole of gate validation:
 Step 2a  Coherence check        lightweight LLM, every turn      §69
 Step 2b  Field presence         deterministic, DMAICGateValidator §48
 Step 2c  Constraint validation  lightweight LLM                   §68
-Step 2d  Quality rubric         DMAICGraderMiddleware             this section
+Step 2d  Quality rubric         gate document grader, PHASE_RUBRIC  this section
 ```
 
 Cheapest first. Each layer fires only if the previous passes. The shared cap is 3 attempts across all four, with accumulated feedback — not three per layer.
@@ -2371,7 +2663,7 @@ Cheapest first. Each layer fires only if the previous passes. The shared cap is 
 >   dmaic-control-phase/SKILL.md
 > ```
 >
-> **Each skill's `allowed-tools` lists that phase's computation tools plus the universal eight** — mirroring the per-phase binding of §39, so the skill and the tool binding cannot drift apart.
+> **Each skill's `allowed-tools` lists that phase's computation tools plus the universal seven** — mirroring the per-phase binding of §39, so the skill and the tool binding cannot drift apart.
 >
 > **Storage backend: `FilesystemBackend`** — git-versioned alongside the code, which means skill changes are reviewable in the same PR as the code that depends on them. `ContextHubBackend` (LangSmith) is deferred to a multi-deployment stage.
 >
@@ -2514,16 +2806,21 @@ No new gap number — this section formalises the specification the five DMAIC p
 
 ### The Complete Coach Middleware Stack — Ratified
 
-Four middlewares, all wired via `create_agent(middleware=[...])`:
+**Five middlewares**, all wired via `create_agent(middleware=[...])`. **The table order is the declaration order, which is the execution order for hooks of the same kind.**
 
-| Middleware | Source | Purpose | Hook |
-|---|---|---|---|
-| `DMAICSkillsMiddleware` | **Custom** (§83, §84) | Progressive disclosure of phase coaching instructions | `before_agent` + a registered tool |
-| `DMAICGraderMiddleware` | **Custom** (§42, §48) | Per-criterion quality evaluation against phase rubrics | `after_agent` |
-| `SummarizationMiddleware` | LangChain core (§36) | Context compression for long coaching sessions | `before_model` |
-| `before_model` state injection | **Custom** (§38) | Prepend structured project state early in the prompt | `before_model` |
+| # | Middleware | Source | Purpose | Hook |
+|---|---|---|---|---|
+| 1 | `BeforeModelStateInjection` | **Custom** (§38) | Prepend structured project state at the top of the prompt | `before_model` |
+| 2 | `DMAICSkillsMiddleware` | **Custom** (§83, §84) | Progressive disclosure of phase coaching instructions | `before_agent` + a registered tool |
+| 3 | `SummarizationMiddleware` | LangChain core (§36) | Context compression for long coaching sessions | `before_model` |
+| 4 | `ModelRetryMiddleware` | LangChain core (§80) | Invisible retry with backoff on transient failures | `wrap_model_call` |
+| 5 | `DMAICGraderMiddleware` | **Custom** (§42, §48) | Coaching-quality evaluation against `COACHING_QUALITY_RUBRIC` | `after_agent` |
 
-Three custom, one core. All three custom ones migrate to deepagents equivalents if and when it reaches 1.0 — a deliberate decision to carry a known, bounded amount of our own code rather than an unknown, unbounded amount of someone else's pre-1.0 churn.
+Three custom, two core. All three custom ones migrate to deepagents equivalents if and when it reaches 1.0 — a deliberate decision to carry a known, bounded amount of our own code rather than an unknown, unbounded amount of someone else's pre-1.0 churn.
+
+**Two corrections from the earlier four-entry version.** `ModelRetryMiddleware` was added (§80). And state injection moved from **last to first**: for `before_model` hooks, declaration order is execution order, so listing it last placed the project's established facts *after* skills loading and summarisation had already shaped the prompt — the exact inversion of the ordering argument §38 makes.
+
+**`DMAICGraderMiddleware` here grades coaching, not gate documents** (§42 Finding 18). Its rubric is `COACHING_QUALITY_RUBRIC`, shared across all five phases. The phase rubrics belong to Layer 4 of the validation stack, which is a node, not middleware.
 
 ### What Changed
 
@@ -2767,7 +3064,7 @@ This section originally concluded differently. It proposed **two new typed field
 
 | What must survive compression | Where it already lives | Outside `messages[]`? |
 |---|---|---|
-| A decision the Belt commits | `record_field` → `PhaseState.artifacts` → the store at gate approval | Yes, in all three |
+| A decision the Belt commits | `CoachingResponse.fields_captured` → `PhaseState.artifacts` → the store at gate approval | Yes, in all three |
 | A captured field value | Same path | Yes |
 | Which fields are still missing | Not stored at all — `check_gate_status()` computes it | N/A — derived |
 | Whether a gate is ready | `DMAICGateValidator`, layer 2b of the validation stack (§68) | N/A — derived |
@@ -3034,7 +3331,7 @@ This extends §2's principle rather than contradicting it: the policy advisory o
 
 **Mechanics:**
 
-- Fires inside the `policy_advisory` node, **before each coach response is returned to the Belt** — not only at gate boundaries
+- Fires as policy-advisory logic inside `gate_apply`, and mid-phase before each coach response is returned to the Belt — not only at gate boundaries
 - Compares the Belt's most recent statements (extracted this turn) against the `artifacts` already committed in prior gate documents
 - If any numeric or categorical field value differs, the coach's response is **suppressed** and a HITL interrupt payload is emitted
 - Payload contains: field name, previously approved value, its approval timestamp and gate, the proposed new value, and two Belt-facing options
@@ -3903,7 +4200,7 @@ This was **Gap 19**, discussed at length in §36. It is closed by `Summarization
 Recent messages (last 20)  → kept raw in messages[]        (keep=("messages", 20))
 Older messages             → compressed by SummarizationMiddleware
                              at ~100k tokens               (trigger=("tokens", 100_000))
-Captured fields            → record_field → PhaseState.artifacts → the store
+Captured fields            → CoachingResponse → PhaseState.artifacts → the store
                              at gate approval. Never in messages[], so
                              compression cannot touch them.
 Missing fields, blockers   → not stored at all. Derived on demand from
@@ -4313,7 +4610,7 @@ def reflection_node(state):
     """)
     if critique.is_satisfactory:
         return Command(goto=END)
-    return Command(update={"validator_feedback": critique}, goto="revise")
+    return Command(update={"validator_feedback": critique}, goto="planner")
 ```
 
 Checks output against a standard — completeness, format, a rubric. Only one "side" exists: the producer and a critic grading against criteria. There is no disagreement being modeled because there is nothing to disagree *about* — only a standard to meet or fail.
@@ -4388,7 +4685,7 @@ Layer 1 runs before Layer 2 — if the deterministic checks fail, no LLM grader 
 Step 2a: Coherence check         lightweight LLM     §69
 Step 2b: Field presence          deterministic       §48 DMAICGateValidator
 Step 2c: Constraint validation   lightweight LLM     §68
-Step 2d: Quality rubric          LLM grader          §42 DMAICGraderMiddleware
+Step 2d: Quality rubric          LLM grader          §42 PHASE_RUBRIC (not the middleware)
 ```
 
 All four run inside the same pre-Belt window — before the interrupt fires at step 3 of §2's nine-step pattern. The iteration cap of 3 is **shared across all four layers**, with accumulated feedback, not three attempts per layer.
@@ -4819,7 +5116,7 @@ All four layers run inside **step 2** of the nine-step HITL pattern — before t
 Step 2a  Coherence check         lightweight LLM, EVERY turn         §69
 Step 2b  Field presence          deterministic, DMAICGateValidator   §48
 Step 2c  Constraint validation   lightweight LLM                     this section
-Step 2d  Quality rubric          DMAICGraderMiddleware               §42
+Step 2d  Quality rubric          gate document grader, PHASE_RUBRIC   §42
 
 Cheapest first, most expensive last. Each fires only if the previous passes.
 Shared cap: 3 attempts across all four, with accumulated feedback.
@@ -5079,7 +5376,7 @@ Under the ratified architecture only the third layer survives, and it does not l
 
 | Concern | Where it lives now |
 |---|---|
-| Format validation | Inside the `record_field` / extraction tool, via native structured output. No separate parser. |
+| Format validation | `response_format=CoachingResponse` on the executor, via native structured output. No separate parser. |
 | Schema validation | Same location, same mechanism — native to ProviderStrategy (§82) |
 | Completeness | The `check_gate_status` tool invoked by the executor, **or** a conditional edge on the subgraph checking whether the required field count is met. Formalised as Layer 2b of the gate stack (§48, §68). |
 | Content-level hallucination | **Not addressed by §29 at all.** See below. |
@@ -6356,7 +6653,7 @@ things, and then asks how they stay in sync.
 
 **A later revision removed two more fields — `key_decisions` and `open_items` — that an earlier version of this section had added.** They were introduced by §36's context-compression decision, on reasoning that was sound but arrived at the wrong conclusion. The reasoning: `SummarizationMiddleware` compresses `messages[]`, so anything that must survive compression has to live in typed state. True. The error was assuming that required *new* fields.
 
-It did not. A decision the Belt commits already goes through `record_field`, is approved at a gate, and lands in `PhaseState.artifacts` and then the store — three locations, none of them `messages[]`. The compression guarantee was already satisfied. `key_decisions` added a parallel copy of facts that were durable anyway, and a parallel copy is a second source of truth that can disagree with the first.
+It did not. A decision the Belt commits already arrives via `CoachingResponse.fields_captured`, is approved at a gate, and lands in `PhaseState.artifacts` and then the store — three locations, none of them `messages[]`. The compression guarantee was already satisfied. `key_decisions` added a parallel copy of facts that were durable anyway, and a parallel copy is a second source of truth that can disagree with the first.
 
 `open_items` failed the same way against a different mechanism. Outstanding work is a *derived* property: `check_gate_status()` reports which required fields are unpopulated, and the four-layer validation stack (§68) is what surfaces blockers. A stored list is a second answer to "is this gate ready?" capable of contradicting `DMAICGateValidator`. A derived one is not capable of it.
 
@@ -6768,13 +7065,16 @@ artifacts and its gate document are one object.
 A single LangGraph task chain is defined **once** and reused. Each chain runs independently with its own execution history. The finalized output of Chain 1 is injected into Chain 2 as structured input.
 
 ### Single Chain Structure (4 nodes)
+
+> **This is the course lab's chain, not Agent Improve's phase subgraph.** Read it for the interrupt mechanism only. Our five nodes are `planner → executor → validation_stack → gate_review → gate_apply` (§23) — there is no `Revise` node, and `state["feedback"]` was split into `belt_edits` and `validator_feedback` (§18).
+
 ```
 Plan → Execute → Review (interrupt) → Revise → END
 ```
 
 - **Plan node**: decomposes task into structured steps. Does NOT execute. Stores plan in state.
 - **Execute node**: follows planner output, produces concise draft stored in `state["draft"]`
-- **Review node**: pauses using `interrupt()`. Payload includes draft, allowed actions, decision hint. Stores human decision in `state["feedback"]`
+- **Review node**: pauses using `interrupt()`. Payload includes draft, allowed actions, decision hint. Stores human decision in `state["feedback"]` *(lab name — ours is `belt_edits`)*
 - **Revise node**: if approved → draft becomes final immediately. If revision requested → regenerates using provided notes. Every chain ends with human-approved result.
 
 ### ChainState Schema — Source Lab Reference
@@ -8433,7 +8733,7 @@ Nodes that score high on either get `interrupt_before`.
 | Plan approval | Not applicable — DMAIC order is fixed (§44), so there is no plan to approve. The equivalent moment is the Belt approving Define's gate document, which is what scopes the project | Covered by the Define gate below |
 | Gate evaluation | Belt reviews AI-extracted fields before the phase advances | `interrupt_before=["gate_review_node"]` (§44 two-node pattern) |
 | Field correction | Belt corrects wrong values before they are committed | `Command(resume={"corrections": {...}})`, processed by `gate_apply_node` |
-| Value contradiction | Belt resolves a conflict with a previously approved value | Interrupt payload emitted by `policy_advisory` (§38) |
+| Value contradiction | Belt resolves a conflict with a previously approved value | Interrupt payload emitted by the policy advisory` (§38) |
 
 This risk-classification framework is the principled basis for interrupt placement, and it is what §2's nine-step pattern implements. Note that the four-layer validation stack (§68) is *not* an interrupt — it runs before the interrupt fires, so the Belt is never shown work the system already knows is below standard.
 
@@ -8731,14 +9031,29 @@ Subgraphs only sync shared key names automatically, or use explicit input/output
 
 ```python
 class DefineOutput(BaseModel):
-    ctqs: list[str]
-    confidence_score: float
-    gaps_identified: list[str]
+    """Gate document for the Define phase. Canonical — see §82 for all five."""
+    # Tier 1 — gate-required
+    problem_statement: str
+    project_scope: str
+    goal_statement: str
+    voc_summary: str
+    # Tier 2 — rubric-recommended
+    business_case: str
+    team: str
+    baseline_metric: str
+    target_metric: str
+    # Gate metadata
+    computation_results: list[dict] = []
+    acknowledged_gaps:   list[str]  = []
+    citations:           list[dict] = []
+    uploads:             list[dict] = []
 
 # The orchestrator reads structured fields, never parses text
 ```
 
 This directly resolves a risk in our current architecture — the orchestrator should never be parsing natural language output from a subgraph to decide what to do next. It reads validated typed fields.
+
+> **This block previously carried a different, invented `DefineOutput`** — `ctqs: list[str]`, `confidence_score: float`, `gaps_identified: list[str]`. None of those are Define phase fields; the schema was written to illustrate the *mechanism* and was never reconciled with the actual phase. A second, also-wrong `DefineOutput` lived in §82 (`problem_statement`, `baseline_metric: float`, `scope`). Two definitions of the same class, neither matching the ratified fields, and both using `float` in contradiction of §17's Finding 3. **There is now one canonical definition per phase — all five are in §82** — and `MeasureOutput`, `AnalyseOutput`, `ImproveOutput` and `ControlOutput`, referenced throughout this document but never previously defined anywhere, are defined there too.
 
 ---
 
@@ -10457,7 +10772,7 @@ executor = create_agent(
 The executor's capabilities per turn:
 1. Plan-driven retrieval, from the Phase Planner's `planned_retrievals`
 2. Reactive retrieval, when the Belt's answer demands it — up to the 5-hop cap (§34)
-3. Field capture via `record_field`
+3. Field capture via `CoachingResponse.fields_captured`
 4. Phase-appropriate computation — 5 statistical tools for Analyse
 5. Gate readiness check via `check_gate_status`
 
@@ -10485,7 +10800,7 @@ The original version of this subsection split tools into two columns — interna
 Internal @tool (private, same process):
   rag_lookup_methodology      ← reasoning support
   rag_lookup_case_history     ← reasoning support
-  record_field                ← internal computation
+  CoachingResponse            ← internal, structured output
   check_gate_status           ← internal scoring
 
 MCP Tool (external, network-accessible):     ← THIS COLUMN IS EMPTY (§39)
@@ -10494,7 +10809,7 @@ MCP Tool (external, network-accessible):     ← THIS COLUMN IS EMPTY (§39)
   query_azure_devops_metrics()
 ```
 
-**The right-hand column is empty by decision, not by omission.** Everything in it required a live system integration, and AgentLean has none: the Belt uploads their data and the coach teaches them what to collect. So all 26 tools are internal `@tool` functions (§39), and the "boundary" this section describes turns out to enclose the whole system.
+**The right-hand column is empty by decision, not by omission.** Everything in it required a live system integration, and AgentLean has none: the Belt uploads their data and the coach teaches them what to collect. So all 25 tools are internal `@tool` functions (§39), and the "boundary" this section describes turns out to enclose the whole system.
 
 The distinction is still worth understanding. It is what makes the §39 reasoning legible — MCP is the right answer when tools must cross an organisational boundary, and the reason it is wrong here is a fact about our situation, not about the protocol.
 
@@ -10793,7 +11108,7 @@ None apply. Cross-agent tool sharing — Agent Improve reading Agent Resolve's i
 Three things in the design below are worth keeping, detached from the protocol:
 
 1. **Tool docstrings as the selection mechanism.** The care taken over "use when reasoning about a complex coaching decision" carries directly into the `@tool` docstrings (§60).
-2. **Read-only discipline.** Retrieval tools never write. Writes go through `record_field` and the gate flow, where the Belt approves them.
+2. **Read-only discipline.** Retrieval tools never write. Writes go through `CoachingResponse.fields_captured` and the gate flow, where the Belt approves them.
 3. **Structured JSON returns rather than prose.** Ratified throughout (§21, §82).
 
 ---
@@ -11591,17 +11906,17 @@ Each is a `@tool(args_schema=...)` function with a Pydantic argument schema. All
 
 | Phase | Universal tools | Phase-specific computation tools | Total |
 |---|---|---|---|
-| Define | 8 | `calculate_expected_savings` | 9 |
-| Measure | 8 | `calculate_sigma_level`, `calculate_cpk`, `calculate_dpmo`, `calculate_yield_rty`, `calculate_ftq`, `calculate_grr`, `calculate_sample_size_proportion`, `calculate_sample_size_mean` | 16 |
-| Analyse | 8 | `t_test`, `chi_square_test`, `anova`, `pearson_correlation`, `linear_regression` | 13 |
-| Improve | 8 | `calculate_doe_main_effects` | 9 |
-| Control | 8 | `xbar_r_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | 12 |
+| Define | 7 | `calculate_expected_savings` | **8** |
+| Measure | 7 | `calculate_sigma_level`, `calculate_cpk`, `calculate_dpmo`, `calculate_yield_rty`, `calculate_ftq`, `calculate_grr`, `calculate_sample_size_proportion`, `calculate_sample_size_mean` | **15** |
+| Analyse | 7 | `t_test`, `chi_square_test`, `anova`, `pearson_correlation`, `linear_regression` | **12** |
+| Improve | 7 | `calculate_doe_main_effects` | **8** |
+| Control | 7 | `xbar_r_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | **11** |
 
-**The universal eight**, bound to every phase executor: `record_field`, `rag_lookup_methodology`, `rag_lookup_evidence`, `rag_lookup_case_history`, `propose_template`, `propose_diagram`, `check_gate_status`, `request_human_approval`.
+**The universal seven**, passed to every phase executor via `tools=`: `rag_lookup_methodology`, `rag_lookup_evidence`, `rag_lookup_case_history`, `propose_template`, `propose_diagram`, `check_gate_status`, `request_human_approval`.
 
 ### Why Per-Phase Binding, Not Universal
 
-| | Option A — bind all 26 to every phase | Option B — per-phase subset *(selected)* |
+| | Option A — bind all 25 to every phase | Option B — per-phase subset *(selected)* |
 |---|---|---|
 | Tools per coach | 26 everywhere | 9–16, never more than 16 |
 | Selection quality | Degrades past ~10–15 tools per agent (2026 practitioner guidance) | Every coach stays in the tractable range |
@@ -11613,7 +11928,7 @@ Grouping was considered — a single `calculate_sample_size(type, ...)` with a m
 
 ### Architectural Consequence — The Subgraph Builder Needs to Know Its Phase
 
-Retrieval, `record_field`, and the advisory tools stay universal; computation tools do not. **The phase subgraph builder function therefore takes the phase as a parameter**, used to select the correct computation-tool subset for tool binding:
+Retrieval, templates, diagrams and gate status stay universal; computation tools do not. **The phase subgraph builder function therefore takes the phase as a parameter**, used to select the correct computation-tool subset for tool binding:
 
 ```python
 def build_phase_subgraph(phase: str, llm):
@@ -11994,13 +12309,13 @@ LangGraph's cycle capability was barely used. Each request triggered one clean p
 **The refactored shape uses cycles at both levels.** Per §23, a phase subgraph is not a straight pipeline:
 
 ```
-        ┌──────────────────────────────────────────┐
-        │                                          │
-   phase_planner → phase_executor → policy_advisory┤
-        ↑                 │                        │
-        │                 └── (tool-calling loop,  │
-        │                      ≤5 hops, §34)       │
-        └──── revise ← gate_review (interrupt) ────┘
+        ┌────────────────────────────────────────────┐
+        │                                            │
+   phase_planner → phase_executor → validation_stack ┤
+        ↑                 │                          │
+        │                 └── (tool-calling loop,    │
+        │                      ≤5 hops, §34)         │
+        └── gate_apply ← gate_review (interrupt) ────┘
 ```
 
 The planner fires many times per phase, not once: after each executor step, control returns to the planner to decide whether to keep coaching the current field, move to the next field, or trigger the gate. That is a cycle, and it is why LangGraph rather than a DAG engine is the right runtime. Between phases the top level is deliberately acyclic — static edges, `define → measure → analyse → improve → control` (§44).
@@ -12453,7 +12768,7 @@ planner_chain = (
 )
 plan = await planner_chain.ainvoke({"state": state})
 
-# Inside the policy_advisory node — LCEL for validation
+# Inside the gate_apply node's policy advisory — LCEL for validation
 advisory_chain = (
     build_validation_prompt(state)
     | llm.with_structured_output(AdvisorySchema)
@@ -12477,7 +12792,7 @@ Three things are wrong with it under the ratified architecture:
 
 1. **It encodes the pre-subagent monolith.** Extraction and completeness checking become fixed pipeline steps. In §17/§18/§23 the phase executor is a *node* inside a five-node subgraph, and extraction and completeness are *tools bound to that node* — invoked dynamically by the LLM, not chained deterministically via `|`.
 2. **`StrOutputParser` is superseded.** LangChain 1.0's ProviderStrategy (§82) gives native structured output, eliminating the parse-then-validate step entirely (§29). Where the call is an agent rather than a plain LLM invocation, `response_format=ProviderStrategy(Schema)` on `create_agent` is the preferred form — see §82.
-3. **`extraction_runnable` and `completeness_check_runnable` are retired as pipeline steps.** They are `record_field` and `check_gate_status` — tools, not runnables in an executor chain.
+3. **`extraction_runnable` and `completeness_check_runnable` are retired as pipeline steps.** They are `response_format=CoachingResponse` and `check_gate_status` — tools, not runnables in an executor chain.
 
 The benefits table above is real, but it applies to LCEL *at the right scope*: composability, streaming, `.abatch()`, per-step tracing, and `.with_fallbacks()` / `.with_retry()` all work fine inside a node.
 
