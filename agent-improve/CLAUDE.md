@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.10 — August 2026
+# Version 2.2.11 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -95,6 +95,27 @@ rules that bind, and where they live:
 | Universal tools | 8 | **7** (§5.1) |
 | Per-phase totals | 9 / 16 / 13 / 9 / 12 | **8 / 15 / 12 / 8 / 11** (§5.2) |
 | Gate document schemas | Undefined, or two conflicting | **Five canonical `{Phase}Output`** (§10.7) |
+
+### 0.6 — What Changed in 2.2.11 — the eBook gaps closed
+
+Findings 24 and 25, from the BB eBook extraction (57 gaps identified,
+25 closed by schema change, the rest by SKILL.md coaching content).
+
+| Area | v2.2.10 | v2.2.11 |
+|---|---|---|
+| Fields on all five schemas | — | **`issues_and_barriers` (Tier 1)**, **`secondary_metrics` (Tier 2)** (§10.7) |
+| Measure Tier 1 | 2 fields | **5** — adds `xy_matrix_summary`, `vital_few_xs`, `issues_and_barriers` (§9.7) |
+| Analyse | no practical-significance field | **`practical_significance`, Tier 1** — the eBook's second gate (§9.7) |
+| Statistical problem statement | Define, BB-only, no field | **Analyse, all Belts, `statistical_problem_statement`** (§9.7) |
+| Process owner buy-in | Control only | **Also Analyse and Improve** — `process_owner_buyin` (§10.7) |
+| Improve explanatory power | — | **`explanatory_power`** (§10.7) |
+| Three-party sign-off | Rubric item, no field | **`project_signoff` on `ControlOutput`** (§9.7) |
+| `control_plan` | `str` | **`dict` of five sub-plans** (§10.8) |
+| FMEA | BB-only rubric item | **Not tracked in any schema** (§10.8) |
+| Computation tools | Called and returned | **Six-step coaching pattern**, enforced by rubric (§8.2) |
+
+Field counts: Define 14 · Measure 12 · Analyse 13 · Improve 12 ·
+Control 15.
 
 ---
 
@@ -1140,7 +1161,32 @@ identical for all five phases:
 - Coach must stay on the current phase's topic
 - Coach must challenge weak inputs with specific follow-up questions
 - Coach must reference methodology when guiding (not just opinion)
+- When calling a computation tool, the coach must explain the purpose
+  before calling, interpret the result after, and suggest a visualisation
+  where applicable. The coach must not dump raw statistical output
+  without explanation.
 ```
+
+**The seventh criterion binds on every computation tool call.** The
+coach follows a six-step pattern, every tool, every time:
+
+| # | Step |
+|---|---|
+| 1 | **Explain why** — what this analysis proves and why the Belt needs it now |
+| 2 | **Guide data preparation** — what format is needed; check uploads via `rag_lookup_evidence` |
+| 3 | **Run the computation** — call the tool |
+| 4 | **Interpret the result** — plain language, no jargon (§13) |
+| 5 | **Visualise** — `propose_diagram` where applicable |
+| 6 | **Coach the next move** — what it means for the project |
+
+**Returning a p-value with no interpretation is a rubric failure**, not a
+style preference. A Belt handed `t_statistic: 4.23, p_value: 0.001` has a
+number they cannot act on and cannot defend at a gate. Because this
+grader fires **every turn**, the dump is caught before the Belt sees it.
+
+**Every SKILL.md must carry the six-step sequence for each computation
+tool in its phase's `allowed-tools`** (§8.3). Design detail and worked
+per-tool openings: ARCHITECTURE.md §3.4.2.
 
 **Why both exist.** The middleware catches coaching-process failures in
 real time — a coach that accepts "poor morale" as a root cause is
@@ -1537,17 +1583,29 @@ gate never asked for.
 
 **Tier 1, by phase:**
 
-| Phase | Tier 1 |
-|---|---|
-| Define | `problem_statement`, `voc_summary`, `project_scope`, `goal_statement` |
-| Measure | `baseline_mean`, `data_collection_plan` |
-| Analyse | `root_cause_statement`, `root_cause_validation` |
-| Improve | `selected_solution`, `pilot_result` |
-| Control | `control_plan`, `post_improvement_metric` |
+| Phase | Tier 1 | Count |
+|---|---|---|
+| Define | `problem_statement`, `voc_summary`, `project_scope`, `goal_statement`, `issues_and_barriers` | 5 |
+| Measure | `baseline_mean`, `data_collection_plan`, `xy_matrix_summary`, `vital_few_xs`, `issues_and_barriers` | 5 |
+| Analyse | `root_cause_statement`, `root_cause_validation`, `practical_significance`, `issues_and_barriers` | 4 |
+| Improve | `selected_solution`, `pilot_result`, `issues_and_barriers` | 3 |
+| Control | `control_plan` (**dict**, 5 sub-plans), `post_improvement_metric`, `issues_and_barriers` | 3 |
+
+**`issues_and_barriers` is Tier 1 in every phase.** Every real project has
+blockers; a Belt reporting none has not looked. If there genuinely are
+none, the Belt writes "none identified at this stage" — a conscious
+statement, not a silent skip.
+
+**It is NOT the same field as `acknowledged_gaps`.** `issues_and_barriers`
+is Belt-stated real-world blockers; `acknowledged_gaps` is
+system-generated and records skipped Tier 2 *fields*. Merging them is a
+violation.
 
 **Everything else in the rubric is Tier 2** — `baseline_sigma`,
 `ruled_out_causes`, `handover_documented`, `financial_impact_verified`,
-`implementation_plan`, `lessons_learned`, `transferability`, and the
+`implementation_plan`, `lessons_learned`, `transferability`,
+`secondary_metrics`, `statistical_problem_statement`,
+`process_owner_buyin`, `explanatory_power`, `project_signoff`, and the
 rest.
 
 **The grader's verdict has three statuses, not two:**
@@ -1585,10 +1643,18 @@ record:
 
 ```
 if belt_level == "Black Belt":
-    flag FMEA, DOE, X-Y matrix, statistical problem statement as Tier 2
+    flag DOE as a Tier 2 recommendation
 if belt_level == "Green Belt":
-    suppress these — do not recommend heavy methodology GB isn't trained for
+    suppress it — do not recommend heavy methodology GB isn't trained for
 ```
+
+**DOE is the only belt-gated item left.** Three others left this list:
+
+| Item | Now |
+|---|---|
+| X-Y matrix | **`xy_matrix_summary`, Tier 1, all Belts** — it produces the vital few X's Analyse cannot start without |
+| Statistical problem statement | **`statistical_problem_statement`, Tier 2, all Belts, in Analyse** — not Define |
+| FMEA | **Not tracked in any schema.** See §10.8 |
 
 **Stability / special-cause analysis is NOT suppressed for either
 level** — a baseline computed across an unstable process is not a
@@ -1935,6 +2001,57 @@ are in ARCHITECTURE.md §4.10. The binding rules:
   the schema that assembly never sets is a field that silently never
   reaches the store
 
+**Field counts, all five phases:**
+
+| Phase | Total | Tier 1 | Tier 2 | Gate metadata |
+|---|---|---|---|---|
+| Define | 14 | 5 | 5 | 4 |
+| Measure | 12 | 5 | 3 | 4 |
+| Analyse | 13 | 4 | 5 | 4 |
+| Improve | 12 | 3 | 5 | 4 |
+| Control | 15 | 3 | 8 | 4 |
+
+**Two fields are on all five schemas:** `issues_and_barriers` (Tier 1)
+and `secondary_metrics` (Tier 2). Adding a field to one phase without
+considering the other four is how the cross-phase gaps in the eBook
+extraction arose in the first place.
+
+### 10.8 — `control_plan` is a dict; FMEA is not tracked
+
+**`control_plan` is `dict`, never `str`.** Five sub-plans, all required:
+
+```python
+control_plan: dict = {
+    "documentation":    str,   # updated process maps, SOPs, training manuals
+    "monitoring":       str,   # what charts, what frequency, what limits, who checks
+    "response":         str,   # what happens when monitoring signals a problem
+    "training":         str,   # who needs training, in what format, verified how
+    "aligning_systems": str,   # HR, IT, budget changes needed to sustain
+}
+```
+
+**Tier 1 — the gate requires the dict, and the grader checks all five
+sub-plans are populated.** A single string cannot show that four were
+done and one was skipped, and a Training Plan written but never delivered
+is the most common real Control failure. Design detail: ARCHITECTURE.md
+§4.10.6.
+
+**FMEA has no field in any schema, and none may be added.** Not
+`fmea_summary`, not `updated_fmea`, not an FMEA sub-key anywhere.
+
+FMEA is heavy manufacturing methodology built around severity ×
+occurrence × detection scoring of physical failure modes. Agent Improve's
+typical case is service or transactional DMAIC, where `xy_matrix_summary`
+and `vital_few_xs` already do the prioritisation job without the RPN
+overhead. Requiring an FMEA would push every Belt through a heavy
+artefact to satisfy a field — the mechanical field-filling §9.7 exists to
+prevent.
+
+**If a Black Belt performs one, it lives in `uploads`** as an attached
+document, and the BB SKILL.md may present it as an available technique.
+The schema does not track it, the grader does not ask for it, and no gate
+blocks on it. Full rationale: ARCHITECTURE.md §4.10.5.
+
 *Rationale: REFACTORING_AGENT_IMPROVE.md §17, §18, §19, §21, §52, §52a, §68, §70, §82.*
 
 ---
@@ -2096,6 +2213,14 @@ to choose backoff strategy (§4.8).
   in the checkpoint, or the v1 reset bug returns (§10.1, §1.7)
 - Never merge `validator_feedback` and `belt_edits` — system validation
   and Belt corrections are different actors at different moments (§10.1)
+- Never merge `issues_and_barriers` and `acknowledged_gaps` — Belt-stated
+  blockers and system-recorded skipped fields are different things (§9.7)
+- Never type `control_plan` as `str` — it is a dict of five sub-plans
+  (§10.8)
+- Never add an FMEA field to any schema — it is deliberately not tracked
+  (§10.8)
+- Never add a field to one phase's Output schema without checking whether
+  it belongs on all five (§10.7)
 - Never write `current_phase` or `phase_index` outside the output mapper
   — they are derived values kept for readability, and one write site is
   what keeps them honest (§10.1)
@@ -2145,8 +2270,12 @@ to choose backoff strategy (§4.8).
   block a gate (§9.7)
 - Never drop a Tier 2 gap the Belt proceeded past — it goes in
   `acknowledged_gaps` in the gate document (§9.6, §9.7)
-- Never recommend FMEA, DOE, X-Y matrix or a statistical problem
-  statement to a Green Belt (§9.7)
+- Never recommend DOE to a Green Belt (§9.7). The X-Y matrix and the
+  statistical problem statement are no longer belt-gated — both are
+  required of all Belts, as fields (§9.7)
+- Never let the coach return raw computation output without explaining
+  the purpose beforehand and interpreting the result afterwards — it is a
+  `COACHING_QUALITY_RUBRIC` criterion, checked every turn (§8.2)
 - Never approve a gate without writing the gate document to **both** the
   store and `PhaseState.final` (§9.6)
 - Never let the Belt see the grader loop

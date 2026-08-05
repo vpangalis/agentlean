@@ -1846,27 +1846,33 @@ class DefineOutput(BaseModel):
     problem_statement: str                  # measurable problem, baseline and target
     project_scope: str                      # explicit inclusions and exclusions
     goal_statement: str                     # SMART
-    voc_summary: str                        # voice of customer (Finding 12)
+    voc_summary: str                        # voice of customer
+    issues_and_barriers: str                # Belt-stated blockers (§4.10.5)
     # Tier 2 — rubric-recommended
-    business_case: str                      # quantifiable business impact
+    business_case: str                      # quantified business impact (COPQ)
     team: str                               # Belt, sponsor, 2+ members with roles
     baseline_metric: str                    # current measured state
     target_metric: str                      # target value
-    # Gate metadata — assembled at gate time, not captured per turn
-    computation_results: list[dict] = []    # from tool calls during the phase (Finding 7)
-    acknowledged_gaps:   list[str]  = []    # Tier 2 fields skipped (Finding 11)
-    citations:           list[dict] = []    # sources referenced (Finding 8)
-    uploads:             list[dict] = []    # files the Belt uploaded (Finding 8)
+    secondary_metrics: str                  # what could get worse (§4.10.5)
+    # Gate metadata
+    computation_results: list[dict] = []
+    acknowledged_gaps:   list[str]  = []
+    citations:           list[dict] = []
+    uploads:             list[dict] = []
 
 
 class MeasureOutput(BaseModel):
     """Gate document for the Measure phase."""
     # Tier 1
-    baseline_mean: str                      # value with units, as a string
+    baseline_mean: str                      # value with units, as the Belt stated it
     data_collection_plan: str               # sample size, frequency, responsible person
+    xy_matrix_summary: str                  # evidence prioritisation happened (§4.10.5)
+    vital_few_xs: str                       # the ranked result Analyse consumes (§4.10.5)
+    issues_and_barriers: str
     # Tier 2
-    baseline_sigma: str                     # calculated sigma level (Finding 5)
+    baseline_sigma: str                     # calculated sigma level
     measurement_system_validated: str       # GR&R or equivalent evidence
+    secondary_metrics: str
     # Gate metadata
     computation_results: list[dict] = []
     acknowledged_gaps:   list[str]  = []
@@ -1877,11 +1883,16 @@ class MeasureOutput(BaseModel):
 class AnalyseOutput(BaseModel):
     """Gate document for the Analyse phase."""
     # Tier 1
-    root_cause_statement: str               # identified and prioritised
+    root_cause_statement: str               # specific and actionable
     root_cause_validation: str              # statistical or observational evidence
+    practical_significance: str             # how much of the problem it explains (§4.10.5)
+    issues_and_barriers: str
     # Tier 2
-    causal_hypothesis: dict                 # cross-phase ref → Measure baseline (Finding 5)
+    causal_hypothesis: dict                 # cross-phase ref -> Measure baseline (§4.7)
     ruled_out_causes: str                   # alternatives rejected, with rationale
+    statistical_problem_statement: str      # moved here from Define (§4.10.5)
+    process_owner_buyin: str                # owner accepts the root causes (§4.10.5)
+    secondary_metrics: str
     # Gate metadata
     computation_results: list[dict] = []
     acknowledged_gaps:   list[str]  = []
@@ -1893,10 +1904,14 @@ class ImproveOutput(BaseModel):
     """Gate document for the Improve phase."""
     # Tier 1
     selected_solution: str                  # criteria-based selection documented
-    pilot_result: str                       # measurable improvement demonstrated
+    pilot_result: str                       # practical AND statistical significance
+    issues_and_barriers: str
     # Tier 2
-    solution_linked_to_root_cause: dict     # cross-phase ref → Analyse root cause (Finding 5)
-    implementation_plan: str                # timeline, responsible person, resources
+    solution_linked_to_root_cause: dict     # cross-phase ref -> Analyse root cause (§4.7)
+    implementation_plan: str                # timeline, owner, resources
+    explanatory_power: str                  # R-squared / variance explained (§4.10.5)
+    process_owner_buyin: str                # owner accepts the solution (§4.10.5)
+    secondary_metrics: str
     # Gate metadata
     computation_results: list[dict] = []
     acknowledged_gaps:   list[str]  = []
@@ -1907,15 +1922,18 @@ class ImproveOutput(BaseModel):
 class ControlOutput(BaseModel):
     """Gate document for the Control phase."""
     # Tier 1
-    control_plan: str                       # frequency, thresholds, responsible person
-    post_improvement_metric: dict           # cross-phase ref → Measure baseline (Finding 5)
+    control_plan: dict                      # FIVE sub-plans — see §4.10.6
+    post_improvement_metric: dict           # cross-phase ref -> Measure baseline (§4.7)
+    issues_and_barriers: str
     # Tier 2
-    improvement_delta: str                  # change from baseline (Finding 4)
-    financial_impact_verified: str          # quantified savings (Finding 4)
-    sustainability_check: str               # process for maintaining gains
-    handover_documented: str                # process owner accepting (Finding 5)
-    lessons_learned: str                    # what went well, what didn't (Finding 12)
-    transferability: str                    # applicable elsewhere (Finding 12)
+    improvement_delta: str                  # change from baseline
+    financial_impact_verified: str          # quantified saving (book pp677-679)
+    sustainability_check: str               # process for maintaining the gains
+    handover_documented: str                # named process owner accepting
+    lessons_learned: str                    # feeds the case index
+    transferability: str                    # yokoten — feeds rag_lookup_case_history
+    project_signoff: str                    # Champion + Belt + Finance (§4.10.5)
+    secondary_metrics: str
     # Gate metadata
     computation_results: list[dict] = []
     acknowledged_gaps:   list[str]  = []
@@ -1930,68 +1948,86 @@ class ControlOutput(BaseModel):
 Runs in `gate_apply` after Belt approval. **No LLM call.**
 
 ```python
-# ── DEFINE ────────────────────────────────────────────────────────────
+# -- DEFINE ------------------------------------------------------------
 gate_document = DefineOutput(
     problem_statement=artifacts["problem_statement"],
     project_scope=artifacts["project_scope"],
     goal_statement=artifacts["goal_statement"],
     voc_summary=artifacts["voc_summary"],
+    issues_and_barriers=artifacts["issues_and_barriers"],
     business_case=artifacts.get("business_case", ""),
     team=artifacts.get("team", ""),
     baseline_metric=artifacts.get("baseline_metric", ""),
     target_metric=artifacts.get("target_metric", ""),
+    secondary_metrics=artifacts.get("secondary_metrics", ""),
     computation_results=artifacts.get("computation_results", []),
     acknowledged_gaps=validation_stack.get_acknowledged_gaps(),
     citations=state["citations"],
     uploads=state["uploads"],
 )
 
-# ── MEASURE ───────────────────────────────────────────────────────────
+# -- MEASURE -----------------------------------------------------------
 gate_document = MeasureOutput(
     baseline_mean=artifacts["baseline_mean"],
     data_collection_plan=artifacts["data_collection_plan"],
+    xy_matrix_summary=artifacts["xy_matrix_summary"],
+    vital_few_xs=artifacts["vital_few_xs"],
+    issues_and_barriers=artifacts["issues_and_barriers"],
     baseline_sigma=artifacts.get("baseline_sigma", ""),
     measurement_system_validated=artifacts.get("measurement_system_validated", ""),
+    secondary_metrics=artifacts.get("secondary_metrics", ""),
     computation_results=artifacts.get("computation_results", []),
     acknowledged_gaps=validation_stack.get_acknowledged_gaps(),
     citations=state["citations"],
     uploads=state["uploads"],
 )
 
-# ── ANALYSE ───────────────── causal_hypothesis is a dict ─────────────
+# -- ANALYSE ---------------- causal_hypothesis is a dict --------------
 gate_document = AnalyseOutput(
     root_cause_statement=artifacts["root_cause_statement"],
     root_cause_validation=artifacts["root_cause_validation"],
+    practical_significance=artifacts["practical_significance"],
+    issues_and_barriers=artifacts["issues_and_barriers"],
     causal_hypothesis=artifacts.get("causal_hypothesis", {}),
     ruled_out_causes=artifacts.get("ruled_out_causes", ""),
+    statistical_problem_statement=artifacts.get("statistical_problem_statement", ""),
+    process_owner_buyin=artifacts.get("process_owner_buyin", ""),
+    secondary_metrics=artifacts.get("secondary_metrics", ""),
     computation_results=artifacts.get("computation_results", []),
     acknowledged_gaps=validation_stack.get_acknowledged_gaps(),
     citations=state["citations"],
     uploads=state["uploads"],
 )
 
-# ── IMPROVE ──────────── solution_linked_to_root_cause is a dict ──────
+# -- IMPROVE ----------- solution_linked_to_root_cause is a dict -------
 gate_document = ImproveOutput(
     selected_solution=artifacts["selected_solution"],
     pilot_result=artifacts["pilot_result"],
+    issues_and_barriers=artifacts["issues_and_barriers"],
     solution_linked_to_root_cause=artifacts.get("solution_linked_to_root_cause", {}),
     implementation_plan=artifacts.get("implementation_plan", ""),
+    explanatory_power=artifacts.get("explanatory_power", ""),
+    process_owner_buyin=artifacts.get("process_owner_buyin", ""),
+    secondary_metrics=artifacts.get("secondary_metrics", ""),
     computation_results=artifacts.get("computation_results", []),
     acknowledged_gaps=validation_stack.get_acknowledged_gaps(),
     citations=state["citations"],
     uploads=state["uploads"],
 )
 
-# ── CONTROL ──────────────── post_improvement_metric is a dict ────────
+# -- CONTROL ---- control_plan is a dict of five sub-plans (§4.10.6) ---
 gate_document = ControlOutput(
     control_plan=artifacts["control_plan"],
     post_improvement_metric=artifacts.get("post_improvement_metric", {}),
+    issues_and_barriers=artifacts["issues_and_barriers"],
     improvement_delta=artifacts.get("improvement_delta", ""),
     financial_impact_verified=artifacts.get("financial_impact_verified", ""),
     sustainability_check=artifacts.get("sustainability_check", ""),
     handover_documented=artifacts.get("handover_documented", ""),
     lessons_learned=artifacts.get("lessons_learned", ""),
     transferability=artifacts.get("transferability", ""),
+    project_signoff=artifacts.get("project_signoff", ""),
+    secondary_metrics=artifacts.get("secondary_metrics", ""),
     computation_results=artifacts.get("computation_results", []),
     acknowledged_gaps=validation_stack.get_acknowledged_gaps(),
     citations=state["citations"],
@@ -2438,21 +2474,27 @@ DEFINE_RUBRIC = """
 [TIER 1] voc_summary: customer perspective — who is affected and how they judge it
 [TIER 1] project_scope: explicit inclusions and exclusions with process boundaries
 [TIER 1] goal_statement: SMART (Specific, Measurable, Achievable, Relevant, Time-bound)
+[TIER 1] issues_and_barriers: real project blockers — sponsor availability, data
+         access, resource constraints. "None identified at this stage" is an
+         acceptable answer; silence is not
 [TIER 2] business_case: quantified business impact in COPQ terms — cost of poor
          quality, not a qualitative assertion of importance
 [TIER 2] team: Belt, sponsor, and 2+ team members with named roles
-[TIER 2 · BB ONLY] statistical problem statement
+[TIER 2] baseline_metric / target_metric: current and target values
+[TIER 2] secondary_metrics: what could get worse if this improvement succeeds
 """
 
 MEASURE_RUBRIC = """
 [TIER 1] baseline_mean: current-state value with units, as the Belt stated it
 [TIER 1] data_collection_plan: sample size, frequency, and responsible person named
+[TIER 1] xy_matrix_summary: evidence that prioritisation of the X's was done
+[TIER 1] vital_few_xs: the ranked X's carried into Analyse, and why
+[TIER 1] issues_and_barriers: real project blockers
 [TIER 2] baseline_sigma: calculated sigma level from the baseline data
 [TIER 2] measurement_system_validated: GR&R or equivalent evidence provided
+[TIER 2] secondary_metrics: what could get worse if this improvement succeeds
 [TIER 2 · STRONG WARNING, BOTH LEVELS] stability: special causes checked before the
          baseline was taken — an unstable process has no meaningful baseline
-[TIER 2 · BB ONLY] FMEA
-[TIER 2 · BB ONLY] X-Y matrix
 """
 
 ANALYSE_RUBRIC = """
@@ -2460,36 +2502,49 @@ ANALYSE_RUBRIC = """
 [TIER 1] root_cause_validation: statistical or observational evidence, not opinion
 [TIER 2] causal_hypothesis: DICT — carries references_phase / references_field /
          references_value linking to Measure's baseline. Verified deterministically.
+[TIER 1] practical_significance: how much of the problem this root cause explains
+         — the eBook's second gate, in series with statistical significance
+[TIER 1] issues_and_barriers: real project blockers
 [TIER 2] ruled_out_causes: alternatives considered and rejected, with rationale
-[TIER 2 · BB ONLY] updated FMEA — only if an FMEA was done in Measure
+[TIER 2] statistical_problem_statement: the formal hypothesis, all Belts
+[TIER 2] process_owner_buyin: the owner accepts these root causes
+[TIER 2] secondary_metrics: what could get worse if this improvement succeeds
 """
 
 IMPROVE_RUBRIC = """
 [TIER 1] selected_solution: criteria-based selection documented (impact, effort, risk)
 [TIER 1] pilot_result: measurable improvement demonstrated with data — practical
          AND statistical significance, not one standing in for the other
+[TIER 1] issues_and_barriers: real project blockers
 [TIER 2] solution_linked_to_root_cause: DICT — references Analyse's root_cause_statement
 [TIER 2] implementation_plan: timeline, responsible person, resource requirements
+[TIER 2] explanatory_power: how much of the problem the selected X's explain
+[TIER 2] process_owner_buyin: the owner accepts this solution
+[TIER 2] secondary_metrics: what could get worse if this improvement succeeds
 [TIER 2 · BB ONLY] DOE
 """
 
 CONTROL_RUBRIC = """
-[TIER 1] control_plan: monitoring frequency, thresholds, and responsible person named
+[TIER 1] control_plan: DICT — five sub-plans (documentation, monitoring, response,
+         training, aligning_systems). The grader checks all five are populated
+[TIER 1] issues_and_barriers: real project blockers
 [TIER 1] post_improvement_metric: DICT — the measured post-improvement value, carrying
          references to Measure's baseline so the shift is verified, not asserted
 [TIER 2] improvement_delta: the change from baseline, stated explicitly
-[TIER 2] financial_impact_verified: quantified saving (eBook p681)
+[TIER 2] financial_impact_verified: quantified saving (book pp677–679)
 [TIER 2] sustainability_check: process defined for maintaining the gains
 [TIER 2] handover_documented: process owner accepted responsibility, named individual
 [TIER 2] lessons_learned: what would be done differently — feeds the case index
 [TIER 2] transferability: where else this applies — yokoten, feeds rag_lookup_case_history
-[TIER 2 · BB FULL, GB SIMPLIFIED] three-party sign-off: Champion + Belt + Finance
+[TIER 2] project_signoff: Champion + Belt + Finance agree the project is complete
+[TIER 2] secondary_metrics: re-checked at close — "repeat same process for
+         secondary metrics"
 """
 ```
 
 These rubrics existed implicitly in the pre-refactor gate validation logic. Making them explicit and feeding them to a grader is the upgrade.
 
-**Control gained three fields, and the reason is not completeness for its own sake.** A DMAIC project that cannot show the baseline moved has not demonstrated anything — it has documented an intention. The eBook (p681) requires verified financial impact for the same reason. `post_improvement_metric` is Tier 1 and carries the reference to Measure's baseline, so the grader verifies the shift by reading Measure's gate document rather than accepting the claim; `improvement_delta` and `financial_impact_verified` are Tier 2, because the improvement is real without them but the project is not finished.
+**Control gained three fields, and the reason is not completeness for its own sake.** A DMAIC project that cannot show the baseline moved has not demonstrated anything — it has documented an intention. The eBook (book pp677–679) requires verified financial impact for the same reason. `post_improvement_metric` is Tier 1 and carries the reference to Measure's baseline, so the grader verifies the shift by reading Measure's gate document rather than accepting the claim; `improvement_delta` and `financial_impact_verified` are Tier 2, because the improvement is real without them but the project is not finished.
 
 **Three criteria are checked mechanically, not by judgment.** `causal_hypothesis`, `solution_linked_to_root_cause` and `post_improvement_metric` are dicts carrying `references_phase`, `references_field` and `references_value` (§17, ARCHITECTURE.md §4.7). The grader reads the referenced phase's gate document from the store and checks the named field holds the named value, failing with an exact message:
 
@@ -2584,6 +2639,68 @@ Note the contrast with §36's decision to leave `belt_level` **off** as a retrie
 | Grader temperature | 0.1 | The same gate document must receive the same verdict across runs — required for the regression testing in §75 |
 | Coach temperature | 0.5–0.7 | Natural language variation improves the Belt's coaching experience |
 | Extraction and field validators | 0.0–0.2 | Same consistency rationale as the grader |
+
+### Decision 7 — `COACHING_QUALITY_RUBRIC` and the Computation Tool Coaching Pattern
+
+**`DMAICGraderMiddleware`'s rubric is a single constant, shared across all five phases** — distinct from the five `PHASE_RUBRIC` constants Layer 2d uses (Decision 4, Finding 18). It grades the coach's *process*, not the gate document.
+
+```python
+COACHING_QUALITY_RUBRIC = """
+- Coach must not accept vague or unmeasurable statements as captured fields
+- Coach must not invent data, metrics, or values the Belt didn't provide
+- Coach must not do the Belt's work (writing their problem statement for them)
+- Coach must stay on the current phase's topic
+- Coach must challenge weak inputs with specific follow-up questions
+- Coach must reference methodology when guiding (not just opinion)
+- When calling a computation tool, the coach must explain the purpose
+  before calling, interpret the result after, and suggest a visualisation
+  where applicable. The coach must not dump raw statistical output
+  without explanation.
+"""
+```
+
+**The seventh criterion is new, and it exists because of a real gap in what "coaching" was specified to mean.** The problem, in the user's framing:
+
+> "We need to ensure the phase_executor node not only guides the Belt but explains them how to prepare for `linear_regression` and how to collect the data… and interpret it and give it back to the Belt with visual and text explanation. **This is a critical part of the coach who does not only ask questions but assists the Belt in every aspect.**"
+
+A coach that asks good questions and then returns `t_statistic: 4.23, p_value: 0.001` has not coached. The Belt has a number they cannot act on and cannot defend at a gate.
+
+#### The six-step pattern — every computation tool, every time
+
+| # | Step | What the coach does |
+|---|---|---|
+| 1 | **Explain why** | What this analysis proves, and why the Belt needs it now |
+| 2 | **Guide data preparation** | What format the tool needs; check what the Belt already uploaded via `rag_lookup_evidence` |
+| 3 | **Run the computation** | Call the tool — the Belt sees the call happening |
+| 4 | **Interpret the result** | Translate the statistical output into plain language |
+| 5 | **Visualise** | Call `propose_diagram` to show it graphically, where applicable |
+| 6 | **Coach the next move** | What this means for the project, and what happens next |
+
+**Steps 1, 4 and 6 are the coaching.** Steps 2, 3 and 5 are tool mechanics that most implementations would get right by default; the three that carry the teaching are exactly the three a model under-serves when it is optimising for a correct answer.
+
+**This applies to all 18 computation tools (§39), not only regression:**
+
+| Phase | Tool | Step 1 — how the coach opens |
+|---|---|---|
+| Define | `calculate_expected_savings` | "Let's estimate the financial impact. If each rework costs €X and you have Y per month…" |
+| Measure | `calculate_sigma_level` | "Your sigma level tells us how capable the process is. Let me calculate it from your defect data…" |
+| Measure | `calculate_cpk` | "Cpk shows whether your process fits within the spec limits. You'll need USL, LSL, mean and standard deviation…" |
+| Measure | `calculate_grr` | "Before we trust the data, we need to verify the measurement system. GR&R checks whether different people measuring the same thing get the same result…" |
+| Analyse | `t_test` | "To prove the training gap is real, we'll compare error rates between the two groups statistically…" |
+| Analyse | `linear_regression` | "Let's see how strongly training hours predict error rate. You'll need two columns of data…" |
+| Control | `xbar_r_chart_limits` | "Control charts will monitor whether the improvement holds. I'll calculate the control limits from your post-improvement data…" |
+
+**Why the rubric criterion rather than a prompt instruction.** A system-prompt line saying "explain your computations" is advisory and degrades over a long conversation. The middleware grader fires on **every turn** via `after_agent`, so a raw-output dump is caught and retried **before the Belt sees it** — the same argument that put coherence checking at Layer 1 rather than in a prompt (§68).
+
+#### Consequence for SKILL.md authoring
+
+**Each phase's SKILL.md must carry the six-step sequence for every computation tool in that phase's `allowed-tools`** (§83, §84). At 20–40 lines of coaching guidance per tool, Measure's eight computation tools alone are 160–320 lines — **this is the most content-heavy part of each skill.**
+
+The BB eBook extractions under `agent-improve/skills/extraction/` supply the methodology content; the skill shapes it into the six-step conversation. That is the division of labour between the extraction files and the skills: extraction is *what the methodology says*, the skill is *how the coach says it*.
+
+**Step 2 is where §60's data-collection coaching actually lives.** The eBook teaches what data a tool needs; the coach teaches the Belt to collect and structure it. Since `improve_evidence_index` is the only channel through which external data enters AgentLean (§39, §63), the quality of step 2 across the 18 tools is the quality of the system's grounding.
+
+---
 
 ### Audit Trail Integration
 
