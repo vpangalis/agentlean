@@ -1,6 +1,6 @@
 # Agent Improve — Architecture & Design Document
 **Agentlean Platform · DMAIC Improvement Agent**
-Version 2.2.14 · August 2026
+Version 2.2.15 · August 2026
 Status: v2.2 architecture ratified · refactor in progress (Step 2.2 complete;
 Step 3.6 index schema rename applied; state design closed — §4;
 node names, tool binding and output schemas closed — §3.2.1, §3.3.2, §4.10;
@@ -3234,6 +3234,9 @@ editable panel with an explicit approve action. This is steps 4–7 of
 §3.6 made concrete. Edits flow to `/gate/approve` and are validated by
 the policy advisory before commit.
 
+**This is the same component as §11.6, not a separate one** — see
+§11.7.
+
 ### 11.5 Conflict resolution panel
 **New.** When §3.8 fires, the Belt sees the field name, the previously
 approved value with its approval timestamp and gate, the proposed new
@@ -3241,8 +3244,43 @@ value, and the two options. Choosing "update" surfaces which downstream
 phases become provisional **before** the Belt confirms.
 
 ### 11.6 Completeness and trace surfacing
-`completeness_score` is surfaced visually at gate review. The LangSmith
-run id is available for support escalation.
+Progress is surfaced visually and continuously — **two counts, Tier 1
+and Tier 2 separately**, derived from `PhaseState.artifacts` against the
+phase's field list. There is no stored `completeness_score`; a stored
+score is a second source of truth that can disagree with the gate
+(§4.1). The LangSmith run id is available for support escalation.
+
+### 11.7 The live gate document
+
+**§11.4 and §11.6 are one component.** Showing the Belt their captured
+fields and showing them their progress are the same view at different
+zoom levels, and splitting them across two moments gave the wrong
+behaviour: fields visible only at the gate, progress visible only as a
+number.
+
+The implementation is a **single live document tab** beside the chat,
+always visible, updating the moment a field is captured via
+`CoachingResponse.fields_captured` (§4.10.1). It reads as a document —
+headers, tables, formatted content — because it is what the Belt shows a
+sponsor and downloads as PDF or Word. Mid-phase downloads carry
+`[not yet captured]` placeholders; post-gate downloads are the approved
+document.
+
+**The rendering format is defined per phase in the skills**, in each
+SKILL.md's **Document Layout** section: which fields get headers, which
+render as tables, where `computation_results` and `citations` appear.
+
+| Phase | Skill section | Layout specifics |
+|---|---|---|
+| Define | `skills/dmaic-define-phase/SKILL.md` §8 | SIPOC as a row-per-step table |
+| Measure | `skills/dmaic-measure-phase/SKILL.md` §8 | Process map with touch vs elapsed time; X-Y matrix as a table |
+| Analyse | `skills/dmaic-analyse-phase/SKILL.md` §9 | `causal_hypothesis` as a callout; `ruled_out_causes` as a table |
+| Improve | `skills/dmaic-improve-phase/SKILL.md` §8 | Before / after / change line; phased implementation table |
+| Control | `skills/dmaic-control-phase/SKILL.md` §8 | Before/after block leads; five sub-plans with written / implemented status |
+
+**No new backend work.** The data is `PhaseState.artifacts`, already
+checkpointed and updated on every capture (§4.2). Full requirement:
+REFACTORING_AGENT_IMPROVE.md §77, Patterns 3 + 4 merged.
 
 UI modularisation of `index.html` remains a separate roadmap item.
 
@@ -3688,6 +3726,8 @@ load-bearing in more places than it appears.
 | Aug 2026 | **2.2.13** | **`imr_chart_limits` added to the Control phase (§8.2, §13.5).** Control's chart set covered batched measurements (`xbar_r_chart_limits`), proportions (`p_chart_limits`) and counts (`c_chart_limits`), but not the individuals / moving-range chart — which the eBook recommends for most **inputs** and for low-volume or long-cycle processes (book p631). That is the common case in service and transactional work: most office processes produce one figure per week, not batches of five. Without the tool the Control skill had to coach a workaround — aggregate into weekly totals and use a proportion chart — which is the wrong chart for the data and produces limits that do not mean what the Belt thinks. **Control goes from 11 tools to 12**; the maximum across phases is unchanged at 15 (Measure), so the §5.2 cap of 16 is untouched. **A pre-existing count error was found and corrected in the same pass:** every document has said "18 computation tools" since v2.2, while the §8.2 table has always enumerated **19** (1 + 8 + 5 + 1 + 4). With the new tool the correct figures are **20 computation tools and 27 total**. The table was always right and the prose was wrong; the figure had been restated across nine amendments without anyone re-deriving it. Per-phase totals are now **8 / 15 / 12 / 8 / 12**. No code change accompanies this amendment — `knowledge/computation.py` is written at Step 3.4. |
 
 | Aug 2026 | **2.2.14** | **Computation coaching goes from six steps to seven; three new `COACHING_QUALITY_RUBRIC` criteria; §87 backlog item 15 (§3.4.1, §3.4.2, §87).** The first SKILL.md review produced 17 notes, three of which change the coaching approach rather than its content. **Seven-step computation pattern (§3.4.2).** Step 1 is now *educate on the concept* — what this **is**, in plain language, with a real-world analogy, and what the output numbers will mean, before any are produced. The original pattern opened with “explain why”, which assumes the Belt already knows what a Cpk or a p-value is; most do not, and Agent Improve exists to serve teams with no Six Sigma qualification (§1). A Belt told “this matters because it shows capability” and then handed `Cpk = 0.82` has learned nothing — they cannot judge whether 0.82 is good, and cannot defend it at a gate. Educating first also front-loads the interpretation: by the time the number arrives the Belt already holds the frame, so step 5 confirms rather than introduces. **Three rubric criteria added (§3.4.1).** *Show a concrete example of a completed answer before asking the Belt to produce theirs* — describing what good looks like in a SKILL.md tells the developer, not the Belt, and show-first reaches a good answer in one turn instead of three of ask-and-correct. *No external URLs from training data* — a model asked about methodology will produce stale, unverifiable links outside the grounding contract of §1.9; methodology comes from `rag_lookup_methodology`, woven into the coach's own voice. *Educate before computing*, replacing the narrower “explain the purpose before calling”. **§87 backlog item 15 — multi-source knowledge index (Finding 27).** `source_document` and `tenant_id` on `improve_knowledge_index`, a priority-ordered retrieval filter in `rag_lookup_methodology`, and phase-classifier re-evaluation for non-BB-eBook documents. Deferred because the refactor builds against one knowledge source and the change is incremental — two fields and one filter clause — with no second document to test against. Overlaps item 1 (multi-tenant filtering on `improve_case_index`); both fire on the same trigger and should be planned together. **All five SKILL.md files rewritten** to the show-first pattern, with an A→F session flow (opening → resumption → per-field → capture feedback → Tier 2 offered → gate ready), a per-phase Document Layout section defining how the live gate document renders, upload handling, `CoachingResponse` capture instructions, and the seven-step sequence for all 20 computation tools. No code change accompanies this amendment. |
+
+| Aug 2026 | **2.2.15** | **Frontend Patterns 3 and 4 merge into the live gate document (§11.4, §11.6, new §11.7; REFACTORING §77).** Showing the Belt their captured fields (Pattern 3) and showing them their progress (Pattern 4) are the same view at different zoom levels, and splitting them across two moments produced the wrong behaviour: fields visible only at the gate, progress visible only as a number. They are now one component — a single live document tab beside the chat, always visible, updating the moment a field is captured via `CoachingResponse.fields_captured` (§4.10.1), readable as a document rather than a field list, and downloadable as PDF or Word at any point with `[not yet captured]` placeholders mid-phase. **The rendering spec lives in the skills, not here.** Each SKILL.md carries a Document Layout section defining which fields get headers, which render as tables, and where `computation_results` and `citations` appear; §11.7 and REFACTORING §77 cross-reference all five. The layout is a coaching artefact — it decides what the Belt sees while being coached and what they hand a sponsor — and it changes when the field set changes, so keeping it beside the coaching guidance means one file changes rather than two. **Two stale claims corrected in the same pass.** Progress is derived from `PhaseState.artifacts` against the phase's Tier 1 / Tier 2 field list; there is no stored `completeness_score`, and a stored one would be a second source of truth able to disagree with the gate (§4.1). Tier 1 and Tier 2 get **separate** counts — a Belt at 6/6 required and 0/5 recommended can pass the gate, where a single blended percentage would read 55% and imply otherwise. §77's Pattern 3 example and its data-mapping list still used the v1 `what` / `why` / `scope` / `how_goal` field names and `captured_fields`; both now use the ratified schema. **No code change and no CLAUDE.md change** — no rule moved, so CLAUDE.md stays at 2.2.14. The data these patterns need is already checkpointed in `PhaseState.artifacts` (§4.2); what was missing was the rendering spec. |
 
 ### 18.1 Amendment procedure
 

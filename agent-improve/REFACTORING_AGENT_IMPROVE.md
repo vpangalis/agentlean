@@ -8659,50 +8659,118 @@ A Belt who opens the coaching interface and immediately sees "Azure OpenAI — d
 Before asking the Belt to approve a gate, show them what was extracted in a readable, expandable section:
 
 ```
-Expandable: "Review captured Define fields"
-  ┌─────────────────────────────────────────────┐
-  │ what:     Complaint rate exceeding 8.3%     │
-  │           in billing calls                  │
-  │ why:      Customer satisfaction impacting   │
-  │           NPS score and retention           │
-  │ scope:    Billing call centre, Mon-Fri 9-17 │
-  │ team:     Vassilis (BB), Maria (Sponsor),   │
-  │           3 team members                    │
-  │ how_goal: Reduce rate by 50% by Q3 2026     │
-  └─────────────────────────────────────────────┘
-  [Edit fields] [Approve and advance to Measure →]
+"Review captured Define fields"
+
+  problem_statement:    Invoice error rate in EMEA billing at
+                        12.3% since Jan 2026
+  process_map_sipoc:    5 steps, Sales -> Finance  [renders as table]
+  project_scope:        In: invoice creation -> dispatch, EMEA
+                        Out: credit notes, APAC, upstream CRM
+  voc_summary:          Collections need right-first-time
+  goal_statement:       12.3% -> below 5% by 30 Sep 2026
+  issues_and_barriers:  IT access via weekly extract
+
+  [Edit fields] [Approve and advance to Measure ->]
 ```
 
 This is the HITL review step from §2, made concrete in UI terms — specifically steps 4 and 5 of the nine-step gate. The Belt verifies accuracy before the gate commits, not after. Any field they correct is validated by the policy advisory at step 6, and if the corrected value contradicts one approved at an earlier gate, §38's contradiction check fires with its re-approval cascade.
+
+> **This pattern is no longer a gate-time-only view.** It merges with
+> Pattern 4 into the **live gate document** described below — the same
+> fields, visible continuously rather than surfaced once at the gate.
+> The field names above are the ratified `DefineOutput` schema (§17,
+> ARCHITECTURE.md §4.10.2); an earlier revision of this example used the
+> v1 `what` / `why` / `scope` / `how_goal` names, which no longer exist.
 
 *The original text also attributed a "feedback adaptation signal" here to Gap 21. That was a mis-reference — feedback adaptation is §40's Idea 3, deferred to §87 item 9. Gap 21 is metadata filters, which are in refactor scope and unrelated to what happens when a Belt edits a field.*
 
 ---
 
-### Pattern 4 — Completeness Score as Visual Signal
+### Pattern 4 — Completeness as Visual Signal
 
-`completeness_score` already exists in `DMAICState`. Surface it visually at the gate review step:
+Progress is derived from `PhaseState.artifacts` against the phase's
+Tier 1 / Tier 2 field list — not read from a stored score. Surface it
+continuously, not only at the gate:
 
 ```
-Completeness: ████████░░  80%
+Required: [##########..]  5 of 6     Recommended: [####......]  2 of 5
 
-  ✅ what — problem statement confirmed
-  ✅ why — business impact confirmed
-  ✅ scope — process boundary confirmed
-  ✅ team — Belt and sponsor confirmed
-  ⚠️  how_goal — SMART goal needs timeline
+  [x] problem_statement    - measurable problem confirmed
+  [x] process_map_sipoc    - 5 steps, end to end
+  [x] project_scope        - boundaries confirmed
+  [x] voc_summary          - two customer groups
+  [x] goal_statement       - SMART, dated
+  [ ] issues_and_barriers  - not yet captured
 
-  "One field still needs attention before advancing."
+  "One required field left before the gate can run."
 ```
 
-Color coding:
+Colour coding, on the **required** count:
+
 ```
-> 90%  → green  → "Ready to review gate"
-60-90% → amber  → "N fields still needed"
-< 60%  → red    → "Several key fields missing"
+all required complete  -> green  -> "Ready to review gate"
+1-2 remaining          -> amber  -> "N required fields still needed"
+3+ remaining           -> red    -> "Several required fields missing"
 ```
 
-The Belt gets an instant read before reading the detailed field list. The visual score also sets the right expectation — 80% means "almost there," not "failed."
+**Two counts, not one.** Tier 1 and Tier 2 get separate bars (§17
+Finding 11). A Belt at 6/6 required and 0/5 recommended can pass the
+gate; a single blended percentage would read as 55% and imply otherwise.
+
+> **A stored `completeness_score` is not the mechanism.** The v1 field of
+> that name goes with `DMAICState`. Progress is derived on demand from
+> `artifacts`, the same way `check_gate_status()` derives missing fields
+> (ARCHITECTURE.md §4.1) — a stored score is a second source of truth
+> that can disagree with the gate.
+
+---
+
+### Patterns 3 + 4 Merged — The Live Gate Document
+
+**Patterns 3 and 4 are one component, not two.** Showing the Belt their
+captured fields and showing them their progress are the same view at
+different zoom levels, and splitting them across two moments produced the
+wrong behaviour: fields visible only at the gate, progress visible only
+as a number.
+
+**The implementation is a single live document tab**, alongside the chat,
+always visible. It already exists in the current Agent Improve UI as the
+last tab.
+
+| Requirement | Behaviour |
+|---|---|
+| **Always visible** | A tab or panel beside the conversation, not behind a menu. The Belt glances at it |
+| **Updates in real time** | When the coach captures a field via `CoachingResponse.fields_captured` (§82), the document updates immediately — no refresh |
+| **Reads as a document** | Headers, formatted content, tables. This is what gets shown to a sponsor, not a list of field names and values |
+| **Downloadable at any point** | PDF and Word. Mid-phase downloads show `[not yet captured]` placeholders; post-gate downloads are the approved document |
+| **Phase-specific formatting** | Define renders SIPOC as a table, Measure the process map with timings, Analyse the test results, Control the five sub-plans as sections |
+| **Computation results rendered** | `artifacts["computation_results"]` renders inline with its interpretation — *"Sigma level: 2.6 — typical for an unimproved process"* — never raw JSON |
+| **Citations shown** | `citations` render as a references section so the Belt and their sponsor can verify the methodology |
+
+**The rendering format is defined per phase in the skills**, not here.
+Each phase's SKILL.md carries a **Document Layout** section specifying
+which fields get headers, which render as tables, which render inline,
+where computation results and citations appear, and the download
+structure:
+
+| Phase | Skill — Document Layout section | Layout specifics |
+|---|---|---|
+| Define | `skills/dmaic-define-phase/SKILL.md` §8 | SIPOC as a row-per-step table with process volume; Tier 2 fields below a "Recommended" divider |
+| Measure | `skills/dmaic-measure-phase/SKILL.md` §8 | Detailed process map as a table with touch-time vs elapsed-time totals; X-Y matrix as a table; vital few X's as a numbered list |
+| Analyse | `skills/dmaic-analyse-phase/SKILL.md` §9 | `causal_hypothesis` as a callout box showing the cross-phase link; `ruled_out_causes` as a cause / test / result table |
+| Improve | `skills/dmaic-improve-phase/SKILL.md` §8 | Pilot result with an explicit before / after / change line; implementation plan as a phased table |
+| Control | `skills/dmaic-control-phase/SKILL.md` §8 | Before/after block leads the document; control plan as five named sub-sections each with a written / implemented status pair; sign-off as a three-party table |
+
+**No new backend work.** The data source is `PhaseState.artifacts`,
+already checkpointed and updated on every capture (§18). The frontend
+reads it and renders the template for the current phase. What was missing
+was the rendering spec, and that now lives in the skills.
+
+**Why the spec belongs with the skills rather than here.** The layout is
+a coaching artefact: it decides what the Belt sees while being coached
+and what they hand to a sponsor. It changes whenever the field set
+changes, and the field set is defined in the skill. Keeping the two
+together means one file changes, not two.
 
 ---
 
@@ -8754,13 +8822,23 @@ Never leave the Belt on a blank screen after a significant event.
 These six patterns are frontend requirements — they define what the coaching interface must show, not how it is technically built. They apply equally to the current AgentLean website frontend, a Streamlit prototype, or any future mobile interface.
 
 The agent architecture already produces all the data these patterns need:
-- `completeness_score` → Pattern 4
-- `captured_fields` → Pattern 3
+- `PhaseState.artifacts` → **Patterns 3 + 4 merged** — the live gate
+  document. Both the field content and the progress counts derive from
+  this one source; there is no stored `completeness_score` (§17)
+- `artifacts["computation_results"]` and `citations` → rendered inline in
+  the same document
 - `current_phase` and `gate_passed` → Patterns 2 and 6
 - LangSmith run ID → Pattern 5
 - Node execution events via SSE → Pattern 1
 
-The frontend just needs to surface what the agent already knows.
+The frontend just needs to surface what the agent already knows. The one
+thing it also needs is a **rendering spec per phase**, and that lives in
+each SKILL.md's Document Layout section rather than here.
+
+*An earlier revision of this list named `completeness_score` and
+`captured_fields`. Neither exists: the score was never a stored field in
+the ratified design, and `captured_fields` was renamed `artifacts`
+(§17 Finding 15).*
 
 ### Gap Register Note
 No new gap number — these are frontend design requirements, not architectural gaps in the agent. Record them as input to the AgentLean frontend design conversation when the UI is being built or redesigned. The agent architecture already produces every data point these patterns require.
