@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.11 — August 2026
+# Version 2.2.12 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -116,6 +116,25 @@ Findings 24 and 25, from the BB eBook extraction (57 gaps identified,
 
 Field counts: Define 14 · Measure 12 · Analyse 13 · Improve 12 ·
 Control 15.
+
+### 0.7 — What Changed in 2.2.12 — process maps become schema
+
+Finding 26. Three gaps previously assigned to SKILL.md coaching content
+were promoted to **Tier 1 schema fields** — a coaching prompt produces a
+conversation, and a conversation cannot be read by the next phase's
+planner or checked by the grader.
+
+| Area | v2.2.11 | v2.2.12 |
+|---|---|---|
+| Define process map | Coaching content, no field | **`process_map_sipoc`, Tier 1, dict, 6 sub-fields** (§10.8) |
+| Measure process map | Coaching content, no field | **`detailed_process_map`, Tier 1, dict, 6 sub-fields** (§10.8) |
+| Stability | Tier 2 rubric criterion, no field | **`stability_assessment`, Tier 1** (§10.8) |
+| Experiment justification | Coaching content, no field | **`experiment_justification`, Tier 1** (§10.8) |
+| Structured dicts | 1 (`control_plan`) | **3** (§10.8) |
+| Before/after KPI chain | Implicit | **Explicit across Define → Measure → Control** (§10.8) |
+
+Field counts: Define 15 · Measure 14 · Analyse 13 · Improve 13 ·
+Control 15. Tier 1: 6 · 7 · 4 · 4 · 3.
 
 ---
 
@@ -1585,10 +1604,10 @@ gate never asked for.
 
 | Phase | Tier 1 | Count |
 |---|---|---|
-| Define | `problem_statement`, `voc_summary`, `project_scope`, `goal_statement`, `issues_and_barriers` | 5 |
-| Measure | `baseline_mean`, `data_collection_plan`, `xy_matrix_summary`, `vital_few_xs`, `issues_and_barriers` | 5 |
+| Define | `problem_statement`, `voc_summary`, `project_scope`, `goal_statement`, `process_map_sipoc` (**dict**), `issues_and_barriers` | 6 |
+| Measure | `baseline_mean`, `data_collection_plan`, `xy_matrix_summary`, `vital_few_xs`, `detailed_process_map` (**dict**), `stability_assessment`, `issues_and_barriers` | 7 |
 | Analyse | `root_cause_statement`, `root_cause_validation`, `practical_significance`, `issues_and_barriers` | 4 |
-| Improve | `selected_solution`, `pilot_result`, `issues_and_barriers` | 3 |
+| Improve | `selected_solution`, `pilot_result`, `experiment_justification`, `issues_and_barriers` | 4 |
 | Control | `control_plan` (**dict**, 5 sub-plans), `post_improvement_metric`, `issues_and_barriers` | 3 |
 
 **`issues_and_barriers` is Tier 1 in every phase.** Every real project has
@@ -1656,9 +1675,10 @@ if belt_level == "Green Belt":
 | Statistical problem statement | **`statistical_problem_statement`, Tier 2, all Belts, in Analyse** — not Define |
 | FMEA | **Not tracked in any schema.** See §10.8 |
 
-**Stability / special-cause analysis is NOT suppressed for either
-level** — a baseline computed across an unstable process is not a
-baseline. It is Tier 2 with a strong warning for both.
+**Stability is no longer belt-gated or advisory.** It is
+`stability_assessment`, a **Tier 1 field required of both belt levels**
+(§10.8) — a baseline computed across an unstable process is not a
+baseline, so it blocks the gate rather than warning about it.
 
 *Rationale: REFACTORING_AGENT_IMPROVE.md §2, §38, §42, §48, §49, §68, §69.*
 
@@ -2005,10 +2025,10 @@ are in ARCHITECTURE.md §4.10. The binding rules:
 
 | Phase | Total | Tier 1 | Tier 2 | Gate metadata |
 |---|---|---|---|---|
-| Define | 14 | 5 | 5 | 4 |
-| Measure | 12 | 5 | 3 | 4 |
+| Define | 15 | 6 | 5 | 4 |
+| Measure | 14 | 7 | 3 | 4 |
 | Analyse | 13 | 4 | 5 | 4 |
-| Improve | 12 | 3 | 5 | 4 |
+| Improve | 13 | 4 | 5 | 4 |
 | Control | 15 | 3 | 8 | 4 |
 
 **Two fields are on all five schemas:** `issues_and_barriers` (Tier 1)
@@ -2016,7 +2036,43 @@ and `secondary_metrics` (Tier 2). Adding a field to one phase without
 considering the other four is how the cross-phase gaps in the eBook
 extraction arose in the first place.
 
-### 10.8 — `control_plan` is a dict; FMEA is not tracked
+### 10.8 — Structured dict fields; FMEA is not tracked
+
+**Three Tier 1 fields are structured dicts**, distinct from the three
+cross-phase reference dicts of §10.6:
+
+| Field | Phase | Sub-fields |
+|---|---|---|
+| `process_map_sipoc` | Define | `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, `process_kpis` |
+| `detailed_process_map` | Measure | `steps`, `cycle_times`, `resources`, `value_vs_waste`, `measurement_points`, `baseline_kpis` |
+| `control_plan` | Control | `documentation`, `monitoring`, `response`, `training`, `aligning_systems` |
+
+**The grader checks every sub-field is populated.** A `process_map_sipoc`
+with four of six keys filled is the partial-map failure the field exists
+to catch — a Belt who maps steps 3–5 of a seven-step process produces a
+project that cannot show improvement, because the baseline never covered
+the whole thing.
+
+**Three fields carry one measurement thread across three phases**, and
+the grader verifies the same measurement points carry different values:
+
+```
+Define   process_map_sipoc["process_kpis"]        — WHAT is measured
+Measure  detailed_process_map["baseline_kpis"]    — the BEFORE values
+Control  post_improvement_metric                  — the AFTER values
+```
+
+**`stability_assessment` is Tier 1 and is checked BEFORE capability.** An
+unstable process has special causes, so a baseline Cpk computed across
+them is an average of two different processes, not a capability figure.
+Coaching order: stability → special causes if unstable → capability.
+
+**`experiment_justification` is Tier 1 and does not require an
+experiment.** It requires a decision, stated as one of three: DOE
+conducted, simplified one-factor experiment, or no experiment needed
+because the solution follows from root cause analysis. All three are
+valid; the failure it catches is drifting past the question, not
+skipping DOE. Design detail: ARCHITECTURE.md §4.10.7.
 
 **`control_plan` is `dict`, never `str`.** Five sub-plans, all required:
 
@@ -2215,8 +2271,13 @@ to choose backoff strategy (§4.8).
   and Belt corrections are different actors at different moments (§10.1)
 - Never merge `issues_and_barriers` and `acknowledged_gaps` — Belt-stated
   blockers and system-recorded skipped fields are different things (§9.7)
-- Never type `control_plan` as `str` — it is a dict of five sub-plans
+- Never type `control_plan`, `process_map_sipoc` or
+  `detailed_process_map` as `str` — all three are structured dicts
   (§10.8)
+- Never accept a partial process map — the grader checks all six
+  sub-fields of `process_map_sipoc` and `detailed_process_map` (§10.8)
+- Never assess capability before stability — `stability_assessment` is
+  Tier 1 and comes first (§10.8)
 - Never add an FMEA field to any schema — it is deliberately not tracked
   (§10.8)
 - Never add a field to one phase's Output schema without checking whether

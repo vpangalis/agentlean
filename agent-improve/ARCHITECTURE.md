@@ -1,10 +1,10 @@
 # Agent Improve — Architecture & Design Document
 **Agentlean Platform · DMAIC Improvement Agent**
-Version 2.2.11 · August 2026
+Version 2.2.12 · August 2026
 Status: v2.2 architecture ratified · refactor in progress (Step 2.2 complete;
 Step 3.6 index schema rename applied; state design closed — §4;
 node names, tool binding and output schemas closed — §3.2.1, §3.3.2, §4.10;
-eBook gaps closed — §4.10.5, §4.10.6, §3.4.2)
+eBook gaps closed — §4.10.5–§4.10.7, §3.4.2)
 
 ---
 
@@ -778,10 +778,10 @@ and then be failed by the grader on a criterion the gate never required
 
 | Phase | Tier 1 fields | Count |
 |---|---|---|
-| Define | `problem_statement`, `voc_summary`, `project_scope`, `goal_statement`, `issues_and_barriers` | 5 |
-| Measure | `baseline_mean`, `data_collection_plan`, `xy_matrix_summary`, `vital_few_xs`, `issues_and_barriers` | 5 |
+| Define | `problem_statement`, `voc_summary`, `project_scope`, `goal_statement`, `process_map_sipoc` (dict), `issues_and_barriers` | 6 |
+| Measure | `baseline_mean`, `data_collection_plan`, `xy_matrix_summary`, `vital_few_xs`, `detailed_process_map` (dict), `stability_assessment`, `issues_and_barriers` | 7 |
 | Analyse | `root_cause_statement`, `root_cause_validation`, `practical_significance`, `issues_and_barriers` | 4 |
-| Improve | `selected_solution`, `pilot_result`, `issues_and_barriers` | 3 |
+| Improve | `selected_solution`, `pilot_result`, `experiment_justification`, `issues_and_barriers` | 4 |
 | Control | `control_plan` (dict, §4.10.6), `post_improvement_metric`, `issues_and_barriers` | 3 |
 
 **`issues_and_barriers` is Tier 1 in all five phases** (§4.10.5) — every
@@ -845,7 +845,11 @@ if belt_level == "Green Belt":
 | Item | Green Belt | Black Belt |
 |---|---|---|
 | DOE | Suppressed | Tier 2 |
-| Stability / special causes | **Tier 2, strong warning** | **Tier 2, strong warning** |
+
+**DOE is the only belt-gated item left.** Stability left this table in
+v2.2.12: it is now `stability_assessment`, a **Tier 1 field required of
+both belt levels** (§4.10.7). It was never suppressed for a Green Belt —
+what changed is that it is no longer advisory.
 
 **Three items left this table in v2.2.11:**
 
@@ -1527,6 +1531,7 @@ class DefineOutput(BaseModel):
     project_scope: str                      # explicit inclusions and exclusions
     goal_statement: str                     # SMART
     voc_summary: str                        # voice of customer
+    process_map_sipoc: dict                 # SIPOC + KPIs, 6 sub-fields (§4.10.7)
     issues_and_barriers: str                # Belt-stated blockers (§4.10.5)
     # Tier 2 — rubric-recommended
     business_case: str                      # quantified business impact (COPQ)
@@ -1548,6 +1553,8 @@ class MeasureOutput(BaseModel):
     data_collection_plan: str               # sample size, frequency, responsible person
     xy_matrix_summary: str                  # evidence prioritisation happened (§4.10.5)
     vital_few_xs: str                       # the ranked result Analyse consumes (§4.10.5)
+    detailed_process_map: dict              # expanded map, 6 sub-fields (§4.10.7)
+    stability_assessment: str               # checked BEFORE capability (§4.10.7)
     issues_and_barriers: str
     # Tier 2
     baseline_sigma: str                     # calculated sigma level
@@ -1585,6 +1592,7 @@ class ImproveOutput(BaseModel):
     # Tier 1
     selected_solution: str                  # criteria-based selection documented
     pilot_result: str                       # practical AND statistical significance
+    experiment_justification: str           # DOE / simplified / none — and why (§4.10.7)
     issues_and_barriers: str
     # Tier 2
     solution_linked_to_root_cause: dict     # cross-phase ref -> Analyse root cause (§4.7)
@@ -1648,6 +1656,7 @@ gate_document = DefineOutput(
     project_scope=artifacts["project_scope"],
     goal_statement=artifacts["goal_statement"],
     voc_summary=artifacts["voc_summary"],
+    process_map_sipoc=artifacts["process_map_sipoc"],
     issues_and_barriers=artifacts["issues_and_barriers"],
     business_case=artifacts.get("business_case", ""),
     team=artifacts.get("team", ""),
@@ -1666,6 +1675,8 @@ gate_document = MeasureOutput(
     data_collection_plan=artifacts["data_collection_plan"],
     xy_matrix_summary=artifacts["xy_matrix_summary"],
     vital_few_xs=artifacts["vital_few_xs"],
+    detailed_process_map=artifacts["detailed_process_map"],
+    stability_assessment=artifacts["stability_assessment"],
     issues_and_barriers=artifacts["issues_and_barriers"],
     baseline_sigma=artifacts.get("baseline_sigma", ""),
     measurement_system_validated=artifacts.get("measurement_system_validated", ""),
@@ -1697,6 +1708,7 @@ gate_document = AnalyseOutput(
 gate_document = ImproveOutput(
     selected_solution=artifacts["selected_solution"],
     pilot_result=artifacts["pilot_result"],
+    experiment_justification=artifacts["experiment_justification"],
     issues_and_barriers=artifacts["issues_and_barriers"],
     solution_linked_to_root_cause=artifacts.get("solution_linked_to_root_cause", {}),
     implementation_plan=artifacts.get("implementation_plan", ""),
@@ -1766,10 +1778,10 @@ field is reachable.** The chain is
 
 | Phase | Schema fields | Tier 1 | Tier 2 | Cross-phase dict | Gate metadata |
 |---|---|---|---|---|---|
-| Define | 14 | 5 | 5 | — | 4 |
-| Measure | 12 | 5 | 3 | — | 4 |
+| Define | 15 | 6 | 5 | — | 4 |
+| Measure | 14 | 7 | 3 | — | 4 |
 | Analyse | 13 | 4 | 5 | 1 (`causal_hypothesis`) | 4 |
-| Improve | 12 | 3 | 5 | 1 (`solution_linked_to_root_cause`) | 4 |
+| Improve | 13 | 4 | 5 | 1 (`solution_linked_to_root_cause`) | 4 |
 | Control | 15 | 3 | 8 | 1 (`post_improvement_metric`) | 4 |
 
 **Verified properties, all five phases:**
@@ -1783,17 +1795,34 @@ field is reachable.** The chain is
   computation tool into `artifacts["computation_results"]` —
   `baseline_sigma` (`calculate_sigma_level`),
   `measurement_system_validated` (`calculate_grr`), `improvement_delta`
-  (`post_improvement_cpk`)
+  (`post_improvement_cpk`), `explanatory_power` (`linear_regression`)
+- **Every Tier 1 field is coach-capturable**, including the three
+  structured dicts — `CoachingResponse.value: Any` carries a dict as
+  readily as a string (§4.10.1), so the coach populates
+  `process_map_sipoc` sub-field by sub-field across turns and emits the
+  assembled dict. `stability_assessment` is coach-capturable **and**
+  supported by `xbar_r_chart_limits` output in `computation_results`
 - Every non-metadata field is `str` except the three cross-phase dicts,
   which `CoachingResponse.value: Any` carries without loss
 - `PhaseState.artifacts` is `dict[str, Any]`, so it holds both string
   fields and dict-typed cross-phase fields with no type conflict
 - Gate metadata always comes from the same four sources, in every phase
 
-**Two Tier 1 fields are dicts.** `post_improvement_metric` (cross-phase
-reference, §4.7) and `control_plan` (five sub-plans, §4.10.6). Layer 2b
-enforces presence for both; assembly guards the shape of the first
-(§4.10.3).
+**Four Tier 1 fields are dicts**, and they fall into two kinds:
+
+| Field | Phase | Kind |
+|---|---|---|
+| `post_improvement_metric` | Control | Cross-phase reference (§4.7) |
+| `control_plan` | Control | Structured — five sub-plans (§4.10.6) |
+| `process_map_sipoc` | Define | Structured — six sub-fields (§4.10.7) |
+| `detailed_process_map` | Measure | Structured — six sub-fields (§4.10.7) |
+
+Layer 2b enforces presence for all four. Only the cross-phase reference
+is assembled with `.get(…, {})` to guard its shape (§4.10.3); the three
+structured dicts are Tier 1 and use bracket access like any other Tier 1
+field. **The grader checks that every sub-field of a structured dict is
+populated** — a `process_map_sipoc` with four of six keys filled is the
+partial-map failure §4.10.7 exists to catch.
 
 ### 4.10.5 Fields added from the eBook extraction
 
@@ -1960,12 +1989,12 @@ Recorded so the decisions are not re-litigated:
 
 | Gap | Decision |
 |---|---|
-| Process map persistence (D-2, M-5) | SKILL.md coaching; the coach uses `propose_diagram` and the result lives in the conversation |
+| Process map persistence (D-2, M-5) | **Superseded in v2.2.12** — now `process_map_sipoc` and `detailed_process_map`, both Tier 1 (§4.10.7) |
 | Stakeholder analysis (D-3) | Define SKILL.md coaching content, distinct from `team` |
 | Project plan (D-4, M-10, A-11, I-11) | Cross-phase coaching content, not a captured field per phase |
 | Short- and long-term capability (M-1) | Coaching guidance to address both; numbers land in `computation_results` via `calculate_cpk` |
-| Stability assessment (M-2) | Tier 2 rubric criterion with a strong warning, both belt levels (§13.2) |
-| Experiment justification (I-1, I-2) | Improve SKILL.md coaching content — and the valuable answer is often "no DOE needed" |
+| Stability assessment (M-2) | **Superseded in v2.2.12** — now `stability_assessment`, Tier 1 (§4.10.7) |
+| Experiment justification (I-1, I-2) | **Superseded in v2.2.12** — now `experiment_justification`, Tier 1 (§4.10.7). The valuable answer is still often "no DOE needed"; the field records the decision, not an experiment |
 | Lean opportunities / waste (D-6) | Define SKILL.md coaching content |
 | Benefits deferral date (D-7) | Coaching inside `business_case` |
 | Finance involvement at Define (D-8) | Coaching content; the recorded sign-off is `project_signoff` at Control |
@@ -2004,6 +2033,128 @@ it. This is a coaching sequence, not a form to fill at the gate.
 **Four extraction gaps close with this one change** — C-1 (five
 elements), C-2 (develop vs implement), C-5 (monitoring method), C-15
 (mistake-proofing, which belongs inside `monitoring` and `response`).
+
+### 4.10.7 Process maps, stability, and experiment justification
+
+Three gaps the extraction had assigned to SKILL.md coaching content were
+**promoted to schema fields**, all Tier 1. Each was reclassified for the
+same reason: a coaching prompt produces a conversation, and a
+conversation cannot be read by the next phase's planner or checked by the
+grader.
+
+#### `process_map_sipoc` — Define, **Tier 1**, dict
+
+```python
+process_map_sipoc: dict = {
+    "suppliers":     str,   # who provides inputs
+    "inputs":        str,   # what enters the process
+    "process_steps": str,   # 5–7 high-level steps
+    "outputs":       str,   # what the process produces
+    "customers":     str,   # who receives outputs
+    "process_kpis":  str,   # what is measured at each step
+}
+```
+
+> "A process map is vital — if not visualised it will lead to more issues
+> later… **Far too often Belts capture only segments of the process**,
+> which in an improvement project are vital, as otherwise there is no way
+> to measure the improvement."
+
+**The partial-map failure is what makes this Tier 1.** A Belt who maps
+steps 3–5 of a seven-step process produces a project that cannot show
+improvement, because the baseline never covered the whole thing. The
+failure is invisible at Define and expensive at Control.
+
+**Coach responsibilities:**
+
+- Guide the Belt through each SIPOC element in turn
+- **Validate completeness** — end to end, no missing steps, inputs trace
+  to suppliers, outputs reach customers
+- **Challenge fragments** — *"you've described steps 3 to 5; what happens
+  before and after?"*
+- Verify consistency with `project_scope`
+- **If the Belt uploads an existing process diagram**, decompose it into
+  the structured SIPOC form and validate it rather than accepting the
+  image as the deliverable
+
+#### `detailed_process_map` — Measure, **Tier 1**, dict
+
+```python
+detailed_process_map: dict = {
+    "steps":              str,   # detailed steps, expanded from the SIPOC
+    "cycle_times":        str,   # timing per step
+    "resources":          str,   # who and what is involved per step
+    "value_vs_waste":     str,   # which steps add value, which are waste (VSM)
+    "measurement_points": str,   # where data is collected per step
+    "baseline_kpis":      str,   # current KPIs per step, before improvement
+}
+```
+
+**Coach responsibilities:**
+
+- Check the Measure map against Define's SIPOC — **does it expand
+  correctly?** A detailed map that does not decompose the Define steps is
+  a different process
+- Verify `measurement_points` align with `data_collection_plan`
+- Use `value_vs_waste` to surface improvement candidates
+- `baseline_kpis` establish the "before" that Control's "after" is
+  measured against
+
+#### The before/after KPI chain
+
+**Three fields across three phases carry one measurement thread**, and
+this is what makes "we improved it" checkable rather than asserted:
+
+| Phase | Field | Role |
+|---|---|---|
+| Define | `process_map_sipoc["process_kpis"]` | **What** is measured, per step |
+| Measure | `detailed_process_map["baseline_kpis"]` | The **before** values |
+| Control | `post_improvement_metric` | The **after** values (§4.7) |
+
+**The grader verifies the same measurement points carry different
+values.** A project whose Control metrics measure something Define never
+listed has moved the goalposts; a project whose after-values sit on
+different steps than its before-values has not measured an improvement.
+
+#### `stability_assessment` — Measure, **Tier 1**
+
+**The eBook is explicit: check stability BEFORE capability** (book p230).
+An unstable process has special causes, and a baseline Cpk computed
+across them is not a capability figure — it is an average of two
+different processes.
+
+Was previously a Tier 2 rubric criterion with no field and a strong
+warning (§13.2). The warning was right and the tier was not: the eBook
+sequences it as a precondition, not a recommendation.
+
+**Coaching sequence for the Measure SKILL.md:**
+
+```
+run stability check
+  → unstable?  → identify special causes → address or acknowledge
+  → stable?    → proceed to capability calculation
+```
+
+#### `experiment_justification` — Improve, **Tier 1**
+
+**The Belt must state one of three answers, and all three are valid:**
+
+| Answer | When |
+|---|---|
+| "DOE conducted — here's why, and what we found" | Full designed experiment |
+| "Simplified experiment — one factor at a time, before/after comparison" | Business Belts without DOE training |
+| "No experiment needed — the solution follows directly from root cause analysis, here's why" | **Most common in service projects** |
+
+**The field does not require an experiment. It requires a decision.**
+The eBook's most-repeated Improve warning is *"do not force Designed
+Experiments"* and its own estimate is that over 80% of projects find
+their solution in Analyse. Tier 1 here means the Belt consciously
+reasoned about whether an experiment was needed — the failure this
+catches is not skipping DOE, it is drifting past the question.
+
+**The Improve SKILL.md carries a simplified DOE explanation** so a Belt
+without statistical training can make the choice in plain language rather
+than defaulting to "no" out of unfamiliarity.
 
 ---
 
@@ -3139,6 +3290,7 @@ rows appear in the `{Phase}Output` schemas of §4.10.
 | `baseline_metric` | 2 | Current measured state as the Belt states it. Measure refines this into `baseline_mean` |
 | `target_metric` | 2 | The value the project is aiming at |
 | `secondary_metrics` | 2 | What could get worse if this succeeds (§4.10.5) |
+| `process_map_sipoc` | **1** | **`dict`** — suppliers, inputs, process_steps, outputs, customers, process_kpis (§4.10.7) |
 | `issues_and_barriers` | **1** | Belt-stated project blockers (§4.10.5) |
 
 *Statistical problem statement moved to Analyse, all Belts — §4.10.5.*
@@ -3151,11 +3303,16 @@ rows appear in the `{Phase}Output` schemas of §4.10.
 | `data_collection_plan` | **1** | Sample size, frequency, responsible person |
 | `xy_matrix_summary` | **1** | Evidence prioritisation happened (§4.10.5) |
 | `vital_few_xs` | **1** | The ranked result Analyse consumes (§4.10.5) |
+| `detailed_process_map` | **1** | **`dict`** — steps, cycle_times, resources, value_vs_waste, measurement_points, baseline_kpis (§4.10.7) |
+| `stability_assessment` | **1** | Checked **before** capability — an unstable baseline is not a baseline (§4.10.7) |
 | `issues_and_barriers` | **1** | Belt-stated project blockers |
 | `baseline_sigma` | 2 | Calculated sigma level from baseline data |
 | `measurement_system_validated` | 2 | GR&R or equivalent |
 | `secondary_metrics` | 2 | What could get worse if this succeeds |
-| Stability / special causes | 2 | **Strong warning, both belt levels** — an unstable baseline is not a baseline. No field; graded from `computation_results` and the conversation |
+
+*Stability was a Tier 2 rubric criterion with no field until v2.2.12;
+it is now `stability_assessment`, Tier 1 — the eBook sequences it as a
+precondition for capability, not a recommendation (§4.10.7).*
 
 *FMEA is deliberately not tracked in any schema — §4.10.5.*
 
@@ -3183,6 +3340,7 @@ first, `practical_significance` the second.*
 |---|---|---|
 | `selected_solution` | **1** | Criteria-based selection: impact, effort, risk |
 | `pilot_result` | **1** | Rubric requires practical **and** statistical significance |
+| `experiment_justification` | **1** | DOE, simplified experiment, or none — with the reasoning (§4.10.7) |
 | `issues_and_barriers` | **1** | Belt-stated project blockers |
 | `solution_linked_to_root_cause` | 2 | **`dict`** — cross-phase reference to Analyse's root cause (§4.7) |
 | `implementation_plan` | 2 | Timeline, owner, resources |
@@ -3496,6 +3654,8 @@ load-bearing in more places than it appears.
 | Aug 2026 | **2.2.10** | **Findings 16–23 applied — the executor contract, node names and output schemas closed (§3.2.1, §3.3.2, §3.4, §3.4.1, §4.10, §8.1, §8.2, §13).** A second reading pass over the three documents after 2.2.9 found eight further inconsistencies, all of them between prose that had been ratified and code examples that predated it. **Node names (16):** the phase subgraph is `planner → executor → validation_stack → gate_review → gate_apply`. `policy_advisory` as node 3 was the serious error — it left the subgraph with **no node running the four-layer stack** — and `revise` as node 5 both misnamed and undersized `gate_apply`, which runs the policy advisory, processes approval, and writes the gate document. Revision is an edge back to the planner carrying `validator_feedback`, not a node. **Executor tool binding (17):** the gate validator and the policy advisory were listed among the executor's bound tools; neither is a tool. The validation stack is a node reached by an edge — as a tool the coach would decide whether to be validated, which is backwards — and the policy advisory is logic inside `gate_apply`, firing when the coach is no longer in the loop. **Two graders, two rubrics (18, 20):** `DMAICGraderMiddleware` grades the coach's **process** against a single shared `COACHING_QUALITY_RUBRIC` on **every turn**; validation Layer 2d grades the **gate document** against the phase's `PHASE_RUBRIC` **once**, at the boundary. They are complementary — the middleware prevents eight turns built on a weak foundation, Layer 2d catches cross-field and cross-phase contradictions no per-turn check can see. §3.7's step 2d had named the middleware, which was wrong. **Middleware (21, 19):** `ModelRetryMiddleware` adopted, taking the stack to **five**; it is the mechanical-retry tier (retry the same call) and does not overlap the fallback chain (swap the model). `BeforeModelStateInjection` moved from **last to first** — declaration order is execution order for `before_model` hooks, so listing it last placed project facts after skills loading and summarisation had already shaped the prompt, inverting the rule §8.5 exists to enforce. **Output schemas (22):** two conflicting `DefineOutput` definitions existed, neither matching the ratified fields and both using `float` against §4.6; `MeasureOutput`, `AnalyseOutput`, `ImproveOutput` and `ControlOutput` were referenced throughout and defined nowhere. All five are now canonical in §4.10 with per-phase gate assembly, and all five carry the same four gate-metadata fields — the cross-check found `citations` and `uploads` reaching `PhaseState` but never the gate document. **Structured output (23):** `response_format` on the executor is correct and is retained; the error was the schema. It carries **`CoachingResponse`** — a per-turn extraction of `message`, `fields_captured` and `citations` — not a complete gate document the coach cannot produce on turn one. `value: Any` in `fields_captured` is required so the three cross-phase reference dicts remain capturable. **`record_field` is retired**, taking the universal eight to **seven**: capture is now part of the response shape rather than a tool call the coach can omit mid-retrieval. Per-phase totals become Define 8, Measure 15, Analyse 12, Improve 8, Control 11 — Measure moves off the top edge of the 10–15 selection-quality range. **Integrity check run across all three documents:** field types, node names, canonical identifiers, both rubrics, store namespaces, tier classification, verdict statuses, tool counts, and the complete capture-to-store schema chain verified mechanically — every schema field assembled, every Tier 1 field coach-reachable, every Tier 2 field capturable or computable (§4.10.4). No code change accompanies this amendment. |
 
 | Aug 2026 | **2.2.11** | **eBook extraction gaps closed — Findings 24 and 25 (§3.4.2, §4.10.5, §4.10.6, §13).** The five BB eBook extractions under `skills/extraction/` identified **57 deliverables with no corresponding field**. Six cross-cutting decisions close 25 of them; the rest are handled by SKILL.md coaching content or by mechanisms that already exist, and both sets are recorded in §4.10.5 so they are not re-litigated. **Two fields land on all five schemas:** `issues_and_barriers` (**Tier 1** — every real project has blockers, and a Belt reporting none has not looked; distinct from `acknowledged_gaps`, which is system-generated and records skipped Tier 2 fields) and `secondary_metrics` (Tier 2 — the field that catches a project which succeeded on its own terms and did damage elsewhere; a named eBook deliverable in every phase). **Measure gains two Tier 1 fields:** `xy_matrix_summary` and `vital_few_xs`, carrying the eBook's own labelled Measure→Analyse hand-off, which previously had no carrier at all — Analyse's entry condition was a list nothing recorded. **Analyse gains `practical_significance` (Tier 1)**, restoring the eBook's two-gates-in-series rule: a root cause significant at p=0.001 that explains 0.1% of the problem is not worth an Improve solution, and Improve's `pilot_result` rubric already demanded both. Analyse also gains `statistical_problem_statement` and `process_owner_buyin` (Tier 2); Improve gains `explanatory_power` and `process_owner_buyin` (Tier 2); Control gains `project_signoff` (Tier 2), which the gate had been asking for with no field able to answer. **`control_plan` becomes a `dict` of five sub-plans** — documentation, monitoring, response, training, aligning_systems (§4.10.6). A single string could not show that four were done and one was skipped, which is what the eBook's ten roadmap steps (five develop, five implement) exist to surface; four extraction gaps close with this one change. **FMEA is deliberately NOT added to any schema** (§4.10.5) — heavy manufacturing methodology built around severity × occurrence × detection scoring of physical failure modes, where the typical Agent Improve case is service or transactional DMAIC and `xy_matrix_summary` / `vital_few_xs` already do the prioritisation job. If a Black Belt performs one it lives in `uploads`. **Two tier/placement corrections:** the statistical problem statement moves from Define BB-only to **Analyse, all Belts**, where the eBook asks it; and the X-Y matrix stops being BB-only, becoming a Tier 1 field for everyone. DOE is now the only belt-gated item in §3.7.2. **Finding 25 — the six-step computation coaching pattern (§3.4.2):** explain why → guide data preparation → run → interpret → visualise → coach the next move, for all 18 computation tools, enforced by a new `COACHING_QUALITY_RUBRIC` criterion checked on every turn. A coach that returns `p_value: 0.001` with no interpretation has handed the Belt a number they cannot act on or defend at a gate. This is the most content-heavy part of each SKILL.md — Measure's eight computation tools alone are 160–320 lines. **Page citation corrected:** §13.5 and REFACTORING §42 cited "eBook p681" for verified financial impact; that page is the Control quiz cover and the material is at **book pp677–679**. **Field counts:** Define 14 · Measure 12 · Analyse 13 · Improve 12 · Control 15. No code change accompanies this amendment. |
+
+| Aug 2026 | **2.2.12** | **Process maps, stability and experiment justification promoted to schema — Finding 26 (§4.10.7, §13).** Three of the nine gaps that v2.2.11 assigned to SKILL.md coaching content were reclassified as **Tier 1 fields**, on one argument: a coaching prompt produces a conversation, and a conversation cannot be read by the next phase's planner or checked by the grader. **`process_map_sipoc` (Define, Tier 1, dict)** — six sub-fields: suppliers, inputs, process_steps, outputs, customers, process_kpis. The failure this catches is the partial map: *“far too often Belts capture only segments of the process”*, which produces a project that cannot show improvement because the baseline never covered the whole thing — invisible at Define, expensive at Control. The coach validates end-to-end coverage, challenges fragments, checks consistency with `project_scope`, and decomposes an uploaded diagram into the structured form rather than accepting the image as the deliverable. **`detailed_process_map` (Measure, Tier 1, dict)** — six sub-fields: steps, cycle_times, resources, value_vs_waste, measurement_points, baseline_kpis. The coach checks it expands Define's SIPOC correctly and that measurement_points align with `data_collection_plan`. **These two close the before/after KPI chain**: Define's `process_kpis` names what is measured, Measure's `baseline_kpis` holds the before values, Control's `post_improvement_metric` holds the after — and the grader verifies the same measurement points carry different values, so a project whose Control metrics sit on steps Define never listed is caught. **`stability_assessment` (Measure, Tier 1)** — was a Tier 2 rubric criterion with no field and a strong warning; the warning was right and the tier was not. The eBook sequences stability as a precondition for capability (book p230), because a Cpk computed across special causes is an average of two different processes, not a capability figure. **`experiment_justification` (Improve, Tier 1)** — does not require an experiment, it requires a decision, stated as one of three: DOE conducted, simplified one-factor experiment, or none needed because the solution follows from root cause analysis. All three are valid; the failure it catches is drifting past the question, not skipping DOE — consistent with the eBook's own *“do not force Designed Experiments”* and its estimate that over 80% of projects find their solution in Analyse. The Improve SKILL.md carries a plain-language DOE explanation so a Belt without statistical training chooses rather than defaults. **Structured dicts go from one to three** (§4.10.4) — `control_plan`, `process_map_sipoc`, `detailed_process_map` — distinct from the three cross-phase reference dicts, and the grader checks every sub-field is populated. All three are Tier 1 and use bracket access in gate assembly; only the cross-phase reference keeps `.get(…, {})` for shape-guarding. **Six gaps remain deliberately field-free** and are listed in §4.10.5: stakeholder analysis, project plan, short/long-term capability, lean opportunities, benefits deferral date, Define-stage finance involvement. **Field counts:** Define 15 · Measure 14 · Analyse 13 · Improve 13 · Control 15. **Tier 1:** 6 · 7 · 4 · 4 · 3. Schema/assembly parity and the per-phase compatibility table verified mechanically in both documents. No code change accompanies this amendment. |
 
 ### 18.1 Amendment procedure
 

@@ -1847,6 +1847,7 @@ class DefineOutput(BaseModel):
     project_scope: str                      # explicit inclusions and exclusions
     goal_statement: str                     # SMART
     voc_summary: str                        # voice of customer
+    process_map_sipoc: dict                 # SIPOC + KPIs, 6 sub-fields (§4.10.7)
     issues_and_barriers: str                # Belt-stated blockers (§4.10.5)
     # Tier 2 — rubric-recommended
     business_case: str                      # quantified business impact (COPQ)
@@ -1868,6 +1869,8 @@ class MeasureOutput(BaseModel):
     data_collection_plan: str               # sample size, frequency, responsible person
     xy_matrix_summary: str                  # evidence prioritisation happened (§4.10.5)
     vital_few_xs: str                       # the ranked result Analyse consumes (§4.10.5)
+    detailed_process_map: dict              # expanded map, 6 sub-fields (§4.10.7)
+    stability_assessment: str               # checked BEFORE capability (§4.10.7)
     issues_and_barriers: str
     # Tier 2
     baseline_sigma: str                     # calculated sigma level
@@ -1905,6 +1908,7 @@ class ImproveOutput(BaseModel):
     # Tier 1
     selected_solution: str                  # criteria-based selection documented
     pilot_result: str                       # practical AND statistical significance
+    experiment_justification: str           # DOE / simplified / none — and why (§4.10.7)
     issues_and_barriers: str
     # Tier 2
     solution_linked_to_root_cause: dict     # cross-phase ref -> Analyse root cause (§4.7)
@@ -1954,6 +1958,7 @@ gate_document = DefineOutput(
     project_scope=artifacts["project_scope"],
     goal_statement=artifacts["goal_statement"],
     voc_summary=artifacts["voc_summary"],
+    process_map_sipoc=artifacts["process_map_sipoc"],
     issues_and_barriers=artifacts["issues_and_barriers"],
     business_case=artifacts.get("business_case", ""),
     team=artifacts.get("team", ""),
@@ -1972,6 +1977,8 @@ gate_document = MeasureOutput(
     data_collection_plan=artifacts["data_collection_plan"],
     xy_matrix_summary=artifacts["xy_matrix_summary"],
     vital_few_xs=artifacts["vital_few_xs"],
+    detailed_process_map=artifacts["detailed_process_map"],
+    stability_assessment=artifacts["stability_assessment"],
     issues_and_barriers=artifacts["issues_and_barriers"],
     baseline_sigma=artifacts.get("baseline_sigma", ""),
     measurement_system_validated=artifacts.get("measurement_system_validated", ""),
@@ -2003,6 +2010,7 @@ gate_document = AnalyseOutput(
 gate_document = ImproveOutput(
     selected_solution=artifacts["selected_solution"],
     pilot_result=artifacts["pilot_result"],
+    experiment_justification=artifacts["experiment_justification"],
     issues_and_barriers=artifacts["issues_and_barriers"],
     solution_linked_to_root_cause=artifacts.get("solution_linked_to_root_cause", {}),
     implementation_plan=artifacts.get("implementation_plan", ""),
@@ -2474,6 +2482,8 @@ DEFINE_RUBRIC = """
 [TIER 1] voc_summary: customer perspective — who is affected and how they judge it
 [TIER 1] project_scope: explicit inclusions and exclusions with process boundaries
 [TIER 1] goal_statement: SMART (Specific, Measurable, Achievable, Relevant, Time-bound)
+[TIER 1] process_map_sipoc: DICT — suppliers, inputs, process_steps, outputs,
+         customers, process_kpis. End-to-end, not a fragment
 [TIER 1] issues_and_barriers: real project blockers — sponsor availability, data
          access, resource constraints. "None identified at this stage" is an
          acceptable answer; silence is not
@@ -2489,12 +2499,14 @@ MEASURE_RUBRIC = """
 [TIER 1] data_collection_plan: sample size, frequency, and responsible person named
 [TIER 1] xy_matrix_summary: evidence that prioritisation of the X's was done
 [TIER 1] vital_few_xs: the ranked X's carried into Analyse, and why
+[TIER 1] detailed_process_map: DICT — steps, cycle_times, resources,
+         value_vs_waste, measurement_points, baseline_kpis
+[TIER 1] stability_assessment: checked BEFORE capability — an unstable process
+         has special causes and its Cpk is not a capability figure
 [TIER 1] issues_and_barriers: real project blockers
 [TIER 2] baseline_sigma: calculated sigma level from the baseline data
 [TIER 2] measurement_system_validated: GR&R or equivalent evidence provided
 [TIER 2] secondary_metrics: what could get worse if this improvement succeeds
-[TIER 2 · STRONG WARNING, BOTH LEVELS] stability: special causes checked before the
-         baseline was taken — an unstable process has no meaningful baseline
 """
 
 ANALYSE_RUBRIC = """
@@ -2515,6 +2527,8 @@ IMPROVE_RUBRIC = """
 [TIER 1] selected_solution: criteria-based selection documented (impact, effort, risk)
 [TIER 1] pilot_result: measurable improvement demonstrated with data — practical
          AND statistical significance, not one standing in for the other
+[TIER 1] experiment_justification: DOE conducted / simplified experiment / none
+         needed — all three valid, but the Belt must have decided
 [TIER 1] issues_and_barriers: real project blockers
 [TIER 2] solution_linked_to_root_cause: DICT — references Analyse's root_cause_statement
 [TIER 2] implementation_plan: timeline, responsible person, resource requirements
@@ -2596,24 +2610,28 @@ Coaching scope is **both** Green Belt and Black Belt, and the tier system is wha
 
 ```
 if belt_level == "Black Belt":
-    flag FMEA, DOE, X-Y matrix, statistical problem statement as Tier 2 recommendations
+    flag DOE as a Tier 2 recommendation
 if belt_level == "Green Belt":
-    suppress these — do not recommend heavy methodology GB isn't trained for
+    suppress it — do not recommend heavy methodology GB isn't trained for
 ```
 
 | Item | Green Belt | Black Belt |
 |---|---|---|
-| FMEA | Suppressed | Tier 2 |
 | DOE | Suppressed | Tier 2 |
-| X-Y matrix | Suppressed | Tier 2 |
-| Statistical problem statement | Suppressed | Tier 2 |
-| Updated FMEA in Analyse | Suppressed | Tier 2, only if FMEA was done in Measure |
-| Stability / special causes | **Tier 2, strong warning** | **Tier 2, strong warning** |
-| Three-party sign-off | Simplified | Full |
 
-FMEA and DOE are heavy methodologies — in the user's words, "definitely very heavy" and "are heavy." Recommending them to a Green Belt produces either a bad FMEA or a Belt who learns to ignore the grader, and both cost more than the omission.
+**DOE is the only belt-gated item left.** Five others left this table across v2.2.11 and v2.2.12, and it is worth recording where each went:
 
-**Stability is not suppressed for either level.** A baseline computed across an unstable process is not a baseline, and that holds regardless of training.
+| Item | Was | Now |
+|---|---|---|
+| X-Y matrix | BB-only Tier 2 rubric item | **`xy_matrix_summary`, Tier 1 field, all Belts** — it produces the vital few X's Analyse cannot start without |
+| Statistical problem statement | BB-only, and placed in Define | **`statistical_problem_statement`, Tier 2 field, all Belts, in Analyse** — where the eBook asks it |
+| FMEA / updated FMEA | BB-only Tier 2 | **Removed entirely.** Not tracked in any schema; §17 Finding 24 records the reasoning |
+| Stability / special causes | Tier 2, strong warning, both levels | **`stability_assessment`, Tier 1 field, both levels.** Never suppressed for a GB — what changed is that it is no longer advisory |
+| Three-party sign-off | Tier 2 rubric item, no field | **`project_signoff`, Tier 2 field on `ControlOutput`.** Still simplified for a GB in coaching, but now recorded |
+
+DOE is a heavy methodology — in the user's words, "are heavy." Recommending it to a Green Belt produces either a badly designed experiment or a Belt who learns to ignore the grader, and both cost more than the omission. Note that `experiment_justification` (Tier 1, all Belts — §17 Finding 26) still requires a GB to *decide* about experimentation; what is suppressed is the recommendation to run a DOE, not the obligation to think about one.
+
+**Stability is not suppressed for either level, and is no longer advisory.** `stability_assessment` is a Tier 1 field for both belt levels: a baseline computed across an unstable process is not a baseline, and that holds regardless of training.
 
 Note the contrast with §36's decision to leave `belt_level` **off** as a retrieval filter on `improve_case_index`. Filtering what a Belt may *learn from* over-narrows — a Green Belt often benefits from a Black Belt case. Adjusting what the grader *asks of them* does not have that failure mode.
 
@@ -2625,7 +2643,7 @@ Note the contrast with §36's decision to leave `belt_level` **off** as a retrie
 | Financial verification | `financial_impact_verified` |
 | Hypothesis test results | `artifacts["computation_results"]` |
 | Handover | `handover_documented` |
-| Process maps | The `propose_diagram` tool; output in the conversation |
+| Process maps | **Superseded** — now `process_map_sipoc` (Define) and `detailed_process_map` (Measure), both Tier 1 fields (§17 Finding 26). `propose_diagram` still renders them |
 | Short/long-term capability | `calculate_cpk`, results in `computation_results` |
 | Practical + statistical significance | Strengthened `pilot_result` rubric wording |
 
