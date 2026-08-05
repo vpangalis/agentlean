@@ -1,6 +1,6 @@
 ---
 name: dmaic-control-phase
-description: Coach a Lean Six Sigma Belt through the DMAIC Control phase — building the five-part control plan, proving the baseline actually moved, verifying the financial impact, handing over to the process owner, and capturing what transfers elsewhere. Use for control plan, documentation plan, monitoring plan, response plan, training plan, aligning systems and structures, SOP, standard operating procedure, SPC, statistical process control, control chart, control limits, Xbar R chart, X-bar and R, individuals moving range, I-MR, p chart, c chart, u chart, np chart, EWMA, CUSUM, post improvement capability, Cpk after, sustainability, handover, hand-off, process owner, project sign off, financial verification, benefits realisation, lessons learned, yokoten, horizontal replication, transferability, poka-yoke, visual management, 5S, Control gate, Control tollgate, project closure.
+description: Coach a Lean Six Sigma Belt through the DMAIC Control phase — building the five-part control plan, proving the baseline actually moved, verifying the financial impact, handing over to the process owner, and capturing what transfers elsewhere. Use for control plan, documentation plan, monitoring plan, response plan, training plan, aligning systems and structures, SOP, standard operating procedure, SPC, statistical process control, control chart, control limits, Xbar R chart, X-bar and R, individuals moving range, I-MR chart, individuals chart, moving range, p chart, c chart, u chart, np chart, EWMA, CUSUM, post improvement capability, Cpk after, sustainability, handover, hand-off, process owner, project sign off, financial verification, benefits realisation, lessons learned, yokoten, horizontal replication, transferability, poka-yoke, visual management, 5S, Control gate, Control tollgate, project closure.
 license: MIT
 compatibility: Requires Azure AI Search access for improve_knowledge_index, improve_evidence_index and improve_case_index
 metadata:
@@ -10,7 +10,7 @@ metadata:
   phase_index: 4
   output_schema: ControlOutput
   source: skills/extraction/control_extraction.md
-allowed-tools: rag_lookup_methodology, rag_lookup_evidence, rag_lookup_case_history, propose_template, propose_diagram, check_gate_status, request_human_approval, xbar_r_chart_limits, p_chart_limits, c_chart_limits, post_improvement_cpk
+allowed-tools: rag_lookup_methodology, rag_lookup_evidence, rag_lookup_case_history, propose_template, propose_diagram, check_gate_status, request_human_approval, xbar_r_chart_limits, imr_chart_limits, p_chart_limits, c_chart_limits, post_improvement_cpk
 ---
 
 # DMAIC Control Phase — Coaching Skill
@@ -146,8 +146,8 @@ supervisor in the Monday huddle."*
 **Bad looks like:** "we'll keep an eye on it"; a monthly report nobody
 is named to read.
 
-**Use `xbar_r_chart_limits`, `p_chart_limits` or `c_chart_limits`** here
-— see §3. Coach chart selection explicitly.
+**Use `xbar_r_chart_limits`, `imr_chart_limits`, `p_chart_limits` or
+`c_chart_limits`** here — see §3. Coach chart selection explicitly.
 
 #### `response`
 
@@ -303,7 +303,7 @@ Flagged to the billing manager."*
 
 ## 3. Computation tool coaching — the six-step pattern
 
-Four tools. Follow all six steps (ARCHITECTURE.md §3.4.2).
+Five tools. Follow all six steps (ARCHITECTURE.md §3.4.2).
 
 ### Choosing the control chart — coach this first
 
@@ -313,13 +313,20 @@ Four tools. Follow all six steps (ARCHITECTURE.md §3.4.2).
 | Belt's data | Tool | Say it as |
 |---|---|---|
 | A measurement, taken in small batches | `xbar_r_chart_limits` | "Averages and spread per batch" |
+| **Individual measurements per period** | **`imr_chart_limits`** | **"One reading at a time, and how much it moves between readings"** |
 | Pass/fail, proportion defective, varying sample size | `p_chart_limits` | "Proportion going wrong each period" |
 | Count of defects, constant opportunity | `c_chart_limits` | "Number of problems per period" |
 
-If the Belt has a single measurement per period rather than batches, say
-so plainly: *"with one reading per period we'd normally use an
-individuals chart — that's a schema change, so for now let's use the
-proportion chart on weekly totals."*
+**I-MR is the common case in service and transactional work.** Most
+office processes produce one number per week — a cycle time, a backlog,
+a monthly cost — rather than batches of five. If the Belt says "we get
+one figure a week", that is an individuals chart, not a reason to
+aggregate into something else.
+
+**Do not push the Belt into batching to fit a chart.** If they have one
+reading per period, use `imr_chart_limits`; inventing subgroups from
+data that was not collected in subgroups produces limits that mean
+nothing.
 
 ### `p_chart_limits`
 
@@ -380,6 +387,55 @@ subgroup is the normal noise."*
 **5 — Visualise.** `propose_diagram` both charts together.
 
 **6 — Next move.** Into the monitoring sub-plan, with review cadence.
+
+### `imr_chart_limits`
+
+**1 — Explain why.**
+> "You get one reading per period rather than a batch, so we use an
+> individuals chart. It plots each reading, and underneath it plots how
+> much the reading moved from the one before. That second chart is what
+> tells us whether the process has become erratic, which a single line
+> of points can hide."
+
+**2 — Guide data preparation.** Simplest of the four to prepare, and say
+so — it lowers the barrier.
+> "Just the readings in time order, one per period, from the
+> post-improvement period. No grouping needed. If you have a weekly
+> figure, that's exactly right."
+
+Two things to check with the Belt:
+- **Time order matters.** *"Are these in the order they happened? The
+  moving range is the gap between consecutive readings, so the sequence
+  is the data."*
+- **Gaps.** *"Any weeks missing? A skipped week makes the movement look
+  bigger than it was — better to note the gap than to close it up."*
+
+Check `rag_lookup_evidence` for an uploaded weekly extract first.
+
+**3 — Run the computation.**
+
+**4 — Interpret the result.** Read the moving range chart first, and say
+why.
+> "Read the lower chart first — that's the movement between weeks. Yours
+> is stable, so the readings aren't jumping around unpredictably, which
+> means the limits on the top chart are trustworthy. Your centre line is
+> 3.1% with limits from 1.2% to 5.0%. So a week at 4.6% is ordinary
+> variation, not a problem — but anything above 5.0%, or a run of several
+> weeks all above the centre line, is worth acting on."
+
+Warn about the common misreading:
+> "Individuals charts have wider limits than batch charts, because a
+> single reading carries more noise than an average of five. That's
+> expected — it doesn't mean your process is worse."
+
+**5 — Visualise.** `propose_diagram` both the individuals chart and the
+moving range chart together. The pair is the deliverable — an
+individuals chart without its moving range chart is half the tool.
+
+**6 — Coach the next move.**
+> "That goes into your monitoring sub-plan. Who looks at it and how
+> often — and what happens on a point outside the limits? That's your
+> response plan."
 
 ### `c_chart_limits`
 

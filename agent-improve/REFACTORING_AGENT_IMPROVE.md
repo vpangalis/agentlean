@@ -170,7 +170,7 @@ None of those are usage.
 - §63 — **MCP evaluated for AgentLean and rejected**, with rationale
 - §64 — MCP Production Architecture *(the structured error schema is preserved for Azure services; ratified in §66/§67)*
 - §65 — MCP Caching *(cache-key/TTL/invalidation principles feed §67 Level 3 Redis cache)*
-- §39 — **Knowledge Tools in Augmented Reasoning** — the MCP-out decision and the 18 computation tools. *Placed last in this Part because it is the section that closes it; §39 is a ratified design section, not MCP pedagogy, and Parts 2, 3, and 5 all depend on it.*
+- §39 — **Knowledge Tools in Augmented Reasoning** — the MCP-out decision and the 20 computation tools. *Placed last in this Part because it is the section that closes it; §39 is a ratified design section, not MCP pedagogy, and Parts 2, 3, and 5 all depend on it.*
 
 ### Part 10 — Course History and Context
 *Training record — not operational. Chronological entries kept for continuity.*
@@ -215,7 +215,7 @@ None of those are usage.
 - `create_agent` replacing `create_react_agent` → **§50** (Part 8), applied throughout §42/§48/§51
 - Actor-Critic as a conceptual foundation → never written as a section; the closest ratified pattern is the grader/coach loop in **§42** and reflection in **§48**
 
-*The EDUCATIONAL.md index also listed §39 among the MCP sections. §39 is "Knowledge Tools in Augmented Reasoning" — it is where the MCP-out decision and the 18 computation tools are recorded, and it closes Part 9 for that reason.*
+*The EDUCATIONAL.md index also listed §39 among the MCP sections. §39 is "Knowledge Tools in Augmented Reasoning" — it is where the MCP-out decision and the 20 computation tools are recorded, and it closes Part 9 for that reason.*
 
 ---
 
@@ -332,7 +332,7 @@ None of those are usage.
 │  AzureBlobStore │   │   request_human_      │   │  P50/P99 diagnostic  │
 │   → PostgresStr │   │     approval          │   │  (Section 1)         │
 │  cross-phase    │   │                       │   │                      │
-│  artifacts      │   │  + 18 per-phase       │   │  Grader on_evaluation│
+│  artifacts      │   │  + 20 per-phase       │   │  Grader on_evaluation│
 │                 │   │    computation tools  │   │  → step_log (S.42)   │
 │  Typed Pydantic │   │    (Section 39)       │   │                      │
 │  boundary       │   │                       │   │                      │
@@ -536,7 +536,7 @@ The same mapping in table form, since it is the distinction most often lost when
 | `gate_review_node` | Node — `interrupt()` | No | No | **No** — interrupt point |
 | `gate_apply_node` | Node | No | No | **No** — plain function |
 | 7 universal tools | Tools | No | — | **No** |
-| 18 computation tools | Tools — pure functions | No | — | **No** |
+| 20 computation tools | Tools — pure functions | No | — | **No** |
 
 Five agents exist in Agent Improve: one `phase_executor` per DMAIC phase. Everything above them is routing, everything beside them is validation, and everything below them is functions.
 
@@ -1276,7 +1276,7 @@ The pattern is a Planner-Executor pair applied recursively. At every non-leaf le
 **Implementation implications:**
 - Level 2 Planners run on `operational-premium` (gpt-4o) — reasoning-heavy structured decisions. The Level 1 Planner runs on no model at all; it reads flags.
 - Executors are routing mechanisms — LangGraph nodes or router functions, not necessarily LLMs. The Level 2 Executor is an exception: it is an LLM with bound tools, because tool selection genuinely is a decision.
-- Leaf tools use `operational-model` (gpt-4o-mini) or are pure functions. All 18 computation tools (§39) are pure functions.
+- Leaf tools use `operational-model` (gpt-4o-mini) or are pure functions. All 20 computation tools (§39) are pure functions.
 - The Planner/Executor split matters for cost, observability, and testing. Fusing them loses the boundary — you can no longer see what was decided separately from what was done.
 
 ### Universal Anti-Patterns — Apply at Every Level
@@ -1610,10 +1610,11 @@ Define (9 tools)          Measure (16 tools)              Analyse (13 tools)
                           │     proportion
                           └── calculate_sample_size_mean
 
-Improve (9 tools)         Control (12 tools)
+Improve (8 tools)         Control (12 tools)
 └── universal 7           └── universal 7
 └── calculate_doe_main_   ├── xbar_r_chart_limits
-    effects               ├── p_chart_limits
+    effects               ├── imr_chart_limits
+                          ├── p_chart_limits
                           ├── c_chart_limits
                           └── post_improvement_cpk
 ```
@@ -1806,7 +1807,7 @@ The executor node then writes `fields_captured` into `artifacts` and appends `ci
 | Measure | 7 | 8 computation tools | **15** |
 | Analyse | 7 | 5 computation tools | **12** |
 | Improve | 7 | 1 — `calculate_doe_main_effects` | **8** |
-| Control | 7 | 4 computation tools | **11** |
+| Control | 7 | 5 computation tools | **12** |
 
 Every phase drops by one, and Measure moves off the top edge of the 10–15 degradation range it previously sat on at 16.
 
@@ -2696,7 +2697,7 @@ A coach that asks good questions and then returns `t_statistic: 4.23, p_value: 0
 
 **Steps 1, 4 and 6 are the coaching.** Steps 2, 3 and 5 are tool mechanics that most implementations would get right by default; the three that carry the teaching are exactly the three a model under-serves when it is optimising for a correct answer.
 
-**This applies to all 18 computation tools (§39), not only regression:**
+**This applies to all 20 computation tools (§39), not only regression:**
 
 | Phase | Tool | Step 1 — how the coach opens |
 |---|---|---|
@@ -2707,6 +2708,7 @@ A coach that asks good questions and then returns `t_statistic: 4.23, p_value: 0
 | Analyse | `t_test` | "To prove the training gap is real, we'll compare error rates between the two groups statistically…" |
 | Analyse | `linear_regression` | "Let's see how strongly training hours predict error rate. You'll need two columns of data…" |
 | Control | `xbar_r_chart_limits` | "Control charts will monitor whether the improvement holds. I'll calculate the control limits from your post-improvement data…" |
+| Control | `imr_chart_limits` | "You have one reading per period rather than batches, so we'll use an individuals chart — same idea, limits from the point-to-point movement…" |
 
 **Why the rubric criterion rather than a prompt instruction.** A system-prompt line saying "explain your computations" is advisory and degrades over a long conversation. The middleware grader fires on **every turn** via `after_agent`, so a raw-output dump is caught and retried **before the Belt sees it** — the same argument that put coherence checking at Layer 1 rather than in a prompt (§68).
 
@@ -2716,7 +2718,7 @@ A coach that asks good questions and then returns `t_statistic: 4.23, p_value: 0
 
 The BB eBook extractions under `agent-improve/skills/extraction/` supply the methodology content; the skill shapes it into the six-step conversation. That is the division of labour between the extraction files and the skills: extraction is *what the methodology says*, the skill is *how the coach says it*.
 
-**Step 2 is where §60's data-collection coaching actually lives.** The eBook teaches what data a tool needs; the coach teaches the Belt to collect and structure it. Since `improve_evidence_index` is the only channel through which external data enters AgentLean (§39, §63), the quality of step 2 across the 18 tools is the quality of the system's grounding.
+**Step 2 is where §60's data-collection coaching actually lives.** The eBook teaches what data a tool needs; the coach teaches the Belt to collect and structure it. Since `improve_evidence_index` is the only channel through which external data enters AgentLean (§39, §63), the quality of step 2 across the 20 tools is the quality of the system's grounding.
 
 ---
 
@@ -9747,7 +9749,7 @@ This is the human-side complement to the automated hooks. The goal is not generi
 | `anthropic.com/engineering/effective-context-engineering-for-ai-agents` | Sep 2025 | Context-window management as a first-class discipline | Directly relevant to `SummarizationMiddleware` (§36) and progressive skill disclosure (§84). |
 | `anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills` | Oct 2025 | Agent Skills, SKILL.md spec | The spec §83 and §84 are built against. |
 | `anthropic.com/engineering/demystifying-evals-for-ai-agents` | Jan 2026 | Eval design for agents | Directly relevant to the §75 evaluation dataset. |
-| `anthropic.com/engineering/writing-tools-for-agents` | Sep 2025 | Tool design principles | Relevant to the 18 computation tools and 3 retrieval tools (§39). |
+| `anthropic.com/engineering/writing-tools-for-agents` | Sep 2025 | Tool design principles | Relevant to the 20 computation tools and 3 retrieval tools (§39). |
 | `docs.langchain.com`, `reference.langchain.com`, `python.langchain.com` | Ongoing | Official LangChain / LangGraph / deepagents docs | API patterns, middleware, `create_agent`, structured output |
 | `github.com/langchain-ai/*` (repos, issues, releases, changelogs) | Ongoing | Source of truth for code, versions, breaking changes | Version verification, bug fixes, feature status |
 | `pypi.org` | Ongoing | Package versions and dependency data | Definitive version and dependency data |
@@ -10388,7 +10390,7 @@ Without the decision responsibilities, nobody in the system evaluates whether a 
 >
 > The nine sections that follow are retained deliberately, as protocol pedagogy. Understanding MCP is worth having — it is the standard for cross-organisation tool sharing, and the reasoning for excluding it only holds because of facts about *our* situation (one team, one stack, all Python, all LangChain 1.x) that could change for a different product.
 >
-> **What replaces MCP here:** the `@tool` decorator for tool composition (§39), three `rag_lookup_*` tools for retrieval (§32, §33), 18 per-phase computation tools (§39), and Python imports from shared modules for cross-agent tool sharing. Users upload their data via `improve_evidence_index`; the coach's job includes teaching them what to collect and how.
+> **What replaces MCP here:** the `@tool` decorator for tool composition (§39), three `rag_lookup_*` tools for retrieval (§32, §33), 20 per-phase computation tools (§39), and Python imports from shared modules for cross-agent tool sharing. Users upload their data via `improve_evidence_index`; the coach's job includes teaching them what to collect and how.
 >
 > **Three sections carry content that outlives the MCP framing** and are worth reading even though MCP is out:
 > - **§60** — the internal-tool boundary and the hybrid planner + reactive tool pattern. Confirms the ratified architecture; retained as an architectural reference, not just MCP knowledge.
@@ -10944,7 +10946,7 @@ MCP Tool (external, network-accessible):     ← THIS COLUMN IS EMPTY (§39)
   query_azure_devops_metrics()
 ```
 
-**The right-hand column is empty by decision, not by omission.** Everything in it required a live system integration, and AgentLean has none: the Belt uploads their data and the coach teaches them what to collect. So all 25 tools are internal `@tool` functions (§39), and the "boundary" this section describes turns out to enclose the whole system.
+**The right-hand column is empty by decision, not by omission.** Everything in it required a live system integration, and AgentLean has none: the Belt uploads their data and the coach teaches them what to collect. So all 27 tools are internal `@tool` functions (§39), and the "boundary" this section describes turns out to enclose the whole system.
 
 The distinction is still worth understanding. It is what makes the §39 reasoning legible — MCP is the right answer when tools must cross an organisational boundary, and the reason it is wrong here is a fact about our situation, not about the protocol.
 
@@ -11964,7 +11966,7 @@ Why `improve_knowledge_index` exists. gpt-4o was not trained on the specific Bla
 We retrieve from the knowledge, evidence, and case indexes. We deliberately do **not** retrieve real-time process data — see Decision 1 below. The Belt uploads their data; the coach's job includes teaching them what to collect and how.
 
 **Enables verification, search, and computation capabilities**
-Search and verification we have. **Computation is added in the refactor** — 18 tools, distributed per phase. See Decision 2 below.
+Search and verification we have. **Computation is added in the refactor** — 20 tools, distributed per phase. See Decision 2 below.
 
 **Supports grounded and fact-aware reasoning outputs**
 The anti-hallucination argument for RAG. Without it the coach invents methodology. With it the coach retrieves and cites actual Black Belt content — including `source_file` and `page_number` for citation transparency (§40). This is why the eBook index exists.
@@ -12033,7 +12035,7 @@ Two of Course 4's ideas do carry over, detached from MCP:
 
 ---
 
-### Decision 2 — 18 Computation Tools, Bound Per Phase
+### Decision 2 — 20 Computation Tools, Bound Per Phase
 
 Each is a `@tool(args_schema=...)` function with a Pydantic argument schema. All are pure functions — no LLM call, deterministic, unit-testable.
 
@@ -12045,13 +12047,13 @@ Each is a `@tool(args_schema=...)` function with a Pydantic argument schema. All
 | Measure | 7 | `calculate_sigma_level`, `calculate_cpk`, `calculate_dpmo`, `calculate_yield_rty`, `calculate_ftq`, `calculate_grr`, `calculate_sample_size_proportion`, `calculate_sample_size_mean` | **15** |
 | Analyse | 7 | `t_test`, `chi_square_test`, `anova`, `pearson_correlation`, `linear_regression` | **12** |
 | Improve | 7 | `calculate_doe_main_effects` | **8** |
-| Control | 7 | `xbar_r_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | **11** |
+| Control | 7 | `xbar_r_chart_limits`, `imr_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | **12** |
 
 **The universal seven**, passed to every phase executor via `tools=`: `rag_lookup_methodology`, `rag_lookup_evidence`, `rag_lookup_case_history`, `propose_template`, `propose_diagram`, `check_gate_status`, `request_human_approval`.
 
 ### Why Per-Phase Binding, Not Universal
 
-| | Option A — bind all 25 to every phase | Option B — per-phase subset *(selected)* |
+| | Option A — bind all 27 to every phase | Option B — per-phase subset *(selected)* |
 |---|---|---|
 | Tools per coach | 26 everywhere | 9–16, never more than 16 |
 | Selection quality | Degrades past ~10–15 tools per agent (2026 practitioner guidance) | Every coach stays in the tractable range |
@@ -12536,7 +12538,7 @@ Refactor the foundation
   ├── AzureBlobStore for cross-phase artifacts           (§52a)
   ├── Explicit planner / executor nodes                  (§5, §11, §20)
   ├── Three rag_lookup_* tools with multi-query + RRF    (§32, §33)
-  ├── 18 per-phase computation tools                     (§39)
+  ├── 20 per-phase computation tools                     (§39)
   ├── Four-middleware coach stack                        (§84)
   ├── Four-layer gate validation + nine-step HITL        (§2, §68)
   └── Reliability: timeouts, error_handler, circuit

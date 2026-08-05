@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.12 — August 2026
+# Version 2.2.13 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -55,7 +55,7 @@ hook — see REFACTORING_AGENT_IMPROVE.md §86.
 | Gate approval | Interrupt → approve | **Nine-step HITL** (§9.1) |
 | Gate validation | Field presence | **Four-layer stack** (§9.2) |
 | Retrieval tools | 2 (`search_methodology`, `search_evidence`) | **3 `rag_lookup_*`** (§7.2) |
-| Tool binding | 7 universal tools, same for all phases | **7 universal + 18 per-phase computation** (§5) |
+| Tool binding | 7 universal tools, same for all phases | **7 universal + 20 per-phase computation** (§5) |
 | Coach construction | `bind_tools` on the coach LLM | **`create_agent` + five middlewares** (§4.4, §8) |
 | Structured output | `with_structured_output` mandated everywhere | **Scoped by call type** (§4.6) |
 | Cross-phase data | Parent state | **Store** (§10.2) |
@@ -93,7 +93,7 @@ rules that bind, and where they live:
 | Executor `response_format` | `ProviderStrategy(PhaseOutput)` | **`CoachingResponse`** (§4.6, §10.7) |
 | Field capture | `record_field` tool | **`CoachingResponse.fields_captured`** (§5.1) |
 | Universal tools | 8 | **7** (§5.1) |
-| Per-phase totals | 9 / 16 / 13 / 9 / 12 | **8 / 15 / 12 / 8 / 11** (§5.2) |
+| Per-phase totals | 9 / 16 / 13 / 9 / 12 | **8 / 15 / 12 / 8 / 12** (§5.2) |
 | Gate document schemas | Undefined, or two conflicting | **Five canonical `{Phase}Output`** (§10.7) |
 
 ### 0.6 — What Changed in 2.2.11 — the eBook gaps closed
@@ -233,7 +233,7 @@ Terminology Reference.*
 - All Azure SDK calls use the `aio` variants where available
 
 Synchronous code is permitted only in pure functions with no I/O
-(prompt building, state transformations, validation logic, all 18
+(prompt building, state transformations, validation logic, all 20
 computation tools).
 
 **Per-node timeouts require async nodes** (§3.6) — this is a hard
@@ -834,19 +834,26 @@ every coach inside the tractable range.
 | Measure | 7 | `calculate_sigma_level`, `calculate_cpk`, `calculate_dpmo`, `calculate_yield_rty`, `calculate_ftq`, `calculate_grr`, `calculate_sample_size_proportion`, `calculate_sample_size_mean` | **15** |
 | Analyse | 7 | `t_test`, `chi_square_test`, `anova`, `pearson_correlation`, `linear_regression` | **12** |
 | Improve | 7 | `calculate_doe_main_effects` | **8** |
-| Control | 7 | `xbar_r_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | **11** |
+| Control | 7 | `xbar_r_chart_limits`, `imr_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | **12** |
 
 **No phase exceeds 16 tools**, and after `record_field` was retired the
 actual maximum is 15 (Measure). If a new tool would push a phase past
 16, that is an ARCHITECTURE.md amendment, not a routine addition.
 
-**Each of the 18 computation tools is a separate named tool.**
+**`imr_chart_limits` is the individuals / moving-range chart** and is
+the right choice whenever the Belt has **one measurement per period**
+rather than batches — the common case in service and transactional work.
+Never coach a Belt into inventing subgroups to fit a batch chart;
+subgroups that were not collected as subgroups produce meaningless
+limits.
+
+**Each of the 20 computation tools is a separate named tool.**
 Parameterised grouping (one `calculate_sample_size(type, ...)` with a
 mode argument) is BANNED — it moves the selection burden into the
 argument space, and models handle distinct named tools more reliably
 than mode arguments.
 
-**All 18 are pure functions.** No LLM call, deterministic, unit-tested.
+**All 20 are pure functions.** No LLM call, deterministic, unit-tested.
 
 Tool decisions are the LLM's, not the graph's.
 
@@ -2440,7 +2447,7 @@ Refactor the foundation
   ├── AzureBlobStore for cross-phase artifacts         §10.2
   ├── Explicit planner / executor nodes                §1.3, §3.3
   ├── Three rag_lookup_* tools, multi-query + RRF      §7
-  ├── 18 per-phase computation tools                   §5.2
+  ├── 20 per-phase computation tools                   §5.2
   ├── Four-middleware coach stack                      §8
   ├── Four-layer validation + nine-step HITL           §9
   └── Reliability: timeouts, error_handler, breaker,

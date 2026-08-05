@@ -1,6 +1,6 @@
 # Agent Improve — Architecture & Design Document
 **Agentlean Platform · DMAIC Improvement Agent**
-Version 2.2.12 · August 2026
+Version 2.2.13 · August 2026
 Status: v2.2 architecture ratified · refactor in progress (Step 2.2 complete;
 Step 3.6 index schema rename applied; state design closed — §4;
 node names, tool binding and output schemas closed — §3.2.1, §3.3.2, §4.10;
@@ -82,7 +82,7 @@ and inspectable, never implicit in a prompt.
 | Phase subgraph | 5 nodes, linear with one conditional | **6 nodes, conditional edges and cycles** (§3.2) |
 | Coach | Bare LLM with 7 bound tools | **`create_agent`, 4 middlewares, per-phase tool subset** (§3.3, §3.4, §8) |
 | Retrieval | 2 tools, single query | **3 tools, multi-query + RRF, metadata filters** (§7.4, §8.1) |
-| Computation | None | **18 tools, bound per phase** (§8.2) |
+| Computation | None | **20 tools, bound per phase** (§8.2) |
 | Gate | Interrupt → approve | **Nine steps, two nodes, four validation layers** (§3.6, §3.7) |
 | Cross-phase data | Parent state | **Store-mediated boundary mappers** (§4.3, §6.3) |
 | Phase routing | `phase_router` node | **Static edges** (§3.1) |
@@ -516,7 +516,7 @@ coach does not ask questions and then hand back a p-value — it explains
 what the analysis will prove, helps the Belt get the data into shape,
 runs it, translates the output, shows it, and says what to do next.
 
-**Every one of the 18 computation tools (§8.2) follows the same six
+**Every one of the 20 computation tools (§8.2) follows the same six
 steps:**
 
 | # | Step | What the coach does |
@@ -544,6 +544,7 @@ cannot defend at a gate.
 | Analyse | `t_test` | "To prove the training gap is real, we'll compare error rates between the two groups statistically…" |
 | Analyse | `linear_regression` | "Let's see how strongly training hours predict error rate. You'll need two columns of data…" |
 | Control | `xbar_r_chart_limits` | "Control charts will monitor whether the improvement holds. I'll calculate the control limits from your post-improvement data…" |
+| Control | `imr_chart_limits` | "You have one reading per period rather than batches, so we'll use an individuals chart — same idea, limits calculated from the point-to-point movement…" |
 
 **This is enforced by `COACHING_QUALITY_RUBRIC`** (§3.4.1) — the criterion
 reads: *"When calling a computation tool, the coach must explain the
@@ -1327,7 +1328,7 @@ enumerated exception (§4.7).
 baseline_mean = "12.3% invoice error rate, measured over Q2 2026"
 ```
 
-**Computation tools parse at the point of use.** Each of the 18 tools
+**Computation tools parse at the point of use.** Each of the 20 tools
 (§8.2) knows how to extract the number it needs from the string it is
 given, and returns a clear reformatting request to the Belt when it
 cannot. The parsing logic lives in 18 places that already had to
@@ -1396,7 +1397,7 @@ Measure), which is the common case rather than the edge case. The
 container is a dict so the reference is readable; the values inside it
 are still strings, so §4.6 holds within the exception.
 
-### 4.8 `computation_results` — where the 18 tools land
+### 4.8 `computation_results` — where the 20 tools land
 
 **Tool output is stored in `artifacts["computation_results"]`, a list of
 typed dicts.** One container per phase; no per-phase typed fields.
@@ -1425,13 +1426,13 @@ evidence to read.
 **The grader's check is mechanical:** scan
 `artifacts["computation_results"]` for an entry whose `tool` is
 `t_test`. `calculate_cpk` for capability, `calculate_grr` for
-measurement system validation, and so on — each of the 18 tools writes
+measurement system validation, and so on — each of the 20 tools writes
 to the same structure, and only `tool` and `phase` differ.
 
 **Why one list rather than typed destination fields.** Typed fields
 would add three to five per phase for the same mechanical check, and
 each new computation tool would then require a schema change. The list
-absorbs all 18 and every future one.
+absorbs all 20 and every future one.
 
 **`computation_results` lives inside `artifacts`, so it reaches the
 store with the rest of the gate document** (§3.6) — no new `PhaseState`
@@ -2199,7 +2200,7 @@ backend/
   knowledge/
     retriever.py                  Azure AI Search clients
     tools.py                      The universal seven
-    computation.py                The 18 per-phase computation tools    (NEW)
+    computation.py                The 20 per-phase computation tools    (NEW)
     fusion.py                     reciprocal_rank_fusion                (NEW)
     tool_args.py                  Pydantic arg schemas
   storage/
@@ -2925,7 +2926,7 @@ multi-tenancy note for future engineers.
 
 ### 8.2 Per-phase computation tools
 
-18 tools, `knowledge/computation.py`. Each is a `@tool(args_schema=...)`
+20 tools, `knowledge/computation.py`. Each is a `@tool(args_schema=...)`
 **pure function** — no LLM call, deterministic, unit-tested.
 
 | Phase | Universal | Computation tools | Total |
@@ -2934,11 +2935,11 @@ multi-tenancy note for future engineers.
 | Measure | 7 | `calculate_sigma_level`, `calculate_cpk`, `calculate_dpmo`, `calculate_yield_rty`, `calculate_ftq`, `calculate_grr`, `calculate_sample_size_proportion`, `calculate_sample_size_mean` | **15** |
 | Analyse | 7 | `t_test`, `chi_square_test`, `anova`, `pearson_correlation`, `linear_regression` | **12** |
 | Improve | 7 | `calculate_doe_main_effects` | **8** |
-| Control | 7 | `xbar_r_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | **11** |
+| Control | 7 | `xbar_r_chart_limits`, `imr_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | **12** |
 
 **Why per-phase binding.** Tool selection quality degrades past roughly
-10–15 tools per agent. Binding all 25 everywhere would make every coach
-carry 25 options per turn, most irrelevant to its phase. Under
+10–15 tools per agent. Binding all 27 everywhere would make every coach
+carry 27 options per turn, most irrelevant to its phase. Under
 per-phase binding the maximum is 15 and most sit at 8–12 — every phase
 inside the tractable range, with Measure at its top edge.
 
@@ -2946,6 +2947,14 @@ inside the tractable range, with Measure at its top edge.
 from 16 to 15, off the boundary of the degradation range. That was a
 side effect of the structured-output decision (§4.10), not its purpose,
 but it is a real one.
+
+> **Count correction, v2.2.13.** Every document said "18 computation
+> tools" from v2.2 onward, while the table above has always enumerated
+> **19**. Adding `imr_chart_limits` makes **20**, and the total tool
+> count is 7 universal + 20 = **27**. The enumerated table was always
+> right; the prose figure was an uncorrected off-by-one carried across
+> nine amendments. Counts are now derived from the table rather than
+> restated.
 
 **Why separate named tools rather than parameterised groups.**
 Parameterisation moves the selection burden from the tool namespace
@@ -3466,7 +3475,7 @@ begins.
 - **3.1** `knowledge/tool_args.py` — Pydantic arg schemas
 - **3.2** `knowledge/fusion.py` — `reciprocal_rank_fusion`
 - **3.3** `knowledge/tools.py` — the universal seven with multi-query + RRF
-- **3.4** `knowledge/computation.py` — 18 computation tools, pure functions, unit tested
+- **3.4** `knowledge/computation.py` — 20 computation tools, pure functions, unit tested
 - **3.5** `core/diagrams.py` — diagram type schemas
 - **3.6** ✔ **Index schema rename** — `phase_summary_analyse_phase` →
   `phase_summary_analyse` applied in Azure AI Search by delete +
@@ -3602,7 +3611,7 @@ load-bearing in more places than it appears.
 | Mid-phase value conflicts | **Auto-flag, no threshold**, with re-approval cascade |
 | Retrieval | **Three tools**, multi-query + RRF mandatory, metadata filters |
 | `improve_case_index` | **Active** — yokoten via `rag_lookup_case_history` |
-| Computation | **18 tools**, per-phase binding, pure functions |
+| Computation | **20 tools**, per-phase binding, pure functions |
 | Context compression | `SummarizationMiddleware` + typed state fields |
 | Compensation | **Native `error_handler=`**, no custom Saga framework |
 | Fallback Level 3 | **Azure Cache for Redis** — new infrastructure |
@@ -3612,7 +3621,7 @@ load-bearing in more places than it appears.
 | Prompt management | Constants in `core/prompts.py` |
 | Project identifier | **`case_id` everywhere** — documents match the code and the indexes (§4.1.1) |
 | Name for a phase's captured fields | **`artifacts`** — `captured_fields` and `phase_inputs` retired (§4.9) |
-| Captured field typing | **All `str`**; the 18 computation tools parse at the point of use (§4.6) |
+| Captured field typing | **All `str`**; the 20 computation tools parse at the point of use (§4.6) |
 | Cross-phase linkage | **Explicit reference dicts** on three fields — deterministic grader check, not LLM judgment (§4.7) |
 | Computation tool output | **`artifacts["computation_results"]`** — one list per phase, not typed per-phase fields (§4.8) |
 | Gate document write | **`gate_apply_node` writes both** the store and `PhaseState.final` (§3.6.1) |
@@ -3656,6 +3665,8 @@ load-bearing in more places than it appears.
 | Aug 2026 | **2.2.11** | **eBook extraction gaps closed — Findings 24 and 25 (§3.4.2, §4.10.5, §4.10.6, §13).** The five BB eBook extractions under `skills/extraction/` identified **57 deliverables with no corresponding field**. Six cross-cutting decisions close 25 of them; the rest are handled by SKILL.md coaching content or by mechanisms that already exist, and both sets are recorded in §4.10.5 so they are not re-litigated. **Two fields land on all five schemas:** `issues_and_barriers` (**Tier 1** — every real project has blockers, and a Belt reporting none has not looked; distinct from `acknowledged_gaps`, which is system-generated and records skipped Tier 2 fields) and `secondary_metrics` (Tier 2 — the field that catches a project which succeeded on its own terms and did damage elsewhere; a named eBook deliverable in every phase). **Measure gains two Tier 1 fields:** `xy_matrix_summary` and `vital_few_xs`, carrying the eBook's own labelled Measure→Analyse hand-off, which previously had no carrier at all — Analyse's entry condition was a list nothing recorded. **Analyse gains `practical_significance` (Tier 1)**, restoring the eBook's two-gates-in-series rule: a root cause significant at p=0.001 that explains 0.1% of the problem is not worth an Improve solution, and Improve's `pilot_result` rubric already demanded both. Analyse also gains `statistical_problem_statement` and `process_owner_buyin` (Tier 2); Improve gains `explanatory_power` and `process_owner_buyin` (Tier 2); Control gains `project_signoff` (Tier 2), which the gate had been asking for with no field able to answer. **`control_plan` becomes a `dict` of five sub-plans** — documentation, monitoring, response, training, aligning_systems (§4.10.6). A single string could not show that four were done and one was skipped, which is what the eBook's ten roadmap steps (five develop, five implement) exist to surface; four extraction gaps close with this one change. **FMEA is deliberately NOT added to any schema** (§4.10.5) — heavy manufacturing methodology built around severity × occurrence × detection scoring of physical failure modes, where the typical Agent Improve case is service or transactional DMAIC and `xy_matrix_summary` / `vital_few_xs` already do the prioritisation job. If a Black Belt performs one it lives in `uploads`. **Two tier/placement corrections:** the statistical problem statement moves from Define BB-only to **Analyse, all Belts**, where the eBook asks it; and the X-Y matrix stops being BB-only, becoming a Tier 1 field for everyone. DOE is now the only belt-gated item in §3.7.2. **Finding 25 — the six-step computation coaching pattern (§3.4.2):** explain why → guide data preparation → run → interpret → visualise → coach the next move, for all 18 computation tools, enforced by a new `COACHING_QUALITY_RUBRIC` criterion checked on every turn. A coach that returns `p_value: 0.001` with no interpretation has handed the Belt a number they cannot act on or defend at a gate. This is the most content-heavy part of each SKILL.md — Measure's eight computation tools alone are 160–320 lines. **Page citation corrected:** §13.5 and REFACTORING §42 cited "eBook p681" for verified financial impact; that page is the Control quiz cover and the material is at **book pp677–679**. **Field counts:** Define 14 · Measure 12 · Analyse 13 · Improve 12 · Control 15. No code change accompanies this amendment. |
 
 | Aug 2026 | **2.2.12** | **Process maps, stability and experiment justification promoted to schema — Finding 26 (§4.10.7, §13).** Three of the nine gaps that v2.2.11 assigned to SKILL.md coaching content were reclassified as **Tier 1 fields**, on one argument: a coaching prompt produces a conversation, and a conversation cannot be read by the next phase's planner or checked by the grader. **`process_map_sipoc` (Define, Tier 1, dict)** — six sub-fields: suppliers, inputs, process_steps, outputs, customers, process_kpis. The failure this catches is the partial map: *“far too often Belts capture only segments of the process”*, which produces a project that cannot show improvement because the baseline never covered the whole thing — invisible at Define, expensive at Control. The coach validates end-to-end coverage, challenges fragments, checks consistency with `project_scope`, and decomposes an uploaded diagram into the structured form rather than accepting the image as the deliverable. **`detailed_process_map` (Measure, Tier 1, dict)** — six sub-fields: steps, cycle_times, resources, value_vs_waste, measurement_points, baseline_kpis. The coach checks it expands Define's SIPOC correctly and that measurement_points align with `data_collection_plan`. **These two close the before/after KPI chain**: Define's `process_kpis` names what is measured, Measure's `baseline_kpis` holds the before values, Control's `post_improvement_metric` holds the after — and the grader verifies the same measurement points carry different values, so a project whose Control metrics sit on steps Define never listed is caught. **`stability_assessment` (Measure, Tier 1)** — was a Tier 2 rubric criterion with no field and a strong warning; the warning was right and the tier was not. The eBook sequences stability as a precondition for capability (book p230), because a Cpk computed across special causes is an average of two different processes, not a capability figure. **`experiment_justification` (Improve, Tier 1)** — does not require an experiment, it requires a decision, stated as one of three: DOE conducted, simplified one-factor experiment, or none needed because the solution follows from root cause analysis. All three are valid; the failure it catches is drifting past the question, not skipping DOE — consistent with the eBook's own *“do not force Designed Experiments”* and its estimate that over 80% of projects find their solution in Analyse. The Improve SKILL.md carries a plain-language DOE explanation so a Belt without statistical training chooses rather than defaults. **Structured dicts go from one to three** (§4.10.4) — `control_plan`, `process_map_sipoc`, `detailed_process_map` — distinct from the three cross-phase reference dicts, and the grader checks every sub-field is populated. All three are Tier 1 and use bracket access in gate assembly; only the cross-phase reference keeps `.get(…, {})` for shape-guarding. **Six gaps remain deliberately field-free** and are listed in §4.10.5: stakeholder analysis, project plan, short/long-term capability, lean opportunities, benefits deferral date, Define-stage finance involvement. **Field counts:** Define 15 · Measure 14 · Analyse 13 · Improve 13 · Control 15. **Tier 1:** 6 · 7 · 4 · 4 · 3. Schema/assembly parity and the per-phase compatibility table verified mechanically in both documents. No code change accompanies this amendment. |
+
+| Aug 2026 | **2.2.13** | **`imr_chart_limits` added to the Control phase (§8.2, §13.5).** Control's chart set covered batched measurements (`xbar_r_chart_limits`), proportions (`p_chart_limits`) and counts (`c_chart_limits`), but not the individuals / moving-range chart — which the eBook recommends for most **inputs** and for low-volume or long-cycle processes (book p631). That is the common case in service and transactional work: most office processes produce one figure per week, not batches of five. Without the tool the Control skill had to coach a workaround — aggregate into weekly totals and use a proportion chart — which is the wrong chart for the data and produces limits that do not mean what the Belt thinks. **Control goes from 11 tools to 12**; the maximum across phases is unchanged at 15 (Measure), so the §5.2 cap of 16 is untouched. **A pre-existing count error was found and corrected in the same pass:** every document has said "18 computation tools" since v2.2, while the §8.2 table has always enumerated **19** (1 + 8 + 5 + 1 + 4). With the new tool the correct figures are **20 computation tools and 27 total**. The table was always right and the prose was wrong; the figure had been restated across nine amendments without anyone re-deriving it. Per-phase totals are now **8 / 15 / 12 / 8 / 12**. No code change accompanies this amendment — `knowledge/computation.py` is written at Step 3.4. |
 
 ### 18.1 Amendment procedure
 
