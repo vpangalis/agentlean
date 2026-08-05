@@ -2671,31 +2671,47 @@ COACHING_QUALITY_RUBRIC = """
 - Coach must stay on the current phase's topic
 - Coach must challenge weak inputs with specific follow-up questions
 - Coach must reference methodology when guiding (not just opinion)
-- When calling a computation tool, the coach must explain the purpose
-  before calling, interpret the result after, and suggest a visualisation
-  where applicable. The coach must not dump raw statistical output
-  without explanation.
+- Coach must show a concrete example of a completed answer before asking
+  the Belt to produce theirs
+- Coach must not provide external URLs from training data. When
+  referencing methodology, retrieve via rag_lookup_methodology and weave
+  the content into natural coaching voice
+- Coach must not dump raw statistical output without explanation. When
+  calling a computation tool, the coach must educate the Belt on the
+  concept first, explain why it matters for their project, then run the
+  tool
 """
 ```
 
-**The seventh criterion is new, and it exists because of a real gap in what "coaching" was specified to mean.** The problem, in the user's framing:
+**The last three criteria are the coaching-behaviour ones, and they exist because of real gaps in what "coaching" was specified to mean.**
+
+**Show before asking.** Describing what good looks like in a SKILL.md tells the *developer*; it does not tell the Belt. The coach shows a concrete completed example, explains why it works, then invites the Belt to build theirs in the same shape. One turn to a good answer instead of three turns of ask-and-correct.
+
+**No external URLs.** A model asked about methodology will happily produce links from its training data — stale, unverifiable, and outside the grounding contract of §39. Methodology comes from `rag_lookup_methodology` and is woven into the coach's own voice, not pasted as a citation block the Belt has to chase.
+
+**Educate before computing.** The original framing was: The problem, in the user's framing:
 
 > "We need to ensure the phase_executor node not only guides the Belt but explains them how to prepare for `linear_regression` and how to collect the data… and interpret it and give it back to the Belt with visual and text explanation. **This is a critical part of the coach who does not only ask questions but assists the Belt in every aspect.**"
 
 A coach that asks good questions and then returns `t_statistic: 4.23, p_value: 0.001` has not coached. The Belt has a number they cannot act on and cannot defend at a gate.
 
-#### The six-step pattern — every computation tool, every time
+#### The seven-step pattern — every computation tool, every time
 
 | # | Step | What the coach does |
 |---|---|---|
-| 1 | **Explain why** | What this analysis proves, and why the Belt needs it now |
-| 2 | **Guide data preparation** | What format the tool needs; check what the Belt already uploaded via `rag_lookup_evidence` |
-| 3 | **Run the computation** | Call the tool — the Belt sees the call happening |
-| 4 | **Interpret the result** | Translate the statistical output into plain language |
-| 5 | **Visualise** | Call `propose_diagram` to show it graphically, where applicable |
-| 6 | **Coach the next move** | What this means for the project, and what happens next |
+| 1 | **Educate on the concept** | What this *is*, in plain language, with a real-world analogy — and what the output numbers will mean, before any are produced |
+| 2 | **Explain why now** | Why the Belt needs this analysis at this point in their project |
+| 3 | **Guide data preparation** | What format the tool needs; check what the Belt already uploaded via `rag_lookup_evidence` |
+| 4 | **Run the computation** | Call the tool — the Belt sees the call happening |
+| 5 | **Interpret their result** | Translate the statistical output into plain language |
+| 6 | **Visualise** | Call `propose_diagram` to show it graphically, where applicable |
+| 7 | **Coach the next move** | What this means for the project, and what happens next |
 
-**Steps 1, 4 and 6 are the coaching.** Steps 2, 3 and 5 are tool mechanics that most implementations would get right by default; the three that carry the teaching are exactly the three a model under-serves when it is optimising for a correct answer.
+**Step 1 was added after the first SKILL.md review** and is the correction that matters most. The original pattern opened with "explain why", which quietly assumes the Belt already knows what a Cpk or a p-value *is*. Most do not — Agent Improve exists to serve teams with no Six Sigma qualification (§1 of ARCHITECTURE.md). A Belt told "this matters because it shows capability" and then handed `Cpk = 0.82` has learned nothing: they cannot judge whether 0.82 is good and cannot defend it at a gate.
+
+Educating first also does the interpretation work in advance. By the time the number arrives the Belt already knows that above 1.33 is comfortable and below 1.0 is not, so step 5 confirms a frame they hold rather than introducing one alongside a result they are still trying to read.
+
+**Steps 1, 5 and 7 are the coaching.** Steps 2, 3, 4 and 6 are mechanics that most implementations would get right by default; the three that carry the teaching are exactly the three a model under-serves when it is optimising for a correct answer.
 
 **This applies to all 20 computation tools (§39), not only regression:**
 
@@ -2714,9 +2730,9 @@ A coach that asks good questions and then returns `t_statistic: 4.23, p_value: 0
 
 #### Consequence for SKILL.md authoring
 
-**Each phase's SKILL.md must carry the six-step sequence for every computation tool in that phase's `allowed-tools`** (§83, §84). At 20–40 lines of coaching guidance per tool, Measure's eight computation tools alone are 160–320 lines — **this is the most content-heavy part of each skill.**
+**Each phase's SKILL.md must carry the seven-step sequence for every computation tool in that phase's `allowed-tools`** (§83, §84). At 20–40 lines of coaching guidance per tool, Measure's eight computation tools alone are 160–320 lines — **this is the most content-heavy part of each skill.**
 
-The BB eBook extractions under `agent-improve/skills/extraction/` supply the methodology content; the skill shapes it into the six-step conversation. That is the division of labour between the extraction files and the skills: extraction is *what the methodology says*, the skill is *how the coach says it*.
+The BB eBook extractions under `agent-improve/skills/extraction/` supply the methodology content; the skill shapes it into the seven-step conversation. That is the division of labour between the extraction files and the skills: extraction is *what the methodology says*, the skill is *how the coach says it*.
 
 **Step 2 is where §60's data-collection coaching actually lives.** The eBook teaches what data a tool needs; the coach teaches the Belt to collect and structure it. Since `improve_evidence_index` is the only channel through which external data enters AgentLean (§39, §63), the quality of step 2 across the 20 tools is the quality of the system's grounding.
 
@@ -13924,6 +13940,42 @@ The refactor is a full rebuild to production grade, not an incremental patch. An
 | 12 | §79 | `DeltaChannel` for checkpoint compression | Beta API, and not needed until sessions exceed roughly 200 turns | Long-running DMAIC projects accumulate checkpoint-size problems in production |
 | 13 | §1, §52a | Migrate `AzureBlobCheckpointSaver` + `AzureBlobStore` → `PostgresSaver` + `PostgresStore` | The Blob checkpointer works for single-developer refactoring; adding PostgreSQL during the heaviest refactoring period is unnecessary infrastructure complexity | **Post-refactor testing complete, before production launch with real Belts.** Provision Azure Database for PostgreSQL (~€12–15/month). Migration is small: change constructor and connection string, run existing tests against PostgreSQL. |
 | 14 | §43 | Observer Agent — system-wide monitoring across all Belts and projects (completion rates, coaching quality drift, system health, pattern detection) | Not a per-project coaching component; requires production traffic across multiple projects to produce meaningful patterns | Multiple concurrent DMAIC projects in production generating enough traffic for pattern analysis |
+| 15 | §37, §60, Finding 27 | **Multi-source knowledge index** — add `source_document` and `tenant_id` to `improve_knowledge_index`, priority-ordered retrieval filter in `rag_lookup_methodology`, and phase-classifier re-evaluation for non-BB-eBook documents | The refactor builds against the BB eBook as the single knowledge source. The architecture already supports more: the index needs two fields and the filter needs one additional clause. Adding it now complicates ingestion, retrieval and testing with no second document to test against | A customer supplies their own improvement methodology (internal BB guide, company process standards) that must sit alongside or ahead of the BB eBook |
+
+#### Item 15 — Multi-source knowledge index, in more detail
+
+**The problem it solves.** `improve_knowledge_index` currently has no source separation — every chunk looks the same. If a customer uploads their own improvement guide alongside the BB eBook, the coach cannot tell standard methodology from company-specific guidance, and conflicting advice from the two sources arrives with no attribution.
+
+**Three issues, all of which need the same two fields:**
+
+1. **No source separation** — chunks from different documents mix with no attribution
+2. **Phase classifier tuned to the BB eBook** — the per-chunk keyword scoring of §7.1.2 was calibrated against one book's terminology; a different document may misclassify
+3. **No tenant isolation** — Company A's methodology would be visible to Company B's Belts
+
+**Schema addition:**
+
+```
+source_document: str    — "bb_ebook_v11.1" or "acme_corp_guide_v2"
+tenant_id: str          — which company (multi-tenant isolation)
+```
+
+**Retrieval filter, priority-ordered:**
+
+```python
+# Default — BB eBook only
+filter = f"phase_relevance eq '{phase}' and source_document eq 'bb_ebook_v11.1'"
+
+# Customer with their own guide — theirs first, BB eBook as fallback
+filter = (f"phase_relevance eq '{phase}' and "
+          f"(source_document eq 'acme_corp_guide_v2' or "
+          f" source_document eq 'bb_ebook_v11.1')")
+```
+
+**Ingestion changes** (`scripts/ingest_knowledge.py`): accept `source_document` and `tenant_id` parameters, and re-evaluate the phase classifier for non-BB documents whose terminology and structure differ.
+
+**Coaching impact — and why it stays consistent with the rubric.** The coach weaves retrieved content into its own voice; it does not show the Belt citation blocks or external links (`COACHING_QUALITY_RUBRIC`, §42). With customer content available the coach can say *"your company's improvement guide recommends…"* and fall back to the BB eBook for topics the company guide does not cover. The attribution is in the coaching voice, not in a footnote the Belt has to chase.
+
+**Note the overlap with item 1.** Multi-tenant filtering on `improve_case_index` and `tenant_id` here are the same problem on two indexes, and both fire on the same trigger — deployment to a second organisation. They should be planned together.
 
 ### Reading the Backlog
 

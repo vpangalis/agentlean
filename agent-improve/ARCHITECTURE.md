@@ -1,6 +1,6 @@
 # Agent Improve — Architecture & Design Document
 **Agentlean Platform · DMAIC Improvement Agent**
-Version 2.2.13 · August 2026
+Version 2.2.14 · August 2026
 Status: v2.2 architecture ratified · refactor in progress (Step 2.2 complete;
 Step 3.6 index schema rename applied; state design closed — §4;
 node names, tool binding and output schemas closed — §3.2.1, §3.3.2, §4.10;
@@ -481,10 +481,15 @@ identical across all five phases:
 - Coach must stay on the current phase's topic
 - Coach must challenge weak inputs with specific follow-up questions
 - Coach must reference methodology when guiding (not just opinion)
-- When calling a computation tool, the coach must explain the purpose
-  before calling, interpret the result after, and suggest a visualisation
-  where applicable. The coach must not dump raw statistical output
-  without explanation.
+- Coach must show a concrete example of a completed answer before asking
+  the Belt to produce theirs
+- Coach must not provide external URLs from training data. When
+  referencing methodology, retrieve via rag_lookup_methodology and weave
+  the content into natural coaching voice
+- Coach must not dump raw statistical output without explanation. When
+  calling a computation tool, the coach must educate the Belt on the
+  concept first, explain why it matters for their project, then run the
+  tool
 ```
 
 **Why both are needed.** They catch different failures, and neither can
@@ -509,31 +514,45 @@ coaching behaviour against DMAIC content standards or checking a
 finished document against "did you ask good follow-up questions" —
 neither of which is a meaningful test.
 
-#### 3.4.2 The six-step computation coaching pattern
+#### 3.4.2 The seven-step computation coaching pattern
 
 **A computation tool call is a teaching moment, not a calculation.** The
-coach does not ask questions and then hand back a p-value — it explains
-what the analysis will prove, helps the Belt get the data into shape,
-runs it, translates the output, shows it, and says what to do next.
+coach does not ask questions and then hand back a p-value — it teaches
+the concept, explains what the analysis will prove, helps the Belt get
+the data into shape, runs it, translates the output, shows it, and says
+what to do next.
 
-**Every one of the 20 computation tools (§8.2) follows the same six
+**Every one of the 20 computation tools (§8.2) follows the same seven
 steps:**
 
 | # | Step | What the coach does |
 |---|---|---|
-| 1 | **Explain why** | What this analysis proves, and why the Belt needs it *now* |
-| 2 | **Guide data preparation** | What format the tool needs; check what the Belt already uploaded via `rag_lookup_evidence` |
-| 3 | **Run the computation** | Call the tool — the Belt sees the call happening |
-| 4 | **Interpret the result** | Translate the statistical output into plain language (§2.1) |
-| 5 | **Visualise** | Call `propose_diagram` to show the result graphically, where applicable |
-| 6 | **Coach the next move** | What does this mean for the project, and what happens next |
+| 1 | **Educate on the concept** | What this *is*, in plain language, with a real-world analogy — and what the output numbers will mean, before any are produced |
+| 2 | **Explain why now** | Why the Belt needs this analysis at this point in *their* project |
+| 3 | **Guide data preparation** | What format the tool needs; check what the Belt already uploaded via `rag_lookup_evidence` |
+| 4 | **Run the computation** | Call the tool — the Belt sees the call happening |
+| 5 | **Interpret their result** | Translate the statistical output into plain language (§2.1) |
+| 6 | **Visualise** | Call `propose_diagram` to show the result graphically, where applicable |
+| 7 | **Coach the next move** | What does this mean for the project, and what happens next |
 
-**Steps 1, 4 and 6 are what make this coaching rather than a
+**Step 1 was added in v2.2.14 and is the one most often skipped.** The
+original six-step pattern opened with "explain why", which assumes the
+Belt already knows what a Cpk or a p-value *is*. Most do not. A Belt who
+is told "this matters because it shows capability" and then handed
+`Cpk = 0.82` has learned nothing — they cannot judge whether 0.82 is good,
+and they cannot defend it at a gate.
+
+**Educating first also sets the interpretation up.** By the time the
+number arrives, the Belt already knows that above 1.33 is comfortable and
+below 1.0 is not — so step 5 confirms a frame they already hold rather
+than introducing one alongside a result.
+
+**Steps 1, 5 and 7 are what make this coaching rather than a
 calculator.** A Belt who receives `t_statistic: 4.23, p_value: 0.001`
-with no interpretation has been given a number they cannot act on and
-cannot defend at a gate.
+with no concept and no interpretation has been given a number they cannot
+act on and cannot defend at a gate.
 
-**Worked shape, per phase:**
+**Worked shape, per phase — step 1 openings:**
 
 | Phase | Tool | Step 1 — how the coach opens |
 |---|---|---|
@@ -547,19 +566,19 @@ cannot defend at a gate.
 | Control | `imr_chart_limits` | "You have one reading per period rather than batches, so we'll use an individuals chart — same idea, limits calculated from the point-to-point movement…" |
 
 **This is enforced by `COACHING_QUALITY_RUBRIC`** (§3.4.1) — the criterion
-reads: *"When calling a computation tool, the coach must explain the
-purpose before calling, interpret the result after, and suggest a
-visualisation where applicable. The coach must not dump raw statistical
-output without explanation."* Because the middleware grader fires on
-**every turn**, a raw-output dump is caught before the Belt sees it.
+reads: *"Coach must not dump raw statistical output without explanation.
+When calling a computation tool, the coach must educate the Belt on the
+concept first, explain why it matters for their project, then run the
+tool."* Because the middleware grader fires on **every turn**, a
+raw-output dump is caught before the Belt sees it.
 
 **Consequence for SKILL.md authoring (§8.4).** Each phase skill must
-carry the six-step sequence for every computation tool in that phase's
+carry the seven-step sequence for every computation tool in that phase's
 `allowed-tools`. At 20–40 lines of guidance per tool, Measure's eight
 computation tools alone account for 160–320 lines — **this is the
 most content-heavy part of each skill.** The BB eBook extractions under
 `skills/extraction/` supply the methodology content; the skill shapes it
-into the six-step conversation.
+into the seven-step conversation.
 
 **The pattern is why §1.9's data-collection coaching is a first-class
 surface.** Step 2 is where the coach teaches the Belt what to collect
@@ -3667,6 +3686,8 @@ load-bearing in more places than it appears.
 | Aug 2026 | **2.2.12** | **Process maps, stability and experiment justification promoted to schema — Finding 26 (§4.10.7, §13).** Three of the nine gaps that v2.2.11 assigned to SKILL.md coaching content were reclassified as **Tier 1 fields**, on one argument: a coaching prompt produces a conversation, and a conversation cannot be read by the next phase's planner or checked by the grader. **`process_map_sipoc` (Define, Tier 1, dict)** — six sub-fields: suppliers, inputs, process_steps, outputs, customers, process_kpis. The failure this catches is the partial map: *“far too often Belts capture only segments of the process”*, which produces a project that cannot show improvement because the baseline never covered the whole thing — invisible at Define, expensive at Control. The coach validates end-to-end coverage, challenges fragments, checks consistency with `project_scope`, and decomposes an uploaded diagram into the structured form rather than accepting the image as the deliverable. **`detailed_process_map` (Measure, Tier 1, dict)** — six sub-fields: steps, cycle_times, resources, value_vs_waste, measurement_points, baseline_kpis. The coach checks it expands Define's SIPOC correctly and that measurement_points align with `data_collection_plan`. **These two close the before/after KPI chain**: Define's `process_kpis` names what is measured, Measure's `baseline_kpis` holds the before values, Control's `post_improvement_metric` holds the after — and the grader verifies the same measurement points carry different values, so a project whose Control metrics sit on steps Define never listed is caught. **`stability_assessment` (Measure, Tier 1)** — was a Tier 2 rubric criterion with no field and a strong warning; the warning was right and the tier was not. The eBook sequences stability as a precondition for capability (book p230), because a Cpk computed across special causes is an average of two different processes, not a capability figure. **`experiment_justification` (Improve, Tier 1)** — does not require an experiment, it requires a decision, stated as one of three: DOE conducted, simplified one-factor experiment, or none needed because the solution follows from root cause analysis. All three are valid; the failure it catches is drifting past the question, not skipping DOE — consistent with the eBook's own *“do not force Designed Experiments”* and its estimate that over 80% of projects find their solution in Analyse. The Improve SKILL.md carries a plain-language DOE explanation so a Belt without statistical training chooses rather than defaults. **Structured dicts go from one to three** (§4.10.4) — `control_plan`, `process_map_sipoc`, `detailed_process_map` — distinct from the three cross-phase reference dicts, and the grader checks every sub-field is populated. All three are Tier 1 and use bracket access in gate assembly; only the cross-phase reference keeps `.get(…, {})` for shape-guarding. **Six gaps remain deliberately field-free** and are listed in §4.10.5: stakeholder analysis, project plan, short/long-term capability, lean opportunities, benefits deferral date, Define-stage finance involvement. **Field counts:** Define 15 · Measure 14 · Analyse 13 · Improve 13 · Control 15. **Tier 1:** 6 · 7 · 4 · 4 · 3. Schema/assembly parity and the per-phase compatibility table verified mechanically in both documents. No code change accompanies this amendment. |
 
 | Aug 2026 | **2.2.13** | **`imr_chart_limits` added to the Control phase (§8.2, §13.5).** Control's chart set covered batched measurements (`xbar_r_chart_limits`), proportions (`p_chart_limits`) and counts (`c_chart_limits`), but not the individuals / moving-range chart — which the eBook recommends for most **inputs** and for low-volume or long-cycle processes (book p631). That is the common case in service and transactional work: most office processes produce one figure per week, not batches of five. Without the tool the Control skill had to coach a workaround — aggregate into weekly totals and use a proportion chart — which is the wrong chart for the data and produces limits that do not mean what the Belt thinks. **Control goes from 11 tools to 12**; the maximum across phases is unchanged at 15 (Measure), so the §5.2 cap of 16 is untouched. **A pre-existing count error was found and corrected in the same pass:** every document has said "18 computation tools" since v2.2, while the §8.2 table has always enumerated **19** (1 + 8 + 5 + 1 + 4). With the new tool the correct figures are **20 computation tools and 27 total**. The table was always right and the prose was wrong; the figure had been restated across nine amendments without anyone re-deriving it. Per-phase totals are now **8 / 15 / 12 / 8 / 12**. No code change accompanies this amendment — `knowledge/computation.py` is written at Step 3.4. |
+
+| Aug 2026 | **2.2.14** | **Computation coaching goes from six steps to seven; three new `COACHING_QUALITY_RUBRIC` criteria; §87 backlog item 15 (§3.4.1, §3.4.2, §87).** The first SKILL.md review produced 17 notes, three of which change the coaching approach rather than its content. **Seven-step computation pattern (§3.4.2).** Step 1 is now *educate on the concept* — what this **is**, in plain language, with a real-world analogy, and what the output numbers will mean, before any are produced. The original pattern opened with “explain why”, which assumes the Belt already knows what a Cpk or a p-value is; most do not, and Agent Improve exists to serve teams with no Six Sigma qualification (§1). A Belt told “this matters because it shows capability” and then handed `Cpk = 0.82` has learned nothing — they cannot judge whether 0.82 is good, and cannot defend it at a gate. Educating first also front-loads the interpretation: by the time the number arrives the Belt already holds the frame, so step 5 confirms rather than introduces. **Three rubric criteria added (§3.4.1).** *Show a concrete example of a completed answer before asking the Belt to produce theirs* — describing what good looks like in a SKILL.md tells the developer, not the Belt, and show-first reaches a good answer in one turn instead of three of ask-and-correct. *No external URLs from training data* — a model asked about methodology will produce stale, unverifiable links outside the grounding contract of §1.9; methodology comes from `rag_lookup_methodology`, woven into the coach's own voice. *Educate before computing*, replacing the narrower “explain the purpose before calling”. **§87 backlog item 15 — multi-source knowledge index (Finding 27).** `source_document` and `tenant_id` on `improve_knowledge_index`, a priority-ordered retrieval filter in `rag_lookup_methodology`, and phase-classifier re-evaluation for non-BB-eBook documents. Deferred because the refactor builds against one knowledge source and the change is incremental — two fields and one filter clause — with no second document to test against. Overlaps item 1 (multi-tenant filtering on `improve_case_index`); both fire on the same trigger and should be planned together. **All five SKILL.md files rewritten** to the show-first pattern, with an A→F session flow (opening → resumption → per-field → capture feedback → Tier 2 offered → gate ready), a per-phase Document Layout section defining how the live gate document renders, upload handling, `CoachingResponse` capture instructions, and the seven-step sequence for all 20 computation tools. No code change accompanies this amendment. |
 
 ### 18.1 Amendment procedure
 

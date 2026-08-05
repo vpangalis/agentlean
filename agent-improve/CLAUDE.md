@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.13 — August 2026
+# Version 2.2.14 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -135,6 +135,22 @@ planner or checked by the grader.
 
 Field counts: Define 15 · Measure 14 · Analyse 13 · Improve 13 ·
 Control 15. Tier 1: 6 · 7 · 4 · 4 · 3.
+
+### 0.8 — What Changed in 2.2.14 — how the coach teaches
+
+The first SKILL.md review. Three changes to coaching behaviour, all
+enforced by `COACHING_QUALITY_RUBRIC` every turn (§8.2).
+
+| Area | Before | Now |
+|---|---|---|
+| Computation tools | **Six**-step pattern, opening with "explain why" | **Seven** steps, opening with **educate on the concept** — what it *is*, plain language, analogy, and what the numbers will mean (§8.2) |
+| Asking for a field | Coach asks, then corrects | **Coach shows a completed example first**, explains why it works, then invites the Belt to build theirs |
+| Methodology references | Unconstrained | **No external URLs.** Retrieve via `rag_lookup_methodology`, weave into the coach's own voice |
+
+All five SKILL.md files rewritten to match: show-first per field, an
+A→F session flow with a visible progress count, a Document Layout
+section per phase for the live gate document, upload handling, and
+`CoachingResponse` capture instructions.
 
 ---
 
@@ -1187,32 +1203,48 @@ identical for all five phases:
 - Coach must stay on the current phase's topic
 - Coach must challenge weak inputs with specific follow-up questions
 - Coach must reference methodology when guiding (not just opinion)
-- When calling a computation tool, the coach must explain the purpose
-  before calling, interpret the result after, and suggest a visualisation
-  where applicable. The coach must not dump raw statistical output
-  without explanation.
+- Coach must show a concrete example of a completed answer before asking
+  the Belt to produce theirs
+- Coach must not provide external URLs from training data. When
+  referencing methodology, retrieve via rag_lookup_methodology and weave
+  the content into natural coaching voice
+- Coach must not dump raw statistical output without explanation. When
+  calling a computation tool, the coach must educate the Belt on the
+  concept first, explain why it matters for their project, then run the
+  tool
 ```
 
-**The seventh criterion binds on every computation tool call.** The
-coach follows a six-step pattern, every tool, every time:
+**Two criteria bind on every computation tool call**, and the coach
+follows a **seven-step** pattern, every tool, every time:
 
 | # | Step |
 |---|---|
-| 1 | **Explain why** — what this analysis proves and why the Belt needs it now |
-| 2 | **Guide data preparation** — what format is needed; check uploads via `rag_lookup_evidence` |
-| 3 | **Run the computation** — call the tool |
-| 4 | **Interpret the result** — plain language, no jargon (§13) |
-| 5 | **Visualise** — `propose_diagram` where applicable |
-| 6 | **Coach the next move** — what it means for the project |
+| 1 | **Educate on the concept** — what this *is*, plain language, real-world analogy, and what the output numbers will mean |
+| 2 | **Explain why now** — why the Belt needs it at this point in their project |
+| 3 | **Guide data preparation** — what format is needed; check uploads via `rag_lookup_evidence` |
+| 4 | **Run the computation** — call the tool |
+| 5 | **Interpret their result** — plain language, no jargon (§13) |
+| 6 | **Visualise** — `propose_diagram` where applicable |
+| 7 | **Coach the next move** — what it means for the project |
 
-**Returning a p-value with no interpretation is a rubric failure**, not a
-style preference. A Belt handed `t_statistic: 4.23, p_value: 0.001` has a
-number they cannot act on and cannot defend at a gate. Because this
-grader fires **every turn**, the dump is caught before the Belt sees it.
+**Step 1 is mandatory and is the one most often skipped.** Never assume
+the Belt knows what a Cpk, a p-value or a control limit *is*. Teach the
+concept and say what the numbers will mean **before** producing any.
 
-**Every SKILL.md must carry the six-step sequence for each computation
+**Returning a p-value with no concept and no interpretation is a rubric
+failure**, not a style preference. A Belt handed `t_statistic: 4.23,
+p_value: 0.001` has a number they cannot act on and cannot defend at a
+gate. Because this grader fires **every turn**, the dump is caught before
+the Belt sees it.
+
+**Every SKILL.md must carry the seven-step sequence for each computation
 tool in its phase's `allowed-tools`** (§8.3). Design detail and worked
 per-tool openings: ARCHITECTURE.md §3.4.2.
+
+**Show before asking is also a rubric criterion.** For every field, the
+coach shows a concrete example of a completed answer, explains why it
+works, then invites the Belt to build theirs in the same shape. Each
+SKILL.md carries the example per field.
 
 **Why both exist.** The middleware catches coaching-process failures in
 real time — a coach that accepts "poor morale" as a root cause is
