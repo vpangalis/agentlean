@@ -1,3 +1,10 @@
+<!--
+Review document: agent-improve/reviews/REVIEW_DECISIONS.md
+Normalised: UTF-8 without BOM, LF line endings
+Purpose: tracked review artefact for cross-session architectural reference
+Last committed: f76cebb
+-->
+
 # EDUCATIONAL.md Review — Decision Log
 
 **Scope:** Full pre-refactor review of EDUCATIONAL.md (v as of upload, 85 sections at start, 10,416 lines).
@@ -20,7 +27,149 @@
 
 **Housekeeping the user should update in Project instructions:**
 
-- **MCP removal from stack description.** Instructions currently read *"built on LangChain 1.x, LangGraph 1.2+, Azure OpenAI, and MCP."* Post-§39 ratification (MCP explicitly out of scope for AgentLean), MCP should come out of the stack list. It remains valid as EDUCATIONAL.md pedagogical content, not as a runtime component.
+- **MCP removal from stack description.** Instructions currently read *"built Gap Report — SupervisorState / PhaseState vs DMAIC requirements
+Sources cross-referenced
+
+#	Source	What I used
+1	Governance docs	SupervisorState (8 fields) and PhaseState (11 fields), verified identical in CLAUDE.md §10.1 and ARCHITECTURE.md §4.1 after f429e36
+2	MBB eBook	5_BB_EB_MT_v11.1_PDF2_compressed (1).pdf, 700pp. Extracted with the project venv's pypdf. Phase checklists at p84 (Define), p234 (Measure), p421 (Analyse), p558 (Improve), p681 (Control)
+3	Code	core/state.py, storage/models.py, five phases/*/schema.py, four *_REQUIRED_FOR_GATE lists in phases/*/validate.py
+merged_output.pdf does not exist in the repo — only the 5_BB_EB_MT_v11.1 file and Problem Solving 8D.pdf.
+
+1. SupervisorState — routing sufficiency
+Every field present is needed. project_id (thread_id + store namespace), gate_passed (routing), messages/history (conversation), project_context (feeds input mappers), final_output. No field is dead.
+
+1.1 — CRITICAL: gate_attempts is required by rule and declared nowhere
+CLAUDE.md §1.7: "gate_attempts MUST be in the checkpointed state, never in route scope — this is what fixes the v1 'attempts always reset to 0' bug." §3.5 repeats it.
+
+It is not in SupervisorState and not in PhaseState. v1's ImproveGraphState has it (gate_attempts: int, line 25). The refactor dropped the field while keeping the rule that mandates it, and §9.2's "iteration cap is 3, SHARED across all four layers" has no counter to live in.
+
+This is the one finding I'd fix before any other. It reintroduces the exact v1 bug the architecture was written to close.
+
+1.2 — escalated has no home either
+v1 has escalated: bool. §3.5 routes to the escalation subgraph by conditional edge. If that edge reads gate_attempts >= 3 the flag is genuinely derivable; if it needs to stay escalated across turns, it is not. Undetermined in the docs — worth deciding explicitly.
+
+1.3 — current_phase and phase_index are derivable from gate_passed
+Both are PHASE_ORDER[len(gate_passed)] and len(gate_passed). By the exact argument used to remove open_items in f429e36 — "a stored copy can contradict the derived one" — these two are the same redundancy class. A gate_passed of ["define","measure"] with current_phase: "control" is representable and wrong.
+
+I'm not recommending removal; current_phase is read in many places and the ergonomics are real. But the principle you just ratified applies to them, and the docs should say why they're exempt.
+
+1.4 — project_id vs case_id is an unresolved naming split
+Docs use project_id throughout. All code uses case_id — ImproveGraphState, CaseDocument, RegistryEntry, and improve_evidence_index's filter field (§7.3). If they're the same identifier, one name should win before core/state.py is written; if not, SupervisorState is missing whichever one it lacks.
+
+2. PhaseState — can it hold what a Belt produces?
+artifacts: dict[str, Any] is untyped, so structurally it can hold anything. The gaps are in the fields around it.
+
+2.1 — There is no captured_fields
+Your question names PhaseState.captured_fields. That field does not exist — it's artifacts. Three names are in play for one concept: artifacts (schema + store namespace), "captured fields" (CLAUDE.md §8.5, §6.3), phase_inputs (all current code). Worth collapsing to one.
+
+2.2 — Missing fields
+Missing	Required by	Evidence
+gate_attempts	§1.7, §3.5, §9.2 shared cap of 3	Absent from both schemas; present in v1
+Accumulated validator feedback	§9.2 "3 attempts with accumulated feedback"	feedback is documented as "Belt corrections at gate" — a different thing. Per-layer feedback fed back to the executor has no field
+citations	§13 (visible citations), core/citations.py, PhaseRecord.citations	v1 has it. PhaseState does not. Citations have nowhere to accumulate during a phase
+uploads	§1.9 (uploads are the only external data channel), PhaseRecord.uploads	v1 has uploaded_files. PhaseState does not
+analyst_output	PhaseRecord.analyst_output	v1 has it; no home in the new schema
+Citations and uploads are the notable ones — both are persisted by PhaseRecord, so something must produce them, and no state field does.
+
+2.3 — Two type problems
+final: str — documented as "approved gate document". But §10.1's own rule is that draft and feedback are dict never str because "string-typed handoffs force downstream nodes to parse prose." The gate document is the single most downstream-consumed artifact in the system and it is typed str. This contradicts §4.6 and §10.2.
+
+coaching_plan: list[dict[str, Any]] — CLAUDE.md §1.3 and §3.3 describe the planner producing one structured plan (focus_field, next_action, retrieval_strategy, tools_needed). REFACTORING §10's earlier example has coaching_plan: dict. List-of-dicts vs single dict is unreconciled.
+
+3. Rubric criteria → field mapping (§42)
+7 of 21 rubric criteria have no corresponding field.
+
+Phase	Criterion	Field	Status
+Define	problem_statement	—	⚠ Composite of 7 5W2H fields; no single field
+Define	business_case	business_case_rationale	✅ name mismatch only
+Define	project_scope	scope_in + scope_out	✅ composite
+Define	team	team_members	✅
+Define	goal_statement	goal_statement	✅
+Measure	baseline_mean	baseline_mean	⚠ Optional[str], not gate-required
+Measure	baseline_sigma	—	❌ No field. baseline_variation and current_sigma_level are neither
+Measure	measurement_system_validated	msa_required	⚠ Gate requires the question; msa_result (the evidence) is not gate-required
+Measure	data_collection_plan	data_collection_plan	✅
+Analyse	root_causes	vital_few_causes, root_cause_statement	✅
+Analyse	root_cause_validation	cause_verified	⚠ verification_method/evidence_summary not gate-required
+Analyse	causal_hypothesis	—	❌ No field. Rubric says "linked back to captured baseline metric" — nothing links Analyse to Measure's baseline
+Analyse	ruled_out_causes	—	❌ No field. No "rejected with rationale" anywhere
+Improve	solution_selected	selected_solution	✅
+Improve	solution_linked_to_root_cause	—	❌ No field. selection_rationale is generic prose
+Improve	pilot_results	pilot_result	✅
+Improve	implementation_plan	implementation_plan	⚠ not gate-required
+Control	control_plan	control_plan	✅
+Control	sustainability_check	sustainability_confirmed	✅
+Control	post_improvement_metric	—	❌ No field. Control captures no post-improvement measurement at all
+Control	handover_documented	—	⚠ documentation_updated + sponsor_final_sign_off, neither gate-required, neither is handover to process owner
+post_improvement_metric is the most serious. The Control schema has no field for the measured value after improvement — so the project cannot demonstrate the baseline actually shifted. eBook p681 opens with "How do the results of the improvement(s) match the requirements of the business case and improvement goals?" and lists "Verify Financial Impact" as a required action item.
+
+The three "linkage" criteria (causal_hypothesis, solution_linked_to_root_cause, post_improvement_metric) fail for one shared reason: nothing in the schema carries a cross-phase reference. Each phase's fields are self-contained, so a grader asked to check "is this linked to the baseline?" has no field to read.
+
+4. eBook coverage gaps
+Requirements from the phase checklists with no corresponding field:
+
+Phase	eBook requires (p.)	In schema?
+Define (84)	COPQ identified; finance/controller involvement	❌ (current_cost adjacent)
+Define (84)	VOC identified, VOC requirements, stakeholder key issues	❌ none
+Define (84)	High-level process map + who developed it	❌ (sipoc optional, different artifact)
+Measure (234)	As-is process map, decision points, data collection points	❌
+Measure (234)	X-Y matrix; FMEA	❌
+Measure (234)	Stability / special causes (Voice of the Process)	❌
+Measure (234)	Short-term and long-term capability	⚠ single current_sigma_level
+Analyse (421)	Completed hypothesis tests; statistical problem statement	❌
+Analyse (421)	Response discrete or continuous; mean vs variance	❌
+Analyse (421)	Updated FMEA; process owner buy-in	⚠ root_cause_agreed_by, not gate-required
+Improve (558)	DOE justification, execution, mathematical model	❌
+Improve (558)	Practical and statistical significance	❌
+Control (681)	Verify financial impact	❌
+Control (681)	Lessons learned; transferability / spreading best practice	❌
+Control (681)	Control plan handed off to process owner	❌
+Control (681)	Champion + Belt + Finance agree project complete	⚠ sponsor_final_sign_off only
+A structural observation: §5.2 binds 18 computation tools, and their outputs have nowhere typed to land. Analyse gets t_test, chi_square_test, anova, pearson_correlation, linear_regression; AnalysePhaseInput has no field for a test result. Improve gets calculate_doe_main_effects; ImprovePhaseInput has no DOE field. Control gets four control-chart tools; ControlPhaseInput has control_chart_type (a label, not results). A Belt can run the tool and the number is lost unless it's prose in evidence_summary — which §4.3 forbids parsing back out.
+
+Transferability is a platform-level gap. rag_lookup_case_history exists for yokoten and improve_case_index carries phase_summary_*, but no field captures the transferable lesson, so cross-case retrieval has thin material to work with.
+
+5. Boundary mapper cross-check
+Does the handoff carry what the next planner needs? Partially — with one contradiction and one omission.
+
+5.1 — CONTRADICTION: the typed-float promise cannot be kept
+CLAUDE.md §10.2: "Measure reads Define's baseline metric as a typed float, not out of prose."
+
+Every baseline field in code is a string:
+
+DefinePhaseInput.how_much_baseline: str — "1.8mm vs 1.3mm avg"
+MeasurePhaseInput.baseline_mean: Optional[str] — "Average value with unit"
+There is no typed float anywhere in the system. The rule that justifies the store-mediated handoff describes a data shape that does not exist. Either the fields become numeric (with separate unit fields), or §10.2 is overstating what the mapper delivers.
+
+5.2 — OMISSION: gate documents are never written
+§10.2 defines two store namespaces: "artifacts" and "gate_documents". define_output_mapper writes only artifacts. Nothing writes gate_documents, and PhaseState.final — the approved gate document — is never persisted anywhere. A downstream phase reading "Define's gate document" would find an empty namespace.
+
+5.3 — Smaller items
+define_input_mapper(parent, store) takes store and never uses it. Correct for Define (no prior phase), but the signature implies a contract it doesn't honour, and no other input mapper is specified anywhere.
+ARCHITECTURE §4.3 step 5 asserts measure_input_mapper "reads Define's artifacts from the store and builds Measure's phase_context" — there is no code or spec for which subset. Since artifacts is untyped, the next planner receives an opaque dict.
+measure/validate.py currently pre-populates primary_metric_confirmed/secondary_metric_confirmed from Define's phase_inputs. That's a real cross-phase dependency satisfied today by v1 flat state. Under v2 it must come through the store, and no mapper spec covers it.
+PhaseRecord.gate_passed is bool per phase; SupervisorState.gate_passed is list[str]. Same name, two shapes, two layers — currently harmless, but a rename on one side would be safer.
+6. Ranked summary
+#	Finding	Severity
+1	gate_attempts mandated by §1.7/§3.5, absent from both schemas — reintroduces the v1 reset bug	Critical
+2	gate_documents namespace never written; final never persisted	Critical
+3	§10.2's "typed float" baseline contradicts every baseline field being str	High
+4	Control has no post_improvement_metric — cannot show the baseline shifted	High
+5	7 of 21 rubric criteria have no field; 3 fail for the same cross-phase-reference gap	High
+6	No field for accumulated validator feedback (§9.2)	High
+7	18 computation tools have no typed destination for results	High
+8	citations and uploads persisted by PhaseRecord, absent from PhaseState	Medium
+9	final: str violates §10.1's own dict-not-str rule	Medium
+10	project_id vs case_id unresolved across docs and code	Medium
+11	Rubric criteria not gate-required (baseline_mean, implementation_plan, msa_result) — grader can fail what the gate passed	Medium
+12	eBook items absent: VOC, COPQ, FMEA, stability, hypothesis tests, financial verification, lessons learned	Medium
+13	current_phase/phase_index derivable from gate_passed — same redundancy class just removed	Low
+14	coaching_plan list-vs-dict unreconciled	Low
+15	Three names for one concept: artifacts / captured fields / phase_inputs	Low
+Findings 1, 2 and 6 are self-inflicted — the rules requiring them already exist and the schemas don't satisfy them. They're cheap to fix and I'd take them first. Findings 4, 5 and 7 are the substantive DMAIC gap: the schemas capture what a Belt says but not what a Belt measures, and the rubrics already ask for the latter.
+
+Want me to draft the schema amendments for the critical set, or work through the rubric/field reconciliation first?on LangChain 1.x, LangGraph 1.2+, Azure OpenAI, and MCP."* Post-§39 ratification (MCP explicitly out of scope for AgentLean), MCP should come out of the stack list. It remains valid as EDUCATIONAL.md pedagogical content, not as a runtime component.
 - **Section count.** Instructions say EDUCATIONAL.md has *"86 sections as of July 2026."* Actual file has 85 sections; target end-state is 87 sections (85 original + §86 authored + §87 backlog). Update instructions to reflect target once batch commit lands.
 - **LangGraph version precision.** Instructions say *"LangGraph 1.2+"* — current codebase pinned at 1.1.10 per user-provided requirements.txt. Recommend tightening to *"LangGraph 1.2.6+"* once upgrade lands, since our ratified §23 subgraph design depends on the checkpoint_ns fix in that point release. See "Runtime version target" note below.
 
