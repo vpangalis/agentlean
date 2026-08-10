@@ -2,7 +2,7 @@
 Review document: agent-improve/reviews/STATE_DESIGN_RESOLUTION.md
 Normalised: UTF-8 without BOM, LF line endings
 Purpose: tracked review artefact for cross-session architectural reference
-Last committed: f76cebb
+Added in: f44e5c7
 -->
 
 # State Design Resolution — All 15 Audit Findings

@@ -2,7 +2,7 @@
 Review document: agent-improve/reviews/RESTRUCTURE_PLAN.md
 Normalised: UTF-8 without BOM, LF line endings
 Purpose: tracked review artefact for cross-session architectural reference
-Last committed: f76cebb
+Added in: f44e5c7
 -->
 
 # REFACTORING_AGENT_IMPROVE.md — Restructuring Plan
