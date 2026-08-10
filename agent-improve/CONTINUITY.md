@@ -53,8 +53,8 @@ design — 2.2.15 changed no rule).
   schemas; process maps, stability, experiment justification promoted to Tier 1.
   **FMEA deliberately not tracked.** 2026-08-05 · Findings 24, 26
 - **Seven-step computation coaching** (step 1 educates before any number) and
-  **show-first coaching** (example before asking; no external URLs).
-  2026-08-05 · Finding 25, `SKILL_REVIEW_NOTES.md` 15–17
+  **show-first coaching** (example first; no external URLs). 2026-08-05 ·
+  Finding 25, `SKILL_REVIEW_NOTES.md` 15–17
 - **Multi-query: Option A, per-tool Search clients.**
   2026-08-10 · **pending governance-doc amendment**
 - **`improve_case_index` vector field standardised `embedding` → `content_vector`.**
@@ -68,12 +68,13 @@ design — 2.2.15 changed no rule).
 - **`improve_case_index` re-index before Step 3.0/3.3** — `embedding` →
   `content_vector`. Azure can't rename a field: delete + recreate, as done for
   `phase_summary_analyse`.
-- **v2.2 constitution rewrite was blocked on 6 items** (§79–§84). All six have
-  since landed in v2.2.x — **confirm the audit is stale here rather than assume.**
+- ~~v2.2 constitution blocked on 6 items (§79–§84)~~ — **RESOLVED 2026-08-10.**
+  All six landed; §82/§4.3 self-contradiction gone; all four drift-registry
+  citations resolve. `reviews/status-79-84-2026-08-10.md`
 - **Dependency drift** — `langgraph` not installed; `langchain` 1.2.13 vs 1.3.11;
   `langsmith` 0.7.3 vs 0.10.17. Step 2.5 resolves.
 - **Five SKILL.md files are drafts**, not wired into `DMAICSkillsMiddleware`.
-- **`_Artifacts/` untracked**, not in `.gitignore` — deferred housekeeping.
+  **`_Artifacts/`** untracked, not in `.gitignore` — deferred housekeeping.
 
 ## 4. What's stale — don't ground a conversation in these
 
@@ -84,8 +85,7 @@ design — 2.2.15 changed no rule).
   `completeness_score: float` on illustrative `DefineState`/`MeasureState`
   sketches. Ratified `PhaseState` has no stored score — progress derives from
   `artifacts`. Flagged out of scope in `110eef6`.
-- **`core/llm.py` contains a class** — CLAUDE.md §2 violation. Audit D3.1
-- **`core/llm.py` role map diverges from CLAUDE.md §4.2.** Audit D3.2
+- **`core/llm.py`** has a class (§2 violation, D3.1); role map diverges (D3.2).
 - **`upload/agent.py:107` parses raw `response.content`** — CLAUDE.md §4.5
   violation. **No §15 step covers this file**, so it survives as-is unless
   deliberately scheduled. Audit D3.4
