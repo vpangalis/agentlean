@@ -33,7 +33,7 @@ design — 2.2.15 changed no rule).
 
 - **State design v2.2.9–v2.2.12** — 24 findings across `SupervisorState`,
   `PhaseState`, store, naming, tiers. 2026-08-03/05 ·
-  `reviews/STATE_DESIGN_RESOLUTION.md`
+  `docs/STATE_DESIGN_RESOLUTION.md`
 - **`case_id` and `artifacts` are canonical** — `project_id`,
   `captured_fields`, `phase_inputs` retired. 2026-08-03 · Findings 10, 15
 - **All captured fields are `str`**; 20 computation tools parse at point of use.
@@ -70,7 +70,7 @@ design — 2.2.15 changed no rule).
   `phase_summary_analyse`.
 - ~~v2.2 constitution blocked on 6 items (§79–§84)~~ — **RESOLVED 2026-08-10.**
   All six landed; §82/§4.3 self-contradiction gone; all four drift-registry
-  citations resolve. `reviews/status-79-84-2026-08-10.md`
+  citations resolve. `docs/status-79-84-2026-08-10.md`
 - **Dependency drift** — `langgraph` not installed; `langchain` 1.2.13 vs 1.3.11;
   `langsmith` 0.7.3 vs 0.10.17. Step 2.5 resolves.
 - **Five SKILL.md files are drafts**, not wired into `DMAICSkillsMiddleware`.
@@ -95,5 +95,6 @@ design — 2.2.15 changed no rule).
 - **§36's field-name asymmetry warning becomes historical** once
   `content_vector` standardisation lands.
 
-**Sources:** `reviews/` (REVIEW_DECISIONS, STATE_DESIGN_RESOLUTION,
-RESTRUCTURE_PLAN) · `_Artifacts/audit-2026-07-03.md` · `ARCHITECTURE.md` §15
+**Sources:** `docs/` (REVIEW_DECISIONS, STATE_DESIGN_RESOLUTION,
+RESTRUCTURE_PLAN, DECISIONS) · `_Artifacts/audit-2026-07-03.md` (repo root) ·
+`ARCHITECTURE.md` §15

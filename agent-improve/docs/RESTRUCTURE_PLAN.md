@@ -1,5 +1,5 @@
 <!--
-Review document: agent-improve/reviews/RESTRUCTURE_PLAN.md
+Review document: agent-improve/docs/RESTRUCTURE_PLAN.md
 Normalised: UTF-8 without BOM, LF line endings
 Purpose: tracked review artefact for cross-session architectural reference
 Added in: f44e5c7

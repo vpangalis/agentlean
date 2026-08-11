@@ -1,5 +1,5 @@
 <!--
-Review document: agent-improve/reviews/REVIEW_DECISIONS.md
+Review document: agent-improve/docs/REVIEW_DECISIONS.md
 Normalised: UTF-8 without BOM, LF line endings
 Purpose: tracked review artefact for cross-session architectural reference
 Added in: f44e5c7

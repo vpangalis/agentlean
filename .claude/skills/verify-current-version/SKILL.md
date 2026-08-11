@@ -148,7 +148,7 @@ For the pattern the user provided:
 5. **If deprecated**, identify the replacement pattern with a link to the source.
 
 6. **Cross-check with REFACTORING_AGENT_IMPROVE.md** — read
-   `agent-improve/REFACTORING_AGENT_IMPROVE.md`. This is the live rationale document; if a
+   `agent-improve/docs/REFACTORING_AGENT_IMPROVE.md`. This is the live rationale document; if a
    section documents this pattern (search for the API name, and use the Document Navigation
    index at the top — sections are ordered by topic, not by number), note the section number
    and whether its guidance aligns with the live source. If they disagree, flag it — the
