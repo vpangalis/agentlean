@@ -1,5 +1,5 @@
 <!--
-Review document: agent-improve/docs/REVIEW_DECISIONS.md
+Review document: agent-improve/reviews/REVIEW_DECISIONS.md
 Normalised: UTF-8 without BOM, LF line endings
 Purpose: tracked review artefact for cross-session architectural reference
 Added in: f44e5c7
@@ -2522,6 +2522,153 @@ Store: cross-phase artifacts via AzureBlobStore (→ PostgresStore post-refactor
 3. Ground-up rewrite of CLAUDE.md (v2.1 → v2.2) and ARCHITECTURE.md (v2.1.1 → v2.2)
 4. Agent Improve codebase refactor executes against new v2.2 governance docs
 5. Follow-up deliverables: eval dataset (joint exercise), DMAIC phase skills (five SKILL.md files), AGENT_DESIGN_GUIDELINES.md (separate cowork with weekly-update skill)
+
+---
+
+## §33 Compliance Audit — REFACTORING_AGENT_IMPROVE.md vs Tier 1 sources
+
+**Date:** 2026-08-11  
+**Scope:** §33 canonical `rag_lookup_methodology` implementation reviewed against LangChain 1.x API docs, GitHub issues, and actual `improve_knowledge_index` data. Three findings.
+
+---
+
+### Finding §33-A — Bug: `phase_relevance eq 'all'` (Critical — blocks Step 3.1)
+
+**Status:** Confirmed bug. Fix ratified.
+
+The §33 canonical implementation uses:
+```python
+f"phase_relevance eq '{phase}' or phase_relevance eq 'all'"
+```
+
+`'all'` is wrong. DECISIONS.md §E3 records confirmed index data: 218 documents carry `phase_relevance = 'general'`; no document carries `'all'`. Using `'all'` silently returns zero cross-phase documents — the OR clause is defeated. The section note "Confirm the exact enumeration of `phase_relevance` values in the index before implementing" was an open placeholder. That placeholder is now closed: the confirmed value is `'general'`.
+
+**Ratified fix:** Replace `'all'` with `'general'` throughout all three `rag_lookup_*` tool implementations and all REFACTORING cross-references.
+
+```python
+# Wrong (§33 current):
+f"phase_relevance eq '{phase}' or phase_relevance eq 'all'"
+
+# Correct:
+f"phase_relevance eq '{phase}' or phase_relevance eq 'general'"
+```
+
+**Propagation required:**
+- REFACTORING_AGENT_IMPROVE.md §33 canonical implementation (line ~3863)
+- REFACTORING_AGENT_IMPROVE.md §37 implementation note (line ~3721+)
+- REVIEW_DECISIONS.md §37 ratified filter clause (line ~1323) — same `'all'` placeholder
+- DECISIONS.md §E3 already records the correct value (no change needed there)
+
+---
+
+### Finding §33-B — API Gap: `search_kwargs` filter at invoke time (High — blocks Step 3.1)
+
+**Status:** Confirmed gap. Fix ratified.
+
+The §33 canonical implementation assumes:
+```python
+azure_search_retriever.invoke(
+    q,
+    search_kwargs={"filters": f"phase_relevance eq '{phase}' or phase_relevance eq 'general'"},
+)
+```
+
+This pattern is incorrect for `AzureAISearchRetriever`. The `search_kwargs=` keyword at invoke time is the `AzureSearchVectorStoreRetriever` interface (vectorstore path). `AzureAISearchRetriever` takes `filters` as a **constructor parameter**. Passing it via `search_kwargs` at invoke time is either silently ignored or causes a kwarg collision.
+
+Verified against:
+- GitHub discussion [#29756](https://github.com/langchain-ai/langchain/discussions/29756) — "Azure Search Service Metadata-Based Filtering for Vector Search in Langchain not working"
+- GitHub issue [#21492](https://github.com/langchain-ai/langchain/issues/21492) — "`search_kwargs` not being used in vectorstore as_retriever"
+- GitHub issue [#14227](https://github.com/langchain-ai/langchain/issues/14227) — "Filters dont work with Azure Search Vector Store retriever"
+- GitHub issue [#30482](https://github.com/langchain-ai/langchain/issues/30482) — "AzureSearch: got multiple values for keyword argument 'filter'"
+
+Since `phase` is dynamic (varies per tool call), the filter must be set at construction time, and the retriever **cannot be a module-level static variable** for `rag_lookup_methodology`.
+
+**Ratified fix:** Instantiate `AzureAISearchRetriever` per tool call with `filters=` in the constructor.
+
+```python
+from langchain_community.retrievers import AzureAISearchRetriever
+
+@tool
+def rag_lookup_methodology(query: str, phase: str, top_k: int = 10) -> list[Document]:
+    """Multi-query RAG lookup with Reciprocal Rank Fusion against
+    improve_knowledge_index (LSS Black Belt eBook). Filters by phase_relevance
+    to scope results to the current DMAIC phase. Uses the content_vector field."""
+    variants = llm.with_structured_output(QueryVariants).invoke(
+        f"Generate 3-5 alternative phrasings for retrieving DMAIC {phase} "
+        f"content on: {query}. Include synonyms, related terminology, and "
+        f"phrasings a Black Belt would use in the LSS Black Belt eBook."
+    )
+    retriever = AzureAISearchRetriever(
+        service_name=settings.AZURE_SEARCH_SERVICE_NAME,
+        index_name="improve_knowledge_index",
+        content_key="content",
+        top_k=top_k * 3,  # over-fetch per variant; RRF selects final top_k
+        filters=f"phase_relevance eq '{phase}' or phase_relevance eq 'general'",
+    )
+    ranked_lists = [retriever.invoke(q) for q in variants.queries]
+    fused = reciprocal_rank_fusion(ranked_lists, k=60)
+    return [doc for doc, _score in fused[:top_k]]
+```
+
+The same applies to `rag_lookup_evidence` (filter: `case_id eq '{case_id}'`) and `rag_lookup_case_history` (filter: `status eq 'completed'`). Each creates its retriever per call with the appropriate filter.
+
+Note: `AzureAISearchRetriever` is a thin wrapper — construction cost is negligible vs the network call. No connection pooling concern.
+
+**Propagation required:**
+- REFACTORING_AGENT_IMPROVE.md §33 canonical implementation — replace `azure_search_retriever.invoke(q, search_kwargs=...)` pattern with per-call constructor pattern
+- REFACTORING_AGENT_IMPROVE.md §32 multi-query sketch (if it also uses the module-level pattern) — same fix
+- REFACTORING_AGENT_IMPROVE.md §40 — `rag_lookup_evidence` and `rag_lookup_case_history` filter patterns
+
+---
+
+### Finding §33-C — Open question resolved: `azure_search_retriever` module-level variable (Medium)
+
+**Status:** Open question from §32 review now closed.
+
+REVIEW_DECISIONS.md §32 left open (line ~961): "Confirm `azure_search_retriever` module-level exposure in current codebase (or adjust reference implementation)."
+
+**Resolution: adjust reference implementation.** Finding §33-B makes this definitive — a module-level retriever pre-configured with a static filter cannot support the dynamic `phase` parameter in `rag_lookup_methodology`. The retriever is created per call. This also means the current codebase's `azure_search_retriever` variable (however it is defined) is incompatible with the dynamic-filter design; Step 3.1 should not inherit or reuse it.
+
+---
+
+### §33 — What is confirmed valid
+
+No changes to:
+- `reciprocal_rank_fusion()` custom implementation — correct, keep as-is. Verified
+  against trusted sites 2026-08-11: `EnsembleRetriever` is NOT deprecated (it lives
+  in `langchain.retrievers.ensemble`, active in v0.3), but it solves the **wrong problem**.
+  `EnsembleRetriever` combines results from multiple different retriever sources (BM25 + vector).
+  Our pattern is same-index multi-query RRF — N phrasings against one index. No standard
+  LangChain 1.x class does this. The LangChain rag-fusion template (v0.2) also used a custom
+  implementation. The custom 15-line approach is correct, stable, and dependency-free.
+  Anthropic "Writing Tools for Agents" (Tier 1) confirms encapsulation principle — complexity
+  inside the tool, clean interface to the agent.
+- `k=60` — standard RRF choice
+- `doc.metadata["id"]` as dedup key — correct for Azure AI Search index schema
+- `phase` as a tool parameter — correct design; executor specifies current DMAIC phase per turn
+- `llm.with_structured_output(QueryVariants).invoke(...)` — correct §82 ProviderStrategy pattern
+- RRF included by default — correct rationale (Agent Resolve empirical override stands)
+
+**Correction to prior framing:** DECISIONS.md §E1 previously stated `EnsembleRetriever` was
+"banned — moved to langchain-classic in the 1.0 namespace split." This is factually wrong.
+`EnsembleRetriever` is active and not deprecated. Correct reason for not using it: wrong
+pattern for same-index multi-query fusion. DECISIONS.md §E1 updated 2026-08-11.
+
+---
+
+### Propagation to REFACTORING_AGENT_IMPROVE.md
+
+**Before Step 3.1 can build `tool_args.py`, apply:**
+1. §33-A fix (`'all'` → `'general'`) to §33 canonical implementation
+2. §33-B fix (per-call constructor pattern) to §33 canonical implementation
+3. Same two fixes to §37 and §40 implementation notes
+4. §33-C close note — add a sentence resolving the "Confirm `azure_search_retriever`" open question
+
+These are doc amendments, not ratification decisions — the three-tool architecture and RRF inclusion remain unchanged. The two fixes correct implementation details in the reference code.
+
+*Cross-references: DECISIONS.md §E3 (phase_relevance values confirmed); §32 (multi-query tool parent); §37 (phase_relevance filter ratification); §40 (metadata filters on the other two tools); Step 2.5 (dependency upgrade before Step 3.1); REFACTORING_AGENT_IMPROVE.md §33 lines 3858–3870.*
+
+---
 
 ### §53 — MAJOR FINDING — Built-In Middleware Replaces Most of Gaps 2, 19, and Part of 23
 

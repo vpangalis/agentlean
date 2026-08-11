@@ -9,11 +9,11 @@ Purpose: Consolidated decision register. Single navigable reference for every
          primary cross-session reference.
 
 Source documents (stay in repo, not here):
-  agent-improve/docs/STATE_DESIGN_RESOLUTION.md      — original 26 findings
-  agent-improve/docs/REVIEW_DECISIONS.md             — full EDUCATIONAL.md review log
-  agent-improve/docs/SKILL_REVIEW_NOTES.md           — 17 SKILL.md review notes
-  agent-improve/docs/RESTRUCTURE_PLAN.md             — REFACTORING reorder plan
-  agent-improve/docs/status-79-84-2026-08-10.md      — §79–§84 landing audit
+  agent-improve/reviews/STATE_DESIGN_RESOLUTION.md   — original 26 findings
+  agent-improve/reviews/REVIEW_DECISIONS.md           — full EDUCATIONAL.md review log
+  agent-improve/SKILL_REVIEW_NOTES.md                 — 17 SKILL.md review notes
+  agent-improve/reviews/RESTRUCTURE_PLAN.md           — REFACTORING reorder plan
+  agent-improve/reviews/status-79-84-2026-08-10.md   — §79–§84 landing audit
 
 CLAUDE.md version this was written against: v2.2.14
 ARCHITECTURE.md version: v2.2.15
@@ -683,8 +683,20 @@ Option A: each of the three `rag_lookup_*` tools holds its own
 RRF implementation: 3–5 query variants per tool call, fused with
 Reciprocal Rank Fusion k=60. Fifteen lines of code, no LangChain class.
 
-`MultiQueryRetriever` and `EnsembleRetriever` are BANNED — both moved to
-`langchain-classic` in the 1.0 namespace split.
+`MultiQueryRetriever` — not used; belongs to the retriever abstraction layer
+we are deliberately bypassing with per-call `AzureAISearchRetriever` (see §E4).
+
+`EnsembleRetriever` — not deprecated (active in `langchain.retrievers.ensemble`,
+confirmed v0.3), but solves the wrong problem. It combines results from
+**different retriever sources** (e.g., BM25 + vector). Our pattern is
+**same-index multi-query RRF** — N phrasings against one index. No standard
+LangChain 1.x class exists for this pattern. The LangChain rag-fusion template
+(v0.2) also used a custom implementation for the same reason. Custom 15-line
+`reciprocal_rank_fusion()` is correct, stable, and dependency-free.
+
+Anthropic "Writing Tools for Agents" (Sep 2025, Tier 1) confirms the
+encapsulation principle: complexity belongs inside the tool, not exposed to
+the agent. The custom RRF matches this — clean tool interface, fusion hidden.
 
 `rag_lookup_evidence` takes no `order_by` argument — `improve_evidence_index`
 has no `uploaded_at` field (upload timestamp buried in non-sortable
@@ -720,7 +732,36 @@ whole query) and not `'all'` (no document carries it, silently narrows corpus).
 
 ---
 
-### E4 — Retrieval failure must raise, not return `[]`
+### E4 — `AzureAISearchRetriever` filter must be set at construction time, not invoke time
+
+**Status:** ADOPTED — 2026-08-11 (§33 compliance audit)  
+**Source:** REVIEW_DECISIONS.md §33-B finding; GitHub #29756, #21492, #14227, #30482
+
+`AzureAISearchRetriever.invoke(q, search_kwargs={"filters": ...})` does not work —
+`search_kwargs=` at invoke time is the `AzureSearchVectorStoreRetriever` interface,
+not `AzureAISearchRetriever`. The filter must be passed as `filters=` in the constructor.
+
+Since the `phase` parameter is dynamic (varies per tool call), the retriever for
+`rag_lookup_methodology` **cannot be module-level**. It is created per call:
+
+```python
+retriever = AzureAISearchRetriever(
+    service_name=..., index_name="improve_knowledge_index",
+    content_key="content", top_k=top_k * 3,
+    filters=f"phase_relevance eq '{phase}' or phase_relevance eq 'general'",
+)
+ranked_lists = [retriever.invoke(q) for q in variants.queries]
+```
+
+Same pattern applies to `rag_lookup_evidence` (filter: `case_id eq '...'`) and
+`rag_lookup_case_history` (filter: `status eq 'completed'`).
+
+Closes §32 open question: "Confirm `azure_search_retriever` module-level exposure
+or adjust reference implementation." Answer: adjust — per-call constructor.
+
+---
+
+### E5 — Retrieval failure must raise, not return `[]`
 
 **Status:** ADOPTED — landed in CLAUDE.md §7.2  
 **Source:** ARCHITECTURE.md §7.1.1
@@ -925,8 +966,8 @@ removal in LangChain 2.0. Replacement: checkpointer + store +
 
 ### G11 — REFACTORING_AGENT_IMPROVE.md restructuring: PENDING (separate task)
 
-**Status:** PENDING — plan in `docs/RESTRUCTURE_PLAN.md`  
-**Source:** docs/RESTRUCTURE_PLAN.md
+**Status:** PENDING — plan in `reviews/RESTRUCTURE_PLAN.md`  
+**Source:** reviews/RESTRUCTURE_PLAN.md
 
 Reorder REFACTORING_AGENT_IMPROVE.md from chronological to logical
 reference structure (11 Parts + Appendix). Rules: no content changes,
