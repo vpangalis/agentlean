@@ -35,10 +35,19 @@ v1.4 changes (2026-08-19): B3 amended from seven to eight middlewares
   §22 Debate Agents deferred to §87 backlog (confirmed 2026-08-19);
   Part N added (N1 §67 Geographic Redundancy / DORA compliance — deferred to v2.2);
   Amendment Log updated.
+v1.5 changes (2026-08-20): the Task 1 audit rulings applied. A2 field count
+  corrected (15 -> 17, 3 plumbing + 14 content); E1 EnsembleRetriever claim
+  corrected against the LangChain v1 migration guide; N1 §87 item renumbered
+  14 -> 16 (14 and 15 were both already occupied); Part O added — O1
+  SupervisorState / store-mediated boundary ruling, O2 improve_evidence_index
+  schema (phase + uploaded_at), O3 disconnect policy (ABANDON), O4 minor
+  citation corrections; Part P added — P1..P5 recording the audit
+  contradictions and how each was resolved. Every ruling in this version is
+  now APPLIED to REFACTORING_AGENT_IMPROVE.md, not merely logged.
 -->
 
 # Agent Improve — DECISIONS.md
-# Version 1.4 — 2026-08-19
+# Version 1.5 — 2026-08-20
 
 ---
 
@@ -93,10 +102,10 @@ approval). Nothing else may write them.
 
 ---
 
-### A2 — PhaseState: fifteen content fields
+### A2 — PhaseState: seventeen fields (3 plumbing + 14 content)
 
-**Status:** ADOPTED — landed in CLAUDE.md §10.1  
-**Source:** STATE_DESIGN_RESOLUTION.md Findings 4–6, 8–12
+**Status:** ADOPTED — landed in CLAUDE.md §10.1; **applied to REFACTORING §18 on 2026-08-20**  
+**Source:** STATE_DESIGN_RESOLUTION.md Findings 4–6, 8–12; §71 compliance audit (2026-08-11)
 
 ```python
 class PhaseState(TypedDict):
@@ -105,8 +114,8 @@ class PhaseState(TypedDict):
     history:            Annotated[list[str], operator.add]
     phase_context:      str
 
-    # content fields (15)
-    coaching_plan:      dict[str, Any]     # single dict, overwritten each planner turn
+    # content fields (14)
+    coaching_plan:      Optional[CoachingPlan]  # typed — §71-C; overwritten each planner turn
     field_index:        int
     draft:              dict[str, Any]     # this turn's extraction
     artifacts:          dict[str, Any]     # accumulated captured fields for the phase
@@ -751,13 +760,27 @@ Reciprocal Rank Fusion k=60. Fifteen lines of code, no LangChain class.
 `MultiQueryRetriever` — not used; belongs to the retriever abstraction layer
 we are deliberately bypassing with per-call `AzureAISearchRetriever` (see §E4).
 
-`EnsembleRetriever` — not deprecated (active in `langchain.retrievers.ensemble`,
-confirmed v0.3), but solves the wrong problem. It combines results from
-**different retriever sources** (e.g., BM25 + vector). Our pattern is
+`EnsembleRetriever` — **moved to `langchain_classic` in the LangChain 1.0
+namespace split; not importable from `langchain` in the current version.**
+It also solves the wrong problem: it combines results from **different
+retriever sources** (e.g., BM25 + vector), whereas our pattern is
 **same-index multi-query RRF** — N phrasings against one index. No standard
 LangChain 1.x class exists for this pattern. The LangChain rag-fusion template
 (v0.2) also used a custom implementation for the same reason. Custom 15-line
 `reciprocal_rank_fusion()` is correct, stable, and dependency-free.
+
+> **Correction, 2026-08-20 (audit ruling C3).** This entry previously read
+> "not deprecated (active in `langchain.retrievers.ensemble`, confirmed v0.3)."
+> That is wrong and it contradicted CLAUDE.md §7.4 and REFACTORING §35, both
+> of which say the class moved to `langchain_classic` at the 1.0 migration.
+> Verified against the official LangChain v1 migration guide: **CLAUDE.md §7.4
+> and REFACTORING §35 are correct; this entry was not.** The "confirmed v0.3"
+> observation predates the 1.0 namespace split.
+>
+> **The conclusion never depended on the wrong fact.** Custom RRF was already
+> correct on architectural grounds alone — wrong-problem, not just
+> wrong-package. There are now two independent reasons and they agree, which
+> is why no downstream decision moves.
 
 Anthropic "Writing Tools for Agents" (Sep 2025, Tier 1) confirms the
 encapsulation principle: complexity belongs inside the tool, not exposed to
@@ -768,10 +791,13 @@ has no `uploaded_at` field (upload timestamp buried in non-sortable
 `metadata` JSON blob). This is a schema change (ARCHITECTURE.md §7.7), not
 a tool change.
 
-**§37 cross-reference (2026-08-11):** §37 compliance audit (§37-C, Medium) found that §37's
-implementation note still describes `EnsembleRetriever` as deprecated. This is incorrect per
-the ratification in E1 above. The fix is a prose update to §37 at the next batch commit —
-no new decision, same conclusion as E1.
+**§37-C is VOID (closed 2026-08-20).** The §37 compliance audit recorded a
+Medium finding that "§37's implementation note describes `EnsembleRetriever` as
+deprecated" and asked for a prose update. Two things were wrong with it. First,
+the prose is in **§35**, not §37 — §37 does not mention `EnsembleRetriever` at
+all. Second, and decisively, that prose is **correct**: the C3 ruling above
+confirms the class did move to `langchain_classic`. §37-C asked for correct text
+to be changed to match an incorrect log entry. **No action. Do not apply it.**
 
 ---
 
@@ -1234,6 +1260,13 @@ toolset gap (I1 above).
 
 | Amendment | Changed | Governance doc | Version |
 |---|---|---|---|
+| **O1 `SupervisorState` ruling — `DMAICState` retired, cross-phase data store-mediated only; §44 gains Mechanism 3** | New Part O (O1); REFACTORING §44 + 14 sites | DECISIONS.md | **v1.5 — 2026-08-20** |
+| **O2 `improve_evidence_index` + `phase` + `uploaded_at`; `PhaseState.uploads` shape specified** | New Part O (O2); REFACTORING §36, §40 | DECISIONS.md | **v1.5 — 2026-08-20** |
+| **O3 Disconnect policy ABANDON — five requirements added to §17 item 3 (not a new step)** | New Part O (O3); REFACTORING §17.3a, §18 | DECISIONS.md | **v1.5 — 2026-08-20** |
+| **O4 `BaseStore.search()` supports `filter=`; Anthropic harness-post scope softened** | New Part O (O4); REFACTORING §52, §44, §45 | DECISIONS.md | **v1.5 — 2026-08-20** |
+| **P1–P5 audit contradictions resolved; E1 EnsembleRetriever corrected; §37-C VOID** | New Part P; E1; A2 | DECISIONS.md | **v1.5 — 2026-08-20** |
+| **N1 §87 backlog number corrected 14 → 16 (14 and 15 both occupied)** | N1; REFACTORING §87 | DECISIONS.md | **v1.5 — 2026-08-20** |
+| **Category A applied to REFACTORING — 16 change sets, previously logged but never written back** | REFACTORING §10, §17, §18, §29, §33, §34, §35, §36, §37, §40, §44, §52, §67, §71, §80, §82, §84, §87 | REFACTORING_AGENT_IMPROVE.md | **v1.5 — 2026-08-20** |
 | B3 amended: seven → eight middlewares (ToolRetryMiddleware added at position 5) | B3, F2 | DECISIONS.md | v1.4 — 2026-08-19 |
 | §22 Debate Agents deferred confirmed (no implementation in v2.1) | New Part N (N2) | DECISIONS.md | v1.4 — 2026-08-19 |
 | N1 §67 Geographic Redundancy / DORA compliance deferred to v2.2 | New Part N (N1) | DECISIONS.md | v1.4 — 2026-08-19 |
@@ -1483,8 +1516,15 @@ Position in stack: seventh (after `ContradictionDetectionMiddleware`, before
 
 ### N1 — §67 Geographic Redundancy: DORA / EU AI Act compliance (deferred to v2.2)
 
-**Status:** DEFERRED to §87 backlog item 14 — v2.2 pre-production  
-**Date:** 2026-08-19  
+**Status:** DEFERRED to **§87 backlog item 16** — v2.2 pre-production  
+**Date:** 2026-08-19; backlog number corrected 2026-08-20  
+
+> **Numbering correction (audit ruling C6).** This entry originally claimed
+> §87 item 14. Item 14 was already the **Observer Agent** (§43), and item 15
+> was already the **multi-source knowledge index** (§37/§60, Finding 27).
+> The ruling was to renumber the newer addition rather than an established
+> one; applied against the real table, that makes geographic redundancy
+> **item 16**. Both existing entries keep their numbers.
 **Source:** User decision this session; DORA ICT resilience requirements; EU AI Act data governance
 
 **Finding:** The ratified §67 four-level fallback chain has a single-region dependency. Levels 1–3 (gpt-4o, gpt-4o-mini, Redis Cache) are all provisioned in Azure West Europe (Frankfurt). A Frankfurt regional outage collapses all three active levels simultaneously, leaving only Level 4 degraded mode. This is non-compliant with DORA's ICT resilience obligation to maintain continuity of critical functions via geographic redundancy.
@@ -1509,11 +1549,11 @@ Level 5: Degraded mode               — always succeeds, never crashes
 
 **Note on TPM vs regional outage:** TPM (Tokens Per Minute) rate-limit exhaustion is handled correctly in v2.1 — a 429 at Level 1 is classified transient, exponential backoff fires, chain activates. The geographic redundancy amendment handles the separate case where Frankfurt is unreachable (regional outage) or the TPM backoff exhaustion propagates to Level 2 before recovering.
 
-**§87 backlog item 14:**
+**§87 backlog item 16** — landed in REFACTORING §87 on 2026-08-20:
 
 | # | Source | Deferred capability | Why deferred | Promotion trigger |
 |---|---|---|---|---|
-| 14 | §67 / DORA | Geographic redundancy — secondary Azure OpenAI deployment in second EU region | Infrastructure provisioning decision deferred until base refactor stable; not a v2.1 blocker | Before production launch with real Belts — DORA compliance requires this before any regulated-entity deployment |
+| 16 | §67 / DORA | Geographic redundancy — secondary Azure OpenAI deployment in second EU region | Infrastructure provisioning decision deferred until base refactor stable; not a v2.1 blocker | Before production launch with real Belts — DORA compliance requires this before any regulated-entity deployment |
 
 ---
 
@@ -1530,3 +1570,165 @@ Level 5: Degraded mode               — always succeeds, never crashes
 **§47 Opinion Aggregation is blocked behind §22.** Also deferred; cannot be ratified until §22 is implemented and validated.
 
 **Status at deferral:** §22 had preliminary scoping only in REVIEW_DECISIONS.md — no full review had been completed prior to this deferral decision.
+
+---
+
+## Part O — v2 Rewrite Decisions (2026-08-20)
+
+*Four decisions ratified during the Task 1 audit sign-off. O1 resolves a
+contradiction between the review log and CLAUDE.md; O2 and O3 are genuinely
+new scope that had never been logged; O4 is two citation corrections.
+**All four are applied in REFACTORING_AGENT_IMPROVE.md**, not merely recorded.*
+
+### O1 — `SupervisorState` is the parent state; cross-phase data is store-mediated only
+
+**Status:** RATIFIED 2026-08-20 — applied to REFACTORING §44 and 14 other sites  
+**Source:** Task 1 audit finding B1; CLAUDE.md §1.2, §10.1, §10.2
+
+REFACTORING §44's "Correct Implementation for Agent Improve" block declared a
+parent state class named `DMAICState` carrying `define_output` and
+`measure_output`, and explained that those fields "cross the boundary
+automatically" because the key names are shared with the child state.
+
+**Every part of that is wrong under the ratified design**, and it mattered more
+than an ordinary stale passage because it was the block a reader would copy as
+*the* reference implementation:
+
+| Claim | Contradicts |
+|---|---|
+| Parent class is `DMAICState` | CLAUDE.md §10.1 / §17 — the class is `SupervisorState` |
+| Parent carries `define_output`, `measure_output` | CLAUDE.md §10.1 — seven fields, orchestration only; artifacts are a violation |
+| Shared key names carry data across the phase boundary | CLAUDE.md §10.2 and §1.2 — cross-phase data flows through the Store; subgraph state is not guaranteed to propagate to the parent |
+
+**Ruling: CLAUDE.md wins.** REVIEW_DECISIONS.md's §44 reconciliation table
+(the line reading *"Shared key names (Mechanism 1) for boundary crossing —
+Compatible with ratified design"*) is the stale artifact. A review-log line
+does not override the constitution.
+
+**Applied:**
+- `DMAICState` → `SupervisorState` at all 15 occurrences
+- Per-phase output fields removed from every parent-state occurrence
+- §44's reference block rewritten to the store-mediated form with explicit
+  `define_output_mapper` / `measure_input_mapper` functions
+- **§44 gained "Mechanism 3 — the Store."** §44 previously documented only two
+  boundary mechanisms, both in-graph. That omission is the root cause of the
+  drift: with only shared-keys and transformers on the page, shared keys looked
+  like the answer to "how does Define's output reach Measure." Adding the third
+  mechanism, and marking the first two explicitly as in-graph-only, closes the
+  gap that produced the error rather than only fixing its output.
+
+### O2 — `improve_evidence_index` gains `phase` and `uploaded_at`
+
+**Status:** RATIFIED 2026-08-20 — new scope, not previously logged  
+**Source:** Task 1 audit finding B2
+
+```
+improve_evidence_index (7 fields, was 5)
+  id, content, content_vector, metadata, case_id        [existing]
+  phase         Edm.String  — NEW, auto-set from state["current_phase"] at upload
+  uploaded_at   Edm.String  — NEW, ISO 8601, server-side, never Belt-entered
+```
+
+`uploaded_at` closes a gap **E1 itself had flagged and worked around**: the
+recency ordering `rag_lookup_evidence` wanted was unavailable because the
+timestamp lived only inside the non-sortable `metadata` JSON blob. As a
+top-level field it sorts correctly and the ordering clause becomes available.
+
+`phase` closes a problem that had never been articulated: two similar documents
+uploaded at different phases were **indistinguishable at retrieval time**. Since
+this index is the only channel for external data (§39), that ambiguity lands
+directly on the coaching answer.
+
+`rag_lookup_evidence` gains an **optional `phase` filter, default unfiltered** —
+cross-phase evidence retrieval is the normal case, not the exception (a Control
+Belt comparing against the Measure baseline), so filtering by default would
+break the comparison the field exists to enable.
+
+Both fields are server-set. **Requires a reindex — batch with E2's
+`content_vector` standardisation** so the corpus is rebuilt once.
+
+**Consequential:** `PhaseState.uploads` gains a specified internal shape, which
+it previously lacked:
+```python
+uploads: list[dict]
+# {"evidence_index_id": str, "filename": str, "phase": str,
+#  "uploaded_at": str, "summary": str}
+```
+
+### O3 — Disconnect policy: ABANDON, not COMPLETE
+
+**Status:** RATIFIED 2026-08-20 — new scope, not previously logged  
+**Source:** Task 1 audit finding B3; Ranjan Kumar, *"FastAPI + LangGraph: What a Client Disconnect Commits"* (measured 2026-08-04)
+
+**Step mapping:** this is **not a new "Step 6."** It is additional scope on the
+existing work of wiring `thread_id` through `graph.ainvoke` — REFACTORING §17
+item 3, "Checkpointing", where the disconnect policy now lives as §17 item 3a.
+No parallel numbering scheme was created.
+
+**The finding:** once checkpoints actually write, the **FastAPI handler's
+control-flow shape — not the checkpointer — decides what survives a client
+disconnect.** A handler that hands the run to a bare `asyncio.create_task`
+keeps executing after the Belt is gone and checkpoints every node it completes.
+
+**Policy: ABANDON.** A silently-completed gate approval the Belt never saw is
+unacceptable in a system whose premise is that the Belt approves what gets
+committed (§2 step 7). COMPLETE is defensible for idempotent background work;
+it is not defensible for a nine-step HITL gate.
+
+Five requirements, all in scope for that step:
+
+| # | Requirement |
+|---|---|
+| 1 | Deliberate handler shape — inline `await` streaming, or explicit ABANDON with `t.cancel()` in `gen()`'s `finally`. Never a bare `asyncio.create_task` with no disconnect handling |
+| 2 | Deterministic `step_log` keys — `f"{phase}:{turn_count}:{step_name}"`, never a raw timestamp as identity |
+| 3 | Azure Blob lease as the per-thread concurrency guard (Postgres advisory locks unavailable pre-migration) |
+| 4 | Reconciliation sweep for abandoned threads that **excludes `interrupt()`-paused threads** |
+| 5 | `thread_id` / `case_id` derived from the authenticated session, never client-supplied |
+
+**`gate_apply_node` needs no change** — its store write is already idempotent by
+key. The exposure is in `step_log` (requirement 2) and concurrent writers
+(requirement 3).
+
+### O4 — Two citation corrections
+
+**Status:** RATIFIED 2026-08-20  
+**Source:** Task 1 audit finding B4
+
+**`BaseStore.search()` does support metadata filtering** via `filter=`. §52
+listed metadata filters among the things the store lacks, which overstated the
+case for keeping `improve_case_index` on Azure AI Search. The two capabilities
+the store genuinely lacks are **hybrid BM25 + vector scoring** and
+**multi-query + RRF** — which are the two the yokoten use case depends on, so
+Option A resolves the same way. Right conclusion, one wrong reason, now removed.
+
+**The Anthropic March 2026 harness-design post is scoped more narrowly than
+§44/§45 claimed.** It is a specific research write-up on long-running *coding*
+harnesses, not general Anthropic architecture guidance superseding "Building
+Effective Agents." The Planner/Generator/Evaluator comparison is kept — the
+convergence is real and worth recording — but framed as strong evidence from an
+adjacent domain rather than as a specification. The Dec 2024 post's downgraded
+status is likewise softened: it is ordered lower because newer specific material
+exists, not because it was refuted.
+
+---
+
+## Part P — Audit Contradictions Resolved (2026-08-20)
+
+*Five contradictions the Task 1 audit found **inside the decision logs
+themselves**, each recorded here with its resolution so the losing side cannot
+be cited later as if it were live.*
+
+| # | Contradiction | Resolution |
+|---|---|---|
+| **P1** | §71-D: the finding body ratifies Option B = **three** LLM calls; the §71 Actions Summary table says *"synthesis = coaching response, 2 LLM calls total"* | **Body wins — three calls** (planner, synthesis, coach). The table was a drafting error from the pre-ratification version. Fixed in REVIEW_DECISIONS.md and applied to REFACTORING §71 |
+| **P2** | PhaseState count stated four ways: A2 heading "fifteen content fields", code comment `(15)`, an actual list of 14, closing line "17 (3+14)"; REVIEW_DECISIONS §71-E said "field 13" and "13 fields" | **17 total = 3 plumbing + 14 content.** Standardised in DECISIONS A2, REVIEW_DECISIONS §71-E, and REFACTORING §18 |
+| **P3** | `EnsembleRetriever`: DECISIONS E1 said "not deprecated, active in `langchain.retrievers.ensemble`"; CLAUDE.md §7.4 and REFACTORING §35 said "moved to `langchain_classic`" | **CLAUDE.md and §35 correct; E1 wrong.** Verified against the LangChain v1 migration guide. E1 corrected. See E1 and §37-C VOID |
+| **P4** | §34-D model tiering: "DEFERRED" in the finding body, "OPEN" in the same audit's Category-C table-update text | **DEFERRED** — consistent with the body and with the §87 backlog entry. Table text fixed |
+| **P5** | `completeness_score`: REFACTORING §10 annotated it *"computed, not captured — float is correct"*; §17/§77 say no such stored field exists | **No stored field.** §17/§77 correct. The §10 annotation defended the *type* and missed the question. Removed from all §10 sketches with an explanatory note |
+
+**One further inconsistency, resolved by the same principle:**
+`ModelRetryMiddleware(retries=3)` appeared in one §80 illustration against
+`retries=2` everywhere else. **Standardised on `retries=2`**, and that
+illustration is now explicitly labelled as a generic LangChain example rather
+than Agent Improve's stack — it also contained `HumanInTheLoopMiddleware`,
+which is BANNED for our gates (§53).

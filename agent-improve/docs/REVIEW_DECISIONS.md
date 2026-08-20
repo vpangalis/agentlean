@@ -2476,8 +2476,8 @@ Store: cross-phase artifacts via AzureBlobStore (→ PostgresStore post-refactor
 | Static edges for DMAIC phase sequence | **Correct — ADOPT.** Global Planner is deterministic logic reading `gate_passed` flags, not an LLM call. `add_edge("define", "measure")` etc. Command routing reserved for inside phases. |
 | Command routing inside phases | **Correct — already ratified** |
 | Per-subgraph thread_ids (Option A) | **WRONG — correct to one thread_id + auto checkpoint_ns.** Web-verified against Tier 1. |
-| Shared key names (Mechanism 1) for boundary crossing | **Compatible with ratified design.** Use alongside store: shared keys for in-graph communication, store for durability and cross-case retrieval. |
-| Explicit transformer functions (Mechanism 2) for boundary crossing | **Compatible.** Our boundary mappers (§19) are the same concept. |
+| Shared key names (Mechanism 1) for boundary crossing | **CORRECTED 2026-08-20 — see the B1 ruling below.** This line previously read "Compatible with ratified design." It is not compatible for *phase* boundaries: cross-phase data is store-mediated only (CLAUDE.md §10.2, §1.2). Shared keys remain valid **inside** a phase subgraph, between that subgraph and its own nodes — in-graph only, never across a phase boundary. |
+| Explicit transformer functions (Mechanism 2) for boundary crossing | **Compatible, with the same in-graph-only scope as Mechanism 1.** Our boundary mappers (§19) are the same concept, but they write to and read from the Store — that store write is what makes them a *phase* boundary mechanism, not the transformation itself. |
 | Two-node HITL pattern (review_node → apply_decision_node) | **Refinement — ADOPT.** More precise than §2's current framing. |
 | InMemorySaver for dev / PostgresSaver for production | **Stale.** Superseded by phased checkpointer decision: AzureBlobCheckpointSaver during refactor, PostgresSaver post-refactor. |
 | Typed Pydantic boundary outputs (DefineOutput, MeasureOutput) | **Correct — already ratified** in §18 |
@@ -2498,14 +2498,44 @@ Store: cross-phase artifacts via AzureBlobStore (→ PostgresStore post-refactor
 
 2. **Two-node HITL pattern.** Refine §2's nine-step flow: step 3 (interrupt fires) is `gate_review_node` which fires the interrupt and presents fields to the Belt. Steps 5-7 (Belt edits, policy advisory, Belt approves) are processed by `gate_apply_node` which reads the Belt's response, applies corrections, runs the policy advisory, and Commands to the next step or back to the grader. Cleaner separation of collection vs application.
 
-**§44 rewrite plan at batch commit:**
+**§44 rewrite plan — APPLIED 2026-08-20:**
 
-1. Correct Option A (per-subgraph thread_ids) → one project thread_id + auto checkpoint_ns
-2. Update checkpointer references (InMemorySaver → phased approach)
-3. Strip MCP references from governance section, keep as knowledge
-4. Update tool names throughout to ratified canonical names
-5. Cross-reference to all ratified decisions that implement §44's concepts
-6. Preserve the root cause analysis, governance layers, course lab case study, Command pattern, static-vs-dynamic criterion, and boundary contract sections — all correct and valuable
+1. ✅ Correct Option A (per-subgraph thread_ids) → one project thread_id + auto checkpoint_ns
+2. ✅ Update checkpointer references (InMemorySaver → phased approach)
+3. ✅ Strip MCP references from governance section, keep as knowledge
+4. ✅ Update tool names throughout to ratified canonical names
+5. ✅ Cross-reference to all ratified decisions that implement §44's concepts
+6. ✅ Preserve the root cause analysis, governance layers, course lab case study, Command pattern, static-vs-dynamic criterion, and boundary contract sections — all correct and valuable
+7. ✅ **B1 (added 2026-08-20, not in the original six)** — `DMAICState` → `SupervisorState`; per-phase output fields removed from parent state; the "Correct Implementation" block rewritten store-mediated; **Mechanism 3 (the Store) added.** See below.
+
+---
+
+### B1 Ruling — §44's reference implementation corrected (2026-08-20)
+
+**Status:** RATIFIED and APPLIED. See DECISIONS.md §O1.
+
+The Task 1 audit found that §44's "Correct Implementation for Agent Improve"
+code block — the block a reader copies as the reference — declared
+`class DMAICState(TypedDict)` carrying `define_output` / `measure_output`, and
+stated those fields cross the phase boundary automatically via shared key names.
+
+That contradicts CLAUDE.md §10.1 (`SupervisorState`, seven fields,
+orchestration only), §10.2 (cross-phase data flows through the Store) and §1.2
+(subgraph state is not guaranteed to propagate to the parent).
+
+**Ruling: CLAUDE.md wins over a review-log line.** The reconciliation-table row
+above was the stale artifact and is corrected in place.
+
+**What made this more than a stale passage:** §44 documented only **two**
+boundary mechanisms, and both are in-graph. With shared-keys and transformers as
+the only options on the page, shared keys read as the natural answer to "how
+does Define's output reach Measure" — and the reference implementation was
+written that way. **The fix is not only the code block; §44 now carries
+Mechanism 3, the Store**, with Mechanisms 1 and 2 explicitly marked in-graph
+only. Correcting the output without adding the missing mechanism would have left
+the same trap for the next reader.
+
+Applied at 15 `DMAICState` sites across the document.
 
 ---
 
@@ -2828,7 +2858,13 @@ Entry at line ~1990:
 
 **Before:** `§34 — Multi-Hop Reasoning | Ratified — ReAct loop, 5-hop cap, recursion_limit=11`
 
-**After:** `§34 — Multi-Hop Reasoning | Ratified — ReAct loop, 5-hop cap via RemainingSteps; recursion_limit as backstop only. §34-D model tiering OPEN.`
+**After:** `§34 — Multi-Hop Reasoning | Ratified — ReAct loop, 5-hop cap via RemainingSteps; recursion_limit as backstop only. §34-D model tiering DEFERRED to §87.`
+
+> **Corrected 2026-08-20 (audit ruling P4).** This line previously ended
+> "§34-D model tiering OPEN," contradicting the §34-D finding body above,
+> which records **DECISION: DEFERRED to §87 backlog — 2026-08-11**, and the
+> §87 backlog entry itself. DEFERRED is correct; the promotion trigger is
+> LangSmith evidence of repeated 5-hop cap hits on Analyse-phase turns.
 
 *Cross-references: DECISIONS.md §F2 (RemainingSteps ratification); §71 (Gap 17 closure, planned vs emergent); §32/§33 (multi-query composable at each hop); LangGraph Discussion #1260; deepagents Issue #1698.*
 
@@ -2973,7 +3009,15 @@ Item 5 was written as "LangSmith trace-based coaching learning." This is now und
 | §37-A: `phase_relevance eq 'all'` | Replace `'all'` with `'general'` in §37 implementation note | **Yes** |
 | §37-B: `search_kwargs` at invoke time | Per-call constructor pattern (same as §33-B) | **Yes** |
 | §37-C: Module-level retriever | Resolved by §37-B; no separate action | No |
-| §37-D: Procedural memory absent from taxonomy | Add row: static (v2.1 SKILL.md + prompts + rubrics) and dynamic (v2.2+ LangSmith-driven). §87 item 5 reframed. | No (affects §37 rewrite scope only) |
+| §37-D: Procedural memory absent from taxonomy | ✅ APPLIED 2026-08-20 — static/dynamic rows added to the §37 taxonomy; §87 item 5 reframed | No (affects §37 rewrite scope only) |
+
+> **Note on the OTHER §37-C.** DECISIONS.md §E1 carried a separate finding also
+> labelled §37-C — "§37's implementation note describes `EnsembleRetriever` as
+> deprecated; fix the prose." **That finding is VOID** (closed 2026-08-20).
+> The prose in question is in **§35**, not §37, and it is **correct**:
+> `EnsembleRetriever` did move to `langchain_classic` at the 1.0 migration.
+> It was DECISIONS.md §E1 that was wrong, not §35. See DECISIONS.md §P3.
+> Do not "fix" §35 — that would replace correct text with an error.
 
 *Cross-references: DECISIONS.md §E3 (`phase_relevance` confirmed values); DECISIONS.md §E4 (per-call constructor ratification); §33-A/§33-B (same findings, canonical implementation); §83/§84 (DMAICSkillsMiddleware — procedural memory implementation); §42 (COACHING_QUALITY_RUBRIC — procedural memory component); REFACTORING_AGENT_IMPROVE.md §37 lines ~4409–4416.*
 
@@ -3151,7 +3195,7 @@ class PhaseState(TypedDict):
 
 This makes hop results appear in the LangGraph state checkpoints and in LangSmith's state diffs per node invocation. The "fully inspectable" claim is then accurate.
 
-**PhaseState field count:** This session adds 3 fields: `coaching_plan` (typed, §71-C), `hop_results` (§71-E), `synthesis_output` (§71-D). Previous count was 13 (from prior sessions). Revised total: **17 fields (3 plumbing + 14 content)**. CLAUDE.md §10.1 and ARCHITECTURE.md §4.1 must be updated in the v2.2 rewrite.
+**PhaseState field count:** This session adds 2 fields (`hop_results` §71-E, `synthesis_output` §71-D) and retypes a third (`coaching_plan` → `Optional[CoachingPlan]`, §71-C). Total: **17 fields (3 plumbing + 14 content)** — applied to REFACTORING §18 and DECISIONS.md §A2 on 2026-08-20. CLAUDE.md §10.1 and ARCHITECTURE.md §4.1 must be updated in the v2.2 governance rewrite.
 
 ---
 
@@ -3162,10 +3206,26 @@ This makes hop results appear in the LangGraph state checkpoints and in LangSmit
 | §71-A: `recursion_limit=11` in status block | Update text in REFACTORING batch commit; no logic change | No |
 | §71-B: `RemainingSteps` guard at planned multi-hop node entry | Add one guard line before for-loop in `analyse_executor_node` | **Yes** |
 | §71-C: `coaching_plan` as untyped dict | Define `CoachingPlan` Pydantic model; use `with_structured_output` | **Yes** |
-| §71-D: Two vs three LLM calls ambiguity | Ratified: synthesis = coaching response, 2 LLM calls total | **Yes** |
-| §71-E: Local dict vs PhaseState for hop results | Add `hop_results: list[str]` to PhaseState (field 13) | **Yes** |
+| §71-D: Two vs three LLM calls ambiguity | **Ratified Option B: synthesis is a dedicated step — THREE LLM calls total** (planner, synthesis, coach) | **Yes** |
+| §71-E: Local dict vs PhaseState for hop results | Add `hop_results: list[str]` and `synthesis_output: Optional[dict]` to PhaseState | **Yes** |
 
-**PhaseState count after this audit:** 13 fields (11 original + `coaching_plan` + `hop_results`). Update CLAUDE.md §10.1 and ARCHITECTURE.md §4.1 in v2.2 rewrite.
+> **Two corrections to this table, 2026-08-20 (audit rulings P1, P2).**
+>
+> The §71-D row previously read *"Ratified: synthesis = coaching response,
+> 2 LLM calls total."* That contradicted the §71-D finding body directly above
+> it, which ratifies **Option B — three calls**, and DECISIONS.md §F7c, which
+> says the same. The row was left over from the pre-ratification draft where
+> Option A was still live. **The body wins: three calls.**
+>
+> The §71-E row and the count line below previously said "field 13" and
+> "13 fields." **The correct count is 17 — 3 plumbing + 14 content.**
+
+**PhaseState count after this audit: 17 fields (3 plumbing + 14 content).**
+The three changes this audit made are `coaching_plan` retyped to
+`Optional[CoachingPlan]` (§71-C), `hop_results` added (§71-E), and
+`synthesis_output` added (§71-D). Landed in REFACTORING §18 and DECISIONS.md
+§A2 on 2026-08-20; CLAUDE.md §10.1 and ARCHITECTURE.md §4.1 still carry the
+15-field version and are updated in the v2.2 governance rewrite.
 
 **Gap 17 status: CONFIRMED CLOSED.** No new gaps opened. All five findings are implementation details, not design gaps.
 
@@ -3698,13 +3758,73 @@ Level 5: Degraded mode — always succeeds, never crashes
 
 **Note on TPM vs regional outage:** the existing §67 circuit breaker handles TPM (Tokens Per Minute) rate-limit exhaustion correctly at Level 1 — a 429 from Azure is classified transient, exponential backoff fires, fallback chain activates. The geographic redundancy amendment adds a regional failover path for the case where the 429 persists beyond backoff tolerance OR a regional outage makes all Frankfurt endpoints unreachable simultaneously.
 
-**Adding to §87 backlog (row 14):**
+**Adding to §87 backlog (row 16 — corrected from 14 on 2026-08-20):**
 
 | # | Source | Deferred capability | Why deferred | Promotion trigger |
 |---|---|---|---|---|
-| 14 | §67 / DORA compliance | Geographic redundancy — secondary Azure OpenAI deployment in second EU region | Infrastructure provisioning decision (region selection, quota, connection string management) deferred until base refactor is stable; not a v2.1 blocker | Before production launch with real Belts; DORA compliance requires this before any regulated-entity deployment |
+| 16 | §67 / DORA compliance | Geographic redundancy — secondary Azure OpenAI deployment in second EU region | Infrastructure provisioning decision (region selection, quota, connection string management) deferred until base refactor is stable; not a v2.1 blocker | Before production launch with real Belts; DORA compliance requires this before any regulated-entity deployment |
+
+> **Numbering corrected (audit ruling C6).** This entry originally claimed row
+> 14. In the real §87 table, **14 was already the Observer Agent (§43)** and
+> **15 was already the multi-source knowledge index (§37/§60)**. The ruling was
+> to renumber the newer addition rather than an established one; against the
+> actual table that makes geographic redundancy **row 16**. Landed in
+> REFACTORING §87 on 2026-08-20.
 
 **No change to v2.1 §67 fallback chain.** The four-level chain (gpt-4o → gpt-4o-mini → Redis Cache → Degraded) remains the v2.1 implementation target. This amendment targets v2.2.
 
 ---
+
+## Application Pass — 2026-08-20
+
+**What this pass was.** Every finding in this log up to this point had been
+*recorded* but never *applied* to `REFACTORING_AGENT_IMPROVE.md`. The chat
+sessions that produced them had no filesystem access, so the log and the
+document had been diverging since 2026-08-11. This pass closes that gap.
+
+**The audit that preceded it** (Task 1, 2026-08-20) cross-referenced every
+entry here against the live document and found three classes of problem:
+ratified fixes never applied, contradictions *inside* this log, and findings
+described in the task brief that had never been written down at all. The
+rulings are in DECISIONS.md Parts O and P; this section records what landed.
+
+### Applied to REFACTORING_AGENT_IMPROVE.md
+
+| Area | Change | Sections touched |
+|---|---|---|
+| State | `PhaseState` 15 → 17 fields; `hop_results`, `synthesis_output` added; `coaching_plan` typed | §18, §10 |
+| Boundary | `DMAICState` → `SupervisorState` (15 sites); per-phase output fields removed from parent; §44 reference block rewritten store-mediated; **Mechanism 3 (the Store) added** | §44, §10, §74, §79, §42 |
+| Retrieval | `phase_relevance eq 'all'` → `'general'`; `search_kwargs` → per-call constructor | §33, §37, §41 |
+| Multi-hop | `recursion_limit=11` → `RemainingSteps`; `recursion_limit` demoted to backstop (50); stale `max_iterations` URL removed; §34-D marked DEFERRED | §34, §71, §15, §17, §25, navigation, Diagram 2 |
+| §71 pipeline | `RemainingSteps` node-entry guard; `CoachingPlan`; `SynthesisOutput`; three-LLM-call pipeline; hop results to state | §71 |
+| Middleware | Stack five → **eight**; hook type corrected to `before_agent`; `RetryMiddleware` → `ToolRetryMiddleware`; `retries=3` → `retries=2` | §84, §82, §80, §29, Diagram 3 |
+| Memory | Procedural memory (static / dynamic) added to the §37 taxonomy; §87 item 5 reframed | §37, §87 |
+| Indexes | `improve_evidence_index` + `phase` + `uploaded_at`; `improve_case_index` `embedding` → `content_vector` annotated as ratified-pending-reindex | §36, §40, §32 |
+| Reliability | Geographic-redundancy amendment; §87 item **16** | §67, §87 |
+| Durability | Disconnect policy (ABANDON) as §17 item 3a; deterministic `step_log` keys | §17, §18 |
+| Deferrals | §22 confirmed not-in-v2.1; §47 blocked behind it | §22 |
+| Citations | `BaseStore.search()` supports `filter=`; Anthropic harness-post scope softened; residual MCP references removed | §52, §44, §45, §66 |
+| Stale fields | `completeness_score` removed from all §10 sketches | §10, §38 |
+
+### Corrected in this log itself
+
+- §44 reconciliation table — the "shared key names are compatible" row (B1)
+- §71 Actions Summary — "2 LLM calls" → three (P1)
+- §71-E — "field 13" / "13 fields" → 17 (P2)
+- §34 Category-C table text — "OPEN" → "DEFERRED" (P4)
+- §67 amendment — backlog row 14 → 16 (C6)
+- §37-C (the `EnsembleRetriever` variant) marked **VOID** — it asked for correct text to be changed (P3)
+
+### Still open after this pass
+
+- **CLAUDE.md §10.1 and ARCHITECTURE.md §4.1** still carry the 15-field
+  `PhaseState`, the five-middleware stack, and `embedding` on
+  `improve_case_index`. The governance docs were deliberately **not** touched
+  in this pass — REFACTORING is the rationale document and moves first.
+- **Azure work is documented, not done:** the `improve_evidence_index` field
+  additions and the `improve_case_index` vector rename both need a
+  delete + recreate + re-ingest. Batch them.
+- **Diagram 3 (`diagrams/03-coach-node.png`)** — caption now says eight
+  middlewares; the rendered image still shows five. The `.mmd` source needs
+  re-rendering.
 

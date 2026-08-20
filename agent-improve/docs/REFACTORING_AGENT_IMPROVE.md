@@ -102,7 +102,7 @@ None of those are usage.
 
 - §32 — **Multi-Query Retrieval** *(the section the EDUCATIONAL.md index mislabelled as §28)*
 - §33 — RAG Fusion (RRF, canonical `rag_lookup_*` implementation)
-- §34 — Multi-Hop Reasoning (5-hop cap, `recursion_limit=11`)
+- §34 — Multi-Hop Reasoning (5-hop cap via `RemainingSteps`)
 - §71 — Multi-Hop Retrieval — Gap 17 formally CLOSED
 - §35 — Query Voting and Weighted Fusion *(knowledge-only, comparative)*
 - §37 — Memory Patterns in Agentic Systems (taxonomic scaffold)
@@ -277,7 +277,7 @@ None of those are usage.
                     │  │ Phase Executor (S.11) │  │
                     │  │ create_agent + ReAct  │  │
                     │  │ bind_tools, ≤5 hops   │  │
-                    │  │ recursion_limit=11    │  │
+                    │  │ RemainingSteps cap    │  │
                     │  │ (Section 34)          │  │
                     │  │                       │  │
                     │  │ Middleware stack S.84:│  │
@@ -500,7 +500,7 @@ Expanding one of the five phase subgraphs from Diagram 1. Every box here is a **
 
 ---
 
-#### Diagram 3 — Inside the coach node: `create_agent`, five middlewares, two tool tiers
+#### Diagram 3 — Inside the coach node: `create_agent`, eight middlewares, two tool tiers
 
 Expanding the `phase_executor` box from Diagram 2. Everything here lives inside what the subgraph sees as one node. **Middleware** is an `AgentMiddleware` attached via `create_agent(middleware=...)` that wraps the agent loop through its hooks — it is not a node and not a tool. **Tools** are Python functions bound to the LLM, invoked from inside this node by the model at runtime — also not nodes. The diagram orders the middlewares by when their hooks fire, which is what matters at runtime; the declaration order in `middleware=[...]` is given in §8.1.
 
@@ -911,19 +911,28 @@ class DefineState(TypedDict):
     what: str
     why: str
     how_goal: str
-    coaching_plan: dict         # planner output — parent never sees this
-    completeness_score: float
+    coaching_plan: Optional[CoachingPlan]   # planner output — parent never sees this
 
 # Measure subagent — private state
 class MeasureState(TypedDict):
     messages: list
-    baseline_mean: str              # captured fields are str — §17
+    baseline_mean: str                      # captured fields are str — §17
     baseline_std: str
-    coaching_plan: dict             # ONE plan per planner turn — §18
-    completeness_score: float       # computed, not captured — float is correct
+    coaching_plan: Optional[CoachingPlan]   # ONE plan per planner turn — §18
 ```
 
 Parent passes a slice **in**, subagent returns a slice **out**. Clean boundary. No cross-phase access possible.
+
+> **`completeness_score` was removed from both sketches above.** Earlier
+> revisions carried it as a stored `float`, annotated "computed, not captured —
+> float is correct." The annotation defended the *type* and missed the
+> question: **there is no stored completeness score in the ratified design at
+> all** (§17, §77). Gate progress is derived on demand from `artifacts`, the
+> same way `check_gate_status()` derives missing fields. A stored score is a
+> second source of truth for gate readiness that can drift out of agreement
+> with `DMAICGateValidator`; a derived one cannot. These sketches are
+> illustrative of Pattern 2, not schema definitions — the canonical per-phase
+> state is `PhaseState` (§18).
 
 ---
 
@@ -959,17 +968,21 @@ SupervisorState (parent)
 DefineSubgraphState (private)
 ├── messages (slice)
 ├── define_fields: {what, why, how_goal, ...}
-├── coaching_plan  ← planner output, never exposed to parent
-└── completeness_score
+└── coaching_plan  ← planner output, never exposed to parent
          │
-         │ returns to parent: {define_fields, completeness_score, gate_ready}
+         │ output mapper writes the gate document to the Store;
+         │ returns to parent: orchestration values only (§44 Mechanism 3)
          ↑
 MeasureSubgraphState (private)
 ├── messages (slice)
 ├── measure_fields: {baseline_mean, baseline_std, ...}
-├── coaching_plan
-└── completeness_score
+└── coaching_plan
 ```
+
+*No `completeness_score` on either — gate readiness is derived, not stored
+(see the note above). And the return to the parent carries orchestration
+values only: the artifacts themselves go to the Store, not up to
+`SupervisorState` (§44).*
 
 ---
 
@@ -1045,7 +1058,7 @@ class SubgraphState(MessagesState):
 class DefineState(MessagesState):
     what: str
     why: str
-    completeness_score: float
+    how_goal: str
     # "messages" field and its reducer come for free
 
 # Option B — declare TypedDict directly, explicit reducer
@@ -1053,7 +1066,7 @@ class DefineState(TypedDict):
     messages: Annotated[list, add_messages]   # explicit, same reducer, same behavior
     what: str
     why: str
-    completeness_score: float
+    how_goal: str
 ```
 
 **The distinction is design intent, not behavior.** `MessagesState` inheritance is the right convenience when the state's dominant content genuinely IS conversational — a chat container with a few extras bolted on. Explicit `TypedDict` declaration is the better choice when the state's dominant content is structured working memory that happens to also need conversation history for context.
@@ -1751,13 +1764,17 @@ define_agent = create_agent(
     model="operational-premium",
     tools=UNIVERSAL_TOOLS + [calculate_expected_savings],   # §39 — 8 tools for Define
     response_format=CoachingResponse,                       # ProviderStrategy auto-selected
-    middleware=[                                            # §84 — the ratified five
-        BeforeModelStateInjection(),                          # before_model — FIRST
+    middleware=[                                            # §84 — the ratified eight
+        BeforeModelStateInjection(),                          # before_agent — FIRST
         DMAICSkillsMiddleware(skills_dir="agent-improve/skills"),
         SummarizationMiddleware(model="azure/operational-model",
                                 trigger=("tokens", 100_000),
                                 keep=("messages", 20)),
         ModelRetryMiddleware(retries=2),                      # wrap_model_call
+        ToolRetryMiddleware(max_retries=2,                    # wrap_tool_call
+                            on_failure="continue"),
+        ContradictionDetectionMiddleware(store=store),        # after_agent — §38
+        CoherenceMiddleware(model=coherence_llm),             # after_agent — L2a
         DMAICGraderMiddleware(model=grader_llm, max_iterations=3,
                               rubric=COACHING_QUALITY_RUBRIC, # §42 — NOT a phase rubric
                               on_evaluation=write_to_step_log),
@@ -1766,7 +1783,7 @@ define_agent = create_agent(
 )
 ```
 
-*Corrected from the original example on five counts:* `HumanInTheLoopMiddleware` is replaced by graph-level interrupts (§53 bugs, §2 pattern); deepagents' `RubricMiddleware` by the custom `DMAICGraderMiddleware` (§42 Option B); the tool list uses the canonical names and the per-phase subset (§39), now **8** rather than 9 since `record_field` was retired; `BeforeModelStateInjection` moved from **last to first**; and `ModelRetryMiddleware` was added as the fifth (§80).
+*Corrected from the original example on five counts:* `HumanInTheLoopMiddleware` is replaced by graph-level interrupts (§53 bugs, §2 pattern); deepagents' `RubricMiddleware` by the custom `DMAICGraderMiddleware` (§42 Option B); the tool list uses the canonical names and the per-phase subset (§39), now **8** rather than 9 since `record_field` was retired; `BeforeModelStateInjection` moved from **last to first** and its hook type corrected to `before_agent`; and the stack grew from four to **eight** as `ModelRetryMiddleware` (§80), `ToolRetryMiddleware`, `ContradictionDetectionMiddleware` and `CoherenceMiddleware` were ratified. The canonical stack is §84.
 
 **Middleware order is execution order for hooks of the same kind.** The original listed `BeforeModelStateInjection` last, which placed the project's established facts *after* skills loading and summarisation had already shaped the prompt — the opposite of what §38's injection-timing argument requires. State injection must fire first.
 
@@ -2075,7 +2092,7 @@ No new gap number — an architectural refinement that reduces latency and cost 
 
 *Source: LangChain official reference (reference.langchain.com/python/langchain/agents/middleware/types/AgentMiddleware), LangChain 1.0 GA October 22, 2025, LangChain 1.1 December 2, 2025. Verified against docs and multiple independent 2026 sources.*
 
-> **Status: foundation reference. Preserve as-is — no decision needed.** These six hooks are what the entire ratified middleware stack is built on, and three of the five middlewares are custom, so this is not background reading. See §84 for the complete stack.
+> **Status: foundation reference. Preserve as-is — no decision needed.** These six hooks are what the entire ratified middleware stack is built on, and five of the eight middlewares are custom, so this is not background reading. See §84 for the complete stack.
 
 ### Why This Section Exists
 
@@ -2199,13 +2216,17 @@ Different tiers, different mechanisms. The middleware sits below the chain and a
 ### The Composition Order Rule
 
 ```python
+# GENERIC LANGCHAIN ILLUSTRATION — not Agent Improve's stack.
+# Agent Improve's ratified eight-middleware stack is in §84.
+# HumanInTheLoopMiddleware appears here only to show ordering; it is BANNED
+# for our gates (§53 — edit/reject are broken in subgraph contexts).
 agent = create_agent(
     model="gpt-4o",
     tools=[...],
     middleware=[
         PIIMiddleware(),
         SummarizationMiddleware(),
-        ModelRetryMiddleware(retries=3),
+        ModelRetryMiddleware(retries=2),
         HumanInTheLoopMiddleware(...),
         GateValidationMiddleware(...)
     ]
@@ -2213,6 +2234,10 @@ agent = create_agent(
 ```
 
 Middleware compose like nested wrappers. First in the list is the outermost layer. This ordering matters — PII redaction MUST fire before summarization sees the content, or PII leaks into summaries.
+
+*`retries=2` throughout this document, including in illustrations —
+`ModelRetryMiddleware` and `CoherenceMiddleware` each carry an independent
+2-retry cap (§84), and an example showing 3 invites the number to be copied.*
 
 ---
 
@@ -2959,19 +2984,46 @@ No new gap number — this section formalises the specification the five DMAIC p
 
 ### The Complete Coach Middleware Stack — Ratified
 
-**Five middlewares**, all wired via `create_agent(middleware=[...])`. **The table order is the declaration order, which is the execution order for hooks of the same kind.**
+**Eight middlewares**, all wired via `create_agent(middleware=[...])`. **The table order is the declaration order, which is the execution order for hooks of the same kind.**
 
 | # | Middleware | Source | Purpose | Hook |
 |---|---|---|---|---|
-| 1 | `BeforeModelStateInjection` | **Custom** (§38) | Prepend structured project state at the top of the prompt | `before_model` |
+| 1 | `BeforeModelStateInjection` | **Custom** (§38) | Prepend structured project state at the top of the prompt | `before_agent` |
 | 2 | `DMAICSkillsMiddleware` | **Custom** (§83, §84) | Progressive disclosure of phase coaching instructions | `before_agent` + a registered tool |
 | 3 | `SummarizationMiddleware` | LangChain core (§36) | Context compression for long coaching sessions | `before_model` |
-| 4 | `ModelRetryMiddleware` | LangChain core (§80) | Invisible retry with backoff on transient failures | `wrap_model_call` |
-| 5 | `DMAICGraderMiddleware` | **Custom** (§42, §48) | Coaching-quality evaluation against `COACHING_QUALITY_RUBRIC` | `after_agent` |
+| 4 | `ModelRetryMiddleware` | LangChain core (§80) | Invisible retry on transient **model API** failures | `wrap_model_call` |
+| 5 | `ToolRetryMiddleware` | LangChain core (§29) | Invisible retry on **tool execution** failures | `wrap_tool_call` |
+| 6 | `ContradictionDetectionMiddleware` | **Custom** (§38) | Deterministic §38 check — captured field vs gate-approved value | `after_agent` |
+| 7 | `CoherenceMiddleware` | **Custom** (§68, §69) | L2a coherence — real, conclusive, on-topic, not parroting | `after_agent` |
+| 8 | `DMAICGraderMiddleware` | **Custom** (§42, §48) | Coaching **process** quality against `COACHING_QUALITY_RUBRIC` | `after_agent` |
 
-Three custom, two core. All three custom ones migrate to deepagents equivalents if and when it reaches 1.0 — a deliberate decision to carry a known, bounded amount of our own code rather than an unknown, unbounded amount of someone else's pre-1.0 churn.
+Five custom, three core. The custom ones migrate to deepagents equivalents if and when it reaches 1.0 — a deliberate decision to carry a known, bounded amount of our own code rather than an unknown, unbounded amount of someone else's pre-1.0 churn.
 
-**Two corrections from the earlier four-entry version.** `ModelRetryMiddleware` was added (§80). And state injection moved from **last to first**: for `before_model` hooks, declaration order is execution order, so listing it last placed the project's established facts *after* skills loading and summarisation had already shaped the prompt — the exact inversion of the ordering argument §38 makes.
+**How the stack grew from four to eight, and why each addition is not redundant:**
+
+| Added | Why it is not covered by something already in the stack |
+|---|---|
+| `ModelRetryMiddleware` (§80) | Nothing else retried a failed model call. Distinct from the §67 fallback chain, which *swaps the model* on service-level failure rather than retrying the same call |
+| `ToolRetryMiddleware` | A failed Azure Search call is not a failed model call. `ModelRetryMiddleware` never sees it — different hook, different failure mode. `on_failure="continue"` returns a failure result the coach can react to instead of killing the graph |
+| `ContradictionDetectionMiddleware` | §38's mid-phase contradiction check needed a home. It is deterministic dict comparison, no LLM call, and lives here rather than inside the executor node so it is a named, LangSmith-visible step and the executor stays responsible only for coaching |
+| `CoherenceMiddleware` | L2a coherence was previously a criterion inside `COACHING_QUALITY_RUBRIC`. That conflated two different questions — "is this a real statement at all?" versus "is this good coaching?" — and paid for a full rubric grading call on responses already known to be incoherent |
+
+**Ordering rules that bind.** `BeforeModelStateInjection` MUST be first: project
+facts have to reach the top of the prompt before skills loading and
+summarisation shape it. Its hook is **`before_agent`**, not `before_model` —
+state injection belongs at agent-loop start, not before every individual model
+call within a turn. Middlewares 6, 7 and 8 all fire `after_agent` and therefore
+run in declaration order: contradiction check, then coherence, then grader.
+**If `CoherenceMiddleware` fails and its retries exhaust, `DMAICGraderMiddleware`
+is skipped for that turn** — deliberately, since grading an incoherent response
+spends a model call to produce a meaningless score.
+
+Positions 4 and 5 sit on `wrap_*` hooks and do not compete for a slot with
+anything else; they are grouped together for readability, not for ordering.
+
+**`DMAICGraderMiddleware` grades process quality only** — the seven-step
+computation pattern, the show-first principle, citations, no external URLs.
+Coherence is not one of its criteria; middleware 7 owns that.
 
 **`DMAICGraderMiddleware` here grades coaching, not gate documents** (§42 Finding 18). Its rubric is `COACHING_QUALITY_RUBRIC`, shared across all five phases. The phase rubrics belong to Layer 4 of the validation stack, which is a node, not middleware.
 
@@ -3057,16 +3109,67 @@ Vector memory organised into two layers to balance immediacy and durability — 
 
 Static Black Belt eBook content. Same for every project, every Belt. Never updated at runtime.
 
-**improve_evidence_index (5 fields)**
-| Field | Type |
-|---|---|
-| id | Edm.String |
-| content | Edm.String |
-| content_vector | Collection(Edm.Single) — vector, 3072d |
-| metadata | Edm.String |
-| case_id | Edm.String |
+**improve_evidence_index (7 fields — was 5)**
+| Field | Type | |
+|---|---|---|
+| id | Edm.String | |
+| content | Edm.String | |
+| content_vector | Collection(Edm.Single) — vector, 3072d | |
+| metadata | Edm.String | |
+| case_id | Edm.String | |
+| **phase** | **Edm.String** | **NEW** — auto-set from `state["current_phase"]` at upload |
+| **uploaded_at** | **Edm.String** | **NEW** — ISO 8601, server-side, never Belt-entered |
 
 Case-specific uploaded documents. Per §39, this is the **only** channel through which real-world data enters AgentLean — there are no live system integrations. That elevates its architectural importance well beyond "uploaded files."
+
+**Two fields were added to this index (ratified 2026-08-20), and both are set
+by the system, never by the Belt.**
+
+`uploaded_at` closes a gap this document previously recorded and worked around:
+`rag_lookup_evidence` wanted `order_by=["uploaded_at desc"]`, the field did not
+exist as a top-level sortable field, and the upload timestamp was buried inside
+the non-sortable `metadata` JSON blob where `$orderby` cannot reach it. The
+workaround on the table was to drop recency ordering entirely. As a top-level
+`Edm.String` holding ISO 8601, it sorts lexicographically in the correct
+chronological order, and the ordering clause becomes available.
+
+`phase` closes a problem that had not been articulated at all: **two similar
+documents uploaded at different phases were indistinguishable at retrieval
+time.** A Belt uploads defect data in Measure and revised defect data in
+Control; both match "defect data" and nothing in the index says which phase
+each belongs to. Since `improve_evidence_index` is the sole channel for
+external data, that ambiguity lands directly on the coaching answer.
+
+`rag_lookup_evidence` gains an **optional** `phase` filter — **default
+unfiltered**, so cross-phase evidence retrieval still works when the coach
+genuinely needs it (a Control-phase Belt comparing against the Measure
+baseline is the normal case, not the exception). Filtering by default would
+have quietly broken exactly the comparison the field exists to enable.
+
+Both fields are server-set: `phase` from `state["current_phase"]` at upload
+time and `uploaded_at` from the server clock. Belt-entered values for either
+would make them unreliable as filter and sort keys.
+
+**Both require a reindex.** Batch this with the already-planned
+`improve_case_index` `embedding` → `content_vector` standardisation so the
+corpus is rebuilt once rather than twice.
+
+**Consequential: `PhaseState.uploads` gains a specified shape.** The field
+existed with its internal structure unstated; with `phase` and `uploaded_at`
+now on the index, the state record mirrors it:
+
+```python
+uploads: list[dict]
+# {"evidence_index_id": str,   # the row in improve_evidence_index
+#  "filename":          str,
+#  "phase":             str,   # matches the index field
+#  "uploaded_at":       str,   # ISO 8601, matches the index field
+#  "summary":           str}
+```
+
+`evidence_index_id` is what makes the gate document's evidence trail
+traversable: a reviewer reading the approved document can follow it back to the
+indexed chunk the coaching was grounded in.
 
 **improve_case_index (19 fields)**
 | Field | Type |
@@ -3082,9 +3185,25 @@ Case-specific uploaded documents. Per §39, this is the **only** channel through
 | phase_summary_improve | Edm.String |
 | phase_summary_control | Edm.String |
 | content_text | Edm.String |
-| embedding | Collection(Edm.Single) — vector |
+| embedding | Collection(Edm.Single) — vector — **renaming to `content_vector`, see below** |
 
 Live case data with per-phase summaries and vector embedding. This IS long-term vector memory for cross-case retrieval.
+
+> **Ratified: `embedding` → `content_vector`. Not yet applied in Azure.**
+> This index is the only one of the three whose vector field is not called
+> `content_vector`, and the asymmetry has no justification beyond history —
+> each tool knowing its own index's field name locally makes the asymmetry
+> *safe*, not *good*. Standardising removes a permanent trap for anyone
+> writing a fourth retrieval tool.
+>
+> **Until the re-index runs, `embedding` is still the live field name**, and
+> code written against this index must use `embedding`. The change is a
+> delete + recreate (the index holds 0 documents, so nothing is lost and no
+> data migration is needed), and it should be batched with the
+> `improve_evidence_index` `phase` / `uploaded_at` additions above so the
+> corpus is rebuilt once. `rag_lookup_case_history` in `knowledge/tools.py`
+> and ARCHITECTURE.md §7.3 change in the same commit as the Azure change —
+> not before it.
 
 > **Pre-commit priority action — field rename.** `phase_summary_analyse_phase` is renamed to `phase_summary_analyse` for consistency with `_define`, `_measure`, `_improve`, `_control`. This is a **breaking schema change**: update the `improve_case_index` schema in Azure AI Search, reindex existing case content (or rename the field on existing documents), and sweep the codebase for reads of the old name.
 >
@@ -3146,14 +3265,14 @@ This is a Claude Code housekeeping fix, not a governance-doc update. §1's fail-
 
 ### Short-Term Memory — What It Actually Means at Runtime
 
-**Where everything is stored:**
+**Where everything is stored — the v1 layout this section diagnoses:**
 ```
-Azure Blob Storage
-└── case_id/state.json
+Azure Blob Storage                    ← v1. Retired names shown as they were.
+└── case_id/state.json                  `captured_fields` → `artifacts` (§17);
     ├── messages[]           ← EVERY message ever sent, grows forever
     ├── captured_fields{}    ← structured extracted fields
     ├── current_phase        ← which phase we are in
-    └── completeness_score   ← per phase
+    └── completeness_score   ← per phase; NOT carried into v2 — derived (§17, §77)
 
 Azure AI Search
 ├── improve_knowledge_index  ← eBook, static, never changes
@@ -3711,10 +3830,12 @@ The same applies to the other two retrieval tools. All three are:
 | Tool | Index | Filter | Vector field |
 |---|---|---|---|
 | `rag_lookup_methodology(query, phase, top_k)` | `improve_knowledge_index` | `phase_relevance` (§37) | `content_vector` |
-| `rag_lookup_evidence(query, case_id, top_k)` | `improve_evidence_index` | `case_id` | `content_vector` |
-| `rag_lookup_case_history(query, top_k, exclude_current_case=True)` | `improve_case_index` | `status eq 'completed'` (§40) | `embedding` |
+| `rag_lookup_evidence(query, case_id, top_k, phase=None)` | `improve_evidence_index` | `case_id`; optional `phase` (§36) | `content_vector` |
+| `rag_lookup_case_history(query, top_k, exclude_current_case=True)` | `improve_case_index` | `status eq 'completed'` (§40) | `embedding` → `content_vector` *(§36 — pending re-index)* |
 
 Each tool is bound to exactly one index and knows that index's vector field name locally. There is no shared retriever hiding the `content_vector` / `embedding` asymmetry, so no runtime normalisation is needed (§36).
+
+*The asymmetry is safe by construction, and is still being removed — see §36. "Safe" was the argument for not treating it as urgent, never an argument for keeping it.*
 
 ### Reference Implementation
 
@@ -3855,22 +3976,41 @@ def rag_lookup_methodology(query: str, phase: str, top_k: int = 10) -> list[Docu
         f"content on: {query}. Include synonyms, related terminology, and "
         f"phrasings a Black Belt would use in the LSS Black Belt eBook."
     )
-    ranked_lists = [
-        azure_search_retriever.invoke(
-            q,
-            search_kwargs={
-                "filters": (
-                    f"phase_relevance eq '{phase}' or phase_relevance eq 'all'"
-                )
-            },
-        )
-        for q in variants.queries
-    ]
+    # Instantiated per call — `filters` is a constructor parameter, and `phase`
+    # is dynamic, so this retriever cannot be a module-level singleton.
+    retriever = AzureAISearchRetriever(
+        index_name="improve_knowledge_index",
+        top_k=top_k,
+        filters=f"phase_relevance eq '{phase}' or phase_relevance eq 'general'",
+    )
+    ranked_lists = [retriever.invoke(q) for q in variants.queries]
     fused = reciprocal_rank_fusion(ranked_lists, k=60)
     return [doc for doc, _score in fused[:top_k]]
 ```
 
-The `phase_relevance` filter (§37) uses `OR 'all'` so cross-phase eBook content is still included. Confirm the exact enumeration of `phase_relevance` values in the index before implementing.
+**Two corrections are baked into the block above; both were bugs in the
+earlier version, and both would have failed silently.**
+
+**The cross-phase filter value is `general`, not `all`.** The index was
+inspected directly: 218 documents carry `phase_relevance = 'general'` and
+**zero** carry `'all'`. The `OR` clause was therefore never satisfied, and
+every methodology lookup silently returned a corpus narrowed to the current
+phase — no error, no empty result, just quietly missing cross-phase content.
+The earlier note here said "confirm the exact enumeration before
+implementing"; that placeholder is now closed, and this is the confirmed
+value.
+
+**`filters` is a constructor parameter, not an invoke-time keyword.**
+`AzureAISearchRetriever` accepts `filters=` at construction.
+`search_kwargs={"filters": ...}` at invoke time is either ignored outright or
+collides with the underlying client's own keyword (`langchain` issue #30482,
+*"AzureSearch: got multiple values for keyword argument 'filter'"*). Because
+`phase` is dynamic, the retriever **must** be constructed per call — a
+module-level `azure_search_retriever` cannot carry a per-call filter, so any
+existing module-level instance must not be reused here.
+
+The same two corrections apply verbatim to §37's implementation note, which
+carried identical copies of both bugs.
 
 `rag_lookup_evidence` and `rag_lookup_case_history` follow the identical shape — same variant generation, same RRF — differing only in index, filter, and vector field. See §32's table and §40 for their metadata filters and ordering clauses. Metadata filters propagate through fusion cleanly: each variant query returns metadata-filtered results, and RRF combines them normally.
 
@@ -3954,25 +4094,63 @@ Multi-hop is **not** a missing component. It is what the coach node already does
 
 Beyond five hops the LLM is usually lost or looping, and cutting it off is the correct behaviour.
 
-**LangGraph implements this via `recursion_limit`, not a `max_hops` parameter.** LangGraph counts *steps*, not hops. Each hop is 2 steps (LLM node → tool node), plus 1 final LLM step for synthesis:
+**The cap is enforced with `RemainingSteps`, a LangGraph managed value read
+inside the executor node — not with `recursion_limit`.**
 
+```python
+from langgraph.managed import RemainingSteps
+
+def agent_node(state: PhaseState) -> dict:
+    remaining = state.get("remaining_steps", 10)
+    if remaining <= 2:
+        # too close to the limit — synthesise from what we have
+        return {"messages": [synthesise_partial(state)]}
+    return run_agent_step(state)
 ```
-recursion_limit = 2 * max_hops + 1 = 2 * 5 + 1 = 11
-```
+
+**Why not `recursion_limit`.** An earlier revision of this section set
+`recursion_limit = 2 * max_hops + 1 = 11` on the graph invocation and called
+that the hop cap. In a flat graph the arithmetic holds. In our hierarchy —
+supervisor → phase subgraph → executor — it fails in two opposite directions,
+and which one you get depends on configuration:
+
+| Failure mode | What happens | Evidence |
+|---|---|---|
+| Shared counter | Subgraphs draw on the parent's step budget. Supervisor and phase-routing steps consume from the same 11 before the executor's first tool call, so the executor gets **fewer** than 5 hops | LangGraph Discussion #1260 |
+| Non-propagation | `recursion_limit` is not passed down to the subgraph at all, which reverts to the default of 25 — the cap is **absent** | deepagents Issue #1698 |
+
+It is also a blunt instrument: it counts every node invocation
+indiscriminately and terminates the graph with `GraphRecursionError` rather
+than letting the coach close out gracefully.
+
+`RemainingSteps` avoids all of this because it lives in graph state rather
+than in config. It crosses the subgraph boundary intact, it counts only
+executor steps, and — the part that matters to the Belt — it provides an
+off-ramp: at `<= 2` the agent composes an answer from what it already has
+instead of dying.
+
+**`recursion_limit` stays, with a different job.** Set high on the supervisor
+invocation as a backstop against genuine infinite loops:
 
 ```python
 await graph.ainvoke(
     state,
     config={
-        "recursion_limit": 11,
+        "recursion_limit": 50,        # infrastructure backstop, NOT the hop cap
         "configurable": {"thread_id": case_id},
     },
 )
 ```
 
-Verified: `python.langchain.com/docs/modules/agents/how_to/max_iterations`.
+Two responsibilities, two mechanisms: `recursion_limit` catches bugs,
+`RemainingSteps` enforces the Belt-facing hop budget.
 
-**Error handling is mandatory, not optional.** The coach node must catch `GraphRecursionError` and return a partial answer to the Belt rather than crash. A Belt mid-coaching-session should never see a stack trace because the coach explored too broadly. Verified: `docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT`.
+**Error handling is still mandatory.** The coach node must catch
+`GraphRecursionError` and return a partial answer rather than crash — now as a
+belt-and-braces guard against bugs, since `RemainingSteps` should prevent the
+cap from being reached in normal operation. A Belt mid-session should never
+see a stack trace because the coach explored too broadly. Verified:
+`docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT`.
 
 ### Cost Mitigations
 
@@ -3980,18 +4158,26 @@ Multi-hop multiplies LLM calls per turn, so five mitigations are ratified togeth
 
 | Mitigation | Effect |
 |---|---|
-| Cap the hops at 5 | Bounds worst-case cost per turn |
-| **Tier the model** | Intermediate hops on `operational-model` (gpt-4o-mini), final synthesis on `operational-premium` (gpt-4o). Substantial lever — gpt-4o-mini is roughly 15× cheaper. |
+| Cap the hops at 5 | Bounds worst-case cost per turn — via `RemainingSteps`, above |
+| **Tier the model** — **DEFERRED, §87** | Intermediate hops on `operational-model` (gpt-4o-mini), final synthesis on `operational-premium` (gpt-4o). Substantial lever — gpt-4o-mini is roughly 15× cheaper — but **not implemented in v2.1**. See below. |
 | Adaptive routing | Simple queries do not need multi-hop at all — the planner decides (§71) |
 | Session-scoped caching | Repeat retrievals within a session hit the cache (§67 Level 3) |
 | Better single-hop | Multi-query + RRF (§32, §33) reduces how many hops are needed in the first place |
 
-**Hitting the 5-hop cap in production is a signal**, not just a limit. It means either the coach's system prompt is encouraging too-broad exploration (prompt tuning), or the question genuinely warrants escalation to `operational-premium` for that turn (model tiering). Watch it in LangSmith.
+**Model tiering is deferred to §87, and this is the trigger that promotes it.**
+No standard `create_agent` mechanism exists for swapping models mid-loop — the
+agent compiles with one model — so tiering requires a `RemainingSteps`-gated
+swap inside a custom agent node. The other four mitigations give v2.1
+sufficient cost control, and tiering before LangSmith shows *which* turns hit
+the cap and at what cost is optimising without data. **Promotion trigger:
+LangSmith shows repeated 5-hop cap hits on Analyse-phase turns.**
+
+**Hitting the 5-hop cap in production is a signal**, not just a limit. It means either the coach's system prompt is encouraging too-broad exploration (prompt tuning), or the question genuinely warrants escalation to `operational-premium` for that turn (model tiering). Watch it in LangSmith — this is the same observation that promotes the deferred item above.
 
 ### Gap Register
 **Gap 17 — CLOSED.** Multi-hop is available through the ReAct coach loop with a 5-hop cap. §71 adds the design layer: which phases, which query types, and the planned-versus-emergent distinction. Together, §34 and §71 close Gap 17 completely.
 
-*In one sentence: multi-hop is what the coach node does when its ReAct loop makes several `rag_lookup_*` calls in one Belt turn, capped at 5 hops via `recursion_limit=11`.*
+*In one sentence: multi-hop is what the coach node does when its ReAct loop makes several `rag_lookup_*` calls in one Belt turn, capped at 5 hops via `RemainingSteps`.*
 
 *Cross-references: ARCHITECTURE.md §3.2 (coach as a ReAct agent); §32/§33 (better single-hop reduces the need for many hops); §71 (scoping, planner integration, and the formal Gap 17 closure).*
 
@@ -4001,7 +4187,7 @@ Multi-hop multiplies LLM calls per turn, so five mitigations are ratified togeth
 
 *Source: Edureka Course 4 Module 2, "Multi-Stage Knowledge Pipeline and Multi-Hop System Reasoning" demonstration, plus direct discussion on where multi-hop applies across Agent Improve's architecture.*
 
-> **Status: Gap 17 CONFIRMED CLOSED.** §34 supplies the mechanism (the coach's ReAct loop, 5-hop cap, `recursion_limit=11`, `GraphRecursionError` handling). This section supplies the design layer: which phases, which query types, and the distinction between planned and emergent multi-hop. Together they close Gap 17 completely.
+> **Status: Gap 17 CONFIRMED CLOSED.** §34 supplies the mechanism (the coach's ReAct loop, 5-hop cap via `RemainingSteps`, `recursion_limit` as a high backstop only, `GraphRecursionError` handling). This section supplies the design layer: which phases, which query types, and the distinction between planned and emergent multi-hop. Together they close Gap 17 completely.
 >
 > **Two approaches, phase-dependent:**
 >
@@ -4048,24 +4234,86 @@ plan = planner.invoke(decomposition_prompt)
 
 The planner prompt enforces: Hop 2 depends on Hop 1, Hop 3 depends on Hop 2. Same typed-boundary-contract discipline as Section 44 — structured output, never raw text.
 
-**Stage 2 — Executor (sequential with shared state):**
+**Stage 2 — Executor (sequential, results written to `PhaseState`):**
 
 ```python
-state = {"entity": extracted_entity}   # starts with extracted input
+async def analyse_executor_node(state: PhaseState) -> dict:
+    # Guard at node entry — the for-loop below runs entirely inside ONE node
+    # invocation, so RemainingSteps does not decrement between hops (§34).
+    if state.get("remaining_steps", 10) <= 2:
+        return {"messages": [synthesise_partial(state)]}
 
-for hop in sorted(plan.hops, key=lambda h: h.hop_number):
-    result = rag_lookup_methodology(
-        query=hop.hop_question.format(**state),   # templates filled from state
-        phase=current_phase
+    plan: Plan = planner.invoke(decomposition_prompt)
+    local: dict[str, str] = {"entity": state.get("extracted_entity", "")}
+    hop_results: list[str] = []
+
+    for hop in sorted(plan.hops, key=lambda h: h.hop_number):
+        result = rag_lookup_methodology(
+            query=hop.hop_question.format(**local),   # templates filled from prior hops
+            phase=state["current_phase"],
+        )
+        local[f"hop{hop.hop_number}_answer"] = result
+        hop_results.append(result)
+
+    synthesis = synthesis_llm.invoke(
+        synthesis_prompt.format(**local, instruction=plan.synthesis_instruction)
     )
-    state[f"hop{hop.hop_number}_answer"] = result   # stored for next hop
+    return {
+        "hop_results":      hop_results,              # §71-E — checkpointed, LangSmith-visible
+        "synthesis_output": synthesis.model_dump(),   # §71-D — read by the coach call
+    }
 ```
 
-The `state` dict carries intermediate answers — identical role to LangGraph's state object. Each hop's answer template references previous hop results: `"how is {hop1_answer} applied to {root_cause_candidate}"`.
+**Two corrections are in that block, and both were required before Step 3.1.**
 
-**Stage 3 — Synthesis (LLM call):**
+**The `RemainingSteps` guard sits at node entry, not inside the loop.** For
+emergent multi-hop the guard fires before each ReAct tool call; here the whole
+three-hop sequence executes inside a single node invocation, and LangGraph
+counts node transitions, not Python iterations — so `RemainingSteps` never
+decrements between hops. The loop needs no internal guard because `Plan` bounds
+it at exactly 3 hops, but without an entry guard the sequence can begin with
+almost no budget left and consume it entirely before the agent can synthesise.
 
-All hop answers combined into one coherent coaching response using the `synthesis_instruction` from the Plan object.
+**Hop results go into `PhaseState`, not a local dict.** §71 claims planned
+multi-hop is "fully inspectable in LangSmith." A local Python variable inside a
+node is not: LangSmith traces node inputs and outputs and tool calls, not
+interpreter locals. The claim only holds once `hop_results` is returned from
+the node into state, where it is checkpointed and appears in the state diff.
+`local` survives in the code above purely as the template-substitution scratch
+space for the next hop's question.
+
+**Stage 3 — Synthesis (a dedicated LLM call):**
+
+Synthesis is its own call, and the coaching response is a further call after
+it — **three LLM calls per Analyse multi-hop turn**, not two:
+
+| # | Call | Temp | Produces | Belt-facing |
+|---|---|---|---|---|
+| 1 | Planner | 0.1 | `Plan` — 3 hops + `synthesis_instruction` | No |
+| 2 | Synthesis | 0.1–0.2 | `SynthesisOutput` — evidence chain, key finding, confidence, caveats | **No** |
+| 3 | Coach | 0.5–0.7 | The coaching response, reading `synthesis_output` from state | Yes |
+
+```python
+class SynthesisOutput(BaseModel):
+    evidence_chain: str                          # assembled reasoning from hop results
+    key_finding:    str                          # the conclusion the coach communicates
+    confidence:     Literal["high", "medium", "low"]
+    caveats:        list[str]                    # limitations in the hop chain
+```
+
+**Why synthesis is not folded into the coaching call.** Collapsing stages 2 and
+3 would save a call, and it was considered and rejected. Synthesis is a quality
+gate: assembling multi-hop evidence correctly is a different job from
+translating it into coaching language, and each call is temperature-tuned for
+its own job — deterministic evidence assembly at 0.1–0.2, natural coaching
+voice at 0.5–0.7. One call cannot be both. Separating them also makes each
+stage independently unit-testable, and puts the evidence chain in the trace
+where a wrong coaching answer can be traced to either bad evidence or bad
+translation. The three Azure AI Search calls (one per hop) are not LLM calls.
+
+If LangSmith later shows multi-hop Analyse turns costing the Belt noticeable
+wait time, that is the trigger for §34's deferred model tiering — planner and
+synthesis on `operational-model`, coach on `operational-premium`.
 
 ---
 
@@ -4270,6 +4518,17 @@ Without fusion, the coaching response is grounded in whichever chunk happened to
 
 Earlier versions of this section showed implementations built on `EnsembleRetriever` and `MultiQueryRetriever`. **Both classes moved to `langchain-classic` in the LangChain 1.0 namespace split** (web-verified, see §32) and are non-functional in the current codebase. They are omitted here rather than shown, because presenting them as guidance would mislead — and RRF is fifteen lines of plain Python that needs neither.
 
+> **This supersedes a contrary claim in DECISIONS.md §E1**, which described
+> `EnsembleRetriever` as "not deprecated, active in
+> `langchain.retrievers.ensemble`, confirmed v0.3." That observation predates
+> the 1.0 migration and was corrected on 2026-08-20 against the official
+> LangChain v1 migration guide. E1's *architectural* conclusion was never in
+> doubt and still stands on its own: `EnsembleRetriever` fuses results from
+> **different retriever sources** (BM25 + vector), whereas our pattern is
+> **same-index multi-query** — N phrasings against one index. It solves a
+> different problem, so it would be the wrong class here even if it were
+> importable. Two independent reasons, one conclusion: custom RRF.
+
 ---
 
 ### Gap Register
@@ -4295,9 +4554,46 @@ Weighted fusion becomes plausibly useful in exactly one scenario: retrieval stra
 |---|---|---|
 | Episodic | `improve_case_index` `phase_summary_*` fields, retrieved via `rag_lookup_case_history` | In refactor scope (§32, §33) |
 | Semantic | `improve_knowledge_index` (LSS Black Belt eBook), retrieved via `rag_lookup_methodology` | In refactor scope |
-| Working | `SummarizationMiddleware` + typed state fields | In refactor scope (§36) |
-| Vector memory for agent learning | — | Deferred, §87 item 5 |
+| Working | `SummarizationMiddleware` + typed `PhaseState` fields (`artifacts`, `hop_results`, `synthesis_output`) | In refactor scope (§36) |
+| **Procedural (static)** | System prompt, the five SKILL.md files via `DMAICSkillsMiddleware`, phase rubrics via `DMAICGraderMiddleware`, anti-hallucination guards | **In refactor scope (§83, §84, §42)** |
+| **Procedural (dynamic)** | Per-Belt procedure store, updated from LangSmith trace analysis of gate outcomes | **Deferred, §87 item 5** |
 | Retrieval control | One addition in scope (`phase_relevance` filter), three deferred | See below |
+
+### Procedural Memory — the fifth type, and why it splits in two
+
+Earlier revisions of this section listed four memory types and omitted
+procedural memory entirely. LangMem (Tier 1) treats it as a first-class
+category alongside semantic and episodic, and Agent Improve implements it —
+it simply had no name here. Naming it exposes a distinction that matters
+architecturally.
+
+**Static procedural memory is the invariant DMAIC methodology.** The coaching
+rules in the system prompt, the phase instructions in each SKILL.md, the
+rubric criteria the grader applies, the anti-hallucination guards — these are
+the same for every Belt, every project, every domain. **That is correct and
+deliberate, not a limitation.** Methodology consistency is precisely the
+guarantee a DMAIC coaching system exists to provide; a coach that quietly
+varied gate criteria per Belt would be worthless as a quality system.
+
+**Dynamic procedural memory is Belt-adaptive *delivery*.** It tracks how a
+specific Belt learns best — how much scaffolding they need, whether worked
+examples or challenge questions land better, which project-type emphasis
+helps. It is stored per Belt, retrieved at session start, and updated from
+gate outcomes.
+
+The line between them is strict and load-bearing: **dynamic procedural memory
+adapts how the methodology is delivered, never what the methodology
+requires.** A Black Belt still needs `vital_few_xs`. The coach may open the
+Analyse phase differently for a BB with ten projects behind them, but the
+gate criteria do not move.
+
+The mechanism is §87 item 5, which was previously framed as "LangSmith
+trace-based coaching learning" — a general learning feature with no clear
+shape. It is better understood as exactly this: LangSmith traces record which
+coaching approaches preceded clean gate passages and which preceded repeated
+loops, a background process outside the coaching loop extracts the pattern,
+and the next session for that Belt loads the learned procedures alongside the
+static SKILL.md rules — extending them, never overriding them.
 
 ---
 
@@ -4404,18 +4700,32 @@ Uncontrolled retrieval introduces noise into model reasoning.
 
 **The one addition in refactor scope — `phase_relevance` filter.**
 
-`improve_knowledge_index` carries a `phase_relevance` field specifically for filtering by DMAIC phase, and nothing was using it. Adding the filter clause improves retrieval precision immediately, at the cost of one `search_kwargs` argument:
+`improve_knowledge_index` carries a `phase_relevance` field specifically for filtering by DMAIC phase, and nothing was using it. Adding the filter clause improves retrieval precision immediately, at the cost of one constructor argument:
 
 ```python
-azure_search_retriever.invoke(
-    q,
-    search_kwargs={
-        "filters": f"phase_relevance eq '{phase}' or phase_relevance eq 'all'"
-    },
+retriever = AzureAISearchRetriever(
+    index_name="improve_knowledge_index",
+    top_k=top_k,
+    filters=f"phase_relevance eq '{phase}' or phase_relevance eq 'general'",
 )
+ranked_lists = [retriever.invoke(q) for q in variants.queries]
 ```
 
-The `OR 'all'` term matters: cross-phase content in the eBook must still be reachable from any phase, so filtering strictly to the current phase would over-narrow. Confirm the exact enumeration of `phase_relevance` values present in the index before implementing.
+**The cross-phase term is `general`, not `all`.** Cross-phase eBook content must
+stay reachable from any phase, so filtering strictly to the current phase
+over-narrows — but the value that does that is `'general'`. 218 documents in the
+index carry it; **zero** carry `'all'`. The earlier `OR 'all'` clause was
+never satisfied and narrowed the corpus silently, with no error raised.
+
+**And the filter goes in the constructor, not `search_kwargs`.**
+`AzureAISearchRetriever` takes `filters=` at construction time; passing it at
+invoke time via `search_kwargs` is ignored or collides with the client's own
+`filter` keyword. Since `phase` varies per call, the retriever is constructed
+per call — it cannot be a module-level singleton, and an existing module-level
+`azure_search_retriever` must not be reused for this tool.
+
+This is the same pair of corrections applied to §33's canonical implementation;
+both sections carried identical copies of both bugs, and both are fixed.
 
 **This filter is methodology-tool-only.** `rag_lookup_evidence` is already filtered by `case_id`, and `rag_lookup_case_history` is inherently cross-phase — neither has a phase-relevance equivalent. The full tool with the filter in place is in §33.
 
@@ -4501,7 +4811,7 @@ All seven metadata fields this section references were verified present against 
 | Index | Fields relevant to metadata signals |
 |---|---|
 | `improve_knowledge_index` | `id`, `content`, `content_vector` (3072d), `metadata`, **`source_file`**, **`phase_relevance`**, **`page_number`** (Int32) |
-| `improve_evidence_index` | `id`, `content`, `content_vector` (3072d), `metadata`, **`case_id`** |
+| `improve_evidence_index` | `id`, `content`, `content_vector` (3072d), `metadata`, **`case_id`**, **`phase`**, **`uploaded_at`** *(both added 2026-08-20 — §36)* |
 | `improve_case_index` | `id`, `case_id`, `title`, **`belt_level`**, `leader`, `department`, `current_phase`, `rag_status`, **`status`**, **`created_at`**, `target_date`, **`days_in_phase`** (Int32), `phase_summary_define`, `phase_summary_measure`, **`phase_summary_analyse`** *(renamed — §36)*, `phase_summary_improve`, `phase_summary_control`, `content_text`, **`embedding`** |
 
 Two schema facts settled here rather than rediscovered later:
@@ -4549,7 +4859,23 @@ Small, concrete, no infrastructure change. Filter and ordering clauses added to 
 
 **`rag_lookup_methodology`** — the `phase_relevance` filter is already ratified in §37. No additional filters. `source_file` and `page_number` are useful as *returned* metadata for citation transparency ("this came from page 47 of the BB eBook"), not as filter criteria.
 
-**`rag_lookup_evidence`** — retains its `case_id` filter, plus `order_by=["uploaded_at desc"]`, since the Belt's most recent uploads are more likely relevant. **Verify before implementing:** the `improve_evidence_index` schema above does not show an `uploaded_at` field explicitly. If it is absent, the timestamp may live inside the `metadata` JSON blob, or the ordering clause has to be dropped.
+**`rag_lookup_evidence`** —
+```python
+filter="case_id eq '{case_id}'"       # always
+filter += f" and phase eq '{phase}'"  # OPTIONAL — omitted by default
+order_by=["uploaded_at desc"]         # the Belt's recent uploads rank first
+```
+The earlier "verify before implementing — `uploaded_at` may not exist" caveat
+is closed: both `uploaded_at` and `phase` were added to
+`improve_evidence_index` on 2026-08-20 as top-level fields (§36), so the
+ordering clause is available and the phase filter is possible.
+
+**The phase filter defaults to OFF, and that default is deliberate.** A
+Control-phase Belt comparing post-improvement results against the Measure
+baseline needs Measure-phase evidence; filtering to the current phase by
+default would break the cross-phase comparison the field was added to support.
+Pass `phase` only when the coach genuinely wants to scope to one phase's
+uploads.
 
 **`rag_lookup_case_history`** —
 ```python
@@ -4689,8 +5015,9 @@ rag_lookup_* tool invoked (02)
   │   3-5 alternative phrasings, phase-shaped prompt   │
   │        ↓                                           │
   │ Per-variant retrieval with metadata filters (04)   │
-  │   methodology: phase_relevance eq phase OR 'all'   │
-  │   evidence:    case_id eq current_case             │
+  │   methodology: phase_relevance eq phase OR 'general'│
+  │   evidence:    case_id eq current_case,            │
+  │                order_by uploaded_at desc     ← §36 │
   │   case:        status eq 'completed',              │
   │                order_by created_at desc      ← §40 │
   │        ↓                                           │
@@ -5499,7 +5826,22 @@ The parser calls the LLM a second time with a correction prompt if the first out
 - You control retry logic, prompt, and fallback
 - The fix attempt is a first-class graph event with its own checkpoint
 
-For *invisible* retry — the kind that should not appear in the Belt's view or the graph topology — LangChain 1.x provides `RetryMiddleware`, which auto-retries failed tool calls with configurable backoff. Use it where a retry is a mechanical concern, and a reflection node where the retry is a coaching event.
+For *invisible* retry — the kind that should not appear in the Belt's view or the graph topology — LangChain 1.x provides **`ToolRetryMiddleware`** (`wrap_tool_call` hook), which auto-retries failed tool calls with configurable backoff. Use it where a retry is a mechanical concern, and a reflection node where the retry is a coaching event.
+
+> **The class is `ToolRetryMiddleware`, not `RetryMiddleware`.** An earlier
+> revision of this section named a class that does not exist in LangChain 1.x.
+> The mechanism is real and is already wired — it is position 5 of the
+> eight-middleware stack (§84), configured
+> `max_retries=2, on_failure="continue"`. `on_failure="continue"` is what keeps
+> the coaching loop alive: when retries are exhausted the tool returns a failure
+> result the coach can react to, rather than raising and killing the graph.
+>
+> It is a **different** middleware from `ModelRetryMiddleware`, which sits at
+> position 4 on `wrap_model_call` and retries the *model* call on Azure OpenAI
+> rate limits and transient 5xx. Tool execution failures and model API failures
+> are different failure modes; neither middleware substitutes for the other,
+> and both are distinct again from the fallback chain (§67), which swaps the
+> model on service-level failure.
 
 ### What Happened to the "Three-Layer Defence"
 
@@ -5533,7 +5875,7 @@ Under the ratified architecture only the third layer survives, and it does not l
 | Schema validation | Same location, same mechanism — native to ProviderStrategy (§82) |
 | Completeness | The `check_gate_status` tool invoked by the executor, **or** a conditional edge on the subgraph checking whether the required field count is met. Formalised as Layer 2b of the gate stack (§48, §68). |
 | Content-level hallucination | **Not addressed by §29 at all.** See below. |
-| Retry on failure | `RetryMiddleware` for invisible retry; the §48 reflection node for graph-visible retry; the shared 3-attempt cap across the four validation layers (§68) |
+| Retry on failure | **Already wired, not a residual concern.** `ToolRetryMiddleware` (position 5, `wrap_tool_call`) for invisible tool retry and `ModelRetryMiddleware` (position 4, `wrap_model_call`) for model API retry — both in the §84 stack; the §48 reflection node for graph-visible retry; the shared 3-attempt cap across the four validation layers (§68) |
 
 ### Anti-Hallucination — Orthogonal, and Not Solved by Any of This
 
@@ -5555,7 +5897,11 @@ No reader should come away from this section assuming structured output is suffi
 
 *Source: Edureka course — Debate Agents with Consensus Voting*
 
-> **Scope: deferred to v2.2 — §87 item 10.** The pattern is correct and the scoping is settled: an adversarial debate subgraph (advocate + skeptic + judge) for **root cause validation in the Analyse phase only**. It is deferred because it depends on the base coaching loop working in production first, and it adds 2–3 LLM calls per root-cause evaluation. Promotion trigger: base coaching loop stable in production, with the Analyse coach producing root causes that need adversarial stress-testing.
+> **Scope: deferred to v2.2 — §87 item 10. NOT implemented in v2.1** *(confirmed 2026-08-19)*. The pattern is correct and the scoping is settled: an adversarial debate subgraph (advocate + skeptic + judge) for **root cause validation in the Analyse phase only**. It is deferred because it depends on the base coaching loop working in production first, and it adds 2–3 LLM calls per root-cause evaluation.
+>
+> **The promotion trigger is evidence, not a date.** Test the ordinary Analyse node in production first, then decide whether adversarial debate is needed: is the Analyse coach producing root causes that survive scrutiny, or root causes that need adversarial stress-testing? Building the debate subgraph before that question has a real answer risks solving a problem the base loop does not have — at a permanent cost of 2–3 LLM calls on every root-cause evaluation.
+>
+> **§47 (Opinion Aggregation) is blocked behind this section** and deferred with it — §87 item 11. Its input signals, `advocate_confidence` chief among them, are produced by the debate subgraph and do not exist until this is built. It cannot be ratified independently.
 >
 > Read this section alongside §48, which draws the distinction this pattern rests on: **reflection** is one perspective checking itself against a standard (`DMAICGraderMiddleware`, §42); **consensus modeling** is multiple genuinely independent perspectives that may legitimately disagree, being reconciled. Only root cause validation in Analyse is genuinely the second kind.
 >
@@ -5896,7 +6242,7 @@ control.request_drain()
 from langgraph.channels import DeltaChannel
 
 # In state definition
-class DMAICState(TypedDict):
+class SupervisorState(TypedDict):
     messages: Annotated[list, DeltaChannel(snapshot_frequency=50)]
     # every 50 steps, a full snapshot is written
     # steps in between store only deltas
@@ -6181,7 +6527,9 @@ if circuit_breaker.state == "HALF_OPEN":
         raise CircuitOpenError("Probe failed — circuit remains open")
 ```
 
-For AgentLean this matters specifically for the AgentLean MCP server and Azure AI Search — both are critical-path for coaching turns. A failed circuit probe should not silently succeed and immediately flood the recovering service with full traffic.
+For AgentLean this matters specifically for **Azure OpenAI and Azure AI Search** — both are critical-path for coaching turns, and they are the two breakers §66 defines. A failed circuit probe should not silently succeed and immediately flood the recovering service with full traffic.
+
+*An earlier revision named "the AgentLean MCP server" here. There is no such component — MCP is architecturally excluded (§39), not deferred.*
 
 ---
 
@@ -6262,7 +6610,7 @@ def jittered_backoff(attempt: int, base: float = 1.0) -> float:
 | Scenario | Strategy | Reasoning |
 |---|---|---|
 | Single agent retrying a managed service (Azure OpenAI) | Exponential | Predictable intervals, no thundering herd risk |
-| Multiple agents sharing the same resource (MCP server, cache) | Jittered | Randomises retry timing across agents, prevents synchronized storm |
+| Multiple agents sharing the same resource (Azure Cache for Redis) | Jittered | Randomises retry timing across agents, prevents synchronized storm |
 | Local model or local cache | Jittered | Multiple phase subagraphs may fall back simultaneously |
 
 The **per-level backoff strategy selection** is the design principle: the choice of backoff strategy depends on whether multiple agents could be retrying the same resource at the same time. A managed cloud service with its own load balancing can absorb synchronized retries; a shared local resource cannot.
@@ -6343,6 +6691,63 @@ No new gap number — jitter and per-level backoff selection are implementation 
 > **⚠️ New infrastructure component.** Azure Cache for Redis is not in the current `valuesims-*` / `agentlean-*` setup. Add it to the infrastructure provisioning plan before this level can be implemented.
 >
 > **Three-state circuit breaker, not two.** Use the §66 version. Agent Improve is a long-running service and must recover without a restart.
+
+### Geographic Redundancy — the chain's single-region dependency (v2.2)
+
+**The four-level chain above is the v2.1 implementation target and does not
+change.** This subsection records a compliance limitation in it and the
+ratified v2.2 replacement, so the constraint is not rediscovered at launch.
+
+**The finding.** Levels 1, 2 and 3 are all provisioned in **Azure West Europe
+(Frankfurt)**. They are three different services, but one region. A Frankfurt
+regional outage does not degrade the chain a level at a time — it collapses
+Levels 1–3 simultaneously and drops straight to Level 4 degraded mode, with no
+intermediate recovery path. The chain reads as defence in depth and is, against
+*service* failure; against *regional* failure it is a single point of failure
+wearing four hats.
+
+**Why this matters beyond availability.** DORA's ICT resilience obligations
+require geographic redundancy for continuity of critical functions. A
+single-region chain is non-compliant for any regulated-entity deployment, which
+makes this a launch blocker for that market rather than a robustness
+nice-to-have. EU AI Act data-governance provisions are also in scope, which is
+why the secondary region must be inside the EU.
+
+**Ratified v2.2 replacement — five levels, two regions:**
+
+```
+Level 1: Azure OpenAI gpt-4o      — West Europe (Frankfurt) — primary
+         ↓ timeout / rate-limit / regional outage
+Level 2: Azure OpenAI gpt-4o      — secondary EU region (Sweden Central candidate)
+         ↓ if also unavailable
+Level 3: Azure OpenAI gpt-4o-mini — secondary EU region
+         ↓ if also unavailable
+Level 4: Azure Cache for Redis    — session-scoped response cache
+         ↓ cache miss or unavailable
+Level 5: Degraded mode            — always succeeds, never crashes
+```
+
+The insertion is Level 2: the same model in a different region, before
+accepting a quality drop to gpt-4o-mini. A regional outage should cost latency,
+not coaching quality.
+
+**Open decision for v2.2 — the secondary region.** Sweden Central is the
+candidate: EU data residency satisfied, low latency from Frankfurt, Azure
+OpenAI available. It needs quota provisioned in that region under the same
+subscription. Once provisioned this is a connection-string change, not a model
+or code change.
+
+**TPM exhaustion and regional outage are different failures, and v2.1 already
+handles the first correctly.** A 429 from Azure OpenAI is classified transient,
+exponential backoff fires, and the chain activates as designed — that path is
+sound and needs no amendment. What the amendment addresses is the case where
+Frankfurt endpoints are unreachable outright, or where 429s persist past backoff
+tolerance so that "wait and retry" has no regional escape hatch to fall back to.
+
+**Deferred to §87 item 16**, promoted before production launch with real Belts.
+Not a v2.1 blocker: the refactor establishes the coaching loop, middleware
+stack, gate validation and chain structure against a single region, and adding
+a second region mid-refactor buys nothing testable.
 
 ### What This Adds Beyond Section 66
 
@@ -6683,7 +7088,7 @@ Common failure patterns in long-running agent workflows typically include:
 | Stale plan | Phase fields defined in Define may be wrong by Analyse | HITL edit loop (§2) plus the cross-phase consistency check in the policy advisory (§38) |
 | Orphaned checkpoints | Checkpoint volume grows across a multi-week project | Not yet a problem at current session lengths. `DeltaChannel` (§79) is the compression mechanism, deferred to §87 item 12 until sessions exceed ~200 turns. |
 | Partial task completion | Node fails after writing to Blob or an index, leaving external state inconsistent | Saga compensating actions via LangGraph's native `error_handler=` (§49, §79); per-node `TimeoutPolicy(run_timeout=45)` bounds how long a partial state can hang |
-| Re-planning loops | Coach keeps asking the same questions | `recursion_limit=11` caps tool calls per turn with `GraphRecursionError` handling (§34); shared cap of 3 attempts across the four validation layers (§68); Level 2 completeness check gates the field-index advance (§5) |
+| Re-planning loops | Coach keeps asking the same questions | `RemainingSteps` caps tool calls per turn, with `GraphRecursionError` handling as a backstop (§34); shared cap of 3 attempts across the four validation layers (§68); Level 2 completeness check gates the field-index advance (§5) |
 
 ---
 
@@ -6857,12 +7262,50 @@ checkpointer = PostgresSaver.from_conn_string(os.getenv("PG_CONN"))
 graph = workflow.compile(checkpointer=checkpointer, store=store)
 await graph.ainvoke(
     input,
-    config={"recursion_limit": 11,                    # §34 — 5 hops
+    config={"recursion_limit": 50,                    # §34 — backstop, not the hop cap
             "configurable": {"thread_id": case_id}},  # one thread_id per case
 )
 ```
 
 *`InMemorySaver` appears nowhere in the ratified design — not even for development. It was in the original draft as the dev-tier option; the phased Blob → PostgreSQL decision (§1) replaces it.*
+
+#### 3a. Disconnect policy — what a dropped client commits
+
+**Scope note.** This is part of step 3, not a new step. Wiring `thread_id`
+through `graph.ainvoke` is what makes checkpoints actually write; the moment
+they do, a question arrives that did not exist while `routes.py` dispatched
+nodes manually and nothing persisted: **when a Belt closes the tab
+mid-coaching-turn, what has been committed?**
+
+**The finding that forces the decision** (Ranjan Kumar, *"FastAPI + LangGraph:
+What a Client Disconnect Commits"*, measured 2026-08-04): once checkpoints are
+live, **the FastAPI handler's control-flow shape — not the checkpointer —
+decides what survives a disconnect.** A handler that hands the graph run to a
+bare `asyncio.create_task` keeps executing after the client is gone, and the
+run checkpoints every node it completes. The Belt sees nothing; the checkpoint
+says the turn happened.
+
+**Ratified policy for Agent Improve: ABANDON, not COMPLETE.**
+
+A silently-completed gate approval that the Belt never saw is unacceptable in
+a system whose entire premise is that the Belt approves what gets committed
+(§2, step 7). COMPLETE is defensible for idempotent background work; it is not
+defensible for a nine-step HITL gate. If the Belt is gone, the turn stops.
+
+**Five requirements, all part of step 3:**
+
+| # | Requirement | Why |
+|---|---|---|
+| 1 | **Deliberate handler shape** — either inline `await` streaming, or an explicit ABANDON policy calling `t.cancel()` in `gen()`'s `finally`. Never a bare `asyncio.create_task` with no disconnect handling | This is the decision point. A handler that has not chosen has chosen COMPLETE by accident |
+| 2 | **Deterministic `step_log` keys** — `f"{phase}:{turn_count}:{step_name}"`, never a raw timestamp as identity (§18) | An abandoned-then-retried turn re-executes the same logical step. Timestamp keys record that as two events and inflate the audit trail |
+| 3 | **Azure Blob lease as the per-thread concurrency guard** | Two tabs open on one `case_id` means two writers on one `thread_id`. Postgres advisory locks are the natural mechanism and are not available until the §1 migration, so the lease carries it in the interim — and the Blob checkpointer's known lack of concurrency testing (§1) is exactly this exposure |
+| 4 | **A reconciliation sweep for abandoned threads that excludes `interrupt()`-paused threads** | A thread paused at a gate is indistinguishable from an abandoned one by "no recent activity" alone. A sweep that misses this cleans up Belts who are simply thinking about their gate review overnight |
+| 5 | **`thread_id` / `case_id` derived from the authenticated session, never client-supplied** | A client-supplied `thread_id` lets any caller resume any Belt's coaching session. `thread_id` is `case_id` (§17) and `case_id` is the tenancy boundary |
+
+**`gate_apply_node`'s store write needs no change.** It is already idempotent
+by key — `store.put(("projects", case_id, "artifacts"), phase, doc)` overwrites
+rather than appends, so replaying it is safe. The exposure is in `step_log`
+(requirement 2) and in concurrent writers (requirement 3), not here.
 
 **4. Human-in-the-Loop**
 ```python
@@ -6929,8 +7372,8 @@ class PhaseState(TypedDict):
     history:            Annotated[list[str], operator.add]  # node execution order
     phase_context:      str              # composed at the boundary — see below
 
-    # ── the twelve content fields ─────────────────────────────────
-    coaching_plan:      dict[str, Any]   # ONE plan per planner turn
+    # ── the fourteen content fields ───────────────────────────────
+    coaching_plan:      Optional[CoachingPlan]   # ONE plan per planner turn — §71-C
     field_index:        int              # current field within the phase
     draft:              dict[str, Any]   # extracted fields this turn
     artifacts:          dict[str, Any]   # accumulated fields for the phase
@@ -6942,13 +7385,32 @@ class PhaseState(TypedDict):
     validator_feedback: list[dict]       # accumulated per-attempt feedback
     citations:          list[dict]       # sources the coach cited this phase
     uploads:            list[dict]       # files the Belt uploaded this phase
+    hop_results:        list[str]        # ordered hop answers — [] outside planned multi-hop
+    synthesis_output:   Optional[dict]   # SynthesisOutput — None for single-hop turns
 ```
 
-**Fifteen fields — twelve content fields plus three plumbing fields.**
-The state design audit governed the twelve; `messages`, `history` and
-`phase_context` were not in its scope. `messages` is what `create_agent`
+**Seventeen fields — fourteen content fields plus three plumbing fields.**
+The state design audit governed the original twelve; `messages`, `history`
+and `phase_context` were not in its scope. `messages` is what `create_agent`
 runs its loop on, `history` is the node execution trail, and
 `phase_context` is composed at the boundary by the input mapper.
+
+**`hop_results` and `synthesis_output` were added by the §71 compliance audit
+(2026-08-11)**, and `coaching_plan` was retyped in the same pass. All three
+are specified in §71: `hop_results` (§71-E) makes the planned multi-hop chain
+visible in LangSmith and recoverable from a checkpoint, which a local Python
+dict inside the node could not do; `synthesis_output` (§71-D) holds the
+dedicated synthesis call's result so the coach call reads it from state rather
+than from a local variable; `coaching_plan` (§71-C) moves from a plain dict to
+the typed `CoachingPlan` Pydantic model produced via `with_structured_output`,
+matching the typed-boundary discipline every other boundary in this
+architecture follows (§82). `dict[str, Any]` is acceptable as an interim
+annotation inside the `TypedDict`; the typed form is preferred.
+
+**Both new fields are Analyse-shaped but not Analyse-restricted.** They are
+`[]` and `None` on every single-hop turn in every phase — `CoachingPlan.
+retrieval_strategy` may select `multi_hop` in any phase, so the fields are
+declared once on `PhaseState` rather than on an Analyse-only variant.
 
 **What changed from the lab's `PlannerState`:**
 
@@ -6957,7 +7419,7 @@ runs its loop on, `history` is the node execution trail, and
 | `PlannerState` | `PhaseState` | Names what it actually is — the state inside a phase subgraph |
 | `counter` | `turn_count` | The lab name says nothing; this counts coaching turns before the gate fires |
 | `step_index` | `field_index` | Disambiguates from `phase_index` in `SupervisorState` (§17) — this one points at a field *within* a phase |
-| `plan` | `coaching_plan`, retyped `list[dict]` → **`dict[str, Any]`** | One plan per planner turn, overwritten each time. See "Why the plan is a dict" below |
+| `plan` | `coaching_plan`, retyped `list[dict]` → `dict[str, Any]` → **`Optional[CoachingPlan]`** | One plan per planner turn, overwritten each time. Retyped again by §71-C to a Pydantic model. See "Why the plan is a dict" below |
 | `task: str` | `phase_context: str` | Same role, phase-scoped |
 | `final_output` | `final`, retyped `str` → **`dict[str, Any]`** | The gate document is structured data. `final: str` contradicted the dict-not-str rule the same schema enforces on `draft` |
 | — | **Added** `draft: dict[str, Any]` | Structured extraction result for the current turn. Typed, not a string — see §21 on why prose handoffs are the Gap 10 anti-pattern. |
@@ -6966,6 +7428,8 @@ runs its loop on, `history` is the node execution trail, and
 | — | **Added** `validator_feedback: list[dict]` | Accumulated per-attempt validation feedback. This is what makes the shared cap of 3 defensible |
 | — | **Added** `citations: list[dict]` | Sources the coach cited, for the gate document and §13's citation requirement |
 | — | **Added** `uploads: list[dict]` | Files the Belt uploaded — the record of what external evidence the phase had (§39) |
+| — | **Added** `hop_results: list[str]` | Ordered hop answers from the planned multi-hop chain. In a local dict they were invisible to LangSmith and lost on checkpoint restore (§71-E) |
+| — | **Added** `synthesis_output: Optional[dict]` | The dedicated synthesis call's `SynthesisOutput`. The coach call reads it from state, not from a local variable (§71-D) |
 | `artifacts`, `step_log` | Unchanged in name; `step_log` gains an append-only reducer | See below |
 
 ### `gate_attempts` — the field whose absence recreated a v1 bug
@@ -7052,13 +7516,23 @@ others. **It is a single `dict`, overwritten each time the planner
 fires.**
 
 ```python
-coaching_plan = {
-    "focus_field":        "root_cause_statement",
-    "next_action":        "coach_root_cause_identification",
-    "retrieval_strategy": "multi_hop",
-    "tools_needed":       ["rag_lookup_methodology", "rag_lookup_evidence"],
-}
+class CoachingPlan(BaseModel):
+    focus_field:        str
+    next_action:        str
+    retrieval_strategy: Literal["single_hop", "multi_hop"]
+    retrieval_hops:     list[str]    # template strings; empty for single_hop
+
+phase_planner = llm.with_structured_output(CoachingPlan)
+coaching_plan: CoachingPlan = phase_planner.invoke(planner_prompt)
 ```
+
+**One plan, and it is typed** (§71-C). "Dict, not list" remains the rule —
+what changed is that the single object is a validated Pydantic model rather
+than a bare dict. A plain dict cannot be validated at planner-output time, and
+`retrieval_strategy` in particular needs the `Literal` constraint: it selects
+the executor's entire retrieval path, and a typo silently falls through to
+single-hop. Consumers read `coaching_plan.retrieval_hops`, not
+`coaching_plan["retrieval_hops"]`.
 
 The list form implied an upfront queue of plans, and the subgraph is a
 cycle (§5, §11): the planner fires many times per phase, and the Belt's
@@ -7091,6 +7565,23 @@ These are **separate fields**. The pre-refactor code mixed them — `captured_fi
 ```
 
 Everything that needs an audit trail writes here: the four validation layers (§68), each grader iteration via the `on_evaluation` callback (§42), and every fallback-chain attempt (§67).
+
+**Every entry carries a deterministic key, never a raw timestamp as its
+identity:**
+
+```python
+step_key = f"{phase}:{turn_count}:{step_name}"     # "analyse:7:constraint_check"
+```
+
+A timestamp is still recorded as *data* — it is just not what identifies the
+entry. The distinction matters once checkpoints are live: a turn that is
+retried, resumed from a checkpoint, or replayed after a client disconnect
+re-executes the same logical step, and a timestamp-keyed log records that as
+two separate events. A deterministic key makes the write idempotent — the
+replay overwrites its own earlier entry instead of duplicating it. Without
+this, `step_log` inflates on every retry and the audit trail stops being
+evidence of what happened. This is a hard requirement of the disconnect
+policy in §17.
 
 ### Boundary Mapper Pattern
 
@@ -7551,7 +8042,7 @@ Option B — Migrate cross-case memory to PostgresStore
   − Migration effort for existing case data
 ```
 
-**Resolution: Option A, with the two roles separated.** `improve_case_index` stays as Azure AI Search and is reached through `rag_lookup_case_history` (§32, §33) — it needs hybrid BM25 + vector scoring, multi-query variants, RRF, and metadata filters, none of which `BaseStore.search` provides. The store is used for a different job: **cross-phase artifact handoff within one project** (§52a). Two mechanisms, two purposes, no overlap:
+**Resolution: Option A, with the two roles separated.** `improve_case_index` stays as Azure AI Search and is reached through `rag_lookup_case_history` (§32, §33) — it needs hybrid BM25 + vector scoring and multi-query + RRF, neither of which `BaseStore.search` provides. The store is used for a different job: **cross-phase artifact handoff within one project** (§52a). Two mechanisms, two purposes, no overlap:
 
 | | Carries | Scope | Mechanism |
 |---|---|---|---|
@@ -7621,12 +8112,22 @@ class AzureBlobStore(BaseStore):
     def put(self, namespace: tuple[str, ...], key: str, value: dict) -> None: ...
     def get(self, namespace: tuple[str, ...], key: str) -> Item | None: ...
     def search(self, namespace: tuple[str, ...], *, query: str | None = None,
-               limit: int = 10) -> list[Item]: ...
+               filter: dict | None = None, limit: int = 10) -> list[Item]: ...
     def delete(self, namespace: tuple[str, ...], key: str) -> None: ...
 ```
 
+> **Correction: `BaseStore.search()` does support metadata filtering** via its
+> `filter=` parameter. An earlier revision listed metadata filters among the
+> things the store lacks, which overstated the case for keeping
+> `improve_case_index` on Azure AI Search. The two capabilities the store
+> genuinely does **not** provide are **hybrid BM25 + vector scoring** and
+> **multi-query + RRF** — and those are the two the yokoten use case actually
+> depends on, so Option A above still resolves the same way. The conclusion
+> was right; one of the three reasons given for it was not.
+
 **Verified against current LangGraph docs (2026-07 web check):**
 - `BaseStore` interface is `put`, `get`, `search`, `delete`, over tuple namespaces
+- `search()` accepts `filter=` for metadata filtering alongside `query=`
 - The store is injected into nodes via `get_store()` or as a declared function argument
 - LangChain docs explicitly recommend the Store for cross-subgraph data — which matches the Define → Measure boundary case exactly
 
@@ -7947,7 +8448,7 @@ Question 4: Does the license key create a vendor dependency concern?
 
 LangSmith observability stays regardless — it is independent of the API layer. Whether you keep FastAPI or adopt LangGraph Server, every coaching turn is traced, every node execution is logged, and LangSmith evaluation datasets work identically.
 
-The LangGraph graph code itself does not change. `DMAICState`, phase subgraphs, the Orchestrator, the checkpointer — all identical. The only thing that changes is the layer that exposes the graph to the outside world.
+The LangGraph graph code itself does not change. `SupervisorState`, phase subgraphs, the Orchestrator, the checkpointer — all identical. The only thing that changes is the layer that exposes the graph to the outside world.
 
 ### Gap Register Note
 No new gap number — this section documents LangGraph Server as an option that directly addresses Gap 2 (HITL) through built-in resume endpoints. Evaluate explicitly during the DMAIC redraw. Do not default to either option without consciously working through the decision framework above.
@@ -8061,8 +8562,9 @@ Three specific risks for AgentLean:
 
 ```
 Risk 1 — State schema change:
-  v1 DMAICState has flat captured_fields dict
-  v2 DMAICState has typed DefineOutput, MeasureOutput boundaries
+  v1 graph state has a flat captured_fields dict on the parent
+  v2 SupervisorState holds orchestration only; the typed DefineOutput /
+     MeasureOutput gate documents live in the Store, never on parent state
   Same /chat endpoint, completely different state structure
   Frontend calling v1 expectations gets v2 responses → silent breakage
 
@@ -8128,7 +8630,7 @@ Define this explicitly before the v2.1 refactor begins. Any change in this list 
 
 ```
 Breaking changes (require /v2 endpoint):
-  ✗ State schema restructured (DMAICState field names or types changed)
+  ✗ State schema restructured (SupervisorState field names or types changed)
   ✗ Response format changed (new required fields added to response)
   ✗ HITL interrupt responses introduced (new interrupt: true field)
   ✗ thread_id management changed (if moving to LangGraph Server)
@@ -8194,7 +8696,7 @@ Documenting this now, before the refactor, is the versioning discipline in pract
 
 | Component | v1 (current) | v2 (post-refactor) | Breaking? |
 |---|---|---|---|
-| State schema | Flat DMAICState | Typed DefineOutput etc. crossing subgraph boundaries | ✅ Yes |
+| State schema | Flat parent state | `SupervisorState` (orchestration only) + typed gate documents in the Store | ✅ Yes |
 | Routing | Manual in routes.py | Command-based in graph | ❌ No (internal) |
 | HITL | Not implemented | Gate interrupt + resume | ✅ Yes (new response field) |
 | Streaming | Custom SSE | Custom SSE or LangGraph Server SSE | ✅ Yes if switching |
@@ -8718,7 +9220,8 @@ Finding 11). A Belt at 6/6 required and 0/5 recommended can pass the
 gate; a single blended percentage would read as 55% and imply otherwise.
 
 > **A stored `completeness_score` is not the mechanism.** The v1 field of
-> that name goes with `DMAICState`. Progress is derived on demand from
+> that name went with the v1 flat parent state and does not exist on
+> `SupervisorState`. Progress is derived on demand from
 > `artifacts`, the same way `check_gate_status()` derives missing fields
 > (ARCHITECTURE.md §4.1) — a stored score is a second source of truth
 > that can disagree with the gate.
@@ -9044,15 +9547,15 @@ All three are just nodes with an LLM inside. The difference is role, not technol
 This maps directly to the Planner → Executor pattern already documented in Sections 5, 11, 17.
 
 **Main State vs Substate**
-`DMAICState` (main) only carries what needs to travel between phases (`define_output`, `measure_output`, etc). Each phase has its own private substate (`DefineState`, `MeasureState`) for internal working memory — invisible to the main graph. This confirms and sharpens Section 10's Pattern 2 (Private Subagent State + Shared Parent State).
+`SupervisorState` (main) carries orchestration only — `case_id`, `phase_index`, `current_phase`, `gate_passed`, `final_output` (§17). Each phase has its own private substate (`PhaseState`, per-phase variants) for internal working memory, invisible to the main graph. This confirms and sharpens Section 10's Pattern 2 (Private Subagent State + Shared Parent State), with one correction: **what travels between phases does not travel on the parent state.** Phase outputs cross via the Store (§52a), not via per-phase output fields on `SupervisorState`. Fields named `define_output` / `measure_output` on the parent are the pattern this document previously showed and now retires — see "The Correct Implementation for Agent Improve" below.
 
 ---
 
 ### Architecture Target for Agent Improve — Confirmed and Sharpened
 
 ```
-Main Graph (DMAICState)
-  └── Orchestrator Agent — reads full state, decides next phase via Command
+Main Graph (SupervisorState)          ── artifacts cross via the Store, not this state
+  └── Orchestrator — deterministic gate-check on gate_passed + static edges
         ├── Define Subgraph (DefineState)
         │     └── internal orchestrator + step-subagents
         │         (understand, search, scope, CTQs, validate)
@@ -9160,7 +9663,7 @@ YES — scope sometimes needs revisiting after validate fails,
   exactly as originally documented in this section.
 ```
 
-**The corrected architectural rule for the refactor:** the top-level `DMAICState` orchestrator connecting the five phase subgraphs should very likely use simple static `add_edge` connections between them, since the phase sequence itself never varies. The recursive internal orchestrators *inside* each phase subgraph (the `understand → search → scope → validate` pattern) are where `Command`-based dynamic routing genuinely earns its complexity, because the step order there is authentically data-dependent.
+**The corrected architectural rule for the refactor:** the top-level `SupervisorState` orchestrator connecting the five phase subgraphs should very likely use simple static `add_edge` connections between them, since the phase sequence itself never varies. The recursive internal orchestrators *inside* each phase subgraph (the `understand → search → scope → validate` pattern) are where `Command`-based dynamic routing genuinely earns its complexity, because the step order there is authentically data-dependent.
 
 This resolves the original design question raised during discussion: a "subgraph orchestrator deciding what to trigger dynamically" is the correct instinct — specifically for the *internal* recursion inside each phase, not necessarily for the fixed top-level DMAIC sequence, which the official documentation's own decision criterion places squarely in static-edge territory.
 
@@ -9224,15 +9727,23 @@ Section 44's general pattern combines both:
 return Command(update={"output": result}, goto="next_node")   # routing + state write
 ```
 
-For Agent Improve's main Orchestrator, **both are needed together** — it must route to the next phase AND update `current_phase` in `DMAICState`:
+The combined form is shown here as the general `Command` mechanism, **not** as Agent Improve's phase-sequencing pattern:
 ```python
-def orchestrator(state: DMAICState) -> Command:
+def orchestrator(state: SupervisorState) -> Command:
     next_phase = decide_next_phase(state)
     return Command(
         update={"current_phase": next_phase},
         goto=f"{next_phase}_subgraph"
     )
 ```
+
+> **This is not how Agent Improve sequences phases.** DMAIC order is fixed,
+> so phase transitions are **static edges** — `add_edge("define", "measure")`
+> — and `Command` routing is reserved for inside phase subgraphs where step
+> order is genuinely data-dependent (§23, and the static-vs-dynamic criterion
+> later in this section). Mixing static edges and `Command` from the same
+> node executes both paths silently. Keep the snippet above as the mechanism
+> reference; do not copy it into the supervisor.
 
 **Nuance 2 — LLM-decided routing vs logic-decided routing**
 
@@ -9241,7 +9752,7 @@ The lab example uses an LLM call to decide the next worker. This is appropriate 
 For Agent Improve's **main Orchestrator** routing between DMAIC phases, the decision is likely **deterministic, not LLM-based** — the next phase is simply the next phase in the DMAIC sequence once the current phase's gate has passed:
 
 ```python
-def orchestrator(state: DMAICState) -> Command:
+def orchestrator(state: SupervisorState) -> Command:
     # logic-based, NO LLM call needed for phase sequencing
     next_phase = determine_next_phase(state)  # reads gate_passed flags
     return Command(
@@ -9339,6 +9850,8 @@ This is the mechanism this section already specifies for Agent Improve's boundar
 
 **The critical precondition both mechanisms share:** they each require TWO DISTINCT state classes to exist. Mechanism 1 needs two classes that share some key names. Mechanism 2 needs two classes with a function translating between them.
 
+**Both are also in-graph only.** Neither carries data across a phase boundary in Agent Improve — that is Mechanism 3, the Store, added below after the case study.
+
 ---
 
 ### Case Study — A Course Lab That Failed to Implement This Correctly
@@ -9364,28 +9877,80 @@ main.py         → only ever imports and calls parent_graph — never imports s
 ### The Correct Implementation for Agent Improve
 
 ```python
-# Parent — DMAICState
-class DMAICState(TypedDict):
-    case_id: str
-    current_phase: str
-    define_output: DefineOutput | None      # shared key name = "define_output"
-    measure_output: MeasureOutput | None
+# Parent — SupervisorState (§17), NOT DMAICState
+class SupervisorState(TypedDict):
+    messages:        Annotated[list[BaseMessage], operator.add]
+    history:         Annotated[list[str], operator.add]
+    case_id:         str
+    phase_index:     int
+    current_phase:   str
+    gate_passed:     dict[str, bool]
+    final_output:    Optional[dict]
+    # NO define_output, NO measure_output — cross-phase artifacts never live here
 
-# Child — DefineState, genuinely separate class with private internal working memory
 class DefineState(TypedDict):
     messages: list
     understand_result: str       # PRIVATE — never crosses
     search_result: str           # PRIVATE — never crosses
     ctq_candidates: list         # PRIVATE — never crosses
-    define_output: DefineOutput  # SHARED key name — this crosses automatically
+    draft: DefineOutput          # written during the phase, not shared with parent
 
-# main_orchestrator.py
-define_subgraph = build_define_subgraph(llm)        # genuinely separate compiled graph
-main_graph.add_node("define", define_subgraph)       # mounted as ONE node
-main_graph.add_edge("define", "measure")             # static edge — fixed DMAIC sequence
+define_subgraph = build_define_subgraph(llm)
+main_graph.add_node("define", define_subgraph)
+main_graph.add_edge("define", "measure")             # static edge — fixed sequence
+
+def define_output_mapper(state: DefineState, config) -> dict:
+    case_id = config["configurable"]["thread_id"]
+    store.put(("projects", case_id, "artifacts"), "define", state["draft"].model_dump())
+    return {}
+
+def measure_input_mapper(state, config) -> dict:
+    case_id = config["configurable"]["thread_id"]
+    define_artifacts = store.get(("projects", case_id, "artifacts"), "define").value
+    return {"phase_context": build_context_from(define_artifacts)}
 ```
 
-Because `define_output` is named identically in both `DMAICState` and `DefineState`, it crosses the boundary automatically once the Define subgraph completes. Everything else inside `DefineState` stays genuinely private — exactly as the conceptual model describes, and exactly what the lab above failed to actually build.
+**This block replaces an earlier version that put `define_output` and
+`measure_output` on the parent state and relied on shared key names to carry
+them across the boundary.** That version contradicted CLAUDE.md §10.1
+(`SupervisorState` is seven fields, orchestration only), §10.2 (cross-phase
+data flows through the Store) and §1.2 (subgraph state updates are not
+guaranteed to propagate to the parent). Because it was the block a reader
+would copy as *the* reference implementation, it is corrected here rather
+than annotated.
+
+Everything inside `DefineState` stays genuinely private — which is what the
+lab above failed to build. What leaves the phase leaves through the output
+mapper, into the Store, under a namespace the next phase's input mapper
+reads by name.
+
+---
+
+### Mechanism 3 — the Store (the one this section was missing)
+
+Mechanisms 1 and 2 above are both **in-graph**: they move data between two
+state schemas inside a single graph invocation. Neither survives a process
+restart, and neither is what Agent Improve uses to cross a phase boundary.
+
+| | Mechanism 1 — shared keys | Mechanism 2 — transformers | **Mechanism 3 — the Store** |
+|---|---|---|---|
+| Moves data | Parent ↔ child, same graph | Parent ↔ child, same graph | Phase → phase, across invocations |
+| Durability | In-graph only | In-graph only | **Durable, checkpoint-independent** |
+| Survives restart | No | No | **Yes** |
+| Agent Improve uses it | Inside a subgraph | Inside a subgraph | **For every phase boundary** |
+
+**The omission of Mechanism 3 from this section is how the drift happened.**
+With only two in-graph mechanisms on the page, "shared key names" looked like
+the natural answer to "how does Define's output reach Measure" — and the
+reference implementation was written that way. The actual answer is the Store
+(§52, §52a): `gate_apply_node` writes the approved gate document under
+`("projects", case_id, "artifacts")`, and the next phase's input mapper reads
+it. That write is also what makes the handoff survive the days or weeks
+between one Belt session and the next, which no in-graph mechanism can do.
+
+Mechanisms 1 and 2 remain correct for what they are — moving values between a
+phase subgraph and its own internal nodes. They are simply not boundary
+mechanisms.
 
 ---
 
@@ -9406,8 +9971,8 @@ Caller and callee agree on a schema         Orchestrator and Worker agree on Sta
 
 | Generic Element | Agent Improve Equivalent |
 |---|---|
-| Task identifiers and execution status | `case_id`, `current_phase`, `gate_passed` in `DMAICState` |
-| Partial results and intermediate outputs | `DefineOutput`, `MeasureOutput` Pydantic models |
+| Task identifiers and execution status | `case_id`, `current_phase`, `gate_passed` in `SupervisorState` |
+| Partial results and intermediate outputs | `DefineOutput`, `MeasureOutput` Pydantic models — held in the Store under `("projects", case_id, "artifacts")`, not on `SupervisorState` |
 | Metadata — confidence scores, error flags | `confidence_score`, `gaps_identified`, retry counters the Orchestrator reads to decide advance/retry/compensate/escalate |
 
 **The critical mechanical distinction from typical API/microservice architecture:**
@@ -9671,7 +10236,16 @@ Fire on system events regardless of what the model decides:
 
 ### External Alignment — Anthropic's Planner / Generator / Evaluator (March 2026)
 
-*Added August 2026, when the trusted-sources table was updated (§45). Source: `anthropic.com/engineering/harness-design-long-running-apps`, March 2026 — now the current Anthropic agent architecture guidance, superseding the December 2024 "Building Effective Agents" post for architectural decisions.*
+*Added August 2026, when the trusted-sources table was updated (§45). Source: `anthropic.com/engineering/harness-design-long-running-apps`, March 2026.*
+
+> **Scope note on this source.** The March 2026 post is a **specific research
+> write-up on long-running coding harnesses**, not a general restatement of
+> Anthropic's agent architecture guidance. An earlier framing here described it
+> as superseding the December 2024 "Building Effective Agents" post outright,
+> which claims more for it than the post claims for itself. The comparison
+> below still holds and is still worth recording — the convergence is real —
+> but treat it as one well-evidenced study whose problem domain is adjacent to
+> ours, not as a specification we are conforming to.
 
 This blueprint was derived from the Agent Resolve diagnosis and the Edureka course material, not from Anthropic guidance. It is worth recording that Anthropic independently arrived at the same three-role decomposition for long-running agent applications, because convergence from a different starting point is stronger evidence than agreement would have been.
 
@@ -9837,7 +10411,7 @@ This is the human-side complement to the automated hooks. The goal is not generi
 | Source | Date | Topic | Why it matters |
 |---|---|---|---|
 | `anthropic.com/engineering/effective-harnesses-for-long-running-agents` | Nov 2025 | Harness concept, context reset, session bridging | Reframes agents as "harness + model" — the harness (control plane) is the engineering, not the prompt. Directly relevant: DMAIC coaching is a long-running agent task. Defined in the Terminology Reference. |
-| `anthropic.com/engineering/harness-design-long-running-apps` | Mar 2026 | Planner/Generator/Evaluator, ablation discipline | Three-agent architecture tested against a solo agent. Maps to our Planner/Executor/Grader — see §44. **This is the current Anthropic agent architecture guidance.** |
+| `anthropic.com/engineering/harness-design-long-running-apps` | Mar 2026 | Planner/Generator/Evaluator, ablation discipline | Three-agent architecture tested against a solo agent. Maps to our Planner/Executor/Grader — see §44. **A specific research write-up on long-running coding harnesses**, not general architecture guidance — weigh it as strong evidence from an adjacent domain, not as a spec. |
 | `anthropic.com/engineering/managed-agents` | Apr 2026 | Brain/hands separation, scaling | Separating planning from execution at the infrastructure level. Confirms the Planner-Executor cascade (§5, §11). |
 | `anthropic.com/engineering/how-we-contain-claude` | Jul 2026 | Containment, blast radius, security boundaries | Newest post. Containment architecture for Claude products. Relevant to hook security (§45, §86). |
 | `anthropic.com/engineering/effective-context-engineering-for-ai-agents` | Sep 2025 | Context-window management as a first-class discipline | Directly relevant to `SummarizationMiddleware` (§36) and progressive skill disclosure (§84). |
@@ -9869,7 +10443,7 @@ This is the human-side complement to the automated hooks. The goal is not generi
 
 | Source | Date | Status |
 |---|---|---|
-| `anthropic.com/engineering/building-effective-agents` | Dec 2024 | **Historical foundation.** Still the most-cited post in the industry, and its core advice — *"find the simplest solution possible"*, the principle behind §42's Option B — remains valid. But the harness concept, the Planner/Generator/Evaluator pattern, context-reset discipline, and the ablation approach from the 2025–2026 posts supersede it for architectural guidance. |
+| `anthropic.com/engineering/building-effective-agents` | Dec 2024 | **Historical foundation, and still sound.** The most-cited post in the industry; its core advice — *"find the simplest solution possible"*, the principle behind §42's Option B — remains valid and is not superseded. What the 2025–2026 posts add is *newer specific material* — the harness framing, the Planner/Generator/Evaluator study, context-reset discipline, ablation method — which is why they are checked first. Age is the reason for the ordering, not a claim that this post has been refuted. |
 
 **Excluded.** Stack Overflow, Reddit, Medium, Dev.to — unverified unless linking directly to Tier 1 content.
 
@@ -12431,7 +13005,7 @@ Evaluation and grading nodes must produce consistent, repeatable structured outp
 
 > "Only rubric is part of the public I/O schema -- callers write a rubric and read the improved agent response back from messages. Everything else is bookkeeping: status, iteration count, accumulated evaluations, and rubric-attempt tracking are annotated with PrivateStateAttr so they are omitted from input/output schemas."
 
-This confirms a clean boundary contract consistent with Section 44's typed-boundary-output principle: the rubric grading internals (iteration count, accumulated evaluations) stay private to the middleware's own state, never leaking into `DMAICState`. Only the rubric string goes in, and the graded final response comes out via `messages`. Observability into the grading process (which Gap 23's audit-trail requirement needs) is available via a separate, explicit mechanism:
+This confirms a clean boundary contract consistent with Section 44's typed-boundary-output principle: the rubric grading internals (iteration count, accumulated evaluations) stay private to the middleware's own state, never leaking into `PhaseState` or `SupervisorState`. Only the rubric string goes in, and the graded final response comes out via `messages`. Observability into the grading process (which Gap 23's audit-trail requirement needs) is available via a separate, explicit mechanism:
 
 ```python
 from deepagents.middleware.rubric import RubricEvaluation
@@ -12915,7 +13489,7 @@ The debt table above is the scope of what Option B closes:
 | 14 | No context window management for long sessions | **In refactor scope** — `SummarizationMiddleware` + typed state fields | §36 |
 | 15 | Single-query RAG only — no multi-query retrieval | **In refactor scope** — multi-query inside the `rag_lookup_*` tools. *The earlier "wait for post-completion refactor" rationale is inverted now that the refactor is the active work.* | §32 |
 | 16 | No RAG Fusion / Reciprocal Rank Fusion | **In refactor scope** — RRF in all three retrieval tools by default. The "diminishing returns" deferral was overridden by Agent Resolve production evidence. | §33 |
-| 17 | Multi-hop retrieval | **CLOSED** — emergent via the ReAct coach (5-hop cap, `recursion_limit=11`); planned three-hop pipeline in Analyse | §34, §71 |
+| 17 | Multi-hop retrieval | **CLOSED** — emergent via the ReAct coach (5-hop cap via `RemainingSteps`); planned three-hop pipeline in Analyse | §34, §71 |
 | 18 | No query voting or weighted fusion | **CLOSED — collapsed into Gap 16.** RRF is the ratified fusion method; there is no separate Gap 18. | §35 |
 | 19 | No short-term memory summarisation | **CLOSED by Gap 14** — `SummarizationMiddleware` | §36, §53 |
 | 20 | Long-term vector memory in `improve_case_index` not queried during coaching | **In refactor scope** — `rag_lookup_case_history` tool (yokoten). Vector field asymmetry (`content_vector` vs `embedding`) closes as a no-op: each tool knows its own index's field name locally. | §36, §37 |
@@ -14019,6 +14593,7 @@ The refactor is a full rebuild to production grade, not an incremental patch. An
 | 13 | §1, §52a | Migrate `AzureBlobCheckpointSaver` + `AzureBlobStore` → `PostgresSaver` + `PostgresStore` | The Blob checkpointer works for single-developer refactoring; adding PostgreSQL during the heaviest refactoring period is unnecessary infrastructure complexity | **Post-refactor testing complete, before production launch with real Belts.** Provision Azure Database for PostgreSQL (~€12–15/month). Migration is small: change constructor and connection string, run existing tests against PostgreSQL. |
 | 14 | §43 | Observer Agent — system-wide monitoring across all Belts and projects (completion rates, coaching quality drift, system health, pattern detection) | Not a per-project coaching component; requires production traffic across multiple projects to produce meaningful patterns | Multiple concurrent DMAIC projects in production generating enough traffic for pattern analysis |
 | 15 | §37, §60, Finding 27 | **Multi-source knowledge index** — add `source_document` and `tenant_id` to `improve_knowledge_index`, priority-ordered retrieval filter in `rag_lookup_methodology`, and phase-classifier re-evaluation for non-BB-eBook documents | The refactor builds against the BB eBook as the single knowledge source. The architecture already supports more: the index needs two fields and the filter needs one additional clause. Adding it now complicates ingestion, retrieval and testing with no second document to test against | A customer supplies their own improvement methodology (internal BB guide, company process standards) that must sit alongside or ahead of the BB eBook |
+| 16 | §67 / DORA | **Geographic redundancy** — a secondary Azure OpenAI deployment in a second EU region, promoting the fallback chain from four levels to five | Infrastructure provisioning (region selection, quota, connection-string management) deferred until the base refactor is stable. Not a v2.1 blocker | **Before production launch with real Belts.** DORA compliance requires it before any regulated-entity deployment |
 
 #### Item 15 — Multi-source knowledge index, in more detail
 
