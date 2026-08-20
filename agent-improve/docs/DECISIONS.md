@@ -1,6 +1,6 @@
 <!--
 Document: agent-improve/DECISIONS.md
-Version: 1.0 — 2026-08-11
+Version: 1.4 — 2026-08-19
 Purpose: Consolidated decision register. Single navigable reference for every
          ratified architectural decision, coaching rule, and deferred/rejected
          item. Synthesized from STATE_DESIGN_RESOLUTION.md (26 findings),
@@ -17,10 +17,28 @@ Source documents (stay in repo, not here):
 
 CLAUDE.md version this was written against: v2.2.14
 ARCHITECTURE.md version: v2.2.15
+
+v1.1 changes (2026-08-11): §37 compliance audit cross-references added to E3 and E4;
+  Part K added (Memory Architecture — §37 taxonomy + §37-D Procedural ratification);
+  Amendment Log updated.
+v1.2 changes (2026-08-12): Part L added (Validation Architecture — §48/§68 decisions);
+  L1 (D68-1) ratified: AzureChatOpenAI invoke requires message list not plain string.
+  D09 diagram added to ARCHITECTURE_DIAGRAMS.html covering constraint validation and
+  retry-with-accumulated-feedback loop.
+v1.3 changes (2026-08-12): B3 amended from five to seven middlewares
+  (ContradictionDetectionMiddleware + CoherenceMiddleware added); B2 note added
+  (L2a moved to CoherenceMiddleware; DMAICGraderMiddleware now process-quality-only);
+  Part M added (M1 D69-x closed, M2 §38 middleware, M3 CoherenceMiddleware);
+  Amendment Log updated.
+v1.4 changes (2026-08-19): B3 amended from seven to eight middlewares
+  (ToolRetryMiddleware added at position 5 — wrap_tool_call hook);
+  §22 Debate Agents deferred to §87 backlog (confirmed 2026-08-19);
+  Part N added (N1 §67 Geographic Redundancy / DORA compliance — deferred to v2.2);
+  Amendment Log updated.
 -->
 
 # Agent Improve — DECISIONS.md
-# Version 1.0 — 2026-08-11
+# Version 1.4 — 2026-08-19
 
 ---
 
@@ -100,14 +118,19 @@ class PhaseState(TypedDict):
     validator_feedback: list[dict]         # accumulated per-attempt feedback
     citations:          list[dict]
     uploads:            list[dict]
+    hop_results:        list[str]           # ordered hop answers, planned multi-hop only; [] otherwise
+    synthesis_output:   Optional[dict]      # SynthesisOutput from synthesis call; None for single-hop
 ```
 
 Key naming decisions:
 - `feedback` → split into `validator_feedback` (system) and `belt_edits` (Belt). Conflating them would have the coach reading Belt corrections as validation failures.
 - `final: str` → `final: dict`. String forces downstream parsing.
 - `coaching_plan: list[dict]` → `coaching_plan: dict`. One plan per planner turn; no upfront queue.
+- `coaching_plan: dict` → `coaching_plan: Optional[CoachingPlan]` (Pydantic model — §71-C, 2026-08-11). Plain dict replaced by typed schema enforced via `with_structured_output`. `dict[str, Any]` annotation in the TypedDict is acceptable as interim; prefer typed.
 - `gate_attempts` MUST be on `PhaseState` in the checkpoint, not in route scope — the v1 "attempts always reset to 0" bug came from route scope.
 - `validator_feedback` makes the shared cap of 3 defensible: each entry records attempt, layer, criteria, and feedback; the coach reads the full list on retry.
+- `hop_results` stores intermediate hop answers from the Analyse planned multi-hop pipeline in PhaseState (not in a local Python dict). Required for LangSmith inspectability and checkpoint recovery (§71-E, 2026-08-11). Cleared to `[]` at start of each coaching turn.
+- `synthesis_output` stores the `SynthesisOutput` from the dedicated synthesis LLM call (§71-D Option B, 2026-08-11). The coach call reads from this field, not from a local variable. `None` for single-hop turns. Total PhaseState field count: **17 (3 plumbing + 14 content)**.
 
 ---
 
@@ -281,30 +304,72 @@ The validation stack and policy advisory are NOT tools. Adding either to a tool 
 Never point `DMAICGraderMiddleware` at a phase rubric.  
 Never point Layer 2d at `COACHING_QUALITY_RUBRIC`.
 
+**L2a coherence is now in `CoherenceMiddleware`, not in `COACHING_QUALITY_RUBRIC`.** `DMAICGraderMiddleware` grades coach **process quality only**: seven-step computation pattern, show-first principle, citations, no external URLs. The L2a coherence check (real statement? not parroting? on-topic?) was removed from the rubric in Mod B (M3). Any reference to "coherence" as a `DMAICGraderMiddleware` criterion is stale.
+
 ---
 
-### B3 — Five middlewares; declaration order is execution order
+### B3 — Eight middlewares; declaration order is execution order
 
 **Status:** ADOPTED — landed in CLAUDE.md §8.1  
-**Source:** STATE_DESIGN_RESOLUTION.md Findings 19–20
+**Source:** STATE_DESIGN_RESOLUTION.md Findings 19–20; Mod A (2026-08-12); Mod B (2026-08-12); B3.1 amendment (2026-08-19)
 
 ```python
 middleware=[
-    BeforeModelStateInjection(...),    # before_model — MUST be first
-    DMAICSkillsMiddleware(...),        # before_agent
-    SummarizationMiddleware(...),      # before_model
-    ModelRetryMiddleware(retries=2),   # wrap_model_call — ADOPTED in v2.2.10
-    DMAICGraderMiddleware(...),        # after_agent
+    BeforeModelStateInjection(...),            # before_agent — MUST be first
+    DMAICSkillsMiddleware(...),                # before_agent
+    SummarizationMiddleware(...),              # before_model
+    ModelRetryMiddleware(retries=2),           # wrap_model_call — API-level model retries
+    ToolRetryMiddleware(                       # wrap_tool_call — tool execution retries (B3.1)
+        max_retries=2,
+        tools=None,          # None = applies to all bound tools
+        on_failure="continue",
+        backoff_factor=2.0,
+        initial_delay=1.0,
+        max_delay=60.0,
+        jitter=True,
+    ),
+    ContradictionDetectionMiddleware(...),     # after_agent — §38 check (Mod A)
+    CoherenceMiddleware(...),                  # after_agent — L2a check (Mod B)
+    DMAICGraderMiddleware(...),                # after_agent — process quality only
 ]
 ```
 
 `BeforeModelStateInjection` MUST be first — project facts must reach the
-top of the prompt before skills loading and summarisation shape it. An
-earlier revision listed it last, which defeats the priority ordering.
+top of the prompt before skills loading and summarisation shape it.
 
-`ModelRetryMiddleware` is the invisible-retry tier: retries the same call
-on transient failure, never swaps the model. The fallback chain (§4.8) is
-distinct — it swaps the model on service-level failure.
+**Two retry middlewares — distinct and complementary:**
+
+| Middleware | Hook | Failure type | Mechanism |
+|---|---|---|---|
+| `ModelRetryMiddleware(retries=2)` | `wrap_model_call` | Azure OpenAI API errors (rate-limit, timeout, transient 5xx) | Retries the model call before it surfaces to the agent |
+| `ToolRetryMiddleware(max_retries=2)` | `wrap_tool_call` | Tool execution errors (Azure Search timeout, extraction error, computation tool failure) | Retries the tool call before it surfaces as a `ToolMessage` error in state |
+
+`on_failure="continue"` means: if `max_retries` is exhausted, the tool call returns whatever it has (or a failure message) rather than raising an exception. This keeps the coach loop alive on tool failures — the coach sees the failure result and can decide how to proceed rather than the graph dying.
+
+The fallback chain (§4.8) is distinct from both retry middlewares — it swaps the model on service-level failure, not on individual call failure.
+
+`ContradictionDetectionMiddleware` implements the §38 mid-phase contradiction
+check: deterministic dict comparison (no LLM call). Reads
+`CoachingResponse.fields_captured` from state after the executor runs,
+compares against store-held prior gate values for this phase. Any mismatch
+raises `HITLInterrupt`. Ratified as Mod A (2026-08-12). See M2.
+
+`CoherenceMiddleware` fires `after_agent` immediately before
+`DMAICGraderMiddleware`. Makes one LLM call (operational model, temp 0.1)
+to check whether the gate document is a real, conclusive statement — not
+parroting, not off-topic. On failure: Level 1 Silent retry (max 2).
+On third failure: degraded mode response. `DMAICGraderMiddleware` is skipped
+entirely when coherence fails — this is intentional, not an oversight;
+catching incoherence early avoids a wasteful grader call on a response that
+is already known to be inadequate. Ratified as Mod B (2026-08-12). See M3.
+
+**Hook execution note:** `ToolRetryMiddleware` fires on `wrap_tool_call` — a different
+hook from the `after_agent` middlewares at positions 6–8. Declaration order between
+middlewares on different hooks is irrelevant — they do not compete for the same slot.
+Position 5 is chosen for logical grouping alongside `ModelRetryMiddleware` (both are
+`wrap_*` hooks, both are retry mechanisms).
+
+Adding a new middleware or reordering this stack requires an amendment to B3.
 
 ---
 
@@ -703,6 +768,11 @@ has no `uploaded_at` field (upload timestamp buried in non-sortable
 `metadata` JSON blob). This is a schema change (ARCHITECTURE.md §7.7), not
 a tool change.
 
+**§37 cross-reference (2026-08-11):** §37 compliance audit (§37-C, Medium) found that §37's
+implementation note still describes `EnsembleRetriever` as deprecated. This is incorrect per
+the ratification in E1 above. The fix is a prose update to §37 at the next batch commit —
+no new decision, same conclusion as E1.
+
 ---
 
 ### E2 — `improve_case_index` vector field: `embedding` → `content_vector`
@@ -729,6 +799,11 @@ Filter `improve_knowledge_index` on `phase_relevance`. Cross-phase value is
 whole query) and not `'all'` (no document carries it, silently narrows corpus).
 
 218 documents carry `phase_relevance = 'general'`.
+
+**§37 cross-reference (2026-08-11):** §37 compliance audit confirmed this same bug as
+§37-A (Critical) in §37's implementation note for `rag_lookup_methodology`. The fix
+is identical: `f"phase_relevance eq '{phase}' or phase_relevance eq 'general'"`.
+No new decision — same fix, second confirmation. Tracked for batch commit to REFACTORING §37.
 
 ---
 
@@ -758,6 +833,11 @@ Same pattern applies to `rag_lookup_evidence` (filter: `case_id eq '...'`) and
 
 Closes §32 open question: "Confirm `azure_search_retriever` module-level exposure
 or adjust reference implementation." Answer: adjust — per-call constructor.
+
+**§37 cross-reference (2026-08-11):** §37 compliance audit confirmed this same bug as
+§37-B (High) in §37's implementation note for `rag_lookup_methodology`. The per-call
+constructor requirement applies identically to all three `rag_lookup_*` tools.
+No new decision — same fix, second confirmation. Tracked for batch commit to REFACTORING §37.
 
 ---
 
@@ -799,7 +879,7 @@ are BANNED.
 **Status:** LANDED — CLAUDE.md §8.1–§8.7, ARCHITECTURE.md §3.4  
 **Source:** status-79-84-2026-08-10.md; REFACTORING §80
 
-The five-middleware stack is built on the six `AgentMiddleware` hooks:
+The eight-middleware stack is built on the six `AgentMiddleware` hooks:
 `before_agent`, `after_agent`, `before_model`, `after_model`,
 `wrap_model_call`, `wrap_tool_call`. "Prefer built-in middleware wherever
 it exists."
@@ -841,6 +921,100 @@ See CLAUDE.md §4.6 for the full mapping.
 Five SKILL.md files under `agent-improve/skills/`, following the
 agentskills.io standard. On disk as `skills/dmaic-{phase}-phase/SKILL.md`.
 Filename restored in commit `fe21816`.
+
+---
+
+### F6 — §34: Hop cap via `RemainingSteps`, not `recursion_limit`
+
+**Status:** RATIFIED 2026-08-11  
+**Source:** REVIEW_DECISIONS.md §34 compliance audit; LangGraph Discussion #1260; deepagents Issue #1698
+
+Two separate mechanisms serve two separate purposes:
+
+**`RemainingSteps` — hop cap (business logic)**  
+LangGraph managed value readable inside the agent node at runtime. Initialise
+at the start of each executor turn; decrement each tool call. When `remaining_steps <= 2`,
+the agent node synthesises from what it has and returns a partial answer. The Belt
+always receives a composed response — never a hard crash.
+
+```python
+from langgraph.managed import RemainingSteps
+
+def agent_node(state: PhaseState) -> dict:
+    if state.get("remaining_steps", 10) <= 2:
+        return {"messages": [synthesise_partial(state)]}
+    return run_agent_step(state)
+```
+
+Survives subgraph boundary — it is in-graph state, not config propagation.
+
+**`recursion_limit` — infinite loop backstop (infrastructure safety)**  
+Set high on the supervisor invocation (e.g., 50). Catches genuine bugs
+and runaway loops. Does NOT control the per-turn hop budget.
+
+```python
+await supervisor.ainvoke(
+    state,
+    config={"recursion_limit": 50, "configurable": {"thread_id": case_id}},
+)
+```
+
+**Why `recursion_limit=11` alone does not work:**  
+In our hierarchy (supervisor → phase subgraph → executor), `recursion_limit`
+is either shared (supervisor and routing steps consume the budget before the
+executor starts — Discussion #1260) or not propagated at all (subgraph reverts
+to default 25 — deepagents Issue #1698). Neither reliably gives the executor
+exactly 5 hops.
+
+**§34-D model tiering deferred to §87 backlog (2026-08-11):** gpt-4o-mini intermediate /
+gpt-4o final synthesis requires RemainingSteps-gated model swap in a custom agent node.
+Deferred until LangSmith confirms repeated 5-hop cap hits on Analyse-phase turns.
+
+---
+
+### F7 — §71: Planned multi-hop architecture — three ratified decisions
+
+**Status:** RATIFIED 2026-08-11  
+**Source:** REVIEW_DECISIONS.md §71 compliance audit
+
+Three decisions ratified that are specific to the Analyse-phase planned multi-hop pipeline (§71):
+
+**F7a — `RemainingSteps` guard at planned multi-hop node entry**  
+The for-loop inside `analyse_executor_node` runs entirely within one LangGraph node invocation; `RemainingSteps` does not decrement per hop. The hop count is bounded at exactly 3 by the `Plan` schema (no runaway risk). A guard at node entry prevents the 3-hop sequence from starting when fewer than 2 steps remain:
+
+```python
+async def analyse_executor_node(state: PhaseState) -> dict:
+    if state.get("remaining_steps", 10) <= 2:
+        return {"messages": [synthesise_partial(state)]}
+    # ... planner → for-loop → synthesis
+```
+
+**F7b — `CoachingPlan` typed Pydantic schema (§71-C)**  
+`coaching_plan` on `PhaseState` must be produced via `with_structured_output(CoachingPlan)`, not a plain dict. Consistent with §82 ProviderStrategy typed-boundary discipline.
+
+```python
+class CoachingPlan(BaseModel):
+    next_action: str
+    retrieval_strategy: Literal["single_hop", "multi_hop"]
+    retrieval_hops: list[str]    # template strings; empty for single_hop
+    focus_field: str
+
+phase_planner = llm.with_structured_output(CoachingPlan)
+```
+
+**F7c — Synthesis is a dedicated step; three LLM calls per Analyse multi-hop turn (§71-D, Option B)**  
+Rationale: synthesis is a critical quality gate — assembling multi-hop evidence correctly before the coach translates it into coaching language. "A lean copilot the Belt can trust" requires careful synthesis, not brevity at the cost of quality.
+
+Three calls per Analyse multi-hop turn:
+1. Planner (0.1 temp) → `Plan` with hops + `synthesis_instruction`
+2. Synthesis (0.1–0.2 temp) → `SynthesisOutput` (evidence chain, key finding, confidence, caveats) — NOT Belt-facing
+3. Coach (0.5–0.7 temp) → coaching response delivered to Belt, reading from `synthesis_output` in PhaseState
+
+Each call has one job. Temperature tuning is independent per call. Each stage is unit-testable independently. `synthesis_output: Optional[dict]` added to PhaseState (see A2). If LangSmith shows high latency on multi-hop Analyse turns, this is the trigger for §34-D model tiering (§87 backlog).
+
+**`hop_results: list[str]` and `synthesis_output: Optional[dict]` in PhaseState (see A2):** Both stored in PhaseState for LangSmith inspectability and checkpoint recovery. Schema changes tracked in A2.
+
+**Open assumption — planned multi-hop scope (2026-08-11):** The planned multi-hop pipeline (for-loop, `hop_results`, synthesis LLM call) is implemented only in `analyse_executor_node`. Other phase executor nodes are standard ReAct. The assumption is that reactive tool calling is sufficient for non-Analyse turns. This is unverified — a Define Belt asking whether their problem statement is well-scoped against similar projects, or a Control Belt asking why Cpk remains borderline, could equally benefit from structured multi-hop + synthesis. `CoachingPlan.retrieval_strategy` is not restricted to Analyse; the planner can set `multi_hop` in any phase. Whether the planned pipeline should be extended to other phases is a question for LangSmith data: if non-Analyse turns show 3+ sequential tool calls with lower coaching quality than Analyse multi-hop turns, extend the mechanism. **To be validated during eval dataset phase (§75).**
 
 ---
 
@@ -903,7 +1077,7 @@ structurally.
 **Source:** STATE_DESIGN_RESOLUTION.md
 
 `create_react_agent` is superseded by `create_agent` from
-`langchain.agents`. Nothing may import it, nothing may import from
+`langchain.agents`. Nothing may import it, nothing may reference
 `langgraph.prebuilt`.
 
 ---
@@ -1060,6 +1234,17 @@ toolset gap (I1 above).
 
 | Amendment | Changed | Governance doc | Version |
 |---|---|---|---|
+| B3 amended: seven → eight middlewares (ToolRetryMiddleware added at position 5) | B3, F2 | DECISIONS.md | v1.4 — 2026-08-19 |
+| §22 Debate Agents deferred confirmed (no implementation in v2.1) | New Part N (N2) | DECISIONS.md | v1.4 — 2026-08-19 |
+| N1 §67 Geographic Redundancy / DORA compliance deferred to v2.2 | New Part N (N1) | DECISIONS.md | v1.4 — 2026-08-19 |
+| B3 amended: five → seven middlewares (ContradictionDetectionMiddleware + CoherenceMiddleware) | B3 | DECISIONS.md | v1.3 — 2026-08-12 |
+| M1 D69-x decisions confirmed closed | New Part M (M1) | DECISIONS.md | v1.3 — 2026-08-12 |
+| M2 §38 check → ContradictionDetectionMiddleware (Mod A ratified) | New Part M (M2) | DECISIONS.md | v1.3 — 2026-08-12 |
+| M3 CoherenceMiddleware replaces L2a in COACHING_QUALITY_RUBRIC (Mod B ratified) | New Part M (M3) | DECISIONS.md | v1.3 — 2026-08-12 |
+| D68-1 ratified: AzureChatOpenAI invoke requires message list not plain string | New Part L (L1) | DECISIONS.md | v1.2 — 2026-08-12 |
+| D09 diagram added: constraint validation + retry-with-accumulated-feedback | ARCHITECTURE_DIAGRAMS.html | docs | v1.2 — 2026-08-12 |
+| §37-D Procedural Memory taxonomy ratified (static v2.1 / dynamic v2.2+) | New Part K | DECISIONS.md | v1.1 — 2026-08-11 |
+| §37-A/§37-B cross-references added to E3/E4 | E3, E4, E1 notes | DECISIONS.md | v1.1 — 2026-08-11 |
 | Seven-step computation pattern (was six) | §8.2 `COACHING_QUALITY_RUBRIC` | CLAUDE.md | v2.2.14 |
 | Show-first coaching principle | §8.2 `COACHING_QUALITY_RUBRIC` | CLAUDE.md | v2.2.14 |
 | No external URLs rule | §8.2 `COACHING_QUALITY_RUBRIC` | CLAUDE.md | v2.2.14 |
@@ -1071,3 +1256,277 @@ toolset gap (I1 above).
 | State design (all 15 findings) | §10.1–§10.6 | CLAUDE.md | v2.2.9 |
 | Multi-query Option A | ARCHITECTURE.md §7.4 | — | **PENDING** |
 | `improve_case_index` `content_vector` rename | ARCHITECTURE.md §7.3 | — | **PENDING** |
+
+---
+
+## Part K — Memory Architecture
+
+### K1 — §37 memory taxonomy: four types confirmed, procedural type ratified (§37-D)
+
+**Status:** RATIFIED 2026-08-11 (§37-D)  
+**Source:** REVIEW_DECISIONS.md §37-D; LangMem Tier 1 (langchain-ai.github.io/langmem)
+
+§37 of REFACTORING_AGENT_IMPROVE.md documents four memory types for Agent Improve:
+Episodic, Semantic, Working, and Retrieval control. The §37 compliance audit (2026-08-11)
+added a fifth — Procedural — as a distinct LangMem Tier 1 category, with a two-level
+static/dynamic split ratified for Agent Improve:
+
+| Memory type | What it stores | Agent Improve implementation | Status |
+|---|---|---|---|
+| Episodic | Per-case history: coaching turns, decisions made, gate outcomes | `step_log`, `improve_case_index`, `SummarizationMiddleware` | v2.1 |
+| Semantic | Domain knowledge: DMAIC methodology, tools, templates | `improve_knowledge_index`, `rag_lookup_methodology` | v2.1 |
+| Working | In-flight turn state: `artifacts`, `hop_results`, `synthesis_output` | `PhaseState` fields | v2.1 |
+| Retrieval control | Which memory to query, when, how: planner decides strategy | `CoachingPlan.retrieval_strategy`, `rag_lookup_*` routing | v2.1 |
+| Procedural (static) | How to execute DMAIC coaching — invariant rules, methodology steps, gate criteria | System prompt (CLAUDE.md), SKILL.md files via `DMAICSkillsMiddleware`, phase rubrics via `DMAICGraderMiddleware`, anti-hallucination guards | **v2.1** |
+| Procedural (dynamic) | How to adapt coaching delivery — Belt-specific approaches, project-type emphasis, outcome-learned procedures | Per-Belt procedure store, updated via LangSmith trace analysis after gate outcomes | **v2.2+** |
+
+**Static vs dynamic — the distinction that matters:**
+
+Static procedural memory is the invariant DMAIC methodology — the same coaching
+rules for every Belt, every project, every domain. This is correct and intentional.
+The rules encoded in CLAUDE.md §8.2, the SKILL.md files loaded by
+`DMAICSkillsMiddleware`, and the rubric criteria in `DMAICGraderMiddleware` should
+NOT vary per Belt — that is the guarantee of methodology consistency.
+
+Dynamic procedural memory is Belt-adaptive coaching delivery. It tracks how this
+specific Belt learns best: how much scaffolding they need, whether worked examples
+or challenge questions land better, which project-type emphasis helps them most.
+It does not change the DMAIC methodology — it adapts how the methodology is delivered.
+
+**Mechanism (v2.2+):** Dynamic procedural memory is the implementation of §87
+backlog item 5, reframed from "LangSmith trace-based coaching learning":
+- LangSmith traces record gate outcomes and per-turn coaching patterns per Belt
+- After each gate: gate passed? How many turns? Which fields required retries?
+- A background process (outside the coaching loop) updates a per-Belt procedure
+  store with learned delivery adaptations
+- The next session for this Belt loads these learned procedures alongside the
+  static SKILL.md rules — extending, never overriding, the methodology
+
+**What this is NOT:** Dynamic procedural memory does not change DMAIC content
+requirements. A Black Belt still needs `vital_few_xs`. The coach might deliver
+the Analyse phase differently for a BB who has completed 10 projects, but the
+gate criteria are unchanged.
+
+**§37-C note (Medium finding, not a new decision):** The §37 compliance audit
+found that §37's implementation note still describes `EnsembleRetriever` as
+deprecated. The correct position is in E1 above — EnsembleRetriever is active
+but solves the wrong problem for our same-index multi-query pattern.
+A prose update to §37 is tracked for the next batch commit to REFACTORING.
+
+---
+
+## Part L — Validation Architecture (§48 / §68)
+
+### L1 — D68-1: AzureChatOpenAI invoke requires message list, not plain string
+
+**Status:** RATIFIED 2026-08-12  
+**Source:** §68 code review; confirmed against AzureChatOpenAI API (August 2026)
+
+`AzureChatOpenAI.invoke()` — including the `.with_structured_output()` variant —
+requires a messages list as its argument. Passing a plain string raises a
+validation error at runtime. This applies to every standalone LLM call: the
+L2c constraint checker, L2a coherence check, and all grader calls.
+
+**The bug in §68's `validate_constraints`:**
+```python
+# WRONG — plain string, raises ValidationError at runtime
+constraint_checker.invoke(
+    f"Check whether this {phase} phase decision addresses each constraint.\n\n..."
+)
+```
+
+**The fix — message tuple list:**
+```python
+# CORRECT — message tuple list
+@traceable
+def validate_constraints(decision: str, constraints: dict, phase: str) -> ConstraintCheckResult:
+    constraints_text = "\n".join(f"- {k}: {v}" for k, v in constraints.items())
+    return constraint_checker.invoke([
+        ("system", "You are a constraint validator for DMAIC decisions. "
+                   "Return a structured assessment of whether each constraint is addressed."),
+        ("human",
+         f"Phase: {phase}\n\n"
+         f"Decision to evaluate:\n{decision}\n\n"
+         f"Constraints to check:\n{constraints_text}\n\n"
+         "For each constraint, state whether it is addressed and cite evidence from the decision text.")
+    ])
+```
+
+**Three valid invocation forms** (all equivalent, all correct):
+1. List of message tuples: `[("system", "..."), ("human", "...")]` — preferred for inline calls
+2. List of message objects: `[SystemMessage(content="..."), HumanMessage(content="...")]`
+3. `ChatPromptTemplate` + chain: `chain.invoke({...})` — prefer when the same template is reused across multiple call sites
+
+For `validate_constraints` specifically, option 1 (message tuple list) is correct.
+`ChatPromptTemplate` adds indirection with no benefit for a single-site validation
+function. The three-prompt separation principle (generate / validate / correct as
+separate `.invoke()` calls) is satisfied by any of the three forms — the form
+choice does not affect the separation.
+
+**Applies to all standalone LLM calls in the validation stack:**
+- L2a coherence check — must use message list (now in `CoherenceMiddleware`, see M3)
+- L2c constraint check (`validate_constraints`) — must use message list
+- L2d grader (DMAICGraderMiddleware) — already implemented via middleware, not direct `.invoke()`; not affected
+
+**`@traceable` still required** on `validate_constraints` and other non-LangChain
+functions for LangSmith visibility. Confirmed current as of August 2026
+(docs.smith.langchain.com).
+
+---
+
+## Part M — Middleware Amendments (2026-08-12)
+
+### M1 — D69-x open decisions: all confirmed closed
+
+**Status:** CONFIRMED CLOSED 2026-08-12  
+**Source:** §69 ratification; B1/B2/B3/B6 existing decisions; this session
+
+Three decision points that were presented as open during §69 review are confirmed
+resolved by pre-existing ratifications:
+
+| Decision | Subject | Resolved by | Resolution |
+|---|---|---|---|
+| D69-1 | L2a coherence hook placement | B2 (two graders rule); now superseded by M3 | `CoherenceMiddleware` `after_agent` hook — not inside executor node, not in `DMAICGraderMiddleware` |
+| D69-2 | `validate_constraints` as mid-conversation universal tool | B6 (seven universal tools, `validate_constraints` not on list); §69 ratification (Level 2 = coaching dialogue) | Stays as `validation_stack` layer. Not a universal tool. |
+| D69-3 | §38 contradiction check placement | §38 ratification; now superseded by M2 | `ContradictionDetectionMiddleware` `after_agent` hook — not inside executor node |
+
+No new decisions required. These were implementation clarity gaps, not open
+architectural choices.
+
+---
+
+### M2 — §38 contradiction check: moved to `ContradictionDetectionMiddleware` (Mod A)
+
+**Status:** RATIFIED 2026-08-12  
+**Source:** §38 ratification (existing); Mod A placement decision (this session)
+
+The §38 mid-phase contradiction check is implemented as a dedicated
+`ContradictionDetectionMiddleware` (`after_agent` hook), not embedded inside
+the executor node.
+
+**What it does:** After the executor runs each turn, reads
+`CoachingResponse.fields_captured` from state and compares each captured field
+against store-held prior gate values for the current phase. Any value change
+on an already-approved field raises `HITLInterrupt`.
+
+**Why middleware, not executor node:** The check is architecturally separate
+from coaching — it reads the executor's output and polices it against approved
+state. Putting it in the middleware stack gives it a named, LangSmith-visible
+step and keeps the executor node responsible only for coaching.
+
+**Implementation shape:**
+
+```python
+class ContradictionDetectionMiddleware(AgentMiddleware):
+    def after_agent(self, state, runtime):
+        fields_captured = state.get("structured_response", {}).fields_captured
+        for field in fields_captured:
+            prior = store.get(
+                ("projects", state["case_id"], "artifacts"),
+                state["current_phase"]
+            )
+            if prior and field["field_name"] in prior:
+                if prior[field["field_name"]] != field["value"]:
+                    raise HITLInterrupt(
+                        field=field["field_name"],
+                        approved_value=prior[field["field_name"]],
+                        proposed_value=field["value"]
+                    )
+```
+
+**No LLM call.** Deterministic dict comparison only. The §38 "no tolerance
+threshold" rule (G7) applies — any mismatch interrupts regardless of magnitude.
+
+Position in stack: sixth (after `ToolRetryMiddleware`, before `CoherenceMiddleware`).
+
+---
+
+### M3 — L2a coherence check: moved to `CoherenceMiddleware` (Mod B)
+
+**Status:** RATIFIED 2026-08-12  
+**Source:** §69/§38 review; Mod B decision (this session)
+
+The L2a coherence criterion is removed from `COACHING_QUALITY_RUBRIC` and
+implemented as a dedicated `CoherenceMiddleware` (`after_agent` hook) that fires
+immediately before `DMAICGraderMiddleware`.
+
+**What it checks (LLM call, operational model, temp 0.1):** Is the gate document
+a real, conclusive statement? Is it parroting the Belt's own words back? Is it
+on-topic for the current phase?
+
+**Retry behaviour:**
+- FAIL → Level 1 Silent retry. Belt never sees the failed response.
+- Max 2 retries.
+- Third failure → degraded mode: `"I'm experiencing a temporary connection issue. {n} fields captured so far — let's continue once I reconnect."`
+
+**`DMAICGraderMiddleware` skip on coherence failure:** If `CoherenceMiddleware`
+fails and triggers degraded mode, `DMAICGraderMiddleware` does not run. This is
+intentional — grading an incoherent response would waste a model call and produce
+meaningless scores. Catching the quality failure at the coherence gate is faster
+and cheaper.
+
+**`COACHING_QUALITY_RUBRIC` change:** L2a coherence criterion is removed. The rubric
+now covers process quality only: seven-step computation pattern, show-first
+principle, no external URLs, citations present. Any reference to "coherence" as
+a `DMAICGraderMiddleware` criterion is stale (see also B2).
+
+**Retry cap independence:** `CoherenceMiddleware` has its own 2-retry cap on
+response quality. `ModelRetryMiddleware` has a separate 2-retry cap on API-level
+transient failure. They are independent and do not share a counter.
+
+Position in stack: seventh (after `ContradictionDetectionMiddleware`, before
+`DMAICGraderMiddleware`).
+
+---
+
+## Part N — Deferred Features (2026-08-19)
+
+### N1 — §67 Geographic Redundancy: DORA / EU AI Act compliance (deferred to v2.2)
+
+**Status:** DEFERRED to §87 backlog item 14 — v2.2 pre-production  
+**Date:** 2026-08-19  
+**Source:** User decision this session; DORA ICT resilience requirements; EU AI Act data governance
+
+**Finding:** The ratified §67 four-level fallback chain has a single-region dependency. Levels 1–3 (gpt-4o, gpt-4o-mini, Redis Cache) are all provisioned in Azure West Europe (Frankfurt). A Frankfurt regional outage collapses all three active levels simultaneously, leaving only Level 4 degraded mode. This is non-compliant with DORA's ICT resilience obligation to maintain continuity of critical functions via geographic redundancy.
+
+**The v2.1 fallback chain is unchanged.** The four-level chain remains the v2.1 implementation target:
+
+```
+Level 1: gpt-4o (Frankfurt) → Level 2: gpt-4o-mini (Frankfurt) → Level 3: Redis Cache → Level 4: Degraded mode
+```
+
+**Ratified v2.2 replacement — five-level geographically redundant chain:**
+
+```
+Level 1: Azure OpenAI gpt-4o        — West Europe (Frankfurt) — primary
+Level 2: Azure OpenAI gpt-4o        — secondary EU region (TBD — Sweden Central candidate)
+Level 3: Azure OpenAI gpt-4o-mini   — secondary EU region
+Level 4: Azure Redis Cache           — session-scoped response cache
+Level 5: Degraded mode               — always succeeds, never crashes
+```
+
+**Open decision for v2.2:** secondary region. Sweden Central is the candidate (EU data residency, low latency from Frankfurt, Azure OpenAI available). Requires Azure OpenAI quota provisioned in that region under the same subscription — connection string swap only, no model change.
+
+**Note on TPM vs regional outage:** TPM (Tokens Per Minute) rate-limit exhaustion is handled correctly in v2.1 — a 429 at Level 1 is classified transient, exponential backoff fires, chain activates. The geographic redundancy amendment handles the separate case where Frankfurt is unreachable (regional outage) or the TPM backoff exhaustion propagates to Level 2 before recovering.
+
+**§87 backlog item 14:**
+
+| # | Source | Deferred capability | Why deferred | Promotion trigger |
+|---|---|---|---|---|
+| 14 | §67 / DORA | Geographic redundancy — secondary Azure OpenAI deployment in second EU region | Infrastructure provisioning decision deferred until base refactor stable; not a v2.1 blocker | Before production launch with real Belts — DORA compliance requires this before any regulated-entity deployment |
+
+---
+
+### N2 — §22 Debate Agents and Consensus Voting: deferred to post-v2.1
+
+**Status:** DEFERRED — no implementation in v2.1  
+**Date:** 2026-08-19 (confirmed)  
+**Source:** User decision this session; §22 preliminary scoping only
+
+**Decision:** §22 (adversarial debate pattern — advocate + skeptic + judge, Analyse phase only) will not be implemented in v2.1. The refactoring must stabilise the base coaching loop and the Analyse node must be tested in production before deciding whether to add this feature.
+
+**Promotion trigger:** base coaching loop stable + Analyse phase tested in production → evaluate whether debate agents add measurable value.
+
+**§47 Opinion Aggregation is blocked behind §22.** Also deferred; cannot be ratified until §22 is implemented and validated.
+
+**Status at deferral:** §22 had preliminary scoping only in REVIEW_DECISIONS.md — no full review had been completed prior to this deferral decision.
