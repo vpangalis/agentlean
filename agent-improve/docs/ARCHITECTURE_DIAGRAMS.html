@@ -1,0 +1,1827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Agent Improve — Architecture Diagrams v2.2</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f8f9fa;
+  color: #1a1a2e;
+  padding: 0;
+}
+
+/* ── PAGE HEADER ── */
+.page-header {
+  background: #1a1a2e;
+  color: #e2e8f0;
+  padding: 28px 48px 24px;
+  border-bottom: 3px solid #2563eb;
+}
+.page-header h1 { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+.page-header .subtitle { font-size: 13px; color: #94a3b8; }
+.page-header .refs { font-size: 11px; color: #64748b; margin-top: 6px; }
+.page-header .refs span { margin-right: 14px; }
+
+/* ── TOC ── */
+.toc {
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 20px 48px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+}
+.toc a {
+  font-size: 12px;
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid #bfdbfe;
+  white-space: nowrap;
+}
+.toc a:hover { background: #eff6ff; }
+
+/* ── MAIN LAYOUT ── */
+main { max-width: 1400px; margin: 0 auto; padding: 40px 48px 80px; }
+
+/* ── DIAGRAM SECTION ── */
+.diagram-section {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 48px;
+  overflow: hidden;
+}
+.diagram-header {
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 16px 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.diagram-id {
+  background: #1a1a2e;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.diagram-header-text h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 3px;
+}
+.diagram-header-text p {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+}
+.diagram-body { padding: 28px; }
+.diagram-body .mermaid { display: flex; justify-content: center; }
+
+/* ── CALLOUT ── */
+.callout {
+  background: #f8faff;
+  border-left: 3px solid #2563eb;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #475569;
+  margin-top: 20px;
+  border-radius: 0 6px 6px 0;
+  line-height: 1.6;
+}
+.callout strong { color: #1e293b; }
+
+/* ── RULER ── */
+.ruler {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 20px 0;
+}
+
+/* ───────────────────────────────────────────────
+   D06: RUNTIME TIMELINE — hand-crafted HTML
+   (Mermaid sequence diagrams have rendering issues;
+    this is more reliable and more readable)
+─────────────────────────────────────────────── */
+.timeline { font-size: 13px; }
+
+.tl-phase {
+  margin-bottom: 8px;
+}
+.tl-phase-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 4px 4px 0 0;
+  display: inline-block;
+  margin-bottom: 0;
+}
+.tl-phase-body {
+  border-radius: 0 6px 6px 6px;
+  overflow: hidden;
+  border: 1px solid transparent;
+}
+
+/* Phase colour themes */
+.phase-routing .tl-phase-label { background: #1d4ed8; }
+.phase-routing .tl-phase-body  { border-color: #bfdbfe; background: #eff6ff; }
+
+.phase-retrieval .tl-phase-label { background: #0f766e; }
+.phase-retrieval .tl-phase-body  { border-color: #99f6e4; background: #f0fdfa; }
+
+.phase-generation .tl-phase-label { background: #7c3aed; }
+.phase-generation .tl-phase-body  { border-color: #ddd6fe; background: #faf5ff; }
+
+.phase-validation .tl-phase-label { background: #b45309; }
+.phase-validation .tl-phase-body  { border-color: #fde68a; background: #fffbeb; }
+
+.phase-gate .tl-phase-label { background: #15803d; }
+.phase-gate .tl-phase-body  { border-color: #bbf7d0; background: #f0fdf4; }
+
+.phase-failure .tl-phase-label { background: #dc2626; }
+.phase-failure .tl-phase-body  { border-color: #fecaca; background: #fff5f5; }
+
+.tl-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.tl-step:last-child { border-bottom: none; }
+
+.tl-step-num {
+  min-width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #1a1a2e;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.tl-step-body { flex: 1; }
+.tl-step-title {
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 2px;
+  line-height: 1.4;
+}
+.tl-step-detail {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+.tl-actors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+.actor-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.02em;
+}
+.actor-belt     { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+.actor-sup      { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+.actor-planner  { background: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe; }
+.actor-exec     { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.actor-tools    { background: #e0f2fe; color: #0c4a6e; border: 1px solid #7dd3fc; }
+.actor-gate     { background: #fef9c3; color: #713f12; border: 1px solid #fde047; }
+.actor-review   { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.actor-int      { background: #d1fae5; color: #064e3b; border: 1px solid #6ee7b7; }
+
+.tl-branch {
+  margin: 0 16px 0 56px;
+  border-left: 2px dashed #cbd5e1;
+  padding-left: 14px;
+}
+.tl-branch-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 2px 8px;
+  border-radius: 3px;
+  display: inline-block;
+  margin: 4px 0 4px;
+}
+.branch-fail { background: #fee2e2; color: #991b1b; }
+.branch-pass { background: #d1fae5; color: #064e3b; }
+.branch-alt  { background: #e0e7ff; color: #3730a3; }
+
+.tl-branch-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.tl-branch-step:last-child { border-bottom: none; }
+.tl-branch-step-icon {
+  min-width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+  background: #64748b;
+}
+.icon-fail  { background: #dc2626; }
+.icon-pass  { background: #16a34a; }
+.icon-note  { background: #7c3aed; }
+.tl-branch-step-text { font-size: 12px; color: #475569; line-height: 1.5; }
+.tl-branch-step-text strong { color: #1e293b; }
+
+/* ── D07: SUPERVISOR STATE ── */
+.state-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+.state-box {
+  background: #f8faff;
+  border: 2px solid #c7d2fe;
+  border-radius: 10px;
+  padding: 16px;
+}
+.state-box-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e40af;
+  margin-bottom: 12px;
+  text-align: center;
+}
+.state-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.state-row:last-child { margin-bottom: 0; }
+.state-row.passed   { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+.state-row.current  { background: #fef9c3; color: #92400e; border: 2px solid #f59e0b; }
+.state-row.pending  { background: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0; }
+.state-flag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.flag-true  { background: #dcfce7; color: #166534; }
+.flag-false { background: #fee2e2; color: #991b1b; }
+.flag-current { background: #fef3c7; color: #92400e; }
+
+.routing-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+.routing-node {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 12px;
+  color: #334155;
+}
+.routing-node.highlight-green {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+.routing-node.highlight-amber {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+.routing-node strong { display: block; font-size: 13px; margin-bottom: 2px; color: #0f172a; }
+.routing-arrow { text-align: center; color: #94a3b8; font-size: 16px; margin: -4px 0; }
+
+.cascade-box {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 8px;
+  padding: 16px;
+}
+.cascade-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #9a3412;
+  margin-bottom: 10px;
+}
+.cascade-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.c-phase {
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 11px;
+}
+.c-true  { background: #dcfce7; color: #166534; }
+.c-false { background: #fee2e2; color: #991b1b; }
+.cascade-arrow { color: #94a3b8; }
+.cascade-note { font-size: 11px; color: #64748b; margin-top: 8px; line-height: 1.5; }
+
+/* ── D08: RETRIEVAL MODES ── */
+.retrieval-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.retrieval-panel {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+.retrieval-header {
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+.panel-single .retrieval-header { background: #dbeafe; color: #1e40af; }
+.panel-multi  .retrieval-header { background: #ede9fe; color: #5b21b6; }
+.panel-single { background: #f8fbff; }
+.panel-multi  { background: #faf8ff; }
+.retrieval-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  font-size: 12px;
+}
+.retrieval-step:last-child { border-bottom: none; }
+.rs-num {
+  min-width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+}
+.panel-single .rs-num { background: #2563eb; }
+.panel-multi  .rs-num { background: #7c3aed; }
+.rs-text { color: #334155; line-height: 1.5; }
+.rs-text strong { color: #1e293b; display: block; }
+.rs-text .aside { font-size: 11px; color: #94a3b8; }
+.retrieval-note {
+  padding: 10px 14px;
+  font-size: 11px;
+  color: #64748b;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  background: rgba(0,0,0,0.02);
+  line-height: 1.5;
+}
+
+/* ── D09: CONSTRAINT VALIDATION & RETRY LOOP ── */
+.d09-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: start;
+}
+.d09-col { display: flex; flex-direction: column; gap: 16px; }
+
+.d09-layer {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  font-size: 12px;
+}
+.d09-layer-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  font-weight: 700;
+  font-size: 12px;
+}
+.d09-layer-body {
+  padding: 10px 14px;
+  color: #475569;
+  line-height: 1.6;
+  background: #fafafa;
+}
+.d09-layer-body code {
+  font-family: 'SF Mono', 'Cascadia Code', monospace;
+  font-size: 11px;
+  background: #f1f5f9;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #1e293b;
+}
+
+/* Layer colour themes */
+.layer-l2a .d09-layer-header { background: #dbeafe; color: #1e40af; border-bottom: 1px solid #bfdbfe; }
+.layer-l2a { border-color: #bfdbfe; }
+.layer-l2b .d09-layer-header { background: #dcfce7; color: #166534; border-bottom: 1px solid #86efac; }
+.layer-l2b { border-color: #86efac; }
+.layer-l2c .d09-layer-header { background: #fef3c7; color: #92400e; border-bottom: 1px solid #fde68a; }
+.layer-l2c { border-color: #fde68a; }
+.layer-l2d .d09-layer-header { background: #ede9fe; color: #5b21b6; border-bottom: 1px solid #ddd6fe; }
+.layer-l2d { border-color: #ddd6fe; }
+
+.d09-label-pill {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: auto;
+}
+.pill-llm  { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+.pill-det  { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.pill-mw   { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; }
+
+.d09-verdict-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.verdict-pass { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
+.verdict-fail { background: #fff5f5; border: 1px solid #fca5a5; color: #991b1b; }
+.verdict-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+.verdict-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+.verdict-text strong { display: block; font-size: 11px; }
+
+/* Retry loop column */
+.d09-retry-box {
+  border: 2px solid #cbd5e1;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.d09-retry-header {
+  background: #1a1a2e;
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 10px 16px;
+  letter-spacing: 0.05em;
+}
+.d09-retry-body { padding: 14px 16px; }
+
+.d09-attempt {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.d09-attempt:last-child { margin-bottom: 0; }
+.d09-attempt-header {
+  background: #f8faff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.attempt-num {
+  background: #1a1a2e;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.d09-attempt-body { padding: 8px 12px; font-size: 12px; color: #475569; line-height: 1.6; }
+.d09-attempt-body code {
+  font-family: 'SF Mono', 'Cascadia Code', monospace;
+  font-size: 11px;
+  background: #f1f5f9;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #1e293b;
+}
+
+.d09-feedback-list {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #9a3412;
+}
+.d09-feedback-list .fb-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 2px 0;
+}
+.fb-layer-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.fb-l2a { background: #dbeafe; color: #1e40af; }
+.fb-l2c { background: #fef3c7; color: #92400e; }
+.fb-l2d { background: #ede9fe; color: #5b21b6; }
+
+.d09-escalate-box {
+  background: #fff5f5;
+  border: 2px solid #fca5a5;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 12px;
+  color: #7f1d1d;
+  line-height: 1.6;
+}
+.d09-escalate-box strong { display: block; font-size: 13px; color: #991b1b; margin-bottom: 4px; }
+
+.d09-pass-box {
+  background: #f0fdf4;
+  border: 2px solid #86efac;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 12px;
+  color: #14532d;
+  line-height: 1.6;
+}
+.d09-pass-box strong { display: block; font-size: 13px; color: #166534; margin-bottom: 4px; }
+
+.d09-arrow {
+  text-align: center;
+  font-size: 18px;
+  color: #94a3b8;
+  margin: 4px 0;
+}
+.d09-cap-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 11px;
+  color: #92400e;
+  font-weight: 600;
+  margin-bottom: 10px;
+  width: 100%;
+  justify-content: center;
+}
+</style>
+</head>
+<body>
+
+<!-- ══════ PAGE HEADER ══════ -->
+<div class="page-header">
+  <h1>Agent Improve — Architecture Diagrams</h1>
+  <div class="subtitle">Visual reference — the counterpart to REFACTORING_AGENT_IMPROVE.md</div>
+  <div class="refs">
+    <span>v2.2 · 2026-08-12</span>
+    <span>ARCHITECTURE.md v2.2.15</span>
+    <span>CLAUDE.md v2.2.14</span>
+    <span>LangGraph 1.2.10+</span>
+    <span>Azure OpenAI · Azure AI Search</span>
+  </div>
+</div>
+
+<!-- ══════ TOC ══════ -->
+<div class="toc">
+  <a href="#d01">D01 System Overview</a>
+  <a href="#d02">D02 Phase Subgraph</a>
+  <a href="#d03">D03 Coach Node Internals</a>
+  <a href="#d04">D04 Agent Roles</a>
+  <a href="#d05">D05 Validation Stack — Conceptual</a>
+  <a href="#d06">D06 Validation Stack — Runtime Timeline</a>
+  <a href="#d07">D07 Supervisor State &amp; Gate Flags</a>
+  <a href="#d08">D08 Single-hop vs Multi-hop Retrieval</a>
+  <a href="#d09">D09 Constraint Validation &amp; Retry Loop</a>
+</div>
+
+<main>
+
+<!-- ══════════════════════════════════════════════════════════
+     D01 — SYSTEM OVERVIEW
+══════════════════════════════════════════════════════════ -->
+<div class="diagram-section" id="d01">
+  <div class="diagram-header">
+    <div class="diagram-id">D01</div>
+    <div class="diagram-header-text">
+      <h2>System Overview — Main Graph, Persistence, and Indexes</h2>
+      <p>The single compiled runtime. One thread_id per project. Five DMAIC subgraphs embedded as nodes. Persistence is two distinct primitives (checkpoint saver + artifact store). Three Azure AI Search indexes — one retrieval tool bound to each. Refs: §5, §11, §17, §52, §37-A.</p>
+    </div>
+  </div>
+  <div class="diagram-body">
+    <div class="mermaid">
+flowchart TD
+    ENTRY(["START"]) --> ROUTER
+
+    subgraph PARENT["supervisor_graph — the only compiled runtime — one thread_id = project_id"]
+        direction TB
+        ROUTER["supervisor router<br>global_planner + global_executor<br>deterministic gate-check on gate_passed<br>NO LLM — static edges only"]
+        SGD["define_subgraph"]
+        SGM["measure_subgraph"]
+        SGA["analyse_subgraph"]
+        SGI["improve_subgraph"]
+        SGC["control_subgraph"]
+        SGE["escalation_subgraph"]
+
+        ROUTER ==>|static edge| SGD
+        SGD ==>|static edge| SGM
+        SGM ==>|static edge| SGA
+        SGA ==>|static edge| SGI
+        SGI ==>|static edge| SGC
+
+        SGD -.->|"conditional edge: 3 validation attempts exhausted, or request_human_approval"| SGE
+        SGM -.-> SGE
+        SGA -.-> SGE
+        SGI -.-> SGE
+        SGC -.-> SGE
+    end
+
+    SGC ==> DONE(["END"])
+
+    subgraph PERSIST["Persistence — two distinct primitives, parent graph ONLY"]
+        direction TB
+        CKPT["AzureBlobCheckpointSaver — implements BaseCheckpointSaver<br>in-flight graph state, thread-scoped<br>checkpoints / project_id / latest.json + history<br>gate_attempts lives here, never in route scope"]
+        STORE["AzureBlobStore — implements BaseStore<br>cross-phase artifacts and gate documents<br>namespace: projects / project_id / kind<br>the ONLY cross-phase data path — never parent state"]
+    end
+
+    subgraph IDX["Azure AI Search — three indexes, one retrieval tool bound to each"]
+        direction TB
+        IK["improve_knowledge_index<br>LSS Black Belt eBook, static corpus<br>vector field: content_vector<br>filter: phase_relevance eq phase or general"]
+        IE["improve_evidence_index<br>Belt-uploaded documents, per case<br>vector field: content_vector · filter: case_id<br>THE ONLY channel for external real-world data"]
+        IC["improve_case_index<br>completed case records — yokoten<br>vector field: embedding<br>filter: status · order: created_at desc"]
+    end
+
+    PARENT -.->|"state saved after every node"| CKPT
+    PARENT -.->|"artifacts written at gate approval, read by the next phase"| STORE
+
+    PARENT -.->|"rag_lookup_methodology"| IK
+    PARENT -.->|"rag_lookup_evidence"| IE
+    PARENT -.->|"rag_lookup_case_history"| IC
+
+    classDef router fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,color:#000
+    classDef sub fill:#f1f8e9,stroke:#558b2f,stroke-width:2px,color:#000
+    classDef esc fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#000
+    classDef store fill:#ede7f6,stroke:#4527a0,stroke-width:2px,color:#000
+    classDef index fill:#fce4ec,stroke:#ad1457,stroke-width:2px,color:#000
+    classDef terminal fill:#eceff1,stroke:#455a64,stroke-width:2px,color:#000
+
+    class ROUTER router
+    class SGD,SGM,SGA,SGI,SGC sub
+    class SGE esc
+    class CKPT,STORE store
+    class IK,IE,IC index
+    class ENTRY,DONE terminal
+    </div>
+
+    <div class="callout">
+      <strong>Key constraints:</strong>
+      The supervisor router contains NO LLM. It reads <code>gate_passed</code> flags and follows static edges — it is a traffic light, not a reasoner.
+      Cross-phase data NEVER flows through SupervisorState; it flows through AzureBlobStore.
+      Each subgraph has its own auto-managed <code>checkpoint_ns</code>; the parent graph sees only structured output at subgraph exit.
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     D02 — PHASE SUBGRAPH
+══════════════════════════════════════════════════════════ -->
+<div class="diagram-section" id="d02">
+  <div class="diagram-header">
+    <div class="diagram-id">D02</div>
+    <div class="diagram-header-text">
+      <h2>DMAIC Phase Subgraph — Internal Node Structure</h2>
+      <p>Five nodes inside every phase subgraph. The planner fires on every coaching cycle, not just once. Two cycles: planner ↔ executor (field-by-field coaching), executor ↔ validation (revision loop). Belt interrupt fires at gate_review, not at validation. Checkpoint commits only at gate_apply. Refs: §17, §18, §20, §23, §48, §68.</p>
+    </div>
+  </div>
+  <div class="diagram-body">
+    <div class="mermaid">
+flowchart TD
+    IN(["subgraph entry — input mapper reads the prior phase's artifacts from the store, typed"])
+    IN --> P
+
+    P["phase_planner — NODE<br>LLM call, structured output, NO tools bound<br>decides focus_field, next_action,<br>retrieval_strategy, tools_needed"]
+
+    X["phase_executor — NODE — the coach<br>built with create_agent, see D03<br>TimeoutPolicy run_timeout=45s<br>error_handler=phase_error_recovery"]
+
+    V["four-layer validation stack<br>2a coherence LLM · 2b field presence DETERMINISTIC<br>2c constraint LLM · 2d rubric grader middleware<br>cheapest first, each fires only if the previous passes<br>iteration cap of 3 SHARED across all four layers"]
+
+    GR["gate_review_node — NODE<br>calls interrupt() — EXECUTION STOPS HERE<br>Belt sees the validated fields, edits, approves<br>no checkpoint has been committed yet"]
+
+    GA["gate_apply_node — NODE<br>applies the Belt's corrections<br>runs the policy advisory — non-blocking<br>CHECKPOINT COMMITS ONLY HERE"]
+
+    ESC["escalation_subgraph"]
+    OUT(["subgraph exit — output mapper writes artifacts to the store,<br>returns only orchestration values to the parent"])
+
+    TOOLS["leaf tools — NOT nodes<br>invoked by the LLM from inside the executor,<br>at runtime. See D03."]
+
+    P ==>|"structured plan"| X
+    X -.->|"CYCLE 1 — field captured, more fields remain in this phase"| P
+    P -.->|"conditional edge: all required fields captured, attempt the gate"| V
+    V -.->|"CYCLE 2 — any layer fails: revise, with accumulated per-layer feedback"| X
+    V ==>|"all four layers pass"| GR
+    GR ==>|"Command resume — the Belt's response"| GA
+    GA -.->|"conditional edge: Belt's edits reopen work in this phase"| P
+    GA ==>|"gate approved"| OUT
+    V -.->|"conditional edge: 3 attempts exhausted"| ESC
+
+    X -.- TOOLS
+
+    classDef planner fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000
+    classDef exec fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px,color:#000
+    classDef valid fill:#fff9c4,stroke:#f9a825,stroke-width:2px,color:#000
+    classDef hitl fill:#ffe0b2,stroke:#e65100,stroke-width:3px,color:#000
+    classDef plain fill:#eceff1,stroke:#455a64,stroke-width:2px,color:#000
+    classDef note fill:#fafafa,stroke:#9e9e9e,stroke-width:1px,stroke-dasharray: 4 4,color:#000
+
+    class P planner
+    class X exec
+    class V valid
+    class GR hitl
+    class GA,ESC plain
+    class IN,OUT plain
+    class TOOLS note
+    </div>
+
+    <div class="callout">
+      <strong>Two cycles, not a pipeline:</strong>
+      Cycle 1 (Planner ↔ Executor) runs field by field — the planner fires after every executor step to decide whether to continue, move to the next field, or trigger the gate.
+      Cycle 2 (Executor ↔ Validation) runs on validation failure — up to 3 shared attempts across all four layers.
+      The Belt Interrupt fires only after all four layers pass. Checkpoint is committed only after Belt approval.
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     D03 — COACH NODE INTERNALS
+══════════════════════════════════════════════════════════ -->
+<div class="diagram-section" id="d03">
+  <div class="diagram-header">
+    <div class="diagram-id">D03</div>
+    <div class="diagram-header-text">
+      <h2>Phase Executor / Coach Node — Middleware Stack and Tool Tiers</h2>
+      <p>The executor is the only true agent in the system (LLM + bound tools + tool-selection loop). Four middleware layers wrap it. Tools are split into two tiers: 8 universal tools in every phase, 18 computation tools phase-specific, max 16 bound per phase. Refs: §32, §33, §34, §37, §71-D.</p>
+    </div>
+  </div>
+  <div class="diagram-body">
+    <div class="mermaid">
+flowchart TB
+    PLAN(["coaching_plan from phase_planner"]) --> MW1
+
+    subgraph AGENT["phase_executor — built with create_agent — ONE node to the subgraph"]
+        direction TB
+
+        MW1["1 · BeforeModelStateInjection — CUSTOM<br>hook: before_model<br>prepends captured fields, phase requirements,<br>missing fields, key_decisions, open_items<br>at the TOP of the prompt, ahead of the conversation"]
+
+        MW2["2 · DMAICSkillsMiddleware — CUSTOM<br>progressive disclosure, three levels<br>L1 descriptions under 2K tokens for all five phases<br>L2 full phase SKILL.md via the load_skill tool<br>allowed-tools must match this phase's tool subset"]
+
+        MW3["3 · SummarizationMiddleware — LANGCHAIN CORE, as shipped<br>trigger 100k tokens · keep last 20 messages raw<br>model: operational-model, gpt-4o-mini for cost<br>compresses CONVERSATION — facts live in typed state"]
+
+        LOOP["model + tool-calling loop<br>get_llm coach · temperature 0.5-0.7<br>response_format=ProviderStrategy PhaseOutput<br>recursion_limit=11 — max 5 tool calls per Belt turn"]
+
+        MW4["4 · DMAICGraderMiddleware — CUSTOM<br>hook: after_agent · grader role · temperature 0.1<br>per-criterion verdicts, not one overall verdict<br>max_iterations=3, on_evaluation writes to step_log<br>THE BELT NEVER SEES THIS LOOP"]
+
+        MW1 --> MW2 --> MW3 --> LOOP
+        LOOP --> MW4
+    end
+
+    subgraph UNI["tools tier 1 — the universal eight, bound to EVERY phase executor"]
+        direction TB
+        U1["record_field — extraction is a tool call, not a node"]
+        U2["rag_lookup_methodology → improve_knowledge_index"]
+        U3["rag_lookup_evidence → improve_evidence_index"]
+        U4["rag_lookup_case_history → improve_case_index"]
+        U5["propose_template"]
+        U6["propose_diagram — structured JSON, not SVG"]
+        U7["check_gate_status"]
+        U8["request_human_approval"]
+    end
+
+    subgraph COMP["tools tier 2 — computation, 18 total, PURE FUNCTIONS, no LLM, unit-tested"]
+        direction TB
+        C1["Define · +1 → 9 tools<br>calculate_expected_savings"]
+        C2["Measure · +8 → 16 tools<br>sigma_level, cpk, dpmo, yield_rty, ftq,<br>grr, sample_size_proportion, sample_size_mean"]
+        C3["Analyse · +5 → 13 tools<br>t_test, chi_square_test, anova,<br>pearson_correlation, linear_regression"]
+        C4["Improve · +1 → 9 tools<br>calculate_doe_main_effects"]
+        C5["Control · +4 → 12 tools<br>xbar_r_chart_limits, p_chart_limits,<br>c_chart_limits, post_improvement_cpk"]
+    end
+
+    LOOP <==>|"the LLM decides which tool to call — the graph never decides"| UNI
+    LOOP <==>|"ONLY this phase's subset is bound — no phase exceeds 16 tools"| COMP
+
+    UNI ~~~ COMP
+
+    MW4 --> OUT(["typed PhaseOutput + step_log entries → four-layer validation stack (D05)"])
+
+    classDef custom fill:#e1bee7,stroke:#6a1b9a,stroke-width:2px,color:#000
+    classDef core fill:#b3e5fc,stroke:#0277bd,stroke-width:2px,color:#000
+    classDef loop fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px,color:#000
+    classDef tool fill:#fff9c4,stroke:#f9a825,stroke-width:1px,color:#000
+    classDef terminal fill:#eceff1,stroke:#455a64,stroke-width:2px,color:#000
+
+    class MW1,MW2,MW4 custom
+    class MW3 core
+    class LOOP loop
+    class U1,U2,U3,U4,U5,U6,U7,U8 tool
+    class C1,C2,C3,C4,C5 tool
+    class PLAN,OUT terminal
+    </div>
+
+    <div class="callout">
+      <strong>Middleware order matters:</strong> BeforeModelStateInjection runs before the LLM sees the conversation, so the phase state is always at the top of context.
+      DMAICGraderMiddleware (MW4) runs after the LLM responds but before the output leaves the executor — the Belt never sees it.
+      SummarizationMiddleware compresses conversation history only; structured fields live in typed state and are never compressed.
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     D04 — AGENT ROLES CLARIFICATION
+══════════════════════════════════════════════════════════ -->
+<div class="diagram-section" id="d04">
+  <div class="diagram-header">
+    <div class="diagram-id">D04</div>
+    <div class="diagram-header-text">
+      <h2>Agent vs Not-Agent — Role Labels Mapped to Code</h2>
+      <p>Only ONE box in the entire system is a true agent (LLM + bound tools + decision loop). Everything else is a router, a function, an interrupt point, or a role label. This matters because "agent" implies tool-selection capability — only the phase_executor has that. Refs: Terminology reference section, §5, §11, §23.</p>
+    </div>
+  </div>
+  <div class="diagram-body">
+    <div class="mermaid">
+flowchart TB
+    subgraph LV1["LEVEL 1 — supervisor"]
+        S["supervisor router<br>global_planner + global_executor<br><br>❌ NOT AN AGENT<br>Deterministic. No LLM anywhere in it.<br>Gate-check on gate_passed plus static edges.<br>Nothing to reason about, so nothing reasons.<br>'Supervisor' here is the multi-agent ROLE name<br>for a router — not a claim that it reasons."]
+    end
+
+    subgraph LV2["LEVEL 2 — one per DMAIC phase"]
+        SG["define / measure / analyse / improve / control subgraph<br><br>◆ CALLED A 'PHASE SUBAGENT' — ROLE LABEL ONLY<br>It is a compiled StateGraph, i.e. a SUBGRAPH.<br>There is no class, no create_agent call, and no<br>object named 'subagent' anywhere in the code.<br>Where §23 says 'subagent', it means 'subgraph'."]
+    end
+
+    subgraph LV2N["INSIDE one phase subagent — node by node"]
+        direction TB
+
+        N1["phase_planner<br><br>❌ NOT AN AGENT — a planner node<br>An LLM call with structured output.<br>NO tools bound, so nothing to select between.<br>An agent decides WHICH TOOL to call;<br>this decides WHAT THE EXECUTOR should do next."]
+
+        N2["phase_executor<br><br>✅ THIS IS THE AGENT<br>Built with create_agent. Has an LLM AND bound tools,<br>and decides which tool to call — the LangChain<br>classic sense, exactly. The ONLY box in D01–D04<br>that satisfies it. One per phase, five in the system."]
+
+        N3["four-layer validation stack<br><br>❌ NOT AN AGENT<br>2b field presence is a plain deterministic function.<br>2a, 2c, 2d are single LLM calls with no bound tools —<br>an LLM call is not an agent. 2d is MIDDLEWARE,<br>which is neither a node nor a tool."]
+
+        N4["gate_review_node<br><br>❌ NOT AN AGENT — an interrupt point<br>Calls interrupt(), presents fields, stops.<br>No model call at all. Its whole job is to<br>hand control to a human and wait."]
+
+        N5["gate_apply_node<br><br>❌ NOT AN AGENT — a plain function<br>Applies the Belt's corrections, runs the policy<br>advisory as a structured diff with NO LLM call,<br>commits the checkpoint, routes onward."]
+    end
+
+    subgraph LV3["LEAF LEVEL"]
+        T["8 universal tools + 18 computation tools<br><br>❌ NOT AGENTS — plain Python functions<br>The 18 computation tools make no LLM call at all.<br>Leaf tools are NEVER planner-executor pairs —<br>this is where the two-level recursion terminates."]
+    end
+
+    S ==>|"dispatches via static edges"| SG
+    SG ==>|"contains"| LV2N
+    N2 ==>|"binds and invokes"| T
+
+    classDef isagent fill:#c8e6c9,stroke:#1b5e20,stroke-width:4px,color:#000
+    classDef notagent fill:#ffcdd2,stroke:#b71c1c,stroke-width:1px,color:#000
+    classDef rolelabel fill:#fff9c4,stroke:#f9a825,stroke-width:2px,stroke-dasharray: 6 4,color:#000
+
+    class N2 isagent
+    class S,N1,N3,N4,N5,T notagent
+    class SG rolelabel
+    </div>
+
+    <div class="callout">
+      <strong>The two-level recursion terminates at tools:</strong> Level 1 (supervisor) dispatches to subgraphs via static edges. Level 2 (phase_executor) dispatches to tools via the tool-calling loop. Level 3 (tools) are plain functions — there are no Level 3 agents. Five agents in the system total, one per phase.
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     D05 — VALIDATION STACK CONCEPTUAL
+══════════════════════════════════════════════════════════ -->
+<div class="diagram-section" id="d05">
+  <div class="diagram-header">
+    <div class="diagram-id">D05</div>
+    <div class="diagram-header-text">
+      <h2>Four-Layer Validation Stack — Conceptual Architecture</h2>
+      <p>Where the layers live and what each does. All four run inside validation_gate_node, invoked by DMAICGateValidator and DMAICGraderMiddleware. Cheapest layer first. The Belt Interrupt cannot fire until all four layers resolve. Refs: §48 (ratified), §68 (expanded from two-layer to four), §69.</p>
+    </div>
+  </div>
+  <div class="diagram-body">
+    <div class="mermaid">
+flowchart TD
+  BELT(["Belt Message"])
+
+  subgraph MAIN["Main Graph"]
+    SUP["Supervisor Router"]
+  end
+
+  subgraph SUBG["DMAIC Subgraph — Define Phase (example)"]
+    PP["Phase Planner Node<br>Decides: single_hop vs multi_hop<br>Outputs: CoachingPlan"]
+    EX["Executor Node (the agent)<br>ReAct tool-calling loop<br>LLM call 1 → CoachingResponse"]
+
+    subgraph GATE["validation_gate_node · DMAICGateValidator + DMAICGraderMiddleware"]
+      L2A["L2a  Coherence<br>lightweight LLM (gpt-4o-mini)<br>Every coaching turn<br>Is response on-topic for this phase?"]
+      L2B["L2b  Field Presence<br>DETERMINISTIC — no LLM<br>Gate boundary only<br>All Pydantic fields present and non-null?"]
+      L2C["L2c  Constraint Validation<br>lightweight LLM (gpt-4o-mini)<br>Budget · timeline · phase rules<br>Phase constraints respected?"]
+      L2D["L2d  Quality Rubric<br>full LLM grader (gpt-4o)<br>Per-criterion DMAIC check<br>Score meets rubric threshold?"]
+      L2A --> L2B --> L2C --> L2D
+    end
+
+    GR["Gate Review Node<br>interrupt() fires here<br>LLM call 3: correction prompt<br>original + failure reason + constraint"]
+    GA["Gate Apply Node<br>Write corrected CoachingResponse<br>to PhaseState — checkpoint commits"]
+    INT(["Belt Interrupt<br>Response delivered"])
+  end
+
+  BELT --> SUP --> PP --> EX
+  EX -->|"CoachingResponse"| L2A
+  L2D -->|"✓  PASS"| INT
+  L2D -->|"✗  FAIL — Validated"| GR
+  GR --> GA --> INT
+  L2D -->|"✗  FAIL — Escalated (max 3 attempts)"| SUP
+
+  classDef belt fill:#78350f,stroke:#f59e0b,color:#fff
+  classDef sup fill:#1e3a5f,stroke:#3b82f6,color:#bfdbfe
+  classDef exec fill:#164e63,stroke:#06b6d4,color:#fff
+  classDef layer fill:#312e81,stroke:#818cf8,color:#e9d5ff
+  classDef review fill:#7c2d12,stroke:#f97316,color:#fed7aa
+  classDef int fill:#14532d,stroke:#22c55e,color:#bbf7d0
+
+  class BELT belt
+  class SUP sup
+  class PP,EX exec
+  class L2A,L2B,L2C,L2D layer
+  class GR,GA review
+  class INT int
+    </div>
+
+    <div class="callout">
+      <strong>Self-healing by layer — what each failure does:</strong><br>
+      L2a fail → <strong>Silent</strong>: regenerate CoachingResponse internally, Belt never sees it.<br>
+      L2b fail → <strong>Silent</strong>: fill missing Pydantic fields inline, no LLM, Belt never sees it.<br>
+      L2c fail → <strong>Coached</strong>: annotate response with coach explanation; Belt sees the coached version, not the raw failure.<br>
+      L2d fail → <strong>Validated</strong>: route through Gate Review → Gate Apply before Interrupt fires.<br>
+      L2d fail (max 3) → <strong>Escalated</strong>: return to Supervisor for human-in-loop.
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     D06 — VALIDATION STACK RUNTIME TIMELINE
+══════════════════════════════════════════════════════════ -->
+<div class="diagram-section" id="d06">
+  <div class="diagram-header">
+    <div class="diagram-id">D06</div>
+    <div class="diagram-header-text">
+      <h2>Validation Stack — Runtime Timeline of a Single Belt Turn</h2>
+      <p>Time flows top to bottom. Happy path is the main thread; failure branches are shown indented. Which actor handles each step is labelled. LLM call count for the happy path: 5 minimum (single_hop), 6 (multi_hop Analyse), +1 if L2d fails. Refs: §48, §68, §69, §71-D.</p>
+    </div>
+  </div>
+  <div class="diagram-body">
+    <div class="timeline">
+
+      <!-- ── ROUTING ── -->
+      <div class="tl-phase phase-routing">
+        <div class="tl-phase-label">Phase Planning</div>
+        <div class="tl-phase-body">
+          <div class="tl-step">
+            <div class="tl-step-num">1</div>
+            <div class="tl-step-body">
+              <div class="tl-step-title">Belt sends message</div>
+              <div class="tl-step-detail">Message + conversation history + current phase context handed to Supervisor.</div>
+              <div class="tl-actors">
+                <span class="actor-badge actor-belt">Belt</span>
+                <span style="color:#94a3b8;font-size:12px">→</span>
+                <span class="actor-badge actor-sup">Supervisor</span>
+              </div>
+            </div>
+          </div>
+          <div class="tl-step">
+            <div class="tl-step-num">2</div>
+            <div class="tl-step-body">
+              <div class="tl-step-title">Supervisor routes to phase subgraph</div>
+              <div class="tl-step-detail">Reads gate_passed flags. Static edge to correct DMAIC subgraph. No LLM call.</div>
+              <div class="tl-actors">
+                <span class="actor-badge actor-sup">Supervisor</span>
+                <span style="color:#94a3b8;font-size:12px">→</span>
+                <span class="actor-badge actor-planner">Planner</span>
+              </div>
+            </div>
+          </div>
+          <div class="tl-step">
+            <div class="tl-step-num">3</div>
+            <div class="tl-step-body">
+              <div class="tl-step-title">Phase Planner — LLM call → CoachingPlan <span style="font-size:11px;font-weight:400;color:#94a3b8;">(LLM call P)</span></div>
+              <div class="tl-step-detail">Decides focus_field, next_action, retrieval_strategy, hop_type (single or multi). No tools bound.</div>
+              <div class="tl-actors">
+                <span class="actor-badge actor-planner">Planner</span>
+                <span style="color:#94a3b8;font-size:12px">→</span>
+                <span class="actor-badge actor-exec">Executor</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── RETRIEVAL ── -->
+      <div class="tl-phase phase-retrieval" style="margin-top:10px">
+        <div class="tl-phase-label">Retrieval — Executor ReAct Loop</div>
+        <div class="tl-phase-body">
+
+          <!-- single_hop branch -->
+          <div class="tl-step">
+            <div class="tl-step-num">4a</div>
+            <div class="tl-step-body">
+              <div class="tl-step-title">Single-hop retrieval <span style="font-size:11px;color:#0f766e;font-weight:600;">[most phases]</span></div>
+              <div class="tl-step-detail">One tool call to the relevant Azure AI Search index. AzureAISearchRetriever filter set at constructor time (no invoke-time filter). Returns retrieval result.</div>
+              <div class="tl-actors">
+                <span class="actor-badge actor-exec">Executor</span>
+                <span style="color:#94a3b8;font-size:12px">↔</span>
+                <span class="actor-badge actor-tools">Azure Search</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- multi_hop branch -->
+          <div class="tl-step" style="background:rgba(0,0,0,0.02);">
+            <div class="tl-step-num">4b</div>
+            <div class="tl-step-body">
+              <div class="tl-step-title">Multi-hop retrieval <span style="font-size:11px;color:#7c3aed;font-weight:600;">[Analyse phase only — 3 hops]</span></div>
+              <div class="tl-step-detail">For-loop bounded at 3 by CoachingPlan schema. Each hop calls a different index (methodology, evidence, case history). Results accumulated in hop_results.</div>
+              <div class="tl-actors">
+                <span class="actor-badge actor-exec">Executor</span>
+                <span style="color:#94a3b8;font-size:12px">↔</span>
+                <span class="actor-badge actor-tools">Azure Search ×3</span>
+              </div>
+            </div>
+          </div>
+          <div class="tl-branch">
+            <div class="tl-branch-label branch-alt">Analyse only — after all 3 hops</div>
+            <div class="tl-branch-step">
+              <div class="tl-branch-step-icon icon-note">S</div>
+              <div class="tl-branch-step-text"><strong>Synthesis LLM call</strong> — hop_results → synthesis_output. This is a separate LLM call inside the executor before CoachingResponse generation. <span style="color:#94a3b8;">(LLM call S)</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── GENERATION ── -->
+      <div class="tl-phase phase-generation" style="margin-top:10px">
+        <div class="tl-phase-label">Response Generation</div>
+        <div class="tl-phase-body">
+          <div class="tl-step">
+            <div class="tl-step-num">5</div>
+            <div class="tl-step-body">
+              <div class="tl-step-title">Executor generates CoachingResponse <span style="font-size:11px;font-weight:400;color:#94a3b8;">(LLM call 1)</span></div>
+              <div class="tl-step-detail">Generation ChatPromptTemplate. Separate from validation — never combined. Output is a typed PhaseOutput. Passed to the validation gate node.</div>
+              <div class="tl-actors">
+                <span class="actor-badge actor-exec">Executor</span>
+                <span style="color:#94a3b8;font-size:12px">→</span>
+                <span class="actor-badge actor-gate">Validation Gate</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── VALIDATION ── -->
+      <div class="tl-phase phase-validation" style="margin-top:10px">
+        <div class="tl-phase-label">Validation Stack — runs inside validation_gate_node · DMAICGateValidator + DMAICGraderMiddleware</div>
+        <div class="tl-phase-body">
+
+          <!-- L2a -->
+          <div class="tl-step">
+            <div class="tl-step-num">6</div>
+            <div class="tl-step-body">
+              <div class="tl-step-title">L2a — Coherence check <span style="font-size:11px;font-weight:400;color:#94a3b8;">(LLM call 2a · gpt-4o-mini · every turn)</span></div>
+              <div class="tl-step-detail">Is this response on-topic for the current phase? Lightweight, fast, runs every coaching turn.</div>
+              <div class="tl-actors">
+                <span class="actor-badge actor-gate">Validation Gate</span>
+              </div>
+            </div>
+          </div>
+          <div class="tl-branch">
+            <div class="tl-branch-label branch-fail">L2a FAIL → Silent</div>
+            <div class="tl-branch-step">
+              <div class="tl-branch-step-icon icon-fail">✗</div>
+              <div class="tl-branch-step-text"><strong>Internal regeneration request</strong> — loop stays inside gate node. Max 3 attempts (shared cap). Belt never sees this. No checkpoint written.</div>
+            </div>
+          </div>
+
+          <!-- L2b -->
+          <div class="tl-step">
+            <div class="tl-step-num">7</div>
+            <div class="tl-step-body">
+              <div class="tl-step-title">L2b — Field presence check <span style="font-size:11px;font-weight:400;color:#94a3b8;">(DETERMINISTIC · no LLM · gate boundary only)</span></div>
+              <div class="tl-step-detail">All required Pydantic fields present and non-null? Zero LLM cost regardless of outcome.</div>
+              <div class="tl-actors">
+                <span class="actor-badge actor-gate">Validation Gate</span>
+              </div>
+            </div>
+          </div>
+          <div class="tl-branch">
+            <div class="tl-branch-label branch-fail">L2b FAIL → Silent</div>
+            <div class="tl-branch-step">
+              <div class="tl-branch-step-icon icon-fail">✗</div>
+              <div class="tl-branch-step-text"><strong>Fill missing fields inline</strong> — no LLM call needed. Fixed within gate node. Belt never sees it. Continues to L2c.</div>
+            </div>
+          </div>
+
+          <!-- L2c -->
+          <div class="tl-step">
+            <div class="tl-step-num">8</div>
+            <div class="tl-step-body">
+              <div class="tl-step-title">L2c — Constraint validation <span style="font-size:11px;font-weight:400;color:#94a3b8;">(LLM call 2c · gpt-4o-mini · budget / timeline / phase rules)</span></div>
+              <div class="tl-step-detail">Phase-specific constraints respected? e.g. Measure responses must cite data, not solutions.</div>
+              <div class="tl-actors">
+                <span class="actor-badge actor-gate">Validation Gate</span>
+              </div>
+            </div>
+          </div>
+          <div class="tl-branch">
+            <div class="tl-branch-label branch-fail">L2c FAIL → Coached</div>
+            <div class="tl-branch-step">
+              <div class="tl-branch-step-icon icon-note">C</div>
+              <div class="tl-branch-step-text"><strong>Annotate response with coach explanation</strong> — Belt sees a coached version. The annotation explains the constraint; the Belt does not see a raw failure message. Continues to L2d with the coached response.</div>
+            </div>
+          </div>
+
+          <!-- L2d -->
+          <div class="tl-step">
+            <div class="tl-step-num">9</div>
+            <div class="tl-step-body">
+              <div class="tl-step-title">L2d — Quality rubric grader <span style="font-size:11px;font-weight:400;color:#94a3b8;">(LLM call 2d · gpt-4o · per-criterion DMAIC check)</span></div>
+              <div class="tl-step-detail">Score vs rubric threshold for this Belt level and phase. Per-criterion verdicts, not one overall score.</div>
+              <div class="tl-actors">
+                <span class="actor-badge actor-gate">Validation Gate</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── GATE — PASS ── -->
+      <div class="tl-phase phase-gate" style="margin-top:10px">
+        <div class="tl-phase-label">Happy Path — all four layers pass</div>
+        <div class="tl-phase-body">
+          <div class="tl-step">
+            <div class="tl-step-num">10</div>
+            <div class="tl-step-body">
+              <div class="tl-step-title">Belt Interrupt fires — response delivered ✓</div>
+              <div class="tl-step-detail">Validated CoachingResponse handed to Belt. Graph is now paused; Belt is in control.</div>
+              <div class="tl-actors">
+                <span class="actor-badge actor-gate">Validation Gate</span>
+                <span style="color:#94a3b8;font-size:12px">→</span>
+                <span class="actor-badge actor-int">Belt Interrupt</span>
+                <span style="color:#94a3b8;font-size:12px">→</span>
+                <span class="actor-badge actor-belt">Belt</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── GATE — FAIL ── -->
+      <div class="tl-phase phase-failure" style="margin-top:10px">
+        <div class="tl-phase-label">L2d FAIL path — Validated (gate boundary)</div>
+        <div class="tl-phase-body">
+          <div class="tl-step">
+            <div class="tl-step-num">10a</div>
+            <div class="tl-step-body">
+              <div class="tl-step-title">Gate Review Node — correction prompt <span style="font-size:11px;font-weight:400;color:#94a3b8;">(LLM call 3 · gpt-4o)</span></div>
+              <div class="tl-step-detail">Receives: original CoachingResponse + failure reason + phase constraint. Generates corrected response. Correction ChatPromptTemplate — separate from generation and validation prompts.</div>
+              <div class="tl-actors">
+                <span class="actor-badge actor-gate">Validation Gate</span>
+                <span style="color:#94a3b8;font-size:12px">→</span>
+                <span class="actor-badge actor-review">Gate Review</span>
+              </div>
+            </div>
+          </div>
+          <div class="tl-step">
+            <div class="tl-step-num">10b</div>
+            <div class="tl-step-body">
+              <div class="tl-step-title">Gate Apply Node — write to PhaseState</div>
+              <div class="tl-step-detail">Corrected CoachingResponse written to state. Belt Interrupt fires. Corrected response delivered to Belt.</div>
+              <div class="tl-actors">
+                <span class="actor-badge actor-review">Gate Review</span>
+                <span style="color:#94a3b8;font-size:12px">→</span>
+                <span class="actor-badge actor-int">Belt Interrupt</span>
+                <span style="color:#94a3b8;font-size:12px">→</span>
+                <span class="actor-badge actor-belt">Belt</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tl-step" style="background:rgba(220,38,38,0.04);">
+            <div class="tl-step-num" style="background:#dc2626;">!</div>
+            <div class="tl-step-body">
+              <div class="tl-step-title">L2d FAIL — Escalated (max 3 attempts exceeded)</div>
+              <div class="tl-step-detail">Returns to Supervisor for human-in-loop handling. Iteration cap of 3 is shared across all four layers.</div>
+              <div class="tl-actors">
+                <span class="actor-badge actor-gate">Validation Gate</span>
+                <span style="color:#94a3b8;font-size:12px">→</span>
+                <span class="actor-badge actor-sup">Supervisor</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /timeline -->
+
+    <div class="callout" style="margin-top:20px">
+      <strong>LLM call summary — happy path:</strong>
+      Planner (P) + Generation (1) + L2a coherence (2a) + L2c constraint (2c) + L2d grader (2d) = <strong>5 LLM calls minimum</strong> per turn (single_hop phase).
+      Analyse multi_hop adds synthesis (S) = <strong>6 calls</strong>. L2d failure adds Gate Review correction (3) = <strong>6 or 7 calls</strong>.
+      L2b is always zero LLM cost. Three-prompt separation is strict: Generation, Validation, and Correction are three distinct ChatPromptTemplate calls — never combined.
+      All use <code>ChatPromptTemplate</code>, not <code>PromptTemplate</code> (required for gpt-4o via Azure OpenAI).
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     D07 — SUPERVISOR STATE AND GATE FLAGS
+══════════════════════════════════════════════════════════ -->
+<div class="diagram-section" id="d07">
+  <div class="diagram-header">
+    <div class="diagram-id">D07</div>
+    <div class="diagram-header-text">
+      <h2>Supervisor State and Gate Flags — Routing Mechanism</h2>
+      <p>How the supervisor decides which phase to run. SupervisorState holds five boolean flags. Supervisor reads top to bottom, routes to first False. Gate apply writes a flag to True on Belt approval. The re-approval cascade shows what happens when a Belt baseline change invalidates prior phases. Refs: §17, §52, gate_apply_node logic.</p>
+    </div>
+  </div>
+  <div class="diagram-body">
+    <div class="state-grid">
+
+      <!-- SupervisorState -->
+      <div>
+        <div class="state-box">
+          <div class="state-box-title">SupervisorState — lives in the main graph</div>
+          <div class="state-row passed">
+            <span>define</span><span class="state-flag flag-true">True</span>
+          </div>
+          <div class="state-row passed">
+            <span>measure</span><span class="state-flag flag-true">True</span>
+          </div>
+          <div class="state-row current">
+            <span>analyse</span><span class="state-flag flag-current">False ← current</span>
+          </div>
+          <div class="state-row pending">
+            <span>improve</span><span class="state-flag flag-false">False</span>
+          </div>
+          <div class="state-row pending">
+            <span>control</span><span class="state-flag flag-false">False</span>
+          </div>
+        </div>
+
+        <div class="routing-flow">
+          <div class="routing-node highlight-green">
+            <strong>Gate Apply Node writes flags</strong>
+            Sets gate_passed[phase] = True when Belt approves. This is the ONLY write path for these flags.
+          </div>
+          <div class="routing-arrow">↓</div>
+          <div class="routing-node">
+            <strong>Supervisor reads flags top to bottom</strong>
+            Routes to the first False. No LLM needed — pure flag check on static edges.
+          </div>
+          <div class="routing-arrow">↓</div>
+          <div class="routing-node highlight-amber">
+            <strong>Analyse subgraph activates</strong>
+            First False encountered = active phase. Define and Measure are already True (passed).
+          </div>
+        </div>
+      </div>
+
+      <!-- Re-approval cascade -->
+      <div>
+        <div class="cascade-box">
+          <div class="cascade-title">The Re-Approval Cascade</div>
+          <p style="font-size:12px;color:#64748b;margin-bottom:12px;line-height:1.5;">
+            Belt changes a baseline during the Analyse gate review. The policy advisory detects that this change invalidates prior phases. It flips earlier flags back to False.
+          </p>
+
+          <div class="cascade-row">
+            <span style="font-size:11px;color:#64748b;width:40px;">Before</span>
+            <span class="c-phase c-true">D: True</span>
+            <span class="c-phase c-true">M: True</span>
+            <span class="c-phase c-false">A: False</span>
+          </div>
+          <div class="cascade-row" style="margin:6px 0;">
+            <span style="font-size:11px;color:#94a3b8;width:40px;"></span>
+            <span style="font-size:18px;color:#f59e0b;">↓</span>
+            <span style="font-size:12px;color:#64748b;margin-left:8px;">policy advisory runs inside gate_apply</span>
+          </div>
+          <div class="cascade-row">
+            <span style="font-size:11px;color:#64748b;width:40px;">After</span>
+            <span class="c-phase c-false">D: False</span>
+            <span class="c-phase c-false">M: False</span>
+            <span class="c-phase c-false">A: False</span>
+          </div>
+
+          <div class="cascade-note">
+            Policy advisory flips Define and Measure back to False.<br>
+            Supervisor reads top to bottom — first False is now Define, not Analyse.<br>
+            Supervisor routes to Define subgraph, not Analyse.<br>
+            The Belt must re-approve earlier phases before Analyse can proceed.<br><br>
+            <strong>Key rule:</strong> policy advisory runs inside gate_apply_node. It is non-blocking advice, not a separate node.
+          </div>
+        </div>
+
+        <div style="margin-top:16px;background:#f8faff;border:1px solid #c7d2fe;border-radius:8px;padding:14px;font-size:12px;color:#374151;line-height:1.6;">
+          <strong style="display:block;margin-bottom:6px;color:#1e40af;">State scope rules</strong>
+          SupervisorState is the ONLY state the parent graph can see.<br>
+          Phase internal state (PhaseState, coaching turns, tool results) never propagates to the parent.<br>
+          Cross-phase artifacts flow through AzureBlobStore, not through state.<br>
+          <code style="background:#e0e7ff;padding:1px 4px;border-radius:3px;">gate_attempts</code> lives in the checkpoint saver, never in route scope.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     D08 — SINGLE-HOP vs MULTI-HOP RETRIEVAL
+══════════════════════════════════════════════════════════ -->
+<div class="diagram-section" id="d08">
+  <div class="diagram-header">
+    <div class="diagram-id">D08</div>
+    <div class="diagram-header-text">
+      <h2>Single-hop vs Multi-hop Retrieval — Inside the Executor</h2>
+      <p>The CoachingPlan (from the phase planner) sets hop_type. Single-hop is the default for all phases except Analyse. Multi-hop is bounded at 3 by the Pydantic schema — not infinite. Each hop targets a different index; synthesis is a separate LLM call before response generation. Refs: §37, §40, §41, §71-D, DECISIONS.md §F7.</p>
+    </div>
+  </div>
+  <div class="diagram-body">
+    <div class="retrieval-compare">
+
+      <!-- SINGLE HOP -->
+      <div class="retrieval-panel panel-single">
+        <div class="retrieval-header">Single-hop — all phases except Analyse</div>
+        <div class="retrieval-step">
+          <div class="rs-num">P</div>
+          <div class="rs-text">
+            <strong>Phase Planner sets hop_type = single</strong>
+            CoachingPlan → focus_field + one tool from the tool_sequence.
+          </div>
+        </div>
+        <div class="retrieval-step">
+          <div class="rs-num">1</div>
+          <div class="rs-text">
+            <strong>Executor calls one retrieval tool</strong>
+            rag_lookup_methodology, or rag_lookup_evidence, or rag_lookup_case_history.
+            <span class="aside">AzureAISearchRetriever filter set at constructor time — no invoke-time filter.</span>
+          </div>
+        </div>
+        <div class="retrieval-step">
+          <div class="rs-num">2</div>
+          <div class="rs-text">
+            <strong>Result returned to executor</strong>
+            One retrieval result in context. No synthesis step needed.
+          </div>
+        </div>
+        <div class="retrieval-step">
+          <div class="rs-num">3</div>
+          <div class="rs-text">
+            <strong>LLM call 1 — generate CoachingResponse</strong>
+            From retrieval result + conversation + phase state.
+          </div>
+        </div>
+        <div class="retrieval-note">
+          Total LLM calls for retrieval: 1 (generation only).<br>
+          If the Belt needs more detail, the ReAct loop can call more tools reactively — the planner is not involved at that point.
+        </div>
+      </div>
+
+      <!-- MULTI HOP -->
+      <div class="retrieval-panel panel-multi">
+        <div class="retrieval-header">Multi-hop — Analyse phase only · bounded at 3 hops</div>
+        <div class="retrieval-step">
+          <div class="rs-num">P</div>
+          <div class="rs-text">
+            <strong>Phase Planner sets hop_type = multi</strong>
+            CoachingPlan → tool_sequence of exactly 3 tools. Bounded by Pydantic schema — not configurable at runtime.
+          </div>
+        </div>
+        <div class="retrieval-step">
+          <div class="rs-num">1</div>
+          <div class="rs-text">
+            <strong>Hop 1 — rag_lookup_methodology</strong>
+            improve_knowledge_index · LSS Black Belt eBook · what the methodology says.
+            <span class="aside">filter: phase_relevance eq 'analyse' or 'general'</span>
+          </div>
+        </div>
+        <div class="retrieval-step">
+          <div class="rs-num">2</div>
+          <div class="rs-text">
+            <strong>Hop 2 — rag_lookup_evidence</strong>
+            improve_evidence_index · Belt-uploaded documents · real-world data for this case.
+            <span class="aside">filter: case_id (per-call constructor required)</span>
+          </div>
+        </div>
+        <div class="retrieval-step">
+          <div class="rs-num">3</div>
+          <div class="rs-text">
+            <strong>Hop 3 — rag_lookup_case_history</strong>
+            improve_case_index · completed case records · yokoten — how similar cases resolved.
+            <span class="aside">filter: status='completed' order: created_at desc</span>
+          </div>
+        </div>
+        <div class="retrieval-step" style="background:rgba(124,58,237,0.06);">
+          <div class="rs-num">S</div>
+          <div class="rs-text">
+            <strong>Synthesis LLM call — hop_results → synthesis_output</strong>
+            Separate LLM call inside executor. Triangulates all three retrieval results before response generation. Root cause analysis structurally requires all three sources.
+          </div>
+        </div>
+        <div class="retrieval-step">
+          <div class="rs-num">4</div>
+          <div class="rs-text">
+            <strong>LLM call 1 — generate CoachingResponse</strong>
+            From synthesis_output + conversation + phase state.
+          </div>
+        </div>
+        <div class="retrieval-note">
+          Total LLM calls for retrieval: 2 (synthesis + generation).<br>
+          <strong>Open assumption — §F7:</strong> Planned multi-hop is only in analyse_executor_node. Other phases use standard ReAct. Whether ReAct is sufficient for non-Analyse phases with complex questions is unverified. To be validated during eval dataset phase (§75).
+        </div>
+      </div>
+
+    </div>
+
+    <div class="callout" style="margin-top:20px">
+      <strong>Why 3 hops for Analyse:</strong> Root cause triangulation requires all three sources independently — methodology (what should happen), evidence (what actually happened), case history (how similar problems resolved). The 3-hop structure is not arbitrary; it maps to these three distinct epistemological sources. Bounded at 3 by the CoachingPlan Pydantic schema to prevent runaway retrieval.
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     D09 — CONSTRAINT VALIDATION & RETRY WITH ACCUMULATED FEEDBACK
+══════════════════════════════════════════════════════════ -->
+<div class="diagram-section" id="d09">
+  <div class="diagram-header">
+    <div class="diagram-id">D09</div>
+    <div class="diagram-header-text">
+      <h2>Constraint Validation (L2c) &amp; Retry with Accumulated Feedback</h2>
+      <p>The four validation layers run cheapest-first inside <code>validation_gate_node</code>. Each failure appends to
+        <code>PhaseState.validator_feedback</code>. The executor re-runs with the full accumulated list — not just the
+        last error. A shared cap of 3 attempts (not 3 per layer) bounds the loop. Refs: §48, §68, D05, D06.</p>
+    </div>
+  </div>
+  <div class="diagram-body">
+
+    <div class="d09-layout">
+
+      <!-- LEFT COLUMN: the four layers -->
+      <div class="d09-col">
+
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:2px;">
+          The Four Validation Layers — cheapest first, each fires only if previous passes
+        </div>
+
+        <!-- L2a -->
+        <div class="d09-layer layer-l2a">
+          <div class="d09-layer-header">
+            L2a — Coherence
+            <span class="d09-label-pill pill-llm">LLM</span>
+          </div>
+          <div class="d09-layer-body">
+            Every turn. Checks: is the response internally consistent? Does it contradict earlier confirmed fields?
+            Uses <code>operational_model</code> (cheap). Fires on every executor output before L2b.
+            <div class="d09-verdict-row verdict-fail">
+              <span class="verdict-icon">✗</span>
+              <div class="verdict-text">
+                <strong>On fail:</strong>
+                Appends to <code>validator_feedback</code>. Increments <code>gate_attempts</code>.
+                Executor re-runs with full feedback list. L2b, L2c, L2d do not fire this round.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- L2b -->
+        <div class="d09-layer layer-l2b">
+          <div class="d09-layer-header">
+            L2b — Field Presence
+            <span class="d09-label-pill pill-det">DETERMINISTIC</span>
+          </div>
+          <div class="d09-layer-body">
+            Gate boundary only. Checks required fields are populated in <code>PhaseOutput</code>. Plain Python —
+            no LLM call. Binary: field present or not. Fires only if L2a passed.
+            <div class="d09-verdict-row verdict-fail">
+              <span class="verdict-icon">✗</span>
+              <div class="verdict-text">
+                <strong>On fail:</strong>
+                Appends missing field list to <code>validator_feedback</code>. L2c and L2d do not fire.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- L2c -->
+        <div class="d09-layer layer-l2c">
+          <div class="d09-layer-header">
+            L2c — Constraint Validation
+            <span class="d09-label-pill pill-llm">LLM</span>
+          </div>
+          <div class="d09-layer-body">
+            Fires only if L2a + L2b passed. Uses <code>operational_model.with_structured_output(ConstraintCheckResult)</code>.
+            Checks the phase's constraint dict — a different set per phase. Returns per-constraint verdicts,
+            not a single pass/fail.
+
+            <div style="margin-top:10px;font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">
+              Per-phase constraint dictionaries:
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;">
+              <div style="background:#fef9f0;border:1px solid #fde68a;border-radius:5px;padding:6px 8px;">
+                <strong style="display:block;color:#78350f;margin-bottom:3px;">DEFINE</strong>
+                baseline, target, scope, timeline
+              </div>
+              <div style="background:#fef9f0;border:1px solid #fde68a;border-radius:5px;padding:6px 8px;">
+                <strong style="display:block;color:#78350f;margin-bottom:3px;">ANALYSE</strong>
+                root_cause, validation<br>
+                <span style="color:#94a3b8;font-size:10px;">+ risk (value-dependent: fires when risk_level == "low")</span>
+              </div>
+              <div style="background:#fef9f0;border:1px solid #fde68a;border-radius:5px;padding:6px 8px;">
+                <strong style="display:block;color:#78350f;margin-bottom:3px;">IMPROVE</strong>
+                budget, deadline, measurement
+              </div>
+              <div style="background:#fef9f0;border:1px solid #fde68a;border-radius:5px;padding:6px 8px;">
+                <strong style="display:block;color:#78350f;margin-bottom:3px;">CONTROL</strong>
+                monitoring, sustainability, handover
+              </div>
+            </div>
+            <div style="margin-top:6px;font-size:11px;color:#64748b;">
+              MEASURE has no constraint dict — the L2d rubric (§42) is sufficient.
+            </div>
+
+            <div class="d09-verdict-row verdict-fail" style="margin-top:8px;">
+              <span class="verdict-icon">✗</span>
+              <div class="verdict-text">
+                <strong>On fail:</strong>
+                Appends each violated constraint + evidence to <code>validator_feedback</code>.
+                L2d does not fire. Executor re-runs seeing exactly which constraints it missed.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- L2d -->
+        <div class="d09-layer layer-l2d">
+          <div class="d09-layer-header">
+            L2d — Quality Rubric (DMAICGraderMiddleware)
+            <span class="d09-label-pill pill-mw">MIDDLEWARE / after_agent</span>
+          </div>
+          <div class="d09-layer-body">
+            Fires inside the executor as an <code>after_agent</code> hook. Full grader role, temperature 0.1.
+            Per-criterion verdicts, not one overall score. The Belt never sees this loop.
+            Fires only if L2a + L2b + L2c all passed.
+
+            <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">
+              <div class="d09-verdict-row verdict-fail" style="margin-top:0;">
+                <span class="verdict-icon">✗</span>
+                <div class="verdict-text">
+                  <strong>Tier 1 criterion fails — gate fails:</strong>
+                  Appends per-criterion failure to <code>validator_feedback</code>. Increments gate_attempts.
+                </div>
+              </div>
+              <div class="d09-verdict-row verdict-warn" style="margin-top:0;">
+                <span class="verdict-icon">⚠</span>
+                <div class="verdict-text">
+                  <strong>Tier 2 criterion fails — gate passes with warning:</strong>
+                  Written to <code>PhaseState.acknowledged_gaps</code>. Belt sees it at gate_review_node.
+                  Does not increment gate_attempts.
+                </div>
+              </div>
+              <div class="d09-verdict-row verdict-pass" style="margin-top:0;">
+                <span class="verdict-icon">✓</span>
+                <div class="verdict-text">
+                  <strong>All Tier 1 criteria pass:</strong>
+                  gate_attempts resets to 0. Output proceeds to gate_review_node.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /left col -->
+
+      <!-- RIGHT COLUMN: retry loop -->
+      <div class="d09-col">
+
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:2px;">
+          Retry Loop — shared iteration cap, accumulated feedback
+        </div>
+
+        <div class="d09-cap-badge">
+          ⚠ Shared cap: <code style="background:none;color:inherit;font-weight:700;">PhaseState.gate_attempts = 3</code> across all four layers — not 3 per layer
+        </div>
+
+        <!-- Attempt 1 -->
+        <div class="d09-retry-box">
+          <div class="d09-retry-header">Attempt 1 of 3</div>
+          <div class="d09-retry-body">
+            <div class="d09-attempt">
+              <div class="d09-attempt-header">
+                <div class="attempt-num">1</div>
+                Executor generates — no prior feedback
+              </div>
+              <div class="d09-attempt-body">
+                <code>generate_decision(situation, options, previous_feedback=None, attempt=1)</code><br>
+                Validation stack runs. Suppose L2c fails — constraint <em>"scope"</em> not addressed.
+              </div>
+            </div>
+            <div class="d09-arrow">↓ fail</div>
+            <div class="d09-feedback-list">
+              <strong style="display:block;font-size:11px;color:#9a3412;margin-bottom:4px;">validator_feedback after attempt 1:</strong>
+              <div class="fb-item">
+                <span class="fb-layer-tag fb-l2c">L2c</span>
+                "scope constraint not addressed — decision does not define what is excluded"
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="d09-arrow">↓ retry with full list</div>
+
+        <!-- Attempt 2 -->
+        <div class="d09-retry-box">
+          <div class="d09-retry-header">Attempt 2 of 3</div>
+          <div class="d09-retry-body">
+            <div class="d09-attempt">
+              <div class="d09-attempt-header">
+                <div class="attempt-num">2</div>
+                Executor receives full feedback list from attempt 1
+              </div>
+              <div class="d09-attempt-body">
+                <code>generate_decision(..., previous_feedback=feedback_list, attempt=2)</code><br>
+                Scope now addressed. But L2d finds Tier 1 rubric failure — explanation is thin.
+              </div>
+            </div>
+            <div class="d09-arrow">↓ fail</div>
+            <div class="d09-feedback-list">
+              <strong style="display:block;font-size:11px;color:#9a3412;margin-bottom:4px;">validator_feedback after attempt 2 (accumulated — both entries):</strong>
+              <div class="fb-item">
+                <span class="fb-layer-tag fb-l2c">L2c</span>
+                "scope constraint not addressed — decision does not define what is excluded"
+              </div>
+              <div class="fb-item" style="margin-top:4px;">
+                <span class="fb-layer-tag fb-l2d">L2d</span>
+                "explanation criterion [Tier 1]: rationale for target choice is absent"
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="d09-arrow">↓ retry with both entries</div>
+
+        <!-- Attempt 3 -->
+        <div class="d09-retry-box">
+          <div class="d09-retry-header">Attempt 3 of 3 — final attempt</div>
+          <div class="d09-retry-body">
+            <div class="d09-attempt">
+              <div class="d09-attempt-header">
+                <div class="attempt-num">3</div>
+                Executor sees every failure from both prior attempts
+              </div>
+              <div class="d09-attempt-body">
+                <code>generate_decision(..., previous_feedback=feedback_list, attempt=3)</code><br>
+                Model is signalled: this is the final attempt. Be specific. Address every listed failure.
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
+
+              <div class="d09-pass-box">
+                <strong>All layers pass →</strong>
+                <code>validator_feedback</code> reset to <code>[]</code>.
+                Proceeds to <code>gate_review_node</code>. Belt reviews validated output.
+              </div>
+
+              <div style="text-align:center;color:#94a3b8;font-size:13px;">— or —</div>
+
+              <div class="d09-escalate-box">
+                <strong>Any layer still fails →</strong>
+                <code>gate_attempts == 3</code> → conditional edge to <code>escalation_subgraph</code>.
+                Belt receives: what was attempted, what failed, full constraint list, all three feedback entries.
+                <strong style="display:block;margin-top:6px;color:#dc2626;">Belt is final arbiter — the agent does not block or guess.</strong>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Key invariants -->
+        <div style="margin-top:8px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;font-size:12px;">
+          <div style="background:#f1f5f9;padding:8px 14px;font-weight:700;color:#334155;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;">
+            Key invariants
+          </div>
+          <div style="padding:10px 14px;display:flex;flex-direction:column;gap:7px;color:#475569;line-height:1.5;">
+            <div>
+              <strong style="color:#1e293b;">Accumulated, not replaced.</strong>
+              Each retry receives every prior failure, not just the most recent one. An executor that fixes L2c on attempt 2 still sees the L2c message on attempt 3 alongside the L2d message — so it cannot accidentally re-break what it already fixed.
+            </div>
+            <div>
+              <strong style="color:#1e293b;">Attempt number signals urgency.</strong>
+              <code>attempt=3</code> in the generation prompt tells the model this is the last chance — be more specific, not more verbose.
+            </div>
+            <div>
+              <strong style="color:#1e293b;">Cap is shared, not per-layer.</strong>
+              A cap that resets per layer is not a cap. A system that fails L2a three times, then L2c three times, has run six attempts against the Belt's expectation of at most three.
+            </div>
+            <div>
+              <strong style="color:#1e293b;">Feedback resets on pass.</strong>
+              <code>validator_feedback = []</code> when all layers pass. The next phase starts clean.
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /right col -->
+
+    </div><!-- /d09-layout -->
+
+    <div class="callout" style="margin-top:24px;">
+      <strong>Three-prompt separation in this loop:</strong>
+      <code>generate_decision()</code> is the generation prompt.
+      <code>validate_constraints()</code> (L2c) is a separate validation LLM call — it does not know how the decision was produced.
+      The executor re-running on retry is the correction prompt — a fresh invocation with a different input (the feedback list), not a continuation of the prior call.
+      These three roles are always separate <code>.invoke()</code> calls; they are never merged into one prompt.
+    </div>
+
+  </div>
+</div>
+
+</main>
+
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  theme: 'default',
+  flowchart: { curve: 'basis', padding: 16, useMaxWidth: true },
+  themeVariables: {
+    fontSize: '13px'
+  }
+});
+</script>
+</body>
+</html>
