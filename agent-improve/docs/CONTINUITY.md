@@ -247,8 +247,29 @@ Before any architectural decision: check `anthropic.com/engineering` post index 
 | 3.1 | `tool_args.py` Pydantic schemas | **BLOCKED** — canonical toolset must exist in code first |
 | 3.3+ | Retrieval tools, middleware stack, gate validation | pending |
 
-**Dependency drift** (current requirements.txt vs target):
-- `langgraph` not installed; `langchain` 1.2.13 vs 1.3.11; `langsmith` 0.7.3 vs 0.10.17
+**Dependency drift** — measured in the venv 2026-08-21, not read off requirements.txt:
+
+| Package | Installed | Doc target | Note |
+|---|---|---|---|
+| `langgraph` | **1.1.10** | 1.2.10 | **Below the ≥1.2.6 floor.** Blocks everything below |
+| `langchain` | 1.2.13 | 1.3.11 | |
+| `langchain-core` | 1.3.3 | — | let pip resolve |
+| `langchain-openai` | 1.1.11 | — | let pip resolve |
+| `langchain-community` | 0.4.1 | — | supplies `AzureSearch` |
+| `langsmith` | 0.7.3 | — | |
+| `langchain-classic` | 1.0.3 | 1.0.3 | ✔ matches the pin |
+
+**`langgraph` 1.1.10 is a hard blocker, not drift.** `TimeoutPolicy`,
+`error_handler=` and `RunControl.request_drain()` all require **≥1.2.6**, as does
+the subgraph `checkpoint_ns` fix. Nothing in §3.6 (reliability) or §1.2
+(hierarchical subgraphs) can be built until `pip install --upgrade` runs. This is
+Step 2.5 and it gates more than the table above suggests.
+
+**Do NOT upgrade to the documented 1.2.10 / 1.3.11 pins — they are already stale.**
+Current releases are near 1.2.11 / 1.3.15. **Resolve the correct target during
+Task 3B** against live PyPI and the LangChain changelog, then pin, then upgrade.
+Upgrading to a stale pin means doing the migration twice.
+
 - `langgraph.prebuilt` deprecated — any import must migrate to `langchain.agents`
 - `InMemorySaver` banned at all stages; `AzureBlobCheckpointSaver` during refactor
 
@@ -300,8 +321,15 @@ These decisions are ratified but not yet in the governance docs:
 
 - **ARCHITECTURE.md §7.4** — "embedding/content_vector asymmetry is safe by construction."
   Reversed by H2 above. Do not cite this claim.
-- **`upload/agent.py:107`** — parses raw `response.content` directly. §4.5 violation (must use
-  `response.content_blocks`). No §15 step covers this file. Tracked but not yet scheduled.
+- **`response.content` parsed directly — TWO sites, not one.** Both are §4.5 violations
+  (must read `response.content_blocks`):
+  - `upload/agent.py:107` — `result.content.strip()`. No §15 step covers this file.
+  - `gateway/routes.py:67` — `response.content.strip()`. Found by the Task 2 sweep
+    (2026-08-21); previously unrecorded. Covered by §15 Step 9 (Routes), but only
+    incidentally — the step is about removing manual dispatch, not this parse.
+
+  Neither is scheduled as its own step. Fixing `routes.py:67` alongside Step 9 is
+  cheap; `upload/agent.py` still needs a home.
 - **`core/llm.py`** — class definition violates §2 (classes only in designated files). Role map
   diverges (D3.2). Expected end-of-Step-2 state; schedule correction in Step 3.x planning.
 - **REFACTORING §10** — shows `completeness_score: float` on illustrative DefineState/MeasureState

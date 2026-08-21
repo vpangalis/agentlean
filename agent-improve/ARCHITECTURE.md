@@ -3690,6 +3690,39 @@ begins.
 - **3.3** `knowledge/tools.py` — the universal seven with multi-query + RRF
 - **3.4** `knowledge/computation.py` — 20 computation tools, pure functions, unit tested
 - **3.5** `core/diagrams.py` — diagram type schemas
+- **3.7** `phases/{phase}/schema.py` — **rewrite `{Phase}PhaseInput` in place
+  into `{Phase}Output`** (§4.10). See the ruling below.
+
+#### Step 3.7 — the phase schemas are rewritten, not migrated alongside
+
+**Ratified 2026-08-21.** The v1 `{Phase}PhaseInput` models and the v2
+`{Phase}Output` models occupy the same file and the same conceptual slot, and
+they are **not** kept side by side.
+
+`DefinePhaseInput` today has 24 fields; `DefineOutput` has 15. Of the six
+Tier 1 fields, exactly one name matches (`goal_statement`) — the v1
+5W2H decomposition (`what`, `where`, `when`, `how_much_baseline`, …) has no
+counterpart in `problem_statement` / `voc_summary` / `project_scope` /
+`issues_and_barriers`. A parallel-schema migration would therefore carry two
+near-disjoint models with a translation layer between them, for a system that
+has no live consumer to protect.
+
+**There is no production system.** Nothing reads `{Phase}PhaseInput` outside
+the v1 validators being replaced in the same step, so the usual reason for a
+parallel schema plus a later retirement step does not apply here. **Rewrite in
+place; no `{Phase}OutputV2`, no deprecation window, no retirement step.**
+
+Two conversions bind, and both are already-ratified rules the v1 schema
+violates:
+
+| v1 | v2 | Rule |
+|---|---|---|
+| `team_members: list[TeamMember]` | **string representation** | §4.6 — every captured field is `str`; a typed list of Pydantic objects is exactly the typed-numeric-adjacent case the rule exists to prevent |
+| `sipoc` — 5 keys | **`process_map_sipoc` — 6 keys**, adding `process_kpis` | §4.10.7 — `process_kpis` is what carries the Define → Measure → Control measurement thread; without it the SIPOC cannot anchor the baseline |
+
+**The full field-by-field mapping is Task 4 scope**, not this step's
+specification. What is settled here is the *shape* of the migration —
+in-place rewrite — and the two conversions above.
 - **3.6** ✔ **Index schema rename** — `phase_summary_analyse_phase` →
   `phase_summary_analyse` applied in Azure AI Search by delete +
   recreate (index was empty; no reindex needed); codebase sweep done —

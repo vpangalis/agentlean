@@ -833,37 +833,58 @@ No new decision — same fix, second confirmation. Tracked for batch commit to R
 
 ---
 
-### E4 — `AzureAISearchRetriever` filter must be set at construction time, not invoke time
+### E4 — Retrieval filters are per-call arguments on `AzureSearch`; `AzureAISearchRetriever` is not adopted
 
-**Status:** ADOPTED — 2026-08-11 (§33 compliance audit)  
-**Source:** REVIEW_DECISIONS.md §33-B finding; GitHub #29756, #21492, #14227, #30482
+**Status:** SUPERSEDED and REWRITTEN 2026-08-21 (Task 2 codebase cross-check)  
+**Supersedes:** the 2026-08-11 version of E4, which mandated a per-call `AzureAISearchRetriever(filters=...)` constructor  
+**Source:** `backend/knowledge/retriever.py`; GitHub #29756, #21492, #14227, #30482
 
-`AzureAISearchRetriever.invoke(q, search_kwargs={"filters": ...})` does not work —
-`search_kwargs=` at invoke time is the `AzureSearchVectorStoreRetriever` interface,
-not `AzureAISearchRetriever`. The filter must be passed as `filters=` in the constructor.
+**The original finding was correct about a class Agent Improve does not
+use.** `AzureAISearchRetriever` genuinely does take `filters` at
+construction and not via `search_kwargs` at invoke time — issue #30482's
+*"got multiple values for keyword argument 'filter'"* is real. And because
+`phase` is dynamic, that class would indeed force per-call instantiation.
 
-Since the `phase` parameter is dynamic (varies per tool call), the retriever for
-`rag_lookup_methodology` **cannot be module-level**. It is created per call:
+**But the codebase uses `AzureSearch`** — the
+`langchain_community.vectorstores.azuresearch` vectorstore — whose
+`similarity_search(query, k=..., filters=...)` takes the filter **at call
+time**:
 
 ```python
-retriever = AzureAISearchRetriever(
-    service_name=..., index_name="improve_knowledge_index",
-    content_key="content", top_k=top_k * 3,
-    filters=f"phase_relevance eq '{phase}' or phase_relevance eq 'general'",
-)
-ranked_lists = [retriever.invoke(q) for q in variants.queries]
+vs = get_knowledge_vectorstore()          # module-level, @lru_cache(maxsize=1)
+filters = f"phase_relevance eq '{phase}' or phase_relevance eq 'general'"
+docs = vs.similarity_search(query, k=k, filters=filters)
 ```
 
-Same pattern applies to `rag_lookup_evidence` (filter: `case_id eq '...'`) and
-`rag_lookup_case_history` (filter: `status eq 'completed'`).
+The dynamic filter never touches construction, so the cached module-level
+singleton is correct and there is no per-call instantiation cost.
+`improve_case_index` additionally uses a **raw `SearchClient`**, because
+`AzureSearch` resolves its content and vector field names from
+process-global settings that default to `content` / `content_vector`, and
+that index uses `content_text` / `embedding`.
 
-Closes §32 open question: "Confirm `azure_search_retriever` module-level exposure
-or adjust reference implementation." Answer: adjust — per-call constructor.
+**Ruling: do not adopt `AzureAISearchRetriever`** (2026-08-21). The current
+mechanism works, is in place, and already carries the correct
+`phase_relevance` filter. Adopting a different retrieval class is a
+migration, not a bug fix, and nothing in the audit produced a reason for one.
 
-**§37 cross-reference (2026-08-11):** §37 compliance audit confirmed this same bug as
-§37-B (High) in §37's implementation note for `rag_lookup_methodology`. The per-call
-constructor requirement applies identically to all three `rag_lookup_*` tools.
-No new decision — same fix, second confirmation. Tracked for batch commit to REFACTORING §37.
+**Open for Task 3B:** confirm against current LangChain docs whether
+`AzureAISearchRetriever` offers anything `AzureSearch` does not — semantic
+ranker access, better hybrid scoring control, a supported upgrade path.
+**Revisit only if it does.** Absent a concrete gain, this stays closed.
+
+**What genuinely IS construction-time, and binds:** `fields=`. LangChain
+promotes a metadata key to a filterable top-level field only when the key
+matches a name in `self.fields`, which defaults to
+`[id, content, content_vector, metadata]` and never introspects the live
+index. `get_knowledge_vectorstore()` passes `fields=KNOWLEDGE_INDEX_FIELDS`
+for exactly this reason. **Omitting it silently buries `phase_relevance` in
+the `metadata` JSON blob where `$filter` cannot reach it, with no error** —
+which is the original cause of the filter never working. This is the real
+constructor-time constraint, and it is not the one E4 originally recorded.
+
+**§37 cross-reference:** §37-B recorded the same superseded finding and is
+rewritten with it. No separate action.
 
 ---
 

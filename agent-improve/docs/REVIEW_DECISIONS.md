@@ -2600,7 +2600,34 @@ f"phase_relevance eq '{phase}' or phase_relevance eq 'general'"
 
 ### Finding §33-B — API Gap: `search_kwargs` filter at invoke time (High — blocks Step 3.1)
 
-**Status:** Confirmed gap. Fix ratified.
+> **SUPERSEDED 2026-08-21 by the Task 2 codebase cross-check. Read this
+> finding as history, not as a live instruction.**
+>
+> Everything below is accurate **about `AzureAISearchRetriever`** — the
+> class does take `filters` at construction, `search_kwargs` at invoke time
+> does collide (#30482), and a dynamic `phase` would force per-call
+> instantiation. **But Agent Improve does not use that class.**
+>
+> `backend/knowledge/retriever.py` uses `AzureSearch`
+> (`langchain_community.vectorstores.azuresearch`), whose
+> `similarity_search(query, k=..., filters=...)` takes the filter **at call
+> time**. The dynamic filter never reaches construction, so the module-level
+> `@lru_cache` singleton is correct and no per-call instantiation is needed.
+> `improve_case_index` additionally uses a raw `SearchClient`, because
+> `AzureSearch` resolves field names from process-global settings that
+> default to `content` / `content_vector` while that index uses
+> `content_text` / `embedding`.
+>
+> **Ruling (2026-08-21): `AzureAISearchRetriever` is not adopted.** The fix
+> below solved a problem the codebase never had. See DECISIONS.md §E4 as
+> rewritten, and §37-B, which carried the same superseded finding.
+>
+> **The real construction-time constraint is `fields=`**, not `filters=` —
+> without it `phase_relevance` is silently demoted to the unfilterable
+> `metadata` blob on write, which is what actually broke this filter
+> originally. §33-A's `'all'` → `'general'` fix is unaffected and stands.
+
+**Status:** Confirmed gap. Fix ratified. **— superseded, see above.**
 
 The §33 canonical implementation assumes:
 ```python
@@ -2912,7 +2939,15 @@ f"phase_relevance eq '{phase}' or phase_relevance eq 'general'"
 
 ### Finding §37-B — API Gap: `search_kwargs` filter at invoke time (High — blocks Step 3.1)
 
-**Status:** Confirmed gap. Fix ratified (propagated from §33-B).
+> **SUPERSEDED 2026-08-21, identically to §33-B.** This finding propagated
+> the §33-B conclusion, and it inherits the same correction: the per-call
+> `AzureAISearchRetriever(filters=...)` constructor describes a class the
+> codebase does not use. `AzureSearch.similarity_search()` takes `filters`
+> at call time, so the module-level cached vectorstore is correct.
+> **`AzureAISearchRetriever` is not adopted** — DECISIONS.md §E4.
+> §37-A's `'all'` → `'general'` fix is unaffected and stands.
+
+**Status:** Confirmed gap. Fix ratified (propagated from §33-B). **— superseded, see above.**
 
 The §37 ratified implementation uses `search_kwargs={"filters": ...}` at invoke time — the same invalid pattern as §33-B. `AzureAISearchRetriever` takes `filters` as a constructor parameter, not a keyword argument at invoke time. Passing it via `search_kwargs` at invoke is either silently ignored or causes a kwarg collision (GitHub issue #30482: "AzureSearch: got multiple values for keyword argument 'filter'").
 

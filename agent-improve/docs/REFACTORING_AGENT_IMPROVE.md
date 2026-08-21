@@ -3976,20 +3976,17 @@ def rag_lookup_methodology(query: str, phase: str, top_k: int = 10) -> list[Docu
         f"content on: {query}. Include synonyms, related terminology, and "
         f"phrasings a Black Belt would use in the LSS Black Belt eBook."
     )
-    # Instantiated per call — `filters` is a constructor parameter, and `phase`
-    # is dynamic, so this retriever cannot be a module-level singleton.
-    retriever = AzureAISearchRetriever(
-        index_name="improve_knowledge_index",
-        top_k=top_k,
-        filters=f"phase_relevance eq '{phase}' or phase_relevance eq 'general'",
-    )
-    ranked_lists = [retriever.invoke(q) for q in variants.queries]
+    # Module-level cached vectorstore; the filter is a per-call argument.
+    vs = get_knowledge_vectorstore()          # AzureSearch, search_type="hybrid"
+    filters = (f"phase_relevance eq '{phase}' "
+               f"or phase_relevance eq 'general'")
+    ranked_lists = [
+        vs.similarity_search(q, k=top_k, filters=filters)
+        for q in variants.queries
+    ]
     fused = reciprocal_rank_fusion(ranked_lists, k=60)
     return [doc for doc, _score in fused[:top_k]]
 ```
-
-**Two corrections are baked into the block above; both were bugs in the
-earlier version, and both would have failed silently.**
 
 **The cross-phase filter value is `general`, not `all`.** The index was
 inspected directly: 218 documents carry `phase_relevance = 'general'` and
@@ -3998,19 +3995,39 @@ every methodology lookup silently returned a corpus narrowed to the current
 phase — no error, no empty result, just quietly missing cross-phase content.
 The earlier note here said "confirm the exact enumeration before
 implementing"; that placeholder is now closed, and this is the confirmed
-value.
+value. **`backend/knowledge/retriever.py` already had this right**
+(`CROSS_PHASE_RELEVANCE = "general"`); only this document carried the bug.
 
-**`filters` is a constructor parameter, not an invoke-time keyword.**
-`AzureAISearchRetriever` accepts `filters=` at construction.
-`search_kwargs={"filters": ...}` at invoke time is either ignored outright or
-collides with the underlying client's own keyword (`langchain` issue #30482,
-*"AzureSearch: got multiple values for keyword argument 'filter'"*). Because
-`phase` is dynamic, the retriever **must** be constructed per call — a
-module-level `azure_search_retriever` cannot carry a per-call filter, so any
-existing module-level instance must not be reused here.
+**On `AzureSearch`, the filter is a per-call argument — and that is
+correct.** An earlier revision of this section showed
+`azure_search_retriever.invoke(q, search_kwargs={"filters": ...})` and was
+then corrected to a per-call `AzureAISearchRetriever(filters=...)`
+constructor. **Both were wrong, because neither is the class in use.**
 
-The same two corrections apply verbatim to §37's implementation note, which
-carried identical copies of both bugs.
+`AzureAISearchRetriever` does take `filters` at construction, which is what
+forces per-call instantiation when the filter is dynamic. But Agent Improve
+uses `AzureSearch` (`langchain_community.vectorstores.azuresearch`), whose
+`similarity_search(query, k=..., filters=...)` accepts the filter **at call
+time**. That difference removes the whole problem: the vectorstore stays a
+module-level `lru_cache`d singleton because the dynamic `phase` filter never
+touches its construction.
+
+**`AzureAISearchRetriever` is deliberately not adopted** — see §39 for the
+mechanism decision. The `search_kwargs` collision recorded in `langchain`
+issue #30482 is real, but it is an artifact of a class this codebase does
+not use, and it should not be cited as a constraint on the code that exists.
+
+**What *is* construction-time on `AzureSearch` is `fields=`**, and that one
+genuinely binds: LangChain promotes a metadata key to a filterable top-level
+field only when the key matches a name in `self.fields`, which defaults to
+`[id, content, content_vector, metadata]` and never introspects the live
+index. Declaring `fields=KNOWLEDGE_INDEX_FIELDS` is what keeps
+`phase_relevance` filterable on write. Omit it and the value is silently
+buried in the `metadata` JSON blob, unreachable by `$filter`, with no error
+raised — which is how `phase_relevance` went unpopulated in the first place.
+
+The same corrections apply to §37's implementation note, which carried
+identical copies of the same bugs.
 
 `rag_lookup_evidence` and `rag_lookup_case_history` follow the identical shape — same variant generation, same RRF — differing only in index, filter, and vector field. See §32's table and §40 for their metadata filters and ordering clauses. Metadata filters propagate through fusion cleanly: each variant query returns metadata-filtered results, and RRF combines them normally.
 
@@ -4703,12 +4720,12 @@ Uncontrolled retrieval introduces noise into model reasoning.
 `improve_knowledge_index` carries a `phase_relevance` field specifically for filtering by DMAIC phase, and nothing was using it. Adding the filter clause improves retrieval precision immediately, at the cost of one constructor argument:
 
 ```python
-retriever = AzureAISearchRetriever(
-    index_name="improve_knowledge_index",
-    top_k=top_k,
-    filters=f"phase_relevance eq '{phase}' or phase_relevance eq 'general'",
-)
-ranked_lists = [retriever.invoke(q) for q in variants.queries]
+vs = get_knowledge_vectorstore()          # module-level, lru_cache'd
+filters = f"phase_relevance eq '{phase}' or phase_relevance eq 'general'"
+ranked_lists = [
+    vs.similarity_search(q, k=top_k, filters=filters)
+    for q in variants.queries
+]
 ```
 
 **The cross-phase term is `general`, not `all`.** Cross-phase eBook content must
@@ -4717,15 +4734,20 @@ over-narrows — but the value that does that is `'general'`. 218 documents in t
 index carry it; **zero** carry `'all'`. The earlier `OR 'all'` clause was
 never satisfied and narrowed the corpus silently, with no error raised.
 
-**And the filter goes in the constructor, not `search_kwargs`.**
-`AzureAISearchRetriever` takes `filters=` at construction time; passing it at
-invoke time via `search_kwargs` is ignored or collides with the client's own
-`filter` keyword. Since `phase` varies per call, the retriever is constructed
-per call — it cannot be a module-level singleton, and an existing module-level
-`azure_search_retriever` must not be reused for this tool.
+**The filter is a per-call argument to `similarity_search`, and the
+vectorstore stays module-level.** An earlier revision showed
+`search_kwargs={"filters": ...}`; a later correction replaced it with a
+per-call `AzureAISearchRetriever(filters=...)` constructor. Both described a
+class this codebase does not use. `AzureSearch` takes `filters` at call time,
+so the dynamic `phase` value never reaches construction and the `lru_cache`d
+singleton is correct. Full reasoning: §33.
 
-This is the same pair of corrections applied to §33's canonical implementation;
-both sections carried identical copies of both bugs, and both are fixed.
+**What must be set at construction is `fields=`** — without it,
+`phase_relevance` is silently demoted to the unfilterable `metadata` blob on
+write, which is the original cause of this section's filter never working.
+
+This is the same set of corrections applied to §33's canonical implementation;
+both sections carried identical copies of the same bugs, and both are fixed.
 
 **This filter is methodology-tool-only.** `rag_lookup_evidence` is already filtered by `case_id`, and `rag_lookup_case_history` is inherently cross-phase — neither has a phase-relevance equivalent. The full tool with the filter in place is in §33.
 
