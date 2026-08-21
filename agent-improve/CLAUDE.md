@@ -2173,7 +2173,7 @@ there are three things.
 
 **All captured fields are `str`.** No phase schema declares a typed
 numeric. **Computation tools parse at the point of use** — each of the
-18 (§5.2) extracts what it needs from the string it is given and returns
+20 (§5.2) extracts what it needs from the string it is given and returns
 a clear reformatting request to the Belt when it cannot.
 
 ```python
