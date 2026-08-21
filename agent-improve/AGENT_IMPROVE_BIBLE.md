@@ -4720,9 +4720,18 @@ This document and `CLAUDE.md` are amended only via:
 1. A new architectural decision, recorded in `docs/DECISIONS.md`
 2. A commit updating the relevant section here and/or the rule in `CLAUDE.md`
 3. Increment to the version number at the top
-4. A change-log entry
+4. **The change log goes in `docs/DECISIONS.md` — in the same entry as step 1 —
+   plus a one-line version note at the head of this document. This document has
+   no change-log section, by design** (see *About this document*: it states
+   conclusions, not their history). `CLAUDE.md` is the exception: it carries its
+   own numbered `§0.x` change entries, and an amendment touching a rule there
+   adds one.
 5. **If a rule number cited in `deprecated_patterns.yaml` changes, the registry
    is updated in the same commit** (§55)
+
+*Step 4 previously read only "a change-log entry", against a document that
+deliberately has no change log — leaving the amender to invent a destination.
+Corrected 2026-08-21.*
 
 **Never amend a rule "in passing" while making a feature change.**
 Architecture changes are separate commits.

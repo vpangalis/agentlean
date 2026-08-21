@@ -2883,10 +2883,14 @@ prefix.
 
 This file is amended only via:
 
-1. A new architectural decision documented in `AGENT_IMPROVE_BIBLE.md`
+1. A new architectural decision recorded in `docs/DECISIONS.md` and stated in
+   the `AGENT_IMPROVE_BIBLE.md` section that owns the topic
 2. A commit to CLAUDE.md updating the relevant rule
 3. Increment to the version number at the top
-4. Change entry in the `AGENT_IMPROVE_BIBLE.md` section that owns the topic
+4. **A numbered `§0.x` change entry in this file**, saying what changed and
+   why. The Bible's own change log lives in `docs/DECISIONS.md` plus a
+   one-line version note at its head — it has no change-log section, by design
+   (`AGENT_IMPROVE_BIBLE.md` §56 step 4)
 5. **If a rule number cited in `deprecated_patterns.yaml` changes, the
    registry is updated in the same commit** (§0.2)
 
