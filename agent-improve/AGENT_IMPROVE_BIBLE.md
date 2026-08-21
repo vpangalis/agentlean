@@ -1874,4 +1874,799 @@ requires all three of:
 
 ---
 
-*Parts I–IV end here. Parts V–XI to follow.*
+# Part V — Knowledge and Retrieval
+
+---
+
+## 23. The three indexes
+
+*Supersedes: REFACTORING §36, §40; ARCHITECTURE.md §7.1–§7.3; CLAUDE.md §7.3.*
+**Status: RATIFIED, with two pending schema changes marked below.**
+**Canonical home for all index schemas.**
+
+Three Azure AI Search indexes, one per retrieval tool. **Each tool is bound to
+exactly one index and knows that index's field names locally** — there is no
+shared retriever, which is what keeps the differences between them from hiding
+in shared code.
+
+### 23.1 `improve_knowledge_index` — methodology
+
+LSS Black Belt eBook content. Static, identical for every project and every
+Belt, never updated at runtime.
+
+| Field | Type | Role |
+|---|---|---|
+| `id` | String | Key |
+| `content` | String | Chunk text |
+| `content_vector` | SingleCollection (3072d) | Vector field |
+| `metadata` | String | JSON blob |
+| `source_file` | String | Returned for citation |
+| `phase_relevance` | String | **Filter** |
+| `page_number` | Int32 | Returned for citation |
+
+**Filter:** `phase_relevance eq '{phase}' or phase_relevance eq 'general'`
+
+**The cross-phase value is `general` — never `all`, never `phase`.** All three
+have been wrong in some revision, and the failure modes differ:
+
+| Wrong value | What happens |
+|---|---|
+| `phase` as the *field* name | The field does not exist; **Azure rejects the whole query** — fails loudly |
+| `'all'` as the cross-phase value | No document carries it; the `OR` clause is never satisfied and the corpus is **silently narrowed** to the current phase |
+
+218 documents carry `'general'`. Zero carry `'all'`. **The silent failure is
+the dangerous one**, and it is why this value is stated here rather than left
+to be confirmed at implementation time.
+
+### 23.2 `improve_evidence_index` — Belt-uploaded evidence
+
+Case-specific documents. **This is the only channel through which external
+data enters the system** (§29.1), which makes it architecturally more important
+than "uploaded files" suggests.
+
+| Field | Type | Role |
+|---|---|---|
+| `id` | String | Key |
+| `content` | String | Chunk text |
+| `content_vector` | SingleCollection (3072d) | Vector field |
+| `metadata` | String | JSON blob |
+| `case_id` | String | **Filter** — scopes to the current case |
+| `phase` | String | **RATIFIED — NOT YET APPLIED.** Optional filter, default OFF |
+| `uploaded_at` | String | **RATIFIED — NOT YET APPLIED.** Order by, ISO 8601 |
+
+**Until the reindex runs, the live index is the first five fields and code must
+not reference `phase` or `uploaded_at`.**
+
+Both new fields **backfill from `metadata`** at reindex time — `uploaded_at`
+from `metadata.timestamp`, `phase` from `metadata.upload_phase`. No new data
+collection is needed; the values already exist in the wrong shape, buried in a
+non-sortable JSON blob where `$orderby` and `$filter` cannot reach them.
+
+Both are **server-set**: `phase` from `state["current_phase"]` at upload,
+`uploaded_at` from the server clock. A Belt-entered value for either makes it
+unreliable as a filter or sort key.
+
+**`phase` closes a problem that was never articulated:** two similar documents
+uploaded at different phases were indistinguishable at retrieval time. A Belt's
+Measure-phase defect data and their Control-phase defect data both match
+"defect data" with nothing to tell them apart — and since this index is the
+sole external channel, that ambiguity lands directly on the coaching answer.
+
+**Its filter defaults OFF, deliberately.** Cross-phase evidence retrieval is
+the *normal* case — a Control Belt comparing against the Measure baseline —
+so filtering to the current phase by default would break the comparison the
+field exists to enable.
+
+### 23.3 `improve_case_index` — case records (cross-case memory)
+
+Live case data with per-phase summaries. This is the long-term cross-case
+memory mechanism.
+
+| Field | Type | Role |
+|---|---|---|
+| `id` | String | Key |
+| `case_id` | String | Case identifier |
+| `title` | String | Case title |
+| `belt_level` | String | **Optional filter, OFF by default** |
+| `leader` | String | Project leader |
+| `department` | String | Owning department |
+| `current_phase` | String | Phase in flight |
+| `rag_status` | String | Red / Amber / Green |
+| `status` | String | **Filter** — `status eq 'completed'` |
+| `created_at` | String | **Order by** — `created_at desc` |
+| `target_date` | String | Planned completion |
+| `days_in_phase` | Int32 | Duration metric |
+| `phase_summary_define` | String | Pre-computed summary |
+| `phase_summary_measure` | String | Pre-computed summary |
+| `phase_summary_analyse` | String | Pre-computed summary |
+| `phase_summary_improve` | String | Pre-computed summary |
+| `phase_summary_control` | String | Pre-computed summary |
+| `content_text` | String | Concatenated case text |
+| `embedding` | SingleCollection (3072d) | Vector field — **renaming, see below** |
+
+**`embedding` → `content_vector` is RATIFIED — NOT YET APPLIED.** This is the
+only index whose vector field is not `content_vector`, and the difference is
+historical rather than deliberate. Delete + recreate (the index holds 0
+documents, so no data migration), **batched with the §23.2 additions** so the
+corpus rebuilds once. **Until it lands, `embedding` is the live name.**
+
+**The vector-field asymmetry is safe by construction, and is still being
+removed.** Each tool knows its own index's field name locally, so no shared
+code can hide the difference and fail silently on it. "Safe" was the reason not
+to rush the rename — never a reason to keep it.
+
+**The internal phase key is `analyse`, never `analyse_phase`.** The rename
+landed in Azure by delete + recreate. `f"phase_summary_{phase}"` is now correct
+for all five phases with no mapping constant anywhere. A mapping constant was
+considered and rejected: fixing the name at the source means no permanent
+workaround exists.
+
+### 23.4 The write-path trap that made `phase_relevance` unfilterable
+
+**A metadata key becomes a filterable field only if it is named after one AND
+the vectorstore declares it.**
+
+LangChain's `AzureSearch` promotes a metadata key to a top-level field only
+when the key matches a name in `self.fields`:
+
+```python
+additional_fields = {k: v for k, v in metadata.items()
+                     if k in [x.name for x in self.fields]}
+```
+
+`self.fields` **defaults to `[id, content, content_vector, metadata]` and never
+introspects the live index.** So writing methodology requires both the correct
+key name *and* `fields=KNOWLEDGE_INDEX_FIELDS` on the vectorstore. Either alone
+leaves the value buried in the `metadata` JSON blob, unreachable by `$filter`,
+**with no error raised.**
+
+**This is how `phase_relevance` went unpopulated.** `ingest_knowledge.py` owns
+this contract.
+
+**Never call `add_texts` without explicit `ids=`** — LangChain assigns a random
+UUID key, so re-ingestion duplicates the corpus rather than replacing it.
+
+### 23.5 Schema change procedure
+
+An index schema change lands in **this section first**, in the same commit as
+the Azure AI Search change. Never record a schema change only in code.
+
+**Never write to Agent Resolve indexes.** Read-only, via tools.
+
+---
+
+## 24. The three `rag_lookup_*` tools
+
+*Supersedes: REFACTORING §32, §33, §37; ARCHITECTURE.md §7.4; CLAUDE.md §7.2; DECISIONS §E1, §E4.*
+**Status: RATIFIED.** File: `knowledge/tools.py`.
+
+| Tool | Index | Filter | Vector field |
+|---|---|---|---|
+| `rag_lookup_methodology(query, phase, top_k=10)` | `improve_knowledge_index` | `phase_relevance` | `content_vector` |
+| `rag_lookup_evidence(query, case_id, top_k=10, phase=None)` | `improve_evidence_index` | `case_id`; optional `phase` | `content_vector` |
+| `rag_lookup_case_history(query, top_k=10, exclude_current_case=True)` | `improve_case_index` | `status eq 'completed'` | `embedding` → `content_vector` |
+
+**`search_methodology` and `search_evidence` are renamed and superseded.** No
+code may reference the old names.
+
+### RAG via tool, never via prepended system message
+
+**The v1 pattern — `build_knowledge_context()` injected as a `SystemMessage` —
+is DELETED.** Retrieval is a tool call the model decides to make.
+
+Three things follow, and each is a reason on its own:
+- RAG becomes **accountable in the trace** — you can see what was retrieved and when
+- The model **controls when to retrieve**, rather than paying for it every turn
+- The **always-on retrieval cost disappears**
+
+**There is no unconditional retrieval pipeline. If you find one, it is a
+violation.**
+
+### The retrieval mechanism
+
+**`AzureSearch` (`langchain_community.vectorstores.azuresearch`), with the
+filter passed at call time:**
+
+```python
+vs = get_knowledge_vectorstore()          # module-level, @lru_cache(maxsize=1)
+filters = f"phase_relevance eq '{phase}' or phase_relevance eq 'general'"
+docs = vs.similarity_search(query, k=k, filters=filters)
+```
+
+**`AzureAISearchRetriever` is deliberately NOT adopted.** It takes `filters` at
+*construction*, which would force per-call instantiation once the filter is
+dynamic. `AzureSearch` takes it at *call time*, so the dynamic `phase` value
+never reaches construction and the cached module-level singleton is correct.
+Adopting a different retrieval class would be a migration, not a bug fix.
+
+**`improve_case_index` additionally uses a raw `SearchClient`**, because
+`AzureSearch` resolves its content and vector field names from process-global
+settings that default to `content` / `content_vector`, while that index uses
+`content_text` / `embedding`.
+
+**What genuinely must be set at construction is `fields=`** — see §23.4. That
+is the real constructor-time constraint on this stack.
+
+### `belt_level` filtering is OFF by default
+
+Over-narrowing risk: **a Green Belt often benefits from seeing a Black Belt
+case.** Available as an optional parameter for scoped searches. Note the
+contrast with the *grader*, which does suppress Black-Belt-only recommendations
+for a Green Belt (§35) — adjusting what the grader asks of a Belt does not have
+the same failure mode as restricting what they may learn from.
+
+### `source_file` and `page_number` are returned, never filtered
+
+They exist for **citation transparency** — "this came from page 47 of the BB
+eBook" (§50). Using them as filters is a category error.
+
+---
+
+## 25. Multi-query and Reciprocal Rank Fusion
+
+*Supersedes: REFACTORING §32, §33, §35; ARCHITECTURE.md §7.4; DECISIONS §E1.*
+**Status: RATIFIED.**
+
+**All three retrieval tools generate 3–5 query variants and fuse the results
+with Reciprocal Rank Fusion, k=60. This is mandatory, not optional.**
+
+### Why it is mandatory
+
+Azure AI Search already does **hybrid retrieval** — BM25 keyword matching plus
+vector similarity — so the gap is not "missing BM25." The gap is sending **one
+query formulation** to an already-good hybrid retriever, which misses concepts
+the Belt did not explicitly name.
+
+**Agent Resolve production experience settled it.** With a single query, Azure
+AI Search ranking was not reliably returning the right matches for this corpus.
+RRF operationalises **cross-variant consistency** — a document ranked well by
+several different phrasings is more likely relevant than one ranked well by
+one. Native single-query ranking cannot do this, because it does not know the
+other variants exist.
+
+An earlier "diminishing returns, defer it" position was overridden by that
+evidence.
+
+### The implementation
+
+```python
+def reciprocal_rank_fusion(ranked_lists, k: int = 60):
+    scores, docs = {}, {}
+    for ranked in ranked_lists:
+        for rank, doc in enumerate(ranked):
+            doc_id = doc.metadata["id"]
+            scores[doc_id] = scores.get(doc_id, 0.0) + 1.0 / (k + rank)
+            docs[doc_id] = doc
+    return sorted(
+        [(docs[i], s) for i, s in scores.items()],
+        key=lambda pair: pair[1],
+        reverse=True,
+    )
+```
+
+**Roughly fifteen lines, no LangChain class, no third-party dependency, stable
+across framework versions.** It lives in `knowledge/fusion.py`.
+
+### `MultiQueryRetriever` and `EnsembleRetriever` are BANNED
+
+**Both moved to `langchain_classic` in the LangChain 1.0 namespace split** and
+are not importable from `langchain` in the current version.
+
+`EnsembleRetriever` would be the wrong class even if it were importable: it
+fuses results from **different retriever sources** (BM25 + vector, say),
+whereas our pattern is **same-index multi-query** — N phrasings against one
+index. No standard LangChain 1.x class covers that pattern, and the LangChain
+rag-fusion template used a custom implementation for the same reason.
+
+**Two independent reasons, one conclusion.** Custom RRF is correct, stable and
+dependency-free.
+
+### Encapsulation
+
+Variant generation and fusion happen **inside** the tool. The agent sees a
+clean `rag_lookup_*(query, ...)` interface and never manages either. Complexity
+belongs inside the tool, not exposed to the model.
+
+**Variant generation uses structured output** (`QueryVariants`, §21), never
+manual JSON parsing.
+
+---
+
+## 26. Multi-hop retrieval
+
+*Supersedes: REFACTORING §34, §71; ARCHITECTURE.md §7.5; DECISIONS §F6, §F7.*
+**Status: RATIFIED.**
+
+**Multi-hop is what the executor's ReAct loop does when it makes several
+`rag_lookup_*` calls in one Belt turn.** It is not a separate subsystem and
+needs no new infrastructure.
+
+**Multi-hop and multi-query are independent and compose.** Multi-query
+*broadens* within a hop; multi-hop *deepens* across hops. Neither requires the
+other — better single-hop retrieval reduces how many hops are needed, but does
+not replace them.
+
+### The hop cap is `RemainingSteps`
+
+```python
+from langgraph.managed import RemainingSteps
+
+def agent_node(state: PhaseState) -> dict:
+    remaining = state.get("remaining_steps", 10)
+    if remaining <= 2:
+        # too close to the limit — synthesise from what we have
+        return {"messages": [synthesise_partial(state)]}
+    return run_agent_step(state)
+```
+
+**Five hops per Belt turn.** Beyond five the model is usually lost or looping,
+and cutting it off is correct behaviour.
+
+**`RemainingSteps` rather than `recursion_limit`** — the reasoning, and the two
+ways `recursion_limit` fails in a hierarchy, are in §16. The property that
+matters here: `RemainingSteps` lives in graph state, so it crosses the subgraph
+boundary intact, counts only executor steps, and **provides a graceful
+off-ramp** — the agent composes an answer from what it has rather than dying.
+
+**`GraphRecursionError` must still be caught in the coach node** and turned
+into a partial answer. It is now a belt-and-braces guard against bugs rather
+than the primary mechanism. **A Belt mid-session never sees a stack trace
+because the coach explored too broadly.**
+
+**Hitting the cap is a monitoring signal, not just a limit.** It means either
+the system prompt encourages too-broad exploration, or the question warrants
+premium-tier treatment for that turn. Watch it in LangSmith — it is also the
+promotion trigger for the deferred model-tiering item (Appendix B).
+
+### Per-phase policy
+
+**The planner decides retrieval strategy at plan time** (§17), and
+`coaching_plan.retrieval_strategy` carries it.
+
+| Phase | Default | Multi-hop when |
+|---|---|---|
+| Define | Single-hop | **Never** — scoping questions are direct |
+| Measure | Single-hop | Complex measurement-system validation (GR&R) |
+| **Analyse** | **Multi-hop, planned (3 hops)** | **Almost always** — root cause validation is layered |
+| Improve | Single-hop | The Belt is comparing competing approaches |
+| Control | Single-hop | **Never** — documentation questions are direct |
+| **Gate validation** | **No retrieval** | **Never** |
+
+**Gate validation never retrieves.** The rubric already encodes the methodology
+standards, so retrieval there is redundant *and* adds latency at exactly the
+moment the Belt is waiting for a decision. If the rubric is incomplete, the fix
+is to improve the rubric.
+
+### Planned multi-hop — the Analyse pipeline
+
+Three query types exist, and only the first is a retrieval problem:
+
+| Type | Source | Multi-hop? |
+|---|---|---|
+| Methodology retrieval | `improve_knowledge_index` | **Yes** |
+| The Belt's conversational answers | The Belt | No — field extraction, no index |
+| Gate quality evaluation | `artifacts` already in state | No — never |
+
+**Stage 1 — Planner:**
+
+```python
+class Hop(BaseModel):
+    hop_number:   int          # 1, 2 or 3
+    hop_question: str          # sub-question, may template prior answers
+
+class Plan(BaseModel):
+    reasoning:             str
+    hops:                  list[Hop]     # exactly 3 dependent hops
+    synthesis_instruction: str
+```
+
+**Stage 2 — Executor**, with the guard at node entry:
+
+```python
+async def analyse_executor_node(state: PhaseState) -> dict:
+    # The for-loop below runs inside ONE node invocation, so RemainingSteps
+    # does NOT decrement between hops — LangGraph counts node transitions,
+    # not Python iterations. Hence a guard at entry, not inside the loop.
+    if state.get("remaining_steps", 10) <= 2:
+        return {"messages": [synthesise_partial(state)]}
+
+    plan: Plan = planner.invoke(decomposition_prompt)
+    local: dict[str, str] = {"entity": state.get("extracted_entity", "")}
+    hop_results: list[str] = []
+
+    for hop in sorted(plan.hops, key=lambda h: h.hop_number):
+        result = rag_lookup_methodology(
+            query=hop.hop_question.format(**local),
+            phase=state["current_phase"],
+        )
+        local[f"hop{hop.hop_number}_answer"] = result
+        hop_results.append(result)
+
+    synthesis = synthesis_llm.invoke(
+        synthesis_prompt.format(**local, instruction=plan.synthesis_instruction)
+    )
+    return {
+        "hop_results":      hop_results,              # §6 — checkpointed, visible
+        "synthesis_output": synthesis.model_dump(),   # read by the coach call
+    }
+```
+
+**The loop needs no internal guard** because `Plan` bounds it at exactly 3
+hops. **The entry guard exists** because without it the 3-hop sequence can
+begin with almost no budget left and consume it before the agent can
+synthesise.
+
+**Stage 3 — Synthesis is a dedicated call.** Three LLM calls per Analyse
+multi-hop turn:
+
+| # | Call | Temp | Produces | Belt-facing |
+|---|---|---|---|---|
+| 1 | Planner | 0.1 | `Plan` — 3 hops + `synthesis_instruction` | No |
+| 2 | Synthesis | 0.1–0.2 | `SynthesisOutput` | **No** |
+| 3 | Coach | 0.5–0.7 | The coaching response | Yes |
+
+```python
+class SynthesisOutput(BaseModel):
+    evidence_chain: str                          # assembled reasoning
+    key_finding:    str                          # what the coach communicates
+    confidence:     Literal["high", "medium", "low"]
+    caveats:        list[str]                    # limits of the hop chain
+```
+
+**Why synthesis is not folded into the coaching call.** Collapsing stages 2 and
+3 saves a call and was rejected. Synthesis is a quality gate: assembling
+multi-hop evidence correctly is a different job from translating it into
+coaching language, and **each call is temperature-tuned for its own job** —
+deterministic evidence assembly at 0.1–0.2, natural coaching voice at 0.5–0.7.
+One call cannot be both. Separating them also makes each stage independently
+unit-testable and puts the evidence chain in the trace, so a wrong coaching
+answer can be traced to *either* bad evidence *or* bad translation.
+
+The three Azure AI Search calls (one per hop) are not LLM calls.
+
+### **UNVERIFIED** — planned multi-hop is Analyse-only
+
+The planned pipeline is implemented **only** in `analyse_executor_node`. Every
+other phase uses the standard ReAct path. **The assumption that reactive tool
+calling is sufficient for non-Analyse turns has not been tested.**
+
+A Define Belt asking whether their problem statement is well-scoped against
+similar projects, or a Control Belt asking why Cpk remains borderline, could
+equally benefit from structured multi-hop plus synthesis. Note
+`CoachingPlan.retrieval_strategy` is **not** restricted to Analyse — the
+planner may set `multi_hop` in any phase.
+
+**Validate during the eval dataset phase (§52):** if non-Analyse turns show 3+
+sequential tool calls with lower coaching quality than Analyse multi-hop turns,
+extend the mechanism.
+
+---
+
+## 27. Retrieval failure semantics
+
+*Supersedes: ARCHITECTURE.md §7.1.1; CLAUDE.md §7.2; DECISIONS §E5.*
+**Status: RATIFIED.**
+
+**Retrieval failure is never an empty result.**
+
+All three retrieval functions return `[]` **only** when the search ran and
+matched nothing. When they fail, they raise `KnowledgeSearchError`.
+
+### Never wrap a retrieval call in a bare `except Exception` returning `[]`
+
+**That is what hid the `phase` filter bug** — it reported a broken index as a
+silent empty corpus for an extended period. The coach then told Belts the
+methodology had nothing on their topic, which was false and unfalsifiable from
+the outside.
+
+Catch `retriever.RETRIEVAL_EXCEPTIONS` and classify via `_fail()`.
+
+### Three rules that each have already bitten
+
+1. **`RETRIEVAL_EXCEPTIONS` spans two services** — Azure AI Search *and* the
+   Azure OpenAI query embedding, which runs inside the same `try`.
+2. **A 4xx is `permanent` / `do_not_retry`**, not transient. It is our
+   malformed query; retrying fails identically.
+3. **Materialise results inside the `try`.** `SearchClient.search()` is lazy
+   and the HTTP call fires on iteration — a `try` that returns the iterator
+   catches nothing.
+
+### The coach-facing message must not read as absence
+
+A retrieval failure message tells the coach explicitly that this is a failure,
+not an empty corpus:
+
+> "Methodology search is unavailable right now (`{error_code}`). This is a
+> retrieval failure, not an absence of guidance — do not tell the team the
+> methodology has nothing on this. Answer from your own DMAIC knowledge, say
+> the reference lookup failed, and avoid citing sources you could not
+> retrieve."
+
+**Never let a coach-facing failure message read as an absence of content** —
+"no cases found" when the search never ran is worse than an error, because the
+Belt acts on it.
+
+---
+
+## 28. Memory taxonomy
+
+*Supersedes: REFACTORING §37; DECISIONS §K1.*
+**Status: RATIFIED.**
+
+Five memory types. The first four are v2.1 scope; the fifth splits.
+
+| Type | What it stores | Implementation | Status |
+|---|---|---|---|
+| **Episodic** | Per-case history — coaching turns, decisions, gate outcomes | `step_log`, `improve_case_index`, `SummarizationMiddleware` | v2.1 |
+| **Semantic** | Domain knowledge — DMAIC methodology, tools, templates | `improve_knowledge_index`, `rag_lookup_methodology` | v2.1 |
+| **Working** | In-flight turn state | `PhaseState` fields — `artifacts`, `hop_results`, `synthesis_output` | v2.1 |
+| **Retrieval control** | Which memory to query, when, how | `CoachingPlan.retrieval_strategy`, `rag_lookup_*` routing | v2.1 |
+| **Procedural (static)** | How to execute DMAIC coaching — invariant rules | System prompt, SKILL.md via `DMAICSkillsMiddleware`, phase rubrics, anti-hallucination guards | **v2.1** |
+| **Procedural (dynamic)** | How to *adapt* coaching delivery per Belt | Per-Belt procedure store, updated from LangSmith trace analysis | **DEFERRED** |
+
+### The static/dynamic split is the part that matters
+
+**Static procedural memory is the invariant DMAIC methodology** — the same
+coaching rules for every Belt, every project, every domain. **This is correct
+and deliberate, not a limitation.** Methodology consistency is precisely the
+guarantee a DMAIC coaching system exists to provide; a coach that quietly
+varied gate criteria per Belt would be worthless as a quality system.
+
+**Dynamic procedural memory is Belt-adaptive *delivery*.** How much scaffolding
+this Belt needs, whether worked examples or challenge questions land better,
+which project-type emphasis helps.
+
+**The line between them is strict and load-bearing: dynamic procedural memory
+adapts how the methodology is delivered, never what the methodology requires.**
+A Black Belt still needs `vital_few_xs`. The coach may open Analyse differently
+for a BB with ten projects behind them, but the gate criteria do not move.
+
+The mechanism is Appendix B item 5 — LangSmith traces record which coaching
+approaches preceded clean gate passages and which preceded repeated loops; a
+background process outside the coaching loop extracts the pattern; the next
+session loads the learned procedures alongside the static rules, **extending
+them, never overriding them.**
+
+---
+
+# Part VI — Tools
+
+---
+
+## 29. The data channel and the universal seven
+
+*Supersedes: REFACTORING §39, §60, §63; ARCHITECTURE.md §8.1; CLAUDE.md §1.9, §5.1; DECISIONS §B5, §B6.*
+**Status: RATIFIED.**
+
+### 29.1 There is no MCP — the data-channel decision
+
+**Agent Improve, Agent Resolve and Agent Flow will never use MCP to connect to
+a live system. This is an architectural exclusion, not a deferral. There is no
+promotion trigger, because there is no path to promotion.**
+
+This is stated first in this Part because it determines what the tool
+inventory *can* be. Every tool below is either a retrieval tool against our own
+indexes, a pure function, or a UI-facing proposal — and that is a closed set by
+design, not by current limitation.
+
+**The principle it establishes:**
+
+> `improve_evidence_index` is not merely "case-specific uploaded documents."
+> It is the **only** channel through which external, real-world data enters
+> AgentLean.
+
+**Three consequences bind on implementation:**
+
+1. **Coaching content must include guidance on what data to upload and how to
+   structure it.** Data-collection coaching is a first-class part of the
+   methodology, not a workaround for a missing integration. This is why the
+   seven-step computation pattern (§43) has "guide data preparation" as an
+   explicit step.
+2. **Belt data-collection discipline is what the platform's grounding depends
+   on.** A phase with an empty `uploads` list reached its conclusions from
+   typed statements alone (§6).
+3. **There is no fallback path where the system fetches a number the Belt
+   failed to provide. Do not build one.**
+
+**Cross-agent tool sharing** — Agent Improve reading Agent Resolve's indexes —
+happens via **Python imports from shared modules, not via a protocol.** Those
+remain `@tool` functions, read-only.
+
+**Never add an MCP server, client, or dependency.**
+
+### 29.2 The universal seven
+
+Passed to **every** phase executor via `tools=`:
+
+```
+rag_lookup_methodology(query: str, phase: str, top_k: int = 10) -> list[Document]
+  improve_knowledge_index. Multi-query + RRF. Filters phase_relevance.
+
+rag_lookup_evidence(query: str, case_id: str, top_k: int = 10,
+                    phase: str | None = None) -> list[Document]
+  improve_evidence_index. Multi-query + RRF. Filters case_id; optional phase.
+
+rag_lookup_case_history(query: str, top_k: int = 10,
+                        exclude_current_case: bool = True) -> list[Document]
+  improve_case_index. Multi-query + RRF. Yokoten — cross-case learning.
+
+propose_template(template_type: str, fill_data: dict) -> str
+  Fill-in template for the team. Types: problem_statement, sipoc,
+  data_collection_plan, fishbone, etc.
+
+propose_diagram(diagram_type: str, data: dict) -> dict
+  Structured diagram JSON (NOT SVG). Types and schemas in core/diagrams.py.
+  The frontend renders via an SVG template library.
+
+check_gate_status() -> dict
+  Current phase gate readiness — which required fields are populated,
+  which are missing. Derived, never read from a stored list.
+
+request_human_approval(reason: str) -> str
+  Triggers an interrupt awaiting human decision, beyond standard gate
+  submission.
+```
+
+**`propose_diagram` returns structured JSON, not SVG.** The model describes
+what to draw; the frontend owns how it looks. A model emitting SVG produces
+markup that drifts from the design system and cannot be restyled.
+
+### 29.3 `record_field` is RETIRED and may not be reintroduced
+
+Field capture happens through `response_format=CoachingResponse` on the
+executor (§20) — the coach emits `fields_captured` as structured output on
+**every** turn, and the executor node writes each entry to `artifacts`.
+
+**A tool would make capture a decision the coach might skip; structured output
+makes it part of every response by construction.** That is the whole argument,
+and it is why the universal count is seven rather than eight.
+
+---
+
+## 30. Computation tools and per-phase binding
+
+*Supersedes: REFACTORING §39; ARCHITECTURE.md §8.2; CLAUDE.md §5.2; DECISIONS §B7.*
+**Status: RATIFIED.** File: `knowledge/computation.py`.
+
+### Tool sets are per phase, not universal
+
+**Tool selection quality degrades past roughly 10–15 tools per agent.**
+Per-phase binding keeps every coach inside the tractable range.
+
+| Phase | Universal | Computation tools | Total |
+|---|---|---|---|
+| **Define** | 7 | `calculate_expected_savings` | **8** |
+| **Measure** | 7 | `calculate_sigma_level`, `calculate_cpk`, `calculate_dpmo`, `calculate_yield_rty`, `calculate_ftq`, `calculate_grr`, `calculate_sample_size_proportion`, `calculate_sample_size_mean` | **15** |
+| **Analyse** | 7 | `t_test`, `chi_square_test`, `anova`, `pearson_correlation`, `linear_regression` | **12** |
+| **Improve** | 7 | `calculate_doe_main_effects` | **8** |
+| **Control** | 7 | `xbar_r_chart_limits`, `imr_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | **12** |
+
+**20 computation tools total.** 1 + 8 + 5 + 1 + 5 = 20.
+
+**No phase exceeds 16 tools**, and the actual maximum is 15 (Measure). A new
+tool that would push a phase past 16 requires an amendment, not a routine
+addition.
+
+### Each of the 20 is a separate named tool
+
+**Parameterised grouping is BANNED** — one `calculate_sample_size(type, ...)`
+with a mode argument moves the selection burden into the argument space, and
+models handle distinct named tools more reliably than mode arguments.
+
+### All 20 are pure functions
+
+No LLM call, deterministic, unit-tested. They are the one place synchronous
+code is unambiguously correct (§14).
+
+**They parse their inputs at the point of use** (§7) — each extracts what it
+needs from the string it is given and returns a clear reformatting request to
+the Belt when it cannot.
+
+### `imr_chart_limits` — the choice that is usually wrong by default
+
+**The individuals / moving-range chart is the right choice whenever the Belt
+has one measurement per period** rather than batches — which is the common case
+in service and transactional work.
+
+**Never coach a Belt into inventing subgroups to fit a batch chart.** Subgroups
+that were not collected as subgroups produce meaningless control limits, and
+the resulting chart looks authoritative while being wrong.
+
+### Tool decisions are the model's, not the graph's
+
+The graph does not pre-select which computation tool runs. The coach chooses,
+under the seven-step pattern (§43) and the rubric that enforces it.
+
+---
+
+## 31. Tool arg schemas and docstrings
+
+*Supersedes: REFACTORING §32, §39; ARCHITECTURE.md §8.1; CLAUDE.md §5.3, §5.4.*
+**Status: RATIFIED.** File: `knowledge/tool_args.py`.
+
+### Every `@tool` uses `args_schema=`
+
+A Pydantic model from `knowledge/tool_args.py`. **No tools with raw signature
+inference** — inferred schemas produce vague parameter descriptions, and the
+parameter description is what the model reads when deciding how to call.
+
+### Docstrings are interface, not commentary
+
+**The tool docstring is how the model chooses between the three retrieval
+tools.** It is load-bearing.
+
+Every retrieval tool docstring MUST state:
+
+- **When to use it** — "I need methodology" vs "I need this project's data" vs
+  "I need precedent from other projects"
+- **Which index** it queries
+- **Which vector field** it uses
+- **Which filters** are applied, and which are optional and default off
+
+**`rag_lookup_case_history`'s docstring must additionally carry the
+multi-tenancy note** for future engineers: if Agent Improve ever serves
+multiple organisations, this tool must filter by tenant. It is recorded in the
+docstring rather than only in this document because the docstring is what
+someone editing the tool will read (Appendix B item 1).
+
+---
+
+## 32. Phase skills — SKILL.md
+
+*Supersedes: REFACTORING §83, §84; ARCHITECTURE.md §8.4; CLAUDE.md §8.3.*
+**Status: RATIFIED.** Loaded by `DMAICSkillsMiddleware` (§19.2).
+
+Five phase skills under `agent-improve/skills/`, following the agentskills.io
+SKILL.md standard:
+
+```
+dmaic-define-phase/SKILL.md
+dmaic-measure-phase/SKILL.md
+dmaic-analyse-phase/SKILL.md
+dmaic-improve-phase/SKILL.md
+dmaic-control-phase/SKILL.md
+```
+
+### Each skill's `allowed-tools` MUST match that phase's subset in §30
+
+**Skill and tool binding must not drift apart.** A skill describing a tool the
+executor was not given produces a coach that promises something it cannot do.
+
+### Progressive disclosure — three levels
+
+| Level | When | What loads |
+|---|---|---|
+| 1 | Startup | Skill **descriptions only** — under 2K tokens for all five combined |
+| 2 | On demand | Full phase instructions, when the coach enters that phase |
+| 3 | On demand | Reference files, when explicitly needed |
+
+Level 2 is reached by the coach calling a registered `load_skill(name)` tool.
+
+### Storage backend: `FilesystemBackend`
+
+Git-versioned alongside the code, **so a skill change is reviewable in the same
+PR as the code that depends on it.** `ContextHubBackend` is deferred to the
+multi-deployment stage.
+
+### Each SKILL.md must carry
+
+- The **seven-step sequence** for every computation tool in its phase's
+  `allowed-tools` (§43)
+- A **worked example per field** for show-first coaching (§43)
+- An **A→F session flow** with a visible progress count
+- A **Document Layout** section showing the Belt what the gate document will
+  look like when complete
+- Upload handling and `CoachingResponse` capture instructions
+
+### Two distinct kinds of skill exist in this repository
+
+**They must not be confused:**
+
+| Kind | Location | Consumed by |
+|---|---|---|
+| **Development-workflow skills** | `.claude/skills/` | Claude Code — e.g. `/verify-current-version` |
+| **Runtime coaching skills** | `agent-improve/skills/` | The coach, at runtime |
+
+---
+
+*Parts I–VI end here. Parts VII–XI to follow.*
