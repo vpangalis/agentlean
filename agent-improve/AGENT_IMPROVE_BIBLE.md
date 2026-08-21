@@ -1,8 +1,16 @@
 # Agent Improve — Architecture Reference
 **AgentLean Platform · DMAIC Improvement Agent**
-Version 1.0-draft · 2026-08-21
+Version 1.1 · 2026-08-21
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.1 (2026-08-21)** — §29.4 added via the §56 amendment procedure: cross-agent
+tools named as a distinct third category, RATIFIED as present-but-not-bound,
+with the three rules that bind before any may be bound to a coach. Resolves the
+§29.1 / §29.2 tension. Decision record: `docs/DECISIONS.md` §Q1. Also in this
+version: Appendix D.1's retired retrieval-tool names corrected to the strings
+actually in the codebase, and §53.1's checkpointer status corrected from "done"
+to WIRED-but-INERT.
 
 **Verification:** every API signature, parameter name, deprecation status,
 version floor and cited source was checked against live documentation. Three
@@ -2184,8 +2192,20 @@ the Azure AI Search change. Never record a schema change only in code.
 | `rag_lookup_evidence(query, case_id, top_k=10, phase=None)` | `improve_evidence_index` | `case_id`; optional `phase` | `content_vector` |
 | `rag_lookup_case_history(query, top_k=10, exclude_current_case=True)` | `improve_case_index` | `status eq 'completed'` | `embedding` → `content_vector` |
 
-**`search_methodology` and `search_evidence` are renamed and superseded.** No
-code may reference the old names.
+**The three superseded tool names are `search_improve_knowledge`,
+`search_improve_cases` and `search_improve_evidence`.** No v2 code may
+reference them.
+
+**Only the tool layer is retired.** `knowledge/retriever.py`'s
+`search_knowledge` / `search_cases` / `search_evidence` functions are what the
+`rag_lookup_*` tools call, and they **keep their names** along with the failure
+semantics of §27.
+
+*Corrected 2026-08-21. This section previously named `search_methodology` and
+`search_evidence` as the retired pair. `search_methodology` exists nowhere, and
+`search_evidence` is a live retriever function §27 depends on — so the rule
+contradicted §27, and a grep for the named strings would have passed while every
+real retired name survived. Verification depends on literal strings.*
 
 ### RAG via tool, never via prepended system message
 
@@ -2664,6 +2684,67 @@ executor (§20) — the coach emits `fields_captured` as structured output on
 **A tool would make capture a decision the coach might skip; structured output
 makes it part of every response by construction.** That is the whole argument,
 and it is why the universal count is seven rather than eight.
+
+### 29.4 Cross-agent tools — a third category, present but NOT BOUND
+
+*Ratified 2026-08-21 via §56. Decision record: `docs/DECISIONS.md` §Q1.*
+
+**There are three tool categories in this system, not two:**
+
+| Category | Where | Bound to |
+|---|---|---|
+| **The universal seven** (§29.2) | `knowledge/tools.py` | **Every** phase executor |
+| **Computation tools** (§30) | `knowledge/computation.py` | Per phase, 1–8 of them |
+| **Cross-agent tools** (this section) | `knowledge/tools.py` | **Nothing. Deliberately** |
+
+**The four:**
+
+```
+search_resolve_cases(query)      → Agent Resolve  case_index_v3
+search_resolve_knowledge(query)  → Agent Resolve  knowledge_index_v2
+search_resolve_evidence(query)   → Agent Resolve  evidence_index_v1
+search_flow_vsm(query)           → Agent Flow     vsm_index   [STUB]
+```
+
+**This section exists because §29.1 and §29.2 were in tension.** §29.1
+sanctions cross-agent sharing via Python imports and says those *remain `@tool`
+functions*; §29.2 defines the universal seven, which these are not among. Read
+together the four were simultaneously permitted and unaccounted for. Neither
+section was wrong — the category was missing.
+
+**Current disposition: RATIFIED — PRESENT, NOT BOUND.** No coach receives any
+of them. Verified 2026-08-21: nothing outside `tools.py` imports from it and
+`bind_tools` appears nowhere. They are **reserved for cross-agent scenarios
+that do not exist yet** — Agent Resolve integration is not built and Agent Flow
+has no indexes, which is why `search_flow_vsm` returns a fixed
+*"not yet available"* string unconditionally.
+
+**Why they are kept rather than deleted:** the three `search_resolve_*` tools
+are working read-paths into a production system, verified read-only. They cost
+nothing while unbound, and deleting them would mean rebuilding and re-verifying
+later.
+
+**Why they are not bound now:** §30's selection-quality ceiling. Measure is at
+15 tools against a hard cap of 16; three more would put it at 18. And there is
+no evidence cross-agent retrieval improves DMAIC coaching — producing that
+evidence needs the §52 eval dataset.
+
+> **Three rules bind before any of them may be bound to a coach.** They are
+> recorded now, while the question is cheap, rather than when someone wants the
+> capability.
+>
+> 1. **Binding one is an amendment (§56), not a routine change** — it moves a
+>    phase's tool count against §30's cap.
+> 2. **They must first comply with §27.** All four currently catch bare
+>    `Exception` and return a prose string, which makes retrieval failure
+>    indistinguishable from no matches. That is tolerable **only** because they
+>    are unreachable; it becomes a live violation the moment one is bound.
+> 3. **They must return citations the way the universal seven do** (§50). They
+>    return `str` with an inline source prefix, not structured citation
+>    metadata, so nothing downstream can surface `source_file` / `page_number`.
+
+**Never write to Agent Resolve indexes** (§23.5). Read-only is not a default
+that may be relaxed.
 
 ---
 
@@ -4909,6 +4990,11 @@ Claudes* (Feb 05), *An update on recent Claude Code quality reports* (Apr 23).
 
 ### D.1 Retired names — never reintroduce
 
+> **These strings are load-bearing.** `grep-absence` verification in the
+> Refactoring Procedure checks for them literally, so a wrong name here produces
+> a check that passes while the real pattern survives. The retrieval-tool row
+> was wrong on exactly this until 2026-08-21.
+
 | Retired | Use instead | §ction |
 |---|---|---|
 | `project_id` | `case_id` | §5 |
@@ -4919,7 +5005,7 @@ Claudes* (Feb 05), *An update on recent Claude Code quality reports* (Apr 23).
 | `analyse_phase` as a phase key | `analyse` | §23.3 |
 | `completeness_score` | Derived from `artifacts` | §5, §50 |
 | `record_field` tool | `CoachingResponse.fields_captured` | §29.3 |
-| `search_methodology`, `search_evidence` | `rag_lookup_*` | §24 |
+| `search_improve_knowledge`, `search_improve_cases`, `search_improve_evidence` — the **tool** layer only | `rag_lookup_*` | §24 |
 | `policy_advisory`, `revise` as node names | Logic in `gate_apply`; an edge | §13 |
 | `RetryMiddleware` | `ModelRetryMiddleware` / `ToolRetryMiddleware` | §19.5 |
 | `phase_router` node | Static edges | §15 |

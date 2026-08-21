@@ -1768,3 +1768,76 @@ be cited later as if it were live.*
 illustration is now explicitly labelled as a generic LangChain example rather
 than Agent Improve's stack — it also contained `HumanInTheLoopMiddleware`,
 which is BANNED for our gates (§53).
+
+*Superseded 2026-08-21: the keyword itself was wrong. It is `max_retries`, not
+`retries` — see B3 and `docs/BIBLE_VERIFICATION_LOG.md` C-1. The "standardise on
+2" ruling stands; only the parameter name changed.*
+
+---
+
+## Part Q — Cross-agent tools (2026-08-21)
+
+### Q1 — Cross-agent tools are a distinct category, present but unbound
+
+**Status:** RATIFIED 2026-08-21
+**Source:** Task 4 (Refactoring Procedure) Appendix E question 1
+**Lands in:** `AGENT_IMPROVE_BIBLE.md` §29.4 (new); this entry is both the
+decision record and the change-log entry required by §56
+
+**The question.** `backend/knowledge/tools.py` defines four `@tool` functions
+that reach outside Agent Improve — `search_resolve_cases`,
+`search_resolve_knowledge`, `search_resolve_evidence` and `search_flow_vsm`.
+**No Bible section stated their disposition**, and two sections were in tension:
+
+| Section | Says |
+|---|---|
+| §29.1 | Cross-agent tool sharing happens via Python imports, read-only, and those **remain `@tool` functions** — i.e. they legitimately exist |
+| §29.2 | The universal seven is what every phase executor receives — and these four are not among them |
+
+Read together, the four tools were simultaneously sanctioned and unaccounted
+for. Neither section was wrong; the category was missing.
+
+**The ruling.** They are a **third category** — read-only cross-agent tools —
+distinct from both the universal seven (§29.2) and the per-phase computation
+tools (§30).
+
+**Current disposition: present, not bound.** Verified 2026-08-21 —
+`grep -rn "from backend.knowledge.tools import\|bind_tools" backend/` returns
+**nothing outside `tools.py` itself**. No coach receives any of them today.
+They are reserved for cross-agent scenarios that do not exist until Agent
+Resolve integration is real and Agent Flow is built.
+
+**Two facts that shaped the ruling:**
+
+- **`search_flow_vsm` is an explicit stub.** It returns *"Agent Flow VSM index
+  not yet available."* unconditionally. Agent Flow has no indexes.
+- **The three `search_resolve_*` tools reach real, populated Agent Resolve
+  indexes** — `case_index_v3`, `knowledge_index_v2`, `evidence_index_v1`, via
+  `similarity_search` only. Read-only is already true in the code, not merely
+  intended.
+
+**Why "present but unbound" rather than deletion.** Deleting them would discard
+working read-paths into a production system for no gain — the code is not
+costing anything while unbound, and rebuilding it later would repeat work
+already done and verified. **Why not bind them now:** §30's selection-quality
+ceiling is the binding constraint. Analyse is at 12 tools and Measure at 15
+against a hard cap of 16; adding three would push Measure to 18. There is no
+evidence yet that cross-agent retrieval improves DMAIC coaching, and no eval
+dataset (§52) to produce that evidence.
+
+**Three rules bind if they are ever bound to a coach**, recorded now so the
+question is decided before the pressure to bind them arises:
+
+1. **Binding any of them is an amendment (§56), not a routine change**, because
+   it changes a phase's tool count against §30's cap.
+2. **They must first comply with §27.** All four currently `except Exception`
+   and return a prose string. That is the exact pattern CLAUDE.md §14 bans —
+   retrieval failure must be distinguishable from no matches. It is tolerable
+   only while they are unreachable.
+3. **They must return citations the way the universal seven do** (§50). They
+   currently return `str` with an inline `[Agent Resolve · index · case_id]`
+   prefix rather than structured citation metadata, so nothing downstream can
+   surface `source_file` / `page_number`.
+
+**Never write to Agent Resolve indexes** (§23.5). Read-only is not a default
+that can be relaxed.

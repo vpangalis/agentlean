@@ -712,18 +712,22 @@ with `severity="permanent"` on a 4xx, and that a genuine no-match returns `[]`.
 | **Precondition** | 5.1 |
 | **Verify** | `live-run` |
 
-**The live v1 tool names are `search_improve_knowledge`,
-`search_improve_cases`, `search_improve_evidence`** — not the
-`search_methodology` / `search_evidence` pair CLAUDE.md §5.1 names as retired.
-**The `grep-absence` check must target the real names.** Report this so the
-retired-name list can be corrected.
+**The retired tool names are `search_improve_knowledge`,
+`search_improve_cases` and `search_improve_evidence`** — corrected in CLAUDE.md
+§5.1 and Bible Appendix D.1 on 2026-08-21. **`grep-absence` must target those
+three strings.**
 
-**Four cross-agent tools also exist** — `search_resolve_cases`,
-`search_resolve_knowledge`, `search_resolve_evidence`, `search_flow_vsm`. Bible
-§29.2's universal seven does not include them, and §29.1 permits read-only
-cross-agent access via Python imports. **Their disposition is not specified by
-any Bible section — raise it as an amendment question rather than deciding it
-in this step.**
+**Only the tool layer is retired.** `knowledge/retriever.py`'s
+`search_knowledge` / `search_cases` / `search_evidence` functions keep their
+names — §27 depends on them. **Do not grep-absence `search_evidence`**; it is
+supposed to survive.
+
+**The four cross-agent tools stay, unbound** — `search_resolve_cases`,
+`search_resolve_knowledge`, `search_resolve_evidence`, `search_flow_vsm`.
+Ratified as a distinct third category in **Bible §29.4** (2026-08-21,
+`docs/DECISIONS.md` §Q1). **Do not delete them and do not bind them to the
+executor in this step.** Binding one is an amendment, and §29.4 names three
+rules that bind first — §27 compliance among them.
 
 **Blocked partially by 9.1:** until the reindex lands,
 `rag_lookup_evidence` takes **no** `order_by` and no `phase` filter, and
@@ -1327,22 +1331,41 @@ infrastructure noise. **Read both before finalising §52.**
 
 ---
 
-## Appendix E — Open questions raised by this procedure
+## Appendix E — Questions raised by this procedure · BOTH RESOLVED
 
-**Neither is decided here. Both are amendment questions for the Bible.**
+*Both were raised by writing this document and both were ruled on 2026-08-21,
+before any step executed. Recorded here so the resolution is visible at the
+point the question arose.*
 
-1. **The four cross-agent tools.** `search_resolve_cases`,
-   `search_resolve_knowledge`, `search_resolve_evidence` and `search_flow_vsm`
-   exist in `knowledge/tools.py`. §29.1 permits read-only cross-agent access via
-   Python imports, and §29.2's universal seven does not include them. **No Bible
-   section states their disposition.** Raised at step 5.2.
+**1 — The four cross-agent tools · RESOLVED.** `search_resolve_cases`,
+`search_resolve_knowledge`, `search_resolve_evidence` and `search_flow_vsm` sat
+between §29.1 (which sanctions read-only cross-agent tools) and §29.2 (whose
+universal seven excludes them) — permitted and unaccounted for at once.
 
-2. **The retired-name list is inaccurate.** CLAUDE.md §5.1 and Bible
-   Appendix D.1 name `search_methodology` and `search_evidence` as the retired
-   tool names. **The live names are `search_improve_knowledge`,
-   `search_improve_cases` and `search_improve_evidence`.** The rule is right in
-   substance and wrong in the specific strings, which matters because
-   `grep-absence` verification depends on the strings. Raised at step 5.2.
+**Ruled: a distinct third category, RATIFIED as present-but-not-bound.** Added
+as **Bible §29.4** through the §56 amendment procedure; decision record
+`docs/DECISIONS.md` §Q1. Kept because the three `search_resolve_*` tools are
+verified read-only paths into a production system; unbound because §30's tool
+ceiling would put Measure at 18 against a cap of 16, and there is no evidence
+cross-agent retrieval helps DMAIC coaching until the §52 dataset exists. **Three
+rules bind before any may be bound to a coach**, §27 compliance among them.
+Applied at step 5.2.
+
+**2 — The retired-name strings · RESOLVED, and worse than reported.** CLAUDE.md
+§5.1 and Bible Appendix D.1 named `search_methodology` and `search_evidence` as
+the retired tool names.
+
+**`search_methodology` exists nowhere in the codebase. `search_evidence` does
+exist — as a live retriever function CLAUDE.md §7.2 requires to keep
+existing.** So the constitution contradicted itself: §5.1 banned a name §7.2
+mandated. A `grep-absence` check written from the old list would have passed on
+a fiction while all three real retired names survived.
+
+**Corrected directly** — the retired **tool** names are
+`search_improve_knowledge`, `search_improve_cases`, `search_improve_evidence`;
+the **retriever** layer keeps its names. Fixed in CLAUDE.md §5.1, §0.3 and the
+no-go list, and in Bible §24 and Appendix D.1, which now carries a warning that
+these strings are load-bearing for verification. Applied at step 5.2.
 
 ---
 

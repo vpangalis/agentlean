@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.16 — August 2026
+# Version 2.2.17 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -64,7 +64,7 @@ hook — see `AGENT_IMPROVE_BIBLE.md` §55.
 |---|---|---|
 | Gate approval | Interrupt → approve | **Nine-step HITL** (§9.1) |
 | Gate validation | Field presence | **Four-layer stack** (§9.2) |
-| Retrieval tools | 2 (`search_methodology`, `search_evidence`) | **3 `rag_lookup_*`** (§7.2) |
+| Retrieval tools | 3 (`search_improve_knowledge`, `search_improve_cases`, `search_improve_evidence`) | **3 `rag_lookup_*`** (§7.2) |
 | Tool binding | 7 universal tools, same for all phases | **7 universal + 20 per-phase computation** (§5) |
 | Coach construction | `bind_tools` on the coach LLM | **`create_agent` + eight middlewares** (§4.4, §8) |
 | Structured output | `with_structured_output` mandated everywhere | **Scoped by call type** (§4.6) |
@@ -222,6 +222,38 @@ The former `ARCHITECTURE.md §X` and `REFACTORING_AGENT_IMPROVE.md §X`
 references were resolved through Bible Appendix A. Nine items of
 `ARCHITECTURE.md` content that had no Bible home were written into the Bible
 in the same pass, so the absorption is now real rather than declared.
+
+### 0.11 — What Changed in 2.2.17 — a rule that banned what another rule required
+
+**§5.1 named `search_methodology` and `search_evidence` as the retired
+retrieval-tool names. Both were wrong, and the second was actively harmful.**
+
+| | |
+|---|---|
+| `search_methodology` | **Exists nowhere in the codebase.** Never has |
+| `search_evidence` | **Exists and must keep existing** — a live function in `knowledge/retriever.py` that §7.2 names as one of three that must raise `KnowledgeSearchError` rather than return `[]` |
+
+**So §5.1 banned a name §7.2 mandated.** Two rules in this file, in direct
+contradiction, on a string.
+
+**Why it mattered more than a typo:** the Refactoring Procedure verifies
+retirement by `grep-absence`, which checks these strings **literally**. A check
+written from the old list would have passed — matching a name that never
+existed — while all three real retired names survived untouched. **A
+verification that cannot fail is worse than no verification**, because it is
+recorded as evidence.
+
+| Area | v2.2.16 | v2.2.17 |
+|---|---|---|
+| Retired retrieval-tool names | `search_methodology`, `search_evidence` | **`search_improve_knowledge`, `search_improve_cases`, `search_improve_evidence`** (§5.1) |
+| Retriever-layer names | Implicitly retired by §5.1 | **Explicitly NOT retired** — the tool layer is replaced, the retriever layer keeps its names (§5.1, §7.2) |
+| Cross-agent tools | Unaccounted for | **A distinct third category, present and deliberately unbound** — `AGENT_IMPROVE_BIBLE.md` §29.4 (§5.1, §14) |
+
+**The cross-agent addition went through the Bible's §56 amendment procedure**,
+not directly into a rule here: decision recorded at `docs/DECISIONS.md` §Q1,
+section added as Bible §29.4, Bible version incremented to 1.1. This file
+carries only the pointer, because the disposition is a design fact and §29.4 is
+its canonical home.
 
 ---
 
@@ -925,8 +957,29 @@ request_human_approval(reason: str) -> str
   submission.
 ```
 
-`search_methodology` and `search_evidence` are **renamed and
-superseded**. No code may reference the old names.
+**The superseded tool names are `search_improve_knowledge`,
+`search_improve_cases` and `search_improve_evidence`** — the three `@tool`
+functions in `knowledge/tools.py` today. No v2 code may reference them.
+
+> **Corrected 2026-08-21.** This rule previously named `search_methodology`
+> and `search_evidence`. **`search_methodology` exists nowhere in the
+> codebase**, and **`search_evidence` is a live retriever function that §7.2
+> requires to keep existing** — so this rule and §7.2 contradicted each other,
+> and a grep for the retired names would have passed while every real one
+> survived. **Verification depends on the literal strings**, which is why a
+> wrong name here is not cosmetic.
+
+**Two layers, and only the upper one is retired.** `knowledge/tools.py` is the
+`@tool` layer the model calls; `knowledge/retriever.py` holds the
+`search_knowledge` / `search_cases` / `search_evidence` functions those tools
+call. **The tool layer is replaced by `rag_lookup_*`; the retriever layer keeps
+its names** and its failure semantics (§7.2).
+
+**Four further tools in `knowledge/tools.py` are neither retired nor bound** —
+`search_resolve_cases`, `search_resolve_knowledge`, `search_resolve_evidence`,
+`search_flow_vsm`. Read-only cross-agent tools, a distinct third category,
+deliberately bound to no coach. Do not delete them and do not bind them:
+`AGENT_IMPROVE_BIBLE.md` §29.4 states the three rules that bind first.
 
 **`record_field` is RETIRED and may not be reintroduced.** Field capture
 happens through `response_format=CoachingResponse` on the executor
@@ -2641,7 +2694,14 @@ to choose backoff strategy (§4.8).
 - Never string-index the raw content field — read `content_blocks`
 - Never exceed 16 tools on a phase executor
 - Never parameterise the computation tools into mode-argument groups
-- Never reference `search_methodology` or `search_evidence`
+- Never reference the retired **tool** names `search_improve_knowledge`,
+  `search_improve_cases` or `search_improve_evidence` in v2 code — the tools
+  are `rag_lookup_*` (§5.1). **The retriever functions `search_knowledge`,
+  `search_cases` and `search_evidence` are NOT retired** and must keep their
+  names and failure semantics (§7.2)
+- Never delete or bind the four cross-agent tools (`search_resolve_*`,
+  `search_flow_vsm`) — present, unbound, and binding one is an amendment
+  (`AGENT_IMPROVE_BIBLE.md` §29.4)
 - Never use `MultiQueryRetriever`, `EnsembleRetriever`, or
   `OutputFixingParser`
 - Never use the deprecated `Conversation*Memory` or
