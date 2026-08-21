@@ -87,6 +87,34 @@ def is_excluded(rel_path: str, exclusions: list) -> bool:
     return False
 
 
+def is_registry_itself(file_path: str, project_dir: str) -> bool:
+    """True when the write targets the pattern registry file itself.
+
+    Bootstrapping exemption, and the narrowest possible one: an exact path
+    match against CONFIG_REL_PATH, never a glob and never a directory.
+
+    Why it is needed. Several registry entries necessarily quote the literal
+    they prohibit — a pattern's `message:` field has to name the construct it
+    is telling the author to stop writing. Those quoted literals are matched
+    by the very regexes they document, so *every* write to the registry
+    matches, including a byte-for-byte rewrite of its current contents. The
+    effect was that the governance file could not be edited through Write or
+    Edit at all, and the only ways to amend it were to hand-edit outside the
+    tooling or to route around the hook.
+
+    This restores normal editability for that one file. It does not loosen
+    the guard anywhere else: every other path, including the rest of
+    .claude/, is still checked exactly as before. Registry changes remain
+    governed by the audit-trailed-commit rule stated in the registry header.
+    """
+    try:
+        target = os.path.realpath(file_path)
+        registry = os.path.realpath(os.path.join(project_dir, CONFIG_REL_PATH))
+        return os.path.normcase(target) == os.path.normcase(registry)
+    except Exception:  # noqa: BLE001 - path resolution must never block a write
+        return False
+
+
 def load_patterns(project_dir: str) -> list[dict]:
     """Load the pattern registry. Raises on unreadable/invalid config."""
     config_path = os.path.join(project_dir, CONFIG_REL_PATH)
@@ -141,6 +169,11 @@ def main() -> int:
         return 0  # nothing being written
 
     project_dir = get_project_dir()
+
+    if is_registry_itself(file_path, project_dir):
+        _log("registry self-edit — check skipped (bootstrapping exemption)")
+        return 0
+
     try:
         patterns = load_patterns(project_dir)
     except Exception as exc:  # noqa: BLE001 - fail-soft on any config error
