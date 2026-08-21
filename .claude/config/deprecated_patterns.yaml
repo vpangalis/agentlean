@@ -8,6 +8,32 @@
 # path_exclusions use gitignore-style globs; they grandfather existing v1 code
 # scheduled for deletion during the arch-v2 migration.
 #
+# ── The governance-documentation exclusion ──────────────────────────────
+#
+# 'agent-improve/*.md' and 'agent-improve/**/*.md' appear on patterns 2–8.
+# The principle was stated on pattern-2 when it was first excluded:
+#
+#     "this registry guards code, not documentation."
+#
+# The governance documents — CLAUDE.md, AGENT_IMPROVE_BIBLE.md, and the
+# records under docs/ — must be able to NAME a deprecated construct in order
+# to prohibit it, show it beside its replacement, or record why it was
+# retired. A registry that blocks the sentence "never write X in a phase
+# executor" prevents the documentation of the very rule it enforces.
+#
+# The exclusion was applied to pattern-2 alone and never propagated. Patterns
+# 3–8 received it on 2026-08-21, completing an already-established treatment
+# rather than making a new governance decision. No code path that any pattern
+# guards has changed.
+#
+# pattern-1 is deliberately NOT excluded: its regex matches a literal import
+# statement rather than a bare name that prose would need to quote.
+#
+# The registry file itself is exempt from the check — see is_registry_itself()
+# in the hook. That is a bootstrapping fix, not an exclusion: several message:
+# fields below quote the literals they ban, so without it this file could not
+# be edited by the normal tooling at all.
+#
 # Not active until commit 0.5.3 registers the hook in .claude/settings.json.
 
 version: 1
@@ -22,25 +48,37 @@ patterns:
     regex: 'response\.content\s*\['
     message: "Do not string-parse response.content in phase executors. Read response.content_blocks (typed) per LangChain 1.0 (EDUCATIONAL §81). CLAUDE.md §4.5."
     severity: block
-    path_exclusions: []
+    path_exclusions:
+      # Governance documentation — see header.
+      - 'agent-improve/*.md'
+      - 'agent-improve/**/*.md'
 
   - id: pattern-4-custom-saga
     regex: '(class\s+\w*Saga\b|def\s+\w*compensat)'
     message: "Custom Saga/compensating-action code is superseded by native error_handler= on LangGraph 1.2+ nodes (EDUCATIONAL §79). CLAUDE.md §3.6."
     severity: block
-    path_exclusions: []
+    path_exclusions:
+      # Governance documentation — see header.
+      - 'agent-improve/*.md'
+      - 'agent-improve/**/*.md'
 
   - id: pattern-6-set-entry-point
     regex: '\.set_entry_point\s*\('
     message: "set_entry_point() is superseded. Use add_edge(START, ...) per LangGraph 1.x pattern (EDUCATIONAL §45 example code)."
     severity: block
-    path_exclusions: []
+    path_exclusions:
+      # Governance documentation — see header.
+      - 'agent-improve/*.md'
+      - 'agent-improve/**/*.md'
 
   - id: pattern-7-sync-graph-invoke
     regex: '(?<!a)graph\.invoke\s*\('
     message: "Synchronous graph.invoke() violates CLAUDE.md §1.4 (async by default). Use await graph.ainvoke(...) instead."
     severity: block
-    path_exclusions: []
+    path_exclusions:
+      # Governance documentation — see header.
+      - 'agent-improve/*.md'
+      - 'agent-improve/**/*.md'
 
   - id: pattern-2-with-structured-output
     regex: '\.with_structured_output\s*\('
@@ -64,6 +102,9 @@ patterns:
     severity: block
     path_exclusions:
       - 'agent-resolve/**'
+      # Governance documentation — see header.
+      - 'agent-improve/*.md'
+      - 'agent-improve/**/*.md'
       - 'agent-improve/backend/phases/**/orchestrate.py'
 
   - id: pattern-8-bind-tools-in-phase-executor
@@ -72,4 +113,7 @@ patterns:
     severity: block
     path_exclusions:
       - 'agent-resolve/**'
+      # Governance documentation — see header.
+      - 'agent-improve/*.md'
+      - 'agent-improve/**/*.md'
       - 'agent-improve/backend/phases/**/orchestrate.py'
