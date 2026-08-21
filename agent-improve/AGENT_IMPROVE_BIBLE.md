@@ -1,8 +1,11 @@
 # Agent Improve — Architecture Reference
 **AgentLean Platform · DMAIC Improvement Agent**
 Version 1.0-draft · 2026-08-21
-Status: **IN PROGRESS** — Parts I–II written. Parts III–XI pending.
-Not yet cross-checked against live sources (Task 3B).
+Status: **STRUCTURALLY COMPLETE** — Parts I–XI and Appendices A–E written.
+**NOT YET CROSS-CHECKED against live sources — Task 3B is a required gate
+before this document is authoritative.** Until that pass runs, treat every
+version number, API signature, deprecation status and cited issue as
+*asserted*, not *verified*.
 
 ---
 
@@ -3480,4 +3483,1223 @@ carries the named value.
 
 ---
 
-*Parts I–VIII end here. Parts IX–XI to follow.*
+## 43. The coaching method
+
+*Supersedes: REFACTORING §42; ARCHITECTURE.md §3.4.2; CLAUDE.md §0.8, §8.2; DECISIONS §D1–§D5.*
+**Status: RATIFIED.** Enforced by `COACHING_QUALITY_RUBRIC` every turn (§36).
+
+**This is where the system's teaching behaviour is specified.** It is
+enforcement, not aspiration: every rule below is a rubric criterion checked on
+every coaching turn.
+
+### 43.1 The seven-step computation pattern
+
+**Every computation tool, every time.** The coach follows this sequence
+whenever it calls one of the 20 (§30):
+
+| # | Step |
+|---|---|
+| **1** | **Educate on the concept** — what this *is*, plain language, a real-world analogy, and what the output numbers will mean |
+| 2 | **Explain why now** — why the Belt needs it at this point in their project |
+| 3 | **Guide data preparation** — what format is needed; check uploads via `rag_lookup_evidence` |
+| 4 | **Run the computation** — call the tool |
+| 5 | **Interpret their result** — plain language, no jargon (§50) |
+| 6 | **Visualise** — `propose_diagram` where applicable |
+| 7 | **Coach the next move** — what it means for the project |
+
+**Step 1 is mandatory and is the one most often skipped.** Never assume the
+Belt knows what a Cpk, a p-value or a control limit *is*. Teach the concept and
+say what the numbers will mean **before** producing any.
+
+**Returning a p-value with no concept and no interpretation is a rubric
+failure, not a style preference.** A Belt handed `t_statistic: 4.23,
+p_value: 0.001` has a number they cannot act on and cannot defend at a gate.
+Because the grader fires **every turn**, the dump is caught before the Belt
+sees it.
+
+**Every SKILL.md carries the seven-step sequence for each computation tool in
+its phase's `allowed-tools`** (§32).
+
+### 43.2 Show before asking
+
+**For every field**, the coach:
+
+1. **Shows a concrete example** of a completed answer
+2. **Explains why it works** — what makes it good
+3. **Invites the Belt to build theirs** in the same shape
+
+**Never ask "what is your baseline metric?" before showing what a good baseline
+metric looks like.** A Belt who does not know the target shape produces a weak
+answer, and the coach then spends turns correcting what it could have prevented
+in one.
+
+Each SKILL.md carries a worked example per field. Example, Define:
+
+```
+Let me show you a completed SIPOC before you build yours:
+
+Suppliers → Inputs → Process Steps → Outputs → Customers
+HR system, Managers → Employee records, Role requirements →
+  1. Receive request, 2. Screen candidates, 3. Interview,
+  4. Select, 5. Contract, 6. Start date set →
+Hired employee, Onboarding pack → Hiring manager, New employee
+
+Key KPIs: Time-to-hire (days), offer acceptance rate (%)
+
+Notice the KPIs are in the SIPOC itself — that's what makes it
+DMAIC-useful rather than just a process map.
+
+Now build yours for [project name].
+```
+
+**This interacts with §22's anti-hallucination guards and the interaction is
+load-bearing.** Show-first puts worked examples with plausible numbers directly
+in front of the model on every turn. The guards exist precisely because of
+this: **a template showing `baseline_mean: 4.2` is not data**, and the coach
+must never capture it as though the Belt said it.
+
+### 43.3 The A→F session flow
+
+Each SKILL.md structures coaching as a six-stage flow **with a visible progress
+count the Belt can see at any time**:
+
+```
+"We're working through the Measure phase — Step 3 of 6."
+```
+
+| Stage | What happens |
+|---|---|
+| **A** | Orientation — context setting, phase purpose |
+| **B** | Mandatory Tier 1 fields, one by one, show-first |
+| **C** | Computation tools, seven-step pattern |
+| **D** | Cross-phase references where applicable |
+| **E** | Tier 2 fields — advisory, the Belt decides |
+| **F** | Gate readiness check (`check_gate_status()`) and submission |
+
+### 43.4 The live gate document preview
+
+**The coach shows the Belt the gate document as it fills in**, using
+`check_gate_status()` output — what is captured, what is missing, and what the
+final document will look like:
+
+```
+📋 Your Define Gate Document (4 of 6 required fields complete)
+
+✅ Problem Statement: "Invoice error rate at 12.3% causes..."
+✅ VOC Summary: "Customer complaints focus on..."
+⬜ Project Scope: [not yet captured]
+✅ Goal Statement: "Reduce invoice error rate from 12.3% to <3%..."
+✅ Process Map (SIPOC): [complete — 6/6 sub-fields]
+⬜ Issues & Barriers: [not yet captured]
+
+Tier 2 fields: Business Case ✅  Team ✅  Charter ⬜ (optional)
+
+We're on Step 5 of 6. Let's capture Project Scope next.
+```
+
+**The Belt should always know what they are building toward.** Each SKILL.md
+carries a Document Layout section for its phase.
+
+### 43.5 No external URLs
+
+**The coach must not provide external URLs from training data.** When
+referencing methodology it retrieves via `rag_lookup_methodology` and **weaves
+the content into its own coaching voice**.
+
+Two reasons, and the second is the stronger: a URL from training data may be
+dead, moved, or wrong; and a coach that hands out links is outsourcing the
+teaching it exists to do.
+
+### 43.6 What the coach must not do
+
+From `COACHING_QUALITY_RUBRIC` (§36), the prohibitions:
+
+- **Not accept vague or unmeasurable statements** as captured fields
+- **Not invent data, metrics or values** the Belt did not provide
+- **Not do the Belt's work** — writing their problem statement for them
+- **Not stray off the current phase's topic**
+- **Not accept weak inputs unchallenged** — challenge with specific follow-up
+  questions
+
+**"Not doing the Belt's work" is the one most easily rationalised away.** A
+coach that writes a good problem statement produces a good gate document and a
+Belt who cannot write the next one. The gate document is not the product; the
+Belt's capability is.
+
+---
+
+# Part IX — Reliability
+
+---
+
+## 44. The failure pipeline
+
+*Supersedes: REFACTORING §66, §79; ARCHITECTURE.md §9.1.*
+**Status: RATIFIED.**
+
+Seven steps, of which Step 0 is the newest and fires first:
+
+| Step | Mechanism |
+|---|---|
+| **0** | **Per-node timeout** — `TimeoutPolicy(run_timeout=45)` (§45) |
+| 1 | Error classification — transient vs permanent (§48) |
+| 2 | Context recovery — save partial results, resume |
+| 3 | Circuit breaker — 3 failures / 30s → OPEN, 60s reset (§46) |
+| 4 | Safe reopen — one probe in HALF-OPEN (§46) |
+| 5 | Graceful degradation — the fallback chain (§46) |
+| 6 | Smart fallbacks — alternative models, cache, degraded mode (§46) |
+
+**Step 0 matters because of its position.** The timeout bounds the wall clock
+at 45 seconds and `NodeTimeoutError` is what *triggers* the chain — so fallback
+fires **before the Belt notices the delay**, rather than after retries have
+already burned the budget.
+
+**LangGraph ≥1.2.6 required.** Steps 0 and 2 are native primitives at that
+version and are unavailable at the currently installed 1.1.10 (§1).
+
+---
+
+## 45. Timeouts and compensating actions
+
+*Supersedes: REFACTORING §49, §79; ARCHITECTURE.md §9.2; CLAUDE.md §3.6.*
+**Status: RATIFIED — BLOCKED on the LangGraph upgrade.**
+
+### Per-node timeouts — required on every phase executor node
+
+```python
+builder.add_node(
+    "phase_executor",
+    phase_executor_fn,
+    timeout=TimeoutPolicy(run_timeout=45),
+    error_handler=phase_error_recovery,
+)
+```
+
+### Node-level error handlers — required on every node with external writes
+
+Every node that writes to Azure Blob, `improve_case_index` or
+`improve_evidence_index` gets an `error_handler=` that **undoes the external
+write** and routes to a degraded response:
+
+```python
+def phase_error_recovery(error: NodeError, state: PhaseState) -> Command:
+    delete_or_flag_stale_in_case_index(state["case_id"], state["phase"])
+    return Command(
+        update={"extraction_error": str(error), "extraction_incomplete": True},
+        goto="degraded_coaching_response",
+    )
+```
+
+### Hand-written Saga orchestrators are BANNED
+
+**LangGraph provides the mechanism.** Custom Saga classes and hand-written
+compensating-action frameworks were the pre-1.2 workaround; `error_handler=` is
+the native replacement.
+
+### Two dependencies on this rule, both correctness-critical
+
+1. **The re-approval cascade** (§37). When it fires, the affected phase's
+   handler must run, **or state and index disagree silently.**
+2. **Time-travel debugging.** Resuming from an earlier checkpoint rolls back
+   **state, not external writes.** Time travel is only correct for nodes that
+   have a handler — without one, you rewind the graph and leave the blob and
+   the index holding values from a future that no longer exists.
+
+### Graceful shutdown
+
+`RunControl.request_drain()` for deployment rollouts. Mid-coaching sessions
+save their checkpoint and resume.
+
+### `DeltaChannel` is NOT used
+
+Beta API, and there is no production evidence that checkpoint size is a problem
+yet. Deferred (Appendix B item 12) until sessions exceed roughly 200 turns.
+
+---
+
+## 46. The fallback chain and circuit breakers
+
+*Supersedes: REFACTORING §66, §67; ARCHITECTURE.md §9.3, §9.4; CLAUDE.md §4.8; DECISIONS §N1.*
+**Status: RATIFIED for v2.1; a v2.2 replacement is ratified and deferred.**
+
+### The v2.1 four-level chain
+
+```
+Level 0: TimeoutPolicy(run_timeout=45)         — fires first (§45)
+Level 1: gpt-4o    (operational-premium)       exponential backoff
+Level 2: gpt-4o-mini (operational-model)       exponential backoff
+Level 3: Azure Cache for Redis, session-scoped jittered backoff
+Level 4: Degraded mode — never a hard failure to the Belt
+```
+
+**It always terminates in success.** Level 4 is not an error path; it is a
+response.
+
+### Backoff strategy is chosen per level, not globally
+
+| Scenario | Strategy | Why |
+|---|---|---|
+| Managed service (Azure OpenAI) | **Exponential** | Predictable rate limiting, no thundering-herd risk |
+| Shared resource (the cache) | **Jittered** | Several subgraphs may fall back simultaneously; randomising prevents a synchronised storm |
+
+### Level 3 cache
+
+**Azure Cache for Redis**, storing recent retrieval results keyed by query hash
++ phase, and recent coaching responses for similar questions.
+
+**Session-scoped, not global.** Different projects have different context, and
+**a cached answer from another Belt's project is worse than no answer.**
+
+**⚠️ Not yet provisioned** (§1).
+
+### Circuit breakers — three-state, two instances
+
+| Breaker | Wraps | On OPEN |
+|---|---|---|
+| **LLM** | Azure OpenAI calls | Coaching turn cannot happen — fall to Level 2, then degraded |
+| **Search** | Azure AI Search calls | Coaching **continues** without RAG grounding — quality degradation, not availability failure |
+
+**The asymmetry is the point.** A search outage should degrade grounding, not
+stop the session.
+
+Threshold: 3 failures in 30s trips OPEN; 60s reset; **one probe request in
+HALF-OPEN** before resuming.
+
+**Two-state (CLOSED/OPEN) breakers are not permitted.** This is a long-running
+service and must recover without a restart.
+
+### Degraded mode uses actual state, never a generic error
+
+```python
+def degraded_mode_response(state: PhaseState) -> str:
+    return (
+        f"I'm experiencing a temporary connection issue. "
+        f"Based on what we've captured so far in the {phase} phase "
+        f"({n_captured} of {n_total} fields complete), "
+        f"I'd suggest we pause here and continue once the system recovers. "
+        f"Your progress is saved and nothing has been lost."
+    )
+```
+
+**Degraded mode is still a coaching interaction, not an error page.** The Belt
+knows what happened, knows their work is safe, and knows how to continue.
+
+### HTTP 400 is NOT a fallback case
+
+**Token limit exceeded is a context-management failure.** Do not retry the same
+request against a smaller model — the request is too big, and a smaller model
+has a smaller window. Fix the context (§19.3).
+
+**Every attempt is logged to `step_log` as a dict** (§11).
+
+### 46.1 Geographic redundancy — **DEFERRED**
+
+**The v2.1 chain has a single-region dependency.** Levels 1, 2 and 3 are all
+provisioned in **Azure West Europe (Frankfurt)**. They are three different
+services but one region. A Frankfurt outage does not degrade the chain a level
+at a time — **it collapses Levels 1–3 simultaneously** and drops straight to
+degraded mode.
+
+The chain reads as defence in depth, and against *service* failure it is.
+Against *regional* failure it is a single point of failure wearing four hats.
+
+**This is a compliance matter, not only robustness.** DORA's ICT resilience
+obligations require geographic redundancy for continuity of critical functions,
+which makes a single-region chain **non-compliant for any regulated-entity
+deployment** — a launch blocker for that market. EU AI Act data-governance
+provisions are why the secondary region must be inside the EU.
+
+**Ratified v2.2 replacement — five levels, two regions:**
+
+```
+Level 1: Azure OpenAI gpt-4o      — West Europe (Frankfurt) — primary
+Level 2: Azure OpenAI gpt-4o      — secondary EU region (Sweden Central candidate)
+Level 3: Azure OpenAI gpt-4o-mini — secondary EU region
+Level 4: Azure Cache for Redis    — session-scoped response cache
+Level 5: Degraded mode            — always succeeds
+```
+
+**The insertion is Level 2:** the same model in a different region, *before*
+accepting a quality drop to gpt-4o-mini. **A regional outage should cost
+latency, not coaching quality.**
+
+**TPM exhaustion and regional outage are different failures, and v2.1 handles
+the first correctly** — a 429 is classified transient, backoff fires, the chain
+activates. The amendment addresses Frankfurt being unreachable outright, or
+429s persisting past backoff tolerance with no regional escape hatch.
+
+**Appendix B item 16.** Promotion: before production launch with real Belts.
+
+---
+
+## 47. Disconnect policy — what a dropped client commits
+
+*Supersedes: DECISIONS §O3. New scope, ratified 2026-08-20.*
+**Status: RATIFIED.** Part of the `thread_id` wiring step (§53.1), not a separate step.
+
+**The question does not exist until checkpoints actually write.** While routes
+dispatched nodes manually and nothing persisted, a dropped connection lost a
+turn. Once `thread_id` reaches `graph.ainvoke`, it commits one.
+
+**The finding:** once checkpoints are live, **the FastAPI handler's
+control-flow shape — not the checkpointer — decides what survives a client
+disconnect.** A handler that hands the graph run to a bare
+`asyncio.create_task` keeps executing after the client is gone, and the run
+checkpoints every node it completes. **The Belt sees nothing; the checkpoint
+says the turn happened.**
+
+### Ratified policy: ABANDON, not COMPLETE
+
+**A silently-completed gate approval the Belt never saw is unacceptable** in a
+system whose entire premise is that the Belt approves what gets committed (§33
+step 7). COMPLETE is defensible for idempotent background work; **it is not
+defensible for a nine-step HITL gate.** If the Belt is gone, the turn stops.
+
+### Five requirements
+
+| # | Requirement | Why |
+|---|---|---|
+| **1** | **Deliberate handler shape** — inline `await` streaming, or an explicit ABANDON policy calling `t.cancel()` in `gen()`'s `finally`. Never a bare `asyncio.create_task` with no disconnect handling | **A handler that has not chosen has chosen COMPLETE by accident** |
+| **2** | **Deterministic `step_log` keys** — `f"{phase}:{turn_count}:{step_name}"`, never a raw timestamp as identity (§11) | An abandoned-then-retried turn re-executes the same logical step; timestamp keys record it as two events |
+| **3** | **Azure Blob lease as the per-thread concurrency guard** | Two tabs on one `case_id` means two writers on one `thread_id`. Postgres advisory locks are the natural mechanism and are unavailable until the §8 migration; this is also exactly the exposure the untested-concurrency limitation names |
+| **4** | **A reconciliation sweep for abandoned threads that EXCLUDES `interrupt()`-paused threads** | A thread paused at a gate is indistinguishable from an abandoned one by "no recent activity" alone. A sweep that misses this cleans up Belts who are simply thinking about their gate review overnight |
+| **5** | **`thread_id` / `case_id` derived from the authenticated session, never client-supplied** | A client-supplied `thread_id` lets any caller resume any Belt's session. `thread_id` is `case_id` and `case_id` is the tenancy boundary |
+
+**`gate_apply_node`'s Store write needs no change.** It is already idempotent
+by key — `store.put(...)` overwrites rather than appends, so replaying it is
+safe. **The exposure is in `step_log` (requirement 2) and concurrent writers
+(requirement 3), not there.**
+
+---
+
+## 48. Structured errors
+
+*Supersedes: REFACTORING §64; ARCHITECTURE.md §9.5; CLAUDE.md §12.3.*
+**Status: RATIFIED.** File: `core/errors.py`.
+
+All external service failures use one schema:
+
+```python
+class AgentImproveError(BaseModel):
+    error_code:           str        # "TIMEOUT", "RATE_LIMIT", "AUTH_FAILURE", …
+    severity:             str        # "transient" | "permanent"
+    retry_recommendation: str        # "retry_after_backoff" | "do_not_retry" | …
+    affected_identifier:  str
+    message:              str
+    timestamp:            datetime
+```
+
+**Two fields are read by machinery, not humans:**
+
+- **`severity`** is what lets the circuit breaker distinguish "retry" from
+  "stop trying"
+- **`retry_recommendation`** is what the fallback chain reads to choose its
+  backoff strategy (§46)
+
+A free-text error message cannot drive either decision, which is why this is a
+schema rather than a logging convention.
+
+**A 4xx from retrieval is `permanent` / `do_not_retry`** (§27) — it is our
+malformed query, and retrying fails identically.
+
+---
+
+# Part X — Operations
+
+---
+
+## 49. API surface
+
+*Supersedes: ARCHITECTURE.md §10; CLAUDE.md §1.1, §1.4, §1.5.*
+**Status: RATIFIED.** File: `gateway/routes.py`.
+
+### One runtime
+
+**The compiled graph is the only runtime path.** A route that does anything
+beyond `await graph.ainvoke(...)` / `astream_events(...)` plus envelope
+marshalling is a violation.
+
+**Nothing in `gateway/routes.py` may dispatch nodes manually.** This is the
+rule the v1 codebase most conspicuously breaks, and it is why the checkpointer
+wired at Step 2.1 does not yet take effect (§53).
+
+### Async by default
+
+- All FastAPI endpoints are `async def`
+- All graph invocations use `await graph.ainvoke(...)` or
+  `graph.astream_events(...)`
+- All LLM calls use `await llm.ainvoke(...)`
+- All Azure SDK calls use the `aio` variants where available
+
+### Endpoints
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /ask` | Non-streaming coaching turn — retained for clients that cannot use SSE |
+| `POST /ask/stream` | **The standard path.** Server-Sent Events; the frontend renders tokens as they arrive |
+| `POST /gate/submit` | Triggers the validation stack and the gate interrupt (§33.1) |
+| `POST /gate/approve` | Resumes from the interrupt with approval |
+| `POST /gate/reject` | Resumes from the interrupt with rejection |
+| `GET /cases`, `GET /cases/{id}` | Case records |
+| `GET /registry` | Case registry |
+
+**All of them invoke the same compiled graph object.**
+
+### Envelopes are Pydantic v2
+
+Request and response schemas live in `gateway/schemas.py` (§54).
+
+---
+
+## 50. UI and language rules
+
+*Supersedes: REFACTORING §77; ARCHITECTURE.md §11; CLAUDE.md §13.*
+**Status: RATIFIED.**
+
+### Plain language always
+
+- **No methodology jargon in any team-facing string.** Technical terms appear
+  only as small secondary grey labels
+- **Every AI data request includes a concrete example with column names**
+- Every AI suggestion using cross-agent data carries a **visible source
+  citation**
+
+**Jargon is the failure mode a coaching product is most prone to**, because the
+methodology has a rich vocabulary and using it feels like expertise. To a Belt
+who does not yet have the vocabulary, it reads as gatekeeping.
+
+### Citations
+
+Format: `agent_origin`, `index_name`, `document_id`, `relevance_summary`.
+
+**Retrieval citations surface `source_file` and `page_number`** (§23) — "this
+came from page 47 of the BB eBook." That specificity is what makes a citation
+checkable rather than decorative.
+
+### Contextual feedback
+
+**Spinner messages are contextual, never generic:**
+
+```
+Generic (bad):     "Loading…"
+Contextual (good): "Retrieving methodology…"
+                   "Validating your root cause…"
+                   "Checking gate completeness…"
+```
+
+A multi-hop Analyse turn (§26) takes measurably longer than a simple coaching
+response; the message sets the expectation.
+
+### Connection status before the first interaction
+
+The Belt sees system health before sending their first message. **A Belt who
+opens the interface and immediately sees "Azure OpenAI — disconnected" knows to
+wait.** Without it, the first coaching turn fails with a confusing error and
+they do not know why.
+
+### The gate review screen
+
+**Shows extracted fields before approval**, editable, with an explicit approve
+action (§33 steps 4–7). This is the UI surface of the entire HITL design — if
+it renders fields the Belt cannot edit, step 5 does not exist.
+
+### The live gate document
+
+Rendered from `PhaseState.artifacts` (§43.4). **Both the field content and the
+progress counts derive from that one source; there is no stored
+`completeness_score`** (§5).
+
+**Tier 1 and Tier 2 get separate progress bars, not one blended count.** A Belt
+at 6/6 required and 0/5 recommended **can pass the gate**; a single blended
+percentage would read as 55% and imply otherwise.
+
+---
+
+## 51. Tracing and observability
+
+*Supersedes: REFACTORING §45; ARCHITECTURE.md §12; CLAUDE.md §11.*
+**Status: RATIFIED.**
+
+### LangSmith is mandatory
+
+```env
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=...
+LANGCHAIN_PROJECT=agentlean-improve
+```
+
+**Production environments without LangSmith fail startup with a clear error.**
+Dead tracing config — the v1 state — is a CRITICAL violation.
+
+### `@traceable` on every custom function
+
+**LangSmith traces LangChain runnables and LangGraph nodes automatically. It
+does NOT trace plain Python functions.** Without `@traceable`, the logic
+*between* nodes is invisible and a gate failure surfaces as a 500 with no
+indication of which layer failed.
+
+REQUIRED on every function that:
+
+- Extracts fields from LLM responses
+- **Validates gate criteria — all four layers of §34**
+- Scores completeness
+- Makes routing decisions outside LangGraph node routing
+- Calls an external Azure service directly, outside a LangChain runnable
+
+### What gets traced
+
+Every graph invocation (parent span) · every node (child span) · every LLM call
+(prompt, response, token counts, cost) · every tool call (arguments, result) ·
+every retrieval (query, top-k results) · every validation layer.
+
+### P50/P99 latency is a coaching quality signal
+
+**Not just an ops metric.** High P99 degrades the Belt's experience directly.
+The usual outlier is **multi-hop retrieval combined with a grader call on the
+same turn**; fixes in order of preference: caching (§46 Level 3), a faster
+grader model, and reordering the validation stack cheapest-first (already
+mandated, §34).
+
+### Logs
+
+Structured logs via `logging`. Every request gets a `request_id`. Every node
+logs entry, exit, and the state-slice keys it returned.
+
+---
+
+## 52. Evaluation and regression testing
+
+*Supersedes: REFACTORING §75; ARCHITECTURE.md §14; CLAUDE.md §12.*
+**Status: RATIFIED, sequencing deliberate.**
+
+### Built alongside the refactor, not before it
+
+**Establishing a baseline against the current system would produce a baseline
+of "bad."** The suite becomes load-bearing when the coach, retrieval tools and
+grader are wired — that is when output quality changes. Infrastructure steps
+(graph structure, state schemas, checkpointer) do not affect coaching quality
+and do not need eval coverage.
+
+### The dataset is authored jointly, not generated
+
+**Coaching quality judgments are domain judgments.** A generated dataset
+measures agreement with a model rather than correctness. Claude proposes
+examples from the ratified architecture and DMAIC domain; the Belt-expert
+reviews and corrects.
+
+### Minimum viable suite
+
+| Dimension | Requirement |
+|---|---|
+| Size | 20–30 examples, 4–6 per DMAIC phase |
+| Categories | Realistic coaching turns · edge cases · tool-calling scenarios · failure/ambiguous cases · historical production data |
+| Metrics | Accuracy (field extraction) · relevance · reasoning quality · tool usage · safety (no invented methodology) |
+| Evaluator order | Deterministic ($0) → LLM-judge relevance (~$0.01) → LLM-judge reasoning (~$0.02) |
+| **Regression threshold** | **Block release if any metric drops >10% from baseline** |
+| Run frequency | Every commit touching system prompts, graph structure, or model config |
+| Cost per run | ~$0.60 for 20 examples |
+
+**Output format:** JSON or Python ready for LangSmith's `create_dataset` API.
+
+### Rubrics and the eval dataset are complementary, not duplicative
+
+| | Rubrics (§36) | Eval dataset |
+|---|---|---|
+| Define | What good looks like **for the grader** | Whether the **whole system** produces good outcomes |
+| Run | In production, every gate | In CI, every commit |
+| Catch | Per-turn and per-document quality | Regressions across releases |
+
+**This is also why grader temperature is pinned at 0.1** (§21): a grader
+returning different verdicts across runs makes these thresholds meaningless.
+
+### Two open validation questions this suite answers
+
+1. **Whether planned multi-hop should extend beyond Analyse** (§26,
+   **UNVERIFIED**)
+2. **Whether the retrieval similarity threshold needs calibration** (Appendix B
+   item 6)
+
+---
+
+## 53. Configuration, dependencies and deployment
+
+*Supersedes: REFACTORING §72, §74, §76; ARCHITECTURE.md §15; CLAUDE.md §11.4, §16.*
+**Status: RATIFIED.**
+
+### Fail-fast environment validation
+
+Validate all required credentials at startup, **before the first request**:
+
+```
+AZURE_OPENAI_KEY        — coaching LLM
+AZURE_SEARCH_API_KEY    — retrieval        (NOT "AZURE_SEARCH_KEY")
+LANGCHAIN_API_KEY       — observability
+```
+
+Missing credentials **exit 1 with a clear message**. This integrates with
+Docker health checks — a container failing startup receives no traffic.
+
+**`.env` hygiene:** the app loads `agent-improve/.env`. A root `.env` can
+silently shadow values depending on `load_dotenv()` search order — audit and
+remove it if redundant.
+
+### Dependency floor
+
+| Package | Installed (2026-08-21) | Floor | Note |
+|---|---|---|---|
+| `langgraph` | **1.1.10** | **≥1.2.6** | **BLOCKER** — §45 primitives and §16 `checkpoint_ns` both need it |
+| `langchain` | 1.2.13 | 1.x | |
+| `langchain-core` | 1.3.3 | — | let pip resolve |
+| `langchain-openai` | 1.1.11 | — | let pip resolve |
+| `langchain-community` | 0.4.1 | — | supplies `AzureSearch` (§24) |
+| `langsmith` | 0.7.3 | — | |
+| `langchain-classic` | 1.0.3 | pinned | Retains legacy classes we do **not** use — **presence is not permission** |
+
+**`langgraph` 1.1.10 is a hard blocker, not drift.** Nothing in §45 can be
+built until it is upgraded.
+
+**Do not upgrade to a stale pin.** Resolve the correct current target against
+live PyPI and the LangChain changelog at upgrade time, then pin. Upgrading to a
+target that is already superseded means doing the migration twice.
+
+**During the upgrade, sweep for imports from `langgraph.prebuilt`** —
+deprecated, functionality moved to `langchain.agents` (§18).
+
+### `/verify-current-version` is a mandatory checkpoint
+
+**Not background reading.** It exists because a deprecation notice is not
+sufficient guidance: during this review, `create_agent` was found to have a
+reported regression relative to `create_react_agent`, and the deprecation
+message pointed at a function **that did not yet exist in the installed
+package**.
+
+**Confirm a replacement is actually shipped and feature-complete in the
+installed version before porting to it.**
+
+### Infrastructure not yet provisioned
+
+| Component | For | Status |
+|---|---|---|
+| Azure Cache for Redis | Fallback chain Level 3 (§46) | **Not provisioned** |
+| Azure Database for PostgreSQL | `PostgresSaver` + `PostgresStore` (§8) | Provision before production launch |
+| Secondary EU region | Geographic redundancy (§46.1) | Deferred, Appendix B item 16 |
+
+### Deployment layer: FastAPI, not LangGraph Server
+
+**LangGraph Server was evaluated and rejected on licensing.** It requires
+`langgraph-api` under Elastic License 2.0, and even the self-hosted tier needs
+a commercial licence key. FastAPI + LangGraph (MIT) + a custom checkpointer is
+the self-hosted path without one — and it is what the system already runs.
+
+**LangGraph Studio is adopted anyway** for local development debugging
+(`langgraph dev`). It is better than anything hand-built for inspecting graph
+execution, and using it locally carries no licensing obligation for the
+deployed service.
+
+### 53.1 Migration sequence
+
+**This document describes the target.** The ordered procedure for reaching it
+from the current codebase is a separate document (the Refactoring Procedure).
+The binding constraints on any such sequence:
+
+**Option B is the ratified shape:** refactor the foundation first, then build
+Improve and Control on top of it. Building two more phases on the current
+foundation and rewriting them later was rejected.
+
+```
+Refactor the foundation
+  ├── Checkpointer wired into graph.compile()          ✔ done
+  ├── SupervisorState / PhaseState split               §5, §6
+  ├── thread_id through graph.ainvoke + disconnect policy   §16, §47
+  ├── Phase subgraphs with private state               §12, §13
+  ├── AzureBlobStore for cross-phase artifacts         §9
+  ├── Explicit planner / executor nodes                §17
+  ├── Three rag_lookup_* tools, multi-query + RRF      §24, §25
+  ├── 20 per-phase computation tools                   §30
+  ├── Eight-middleware coach stack                     §19
+  ├── Four-layer validation + nine-step HITL           §33, §34
+  └── Reliability: timeouts, error_handler, breaker,
+      fallback chain with cache                        §45, §46
+    ↓
+Build Improve phase   ← on the correct foundation from the start
+    ↓
+Build Control phase
+    ↓
+Run one case end-to-end clean
+    ↓
+Migrate PostgresSaver + PostgresStore                  §8
+    ↓
+Multi-user identity, isolation, tagged observability
+```
+
+**Two workstreams run alongside, not after:** the evaluation dataset (§52) and
+the five SKILL.md files (§32). Both encode Black Belt domain judgment and both
+inform the design as it lands.
+
+**The phase schemas are rewritten in place** — `{Phase}PhaseInput` becomes
+`{Phase}Output` in the same file. No parallel schema, no deprecation window, no
+retirement step. There is no production consumer to protect, and the two models
+are near-disjoint: of Define's six Tier 1 fields, exactly one name matches the
+v1 schema. Two conversions bind: `team_members` from `list[TeamMember]` to a
+string (§7), and `sipoc` gains `process_kpis` as its sixth key (§41).
+
+**Until migration is complete the v1 architecture may still operate, but no
+v1-style code may be ADDED.** A file is "migrated" when it is rewritten under
+these rules and committed with a `refactor(arch-v2):` prefix.
+
+---
+
+# Part XI — Governance
+
+---
+
+## 54. Where code is allowed to live
+
+*Supersedes: CLAUDE.md §2; ARCHITECTURE.md §5.*
+**Status: RATIFIED.**
+
+### Classes are permitted ONLY in these files
+
+| Area | Files |
+|---|---|
+| **State and schemas** | `core/state.py` (`SupervisorState`, one only) · `core/substate.py` (`PhaseState` + variants) · `phases/{phase}/schema.py` · `storage/models.py` · `gateway/schemas.py` · `core/citations.py` |
+| **Tool and validation schemas** | `knowledge/tool_args.py` · `validation/schemas.py` · `core/errors.py` |
+| **Persistence** | `core/checkpointer.py` · `core/store.py` |
+| **Middleware** | `middleware/grader.py` · `middleware/skills.py` · `middleware/state_injection.py` · `middleware/contradiction.py` · `middleware/coherence.py` |
+| **Reliability** | `core/reliability.py` (`CircuitBreaker`) |
+
+**All other files contain module-level functions ONLY.** Especially: graph
+builders, the LLM factory, all node files, the blob client, the retriever, tool
+definitions, boundary mappers, escalation, and routes.
+
+**`DMAICGateValidator` is the one permitted exception** — it lives in
+`validation/gate_validator.py` as a namespace of `@staticmethod` deterministic
+checks, holding no state.
+
+### Target folder structure
+
+```
+backend/
+  core/       state · substate · store · checkpointer · llm · graph
+              prompts · errors · reliability · citations · diagrams · tracing
+  middleware/ grader · skills · state_injection · contradiction · coherence
+  validation/ gate_validator · schemas · coherence · constraints
+  knowledge/  tools · computation · tool_args · retriever · fusion
+  phases/{phase}/  graph · nodes · schema · mappers
+  storage/    blob · models
+  gateway/    routes · schemas
+  escalate.py
+skills/       dmaic-{phase}-phase/SKILL.md
+```
+
+---
+
+## 55. Anti-drift
+
+*Supersedes: REFACTORING §45, §50, §86; CLAUDE.md §0.2, §16.3.*
+**Status: RATIFIED.**
+
+Three mechanisms, layered:
+
+| Layer | Mechanism | Enforces |
+|---|---|---|
+| **Constitution** | `CLAUDE.md` | The rules, quoted in every implementation prompt |
+| **Skills** | `.claude/skills/verify-current-version` | Version currency at decision time |
+| **Hooks** | `.claude/hooks/pre-tool-use-drift-check.py` + `deprecated_patterns.yaml` | Deprecated patterns blocked before they land |
+
+### Rule numbers are load-bearing
+
+`deprecated_patterns.yaml` cites `CLAUDE.md` rule numbers in the messages it
+feeds back. **Those citations must resolve.**
+
+| Registry pattern | Cites |
+|---|---|
+| `pattern-2-with-structured-output` | CLAUDE.md §4.6 |
+| `pattern-3-response-content-parsing` | CLAUDE.md §4.5 |
+| `pattern-4-custom-saga` | CLAUDE.md §3.6 |
+| `pattern-8-bind-tools-in-phase-executor` | CLAUDE.md §4.4 |
+
+**Renumbering any cited rule requires updating the registry in the same
+commit.** A hook that cites a non-existent rule is worse than no hook.
+
+### The registry guards code, not documentation
+
+`agent-improve/*.md` and `agent-improve/**/*.md` are excluded on patterns 2–8.
+**Governance documents must be able to name a deprecated construct in order to
+prohibit it** — a registry that blocks the sentence stating a rule prevents the
+documentation of that rule.
+
+**The registry file itself is exempt from the check**, because several of its
+`message:` fields necessarily quote the literals they ban. Without the
+exemption the governance file could not be edited by normal tooling at all.
+
+### Verification discipline
+
+**Before any architectural decision:** check the `anthropic.com/engineering`
+post index and the `pypi.org/project/langgraph` release history. **These move
+fastest and have the most impact.**
+
+---
+
+## 56. Amendment procedure
+
+*Supersedes: CLAUDE.md §18.*
+**Status: RATIFIED.**
+
+This document and `CLAUDE.md` are amended only via:
+
+1. A new architectural decision, recorded in `docs/DECISIONS.md`
+2. A commit updating the relevant section here and/or the rule in `CLAUDE.md`
+3. Increment to the version number at the top
+4. A change-log entry
+5. **If a rule number cited in `deprecated_patterns.yaml` changes, the registry
+   is updated in the same commit** (§55)
+
+**Never amend a rule "in passing" while making a feature change.**
+Architecture changes are separate commits.
+
+### What requires an amendment rather than a routine change
+
+- An eighth `SupervisorState` field (§5) or a fifteenth `PhaseState` content
+  field (§6)
+- A new graph node type in a phase subgraph (§13)
+- A new middleware, or any change to stack order (§19)
+- A new LLM role (§21)
+- A tool that pushes a phase past 16 (§30)
+- Any index schema change (§23.5)
+- A change to the tier of any gate field (§35)
+
+---
+
+# Appendices
+
+---
+
+## Appendix A — Provenance index
+
+**Old reference → this document.** Use this to resolve any `§X` citation in
+`CLAUDE.md`, `docs/DECISIONS.md`, `docs/REVIEW_DECISIONS.md`, the SKILL.md
+files, or code comments.
+
+### A.1 `REFACTORING_AGENT_IMPROVE.md` → Bible
+
+| Old | New | Topic |
+|---|---|---|
+| §1 | §8, §10 | Checkpointing, persistence |
+| §2 | §33, §38, §39 | HITL gates, escalation |
+| §5 | §17 | Planner/Executor |
+| §10 | §6 | Subagent state |
+| §11 | §17 | Recursive planner/executor |
+| §17 | §5 | `SupervisorState` |
+| §18 | §6, §11, §40 | `PhaseState`, `step_log` |
+| §19 | §9 | Multi-step chaining, boundary mappers |
+| §20 | §17 | Supervisor/worker |
+| §21 | §14 | Node contract, state passing |
+| §22 | Appendix B item 10 | Debate agents — **deferred** |
+| §23 | §12, §13, §16 | Subgraph architecture |
+| §24 | §51, §55 | Governance and debugging |
+| §25 | Appendix D | Gap register |
+| §27, §28 | — | LCEL — **not used**, historical |
+| §29 | §19.5, §21 | Retry middleware, structured output |
+| §30 | §15 | Routing |
+| §32, §33 | §24, §25 | Multi-query, RRF |
+| §34 | §26 | Multi-hop mechanism |
+| §35 | §25 | Query voting — RRF chosen |
+| §36 | §23, §28 | Vector memory, index schemas |
+| §37 | §23, §28 | Memory patterns |
+| §38 | §22, §37 | Memory hierarchy, contradiction |
+| §39 | §29, §30, §31 | Knowledge tools, MCP-out, computation tools |
+| §40 | §22, §23 | Metadata signals |
+| §41 | §24 | Retrieval pipeline |
+| §42 | §36, §43 | Grader middleware, coaching method |
+| §43 | Appendix B item 14 | Agent roles — Observer deferred |
+| §44 | §9, §12, §15, §33 | Architecture diagnosis, boundary mechanisms |
+| §45 | §55, Appendix C | Anti-drift, trusted sources |
+| §46, §47 | Appendix B item 11 | Coordination, aggregation — **deferred** |
+| §48 | §34, §36 | Reflection vs consensus |
+| §49 | §45 | Saga → `error_handler=` |
+| §50 | §18, §53 | Version corrections |
+| §51 | §34 | InsightForge reference implementation |
+| §52, §52a | §8, §9 | Checkpointer + Store |
+| §53 | §19 | Built-in middleware |
+| §55, §72 | §53 | LangServe, LangGraph Server |
+| §56 | §53 | Stale deployment tooling |
+| §57–§65 | §29.1 | **MCP — architecturally excluded** |
+| §66, §67 | §44, §46 | Circuit breaker, fallback chain |
+| §68, §69 | §34, §35 | Validation stack, layer placement |
+| §70 | §9 | Inter-stage dependency |
+| §71 | §26 | Multi-hop design layer |
+| §73 | §51 | Langfuse — LangSmith retained |
+| §74 | §53 | API versioning |
+| §75 | §52 | Evaluation dataset |
+| §76 | §53 | Docker |
+| §77 | §50 | Frontend requirements |
+| §78 | §53 | Developer orchestration menu |
+| §79 | §44, §45 | LangGraph 1.2 reliability primitives |
+| §80 | §19 | AgentMiddleware six hooks |
+| §81 | §21 | Content blocks |
+| §82 | §20, §21 | ProviderStrategy, structured output |
+| §83, §84 | §32, §19.2 | Agent Skills, SkillsMiddleware |
+| §85 | §51 | LangSmith 2026 additions |
+| §86 | §55 | Hook mechanics |
+| §87 | Appendix B | Deferred backlog |
+| §3, §4, §6–§9, §12–§16, §26, §31, §54 | — | Course material and historical notes — **no Bible section**; retained in `REFACTORING_AGENT_IMPROVE.md` |
+
+### A.2 `ARCHITECTURE.md` → Bible
+
+`ARCHITECTURE.md` is **absorbed** by this document.
+
+| Old | New |
+|---|---|
+| §0 | §2 |
+| §1 | §1, §4 |
+| §2 | §1, §50 |
+| §3.1 | §12, §15, §16 |
+| §3.2 | §13, §14 |
+| §3.3 | §18, §21, §22 |
+| §3.4 | §19 |
+| §3.4.1 | §36 |
+| §3.4.2 | §43 |
+| §3.5 | §17 |
+| §3.6 | §33 |
+| §3.7 | §34 |
+| §3.7.1 | §35 |
+| §3.8 | §37 |
+| §3.9 | §38 |
+| §4.1 | §5 |
+| §4.2 | §6 |
+| §4.3 | §9 |
+| §4.4 | §11 |
+| §4.5 | §8 |
+| §4.6 | §7 |
+| §4.7 | §7, §42 |
+| §4.8 | §7 |
+| §4.9 | §5 |
+| §4.10 | §20, §40 |
+| §4.10.2, §4.10.3 | §40 |
+| §4.10.5–§4.10.7 | §41 |
+| §5 | §54 |
+| §6.1, §6.2 | §8 |
+| §6.3 | §9 |
+| §6.4, §6.5 | §10 |
+| §6.6 | §46 |
+| §6.7 | §8 |
+| §7.1–§7.3 | §23 |
+| §7.4 | §24, §25 |
+| §7.5 | §26 |
+| §7.6 | §23.5 |
+| §7.7 | §23.5 |
+| §8.1 | §29, §31 |
+| §8.2 | §30 |
+| §8.3 | §25 |
+| §8.4 | §32 |
+| §9.1 | §44 |
+| §9.2 | §45 |
+| §9.3, §9.4 | §46 |
+| §9.5 | §48 |
+| §10 | §49 |
+| §11 | §50 |
+| §12 | §51 |
+| §13 | §35, §39 |
+| §14 | §52 |
+| §15 | §53.1 |
+| §16 | Appendix B |
+
+---
+
+## Appendix B — Deferred backlog
+
+*Supersedes: REFACTORING §87.*
+
+**Every item has a promotion trigger. An item with no trigger is not deferred —
+it is excluded** (see Appendix D).
+
+| # | Source | Capability | Promotion trigger |
+|---|---|---|---|
+| 1 | §24 | Multi-tenant filtering on `improve_case_index` | Agent Improve deployed to multiple organisations |
+| 2 | §25 | Per-source weighting in RAG fusion | A fourth retrieval source is introduced |
+| 3 | §28 | Per-turn episodic entries in the case index | Gate-level summaries shown to lose actionable detail |
+| 4 | §28 | Mid-phase summary persistence | Belts frequently resume in-flight cases weeks later |
+| 5 | §28 | **Dynamic procedural memory** — per-Belt coaching adaptation from LangSmith trace analysis | **No signal needed — v2.2 priority workstream** |
+| 6 | §24 | Similarity-threshold calibration | The §52 eval dataset is populated |
+| 7 | §24 | Dynamic top-k based on remaining context | Fixed top-k causes context-budget problems |
+| 8 | §25 | Reactive self-correcting query restructuring | Multi-query + RRF shown insufficient |
+| 9 | §23 | Feedback-driven chunk score adaptation | Systematic misses static ranking cannot fix, **and** a dedicated research workstream exists |
+| 10 | §36 | Adversarial debate subgraph for root cause validation (Analyse only) | **Base coaching loop stable in production and the Analyse coach producing root causes that need adversarial stress-testing** |
+| 11 | §36 | Opinion aggregation framework | Item 10 implemented and producing confidence scores |
+| 12 | §45 | `DeltaChannel` for checkpoint compression | Sessions exceed ~200 turns |
+| 13 | §8 | **Migrate to `PostgresSaver` + `PostgresStore`** | **Post-refactor testing complete, before production launch** |
+| 14 | §51 | Observer Agent — system-wide monitoring across all Belts | Multiple concurrent projects generating enough traffic |
+| 15 | §23 | Multi-source knowledge index — `source_document`, `tenant_id` | A customer supplies their own methodology alongside the BB eBook |
+| 16 | §46.1 | **Geographic redundancy — secondary EU region** | **Before production launch with real Belts; DORA compliance requires it** |
+| — | §26 | Model tiering per hop (gpt-4o-mini intermediate / gpt-4o final) | LangSmith shows repeated 5-hop cap hits on Analyse turns |
+
+**Items 13 and 16 are the two that gate a production launch.**
+
+---
+
+## Appendix C — Trusted sources
+
+*Supersedes: REFACTORING §45.*
+
+**Ordered. Check Tier 1 before any architectural decision.**
+
+### Tier 1 — current, authoritative
+
+| Source | Date | Topic |
+|---|---|---|
+| `anthropic.com/engineering/effective-harnesses-for-long-running-agents` | Nov 2025 | Harness concept, context reset, session bridging |
+| `anthropic.com/engineering/harness-design-long-running-apps` | Mar 2026 | Planner/Generator/Evaluator. **A specific research write-up on long-running coding harnesses** — strong evidence from an adjacent domain, not a specification |
+| `anthropic.com/engineering/managed-agents` | Apr 2026 | Brain/hands separation, scaling |
+| `anthropic.com/engineering/how-we-contain-claude` | Jul 2026 | Containment, blast radius |
+| `anthropic.com/engineering/effective-context-engineering-for-ai-agents` | Sep 2025 | Context-window management — §19.3 |
+| `anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills` | Oct 2025 | SKILL.md spec — §32 |
+| `anthropic.com/engineering/demystifying-evals-for-ai-agents` | Jan 2026 | Eval design — §52 |
+| `anthropic.com/engineering/writing-tools-for-agents` | Sep 2025 | Tool design — §29, §30 |
+| `docs.langchain.com`, `reference.langchain.com` | Ongoing | LangChain / LangGraph API surface |
+| `github.com/langchain-ai/*` | Ongoing | Versions, breaking changes, open issues |
+| `langchain-ai.github.io/langmem` | Ongoing | Memory taxonomy — §28 |
+| `pypi.org` | Ongoing | Package versions |
+
+### Tier 2 — official announcements
+
+`langchain.com/blog` · `anthropic.com/news/*` · `claude.com/blog/*`
+
+### Tier 3 — informed practitioner, cross-check before citing
+
+`marsdevs.com/guides` · `deepwiki.com/langchain-ai/*` · `agentpatterns.ai`
+
+### Downgraded — historical
+
+`anthropic.com/engineering/building-effective-agents` (Dec 2024). **Still
+sound** — its core advice, *"find the simplest solution possible,"* is the
+principle behind §18's custom-middleware decision. Ordered lower because newer
+specific material exists, **not because it was refuted.**
+
+### Excluded
+
+Stack Overflow, Reddit, Medium, Dev.to — unless linking directly to Tier 1.
+
+---
+
+## Appendix D — Retired names, banned patterns, and exclusions
+
+### D.1 Retired names — never reintroduce
+
+| Retired | Use instead | §ction |
+|---|---|---|
+| `project_id` | `case_id` | §5 |
+| `captured_fields` (prose), `phase_inputs` (v1 code) | `artifacts` | §6 |
+| `project_context`, `dmaic_plan`, `key_decisions`, `open_items` | Derived or store-mediated | §5 |
+| `gate_documents` store namespace | `artifacts` | §9 |
+| `step_index` | `phase_index` / `field_index` | §6 |
+| `analyse_phase` as a phase key | `analyse` | §23.3 |
+| `completeness_score` | Derived from `artifacts` | §5, §50 |
+| `record_field` tool | `CoachingResponse.fields_captured` | §29.3 |
+| `search_methodology`, `search_evidence` | `rag_lookup_*` | §24 |
+| `policy_advisory`, `revise` as node names | Logic in `gate_apply`; an edge | §13 |
+| `RetryMiddleware` | `ModelRetryMiddleware` / `ToolRetryMiddleware` | §19.5 |
+| `phase_router` node | Static edges | §15 |
+| `ORCHESTRATOR_{PHASE}_CONTEXT`, `EXTRACTION_{PHASE}`, `KNOWLEDGE_INJECTION_TEMPLATE` | — | §22 |
+
+### D.2 Banned patterns
+
+**State and persistence** — artifacts on `SupervisorState` · numeric captured
+fields · typed per-phase computation destinations · `gate_attempts` in route
+scope · merging `validator_feedback` and `belt_edits` · merging
+`issues_and_barriers` and `acknowledged_gaps` · `str`-typed `control_plan`,
+`process_map_sipoc` or `detailed_process_map` · per-phase or concatenated
+`thread_id` · checkpointer or store on a subgraph · `InMemorySaver` · case blob
+written mid-conversation · cross-phase data through parent state or string
+interpolation · tuples in `step_log`
+
+**Graph** — mixing static edges and `Command` from one node · `set_entry_point`
+· manual node dispatch in routes · `_reflect()` as a private function · fusing
+planner and executor · a node with external writes and no `error_handler` ·
+hand-written Saga orchestrators
+
+**LLM and tools** — direct `AzureChatOpenAI` instantiation · binding tools onto
+a bare model in a phase executor · `create_react_agent` · imports from
+`langgraph.prebuilt` · deepagents while pre-1.0 · parsing JSON from raw LLM text
+· string-indexing raw content · more than 16 tools on a phase executor ·
+parameterised computation-tool grouping · `MultiQueryRetriever` ·
+`EnsembleRetriever` · `OutputFixingParser` · deprecated `Conversation*Memory`
+classes
+
+**Validation and gates** — a gate passing with a Tier 1 failure · a Tier 2 gap
+blocking a gate · dropping an acknowledged gap · recommending DOE to a Green
+Belt · raw computation output without concept and interpretation · approving a
+gate without both writes · showing the Belt the grader loop · a tolerance
+threshold on contradiction detection · capping Level 2 coached improvement ·
+making the policy advisory blocking · committing a checkpoint before approval ·
+`HumanInTheLoopMiddleware` for gates · retrieval during gate validation
+
+**Retrieval** — unconditional retrieval pipelines · bare `except Exception`
+returning `[]` · a failure message that reads as absence · filtering methodology
+on `phase` or `'all'` · writing to an index without `fields=` · `add_texts`
+without `ids=` · writing to Agent Resolve indexes · any MCP dependency · a
+fallback path fetching data the Belt did not upload
+
+**Prompts and governance** — inline prompts in node files · omitting the memory
+hierarchy or anti-hallucination guards · classes outside §54's files ·
+duplicating `CitationRecord` · disabling LangSmith · methodology jargon in
+team-facing strings · renumbering a rule cited in `deprecated_patterns.yaml`
+without updating the registry
+
+### D.3 Architecturally excluded — not deferred
+
+**MCP-dependent capabilities** — real-time system data, external verification
+benchmarks, an AgentLean MCP server. **There is no promotion trigger because
+there is no path to promotion**: the data channel is always uploaded documents
+(§29.1).
+
+**FMEA as a tracked schema field** (§41).
+
+---
+
+## Appendix E — Current state
+
+**As of 2026-08-21.** This appendix is expected to go stale; it records where
+the implementation stands relative to the design, so the gap is explicit rather
+than discovered.
+
+### What exists
+
+| Component | Status |
+|---|---|
+| `core/checkpointer.py` — `AzureBlobCheckpointSaver` | **Implemented** |
+| `core/state.py` | v1 `ImproveGraphState` — **not** `SupervisorState` |
+| `core/graph.py` | v1 flat graph, 11 nodes, `set_entry_point` |
+| `knowledge/retriever.py` | v1, **but already carries the correct `phase_relevance` filter and `fields=` declaration** |
+| `knowledge/tools.py` | v1 `search_*` names, no multi-query, no RRF |
+| `phases/{phase}/schema.py` | v1 `{Phase}PhaseInput` |
+
+### What does not exist yet
+
+`core/substate.py` · `core/store.py` · `middleware/` · `validation/` ·
+`knowledge/tool_args.py` · `knowledge/computation.py` · `knowledge/fusion.py` ·
+`core/reliability.py` · `core/diagrams.py` · `phases/{phase}/mappers.py` ·
+`phases/{phase}/graph.py`
+
+### Known violations in current code
+
+| Site | Rule |
+|---|---|
+| `gateway/routes.py` — `get_graph()` called, then nodes dispatched manually; **the compiled graph is built and discarded** | §49 |
+| Phase nodes are sync `def`, called unawaited | §14 |
+| `core/graph.py` — `set_entry_point` | §12 |
+| `core/llm.py` — contains a class; role map diverges from §21 | §54, §21 |
+| `gateway/routes.py:67` and `upload/agent.py:107` — parse `response.content` directly | §21 |
+
+### Blocked
+
+**`langgraph` 1.1.10 < 1.2.6** blocks all of §45 and the §16 subgraph
+namespacing (§53).
+
+**Two Azure schema changes are ratified and unapplied** — `improve_evidence_index`
+`phase` + `uploaded_at`, and `improve_case_index` `embedding` →
+`content_vector` (§23). **Batch them.**
+
+---
+
+*End of document.*
