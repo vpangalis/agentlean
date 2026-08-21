@@ -2669,4 +2669,815 @@ multi-deployment stage.
 
 ---
 
-*Parts I–VI end here. Parts VII–XI to follow.*
+# Part VII — Validation and Gates
+
+*This is the quality machinery. It is large because the system's entire value
+proposition is that a gate document it approved is worth trusting.*
+
+---
+
+## 33. The nine-step HITL gate
+
+*Supersedes: REFACTORING §2, §44, §53; ARCHITECTURE.md §3.6; CLAUDE.md §9.1, §9.6.*
+**Status: RATIFIED.**
+
+| Step | What happens | Quality check for |
+|---|---|---|
+| 1. Executor runs | Coach produces its response; extraction captures fields | — |
+| 2. **Validation stack** | Four layers, cheapest first (§34). Failures feed back with accumulated per-layer feedback. **The Belt does not see this loop** | **The AI's work** |
+| 3. Interrupt fires | `gate_review_node` pauses; the Belt sees validated output | — |
+| 4. Belt reviews | Belt checks AI-captured values for accuracy | — |
+| 5. Belt edits *(optional)* | Belt corrects wrong fields → `belt_edits` | — |
+| 6. **Policy advisory** | Validates the Belt's edits against required-field policy, cross-phase consistency and previously approved values. **Non-blocking** | **The human's edits** |
+| 7. Belt approves | Gate document assembled and written to the Store **and** `PhaseState.final` (§33.2) | — |
+| 8. Checkpoint saves | State committed **only now** | — |
+| 9. Next phase | Supervisor reads `gate_passed`, static edge advances | — |
+
+### Two quality checks, two actors, two moments
+
+**The grader blocks at step 2; the advisory does not block at step 6.** That
+asymmetry is deliberate and is the core of the design:
+
+- **Step 2 checks the AI's own output.** There is no reason to show the Belt
+  work already known to be below standard.
+- **Step 6 checks the Belt's edits.** The Belt is the domain expert. The
+  advisory offers a **second opinion before the decision, not a veto after
+  it.**
+
+A system that blocked the Belt's own corrections would be asserting that its
+judgment outranks theirs on their own project. It does not.
+
+### Implementation: graph-level `interrupt()`
+
+**`HumanInTheLoopMiddleware` is BANNED for gates** (§19.9). Use graph-level
+`interrupt()` + `Command(resume=...)`.
+
+### 33.1 The two-node split
+
+| Node | Responsibility |
+|---|---|
+| `gate_review_node` | Fires the interrupt, presents validated fields, **stops** |
+| `gate_apply_node` | Reads the Belt's response, applies corrections, runs the policy advisory, assembles and writes the document, routes onward |
+
+**Collection and application are separated** because they happen either side of
+a process boundary — the interrupt may be resumed hours or days later, in a
+different process. A single node spanning that boundary would have to be
+re-entrant in a way neither half needs to be.
+
+**Frontend sequence:**
+
+1. Belt clicks **Submit Gate** → `POST /gate/submit`
+2. Backend resumes the graph; validation stack runs; `gate_review_node`
+   interrupts with the validated field payload
+3. Payload returned and rendered for review
+4. Belt edits if needed, then `POST /gate/approve` (or `/gate/reject`)
+5. Backend resumes from the interrupt; `gate_apply_node` runs the advisory,
+   applies edits, writes artifacts to the Store, commits the checkpoint, and
+   the parent's static edge advances the phase
+
+### 33.2 `gate_apply_node` writes the gate document TWICE
+
+**This is the write the entire store-mediated handoff depends on.** Every
+cross-phase read in §9 assumes the previous phase's gate document is in the
+Store; this is what puts it there.
+
+```python
+# 1. The Store — what the next phase's input mapper reads
+store.put(("projects", case_id, "artifacts"), phase_name, gate_document)
+
+# 2. PhaseState — so the checkpoint is self-sufficient for crash recovery
+return {"final": gate_document, "gate_attempts": 0, "validator_feedback": []}
+```
+
+**Both writes are required.** The Store write and the checkpoint commit are
+separate operations; **a crash between them would leave state saying the gate
+was not applied while the Store says it was.** `final` holding the same dict
+means the resumed graph can see what was approved without re-reading the Store
+— which is why `final` is a `dict` and not a `str` (§6).
+
+**Store path:** `store/projects/{case_id}/artifacts/{phase}.json`
+
+**The gate document contains, and nothing may be omitted:**
+
+| Part | Source |
+|---|---|
+| All captured fields (strings — §7) | `artifacts` |
+| The cross-phase reference dicts, where they apply | `artifacts` |
+| `computation_results` | `artifacts["computation_results"]` |
+| `citations` | `PhaseState.citations` |
+| `uploads` | `PhaseState.uploads` |
+| `acknowledged_gaps` | Tier 2 fields the Belt chose to proceed without (§35) |
+
+**`gate_attempts` and `validator_feedback` reset here, and only here.** The
+retry budget is per gate passage.
+
+### 33.3 The checkpoint commits only after Belt approval
+
+Never before. This is what makes the Belt's approval meaningful rather than
+ceremonial — before step 7, nothing about the phase is committed, so a Belt who
+rejects loses nothing but the turn.
+
+---
+
+## 34. The four-layer validation stack
+
+*Supersedes: REFACTORING §48, §68, §69; ARCHITECTURE.md §3.7; CLAUDE.md §9.2, §9.3.*
+**Status: RATIFIED.** **Canonical home.**
+
+All four run inside step 2, before the interrupt.
+
+| Layer | Checks | Mechanism | Model | Fires | Implemented by |
+|---|---|---|---|---|---|
+| **2a** Coherence | Real, meaningful, conclusive? Catches gibberish, vague non-answers, self-contradiction, off-topic, parroting the Belt | Lightweight LLM | `coherence`, 0.1 | **Every turn** | **`CoherenceMiddleware`** (§19.7) |
+| **2b** Field presence | All **Tier 1** fields populated? `DMAICGateValidator` static methods | **Deterministic** | None | Gate only | `validation_stack` node |
+| **2c** Constraints | Addresses budget / timeline / risk / measurement? | Lightweight LLM | `constraint`, 0.1 | Gate + key mid-conversation decisions | `validation_stack` node |
+| **2d** Quality rubric | Does the **gate document** meet DMAIC standards per criterion? **Tier 1 fails, Tier 2 warns.** Uses `PHASE_RUBRIC` | LLM grader | `grader`, 0.1 | Gate only | `validation_stack` node |
+
+### Layer 2a is middleware; layers 2b–2d are the node
+
+**Not a cosmetic distinction.** Layer 2a fires **every coaching turn**, which a
+gate-boundary node cannot do. Layers 2b–2d fire once, at the gate, and cannot
+sensibly run per turn — field presence is meaningless before the phase is
+finished. **One conceptual stack, two mechanisms.** Do not try to move 2a into
+the node or 2b–2d into middleware.
+
+### Layer 2d is NOT `DMAICGraderMiddleware`
+
+Two graders exist and confusing them is a violation — the full distinction is
+**§36**. In one line: Layer 2d grades the **gate document** against
+`PHASE_RUBRIC` at the boundary; `DMAICGraderMiddleware` grades the **coach's
+process** against `COACHING_QUALITY_RUBRIC` every turn.
+
+### Run cheapest first
+
+Each layer fires only if the previous passes. Layer 2b is deterministic and
+free; there is no reason to spend a grader call on a document missing a Tier 1
+field.
+
+### The counter and the feedback
+
+**`PhaseState.gate_attempts`** is the counter; **`PhaseState.validator_feedback`**
+is the accumulated feedback (§6). **Neither may live in route scope, and
+neither may be per layer.**
+
+**The iteration cap is 3, SHARED across all four layers**, with accumulated
+feedback. Not three per layer. Feedback is specific — *"your previous answer
+did not address timeline or risk mitigation"* — never *"try again."*
+
+### Layer 2b is the only deterministic layer, deliberately
+
+**Coherence and constraint checks are LLM calls because format checks cannot
+detect content failures.** A length check does not detect fluent nonsense. A
+keyword check rejects a decision that addresses cost without using the word
+"budget."
+
+Layer 2a costs roughly **$0.01–0.02 per phase session** at 20–40 turns. **This
+is settled and is not to be re-optimised into a regex.**
+
+### Per-phase constraint sets
+
+Constants in `core/prompts.py`: `DEFINE_CONSTRAINTS`, `ANALYSE_CONSTRAINTS`,
+`IMPROVE_CONSTRAINTS`, `CONTROL_CONSTRAINTS`. Measure is covered by its rubric.
+
+**Value-dependent constraints are supported and required** where a constraint
+is conditional on another field — the risk-mitigation check fires only when
+`risk_level == "low"`, because a low-risk project should say how it *stays*
+low-risk, whereas a high-risk project's decision inherently involves risk.
+
+**Every attempt at every layer is logged to `step_log` as a dict** (§11).
+
+### 34.1 Where each check fires
+
+| Layer | Every turn | Key decision moments | Gate boundary |
+|---|---|---|---|
+| 2a Coherence | ✅ | ✅ | ✅ |
+| 2b Field presence | ❌ | ❌ | ✅ |
+| 2c Constraint | ❌ | ✅ | ✅ full check |
+| 2d Quality rubric | ❌ | ❌ | ✅ last |
+| Mid-phase contradiction (§37) | ✅ | ✅ | ✅ |
+
+### 34.2 The self-healing hierarchy and the transparency principle
+
+| Level | Trigger | Behaviour | Belt sees | Retry |
+|---|---|---|---|---|
+| **1 — Silent** | Coherence failure mid-turn | System retries internally | **Invisible** | Max 2, then degraded |
+| **2 — Coached** | Constraint failure on a Belt proposal | Coach teaches toward a better formulation | Transparent, collaborative | **No cap** |
+| **3 — Validated** | Full four-layer check at the gate | Belt sees pass/fail, corrects, approves | Transparent, Belt approves | Max 3, accumulated |
+| **4 — Escalated** | Attempts exhausted | System defers with unresolved constraints named | Transparent, Belt is arbiter | None |
+
+> **Design principle: coached improvement is key, because silent is not
+> transparent.**
+>
+> The default posture is transparency. **Silent retry is the narrowly scoped
+> exception — coherence only** — justified because showing a Belt that the AI
+> produced gibberish adds no value and erodes trust. They see the corrected
+> response. Everything else is visible and collaborative.
+>
+> **Level 2 having no retry cap is deliberate.** Capping it would mean the
+> coach eventually accepts a weak root cause, which is exactly the outcome
+> DMAIC discipline exists to prevent. A constraint failure on a Belt's
+> proposal is **a teaching moment, not an error.**
+
+**Never downgrade the coherence or constraint checks to format checks.**
+
+---
+
+## 35. Two tiers of field, and the `warning` verdict
+
+*Supersedes: REFACTORING §42, §68; ARCHITECTURE.md §3.7.1; CLAUDE.md §9.7; DECISIONS §C1, §C2.*
+**Status: RATIFIED.**
+
+### The problem this solves
+
+**Layer 2b and Layer 2d must not be able to contradict each other.** Before
+this rule the gate blocked on a required-field list while the grader graded
+against a rubric covering a different set — so a phase could pass the gate and
+then be failed by the grader on a criterion the gate never asked for. A
+contradiction with no defined resolution.
+
+**Every rubric criterion is now classified into one of two tiers.**
+
+| Tier | Layer 2b | Layer 2d | Belt's options |
+|---|---|---|---|
+| **Tier 1 — gate-required** | **Blocks** | Can `fail` | Must supply it |
+| **Tier 2 — rubric-recommended** | Not checked | At worst `warning` | Add it, or proceed with an acknowledged gap |
+
+### Tier 1 by phase
+
+| Phase | Tier 1 fields | Count |
+|---|---|---|
+| **Define** | `problem_statement`, `voc_summary`, `project_scope`, `goal_statement`, `process_map_sipoc` (**dict**), `issues_and_barriers` | **6** |
+| **Measure** | `baseline_mean`, `data_collection_plan`, `xy_matrix_summary`, `vital_few_xs`, `detailed_process_map` (**dict**), `stability_assessment`, `issues_and_barriers` | **7** |
+| **Analyse** | `root_cause_statement`, `root_cause_validation`, `practical_significance`, `issues_and_barriers` | **4** |
+| **Improve** | `selected_solution`, `pilot_result`, `experiment_justification`, `issues_and_barriers` | **4** |
+| **Control** | `control_plan` (**dict**, 5 sub-plans), `post_improvement_metric`, `issues_and_barriers` | **3** |
+
+**`issues_and_barriers` is Tier 1 in every phase.** Every real project has
+blockers; a Belt reporting none has not looked. If there genuinely are none,
+the Belt writes "none identified at this stage" — **a conscious statement, not
+a silent skip.**
+
+**It is NOT the same field as `acknowledged_gaps`.** `issues_and_barriers` is
+Belt-stated real-world blockers; `acknowledged_gaps` is system-generated and
+records skipped Tier 2 *fields*. **Merging them is a violation.**
+
+### The grader's verdict has three statuses
+
+```python
+class CriterionVerdict(BaseModel):
+    criterion: str
+    tier:      int                                     # 1 or 2
+    status:    Literal["pass", "warning", "fail"]
+    feedback:  str                                     # specific, per criterion
+```
+
+**A gate MAY pass with warnings. A gate may NEVER pass with failures.** Only
+Tier 1 criteria may produce `fail`.
+
+**A Tier 2 gap the Belt proceeds past MUST be recorded**, never silently
+dropped:
+
+```python
+"acknowledged_gaps": ["baseline_sigma — Belt accepted gap"]
+```
+
+The next phase's planner reads it from the Store and factors it into the
+coaching plan.
+
+### Why two tiers
+
+**A gate that blocks on every criterion teaches Belts to fill fields
+mechanically — complete gate documents, worse projects.** Tier 1 catches
+genuinely incomplete phases; Tier 2 coaches toward best practice while leaving
+the judgment with the Belt, who knows the project. **The audit trail then
+records conscious decisions rather than silent omissions.**
+
+### The grader is belt-level aware
+
+It reads `belt_level` from the case record:
+
+```
+if belt_level == "Black Belt":  flag DOE as a Tier 2 recommendation
+if belt_level == "Green Belt":  suppress it
+```
+
+**DOE is the only belt-gated item left.** Three others left this list:
+
+| Item | Now |
+|---|---|
+| X-Y matrix | **`xy_matrix_summary`, Tier 1, all Belts** — it produces the vital few X's that Analyse cannot start without |
+| Statistical problem statement | **`statistical_problem_statement`, Tier 2, all Belts, in Analyse** — not Define |
+| FMEA | **Not tracked in any schema** — §41 |
+
+**Stability is no longer belt-gated or advisory.** It is
+`stability_assessment`, **Tier 1 for both belt levels** — a baseline computed
+across an unstable process is not a baseline, so it blocks the gate rather than
+warning about it (§41).
+
+---
+
+## 36. Two graders — and why they are not redundant
+
+*Supersedes: REFACTORING §42; ARCHITECTURE.md §3.4.1; CLAUDE.md §8.2; DECISIONS §B2.*
+**Status: RATIFIED.**
+
+**THERE ARE TWO GRADERS IN THIS ARCHITECTURE. Confusing them is a violation.**
+
+| | `DMAICGraderMiddleware` | Validation stack Layer 2d |
+|---|---|---|
+| **Where** | Middleware, inside the executor (§19.8) | The `validation_stack` node (§34) |
+| **When** | **Every coaching turn** (`after_agent`) | **Once**, at the gate boundary |
+| **Rubric** | **`COACHING_QUALITY_RUBRIC`** — one, shared | **`PHASE_RUBRIC`** — five, one per phase |
+| **Grades** | The coach's **process** | The **gate document** |
+| **Sees** | One response | The complete field set |
+
+**Never point `DMAICGraderMiddleware` at a phase rubric, and never point Layer
+2d at `COACHING_QUALITY_RUBRIC`.**
+
+### Why both exist
+
+**The middleware catches coaching-process failures in real time.** A coach that
+accepts "poor morale" as a root cause is corrected *before the Belt sees the
+response*, preventing eight further turns built on a weak foundation.
+
+**The validation node catches document-product failures a per-turn check cannot
+see.** Four Analyse fields can each look sound in isolation while the root
+cause discusses "error rate" and the baseline it references is "cycle time."
+**Cross-field and cross-phase consistency is only visible once the document is
+complete.**
+
+Different failure modes, different visibility windows. Neither substitutes.
+
+### `COACHING_QUALITY_RUBRIC`
+
+A single constant in `core/prompts.py`, identical for all five phases:
+
+```
+- Coach must not accept vague or unmeasurable statements as captured fields
+- Coach must not invent data, metrics, or values the Belt didn't provide
+- Coach must not do the Belt's work (writing their problem statement for them)
+- Coach must stay on the current phase's topic
+- Coach must challenge weak inputs with specific follow-up questions
+- Coach must reference methodology when guiding (not just opinion)
+- Coach must show a concrete example of a completed answer before asking
+  the Belt to produce theirs
+- Coach must not provide external URLs from training data. When referencing
+  methodology, retrieve via rag_lookup_methodology and weave the content into
+  natural coaching voice
+- Coach must not dump raw statistical output without explanation. When calling
+  a computation tool, the coach must educate the Belt on the concept first,
+  explain why it matters for their project, then run the tool
+```
+
+**Coherence is NOT in this rubric.** It moved to `CoherenceMiddleware` (§19.7).
+Any rubric entry for coherence is stale.
+
+### Mechanism, both graders
+
+- Model: `grader` role, temperature **0.1** (§21)
+- `max_iterations=3`. On `max_iterations_reached`, output passes through **with
+  a warning flag visible to the Belt**
+- Verdict is **per criterion, not overall** (§35)
+- Feedback injected back to the coach is **per criterion and specific** — never
+  "try again"
+- **Layer 2d is belt-level aware** (§35)
+
+### Three criteria are verified deterministically, not by judgment
+
+`causal_hypothesis`, `solution_linked_to_root_cause` and
+`post_improvement_metric` are cross-phase reference dicts (§7). **The grader
+reads the referenced phase's gate document from the Store and checks the named
+field carries the named value** — a lookup, not an opinion.
+
+Criteria depending on a computation are checked the same way, by scanning
+`artifacts["computation_results"]` for the relevant `tool` entry.
+
+### The ratified rubric coverage
+
+Define (`problem_statement`, `voc_summary`, `business_case`, `project_scope`,
+`team`, `goal_statement`) · Measure (`baseline_mean`, `baseline_sigma`,
+`measurement_system_validated`, `data_collection_plan`, stability) · Analyse
+(`root_cause_statement`, `root_cause_validation`, `causal_hypothesis`,
+`ruled_out_causes`) · Improve (`selected_solution`,
+`solution_linked_to_root_cause`, `pilot_result`, `implementation_plan`) ·
+Control (`control_plan`, `sustainability_check`, `post_improvement_metric`,
+`improvement_delta`, `financial_impact_verified`, `handover_documented`,
+`lessons_learned`, `transferability`). Each criterion carries its tier (§35).
+
+**Rubrics evolve from production experience without changing the grader
+mechanism** — that separation is the point.
+
+---
+
+## 37. Mid-phase contradiction and the re-approval cascade
+
+*Supersedes: REFACTORING §38; ARCHITECTURE.md §3.8; CLAUDE.md §9.4, §9.5.*
+**Status: RATIFIED.** Implemented by `ContradictionDetectionMiddleware` (§19.6).
+
+### The check runs every turn, not only at gates
+
+**Mechanics:**
+- Compares the Belt's most recent captured fields against the `artifacts`
+  already committed in prior gate documents
+- **If any numeric or categorical value differs, the coach's response is
+  suppressed and a HITL interrupt payload is emitted**
+- Payload: field name, previously approved value, its approval timestamp and
+  gate, the proposed new value, two Belt-facing options
+- **Structured diff — no LLM call**, negligible latency
+
+**The Belt's two options:**
+
+| Option | Consequence |
+|---|---|
+| **Update** the approved value | The affected phase's gate document becomes provisional; downstream phases need re-review |
+| **Keep** the approved value | The Belt clarifies they misspoke; no state change |
+
+### There is NO tolerance threshold, and none may be added
+
+**In production DMAIC, baseline means, sigma levels and target metrics are
+taken seriously.** Silent drift across weeks is exactly the failure mode a
+coaching system exists to prevent.
+
+***"The delta was small enough"* is not acceptable when downstream analysis
+depends on the value.** A root cause validated against a baseline of 4.2 is not
+automatically valid against 3.8, and the difference between those two numbers
+is precisely the kind of thing a threshold would swallow.
+
+**Any change to a previously gate-approved value is a mini-gate, never a silent
+overwrite.**
+
+### The re-approval cascade
+
+If the Belt confirms a new value, **the affected phase and every downstream
+phase that depends on it** return to provisional state and require re-review.
+
+This is deliberately heavier than a soft override. **Silent invalidation of
+downstream analysis is not acceptable.**
+
+### The cascade has a hard dependency on compensating actions
+
+**When it fires, the affected phase's `error_handler` compensating logic MUST
+run** to clean up stale values already written to Azure Blob and
+`improve_case_index` (Part IX).
+
+**A cascade that marks phases provisional but leaves published values in place
+is worse than no cascade** — state and index then disagree, silently, and the
+system reports a phase as needing review while continuing to serve its old
+conclusions.
+
+---
+
+## 38. Escalation
+
+*Supersedes: REFACTORING §2; ARCHITECTURE.md §3.9; CLAUDE.md §3.5.*
+**Status: RATIFIED.** File: `escalate.py`.
+
+The escalation subgraph is reachable two ways:
+
+1. **Conditional edge** when the validation stack exhausts its shared cap of 3
+2. **The `request_human_approval` tool** (§29.2), when the coach judges a
+   decision beyond its remit
+
+**`gate_attempts` is persisted in checkpointed state, never in route scope**
+(§6) — escalation triggers on a counter that survives the request boundary, or
+it does not trigger at all.
+
+**At escalation the system defers with unresolved constraints named** (§34.2
+Level 4). It does not silently accept, and it does not silently block: the Belt
+becomes the arbiter with the specific failures in front of them.
+
+---
+
+# Part VIII — The DMAIC Domain
+
+*Parts II–VII describe a coaching harness that is largely methodology-agnostic.
+This Part is where DMAIC itself enters the schema.*
+
+---
+
+## 39. The five phases
+
+*Supersedes: REFACTORING §2; ARCHITECTURE.md §13.*
+**Status: RATIFIED.**
+
+| Phase | What the Belt produces | Gate blocks on |
+|---|---|---|
+| **Define** | A measurable problem, its scope, a SMART goal, the customer's voice, a SIPOC with KPIs | 6 Tier 1 fields |
+| **Measure** | A validated baseline, a data collection plan, a detailed process map, prioritised X's, a stability assessment | 7 Tier 1 fields |
+| **Analyse** | A specific root cause, the evidence validating it, and how much of the problem it explains | 4 Tier 1 fields |
+| **Improve** | A selected solution, a pilot result, and a stated position on experimentation | 4 Tier 1 fields |
+| **Control** | A five-part control plan and the post-improvement measurement | 3 Tier 1 fields |
+
+**Phase order is fixed and enforced by static edges** (§15). There is no
+skipping and no reordering.
+
+### The measurement thread that runs across three phases
+
+Three fields carry one measurement chain, and **the grader verifies the same
+measurement points carry different values** at each end:
+
+```
+Define    process_map_sipoc["process_kpis"]      — WHAT is measured
+Measure   detailed_process_map["baseline_kpis"]  — the BEFORE values
+Control   post_improvement_metric                — the AFTER values
+```
+
+**This is the spine of a DMAIC project.** A project that cannot show
+before-and-after on the same measurement point has not demonstrated
+improvement, whatever else its gate documents contain.
+
+---
+
+## 40. The five `{Phase}Output` schemas
+
+*Supersedes: REFACTORING §18, §82; ARCHITECTURE.md §4.10.2, §4.10.3; CLAUDE.md §10.7.*
+**Status: RATIFIED.** File: `phases/{phase}/schema.py`. **Canonical home.**
+
+**Every field is `str`** except the cross-phase reference dicts and the three
+structured dicts (§41). **Every schema carries the same four gate-metadata
+fields.**
+
+```python
+class DefineOutput(BaseModel):
+    """Gate document for the Define phase."""
+    # Tier 1 — gate-required
+    problem_statement:    str      # measurable problem, baseline and target
+    project_scope:        str      # explicit inclusions and exclusions
+    goal_statement:       str      # SMART
+    voc_summary:          str      # voice of customer
+    process_map_sipoc:    dict     # SIPOC + KPIs, 6 sub-fields (§41)
+    issues_and_barriers:  str      # Belt-stated blockers
+    # Tier 2 — rubric-recommended
+    business_case:        str      # quantified business impact (COPQ)
+    team:                 str      # Belt, sponsor, 2+ members with roles
+    baseline_metric:      str      # current measured state
+    target_metric:        str      # target value
+    secondary_metrics:    str      # what could get worse
+    # Gate metadata
+    computation_results:  list[dict] = []
+    acknowledged_gaps:    list[str]  = []
+    citations:            list[dict] = []
+    uploads:              list[dict] = []
+
+
+class MeasureOutput(BaseModel):
+    """Gate document for the Measure phase."""
+    # Tier 1
+    baseline_mean:                str    # value with units, as the Belt stated it
+    data_collection_plan:         str    # sample size, frequency, responsible person
+    xy_matrix_summary:            str    # evidence that prioritisation happened
+    vital_few_xs:                 str    # the ranked result Analyse consumes
+    detailed_process_map:         dict   # expanded map, 6 sub-fields (§41)
+    stability_assessment:         str    # checked BEFORE capability (§41)
+    issues_and_barriers:          str
+    # Tier 2
+    baseline_sigma:               str    # calculated sigma level
+    measurement_system_validated: str    # GR&R or equivalent evidence
+    secondary_metrics:            str
+    # Gate metadata
+    computation_results:  list[dict] = []
+    acknowledged_gaps:    list[str]  = []
+    citations:            list[dict] = []
+    uploads:              list[dict] = []
+
+
+class AnalyseOutput(BaseModel):
+    """Gate document for the Analyse phase."""
+    # Tier 1
+    root_cause_statement:          str   # specific and actionable
+    root_cause_validation:         str   # statistical or observational evidence
+    practical_significance:        str   # how much of the problem it explains
+    issues_and_barriers:           str
+    # Tier 2
+    causal_hypothesis:             dict  # cross-phase ref → Measure baseline (§7)
+    ruled_out_causes:              str   # alternatives rejected, with rationale
+    statistical_problem_statement: str   # all Belts, in Analyse — not Define
+    process_owner_buyin:           str   # owner accepts the root causes
+    secondary_metrics:             str
+    # Gate metadata
+    computation_results:  list[dict] = []
+    acknowledged_gaps:    list[str]  = []
+    citations:            list[dict] = []
+    uploads:              list[dict] = []
+
+
+class ImproveOutput(BaseModel):
+    """Gate document for the Improve phase."""
+    # Tier 1
+    selected_solution:             str   # criteria-based selection documented
+    pilot_result:                  str   # practical AND statistical significance
+    experiment_justification:      str   # DOE / simplified / none — and why (§41)
+    issues_and_barriers:           str
+    # Tier 2
+    solution_linked_to_root_cause: dict  # cross-phase ref → Analyse root cause (§7)
+    implementation_plan:           str   # timeline, owner, resources
+    explanatory_power:             str   # R² / variance explained
+    process_owner_buyin:           str   # owner accepts the solution
+    secondary_metrics:             str
+    # Gate metadata
+    computation_results:  list[dict] = []
+    acknowledged_gaps:    list[str]  = []
+    citations:            list[dict] = []
+    uploads:              list[dict] = []
+
+
+class ControlOutput(BaseModel):
+    """Gate document for the Control phase."""
+    # Tier 1
+    control_plan:              dict   # FIVE sub-plans — §41
+    post_improvement_metric:   dict   # cross-phase ref → Measure baseline (§7)
+    issues_and_barriers:       str
+    # Tier 2
+    improvement_delta:         str    # change from baseline
+    financial_impact_verified: str    # quantified saving
+    sustainability_check:      str    # process for maintaining the gains
+    handover_documented:       str    # named process owner accepting
+    lessons_learned:           str    # feeds the case index
+    transferability:           str    # yokoten — feeds rag_lookup_case_history
+    project_signoff:           str    # Champion + Belt + Finance
+    secondary_metrics:         str
+    # Gate metadata
+    computation_results:  list[dict] = []
+    acknowledged_gaps:    list[str]  = []
+    citations:            list[dict] = []
+    uploads:              list[dict] = []
+```
+
+### Field counts
+
+| Phase | Total | Tier 1 | Tier 2 | Gate metadata |
+|---|---|---|---|---|
+| Define | **15** | 6 | 5 | 4 |
+| Measure | **14** | 7 | 3 | 4 |
+| Analyse | **13** | 4 | 5 | 4 |
+| Improve | **13** | 4 | 5 | 4 |
+| Control | **15** | 3 | 8 | 4 |
+
+### The four gate-metadata fields
+
+On all five schemas, always from the same four sources:
+
+| Field | Source |
+|---|---|
+| `computation_results` | `artifacts["computation_results"]` (§7) |
+| `acknowledged_gaps` | `validation_stack.get_acknowledged_gaps()` (§35) |
+| `citations` | `PhaseState.citations` (§6) |
+| `uploads` | `PhaseState.uploads` (§6) |
+
+**`citations` and `uploads` were on `PhaseState` but missing from the Output
+schemas in an earlier revision** — the evidence trail reached state and then
+stopped, never arriving in the document that records what the phase was
+grounded in.
+
+### Two fields are on all five schemas
+
+`issues_and_barriers` (Tier 1) and `secondary_metrics` (Tier 2). **Adding a
+field to one phase without considering the other four is how the cross-phase
+gaps arose in the first place.**
+
+### 40.1 Gate assembly
+
+Runs in `gate_apply` after Belt approval. **No LLM call** — Pydantic validation
+over values already captured.
+
+```python
+gate_document = DefineOutput(
+    problem_statement=artifacts["problem_statement"],      # Tier 1 — direct
+    project_scope=artifacts["project_scope"],
+    goal_statement=artifacts["goal_statement"],
+    voc_summary=artifacts["voc_summary"],
+    process_map_sipoc=artifacts["process_map_sipoc"],
+    issues_and_barriers=artifacts["issues_and_barriers"],
+    business_case=artifacts.get("business_case", ""),      # Tier 2 — .get()
+    team=artifacts.get("team", ""),
+    baseline_metric=artifacts.get("baseline_metric", ""),
+    target_metric=artifacts.get("target_metric", ""),
+    secondary_metrics=artifacts.get("secondary_metrics", ""),
+    computation_results=artifacts.get("computation_results", []),
+    acknowledged_gaps=acknowledged_gaps,
+    citations=state["citations"],
+    uploads=state["uploads"],
+)
+```
+
+**The access pattern encodes the tier, and the difference is deliberate:**
+
+| Tier | Access | Why |
+|---|---|---|
+| **Tier 1** | `artifacts["field"]` | **A `KeyError` here is correct** — Layer 2b should have blocked the gate, so reaching assembly without the field is a bug that must surface loudly |
+| **Tier 2** | `artifacts.get("field", "")` | An empty value **records that the Belt proceeded without it** (§35) |
+| Cross-phase dicts | `artifacts.get("field", {})` | Same, with the right empty type |
+
+**Gate assembly must reference every field in the schema.** A field in the
+schema that assembly never sets is a field that silently never reaches the
+Store.
+
+---
+
+## 41. Structured dict fields, and FMEA
+
+*Supersedes: REFACTORING §68; ARCHITECTURE.md §4.10.5–§4.10.7; CLAUDE.md §10.8; DECISIONS §C5, §C6.*
+**Status: RATIFIED.**
+
+**Three Tier 1 fields are structured dicts**, distinct from the three
+cross-phase reference dicts of §7:
+
+| Field | Phase | Sub-fields |
+|---|---|---|
+| `process_map_sipoc` | Define | `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, **`process_kpis`** |
+| `detailed_process_map` | Measure | `steps`, `cycle_times`, `resources`, `value_vs_waste`, `measurement_points`, **`baseline_kpis`** |
+| `control_plan` | Control | `documentation`, `monitoring`, `response`, `training`, `aligning_systems` |
+
+### The grader checks every sub-field is populated
+
+**A `process_map_sipoc` with four of six keys filled is the partial-map failure
+the field exists to catch.** A Belt who maps steps 3–5 of a seven-step process
+produces a project that cannot show improvement, because the baseline never
+covered the whole thing.
+
+**`process_kpis` and `baseline_kpis` are the two sub-fields that carry the
+measurement thread** (§39). They are the reason these are dicts rather than
+prose: a coaching conversation produces text no downstream planner can read and
+no grader can check.
+
+### `control_plan` is `dict`, never `str`
+
+```python
+control_plan: dict = {
+    "documentation":    str,   # updated process maps, SOPs, training manuals
+    "monitoring":       str,   # what charts, what frequency, what limits, who checks
+    "response":         str,   # what happens when monitoring signals a problem
+    "training":         str,   # who needs training, in what format, verified how
+    "aligning_systems": str,   # HR, IT, budget changes needed to sustain
+}
+```
+
+**Tier 1 — the gate requires the dict, and the grader checks all five
+sub-plans.** A single string cannot show that four were done and one was
+skipped, and **a Training Plan written but never delivered is the most common
+real Control failure.**
+
+### `stability_assessment` is checked BEFORE capability
+
+**An unstable process has special causes, so a baseline Cpk computed across
+them is an average of two different processes, not a capability figure.**
+
+Coaching order: **stability → special causes if unstable → capability.** This
+is why the field is Tier 1 rather than advisory — a capability number computed
+in the wrong order is worse than no number, because it looks authoritative.
+
+### `experiment_justification` is Tier 1 and does not require an experiment
+
+It requires a **decision**, stated as one of three:
+
+1. DOE conducted
+2. Simplified one-factor experiment
+3. **No experiment needed** because the solution follows from root cause
+   analysis
+
+**All three are valid.** The failure it catches is **drifting past the
+question**, not skipping DOE.
+
+### FMEA has no field in any schema, and none may be added
+
+Not `fmea_summary`, not `updated_fmea`, not an FMEA sub-key anywhere.
+
+**FMEA is heavy manufacturing methodology** built around severity × occurrence
+× detection scoring of physical failure modes. Agent Improve's typical case is
+service or transactional DMAIC, where `xy_matrix_summary` and `vital_few_xs`
+already do the prioritisation job without the RPN overhead.
+
+**Requiring an FMEA would push every Belt through a heavy artefact to satisfy a
+field** — precisely the mechanical field-filling that §35's two tiers exist to
+prevent.
+
+**If a Black Belt performs one, it lives in `uploads`** as an attached
+document, and the BB SKILL.md may present it as an available technique. The
+schema does not track it, the grader does not ask for it, and no gate blocks on
+it.
+
+---
+
+## 42. Cross-phase reference fields in practice
+
+*Supersedes: ARCHITECTURE.md §4.7; CLAUDE.md §10.6.*
+**Status: RATIFIED.** Schema defined in §7; this is how the three are used.
+
+| Field | Phase | Tier | References |
+|---|---|---|---|
+| `causal_hypothesis` | Analyse | 2 | Measure's `baseline_mean` |
+| `solution_linked_to_root_cause` | Improve | 2 | Analyse's `root_cause_statement` |
+| `post_improvement_metric` | Control | **1** | Measure's `baseline_mean` |
+
+**Only `post_improvement_metric` is Tier 1**, and that asymmetry is
+deliberate: a Control phase that cannot link its result back to the Measure
+baseline has not demonstrated improvement at all, whereas an Analyse phase
+without an explicit hypothesis link is weaker but not void.
+
+**The grader verifies each link by lookup, not judgment** (§36) — it reads the
+referenced phase's gate document from the Store and checks the named field
+carries the named value.
+
+---
+
+*Parts I–VIII end here. Parts IX–XI to follow.*
