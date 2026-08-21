@@ -31,15 +31,27 @@ import urllib.request
 DEPENDENCIES = ["langgraph", "langchain", "langsmith", "deepagents"]
 PYPI_URL = "https://pypi.org/pypi/{pkg}/json"
 HTTP_TIMEOUT = 3
-ARCH_DOC_PATH = "agent-improve/ARCHITECTURE.md"
+# The step sequence lives in the Refactoring Procedure, Appendix D.
+# It was ARCHITECTURE.md §15 until 2026-08-21; that document is SUPERSEDED and
+# frozen, and its §15 used "### Step N —" headings the old regex never matched,
+# so this lookup had been failing silently as "next undetermined".
+PROCEDURE_DOC_PATH = "agent-improve/docs/REFACTORING_PROCEDURE.md"
+STEP_INDEX_HEADING = "Appendix D"
 MAX_OUTPUT_CHARS = 10000
 
 # Governance convention: refactor commits are subjects like
 #   "refactor(arch-v2): commit 2.2 — ..."  (this repo's convention)
-# also tolerate "step 2.2" and a bare "2.2". §15 markers have no ✅/[x],
+# also tolerate "step 2.2" and a bare "2.2". The index carries no ✅/[x],
 # so the authoritative record of what has landed is git history.
 _GITLOG_STEP_RE = re.compile(r"refactor\(arch-v2\):\s*(?:step\s+|commit\s+)?(\d+\.\d+)")
-_ARCH_COMMIT_RE = re.compile(r"\*\*Commit (\d+\.\d+)\*\*")
+
+# Appendix D row format, fixed by contract with the document:
+#   | **Commit 4.2** | thread_id + disconnect policy | pending |
+# A row whose status is BLOCKED or GATED is never proposed as "next".
+_STEP_ROW_RE = re.compile(
+    r"\|\s*\*\*Commit (\d+\.\d+)\*\*\s*\|[^|]*\|\s*(?:\*\*)?([A-Za-z]+)"
+)
+_UNAVAILABLE_STATUSES = {"blocked", "gated"}
 
 
 # --------------------------------------------------------------------------- #
@@ -113,55 +125,67 @@ def get_last_completed_step_from_gitlog() -> str | None:
         return None
 
 
-def get_next_step_from_arch_doc(project_dir: str, last: str | None) -> str | None:
-    """Lowest **Commit X.Y** in §15 strictly greater than `last`, or None."""
+def get_next_step_from_procedure(project_dir: str, last: str | None):
+    """Lowest available **Commit X.Y** in Appendix D strictly greater than `last`.
+
+    Returns (step, None) on success, or (None, reason) so the caller can say
+    WHY it failed. A silent "undetermined" is what let the previous version of
+    this lookup rot unnoticed against ARCHITECTURE.md §15 — a parse failure and
+    "you have finished" must not render identically.
+    """
     try:
-        doc_path = os.path.join(project_dir, ARCH_DOC_PATH)
+        doc_path = os.path.join(project_dir, PROCEDURE_DOC_PATH)
         with open(doc_path, encoding="utf-8") as fh:
             lines = fh.read().splitlines()
 
         start = next((i for i, ln in enumerate(lines)
-                      if re.match(r"^##\s*15\.", ln)), None)
+                      if ln.startswith("## ") and STEP_INDEX_HEADING in ln), None)
         if start is None:
-            return None
+            return None, f"step index heading '{STEP_INDEX_HEADING}' not found"
+
         end = len(lines)
         for j in range(start + 1, len(lines)):
-            if lines[j].startswith("## "):  # next level-2 header ends §15
+            if lines[j].startswith("## "):  # next level-2 header ends the index
                 end = j
                 break
 
-        section = "\n".join(lines[start:end])
-        commits = _ARCH_COMMIT_RE.findall(section)
-        if not commits:
-            return None
+        rows = _STEP_ROW_RE.findall("\n".join(lines[start:end]))
+        if not rows:
+            return None, "step index found but no rows matched the row format"
 
         last_key = _ver_key(last) if last else (-1,)
-        candidates = [c for c in commits if _ver_key(c) > last_key]
-        if not candidates:
-            return None
-        return min(candidates, key=_ver_key)
+        available = [step for step, status in rows
+                     if status.lower() not in _UNAVAILABLE_STATUSES
+                     and _ver_key(step) > last_key]
+        if not available:
+            blocked = [s for s, st in rows
+                       if st.lower() in _UNAVAILABLE_STATUSES
+                       and _ver_key(s) > last_key]
+            if blocked:
+                return None, f"all remaining steps blocked/gated ({', '.join(blocked)})"
+            return None, "no steps remain — procedure complete"
+        return min(available, key=_ver_key), None
     except Exception as exc:  # noqa: BLE001
-        _log(f"arch-doc next-step parse failed: {exc}")
-        return None
+        _log(f"procedure next-step parse failed: {exc}")
+        return None, f"parse error: {exc}"
 
 
 def get_refactor_step() -> str:
     """Section 2 — assemble the last/next refactor-step line."""
     project_dir = get_project_dir()
-    doc_path = os.path.join(project_dir, ARCH_DOC_PATH)
+    doc_path = os.path.join(project_dir, PROCEDURE_DOC_PATH)
     if not os.path.isfile(doc_path):
-        return (f"architecture doc: not found (expected at {ARCH_DOC_PATH})")
+        return f"refactor step: PROCEDURE DOC MISSING (expected {PROCEDURE_DOC_PATH})"
 
     last = get_last_completed_step_from_gitlog()
-    nxt = get_next_step_from_arch_doc(project_dir, last)
+    nxt, reason = get_next_step_from_procedure(project_dir, last)
     last_str = last if last else "none"
 
     if nxt is None:
-        if last is None:
-            return "refactor step: undetermined (git log empty, doc unreadable)"
-        return f"refactor step: last completed {last_str} | next undetermined"
+        # Say why. "undetermined" hid a broken lookup for months.
+        return f"refactor step: last completed {last_str} | next UNAVAILABLE — {reason}"
     return (f"refactor step: last completed {last_str} | next {nxt} "
-            f"({ARCH_DOC_PATH} §15)")
+            f"({PROCEDURE_DOC_PATH} Appendix D)")
 
 
 def get_installed_version(pkg: str) -> str | None:

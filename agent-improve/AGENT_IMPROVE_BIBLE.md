@@ -4478,7 +4478,7 @@ foundation and rewriting them later was rejected.
 
 ```
 Refactor the foundation
-  ├── Checkpointer wired into graph.compile()          ✔ done
+  ├── Checkpointer wired into graph.compile()          ⚠ WIRED, INERT
   ├── SupervisorState / PhaseState split               §5, §6
   ├── thread_id through graph.ainvoke + disconnect policy   §16, §47
   ├── Phase subgraphs with private state               §12, §13
@@ -4501,6 +4501,24 @@ Migrate PostgresSaver + PostgresStore                  §8
     ↓
 Multi-user identity, isolation, tagged observability
 ```
+
+**⚠ The checkpointer is WIRED but INERT, and the distinction matters for
+sequencing.** `core/graph.py` does call
+`builder.compile(checkpointer=get_checkpointer())` — that part of step 2.2 is
+genuinely done. But **`thread_id` appears nowhere, `ainvoke` appears nowhere,
+and the compiled graph is discarded**: `gateway/routes.py` calls `get_graph()`
+and then dispatches phase nodes manually (§49, Appendix E). A checkpointer that
+is never invoked through the graph writes nothing.
+
+**Zero checkpoints have ever been written.** Reading this line as "✔ done", as
+earlier revisions did, invites the next reader to build on persistence that
+does not exist yet.
+
+**It is closed by the `thread_id` wiring step, not before**, and that same step
+carries the five Handler-Shaped Durability requirements of §47 — which is why
+§47 says it is part of that step rather than a separate one. Until it lands:
+time-travel debugging is unavailable, `gate_attempts` cannot survive a request
+boundary, and graph node names are still free to rename (§23.3).
 
 **Two workstreams run alongside, not after:** the evaluation dataset (§52) and
 the five SKILL.md files (§32). Both encode Black Belt domain judgment and both
@@ -4972,7 +4990,7 @@ than discovered.
 
 | Component | Status |
 |---|---|
-| `core/checkpointer.py` — `AzureBlobCheckpointSaver` | **Implemented** |
+| `core/checkpointer.py` — `AzureBlobCheckpointSaver` | **Implemented and compiled in — but INERT.** `thread_id` and `ainvoke` appear nowhere, so it has never written a checkpoint (§53.1) |
 | `core/state.py` | v1 `ImproveGraphState` — **not** `SupervisorState` |
 | `core/graph.py` | v1 flat graph, 11 nodes, `set_entry_point` |
 | `knowledge/retriever.py` | v1, **but already carries the correct `phase_relevance` filter and `fields=` declaration** |
