@@ -1,11 +1,17 @@
 # Agent Improve — Architecture Reference
 **AgentLean Platform · DMAIC Improvement Agent**
 Version 1.0-draft · 2026-08-21
-Status: **STRUCTURALLY COMPLETE** — Parts I–XI and Appendices A–E written.
-**NOT YET CROSS-CHECKED against live sources — Task 3B is a required gate
-before this document is authoritative.** Until that pass runs, treat every
-version number, API signature, deprecation status and cited issue as
-*asserted*, not *verified*.
+Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
+Task 3B verification pass completed 2026-08-21.
+
+**Verification:** every API signature, parameter name, deprecation status,
+version floor and cited source was checked against live documentation. Three
+corrections, two now-stale items and four enhancements were applied to this
+document as a result. Full log: [`docs/BIBLE_VERIFICATION_LOG.md`](docs/BIBLE_VERIFICATION_LOG.md).
+
+**Four claims remain unverified and are named in the log** — chief among them
+`RunControl.request_drain()` (§45), which should be confirmed before anything
+depends on it.
 
 ---
 
@@ -771,6 +777,25 @@ class AzureBlobStore(BaseStore):
     def delete(self, namespace: tuple[str, ...], key: str) -> None: ...
 ```
 
+> **`BaseStore.search()` is more capable than earlier revisions of this design
+> assumed** (verified 2026-08-21). Beyond `query` and `filter` it supports
+> `mode` (`text` | `vector` | `hybrid` | `auto`), `offset`,
+> `similarity_threshold`, `vector_weight` and `distance_metric`.
+>
+> **This weakens one of the three reasons previously given for keeping
+> `improve_case_index` on Azure AI Search.** The old argument was that the
+> Store provides neither metadata filtering, nor hybrid BM25 + vector scoring,
+> nor multi-query + RRF. The first was already corrected — `filter=` exists —
+> and `mode="hybrid"` now undercuts the second.
+>
+> **The conclusion still holds, on the remaining reason plus migration cost:**
+> the Store has no multi-query + RRF (§25), which is the mechanism Agent
+> Resolve production experience showed this corpus needs, and moving a live
+> index is work with no user-visible payoff. **But the decision now rests on
+> one technical reason rather than three, and should be re-examined if the
+> Store's search surface keeps growing.** Flagged rather than quietly left to
+> look better-supported than it is.
+
 ### Namespace convention
 
 ```
@@ -1388,9 +1413,13 @@ executor = create_agent(
     tools=UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase],
     response_format=CoachingResponse,        # §20 — never a {Phase}Output
     middleware=[...],                        # §19 — all eight, in order
-    prompt=PHASE_COACH_PROMPT[phase],
+    system_prompt=PHASE_COACH_PROMPT[phase],
 )
 ```
+
+**The parameter is `system_prompt=`, not `prompt=`.** `create_react_agent`
+took `prompt`; `create_agent` renamed it. Verified against the
+`create_agent` reference signature, 2026-08-21.
 
 ### Binding tools directly onto a bare model is a violation
 
@@ -1438,7 +1467,7 @@ middleware=[
     BeforeModelStateInjection(...),          # 1 · custom · before_agent
     DMAICSkillsMiddleware(...),              # 2 · custom · before_agent
     SummarizationMiddleware(...),            # 3 · core   · before_model
-    ModelRetryMiddleware(retries=2),         # 4 · core   · wrap_model_call
+    ModelRetryMiddleware(max_retries=2),     # 4 · core   · wrap_model_call
     ToolRetryMiddleware(                     # 5 · core   · wrap_tool_call
         max_retries=2, on_failure="continue"),
     ContradictionDetectionMiddleware(...),   # 6 · custom · after_agent
@@ -1447,9 +1476,16 @@ middleware=[
 ]
 ```
 
-**Five custom, three core.** All are built on the six `AgentMiddleware` hooks:
-`before_agent`, `after_agent`, `before_model`, `after_model`,
-`wrap_model_call`, `wrap_tool_call`.
+**Five custom, three core.** All are built on `AgentMiddleware` hooks. The six
+this architecture uses are `before_agent`, `after_agent`, `before_model`,
+`after_model`, `wrap_model_call` and `wrap_tool_call`.
+
+**`AgentMiddleware` exposes more than six.** The reference also lists
+`dynamic_prompt()`, `hook_config()` and `configure_trace_policy()`. Earlier
+revisions of this design described "the six hooks" as though that were the
+complete set; it is the set *we use*, not the set that exists. Nothing in the
+stack below depends on the difference, but a reader extending the stack should
+check the reference rather than this list.
 
 **Prefer built-in middleware wherever it exists.** Custom middleware is
 reserved for genuinely domain-specific logic.
@@ -1559,8 +1595,26 @@ middleware.
 ### 19.4 `ModelRetryMiddleware` — API-level retry
 
 **LangChain core, used as shipped · `wrap_model_call` · position 4.**
-`retries=2`, exponential backoff. Wraps each model call and silently retries
-transient timeouts and rate limits.
+
+```python
+ModelRetryMiddleware(
+    max_retries=2,              # NOT `retries=` — verified 2026-08-21
+    retry_on=default_retry_on,
+    on_failure="continue",
+    backoff_factor=2.0,
+    initial_delay=1.0,
+    max_delay=60.0,
+    jitter=True,
+)
+```
+
+Wraps each model call and silently retries transient timeouts and rate limits.
+
+**The parameter is `max_retries`, not `retries`.** Earlier revisions of this
+design wrote `ModelRetryMiddleware(retries=2)` throughout — that keyword does
+not exist and would raise at construction. Corrected against the reference
+signature on 2026-08-21. The two retry middlewares share the same parameter
+vocabulary, which is a good reason not to remember one and guess the other.
 
 **Hand-writing retry plumbing is BANNED** — no try/except/sleep/counter loops
 around an LLM call. This middleware provides the wrap, the backoff and the
@@ -2081,6 +2135,12 @@ docs = vs.similarity_search(query, k=k, filters=filters)
 dynamic. `AzureSearch` takes it at *call time*, so the dynamic `phase` value
 never reaches construction and the cached module-level singleton is correct.
 Adopting a different retrieval class would be a migration, not a bug fix.
+
+> **Task 3B note (2026-08-21).** The brief asked whether
+> `AzureAISearchRetriever` offers anything `AzureSearch` does not, and whether
+> that would justify revisiting. **No such advantage was found** in the current
+> reference, so the decision stands unchanged. Recorded so the question is not
+> re-opened without new evidence.
 
 **`improve_case_index` additionally uses a raw `SearchClient`**, because
 `AzureSearch` resolves its content and vector field names from process-global
@@ -3675,6 +3735,32 @@ builder.add_node(
 )
 ```
 
+**`TimeoutPolicy` also accepts `idle_timeout`**, refreshed by progress signals,
+alongside the wall-clock `run_timeout`. A bare number or `timedelta` is
+accepted as a hard cap that is *not* refreshed. `run_timeout=45` is the
+ratified value; `idle_timeout` is available if a long legitimate tool call ever
+needs distinguishing from a hang.
+
+**Prefer `set_node_defaults` over repeating the policy on every node.**
+LangGraph provides graph-wide defaults for `retry_policy`, `error_handler`,
+`timeout` and `cache_policy`, which is a better fit for a rule phrased as
+"required on **every** phase executor node" than copying the arguments five
+times.
+
+**Two constraints on defaults, both from the reference:** `cache_policy` and
+`error_handler` defaults apply to **regular nodes only** — caching an error
+handler's result is unsafe, and **a handler must never catch itself.**
+
+### Composition order — retries run BEFORE the handler
+
+**When a node attempt raises any exception — including `NodeTimeoutError` from
+a timeout — the retry policy decides whether to retry, and the error handler
+runs only after retries are exhausted.**
+
+This matters for reading §44's pipeline correctly: Step 0's timeout does not
+jump straight to compensation. It raises, the retry policy sees it first, and
+only a fully-exhausted node reaches `error_handler` and the fallback chain.
+
 ### Node-level error handlers — required on every node with external writes
 
 Every node that writes to Azure Blob, `improve_case_index` or
@@ -4145,22 +4231,33 @@ remove it if redundant.
 
 ### Dependency floor
 
-| Package | Installed (2026-08-21) | Floor | Note |
+**All versions below verified against PyPI on 2026-08-21.**
+
+| Package | Installed | Latest | Note |
 |---|---|---|---|
-| `langgraph` | **1.1.10** | **≥1.2.6** | **BLOCKER** — §45 primitives and §16 `checkpoint_ns` both need it |
-| `langchain` | 1.2.13 | 1.x | |
-| `langchain-core` | 1.3.3 | — | let pip resolve |
+| `langgraph` | **1.1.10** | **1.2.11** | **BLOCKER** — floor is **≥1.2.6** |
+| `langchain` | 1.2.13 | **1.3.16** | Pins `langgraph>=1.2.11,<1.3.0` |
+| `langchain-core` | 1.3.3 | — | `langchain` 1.3.16 requires **≥1.6.0** — a larger jump than the installed version suggests |
 | `langchain-openai` | 1.1.11 | — | let pip resolve |
 | `langchain-community` | 0.4.1 | — | supplies `AzureSearch` (§24) |
 | `langsmith` | 0.7.3 | — | |
-| `langchain-classic` | 1.0.3 | pinned | Retains legacy classes we do **not** use — **presence is not permission** |
+| `langchain-classic` | 1.0.3 | **1.0.8** | Retains legacy classes we do **not** use — **presence is not permission** |
+| `deepagents` | not installed | 0.4.11 stable | **Still pre-1.0** — §18's exclusion stands |
 
-**`langgraph` 1.1.10 is a hard blocker, not drift.** Nothing in §45 can be
-built until it is upgraded.
+**The ≥1.2.6 floor is precisely attributable.** LangGraph **1.2.6**
+(2026-06-18) carries *"nested subgraph inherits parent `checkpoint_ns`
+(regression in 1.2.3)"* — the fix §16 depends on. Node-level `TimeoutPolicy`
+and `error_handler` (§45) require 1.2+.
 
-**Do not upgrade to a stale pin.** Resolve the correct current target against
-live PyPI and the LangChain changelog at upgrade time, then pin. Upgrading to a
-target that is already superseded means doing the migration twice.
+**Upgrading `langchain` resolves `langgraph` for you.** `langchain` 1.3.16
+requires `langgraph>=1.2.11`, so a single upgrade satisfies the floor with
+margin. **Watch `langchain-core`:** installed 1.3.3 against a required ≥1.6.0
+is a three-minor jump, and is the most likely source of surprises in the
+upgrade.
+
+**Do not upgrade to a stale pin.** The previously documented 1.2.10 / 1.3.11
+targets were already superseded when written. Re-resolve against live PyPI at
+upgrade time.
 
 **During the upgrade, sweep for imports from `langgraph.prebuilt`** —
 deprecated, functionality moved to `langchain.agents` (§18).
@@ -4556,6 +4653,9 @@ it is excluded** (see Appendix D).
 | `anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills` | Oct 2025 | SKILL.md spec — §32 |
 | `anthropic.com/engineering/demystifying-evals-for-ai-agents` | Jan 2026 | Eval design — §52 |
 | `anthropic.com/engineering/writing-tools-for-agents` | Sep 2025 | Tool design — §29, §30 |
+| `anthropic.com/engineering/designing-ai-resistant-technical-evaluations` | Jan 21, 2026 | Eval design that resists gaming — **added 2026-08-21**, bears on §52 |
+| `anthropic.com/engineering/quantifying-infrastructure-noise-in-agentic-coding-evals` | Feb 05, 2026 | Separating real regressions from infrastructure noise — **added 2026-08-21**, bears on §52's >10% threshold |
+| `anthropic.com/engineering/advanced-tool-use` | Nov 24, 2025 | Advanced tool use on the Claude Developer Platform — **added 2026-08-21**, bears on §29, §30, §31 |
 | `docs.langchain.com`, `reference.langchain.com` | Ongoing | LangChain / LangGraph API surface |
 | `github.com/langchain-ai/*` | Ongoing | Versions, breaking changes, open issues |
 | `langchain-ai.github.io/langmem` | Ongoing | Memory taxonomy — §28 |
@@ -4579,6 +4679,23 @@ specific material exists, **not because it was refuted.**
 ### Excluded
 
 Stack Overflow, Reddit, Medium, Dev.to — unless linking directly to Tier 1.
+
+### Index refresh — 2026-08-21
+
+**The `anthropic.com/engineering` index was re-read in full. Nothing has been
+published after this list's August 2026 cutoff** — the newest dated post is
+*"An update on recent Claude Code quality reports"* (Apr 23, 2026), with *"How
+we contain Claude across products"* currently featured.
+
+**Three posts inside the window were missing from this list and have been
+added** (above). They were not new; they were simply never picked up when the
+list was built. Two bear directly on §52's evaluation design, which is the
+part of this architecture with the least production evidence behind it.
+
+**Posts deliberately not added**, being product/model-specific rather than
+architectural: *Claude Code auto mode* (Mar 25), *Eval awareness in Claude Opus
+4.6's BrowseComp performance* (Mar 06), *Building a C compiler with parallel
+Claudes* (Feb 05), *An update on recent Claude Code quality reports* (Apr 23).
 
 ---
 
