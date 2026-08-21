@@ -1,10 +1,39 @@
 # Agent Improve — Architecture & Design Document
 **Agentlean Platform · DMAIC Improvement Agent**
-Version 2.2.15 · August 2026
+Version 2.2.16 · August 2026
 Status: v2.2 architecture ratified · refactor in progress (Step 2.2 complete;
 Step 3.6 index schema rename applied; state design closed — §4;
 node names, tool binding and output schemas closed — §3.2.1, §3.3.2, §4.10;
 eBook gaps closed — §4.10.5–§4.10.7, §3.4.2)
+
+### Change log — v2.2.16 (2026-08-21)
+
+Four facts propagated from `REFACTORING_AGENT_IMPROVE.md`, which had moved
+ahead of this document. Same principle as the §44 boundary ruling: **the
+design document cannot lag the document it is derived from.** No new
+decisions — every item was already ratified and logged.
+
+| # | Change | Sections |
+|---|---|---|
+| 1 | `PhaseState` 15 → **17 fields** (3 plumbing + 14 content). `hop_results` and `synthesis_output` added; `coaching_plan` retyped to `Optional[CoachingPlan]` | §4.2 |
+| 2 | Middleware stack 5 → **8**. `ToolRetryMiddleware`, `ContradictionDetectionMiddleware`, `CoherenceMiddleware` added; `BeforeModelStateInjection` hook corrected `before_model` → **`before_agent`** | §3.4, §5 folder structure, §15 Step 5, §16 summary |
+| 3 | `improve_evidence_index` gains **`phase`** and **`uploaded_at`**; `rag_lookup_evidence` gains an optional, default-off `phase` filter and regains `order_by` | §7.2, §8.1 |
+| 4 | `improve_case_index.embedding` → **`content_vector`** ratified; "asymmetry is safe" no longer reads as an argument against the rename | §7.3, §7.4 |
+
+**Two corrections found while propagating, both internal to this document:**
+
+- **§3.7 named `DMAICGraderMiddleware` as validation Layer 2d.** It is not —
+  Layer 2d runs in the `validation_stack` node against `PHASE_RUBRIC`, while
+  `DMAICGraderMiddleware` is middleware position 8 running against
+  `COACHING_QUALITY_RUBRIC` every turn. §3.4.1 on the same page already drew
+  this distinction correctly, so the document contradicted itself.
+- **Layer 2a's implementation was unstated.** It fires every turn, which the
+  gate-boundary `validation_stack` node cannot do; it is `CoherenceMiddleware`.
+  The four-layer stack is one concept spanning two mechanisms, and §3.7 now
+  says which layer is which.
+
+**Both Azure schema changes are documented, not applied.** §7.2 and §7.3 are
+marked pending reindex, and code must use the live field names until then.
 
 ---
 
@@ -412,31 +441,62 @@ subgraph with no node that runs the four layers.
 
 ### 3.4 The middleware stack
 
-**Five middlewares** on every phase executor, built on the six
+**Eight middlewares** on every phase executor, built on the six
 `AgentMiddleware` hooks. **Declaration order is execution order** for
 hooks of the same kind, so the table below is the order in code.
 
 | Order | Middleware | Hook | Purpose | Source |
 |---|---|---|---|---|
-| 1 | `BeforeModelStateInjection` | `before_model` | Prepend structured project state at the top of the prompt | **Custom** |
+| 1 | `BeforeModelStateInjection` | `before_agent` | Prepend structured project state at the top of the prompt | **Custom** |
 | 2 | `DMAICSkillsMiddleware` | `before_agent` + registered tool | Progressive disclosure of phase coaching instructions | **Custom** |
 | 3 | `SummarizationMiddleware` | `before_model` | Context compression for long coaching sessions | LangChain core |
-| 4 | `ModelRetryMiddleware` | `wrap_model_call` | Invisible retry with backoff on transient LLM failures | LangChain core |
-| 5 | `DMAICGraderMiddleware` | `after_agent` | Coaching-quality evaluation against `COACHING_QUALITY_RUBRIC` | **Custom** |
+| 4 | `ModelRetryMiddleware` | `wrap_model_call` | Invisible retry on transient **model API** failures | LangChain core |
+| 5 | `ToolRetryMiddleware` | `wrap_tool_call` | Invisible retry on **tool execution** failures | LangChain core |
+| 6 | `ContradictionDetectionMiddleware` | `after_agent` | Deterministic §3.8 check — captured field vs gate-approved value | **Custom** |
+| 7 | `CoherenceMiddleware` | `after_agent` | Layer 2a coherence — real, conclusive, on-topic, not parroting | **Custom** |
+| 8 | `DMAICGraderMiddleware` | `after_agent` | Coaching **process** quality against `COACHING_QUALITY_RUBRIC` | **Custom** |
 
-**State injection runs first, deliberately.** An earlier revision listed
-`BeforeModelStateInjection` last. For `before_model` hooks declaration
-order is execution order, so that placed the project's established facts
-*after* skills loading and summarisation had already shaped the prompt —
-the opposite of the ordering §3.4's own rationale calls for.
+**State injection runs first, deliberately, and its hook is
+`before_agent`.** An earlier revision listed `BeforeModelStateInjection`
+last and typed it `before_model`. Both were wrong. Declaration order is
+execution order, so listing it last placed the project's established
+facts *after* skills loading and summarisation had already shaped the
+prompt. And state injection belongs at agent-loop start, not before every
+individual model call within a turn — `before_agent` fires once per turn,
+`before_model` fires per model invocation.
 
-**Three are custom by decision, not by necessity.** deepagents ships
+**Positions 6, 7 and 8 all fire `after_agent`** and therefore run in
+declaration order: contradiction check, then coherence, then grader.
+**If `CoherenceMiddleware` fails and its retries exhaust,
+`DMAICGraderMiddleware` is skipped for that turn** — deliberately, since
+grading a response already known to be incoherent spends a model call to
+produce a meaningless score.
+
+Positions 4 and 5 sit on `wrap_*` hooks and compete for no slot with
+anything else; they are adjacent for readability, not for ordering.
+
+**How the stack grew from four to eight**, and why no addition is
+redundant:
+
+| Added | Why nothing already in the stack covers it |
+|---|---|
+| `ModelRetryMiddleware` | Nothing else retried a failed model call. Distinct from the §9.3 fallback chain, which *swaps the model* rather than retrying the same call |
+| `ToolRetryMiddleware` | A failed Azure Search call is not a failed model call — different hook, different failure mode. `on_failure="continue"` returns a failure result the coach can react to instead of killing the graph |
+| `ContradictionDetectionMiddleware` | §3.8's mid-phase contradiction check needed a home. Deterministic dict comparison, no LLM call, placed here rather than inside the executor node so it is a named, LangSmith-visible step and the executor stays responsible only for coaching |
+| `CoherenceMiddleware` | Layer 2a was previously a criterion inside `COACHING_QUALITY_RUBRIC`, conflating "is this a real statement at all?" with "is this good coaching?" — and paying for a full rubric grading call on responses already known to be incoherent |
+
+**Five are custom by decision, not by necessity.** deepagents ships
 `RubricMiddleware` and `SkillsMiddleware`, but the package is pre-1.0
 with breaking changes shipping between minor versions, and adopting it
 is all-or-nothing (`create_deep_agent` replaces `create_agent`).
 Carrying a bounded amount of our own code is preferable to an unbounded
-amount of someone else's pre-1.0 churn. All three migrate together
+amount of someone else's pre-1.0 churn. They migrate together
 when deepagents reaches 1.0.
+
+**`ToolRetryMiddleware`** — LangChain core, `max_retries=2`,
+`on_failure="continue"`, exponential backoff with jitter. **The class is
+`ToolRetryMiddleware`, not `RetryMiddleware`** — the latter does not
+exist in LangChain 1.x.
 
 **`ModelRetryMiddleware`** — LangChain core, used as shipped, `retries=2`
 with exponential backoff. It wraps each model call and retries transient
@@ -766,18 +826,43 @@ Not `HumanInTheLoopMiddleware` (§3.4).
 
 All four run inside step 2, before the interrupt fires.
 
-| Layer | Checks | Mechanism | Model | Fires |
-|---|---|---|---|---|
-| **2a** Coherence | Real, meaningful, conclusive? Catches gibberish, vague non-answers, self-contradiction, off-topic, parroting the Belt | Lightweight LLM | `coherence`, 0.1 | **Every turn** |
-| **2b** Field presence | All **Tier 1** fields populated? `DMAICGateValidator` static methods | **Deterministic** | None | Gate only |
-| **2c** Constraints | Addresses budget / timeline / risk / measurement? | Lightweight LLM | `constraint`, 0.1 | Gate + key mid-conversation decisions |
-| **2d** Quality rubric | Meets DMAIC standards per criterion? **Tier 1 fails, Tier 2 warns.** `DMAICGraderMiddleware` | LLM grader | `grader`, 0.1 | Gate only |
+| Layer | Checks | Mechanism | Model | Fires | Implemented by |
+|---|---|---|---|---|---|
+| **2a** Coherence | Real, meaningful, conclusive? Catches gibberish, vague non-answers, self-contradiction, off-topic, parroting the Belt | Lightweight LLM | `coherence`, 0.1 | **Every turn** | **`CoherenceMiddleware`** (§3.4, position 7) |
+| **2b** Field presence | All **Tier 1** fields populated? `DMAICGateValidator` static methods | **Deterministic** | None | Gate only | `validation_stack` node |
+| **2c** Constraints | Addresses budget / timeline / risk / measurement? | Lightweight LLM | `constraint`, 0.1 | Gate + key mid-conversation decisions | `validation_stack` node |
+| **2d** Quality rubric | Meets DMAIC standards per criterion? **Tier 1 fails, Tier 2 warns.** Uses `PHASE_RUBRIC` | LLM grader | `grader`, 0.1 | Gate only | `validation_stack` node |
+
+**Layer 2a is a middleware; layers 2b–2d are the node.** This is not a
+cosmetic distinction. Layer 2a fires **every coaching turn**, which a
+gate-boundary node cannot do — so it is implemented as
+`CoherenceMiddleware` on the `after_agent` hook (§3.4). Layers 2b–2d fire
+once, at the gate, inside the `validation_stack` node. The four are one
+conceptual stack and two mechanisms.
+
+**Layer 2d is NOT `DMAICGraderMiddleware`.** An earlier revision of this
+table named it as such, contradicting §3.4.1 on the same page. Layer 2d
+runs in the `validation_stack` node against `PHASE_RUBRIC` (five, one per
+phase) and grades the **gate document**. `DMAICGraderMiddleware` is
+middleware position 8, runs against `COACHING_QUALITY_RUBRIC` (one,
+shared) every turn, and grades the **coach's process**. Two graders, two
+rubrics, two moments — see §3.4.1.
+
+**Coherence is no longer a `COACHING_QUALITY_RUBRIC` criterion.** It moved
+out when `CoherenceMiddleware` was added; `DMAICGraderMiddleware` grades
+process quality only. Any rubric entry for coherence is stale.
 
 **Cheapest first; each fires only if the previous passes. The
 iteration cap is 3, shared across all four**, with accumulated
 feedback — never three per layer. The counter is
 `PhaseState.gate_attempts` and the feedback is
 `PhaseState.validator_feedback` (§4.2.1, §4.2.2).
+
+`CoherenceMiddleware` carries its **own** 2-retry cap on response quality,
+independent of the shared gate cap of 3 and independent of
+`ModelRetryMiddleware`'s 2-retry cap on transient API failure. Three caps,
+three different failure modes, no shared counter. On a third coherence
+failure the turn degrades and `DMAICGraderMiddleware` is skipped.
 
 #### 3.7.1 Two tiers of field, and the `warning` verdict
 
@@ -1086,8 +1171,8 @@ class PhaseState(TypedDict):
     history:            Annotated[list[str], operator.add]
     phase_context:      str                # composed at the boundary (§4.3)
 
-    # ── the twelve content fields ───────────────────────────────
-    coaching_plan:      dict[str, Any]     # planner output, ONE plan (§3.5)
+    # ── the fourteen content fields ─────────────────────────────
+    coaching_plan:      Optional[CoachingPlan]  # planner output, ONE plan (§3.5)
     field_index:        int                # field within the phase
     draft:              dict[str, Any]     # this turn's extraction
     artifacts:          dict[str, Any]     # accumulated for the phase
@@ -1099,16 +1184,37 @@ class PhaseState(TypedDict):
     validator_feedback: list[dict]         # accumulated per-attempt feedback
     citations:          list[dict]         # sources the coach cited this phase
     uploads:            list[dict]         # files the Belt uploaded this phase
+    hop_results:        list[str]          # ordered hop answers; [] otherwise
+    synthesis_output:   Optional[dict]     # SynthesisOutput; None for single-hop
 ```
 
-**Fifteen fields: twelve content fields plus three conversation
+**Seventeen fields: fourteen content fields plus three conversation
 plumbing fields.** `messages`, `history` and `phase_context` are not
 under the content design — `messages` is what `create_agent` runs its
 loop on, `history` is the node execution trail, and `phase_context` is
 composed at the boundary by the input mapper (§4.3).
 
-**`coaching_plan` is a single `dict`, not a list.** One plan per planner
-turn, overwritten each time the planner fires — see §3.5.
+**`hop_results` and `synthesis_output` carry the planned multi-hop
+chain**, and both exist because a local Python variable inside a node is
+not inspectable. LangSmith traces node inputs and outputs, not
+interpreter locals, so hop results held in a local dict are invisible in
+the trace and lost on checkpoint restore. Returned into state they appear
+in the state diff per node invocation and survive a resume.
+`synthesis_output` holds the dedicated synthesis call's `SynthesisOutput`
+so the coach call reads it from state rather than from a local variable.
+
+Both are `[]` / `None` on every single-hop turn in every phase. They are
+declared on `PhaseState` rather than an Analyse-only variant because
+`CoachingPlan.retrieval_strategy` may select `multi_hop` in any phase.
+
+**`coaching_plan` is a single typed `CoachingPlan`, not a list and not a
+bare dict.** One plan per planner turn, overwritten each time the planner
+fires (§3.5). It is produced via `with_structured_output(CoachingPlan)` —
+a plain dict cannot be validated at planner-output time, and
+`retrieval_strategy` in particular needs its `Literal` constraint, since
+it selects the executor's whole retrieval path and a typo would fall
+through silently to single-hop. `dict[str, Any]` is acceptable as an
+interim annotation inside the `TypedDict`; the typed form is preferred.
 
 **`draft`, `belt_edits` and `final` are `dict`, never `str`.**
 String-typed handoffs force downstream nodes to parse prose out of an
@@ -2202,7 +2308,9 @@ backend/
   middleware/                                                           (NEW)
     grader.py                     DMAICGraderMiddleware
     skills.py                     DMAICSkillsMiddleware
-    state_injection.py            before_model injection
+    state_injection.py            BeforeModelStateInjection (before_agent hook)
+    contradiction.py              ContradictionDetectionMiddleware
+    coherence.py                  CoherenceMiddleware
   validation/                                                           (NEW)
     gate_validator.py             DMAICGateValidator (static methods)
     coherence.py                  Layer 2a
@@ -2650,18 +2758,22 @@ AgentLean** — which makes it architecturally more important than
 | `content_vector` | SingleCollection (3072d) | **Vector field** |
 | `metadata` | String | JSON blob |
 | `case_id` | String | **Filter** — scopes to the current case |
+| `phase` | String | **Optional filter, OFF by default** — *added, pending reindex* |
+| `uploaded_at` | String | **Order by** — `uploaded_at desc`, ISO 8601 — *added, pending reindex* |
 
-**Retrieved by:** `rag_lookup_evidence(query, case_id, top_k)`
+**Retrieved by:** `rag_lookup_evidence(query, case_id, top_k, phase=None)`
 
-**Filter:** `case_id eq '{case_id}'`
-**Ordering:** none — see below.
+**Filter:** `case_id eq '{case_id}'`, plus `and phase eq '{phase}'` only
+when `phase` is passed explicitly.
+**Ordering:** `uploaded_at desc`.
 
-> **Verified against the live index (Aug 2026) — there is no
-> `uploaded_at` field, and the ordering clause is dropped.**
+> **Schema change ratified 2026-08-20 — NOT yet applied in Azure.**
+> **Until the reindex runs, the live index is the five fields above and
+> code must not reference `phase` or `uploaded_at`.**
 >
-> The live schema is exactly the five fields above. The upload
-> timestamp *does* exist, but inside the `metadata` JSON blob, as
-> `"timestamp"` — not `"uploaded_at"`:
+> **`uploaded_at` closes a gap this section previously documented as a
+> dead end.** The upload timestamp already exists, but inside the
+> non-sortable `metadata` JSON blob as `"timestamp"`:
 >
 > ```json
 > {"case_id": "IMPR-2026-E9D", "upload_phase": "define",
@@ -2670,17 +2782,39 @@ AgentLean** — which makes it architecturally more important than
 >  "uploaded_by": "Vassilis", "timestamp": "2026-05-27T09:19:24+00:00"}
 > ```
 >
-> `metadata` is a non-sortable `Edm.String`, so `$orderby` cannot reach
-> the timestamp inside it. **`rag_lookup_evidence` therefore takes no
-> `order_by` argument.** Recency ranking is not available on this index
-> as currently shaped.
+> `$orderby` cannot reach inside an `Edm.String` blob, so recency ranking
+> was unavailable and `rag_lookup_evidence` dropped its `order_by`
+> argument. Promoting the value to a top-level field restores it.
+> **Both new fields backfill from `metadata` at reindex time** —
+> `uploaded_at` from `metadata.timestamp`, `phase` from
+> `metadata.upload_phase`. No new data has to be collected; the values
+> are already there, in the wrong shape.
 >
-> If recency ordering is later judged necessary, it is a **schema
-> change under §7.7**, not a tool change: add a first-class sortable
-> `uploaded_at` field (`Edm.DateTimeOffset`, `sortable=True`) and
-> backfill it from `metadata.timestamp` at reindex time. Do not attempt
-> to sort client-side on the parsed blob — that reorders only the
-> `top_k` already returned, which is not the same result.
+> **`phase` closes a problem that was never articulated.** Two similar
+> documents uploaded at different phases were indistinguishable at
+> retrieval time — a Belt's Measure-phase defect data and their
+> Control-phase defect data both match "defect data" with nothing to tell
+> them apart. Since this index is the only channel for external data
+> (§1.2), that ambiguity lands directly on the coaching answer.
+>
+> **The `phase` filter defaults OFF, deliberately.** Cross-phase evidence
+> retrieval is the normal case — a Control Belt comparing against the
+> Measure baseline — so filtering to the current phase by default would
+> break the comparison the field exists to enable.
+>
+> Never sort client-side on the parsed blob as a substitute: that
+> reorders only the `top_k` already returned, which is a different result.
+>
+> **Type note.** `uploaded_at` is ratified as `Edm.String` holding ISO
+> 8601, which sorts lexicographically in correct chronological order. An
+> earlier revision of this section proposed `Edm.DateTimeOffset` with
+> `sortable=True`, which is the more idiomatic Azure type and gives real
+> date arithmetic. Both work for ordering. **Flagged for confirmation
+> before the reindex is written** — the ratified spec says `Edm.String`,
+> and changing it afterwards is another reindex.
+>
+> **Batch with §7.3's `content_vector` rename** so the corpus is rebuilt
+> once. Schema-change procedure: §7.7.
 
 ### 7.3 `improve_case_index` — case records (episodic memory)
 
@@ -2708,7 +2842,21 @@ from "out of scope" in v2.1.1 to **active** in v2.2.
 | `phase_summary_improve` | String | Pre-computed phase summary |
 | `phase_summary_control` | String | Pre-computed phase summary |
 | `content_text` | String | Concatenated case text |
-| `embedding` | SingleCollection (3072d) | **Vector field** — note the name |
+| `embedding` | SingleCollection (3072d) | **Vector field** — renaming to `content_vector`, see below |
+
+> **`embedding` → `content_vector` ratified 2026-08-20 — NOT yet applied
+> in Azure.** This is the only one of the three indexes whose vector field
+> is not called `content_vector`, and the difference has no justification
+> beyond history. Each tool knowing its own index's field name locally
+> makes the asymmetry *safe*; it does not make it *good*. Standardising
+> removes a permanent trap for whoever writes a fourth retrieval tool.
+>
+> **Until the reindex runs, `embedding` is the live field name and
+> `rag_lookup_case_history` must use it.** The change is a delete +
+> recreate — the index holds 0 documents, so there is no data migration
+> and nothing to lose. `knowledge/tools.py` and this table change in the
+> same commit as the Azure change, not before it. **Batch with §7.2's
+> `phase` / `uploaded_at` additions** so the corpus is rebuilt once.
 
 **Retrieved by:**
 `rag_lookup_case_history(query, top_k, exclude_current_case=True)`
@@ -2792,8 +2940,9 @@ is closing.
 `text-embedding-3-large` and with `content_vector` on the other two
 indexes. HNSW profile `improve-vector-profile`, cosine metric,
 `m=4`, `efConstruction=400`, `efSearch=500`. Note the profile name
-differs from the other two indexes, which use `default` — the
-asymmetry is safe by construction (§7.4).
+differs from the other two indexes, which use `default` — safe by
+construction (§7.4), and worth normalising during the `content_vector`
+reindex since the index is being recreated anyway.
 
 ### 7.4 The retrieval pipeline
 
@@ -2838,10 +2987,17 @@ stable across framework versions. `MultiQueryRetriever` and
 `EnsembleRetriever` both moved to `langchain-classic` in the 1.0
 namespace split and are prohibited.
 
-**The vector field asymmetry is safe by construction.** Each tool is
-bound to exactly one index and knows that index's vector field name
-locally. There is no shared retriever, so no shared code can hide the
-`content_vector` / `embedding` difference and fail silently on it.
+**The vector field asymmetry is safe by construction — and is still
+being removed.** Each tool is bound to exactly one index and knows that
+index's vector field name locally. There is no shared retriever, so no
+shared code can hide the `content_vector` / `embedding` difference and
+fail silently on it.
+
+**"Safe" was the reason not to treat it as urgent; it was never a reason
+to keep it.** `improve_case_index.embedding` is ratified for rename to
+`content_vector` (§7.3), pending the reindex. Until that lands the
+asymmetry is live and the local-knowledge property above is what makes it
+harmless. Do not cite this paragraph as an argument against the rename.
 
 ### 7.5 Multi-hop policy per phase
 
@@ -2911,7 +3067,7 @@ Passed to every phase executor via `tools=`. Defined in
 | Tool | Purpose |
 |---|---|
 | `rag_lookup_methodology(query, phase, top_k)` | `improve_knowledge_index` — methodology grounding |
-| `rag_lookup_evidence(query, case_id, top_k)` | `improve_evidence_index` — this project's uploaded data |
+| `rag_lookup_evidence(query, case_id, top_k, phase=None)` | `improve_evidence_index` — this project's uploaded data; optional phase filter, off by default (§7.2) |
 | `rag_lookup_case_history(query, top_k, exclude_current_case)` | `improve_case_index` — yokoten, cross-case precedent |
 | `propose_template(template_type, fill_data)` | Fill-in template for the team |
 | `propose_diagram(diagram_type, data)` | Structured diagram JSON (not SVG) |
@@ -3549,8 +3705,12 @@ begins.
 - **5.1** `validation/` — gate validator, coherence, constraints, verdict schemas
 - **5.2** `middleware/grader.py` — `DMAICGraderMiddleware`; five rubrics in prompts.py
 - **5.3** `middleware/skills.py` — `DMAICSkillsMiddleware`; five SKILL.md files
-- **5.4** `middleware/state_injection.py` — `before_model` injection
+- **5.4** `middleware/state_injection.py` — `BeforeModelStateInjection`, **`before_agent`** hook
 - **5.5** Wire `SummarizationMiddleware`
+- **5.6** Wire `ModelRetryMiddleware(retries=2)` and `ToolRetryMiddleware(max_retries=2, on_failure="continue")` — both LangChain core
+- **5.7** `middleware/contradiction.py` — `ContradictionDetectionMiddleware` (§3.8, deterministic, no LLM)
+- **5.8** `middleware/coherence.py` — `CoherenceMiddleware` (Layer 2a, every turn, own 2-retry cap)
+- **5.9** Assemble the eight-middleware stack in declaration order (§3.4) — order is execution order
 
 ### Step 6 — Phase subgraph migration (Define first)
 - **6.1** Migrate Define: `nodes.py` (planner, executor, validation_stack),
@@ -3659,7 +3819,7 @@ load-bearing in more places than it appears.
 | Checkpointer placement | **Parent graph only** — subgraphs compile without one |
 | Checkpointer backend | **Phased** — Azure Blob → PostgreSQL before production |
 | Cross-phase handoff | **Store-mediated boundary mappers**, not parent state |
-| Coach pattern | **`create_agent`** with five middlewares and a per-phase tool subset |
+| Coach pattern | **`create_agent`** with eight middlewares and a per-phase tool subset |
 | Planner | Explicit node producing a structured plan; Level 1 planner is deterministic |
 | Rubric grading | **Custom `DMAICGraderMiddleware`** on `create_agent`, not deepagents |
 | HITL mechanism | **Graph-level `interrupt()`**, not `HumanInTheLoopMiddleware` |
