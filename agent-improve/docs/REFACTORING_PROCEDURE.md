@@ -111,7 +111,7 @@ never be allowed to stall steps that do not depend on it.**
 
 | Gate | Blocks | Clears when |
 |---|---|---|
-| **LangGraph < 1.2.6** | 4.1, 4.2, 4.3, 4.4, 8.2 | Step 2.3 lands |
+| ~~**LangGraph < 1.2.6**~~ | ~~4.1, 4.2, 4.3, 4.4, 8.2~~ | **CLEARED 2026-08-21** — step 2.3 landed `langgraph` 1.2.11 |
 | **`RunControl.request_drain()` UNCONFIRMED** | **8.5 only** | The API is confirmed against a real release or the LangGraph source — or a fallback drain is designed. Bible §45 |
 | **Azure Cache for Redis not provisioned** | 8.4 only | The resource exists. Bible §46, Appendix B |
 | **Two Azure index schema changes unapplied** | 5.2's `order_by` and `phase` filter; `rag_lookup_case_history`'s vector field | Step 9.1 lands |
@@ -1290,7 +1290,7 @@ infrastructure noise. **Read both before finalising §52.**
 
 | Step | Title | Status |
 |---|---|---|
-| **Commit 2.3** | Dependency upgrade | pending |
+| **Commit 2.3** | Dependency upgrade | done |
 | **Commit 2.4** | `set_entry_point` → `add_edge(START, …)` | pending |
 | **Commit 2.5** | Async conversion | pending |
 | **Commit 2.6** | `content_blocks` · 20 sites | pending |
