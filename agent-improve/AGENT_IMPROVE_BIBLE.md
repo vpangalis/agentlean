@@ -9,9 +9,14 @@ version floor and cited source was checked against live documentation. Three
 corrections, two now-stale items and four enhancements were applied to this
 document as a result. Full log: [`docs/BIBLE_VERIFICATION_LOG.md`](docs/BIBLE_VERIFICATION_LOG.md).
 
-**Four claims remain unverified and are named in the log** — chief among them
-`RunControl.request_drain()` (§45), which should be confirmed before anything
-depends on it.
+**Four claims remain unverified and are named in the log.**
+
+> **One of them is stronger than "unverified."** `RunControl.request_drain()`
+> (§45) is **UNCONFIRMED — MAY NOT EXIST**: it was not located in LangGraph
+> releases 1.2.5–1.2.11 or in the reference. **No work may be scheduled against
+> it until it is confirmed against a real release or the source**, and if it
+> does not exist, §45 needs a real fallback drain design rather than a
+> replacement citation. Full statement in §45.
 
 ---
 
@@ -137,10 +142,15 @@ Azure Cache for Redis       fallback chain level 3   [NOT YET PROVISIONED]
 
 **The LangGraph floor is ≥1.2.6, and the installed version is below it.**
 As of 2026-08-21 the venv has `langgraph 1.1.10`. Per-node `TimeoutPolicy`,
-`error_handler=` and `RunControl.request_drain()` (Part IX) and the subgraph
-`checkpoint_ns` fix (§16) all require ≥1.2.6 and are therefore **unavailable
-today**. Resolving the correct upgrade target is Task 3B scope; the previously
-documented 1.2.10 pin is already stale.
+`error_handler=` (Part IX) and the subgraph `checkpoint_ns` fix (§16) all
+require ≥1.2.6 and are therefore **unavailable today**. Verified upgrade targets
+are in §53; the previously documented 1.2.10 pin was already stale and has been
+corrected.
+
+**Graceful shutdown is a separate and weaker claim.** The mechanism named for
+it, `RunControl.request_drain()`, is **UNCONFIRMED — MAY NOT EXIST** (§45). It
+is not gated on the version upgrade; it is gated on the API being shown to
+exist at all.
 
 ---
 
@@ -742,6 +752,34 @@ acceptable for single-developer refactoring and is **not** acceptable for
 production. Do not defend it past the migration trigger. The interim guard is
 the Blob lease in §47.
 
+### Concurrency and atomicity
+
+**One blob write per checkpoint** — never per key — and **atomic via blob ETag
+conditional writes**: concurrent turns on the same case are detected, and the
+second writer retries rather than overwriting. This is a *mitigation*, not a
+solution; it is what the `PostgresSaver` migration replaces properly.
+
+**Gate-pass case blob write and registry update remain two separate writes**,
+both covered by the node's `error_handler` (Part IX). That handler is the
+ratified answer to what v2.1.1 carried as "Saga pattern for case-vs-registry
+atomicity — deferred"; there is no Saga framework to write (§45).
+
+### Why Blob, and not Cosmos / Tables / SQLite
+
+The question was asked and settled; it is recorded so it is not re-opened
+without new constraints.
+
+- **Already provisioned, secured and monitored** — no new service to operate
+- **A single Azure SDK dependency**, shared with case records and uploads (§10)
+- **Append-only checkpoint history**, which makes time-travel debugging a blob
+  listing rather than a query
+- **`BaseCheckpointSaver` / `BaseStore` are the real portability layer** — the
+  PostgreSQL migration is a constructor change either way, so picking the
+  cheaper backend first costs nothing later
+
+Note what is *not* on that list: concurrency. Blob was chosen despite it, with
+the limitation above stated rather than designed around.
+
 ### On-blob checkpoint format
 
 ```json
@@ -1310,6 +1348,15 @@ await graph.ainvoke(
 
 **`thread_id` is the `case_id` value.** Never per phase, never concatenated —
 `{case_id}-define` and similar are **BANNED**.
+
+**Multiple parallel cases are supported from day one, and this is what makes
+that work.** Each case carries its own `IMPR-YYYY-NNN` identifier, and that one
+value is simultaneously its checkpoint thread, its store namespace segment
+(§9), its case blob path (§10) and its `case_id` index field (§23) — so two
+Belts on two projects share no state at any layer without a single
+multi-tenancy mechanism being written. What is *not* yet solved is two writers
+on **one** `case_id`; that is the concurrency exposure named in §8 and guarded
+in §47.
 
 ### The checkpointer and store go on the parent graph ONLY
 
@@ -2052,11 +2099,45 @@ removed.** Each tool knows its own index's field name locally, so no shared
 code can hide the difference and fail silently on it. "Safe" was the reason not
 to rush the rename — never a reason to keep it.
 
-**The internal phase key is `analyse`, never `analyse_phase`.** The rename
-landed in Azure by delete + recreate. `f"phase_summary_{phase}"` is now correct
-for all five phases with no mapping constant anywhere. A mapping constant was
-considered and rejected: fixing the name at the source means no permanent
-workaround exists.
+**Vector configuration, confirmed against the live index (Aug 2026):**
+`embedding` is **3072-dimensional**, consistent with `text-embedding-3-large`
+and with `content_vector` on the other two indexes. HNSW profile
+`improve-vector-profile`, cosine metric, `m=4`, `efConstruction=400`,
+`efSearch=500`.
+
+**The profile name differs from the other two indexes**, which use `default`.
+Safe by construction — each tool addresses its own index (§24) — but **worth
+normalising during the `content_vector` reindex**, since the index is being
+deleted and recreated anyway and the opportunity does not recur cheaply.
+
+### The internal phase key is `analyse`, never `analyse_phase`
+
+`f"phase_summary_{phase}"` is correct for all five phases with **no mapping
+constant anywhere**. A mapping constant was considered and rejected: fixing the
+name at the source means no permanent workaround exists.
+
+`analyse_phase` was the anomaly in **four places at once**, all renamed
+together:
+
+| Was | Now |
+|---|---|
+| `backend/phases/analyse_phase/` | `backend/phases/analyse/` |
+| `orchestrate_analyse_phase`, `validate_analyse_phase` | `orchestrate_analyse`, `validate_analyse` |
+| Graph nodes `"orchestrate_analyse_phase"`, `"validate_analyse_phase"` | `"orchestrate_analyse"`, `"validate_analyse"` |
+| The key `"analyse_phase"` in `PHASE_ORDER`, v1 `phase_inputs`, `EXTRACTION_MAP`, `ORCHESTRATOR_CONTEXT_MAP`, `GATE_CHECKS`, `PhaseSummaryRecord`, `CaseDocument.phases` | `"analyse"` |
+
+**`AnalysePhaseInput` keeps its name** — `{Phase}PhaseInput` is the convention
+all five phases follow, so it was never part of the inconsistency.
+
+**Renaming the graph node names was safe only because no checkpoints existed.**
+LangGraph checkpoints record node names; had any been present, the rename would
+have orphaned them. This was verified before applying — the blob container held
+no `checkpoints/` prefix.
+
+> **Any future rename of a graph node name must re-check this, and the window
+> in which it is free is closing.** The checkpointer is being wired in during
+> this same refactor (§8). Once real checkpoints exist, a node rename is a
+> migration, not an edit.
 
 ### 23.4 The write-path trap that made `phase_relevance` unfilterable
 
@@ -2770,6 +2851,18 @@ asymmetry is deliberate and is the core of the design:
 A system that blocked the Belt's own corrections would be asserting that its
 judgment outranks theirs on their own project. It does not.
 
+### Gates are one-way doors, with exactly one defined exception
+
+**Once a gate passes and the phase record commits, that phase is locked.** The
+supervisor advances on a static edge (§15) and there is no "go back a phase"
+control anywhere in the API or the UI.
+
+**The only way back is the re-approval cascade (§37)**, and it is deliberately
+heavy: it makes the affected phase and every downstream phase provisional, and
+it runs compensating actions against Azure Blob and `improve_case_index` (Part
+IX). That weight is the point — a cheap reverse gate is a gate the Belt learns
+to walk through twice.
+
 ### Implementation: graph-level `interrupt()`
 
 **`HumanInTheLoopMiddleware` is BANNED for gates** (§19.9). Use graph-level
@@ -2964,6 +3057,23 @@ contradiction with no defined resolution.
 |---|---|---|---|
 | **Tier 1 — gate-required** | **Blocks** | Can `fail` | Must supply it |
 | **Tier 2 — rubric-recommended** | Not checked | At worst `warning` | Add it, or proceed with an acknowledged gap |
+
+### Three distinct things check these fields, and conflating them is a design error
+
+| Mechanism | Checks | Where |
+|---|---|---|
+| The `{Phase}Output` schema (§40) | **Types and shape** | `phases/{phase}/schema.py` |
+| `DMAICGateValidator` | **Presence of Tier 1 fields** | Layer 2b (§34) |
+| `PHASE_RUBRIC` | **Meaningful quality per criterion, both tiers** | Layer 2d (§34) |
+
+**A `root_cause_statement` reading "there are problems" satisfies the schema
+and satisfies the presence check, and fails the rubric.** That gap is the
+entire reason Layer 2d exists — the first two mechanisms cannot see content,
+only shape and presence.
+
+**The tiers are what keep 2b and 2d from contradicting each other.** 2b blocks
+only on Tier 1; 2d can `fail` only on Tier 1 and can `warning` on either. There
+is no longer a criterion the grader can fail that the gate never asked for.
 
 ### Tier 1 by phase
 
@@ -3791,10 +3901,45 @@ the native replacement.
    have a handler — without one, you rewind the graph and leave the blob and
    the index holding values from a future that no longer exists.
 
-### Graceful shutdown
+### Graceful shutdown — **UNCONFIRMED — MAY NOT EXIST**
 
-`RunControl.request_drain()` for deployment rollouts. Mid-coaching sessions
-save their checkpoint and resume.
+**The requirement is real and ratified.** A deployment rollout must not kill
+mid-coaching sessions: they save their checkpoint and resume. **The named
+mechanism is not.**
+
+> ### ⛔ `RunControl.request_drain()` is UNCONFIRMED. Schedule no work against it.
+>
+> **This API was not located.** It is absent from LangGraph releases 1.2.5
+> through 1.2.11 and was not found in the reference during the 2026-08-21
+> verification pass. Either it predates 1.2.5, it is named differently, or **it
+> does not exist.** It entered this architecture as a recommendation and was
+> carried forward on citation alone; **it has never been checked against a
+> release or against source.**
+>
+> **This is the same failure mode as `ModelRetryMiddleware(retries=...)`**
+> (§19.4) — a plausible API name, adopted once, never re-verified, sitting in a
+> document implementers copy. That one was caught. This one is still open.
+>
+> **Binding, until it is confirmed against a real release or the LangGraph
+> source:**
+>
+> - **No implementation task may be scheduled against `request_drain()`.** Not
+>   in Task 4, not in the §53.1 migration sequence, not in a Step 8 reliability
+>   ticket. A task that names it is a task that may be unbuildable.
+> - **The citation is not a design.** If the API does not exist, §45 needs a
+>   **real fallback drain design** — the obvious candidates being a readiness
+>   probe that fails while in-flight turns complete, or a shutdown hook that
+>   stops accepting new `ainvoke` calls and awaits the current node — not a
+>   replacement citation.
+> - **Confirmation means one of:** the symbol found in the installed package,
+>   or in the LangGraph source at a named version, or in the API reference with
+>   a version stamp. A blog post or a model's recollection is not confirmation.
+>
+> Recorded in `docs/BIBLE_VERIFICATION_LOG.md` under *Not verified*.
+
+**The dependency this sits behind is separate and also unmet:** everything in
+this section requires LangGraph ≥1.2.6, and the venv has 1.1.10 (§53). Fixing
+the version does not resolve the question above.
 
 ### `DeltaChannel` is NOT used
 
@@ -3835,6 +3980,15 @@ response.
 
 **Session-scoped, not global.** Different projects have different context, and
 **a cached answer from another Belt's project is worse than no answer.**
+
+**Invalidation follows the volatility of the source, not one global TTL:**
+
+| Source | Volatility | Consequence |
+|---|---|---|
+| Methodology (`improve_knowledge_index`) | **Static** — the BB eBook does not change | Cache freely, long TTL |
+| Evidence (`improve_evidence_index`) | Changes on every Belt upload | Invalidate on upload |
+| Case history (`improve_case_index`) | Changes as other cases progress | Short TTL |
+| This project's artifacts | Changes at every gate | **A gate approval must invalidate the affected entries** |
 
 **⚠️ Not yet provisioned** (§1).
 
@@ -4099,6 +4253,20 @@ progress counts derive from that one source; there is no stored
 at 6/6 required and 0/5 recommended **can pass the gate**; a single blended
 percentage would read as 55% and imply otherwise.
 
+**The LangSmith run id is surfaced for support escalation** (§51) — a Belt
+reporting a bad turn can name the exact trace.
+
+### The conflict resolution panel
+
+**The UI surface of §37.** When contradiction detection fires, the Belt sees
+the field name, the previously approved value **with its approval timestamp and
+gate**, the proposed new value, and the two options.
+
+**Choosing "update" must surface which downstream phases become provisional
+*before* the Belt confirms**, not after. The re-approval cascade is deliberately
+heavy (§33); a Belt who discovers its cost only once it has fired was not given
+the choice the design intends them to have.
+
 ---
 
 ## 51. Tracing and observability
@@ -4148,8 +4316,13 @@ mandated, §34).
 
 ### Logs
 
-Structured logs via `logging`. Every request gets a `request_id`. Every node
-logs entry, exit, and the state-slice keys it returned.
+Structured logs via `logging`. Every node logs entry, exit, and the state-slice
+keys it returned.
+
+**Every request gets a UUID4 `request_id`, propagated to child operations**, and
+every log line carries `request_id`, `case_id`, `phase`, `node_name` and
+`duration_ms`. Those five fields are what make a log searchable by the thing the
+Belt can actually name — their case — rather than only by timestamp.
 
 ---
 
@@ -4598,9 +4771,24 @@ files, or code comments.
 | §11 | §50 |
 | §12 | §51 |
 | §13 | §35, §39 |
+| §13.6 | §35 |
 | §14 | §52 |
 | §15 | §53.1 |
-| §16 | Appendix B |
+| §16 | Appendix B, Appendix D.3 |
+| §17 | — · Decisions-resolved register. **No Bible section**: each entry's *conclusion* is stated in the section that owns the topic, and the register itself is a historical artefact. Retained in `ARCHITECTURE.md` |
+| §18 | — · Change log. **No Bible section**, by design — this document states conclusions, not their history (§"About this document"). Retained in `ARCHITECTURE.md` |
+| §18.1 | §56 |
+
+**Absorption completed 2026-08-21.** Nine items of `ARCHITECTURE.md` content
+had no Bible home when the absorption was first declared and were written in
+during this sweep: the one-way-door gate principle (→ §33), parallel-case
+isolation (→ §16), ETag concurrency and the Blob-vs-alternatives rationale
+(→ §8), the `analyse` rename scope table, the checkpoint / node-name warning
+and the `improve_case_index` vector profile (→ §23.3), the conflict-resolution
+panel and the LangSmith run id (→ §50), the three-mechanisms-check-these-fields
+distinction (→ §35), cache invalidation policy (→ §46) and the structured log
+field list (→ §51). **`ARCHITECTURE.md` is now genuinely absorbed and is marked
+SUPERSEDED at its head.**
 
 ---
 

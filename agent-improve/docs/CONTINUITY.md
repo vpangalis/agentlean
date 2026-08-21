@@ -259,9 +259,11 @@ Before any architectural decision: check `anthropic.com/engineering` post index 
 | `langsmith` | 0.7.3 | — | |
 | `langchain-classic` | 1.0.3 | 1.0.3 | ✔ matches the pin |
 
-**`langgraph` 1.1.10 is a hard blocker, not drift.** `TimeoutPolicy`,
-`error_handler=` and `RunControl.request_drain()` all require **≥1.2.6**, as does
-the subgraph `checkpoint_ns` fix. Nothing in §3.6 (reliability) or §1.2
+**`langgraph` 1.1.10 is a hard blocker, not drift.** `TimeoutPolicy` and
+`error_handler=` require **≥1.2.6**, as does the subgraph `checkpoint_ns` fix.
+(`RunControl.request_drain()` was previously listed here; it is
+**UNCONFIRMED — MAY NOT EXIST** and is not gated on the upgrade — see
+`AGENT_IMPROVE_BIBLE.md` §45.) Nothing in §3.6 (reliability) or §1.2
 (hierarchical subgraphs) can be built until `pip install --upgrade` runs. This is
 Step 2.5 and it gates more than the table above suggests.
 
@@ -386,7 +388,7 @@ These decisions are ratified but not yet in the governance docs:
 1. `BeforeModelStateInjection` (before_agent, MUST be first) ← hook type corrected: before_agent, not before_model
 2. `DMAICSkillsMiddleware` (before_agent)
 3. `SummarizationMiddleware` (before_model)
-4. `ModelRetryMiddleware(retries=2)` (wrap_model_call) — API-level Azure OpenAI retries
+4. `ModelRetryMiddleware(max_retries=2)` (wrap_model_call) — API-level Azure OpenAI retries
 5. `ToolRetryMiddleware(max_retries=2, on_failure="continue")` (wrap_tool_call) — tool execution retries (B3.1)
 6. `ContradictionDetectionMiddleware` (after_agent) — §38 check: deterministic dict comparison, no LLM, HITLInterrupt on any gate-approved value change (Mod A / M2)
 7. `CoherenceMiddleware` (after_agent) — L2a check: LLM call (operational model, temp 0.1), max 2 silent retries, DMAICGraderMiddleware skipped on coherence failure (Mod B / M3)

@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.15 — August 2026
+# Version 2.2.16 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -19,17 +19,27 @@ no third time.
 
 v2.2 is a **ground-up rewrite**, not a patch. It aligns this file with
 every decision ratified in the EDUCATIONAL.md architectural review.
-The output of that review is `REFACTORING_AGENT_IMPROVE.md`, which is
-the **rationale document**: when a rule here is unclear or looks wrong,
-read the section it cites before proposing an amendment.
 
-Division of responsibility across the three documents:
+**There are two binding documents, not three.** `ARCHITECTURE.md` was
+absorbed into `AGENT_IMPROVE_BIBLE.md` and is now SUPERSEDED; every
+`§`-citation in this file points at the Bible.
 
-| Document | Answers |
-|---|---|
-| CLAUDE.md (this file) | **What the rule is.** Binding. Quoted in prompts. |
-| ARCHITECTURE.md | **How the system is shaped.** Component design, sequencing. |
-| REFACTORING_AGENT_IMPROVE.md | **Why the rule exists.** Evidence, alternatives, decisions. |
+| Document | Answers | Binding? |
+|---|---|---|
+| `CLAUDE.md` (this file) | **What the rule is.** Quoted at the top of every implementation prompt | **Yes** |
+| `AGENT_IMPROVE_BIBLE.md` | **How the system is shaped, and why.** Component design, schemas, contracts, sequencing | **Yes** |
+
+**The historical record is not binding and is not cited by rules here.**
+`docs/REFACTORING_AGENT_IMPROVE.md` (the section-by-section review),
+`docs/EDUCATIONAL.md`, `docs/DECISIONS.md` and `docs/REVIEW_DECISIONS.md`
+hold the reasoning trail — what was considered, rejected and when. Each
+Bible section carries a **Supersedes** line naming its sources, so the
+chain back to that trail is one hop from any rule. `ARCHITECTURE.md` is
+retained read-only for its change log and decisions-resolved register.
+
+**To resolve an old `ARCHITECTURE.md §X` or `REFACTORING §X` citation
+found in code comments, SKILL.md files or an older prompt, use Bible
+Appendix A.**
 
 ### 0.2 — Rule Numbers Are Load-Bearing
 
@@ -46,7 +56,7 @@ resolve:
 
 **Renumbering any of these rules requires updating the registry in the
 same commit.** A hook that cites a non-existent rule is worse than no
-hook — see REFACTORING_AGENT_IMPROVE.md §86.
+hook — see `AGENT_IMPROVE_BIBLE.md` §55.
 
 ### 0.3 — What Changed From v2.1
 
@@ -61,7 +71,7 @@ hook — see REFACTORING_AGENT_IMPROVE.md §86.
 | Cross-phase data | Parent state | **Store** (§10.2) |
 | Persistence | Azure Blob only | **Phased Blob → PostgreSQL** (§1.7) |
 | MCP | In the stack description | **Architecturally excluded** (§1.9) |
-| Index schemas | Partial, in prose | **Canonical in ARCHITECTURE.md §7**; rule-bearing facts in §7.3 |
+| Index schemas | Partial, in prose | **Canonical in `AGENT_IMPROVE_BIBLE.md` §23**; rule-bearing facts in §7.3 |
 
 ### 0.4 — What Changed in 2.2.9 — the state design closed
 
@@ -184,6 +194,35 @@ found while propagating:
 **Both Azure schema changes are ratified but NOT applied.** Write code
 against the live schema until the reindex runs (§7.3).
 
+### 0.10 — What Changed in 2.2.16 — two wrong keywords, and one document fewer
+
+**Three of these are API facts this file got wrong.** They were found by the
+Task 3B verification pass against live documentation and are recorded in
+`docs/BIBLE_VERIFICATION_LOG.md`.
+
+| Area | v2.2.15 | v2.2.16 |
+|---|---|---|
+| `ModelRetryMiddleware` | `retries=2` | **`max_retries=2`** — `retries=` does not exist and **raises at construction** (§8.1, §8.7) |
+| `create_agent` prompt | `prompt=` | **`system_prompt=`** — `create_react_agent` took `prompt`; `create_agent` renamed it (§4.4) |
+| `AgentMiddleware` hooks | "the six hooks", stated as closed | **The six *we use*.** `dynamic_prompt()`, `hook_config()` and `configure_trace_policy()` also exist (§8.1) |
+| Graceful shutdown | `RunControl.request_drain()`, cited as fact | **UNCONFIRMED — MAY NOT EXIST.** No work may be scheduled against it (§3.6) |
+| Version targets | 1.2.10 / 1.3.11, already stale | **Verified 2026-08-21**, plus the `langchain-core` ≥1.6.0 jump (§16.1) |
+| Binding documents | Three | **Two** — `ARCHITECTURE.md` absorbed into `AGENT_IMPROVE_BIBLE.md` (§0.1) |
+
+**The `max_retries` error is the one to learn from.** It sat inside the
+canonical middleware stack — the block an implementer copies verbatim — from
+adoption until 2026-08-21. `ToolRetryMiddleware` was verified against the
+reference when it was added and was always correct; `ModelRetryMiddleware` was
+adopted earlier and never re-checked. **The two share a parameter vocabulary,
+which is exactly the situation where remembering one and inferring the other
+goes wrong.** §16.3 is not a formality.
+
+**Every `§`-citation in this file now points at `AGENT_IMPROVE_BIBLE.md`.**
+The former `ARCHITECTURE.md §X` and `REFACTORING_AGENT_IMPROVE.md §X`
+references were resolved through Bible Appendix A. Nine items of
+`ARCHITECTURE.md` content that had no Bible home were written into the Bible
+in the same pass, so the absorption is now real rather than declared.
+
 ---
 
 ## 1. ARCHITECTURE PRINCIPLES
@@ -209,7 +248,7 @@ against the live schema until the reindex runs (§7.3).
   (§1.7, §10). Passing only a checkpointer is the most common
   architecture mistake.
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §17, §18, §52.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §5, §6, §8, §9.*
 
 ### 1.2 — Hierarchical Subgraphs, One Thread, Auto Namespacing
 
@@ -244,7 +283,7 @@ supervisor_graph                    thread_id = case_id, e.g. "IMPR-2026-FS1"
   propagate to the parent immediately — this is documented LangGraph
   behaviour, and the store is the documented fix.
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §19, §23, §44, §52a.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §9, §12, §13, §16.*
 
 ### 1.3 — Tool-Calling Coach, Explicit Planner
 
@@ -269,8 +308,7 @@ longer a tool call.
 deterministic gate-check on `gate_passed` plus static edges. There
 is nothing to reason about, so nothing reasons.
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §5, §11, §20, §23, plus the
-Terminology Reference.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §3 (terminology), §13, §17.*
 
 ### 1.4 — Async by Default
 
@@ -308,7 +346,7 @@ checks in it, implemented across two nodes. The full sequence is
 - **Use graph-level `interrupt()` + `Command(resume=...)`.**
   `HumanInTheLoopMiddleware` is BANNED for gates (§8.6).
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §2, §44, §53.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §33, §19.9.*
 
 ### 1.7 — Phased Persistence — Blob Now, PostgreSQL Before Production
 
@@ -349,7 +387,7 @@ for concurrent access, and Azure Blob has no row-level locking. This
 is acceptable for single-developer refactoring and is not acceptable
 for production. Do not defend it past the migration trigger.
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §1, §52a, §87 item 13.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §8, §10, Appendix B item 13.*
 
 ### 1.8 — LangSmith Tracing Mandatory
 
@@ -368,7 +406,7 @@ Dead tracing config (the v1 state) is a CRITICAL violation.
 connect to a live system.** This is an architectural exclusion, not a
 deferral. There is no promotion trigger.
 
-**The runtime stack is:** FastAPI, LangGraph 1.2.10+, LangChain 1.x,
+**The runtime stack is:** FastAPI, LangGraph ≥1.2.6, LangChain 1.x,
 Azure OpenAI, Azure AI Search, Azure Blob Storage, Azure Cache for
 Redis. No MCP.
 
@@ -392,7 +430,7 @@ Three consequences that bind on implementation:
 indexes) happens via Python imports from shared modules, not via a
 protocol. Those remain `@tool` functions, read-only.
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §39, §60, §63.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §29.1, §29.2.*
 
 ---
 
@@ -525,8 +563,8 @@ adding either to a tool list is a violation.**
 | Validation stack | A **node**, reached by an edge after the executor finishes. As a tool, the coach would decide whether to be validated — backwards |
 | Policy advisory | **Logic inside `gate_apply`**. It runs after the Belt edits, when the coach is no longer in the loop |
 
-NEW node types may not be added to a subgraph without an
-ARCHITECTURE.md amendment.
+NEW node types may not be added to a subgraph without an amendment to
+`AGENT_IMPROVE_BIBLE.md` (§56).
 
 ### 3.4 — Reflection is a node, not a private function
 
@@ -591,13 +629,22 @@ def phase_error_recovery(error: NodeError, state: PhaseState) -> Command:
   rolls back state, **not** external writes. Time travel is only
   correct for nodes that have a handler.
 
-**Graceful shutdown:** use `RunControl.request_drain()` for deployment
-rollouts. Mid-coaching sessions save their checkpoint and resume.
+**Graceful shutdown is REQUIRED; its named mechanism is UNCONFIRMED.** A
+deployment rollout must not kill mid-coaching sessions — they save their
+checkpoint and resume. **But `RunControl.request_drain()` may not exist:**
+it was not found in LangGraph releases 1.2.5–1.2.11 or in the reference
+during the 2026-08-21 verification pass.
+
+**No work may be scheduled against `request_drain()` until it is confirmed
+against a real release or the LangGraph source.** If it does not exist, a
+real fallback drain must be designed rather than a replacement API name
+cited. Full statement and what counts as confirmation:
+`AGENT_IMPROVE_BIBLE.md` §45.
 
 **`DeltaChannel` is NOT used.** Beta API; deferred until sessions
 exceed ~200 turns.
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §3, §49, §79.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §44, §45.*
 
 ### 3.7 — Multi-hop is capped at five tool calls per Belt turn
 
@@ -624,7 +671,7 @@ Hitting the cap is a **monitoring signal**, not just a limit — it
 means either the system prompt encourages too-broad exploration, or
 the question warrants `operational-premium` for that turn.
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §34, §71.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §26.*
 
 ---
 
@@ -661,7 +708,7 @@ Defined in `core/llm.py`. Two deployment tiers, addressed by role:
 multi-hop retrieval runs on `operational-model`; only final synthesis
 runs on `operational-premium`. gpt-4o-mini is roughly 15× cheaper.
 
-New roles require an ARCHITECTURE.md amendment.
+New roles require an amendment to `AGENT_IMPROVE_BIBLE.md` (§56).
 
 ### 4.3 — Never parse JSON from raw LLM text
 
@@ -681,14 +728,23 @@ executor = create_agent(
     tools=UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase],
     response_format=CoachingResponse,       # §4.6, §10.7 — never a {Phase}Output
     middleware=[...],                       # §8.1 — all eight, in order
-    prompt=PHASE_COACH_PROMPT[phase],
+    system_prompt=PHASE_COACH_PROMPT[phase],
 )
 ```
+
+**The parameter is `system_prompt=`, not `prompt=`.** `create_react_agent`
+took `prompt`; `create_agent` renamed it, and the LangGraph v1 migration
+guide calls this out explicitly as a difference to watch when porting. The
+verified signature also carries `state_schema`, `context_schema`,
+`checkpointer`, `store`, `interrupt_before`, `interrupt_after`, `cache` and
+`transformers` — none of which this project sets on the executor, since the
+checkpointer and store attach to the parent graph only (§1.2).
 
 *This example previously showed `response_format=ProviderStrategy(PhaseOutput)`
 and "all four" middlewares. Both contradicted rules elsewhere in this file —
 §4.6 and §10.7 mandate `CoachingResponse` on the executor, and §8.1 declares
-eight middlewares. Corrected 2026-08-21.*
+eight middlewares. Corrected 2026-08-21. `prompt=` → `system_prompt=`
+corrected in the same pass (`docs/BIBLE_VERIFICATION_LOG.md` C-2).*
 
 **`create_react_agent` is superseded** by `create_agent` from
 `langchain.agents`. Nothing may import it, and nothing may import from
@@ -700,7 +756,7 @@ BANNED while it remains pre-1.0. Our equivalents are custom middleware
 on `create_agent` (§8.2, §8.3). Revisit at deepagents 1.0; migrate all
 three custom middlewares together or not at all.
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §42, §50, §84.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §18, §19.*
 
 ### 4.5 — Read typed content blocks, never string-index the content
 
@@ -709,7 +765,7 @@ Model responses carry typed content blocks. Read
 raw content field is a violation — it breaks the moment a provider
 returns a multi-part response.
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §81.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §21.*
 
 ### 4.6 — Structured output — scoped by call type
 
@@ -764,7 +820,7 @@ shape. A schema-valid `baseline_metric: 4.2` invented by the model is
 exactly as well-formed as a correct one. Content-level defence is
 §6.4, §9.2 Layer 1, and §9.4 — not this rule.
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §29, §82, §86.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §20, §21.*
 
 ### 4.7 — Temperature discipline
 
@@ -827,7 +883,7 @@ smaller model. Fix the context (§8.4).
 
 **Every attempt is logged to `step_log` as a dict** (§10.3).
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §64, §66, §67.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §44, §46.*
 
 ---
 
@@ -895,7 +951,7 @@ every coach inside the tractable range.
 
 **No phase exceeds 16 tools**, and after `record_field` was retired the
 actual maximum is 15 (Measure). If a new tool would push a phase past
-16, that is an ARCHITECTURE.md amendment, not a routine addition.
+16, that is an amendment to `AGENT_IMPROVE_BIBLE.md` (§56), not a routine addition.
 
 **`imr_chart_limits` is the individuals / moving-range chart** and is
 the right choice whenever the Belt has **one measurement per period**
@@ -936,7 +992,7 @@ Every retrieval tool docstring MUST state:
 multi-tenancy note for future engineers: if Agent Improve ever serves
 multiple organisations, this tool must filter by tenant.
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §32, §39, §60.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §29, §30, §31.*
 
 ---
 
@@ -989,7 +1045,7 @@ defence requires all three of:
 2. Cross-checking extracted values against the raw conversation
 3. The policy advisory reviewing extracted values before Belt approval
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §29, §38, §40.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §22.*
 
 ---
 
@@ -1051,7 +1107,7 @@ writing methodology requires both the correct key name *and*
 the value buried in the `metadata` JSON blob, unreachable by `$filter`,
 with no error raised. This is how `phase_relevance` went unpopulated.
 `ingest_knowledge.py` owns this contract; full detail in
-ARCHITECTURE.md §7.1.2.
+`AGENT_IMPROVE_BIBLE.md` §23.4.
 
 **Retrieval failure is never an empty result.** All three retrieval
 functions — `search_knowledge`, `search_cases`, `search_evidence` — return
@@ -1069,7 +1125,7 @@ Three rules that fall out of it, each of which has already bitten:
 - **Materialise results inside the `try`** — `SearchClient.search()` is
   lazy and the HTTP call fires on iteration.
 
-Full rationale: ARCHITECTURE.md §7.1.1.
+Full rationale: `AGENT_IMPROVE_BIBLE.md` §27.
 
 **`rag_lookup_evidence` takes no `order_by` argument — until the reindex
 lands.** Verified against the live index (Aug 2026): `improve_evidence_index`
@@ -1077,7 +1133,7 @@ has **no `uploaded_at` field** today. The upload timestamp exists only inside
 the non-sortable `metadata` JSON blob, which `$orderby` cannot reach, so
 recency ranking is unavailable on this index **as currently shaped**.
 
-**That schema change is now ratified** (§7.3, ARCHITECTURE.md §7.2): promote
+**That schema change is now ratified** (§7.3, `AGENT_IMPROVE_BIBLE.md` §23.2): promote
 `metadata.timestamp` to a top-level `uploaded_at`, and `metadata.upload_phase`
 to a top-level `phase`, at reindex time. Once it lands, `order_by=["uploaded_at
 desc"]` and the optional `phase` filter both become available and this
@@ -1090,12 +1146,12 @@ result — and it stays wrong after the reindex too.
 
 ### 7.3 — Index schemas — field names that bind on code
 
-**The canonical full schemas live in ARCHITECTURE.md §7**, with types,
+**The canonical full schemas live in `AGENT_IMPROVE_BIBLE.md` §23**, with types,
 vector dimensions, filter and ordering clauses, and the schema-change
 procedure. This subsection carries only the facts a *rule* depends on.
 It does not duplicate the schema, and it is not the place to record a
-schema change — that lands in ARCHITECTURE.md §7 first, in the same
-commit as the Azure AI Search change.
+schema change — that lands in `AGENT_IMPROVE_BIBLE.md` §23 first, in the same
+commit as the Azure AI Search change (§23.5).
 
 **`improve_knowledge_index`** — LSS Black Belt eBook, static
 ```
@@ -1184,7 +1240,7 @@ mapping constant anywhere. This binds on: `PHASE_ORDER` and every
 `CaseDocument.phases`, the graph node names, and the module path
 `backend.phases.analyse`. `AnalysePhaseInput` keeps its name —
 `{Phase}PhaseInput` is the convention all five phases follow. Full
-scope: ARCHITECTURE.md §7.3.1.
+scope: `AGENT_IMPROVE_BIBLE.md` §23.3.
 
 **Never write to Agent Resolve indexes.** Read only, via tools.
 
@@ -1228,7 +1284,7 @@ at exactly the moment the Belt is waiting.
 Multi-query and multi-hop compose: multi-query broadens within a hop,
 multi-hop deepens across hops.
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §32, §33, §34, §36, §37, §40, §71.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §23, §24, §25, §26, §28.*
 
 ---
 
@@ -1241,7 +1297,7 @@ middleware=[
     BeforeModelStateInjection(...),          # §8.5 — custom        · before_agent
     DMAICSkillsMiddleware(...),              # §8.3 — custom        · before_agent
     SummarizationMiddleware(...),            # §8.4 — LangChain core · before_model
-    ModelRetryMiddleware(retries=2),         # §8.7 — LangChain core · wrap_model_call
+    ModelRetryMiddleware(max_retries=2),     # §8.7 — LangChain core · wrap_model_call
     ToolRetryMiddleware(                     # §8.7 — LangChain core · wrap_tool_call
         max_retries=2, on_failure="continue"),
     ContradictionDetectionMiddleware(...),   # §8.8 — custom        · after_agent
@@ -1251,8 +1307,16 @@ middleware=[
 ```
 
 Five are custom, three are core. All are built on the six
-`AgentMiddleware` hooks (`before_agent`, `after_agent`,
-`before_model`, `after_model`, `wrap_model_call`, `wrap_tool_call`).
+`AgentMiddleware` hooks **this stack uses** — `before_agent`,
+`after_agent`, `before_model`, `after_model`, `wrap_model_call`,
+`wrap_tool_call`.
+
+**These six are not the complete hook surface.** `AgentMiddleware` also
+exposes `dynamic_prompt()`, `hook_config()` and `configure_trace_policy()`.
+Earlier revisions wrote "the six hooks" as though the set were closed,
+which would mislead anyone extending the stack. Verified against the
+LangChain middleware reference, 2026-08-21 (`docs/BIBLE_VERIFICATION_LOG.md`
+C-3).
 
 **Declaration order is execution order for hooks of the same kind, so
 this order is binding.** `BeforeModelStateInjection` MUST be first —
@@ -1348,7 +1412,7 @@ the Belt sees it.
 
 **Every SKILL.md must carry the seven-step sequence for each computation
 tool in its phase's `allowed-tools`** (§8.3). Design detail and worked
-per-tool openings: ARCHITECTURE.md §3.4.2.
+per-tool openings: `AGENT_IMPROVE_BIBLE.md` §43.1.
 
 **Show before asking is also a rubric criterion.** For every field, the
 coach shows a concrete example of a completed answer, explains why it
@@ -1395,8 +1459,8 @@ root_cause_validation, causal_hypothesis, ruled_out_causes), Improve
 implementation_plan), Control (control_plan, sustainability_check,
 post_improvement_metric, improvement_delta, financial_impact_verified,
 handover_documented, lessons_learned, transferability). Each criterion
-carries its tier (§9.7). Full text in REFACTORING_AGENT_IMPROVE.md §42;
-the tier table is ARCHITECTURE.md §13.
+carries its tier (§9.7). Full coverage in `AGENT_IMPROVE_BIBLE.md` §36;
+the tier table is `AGENT_IMPROVE_BIBLE.md` §35.
 
 **Three criteria are verified deterministically, not by judgment.**
 `causal_hypothesis`, `solution_linked_to_root_cause` and
@@ -1528,9 +1592,25 @@ Belt's framing rather than the project's established state.
 
 ### 8.7 — `ModelRetryMiddleware` — the invisible-retry tier
 
-**LangChain core, used as shipped, ADOPTED.** `retries=2` with
+**LangChain core, used as shipped, ADOPTED.** `max_retries=2` with
 exponential backoff, on the `wrap_model_call` hook. It wraps each model
 call and silently retries transient timeouts and rate limits.
+
+**The keyword is `max_retries`, not `retries`.** `retries=` does not
+exist on this class and raises at construction. The full verified
+signature is:
+
+```python
+ModelRetryMiddleware(*, max_retries=2, retry_on=default_retry_on,
+                     on_failure='continue', backoff_factor=2.0,
+                     initial_delay=1.0, max_delay=60.0, jitter=True)
+```
+
+`ModelRetryMiddleware` and `ToolRetryMiddleware` share a parameter
+vocabulary, which is exactly the situation where remembering one and
+inferring the other goes wrong — and it did: `retries=` sat in this
+stack, uncaught, from adoption until 2026-08-21
+(`docs/BIBLE_VERIFICATION_LOG.md` C-1).
 
 **Hand-writing retry plumbing is BANNED.** Do not write
 try / except / sleep / counter loops around an LLM call — this
@@ -1607,7 +1687,7 @@ grades coaching *process* only — seven-step computation pattern,
 show-first, citations, no external URLs. Any rubric entry for coherence
 is stale (§8.2).
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §36, §42, §53, §80, §83, §84.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §19, §32, §36.*
 
 ---
 
@@ -1899,7 +1979,7 @@ if belt_level == "Green Belt":
 (§10.8) — a baseline computed across an unstable process is not a
 baseline, so it blocks the gate rather than warning about it.
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §2, §38, §42, §48, §49, §68, §69.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §33, §34, §35, §36, §37.*
 
 ---
 
@@ -1921,7 +2001,7 @@ class SupervisorState(TypedDict):
 ```
 
 **Seven fields. That is the entire schema.** An eighth requires an
-ARCHITECTURE.md amendment (§18).
+amendment to `AGENT_IMPROVE_BIBLE.md` (§56), then to this file (§18).
 
 **`gate_passed` is a `dict[str, bool]`, not a `list[str]`.**
 `gate_passed["measure"]` is a direct lookup, and the re-approval cascade
@@ -1960,7 +2040,7 @@ kept anyway** — a documented exemption for readability, not an
 oversight. They are read in dozens of places, and they are written in
 exactly one: the output mapper at gate approval (§10.2). **Nothing else
 may write them**, and the supervisor is responsible for keeping them
-consistent with `gate_passed`. Full rationale: ARCHITECTURE.md §4.1.2.
+consistent with `gate_passed`. Full rationale: `AGENT_IMPROVE_BIBLE.md` §5.
 
 **`PhaseState`** — per-phase subgraph state:
 
@@ -1989,7 +2069,7 @@ class PhaseState(TypedDict):
 ```
 
 **Seventeen fields — three plumbing plus fourteen content.** A fifteenth
-content field requires an ARCHITECTURE.md amendment, same as
+content field requires an amendment to `AGENT_IMPROVE_BIBLE.md` (§56), same as
 `SupervisorState`'s eighth.
 
 **`hop_results` and `synthesis_output` MUST be state, not node locals.**
@@ -2196,14 +2276,14 @@ content plus `references_phase`, `references_field` and
 `references_value`, so the grader verifies the link by reading the
 referenced phase's gate document from the store — deterministic, no LLM
 judgment in the linkage check. The values inside the dict are still
-strings. Design detail: ARCHITECTURE.md §4.7.
+strings. Design detail: `AGENT_IMPROVE_BIBLE.md` §42.
 
 **Computation tool output goes in `artifacts["computation_results"]`**
 as a list of typed dicts, all values strings. No new top-level
 `PhaseState` field, and no per-phase typed destinations — the grader
 answers "was a hypothesis test run?" by scanning that list for
 `"tool": "t_test"`. Adding typed per-phase computation fields is a
-violation (ARCHITECTURE.md §4.8).
+violation (`AGENT_IMPROVE_BIBLE.md` §7).
 
 ### 10.7 — `CoachingResponse` in, `{Phase}Output` out
 
@@ -2246,7 +2326,7 @@ citations.extend(resp.citations)
 **`{Phase}Output` schemas are canonical** — `DefineOutput`,
 `MeasureOutput`, `AnalyseOutput`, `ImproveOutput`, `ControlOutput`, in
 `phases/{phase}/schema.py`. Full definitions and per-phase gate assembly
-are in ARCHITECTURE.md §4.10. The binding rules:
+are in `AGENT_IMPROVE_BIBLE.md` §40. The binding rules:
 
 - **Every field is `str`** except the three cross-phase reference dicts
   (§10.6)
@@ -2313,7 +2393,7 @@ experiment.** It requires a decision, stated as one of three: DOE
 conducted, simplified one-factor experiment, or no experiment needed
 because the solution follows from root cause analysis. All three are
 valid; the failure it catches is drifting past the question, not
-skipping DOE. Design detail: ARCHITECTURE.md §4.10.7.
+skipping DOE. Design detail: `AGENT_IMPROVE_BIBLE.md` §41.
 
 **`control_plan` is `dict`, never `str`.** Five sub-plans, all required:
 
@@ -2330,8 +2410,8 @@ control_plan: dict = {
 **Tier 1 — the gate requires the dict, and the grader checks all five
 sub-plans are populated.** A single string cannot show that four were
 done and one was skipped, and a Training Plan written but never delivered
-is the most common real Control failure. Design detail: ARCHITECTURE.md
-§4.10.6.
+is the most common real Control failure. Design detail: `AGENT_IMPROVE_BIBLE.md`
+§41.
 
 **FMEA has no field in any schema, and none may be added.** Not
 `fmea_summary`, not `updated_fmea`, not an FMEA sub-key anywhere.
@@ -2347,9 +2427,9 @@ prevent.
 **If a Black Belt performs one, it lives in `uploads`** as an attached
 document, and the BB SKILL.md may present it as an available technique.
 The schema does not track it, the grader does not ask for it, and no gate
-blocks on it. Full rationale: ARCHITECTURE.md §4.10.5.
+blocks on it. Full rationale: `AGENT_IMPROVE_BIBLE.md` §41.
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §17, §18, §19, §21, §52, §52a, §68, §70, §82.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §5, §6, §7, §9, §10, §11, §40.*
 
 ---
 
@@ -2544,7 +2624,7 @@ to choose backoff strategy (§4.8).
 **Graph**
 - Never mix static edges and `Command` routing from the same node
 - Never use `set_entry_point` — use `add_edge(START, ...)`
-- Never add a graph node type without an ARCHITECTURE.md amendment
+- Never add a graph node type without an amendment to `AGENT_IMPROVE_BIBLE.md` (§56)
 - Never dispatch nodes manually in routes
 - Never call `_reflect()` as a private function — reflection is a node
 - Never fuse the planner and executor
@@ -2647,15 +2727,27 @@ more than 2 full function replacements per prompt for `index.html`.
 
 ### 16.1 — Pinned targets
 
-| Package | Current | Target | Why |
-|---|---|---|---|
-| `langgraph` | 1.1.10 | **1.2.10** | Subgraph `checkpoint_ns` fix (§1.2) **and** native reliability primitives (§3.6). Both require ≥1.2.6; 1.2.10 is latest. |
-| `langchain` | 1.2.13 | 1.3.11 | Optional but recommended; backward compatible per the 1.0 stability commitment |
-| `langchain-classic` | 1.0.3 | 1.0.3 | Keep pinned. Retains legacy classes we do **not** use — presence is not permission. |
+**Verified against PyPI 2026-08-21. The floor is a rule; the targets are a
+snapshot — re-resolve at upgrade time.**
 
-Adjacent packages (`langchain-core`, `langchain-openai`,
-`langchain-community`, `langchain-text-splitters`, `langsmith`,
-`langfuse`) — let pip resolve during the upgrade, then repin.
+| Package | Installed | Latest | Why |
+|---|---|---|---|
+| `langgraph` | 1.1.10 | **1.2.11** | **BLOCKER.** Floor is **≥1.2.6** — the subgraph `checkpoint_ns` fix (§1.2) and native reliability primitives (§3.6) both require it |
+| `langchain` | 1.2.13 | **1.3.16** | Pins `langgraph>=1.2.11,<1.3.0`, so this upgrade satisfies the floor with margin |
+| `langchain-core` | 1.3.3 | — | **`langchain` 1.3.16 requires ≥1.6.0.** A three-minor jump and the most likely source of upgrade surprises |
+| `langchain-classic` | 1.0.3 | **1.0.8** | Retains legacy classes we do **not** use — presence is not permission |
+
+**The ≥1.2.6 floor is precisely attributable:** LangGraph 1.2.6 (2026-06-18)
+carries *"nested subgraph inherits parent `checkpoint_ns` (regression in
+1.2.3)"*.
+
+**The 1.2.10 / 1.3.11 pins previously written here were already stale when
+written. Do not upgrade to a documented pin — re-resolve against live PyPI**
+(§16.3). Full table and reasoning: `AGENT_IMPROVE_BIBLE.md` §53.
+
+Adjacent packages (`langchain-openai`, `langchain-community`,
+`langchain-text-splitters`, `langsmith`, `langfuse`) — let pip resolve during
+the upgrade, then repin.
 
 **During the upgrade, sweep for imports from `langgraph.prebuilt`** —
 deprecated in 1.0 → 1.1, functionality moved to `langchain.agents`.
@@ -2731,10 +2823,10 @@ prefix.
 
 This file is amended only via:
 
-1. A new architectural decision documented in ARCHITECTURE.md
+1. A new architectural decision documented in `AGENT_IMPROVE_BIBLE.md`
 2. A commit to CLAUDE.md updating the relevant rule
 3. Increment to the version number at the top
-4. Change entry in ARCHITECTURE.md change log
+4. Change entry in the `AGENT_IMPROVE_BIBLE.md` section that owns the topic
 5. **If a rule number cited in `deprecated_patterns.yaml` changes, the
    registry is updated in the same commit** (§0.2)
 
@@ -2755,4 +2847,4 @@ should prefer `response_format=`. Until that update lands,
 `agent-improve/**/*.md` remains path-excluded so the governance
 documents stay writable.
 
-*Rationale: REFACTORING_AGENT_IMPROVE.md §86.*
+*Design: `AGENT_IMPROVE_BIBLE.md` §55, §56.*

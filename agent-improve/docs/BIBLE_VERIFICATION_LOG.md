@@ -242,10 +242,77 @@ product/model-specific rather than architectural.
 
 | Claim | Why not | Risk |
 |---|---|---|
-| `RunControl.request_drain()` | Absent from releases 1.2.5–1.2.11; not located in the reference within this pass | **Medium.** §45 cites it for graceful shutdown. Either it predates 1.2.5 or the name is wrong — the `ModelRetryMiddleware` finding shows this exact failure mode is live. **Verify before implementing** |
+| `RunControl.request_drain()` | Absent from releases 1.2.5–1.2.11; not located in the reference within this pass | **RERATED 2026-08-21 → UNCONFIRMED — MAY NOT EXIST.** See below |
 | `HumanInTheLoopMiddleware` edit/reject bugs in subgraphs | Behavioural claim; no specific issue number recorded to re-check | **Low.** The ban is over-determined — graph-level `interrupt()` is independently required by the nine-step gate (§33) |
 | GitHub issues #30482, Discussion #1260, deepagents #1698 | Not individually re-opened this pass | **Low.** #30482 concerns `AzureAISearchRetriever`, now explicitly not adopted; #1260 and #1698 support a `RemainingSteps` decision independently confirmed at line 6 |
 | `langgraph-checkpoint` 4.x `JsonPlusSerializer.dumps_typed()` returns msgpack | Implementation detail discovered during commit 2.1 | **Low.** Empirically established in working code |
+
+---
+
+### `RunControl.request_drain()` — rerated 2026-08-21
+
+**"Unverified" understated it. The correct marker is UNCONFIRMED — MAY NOT
+EXIST**, and it is now recorded that way everywhere the API appears.
+
+The distinction matters. *Unverified* suggests a claim awaiting confirmation.
+This one has **no evidence behind it at all**: it entered the architecture as a
+recommendation, was carried forward on citation, and has never been checked
+against a release or against source. It was searched for across LangGraph
+1.2.5–1.2.11 and in the reference during this pass and was **not found**.
+
+**Binding consequences, applied:**
+
+1. **No work may be scheduled against it — including in Task 4.** A task naming
+   `request_drain()` may be unbuildable.
+2. **If it does not exist, §45 needs a real fallback drain design**, not a
+   replacement citation. Named candidates: a readiness probe that fails while
+   in-flight turns complete, or a shutdown hook that stops accepting new
+   `ainvoke` calls and awaits the current node.
+3. **Confirmation means** the symbol found in the installed package, in the
+   LangGraph source at a named version, or in the API reference with a version
+   stamp. **A blog post or a model's recollection is not confirmation.**
+
+**Marked at:** Bible §1 and §45 · `CLAUDE.md` §3.6 · `ARCHITECTURE.md` §9.2 ·
+`docs/DECISIONS.md` §F1 · `docs/CONTINUITY.md`. It was also **removed from the
+≥1.2.6 blocker list** in the Bible and `CONTINUITY.md`: it is not gated on the
+version upgrade, it is gated on existing.
+
+---
+
+## Follow-up status — 2026-08-21 propagation pass
+
+The five recommendations at the foot of this log, and what happened to each.
+
+| # | Follow-up | Status |
+|---|---|---|
+| 1 | Propagate C-1 (`max_retries`) | **DONE.** `CLAUDE.md` §8.1 + §8.7 (with the full verified signature), `ARCHITECTURE.md` §3.3 + §3.4 + §15 Step 5.6, `docs/DECISIONS.md` §B3, `docs/REFACTORING_AGENT_IMPROVE.md` §80 + §84 stack, `docs/REVIEW_DECISIONS.md`, `docs/CONTINUITY.md` |
+| 2 | Propagate C-2 (`system_prompt`) | **DONE.** `CLAUDE.md` §4.4, `ARCHITECTURE.md` §3.3, `docs/REFACTORING_AGENT_IMPROVE.md` §82 examples |
+| 3 | Verify `RunControl.request_drain` | **NOT DONE — deliberately.** Rerated and gated instead (above). Verification is a Task 4 precondition, not a Task 4 task |
+| 4 | Read the two eval posts before finalising §52 | **OPEN.** The >10% threshold in §52 is still asserted |
+| 5 | Re-examine S-1 if `BaseStore.search` gains multi-query or fusion | **OPEN**, as designed — a watch item with a trigger |
+
+**C-3 was propagated in the same pass** though it was not on the follow-up
+list: `CLAUDE.md` §8.1 said "the six `AgentMiddleware` hooks" as though the set
+were closed. It now says the six *this stack uses*, and names the three it does
+not.
+
+**S-2 was propagated in the same pass** for the same reason: `CLAUDE.md` §16.1
+still carried the stale 1.2.10 / 1.3.11 / 1.0.3 targets the Bible §53 had
+already corrected, and §1.9 said "LangGraph 1.2.10+" where the rule is the
+**≥1.2.6 floor**. A constitution stating a version target its design document
+has corrected is the §0.9 failure mode repeating.
+
+**Live-code exposure: none.** `create_agent`, `ModelRetryMiddleware` and
+`ToolRetryMiddleware` do not yet appear anywhere in `backend/` — the v1 code
+predates all three. **Every occurrence of both wrong keywords was in
+documentation**, which is why they survived: nothing executed them. They would
+have been executed first by whoever implemented Step 5.6 from the canonical
+stack.
+
+**Remaining occurrences of `retries=`, left deliberately:**
+`docs/EDUCATIONAL.md` and `docs/STATE_DESIGN_RESOLUTION.md` — pre-decision
+working documents, not build targets. Corrections are recorded against the
+documents that are.
 
 ---
 

@@ -1,6 +1,53 @@
 # Agent Improve — Architecture & Design Document
+
+> # ⛔ SUPERSEDED — 2026-08-21
+>
+> **This document is no longer binding and must not be built against.** It was
+> **absorbed into [`AGENT_IMPROVE_BIBLE.md`](AGENT_IMPROVE_BIBLE.md)**, which
+> is now the design authority alongside `CLAUDE.md`.
+>
+> | You want… | Go to |
+> |---|---|
+> | The rule | `CLAUDE.md` |
+> | The design, schemas, contracts, sequencing | `AGENT_IMPROVE_BIBLE.md` |
+> | Where a `§X` from this file went | `AGENT_IMPROVE_BIBLE.md` **Appendix A.2** |
+>
+> **Absorption was verified and completed on 2026-08-21.** Nine items of
+> content in this file had no Bible home when absorption was first declared and
+> were written into the Bible in that pass. Two items were deliberately **not**
+> absorbed and are the reason this file is retained read-only: **§17 Decisions
+> Resolved** and **§18 Change Log**, which are historical registers rather than
+> design.
+>
+> **This file is frozen.** Do not amend it. New architectural decisions land in
+> `AGENT_IMPROVE_BIBLE.md` (§56 amendment procedure), and rules land in
+> `CLAUDE.md` §18.
+>
+> **Known stale content below**, left in place rather than rewritten because
+> the file is frozen — this list exists so a reader who lands here mid-file is
+> not misled:
+>
+> - **§3.2 says the phase subgraph has six nodes.** It has **five** —
+>   `planner`, `executor`, `validation_stack`, `gate_review`, `gate_apply`
+>   (Bible §13). The sixth in §3.2's diagram is the mid-phase contradiction
+>   diff, which is **not a node**: it is `ContradictionDetectionMiddleware` at
+>   middleware position 6 (Bible §19.6). The check polices the executor's own
+>   output, so it does not belong to the thing it polices.
+> - **§3.3's `create_agent` block shows five middlewares and types state
+>   injection as `before_model`.** The stack is **eight**, and the hook is
+>   **`before_agent`** (Bible §19).
+> - **§9.2 cites `RunControl.request_drain()`.** That API is
+>   **UNCONFIRMED — MAY NOT EXIST** (Bible §45).
+> - **§15 Step 2.5's version pins are stale.** Verified targets are in Bible
+>   §53.
+>
+> The two parameter errors this file carried — `ModelRetryMiddleware(retries=)`
+> and `create_agent(prompt=)` — **were corrected in place** on 2026-08-21
+> rather than left, because a wrong keyword is copied whether or not the
+> banner is read.
+
 **Agentlean Platform · DMAIC Improvement Agent**
-Version 2.2.16 · August 2026
+Version 2.2.16 · August 2026 · **SUPERSEDED, frozen 2026-08-21**
 Status: v2.2 architecture ratified · refactor in progress (Step 2.2 complete;
 Step 3.6 index schema rename applied; state design closed — §4;
 node names, tool binding and output schemas closed — §3.2.1, §3.3.2, §4.10;
@@ -375,12 +422,20 @@ executor = create_agent(
         BeforeModelStateInjection(...),               # before_model  — 1st
         DMAICSkillsMiddleware(...),                   # before_agent
         SummarizationMiddleware(...),                 # before_model
-        ModelRetryMiddleware(retries=2),              # wrap_model_call
+        ModelRetryMiddleware(max_retries=2),          # wrap_model_call
         DMAICGraderMiddleware(...),                   # after_agent
     ],
-    prompt=PHASE_COACH_PROMPT[phase],
+    system_prompt=PHASE_COACH_PROMPT[phase],
 )
 ```
+
+> **SUPERSEDED — do not copy this block.** Two parameter names were wrong
+> here and are corrected above: `ModelRetryMiddleware` takes `max_retries`,
+> not `retries` (`retries=` raises at construction), and `create_agent`
+> takes `system_prompt`, not `prompt`. The middleware list is also stale —
+> it shows five middlewares and types state injection as `before_model`;
+> the ratified stack is **eight**, with state injection on `before_agent`.
+> **The canonical stack is `AGENT_IMPROVE_BIBLE.md` §19.**
 
 **`response_format` carries `CoachingResponse`, not a phase Output
 schema.** The executor runs once per coaching turn; the gate document is
@@ -498,9 +553,11 @@ when deepagents reaches 1.0.
 `ToolRetryMiddleware`, not `RetryMiddleware`** — the latter does not
 exist in LangChain 1.x.
 
-**`ModelRetryMiddleware`** — LangChain core, used as shipped, `retries=2`
-with exponential backoff. It wraps each model call and retries transient
-timeouts and rate limits silently.
+**`ModelRetryMiddleware`** — LangChain core, used as shipped,
+`max_retries=2` with exponential backoff. It wraps each model call and
+retries transient timeouts and rate limits silently. **The keyword is
+`max_retries`; `retries=` does not exist and raises at construction**
+(corrected 2026-08-21, `docs/BIBLE_VERIFICATION_LOG.md` C-1).
 
 **Its tier is distinct from the fallback chain (§9.3), and the two must
 not be conflated.** `ModelRetryMiddleware` is *mechanical* retry — the
@@ -3248,8 +3305,13 @@ systems are Azure Blob, `improve_case_index`, and
    back *state*, not *external writes*. Time travel is only correct for
    nodes that have a handler — these are not independent features.
 
-**Graceful shutdown:** `RunControl.request_drain()` for deployment
+**Graceful shutdown:** ~~`RunControl.request_drain()`~~ for deployment
 rollouts. Mid-coaching sessions save their checkpoint and resume.
+
+> **UNCONFIRMED — MAY NOT EXIST (2026-08-21).** `RunControl.request_drain()`
+> was not found in LangGraph releases 1.2.5–1.2.11 or in the reference.
+> **Schedule no work against it.** The requirement stands; the mechanism does
+> not. See `AGENT_IMPROVE_BIBLE.md` §45.
 
 **`DeltaChannel` is not used** — beta API, and not needed until
 sessions exceed roughly 200 turns.
@@ -3740,7 +3802,7 @@ in-place rewrite — and the two conversions above.
 - **5.3** `middleware/skills.py` — `DMAICSkillsMiddleware`; five SKILL.md files
 - **5.4** `middleware/state_injection.py` — `BeforeModelStateInjection`, **`before_agent`** hook
 - **5.5** Wire `SummarizationMiddleware`
-- **5.6** Wire `ModelRetryMiddleware(retries=2)` and `ToolRetryMiddleware(max_retries=2, on_failure="continue")` — both LangChain core
+- **5.6** Wire `ModelRetryMiddleware(max_retries=2)` and `ToolRetryMiddleware(max_retries=2, on_failure="continue")` — both LangChain core. **Both take `max_retries`; neither takes `retries`** (corrected 2026-08-21)
 - **5.7** `middleware/contradiction.py` — `ContradictionDetectionMiddleware` (§3.8, deterministic, no LLM)
 - **5.8** `middleware/coherence.py` — `CoherenceMiddleware` (Layer 2a, every turn, own 2-retry cap)
 - **5.9** Assemble the eight-middleware stack in declaration order (§3.4) — order is execution order

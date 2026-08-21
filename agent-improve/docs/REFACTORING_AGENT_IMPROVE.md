@@ -1722,7 +1722,7 @@ agent = create_agent(
     "gpt-4o",
     tools=[rag_lookup_methodology],
     response_format=ToolStrategy(CoachingResponse),
-    prompt="Coach the Belt through the Define phase."
+    system_prompt="Coach the Belt through the Define phase."
 )
 
 # Option B — ProviderStrategy (native, more efficient where supported)
@@ -1730,7 +1730,7 @@ agent = create_agent(
     "gpt-4o",
     tools=[rag_lookup_methodology],
     response_format=ProviderStrategy(CoachingResponse),
-    prompt="Coach the Belt through the Define phase."
+    system_prompt="Coach the Belt through the Define phase."
 )
 ```
 
@@ -1770,7 +1770,7 @@ define_agent = create_agent(
         SummarizationMiddleware(model="azure/operational-model",
                                 trigger=("tokens", 100_000),
                                 keep=("messages", 20)),
-        ModelRetryMiddleware(retries=2),                      # wrap_model_call
+        ModelRetryMiddleware(max_retries=2),                  # wrap_model_call
         ToolRetryMiddleware(max_retries=2,                    # wrap_tool_call
                             on_failure="continue"),
         ContradictionDetectionMiddleware(store=store),        # after_agent — §38
@@ -1779,9 +1779,15 @@ define_agent = create_agent(
                               rubric=COACHING_QUALITY_RUBRIC, # §42 — NOT a phase rubric
                               on_evaluation=write_to_step_log),
     ],
-    prompt=DEFINE_COACHING_PROMPT,
+    system_prompt=DEFINE_COACHING_PROMPT,
 )
 ```
+
+*Corrected again 2026-08-21 on two parameter names:* `ModelRetryMiddleware`
+takes **`max_retries`**, not `retries` — `retries=` does not exist and raises
+at construction — and `create_agent` takes **`system_prompt`**, not `prompt`,
+which `create_react_agent` took. Both verified against the LangChain
+reference; record in `docs/BIBLE_VERIFICATION_LOG.md` C-1 and C-2.
 
 *Corrected from the original example on five counts:* `HumanInTheLoopMiddleware` is replaced by graph-level interrupts (§53 bugs, §2 pattern); deepagents' `RubricMiddleware` by the custom `DMAICGraderMiddleware` (§42 Option B); the tool list uses the canonical names and the per-phase subset (§39), now **8** rather than 9 since `record_field` was retired; `BeforeModelStateInjection` moved from **last to first** and its hook type corrected to `before_agent`; and the stack grew from four to **eight** as `ModelRetryMiddleware` (§80), `ToolRetryMiddleware`, `ContradictionDetectionMiddleware` and `CoherenceMiddleware` were ratified. The canonical stack is §84.
 
@@ -2197,7 +2203,7 @@ Two built-ins are deliberately **not** used:
 - **`HumanInTheLoopMiddleware`** — two confirmed bugs hit our exact use case; §2 uses graph-level `interrupt()` instead (§53).
 - **`LLMToolSelectorMiddleware`** — per-phase tool binding (§39) already keeps every coach at 8–15 tools, inside the range where selection quality holds. Adding a selector LLM would spend a model call to solve a problem we solved structurally.
 
-**`ModelRetryMiddleware` is ADOPTED** as the invisible-retry tier of §67's fallback chain, where retry is a mechanical concern rather than a coaching event. `retries=2`, exponential backoff, on `wrap_model_call`.
+**`ModelRetryMiddleware` is ADOPTED** as the invisible-retry tier of §67's fallback chain, where retry is a mechanical concern rather than a coaching event. `max_retries=2`, exponential backoff, on `wrap_model_call`. **The keyword is `max_retries`, not `retries`** — corrected 2026-08-21 after verification against the LangChain reference; `retries=` does not exist on this class.
 
 *This was previously recorded as "worth evaluating" with no decision attached.* The evaluation is short: without it we hand-write try/except, a sleep with backoff, and a counter increment around every model call — mechanical plumbing the built-in already provides, on a hook designed for exactly this. The rule "prefer built-in middleware wherever it exists" decides it.
 
@@ -2226,7 +2232,7 @@ agent = create_agent(
     middleware=[
         PIIMiddleware(),
         SummarizationMiddleware(),
-        ModelRetryMiddleware(retries=2),
+        ModelRetryMiddleware(max_retries=2),
         HumanInTheLoopMiddleware(...),
         GateValidationMiddleware(...)
     ]
@@ -2235,9 +2241,13 @@ agent = create_agent(
 
 Middleware compose like nested wrappers. First in the list is the outermost layer. This ordering matters — PII redaction MUST fire before summarization sees the content, or PII leaks into summaries.
 
-*`retries=2` throughout this document, including in illustrations —
+*`max_retries=2` throughout this document, including in illustrations —
 `ModelRetryMiddleware` and `CoherenceMiddleware` each carry an independent
-2-retry cap (§84), and an example showing 3 invites the number to be copied.*
+2-retry cap (§84), and an example showing 3 invites the number to be copied.
+**The keyword itself was wrong throughout until 2026-08-21**: this document
+wrote `retries=`, which does not exist on `ModelRetryMiddleware`. The same
+reasoning applies to the keyword as to the number — an illustration is
+copied.*
 
 ---
 

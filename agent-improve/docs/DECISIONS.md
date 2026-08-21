@@ -327,7 +327,7 @@ middleware=[
     BeforeModelStateInjection(...),            # before_agent — MUST be first
     DMAICSkillsMiddleware(...),                # before_agent
     SummarizationMiddleware(...),              # before_model
-    ModelRetryMiddleware(retries=2),           # wrap_model_call — API-level model retries
+    ModelRetryMiddleware(max_retries=2),       # wrap_model_call — API-level model retries
     ToolRetryMiddleware(                       # wrap_tool_call — tool execution retries (B3.1)
         max_retries=2,
         tools=None,          # None = applies to all bound tools
@@ -350,8 +350,17 @@ top of the prompt before skills loading and summarisation shape it.
 
 | Middleware | Hook | Failure type | Mechanism |
 |---|---|---|---|
-| `ModelRetryMiddleware(retries=2)` | `wrap_model_call` | Azure OpenAI API errors (rate-limit, timeout, transient 5xx) | Retries the model call before it surfaces to the agent |
+| `ModelRetryMiddleware(max_retries=2)` | `wrap_model_call` | Azure OpenAI API errors (rate-limit, timeout, transient 5xx) | Retries the model call before it surfaces to the agent |
 | `ToolRetryMiddleware(max_retries=2)` | `wrap_tool_call` | Tool execution errors (Azure Search timeout, extraction error, computation tool failure) | Retries the tool call before it surfaces as a `ToolMessage` error in state |
+
+**Parameter correction, 2026-08-21.** Both entries above previously read
+`ModelRetryMiddleware(retries=2)`. **`retries=` does not exist on that class
+and raises at construction — the keyword is `max_retries`.** The two retry
+middlewares share a parameter vocabulary; `ToolRetryMiddleware` was verified
+against the reference when it was added at B3.1 and was always correct, while
+`ModelRetryMiddleware` was adopted earlier and never re-checked. Verified
+against `reference.langchain.com/python/langchain/agents/middleware/model_retry/ModelRetryMiddleware`;
+full record in `docs/BIBLE_VERIFICATION_LOG.md` C-1.
 
 `on_failure="continue"` means: if `max_retries` is exhausted, the tool call returns whatever it has (or a failure message) rather than raising an exception. This keeps the coach loop alive on tool failures — the coach sees the failure result and can decide how to proceed rather than the graph dying.
 
@@ -914,7 +923,13 @@ Rules:
 
 `TimeoutPolicy(run_timeout=45)` required on every phase executor node.
 `error_handler=` required on every node with external writes.
-`RunControl.request_drain()` for graceful shutdown.
+
+**Graceful shutdown — the requirement is ratified, the mechanism is not.**
+`RunControl.request_drain()` is **UNCONFIRMED — MAY NOT EXIST** as of
+2026-08-21: not found in LangGraph releases 1.2.5–1.2.11 or in the reference.
+**No work may be scheduled against it until it is confirmed against a real
+release or the source**; if it does not exist, a real fallback drain must be
+designed. See `AGENT_IMPROVE_BIBLE.md` §45.
 
 Custom Saga orchestrators and hand-written compensating-action frameworks
 are BANNED.

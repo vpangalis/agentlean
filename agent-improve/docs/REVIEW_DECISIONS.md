@@ -3614,7 +3614,7 @@ middleware=[
     BeforeModelStateInjection(...),            # before_agent — MUST be first
     DMAICSkillsMiddleware(...),                # before_agent
     SummarizationMiddleware(...),              # before_model
-    ModelRetryMiddleware(retries=2),           # wrap_model_call
+    ModelRetryMiddleware(max_retries=2),           # wrap_model_call
     ContradictionDetectionMiddleware(...),     # after_agent — §38 check (Mod A)
     CoherenceMiddleware(...),                  # after_agent — L2a check (Mod B)
     DMAICGraderMiddleware(...),                # after_agent — process quality only
@@ -3710,7 +3710,7 @@ middleware=[
     BeforeModelStateInjection(...),            # before_agent — MUST be first
     DMAICSkillsMiddleware(...),                # before_agent
     SummarizationMiddleware(...),              # before_model
-    ModelRetryMiddleware(retries=2),           # wrap_model_call — API-level model retries
+    ModelRetryMiddleware(max_retries=2),           # wrap_model_call — API-level model retries
     ToolRetryMiddleware(                       # wrap_tool_call — tool execution retries (NEW)
         max_retries=2,
         tools=None,          # None = applies to all bound tools
@@ -3730,7 +3730,7 @@ middleware=[
 
 | Middleware | Hook | Failure type | Mechanism |
 |---|---|---|---|
-| `ModelRetryMiddleware(retries=2)` | `wrap_model_call` | Azure OpenAI API errors (rate-limit, timeout, transient 5xx) | Retries the model call before it surfaces to the agent |
+| `ModelRetryMiddleware(max_retries=2)` | `wrap_model_call` | Azure OpenAI API errors (rate-limit, timeout, transient 5xx) | Retries the model call before it surfaces to the agent |
 | `ToolRetryMiddleware(max_retries=2)` | `wrap_tool_call` | Tool execution errors (Azure Search timeout, extraction error, computation tool failure) | Retries the tool call before it surfaces as a `ToolMessage` error in state |
 
 `on_failure="continue"` means: if `max_retries` is exhausted, the tool call returns whatever it has (or a failure message) rather than raising an exception. This keeps the coach loop alive on tool failures — the coach sees the failure result and can decide how to proceed rather than the graph dying.
