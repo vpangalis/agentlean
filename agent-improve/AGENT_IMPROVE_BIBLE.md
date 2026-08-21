@@ -1015,4 +1015,863 @@ This is a hard requirement of the disconnect policy (§47).
 
 ---
 
-*Parts I and II end here. Parts III–XI to follow.*
+# Part III — The Graph
+
+*The graph is the orchestrator. Nothing outside it dispatches work.*
+
+---
+
+## 12. Topology
+
+*Supersedes: REFACTORING §23, §44; ARCHITECTURE.md §3.1.*
+**Status: RATIFIED.** Files: `core/graph.py`, `phases/{phase}/graph.py`, `escalate.py`.
+
+```
+supervisor_graph                    thread_id = case_id, e.g. "IMPR-2026-FS1"
+├── define_subgraph                 checkpoint_ns auto-managed by LangGraph
+├── measure_subgraph
+├── analyse_subgraph
+├── improve_subgraph
+├── control_subgraph
+└── escalation_subgraph             reached by conditional edge
+```
+
+- One supervisor graph in `core/graph.py`
+- One subgraph per phase in `phases/{phase}/graph.py`
+- One escalation subgraph in `escalate.py`
+- The supervisor compiles all subgraphs into a hierarchical compiled graph
+
+**The compiled graph is the ONLY runtime path.** `/ask`, `/ask/stream` and
+`/gate/*` all invoke the same compiled graph object. A route that does anything
+beyond `await graph.ainvoke(...)` / `astream_events(...)` plus envelope
+marshalling is a violation (§49).
+
+**Entry is declared with `add_edge(START, ...)`.** `set_entry_point` is
+superseded and must not be used.
+
+### The subgraph builder takes the phase as a parameter
+
+It must, because it selects that phase's computation-tool subset (§30):
+
+```python
+def build_phase_subgraph(phase: str, llm):
+    tools = UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase]
+    ...
+    return builder.compile()          # NO checkpointer, NO store
+```
+
+**The `compile()` call takes neither checkpointer nor store.** That is not an
+omission — see §16.
+
+---
+
+## 13. The phase subgraph — five nodes
+
+*Supersedes: REFACTORING §23; ARCHITECTURE.md §3.2, §3.3.1; DECISIONS §B1.*
+**Status: RATIFIED.**
+
+Each phase subgraph contains **exactly five nodes**.
+
+| Node | Responsibility |
+|---|---|
+| `planner` | Produces a structured `CoachingPlan` — focus field, next action, retrieval strategy (§17) |
+| `executor` | `create_agent` with this phase's tool subset; runs the coaching turn (§18) |
+| `validation_stack` | The four layers, shared cap of 3 (§34) |
+| `gate_review` | `interrupt()` — presents validated fields to the Belt and stops (§33) |
+| `gate_apply` | Applies Belt edits, runs the policy advisory, assembles and writes the gate document, routes on (§33) |
+
+```
+                     ┌──────────────────────────────────────────────┐
+                     │                                              │
+                     ▼                                              │
+              ┌──────────────┐                                      │
+   START ────▶│   planner    │◀─────────────────────────┐           │
+              └──────┬───────┘                          │           │
+                     │ coaching_plan (typed — §17)      │           │
+                     ▼                                  │           │
+              ┌──────────────┐                          │           │
+              │   executor   │  create_agent            │           │
+              │              │  ReAct loop, ≤5 hops     │           │
+              │  ┌────────┐  │  capped by RemainingSteps│ not clean │
+              │  │ tools  │  │  7 universal +           │           │
+              │  │  8–15  │  │  phase computation       │           │
+              │  └────────┘  │                          │           │
+              └──────┬───────┘                          │           │
+                     │ draft (dict)                     │           │
+                     │                                  │           │
+        ┌────────────┴─────────────┐                    │           │
+        │ conditional edge         │                    │           │
+        │                          │                    │           │
+   field complete? ── no ──────────┴────────────────────┘           │
+        │ yes                                                       │
+        │ more fields? ── yes ── field_index++ ─────────────────────┘
+        │ all captured
+        ▼
+  ┌─────────────────────┐
+  │ validation_stack    │  §34 — layers 2b/2c/2d, cheapest first
+  │  2b field presence  │  shared cap: 3 attempts (gate_attempts)
+  │  2c constraints     │  Layer 2a is middleware, not here — §34
+  │  2d PHASE_RUBRIC    │
+  └──────────┬──────────┘
+     fail    │    pass
+  ┌──────────┘          ▼
+  │            ┌──────────────────┐
+  │            │   gate_review    │  interrupt() — Belt sees fields
+  │            └────────┬─────────┘
+  │                     │ Command(resume=...)
+  └──▶ back to planner  ▼
+       (validator_ ┌──────────────────┐
+        feedback)  │   gate_apply     │
+                   │ · apply edits    │
+                   │ · policy advisory│
+                   │ · assemble doc   │
+                   │ · store.put()    │
+                   │ · final = doc    │
+                   └────────┬─────────┘
+                            ▼
+                           END   (parent's static edge advances the phase)
+```
+
+### The subgraph is a cycle, not a pipeline
+
+**The planner fires many times per phase, not once.** After each executor step,
+control returns to the planner to decide whether to keep coaching the current
+field, advance to the next, or trigger the gate. That cycle is why LangGraph
+rather than a DAG engine is the runtime — a DAG cannot express "go back and try
+this field again with what you just learned."
+
+### Two node names are BANNED
+
+| Retired | Ratified | Why |
+|---|---|---|
+| `policy_advisory` | — | The policy advisory is **logic inside `gate_apply`**, not a node. It runs after the Belt edits, when the coach is no longer in the loop |
+| `revise` | — | Revision is an **edge**. The validation stack routes back to the planner carrying `validator_feedback` |
+
+**The mid-phase contradiction check is also not a node.** Earlier revisions
+drew it as a sixth box between the executor and the validation stack. It is
+`ContradictionDetectionMiddleware` on the `after_agent` hook (§19) — it polices
+the executor's own output, so it does not belong to the thing it polices, and
+as middleware it is a named, LangSmith-visible step.
+
+### Leaf tools are NOT subgraph nodes
+
+The universal seven (§29) and the phase's computation tools are passed to the
+executor via `tools=` on `create_agent`. **From the subgraph's perspective the
+executor is one node.** The tool-calling loop happens inside it.
+
+### The validation stack and the policy advisory are NOT tools
+
+| Component | What it is | Why not a tool |
+|---|---|---|
+| Validation stack | A **node**, reached by an edge | As a tool, the coach would decide whether to be validated — backwards |
+| Policy advisory | **Logic inside `gate_apply`** | It runs after the coach's turn is over |
+
+**Adding either to a tool list is a violation.**
+
+**New node types may not be added to a subgraph without an amendment.**
+
+---
+
+## 14. Node contract
+
+*Supersedes: REFACTORING §21; ARCHITECTURE.md §3.2.*
+**Status: RATIFIED.**
+
+Nodes are **module-level async functions**:
+
+```python
+async def phase_executor(state: PhaseState) -> dict:
+    ...
+    return {"draft": {...}, "step_log": [{...}]}
+```
+
+| Rule | Detail |
+|---|---|
+| **Async** | Every node is `async def`. **Per-node timeouts require async nodes** — a hard LangGraph constraint, not a preference (Part IX) |
+| **Returns dict slices** | Never a Pydantic model, never full state |
+| **Structured handoffs** | Plans and drafts crossing nodes are structured, never prose parsed downstream |
+| **Naming** | File name and function name align. One file may hold several nodes of the same subgraph |
+| **No classes** | Node files contain module-level functions only |
+
+**Synchronous code is permitted only in pure functions with no I/O** — prompt
+building, state transformations, validation logic, and all 20 computation
+tools (§30).
+
+### Reflection is a node, not a private function
+
+`_reflect()` inside orchestrate files is **BANNED**. Reflection is a graph node
+reached via a conditional edge; the edge decides whether it is needed based on
+response length, risk keywords (numbers, commitments, dates), and
+phase-specific rules.
+
+**For *invisible* retry — mechanical, not a coaching event — use the retry
+middleware instead** (§19). A retry that the Belt should never see does not
+belong in the graph topology.
+
+---
+
+## 15. Routing — static edges and `Command`
+
+*Supersedes: REFACTORING §44; ARCHITECTURE.md §3.1.*
+**Status: RATIFIED.**
+
+### The decision test
+
+> *"Could this transition vary at runtime?"* → **dynamic**, use `Command`.
+> *"Always exactly once, in this order?"* → **static**, use `add_edge`.
+
+**Phase transitions are static.** DMAIC order is fixed:
+
+```python
+builder.add_edge(START,      "define")
+builder.add_edge("define",   "measure")
+builder.add_edge("measure",  "analyse")
+builder.add_edge("analyse",  "improve")
+builder.add_edge("improve",  "control")
+builder.add_edge("control",  END)
+```
+
+There is nothing to reason about, so nothing reasons. An LLM call to choose the
+next phase would be cost and latency purchasing no decision. **The v2.1
+`phase_router` node is deleted.**
+
+**`Command` routing is for inside phase subgraphs only**, where step order
+genuinely is data-dependent — which field to coach next, whether to retry,
+whether to trigger the gate.
+
+### Never mix static edges and `Command` from the same node
+
+**Both paths execute, silently.** This is the failure mode that makes the rule
+absolute rather than stylistic: there is no error, no warning, and the symptom
+appears far from the cause.
+
+### Level 1 routes on `gate_passed`
+
+The supervisor's decision is a deterministic gate-check, not a reasoning step:
+
+```python
+def route_after_phase(state: SupervisorState) -> str:
+    if state["gate_passed"].get(state["current_phase"]):
+        return "next"
+    return "escalate" if state["gate_attempts"] >= 3 else "retry"
+```
+
+### No subgraph imports another subgraph's nodes
+
+Phases communicate through the Store (§9) and through the parent's edges.
+A direct import creates a dependency the graph does not model.
+
+---
+
+## 16. `thread_id`, `checkpoint_ns`, and where persistence attaches
+
+*Supersedes: REFACTORING §23, §44; ARCHITECTURE.md §3.1, §6.1.*
+**Status: RATIFIED.**
+
+### One `thread_id` per project
+
+```python
+await graph.ainvoke(
+    state,
+    config={
+        "recursion_limit": 50,        # infrastructure backstop, NOT the hop cap
+        "configurable": {"thread_id": case_id},
+    },
+)
+```
+
+**`thread_id` is the `case_id` value.** Never per phase, never concatenated —
+`{case_id}-define` and similar are **BANNED**.
+
+### The checkpointer and store go on the parent graph ONLY
+
+```python
+graph = builder.compile(checkpointer=checkpointer, store=store)   # parent
+subgraph = phase_builder.compile()                                # NO args
+```
+
+**Phase subgraphs compile with neither.** LangGraph routes their writes through
+the parent's saver, distinguished by an **auto-managed `checkpoint_ns`**. Each
+subgraph gets its own namespace within the shared thread.
+
+**Why per-subgraph `thread_id` is wrong**, since this was attempted three times
+in the source material before being settled: it causes duplicate storage and
+state-persistence problems. Interrupts inside subgraphs work correctly through
+the parent's checkpointer, namespaced by `checkpoint_ns` — there is no problem
+that a second thread id solves.
+
+### `recursion_limit` is a backstop, not the hop cap
+
+**Set it high (50) on the supervisor invocation** to catch genuine infinite
+loops. It does **not** control the per-turn hop budget — that is
+`RemainingSteps`, read inside the executor node (§26).
+
+The reason matters, because `recursion_limit=11` was previously ratified as the
+hop cap and fails in two opposite directions in a hierarchy:
+
+| Failure mode | What happens |
+|---|---|
+| Shared counter | Subgraphs draw on the parent's step budget; supervisor and routing steps consume it before the executor's first tool call, so the executor gets **fewer** than 5 hops |
+| Non-propagation | `recursion_limit` is not passed to the subgraph at all, which reverts to its default of 25 — the cap is **absent** |
+
+Which one you get depends on configuration. Neither reliably yields 5 hops, and
+both terminate the graph with `GraphRecursionError` rather than letting the
+coach close out gracefully.
+
+---
+
+# Part IV — The Coaching Agent
+
+*Everything in this Part runs inside one node — the `executor` of §13.*
+
+---
+
+## 17. The Planner / Executor contract
+
+*Supersedes: REFACTORING §5, §11, §20; ARCHITECTURE.md §3.5; CLAUDE.md §1.3.*
+**Status: RATIFIED.**
+
+Each phase subgraph contains a **Planner-Executor pair**, not a single coaching
+node.
+
+| | `phase_planner` | `phase_executor` |
+|---|---|---|
+| Produces | A structured `CoachingPlan` | The coaching response + extraction |
+| Decides | **Strategy** — which field, which action, which retrieval mode | **Nothing about strategy** |
+| Dispatches | **Never** dispatches to tools | Dispatches to leaf tools via the tool-calling loop |
+| Model | `planner` role, temp 0.1 | `coach` role, temp 0.5–0.7 |
+
+**The two are distinct nodes and are never fused.** Fusing them loses the
+boundary that makes coaching inspectable and costs the ability to test either
+half — a planner that can be unit-tested against "given these artifacts, which
+field is next?" is worth the extra node.
+
+### `CoachingPlan`
+
+```python
+class CoachingPlan(BaseModel):
+    focus_field:        str
+    next_action:        str
+    retrieval_strategy: Literal["single_hop", "multi_hop"]
+    retrieval_hops:     list[str]     # template strings; empty for single_hop
+
+phase_planner = llm.with_structured_output(CoachingPlan)
+coaching_plan: CoachingPlan = phase_planner.invoke(planner_prompt)
+```
+
+Full field semantics and the "one plan, not a queue" rule are in §6.
+
+**The planner decides retrieval strategy at plan time, not the executor at
+retrieval time.** This is what makes multi-hop *planned* rather than emergent
+in Analyse (§26), and it is why `retrieval_strategy` lives on the plan rather
+than being inferred inside a tool.
+
+### Extraction is structured output, not a node and not a tool
+
+Field capture happens through `response_format=CoachingResponse` on the
+executor (§20). It is not a separate extraction node and **`record_field` is
+retired** (§29).
+
+---
+
+## 18. Building the executor — `create_agent`
+
+*Supersedes: REFACTORING §42, §50, §84; ARCHITECTURE.md §3.3; CLAUDE.md §4.4.*
+**Status: RATIFIED.**
+
+```python
+executor = create_agent(
+    model=get_llm("coach", max_tokens=1500),
+    tools=UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase],
+    response_format=CoachingResponse,        # §20 — never a {Phase}Output
+    middleware=[...],                        # §19 — all eight, in order
+    prompt=PHASE_COACH_PROMPT[phase],
+)
+```
+
+### Binding tools directly onto a bare model is a violation
+
+**It bypasses the middleware stack**, which carries grading, skills loading,
+context compression, state injection, retry, and the coherence and
+contradiction checks. A phase executor that attaches its tools straight to the
+model object — rather than passing them to `create_agent(tools=...)` — silently
+loses all eight.
+
+### `create_react_agent` is superseded
+
+Nothing may import `create_react_agent`, and **nothing may import from the
+`langgraph.prebuilt` namespace** — deprecated in 1.0 → 1.1, functionality moved
+to `langchain.agents`.
+
+### deepagents is not a dependency
+
+`create_deep_agent`, `RubricMiddleware` and `SkillsMiddleware` from that package
+are **BANNED while it remains pre-1.0**. Our equivalents are custom middleware
+on `create_agent` (§19).
+
+The reasoning is a dependency-risk judgment, not a quality one: deepagents ships
+breaking changes between minor versions, and adoption is all-or-nothing —
+`create_deep_agent` replaces `create_agent` rather than extending it. Carrying a
+bounded amount of our own code is preferable to an unbounded amount of someone
+else's pre-1.0 churn. **Revisit at deepagents 1.0, and migrate all custom
+middleware together or not at all.**
+
+### The structured response and the coaching text coexist
+
+The agent still calls tools normally through the ReAct loop and still writes
+coaching prose into `messages`. Only the **terminal** response is additionally
+structured, and it arrives in `result["structured_response"]`. Reading one does
+not cost you the other.
+
+---
+
+## 19. The middleware stack — eight, in order
+
+*Supersedes: REFACTORING §80, §84; ARCHITECTURE.md §3.4; DECISIONS §B3, §M2, §M3.*
+**Status: RATIFIED.** **This is the canonical definition. Everything else cross-references it.**
+
+```python
+middleware=[
+    BeforeModelStateInjection(...),          # 1 · custom · before_agent
+    DMAICSkillsMiddleware(...),              # 2 · custom · before_agent
+    SummarizationMiddleware(...),            # 3 · core   · before_model
+    ModelRetryMiddleware(retries=2),         # 4 · core   · wrap_model_call
+    ToolRetryMiddleware(                     # 5 · core   · wrap_tool_call
+        max_retries=2, on_failure="continue"),
+    ContradictionDetectionMiddleware(...),   # 6 · custom · after_agent
+    CoherenceMiddleware(...),                # 7 · custom · after_agent
+    DMAICGraderMiddleware(...),              # 8 · custom · after_agent
+]
+```
+
+**Five custom, three core.** All are built on the six `AgentMiddleware` hooks:
+`before_agent`, `after_agent`, `before_model`, `after_model`,
+`wrap_model_call`, `wrap_tool_call`.
+
+**Prefer built-in middleware wherever it exists.** Custom middleware is
+reserved for genuinely domain-specific logic.
+
+### Ordering rules that bind
+
+**Declaration order is execution order for hooks of the same kind.**
+
+1. **`BeforeModelStateInjection` MUST be first.** Project facts have to reach
+   the top of the prompt before skills loading and summarisation shape it.
+2. **Positions 6, 7 and 8 all fire `after_agent`** and therefore run in
+   declaration order: contradiction, then coherence, then grader.
+3. **Positions 4 and 5 sit on `wrap_*` hooks** and compete for no slot with
+   anything else. They are adjacent for readability, not ordering.
+4. **If `CoherenceMiddleware` exhausts its retries, `DMAICGraderMiddleware` is
+   skipped for that turn** — deliberately. Grading a response already known to
+   be incoherent spends a model call to produce a meaningless score.
+
+### Three independent retry caps
+
+| Cap | Counts | Where |
+|---|---|---|
+| `ModelRetryMiddleware` — 2 | Transient Azure OpenAI API failures | §19.4 |
+| `CoherenceMiddleware` — 2 | Response-quality failures | §19.7 |
+| Validation stack — 3, shared across layers | Gate-boundary validation failures | §34 |
+
+**They must not be merged.** Three different failure modes, three counters, no
+shared state. An API timeout and an incoherent response are not the same event
+and must not consume the same budget.
+
+### 19.1 `BeforeModelStateInjection` — injection timing
+
+**Custom · `before_agent` · position 1.** Prepends structured project state at
+the **top** of the prompt, ahead of the conversation: this phase's `artifacts`,
+prior phases' gate documents from the Store, current phase requirements, and
+the missing fields reported by `check_gate_status()`.
+
+**The hook is `before_agent`, not `before_model`.** State injection belongs at
+agent-loop start, once per turn. `before_model` fires before every individual
+model call within a turn, which re-injects the same project facts repeatedly
+and wastes context.
+
+**Missing fields are computed at injection time, never read from a stored
+list.** The middleware derives them the same way the gate does, so the prompt
+and `DMAICGateValidator` cannot disagree.
+
+**Why the top of the prompt.** Models weight earlier content more heavily.
+Injecting project facts *after* the Belt's message lets the response drift
+toward the Belt's framing rather than the project's established state.
+**Injecting in `messages[]` append order is a violation** — there is no "just
+add it to the history" option.
+
+### 19.2 `DMAICSkillsMiddleware` — progressive disclosure
+
+**Custom · `before_agent` + a registered tool · position 2.** Full treatment in
+§32; the stack-level facts are:
+
+| Level | When | What loads |
+|---|---|---|
+| 1 | Startup | Skill descriptions only — **under 2K tokens for all five combined** |
+| 2 | On demand | Full phase instructions, when the coach enters that phase |
+| 3 | On demand | Reference files, when explicitly needed |
+
+Level 2 is reached by the coach calling a registered `load_skill(name)` tool.
+Storage backend is `FilesystemBackend` — git-versioned alongside the code, so a
+skill change is reviewable in the same PR as the code depending on it.
+
+### 19.3 `SummarizationMiddleware` — context compression
+
+**LangChain core, used as shipped · `before_model` · position 3.**
+
+```python
+SummarizationMiddleware(
+    model="azure/operational-model",       # gpt-4o-mini for cost
+    trigger=("tokens", 100_000),           # ~78% of gpt-4o's 128k window
+    keep=("messages", 20),                 # preserve the last 20 turns raw
+)
+```
+
+**Custom compression functions are BANNED.** Do not hand-write
+`compress_messages()` or a `conversation_context` builder — this middleware
+provides the trigger, the summarisation call and the message-list replacement.
+
+**The policy that makes prose summarisation safe: facts do not live in
+`messages[]`.** Anything that must survive compression lives in typed state.
+
+| Lives in | What |
+|---|---|
+| `SupervisorState` | `current_phase`, `phase_index`, `gate_passed` — orchestration only |
+| `PhaseState` | `artifacts`, `draft`, `belt_edits`, `step_log`, `citations`, `uploads`, `validator_feedback`, `final` |
+| Store | Cross-phase gate documents (§9) |
+
+**Summarising *conversation* into prose is correct** — that is what conversation
+is. **Summarising *facts* into prose is the failure this policy prevents.**
+
+Decisions survive compression as captured fields, not as a decision list: a
+committed decision arrives via `CoachingResponse.fields_captured`, is approved
+at a gate, and lands in `artifacts` and then the Store — all three outside
+`messages[]`. That is why no `key_decisions` field is needed (§5).
+
+**Deprecated memory classes are BANNED:** `ConversationBufferMemory`,
+`ConversationBufferWindowMemory`, `ConversationSummaryMemory`,
+`ConversationEntityMemory`, `VectorStoreRetrieverMemory`, `ConversationChain`.
+The replacement is checkpointer (thread-scoped) + Store (cross-thread) + this
+middleware.
+
+### 19.4 `ModelRetryMiddleware` — API-level retry
+
+**LangChain core, used as shipped · `wrap_model_call` · position 4.**
+`retries=2`, exponential backoff. Wraps each model call and silently retries
+transient timeouts and rate limits.
+
+**Hand-writing retry plumbing is BANNED** — no try/except/sleep/counter loops
+around an LLM call. This middleware provides the wrap, the backoff and the
+attempt counter.
+
+### 19.5 `ToolRetryMiddleware` — tool-level retry
+
+**LangChain core, used as shipped · `wrap_tool_call` · position 5.**
+`max_retries=2`, `on_failure="continue"`, exponential backoff with jitter.
+
+**The class is `ToolRetryMiddleware`.** `RetryMiddleware` does not exist in
+LangChain 1.x — never write it.
+
+**`on_failure="continue"` is what keeps the coaching loop alive.** When retries
+exhaust, the tool returns a failure result the coach can read and work around,
+rather than raising and killing the graph mid-session.
+
+### 19.6 `ContradictionDetectionMiddleware` — the mid-phase check
+
+**Custom · `after_agent` · position 6.** Implements the mid-phase conflict
+detection of §37.
+
+Reads `CoachingResponse.fields_captured` after the executor runs and compares
+each captured field against the Store-held gate-approved value for that phase.
+**Any mismatch raises `HITLInterrupt`.**
+
+```python
+class ContradictionDetectionMiddleware(AgentMiddleware):
+    def after_agent(self, state, runtime):
+        for field in state["structured_response"].fields_captured:
+            prior = store.get(
+                ("projects", state["case_id"], "artifacts"),
+                state["current_phase"],
+            )
+            if prior and field["field_name"] in prior:
+                if prior[field["field_name"]] != field["value"]:
+                    raise HITLInterrupt(
+                        field=field["field_name"],
+                        approved_value=prior[field["field_name"]],
+                        proposed_value=field["value"],
+                    )
+```
+
+**Deterministic dict comparison. No LLM call**, negligible latency. **No
+tolerance threshold**, and none may be added — the reasoning is in §37.
+
+**Why middleware rather than logic inside the executor node:** the check
+polices the executor's own output, so it does not belong to the thing it
+polices. As middleware it is a named, LangSmith-visible step
+(`ContradictionDetectionMiddleware.after_agent`), and the executor node stays
+responsible only for coaching.
+
+### 19.7 `CoherenceMiddleware` — validation Layer 2a
+
+**Custom · `after_agent` · position 7, immediately before the grader.**
+
+One LLM call — `coherence` role, temperature 0.1. Checks: is this a real,
+conclusive statement? Is it parroting the Belt's own words back? Is it on-topic
+for the current phase?
+
+**Layer 2a fires every coaching turn**, which is why it is middleware and not
+part of the `validation_stack` node — that node runs once, at the gate. Layers
+2b–2d live there; 2a lives here. One conceptual stack, two mechanisms (§34).
+
+**On failure: Level 1 silent retry, max 2.** The Belt never sees a failed
+coherence response. On the third failure the turn degrades (Part IX) and
+`DMAICGraderMiddleware` is skipped.
+
+**Coherence is NOT a `COACHING_QUALITY_RUBRIC` criterion.** It moved out of the
+rubric when this middleware was added. Any rubric entry for coherence is stale.
+
+**Why it was separated from the grader:** running it inside
+`DMAICGraderMiddleware` conflated two different questions — *"is this a real
+statement at all?"* versus *"is this good coaching?"* — and paid for a full
+rubric grading call on responses already known to be incoherent. Catching
+incoherence at a cheaper gate is both faster and cleaner.
+
+### 19.8 `DMAICGraderMiddleware` — coaching process quality
+
+**Custom · `after_agent` · position 8.** Grades the **coach's process** against
+`COACHING_QUALITY_RUBRIC` — one rubric, shared across all five phases.
+
+Full treatment, including the rubric text and the two-grader distinction, is
+**§36**. The stack-level facts:
+
+- Model: `grader` role, temperature 0.1 (§21)
+- `max_iterations=3`; on `max_iterations_reached` the output passes through
+  **with a warning flag visible to the Belt**
+- Verdict is **per criterion, not overall**
+- `on_evaluation` writes each grading iteration to `step_log` (§11)
+- Grader internals — iteration count, accumulated evaluations, attempt
+  tracking — stay **private to the middleware** and never reach `PhaseState`
+  or `SupervisorState`
+- **The Belt does not see the grader loop.** It runs at step 2 of the gate,
+  before the interrupt (§33)
+
+### 19.9 Middleware deliberately NOT used
+
+| Middleware | Why not |
+|---|---|
+| `HumanInTheLoopMiddleware` | **Two confirmed bugs hit our exact use case.** Edited tool-call args can be silently re-overwritten by the agent re-attempting the original call; and edit/reject are broken in subgraph contexts, where only approve is reliable. Both would silently discard a Belt's correction. Use graph-level `interrupt()` (§33) |
+| `LLMToolSelectorMiddleware` | Per-phase binding (§30) already keeps every coach at 8–15 tools. A selector LLM spends a model call solving a problem already solved structurally |
+| deepagents `RubricMiddleware` / `SkillsMiddleware` | Pre-1.0 dependency (§18) |
+
+---
+
+## 20. `CoachingResponse` — the per-turn schema
+
+*Supersedes: REFACTORING §82; ARCHITECTURE.md §4.10; CLAUDE.md §10.7; DECISIONS §B4.*
+**Status: RATIFIED.**
+
+**Two schemas, two moments. Never substitute one for the other.**
+
+| | `CoachingResponse` | `{Phase}Output` |
+|---|---|---|
+| Fires | **Every coaching turn** | **Once**, at `gate_apply` |
+| Produced by | The executor, via `response_format=` | Pydantic construction — **no LLM** |
+| Holds | This turn's extraction | The complete gate document |
+
+```python
+class CoachingResponse(BaseModel):
+    """Structured extraction from each coaching turn."""
+    message:         str                 # coaching text the Belt sees
+    fields_captured: list[dict] = []     # [{field_name, value, source}]
+    citations:       list[dict] = []     # sources referenced this turn
+```
+
+**`value` is `Any`, not `str`, and that is deliberate.** It must carry both
+plain string fields and the three cross-phase reference dicts (§7). Typing it
+`str` would make `causal_hypothesis`, `solution_linked_to_root_cause` and
+`post_improvement_metric` uncapturable. **This is the one place `Any` is
+correct**; the values *inside* those dicts are still strings.
+
+### The executor node writes the response into state
+
+```python
+result = await executor.ainvoke(state)
+resp = result["structured_response"]              # CoachingResponse
+
+for f in resp.fields_captured:
+    artifacts[f["field_name"]] = f["value"]       # str or dict
+citations.extend(resp.citations)
+```
+
+### The executor's `response_format` is `CoachingResponse`, never a phase Output
+
+**The executor runs once per coaching turn; the gate document is assembled once
+per phase.** Asking the coach to emit a complete `DefineOutput` every turn
+requests fields it has not yet coached — the model then either refuses or
+invents them, and the second failure mode is worse. See §40.
+
+### What structured output does NOT give you
+
+**Truth.** It guarantees shape. A schema-valid `baseline_metric: 4.2` invented
+by the model is exactly as well-formed as a correct one. Content-level defence
+is the anti-hallucination guards (§22), validation Layer 2a (§34) and the
+policy advisory (§33) — **not this mechanism.** No reader should come away
+believing structured output is a defence against hallucinated content.
+
+---
+
+## 21. LLM roles, temperature, and the factory
+
+*Supersedes: REFACTORING §34-D, §42; ARCHITECTURE.md §3.3; CLAUDE.md §4.1, §4.2, §4.7.*
+**Status: RATIFIED.** File: `core/llm.py`.
+
+### Factory only
+
+```python
+from core.llm import get_llm
+llm = get_llm("coach", max_tokens=1500)
+```
+
+**Never instantiate `AzureChatOpenAI` directly.**
+
+### Roles
+
+Two deployment tiers, addressed by role. **Model tiering is a cost rule, not a
+style preference** — gpt-4o-mini is roughly 15× cheaper.
+
+| Role | Deployment | Purpose |
+|---|---|---|
+| `coach` | `operational-premium` (gpt-4o) | Coaching content, `max_tokens=1500` |
+| `planner` | `operational-premium` | Phase planner structured decisions |
+| `synthesis` | `operational-premium` | Multi-hop synthesis (§26) |
+| `reasoning` | `operational-model` (gpt-4o-mini) | Default reasoning, intermediate hops |
+| `extraction` | `operational-model` | Field extraction |
+| `coherence` | `operational-model` | Layer 2a (§19.7) |
+| `constraint` | `operational-model` | Layer 2c (§34) |
+| `grader` | `operational-model` | Rubric grading (§36) |
+| `summarizer` | `operational-model` | Context compression (§19.3) |
+| `intent` | `operational-model` | Short classification |
+| `vision` | `operational-premium` | Multimodal upload analysis |
+
+**New roles require an amendment.**
+
+### Temperature
+
+| Component | Temperature | Why |
+|---|---|---|
+| Coach responses | 0.5–0.7 | Natural variation improves the Belt's experience |
+| Synthesis (§26) | 0.1–0.2 | Reproducible evidence assembly |
+| Grader | **0.1** | Same gate document must get the same verdict across runs |
+| Coherence (2a) | 0.1 | Consistent verdicts |
+| Constraint (2c) | 0.1 | Consistent verdicts |
+| Planner | 0.1 | Deterministic decomposition |
+| Extraction, field validators | 0.0–0.2 | Same rationale |
+
+**The grader's temperature is a hard requirement, not a tuning knob.** A grader
+returning different verdicts across runs makes the regression thresholds in §52
+meaningless — you cannot detect a 10% quality drop against a baseline that
+moves on its own.
+
+### Structured output — scoped by call type
+
+**There are two mechanisms and the choice is determined by what is being
+called, not by preference.**
+
+| The call is… | Use |
+|---|---|
+| An agent built with `create_agent` | `response_format=Schema` |
+| A plain model invocation inside a tool, middleware or validator | The builder-style structured-output call on the model |
+| Assembling a gate document from already-captured fields | **No LLM call** — Pydantic construction |
+
+**Why the first two exist separately:** `response_format=` attaches to an
+agent's model-tools loop. A tool generating query variants, a middleware
+grading a transcript, and a validator returning per-constraint verdicts are not
+agents — there is no loop to attach to.
+
+Prefer `ProviderStrategy` over `ToolStrategy` where the provider supports
+native JSON mode.
+
+**Complete mapping — every structured output in the system:**
+
+| Component | Schema | Mechanism |
+|---|---|---|
+| Phase planner | `CoachingPlan` | builder-style |
+| **Phase executor** | **`CoachingResponse`** | **`response_format=`** |
+| Layer 2a coherence | `CoherenceResult` | builder-style |
+| Layer 2c constraints | `ConstraintCheckResult` | builder-style |
+| Layer 2d gate grader | `GraderVerdict` | builder-style |
+| `gate_review` | Interrupt payload | **No LLM** — `interrupt()` |
+| `gate_apply` policy advisory | `PolicyAdvisoryResult` | builder-style |
+| `DMAICGraderMiddleware` | `CoachingGraderVerdict` | builder-style |
+| Multi-hop synthesis | `SynthesisOutput` | builder-style |
+| Inside `rag_lookup_*` | `QueryVariants` | builder-style |
+| Gate document assembly | `DefineOutput` … `ControlOutput` | **No LLM** — `Schema(**artifacts)` |
+
+**Never parse JSON from raw LLM text.** Structured output is the only path from
+a model to a typed value.
+
+**Read typed content blocks, never string-index the content.** Model responses
+carry typed content blocks; read `response.content_blocks`. String-indexing or
+substring-parsing the raw content field breaks the moment a provider returns a
+multi-part response.
+
+---
+
+## 22. Prompts
+
+*Supersedes: REFACTORING §38, §40; ARCHITECTURE.md §3.3; CLAUDE.md §6.*
+**Status: RATIFIED.** File: `core/prompts.py`.
+
+**All prompts live as constants in `core/prompts.py`.** Prompt strings are
+never inline in node files.
+
+| Constant | Purpose |
+|---|---|
+| `{PHASE}_COACH_PROMPT` | Phase executor system prompt |
+| `{PHASE}_PLANNER_PROMPT` | Phase planner prompt |
+| `{PHASE}_RUBRIC` | Gate grader rubric (§36) |
+| `{PHASE}_CONSTRAINTS` | Constraint set (§34) |
+| `COACHING_QUALITY_RUBRIC` | The single shared coaching rubric (§36) |
+
+**Retired patterns:** `ORCHESTRATOR_{PHASE}_CONTEXT`, `EXTRACTION_{PHASE}`, and
+`KNOWLEDGE_INJECTION_TEMPLATE`. The last is deleted specifically because RAG
+results arrive as **tool results**, not as a prepended system message (§24).
+
+### The memory hierarchy paragraph is mandatory
+
+Every coach system prompt carries an explicit source hierarchy. **This is the
+ratified mechanism for memory prioritisation — prompt-level priority, not
+per-chunk metadata scoring:**
+
+```
+MEMORY HIERARCHY — when sources disagree, weight them in this order:
+  1. LSS Black Belt methodology (rag_lookup_methodology) — authoritative
+  2. This project's confirmed captured fields — the Belt's own approved facts
+  3. Past case history (rag_lookup_case_history) — patterns, not prescriptions
+  4. Recent conversation — context, not evidence
+Never present case history as methodology. Never let a recent remark
+override a gate-approved value without flagging it.
+```
+
+The ordering carries real weight: **case history is patterns, not
+prescriptions.** Another project's solution is evidence that something worked
+somewhere, not methodology, and a coach that presents it as methodology teaches
+the Belt to copy rather than to reason.
+
+### Anti-hallucination guards are mandatory
+
+Every coach and extraction prompt carries explicit anti-hallucination guards.
+**The LLM must never invent field values from coaching templates.** A template
+showing `baseline_mean: 4.2` as an example is not data — and this is a real
+failure mode, because show-first coaching (§43) puts worked examples directly
+in front of the model on every turn.
+
+**Structured output does not satisfy this rule** (§20). Content-level defence
+requires all three of:
+
+1. Explicit prompt guards
+2. Cross-checking extracted values against the raw conversation
+3. The policy advisory reviewing extracted values before Belt approval (§33)
+
+---
+
+*Parts I–IV end here. Parts V–XI to follow.*
