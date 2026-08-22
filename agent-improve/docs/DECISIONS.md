@@ -1955,3 +1955,95 @@ change. Its omission was an oversight: it is the same class of load-bearing
 schema as `SupervisorState` and `PhaseState`, both of which already gate field
 additions. `contradiction_flag` itself lands inside this amendment; **future
 additions hit the gate.**
+
+---
+
+### R2 — `route_after_phase` deleted: the supervisor does not route, it advances
+
+**Status:** RATIFIED 2026-08-22
+**Source:** Architectural review, 2026-08-22. **New decision.**
+**Lands in:** reference §15 and the same section in
+`agent-improve/ARCHITECTURE.md`; `CLAUDE.md` §9.1. This entry is both the
+decision record and the change-log entry required by §56.
+
+**The contradiction.** §15 showed **both** static phase edges
+(`add_edge("define", "measure")` …) **and** a conditional routing function
+`route_after_phase` returning `"next"` / `"escalate"` / `"retry"`. **A phase
+transition is either static or conditional. It cannot be both.**
+
+#### The evidence, all verified against the live documents
+
+| Finding | Verified |
+|---|---|
+| §13's topology diagram annotates the exit `END (parent's static edge advances the phase)` | Verbatim |
+| `add_conditional_edges` appears **nowhere** in the reference or the copy | Zero occurrences |
+| `"next"` / `"escalate"` / `"retry"` appear **only** inside the function's own `return` statements | Nothing consumes them |
+| `route_after_phase` reads `state["gate_attempts"]` — **not a `SupervisorState` field** (§5's seven are `messages`, `history`, `case_id`, `phase_index`, `current_phase`, `gate_passed`, `final_output`) | Would `KeyError` at runtime |
+| Retry and escalation resolve **inside** the phase subgraph — §13's fail branch loops to the planner, §35 owns the counter, §38's escalation defers to the Belt and never returns upward | Confirmed in all three |
+
+**The `KeyError` would fire only on the gate-failure path**, because the
+`gate_passed` check short-circuits and returns `"next"` first. **The bug is
+invisible until the first failed gate** — the worst possible discovery moment.
+
+**`route_after_phase` was a fossil** of an abandoned design in which the
+supervisor owned retry and escalation. That responsibility moved into the phase
+subgraph; the function was never removed.
+
+#### Why static is *safe*, which is the part worth keeping
+
+**A subgraph reaches `END` only through `gate_apply`, and `gate_apply` runs
+only after Belt approval** (§33). **Reaching `END` therefore *means* the gate
+passed** — so there is no branch for the supervisor to make. The static edge is
+not a simplification that ignores gate failure; it is correct *because* gate
+failure never reaches the supervisor.
+
+#### The ruling
+
+**`route_after_phase` is DELETED**, not rewritten. The static edge chain
+`START → define → measure → analyse → improve → control → END` is the complete
+and correct supervisor wiring. §15's heading becomes **"Level 1 does not route
+— it advances."** `gate_attempts` **stays on `PhaseState`** and is not added to
+`SupervisorState`.
+
+**Scope boundary:** this concerns **Level 1 (supervisor, phase-to-phase) only.**
+All Level 2 routing — §13's field→field, →gate and retry→planner branching, and
+the `Command`-inside-subgraphs rule — is correct and untouched.
+
+---
+
+#### The finding that matters more than the fossil: a rule with no enforcement hole-check
+
+> **`route_after_phase` was already prohibited when it was written, by two
+> rules this project already had.**
+>
+> - **Appendix D.2** bans *"`gate_attempts` in route scope"*
+> - **`CLAUDE.md` §14** carries the identical no-go
+>
+> **`route_after_phase` is route scope reading `gate_attempts`.** The reference
+> contained a code block its own banned-pattern list forbids, and shipped that
+> way through a full verification pass.
+>
+> **The rule was correct. Nothing enforced it against the document's own
+> prose.** The drift registry checks *code* — and `agent-improve/**/*.md` is
+> explicitly path-excluded from patterns 2–8 (§55), for the good reason that
+> governance documents must be able to name a construct in order to prohibit
+> it. **That exclusion is right, and it leaves a hole: a banned pattern
+> presented as a design example inside a governance document is unreachable by
+> every automated check we have.**
+
+**This is the same class as the grep blind spot** (§55) and the retired-name
+`grep-absence`: **a correct rule paired with a check that structurally cannot
+see the thing it governs.** Three instances now, each found by hand:
+
+| Instance | The rule | The hole |
+|---|---|---|
+| Retired tool names | "never reference the retired names" | The named strings never existed, so the check matched a fiction |
+| Rename sweep | "zero stale references" | The tool filters by `.gitignore` and could not see part of the tree |
+| **`route_after_phase`** | "`gate_attempts` never in route scope" | The registry excludes `.md`, so a banned pattern in a *design example* is unchecked |
+
+**Recorded as a pattern, not three anecdotes.** When a rule is written, ask
+what would catch a violation of it **in prose**, not only in code — and if the
+answer is "nothing", say so in the rule rather than assuming coverage. No
+automated fix is proposed here: extending the registry to governance prose
+would re-create the problem §55 documents. **The mitigation is that this class
+is now named and searched for deliberately during review.**

@@ -73,9 +73,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.4 · 2026-08-22
+Version 1.5 · 2026-08-22
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.5 (2026-08-22)** — **§15: `route_after_phase` deleted.** The section showed static phase edges *and* a conditional router returning labels wired to nothing, reading `gate_attempts` off `SupervisorState` where that field does not exist — a `KeyError` on the gate-failure path. A phase transition is either static or conditional; static is correct, because a subgraph reaches `END` only through `gate_apply` and so reaching `END` means the gate passed. Retry and escalation resolve inside the phase. **Level 2 routing untouched.** The deleted function was already prohibited by Appendix D.2 — see DECISIONS §R2 for that finding. Decision record: `agent-improve/docs/DECISIONS.md` §R2.
 
 **v1.4 (2026-08-22)** — **Contradiction detection redesigned** (§19.6, §20, §32, §37, §50). The middleware's mechanical dict comparison is deleted — it read a Store key `gate_apply` does not write until phase end, and matched field names where **38 of 41 content fields are unique to one phase**. Detection moves to the coach via SKILL.md instruction and a new `CoachingResponse.contradiction_flag`; **no LLM call is added anywhere**. The middleware keeps its position and hook and becomes a flag-reader. §56 gains `CoachingResponse` to its amendment-required list — that omission was an oversight. Decision record: `agent-improve/docs/DECISIONS.md` §R1.
 
@@ -1459,16 +1461,39 @@ whether to trigger the gate.
 absolute rather than stylistic: there is no error, no warning, and the symptom
 appears far from the cause.
 
-### Level 1 routes on `gate_passed`
+### Level 1 does not route — it advances
 
-The supervisor's decision is a deterministic gate-check, not a reasoning step:
+**The supervisor makes no decision at a phase boundary.** The six `add_edge`
+calls above are the complete Level 1 wiring; there is no conditional edge, no
+router function, and nothing for the supervisor to branch on.
 
-```python
-def route_after_phase(state: SupervisorState) -> str:
-    if state["gate_passed"].get(state["current_phase"]):
-        return "next"
-    return "escalate" if state["gate_attempts"] >= 3 else "retry"
-```
+**Why that is safe, rather than a simplification that ignores gate failure:**
+
+> **A phase subgraph reaches `END` only through `gate_apply`, and `gate_apply`
+> runs only after Belt approval** (§33). **Reaching `END` therefore *means* the
+> gate passed.** A failing gate never arrives at the supervisor — it loops back
+> to the planner inside the subgraph, or exits sideways to escalation (§13).
+
+**Retry and escalation are resolved inside the phase**, never above it:
+
+| Concern | Where it lives |
+|---|---|
+| Retry after a failed validation layer | §13's conditional edge — `validation_stack` → fail → back to the planner with `validator_feedback` |
+| The attempt counter | `PhaseState.gate_attempts`, incremented by the validation stack, reset by `gate_apply` (§6, §35) |
+| Escalation at `>= 3` | A conditional edge **from inside the phase** to the escalation subgraph (§38), which defers to the Belt and **never returns to the supervisor** |
+
+**`gate_attempts` is read only inside the phase. It is not on
+`SupervisorState`** (§5, seven fields) **and must not be added to it.** Holding
+it in route scope is a banned pattern (Appendix D.2).
+
+> **A `route_after_phase` function was deleted from this section on
+> 2026-08-22.** It returned `"next"` / `"escalate"` / `"retry"` — labels wired
+> to nothing — and read `state["gate_attempts"]` off `SupervisorState`, where
+> that field does not exist, so it would have raised `KeyError` **on the
+> gate-failure path specifically.** It was a fossil of an abandoned design in
+> which the supervisor owned retry and escalation; that responsibility moved
+> into the phase subgraph and the function was never removed. **Do not
+> reinstate it.** Full record: `agent-improve/docs/DECISIONS.md` §R2.
 
 ### No subgraph imports another subgraph's nodes
 

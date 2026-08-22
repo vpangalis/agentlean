@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.19 — August 2026
+# Version 2.2.20 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -332,6 +332,43 @@ state. **A pattern adopted by name carries its source's assumptions about state
 shape, write timing and naming, and those assumptions are invisible in the
 name.** Other course-derived components are flagged for the same review. Full
 record: `docs/DECISIONS.md` §R1.
+
+### 0.14 — What Changed in 2.2.20 — the supervisor does not route
+
+**A dead routing function was deleted from the architecture reference's §15.**
+`route_after_phase` returned `"next"` / `"escalate"` / `"retry"` — labels wired
+to nothing — and read `state["gate_attempts"]` off `SupervisorState`, where
+**that field does not exist** (§10.1's seven fields). It would have raised
+`KeyError` **on the gate-failure path specifically**, which is the last place a
+latent bug should sit.
+
+**It contradicted the static edges printed directly above it.** A phase
+transition is either static or conditional; it cannot be both. Static is
+correct, and **safe for a reason worth stating**: a subgraph reaches `END` only
+through `gate_apply`, which runs only after Belt approval — so **reaching `END`
+means the gate passed**, and there is no branch for the supervisor to make.
+Retry and escalation resolve inside the phase (§3.3, §9.2, §3.5).
+
+| Area | v2.2.19 | v2.2.20 |
+|---|---|---|
+| Supervisor routing | Static edges **and** a conditional router | **Static edges only** — the router is deleted |
+| §9.1 step 9 | "Supervisor reads `gate_passed`, routes onward" | **"The parent's static edge advances"** — the supervisor makes no decision |
+| `gate_attempts` | On `PhaseState` | **Unchanged.** Not added to `SupervisorState`, and route scope remains banned (§14) |
+| Level 2 routing | — | **Untouched.** `Command` inside subgraphs stays correct |
+
+**Step 9's wording was tightened deliberately.** "Routes onward" was not wrong,
+but it was the last phrasing from which the wrong mental model could be
+re-derived — **loose-but-plausible language is how a deleted design regrows.**
+
+> **The finding worth carrying forward:** `route_after_phase` was **already
+> prohibited** when it was written. §14 bans holding `gate_attempts` in route
+> scope, and that function was route scope reading `gate_attempts`. **The rule
+> was correct; nothing enforced it against a design example inside a governance
+> document** — the drift registry checks code, and `agent-improve/**/*.md` is
+> path-excluded for the good reason that a governance file must be able to name
+> a construct to forbid it. **Third instance of one pattern: a correct rule
+> paired with a check that structurally cannot see what it governs.** Full
+> record: `docs/DECISIONS.md` §R2.
 
 ---
 
@@ -1849,7 +1886,7 @@ is stale (§8.2).
 | 6. **Policy advisory** | Validates the Belt's edits against required-field policy, cross-phase consistency, and previously approved values (§9.4). **Non-blocking.** | **Human's edits** |
 | 7. Belt approves | Belt confirms the gate is ready; the gate document is assembled and written to the store **and** `PhaseState.final` (§9.6) | — |
 | 8. Checkpoint saves | State committed **only now** | — |
-| 9. Next task | Supervisor reads `gate_passed`, routes onward | — |
+| 9. Next phase | **The subgraph reaches `END`; the parent's static edge advances to the next phase.** The supervisor makes no decision — reaching `END` already means the gate passed (§3.1) | — |
 
 **Two quality checks, two actors, two moments.** The grader blocks
 (step 2) because it checks the AI's own output and there is no reason
