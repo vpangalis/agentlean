@@ -1,6 +1,6 @@
 # Agent Improve — Refactoring Procedure
 **AgentLean Platform · DMAIC Improvement Agent**
-Version 1.1 · 2026-08-22
+Version 1.2 · 2026-08-22
 Status: **RATIFIED.** The ordered path from the v1 tree to the target in
 `../../AGENTIC_ARCHITECTURE_REFERENCE.md`.
 
@@ -878,6 +878,27 @@ exhausts its retries, `DMAICGraderMiddleware` is skipped for that turn (§19).
 **Three independent retry caps, and they must not be merged** — model retry 2,
 coherence 2, validation stack 3 (§19).
 
+> ### ⚠ `ContradictionDetectionMiddleware` is a flag-reader — build it that way
+>
+> **Redesigned 2026-08-22 (`DECISIONS.md` §R1).** Its entire body is:
+>
+> ```python
+> def after_agent(self, state, runtime):
+>     flag = state["structured_response"].contradiction_flag
+>     if flag:
+>         raise HITLInterrupt(**flag)
+> ```
+>
+> **Do NOT build the mechanical comparison** — no `store.get`, no
+> `current_phase` read, no field-name matching. That version is deleted from
+> the architecture because it could not work: it read a Store key
+> `gate_apply` does not write until phase end, and matched names where 38 of
+> 41 content fields are unique to one phase.
+>
+> **This step depends on `contradiction_flag` existing on `CoachingResponse`**
+> — added in step 6.2's schema. If it is absent, 6.2 is incomplete; fix that
+> rather than reintroducing comparison logic here.
+
 ---
 
 ## Step 6.6 — Prompts
@@ -894,8 +915,17 @@ The v1 `ORCHESTRATOR_{PHASE}_CONTEXT`, `EXTRACTION_{PHASE}` and
 carries the memory hierarchy paragraph and the anti-hallucination guards** —
 both mandatory (§22).
 
-**Done when:** those three v1 constant families return zero grep hits, and every
-`{PHASE}_COACH_PROMPT` contains the memory-hierarchy block.
+**The contradiction-check instruction lands here or in the SKILL.md files it
+depends on** (§32, §37, `DECISIONS.md` §R1): every turn, compare the Belt's
+input against prior committed values already in context and set
+`contradiction_flag` on a **material** numeric or categorical contradiction of
+a committed value — never prose rephrasing, never refinement of a
+not-yet-committed current-phase value. **Step 6.5's middleware does nothing
+without it** — the flag is the only thing it reads.
+
+**Done when:** those three v1 constant families return zero grep hits, every
+`{PHASE}_COACH_PROMPT` contains the memory-hierarchy block, and all five
+SKILL.md files carry the contradiction-check instruction.
 
 ---
 
@@ -1272,7 +1302,7 @@ judgment and both inform the design as it lands (§53.1).
 
 | Workstream | Reference § | Cadence |
 |---|---|---|
-| **The five SKILL.md files** | §32, §43 | Should lead step 6.6 — the coach prompts reference skill content |
+| **The five SKILL.md files** | §32, §43 | Should lead step 6.6 — the coach prompts reference skill content. **Each must carry the contradiction-check instruction** (§37, `DECISIONS.md` §R1); without it step 6.5's middleware never fires |
 | **The evaluation dataset** | §52 | Becomes load-bearing once 6.2 lands. Before that there is no coaching quality to measure |
 
 **Open item on §52:** the >10% regression threshold is currently an asserted

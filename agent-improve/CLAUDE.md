@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.18 — August 2026
+# Version 2.2.19 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -300,6 +300,38 @@ absorbed into the reference. Its two registers that existed nowhere else —
 §17 Decisions Resolved and §18 Change Log — are at
 `docs/ARCHITECTURE_v2216_registers.md`; the full original is at commit
 `8533879`.
+
+### 0.13 — What Changed in 2.2.19 — contradiction detection redesigned
+
+**`ContradictionDetectionMiddleware`'s mechanical dict comparison is deleted.**
+It could not do its job, in three independent ways verified against the
+schemas: it read `store.get(..., current_phase)`, which `gate_apply` does not
+write until phase end; it matched on field names where **38 of 41 content
+fields are unique to exactly one phase**; and the 3 shared names are all prose,
+where `!=` fires on any rewording. Repairing the first leaves 3 prose fields
+out of 41.
+
+| Area | v2.2.18 | v2.2.19 |
+|---|---|---|
+| Detection | Deterministic dict comparison in middleware | **Semantic, by the coach**, via SKILL.md instruction (§8.3) |
+| `CoachingResponse` | 3 fields | **4** — adds `contradiction_flag` (§10.7) |
+| The middleware | Compares, then raises | **Reads the flag, then raises** (§8.8) |
+| LLM calls added | — | **None.** The flag rides the existing response call |
+| Position, hook, order | 6, `after_agent` | **Unchanged** |
+| Cascade (§9.5) | — | **Unchanged.** Only detection changed |
+| `CoachingResponse` field additions | Ungated | **Require an amendment** (§18) |
+
+**Detection is now best-effort semantic rather than illusory-deterministic.**
+The old mechanism's danger was looking deterministic while detecting nothing.
+The all-gate-fields tab (§13) is the acknowledged human backstop.
+
+**Provenance: the first confirmed course-pattern fit-bug.** The middleware was
+adopted as a named pattern from the Edureka course without checking its
+mechanism against DMAIC's phase-partitioned, differently-named, gate-written
+state. **A pattern adopted by name carries its source's assumptions about state
+shape, write timing and naming, and those assumptions are invisible in the
+name.** Other course-derived components are flagged for the same review. Full
+record: `docs/DECISIONS.md` §R1.
 
 ---
 
@@ -1751,12 +1783,25 @@ in LangChain 1.x — never write it.
 ### 8.8 — `ContradictionDetectionMiddleware` — the §9.4 check
 
 **Custom, `after_agent`, position 6.** Implements the mid-phase conflict
-detection of §9.4. Reads `CoachingResponse.fields_captured` after the
-executor runs and compares each captured field against the store-held
-gate-approved value for that phase. Any mismatch raises `HITLInterrupt`.
+detection of §9.4. **It reads a flag; it does not detect anything itself.**
 
-**Deterministic dict comparison. No LLM call**, negligible latency — and
-**no tolerance threshold**, per §9.4.
+```python
+def after_agent(self, state, runtime):
+    flag = state["structured_response"].contradiction_flag
+    if flag:
+        raise HITLInterrupt(**flag)
+```
+
+**No store read. No LLM call. No field-name matching.** Detection is done by
+the coach in the response call that already runs every turn, and arrives as
+`CoachingResponse.contradiction_flag` (§10.7). **No tolerance threshold**, per
+§9.4.
+
+**The mechanical dict comparison this replaced could not work** — it read
+`store.get(..., current_phase)`, which `gate_apply` does not write until phase
+end, and it matched on field names where 38 of 41 fields are unique to one
+phase. Full analysis: `docs/DECISIONS.md` §R1. **Never reintroduce the
+comparison.**
 
 **Why middleware rather than logic inside the executor node:** the check
 polices the executor's own output, so it does not belong to the thing it
@@ -1874,7 +1919,7 @@ Every attempt at every layer is logged to `step_log` as a dict (§10.3).
 | 2b Field presence | ❌ | ❌ | ✅ |
 | 2c Constraint | ❌ | ✅ | ✅ full check |
 | 2d Quality rubric | ❌ | ❌ | ✅ last |
-| Mid-phase contradiction (§9.4) | ✅ | ✅ | ✅ |
+| Mid-phase contradiction (§9.4) — **semantic as of §R1; cadence reviewed and kept, the coach runs every turn** | ✅ | ✅ | ✅ |
 
 **The self-healing hierarchy — and the transparency principle:**
 
@@ -1903,14 +1948,23 @@ Every attempt at every layer is logged to `step_log` as a dict (§10.3).
 The policy advisory does **not** only run at gate boundaries. It runs
 **before each coach response is returned to the Belt**.
 
-**Mechanics:**
-- Compares the Belt's most recent statements against the `artifacts`
-  already committed in prior gate documents
-- **If any numeric or categorical value differs, the coach's response
-  is suppressed and a HITL interrupt payload is emitted**
-- Payload: field name, previously approved value, its approval
-  timestamp and gate, the proposed new value, two Belt-facing options
-- Structured diff — **no LLM call**, negligible latency
+**Mechanics — semantic detection by the coach** (`docs/DECISIONS.md` §R1):
+- **The coach compares** the Belt's input against the prior committed values
+  already in its context, and sets `CoachingResponse.contradiction_flag`
+  (§10.7) on a **material** contradiction. The instruction governing this
+  lives in each SKILL.md (§8.3)
+- `ContradictionDetectionMiddleware` (§8.8) reads the flag and **raises
+  `HITLInterrupt`**; the coach's response is suppressed
+- Payload: contradicted field, approved value and approving phase, proposed
+  value, the Belt's own words, two Belt-facing options
+- **No additional LLM call** — the flag rides the response call that already
+  runs every turn
+- **Flag only material numeric or categorical contradictions of committed
+  values** — never prose rephrasing, never refinement of a not-yet-committed
+  current-phase value
+
+**Detection is best-effort semantic, not deterministic.** The all-gate-fields
+tab (§13) is the acknowledged human backstop.
 
 **Belt's two options:**
 
@@ -2402,7 +2456,14 @@ class CoachingResponse(BaseModel):
     message: str                        # coaching text the Belt sees
     fields_captured: list[dict] = []    # [{field_name: str, value: Any, source: str}]
     citations: list[dict] = []          # sources referenced this turn
+    contradiction_flag: Optional[dict] = None   # §9.4 — material contradiction only
 ```
+
+**`contradiction_flag` carries `prior_field`, `approved_value`,
+`approved_phase`, `proposed_value`, `belt_input` when set**, and is produced by
+this same `response_format` call — no additional LLM call (§9.4, §8.8).
+**Adding any field to `CoachingResponse` requires an amendment** (§18) — it is
+load-bearing in the same way `SupervisorState` and `PhaseState` are.
 
 **`value` is `Any`, not `str`, and that is deliberate** — it must carry
 both plain string fields and the three cross-phase reference dicts
@@ -2933,6 +2994,8 @@ This file is amended only via:
    the `../AGENTIC_ARCHITECTURE_REFERENCE.md` section that owns the topic
 2. A commit to CLAUDE.md updating the relevant rule
 3. Increment to the version number at the top
+3b. **A new field on `SupervisorState`, `PhaseState` or `CoachingResponse`
+   requires an amendment** — all three are load-bearing schemas (§10.1, §10.7)
 4. **A numbered `§0.x` change entry in this file**, saying what changed and
    why. The reference's own change log lives in `docs/DECISIONS.md` plus a
    one-line version note at its head — it has no change-log section, by design

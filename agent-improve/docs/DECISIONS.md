@@ -1841,3 +1841,117 @@ question is decided before the pressure to bind them arises:
 
 **Never write to Agent Resolve indexes** (§23.5). Read-only is not a default
 that can be relaxed.
+
+---
+
+## Part R — Contradiction detection redesigned (2026-08-22)
+
+### R1 — `ContradictionDetectionMiddleware`: mechanical comparison removed, detection moved to the coach
+
+**Status:** RATIFIED 2026-08-22
+**Source:** Architectural review, 2026-08-22. **New decision — not a
+previously-logged item.**
+**Lands in:** reference §19.6, §20, §32, §37, §50 (and the same five in
+`agent-improve/ARCHITECTURE.md`); `CLAUDE.md` §8.8, §9.4, §10.7;
+`REFACTORING_PROCEDURE.md` steps 6.5 and 6.6. This entry is both the decision
+record and the change-log entry required by §56.
+
+**The question.** `ContradictionDetectionMiddleware` was specified as
+deterministic dict comparison with no LLM call, implementing the mid-phase
+contradiction check of §37. Analysis showed **the mechanism cannot do its
+job** — and not in a way a bug fix reaches.
+
+#### Three defects, each verified against the live documents
+
+**(a) It reads the wrong drawer.** The middleware calls
+`store.get(("projects", case_id, "artifacts"), state["current_phase"])`.
+`gate_apply_node` is the **only** writer to that namespace and writes at step 7
+of the nine-step gate (§33.2) — phase end. **Mid-phase the key does not exist**,
+so the check reads nothing, every turn, by construction.
+
+**(b) Field-name matching finds almost nothing.** Even repaired to read prior
+phases, it matches on field *name*, and the five `{Phase}Output` schemas
+deliberately use different names per phase. Measured across §40:
+
+| | Count |
+|---|---|
+| Distinct content fields, all five phases (gate metadata excluded) | **41** |
+| **Unique to exactly one phase** | **38** |
+| Shared across more than one phase | **3** |
+
+`baseline_metric` (Define) and `baseline_mean` (Measure) are the canonical
+case: the same quantity, deliberately different names. **93% of fields cannot
+cross-phase name-match at all.**
+
+**(c) The three shared names are all prose.** `issues_and_barriers` (all five
+phases), `secondary_metrics` (all five), `process_owner_buyin` (Analyse and
+Improve). All free text, where `!=` fires on **any rewording** — false
+positives, not detections.
+
+**Why this is a redesign and not a fix.** With (a) repaired the reachable
+surface is 3 prose fields out of 41, and on those the mechanism produces noise.
+**Real contradictions arrive as natural-language prose referencing prior
+committed values under different field names.** That requires semantic
+understanding. Dict comparison cannot be repaired into it.
+
+#### The ruling — detection moves to the coach, no new LLM call
+
+| Component | Change |
+|---|---|
+| **SKILL.md** (all five, §32) | Each phase's coach prompt gains a contradiction-check instruction: compare the Belt's input against prior committed values **already in context** (injected by `BeforeModelStateInjection` at `before_agent`), and populate `contradiction_flag` on a material contradiction |
+| **`CoachingResponse`** (§20) | Gains `contradiction_flag: Optional[dict] = None`, carrying `prior_field`, `approved_value`, `approved_phase`, `proposed_value`, `belt_input` |
+| **`ContradictionDetectionMiddleware`** (§19.6) | **Mechanical comparison deleted entirely** — the `store.get`, the name matching, the `current_phase` read. Becomes: `after_agent` reads the flag; if set, raise `HITLInterrupt` with its contents |
+| **§37** | Mechanics updated to semantic detection. **The cascade is unchanged** |
+
+**No new LLM call anywhere.** The flag is produced by the coach's existing
+`response_format=CoachingResponse` call — the same call that already returns
+`message`, `fields_captured` and `citations`.
+
+**The architecture is unchanged.** The middleware stays a component, stays at
+position 6, stays on `after_agent`, stays ahead of `CoherenceMiddleware` and
+`DMAICGraderMiddleware`. Only its internals change.
+
+**False positives are controlled by instruction, not by threshold.** SKILL.md
+directs the coach to flag only **material numeric or categorical
+contradictions of committed values** — never prose rephrasing, and never
+refinement of not-yet-committed current-phase values. **The no-tolerance rule
+of §37 is untouched**: it governs what happens once a contradiction is
+confirmed, not what counts as one.
+
+**Structured output guarantees the flag's shape and presence, not the
+correctness of the coach's judgment** — consistent with §20's existing point
+that structured output gives shape, never truth.
+
+#### What this honestly costs
+
+**Detection is now best-effort semantic rather than illusory-deterministic.**
+The old mechanism's danger was that it *looked* deterministic while detecting
+nothing; the new one depends on coach judgment and can miss. **The
+always-referenceable all-gate-fields tab — every field, open and closed — is
+the documented human backstop for what the coach's judgment misses.** That is
+an intentional second layer, not a gap.
+
+#### Provenance — the first confirmed course-pattern fit-bug
+
+**This middleware was adopted as a named pattern from the Edureka course
+without verifying its mechanism fit our state model.** DMAIC state is
+phase-partitioned, deliberately differently-named per phase, and written only
+at gates. The pattern assumed a single flat namespace with stable field names
+and continuous writes. **The name was right and the mechanism was never checked
+against the thing it would run on.**
+
+> **Flag this class of issue for review of other course-derived components.**
+> A pattern adopted by name carries its source's assumptions about state shape,
+> write timing and naming. **Those assumptions are invisible in the pattern's
+> name and were not re-derived when it was adopted here.** This is the same
+> failure family as the `ModelRetryMiddleware(retries=)` keyword and the
+> retired-name `grep-absence` — something plausible, adopted once, never
+> re-checked against reality.
+
+#### Consequential
+
+**`CoachingResponse` is added to §56's amendment-required list** in this same
+change. Its omission was an oversight: it is the same class of load-bearing
+schema as `SupervisorState` and `PhaseState`, both of which already gate field
+additions. `contradiction_flag` itself lands inside this amendment; **future
+additions hit the gate.**

@@ -1,8 +1,10 @@
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.3 · 2026-08-22
+Version 1.4 · 2026-08-22
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.4 (2026-08-22)** — **Contradiction detection redesigned** (§19.6, §20, §32, §37, §50). The middleware's mechanical dict comparison is deleted — it read a Store key `gate_apply` does not write until phase end, and matched field names where **38 of 41 content fields are unique to one phase**. Detection moves to the coach via SKILL.md instruction and a new `CoachingResponse.contradiction_flag`; **no LLM call is added anywhere**. The middleware keeps its position and hook and becomes a flag-reader. §56 gains `CoachingResponse` to its amendment-required list — that omission was an oversight. Decision record: `agent-improve/docs/DECISIONS.md` §R1.
 
 **v1.3 (2026-08-22)** — Six sections that carry platform mechanism with Agent Improve instantiation now say so inline: §5, §6, §23, §30, §32, §35. **This pre-labels the seams for when this document is generalised** across Resolve and Flow — the Part VIII boundary is clean structurally but blurry in content, and these six are where it is blurriest. No content changed.
 
@@ -1768,29 +1770,45 @@ rather than raising and killing the graph mid-session.
 **Custom · `after_agent` · position 6.** Implements the mid-phase conflict
 detection of §37.
 
-Reads `CoachingResponse.fields_captured` after the executor runs and compares
-each captured field against the Store-held gate-approved value for that phase.
-**Any mismatch raises `HITLInterrupt`.**
+**It reads a flag. It does not detect anything itself.**
 
 ```python
 class ContradictionDetectionMiddleware(AgentMiddleware):
     def after_agent(self, state, runtime):
-        for field in state["structured_response"].fields_captured:
-            prior = store.get(
-                ("projects", state["case_id"], "artifacts"),
-                state["current_phase"],
-            )
-            if prior and field["field_name"] in prior:
-                if prior[field["field_name"]] != field["value"]:
-                    raise HITLInterrupt(
-                        field=field["field_name"],
-                        approved_value=prior[field["field_name"]],
-                        proposed_value=field["value"],
-                    )
+        flag = state["structured_response"].contradiction_flag
+        if flag:
+            raise HITLInterrupt(**flag)
 ```
 
-**Deterministic dict comparison. No LLM call**, negligible latency. **No
-tolerance threshold**, and none may be added — the reasoning is in §37.
+**No Store read. No LLM call. No field-name matching.** Detection is performed
+by the coach, in the model call that already runs every turn, and arrives as
+`CoachingResponse.contradiction_flag` (§20). This middleware's whole job is to
+turn that flag into an interrupt.
+
+**No tolerance threshold**, and none may be added — the reasoning is in §37.
+
+> ### The mechanical comparison this replaced could not work — DECISIONS §R1
+>
+> Until 2026-08-22 this middleware did deterministic dict comparison against
+> the Store. **Three defects, each verified:**
+>
+> 1. **It read the wrong drawer.** It called `store.get(..., current_phase)`,
+>    but `gate_apply_node` is the only writer and writes at phase *end*
+>    (§33.2). **Mid-phase the key does not exist**, so it read nothing, every
+>    turn, by construction.
+> 2. **Field-name matching finds almost nothing.** Of 41 distinct content
+>    fields across the five `{Phase}Output` schemas, **38 are unique to exactly
+>    one phase** — `baseline_metric` in Define, `baseline_mean` in Measure, the
+>    same quantity deliberately differently named. **93% cannot cross-phase
+>    name-match at all.**
+> 3. **The 3 shared names are all prose** — `issues_and_barriers`,
+>    `secondary_metrics`, `process_owner_buyin` — where `!=` fires on any
+>    rewording. False positives, not detections.
+>
+> **Repairing (1) leaves 3 prose fields out of 41.** Real contradictions arrive
+> as natural-language prose referencing prior committed values under different
+> field names, which needs semantic understanding. **Dict comparison cannot be
+> repaired into that**, which is why this was a redesign and not a fix.
 
 **Why middleware rather than logic inside the executor node:** the check
 polices the executor's own output, so it does not belong to the thing it
@@ -1868,10 +1886,38 @@ Full treatment, including the rubric text and the two-grader distinction, is
 ```python
 class CoachingResponse(BaseModel):
     """Structured extraction from each coaching turn."""
-    message:         str                 # coaching text the Belt sees
-    fields_captured: list[dict] = []     # [{field_name, value, source}]
-    citations:       list[dict] = []     # sources referenced this turn
+    message:            str                 # coaching text the Belt sees
+    fields_captured:    list[dict] = []     # [{field_name, value, source}]
+    citations:          list[dict] = []     # sources referenced this turn
+    contradiction_flag: Optional[dict] = None   # §37 — set only on a material
+                                                # contradiction of a committed value
 ```
+
+**`contradiction_flag` carries five keys when set:**
+
+```python
+{"prior_field":    str,   # the committed field being contradicted
+ "approved_value": str,   # what was gate-approved
+ "approved_phase": str,   # which phase committed it
+ "proposed_value": str,   # what the Belt is now asserting
+ "belt_input":     str}   # the Belt's own words, for the interrupt payload
+```
+
+**It is produced by this same `response_format` call — there is no additional
+LLM call anywhere in the contradiction path** (§19.6, DECISIONS §R1). The coach
+compares the Belt's input against the prior committed values already in its
+context, injected by `BeforeModelStateInjection` at `before_agent` (§19.1).
+**Each SKILL.md carries the instruction that governs when to set it** (§32).
+
+**Adding a field to `CoachingResponse` requires an amendment** (§56) — it is
+load-bearing in the same way `SupervisorState` and `PhaseState` are.
+
+**Structured output guarantees the flag's shape and its presence — never the
+correctness of the coach's judgment in setting it.** A schema-valid
+`contradiction_flag` describing a contradiction that is not one is exactly as
+well-formed as a correct one. This is the same limit stated below for captured
+values, and it is why §50's all-gate-fields tab is the documented human
+backstop rather than a convenience.
 
 **`value` is `Any`, not `str`, and that is deliberate.** It must carry both
 plain string fields and the three cross-phase reference dicts (§7). Typing it
@@ -2964,6 +3010,14 @@ multi-deployment stage.
 - A **Document Layout** section showing the Belt what the gate document will
   look like when complete
 - Upload handling and `CoachingResponse` capture instructions
+- **The contradiction-check instruction** (§37, DECISIONS §R1) — every turn,
+  compare the Belt's input against the prior committed values already in
+  context and set `contradiction_flag` (§20) on a material contradiction.
+  **Flag only material numeric or categorical contradictions of
+  gate-committed values. Never prose rephrasing, and never refinement of a
+  not-yet-committed current-phase value** — that constraint is what keeps
+  false positives down, and it lives in the instruction because there is no
+  threshold to tune (§37)
 
 ### Two distinct kinds of skill exist in this repository
 
@@ -3413,14 +3467,28 @@ mechanism** — that separation is the point.
 
 ### The check runs every turn, not only at gates
 
-**Mechanics:**
-- Compares the Belt's most recent captured fields against the `artifacts`
-  already committed in prior gate documents
-- **If any numeric or categorical value differs, the coach's response is
-  suppressed and a HITL interrupt payload is emitted**
-- Payload: field name, previously approved value, its approval timestamp and
-  gate, the proposed new value, two Belt-facing options
-- **Structured diff — no LLM call**, negligible latency
+**Mechanics — semantic detection by the coach, as of DECISIONS §R1:**
+
+- **The coach compares** the Belt's input against the prior committed values
+  already in its context (injected at `before_agent`, §19.1). The instruction
+  governing this lives in each SKILL.md (§32)
+- On a **material** contradiction of a gate-committed value it sets
+  `CoachingResponse.contradiction_flag` (§20) — **in the response call that
+  already runs every turn. No additional LLM call**
+- `ContradictionDetectionMiddleware` (§19.6) reads the flag on `after_agent`
+  and **raises `HITLInterrupt`**; the coach's response is suppressed and the
+  interrupt payload goes to the Belt
+- Payload: the contradicted field, its approved value and approving phase, the
+  proposed value, the Belt's own words, and the two Belt-facing options below
+
+**The check still runs every turn** — the coach runs every turn, so moving
+detection into it changes the mechanism, not the cadence.
+
+> **Detection is best-effort semantic, not deterministic**, and that is an
+> honest downgrade from what the previous mechanism *claimed*. It detected
+> nothing while looking deterministic (§19.6). **§50's always-referenceable
+> all-gate-fields tab is the acknowledged human backstop** for contradictions
+> the coach's judgment misses.
 
 **The Belt's two options:**
 
@@ -4420,6 +4488,18 @@ percentage would read as 55% and imply otherwise.
 **The LangSmith run id is surfaced for support escalation** (§51) — a Belt
 reporting a bad turn can name the exact trace.
 
+### The all-gate-fields tab is the contradiction backstop
+
+**Every gate field, every phase, open and closed, always referenceable.** Not
+only the current phase and not only the incomplete fields.
+
+**This is a deliberate second layer, not a convenience.** Contradiction
+detection is best-effort semantic judgment by the coach (§37, §19.6,
+DECISIONS §R1), and judgment misses. **A Belt who can see every committed
+value at any moment can catch what the coach did not** — which is why this tab
+is architecture rather than UI polish, and why it must stay reachable from any
+phase rather than being scoped to the phase in flight.
+
 ### The conflict resolution panel
 
 **The UI surface of §37.** When contradiction detection fires, the Belt sees
@@ -4842,8 +4922,10 @@ Architecture changes are separate commits.
 
 ### What requires an amendment rather than a routine change
 
-- An eighth `SupervisorState` field (§5) or a fifteenth `PhaseState` content
-  field (§6)
+- An eighth `SupervisorState` field (§5), a fifteenth `PhaseState` content
+  field (§6), or **any new field on `CoachingResponse` (§20)** — all three are
+  load-bearing schemas. `CoachingResponse`'s omission from this list until
+  2026-08-22 was an oversight (DECISIONS §R1)
 - A new graph node type in a phase subgraph (§13)
 - A new middleware, or any change to stack order (§19)
 - A new LLM role (§21)
