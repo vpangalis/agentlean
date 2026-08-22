@@ -1,8 +1,10 @@
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.2 · 2026-08-22
+Version 1.3 · 2026-08-22
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.3 (2026-08-22)** — Six sections that carry platform mechanism with Agent Improve instantiation now say so inline: §5, §6, §23, §30, §32, §35. **This pre-labels the seams for when this document is generalised** across Resolve and Flow — the Part VIII boundary is clean structurally but blurry in content, and these six are where it is blurriest. No content changed.
 
 **v1.2 (2026-08-22)** — Renamed from `AGENT_IMPROVE_BIBLE.md` and moved to the
 monorepo root. **The scope statement changed with it**: this is the platform
@@ -66,7 +68,12 @@ Agent Resolve or Agent Flow are built to this reference, each brings its own
 domain part; Part VIII is the worked example of what such a part contains, not
 a constraint on the others.
 
-> **Two things follow, and both bind.**
+> **Six sections are annotated inline** where a platform mechanism carries an
+Improve-specific instantiation — §5, §6, §23, §30, §32, §35. Look for the
+**Scope:** note under the status line. They are the seams to cut along when
+this document is generalised.
+
+**Two things follow, and both bind.**
 >
 > **Worked examples are Agent Improve's because it is the agent being built.**
 > Where a section illustrates a rule with `improve_case_index`, `PhaseState`, or
@@ -440,6 +447,8 @@ here. It is deliberately first.*
 
 *Supersedes: REFACTORING §17; ARCHITECTURE.md §4.1; DECISIONS §A1.*
 **Status: RATIFIED.** File: `core/state.py`.
+> **Scope:** the mechanism is platform; the instantiation below is Agent Improve's — the two-level state split and the seven-field ceiling bind on every agent; the field *names* are Improve's
+
 
 ```python
 class SupervisorState(TypedDict):
@@ -517,6 +526,8 @@ structural rather than stylistic.
 
 *Supersedes: REFACTORING §18; ARCHITECTURE.md §4.2; DECISIONS §A2.*
 **Status: RATIFIED.** File: `core/substate.py`.
+> **Scope:** the mechanism is platform; the instantiation below is Agent Improve's — one private state per subgraph, typed, checkpointed, is platform; `belt_edits`, `gate_attempts` and the DMAIC-facing names are Improve's
+
 
 ```python
 class PhaseState(TypedDict):
@@ -2059,6 +2070,8 @@ requires all three of:
 
 *Supersedes: REFACTORING §36, §40; ARCHITECTURE.md §7.1–§7.3; CLAUDE.md §7.3.*
 **Status: RATIFIED, with two pending schema changes marked below.**
+> **Scope:** the mechanism is platform; the instantiation below is Agent Improve's — the three-index split — methodology, evidence, case history — is platform; the `improve_*` names, schemas and field lists are Improve's. Agent Resolve's equivalents are `knowledge_index_v2`, `evidence_index_v1`, `case_index_v3`
+
 **Canonical home for all index schemas.**
 
 Three Azure AI Search indexes, one per retrieval tool. **Each tool is bound to
@@ -2817,6 +2830,8 @@ that may be relaxed.
 
 *Supersedes: REFACTORING §39; ARCHITECTURE.md §8.2; CLAUDE.md §5.2; DECISIONS §B7.*
 **Status: RATIFIED.** File: `knowledge/computation.py`.
+> **Scope:** the mechanism is platform; the instantiation below is Agent Improve's — per-phase binding and the 16-tool ceiling are platform; **all twenty tools are Six Sigma statistics** and belong to Improve alone
+
 
 ### Tool sets are per phase, not universal
 
@@ -2905,6 +2920,8 @@ someone editing the tool will read (Appendix B item 1).
 
 *Supersedes: REFACTORING §83, §84; ARCHITECTURE.md §8.4; CLAUDE.md §8.3.*
 **Status: RATIFIED.** Loaded by `DMAICSkillsMiddleware` (§19.2).
+> **Scope:** the mechanism is platform; the instantiation below is Agent Improve's — progressive disclosure, `FilesystemBackend`, and `allowed-tools` matching the phase subset are platform; the five skills being *DMAIC phases* is Improve's
+
 
 Five phase skills under `agent-improve/skills/`, following the agentskills.io
 SKILL.md standard:
@@ -3188,6 +3205,7 @@ low-risk, whereas a high-risk project's decision inherently involves risk.
 
 *Supersedes: REFACTORING §42, §68; ARCHITECTURE.md §3.7.1; CLAUDE.md §9.7; DECISIONS §C1, §C2.*
 **Status: RATIFIED.**
+> **Scope:** the mechanism is platform; the instantiation below is Agent Improve's — the two-tier split, the `warning` verdict and the acknowledged-gap record are platform; the Tier 1 field lists are DMAIC fields and are Improve's
 
 ### The problem this solves
 
