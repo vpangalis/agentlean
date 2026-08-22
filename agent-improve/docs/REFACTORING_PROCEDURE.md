@@ -25,8 +25,10 @@ in the step is authoritative and this document is a bug.
 | `../../AGENTIC_ARCHITECTURE_REFERENCE.md` | **How the system is shaped, and why** | **Yes** |
 | This document | **In what order it gets built, and how each step is proved** | **Yes** |
 
-`ARCHITECTURE.md` is SUPERSEDED and frozen. Its §15 migration sequence is
-**replaced by this document** and must not be followed.
+`../ARCHITECTURE.md` is **no longer the v2.2.16 design document** — since
+2026-08-22 that path holds a copy of the root reference, Improve's own
+architecture doc. **The old §15 migration sequence is replaced by this
+document** and is available only at commit `8533879`.
 
 ### How to use it
 
@@ -79,7 +81,7 @@ whose verification is "it looks right" is not a step.
 | Method | What it means | Passes when |
 |---|---|---|
 | `pytest` | A named test file runs | Named tests green |
-| `grep-absence` | A banned pattern is provably gone | The named grep returns **zero** hits repo-wide |
+| `grep-absence` | A banned pattern is provably gone | **Raw `grep -rn` (never a gitignore-filtered tool — reference §55)** returns **zero** hits repo-wide, and the pattern string is verified to exist in the codebase before the change |
 | `import-check` | Module imports and constructs without error | `python -c "import ..."` exits 0 |
 | `live-run` | Headless invoke against real Azure | Named observable produced |
 | `trace-check` | A named span appears in LangSmith | Span present with expected parent |
@@ -101,7 +103,7 @@ so they can be batched into one session rather than interrupting the run.
 |---|---|
 | Reference signed off | ✔ Task 3 + 3B complete, verification log closed |
 | `CLAUDE.md` current | ✔ v2.2.16, all citations resolve to reference sections |
-| `ARCHITECTURE.md` frozen | ✔ SUPERSEDED banner in place |
+| `../ARCHITECTURE.md` disposition settled | ✔ v2.2.16 original absorbed; path now holds Improve's copy of the reference (2026-08-22) |
 | Working tree clean and pushed | Check before every step — `start.ps1` destroys unpushed commits |
 
 ## 0.2 Standing gates

@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.17 — August 2026
+# Version 2.2.18 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -20,26 +20,35 @@ no third time.
 v2.2 is a **ground-up rewrite**, not a patch. It aligns this file with
 every decision ratified in the EDUCATIONAL.md architectural review.
 
-**There are two binding documents, not three.** `ARCHITECTURE.md` was
-absorbed into `../AGENTIC_ARCHITECTURE_REFERENCE.md` and is now SUPERSEDED; every
-`§`-citation in this file points at that reference.
+**Three binding documents.** The **v2.2.16 `ARCHITECTURE.md`** was absorbed
+into `../AGENTIC_ARCHITECTURE_REFERENCE.md`; on 2026-08-22 that path was reused
+for **a copy of the reference** — Agent Improve's own architecture document
+(§0.12). **Every `§`-citation in this file points at the root reference**,
+never at the local copy.
 
 | Document | Answers | Binding? |
 |---|---|---|
 | `CLAUDE.md` (this file) | **What the rule is.** Quoted at the top of every implementation prompt | **Yes** |
-| `../AGENTIC_ARCHITECTURE_REFERENCE.md` | **How the system is shaped, and why.** Component design, schemas, contracts, sequencing | **Yes** |
+| `../AGENTIC_ARCHITECTURE_REFERENCE.md` | **How the platform is shaped, and why.** All three agents | **Yes** |
+| `ARCHITECTURE.md` | **How Agent Improve specifically is shaped.** Began as a copy of the reference, expected to diverge (§0.12) | **Yes** |
 
 **The historical record is not binding and is not cited by rules here.**
 `docs/REFACTORING_AGENT_IMPROVE.md` (the section-by-section review),
 `docs/EDUCATIONAL.md`, `docs/DECISIONS.md` and `docs/REVIEW_DECISIONS.md`
 hold the reasoning trail — what was considered, rejected and when. Each
 Reference section carries a **Supersedes** line naming its sources, so the
-chain back to that trail is one hop from any rule. `ARCHITECTURE.md` is
-retained read-only for its change log and decisions-resolved register.
+chain back to that trail is one hop from any rule.
 
-**To resolve an old `ARCHITECTURE.md §X` or `REFACTORING §X` citation
-found in code comments, SKILL.md files or an older prompt, use the
-reference's Appendix A.**
+> **Disambiguation — `ARCHITECTURE.md §X` means two different things now.**
+> Before 2026-08-22 it meant the **v2.2.16** design document's own numbering
+> (§1–§18). Since then that path holds a copy of the reference and uses the
+> **reference's** numbering (§1–§56).
+>
+> **To resolve a pre-2026-08-22 `ARCHITECTURE.md §X` or `REFACTORING §X`
+> citation** — in code comments, SKILL.md files or an older prompt — **use the
+> reference's Appendix A**, which maps the v2.2.16 numbering to the current one.
+> The v2.2.16 original is at commit `8533879`; its §17 and §18 registers are at
+> `docs/ARCHITECTURE_v2216_registers.md`.
 
 ### 0.2 — Rule Numbers Are Load-Bearing
 
@@ -218,9 +227,9 @@ which is exactly the situation where remembering one and inferring the other
 goes wrong.** §16.3 is not a formality.
 
 **Every `§`-citation in this file now points at `../AGENTIC_ARCHITECTURE_REFERENCE.md`.**
-The former `ARCHITECTURE.md §X` and `REFACTORING_AGENT_IMPROVE.md §X`
+The former **v2.2.16** `ARCHITECTURE.md §X` and `REFACTORING_AGENT_IMPROVE.md §X`
 references were resolved through the reference's Appendix A. Nine items of
-`ARCHITECTURE.md` content that had no home in the reference were written into it
+**v2.2.16** `ARCHITECTURE.md` content that had no home in the reference were written into it
 in the same pass, so the absorption is now real rather than declared.
 
 ### 0.11 — What Changed in 2.2.17 — a rule that banned what another rule required
@@ -254,6 +263,43 @@ not directly into a rule here: decision recorded at `docs/DECISIONS.md` §Q1,
 section added as reference §29.4, its version incremented to 1.1. This file
 carries only the pointer, because the disposition is a design fact and §29.4 is
 its canonical home.
+
+### 0.12 — Two architecture documents, and which one a rule cites
+
+**Since 2026-08-22 there are two**, and they are not duplicates of each other
+for long:
+
+| File | Scope | Edited when |
+|---|---|---|
+| `../AGENTIC_ARCHITECTURE_REFERENCE.md` | **Platform.** Binds on Agent Improve, Agent Resolve and Agent Flow | The change applies to more than one agent |
+| `ARCHITECTURE.md` | **Agent Improve's own architecture.** Originated 2026-08-22 as a copy of the reference at commit `8533879` | The change is Improve-specific |
+
+**They begin identical and are expected to diverge** — the reference gets
+generalised across the three agents while the local copy stays specific to
+Improve. **That divergence is the intent, not drift**, which is why there is
+deliberately no sync check between them: two files that are only briefly
+identical would make such a check fire constantly and mean nothing.
+
+> **Every `§` citation in this file points at the root reference, never at the
+> local copy.** One rule, and a mechanically checkable one — a single grep
+> confirms it. The alternative was routing each citation by whether its subject
+> is platform or Improve-specific; measured against the actual citations that
+> would have moved only 4 of 48 sections, in exchange for a rule no script can
+> verify and 48 individual judgment calls on a boundary that is clean
+> structurally and blurry in content.
+>
+> **The platform / Improve boundary is real but does not follow file paths.**
+> Part VIII of the reference is the DMAIC domain and is Improve's alone;
+> Parts I–VII and IX–XI are platform. Several platform sections nonetheless
+> carry Improve-specific instantiation — §30's twenty tools are Six Sigma
+> statistics, §23's schemas are the `improve_*` indexes. Those sections are
+> annotated in the reference itself rather than sorted by which file cites them.
+
+**The v2.2.16 design document that used to live at `ARCHITECTURE.md`** was
+absorbed into the reference. Its two registers that existed nowhere else —
+§17 Decisions Resolved and §18 Change Log — are at
+`docs/ARCHITECTURE_v2216_registers.md`; the full original is at commit
+`8533879`.
 
 ---
 

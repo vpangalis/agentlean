@@ -32,8 +32,9 @@ DEPENDENCIES = ["langgraph", "langchain", "langsmith", "deepagents"]
 PYPI_URL = "https://pypi.org/pypi/{pkg}/json"
 HTTP_TIMEOUT = 3
 # The step sequence lives in the Refactoring Procedure, Appendix D.
-# It was ARCHITECTURE.md §15 until 2026-08-21; that document is SUPERSEDED and
-# frozen, and its §15 used "### Step N —" headings the old regex never matched,
+# It was ARCHITECTURE.md §15 until 2026-08-21. That document was absorbed into
+# the platform reference (and its path later reused for a copy of it), and its
+# §15 used "### Step N —" headings the old regex never matched,
 # so this lookup had been failing silently as "next undetermined".
 PROCEDURE_DOC_PATH = "agent-improve/docs/REFACTORING_PROCEDURE.md"
 STEP_INDEX_HEADING = "Appendix D"

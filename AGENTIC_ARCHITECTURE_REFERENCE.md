@@ -116,8 +116,10 @@ rule numbers into that agent's implementation prompts, and its drift registry
 guards that agent's code. **When Agent Resolve is built to this reference it
 gets its own `CLAUDE.md`, not a share of Improve's.**
 
-`agent-improve/ARCHITECTURE.md` was absorbed into this document and is
-SUPERSEDED. Where this file and a `CLAUDE.md` describe the same thing, the
+`agent-improve/ARCHITECTURE.md` was absorbed into this document, and on
+2026-08-22 that path was **replaced by a copy of this file** — Agent Improve's
+own architecture document, expected to diverge from this one as this one is
+generalised across the three agents. **It is no longer a superseded tombstone.** Where this file and a `CLAUDE.md` describe the same thing, the
 `CLAUDE.md` states the rule and this file states the design; neither restates
 the other's job.
 
@@ -4771,6 +4773,27 @@ exemption the governance file could not be edited by normal tooling at all.
 post index and the `pypi.org/project/langgraph` release history. **These move
 fastest and have the most impact.**
 
+### Reference sweeps must use raw `grep -rn`, never a gitignore-filtered tool
+
+**Agent-facing search tools filter by `.gitignore` by design.** That makes them
+fast and usually right — and structurally unable to see anything gitignored.
+
+**A rename sweep run through a filtered tool reports clean while stale
+references survive** in `.claude/settings.local.json`, in `*.bak` files, in
+untracked working directories, in anything the ignore rules cover. This
+happened: the 2026-08-22 rename sweep reported zero stale references, and a raw
+`grep -rn` over the same tree immediately found one the filtered tool could not
+reach.
+
+**The rule:** any sweep whose conclusion is *"zero remaining references"* runs
+`grep -rn <pattern> .` — unfiltered — as its final check. A filtered tool is
+fine for locating things; it is **not** evidence of absence.
+
+**This is the same failure class as the two the verification pass caught**: a
+`grep-absence` check written against retired names that never existed, and a
+step lookup that rendered a parse failure identically to success. **A check that
+cannot fail is worse than no check, because it is recorded as evidence.**
+
 ---
 
 ## 56. Amendment procedure
@@ -4946,8 +4969,8 @@ files, or code comments.
 | §14 | §52 |
 | §15 | §53.1 |
 | §16 | Appendix B, Appendix D.3 |
-| §17 | — · Decisions-resolved register. **No section here**: each entry's *conclusion* is stated in the section that owns the topic, and the register itself is a historical artefact. Retained in `agent-improve/ARCHITECTURE.md` |
-| §18 | — · Change log. **No section here**, by design — this document states conclusions, not their history (§"About this document"). Retained in `agent-improve/ARCHITECTURE.md` |
+| §17 | — · Decisions-resolved register. **No section here**: each entry's *conclusion* is stated in the section that owns the topic, and the register itself is a historical artefact. **Extracted 2026-08-22 to `agent-improve/docs/ARCHITECTURE_v2216_registers.md`** |
+| §18 | — · Change log. **No section here**, by design — this document states conclusions, not their history (§"About this document"). **Extracted 2026-08-22 to `agent-improve/docs/ARCHITECTURE_v2216_registers.md`** |
 | §18.1 | §56 |
 
 **Absorption completed 2026-08-21.** Nine items of `ARCHITECTURE.md` content
@@ -4958,8 +4981,9 @@ isolation (→ §16), ETag concurrency and the Blob-vs-alternatives rationale
 and the `improve_case_index` vector profile (→ §23.3), the conflict-resolution
 panel and the LangSmith run id (→ §50), the three-mechanisms-check-these-fields
 distinction (→ §35), cache invalidation policy (→ §46) and the structured log
-field list (→ §51). **`ARCHITECTURE.md` is now genuinely absorbed and is marked
-SUPERSEDED at its head.**
+field list (→ §51). **`agent-improve/ARCHITECTURE.md` was genuinely absorbed.** On 2026-08-22 that
+path was reused for a copy of this document (see the two-document division
+above); the absorbed v2.2.16 original is at commit `8533879`.
 
 ---
 
