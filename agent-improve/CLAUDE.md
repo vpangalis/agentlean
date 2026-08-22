@@ -21,25 +21,25 @@ v2.2 is a **ground-up rewrite**, not a patch. It aligns this file with
 every decision ratified in the EDUCATIONAL.md architectural review.
 
 **There are two binding documents, not three.** `ARCHITECTURE.md` was
-absorbed into `AGENT_IMPROVE_BIBLE.md` and is now SUPERSEDED; every
-`§`-citation in this file points at the Bible.
+absorbed into `../AGENTIC_ARCHITECTURE_REFERENCE.md` and is now SUPERSEDED; every
+`§`-citation in this file points at that reference.
 
 | Document | Answers | Binding? |
 |---|---|---|
 | `CLAUDE.md` (this file) | **What the rule is.** Quoted at the top of every implementation prompt | **Yes** |
-| `AGENT_IMPROVE_BIBLE.md` | **How the system is shaped, and why.** Component design, schemas, contracts, sequencing | **Yes** |
+| `../AGENTIC_ARCHITECTURE_REFERENCE.md` | **How the system is shaped, and why.** Component design, schemas, contracts, sequencing | **Yes** |
 
 **The historical record is not binding and is not cited by rules here.**
 `docs/REFACTORING_AGENT_IMPROVE.md` (the section-by-section review),
 `docs/EDUCATIONAL.md`, `docs/DECISIONS.md` and `docs/REVIEW_DECISIONS.md`
 hold the reasoning trail — what was considered, rejected and when. Each
-Bible section carries a **Supersedes** line naming its sources, so the
+Reference section carries a **Supersedes** line naming its sources, so the
 chain back to that trail is one hop from any rule. `ARCHITECTURE.md` is
 retained read-only for its change log and decisions-resolved register.
 
 **To resolve an old `ARCHITECTURE.md §X` or `REFACTORING §X` citation
-found in code comments, SKILL.md files or an older prompt, use Bible
-Appendix A.**
+found in code comments, SKILL.md files or an older prompt, use the
+reference's Appendix A.**
 
 ### 0.2 — Rule Numbers Are Load-Bearing
 
@@ -56,7 +56,7 @@ resolve:
 
 **Renumbering any of these rules requires updating the registry in the
 same commit.** A hook that cites a non-existent rule is worse than no
-hook — see `AGENT_IMPROVE_BIBLE.md` §55.
+hook — see `../AGENTIC_ARCHITECTURE_REFERENCE.md` §55.
 
 ### 0.3 — What Changed From v2.1
 
@@ -71,7 +71,7 @@ hook — see `AGENT_IMPROVE_BIBLE.md` §55.
 | Cross-phase data | Parent state | **Store** (§10.2) |
 | Persistence | Azure Blob only | **Phased Blob → PostgreSQL** (§1.7) |
 | MCP | In the stack description | **Architecturally excluded** (§1.9) |
-| Index schemas | Partial, in prose | **Canonical in `AGENT_IMPROVE_BIBLE.md` §23**; rule-bearing facts in §7.3 |
+| Index schemas | Partial, in prose | **Canonical in `../AGENTIC_ARCHITECTURE_REFERENCE.md` §23**; rule-bearing facts in §7.3 |
 
 ### 0.4 — What Changed in 2.2.9 — the state design closed
 
@@ -207,7 +207,7 @@ Task 3B verification pass against live documentation and are recorded in
 | `AgentMiddleware` hooks | "the six hooks", stated as closed | **The six *we use*.** `dynamic_prompt()`, `hook_config()` and `configure_trace_policy()` also exist (§8.1) |
 | Graceful shutdown | `RunControl.request_drain()`, cited as fact | **UNCONFIRMED — MAY NOT EXIST.** No work may be scheduled against it (§3.6) |
 | Version targets | 1.2.10 / 1.3.11, already stale | **Verified 2026-08-21**, plus the `langchain-core` ≥1.6.0 jump (§16.1) |
-| Binding documents | Three | **Two** — `ARCHITECTURE.md` absorbed into `AGENT_IMPROVE_BIBLE.md` (§0.1) |
+| Binding documents | Three | **Two** — `ARCHITECTURE.md` absorbed into `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§0.1) |
 
 **The `max_retries` error is the one to learn from.** It sat inside the
 canonical middleware stack — the block an implementer copies verbatim — from
@@ -217,10 +217,10 @@ adopted earlier and never re-checked. **The two share a parameter vocabulary,
 which is exactly the situation where remembering one and inferring the other
 goes wrong.** §16.3 is not a formality.
 
-**Every `§`-citation in this file now points at `AGENT_IMPROVE_BIBLE.md`.**
+**Every `§`-citation in this file now points at `../AGENTIC_ARCHITECTURE_REFERENCE.md`.**
 The former `ARCHITECTURE.md §X` and `REFACTORING_AGENT_IMPROVE.md §X`
-references were resolved through Bible Appendix A. Nine items of
-`ARCHITECTURE.md` content that had no Bible home were written into the Bible
+references were resolved through the reference's Appendix A. Nine items of
+`ARCHITECTURE.md` content that had no home in the reference were written into it
 in the same pass, so the absorption is now real rather than declared.
 
 ### 0.11 — What Changed in 2.2.17 — a rule that banned what another rule required
@@ -247,11 +247,11 @@ recorded as evidence.
 |---|---|---|
 | Retired retrieval-tool names | `search_methodology`, `search_evidence` | **`search_improve_knowledge`, `search_improve_cases`, `search_improve_evidence`** (§5.1) |
 | Retriever-layer names | Implicitly retired by §5.1 | **Explicitly NOT retired** — the tool layer is replaced, the retriever layer keeps its names (§5.1, §7.2) |
-| Cross-agent tools | Unaccounted for | **A distinct third category, present and deliberately unbound** — `AGENT_IMPROVE_BIBLE.md` §29.4 (§5.1, §14) |
+| Cross-agent tools | Unaccounted for | **A distinct third category, present and deliberately unbound** — `../AGENTIC_ARCHITECTURE_REFERENCE.md` §29.4 (§5.1, §14) |
 
-**The cross-agent addition went through the Bible's §56 amendment procedure**,
+**The cross-agent addition went through the reference's §56 amendment procedure**,
 not directly into a rule here: decision recorded at `docs/DECISIONS.md` §Q1,
-section added as Bible §29.4, Bible version incremented to 1.1. This file
+section added as reference §29.4, its version incremented to 1.1. This file
 carries only the pointer, because the disposition is a design fact and §29.4 is
 its canonical home.
 
@@ -280,7 +280,7 @@ its canonical home.
   (§1.7, §10). Passing only a checkpointer is the most common
   architecture mistake.
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §5, §6, §8, §9.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §5, §6, §8, §9.*
 
 ### 1.2 — Hierarchical Subgraphs, One Thread, Auto Namespacing
 
@@ -315,7 +315,7 @@ supervisor_graph                    thread_id = case_id, e.g. "IMPR-2026-FS1"
   propagate to the parent immediately — this is documented LangGraph
   behaviour, and the store is the documented fix.
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §9, §12, §13, §16.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §9, §12, §13, §16.*
 
 ### 1.3 — Tool-Calling Coach, Explicit Planner
 
@@ -340,7 +340,7 @@ longer a tool call.
 deterministic gate-check on `gate_passed` plus static edges. There
 is nothing to reason about, so nothing reasons.
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §3 (terminology), §13, §17.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §3 (terminology), §13, §17.*
 
 ### 1.4 — Async by Default
 
@@ -378,7 +378,7 @@ checks in it, implemented across two nodes. The full sequence is
 - **Use graph-level `interrupt()` + `Command(resume=...)`.**
   `HumanInTheLoopMiddleware` is BANNED for gates (§8.6).
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §33, §19.9.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §33, §19.9.*
 
 ### 1.7 — Phased Persistence — Blob Now, PostgreSQL Before Production
 
@@ -419,7 +419,7 @@ for concurrent access, and Azure Blob has no row-level locking. This
 is acceptable for single-developer refactoring and is not acceptable
 for production. Do not defend it past the migration trigger.
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §8, §10, Appendix B item 13.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §8, §10, Appendix B item 13.*
 
 ### 1.8 — LangSmith Tracing Mandatory
 
@@ -462,7 +462,7 @@ Three consequences that bind on implementation:
 indexes) happens via Python imports from shared modules, not via a
 protocol. Those remain `@tool` functions, read-only.
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §29.1, §29.2.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §29.1, §29.2.*
 
 ---
 
@@ -596,7 +596,7 @@ adding either to a tool list is a violation.**
 | Policy advisory | **Logic inside `gate_apply`**. It runs after the Belt edits, when the coach is no longer in the loop |
 
 NEW node types may not be added to a subgraph without an amendment to
-`AGENT_IMPROVE_BIBLE.md` (§56).
+`../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56).
 
 ### 3.4 — Reflection is a node, not a private function
 
@@ -671,12 +671,12 @@ during the 2026-08-21 verification pass.
 against a real release or the LangGraph source.** If it does not exist, a
 real fallback drain must be designed rather than a replacement API name
 cited. Full statement and what counts as confirmation:
-`AGENT_IMPROVE_BIBLE.md` §45.
+`../AGENTIC_ARCHITECTURE_REFERENCE.md` §45.
 
 **`DeltaChannel` is NOT used.** Beta API; deferred until sessions
 exceed ~200 turns.
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §44, §45.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §44, §45.*
 
 ### 3.7 — Multi-hop is capped at five tool calls per Belt turn
 
@@ -703,7 +703,7 @@ Hitting the cap is a **monitoring signal**, not just a limit — it
 means either the system prompt encourages too-broad exploration, or
 the question warrants `operational-premium` for that turn.
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §26.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §26.*
 
 ---
 
@@ -740,7 +740,7 @@ Defined in `core/llm.py`. Two deployment tiers, addressed by role:
 multi-hop retrieval runs on `operational-model`; only final synthesis
 runs on `operational-premium`. gpt-4o-mini is roughly 15× cheaper.
 
-New roles require an amendment to `AGENT_IMPROVE_BIBLE.md` (§56).
+New roles require an amendment to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56).
 
 ### 4.3 — Never parse JSON from raw LLM text
 
@@ -788,7 +788,7 @@ BANNED while it remains pre-1.0. Our equivalents are custom middleware
 on `create_agent` (§8.2, §8.3). Revisit at deepagents 1.0; migrate all
 three custom middlewares together or not at all.
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §18, §19.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §18, §19.*
 
 ### 4.5 — Read typed content blocks, never string-index the content
 
@@ -797,7 +797,7 @@ Model responses carry typed content blocks. Read
 raw content field is a violation — it breaks the moment a provider
 returns a multi-part response.
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §21.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §21.*
 
 ### 4.6 — Structured output — scoped by call type
 
@@ -852,7 +852,7 @@ shape. A schema-valid `baseline_metric: 4.2` invented by the model is
 exactly as well-formed as a correct one. Content-level defence is
 §6.4, §9.2 Layer 1, and §9.4 — not this rule.
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §20, §21.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §20, §21.*
 
 ### 4.7 — Temperature discipline
 
@@ -915,7 +915,7 @@ smaller model. Fix the context (§8.4).
 
 **Every attempt is logged to `step_log` as a dict** (§10.3).
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §44, §46.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §44, §46.*
 
 ---
 
@@ -979,7 +979,7 @@ its names** and its failure semantics (§7.2).
 `search_resolve_cases`, `search_resolve_knowledge`, `search_resolve_evidence`,
 `search_flow_vsm`. Read-only cross-agent tools, a distinct third category,
 deliberately bound to no coach. Do not delete them and do not bind them:
-`AGENT_IMPROVE_BIBLE.md` §29.4 states the three rules that bind first.
+`../AGENTIC_ARCHITECTURE_REFERENCE.md` §29.4 states the three rules that bind first.
 
 **`record_field` is RETIRED and may not be reintroduced.** Field capture
 happens through `response_format=CoachingResponse` on the executor
@@ -1004,7 +1004,7 @@ every coach inside the tractable range.
 
 **No phase exceeds 16 tools**, and after `record_field` was retired the
 actual maximum is 15 (Measure). If a new tool would push a phase past
-16, that is an amendment to `AGENT_IMPROVE_BIBLE.md` (§56), not a routine addition.
+16, that is an amendment to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56), not a routine addition.
 
 **`imr_chart_limits` is the individuals / moving-range chart** and is
 the right choice whenever the Belt has **one measurement per period**
@@ -1045,7 +1045,7 @@ Every retrieval tool docstring MUST state:
 multi-tenancy note for future engineers: if Agent Improve ever serves
 multiple organisations, this tool must filter by tenant.
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §29, §30, §31.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §29, §30, §31.*
 
 ---
 
@@ -1098,7 +1098,7 @@ defence requires all three of:
 2. Cross-checking extracted values against the raw conversation
 3. The policy advisory reviewing extracted values before Belt approval
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §22.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §22.*
 
 ---
 
@@ -1160,7 +1160,7 @@ writing methodology requires both the correct key name *and*
 the value buried in the `metadata` JSON blob, unreachable by `$filter`,
 with no error raised. This is how `phase_relevance` went unpopulated.
 `ingest_knowledge.py` owns this contract; full detail in
-`AGENT_IMPROVE_BIBLE.md` §23.4.
+`../AGENTIC_ARCHITECTURE_REFERENCE.md` §23.4.
 
 **Retrieval failure is never an empty result.** All three retrieval
 functions — `search_knowledge`, `search_cases`, `search_evidence` — return
@@ -1178,7 +1178,7 @@ Three rules that fall out of it, each of which has already bitten:
 - **Materialise results inside the `try`** — `SearchClient.search()` is
   lazy and the HTTP call fires on iteration.
 
-Full rationale: `AGENT_IMPROVE_BIBLE.md` §27.
+Full rationale: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §27.
 
 **`rag_lookup_evidence` takes no `order_by` argument — until the reindex
 lands.** Verified against the live index (Aug 2026): `improve_evidence_index`
@@ -1186,7 +1186,7 @@ has **no `uploaded_at` field** today. The upload timestamp exists only inside
 the non-sortable `metadata` JSON blob, which `$orderby` cannot reach, so
 recency ranking is unavailable on this index **as currently shaped**.
 
-**That schema change is now ratified** (§7.3, `AGENT_IMPROVE_BIBLE.md` §23.2): promote
+**That schema change is now ratified** (§7.3, `../AGENTIC_ARCHITECTURE_REFERENCE.md` §23.2): promote
 `metadata.timestamp` to a top-level `uploaded_at`, and `metadata.upload_phase`
 to a top-level `phase`, at reindex time. Once it lands, `order_by=["uploaded_at
 desc"]` and the optional `phase` filter both become available and this
@@ -1199,11 +1199,11 @@ result — and it stays wrong after the reindex too.
 
 ### 7.3 — Index schemas — field names that bind on code
 
-**The canonical full schemas live in `AGENT_IMPROVE_BIBLE.md` §23**, with types,
+**The canonical full schemas live in `../AGENTIC_ARCHITECTURE_REFERENCE.md` §23**, with types,
 vector dimensions, filter and ordering clauses, and the schema-change
 procedure. This subsection carries only the facts a *rule* depends on.
 It does not duplicate the schema, and it is not the place to record a
-schema change — that lands in `AGENT_IMPROVE_BIBLE.md` §23 first, in the same
+schema change — that lands in `../AGENTIC_ARCHITECTURE_REFERENCE.md` §23 first, in the same
 commit as the Azure AI Search change (§23.5).
 
 **`improve_knowledge_index`** — LSS Black Belt eBook, static
@@ -1293,7 +1293,7 @@ mapping constant anywhere. This binds on: `PHASE_ORDER` and every
 `CaseDocument.phases`, the graph node names, and the module path
 `backend.phases.analyse`. `AnalysePhaseInput` keeps its name —
 `{Phase}PhaseInput` is the convention all five phases follow. Full
-scope: `AGENT_IMPROVE_BIBLE.md` §23.3.
+scope: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §23.3.
 
 **Never write to Agent Resolve indexes.** Read only, via tools.
 
@@ -1337,7 +1337,7 @@ at exactly the moment the Belt is waiting.
 Multi-query and multi-hop compose: multi-query broadens within a hop,
 multi-hop deepens across hops.
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §23, §24, §25, §26, §28.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §23, §24, §25, §26, §28.*
 
 ---
 
@@ -1465,7 +1465,7 @@ the Belt sees it.
 
 **Every SKILL.md must carry the seven-step sequence for each computation
 tool in its phase's `allowed-tools`** (§8.3). Design detail and worked
-per-tool openings: `AGENT_IMPROVE_BIBLE.md` §43.1.
+per-tool openings: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §43.1.
 
 **Show before asking is also a rubric criterion.** For every field, the
 coach shows a concrete example of a completed answer, explains why it
@@ -1512,8 +1512,8 @@ root_cause_validation, causal_hypothesis, ruled_out_causes), Improve
 implementation_plan), Control (control_plan, sustainability_check,
 post_improvement_metric, improvement_delta, financial_impact_verified,
 handover_documented, lessons_learned, transferability). Each criterion
-carries its tier (§9.7). Full coverage in `AGENT_IMPROVE_BIBLE.md` §36;
-the tier table is `AGENT_IMPROVE_BIBLE.md` §35.
+carries its tier (§9.7). Full coverage in `../AGENTIC_ARCHITECTURE_REFERENCE.md` §36;
+the tier table is `../AGENTIC_ARCHITECTURE_REFERENCE.md` §35.
 
 **Three criteria are verified deterministically, not by judgment.**
 `causal_hypothesis`, `solution_linked_to_root_cause` and
@@ -1740,7 +1740,7 @@ grades coaching *process* only — seven-step computation pattern,
 show-first, citations, no external URLs. Any rubric entry for coherence
 is stale (§8.2).
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §19, §32, §36.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §19, §32, §36.*
 
 ---
 
@@ -2032,7 +2032,7 @@ if belt_level == "Green Belt":
 (§10.8) — a baseline computed across an unstable process is not a
 baseline, so it blocks the gate rather than warning about it.
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §33, §34, §35, §36, §37.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §33, §34, §35, §36, §37.*
 
 ---
 
@@ -2054,7 +2054,7 @@ class SupervisorState(TypedDict):
 ```
 
 **Seven fields. That is the entire schema.** An eighth requires an
-amendment to `AGENT_IMPROVE_BIBLE.md` (§56), then to this file (§18).
+amendment to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56), then to this file (§18).
 
 **`gate_passed` is a `dict[str, bool]`, not a `list[str]`.**
 `gate_passed["measure"]` is a direct lookup, and the re-approval cascade
@@ -2093,7 +2093,7 @@ kept anyway** — a documented exemption for readability, not an
 oversight. They are read in dozens of places, and they are written in
 exactly one: the output mapper at gate approval (§10.2). **Nothing else
 may write them**, and the supervisor is responsible for keeping them
-consistent with `gate_passed`. Full rationale: `AGENT_IMPROVE_BIBLE.md` §5.
+consistent with `gate_passed`. Full rationale: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §5.
 
 **`PhaseState`** — per-phase subgraph state:
 
@@ -2122,7 +2122,7 @@ class PhaseState(TypedDict):
 ```
 
 **Seventeen fields — three plumbing plus fourteen content.** A fifteenth
-content field requires an amendment to `AGENT_IMPROVE_BIBLE.md` (§56), same as
+content field requires an amendment to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56), same as
 `SupervisorState`'s eighth.
 
 **`hop_results` and `synthesis_output` MUST be state, not node locals.**
@@ -2329,14 +2329,14 @@ content plus `references_phase`, `references_field` and
 `references_value`, so the grader verifies the link by reading the
 referenced phase's gate document from the store — deterministic, no LLM
 judgment in the linkage check. The values inside the dict are still
-strings. Design detail: `AGENT_IMPROVE_BIBLE.md` §42.
+strings. Design detail: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §42.
 
 **Computation tool output goes in `artifacts["computation_results"]`**
 as a list of typed dicts, all values strings. No new top-level
 `PhaseState` field, and no per-phase typed destinations — the grader
 answers "was a hypothesis test run?" by scanning that list for
 `"tool": "t_test"`. Adding typed per-phase computation fields is a
-violation (`AGENT_IMPROVE_BIBLE.md` §7).
+violation (`../AGENTIC_ARCHITECTURE_REFERENCE.md` §7).
 
 ### 10.7 — `CoachingResponse` in, `{Phase}Output` out
 
@@ -2379,7 +2379,7 @@ citations.extend(resp.citations)
 **`{Phase}Output` schemas are canonical** — `DefineOutput`,
 `MeasureOutput`, `AnalyseOutput`, `ImproveOutput`, `ControlOutput`, in
 `phases/{phase}/schema.py`. Full definitions and per-phase gate assembly
-are in `AGENT_IMPROVE_BIBLE.md` §40. The binding rules:
+are in `../AGENTIC_ARCHITECTURE_REFERENCE.md` §40. The binding rules:
 
 - **Every field is `str`** except the three cross-phase reference dicts
   (§10.6)
@@ -2446,7 +2446,7 @@ experiment.** It requires a decision, stated as one of three: DOE
 conducted, simplified one-factor experiment, or no experiment needed
 because the solution follows from root cause analysis. All three are
 valid; the failure it catches is drifting past the question, not
-skipping DOE. Design detail: `AGENT_IMPROVE_BIBLE.md` §41.
+skipping DOE. Design detail: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §41.
 
 **`control_plan` is `dict`, never `str`.** Five sub-plans, all required:
 
@@ -2463,7 +2463,7 @@ control_plan: dict = {
 **Tier 1 — the gate requires the dict, and the grader checks all five
 sub-plans are populated.** A single string cannot show that four were
 done and one was skipped, and a Training Plan written but never delivered
-is the most common real Control failure. Design detail: `AGENT_IMPROVE_BIBLE.md`
+is the most common real Control failure. Design detail: `../AGENTIC_ARCHITECTURE_REFERENCE.md`
 §41.
 
 **FMEA has no field in any schema, and none may be added.** Not
@@ -2480,9 +2480,9 @@ prevent.
 **If a Black Belt performs one, it lives in `uploads`** as an attached
 document, and the BB SKILL.md may present it as an available technique.
 The schema does not track it, the grader does not ask for it, and no gate
-blocks on it. Full rationale: `AGENT_IMPROVE_BIBLE.md` §41.
+blocks on it. Full rationale: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §41.
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §5, §6, §7, §9, §10, §11, §40.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §5, §6, §7, §9, §10, §11, §40.*
 
 ---
 
@@ -2677,7 +2677,7 @@ to choose backoff strategy (§4.8).
 **Graph**
 - Never mix static edges and `Command` routing from the same node
 - Never use `set_entry_point` — use `add_edge(START, ...)`
-- Never add a graph node type without an amendment to `AGENT_IMPROVE_BIBLE.md` (§56)
+- Never add a graph node type without an amendment to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56)
 - Never dispatch nodes manually in routes
 - Never call `_reflect()` as a private function — reflection is a node
 - Never fuse the planner and executor
@@ -2701,7 +2701,7 @@ to choose backoff strategy (§4.8).
   names and failure semantics (§7.2)
 - Never delete or bind the four cross-agent tools (`search_resolve_*`,
   `search_flow_vsm`) — present, unbound, and binding one is an amendment
-  (`AGENT_IMPROVE_BIBLE.md` §29.4)
+  (`../AGENTIC_ARCHITECTURE_REFERENCE.md` §29.4)
 - Never use `MultiQueryRetriever`, `EnsembleRetriever`, or
   `OutputFixingParser`
 - Never use the deprecated `Conversation*Memory` or
@@ -2803,7 +2803,7 @@ carries *"nested subgraph inherits parent `checkpoint_ns` (regression in
 
 **The 1.2.10 / 1.3.11 pins previously written here were already stale when
 written. Do not upgrade to a documented pin — re-resolve against live PyPI**
-(§16.3). Full table and reasoning: `AGENT_IMPROVE_BIBLE.md` §53.
+(§16.3). Full table and reasoning: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §53.
 
 Adjacent packages (`langchain-openai`, `langchain-community`,
 `langchain-text-splitters`, `langsmith`, `langfuse`) — let pip resolve during
@@ -2884,13 +2884,13 @@ prefix.
 This file is amended only via:
 
 1. A new architectural decision recorded in `docs/DECISIONS.md` and stated in
-   the `AGENT_IMPROVE_BIBLE.md` section that owns the topic
+   the `../AGENTIC_ARCHITECTURE_REFERENCE.md` section that owns the topic
 2. A commit to CLAUDE.md updating the relevant rule
 3. Increment to the version number at the top
 4. **A numbered `§0.x` change entry in this file**, saying what changed and
-   why. The Bible's own change log lives in `docs/DECISIONS.md` plus a
+   why. The reference's own change log lives in `docs/DECISIONS.md` plus a
    one-line version note at its head — it has no change-log section, by design
-   (`AGENT_IMPROVE_BIBLE.md` §56 step 4)
+   (`../AGENTIC_ARCHITECTURE_REFERENCE.md` §56 step 4)
 5. **If a rule number cited in `deprecated_patterns.yaml` changes, the
    registry is updated in the same commit** (§0.2)
 
@@ -2911,4 +2911,4 @@ should prefer `response_format=`. Until that update lands,
 `agent-improve/**/*.md` remains path-excluded so the governance
 documents stay writable.
 
-*Design: `AGENT_IMPROVE_BIBLE.md` §55, §56.*
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §55, §56.*

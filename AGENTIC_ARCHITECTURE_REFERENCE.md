@@ -1,21 +1,31 @@
-# Agent Improve — Architecture Reference
-**AgentLean Platform · DMAIC Improvement Agent**
-Version 1.1 · 2026-08-21
+# Agentic Architecture Reference
+**AgentLean Platform · the shared architecture for all three agents**
+Version 1.2 · 2026-08-22
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.2 (2026-08-22)** — Renamed from `AGENT_IMPROVE_BIBLE.md` and moved to the
+monorepo root. **The scope statement changed with it**: this is the platform
+reference for Agent Improve, Agent Resolve and Agent Flow, not an
+Improve-specific document. See *Scope* below. No architectural content changed
+in this version — only the name, the location, the scope statement, and the
+relative paths that the move invalidated.
 
 **v1.1 (2026-08-21)** — §29.4 added via the §56 amendment procedure: cross-agent
 tools named as a distinct third category, RATIFIED as present-but-not-bound,
 with the three rules that bind before any may be bound to a coach. Resolves the
-§29.1 / §29.2 tension. Decision record: `docs/DECISIONS.md` §Q1. Also in this
-version: Appendix D.1's retired retrieval-tool names corrected to the strings
-actually in the codebase, and §53.1's checkpointer status corrected from "done"
-to WIRED-but-INERT.
+§29.1 / §29.2 tension. Decision record: `agent-improve/docs/DECISIONS.md` §Q1.
+Also in this version: Appendix D.1's retired retrieval-tool names corrected to
+the strings actually in the codebase, and §53.1's checkpointer status corrected
+from "done" to WIRED-but-INERT.
 
 **Verification:** every API signature, parameter name, deprecation status,
 version floor and cited source was checked against live documentation. Three
 corrections, two now-stale items and four enhancements were applied to this
-document as a result. Full log: [`docs/BIBLE_VERIFICATION_LOG.md`](docs/BIBLE_VERIFICATION_LOG.md).
+document as a result. Full log:
+[`agent-improve/docs/BIBLE_VERIFICATION_LOG.md`](agent-improve/docs/BIBLE_VERIFICATION_LOG.md)
+— that file keeps its original name because it is a dated record of a completed
+pass; its subject is this document.
 
 **Four claims remain unverified and are named in the log.**
 
@@ -30,23 +40,60 @@ document as a result. Full log: [`docs/BIBLE_VERIFICATION_LOG.md`](docs/BIBLE_VE
 
 ## About this document
 
-This is the architecture reference for Agent Improve. It states the ratified
-design directly: what the system is, how each part is shaped, and why the
-non-obvious choices were made that way.
+This is the **agentic architecture reference for the AgentLean platform**. It
+states the ratified design directly: what the system is, how each part is
+shaped, and why the non-obvious choices were made that way.
 
-**It is written to be built against.** A reader should be able to implement
-Agent Improve from this document without reconstructing anything from memory
-or reading a second file. Where a concept has a definition, that definition
-appears **once**, in one canonical section, and everything else
-cross-references it.
+### Scope — three agents, one architecture
+
+**This document governs all three AgentLean agents**, not Agent Improve alone:
+
+| Agent | Purpose | Status |
+|---|---|---|
+| **Agent Resolve** | Incident problem-solving | Production |
+| **Agent Improve** | DMAIC coaching | In refactor — the first agent built to this reference |
+| **Agent Flow** | Flow / value-stream | Future |
+
+**Parts I–VII and IX–XI are platform architecture** — state and persistence,
+graph topology, the coaching agent and its middleware, retrieval, tools,
+validation and gates, reliability, operations, governance. They are
+methodology-agnostic and bind on every agent.
+
+**Part VIII is the DMAIC domain** and is Agent Improve's alone. Its own header
+says so: *"Parts II–VII describe a coaching harness that is largely
+methodology-agnostic. This Part is where DMAIC itself enters the schema."* When
+Agent Resolve or Agent Flow are built to this reference, each brings its own
+domain part; Part VIII is the worked example of what such a part contains, not
+a constraint on the others.
+
+> **Two things follow, and both bind.**
+>
+> **Worked examples are Agent Improve's because it is the agent being built.**
+> Where a section illustrates a rule with `improve_case_index`, `PhaseState`, or
+> a Belt at a gate, the *rule* is platform-level and the *illustration* is
+> Improve's. Do not read an example as scoping the rule to one agent.
+>
+> **File paths are relative to the agent's own root**, not to this document.
+> `core/store.py` means `agent-improve/backend/core/store.py` for Improve and
+> the equivalent under `agent-resolve/` for Resolve. Paths that are genuinely
+> repo-root-relative — `.claude/hooks/`, `.claude/config/` — are written from
+> the root and marked as such.
+
+**It is written to be built against.** A reader should be able to implement an
+agent from this document without reconstructing anything from memory or reading
+a second file. Where a concept has a definition, that definition appears
+**once**, in one canonical section, and everything else cross-references it.
 
 **What this document is not.** It is not a learning register and not a review
 log. The reasoning trail that produced these decisions — what a course taught,
 what was corrected, which options were rejected and when — lives in
-`docs/EDUCATIONAL.md` (the original chronological register),
-`docs/REFACTORING_AGENT_IMPROVE.md` (the section-by-section review), and
-`docs/REVIEW_DECISIONS.md` / `docs/DECISIONS.md` (the decision log). Those
-remain the historical record. This document states conclusions.
+`agent-improve/docs/EDUCATIONAL.md` (the original chronological register),
+`agent-improve/docs/REFACTORING_AGENT_IMPROVE.md` (the section-by-section
+review), and `agent-improve/docs/REVIEW_DECISIONS.md` /
+`agent-improve/docs/DECISIONS.md` (the decision log). Those remain the
+historical record, and they live under `agent-improve/` because that is where
+the work was done — not because their conclusions are Improve-specific. This
+document states conclusions.
 
 **Rationale is kept where it is load-bearing.** "Narrative scaffolding
 removed" does not mean "reasoning removed." Where a design choice is
@@ -59,12 +106,20 @@ the thing the rule exists to prevent.
 
 | Document | Answers | Binding? |
 |---|---|---|
-| `CLAUDE.md` | **What the rule is.** Quoted in every implementation prompt | **Yes** |
-| `AGENT_IMPROVE_BIBLE.md` (this file) | **How the system is shaped, and why.** Component design, schemas, contracts, sequencing | **Yes** |
+| `agent-improve/CLAUDE.md` | **What the rule is.** Quoted in every implementation prompt | **Yes** |
+| `AGENTIC_ARCHITECTURE_REFERENCE.md` (this file) | **How the system is shaped, and why.** Component design, schemas, contracts, sequencing | **Yes** |
 
-`ARCHITECTURE.md` was absorbed into this document. Where this file and
-`CLAUDE.md` describe the same thing, `CLAUDE.md` states the rule and this file
-states the design; neither restates the other's job.
+**The asymmetry is deliberate and reflects the scope split above.** This
+reference sits at the monorepo root because it is platform-level. `CLAUDE.md`
+sits under `agent-improve/` because a constitution is per-agent — it quotes
+rule numbers into that agent's implementation prompts, and its drift registry
+guards that agent's code. **When Agent Resolve is built to this reference it
+gets its own `CLAUDE.md`, not a share of Improve's.**
+
+`agent-improve/ARCHITECTURE.md` was absorbed into this document and is
+SUPERSEDED. Where this file and a `CLAUDE.md` describe the same thing, the
+`CLAUDE.md` states the rule and this file states the design; neither restates
+the other's job.
 
 ### Section numbering and provenance
 
@@ -72,6 +127,14 @@ This document renumbers. Sections here do **not** correspond to the 87-section
 numbering of `REFACTORING_AGENT_IMPROVE.md`, nor to `ARCHITECTURE.md`'s
 numbering. Each section carries a **Supersedes** line naming its sources, and
 **Appendix A** is the reverse index: old reference → new section.
+
+> **Path convention in `Supersedes` lines.** They name source documents
+> unqualified — `REFACTORING_AGENT_IMPROVE.md`, `ARCHITECTURE.md`, `CLAUDE.md`,
+> `DECISIONS`. **All of those live under `agent-improve/`**, where the work was
+> done; they were written when this document sat beside them. Left unqualified
+> rather than rewritten ~50 times, because they are provenance records pointing
+> into one agent's history, not live cross-references. **Live cross-references
+> elsewhere in this document are fully qualified from the repo root.**
 
 ### Reading conventions
 
@@ -104,7 +167,7 @@ It is one of three agents on the AgentLean platform:
 | Agent | Purpose | Status |
 |---|---|---|
 | **Agent Resolve** | Incident problem-solving | Production |
-| **Agent Improve** | DMAIC coaching (this document) | In refactor |
+| **Agent Improve** | DMAIC coaching — **the agent this section describes**, and the first built to this reference | In refactor |
 | **Agent Flow** | Flow / value-stream | Future |
 
 ### What makes it architecturally distinctive
@@ -2687,7 +2750,7 @@ and it is why the universal count is seven rather than eight.
 
 ### 29.4 Cross-agent tools — a third category, present but NOT BOUND
 
-*Ratified 2026-08-21 via §56. Decision record: `docs/DECISIONS.md` §Q1.*
+*Ratified 2026-08-21 via §56. Decision record: `agent-improve/docs/DECISIONS.md` §Q1.*
 
 **There are three tool categories in this system, not two:**
 
@@ -4016,7 +4079,7 @@ mechanism is not.**
 >   or in the LangGraph source at a named version, or in the API reference with
 >   a version stamp. A blog post or a model's recollection is not confirmation.
 >
-> Recorded in `docs/BIBLE_VERIFICATION_LOG.md` under *Not verified*.
+> Recorded in `agent-improve/docs/BIBLE_VERIFICATION_LOG.md` under *Not verified*.
 
 **The dependency this sits behind is separate and also unmet:** everything in
 this section requires LangGraph ≥1.2.6, and the venv has 1.1.10 (§53). Fixing
@@ -4672,13 +4735,13 @@ Three mechanisms, layered:
 
 | Layer | Mechanism | Enforces |
 |---|---|---|
-| **Constitution** | `CLAUDE.md` | The rules, quoted in every implementation prompt |
+| **Constitution** | `{agent}/CLAUDE.md` | The rules, quoted in every implementation prompt. **Per agent** — see *Scope* |
 | **Skills** | `.claude/skills/verify-current-version` | Version currency at decision time |
 | **Hooks** | `.claude/hooks/pre-tool-use-drift-check.py` + `deprecated_patterns.yaml` | Deprecated patterns blocked before they land |
 
 ### Rule numbers are load-bearing
 
-`deprecated_patterns.yaml` cites `CLAUDE.md` rule numbers in the messages it
+`deprecated_patterns.yaml` cites `agent-improve/CLAUDE.md` rule numbers in the messages it
 feeds back. **Those citations must resolve.**
 
 | Registry pattern | Cites |
@@ -4715,15 +4778,15 @@ fastest and have the most impact.**
 *Supersedes: CLAUDE.md §18.*
 **Status: RATIFIED.**
 
-This document and `CLAUDE.md` are amended only via:
+This document and an agent's `CLAUDE.md` are amended only via:
 
-1. A new architectural decision, recorded in `docs/DECISIONS.md`
-2. A commit updating the relevant section here and/or the rule in `CLAUDE.md`
+1. A new architectural decision, recorded in `agent-improve/docs/DECISIONS.md`
+2. A commit updating the relevant section here and/or the rule in that agent's `CLAUDE.md`
 3. Increment to the version number at the top
-4. **The change log goes in `docs/DECISIONS.md` — in the same entry as step 1 —
+4. **The change log goes in `agent-improve/docs/DECISIONS.md` — in the same entry as step 1 —
    plus a one-line version note at the head of this document. This document has
    no change-log section, by design** (see *About this document*: it states
-   conclusions, not their history). `CLAUDE.md` is the exception: it carries its
+   conclusions, not their history). An agent's `CLAUDE.md` is the exception: it carries its
    own numbered `§0.x` change entries, and an amendment touching a rule there
    adds one.
 5. **If a rule number cited in `deprecated_patterns.yaml` changes, the registry
@@ -4756,10 +4819,10 @@ Architecture changes are separate commits.
 ## Appendix A — Provenance index
 
 **Old reference → this document.** Use this to resolve any `§X` citation in
-`CLAUDE.md`, `docs/DECISIONS.md`, `docs/REVIEW_DECISIONS.md`, the SKILL.md
+`agent-improve/CLAUDE.md`, `agent-improve/docs/DECISIONS.md`, `agent-improve/docs/REVIEW_DECISIONS.md`, the SKILL.md
 files, or code comments.
 
-### A.1 `REFACTORING_AGENT_IMPROVE.md` → Bible
+### A.1 `REFACTORING_AGENT_IMPROVE.md` → this reference
 
 | Old | New | Topic |
 |---|---|---|
@@ -4821,9 +4884,9 @@ files, or code comments.
 | §85 | §51 | LangSmith 2026 additions |
 | §86 | §55 | Hook mechanics |
 | §87 | Appendix B | Deferred backlog |
-| §3, §4, §6–§9, §12–§16, §26, §31, §54 | — | Course material and historical notes — **no Bible section**; retained in `REFACTORING_AGENT_IMPROVE.md` |
+| §3, §4, §6–§9, §12–§16, §26, §31, §54 | — | Course material and historical notes — **no section here**; retained in `agent-improve/docs/REFACTORING_AGENT_IMPROVE.md` |
 
-### A.2 `ARCHITECTURE.md` → Bible
+### A.2 `agent-improve/ARCHITECTURE.md` → this reference
 
 `ARCHITECTURE.md` is **absorbed** by this document.
 
@@ -4883,12 +4946,12 @@ files, or code comments.
 | §14 | §52 |
 | §15 | §53.1 |
 | §16 | Appendix B, Appendix D.3 |
-| §17 | — · Decisions-resolved register. **No Bible section**: each entry's *conclusion* is stated in the section that owns the topic, and the register itself is a historical artefact. Retained in `ARCHITECTURE.md` |
-| §18 | — · Change log. **No Bible section**, by design — this document states conclusions, not their history (§"About this document"). Retained in `ARCHITECTURE.md` |
+| §17 | — · Decisions-resolved register. **No section here**: each entry's *conclusion* is stated in the section that owns the topic, and the register itself is a historical artefact. Retained in `agent-improve/ARCHITECTURE.md` |
+| §18 | — · Change log. **No section here**, by design — this document states conclusions, not their history (§"About this document"). Retained in `agent-improve/ARCHITECTURE.md` |
 | §18.1 | §56 |
 
 **Absorption completed 2026-08-21.** Nine items of `ARCHITECTURE.md` content
-had no Bible home when the absorption was first declared and were written in
+had no home here when the absorption was first declared and were written in
 during this sweep: the one-way-door gate principle (→ §33), parallel-case
 isolation (→ §16), ETag concurrency and the Blob-vs-alternatives rationale
 (→ §8), the `analyse` rename scope table, the checkpoint / node-name warning

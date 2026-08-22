@@ -15,7 +15,7 @@
 #
 #     "this registry guards code, not documentation."
 #
-# The governance documents — CLAUDE.md, AGENT_IMPROVE_BIBLE.md, and the
+# The governance documents — CLAUDE.md, AGENTIC_ARCHITECTURE_REFERENCE.md, and the
 # records under docs/ — must be able to NAME a deprecated construct in order
 # to prohibit it, show it beside its replacement, or record why it was
 # retired. A registry that blocks the sentence "never write X in a phase

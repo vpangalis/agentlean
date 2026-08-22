@@ -1,4 +1,15 @@
-# Task 3B — Verification Log for AGENT_IMPROVE_BIBLE.md
+# Task 3B — Verification Log for the architecture reference
+
+> **Naming note, 2026-08-22.** The document verified by this pass was then
+> called `AGENT_IMPROVE_BIBLE.md` and referred to throughout as "the Bible". It
+> has since been renamed and moved to
+> [`../../AGENTIC_ARCHITECTURE_REFERENCE.md`](../../AGENTIC_ARCHITECTURE_REFERENCE.md).
+>
+> **Every "Bible" below means that document.** The wording is left as written
+> because this is a dated record of a completed pass — rewriting it would
+> falsify what was actually said on 2026-08-21. This file keeps its own name for
+> the same reason. **All `§` numbers below still resolve**; the rename changed
+> no section numbering.
 
 **Date:** 2026-08-21
 **Scope:** Every architectural and technical claim in the Bible that could have

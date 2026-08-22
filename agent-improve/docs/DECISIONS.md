@@ -360,7 +360,7 @@ middlewares share a parameter vocabulary; `ToolRetryMiddleware` was verified
 against the reference when it was added at B3.1 and was always correct, while
 `ModelRetryMiddleware` was adopted earlier and never re-checked. Verified
 against `reference.langchain.com/python/langchain/agents/middleware/model_retry/ModelRetryMiddleware`;
-full record in `docs/BIBLE_VERIFICATION_LOG.md` C-1.
+full record in `BIBLE_VERIFICATION_LOG.md` C-1.
 
 `on_failure="continue"` means: if `max_retries` is exhausted, the tool call returns whatever it has (or a failure message) rather than raising an exception. This keeps the coach loop alive on tool failures — the coach sees the failure result and can decide how to proceed rather than the graph dying.
 
@@ -929,7 +929,7 @@ Rules:
 2026-08-21: not found in LangGraph releases 1.2.5–1.2.11 or in the reference.
 **No work may be scheduled against it until it is confirmed against a real
 release or the source**; if it does not exist, a real fallback drain must be
-designed. See `AGENT_IMPROVE_BIBLE.md` §45.
+designed. See `../../AGENTIC_ARCHITECTURE_REFERENCE.md` §45.
 
 Custom Saga orchestrators and hand-written compensating-action frameworks
 are BANNED.
@@ -1770,7 +1770,7 @@ than Agent Improve's stack — it also contained `HumanInTheLoopMiddleware`,
 which is BANNED for our gates (§53).
 
 *Superseded 2026-08-21: the keyword itself was wrong. It is `max_retries`, not
-`retries` — see B3 and `docs/BIBLE_VERIFICATION_LOG.md` C-1. The "standardise on
+`retries` — see B3 and `BIBLE_VERIFICATION_LOG.md` C-1. The "standardise on
 2" ruling stands; only the parameter name changed.*
 
 ---
@@ -1781,13 +1781,13 @@ which is BANNED for our gates (§53).
 
 **Status:** RATIFIED 2026-08-21
 **Source:** Task 4 (Refactoring Procedure) Appendix E question 1
-**Lands in:** `AGENT_IMPROVE_BIBLE.md` §29.4 (new); this entry is both the
+**Lands in:** `../../AGENTIC_ARCHITECTURE_REFERENCE.md` §29.4 (new); this entry is both the
 decision record and the change-log entry required by §56
 
 **The question.** `backend/knowledge/tools.py` defines four `@tool` functions
 that reach outside Agent Improve — `search_resolve_cases`,
 `search_resolve_knowledge`, `search_resolve_evidence` and `search_flow_vsm`.
-**No Bible section stated their disposition**, and two sections were in tension:
+**No section of the architecture reference stated their disposition**, and two sections were in tension:
 
 | Section | Says |
 |---|---|

@@ -49,7 +49,7 @@ Everything is under `agent-improve/`. Two tiers:
 - `README.md` — minimal repo readme, leave as-is.
 
 ### docs/ (reference documents, review records, history)
-- `REFACTORING_AGENT_IMPROVE.md` — **the architectural bible**. 87 sections, 11-Part structure.
+- `REFACTORING_AGENT_IMPROVE.md` — **the historical review register** (superseded as the design authority by `../../AGENTIC_ARCHITECTURE_REFERENCE.md`). 87 sections, 11-Part structure.
   Started as EDUCATIONAL.md (Coursera/Edureka coursework). All 85 original sections reviewed,
   corrected, and restructured. This is the primary reference for any architectural decision.
   **Always read relevant sections here before recommending anything.**
@@ -263,7 +263,7 @@ Before any architectural decision: check `anthropic.com/engineering` post index 
 `error_handler=` require **≥1.2.6**, as does the subgraph `checkpoint_ns` fix.
 (`RunControl.request_drain()` was previously listed here; it is
 **UNCONFIRMED — MAY NOT EXIST** and is not gated on the upgrade — see
-`AGENT_IMPROVE_BIBLE.md` §45.) Nothing in §3.6 (reliability) or §1.2
+`../../AGENTIC_ARCHITECTURE_REFERENCE.md` §45.) Nothing in §3.6 (reliability) or §1.2
 (hierarchical subgraphs) can be built until `pip install --upgrade` runs. This is
 Step 2.5 and it gates more than the table above suggests.
 

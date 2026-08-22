@@ -1,28 +1,28 @@
 # Agent Improve — Refactoring Procedure
 **AgentLean Platform · DMAIC Improvement Agent**
-Version 1.0 · 2026-08-21
+Version 1.1 · 2026-08-22
 Status: **RATIFIED.** The ordered path from the v1 tree to the target in
-`AGENT_IMPROVE_BIBLE.md`.
+`../../AGENTIC_ARCHITECTURE_REFERENCE.md`.
 
 ---
 
 ## About this document
 
-`AGENT_IMPROVE_BIBLE.md` describes **the target**. `CLAUDE.md` states **the
+`../../AGENTIC_ARCHITECTURE_REFERENCE.md` describes **the target**. `CLAUDE.md` states **the
 rules**. This document is **the route** — the ordered, verifiable sequence of
-commits that gets the codebase from where it is to where the Bible says it
+commits that gets the codebase from where it is to where the reference says it
 should be.
 
-**It contains no design.** Every *what* and every *why* is a Bible citation.
-Where this document appears to state a design decision, the Bible section named
+**It contains no design.** Every *what* and every *why* is a reference citation.
+Where this document appears to state a design decision, the reference section named
 in the step is authoritative and this document is a bug.
 
 ### The three-document division
 
 | Document | Answers | Binding? |
 |---|---|---|
-| `CLAUDE.md` | **What the rule is** | **Yes** |
-| `AGENT_IMPROVE_BIBLE.md` | **How the system is shaped, and why** | **Yes** |
+| `agent-improve/CLAUDE.md` | **What the rule is** | **Yes** |
+| `../../AGENTIC_ARCHITECTURE_REFERENCE.md` | **How the system is shaped, and why** | **Yes** |
 | This document | **In what order it gets built, and how each step is proved** | **Yes** |
 
 `ARCHITECTURE.md` is SUPERSEDED and frozen. Its §15 migration sequence is
@@ -54,8 +54,8 @@ right.
 
 **The commit spine continues from 2.2**, the last completed step under the old
 `ARCHITECTURE.md` §15 numbering. Steps here are `{stage}.{step}` and run
-2.3 → 11.2. **The internal organisation is by Bible §53.1 stage**; the two
-views are reconciled in **Appendix A**, which maps every step to the Bible
+2.3 → 11.2. **The internal organisation is by Reference §53.1 stage**; the two
+views are reconciled in **Appendix A**, which maps every step to the reference
 section that specifies it.
 
 Continuing the spine rather than renumbering was deliberate: the git history
@@ -99,8 +99,8 @@ so they can be batched into one session rather than interrupting the run.
 
 | Precondition | State as of 2026-08-21 |
 |---|---|
-| Bible signed off | ✔ Task 3 + 3B complete, verification log closed |
-| `CLAUDE.md` current | ✔ v2.2.16, all citations resolve to Bible sections |
+| Reference signed off | ✔ Task 3 + 3B complete, verification log closed |
+| `CLAUDE.md` current | ✔ v2.2.16, all citations resolve to reference sections |
 | `ARCHITECTURE.md` frozen | ✔ SUPERSEDED banner in place |
 | Working tree clean and pushed | Check before every step — `start.ps1` destroys unpushed commits |
 
@@ -112,8 +112,8 @@ never be allowed to stall steps that do not depend on it.**
 | Gate | Blocks | Clears when |
 |---|---|---|
 | ~~**LangGraph < 1.2.6**~~ | ~~4.1, 4.2, 4.3, 4.4, 8.2~~ | **CLEARED 2026-08-21** — step 2.3 landed `langgraph` 1.2.11 |
-| **`RunControl.request_drain()` UNCONFIRMED** | **8.5 only** | The API is confirmed against a real release or the LangGraph source — or a fallback drain is designed. Bible §45 |
-| **Azure Cache for Redis not provisioned** | 8.4 only | The resource exists. Bible §46, Appendix B |
+| **`RunControl.request_drain()` UNCONFIRMED** | **8.5 only** | The API is confirmed against a real release or the LangGraph source — or a fallback drain is designed. Reference §45 |
+| **Azure Cache for Redis not provisioned** | 8.4 only | The resource exists. Reference §46, Appendix B |
 | **Two Azure index schema changes unapplied** | 5.2's `order_by` and `phase` filter; `rag_lookup_case_history`'s vector field | Step 9.1 lands |
 
 > ### ⛔ On `request_drain` specifically
@@ -121,7 +121,7 @@ never be allowed to stall steps that do not depend on it.**
 > **No step in this document may be written against `RunControl.request_drain()`
 > until it is confirmed to exist.** Step 8.5 exists as a placeholder that names
 > the requirement and the gate, not as work to schedule. If confirmation fails,
-> 8.5 is rewritten as a real fallback drain design (Bible §45 names the
+> 8.5 is rewritten as a real fallback drain design (Reference §45 names the
 > candidates) — it is **not** re-cited to another plausible API name.
 
 ## 0.3 What "current codebase" means
@@ -153,7 +153,7 @@ and each is independently valuable if the refactor stalls.*
 
 | | |
 |---|---|
-| **Bible §** | §53 (dependency floor) · §16 (why ≥1.2.6) |
+| **Reference §** | §53 (dependency floor) · §16 (why ≥1.2.6) |
 | **Touches** | `requirements.txt` · `.venv` |
 | **Precondition** | 0.1 |
 | **Verify** | `import-check` |
@@ -165,7 +165,7 @@ parent `checkpoint_ns` (regression in 1.2.3)"*, which §16 depends on.
 **Resolve the exact target by running `/verify-current-version` as this step's
 first action.** As of 2026-08-21 that resolved to `langgraph` 1.2.11,
 `langchain` 1.3.16, `langchain-classic` 1.0.8. **If the skill resolves
-different values, the skill wins** — Bible §53's table is a snapshot and says
+different values, the skill wins** — Reference §53's table is a snapshot and says
 so.
 
 **The `langchain-core` jump is the risk.** `langchain` 1.3.16 requires
@@ -197,7 +197,7 @@ reports ≥1.2.6, `pytest backend/tests/` is green, and the app starts.
 
 | | |
 |---|---|
-| **Bible §** | §12 · CLAUDE.md §3.1, §14 no-go list |
+| **Reference §** | §12 · CLAUDE.md §3.1, §14 no-go list |
 | **Touches** | [`core/graph.py:73`](../backend/core/graph.py#L73) |
 | **Precondition** | 2.3 |
 | **Verify** | `grep-absence` |
@@ -224,7 +224,7 @@ graph still compiles.
 
 | | |
 |---|---|
-| **Bible §** | §14 (node contract) · §49 (async by default) · CLAUDE.md §1.4 |
+| **Reference §** | §14 (node contract) · §49 (async by default) · CLAUDE.md §1.4 |
 | **Touches** | 11 node functions across `phases/*/orchestrate.py`, `phases/*/validate.py` · `escalate.py` · all handlers in `gateway/routes.py` |
 | **Precondition** | 2.4 |
 | **Verify** | `live-run` |
@@ -260,13 +260,13 @@ response with no `RuntimeWarning: coroutine was never awaited` in the log.
 
 | | |
 |---|---|
-| **Bible §** | §21 (typed content blocks) · CLAUDE.md §4.5 |
+| **Reference §** | §21 (typed content blocks) · CLAUDE.md §4.5 |
 | **Touches** | 20 sites — see below |
 | **Precondition** | 2.5 |
 | **Verify** | `grep-absence` |
 
 **This is its own step because the scope is ten times what the current-state
-register records.** Bible Appendix E names two sites
+register records.** The reference's Appendix E names two sites
 ([`routes.py:67`](../backend/gateway/routes.py#L67),
 [`upload/agent.py:107`](../backend/upload/agent.py#L107)). There are **20**:
 
@@ -309,7 +309,7 @@ zero hits, and a `/ask` turn still returns coaching text.
 
 | | |
 |---|---|
-| **Bible §** | §21 (roles, temperature, factory) · §54 (where classes live) |
+| **Reference §** | §21 (roles, temperature, factory) · §54 (where classes live) |
 | **Touches** | [`core/llm.py`](../backend/core/llm.py) · every `get_llm(...)` call site |
 | **Precondition** | 2.6 |
 | **Verify** | `pytest` |
@@ -361,7 +361,7 @@ resolve to a deployment and that grader temperature is 0.1.
 
 | | |
 |---|---|
-| **Bible §** | §5 · §6 · §7 |
+| **Reference §** | §5 · §6 · §7 |
 | **Touches** | `core/state.py` (rewrite) · `core/substate.py` (new) |
 | **Precondition** | 2.7 |
 | **Verify** | `import-check` |
@@ -392,7 +392,7 @@ produced the v1 "attempts always reset to 0" bug (§6).
 
 | | |
 |---|---|
-| **Bible §** | §9 · §10 |
+| **Reference §** | §9 · §10 |
 | **Touches** | `core/store.py` (new) |
 | **Precondition** | 3.1 |
 | **Verify** | `live-run` |
@@ -420,7 +420,7 @@ identically.
 
 | | |
 |---|---|
-| **Bible §** | §9 (boundary mappers) |
+| **Reference §** | §9 (boundary mappers) |
 | **Touches** | `phases/{phase}/mappers.py` × 5 (new) |
 | **Precondition** | 3.2 |
 | **Verify** | `pytest` |
@@ -448,7 +448,7 @@ document.
 
 | | |
 |---|---|
-| **Bible §** | §7 (field typing law) · §40 (the five schemas) · §41 (structured dicts) · §53.1 (rewrite in place) |
+| **Reference §** | §7 (field typing law) · §40 (the five schemas) · §41 (structured dicts) · §53.1 (rewrite in place) |
 | **Touches** | `phases/{phase}/schema.py` × 5 · `phases/{phase}/validate.py` × 5 · `ui/index.html` |
 | **Precondition** | 3.3 |
 | **Verify** | `manual-UI` |
@@ -510,7 +510,7 @@ preview shows the SIPOC with six keys including `process_kpis`.
 
 # Part 3 — Stage 4: The graph
 
-> **Ordering note — a deliberate departure from Bible §53.1's list order.**
+> **Ordering note — a deliberate departure from Reference §53.1's list order.**
 >
 > §53.1 lists `thread_id` wiring **before** phase subgraphs. That order cannot
 > execute. The v1 graph chains all five phases with conditional edges, so a
@@ -530,7 +530,7 @@ preview shows the SIPOC with six keys including `process_kpis`.
 
 | | |
 |---|---|
-| **Bible §** | §12 (topology) · §13 (five nodes) · §14 (node contract) |
+| **Reference §** | §12 (topology) · §13 (five nodes) · §14 (node contract) |
 | **Touches** | `phases/define/graph.py` (new) · `phases/define/nodes.py` (new) |
 | **Precondition** | 3.4 · **gate: LangGraph ≥1.2.6** |
 | **Verify** | `import-check` |
@@ -568,7 +568,7 @@ compiled graph with exactly those five node names, asserted in a test.
 
 | | |
 |---|---|
-| **Bible §** | §16 (`thread_id`) · §47 (all five requirements) · §49 (one runtime) · §8 |
+| **Reference §** | §16 (`thread_id`) · §47 (all five requirements) · §49 (one runtime) · §8 |
 | **Touches** | `gateway/routes.py` · `core/graph.py` · `core/store.py` |
 | **Precondition** | 4.1 · **gate: LangGraph ≥1.2.6** |
 | **Verify** | `azure-query` |
@@ -577,7 +577,7 @@ compiled graph with exactly those five node names, asserted in a test.
 **wired but inert** — `core/graph.py:147` compiles with a checkpointer, but
 `thread_id` and `ainvoke` appear nowhere in the codebase and the compiled graph
 is discarded at [routes.py:238](../backend/gateway/routes.py#L238). **Zero
-checkpoints have ever been written** (Bible §53.1, Appendix E).
+checkpoints have ever been written** (Reference §53.1, Appendix E).
 
 **The five Handler-Shaped Durability requirements of §47 land here, not
 separately** — §47 says so explicitly. Once checkpoints write, the FastAPI
@@ -611,7 +611,7 @@ retry starts clean.
 
 **Prompt (Stage 1 — audit, read-only):**
 > Read CLAUDE.md §1.1 (one runtime), §1.2 (`thread_id`), §1.4, and
-> `AGENT_IMPROVE_BIBLE.md` §47 in full. Then read
+> `../../AGENTIC_ARCHITECTURE_REFERENCE.md` §47 in full. Then read
 > `agent-improve/backend/gateway/routes.py` and `core/graph.py`. **Report only.**
 > Produce: (a) every place `routes.py` dispatches a node directly, with line
 > numbers; (b) what state `routes.py` builds by hand that `SupervisorState`
@@ -634,7 +634,7 @@ retry starts clean.
 
 | | |
 |---|---|
-| **Bible §** | §12 · §15 (routing) |
+| **Reference §** | §12 · §15 (routing) |
 | **Touches** | `core/graph.py` (rewrite) |
 | **Precondition** | 4.2 |
 | **Verify** | `pytest` |
@@ -663,7 +663,7 @@ subgraph compiles with neither.
 
 | | |
 |---|---|
-| **Bible §** | §12 · §13 |
+| **Reference §** | §12 · §13 |
 | **Touches** | `phases/{measure,analyse,improve,control}/graph.py`, `nodes.py` |
 | **Precondition** | 4.3 |
 | **Verify** | `pytest` |
@@ -684,7 +684,7 @@ parameterised test.
 
 | | |
 |---|---|
-| **Bible §** | §27 |
+| **Reference §** | §27 |
 | **Touches** | `knowledge/retriever.py` |
 | **Precondition** | 4.4 |
 | **Verify** | `pytest` |
@@ -707,14 +707,14 @@ with `severity="permanent"` on a 4xx, and that a genuine no-match returns `[]`.
 
 | | |
 |---|---|
-| **Bible §** | §24 · §25 · §23 (index field names) |
+| **Reference §** | §24 · §25 · §23 (index field names) |
 | **Touches** | `knowledge/tools.py` (rewrite) · `knowledge/fusion.py` (new) |
 | **Precondition** | 5.1 |
 | **Verify** | `live-run` |
 
 **The retired tool names are `search_improve_knowledge`,
 `search_improve_cases` and `search_improve_evidence`** — corrected in CLAUDE.md
-§5.1 and Bible Appendix D.1 on 2026-08-21. **`grep-absence` must target those
+§5.1 and the reference's Appendix D.1 on 2026-08-21. **`grep-absence` must target those
 three strings.**
 
 **Only the tool layer is retired.** `knowledge/retriever.py`'s
@@ -724,7 +724,7 @@ supposed to survive.
 
 **The four cross-agent tools stay, unbound** — `search_resolve_cases`,
 `search_resolve_knowledge`, `search_resolve_evidence`, `search_flow_vsm`.
-Ratified as a distinct third category in **Bible §29.4** (2026-08-21,
+Ratified as a distinct third category in **Reference §29.4** (2026-08-21,
 `docs/DECISIONS.md` §Q1). **Do not delete them and do not bind them to the
 executor in this step.** Binding one is an amendment, and §29.4 names three
 rules that bind first — §27 compliance among them.
@@ -744,7 +744,7 @@ module's RRF is unit-tested at k=60.
 
 | | |
 |---|---|
-| **Bible §** | §30 · §31 |
+| **Reference §** | §30 · §31 |
 | **Touches** | `knowledge/computation.py` (new) · `knowledge/tool_args.py` (new) |
 | **Precondition** | 5.2 |
 | **Verify** | `pytest` |
@@ -761,7 +761,7 @@ suite covers each with a known-answer case.
 
 | | |
 |---|---|
-| **Bible §** | §30 |
+| **Reference §** | §30 |
 | **Touches** | `knowledge/computation.py` (`COMPUTATION_TOOLS_BY_PHASE`) |
 | **Precondition** | 5.3 |
 | **Verify** | `pytest` |
@@ -779,7 +779,7 @@ phase exceeds 16.
 
 | | |
 |---|---|
-| **Bible §** | §17 · §20 (`CoachingPlan`) |
+| **Reference §** | §17 · §20 (`CoachingPlan`) |
 | **Precondition** | 5.4 |
 | **Verify** | `trace-check` |
 
@@ -796,7 +796,7 @@ an `executor` span, with the plan visible as the planner's output.
 
 | | |
 |---|---|
-| **Bible §** | §18 · §20 |
+| **Reference §** | §18 · §20 |
 | **Precondition** | 6.1 |
 | **Verify** | `live-run` |
 
@@ -822,7 +822,7 @@ executor = create_agent(
 
 | | |
 |---|---|
-| **Bible §** | §19.1 (state injection) · §19.2 (skills) · §19.3 (summarization) |
+| **Reference §** | §19.1 (state injection) · §19.2 (skills) · §19.3 (summarization) |
 | **Precondition** | 6.2 |
 | **Verify** | `trace-check` |
 
@@ -836,7 +836,7 @@ within a turn (§19.1).
 
 | | |
 |---|---|
-| **Bible §** | §19.4 · §19.5 · §21 |
+| **Reference §** | §19.4 · §19.5 · §21 |
 | **Touches** | `phases/{phase}/graph.py` · **`core/llm.py`** |
 | **Precondition** | 6.3 |
 | **Verify** | `grep-absence` |
@@ -848,7 +848,7 @@ ToolRetryMiddleware(max_retries=2, on_failure="continue"),  # wrap_tool_call
 
 > **`max_retries`, not `retries`.** `retries=` does not exist and raises at
 > construction. This exact keyword sat in the canonical stack undetected from
-> adoption until 2026-08-21 (`docs/BIBLE_VERIFICATION_LOG.md` C-1).
+> adoption until 2026-08-21 (`BIBLE_VERIFICATION_LOG.md` C-1).
 
 **This step also removes `max_retries=3` from the `AzureChatOpenAI`
 constructor in `core/llm.py`**, deferred from step 2.7. **Sequenced here
@@ -866,7 +866,7 @@ hits, and both middlewares are present in the stack.
 
 | | |
 |---|---|
-| **Bible §** | §19.6 (contradiction) · §19.7 (coherence) · §19.8 (grader) |
+| **Reference §** | §19.6 (contradiction) · §19.7 (coherence) · §19.8 (grader) |
 | **Precondition** | 6.4 |
 | **Verify** | `pytest` |
 
@@ -882,7 +882,7 @@ coherence 2, validation stack 3 (§19).
 
 | | |
 |---|---|
-| **Bible §** | §22 |
+| **Reference §** | §22 |
 | **Touches** | `core/prompts.py` (rewrite) |
 | **Precondition** | 6.5 |
 | **Verify** | `grep-absence` |
@@ -905,7 +905,7 @@ both mandatory (§22).
 
 | | |
 |---|---|
-| **Bible §** | §34 · §35 |
+| **Reference §** | §34 · §35 |
 | **Touches** | `validation/gate_validator.py`, `validation/schemas.py` (new) |
 | **Precondition** | 6.6 |
 | **Verify** | `pytest` |
@@ -919,7 +919,7 @@ both mandatory (§22).
 
 | | |
 |---|---|
-| **Bible §** | §34 · §36 |
+| **Reference §** | §34 · §36 |
 | **Precondition** | 7.1 |
 | **Verify** | `pytest` |
 
@@ -935,7 +935,7 @@ is a violation.
 
 | | |
 |---|---|
-| **Bible §** | §33 · §33.1 · §33.2 |
+| **Reference §** | §33 · §33.1 · §33.2 |
 | **Precondition** | 7.2 |
 | **Verify** | `manual-UI` |
 
@@ -956,7 +956,7 @@ advances to Measure.
 
 | | |
 |---|---|
-| **Bible §** | §35 |
+| **Reference §** | §35 |
 | **Precondition** | 7.3 |
 | **Verify** | `pytest` |
 
@@ -970,7 +970,7 @@ recorded in `acknowledged_gaps` (§35).
 
 | | |
 |---|---|
-| **Bible §** | §38 |
+| **Reference §** | §38 |
 | **Touches** | `escalate.py` (rewrite) |
 | **Precondition** | 7.4 |
 | **Verify** | `pytest` |
@@ -985,7 +985,7 @@ recorded in `acknowledged_gaps` (§35).
 
 | | |
 |---|---|
-| **Bible §** | §48 |
+| **Reference §** | §48 |
 | **Touches** | `core/errors.py` |
 | **Precondition** | 7.5 |
 | **Verify** | `pytest` |
@@ -1000,7 +1000,7 @@ drive the breaker and the fallback chain.
 
 | | |
 |---|---|
-| **Bible §** | §45 |
+| **Reference §** | §45 |
 | **Precondition** | 8.1 · **gate: LangGraph ≥1.2.6** · **requires async nodes (2.5)** |
 | **Verify** | `pytest` |
 
@@ -1022,7 +1022,7 @@ replacement, and it is what the drift hook's `pattern-4-custom-saga` guards.
 
 | | |
 |---|---|
-| **Bible §** | §46 |
+| **Reference §** | §46 |
 | **Touches** | `core/reliability.py` (new) |
 | **Precondition** | 8.2 |
 | **Verify** | `pytest` |
@@ -1039,7 +1039,7 @@ BLOCKED.**
 
 | | |
 |---|---|
-| **Bible §** | §46 |
+| **Reference §** | §46 |
 | **Blocker** | **Azure Cache for Redis is not provisioned** |
 
 Session-scoped, never global. Invalidation follows source volatility, and **a
@@ -1055,7 +1055,7 @@ is correct behaviour, not a bug.
 
 | | |
 |---|---|
-| **Bible §** | §45 |
+| **Reference §** | §45 |
 | **Gate** | **`RunControl.request_drain()` is UNCONFIRMED — MAY NOT EXIST** |
 
 **The requirement is ratified: a deployment rollout must not kill mid-coaching
@@ -1067,7 +1067,7 @@ installed package, in source at a named version, or in the reference with a
 version stamp — **not a blog post and not a recollection** (§45).
 
 **If confirmation fails, this step is rewritten as a real fallback drain
-design**, not re-cited to another plausible API name. Bible §45 names the
+design**, not re-cited to another plausible API name. Reference §45 names the
 candidates: a readiness probe that fails while in-flight turns complete, or a
 shutdown hook that stops accepting new `ainvoke` calls and awaits the current
 node.
@@ -1082,7 +1082,7 @@ node.
 
 | | |
 |---|---|
-| **Bible §** | §23.2 · §23.3 · §23.5 |
+| **Reference §** | §23.2 · §23.3 · §23.5 |
 | **Touches** | Azure AI Search — `improve_evidence_index`, `improve_case_index` |
 | **Precondition** | 5.2 |
 | **Verify** | `azure-query` |
@@ -1119,7 +1119,7 @@ says so explicitly.
 
 | | |
 |---|---|
-| **Bible §** | §49 |
+| **Reference §** | §49 |
 | **Precondition** | 7.5 |
 | **Verify** | `manual-UI` |
 
@@ -1132,7 +1132,7 @@ handler shape must be deliberate, and streaming is the shape §47 prefers.
 
 | | |
 |---|---|
-| **Bible §** | §50 · §43.4 |
+| **Reference §** | §50 · §43.4 |
 | **Touches** | `ui/index.html` |
 | **Precondition** | 10.1 |
 | **Verify** | `manual-UI` |
@@ -1153,7 +1153,7 @@ recommended can pass the gate, and a blended 55% implies otherwise.
 
 | | |
 |---|---|
-| **Bible §** | §54 · Appendix D |
+| **Reference §** | §54 · Appendix D |
 | **Verify** | `grep-absence` |
 
 Delete `ImproveGraphState`, the five `orchestrate.py` files, the five v1
@@ -1168,7 +1168,7 @@ Delete `ImproveGraphState`, the five `orchestrate.py` files, the five v1
 
 | | |
 |---|---|
-| **Bible §** | §55 |
+| **Reference §** | §55 |
 | **Verify** | `pytest` |
 
 Re-check that `deprecated_patterns.yaml`'s four CLAUDE.md citations still
@@ -1184,10 +1184,10 @@ parsing still matches this document's format.
 
 ## Appendix A — Traceability matrix
 
-**Every step maps to the Bible section that specifies it.** A step with no
-Bible section is not a step — it is an undocumented decision.
+**Every step maps to the reference section that specifies it.** A step with no
+reference section is not a step — it is an undocumented decision.
 
-| Step | Bible § | Verify |
+| Step | Reference § | Verify |
 |---|---|---|
 | 2.3 | §53, §16 | `import-check` |
 | 2.4 | §12 | `grep-absence` |
@@ -1228,7 +1228,7 @@ Bible section is not a step — it is an undocumented decision.
 | 11.1 | §54, App. D | `grep-absence` |
 | 11.2 | §55 | `pytest` |
 
-### Coverage check against Bible §53.1
+### Coverage check against Reference §53.1
 
 | §53.1 line | Steps |
 |---|---|
@@ -1246,7 +1246,7 @@ Bible section is not a step — it is an undocumented decision.
 
 **Every §53.1 line has at least one step.** Steps 2.3–2.7, 9.1, 10.1–10.2 and
 11.1–11.2 have no §53.1 line — they are prerequisites and close-out that the
-Bible's shape-level list does not enumerate.
+reference's shape-level list does not enumerate.
 
 ---
 
@@ -1268,7 +1268,7 @@ Bible's shape-level list does not enumerate.
 **Neither is a step, and neither blocks one.** Both encode Black Belt domain
 judgment and both inform the design as it lands (§53.1).
 
-| Workstream | Bible § | Cadence |
+| Workstream | Reference § | Cadence |
 |---|---|---|
 | **The five SKILL.md files** | §32, §43 | Should lead step 6.6 — the coach prompts reference skill content |
 | **The evaluation dataset** | §52 | Becomes load-bearing once 6.2 lands. Before that there is no coaching quality to measure |
@@ -1343,7 +1343,7 @@ between §29.1 (which sanctions read-only cross-agent tools) and §29.2 (whose
 universal seven excludes them) — permitted and unaccounted for at once.
 
 **Ruled: a distinct third category, RATIFIED as present-but-not-bound.** Added
-as **Bible §29.4** through the §56 amendment procedure; decision record
+as **Reference §29.4** through the §56 amendment procedure; decision record
 `docs/DECISIONS.md` §Q1. Kept because the three `search_resolve_*` tools are
 verified read-only paths into a production system; unbound because §30's tool
 ceiling would put Measure at 18 against a cap of 16, and there is no evidence
@@ -1352,7 +1352,7 @@ rules bind before any may be bound to a coach**, §27 compliance among them.
 Applied at step 5.2.
 
 **2 — The retired-name strings · RESOLVED, and worse than reported.** CLAUDE.md
-§5.1 and Bible Appendix D.1 named `search_methodology` and `search_evidence` as
+§5.1 and the reference's Appendix D.1 named `search_methodology` and `search_evidence` as
 the retired tool names.
 
 **`search_methodology` exists nowhere in the codebase. `search_evidence` does
@@ -1364,7 +1364,7 @@ a fiction while all three real retired names survived.
 **Corrected directly** — the retired **tool** names are
 `search_improve_knowledge`, `search_improve_cases`, `search_improve_evidence`;
 the **retriever** layer keeps its names. Fixed in CLAUDE.md §5.1, §0.3 and the
-no-go list, and in Bible §24 and Appendix D.1, which now carries a warning that
+no-go list, and in Reference §24 and Appendix D.1, which now carries a warning that
 these strings are load-bearing for verification. Applied at step 5.2.
 
 ---

@@ -1787,7 +1787,7 @@ define_agent = create_agent(
 takes **`max_retries`**, not `retries` — `retries=` does not exist and raises
 at construction — and `create_agent` takes **`system_prompt`**, not `prompt`,
 which `create_react_agent` took. Both verified against the LangChain
-reference; record in `docs/BIBLE_VERIFICATION_LOG.md` C-1 and C-2.
+reference; record in `BIBLE_VERIFICATION_LOG.md` C-1 and C-2.
 
 *Corrected from the original example on five counts:* `HumanInTheLoopMiddleware` is replaced by graph-level interrupts (§53 bugs, §2 pattern); deepagents' `RubricMiddleware` by the custom `DMAICGraderMiddleware` (§42 Option B); the tool list uses the canonical names and the per-phase subset (§39), now **8** rather than 9 since `record_field` was retired; `BeforeModelStateInjection` moved from **last to first** and its hook type corrected to `before_agent`; and the stack grew from four to **eight** as `ModelRetryMiddleware` (§80), `ToolRetryMiddleware`, `ContradictionDetectionMiddleware` and `CoherenceMiddleware` were ratified. The canonical stack is §84.
 

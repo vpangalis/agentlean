@@ -3,24 +3,24 @@
 > # ⛔ SUPERSEDED — 2026-08-21
 >
 > **This document is no longer binding and must not be built against.** It was
-> **absorbed into [`AGENT_IMPROVE_BIBLE.md`](AGENT_IMPROVE_BIBLE.md)**, which
+> **absorbed into [`../AGENTIC_ARCHITECTURE_REFERENCE.md`](../AGENTIC_ARCHITECTURE_REFERENCE.md)**, which
 > is now the design authority alongside `CLAUDE.md`.
 >
 > | You want… | Go to |
 > |---|---|
 > | The rule | `CLAUDE.md` |
-> | The design, schemas, contracts, sequencing | `AGENT_IMPROVE_BIBLE.md` |
-> | Where a `§X` from this file went | `AGENT_IMPROVE_BIBLE.md` **Appendix A.2** |
+> | The design, schemas, contracts, sequencing | `../AGENTIC_ARCHITECTURE_REFERENCE.md` |
+> | Where a `§X` from this file went | `../AGENTIC_ARCHITECTURE_REFERENCE.md` **Appendix A.2** |
 >
 > **Absorption was verified and completed on 2026-08-21.** Nine items of
-> content in this file had no Bible home when absorption was first declared and
-> were written into the Bible in that pass. Two items were deliberately **not**
+> content in this file had no home in that reference when absorption was first declared and
+> were written into it in that pass. Two items were deliberately **not**
 > absorbed and are the reason this file is retained read-only: **§17 Decisions
 > Resolved** and **§18 Change Log**, which are historical registers rather than
 > design.
 >
 > **This file is frozen.** Do not amend it. New architectural decisions land in
-> `AGENT_IMPROVE_BIBLE.md` (§56 amendment procedure), and rules land in
+> `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56 amendment procedure), and rules land in
 > `CLAUDE.md` §18.
 >
 > **Known stale content below**, left in place rather than rewritten because
@@ -29,17 +29,18 @@
 >
 > - **§3.2 says the phase subgraph has six nodes.** It has **five** —
 >   `planner`, `executor`, `validation_stack`, `gate_review`, `gate_apply`
->   (Bible §13). The sixth in §3.2's diagram is the mid-phase contradiction
+>   (reference §13). The sixth in §3.2's diagram is the mid-phase contradiction
 >   diff, which is **not a node**: it is `ContradictionDetectionMiddleware` at
->   middleware position 6 (Bible §19.6). The check polices the executor's own
+>   middleware position 6 (reference §19.6). The check polices the executor's own
 >   output, so it does not belong to the thing it polices.
 > - **§3.3's `create_agent` block shows five middlewares and types state
 >   injection as `before_model`.** The stack is **eight**, and the hook is
->   **`before_agent`** (Bible §19).
+>   **`before_agent`** (reference §19).
 > - **§9.2 cites `RunControl.request_drain()`.** That API is
->   **UNCONFIRMED — MAY NOT EXIST** (Bible §45).
-> - **§15 Step 2.5's version pins are stale.** Verified targets are in Bible
->   §53.
+>   **UNCONFIRMED — MAY NOT EXIST** (reference §45).
+> - **§15 Step 2.5's version pins are stale.** Verified targets are in the
+>   reference, §53. **§15's whole migration sequence is superseded** by
+>   `agent-improve/docs/REFACTORING_PROCEDURE.md`.
 >
 > The two parameter errors this file carried — `ModelRetryMiddleware(retries=)`
 > and `create_agent(prompt=)` — **were corrected in place** on 2026-08-21
@@ -435,7 +436,7 @@ executor = create_agent(
 > takes `system_prompt`, not `prompt`. The middleware list is also stale —
 > it shows five middlewares and types state injection as `before_model`;
 > the ratified stack is **eight**, with state injection on `before_agent`.
-> **The canonical stack is `AGENT_IMPROVE_BIBLE.md` §19.**
+> **The canonical stack is `../AGENTIC_ARCHITECTURE_REFERENCE.md` §19.**
 
 **`response_format` carries `CoachingResponse`, not a phase Output
 schema.** The executor runs once per coaching turn; the gate document is
@@ -3311,7 +3312,7 @@ rollouts. Mid-coaching sessions save their checkpoint and resume.
 > **UNCONFIRMED — MAY NOT EXIST (2026-08-21).** `RunControl.request_drain()`
 > was not found in LangGraph releases 1.2.5–1.2.11 or in the reference.
 > **Schedule no work against it.** The requirement stands; the mechanism does
-> not. See `AGENT_IMPROVE_BIBLE.md` §45.
+> not. See `../AGENTIC_ARCHITECTURE_REFERENCE.md` §45.
 
 **`DeltaChannel` is not used** — beta API, and not needed until
 sessions exceed roughly 200 turns.
