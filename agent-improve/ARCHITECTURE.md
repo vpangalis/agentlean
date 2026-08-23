@@ -73,9 +73,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.5 · 2026-08-22
+Version 1.6 · 2026-08-23
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.6 (2026-08-23)** — **The specification layer.** Two new Parts: **Part XII (§57–§66)** states the classes, functions and interfaces at the level the code could be rebuilt from, and **Part XIII (§67–§68)** carries the EU AI Act posture and the DORA-structured risk register. 73 spec entries; definitions relocated out of 28 architecture sections, which keep every word of their reasoning and gain a `**Specification:**` pointer. **§1–§56 do not renumber.** Five entries carry an AI-ACT flag and 12 carry `AI-ACT-REVIEW: uncertain`. **42 gaps are marked and none is filled** — that was the pass's binding constraint; §66 is the register, and §66.7 records ten findings that are inconsistencies rather than absences. §55.1 adds the five spec-layer governance rules; Appendix C gains a Tier 1 compliance block. Decision record: `agent-improve/docs/DECISIONS.md` §S1, §S2.
 
 **v1.5 (2026-08-22)** — **§15: `route_after_phase` deleted.** The section showed static phase edges *and* a conditional router returning labels wired to nothing, reading `gate_attempts` off `SupervisorState` where that field does not exist — a `KeyError` on the gate-failure path. A phase transition is either static or conditional; static is correct, because a subgraph reaches `END` only through `gate_apply` and so reaching `END` means the gate passed. Retry and escalation resolve inside the phase. **Level 2 routing untouched.** The deleted function was already prohibited by Appendix D.2 — see DECISIONS §R2 for that finding. Decision record: `agent-improve/docs/DECISIONS.md` §R2.
 
@@ -343,6 +345,9 @@ exactly one home. Everything else cross-references it.
 | Tool inventory and per-phase binding | §30 |
 | The four-layer validation stack | §34 |
 | The five `{Phase}Output` schemas | §40 |
+| **Class and function specifications** | **Part XII** |
+| **The SPEC-GAP register** | **§66** |
+| **Compliance posture and the risk register** | **Part XIII** |
 | Deferred items and promotion triggers | Appendix B |
 | Retired names and banned patterns | Appendix D |
 
@@ -518,30 +523,10 @@ here. It is deliberately first.*
 *Supersedes: REFACTORING §17; ARCHITECTURE.md §4.1; DECISIONS §A1.*
 **Status: RATIFIED.** File: `core/state.py`.
 
-```python
-class SupervisorState(TypedDict):
-    messages:       Annotated[list[BaseMessage], operator.add]
-    history:        Annotated[list[str], operator.add]
-    case_id:        str
-    phase_index:    int
-    current_phase:  str
-    gate_passed:    dict[str, bool]
-    final_output:   Optional[dict]
-```
+**Specification:** the canonical schema and its field table are **§57.2 — S-C01**.
+This section keeps the reasoning.
 
 **Seven fields. That is the entire schema.** An eighth requires an amendment.
-
-### Field by field
-
-| Field | Type | Written by | Read by |
-|---|---|---|---|
-| `messages` | `Annotated[list[BaseMessage], operator.add]` | Route on each Belt turn; subgraph returns | Input mappers (§9), seeding `PhaseState.messages` |
-| `history` | `Annotated[list[str], operator.add]` | Every node, on entry | Debugging and trace reconstruction only |
-| `case_id` | `str` | Once, at session start | Everything — it is also `thread_id` and the store namespace segment |
-| `phase_index` | `int` | **Output mapper only** | UI progress, readability |
-| `current_phase` | `str` | **Output mapper only** | Routing, state injection, index writes |
-| `gate_passed` | `dict[str, bool]` | **Output mapper only**; re-approval cascade sets `False` (§37) | Supervisor routing — the thing Level 1 actually decides on |
-| `final_output` | `Optional[dict]` | Control's output mapper, at the final gate | API response at project completion |
 
 ### `gate_passed` is a dict, not a list
 
@@ -595,54 +580,11 @@ structural rather than stylistic.
 *Supersedes: REFACTORING §18; ARCHITECTURE.md §4.2; DECISIONS §A2.*
 **Status: RATIFIED.** File: `core/substate.py`.
 
-```python
-class PhaseState(TypedDict):
-    # ── conversation plumbing (3) ───────────────────────────────
-    messages:           Annotated[list[BaseMessage], operator.add]
-    history:            Annotated[list[str], operator.add]
-    phase_context:      str
-
-    # ── content fields (14) ─────────────────────────────────────
-    coaching_plan:      Optional[CoachingPlan]
-    field_index:        int
-    draft:              dict[str, Any]
-    artifacts:          dict[str, Any]
-    step_log:           Annotated[list[dict[str, Any]], operator.add]
-    belt_edits:         dict[str, Any]
-    turn_count:         int
-    final:              dict[str, Any]
-    gate_attempts:      int
-    validator_feedback: list[dict]
-    citations:          list[dict]
-    uploads:            list[dict]
-    hop_results:        list[str]
-    synthesis_output:   Optional[dict]
-```
+**Specification:** the canonical schema and its field table are **§58.2 — S-C02**.
+This section keeps the reasoning.
 
 **Seventeen fields — three plumbing plus fourteen content.** A fifteenth
 content field requires an amendment.
-
-### Field by field
-
-| Field | Type | Written by | Read by |
-|---|---|---|---|
-| `messages` | `Annotated[list, operator.add]` | Input mapper seeds it; the agent loop appends | The agent loop; `SummarizationMiddleware` (§19) |
-| `history` | `Annotated[list[str], operator.add]` | Every node on entry | Debugging |
-| `phase_context` | `str` | **Input mapper only**, composed from the Store | Planner; state injection (§19) |
-| `coaching_plan` | `Optional[CoachingPlan]` | Planner node, overwritten each turn | Executor node |
-| `field_index` | `int` | Planner node | Planner — which field within the phase |
-| `draft` | `dict[str, Any]` | Executor node — this turn's extraction | Validation stack; `gate_review` |
-| `artifacts` | `dict[str, Any]` | Executor (from `fields_captured`); `gate_apply` (Belt edits) | Planner, `check_gate_status()`, validation stack, gate assembly, state injection |
-| `step_log` | `Annotated[list[dict], operator.add]` | Validation layers, grader `on_evaluation`, fallback chain | Audit trail; written into the gate document |
-| `belt_edits` | `dict[str, Any]` | `gate_apply`, from the interrupt resume payload | `gate_apply` |
-| `turn_count` | `int` | Executor node | Planner; `step_log` key construction (§11) |
-| `final` | `dict[str, Any]` | `gate_apply_node` | Output mapper; crash recovery |
-| `gate_attempts` | `int` | Validation stack increments; `gate_apply` resets to `0` | Validation stack; the escalation edge at `>= 3` |
-| `validator_feedback` | `list[dict]` | Validation stack appends; `gate_apply` resets to `[]` | Coach, on retry |
-| `citations` | `list[dict]` | Executor, from `CoachingResponse.citations` | Gate document assembly |
-| `uploads` | `list[dict]` | Upload handler | Gate document assembly; evidence context |
-| `hop_results` | `list[str]` | `analyse_executor_node` | The synthesis call; LangSmith state view |
-| `synthesis_output` | `Optional[dict]` | `analyse_executor_node`, from the synthesis call | The coach call |
 
 ### `draft`, `belt_edits` and `final` are `dict`, never `str`
 
@@ -658,15 +600,8 @@ per phase, and a plan made at turn 1 cannot anticipate turn 4. The planner
 reads `artifacts` to know what is captured and what is next — that is the
 queue, derived rather than stored.
 
-**It is a Pydantic model, produced via `with_structured_output`:**
-
-```python
-class CoachingPlan(BaseModel):
-    focus_field:        str
-    next_action:        str
-    retrieval_strategy: Literal["single_hop", "multi_hop"]
-    retrieval_hops:     list[str]     # template strings; empty for single_hop
-```
+**Specification:** `CoachingPlan` is defined once, at **§58.4 — S-C04**. It is a Pydantic
+model produced by the builder-style structured-output call on the model.
 
 A plain dict cannot be validated at planner-output time, and
 `retrieval_strategy` needs its `Literal` constraint specifically: it selects
@@ -710,12 +645,7 @@ the Belt fixing a value would look to the coach like the system rejecting it.
 **Accumulation is the entire point of `validator_feedback`.** Each failed
 attempt appends:
 
-```python
-{"attempt": 1, "layer": "grader",
- "criteria_failed": ["root_cause_validation"],
- "feedback": "does not reference statistical evidence",
- "timestamp": "2026-08-03T11:04:19Z"}
-```
+**Specification:** the entry shape is in **§58.2 — S-C02**.
 
 The coach reads the full list on retry. **The shared cap of 3 is defensible
 only because each attempt is better informed than the last** — a cap on
@@ -724,14 +654,7 @@ repetition, and this field is what carries the memory.
 
 ### `citations` and `uploads` — the evidence trail
 
-```python
-citations = [{"source": "improve_knowledge_index", "page": 47,
-              "content_summary": "GR&R acceptance thresholds", "turn": 5}]
-
-uploads   = [{"evidence_index_id": "...", "filename": "defect_data_q2.xlsx",
-              "phase": "measure", "uploaded_at": "2026-05-27T09:19:24+00:00",
-              "summary": "baseline defect counts, Q2"}]
-```
+**Specification:** both entry shapes are in **§58.2 — S-C02**.
 
 Both are written into the gate document (§33). Without them the document
 cannot show what the phase was grounded in, and §50 requires citation
@@ -820,14 +743,7 @@ each tool has to do anyway.
 
 Each carries the Belt's content plus three reference keys:
 
-```python
-causal_hypothesis = {
-    "hypothesis":       "Inadequate onboarding causes error spike in first 60 days",
-    "references_phase": "measure",
-    "references_field": "baseline_mean",
-    "references_value": "12.3%",
-}
-```
+**Specification:** the canonical shape of all three is **§63.6 — S-C32**.
 
 **The dict exists so the grader can verify the link deterministically.** It
 reads the referenced phase's gate document from the Store and checks the named
@@ -956,14 +872,7 @@ from the original spec, discovered during implementation.
 *Supersedes: REFACTORING §19, §44 (Mechanism 3), §52a; ARCHITECTURE.md §4.3, §6.3; DECISIONS §A7, §O1.*
 **Status: RATIFIED.** File: `core/store.py`.
 
-```python
-class AzureBlobStore(BaseStore):
-    def put(self, namespace: tuple[str, ...], key: str, value: dict) -> None: ...
-    def get(self, namespace: tuple[str, ...], key: str) -> Item | None: ...
-    def search(self, namespace: tuple[str, ...], *, query: str | None = None,
-               filter: dict | None = None, limit: int = 10) -> list[Item]: ...
-    def delete(self, namespace: tuple[str, ...], key: str) -> None: ...
-```
+**Specification:** **§58.6 — S-C06**.
 
 > **`BaseStore.search()` is more capable than earlier revisions of this design
 > assumed** (verified 2026-08-21). Beyond `query` and `filter` it supports
@@ -1042,52 +951,8 @@ section exists to prevent.
 
 Two plain functions per phase, in `phases/{phase}/mappers.py`.
 
-```python
-def define_input_mapper(parent: SupervisorState, store: BaseStore) -> PhaseState:
-    """SupervisorState → DefineState. Context is composed from the store,
-    never carried on parent state. Define has no prior phase, so its source
-    is the case record loaded at session start (§10)."""
-    case = store.get(("projects", parent["case_id"], "case"), "record").value
-    return {
-        "messages":           parent["messages"],
-        "history":            [],
-        "phase_context": (
-            f"{case['title']} — {case['department']}. "
-            f"{case['belt_level']} belt, led by {case['leader']}, "
-            f"target {case['target_date']}."
-        ),
-        "coaching_plan":      None,
-        "field_index":        0,
-        "draft":              {},
-        "artifacts":          {},
-        "step_log":           [],
-        "belt_edits":         {},
-        "turn_count":         0,
-        "final":              {},
-        "gate_attempts":      0,
-        "validator_feedback": [],
-        "citations":          [],
-        "uploads":            [],
-        "hop_results":        [],
-        "synthesis_output":   None,
-    }
-
-
-def define_output_mapper(child: PhaseState, parent: SupervisorState,
-                         store: BaseStore) -> dict[str, Any]:
-    """DefineState → SupervisorState update. The gate document goes to the
-    store; only orchestration-relevant values return to the parent."""
-    store.put(
-        ("projects", parent["case_id"], "artifacts"),
-        "define",
-        child["final"],                      # the approved gate document (§33)
-    )
-    return {
-        "current_phase": "measure",
-        "phase_index":   1,
-        "gate_passed":   {**parent["gate_passed"], "define": True},
-    }
-```
+**Specification:** both mappers are defined at **§58.19 — S-F10** and **§58.20 — S-F11**;
+the four remaining pairs are **§58.21 — S-F12**.
 
 **The three orchestration values advance together, from this one site.** That
 single write point is what makes the derived-field exemption in §5 safe.
@@ -1269,12 +1134,7 @@ superseded and must not be used.
 
 It must, because it selects that phase's computation-tool subset (§30):
 
-```python
-def build_phase_subgraph(phase: str, llm):
-    tools = UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase]
-    ...
-    return builder.compile()          # NO checkpointer, NO store
-```
+**Specification:** **§58.11 — S-F02**.
 
 **The `compile()` call takes neither checkpointer nor store.** That is not an
 omission — see §16.
@@ -1395,11 +1255,8 @@ executor is one node.** The tool-calling loop happens inside it.
 
 Nodes are **module-level async functions**:
 
-```python
-async def phase_executor(state: PhaseState) -> dict:
-    ...
-    return {"draft": {...}, "step_log": [{...}]}
-```
+**Specification:** `phase_executor` itself is the calibrated function sample at
+**§57.3 — S-F04**. The contract below is cross-cutting and stays here.
 
 | Rule | Detail |
 |---|---|
@@ -1438,14 +1295,8 @@ belong in the graph topology.
 
 **Phase transitions are static.** DMAIC order is fixed:
 
-```python
-builder.add_edge(START,      "define")
-builder.add_edge("define",   "measure")
-builder.add_edge("measure",  "analyse")
-builder.add_edge("analyse",  "improve")
-builder.add_edge("improve",  "control")
-builder.add_edge("control",  END)
-```
+**Specification:** the supervisor wiring is **§58.10 — S-F01**; the undesigned Level 2
+routing is **§58.22 — S-F13**.
 
 There is nothing to reason about, so nothing reasons. An LLM call to choose the
 next phase would be cost and latency purchasing no decision. **The v2.1
@@ -1509,15 +1360,7 @@ A direct import creates a dependency the graph does not model.
 
 ### One `thread_id` per project
 
-```python
-await graph.ainvoke(
-    state,
-    config={
-        "recursion_limit": 50,        # infrastructure backstop, NOT the hop cap
-        "configurable": {"thread_id": case_id},
-    },
-)
-```
+**Specification:** **§58.10 — S-F01**.
 
 **`thread_id` is the `case_id` value.** Never per phase, never concatenated —
 `{case_id}-define` and similar are **BANNED**.
@@ -1533,10 +1376,7 @@ in §47.
 
 ### The checkpointer and store go on the parent graph ONLY
 
-```python
-graph = builder.compile(checkpointer=checkpointer, store=store)   # parent
-subgraph = phase_builder.compile()                                # NO args
-```
+**Specification:** **§58.10 — S-F01** and **§58.11 — S-F02**.
 
 **Phase subgraphs compile with neither.** LangGraph routes their writes through
 the parent's saver, distinguished by an **auto-managed `checkpoint_ns`**. Each
@@ -1596,13 +1436,10 @@ field is next?" is worth the extra node.
 
 ### `CoachingPlan`
 
-```python
-class CoachingPlan(BaseModel):
-    focus_field:        str
-    next_action:        str
-    retrieval_strategy: Literal["single_hop", "multi_hop"]
-    retrieval_hops:     list[str]     # template strings; empty for single_hop
+**Specification:** **§58.4 — S-C04**. The invocation form is kept here because it is what
+makes "the planner decides at plan time" concrete.
 
+```python
 phase_planner = llm.with_structured_output(CoachingPlan)
 coaching_plan: CoachingPlan = phase_planner.invoke(planner_prompt)
 ```
@@ -1627,15 +1464,7 @@ retired** (§29).
 *Supersedes: REFACTORING §42, §50, §84; ARCHITECTURE.md §3.3; CLAUDE.md §4.4.*
 **Status: RATIFIED.**
 
-```python
-executor = create_agent(
-    model=get_llm("coach", max_tokens=1500),
-    tools=UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase],
-    response_format=CoachingResponse,        # §20 — never a {Phase}Output
-    middleware=[...],                        # §19 — all eight, in order
-    system_prompt=PHASE_COACH_PROMPT[phase],
-)
-```
+**Specification:** the executor node is the calibrated function sample at **§57.3 — S-F04**.
 
 **The parameter is `system_prompt=`, not `prompt=`.** `create_react_agent`
 took `prompt`; `create_agent` renamed it. Verified against the
@@ -1682,19 +1511,9 @@ not cost you the other.
 *Supersedes: REFACTORING §80, §84; ARCHITECTURE.md §3.4; DECISIONS §B3, §M2, §M3.*
 **Status: RATIFIED.** **This is the canonical definition. Everything else cross-references it.**
 
-```python
-middleware=[
-    BeforeModelStateInjection(...),          # 1 · custom · before_agent
-    DMAICSkillsMiddleware(...),              # 2 · custom · before_agent
-    SummarizationMiddleware(...),            # 3 · core   · before_model
-    ModelRetryMiddleware(max_retries=2),     # 4 · core   · wrap_model_call
-    ToolRetryMiddleware(                     # 5 · core   · wrap_tool_call
-        max_retries=2, on_failure="continue"),
-    ContradictionDetectionMiddleware(...),   # 6 · custom · after_agent
-    CoherenceMiddleware(...),                # 7 · custom · after_agent
-    DMAICGraderMiddleware(...),              # 8 · custom · after_agent
-]
-```
+**Specification:** the five custom middlewares are **§61 — S-C10 to S-C15**. The stack, its
+order and its ordering rules stay here; the three core middlewares are used
+as shipped and keep their configuration in §19.3–§19.5.
 
 **Five custom, three core.** All are built on `AgentMiddleware` hooks. The six
 this architecture uses are `before_agent`, `after_agent`, `before_model`,
@@ -1859,13 +1678,7 @@ detection of §37.
 
 **It reads a flag. It does not detect anything itself.**
 
-```python
-class ContradictionDetectionMiddleware(AgentMiddleware):
-    def after_agent(self, state, runtime):
-        flag = state["structured_response"].contradiction_flag
-        if flag:
-            raise HITLInterrupt(**flag)
-```
+**Specification:** **§61.1 — S-C10**.
 
 **No Store read. No LLM call. No field-name matching.** Detection is performed
 by the coach, in the model call that already runs every turn, and arrives as
@@ -1970,25 +1783,8 @@ Full treatment, including the rubric text and the two-grader distinction, is
 | Produced by | The executor, via `response_format=` | Pydantic construction — **no LLM** |
 | Holds | This turn's extraction | The complete gate document |
 
-```python
-class CoachingResponse(BaseModel):
-    """Structured extraction from each coaching turn."""
-    message:            str                 # coaching text the Belt sees
-    fields_captured:    list[dict] = []     # [{field_name, value, source}]
-    citations:          list[dict] = []     # sources referenced this turn
-    contradiction_flag: Optional[dict] = None   # §37 — set only on a material
-                                                # contradiction of a committed value
-```
-
-**`contradiction_flag` carries five keys when set:**
-
-```python
-{"prior_field":    str,   # the committed field being contradicted
- "approved_value": str,   # what was gate-approved
- "approved_phase": str,   # which phase committed it
- "proposed_value": str,   # what the Belt is now asserting
- "belt_input":     str}   # the Belt's own words, for the interrupt payload
-```
+**Specification:** the canonical schema, including the five `contradiction_flag` keys, is
+**§58.5 — S-C05**.
 
 **It is produced by this same `response_format` call — there is no additional
 LLM call anywhere in the contradiction path** (§19.6, DECISIONS §R1). The coach
@@ -2014,14 +1810,7 @@ correct**; the values *inside* those dicts are still strings.
 
 ### The executor node writes the response into state
 
-```python
-result = await executor.ainvoke(state)
-resp = result["structured_response"]              # CoachingResponse
-
-for f in resp.fields_captured:
-    artifacts[f["field_name"]] = f["value"]       # str or dict
-citations.extend(resp.citations)
-```
+**Specification:** the write-into-state behaviour is **§57.3 — S-F04**.
 
 ### The executor's `response_format` is `CoachingResponse`, never a phase Output
 
@@ -2395,11 +2184,8 @@ the Azure AI Search change. Never record a schema change only in code.
 *Supersedes: REFACTORING §32, §33, §37; ARCHITECTURE.md §7.4; CLAUDE.md §7.2; DECISIONS §E1, §E4.*
 **Status: RATIFIED.** File: `knowledge/tools.py`.
 
-| Tool | Index | Filter | Vector field |
-|---|---|---|---|
-| `rag_lookup_methodology(query, phase, top_k=10)` | `improve_knowledge_index` | `phase_relevance` | `content_vector` |
-| `rag_lookup_evidence(query, case_id, top_k=10, phase=None)` | `improve_evidence_index` | `case_id`; optional `phase` | `content_vector` |
-| `rag_lookup_case_history(query, top_k=10, exclude_current_case=True)` | `improve_case_index` | `status eq 'completed'` | `embedding` → `content_vector` |
+**Specification:** the three tools are **§59.5 — S-F14**, **§59.6 — S-F15** and
+**§59.7 — S-F16**, each carrying its index, filter and vector field.
 
 **The three superseded tool names are `search_improve_knowledge`,
 `search_improve_cases` and `search_improve_evidence`.** No v2 code may
@@ -2502,20 +2288,7 @@ evidence.
 
 ### The implementation
 
-```python
-def reciprocal_rank_fusion(ranked_lists, k: int = 60):
-    scores, docs = {}, {}
-    for ranked in ranked_lists:
-        for rank, doc in enumerate(ranked):
-            doc_id = doc.metadata["id"]
-            scores[doc_id] = scores.get(doc_id, 0.0) + 1.0 / (k + rank)
-            docs[doc_id] = doc
-    return sorted(
-        [(docs[i], s) for i, s in scores.items()],
-        key=lambda pair: pair[1],
-        reverse=True,
-    )
-```
+**Specification:** **§59.8 — S-F17**.
 
 **Roughly fifteen lines, no LangChain class, no third-party dependency, stable
 across framework versions.** It lives in `knowledge/fusion.py`.
@@ -2561,16 +2334,8 @@ not replace them.
 
 ### The hop cap is `RemainingSteps`
 
-```python
-from langgraph.managed import RemainingSteps
-
-def agent_node(state: PhaseState) -> dict:
-    remaining = state.get("remaining_steps", 10)
-    if remaining <= 2:
-        # too close to the limit — synthesise from what we have
-        return {"messages": [synthesise_partial(state)]}
-    return run_agent_step(state)
-```
+**Specification:** the guard is behaviour B1 of **§58.18 — S-F09**. Note the state field it
+reads is undeclared — **SPEC-GAP G-04**.
 
 **Five hops per Belt turn.** Beyond five the model is usually lost or looping,
 and cutting it off is correct behaviour.
@@ -2622,47 +2387,11 @@ Three query types exist, and only the first is a retrieval problem:
 
 **Stage 1 — Planner:**
 
-```python
-class Hop(BaseModel):
-    hop_number:   int          # 1, 2 or 3
-    hop_question: str          # sub-question, may template prior answers
-
-class Plan(BaseModel):
-    reasoning:             str
-    hops:                  list[Hop]     # exactly 3 dependent hops
-    synthesis_instruction: str
-```
+**Specification:** **§59.1 — S-C16** and **§59.2 — S-C17**.
 
 **Stage 2 — Executor**, with the guard at node entry:
 
-```python
-async def analyse_executor_node(state: PhaseState) -> dict:
-    # The for-loop below runs inside ONE node invocation, so RemainingSteps
-    # does NOT decrement between hops — LangGraph counts node transitions,
-    # not Python iterations. Hence a guard at entry, not inside the loop.
-    if state.get("remaining_steps", 10) <= 2:
-        return {"messages": [synthesise_partial(state)]}
-
-    plan: Plan = planner.invoke(decomposition_prompt)
-    local: dict[str, str] = {"entity": state.get("extracted_entity", "")}
-    hop_results: list[str] = []
-
-    for hop in sorted(plan.hops, key=lambda h: h.hop_number):
-        result = rag_lookup_methodology(
-            query=hop.hop_question.format(**local),
-            phase=state["current_phase"],
-        )
-        local[f"hop{hop.hop_number}_answer"] = result
-        hop_results.append(result)
-
-    synthesis = synthesis_llm.invoke(
-        synthesis_prompt.format(**local, instruction=plan.synthesis_instruction)
-    )
-    return {
-        "hop_results":      hop_results,              # §6 — checkpointed, visible
-        "synthesis_output": synthesis.model_dump(),   # read by the coach call
-    }
-```
+**Specification:** **§58.18 — S-F09**.
 
 **The loop needs no internal guard** because `Plan` bounds it at exactly 3
 hops. **The entry guard exists** because without it the 3-hop sequence can
@@ -2678,13 +2407,7 @@ multi-hop turn:
 | 2 | Synthesis | 0.1–0.2 | `SynthesisOutput` | **No** |
 | 3 | Coach | 0.5–0.7 | The coaching response | Yes |
 
-```python
-class SynthesisOutput(BaseModel):
-    evidence_chain: str                          # assembled reasoning
-    key_finding:    str                          # what the coach communicates
-    confidence:     Literal["high", "medium", "low"]
-    caveats:        list[str]                    # limits of the hop chain
-```
+**Specification:** **§59.3 — S-C18**.
 
 **Why synthesis is not folded into the coaching call.** Collapsing stages 2 and
 3 saves a call and was rejected. Synthesis is a quality gate: assembling
@@ -2851,34 +2574,8 @@ remain `@tool` functions, read-only.
 
 Passed to **every** phase executor via `tools=`:
 
-```
-rag_lookup_methodology(query: str, phase: str, top_k: int = 10) -> list[Document]
-  improve_knowledge_index. Multi-query + RRF. Filters phase_relevance.
-
-rag_lookup_evidence(query: str, case_id: str, top_k: int = 10,
-                    phase: str | None = None) -> list[Document]
-  improve_evidence_index. Multi-query + RRF. Filters case_id; optional phase.
-
-rag_lookup_case_history(query: str, top_k: int = 10,
-                        exclude_current_case: bool = True) -> list[Document]
-  improve_case_index. Multi-query + RRF. Yokoten — cross-case learning.
-
-propose_template(template_type: str, fill_data: dict) -> str
-  Fill-in template for the team. Types: problem_statement, sipoc,
-  data_collection_plan, fishbone, etc.
-
-propose_diagram(diagram_type: str, data: dict) -> dict
-  Structured diagram JSON (NOT SVG). Types and schemas in core/diagrams.py.
-  The frontend renders via an SVG template library.
-
-check_gate_status() -> dict
-  Current phase gate readiness — which required fields are populated,
-  which are missing. Derived, never read from a stored list.
-
-request_human_approval(reason: str) -> str
-  Triggers an interrupt awaiting human decision, beyond standard gate
-  submission.
-```
+**Specification:** the three retrieval tools are **§59.5–§59.7 — S-F14 to S-F16**; the four
+remaining universal tools are **§60.1–§60.4 — S-F19 to S-F22**.
 
 **`propose_diagram` returns structured JSON, not SVG.** The model describes
 what to draw; the frontend owns how it looks. A model emitting SVG produces
@@ -3195,13 +2892,7 @@ re-entrant in a way neither half needs to be.
 cross-phase read in §9 assumes the previous phase's gate document is in the
 Store; this is what puts it there.
 
-```python
-# 1. The Store — what the next phase's input mapper reads
-store.put(("projects", case_id, "artifacts"), phase_name, gate_document)
-
-# 2. PhaseState — so the checkpoint is self-sufficient for crash recovery
-return {"final": gate_document, "gate_attempts": 0, "validator_feedback": []}
-```
+**Specification:** **§58.16 — S-F07**, behaviours B1 and B5.
 
 **Both writes are required.** The Store write and the checkpoint commit are
 separate operations; **a crash between them would leave state saying the gate
@@ -3394,13 +3085,7 @@ records skipped Tier 2 *fields*. **Merging them is a violation.**
 
 ### The grader's verdict has three statuses
 
-```python
-class CriterionVerdict(BaseModel):
-    criterion: str
-    tier:      int                                     # 1 or 2
-    status:    Literal["pass", "warning", "fail"]
-    feedback:  str                                     # specific, per criterion
-```
+**Specification:** **§62.1 — S-C20**.
 
 **A gate MAY pass with warnings. A gate may NEVER pass with failures.** Only
 Tier 1 criteria may produce `fail`.
@@ -3682,111 +3367,8 @@ improvement, whatever else its gate documents contain.
 structured dicts (§41). **Every schema carries the same four gate-metadata
 fields.**
 
-```python
-class DefineOutput(BaseModel):
-    """Gate document for the Define phase."""
-    # Tier 1 — gate-required
-    problem_statement:    str      # measurable problem, baseline and target
-    project_scope:        str      # explicit inclusions and exclusions
-    goal_statement:       str      # SMART
-    voc_summary:          str      # voice of customer
-    process_map_sipoc:    dict     # SIPOC + KPIs, 6 sub-fields (§41)
-    issues_and_barriers:  str      # Belt-stated blockers
-    # Tier 2 — rubric-recommended
-    business_case:        str      # quantified business impact (COPQ)
-    team:                 str      # Belt, sponsor, 2+ members with roles
-    baseline_metric:      str      # current measured state
-    target_metric:        str      # target value
-    secondary_metrics:    str      # what could get worse
-    # Gate metadata
-    computation_results:  list[dict] = []
-    acknowledged_gaps:    list[str]  = []
-    citations:            list[dict] = []
-    uploads:              list[dict] = []
-
-
-class MeasureOutput(BaseModel):
-    """Gate document for the Measure phase."""
-    # Tier 1
-    baseline_mean:                str    # value with units, as the Belt stated it
-    data_collection_plan:         str    # sample size, frequency, responsible person
-    xy_matrix_summary:            str    # evidence that prioritisation happened
-    vital_few_xs:                 str    # the ranked result Analyse consumes
-    detailed_process_map:         dict   # expanded map, 6 sub-fields (§41)
-    stability_assessment:         str    # checked BEFORE capability (§41)
-    issues_and_barriers:          str
-    # Tier 2
-    baseline_sigma:               str    # calculated sigma level
-    measurement_system_validated: str    # GR&R or equivalent evidence
-    secondary_metrics:            str
-    # Gate metadata
-    computation_results:  list[dict] = []
-    acknowledged_gaps:    list[str]  = []
-    citations:            list[dict] = []
-    uploads:              list[dict] = []
-
-
-class AnalyseOutput(BaseModel):
-    """Gate document for the Analyse phase."""
-    # Tier 1
-    root_cause_statement:          str   # specific and actionable
-    root_cause_validation:         str   # statistical or observational evidence
-    practical_significance:        str   # how much of the problem it explains
-    issues_and_barriers:           str
-    # Tier 2
-    causal_hypothesis:             dict  # cross-phase ref → Measure baseline (§7)
-    ruled_out_causes:              str   # alternatives rejected, with rationale
-    statistical_problem_statement: str   # all Belts, in Analyse — not Define
-    process_owner_buyin:           str   # owner accepts the root causes
-    secondary_metrics:             str
-    # Gate metadata
-    computation_results:  list[dict] = []
-    acknowledged_gaps:    list[str]  = []
-    citations:            list[dict] = []
-    uploads:              list[dict] = []
-
-
-class ImproveOutput(BaseModel):
-    """Gate document for the Improve phase."""
-    # Tier 1
-    selected_solution:             str   # criteria-based selection documented
-    pilot_result:                  str   # practical AND statistical significance
-    experiment_justification:      str   # DOE / simplified / none — and why (§41)
-    issues_and_barriers:           str
-    # Tier 2
-    solution_linked_to_root_cause: dict  # cross-phase ref → Analyse root cause (§7)
-    implementation_plan:           str   # timeline, owner, resources
-    explanatory_power:             str   # R² / variance explained
-    process_owner_buyin:           str   # owner accepts the solution
-    secondary_metrics:             str
-    # Gate metadata
-    computation_results:  list[dict] = []
-    acknowledged_gaps:    list[str]  = []
-    citations:            list[dict] = []
-    uploads:              list[dict] = []
-
-
-class ControlOutput(BaseModel):
-    """Gate document for the Control phase."""
-    # Tier 1
-    control_plan:              dict   # FIVE sub-plans — §41
-    post_improvement_metric:   dict   # cross-phase ref → Measure baseline (§7)
-    issues_and_barriers:       str
-    # Tier 2
-    improvement_delta:         str    # change from baseline
-    financial_impact_verified: str    # quantified saving
-    sustainability_check:      str    # process for maintaining the gains
-    handover_documented:       str    # named process owner accepting
-    lessons_learned:           str    # feeds the case index
-    transferability:           str    # yokoten — feeds rag_lookup_case_history
-    project_signoff:           str    # Champion + Belt + Finance
-    secondary_metrics:         str
-    # Gate metadata
-    computation_results:  list[dict] = []
-    acknowledged_gaps:    list[str]  = []
-    citations:            list[dict] = []
-    uploads:              list[dict] = []
-```
+**Specification:** the five schemas are **§63.1–§63.5 — S-C27 to S-C31**. The field counts,
+gate-metadata sourcing and cross-schema rules below stay here.
 
 ### Field counts
 
@@ -3825,25 +3407,8 @@ gaps arose in the first place.**
 Runs in `gate_apply` after Belt approval. **No LLM call** — Pydantic validation
 over values already captured.
 
-```python
-gate_document = DefineOutput(
-    problem_statement=artifacts["problem_statement"],      # Tier 1 — direct
-    project_scope=artifacts["project_scope"],
-    goal_statement=artifacts["goal_statement"],
-    voc_summary=artifacts["voc_summary"],
-    process_map_sipoc=artifacts["process_map_sipoc"],
-    issues_and_barriers=artifacts["issues_and_barriers"],
-    business_case=artifacts.get("business_case", ""),      # Tier 2 — .get()
-    team=artifacts.get("team", ""),
-    baseline_metric=artifacts.get("baseline_metric", ""),
-    target_metric=artifacts.get("target_metric", ""),
-    secondary_metrics=artifacts.get("secondary_metrics", ""),
-    computation_results=artifacts.get("computation_results", []),
-    acknowledged_gaps=acknowledged_gaps,
-    citations=state["citations"],
-    uploads=state["uploads"],
-)
-```
+**Specification:** **§62.11 — S-F28**. Only Define's assembly was ever written —
+**SPEC-GAP G-28**.
 
 **The access pattern encodes the tier, and the difference is deliberate:**
 
@@ -3887,15 +3452,7 @@ no grader can check.
 
 ### `control_plan` is `dict`, never `str`
 
-```python
-control_plan: dict = {
-    "documentation":    str,   # updated process maps, SOPs, training manuals
-    "monitoring":       str,   # what charts, what frequency, what limits, who checks
-    "response":         str,   # what happens when monitoring signals a problem
-    "training":         str,   # who needs training, in what format, verified how
-    "aligning_systems": str,   # HR, IT, budget changes needed to sustain
-}
-```
+**Specification:** all three structured dicts are **§63.7 — S-C33**.
 
 **Tier 1 — the gate requires the dict, and the grader checks all five
 sub-plans.** A single string cannot show that four were done and one was
@@ -4148,14 +3705,8 @@ version and are unavailable at the currently installed 1.1.10 (§1).
 
 ### Per-node timeouts — required on every phase executor node
 
-```python
-builder.add_node(
-    "phase_executor",
-    phase_executor_fn,
-    timeout=TimeoutPolicy(run_timeout=45),
-    error_handler=phase_error_recovery,
-)
-```
+**Specification:** the registration is behaviour B3 of **§58.11 — S-F02**; the handler is
+**§64.3 — S-F29**.
 
 **`TimeoutPolicy` also accepts `idle_timeout`**, refreshed by progress signals,
 alongside the wall-clock `run_timeout`. A bare number or `timedelta` is
@@ -4189,14 +3740,9 @@ Every node that writes to Azure Blob, `improve_case_index` or
 `improve_evidence_index` gets an `error_handler=` that **undoes the external
 write** and routes to a degraded response:
 
-```python
-def phase_error_recovery(error: NodeError, state: PhaseState) -> Command:
-    delete_or_flag_stale_in_case_index(state["case_id"], state["phase"])
-    return Command(
-        update={"extraction_error": str(error), "extraction_incomplete": True},
-        goto="degraded_coaching_response",
-    )
-```
+**Specification:** **§64.3 — S-F29**. It reads and writes four undeclared state fields —
+**SPEC-GAP G-03** and **G-06** — and routes to an undefined node,
+**SPEC-GAP G-35**.
 
 ### Hand-written Saga orchestrators are BANNED
 
@@ -4322,16 +3868,7 @@ service and must recover without a restart.
 
 ### Degraded mode uses actual state, never a generic error
 
-```python
-def degraded_mode_response(state: PhaseState) -> str:
-    return (
-        f"I'm experiencing a temporary connection issue. "
-        f"Based on what we've captured so far in the {phase} phase "
-        f"({n_captured} of {n_total} fields complete), "
-        f"I'd suggest we pause here and continue once the system recovers. "
-        f"Your progress is saved and nothing has been lost."
-    )
-```
+**Specification:** **§64.4 — S-F30**.
 
 **Degraded mode is still a coaching interaction, not an error page.** The Belt
 knows what happened, knows their work is safe, and knows how to continue.
@@ -4431,15 +3968,7 @@ safe. **The exposure is in `step_log` (requirement 2) and concurrent writers
 
 All external service failures use one schema:
 
-```python
-class AgentImproveError(BaseModel):
-    error_code:           str        # "TIMEOUT", "RATE_LIMIT", "AUTH_FAILURE", …
-    severity:             str        # "transient" | "permanent"
-    retry_recommendation: str        # "retry_after_backoff" | "do_not_retry" | …
-    affected_identifier:  str
-    message:              str
-    timestamp:            datetime
-```
+**Specification:** **§64.1 — S-C34**.
 
 **Two fields are read by machinery, not humans:**
 
@@ -4974,6 +4503,38 @@ cannot fail is worse than no check, because it is recorded as evidence.**
 
 ---
 
+### 55.1 Spec-layer governance rules
+
+*Added 2026-08-23 with Part XII. Decision record: `agent-improve/docs/DECISIONS.md` §S1.*
+
+**Five rules, each stated with what would catch a violation of it.** A rule
+whose enforcement is "nothing" says so, rather than being assumed covered —
+that is the R2 discipline, and three separate findings in this project have now
+been a correct rule paired with a check that could not see what it governed.
+
+| # | Rule | What catches a violation |
+|---|---|---|
+| **1** | **Spec-before-code.** A code change requires its spec entry to be updated first | A code change whose spec entry's last-modified timestamp predates it. **Checkable in git; no automation exists yet** |
+| **2** | **Flag-is-canonical, register-is-derived.** The DORA register never leads the per-entry AI-ACT flags; when they disagree the flag wins and the row is regenerated | Bidirectional: every register Risk ID must trace to a flagged entry, and every flagged entry must appear in the register. Grep on Risk ID |
+| **3** | **SIPOC Supplier/Customer cross-check.** For every function or node, its Customers must list it as a Supplier, and its Suppliers must list it as a Customer | Grep by entry name across Part XII. **See §66.7 F-07 — the rule ranges over peer node-to-node edges only; nested sub-components and return paths are excluded, or it produces noise** |
+| **4** | **Define-once.** A class or function defined in Part XII must not have its schema or signature restated in an architecture section — those sections carry a `**Specification:**` pointer and keep their reasoning | A definition appearing in two section ranges. Grep for the class or function name followed by a definition token |
+| **5** | **Selective flagging.** AI-ACT flags appear only on high-risk-surface entries — coaching output, gate approval, anything that could feed a competence, employment or certification decision | A flag on a pure utility, or a missing flag on a coaching, gate or assessment entry, is a review finding. **Judgment, not automation** — where classification is unclear the entry carries `AI-ACT-REVIEW: uncertain` rather than a guess |
+
+**For any new rule added here: state what would catch a violation of it. If the
+answer is "nothing," say so in the rule** rather than assuming coverage. A rule
+with no enforcement is a rule that rots.
+
+> **The registry cannot currently see this document, and that is finding F-01.**
+> `.claude/config/deprecated_patterns.yaml` excludes `agent-improve/*.md` and
+> `agent-improve/**/*.md` from patterns 2–8. **This file moved to the monorepo
+> root in v1.2 and the exclusion was never updated** — so the platform
+> governance document is guarded as if it were code, while the registry's own
+> header names it among the documents that must be able to name a deprecated
+> construct in order to prohibit it. Recorded, not fixed: a registry change is
+> its own audit-trailed commit (§0.2 of `agent-improve/CLAUDE.md`).
+
+---
+
 ## 56. Amendment procedure
 
 *Supersedes: CLAUDE.md §18.*
@@ -5012,6 +4573,3554 @@ Architecture changes are separate commits.
 - A tool that pushes a phase past 16 (§30)
 - Any index schema change (§23.5)
 - A change to the tier of any gate field (§35)
+- **A change to any spec entry's schema or signature (Part XII)** — the
+  spec is master and the code follows it (§55.1 rule 1)
+
+---
+
+# Part XII — Specification
+
+*Parts I–XI state the architecture: what the system is, how it is shaped, and
+why. This Part states the **design** — the classes, functions and interfaces
+themselves, at the level where the code could be rebuilt from them. The two
+layers are separated because they change at different rates: switching Azure
+Blob to Azure Files changes the spec and leaves the architecture untouched.*
+
+---
+
+## 57. The specification layer — how to read and write a spec entry
+
+*Supersedes: none — new Part, ratified 2026-08-23. Decision record: `agent-improve/docs/DECISIONS.md` §S1.*
+**Status: RATIFIED.** **Canonical home for the entry template and the two calibrated samples.**
+
+### Why this Part exists
+
+This document is an *architecture* — it explains shape and reasoning. It was
+not a *specification*: it did not define classes and functions to the level
+where code could be rebuilt from it without inventing the missing pieces. Two
+seams traced during the 2026-08-22 wiring review — the contradiction middleware
+(DECISIONS §R1) and `route_after_phase` (DECISIONS §R2) — proved the gap was
+real and produced exactly the endless-debugging failure this project exists to
+avoid.
+
+**The fix is the missing middle layer of Spec-Driven Development:**
+
+| SDD layer | AgentLean artifact |
+|---|---|
+| Requirements — what / why | Parts I–XI of this document |
+| **Design — how: classes, functions, interfaces** | **This Part** |
+| Tasks — ordered implementation | `agent-improve/docs/REFACTORING_PROCEDURE.md` |
+
+**It lives inside this document, not beside it.** A separate spec file
+re-creates the drift the SSOT non-overlapping rule was written to eliminate.
+
+### The five structural rules
+
+1. **One document.** The spec layer is a Part of this file, never a separate
+   one.
+2. **Define once, reference everywhere.** Each class and function is defined
+   canonically here. Architecture sections keep their *reasoning* and stop
+   *redefining* — they carry a `**Specification:**` pointer instead.
+3. **Layers separated by volatility.** Architecture (why — stable) precedes
+   spec (how — the interfaces).
+4. **Rebuild test = the completeness bar.** A subsystem's spec is complete when
+   its code could be rebuilt from the spec alone, without reading the old code.
+   If it cannot, there is a gap, and the gap is marked (§66) rather than
+   guessed at.
+5. **Spec-before-code, always.** When something changes, the spec is updated
+   first. Enforced as a governance rule with a stated check (§55.1).
+
+### Entry identity and traceability
+
+**Every entry carries a stable ID** — `S-C##` for a class, `S-F##` for a
+function or node. Tests, reviews and DORA register rows cite the ID, so a
+future section renumber costs nothing.
+
+**Every entry carries the three-way trace** required by the SDD structure:
+
+```
+**Architecture:** §N · **File:** path · **Procedure:** step X.Y
+```
+
+architecture § ↔ spec entry ↔ procedure step, all three linked, so none can
+silently drift from the others.
+
+### The entry template — three layers
+
+A **class** entry uses Purpose, definition, field table, EARS behaviors,
+invariants and failure modes. A **function or node** entry uses all three
+layers below.
+
+**Layer 1 — SIPOC at a glance.** Six rows answering, without reading code or a
+sequence diagram: who triggers this, what it reads, what it does, what it
+produces, who consumes it.
+
+| Cell | Content |
+|---|---|
+| **Supplier** | Who calls it / what upstream node or event triggers it. Many callers → a list, each naming caller and why. **A list longer than five or six is a design smell**: the function likely does too much and should be split |
+| **Input** | Parameters, state fields read, Store keys read, tools bound |
+| **Process** | What it does — summary; the EARS table gives the detail |
+| **Output** | Return dict slice, state fields written, Store keys written, interrupts raised, structured-response fields set |
+| **Customer** | Who consumes the output / what downstream node reads it |
+
+> **Supplier and Customer are cross-checkable, and that is the point.** If A's
+> Customer is B, then B's Supplier list must include A. A mismatch is a wiring
+> bug, grep-able by function name. **This is a verification surface, not
+> documentation** — it would have caught `route_after_phase` mechanically: its
+> Input read `gate_attempts` from `SupervisorState`, and `SupervisorState` has
+> no such field (§5, DECISIONS §R2).
+
+**Layer 2 — Behaviors, in EARS form, as a table.** EARS (Easy Approach to
+Requirements Syntax) forces testable, unambiguous phrasing:
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | … | … | §.. |
+
+- `#` gives each behavior a stable ID, so a test, a review or a DORA row can
+  cite "executor B4" precisely.
+- `Ref` traces each behavior to the architecture section that justifies it —
+  checkable against source.
+
+**Layer 3 — the ⚠ AI-ACT flag, selectively.** Only on functions and nodes that
+touch a high-risk surface: coaching output, gate approval, or anything that
+could feed a competence, employment or certification decision. **Most entries
+carry no flag** — orchestration, state and utility functions are not flagged,
+and a flag on a pure utility is a review finding (§55.1). Where classification
+is genuinely unclear the entry carries `AI-ACT-REVIEW: uncertain` rather than a
+guess in either direction.
+
+The flag states the high-risk surface, gives an obligation→mechanism table, and
+names the DORA register row it feeds (§68).
+
+### How gaps are marked
+
+**Where a definition is missing, or too thin to meet the rebuild test, the
+entry carries a labelled placeholder and nothing is invented:**
+
+```
+> **SPEC-GAP (G-nn):** <what is missing> — to be designed with founder.
+```
+
+Every marker has a row in the **§66 gap register**, and every register row has
+a marker. Forty-one gaps were identified in the 2026-08-23 conversion pass and
+none were filled by it — that was the pass's binding constraint.
+
+### 57.1 The two calibrated samples
+
+**These two entries are the approved standard, transcribed verbatim from
+`agent-improve/docs/SPEC_SAMPLES.md`.** Every other entry in this Part is built
+to match one of them. They are also the canonical entries for their subjects —
+`SupervisorState` is **S-C01** and `phase_executor` is **S-F04**; §58 points
+here rather than restating them.
+
+> **The only alteration made in transcription is the heading level** of each
+> sample's own title line, demoted from `##` to `####` so the two do not appear
+> as document sections. Every other character is as approved. In particular the
+> `[tbd]` procedure references and the section citations inside them are
+> reproduced as written; two of those citations look wrong and are recorded as
+> findings in §66, not corrected here.
+
+### 57.2 SAMPLE 1 — CLASS TEMPLATE — S-C01 `SupervisorState`
+
+#### SPEC — `SupervisorState`
+
+**Canonical definition. File: `core/state.py`. Referenced by architecture §5 (rationale), procedure step [tbd].**
+*Rebuild test: `core/state.py`'s `SupervisorState` must be reconstructable from this entry alone.*
+
+**Purpose:** The orchestration-level (Level 1) graph state. Carries only what the supervisor needs to route between phases and assemble the final result. It deliberately holds no captured fields, no gate documents, and no phase-internal working data — those live in `PhaseState` (§6) and the Store (§9). It is a `TypedDict`, not a Pydantic model, because it is consumed by `create_agent`-based nodes, which do not support Pydantic state.
+
+**Definition:**
+```python
+class SupervisorState(TypedDict):
+    messages:      Annotated[list[BaseMessage], operator.add]
+    history:       Annotated[list[str], operator.add]
+    case_id:       str
+    phase_index:   int
+    current_phase: str
+    gate_passed:   dict[str, bool]
+    final_output:  Optional[dict]
+```
+**Exactly seven fields. Adding an eighth requires a §56 amendment.**
+
+**Fields:**
+
+| Field | Type | Meaning | Reducer | Writer | Readers |
+|---|---|---|---|---|---|
+| `messages` | `Annotated[list[BaseMessage], operator.add]` | The Belt↔system conversation at the orchestration level. Append-only. | `operator.add` (appended, never replaced) | each Belt turn; subgraph return | input mappers (§9), seeding `PhaseState.messages` |
+| `history` | `Annotated[list[str], operator.add]` | Human-readable trace breadcrumbs, one appended per node entry. Diagnostic only — no control logic reads it. | `operator.add` | every node, on entry | trace reconstruction / debugging only |
+| `case_id` | `str` | Stable project identifier. Also serves as the LangGraph `thread_id` and the first Store namespace segment. Set once, never mutated. | none (last-write-wins, but only written once) | session start | everything; identity across checkpointer + Store |
+| `phase_index` | `int` | Zero-based index of the current phase in the fixed DMAIC order `[define, measure, analyse, improve, control]`. Derived from `gate_passed`; stored for readability. | none | **output mapper only** | UI progress display, readability |
+| `current_phase` | `str` | Name of the phase currently executing; one of the five DMAIC phase names. Derived from `phase_index`; stored for readability. | none | **output mapper only** | routing, state injection (§9), index writes |
+| `gate_passed` | `dict[str, bool]` | Maps each phase name to whether its gate has been approved. Absence of a key means "not yet reached." The authoritative signal the supervisor routes on. | none (whole-dict replace by the single writer) | **output mapper only**; re-approval cascade sets a phase `False` (§37) | supervisor advancement logic |
+| `final_output` | `Optional[dict]` | The assembled final deliverable, written only when Control's gate passes. `None` until then. | none | Control's output mapper, at the final gate | API response at project completion |
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | a node begins execution | append one human-readable entry to `history` | §14 |
+| B2 | the output mapper runs at gate approval | write `phase_index`, `current_phase`, and `gate_passed` together in a single update; no other node SHALL write any of these three | §9 |
+| B3 | a reader queries `gate_passed` for a phase name not present as a key | treat the result as "gate not passed" (absent key ≡ `False`), never as an error | §37 |
+| B4 | Control's gate is approved | populate `final_output`; UNTIL that point `final_output` SHALL remain `None` | §9 |
+| B5 | the re-approval cascade fires for a phase | set that phase's `gate_passed` entry to `False` rather than deleting the key | §37 |
+
+**Invariants:**
+- `phase_index` and `current_phase` are derived from `gate_passed` and MUST have exactly one writer (the output mapper). A second writer is prohibited — it converts a derived field into a competing source of truth.
+- Captured fields, gate documents, and phase-internal working data MUST NOT appear on this schema (they belong to `PhaseState`/§6 and the Store/§9).
+- Any proposed new field MUST name its writing node and its reading node; if either is unclear, the field is rejected (the `project_context` failure — a field with no writer whose only reader ran before it would have been written).
+
+**Failure modes:**
+- A `KeyError` on `gate_passed[phase]` is a **contract violation in the reader**, not an expected path — readers MUST use absence-tolerant access (`.get(phase, False)`), per B3.
+- Reading `final_output` before Control's gate returns `None`; callers MUST handle `None` as "project not yet complete," not as an error.
+
+### 57.3 SAMPLE 2 — FUNCTION/NODE TEMPLATE — S-F04 `phase_executor` (the coach node)
+
+#### SPEC — `phase_executor` (the coach node)
+
+**Canonical definition. File: `phases/{phase}/nodes.py` (one per phase). References: architecture §14 (node contract), §17 (planner/executor split), §18. Procedure step [tbd].**
+*Rebuild test: the phase executor node must be reconstructable from this entry alone.*
+
+**Purpose:** The Level 2 coaching node. Runs one coaching turn: takes the planner's strategy (`CoachingPlan`), coaches the Belt on the chosen field via an LLM with the phase's bound tools, and returns a structured `CoachingResponse` (the Belt-facing message plus captured field values). It decides *nothing* about strategy — that is the planner's job; it executes the plan.
+
+##### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** (who triggers it) | `phase_planner` (§17) — control returns to the planner after each executor turn, and the planner routes back here via `Command(goto="executor")` when more coaching on the current/next field is needed |
+| **Input** (what it reads) | `PhaseState.coaching_plan` (the strategy for this turn), `PhaseState.messages` (conversation), `PhaseState.artifacts` (fields captured so far), `PhaseState.phase_context` (prior-phase committed values, loaded by `before_agent`); the phase's bound tool subset (§30) via `tools=` |
+| **Process** (what it does) | Runs `create_agent` with eight middlewares (§19); coaches on `coaching_plan.focus_field`; may call leaf tools in its tool loop; produces a structured `CoachingResponse`; the skill prompt directs it to flag cross-phase contradictions (§37) |
+| **Output** (what it produces) | Returns a dict slice: `{"draft": {...}, "artifacts": {...merged...}, "step_log": [{...}], "messages": [...]}` — plus, in `CoachingResponse`, `contradiction_flag` (read by `ContradictionDetectionMiddleware`, §19.6) |
+| **Customer** (who consumes it) | `ContradictionDetectionMiddleware` (reads `contradiction_flag`, may raise interrupt); then control returns to `phase_planner`, which decides next field / trigger gate / retry |
+
+##### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | invoked | coach only on `coaching_plan.focus_field`; never select a different field (field selection is the planner's responsibility) | §17 |
+| B2 | producing its response | return a structured `CoachingResponse` via `response_format`, never free prose parsed downstream | §14 |
+| B3 | Belt input materially contradicts a prior-phase gate-approved value present in `phase_context` | populate `contradiction_flag` in the response (read by §19.6) | §37 |
+| B4 | capturing one or more field values | return them in `artifacts`; never invent values not supplied by the Belt or a tool | §18 |
+| B5 | a tool call in the executor loop fails | surface the failure per §27; never fabricate a substitute result | §27 |
+| B6 | the executor runs | append a `step_log` entry keyed deterministically `{phase}:{turn}:{step}` | §47 |
+
+##### ⚠ AI-ACT — high-risk surface
+
+**This node produces coaching output that could influence a Belt's assessment or project outcome. If Agent Improve is deployed where its output feeds an employment, certification, or competence decision, this is an Annex III (employment) high-risk function (deadline 2 Dec 2027).**
+
+| Obligation | How this node addresses it |
+|---|---|
+| Art. 13 (transparency) | Output is clearly AI-generated coaching; the Belt is informed they are interacting with an AI coach (UI contract, §50) |
+| Art. 14 (human oversight) | The Belt is always in the loop; coaching is advisory, and no field is committed without the Belt's gate approval (§13, gate_review interrupt) |
+| Art. 15 (accuracy/robustness) | Anti-hallucination guard (no invented values); four-layer validation (§35) before any gate commit; contradiction detection (§37) |
+| Art. 12 (record-keeping) | Every turn logged to `step_log` and LangSmith (§51); deterministic keys ensure a complete, non-duplicated audit trail |
+
+*Feeds DORA register row **R-EXEC-01**.*
+
+##### DORA register row (R-EXEC-01)
+
+| Risk ID | Function | Risk Description | AI Act Art. | Likelihood | Impact | Current Mitigation | Residual Risk | Owner | Customer Negotiation |
+|---|---|---|---|---|---|---|---|---|---|
+| R-EXEC-01 | `phase_executor` (coach) | AI coaching output could influence a Belt's competence/employment assessment without adequate oversight, or could assert an unverified fact | 13, 14, 15, 12 | Med | High | HITL gate approval (§13); anti-hallucination guard; 4-layer validation (§35); full audit log (§51) | Low–Med — residual depends on whether customer uses gate outputs in formal evaluation | [Provider] | *open — depends on deployment context; customer confirms whether coaching feeds formal assessment* |
+
+### 57.4 Entry index
+
+**73 entries — 37 classes, 36 functions and nodes.** Five carry an AI-ACT flag;
+twelve carry `AI-ACT-REVIEW: uncertain`; forty-one gaps are marked and none are
+filled.
+
+| Subsystem | Section | Entries |
+|---|---|---|
+| Graph management — state, persistence, nodes, routing, mappers | §58 | S-C01–S-C09, S-F01–S-F13 |
+| Knowledge and retrieval | §59 | S-C16–S-C19, S-F14–S-F18 |
+| Tools | §60 | S-F19–S-F24 |
+| The coaching agent — middleware | §61 | S-C10–S-C15 |
+| Validation and gates | §62 | S-C20–S-C26, S-F25–S-F28 |
+| The DMAIC gate documents | §63 | S-C27–S-C33 |
+| Reliability | §64 | S-C34–S-C35, S-F29–S-F33 |
+| API, UI and evidence | §65 | S-C36–S-C37, S-F34–S-F36 |
+| **The gap register** | **§66** | 41 gaps |
+
+---
+
+## 58. Spec — graph management
+
+*Supersedes: none — new. Definitions relocated from §5, §6, §9, §12, §13, §14, §15, §16, §17, §20.*
+**Status: RATIFIED as a structure; individual entries carry their own gaps.**
+
+**This is the spine, and it is specified first** because every other subsystem
+reads or writes what is defined here.
+
+### 58.1 S-C01 · `SupervisorState`
+
+**Defined in §57.2** as the calibrated class sample. Architecture rationale: §5.
+
+### 58.2 S-C02 · `PhaseState`
+
+**Architecture:** §6 · **File:** `core/substate.py` · **Procedure:** step 3.1
+*Rebuild test: `core/substate.py`'s `PhaseState` must be reconstructable from this entry alone.*
+
+**Purpose:** The Level 2 per-phase subgraph state. Private to one phase
+subgraph, checkpointed through the parent's saver under an auto-managed
+`checkpoint_ns` (§16). It holds the phase's working data — the plan in flight,
+what has been captured, the audit trail, the retry budget — and it is where
+every value that must survive context compression lives (§19.3).
+
+**Definition:**
+```python
+class PhaseState(TypedDict):
+    # ── conversation plumbing (3) ───────────────────────────────
+    messages:           Annotated[list[BaseMessage], operator.add]
+    history:            Annotated[list[str], operator.add]
+    phase_context:      str
+
+    # ── content fields (14) ─────────────────────────────────────
+    coaching_plan:      Optional[CoachingPlan]
+    field_index:        int
+    draft:              dict[str, Any]
+    artifacts:          dict[str, Any]
+    step_log:           Annotated[list[dict[str, Any]], operator.add]
+    belt_edits:         dict[str, Any]
+    turn_count:         int
+    final:              dict[str, Any]
+    gate_attempts:      int
+    validator_feedback: list[dict]
+    citations:          list[dict]
+    uploads:            list[dict]
+    hop_results:        list[str]
+    synthesis_output:   Optional[dict]
+```
+**Seventeen fields — three plumbing plus fourteen content. A fifteenth content
+field requires a §56 amendment.**
+
+**Fields:**
+
+| Field | Type | Meaning | Reducer | Writer | Readers |
+|---|---|---|---|---|---|
+| `messages` | `Annotated[list[BaseMessage], operator.add]` | The Belt↔coach conversation for this phase. Append-only; the only thing prose summarisation is allowed to compress (§19.3) | `operator.add` | input mapper seeds it; the agent loop appends | the agent loop; `SummarizationMiddleware` (§19.3) |
+| `history` | `Annotated[list[str], operator.add]` | Breadcrumbs, one per node entry. Diagnostic only | `operator.add` | every node, on entry | debugging |
+| `phase_context` | `str` | The framing this phase was entered with, composed at the boundary from the Store — the case record for Define, the prior phase's gate document for the rest. Never carried on parent state | none | **input mapper only** | planner; state injection (§19.1) |
+| `coaching_plan` | `Optional[CoachingPlan]` | The strategy for the current turn — which field, which action, which retrieval mode. Transient: overwritten every time the planner fires, never queued | none (whole-object replace) | planner node | executor node |
+| `field_index` | `int` | Which field within the phase is being coached | none | planner node | planner |
+| `draft` | `dict[str, Any]` | This turn's extraction, before validation. Structured, never prose | none | executor node | validation stack; `gate_review` |
+| `artifacts` | `dict[str, Any]` | Everything captured in this phase so far, keyed by field name. Values are strings, except the three cross-phase reference dicts and the three structured dicts (§7, §41). Also holds `computation_results` | none (merge by the writer) | executor, from `CoachingResponse.fields_captured`; `gate_apply`, applying Belt edits | planner, `check_gate_status()`, validation stack, gate assembly, state injection, the live gate document (§50) |
+| `step_log` | `Annotated[list[dict], operator.add]` | The audit trail — HOW each thing was captured, as opposed to WHAT (§11). Dicts only; tuples are banned. Keyed deterministically | `operator.add` | validation layers, grader `on_evaluation`, the fallback chain | audit trail; written into the gate document |
+| `belt_edits` | `dict[str, Any]` | The Belt's corrections made at gate step 5. A different thing from `validator_feedback`, and must stay separate | none | `gate_apply`, from the interrupt resume payload | `gate_apply` |
+| `turn_count` | `int` | How many coaching turns this phase has taken. Load-bearing: it is a component of the deterministic `step_log` key (§11) | none | executor node | planner; `step_log` key construction |
+| `final` | `dict[str, Any]` | The approved gate document. A `dict` and never a `str`, so a resumed graph can read what was approved without re-reading the Store | none | `gate_apply_node` | output mapper; crash recovery |
+| `gate_attempts` | `int` | The shared retry counter for the four-layer validation stack. Per phase, in the checkpoint — never in route scope | none | validation stack increments; `gate_apply` resets to `0` | validation stack; the escalation edge at `>= 3` |
+| `validator_feedback` | `list[dict]` | Accumulated per-attempt validation failures, each recording attempt, layer, criteria failed and specific feedback. What makes the shared cap of 3 defensible | none (append by the writer) | validation stack appends; `gate_apply` resets to `[]` | the coach, on retry |
+| `citations` | `list[dict]` | Sources the coach cited this phase — `source`, `page`, `content_summary`, `turn` | none (append by the writer) | executor, from `CoachingResponse.citations` | gate document assembly |
+| `uploads` | `list[dict]` | Files the Belt uploaded this phase — `evidence_index_id`, `filename`, `phase`, `uploaded_at`, `summary`. An empty list means the phase reached its conclusions from typed statements alone | none (append by the writer) | the upload handler — **see G-36** | gate document assembly; evidence context |
+| `hop_results` | `list[str]` | Ordered answers from a planned multi-hop chain. `[]` on every single-hop turn. State rather than a node local, so LangSmith can see it and a resume does not lose it | none | `analyse_executor_node` | the synthesis call; the LangSmith state view |
+| `synthesis_output` | `Optional[dict]` | The dedicated synthesis call's `SynthesisOutput`, dumped. `None` on single-hop turns | none | `analyse_executor_node` | the coach call |
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | a phase subgraph is entered | populate every one of the seventeen fields from the input mapper; no field SHALL be left undeclared | §9 |
+| B2 | the planner fires | replace `coaching_plan` entirely; it SHALL NOT be appended to or queued | §6 |
+| B3 | a validation layer fails | increment `gate_attempts` by one and append one entry to `validator_feedback` | §34 |
+| B4 | the gate passes | reset `gate_attempts` to `0` and `validator_feedback` to `[]`, and only `gate_apply` SHALL do so | §33.2 |
+| B5 | a turn is single-hop | leave `hop_results` as `[]` and `synthesis_output` as `None` | §26 |
+| B6 | any node writes `draft`, `belt_edits` or `final` | write a `dict`; a `str` SHALL never be assigned to any of the three | §6 |
+| B7 | `coaching_plan` is read | read it by attribute (`coaching_plan.retrieval_hops`), never by subscript | §6 |
+
+**Invariants:**
+- `validator_feedback` (what the system said about the AI's output at step 2)
+  and `belt_edits` (what the Belt corrected at step 5) are **two actors at two
+  moments** and MUST NOT be merged.
+- `artifacts` (WHAT was captured) and `step_log` (HOW) MUST stay separate
+  fields.
+- `gate_attempts` MUST be in the checkpoint. Holding it in route scope is the
+  specific defect this placement fixes (§6).
+- Every captured value in `artifacts` is a `str`, except the three cross-phase
+  reference dicts (S-C32) and the three structured dicts (S-C33).
+
+**Failure modes:**
+- A missing key in `artifacts` at Tier 1 gate assembly is **correct behaviour**
+  — Layer 2b should have blocked the gate, so the `KeyError` must surface
+  (§40.1).
+- `coaching_plan` is `None` before the planner's first turn; readers MUST treat
+  `None` as "no plan yet," not as an error.
+
+> **SPEC-GAP (G-03):** `PhaseState` declares no `case_id` and no phase
+> identifier, and at least three specified functions read one or both off it —
+> `phase_error_recovery` reads `state["case_id"]` and `state["phase"]` (§45),
+> `analyse_executor_node` reads `state["current_phase"]` (§26), and
+> `gate_apply_node`'s Store write needs `case_id` (§33.2). Whether these become
+> declared fields (a §56 amendment against the fourteen-content-field ceiling),
+> arrive through `phase_context`, or are passed by config, is undesigned — to
+> be designed with founder.
+
+> **SPEC-GAP (G-04):** `remaining_steps` is read off this state twice (§26) and
+> is not a declared field. `RemainingSteps` is a LangGraph managed value that
+> must be declared on the state schema to be populated; undeclared,
+> `state.get("remaining_steps", 10)` returns 10 on every call and **the
+> five-hop cap never fires** — to be designed with founder.
+
+> **SPEC-GAP (G-05):** `extracted_entity` is read off this state by
+> `analyse_executor_node` (§26). It is not a declared field and no writer is
+> named anywhere — to be designed with founder.
+
+> **SPEC-GAP (G-06):** `extraction_error` and `extraction_incomplete` are
+> written into this state by `phase_error_recovery`'s `Command(update=...)`
+> (§45). Neither is a declared field — to be designed with founder.
+
+> **SPEC-GAP (G-38):** `field_index` is defined as "which field within the
+> phase," and the ordered per-phase field list it indexes into is stated
+> nowhere. §13's "advance to the next field" depends on that ordering — to be
+> designed with founder.
+
+> **SPEC-GAP (G-39):** `turn_count`'s increment contract — when it advances, by
+> whom, and by how much — is unstated. It is load-bearing in §11's
+> deterministic `step_log` key, so an ambiguous contract produces either
+> duplicate or colliding audit entries — to be designed with founder.
+
+### 58.3 S-C03 · Per-phase `PhaseState` variants
+
+**Architecture:** §6 · **File:** `core/substate.py` · **Procedure:** step 3.1
+
+**Purpose:** `DefineState`, `MeasureState`, `AnalyseState`, `ImproveState` and
+`ControlState` extend `PhaseState` with phase-specific transient fields. All
+use explicit `TypedDict`; `MessagesState` inheritance is not used, because the
+dominant content is structured fields rather than conversation.
+
+> **SPEC-GAP (G-19):** the phase-specific transient fields are never
+> enumerated for any of the five. Their existence also interacts with §6's
+> fourteen-content-field ceiling and §56's amendment rule — whether a variant's
+> extra field counts against that ceiling is undecided — to be designed with
+> founder.
+
+### 58.4 S-C04 · `CoachingPlan`
+
+**Architecture:** §6, §17 · **File:** `core/substate.py` · **Procedure:** step 6.1
+*Rebuild test: reconstructable from this entry alone.*
+
+**Purpose:** The planner's structured output — one plan per planner turn,
+carried on `PhaseState.coaching_plan` and consumed by the executor. It is a
+Pydantic model rather than a dict specifically so `retrieval_strategy` can
+carry a `Literal` constraint: that field selects the executor's entire
+retrieval path, and a typo would fall through silently to single-hop.
+
+**Definition:**
+```python
+class CoachingPlan(BaseModel):
+    focus_field:        str
+    next_action:        str
+    retrieval_strategy: Literal["single_hop", "multi_hop"]
+    retrieval_hops:     list[str]     # template strings; empty for single_hop
+```
+
+**Produced by** the builder-style structured-output call on the `planner`-role
+model at temperature 0.1 — a plain model invocation, not an agent, so
+`response_format=` does not apply (§21). The invocation form is shown in §17.
+
+**Fields:**
+
+| Field | Type | Meaning | Reducer | Writer | Readers |
+|---|---|---|---|---|---|
+| `focus_field` | `str` | The single field this turn coaches on. The executor may not choose a different one | none | planner node | executor node (S-F04 B1) |
+| `next_action` | `str` | What the coach should do with that field this turn — ask, challenge, show an example, run a computation | none | planner node | executor node |
+| `retrieval_strategy` | `Literal["single_hop", "multi_hop"]` | Which retrieval path the executor takes. Not restricted to Analyse — the planner may select `multi_hop` in any phase | none | planner node | executor node; `analyse_executor_node` |
+| `retrieval_hops` | `list[str]` | Hop question templates, in order, for a planned multi-hop turn. Empty for single-hop | none | planner node | `analyse_executor_node` |
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | the planner produces a plan | produce it through structured output, never by parsing JSON from raw model text | §21 |
+| B2 | `retrieval_strategy` is `"single_hop"` | leave `retrieval_hops` empty | §17 |
+| B3 | a new plan is produced | overwrite the previous one entirely; plans SHALL NOT accumulate | §6 |
+
+**Invariants:**
+- The plan is transient; its consequences are durable. Captured values land in
+  `artifacts`, sources in `citations`, the rationale in `step_log`, the
+  exchange in the LangSmith trace. Nothing is lost when the next plan overwrites
+  this one.
+- Read by attribute, never by subscript.
+
+> **Was defined twice.** Until the 2026-08-23 conversion this class appeared in
+> full in both §6 and §17 — a define-once violation that predates this Part.
+> This entry is now its only definition.
+
+### 58.5 S-C05 · `CoachingResponse`
+
+**Architecture:** §20 · **File:** `phases/{phase}/schema.py` or `core/substate.py` · **Procedure:** step 6.2
+*Rebuild test: reconstructable from this entry alone.*
+
+**Purpose:** The per-turn structured output of the executor, produced via
+`response_format=` on `create_agent`. It carries the Belt-facing coaching text,
+the fields captured this turn, the sources cited, and — only on a material
+contradiction — the contradiction flag. It fires every coaching turn, and is
+never substituted for a `{Phase}Output`, which fires once per phase.
+
+**Definition:**
+```python
+class CoachingResponse(BaseModel):
+    """Structured extraction from each coaching turn."""
+    message:            str                 # coaching text the Belt sees
+    fields_captured:    list[dict] = []     # [{field_name, value, source}]
+    citations:          list[dict] = []     # sources referenced this turn
+    contradiction_flag: Optional[dict] = None   # §37 — set only on a material
+                                                # contradiction of a committed value
+```
+
+`contradiction_flag` carries five keys when set:
+
+```python
+{"prior_field":    str,   # the committed field being contradicted
+ "approved_value": str,   # what was gate-approved
+ "approved_phase": str,   # which phase committed it
+ "proposed_value": str,   # what the Belt is now asserting
+ "belt_input":     str}   # the Belt's own words, for the interrupt payload
+```
+
+**Fields:**
+
+| Field | Type | Meaning | Reducer | Writer | Readers |
+|---|---|---|---|---|---|
+| `message` | `str` | The coaching text rendered to the Belt | none | the executor's model call | the UI; appended to `messages` |
+| `fields_captured` | `list[dict]` | Values the Belt supplied this turn. `value` is `Any`, deliberately: it must carry both plain strings and the three cross-phase reference dicts | none | the executor's model call | the executor node, which writes each entry to `artifacts` |
+| `citations` | `list[dict]` | Sources referenced this turn | none | the executor's model call | the executor node, which extends `PhaseState.citations` |
+| `contradiction_flag` | `Optional[dict]` | Set only where the Belt materially contradicts a gate-committed value. `None` otherwise, which is the overwhelmingly common case | none | the executor's model call | `ContradictionDetectionMiddleware` (S-C10) |
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | every coaching turn | be produced by the executor's `response_format=`, with no additional model call anywhere in the path | §20 |
+| B2 | the Belt materially contradicts a gate-committed numeric or categorical value | set `contradiction_flag` with all five keys | §37 |
+| B3 | the Belt rephrases prose, or refines a not-yet-committed current-phase value | leave `contradiction_flag` as `None` | §37 |
+| B4 | a captured value is one of the three cross-phase reference fields | carry it as a `dict` in `value`, not a string | §7 |
+
+**Invariants:**
+- **Adding a field to this schema requires a §56 amendment.** It is
+  load-bearing in the same way `SupervisorState` and `PhaseState` are.
+- `value` is `Any` and this is the one place `Any` is correct. The values
+  *inside* the reference dicts are still strings.
+- Structured output guarantees the flag's shape and presence, never the
+  correctness of the coach's judgment in setting it. §50's all-gate-fields tab
+  is the documented human backstop.
+
+### 58.6 S-C06 · `AzureBlobStore`
+
+**Architecture:** §9 · **File:** `core/store.py` · **Procedure:** step 3.2
+*Rebuild test: reconstructable from this entry alone.*
+
+**Purpose:** The `BaseStore` implementation that carries cross-phase artifacts.
+Explicit — nodes call `put`/`get` — as opposed to the checkpointer, which
+LangGraph drives automatically. It is the only mechanism that moves a value
+across a phase boundary, because it is the only one that survives the process
+ending between two sessions nine days apart.
+
+**Definition:**
+```python
+class AzureBlobStore(BaseStore):
+    def put(self, namespace: tuple[str, ...], key: str, value: dict) -> None: ...
+    def get(self, namespace: tuple[str, ...], key: str) -> Item | None: ...
+    def search(self, namespace: tuple[str, ...], *, query: str | None = None,
+               filter: dict | None = None, limit: int = 10) -> list[Item]: ...
+    def delete(self, namespace: tuple[str, ...], key: str) -> None: ...
+```
+
+**Namespaces:**
+
+| Namespace | Keys | Contents | Written by |
+|---|---|---|---|
+| `("projects", case_id, "case")` | `"record"` | Case framing — title, department, belt level, leader, target date | once, at session start |
+| `("projects", case_id, "artifacts")` | `"define"` … `"control"` | Each phase's approved gate document | `gate_apply_node` (S-F07) |
+| `("projects", case_id, "step_log")` | timestamped | Append-only cross-phase audit trail | validation and grading paths |
+
+**Blob prefix:** `store/projects/{case_id}/{kind}/{key}.json`
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | `put` is called with an existing key | overwrite rather than append, so a replayed write is idempotent | §47 |
+| B2 | `get` is called for a key not yet written | return `None`, never raise | §9 |
+| B3 | it is compiled into a graph | attach to the parent graph only; a phase subgraph SHALL compile with no store | §16 |
+
+**Invariants:**
+- The `gate_documents` namespace is retired and MUST NOT be reintroduced. A
+  phase's approved artifacts and its gate document are the same object.
+- The `case` namespace is a session-start copy, not a second system of record;
+  `cases/case_{id}.json` stays authoritative (§10).
+- The Store carries cross-*phase* data within one project. Cross-*case*
+  retrieval is `rag_lookup_case_history` (S-F16). Two mechanisms, no overlap.
+
+**Failure modes:**
+- A `get` returning `None` where a prior phase's gate document was expected
+  means the prior gate never applied — that is a real ordering fault, not a
+  missing-data condition, and callers MUST NOT paper over it with a default.
+
+### 58.7 S-C07 · `AzureBlobCheckpointSaver`
+
+**Architecture:** §8, §10 · **File:** `core/checkpointer.py` · **Procedure:** step 4.2
+
+**Purpose:** The `BaseCheckpointSaver` implementation that persists in-flight
+graph state. Thread-scoped, written automatically by LangGraph after every
+node, and attached to the parent graph only.
+
+**On-blob format** (this part *is* specified, and the base64 wrapping is
+required rather than decorative — `JsonPlusSerializer.dumps_typed()` returns
+binary msgpack, not utf-8 text):
+
+```json
+{
+  "checkpoint_type": "msgpack",
+  "checkpoint_data": "<base64-encoded msgpack bytes>",
+  "metadata_type":   "msgpack",
+  "metadata_data":   "<base64-encoded msgpack bytes>",
+  "checkpoint_id":   "<id>",
+  "parent_checkpoint_id": "<id|null>"
+}
+```
+
+**Paths:** `checkpoints/{case_id}/latest.json` and
+`checkpoints/{case_id}/history/{checkpoint_id}.json`
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | a checkpoint is written | perform exactly one blob write, never one per key | §8 |
+| B2 | two turns on one `case_id` write concurrently | use a blob ETag conditional write so the second writer retries rather than overwriting | §8 |
+| B3 | it is compiled into a graph | attach to the parent graph only | §16 |
+
+> **SPEC-GAP (G-20):** the `BaseCheckpointSaver` method set this class
+> implements — the put / put-writes / get-tuple / list surface and their async
+> variants — is stated nowhere, nor is which of them the Blob backend supports.
+> The on-blob format above is complete; the interface is not — to be designed
+> with founder.
+
+**Known limitation, carried forward, not designed around:** the Blob
+checkpointer was not tested for concurrent access and Azure Blob has no
+row-level locking. Acceptable for single-developer refactoring, not for
+production. The interim guard is the Blob lease of §47; the resolution is the
+`PostgresSaver` migration (Appendix B item 13).
+
+### 58.8 S-C08 · `ImproveBlobClient`
+
+**Architecture:** §10 · **File:** `storage/blob.py` · **Procedure:** [tbd]
+
+**Purpose:** Owner of the second Blob concern — case records as the system of
+record, distinct from checkpoints. Writes on case create, on gate pass and on
+file upload, and **never mid-conversation.**
+
+**Paths owned:** `cases/case_{id}.json`, `registry.json`,
+`uploads/{case_id}/{file}`
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | a coaching turn completes | NOT write the case blob; conversation history lives in the checkpoint until gate pass | §10 |
+| B2 | a gate passes | write the case blob and update the registry — two separate writes, both covered by the node's `error_handler` | §10, §45 |
+
+> **SPEC-GAP (G-21):** the class interface — method names, signatures, return
+> types, and how registry updates are sequenced against case writes — is stated
+> nowhere — to be designed with founder.
+
+### 58.9 S-C09 · `storage/models.py` — the record models
+
+**Architecture:** §10, §23.3 · **File:** `storage/models.py` · **Procedure:** [tbd]
+
+**Purpose:** The Pydantic models for the system of record: `CaseDocument`,
+`PhaseRecord`, `RegistryEntry`, and `PhaseSummaryRecord` (which feeds the five
+`phase_summary_{phase}` fields of `improve_case_index`, §23.3).
+
+> **SPEC-GAP (G-17):** all four are named — in `CLAUDE.md` §2's permitted-class
+> list, in §23.3's rename scope table — and none is defined anywhere. Their
+> relationship to the `{Phase}Output` gate documents (S-C27–S-C31) is also
+> unstated: whether `PhaseRecord` wraps a gate document or duplicates its
+> fields determines whether there are two sources of truth — to be designed
+> with founder.
+
+---
+
+### 58.10 S-F01 · The supervisor graph — static edges
+
+**Architecture:** §12, §15, §16 · **File:** `core/graph.py` · **Procedure:** step 4.3
+*Rebuild test: `core/graph.py`'s supervisor wiring must be reconstructable from this entry alone.*
+
+**Purpose:** Level 1. Compiles the five phase subgraphs plus escalation into one
+hierarchical graph, attaches the checkpointer and store, and advances through
+the fixed DMAIC order. **It makes no routing decision** — there is nothing to
+reason about, so nothing reasons.
+
+**Definition:**
+```python
+builder.add_edge(START,      "define")
+builder.add_edge("define",   "measure")
+builder.add_edge("measure",  "analyse")
+builder.add_edge("analyse",  "improve")
+builder.add_edge("improve",  "control")
+builder.add_edge("control",  END)
+
+graph = builder.compile(checkpointer=checkpointer, store=store)   # parent only
+```
+
+Invoked with one thread per project:
+
+```python
+await graph.ainvoke(
+    state,
+    config={
+        "recursion_limit": 50,        # infrastructure backstop, NOT the hop cap
+        "configurable": {"thread_id": case_id},
+    },
+)
+```
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | The API surface (S-F34) — `/ask`, `/ask/stream` and `/gate/*` all invoke this one compiled graph object |
+| **Input** | `SupervisorState`; `config.configurable.thread_id` = `case_id`; `recursion_limit=50` |
+| **Process** | Runs the phase subgraph for `current_phase`; on its `END`, follows the static edge to the next phase |
+| **Output** | Updated `SupervisorState`; `final_output` at Control's gate |
+| **Customer** | The API surface (S-F34), which marshals the envelope; `define_input_mapper` (S-F10) and the four remaining input mappers (S-F12) |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | the graph is built | declare entry with `add_edge(START, ...)`; the superseded entry-point form SHALL NOT be used | §12 |
+| B2 | a phase subgraph reaches `END` | advance on the static edge without evaluating any condition — reaching `END` already means the gate passed | §15 |
+| B3 | the graph is compiled | attach checkpointer and store here and nowhere else; each phase subgraph compiles with neither | §16 |
+| B4 | a run is configured | pass `thread_id = case_id`, never a per-phase or concatenated value | §16 |
+| B5 | any node in the parent is defined | NOT mix a static edge and a `Command` from it — both paths would execute, silently | §15 |
+
+**Invariants:**
+- There is no conditional edge, no router function, and nothing for the
+  supervisor to branch on. `route_after_phase` was deleted on 2026-08-22 and
+  MUST NOT be reinstated (§15, DECISIONS §R2).
+- `gate_attempts` is read only inside a phase and MUST NOT be added to
+  `SupervisorState`.
+- `recursion_limit=50` is an infrastructure backstop. The per-turn hop budget is
+  `RemainingSteps` inside the executor (§26) — see G-04.
+
+### 58.11 S-F02 · `build_phase_subgraph(phase, llm)`
+
+**Architecture:** §12, §13 · **File:** `phases/{phase}/graph.py` · **Procedure:** steps 4.1, 4.4
+*Rebuild test: blocked on G-01.*
+
+**Purpose:** Builds one phase subgraph. It takes the phase as a parameter
+because it must select that phase's computation-tool subset (§30).
+
+**Definition:**
+```python
+def build_phase_subgraph(phase: str, llm):
+    tools = UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase]
+    ...
+    return builder.compile()          # NO checkpointer, NO store
+```
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | The supervisor graph (S-F01), once per phase at startup |
+| **Input** | `phase` (one of the five DMAIC names); an LLM factory handle; `UNIVERSAL_TOOLS` (S-F14–S-F22); `COMPUTATION_TOOLS_BY_PHASE[phase]` (S-F24) |
+| **Process** | Registers the five nodes of §13, wires the intra-phase edges, applies `TimeoutPolicy` and `error_handler` per §45, and compiles |
+| **Output** | A compiled `StateGraph` over `PhaseState`, with neither checkpointer nor store |
+| **Customer** | The supervisor graph (S-F01), which embeds it as a node |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | compiling | pass neither checkpointer nor store; writes route through the parent's saver under an auto-managed `checkpoint_ns` | §16 |
+| B2 | registering nodes | register exactly the five of §13; a sixth requires a §56 amendment | §13 |
+| B3 | registering the executor node | apply `timeout=TimeoutPolicy(run_timeout=45)` and `error_handler=phase_error_recovery` | §45 |
+| B4 | selecting tools | bind the universal seven plus that phase's computation subset, never more than 16 in total | §30 |
+
+> **SPEC-GAP (G-01):** the intra-phase edges this function wires are the Level 2
+> `Command` routing, which does not exist — see S-F13. Until it lands, this
+> entry cannot pass the rebuild test.
+
+> **SPEC-GAP (G-33):** if `load_skill(name)` is a registered tool bound to the
+> executor (§19.2, §32), it is an eighth universal tool and every phase count in
+> §30 moves against the 16 cap. `UNIVERSAL_TOOLS` therefore has an undetermined
+> membership — see S-F23.
+
+### 58.12 S-F03 · `phase_planner` node
+
+**Architecture:** §13, §17 · **File:** `phases/{phase}/nodes.py` · **Procedure:** step 6.1
+*Rebuild test: blocked on G-01 and G-38.*
+
+**Purpose:** Decides strategy and nothing else. Produces one `CoachingPlan` per
+turn — which field to focus on, what action to take, which retrieval mode — and
+never dispatches to a tool. It fires many times per phase: the subgraph is a
+cycle, not a pipeline.
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | `START` of the phase subgraph, on entry; `phase_executor` (S-F04), after every coaching turn; the `validation_stack` node (S-F05) on a failed gate attempt, carrying `validator_feedback` |
+| **Input** | `PhaseState.artifacts` (what is captured), `PhaseState.field_index`, `PhaseState.phase_context`, `PhaseState.validator_feedback`, `PhaseState.turn_count`; `{PHASE}_PLANNER_PROMPT` (§22) |
+| **Process** | One plain model call at `planner` role, temperature 0.1, through the builder-style structured-output call producing `CoachingPlan`. Reads `artifacts` to derive what is next — the queue is derived, never stored |
+| **Output** | `{"coaching_plan": CoachingPlan, "field_index": int, "step_log": [...]}` |
+| **Customer** | `phase_executor` (S-F04), which consumes `coaching_plan`; `analyse_executor_node` (S-F09) when `retrieval_strategy == "multi_hop"` |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | invoked | produce exactly one `CoachingPlan` and overwrite any previous one | §6 |
+| B2 | invoked | never dispatch to a tool; tool dispatch is the executor's responsibility alone | §17 |
+| B3 | deciding retrieval mode | set `retrieval_strategy` at plan time, so multi-hop is planned rather than emergent | §17 |
+| B4 | re-entered after a validation failure | read the full accumulated `validator_feedback` list, not only the latest entry | §6 |
+| B5 | a prior phase recorded `acknowledged_gaps` | read them from the Store and factor them into the plan | §35 |
+
+**No AI-ACT flag.** The planner selects what is coached; it asserts nothing
+about the Belt and produces no assessment. Pure orchestration.
+
+> **SPEC-GAP (G-38):** "advance to the next field" has no defined ordering
+> source — see S-C02.
+
+> **SPEC-GAP (G-01):** whether the planner returns `Command(goto="executor")`
+> versus `Command(goto="validation_stack")` on field-complete is decision point
+> 1 of the Level 2 routing gap — see S-F13.
+
+### 58.13 S-F04 · `phase_executor` node
+
+**Defined in §57.3** as the calibrated function sample. Architecture rationale:
+§13, §17, §18, §20. **Procedure:** step 6.2. **Carries an AI-ACT flag and feeds
+DORA row `R-EXEC-01`.**
+
+> **SPEC-GAP (G-07):** `ContradictionDetectionMiddleware` reads
+> `state["structured_response"]` (§19.6). Whether middleware observes
+> `PhaseState` or `create_agent`'s own internal agent state is stated nowhere,
+> so this entry's Output cell cannot say where `contradiction_flag` is
+> published — to be designed with founder.
+
+### 58.14 S-F05 · `validation_stack` node
+
+**Architecture:** §13, §34 · **File:** `phases/{phase}/nodes.py` · **Procedure:** step 7.2
+*Rebuild test: blocked on G-01 and G-08.*
+
+**Purpose:** The gate-boundary quality node. Runs layers 2b, 2c and 2d in that
+order — cheapest first, each firing only if the previous passes — against the
+complete field set, and owns the shared retry budget of three. Layer 2a is not
+here: it fires every turn and lives in `CoherenceMiddleware` (S-C13).
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | `phase_planner` (S-F03), when all of the phase's fields are captured and the gate is triggered |
+| **Input** | `PhaseState.artifacts` (the complete field set), `PhaseState.draft`, `PhaseState.gate_attempts`, `PhaseState.validator_feedback`; `{PHASE}_CONSTRAINTS` and `PHASE_RUBRIC` (§22); `belt_level` from the case record in the Store |
+| **Process** | Layer 2b — `DMAICGateValidator` Tier 1 presence, deterministic (S-C26); Layer 2c — constraint check, `constraint` role at 0.1 (S-F25); Layer 2d — `PHASE_RUBRIC` grading of the gate document, `grader` role at 0.1 (S-F26). Every attempt at every layer is logged to `step_log` |
+| **Output** | On pass: routes to `gate_review`. On fail: `{"gate_attempts": n+1, "validator_feedback": [...], "step_log": [...]}` and routes back to the planner. At `gate_attempts >= 3`: routes to the escalation subgraph |
+| **Customer** | `gate_review_node` (S-F06) on pass; `phase_planner` (S-F03) on fail; the escalation subgraph (S-F08) at three attempts |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | invoked | run 2b, then 2c, then 2d, and run each only if the previous passed | §34 |
+| B2 | any layer fails | increment `gate_attempts` once for the attempt — not once per layer — and append specific per-criterion feedback to `validator_feedback` | §34 |
+| B3 | `gate_attempts` reaches 3 | route to escalation rather than retrying again | §34, §38 |
+| B4 | a Tier 1 criterion fails at Layer 2d | block the gate; a Tier 2 criterion SHALL at worst produce `warning` | §35 |
+| B5 | running any layer | perform no retrieval; the rubric already encodes the methodology standards | §26 |
+| B6 | a Belt proceeds past a Tier 2 gap | record it in `acknowledged_gaps` rather than dropping it | §35 |
+| B7 | any attempt at any layer completes | write one `step_log` dict recording layer, attempt, status and reason | §11 |
+
+#### ⚠ AI-ACT — high-risk surface
+
+**This node produces the pass/fail assessment of a Belt's completed phase. Where
+Agent Improve is deployed into a formal evaluation, that assessment is the
+artifact the evaluation would rest on — an Annex III (employment) high-risk
+function (deadline 2 Dec 2027).**
+
+| Obligation | How this node addresses it |
+|---|---|
+| Art. 14 (human oversight) | Its verdict does not commit anything — it gates the interrupt at which the Belt reviews, edits and approves (§33) |
+| Art. 15 (accuracy/robustness) | Layer 2b is deterministic; 2c and 2d run at temperature 0.1 so the same document gets the same verdict across runs; verdicts are per criterion, never a score |
+| Art. 12 (record-keeping) | Every attempt at every layer written to `step_log` with layer, attempt, status and reason |
+| Art. 13 (transparency) | The Belt sees the pass/fail and the specific criteria, not a number; `max_iterations_reached` passes through with a warning flag visible to them |
+
+*Feeds DORA register row **R-VALSTACK-01**, which aggregates behaviors B1–B4
+and B7 and Layer 2d (S-F26).*
+
+> **SPEC-GAP (G-08):** §40 names `validation_stack.get_acknowledged_gaps()` as
+> the source of the gate document's `acknowledged_gaps`. That is attribute
+> access on a node, and §14 requires nodes to be module-level async functions.
+> Where acknowledged gaps are produced, where they are held between this node
+> and gate assembly, and what shape they take, is undesigned — to be designed
+> with founder.
+
+> **SPEC-GAP (G-01):** this node's three exits — pass, fail, escalate — are
+> decision point 2 of the Level 2 routing gap, including its ownership of the
+> `gate_attempts` increment — see S-F13.
+
+### 58.15 S-F06 · `gate_review_node`
+
+**Architecture:** §13, §33.1 · **File:** `phases/{phase}/nodes.py` · **Procedure:** step 7.3
+*Rebuild test: blocked on G-02 and G-18.*
+
+**Purpose:** Fires the interrupt. Presents the validated fields to the Belt and
+**stops.** It applies nothing and decides nothing — collection and application
+are separated because they happen either side of a process boundary that may be
+hours or days wide.
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | The `validation_stack` node (S-F05), on pass |
+| **Input** | `PhaseState.artifacts` and `PhaseState.draft` — the validated field set |
+| **Process** | Builds the interrupt payload and calls graph-level `interrupt()`. **No LLM call.** `HumanInTheLoopMiddleware` is banned here (§19.9) |
+| **Output** | An interrupt payload rendered by the gate review screen (§50); execution stops |
+| **Customer** | The API surface (S-F34), which returns the payload from `POST /gate/submit`; then `gate_apply_node` (S-F07) when the graph resumes |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | invoked | call graph-level `interrupt()` and stop; it SHALL NOT apply edits or write any field | §33.1 |
+| B2 | building the payload | present every validated field in an editable form, with an explicit approve action | §50 |
+| B3 | invoked | commit no checkpoint — the checkpoint commits only after Belt approval at step 8 | §33.3 |
+
+#### ⚠ AI-ACT — high-risk surface
+
+**This is the human-oversight surface. Article 14 is implemented here or
+nowhere:** if this screen renders fields the Belt cannot edit, gate step 5 does
+not exist and the oversight claim made everywhere else in this document is
+false.
+
+| Obligation | How this node addresses it |
+|---|---|
+| Art. 14 (human oversight) | The Belt reviews every AI-captured value before anything commits, may edit any of them, and must explicitly approve |
+| Art. 13 (transparency) | Values are shown as AI-extracted and attributable to a turn; the LangSmith run id is surfaced for escalation (§50) |
+| Art. 12 (record-keeping) | The interrupt payload and the resume payload are both traced |
+
+*Feeds DORA register row **R-GATEREV-01**.*
+
+> **SPEC-GAP (G-18):** the interrupt payload has no schema. §49 states envelopes
+> are Pydantic v2 and defines none, and this payload crosses the API boundary to
+> the gate review screen — to be designed with founder.
+
+> **SPEC-GAP (G-02):** `POST /gate/reject` exists in §49 and in §33.1's frontend
+> sequence, and what a rejection does — re-coach, or apply-with-edits — is
+> stated nowhere. It is a coaching-philosophy ruling, not a transcription — to
+> be designed with founder.
+
+### 58.16 S-F07 · `gate_apply_node`
+
+**Architecture:** §13, §33.1, §33.2, §40.1 · **File:** `phases/{phase}/nodes.py` · **Procedure:** step 7.3
+*Rebuild test: blocked on G-02, G-03, G-08 and G-28.*
+
+**Purpose:** The commit. Applies the Belt's edits, runs the non-blocking policy
+advisory, assembles the `{Phase}Output` gate document, and **writes it twice** —
+to the Store and to `PhaseState.final`. This is the write the entire
+store-mediated handoff depends on.
+
+**Definition:**
+```python
+# 1. The Store — what the next phase's input mapper reads
+store.put(("projects", case_id, "artifacts"), phase_name, gate_document)
+
+# 2. PhaseState — so the checkpoint is self-sufficient for crash recovery
+return {"final": gate_document, "gate_attempts": 0, "validator_feedback": []}
+```
+
+**Store path:** `store/projects/{case_id}/artifacts/{phase}.json`
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | `gate_review_node` (S-F06), when the graph resumes from the interrupt with `Command(resume=...)` |
+| **Input** | The resume payload → `PhaseState.belt_edits`; `PhaseState.artifacts`, `citations`, `uploads`; `acknowledged_gaps` (see G-08); `case_id` and the phase name (see G-03) |
+| **Process** | Applies Belt edits into `artifacts`; runs the policy advisory (S-F27, non-blocking); assembles the `{Phase}Output` by Pydantic construction with **no LLM call** (S-F28); writes the Store; returns `final` |
+| **Output** | Store key `("projects", case_id, "artifacts")/{phase}`; `{"final": dict, "gate_attempts": 0, "validator_feedback": []}`; then the subgraph reaches `END` |
+| **Customer** | `define_output_mapper` (S-F11) and the four remaining output mappers (S-F12), which read `final`; the next phase's input mapper, which reads the Store key; crash recovery, which reads `final` |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | the Belt approves | write the gate document to **both** the Store and `PhaseState.final`; one write alone is a violation | §33.2 |
+| B2 | assembling the document | use Pydantic construction over already-captured values, with no LLM call | §40.1 |
+| B3 | assembling a Tier 1 field | access `artifacts["field"]` directly, so a missing field raises — Layer 2b should have blocked the gate | §40.1 |
+| B4 | assembling a Tier 2 field | access `artifacts.get("field", "")`, so an empty value records that the Belt proceeded without it | §40.1 |
+| B5 | the gate passes | reset `gate_attempts` to `0` and `validator_feedback` to `[]`, and no other node SHALL reset either | §33.2 |
+| B6 | running the policy advisory | never block on its result — it is a second opinion before the decision, not a veto after it | §33 |
+| B7 | it writes externally | do so under an `error_handler` that can undo the write | §45 |
+| B8 | assembling the document | include captured fields, reference dicts, `computation_results`, `citations`, `uploads` and `acknowledged_gaps`; nothing may be omitted | §33.2 |
+
+#### ⚠ AI-ACT — high-risk surface
+
+**This node commits the assessed record.** Everything downstream — the next
+phase's coaching, the case index, any evaluation a customer builds on top —
+reads what this node writes.
+
+| Obligation | How this node addresses it |
+|---|---|
+| Art. 14 (human oversight) | It runs only after explicit Belt approval; the checkpoint commits only here (§33.3) |
+| Art. 12 (record-keeping) | The document carries `citations`, `uploads`, `computation_results` and `acknowledged_gaps`, so a reviewer can see what the phase was grounded in and what it consciously skipped |
+| Art. 10 (data governance) | `uploads` records the complete set of external evidence; an empty list is itself a visible finding (§6) |
+| Art. 15 (accuracy/robustness) | Tier 1 access raises rather than silently defaulting; the policy advisory reviews the Belt's edits before commit |
+
+*Feeds DORA register row **R-GATEAPPLY-01**.*
+
+> **SPEC-GAP (G-03):** the Store write needs `case_id` and the phase name, and
+> `PhaseState` declares neither — see S-C02.
+
+> **SPEC-GAP (G-28):** §40.1 shows gate assembly for `DefineOutput` only. The
+> four remaining assemblies are unwritten, and §40 requires that assembly
+> reference every field in the schema — see S-F28.
+
+> **SPEC-GAP (G-02):** what this node does on a Belt rejection is unstated — to
+> be designed with founder.
+
+### 58.17 S-F08 · The escalation subgraph
+
+**Architecture:** §38 · **File:** `escalate.py` · **Procedure:** step 7.5
+*Rebuild test: not met — the entry is a stub around a gap.*
+
+**Purpose:** Where the system defers to the Belt as arbiter, with the unresolved
+constraints named. It does not silently accept and it does not silently block.
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | The `validation_stack` node (S-F05) by conditional edge, when `gate_attempts` reaches 3; the `request_human_approval` tool (S-F22), when the coach judges a decision beyond its remit |
+| **Input** | `PhaseState.validator_feedback` — the specific failures to put in front of the Belt. Further inputs undetermined (G-34) |
+| **Process** | Undetermined (G-34) |
+| **Output** | Undetermined (G-34) |
+| **Customer** | **Undetermined.** §15 states escalation "never returns to the supervisor," which leaves how the run terminates unstated (G-34) |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | reached | name the unresolved constraints explicitly rather than reporting a generic failure | §34.2 |
+| B2 | reached | make the Belt the arbiter; the system SHALL neither accept nor block on its own | §34.2 |
+| B3 | evaluating its trigger | read `gate_attempts` from checkpointed state, never from route scope | §38 |
+
+**`AI-ACT-REVIEW: uncertain.`** This is an oversight mechanism (Art. 14) rather
+than an assessment producer, which argues against a flag; but it is also the
+terminal path for a Belt whose phase could not pass, and what it records about
+that may matter under Art. 12. Classification deferred rather than guessed.
+
+> **SPEC-GAP (G-34):** the escalation subgraph has no node list, no state
+> schema and no exit contract. §15's "never returns to the supervisor" and
+> §12's "reached by conditional edge" cannot both be satisfied without stating
+> what terminates the run — to be designed with founder.
+
+### 58.18 S-F09 · `analyse_executor_node`
+
+**Architecture:** §26 · **File:** `phases/analyse/nodes.py` · **Procedure:** step 6.2
+*Rebuild test: blocked on G-03, G-04, G-05 and G-35.*
+
+**Purpose:** The planned multi-hop variant of the executor, implemented for
+Analyse. Runs a three-hop dependent retrieval chain inside **one** node
+invocation, then a dedicated synthesis call, then hands the synthesis to the
+coach call.
+
+**Definition:**
+```python
+async def analyse_executor_node(state: PhaseState) -> dict:
+    # The for-loop below runs inside ONE node invocation, so RemainingSteps
+    # does NOT decrement between hops — LangGraph counts node transitions,
+    # not Python iterations. Hence a guard at entry, not inside the loop.
+    if state.get("remaining_steps", 10) <= 2:
+        return {"messages": [synthesise_partial(state)]}
+
+    plan: Plan = planner.invoke(decomposition_prompt)
+    local: dict[str, str] = {"entity": state.get("extracted_entity", "")}
+    hop_results: list[str] = []
+
+    for hop in sorted(plan.hops, key=lambda h: h.hop_number):
+        result = rag_lookup_methodology(
+            query=hop.hop_question.format(**local),
+            phase=state["current_phase"],
+        )
+        local[f"hop{hop.hop_number}_answer"] = result
+        hop_results.append(result)
+
+    synthesis = synthesis_llm.invoke(
+        synthesis_prompt.format(**local, instruction=plan.synthesis_instruction)
+    )
+    return {
+        "hop_results":      hop_results,              # §6 — checkpointed, visible
+        "synthesis_output": synthesis.model_dump(),   # read by the coach call
+    }
+```
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | `phase_planner` (S-F03), when `coaching_plan.retrieval_strategy == "multi_hop"` |
+| **Input** | `remaining_steps` (**undeclared — G-04**), `extracted_entity` (**undeclared — G-05**), `current_phase` (**undeclared on `PhaseState` — G-03**), `coaching_plan.retrieval_hops` |
+| **Process** | Entry guard; decomposition call producing `Plan` (S-C17); three `rag_lookup_methodology` calls, each templating the prior hop's answer; one synthesis call at temperature 0.1–0.2 producing `SynthesisOutput` (S-C18) |
+| **Output** | `{"hop_results": list[str], "synthesis_output": dict}` |
+| **Customer** | The coach call inside `phase_executor` (S-F04), which reads `synthesis_output` from state rather than a local; the LangSmith state view |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | entered with two or fewer remaining steps | synthesise from what it has and return, rather than beginning a hop chain it cannot finish | §26 |
+| B2 | running the hop loop | need no internal guard — `Plan` bounds it at exactly three hops | §26 |
+| B3 | synthesising | use a dedicated call at temperature 0.1–0.2, separate from the coaching call at 0.5–0.7 | §26 |
+| B4 | returning | write `hop_results` and `synthesis_output` into state, never leave them in node locals | §6 |
+| B5 | the recursion limit is nevertheless hit | catch `GraphRecursionError` in the coach node and turn it into a partial answer; a Belt SHALL never see a stack trace | §26 |
+
+**UNVERIFIED, carried forward:** the planned pipeline is implemented only here.
+Whether reactive tool calling is sufficient for non-Analyse turns has not been
+tested, and `CoachingPlan.retrieval_strategy` is deliberately not restricted to
+Analyse. Validate during the §52 eval work.
+
+> **SPEC-GAP (G-35):** `synthesise_partial(state)` is called twice — here and
+> in §26's `agent_node` illustration — and is defined nowhere — to be designed
+> with founder.
+
+### 58.19 S-F10 · `define_input_mapper`
+
+**Architecture:** §9 · **File:** `phases/define/mappers.py` · **Procedure:** step 3.3
+*Rebuild test: met.*
+
+**Purpose:** Translates `SupervisorState` into a fully-populated `PhaseState`
+for Define, composing `phase_context` from the case record in the Store. Define
+has no prior phase, so its source is the record loaded at session start.
+
+**Definition:**
+```python
+def define_input_mapper(parent: SupervisorState, store: BaseStore) -> PhaseState:
+    """SupervisorState → DefineState. Context is composed from the store,
+    never carried on parent state. Define has no prior phase, so its source
+    is the case record loaded at session start (§10)."""
+    case = store.get(("projects", parent["case_id"], "case"), "record").value
+    return {
+        "messages":           parent["messages"],
+        "history":            [],
+        "phase_context": (
+            f"{case['title']} — {case['department']}. "
+            f"{case['belt_level']} belt, led by {case['leader']}, "
+            f"target {case['target_date']}."
+        ),
+        "coaching_plan":      None,
+        "field_index":        0,
+        "draft":              {},
+        "artifacts":          {},
+        "step_log":           [],
+        "belt_edits":         {},
+        "turn_count":         0,
+        "final":              {},
+        "gate_attempts":      0,
+        "validator_feedback": [],
+        "citations":          [],
+        "uploads":            [],
+        "hop_results":        [],
+        "synthesis_output":   None,
+    }
+```
+
+> **SPEC-GAP (G-42):** **the boundary mappers have no execution site.** §9
+> defines them as "two plain functions per phase"; §13 states a phase subgraph
+> contains **exactly five nodes**, none of which is a mapper, and forbids a
+> sixth without a §56 amendment; §12 embeds each subgraph as a node of the
+> parent. Whether a mapper runs inside the subgraph, inside the parent's node
+> wrapper, or somewhere else is stated nowhere — and every phase boundary
+> depends on it. **Surfaced by the Supplier/Customer cross-check** (§66.2) — to
+> be designed with founder.
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | The supervisor graph (S-F01), on entry to the Define subgraph |
+| **Input** | `SupervisorState.messages`, `SupervisorState.case_id`; Store key `("projects", case_id, "case")/"record"` |
+| **Process** | Reads the case record, composes `phase_context` as prose framing, and initialises all seventeen `PhaseState` fields |
+| **Output** | A complete `PhaseState` |
+| **Customer** | `phase_planner` (S-F03), which reads `phase_context`; every node of the Define subgraph, which reads the initialised fields |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | invoked | depend on `BaseStore` alone; it SHALL NOT be handed a blob client, and SHALL NOT read context off parent state | §9 |
+| B2 | invoked | populate all seventeen fields explicitly | §6 |
+| B3 | composing `phase_context` | compose it here, at the boundary; context SHALL NOT be carried on `SupervisorState` | §5, §9 |
+
+### 58.20 S-F11 · `define_output_mapper`
+
+**Architecture:** §9 · **File:** `phases/define/mappers.py` · **Procedure:** step 3.3
+*Rebuild test: met.*
+
+**Purpose:** Translates the finished `PhaseState` into a `SupervisorState`
+update. The gate document goes to the Store; **only orchestration-relevant
+values return to the parent.** This is the single site at which the three
+derived orchestration values advance together — the thing that makes §5's
+derived-field exemption safe.
+
+**Definition:**
+```python
+def define_output_mapper(child: PhaseState, parent: SupervisorState,
+                         store: BaseStore) -> dict[str, Any]:
+    """DefineState → SupervisorState update. The gate document goes to the
+    store; only orchestration-relevant values return to the parent."""
+    store.put(
+        ("projects", parent["case_id"], "artifacts"),
+        "define",
+        child["final"],                      # the approved gate document (§33)
+    )
+    return {
+        "current_phase": "measure",
+        "phase_index":   1,
+        "gate_passed":   {**parent["gate_passed"], "define": True},
+    }
+```
+
+> **SPEC-GAP (G-42):** this function has no stated execution site — see
+> **§58.19 — S-F10** and §66.2.
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | `gate_apply_node` (S-F07) — the Define subgraph reaches `END` only through it, so arriving here means the gate passed |
+| **Input** | `PhaseState.final` (the approved gate document); `SupervisorState.case_id` and `gate_passed` |
+| **Process** | Writes the gate document to the Store, then returns the three orchestration values as one update |
+| **Output** | Store key `("projects", case_id, "artifacts")/"define"`; `{"current_phase", "phase_index", "gate_passed"}` |
+| **Customer** | The supervisor graph (S-F01), which applies the update to `SupervisorState`; the Measure input mapper (S-F12), which reads the Store key |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | invoked | write `current_phase`, `phase_index` and `gate_passed` together in one update, as the only site that writes any of them | §5, §9 |
+| B2 | updating `gate_passed` | set the phase's key to `True` by merge, never replace the dict wholesale | §5 |
+| B3 | returning to the parent | return orchestration values only; artifacts and gate documents SHALL NOT travel on parent state | §5, §9 |
+
+**Note on the duplicated Store write.** `gate_apply_node` (S-F07 B1) already
+wrote this document to the same Store key. The second write is idempotent by key
+(§47), so the duplication is safe — but **which of the two is the authoritative
+writer is not stated in either section.** Recorded as a finding in §66; not
+resolved here.
+
+### 58.21 S-F12 · The Measure, Analyse, Improve and Control mapper pairs
+
+**Architecture:** §9 · **File:** `phases/{phase}/mappers.py` · **Procedure:** step 3.3
+
+**Purpose:** Same contract as S-F10 and S-F11, with one difference: their
+`phase_context` is composed from the **prior phase's gate document** in the
+Store rather than from the case record.
+
+> **SPEC-GAP (G-42):** this function has no stated execution site — see
+> **§58.19 — S-F10** and §66.2.
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | Input mappers: the supervisor graph (S-F01) on entry to the phase. Output mappers: `gate_apply_node` (S-F07), on reaching `END` |
+| **Input** | Input mappers: `SupervisorState.messages` and `case_id`; the prior phase's Store key under `("projects", case_id, "artifacts")`. Output mappers: `PhaseState.final` |
+| **Process** | Undetermined per phase (G-27) — the contract below binds, the composition does not exist |
+| **Output** | Input mappers: a complete `PhaseState`. Output mappers: a Store write plus the three orchestration values |
+| **Customer** | Input mappers: `phase_planner` (S-F03) and the rest of that phase's subgraph. Output mappers: the supervisor graph (S-F01) and the next phase's input mapper |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | an input mapper is invoked | compose `phase_context` from the Store — the prior phase's artifacts — and depend on `BaseStore` alone | §9 |
+| B2 | an input mapper is invoked | populate all seventeen `PhaseState` fields | §6 |
+| B3 | an output mapper is invoked | write the gate document to the Store and return only the three orchestration values | §9 |
+| B4 | reading a prior phase's value | read it as a named field out of the structured gate document; string-interpolating a previous phase's output into the next phase's prompt is BANNED | §9 |
+
+> **SPEC-GAP (G-27):** none of the four pairs is written. §9 gives Define's pair
+> in full and asserts the rest exist. What each phase's `phase_context`
+> contains — which fields of the prior gate document, in what form, and whether
+> `acknowledged_gaps` is included — is undesigned, and it determines what every
+> planner after Define can see — to be designed with founder.
+
+### 58.22 S-F13 · Level 2 `Command` routing
+
+**Architecture:** §13, §15 · **File:** `phases/{phase}/graph.py` · **Procedure:** steps 4.1, 4.4
+*Rebuild test: not met. This entry is a gap marker.*
+
+**Purpose:** The intra-phase routing that makes the subgraph a cycle. §13 draws
+it, §15 states the rule that `Command` routing is for inside phase subgraphs
+only — and **no `Command(goto=...)` routing code exists anywhere in this
+document.**
+
+**What is settled and binds on whatever design lands:**
+
+| # | Constraint | Ref |
+|---|---|---|
+| C1 | `Command` is used inside phase subgraphs only; phase transitions are static edges | §15 |
+| C2 | A node SHALL NOT mix a static edge and a `Command` — both paths execute, silently | §15 |
+| C3 | `gate_attempts` lives on `PhaseState`, never in route scope | §6, §15 |
+| C4 | Retry and escalation resolve inside the phase, never above it | §15 |
+| C5 | A subgraph reaches `END` only through `gate_apply`, so reaching `END` means the gate passed | §15 |
+
+> **SPEC-GAP (G-01): Level 2 `Command` routing — to be designed with founder.**
+> This is a genuine design task, not a transcription. Three decision points:
+>
+> 1. **Planner exit.** Whether `phase_planner` returns
+>    `Command(goto="executor")` or `Command(goto="validation_stack")` on
+>    field-complete, and what "field-complete" is evaluated against given that
+>    the per-phase field ordering is itself undefined (G-38).
+> 2. **Validation stack exit.** `Command` on pass to `gate_review`; at `>= 3` to
+>    escalation; otherwise back to the planner carrying `validator_feedback`.
+>    This node owns the `gate_attempts` increment, and where exactly it
+>    increments determines whether a partially-run stack consumes an attempt.
+> 3. **Gate exit.** `gate_review` (interrupt) to `gate_apply`, **and what a Belt
+>    REJECT does** — re-coach, or apply-with-edits. **This one needs a founder
+>    ruling** (G-02); it is a coaching-philosophy call, not an engineering one.
+
+---
+
+## 59. Spec — knowledge and retrieval
+
+*Supersedes: none — new. Definitions relocated from §24, §25, §26, §27.*
+**Status: RATIFIED as a structure; individual entries carry their own gaps.**
+
+**Index schemas are not here.** The three Azure AI Search schemas stay in §23,
+which §2 names their canonical home and which §23.5 makes the mandatory landing
+site for any schema change. They are data-store schemas rather than code
+classes or function signatures, so the define-once rule does not reach them.
+The entries below reference §23 and do not restate it.
+
+### 59.1 S-C16 · `Hop`
+
+**Architecture:** §26 · **File:** `knowledge/` or `phases/analyse/` · **Procedure:** step 5.2
+*Rebuild test: reconstructable from this entry alone.*
+
+**Purpose:** One step of a planned multi-hop retrieval chain. `hop_question` may
+template a prior hop's answer, which is what makes the chain *dependent* rather
+than three parallel searches.
+
+**Definition:**
+```python
+class Hop(BaseModel):
+    hop_number:   int          # 1, 2 or 3
+    hop_question: str          # sub-question, may template prior answers
+```
+
+**Fields:**
+
+| Field | Type | Meaning | Reducer | Writer | Readers |
+|---|---|---|---|---|---|
+| `hop_number` | `int` | Position in the chain, 1–3. The executor sorts on it, so ordering is explicit rather than list-order-dependent | none | the decomposition call | `analyse_executor_node` (S-F09) |
+| `hop_question` | `str` | The sub-question, as a format template. Placeholders resolve against `entity` and `hop{n}_answer` | none | the decomposition call | `analyse_executor_node` |
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | hops are executed | sort by `hop_number`, never rely on list order | §26 |
+| B2 | a `hop_question` templates a prior answer | resolve it from the accumulated local map, not from state | §26 |
+
+### 59.2 S-C17 · `Plan` — the hop decomposition plan
+
+**Architecture:** §26 · **File:** `knowledge/` or `phases/analyse/` · **Procedure:** step 5.2
+*Rebuild test: reconstructable from this entry alone.*
+
+**Purpose:** The decomposition call's output. **It is what bounds the hop
+loop** — exactly three hops — which is why `analyse_executor_node` needs no
+guard inside its loop, only at entry.
+
+**Definition:**
+```python
+class Plan(BaseModel):
+    reasoning:             str
+    hops:                  list[Hop]     # exactly 3 dependent hops
+    synthesis_instruction: str
+```
+
+**Fields:**
+
+| Field | Type | Meaning | Reducer | Writer | Readers |
+|---|---|---|---|---|---|
+| `reasoning` | `str` | Why the question decomposes this way. Traced, not shown to the Belt | none | the decomposition call | LangSmith; review |
+| `hops` | `list[Hop]` | Exactly three dependent hops | none | the decomposition call | `analyse_executor_node` (S-F09) |
+| `synthesis_instruction` | `str` | How the synthesis call should assemble the three answers | none | the decomposition call | the synthesis call |
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | a plan is produced | contain exactly three hops, which is the loop's bound | §26 |
+| B2 | a plan is produced | be produced at `planner` role, temperature 0.1, and never be shown to the Belt | §26 |
+
+**Note.** This class and `CoachingPlan` (S-C04) are different things with
+similar names: `CoachingPlan` is the per-turn coaching strategy on
+`PhaseState`; `Plan` is the retrieval decomposition inside one multi-hop
+executor invocation. Neither is stored where the other is read.
+
+### 59.3 S-C18 · `SynthesisOutput`
+
+**Architecture:** §26 · **File:** `knowledge/` or `phases/analyse/` · **Procedure:** step 5.2
+*Rebuild test: reconstructable from this entry alone.*
+
+**Purpose:** The dedicated synthesis call's structured output, dumped into
+`PhaseState.synthesis_output` so the coach call reads it from state rather than
+a local variable. Synthesis is separate from coaching because assembling
+evidence correctly and translating it into coaching language are different
+jobs, tuned at different temperatures.
+
+**Definition:**
+```python
+class SynthesisOutput(BaseModel):
+    evidence_chain: str                          # assembled reasoning
+    key_finding:    str                          # what the coach communicates
+    confidence:     Literal["high", "medium", "low"]
+    caveats:        list[str]                    # limits of the hop chain
+```
+
+**Fields:**
+
+| Field | Type | Meaning | Reducer | Writer | Readers |
+|---|---|---|---|---|---|
+| `evidence_chain` | `str` | The assembled reasoning across the three hops. In the trace, so a wrong coaching answer can be attributed to bad evidence rather than bad translation | none | the synthesis call | the coach call; LangSmith |
+| `key_finding` | `str` | The one thing the coach communicates | none | the synthesis call | the coach call |
+| `confidence` | `Literal["high","medium","low"]` | How well the chain supports the finding | none | the synthesis call | the coach call |
+| `caveats` | `list[str]` | What the hop chain could not establish | none | the synthesis call | the coach call |
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | synthesis runs | run as its own call at temperature 0.1–0.2, never folded into the coaching call | §26 |
+| B2 | it is produced | be written to `PhaseState.synthesis_output`, never held in a node local | §6 |
+| B3 | `confidence` is `"low"` or `caveats` is non-empty | make the coach communicate the limitation rather than presenting the finding as settled | §26, §43 |
+
+### 59.4 S-C19 · `QueryVariants`
+
+**Architecture:** §21, §25 · **File:** `knowledge/tool_args.py` or `knowledge/fusion.py` · **Procedure:** step 5.2
+
+**Purpose:** The structured output of the variant-generation call inside every
+`rag_lookup_*` tool. Three to five rephrasings of the Belt's query, fused by RRF.
+
+**What is stated:** it is produced by structured output, never manual JSON
+parsing (§25), and it carries 3–5 variants.
+
+> **SPEC-GAP (G-14):** the schema is named in §21's mapping table and in §25 and
+> is defined nowhere — field names, whether the original query is included among
+> the variants, and whether the variant count is fixed or model-chosen are all
+> unstated — to be designed with founder.
+
+---
+
+### 59.5 S-F14 · `rag_lookup_methodology`
+
+**Architecture:** §24, §29.2, §25 · **File:** `knowledge/tools.py` · **Procedure:** step 5.2
+*Rebuild test: blocked on G-14 and G-26.*
+
+**Purpose:** Retrieves LSS Black Belt methodology from `improve_knowledge_index`.
+The authoritative source in the memory hierarchy (§22) and the only tool the
+planned multi-hop chain calls.
+
+**Signature:**
+```
+rag_lookup_methodology(query: str, phase: str, top_k: int = 10) -> list[Document]
+```
+
+| | |
+|---|---|
+| Index | `improve_knowledge_index` (§23.1) |
+| Filter | `phase_relevance eq '{phase}' or phase_relevance eq 'general'` |
+| Vector field | `content_vector` |
+| Retrieval | Multi-query 3–5 variants + RRF, k=60 (S-F17) |
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | `phase_executor` (S-F04), by model choice inside the tool loop; `analyse_executor_node` (S-F09), called directly once per hop |
+| **Input** | `query`, `phase`, `top_k`; the module-level cached vectorstore |
+| **Process** | Generates 3–5 query variants via structured output (S-C19); runs each against the index with the filter applied at call time; fuses with RRF; returns the top results |
+| **Output** | `list[Document]`, each carrying `source_file` and `page_number` for citation |
+| **Customer** | The coach, which weaves the content into its own voice; `PhaseState.citations`, via `CoachingResponse.citations` |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | called | filter on `phase_relevance`, and use `'general'` as the cross-phase value — never `'all'`, never the field name `phase` | §23.1 |
+| B2 | called | generate 3–5 variants and fuse with RRF; a single-query lookup is a violation | §25 |
+| B3 | the search fails | raise `KnowledgeSearchError`; it SHALL NOT return `[]`, which means "ran and matched nothing" | §27 |
+| B4 | returning results | carry `source_file` and `page_number` as metadata for citation, and never use them as filters | §24 |
+| B5 | gate validation is running | not be called at all — gate validation never retrieves | §26 |
+
+**`AI-ACT-REVIEW: uncertain.`** It grounds coaching content in methodology
+(Art. 15 accuracy) and §27 records a real past failure in which retrieval
+breakage read to the Belt as an absence of guidance. Whether that makes it a
+high-risk surface in its own right, or a mitigation belonging to
+`phase_executor`'s flag, is deferred rather than guessed.
+
+### 59.6 S-F15 · `rag_lookup_evidence`
+
+**Architecture:** §24, §29.2 · **File:** `knowledge/tools.py` · **Procedure:** step 5.2
+*Rebuild test: blocked on G-14 and G-26.*
+
+**Purpose:** Retrieves the Belt's own uploaded documents for this case. **This is
+the only channel through which external, real-world data enters AgentLean**
+(§29.1), which makes it architecturally more important than "uploaded files"
+suggests.
+
+**Signature:**
+```
+rag_lookup_evidence(query: str, case_id: str, top_k: int = 10,
+                    phase: str | None = None) -> list[Document]
+```
+
+| | |
+|---|---|
+| Index | `improve_evidence_index` (§23.2) |
+| Filter | `case_id`; optional `phase`, default OFF |
+| Vector field | `content_vector` |
+| Retrieval | Multi-query + RRF (S-F17) |
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | `phase_executor` (S-F04), by model choice — notably at step 3 of the seven-step computation pattern, "guide data preparation" (§43.1) |
+| **Input** | `query`, `case_id`, `top_k`, optional `phase` |
+| **Process** | Multi-query + RRF against the case-scoped evidence index |
+| **Output** | `list[Document]` scoped to this case |
+| **Customer** | The coach, for grounding a computation or a claim in the Belt's own data |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | called | filter on `case_id` always; evidence SHALL NOT leak across cases | §23.2 |
+| B2 | called without an explicit `phase` | leave the phase filter OFF — cross-phase evidence retrieval is the normal case | §23.2 |
+| B3 | called before the batched reindex lands | take no `order_by` argument; `uploaded_at` does not exist on the live index | §23.2 |
+| B4 | results are returned | never re-sort the returned `top_k` client-side and present it as recency ordering | §24 |
+| B5 | the search fails | raise `KnowledgeSearchError`, never return `[]` | §27 |
+
+**`AI-ACT-REVIEW: uncertain.`** This tool reads Belt-supplied operational
+documents, which is squarely Art. 10 (data governance) territory, and the
+`case_id` filter is the only tenancy boundary in the retrieval path.
+Classification deferred.
+
+### 59.7 S-F16 · `rag_lookup_case_history`
+
+**Architecture:** §24, §29.2 · **File:** `knowledge/tools.py` · **Procedure:** step 5.2
+*Rebuild test: blocked on G-14 and G-26.*
+
+**Purpose:** Yokoten — cross-case learning. Retrieves completed cases from
+`improve_case_index` so a Belt can see what worked elsewhere. **Case history is
+patterns, not prescriptions** (§22), and a coach that presents it as methodology
+teaches the Belt to copy rather than reason.
+
+**Signature:**
+```
+rag_lookup_case_history(query: str, top_k: int = 10,
+                        exclude_current_case: bool = True) -> list[Document]
+```
+
+| | |
+|---|---|
+| Index | `improve_case_index` (§23.3) |
+| Filter | `status eq 'completed'`; `belt_level` optional, OFF by default |
+| Ordering | `created_at desc` |
+| Vector field | `embedding` — **the live name**; renaming to `content_vector` is ratified and not yet applied (§23.3) |
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | `phase_executor` (S-F04), by model choice |
+| **Input** | `query`, `top_k`, `exclude_current_case`; a raw `SearchClient` rather than the shared vectorstore, because this index uses `content_text` / `embedding` |
+| **Process** | Multi-query + RRF against completed cases |
+| **Output** | `list[Document]` from other cases |
+| **Customer** | The coach, which must present the result as precedent rather than as methodology |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | called | use the vector field name this index actually has, locally, rather than a shared constant | §23.3, §24 |
+| B2 | called without an explicit `belt_level` | leave that filter OFF — a Green Belt often benefits from a Black Belt case | §24 |
+| B3 | results reach the coach | be weighted below methodology and below this project's own approved fields | §22 |
+| B4 | the search fails | raise `KnowledgeSearchError`, never return `[]` | §27 |
+
+**`AI-ACT-REVIEW: uncertain.`** It surfaces other Belts' project data to this
+Belt. There is no tenancy filter today — multi-tenant filtering is Appendix B
+item 1, and §31 requires the docstring to carry that warning for future
+engineers. Art. 10 relevance is real; classification deferred.
+
+### 59.8 S-F17 · `reciprocal_rank_fusion`
+
+**Architecture:** §25 · **File:** `knowledge/fusion.py` · **Procedure:** step 5.2
+*Rebuild test: met.*
+
+**Purpose:** Fuses the ranked result lists of several query variants into one
+ordering. It operationalises **cross-variant consistency** — a document ranked
+well by several different phrasings is more likely relevant than one ranked well
+by a single phrasing — which native single-query ranking cannot do, because it
+does not know the other variants exist.
+
+**Definition:**
+```python
+def reciprocal_rank_fusion(ranked_lists, k: int = 60):
+    scores, docs = {}, {}
+    for ranked in ranked_lists:
+        for rank, doc in enumerate(ranked):
+            doc_id = doc.metadata["id"]
+            scores[doc_id] = scores.get(doc_id, 0.0) + 1.0 / (k + rank)
+            docs[doc_id] = doc
+    return sorted(
+        [(docs[i], s) for i, s in scores.items()],
+        key=lambda pair: pair[1],
+        reverse=True,
+    )
+```
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | All three `rag_lookup_*` tools (S-F14, S-F15, S-F16), internally |
+| **Input** | `ranked_lists` — one ranked list per query variant; `k=60` |
+| **Process** | Sums `1/(k + rank)` per document across lists, then sorts descending |
+| **Output** | `list[tuple[Document, float]]`, highest fused score first |
+| **Customer** | The calling `rag_lookup_*` tool, which returns the top slice to the model |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | fusing | use `k=60` | §25 |
+| B2 | a document appears in several variant lists | accumulate its score across all of them | §25 |
+| B3 | fusion is needed | use this function; `MultiQueryRetriever` and `EnsembleRetriever` are BANNED | §25 |
+
+**Invariants:**
+- Variant generation and fusion happen **inside** the tool. The model sees a
+  clean `rag_lookup_*(query, ...)` interface and never manages either.
+- Roughly fifteen lines, no LangChain class, no third-party dependency, stable
+  across framework versions. That is a deliberate property, not an accident.
+
+### 59.9 S-F18 · The retriever layer — `search_knowledge`, `search_cases`, `search_evidence`
+
+**Architecture:** §27 · **File:** `knowledge/retriever.py` · **Procedure:** step 5.1
+*Rebuild test: not met — semantics are fully specified, the interface is not.*
+
+**Purpose:** The functions the three `rag_lookup_*` tools call. **The tool layer
+was renamed to `rag_lookup_*`; this retriever layer keeps its names** and its
+failure semantics.
+
+**What is fully specified — the failure contract:**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | the search runs and matches nothing | return `[]` | §27 |
+| B2 | the search fails | raise `KnowledgeSearchError`; a bare `except Exception` returning `[]` is BANNED | §27 |
+| B3 | catching | catch `retriever.RETRIEVAL_EXCEPTIONS` and classify via `_fail()` | §27 |
+| B4 | classifying a 4xx | classify it `permanent` / `do_not_retry` — it is our malformed query, and retrying fails identically | §27, §48 |
+| B5 | executing a search | materialise results inside the `try`; the search call is lazy and the HTTP request fires on iteration, so a `try` that returns the iterator catches nothing | §27 |
+| B6 | reporting failure to the coach | say explicitly that this is a retrieval failure and not an absence of guidance | §27 |
+
+**The coach-facing failure message, as ratified:**
+
+> "Methodology search is unavailable right now (`{error_code}`). This is a
+> retrieval failure, not an absence of guidance — do not tell the team the
+> methodology has nothing on this. Answer from your own DMAIC knowledge, say
+> the reference lookup failed, and avoid citing sources you could not
+> retrieve."
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | The three `rag_lookup_*` tools (S-F14, S-F15, S-F16) |
+| **Input** | Undetermined (G-26) — the query and index-specific parameters |
+| **Process** | Executes the Azure AI Search call plus the Azure OpenAI query embedding, both inside one `try` |
+| **Output** | `list[Document]`, or raises `KnowledgeSearchError` |
+| **Customer** | The calling `rag_lookup_*` tool, which fuses and returns |
+
+> **SPEC-GAP (G-26):** the three signatures, the membership of
+> `RETRIEVAL_EXCEPTIONS` — stated only as "spans two services" — and the
+> `_fail()` contract, including what it returns and how it maps an exception to
+> `AgentImproveError`'s `severity` and `retry_recommendation`, are all
+> undefined — to be designed with founder.
+
+---
+
+## 60. Spec — tools
+
+*Supersedes: none — new. Definitions relocated from §29.2, §30.*
+**Status: RATIFIED as a structure; most entries carry gaps.**
+
+**The tool inventory and the per-phase binding table stay in §30.** They are a
+binding inventory rather than a signature set, and §30 is where an amendment
+against the 16-tool cap is evaluated. The entries below specify the tools
+themselves.
+
+**Three categories exist, and only two are bound:** the universal seven
+(§29.2), the computation tools (§30), and the four cross-agent tools of §29.4,
+which are **present and deliberately bound to nothing.** The cross-agent four
+get no spec entry in this pass: they are unreachable by construction, and §29.4
+already states the three rules that must be satisfied before any may be bound.
+
+### 60.1 S-F19 · `propose_template`
+
+**Architecture:** §29.2 · **File:** `knowledge/tools.py` · **Procedure:** step 5.2
+*Rebuild test: not met.*
+
+**Purpose:** Produces a fill-in template for the team — a scaffold the Belt
+completes, consistent with show-before-asking (§43.2).
+
+**Signature:**
+```
+propose_template(template_type: str, fill_data: dict) -> str
+```
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | `phase_executor` (S-F04), by model choice |
+| **Input** | `template_type`; `fill_data` |
+| **Process** | Undetermined (G-29) |
+| **Output** | A template string for the Belt |
+| **Customer** | The coach, which presents it; the Belt, who completes it |
+
+**No AI-ACT flag.** It emits a scaffold, asserts nothing about the Belt, and
+captures no value.
+
+> **SPEC-GAP (G-29):** the template types are given as "problem_statement,
+> sipoc, data_collection_plan, fishbone, etc." — an open list, which is not a
+> specification — and there is no `fill_data` schema for any type. Its
+> relationship to the per-field worked examples each SKILL.md carries (§32,
+> §43.2) is also unstated: whether a template and a worked example are the same
+> artifact from two directions determines whether this tool duplicates skill
+> content — to be designed with founder.
+
+### 60.2 S-F20 · `propose_diagram`
+
+**Architecture:** §29.2 · **File:** `knowledge/tools.py` · **Procedure:** step 5.2
+*Rebuild test: not met.*
+
+**Purpose:** Produces structured diagram JSON for the frontend to render. **The
+model describes what to draw; the frontend owns how it looks** — a model
+emitting SVG produces markup that drifts from the design system and cannot be
+restyled.
+
+**Signature:**
+```
+propose_diagram(diagram_type: str, data: dict) -> dict
+```
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | `phase_executor` (S-F04), by model choice — notably at step 6 of the seven-step computation pattern, "visualise" (§43.1) |
+| **Input** | `diagram_type`; `data` |
+| **Process** | Undetermined (G-30) |
+| **Output** | Structured diagram JSON, never SVG |
+| **Customer** | The frontend's SVG template library |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | called | return structured JSON; it SHALL NOT return SVG or any other markup | §29.2 |
+
+**No AI-ACT flag.** Presentation only.
+
+> **SPEC-GAP (G-30):** §29.2 states the diagram types and schemas live in
+> `core/diagrams.py`. **That file does not exist** (Appendix E), and no diagram
+> type or schema is stated anywhere in this document. The frontend contract this
+> tool writes against is therefore entirely undefined — to be designed with
+> founder.
+
+### 60.3 S-F21 · `check_gate_status`
+
+**Architecture:** §29.2, §19.1, §35 · **File:** `knowledge/tools.py` · **Procedure:** step 7.1
+*Rebuild test: not met.*
+
+**Purpose:** Reports current-phase gate readiness — which Tier 1 fields are
+populated and which are missing. **Derived at call time, never read from a
+stored list**, which is what keeps it from disagreeing with
+`DMAICGateValidator`.
+
+**Signature:**
+```
+check_gate_status() -> dict
+```
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | `phase_executor` (S-F04), by model choice — stage F of the A→F session flow (§43.3); `BeforeModelStateInjection` (S-C11), which computes missing fields the same way |
+| **Input** | The current phase and `PhaseState.artifacts` — **by an unstated route, since the signature takes no arguments (G-31)** |
+| **Process** | Compares populated `artifacts` keys against that phase's Tier 1 list (§35) |
+| **Output** | A dict of readiness — shape undetermined (G-31) |
+| **Customer** | The coach, for the live gate document preview (§43.4); the UI's Tier 1 / Tier 2 progress bars (§50) |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | called | derive readiness from `artifacts` at call time; it SHALL NOT read a stored list of missing fields or blockers | §5, §19.1 |
+| B2 | called | derive it the same way Layer 2b does, so the prompt and `DMAICGateValidator` cannot disagree | §19.1 |
+| B3 | its output reaches the UI | drive Tier 1 and Tier 2 progress separately, never one blended percentage | §50 |
+
+**No AI-ACT flag.** Pure derivation over already-captured values; it asserts
+nothing and captures nothing.
+
+> **SPEC-GAP (G-31):** the return shape is unspecified, and **the signature
+> takes no arguments while the function must know the current phase and read
+> `artifacts`** — so how it reaches either is undefined. As a bound `@tool` it
+> also needs an `args_schema` (§31), which a zero-argument signature does not
+> obviously admit — to be designed with founder.
+
+### 60.4 S-F22 · `request_human_approval`
+
+**Architecture:** §29.2, §38 · **File:** `knowledge/tools.py` · **Procedure:** step 7.5
+*Rebuild test: not met.*
+
+**Purpose:** Lets the coach escalate a decision it judges beyond its remit,
+outside the standard gate sequence. One of the two entry points to the
+escalation subgraph.
+
+**Signature:**
+```
+request_human_approval(reason: str) -> str
+```
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | `phase_executor` (S-F04), by model choice |
+| **Input** | `reason` |
+| **Process** | Triggers an interrupt awaiting a human decision (G-32) |
+| **Output** | Undetermined (G-32) |
+| **Customer** | The escalation subgraph (S-F08); the Belt |
+
+**`AI-ACT-REVIEW: uncertain.`** It is an oversight escape hatch (Art. 14),
+which argues for a flag; it is also a thin trigger with no judgment of its own,
+which argues against. Deferred with S-F08.
+
+> **SPEC-GAP (G-32):** how a *tool* raises a graph-level `interrupt()` from
+> inside the executor's tool loop is unspecified — and it matters, because §19.9
+> bans `HumanInTheLoopMiddleware` precisely on the ground that edit and reject
+> are unreliable in subgraph contexts. What the tool returns to the model after
+> the interrupt resumes, and how this path differs from the
+> `gate_attempts >= 3` path into the same subgraph, are also undefined — to be
+> designed with founder.
+
+### 60.5 S-F23 · `load_skill(name)`
+
+**Architecture:** §19.2, §32 · **File:** `middleware/skills.py` · **Procedure:** step 6.3
+*Rebuild test: not met.*
+
+**Purpose:** Level 2 of progressive disclosure — the coach calls it to load the
+full phase instructions when it enters a phase.
+
+> **SPEC-GAP (G-33):** this is described in both §19.2 and §32 as "a registered
+> `load_skill(name)` tool," and it appears in **neither the universal seven
+> (§29.2) nor any phase's tool count (§30).** If it is bound to the executor it
+> is an eighth universal tool, and every per-phase total in §30 moves — Measure
+> from 15 to 16, against a hard cap of 16, which would then also constrain
+> §29.4's cross-agent binding question. If it is not bound to the executor,
+> then how the coach calls it is unstated. Its signature and return shape are
+> undefined either way — to be designed with founder.
+
+### 60.6 S-F24 · The 20 computation tools
+
+**Architecture:** §30, §7, §43.1 · **File:** `knowledge/computation.py` · **Procedure:** step 5.3
+*Rebuild test: not met — the inventory is complete, the interfaces are absent.*
+
+**Purpose:** Deterministic Six Sigma statistics. **All 20 are pure functions** —
+no LLM call, unit-tested — and they are the one place synchronous code is
+unambiguously correct (§14).
+
+**The complete inventory, by phase:**
+
+| Phase | Computation tools | Count |
+|---|---|---|
+| Define | `calculate_expected_savings` | 1 |
+| Measure | `calculate_sigma_level`, `calculate_cpk`, `calculate_dpmo`, `calculate_yield_rty`, `calculate_ftq`, `calculate_grr`, `calculate_sample_size_proportion`, `calculate_sample_size_mean` | 8 |
+| Analyse | `t_test`, `chi_square_test`, `anova`, `pearson_correlation`, `linear_regression` | 5 |
+| Improve | `calculate_doe_main_effects` | 1 |
+| Control | `xbar_r_chart_limits`, `imr_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | 5 |
+
+**1 + 8 + 5 + 1 + 5 = 20.**
+
+#### Behaviors (EARS) — binding on all twenty
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | any of them is called | be a pure function — deterministic, no LLM call, no I/O | §30 |
+| B2 | receiving a captured field | parse what it needs out of the string at the point of use, since every captured field is a `str` | §7 |
+| B3 | unable to parse its input | return a clear reformatting request to the Belt rather than raising or guessing | §7 |
+| B4 | one is defined | be a separate named tool; parameterised grouping behind a mode argument is BANNED | §30 |
+| B5 | any of them is called by the coach | be called under the seven-step pattern — educate, explain why now, guide data prep, run, interpret, visualise, coach the next move | §43.1 |
+| B6 | it produces a result | have that result written to `artifacts["computation_results"]` as a typed dict with string values, never to a typed per-phase field | §7 |
+| B7 | the Belt has one measurement per period | make `imr_chart_limits` the correct choice; a Belt SHALL NOT be coached into inventing subgroups to fit a batch chart | §30 |
+
+**No AI-ACT flag.** These are deterministic pure functions. Their *outputs*
+reach the gate document, and the risk that carries is held by
+`phase_executor`'s flag (`R-EXEC-01`, behaviors B4 and B5) and by
+`gate_apply_node`'s (`R-GATEAPPLY-01`), where the interpretation and the commit
+happen.
+
+> **SPEC-GAP (G-25):** not one of the twenty has a signature, a parameter
+> schema, or a return shape stated anywhere in this document. Three consequences
+> follow, and each is its own design decision: (a) §31 requires every `@tool` to
+> carry an `args_schema` from `knowledge/tool_args.py`, and none exists; (b) B3's
+> "clear reformatting request to the Belt" has no defined shape — whether it is a
+> raised error, a sentinel return, or a string the model reads changes how the
+> coach handles it; (c) B6's `computation_results` entry shape is illustrated in
+> §7 for `t_test` only. **The inventory above is complete and is not a gap; the
+> interfaces are entirely absent** — to be designed with founder.
+
+---
+
+## 61. Spec — the coaching agent's middleware
+
+*Supersedes: none — new. Definitions relocated from §19.*
+**Status: RATIFIED as a structure; four of five custom middlewares carry a constructor gap.**
+
+**The stack, its order and its ordering rules stay in §19**, which is their
+canonical home and which §56 makes amendment-bearing. The entries below specify
+the five custom classes. The three core middlewares — `SummarizationMiddleware`,
+`ModelRetryMiddleware`, `ToolRetryMiddleware` — are used as shipped and get no
+spec entry: their interfaces belong to LangChain, and §19.3–§19.5 already record
+the exact configuration and the verified parameter names.
+
+**Middleware gets class entries only.** Each hook's behaviour is expressed as
+EARS behaviours on the class; a separate function entry per hook would duplicate
+the SIPOC cells.
+
+### 61.1 S-C10 · `ContradictionDetectionMiddleware`
+
+**Architecture:** §19.6, §37 · **File:** `middleware/contradiction.py` · **Procedure:** step 6.5
+*Rebuild test: blocked on G-07 and G-15.*
+
+**Purpose:** Position 6, `after_agent`. **It reads a flag; it does not detect
+anything itself.** Detection is semantic and performed by the coach, in the
+response call that already runs every turn (DECISIONS §R1). This middleware's
+whole job is turning that flag into an interrupt.
+
+**Definition:**
+```python
+class ContradictionDetectionMiddleware(AgentMiddleware):
+    def after_agent(self, state, runtime):
+        flag = state["structured_response"].contradiction_flag
+        if flag:
+            raise HITLInterrupt(**flag)
+```
+
+**No Store read. No LLM call. No field-name matching. No tolerance threshold**,
+and none may be added.
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | the agent finishes a turn | read `contradiction_flag` off the structured response | §19.6 |
+| B2 | the flag is set | raise `HITLInterrupt` with the flag's five keys, suppressing the coach's response | §37 |
+| B3 | the flag is `None` | do nothing and let positions 7 and 8 run | §19.6 |
+| B4 | at any time | make no Store read, no LLM call, and no field-name comparison | §19.6 |
+| B5 | at any time | apply no tolerance threshold — any material change to a gate-approved value is a mini-gate, never a silent overwrite | §37 |
+
+#### ⚠ AI-ACT — high-risk surface
+
+**This middleware suppresses coaching output and is the entry point to the
+re-approval cascade** — the mechanism that makes an already-approved assessment
+provisional. It is the only component that can retroactively unsettle a
+committed record.
+
+| Obligation | How this middleware addresses it |
+|---|---|
+| Art. 14 (human oversight) | It does not resolve the contradiction. It stops and hands the Belt two explicit options — update, or keep — with the approved value, its approving phase and their own words in front of them (§37, §50) |
+| Art. 15 (accuracy/robustness) | No tolerance threshold: silent drift across weeks is the failure a coaching system exists to prevent |
+| Art. 12 (record-keeping) | The interrupt payload records the contradicted field, both values and the approving phase |
+| Art. 13 (transparency) | **Partially. Detection is best-effort semantic and can miss**, which is an honest downgrade from what the previous mechanism claimed. §50's always-referenceable all-gate-fields tab is the documented human backstop, not a convenience |
+
+*Feeds DORA register row **R-CONTRA-01**.*
+
+**Why middleware rather than logic inside the executor node:** the check polices
+the executor's own output, so it does not belong to the thing it polices. As
+middleware it is a named, LangSmith-visible step, and the executor node stays
+responsible only for coaching.
+
+> **SPEC-GAP (G-07):** `state["structured_response"]` — whether middleware
+> observes `PhaseState` or `create_agent`'s internal agent state — is unstated,
+> so this entry cannot declare where it reads from.
+
+> **SPEC-GAP (G-15):** `HITLInterrupt` is raised here and is defined nowhere. It
+> is not confirmed to be a LangGraph symbol, and §19.9 bans
+> `HumanInTheLoopMiddleware`, so it is not that package's exception either.
+> Whether raising an exception from `after_agent` produces a resumable
+> graph-level interrupt at all is unverified — to be designed with founder.
+
+### 61.2 S-C11 · `BeforeModelStateInjection`
+
+**Architecture:** §19.1 · **File:** `middleware/state_injection.py` · **Procedure:** step 6.3
+*Rebuild test: blocked on G-24.*
+
+**Purpose:** Position 1, `before_agent`. Prepends structured project state at the
+**top** of the prompt, ahead of the conversation, so the response is anchored to
+the project's established state rather than drifting toward the Belt's framing.
+
+**What it injects:** this phase's `artifacts`; prior phases' gate documents from
+the Store; the current phase's requirements; and the missing fields reported by
+`check_gate_status()` (S-F21).
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | an agent turn begins | fire on `before_agent`, once per turn — **never `before_model`**, which fires before every model call within a turn and re-injects the same facts repeatedly | §19.1 |
+| B2 | injecting | place project facts at the top of the prompt; appending them in `messages[]` order is a violation | §19.1 |
+| B3 | computing missing fields | derive them at injection time the same way the gate does; it SHALL NOT read a stored list | §19.1 |
+| B4 | the stack is declared | be first, so project facts reach the prompt before skills loading and summarisation shape it | §19 |
+| B5 | injecting prior-phase values | inject them from the Store, which is what makes the coach's semantic contradiction check possible at all | §37 |
+
+**No AI-ACT flag.** It moves already-committed values into the prompt and
+asserts nothing of its own. Its correctness is nonetheless load-bearing for
+`R-EXEC-01` behavior B3 and for `R-CONTRA-01`: **if this middleware does not
+inject prior committed values, the coach has nothing to compare against and
+contradiction detection silently detects nothing** — the same failure shape as
+the mechanism it replaced.
+
+> **SPEC-GAP (G-24):** §19 writes this class as `BeforeModelStateInjection(...)`.
+> Its constructor arguments, the exact composition of the injected block, and
+> its token budget are unstated — to be designed with founder.
+
+> **Naming finding.** The class is named `BeforeModelStateInjection` and its hook
+> is `before_agent`. The name therefore says the thing the architecture
+> explicitly corrects three separate times (§8.5-equivalent, §19, §19.1, and the
+> `CLAUDE.md` no-go list). Recorded in §66 as a finding; renaming is not in this
+> pass's scope.
+
+### 61.3 S-C12 · `DMAICSkillsMiddleware`
+
+**Architecture:** §19.2, §32 · **File:** `middleware/skills.py` · **Procedure:** step 6.3
+*Rebuild test: blocked on G-24 and G-33.*
+
+**Purpose:** Position 2, `before_agent`, plus a registered tool. Implements
+three-level progressive disclosure over the five phase SKILL.md files, so all
+five descriptions cost under 2K tokens at startup and full instructions load
+only for the phase in flight.
+
+| Level | When | What loads |
+|---|---|---|
+| 1 | Startup | Skill descriptions only — under 2K tokens for all five combined |
+| 2 | On demand | Full phase instructions, when the coach enters that phase |
+| 3 | On demand | Reference files, when explicitly needed |
+
+**Storage backend: `FilesystemBackend`** — git-versioned alongside the code, so
+a skill change is reviewable in the same PR as the code depending on it.
+`ContextHubBackend` is deferred to the multi-deployment stage.
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | the system starts | load descriptions only, under 2K tokens for all five combined | §32 |
+| B2 | the coach calls `load_skill(name)` | load that phase's full instructions | §19.2 |
+| B3 | a skill is loaded | have its `allowed-tools` match that phase's tool subset in §30 exactly | §32 |
+| B4 | it is constructed | use `FilesystemBackend` | §32 |
+
+**No AI-ACT flag.** It loads instruction content and asserts nothing. Note that
+**the contradiction-check instruction lives in the SKILL.md content it loads**
+(§32), so its correctness is load-bearing for `R-CONTRA-01` in the same way
+S-C11's is.
+
+> **SPEC-GAP (G-24):** constructor arguments are unstated — `DMAICSkillsMiddleware(...)`.
+
+> **SPEC-GAP (G-33):** whether `load_skill` is bound as an eighth universal tool
+> is undetermined — see S-F23.
+
+### 61.4 S-C13 · `CoherenceMiddleware`
+
+**Architecture:** §19.7, §34 · **File:** `middleware/coherence.py` · **Procedure:** step 6.5
+*Rebuild test: blocked on G-23-adjacent schema gap G-09 and on G-24.*
+
+**Purpose:** Position 7, `after_agent`, immediately before the grader.
+**Validation Layer 2a.** One LLM call at `coherence` role, temperature 0.1: is
+this a real, conclusive statement? Is it parroting the Belt's own words back? Is
+it on-topic for this phase?
+
+**Layer 2a fires every coaching turn**, which is why it is middleware rather
+than part of the `validation_stack` node — that node runs once, at the gate.
+Layers 2b–2d live there; 2a lives here. One conceptual stack, two mechanisms.
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | the agent finishes a turn | run one coherence check at `coherence` role, temperature 0.1 | §19.7 |
+| B2 | the check fails | retry silently, at most twice — the Belt never sees a failed coherence response | §19.7, §34.2 |
+| B3 | retries are exhausted | degrade the turn and **skip `DMAICGraderMiddleware`** — grading a response already known to be incoherent spends a model call for a meaningless score | §19 |
+| B4 | its retry budget is counted | count it separately from `ModelRetryMiddleware`'s two and the validation stack's three; the three caps SHALL NOT be merged | §19 |
+| B5 | a rubric is being maintained | contain no coherence criterion — coherence moved out of `COACHING_QUALITY_RUBRIC` when this middleware was added, and any such entry is stale | §36 |
+
+**`AI-ACT-REVIEW: uncertain.`** Its silent retry is the one narrowly-scoped
+exception to the transparency principle (§34.2), justified because showing a
+Belt that the AI produced gibberish adds no value. That is a deliberate,
+reasoned opacity — but it *is* opacity, and whether Art. 13 requires it to be
+surfaced is a judgment this pass does not make.
+
+> **SPEC-GAP (G-09):** its structured output `CoherenceResult` is named in §21
+> and defined nowhere — see S-C23.
+
+> **SPEC-GAP (G-24):** constructor arguments are unstated — `CoherenceMiddleware(...)`.
+
+### 61.5 S-C14 · `DMAICGraderMiddleware`
+
+**Architecture:** §19.8, §36 · **File:** `middleware/grader.py` · **Procedure:** step 6.5
+*Rebuild test: blocked on G-12 and G-24.*
+
+**Purpose:** Position 8, `after_agent`. Grades the **coach's process** against
+`COACHING_QUALITY_RUBRIC` — one rubric, shared across all five phases — every
+coaching turn. **It is not Layer 2d**, which grades the gate *document* against
+`PHASE_RUBRIC` once per phase. Confusing the two is a violation.
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | the agent finishes a turn | grade against `COACHING_QUALITY_RUBRIC`, never against a phase rubric | §36 |
+| B2 | grading | run at `grader` role, temperature 0.1, so the same input gets the same verdict across runs | §21 |
+| B3 | grading | return a verdict per criterion, never an overall score | §35 |
+| B4 | feeding back to the coach | make the feedback per criterion and specific — never "try again" | §36 |
+| B5 | `max_iterations=3` is reached | pass the output through **with a warning flag visible to the Belt** | §19.8 |
+| B6 | each grading iteration completes | write it to `step_log` via the `on_evaluation` callback | §11 |
+| B7 | at any time | keep iteration count, accumulated evaluations and attempt tracking **private to the middleware**; none SHALL reach `PhaseState` or `SupervisorState` | §19.8 |
+| B8 | the Belt is present | not show them the grader loop; it runs at step 2 of the gate, before the interrupt | §33 |
+| B9 | the coach calls a computation tool without educating on the concept first | fail that criterion — returning a p-value with no concept and no interpretation is a rubric failure, not a style preference | §43.1 |
+
+**`AI-ACT-REVIEW: uncertain.`** It grades the *coach*, not the Belt, which
+argues against a flag. But it can suppress or alter what the Belt receives, and
+its `max_iterations_reached` warning is Belt-visible — so it shapes the
+coaching record under Art. 13 and Art. 15. Deferred rather than guessed.
+
+> **SPEC-GAP (G-12):** its structured output `CoachingGraderVerdict` is named in
+> §21 and defined nowhere — see S-C22.
+
+> **SPEC-GAP (G-24):** constructor arguments are unstated —
+> `DMAICGraderMiddleware(...)`, including how `max_iterations` and
+> `on_evaluation` are passed.
+
+### 61.6 S-C15 · `HITLInterrupt`
+
+**Architecture:** §19.6, §37 · **File:** `core/errors.py` (presumed) · **Procedure:** step 6.5
+
+**Purpose:** The exception `ContradictionDetectionMiddleware` raises to convert
+a contradiction flag into a Belt-facing interrupt carrying the five-key payload.
+
+> **SPEC-GAP (G-15):** it is raised in §19.6 as `HITLInterrupt(**flag)` and
+> defined nowhere. It is not confirmed to be a LangGraph symbol; it is not from
+> `HumanInTheLoopMiddleware`, which §19.9 bans. Whether an exception raised from
+> `after_agent` yields a resumable graph-level interrupt — as opposed to
+> propagating out of the node and hitting `error_handler` (§45) — is unverified,
+> and the answer determines whether the contradiction path works at all — to be
+> designed with founder.
+
+---
+
+## 62. Spec — validation and gates
+
+*Supersedes: none — new. Definitions relocated from §34, §35, §40.1.*
+**Status: RATIFIED as a structure; six of eleven entries are gap stubs.**
+
+**The four-layer table, the tier tables and the nine-step gate stay where they
+are** — §33, §34 and §35 are their canonical homes and none of them is a class
+or a signature. The entries below specify the schemas and the callables.
+
+**The `validation_stack` node itself is S-F05, in §58**, with the five phase
+subgraph nodes it belongs to.
+
+### 62.1 S-C20 · `CriterionVerdict`
+
+**Architecture:** §35 · **File:** `validation/schemas.py` · **Procedure:** step 7.4
+*Rebuild test: reconstructable from this entry alone.*
+
+**Purpose:** One grader verdict about one criterion. **Per criterion, never an
+overall score** — a score cannot tell a Belt which of eight things to fix, and
+a blended number would let a Tier 2 shortfall drag a passing gate below a
+threshold.
+
+**Definition:**
+```python
+class CriterionVerdict(BaseModel):
+    criterion: str
+    tier:      int                                     # 1 or 2
+    status:    Literal["pass", "warning", "fail"]
+    feedback:  str                                     # specific, per criterion
+```
+
+**Fields:**
+
+| Field | Type | Meaning | Reducer | Writer | Readers |
+|---|---|---|---|---|---|
+| `criterion` | `str` | The rubric criterion this verdict is about | none | Layer 2d (S-F26); `DMAICGraderMiddleware` (S-C14) | the coach on retry; the gate review screen |
+| `tier` | `int` | 1 or 2, per §35. Determines whether `fail` is even permitted | none | the grader | gate pass/fail logic |
+| `status` | `Literal["pass","warning","fail"]` | Three statuses, not two. **Only a Tier 1 criterion may produce `fail`** | none | the grader | gate pass/fail logic; the UI |
+| `feedback` | `str` | Specific and actionable. "Your previous answer did not address timeline or risk mitigation," never "try again" | none | the grader | the coach on retry; the Belt |
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | a Tier 2 criterion is graded | produce at worst `warning`; `fail` SHALL be unreachable for Tier 2 | §35 |
+| B2 | any verdict carries `fail` | block the gate; a gate MAY pass with warnings and MAY NEVER pass with failures | §35 |
+| B3 | a Belt proceeds past a Tier 2 `warning` | have that recorded in `acknowledged_gaps`, never silently dropped | §35 |
+| B4 | `feedback` is written | be specific to the criterion | §36 |
+
+**Invariants:**
+- The tier is what keeps Layer 2b and Layer 2d from contradicting each other.
+  2b blocks only on Tier 1; 2d can `fail` only on Tier 1. There is no longer a
+  criterion the grader can fail that the gate never asked for.
+- **A change to any field's tier requires a §56 amendment.**
+
+### 62.2 S-C21 · `GraderVerdict`
+
+**Architecture:** §21, §35 · **File:** `validation/schemas.py` · **Procedure:** step 7.2
+
+**Purpose:** Layer 2d's structured output — the gate document's grading, as a
+collection of per-criterion verdicts.
+
+**What is stated:** it carries a `list[CriterionVerdict]` (§35), it is produced
+by a builder-style structured-output call at `grader` role and temperature 0.1
+(§21), and it is belt-level aware — it reads `belt_level` from the case record
+and suppresses Black-Belt-only recommendations for a Green Belt (§35).
+
+> **SPEC-GAP (G-11):** beyond "carries a `list[CriterionVerdict]`" the schema is
+> undefined. Whether it also carries an overall gate decision, the phase name,
+> the attempt number, or the acknowledged-gap list is unstated — and the
+> acknowledged-gap question is the same one G-08 raises from the other side — to
+> be designed with founder.
+
+### 62.3 S-C22 · `CoachingGraderVerdict`
+
+**Architecture:** §21, §36 · **File:** `validation/schemas.py` · **Procedure:** step 6.5
+
+**Purpose:** `DMAICGraderMiddleware`'s structured output — the coaching-process
+grading, every turn, against `COACHING_QUALITY_RUBRIC`.
+
+> **SPEC-GAP (G-12):** named in §21's mapping table, defined nowhere. Whether it
+> reuses `CriterionVerdict` — the two graders share the "per criterion, never
+> overall" rule (§36) but grade different subjects against different rubrics —
+> or needs its own per-criterion type, is undecided, and the answer determines
+> whether `tier` is meaningful for coaching criteria at all — to be designed
+> with founder.
+
+### 62.4 S-C23 · `CoherenceResult`
+
+**Architecture:** §21, §19.7, §34 · **File:** `validation/schemas.py` or `validation/coherence.py` · **Procedure:** step 6.5
+
+**Purpose:** Layer 2a's structured output — whether the coach's response is a
+real, conclusive, on-topic statement that is not parroting the Belt.
+
+> **SPEC-GAP (G-09):** named in §21's mapping table, defined nowhere. The three
+> questions it answers are stated in §19.7; whether it returns one verdict or
+> three, and what drives the retry decision of S-C13 B2, is unstated — to be
+> designed with founder.
+
+### 62.5 S-C24 · `ConstraintCheckResult` / `ConstraintVerdict`
+
+**Architecture:** §21, §34 · **File:** `validation/schemas.py` · **Procedure:** step 7.2
+
+**Purpose:** Layer 2c's structured output — whether a decision addresses budget,
+timeline, risk and measurement.
+
+> **SPEC-GAP (G-10):** named in §21's mapping table as `ConstraintCheckResult`
+> and defined nowhere. **There is also a naming split:** `CLAUDE.md` §2 lists
+> **both** `ConstraintVerdict` and `ConstraintCheckResult` in
+> `validation/schemas.py`, and this document names only the second. Whether
+> those are two types — a per-constraint verdict inside a result envelope,
+> mirroring `CriterionVerdict` inside `GraderVerdict` — or one type under two
+> names, is unresolved — to be designed with founder.
+
+### 62.6 S-C25 · `PolicyAdvisoryResult`
+
+**Architecture:** §21, §33 · **File:** `validation/schemas.py` · **Procedure:** step 7.3
+
+**Purpose:** The policy advisory's structured output at gate step 6 — a second
+opinion on the Belt's own edits, **non-blocking by design.**
+
+> **SPEC-GAP (G-13):** named in §21's mapping table, defined nowhere. What it
+> reports, and how a non-blocking result is surfaced to the Belt without
+> reading as a rejection of their correction, are both undefined — and the
+> second is the design question, since §33 rests the whole asymmetry on the
+> advisory not overriding the Belt's judgment — to be designed with founder.
+
+### 62.7 S-C26 · `DMAICGateValidator`
+
+**Architecture:** §34, §35, §54 · **File:** `validation/gate_validator.py` · **Procedure:** step 7.1
+*Rebuild test: not met.*
+
+**Purpose:** Layer 2b — deterministic Tier 1 field-presence checking. **The one
+permitted exception to "no classes outside §54's files"**: a namespace of
+`@staticmethod` deterministic checks, holding no state.
+
+**What is stated:**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | invoked | check presence of that phase's Tier 1 fields, deterministically, with no LLM call | §34 |
+| B2 | invoked | check Tier 1 only; Tier 2 fields SHALL NOT be checked here | §35 |
+| B3 | invoked | run first in the stack, because it is free and there is no reason to spend a grader call on a document missing a Tier 1 field | §34 |
+| B4 | it and `check_gate_status()` both compute missing fields | produce the same answer, derived the same way, so the prompt and the gate cannot disagree | §19.1 |
+| B5 | it holds anything | hold no state | §54 |
+
+**The Tier 1 lists it checks** are §35's, per phase: Define 6, Measure 7,
+Analyse 4, Improve 4, Control 3.
+
+**`AI-ACT-REVIEW: uncertain.`** It participates in the gate decision, which
+argues for a flag; it is deterministic and holds no judgment, which makes it a
+mitigation under Art. 15 rather than a risk surface. Deferred rather than
+guessed.
+
+> **SPEC-GAP (G-23):** the static method names, their signatures and their
+> return shapes are stated nowhere. Whether it returns a boolean, a list of
+> missing field names, or a structured result that Layer 2d then consumes is
+> undefined — and B4 makes that shape shared with `check_gate_status()` (G-31),
+> so the two must be designed together — to be designed with founder.
+
+---
+
+### 62.8 S-F25 · Layer 2c — the constraint check
+
+**Architecture:** §34 · **File:** `validation/constraints.py` · **Procedure:** step 7.2
+*Rebuild test: blocked on G-10.*
+
+**Purpose:** Asks whether a decision addresses budget, timeline, risk and
+measurement. **An LLM call and not a format check**, deliberately: a keyword
+check rejects a decision that addresses cost without using the word "budget."
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | The `validation_stack` node (S-F05), after Layer 2b passes; also mid-conversation at key decision moments (§34.1) |
+| **Input** | The decision text; the phase's constraint set — `DEFINE_CONSTRAINTS`, `ANALYSE_CONSTRAINTS`, `IMPROVE_CONSTRAINTS`, `CONTROL_CONSTRAINTS` (§22). **Measure has none — it is covered by its rubric** |
+| **Process** | One plain model call at `constraint` role, temperature 0.1, producing `ConstraintCheckResult` (S-C24) |
+| **Output** | Per-constraint verdicts; a `step_log` entry |
+| **Customer** | The `validation_stack` node, which proceeds to Layer 2d or fails the attempt; the coach, which teaches toward a better formulation (Level 2, uncapped) |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | invoked | run as an LLM call at temperature 0.1; it SHALL NOT be downgraded to a regex or a keyword check | §34 |
+| B2 | a constraint is conditional on another field's value | evaluate it conditionally — the risk-mitigation check fires only when `risk_level == "low"`, because a low-risk project should say how it *stays* low-risk | §34 |
+| B3 | it fails on a Belt's proposal mid-conversation | be handled as Level 2 coached improvement, which has **no retry cap** — capping it would mean the coach eventually accepts a weak root cause | §34.2 |
+| B4 | it runs | write a `step_log` entry recording layer, attempt, status and reason | §11 |
+
+**`AI-ACT-REVIEW: uncertain.`** It judges the quality of the Belt's own stated
+decision, which is closer to assessing the person than any other validation
+layer. Whether that makes it a distinct high-risk surface or part of
+`R-VALSTACK-01` is deferred.
+
+> **SPEC-GAP (G-10):** its output schema is undefined — see S-C24.
+
+### 62.9 S-F26 · Layer 2d — the gate grader
+
+**Architecture:** §34, §35, §36 · **File:** `validation/` · **Procedure:** step 7.2
+*Rebuild test: blocked on G-11 and G-40.*
+
+**Purpose:** Grades the **gate document** against that phase's `PHASE_RUBRIC`,
+once, at the gate boundary. It catches document-product failures a per-turn
+check cannot see: four Analyse fields can each look sound in isolation while the
+root cause discusses "error rate" and the baseline it references is "cycle
+time." **Cross-field and cross-phase consistency is only visible once the
+document is complete.**
+
+**It is NOT `DMAICGraderMiddleware`** (S-C14), which grades the coach's process
+against `COACHING_QUALITY_RUBRIC` every turn.
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | The `validation_stack` node (S-F05), after Layer 2c passes — last, because it is the most expensive |
+| **Input** | The complete `artifacts` field set; that phase's `PHASE_RUBRIC` (§22, §36); `belt_level` from the case record; prior phases' gate documents from the Store, for the three deterministic linkage checks |
+| **Process** | One plain model call at `grader` role, temperature 0.1, producing `GraderVerdict` (S-C21) — **plus deterministic lookups for the criteria that do not need judgment** |
+| **Output** | A verdict per criterion, each carrying its tier; `step_log` entries |
+| **Customer** | The `validation_stack` node, which passes to `gate_review` or fails the attempt with accumulated feedback |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | invoked | grade against `PHASE_RUBRIC`, never against `COACHING_QUALITY_RUBRIC` | §36 |
+| B2 | grading `causal_hypothesis`, `solution_linked_to_root_cause` or `post_improvement_metric` | verify the link **by lookup, not judgment** — read the referenced phase's gate document from the Store and check the named field carries the named value | §36, §42 |
+| B3 | grading a criterion that depends on a computation | scan `artifacts["computation_results"]` for the relevant `tool` entry rather than asking the model | §36 |
+| B4 | grading a structured dict field | check **every** sub-field is populated — a `process_map_sipoc` with four of six keys filled is the partial-map failure the field exists to catch | §41 |
+| B5 | `belt_level` is Green Belt | suppress DOE as a recommendation; when it is Black Belt, flag DOE as a Tier 2 recommendation | §35 |
+| B6 | grading | never retrieve; the rubric already encodes the methodology standards, and retrieval adds latency at the moment the Belt is waiting | §26 |
+| B7 | grading the measurement thread | verify that `process_map_sipoc["process_kpis"]`, `detailed_process_map["baseline_kpis"]` and `post_improvement_metric` name the same measurement points and carry **different values** | §39 |
+
+**Covered by the AI-ACT flag on `validation_stack` (S-F05) and DORA row
+`R-VALSTACK-01`.** This is the component that produces the assessment; it is
+flagged there rather than separately, because the node is what acts on the
+verdict.
+
+> **SPEC-GAP (G-11):** its output schema `GraderVerdict` is undefined — see
+> S-C21.
+
+> **SPEC-GAP (G-40):** the five `PHASE_RUBRIC` constants have coverage lists
+> (§36) and no text. This function cannot be built without them — see §64.
+
+### 62.10 S-F27 · The policy advisory
+
+**Architecture:** §33 step 6, §22, §9.4-equivalent · **File:** logic inside `gate_apply` · **Procedure:** step 7.3
+*Rebuild test: not met.*
+
+**Purpose:** Gate step 6. Validates the **Belt's edits** against required-field
+policy, cross-phase consistency and previously approved values. **Non-blocking,
+and that is the core of the design:** the grader blocks at step 2 because it
+checks the AI's own output; the advisory does not block at step 6 because the
+Belt is the domain expert. A system that blocked the Belt's own corrections
+would be asserting that its judgment outranks theirs on their own project.
+
+**It is not a node.** It is logic inside `gate_apply_node` (S-F07), and
+`policy_advisory` is a BANNED node name (§13).
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | `gate_apply_node` (S-F07), after applying Belt edits and before assembling the document |
+| **Input** | `PhaseState.belt_edits`; `PhaseState.artifacts`; prior phases' gate documents from the Store |
+| **Process** | One plain model call producing `PolicyAdvisoryResult` (S-C25) |
+| **Output** | An advisory result — presentation undetermined (G-13) |
+| **Customer** | The Belt, as a second opinion before they confirm |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | it produces a finding | never block; it is a second opinion before the decision, not a veto after it | §33 |
+| B2 | it runs | run after the Belt's edits, when the coach is no longer in the loop | §13 |
+| B3 | it reviews extracted values | be one of the three required content-level defences against hallucinated values, alongside prompt guards and cross-checking against the raw conversation | §22 |
+
+**`AI-ACT-REVIEW: uncertain.`** It reviews a human's corrections and reports on
+them, which is an oversight-support mechanism (Art. 14) rather than an
+assessment. But it is the last check before commit and §22 names it as one of
+three anti-hallucination defences, which is Art. 15 territory. Deferred.
+
+> **SPEC-GAP (G-13):** its output schema, and how a non-blocking advisory is
+> surfaced without reading as a rejection of the Belt's correction, are both
+> undefined — see S-C25.
+
+### 62.11 S-F28 · Gate document assembly
+
+**Architecture:** §40.1 · **File:** `phases/{phase}/nodes.py`, inside `gate_apply` · **Procedure:** step 3.4
+*Rebuild test: met for Define; not met for the other four.*
+
+**Purpose:** Constructs the `{Phase}Output` from already-captured values. **No
+LLM call** — Pydantic validation over `artifacts`.
+
+**Definition — Define, the one worked example:**
+```python
+gate_document = DefineOutput(
+    problem_statement=artifacts["problem_statement"],      # Tier 1 — direct
+    project_scope=artifacts["project_scope"],
+    goal_statement=artifacts["goal_statement"],
+    voc_summary=artifacts["voc_summary"],
+    process_map_sipoc=artifacts["process_map_sipoc"],
+    issues_and_barriers=artifacts["issues_and_barriers"],
+    business_case=artifacts.get("business_case", ""),      # Tier 2 — .get()
+    team=artifacts.get("team", ""),
+    baseline_metric=artifacts.get("baseline_metric", ""),
+    target_metric=artifacts.get("target_metric", ""),
+    secondary_metrics=artifacts.get("secondary_metrics", ""),
+    computation_results=artifacts.get("computation_results", []),
+    acknowledged_gaps=acknowledged_gaps,
+    citations=state["citations"],
+    uploads=state["uploads"],
+)
+```
+
+**The access pattern encodes the tier, and the difference is deliberate:**
+
+| Tier | Access | Why |
+|---|---|---|
+| Tier 1 | `artifacts["field"]` | **A `KeyError` here is correct** — Layer 2b should have blocked the gate, so reaching assembly without the field is a bug that must surface loudly |
+| Tier 2 | `artifacts.get("field", "")` | An empty value **records that the Belt proceeded without it** |
+| Cross-phase dicts | `artifacts.get("field", {})` | Same, with the right empty type |
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | `gate_apply_node` (S-F07), after the policy advisory |
+| **Input** | `artifacts`; `acknowledged_gaps` (see G-08); `PhaseState.citations`; `PhaseState.uploads` |
+| **Process** | Pydantic construction of the phase's `{Phase}Output` |
+| **Output** | The gate document `dict`, written to the Store and to `PhaseState.final` |
+| **Customer** | `gate_apply_node` (S-F07), which performs both writes |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | assembling | make no LLM call | §21, §40.1 |
+| B2 | assembling | **reference every field in the schema** — a field that assembly never sets is a field that silently never reaches the Store | §40.1 |
+| B3 | assembling the four gate-metadata fields | source them from `artifacts["computation_results"]`, the acknowledged-gap source, `PhaseState.citations` and `PhaseState.uploads` respectively | §40 |
+
+> **SPEC-GAP (G-28):** §40.1 shows assembly for `DefineOutput` only. Measure,
+> Analyse, Improve and Control are unwritten — 55 field assignments in total,
+> each of which must select the correct tier access pattern, and B2 makes an
+> omission silent — to be designed with founder.
+
+> **SPEC-GAP (G-08):** `acknowledged_gaps` is sourced from
+> `validation_stack.get_acknowledged_gaps()`, which cannot exist as written —
+> see S-F05.
+
+---
+
+## 63. Spec — the DMAIC gate documents
+
+*Supersedes: none — new. Definitions relocated from §40, §41, §7.*
+**Status: RATIFIED. This subsystem's entries are complete — no gaps.**
+
+**Part VIII is Agent Improve's domain Part**, and these five schemas are the
+most Improve-specific artifacts in the document. **§40 remains the canonical
+home for the field-count tables, the gate-metadata sourcing table and the
+two-fields-on-all-five rule**; the schemas themselves are here.
+
+**The typing law stays in §7** and binds on every field below: every captured
+field is a `str`, except the three cross-phase reference dicts (S-C32) and the
+three structured dicts (S-C33).
+
+### 63.1 S-C27 · `DefineOutput`
+
+**Architecture:** §40 · **File:** `phases/define/schema.py` · **Procedure:** step 3.4
+*Rebuild test: met.*
+
+**Purpose:** Define's gate document. 15 fields — 6 Tier 1, 5 Tier 2, 4 gate
+metadata.
+
+```python
+class DefineOutput(BaseModel):
+    """Gate document for the Define phase."""
+    # Tier 1 — gate-required
+    problem_statement:    str      # measurable problem, baseline and target
+    project_scope:        str      # explicit inclusions and exclusions
+    goal_statement:       str      # SMART
+    voc_summary:          str      # voice of customer
+    process_map_sipoc:    dict     # SIPOC + KPIs, 6 sub-fields (§41)
+    issues_and_barriers:  str      # Belt-stated blockers
+    # Tier 2 — rubric-recommended
+    business_case:        str      # quantified business impact (COPQ)
+    team:                 str      # Belt, sponsor, 2+ members with roles
+    baseline_metric:      str      # current measured state
+    target_metric:        str      # target value
+    secondary_metrics:    str      # what could get worse
+    # Gate metadata
+    computation_results:  list[dict] = []
+    acknowledged_gaps:    list[str]  = []
+    citations:            list[dict] = []
+    uploads:              list[dict] = []
+```
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | the gate is evaluated | block on all six Tier 1 fields | §35 |
+| B2 | `process_map_sipoc` is graded | require all six sub-fields, `process_kpis` among them | §41 |
+| B3 | `process_kpis` is set | carry WHAT is measured — the first link of the three-phase measurement thread | §39 |
+
+### 63.2 S-C28 · `MeasureOutput`
+
+**Architecture:** §40 · **File:** `phases/measure/schema.py` · **Procedure:** step 3.4
+*Rebuild test: met.*
+
+**Purpose:** Measure's gate document. 14 fields — 7 Tier 1, 3 Tier 2, 4 gate
+metadata. The largest Tier 1 set of the five.
+
+```python
+class MeasureOutput(BaseModel):
+    """Gate document for the Measure phase."""
+    # Tier 1
+    baseline_mean:                str    # value with units, as the Belt stated it
+    data_collection_plan:         str    # sample size, frequency, responsible person
+    xy_matrix_summary:            str    # evidence that prioritisation happened
+    vital_few_xs:                 str    # the ranked result Analyse consumes
+    detailed_process_map:         dict   # expanded map, 6 sub-fields (§41)
+    stability_assessment:         str    # checked BEFORE capability (§41)
+    issues_and_barriers:          str
+    # Tier 2
+    baseline_sigma:               str    # calculated sigma level
+    measurement_system_validated: str    # GR&R or equivalent evidence
+    secondary_metrics:            str
+    # Gate metadata
+    computation_results:  list[dict] = []
+    acknowledged_gaps:    list[str]  = []
+    citations:            list[dict] = []
+    uploads:              list[dict] = []
+```
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | capability is being assessed | require `stability_assessment` first — a baseline Cpk computed across an unstable process averages two different processes and looks authoritative while being wrong | §41 |
+| B2 | `detailed_process_map` is graded | require all six sub-fields, `baseline_kpis` among them | §41 |
+| B3 | `baseline_kpis` is set | carry the BEFORE values of the measurement thread | §39 |
+| B4 | `vital_few_xs` is set | be the ranked result Analyse consumes; Analyse cannot start without it, which is why `xy_matrix_summary` is Tier 1 for all Belts | §35 |
+
+### 63.3 S-C29 · `AnalyseOutput`
+
+**Architecture:** §40 · **File:** `phases/analyse/schema.py` · **Procedure:** step 3.4
+*Rebuild test: met.*
+
+**Purpose:** Analyse's gate document. 13 fields — 4 Tier 1, 5 Tier 2, 4 gate
+metadata.
+
+```python
+class AnalyseOutput(BaseModel):
+    """Gate document for the Analyse phase."""
+    # Tier 1
+    root_cause_statement:          str   # specific and actionable
+    root_cause_validation:         str   # statistical or observational evidence
+    practical_significance:        str   # how much of the problem it explains
+    issues_and_barriers:           str
+    # Tier 2
+    causal_hypothesis:             dict  # cross-phase ref → Measure baseline (§7)
+    ruled_out_causes:              str   # alternatives rejected, with rationale
+    statistical_problem_statement: str   # all Belts, in Analyse — not Define
+    process_owner_buyin:           str   # owner accepts the root causes
+    secondary_metrics:             str
+    # Gate metadata
+    computation_results:  list[dict] = []
+    acknowledged_gaps:    list[str]  = []
+    citations:            list[dict] = []
+    uploads:              list[dict] = []
+```
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | `causal_hypothesis` is graded | verify its reference keys against Measure's gate document by lookup, not judgment | §36, §42 |
+| B2 | `statistical_problem_statement` is coached | require it of all Belts, in Analyse and not Define — it is no longer belt-gated | §35 |
+| B3 | the phase is graded | treat `practical_significance` as Tier 1 — the eBook's second gate, "how much of the problem does this explain" | §35 |
+
+### 63.4 S-C30 · `ImproveOutput`
+
+**Architecture:** §40 · **File:** `phases/improve/schema.py` · **Procedure:** step 3.4
+*Rebuild test: met.*
+
+**Purpose:** Improve's gate document. 13 fields — 4 Tier 1, 5 Tier 2, 4 gate
+metadata.
+
+```python
+class ImproveOutput(BaseModel):
+    """Gate document for the Improve phase."""
+    # Tier 1
+    selected_solution:             str   # criteria-based selection documented
+    pilot_result:                  str   # practical AND statistical significance
+    experiment_justification:      str   # DOE / simplified / none — and why (§41)
+    issues_and_barriers:           str
+    # Tier 2
+    solution_linked_to_root_cause: dict  # cross-phase ref → Analyse root cause (§7)
+    implementation_plan:           str   # timeline, owner, resources
+    explanatory_power:             str   # R² / variance explained
+    process_owner_buyin:           str   # owner accepts the solution
+    secondary_metrics:             str
+    # Gate metadata
+    computation_results:  list[dict] = []
+    acknowledged_gaps:    list[str]  = []
+    citations:            list[dict] = []
+    uploads:              list[dict] = []
+```
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | `experiment_justification` is graded | accept any of three answers — DOE conducted, simplified one-factor experiment, or no experiment needed because the solution follows from root cause analysis. **All three are valid**; the failure it catches is drifting past the question, not skipping DOE | §41 |
+| B2 | `belt_level` is Green Belt | not recommend DOE | §35 |
+| B3 | `solution_linked_to_root_cause` is graded | verify its reference keys against Analyse's gate document by lookup | §36, §42 |
+
+### 63.5 S-C31 · `ControlOutput`
+
+**Architecture:** §40 · **File:** `phases/control/schema.py` · **Procedure:** step 3.4
+*Rebuild test: met.*
+
+**Purpose:** Control's gate document. 15 fields — 3 Tier 1, 8 Tier 2, 4 gate
+metadata. The smallest Tier 1 set and the largest Tier 2 set.
+
+```python
+class ControlOutput(BaseModel):
+    """Gate document for the Control phase."""
+    # Tier 1
+    control_plan:              dict   # FIVE sub-plans — §41
+    post_improvement_metric:   dict   # cross-phase ref → Measure baseline (§7)
+    issues_and_barriers:       str
+    # Tier 2
+    improvement_delta:         str    # change from baseline
+    financial_impact_verified: str    # quantified saving
+    sustainability_check:      str    # process for maintaining the gains
+    handover_documented:       str    # named process owner accepting
+    lessons_learned:           str    # feeds the case index
+    transferability:           str    # yokoten — feeds rag_lookup_case_history
+    project_signoff:           str    # Champion + Belt + Finance
+    secondary_metrics:         str
+    # Gate metadata
+    computation_results:  list[dict] = []
+    acknowledged_gaps:    list[str]  = []
+    citations:            list[dict] = []
+    uploads:              list[dict] = []
+```
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | `control_plan` is graded | require all five sub-plans populated. A single string cannot show that four were done and one was skipped, and **a Training Plan written but never delivered is the most common real Control failure** | §41 |
+| B2 | `post_improvement_metric` is graded | verify by lookup against Measure's `baseline_mean`. **It is the only cross-phase reference field that is Tier 1** — a Control phase that cannot link its result back to the baseline has not demonstrated improvement at all | §42 |
+| B3 | Control's gate passes | populate `SupervisorState.final_output` through Control's output mapper | §5 |
+| B4 | `lessons_learned` and `transferability` are set | feed the case index and cross-case retrieval respectively | §23.3, §24 |
+
+### 63.6 S-C32 · The three cross-phase reference dicts
+
+**Architecture:** §7, §42 · **File:** `phases/{phase}/schema.py` · **Procedure:** step 3.4
+*Rebuild test: met.*
+
+**Purpose:** The one exception to the every-captured-field-is-a-string law.
+Each carries the Belt's content plus three reference keys, **so the grader can
+verify the link deterministically** — it reads the referenced phase's gate
+document from the Store and checks the named field carries the named value.
+Without the reference keys, "does this solution address the validated root
+cause?" is an opinion; with them it is a lookup.
+
+**Shape:**
+```python
+causal_hypothesis = {
+    "hypothesis":       "Inadequate onboarding causes error spike in first 60 days",
+    "references_phase": "measure",
+    "references_field": "baseline_mean",
+    "references_value": "12.3%",
+}
+```
+
+**The three:**
+
+| Field | Phase | Tier | References |
+|---|---|---|---|
+| `causal_hypothesis` | Analyse | 2 | Measure's `baseline_mean` |
+| `solution_linked_to_root_cause` | Improve | 2 | Analyse's `root_cause_statement` |
+| `post_improvement_metric` | Control | **1** | Measure's `baseline_mean` |
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | one of the three is graded | resolve `references_phase` / `references_field` / `references_value` against the Store by lookup, never by model judgment | §36, §42 |
+| B2 | one of the three is captured | carry it through `CoachingResponse.fields_captured` with `value` as a `dict` — which is why `value` is typed `Any` | §20 |
+| B3 | values inside the dict are written | write them as strings | §7 |
+| B4 | assembly reaches one of the three | access it as `artifacts.get("field", {})` — the correct empty type | §40.1 |
+
+**Invariant:** only `post_improvement_metric` is Tier 1, and the asymmetry is
+deliberate — an Analyse phase without an explicit hypothesis link is weaker but
+not void, whereas a Control phase that cannot link back to the baseline has
+demonstrated nothing.
+
+### 63.7 S-C33 · The three structured dict fields
+
+**Architecture:** §41, §39 · **File:** `phases/{phase}/schema.py` · **Procedure:** step 3.4
+*Rebuild test: met.*
+
+**Purpose:** Three Tier 1 fields are structured dicts, **distinct from the three
+cross-phase reference dicts.** They are dicts rather than prose because a
+coaching conversation produces text no downstream planner can read and no grader
+can check.
+
+| Field | Phase | Sub-fields |
+|---|---|---|
+| `process_map_sipoc` | Define | `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, **`process_kpis`** |
+| `detailed_process_map` | Measure | `steps`, `cycle_times`, `resources`, `value_vs_waste`, `measurement_points`, **`baseline_kpis`** |
+| `control_plan` | Control | `documentation`, `monitoring`, `response`, `training`, `aligning_systems` |
+
+**`control_plan`, fully specified:**
+```python
+control_plan: dict = {
+    "documentation":    str,   # updated process maps, SOPs, training manuals
+    "monitoring":       str,   # what charts, what frequency, what limits, who checks
+    "response":         str,   # what happens when monitoring signals a problem
+    "training":         str,   # who needs training, in what format, verified how
+    "aligning_systems": str,   # HR, IT, budget changes needed to sustain
+}
+```
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | any of the three is graded | check **every** sub-field is populated; a partial map is the failure these fields exist to catch | §41 |
+| B2 | any of the three is typed | be `dict`, never `str` | §41 |
+| B3 | the measurement thread is verified | read `process_kpis` (WHAT), `baseline_kpis` (BEFORE) and `post_improvement_metric` (AFTER), and confirm the same measurement points carry different values | §39 |
+
+**Invariant — FMEA has no field in any schema, and none may be added.** Not
+`fmea_summary`, not `updated_fmea`, not an FMEA sub-key anywhere. If a Black
+Belt performs one it lives in `uploads` as an attached document; the schema does
+not track it, the grader does not ask for it, and no gate blocks on it (§41).
+
+---
+
+## 64. Spec — reliability
+
+*Supersedes: none — new. Definitions relocated from §45, §46, §48.*
+**Status: RATIFIED as a structure. Everything in this subsystem is BLOCKED on the LangGraph upgrade (§53).**
+
+**The failure pipeline, the fallback chain, the breaker thresholds and the
+`request_drain()` warning stay in §44, §45 and §46.** The entries below specify
+the callables and the two classes.
+
+### 64.1 S-C34 · `AgentImproveError`
+
+**Architecture:** §48 · **File:** `core/errors.py` · **Procedure:** step 8.1
+*Rebuild test: met.*
+
+**Purpose:** The single schema for every external service failure. **Two of its
+fields are read by machinery rather than humans**, which is why this is a schema
+and not a logging convention: a free-text error message cannot drive a circuit
+breaker's retry decision or a fallback chain's backoff choice.
+
+**Definition:**
+```python
+class AgentImproveError(BaseModel):
+    error_code:           str        # "TIMEOUT", "RATE_LIMIT", "AUTH_FAILURE", …
+    severity:             str        # "transient" | "permanent"
+    retry_recommendation: str        # "retry_after_backoff" | "do_not_retry" | …
+    affected_identifier:  str
+    message:              str
+    timestamp:            datetime
+```
+
+**Fields:**
+
+| Field | Type | Meaning | Reducer | Writer | Readers |
+|---|---|---|---|---|---|
+| `error_code` | `str` | A stable machine token for the failure class | none | any external-call boundary | logs; the coach-facing failure message (§27) |
+| `severity` | `str` | `"transient"` or `"permanent"`. **Read by the circuit breaker** to distinguish "retry" from "stop trying" | none | the classifier, e.g. `_fail()` (S-F18) | `CircuitBreaker` (S-C35) |
+| `retry_recommendation` | `str` | **Read by the fallback chain** to choose its backoff strategy | none | the classifier | the fallback chain (§46) |
+| `affected_identifier` | `str` | What the failure was about — a `case_id`, an index name, a deployment name | none | the raising site | logs; support escalation |
+| `message` | `str` | Human-readable detail. Not read by machinery | none | the raising site | logs; humans |
+| `timestamp` | `datetime` | When it happened | none | the raising site | logs |
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | any external service call fails | be represented by this schema, not by a bare exception or a log line | §48 |
+| B2 | a 4xx is returned from retrieval | be classified `permanent` / `do_not_retry` — it is our malformed query, and retrying fails identically | §27, §48 |
+| B3 | an HTTP 400 token-limit error occurs | **not** be treated as a fallback case; it is a context-management failure, and a smaller model has a smaller window | §46 |
+| B4 | any attempt is made | be logged to `step_log` as a dict | §11 |
+
+### 64.2 S-C35 · `CircuitBreaker`
+
+**Architecture:** §46, §54 · **File:** `core/reliability.py` · **Procedure:** step 8.3
+*Rebuild test: not met.*
+
+**Purpose:** Three-state breaker, two instances. **Two-state (CLOSED/OPEN)
+breakers are not permitted** — this is a long-running service and must recover
+without a restart.
+
+| Instance | Wraps | On OPEN |
+|---|---|---|
+| LLM | Azure OpenAI calls | The coaching turn cannot happen — fall to Level 2, then degraded |
+| Search | Azure AI Search calls | Coaching **continues** without RAG grounding — quality degradation, not availability failure |
+
+**The asymmetry is the point.** A search outage should degrade grounding, not
+stop the session.
+
+**Thresholds, as ratified:** 3 failures in 30 seconds trips OPEN; 60-second
+reset; **one probe request in HALF-OPEN** before resuming.
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | 3 failures occur within 30 seconds | trip OPEN | §46 |
+| B2 | 60 seconds elapse in OPEN | move to HALF-OPEN and allow exactly one probe request | §46 |
+| B3 | it classifies a failure | read `AgentImproveError.severity` rather than inspecting an exception type | §48 |
+| B4 | the Search breaker is OPEN | let coaching continue ungrounded; it SHALL NOT stop the session | §46 |
+| B5 | it is implemented | have three states; a two-state breaker is a violation | §46 |
+
+> **SPEC-GAP (G-22):** the class interface is stated nowhere — how a call is
+> wrapped, whether it is a decorator, a context manager or an explicit
+> `call()`, how the two instances are constructed and held, and how state is
+> shared across concurrent turns on one process. The thresholds and the state
+> machine above are complete; the interface is absent — to be designed with
+> founder.
+
+---
+
+### 64.3 S-F29 · `phase_error_recovery`
+
+**Architecture:** §45 · **File:** `phases/{phase}/nodes.py` or `core/reliability.py` · **Procedure:** step 8.2
+*Rebuild test: not met — blocked on G-03, G-06, G-32-adjacent G-35.*
+
+**Purpose:** The node-level error handler required on every node with external
+writes. It **undoes the external write** and routes to a degraded response.
+
+**Definition:**
+```python
+def phase_error_recovery(error: NodeError, state: PhaseState) -> Command:
+    delete_or_flag_stale_in_case_index(state["case_id"], state["phase"])
+    return Command(
+        update={"extraction_error": str(error), "extraction_incomplete": True},
+        goto="degraded_coaching_response",
+    )
+```
+
+**Registered as:**
+```python
+builder.add_node(
+    "phase_executor",
+    phase_executor_fn,
+    timeout=TimeoutPolicy(run_timeout=45),
+    error_handler=phase_error_recovery,
+)
+```
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | The LangGraph runtime, when a node attempt raises **and the retry policy is exhausted** — retries run before the handler |
+| **Input** | `NodeError`; `PhaseState` — including `case_id` and `phase`, **neither of which is a declared field (G-03)** |
+| **Process** | Runs the compensating action against `improve_case_index`, then routes to a degraded response |
+| **Output** | A `Command` carrying `extraction_error` and `extraction_incomplete` (**neither declared — G-06**) and `goto="degraded_coaching_response"` (**not one of §13's five nodes — G-35**) |
+| **Customer** | The `degraded_coaching_response` node (S-F33) |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | any node with external writes is registered | carry an `error_handler=`; a node that writes to Azure Blob, `improve_case_index` or `improve_evidence_index` without one is a violation | §45 |
+| B2 | it runs | undo the external write, not merely record the failure | §45 |
+| B3 | the re-approval cascade fires | run for the affected phase, **or state and index disagree silently** | §37, §45 |
+| B4 | time-travel debugging resumes from an earlier checkpoint | be what makes that correct — resuming rolls back state, not external writes | §45 |
+| B5 | it is set as a graph-wide default | apply to regular nodes only; a handler SHALL never catch itself, and `cache_policy` is likewise excluded | §45 |
+| B6 | the policy is applied to many nodes | prefer `set_node_defaults` over repeating the arguments on every node | §45 |
+
+**Hand-written Saga orchestrators and compensating-action frameworks are
+BANNED.** LangGraph provides the mechanism; `error_handler=` is the native
+replacement for the pre-1.2 workaround.
+
+> **SPEC-GAP (G-03):** it reads `state["case_id"]` and `state["phase"]`, and
+> `PhaseState` declares neither — see S-C02.
+
+> **SPEC-GAP (G-06):** it writes `extraction_error` and
+> `extraction_incomplete`, and `PhaseState` declares neither — see S-C02.
+
+### 64.4 S-F30 · `degraded_mode_response`
+
+**Architecture:** §46 · **File:** `core/reliability.py` · **Procedure:** step 8.3
+*Rebuild test: met in shape; the field counts it reads depend on G-31.*
+
+**Purpose:** Level 4 of the fallback chain — the level that always succeeds.
+**Degraded mode is still a coaching interaction, not an error page.** The Belt
+knows what happened, knows their work is safe, and knows how to continue.
+
+**Definition:**
+```python
+def degraded_mode_response(state: PhaseState) -> str:
+    return (
+        f"I'm experiencing a temporary connection issue. "
+        f"Based on what we've captured so far in the {phase} phase "
+        f"({n_captured} of {n_total} fields complete), "
+        f"I'd suggest we pause here and continue once the system recovers. "
+        f"Your progress is saved and nothing has been lost."
+    )
+```
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | The fallback chain, at Level 4, after the model tiers and the cache have all failed; the LLM circuit breaker (S-C35) on OPEN |
+| **Input** | `PhaseState` — the phase name and the captured/total field counts |
+| **Process** | Composes a coaching-voiced message from actual state |
+| **Output** | A string for the Belt |
+| **Customer** | The Belt, via the API surface (S-F34) |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | it fires | use actual state — the phase and real field counts — never a generic error message | §46 |
+| B2 | the chain reaches Level 4 | always succeed; Level 4 is a response, not an error path | §46 |
+| B3 | it fires | tell the Belt their progress is saved | §46 |
+
+**`AI-ACT-REVIEW: uncertain.`** It is Belt-facing content produced under
+failure, which is Art. 13 territory — it must not misrepresent system state.
+Whether that makes it a high-risk surface or ordinary UX is deferred.
+
+**Note.** The function signature takes `state`, and the body references `phase`,
+`n_captured` and `n_total` as bare names. Whether they are derived inside the
+function or passed in is not shown; and `n_captured` / `n_total` are the same
+counts `check_gate_status()` produces (G-31), so the two should be designed
+together. Recorded as a finding in §66.
+
+### 64.5 S-F31 · `synthesise_partial`
+
+**Architecture:** §26 · **File:** `phases/analyse/` or `knowledge/` · **Procedure:** step 5.2
+
+**Purpose:** The graceful off-ramp when the hop budget is nearly exhausted —
+the agent composes an answer from what it has rather than dying. It is the
+property that makes `RemainingSteps` preferable to `recursion_limit`, both of
+which otherwise terminate the graph with `GraphRecursionError`.
+
+**Called at two sites**, both in §26: the `agent_node` guard illustration and
+`analyse_executor_node`'s entry guard (S-F09 B1).
+
+> **SPEC-GAP (G-35):** defined nowhere. Its signature, what it returns — §26
+> wraps it in `{"messages": [...]}`, implying a message object rather than a
+> string — and whether it makes a model call or assembles deterministically are
+> all unstated. Whether it also sets `hop_results` and `synthesis_output`
+> matters, because S-F09 B4 requires both to reach state — to be designed with
+> founder.
+
+### 64.6 S-F32 · `delete_or_flag_stale_in_case_index`
+
+**Architecture:** §45, §37 · **File:** `storage/` or `knowledge/` · **Procedure:** step 8.2
+
+**Purpose:** The compensating action. Cleans up values already published to
+`improve_case_index` when a node fails after writing externally, and when the
+re-approval cascade makes a phase provisional.
+
+**Why it is correctness-critical, twice over:** a cascade that marks phases
+provisional but leaves published values in place is **worse than no cascade** —
+state and index then disagree silently, and the system reports a phase as
+needing review while continuing to serve its old conclusions. And time-travel
+debugging is only correct for nodes that have a handler, because resuming rolls
+back state and not external writes.
+
+> **SPEC-GAP (G-35):** defined nowhere. Its signature is visible from the one
+> call site — `(case_id, phase)` — and **the name itself contains an unresolved
+> choice**: delete, or flag stale? The two produce different index states and
+> different `rag_lookup_case_history` results, since that tool filters
+> `status eq 'completed'` and a flagged-stale record's status is undefined. What
+> it does to the five `phase_summary_{phase}` fields is also unstated — to be
+> designed with founder.
+
+### 64.7 S-F33 · `degraded_coaching_response` node
+
+**Architecture:** §45 · **File:** `phases/{phase}/nodes.py` · **Procedure:** step 8.2
+
+**Purpose:** The `goto=` target of `phase_error_recovery` (S-F29). Presents the
+degraded response to the Belt after a node has failed and its external write has
+been undone.
+
+> **SPEC-GAP (G-35):** it is named only as a `goto=` string in §45's handler and
+> is defined nowhere. **It is also not one of the five nodes §13 permits in a
+> phase subgraph, and §13 requires a §56 amendment to add a sixth** — so either
+> it is a sixth node needing an amendment, or the handler routes somewhere that
+> does not exist. Its relationship to `degraded_mode_response` (S-F30), which
+> returns a string rather than being a node, is likewise unstated — to be
+> designed with founder.
+
+---
+
+## 65. Spec — API, UI and evidence
+
+*Supersedes: none — new. Definitions relocated from §49.*
+**Status: RATIFIED as a structure; every entry in this subsystem carries a gap.**
+
+**The endpoint table, the UI language rules and the citation format stay in §49
+and §50.** They are an inventory and a set of rules, not signatures.
+
+### 65.1 S-C36 · `CitationRecord` and `CitationBundle`
+
+**Architecture:** §50 · **File:** `core/citations.py` · **Procedure:** [tbd]
+
+**Purpose:** The citation types. **Citation transparency is a product
+requirement, not decoration** — "this came from page 47 of the BB eBook" is what
+makes a citation checkable.
+
+**What is stated:** the citation format is `agent_origin`, `index_name`,
+`document_id`, `relevance_summary` (§50); retrieval citations must additionally
+surface `source_file` and `page_number` (§23, §50); and `PhaseState.citations`
+entries carry `source`, `page`, `content_summary` and `turn` (§6).
+
+> **SPEC-GAP (G-16):** neither class is defined. `CitationRecord` appears in
+> this document only inside Appendix D.2's ban on **duplicating** it, and in
+> `CLAUDE.md` §2's permitted-class list; `CitationBundle` appears only in the
+> latter. **Three different citation shapes are stated in three places** — §50's
+> four fields, §6's four different fields, and §23's two more — and whether
+> those are one type, a record plus a bundle, or three unreconciled shapes is
+> undecided — to be designed with founder.
+
+### 65.2 S-C37 · The API envelopes
+
+**Architecture:** §49 · **File:** `gateway/schemas.py` · **Procedure:** step 10.1
+
+**Purpose:** Pydantic v2 request and response envelopes for every endpoint.
+
+**What is stated:** they are Pydantic v2 and they live in `gateway/schemas.py`
+(§49, §54). A route may do nothing beyond invoking the graph plus **envelope
+marshalling** — so the envelope is the entire permitted surface of the API
+layer, which makes its absence load-bearing rather than cosmetic.
+
+> **SPEC-GAP (G-18):** not one envelope is defined, for any of the seven
+> endpoints. The gate interrupt payload (S-F06) and the `Command(resume=...)`
+> approval payload cross this boundary and have no schema either, and the SSE
+> event shape for `/ask/stream` is unstated — to be designed with founder.
+
+---
+
+### 65.3 S-F34 · The API surface
+
+**Architecture:** §49 · **File:** `gateway/routes.py` · **Procedure:** steps 10.1, 4.2
+*Rebuild test: not met — blocked on G-18, G-36 and G-02.*
+
+**Purpose:** The only entry point. **The compiled graph is the only runtime
+path**, and a route that does anything beyond invoking it plus envelope
+marshalling is a violation — the rule the v1 codebase most conspicuously breaks.
+
+**Endpoints:**
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /ask` | Non-streaming coaching turn — retained for clients that cannot use SSE |
+| `POST /ask/stream` | **The standard path.** Server-Sent Events; the frontend renders tokens as they arrive |
+| `POST /gate/submit` | Triggers the validation stack and the gate interrupt (§33.1) |
+| `POST /gate/approve` | Resumes from the interrupt with approval |
+| `POST /gate/reject` | Resumes from the interrupt with rejection — **behaviour undefined (G-02)** |
+| `GET /cases`, `GET /cases/{id}` | Case records |
+| `GET /registry` | Case registry |
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | The frontend; the Belt |
+| **Input** | Request envelopes (**undefined — G-18**); the authenticated session, from which `case_id` is derived |
+| **Process** | Marshals the envelope, invokes the compiled graph, marshals the response. Nothing else |
+| **Output** | Response envelopes; an SSE token stream on `/ask/stream`; the interrupt payload on `/gate/submit` |
+| **Customer** | The supervisor graph (S-F01), which every endpoint invokes; the frontend |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | any endpoint is called | invoke the same compiled graph object; **manual node dispatch in a route is a violation** | §49 |
+| B2 | any endpoint is defined | be `async def`; all graph invocations await the async form | §49 |
+| B3 | a run is configured | derive `thread_id` / `case_id` **from the authenticated session, never from client input** — a client-supplied `thread_id` lets any caller resume any Belt's session | §47 |
+| B4 | a client disconnects mid-run | **ABANDON, not COMPLETE.** A silently-completed gate approval the Belt never saw is unacceptable in a system whose premise is that the Belt approves what commits | §47 |
+| B5 | the handler is written | use inline `await` streaming, or an explicit abandon policy cancelling the task in `finally`. **A bare background task with no disconnect handling has chosen COMPLETE by accident** | §47 |
+| B6 | two tabs write one `case_id` | be guarded by the Azure Blob lease, until the PostgreSQL migration provides advisory locks | §47 |
+| B7 | a reconciliation sweep runs for abandoned threads | **exclude interrupt-paused threads** — a thread paused at a gate looks identical to an abandoned one by inactivity alone, and a sweep that misses this cleans up Belts who are thinking about their gate review overnight | §47 |
+
+> **SPEC-GAP (G-36):** **there is no upload endpoint in this table**, and
+> §29.1 makes uploaded documents the only channel through which external data
+> enters AgentLean — see S-F35.
+
+> **SPEC-GAP (G-18):** no envelope is defined for any endpoint — see S-C37.
+
+> **SPEC-GAP (G-02):** `POST /gate/reject` has no defined behaviour — see S-F13
+> decision point 3.
+
+### 65.4 S-F35 · The upload handler
+
+**Architecture:** §6, §10, §23.2, §29.1 · **File:** unassigned · **Procedure:** [tbd]
+*Rebuild test: not met.*
+
+**Purpose:** Ingests a Belt's uploaded document into `improve_evidence_index`,
+writes the file to Blob, and appends to `PhaseState.uploads`. **This is the only
+path by which external, real-world data enters the platform** (§29.1), which
+makes it architecturally more significant than its absence from the endpoint
+table suggests.
+
+**What is stated across the document:**
+
+| Fact | Source |
+|---|---|
+| It is the writer of `PhaseState.uploads` | §6 field table |
+| `uploads` entries carry `evidence_index_id`, `filename`, `phase`, `uploaded_at`, `summary` | §6 |
+| Blob path `uploads/{case_id}/{file}`, owned by `ImproveBlobClient` | §10 |
+| Case blob written on file upload — never mid-conversation | §10 |
+| Index fields `phase` and `uploaded_at` are **server-set** — `phase` from `state["current_phase"]` at upload, `uploaded_at` from the server clock | §23.2 |
+| Both are ratified and **not yet applied**; the live index has neither | §23.2 |
+| A `vision` LLM role exists for multimodal upload analysis | §21 |
+| Evidence cache entries invalidate on upload | §46 |
+| Each SKILL.md carries upload-handling instructions | §32 |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | a file is uploaded | set `phase` from server state and `uploaded_at` from the server clock; a Belt-entered value for either makes it unreliable as a filter or sort key | §23.2 |
+| B2 | a file is uploaded | append to `PhaseState.uploads` with `evidence_index_id`, so a reviewer reading the approved gate document can follow the trail back to the indexed chunk | §6 |
+| B3 | a file is uploaded | invalidate the affected evidence cache entries | §46 |
+| B4 | it writes to the index | write with explicit ids and with `fields=` declaring the real schema, or the metadata is silently demoted to an unfilterable JSON blob | §23.4 |
+| B5 | a phase completes with no uploads | leave `uploads` empty and let that stand as a visible finding — the phase reached its conclusions from typed statements alone | §6 |
+
+> **SPEC-GAP (G-36):** **no upload endpoint exists in §49's endpoint table**, no
+> file owns this handler, and it appears in no procedure step. It is named only
+> as a writer in §6's field table. Given §29.1, the entire external-data channel
+> of the platform is currently specified as one cell in a field table — to be
+> designed with founder.
+
+### 65.5 S-F36 · The `improve_case_index` write path
+
+**Architecture:** §23.3, §37, §45 · **File:** unassigned · **Procedure:** [tbd]
+*Rebuild test: not met.*
+
+**Purpose:** Publishes live case records — including the five
+`phase_summary_{phase}` fields — into `improve_case_index`, which is the
+cross-case memory `rag_lookup_case_history` reads.
+
+**What is stated:**
+
+| Fact | Source |
+|---|---|
+| The full index schema, 18 fields | §23.3 |
+| `f"phase_summary_{phase}"` is correct for all five phases, with no mapping constant | §23.3 |
+| A compensating action must clean up stale values in it (S-F32) | §37, §45 |
+| The re-approval cascade depends on that cleanup, or state and index disagree silently | §37 |
+| `rag_lookup_case_history` filters `status eq 'completed'` and orders by `created_at desc` | §24 |
+| `lessons_learned` and `transferability` from `ControlOutput` feed it | §40 |
+| Never write to Agent Resolve indexes — read-only, via tools | §23.5 |
+
+**`AI-ACT-REVIEW: uncertain.`** It publishes one Belt's project record into a
+corpus other Belts retrieve from. That is a data-governance surface (Art. 10),
+and there is no tenancy filter today — multi-tenant filtering is Appendix B
+item 1. Classification deferred rather than guessed.
+
+> **SPEC-GAP (G-37):** **nothing writes this index.** §23.3 defines the schema,
+> §37 and §45 require compensating cleanup of it, `rag_lookup_case_history`
+> reads it — and no function, node, or procedure step is named as its writer.
+> When a record is created, when the phase summaries are computed and by what,
+> when `status` becomes `completed`, and how `days_in_phase` and `rag_status`
+> are maintained are all unspecified — to be designed with founder.
+
+---
+
+## 66. The SPEC-GAP register
+
+*Supersedes: none — new. Decision record: `agent-improve/docs/DECISIONS.md` §S1.*
+**Status: OPEN — this is a working register, not a ratified statement.**
+
+**Every gap marked inline in Part XII has a row here, and every row here has an
+inline marker.** That bidirectional correspondence is checkable and is one of
+the §55.1 governance rules.
+
+**42 gaps identified. One is closed. 41 are open, and none was filled by the
+conversion pass** — that was the pass's binding constraint. Filling them is the
+work that follows, in the order the founder chooses.
+
+### 66.1 Group A — founder ruling required
+
+| # | Gap | Marked at |
+|---|---|---|
+| **G-01** | **Level 2 (subgraph-internal) `Command` routing.** §13 draws the branching, §15 states the rule, and no `Command(goto=…)` exists anywhere. Three decision points: planner exit; validation-stack exit and its ownership of the `gate_attempts` increment; gate exit including REJECT | S-F13, S-F02, S-F03, S-F05 |
+| **G-02** | **What a Belt REJECT does.** `POST /gate/reject` is in §49's endpoint table and in §33.1's frontend sequence; its behaviour — re-coach, or apply-with-edits — is stated nowhere. A coaching-philosophy ruling | S-F06, S-F07, S-F13, S-F34 |
+
+### 66.2 Group B — cross-check defects
+
+**The same defect class as `route_after_phase` (DECISIONS §R2): specified code
+reading state a schema does not declare.** Each fix is a design choice, and
+adding a `PhaseState` field is a §56 amendment.
+
+| # | Gap | Marked at |
+|---|---|---|
+| **G-03** | `PhaseState` declares no `case_id` and no phase identifier, yet `phase_error_recovery` reads `state["case_id"]` and `state["phase"]` (§45), `analyse_executor_node` reads `state["current_phase"]` (§26), and `gate_apply_node`'s Store write needs `case_id` (§33.2) | S-C02, S-F07, S-F09, S-F29 |
+| **G-04** | `remaining_steps` is read off `PhaseState` twice (§26) and is not declared. `RemainingSteps` must be declared on the state schema to be populated; undeclared, the `.get(..., 10)` default returns 10 forever and **the five-hop cap never fires** | S-C02, S-F09 |
+| **G-05** | `extracted_entity` is read off `PhaseState` (§26); undeclared, and no writer is named anywhere | S-C02, S-F09 |
+| **G-06** | `extraction_error` and `extraction_incomplete` are written into `PhaseState` by `phase_error_recovery` (§45); neither is declared | S-C02, S-F29 |
+| **G-07** | `state["structured_response"]` is read by `ContradictionDetectionMiddleware` (§19.6). Whether middleware observes `PhaseState` or `create_agent`'s internal agent state is unstated | S-F04, S-C10 |
+| **G-08** | `validation_stack.get_acknowledged_gaps()` (§40) is attribute access on a node, and §14 requires nodes to be module-level async functions. Where acknowledged gaps are produced and how they reach assembly is unspecified | S-F05, S-F07, S-F28 |
+| **G-42** | **NEW — surfaced by the Supplier/Customer cross-check.** **The boundary mappers have no execution site.** §9 defines them as "two plain functions per phase"; §13 states a phase subgraph contains **exactly five nodes**, none of which is a mapper, and forbids a sixth without a §56 amendment; §12 embeds each subgraph as a node of the parent. Whether a mapper runs inside the subgraph, inside the parent's node wrapper, or somewhere else is stated nowhere — and every phase boundary depends on it | S-F10, S-F11, S-F12 |
+
+### 66.3 Group C — schemas named but never defined
+
+| # | Gap | Marked at |
+|---|---|---|
+| **G-09** | `CoherenceResult` | S-C23, S-C13 |
+| **G-10** | `ConstraintCheckResult`, plus the `ConstraintVerdict` / `ConstraintCheckResult` naming split between `CLAUDE.md` §2 and reference §21 | S-C24, S-F25 |
+| **G-11** | `GraderVerdict` — only "carries a `list[CriterionVerdict]`" is stated | S-C21, S-F26 |
+| **G-12** | `CoachingGraderVerdict` | S-C22, S-C14 |
+| **G-13** | `PolicyAdvisoryResult`, and how a non-blocking advisory is surfaced without reading as a rejection of the Belt's correction | S-C25, S-F27 |
+| **G-14** | `QueryVariants` | S-C19 |
+| **G-15** | `HITLInterrupt` — and whether an exception raised from `after_agent` yields a resumable graph-level interrupt at all | S-C15, S-C10 |
+| **G-16** | `CitationRecord` / `CitationBundle` — and the three different citation shapes stated in §50, §6 and §23 | S-C36 |
+| **G-17** | `CaseDocument` · `PhaseRecord` · `RegistryEntry` · `PhaseSummaryRecord`, and whether `PhaseRecord` duplicates the gate document | S-C09 |
+| **G-18** | All `gateway/schemas.py` envelopes, for all seven endpoints, plus the gate interrupt and resume payloads and the SSE event shape | S-C37, S-F06, S-F34 |
+| **G-19** | Per-phase `PhaseState` variants — the transient fields are never enumerated, and whether they count against §6's ceiling is undecided | S-C03 |
+
+### 66.4 Group D — described in prose, no interface
+
+| # | Gap | Marked at |
+|---|---|---|
+| **G-20** | `AzureBlobCheckpointSaver` — the on-blob format is complete; the `BaseCheckpointSaver` method set is absent | S-C07 |
+| **G-21** | `ImproveBlobClient` | S-C08 |
+| **G-22** | `CircuitBreaker` — thresholds and state machine complete, interface absent | S-C35 |
+| **G-23** | `DMAICGateValidator` — static method names, signatures and return shapes; must be designed with G-31 | S-C26 |
+| **G-24** | Constructor arguments for all four remaining custom middlewares — `(...)` is literal in §19 in every case | S-C11, S-C12, S-C13, S-C14 |
+| **G-25** | **The 20 computation tools** — no signature, no `args_schema`, no return shape for any of them; and no defined shape for §7's required "reformatting request" | S-F24 |
+| **G-26** | Retriever-layer signatures, `RETRIEVAL_EXCEPTIONS` membership, and the `_fail()` contract | S-F18 |
+| **G-27** | Boundary mappers for Measure, Analyse, Improve and Control — including what each `phase_context` contains | S-F12 |
+| **G-28** | Gate assembly for Measure, Analyse, Improve and Control — 55 field assignments, each selecting a tier access pattern, and an omission is silent | S-F28, S-F07 |
+| **G-29** | `propose_template` — an open "etc." type list and no `fill_data` schema | S-F19 |
+| **G-30** | `propose_diagram` — types and schemas are said to live in `core/diagrams.py`, **which does not exist** | S-F20 |
+| **G-31** | `check_gate_status()` — return shape unspecified, and a zero-argument signature that must nonetheless know the phase and read `artifacts` | S-F21 |
+| **G-32** | `request_human_approval` — how a tool raises a graph-level interrupt from inside the executor's tool loop | S-F22 |
+| **G-33** | `load_skill(name)` — in neither the universal seven nor any phase count; if bound, Measure goes to 16 against a cap of 16 | S-F23, S-F02, S-C12 |
+| **G-34** | The escalation subgraph — no node list, no state schema, no exit contract | S-F08 |
+| **G-35** | `synthesise_partial()`, `delete_or_flag_stale_in_case_index()` (delete **or** flag stale — the name carries the undecided choice), and the `degraded_coaching_response` node, which is not one of §13's permitted five | S-F31, S-F32, S-F33, S-F09, S-F29 |
+| **G-36** | **No upload endpoint exists**, no file owns the upload handler, and §29.1 makes uploads the only channel through which external data enters the platform | S-F35, S-F34 |
+| **G-37** | **Nothing writes `improve_case_index`** — the schema is defined, cleanup of it is required, and no writer is named | S-F36 |
+
+### 66.5 Group E — content the build sequence defers
+
+| # | Gap | Marked at |
+|---|---|---|
+| **G-38** | `field_index` has no ordering source — the per-phase field list it indexes into is stated nowhere, and §13's "advance to the next field" depends on it | S-C02, S-F03 |
+| **G-39** | `turn_count`'s increment contract, load-bearing in §11's deterministic `step_log` key | S-C02 |
+| **G-40** | Prompt constants — `{PHASE}_COACH_PROMPT`, `{PHASE}_PLANNER_PROMPT`, five `PHASE_RUBRIC`s and four `{PHASE}_CONSTRAINTS` sets are named with coverage lists and no text. Only `COACHING_QUALITY_RUBRIC` is written out | S-F26 |
+
+### 66.6 Closed
+
+| # | Gap | Resolution |
+|---|---|---|
+| **G-41** | The two calibrated samples' verbatim text was in no file in the repository — `SPEC_LAYER_GUIDE.md` §7 gave their skeletons and deferred the full text to the 2026-08-23 conversation | **CLOSED 2026-08-23.** The approved verbatim text was supplied at `agent-improve/docs/SPEC_SAMPLES.md` and transcribed into §57.2 and §57.3 |
+
+### 66.7 Findings — recorded, not gaps
+
+**A gap is something missing. A finding is something present and wrong, or
+present and inconsistent.** These were surfaced by the conversion pass and the
+Supplier/Customer cross-check, whose first run is recorded at §66.8. **None
+was fixed by the pass**; each needs a
+§56-routed decision of its own.
+
+| # | Finding |
+|---|---|
+| **F-01** | **The drift registry cannot see this document.** `.claude/config/deprecated_patterns.yaml` excludes `agent-improve/*.md` and `agent-improve/**/*.md` from patterns 2–8. **This file moved to the monorepo root in v1.2 and the exclusion was never updated**, so the platform governance document is now guarded as if it were code — while the registry's own header names `AGENTIC_ARCHITECTURE_REFERENCE.md` among the documents that must be able to name a deprecated construct in order to prohibit it. **Fourth instance of the pattern §55 names:** a correct rule paired with a check that cannot see what it governs |
+| **F-02** | **§33 step 9 still reads "Supervisor reads `gate_passed`, static edge advances."** v2.2.20 of `CLAUDE.md` deliberately tightened its equivalent step to "the parent's static edge advances," on the ground that "routes onward" was the last phrasing from which the deleted `route_after_phase` design could be re-derived. **The reference's own step 9 was not tightened with it**, so the two binding documents now differ on the sentence that DECISIONS §R2 exists to police |
+| **F-03** | **The calibrated `phase_executor` sample cites "(§35)" for the four-layer validation stack, twice** — once in its Art. 15 row and once in its DORA row. §34 is the four-layer stack; §35 is the two-tier field rule. Transcribed verbatim and not corrected, because the sample is the approved standard |
+| **F-04** | **The calibrated `phase_executor` sample's Supplier cell names only `phase_planner`.** `analyse_executor_node` (S-F09) produces `synthesis_output` that the coach call reads, which makes it a second supplier on multi-hop turns. Not corrected — verbatim |
+| **F-05** | **Middleware is invisible to the Supplier/Customer cross-check.** Per the approved judgment call, the five custom middlewares are class entries without SIPOC tables — yet `phase_executor`'s Customer cell names `ContradictionDetectionMiddleware` as its first consumer. The cross-check cannot close on that edge. Either middleware needs SIPOC cells, or the rule needs to state that it ranges over nodes and functions only |
+| **F-06** | **The 20 computation tools are likewise invisible**, for the same reason: S-F24 is one entry with behaviors and no SIPOC. They are named in `phase_executor`'s Input cell via `tools=` and nowhere else in the cross-check |
+| **F-07** | **The cross-check rule does not model two structures it meets constantly.** *Request/response pairs*: the API surface both triggers the graph and consumes its output, so each is the other's Supplier and Customer, and a strict reading reports a mismatch. *Nesting*: Layers 2c and 2d, gate assembly, the policy advisory, RRF and the retriever layer are sub-components of their own callers, so their Supplier and Customer are the same entry. Both are correct designs that the rule as written flags. **Recommendation: state the rule as ranging over peer node-to-node edges, and exclude nested sub-components and return paths explicitly** — otherwise it produces noise that trains people to ignore it, which is the §55 failure mode |
+| **F-08** | **The gate document is written to the same Store key twice** — by `gate_apply_node` (§33.2) and again by the phase's output mapper (§9). The write is idempotent by key so nothing breaks, but **neither section names which is authoritative**, and a future change to one will not obviously require a change to the other |
+| **F-09** | **`BeforeModelStateInjection` is named after the hook it must not use.** Its hook is `before_agent`; §19, §19.1 and `CLAUDE.md`'s no-go list each correct the `before_model` reading separately. The class name reproduces the error every time it is read |
+| **F-10** | **`degraded_mode_response` reads counts that `check_gate_status()` produces** (§46 body vs §29.2), and both are unspecified (G-31). They should be designed together, or the Belt sees two different completion counts |
+
+### 66.8 The Supplier/Customer cross-check — first run, 2026-08-23
+
+**Run mechanically over all 73 entries as the conversion landed.** 28 entries
+carry a SIPOC table; 58 directed edges were checked in both directions;
+**36 did not close.**
+
+**Four are substantive, and three of those confirm a gap this document already
+names.** The cross-check found them without being told to look:
+
+| Edge | What it means |
+|---|---|
+| S-F05 names S-F03 as Supplier; **S-F03's Customers are S-F04 and S-F09 only** | **G-01, decision point 1, detected mechanically.** The validation stack says the planner triggers it and the planner does not say it routes there — because that routing does not exist |
+| S-F10 and S-F12 name S-F03 as Customer; **S-F03's Suppliers do not include either** | **G-42, detected mechanically.** A mapper cannot be named as a supplier of the planner because it has no stated execution site |
+| S-F11 names S-F12 as Customer; **S-F12's Suppliers are S-F01 and S-F07** | **F-08, with evidence.** Both `gate_apply_node` and the output mapper claim the Store write the next input mapper reads. Two writers, no stated owner |
+| S-F09 names S-F04 as Customer; **the sample's Supplier cell names only `phase_planner`** | **F-04.** The multi-hop path feeds the coach call and is not accounted for. Not corrected — the sample is verbatim |
+
+**The remaining 32 are structural, and they are the rule's problem rather than
+the architecture's.** They fall into four classes, each already recorded above:
+
+| Class | Count | Finding |
+|---|---|---|
+| The calibrated sample names its neighbours in prose (`phase_planner`) rather than by entry ID, so the parser cannot match them | 11 | F-04 |
+| Nested sub-components — Layers 2c and 2d inside the validation stack, gate assembly and the policy advisory inside `gate_apply`, RRF and the retriever layer inside the `rag_lookup_*` tools | 12 | F-07 |
+| Request/response and build-time/run-time pairs — the API surface both triggers the graph and consumes its output; the supervisor graph both builds subgraphs and runs them | 6 | F-07 |
+| Edges pointing at class entries and gap stubs, which carry no SIPOC table | 3 | F-05, F-06 |
+
+> **The conclusion is about the rule, not the result.** A check that reports 36
+> failures of which 4 matter will be ignored by its third run. **§55.1 rule 3
+> must be narrowed to peer node-to-node edges before it is automated** —
+> excluding return paths, nested sub-components, build-time relations, and
+> edges terminating at a class entry — or it becomes the fourth instance of the
+> pattern §55 names: a check whose output nobody reads.
+
+---
+
+---
+
+# Part XIII — Compliance and Risk
+
+*The EU AI Act and DORA obligations this architecture is designed to satisfy,
+and the register that aggregates them. **This Part is scaffolding placed
+2026-08-23**: the posture is stated, the obligations are mapped to mechanisms
+that already exist, and the classification question is left open because it is a
+legal determination.*
+
+---
+
+## 67. EU AI Act compliance posture
+
+*Supersedes: none — new. Decision record: `agent-improve/docs/DECISIONS.md` §S2.*
+**Status: SCAFFOLD. The classification question is UNRESOLVED and requires qualified legal advice.**
+
+### 67.1 The deadlines are now fixed
+
+**Verified as of 2026-08-23.** The Digital Omnibus is enacted law — Regulation
+(EU) 2026/1744, in force 27 July 2026 — and the high-risk deadlines are
+**fixed and unconditional**:
+
+| Date | Scope |
+|---|---|
+| **2 December 2027** | Standalone Annex III systems — **includes employment** |
+| 2 August 2028 | High-risk AI embedded in regulated products (Annex I) |
+
+Transparency (Art. 50), GPAI and prohibited-practices duties are **already in
+force** and were not delayed.
+
+### 67.2 The classification question — open, and not answered here
+
+**Agent Improve MAY be Annex III high-risk via the employment category.** It
+coaches professionals and produces assessments that *could* feed competence or
+advancement decisions.
+
+**Whether it crosses the line depends on deployment, not on the code:**
+
+| Deployment | Likely classification |
+|---|---|
+| Gate outputs feed a formal evaluation of the Belt | **Likely high-risk** |
+| A private learning aid with no institutional consequence | **Likely not** |
+
+**This is a legal determination requiring qualified advice before December
+2027. It is not made in this document, and no reader should treat this section
+as legal advice.**
+
+> **The architecture is designed defensively so that if the answer is
+> high-risk, no retrofit is needed.** That is the whole reason this Part is
+> scaffolded now rather than after the classification is settled — the eight
+> obligations below map to mechanisms that already exist, and the cost of
+> having built them anyway is small compared to the cost of discovering in 2027
+> that human oversight was never architectural.
+
+### 67.3 The eight core provider obligations
+
+**Agent Improve already has much of the skeleton.** Each row names the existing
+mechanism, not an aspiration:
+
+| Article | Obligation | Existing mechanism |
+|---|---|---|
+| **9** | Risk management across the lifecycle | The DORA register (§68) is this, made operational |
+| **10** | Data governance | Azure index schemas (§23); evidence provenance and the single-channel rule (§29.1); `uploads` as the complete external-evidence record (§6) |
+| **11** | Technical documentation | This document, and Part XII in particular — the spec layer *is* the technical documentation obligation |
+| **12** | Record-keeping and logging | `step_log` with deterministic keys (§11, §47); LangSmith tracing (§51); `citations` and `uploads` in every gate document (§33.2) |
+| **13** | Transparency to users | The UI contract — the Belt is informed they interact with an AI coach; contextual feedback; the LangSmith run id surfaced for escalation (§50) |
+| **14** | Human oversight | The nine-step HITL gate — **no field is committed without Belt approval** (§33); the gate review screen is editable (§50); the checkpoint commits only after approval (§33.3) |
+| **15** | Accuracy and robustness | The four-layer validation stack (§34); the two-tier field rule (§35); anti-hallucination guards (§22); contradiction detection (§37); grader temperature pinned at 0.1 (§21) |
+| **43** | Conformity assessment | Downstream — it needs all of the above demonstrable, which is what the register in §68 is for |
+
+### 67.4 One compliance finding is already recorded in this document
+
+**§46.1 states that the v2.1 single-region fallback chain is non-compliant for
+any regulated-entity deployment** under DORA's ICT resilience obligations, and
+that EU AI Act data-governance provisions are why the secondary region must be
+inside the EU. It is Appendix B item 16, and it gates a production launch.
+
+**It is carried into the register at §68 rather than restated here.**
+
+### 67.5 Compliance-source discipline
+
+**The EU AI Act and DORA are in active implementation with shifting guidance.**
+
+- **Any compliance claim must cite a current-dated source.**
+- **If availability cannot be verified, mark it "unverified — requires legal
+  validation" rather than asserting it.**
+- **This is not legal advice.** The classification question of §67.2 needs
+  qualified counsel.
+
+Sources are in Appendix C, under *Tier 1 — compliance*.
+
+---
+
+## 68. The DORA-structured compliance risk register
+
+*Supersedes: none — new. Decision record: `agent-improve/docs/DECISIONS.md` §S2.*
+**Status: SCAFFOLD, populated from the five AI-ACT flags placed 2026-08-23.**
+
+### 68.1 Why DORA structure
+
+**DORA — Regulation (EU) 2022/2554 — applies directly to financial customers**,
+who must track a third-party AI vendor as ICT risk. Its register structure is
+also the *universal* risk-register shape every industry uses: a manufacturer
+reads the same table as their own risk register.
+
+**So one DORA-structured table is cross-industry by construction** — legible to
+a bank as DORA, and to a factory as a risk register. That is the reason for the
+choice, and it is worth stating because the alternative reading is that a DMAIC
+coaching product has acquired a financial-services artifact for no reason.
+
+**The `Customer Negotiation` column is deliberately open.** The register is the
+artifact handed to a prospect: *here are our AI's high-risk functions, here is
+how each is already mitigated, here is the residual risk to discuss.*
+
+### 68.2 The register
+
+**The flag is canonical; the register is derived.** When they disagree, the
+flag wins and the row is regenerated (§55.1). Each row cites the function and
+the behavior IDs it aggregates, so row-to-flag correspondence is checkable by
+Risk ID.
+
+| Risk ID | Function | Risk Description | AI Act Art. | Likelihood | Impact | Current Mitigation | Residual Risk | Owner | Customer Negotiation |
+|---|---|---|---|---|---|---|---|---|---|
+| **R-EXEC-01** | `phase_executor` (coach) — S-F04, behaviors B1–B6 | AI coaching output could influence a Belt's competence/employment assessment without adequate oversight, or could assert an unverified fact | 13, 14, 15, 12 | Med | High | HITL gate approval (§13); anti-hallucination guard; 4-layer validation (§35); full audit log (§51) | Low–Med — residual depends on whether customer uses gate outputs in formal evaluation | [Provider] | *open — depends on deployment context; customer confirms whether coaching feeds formal assessment* |
+| **R-VALSTACK-01** | `validation_stack` — S-F05, behaviors B1–B4, B7; Layer 2d — S-F26, behaviors B1–B7 | The pass/fail assessment of a Belt's completed phase is produced here. Where a customer deploys it into a formal evaluation, that verdict is the artifact the evaluation rests on. An LLM grader could fail a sound document, or pass a weak one | 14, 15, 12, 13 | Med | High | Verdict is per criterion, never a score (§35); Tier 2 can never `fail`; temperature pinned at 0.1 so verdicts are reproducible (§21); three linkage criteria verified by deterministic lookup, not judgment (§36); every attempt logged (§11); the verdict gates a Belt-editable interrupt rather than committing anything | **Med** — the grader's judgment is not appealable inside the system; the Belt's recourse is the retry loop and then escalation | [Provider] | *open — customer confirms whether a gate verdict is recorded against the individual or only against the project* |
+| **R-GATEREV-01** | `gate_review_node` — S-F06, behaviors B1–B3 | This is the human-oversight surface. **If it renders fields the Belt cannot edit, gate step 5 does not exist** and the Art. 14 claim made throughout this architecture is false | 14, 13, 12 | Low | **High** | Graph-level `interrupt()` rather than `HumanInTheLoopMiddleware`, whose edit/reject bugs would silently discard a Belt's correction (§19.9); every validated field editable with an explicit approve action (§50); no checkpoint commits before approval (§33.3) | Low — provided the UI contract holds; **this is the row where a UI regression becomes a compliance regression** | [Provider] | *open — customer may require evidence that the review screen is editable in the deployed build* |
+| **R-GATEAPPLY-01** | `gate_apply_node` — S-F07, behaviors B1–B8 | Commits the assessed record. Everything downstream reads what it writes, including any customer evaluation built on top. A partial or incorrect commit propagates silently | 14, 12, 10, 15 | Low | High | Runs only after explicit Belt approval (§33); writes to both Store and state so a crash cannot desynchronise them (§33.2); the document carries `citations`, `uploads`, `computation_results` and `acknowledged_gaps`, so what the phase was grounded in and what it consciously skipped are both visible; Tier 1 access raises rather than silently defaulting (§40.1) | Low–Med — **the compensating-action dependency (§45) is BLOCKED on the LangGraph upgrade**, so an external-write failure is currently uncompensated | [Provider] | *open — customer may require the audit trail as a deliverable* |
+| **R-CONTRA-01** | `ContradictionDetectionMiddleware` — S-C10, behaviors B1–B5 | The only component that can retroactively unsettle a committed record, via the re-approval cascade. **Detection is best-effort semantic judgment by the coach and can miss**, so a Belt's contradiction of a gate-approved value may go unflagged and downstream analysis may continue against a superseded number | 14, 15, 12, 13 | **Med–High** | Med | No tolerance threshold, so any material change is a mini-gate rather than a silent overwrite (§37); the Belt is given two explicit options with the approved value, its approving phase and their own words (§50); **§50's always-referenceable all-gate-fields tab is the acknowledged human backstop**, which is architecture rather than UI polish | **Med — stated honestly.** The previous mechanism detected nothing while appearing deterministic (DECISIONS §R1); this one is weaker in claim and stronger in fact, and the backstop is a human reading a tab | [Provider] | *open — customer should be told detection is best-effort and the tab is the control* |
+
+### 68.3 Pending classification — not register rows
+
+**Twelve entries carry `AI-ACT-REVIEW: uncertain`.** They are held here rather
+than in the register above, because §55.1's rule is bidirectional — every row
+traces to a flag, and every flag appears in the register — and putting
+unresolved classifications in it would break the check in both directions.
+
+| Entry | Why classification is genuinely unclear |
+|---|---|
+| `rag_lookup_methodology` (S-F14) | Grounds coaching in methodology (Art. 15); §27 records a real failure in which retrieval breakage read to the Belt as an absence of guidance |
+| `rag_lookup_evidence` (S-F15) | Reads Belt-supplied operational documents; the `case_id` filter is the only tenancy boundary in the retrieval path (Art. 10) |
+| `rag_lookup_case_history` (S-F16) | Surfaces other Belts' project data with no tenancy filter today (Art. 10; Appendix B item 1) |
+| `CoherenceMiddleware` (S-C13) | Its silent retry is the one scoped exception to the transparency principle — reasoned opacity, but opacity (Art. 13) |
+| `DMAICGraderMiddleware` (S-C14) | Grades the coach rather than the Belt, but can suppress or alter what the Belt receives, and its warning flag is Belt-visible |
+| `DMAICGateValidator` (S-C26) | Participates in the gate decision, but deterministically and without judgment — arguably a mitigation rather than a risk surface |
+| Layer 2c constraint check (S-F25) | Judges the quality of the Belt's own stated decision — closer to assessing the person than any other layer |
+| The policy advisory (S-F27) | Reviews a human's corrections; oversight support, but also the last check before commit and one of three anti-hallucination defences |
+| The escalation subgraph (S-F08) | An oversight mechanism, and also the terminal path for a Belt whose phase could not pass |
+| `request_human_approval` (S-F22) | An oversight escape hatch with no judgment of its own |
+| `degraded_mode_response` (S-F30) | Belt-facing content produced under failure; must not misrepresent system state (Art. 13) |
+| The `improve_case_index` write path (S-F36) | Publishes one Belt's project record into a corpus other Belts retrieve from, with no tenancy filter (Art. 10) |
+
+### 68.4 The infrastructure risk already on record
+
+**Carried from §46.1, not newly asserted:**
+
+| Risk ID | Item | Status |
+|---|---|---|
+| **R-INFRA-01** | The v2.1 fallback chain is single-region — Levels 1, 2 and 3 are all in Azure West Europe. A Frankfurt outage collapses three levels simultaneously rather than degrading one at a time. **DORA's ICT resilience obligations require geographic redundancy for continuity of critical functions, which makes this non-compliant for any regulated-entity deployment** — a launch blocker for that market, and EU AI Act data-governance provisions are why the secondary region must be inside the EU | Ratified v2.2 replacement designed (§46.1); **Appendix B item 16**; promotion trigger is *before production launch with real Belts* |
+
+**This row has no AI-ACT flag behind it and is not derived from one.** It is a
+DORA-side entry, recorded here because the register is the artifact handed to a
+prospect and a bank will ask this question first. It is marked as such so the
+flag-is-canonical rule is not read as broken by its presence.
 
 ---
 
@@ -5223,6 +8332,25 @@ it is excluded** (see Appendix D).
 | `github.com/langchain-ai/*` | Ongoing | Versions, breaking changes, open issues |
 | `langchain-ai.github.io/langmem` | Ongoing | Memory taxonomy — §28 |
 | `pypi.org` | Ongoing | Package versions |
+
+### Tier 1 — compliance
+
+*Added 2026-08-23 with Part XIII.*
+
+| Source | Topic |
+|---|---|
+| `https://artificialintelligenceact.eu/implementation-timeline/` | EU AI Act implementation timeline — the deadlines in §67.1 |
+| `https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai` | EU AI Act, European Commission — the regulatory framework |
+| `https://ai-act-service-desk.ec.europa.eu` | EU AI Act Service Desk — guidance and classification questions |
+| EUR-Lex, Regulation (EU) 2022/2554 | DORA regulation text — the register structure of §68 |
+| GitHub Spec Kit; AWS Kiro (`kiro.dev/docs/specs`) | Spec-Driven Development method references — the basis for Part XII's structure |
+
+> **Compliance-source discipline.** The EU AI Act and DORA are in **active
+> implementation with shifting guidance**. Any compliance claim must cite a
+> current-dated source; **if availability cannot be verified, mark it
+> "unverified — requires legal validation" rather than asserting it.** Nothing
+> in Part XIII is legal advice, and the classification question of §67.2 needs
+> qualified counsel.
 
 ### Tier 2 — official announcements
 

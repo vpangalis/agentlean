@@ -2047,3 +2047,126 @@ answer is "nothing", say so in the rule rather than assuming coverage. No
 automated fix is proposed here: extending the registry to governance prose
 would re-create the problem §55 documents. **The mitigation is that this class
 is now named and searched for deliberately during review.**
+
+---
+
+## Part S — The specification layer (2026-08-23)
+
+### S1 — `AGENTIC_ARCHITECTURE_REFERENCE.md` gains a specification Part
+
+**Status:** RATIFIED 2026-08-23
+**Source:** Spec-layer decision, 2026-08-23, governed by
+`agent-improve/docs/SPEC_LAYER_GUIDE.md`. **New decision — not a
+previously-logged item.**
+**Lands in:** reference **Part XII (§57–§66)** — new; **§55.1** — new; **§56**
+amendment list; **§2** canonical-ownership table; **Appendix C** Tier 1
+compliance block; and definitions relocated out of §5, §6, §7, §9, §12, §14,
+§15, §16, §17, §18, §19, §20, §24, §25, §26, §29, §33, §35, §40, §41, §45, §46
+and §48. Applied identically to `agent-improve/ARCHITECTURE.md`. This entry is
+both the decision record and the change-log entry required by §56.
+
+**The question.** The reference is an *architecture* — it explains shape and
+reasoning. It is not a *specification*: it does not define classes and
+functions to the level where code could be rebuilt from it without inventing
+the missing pieces. Two seams traced during the 2026-08-22 wiring review — the
+contradiction middleware (§R1) and `route_after_phase` (§R2) — proved the gap
+is real and produces exactly the endless-debugging failure this project exists
+to avoid.
+
+**The ruling.** Adopt the missing middle layer of Spec-Driven Development, as a
+new Part of the same document. Separate spec files re-create the drift the SSOT
+non-overlapping rule eliminated.
+
+| Decision | Ruling |
+|---|---|
+| Where | **Part XII, after Part XI, before the Appendices.** Architecture (why) precedes spec (how), per volatility separation |
+| Numbering | **§1–§56 do not renumber.** ~48 `CLAUDE.md` citations plus DECISIONS, the procedure, the SKILL.md files and code comments depend on them |
+| Entry identity | Stable `S-C##` / `S-F##` IDs, independent of section numbers |
+| Entry template | SIPOC + EARS behaviors + selective AI-ACT flag, calibrated against two approved samples transcribed verbatim at §57.2 and §57.3 |
+| Index schemas | **Stay in §23.** They are data-store schemas, not code signatures; §23.5 is a ratified procedure requiring changes to land there first |
+| Middleware | **Class entries only**, hook behaviour expressed as EARS. A second entry per hook would duplicate the SIPOC cells |
+| The 20 computation tools | **One entry**, not twenty. Twenty entries whose every cell reads `SPEC-GAP` hide the single real gap |
+| Governance | **§55.1**, a subsection of Anti-drift — five rules, each stated with what would catch a violation |
+
+**73 entries: 37 classes, 36 functions and nodes.** Five carry an AI-ACT flag;
+twelve carry `AI-ACT-REVIEW: uncertain`.
+
+**42 gaps marked, none filled.** That was the pass's binding constraint. G-41
+was closed by the founder supplying `agent-improve/docs/SPEC_SAMPLES.md`;
+**41 remain open** and are the review agenda. §66 is the register.
+
+**§66.7 records ten findings that are inconsistencies rather than
+absences**, and §66.8 records the cross-check run that produced several of them — including that the drift registry's path exclusions still name
+`agent-improve/**`, so **the reference has been unguarded-as-documentation and
+guarded-as-code since it moved to the monorepo root in v1.2** (F-01), and that
+§33 step 9 still carries the "supervisor reads `gate_passed`" wording that
+`CLAUDE.md` v2.2.20 deliberately tightened (F-02). **None was fixed in this
+pass**; each needs its own §56-routed decision.
+
+**No `CLAUDE.md` amendment and no `deprecated_patterns.yaml` change.** No rule
+there was touched and no reference section renumbered, so neither trigger in
+§56 step 5 fires.
+
+#### The finding worth carrying forward
+
+**The Supplier/Customer cross-check works, and its first run proves both
+halves of that.** It independently re-detected the Level 2 routing gap (G-01)
+and the new mapper-execution-site gap (G-42) from the wiring alone, without
+being told where to look — which is the verification surface the layer was
+adopted for.
+
+**It also produced 32 structural non-closures that mean nothing.** Nested
+sub-components, return paths and build-time relations all trip a rule written
+as though the call graph were flat and one-directional. **A check that reports
+36 failures of which 4 matter will be ignored by its third run** — which is
+the §55 failure mode, arriving from the opposite direction to the three
+already recorded. §55.1 rule 3 must be narrowed before it is automated. Full
+run and classification: reference §66.8.
+
+### S2 — Compliance and Risk becomes a Part of the reference
+
+**Status:** RATIFIED as scaffold 2026-08-23. **The classification question is
+UNRESOLVED and requires qualified legal advice.**
+**Lands in:** reference **Part XIII (§67–§68)** — new; Appendix C Tier 1
+compliance block. Applied identically to `agent-improve/ARCHITECTURE.md`.
+
+**The question.** The Digital Omnibus is enacted law — Regulation (EU)
+2026/1744, in force 27 July 2026 — and the high-risk deadlines are now fixed
+and unconditional: **2 December 2027** for standalone Annex III systems,
+which includes **employment**.
+
+**Agent Improve may be Annex III high-risk via the employment category**, and
+whether it crosses the line depends on **deployment, not on the code**: gate
+outputs feeding a formal evaluation is likely high-risk; a private learning
+aid with no institutional consequence is likely not.
+
+**The ruling.** **Do not answer the classification question here** — it is a
+legal determination. **Scaffold the compliance layer now anyway**, so that if
+the answer is high-risk no retrofit is needed. The eight core provider
+obligations (Art. 9–15, 43) map to mechanisms that already exist; §67.3 names
+each one.
+
+**The register is DORA-structured** — Regulation (EU) 2022/2554 — because DORA
+applies directly to financial customers who must track a third-party AI vendor
+as ICT risk, **and because the DORA register shape is the universal
+risk-register shape every industry uses.** One table is therefore
+cross-industry by construction: legible to a bank as DORA, to a factory as a
+risk register. It is the artifact handed to a prospect, which is why the
+`Customer Negotiation` column is deliberately open.
+
+**Five rows, one per flagged function.** The flag is canonical and the register
+is derived; when they disagree the flag wins and the row is regenerated
+(§55.1 rule 2). The twelve `AI-ACT-REVIEW: uncertain` entries are held in a
+separate table (§68.3) rather than given rows, because putting unresolved
+classifications in the register would break the bidirectional check in both
+directions.
+
+**One compliance risk was already in the document and is carried in, not newly
+asserted:** §46.1's single-region fallback chain, which DORA's ICT resilience
+obligations make **non-compliant for any regulated-entity deployment**. It is
+`R-INFRA-01`, it has no AI-ACT flag behind it, and it is marked as such so the
+flag-is-canonical rule is not read as broken by its presence.
+
+**Compliance-source discipline binds on every claim in this Part:** cite a
+current-dated source, or mark it "unverified — requires legal validation."
+Nothing in Part XIII is legal advice.
