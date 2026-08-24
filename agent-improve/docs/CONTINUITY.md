@@ -15,7 +15,7 @@ themselves; do not carry a line forward because it was here before.
 -->
 
 # AgentLean — Session Continuity Guide
-# Version 3.0 — 2026-08-22
+# Version 3.1 — 2026-08-24
 
 > **Read this first, then stop reading it.** This file orients. The binding
 > documents are named in §2 and they win on every point of detail.
@@ -245,6 +245,9 @@ Checked against the files 2026-08-22:
 2. **Confirm the working tree is clean and pushed.**
 3. **Open the procedure at the next step.** Check its **Precondition**, run its
    prompt, run its **Verify** method.
+4. **If the session's work is resolving a SPEC-GAP** (root reference §66),
+   read the **Standing Reasoning Protocol** below before touching anything.
+   No gap is closed on the local fix alone.
 
 ### Hard rules
 
@@ -270,6 +273,37 @@ Checked against the files 2026-08-22:
 > found one it could not reach. **Any sweep concluding "zero remaining
 > references" ends with an unfiltered `grep -rn`.** A filtered tool locates;
 > it is not evidence of absence. Recorded as reference §55.
+
+### STANDING REASONING PROTOCOL — filling SPEC-GAPs
+
+**This governs every SPEC-GAP resolution** (root reference §66). It is
+process governance, not architecture — it is amended here and in
+`docs/SPEC_LAYER_GUIDE.md` §6.1, not through reference §56.
+
+*Reproduced verbatim as approved 2026-08-24. The only alteration is the
+title line, lifted into a heading; no word is changed.*
+
+Every spec gap is resolved through this discipline, never a quick local patch:
+
+1. DETAIL — the specific fix: exactly what field/function/signature changes.
+2. HOLISTIC — trace it through every SIPOC link it touches. Each SIPOC entry is
+   a use-case skeleton (Supplier→Input→Process→Output→Customer), so a change to
+   one function's Input/Output ripples to every Supplier and Customer connected
+   to it. List the affected use cases; confirm the fix holds across ALL of them,
+   not just the one that surfaced the gap.
+3. TRUSTED-SOURCE CHECK — verify the chosen pattern against current
+   LangGraph/LangChain/LangSmith sources (and EU AI Act/DORA for
+   compliance-touching gaps). No pattern is adopted on plausibility; it is
+   confirmed against a current source or explicitly marked unverified. (R2
+   lesson: a plausible API that doesn't exist is a demonstrated failure mode.)
+4. USE-CASE FORWARD-NOTE — SIPOCs are the basis for the sequence diagrams / use
+   cases to be built later. Each resolved gap records which use case(s) it
+   belongs to, so the later sequence-diagram pass has the material ready.
+
+Resolving a gap MAY surface new gaps — the holistic trace can reveal a further
+function that mishandles the same field. The gap list is not fixed; expand it
+when the trace demands. No gap is closed on DETAIL alone; steps 2–4 are
+mandatory.
 
 ### The lesson this session keeps re-teaching
 
@@ -300,6 +334,7 @@ changes are separate commits.
 
 | Version | Date | Change |
 |---|---|---|
+| **3.1** | 2026-08-24 | **Standing Reasoning Protocol added** (§6) — the discipline every SPEC-GAP resolution follows: detail, holistic SIPOC trace, trusted-source check, use-case forward-note. Also in `docs/SPEC_LAYER_GUIDE.md` §6.1. Process governance, not a §56 amendment |
 | **3.0** | 2026-08-22 | **Rebuilt from the live files.** v2.8 had drifted on the CLAUDE.md version (said 2.2.14, actual 2.2.18), the entire document map (the reference moved to root and was renamed; `ARCHITECTURE.md` became a copy), the code-migration step (said 2.5+ pending; actual 2.3 done / 2.4 next), and three decision statuses. Duplicate `## 4` heading fixed |
 | 2.8 | 2026-08-19 | Last version before the reference rewrite |
 

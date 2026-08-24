@@ -213,6 +213,35 @@ For any NEW rule added later: state what would catch a violation of it in prose;
 if the answer is "nothing," say so in the rule rather than assuming coverage
 (the R2 discipline — a rule with no enforcement is a rule that rots).
 
+### 6.1 STANDING REASONING PROTOCOL — filling SPEC-GAPs
+
+*Reproduced verbatim as approved 2026-08-24. The only alteration is the
+title line, lifted into a heading; no word is changed.*
+
+Every spec gap is resolved through this discipline, never a quick local patch:
+
+1. DETAIL — the specific fix: exactly what field/function/signature changes.
+2. HOLISTIC — trace it through every SIPOC link it touches. Each SIPOC entry is
+   a use-case skeleton (Supplier→Input→Process→Output→Customer), so a change to
+   one function's Input/Output ripples to every Supplier and Customer connected
+   to it. List the affected use cases; confirm the fix holds across ALL of them,
+   not just the one that surfaced the gap.
+3. TRUSTED-SOURCE CHECK — verify the chosen pattern against current
+   LangGraph/LangChain/LangSmith sources (and EU AI Act/DORA for
+   compliance-touching gaps). No pattern is adopted on plausibility; it is
+   confirmed against a current source or explicitly marked unverified. (R2
+   lesson: a plausible API that doesn't exist is a demonstrated failure mode.)
+4. USE-CASE FORWARD-NOTE — SIPOCs are the basis for the sequence diagrams / use
+   cases to be built later. Each resolved gap records which use case(s) it
+   belongs to, so the later sequence-diagram pass has the material ready.
+
+Resolving a gap MAY surface new gaps — the holistic trace can reveal a further
+function that mishandles the same field. The gap list is not fixed; expand it
+when the trace demands. No gap is closed on DETAIL alone; steps 2–4 are
+mandatory.
+
+---
+
 ---
 
 ## 7. The two calibrated reference samples
