@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.22 — August 2026
+# Version 2.2.23 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -433,6 +433,38 @@ the five-hop cap §3.7 mandates has never been enforceable.
 > nothing.** `.get(key, default)` on an undeclared key never raises, so nothing
 > anywhere reported that the budget was fictional. Full record:
 > `ARCHITECTURE.md` §66 (G-04, closed) and its S-C02 entry.
+
+### 0.17 — What Changed in 2.2.23 — the subgraph learns to route
+
+**Level 2 routing existed as a rule with no design.** §15 said `Command` inside
+subgraphs; §13 drew a branch; **no `Command(goto=…)` was specified anywhere**,
+and what a Belt REJECT did was stated nowhere at all.
+
+| Area | v2.2.22 | v2.2.23 |
+|---|---|---|
+| Field / gate decision | Drawn after the executor | **The planner owns it** — the executor returns plainly and emits no routing `Command` (§1.3, §17) |
+| `gate_attempts` | Increment site unstated | **Once, at `validation_stack` entry.** A partial stack still costs an attempt |
+| Escalation hop | Unstated | `Command.PARENT` — **the only use of it in this architecture** |
+| Belt REJECT | Undefined | **Loops to the planner with a mandatory reason** (§9.1) |
+| `PhaseState` | 19 author-populated + 1 managed | **20 + 1 managed, 21 declared** — adds `rejection_feedback` (§10.1) |
+
+**`rejection_feedback` is a third actor at a third moment.** `validator_feedback`
+is what the validation layers said about the AI's output at step 2; `belt_edits`
+is what the Belt corrected at step 5; **`rejection_feedback` is why the Belt
+refused at step 7.** Merging any two of the three would have the coach read one
+actor's intent as another's — the conflation the original single `feedback`
+field was split to end.
+
+> **The reason is mandatory, and that is the ruling rather than a nicety.** A
+> rejection with no reason gives the coach nothing to change, so the next turn
+> reproduces the one just refused — the Belt rejects again, and the loop is a
+> loop rather than a conversation.
+
+**Two dependencies are recorded, not assumed.** DP1's "field complete" predicate
+needs the per-phase field ordering (**G-38**, open), and the escalation exit
+needs a node name (**G-34**, open). The *structure* is settled; those two are
+not, and `ARCHITECTURE.md` S-F13 says so at the point of use rather than in a
+footnote.
 
 ---
 
@@ -2322,6 +2354,7 @@ class PhaseState(TypedDict):
     final:              dict[str, Any]     # approved gate document — §9.6
     gate_attempts:      int                # retry counter, cap 3
     validator_feedback: list[dict]         # accumulated per-attempt feedback
+    rejection_feedback: list[dict]         # Belt reject reasons — §9.1 step 7
     citations:          list[dict]         # sources cited this phase
     uploads:            list[dict]         # files the Belt uploaded this phase
     hop_results:        list[str]          # ordered hop answers; [] otherwise
@@ -2341,6 +2374,12 @@ the five-hop cap never fires (§3.7).
 
 **Any new field requires an amendment** to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56)
 **whatever category it is placed in**, same as `SupervisorState`'s eighth.
+
+**`rejection_feedback` carries the Belt's stated reasons for rejecting at the
+gate** and is read by the planner on the re-coaching turn. **It is separate from
+`validator_feedback` and must stay separate** — the system rejecting the AI's
+output and the Belt rejecting the document are two actors at two moments, the
+same rule that keeps `validator_feedback` and `belt_edits` apart.
 
 **`case_id` and `current_phase` are COPIED DOWN by the input mapper at phase
 entry and are READ-ONLY inside the subgraph.** They are never written back up;

@@ -1,6 +1,6 @@
 <!--
 Document: agent-improve/docs/CONTINUITY.md
-Version: 3.5d — 2026-08-24
+Version: 3.6 — 2026-08-24
 Purpose: Session-start orientation. A new session reading ONLY this file should
          be able to orient fully and continue without losing a day.
 
@@ -15,7 +15,7 @@ themselves; do not carry a line forward because it was here before.
 -->
 
 # AgentLean — Session Continuity Guide
-# Version 3.5d — 2026-08-24
+# Version 3.6 — 2026-08-24
 
 > **Read this first, then stop reading it.** This file orients. The binding
 > documents are named in §2 and they win on every point of detail.
@@ -206,9 +206,9 @@ open is currently carrying the severity those three did.
 
 > **Things owed that are NOT §66 gaps will not surface from the register.**
 > Two are logged under *Watches* below — the §16 persistence repro and the
-> two-venv stale-blocker. A third is a genuine §66 gap and the largest open
-> item: **G-01, the Level 2 `Command` routing** design, which gates the phase
-> subgraph's wiring.
+> two-venv stale-blocker. **G-01, the Level 2 `Command` routing, is no longer
+> among them** — it was resolved 2026-08-24 with G-02 (`ARCHITECTURE.md` S-F13),
+> and **Group A of the register is now empty.**
 
 ### Watches
 
@@ -399,6 +399,7 @@ changes are separate commits.
 
 | Version | Date | Change |
 |---|---|---|
+| **3.6** | 2026-08-24 | **G-01 + G-02 resolved together.** Level 2 `Command` routing (S-F13 — the planner owns the field/gate decision per §17); Belt reject → planner with a required reason (new field `rejection_feedback`). §4's `PhaseState` count fixed to 20+1. Register 8 closed / 36 open; **Group A empty.** Cross-links G-38 (DP1 predicate) and G-18 (reject payload) |
 | **3.5d** | 2026-08-24 | §2 document-map versions synced to actuals (reference, `CLAUDE.md`, `ARCHITECTURE.md`) — the same drift class §2 was rebuilt to prevent, corrected in the orientation file a new session reads first |
 | **3.5c** | 2026-08-24 | G-04 fully settled (S-F09 sample synced, `ARCHITECTURE.md` v1.9.1). Two watches logged that are **not** §66 gaps: §16 persistence repro owed; two-venv stale-blocker (hook reads root venv 1.1.10; `agent-improve/.venv` has 1.2.11; three docs may overstate the §45/§16 blocker — needs venv authority confirmed first). Also removed a stale intro line left above the live-gap list by v3.5 |
 | **3.5** | 2026-08-24 | **G-04 resolved** — `remaining_steps` declared as a LangGraph managed value on `PhaseState`; the hop cap now fires (the `.get(..., 10)` default had masked it). `ARCHITECTURE.md` S-C02/§26/§66 and `CLAUDE.md` §10.1 amended; register 6 closed / 38 open. Field count now "19 author-populated + 1 managed" |

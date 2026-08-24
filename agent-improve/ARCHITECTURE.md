@@ -73,9 +73,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.9.1 · 2026-08-24
+Version 1.10 · 2026-08-24
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.10 (2026-08-24)** — **§56 AMENDMENT. G-01 and G-02 resolved together; `PhaseState` gains `rejection_feedback`, 20 author-populated + 1 managed.** **S-F13 is designed rather than marked**: DP1 — the **planner** owns the field/gate decision and the executor returns plainly, emitting no routing `Command` (§17); DP2 — `gate_attempts` increments **once at `validation_stack` entry**, and the three exits are pass → `gate_review`, fail under cap → planner with `validator_feedback`, fail at cap → escalation via `Command.PARENT`, **the only use of `Command.PARENT` in this architecture**; DP3 — `gate_review` interrupts, and `gate_apply` branches approve → `END` / **reject → planner carrying `rejection_feedback`**, with the Belt's reason **mandatory**. Every routing node returns `Command` exclusively, annotated `-> Command[Literal[...]]`, and no routing node has a static edge out (§15 C2). **`rejection_feedback` is a third actor at a third moment** and is never merged into `validator_feedback`. **Two dependencies are recorded rather than assumed:** DP1's predicate needs **G-38**, and the escalation node name needs **G-34** — both still open. §4's stale `PhaseState (17)` label corrected. Register: 44 identified, 8 closed or resolved, 36 open; **Group A is now empty.** Verified against current LangGraph documentation, 2026-08-24. §13's diagram was redrawn in the same commit to match — **§13's phase-subgraph diagram redrawn to agree with S-F13 DP1 and §17.** **The field-complete / more-fields decision moves from after the executor to the planner**, which is where §13's own prose already put it: the planner inspects `artifacts` and returns `Command(goto="executor")` or `Command(goto="validation_stack")`, and **the executor returns plainly, emitting no routing Command** — it decides no strategy (§17). Deciding in the executor would have fused the two roles while leaving the node names intact. The branch is relabelled from "conditional edge" to `Command` routing (§15). **`gate_apply` now shows two exits:** approve → `END`, and **reject → planner carrying `rejection_feedback`** (§33, G-02), drawn in the same left return channel as the validation stack's `validator_feedback` loop because they are the two ways control re-enters coaching. A routing summary states who returns a `Command` and who does not, and that the only static edges are `START → planner` and the parent's phase edges (§15 C2).
 
 **v1.9.1 (2026-08-24)** — S-F09 guard sample synced to the G-04 resolution (direct access; the `.get(...,10)` artifact removed).
 
@@ -483,7 +485,7 @@ was a recurring error in the source material:
         ▼           ▼           ▼           ▼           ▼
      define →   measure →   analyse →   improve →   control → END
         │
-        │  each phase subgraph — PhaseState (17), no checkpointer
+        │  each phase subgraph — PhaseState (20 + 1 managed), no checkpointer
         ▼
    ┌───────────────────────────────────────────────────────┐
    │  planner ──► executor ──► validation_stack            │
@@ -595,8 +597,8 @@ structural rather than stylistic.
 **Specification:** the canonical schema and its field table are **§58.2 — S-C02**.
 This section keeps the reasoning.
 
-**Nineteen author-populated fields** (two identity, three plumbing, fourteen
-content) **plus one engine-managed value — twenty declared.** The managed value
+**Twenty author-populated fields** (two identity, three plumbing, fifteen
+content) **plus one engine-managed value — twenty-one declared.** The managed value
 is **declared but NOT populated by the input mapper**; LangGraph's execution loop
 supplies it. **Any new field requires an amendment**,
 whatever category it is placed in (§56).
@@ -1172,32 +1174,24 @@ Each phase subgraph contains **exactly five nodes**.
 | `gate_apply` | Applies Belt edits, runs the policy advisory, assembles and writes the gate document, routes on (§33) |
 
 ```
-                     ┌──────────────────────────────────────────────┐
-                     │                                              │
-                     ▼                                              │
-              ┌──────────────┐                                      │
-   START ────▶│   planner    │◀─────────────────────────┐           │
-              └──────┬───────┘                          │           │
-                     │ coaching_plan (typed — §17)      │           │
-                     ▼                                  │           │
-              ┌──────────────┐                          │           │
-              │   executor   │  create_agent            │           │
-              │              │  ReAct loop, ≤5 hops     │           │
-              │  ┌────────┐  │  capped by RemainingSteps│ not clean │
-              │  │ tools  │  │  7 universal +           │           │
-              │  │  8–15  │  │  phase computation       │           │
-              │  └────────┘  │                          │           │
-              └──────┬───────┘                          │           │
-                     │ draft (dict)                     │           │
-                     │                                  │           │
-        ┌────────────┴─────────────┐                    │           │
-        │ conditional edge         │                    │           │
-        │                          │                    │           │
-   field complete? ── no ──────────┴────────────────────┘           │
-        │ yes                                                       │
-        │ more fields? ── yes ── field_index++ ─────────────────────┘
-        │ all captured
-        ▼
+   START
+     │
+     ▼
+  ┌──────────────────────────────────┐          ┌────────────────┐
+  │            planner               │─────────▶│    executor    │
+  │  reads artifacts; produces the   │  Command │  create_agent  │
+  │  CoachingPlan; owns the ONLY     │  (goto=  │  ReAct, ≤5 hops│
+  │  field / gate routing decision   │ executor)│  RemainingSteps│
+  │                                  │          │  7 universal + │
+  │   · field incomplete → executor  │◀─────────│  phase comp.   │
+  │   · more fields      → executor  │  plain   │                │
+  │     (field_index++)              │  return  │  decides NO    │
+  │   · all captured     → val. stack│  §17     │  strategy — §17│
+  └────────────────┬─────────────────┘          └────────────────┘
+                   │
+       Command(goto="validation_stack") — §15 · S-F13 DP1
+                   │
+                   ▼
   ┌─────────────────────┐
   │ validation_stack    │  §34 — layers 2b/2c/2d, cheapest first
   │  2b field presence  │  shared cap: 3 attempts (gate_attempts)
@@ -1209,18 +1203,35 @@ Each phase subgraph contains **exactly five nodes**.
   │            ┌──────────────────┐
   │            │   gate_review    │  interrupt() — Belt sees fields
   │            └────────┬─────────┘
-  │                     │ Command(resume=...)
-  └──▶ back to planner  ▼
-       (validator_ ┌──────────────────┐
-        feedback)  │   gate_apply     │
-                   │ · apply edits    │
-                   │ · policy advisory│
-                   │ · assemble doc   │
-                   │ · store.put()    │
-                   │ · final = doc    │
-                   └────────┬─────────┘
-                            ▼
-                           END   (parent's static edge advances the phase)
+  │                     │ Command(resume=…)
+  │                     ▼
+  │            ┌──────────────────┐
+  │            │   gate_apply     │
+  │            │ · apply edits    │
+  │            │ · policy advisory│
+  │            │ · assemble doc   │
+  │            │ · store.put()    │
+  │            │ · final = doc    │
+  │            └───┬──────────┬───┘
+  │        reject  │          │  approve
+  ├────────────────┘          ▼
+  │                          END   (parent's static edge advances the phase)
+  │
+  └──▶ back to planner — TWO Command returns, both carrying feedback:
+          validation fail → validator_feedback   (§34, shared cap 3)
+          Belt reject     → rejection_feedback   (§33, G-02)
+
+   Routing summary — who returns a Command, and who does not
+     · planner          Command(goto="executor" | "validation_stack").
+                        The single field / gate decision point — S-F13 DP1
+     · executor         plain return to the planner. Emits NO routing
+                        Command; it decides no strategy (§17)
+     · validation_stack Command: pass → gate_review · fail → planner
+                        · gate_attempts ≥ 3 → escalation (§38)
+     · gate_apply       Command: approve → END · reject → planner
+     · static edges     START → planner, and the parent's phase edges.
+                        Nothing else. A node never mixes a Command with a
+                        static edge — both paths execute, silently (§15 C2)
 ```
 
 ### The subgraph is a cycle, not a pipeline
@@ -1230,6 +1241,29 @@ control returns to the planner to decide whether to keep coaching the current
 field, advance to the next, or trigger the gate. That cycle is why LangGraph
 rather than a DAG engine is the runtime — a DAG cannot express "go back and try
 this field again with what you just learned."
+
+**The planner is the single field/gate decision point, and the executor returns
+plainly.** The executor reads `coaching_plan`, coaches, and hands control back
+without choosing where control goes — it decides no strategy, which is the whole
+content of the Planner/Executor split (§17). The planner then inspects
+`artifacts` and returns `Command(goto="executor")` to keep coaching or
+`Command(goto="validation_stack")` once every field is captured (S-F13 DP1).
+**Putting that decision in the executor would fuse the two roles** while leaving
+the node names intact — the failure §17 exists to prevent, and the harder one to
+see because the diagram would still show two boxes.
+
+**The cycle is built from `Command` routing, not from conditional edges.** The
+target is part of the node's own return value; there is no anonymous edge
+function deciding for it (§15). That distinction is load-bearing rather than
+terminological: **a node may not mix a `Command` with a static edge, because
+both paths would execute, silently** (§15 C2). The only static edges in a phase
+are `START → planner` and the parent's phase-to-phase edges.
+
+**Control returns to the planner from two places downstream, and both carry
+feedback.** The validation stack returns `validator_feedback` on a failed
+attempt (§34, shared cap of 3); `gate_apply` returns `rejection_feedback` when
+the Belt rejects (§33). They are drawn as parallel loops because they *are*
+parallel — the two ways a phase re-enters coaching after having left it.
 
 ### Two node names are BANNED
 
@@ -2911,6 +2945,14 @@ to walk through twice.
 |---|---|
 | `gate_review_node` | Fires the interrupt, presents validated fields, **stops** |
 | `gate_apply_node` | Reads the Belt's response, applies corrections, runs the policy advisory, assembles and writes the document, routes onward |
+
+**`/gate/reject` is now specified.** `gate_apply` branches on the Belt's
+decision: **approve → assemble, write, `END`** (the parent's static edge
+advances the phase); **reject → `Command(goto="planner")` carrying
+`rejection_feedback`**, which returns the phase to coaching with the Belt's
+stated reason in hand. **The Belt must supply a reason** — a rejection with no
+reason gives the coach nothing to change, and the next turn would repeat the
+one just refused. Full routing: **S-F13 DP3**; the field: **S-C02**.
 
 **Collection and application are separated** because they happen either side of
 a process boundary — the interrupt may be resumed hours or days later, in a
@@ -4965,6 +5007,7 @@ class PhaseState(TypedDict):
     final:              dict[str, Any]
     gate_attempts:      int
     validator_feedback: list[dict]
+    rejection_feedback: list[dict]
     citations:          list[dict]
     uploads:            list[dict]
     hop_results:        list[str]
@@ -4973,8 +5016,8 @@ class PhaseState(TypedDict):
     # ── engine-managed (1) ──────────────────────────
     remaining_steps:    RemainingSteps
 ```
-**Nineteen author-populated fields** (two identity, three plumbing, fourteen
-content) **plus one engine-managed value — twenty declared.** The managed value
+**Twenty author-populated fields** (two identity, three plumbing, fifteen
+content) **plus one engine-managed value — twenty-one declared.** The managed value
 is **declared but NOT populated by the input mapper**; LangGraph's execution loop
 supplies it. **Any new
 field requires a §56 amendment, whatever category it is placed in.**
@@ -4998,6 +5041,7 @@ field requires a §56 amendment, whatever category it is placed in.**
 | `final` | `dict[str, Any]` | The approved gate document. A `dict` and never a `str`, so a resumed graph can read what was approved without re-reading the Store | none | `gate_apply_node` | output mapper; crash recovery |
 | `gate_attempts` | `int` | The shared retry counter for the four-layer validation stack. Per phase, in the checkpoint — never in route scope | none | validation stack increments; `gate_apply` resets to `0` | validation stack; the escalation edge at `>= 3` |
 | `validator_feedback` | `list[dict]` | Accumulated per-attempt validation failures, each recording attempt, layer, criteria failed and specific feedback. What makes the shared cap of 3 defensible | none (append by the writer) | validation stack appends; `gate_apply` resets to `[]` | the coach, on retry |
+| `rejection_feedback` | `list[dict]` | The Belt's per-reject reasons at the gate — the stated reason plus the rejected edits as context. Read on the re-coaching turn so the coach addresses what the Belt actually objected to | none (append by the writer) | `gate_apply`, on a Belt reject; reset to `[]` by `gate_apply` when the gate passes | the planner (S-F03), on the re-coaching turn |
 | `citations` | `list[dict]` | Sources the coach cited this phase — `source`, `page`, `content_summary`, `turn` | none (append by the writer) | executor, from `CoachingResponse.citations` | gate document assembly |
 | `uploads` | `list[dict]` | Files the Belt uploaded this phase — `evidence_index_id`, `filename`, `phase`, `uploaded_at`, `summary`. An empty list means the phase reached its conclusions from typed statements alone | none (append by the writer) | the upload handler — **see G-36** | gate document assembly; evidence context |
 | `hop_results` | `list[str]` | Ordered answers from a planned multi-hop chain. `[]` on every single-hop turn. State rather than a node local, so LangSmith can see it and a resume does not lose it | none | `analyse_executor_node` | the synthesis call; the LangSmith state view |
@@ -5008,7 +5052,7 @@ field requires a §56 amendment, whatever category it is placed in.**
 
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
 |---|---|---|---|
-| B1 | a phase subgraph is entered | populate the **nineteen author-populated fields** from the input mapper; no field SHALL be left undeclared. **`remaining_steps` is the one declared field the mapper SHALL NOT populate** — it is engine-managed, `NotRequired` in intent, and LangGraph's execution loop supplies it | §9 |
+| B1 | a phase subgraph is entered | populate the **twenty author-populated fields** from the input mapper; no field SHALL be left undeclared. **`remaining_steps` is the one declared field the mapper SHALL NOT populate** — it is engine-managed, `NotRequired` in intent, and LangGraph's execution loop supplies it | §9 |
 | B2 | the planner fires | replace `coaching_plan` entirely; it SHALL NOT be appended to or queued | §6 |
 | B3 | a validation layer fails | increment `gate_attempts` by one and append one entry to `validator_feedback` | §34 |
 | B4 | the gate passes | reset `gate_attempts` to `0` and `validator_feedback` to `[]`, and only `gate_apply` SHALL do so | §33.2 |
@@ -5017,11 +5061,17 @@ field requires a §56 amendment, whatever category it is placed in.**
 | B7 | `coaching_plan` is read | read it by attribute (`coaching_plan.retrieval_hops`), never by subscript | §6 |
 | B8 | a phase subgraph is entered | copy `case_id` and `current_phase` down from the parent `SupervisorState`, and take them from **no other source** — not config, not a build-time constant | §5, §9 |
 | B9 | any node inside the subgraph runs | treat `case_id` and `current_phase` as **read-only**; no node SHALL return either key in its state-update dict | §5 |
+| B10 | a Belt rejects at the gate | `gate_apply` SHALL append one entry to `rejection_feedback` and route to the planner; it SHALL NOT merge that entry into `validator_feedback` | §33, S-F13 |
 
 **Invariants:**
 - `validator_feedback` (what the system said about the AI's output at step 2)
   and `belt_edits` (what the Belt corrected at step 5) are **two actors at two
   moments** and MUST NOT be merged.
+- `rejection_feedback` (why the Belt rejected at step 7) is a **third actor at a
+  third moment** and MUST stay separate from both, for the same reason. Merging
+  it into `validator_feedback` would have the coach read a Belt's rejection as a
+  validation failure — the exact conflation the `feedback` field was split to
+  end.
 - `artifacts` (WHAT was captured) and `step_log` (HOW) MUST stay separate
   fields.
 - `gate_attempts` MUST be in the checkpoint. Holding it in route scope is the
@@ -5405,7 +5455,7 @@ await graph.ainvoke(
 ### 58.11 S-F02 · `build_phase_subgraph(phase, llm)`
 
 **Architecture:** §12, §13 · **File:** `phases/{phase}/graph.py` · **Procedure:** steps 4.1, 4.4
-*Rebuild test: blocked on G-01.*
+*Rebuild test: blocked on G-38 — the routing is designed (S-F13), its DP1 predicate is not.*
 
 **Purpose:** Builds one phase subgraph. It takes the phase as a parameter
 because it must select that phase's computation-tool subset (§30).
@@ -5437,9 +5487,10 @@ def build_phase_subgraph(phase: str, llm):
 | B3 | registering the executor node | apply `timeout=TimeoutPolicy(run_timeout=45)` and `error_handler=phase_error_recovery` | §45 |
 | B4 | selecting tools | bind the universal seven plus that phase's computation subset, never more than 16 in total | §30 |
 
-> **SPEC-GAP (G-01):** the intra-phase edges this function wires are the Level 2
-> `Command` routing, which does not exist — see S-F13. Until it lands, this
-> entry cannot pass the rebuild test.
+> **Resolved — G-01, see S-F13.** The intra-phase edges this function wires are
+> the Level 2 `Command` routing, designed 2026-08-24. **Its DP1 predicate still
+> depends on G-38** (open), so this entry's rebuild test is blocked on that
+> rather than on the routing.
 
 > **SPEC-GAP (G-33):** if `load_skill(name)` is a registered tool bound to the
 > executor (§19.2, §32), it is an eighth universal tool and every phase count in
@@ -5449,7 +5500,7 @@ def build_phase_subgraph(phase: str, llm):
 ### 58.12 S-F03 · `phase_planner` node
 
 **Architecture:** §13, §17 · **File:** `phases/{phase}/nodes.py` · **Procedure:** step 6.1
-*Rebuild test: blocked on G-01 and G-38.*
+*Rebuild test: blocked on G-38.*
 
 **Purpose:** Decides strategy and nothing else. Produces one `CoachingPlan` per
 turn — which field to focus on, what action to take, which retrieval mode — and
@@ -5482,9 +5533,11 @@ about the Belt and produces no assessment. Pure orchestration.
 > **SPEC-GAP (G-38):** "advance to the next field" has no defined ordering
 > source — see S-C02.
 
-> **SPEC-GAP (G-01):** whether the planner returns `Command(goto="executor")`
-> versus `Command(goto="validation_stack")` on field-complete is decision point
-> 1 of the Level 2 routing gap — see S-F13.
+> **Resolved — G-01 DP1, see S-F13.** The planner returns
+> `Command(goto="executor")` to keep coaching and
+> `Command(goto="validation_stack")` once every field is captured. **It owns
+> this decision; the executor returns plainly** (§17). The *predicate* —
+> "field complete", "more fields" — still depends on G-38 (open).
 
 ### 58.13 S-F04 · `phase_executor` node
 
@@ -5501,7 +5554,7 @@ DORA row `R-EXEC-01`.**
 ### 58.14 S-F05 · `validation_stack` node
 
 **Architecture:** §13, §34 · **File:** `phases/{phase}/nodes.py` · **Procedure:** step 7.2
-*Rebuild test: blocked on G-01 and G-08.*
+*Rebuild test: blocked on G-08 and G-34.*
 
 **Purpose:** The gate-boundary quality node. Runs layers 2b, 2c and 2d in that
 order — cheapest first, each firing only if the previous passes — against the
@@ -5554,14 +5607,16 @@ and B7 and Layer 2d (S-F26).*
 > and gate assembly, and what shape they take, is undesigned — to be designed
 > with founder.
 
-> **SPEC-GAP (G-01):** this node's three exits — pass, fail, escalate — are
-> decision point 2 of the Level 2 routing gap, including its ownership of the
-> `gate_attempts` increment — see S-F13.
+> **Resolved — G-01 DP2, see S-F13.** Pass → `Command(goto="gate_review")`;
+> fail under cap → `Command(goto="planner")` with `validator_feedback`; at the
+> cap → escalation via `Command.PARENT`. **`gate_attempts` increments once, at
+> entry** — a partially-run stack still costs an attempt. The escalation target
+> name depends on G-34 (open).
 
 ### 58.15 S-F06 · `gate_review_node`
 
 **Architecture:** §13, §33.1 · **File:** `phases/{phase}/nodes.py` · **Procedure:** step 7.3
-*Rebuild test: blocked on G-02 and G-18.*
+*Rebuild test: blocked on G-18.*
 
 **Purpose:** Fires the interrupt. Presents the validated fields to the Belt and
 **stops.** It applies nothing and decides nothing — collection and application
@@ -5605,15 +5660,15 @@ false.
 > are Pydantic v2 and defines none, and this payload crosses the API boundary to
 > the gate review screen — to be designed with founder.
 
-> **SPEC-GAP (G-02):** `POST /gate/reject` exists in §49 and in §33.1's frontend
-> sequence, and what a rejection does — re-coach, or apply-with-edits — is
-> stated nowhere. It is a coaching-philosophy ruling, not a transcription — to
-> be designed with founder.
+> **Resolved — G-02, see S-F13 DP3.** This node interrupts and stops; it routes
+> nothing. The Belt's decision is acted on by `gate_apply`: approve → `END`,
+> **reject → planner carrying `rejection_feedback`**, with the reason mandatory.
+> **The `/gate/reject` payload that must carry it depends on G-18** (open).
 
 ### 58.16 S-F07 · `gate_apply_node`
 
 **Architecture:** §13, §33.1, §33.2, §40.1 · **File:** `phases/{phase}/nodes.py` · **Procedure:** step 7.3
-*Rebuild test: blocked on G-02, G-03, G-08 and G-28.*
+*Rebuild test: blocked on G-08 and G-28.*
 
 **Purpose:** The commit. Applies the Belt's edits, runs the non-blocking policy
 advisory, assembles the `{Phase}Output` gate document, and **writes it twice** —
@@ -5673,8 +5728,10 @@ reads what this node writes.
 > four remaining assemblies are unwritten, and §40 requires that assembly
 > reference every field in the schema — see S-F28.
 
-> **SPEC-GAP (G-02):** what this node does on a Belt rejection is unstated — to
-> be designed with founder.
+> **Resolved — G-02, see S-F13 DP3.** On reject this node returns
+> `Command(goto="planner", update={"rejection_feedback": [...]})` — a new
+> coaching turn carrying the Belt's stated reason, never merged into
+> `validator_feedback` (S-C02 B10).
 
 ### 58.17 S-F08 · The escalation subgraph
 
@@ -5971,37 +6028,94 @@ The stability condition stated at S-F10 applies to all five.
 ### 58.22 S-F13 · Level 2 `Command` routing
 
 **Architecture:** §13, §15 · **File:** `phases/{phase}/graph.py` · **Procedure:** steps 4.1, 4.4
-*Rebuild test: not met. This entry is a gap marker.*
+*Rebuild test: met.*
 
-**Purpose:** The intra-phase routing that makes the subgraph a cycle. §13 draws
-it, §15 states the rule that `Command` routing is for inside phase subgraphs
-only — and **no `Command(goto=...)` routing code exists anywhere in this
-document.**
+**Purpose:** The intra-phase routing that makes the subgraph a cycle. §15 states
+the rule — `Command` inside phase subgraphs, static edges between phases — and
+this entry is the design that rule was waiting for.
 
-**What is settled and binds on whatever design lands:**
+**Every routing node returns a `Command` exclusively**, annotated
+`-> Command[Literal[...]]` so the reachable targets are visible to the type
+checker and to LangGraph's graph construction. **No routing node has a static
+edge out of it** (§15 C2). The only static edges in a phase are
+`START → planner` and the parent's phase-to-phase edges.
+
+**Verified against current LangGraph documentation, 2026-08-24.**
+
+#### DP1 — the planner owns the field / gate decision
+
+**The executor returns plainly and emits no routing `Command`.** It consumes
+`coaching_plan`, coaches, and hands control back; it decides no strategy, which
+is the whole content of the Planner/Executor split (§17).
+
+**The planner then inspects `artifacts` and returns:**
+
+| Condition | Return |
+|---|---|
+| Field incomplete — keep coaching it | `Command(goto="executor")` |
+| Field complete, more fields remain | `Command(goto="executor")`, with `field_index++` |
+| All fields captured | `Command(goto="validation_stack")` |
+
+> **Deciding this in the executor would fuse the two roles while leaving the
+> node names intact** — the failure §17 exists to prevent, and the harder one to
+> see, because the diagram would still show two boxes.
+
+> **SPEC-GAP (G-38):** **the structure of DP1 is settled; its predicate is
+> not.** "Field complete" and "more fields" are evaluated against a per-phase
+> ordered field list that is stated nowhere. **DP1 cannot be implemented until
+> G-38 lands** — to be designed with founder.
+
+#### DP2 — the validation stack's three exits
+
+**`gate_attempts` increments ONCE, at `validation_stack` entry** — before any
+layer runs. A partially-run stack still costs one attempt, which is the
+conservative reading: a stack that failed at 2b consumed a gate passage just as
+a stack that failed at 2d did.
+
+| Condition | Return |
+|---|---|
+| All layers pass | `Command(goto="gate_review")` |
+| Fail, `gate_attempts < 3` | `Command(goto="planner", update={"validator_feedback": [...]})` |
+| Fail, `gate_attempts >= 3` | `Command(goto="<escalation>", graph=Command.PARENT)` |
+
+**The escalation exit is the only place `Command.PARENT` is used in this
+architecture.** Escalation is a parent-level subgraph (§12, §38), so the hop
+crosses the graph boundary; every other `Command` here is intra-subgraph.
+
+> **SPEC-GAP (G-34):** the escalation subgraph still has no node list, no state
+> schema and no exit contract, so `"<escalation>"` above is a placeholder for a
+> node name G-34 must fix — to be designed with founder.
+
+#### DP3 — the gate exits
+
+**`gate_review` fires `interrupt()` and stops.** It routes nothing; the graph
+resumes into `gate_apply` with the Belt's decision.
+
+| Belt decision | `gate_apply` does |
+|---|---|
+| **Approve** | Applies edits, runs the policy advisory, assembles and writes the gate document, then `END` — the parent's static edge advances the phase |
+| **Reject** | `Command(goto="planner", update={"rejection_feedback": [...]})` |
+
+**Reject loops back for another coaching turn, carrying the Belt's stated
+reason.** The reason is mandatory: a rejection with no reason gives the coach
+nothing to change, and the next turn would reproduce the one just refused.
+`rejection_feedback` is a `PhaseState` field (S-C02) and is **never merged into
+`validator_feedback`** — the system rejecting the AI's work and the Belt
+rejecting the document are two actors at two moments (§6).
+
+> **SPEC-GAP (G-18):** the `/gate/reject` request envelope must carry that
+> mandatory reason, and no envelope is defined for any endpoint — to be designed
+> with founder.
+
+#### What is settled and binds
 
 | # | Constraint | Ref |
 |---|---|---|
-| C1 | `Command` is used inside phase subgraphs only; phase transitions are static edges | §15 |
+| C1 | `Command` inside phase subgraphs only; phase transitions are static edges | §15 |
 | C2 | A node SHALL NOT mix a static edge and a `Command` — both paths execute, silently | §15 |
 | C3 | `gate_attempts` lives on `PhaseState`, never in route scope | §6, §15 |
 | C4 | Retry and escalation resolve inside the phase, never above it | §15 |
-| C5 | A subgraph reaches `END` only through `gate_apply`, so reaching `END` means the gate passed | §15 |
-
-> **SPEC-GAP (G-01): Level 2 `Command` routing — to be designed with founder.**
-> This is a genuine design task, not a transcription. Three decision points:
->
-> 1. **Planner exit.** Whether `phase_planner` returns
->    `Command(goto="executor")` or `Command(goto="validation_stack")` on
->    field-complete, and what "field-complete" is evaluated against given that
->    the per-phase field ordering is itself undefined (G-38).
-> 2. **Validation stack exit.** `Command` on pass to `gate_review`; at `>= 3` to
->    escalation; otherwise back to the planner carrying `validator_feedback`.
->    This node owns the `gate_attempts` increment, and where exactly it
->    increments determines whether a partially-run stack consumes an attempt.
-> 3. **Gate exit.** `gate_review` (interrupt) to `gate_apply`, **and what a Belt
->    REJECT does** — re-coach, or apply-with-edits. **This one needs a founder
->    ruling** (G-02); it is a coaching-philosophy call, not an engineering one.
+| C5 | A subgraph reaches `END` only through `gate_apply` **on approve**, so reaching `END` means the gate passed | §15 |
 
 ---
 
@@ -7808,7 +7922,7 @@ layer, which makes its absence load-bearing rather than cosmetic.
 ### 65.3 S-F34 · The API surface
 
 **Architecture:** §49 · **File:** `gateway/routes.py` · **Procedure:** steps 10.1, 4.2
-*Rebuild test: not met — blocked on G-18, G-36 and G-02.*
+*Rebuild test: not met — blocked on G-18 and G-36.*
 
 **Purpose:** The only entry point. **The compiled graph is the only runtime
 path**, and a route that does anything beyond invoking it plus envelope
@@ -7854,8 +7968,10 @@ marshalling is a violation — the rule the v1 codebase most conspicuously break
 
 > **SPEC-GAP (G-18):** no envelope is defined for any endpoint — see S-C37.
 
-> **SPEC-GAP (G-02):** `POST /gate/reject` has no defined behaviour — see S-F13
-> decision point 3.
+> **Resolved — G-02, see S-F13 DP3.** `POST /gate/reject` resumes the graph;
+> `gate_apply` routes back to the planner with `rejection_feedback`. **Its
+> request envelope must carry a mandatory reason — that depends on G-18**
+> (open).
 
 ### 65.4 S-F35 · The upload handler
 
@@ -7942,7 +8058,7 @@ item 1. Classification deferred rather than guessed.
 inline marker.** That bidirectional correspondence is checkable and is one of
 the §55.1 governance rules.
 
-**44 gaps identified. Six are closed or resolved. 38 are open.** None was
+**44 gaps identified. Eight are closed or resolved. 36 are open.** None was
 filled by the 2026-08-23 conversion pass — that was the pass's binding
 constraint; G-03 and G-42 were resolved together on 2026-08-24 (DECISIONS
 §T1), and **G-43 was raised and closed the same day as a false alarm**
@@ -7953,10 +8069,13 @@ and never behind a tool (§16).
 
 ### 66.1 Group A — founder ruling required
 
+**EMPTY. No founder rulings are currently outstanding.** G-01 and G-02, the two
+that stood here since the conversion pass, were resolved together on 2026-08-24
+(§66.6). The group is kept rather than deleted because it is where the next one
+lands.
+
 | # | Gap | Marked at |
 |---|---|---|
-| **G-01** | **Level 2 (subgraph-internal) `Command` routing.** §13 draws the branching, §15 states the rule, and no `Command(goto=…)` exists anywhere. Three decision points: planner exit; validation-stack exit and its ownership of the `gate_attempts` increment; gate exit including REJECT | S-F13, S-F02, S-F03, S-F05 |
-| **G-02** | **What a Belt REJECT does.** `POST /gate/reject` is in §49's endpoint table and in §33.1's frontend sequence; its behaviour — re-coach, or apply-with-edits — is stated nowhere. A coaching-philosophy ruling | S-F06, S-F07, S-F13, S-F34 |
 
 ### 66.2 Group B — cross-check defects
 
@@ -7987,7 +8106,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-15** | `HITLInterrupt` — and whether an exception raised from `after_agent` yields a resumable graph-level interrupt at all | S-C15, S-C10 |
 | **G-16** | `CitationRecord` / `CitationBundle` — and the three different citation shapes stated in §50, §6 and §23 | S-C36 |
 | **G-17** | `CaseDocument` · `PhaseRecord` · `RegistryEntry` · `PhaseSummaryRecord`, and whether `PhaseRecord` duplicates the gate document | S-C09 |
-| **G-18** | All `gateway/schemas.py` envelopes, for all seven endpoints, plus the gate interrupt and resume payloads and the SSE event shape | S-C37, S-F06, S-F34 |
+| **G-18** | All `gateway/schemas.py` envelopes, for all seven endpoints, plus the gate interrupt and resume payloads and the SSE event shape. **G-02 now depends on this** — the `/gate/reject` payload must carry a mandatory reason | S-C37, S-F06, S-F34, S-F13 |
 | **G-19** | Per-phase `PhaseState` variants — the transient fields are never enumerated, and whether they count against §6's ceiling is undecided | S-C03 |
 
 ### 66.4 Group D — described in prose, no interface
@@ -8017,7 +8136,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 
 | # | Gap | Marked at |
 |---|---|---|
-| **G-38** | `field_index` has no ordering source — the per-phase field list it indexes into is stated nowhere, and §13's "advance to the next field" depends on it | S-C02, S-F03 |
+| **G-38** | `field_index` has no ordering source — the per-phase field list it indexes into is stated nowhere, and §13's "advance to the next field" depends on it. **G-01 now depends on this** — S-F13 DP1's predicate cannot be implemented without it | S-C02, S-F03, S-F13 |
 | **G-39** | `turn_count`'s increment contract, load-bearing in §11's deterministic `step_log` key | S-C02 |
 | **G-40** | Prompt constants — `{PHASE}_COACH_PROMPT`, `{PHASE}_PLANNER_PROMPT`, five `PHASE_RUBRIC`s and four `{PHASE}_CONSTRAINTS` sets are named with coverage lists and no text. Only `COACHING_QUALITY_RUBRIC` is written out | S-F26 |
 
@@ -8030,6 +8149,8 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-42** | The boundary mappers had no stated execution site: §9 made them plain functions, §13 permits exactly five nodes and none is a mapper, §12 embeds each subgraph as a parent node | **RESOLVED 2026-08-24**, as the same fix. The mapper runs **inside the parent's uniquely-named node function** for that phase — the documented LangGraph pattern where parent and subgraph share no state keys — so it adds no sixth node. Carries the call-order namespace stability condition. S-F10, S-F12; DECISIONS §T1 |
 | **G-43** | Raised 2026-08-24: subgraph state might not persist across Belt turns, because §16 compiles phase subgraphs with no checkpointer argument | **RESOLVED 2026-08-24 — FALSE ALARM. Design confirmed correct.** Every `.invoke`/`.ainvoke` in this document is either the single parent-graph entry point or an LLM call; **no subgraph is invoked standalone, outside the parent.** Checkpointer placement is the prescribed pattern — parent compiles with the checkpointer, subgraphs compile bare and inherit persistence through an auto-managed `checkpoint_ns`. The `checkpointer=True` clause whose absence raised the alarm applies to **independently-persisted** subgraphs, which Agent Improve deliberately does not use; **omitting it is correct, not a defect.** What remains is the already-known **⚠ WIRED, INERT** checkpointer — `thread_id` is not yet passed at `ainvoke` in the current *code* — which is already scheduled as the `thread_id`-through-`ainvoke` step (§16, §47, §53.1). **G-43 folds entirely into that step and adds no new work.** **What it did NOT verify is the wrapper-internal invoke prescribed by G-42/S-F10 — that distinct case was tracked as G-44 and is itself now resolved (below).** DECISIONS §U1 |
 | **G-04** | `remaining_steps` read off `PhaseState` twice (§26), undeclared — the `.get(..., 10)` default returned 10 forever and the 5-hop cap never fired | **RESOLVED 2026-08-24.** Declared as a LangGraph managed value (`remaining_steps: RemainingSteps`) on `PhaseState`; the engine now populates it live. The 10 was a bug artifact and is gone; the 5-hop business rule, enforced by the `<= 2` entry guard, is unchanged and now actually fires. Verified against current LangGraph docs/source. See S-C02, §26. |
+| **G-01** | Level 2 (subgraph-internal) `Command` routing was undesigned: §13 drew the branching, §15 stated the rule, and no `Command(goto=…)` existed anywhere | **RESOLVED 2026-08-24.** Three decision points, at S-F13: the **planner** owns field/gate routing and the executor returns plainly (§17); the validation exit increments `gate_attempts` **once at entry** and branches pass / retry / escalate; the gate exit is approve → `END`, reject → planner. Verified against current LangGraph docs. **DP1's predicate depends on G-38** (open) and **the escalation exit's node name on G-34** (open). See S-F13, §13, §15 |
+| **G-02** | What a Belt REJECT does was unstated — `POST /gate/reject` existed in §49's table and in §33.1's frontend sequence with no defined behaviour | **RESOLVED 2026-08-24, founder ruling.** Reject **loops to the planner for another coaching turn**; the Belt **MUST supply a reason**, carried as `rejection_feedback` — a new `PhaseState` field (S-C02) — so the re-coach addresses what was actually objected to rather than repeating the refused turn. **The `/gate/reject` payload gains a mandatory reason, which depends on G-18** (open). See S-F13 DP3, §33, S-C02 |
 | **G-44** | Raised 2026-08-24 as the narrow successor to G-43: the S-F10 wrapper node's inner `subgraph.ainvoke` is a third case neither §16's bare-node claim nor G-43's standalone-invoke check covered. | **RESOLVED 2026-08-24.** Pattern B (wrapper node invoking the subgraph) is correct and is in fact forced — `SupervisorState` and `PhaseState` share no keys, so `add_node(subgraph)` is unavailable. The inner invoke persists `PhaseState` across turns **provided** it is called directly inside the node function with inherited config and is never relocated inside a tool. Verified against current LangChain subgraph docs; local repro owed. See §16. |
 
 ### 66.7 Findings — recorded, not gaps
@@ -8106,8 +8227,8 @@ the architecture's.** They fall into five classes:
 > G-01, G-42 twice, F-04 and G-35. Signal-to-noise moves from 4-in-36 to
 > 5-in-7.
 >
-> **Three of those five are now closed.** G-42's two edges were resolved on
-> 2026-08-24 (§66.6), leaving G-01, F-04 and G-35 open on this run.
+> **Four of those five are now closed.** G-42's two edges and G-01 were all
+> resolved on 2026-08-24 (§66.6), leaving F-04 and G-35 open on this run.
 >
 > **One detection is lost to the narrowing, and it is recorded rather than
 > quietly absorbed.** **F-08** — the gate document written to one Store key by
