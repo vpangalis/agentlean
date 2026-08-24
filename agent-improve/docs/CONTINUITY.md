@@ -1,6 +1,6 @@
 <!--
 Document: agent-improve/docs/CONTINUITY.md
-Version: 3.0 — 2026-08-22
+Version: 3.5c — 2026-08-24
 Purpose: Session-start orientation. A new session reading ONLY this file should
          be able to orient fully and continue without losing a day.
 
@@ -15,7 +15,7 @@ themselves; do not carry a line forward because it was here before.
 -->
 
 # AgentLean — Session Continuity Guide
-# Version 3.5 — 2026-08-24
+# Version 3.5c — 2026-08-24
 
 > **Read this first, then stop reading it.** This file orients. The binding
 > documents are named in §2 and they win on every point of detail.
@@ -196,10 +196,6 @@ session-start hook reports `last completed 2.3 | next 2.4`.
 
 ### Live high-severity SPEC-GAPs — read before gap work
 
-**The register is reference §66; these two are the ones with weight on them
-right now.** Both are resolved under the Standing Reasoning Protocol (§6), and
-both need a trusted-source check before any design is chosen.
-
 **None right now.** The G-43 → G-44 → G-04 chain that ran through 2026-08-24 is
 closed end to end: `PhaseState` persists across Belt turns via the direct
 wrapper invoke, and `remaining_steps` is declared so the hop cap fires.
@@ -208,12 +204,52 @@ wrapper invoke, and `remaining_steps` is declared so the hop cap fires.
 38 open.** Pick the next gap from there rather than from this file; nothing
 open is currently carrying the severity those three did.
 
-> **Two things are owed and are not gaps**, so they will not surface from §66:
-> a **local repro** of the §16 persistence claim (documented, not demonstrated),
-> and the **G-01 Level 2 `Command` routing** design, which is the largest open
-> item and gates the phase subgraph's wiring.
+> **Things owed that are NOT §66 gaps will not surface from the register.**
+> Two are logged under *Watches* below — the §16 persistence repro and the
+> two-venv stale-blocker. A third is a genuine §66 gap and the largest open
+> item: **G-01, the Level 2 `Command` routing** design, which gates the phase
+> subgraph's wiring.
 
 ### Watches
+
+> **These two are owed work, not register gaps.** They are recorded here
+> because **nothing in `ARCHITECTURE.md` §66 will surface them** — a new session
+> that works only from the register will not see either.
+
+**WATCH 1 — the §16 persistence repro is owed.** The wrapper-invoke persistence
+claim (G-44, `ARCHITECTURE.md` §16) is **documented in three places and
+demonstrated in none**: §16 itself, the v1.8 head note, and version-log row 3.4.
+
+*Owed:* a local repro against the pinned LangGraph — a parent node calls
+`subgraph.ainvoke`; assert `get_state(subgraphs=True)` shows the child
+checkpoint under a **non-empty `checkpoint_ns`**.
+
+**Run it before step 4.2 relies on it.** This is a **code action**, not a
+documentation one — the only claim in §16 resting on documentation alone.
+
+**WATCH 2 — two venvs, and a blocker three documents may be overstating.**
+`agent-improve/.venv` is at **langgraph 1.2.11**. `CLAUDE.md` §16.1,
+reference §53 and Appendix E all record **1.1.10** and treat it as a **BLOCKER
+on all of §45 and on §16's `checkpoint_ns` fix**.
+
+**The session-start hook reads the ROOT venv** — it shells out to
+`sys.executable -m pip show`, and the root `.venv` holds 1.1.10 / langchain
+1.2.13 / langchain-core 1.3.3 — so it reports the stale version on every
+session start.
+
+**If `agent-improve/.venv` is authoritative, that blocker cleared at step 2.3**
+and three documents overstate it — **one of them a binding rule file.**
+
+**§3 of this file already carries evidence, and the next session should start
+there.** It records step 2.3 (`95926d6`) upgrading `langgraph` 1.1.10 → 1.2.11
+with `pytest` 6/6 green and `pip check` clean, and states **"The LangGraph gate
+on steps 4.1–4.4 and 8.2 is CLEARED."** If that is right, the lag is confined to
+`CLAUDE.md` §16.1, reference §53 and Appendix E — **and this file has been
+contradicting them since 2026-08-21.**
+
+> **UNVERIFIED. Confirm which venv is authoritative BEFORE editing any
+> document.** Correcting a blocker in `CLAUDE.md` on the wrong venv would be
+> worse than leaving it stale. **This needs its own session.**
 
 **The `langchain` / `langchain-core` pin has zero margin.** `langchain` 1.3.16
 requires `langchain-core>=1.6.0`, and 1.6.0 *is* the current latest — exactly
@@ -363,6 +399,7 @@ changes are separate commits.
 
 | Version | Date | Change |
 |---|---|---|
+| **3.5c** | 2026-08-24 | G-04 fully settled (S-F09 sample synced, `ARCHITECTURE.md` v1.9.1). Two watches logged that are **not** §66 gaps: §16 persistence repro owed; two-venv stale-blocker (hook reads root venv 1.1.10; `agent-improve/.venv` has 1.2.11; three docs may overstate the §45/§16 blocker — needs venv authority confirmed first). Also removed a stale intro line left above the live-gap list by v3.5 |
 | **3.5** | 2026-08-24 | **G-04 resolved** — `remaining_steps` declared as a LangGraph managed value on `PhaseState`; the hop cap now fires (the `.get(..., 10)` default had masked it). `ARCHITECTURE.md` S-C02/§26/§66 and `CLAUDE.md` §10.1 amended; register 6 closed / 38 open. Field count now "19 author-populated + 1 managed" |
 | **3.4** | 2026-08-24 | **G-44 resolved** — the phase wrapper's inner `subgraph.ainvoke` persists `PhaseState` when called directly inside the node with inherited config; breaks only if moved inside a tool. ARCHITECTURE.md §16 gains the rule; §66 register G-44 → Closed (5 resolved / 39 open). Process note added to §7. **G-04 is now the next live gap.** Local repro of the persistence claim still owed |
 | **3.3** | 2026-08-24 | **Live high-severity gap list added** (§5) — G-44 and G-04, with the ordering argument between them. Added when G-43 was resolved as a false alarm and its narrower successor G-44 registered |
