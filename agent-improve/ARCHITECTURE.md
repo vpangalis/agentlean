@@ -73,9 +73,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.6 · 2026-08-23
+Version 1.6.1 · 2026-08-24
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.6.1 (2026-08-24)** — **§55.1 rule 3 narrowed to peer runtime call edges**, with the four excluded classes stated: edges into class entries, return paths, build-time relations, and nested sub-component references. Its first run (§66.8) reported 36 non-closures; re-run under the narrowed scope, 29 fall out of scope and 7 remain, of which 5 are real wiring defects — 86% of the original output was noise, which is how a check stops being read. The re-run was executed and its classification is tabled at §66.8, not asserted. §66.8's note now records the narrowing as the resolution of finding F-07. **A check-scope correction, not an architecture change**: no section content, schema, signature or gap moved, and this is deliberately not routed through §56. Also applied to `agent-improve/docs/SPEC_LAYER_GUIDE.md` §6 rule 3, which carried the same un-narrowed wording.
 
 **v1.6 (2026-08-23)** — **The specification layer.** Two new Parts: **Part XII (§57–§66)** states the classes, functions and interfaces at the level the code could be rebuilt from, and **Part XIII (§67–§68)** carries the EU AI Act posture and the DORA-structured risk register. 73 spec entries; definitions relocated out of 28 architecture sections, which keep every word of their reasoning and gain a `**Specification:**` pointer. **§1–§56 do not renumber.** Five entries carry an AI-ACT flag and 12 carry `AI-ACT-REVIEW: uncertain`. **42 gaps are marked and none is filled** — that was the pass's binding constraint; §66 is the register, and §66.7 records ten findings that are inconsistencies rather than absences. §55.1 adds the five spec-layer governance rules; Appendix C gains a Tier 1 compliance block. Decision record: `agent-improve/docs/DECISIONS.md` §S1, §S2.
 
@@ -4516,9 +4518,34 @@ been a correct rule paired with a check that could not see what it governed.
 |---|---|---|
 | **1** | **Spec-before-code.** A code change requires its spec entry to be updated first | A code change whose spec entry's last-modified timestamp predates it. **Checkable in git; no automation exists yet** |
 | **2** | **Flag-is-canonical, register-is-derived.** The DORA register never leads the per-entry AI-ACT flags; when they disagree the flag wins and the row is regenerated | Bidirectional: every register Risk ID must trace to a flagged entry, and every flagged entry must appear in the register. Grep on Risk ID |
-| **3** | **SIPOC Supplier/Customer cross-check.** For every function or node, its Customers must list it as a Supplier, and its Suppliers must list it as a Customer | Grep by entry name across Part XII. **See §66.7 F-07 — the rule ranges over peer node-to-node edges only; nested sub-components and return paths are excluded, or it produces noise** |
+| **3** | **SIPOC Supplier/Customer cross-check.** On a **peer runtime call edge**, the callee's Suppliers must list the caller and the caller's Customers must list the callee. **Scope is narrowed — see the note below this table** | Grep by entry name across Part XII, over peer runtime call edges only. **A non-closure is a defect only on such an edge**; the four excluded classes are not findings |
 | **4** | **Define-once.** A class or function defined in Part XII must not have its schema or signature restated in an architecture section — those sections carry a `**Specification:**` pointer and keep their reasoning | A definition appearing in two section ranges. Grep for the class or function name followed by a definition token |
 | **5** | **Selective flagging.** AI-ACT flags appear only on high-risk-surface entries — coaching output, gate approval, anything that could feed a competence, employment or certification decision | A flag on a pure utility, or a missing flag on a coaching, gate or assessment entry, is a review finding. **Judgment, not automation** — where classification is unclear the entry carries `AI-ACT-REVIEW: uncertain` rather than a guess |
+
+> ### Rule 3's scope — narrowed 2026-08-24
+>
+> **The cross-check applies ONLY to peer node-to-node call edges** — one node or
+> function invoking another at runtime. It **excludes**:
+>
+> | Excluded | Why it is not a caller relation |
+> |---|---|
+> | **Edges into class/schema entries** | A class is not a caller. `CoachingResponse` is passed, not invoked |
+> | **Return paths** | The reverse of an edge already counted. The API surface invoking the graph is one edge, not two |
+> | **Build-time / compile-time relations** | Graph wiring at construction is not a runtime call. `build_phase_subgraph` registering nodes is not calling them |
+> | **Nested sub-component references** | A middleware hook inside a node, or a layer inside `validation_stack`, is not a separate caller |
+>
+> **A non-closure is a defect ONLY on a peer runtime call edge.** Everything
+> else is out of scope and is not a finding.
+>
+> **Why this was narrowed rather than left as written.** The first run (§66.8)
+> checked 58 edges and reported 36 non-closures. **Re-run under this narrowed
+> scope, 29 fall out and 7 remain — of which 5 are real wiring defects.**
+> Signal-to-noise moves from 5-in-36 to 5-in-7. **86% noise is how a check gets
+> ignored**, and an ignored check is recorded as evidence while proving nothing.
+> That is the R2 lesson arriving from the opposite direction to the three
+> instances §55 already records: not a check that cannot fail, but a check that
+> fails so often its failures stop being read. **Narrowing the scope is the
+> resolution of finding F-07.**
 
 **For any new rule added here: state what would catch a violation of it. If the
 answer is "nothing," say so in the rule** rather than assuming coverage. A rule
@@ -7928,34 +7955,62 @@ was fixed by the pass**; each needs a
 carry a SIPOC table; 58 directed edges were checked in both directions;
 **36 did not close.**
 
-**Four are substantive, and three of those confirm a gap this document already
+**Five are substantive, and three of those confirm a gap this document already
 names.** The cross-check found them without being told to look:
 
 | Edge | What it means |
 |---|---|
 | S-F05 names S-F03 as Supplier; **S-F03's Customers are S-F04 and S-F09 only** | **G-01, decision point 1, detected mechanically.** The validation stack says the planner triggers it and the planner does not say it routes there — because that routing does not exist |
-| S-F10 and S-F12 name S-F03 as Customer; **S-F03's Suppliers do not include either** | **G-42, detected mechanically.** A mapper cannot be named as a supplier of the planner because it has no stated execution site |
-| S-F11 names S-F12 as Customer; **S-F12's Suppliers are S-F01 and S-F07** | **F-08, with evidence.** Both `gate_apply_node` and the output mapper claim the Store write the next input mapper reads. Two writers, no stated owner |
+| S-F10 names S-F03 as Customer; **S-F03's Suppliers do not include it** | **G-42, detected mechanically.** A mapper cannot be named as a supplier of the planner because it has no stated execution site |
+| S-F12 names S-F03 as Customer; **same** | **G-42**, on the other four phases |
 | S-F09 names S-F04 as Customer; **the sample's Supplier cell names only `phase_planner`** | **F-04.** The multi-hop path feeds the coach call and is not accounted for. Not corrected — the sample is verbatim |
+| S-F29 names S-F33 as Customer; **S-F33 has no SIPOC table at all** | **G-35.** The error handler routes to `degraded_coaching_response`, which is undefined and would be a sixth node §13 forbids without an amendment |
 
-**The remaining 32 are structural, and they are the rule's problem rather than
-the architecture's.** They fall into four classes, each already recorded above:
+**The remaining 31 are structural, and they are the rule's problem rather than
+the architecture's.** They fall into five classes:
 
 | Class | Count | Finding |
 |---|---|---|
 | The calibrated sample names its neighbours in prose (`phase_planner`) rather than by entry ID, so the parser cannot match them | 11 | F-04 |
 | Nested sub-components — Layers 2c and 2d inside the validation stack, gate assembly and the policy advisory inside `gate_apply`, RRF and the retriever layer inside the `rag_lookup_*` tools | 12 | F-07 |
 | Request/response and build-time/run-time pairs — the API surface both triggers the graph and consumes its output; the supervisor graph both builds subgraphs and runs them | 6 | F-07 |
-| Edges pointing at class entries and gap stubs, which carry no SIPOC table | 3 | F-05, F-06 |
+| Edges pointing at class entries, which carry no SIPOC table | 2 | F-05, F-06 |
+| **Store-mediated data handoffs** — neither party invokes the other; the value travels through a Store key | 1 | **F-08 — see the note below** |
 
-> **The conclusion is about the rule, not the result.** A check that reports 36
-> failures of which 4 matter will be ignored by its third run. **§55.1 rule 3
-> must be narrowed to peer node-to-node edges before it is automated** —
-> excluding return paths, nested sub-components, build-time relations, and
-> edges terminating at a class entry — or it becomes the fourth instance of the
+> **The conclusion was about the rule, not the result — and the rule has since
+> been narrowed.** A check reporting 36 failures of which a handful matter would
+> have been ignored by its third run, becoming the fourth instance of the
 > pattern §55 names: a check whose output nobody reads.
-
----
+>
+> **RESOLVED 2026-08-24. §55.1 rule 3 now applies only to peer runtime call
+> edges.** The re-run under the narrowed scope was **executed, not estimated**:
+>
+> | | Count |
+> |---|---|
+> | Non-closures, un-narrowed | 36 |
+> | Out of scope — return paths | 13 |
+> | Out of scope — nested sub-components | 11 |
+> | Out of scope — build-time relations | 2 |
+> | Out of scope — edges into class entries | 2 |
+> | Out of scope — Store-mediated data handoff | 1 |
+> | **In scope** | **7** |
+>
+> **Of the 7, two are one edge counted in both directions** — `phase_planner`
+> ↔ `phase_executor` — and it fails only because the verbatim sample names its
+> neighbours in prose rather than by entry ID. **Notation, not wiring.** The
+> other **five are real, and every one traces to something already registered**:
+> G-01, G-42 twice, F-04 and G-35. Signal-to-noise moves from 4-in-36 to
+> 5-in-7.
+>
+> **One detection is lost to the narrowing, and it is recorded rather than
+> quietly absorbed.** **F-08** — the gate document written to one Store key by
+> two claimed writers — was found on the S-F11 → S-F12 edge, which is a
+> **Store-mediated data handoff and not a call**. The narrowed rule does not
+> reach it and will not re-find it. **Data-handoff edges are outside rule 3 by
+> construction**; checking them is a separate rule with its own scope, and none
+> is proposed here. F-08 itself stays open at §66.7.
+>
+> The scope definition and its reasoning are in §55.1.
 
 ---
 

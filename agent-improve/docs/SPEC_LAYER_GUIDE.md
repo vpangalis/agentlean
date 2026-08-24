@@ -199,8 +199,18 @@ legal advice; the classification question needs qualified counsel.)
 2. **Flag-is-canonical, register-is-derived.** The DORA register never leads the
    per-section AI-ACT flags. Checkable: every register Risk ID must trace to a
    flagged function; every flagged function must appear in the register.
-3. **SIPOC Supplier/Customer cross-check.** For every function, its Customers
-   must list it as a Supplier and vice versa. Checkable by grep on function name.
+3. **SIPOC Supplier/Customer cross-check.** On a **peer runtime call edge** —
+   one node or function invoking another at runtime — the callee's Suppliers
+   must list the caller and the caller's Customers must list the callee.
+   Checkable by grep on function name. **Narrowed 2026-08-24**, after its first
+   run reported 36 non-closures of which only 5 were real wiring defects (29 of
+   the 36 fall outside the narrowed scope): the check **excludes**
+   edges into class/schema entries (a class is not a caller), return paths (the
+   reverse of an edge already counted), build-time or compile-time relations
+   (graph wiring at construction is not a runtime call), and nested
+   sub-component references (a middleware hook inside a node is not a separate
+   caller). **A non-closure is a defect ONLY on a peer runtime call edge.** Full
+   scope note and reasoning: reference §55.1; the run that forced it: §66.8.
 4. **Define-once.** A class or function name defined in the spec Part must not
    be *re*-defined (schema/signature) in any architecture section — those
    reference it. Checkable: a definition appearing in two section ranges is a

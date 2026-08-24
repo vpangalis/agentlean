@@ -15,7 +15,7 @@ themselves; do not carry a line forward because it was here before.
 -->
 
 # AgentLean — Session Continuity Guide
-# Version 3.1 — 2026-08-24
+# Version 3.2 — 2026-08-24
 
 > **Read this first, then stop reading it.** This file orients. The binding
 > documents are named in §2 and they win on every point of detail.
@@ -305,6 +305,15 @@ function that mishandles the same field. The gap list is not fixed; expand it
 when the trace demands. No gap is closed on DETAIL alone; steps 2–4 are
 mandatory.
 
+> **Step 2's scope is narrowed, and the narrowing matters.** The SIPOC
+> cross-check applies **only to peer runtime call edges** — one node or function
+> invoking another. Edges into class entries, return paths, build-time graph
+> wiring and nested sub-components are **out of scope and are not findings**.
+> Its first run reported 36 non-closures of which only 5 were real wiring
+> defects — 29 of the 36 fall outside the narrowed scope. Tracing against the
+> un-narrowed rule spends the trace's attention on noise. Scope definition:
+> root reference **§55.1 rule 3**. The run that forced it: **§66.8**.
+
 ### The lesson this session keeps re-teaching
 
 **A check that cannot fail is worse than no check, because it is recorded as
@@ -334,6 +343,7 @@ changes are separate commits.
 
 | Version | Date | Change |
 |---|---|---|
+| **3.2** | 2026-08-24 | **SIPOC cross-check scope note added** to the Standing Reasoning Protocol — step 2's holistic trace applies to peer runtime call edges only. Mirrors the narrowing of reference §55.1 rule 3. Process governance, not a §56 amendment |
 | **3.1** | 2026-08-24 | **Standing Reasoning Protocol added** (§6) — the discipline every SPEC-GAP resolution follows: detail, holistic SIPOC trace, trusted-source check, use-case forward-note. Also in `docs/SPEC_LAYER_GUIDE.md` §6.1. Process governance, not a §56 amendment |
 | **3.0** | 2026-08-22 | **Rebuilt from the live files.** v2.8 had drifted on the CLAUDE.md version (said 2.2.14, actual 2.2.18), the entire document map (the reference moved to root and was renamed; `ARCHITECTURE.md` became a copy), the code-migration step (said 2.5+ pending; actual 2.3 done / 2.4 next), and three decision statuses. Duplicate `## 4` heading fixed |
 | 2.8 | 2026-08-19 | Last version before the reference rewrite |
