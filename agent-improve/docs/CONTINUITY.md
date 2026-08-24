@@ -15,7 +15,7 @@ themselves; do not carry a line forward because it was here before.
 -->
 
 # AgentLean — Session Continuity Guide
-# Version 3.2 — 2026-08-24
+# Version 3.3 — 2026-08-24
 
 > **Read this first, then stop reading it.** This file orients. The binding
 > documents are named in §2 and they win on every point of detail.
@@ -194,6 +194,22 @@ session-start hook reports `last completed 2.3 | next 2.4`.
 | **Azure Cache for Redis** | Not provisioned. Gates step 8.4 only — the chain degrades Level 2 → Level 4 meanwhile, which is correct behaviour |
 | **Two Azure index schema changes** | RATIFIED, NOT APPLIED. `improve_evidence_index` gains `phase` + `uploaded_at`; `improve_case_index` `embedding` → `content_vector`. **Batch them — step 9.1.** Write code against the live schema until then |
 
+### Live high-severity SPEC-GAPs — read before gap work
+
+**The register is reference §66; these two are the ones with weight on them
+right now.** Both are resolved under the Standing Reasoning Protocol (§6), and
+both need a trusted-source check before any design is chosen.
+
+| Gap | Why it has weight |
+|---|---|
+| **G-44** | **S-F10's execution site is a wrapper node calling `input_mapper` → `subgraph.ainvoke(...)` → `output_mapper`.** That is neither the bare-node pattern §16's persistence claim was verified against, nor the standalone invoke G-43 ruled out. **Open: does the inner invoke inherit the parent's checkpointer and `thread_id`, so `PhaseState` persists across turns — or does it run detached?** And prior to that, is the wrapper pattern the right approach at all, or should the translation keep the subgraph as a node? **It determines whether the mapper path persists**, which G-43's "memory sound" conclusion assumed |
+| **G-04** | `remaining_steps` is read off `PhaseState` twice (§26) and is not a declared field. Undeclared, the `.get(..., 10)` default returns 10 forever and **the five-hop cap never fires** — a cap that cannot fire |
+
+> **Order matters between them.** G-44 asks whether `PhaseState` persists across
+> turns at all. **If it does not, G-04's accumulation question does not mean
+> anything yet** — settle G-44 first. This is the same ordering argument G-43
+> carried before it was resolved; the question moved, it did not go away.
+
 ### Watches
 
 **The `langchain` / `langchain-core` pin has zero margin.** `langchain` 1.3.16
@@ -343,6 +359,7 @@ changes are separate commits.
 
 | Version | Date | Change |
 |---|---|---|
+| **3.3** | 2026-08-24 | **Live high-severity gap list added** (§5) — G-44 and G-04, with the ordering argument between them. Added when G-43 was resolved as a false alarm and its narrower successor G-44 registered |
 | **3.2** | 2026-08-24 | **SIPOC cross-check scope note added** to the Standing Reasoning Protocol — step 2's holistic trace applies to peer runtime call edges only. Mirrors the narrowing of reference §55.1 rule 3. Process governance, not a §56 amendment |
 | **3.1** | 2026-08-24 | **Standing Reasoning Protocol added** (§6) — the discipline every SPEC-GAP resolution follows: detail, holistic SIPOC trace, trusted-source check, use-case forward-note. Also in `docs/SPEC_LAYER_GUIDE.md` §6.1. Process governance, not a §56 amendment |
 | **3.0** | 2026-08-22 | **Rebuilt from the live files.** v2.8 had drifted on the CLAUDE.md version (said 2.2.14, actual 2.2.18), the entire document map (the reference moved to root and was renamed; `ARCHITECTURE.md` became a copy), the code-migration step (said 2.5+ pending; actual 2.3 done / 2.4 next), and three decision statuses. Duplicate `## 4` heading fixed |

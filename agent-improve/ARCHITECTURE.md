@@ -73,9 +73,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.7 · 2026-08-24
+Version 1.7.1 · 2026-08-24
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.7.1 (2026-08-24)** — **G-43 resolved as a FALSE ALARM; gap-register resolution, no architecture change.** Every `.invoke`/`.ainvoke` in this document is either the single parent-graph entry point or an LLM call — **no subgraph is invoked standalone**, so the per-invocation concern has no site to occur at. Checkpointer placement is the prescribed pattern, and the `checkpointer=True` clause whose absence raised the alarm **applies to independently-persisted subgraphs, which this architecture deliberately does not use — omitting it is correct.** What remains is the already-known **⚠ WIRED, INERT** checkpointer in the current code, already scheduled as the `thread_id`-through-`ainvoke` step (§16, §47, §53.1); G-43 folds into it and adds no new work. **The provenance pattern-check fired and then cleared on inspection — recorded as a true negative so the §R-series list is not inflated with a false fourth instance.** **G-44 registered in its place at HIGH severity**: G-43 verified the standalone-invoke and bare-node cases, and the **wrapper-internal `subgraph.ainvoke`** that S-F10's execution site prescribes is a third case it did not cover — open, and prior to it whether that wrapper pattern is the right approach at all. Register: 44 identified, 4 closed or resolved, 40 open. Decision record: `agent-improve/docs/DECISIONS.md` §U1.
 
 **v1.7 (2026-08-24)** — **§56 AMENDMENT. G-03 and G-42 resolved; `PhaseState` 17 → 19 fields.** Ruling A2: phase-internal code reads case identity and phase from its own `PhaseState`, injected by the input mapper at the boundary — `case_id` and `current_phase`, **copied down at phase entry, read-only inside the subgraph, never written back up.** The parent keeps its single writer; this is a boundary-time copy, not a second writer. Chosen over reading `case_id` from config and phase from a build constant, **because mixing sources is what made G-03 latent.** The same fix resolves **G-42**: the mapper's execution site is the parent's uniquely-named node function for that phase — the documented LangGraph pattern where parent and subgraph share no state keys — which adds no sixth node and carries a call-order namespace stability condition. **§56's `PhaseState` trigger is corrected in the same commit**: it now fires on any new field whatever its category, closing an enforcement hole in which a field could skip the gate on a category label. `§45`'s handler now reads `current_phase`, not `phase`. **G-43 registered, not resolved** — highest severity, marked INFERENCE. Decision record: `agent-improve/docs/DECISIONS.md` §T1.
 
@@ -5399,17 +5401,6 @@ def build_phase_subgraph(phase: str, llm):
 > `Command` routing, which does not exist — see S-F13. Until it lands, this
 > entry cannot pass the rebuild test.
 
-> **SPEC-GAP (G-43) — HIGHEST SEVERITY, INFERENCE, needs confirmation.**
-> Behaviour B1 compiles the subgraph with no checkpointer argument, which is
-> LangGraph's **per-invocation** mode: *each call starts fresh*. Passing
-> `checkpointer=True` is the **per-thread** mode, in which subgraph state
-> accumulates across calls on the same thread. **If each Belt turn is its own
-> `ainvoke` (§49), per-invocation means `PhaseState` is re-seeded empty every
-> turn and `artifacts`, `gate_attempts`, `turn_count` and `validator_feedback`
-> cannot accumulate across a phase** — and the Store holds only *prior* phases'
-> gate documents, so nothing repopulates them. **Not resolved here; it gets its
-> own reasoning session** — to be designed with founder.
-
 > **SPEC-GAP (G-33):** if `load_skill(name)` is a registered tool bound to the
 > executor (§19.2, §32), it is an eighth universal tool and every phase count in
 > §30 moves against the 16 cap. `UNIVERSAL_TOOLS` therefore has an undetermined
@@ -5802,6 +5793,14 @@ def define_input_mapper(parent: SupervisorState, store: BaseStore) -> PhaseState
 | **Process** | Reads the case record, composes `phase_context` as prose framing, and initialises all seventeen `PhaseState` fields |
 | **Output** | A complete `PhaseState` |
 | **Customer** | `phase_planner` (S-F03), which reads `phase_context`; every node of the Define subgraph, which reads the initialised fields |
+
+> **SPEC-GAP (G-44) — HIGH.** The execution site below prescribes a **wrapper
+> node** that calls `input_mapper` → `subgraph.ainvoke(...)` → `output_mapper`.
+> **Whether that inner invoke inherits the parent's checkpointer and
+> `thread_id` — and therefore whether `PhaseState` persists across turns at all
+> — is an open question**, and it is prior to it whether this is even the right
+> LangGraph approach. **G-43's finding that persistence is sound does not cover
+> this case** (§66.1, DECISIONS §U1) — to be designed with founder.
 
 #### Execution site — where a boundary mapper actually runs
 
@@ -7908,16 +7907,18 @@ item 1. Classification deferred rather than guessed.
 inline marker.** That bidirectional correspondence is checkable and is one of
 the §55.1 governance rules.
 
-**43 gaps identified. Three are closed or resolved. 40 are open.** None was
+**44 gaps identified. Four are closed or resolved. 40 are open.** None was
 filled by the 2026-08-23 conversion pass — that was the pass's binding
 constraint; G-03 and G-42 were resolved together on 2026-08-24 (DECISIONS
-§T1), and G-43 was registered in the same session.
+§T1), and **G-43 was raised and closed the same day as a false alarm**
+(DECISIONS §U1) — **and its narrower successor G-44 was registered in its
+place, which is a smaller question but not a settled one.**
 
 ### 66.1 Group A — founder ruling required
 
 | # | Gap | Marked at |
 |---|---|---|
-| **G-43** | **HIGHEST SEVERITY — INFERENCE, needs confirmation. Subgraph state may not persist across Belt turns.** §16 compiles phase subgraphs with no checkpointer argument, which is LangGraph's **per-invocation** mode — *each call starts fresh*. `checkpointer=True` is the **per-thread** mode in which state accumulates on the same thread. If each turn is its own `ainvoke` (§49), `PhaseState` is re-seeded empty every turn and `artifacts`, `gate_attempts`, `turn_count` and `validator_feedback` cannot accumulate within a phase. **Provenance: another partial quotation.** `REFACTORING_AGENT_IMPROVE.md` §1432 quotes the source rule — *"only the parent graph should have a checkpointer, to avoid duplicate storage and state persistence issues"* — and the companion clause, *pass `checkpointer=True` to the subgraph you'd like to persist*, was never carried across. **Same pattern as §R1 and §R2: guidance adopted as a fragment, its assumptions invisible in what was kept.** The API behaviour is confirmed against current documentation; **that AgentLean is affected is inference and needs confirmation.** Deferred to its own reasoning session, and it likely precedes G-04 — if state is re-seeded every turn, G-04's accumulation question is moot until this is settled | S-F02 |
+| **G-44** | **HIGH — registered 2026-08-24 as the narrow successor to G-43.** **S-F10's prescribed execution site is a wrapper node that calls `input_mapper` → `subgraph.ainvoke(...)` → `output_mapper` (Pattern B, required by the different-schemas mapping). This is NEITHER the bare-node pattern §16's persistence claim was verified against (Pattern A), NOR a standalone external invoke (which G-43 confirmed doesn't exist). It is a third case: an in-parent, wrapper-internal `subgraph.ainvoke`.** **OPEN QUESTION:** does that inner invoke inherit the parent's checkpointer and `thread_id` — thus persisting `PhaseState` across turns via `checkpoint_ns` — or does it run detached? **AND, prior to that:** is Pattern B even the correct LangGraph approach for parent↔child schema translation, or should the mapper translation be structured to keep the subgraph as a node (Pattern A) and preserve automatic persistence? **Requires a trusted-source check against current LangGraph subgraph docs before design. Severity: HIGH** — it determines whether the mapper path actually persists, which the G-43 "memory sound" conclusion implicitly assumed | S-F10 |
 | **G-01** | **Level 2 (subgraph-internal) `Command` routing.** §13 draws the branching, §15 states the rule, and no `Command(goto=…)` exists anywhere. Three decision points: planner exit; validation-stack exit and its ownership of the `gate_attempts` increment; gate exit including REJECT | S-F13, S-F02, S-F03, S-F05 |
 | **G-02** | **What a Belt REJECT does.** `POST /gate/reject` is in §49's endpoint table and in §33.1's frontend sequence; its behaviour — re-coach, or apply-with-edits — is stated nowhere. A coaching-philosophy ruling | S-F06, S-F07, S-F13, S-F34 |
 
@@ -7991,6 +7992,7 @@ adding a `PhaseState` field is a §56 amendment.
 | **G-41** | The two calibrated samples' verbatim text was in no file in the repository — `SPEC_LAYER_GUIDE.md` §7 gave their skeletons and deferred the full text to the 2026-08-23 conversation | **CLOSED 2026-08-23.** The approved verbatim text was supplied at `agent-improve/docs/SPEC_SAMPLES.md` and transcribed into §57.2 and §57.3 |
 | **G-03** | `PhaseState` declared no case identity and no phase identifier, while three specified functions read one or both off it | **RESOLVED 2026-08-24**, ruling A2. Two fields added — `case_id`, `current_phase` — copied down by the input mapper at phase entry, read-only in the subgraph, never written back up. Chosen over reading `case_id` from config and phase from a build constant, **because mixing sources is what made the defect latent.** S-C02; DECISIONS §T1 |
 | **G-42** | The boundary mappers had no stated execution site: §9 made them plain functions, §13 permits exactly five nodes and none is a mapper, §12 embeds each subgraph as a parent node | **RESOLVED 2026-08-24**, as the same fix. The mapper runs **inside the parent's uniquely-named node function** for that phase — the documented LangGraph pattern where parent and subgraph share no state keys — so it adds no sixth node. Carries the call-order namespace stability condition. S-F10, S-F12; DECISIONS §T1 |
+| **G-43** | Raised 2026-08-24: subgraph state might not persist across Belt turns, because §16 compiles phase subgraphs with no checkpointer argument | **RESOLVED 2026-08-24 — FALSE ALARM. Design confirmed correct.** Every `.invoke`/`.ainvoke` in this document is either the single parent-graph entry point or an LLM call; **no subgraph is invoked standalone, outside the parent.** Checkpointer placement is the prescribed pattern — parent compiles with the checkpointer, subgraphs compile bare and inherit persistence through an auto-managed `checkpoint_ns`. The `checkpointer=True` clause whose absence raised the alarm applies to **independently-persisted** subgraphs, which Agent Improve deliberately does not use; **omitting it is correct, not a defect.** What remains is the already-known **⚠ WIRED, INERT** checkpointer — `thread_id` is not yet passed at `ainvoke` in the current *code* — which is already scheduled as the `thread_id`-through-`ainvoke` step (§16, §47, §53.1). **G-43 folds entirely into that step and adds no new work.** **What it did NOT verify is the wrapper-internal invoke prescribed by G-42/S-F10 — that is a distinct case, tracked as G-44 and open.** DECISIONS §U1 |
 
 ### 66.7 Findings — recorded, not gaps
 

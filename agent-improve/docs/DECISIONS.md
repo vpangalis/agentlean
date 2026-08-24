@@ -2048,6 +2048,25 @@ automated fix is proposed here: extending the registry to governance prose
 would re-create the problem §55 documents. **The mitigation is that this class
 is now named and searched for deliberately during review.**
 
+> ### A fourth candidate was checked and cleared — 2026-08-24
+>
+> **The list stays at three.** G-43 was raised on 2026-08-24 as an apparent
+> fourth instance: `REFACTORING_AGENT_IMPROVE.md` §1432 quotes a LangGraph rule
+> — *"only the parent graph should have a checkpointer"* — without its companion
+> clause, *pass `checkpointer=True` to the subgraph you'd like to persist*. It
+> had the exact shape of §R1 and §R2: guidance adopted as a fragment.
+>
+> **On inspection the omission was correct.** That clause governs
+> **independently-persisted** subgraphs, which this architecture deliberately
+> does not use. Dropping it was the right call, not a lost assumption. Full
+> record: §U1.
+>
+> **Recorded because a true negative is evidence too.** The pattern-check fired
+> on the right signal and cleared on the right reasoning; **had it been logged
+> as a fourth instance without the second half, the pattern list would now
+> overstate itself** — and a register of failure modes that inflates is exactly
+> as untrustworthy as one that misses. **Firing is not the same as finding.**
+
 ---
 
 ## Part S — The specification layer (2026-08-23)
@@ -2294,3 +2313,93 @@ the API behaviour is confirmed, that AgentLean is affected is not.** It is not
 resolved here, it gets its own session, and it likely precedes G-04: if
 `PhaseState` is re-seeded every turn, G-04's accumulation question is moot until
 G-43 is settled.
+
+
+---
+
+## Part U — G-43 resolved as a false alarm (2026-08-24)
+
+### U1 — Subgraph persistence: design confirmed correct, no new defect
+
+**Status:** RESOLVED 2026-08-24. **Gap-register resolution routed through §56;
+no architecture change.**
+**Source:** G-43, raised 2026-08-24 during the G-03/G-42 resolution session
+(§T1) by the Standing Reasoning Protocol's trusted-source check. Closed the
+same day by tracing every invoke site in the reference.
+**Lands in:** reference §66 register and the head version note; S-F02's inline
+marker removed; `agent-improve/ARCHITECTURE.md` identically. **No `CLAUDE.md`
+change and no procedure change** — the remaining work is an existing step.
+
+**The alarm.** §16 compiles phase subgraphs with no checkpointer argument. In
+LangGraph that is the **per-invocation** mode, in which *each call starts
+fresh*; `checkpointer=True` is the **per-thread** mode, in which state
+accumulates on the same thread. The inference was that `PhaseState` might be
+re-seeded empty every Belt turn, so `artifacts`, `gate_attempts`, `turn_count`
+and `validator_feedback` could not accumulate within a phase. It was registered
+at highest severity **and explicitly marked INFERENCE, needing confirmation.**
+
+#### The four findings that closed it
+
+**1. No standalone subgraph invocation exists anywhere in this document.**
+Every `.invoke` / `.ainvoke` is one of two things: the **single parent-graph
+entry point** — `graph.ainvoke` with `thread_id` in config (§16) — or an **LLM
+call**: `phase_planner.invoke`, `executor.ainvoke`, `planner.invoke`,
+`synthesis_llm.invoke`. All four are models, not graphs. **The concern requires
+a phase subgraph invoked standalone, outside the parent. That does not occur.**
+
+**2. Checkpointer placement is correct, and verified.** The parent compiles
+with `checkpointer=checkpointer`; subgraphs compile with no arguments and
+inherit persistence through an auto-managed `checkpoint_ns` (§16). **This is
+the prescribed LangGraph pattern**, not a deviation from it.
+
+**3. The dropped companion clause should have been dropped.** The clause whose
+absence raised the alarm — *pass `checkpointer=True` to the subgraph you'd like
+to persist* — governs **independently-persisted subgraphs**, which Agent
+Improve deliberately does not use. **Omitting it is correct, not a defect**, and
+the provenance concern therefore does not apply: nothing was lost, because the
+omitted clause should be omitted.
+
+**4. What remains is already known and already scheduled.** The checkpointer is
+**⚠ WIRED but INERT** — `thread_id` is not yet passed at `ainvoke` in the
+current *code* (§53.1, Appendix E). That is the existing
+`thread_id`-through-`ainvoke` step (§16, §47). **G-43 folds entirely into it and
+adds no new work.**
+
+#### The resolution
+
+**G-43 is downgraded from HIGHEST SEVERITY to RESOLVED. The design is correct.**
+The memory architecture works as designed — the checkpointer stores full state
+in Blob and reloads it on return via `thread_id` — **once the already-planned
+`thread_id`-through-`ainvoke` wiring lands.** No architectural change follows,
+which is why this is a register resolution rather than an amendment to any
+section.
+
+#### The finding worth carrying forward
+
+**The pattern-check fired correctly and cleared correctly, and both halves
+matter.** G-43 had the exact shape of §R1 and §R2 — guidance adopted as a
+fragment — and looking for that shape is now deliberate review practice. It
+found a real candidate. **It then cleared on inspection, because the omitted
+clause governed a case this architecture does not have.**
+
+**Recorded as a true negative so the §R-series list is not inflated with a
+false fourth instance.** A register of failure modes that overstates itself is
+as untrustworthy as one that misses: if three instances become four on a
+candidate that did not hold, the next reader weights the pattern wrongly and the
+list stops being evidence. **Firing is not finding.** The §R2 note now carries
+this explicitly.
+
+**What G-43 verified, and what it did not.** It verified two cases: that no
+subgraph is invoked standalone outside the parent, and that the bare-node
+compile pattern's persistence is correct. **The wrapper-internal
+`subgraph.ainvoke` prescribed by G-42's resolution at S-F10 is a distinct third
+case, is not covered by finding 2, and is tracked as G-44** — open, at HIGH
+severity, and requiring its own trusted-source check before design.
+
+**One thing this session did get right, and it is the reason the cost was
+low:** G-43 was registered **marked INFERENCE, needs confirmation**, not as
+established fact, and it was deferred rather than acted on. **The cost of a
+false alarm raised that way is one tracing session; the cost of one raised as
+fact would have been an unnecessary architecture change** — a subgraph
+`checkpointer=True` that the design does not need and that §16 correctly
+forbids.
