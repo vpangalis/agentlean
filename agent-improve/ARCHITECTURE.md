@@ -73,9 +73,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.8 · 2026-08-24
+Version 1.9 · 2026-08-24
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.9 (2026-08-24)** — **W1 / G-04 resolved: `remaining_steps` is declared as a LangGraph managed value.** It was read off `PhaseState` in §26's entry guard and never declared — so `state.get("remaining_steps", 10)` returned **10 forever and the five-hop cap never fired.** `PhaseState` now declares `remaining_steps: RemainingSteps` (`from langgraph.managed import RemainingSteps`) in a new **engine-managed** category: **nineteen author-populated fields plus one engine-managed value, twenty declared.** The input mapper populates the nineteen and **SHALL NOT populate the managed one** — LangGraph's execution loop supplies it as `recursion_limit` − steps taken. **The 10 was a bug artifact and is gone; the five-hop business rule is unchanged and now actually fires.** Verified against the installed LangGraph 1.2.11 — import path, `Annotated[int, RemainingStepsManager]`, and `scratchpad.stop - scratchpad.step` read from source. Register: 44 identified, 6 closed or resolved, 38 open. Also in `CLAUDE.md` §10.1.
 
 **v1.8 (2026-08-24)** — **G-44 resolved; §16 gains the wrapper-invoke rule.** The phase wrapper node's inner `await subgraph.ainvoke(child_state)` **does** persist `PhaseState` across Belt turns — LangGraph statically discovers a subgraph invoked directly inside a node function and namespaces its checkpoints under the parent saver via the inherited config. **Pattern B is not merely correct, it is forced**: `SupervisorState` and `PhaseState` share no keys, so `add_node(subgraph)` is unavailable. Two constraints now bind — call `ainvoke` directly with the inherited config and never pass a fresh one, and never relocate the invoke inside a tool, where LangGraph does not namespace it and persistence breaks silently (a constraint G-32 must respect). Verified against current LangChain subgraph documentation, 2026-08-24; **a local repro against the pinned LangGraph is still owed.** Register: 44 identified, 5 closed or resolved, 39 open. **G-04 is now the next live gap.**
 
@@ -591,8 +593,11 @@ structural rather than stylistic.
 **Specification:** the canonical schema and its field table are **§58.2 — S-C02**.
 This section keeps the reasoning.
 
-**Nineteen fields — two identity, three plumbing, fourteen content.** **Any
-new field requires an amendment**, whatever category it is placed in (§56).
+**Nineteen author-populated fields** (two identity, three plumbing, fourteen
+content) **plus one engine-managed value — twenty declared.** The managed value
+is **declared but NOT populated by the input mapper**; LangGraph's execution loop
+supplies it. **Any new field requires an amendment**,
+whatever category it is placed in (§56).
 
 ### `draft`, `belt_edits` and `final` are `dict`, never `str`
 
@@ -2370,7 +2375,7 @@ not replace them.
 ### The hop cap is `RemainingSteps`
 
 **Specification:** the guard is behaviour B1 of **§58.18 — S-F09**. Note the state field it
-reads is undeclared — **SPEC-GAP G-04**.
+reads is declared as a managed value — **S-C02**.
 
 **Five hops per Belt turn.** Beyond five the model is usually lost or looping,
 and cutting it off is correct behaviour.
@@ -4935,6 +4940,8 @@ every value that must survive context compression lives (§19.3).
 
 **Definition:**
 ```python
+from langgraph.managed import RemainingSteps
+
 class PhaseState(TypedDict):
     # ── identity, copied down by the input mapper (2) ────
     case_id:            str
@@ -4960,8 +4967,14 @@ class PhaseState(TypedDict):
     uploads:            list[dict]
     hop_results:        list[str]
     synthesis_output:   Optional[dict]
+
+    # ── engine-managed (1) ──────────────────────────
+    remaining_steps:    RemainingSteps
 ```
-**Nineteen fields — two identity, three plumbing, fourteen content. Any new
+**Nineteen author-populated fields** (two identity, three plumbing, fourteen
+content) **plus one engine-managed value — twenty declared.** The managed value
+is **declared but NOT populated by the input mapper**; LangGraph's execution loop
+supplies it. **Any new
 field requires a §56 amendment, whatever category it is placed in.**
 
 **Fields:**
@@ -4987,12 +5000,13 @@ field requires a §56 amendment, whatever category it is placed in.**
 | `uploads` | `list[dict]` | Files the Belt uploaded this phase — `evidence_index_id`, `filename`, `phase`, `uploaded_at`, `summary`. An empty list means the phase reached its conclusions from typed statements alone | none (append by the writer) | the upload handler — **see G-36** | gate document assembly; evidence context |
 | `hop_results` | `list[str]` | Ordered answers from a planned multi-hop chain. `[]` on every single-hop turn. State rather than a node local, so LangSmith can see it and a resume does not lose it | none | `analyse_executor_node` | the synthesis call; the LangSmith state view |
 | `synthesis_output` | `Optional[dict]` | The dedicated synthesis call's `SynthesisOutput`, dumped. `None` on single-hop turns | none | `analyse_executor_node` | the coach call |
+| `remaining_steps` | `RemainingSteps` (managed) | Live per-turn hop budget, = `recursion_limit` − steps taken. Read by the executor entry guard; the graceful off-ramp that keeps a Belt from ever seeing `GraphRecursionError` | none (engine-managed) | LangGraph execution loop, **not user code** | `analyse_executor_node` entry guard (S-F09) |
 
 **Behaviors (EARS):**
 
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
 |---|---|---|---|
-| B1 | a phase subgraph is entered | populate every one of the nineteen fields from the input mapper; no field SHALL be left undeclared | §9 |
+| B1 | a phase subgraph is entered | populate the **nineteen author-populated fields** from the input mapper; no field SHALL be left undeclared. **`remaining_steps` is the one declared field the mapper SHALL NOT populate** — it is engine-managed, `NotRequired` in intent, and LangGraph's execution loop supplies it | §9 |
 | B2 | the planner fires | replace `coaching_plan` entirely; it SHALL NOT be appended to or queued | §6 |
 | B3 | a validation layer fails | increment `gate_attempts` by one and append one entry to `validator_feedback` | §34 |
 | B4 | the gate passes | reset `gate_attempts` to `0` and `validator_feedback` to `[]`, and only `gate_apply` SHALL do so | §33.2 |
@@ -5040,12 +5054,6 @@ field requires a §56 amendment, whatever category it is placed in.**
   (§40.1).
 - `coaching_plan` is `None` before the planner's first turn; readers MUST treat
   `None` as "no plan yet," not as an error.
-
-> **SPEC-GAP (G-04):** `remaining_steps` is read off this state twice (§26) and
-> is not a declared field. `RemainingSteps` is a LangGraph managed value that
-> must be declared on the state schema to be populated; undeclared,
-> `state.get("remaining_steps", 10)` returns 10 on every call and **the
-> five-hop cap never fires** — to be designed with founder.
 
 > **SPEC-GAP (G-05):** `extracted_entity` is read off this state by
 > `analyse_executor_node` (§26). It is not a declared field and no writer is
@@ -5389,7 +5397,8 @@ await graph.ainvoke(
 - `gate_attempts` is read only inside a phase and MUST NOT be added to
   `SupervisorState`.
 - `recursion_limit=50` is an infrastructure backstop. The per-turn hop budget is
-  `RemainingSteps` inside the executor (§26) — see G-04.
+  `RemainingSteps` inside the executor (§26), declared as an engine-managed
+  value on `PhaseState` — S-C02.
 
 ### 58.11 S-F02 · `build_phase_subgraph(phase, llm)`
 
@@ -5704,7 +5713,7 @@ that may matter under Art. 12. Classification deferred rather than guessed.
 ### 58.18 S-F09 · `analyse_executor_node`
 
 **Architecture:** §26 · **File:** `phases/analyse/nodes.py` · **Procedure:** step 6.2
-*Rebuild test: blocked on G-04, G-05 and G-35.*
+*Rebuild test: blocked on G-05 and G-35.*
 
 **Purpose:** The planned multi-hop variant of the executor, implemented for
 Analyse. Runs a three-hop dependent retrieval chain inside **one** node
@@ -5746,7 +5755,7 @@ async def analyse_executor_node(state: PhaseState) -> dict:
 | | |
 |---|---|
 | **Supplier** | `phase_planner` (S-F03), when `coaching_plan.retrieval_strategy == "multi_hop"` |
-| **Input** | `remaining_steps` (**undeclared — G-04**), `extracted_entity` (**undeclared — G-05**), `PhaseState.current_phase` (declared, copied down at entry — S-C02), `coaching_plan.retrieval_hops` |
+| **Input** | `remaining_steps` (**declared, engine-managed — S-C02**), `extracted_entity` (**undeclared — G-05**), `PhaseState.current_phase` (declared, copied down at entry — S-C02), `coaching_plan.retrieval_hops` |
 | **Process** | Entry guard; decomposition call producing `Plan` (S-C17); three `rag_lookup_methodology` calls, each templating the prior hop's answer; one synthesis call at temperature 0.1–0.2 producing `SynthesisOutput` (S-C18) |
 | **Output** | `{"hop_results": list[str], "synthesis_output": dict}` |
 | **Customer** | The coach call inside `phase_executor` (S-F04), which reads `synthesis_output` from state rather than a local; the LangSmith state view |
@@ -7931,7 +7940,7 @@ item 1. Classification deferred rather than guessed.
 inline marker.** That bidirectional correspondence is checkable and is one of
 the §55.1 governance rules.
 
-**44 gaps identified. Five are closed or resolved. 39 are open.** None was
+**44 gaps identified. Six are closed or resolved. 38 are open.** None was
 filled by the 2026-08-23 conversion pass — that was the pass's binding
 constraint; G-03 and G-42 were resolved together on 2026-08-24 (DECISIONS
 §T1), and **G-43 was raised and closed the same day as a false alarm**
@@ -7951,12 +7960,12 @@ and never behind a tool (§16).
 
 **The same defect class as `route_after_phase` (DECISIONS §R2): specified code
 reading state a schema does not declare.** Each fix is a design choice, and
-adding a `PhaseState` field is a §56 amendment.
+adding a `PhaseState` field is a §56 amendment. **G-03, G-42 and G-04 have been
+resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 
 | # | Gap | Marked at |
 |---|---|---|
 | ~~**G-03**~~ | **RESOLVED 2026-08-24** — `PhaseState` gains `case_id` and `current_phase`, copied down by the input mapper and read-only in the subgraph. See §66.6 and DECISIONS §T1 | — |
-| **G-04** | `remaining_steps` is read off `PhaseState` twice (§26) and is not declared. `RemainingSteps` must be declared on the state schema to be populated; undeclared, the `.get(..., 10)` default returns 10 forever and **the five-hop cap never fires** | S-C02, S-F09 |
 | **G-05** | `extracted_entity` is read off `PhaseState` (§26); undeclared, and no writer is named anywhere | S-C02, S-F09 |
 | **G-06** | `extraction_error` and `extraction_incomplete` are written into `PhaseState` by `phase_error_recovery` (§45); neither is declared | S-C02, S-F29 |
 | **G-07** | `state["structured_response"]` is read by `ContradictionDetectionMiddleware` (§19.6). Whether middleware observes `PhaseState` or `create_agent`'s internal agent state is unstated | S-F04, S-C10 |
@@ -8018,6 +8027,7 @@ adding a `PhaseState` field is a §56 amendment.
 | **G-03** | `PhaseState` declared no case identity and no phase identifier, while three specified functions read one or both off it | **RESOLVED 2026-08-24**, ruling A2. Two fields added — `case_id`, `current_phase` — copied down by the input mapper at phase entry, read-only in the subgraph, never written back up. Chosen over reading `case_id` from config and phase from a build constant, **because mixing sources is what made the defect latent.** S-C02; DECISIONS §T1 |
 | **G-42** | The boundary mappers had no stated execution site: §9 made them plain functions, §13 permits exactly five nodes and none is a mapper, §12 embeds each subgraph as a parent node | **RESOLVED 2026-08-24**, as the same fix. The mapper runs **inside the parent's uniquely-named node function** for that phase — the documented LangGraph pattern where parent and subgraph share no state keys — so it adds no sixth node. Carries the call-order namespace stability condition. S-F10, S-F12; DECISIONS §T1 |
 | **G-43** | Raised 2026-08-24: subgraph state might not persist across Belt turns, because §16 compiles phase subgraphs with no checkpointer argument | **RESOLVED 2026-08-24 — FALSE ALARM. Design confirmed correct.** Every `.invoke`/`.ainvoke` in this document is either the single parent-graph entry point or an LLM call; **no subgraph is invoked standalone, outside the parent.** Checkpointer placement is the prescribed pattern — parent compiles with the checkpointer, subgraphs compile bare and inherit persistence through an auto-managed `checkpoint_ns`. The `checkpointer=True` clause whose absence raised the alarm applies to **independently-persisted** subgraphs, which Agent Improve deliberately does not use; **omitting it is correct, not a defect.** What remains is the already-known **⚠ WIRED, INERT** checkpointer — `thread_id` is not yet passed at `ainvoke` in the current *code* — which is already scheduled as the `thread_id`-through-`ainvoke` step (§16, §47, §53.1). **G-43 folds entirely into that step and adds no new work.** **What it did NOT verify is the wrapper-internal invoke prescribed by G-42/S-F10 — that distinct case was tracked as G-44 and is itself now resolved (below).** DECISIONS §U1 |
+| **G-04** | `remaining_steps` read off `PhaseState` twice (§26), undeclared — the `.get(..., 10)` default returned 10 forever and the 5-hop cap never fired | **RESOLVED 2026-08-24.** Declared as a LangGraph managed value (`remaining_steps: RemainingSteps`) on `PhaseState`; the engine now populates it live. The 10 was a bug artifact and is gone; the 5-hop business rule, enforced by the `<= 2` entry guard, is unchanged and now actually fires. Verified against current LangGraph docs/source. See S-C02, §26. |
 | **G-44** | Raised 2026-08-24 as the narrow successor to G-43: the S-F10 wrapper node's inner `subgraph.ainvoke` is a third case neither §16's bare-node claim nor G-43's standalone-invoke check covered. | **RESOLVED 2026-08-24.** Pattern B (wrapper node invoking the subgraph) is correct and is in fact forced — `SupervisorState` and `PhaseState` share no keys, so `add_node(subgraph)` is unavailable. The inner invoke persists `PhaseState` across turns **provided** it is called directly inside the node function with inherited config and is never relocated inside a tool. Verified against current LangChain subgraph docs; local repro owed. See §16. |
 
 ### 66.7 Findings — recorded, not gaps

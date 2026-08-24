@@ -15,7 +15,7 @@ themselves; do not carry a line forward because it was here before.
 -->
 
 # AgentLean — Session Continuity Guide
-# Version 3.4 — 2026-08-24
+# Version 3.5 — 2026-08-24
 
 > **Read this first, then stop reading it.** This file orients. The binding
 > documents are named in §2 and they win on every point of detail.
@@ -200,18 +200,18 @@ session-start hook reports `last completed 2.3 | next 2.4`.
 right now.** Both are resolved under the Standing Reasoning Protocol (§6), and
 both need a trusted-source check before any design is chosen.
 
-| Gap | Why it has weight |
-|---|---|
-| **G-04** | `remaining_steps` is read off `PhaseState` twice (§26) and is not a declared field. Undeclared, the `.get(..., 10)` default returns 10 forever and **the five-hop cap never fires** — a cap that cannot fire |
+**None right now.** The G-43 → G-44 → G-04 chain that ran through 2026-08-24 is
+closed end to end: `PhaseState` persists across Belt turns via the direct
+wrapper invoke, and `remaining_steps` is declared so the hop cap fires.
 
-> **G-04 is the next gap, and the blocker in front of it is gone.** G-44 is
-> resolved: **`PhaseState` does persist across Belt turns**, because the phase
-> wrapper's inner `subgraph.ainvoke` is called directly inside a node function
-> and LangGraph namespaces its checkpoints under the parent saver
-> (`ARCHITECTURE.md` §16). The accumulation question G-04 asks is therefore
-> **live and meaningful**, which it was not while G-43 and then G-44 were open.
-> **A local repro of the persistence claim is still owed** — documented, not
-> yet demonstrated.
+**The register is `ARCHITECTURE.md` §66 — 44 identified, 6 closed or resolved,
+38 open.** Pick the next gap from there rather than from this file; nothing
+open is currently carrying the severity those three did.
+
+> **Two things are owed and are not gaps**, so they will not surface from §66:
+> a **local repro** of the §16 persistence claim (documented, not demonstrated),
+> and the **G-01 Level 2 `Command` routing** design, which is the largest open
+> item and gates the phase subgraph's wiring.
 
 ### Watches
 
@@ -363,6 +363,7 @@ changes are separate commits.
 
 | Version | Date | Change |
 |---|---|---|
+| **3.5** | 2026-08-24 | **G-04 resolved** — `remaining_steps` declared as a LangGraph managed value on `PhaseState`; the hop cap now fires (the `.get(..., 10)` default had masked it). `ARCHITECTURE.md` S-C02/§26/§66 and `CLAUDE.md` §10.1 amended; register 6 closed / 38 open. Field count now "19 author-populated + 1 managed" |
 | **3.4** | 2026-08-24 | **G-44 resolved** — the phase wrapper's inner `subgraph.ainvoke` persists `PhaseState` when called directly inside the node with inherited config; breaks only if moved inside a tool. ARCHITECTURE.md §16 gains the rule; §66 register G-44 → Closed (5 resolved / 39 open). Process note added to §7. **G-04 is now the next live gap.** Local repro of the persistence claim still owed |
 | **3.3** | 2026-08-24 | **Live high-severity gap list added** (§5) — G-44 and G-04, with the ordering argument between them. Added when G-43 was resolved as a false alarm and its narrower successor G-44 registered |
 | **3.2** | 2026-08-24 | **SIPOC cross-check scope note added** to the Standing Reasoning Protocol — step 2's holistic trace applies to peer runtime call edges only. Mirrors the narrowing of reference §55.1 rule 3. Process governance, not a §56 amendment |

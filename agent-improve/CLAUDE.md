@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.21 — August 2026
+# Version 2.2.22 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -406,6 +406,33 @@ as a key — any hit is a violation.**
 > through it.** A gate whose scope is set by a label the adder chooses is not a
 > gate. Corrected in the same commit — the reference's §56 now fires on any new
 > `PhaseState` field. Full record: `docs/DECISIONS.md` §T1.
+
+### 0.16 — What Changed in 2.2.22 — the hop cap starts firing
+
+**`remaining_steps` was read off `PhaseState` and never declared.** §26 of the
+architecture guards the Analyse multi-hop chain with
+`state.get("remaining_steps", 10) <= 2` — and with the field undeclared, that
+`.get` returned **10 on every call, forever.** The guard could not fire, and
+the five-hop cap §3.7 mandates has never been enforceable.
+
+| Area | v2.2.21 | v2.2.22 |
+|---|---|---|
+| `PhaseState` | 19 fields | **19 author-populated + 1 engine-managed = 20 declared** (§10.1) |
+| `remaining_steps` | Read, never declared | **Declared `remaining_steps: RemainingSteps`**, from `langgraph.managed` (§10.1) |
+| Who populates it | Nobody — hence the bug | **LangGraph's execution loop.** The input mapper MUST NOT |
+| The `10` default | Masked the defect | **A bug artifact. Gone** |
+| The 5-hop rule | Unenforceable | **Unchanged, and now actually fires** |
+
+**Declaring a managed value is what activates it.** `RemainingSteps` resolves to
+`Annotated[int, RemainingStepsManager]`, and the manager returns
+`scratchpad.stop - scratchpad.step`. Verified against the installed LangGraph
+**1.2.11** — import path, type and source all read directly, not inferred.
+
+> **The failure mode is the one this file keeps naming.** A cap that cannot fire
+> is not a loose cap; it is **a check recorded as evidence while proving
+> nothing.** `.get(key, default)` on an undeclared key never raises, so nothing
+> anywhere reported that the budget was fictional. Full record:
+> `ARCHITECTURE.md` §66 (G-04, closed) and its S-C02 entry.
 
 ---
 
@@ -2272,6 +2299,8 @@ consistent with `gate_passed`. Full rationale: `../AGENTIC_ARCHITECTURE_REFERENC
 **`PhaseState`** — per-phase subgraph state:
 
 ```python
+from langgraph.managed import RemainingSteps
+
 class PhaseState(TypedDict):
     # identity — copied down by the input mapper, read-only here
     case_id:            str                # from SupervisorState — §10.2
@@ -2297,10 +2326,20 @@ class PhaseState(TypedDict):
     uploads:            list[dict]         # files the Belt uploaded this phase
     hop_results:        list[str]          # ordered hop answers; [] otherwise
     synthesis_output:   Optional[dict]     # SynthesisOutput; None for single-hop
+
+    # engine-managed — declared, never populated by the mapper
+    remaining_steps:    RemainingSteps     # recursion_limit − steps taken
 ```
 
-**Nineteen fields — two identity, three plumbing, fourteen content.** **Any new
-field requires an amendment** to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56)
+**Nineteen author-populated fields — two identity, three plumbing, fourteen
+content — plus one engine-managed value, twenty declared.**
+
+**`remaining_steps` is engine-managed and the input mapper MUST NOT populate
+it.** Declaring it is what makes LangGraph supply it (`recursion_limit` − steps
+taken); undeclared, `state.get("remaining_steps", 10)` returns 10 forever and
+the five-hop cap never fires (§3.7).
+
+**Any new field requires an amendment** to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56)
 **whatever category it is placed in**, same as `SupervisorState`'s eighth.
 
 **`case_id` and `current_phase` are COPIED DOWN by the input mapper at phase
