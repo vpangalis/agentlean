@@ -15,7 +15,7 @@ themselves; do not carry a line forward because it was here before.
 -->
 
 # AgentLean — Session Continuity Guide
-# Version 3.3 — 2026-08-24
+# Version 3.4 — 2026-08-24
 
 > **Read this first, then stop reading it.** This file orients. The binding
 > documents are named in §2 and they win on every point of detail.
@@ -202,13 +202,16 @@ both need a trusted-source check before any design is chosen.
 
 | Gap | Why it has weight |
 |---|---|
-| **G-44** | **S-F10's execution site is a wrapper node calling `input_mapper` → `subgraph.ainvoke(...)` → `output_mapper`.** That is neither the bare-node pattern §16's persistence claim was verified against, nor the standalone invoke G-43 ruled out. **Open: does the inner invoke inherit the parent's checkpointer and `thread_id`, so `PhaseState` persists across turns — or does it run detached?** And prior to that, is the wrapper pattern the right approach at all, or should the translation keep the subgraph as a node? **It determines whether the mapper path persists**, which G-43's "memory sound" conclusion assumed |
 | **G-04** | `remaining_steps` is read off `PhaseState` twice (§26) and is not a declared field. Undeclared, the `.get(..., 10)` default returns 10 forever and **the five-hop cap never fires** — a cap that cannot fire |
 
-> **Order matters between them.** G-44 asks whether `PhaseState` persists across
-> turns at all. **If it does not, G-04's accumulation question does not mean
-> anything yet** — settle G-44 first. This is the same ordering argument G-43
-> carried before it was resolved; the question moved, it did not go away.
+> **G-04 is the next gap, and the blocker in front of it is gone.** G-44 is
+> resolved: **`PhaseState` does persist across Belt turns**, because the phase
+> wrapper's inner `subgraph.ainvoke` is called directly inside a node function
+> and LangGraph namespaces its checkpoints under the parent saver
+> (`ARCHITECTURE.md` §16). The accumulation question G-04 asks is therefore
+> **live and meaningful**, which it was not while G-43 and then G-44 were open.
+> **A local repro of the persistence claim is still owed** — documented, not
+> yet demonstrated.
 
 ### Watches
 
@@ -349,6 +352,7 @@ fail.**
 | **A rule** | `CLAUDE.md` §18 — plus a numbered `§0.x` change entry in that file |
 | **Improve-specific architecture** | `agent-improve/ARCHITECTURE.md` |
 | **A rule number cited in `deprecated_patterns.yaml`** | **Update the registry in the same commit** (§55) |
+| **During Improve's refactor** | Improve-specific architectural decisions are recorded in `agent-improve/ARCHITECTURE.md`, not `DECISIONS.md`. Platform-level decisions are captured there too **for now** and back-ported to the root reference (§56) once Improve is settled. Deliberate, temporary divergence from the root-first procedure above. |
 
 **Never amend a rule in passing while making a feature change.** Architecture
 changes are separate commits.
@@ -359,6 +363,7 @@ changes are separate commits.
 
 | Version | Date | Change |
 |---|---|---|
+| **3.4** | 2026-08-24 | **G-44 resolved** — the phase wrapper's inner `subgraph.ainvoke` persists `PhaseState` when called directly inside the node with inherited config; breaks only if moved inside a tool. ARCHITECTURE.md §16 gains the rule; §66 register G-44 → Closed (5 resolved / 39 open). Process note added to §7. **G-04 is now the next live gap.** Local repro of the persistence claim still owed |
 | **3.3** | 2026-08-24 | **Live high-severity gap list added** (§5) — G-44 and G-04, with the ordering argument between them. Added when G-43 was resolved as a false alarm and its narrower successor G-44 registered |
 | **3.2** | 2026-08-24 | **SIPOC cross-check scope note added** to the Standing Reasoning Protocol — step 2's holistic trace applies to peer runtime call edges only. Mirrors the narrowing of reference §55.1 rule 3. Process governance, not a §56 amendment |
 | **3.1** | 2026-08-24 | **Standing Reasoning Protocol added** (§6) — the discipline every SPEC-GAP resolution follows: detail, holistic SIPOC trace, trusted-source check, use-case forward-note. Also in `docs/SPEC_LAYER_GUIDE.md` §6.1. Process governance, not a §56 amendment |
