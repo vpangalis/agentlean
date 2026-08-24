@@ -2170,3 +2170,127 @@ flag-is-canonical rule is not read as broken by its presence.
 **Compliance-source discipline binds on every claim in this Part:** cite a
 current-dated source, or mark it "unverified — requires legal validation."
 Nothing in Part XIII is legal advice.
+
+---
+
+## Part T — `PhaseState` identity fields (2026-08-24)
+
+### T1 — G-03 and G-42 resolved: case and phase identity are copied down at the boundary
+
+**Status:** RATIFIED 2026-08-24. **§56 amendment** — `PhaseState` field-ceiling
+breach.
+**Source:** SPEC-GAP resolution session, 2026-08-24, run under the Standing
+Reasoning Protocol (`SPEC_LAYER_GUIDE.md` §6.1). **New decision.**
+**Lands in:** reference §6, §56, and spec entries S-C02, S-F02, S-F07, S-F09,
+S-F10, S-F11, S-F12, S-F29, S-F32, plus §66; `agent-improve/ARCHITECTURE.md`
+identically; `CLAUDE.md` §0.4, §0.15, §10.1, §14; `REFACTORING_PROCEDURE.md`
+steps 3.1 and 3.3. This entry is both the decision record and the change-log
+entry required by §56.
+
+**The question.** `PhaseState` declared no case identity and no phase
+identifier, and three specified functions read one or both off it:
+`phase_error_recovery` read `state["case_id"]` and `state["phase"]` (§45);
+`analyse_executor_node` read `state["current_phase"]` (§26); and
+`gate_apply_node`'s Store write needed `case_id` (§33.2). **The same defect
+class as `route_after_phase`** (§R2) — specified code reading state a schema
+does not declare.
+
+#### The ruling — A2
+
+**Phase-internal functions read case identity and phase from their own
+`PhaseState`, injected by the input mapper at the boundary.** A single source of
+truth for inside-subgraph code.
+
+| Field | Type | Writer |
+|---|---|---|
+| `case_id` | `str` | **Input mapper only**, copied from `SupervisorState.case_id` at phase entry |
+| `current_phase` | `str` | **Input mapper only**, copied from `SupervisorState.current_phase` at phase entry |
+
+**`PhaseState` goes 17 → 19: two identity, three plumbing, fourteen content.**
+
+**Chosen over reading `case_id` from config and phase from a build-time
+constant, and the reason is the defect itself: mixing sources is what made G-03
+latent.** Three functions read three different notional sources, none declared,
+and nothing could see that they disagreed.
+
+**The copy-down invariant.** Both fields are **copied down** at phase entry,
+are **read-only within the subgraph**, and are **never written back up**.
+`SupervisorState.current_phase` remains authoritative and keeps its single
+writer, the output mapper. **A boundary-time copy is not a second writer** — the
+parent field and the child field are two fields on two schemas, and the child's
+is derived from the parent's exactly once, at entry.
+
+**Its check, per §55.1 rule 5:** grep every node's return dict for `case_id` or
+`current_phase` as a key. **Any hit is a violation.** Node returns are dict
+literals (§14), so the write sites are greppable.
+
+#### G-42 is resolved by the same fix
+
+**The boundary mappers had no stated execution site.** §9 made them plain
+functions; §13 permits exactly five nodes and none is a mapper; §12 embeds each
+subgraph as a parent node.
+
+**They run inside the parent's uniquely-named node function for that phase** —
+which calls the input mapper, invokes the compiled subgraph, and calls the
+output mapper on the way back. **This adds no sixth node**: §13's rule governs
+the subgraph, and the mapper runs one level up.
+
+**Verified against current documentation, 2026-08-24** (Standing Reasoning
+Protocol step 3): where a parent graph and a subgraph have different state
+schemas — which `SupervisorState` and `PhaseState` do, sharing no keys — the
+documented LangGraph pattern is to invoke the subgraph **inside a node
+function** that transforms parent state to subgraph state before invoking and
+transforms the result back.
+
+> **The stability condition binds, and is now written into the spec.**
+> Namespaces for subgraphs invoked inside node functions are assigned **by call
+> order**, and reordering calls can mix up which subgraph loads which state. The
+> documented remedy is a uniquely-named parent node per subgraph — satisfied by
+> the five phase nodes, which must now stay uniquely named for a stated reason
+> rather than by habit. **The escalation edge is the one place order is not
+> fixed** (§12, §38), and that is one more thing G-34 must settle.
+
+#### The trigger correction — the part that outlives the two fields
+
+**§56's `PhaseState` trigger read "a fifteenth `PhaseState` content field."**
+That is an enforcement hole: a field can be added, declared non-content, and
+**skip the amendment gate on a category label the adder chooses.**
+
+**The two fields added here would themselves have slipped through it** — they
+are identity fields, not content fields, so on the old wording this amendment
+was not required at all.
+
+**Corrected in the same commit.** §56 now fires on **any new `PhaseState`
+field, whatever category it is placed in.** A gate whose scope is set by a label
+the adder picks is not a gate.
+
+#### Also in this amendment
+
+- **`state["phase"]` → `state["current_phase"]`** at §45's handler, and
+  `delete_or_flag_stale_in_case_index`'s parameter renamed to match the field it
+  is passed (S-F32). The old name matched nothing.
+- **No lag window.** `CLAUDE.md` §10.1 carries the schema quoted into every
+  implementation prompt; it moves in this commit, not after it (§0.9).
+
+#### The finding worth carrying forward
+
+**This is the first gap resolved under the Standing Reasoning Protocol, and
+step 3 is what earned its place.** The trusted-source check confirmed the mapper
+pattern — and while confirming it, surfaced **G-43**, a defect larger than the
+one being fixed: §16 compiles phase subgraphs with no checkpointer argument,
+which is LangGraph's per-invocation mode, in which *each call starts fresh*.
+
+**Its provenance is a third partial quotation.**
+`REFACTORING_AGENT_IMPROVE.md` §1432 quotes the source rule — *"When using
+subgraphs, only the parent graph should have a checkpointer, to avoid duplicate
+storage and state persistence issues"* — and the companion clause, *pass
+`checkpointer=True` to the subgraph you'd like to persist*, **was never carried
+across.** §R1 was a pattern adopted by name; §R2 was a rule with no check that
+could see it; **this is guidance adopted as a fragment, its assumptions
+invisible in what was kept.**
+
+**G-43 is registered at §66.1 as highest severity and marked INFERENCE —
+the API behaviour is confirmed, that AgentLean is affected is not.** It is not
+resolved here, it gets its own session, and it likely precedes G-04: if
+`PhaseState` is re-seeded every turn, G-04's accumulation question is moot until
+G-43 is settled.

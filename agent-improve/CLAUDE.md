@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.20 — August 2026
+# Version 2.2.21 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -92,7 +92,7 @@ rules that bind, and where they live:
 | Identifier | `project_id` in docs, `case_id` in code | **`case_id` everywhere** (§10.5) |
 | Name for captured fields | `artifacts` / `captured_fields` / `phase_inputs` | **`artifacts` only** (§10.5) |
 | `SupervisorState` | 7 fields, `gate_passed: list[str]` | 7 fields, **`gate_passed: dict[str, bool]`**, `final_output: Optional[dict]` (§10.1) |
-| `PhaseState` | 11 fields, `feedback`, `final: str` | **17 fields** — adds `gate_attempts`, `validator_feedback`, `citations`, `uploads`, `hop_results`, `synthesis_output`; `feedback` → **`belt_edits`**; `final: dict` (§10.1) |
+| `PhaseState` | 11 fields, `feedback`, `final: str` | **17 fields (now 19 — §0.15)** — adds `gate_attempts`, `validator_feedback`, `citations`, `uploads`, `hop_results`, `synthesis_output`; `feedback` → **`belt_edits`**; `final: dict` (§10.1) |
 | `coaching_plan` | `list[dict]` in some places | **single typed `CoachingPlan`**, transient (§10.1) |
 | Gate document write | Unspecified | **`gate_apply_node` writes store + `PhaseState.final`** (§9.6) |
 | Captured field typing | Prose promised typed floats | **All `str`**, three cross-phase reference dicts excepted (§10.6) |
@@ -369,6 +369,43 @@ re-derived — **loose-but-plausible language is how a deleted design regrows.**
 > a construct to forbid it. **Third instance of one pattern: a correct rule
 > paired with a check that structurally cannot see what it governs.** Full
 > record: `docs/DECISIONS.md` §R2.
+
+### 0.15 — What Changed in 2.2.21 — `PhaseState` learns who and where it is
+
+**Three specified functions read case identity and phase off `PhaseState`,
+which declared neither.** `phase_error_recovery` read `state["case_id"]` and
+`state["phase"]`; `analyse_executor_node` read `state["current_phase"]`;
+`gate_apply_node`'s Store write needed `case_id`. **The same defect class as
+`route_after_phase`** (§0.14): specified code reading state a schema does not
+declare, with nothing able to see the disagreement.
+
+| Area | v2.2.20 | v2.2.21 |
+|---|---|---|
+| `PhaseState` | 17 fields — 3 plumbing, 14 content | **19 fields — 2 identity, 3 plumbing, 14 content** (§10.1) |
+| Case identity inside a subgraph | Undeclared; read from three notional sources | **`PhaseState.case_id`**, copied down by the input mapper (§10.1) |
+| Phase identity inside a subgraph | Undeclared | **`PhaseState.current_phase`**, copied down by the input mapper (§10.1) |
+| Writer | — | **Input mapper only.** Read-only inside the subgraph, never written back up |
+| The amendment trigger | "a fifteenth `PhaseState` **content** field" | **Any new `PhaseState` field, whatever category** — the old wording was an enforcement hole |
+| Boundary mapper execution site | Unstated | **Inside the parent's uniquely-named node function** for that phase |
+
+**Ruling A2 was chosen over reading `case_id` from config and phase from a
+build-time constant, and the reason is the defect itself:** mixing sources is
+what made this latent. Phase-internal code now takes both from its own state
+and from nothing else.
+
+**The copy-down is not a second writer.** The parent field and the child field
+are two fields on two schemas; the child's is derived from the parent's exactly
+once, at entry. `SupervisorState.current_phase` keeps its single writer
+(§10.1). **Check: grep every node return dict for `case_id` or `current_phase`
+as a key — any hit is a violation.**
+
+> **The trigger correction matters more than the two fields.** §56's
+> `PhaseState` trigger fired only on a *fifteenth content field*, so a field
+> could be added, declared non-content, and skip the amendment gate on a
+> category label. **The two fields added here would themselves have slipped
+> through it.** A gate whose scope is set by a label the adder chooses is not a
+> gate. Corrected in the same commit — the reference's §56 now fires on any new
+> `PhaseState` field. Full record: `docs/DECISIONS.md` §T1.
 
 ---
 
@@ -2236,6 +2273,10 @@ consistent with `gate_passed`. Full rationale: `../AGENTIC_ARCHITECTURE_REFERENC
 
 ```python
 class PhaseState(TypedDict):
+    # identity — copied down by the input mapper, read-only here
+    case_id:            str                # from SupervisorState — §10.2
+    current_phase:      str                # from SupervisorState — §10.2
+
     # conversation plumbing
     messages:           Annotated[list[BaseMessage], operator.add]
     history:            Annotated[list[str], operator.add]
@@ -2258,9 +2299,16 @@ class PhaseState(TypedDict):
     synthesis_output:   Optional[dict]     # SynthesisOutput; None for single-hop
 ```
 
-**Seventeen fields — three plumbing plus fourteen content.** A fifteenth
-content field requires an amendment to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56), same as
-`SupervisorState`'s eighth.
+**Nineteen fields — two identity, three plumbing, fourteen content.** **Any new
+field requires an amendment** to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56)
+**whatever category it is placed in**, same as `SupervisorState`'s eighth.
+
+**`case_id` and `current_phase` are COPIED DOWN by the input mapper at phase
+entry and are READ-ONLY inside the subgraph.** They are never written back up;
+`SupervisorState.current_phase` keeps its single writer, the output mapper
+(§10.2). A boundary-time copy is not a second writer. **Check: grep every node
+return dict for `case_id` or `current_phase` as a key — any hit is a
+violation.**
 
 **`hop_results` and `synthesis_output` MUST be state, not node locals.**
 LangSmith traces node inputs and outputs, not interpreter locals, so hop
@@ -2785,6 +2833,9 @@ to choose backoff strategy (§4.8).
   go in `artifacts["computation_results"]` (§10.6)
 - Never hold `gate_attempts` in route scope — it is on `PhaseState` and
   in the checkpoint, or the v1 reset bug returns (§10.1, §1.7)
+- Never write `case_id` or `current_phase` from inside a phase subgraph — both
+  are copied down by the input mapper at entry and are read-only there; a node
+  returning either key is a violation (§10.1)
 - Never merge `validator_feedback` and `belt_edits` — system validation
   and Belt corrections are different actors at different moments (§10.1)
 - Never merge `issues_and_barriers` and `acknowledged_gaps` — Belt-stated

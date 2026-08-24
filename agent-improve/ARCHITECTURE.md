@@ -73,9 +73,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.6.1 · 2026-08-24
+Version 1.7 · 2026-08-24
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.7 (2026-08-24)** — **§56 AMENDMENT. G-03 and G-42 resolved; `PhaseState` 17 → 19 fields.** Ruling A2: phase-internal code reads case identity and phase from its own `PhaseState`, injected by the input mapper at the boundary — `case_id` and `current_phase`, **copied down at phase entry, read-only inside the subgraph, never written back up.** The parent keeps its single writer; this is a boundary-time copy, not a second writer. Chosen over reading `case_id` from config and phase from a build constant, **because mixing sources is what made G-03 latent.** The same fix resolves **G-42**: the mapper's execution site is the parent's uniquely-named node function for that phase — the documented LangGraph pattern where parent and subgraph share no state keys — which adds no sixth node and carries a call-order namespace stability condition. **§56's `PhaseState` trigger is corrected in the same commit**: it now fires on any new field whatever its category, closing an enforcement hole in which a field could skip the gate on a category label. `§45`'s handler now reads `current_phase`, not `phase`. **G-43 registered, not resolved** — highest severity, marked INFERENCE. Decision record: `agent-improve/docs/DECISIONS.md` §T1.
 
 **v1.6.1 (2026-08-24)** — **§55.1 rule 3 narrowed to peer runtime call edges**, with the four excluded classes stated: edges into class entries, return paths, build-time relations, and nested sub-component references. Its first run (§66.8) reported 36 non-closures; re-run under the narrowed scope, 29 fall out of scope and 7 remain, of which 5 are real wiring defects — 86% of the original output was noise, which is how a check stops being read. The re-run was executed and its classification is tabled at §66.8, not asserted. §66.8's note now records the narrowing as the resolution of finding F-07. **A check-scope correction, not an architecture change**: no section content, schema, signature or gap moved, and this is deliberately not routed through §56. Also applied to `agent-improve/docs/SPEC_LAYER_GUIDE.md` §6 rule 3, which carried the same un-narrowed wording.
 
@@ -585,8 +587,8 @@ structural rather than stylistic.
 **Specification:** the canonical schema and its field table are **§58.2 — S-C02**.
 This section keeps the reasoning.
 
-**Seventeen fields — three plumbing plus fourteen content.** A fifteenth
-content field requires an amendment.
+**Nineteen fields — two identity, three plumbing, fourteen content.** **Any
+new field requires an amendment**, whatever category it is placed in (§56).
 
 ### `draft`, `belt_edits` and `final` are `dict`, never `str`
 
@@ -4590,10 +4592,17 @@ Architecture changes are separate commits.
 
 ### What requires an amendment rather than a routine change
 
-- An eighth `SupervisorState` field (§5), a fifteenth `PhaseState` content
-  field (§6), or **any new field on `CoachingResponse` (§20)** — all three are
-  load-bearing schemas. `CoachingResponse`'s omission from this list until
-  2026-08-22 was an oversight (DECISIONS §R1)
+- An eighth `SupervisorState` field (§5), **any new field on `PhaseState`
+  (§6) whatever category it is placed in**, or **any new field on
+  `CoachingResponse` (§20)** — all three are load-bearing schemas.
+  `CoachingResponse`'s omission from this list until 2026-08-22 was an oversight
+  (DECISIONS §R1)
+
+  > **The `PhaseState` trigger previously read "a fifteenth content field," and
+  > that was an enforcement hole**: a field could be added, declared
+  > non-content, and skip the gate on a category label. Closed 2026-08-24 in the
+  > amendment that added the two identity fields — which would themselves have
+  > slipped through the old wording (DECISIONS §T1)
 - A new graph node type in a phase subgraph (§13)
 - A new middleware, or any change to stack order (§19)
 - A new LLM role (§21)
@@ -4730,8 +4739,9 @@ entry carries a labelled placeholder and nothing is invented:**
 ```
 
 Every marker has a row in the **§66 gap register**, and every register row has
-a marker. Forty-one gaps were identified in the 2026-08-23 conversion pass and
-none were filled by it — that was the pass's binding constraint.
+a marker. The conversion pass of 2026-08-23 identified 42 and filled none — that
+was its binding constraint. **§66 carries the live count**; do not read one from
+this paragraph.
 
 ### 57.1 The two calibrated samples
 
@@ -4853,8 +4863,7 @@ class SupervisorState(TypedDict):
 ### 57.4 Entry index
 
 **73 entries — 37 classes, 36 functions and nodes.** Five carry an AI-ACT flag;
-twelve carry `AI-ACT-REVIEW: uncertain`; forty-one gaps are marked and none are
-filled.
+twelve carry `AI-ACT-REVIEW: uncertain`. **§66 carries the live gap count.**
 
 | Subsystem | Section | Entries |
 |---|---|---|
@@ -4896,6 +4905,10 @@ every value that must survive context compression lives (§19.3).
 **Definition:**
 ```python
 class PhaseState(TypedDict):
+    # ── identity, copied down by the input mapper (2) ────
+    case_id:            str
+    current_phase:      str
+
     # ── conversation plumbing (3) ───────────────────────────────
     messages:           Annotated[list[BaseMessage], operator.add]
     history:            Annotated[list[str], operator.add]
@@ -4917,13 +4930,15 @@ class PhaseState(TypedDict):
     hop_results:        list[str]
     synthesis_output:   Optional[dict]
 ```
-**Seventeen fields — three plumbing plus fourteen content. A fifteenth content
-field requires a §56 amendment.**
+**Nineteen fields — two identity, three plumbing, fourteen content. Any new
+field requires a §56 amendment, whatever category it is placed in.**
 
 **Fields:**
 
 | Field | Type | Meaning | Reducer | Writer | Readers |
 |---|---|---|---|---|---|
+| `case_id` | `str` | The project identifier, **copied down from `SupervisorState.case_id`** at phase entry. Identical to the graph's `thread_id` and the first Store namespace segment. The single source of case identity for everything inside the subgraph | none | **input mapper only**, at the boundary | `gate_apply_node`'s Store write (S-F07); `phase_error_recovery` (S-F29) |
+| `current_phase` | `str` | Which DMAIC phase this subgraph is executing, **copied down from `SupervisorState.current_phase`** at phase entry. The single source of phase identity inside the subgraph | none | **input mapper only**, at the boundary | `analyse_executor_node` (S-F09); `phase_error_recovery` (S-F29); `gate_apply_node`'s Store key (S-F07) |
 | `messages` | `Annotated[list[BaseMessage], operator.add]` | The Belt↔coach conversation for this phase. Append-only; the only thing prose summarisation is allowed to compress (§19.3) | `operator.add` | input mapper seeds it; the agent loop appends | the agent loop; `SummarizationMiddleware` (§19.3) |
 | `history` | `Annotated[list[str], operator.add]` | Breadcrumbs, one per node entry. Diagnostic only | `operator.add` | every node, on entry | debugging |
 | `phase_context` | `str` | The framing this phase was entered with, composed at the boundary from the Store — the case record for Define, the prior phase's gate document for the rest. Never carried on parent state | none | **input mapper only** | planner; state injection (§19.1) |
@@ -4946,13 +4961,15 @@ field requires a §56 amendment.**
 
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
 |---|---|---|---|
-| B1 | a phase subgraph is entered | populate every one of the seventeen fields from the input mapper; no field SHALL be left undeclared | §9 |
+| B1 | a phase subgraph is entered | populate every one of the nineteen fields from the input mapper; no field SHALL be left undeclared | §9 |
 | B2 | the planner fires | replace `coaching_plan` entirely; it SHALL NOT be appended to or queued | §6 |
 | B3 | a validation layer fails | increment `gate_attempts` by one and append one entry to `validator_feedback` | §34 |
 | B4 | the gate passes | reset `gate_attempts` to `0` and `validator_feedback` to `[]`, and only `gate_apply` SHALL do so | §33.2 |
 | B5 | a turn is single-hop | leave `hop_results` as `[]` and `synthesis_output` as `None` | §26 |
 | B6 | any node writes `draft`, `belt_edits` or `final` | write a `dict`; a `str` SHALL never be assigned to any of the three | §6 |
 | B7 | `coaching_plan` is read | read it by attribute (`coaching_plan.retrieval_hops`), never by subscript | §6 |
+| B8 | a phase subgraph is entered | copy `case_id` and `current_phase` down from the parent `SupervisorState`, and take them from **no other source** — not config, not a build-time constant | §5, §9 |
+| B9 | any node inside the subgraph runs | treat `case_id` and `current_phase` as **read-only**; no node SHALL return either key in its state-update dict | §5 |
 
 **Invariants:**
 - `validator_feedback` (what the system said about the AI's output at step 2)
@@ -4965,21 +4982,33 @@ field requires a §56 amendment.**
 - Every captured value in `artifacts` is a `str`, except the three cross-phase
   reference dicts (S-C32) and the three structured dicts (S-C33).
 
+**The copy-down invariant — `case_id` and `current_phase`:**
+
+> **Both fields are COPIED DOWN from the parent by the input mapper at phase
+> entry. They are READ-ONLY within the subgraph and are never written back up.**
+> `SupervisorState.current_phase` remains authoritative and keeps its single
+> writer, the output mapper (§5). **This is a boundary-time copy, not a second
+> writer, and it does not violate the single-writer rule** — the parent field
+> and the child field are two fields on two schemas, and the child's is derived
+> from the parent's exactly once, at entry.
+>
+> **Why copied rather than read from elsewhere.** Phase-internal code takes case
+> identity and phase from its own state, and from nothing else. Reading
+> `case_id` from config while taking phase from a build-time constant is what
+> made G-03 latent: three functions read three different notional sources, none
+> of which was declared, and nothing could see the disagreement.
+>
+> **What catches a violation** (§55.1 rule 5): **grep every node's return dict
+> for `case_id` or `current_phase` as a key. Any hit is a violation.** Node
+> returns are dict literals (§14), so the keys are greppable at their write
+> sites.
+
 **Failure modes:**
 - A missing key in `artifacts` at Tier 1 gate assembly is **correct behaviour**
   — Layer 2b should have blocked the gate, so the `KeyError` must surface
   (§40.1).
 - `coaching_plan` is `None` before the planner's first turn; readers MUST treat
   `None` as "no plan yet," not as an error.
-
-> **SPEC-GAP (G-03):** `PhaseState` declares no `case_id` and no phase
-> identifier, and at least three specified functions read one or both off it —
-> `phase_error_recovery` reads `state["case_id"]` and `state["phase"]` (§45),
-> `analyse_executor_node` reads `state["current_phase"]` (§26), and
-> `gate_apply_node`'s Store write needs `case_id` (§33.2). Whether these become
-> declared fields (a §56 amendment against the fourteen-content-field ceiling),
-> arrive through `phase_context`, or are passed by config, is undesigned — to
-> be designed with founder.
 
 > **SPEC-GAP (G-04):** `remaining_steps` is read off this state twice (§26) and
 > is not a declared field. `RemainingSteps` is a LangGraph managed value that
@@ -5370,6 +5399,17 @@ def build_phase_subgraph(phase: str, llm):
 > `Command` routing, which does not exist — see S-F13. Until it lands, this
 > entry cannot pass the rebuild test.
 
+> **SPEC-GAP (G-43) — HIGHEST SEVERITY, INFERENCE, needs confirmation.**
+> Behaviour B1 compiles the subgraph with no checkpointer argument, which is
+> LangGraph's **per-invocation** mode: *each call starts fresh*. Passing
+> `checkpointer=True` is the **per-thread** mode, in which subgraph state
+> accumulates across calls on the same thread. **If each Belt turn is its own
+> `ainvoke` (§49), per-invocation means `PhaseState` is re-seeded empty every
+> turn and `artifacts`, `gate_attempts`, `turn_count` and `validator_feedback`
+> cannot accumulate across a phase** — and the Store holds only *prior* phases'
+> gate documents, so nothing repopulates them. **Not resolved here; it gets its
+> own reasoning session** — to be designed with founder.
+
 > **SPEC-GAP (G-33):** if `load_skill(name)` is a registered tool bound to the
 > executor (§19.2, §32), it is an eighth universal tool and every phase count in
 > §30 moves against the 16 cap. `UNIVERSAL_TOOLS` therefore has an undetermined
@@ -5565,7 +5605,7 @@ return {"final": gate_document, "gate_attempts": 0, "validator_feedback": []}
 | | |
 |---|---|
 | **Supplier** | `gate_review_node` (S-F06), when the graph resumes from the interrupt with `Command(resume=...)` |
-| **Input** | The resume payload → `PhaseState.belt_edits`; `PhaseState.artifacts`, `citations`, `uploads`; `acknowledged_gaps` (see G-08); `case_id` and the phase name (see G-03) |
+| **Input** | The resume payload → `PhaseState.belt_edits`; `PhaseState.artifacts`, `citations`, `uploads`; `acknowledged_gaps` (see G-08); `PhaseState.case_id` and `PhaseState.current_phase`, copied down at entry (S-C02) |
 | **Process** | Applies Belt edits into `artifacts`; runs the policy advisory (S-F27, non-blocking); assembles the `{Phase}Output` by Pydantic construction with **no LLM call** (S-F28); writes the Store; returns `final` |
 | **Output** | Store key `("projects", case_id, "artifacts")/{phase}`; `{"final": dict, "gate_attempts": 0, "validator_feedback": []}`; then the subgraph reaches `END` |
 | **Customer** | `define_output_mapper` (S-F11) and the four remaining output mappers (S-F12), which read `final`; the next phase's input mapper, which reads the Store key; crash recovery, which reads `final` |
@@ -5597,9 +5637,6 @@ reads what this node writes.
 | Art. 15 (accuracy/robustness) | Tier 1 access raises rather than silently defaulting; the policy advisory reviews the Belt's edits before commit |
 
 *Feeds DORA register row **R-GATEAPPLY-01**.*
-
-> **SPEC-GAP (G-03):** the Store write needs `case_id` and the phase name, and
-> `PhaseState` declares neither — see S-C02.
 
 > **SPEC-GAP (G-28):** §40.1 shows gate assembly for `DefineOutput` only. The
 > four remaining assemblies are unwritten, and §40 requires that assembly
@@ -5647,7 +5684,7 @@ that may matter under Art. 12. Classification deferred rather than guessed.
 ### 58.18 S-F09 · `analyse_executor_node`
 
 **Architecture:** §26 · **File:** `phases/analyse/nodes.py` · **Procedure:** step 6.2
-*Rebuild test: blocked on G-03, G-04, G-05 and G-35.*
+*Rebuild test: blocked on G-04, G-05 and G-35.*
 
 **Purpose:** The planned multi-hop variant of the executor, implemented for
 Analyse. Runs a three-hop dependent retrieval chain inside **one** node
@@ -5689,7 +5726,7 @@ async def analyse_executor_node(state: PhaseState) -> dict:
 | | |
 |---|---|
 | **Supplier** | `phase_planner` (S-F03), when `coaching_plan.retrieval_strategy == "multi_hop"` |
-| **Input** | `remaining_steps` (**undeclared — G-04**), `extracted_entity` (**undeclared — G-05**), `current_phase` (**undeclared on `PhaseState` — G-03**), `coaching_plan.retrieval_hops` |
+| **Input** | `remaining_steps` (**undeclared — G-04**), `extracted_entity` (**undeclared — G-05**), `PhaseState.current_phase` (declared, copied down at entry — S-C02), `coaching_plan.retrieval_hops` |
 | **Process** | Entry guard; decomposition call producing `Plan` (S-C17); three `rag_lookup_methodology` calls, each templating the prior hop's answer; one synthesis call at temperature 0.1–0.2 producing `SynthesisOutput` (S-C18) |
 | **Output** | `{"hop_results": list[str], "synthesis_output": dict}` |
 | **Customer** | The coach call inside `phase_executor` (S-F04), which reads `synthesis_output` from state rather than a local; the LangSmith state view |
@@ -5730,6 +5767,8 @@ def define_input_mapper(parent: SupervisorState, store: BaseStore) -> PhaseState
     is the case record loaded at session start (§10)."""
     case = store.get(("projects", parent["case_id"], "case"), "record").value
     return {
+        "case_id":            parent["case_id"],        # copied down — S-C02
+        "current_phase":      parent["current_phase"],  # copied down — S-C02
         "messages":           parent["messages"],
         "history":            [],
         "phase_context": (
@@ -5754,15 +5793,6 @@ def define_input_mapper(parent: SupervisorState, store: BaseStore) -> PhaseState
     }
 ```
 
-> **SPEC-GAP (G-42):** **the boundary mappers have no execution site.** §9
-> defines them as "two plain functions per phase"; §13 states a phase subgraph
-> contains **exactly five nodes**, none of which is a mapper, and forbids a
-> sixth without a §56 amendment; §12 embeds each subgraph as a node of the
-> parent. Whether a mapper runs inside the subgraph, inside the parent's node
-> wrapper, or somewhere else is stated nowhere — and every phase boundary
-> depends on it. **Surfaced by the Supplier/Customer cross-check** (§66.2) — to
-> be designed with founder.
-
 #### SIPOC — at a glance
 
 | | |
@@ -5773,13 +5803,43 @@ def define_input_mapper(parent: SupervisorState, store: BaseStore) -> PhaseState
 | **Output** | A complete `PhaseState` |
 | **Customer** | `phase_planner` (S-F03), which reads `phase_context`; every node of the Define subgraph, which reads the initialised fields |
 
+#### Execution site — where a boundary mapper actually runs
+
+**A mapper runs inside the parent's node function for that phase, not inside
+the subgraph.** The parent registers one uniquely-named node per phase; that
+node function calls the input mapper, invokes the compiled subgraph, and calls
+the output mapper on the way back.
+
+**This is the documented LangGraph pattern for the case at hand** — verified
+against the current subgraph reference, 2026-08-24: when a parent graph and a
+subgraph have different state schemas, the subgraph is invoked **inside a node
+function**, which transforms parent state into subgraph state before invoking
+and transforms the result back afterwards. `SupervisorState` and `PhaseState`
+share no keys, so this is exactly that case.
+
+**It does not add a sixth node.** §13's five-node rule governs the *subgraph*;
+the mapper runs one level up, in the parent.
+
+> **Stability condition, and it binds.** Checkpoint namespaces for
+> subgraphs invoked inside node functions are assigned **by call order**, and
+> reordering calls can mix up which subgraph loads which state. The documented
+> remedy is to give each subgraph its own uniquely-named parent node — which
+> the five phase nodes already satisfy, and which is now a reason they must
+> stay uniquely named rather than an accident of readability.
+>
+> **The escalation edge is the one place order is not fixed** (§12, §38): it is
+> reached by a conditional edge from inside a phase rather than by the static
+> DMAIC sequence. It needs its own stable node name for the same reason, and
+> that is one more thing G-34 must settle.
+
 #### Behaviors (EARS)
 
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
 |---|---|---|---|
 | B1 | invoked | depend on `BaseStore` alone; it SHALL NOT be handed a blob client, and SHALL NOT read context off parent state | §9 |
-| B2 | invoked | populate all seventeen fields explicitly | §6 |
+| B2 | invoked | populate all nineteen fields explicitly | §6 |
 | B3 | composing `phase_context` | compose it here, at the boundary; context SHALL NOT be carried on `SupervisorState` | §5, §9 |
+| B4 | invoked | copy `case_id` and `current_phase` down from the parent, as their **only** writer | §5, S-C02 |
 
 ### 58.20 S-F11 · `define_output_mapper`
 
@@ -5810,9 +5870,6 @@ def define_output_mapper(child: PhaseState, parent: SupervisorState,
     }
 ```
 
-> **SPEC-GAP (G-42):** this function has no stated execution site — see
-> **§58.19 — S-F10** and §66.2.
-
 #### SIPOC — at a glance
 
 | | |
@@ -5830,6 +5887,7 @@ def define_output_mapper(child: PhaseState, parent: SupervisorState,
 | B1 | invoked | write `current_phase`, `phase_index` and `gate_passed` together in one update, as the only site that writes any of them | §5, §9 |
 | B2 | updating `gate_passed` | set the phase's key to `True` by merge, never replace the dict wholesale | §5 |
 | B3 | returning to the parent | return orchestration values only; artifacts and gate documents SHALL NOT travel on parent state | §5, §9 |
+| B4 | returning to the parent | **NOT return `case_id` or `current_phase`.** Both were copied down at entry and are read-only in the subgraph; returning either would create the second writer the copy-down invariant exists to prevent | S-C02 |
 
 **Note on the duplicated Store write.** `gate_apply_node` (S-F07 B1) already
 wrote this document to the same Store key. The second write is idempotent by key
@@ -5844,9 +5902,6 @@ resolved here.
 **Purpose:** Same contract as S-F10 and S-F11, with one difference: their
 `phase_context` is composed from the **prior phase's gate document** in the
 Store rather than from the case record.
-
-> **SPEC-GAP (G-42):** this function has no stated execution site — see
-> **§58.19 — S-F10** and §66.2.
 
 #### SIPOC — at a glance
 
@@ -5866,6 +5921,12 @@ Store rather than from the case record.
 | B2 | an input mapper is invoked | populate all seventeen `PhaseState` fields | §6 |
 | B3 | an output mapper is invoked | write the gate document to the Store and return only the three orchestration values | §9 |
 | B4 | reading a prior phase's value | read it as a named field out of the structured gate document; string-interpolating a previous phase's output into the next phase's prompt is BANNED | §9 |
+| B5 | an input mapper is invoked | copy `case_id` and `current_phase` down from the parent, as their only writer | S-C02 |
+| B6 | an output mapper is invoked | NOT return `case_id` or `current_phase` upward | S-C02 |
+
+**Execution site:** identical to S-F10 — inside the parent's uniquely-named node
+function for that phase, invoking the compiled subgraph between the two mappers.
+The stability condition stated at S-F10 applies to all five.
 
 > **SPEC-GAP (G-27):** none of the four pairs is written. §9 gives Define's pair
 > in full and asserts the rest exist. What each phase's `phase_context`
@@ -7499,7 +7560,7 @@ reset; **one probe request in HALF-OPEN** before resuming.
 ### 64.3 S-F29 · `phase_error_recovery`
 
 **Architecture:** §45 · **File:** `phases/{phase}/nodes.py` or `core/reliability.py` · **Procedure:** step 8.2
-*Rebuild test: not met — blocked on G-03, G-06, G-32-adjacent G-35.*
+*Rebuild test: not met — blocked on G-06 and G-35.*
 
 **Purpose:** The node-level error handler required on every node with external
 writes. It **undoes the external write** and routes to a degraded response.
@@ -7507,7 +7568,7 @@ writes. It **undoes the external write** and routes to a degraded response.
 **Definition:**
 ```python
 def phase_error_recovery(error: NodeError, state: PhaseState) -> Command:
-    delete_or_flag_stale_in_case_index(state["case_id"], state["phase"])
+    delete_or_flag_stale_in_case_index(state["case_id"], state["current_phase"])
     return Command(
         update={"extraction_error": str(error), "extraction_incomplete": True},
         goto="degraded_coaching_response",
@@ -7529,7 +7590,7 @@ builder.add_node(
 | | |
 |---|---|
 | **Supplier** | The LangGraph runtime, when a node attempt raises **and the retry policy is exhausted** — retries run before the handler |
-| **Input** | `NodeError`; `PhaseState` — including `case_id` and `phase`, **neither of which is a declared field (G-03)** |
+| **Input** | `NodeError`; `PhaseState` — including `case_id` and `current_phase`, both declared and copied down at entry (S-C02) |
 | **Process** | Runs the compensating action against `improve_case_index`, then routes to a degraded response |
 | **Output** | A `Command` carrying `extraction_error` and `extraction_incomplete` (**neither declared — G-06**) and `goto="degraded_coaching_response"` (**not one of §13's five nodes — G-35**) |
 | **Customer** | The `degraded_coaching_response` node (S-F33) |
@@ -7548,9 +7609,6 @@ builder.add_node(
 **Hand-written Saga orchestrators and compensating-action frameworks are
 BANNED.** LangGraph provides the mechanism; `error_handler=` is the native
 replacement for the pre-1.2 workaround.
-
-> **SPEC-GAP (G-03):** it reads `state["case_id"]` and `state["phase"]`, and
-> `PhaseState` declares neither — see S-C02.
 
 > **SPEC-GAP (G-06):** it writes `extraction_error` and
 > `extraction_incomplete`, and `PhaseState` declares neither — see S-C02.
@@ -7639,7 +7697,9 @@ debugging is only correct for nodes that have a handler, because resuming rolls
 back state and not external writes.
 
 > **SPEC-GAP (G-35):** defined nowhere. Its signature is visible from the one
-> call site — `(case_id, phase)` — and **the name itself contains an unresolved
+> call site — `(case_id, current_phase)`, renamed from `phase` in the 2026-08-24
+> amendment so it matches the field it is passed — and **the name itself
+> contains an unresolved
 > choice**: delete, or flag stale? The two produce different index states and
 > different `rag_lookup_case_history` results, since that tool filters
 > `status eq 'completed'` and a flagged-stale record's status is undefined. What
@@ -7848,14 +7908,16 @@ item 1. Classification deferred rather than guessed.
 inline marker.** That bidirectional correspondence is checkable and is one of
 the §55.1 governance rules.
 
-**42 gaps identified. One is closed. 41 are open, and none was filled by the
-conversion pass** — that was the pass's binding constraint. Filling them is the
-work that follows, in the order the founder chooses.
+**43 gaps identified. Three are closed or resolved. 40 are open.** None was
+filled by the 2026-08-23 conversion pass — that was the pass's binding
+constraint; G-03 and G-42 were resolved together on 2026-08-24 (DECISIONS
+§T1), and G-43 was registered in the same session.
 
 ### 66.1 Group A — founder ruling required
 
 | # | Gap | Marked at |
 |---|---|---|
+| **G-43** | **HIGHEST SEVERITY — INFERENCE, needs confirmation. Subgraph state may not persist across Belt turns.** §16 compiles phase subgraphs with no checkpointer argument, which is LangGraph's **per-invocation** mode — *each call starts fresh*. `checkpointer=True` is the **per-thread** mode in which state accumulates on the same thread. If each turn is its own `ainvoke` (§49), `PhaseState` is re-seeded empty every turn and `artifacts`, `gate_attempts`, `turn_count` and `validator_feedback` cannot accumulate within a phase. **Provenance: another partial quotation.** `REFACTORING_AGENT_IMPROVE.md` §1432 quotes the source rule — *"only the parent graph should have a checkpointer, to avoid duplicate storage and state persistence issues"* — and the companion clause, *pass `checkpointer=True` to the subgraph you'd like to persist*, was never carried across. **Same pattern as §R1 and §R2: guidance adopted as a fragment, its assumptions invisible in what was kept.** The API behaviour is confirmed against current documentation; **that AgentLean is affected is inference and needs confirmation.** Deferred to its own reasoning session, and it likely precedes G-04 — if state is re-seeded every turn, G-04's accumulation question is moot until this is settled | S-F02 |
 | **G-01** | **Level 2 (subgraph-internal) `Command` routing.** §13 draws the branching, §15 states the rule, and no `Command(goto=…)` exists anywhere. Three decision points: planner exit; validation-stack exit and its ownership of the `gate_attempts` increment; gate exit including REJECT | S-F13, S-F02, S-F03, S-F05 |
 | **G-02** | **What a Belt REJECT does.** `POST /gate/reject` is in §49's endpoint table and in §33.1's frontend sequence; its behaviour — re-coach, or apply-with-edits — is stated nowhere. A coaching-philosophy ruling | S-F06, S-F07, S-F13, S-F34 |
 
@@ -7867,13 +7929,13 @@ adding a `PhaseState` field is a §56 amendment.
 
 | # | Gap | Marked at |
 |---|---|---|
-| **G-03** | `PhaseState` declares no `case_id` and no phase identifier, yet `phase_error_recovery` reads `state["case_id"]` and `state["phase"]` (§45), `analyse_executor_node` reads `state["current_phase"]` (§26), and `gate_apply_node`'s Store write needs `case_id` (§33.2) | S-C02, S-F07, S-F09, S-F29 |
+| ~~**G-03**~~ | **RESOLVED 2026-08-24** — `PhaseState` gains `case_id` and `current_phase`, copied down by the input mapper and read-only in the subgraph. See §66.6 and DECISIONS §T1 | — |
 | **G-04** | `remaining_steps` is read off `PhaseState` twice (§26) and is not declared. `RemainingSteps` must be declared on the state schema to be populated; undeclared, the `.get(..., 10)` default returns 10 forever and **the five-hop cap never fires** | S-C02, S-F09 |
 | **G-05** | `extracted_entity` is read off `PhaseState` (§26); undeclared, and no writer is named anywhere | S-C02, S-F09 |
 | **G-06** | `extraction_error` and `extraction_incomplete` are written into `PhaseState` by `phase_error_recovery` (§45); neither is declared | S-C02, S-F29 |
 | **G-07** | `state["structured_response"]` is read by `ContradictionDetectionMiddleware` (§19.6). Whether middleware observes `PhaseState` or `create_agent`'s internal agent state is unstated | S-F04, S-C10 |
 | **G-08** | `validation_stack.get_acknowledged_gaps()` (§40) is attribute access on a node, and §14 requires nodes to be module-level async functions. Where acknowledged gaps are produced and how they reach assembly is unspecified | S-F05, S-F07, S-F28 |
-| **G-42** | **NEW — surfaced by the Supplier/Customer cross-check.** **The boundary mappers have no execution site.** §9 defines them as "two plain functions per phase"; §13 states a phase subgraph contains **exactly five nodes**, none of which is a mapper, and forbids a sixth without a §56 amendment; §12 embeds each subgraph as a node of the parent. Whether a mapper runs inside the subgraph, inside the parent's node wrapper, or somewhere else is stated nowhere — and every phase boundary depends on it | S-F10, S-F11, S-F12 |
+| ~~**G-42**~~ | **RESOLVED 2026-08-24** — the mapper runs inside the parent's uniquely-named node function for that phase, which is the documented LangGraph pattern for parent and subgraph with different state schemas. See §66.6, S-F10 and DECISIONS §T1. *Original statement:* **the boundary mappers have no execution site.** §9 defines them as "two plain functions per phase"; §13 states a phase subgraph contains **exactly five nodes**, none of which is a mapper, and forbids a sixth without a §56 amendment; §12 embeds each subgraph as a node of the parent. Whether a mapper runs inside the subgraph, inside the parent's node wrapper, or somewhere else is stated nowhere — and every phase boundary depends on it | S-F10, S-F11, S-F12 |
 
 ### 66.3 Group C — schemas named but never defined
 
@@ -7927,6 +7989,8 @@ adding a `PhaseState` field is a §56 amendment.
 | # | Gap | Resolution |
 |---|---|---|
 | **G-41** | The two calibrated samples' verbatim text was in no file in the repository — `SPEC_LAYER_GUIDE.md` §7 gave their skeletons and deferred the full text to the 2026-08-23 conversation | **CLOSED 2026-08-23.** The approved verbatim text was supplied at `agent-improve/docs/SPEC_SAMPLES.md` and transcribed into §57.2 and §57.3 |
+| **G-03** | `PhaseState` declared no case identity and no phase identifier, while three specified functions read one or both off it | **RESOLVED 2026-08-24**, ruling A2. Two fields added — `case_id`, `current_phase` — copied down by the input mapper at phase entry, read-only in the subgraph, never written back up. Chosen over reading `case_id` from config and phase from a build constant, **because mixing sources is what made the defect latent.** S-C02; DECISIONS §T1 |
+| **G-42** | The boundary mappers had no stated execution site: §9 made them plain functions, §13 permits exactly five nodes and none is a mapper, §12 embeds each subgraph as a parent node | **RESOLVED 2026-08-24**, as the same fix. The mapper runs **inside the parent's uniquely-named node function** for that phase — the documented LangGraph pattern where parent and subgraph share no state keys — so it adds no sixth node. Carries the call-order namespace stability condition. S-F10, S-F12; DECISIONS §T1 |
 
 ### 66.7 Findings — recorded, not gaps
 
@@ -8001,6 +8065,9 @@ the architecture's.** They fall into five classes:
 > other **five are real, and every one traces to something already registered**:
 > G-01, G-42 twice, F-04 and G-35. Signal-to-noise moves from 4-in-36 to
 > 5-in-7.
+>
+> **Three of those five are now closed.** G-42's two edges were resolved on
+> 2026-08-24 (§66.6), leaving G-01, F-04 and G-35 open on this run.
 >
 > **One detection is lost to the narrowing, and it is recorded rather than
 > quietly absorbed.** **F-08** — the gate document written to one Store key by

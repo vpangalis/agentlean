@@ -369,8 +369,9 @@ resolve to a deployment and that grader temperature is 0.1.
 | **Verify** | `import-check` |
 
 **Change:** `core/state.py` holds `SupervisorState` — exactly seven fields
-(§5). `core/substate.py` holds `PhaseState` — exactly 17, three plumbing plus
-fourteen content (§6). The v1 `ImproveGraphState` is deleted in step 11.1, not
+(§5). `core/substate.py` holds `PhaseState` — exactly 19: two identity
+(`case_id`, `current_phase`, copied down by the input mapper and read-only in
+the subgraph), three plumbing, fourteen content (§6). The v1 `ImproveGraphState` is deleted in step 11.1, not
 here; both coexist until the last v1 consumer is gone.
 
 **`gate_attempts` must be on `PhaseState`** — holding it in route scope is what
@@ -381,7 +382,7 @@ produced the v1 "attempts always reset to 0" bug (§6).
 
 **Prompt:**
 > CLAUDE.md §10.1 gives both schemas in full. Create
-> `agent-improve/backend/core/substate.py` with `PhaseState` (17 fields) and
+> `agent-improve/backend/core/substate.py` with `PhaseState` (19 fields) and
 > rewrite `agent-improve/backend/core/state.py` to add `SupervisorState`
 > (7 fields) **alongside** the existing v1 `ImproveGraphState`, which stays
 > until step 11.1. Use explicit `TypedDict`, not `MessagesState` inheritance
