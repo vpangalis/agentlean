@@ -73,9 +73,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.9 · 2026-08-24
+Version 1.9.1 · 2026-08-24
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.9.1 (2026-08-24)** — S-F09 guard sample synced to the G-04 resolution (direct access; the `.get(...,10)` artifact removed).
 
 **v1.9 (2026-08-24)** — **W1 / G-04 resolved: `remaining_steps` is declared as a LangGraph managed value.** It was read off `PhaseState` in §26's entry guard and never declared — so `state.get("remaining_steps", 10)` returned **10 forever and the five-hop cap never fired.** `PhaseState` now declares `remaining_steps: RemainingSteps` (`from langgraph.managed import RemainingSteps`) in a new **engine-managed** category: **nineteen author-populated fields plus one engine-managed value, twenty declared.** The input mapper populates the nineteen and **SHALL NOT populate the managed one** — LangGraph's execution loop supplies it as `recursion_limit` − steps taken. **The 10 was a bug artifact and is gone; the five-hop business rule is unchanged and now actually fires.** Verified against the installed LangGraph 1.2.11 — import path, `Annotated[int, RemainingStepsManager]`, and `scratchpad.stop - scratchpad.step` read from source. Register: 44 identified, 6 closed or resolved, 38 open. Also in `CLAUDE.md` §10.1.
 
@@ -5726,7 +5728,7 @@ async def analyse_executor_node(state: PhaseState) -> dict:
     # The for-loop below runs inside ONE node invocation, so RemainingSteps
     # does NOT decrement between hops — LangGraph counts node transitions,
     # not Python iterations. Hence a guard at entry, not inside the loop.
-    if state.get("remaining_steps", 10) <= 2:
+    if state["remaining_steps"] <= 2:
         return {"messages": [synthesise_partial(state)]}
 
     plan: Plan = planner.invoke(decomposition_prompt)
