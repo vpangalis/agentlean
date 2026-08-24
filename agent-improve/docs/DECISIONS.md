@@ -2393,8 +2393,9 @@ this explicitly.
 subgraph is invoked standalone outside the parent, and that the bare-node
 compile pattern's persistence is correct. **The wrapper-internal
 `subgraph.ainvoke` prescribed by G-42's resolution at S-F10 is a distinct third
-case, is not covered by finding 2, and is tracked as G-44** — open, at HIGH
-severity, and requiring its own trusted-source check before design.
+case, is not covered by finding 2, and is tracked as G-44** — resolved
+2026-08-24 (see `ARCHITECTURE.md` §16); the trusted-source check it required was
+completed that day.
 
 **One thing this session did get right, and it is the reason the cost was
 low:** G-43 was registered **marked INFERENCE, needs confirmation**, not as
