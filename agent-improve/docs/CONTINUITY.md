@@ -1,6 +1,6 @@
 <!--
 Document: agent-improve/docs/CONTINUITY.md
-Version: 3.5c — 2026-08-24
+Version: 3.5d — 2026-08-24
 Purpose: Session-start orientation. A new session reading ONLY this file should
          be able to orient fully and continue without losing a day.
 
@@ -15,7 +15,7 @@ themselves; do not carry a line forward because it was here before.
 -->
 
 # AgentLean — Session Continuity Guide
-# Version 3.5c — 2026-08-24
+# Version 3.5d — 2026-08-24
 
 > **Read this first, then stop reading it.** This file orients. The binding
 > documents are named in §2 and they win on every point of detail.
@@ -55,9 +55,9 @@ reused for a copy of it.
 
 | Document | Scope | Version |
 |---|---|---|
-| **`/AGENTIC_ARCHITECTURE_REFERENCE.md`** *(monorepo root)* | **The platform architecture.** Binds on all three agents. Formerly `agent-improve/AGENT_IMPROVE_BIBLE.md`, formerly "the Bible" | **1.3** |
-| **`agent-improve/CLAUDE.md`** | **The rules.** Quoted at the top of every implementation prompt. **Per agent** — Resolve will get its own | **2.2.18** |
-| **`agent-improve/ARCHITECTURE.md`** | **Agent Improve's own architecture.** Originated 2026-08-22 as a copy of the reference; **expected to diverge** | 1.2 + provenance header |
+| **`/AGENTIC_ARCHITECTURE_REFERENCE.md`** *(monorepo root)* | **The platform architecture.** Binds on all three agents. Formerly `agent-improve/AGENT_IMPROVE_BIBLE.md`, formerly "the Bible" | **1.7.1** |
+| **`agent-improve/CLAUDE.md`** | **The rules.** Quoted at the top of every implementation prompt. **Per agent** — Resolve will get its own | **2.2.22** |
+| **`agent-improve/ARCHITECTURE.md`** | **Agent Improve's own architecture.** Originated 2026-08-22 as a copy of the reference; **expected to diverge** | **1.9.1** + provenance header |
 
 **Where to edit what:** platform-wide → the root reference · Improve-specific →
 `agent-improve/ARCHITECTURE.md` · a rule → `CLAUDE.md`.
@@ -104,7 +104,7 @@ numbering (§1–§56) after.
 1. **Full architectural review** of all 85 original sections against LangChain
    1.x, LangGraph 1.2+ and Anthropic's current engineering posts →
    `REFACTORING_AGENT_IMPROVE.md` (87 sections, 11 PARTs).
-2. **`CLAUDE.md` ground-up rewrite** v2.1 → v2.2.x, now **2.2.18**.
+2. **`CLAUDE.md` ground-up rewrite** v2.1 → v2.2.x, now **2.2.22**.
 3. **The architecture reference written** (Task 3) — Parts I–XI, Appendices A–E.
 4. **Task 3B verification pass** — every API signature, parameter name,
    deprecation status, version floor and cited source checked against live
@@ -399,6 +399,7 @@ changes are separate commits.
 
 | Version | Date | Change |
 |---|---|---|
+| **3.5d** | 2026-08-24 | §2 document-map versions synced to actuals (reference, `CLAUDE.md`, `ARCHITECTURE.md`) — the same drift class §2 was rebuilt to prevent, corrected in the orientation file a new session reads first |
 | **3.5c** | 2026-08-24 | G-04 fully settled (S-F09 sample synced, `ARCHITECTURE.md` v1.9.1). Two watches logged that are **not** §66 gaps: §16 persistence repro owed; two-venv stale-blocker (hook reads root venv 1.1.10; `agent-improve/.venv` has 1.2.11; three docs may overstate the §45/§16 blocker — needs venv authority confirmed first). Also removed a stale intro line left above the live-gap list by v3.5 |
 | **3.5** | 2026-08-24 | **G-04 resolved** — `remaining_steps` declared as a LangGraph managed value on `PhaseState`; the hop cap now fires (the `.get(..., 10)` default had masked it). `ARCHITECTURE.md` S-C02/§26/§66 and `CLAUDE.md` §10.1 amended; register 6 closed / 38 open. Field count now "19 author-populated + 1 managed" |
 | **3.4** | 2026-08-24 | **G-44 resolved** — the phase wrapper's inner `subgraph.ainvoke` persists `PhaseState` when called directly inside the node with inherited config; breaks only if moved inside a tool. ARCHITECTURE.md §16 gains the rule; §66 register G-44 → Closed (5 resolved / 39 open). Process note added to §7. **G-04 is now the next live gap.** Local repro of the persistence claim still owed |
