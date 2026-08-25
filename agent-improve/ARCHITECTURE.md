@@ -2080,6 +2080,19 @@ in shared code.
 LSS Black Belt eBook content. Static, identical for every project and every
 Belt, never updated at runtime.
 
+**The live index is `improve_knowledge_index_v3` as of 2026-08-25.** The
+`AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX` environment variable is what binds it,
+and `improve_knowledge_index` — the superseded index — is retained intact as
+the rollback target. The schema below is identical across both; only the
+corpus and its `phase_relevance` tags changed.
+
+**The corpus is the BB eBook alone — 1,184 documents.** `problem_solving_8D`
+(169 documents) and `LSS_tools_suite` (75) were removed: 8D is Agent Resolve's
+methodology and was retrievable during DMAIC coaching, and the tool sheets were
+thin duplicates of eBook content whose example-number rows acted as retrieval
+attractors. One tier-1 methodology voice, because the MEMORY HIERARCHY
+arbitrates *between* tiers and cannot arbitrate within one.
+
 | Field | Type | Role |
 |---|---|---|
 | `id` | String | Key |
@@ -2100,9 +2113,22 @@ have been wrong in some revision, and the failure modes differ:
 | `phase` as the *field* name | The field does not exist; **Azure rejects the whole query** — fails loudly |
 | `'all'` as the cross-phase value | No document carries it; the `OR` clause is never satisfied and the corpus is **silently narrowed** to the current phase |
 
-218 documents carry `'general'`. Zero carry `'all'`. **The silent failure is
-the dangerous one**, and it is why this value is stated here rather than left
-to be confirmed at implementation time.
+**259 of 1,184 documents carry `'general'`. Zero carry `'all'`.** **The silent
+failure is the dangerous one**, and it is why this value is stated here rather
+than left to be confirmed at implementation time.
+
+*Figures re-synced 2026-08-25 against `improve_knowledge_index_v3`. They
+previously read 218 of 1,369, measured against the superseded index; the
+argument above depends on the count being real, so a stale figure here weakens
+the point it is making.*
+
+**`phase_relevance` is assigned by an LLM call per chunk, not by keyword
+counting.** The keyword scorer it replaced classified on vocabulary rather than
+subject — it tagged the Control-phase wrap-up page `improve` because that page
+lists "Improvement Selected / Develop Training Plan", and tagged the
+introduction to hypothesis testing `measure` because the passage is dense with
+measurement words while teaching an Analyse technique. The two classifiers
+agree on 52% of chunks. `ingest_knowledge.py` owns this.
 
 ### 23.2 `improve_evidence_index` — Belt-uploaded evidence
 

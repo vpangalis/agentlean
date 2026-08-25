@@ -2404,3 +2404,392 @@ false alarm raised that way is one tracing session; the cost of one raised as
 fact would have been an unnecessary architecture change** — a subgraph
 `checkpointer=True` that the design does not need and that §16 correctly
 forbids.
+
+---
+
+## Part V — Knowledge-index corpus rebuild (2026-08-25)
+
+### V1 — `improve_knowledge_index` narrowed to one methodology voice
+
+**Status:** RATIFIED 2026-08-24, code landed 2026-08-25. **Corpus and
+extraction change; NO schema change, so not routed through §56** — §56's index
+trigger is a *schema* change (§23.5). The seven fields, their types, the 3072
+dimensions, the HNSW profile and the `general` sentinel are all untouched.
+**Source:** founder ruling.
+**Lands in:** `scripts/ingest_knowledge.py` (rewritten),
+`scripts/create_indexes.py` (knowledge-index definition corrected),
+`scripts/diff_knowledge_index.py` (new), `docs/EXCEL_TOOL_INVENTORY.md` (new).
+**Reference §23.1's stated figures go stale on swap** and are re-synced then,
+not now — the swap has not run.
+
+#### The decision
+
+**The index carries the BB eBook and nothing else.** Two sources removed:
+
+| Removed | Live docs | Why |
+|---|---|---|
+| `problem_solving_8D` | 169 | **Cross-framework contamination.** 8D is Agent Resolve's methodology, not DMAIC. Its D1/D2 content was retrievable during DMAIC *Define* coaching, teaching a different method under a similar-sounding name |
+| `LSS_tools_suite` | 75 | Thin descriptions plus example data, redundant against the eBook's richer coverage of the same tools; the example-number rows were retrieval attractors |
+
+**The reasoning is about tiers, and it is worth stating precisely.** Source
+conflict is governed by the MEMORY HIERARCHY in every coach prompt (CLAUDE.md
+§6.3), which arbitrates *between* tiers — methodology outranks captured fields
+outranks case history outranks conversation. **It cannot arbitrate between two
+competing tier-1 methodology voices, because they occupy the same tier.** One
+source removes the conflict rather than ranking it.
+
+**`EXCEL_SHEET_TOOL_MAP` was preserved, not deleted** — moved to
+`docs/EXCEL_TOOL_INVENTORY.md` as the build-inventory for the §30 computation
+layer. The tool-to-phase mapping is a spec, not a corpus. That file also
+records two observations from comparing it against §30's twenty tools:
+`Normality Test` has no computation-tool counterpart, and the workbook files
+DPO/Z under Control where §30 correctly files it under Measure. **Neither was
+actioned**; both are noted so the §30 build meets them deliberately.
+
+#### Extraction: the ratified rationale was wrong, the ratified choice was right
+
+The ratification called for replacing `pypdf` with `pdfplumber` or PyMuPDF
+because *"`.extract_text()` produces character garble — bullets to `%` and the
+replacement character, degrading embeddings"*. **Measured across all 700 pages
+under both libraries, that rationale does not survive:**
+
+| Artifact | pypdf | pdfplumber |
+|---|---|---|
+| `(cid:N)` tokens | 0 | **1,477 on 51% of pages** |
+| N-struck words (`BBllaacckk`) | 1 | **523 tokens on ~27 pages** |
+| `%`-as-space | 181 on 5 pages | 129 on 3 pages |
+| U+FFFD replacement char | **0** | **0** |
+| running footer | 1,396 on 698 pages | 1,396 on 698 pages |
+
+**Three corrections to the premise:**
+
+1. **The replacement-character garble does not exist.** Zero occurrences under
+   either library. It was never an extractor artifact.
+2. **`%`-as-space is in the PDF, not the extractor.** The book's fonts
+   substitute a visible glyph for the space character on a few pages — `%`,
+   `$`, `&`, `)` and `"` were all observed. Both libraries reproduce it
+   faithfully. **A library swap cannot fix it.**
+3. **pdfplumber is strictly *worse* on garble.** It is the library that
+   introduces the `(cid:N)` tokens and the character striking.
+
+**pdfplumber is still correct, for a reason the census cannot measure:
+reading order.** The book is a slide deck; on two-column pages pypdf
+interleaves the columns into semantic nonsense while pdfplumber keeps them
+apart. **A scrambled chunk cannot be repaired downstream. Every artifact
+pdfplumber adds can be**, and `normalise_page` does it:
+
+| Artifact | raw | normalised |
+|---|---|---|
+| `(cid:N)` | 1,477 | **0** |
+| space-glyph | 405 | **0** |
+| footer | 698 | **0** |
+| N-struck tokens | 523 | **6** |
+
+**So the ratified decision stands and its stated reason is replaced.** The
+pipeline is pdfplumber for layout plus a normaliser for glyphs, and neither
+half is optional. `--audit` re-runs the census on demand, so the repair rules
+can be re-derived from evidence if the PDF is ever re-issued rather than
+inherited on faith.
+
+**The striking is 2x, 3x AND 4x** — 428 tokens doubled, 29 tripled, 66
+quadrupled. A rule written for doubling alone leaves the other two mangled and,
+worse, halves a 4x token into a 2x one that then *looks* repaired. The repair
+derives the factor from run lengths instead, per token, and only on pages
+already showing three or more struck tokens. **A single-run token returns
+factor 1**, which is what keeps `XXXX` and rows of underscores untouched;
+verified zero dictionary-word collisions across the 517 tokens it alters.
+
+#### The finding that changes how the swap must be done
+
+**Not one of the live index's 1,369 document ids is reproduced by
+`make_doc_id()`.** The pipeline that populated it is not in the repository and
+used a different key formula.
+
+**Azure Search upserts on key.** So ingesting the rebuilt corpus into the live
+index would not replace it — it would **add 1,184 documents beside the existing
+1,369, and every document from the two removed sources would survive**. The
+contamination this decision exists to remove would still be there, now
+outnumbered rather than gone.
+
+**This is what makes ingest-fresh / diff / swap mandatory rather than merely
+careful.** `ingest_knowledge.py` states the measured fact at its live-write
+prompt, and `diff_knowledge_index.py` reports it as a WRITE SAFETY verdict
+rather than leaving it to be inferred from an id count.
+
+#### A blocker found in `create_indexes.py`
+
+**`create_improve_knowledge_index()` declared a schema that matched nothing.**
+`doc_id`, `title`, `section_title`, `content_text`, `source`, `phase`,
+`tool_name`, `belt_level`, `chunk_type`, `page_start`, `page_end`,
+`created_at`, and a vector field named `embedding` — **not one of those fields
+exists on the live index**, and `phase` is specifically the name §23.1 records
+as the filter bug that makes Azure reject the whole query.
+
+**The ratified procedure could not have been executed with it.** A "fresh"
+index built from that definition would have rejected every write the ingest
+script makes. Corrected against the live schema and verified field by field:
+all seven fields match on every attribute, HNSW cosine m=4 efC=400 efS=500,
+profile `default`, no semantic configuration.
+
+> **The failure mode is the one this register keeps naming** (§R1, §R2, §0.14,
+> §0.16): **a correct-looking artefact that nothing could see was wrong.**
+> `create_indexes.py` skips an index that already exists, so it had run
+> harmlessly for as long as the index existed, and its definition was never
+> exercised against reality. **A creator that only ever no-ops is not
+> verified — it is unobserved.** It became load-bearing the moment a *fresh*
+> index was required, which is the first time anything would have executed it.
+
+#### What the rebuild produces, and what is not yet decided
+
+**1,184 documents, all `BB_LSS_ebook`** — against 1,125 eBook documents live,
+so the eBook's own coverage grows slightly while the corpus overall drops from
+1,369 to 1,184. The `general` sentinel lands on 230 documents (live: 218), so
+cross-phase methodology stays reachable from every phase.
+
+**Classification moved on 32% of the 700 shared source pages**, consistent with
+the ~58% reproduction figure the ratification anticipated. Compared **by source
+page rather than by document id**, deliberately: chunk boundaries move whenever
+extraction changes, so a chunk id is not a stable identity across a rebuild —
+a page is.
+
+> **That figure first read 37-38%, and the difference was the measuring
+> instrument, not the corpus.** A page's dominant tag was taken with
+> `Counter.most_common(1)`, which preserves *insertion order* among equal
+> counts — so the same corpus read from a local JSONL and read back from Azure
+> disagreed on the handful of tied pages and produced two different headline
+> percentages **on identical data**. Ties now break alphabetically and both
+> paths report 32%. **A statistic that moves when nothing moved cannot be used
+> to judge a swap**, which is the whole purpose this one serves.
+
+#### What retrieval actually returns — the evidence the swap turns on
+
+The diff reports counts. **This is what a coach receives**, six representative
+methodology queries, top-3, live against rebuilt.
+
+**The contamination is not theoretical, and it ranks first.** For *"how do I
+validate a root cause with a hypothesis test"* — a DMAIC Analyse question — the
+live index returns **`problem_solving_8D` p71, "D5: Identify & Validate the
+Root Cause", as the top hit**. A Belt asking an Analyse question gets 8D's D5
+step ahead of the eBook's hypothesis-testing chapter. The rebuilt index returns
+the eBook's *Purpose of Hypothesis Testing* instead. **This is the exact
+failure the corpus decision was ratified to fix, observed live rather than
+argued.**
+
+**The normalisation is visible in what the coach would quote:**
+
+| Query | Live returns | Rebuilt returns |
+|---|---|---|
+| project charter | `• The%Problem • Project%Scope • Project%Metrics` | `• The Problem • Project Scope • Project Metrics` |
+| hypothesis testing | `(cid:4)Introduction to Hypothesis Testing(cid:5)` | `Introduction to Hypothesis Testing.` |
+| Cpk | chunk ends on the running footer | footer gone, chunk carries content instead |
+
+**The phase-tag changes are genuinely mixed, and that is worth saying rather
+than glossing.** Page 634's control-chart-selection table moves `measure` →
+`control`, which is better. Page 681's Control-phase wrap-up moves `control` →
+`improve` and page 286's hypothesis-testing intro moves `analyse` → `measure`,
+both of which are worse. **The rebuild does not improve classification and was
+not intended to** — Ruling 2 defers that work precisely because no consumer
+reads the field yet. Recorded so nobody later reads the rebuild as having
+fixed it.
+
+#### The three rulings
+
+Both items the ratification left open were ruled 2026-08-25, together with a
+third question that the rebuild surfaced.
+
+**Ruling 1 — the knowledge rebuild sequences INDEPENDENTLY of the §23.2/§23.3
+reindex.** The ratification framed this as "fold into one reindex, or sequence
+after?" **The question dissolves rather than trading off:** step 9.1 touches
+`improve_evidence_index` and `improve_case_index` **only**, and
+`improve_knowledge_index` needs **no schema change at all** — its seven fields,
+3072 dimensions and `default` profile were verified live and already match
+§23.1 exactly. **There is no shared Azure operation to fold into.** The two are
+independent by construction, and the knowledge rebuild is additionally
+unblocked where step 9.1 is EXTERNAL and gated on 5.2.
+
+**Ruling 2 — the phase classifier is DEFERRED, because nothing reads what it
+writes.** No live code path filters on `phase_relevance`:
+`build_knowledge_context()` — the grounding path all five orchestrators call —
+invokes `search_knowledge()` with no phase argument and documents the omission
+as deliberate; `search_improve_knowledge`'s `phase` parameter defaults to `""`.
+Sharpening the tag now would be an unobservable improvement, and would change
+two variables at once in a rebuild whose diff is worth being able to attribute.
+**Revisit when `rag_lookup_methodology` lands** (§24) — that tool binds the
+filter, and the classifier becomes measurable against a real consumer then
+rather than against none.
+
+**Ruling 3 — `page_number` stays the PDF index; the citation string carries the
+caveat.** Not in the ratification; found during the rebuild. The stored value
+and the eBook's printed page number disagree, and **the offset is piecewise,
+not constant**:
+
+| PDF pages | Printed number |
+|---|---|
+| 1–3 | cover, legal notice, contents — unnumbered |
+| 4–693 | pdf index − 3 (690 pages) |
+| 694–700 | an appendix, numbering restarts at 1 |
+
+So a chunk stored as `page_number: 47` sits on printed page 44, and §23.1's
+citation example — *"this came from page 47 of the BB eBook"* — points a Belt
+three pages past the content quoted. **A single offset constant would be wrong
+at both ends**, pushing front matter to zero and negative and landing 693 out
+across the appendix. That shape, not the size of the error, is why the stored
+value is unchanged: the PDF index is the one number unambiguous for all 700
+pages, and it is what the live index already holds. **The fix belongs in the
+citation string — "PDF page N", not "page N"** — and is owed wherever citations
+are rendered (CLAUDE.md §13).
+
+#### Execution status
+
+The corpus was built and diffed locally first, then ingested into
+`improve_knowledge_index_v2` under Ruling 1. **`improve_knowledge_index` is
+untouched** and still holds all 1,369 documents. The swap is deliberately not
+part of this record — it is a separate, reported step.
+
+> **Superseded in part by §V2 the same day.** Ruling 2 deferred classification;
+> the founder reversed it and folded classification into the rebuild.
+> `improve_knowledge_index_v2` was consequently never swapped in — it is the
+> keyword-classified build, and `_v3` supersedes it.
+
+---
+
+### V2 — LLM phase classification, and the swap (2026-08-25)
+
+**Status:** RATIFIED and LANDED 2026-08-25. **Supersedes Ruling 2 of §V1** —
+classification is IN this rebuild, not deferred to `rag_lookup_methodology`.
+**Still not a schema change**, so still not routed through §56.
+**Lands in:** `scripts/ingest_knowledge.py` (classifier replaced), `.env` and
+`.env.example` (the swap), reference §23.1 and `ARCHITECTURE.md` §23.1
+(figures), reference head note v1.7.2.
+
+#### Keyword counting classified on vocabulary; the replacement classifies on subject
+
+`detect_phase` scored each chunk against per-phase word lists and took the
+highest count. **That mechanism cannot distinguish what a passage is about
+from which words it contains**, and the eBook breaks it in both directions:
+
+| Page | Keyword said | Why it was wrong | LLM says |
+|---|---|---|---|
+| 681 — Control-phase wrap-up | `improve`, `general` | The page lists "Improvement Selected / Develop Training Plan / Implement Training Plan", so *improve* outscores *control* on a page whose whole subject is closing out Control | **`control`** |
+| 286 — introduction to hypothesis testing | `measure` | Dense with measurement vocabulary while teaching an Analyse technique | **`analyse`** |
+| 634 — control-chart selection table | `control` | Already correct | `control` |
+
+Each chunk now gets **one call to the cheap tier** — the `operational` role,
+resolving to `operational-model` (gpt-4o-mini) — at temperature 0.0, returning
+exactly one of six labels. The prompt states what each phase covers and
+instructs the model to **judge the passage on what it teaches, not on which
+words appear in it**, which is precisely the distinction the scorer could not
+make.
+
+**The two classifiers agree on 52% of chunks.** The largest single migration is
+`measure → analyse` (71 chunks) — the p286 failure mode, at scale.
+
+| Label | Keyword | LLM | Δ |
+|---|---|---|---|
+| define | 125 | 62 | −63 |
+| measure | 319 | 219 | −100 |
+| analyse | 233 | 310 | **+77** |
+| improve | 138 | 192 | +54 |
+| control | 138 | 142 | +4 |
+| general | 230 | 259 | +29 |
+
+#### The output contract avoids a blocked pattern rather than amending it
+
+**The builder-style structured-output call is blocked by
+`deprecated_patterns.yaml`'s `pattern-2`, and CLAUDE.md §18.1 already records
+that entry as stale** — §4.6 now sanctions it for plain model invocations and
+the registry has not caught up.
+
+**Neither available shortcut was taken.** Amending the registry to unblock a
+data rebuild is the in-passing rule change §0 and §56 forbid; routing around a
+live hook silently is worse. So the classifier does not need the pattern at
+all: **one bare label from a closed set of six, matched against that set.**
+§4.3 is untouched because no JSON is parsed. **The registry update remains
+owed**, and this work neither performs nor depends on it.
+
+> **The hook also fired on this document while it was being drafted**, on the
+> sentence naming the blocked call. That is the §0.14 pattern a third time — a
+> check that cannot distinguish using a construct from documenting one. It is
+> also exactly why §18.1 path-excludes `agent-improve/**/*.md`, and the
+> exclusion did its job.
+
+#### Two failure modes, opposite handling — and a bug in the first attempt
+
+**The first full run aborted, and the abort was correct.** At 8 concurrent
+workers Azure returned HTTP 429 for **603 of 1,184 chunks**. Those fall back to
+`general`, which would have produced a corpus of 750 `general` tags with
+roughly 600 of them fabricated. `--max-classify-failures 0` stopped it and
+**nothing was written**.
+
+**It exposed a defect in the classification cache.** The fallback was cached
+alongside real verdicts, so every rate-limited chunk would have been recorded
+as a decided `general`. **The cache exists to make a re-run cheap and
+reproducible; caching the guess would have made the re-run skip precisely the
+chunks that needed retrying** — turning a transient 429 into a permanent
+mislabel, invisibly, inside the mechanism meant to protect against it. **A
+missing key is retried; a cached guess is forever.** Only real verdicts are
+cached now.
+
+**The two failure modes need opposite handling, and the architecture already
+said so:**
+
+| Mode | Handling | Evidence |
+|---|---|---|
+| **429, transient** | Retry with jittered exponential backoff; 4 workers, not 8 | 603 failures → **1** |
+| **400 `content_filter`, permanent** | **Do not retry** | reference §27 / CLAUDE.md §7.2 — "a 4xx is permanent, and retrying fails identically" |
+
+**Jitter matters as much as the backoff**: every worker hits the quota wall at
+the same instant, so a fixed sleep marches them back into it together.
+
+**One chunk ships unclassified, by explicit decision.** PDF page 302 — a
+passage on statistical power and sample size for a 1-Sample t test — is refused
+by Azure's content management policy. A false positive, and permanent. It ships
+as `general`: genuinely Analyse content, so precision is lost, but `general` is
+ORed into every phase filter so the passage stays retrievable from all five
+rather than dropped or given a tag nobody stands behind. **The run proceeds
+past it only under an explicit `--max-classify-failures 1`**, and
+`classify_corpus` now names unclassified chunks by page and id rather than
+merely counting them.
+
+#### Verification, then the swap
+
+Both gates ran against `improve_knowledge_index_v3` **before** the env var
+moved.
+
+**Gate 1 — the Analyse contamination probe**, *"validate a root cause with a
+hypothesis test"*. The live index returned `problem_solving_8D` p71 — 8D's
+"D5: Identify & Validate the Root Cause" — **at rank 1**. The rebuilt index
+returned **zero non-eBook results** in the top 5. The normalisation shows in
+the same output: live returns `Mood(cid:1)s Median Test`, rebuilt returns
+`Moods Median Test`.
+
+**Gate 2 — the three pages the keyword classifier got wrong.** p286 `analyse`,
+p634 `control`, p681 `control` — every chunk on every page correct.
+
+**The swap is one line and reversible.** `AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX`
+now reads `improve_knowledge_index_v3` in `.env` and `.env.example`.
+**`improve_knowledge_index` is retained intact at 1,369 documents** as the
+rollback target — point the variable back and the previous corpus is live
+again, with no re-ingest.
+
+Confirmed post-swap through the application's own path: `search_knowledge()`
+returns no 8D, `build_knowledge_context()` produces a 4,319-character grounding
+block containing none, and `_phase_filter()` now selects meaningfully different
+content per phase — which it could not usefully do while the tags were keyword
+artefacts.
+
+**This reverses §V1's closing note.** That entry recorded that the rebuild "does
+not improve classification and was not intended to". With §V2 it does, and the
+p681 / p286 / p634 cases are the demonstration.
+
+#### One residual, deliberately not fixed here
+
+**`CLAUDE.md` §7.2 still reads "(218 carry `general`)".** It is a binding rule
+file, and correcting it requires a numbered `§0.x` entry under §18. **That is a
+rule amendment, not a figure sync**, and making it inside a data-rebuild commit
+is what §56's "never amend a rule in passing" forbids. Recorded as owed.
+
+The same figure appears in `docs/DECISIONS.md` §E3,
+`docs/REFACTORING_AGENT_IMPROVE.md` and `docs/REVIEW_DECISIONS.md`. **Those are
+the historical record and are correct as history** — they state what was
+confirmed when it was confirmed. Rewriting them would falsify the trail.

@@ -1,8 +1,10 @@
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.7.1 · 2026-08-24
+Version 1.7.2 · 2026-08-25
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.7.2 (2026-08-25)** — **§23.1 re-synced to the live index; a corpus and classification rebuild, NOT a schema change, and deliberately not routed through §56** (whose index trigger is a *schema* change, §23.5). The seven fields, 3072 dimensions, HNSW profile and the `general` sentinel are all untouched. **`improve_knowledge_index_v3` is live**, bound by `AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX`; the superseded index is retained intact as the rollback target. The corpus is now the BB eBook alone — **1,184 documents, 259 carrying `'general'`**, replacing the previously stated 218 of 1,369. `problem_solving_8D` was removed as cross-framework contamination (8D is Resolve's methodology and was ranking *first* on a DMAIC Analyse query) and `LSS_tools_suite` as redundant embedding noise. **`phase_relevance` is now assigned by one LLM call per chunk** rather than keyword counting, which classified on vocabulary rather than subject; the two agree on 52% of chunks. §23.1's figures are load-bearing in its own silent-narrowing argument, which is why the sync is not optional. Decision record: `agent-improve/docs/DECISIONS.md` §V1.
 
 **v1.7.1 (2026-08-24)** — **G-43 resolved as a FALSE ALARM; gap-register resolution, no architecture change.** Every `.invoke`/`.ainvoke` in this document is either the single parent-graph entry point or an LLM call — **no subgraph is invoked standalone**, so the per-invocation concern has no site to occur at. Checkpointer placement is the prescribed pattern, and the `checkpointer=True` clause whose absence raised the alarm **applies to independently-persisted subgraphs, which this architecture deliberately does not use — omitting it is correct.** What remains is the already-known **⚠ WIRED, INERT** checkpointer in the current code, already scheduled as the `thread_id`-through-`ainvoke` step (§16, §47, §53.1); G-43 folds into it and adds no new work. **The provenance pattern-check fired and then cleared on inspection — recorded as a true negative so the §R-series list is not inflated with a false fourth instance.** **G-44 registered in its place at HIGH severity**: G-43 verified the standalone-invoke and bare-node cases, and the **wrapper-internal `subgraph.ainvoke`** that S-F10's execution site prescribes is a third case it did not cover — open, and prior to it whether that wrapper pattern is the right approach at all. Register: 44 identified, 4 closed or resolved, 40 open. Decision record: `agent-improve/docs/DECISIONS.md` §U1.
 
@@ -1950,6 +1952,19 @@ in shared code.
 LSS Black Belt eBook content. Static, identical for every project and every
 Belt, never updated at runtime.
 
+**The live index is `improve_knowledge_index_v3` as of 2026-08-25.** The
+`AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX` environment variable is what binds it,
+and `improve_knowledge_index` — the superseded index — is retained intact as
+the rollback target. The schema below is identical across both; only the
+corpus and its `phase_relevance` tags changed.
+
+**The corpus is the BB eBook alone — 1,184 documents.** `problem_solving_8D`
+(169 documents) and `LSS_tools_suite` (75) were removed: 8D is Agent Resolve's
+methodology and was retrievable during DMAIC coaching, and the tool sheets were
+thin duplicates of eBook content whose example-number rows acted as retrieval
+attractors. One tier-1 methodology voice, because the MEMORY HIERARCHY
+arbitrates *between* tiers and cannot arbitrate within one.
+
 | Field | Type | Role |
 |---|---|---|
 | `id` | String | Key |
@@ -1970,9 +1985,22 @@ have been wrong in some revision, and the failure modes differ:
 | `phase` as the *field* name | The field does not exist; **Azure rejects the whole query** — fails loudly |
 | `'all'` as the cross-phase value | No document carries it; the `OR` clause is never satisfied and the corpus is **silently narrowed** to the current phase |
 
-218 documents carry `'general'`. Zero carry `'all'`. **The silent failure is
-the dangerous one**, and it is why this value is stated here rather than left
-to be confirmed at implementation time.
+**259 of 1,184 documents carry `'general'`. Zero carry `'all'`.** **The silent
+failure is the dangerous one**, and it is why this value is stated here rather
+than left to be confirmed at implementation time.
+
+*Figures re-synced 2026-08-25 against `improve_knowledge_index_v3`. They
+previously read 218 of 1,369, measured against the superseded index; the
+argument above depends on the count being real, so a stale figure here weakens
+the point it is making.*
+
+**`phase_relevance` is assigned by an LLM call per chunk, not by keyword
+counting.** The keyword scorer it replaced classified on vocabulary rather than
+subject — it tagged the Control-phase wrap-up page `improve` because that page
+lists "Improvement Selected / Develop Training Plan", and tagged the
+introduction to hypothesis testing `measure` because the passage is dense with
+measurement words while teaching an Analyse technique. The two classifiers
+agree on 52% of chunks. `ingest_knowledge.py` owns this.
 
 ### 23.2 `improve_evidence_index` — Belt-uploaded evidence
 

@@ -1,6 +1,6 @@
 <!--
 Document: agent-improve/docs/CONTINUITY.md
-Version: 3.6 — 2026-08-24
+Version: 3.9 — 2026-08-25
 Purpose: Session-start orientation. A new session reading ONLY this file should
          be able to orient fully and continue without losing a day.
 
@@ -15,7 +15,7 @@ themselves; do not carry a line forward because it was here before.
 -->
 
 # AgentLean — Session Continuity Guide
-# Version 3.6 — 2026-08-24
+# Version 3.9 — 2026-08-25
 
 > **Read this first, then stop reading it.** This file orients. The binding
 > documents are named in §2 and they win on every point of detail.
@@ -212,9 +212,9 @@ open is currently carrying the severity those three did.
 
 ### Watches
 
-> **These two are owed work, not register gaps.** They are recorded here
+> **These are owed work, not register gaps.** They are recorded here
 > because **nothing in `ARCHITECTURE.md` §66 will surface them** — a new session
-> that works only from the register will not see either.
+> that works only from the register will not see any of them.
 
 **WATCH 1 — the §16 persistence repro is owed.** The wrapper-invoke persistence
 claim (G-44, `ARCHITECTURE.md` §16) is **documented in three places and
@@ -259,6 +259,75 @@ aligned, not comfortably apart. The next `langchain` release may force a
 **LangGraph 1.2.7's release body repeats 1.2.6's `checkpoint_ns` fix text
 verbatim.** The ≥1.2.6 floor attribution holds, but the fix appears to have
 been applied twice — worth knowing if subgraph namespacing misbehaves at 4.1.
+
+**DONE (was WATCH 3 and 4) — the knowledge-index rebuild, LLM classification
+and the swap all landed 2026-08-25.** Recorded at `DECISIONS.md` §V1 and §V2.
+Nothing here is owed; this entry exists so a session reading only this file
+knows the state of the index it is querying.
+
+| | |
+|---|---|
+| **Live index** | **`improve_knowledge_index_v3`** — 1,184 documents, BB eBook only, **259 carrying `general`** |
+| **Bound by** | `AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX` in `agent-improve/.env` (and `.env.example`) |
+| **Rollback** | Point that variable back at `improve_knowledge_index` — **retained intact at 1,369 documents**, no re-ingest needed. One line, reversible |
+| **Also present** | `improve_knowledge_index_v2` — the keyword-classified interim build, superseded and never swapped in. Delete when `_v3` is confirmed good |
+| **§23.1 figures** | Re-synced in the reference (v1.7.2) and `ARCHITECTURE.md`. They previously read 218 of 1,369 |
+
+**Classification is now an LLM call per chunk, and it fixed what the keyword
+scorer got wrong.** p681 Control wrap-up `improve` → **`control`**; p286
+hypothesis-testing intro `measure` → **`analyse`**; p634 already correct and
+still `control`. The two classifiers agree on only 52% of chunks, and the
+largest migration is `measure → analyse` (71) — the p286 failure at scale.
+**This reverses the earlier note that the rebuild "does not improve
+classification"**; with §V2 it does.
+
+**The contamination that motivated all of it is gone.** On *"validate a root
+cause with a hypothesis test"* the old index returned `problem_solving_8D` p71
+— 8D's D5 step — **at rank 1** to a DMAIC Analyse question. `_v3` returns zero
+non-eBook results.
+
+**WATCH 3 — `CLAUDE.md` §7.2 still says "(218 carry `general`)".** The live
+figure is **259 of 1,184**. Left deliberately: `CLAUDE.md` is a binding rule
+file and §18 requires a numbered `§0.x` change entry, which makes this a rule
+amendment rather than a figure sync — and §56 forbids making one in passing
+during a data rebuild.
+
+*Owed:* the §0.x entry plus the corrected figure, as its own commit.
+
+**Do not "fix" the same number in `docs/DECISIONS.md` §E3,
+`docs/REFACTORING_AGENT_IMPROVE.md` or `docs/REVIEW_DECISIONS.md`.** Those are
+the historical record and are correct as history — they state what was
+confirmed at the time. Rewriting them falsifies the trail.
+
+**WATCH 4 — the drift registry's `pattern-2` is still stale, and it now blocks
+work.** `.claude/config/deprecated_patterns.yaml` blocks the builder-style
+structured-output call; **CLAUDE.md §18.1 already records the entry as stale**,
+because §4.6 sanctions that call for plain model invocations.
+
+It blocked the classifier during this rebuild. **Neither shortcut was taken** —
+amending the registry mid-rebuild is the in-passing rule change §0 forbids, and
+routing around a live hook silently is worse — so the classifier was written to
+not need the pattern. **The hook also fired on `DECISIONS.md` itself**, on a
+sentence naming the blocked call: the §0.14 pattern a third time, a check that
+cannot tell using a construct from documenting one. `agent-improve/**/*.md` is
+path-excluded for exactly that reason and the exclusion held.
+
+*Owed:* §18.1's described update — scope `pattern-2` to agent construction only.
+
+**WATCH 5 — citations must say "PDF page", not "page".** Unchanged from
+2026-08-25. `page_number` holds the **PDF index**; the printed number is lower,
+**piecewise** — pp 1-3 unnumbered front matter, pp 4-693 print index−3, pp
+694-700 an appendix restarting at 1. §23.1's own citation example ("page 47 of
+the BB eBook") is three pages off. The stored value stays as the PDF index; the
+fix belongs in the citation renderer, which does not exist yet.
+
+**WATCH 6 — one chunk carries a tag nobody stands behind.** PDF page 302
+(statistical power / sample size for a 1-Sample t test) is refused by Azure's
+content management policy — a false positive, and permanent, so it is not
+retried. It ships as `general`, which keeps it reachable from every phase, and
+the run was allowed past it only by an explicit `--max-classify-failures 1`.
+**It is genuinely Analyse content.** If Azure's filter behaviour changes, a
+re-run with the classification cache will pick it up at the cost of one call.
 
 ### Parallel workstreams — not steps, do not block the spine
 
@@ -399,6 +468,9 @@ changes are separate commits.
 
 | Version | Date | Change |
 |---|---|---|
+| **3.9** | 2026-08-25 | **LLM phase classification landed and the swap is DONE.** `detect_phase`'s keyword counting replaced by one cheap-tier LLM call per chunk — it classified on vocabulary, not subject (p681 Control wrap-up tagged `improve` because the page lists "Improvement Selected"). The two classifiers agree on **52%** of chunks. **`improve_knowledge_index_v3` is live** — 1,184 docs, **259 `general`** — bound by `AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX`; the old index is retained intact at 1,369 as a one-line rollback. Both pre-swap gates passed: zero 8D in the contamination probe, all three previously-wrong pages correct. §23.1 re-synced in the reference (v1.7.2) and `ARCHITECTURE.md`. **Supersedes v3.8's deferral of classification.** Owed: `CLAUDE.md` §7.2's stale 218 (needs a §0.x entry), and `pattern-2`'s stale registry block |
+| **3.8** | 2026-08-25 | **Three rulings on the knowledge rebuild, and the corpus ingested to a fresh index.** (1) The rebuild **sequences independently** of the §23.2/§23.3 reindex — step 9.1 touches the evidence and case indexes only, so there was never a shared operation to fold into. (2) The phase classifier is **deferred**, because no live code path filters on `phase_relevance`; `rag_lookup_methodology` is the trigger to revisit. (3) `page_number` **stays the PDF index** — the printed offset is piecewise (−3 for pp 4–693, unnumbered front matter, appendix restarting at 1), so the fix belongs in the citation string as "PDF page N". Corpus is in `improve_knowledge_index_v2`; **the live index is untouched and the swap is not done** — WATCH 3 carries it |
+| **3.7** | 2026-08-25 | **Knowledge-index corpus rebuild landed as code, unrun against Azure** (`DECISIONS.md` §V1). `improve_knowledge_index` narrowed to the BB eBook alone — 8D removed as cross-framework contamination, the tools-suite workbook as embedding noise; its sheet map preserved at `docs/EXCEL_TOOL_INVENTORY.md`. Extraction moved to pdfplumber **plus a normaliser** — the ratified rationale was measured wrong (no U+FFFD anywhere; `%`-as-space is in the PDF, not the extractor; pdfplumber is worse on garble and better on reading order). **`create_indexes.py`'s knowledge-index definition was wrong on every field** and would have blocked the fresh-index procedure; corrected against live. **No live document id is reproduced by `make_doc_id()`**, so a live write would add rather than replace — fresh-index-and-swap is mandatory, not tidy. WATCH 3 and 4 log the two open founder rulings |
 | **3.6** | 2026-08-24 | **G-01 + G-02 resolved together.** Level 2 `Command` routing (S-F13 — the planner owns the field/gate decision per §17); Belt reject → planner with a required reason (new field `rejection_feedback`). §4's `PhaseState` count fixed to 20+1. Register 8 closed / 36 open; **Group A empty.** Cross-links G-38 (DP1 predicate) and G-18 (reject payload) |
 | **3.5d** | 2026-08-24 | §2 document-map versions synced to actuals (reference, `CLAUDE.md`, `ARCHITECTURE.md`) — the same drift class §2 was rebuilt to prevent, corrected in the orientation file a new session reads first |
 | **3.5c** | 2026-08-24 | G-04 fully settled (S-F09 sample synced, `ARCHITECTURE.md` v1.9.1). Two watches logged that are **not** §66 gaps: §16 persistence repro owed; two-venv stale-blocker (hook reads root venv 1.1.10; `agent-improve/.venv` has 1.2.11; three docs may overstate the §45/§16 blocker — needs venv authority confirmed first). Also removed a stale intro line left above the live-gap list by v3.5 |
