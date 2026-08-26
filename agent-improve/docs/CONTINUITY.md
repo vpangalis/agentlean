@@ -1,6 +1,6 @@
 <!--
 Document: agent-improve/docs/CONTINUITY.md
-Version: 3.9 — 2026-08-25
+Version: 4.0 — 2026-08-26
 Purpose: Session-start orientation. A new session reading ONLY this file should
          be able to orient fully and continue without losing a day.
 
@@ -15,7 +15,7 @@ themselves; do not carry a line forward because it was here before.
 -->
 
 # AgentLean — Session Continuity Guide
-# Version 3.9 — 2026-08-25
+# Version 4.0 — 2026-08-26
 
 > **Read this first, then stop reading it.** This file orients. The binding
 > documents are named in §2 and they win on every point of detail.
@@ -314,6 +314,43 @@ path-excluded for exactly that reason and the exclusion held.
 
 *Owed:* §18.1's described update — scope `pattern-2` to agent construction only.
 
+**WATCH 7 — the v1 Define gate cannot pass until `orchestrate.py` migrates.**
+`phases/define/validate.py` now requires the §39.1.2 field names (`DECISIONS.md`
+§W1). **`phases/define/orchestrate.py` still writes the v1 granular 5W2H names**
+— `what`, `where`, `how_goal`, `scope_in`/`scope_out` — so on the v1 path every
+Tier 1 field reads as missing and the gate never opens.
+
+**This is the ratified rename landing ahead of its writer, not a defect.** A
+v1-to-v2 shim was rejected: it would be *adding* v1-style code (CLAUDE.md §17)
+and would hide the divergence at the seam where the two vocabularies meet.
+
+*Owed:* migrate `phases/define/orchestrate.py` at **procedure step 3.4**, and
+**with it** the Define cross-phase briefs in `analyse`, `improve` and `control`
+orchestrators (all three read `define.get("what")` / `("how_goal")` /
+`("primary_metric")`). **Do not switch the readers first** — they are currently
+consistent with the v1 writer, and moving them alone breaks the briefs rather
+than fixing them.
+
+**WATCH 8 — `CLAUDE.md` §9.7 and §10.7 carry Define's superseded counts.** They
+say 6 Tier 1 and 15/6/5/4; the live figures are **8 Tier 1 and 15/8/3/4**
+(§35, §40). Left deliberately, same reason as WATCH 3: §18 requires a numbered
+`§0.x` entry, which makes it a rule amendment rather than a figure sync.
+
+*Owed:* fold into the same rule-file commit as WATCH 3's "218 carry `general`".
+**Two stale figures in one binding file now** — that commit is worth
+scheduling rather than deferring again.
+
+**WATCH 9 — `CoachingResponse` has four fields nothing renders yet.**
+`explanation`, `example`, `prompt` and `progress` landed in the schema
+(§20/S-C05) under §50.1's contract. **The blast radius is all five phases'
+coach output**, and the UI half does not exist — no production UI exists for
+Agent Improve at all.
+
+*Owed:* the response renderer, as part of the UI rebuild (procedure step 10.2).
+Until then the four fields are populated and unread. **The four SKILL.md files
+for Measure/Analyse/Improve/Control must also instruct the coach to populate
+them** when those phases are written; only Define's does today.
+
 **WATCH 5 — citations must say "PDF page", not "page".** Unchanged from
 2026-08-25. `page_number` holds the **PDF index**; the printed number is lower,
 **piecewise** — pp 1-3 unnumbered front matter, pp 4-693 print index−3, pp
@@ -468,6 +505,7 @@ changes are separate commits.
 
 | Version | Date | Change |
 |---|---|---|
+| **4.0** | 2026-08-26 | **Define fully specified; G-38 CLOSED.** The ratified amendment's "new §41" landed as **§39.1** — §41 was already occupied by RATIFIED, 23-times-cited content, and renumbering it would have pulled a `CLAUDE.md` §18 amendment into a feature commit. **§39.1.2's ten-field coached order IS the `field_index` sequence**, which closes G-38 and makes S-F13's DP1 predicate implementable **for Define**; the other four stay blocked on G-27/G-28, and all 7 inline markers now say so. `DefineOutput` rebuilt to **15 fields / 8 Tier 1** (`team` and `baseline` join; `project_scope` becomes a dict; `problem_statement` composed from 5W2H rather than stored granularly). **Founder ruling: `secondary_metrics` stays** — §39.1.2 is the coached list, not the schema. New **§50.1** (coach response structure) and **§56.1** (atomic-unit principle); `CoachingResponse` gains four presentational fields, five-phase blast radius. Register **44 / 9 closed / 35 open**. 33 checks + pytest 6/6 + drift-check clean. **New watches 7, 8, 9** — the v1 Define gate is inert until `orchestrate.py` migrates |
 | **3.9** | 2026-08-25 | **LLM phase classification landed and the swap is DONE.** `detect_phase`'s keyword counting replaced by one cheap-tier LLM call per chunk — it classified on vocabulary, not subject (p681 Control wrap-up tagged `improve` because the page lists "Improvement Selected"). The two classifiers agree on **52%** of chunks. **`improve_knowledge_index_v3` is live** — 1,184 docs, **259 `general`** — bound by `AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX`; the old index is retained intact at 1,369 as a one-line rollback. Both pre-swap gates passed: zero 8D in the contamination probe, all three previously-wrong pages correct. §23.1 re-synced in the reference (v1.7.2) and `ARCHITECTURE.md`. **Supersedes v3.8's deferral of classification.** Owed: `CLAUDE.md` §7.2's stale 218 (needs a §0.x entry), and `pattern-2`'s stale registry block |
 | **3.8** | 2026-08-25 | **Three rulings on the knowledge rebuild, and the corpus ingested to a fresh index.** (1) The rebuild **sequences independently** of the §23.2/§23.3 reindex — step 9.1 touches the evidence and case indexes only, so there was never a shared operation to fold into. (2) The phase classifier is **deferred**, because no live code path filters on `phase_relevance`; `rag_lookup_methodology` is the trigger to revisit. (3) `page_number` **stays the PDF index** — the printed offset is piecewise (−3 for pp 4–693, unnumbered front matter, appendix restarting at 1), so the fix belongs in the citation string as "PDF page N". Corpus is in `improve_knowledge_index_v2`; **the live index is untouched and the swap is not done** — WATCH 3 carries it |
 | **3.7** | 2026-08-25 | **Knowledge-index corpus rebuild landed as code, unrun against Azure** (`DECISIONS.md` §V1). `improve_knowledge_index` narrowed to the BB eBook alone — 8D removed as cross-framework contamination, the tools-suite workbook as embedding noise; its sheet map preserved at `docs/EXCEL_TOOL_INVENTORY.md`. Extraction moved to pdfplumber **plus a normaliser** — the ratified rationale was measured wrong (no U+FFFD anywhere; `%`-as-space is in the PDF, not the extractor; pdfplumber is worse on garble and better on reading order). **`create_indexes.py`'s knowledge-index definition was wrong on every field** and would have blocked the fresh-index procedure; corrected against live. **No live document id is reproduced by `make_doc_id()`**, so a live write would add rather than replace — fresh-index-and-swap is mandatory, not tidy. WATCH 3 and 4 log the two open founder rulings |

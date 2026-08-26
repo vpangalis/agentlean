@@ -310,10 +310,15 @@ def _build_analyse_context(state: ImproveGraphState) -> str:
     analyse = phase_inputs.get("analyse") or {}
 
     # ── Cross-phase brief: Define ─────────────────────────────────────
-    # NB: DefinePhaseInput has no dedicated process-name field, so the
-    # process line falls back to "—". The problem is held in `what` and
-    # the target state in `how_goal` (there are no problem_statement /
-    # target_value fields).
+    # NB: these are the v1 field names that `phases/define/orchestrate.py`
+    # writes — `what`, `how_goal`, `primary_metric` — and there is no
+    # dedicated process-name field, so that line falls back to "—".
+    #
+    # **§39.1.2 retired all three** in favour of `problem_statement`,
+    # `goal_statement` and `baseline`. This reader is deliberately NOT
+    # updated ahead of the writer: it is consistent with `define/
+    # orchestrate.py` as it stands, and switching it first would break the
+    # brief rather than fix it. Both migrate together at procedure step 3.4.
     process_name = (
         define.get("process_name")
         or define.get("process_description")

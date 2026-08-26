@@ -2793,3 +2793,133 @@ The same figure appears in `docs/DECISIONS.md` §E3,
 `docs/REFACTORING_AGENT_IMPROVE.md` and `docs/REVIEW_DECISIONS.md`. **Those are
 the historical record and are correct as history** — they state what was
 confirmed when it was confirmed. Rewriting them would falsify the trail.
+
+---
+
+## Part W — The Define phase, fully specified (2026-08-26)
+
+### W1 — §39.1, G-38 closed, and the Define atomic unit rebuilt
+
+**Status:** RATIFIED 2026-08-25 (`docs/DEFINE_AMENDMENT_2026-08-25.md`), applied
+2026-08-26. **§56 amendment** — it adds a governance rule (§56.1), changes a
+shared schema (`CoachingResponse`), and closes a register gap.
+**Lands in:** `ARCHITECTURE.md` §39.1, §50.1, §56.1, §20/S-C05, §35, §40,
+§63.1, §66; `phases/define/{schema,validate}.py`;
+`skills/dmaic-define-phase/SKILL.md`.
+
+#### Three collisions between the amendment and the live document
+
+The amendment was ratified against an out-of-date reading of `ARCHITECTURE.md`.
+**None of the three was resolved by guessing**; each went to a founder ruling
+before any file was touched.
+
+**1. "New §41" was already occupied.** §41 is "Structured dict fields, and
+FMEA" — RATIFIED, cited **23 times** inside `ARCHITECTURE.md`, three times in
+`CLAUDE.md` §10.8, and mapped in Appendix A (`§4.10.5–§4.10.7 → §41`). It is
+also where the partial-map rule lives, which the amendment's own §41.5 cited as
+"(§41)" — circularly. Sections run 1–68 with **no gaps**, so Part VIII had no
+free two-level number.
+
+> **Ruling: Define is §39.1.** §39 is "The five phases", and §39.1 expands the
+> very table row that describes Define. **Zero citations break**, and §39.2–
+> §39.5 are reserved for the other four (§39.1.8). The cost is three-level
+> sub-numbering (§39.1.2, §39.1.7), which this document did not previously use.
+> **Renumbering §41 was rejected**: it would have rewritten 23 internal
+> citations plus three in a binding rule file, pulling a §18 amendment into a
+> feature commit — the thing §56 exists to prevent.
+
+**2. `secondary_metrics` vanished.** §41.2's ten-row table omits it, but §40
+requires it on **all five schemas** as the Tier-2 counterpart to
+`issues_and_barriers`, and Part E did not retract that rule.
+
+> **Ruling: keep it.** §39.1.2 is explicitly *"the `field_index` sequence the
+> planner walks"* — the **coached** list. Gate-metadata fields are already
+> excluded from it on the same logic, so reading ten rows as the whole schema
+> was the misreading. `DefineOutput` is **15 fields: 8 Tier 1, 3 Tier 2, 4 gate
+> metadata**. §40's cross-schema invariant stands, unretracted.
+
+**3. `message` versus the four presentational fields.** Part C says the visible
+message is carried "as discrete presentational fields, not one free-text blob";
+Part D says existing S-C05 fields are "unchanged", which leaves `message` in
+place. Two sources of truth for what the UI renders is exactly the
+inconsistency §50.1 exists to remove.
+
+> **Resolved without a ruling, because §20 already gives `message` a second
+> job:** it is appended to `messages` and is what summarisation later
+> compresses (§19.3). So `message` is the **transcript** and the four are the
+> **render contract**. Documented at S-C05 rather than left to be rediscovered.
+
+#### What changed
+
+| Site | Change |
+|---|---|
+| **§39.1** (new) | Define fully specified — purpose, the ordered field list, the composed-problem-statement rule, `team` structure, SIPOC handling, gate/storage, the SKILL content, and the shape the other four phases inherit |
+| **§39.1.2** | The ten-field coached order — **this list closed G-38** |
+| **§50.1** (new) | Coach response structure: Explanation / Example / Your turn / Progress, schema-backed rather than prompt-hoped |
+| **§56.1** (new) | The atomic-unit principle, plus the five-step capture path and the rule that middleware never captures |
+| **§20 / S-C05** | `CoachingResponse` gains `explanation`, `example`, `prompt`, `progress` |
+| **§35** | Define Tier 1: 6 → **8** (`team` and `baseline` join) |
+| **§40 / §63.1** | Define counts 15/**8**/**3**/4; `DefineOutput` rebuilt; `project_scope` becomes a dict; a note that a coached list is not a schema |
+| **§66** | G-38 → **Closed**; F-11 recorded; **7 inline G-38 markers reconciled** |
+
+**G-38's closure is per-phase, and the document now says so in all eight
+places.** Closing it in the register while seven spec entries still read
+"blocked on G-38 (open)" would have been the §55 failure mode — a register that
+disagrees with the entries it governs. Each marker now states that Define has
+its list and the other four remain blocked on G-27 and G-28.
+
+**Register: 44 identified, 9 closed or resolved, 35 open** — counted
+mechanically from §66.1–§66.6, not carried forward from the previous note.
+
+#### The consequence that is not in the amendment
+
+**Conforming `validate.py` to §39.1.2 breaks the v1 Define gate, and this was
+verified rather than assumed.** `DefinePhaseInput` was consumed by
+`validate.py` alone; the actual **writer** on the v1 path is
+`phases/define/orchestrate.py`, which still emits the granular 5W2H names. With
+the validator on v2 names and the writer on v1 names, **every Tier 1 field
+reads as missing and the gate cannot open.**
+
+**A v1-to-v2 shim was rejected.** It would be *adding* v1-style code, which
+CLAUDE.md §17 forbids, and it would hide the divergence at precisely the seam
+where the two vocabularies meet — which is how a rename half-lands and stays
+half-landed. The divergence is instead **stated at the top of `validate.py`**
+and tracked.
+
+**The three downstream cross-phase briefs were deliberately NOT updated.**
+`analyse`, `improve` and `control` orchestrators read Define's v1 names, and
+they are consistent with the v1 writer as it stands. **Switching the readers
+ahead of the writer would break the briefs rather than fix them.** They migrate
+together at procedure step 3.4. The one stale comment naming the now-deleted
+`DefinePhaseInput` was corrected in place.
+
+#### Verification
+
+33 automated checks, all passing: §39.1.2's table parsed and compared against
+`schema.py`'s constants; the three files' field vocabularies proved identical;
+SKILL.md's body proved **verbatim** against §39.1.7 by substring match (it is
+generated from that section, not retyped); §35/§40/§63.1 counts reconciled; the
+capture path round-tripped `fields_captured` → `artifacts` →
+`DefineOutput(**artifacts)`; and the gate proved to block on a missing Tier 1
+field, a four-of-six SIPOC and a one-sided `project_scope`, while **not**
+blocking on absent Tier 2. Drift-check clean on all five changed files. Pytest
+6/6. Pydantic field typing and the `response_format=` contract verified against
+live documentation (report in-session).
+
+> **One check failed first, and it was the check that was wrong.** The §39.1.2
+> table parser skipped row 8, whose type cell reads `` `str` (ISO) `` — text
+> outside the backticks that the pattern did not allow — and reported a false
+> order mismatch against a correct document. Fixed, and a row-count assertion
+> added so a silently-skipped row fails loudly instead of producing a confident
+> wrong answer.
+
+#### Owed
+
+- **`CLAUDE.md` §9.7 and §10.7 carry Define's old counts** (6 Tier 1, 15/6/5/4).
+  Founder ruling: **not touched here.** §18 requires a numbered `§0.x` entry,
+  which makes it a rule amendment rather than a figure sync, and §56 forbids
+  making one in passing. Joins the still-owed §7.2 "218 carry `general`" fix.
+- **`phases/define/orchestrate.py` migration** — step 3.4, and with it the three
+  cross-phase briefs.
+- **The `CoachingResponse` UI rendering** — §50.1 defines the contract; no
+  production UI exists yet.
