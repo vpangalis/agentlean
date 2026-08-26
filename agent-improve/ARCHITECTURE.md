@@ -7121,8 +7121,10 @@ full phase instructions when it enters a phase.
 
 ### 60.6 S-F24 · The 20 computation tools
 
-**Architecture:** §30, §7, §43.1 · **File:** `knowledge/computation.py` · **Procedure:** step 5.3
-*Rebuild test: not met — the inventory is complete, the interfaces are absent.*
+**Architecture:** §30, §7, §43.1, **§69** · **File:** `knowledge/computation.py` · **Procedure:** step 5.3
+*Rebuild test: **met — see §69**, which states each tool's inputs, `result` keys
+and preconditions as S-F37–S-F56. This entry remains the group entry: the
+inventory below and the EARS behaviors bind on all twenty.*
 
 **Purpose:** Deterministic Six Sigma statistics. **All 20 are pure functions** —
 no LLM call, unit-tested — and they are the one place synchronous code is
@@ -7158,7 +7160,12 @@ reach the gate document, and the risk that carries is held by
 `gate_apply_node`'s (`R-GATEAPPLY-01`), where the interpretation and the commit
 happen.
 
-> **SPEC-GAP (G-25):** not one of the twenty has a signature, a parameter
+> **SPEC-GAP (G-25) — RESOLVED 2026-08-26 by §69.** *Retained as the record of
+> what was missing, because §55.1 requires every register row to keep an inline
+> marker. The three consequences below are the reason the gap mattered; §69.1
+> answers (a) and (b), and (c) is answered per tool in §69.2–§69.6.*
+>
+> When raised: not one of the twenty had a signature, a parameter
 > schema, or a return shape stated anywhere in this document. Three consequences
 > follow, and each is its own design decision: (a) §31 requires every `@tool` to
 > carry an `args_schema` from `knowledge/tool_args.py`, and none exists; (b) B3's
@@ -8537,7 +8544,11 @@ item 1. Classification deferred rather than guessed.
 inline marker.** That bidirectional correspondence is checkable and is one of
 the §55.1 governance rules.
 
-**44 gaps identified. Eight are closed or resolved. 36 are open.** None was
+**44 gaps identified. Ten are closed or resolved. 34 are open.** *(This line
+read "Eight … 36" until 2026-08-26: G-38's closure on 2026-08-25 was recorded in
+§66.6 and in the changelog but never counted here. Corrected in the same pass
+that closed G-25 — the count and the table now agree, which is the §55.1
+bidirectional rule applied to the summary as well as the rows.)* None was
 filled by the 2026-08-23 conversion pass — that was the pass's binding
 constraint; G-03 and G-42 were resolved together on 2026-08-24 (DECISIONS
 §T1), and **G-43 was raised and closed the same day as a false alarm**
@@ -8597,7 +8608,6 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-22** | `CircuitBreaker` — thresholds and state machine complete, interface absent | S-C35 |
 | **G-23** | `DMAICGateValidator` — static method names, signatures and return shapes; must be designed with G-31 | S-C26 |
 | **G-24** | Constructor arguments for all four remaining custom middlewares — `(...)` is literal in §19 in every case | S-C11, S-C12, S-C13, S-C14 |
-| **G-25** | **The 20 computation tools** — no signature, no `args_schema`, no return shape for any of them; and no defined shape for §7's required "reformatting request" | S-F24 |
 | **G-26** | Retriever-layer signatures, `RETRIEVAL_EXCEPTIONS` membership, and the `_fail()` contract | S-F18 |
 | **G-27** | Boundary mappers for Measure, Analyse, Improve and Control — including what each `phase_context` contains | S-F12 |
 | **G-28** | Gate assembly for Measure, Analyse, Improve and Control — 55 field assignments, each selecting a tier access pattern, and an omission is silent | S-F28, S-F07 |
@@ -8630,6 +8640,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-01** | Level 2 (subgraph-internal) `Command` routing was undesigned: §13 drew the branching, §15 stated the rule, and no `Command(goto=…)` existed anywhere | **RESOLVED 2026-08-24.** Three decision points, at S-F13: the **planner** owns field/gate routing and the executor returns plainly (§17); the validation exit increments `gate_attempts` **once at entry** and branches pass / retry / escalate; the gate exit is approve → `END`, reject → planner. Verified against current LangGraph docs. **DP1's predicate depended on G-38, closed 2026-08-25 for Define** (§39.1.2); **the escalation exit's node name still depends on G-34** (open). See S-F13, §13, §15 |
 | **G-02** | What a Belt REJECT does was unstated — `POST /gate/reject` existed in §49's table and in §33.1's frontend sequence with no defined behaviour | **RESOLVED 2026-08-24, founder ruling.** Reject **loops to the planner for another coaching turn**; the Belt **MUST supply a reason**, carried as `rejection_feedback` — a new `PhaseState` field (S-C02) — so the re-coach addresses what was actually objected to rather than repeating the refused turn. **The `/gate/reject` payload gains a mandatory reason, which depends on G-18** (open). See S-F13 DP3, §33, S-C02 |
 | **G-44** | Raised 2026-08-24 as the narrow successor to G-43: the S-F10 wrapper node's inner `subgraph.ainvoke` is a third case neither §16's bare-node claim nor G-43's standalone-invoke check covered. | **RESOLVED 2026-08-24.** Pattern B (wrapper node invoking the subgraph) is correct and is in fact forced — `SupervisorState` and `PhaseState` share no keys, so `add_node(subgraph)` is unavailable. The inner invoke persists `PhaseState` across turns **provided** it is called directly inside the node function with inherited config and is never relocated inside a tool. Verified against current LangChain subgraph docs; local repro owed. See §16. |
+| **G-25** | **The 20 computation tools** — no signature, no `args_schema`, no return shape for any of them; and no defined shape for §7's required "reformatting request" | **RESOLVED 2026-08-26.** **§69** specifies all twenty as **S-F37–S-F56** — inputs, `result` keys and methodology preconditions per tool — with the repeated header fields and the string-valued `result` rule stated once at §69.1. The "reformatting request" shape is settled there as a **returned value, not a raised error** (§60.6 B3), so a tool that cannot parse its input hands the Belt something to act on rather than failing the turn. Two boundaries are stated rather than left to be rediscovered: `post_improvement_cpk` stays a separate `@tool` from `calculate_cpk` despite sharing the formula (§30's no-mode-argument rule), and **Measure deliberately has no chart-limit tool** (§69.7). §60.6 stays as the group entry and its rebuild test now reads *met*. See §69, S-F24 |
 | **G-38** | `field_index` had no ordering source — the per-phase field list it indexes into was stated nowhere, and §13's "advance to the next field" depended on it. **G-01 depended on it too**: S-F13 DP1's predicate could not be implemented without it | **CLOSED 2026-08-25.** §39.1.2 states Define's ordered field list — **twelve** coached fields, `business_case` through `issues_and_barriers` (the list grew from ten at the 2026-08-26 Option A finalization, which added `target_metric` and brought `secondary_metrics` into the coached walk) — and **that list IS the `field_index` sequence.** DP1's predicate is now implementable for Define. **The closure is Define-only by design:** §39.1.8 gives the other four phases the same section shape at §39.2–§39.5, and their lists remain blocked on G-27 and G-28. Resolution reconciled the v1-code divergence toward the v2 names (F-11). See §39.1.2, S-F13, S-C02 |
 
 ### 66.7 Findings — recorded, not gaps
@@ -8885,6 +8896,142 @@ unresolved classifications in it would break the check in both directions.
 DORA-side entry, recorded here because the register is the artifact handed to a
 prospect and a bank will ask this question first. It is marked as such so the
 flag-is-canonical rule is not read as broken by its presence.
+
+## 69. Spec — computation tools
+
+*Supersedes: the inventory-only treatment of the twenty tools at §60.6 (S-F24).*
+**Status: RATIFIED 2026-08-26.** File: `knowledge/computation.py`. **Canonical
+home for the interfaces.** Source: `docs/measure_review_and_computation_spec_draft.md`
+Part B, ratified in the Measure phase-review workstream.
+
+**This section resolves SPEC-GAP G-25.** Until it landed, not one of the twenty
+tools had a signature, a parameter schema, or a return shape stated anywhere —
+§60.6 held a complete *inventory* and no *interfaces*, which is why its rebuild
+test read "not met". §60.6 stays as the group entry and the EARS behaviors
+binding on all twenty; **this section is the detail underneath it.**
+
+**Why a standalone section rather than five per-phase ones.** The twenty are one
+subsystem in one file, sharing one set of conventions and one typing law. Split
+across §39.1–§39.5 they would be five partial lists with the conventions restated
+five times, and the cross-phase pairs that must agree — `calculate_cpk` and
+`post_improvement_cpk` — would sit in different sections with nothing forcing
+them to be read together. **Appended after §68 so that no existing section
+renumbers** (§55.1); the appendices follow it unchanged.
+
+**Spec IDs run S-F37 → S-F56**, continuing the document's existing sequence,
+which ended at S-F36. **None of the twenty takes an `S-C` id**: every entry is a
+pure function, not a class, so the S-C run is untouched at S-C37.
+
+### 69.1 Common conventions — stated once, binding on all twenty
+
+Per §7's and §40's own style, the repeated header fields are stated here rather
+than twenty times below. **Read every entry in §69.2–§69.6 as carrying these.**
+
+| Field | Value for all twenty |
+|---|---|
+| **Architecture** | §30 (per-phase binding), §7 (typing law), §43.1 (seven-step coaching pattern), §60.6 (EARS B1–B7) |
+| **File** | `knowledge/computation.py` |
+| **Args schema** | `knowledge/tool_args.py` (§31) — every tool is a separate `@tool` with its own `args_schema=` |
+| **Procedure** | step 5.3 |
+| **Rebuild test** | *met — see the per-tool rows below* |
+
+- **No mode-argument grouping.** Each row below is a separately named `@tool`.
+  Collapsing several into one function behind a `mode=` argument is **BANNED**
+  (§30, §60.6 B4). This is why `post_improvement_cpk` is its own entry despite
+  sharing `calculate_cpk`'s formula.
+- **Inputs are the *semantic* values the tool needs.** Per §7 every captured
+  field arrives as a `str`; each tool parses what it needs at the point of use
+  and — per §60.6 B3 — **returns a clear reformatting request rather than
+  raising or guessing** when it cannot.
+- **Output shape lists the keys of the `result` sub-dict** inside the
+  `computation_results` entry, whose full shape is §7's
+  `{"tool", "inputs", "result", "turn", "phase"}`. **Every value in `result` is
+  a string**, per the typing law — a numeric like `cpk: 0.62` is stored as
+  `"result": {"cpk": "0.62", …}`.
+- **Preconditions are business and methodology preconditions** — what must be
+  true of the *project state* before the tool should be called. They are **not**
+  argument validation, which is ordinary parsing (§60.6 B2, B3).
+
+> **Trusted-source basis — and why it differs from the rest of this document.**
+> Unlike LangGraph and LangChain patterns, these formulas are stable,
+> decades-old standards: AIAG MSA-4 for GR&R, Shewhart control-chart constant
+> tables, the standard hypothesis-test and OLS formulas, and the 1.5σ
+> long-term-shift convention for sigma level. **They do not drift the way a
+> package API does.** The Standing Reasoning Protocol's trusted-source check
+> here is therefore *"matches the standard method as taught in the ingested BB
+> eBook"* (`rag_lookup_methodology`), **not** a web-search-verified library
+> call. Applying the package-version check to a Shewhart constant table would
+> be a category error.
+
+### 69.2 S-F37 · Define — 1 tool
+
+| S-F | Tool | What it computes | Inputs | Output (`result` keys) | Preconditions |
+|---|---|---|---|---|---|
+| **S-F37** | `calculate_expected_savings` | Projected annualised financial benefit of closing the baseline→target gap | `baseline_value`, `target_value`, `unit_cost` (cost per defect or per unit of the gap), `annual_volume` | `annual_savings`, `currency`, `calculation_note` — **states the multiplication used**, because a Belt must be able to defend the number at the gate | `baseline` and `target_metric` captured (§39.1.2 fields #5 and #8); `business_case` supplies the cost basis where the Belt has one. **The tool must accept an absent cost and return a reformatting request rather than inventing a unit cost** |
+
+### 69.3 S-F38–S-F45 · Measure — 8 tools
+
+| S-F | Tool | What it computes | Inputs | Output (`result` keys) | Preconditions |
+|---|---|---|---|---|---|
+| **S-F38** | `calculate_sigma_level` | Defect rate → sigma level, long-term (1.5σ shift convention) | `defects`, `units`, `opportunities_per_unit` — **or** `dpmo` directly | `sigma_level`, `dpmo`, `shift_assumption` (states "1.5σ long-term shift applied") | None beyond a parseable defect count |
+| **S-F39** | `calculate_cpk` | Process capability against one or two spec limits | `mean`, `std_dev`, `usl` (optional), `lsl` (optional) | `cpk`, `cp` (**only if both limits given**), `binding_limit` — which side is closer, the centring-vs-spread read | **Hard: `stability_assessment` must read "stable"** (§63.2 B1). A `calculate_cpk` call timestamped before a stable verdict is **a grading flag** (§35, §41), not a style note — capability computed across an unstable process is not capability |
+| **S-F40** | `calculate_dpmo` | Defects per million opportunities | `defects`, `units`, `opportunities_per_unit` | `dpmo` | None |
+| **S-F41** | `calculate_yield_rty` | Rolled throughput yield across process steps | `step_yields` (list) **or** `step_units_and_defects` (list of pairs) | `rty`, `simple_average_yield` (for contrast), `hidden_factory_gap` — the difference, and **the number that makes RTY's point** | `detailed_process_map` steps populated, **at least 2 steps** |
+| **S-F42** | `calculate_ftq` | First-time quality at one step | `units_processed`, `units_reworked_or_defective` | `ftq` | The step is identified in `detailed_process_map` |
+| **S-F43** | `calculate_grr` | Measurement-system variation — Gage R&R (variable) or attribute agreement | `data_type` (`variable` / `attribute`); **variable:** `readings` (operators × parts × trials matrix); **attribute:** `agreement_matrix` (operator ratings per part per trial) | `pct_study_variation` (variable) **or** `pct_agreement` (attribute); `repeatability_pct`, `reproducibility_pct`; `verdict` — `acceptable` <10%, `marginal` 10–30%, `unacceptable` >30% (**AIAG MSA-4 bands**) | **None — this precedes the baseline by design.** It is the tool behind `measurement_system_validated`, coached before `baseline_mean` |
+| **S-F44** | `calculate_sample_size_proportion` | Sample size required to estimate a proportion within a margin | `expected_proportion`, `margin_of_error`, `confidence_level` (default `0.95`) | `required_n` | None |
+| **S-F45** | `calculate_sample_size_mean` | Sample size required to detect a difference in a mean | `estimated_std_dev`, `detectable_difference`, `confidence_level` (default `0.95`), `power` (default `0.80`) | `required_n` | None |
+
+### 69.4 S-F46–S-F50 · Analyse — 5 tools
+
+| S-F | Tool | What it computes | Inputs | Output (`result` keys) | Preconditions |
+|---|---|---|---|---|---|
+| **S-F46** | `t_test` | Compares two sample means — **Welch's by default**, equal-variance only if the Belt states it | `sample1`, `sample2` (raw values **or** `{mean, std_dev, n}` summaries), `paired` (bool) | `t_statistic`, `degrees_of_freedom`, `p_value`, `significant` (`"yes"`/`"no"` at α=0.05) | One of `vital_few_xs` names the factor under test |
+| **S-F47** | `chi_square_test` | Association between two categorical variables | `contingency_table` (rows × columns of counts) | `chi_square_statistic`, `degrees_of_freedom`, `p_value`, `significant` | Categorical data for both variables; **expected cell counts ≥ 5** — below that the tool returns a reformatting / small-sample warning (§60.6 B3) |
+| **S-F48** | `anova` | Compares means across 3+ groups | `groups` (list of raw-value lists or summaries) | `f_statistic`, `df_between`, `df_within`, `p_value`, `significant` | At least 3 groups |
+| **S-F49** | `pearson_correlation` | Linear correlation strength between two continuous variables | `x_values`, `y_values` (paired) | `r`, `r_squared`, `p_value`, `strength_label` — negligible / weak / moderate / strong, standard \|r\| bands | Paired continuous data, **n ≥ 10** (methodology floor). Below it the tool **returns a warning, not a suppressed result** — the Belt decides |
+| **S-F50** | `linear_regression` | Fits Y = a + bX (simple OLS) | `x_values`, `y_values` (paired) | `slope`, `intercept`, `r_squared`, `equation_string`, `p_value` | Same as `pearson_correlation`; **typically run after it, on the same pair** |
+
+### 69.5 S-F51 · Improve — 1 tool
+
+| S-F | Tool | What it computes | Inputs | Output (`result` keys) | Preconditions |
+|---|---|---|---|---|---|
+| **S-F51** | `calculate_doe_main_effects` | Main effect of each factor from a factorial experiment | `factors` (names plus the two levels each ran at), `design_matrix` (which level each factor was at, per run), `responses` (measured output per run) | `main_effects` (per-factor effect size), `ranked_factors` (largest effect first) | `experiment_justification` records that a **DOE** was chosen — not "simplified", not "none" (§63.4 B1) |
+
+### 69.6 S-F52–S-F56 · Control — 5 tools
+
+| S-F | Tool | What it computes | Inputs | Output (`result` keys) | Preconditions |
+|---|---|---|---|---|---|
+| **S-F52** | `xbar_r_chart_limits` | Control limits for subgrouped variable data | `subgroups` (list of equal-size value-lists) | `x_bar_bar` (centre line), `ucl_x`, `lcl_x`, `r_bar`, `ucl_r`, `lcl_r` | Subgroup size **≥ 2 and constant** across subgroups (standard A2 / D3 / D4 constants by subgroup size) |
+| **S-F53** | `imr_chart_limits` | Control limits for one measurement per period | `values` (single time series) | `x_bar` (centre line), `ucl_i`, `lcl_i`, `mr_bar`, `ucl_mr` | **The default choice whenever data is one-per-period.** A Belt SHALL NOT be coached into inventing subgroups to force `xbar_r_chart_limits` (§30, §60.6 B7) |
+| **S-F54** | `p_chart_limits` | Control limits for proportion defective, variable subgroup size | `subgroups` (list of `{defectives, n}`) | `p_bar`, `ucl_note` — **limits vary per subgroup by `n`**, so it returns the formula plus the per-subgroup array, never one flat number | Attribute (pass/fail) data |
+| **S-F55** | `c_chart_limits` | Control limits for defect counts per unit, constant opportunity | `counts` (defect count per unit or period) | `c_bar`, `ucl`, `lcl` | **Constant area of opportunity** across periods |
+| **S-F56** | `post_improvement_cpk` | Capability on post-improvement data, compared against the baseline | `mean`, `std_dev`, `usl` / `lsl`, `baseline_cpk` (for the comparison) | `cpk`, `improvement_delta` (vs `baseline_cpk`), `meets_target` (`"yes"`/`"no"`) | Control's stability re-check passes first — **the same stability-before-capability rule as `calculate_cpk`** (§41) |
+
+> **Why `post_improvement_cpk` is a separate tool from `calculate_cpk`.** Same
+> formula, two entries — deliberately. §30 binds tools per phase and §60.6 B4
+> bans mode-argument grouping, so a single `calculate_cpk(mode="post")` is not
+> available. **The two MAY share a private helper; they are two `@tool`s.** The
+> difference is not the arithmetic but the contract: `post_improvement_cpk`
+> additionally takes `baseline_cpk` and returns `improvement_delta`, which is
+> the number Control's `post_improvement_metric` is graded against (§63.5 B2).
+
+### 69.7 The Measure control-chart boundary — a tool that is deliberately absent
+
+**`stability_assessment` (Measure, gate-required) is coached as a visual,
+qualitative run-chart read** — *"plot it, tell me what you see"* — **with no
+calculated control limits.** Neither `xbar_r_chart_limits` nor `imr_chart_limits`
+is bound to Measure: §30's Measure list contains no chart-limit tool, and
+Measure already sits at **15 of the 16-tool ceiling**, so adding one would hit
+the cap and needs its own amendment.
+
+**Formal control-chart mathematics is Control-only** — S-F52 through S-F55.
+
+**This is stated here so it is not rediscovered later as a "missing tool".** It
+is consistent with the worked example in `dmaic-measure-phase/SKILL.md`, which
+reads a run chart by eye ("ran between 10–14% except two weeks") rather than
+citing a calculated limit. **A clarifying note, not a change** — nothing about
+the inventory or the bindings moves.
 
 ---
 

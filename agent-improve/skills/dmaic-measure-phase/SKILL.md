@@ -45,9 +45,27 @@ it works, then invite the Belt to build theirs.
 
 ### A — Phase opening
 
-> "Welcome to Measure. Define agreed what the problem is — Measure proves
-> what's actually happening and makes sure the numbers can be trusted.
-> Here's the whole phase:
+**Open with the Define recap.** Read the four values from
+`store.get(("projects", case_id, "artifacts"), "define")` — the same read §10
+already specifies, fired once here at phase open rather than only as scattered
+per-field cross-checks. **The Belt should see Measure building on what Define
+locked in**, not starting over.
+
+> "Welcome to Measure. Quick recap of what Define locked in, so we're building
+> on the same picture:
+>
+> • **Problem:** {problem_statement}
+> • **Baseline:** {baseline_metric}
+> • **Target:** {target_metric} by {target_date}
+> • **Process (SIPOC):** {process_map_sipoc — rendered as the table}, measuring
+>   {process_map_sipoc['process_kpis']}
+>
+> Now, what Measure actually does: we expand that SIPOC into a detailed process
+> map, decide what to collect and how, check the measurement itself can be
+> trusted, confirm the process is behaving consistently, establish a real
+> baseline, and prioritise which inputs are most likely driving the problem.
+> You don't need to hold these in a fixed order in your head — I'll guide you —
+> but here's the full menu so nothing's a surprise:
 >
 > **Required (7)**
 > □ Detailed process map — timings, people, value vs waste per step
@@ -63,10 +81,26 @@ it works, then invite the Belt to build theirs.
 >
 > **Progress: 0 of 7 required complete**
 >
-> We start by expanding your Define map — everything else attaches to it.
-> Let me show you what that looks like."
+> We'll work through these roughly in the order above, and I'll flag the two
+> recommended ones — the measurement system check and the sigma level — when we
+> reach them, rather than saving them for the end. First up: expanding your
+> Define map, because everything else attaches to it. Let me show you what that
+> looks like."
 
 Render the checklist with `propose_diagram`.
+
+> **The checklist splits Required from Recommended for display, not for
+> sequencing.** It is a legitimate gate-status view — it tells the Belt what
+> blocks the gate. It does **not** describe two coaching blocks. The actual walk
+> is §2's field order, which interleaves the recommended fields at positions 3
+> and 6 on methodology grounds. Closing the opening with "we start by expanding
+> your map" and nothing else implied a strict Required-then-Recommended flow the
+> field order does not follow.
+
+> **The recap values are read, never re-derived.** All four come from the Store.
+> If one is genuinely absent, say so plainly and ask — do not paraphrase from
+> the conversation or fill the gap in with a plausible number (anti-hallucination
+> guard, §22).
 
 ### B — Phase resumption
 
@@ -93,19 +127,35 @@ Show → explain → invite → coach → capture. Order in §2.
 ### D — After every capture
 Echo the value, show the updated checklist and count, name what's next.
 
-### E — Tier 1 complete, Tier 2 offered
+### E — Final sweep of anything still outstanding
 
-> "All seven required fields are done. Three recommended ones remain:
+**This is not a second coaching block.** By the time the seven required fields
+are done, most recommended ones are already captured — §2's field order offers
+`measurement_system_validated` at position 3 and `baseline_sigma` at position 6,
+and `secondary_metrics` sits at position 9 inside the main walk. **Section E is
+a last check on whatever the Belt actually deferred**, not a re-offer of all
+three as though untouched.
+
+**Read `artifacts` and list only the Tier 2 fields still absent at this point.**
+Offer each once. Example, where the Belt deferred the measurement system check
+at position 3 and everything else is done:
+
+> "All seven required fields are done. One recommended item is still open:
 >
-> □ Sigma level — puts your performance on a scale you can compare
 > □ Measurement system check — proves the data itself is reliable
-> □ Secondary metrics — what could get worse
 >
-> The measurement system check is the one I'd push for. Everything
-> downstream rests on the data being trustworthy, and if it isn't, Analyse
-> will test the wrong thing. Which shall we do?"
+> This is the one I'd push for: everything downstream rests on the data being
+> trustworthy, and if it isn't, Analyse will test the wrong thing. Want to do it
+> now, or note it and move on to the gate?"
 
-Skipped fields go to `acknowledged_gaps`.
+**If nothing is outstanding, do not manufacture a list.** Say so and go straight
+to the gate check:
+
+> "All seven required fields are done, and you covered all three recommended
+> ones along the way — nothing left open. Let's run the gate check."
+
+Skipped fields go to `acknowledged_gaps` **at the point they are declined**, not
+held back to be re-offered here.
 
 ### F — Gate ready
 Announce the gate check, then the four-layer validation fires.
@@ -244,7 +294,19 @@ alarmed by what we find."*
 > the people, not the process.
 >
 > Who decides whether something counts as a defect in your process, and
-> would two of them agree?"
+> would two of them agree?
+>
+> This one's optional, but I'd recommend it — if you'd rather skip it and come
+> back later, that's fine too; just say so and we'll note it and move on to the
+> baseline."
+
+**The choice must be offered explicitly, in words.** MSA stays Tier 2, so the
+Belt may decline — but it is **actively offered and explained, never silently
+skipped.** Everything the phase does after this rests on the data being
+trustworthy; a Belt who skips it should skip it knowingly.
+
+**A decline routes to `acknowledged_gaps` immediately**, here at position 3 —
+**not** deferred to Section E, which now sweeps only what is still outstanding.
 
 **Then use `calculate_grr`** (§4).
 
