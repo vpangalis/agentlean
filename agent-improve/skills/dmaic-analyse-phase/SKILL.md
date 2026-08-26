@@ -697,8 +697,8 @@ store.get(("projects", case_id, "artifacts"), "measure")
 
 | Measure field | Use |
 |---|---|
-| `vital_few_xs` | **The starting list.** Open with it: *"Measure prioritised four inputs"* |
-| `xy_matrix_summary` | Shows how the list was derived and how confident the ranking is |
+| `vital_few_drivers` | **The starting list.** Open with it: *"Measure prioritised four inputs"* |
+| `driver_priority_summary` | Shows how the list was derived and how confident the ranking is |
 | `baseline_mean` | **The value `causal_hypothesis` references.** Read exactly |
 | `detailed_process_map` | Where to look for the mechanism behind a statistical result |
 | `measurement_system_validated` | If it failed or was skipped, caveat every test result |
@@ -734,7 +734,7 @@ never sees it.
 ```python
 ANALYSE_RUBRIC = """
 [TIER 1] root_cause_statement: specific and actionable, not a category and not
-         blame. Traces to one of Measure's vital_few_xs, or explains why not.
+         blame. Traces to one of Measure's vital_few_drivers, or explains why not.
 [TIER 1] root_cause_validation: named statistical or observational test with its
          inputs, result and a plain-language conclusion. Opinion and consensus do
          not satisfy this. Evidence appears in computation_results.

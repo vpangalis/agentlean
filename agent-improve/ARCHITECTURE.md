@@ -764,7 +764,7 @@ each tool has to do anyway.
 |---|---|---|
 | `causal_hypothesis` | Analyse | Root cause → Measure baseline |
 | `solution_linked_to_root_cause` | Improve | Solution → Analyse root cause |
-| `post_improvement_metric` | Control | Result → Measure baseline |
+| `post_improvement_metrics` | Control | Result → Measure baseline |
 
 Each carries the Belt's content plus three reference keys:
 
@@ -1782,7 +1782,7 @@ turn that flag into an interrupt.
 >    turn, by construction.
 > 2. **Field-name matching finds almost nothing.** Of 41 distinct content
 >    fields across the five `{Phase}Output` schemas, **38 are unique to exactly
->    one phase** — `baseline_metric` in Define, `baseline_mean` in Measure,
+>    one phase** — `baseline_estimate` in Define, `baseline_mean` in Measure,
 >    the
 >    same quantity deliberately differently named. **93% cannot cross-phase
 >    name-match at all.**
@@ -1897,7 +1897,7 @@ backstop rather than a convenience.
 **`value` is `Any`, not `str`, and that is deliberate.** It must carry both
 plain string fields and the three cross-phase reference dicts (§7). Typing it
 `str` would make `causal_hypothesis`, `solution_linked_to_root_cause` and
-`post_improvement_metric` uncapturable. **This is the one place `Any` is
+`post_improvement_metrics` uncapturable. **This is the one place `Any` is
 correct**; the values *inside* those dicts are still strings.
 
 ### The executor node writes the response into state
@@ -1913,7 +1913,7 @@ invents them, and the second failure mode is worse. See §40.
 
 ### What structured output does NOT give you
 
-**Truth.** It guarantees shape. A schema-valid `baseline_metric: 4.2` invented
+**Truth.** It guarantees shape. A schema-valid `baseline_estimate: 4.2` invented
 by the model is exactly as well-formed as a correct one. Content-level defence
 is the anti-hallucination guards (§22), validation Layer 2a (§34) and the
 policy advisory (§33) — **not this mechanism.** No reader should come away
@@ -2632,7 +2632,7 @@ which project-type emphasis helps.
 
 **The line between them is strict and load-bearing: dynamic procedural memory
 adapts how the methodology is delivered, never what the methodology requires.**
-A Black Belt still needs `vital_few_xs`. The coach may open Analyse differently
+A Black Belt still needs `vital_few_drivers`. The coach may open Analyse differently
 for a BB with ten projects behind them, but the gate criteria do not move.
 
 The mechanism is Appendix B item 5 — LangSmith traces record which coaching
@@ -3194,11 +3194,11 @@ is no longer a criterion the grader can fail that the gate never asked for.
 
 | Phase | Gate-required fields | Count |
 |---|---|---|
-| **Define** | **All 12 — no tier split (Option A).** `business_case`, `team` (**list[dict]**), `voc_summary`, `problem_statement`, `baseline_metric`, `project_scope` (**dict**), `goal_statement`, `target_metric`, `target_date`, `secondary_metrics`, `process_map_sipoc` (**dict**), `issues_and_barriers` | **12** |
-| **Measure** | `baseline_mean`, `data_collection_plan`, `xy_matrix_summary`, `vital_few_xs`, `detailed_process_map` (**dict**), `stability_assessment`, `issues_and_barriers` | **7** |
+| **Define** | **All 12 — no tier split (Option A).** `business_case`, `team` (**list[dict]**), `voc_summary`, `problem_statement`, `baseline_estimate`, `project_scope` (**dict**), `goal_statement`, `target_value`, `target_date`, `secondary_metrics`, `process_map_sipoc` (**dict**), `issues_and_barriers` | **12** |
+| **Measure** | `baseline_mean`, `data_collection_plan`, `driver_priority_summary`, `vital_few_drivers`, `detailed_process_map` (**dict**), `stability_assessment`, `issues_and_barriers` | **7** |
 | **Analyse** | `root_cause_statement`, `root_cause_validation`, `practical_significance`, `issues_and_barriers` | **4** |
 | **Improve** | `selected_solution`, `pilot_result`, `experiment_justification`, `issues_and_barriers` | **4** |
-| **Control** | `control_plan` (**dict**, 5 sub-plans), `post_improvement_metric`, `issues_and_barriers` | **3** |
+| **Control** | `control_plan` (**dict**, 5 sub-plans), `post_improvement_metrics`, `issues_and_barriers` | **3** |
 
 > **Define is the one phase with no Tier 2** (founder ruling, Option A, ratified
 > 2026-08-26). Every Define field blocks the gate, so `DEFINE_REQUIRED_FOR_GATE`
@@ -3255,7 +3255,7 @@ if belt_level == "Green Belt":  suppress it
 
 | Item | Now |
 |---|---|
-| X-Y matrix | **`xy_matrix_summary`, Tier 1, all Belts** — it produces the vital few X's that Analyse cannot start without |
+| X-Y matrix | **`driver_priority_summary`, Tier 1, all Belts** — it produces the vital few X's that Analyse cannot start without |
 | Statistical problem statement | **`statistical_problem_statement`, Tier 2, all Belts, in Analyse** — not Define |
 | FMEA | **Not tracked in any schema** — §41 |
 
@@ -3335,7 +3335,7 @@ Any rubric entry for coherence is stale.
 ### Three criteria are verified deterministically, not by judgment
 
 `causal_hypothesis`, `solution_linked_to_root_cause` and
-`post_improvement_metric` are cross-phase reference dicts (§7). **The grader
+`post_improvement_metrics` are cross-phase reference dicts (§7). **The grader
 reads the referenced phase's gate document from the Store and checks the named
 field carries the named value** — a lookup, not an opinion.
 
@@ -3350,7 +3350,7 @@ Define (`problem_statement`, `voc_summary`, `business_case`, `project_scope`,
 (`root_cause_statement`, `root_cause_validation`, `causal_hypothesis`,
 `ruled_out_causes`) · Improve (`selected_solution`,
 `solution_linked_to_root_cause`, `pilot_result`, `implementation_plan`) ·
-Control (`control_plan`, `sustainability_check`, `post_improvement_metric`,
+Control (`control_plan`, `sustainability_check`, `post_improvement_metrics`,
 `improvement_delta`, `financial_impact_verified`, `handover_documented`,
 `lessons_learned`, `transferability`). Each criterion carries its tier (§35).
 
@@ -3481,9 +3481,9 @@ Three fields carry one measurement chain, and **the grader verifies the same
 measurement points carry different values** at each end:
 
 ```
-Define    process_map_sipoc["process_kpis"]      — WHAT is measured
-Measure   detailed_process_map["baseline_kpis"]  — the BEFORE values
-Control   post_improvement_metric                — the AFTER values
+Define    process_map_sipoc["process_metrics"]      — WHAT is measured
+Measure   detailed_process_map["baseline_metrics"]  — the BEFORE values
+Control   post_improvement_metrics                — the AFTER values
 ```
 
 **This is the spine of a DMAIC project.** A project that cannot show
@@ -3524,13 +3524,13 @@ list existed, `field_index` indexed into nothing (G-38).
 | 2 | `team` | `list[dict]` | **required** | Each entry `{name, role, function}`. Roles per §39.1.4 |
 | 3 | `voc_summary` | `str` | **required** | Who the customers are, and what they need |
 | 4 | `problem_statement` | `str` | **required** | ONE SMART statement, **composed from 5W2H coaching** (§39.1.3). The 5W2H are NOT separate stored fields |
-| 5 | `baseline_metric` | `str` | **required** | **Discrete** current-state value — Control compares against it. Rough in Define; the rigorous baseline is Measure's job. Founder ruling: stays in Define |
+| 5 | `baseline_estimate` | `str` | **required** | **Discrete** current-state value — Control compares against it. Rough in Define; the rigorous baseline is Measure's job. Founder ruling: stays in Define |
 | 6 | `project_scope` | `dict` | **required** | `{in_scope: str, out_scope: str}` — both explicit |
 | 7 | `goal_statement` | `str` | **required** | The SMART sentence — human-readable prose that mirrors the problem |
-| 8 | `target_metric` | `str` | **required** | **Discrete** target value — Control compares achieved-vs-target. **Not redundant with `goal_statement`:** that is prose, this is the comparable value |
+| 8 | `target_value` | `str` | **required** | **Discrete** target value — Control compares achieved-vs-target. **Not redundant with `goal_statement`:** that is prose, this is the comparable value |
 | 9 | `target_date` | `str` (ISO) | **required** | The **planned** completion date — a project-management parameter, which may slip without affecting the improvement logic. **Single date field** — `estimated_completion_date` is retired as a duplicate. Distinct from Control's actual close date (F-12) |
 | 10 | `secondary_metrics` | `str` | **required** | What could get worse — the side-effect watch. One of the two fields §40 requires on all five schemas |
-| 11 | `process_map_sipoc` | `dict` | **required** | Six keys: `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, `process_kpis`. Fewer than six filled is the partial-map failure (§41) |
+| 11 | `process_map_sipoc` | `dict` | **required** | Six keys: `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, `process_metrics`. Fewer than six filled is the partial-map failure (§41) |
 | 12 | `issues_and_barriers` | `str` | **required** | Always last. "none identified at this stage" is a valid conscious answer |
 
 > **Define uses Option A — all fields gate-required, no tiers. Ratified
@@ -3541,16 +3541,16 @@ list existed, `field_index` indexed into nothing (G-38).
 > phases keep Tier 1 / Tier 2, each decided at its own phase review (§35,
 > §39.1.8).
 
-> **The measurement thread — do NOT "simplify" these away.** `baseline_metric`,
-> `target_metric` and `target_date` are discrete fields **on purpose**, not
-> redundant restatements of `goal_statement`. Define sets `baseline_metric` (the
+> **The measurement thread — do NOT "simplify" these away.** `baseline_estimate`,
+> `target_value` and `target_date` are discrete fields **on purpose**, not
+> redundant restatements of `goal_statement`. Define sets `baseline_estimate` (the
 > start)
-> and `target_metric` (the goal value); **Control captures the achieved value
+> and `target_value` (the goal value); **Control captures the achieved value
 > and computes target-vs-actual.** If those numbers lived only inside
 > `goal_statement` prose, Control could not extract and compare them. This
 > mirrors the existing three-phase KPI thread —
-> `process_map_sipoc["process_kpis"]` → `detailed_process_map["baseline_kpis"]`
-> → `post_improvement_metric` (§39, S-C27 B7). `target_date` is the same pattern
+> `process_map_sipoc["process_metrics"]` → `detailed_process_map["baseline_metrics"]`
+> → `post_improvement_metrics` (§39, S-C27 B7). `target_date` is the same pattern
 > for schedule rather than performance.
 
 > **This list is the COACHED sequence and, for Define, also the complete
@@ -3669,7 +3669,7 @@ missing any of the six keys is the partial-map failure §41 describes.
 > **Ask (one at a time):** What's happening? · Where? · When / since when? · Who's affected? · Why does it matter? · **How much — and is it one measure or more than one?** (a rough number each; many projects track both a quality measure and a time measure) · What would "fixed" look like?
 > **Compose & Confirm:** Putting that together, here's your problem statement: *"[composed from the Belt's own answers]"* — does that capture it accurately? *(Guard: assemble only what the Belt said; invent nothing. Store only after confirmation.)*
 
-**[5 · baseline_metric · required]**
+**[5 · baseline_estimate · required]**
 > **Explain:** Roughly, where does performance stand today? A rough number is fine here — we'll measure it properly in the next phase. It anchors the goal. **Some projects track more than one thing** — a quality measure and a time measure, say — and that's normal; we just name each one.
 > **Show (one criterion):** *"Error rate: about 12% of invoices contain errors."*
 > **Show (two criteria):** *"Error rate: about 12% of invoices contain errors. Cycle time: about 2.6 days from order to invoice sent."*
@@ -3688,7 +3688,7 @@ missing any of the six keys is the partial-map failure §41 describes.
 > **Ask:** Taking your problem's number — what's the target, and by when?
 > **Confirm** it mirrors the problem, advance.
 
-**[8 · target_metric · required]**
+**[8 · target_value · required]**
 > **Explain:** Your goal statement said it in words — now let's pin the target down as a number. This one gets carried all the way to Control, where we compare what you actually achieved against it. Same measure and same units as your baseline, so the two can be compared. **If you named more than one measure at the baseline, each one needs a target** — otherwise you'd be aiming at something you never measured, or measuring something you never aimed at.
 > **Show (one criterion):** *"Error rate: under 3% of invoices with pricing errors."* — baseline was 12%; this is the number that says "done".
 > **Show (two criteria):** *"Error rate: under 3%. Cycle time: under 2 days."* — one target per measure, named the same way as the baseline.
@@ -3720,7 +3720,7 @@ missing any of the six keys is the partial-map failure §41 describes.
 > | | | 5. Send to client | | |
 >
 > Reads left to right: Suppliers give Inputs; your Process (5–7 high-level steps) turns them into Outputs, which go to Customers.
-> **Ask (column by column):** Let's build yours. First, the **Process** — what are the 5–7 main steps, start to end? … then Suppliers, Inputs, Outputs, Customers in turn. And: what do you measure on those outputs? (that's the sixth key, `process_kpis`). You can also upload a SIPOC if you have one.
+> **Ask (column by column):** Let's build yours. First, the **Process** — what are the 5–7 main steps, start to end? … then Suppliers, Inputs, Outputs, Customers in turn. And: what do you measure on those outputs? (that's the sixth key, `process_metrics`). You can also upload a SIPOC if you have one.
 > **Confirm** the assembled SIPOC as a table; flag any thin column; check all six keys filled. Advance.
 
 **[12 · issues_and_barriers · required]**
@@ -3839,8 +3839,8 @@ cross-phase reference dicts of §7:
 
 | Field | Phase | Sub-fields |
 |---|---|---|
-| `process_map_sipoc` | Define | `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, **`process_kpis`** |
-| `detailed_process_map` | Measure | `steps`, `cycle_times`, `resources`, `value_vs_waste`, `measurement_points`, **`baseline_kpis`** |
+| `process_map_sipoc` | Define | `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, **`process_metrics`** |
+| `detailed_process_map` | Measure | `steps`, `cycle_times`, `resources`, `value_vs_waste`, `measurement_points`, **`baseline_metrics`** |
 | `control_plan` | Control | `documentation`, `monitoring`, `response`, `training`, `aligning_systems` |
 
 ### The grader checks every sub-field is populated
@@ -3850,7 +3850,7 @@ the field exists to catch.** A Belt who maps steps 3–5 of a seven-step process
 produces a project that cannot show improvement, because the baseline never
 covered the whole thing.
 
-**`process_kpis` and `baseline_kpis` are the two sub-fields that carry the
+**`process_metrics` and `baseline_metrics` are the two sub-fields that carry the
 measurement thread** (§39). They are the reason these are dicts rather than
 prose: a coaching conversation produces text no downstream planner can read and
 no grader can check.
@@ -3891,7 +3891,7 @@ Not `fmea_summary`, not `updated_fmea`, not an FMEA sub-key anywhere.
 
 **FMEA is heavy manufacturing methodology** built around severity × occurrence
 × detection scoring of physical failure modes. Agent Improve's typical case is
-service or transactional DMAIC, where `xy_matrix_summary` and `vital_few_xs`
+service or transactional DMAIC, where `driver_priority_summary` and `vital_few_drivers`
 already do the prioritisation job without the RPN overhead.
 
 **Requiring an FMEA would push every Belt through a heavy artefact to satisfy a
@@ -3914,9 +3914,9 @@ it.
 |---|---|---|---|
 | `causal_hypothesis` | Analyse | 2 | Measure's `baseline_mean` |
 | `solution_linked_to_root_cause` | Improve | 2 | Analyse's `root_cause_statement` |
-| `post_improvement_metric` | Control | **1** | Measure's `baseline_mean` |
+| `post_improvement_metrics` | Control | **1** | Measure's `baseline_mean` |
 
-**Only `post_improvement_metric` is Tier 1**, and that asymmetry is
+**Only `post_improvement_metrics` is Tier 1**, and that asymmetry is
 deliberate: a Control phase that cannot link its result back to the Measure
 baseline has not demonstrated improvement at all, whereas an Analyse phase
 without an explicit hypothesis link is weaker but not void.
@@ -4858,14 +4858,14 @@ inform the design as it lands.
 retirement step. There is no production consumer to protect, and the two models
 are near-disjoint: of Define's **12 required fields, exactly two names match the
 v1 schema** — `goal_statement` and `target_date`. The other ten are new names
-for values v1 held under different ones (`how_much_baseline` → `baseline_metric`,
-`primary_metric` → `target_metric`, `secondary_metric` → `secondary_metrics`,
+for values v1 held under different ones (`how_much_baseline` → `baseline_estimate`,
+`primary_metric` → `target_value`, `secondary_metric` → `secondary_metrics`,
 `business_case_rationale` → `business_case`, `team_members` → `team`,
 `scope_in`/`scope_out` → `project_scope`, `sipoc` → `process_map_sipoc`, the
 seven granular 5W2H fields → one composed `problem_statement`), or values v1
 never held at all (`voc_summary`, `issues_and_barriers`). Two conversions bind:
 `team_members` from `list[TeamMember]` to `list[dict]` (§39.1.4), and `sipoc`
-gains `process_kpis` as its sixth key (§41).
+gains `process_metrics` as its sixth key (§41).
 
 **Until migration is complete the v1 architecture may still operate, but no
 v1-style code may be ADDED.** A file is "migrated" when it is rewritten under
@@ -7683,12 +7683,12 @@ against `COACHING_QUALITY_RUBRIC` every turn.
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
 |---|---|---|---|
 | B1 | invoked | grade against `PHASE_RUBRIC`, never against `COACHING_QUALITY_RUBRIC` | §36 |
-| B2 | grading `causal_hypothesis`, `solution_linked_to_root_cause` or `post_improvement_metric` | verify the link **by lookup, not judgment** — read the referenced phase's gate document from the Store and check the named field carries the named value | §36, §42 |
+| B2 | grading `causal_hypothesis`, `solution_linked_to_root_cause` or `post_improvement_metrics` | verify the link **by lookup, not judgment** — read the referenced phase's gate document from the Store and check the named field carries the named value | §36, §42 |
 | B3 | grading a criterion that depends on a computation | scan `artifacts["computation_results"]` for the relevant `tool` entry rather than asking the model | §36 |
 | B4 | grading a structured dict field | check **every** sub-field is populated — a `process_map_sipoc` with four of six keys filled is the partial-map failure the field exists to catch | §41 |
 | B5 | `belt_level` is Green Belt | suppress DOE as a recommendation; when it is Black Belt, flag DOE as a Tier 2 recommendation | §35 |
 | B6 | grading | never retrieve; the rubric already encodes the methodology standards, and retrieval adds latency at the moment the Belt is waiting | §26 |
-| B7 | grading the measurement thread | verify that `process_map_sipoc["process_kpis"]`, `detailed_process_map["baseline_kpis"]` and `post_improvement_metric` name the same measurement points and carry **different values** | §39 |
+| B7 | grading the measurement thread | verify that `process_map_sipoc["process_metrics"]`, `detailed_process_map["baseline_metrics"]` and `post_improvement_metrics` name the same measurement points and carry **different values** | §39 |
 
 **Covered by the AI-ACT flag on `validation_stack` (S-F05) and DORA row
 `R-VALSTACK-01`.** This is the component that produces the assessment; it is
@@ -7761,10 +7761,10 @@ gate_document = DefineOutput(
     team=artifacts["team"],
     voc_summary=artifacts["voc_summary"],
     problem_statement=artifacts["problem_statement"],
-    baseline_metric=artifacts["baseline_metric"],
+    baseline_estimate=artifacts["baseline_estimate"],
     project_scope=artifacts["project_scope"],
     goal_statement=artifacts["goal_statement"],
-    target_metric=artifacts["target_metric"],
+    target_value=artifacts["target_value"],
     target_date=artifacts["target_date"],
     secondary_metrics=artifacts["secondary_metrics"],
     process_map_sipoc=artifacts["process_map_sipoc"],
@@ -7851,10 +7851,10 @@ class DefineOutput(BaseModel):
     team:                 list[dict]  # [{name, role, function}] — §39.1.4
     voc_summary:          str         # who the customers are, what they need
     problem_statement:    str         # ONE SMART statement, composed — §39.1.3
-    baseline_metric:      str         # DISCRETE current-state value — Control compares
+    baseline_estimate:      str         # DISCRETE current-state value — Control compares
     project_scope:        dict        # {in_scope, out_scope} — both explicit
     goal_statement:       str         # the SMART sentence, human-readable prose
-    target_metric:        str         # DISCRETE target value — Control compares
+    target_value:        str         # DISCRETE target value — Control compares
     target_date:          str         # ISO; the PLANNED completion date (PM parameter)
     secondary_metrics:    str         # what could get worse — on all five (§40)
     process_map_sipoc:    dict        # SIPOC + KPIs, 6 sub-fields (§41)
@@ -7873,7 +7873,7 @@ conversation produces prose no planner can read and no grader can check;
 `team` is `list[dict]` because a project has N people and each carries three
 attributes.
 
-**`baseline_metric`, `target_metric` and `target_date` are discrete fields,
+**`baseline_estimate`, `target_value` and `target_date` are discrete fields,
 not duplicates of `goal_statement`.** `goal_statement` is the human-readable SMART
 sentence; these three are the **machine-readable values Control extracts** to
 compute target-vs-actual. Folding them into the prose would leave Control with
@@ -7886,12 +7886,12 @@ Define** — no field is skippable, so nothing can be acknowledged as skipped.
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
 |---|---|---|---|
 | B1 | the gate is evaluated | block on **all 12 required fields** — Define has no Tier 2 and no `acknowledged_gaps` path, so a missing field can never be waived (Option A) | §35, §39.1.2 |
-| B2 | `process_map_sipoc` is graded | require all six sub-fields, `process_kpis` among them | §41 |
-| B3 | `process_kpis` is set | carry WHAT is measured — the first link of the three-phase measurement thread | §39 |
+| B2 | `process_map_sipoc` is graded | require all six sub-fields, `process_metrics` among them | §41 |
+| B3 | `process_metrics` is set | carry WHAT is measured — the first link of the three-phase measurement thread | §39 |
 | B4 | `project_scope` is graded | require **both** `in_scope` and `out_scope` — what the project is *not* doing is what protects it from ballooning | §39.1.2 |
 | B5 | `problem_statement` is captured | store only the composed statement the Belt has confirmed, assembled from the Belt's own words with nothing invented | §39.1.3, §22 |
 | B6 | the coach elicits 5W2H | treat them as conversational prompts, never as stored fields | §39.1.3 |
-| B7 | `baseline_metric` and `target_metric` are captured | store them as **discrete values**, never folded into `goal_statement` prose — Control extracts both to compute target-vs-actual, and prose it cannot parse breaks that comparison | §39, §39.1.2 |
+| B7 | `baseline_estimate` and `target_value` are captured | store them as **discrete values**, never folded into `goal_statement` prose — Control extracts both to compute target-vs-actual, and prose it cannot parse breaks that comparison | §39, §39.1.2 |
 | B8 | `target_date` is captured | treat it as the **planned** completion date, a project-management parameter that may slip without invalidating the improvement. **Control's `actual_close_date` is the paired value** and is not yet specified — F-12 | §39.1.2, §66.7 |
 
 ### 63.2 S-C28 · `MeasureOutput`
@@ -7908,8 +7908,8 @@ class MeasureOutput(BaseModel):
     # Tier 1
     baseline_mean:                str    # value with units, as the Belt stated it
     data_collection_plan:         str    # sample size, frequency, responsible person
-    xy_matrix_summary:            str    # evidence that prioritisation happened
-    vital_few_xs:                 str    # the ranked result Analyse consumes
+    driver_priority_summary:            str    # evidence that prioritisation happened
+    vital_few_drivers:                 str    # the ranked result Analyse consumes
     detailed_process_map:         dict   # expanded map, 6 sub-fields (§41)
     stability_assessment:         str    # checked BEFORE capability (§41)
     issues_and_barriers:          str
@@ -7929,9 +7929,9 @@ class MeasureOutput(BaseModel):
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
 |---|---|---|---|
 | B1 | capability is being assessed | require `stability_assessment` first — a baseline Cpk computed across an unstable process averages two different processes and looks authoritative while being wrong | §41 |
-| B2 | `detailed_process_map` is graded | require all six sub-fields, `baseline_kpis` among them | §41 |
-| B3 | `baseline_kpis` is set | carry the BEFORE values of the measurement thread | §39 |
-| B4 | `vital_few_xs` is set | be the ranked result Analyse consumes; Analyse cannot start without it, which is why `xy_matrix_summary` is Tier 1 for all Belts | §35 |
+| B2 | `detailed_process_map` is graded | require all six sub-fields, `baseline_metrics` among them | §41 |
+| B3 | `baseline_metrics` is set | carry the BEFORE values of the measurement thread | §39 |
+| B4 | `vital_few_drivers` is set | be the ranked result Analyse consumes; Analyse cannot start without it, which is why `driver_priority_summary` is Tier 1 for all Belts | §35 |
 
 ### 63.3 S-C29 · `AnalyseOutput`
 
@@ -8020,7 +8020,7 @@ class ControlOutput(BaseModel):
     """Gate document for the Control phase."""
     # Tier 1
     control_plan:              dict   # FIVE sub-plans — §41
-    post_improvement_metric:   dict   # cross-phase ref → Measure baseline (§7)
+    post_improvement_metrics:   dict   # cross-phase ref → Measure baseline (§7)
     issues_and_barriers:       str
     # Tier 2
     improvement_delta:         str    # change from baseline
@@ -8043,7 +8043,7 @@ class ControlOutput(BaseModel):
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
 |---|---|---|---|
 | B1 | `control_plan` is graded | require all five sub-plans populated. A single string cannot show that four were done and one was skipped, and **a Training Plan written but never delivered is the most common real Control failure** | §41 |
-| B2 | `post_improvement_metric` is graded | verify by lookup against Measure's `baseline_mean`. **It is the only cross-phase reference field that is Tier 1** — a Control phase that cannot link its result back to the baseline has not demonstrated improvement at all | §42 |
+| B2 | `post_improvement_metrics` is graded | verify by lookup against Measure's `baseline_mean`. **It is the only cross-phase reference field that is Tier 1** — a Control phase that cannot link its result back to the baseline has not demonstrated improvement at all | §42 |
 | B3 | Control's gate passes | populate `SupervisorState.final_output` through Control's output mapper | §5 |
 | B4 | `lessons_learned` and `transferability` are set | feed the case index and cross-case retrieval respectively | §23.3, §24 |
 
@@ -8075,7 +8075,7 @@ causal_hypothesis = {
 |---|---|---|---|
 | `causal_hypothesis` | Analyse | 2 | Measure's `baseline_mean` |
 | `solution_linked_to_root_cause` | Improve | 2 | Analyse's `root_cause_statement` |
-| `post_improvement_metric` | Control | **1** | Measure's `baseline_mean` |
+| `post_improvement_metrics` | Control | **1** | Measure's `baseline_mean` |
 
 **Behaviors (EARS):**
 
@@ -8086,7 +8086,7 @@ causal_hypothesis = {
 | B3 | values inside the dict are written | write them as strings | §7 |
 | B4 | assembly reaches one of the three | access it as `artifacts.get("field", {})` — the correct empty type | §40.1 |
 
-**Invariant:** only `post_improvement_metric` is Tier 1, and the asymmetry is
+**Invariant:** only `post_improvement_metrics` is Tier 1, and the asymmetry is
 deliberate — an Analyse phase without an explicit hypothesis link is weaker but
 not void, whereas a Control phase that cannot link back to the baseline has
 demonstrated nothing.
@@ -8103,8 +8103,8 @@ can check.
 
 | Field | Phase | Sub-fields |
 |---|---|---|
-| `process_map_sipoc` | Define | `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, **`process_kpis`** |
-| `detailed_process_map` | Measure | `steps`, `cycle_times`, `resources`, `value_vs_waste`, `measurement_points`, **`baseline_kpis`** |
+| `process_map_sipoc` | Define | `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, **`process_metrics`** |
+| `detailed_process_map` | Measure | `steps`, `cycle_times`, `resources`, `value_vs_waste`, `measurement_points`, **`baseline_metrics`** |
 | `control_plan` | Control | `documentation`, `monitoring`, `response`, `training`, `aligning_systems` |
 
 **`control_plan`, fully specified:**
@@ -8124,7 +8124,7 @@ control_plan: dict = {
 |---|---|---|---|
 | B1 | any of the three is graded | check **every** sub-field is populated; a partial map is the failure these fields exist to catch | §41 |
 | B2 | any of the three is typed | be `dict`, never `str` | §41 |
-| B3 | the measurement thread is verified | read `process_kpis` (WHAT), `baseline_kpis` (BEFORE) and `post_improvement_metric` (AFTER), and confirm the same measurement points carry different values | §39 |
+| B3 | the measurement thread is verified | read `process_metrics` (WHAT), `baseline_metrics` (BEFORE) and `post_improvement_metrics` (AFTER), and confirm the same measurement points carry different values | §39 |
 
 **Invariant — FMEA has no field in any schema, and none may be added.** Not
 `fmea_summary`, not `updated_fmea`, not an FMEA sub-key anywhere. If a Black
@@ -8672,7 +8672,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-02** | What a Belt REJECT does was unstated — `POST /gate/reject` existed in §49's table and in §33.1's frontend sequence with no defined behaviour | **RESOLVED 2026-08-24, founder ruling.** Reject **loops to the planner for another coaching turn**; the Belt **MUST supply a reason**, carried as `rejection_feedback` — a new `PhaseState` field (S-C02) — so the re-coach addresses what was actually objected to rather than repeating the refused turn. **The `/gate/reject` payload gains a mandatory reason, which depends on G-18** (open). See S-F13 DP3, §33, S-C02 |
 | **G-44** | Raised 2026-08-24 as the narrow successor to G-43: the S-F10 wrapper node's inner `subgraph.ainvoke` is a third case neither §16's bare-node claim nor G-43's standalone-invoke check covered. | **RESOLVED 2026-08-24.** Pattern B (wrapper node invoking the subgraph) is correct and is in fact forced — `SupervisorState` and `PhaseState` share no keys, so `add_node(subgraph)` is unavailable. The inner invoke persists `PhaseState` across turns **provided** it is called directly inside the node function with inherited config and is never relocated inside a tool. Verified against current LangChain subgraph docs; local repro owed. See §16. |
 | **G-25** | **The 20 computation tools** — no signature, no `args_schema`, no return shape for any of them; and no defined shape for §7's required "reformatting request" | **RESOLVED 2026-08-26.** **§69** specifies all twenty as **S-F37–S-F56** — inputs, `result` keys and methodology preconditions per tool — with the repeated header fields and the string-valued `result` rule stated once at §69.1. The "reformatting request" shape is settled there as a **returned value, not a raised error** (§60.6 B3), so a tool that cannot parse its input hands the Belt something to act on rather than failing the turn. Two boundaries are stated rather than left to be rediscovered: `post_improvement_cpk` stays a separate `@tool` from `calculate_cpk` despite sharing the formula (§30's no-mode-argument rule), and **Measure deliberately has no chart-limit tool** (§69.7). §60.6 stays as the group entry and its rebuild test now reads *met*. See §69, S-F24 |
-| **G-38** | `field_index` had no ordering source — the per-phase field list it indexes into was stated nowhere, and §13's "advance to the next field" depended on it. **G-01 depended on it too**: S-F13 DP1's predicate could not be implemented without it | **CLOSED 2026-08-25.** §39.1.2 states Define's ordered field list — **twelve** coached fields, `business_case` through `issues_and_barriers` (the list grew from ten at the 2026-08-26 Option A finalization, which added `target_metric` and brought `secondary_metrics` into the coached walk) — and **that list IS the `field_index` sequence.** DP1's predicate is now implementable for Define. **The closure is Define-only by design:** §39.1.8 gives the other four phases the same section shape at §39.2–§39.5, and their lists remain blocked on G-27 and G-28. Resolution reconciled the v1-code divergence toward the v2 names (F-11). See §39.1.2, S-F13, S-C02 |
+| **G-38** | `field_index` had no ordering source — the per-phase field list it indexes into was stated nowhere, and §13's "advance to the next field" depended on it. **G-01 depended on it too**: S-F13 DP1's predicate could not be implemented without it | **CLOSED 2026-08-25.** §39.1.2 states Define's ordered field list — **twelve** coached fields, `business_case` through `issues_and_barriers` (the list grew from ten at the 2026-08-26 Option A finalization, which added `target_value` and brought `secondary_metrics` into the coached walk) — and **that list IS the `field_index` sequence.** DP1's predicate is now implementable for Define. **The closure is Define-only by design:** §39.1.8 gives the other four phases the same section shape at §39.2–§39.5, and their lists remain blocked on G-27 and G-28. Resolution reconciled the v1-code divergence toward the v2 names (F-11). See §39.1.2, S-F13, S-C02 |
 
 ### 66.7 Findings — recorded, not gaps
 
@@ -8698,10 +8698,10 @@ Analyse's.
 | **F-09** | **`BeforeModelStateInjection` is named after the hook it must not use.** Its hook is `before_agent`; §19, §19.1 and `CLAUDE.md`'s no-go list each correct the `before_model` reading separately. The class name reproduces the error every time it is read |
 | **F-10** | **`degraded_mode_response` reads counts that `check_gate_status()` produces** (§46 body vs §29.2), and both are unspecified (G-31). They should be designed together, or the Belt sees two different completion counts |
 | **F-11** | **The built `DefinePhaseInput` had diverged from the v2 architecture names.** It carried granular 5W2H fields (`what`, `where`, `when`, `who_affected`, `why_it_matters`, `how_much_baseline`, `how_goal`), `scope_in`/`scope_out` as separate strings, and **both** `target_date` and `estimated_completion_date` — a duplicate date. **Resolved by the §39.1 rebuild**, in favour of the v2 names: one composed `problem_statement`, `project_scope` as a dict, one `target_date`. **Recorded so the rebuild is not later read as having introduced those names** — it retired them. The 5W2H survive as the coaching method (§39.1.3), never as stored fields |
-| **F-12** | **Control has no `actual_close_date`, and Define's `target_date` therefore has nothing to be compared against.** Define's finalization (2026-08-26) makes `target_date` a required field and states explicitly that it is the **planned** completion date — a project-management parameter that may slip without invalidating the improvement. **The pattern it belongs to is target-vs-actual**, the same one `target_metric` uses: Define states the target, Control captures what actually happened, and the delta is the finding. `target_metric` has its Control counterpart in `post_improvement_metric` (S-C31); **`target_date` has none.** Recorded as a forward dependency, **not built here** — Control's field list is settled at its own phase review (§39.5, blocked on G-27/G-28), and adding a field to `ControlOutput` outside that review is exactly the one-phase-at-a-time change §40 warns about. **When Control is specified, `actual_close_date` must be on the agenda alongside the schedule-variance question it implies** (is a slipped date a Control finding, or only a record?) |
+| **F-12** | **Control has no `actual_close_date`, and Define's `target_date` therefore has nothing to be compared against.** Define's finalization (2026-08-26) makes `target_date` a required field and states explicitly that it is the **planned** completion date — a project-management parameter that may slip without invalidating the improvement. **The pattern it belongs to is target-vs-actual**, the same one `target_value` uses: Define states the target, Control captures what actually happened, and the delta is the finding. `target_value` has its Control counterpart in `post_improvement_metrics` (S-C31); **`target_date` has none.** Recorded as a forward dependency, **not built here** — Control's field list is settled at its own phase review (§39.5, blocked on G-27/G-28), and adding a field to `ControlOutput` outside that review is exactly the one-phase-at-a-time change §40 warns about. **When Control is specified, `actual_close_date` must be on the agenda alongside the schedule-variance question it implies** (is a slipped date a Control finding, or only a record?) |
 
-| **F-13** | **Analyse's `causal_hypothesis` does not say WHICH criterion a root cause explains.** Harmless while a project tracks one measurement criterion; ambiguous the moment it tracks two. `causal_hypothesis` is a cross-phase reference dict (§7, §42) carrying `references_phase` / `references_field` / `references_value`, and the grader verifies the link by deterministic lookup — but with `baseline_metric` naming *"Error rate: 12.3%. Cycle time: 2.6 days."*, a root cause referencing "the baseline" resolves to a string containing both, and **"explains 60% of the problem" stops having a single referent.** `practical_significance` inherits the same ambiguity. **Recorded, not built** — Analyse's field list is settled at its own phase review (§39.3, blocked on G-27/G-28), and adding a sub-key to one phase's reference dict outside that review is the one-phase-at-a-time change §40 warns against. Raised by the multi-criteria ruling, 2026-08-26 |
-| **F-14** | **Control's target-vs-actual becomes one comparison per criterion.** `post_improvement_metric` (S-C31) is the AFTER end of the measurement thread and is graded by lookup against Measure's `baseline_mean` (§63.5 B2). With N criteria that is **N comparisons, not one** — and a Control phase reporting a single improvement delta across several metrics is the same failure `MEASURE_RUBRIC` now catches at the Measure gate, arriving one phase later. Pairs with **F-12**, which owes Control an `actual_close_date`: both are Control-side consequences of Define-side decisions, and **both should be settled in the same Control review** rather than discovered separately. **Recorded, not built.** Raised by the multi-criteria ruling, 2026-08-26 |
+| **F-13** | **Analyse's `causal_hypothesis` does not say WHICH criterion a root cause explains.** Harmless while a project tracks one measurement criterion; ambiguous the moment it tracks two. `causal_hypothesis` is a cross-phase reference dict (§7, §42) carrying `references_phase` / `references_field` / `references_value`, and the grader verifies the link by deterministic lookup — but with `baseline_estimate` naming *"Error rate: 12.3%. Cycle time: 2.6 days."*, a root cause referencing "the baseline" resolves to a string containing both, and **"explains 60% of the problem" stops having a single referent.** `practical_significance` inherits the same ambiguity. **Recorded, not built** — Analyse's field list is settled at its own phase review (§39.3, blocked on G-27/G-28), and adding a sub-key to one phase's reference dict outside that review is the one-phase-at-a-time change §40 warns against. Raised by the multi-criteria ruling, 2026-08-26 |
+| **F-14** | **Control's target-vs-actual becomes one comparison per criterion.** `post_improvement_metrics` (S-C31) is the AFTER end of the measurement thread and is graded by lookup against Measure's `baseline_mean` (§63.5 B2). With N criteria that is **N comparisons, not one** — and a Control phase reporting a single improvement delta across several metrics is the same failure `MEASURE_RUBRIC` now catches at the Measure gate, arriving one phase later. Pairs with **F-12**, which owes Control an `actual_close_date`: both are Control-side consequences of Define-side decisions, and **both should be settled in the same Control review** rather than discovered separately. **Recorded, not built.** Raised by the multi-criteria ruling, 2026-08-26 |
 
 ### 66.8 The Supplier/Customer cross-check — first run, 2026-08-23
 
@@ -8990,7 +8990,7 @@ than twenty times below. **Read every entry in §69.2–§69.6 as carrying these
   argument validation, which is ordinary parsing (§60.6 B2, B3).
 - **`metric_name` — when the project tracks more than one criterion.** A project
   may carry several measurement criteria (error rate *and* cycle time), and
-  §39.1.2's `baseline_metric` / `target_metric` express that **inside the
+  §39.1.2's `baseline_estimate` / `target_value` express that **inside the
   string**, not as extra fields. When more than one is tracked, **the `inputs`
   sub-dict of each `computation_results` entry carries a `metric_name` key**
   naming which criterion that call was for — so four `calculate_cpk` results are
@@ -9024,7 +9024,7 @@ than twenty times below. **Read every entry in §69.2–§69.6 as carrying these
 
 | S-F | Tool | What it computes | Inputs | Output (`result` keys) | Preconditions |
 |---|---|---|---|---|---|
-| **S-F37** | `calculate_expected_savings` | Projected annualised financial benefit of closing the baseline→target gap | `baseline_value`, `target_value`, `unit_cost` (cost per defect or per unit of the gap), `annual_volume` | `annual_savings`, `currency`, `calculation_note` — **states the multiplication used**, because a Belt must be able to defend the number at the gate | `baseline_metric` and `target_metric` captured (§39.1.2 fields #5 and #8); `business_case` supplies the cost basis where the Belt has one. **The tool must accept an absent cost and return a reformatting request rather than inventing a unit cost** |
+| **S-F37** | `calculate_expected_savings` | Projected annualised financial benefit of closing the baseline→target gap | `baseline_value`, `target_value`, `unit_cost` (cost per defect or per unit of the gap), `annual_volume` | `annual_savings`, `currency`, `calculation_note` — **states the multiplication used**, because a Belt must be able to defend the number at the gate | `baseline_estimate` and `target_value` captured (§39.1.2 fields #5 and #8); `business_case` supplies the cost basis where the Belt has one. **The tool must accept an absent cost and return a reformatting request rather than inventing a unit cost** |
 
 ### 69.3 S-F38–S-F45 · Measure — 8 tools
 
@@ -9043,7 +9043,7 @@ than twenty times below. **Read every entry in §69.2–§69.6 as carrying these
 
 | S-F | Tool | What it computes | Inputs | Output (`result` keys) | Preconditions |
 |---|---|---|---|---|---|
-| **S-F46** | `t_test` | Compares two sample means — **Welch's by default**, equal-variance only if the Belt states it | `sample1`, `sample2` (raw values **or** `{mean, std_dev, n}` summaries), `paired` (bool) | `t_statistic`, `degrees_of_freedom`, `p_value`, `significant` (`"yes"`/`"no"` at α=0.05) | One of `vital_few_xs` names the factor under test |
+| **S-F46** | `t_test` | Compares two sample means — **Welch's by default**, equal-variance only if the Belt states it | `sample1`, `sample2` (raw values **or** `{mean, std_dev, n}` summaries), `paired` (bool) | `t_statistic`, `degrees_of_freedom`, `p_value`, `significant` (`"yes"`/`"no"` at α=0.05) | One of `vital_few_drivers` names the factor under test |
 | **S-F47** | `chi_square_test` | Association between two categorical variables | `contingency_table` (rows × columns of counts) | `chi_square_statistic`, `degrees_of_freedom`, `p_value`, `significant` | Categorical data for both variables; **expected cell counts ≥ 5** — below that the tool returns a reformatting / small-sample warning (§60.6 B3) |
 | **S-F48** | `anova` | Compares means across 3+ groups | `groups` (list of raw-value lists or summaries) | `f_statistic`, `df_between`, `df_within`, `p_value`, `significant` | At least 3 groups |
 | **S-F49** | `pearson_correlation` | Linear correlation strength between two continuous variables | `x_values`, `y_values` (paired) | `r`, `r_squared`, `p_value`, `strength_label` — negligible / weak / moderate / strong, standard \|r\| bands | Paired continuous data, **n ≥ 10** (methodology floor). Below it the tool **returns a warning, not a suppressed result** — the Belt decides |
@@ -9071,7 +9071,7 @@ than twenty times below. **Read every entry in §69.2–§69.6 as carrying these
 > available. **The two MAY share a private helper; they are two `@tool`s.** The
 > difference is not the arithmetic but the contract: `post_improvement_cpk`
 > additionally takes `baseline_cpk` and returns `improvement_delta`, which is
-> the number Control's `post_improvement_metric` is graded against (§63.5 B2).
+> the number Control's `post_improvement_metrics` is graded against (§63.5 B2).
 
 ### 69.7 The Measure control-chart boundary — a tool that is deliberately absent
 

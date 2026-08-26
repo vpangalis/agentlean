@@ -536,7 +536,7 @@ name survives from v1**: `goal_statement`. Everything else is new.
 | Conversion | Detail |
 |---|---|
 | `team_members` | `list[TeamMember]` → **string** (§7 — every captured field is a string). The `TeamMember` model is deleted |
-| `process_map_sipoc` | **Introduce as a new Tier 1 dict field, promoted from prompt-embedded content, including `process_kpis`.** It is *not* an edit to an existing schema field — there is no `sipoc` field in `DefinePhaseInput` today. SIPOC exists only as `ImproveGraphState.sipoc_diagram` and a five-column JSON key in `core/prompts.py`. The promotion adds `process_kpis` as the sixth key |
+| `process_map_sipoc` | **Introduce as a new Tier 1 dict field, promoted from prompt-embedded content, including `process_metrics`.** It is *not* an edit to an existing schema field — there is no `sipoc` field in `DefinePhaseInput` today. SIPOC exists only as `ImproveGraphState.sipoc_diagram` and a five-column JSON key in `core/prompts.py`. The promotion adds `process_metrics` as the sixth key |
 | Numeric fields | Any typed numeric becomes `str` (§7). Computation tools parse at the point of use |
 
 **Coupled in the same commit, per ruling:** the five `validate_{phase}.py`
@@ -546,7 +546,7 @@ render them. Leaving the UI reading fields that no longer exist — even briefly
 
 **Done when:** case `IMPR-2026-E9D` opens in the workspace, the right-hand
 captured-fields panel renders without blanks, and the Define gate document
-preview shows the SIPOC with six keys including `process_kpis`.
+preview shows the SIPOC with six keys including `process_metrics`.
 
 **Rollback:** revert the commit. No stored gate documents exist yet to migrate.
 
@@ -567,7 +567,7 @@ preview shows the SIPOC with six keys including `process_kpis`.
 > *Written once the Stage 1 audit is in hand. It must cover: rewrite all five
 > schema files in place to the §10.7 definitions; `team_members` to a string and
 > delete the `TeamMember` model; introduce `process_map_sipoc` as a new Tier 1
-> dict with all six keys including `process_kpis`; every field `str` except the
+> dict with all six keys including `process_metrics`; every field `str` except the
 > three cross-phase reference dicts and the three structured dicts; update all
 > five validators; update every `ui/index.html` field reference found in the
 > audit.*

@@ -113,7 +113,7 @@ closes.
 
 | # | Field | Tier | Why here |
 |---|---|---|---|
-| 1 | `post_improvement_metric` | 1 | **Prove it worked first.** Everything else assumes it |
+| 1 | `post_improvement_metrics` | 1 | **Prove it worked first.** Everything else assumes it |
 | 2 | `improvement_delta` | 2 | Falls out of the comparison |
 | 3 | `control_plan` | 1 | Five sub-plans, one at a time. The bulk of the phase |
 | 4 | `sustainability_check` | 2 | Overlaps monitoring — coach after it |
@@ -129,7 +129,7 @@ closes.
 
 ## 3. Per-field coaching
 
-### `post_improvement_metric` — Tier 1, dict, cross-phase reference
+### `post_improvement_metrics` — Tier 1, dict, cross-phase reference
 
 **Show, and walk the comparison arithmetic explicitly:**
 
@@ -175,8 +175,8 @@ pilot:**
   we used in Measure?"*
 - Two weeks of data — *"is that long enough to be sure it holds?"*
 - Pilot group only, presented as the whole process
-- Measurement points differ from Define's `process_kpis` and Measure's
-  `baseline_kpis` — **that means the goalposts moved**
+- Measurement points differ from Define's `process_metrics` and Measure's
+  `baseline_metrics` — **that means the goalposts moved**
 
 ### `improvement_delta` — Tier 2
 
@@ -693,7 +693,7 @@ request.**
 
 Via `CoachingResponse.fields_captured` — **no `record_field` tool.**
 Each: `field_name`, `value` (`str`, or `dict` for `control_plan` and
-`post_improvement_metric`), `source` (`belt_stated` /
+`post_improvement_metrics`), `source` (`belt_stated` /
 `coach_extracted`).
 
 **`control_plan` is a dict** with `documentation`, `monitoring`,
@@ -701,7 +701,7 @@ Each: `field_name`, `value` (`str`, or `dict` for `control_plan` and
 are populated**, not sub-plan by sub-plan — but track progress through
 them in the conversation so the Belt can see where they are.
 
-**`post_improvement_metric` is a dict** with `metric`,
+**`post_improvement_metrics` is a dict** with `metric`,
 `references_phase`, `references_field`, `references_value`. Read the
 referenced baseline from Measure's gate document.
 
@@ -721,7 +721,7 @@ Baseline (Measure):  12.3%
 Now (Control):        3.1%
 Change:              −9.2 points (74.8% reduction)
 Target:              below 5% — achieved
-{post_improvement_metric.metric, period and definition note}
+{post_improvement_metrics.metric, period and definition note}
 {before/after capability chart from computation_results}
 
 CONTROL PLAN                               [header + FIVE SUB-SECTIONS]
@@ -809,11 +809,11 @@ store.get(("projects", case_id, "artifacts"), "define")
 
 | Field | Phase | Use |
 |---|---|---|
-| `baseline_mean` | Measure | **The value `post_improvement_metric` references.** Read exactly |
-| `detailed_process_map["baseline_kpis"]` | Measure | The before values in the KPI chain |
-| `process_map_sipoc["process_kpis"]` | Define | What was supposed to be measured — check the after values sit on the same points |
+| `baseline_mean` | Measure | **The value `post_improvement_metrics` references.** Read exactly |
+| `detailed_process_map["baseline_metrics"]` | Measure | The before values in the KPI chain |
+| `process_map_sipoc["process_metrics"]` | Define | What was supposed to be measured — check the after values sit on the same points |
 | `measurement_system_validated` | Measure | The post metric must use the same validated definition |
-| `vital_few_xs` | Measure | *"What are the vital few X's and how will you control them?"* is a Control gate question |
+| `vital_few_drivers` | Measure | *"What are the vital few X's and how will you control them?"* is a Control gate question |
 | `root_cause_statement` | Analyse | What the controls must prevent recurring |
 | `selected_solution`, `implementation_plan` | Improve | What's being sustained; the basis for training and documentation plans |
 | `pilot_result` | Improve | Compare against the sustained result |
@@ -855,7 +855,7 @@ CONTROL_RUBRIC = """
          repeat delivery for new joiners. For each sub-plan, whether it has been
          IMPLEMENTED as well as written is stated — a written-but-undelivered
          plan is disclosed as such, not presented as complete.
-[TIER 1] post_improvement_metric: DICT carrying metric, references_phase,
+[TIER 1] post_improvement_metrics: DICT carrying metric, references_phase,
          references_field, references_value. Measured using the same operational
          definition and measurement points as the baseline, over a period long
          enough to be credible, across the whole process rather than the pilot
@@ -890,11 +890,11 @@ CONTROL_RUBRIC = """
 - **A sub-plan written but not implemented is a warning, not a
   failure** — provided it is disclosed. Silence about implementation
   status is what fails.
-- **`post_improvement_metric` is verified deterministically** (§4.7)
+- **`post_improvement_metrics` is verified deterministically** (§4.7)
   against Measure's gate document.
 - **Check the KPI chain** (§4.10.7): the after values should sit on the
-  same measurement points as Define's `process_kpis` and Measure's
-  `baseline_kpis`. Different points means the goalposts moved.
+  same measurement points as Define's `process_metrics` and Measure's
+  `baseline_metrics`. Different points means the goalposts moved.
 - **Check `computation_results`** for a control-limits entry behind the
   monitoring sub-plan, and `post_improvement_cpk` where capability was
   claimed.

@@ -37,10 +37,10 @@ DEFINE_REQUIRED_FIELDS: tuple[str, ...] = (
     "team",                 # 2
     "voc_summary",          # 3
     "problem_statement",    # 4  composed from 5W2H (§39.1.3)
-    "baseline_metric",      # 5  discrete — Control compares against it
+    "baseline_estimate",      # 5  discrete — Control compares against it
     "project_scope",        # 6
     "goal_statement",       # 7  the human-readable SMART sentence
-    "target_metric",        # 8  discrete — Control compares achieved-vs-target
+    "target_value",        # 8  discrete — Control compares achieved-vs-target
     "target_date",          # 9  the PLANNED completion date
     "secondary_metrics",    # 10 what could get worse
     "process_map_sipoc",    # 11
@@ -64,7 +64,7 @@ DEFINE_FIELD_ORDER: tuple[str, ...] = DEFINE_REQUIRED_FIELDS
 # baseline never covered the whole thing.
 SIPOC_KEYS: tuple[str, ...] = (
     "suppliers", "inputs", "process_steps", "outputs", "customers",
-    "process_kpis",
+    "process_metrics",
 )
 
 # Both scope halves are required. What the project is deliberately NOT doing
@@ -88,14 +88,14 @@ class DefineOutput(BaseModel):
     bug that must surface loudly. **Define never uses the Tier 2
     `.get(..., "")` pattern** — it has no Tier 2 fields (§40.1, S-F28).
 
-    **The measurement thread — do not "simplify" these away.** `baseline_metric`,
-    `target_metric` and `target_date` are discrete fields on purpose, not
+    **The measurement thread — do not "simplify" these away.** `baseline_estimate`,
+    `target_value` and `target_date` are discrete fields on purpose, not
     redundant restatements of `goal_statement`. That field is the
     human-readable SMART sentence; these three are the machine-readable values
     **Control extracts to compute target-vs-actual**. Folded into prose, they
     would leave Control with nothing to compare. This mirrors the three-phase
-    KPI thread `process_map_sipoc["process_kpis"]` ->
-    `detailed_process_map["baseline_kpis"]` -> `post_improvement_metric` (§39).
+    KPI thread `process_map_sipoc["process_metrics"]` ->
+    `detailed_process_map["baseline_metrics"]` -> `post_improvement_metrics` (§39).
     """
 
     # ── The 12 gate-required fields, in coached order (§39.1.2) ───────
@@ -130,7 +130,7 @@ class DefineOutput(BaseModel):
             "The 5W2H are coaching prompts, never stored fields."
         ),
     )
-    baseline_metric: str = Field(
+    baseline_estimate: str = Field(
         ...,
         description=(
             "DISCRETE current-state value — Control compares against it. "
@@ -149,15 +149,15 @@ class DefineOutput(BaseModel):
         ...,
         description=(
             "The SMART sentence — human-readable prose mirroring the problem. "
-            "The comparable values live in `baseline_metric` and "
-            "`target_metric`, not in here."
+            "The comparable values live in `baseline_estimate` and "
+            "`target_value`, not in here."
         ),
     )
-    target_metric: str = Field(
+    target_value: str = Field(
         ...,
         description=(
             "DISCRETE target value, in the same metric and units as "
-            "`baseline_metric`. Control compares the achieved value against "
+            "`baseline_estimate`. Control compares the achieved value against "
             "it. NOT redundant with `goal_statement`: that is prose, this is the "
             "comparable value (§39.1.2, the measurement thread)."
         ),
@@ -183,7 +183,7 @@ class DefineOutput(BaseModel):
         ...,
         description=(
             "SIPOC with six keys: suppliers, inputs, process_steps, outputs, "
-            "customers, process_kpis. `process_kpis` carries WHAT is measured "
+            "customers, process_metrics. `process_metrics` carries WHAT is measured "
             "— the first link of the three-phase measurement thread (§39)."
         ),
     )

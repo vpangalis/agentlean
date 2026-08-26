@@ -55,10 +55,10 @@ locked in**, not starting over.
 > on the same picture:
 >
 > • **Problem:** {problem_statement}
-> • **Baseline:** {baseline_metric}
-> • **Target:** {target_metric} by {target_date}
+> • **Baseline:** {baseline_estimate}
+> • **Target:** {target_value} by {target_date}
 > • **Process (SIPOC):** {process_map_sipoc — rendered as the table}, measuring
->   {process_map_sipoc['process_kpis']}
+>   {process_map_sipoc['process_metrics']}
 >
 > Now, what Measure actually does: we expand that SIPOC into a detailed process
 > map, decide what to collect and how, check the measurement itself can be
@@ -172,8 +172,8 @@ Announce the gate check, then the four-layer validation fires.
 | 4 | `stability_assessment` | 1 | **Before capability.** An unstable process has no single capability figure |
 | 5 | `baseline_mean` | 1 | Only now is the number trustworthy |
 | 6 | `baseline_sigma` | 2 | Falls out of the baseline and the spec limits |
-| 7 | `xy_matrix_summary` | 1 | Prioritise the inputs, using the map |
-| 8 | `vital_few_xs` | 1 | The ranked result — what Analyse starts from |
+| 7 | `driver_priority_summary` | 1 | Prioritise the inputs, using the map |
+| 8 | `vital_few_drivers` | 1 | The ranked result — what Analyse starts from |
 | 9 | `secondary_metrics` | 2 | Carry from Define, re-check |
 | 10 | `issues_and_barriers` | 1 | Data-access problems surface during collection — ask once they've tried |
 
@@ -253,15 +253,15 @@ alarmed by what we find."*
   review step? If not, it's necessary waste, not value."*
 - Rework isn't shown — *"what happens when an invoice comes back wrong?
   That's a row too."*
-- `baseline_kpis` don't connect to Define's `process_kpis`
+- `baseline_metrics` don't connect to Define's `process_metrics`
 - Steps appear that were outside Define's scope — one of the two is wrong
 
-**`baseline_kpis` — the sixth sub-field. Ask the criteria question first:**
+**`baseline_metrics` — the sixth sub-field. Ask the criteria question first:**
 
 > "Before we fill in the KPI column — how many things are we tracking on this
 > process? One measure, or more than one? Plenty of projects carry two: a
 > quality measure and a time measure, say. Define named
-> {process_map_sipoc['process_kpis']} — is that still the full list?"
+> {process_map_sipoc['process_metrics']} — is that still the full list?"
 
 **Show a two-criterion example**, because one column of numbers hides the
 question:
@@ -274,8 +274,8 @@ question:
 > "Two criteria, each traced through the same steps. That's what lets us say
 > later which one the root cause actually explains."
 
-**Capture each criterion by name in `baseline_kpis`**, using the same names
-Define used in `baseline_metric` — Measure inherits Define's vocabulary and does
+**Capture each criterion by name in `baseline_metrics`**, using the same names
+Define used in `baseline_estimate` — Measure inherits Define's vocabulary and does
 not invent a second one. If the Belt names a criterion Define did not, say so
 and ask which is right, rather than quietly adding it.
 
@@ -402,7 +402,7 @@ watching — which might be the project's real finding."*
 ### `baseline_mean` — Tier 1
 
 **Ask the criteria question first:** *"How many measures are we baselining —
-just the one, or more than one? Define named {baseline_metric}; we give each of
+just the one, or more than one? Define named {baseline_estimate}; we give each of
 those its own number, sample and period."*
 
 **Show a two-criterion example:**
@@ -417,8 +417,8 @@ those its own number, sample and period."*
 > sampled for timing."
 
 **Use the same criterion names Define used.** `baseline_mean` and Define's
-`baseline_metric` must name the same things; the gate checks that
-`baseline_metric` and `target_metric` agree by name and unit, and a rename here
+`baseline_estimate` must name the same things; the gate checks that
+`baseline_estimate` and `target_value` agree by name and unit, and a rename here
 is how that check starts failing for no real reason.
 
 **If a number differs from Define's, surface it:** *"Define had 12%, you have
@@ -447,7 +447,7 @@ the call** so each result is attributable in the gate document (§69.1).
 `calculate_dpmo`, `calculate_yield_rty` and `calculate_ftq` support the same
 conversation.
 
-### `xy_matrix_summary` — Tier 1
+### `driver_priority_summary` — Tier 1
 
 **Show:**
 
@@ -480,7 +480,7 @@ conversation.
 work usually rank these differently from managers."* Process participants
 not taking part is a named eBook roadblock.
 
-### `vital_few_xs` — Tier 1
+### `vital_few_drivers` — Tier 1
 
 **Show:**
 
@@ -725,7 +725,7 @@ duplicate.
 the issue is spread across steps rather than concentrated in one."*
 
 **3 — Prepare.** Yield at each step — from `detailed_process_map`'s
-`baseline_kpis` if populated.
+`baseline_metrics` if populated.
 
 **4 — Run.**
 
@@ -859,7 +859,7 @@ Via `CoachingResponse.fields_captured` in the structured response —
 (`belt_stated` or `coach_extracted`).
 
 **`detailed_process_map` is a dict** with `steps`, `cycle_times`,
-`resources`, `value_vs_waste`, `measurement_points`, `baseline_kpis`.
+`resources`, `value_vs_waste`, `measurement_points`, `baseline_metrics`.
 Capture once complete.
 
 **Computation results land in `artifacts["computation_results"]`
@@ -892,10 +892,10 @@ BASELINE                                   [header + inline]
 {baseline_mean}
 
 CAUSE PRIORITISATION (X-Y MATRIX)          [header + TABLE]
-{xy_matrix_summary — causes scored against weighted outputs}
+{driver_priority_summary — causes scored against weighted outputs}
 
 VITAL FEW X's                              [header + numbered list]
-{vital_few_xs — one per line with its reason}
+{vital_few_drivers — one per line with its reason}
 
 ISSUES AND BARRIERS                        [header + list]
 {issues_and_barriers}
@@ -932,8 +932,8 @@ Required: {n}/7 | Recommended: {n}/3
 [Download PDF] [Download Word]
 ```
 
-**Rules:** `detailed_process_map` and `xy_matrix_summary` render as
-**tables**, never JSON. `vital_few_xs` renders as a numbered list, since
+**Rules:** `detailed_process_map` and `driver_priority_summary` render as
+**tables**, never JSON. `vital_few_drivers` renders as a numbered list, since
 Analyse works through it in order. Charts render inline with their
 interpretation, never as raw output.
 
@@ -975,8 +975,8 @@ store.get(("projects", case_id, "artifacts"), "define")
 | Define field | Use |
 |---|---|
 | `process_map_sipoc` | **Expanded into `detailed_process_map`.** Open the phase with it |
-| `process_map_sipoc["process_kpis"]` | Basis for `baseline_kpis` |
-| `baseline_metric` | Starting point for `baseline_mean`; flag discrepancies |
+| `process_map_sipoc["process_metrics"]` | Basis for `baseline_metrics` |
+| `baseline_estimate` | Starting point for `baseline_mean`; flag discrepancies |
 | `project_scope` | Bounds the detailed map |
 | `problem_statement` | Re-test — has it changed? |
 | `voc_summary` | Source of the spec limits used in capability |
@@ -988,8 +988,8 @@ store.get(("projects", case_id, "artifacts"), "define")
 
 | Field | Use |
 |---|---|
-| `vital_few_xs` | **The starting list.** Analyse tests exactly these |
-| `xy_matrix_summary` | Shows how the list was derived |
+| `vital_few_drivers` | **The starting list.** Analyse tests exactly these |
+| `driver_priority_summary` | Shows how the list was derived |
 | `baseline_mean` | The value `causal_hypothesis` references |
 | `detailed_process_map` | Where to look for the mechanism behind a result |
 | `measurement_system_validated` | Precondition — tests on unvalidated data are meaningless |
@@ -1023,16 +1023,16 @@ MEASURE_RUBRIC = """
          choice stated — removed and re-measured, or excluded with rationale.
          Established BEFORE capability.
 [TIER 1] baseline_mean: value with units, sample size, period and any exclusions.
-         Consistent with Define's baseline_metric or the difference explained.
-[TIER 1] xy_matrix_summary: scoring basis described, participants named, ranked
+         Consistent with Define's baseline_estimate or the difference explained.
+[TIER 1] driver_priority_summary: scoring basis described, participants named, ranked
          output produced. Not the Belt's unaided opinion.
-[TIER 1] vital_few_xs: 3-6 named inputs, each with the reason it made the cut.
+[TIER 1] vital_few_drivers: 3-6 named inputs, each with the reason it made the cut.
          Measurable and controllable. More than six means prioritisation was not
          selective enough.
 [TIER 1] issues_and_barriers: concrete named blockers, or an explicit
          "none identified at this stage".
-[TIER 1] criteria agreement: every criterion named in baseline_metric appears in
-         target_metric, by the same name and the same unit, and vice versa. A
+[TIER 1] criteria agreement: every criterion named in baseline_estimate appears in
+         target_value, by the same name and the same unit, and vice versa. A
          criterion present in one and absent from the other is a FAILURE, not a
          warning - the project would be targeting something it never baselined,
          or baselining something it never set a target for. This is a NAME MATCH,
@@ -1063,10 +1063,10 @@ MEASURE_RUBRIC = """
 - **Check `computation_results` for evidence**, not just prose:
   `calculate_grr` behind `measurement_system_validated`,
   `calculate_sigma_level` behind `baseline_sigma`.
-- **`vital_few_xs` above six is a Tier 1 warning worth raising**, even
+- **`vital_few_drivers` above six is a Tier 1 warning worth raising**, even
   though the field is present.
 - **Criteria agreement is checkable without judgement.** Read the criterion
-  names and units out of `baseline_metric` and out of `target_metric` and
+  names and units out of `baseline_estimate` and out of `target_value` and
   compare the two sets. A mismatch is a `fail`, and the feedback should name the
   specific criterion that is missing from which field — not "the metrics don't
   match".

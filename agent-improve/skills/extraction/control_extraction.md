@@ -293,7 +293,7 @@ gate-metadata fields — and has the best coverage of eBook content.
 | eBook deliverable | `ControlOutput` field | Tier |
 |---|---|---|
 | Control Plan | `control_plan` | 1 |
-| Final capability / post-improvement measure, linked to baseline | `post_improvement_metric` (dict, cross-phase ref) | 1 |
+| Final capability / post-improvement measure, linked to baseline | `post_improvement_metrics` (dict, cross-phase ref) | 1 |
 | Improvement vs baseline | `improvement_delta` | 2 |
 | Financial implications | `financial_impact_verified` | 2 |
 | "How are you going to ensure this problem does not return?" | `sustainability_check` | 2 |
@@ -322,7 +322,7 @@ and Step Four questions and onto its "horizontal replication" language.
 | **C-7** | **Action plan for spreading best practice** | book p678 | **MEDIUM** | `transferability` records *whether* it transfers; the eBook separately asks for the **action plan** for spreading it. Feeds `rag_lookup_case_history` / yokoten. |
 | **C-8** | **Project documentation file / procedure references** | book p678 | **MEDIUM** | "Is there a project documentation file?", "How is this referenced in process procedures and product drawings?", "What is the mechanism to ensure this is not reinvented in the future?" — three questions about durable documentation location. |
 | **C-9** | **Spin-off projects** | book p678 | **MEDIUM** | "Are there any spin-off projects?" A named gate question and a real pipeline input. No field. |
-| **C-10** | **Match to business case and improvement goals** | book p678 | **MEDIUM** | Step One's **first** question. `post_improvement_metric` links to Measure's baseline (§4.7); this asks for the link to **Define's** business case and goal statement. A second cross-phase reference — to `DefineOutput.goal_statement` / `business_case` — would close it with existing machinery. |
+| **C-10** | **Match to business case and improvement goals** | book p678 | **MEDIUM** | Step One's **first** question. `post_improvement_metrics` links to Measure's baseline (§4.7); this asks for the link to **Define's** business case and goal statement. A second cross-phase reference — to `DefineOutput.goal_statement` / `business_case` — would close it with existing machinery. |
 | **C-11** | **Actual vs apparent Cpk** | book p679 | **MEDIUM** | "Identify actual versus apparent Cpk." A specific analytical distinction with no field; `post_improvement_cpk` produces a number but not the comparison. |
 | **C-12** | **Secondary metrics repeated at close** | book p679 | **HIGH** | "Repeat same process for secondary metrics." Terminal instance of the cross-phase secondary-metrics gap (Define D-1). A project that improved the primary metric and degraded a secondary one closes clean under our schema. |
 | **C-13** | **Cost and time considerations for solution selection** | book p658 | **MEDIUM** | Initial vs on-going cost; technical, political and cultural time constraints. No field. |

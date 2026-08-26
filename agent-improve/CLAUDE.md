@@ -1140,7 +1140,7 @@ additionally structured, and it arrives in `result["structured_response"]`.
 Reading one does not cost you the other.
 
 **What structured output does NOT give you:** truth. It guarantees
-shape. A schema-valid `baseline_metric: 4.2` invented by the model is
+shape. A schema-valid `baseline_estimate: 4.2` invented by the model is
 exactly as well-formed as a correct one. Content-level defence is
 §6.4, §9.2 Layer 1, and §9.4 — not this rule.
 
@@ -1802,14 +1802,14 @@ data_collection_plan, stability), Analyse (root_cause_statement,
 root_cause_validation, causal_hypothesis, ruled_out_causes), Improve
 (selected_solution, solution_linked_to_root_cause, pilot_result,
 implementation_plan), Control (control_plan, sustainability_check,
-post_improvement_metric, improvement_delta, financial_impact_verified,
+post_improvement_metrics, improvement_delta, financial_impact_verified,
 handover_documented, lessons_learned, transferability). Each criterion
 carries its tier (§9.7). Full coverage in `../AGENTIC_ARCHITECTURE_REFERENCE.md` §36;
 the tier table is `../AGENTIC_ARCHITECTURE_REFERENCE.md` §35.
 
 **Three criteria are verified deterministically, not by judgment.**
 `causal_hypothesis`, `solution_linked_to_root_cause` and
-`post_improvement_metric` are cross-phase reference dicts (§10.6); the
+`post_improvement_metrics` are cross-phase reference dicts (§10.6); the
 grader reads the referenced phase's gate document from the store and
 checks the named field carries the named value. Criteria that depend on
 a computation are checked the same way, by scanning
@@ -2270,11 +2270,11 @@ gate never asked for.
 
 | Phase | Gate-required fields | Count |
 |---|---|---|
-| Define | **All 12 — no tier split (Option A).** `business_case`, `team` (**list[dict]**), `voc_summary`, `problem_statement`, `baseline_metric`, `project_scope` (**dict**), `goal_statement`, `target_metric`, `target_date`, `secondary_metrics`, `process_map_sipoc` (**dict**), `issues_and_barriers` | **12** |
-| Measure | `baseline_mean`, `data_collection_plan`, `xy_matrix_summary`, `vital_few_xs`, `detailed_process_map` (**dict**), `stability_assessment`, `issues_and_barriers` | 7 |
+| Define | **All 12 — no tier split (Option A).** `business_case`, `team` (**list[dict]**), `voc_summary`, `problem_statement`, `baseline_estimate`, `project_scope` (**dict**), `goal_statement`, `target_value`, `target_date`, `secondary_metrics`, `process_map_sipoc` (**dict**), `issues_and_barriers` | **12** |
+| Measure | `baseline_mean`, `data_collection_plan`, `driver_priority_summary`, `vital_few_drivers`, `detailed_process_map` (**dict**), `stability_assessment`, `issues_and_barriers` | 7 |
 | Analyse | `root_cause_statement`, `root_cause_validation`, `practical_significance`, `issues_and_barriers` | 4 |
 | Improve | `selected_solution`, `pilot_result`, `experiment_justification`, `issues_and_barriers` | 4 |
-| Control | `control_plan` (**dict**, 5 sub-plans), `post_improvement_metric`, `issues_and_barriers` | 3 |
+| Control | `control_plan` (**dict**, 5 sub-plans), `post_improvement_metrics`, `issues_and_barriers` | 3 |
 
 > **Define is the one phase with no Tier 2** (Option A, ratified 2026-08-26 —
 > §0.18). Its row is a **complete field set, not a tier**; the other four rows
@@ -2344,7 +2344,7 @@ if belt_level == "Green Belt":
 
 | Item | Now |
 |---|---|
-| X-Y matrix | **`xy_matrix_summary`, Tier 1, all Belts** — it produces the vital few X's Analyse cannot start without |
+| X-Y matrix | **`driver_priority_summary`, Tier 1, all Belts** — it produces the vital few X's Analyse cannot start without |
 | Statistical problem statement | **`statistical_problem_statement`, Tier 2, all Belts, in Analyse** — not Define |
 | FMEA | **Not tracked in any schema.** See §10.8 |
 
@@ -2675,7 +2675,7 @@ stated, not what the system parsed out of it.
 
 **The one exception — three cross-phase reference fields are `dict`:**
 `causal_hypothesis` (Analyse), `solution_linked_to_root_cause`
-(Improve), `post_improvement_metric` (Control). Each carries the Belt's
+(Improve), `post_improvement_metrics` (Control). Each carries the Belt's
 content plus `references_phase`, `references_field` and
 `references_value`, so the grader verifies the link by reading the
 referenced phase's gate document from the store — deterministic, no LLM
@@ -2719,7 +2719,7 @@ load-bearing in the same way `SupervisorState` and `PhaseState` are.
 **`value` is `Any`, not `str`, and that is deliberate** — it must carry
 both plain string fields and the three cross-phase reference dicts
 (§10.6). Typing it `str` would make `causal_hypothesis`,
-`solution_linked_to_root_cause` and `post_improvement_metric`
+`solution_linked_to_root_cause` and `post_improvement_metrics`
 uncapturable. This is the one place `Any` is correct; the *values inside*
 those dicts are still strings.
 
@@ -2783,8 +2783,8 @@ cross-phase reference dicts of §10.6:
 
 | Field | Phase | Sub-fields |
 |---|---|---|
-| `process_map_sipoc` | Define | `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, `process_kpis` |
-| `detailed_process_map` | Measure | `steps`, `cycle_times`, `resources`, `value_vs_waste`, `measurement_points`, `baseline_kpis` |
+| `process_map_sipoc` | Define | `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, `process_metrics` |
+| `detailed_process_map` | Measure | `steps`, `cycle_times`, `resources`, `value_vs_waste`, `measurement_points`, `baseline_metrics` |
 | `control_plan` | Control | `documentation`, `monitoring`, `response`, `training`, `aligning_systems` |
 
 **The grader checks every sub-field is populated.** A `process_map_sipoc`
@@ -2797,9 +2797,9 @@ the whole thing.
 the grader verifies the same measurement points carry different values:
 
 ```
-Define   process_map_sipoc["process_kpis"]        — WHAT is measured
-Measure  detailed_process_map["baseline_kpis"]    — the BEFORE values
-Control  post_improvement_metric                  — the AFTER values
+Define   process_map_sipoc["process_metrics"]        — WHAT is measured
+Measure  detailed_process_map["baseline_metrics"]    — the BEFORE values
+Control  post_improvement_metrics                  — the AFTER values
 ```
 
 **`stability_assessment` is Tier 1 and is checked BEFORE capability.** An
@@ -2837,8 +2837,8 @@ is the most common real Control failure. Design detail: `../AGENTIC_ARCHITECTURE
 
 FMEA is heavy manufacturing methodology built around severity ×
 occurrence × detection scoring of physical failure modes. Agent Improve's
-typical case is service or transactional DMAIC, where `xy_matrix_summary`
-and `vital_few_xs` already do the prioritisation job without the RPN
+typical case is service or transactional DMAIC, where `driver_priority_summary`
+and `vital_few_drivers` already do the prioritisation job without the RPN
 overhead. Requiring an FMEA would push every Belt through a heavy
 artefact to satisfy a field — the mechanical field-filling §9.7 exists to
 prevent.

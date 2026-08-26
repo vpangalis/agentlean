@@ -247,8 +247,8 @@ Schema as ratified in **ARCHITECTURE.md §4.10.2** and REFACTORING §82.
 | VOC | `voc_summary` | 1 |
 | Business Case / COPQ | `business_case` | 2 |
 | Team Members | `team` | 2 |
-| Primary Metric (current state) | `baseline_metric` | 2 |
-| Objective target value | `target_metric` | 2 |
+| Primary Metric (current state) | `baseline_estimate` | 2 |
+| Objective target value | `target_value` | 2 |
 | Pareto / project desirability output | `computation_results` (via `calculate_expected_savings`) | — |
 | VOC + methodology sources | `citations` | — |
 | Belt-uploaded data | `uploads` | — |
@@ -257,7 +257,7 @@ Schema as ratified in **ARCHITECTURE.md §4.10.2** and REFACTORING §82.
 
 | # | eBook deliverable | eBook ref | Severity | Note |
 |---|---|---|---|---|
-| **D-1** | **Secondary Metric(s)** | book p78, p57 | **HIGH** | A named deliverable in **all five** phase deliverable lists. `DefineOutput` has `baseline_metric` and `target_metric` but nothing for secondary metrics. The eBook is explicit that these catch the negative consequences of improving the primary metric — the field that would surface a project that fixed cycle time by wrecking quality. |
+| **D-1** | **Secondary Metric(s)** | book p78, p57 | **HIGH** | A named deliverable in **all five** phase deliverable lists. `DefineOutput` has `baseline_estimate` and `target_value` but nothing for secondary metrics. The eBook is explicit that these catch the negative consequences of improving the primary metric — the field that would surface a project that fixed cycle time by wrecking quality. |
 | **D-2** | **High-level Process Map** | book p78, p106 | **HIGH** | A named deliverable and a Step Two gate question ("Do you have a high level process map?"). `propose_diagram` can render one, but nothing persists it in the gate document. Handed forward to Measure as the base for the Level 2 map. |
 | **D-3** | **Stakeholder Analysis** | book p78, p10 | **MEDIUM** | Named deliverable; gate asks "Key issues with stakeholders identified?" Distinct from `team` — stakeholders are affected parties, not team members. |
 | **D-4** | **Project Plan** | book p78 | **MEDIUM** | Named deliverable in all five phases. Improve has `implementation_plan`; Define has no plan field. |

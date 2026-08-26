@@ -38,10 +38,10 @@ tiers (§35).
 | 2 | `team` | **required** |
 | 3 | `voc_summary` | **required** |
 | 4 | `problem_statement` | **required** |
-| 5 | `baseline_metric` | **required** |
+| 5 | `baseline_estimate` | **required** |
 | 6 | `project_scope` | **required** |
 | 7 | `goal_statement` | **required** |
-| 8 | `target_metric` | **required** |
+| 8 | `target_value` | **required** |
 | 9 | `target_date` | **required** |
 | 10 | `secondary_metrics` | **required** |
 | 11 | `process_map_sipoc` | **required** |
@@ -54,11 +54,11 @@ structured, never bulk prose (§50.1).
 
 ### Three of these are discrete on purpose
 
-`baseline_metric`, `target_metric` and `target_date` are **separate fields, not
+`baseline_estimate`, `target_value` and `target_date` are **separate fields, not
 restatements of `goal_statement`.** That field is the human-readable SMART
 sentence; these three are the machine-readable values **Control extracts to
 compute target-vs-actual.** Capture the numbers as numbers, in the same metric
-and units for `baseline_metric` and `target_metric`, and do not settle for having
+and units for `baseline_estimate` and `target_value`, and do not settle for having
 said
 them inside the goal sentence — prose Control cannot parse breaks the
 comparison one phase before anyone notices (§39, the measurement thread).
@@ -105,7 +105,7 @@ comparison one phase before anyone notices (§39, the measurement thread).
 > **Ask (one at a time):** What's happening? · Where? · When / since when? · Who's affected? · Why does it matter? · **How much — and is it one measure or more than one?** (a rough number each; many projects track both a quality measure and a time measure) · What would "fixed" look like?
 > **Compose & Confirm:** Putting that together, here's your problem statement: *"[composed from the Belt's own answers]"* — does that capture it accurately? *(Guard: assemble only what the Belt said; invent nothing. Store only after confirmation.)*
 
-**[5 · baseline_metric · required]**
+**[5 · baseline_estimate · required]**
 > **Explain:** Roughly, where does performance stand today? A rough number is fine here — we'll measure it properly in the next phase. It anchors the goal. **Some projects track more than one thing** — a quality measure and a time measure, say — and that's normal; we just name each one.
 > **Show (one criterion):** *"Error rate: about 12% of invoices contain errors."*
 > **Show (two criteria):** *"Error rate: about 12% of invoices contain errors. Cycle time: about 2.6 days from order to invoice sent."*
@@ -124,7 +124,7 @@ comparison one phase before anyone notices (§39, the measurement thread).
 > **Ask:** Taking your problem's number — what's the target, and by when?
 > **Confirm** it mirrors the problem, advance.
 
-**[8 · target_metric · required]**
+**[8 · target_value · required]**
 > **Explain:** Your goal statement said it in words — now let's pin the target down as a number. This one gets carried all the way to Control, where we compare what you actually achieved against it. Same measure and same units as your baseline, so the two can be compared. **If you named more than one measure at the baseline, each one needs a target** — otherwise you'd be aiming at something you never measured, or measuring something you never aimed at.
 > **Show (one criterion):** *"Error rate: under 3% of invoices with pricing errors."* — baseline was 12%; this is the number that says "done".
 > **Show (two criteria):** *"Error rate: under 3%. Cycle time: under 2 days."* — one target per measure, named the same way as the baseline.
@@ -156,7 +156,7 @@ comparison one phase before anyone notices (§39, the measurement thread).
 > | | | 5. Send to client | | |
 >
 > Reads left to right: Suppliers give Inputs; your Process (5–7 high-level steps) turns them into Outputs, which go to Customers.
-> **Ask (column by column):** Let's build yours. First, the **Process** — what are the 5–7 main steps, start to end? … then Suppliers, Inputs, Outputs, Customers in turn. And: what do you measure on those outputs? (that's the sixth key, `process_kpis`). You can also upload a SIPOC if you have one.
+> **Ask (column by column):** Let's build yours. First, the **Process** — what are the 5–7 main steps, start to end? … then Suppliers, Inputs, Outputs, Customers in turn. And: what do you measure on those outputs? (that's the sixth key, `process_metrics`). You can also upload a SIPOC if you have one.
 > **Confirm** the assembled SIPOC as a table; flag any thin column; check all six keys filled. Advance.
 
 **[12 · issues_and_barriers · required]**
@@ -195,7 +195,7 @@ PROBLEM STATEMENT                          [header + callout]
 {problem_statement}
 
 BASELINE                                   [header + inline, one line each]
-{baseline_metric — one line per criterion, named}
+{baseline_estimate — one line per criterion, named}
 
 SCOPE                                      [header + two columns]
 In: {project_scope[in_scope]}   Out: {project_scope[out_scope]}
@@ -204,7 +204,7 @@ GOAL                                       [header + callout]
 {goal_statement}
 
 TARGET                                     [header + inline, one line each]
-{target_metric — one line per criterion, matching BASELINE by name and unit}
+{target_value — one line per criterion, matching BASELINE by name and unit}
 Target date: {target_date}
 
 SECONDARY METRICS                          [header + list]
@@ -214,7 +214,7 @@ PROCESS MAP (SIPOC)                        [header + TABLE]
 ┌───────────┬────────┬─────────┬─────────┬───────────┐
 │ Suppliers │ Inputs │ Process │ Outputs │ Customers │
 └───────────┴────────┴─────────┴─────────┴───────────┘
-Process KPIs: {process_map_sipoc[process_kpis]}
+Process KPIs: {process_map_sipoc[process_metrics]}
 
 ISSUES AND BARRIERS                        [header + list]
 {issues_and_barriers}
@@ -237,7 +237,7 @@ Required: {n}/12
 
 **Rules:** `team` and `process_map_sipoc` render as **tables**, never JSON.
 `project_scope` renders as two labelled columns, because what is *out* is the
-half Belts skim. `baseline_metric` and `target_metric` render **one line per
+half Belts skim. `baseline_estimate` and `target_value` render **one line per
 criterion, in the same order and under the same names**, so a reader can check
 they correspond at a glance — that correspondence is what Measure inherits and
 Control ultimately compares against.

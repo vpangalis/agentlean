@@ -205,11 +205,11 @@ code runs anyway.
 
 **12 required fields, NO Tier 1/Tier 2 split. Option A — every field
 gate-required; missing any → gate fails.** Order (= planner `field_index`):
-`business_case, team, voc_summary, problem_statement, baseline_metric,
-project_scope, goal_statement, target_metric, target_date, secondary_metrics,
+`business_case, team, voc_summary, problem_statement, baseline_estimate,
+project_scope, goal_statement, target_value, target_date, secondary_metrics,
 process_map_sipoc, issues_and_barriers`.
-- **`baseline_metric`** (NOT `baseline` — too generic; reverses the earlier
-  `baseline` rename). `target_metric` and `baseline_metric` are **discrete**
+- **`baseline_estimate`** (NOT `baseline` — too generic; reverses the earlier
+  `baseline` rename). `target_value` and `baseline_estimate` are **discrete**
   fields, not folded into `goal_statement` — Control compares target-vs-actual
   and needs machine-readable values (the measurement thread).
 - `target_date` = **planned** completion (PM parameter). Control captures the
@@ -218,7 +218,7 @@ process_map_sipoc, issues_and_barriers`.
 - `problem_statement` composed from 5W2H coaching (coach elicits granularly,
   stores one SMART statement; anti-hallucination: assemble the Belt's words,
   invent nothing).
-- `process_map_sipoc` = dict, 6 keys incl `process_kpis`; SIPOC is structured
+- `process_map_sipoc` = dict, 6 keys incl `process_metrics`; SIPOC is structured
   capture (no computation tool); shown-then-built column-by-column; visual via
   `propose_diagram` (G-30, open).
 - Tiers REMAIN for the other four phases — decided at each review. Option A is
@@ -245,7 +245,7 @@ still step 4.1.
 
 - **Rename `baseline` → `baseline_metric` EVERYWHERE — APPLIED 2026-08-26.**
   (Define's field and Measure's read of it.) `baseline` collided with
-  `baseline_mean` / `baseline_sigma` / `baseline_kpis`. Done across
+  `baseline_mean` / `baseline_sigma` / `baseline_metrics`. Done across
   ARCHITECTURE.md (incl. §28.1's collision example, which was *precisely* this
   pair), CLAUDE.md §9.7, `phases/define/schema.py`, `skills/dmaic-define-phase/
   SKILL.md`, and the Analyse orchestrator's v2-target-name comment.
@@ -260,12 +260,12 @@ still step 4.1.
   Belt choose, not silently skip. Measure KEEPS tiers (unlike Define) because it
   has a genuinely-optional field.
 - **Measure SKILL.md opens with a DEFINE RECAP** — show the Belt the key Define
-  parameters/decisions (problem, baseline_metric, target, SIPOC, process KPIs),
+  parameters/decisions (problem, baseline_estimate, target, SIPOC, process KPIs),
   then a guideline of what to measure, showing all options ("define exactly all
   options — what to measure and how").
 - Cross-phase thread is well-designed (Measure reads Define's baseline as a
-  named field; writes `detailed_process_map["baseline_kpis"]`; Analyse reads
-  `vital_few_xs` + `baseline_mean`).
+  named field; writes `detailed_process_map["baseline_metrics"]`; Analyse reads
+  `vital_few_drivers` + `baseline_mean`).
 
 ### Computation-tools — the decision that governs Measure onward
 
