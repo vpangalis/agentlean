@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.24 — August 2026
+# Version 2.2.25 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -498,7 +498,7 @@ be recorded as consciously skipped. `target_metric` joins the schema;
 required set. **The other four phases keep both tiers**, each settled at its own
 phase review, so §9.7's two-tier machinery below is unchanged for them.
 
-> **Why `baseline`, `target_metric` and `target_date` stay discrete fields.**
+> **Why `baseline_metric`, `target_metric` and `target_date` stay discrete fields.**
 > They read as redundant against `goal_statement` and are not. That field is the
 > human-readable SMART sentence; these three are the **machine-readable values
 > Control extracts** to compute target-vs-actual. Folded into prose, Control has
@@ -515,6 +515,37 @@ check reads the registry YAML — so this edit changes no hook behaviour.
 Changed" records of 2.2.11 and 2.2.12 and say what was true then; correcting
 them would destroy the record this log exists to keep. **This entry supersedes
 them**, and the live figures are the tables in §9.7 and §10.7.
+
+### 0.19 — What Changed in 2.2.25 — Define's baseline field is `baseline_metric`
+
+**Founder ruling, 2026-08-26. This reverses a rename made earlier the same day**
+(commit `885defc`, which renamed `baseline_metric` → `baseline` on the authority
+of `docs/DEFINE_FINALIZATION_2026-08-26.md`). **`docs/CONTINUITY.md` v4.1 §5 is
+authoritative**: the field is `baseline_metric`.
+
+| Area | v2.2.24 | v2.2.25 |
+|---|---|---|
+| Define field #5 (§9.7) | `baseline` | **`baseline_metric`** |
+
+**The reason is a name collision, and it is a real one.** Measure carries
+`baseline_mean` and `baseline_sigma`; `detailed_process_map` carries
+`baseline_kpis`. **A bare `baseline` sitting among those three reads as a generic
+prefix** rather than as Define's discrete current-state value — and that is
+precisely the ambiguity the measurement thread cannot afford, since Control has
+to find this field by name to compute target-vs-actual. **`baseline_metric` pairs
+with `target_metric`** and makes the Define-sets / Control-compares relationship
+legible without reading the surrounding prose.
+
+**The three sibling fields are untouched** — they are the collision, not
+casualties of it. So is every English use of the word: *a rough baseline*, *a
+baseline Cpk*, *the Measure baseline*. **The rename is of one identifier, not of
+a vocabulary.**
+
+> **§0.18's note was corrected in place rather than superseded.** It states a
+> live rule — why the three measurement-thread fields stay discrete — rather than
+> a historical count, so leaving the old field name there would have left a rule
+> naming a field that no longer exists. **§0.6 and §0.7's dated figures are still
+> untouched**, for the reason §0.18 gives: they record what was true then.
 
 ---
 
@@ -2239,7 +2270,7 @@ gate never asked for.
 
 | Phase | Gate-required fields | Count |
 |---|---|---|
-| Define | **All 12 — no tier split (Option A).** `business_case`, `team` (**list[dict]**), `voc_summary`, `problem_statement`, `baseline`, `project_scope` (**dict**), `goal_statement`, `target_metric`, `target_date`, `secondary_metrics`, `process_map_sipoc` (**dict**), `issues_and_barriers` | **12** |
+| Define | **All 12 — no tier split (Option A).** `business_case`, `team` (**list[dict]**), `voc_summary`, `problem_statement`, `baseline_metric`, `project_scope` (**dict**), `goal_statement`, `target_metric`, `target_date`, `secondary_metrics`, `process_map_sipoc` (**dict**), `issues_and_barriers` | **12** |
 | Measure | `baseline_mean`, `data_collection_plan`, `xy_matrix_summary`, `vital_few_xs`, `detailed_process_map` (**dict**), `stability_assessment`, `issues_and_barriers` | 7 |
 | Analyse | `root_cause_statement`, `root_cause_validation`, `practical_significance`, `issues_and_barriers` | 4 |
 | Improve | `selected_solution`, `pilot_result`, `experiment_justification`, `issues_and_barriers` | 4 |

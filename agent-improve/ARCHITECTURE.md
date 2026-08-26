@@ -73,9 +73,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.12 · 2026-08-26
+Version 1.13 · 2026-08-26
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.13 (2026-08-26)** — **§56 AMENDMENT. Define's field #5 is `baseline_metric`. Founder ruling; supersedes v1.12's rename, which went the wrong direction.** v1.12 renamed `baseline_metric` → `baseline` on the authority of `DEFINE_FINALIZATION_2026-08-26.md`; **`CONTINUITY.md` v4.1 §5 is authoritative and reverses it.** **The reason is collision, and it is a real one:** Measure carries `baseline_mean` and `baseline_sigma`, and `detailed_process_map` carries `baseline_kpis` — a bare `baseline` sitting among those three reads as a generic prefix rather than as Define's discrete current-state value, which is exactly the ambiguity the measurement thread cannot afford. **`baseline_metric` pairs with `target_metric`** and makes the Define-sets / Control-compares relationship legible at a glance. **Renamed here:** §35's Define row, §39.1.2 field #5 and the measurement-thread note, §39.1.7's coaching block, §63.1 (S-C27) and its B7, the S-F28 gate-assembly sample, §69's S-F37 precondition, and §28.1's collision example — which was, precisely, `baseline` vs `baseline_mean`. **Not renamed, deliberately:** the three sibling fields, and every English use of the word "baseline" (a rough baseline, a baseline Cpk, the Measure baseline). **§39's measurement-thread block needed no change** — it names `process_kpis`, `baseline_kpis` and `post_improvement_metric`, none of which is this field. v1.11's and v1.12's entries keep their original wording as dated records. Decision record: `docs/CONTINUITY.md` v4.1 §5.
 
 **v1.12 (2026-08-26)** — **§56 AMENDMENT. Define is FINALIZED at Option A — all 12 fields gate-required, no Tier 1 / Tier 2 split in Define.** Supersedes v1.11's 8/3 split for Define only; **the other four phases keep their tiers**, each decided at its own phase review. **This pass is a consistency finalization**: §39.1.2, §40, §35's per-phase table, §43.4's live-preview sample, §63.1 (S-C27) and §62.11 (S-F28) are reconciled to one answer, which also resolves the live §39.1-vs-§40 contradiction over whether `team` and `baseline` were gate-required. **`DefineOutput` is 16 fields — 12 required + 4 gate metadata**, up from 15: **`target_metric` is added** and `secondary_metrics`, `business_case` and `target_date` join the required set. **`baseline_metric` is renamed `baseline` throughout** — the last two references outside the schema (§28.1's middleware post-mortem, §33's structured-output caveat) now match the field the code declares. **`baseline`, `target_metric` and `target_date` stay discrete required fields and are NOT folded into `goal_statement`** — they are the machine-readable values Control extracts to compute target-vs-actual, mirroring the existing three-phase KPI thread (§39). **Gate assembly for Define is direct `artifacts[...]` access on all 12** — the Tier 2 `.get(..., "")` row never applies, and there is no `acknowledged_gaps` path for Define. **§39.1.7 gains two coaching blocks** (`target_metric`, `secondary_metrics`) and `target_date` gains a worked example, taking the coached sequence to 12; `skills/dmaic-define-phase/SKILL.md` and `phases/define/{schema,validate}.py` are rebuilt with it as one atomic unit (§56.1). **F-12 records the forward dependency**: Control needs an `actual_close_date` to pair with Define's planned `target_date`, to be formalized at Control's phase review. **WATCH 7 is unchanged** — `orchestrate.py` still writes the v1 names and the Define gate stays non-functional until procedure step 4.1; this pass is spec-plus-schema alignment, not the orchestrator migration. **WATCH 8 is unchanged** — `CLAUDE.md`'s "Define 6 Tier 1" becomes "Define 12 required" in its own §0.x amendment, deliberately not in this commit. Register: 44 identified, 9 closed or resolved, 35 open; findings 11 → 12. Decision record: `agent-improve/docs/DEFINE_FINALIZATION_2026-08-26.md`.
 
@@ -1778,7 +1780,8 @@ turn that flag into an interrupt.
 >    turn, by construction.
 > 2. **Field-name matching finds almost nothing.** Of 41 distinct content
 >    fields across the five `{Phase}Output` schemas, **38 are unique to exactly
->    one phase** — `baseline` in Define, `baseline_mean` in Measure, the
+>    one phase** — `baseline_metric` in Define, `baseline_mean` in Measure,
+>    the
 >    same quantity deliberately differently named. **93% cannot cross-phase
 >    name-match at all.**
 > 3. **The 3 shared names are all prose** — `issues_and_barriers`,
@@ -1908,7 +1911,7 @@ invents them, and the second failure mode is worse. See §40.
 
 ### What structured output does NOT give you
 
-**Truth.** It guarantees shape. A schema-valid `baseline: 4.2` invented
+**Truth.** It guarantees shape. A schema-valid `baseline_metric: 4.2` invented
 by the model is exactly as well-formed as a correct one. Content-level defence
 is the anti-hallucination guards (§22), validation Layer 2a (§34) and the
 policy advisory (§33) — **not this mechanism.** No reader should come away
@@ -3189,7 +3192,7 @@ is no longer a criterion the grader can fail that the gate never asked for.
 
 | Phase | Gate-required fields | Count |
 |---|---|---|
-| **Define** | **All 12 — no tier split (Option A).** `business_case`, `team` (**list[dict]**), `voc_summary`, `problem_statement`, `baseline`, `project_scope` (**dict**), `goal_statement`, `target_metric`, `target_date`, `secondary_metrics`, `process_map_sipoc` (**dict**), `issues_and_barriers` | **12** |
+| **Define** | **All 12 — no tier split (Option A).** `business_case`, `team` (**list[dict]**), `voc_summary`, `problem_statement`, `baseline_metric`, `project_scope` (**dict**), `goal_statement`, `target_metric`, `target_date`, `secondary_metrics`, `process_map_sipoc` (**dict**), `issues_and_barriers` | **12** |
 | **Measure** | `baseline_mean`, `data_collection_plan`, `xy_matrix_summary`, `vital_few_xs`, `detailed_process_map` (**dict**), `stability_assessment`, `issues_and_barriers` | **7** |
 | **Analyse** | `root_cause_statement`, `root_cause_validation`, `practical_significance`, `issues_and_barriers` | **4** |
 | **Improve** | `selected_solution`, `pilot_result`, `experiment_justification`, `issues_and_barriers` | **4** |
@@ -3519,7 +3522,7 @@ list existed, `field_index` indexed into nothing (G-38).
 | 2 | `team` | `list[dict]` | **required** | Each entry `{name, role, function}`. Roles per §39.1.4 |
 | 3 | `voc_summary` | `str` | **required** | Who the customers are, and what they need |
 | 4 | `problem_statement` | `str` | **required** | ONE SMART statement, **composed from 5W2H coaching** (§39.1.3). The 5W2H are NOT separate stored fields |
-| 5 | `baseline` | `str` | **required** | **Discrete** current-state value — Control compares against it. Rough in Define; the rigorous baseline is Measure's job. Founder ruling: stays in Define |
+| 5 | `baseline_metric` | `str` | **required** | **Discrete** current-state value — Control compares against it. Rough in Define; the rigorous baseline is Measure's job. Founder ruling: stays in Define |
 | 6 | `project_scope` | `dict` | **required** | `{in_scope: str, out_scope: str}` — both explicit |
 | 7 | `goal_statement` | `str` | **required** | The SMART sentence — human-readable prose that mirrors the problem |
 | 8 | `target_metric` | `str` | **required** | **Discrete** target value — Control compares achieved-vs-target. **Not redundant with `goal_statement`:** that is prose, this is the comparable value |
@@ -3536,9 +3539,10 @@ list existed, `field_index` indexed into nothing (G-38).
 > phases keep Tier 1 / Tier 2, each decided at its own phase review (§35,
 > §39.1.8).
 
-> **The measurement thread — do NOT "simplify" these away.** `baseline`,
+> **The measurement thread — do NOT "simplify" these away.** `baseline_metric`,
 > `target_metric` and `target_date` are discrete fields **on purpose**, not
-> redundant restatements of `goal_statement`. Define sets `baseline` (the start)
+> redundant restatements of `goal_statement`. Define sets `baseline_metric` (the
+> start)
 > and `target_metric` (the goal value); **Control captures the achieved value
 > and computes target-vs-actual.** If those numbers lived only inside
 > `goal_statement` prose, Control could not extract and compare them. This
@@ -3663,7 +3667,7 @@ missing any of the six keys is the partial-map failure §41 describes.
 > **Ask (one at a time):** What's happening? · Where? · When / since when? · Who's affected? · Why does it matter? · How much (roughly, a number if you have one)? · What would "fixed" look like?
 > **Compose & Confirm:** Putting that together, here's your problem statement: *"[composed from the Belt's own answers]"* — does that capture it accurately? *(Guard: assemble only what the Belt said; invent nothing. Store only after confirmation.)*
 
-**[5 · baseline · required]**
+**[5 · baseline_metric · required]**
 > **Explain:** Roughly, where does performance stand today? A rough number is fine here — we'll measure it properly in the next phase. It anchors the goal.
 > **Show:** *"Currently about 12% of invoices contain errors."*
 > **Ask:** What's the current level of the problem, as best you know it right now?
@@ -4827,7 +4831,7 @@ inform the design as it lands.
 retirement step. There is no production consumer to protect, and the two models
 are near-disjoint: of Define's **12 required fields, exactly two names match the
 v1 schema** — `goal_statement` and `target_date`. The other ten are new names
-for values v1 held under different ones (`how_much_baseline` → `baseline`,
+for values v1 held under different ones (`how_much_baseline` → `baseline_metric`,
 `primary_metric` → `target_metric`, `secondary_metric` → `secondary_metrics`,
 `business_case_rationale` → `business_case`, `team_members` → `team`,
 `scope_in`/`scope_out` → `project_scope`, `sipoc` → `process_map_sipoc`, the
@@ -7730,7 +7734,7 @@ gate_document = DefineOutput(
     team=artifacts["team"],
     voc_summary=artifacts["voc_summary"],
     problem_statement=artifacts["problem_statement"],
-    baseline=artifacts["baseline"],
+    baseline_metric=artifacts["baseline_metric"],
     project_scope=artifacts["project_scope"],
     goal_statement=artifacts["goal_statement"],
     target_metric=artifacts["target_metric"],
@@ -7820,7 +7824,7 @@ class DefineOutput(BaseModel):
     team:                 list[dict]  # [{name, role, function}] — §39.1.4
     voc_summary:          str         # who the customers are, what they need
     problem_statement:    str         # ONE SMART statement, composed — §39.1.3
-    baseline:             str         # DISCRETE current-state value — Control compares
+    baseline_metric:      str         # DISCRETE current-state value — Control compares
     project_scope:        dict        # {in_scope, out_scope} — both explicit
     goal_statement:       str         # the SMART sentence, human-readable prose
     target_metric:        str         # DISCRETE target value — Control compares
@@ -7842,8 +7846,8 @@ conversation produces prose no planner can read and no grader can check;
 `team` is `list[dict]` because a project has N people and each carries three
 attributes.
 
-**`baseline`, `target_metric` and `target_date` are discrete fields, not
-duplicates of `goal_statement`.** `goal_statement` is the human-readable SMART
+**`baseline_metric`, `target_metric` and `target_date` are discrete fields,
+not duplicates of `goal_statement`.** `goal_statement` is the human-readable SMART
 sentence; these three are the **machine-readable values Control extracts** to
 compute target-vs-actual. Folding them into the prose would leave Control with
 nothing to compare (§39.1.2, the measurement thread). `acknowledged_gaps` stays
@@ -7860,7 +7864,7 @@ Define** — no field is skippable, so nothing can be acknowledged as skipped.
 | B4 | `project_scope` is graded | require **both** `in_scope` and `out_scope` — what the project is *not* doing is what protects it from ballooning | §39.1.2 |
 | B5 | `problem_statement` is captured | store only the composed statement the Belt has confirmed, assembled from the Belt's own words with nothing invented | §39.1.3, §22 |
 | B6 | the coach elicits 5W2H | treat them as conversational prompts, never as stored fields | §39.1.3 |
-| B7 | `baseline` and `target_metric` are captured | store them as **discrete values**, never folded into `goal_statement` prose — Control extracts both to compute target-vs-actual, and prose it cannot parse breaks that comparison | §39, §39.1.2 |
+| B7 | `baseline_metric` and `target_metric` are captured | store them as **discrete values**, never folded into `goal_statement` prose — Control extracts both to compute target-vs-actual, and prose it cannot parse breaks that comparison | §39, §39.1.2 |
 | B8 | `target_date` is captured | treat it as the **planned** completion date, a project-management parameter that may slip without invalidating the improvement. **Control's `actual_close_date` is the paired value** and is not yet specified — F-12 | §39.1.2, §66.7 |
 
 ### 63.2 S-C28 · `MeasureOutput`
@@ -8967,7 +8971,7 @@ than twenty times below. **Read every entry in §69.2–§69.6 as carrying these
 
 | S-F | Tool | What it computes | Inputs | Output (`result` keys) | Preconditions |
 |---|---|---|---|---|---|
-| **S-F37** | `calculate_expected_savings` | Projected annualised financial benefit of closing the baseline→target gap | `baseline_value`, `target_value`, `unit_cost` (cost per defect or per unit of the gap), `annual_volume` | `annual_savings`, `currency`, `calculation_note` — **states the multiplication used**, because a Belt must be able to defend the number at the gate | `baseline` and `target_metric` captured (§39.1.2 fields #5 and #8); `business_case` supplies the cost basis where the Belt has one. **The tool must accept an absent cost and return a reformatting request rather than inventing a unit cost** |
+| **S-F37** | `calculate_expected_savings` | Projected annualised financial benefit of closing the baseline→target gap | `baseline_value`, `target_value`, `unit_cost` (cost per defect or per unit of the gap), `annual_volume` | `annual_savings`, `currency`, `calculation_note` — **states the multiplication used**, because a Belt must be able to defend the number at the gate | `baseline_metric` and `target_metric` captured (§39.1.2 fields #5 and #8); `business_case` supplies the cost basis where the Belt has one. **The tool must accept an absent cost and return a reformatting request rather than inventing a unit cost** |
 
 ### 69.3 S-F38–S-F45 · Measure — 8 tools
 

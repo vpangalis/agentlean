@@ -37,7 +37,7 @@ DEFINE_REQUIRED_FIELDS: tuple[str, ...] = (
     "team",                 # 2
     "voc_summary",          # 3
     "problem_statement",    # 4  composed from 5W2H (§39.1.3)
-    "baseline",             # 5  discrete — Control compares against it
+    "baseline_metric",      # 5  discrete — Control compares against it
     "project_scope",        # 6
     "goal_statement",       # 7  the human-readable SMART sentence
     "target_metric",        # 8  discrete — Control compares achieved-vs-target
@@ -88,7 +88,7 @@ class DefineOutput(BaseModel):
     bug that must surface loudly. **Define never uses the Tier 2
     `.get(..., "")` pattern** — it has no Tier 2 fields (§40.1, S-F28).
 
-    **The measurement thread — do not "simplify" these away.** `baseline`,
+    **The measurement thread — do not "simplify" these away.** `baseline_metric`,
     `target_metric` and `target_date` are discrete fields on purpose, not
     redundant restatements of `goal_statement`. That field is the
     human-readable SMART sentence; these three are the machine-readable values
@@ -130,7 +130,7 @@ class DefineOutput(BaseModel):
             "The 5W2H are coaching prompts, never stored fields."
         ),
     )
-    baseline: str = Field(
+    baseline_metric: str = Field(
         ...,
         description=(
             "DISCRETE current-state value — Control compares against it. "
@@ -149,16 +149,16 @@ class DefineOutput(BaseModel):
         ...,
         description=(
             "The SMART sentence — human-readable prose mirroring the problem. "
-            "The comparable values live in `baseline` and `target_metric`, not "
-            "in here."
+            "The comparable values live in `baseline_metric` and "
+            "`target_metric`, not in here."
         ),
     )
     target_metric: str = Field(
         ...,
         description=(
             "DISCRETE target value, in the same metric and units as "
-            "`baseline`. Control compares the achieved value against it. NOT "
-            "redundant with `goal_statement`: that is prose, this is the "
+            "`baseline_metric`. Control compares the achieved value against "
+            "it. NOT redundant with `goal_statement`: that is prose, this is the "
             "comparable value (§39.1.2, the measurement thread)."
         ),
     )

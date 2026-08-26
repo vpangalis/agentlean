@@ -1,24 +1,54 @@
 <!--
 Document: agent-improve/docs/CONTINUITY.md
-Version: 4.0 — 2026-08-26
+Version: 4.2 — 2026-08-26
 Purpose: Session-start orientation. A new session reading ONLY this file should
          be able to orient fully and continue without losing a day.
-
-REBUILT 2026-08-22 from the live files, not from the previous text. v2.8 had
-drifted on the CLAUDE.md version, the document map, the code-migration step,
-and the status of several decisions. A stale orientation file is worse than
-none — it is read first and trusted.
 
 MAINTENANCE RULE: when a version number, a step, or a document location
 changes, update this file in the same commit. Verify claims against the files
 themselves; do not carry a line forward because it was here before.
+
+v4.2 delta (2026-08-26): the `baseline` -> `baseline_metric` rename is APPLIED
+and CLOSED (commit below). ARCHITECTURE.md v1.13, CLAUDE.md 2.2.25.
+
+v4.1 delta (2026-08-26 PM session): Define FINALIZED to 12 required fields /
+no tiers (supersedes v4.0's 15/8-Tier-1). WATCH 3 and WATCH 8 CLOSED
+(CLAUDE.md 2.2.24, commit d1c7fa3). Procedure reconciled to today's out-of-band
+commits. Phase-review workstream OPENED — Define done, Measure in progress.
+Computation-tools decision recorded. OneDrive access for Claude Desktop recorded
+in §0.
 -->
 
 # AgentLean — Session Continuity Guide
-# Version 4.0 — 2026-08-26
+# Version 4.2 — 2026-08-26
 
 > **Read this first, then stop reading it.** This file orients. The binding
 > documents are named in §2 and they win on every point of detail.
+
+---
+
+## 0. Environment note for Claude Desktop — READ, stop relitigating this
+
+**Claude Desktop has live read access to the OneDrive that holds this repo**
+via the Microsoft 365 connector. It can find and READ any file under
+`_DEVELOPMENT/AgentLean/…` — `ARCHITECTURE.md`, `CLAUDE.md`,
+`REFACTORING_PROCEDURE.md`, this file, the phase source, anything. Use
+`sharepoint_search` / `sharepoint_folder_search` to locate, then `read_resource`
+on the returned URI to read. **Do NOT ask the user to paste files that are in
+the repo — read them.** ARCHITECTURE.md is large; read it targeted (search for
+the section, read the region) rather than whole.
+
+**Write access is READ-ONLY through the connector** — `sharepoint_upload_file`
+returns 403 (a permanent permission boundary, not transient). So Claude Desktop
+**produces updated documents as files for the user to save**, and hands
+**intent briefs** to Claude Code for anything touching the repo. It does not
+write to OneDrive directly.
+
+**Workflow split (unchanged):** Claude Desktop reasons, ratifies, and drafts
+document amendments as prose. Claude Code (VS Code) executes ALL repo changes —
+it has SessionStart context, the drift-check hook, and `/verify-current-version`.
+Desktop does NOT generate implementation prompts; it hands Claude Code a short
+intent brief pointing at the ratified doc.
 
 ---
 
@@ -28,496 +58,374 @@ themselves; do not carry a line forward because it was here before.
 
 | Agent | Purpose | Status | Port |
 |---|---|---|---|
-| **Agent Resolve** | Incident problem-solving | Production | 8010 |
+| **Agent Resolve** | Incident problem-solving (8D) | Production | 8010 |
 | **Agent Improve** | DMAIC coaching | **In refactor — active work** | 8020 |
 | **Agent Flow** | Flow / value-stream | Future, not started | 8030 |
 
 **Agent Improve** coaches a Belt through Define → Measure → Analyse → Improve →
 Control, capturing what they produce and holding a quality gate between phases
-that the Belt explicitly approves. It is a long-running agentic system on
-LangGraph: hierarchical subgraphs, a Planner/Executor pair per phase, eight
-middlewares in a fixed order, a four-layer validation stack, and a nine-step
-human-in-the-loop gate.
+that the Belt explicitly approves. Long-running agentic system on LangGraph:
+hierarchical subgraphs, a Planner/Executor pair per phase, eight middlewares in
+a fixed order, a four-layer validation stack, and a nine-step human-in-the-loop
+gate.
 
 **Stack:** FastAPI · LangGraph ≥1.2.6 · LangChain 1.x · Azure OpenAI · Azure AI
 Search · Azure Blob · Azure Cache for Redis *(not yet provisioned)*.
-**MCP is architecturally excluded** — not deferred, no promotion trigger.
+**MCP is architecturally excluded** for Improve — not deferred.
 
 ---
 
-## 2. The document map — rebuilt 2026-08-22
-
-**The structure changed materially this session.** The platform reference moved
-to the monorepo root and was renamed; `agent-improve/ARCHITECTURE.md` was
-reused for a copy of it.
+## 2. The document map
 
 ### Binding — three documents
 
 | Document | Scope | Version |
 |---|---|---|
-| **`/AGENTIC_ARCHITECTURE_REFERENCE.md`** *(monorepo root)* | **The platform architecture.** Binds on all three agents. Formerly `agent-improve/AGENT_IMPROVE_BIBLE.md`, formerly "the Bible" | **1.7.1** |
-| **`agent-improve/CLAUDE.md`** | **The rules.** Quoted at the top of every implementation prompt. **Per agent** — Resolve will get its own | **2.2.22** |
-| **`agent-improve/ARCHITECTURE.md`** | **Agent Improve's own architecture.** Originated 2026-08-22 as a copy of the reference; **expected to diverge** | **1.9.1** + provenance header |
+| **`/AGENTIC_ARCHITECTURE_REFERENCE.md`** *(monorepo root)* | The platform architecture; binds all three agents | **1.7.2** |
+| **`agent-improve/CLAUDE.md`** | The rules. Per agent | **2.2.24** |
+| **`agent-improve/ARCHITECTURE.md`** | Agent Improve's own architecture; a 2026-08-22 copy of the reference, deliberately diverging | **1.10.x** |
 
-**Where to edit what:** platform-wide → the root reference · Improve-specific →
-`agent-improve/ARCHITECTURE.md` · a rule → `CLAUDE.md`.
-
-> **The two architecture files are already diverging and that is intentional.**
-> The root gets generalised across three agents; the copy stays Improve's.
-> **There is deliberately no sync check** — they are only briefly identical, so
-> a diff would fire constantly and mean nothing. They differed by 35 lines
-> within one commit of the copy being made.
-
-> **`CLAUDE.md`'s 48 `§` citations all point at the ROOT reference**, never at
-> the local copy. One rule, checkable with a single grep. See `CLAUDE.md` §0.12.
+**Where to edit what:** platform-wide → root reference · Improve-specific →
+`agent-improve/ARCHITECTURE.md` · a rule → `CLAUDE.md`. The two architecture
+files diverge intentionally; there is no sync check. `CLAUDE.md`'s `§` citations
+point at the ROOT reference, not the local copy.
 
 ### The route
 
-**`agent-improve/docs/REFACTORING_PROCEDURE.md` (v1.1)** — the ordered path
-from the v1 tree to the reference's target. 38 steps, spine 2.3 → 11.2, one
-step = one commit, every step traces to a reference section and names one
-verification method. **Appendix D is the machine-readable step index the
-session-start hook parses.**
+**`agent-improve/docs/REFACTORING_PROCEDURE.md`** — the ordered path from the v1
+tree to the target. 38 steps, spine 2.3 → 11.2, one step = one commit, each
+traces to a reference section and names one verification method. **Appendix D is
+the machine-readable step index the session-start hook parses.**
+
+### Today's ratified working docs (this session)
+
+| Doc | What it is |
+|---|---|
+| `docs/DEFINE_AMENDMENT_2026-08-25.md` | The original Define spec (§39.1). Superseded on tier counts by the finalization; kept as history |
+| `docs/DEFINE_FINALIZATION_2026-08-26.md` | **Authoritative Define spec: 12 required fields, no tiers (Option A)** |
+| `docs/PROCEDURE_RECONCILIATION_2026-08-25.md` | The four edits reconciling the procedure to the out-of-band commits |
 
 ### Historical record — not binding, do not cite in rules
 
-| Document | What it is |
-|---|---|
-| `docs/REFACTORING_AGENT_IMPROVE.md` | **The historical review register.** 87 sections, 11 PARTs. Was the design authority; superseded by the reference. Still the best source for *why* a decision was made |
-| `docs/EDUCATIONAL.md` | Original chronological learning register, 505KB. Frozen. **Do not edit, do not cite as current** |
-| `docs/DECISIONS.md` (v1.4) · `docs/REVIEW_DECISIONS.md` | The decision logs — rationale, rejected options, sources |
-| `docs/BIBLE_VERIFICATION_LOG.md` | Task 3B verification record, 2026-08-21. Keeps its name and its "Bible" wording deliberately — renaming a dated log falsifies it |
-| `docs/ARCHITECTURE_v2216_registers.md` | **§17 Decisions Resolved and §18 Change Log** from the old v2.2.16 `ARCHITECTURE.md`, extracted 2026-08-22 before the copy replaced that file |
-| `docs/SKILL_REVIEW_NOTES.md` · `docs/STATE_DESIGN_RESOLUTION.md` · `docs/RESTRUCTURE_PLAN.md` · `docs/status-79-84-2026-08-10.md` | Audit trail |
-
-**To resolve an old `ARCHITECTURE.md §X` or `REFACTORING §X` citation:** the
-reference's **Appendix A** maps both. Note the ambiguity — `ARCHITECTURE.md §X`
-meant the v2.2.16 numbering (§1–§18) before 2026-08-22 and the reference's
-numbering (§1–§56) after.
+`docs/REFACTORING_AGENT_IMPROVE.md` (the review register, best source for *why*)
+· `docs/EDUCATIONAL.md` (frozen) · `docs/DECISIONS.md` · `docs/REVIEW_DECISIONS.md`
+· `docs/BIBLE_VERIFICATION_LOG.md`. The reference's **Appendix A** resolves old
+`ARCHITECTURE.md §X` / `REFACTORING §X` citations.
 
 ---
 
 ## 3. What is DONE
 
 ### The document work — complete and signed off
+Full architectural review; `CLAUDE.md` rewrite (now **2.2.24**); the reference
+written and verified (Task 3 / 3B); absorption + citation sweep; the Refactoring
+Procedure written; reference sign-off granted.
 
-1. **Full architectural review** of all 85 original sections against LangChain
-   1.x, LangGraph 1.2+ and Anthropic's current engineering posts →
-   `REFACTORING_AGENT_IMPROVE.md` (87 sections, 11 PARTs).
-2. **`CLAUDE.md` ground-up rewrite** v2.1 → v2.2.x, now **2.2.22**.
-3. **The architecture reference written** (Task 3) — Parts I–XI, Appendices A–E.
-4. **Task 3B verification pass** — every API signature, parameter name,
-   deprecation status, version floor and cited source checked against live
-   documentation. **3 corrections, 2 now-stale, 4 enhancements, 15 confirmed.**
-   Log: `docs/BIBLE_VERIFICATION_LOG.md`.
-5. **`ARCHITECTURE.md` absorption + `CLAUDE.md` citation sweep** — every
-   citation re-pointed, nine absorption gaps closed.
-6. **Task 4 — the Refactoring Procedure** written, with the session-start hook
-   re-pointed at it.
-7. **Rename and split** — the reference moved to the root and renamed;
-   `agent-improve/ARCHITECTURE.md` became Improve's copy.
-8. **Reference sign-off granted.** The procedure is executable.
+### The code refactor — one spine step done
+**Step 2.3 — dependency upgrade. DONE** (`95926d6`): langgraph 1.2.11,
+langchain 1.3.16, langchain-core 1.6.0, langchain-classic 1.0.8. pytest 6/6.
+**The LangGraph gate on steps 4.1–4.4 and 8.2 is CLEARED.**
 
-### The three API corrections worth remembering
+### This session's commits (2026-08-25 → 26)
 
-They shaped how verification is now done, so they are recorded here rather than
-only in the log.
-
-| Finding | What was wrong |
+| Commit | What landed |
 |---|---|
-| **C-1** | `ModelRetryMiddleware(retries=2)` — **the keyword is `max_retries`**; `retries=` raises at construction. It sat in the canonical middleware stack from adoption until 2026-08-21 |
-| **C-2** | `create_agent(prompt=...)` — **the parameter is `system_prompt`**. `create_react_agent` took `prompt`; `create_agent` renamed it |
-| **C-3** | "the six `AgentMiddleware` hooks" stated as a closed set. They are the six *we use*; `dynamic_prompt()`, `hook_config()` and `configure_trace_policy()` also exist |
+| `73ba7fb` | G-01 + G-02 (Level 2 Command routing + Belt REJECT) |
+| `871637f` | Knowledge-index rebuild → `improve_knowledge_index_v3` live |
+| `4701a09` | Define schema/validator/skill + CoachingResponse presentational fields |
+| `9d9e77c` | Procedure reconciliation (Step 9.0 recorded, 3.4 banner, WATCH 7 row) |
+| `d69a52c` | Procedure/reconciliation stale-figure fixes |
+| `d1c7fa3` | **WATCH 3 + WATCH 8 CLOSED** — CLAUDE.md → 2.2.24, §0.18 amendment (218→259; Define counts) |
+| *(pending)* | Define FINALIZATION — 12 required / no tiers (see §5) |
 
-**No live-code exposure** — none of those three appear in `backend/` yet. Every
-occurrence was documentation, which is why they survived: nothing executed them.
-
-### The code refactor — one step done
-
-**Step 2.3 — dependency upgrade. DONE 2026-08-21** (`95926d6`).
-
-| Package | Was | Now |
-|---|---|---|
-| `langgraph` | 1.1.10 | **1.2.11** |
-| `langchain` | 1.2.13 | **1.3.16** |
-| `langchain-core` | 1.3.3 | **1.6.0** |
-| `langchain-classic` | 1.0.3 | **1.0.8** |
-
-Verified by `import-check`: floor ≥1.2.6 met, `pytest` 6/6 green, app imports,
-graph compiles, `pip check` clean. **The LangGraph gate on steps 4.1–4.4 and
-8.2 is CLEARED.**
+### Knowledge index — live state
+`improve_knowledge_index_v3` — 1,184 docs, BB eBook only, **259 `general`**,
+LLM-classified at ingest (cheap model, temp 0.0). Bound by
+`AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX` in `.env` (local swap; one-line rollback
+to `improve_knowledge_index`, retained at 1,369). Contamination gone (8D no
+longer surfaces on Analyse queries). `_v2` (keyword interim) supersede-able,
+delete when `_v3` confirmed good.
 
 ---
 
 ## 4. Where the code actually stands
 
-> ### The codebase is still v1. One step of 38 is done.
->
-> Step 2.3 changed dependencies only. **No architectural code has been written
-> yet.**
+> **The codebase is still v1. One spine step of 38 is done (2.3).** No
+> architectural code written yet. Next spine step: **2.4** — `set_entry_point`
+> → `add_edge(START, …)`.
 
-**Next: step 2.4 — `set_entry_point` → `add_edge(START, …)`.** Not started. A
-one-line change in `backend/core/graph.py`, verified by `grep-absence`. The
-session-start hook reports `last completed 2.3 | next 2.4`.
+> **The checkpointer is WIRED but INERT** — zero checkpoints ever written;
+> `routes.py` discards the compiled graph and dispatches by hand. Closed by
+> step 4.2.
 
-**Measured state of `agent-improve/backend/` as of 2026-08-22:**
-
-| Fact | Value |
-|---|---|
-| Python files | 55 (~7,900 lines) |
-| Graph | 11 flat nodes, one `set_entry_point` (step 2.4) |
-| Phase nodes | All sync `def` (step 2.5) |
-| Route handlers | **Zero `async def`** in `gateway/routes.py` (step 2.5) |
-| `response.content.strip()` | **20 sites across 8 files** (step 2.6) |
-| LLM roles | 6 in `_ROLE_MAP`, target 11; `LLMProvider` is a banned class (step 2.7) |
-| **Checkpoints ever written** | **0** |
-
-> **The checkpointer is WIRED but INERT.** `core/graph.py` compiles with a
-> checkpointer, but `thread_id` and `ainvoke` appear nowhere and
-> `gateway/routes.py` discards the compiled graph and dispatches nodes by hand.
-> **Closed by step 4.2**, which also carries the five §47 Handler-Shaped
-> Durability requirements.
-
-**What does not exist yet:** `core/substate.py` · `core/store.py` ·
-`middleware/` · `validation/` · `knowledge/{computation,tool_args,fusion}.py` ·
+Measured `agent-improve/backend/`: 55 files (~7,900 lines), 11 flat graph nodes,
+all sync `def`, 20 `response.content` sites, 6 LLM roles (target 11).
+Not-yet-existing: `core/substate.py` · `core/store.py` · `middleware/` ·
+`validation/` · `knowledge/{computation,tool_args,fusion}.py` ·
 `core/reliability.py` · `core/diagrams.py` · `phases/{phase}/{graph,nodes,mappers}.py`.
 
 ---
 
-## 5. Open items, gates and watches
+## 5. The active workstream — PHASE REVIEWS, then the backbone, then build
+
+**Decision (2026-08-26): phases are reviewed individually BEFORE the backbone is
+finalized, because the phases define what fields the state/schemas must hold.**
+Sequence: review each phase to a five-point bar → finalize backbone (state,
+schemas, CoachingResponse) from the complete picture → build via the procedure
+(horizontal order, resuming at 2.4).
+
+**Five-point "refactor-ready" bar per phase** (freeze when met; no deeper
+polishing — the discipline is "is this preventing a mis-build or just prettier?"):
+1. Field list final (names, types, required-or-not, coaching order).
+2. The three files agree (schema · validate · SKILL.md share one vocabulary).
+3. Cross-phase reads named (what it reads from prior phases, by exact field name).
+4. No internal contradiction (numbers/names identical everywhere they appear).
+5. Mechanics trusted-source-verified.
+
+**Backbone mechanics — VERIFIED (2026-08-26), once, horizontally.** Checked
+against current LangGraph docs (updated <1 day prior) + source via DeepWiki:
+checkpointer inheritance via `checkpoint_ns` (subgraph compiles with none,
+inherits parent) ✓; static-discovery constraint (invoke in a node, never in a
+tool) ✓ current; Pattern B (wrapper-node invoke) validated as avoiding the
+per-thread-subgraph parallel-call limitation ✓; `thread_id`/`ainvoke` resume
+contract ✓; "zero checkpoints written" explained (ainvoke+thread_id never
+actually called). **Verdict: backbone mechanics SOUND.** The G-44 local repro is
+still technically owed (WATCH 1) but is deferred to build (step 4.2) where the
+code runs anyway.
+
+### Phase-review status
+
+| Phase | Status |
+|---|---|
+| **Define** | **DONE — being FINALIZED.** 12 required fields, NO tiers (Option A). See below |
+| **Measure** | **IN PROGRESS.** Schema exists (§40, 14 fields). Rulings captured; capture-review nearly closed; computation-tools spec pending |
+| Analyse / Improve / Control | Not started. Schemas exist in §40; need the ordered coaching + SKILL.md + tier decision |
+
+### Define — FINALIZED (authoritative: `DEFINE_FINALIZATION_2026-08-26.md`)
+
+**12 required fields, NO Tier 1/Tier 2 split. Option A — every field
+gate-required; missing any → gate fails.** Order (= planner `field_index`):
+`business_case, team, voc_summary, problem_statement, baseline_metric,
+project_scope, goal_statement, target_metric, target_date, secondary_metrics,
+process_map_sipoc, issues_and_barriers`.
+- **`baseline_metric`** (NOT `baseline` — too generic; reverses the earlier
+  `baseline` rename). `target_metric` and `baseline_metric` are **discrete**
+  fields, not folded into `goal_statement` — Control compares target-vs-actual
+  and needs machine-readable values (the measurement thread).
+- `target_date` = **planned** completion (PM parameter). Control captures the
+  **actual** close date — `actual_close_date` to be ADDED to Control at its
+  review (forward note).
+- `problem_statement` composed from 5W2H coaching (coach elicits granularly,
+  stores one SMART statement; anti-hallucination: assemble the Belt's words,
+  invent nothing).
+- `process_map_sipoc` = dict, 6 keys incl `process_kpis`; SIPOC is structured
+  capture (no computation tool); shown-then-built column-by-column; visual via
+  `propose_diagram` (G-30, open).
+- Tiers REMAIN for the other four phases — decided at each review. Option A is
+  Define-only, because Define has no genuinely-optional field; Measure does (MSA).
+
+**Owed for Define — CLOSED 2026-08-26.** The finalization is applied to
+ARCHITECTURE.md (§40/S-C27, §35, §39.1, all count mentions, gate-assembly sample)
+at 12 required / no tiers; `schema.py`, `validate.py` and SKILL.md are aligned to
+the 12-field list as one atomic unit (§56.1); and **the `baseline` →
+`baseline_metric` rename is applied and closed** — the last outstanding half.
+CLAUDE.md was amended separately and properly, via §0.18 and §0.19 (2.2.25), not
+in a feature commit. `orchestrate.py` remains untouched — **WATCH 7 still open**,
+still step 4.1.
+
+> **The rename landed the wrong way first.** Commit `885defc` renamed
+> `baseline_metric` → `baseline`, following `DEFINE_FINALIZATION_2026-08-26.md`,
+> which states that direction. **§5 here is authoritative and reverses it**;
+> `885defc` is superseded on this point only — its 12-required/no-tiers work
+> stands. **`DEFINE_FINALIZATION_2026-08-26.md` still states the wrong
+> direction** and is left as the dated record it is; if it is ever re-applied
+> verbatim it will re-introduce the collision.
+
+### Measure — rulings captured (2026-08-26), review continuing
+
+- **Rename `baseline` → `baseline_metric` EVERYWHERE — APPLIED 2026-08-26.**
+  (Define's field and Measure's read of it.) `baseline` collided with
+  `baseline_mean` / `baseline_sigma` / `baseline_kpis`. Done across
+  ARCHITECTURE.md (incl. §28.1's collision example, which was *precisely* this
+  pair), CLAUDE.md §9.7, `phases/define/schema.py`, `skills/dmaic-define-phase/
+  SKILL.md`, and the Analyse orchestrator's v2-target-name comment.
+  **Measure's SKILL.md §10 already read `baseline_metric` and needed no change.**
+  The three sibling fields are untouched — they are the collision, not casualties
+  of it. Verified by a raw unfiltered `baseline` sweep: every survivor is
+  either an amendment record describing the rename, or Measure's own `"baseline"`
+  **section key** in `orchestrate.py`, which groups `baseline_period` /
+  `_sample_size` / `_mean` / `_variation` / `_summary` and is not this field.
+- **MSA (`measurement_system_validated`) stays optional (Tier 2)** — but the
+  coach must actively OFFER and EXPLAIN it (heavy, not always needed) and let the
+  Belt choose, not silently skip. Measure KEEPS tiers (unlike Define) because it
+  has a genuinely-optional field.
+- **Measure SKILL.md opens with a DEFINE RECAP** — show the Belt the key Define
+  parameters/decisions (problem, baseline_metric, target, SIPOC, process KPIs),
+  then a guideline of what to measure, showing all options ("define exactly all
+  options — what to measure and how").
+- Cross-phase thread is well-designed (Measure reads Define's baseline as a
+  named field; writes `detailed_process_map["baseline_kpis"]`; Analyse reads
+  `vital_few_xs` + `baseline_mean`).
+
+### Computation-tools — the decision that governs Measure onward
+
+**The RAG knowledge index teaches methodology; a SEPARATE computation-tool layer
+CALCULATES actual outputs from Belt-uploaded data.** Distinct layers. Measure is
+where computation becomes essential (baseline_mean, baseline_sigma, DPMO,
+stability/control-chart, Cpk capability [only valid after stability — EARS B1],
+MSA/GR&R). "How to measure" = "which computation tool runs."
+
+**Ratified model:** the ARCHITECTURE holds the tool **specifications** (name,
+what it computes, inputs, output shape → `computation_results`, preconditions,
+phase). The **code** is written during refactoring (procedure step 5.3), by
+Claude Code. So specifying ~20 tools is bounded spec work, not building an
+engine now.
+
+**Container decision (OPEN, next up):** the computation tools should be a
+STANDALONE subsystem spec (reusable across all 5 phases — Pareto/Analyse,
+Cpk/Measure, regression, control charts), NOT embedded inside Measure's section.
+Each phase's review NAMES its required tools; the computation-tools spec section
+DEFINES them. `EXCEL_SHEET_TOOL_MAP` (in `ingest_knowledge.py`, preserved at
+`docs/EXCEL_TOOL_INVENTORY.md`) is the ~20-tool build-inventory. G-25 (tools) +
+G-36 (upload endpoint) resolve here at the spec level. Data enters via
+`improve_evidence_index`; tools are read-only `@tool` functions; seven-step
+computation pattern §43; no fallback-fetch.
+
+**Immediate next step:** finish Measure's capture review (fields, recap, MSA
+coaching, the rename) which yields Measure's NAMED computation requirements →
+then write the computation-tools spec section (all ~20, buildable accuracy).
+
+---
+
+## 6. Open items, gates and watches
 
 ### Gated — do not schedule work against these
+- **`RunControl.request_drain()`** — UNCONFIRMED, may not exist (ref §45). Gates step 8.5 only.
+- **Azure Cache for Redis** — not provisioned. Gates step 8.4 only.
+- **Two Azure index schema changes** — RATIFIED, NOT APPLIED. `improve_evidence_index` gains `phase` + `uploaded_at`; `improve_case_index` `embedding` → `content_vector`. Batch — step 9.1. (Independent of the knowledge-index rebuild, which touched a different index.)
 
-| Item | Status |
-|---|---|
-| **`RunControl.request_drain()`** | **UNCONFIRMED — MAY NOT EXIST** (reference §45). Not found in LangGraph releases 1.2.5–1.2.11 or the reference; independently confirmed absent from every release body. **Gates step 8.5 only.** If it does not exist, §45 needs a real fallback drain design, not a replacement citation |
-| **Azure Cache for Redis** | Not provisioned. Gates step 8.4 only — the chain degrades Level 2 → Level 4 meanwhile, which is correct behaviour |
-| **Two Azure index schema changes** | RATIFIED, NOT APPLIED. `improve_evidence_index` gains `phase` + `uploaded_at`; `improve_case_index` `embedding` → `content_vector`. **Batch them — step 9.1.** Write code against the live schema until then |
+### SPEC-GAP register
+**`ARCHITECTURE.md` §66 — 44 identified, 9 closed, 35 open. Group A empty**
+(no founder rulings outstanding). G-38 closed 2026-08-26 (Define field order).
+Pick the next gap from §66. Group D holds the computation layer (G-25, G-36).
 
-### Live high-severity SPEC-GAPs — read before gap work
+### Watches (owed work, NOT §66 gaps — the register will not surface them)
 
-**None right now.** The G-43 → G-44 → G-04 chain that ran through 2026-08-24 is
-closed end to end: `PhaseState` persists across Belt turns via the direct
-wrapper invoke, and `remaining_steps` is declared so the hop cap fires.
+- **WATCH 1 — §16 persistence repro owed.** Documentation-verified 2026-08-26
+  (current LangGraph docs + source); a LOCAL repro against the pinned version is
+  still owed. Deferred to step 4.2 where the code runs. Not a blocker.
+- **WATCH 2 — two venvs / stale-blocker.** Hook reads the ROOT venv (1.1.10);
+  `agent-improve/.venv` is 1.2.11. Confirm which is authoritative before editing
+  any doc that states the blocker.
+- **WATCH 5 — citations must say "PDF page", not "page".** `page_number` is the
+  PDF index; printed number is piecewise-offset. Fix belongs in the (unbuilt)
+  citation renderer.
+- **WATCH 6 — PDF page 302 ships as `general`** (Azure content-filter false
+  positive, permanent, not retried). Genuinely Analyse content; reachable
+  everywhere via `general`.
+- **WATCH 7 — v1 Define gate inert until `orchestrate.py` migrates.**
+  `validate.py` reads v2 names; `orchestrate.py` still writes v1 (`what`/`where`/
+  `scope_in`…). The rename landed ahead of its writer — NOT a defect, no shim
+  (§17). Owed: migrate `orchestrate.py` AND the Define cross-phase briefs in
+  analyse/improve/control at **step 3.4/4.1**. Do not switch readers first.
+- **WATCH 9 — `CoachingResponse`'s four presentational fields render nowhere
+  yet.** `explanation`/`example`/`prompt`/`progress` in the schema; UI half is
+  the UI rebuild (step 10.2). The four Measure/Analyse/Improve/Control SKILL.md
+  files must instruct the coach to populate them when written (only Define's does).
+- **Hook wrinkle (owed decision):** the session-start hook skips only BLOCKED/
+  GATED when picking "next", not `done`. Step 9.0 landed as `feat(knowledge):`
+  (not `refactor(arch-v2): commit 9.0`), so it never appears in the git-log scan
+  and can trap the "next" pointer once 8.3 lands. Two-line fix: add `done` to
+  `_UNAVAILABLE_STATUSES` in `.claude/hooks/session-start-context.py`. Same trap
+  applies to any future out-of-band step.
 
-**The register is `ARCHITECTURE.md` §66 — 44 identified, 6 closed or resolved,
-38 open.** Pick the next gap from there rather than from this file; nothing
-open is currently carrying the severity those three did.
-
-> **Things owed that are NOT §66 gaps will not surface from the register.**
-> Two are logged under *Watches* below — the §16 persistence repro and the
-> two-venv stale-blocker. **G-01, the Level 2 `Command` routing, is no longer
-> among them** — it was resolved 2026-08-24 with G-02 (`ARCHITECTURE.md` S-F13),
-> and **Group A of the register is now empty.**
-
-### Watches
-
-> **These are owed work, not register gaps.** They are recorded here
-> because **nothing in `ARCHITECTURE.md` §66 will surface them** — a new session
-> that works only from the register will not see any of them.
-
-**WATCH 1 — the §16 persistence repro is owed.** The wrapper-invoke persistence
-claim (G-44, `ARCHITECTURE.md` §16) is **documented in three places and
-demonstrated in none**: §16 itself, the v1.8 head note, and version-log row 3.4.
-
-*Owed:* a local repro against the pinned LangGraph — a parent node calls
-`subgraph.ainvoke`; assert `get_state(subgraphs=True)` shows the child
-checkpoint under a **non-empty `checkpoint_ns`**.
-
-**Run it before step 4.2 relies on it.** This is a **code action**, not a
-documentation one — the only claim in §16 resting on documentation alone.
-
-**WATCH 2 — two venvs, and a blocker three documents may be overstating.**
-`agent-improve/.venv` is at **langgraph 1.2.11**. `CLAUDE.md` §16.1,
-reference §53 and Appendix E all record **1.1.10** and treat it as a **BLOCKER
-on all of §45 and on §16's `checkpoint_ns` fix**.
-
-**The session-start hook reads the ROOT venv** — it shells out to
-`sys.executable -m pip show`, and the root `.venv` holds 1.1.10 / langchain
-1.2.13 / langchain-core 1.3.3 — so it reports the stale version on every
-session start.
-
-**If `agent-improve/.venv` is authoritative, that blocker cleared at step 2.3**
-and three documents overstate it — **one of them a binding rule file.**
-
-**§3 of this file already carries evidence, and the next session should start
-there.** It records step 2.3 (`95926d6`) upgrading `langgraph` 1.1.10 → 1.2.11
-with `pytest` 6/6 green and `pip check` clean, and states **"The LangGraph gate
-on steps 4.1–4.4 and 8.2 is CLEARED."** If that is right, the lag is confined to
-`CLAUDE.md` §16.1, reference §53 and Appendix E — **and this file has been
-contradicting them since 2026-08-21.**
-
-> **UNVERIFIED. Confirm which venv is authoritative BEFORE editing any
-> document.** Correcting a blocker in `CLAUDE.md` on the wrong venv would be
-> worse than leaving it stale. **This needs its own session.**
-
-**The `langchain` / `langchain-core` pin has zero margin.** `langchain` 1.3.16
-requires `langchain-core>=1.6.0`, and 1.6.0 *is* the current latest — exactly
-aligned, not comfortably apart. The next `langchain` release may force a
-`langchain-core` move in the same step.
-
-**LangGraph 1.2.7's release body repeats 1.2.6's `checkpoint_ns` fix text
-verbatim.** The ≥1.2.6 floor attribution holds, but the fix appears to have
-been applied twice — worth knowing if subgraph namespacing misbehaves at 4.1.
-
-**DONE (was WATCH 3 and 4) — the knowledge-index rebuild, LLM classification
-and the swap all landed 2026-08-25.** Recorded at `DECISIONS.md` §V1 and §V2.
-Nothing here is owed; this entry exists so a session reading only this file
-knows the state of the index it is querying.
-
-| | |
-|---|---|
-| **Live index** | **`improve_knowledge_index_v3`** — 1,184 documents, BB eBook only, **259 carrying `general`** |
-| **Bound by** | `AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX` in `agent-improve/.env` (and `.env.example`) |
-| **Rollback** | Point that variable back at `improve_knowledge_index` — **retained intact at 1,369 documents**, no re-ingest needed. One line, reversible |
-| **Also present** | `improve_knowledge_index_v2` — the keyword-classified interim build, superseded and never swapped in. Delete when `_v3` is confirmed good |
-| **§23.1 figures** | Re-synced in the reference (v1.7.2) and `ARCHITECTURE.md`. They previously read 218 of 1,369 |
-
-**Classification is now an LLM call per chunk, and it fixed what the keyword
-scorer got wrong.** p681 Control wrap-up `improve` → **`control`**; p286
-hypothesis-testing intro `measure` → **`analyse`**; p634 already correct and
-still `control`. The two classifiers agree on only 52% of chunks, and the
-largest migration is `measure → analyse` (71) — the p286 failure at scale.
-**This reverses the earlier note that the rebuild "does not improve
-classification"**; with §V2 it does.
-
-**The contamination that motivated all of it is gone.** On *"validate a root
-cause with a hypothesis test"* the old index returned `problem_solving_8D` p71
-— 8D's D5 step — **at rank 1** to a DMAIC Analyse question. `_v3` returns zero
-non-eBook results.
-
-**WATCH 3 — `CLAUDE.md` §7.2 still says "(218 carry `general`)".** The live
-figure is **259 of 1,184**. Left deliberately: `CLAUDE.md` is a binding rule
-file and §18 requires a numbered `§0.x` change entry, which makes this a rule
-amendment rather than a figure sync — and §56 forbids making one in passing
-during a data rebuild.
-
-*Owed:* the §0.x entry plus the corrected figure, as its own commit.
-
-**Do not "fix" the same number in `docs/DECISIONS.md` §E3,
-`docs/REFACTORING_AGENT_IMPROVE.md` or `docs/REVIEW_DECISIONS.md`.** Those are
-the historical record and are correct as history — they state what was
-confirmed at the time. Rewriting them falsifies the trail.
-
-**WATCH 4 — the drift registry's `pattern-2` is still stale, and it now blocks
-work.** `.claude/config/deprecated_patterns.yaml` blocks the builder-style
-structured-output call; **CLAUDE.md §18.1 already records the entry as stale**,
-because §4.6 sanctions that call for plain model invocations.
-
-It blocked the classifier during this rebuild. **Neither shortcut was taken** —
-amending the registry mid-rebuild is the in-passing rule change §0 forbids, and
-routing around a live hook silently is worse — so the classifier was written to
-not need the pattern. **The hook also fired on `DECISIONS.md` itself**, on a
-sentence naming the blocked call: the §0.14 pattern a third time, a check that
-cannot tell using a construct from documenting one. `agent-improve/**/*.md` is
-path-excluded for exactly that reason and the exclusion held.
-
-*Owed:* §18.1's described update — scope `pattern-2` to agent construction only.
-
-**WATCH 7 — the v1 Define gate cannot pass until `orchestrate.py` migrates.**
-`phases/define/validate.py` now requires the §39.1.2 field names (`DECISIONS.md`
-§W1). **`phases/define/orchestrate.py` still writes the v1 granular 5W2H names**
-— `what`, `where`, `how_goal`, `scope_in`/`scope_out` — so on the v1 path every
-Tier 1 field reads as missing and the gate never opens.
-
-**This is the ratified rename landing ahead of its writer, not a defect.** A
-v1-to-v2 shim was rejected: it would be *adding* v1-style code (CLAUDE.md §17)
-and would hide the divergence at the seam where the two vocabularies meet.
-
-*Owed:* migrate `phases/define/orchestrate.py` at **procedure step 3.4**, and
-**with it** the Define cross-phase briefs in `analyse`, `improve` and `control`
-orchestrators (all three read `define.get("what")` / `("how_goal")` /
-`("primary_metric")`). **Do not switch the readers first** — they are currently
-consistent with the v1 writer, and moving them alone breaks the briefs rather
-than fixing them.
-
-**WATCH 8 — `CLAUDE.md` §9.7 and §10.7 carry Define's superseded counts.** They
-say 6 Tier 1 and 15/6/5/4; the live figures are **8 Tier 1 and 15/8/3/4**
-(§35, §40). Left deliberately, same reason as WATCH 3: §18 requires a numbered
-`§0.x` entry, which makes it a rule amendment rather than a figure sync.
-
-*Owed:* fold into the same rule-file commit as WATCH 3's "218 carry `general`".
-**Two stale figures in one binding file now** — that commit is worth
-scheduling rather than deferring again.
-
-**WATCH 9 — `CoachingResponse` has four fields nothing renders yet.**
-`explanation`, `example`, `prompt` and `progress` landed in the schema
-(§20/S-C05) under §50.1's contract. **The blast radius is all five phases'
-coach output**, and the UI half does not exist — no production UI exists for
-Agent Improve at all.
-
-*Owed:* the response renderer, as part of the UI rebuild (procedure step 10.2).
-Until then the four fields are populated and unread. **The four SKILL.md files
-for Measure/Analyse/Improve/Control must also instruct the coach to populate
-them** when those phases are written; only Define's does today.
-
-**WATCH 5 — citations must say "PDF page", not "page".** Unchanged from
-2026-08-25. `page_number` holds the **PDF index**; the printed number is lower,
-**piecewise** — pp 1-3 unnumbered front matter, pp 4-693 print index−3, pp
-694-700 an appendix restarting at 1. §23.1's own citation example ("page 47 of
-the BB eBook") is three pages off. The stored value stays as the PDF index; the
-fix belongs in the citation renderer, which does not exist yet.
-
-**WATCH 6 — one chunk carries a tag nobody stands behind.** PDF page 302
-(statistical power / sample size for a 1-Sample t test) is refused by Azure's
-content management policy — a false positive, and permanent, so it is not
-retried. It ships as `general`, which keeps it reachable from every phase, and
-the run was allowed past it only by an explicit `--max-classify-failures 1`.
-**It is genuinely Analyse content.** If Azure's filter behaviour changes, a
-re-run with the classification cache will pick it up at the cost of one call.
+**CLOSED this session (were WATCH 3 + WATCH 8):** CLAUDE.md's stale "218
+`general`" → 259 and Define "6 Tier 1 / 15-6-5-4" figures — corrected via the
+§0.18 amendment, commit `d1c7fa3`, CLAUDE.md → 2.2.24. **CONTINUITY:335's old
+WATCH-8 entry retired here.** WATCH 4 (drift-registry pattern-2 scope) — verify
+whether still owed.
 
 ### Parallel workstreams — not steps, do not block the spine
-
-| Workstream | Notes |
-|---|---|
-| **Five SKILL.md files** | Should lead step 6.6 — the coach prompts reference skill content. Drafts exist, not wired into `DMAICSkillsMiddleware` |
-| **Eval dataset (§52)** | Becomes load-bearing once step 6.2 lands. **The >10% regression threshold is currently an asserted number** — two Anthropic engineering posts added to Appendix C bear on it, one specifically on separating real regressions from infrastructure noise. Read both before finalising §52 |
-
-### The future root-generalisation task
-
-**The reference is written as one agent's architecture and declared
-platform-level.** Part VIII is the DMAIC domain and is Improve's alone; Parts
-I–VII and IX–XI are platform. **Six sections carry platform mechanism with
-Improve instantiation and are annotated inline** — §5, §6, §23, §30, §32, §35.
-Look for the **Scope:** note under the status line. **Those annotations mark the
-scope of the generalisation task** when Resolve or Flow are built to this
-reference. §30 is the sharpest case: the binding rules are platform, all twenty
-tools are Six Sigma.
-
-### Decision-log items still marked pending
-
-Checked against the files 2026-08-22:
-
-| Item | Real status |
-|---|---|
-| **DECISIONS H2** — `improve_case_index` `content_vector` rename | **Genuinely pending.** Equals procedure step 9.1 |
-| **DECISIONS H1** — multi-query Option A description | **Substance appears absorbed** into reference §23–§25 (per-tool `SearchClient`, no shared retriever, the "asymmetry" language corrected). **The PENDING marker looks stale — confirm and close rather than assuming** |
-| **DECISIONS G11** — `REFACTORING_AGENT_IMPROVE.md` restructure | **DONE.** The 11 `# PART` headings are present. The marker is stale |
-| Reference **Appendix B** deferred backlog | 16 items, each with a promotion trigger. **Items 13 (PostgreSQL) and 16 (geographic redundancy) gate a production launch** |
+- **Five SKILL.md files** — Define's written; Measure/Analyse/Improve/Control
+  owed (must include the CoachingResponse-population instruction, WATCH 9).
+- **Eval dataset (§52)** — becomes load-bearing once step 6.2 lands; the >10%
+  regression threshold is asserted, not measured.
 
 ---
 
-## 6. Session protocol
+## 7. Session protocol
 
 ### Before starting
-
-1. **Read the session-start hook output** — it reports git state, the last
-   completed `refactor(arch-v2)` commit, the next step, and dependency drift.
-2. **Confirm the working tree is clean and pushed.**
-3. **Open the procedure at the next step.** Check its **Precondition**, run its
-   prompt, run its **Verify** method.
-4. **If the session's work is resolving a SPEC-GAP** (root reference §66),
-   read the **Standing Reasoning Protocol** below before touching anything.
-   No gap is closed on the local fix alone.
+1. Read the session-start hook output (git state, last completed commit, next
+   step, dependency drift).
+2. Confirm the working tree is clean and pushed.
+3. Open the procedure at the next step; check Precondition, run prompt, run
+   Verify. **OR** — if in the phase-review workstream (§5) — resume there:
+   finish Measure, then the computation-tools spec, then Analyse/Improve/Control.
+4. If resolving a SPEC-GAP, follow the Standing Reasoning Protocol below.
 
 ### Hard rules
-
-- **Never run `agent-improve/start.ps1`.** It does `git reset --hard
-  origin/main` and destroys unpushed commits. Start the server manually:
-  `cd agent-improve; .\.venv\Scripts\Activate.ps1; uvicorn backend.app:app --host 127.0.0.1 --port 8020 --reload`
+- **Never run `agent-improve/start.ps1`** — it `git reset --hard origin/main`.
+  Start the server: `cd agent-improve; .\.venv\Scripts\Activate.ps1; uvicorn backend.app:app --host 127.0.0.1 --port 8020 --reload`
 - **Never `git add -A`** — stage by name.
-- **Every commit** ends with the `Co-Authored-By: Claude Opus 5 (1M context)`
-  trailer, and commit bodies are descriptive: what changed, at which named
-  sites, and why.
-- **Refactor commits use the fixed subject format** the hook parses:
-  `refactor(arch-v2): commit X.Y — <what changed>`
-- **`/verify-current-version` before any version or API decision.** The
-  reference is authoritative for architecture; **the live package index is
-  authoritative for what version exists now.** No step trusts a version written
-  in any document, including the reference's own snapshot.
+- **Every commit** ends with `Co-Authored-By: Claude <noreply@anthropic.com>`;
+  bodies say what changed, where, and why.
+- **Refactor commits:** `refactor(arch-v2): commit X.Y — <what changed>`.
+- **`/verify-current-version` before any version/API decision** — the live
+  package index is authoritative for what exists now, not any document.
 
-> ### Reference sweeps must use raw `grep -rn`
->
-> **Agent-facing search tools filter by `.gitignore` and are structurally
-> unable to see gitignored paths.** The 2026-08-22 rename sweep reported zero
-> stale references through a filtered tool while a raw `grep -rn` immediately
-> found one it could not reach. **Any sweep concluding "zero remaining
-> references" ends with an unfiltered `grep -rn`.** A filtered tool locates;
-> it is not evidence of absence. Recorded as reference §55.
+> **Reference sweeps must use raw `grep -rn`** — agent-facing search tools
+> filter by `.gitignore` and cannot see gitignored paths. Any "zero remaining
+> references" conclusion ends with an unfiltered `grep -rn`.
 
 ### STANDING REASONING PROTOCOL — filling SPEC-GAPs
-
-**This governs every SPEC-GAP resolution** (root reference §66). It is
-process governance, not architecture — it is amended here and in
-`docs/SPEC_LAYER_GUIDE.md` §6.1, not through reference §56.
-
-*Reproduced verbatim as approved 2026-08-24. The only alteration is the
-title line, lifted into a heading; no word is changed.*
-
 Every spec gap is resolved through this discipline, never a quick local patch:
+1. **DETAIL** — the specific fix: exactly what field/function/signature changes.
+2. **HOLISTIC** — trace through every SIPOC link it touches (peer runtime call
+   edges only — ref §55.1 rule 3). List affected use cases; confirm the fix
+   holds across all, not just the one that surfaced the gap.
+3. **TRUSTED-SOURCE CHECK** — verify the pattern against current LangGraph/
+   LangChain/LangSmith sources (and EU AI Act/DORA for compliance gaps). No
+   pattern adopted on plausibility; confirmed or explicitly marked unverified.
+4. **USE-CASE FORWARD-NOTE** — record which use case(s) the gap belongs to for
+   the later sequence-diagram pass.
 
-1. DETAIL — the specific fix: exactly what field/function/signature changes.
-2. HOLISTIC — trace it through every SIPOC link it touches. Each SIPOC entry is
-   a use-case skeleton (Supplier→Input→Process→Output→Customer), so a change to
-   one function's Input/Output ripples to every Supplier and Customer connected
-   to it. List the affected use cases; confirm the fix holds across ALL of them,
-   not just the one that surfaced the gap.
-3. TRUSTED-SOURCE CHECK — verify the chosen pattern against current
-   LangGraph/LangChain/LangSmith sources (and EU AI Act/DORA for
-   compliance-touching gaps). No pattern is adopted on plausibility; it is
-   confirmed against a current source or explicitly marked unverified. (R2
-   lesson: a plausible API that doesn't exist is a demonstrated failure mode.)
-4. USE-CASE FORWARD-NOTE — SIPOCs are the basis for the sequence diagrams / use
-   cases to be built later. Each resolved gap records which use case(s) it
-   belongs to, so the later sequence-diagram pass has the material ready.
-
-Resolving a gap MAY surface new gaps — the holistic trace can reveal a further
-function that mishandles the same field. The gap list is not fixed; expand it
-when the trace demands. No gap is closed on DETAIL alone; steps 2–4 are
-mandatory.
-
-> **Step 2's scope is narrowed, and the narrowing matters.** The SIPOC
-> cross-check applies **only to peer runtime call edges** — one node or function
-> invoking another. Edges into class entries, return paths, build-time graph
-> wiring and nested sub-components are **out of scope and are not findings**.
-> Its first run reported 36 non-closures of which only 5 were real wiring
-> defects — 29 of the 36 fall outside the narrowed scope. Tracing against the
-> un-narrowed rule spends the trace's attention on noise. Scope definition:
-> root reference **§55.1 rule 3**. The run that forced it: **§66.8**.
+Resolving a gap MAY surface new gaps — expand the list when the trace demands.
+No gap closes on DETAIL alone.
 
 ### The lesson this session keeps re-teaching
-
 **A check that cannot fail is worse than no check, because it is recorded as
-evidence.** Three instances, all caught: a `grep-absence` written against
-retired names that never existed; a step lookup that rendered a parse failure
-identically to success; and a reference sweep run through a tool that could not
-see part of the tree. **When you write a verification, first prove it can
-fail.**
+evidence.** When you write a verification, first prove it can fail.
 
 ---
 
-## 7. Amendment procedure
+## 8. Amendment procedure
 
 | Change | Route |
 |---|---|
-| **Platform architecture** | Root reference §56 — decision in `docs/DECISIONS.md`, section updated, version bumped, change log in DECISIONS + a one-line note at the reference head |
-| **A rule** | `CLAUDE.md` §18 — plus a numbered `§0.x` change entry in that file |
-| **Improve-specific architecture** | `agent-improve/ARCHITECTURE.md` |
-| **A rule number cited in `deprecated_patterns.yaml`** | **Update the registry in the same commit** (§55) |
-| **During Improve's refactor** | Improve-specific architectural decisions are recorded in `agent-improve/ARCHITECTURE.md`, not `DECISIONS.md`. Platform-level decisions are captured there too **for now** and back-ported to the root reference (§56) once Improve is settled. Deliberate, temporary divergence from the root-first procedure above. |
+| Platform architecture | Root reference §56 — decision in `DECISIONS.md`, section updated, version bumped, change log |
+| A rule | `CLAUDE.md` §18 — plus a numbered `§0.x` change entry |
+| Improve-specific architecture | `agent-improve/ARCHITECTURE.md` |
+| A rule number cited in `deprecated_patterns.yaml` | Update the registry in the same commit (§55) |
+| During Improve's refactor | Improve-specific decisions recorded in `agent-improve/ARCHITECTURE.md`; back-ported to the root reference once Improve settles |
 
-**Never amend a rule in passing while making a feature change.** Architecture
-changes are separate commits.
+**Never amend a rule in passing while making a feature change.**
 
 ---
 
-## 8. Version log
+## 9. Version log
 
 | Version | Date | Change |
 |---|---|---|
-| **4.0** | 2026-08-26 | **Define fully specified; G-38 CLOSED.** The ratified amendment's "new §41" landed as **§39.1** — §41 was already occupied by RATIFIED, 23-times-cited content, and renumbering it would have pulled a `CLAUDE.md` §18 amendment into a feature commit. **§39.1.2's ten-field coached order IS the `field_index` sequence**, which closes G-38 and makes S-F13's DP1 predicate implementable **for Define**; the other four stay blocked on G-27/G-28, and all 7 inline markers now say so. `DefineOutput` rebuilt to **15 fields / 8 Tier 1** (`team` and `baseline` join; `project_scope` becomes a dict; `problem_statement` composed from 5W2H rather than stored granularly). **Founder ruling: `secondary_metrics` stays** — §39.1.2 is the coached list, not the schema. New **§50.1** (coach response structure) and **§56.1** (atomic-unit principle); `CoachingResponse` gains four presentational fields, five-phase blast radius. Register **44 / 9 closed / 35 open**. 33 checks + pytest 6/6 + drift-check clean. **New watches 7, 8, 9** — the v1 Define gate is inert until `orchestrate.py` migrates |
-| **3.9** | 2026-08-25 | **LLM phase classification landed and the swap is DONE.** `detect_phase`'s keyword counting replaced by one cheap-tier LLM call per chunk — it classified on vocabulary, not subject (p681 Control wrap-up tagged `improve` because the page lists "Improvement Selected"). The two classifiers agree on **52%** of chunks. **`improve_knowledge_index_v3` is live** — 1,184 docs, **259 `general`** — bound by `AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX`; the old index is retained intact at 1,369 as a one-line rollback. Both pre-swap gates passed: zero 8D in the contamination probe, all three previously-wrong pages correct. §23.1 re-synced in the reference (v1.7.2) and `ARCHITECTURE.md`. **Supersedes v3.8's deferral of classification.** Owed: `CLAUDE.md` §7.2's stale 218 (needs a §0.x entry), and `pattern-2`'s stale registry block |
-| **3.8** | 2026-08-25 | **Three rulings on the knowledge rebuild, and the corpus ingested to a fresh index.** (1) The rebuild **sequences independently** of the §23.2/§23.3 reindex — step 9.1 touches the evidence and case indexes only, so there was never a shared operation to fold into. (2) The phase classifier is **deferred**, because no live code path filters on `phase_relevance`; `rag_lookup_methodology` is the trigger to revisit. (3) `page_number` **stays the PDF index** — the printed offset is piecewise (−3 for pp 4–693, unnumbered front matter, appendix restarting at 1), so the fix belongs in the citation string as "PDF page N". Corpus is in `improve_knowledge_index_v2`; **the live index is untouched and the swap is not done** — WATCH 3 carries it |
-| **3.7** | 2026-08-25 | **Knowledge-index corpus rebuild landed as code, unrun against Azure** (`DECISIONS.md` §V1). `improve_knowledge_index` narrowed to the BB eBook alone — 8D removed as cross-framework contamination, the tools-suite workbook as embedding noise; its sheet map preserved at `docs/EXCEL_TOOL_INVENTORY.md`. Extraction moved to pdfplumber **plus a normaliser** — the ratified rationale was measured wrong (no U+FFFD anywhere; `%`-as-space is in the PDF, not the extractor; pdfplumber is worse on garble and better on reading order). **`create_indexes.py`'s knowledge-index definition was wrong on every field** and would have blocked the fresh-index procedure; corrected against live. **No live document id is reproduced by `make_doc_id()`**, so a live write would add rather than replace — fresh-index-and-swap is mandatory, not tidy. WATCH 3 and 4 log the two open founder rulings |
-| **3.6** | 2026-08-24 | **G-01 + G-02 resolved together.** Level 2 `Command` routing (S-F13 — the planner owns the field/gate decision per §17); Belt reject → planner with a required reason (new field `rejection_feedback`). §4's `PhaseState` count fixed to 20+1. Register 8 closed / 36 open; **Group A empty.** Cross-links G-38 (DP1 predicate) and G-18 (reject payload) |
-| **3.5d** | 2026-08-24 | §2 document-map versions synced to actuals (reference, `CLAUDE.md`, `ARCHITECTURE.md`) — the same drift class §2 was rebuilt to prevent, corrected in the orientation file a new session reads first |
-| **3.5c** | 2026-08-24 | G-04 fully settled (S-F09 sample synced, `ARCHITECTURE.md` v1.9.1). Two watches logged that are **not** §66 gaps: §16 persistence repro owed; two-venv stale-blocker (hook reads root venv 1.1.10; `agent-improve/.venv` has 1.2.11; three docs may overstate the §45/§16 blocker — needs venv authority confirmed first). Also removed a stale intro line left above the live-gap list by v3.5 |
-| **3.5** | 2026-08-24 | **G-04 resolved** — `remaining_steps` declared as a LangGraph managed value on `PhaseState`; the hop cap now fires (the `.get(..., 10)` default had masked it). `ARCHITECTURE.md` S-C02/§26/§66 and `CLAUDE.md` §10.1 amended; register 6 closed / 38 open. Field count now "19 author-populated + 1 managed" |
-| **3.4** | 2026-08-24 | **G-44 resolved** — the phase wrapper's inner `subgraph.ainvoke` persists `PhaseState` when called directly inside the node with inherited config; breaks only if moved inside a tool. ARCHITECTURE.md §16 gains the rule; §66 register G-44 → Closed (5 resolved / 39 open). Process note added to §7. **G-04 is now the next live gap.** Local repro of the persistence claim still owed |
-| **3.3** | 2026-08-24 | **Live high-severity gap list added** (§5) — G-44 and G-04, with the ordering argument between them. Added when G-43 was resolved as a false alarm and its narrower successor G-44 registered |
-| **3.2** | 2026-08-24 | **SIPOC cross-check scope note added** to the Standing Reasoning Protocol — step 2's holistic trace applies to peer runtime call edges only. Mirrors the narrowing of reference §55.1 rule 3. Process governance, not a §56 amendment |
-| **3.1** | 2026-08-24 | **Standing Reasoning Protocol added** (§6) — the discipline every SPEC-GAP resolution follows: detail, holistic SIPOC trace, trusted-source check, use-case forward-note. Also in `docs/SPEC_LAYER_GUIDE.md` §6.1. Process governance, not a §56 amendment |
-| **3.0** | 2026-08-22 | **Rebuilt from the live files.** v2.8 had drifted on the CLAUDE.md version (said 2.2.14, actual 2.2.18), the entire document map (the reference moved to root and was renamed; `ARCHITECTURE.md` became a copy), the code-migration step (said 2.5+ pending; actual 2.3 done / 2.4 next), and three decision statuses. Duplicate `## 4` heading fixed |
+| **4.2** | 2026-08-26 | **`baseline` → `baseline_metric` applied and CLOSED** — founder ruling reversing `885defc`, which had renamed it the wrong direction on the authority of `DEFINE_FINALIZATION_2026-08-26.md`. §5 is authoritative. Renamed across ARCHITECTURE.md (**v1.13**), CLAUDE.md (**2.2.25**, via a proper §0.19 amendment), `phases/define/schema.py`, `skills/dmaic-define-phase/SKILL.md`, and the Analyse cross-phase-brief comment. `validate.py` needed no edit — it imports the field list rather than retyping it, which is why the atomic-unit rule earns its keep. **Siblings `baseline_mean` / `baseline_sigma` / `baseline_kpis` untouched** (27 / 8 / 15 occurrences intact) — they are the collision the rename resolves. Define's owed-item list is now empty; **WATCH 7 (`orchestrate.py`) remains open at step 4.1** |
+| **4.1** | 2026-08-26 | **Define FINALIZED to 12 required / no tiers (Option A)** — supersedes v4.0's 15/8-Tier-1; `baseline`→`baseline_metric`; `target_metric`/`baseline_metric`/`target_date` kept discrete (measurement thread); `actual_close_date` forward-noted to Control. **WATCH 3 + WATCH 8 CLOSED** (CLAUDE.md 2.2.24, `d1c7fa3`). Procedure reconciled to the out-of-band commits (`9d9e77c`, `d69a52c`). **Phase-review workstream opened** (§5) with the five-point bar; **backbone mechanics VERIFIED** against current LangGraph. **Computation-tools model ratified** — architecture holds specs, code built at step 5.3; standalone-subsystem container recommended. Measure review in progress. **§0 added: OneDrive read access for Claude Desktop** recorded so it stops being relitigated each session |
+| **4.0** | 2026-08-26 | Define fully specified; G-38 CLOSED. `DefineOutput` at 15 fields / 8 Tier 1 (SUPERSEDED by 4.1). §50.1 + §56.1; CoachingResponse gains four presentational fields. Watches 7, 8, 9 added |
+| **3.9** | 2026-08-25 | LLM phase classification landed; `_v3` live (1,184 / 259 general); swap done |
+| **3.8–3.7** | 2026-08-25 | Knowledge-index rebuild rulings and ingest |
+| **3.6** | 2026-08-24 | G-01 + G-02 resolved; Group A empty |
+| **3.5x** | 2026-08-24 | G-04 / G-44 chain resolved; watches for the §16 repro and two-venv blocker |
+| **3.1–3.3** | 2026-08-24 | Standing Reasoning Protocol added; live gap list |
+| **3.0** | 2026-08-22 | Rebuilt from live files |
 | 2.8 | 2026-08-19 | Last version before the reference rewrite |
 
 *A new session should be able to act on §4 and §5 without opening another file.*

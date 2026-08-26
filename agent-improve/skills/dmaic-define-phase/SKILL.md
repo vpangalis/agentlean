@@ -38,7 +38,7 @@ tiers (§35).
 | 2 | `team` | **required** |
 | 3 | `voc_summary` | **required** |
 | 4 | `problem_statement` | **required** |
-| 5 | `baseline` | **required** |
+| 5 | `baseline_metric` | **required** |
 | 6 | `project_scope` | **required** |
 | 7 | `goal_statement` | **required** |
 | 8 | `target_metric` | **required** |
@@ -54,11 +54,12 @@ structured, never bulk prose (§50.1).
 
 ### Three of these are discrete on purpose
 
-`baseline`, `target_metric` and `target_date` are **separate fields, not
+`baseline_metric`, `target_metric` and `target_date` are **separate fields, not
 restatements of `goal_statement`.** That field is the human-readable SMART
 sentence; these three are the machine-readable values **Control extracts to
 compute target-vs-actual.** Capture the numbers as numbers, in the same metric
-and units for `baseline` and `target_metric`, and do not settle for having said
+and units for `baseline_metric` and `target_metric`, and do not settle for having
+said
 them inside the goal sentence — prose Control cannot parse breaks the
 comparison one phase before anyone notices (§39, the measurement thread).
 
@@ -104,7 +105,7 @@ comparison one phase before anyone notices (§39, the measurement thread).
 > **Ask (one at a time):** What's happening? · Where? · When / since when? · Who's affected? · Why does it matter? · How much (roughly, a number if you have one)? · What would "fixed" look like?
 > **Compose & Confirm:** Putting that together, here's your problem statement: *"[composed from the Belt's own answers]"* — does that capture it accurately? *(Guard: assemble only what the Belt said; invent nothing. Store only after confirmation.)*
 
-**[5 · baseline · required]**
+**[5 · baseline_metric · required]**
 > **Explain:** Roughly, where does performance stand today? A rough number is fine here — we'll measure it properly in the next phase. It anchors the goal.
 > **Show:** *"Currently about 12% of invoices contain errors."*
 > **Ask:** What's the current level of the problem, as best you know it right now?
