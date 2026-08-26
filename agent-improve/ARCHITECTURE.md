@@ -73,9 +73,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.13 · 2026-08-26
+Version 1.14 · 2026-08-26
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.14 (2026-08-26)** — **§56 AMENDMENT. A project may track N measurement criteria, and it costs ZERO schema change.** Founder ruling, phase-review workstream: **multiplicity lives inside the existing `str` fields**, exactly as `process_map_sipoc["process_kpis"]` and `detailed_process_map["baseline_kpis"]` already carry several KPIs each. `baseline_metric`, `target_metric`, `baseline_mean`, `baseline_sigma` and `stability_assessment` **all stay `str`** — no `phases/*/schema.py` is touched, and §7's typing law is not merely respected but is what makes the ruling work. **The contract is textual:** `baseline_metric = "Error rate: 12.3% (n=4,200). Cycle time: 2.6 days (n=340)."`, with `target_metric` naming the same criteria by the same names and units. **§69.1 gains one additive convention** — when more than one criterion is tracked, a tool call's `inputs` sub-dict carries a **`metric_name`** key naming which criterion the call is for. **No tool signature changes**; `metric_name` is simply absent on single-criterion projects, so all 20 entries at §69.2–§69.6 stand unaltered. **`MEASURE_RUBRIC` gains two Tier-1 checks** (`dmaic-measure-phase/SKILL.md` §11): the criteria named in `baseline_metric` must match `target_metric` by name and unit — **a name-match, not an LLM judgment** — and where several are named, stability and any Cpk verdict must be **per criterion**, so one blanket "stable" covering four metrics fails rather than passes. **§50 gains the gate-document parity rule**, which is cross-phase rather than Measure's alone: every phase renders `computation_results` inline, grouped by `metric_name`, each with its interpretation and its chart — and **the document's narrative comes from captured field text plus `computation_results`, never from `CoachingResponse`'s turn-level `explanation`/`example`/`prompt`/`progress`**, which are ephemeral coaching UI (§50.1, WATCH 9). Measure's SKILL.md §8 already did this; Define's is back-applied, and the other three inherit it when written. **Two forward-notes recorded, not built** — F-13 (Analyse's `causal_hypothesis` must name which criterion a root cause explains) and F-14 (Control's target-vs-actual becomes one comparison per criterion); both belong to their own phase reviews. Findings 12 → 14. Decision record: `docs/measure_multicriteria_and_intent_brief.md` Part 2.
 
 **v1.13 (2026-08-26)** — **§56 AMENDMENT. Define's field #5 is `baseline_metric`. Founder ruling; supersedes v1.12's rename, which went the wrong direction.** v1.12 renamed `baseline_metric` → `baseline` on the authority of `DEFINE_FINALIZATION_2026-08-26.md`; **`CONTINUITY.md` v4.1 §5 is authoritative and reverses it.** **The reason is collision, and it is a real one:** Measure carries `baseline_mean` and `baseline_sigma`, and `detailed_process_map` carries `baseline_kpis` — a bare `baseline` sitting among those three reads as a generic prefix rather than as Define's discrete current-state value, which is exactly the ambiguity the measurement thread cannot afford. **`baseline_metric` pairs with `target_metric`** and makes the Define-sets / Control-compares relationship legible at a glance. **Renamed here:** §35's Define row, §39.1.2 field #5 and the measurement-thread note, §39.1.7's coaching block, §63.1 (S-C27) and its B7, the S-F28 gate-assembly sample, §69's S-F37 precondition, and §28.1's collision example — which was, precisely, `baseline` vs `baseline_mean`. **Not renamed, deliberately:** the three sibling fields, and every English use of the word "baseline" (a rough baseline, a baseline Cpk, the Measure baseline). **§39's measurement-thread block needed no change** — it names `process_kpis`, `baseline_kpis` and `post_improvement_metric`, none of which is this field. v1.11's and v1.12's entries keep their original wording as dated records. Decision record: `docs/CONTINUITY.md` v4.1 §5.
 
@@ -3664,14 +3666,15 @@ missing any of the six keys is the partial-map failure §41 describes.
 **[4 · problem_statement · required · composed from 5W2H]**
 > **Explain:** Now the heart of Define — the problem statement. I'll ask you a few simple questions, then put them together into one clear statement. We're not solving anything yet, just stating clearly what's wrong.
 > **Show:** *"Between Jan–June 2026, 12% of invoices had pricing errors (target: under 3%), affecting the finance team and clients, costing ~€35k/month."* — specific, measurable, time-bound.
-> **Ask (one at a time):** What's happening? · Where? · When / since when? · Who's affected? · Why does it matter? · How much (roughly, a number if you have one)? · What would "fixed" look like?
+> **Ask (one at a time):** What's happening? · Where? · When / since when? · Who's affected? · Why does it matter? · **How much — and is it one measure or more than one?** (a rough number each; many projects track both a quality measure and a time measure) · What would "fixed" look like?
 > **Compose & Confirm:** Putting that together, here's your problem statement: *"[composed from the Belt's own answers]"* — does that capture it accurately? *(Guard: assemble only what the Belt said; invent nothing. Store only after confirmation.)*
 
 **[5 · baseline_metric · required]**
-> **Explain:** Roughly, where does performance stand today? A rough number is fine here — we'll measure it properly in the next phase. It anchors the goal.
-> **Show:** *"Currently about 12% of invoices contain errors."*
-> **Ask:** What's the current level of the problem, as best you know it right now?
-> **Confirm**, advance.
+> **Explain:** Roughly, where does performance stand today? A rough number is fine here — we'll measure it properly in the next phase. It anchors the goal. **Some projects track more than one thing** — a quality measure and a time measure, say — and that's normal; we just name each one.
+> **Show (one criterion):** *"Error rate: about 12% of invoices contain errors."*
+> **Show (two criteria):** *"Error rate: about 12% of invoices contain errors. Cycle time: about 2.6 days from order to invoice sent."*
+> **Ask:** What's the current level of the problem, as best you know it right now? Is that one measure, or is there more than one you're tracking?
+> **Confirm** each criterion by **name, number and unit** — *"Error rate: 12%. Cycle time: 2.6 days"* — one per sentence, so Measure and Control can pick them apart later. Advance.
 
 **[6 · project_scope · required]**
 > **Explain:** Let's set boundaries — what's *in* scope and, just as importantly, what's *out*. Being explicit about what you're *not* doing protects the project from ballooning.
@@ -3686,10 +3689,11 @@ missing any of the six keys is the partial-map failure §41 describes.
 > **Confirm** it mirrors the problem, advance.
 
 **[8 · target_metric · required]**
-> **Explain:** Your goal statement said it in words — now let's pin the target down as a single number. This one gets carried all the way to Control, where we compare what you actually achieved against it. Same metric and same units as your baseline, so the two can be compared.
-> **Show:** *"Under 3% of invoices with pricing errors."* — baseline was 12%; this is the number that says "done".
-> **Ask:** In the same units as your baseline — what's the target figure you're aiming for?
-> **Confirm** it uses the same metric and units as the baseline, advance.
+> **Explain:** Your goal statement said it in words — now let's pin the target down as a number. This one gets carried all the way to Control, where we compare what you actually achieved against it. Same measure and same units as your baseline, so the two can be compared. **If you named more than one measure at the baseline, each one needs a target** — otherwise you'd be aiming at something you never measured, or measuring something you never aimed at.
+> **Show (one criterion):** *"Error rate: under 3% of invoices with pricing errors."* — baseline was 12%; this is the number that says "done".
+> **Show (two criteria):** *"Error rate: under 3%. Cycle time: under 2 days."* — one target per measure, named the same way as the baseline.
+> **Ask:** For each measure you named at the baseline — what's the target figure, in the same units?
+> **Confirm** that **every criterion in the baseline has a target and no target names a criterion the baseline didn't** — the gate checks this by name and unit, and a mismatch there is what a missing target looks like one phase later. Advance.
 
 **[9 · target_date · required]**
 > **Explain:** Now the date you're planning to finish by. This is a planning parameter — if it moves later, that doesn't change whether the improvement worked, but having it stated is what makes the project a project rather than an intention.
@@ -4542,6 +4546,29 @@ at 6/6 required and 0/5 recommended **can pass the gate**; a single blended
 percentage would read as 55% and imply otherwise. **Define is the exception and
 renders a single bar** — all 12 of its fields are gate-required, so there is no
 second population to separate out (§39.1.2).
+
+**Every phase's live gate document renders `computation_results` inline**,
+grouped by `metric_name` when more than one criterion is tracked (§69.1), each
+entry shown **with its interpretation rather than raw numbers** (§43.1 step 5)
+and with its chart via `propose_diagram` where one applies. **This is a
+document-layout requirement on every phase's SKILL.md, not an optional
+enhancement of any one phase's.**
+
+**The document's narrative is assembled from captured field text plus
+`computation_results`** (§40's gate-metadata sourcing) — **never from
+`CoachingResponse`'s turn-level `explanation`, `example`, `prompt` or
+`progress` fields** (§50.1, WATCH 9), which are ephemeral coaching UI. The
+distinction is the whole point: `artifacts` is what the Belt committed and can
+defend at a gate; those four fields are how one turn was presented and are gone
+the moment the next turn renders. **A gate document assembled from presentation
+fields would show what the coach said rather than what the project established.**
+
+> **This generalises what `dmaic-measure-phase/SKILL.md` §8 already specifies.**
+> It is stated here rather than in one phase's skill because a rule that lives
+> in the one file that already follows it cannot bind the four that do not.
+> `dmaic-define-phase/SKILL.md` is back-applied; **Analyse, Improve and Control
+> carry it when they are written.** It may be back-ported to the root
+> `AGENTIC_ARCHITECTURE_REFERENCE.md` once Improve settles (§8).
 
 **The LangSmith run id is surfaced for support escalation** (§51) — a Belt
 reporting a bad turn can name the exact trace.
@@ -8651,9 +8678,12 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 
 **A gap is something missing. A finding is something present and wrong, or
 present and inconsistent.** These were surfaced by the conversion pass and the
-Supplier/Customer cross-check, whose first run is recorded at §66.8, and — from
-**F-12** — by the Define finalization of 2026-08-26. **None was fixed by the
-pass that raised it**; each needs a §56-routed decision of its own.
+Supplier/Customer cross-check, whose first run is recorded at §66.8; by the
+Define finalization of 2026-08-26 (**F-12**); and by the multi-criteria ruling
+of the same day (**F-13**, **F-14**). **None was fixed by the pass that raised
+it**; each needs a §56-routed decision of its own. **F-12, F-13 and F-14 are all
+owed to phase reviews that have not happened yet** — two to Control's, one to
+Analyse's.
 
 | # | Finding |
 |---|---|
@@ -8669,6 +8699,9 @@ pass that raised it**; each needs a §56-routed decision of its own.
 | **F-10** | **`degraded_mode_response` reads counts that `check_gate_status()` produces** (§46 body vs §29.2), and both are unspecified (G-31). They should be designed together, or the Belt sees two different completion counts |
 | **F-11** | **The built `DefinePhaseInput` had diverged from the v2 architecture names.** It carried granular 5W2H fields (`what`, `where`, `when`, `who_affected`, `why_it_matters`, `how_much_baseline`, `how_goal`), `scope_in`/`scope_out` as separate strings, and **both** `target_date` and `estimated_completion_date` — a duplicate date. **Resolved by the §39.1 rebuild**, in favour of the v2 names: one composed `problem_statement`, `project_scope` as a dict, one `target_date`. **Recorded so the rebuild is not later read as having introduced those names** — it retired them. The 5W2H survive as the coaching method (§39.1.3), never as stored fields |
 | **F-12** | **Control has no `actual_close_date`, and Define's `target_date` therefore has nothing to be compared against.** Define's finalization (2026-08-26) makes `target_date` a required field and states explicitly that it is the **planned** completion date — a project-management parameter that may slip without invalidating the improvement. **The pattern it belongs to is target-vs-actual**, the same one `target_metric` uses: Define states the target, Control captures what actually happened, and the delta is the finding. `target_metric` has its Control counterpart in `post_improvement_metric` (S-C31); **`target_date` has none.** Recorded as a forward dependency, **not built here** — Control's field list is settled at its own phase review (§39.5, blocked on G-27/G-28), and adding a field to `ControlOutput` outside that review is exactly the one-phase-at-a-time change §40 warns about. **When Control is specified, `actual_close_date` must be on the agenda alongside the schedule-variance question it implies** (is a slipped date a Control finding, or only a record?) |
+
+| **F-13** | **Analyse's `causal_hypothesis` does not say WHICH criterion a root cause explains.** Harmless while a project tracks one measurement criterion; ambiguous the moment it tracks two. `causal_hypothesis` is a cross-phase reference dict (§7, §42) carrying `references_phase` / `references_field` / `references_value`, and the grader verifies the link by deterministic lookup — but with `baseline_metric` naming *"Error rate: 12.3%. Cycle time: 2.6 days."*, a root cause referencing "the baseline" resolves to a string containing both, and **"explains 60% of the problem" stops having a single referent.** `practical_significance` inherits the same ambiguity. **Recorded, not built** — Analyse's field list is settled at its own phase review (§39.3, blocked on G-27/G-28), and adding a sub-key to one phase's reference dict outside that review is the one-phase-at-a-time change §40 warns against. Raised by the multi-criteria ruling, 2026-08-26 |
+| **F-14** | **Control's target-vs-actual becomes one comparison per criterion.** `post_improvement_metric` (S-C31) is the AFTER end of the measurement thread and is graded by lookup against Measure's `baseline_mean` (§63.5 B2). With N criteria that is **N comparisons, not one** — and a Control phase reporting a single improvement delta across several metrics is the same failure `MEASURE_RUBRIC` now catches at the Measure gate, arriving one phase later. Pairs with **F-12**, which owes Control an `actual_close_date`: both are Control-side consequences of Define-side decisions, and **both should be settled in the same Control review** rather than discovered separately. **Recorded, not built.** Raised by the multi-criteria ruling, 2026-08-26 |
 
 ### 66.8 The Supplier/Customer cross-check — first run, 2026-08-23
 
@@ -8955,6 +8988,26 @@ than twenty times below. **Read every entry in §69.2–§69.6 as carrying these
 - **Preconditions are business and methodology preconditions** — what must be
   true of the *project state* before the tool should be called. They are **not**
   argument validation, which is ordinary parsing (§60.6 B2, B3).
+- **`metric_name` — when the project tracks more than one criterion.** A project
+  may carry several measurement criteria (error rate *and* cycle time), and
+  §39.1.2's `baseline_metric` / `target_metric` express that **inside the
+  string**, not as extra fields. When more than one is tracked, **the `inputs`
+  sub-dict of each `computation_results` entry carries a `metric_name` key**
+  naming which criterion that call was for — so four `calculate_cpk` results are
+  four attributable numbers rather than four indistinguishable ones.
+
+> **This is additive and changes no tool signature.** Not one of the twenty
+> entries at §69.2–§69.6 is altered by it: `metric_name` is a key in the
+> **recorded `inputs`**, which §7 already defines as part of the
+> `computation_results` shape — it is not a new parameter, and no `args_schema`
+> in `knowledge/tool_args.py` gains a field. **Single-criterion projects are
+> unaffected**, and `metric_name` is simply absent there; a reader should not
+> infer that it became mandatory. **Why a key rather than a schema change:** the
+> alternative was making these fields lists, which would have rewritten five
+> `{Phase}Output` schemas, §7's typing law and every gate assembly, to express
+> something the KPI sub-fields already express in text. §50 renders
+> `computation_results` grouped by this key, and `MEASURE_RUBRIC` is what checks
+> the criteria actually agree end to end.
 
 > **Trusted-source basis — and why it differs from the rest of this document.**
 > Unlike LangGraph and LangChain patterns, these formulas are stable,

@@ -256,6 +256,29 @@ alarmed by what we find."*
 - `baseline_kpis` don't connect to Define's `process_kpis`
 - Steps appear that were outside Define's scope — one of the two is wrong
 
+**`baseline_kpis` — the sixth sub-field. Ask the criteria question first:**
+
+> "Before we fill in the KPI column — how many things are we tracking on this
+> process? One measure, or more than one? Plenty of projects carry two: a
+> quality measure and a time measure, say. Define named
+> {process_map_sipoc['process_kpis']} — is that still the full list?"
+
+**Show a two-criterion example**, because one column of numbers hides the
+question:
+
+> *"KPIs today, per step:*
+> *• **Error rate** — Validate 95% FTQ, Create 88% FTQ, overall 12% defective.*
+> *• **Cycle time** — touch time 31 min avg, elapsed 2.5 days avg; the gap sits
+>   in the wait before Validate."*
+>
+> "Two criteria, each traced through the same steps. That's what lets us say
+> later which one the root cause actually explains."
+
+**Capture each criterion by name in `baseline_kpis`**, using the same names
+Define used in `baseline_metric` — Measure inherits Define's vocabulary and does
+not invent a second one. If the Belt names a criterion Define did not, say so
+and ask which is right, rather than quietly adding it.
+
 ### `data_collection_plan` — Tier 1
 
 **Show:**
@@ -330,10 +353,26 @@ not the people; say so.
 > is no single 'current level' to improve from. Something changed, and we
 > need to know what before we measure anything.
 >
-> Can you plot your measure over time — weekly or monthly — and tell me
-> what you see?"
+> First, how many measures are we tracking — one, or more than one? Each one
+> gets its own chart and its own verdict, because stability is a property of the
+> thing being measured, not of the project as a whole. Can you plot each of them
+> over time — weekly or monthly — and tell me what you see?"
 
-**When the process is unstable — this is the coaching that matters:**
+**With more than one criterion, show what a per-criterion answer looks like:**
+
+> *"**Error rate** — weekly over 26 weeks. Ran 10–14% except weeks 12 and 13 at
+> 24%, both during the system migration. Excluding those two weeks: stable,
+> baseline 12.3%.*
+> ***Cycle time** — weekly over the same 26 weeks. Drifting upward from 2.1 to
+> 2.9 days with no single spike. Not stable, and no special cause identified —
+> this looks like a trend, not an event."*
+>
+> "Notice those came out differently. That is the normal case, and it is exactly
+> why one blanket 'the process is stable' will not do — **the gate rejects a
+> single verdict covering several measures.** Cycle time here is not ready for a
+> capability figure; error rate is."
+
+**When a process is unstable — this is the coaching that matters:**
 
 > "That spike is what's called a special cause — something specific that
 > happened, rather than the normal ups and downs of the process. Common
@@ -362,19 +401,51 @@ watching — which might be the project's real finding."*
 
 ### `baseline_mean` — Tier 1
 
-**Show:** *"Something like: '12.3% invoice error rate, 4,200 invoices,
-January to June 2026, excluding the two migration weeks.' The number, the
-sample, the period, and any exclusions."*
+**Ask the criteria question first:** *"How many measures are we baselining —
+just the one, or more than one? Define named {baseline_metric}; we give each of
+those its own number, sample and period."*
 
-**If it differs from Define's `baseline_metric`, surface it:** *"Define
-had 12%, you have 12.3% — is that a refinement, or did something change?"*
-The mid-phase contradiction check will catch it anyway; better it comes
-from you.
+**Show a two-criterion example:**
+
+> *"**Error rate:** 12.3%, 4,200 invoices, January–June 2026, excluding the two
+> migration weeks.*
+> ***Cycle time:** 2.6 days average, 340 invoices sampled weekly across the same
+> period, order receipt to invoice sent."*
+>
+> "Each one gets the number, the sample, the period and any exclusions. Different
+> sample sizes are fine and normal — you counted every invoice for errors and
+> sampled for timing."
+
+**Use the same criterion names Define used.** `baseline_mean` and Define's
+`baseline_metric` must name the same things; the gate checks that
+`baseline_metric` and `target_metric` agree by name and unit, and a rename here
+is how that check starts failing for no real reason.
+
+**If a number differs from Define's, surface it:** *"Define had 12%, you have
+12.3% — is that a refinement, or did something change?"* The mid-phase
+contradiction check will catch it anyway; better it comes from you.
 
 ### `baseline_sigma` — Tier 2
 
-Use `calculate_sigma_level` (§4). `calculate_dpmo`,
-`calculate_yield_rty` and `calculate_ftq` support the same conversation.
+**Ask the criteria question first:** *"Do you want a sigma level for each measure
+we're tracking, or just the one that matters most? Either is fine — but if we do
+several, each needs its own defect definition, and that is the part worth
+getting right."*
+
+**Show a two-criterion example:**
+
+> *"**Error rate:** 12.3% defective → DPMO 123,000 → sigma 2.65.*
+> ***Cycle time:** 18% of invoices breach the 3-day service level → DPMO 180,000
+> → sigma 2.42."*
+>
+> "The second one needed a decision before it needed a calculation — 'defective'
+> for a time measure means breaching a limit, so we had to name the limit first.
+> That is the usual reason a time-based sigma looks odd."
+
+Use `calculate_sigma_level` (§4), **once per criterion, passing `metric_name` in
+the call** so each result is attributable in the gate document (§69.1).
+`calculate_dpmo`, `calculate_yield_rty` and `calculate_ftq` support the same
+conversation.
 
 ### `xy_matrix_summary` — Tier 1
 
@@ -835,11 +906,23 @@ Measurement System:     {measurement_system_validated}
 Secondary Metrics:      {secondary_metrics}
 
 ─────────── Analysis ──────────────
-{computation_results rendered with interpretation:
- "Sigma level: 2.6 — typical for an unimproved process"
- "Gage R&R: 17% study variation — acceptable"
- "RTY: 74% — a quarter of work is reworked"
- Charts inline: capability plot, yield waterfall, run chart}
+{computation_results rendered with interpretation, GROUPED BY metric_name
+ when more than one criterion is tracked (§69.1):
+
+   Error rate
+     "Sigma level: 2.6 — typical for an unimproved process"
+     "Cpk 0.61 — the process cannot hold the spec as it stands"
+     {run chart, capability plot}
+   Cycle time
+     "Sigma level: 2.4 — against the 3-day service level"
+     "No Cpk — cycle time is not stable, so capability is not meaningful yet"
+     {run chart}
+   Not criterion-specific
+     "Gage R&R: 17% study variation — acceptable"
+     "RTY: 74% — a quarter of work is reworked"
+     {yield waterfall}
+
+ Single-criterion projects render one flat list, ungrouped.}
 
 ─────────── References ────────────
 {citations}
@@ -853,6 +936,14 @@ Required: {n}/7 | Recommended: {n}/3
 **tables**, never JSON. `vital_few_xs` renders as a numbered list, since
 Analyse works through it in order. Charts render inline with their
 interpretation, never as raw output.
+
+**The narrative comes from captured fields plus `computation_results`, and from
+nothing else** (§50). Every `{placeholder}` above resolves to `artifacts`
+content the Belt has committed. **Never assemble any part of this document from
+`CoachingResponse`'s `explanation`, `example`, `prompt` or `progress`** — those
+are how one turn was presented, they are gone by the next turn, and a gate
+document built from them would show what the coach said rather than what the
+project established (§50.1, WATCH 9).
 
 ---
 
@@ -940,6 +1031,18 @@ MEASURE_RUBRIC = """
          selective enough.
 [TIER 1] issues_and_barriers: concrete named blockers, or an explicit
          "none identified at this stage".
+[TIER 1] criteria agreement: every criterion named in baseline_metric appears in
+         target_metric, by the same name and the same unit, and vice versa. A
+         criterion present in one and absent from the other is a FAILURE, not a
+         warning - the project would be targeting something it never baselined,
+         or baselining something it never set a target for. This is a NAME MATCH,
+         not a judgement: compare the criterion names and units as written.
+[TIER 1] per-criterion verdicts: when more than one criterion is named, both
+         stability_assessment and any capability (Cpk) verdict are given PER
+         CRITERION. One blanket "the process is stable", or a single Cpk
+         presented as covering several metrics when only one was actually
+         checked, is a FAILURE. Stability and capability are properties of a
+         measured characteristic, not of a project.
 [TIER 2] baseline_sigma: calculated from the baseline data, presented with a
          reference point rather than as a bare number.
 [TIER 2] measurement_system_validated: GR&R or attribute agreement evidence with
@@ -962,6 +1065,17 @@ MEASURE_RUBRIC = """
   `calculate_sigma_level` behind `baseline_sigma`.
 - **`vital_few_xs` above six is a Tier 1 warning worth raising**, even
   though the field is present.
+- **Criteria agreement is checkable without judgement.** Read the criterion
+  names and units out of `baseline_metric` and out of `target_metric` and
+  compare the two sets. A mismatch is a `fail`, and the feedback should name the
+  specific criterion that is missing from which field — not "the metrics don't
+  match".
+- **Per-criterion verdicts: count the criteria first.** One criterion means one
+  stability verdict and one Cpk, and nothing here applies. Two or more means one
+  of each **per criterion**, and `computation_results` should carry a
+  `metric_name` on each entry (§69.1) so a Cpk can be attributed. **A Cpk with
+  no `metric_name` on a multi-criteria project cannot be attributed and should
+  be treated as unverified**, not as covering everything.
 - **Belt-level:** the X-Y matrix is required of all Belts and FMEA is not
   tracked (§3.7.2, §4.10.5). DOE is the only belt-gated item and belongs
   to Improve.

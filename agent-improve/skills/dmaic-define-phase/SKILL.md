@@ -102,14 +102,15 @@ comparison one phase before anyone notices (§39, the measurement thread).
 **[4 · problem_statement · required · composed from 5W2H]**
 > **Explain:** Now the heart of Define — the problem statement. I'll ask you a few simple questions, then put them together into one clear statement. We're not solving anything yet, just stating clearly what's wrong.
 > **Show:** *"Between Jan–June 2026, 12% of invoices had pricing errors (target: under 3%), affecting the finance team and clients, costing ~€35k/month."* — specific, measurable, time-bound.
-> **Ask (one at a time):** What's happening? · Where? · When / since when? · Who's affected? · Why does it matter? · How much (roughly, a number if you have one)? · What would "fixed" look like?
+> **Ask (one at a time):** What's happening? · Where? · When / since when? · Who's affected? · Why does it matter? · **How much — and is it one measure or more than one?** (a rough number each; many projects track both a quality measure and a time measure) · What would "fixed" look like?
 > **Compose & Confirm:** Putting that together, here's your problem statement: *"[composed from the Belt's own answers]"* — does that capture it accurately? *(Guard: assemble only what the Belt said; invent nothing. Store only after confirmation.)*
 
 **[5 · baseline_metric · required]**
-> **Explain:** Roughly, where does performance stand today? A rough number is fine here — we'll measure it properly in the next phase. It anchors the goal.
-> **Show:** *"Currently about 12% of invoices contain errors."*
-> **Ask:** What's the current level of the problem, as best you know it right now?
-> **Confirm**, advance.
+> **Explain:** Roughly, where does performance stand today? A rough number is fine here — we'll measure it properly in the next phase. It anchors the goal. **Some projects track more than one thing** — a quality measure and a time measure, say — and that's normal; we just name each one.
+> **Show (one criterion):** *"Error rate: about 12% of invoices contain errors."*
+> **Show (two criteria):** *"Error rate: about 12% of invoices contain errors. Cycle time: about 2.6 days from order to invoice sent."*
+> **Ask:** What's the current level of the problem, as best you know it right now? Is that one measure, or is there more than one you're tracking?
+> **Confirm** each criterion by **name, number and unit** — *"Error rate: 12%. Cycle time: 2.6 days"* — one per sentence, so Measure and Control can pick them apart later. Advance.
 
 **[6 · project_scope · required]**
 > **Explain:** Let's set boundaries — what's *in* scope and, just as importantly, what's *out*. Being explicit about what you're *not* doing protects the project from ballooning.
@@ -124,10 +125,11 @@ comparison one phase before anyone notices (§39, the measurement thread).
 > **Confirm** it mirrors the problem, advance.
 
 **[8 · target_metric · required]**
-> **Explain:** Your goal statement said it in words — now let's pin the target down as a single number. This one gets carried all the way to Control, where we compare what you actually achieved against it. Same metric and same units as your baseline, so the two can be compared.
-> **Show:** *"Under 3% of invoices with pricing errors."* — baseline was 12%; this is the number that says "done".
-> **Ask:** In the same units as your baseline — what's the target figure you're aiming for?
-> **Confirm** it uses the same metric and units as the baseline, advance.
+> **Explain:** Your goal statement said it in words — now let's pin the target down as a number. This one gets carried all the way to Control, where we compare what you actually achieved against it. Same measure and same units as your baseline, so the two can be compared. **If you named more than one measure at the baseline, each one needs a target** — otherwise you'd be aiming at something you never measured, or measuring something you never aimed at.
+> **Show (one criterion):** *"Error rate: under 3% of invoices with pricing errors."* — baseline was 12%; this is the number that says "done".
+> **Show (two criteria):** *"Error rate: under 3%. Cycle time: under 2 days."* — one target per measure, named the same way as the baseline.
+> **Ask:** For each measure you named at the baseline — what's the target figure, in the same units?
+> **Confirm** that **every criterion in the baseline has a target and no target names a criterion the baseline didn't** — the gate checks this by name and unit, and a mismatch there is what a missing target looks like one phase later. Advance.
 
 **[9 · target_date · required]**
 > **Explain:** Now the date you're planning to finish by. This is a planning parameter — if it moves later, that doesn't change whether the improvement worked, but having it stated is what makes the project a project rather than an intention.
@@ -165,3 +167,88 @@ comparison one phase before anyone notices (§39, the measurement thread).
 
 **[GATE READINESS — closing]**
 > Great work — that's Define mapped out, all required deliverables complete. Review everything in the **gate document** tab whenever you're ready and approve to move to Measure. You can still edit anything.
+
+---
+
+## Document layout
+
+**The live gate document, rendered from `artifacts` as the Belt fills it in**
+(§50, §43.4). Define renders **one progress bar, not two** — all 12 fields are
+gate-required, so there is no second population to separate out.
+
+```
+DMAIC Define — Gate Document (LIVE)
+Project: {case_id} | Belt: {leader} | Phase 1/5
+
+BUSINESS CASE                              [header + paragraph]
+{business_case}
+
+TEAM                                       [header + TABLE]
+┌──────────┬──────────────────┬────────────────────┐
+│ Name     │ Role             │ Function           │  ← row per member
+└──────────┴──────────────────┴────────────────────┘
+
+VOICE OF THE CUSTOMER                      [header + paragraph]
+{voc_summary}
+
+PROBLEM STATEMENT                          [header + callout]
+{problem_statement}
+
+BASELINE                                   [header + inline, one line each]
+{baseline_metric — one line per criterion, named}
+
+SCOPE                                      [header + two columns]
+In: {project_scope[in_scope]}   Out: {project_scope[out_scope]}
+
+GOAL                                       [header + callout]
+{goal_statement}
+
+TARGET                                     [header + inline, one line each]
+{target_metric — one line per criterion, matching BASELINE by name and unit}
+Target date: {target_date}
+
+SECONDARY METRICS                          [header + list]
+{secondary_metrics}
+
+PROCESS MAP (SIPOC)                        [header + TABLE]
+┌───────────┬────────┬─────────┬─────────┬───────────┐
+│ Suppliers │ Inputs │ Process │ Outputs │ Customers │
+└───────────┴────────┴─────────┴─────────┴───────────┘
+Process KPIs: {process_map_sipoc[process_kpis]}
+
+ISSUES AND BARRIERS                        [header + list]
+{issues_and_barriers}
+
+─────────── Analysis ──────────────
+{computation_results rendered with interpretation, GROUPED BY metric_name
+ when more than one criterion is tracked (§69.1):
+   Error rate
+     "Expected savings: €35k/month — the cost of closing the 12% → 3% gap"
+ Single-criterion projects render one flat list, ungrouped.
+ Define binds one computation tool, calculate_expected_savings (§5.2).}
+
+─────────── References ────────────
+{citations}
+
+─────────── Progress ──────────────
+Required: {n}/12
+[Download PDF] [Download Word]
+```
+
+**Rules:** `team` and `process_map_sipoc` render as **tables**, never JSON.
+`project_scope` renders as two labelled columns, because what is *out* is the
+half Belts skim. `baseline_metric` and `target_metric` render **one line per
+criterion, in the same order and under the same names**, so a reader can check
+they correspond at a glance — that correspondence is what Measure inherits and
+Control ultimately compares against.
+
+**Charts render inline with their interpretation, never as raw output**
+(§43.1 step 5).
+
+**The narrative comes from captured fields plus `computation_results`, and from
+nothing else** (§50). Every `{placeholder}` above resolves to `artifacts`
+content the Belt has committed. **Never assemble any part of this document from
+`CoachingResponse`'s `explanation`, `example`, `prompt` or `progress`** — those
+are how one turn was presented, they are gone by the next turn, and a gate
+document built from them would show what the coach said rather than what the
+project established (§50.1, WATCH 9).
