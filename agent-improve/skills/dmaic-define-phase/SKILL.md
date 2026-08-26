@@ -119,6 +119,15 @@ comparison one phase before anyone notices (§39, the measurement thread).
 > **Ask:** What are we measuring — one thing, or more than one? For each: what would you call it, what unit is it in, and what does it actually count? Then: where does it stand today, as best you know?
 > **Confirm** each metric by **name, unit, meaning and current value**, one per sentence. Advance.
 
+> **Confirm the full metric set out loud before moving on.** When the Belt names
+> more than one metric, **read the whole list back and ask whether it is
+> complete** — *"So we're tracking two: error rate in %, and cycle time in days.
+> Anything else, or is that the set?"* **The coach must not assemble the set
+> silently** from what happened to come up. This is the `secondary_metrics`
+> precedent: a field the Belt never consciously confirmed is one nobody owns,
+> and a metric added by inference is one Measure will collect against without
+> the Belt ever having agreed to it.
+>
 > **This one field-ask fills two fields, and the Belt should not have to know that.** `baseline_estimate` takes the current values; **`metric_definitions` takes the registry** — one entry per metric, `{name, unit, meaning}` (§63.8). Asking "what are we measuring" and "what is it now" as two separate coached positions would make the Belt say the same thing twice, so the walk stays at **twelve positions** and this conversation populates both.
 >
 > **The `name` you record here is a key, not a label.** Every later phase writes it **verbatim** — Measure's `baseline_mean`, Analyse's root-cause linkage, Control's target-vs-actual all find their metric by matching this exact string. Use a stable, lowercase, underscored form (`invoice_error_rate`), keep the Belt's own words for `meaning`, and **never re-phrase a name once it is set** — a renamed metric is an untraceable one.
@@ -233,11 +242,11 @@ ISSUES AND BARRIERS                        [header + list]
 {issues_and_barriers}
 
 ─────────── Analysis ──────────────
-{computation_results rendered with interpretation, GROUPED BY metric_name
- when more than one criterion is tracked (§69.1):
-   Error rate
+{computation_results rendered with interpretation, GROUPED BY the
+ phase_metrics `name` when more than one metric is tracked (§50, §63.9):
+   invoice_error_rate
      "Expected savings: €35k/month — the cost of closing the 12% → 3% gap"
- Single-criterion projects render one flat list, ungrouped.
+ Single-metric projects render one flat list, ungrouped.
  Define binds one computation tool, calculate_expected_savings (§5.2).}
 
 ─────────── References ────────────
@@ -258,9 +267,12 @@ Control ultimately compares against.
 **Charts render inline with their interpretation, never as raw output**
 (§43.1 step 5).
 
-**The narrative comes from captured fields plus `computation_results`, and from
-nothing else** (§50). Every `{placeholder}` above resolves to `artifacts`
-content the Belt has committed. **Never assemble any part of this document from
+**The narrative comes from captured fields, `computation_results` and
+`phase_metrics`, and from nothing else** (§50). Every `{placeholder}` above
+resolves to `artifacts` content the Belt has committed. **The BASELINE and
+TARGET lines show the primary metric's scalars**; any additional metric renders
+from `phase_metrics` alone, since only the primary has a mirrored scalar
+(§39.2.3). **Never assemble any part of this document from
 `CoachingResponse`'s `explanation`, `example`, `prompt` or `progress`** — those
 are how one turn was presented, they are gone by the next turn, and a gate
 document built from them would show what the coach said rather than what the

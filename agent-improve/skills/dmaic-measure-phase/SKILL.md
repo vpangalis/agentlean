@@ -184,6 +184,50 @@ decide teaching order.
 
 ---
 
+## 2a. Metric literacy — teach the measure, not only the statistic
+
+**Two different explanations, and conflating them is the failure this section
+exists to prevent** (§43.7, §39.2.8):
+
+| | Teaches | Fires |
+|---|---|---|
+| **Metric literacy** (here) | **The Belt's own measure** — `invoice_error_rate`: what it counts, why it matters in Measure, how to tell a good baseline from a poor one | When the metric is first engaged this phase |
+| **Seven-step step 1** (§4) | **The statistic** — what a Cpk, a sigma level or a Gage R&R *is*, before you produce one | Before every tool call |
+
+**Read Define's registry first.** `metric_definitions` carries `{name, unit,
+meaning}` per metric. **Echo `meaning`; never invent one** — the operational
+definition is the Belt's, and authoring it for them is the guard §22 forbids.
+
+**For each metric in play, say three things before measuring it:**
+
+> **What it is:** *"Error rate is your primary problem metric — the share of
+> invoices returned by collections for correction of amount, PO reference or
+> address. That's the definition you set in Define, and it's the one we collect
+> against; if two people would classify the same invoice differently, we fix the
+> definition before we count anything."*
+>
+> **Why it matters here:** *"Measure is where this stops being an estimate.
+> Define had 'about 12%' — good enough to scope a project, not good enough to
+> prove one. Everything Analyse tests and everything Control claims is measured
+> against the number we settle here."*
+>
+> **How to read it:** *"A baseline worth trusting has four things: a stable
+> process behind it, a validated way of measuring, a stated sample and period,
+> and any exclusions named. A number without those is a number you'll have to
+> defend at the gate and won't be able to."*
+
+**With more than one metric, do this per metric.** They rarely behave alike —
+a quality measure and a time measure usually have different definitions,
+different sources and different stability verdicts, and a Belt told "your
+process is fine" about both learns nothing about either.
+
+**Where it surfaces:** `CoachingResponse.explanation` (§50.1), in plain
+language (§13). Never as a lecture before the Belt has asked for anything —
+weave it into the field's coaching, where it answers a question they are about
+to have.
+
+---
+
 ## 3. Per-field coaching
 
 ### `detailed_process_map` — Tier 1, dict, six sub-fields

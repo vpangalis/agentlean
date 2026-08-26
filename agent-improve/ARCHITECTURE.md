@@ -73,9 +73,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.14 · 2026-08-26
+Version 1.15 · 2026-08-26
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.15 (2026-08-26)** — **§56 AMENDMENT. The Measure naming convention, the structured metric registry, and Measure's full specification at §39.2.** Founder-ratified change set, applied in five steps. **(A) Seven identifiers renamed** on the two-tier acronym rule — spell out the cryptic and local, keep the industry-standard: `process_kpis`→`process_metrics`, `baseline_kpis`→`baseline_metrics`, `baseline_metric`→`baseline_estimate`, `target_metric`→`target_value`, `vital_few_xs`→`vital_few_drivers`, `xy_matrix_summary`→`driver_priority_summary`, `post_improvement_metric`→`post_improvement_metrics`. **`baseline_mean`, `baseline_sigma` and `post_improvement_cpk` survive untouched** — they are the lookalikes the rename had to route around, which is why it ran as seven word-boundary substitutions rather than one find-replace. **(B) All 20 computation-tool NAMES stay** — `Cpk`, `DPMO`, `GR&R`, `RTY`, `FTQ`, `DOE`, `I-MR`, `ANOVA` are the recognised terms — but every docstring now opens **plain concept first, then the standard term** (§69.1). **(C) The structured metric registry replaces the prose-string multi-criteria contract of v1.14.** `metric_definitions` (§63.8, S-C38) is Define's registry of `{name, unit, meaning}`; `phase_metrics` (§63.9, S-C39) is a per-phase placeholder **on all five schemas**. Both are a **narrow fourth exception to §7's string law**, same class and reason as the three cross-phase reference dicts: **the grader traces a metric by key equality on `name`**, which prose cannot support — "Error rate: 12.3%" and "error rate (%)" are one metric to a human and two to a matcher. Scalars inside stay strings. **(D) §40's same-field-on-all-five rule now binds THREE fields**, adding `phase_metrics`; counts rise to Define 18, Measure 15, Analyse 14, Improve 14, Control 16. **Define rises by two, not one** — it alone carries the registry. **Its 12-position coached walk is unchanged**: the registry is captured inside position 5, where the Belt names what they measure, so the walk stays at twelve while the gate requires thirteen. **(E) §39.2 specifies Measure in full** — twelve subsections, written as an INDEX into the cross-cutting specs rather than a restatement of them. It carries the **single-authority rule**: `phase_metrics` is authoritative, the scalars are the primary metric's mirror and MUST equal it, additional metrics live only in `phase_metrics`. **Enforced as a `gate_apply` assembly invariant that raises** (S-F28 B1–B5, `core/metrics.py`), because two stores holding one value drift invisibly — both reads succeed and the disagreement only surfaces a phase later. **(F) Metric literacy is a new coaching requirement** (§43.7, §32): the coach teaches the *metric* — what it is, why it matters here, how to read it — distinct from §43.1's education on the *statistic*. §50's gate-document rule regroups on `phase_metrics` `name` and adds `phase_metrics` to the narrative sources. Register: **46 identified, 12 closed or resolved, 34 open** — G-45 and G-46 registered and resolved in the same pass, so every reference in §39.2 resolves. **§39.3–§39.5 stay stubbed.** **The root `AGENTIC_ARCHITECTURE_REFERENCE.md` is deliberately NOT renamed** and temporarily diverges on field names — expected under §0.12, owed at back-port once Improve settles. Decision record: `docs/CLAUDE_CODE_PROMPT_measure_naming_registry.md`.
 
 **v1.14 (2026-08-26)** — **§56 AMENDMENT. A project may track N measurement criteria, and it costs ZERO schema change.** Founder ruling, phase-review workstream: **multiplicity lives inside the existing `str` fields**, exactly as `process_map_sipoc["process_kpis"]` and `detailed_process_map["baseline_kpis"]` already carry several KPIs each. `baseline_metric`, `target_metric`, `baseline_mean`, `baseline_sigma` and `stability_assessment` **all stay `str`** — no `phases/*/schema.py` is touched, and §7's typing law is not merely respected but is what makes the ruling work. **The contract is textual:** `baseline_metric = "Error rate: 12.3% (n=4,200). Cycle time: 2.6 days (n=340)."`, with `target_metric` naming the same criteria by the same names and units. **§69.1 gains one additive convention** — when more than one criterion is tracked, a tool call's `inputs` sub-dict carries a **`metric_name`** key naming which criterion the call is for. **No tool signature changes**; `metric_name` is simply absent on single-criterion projects, so all 20 entries at §69.2–§69.6 stand unaltered. **`MEASURE_RUBRIC` gains two Tier-1 checks** (`dmaic-measure-phase/SKILL.md` §11): the criteria named in `baseline_metric` must match `target_metric` by name and unit — **a name-match, not an LLM judgment** — and where several are named, stability and any Cpk verdict must be **per criterion**, so one blanket "stable" covering four metrics fails rather than passes. **§50 gains the gate-document parity rule**, which is cross-phase rather than Measure's alone: every phase renders `computation_results` inline, grouped by `metric_name`, each with its interpretation and its chart — and **the document's narrative comes from captured field text plus `computation_results`, never from `CoachingResponse`'s turn-level `explanation`/`example`/`prompt`/`progress`**, which are ephemeral coaching UI (§50.1, WATCH 9). Measure's SKILL.md §8 already did this; Define's is back-applied, and the other three inherit it when written. **Two forward-notes recorded, not built** — F-13 (Analyse's `causal_hypothesis` must name which criterion a root cause explains) and F-14 (Control's target-vs-actual becomes one comparison per criterion); both belong to their own phase reviews. Findings 12 → 14. Decision record: `docs/measure_multicriteria_and_intent_brief.md` Part 2.
 
@@ -2906,6 +2908,10 @@ multi-deployment stage.
 - A **Document Layout** section showing the Belt what the gate document will
   look like when complete
 - Upload handling and `CoachingResponse` capture instructions
+- **Metric-literacy explanations** (§43.7) — for each metric in play, what it
+  is, why it matters in this phase, and how to read a good or bad value.
+  **Distinct from the seven-step education on the statistic**: one teaches
+  the Belt their own measure, the other teaches the tool
 - **The contradiction-check instruction** (§37, DECISIONS §R1) — every turn,
   compare the Belt's input against the prior committed values already in
   context and set `contradiction_flag` (§20) on a material contradiction.
@@ -3483,7 +3489,7 @@ measurement points carry different values** at each end:
 ```
 Define    process_map_sipoc["process_metrics"]      — WHAT is measured
 Measure   detailed_process_map["baseline_metrics"]  — the BEFORE values
-Control   post_improvement_metrics                — the AFTER values
+Control   post_improvement_metrics                  — the AFTER values
 ```
 
 **This is the spine of a DMAIC project.** A project that cannot show
@@ -3676,6 +3682,15 @@ missing any of the six keys is the partial-map failure §41 describes.
 > **Ask:** What are we measuring — one thing, or more than one? For each: what would you call it, what unit is it in, and what does it actually count? Then: where does it stand today, as best you know?
 > **Confirm** each metric by **name, unit, meaning and current value**, one per sentence. Advance.
 
+> **Confirm the full metric set out loud before moving on.** When the Belt names
+> more than one metric, **read the whole list back and ask whether it is
+> complete** — *"So we're tracking two: error rate in %, and cycle time in days.
+> Anything else, or is that the set?"* **The coach must not assemble the set
+> silently** from what happened to come up. This is the `secondary_metrics`
+> precedent: a field the Belt never consciously confirmed is one nobody owns,
+> and a metric added by inference is one Measure will collect against without
+> the Belt ever having agreed to it.
+>
 > **This one field-ask fills two fields, and the Belt should not have to know that.** `baseline_estimate` takes the current values; **`metric_definitions` takes the registry** — one entry per metric, `{name, unit, meaning}` (§63.8). Asking "what are we measuring" and "what is it now" as two separate coached positions would make the Belt say the same thing twice, so the walk stays at **twelve positions** and this conversation populates both.
 >
 > **The `name` you record here is a key, not a label.** Every later phase writes it **verbatim** — Measure's `baseline_mean`, Analyse's root-cause linkage, Control's target-vs-actual all find their metric by matching this exact string. Use a stable, lowercase, underscored form (`invoice_error_rate`), keep the Belt's own words for `meaning`, and **never re-phrase a name once it is set** — a renamed metric is an untraceable one.
@@ -3741,9 +3756,273 @@ missing any of the six keys is the partial-map failure §41 describes.
 #### 39.1.8 The other four phases
 
 Measure, Analyse, Improve and Control follow **this exact section shape**, and
-take §39.2–§39.5 when they land. Their field lists depend on **G-27** (mappers)
-and **G-28** (gate assembly), both still open. **Define is the ratified
-exemplar; the other four are stubbed pending those gaps.**
+take §39.2–§39.5 as they land. **Measure is specified at §39.2** (2026-08-26);
+Analyse, Improve and Control remain stubbed, their field lists blocked on
+**G-27** (mappers) and **G-28** (gate assembly). **Define and Measure are the
+ratified exemplars.**
+
+---
+
+### 39.2 Measure phase, complete specification
+
+*Per-phase HUB: indexes the cross-cutting specs (state §6/§58.2, graph/routing
+§13–16, gate §33–38, tiers §35, tools §30/§69, dicts §41, gate doc §50) and
+records only what is Measure-specific. Define-once holds — nothing here
+re-defines a mechanism that lives in a concern Part.*
+
+**Status: RATIFIED 2026-08-26.** Files: `phases/measure/schema.py`,
+`phases/measure/validate.py`, `skills/dmaic-measure-phase/SKILL.md`.
+
+#### 39.2.1 Purpose
+
+Measure establishes what is actually happening and proves the numbers can be
+trusted before anyone acts on them. It opens on Define's contract, expands the
+high-level SIPOC into an operational process map, decides what to collect and
+how, validates the measurement itself, confirms the process is stable, and only
+then fixes a baseline — leaving the Belt with a trustworthy baseline and the
+vital few drivers Analyse will test.
+
+#### 39.2.2 The ordered field list — the `field_index` sequence
+
+The order the planner walks (`field_index` indexes into it). Coached in
+**methodology order, not tier order** — the inversion at 3–4 is deliberate
+(§39.2.6). Schema: **§63.2 — S-C28** (canonical home).
+
+| # | Field (`artifacts` key) | Type | Tier | Note |
+|---|---|---|---|---|
+| 1 | `detailed_process_map` | `dict` | 1 | Six sub-fields (§41). Everything attaches to it |
+| 2 | `data_collection_plan` | `str` | 1 | Flows from the map's measurement points |
+| 3 | `measurement_system_validated` | `str` | 2 | MSA. **Offered before the baseline** (§39.2.6) |
+| 4 | `stability_assessment` | `str` | 1 | Run-chart read. **Before capability** (§39.2.6) |
+| 5 | `baseline_mean` | `str` | 1 | The measured central value; supersedes Define's `baseline_estimate` |
+| 6 | `baseline_sigma` | `str` | 2 | Spread / sigma level |
+| 7 | `driver_priority_summary` | `str` | 1 | Scored prioritisation of candidate drivers |
+| 8 | `vital_few_drivers` | `str` | 1 | Ranked shortlist Analyse consumes |
+| 9 | `secondary_metrics` | `str` | 2 | Carried from Define, re-checked |
+| 10 | `issues_and_barriers` | `str` | 1 | Ask once collection has been attempted |
+
+`MeasureOutput` = these ten **+** `phase_metrics` (§39.2.3) **+** four
+gate-metadata fields = **15** (was 14; §40's count rises by `phase_metrics`).
+**7 Tier 1, 3 Tier 2** — Measure keeps both tiers, unlike Define (§35).
+
+#### 39.2.3 The metric registry and Measure's placeholder
+
+**The registry is Define's** (`metric_definitions`, §39.1, **§63.8 — S-C38**):
+the canonical set of project metrics, each `{name, unit, meaning}`. `name` is
+the traceability key, identical in every phase.
+
+**Measure's placeholder is `phase_metrics`** (**§63.9 — S-C39**) — a
+`list[dict]`, one entry per registry metric this phase measured:
+
+```python
+phase_metrics = [
+    {"name": "invoice_error_rate", "unit": "%",
+     "baseline_mean": "12.3%", "baseline_sigma": "2.6 sigma",
+     "stability": "stable (2 special causes excluded)", "source": "measured"},
+    {"name": "invoice_cycle_time", "unit": "days",
+     "baseline_mean": "2.6 days", "baseline_sigma": "—", "stability": "stable",
+     "source": "measured"},
+]
+```
+
+Structured registry (founder ruling 2026-08-26): a narrow, justified **fourth
+exception** to §7's string law, same class and reason as the three cross-phase
+reference dicts — the grader traces a metric across phases by **key equality on
+`name`**, not by reading prose. Scalar values inside stay strings.
+`detailed_process_map["baseline_metrics"]` captures the before-values in the
+map, per step; `phase_metrics` is the phase-level roll-up the next phase reads.
+Multi-criteria falls out: one entry per metric, tools run once per entry
+(`name` in `computation_results.inputs`, §69.1). Scan `phase_metrics` across the
+five gate documents and a metric's whole journey is one keyed trail.
+
+> #### The single-authority rule — binding on all five phases
+>
+> **`phase_metrics` is the authoritative per-metric store.** The scalar fields
+> — Measure's `baseline_mean` and `baseline_sigma`, Define's `baseline_estimate`
+> and `target_value`, Control's `post_improvement_metrics` — are **the primary
+> metric's mirror**. They are kept because the gate document reads far better
+> with a named scalar than with an index into a list, and because Control's
+> target-vs-actual comparison was specified against them before the registry
+> existed.
+>
+> **They MUST equal that metric's `phase_metrics` entry.** **Additional metrics
+> live only in `phase_metrics`** and have no scalar to mirror.
+>
+> **Enforced as a `gate_apply` assembly invariant** (§40.1, **S-F28**), not as a
+> convention: `assert_single_authority(phase, artifacts)` runs before the
+> `{Phase}Output` is constructed, and a mismatch **raises**. By assembly time
+> every value has been captured, validated and Belt-approved, so two stores
+> disagreeing about one number is a code defect rather than an incomplete
+> phase — the class §40.1 already says must surface loudly rather than default
+> quietly. Implementation: `core/metrics.py`.
+>
+> **Two stores holding one value is how they drift**, and the drift is invisible
+> at the moment it happens: both reads succeed, both look authoritative, and the
+> disagreement only surfaces one phase later when Control compares against
+> whichever it happened to read. The mirror is the cheap change; the check is
+> what makes the mirror safe.
+>
+> **Analyse and Improve mirror nothing** — they act on drivers rather than
+> outcome values, so their entries record which metric a cause or solution
+> targets, and the invariant is vacuously satisfied (§63.9).
+
+#### 39.2.4 SIPOC → the detailed process map
+
+*Parallel to Define's §39.1.5 SIPOC handling.* Measure does not build a SIPOC —
+it **expands Define's** into an operational map. `detailed_process_map` is a
+`dict`, six sub-fields (§41, **S-C33**): `steps`, `cycle_times`, `resources`,
+`value_vs_waste`, `measurement_points`, `baseline_metrics`. **No computation
+tool** — structured capture, nothing to calculate.
+
+- **Reads** Define's `process_map_sipoc` first and opens the phase on it
+  (§39.2.11). The detailed map must **decompose that same SIPOC**, not describe
+  a different process, and must **stay inside `project_scope`** — the grader
+  flags a map that adds steps Define scoped out (§41).
+- **Show then build:** a completed example first, then the Belt's own,
+  step-by-step (never all six sub-fields at once). Waiting and rework are their
+  own rows — that is where the hidden time and the hidden factory live.
+- **`baseline_metrics` connects to Define's `process_metrics`** — the same
+  measurement points, now carrying before-values (the measurement thread, §39).
+- Visual rendering routes through `propose_diagram` (§29); a partial map missing
+  any sub-field is the failure §41 describes.
+
+#### 39.2.5 Tools bound to Measure
+
+Passed to the executor via `tools=` on `create_agent` (§18); from the subgraph's
+view the executor is one node (§13). **Fifteen — the phase maximum**, under the
+16 cap (§30).
+
+- **The universal seven** (§29.2), on every phase: `rag_lookup_methodology`,
+  `rag_lookup_evidence`, `rag_lookup_case_history`, `propose_template`,
+  `propose_diagram`, `check_gate_status`, `request_human_approval`.
+- **Eight computation tools** (§30 binding; specified §69, **S-F38–S-F45**),
+  standard statistical names kept (two-tier acronym rule), with
+  plain-concept-then-standard-term docstrings (§69.1):
+
+| Job | Tools | Serves |
+|---|---|---|
+| Size the sample | `calculate_sample_size_proportion`, `calculate_sample_size_mean` | `data_collection_plan` |
+| Trust the gauge | `calculate_grr` | `measurement_system_validated` (lock 1) |
+| Characterise the baseline | `calculate_sigma_level`, `calculate_dpmo`, `calculate_yield_rty`, `calculate_ftq` | `baseline_mean` / `baseline_sigma` |
+| Prove capability | `calculate_cpk` | capability (lock 2, after stability) |
+
+Each runs under the seven-step pattern (§43.1). The SKILL.md `allowed-tools`
+MUST match this exact subset (§32) — skill/tool drift produces a coach that
+promises a tool it was not given.
+
+#### 39.2.6 Conditions — sequence locks, routing, and the gate
+
+**Two methodology sequence locks** (coaching-order conditions; a number produced
+out of order looks authoritative while being wrong):
+
+1. **Validate before you trust** — `measurement_system_validated`
+   (`calculate_grr`) is coached at position 3, **before** the baseline at 5.
+   Enforced by coaching order plus the rubric. A baseline off an unvalidated
+   gauge measures the people, not the process.
+2. **Stability before capability** — `stability_assessment` (4) is established
+   **before** `calculate_cpk` may run. Enforced as a **tool precondition** —
+   `stability == "stable"` (§69, S-F39; §63.2 B1) — not merely a convention.
+
+**Routing conditions** — Measure's subgraph is the five-node cycle (§13), routed
+by `Command`, not conditional edges (§15). Nothing Measure-specific in the
+topology; the conditions that fire:
+
+| Where | Condition | Goes to |
+|---|---|---|
+| `planner` (S-F13 DP1) | current field incomplete, or more fields remain | `executor` (`field_index++`) |
+| `planner` | all 10 captured | `validation_stack` |
+| `validation_stack` | 2b presence of the **7 Tier 1** + 2d `MEASURE_RUBRIC` pass | `gate_review` |
+| `validation_stack` | fail | `planner` (+ `validator_feedback`); `gate_attempts ≥ 3` → escalation (§38) |
+| `gate_apply` | Belt approve / reject | `END` / `planner` (+ `rejection_feedback`) |
+
+**Gate-pass condition:** the 7 Tier 1 fields present and the rubric clears; the 3
+Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35). Each phase
+runs its own validation loop with its own budget of 3 (`gate_attempts` is per
+phase, §6).
+
+#### 39.2.7 State parameters (`MeasureState`)
+
+*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* `MeasureState` extends
+`PhaseState` — explicit `TypedDict`, not `MessagesState` (§6). All 21 declared
+`PhaseState` fields apply; the Measure-specific reads and writes:
+
+| `PhaseState` field | In Measure |
+|---|---|
+| `artifacts` | holds the 10 captured fields **+ `phase_metrics` + `computation_results`**; the planner reads it to derive what is next (there is no queue) |
+| `field_index` | walks the §39.2.2 list (0–9); distinct from `phase_index` (§6) |
+| `gate_attempts` | Measure's own retry counter, cap 3 → escalation; reset on pass |
+| `validator_feedback` | accumulates across the ≤3 validation retries; the coach reads the full list |
+| `citations` / `uploads` | the evidence trail — Measure is the heaviest upload phase (error logs, time studies, GR&R sheets); both land in the gate document |
+| `computation_results` | every tool run (§7 shape); the grader scans it for tool evidence, not prose |
+| `hop_results` / `synthesis_output` | declared but `[]` / `None` on Measure's typically single-hop turns (multi-hop is mainly Analyse, §26) — present because `CoachingPlan.retrieval_strategy` may select `multi_hop` in any phase |
+| `draft` / `belt_edits` / `final` | `dict`, never `str` (§6); `final` is the assembled gate document |
+
+Any new Measure state field requires an amendment (§6, §56).
+
+#### 39.2.8 Metric literacy — what each metric means
+
+New requirement (§32, §43.7), Measure instance. The coach teaches **two distinct
+things**, and must not conflate them:
+
+- **The metric** (the business measure — `invoice_error_rate`): what it is, why
+  it matters in Measure, and how to read a good baseline. Fires when the metric
+  is first measured, echoing its Define `meaning`. *"Error rate is the share of
+  invoices sent back for correction — your primary problem metric. A baseline
+  worth trusting is a stable, validated number with its sample and period
+  stated."*
+- **The statistic** (`mean`, `sigma`, `Cpk`, `DPMO`, `RTY`, `FTQ`, `Gage R&R`):
+  the seven-step **educate** step (§43.1 step 1) — what the number means before
+  it is produced.
+
+Plain language (§50); surfaced through `CoachingResponse.explanation` (§50.1).
+
+#### 39.2.9 Gate, storage, progress view
+
+- **Seven Tier 1 fields block** the gate (§35). Three Tier 2 warn only.
+- **The live gate document** (§50) renders `detailed_process_map` and
+  `driver_priority_summary` as tables, `vital_few_drivers` as a numbered list,
+  and `computation_results` inline with interpretation and charts (via
+  `propose_diagram`), **grouped by `phase_metrics` `name`** when several metrics
+  run. Narrative assembles from captured field text + `computation_results` +
+  `phase_metrics` — **never** from `CoachingResponse` turn fields (§50, WATCH 9).
+- **Two progress bars**, Tier 1 and Tier 2 (Measure has both tiers — unlike
+  Define's single bar).
+- Written **once** to `store/projects/{case_id}/artifacts/measure.json` by
+  `gate_apply` (§9, §33), after the single-authority invariant clears (§39.2.3).
+
+#### 39.2.10 The SKILL.md content
+
+`skills/dmaic-measure-phase/SKILL.md` is generated from this section and must
+match. **Authoritative during the refactor** (as §39.1.7 is for Define): on
+conflict this section wins until the refactor completes, then authority flips to
+the code file. The SKILL.md carries the A→F session flow, the Define-recap
+opening, the seven-step sequence per tool, a worked example per field, the
+metric-literacy explanations (§39.2.8), the Document Layout, and the
+contradiction-check instruction (§32).
+
+#### 39.2.11 Cross-phase reads and writes
+
+**Reads from Define** (`store.get(("projects", case_id, "artifacts"), "define")`):
+`metric_definitions` (the registry), `process_map_sipoc["process_metrics"]`,
+`baseline_estimate` (the anchor; flag drift into `baseline_mean`), `target_value`,
+`project_scope` (bounds the map), `problem_statement` (re-test), `voc_summary`
+(spec limits for `calculate_cpk`), `secondary_metrics`, `issues_and_barriers`.
+
+**Writes:** `detailed_process_map["baseline_metrics"]`, `phase_metrics`,
+`baseline_mean`, `baseline_sigma`, `driver_priority_summary`,
+`vital_few_drivers`.
+
+**Hands to Analyse:** `vital_few_drivers` (the starting list),
+`driver_priority_summary` (how it was derived), `baseline_mean` and
+`phase_metrics` (the values `causal_hypothesis` references),
+`measurement_system_validated` and `stability_assessment` (preconditions).
+
+#### 39.2.12 The other three phases
+
+Analyse, Improve and Control follow **this same section shape** and take
+§39.3–§39.5 at their own reviews. Their field lists remain blocked on **G-27**
+(mappers) and **G-28** (gate assembly). **Define and Measure are the ratified
+exemplars; the other three are stubbed.**
 
 ---
 
@@ -4109,6 +4388,35 @@ Belt's capability is.
 # Part IX — Reliability
 
 ---
+
+### 43.7 Metric literacy — the metric, and the statistic
+
+**The coach teaches two different things and must not conflate them.** §43.1's
+seven-step pattern educates on **the statistic** — what a Cpk or a p-value is,
+before one is produced. **Metric literacy is the other half**: what the
+project's own measure *is*, why it matters in this phase, and how to read a good
+or bad value.
+
+**For each metric in play** (`metric_definitions`, §63.8), the coach states:
+
+| | |
+|---|---|
+| **What it is** | The operational definition, echoing the registry's `meaning` in plain language — not the metric's name restated |
+| **Why it matters here** | What this phase does with it, and what a bad value would cost the project |
+| **How to read it** | What a good value looks like and what a poor one implies — so the Belt can judge their own number rather than waiting to be told |
+
+**Fires when the metric is first engaged in a phase**, not once per project: the
+same metric means something different in Measure (is this baseline trustworthy?)
+and in Control (did it move, and will it stay moved?).
+
+> **This is why `meaning` is in the registry.** A metric named
+> `invoice_error_rate` with no operational definition cannot be explained, cannot
+> be collected against consistently, and cannot be re-read by a later phase
+> without guessing. **The coach reads `meaning`; it does not invent one** — that
+> would be authoring the Belt's definition, which §22 forbids.
+
+**Required in every phase's SKILL.md** (§32). Applied in full to
+`dmaic-measure-phase/SKILL.md`; the other four inherit it at their reviews.
 
 ## 44. The failure pipeline
 
@@ -4574,20 +4882,28 @@ renders a single bar** — all 12 of its fields are gate-required, so there is n
 second population to separate out (§39.1.2).
 
 **Every phase's live gate document renders `computation_results` inline**,
-grouped by `metric_name` when more than one criterion is tracked (§69.1), each
-entry shown **with its interpretation rather than raw numbers** (§43.1 step 5)
-and with its chart via `propose_diagram` where one applies. **This is a
-document-layout requirement on every phase's SKILL.md, not an optional
-enhancement of any one phase's.**
+**grouped by `phase_metrics` `name`** when more than one metric is tracked
+(§63.9) — the same key the tool call carried in `computation_results.inputs`
+(§69.1), so a result and the metric it belongs to are joined by key rather than
+by proximity. Each entry is shown **with its interpretation rather than raw
+numbers** (§43.1 step 5) and with its chart via `propose_diagram` where one
+applies. **This is a document-layout requirement on every phase's SKILL.md, not
+an optional enhancement of any one phase's.**
 
-**The document's narrative is assembled from captured field text plus
-`computation_results`** (§40's gate-metadata sourcing) — **never from
-`CoachingResponse`'s turn-level `explanation`, `example`, `prompt` or
-`progress` fields** (§50.1, WATCH 9), which are ephemeral coaching UI. The
+**The document's narrative is assembled from captured field text, plus
+`computation_results`, plus `phase_metrics`** (§40's gate-metadata sourcing) —
+**never from `CoachingResponse`'s turn-level `explanation`, `example`, `prompt`
+or `progress` fields** (§50.1, WATCH 9), which are ephemeral coaching UI. The
 distinction is the whole point: `artifacts` is what the Belt committed and can
 defend at a gate; those four fields are how one turn was presented and are gone
 the moment the next turn renders. **A gate document assembled from presentation
 fields would show what the coach said rather than what the project established.**
+
+**The mirrored scalars are what the document shows for the primary metric**
+(§39.2.3) — `baseline_mean` reads better in a quality record than
+`phase_metrics[0]["baseline_mean"]`. **Additional metrics render from
+`phase_metrics` alone**, since only the primary has a scalar. That the two agree
+is guaranteed at assembly, not assumed by the renderer (S-F28 B2).
 
 > **This generalises what `dmaic-measure-phase/SKILL.md` §8 already specifies.**
 > It is stated here rather than in one phase's skill because a rule that lives
@@ -7777,10 +8093,32 @@ three anti-hallucination defences, which is Art. 15 territory. Deferred.
 **Purpose:** Constructs the `{Phase}Output` from already-captured values. **No
 LLM call** — Pydantic validation over `artifacts`.
 
+**Two invariants run BEFORE the document is constructed, and both raise:**
+
+1. **Field coverage** — assembly must reference **every** field in the schema
+   (§40). A field assembly never sets is a field that silently never reaches the
+   Store, and the omission is invisible until a later phase reads nothing.
+2. **Metric single authority** (§39.2.3) —
+   `assert_single_authority(phase, artifacts)` from `core/metrics.py`. The
+   primary metric's `phase_metrics` entry and the mirrored scalars **must be
+   equal**: Define's `baseline_estimate` / `target_value`, Measure's
+   `baseline_mean` / `baseline_sigma`, Control's `post_improvement_metrics`.
+   **Analyse and Improve mirror nothing** and satisfy it vacuously — they record
+   which metric a cause or solution targets, not its value.
+
+> **Both raise rather than warn, and at this point that is right.** Layer 2b,
+> the constraint check and the rubric have all run; the Belt has approved. A
+> mismatch here is therefore **a code defect, not an incomplete phase** — two
+> stores disagreeing about one number, where writing either one makes the
+> disagreement permanent. This is the same reasoning that makes a `KeyError` on
+> a gate-required field correct rather than something to defend against.
+
 **Definition — Define, the one worked example.** Under Option A (§39.1.2) all
 12 Define fields are gate-required, so **every one is a direct `artifacts[...]`
 access** in coached order — none defaults through `.get()`:
 ```python
+assert_single_authority("define", artifacts)   # §39.2.3 — raises on drift
+
 gate_document = DefineOutput(
     # All 12 gate-required (§39.1.2) — direct access throughout.
     business_case=artifacts["business_case"],
@@ -7823,6 +8161,17 @@ gate_document = DefineOutput(
 > may legitimately engage no metric, in which case §63.9 B2 requires
 > `"none this phase"` to be written into it rather than the field being absent. The row governs the other four phases, whose assemblies are
 > **G-28 — still unwritten**.
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | assembly runs for any of the five phases | call `assert_single_authority(phase, artifacts)` **before** constructing the `{Phase}Output`, and raise on any defect | §39.2.3 |
+| B2 | the primary metric's `phase_metrics` entry disagrees with a mirrored scalar | raise — `phase_metrics` is authoritative and the scalar is its mirror, so a difference means one of the two is already wrong | §39.2.3, §63.9 |
+| B3 | a phase carries mirrored scalars but `phase_metrics` names no metric | raise — the value cannot be traced to a registry metric, which is the failure the registry exists to prevent | §63.8 |
+| B4 | `phase_metrics` holds `"none this phase"` | treat the invariant as satisfied — that is a conscious answer, not a broken mirror | §63.9 B2 |
+| B5 | the phase is Analyse or Improve | satisfy the invariant vacuously; those phases record linkage, not values | §63.9 |
+| B6 | a field exists on the schema | be referenced by assembly, so nothing reaches the Store unset | §40 |
 
 #### SIPOC — at a glance
 

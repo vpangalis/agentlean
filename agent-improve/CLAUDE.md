@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.25 — August 2026
+# Version 2.2.26 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -546,6 +546,80 @@ a vocabulary.**
 > a historical count, so leaving the old field name there would have left a rule
 > naming a field that no longer exists. **§0.6 and §0.7's dated figures are still
 > untouched**, for the reason §0.18 gives: they record what was true then.
+
+### 0.20 — What Changed in 2.2.26 — the metric registry, and Measure specified
+
+**A founder-ratified change set in six steps**, recorded here as one amendment
+because it is one decision: **a project tracks N metrics, and the architecture
+must trace each of them across five phases by name.** Full detail:
+`ARCHITECTURE.md` v1.15 and §39.2. Prompt of record:
+`docs/CLAUDE_CODE_PROMPT_measure_naming_registry.md`.
+
+| Area | v2.2.25 | v2.2.26 |
+|---|---|---|
+| Define field #5 | `baseline_metric` | **`baseline_estimate`** |
+| Define field #8 | `target_metric` | **`target_value`** |
+| SIPOC key | `process_kpis` | **`process_metrics`** |
+| Detailed-map key | `baseline_kpis` | **`baseline_metrics`** |
+| Measure → Analyse | `vital_few_xs` | **`vital_few_drivers`** |
+| Measure prioritisation | `xy_matrix_summary` | **`driver_priority_summary`** |
+| Control result | `post_improvement_metric` | **`post_improvement_metrics`** |
+| Same field on all five (§10.7) | **two** | **three** — adds `phase_metrics` |
+| Define gate-required (§9.7) | 12 | **13** — adds `metric_definitions` |
+| Field counts (§10.7) | 16/14/13/13/15 | **18/15/14/14/16** |
+
+**`baseline_mean`, `baseline_sigma` and `post_improvement_cpk` are untouched**,
+and that is the point of the two-tier rule rather than an exception to it:
+**spell out what is cryptic or local; keep what is industry-standard.** Those
+three, and all 20 computation-tool names, are terms a Belt meets in every
+textbook and every audit. What changed for the tools is only the first line of
+each docstring, which now leads with the plain concept before the standard term.
+
+**The registry is two new structured fields, and a fourth exception to §10.6.**
+`metric_definitions` (Define's registry of `{name, unit, meaning}`) and
+`phase_metrics` (a per-phase placeholder on all five schemas) are `list[dict]`
+for **the same reason and in the same class** as the three cross-phase reference
+dicts: **the grader traces a metric by key equality on `name`.** Prose cannot
+carry that — *"Error rate: 12.3%"* and *"error rate (%)"* are one metric to a
+reader and two to a matcher. **Scalar values inside both stay strings**; the
+exception is the container, never the typing law.
+
+> **`phase_metrics` is authoritative; the scalars mirror it.** `baseline_mean`,
+> `baseline_sigma`, `baseline_estimate`, `target_value` and
+> `post_improvement_metrics` are **the primary metric's mirror**, kept because a
+> gate document reads better with a named scalar than with a list index, and
+> because Control's comparison was specified against them first. **They MUST
+> equal that metric's `phase_metrics` entry; additional metrics live only in
+> `phase_metrics`.** Enforced as a `gate_apply` assembly invariant that
+> **raises** (`core/metrics.py`, `ARCHITECTURE.md` S-F28 B1–B5), because two
+> stores holding one value drift invisibly: both reads succeed, and the
+> disagreement only surfaces a phase later when Control reads whichever it got.
+
+**Define's 12-position coached walk is unchanged.** `metric_definitions` is
+gate-required but captured **inside position 5**, where the Belt names what they
+are measuring — asking "what are we measuring" and "what is it today" as two
+coached positions would make the Belt say it twice. **Twelve coached, thirteen
+gate-required**, and `field_index` still walks twelve.
+
+**Metric literacy is a new coaching requirement** (§43.7, §32): the coach
+teaches **the metric** — what it is, why it matters in this phase, how to read a
+good or bad value — as distinct from the seven-step education on **the
+statistic**. Applied in full to Measure's SKILL.md; the other four inherit at
+their reviews.
+
+> **§0.6, §0.7, §0.18 and §0.19 keep their original field names**, for the
+> reason §0.18 gives: they are dated records of what was true then. A rename
+> that edits the amendment log destroys the trail the log exists to keep. **The
+> live names are §9.7's and §10.7's tables.**
+
+> **The root reference temporarily diverges, and this is expected.**
+> `../AGENTIC_ARCHITECTURE_REFERENCE.md` was **deliberately not renamed** — it is
+> the platform document for all three agents, and §0.12 states the two are
+> expected to diverge rather than be kept identical. **Until the back-port,
+> §-citations from this file into root sections may name the old field names**
+> (`baseline_metric`, `vital_few_xs`, `process_kpis` and the rest) while Improve
+> uses the new ones. **The rules those sections state are unaffected**; only the
+> field spellings differ. Owed at back-port once Improve settles (§8).
 
 ---
 
@@ -2270,14 +2344,17 @@ gate never asked for.
 
 | Phase | Gate-required fields | Count |
 |---|---|---|
-| Define | **All 12 — no tier split (Option A).** `business_case`, `team` (**list[dict]**), `voc_summary`, `problem_statement`, `baseline_estimate`, `project_scope` (**dict**), `goal_statement`, `target_value`, `target_date`, `secondary_metrics`, `process_map_sipoc` (**dict**), `issues_and_barriers` | **12** |
+| Define | **All 13 — no tier split (Option A).** `business_case`, `team` (**list[dict]**), `voc_summary`, `problem_statement`, `baseline_estimate`, `project_scope` (**dict**), `goal_statement`, `target_value`, `target_date`, `secondary_metrics`, `process_map_sipoc` (**dict**), `issues_and_barriers`, **`metric_definitions`** (the metric registry, §10.7) | **13** |
 | Measure | `baseline_mean`, `data_collection_plan`, `driver_priority_summary`, `vital_few_drivers`, `detailed_process_map` (**dict**), `stability_assessment`, `issues_and_barriers` | 7 |
 | Analyse | `root_cause_statement`, `root_cause_validation`, `practical_significance`, `issues_and_barriers` | 4 |
 | Improve | `selected_solution`, `pilot_result`, `experiment_justification`, `issues_and_barriers` | 4 |
 | Control | `control_plan` (**dict**, 5 sub-plans), `post_improvement_metrics`, `issues_and_barriers` | 3 |
 
 > **Define is the one phase with no Tier 2** (Option A, ratified 2026-08-26 —
-> §0.18). Its row is a **complete field set, not a tier**; the other four rows
+> §0.18). **Thirteen gate-required, twelve coached** — `metric_definitions` is
+> captured inside position 5's conversation rather than at its own coached
+> position, so `field_index` still walks twelve (§0.20). Its row is a **complete
+> field set, not a tier**; the other four rows
 > are Tier 1 sets and those phases keep both tiers. Everything below about how
 > the two tiers interact applies to those four.
 
@@ -2757,22 +2834,27 @@ are in `../AGENTIC_ARCHITECTURE_REFERENCE.md` §40. The binding rules:
 
 **Field counts, all five phases:**
 
-| Phase | Total | Gate-required | Tier 2 | Gate metadata |
-|---|---|---|---|---|
-| Define | **16** | **12 — all of them** | **— (no Tier 2)** | 4 |
-| Measure | 14 | 7 | 3 | 4 |
-| Analyse | 13 | 4 | 5 | 4 |
-| Improve | 13 | 4 | 5 | 4 |
-| Control | 15 | 3 | 8 | 4 |
+| Phase | Total | Gate-required | Tier 2 | `phase_metrics` | Gate metadata |
+|---|---|---|---|---|---|
+| Define | **18** | **13 — all of them, incl. `metric_definitions`** | **— (no Tier 2)** | 1 | 4 |
+| Measure | **15** | 7 | 3 | 1 | 4 |
+| Analyse | **14** | 4 | 5 | 1 | 4 |
+| Improve | **14** | 4 | 5 | 1 | 4 |
+| Control | **16** | 3 | 8 | 1 | 4 |
+
+**Every total rose by one for `phase_metrics`; Define rose by two**, because it
+alone carries `metric_definitions`, the registry (§0.20).
 
 **Define's row reads differently on purpose.** Under Option A every Define
 field is gate-required, so its count is the whole content set rather than a
 tier within it (§0.18). The other four rows are Tier 1 counts.
 
-**Two fields are on all five schemas:** `issues_and_barriers` and
-`secondary_metrics`. `issues_and_barriers` is gate-required everywhere;
-`secondary_metrics` is Tier 2 in the four tiered phases and
-**gate-required in Define**. Adding a field to one phase without
+**Three fields are on all five schemas:** `issues_and_barriers`,
+`secondary_metrics` and **`phase_metrics`** (§0.20). `issues_and_barriers`
+is gate-required everywhere; `secondary_metrics` is Tier 2 in the four
+tiered phases and **gate-required in Define**; `phase_metrics` is present
+on all five and carries `"none this phase"` rather than an empty list
+where the phase engaged no metric. Adding a field to one phase without
 considering the other four is how the cross-phase gaps in the eBook
 extraction arose in the first place.
 

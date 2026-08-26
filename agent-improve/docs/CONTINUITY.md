@@ -1,12 +1,18 @@
 <!--
 Document: agent-improve/docs/CONTINUITY.md
-Version: 4.2 — 2026-08-26
+Version: 4.3 — 2026-08-26
 Purpose: Session-start orientation. A new session reading ONLY this file should
          be able to orient fully and continue without losing a day.
 
 MAINTENANCE RULE: when a version number, a step, or a document location
 changes, update this file in the same commit. Verify claims against the files
 themselves; do not carry a line forward because it was here before.
+
+v4.3 delta (2026-08-26): Measure naming convention + structured metric registry
+applied (7 renames; metric_definitions + phase_metrics; §39.2 written;
+single-authority invariant enforced and unit-tested). ARCHITECTURE.md v1.15,
+CLAUDE.md 2.2.26. ROOT REFERENCE NOT RENAMED and now diverges on field names —
+expected per CLAUDE.md §0.12, owed at back-port once Improve settles.
 
 v4.2 delta (2026-08-26): the `baseline` -> `baseline_metric` rename is APPLIED
 and CLOSED (commit below). ARCHITECTURE.md v1.13, CLAUDE.md 2.2.25.
@@ -20,7 +26,7 @@ in §0.
 -->
 
 # AgentLean — Session Continuity Guide
-# Version 4.2 — 2026-08-26
+# Version 4.3 — 2026-08-26
 
 > **Read this first, then stop reading it.** This file orients. The binding
 > documents are named in §2 and they win on every point of detail.
@@ -417,6 +423,7 @@ evidence.** When you write a verification, first prove it can fail.
 
 | Version | Date | Change |
 |---|---|---|
+| **4.3** | 2026-08-26 | **Measure naming convention + structured metric registry.** Seven identifiers renamed on the two-tier acronym rule (`baseline_metric`→`baseline_estimate`, `target_metric`→`target_value`, `process_kpis`→`process_metrics`, `baseline_kpis`→`baseline_metrics`, `vital_few_xs`→`vital_few_drivers`, `xy_matrix_summary`→`driver_priority_summary`, `post_improvement_metric`→`post_improvement_metrics`); `baseline_mean`/`baseline_sigma`/`post_improvement_cpk` and all 20 tool names untouched. **`metric_definitions` (Define registry) + `phase_metrics` (all five schemas)** — a fourth exception to the string law, traced by key equality on `name`. **§39.2 specifies Measure in full** (12 subsections, written as an index into the cross-cutting specs). **Single-authority invariant** — `phase_metrics` authoritative, scalars mirror the primary, enforced at `gate_apply` and unit-tested across all five phases (`core/metrics.py`, 22 tests). Counts 18/15/14/14/16; same-field-on-all-five now **three** fields. Metric literacy added (§43.7, §32) and applied to Measure's SKILL.md. Register 46/12/34. ARCHITECTURE.md **v1.15**, CLAUDE.md **2.2.26**. **Root reference deliberately not renamed — diverges until back-port** |
 | **4.2** | 2026-08-26 | **`baseline` → `baseline_metric` applied and CLOSED** — founder ruling reversing `885defc`, which had renamed it the wrong direction on the authority of `DEFINE_FINALIZATION_2026-08-26.md`. §5 is authoritative. Renamed across ARCHITECTURE.md (**v1.13**), CLAUDE.md (**2.2.25**, via a proper §0.19 amendment), `phases/define/schema.py`, `skills/dmaic-define-phase/SKILL.md`, and the Analyse cross-phase-brief comment. `validate.py` needed no edit — it imports the field list rather than retyping it, which is why the atomic-unit rule earns its keep. **Siblings `baseline_mean` / `baseline_sigma` / `baseline_kpis` untouched** (27 / 8 / 15 occurrences intact) — they are the collision the rename resolves. Define's owed-item list is now empty; **WATCH 7 (`orchestrate.py`) remains open at step 4.1** |
 | **4.1** | 2026-08-26 | **Define FINALIZED to 12 required / no tiers (Option A)** — supersedes v4.0's 15/8-Tier-1; `baseline`→`baseline_metric`; `target_metric`/`baseline_metric`/`target_date` kept discrete (measurement thread); `actual_close_date` forward-noted to Control. **WATCH 3 + WATCH 8 CLOSED** (CLAUDE.md 2.2.24, `d1c7fa3`). Procedure reconciled to the out-of-band commits (`9d9e77c`, `d69a52c`). **Phase-review workstream opened** (§5) with the five-point bar; **backbone mechanics VERIFIED** against current LangGraph. **Computation-tools model ratified** — architecture holds specs, code built at step 5.3; standalone-subsystem container recommended. Measure review in progress. **§0 added: OneDrive read access for Claude Desktop** recorded so it stops being relitigated each session |
 | **4.0** | 2026-08-26 | Define fully specified; G-38 CLOSED. `DefineOutput` at 15 fields / 8 Tier 1 (SUPERSEDED by 4.1). §50.1 + §56.1; CoachingResponse gains four presentational fields. Watches 7, 8, 9 added |
