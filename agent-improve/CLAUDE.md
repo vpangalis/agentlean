@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.23 — August 2026
+# Version 2.2.24 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -465,6 +465,56 @@ needs the per-phase field ordering (**G-38**, open), and the escalation exit
 needs a node name (**G-34**, open). The *structure* is settled; those two are
 not, and `ARCHITECTURE.md` S-F13 says so at the point of use rather than in a
 footnote.
+
+### 0.18 — What Changed in 2.2.24 — two stale figures, corrected on the record
+
+**This entry exists because §0 forbids the silent fix.** Both corrections below
+are figure syncs, not rule changes — but a binding file whose numbers drift is a
+binding file that gets quoted wrongly into implementation prompts, and §0 routes
+every change to this file through a numbered entry regardless of how small the
+change looks. **Tracked as WATCH 8** in `docs/CONTINUITY.md`, deferred twice
+precisely so both halves could land together here rather than half-landing in a
+feature commit.
+
+| Area | v2.2.23 | v2.2.24 |
+|---|---|---|
+| Methodology corpus (§7.2) | "218 carry `general`" | **259** — the corpus was rebuilt and reclassified (commit `871637f`) |
+| Define gate-required fields (§9.7) | 6, with 5 Tier 2 | **12 — all of them, no Tier 1 / Tier 2 split** (§39.1 / Option A) |
+| Define field counts (§10.7) | 15 total · 6 · 5 · 4 | **16 total · 12 required · — · 4** |
+
+**The `general` count moved because the index was rebuilt, not because the rule
+changed.** `phase_relevance`'s cross-phase value is still `general`, still never
+`phase` and never `all` — that rule is unchanged and remains the point of §7.2.
+What changed underneath it is the corpus: `improve_knowledge_index_v3` classifies
+by LLM rather than by keyword counting, and 259 of its 1,184 documents land on
+`general`. **The old figure described an index that is no longer bound.**
+
+**Define is now the one phase with no Tier 2, and that is a ruling rather than a
+drift.** Option A, ratified 2026-08-26: every Define field blocks the gate, so
+`DEFINE_REQUIRED_FOR_GATE` is the whole coached list and **there is no
+`acknowledged_gaps` path out of Define** — nothing is skippable, so nothing can
+be recorded as consciously skipped. `target_metric` joins the schema;
+`business_case`, `target_date` and `secondary_metrics` move from Tier 2 into the
+required set. **The other four phases keep both tiers**, each settled at its own
+phase review, so §9.7's two-tier machinery below is unchanged for them.
+
+> **Why `baseline`, `target_metric` and `target_date` stay discrete fields.**
+> They read as redundant against `goal_statement` and are not. That field is the
+> human-readable SMART sentence; these three are the **machine-readable values
+> Control extracts** to compute target-vs-actual. Folded into prose, Control has
+> nothing to compare. Anyone "simplifying" them away breaks the measurement
+> thread one phase before the breakage is visible (§10.7, §39.1.2).
+
+**Rule numbers are untouched.** No section renumbered, so
+`.claude/config/deprecated_patterns.yaml`'s citations (§4.6, §4.5, §3.6, §4.4)
+still resolve and §0.2 is satisfied. Neither hook parses this file —
+`session-start-context.py` reads `docs/REFACTORING_PROCEDURE.md`, and the drift
+check reads the registry YAML — so this edit changes no hook behaviour.
+
+**Sections 0.6 and 0.7 keep their original figures.** They are dated "What
+Changed" records of 2.2.11 and 2.2.12 and say what was true then; correcting
+them would destroy the record this log exists to keep. **This entry supersedes
+them**, and the live figures are the tables in §9.7 and §10.7.
 
 ---
 
@@ -1358,7 +1408,7 @@ citation transparency**, never used as filters.
 **The methodology filter field is `phase_relevance`, and its cross-phase
 value is `general` — never `phase`, never `all`.** Both were wrong in
 earlier revisions; `phase` does not exist on the index (Azure rejects the
-whole query) and no document carries `all` (218 carry `general`). One
+whole query) and no document carries `all` (259 carry `general`). One
 fails loudly, the other silently returns a narrowed corpus.
 
 **A metadata key becomes a filterable field only if it is named after one
@@ -2185,17 +2235,22 @@ gate never asked for.
 | **Tier 1 — gate-required** | **Blocks** | Can `fail` | Must supply it |
 | **Tier 2 — rubric-recommended** | Not checked | At worst `warning` | Add it, or proceed with an acknowledged gap |
 
-**Tier 1, by phase:**
+**Gate-required, by phase:**
 
-| Phase | Tier 1 | Count |
+| Phase | Gate-required fields | Count |
 |---|---|---|
-| Define | `problem_statement`, `voc_summary`, `project_scope`, `goal_statement`, `process_map_sipoc` (**dict**), `issues_and_barriers` | 6 |
+| Define | **All 12 — no tier split (Option A).** `business_case`, `team` (**list[dict]**), `voc_summary`, `problem_statement`, `baseline`, `project_scope` (**dict**), `goal_statement`, `target_metric`, `target_date`, `secondary_metrics`, `process_map_sipoc` (**dict**), `issues_and_barriers` | **12** |
 | Measure | `baseline_mean`, `data_collection_plan`, `xy_matrix_summary`, `vital_few_xs`, `detailed_process_map` (**dict**), `stability_assessment`, `issues_and_barriers` | 7 |
 | Analyse | `root_cause_statement`, `root_cause_validation`, `practical_significance`, `issues_and_barriers` | 4 |
 | Improve | `selected_solution`, `pilot_result`, `experiment_justification`, `issues_and_barriers` | 4 |
 | Control | `control_plan` (**dict**, 5 sub-plans), `post_improvement_metric`, `issues_and_barriers` | 3 |
 
-**`issues_and_barriers` is Tier 1 in every phase.** Every real project has
+> **Define is the one phase with no Tier 2** (Option A, ratified 2026-08-26 —
+> §0.18). Its row is a **complete field set, not a tier**; the other four rows
+> are Tier 1 sets and those phases keep both tiers. Everything below about how
+> the two tiers interact applies to those four.
+
+**`issues_and_barriers` is gate-required in every phase.** Every real project has
 blockers; a Belt reporting none has not looked. If there genuinely are
 none, the Belt writes "none identified at this stage" — a conscious
 statement, not a silent skip.
@@ -2210,7 +2265,9 @@ violation.
 `implementation_plan`, `lessons_learned`, `transferability`,
 `secondary_metrics`, `statistical_problem_statement`,
 `process_owner_buyin`, `explanatory_power`, `project_signoff`, and the
-rest.
+rest. **In Define, `secondary_metrics` is gate-required** like every other
+Define field, and is coached at position 10 — the Tier 2 listing here is
+correct for the other four phases only (§0.18).
 
 **The grader's verdict has three statuses, not two:**
 
@@ -2660,23 +2717,31 @@ are in `../AGENTIC_ARCHITECTURE_REFERENCE.md` §40. The binding rules:
   gate
 - **Tier 2 fields use `artifacts.get("field", "")`**, cross-phase dicts
   `artifacts.get("field", {})` — an empty value records that the Belt
-  proceeded without it (§9.7)
+  proceeded without it (§9.7). **Define never uses this pattern on a
+  content field** — all 12 are gate-required, so its assembly is direct
+  `artifacts["field"]` access throughout (§0.18)
 - **Gate assembly must reference every field in the schema.** A field in
   the schema that assembly never sets is a field that silently never
   reaches the store
 
 **Field counts, all five phases:**
 
-| Phase | Total | Tier 1 | Tier 2 | Gate metadata |
+| Phase | Total | Gate-required | Tier 2 | Gate metadata |
 |---|---|---|---|---|
-| Define | 15 | 6 | 5 | 4 |
+| Define | **16** | **12 — all of them** | **— (no Tier 2)** | 4 |
 | Measure | 14 | 7 | 3 | 4 |
 | Analyse | 13 | 4 | 5 | 4 |
 | Improve | 13 | 4 | 5 | 4 |
 | Control | 15 | 3 | 8 | 4 |
 
-**Two fields are on all five schemas:** `issues_and_barriers` (Tier 1)
-and `secondary_metrics` (Tier 2). Adding a field to one phase without
+**Define's row reads differently on purpose.** Under Option A every Define
+field is gate-required, so its count is the whole content set rather than a
+tier within it (§0.18). The other four rows are Tier 1 counts.
+
+**Two fields are on all five schemas:** `issues_and_barriers` and
+`secondary_metrics`. `issues_and_barriers` is gate-required everywhere;
+`secondary_metrics` is Tier 2 in the four tiered phases and
+**gate-required in Define**. Adding a field to one phase without
 considering the other four is how the cross-phase gaps in the eBook
 extraction arose in the first place.
 
