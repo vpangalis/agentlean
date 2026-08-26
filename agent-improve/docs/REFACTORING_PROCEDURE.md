@@ -117,6 +117,7 @@ never be allowed to stall steps that do not depend on it.**
 | **`RunControl.request_drain()` UNCONFIRMED** | **8.5 only** | The API is confirmed against a real release or the LangGraph source — or a fallback drain is designed. Reference §45 |
 | **Azure Cache for Redis not provisioned** | 8.4 only | The resource exists. Reference §46, Appendix B |
 | **Two Azure index schema changes unapplied** | 5.2's `order_by` and `phase` filter; `rag_lookup_case_history`'s vector field | Step 9.1 lands |
+| **WATCH 7 — Define gate non-functional** | Define phase end-to-end runs | Step **4.1** lands (Define subgraph; executor stops delegating to v1 `orchestrate_define`, which still writes v1 names). Accepted interim, not a bug — a consequence of running 3.4's Define portion (commit `4701a09`) ahead of 4.1. `validate.py` reads v2 names; `orchestrate.py` writes v1 names; gate reads all Tier-1 fields missing. **Do not add a v1→v2 shim** (CLAUDE.md §17) — the migration happens naturally when 4.1 replaces the orchestrator's role. Cross-phase Define briefs in analyse/improve/control stay on v1 names until then, deliberately. |
 
 > ### ⛔ On `request_drain` specifically
 >
@@ -130,6 +131,18 @@ never be allowed to stall steps that do not depend on it.**
 
 Measured 2026-08-21. **These numbers are the baseline the steps below act on**;
 if they have moved, re-measure before starting.
+
+> **As of 2026-08-26:** Step 2.3 done. **Out-of-band:** Step **9.0** (index
+> rebuild, `871637f`) done; Step **3.4 partially done for Define**
+> (`4701a09`) with four phases + UI outstanding. **Next spine step: 2.4** —
+> the procedure's horizontal order resumes here. **Do not jump ahead to more
+> phase work** until the 2.4–3.3 foundation is complete; then 3.4 finishes all
+> five phases together.
+>
+> **Direction confirmed: HORIZONTAL.** Today's Define work is absorbed, not
+> extended. The two out-of-band commits are recorded so the spine reads
+> truthfully — they do not re-order it.
+
 
 | Fact | Value |
 |---|---|
@@ -448,6 +461,45 @@ document.
 ---
 
 ## Step 3.4 — `{Phase}PhaseInput` → `{Phase}Output`, with validators and UI
+
+> ⚠ **PARTIALLY EXECUTED AHEAD OF SEQUENCE — Define only (commit `4701a09`,
+> 2026-08-26).** Read before running this step.
+>
+> The Define portion of this step's schema+validator work was done early, via
+> the ratified Define amendment (`docs/DEFINE_AMENDMENT_2026-08-25.md` →
+> `ARCHITECTURE.md` §39.1).
+>
+> **Already done for Define:**
+> - `phases/define/schema.py` — `DefineOutput` (15 fields: 8 Tier 1, 3 Tier 2,
+>   4 gate metadata) rebuilt; granular 5W2H `DefinePhaseInput` retired.
+> - `phases/define/validate.py` — `DEFINE_REQUIRED_FOR_GATE` = the 8 Tier-1
+>   fields.
+> - `skills/dmaic-define-phase/SKILL.md` — written, generated verbatim from
+>   §39.1.7.
+> - `CoachingResponse` (S-C05) — gained 4 presentational fields
+>   (`explanation`, `example`, `prompt`, `progress`), shared across all five
+>   phases.
+>
+> **STILL OUTSTANDING for this step (do NOT skip):**
+> - The **other four phases'** schema+validator rebuilds — Measure, Analyse,
+>   Improve, Control. This step's "all five in one step, deliberately" rule
+>   (§14 cross-phase) is **not yet satisfied** — only Define is done. The four
+>   must be completed together.
+> - The **`ui/index.html` field-rename** coupling — NOT done for any phase. The
+>   UI still references v1 field names.
+> - **Count correction:** this step's prose below says "Define's six Tier 1
+>   fields" and "exactly one name survives from v1 (`goal_statement`)." Both
+>   are superseded by §39.1 — Define is **8 Tier 1**, and more than one field
+>   was reconciled. **§39.1 is authoritative; this step's inline counts are
+>   pre-amendment** and are left unrewritten deliberately, per the
+>   annotate-don't-rewrite rule.
+>
+> **Consequence — WATCH 7 (§0.2):** doing Define's schema early, without its
+> subgraph (Step 4.1), left `phases/define/orchestrate.py` still writing v1
+> field names while the validator reads v2 names — so **the Define gate cannot
+> currently pass.** Expected given out-of-sequence execution; resolves at Step
+> 4.1 per the procedure's own order.
+
 
 | | |
 |---|---|
@@ -1111,6 +1163,42 @@ node.
 
 ---
 
+## Step 9.0 — Knowledge-index rebuild · **DONE out-of-band (commit `871637f`, 2026-08-25)**
+
+| | |
+|---|---|
+| **Reference §** | §23 · §23.1 (corpus, classification) |
+| **Touches** | `improve_knowledge_index` → `improve_knowledge_index_v3` · `scripts/ingest_knowledge.py` |
+| **Verify** | `azure-query` — DONE |
+
+**Not in the original spine; executed ahead of sequence and recorded here for
+continuity.** Rebuilt the methodology corpus: BB eBook only (8D removed as
+cross-framework contamination; tools-suite sheets removed as thin/redundant);
+pdfplumber extraction fixing cid/footer/%-bullet garble; **LLM phase
+classification at ingest** (operational-model, temp 0.0, six-label closed set)
+replacing keyword `detect_phase`; text-embedding-3-large / 3072d preserved;
+per-page 1200/150 chunking preserved.
+
+**Live state:** `improve_knowledge_index_v3` (1,184 docs, 259 `general`) is LIVE
+via `.env` (local only — reversible one-line rollback to
+`improve_knowledge_index`, kept intact). §23.1 doc counts re-synced in the
+commit.
+
+**Interaction with Step 9.1:** this rebuild touched `improve_knowledge_index`
+only. Step 9.1's reindex targets `improve_evidence_index` and
+`improve_case_index` — **different indexes, still outstanding.** 9.1 is
+unaffected and unchanged.
+
+**Residual (WATCH register):** CLAUDE.md §7.2 still states "218 carry
+`general`" — now 259 — pending a §0.x rule amendment (WATCH 3/8).
+
+**Updates Step 5.1's premise:** 5.1 says "retriever.py already carries the
+correct `phase_relevance` filter." Still true, but the *tags it filters on* are
+now LLM-generated, not keyword. The retriever code is unchanged; the corpus
+underneath it is rebuilt.
+
+---
+
 ## Step 9.1 — The batched reindex · **EXTERNAL**
 
 | | |
@@ -1331,7 +1419,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 3.1** | `SupervisorState` and `PhaseState` | pending |
 | **Commit 3.2** | `AzureBlobStore` | pending |
 | **Commit 3.3** | Boundary mappers | pending |
-| **Commit 3.4** | `{Phase}Output` schemas + validators + UI | pending |
+| **Commit 3.4** | `{Phase}Output` schemas + validators + UI | partial (Define only; 4 phases + UI outstanding) |
 | **Commit 4.1** | Define phase subgraph | pending |
 | **Commit 4.2** | `thread_id` + disconnect policy | pending |
 | **Commit 4.3** | Supervisor graph | pending |
@@ -1356,11 +1444,31 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 8.3** | Circuit breakers + fallback chain | pending |
 | **Commit 8.4** | Level 3 cache | **BLOCKED** |
 | **Commit 8.5** | Graceful shutdown | **GATED** |
+| **Commit 9.0** | Knowledge-index rebuild | done |
 | **Commit 9.1** | Azure batched reindex | pending |
 | **Commit 10.1** | `/ask/stream` SSE | pending |
 | **Commit 10.2** | Live gate document + conflict panel | pending |
 | **Commit 11.1** | Delete v1 | pending |
 | **Commit 11.2** | Governance close-out | pending |
+
+> **⚠ Step 9.0 is `done` but the session-start hook will still propose it.**
+> The hook skips only `BLOCKED` and `GATED` rows when picking "next", so a
+> `done` row stays selectable. For every other done step that is harmless —
+> git history advances `last` past it. **9.0 is the exception: it landed as
+> `feat(knowledge): …` (`871637f`), not as a `refactor(arch-v2): commit 9.0`
+> subject, so it will never appear in the hook's git-log scan and `last` can
+> never advance past it on its own.**
+>
+> **Concretely: once 8.3 lands, the hook says "next 9.0"** — because 8.4 is
+> BLOCKED and 8.5 GATED, so both are skipped and 9.0 becomes the lowest
+> available row. It said 9.1 before this row was added. **Read Step 9.0's own
+> heading — it says DONE out-of-band — and go to 9.1.**
+>
+> Left as a documented wrinkle rather than fixed, because the fix is a change
+> to `.claude/hooks/session-start-context.py`'s `_UNAVAILABLE_STATUSES` (add
+> `done`), and that is a hook-semantics change outside this reconciliation's
+> scope. **The same trap applies to any future out-of-band step recorded
+> here.**
 
 ---
 
