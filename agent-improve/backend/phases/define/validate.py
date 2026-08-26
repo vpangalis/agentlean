@@ -3,15 +3,20 @@
 ARCHITECTURE.md §35 · §39.1.2 · §39.1.6 · §56.1 · CLAUDE.md §9.2, §9.7.
 
 **One third of an atomic unit** (§56.1): `schema.py` owns the field names and
-types, this file owns **which of them are Tier 1**, and
+types, this file owns **which of them block the gate**, and
 `skills/dmaic-define-phase/SKILL.md` coaches those exact names in §39.1.2's
 order. `DEFINE_REQUIRED_FOR_GATE` is imported from `schema.py` rather than
 retyped here — **two hand-maintained copies of one list is precisely how the
 three drift apart.**
 
-**Tier 1 blocks; Tier 2 warns** (§35). This is validation Layer 2b — field
-presence, **deterministic, no LLM** (§9.2). Layers 2a, 2c and 2d are elsewhere
-and are not this function's business.
+**Define is the one phase with no Tier 2** (Option A, ratified 2026-08-26;
+§39.1.2). **All 12 fields block.** The "Tier 2 warns only" path of §35 has no
+Define members, and `acknowledged_gaps` is therefore always empty for this
+phase — nothing is skippable, so nothing can be acknowledged as skipped. The
+other four phases keep both tiers, each settled at its own phase review.
+
+This is validation Layer 2b — field presence, **deterministic, no LLM** (§9.2).
+Layers 2a, 2c and 2d are elsewhere and are not this function's business.
 
 ═══════════════════════════════════════════════════════════════════════
 ⚠ THE V1 WRITER IS NOT YET MIGRATED — THE V1 DEFINE GATE CANNOT PASS
@@ -19,14 +24,15 @@ and are not this function's business.
 
 **This validator now requires the §39.1.2 field names. `phases/define/
 orchestrate.py` still writes the v1 granular names**, so on the v1 path every
-Tier 1 field reads as missing and the gate never opens.
+required field reads as missing and the gate never opens.
 
 **That is the ratified rename landing ahead of its writer, not a defect here.**
 §39.1.2 retires `what` / `where` / `when` / `who_affected` / `why_it_matters` /
 `how_much_baseline` / `how_goal`, `scope_in` / `scope_out`, and the duplicate
-`estimated_completion_date` (F-11). The v2 writer is the executor node, which
-captures through `CoachingResponse.fields_captured` into `artifacts` (§56.1);
-`orchestrate.py` is v1 and is deleted at procedure step 11.1.
+`estimated_completion_date` (F-11). Of the 12 required names, **exactly two
+match v1** — `goal_statement` and `target_date`. The v2 writer is the executor
+node, which captures through `CoachingResponse.fields_captured` into `artifacts`
+(§56.1); `orchestrate.py` is v1 and is deleted at procedure step 11.1.
 
 **A v1-to-v2 name shim was considered and rejected.** It would be *adding*
 v1-style code, which CLAUDE.md §17 forbids, and it would hide the divergence
@@ -35,7 +41,8 @@ half-lands and stays half-landed.
 
 **Owed:** migrate `phases/define/orchestrate.py` (and, with it, the Define
 cross-phase briefs that `analyse` / `improve` / `control` orchestrators build
-from the v1 names) as part of procedure step 3.4. Tracked in `CONTINUITY.md`.
+from the v1 names) as part of procedure step 4.1 (WATCH 7). Tracked in
+`CONTINUITY.md`.
 """
 from __future__ import annotations
 
@@ -44,7 +51,7 @@ import logging
 from backend.core.config import settings
 from backend.core.state import ImproveGraphState
 from backend.phases.define.schema import (
-    DEFINE_TIER_1_FIELDS,
+    DEFINE_REQUIRED_FIELDS,
     PROJECT_SCOPE_KEYS,
     SIPOC_KEYS,
     TEAM_MEMBER_KEYS,
@@ -52,9 +59,9 @@ from backend.phases.define.schema import (
 
 logger = logging.getLogger(__name__)
 
-# The eight Tier 1 fields that BLOCK the Define gate (§35, §39.1.2).
+# All 12 Define fields BLOCK the gate (§35, §39.1.2 — Option A).
 # Sourced from schema.py — the single declaration.
-DEFINE_REQUIRED_FOR_GATE = list(DEFINE_TIER_1_FIELDS)
+DEFINE_REQUIRED_FOR_GATE = list(DEFINE_REQUIRED_FIELDS)
 
 
 def _missing_structured(data: dict) -> list[str]:
@@ -99,10 +106,10 @@ def validate_define(state: ImproveGraphState) -> dict:
     """Validator node for the Define phase.
 
     Gate enforcement is a **completeness check against
-    `DEFINE_REQUIRED_FOR_GATE`**, not a Pydantic required-field check —
-    matching the other four phases. `DefineOutput` is the gate *document*,
-    assembled once at `gate_apply` after Belt approval (§33); it is not the
-    mechanism that decides whether the gate opens.
+    `DEFINE_REQUIRED_FOR_GATE`** — all 12 fields — not a Pydantic
+    required-field check, matching the other four phases. `DefineOutput` is the
+    gate *document*, assembled once at `gate_apply` after Belt approval (§33);
+    it is not the mechanism that decides whether the gate opens.
 
     Signature and return shape match the LangGraph node contract
     (state -> state slice) so `graph.py` and the HTTP `/gate` route both call
@@ -112,7 +119,7 @@ def validate_define(state: ImproveGraphState) -> dict:
     data = dict(phase_inputs.get("define") or {})
     attempts = state.get("gate_attempts") or 0
 
-    # ── Layer 2b: Tier 1 presence ─────────────────────────────────────
+    # ── Layer 2b: presence of all 12 required fields ──────────────────
     missing: list[str] = []
     for field in DEFINE_REQUIRED_FOR_GATE:
         val = data.get(field)

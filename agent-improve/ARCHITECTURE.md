@@ -73,9 +73,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.11 · 2026-08-26
+Version 1.12 · 2026-08-26
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.12 (2026-08-26)** — **§56 AMENDMENT. Define is FINALIZED at Option A — all 12 fields gate-required, no Tier 1 / Tier 2 split in Define.** Supersedes v1.11's 8/3 split for Define only; **the other four phases keep their tiers**, each decided at its own phase review. **This pass is a consistency finalization**: §39.1.2, §40, §35's per-phase table, §43.4's live-preview sample, §63.1 (S-C27) and §62.11 (S-F28) are reconciled to one answer, which also resolves the live §39.1-vs-§40 contradiction over whether `team` and `baseline` were gate-required. **`DefineOutput` is 16 fields — 12 required + 4 gate metadata**, up from 15: **`target_metric` is added** and `secondary_metrics`, `business_case` and `target_date` join the required set. **`baseline_metric` is renamed `baseline` throughout** — the last two references outside the schema (§28.1's middleware post-mortem, §33's structured-output caveat) now match the field the code declares. **`baseline`, `target_metric` and `target_date` stay discrete required fields and are NOT folded into `goal_statement`** — they are the machine-readable values Control extracts to compute target-vs-actual, mirroring the existing three-phase KPI thread (§39). **Gate assembly for Define is direct `artifacts[...]` access on all 12** — the Tier 2 `.get(..., "")` row never applies, and there is no `acknowledged_gaps` path for Define. **§39.1.7 gains two coaching blocks** (`target_metric`, `secondary_metrics`) and `target_date` gains a worked example, taking the coached sequence to 12; `skills/dmaic-define-phase/SKILL.md` and `phases/define/{schema,validate}.py` are rebuilt with it as one atomic unit (§56.1). **F-12 records the forward dependency**: Control needs an `actual_close_date` to pair with Define's planned `target_date`, to be formalized at Control's phase review. **WATCH 7 is unchanged** — `orchestrate.py` still writes the v1 names and the Define gate stays non-functional until procedure step 4.1; this pass is spec-plus-schema alignment, not the orchestrator migration. **WATCH 8 is unchanged** — `CLAUDE.md`'s "Define 6 Tier 1" becomes "Define 12 required" in its own §0.x amendment, deliberately not in this commit. Register: 44 identified, 9 closed or resolved, 35 open; findings 11 → 12. Decision record: `agent-improve/docs/DEFINE_FINALIZATION_2026-08-26.md`.
 
 **v1.11 (2026-08-26)** — **§56 AMENDMENT. The Define phase is fully specified at §39.1; G-38 CLOSED for Define; `CoachingResponse` gains four presentational fields.** **§39.1 is the ratified amendment's "new §41" renumbered** — §41 was already "Structured dict fields, and FMEA", RATIFIED and cited 23 times here, three times in `CLAUDE.md` §10.8 and once in Appendix A, and sections run 1–68 with no gaps. Placing Define at **§39.1** expands the §39 table row that describes it, breaks no citation, and reserves §39.2–§39.5 for the other four phases (founder ruling, 2026-08-25). **§39.1.2 is the ordered field list — ten coached fields — and that list IS the `field_index` sequence, which closes G-38** and makes S-F13's DP1 predicate implementable for Define; the other four phases stay blocked on G-27 and G-28, so the closure is per-phase by design and all seven inline G-38 markers now say so. **`DefineOutput` is 15 fields — 8 Tier 1, 3 Tier 2, 4 gate metadata**, up from 6 Tier 1: `team` and `baseline` join Tier 1, `project_scope` becomes a dict, `problem_statement` is composed from 5W2H coaching rather than stored granularly, and one `target_date` replaces the `target_date` / `estimated_completion_date` duplicate. **Founder ruling: `secondary_metrics` stays** — the amendment's ten-row table omitted it, but §40's two-fields-on-all-five rule was not retracted, and §39.1.2 is the *coached* list rather than the whole schema. **F-11 records that the built `DefinePhaseInput` had diverged from the v2 names**, so this rebuild is not later read as having introduced them — it retired them. **§50.1 defines the coach response structure** and **§56.1 adds the atomic-unit principle**: a phase's `schema.py`, `validate.py` and `SKILL.md` are one unit sharing one field vocabulary, and rebuilding one without the others is a §56-class violation — a mismatch does not fail loudly, it fails at the gate one phase later. **`CoachingResponse`'s four new fields carry a five-phase blast radius**, stated rather than discovered; the UI half is not built. Register: 44 identified, **9 closed or resolved, 35 open.** Pydantic and `response_format=` verified against live documentation 2026-08-26. Decision record: `agent-improve/docs/DECISIONS.md` §W1.
 
@@ -1776,7 +1778,7 @@ turn that flag into an interrupt.
 >    turn, by construction.
 > 2. **Field-name matching finds almost nothing.** Of 41 distinct content
 >    fields across the five `{Phase}Output` schemas, **38 are unique to exactly
->    one phase** — `baseline_metric` in Define, `baseline_mean` in Measure, the
+>    one phase** — `baseline` in Define, `baseline_mean` in Measure, the
 >    same quantity deliberately differently named. **93% cannot cross-phase
 >    name-match at all.**
 > 3. **The 3 shared names are all prose** — `issues_and_barriers`,
@@ -1906,7 +1908,7 @@ invents them, and the second failure mode is worse. See §40.
 
 ### What structured output does NOT give you
 
-**Truth.** It guarantees shape. A schema-valid `baseline_metric: 4.2` invented
+**Truth.** It guarantees shape. A schema-valid `baseline: 4.2` invented
 by the model is exactly as well-formed as a correct one. Content-level defence
 is the anti-hallucination guards (§22), validation Layer 2a (§34) and the
 policy advisory (§33) — **not this mechanism.** No reader should come away
@@ -3183,17 +3185,25 @@ only shape and presence.
 only on Tier 1; 2d can `fail` only on Tier 1 and can `warning` on either. There
 is no longer a criterion the grader can fail that the gate never asked for.
 
-### Tier 1 by phase
+### Gate-required fields by phase
 
-| Phase | Tier 1 fields | Count |
+| Phase | Gate-required fields | Count |
 |---|---|---|
-| **Define** | `team` (**list[dict]**), `voc_summary`, `problem_statement`, `baseline`, `project_scope` (**dict**), `goal_statement`, `process_map_sipoc` (**dict**), `issues_and_barriers` | **8** |
+| **Define** | **All 12 — no tier split (Option A).** `business_case`, `team` (**list[dict]**), `voc_summary`, `problem_statement`, `baseline`, `project_scope` (**dict**), `goal_statement`, `target_metric`, `target_date`, `secondary_metrics`, `process_map_sipoc` (**dict**), `issues_and_barriers` | **12** |
 | **Measure** | `baseline_mean`, `data_collection_plan`, `xy_matrix_summary`, `vital_few_xs`, `detailed_process_map` (**dict**), `stability_assessment`, `issues_and_barriers` | **7** |
 | **Analyse** | `root_cause_statement`, `root_cause_validation`, `practical_significance`, `issues_and_barriers` | **4** |
 | **Improve** | `selected_solution`, `pilot_result`, `experiment_justification`, `issues_and_barriers` | **4** |
 | **Control** | `control_plan` (**dict**, 5 sub-plans), `post_improvement_metric`, `issues_and_barriers` | **3** |
 
-**`issues_and_barriers` is Tier 1 in every phase.** Every real project has
+> **Define is the one phase with no Tier 2** (founder ruling, Option A, ratified
+> 2026-08-26). Every Define field blocks the gate, so `DEFINE_REQUIRED_FOR_GATE`
+> **is** the whole coached list and there is no `acknowledged_gaps` path out of
+> Define. **The other four phases retain both tiers**, each settled at its own
+> phase review (§39.2–§39.5); Measure additionally keeps an optional path for
+> MSA. The rows above are those four phases' **Tier 1** sets and Define's
+> **complete** set — do not read the Define row as a tier.
+
+**`issues_and_barriers` is gate-required in every phase.** Every real project has
 blockers; a Belt reporting none has not looked. If there genuinely are none,
 the Belt writes "none identified at this stage" — **a conscious statement, not
 a silent skip.**
@@ -3451,7 +3461,7 @@ This Part is where DMAIC itself enters the schema.*
 
 | Phase | What the Belt produces | Gate blocks on |
 |---|---|---|
-| **Define** | A measurable problem, its scope, a SMART goal, the customer's voice, the team, a rough baseline, a SIPOC with KPIs | 8 Tier 1 fields (§39.1) |
+| **Define** | A measurable problem, its scope, a SMART goal, the customer's voice, the team, a rough baseline, a target and a date, a SIPOC with KPIs | **12 required fields — no tiers** (§39.1) |
 | **Measure** | A validated baseline, a data collection plan, a detailed process map, prioritised X's, a stability assessment | 7 Tier 1 fields |
 | **Analyse** | A specific root cause, the evidence validating it, and how much of the problem it explains | 4 Tier 1 fields |
 | **Improve** | A selected solution, a pilot result, and a stated position on experimentation | 4 Tier 1 fields |
@@ -3503,31 +3513,47 @@ at a high level.
 S-F13's DP1 predicate ("is the current field complete?") reads it. Before this
 list existed, `field_index` indexed into nothing (G-38).
 
-| # | Field (`artifacts` key) | Type | Tier | Notes |
+| # | Field (`artifacts` key) | Type | Gate | Notes |
 |---|---|---|---|---|
-| 1 | `business_case` | `str` | 2 | Strategic rationale — why invest |
-| 2 | `team` | `list[dict]` | 1 | Each entry `{name, role, function}`. Roles per §39.1.4 |
-| 3 | `voc_summary` | `str` | 1 | Who the customers are, and what they need |
-| 4 | `problem_statement` | `str` | 1 | ONE SMART statement, **composed from 5W2H coaching** (§39.1.3). The 5W2H are NOT separate stored fields |
-| 5 | `baseline` | `str` | 1 | Rough baseline stated in Define; the rigorous baseline is Measure's job. Founder ruling: stays in Define |
-| 6 | `project_scope` | `dict` | 1 | `{in_scope: str, out_scope: str}` — both explicit |
-| 7 | `goal_statement` | `str` | 1 | SMART, mirrors the problem; carries the target value and date |
-| 8 | `target_date` | `str` (ISO) | 2 | Project completion target. **Single date field** — `estimated_completion_date` is retired as a duplicate |
-| 9 | `process_map_sipoc` | `dict` | 1 | Six keys: `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, `process_kpis`. Fewer than six filled is the partial-map failure (§41) |
-| 10 | `issues_and_barriers` | `str` | 1 | Always last, always Tier 1. "none identified at this stage" is a valid conscious answer |
+| 1 | `business_case` | `str` | **required** | Strategic rationale — why invest; the quantified impact (COPQ) where the Belt has it |
+| 2 | `team` | `list[dict]` | **required** | Each entry `{name, role, function}`. Roles per §39.1.4 |
+| 3 | `voc_summary` | `str` | **required** | Who the customers are, and what they need |
+| 4 | `problem_statement` | `str` | **required** | ONE SMART statement, **composed from 5W2H coaching** (§39.1.3). The 5W2H are NOT separate stored fields |
+| 5 | `baseline` | `str` | **required** | **Discrete** current-state value — Control compares against it. Rough in Define; the rigorous baseline is Measure's job. Founder ruling: stays in Define |
+| 6 | `project_scope` | `dict` | **required** | `{in_scope: str, out_scope: str}` — both explicit |
+| 7 | `goal_statement` | `str` | **required** | The SMART sentence — human-readable prose that mirrors the problem |
+| 8 | `target_metric` | `str` | **required** | **Discrete** target value — Control compares achieved-vs-target. **Not redundant with `goal_statement`:** that is prose, this is the comparable value |
+| 9 | `target_date` | `str` (ISO) | **required** | The **planned** completion date — a project-management parameter, which may slip without affecting the improvement logic. **Single date field** — `estimated_completion_date` is retired as a duplicate. Distinct from Control's actual close date (F-12) |
+| 10 | `secondary_metrics` | `str` | **required** | What could get worse — the side-effect watch. One of the two fields §40 requires on all five schemas |
+| 11 | `process_map_sipoc` | `dict` | **required** | Six keys: `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, `process_kpis`. Fewer than six filled is the partial-map failure (§41) |
+| 12 | `issues_and_barriers` | `str` | **required** | Always last. "none identified at this stage" is a valid conscious answer |
 
-**Tier 1 (8):** `team`, `voc_summary`, `problem_statement`, `baseline`,
-`project_scope`, `goal_statement`, `process_map_sipoc`, `issues_and_barriers`.
-**Tier 2 (2 coached):** `business_case`, `target_date`.
+> **Define uses Option A — all fields gate-required, no tiers. Ratified
+> 2026-08-26.** `DEFINE_REQUIRED_FOR_GATE` is all 12; the gate blocks until
+> every one is populated and passes the quality rubric, and **there is no
+> `acknowledged_gaps` path for Define** because no field is skippable. This
+> supersedes the 8/3 split of 2026-08-25 **for Define only** — the other four
+> phases keep Tier 1 / Tier 2, each decided at its own phase review (§35,
+> §39.1.8).
 
-> **This list is the COACHED sequence, not the whole schema.** `DefineOutput`
-> additionally carries `secondary_metrics` — Tier 2, and one of the two fields
-> §40 requires on all five schemas — plus the four gate-metadata fields, which
-> are assembled rather than coached. **`DefineOutput` is therefore 15 fields: 8
-> Tier 1, 3 Tier 2, 4 gate metadata** (§40, §63.1). Founder ruling 2026-08-25:
-> the ratifying amendment's ten-row table omitted `secondary_metrics`, and §40's
-> all-five rule was **not** retracted, so it stays. Reading the ten rows as the
-> complete schema would have silently dropped a cross-schema invariant.
+> **The measurement thread — do NOT "simplify" these away.** `baseline`,
+> `target_metric` and `target_date` are discrete fields **on purpose**, not
+> redundant restatements of `goal_statement`. Define sets `baseline` (the start)
+> and `target_metric` (the goal value); **Control captures the achieved value
+> and computes target-vs-actual.** If those numbers lived only inside
+> `goal_statement` prose, Control could not extract and compare them. This
+> mirrors the existing three-phase KPI thread —
+> `process_map_sipoc["process_kpis"]` → `detailed_process_map["baseline_kpis"]`
+> → `post_improvement_metric` (§39, S-C27 B7). `target_date` is the same pattern
+> for schedule rather than performance.
+
+> **This list is the COACHED sequence and, for Define, also the complete
+> required set.** `DefineOutput` is these 12 **plus** the four gate-metadata
+> fields, which are assembled rather than coached — **16 fields in total: 12
+> required, 4 gate metadata** (§40, §63.1). Unlike the other four phases, no
+> Define field sits outside the coached walk: `secondary_metrics`, which the
+> 2026-08-25 amendment's ten-row table had omitted and which §40 requires on all
+> five schemas, is now coached at position 10 rather than assembled silently.
 
 > **Reconciliation — supersedes the built v1 `DefinePhaseInput` (F-11).** v1 used
 > granular 5W2H fields (`what` / `where` / `when` / `who_affected` /
@@ -3580,10 +3606,13 @@ missing any of the six keys is the partial-map failure §41 describes.
 
 #### 39.1.6 Gate, storage, progress view
 
-- Tier-1 fields **block** the gate; Tier-2 fields **warn only** (§35).
+- **All 12 fields block** the gate (Option A, §39.1.2). Define has no Tier 2,
+  so the "warn only" path of §35 has no Define members and `acknowledged_gaps`
+  is always empty for this phase.
 - The **live gate document** renders from `artifacts` (§50) — the secondary tab
-  where the Belt sees progress, with **separate Tier-1 and Tier-2 progress
-  bars**, what is done and what is missing.
+  where the Belt sees progress, what is done and what is missing. **Define shows
+  one progress bar, not two**: the separate Tier-1 / Tier-2 bars of §50 apply to
+  the four phases that have both tiers.
 - Written **once** to `store/projects/{case_id}/artifacts/define.json` by
   `gate_apply` (§9, §33).
 
@@ -3610,54 +3639,67 @@ missing any of the six keys is the partial-map failure §41 describes.
 > • **Control** — make the gains stick
 > Right now we're in **Define** — the most important phase, because a clear problem is half the solution. I'll explain each thing, show you an example, then ask for yours. Let's go at your pace.
 
-**[1 · business_case · Tier 2]**
+**[1 · business_case · required]**
 > **Explain:** Let's start with the big picture. Before the problem itself, let's be clear on *why this project is worth doing* — what's the pain costing, and why should people care? This is what earns you the time and support to fix it. No need to be formal.
 > **Show:** *"Invoice errors cost ~€35k/month in rework and delayed payments, and billing complaints rose 40% this year. Fixing this protects revenue and frees two staff currently spending half their week on corrections."*
 > **Ask:** In a sentence or two — why is *your* project worth doing? What's the pain, and what does it cost the business?
 > **Confirm**, then move on.
 
-**[2 · team · Tier 1]**
+**[2 · team · required]**
 > **Explain:** Now let's name your team — because a project needs people before it needs work. We'll note each person's name, their role, and what they'll do. Don't worry if it's not fully settled; we can refine it.
 > **Show:** *"Leader: Anna (Green Belt, runs the project day-to-day). Sponsor: Mark, Finance Director (approves and removes blockers). Process Owner: Jo, Billing Manager (owns the process). Members: two billing clerks (subject-matter experts)."*
 > **Ask:** Who's leading this project? Who's the sponsor who can approve and clear obstacles? Who owns the process? And who are your team members — the people who know the work?
 > **Confirm** each name with its role and function, then advance.
 
-**[3 · voc_summary · Tier 1]**
+**[3 · voc_summary · required]**
 > **Explain:** Next, the Voice of the Customer — who your process serves and what *they* actually need. It keeps us honest: we improve what matters to the people receiving the output, not just what we assume is broken.
 > **Show:** *"Customers (internal finance teams + external clients) need invoices that are accurate, arrive within 2 days, and match agreed pricing. Top complaint: wrong amounts, then late delivery."*
 > **Ask:** Who are the customers of your process — internal, external, or both — and what do they need? What do they complain about most?
 > **Confirm**, advance.
 
-**[4 · problem_statement · Tier 1 · composed from 5W2H]**
+**[4 · problem_statement · required · composed from 5W2H]**
 > **Explain:** Now the heart of Define — the problem statement. I'll ask you a few simple questions, then put them together into one clear statement. We're not solving anything yet, just stating clearly what's wrong.
 > **Show:** *"Between Jan–June 2026, 12% of invoices had pricing errors (target: under 3%), affecting the finance team and clients, costing ~€35k/month."* — specific, measurable, time-bound.
 > **Ask (one at a time):** What's happening? · Where? · When / since when? · Who's affected? · Why does it matter? · How much (roughly, a number if you have one)? · What would "fixed" look like?
 > **Compose & Confirm:** Putting that together, here's your problem statement: *"[composed from the Belt's own answers]"* — does that capture it accurately? *(Guard: assemble only what the Belt said; invent nothing. Store only after confirmation.)*
 
-**[5 · baseline · Tier 1]**
+**[5 · baseline · required]**
 > **Explain:** Roughly, where does performance stand today? A rough number is fine here — we'll measure it properly in the next phase. It anchors the goal.
 > **Show:** *"Currently about 12% of invoices contain errors."*
 > **Ask:** What's the current level of the problem, as best you know it right now?
 > **Confirm**, advance.
 
-**[6 · project_scope · Tier 1]**
+**[6 · project_scope · required]**
 > **Explain:** Let's set boundaries — what's *in* scope and, just as importantly, what's *out*. Being explicit about what you're *not* doing protects the project from ballooning.
 > **Show:** *"In: UK invoice generation, order receipt to invoice sent. Out: payment collection, non-UK regions, the pricing database."*
 > **Ask:** Where does your process start and end (in scope)? And what are you deliberately keeping out?
 > **Confirm** both in and out, advance.
 
-**[7 · goal_statement · Tier 1]**
+**[7 · goal_statement · required]**
 > **Explain:** Your goal should mirror your problem — same metric, a target value, a deadline. That makes success unambiguous.
 > **Show:** *"Reduce invoice pricing errors from 12% to under 3% by 30 September 2026."*
 > **Ask:** Taking your problem's number — what's the target, and by when?
 > **Confirm** it mirrors the problem, advance.
 
-**[8 · target_date · Tier 2]**
-> **Explain:** Roughly when do you expect the whole project to wrap up?
+**[8 · target_metric · required]**
+> **Explain:** Your goal statement said it in words — now let's pin the target down as a single number. This one gets carried all the way to Control, where we compare what you actually achieved against it. Same metric and same units as your baseline, so the two can be compared.
+> **Show:** *"Under 3% of invoices with pricing errors."* — baseline was 12%; this is the number that says "done".
+> **Ask:** In the same units as your baseline — what's the target figure you're aiming for?
+> **Confirm** it uses the same metric and units as the baseline, advance.
+
+**[9 · target_date · required]**
+> **Explain:** Now the date you're planning to finish by. This is a planning parameter — if it moves later, that doesn't change whether the improvement worked, but having it stated is what makes the project a project rather than an intention.
+> **Show:** *"30 September 2026."*
 > **Ask:** What's your target completion date for the project?
 > **Confirm**, advance.
 
-**[9 · process_map_sipoc · Tier 1 · show then build]**
+**[10 · secondary_metrics · required]**
+> **Explain:** Here's the counterweight question — what could get *worse* while you make your main metric better? Almost every fix pushes something else in the wrong direction, and naming those now is how you avoid solving one problem by creating another. We'll keep an eye on these right through to Control.
+> **Show:** *"Invoice cycle time (extra checking could slow it down), billing team overtime, and the number of invoices needing manual review."*
+> **Ask:** If your fix works, what else might it affect for the worse? What will you watch to make sure you haven't traded one problem for another?
+> **Confirm**, advance.
+
+**[11 · process_map_sipoc · required · show then build]**
 > **Explain:** Now we'll map your process at a high level with a **SIPOC** — Suppliers, Inputs, Process, Outputs, Customers. It's just a one-page view of your whole process. We'll build it together, one column at a time.
 > **Show (a filled example, as a table):**
 >
@@ -3673,7 +3715,7 @@ missing any of the six keys is the partial-map failure §41 describes.
 > **Ask (column by column):** Let's build yours. First, the **Process** — what are the 5–7 main steps, start to end? … then Suppliers, Inputs, Outputs, Customers in turn. And: what do you measure on those outputs? (that's the sixth key, `process_kpis`). You can also upload a SIPOC if you have one.
 > **Confirm** the assembled SIPOC as a table; flag any thin column; check all six keys filled. Advance.
 
-**[10 · issues_and_barriers · Tier 1]**
+**[12 · issues_and_barriers · required]**
 > **Explain:** Last one — what might get in the way? Missing data, people to convince, systems you can't change, timing? Naming these now is what separates projects that finish from projects that stall.
 > **Show:** *"Pricing DB owned by IT (sign-off may delay). Two members on leave in August. No clean historical error data yet — may need to collect it."*
 > **Ask:** What could get in the way? Be honest — data, people, systems, timing? If genuinely none, "none identified at this stage" is fine, but have a think first.
@@ -3705,22 +3747,27 @@ fields.**
 gate-metadata sourcing and cross-schema rules below stay here.
 
 **A schema is not the same list as the coaching order.** §39.1.2 gives Define's
-**coached** sequence — the ten fields the planner walks by `field_index`.
-`DefineOutput` is those ten **plus** `secondary_metrics` (Tier 2, required on
-all five — see below) **plus** the four gate-metadata fields, which are
-assembled rather than coached. Fifteen in total. **Reading a phase's coached
+**coached** sequence — the twelve fields the planner walks by `field_index`.
+`DefineOutput` is those twelve **plus** the four gate-metadata fields, which are
+assembled rather than coached. Sixteen in total. **Reading a phase's coached
 list as its schema drops the cross-schema invariants**, which is exactly what
-the two-fields-on-all-five rule exists to prevent.
+the two-fields-on-all-five rule exists to prevent — and it is why Define now
+coaches `secondary_metrics` explicitly (position 10) rather than assembling it
+behind the Belt's back.
 
 ### Field counts
 
-| Phase | Total | Tier 1 | Tier 2 | Gate metadata |
+| Phase | Total | Gate-required | Tier 2 | Gate metadata |
 |---|---|---|---|---|
-| Define | **15** | 8 | 3 | 4 |
+| Define | **16** | **12 — all of them** | **— (no Tier 2)** | 4 |
 | Measure | **14** | 7 | 3 | 4 |
 | Analyse | **13** | 4 | 5 | 4 |
 | Improve | **13** | 4 | 5 | 4 |
 | Control | **15** | 3 | 8 | 4 |
+
+**Define's column reads differently on purpose.** Under Option A (§39.1.2) every
+Define field is gate-required, so its "gate-required" count is its whole content
+set rather than a tier within it. The other four rows are **Tier 1** counts.
 
 ### The four gate-metadata fields
 
@@ -3740,9 +3787,11 @@ grounded in.
 
 ### Two fields are on all five schemas
 
-`issues_and_barriers` (Tier 1) and `secondary_metrics` (Tier 2). **Adding a
-field to one phase without considering the other four is how the cross-phase
-gaps arose in the first place.**
+`issues_and_barriers` and `secondary_metrics`. `issues_and_barriers` is
+gate-required everywhere; `secondary_metrics` is Tier 2 in the four tiered
+phases and **gate-required in Define** (§39.1.2). **Adding a field to one phase
+without considering the other four is how the cross-phase gaps arose in the
+first place.**
 
 ### 40.1 Gate assembly
 
@@ -3760,6 +3809,12 @@ over values already captured.
 | **Tier 2** | `artifacts.get("field", "")` | An empty value **records that the Belt proceeded without it** (§35) |
 | Cross-phase dicts | `artifacts.get("field", {})` | Same, with the right empty type |
 
+> **Define has no Tier 2 row.** Under Option A all 12 of its fields are
+> gate-required, so `DefineOutput` assembly is **direct `artifacts["field"]`
+> access throughout** and the `.get(..., "")` pattern never applies to it
+> (§39.1.2, S-F28). The tiered access pattern above governs the other four
+> phases.
+
 **Gate assembly must reference every field in the schema.** A field in the
 schema that assembly never sets is a field that silently never reaches the
 Store.
@@ -3771,7 +3826,7 @@ Store.
 *Supersedes: REFACTORING §68; ARCHITECTURE.md §4.10.5–§4.10.7; CLAUDE.md §10.8; DECISIONS §C5, §C6.*
 **Status: RATIFIED.**
 
-**Three Tier 1 fields are structured dicts**, distinct from the three
+**Three gate-required fields are structured dicts**, distinct from the three
 cross-phase reference dicts of §7:
 
 | Field | Phase | Sub-fields |
@@ -3951,10 +4006,10 @@ count the Belt can see at any time**:
 | Stage | What happens |
 |---|---|
 | **A** | Orientation — context setting, phase purpose |
-| **B** | Mandatory Tier 1 fields, one by one, show-first |
+| **B** | Mandatory gate-required fields, one by one, show-first |
 | **C** | Computation tools, seven-step pattern |
 | **D** | Cross-phase references where applicable |
-| **E** | Tier 2 fields — advisory, the Belt decides |
+| **E** | Tier 2 fields — advisory, the Belt decides. **Empty for Define**, which has no Tier 2 (§39.1.2) |
 | **F** | Gate readiness check (`check_gate_status()`) and submission |
 
 ### 43.4 The live gate document preview
@@ -3964,19 +4019,27 @@ count the Belt can see at any time**:
 final document will look like:
 
 ```
-📋 Your Define Gate Document (4 of 6 required fields complete)
+📋 Your Define Gate Document (5 of 12 required fields complete)
 
-✅ Problem Statement: "Invoice error rate at 12.3% causes..."
+✅ Business Case: "Invoice errors cost ~€35k/month in rework..."
+✅ Team: [4 members — Leader, Sponsor, Process Owner, 2 SMEs]
 ✅ VOC Summary: "Customer complaints focus on..."
+✅ Problem Statement: "Invoice error rate at 12.3% causes..."
+✅ Baseline: "12.3% of invoices contain pricing errors"
 ⬜ Project Scope: [not yet captured]
-✅ Goal Statement: "Reduce invoice error rate from 12.3% to <3%..."
-✅ Process Map (SIPOC): [complete — 6/6 sub-fields]
+⬜ Goal Statement: [not yet captured]
+⬜ Target Metric: [not yet captured]
+⬜ Target Date: [not yet captured]
+⬜ Secondary Metrics: [not yet captured]
+⬜ Process Map (SIPOC): [not yet captured]
 ⬜ Issues & Barriers: [not yet captured]
 
-Tier 2 fields: Business Case ✅  Team ✅  Charter ⬜ (optional)
-
-We're on Step 5 of 6. Let's capture Project Scope next.
+We're on Step 6 of 12. Let's capture Project Scope next.
 ```
+
+**Define shows one list, not two.** All 12 of its fields are gate-required
+(§39.1.2), so there is no "optional" section to render and nothing the Belt can
+consciously skip. The four tiered phases render their Tier 2 fields separately.
 
 **The Belt should always know what they are building toward.** Each SKILL.md
 carries a Document Layout section for its phase.
@@ -4472,7 +4535,9 @@ progress counts derive from that one source; there is no stored
 
 **Tier 1 and Tier 2 get separate progress bars, not one blended count.** A Belt
 at 6/6 required and 0/5 recommended **can pass the gate**; a single blended
-percentage would read as 55% and imply otherwise.
+percentage would read as 55% and imply otherwise. **Define is the exception and
+renders a single bar** — all 12 of its fields are gate-required, so there is no
+second population to separate out (§39.1.2).
 
 **The LangSmith run id is surfaced for support escalation** (§51) — a Belt
 reporting a bad turn can name the exact trace.
@@ -4760,9 +4825,16 @@ inform the design as it lands.
 **The phase schemas are rewritten in place** — `{Phase}PhaseInput` becomes
 `{Phase}Output` in the same file. No parallel schema, no deprecation window, no
 retirement step. There is no production consumer to protect, and the two models
-are near-disjoint: of Define's six Tier 1 fields, exactly one name matches the
-v1 schema. Two conversions bind: `team_members` from `list[TeamMember]` to a
-string (§7), and `sipoc` gains `process_kpis` as its sixth key (§41).
+are near-disjoint: of Define's **12 required fields, exactly two names match the
+v1 schema** — `goal_statement` and `target_date`. The other ten are new names
+for values v1 held under different ones (`how_much_baseline` → `baseline`,
+`primary_metric` → `target_metric`, `secondary_metric` → `secondary_metrics`,
+`business_case_rationale` → `business_case`, `team_members` → `team`,
+`scope_in`/`scope_out` → `project_scope`, `sipoc` → `process_map_sipoc`, the
+seven granular 5W2H fields → one composed `problem_statement`), or values v1
+never held at all (`voc_summary`, `issues_and_barriers`). Two conversions bind:
+`team_members` from `list[TeamMember]` to `list[dict]` (§39.1.4), and `sipoc`
+gains `process_kpis` as its sixth key (§41).
 
 **Until migration is complete the v1 architecture may still operate, but no
 v1-style code may be ADDED.** A file is "migrated" when it is rewritten under
@@ -4971,7 +5043,7 @@ field vocabulary. They are always rebuilt together, never independently.**
 | File | Owns |
 |---|---|
 | `schema.py` (`{Phase}Output`) | The field **names, types, shape** |
-| `validate.py` | Which of those fields are **Tier 1** — gate-blocking (§35) |
+| `validate.py` | Which of those fields are **gate-required** — gate-blocking (§35). For Define that is all 12 (§39.1.2) |
 | `SKILL.md` | Coaches **those exact field names, in the planner's `field_index` order** (§39.1.2) |
 
 **They share field names by construction.** If the SKILL coaches
@@ -5437,7 +5509,7 @@ field requires a §56 amendment, whatever category it is placed in.**
 > sites.
 
 **Failure modes:**
-- A missing key in `artifacts` at Tier 1 gate assembly is **correct behaviour**
+- A missing key in `artifacts` at gate-required assembly is **correct behaviour**
   — Layer 2b should have blocked the gate, so the `KeyError` must surface
   (§40.1).
 - `coaching_plan` is `None` before the planner's first turn; readers MUST treat
@@ -7490,8 +7562,10 @@ permitted exception to "no classes outside §54's files"**: a namespace of
 | B4 | it and `check_gate_status()` both compute missing fields | produce the same answer, derived the same way, so the prompt and the gate cannot disagree | §19.1 |
 | B5 | it holds anything | hold no state | §54 |
 
-**The Tier 1 lists it checks** are §35's, per phase: Define 6, Measure 7,
-Analyse 4, Improve 4, Control 3.
+**The gate-required lists it checks** are §35's, per phase: **Define 12 (all
+required — no tiers, Option A §39.1.2)**, Measure 7, Analyse 4, Improve 4,
+Control 3. For the four tiered phases those are Tier 1 counts; for Define it is
+the whole field set.
 
 **`AI-ACT-REVIEW: uncertain.`** It participates in the gate decision, which
 argues for a flag; it is deterministic and holds no judgment, which makes it a
@@ -7639,22 +7713,27 @@ three anti-hallucination defences, which is Art. 15 territory. Deferred.
 **Purpose:** Constructs the `{Phase}Output` from already-captured values. **No
 LLM call** — Pydantic validation over `artifacts`.
 
-**Definition — Define, the one worked example:**
+**Definition — Define, the one worked example.** Under Option A (§39.1.2) all
+12 Define fields are gate-required, so **every one is a direct `artifacts[...]`
+access** in coached order — none defaults through `.get()`:
 ```python
 gate_document = DefineOutput(
-    problem_statement=artifacts["problem_statement"],      # Tier 1 — direct
+    # All 12 gate-required (§39.1.2) — direct access throughout.
+    business_case=artifacts["business_case"],
+    team=artifacts["team"],
+    voc_summary=artifacts["voc_summary"],
+    problem_statement=artifacts["problem_statement"],
+    baseline=artifacts["baseline"],
     project_scope=artifacts["project_scope"],
     goal_statement=artifacts["goal_statement"],
-    voc_summary=artifacts["voc_summary"],
+    target_metric=artifacts["target_metric"],
+    target_date=artifacts["target_date"],
+    secondary_metrics=artifacts["secondary_metrics"],
     process_map_sipoc=artifacts["process_map_sipoc"],
     issues_and_barriers=artifacts["issues_and_barriers"],
-    business_case=artifacts.get("business_case", ""),      # Tier 2 — .get()
-    team=artifacts.get("team", ""),
-    baseline_metric=artifacts.get("baseline_metric", ""),
-    target_metric=artifacts.get("target_metric", ""),
-    secondary_metrics=artifacts.get("secondary_metrics", ""),
+    # Gate metadata — the same four on all five schemas (§40)
     computation_results=artifacts.get("computation_results", []),
-    acknowledged_gaps=acknowledged_gaps,
+    acknowledged_gaps=acknowledged_gaps,   # always [] for Define — nothing is skippable
     citations=state["citations"],
     uploads=state["uploads"],
 )
@@ -7664,9 +7743,14 @@ gate_document = DefineOutput(
 
 | Tier | Access | Why |
 |---|---|---|
-| Tier 1 | `artifacts["field"]` | **A `KeyError` here is correct** — Layer 2b should have blocked the gate, so reaching assembly without the field is a bug that must surface loudly |
+| Tier 1 / gate-required | `artifacts["field"]` | **A `KeyError` here is correct** — Layer 2b should have blocked the gate, so reaching assembly without the field is a bug that must surface loudly |
 | Tier 2 | `artifacts.get("field", "")` | An empty value **records that the Belt proceeded without it** |
 | Cross-phase dicts | `artifacts.get("field", {})` | Same, with the right empty type |
+
+> **The Tier 2 row does not apply to Define.** It has no Tier 2 fields, which is
+> why the worked example above shows twelve direct accesses and no `.get()` on a
+> content field. The row governs the other four phases, whose assemblies are
+> **G-28 — still unwritten**.
 
 #### SIPOC — at a glance
 
@@ -7716,29 +7800,30 @@ three structured dicts (S-C33).
 **Architecture:** §40 · **File:** `phases/define/schema.py` · **Procedure:** step 3.4
 *Rebuild test: met.*
 
-**Purpose:** Define's gate document. 15 fields — 8 Tier 1, 3 Tier 2, 4 gate
-metadata. **The coached order is §39.1.2**; the declaration order below groups
-by tier, which is a readability choice and carries no ordering meaning.
+**Purpose:** Define's gate document. **16 fields — 12 required, 4 gate
+metadata.** No Tier 1 / Tier 2 split: Define uses **Option A**, every field
+blocks the gate (§39.1.2, ratified 2026-08-26). **The declaration order below is
+the coached order** of §39.1.2 — with no tiers to group by, the two lists are
+one.
 
 ```python
 class DefineOutput(BaseModel):
-    """Gate document for the Define phase."""
-    # Tier 1 — gate-required (§39.1.2)
+    """Gate document for the Define phase. All 12 fields gate-required (Option A)."""
+    business_case:        str         # strategic rationale / quantified impact (COPQ)
     team:                 list[dict]  # [{name, role, function}] — §39.1.4
     voc_summary:          str         # who the customers are, what they need
     problem_statement:    str         # ONE SMART statement, composed — §39.1.3
-    baseline:             str         # rough current level; Measure does it properly
+    baseline:             str         # DISCRETE current-state value — Control compares
     project_scope:        dict        # {in_scope, out_scope} — both explicit
-    goal_statement:       str         # SMART, mirrors the problem, carries target + date
-    process_map_sipoc:    dict         # SIPOC + KPIs, 6 sub-fields (§41)
-    issues_and_barriers:  str         # Belt-stated blockers
-    # Tier 2 — rubric-recommended
-    business_case:        str         # strategic rationale — why invest
-    target_date:          str         # ISO; the single date field
+    goal_statement:       str         # the SMART sentence, human-readable prose
+    target_metric:        str         # DISCRETE target value — Control compares
+    target_date:          str         # ISO; the PLANNED completion date (PM parameter)
     secondary_metrics:    str         # what could get worse — on all five (§40)
-    # Gate metadata
+    process_map_sipoc:    dict        # SIPOC + KPIs, 6 sub-fields (§41)
+    issues_and_barriers:  str         # Belt-stated blockers
+    # Gate metadata (unchanged)
     computation_results:  list[dict] = []
-    acknowledged_gaps:    list[str]  = []
+    acknowledged_gaps:    list[str]  = []   # stays in schema; always empty for Define
     citations:            list[dict] = []
     uploads:              list[dict] = []
 ```
@@ -7750,16 +7835,26 @@ conversation produces prose no planner can read and no grader can check;
 `team` is `list[dict]` because a project has N people and each carries three
 attributes.
 
+**`baseline`, `target_metric` and `target_date` are discrete fields, not
+duplicates of `goal_statement`.** `goal_statement` is the human-readable SMART
+sentence; these three are the **machine-readable values Control extracts** to
+compute target-vs-actual. Folding them into the prose would leave Control with
+nothing to compare (§39.1.2, the measurement thread). `acknowledged_gaps` stays
+on the schema for cross-schema uniformity (§40) but is **always empty for
+Define** — no field is skippable, so nothing can be acknowledged as skipped.
+
 **Behaviors (EARS):**
 
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
 |---|---|---|---|
-| B1 | the gate is evaluated | block on all **eight** Tier 1 fields | §35, §39.1.2 |
+| B1 | the gate is evaluated | block on **all 12 required fields** — Define has no Tier 2 and no `acknowledged_gaps` path, so a missing field can never be waived (Option A) | §35, §39.1.2 |
 | B2 | `process_map_sipoc` is graded | require all six sub-fields, `process_kpis` among them | §41 |
 | B3 | `process_kpis` is set | carry WHAT is measured — the first link of the three-phase measurement thread | §39 |
 | B4 | `project_scope` is graded | require **both** `in_scope` and `out_scope` — what the project is *not* doing is what protects it from ballooning | §39.1.2 |
 | B5 | `problem_statement` is captured | store only the composed statement the Belt has confirmed, assembled from the Belt's own words with nothing invented | §39.1.3, §22 |
 | B6 | the coach elicits 5W2H | treat them as conversational prompts, never as stored fields | §39.1.3 |
+| B7 | `baseline` and `target_metric` are captured | store them as **discrete values**, never folded into `goal_statement` prose — Control extracts both to compute target-vs-actual, and prose it cannot parse breaks that comparison | §39, §39.1.2 |
+| B8 | `target_date` is captured | treat it as the **planned** completion date, a project-management parameter that may slip without invalidating the improvement. **Control's `actual_close_date` is the paired value** and is not yet specified — F-12 | §39.1.2, §66.7 |
 
 ### 63.2 S-C28 · `MeasureOutput`
 
@@ -7963,7 +8058,7 @@ demonstrated nothing.
 **Architecture:** §41, §39 · **File:** `phases/{phase}/schema.py` · **Procedure:** step 3.4
 *Rebuild test: met.*
 
-**Purpose:** Three Tier 1 fields are structured dicts, **distinct from the three
+**Purpose:** Three gate-required fields are structured dicts, **distinct from the three
 cross-phase reference dicts.** They are dicts rather than prose because a
 coaching conversation produces text no downstream planner can read and no grader
 can check.
@@ -8535,15 +8630,15 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-01** | Level 2 (subgraph-internal) `Command` routing was undesigned: §13 drew the branching, §15 stated the rule, and no `Command(goto=…)` existed anywhere | **RESOLVED 2026-08-24.** Three decision points, at S-F13: the **planner** owns field/gate routing and the executor returns plainly (§17); the validation exit increments `gate_attempts` **once at entry** and branches pass / retry / escalate; the gate exit is approve → `END`, reject → planner. Verified against current LangGraph docs. **DP1's predicate depended on G-38, closed 2026-08-25 for Define** (§39.1.2); **the escalation exit's node name still depends on G-34** (open). See S-F13, §13, §15 |
 | **G-02** | What a Belt REJECT does was unstated — `POST /gate/reject` existed in §49's table and in §33.1's frontend sequence with no defined behaviour | **RESOLVED 2026-08-24, founder ruling.** Reject **loops to the planner for another coaching turn**; the Belt **MUST supply a reason**, carried as `rejection_feedback` — a new `PhaseState` field (S-C02) — so the re-coach addresses what was actually objected to rather than repeating the refused turn. **The `/gate/reject` payload gains a mandatory reason, which depends on G-18** (open). See S-F13 DP3, §33, S-C02 |
 | **G-44** | Raised 2026-08-24 as the narrow successor to G-43: the S-F10 wrapper node's inner `subgraph.ainvoke` is a third case neither §16's bare-node claim nor G-43's standalone-invoke check covered. | **RESOLVED 2026-08-24.** Pattern B (wrapper node invoking the subgraph) is correct and is in fact forced — `SupervisorState` and `PhaseState` share no keys, so `add_node(subgraph)` is unavailable. The inner invoke persists `PhaseState` across turns **provided** it is called directly inside the node function with inherited config and is never relocated inside a tool. Verified against current LangChain subgraph docs; local repro owed. See §16. |
-| **G-38** | `field_index` had no ordering source — the per-phase field list it indexes into was stated nowhere, and §13's "advance to the next field" depended on it. **G-01 depended on it too**: S-F13 DP1's predicate could not be implemented without it | **CLOSED 2026-08-25.** §39.1.2 states Define's ordered field list — ten coached fields, `business_case` through `issues_and_barriers` — and **that list IS the `field_index` sequence.** DP1's predicate is now implementable for Define. **The closure is Define-only by design:** §39.1.8 gives the other four phases the same section shape at §39.2–§39.5, and their lists remain blocked on G-27 and G-28. Resolution reconciled the v1-code divergence toward the v2 names (F-11). See §39.1.2, S-F13, S-C02 |
+| **G-38** | `field_index` had no ordering source — the per-phase field list it indexes into was stated nowhere, and §13's "advance to the next field" depended on it. **G-01 depended on it too**: S-F13 DP1's predicate could not be implemented without it | **CLOSED 2026-08-25.** §39.1.2 states Define's ordered field list — **twelve** coached fields, `business_case` through `issues_and_barriers` (the list grew from ten at the 2026-08-26 Option A finalization, which added `target_metric` and brought `secondary_metrics` into the coached walk) — and **that list IS the `field_index` sequence.** DP1's predicate is now implementable for Define. **The closure is Define-only by design:** §39.1.8 gives the other four phases the same section shape at §39.2–§39.5, and their lists remain blocked on G-27 and G-28. Resolution reconciled the v1-code divergence toward the v2 names (F-11). See §39.1.2, S-F13, S-C02 |
 
 ### 66.7 Findings — recorded, not gaps
 
 **A gap is something missing. A finding is something present and wrong, or
 present and inconsistent.** These were surfaced by the conversion pass and the
-Supplier/Customer cross-check, whose first run is recorded at §66.8. **None
-was fixed by the pass**; each needs a
-§56-routed decision of its own.
+Supplier/Customer cross-check, whose first run is recorded at §66.8, and — from
+**F-12** — by the Define finalization of 2026-08-26. **None was fixed by the
+pass that raised it**; each needs a §56-routed decision of its own.
 
 | # | Finding |
 |---|---|
@@ -8558,6 +8653,7 @@ was fixed by the pass**; each needs a
 | **F-09** | **`BeforeModelStateInjection` is named after the hook it must not use.** Its hook is `before_agent`; §19, §19.1 and `CLAUDE.md`'s no-go list each correct the `before_model` reading separately. The class name reproduces the error every time it is read |
 | **F-10** | **`degraded_mode_response` reads counts that `check_gate_status()` produces** (§46 body vs §29.2), and both are unspecified (G-31). They should be designed together, or the Belt sees two different completion counts |
 | **F-11** | **The built `DefinePhaseInput` had diverged from the v2 architecture names.** It carried granular 5W2H fields (`what`, `where`, `when`, `who_affected`, `why_it_matters`, `how_much_baseline`, `how_goal`), `scope_in`/`scope_out` as separate strings, and **both** `target_date` and `estimated_completion_date` — a duplicate date. **Resolved by the §39.1 rebuild**, in favour of the v2 names: one composed `problem_statement`, `project_scope` as a dict, one `target_date`. **Recorded so the rebuild is not later read as having introduced those names** — it retired them. The 5W2H survive as the coaching method (§39.1.3), never as stored fields |
+| **F-12** | **Control has no `actual_close_date`, and Define's `target_date` therefore has nothing to be compared against.** Define's finalization (2026-08-26) makes `target_date` a required field and states explicitly that it is the **planned** completion date — a project-management parameter that may slip without invalidating the improvement. **The pattern it belongs to is target-vs-actual**, the same one `target_metric` uses: Define states the target, Control captures what actually happened, and the delta is the finding. `target_metric` has its Control counterpart in `post_improvement_metric` (S-C31); **`target_date` has none.** Recorded as a forward dependency, **not built here** — Control's field list is settled at its own phase review (§39.5, blocked on G-27/G-28), and adding a field to `ControlOutput` outside that review is exactly the one-phase-at-a-time change §40 warns about. **When Control is specified, `actual_close_date` must be on the agenda alongside the schedule-variance question it implies** (is a slipped date a Control finding, or only a record?) |
 
 ### 66.8 The Supplier/Customer cross-check — first run, 2026-08-23
 
