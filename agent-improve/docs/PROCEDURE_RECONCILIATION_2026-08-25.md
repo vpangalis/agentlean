@@ -33,6 +33,13 @@
 
 ## Edit 2 — Annotate Step 3.4 as partially executed for Define, ahead of sequence
 
+> **Figures refreshed 2026-08-26 (Option A finalization, commit `885defc`).**
+> This edit was authored on 2026-08-25 against the amendment's 8 Tier 1 / 3
+> Tier 2 split. The banner text below carries the **current** figures — 12
+> required, no tiers — so that it and the live Step 3.4 banner in
+> `REFACTORING_PROCEDURE.md` cannot drift apart. Only the counts moved; the
+> edit's intent and structure are as originally ratified.
+
 **Add this banner at the top of Step 3.4:**
 
 > ⚠ **PARTIALLY EXECUTED AHEAD OF SEQUENCE — Define only (commit `4701a09`, 2026-08-25).** Read before running this step.
@@ -40,15 +47,15 @@
 > The Define portion of this step's schema+validator work was done early, via the ratified Define amendment (`docs/DEFINE_AMENDMENT_2026-08-25.md` → ARCHITECTURE.md §39.1).
 >
 > **Already done for Define:**
-> - `phases/define/schema.py` — `DefineOutput` (15 fields: 8 Tier 1, 3 Tier 2, 4 gate metadata) rebuilt; granular 5W2H `DefinePhaseInput` retired.
-> - `phases/define/validate.py` — `DEFINE_REQUIRED_FOR_GATE` = the 8 Tier-1 fields.
+> - `phases/define/schema.py` — `DefineOutput` (**16 fields: 12 required, 4 gate metadata — no tiers, Option A**) rebuilt; granular 5W2H `DefinePhaseInput` retired.
+> - `phases/define/validate.py` — `DEFINE_REQUIRED_FOR_GATE` = the **12 required fields** (no tiers, Option A — see §39.1 / `DEFINE_FINALIZATION_2026-08-26.md`).
 > - `skills/dmaic-define-phase/SKILL.md` — written, generated verbatim from §39.1.7.
 > - `CoachingResponse` (S-C05) — gained 4 presentational fields (`explanation`, `example`, `prompt`, `progress`), shared across all five phases.
 >
 > **STILL OUTSTANDING for this step (do NOT skip):**
 > - The **other four phases'** schema+validator rebuilds — Measure, Analyse, Improve, Control. This step's "all five in one step, deliberately" rule (§14 cross-phase) is **not yet satisfied** — only Define is done. The four must be completed together.
 > - The **`ui/index.html` field-rename** coupling — NOT done for any phase. The UI still references v1 field names.
-> - **Count correction:** this step's prose says "Define has six Tier 1 fields" and "exactly one v1 name survives (`goal_statement`)." Both are superseded by §39.1 — Define is **8 Tier 1**, and more than one field was reconciled. §39.1 is authoritative; this step's inline counts are pre-amendment.
+> - **Count correction:** this step's prose says "Define has six Tier 1 fields" and "exactly one v1 name survives (`goal_statement`)." Both are superseded — Define is **12 required fields with no Tier 1 / Tier 2 split** (Option A, ratified 2026-08-26), and **two** v1 names survive: `goal_statement` and `target_date`. §39.1 and `DEFINE_FINALIZATION_2026-08-26.md` are authoritative; this step's inline counts are pre-amendment.
 >
 > **Consequence — WATCH 7 (Edit 3):** doing Define's schema early, without its subgraph (Step 4.1), left `phases/define/orchestrate.py` still writing v1 field names while the validator reads v2 names — so **the Define gate cannot currently pass.** Expected given out-of-sequence execution; resolves at Step 4.1 per the procedure's own order.
 

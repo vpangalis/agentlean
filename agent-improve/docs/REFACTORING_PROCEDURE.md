@@ -462,18 +462,23 @@ document.
 
 ## Step 3.4 — `{Phase}PhaseInput` → `{Phase}Output`, with validators and UI
 
-> ⚠ **PARTIALLY EXECUTED AHEAD OF SEQUENCE — Define only (commit `4701a09`,
-> 2026-08-26).** Read before running this step.
+> ⚠ **PARTIALLY EXECUTED AHEAD OF SEQUENCE — Define only (commits `4701a09`
+> then `885defc`, 2026-08-26).** Read before running this step.
 >
 > The Define portion of this step's schema+validator work was done early, via
 > the ratified Define amendment (`docs/DEFINE_AMENDMENT_2026-08-25.md` →
-> `ARCHITECTURE.md` §39.1).
+> `ARCHITECTURE.md` §39.1), then **finalized at Option A**
+> (`docs/DEFINE_FINALIZATION_2026-08-26.md` → §39.1.2, §40, §63.1). **Build to
+> the finalization, not the amendment** — the amendment's 8 Tier 1 / 3 Tier 2
+> split is superseded for Define.
 >
 > **Already done for Define:**
-> - `phases/define/schema.py` — `DefineOutput` (15 fields: 8 Tier 1, 3 Tier 2,
->   4 gate metadata) rebuilt; granular 5W2H `DefinePhaseInput` retired.
-> - `phases/define/validate.py` — `DEFINE_REQUIRED_FOR_GATE` = the 8 Tier-1
->   fields.
+> - `phases/define/schema.py` — `DefineOutput` (**16 fields: 12 required, 4
+>   gate metadata — no tiers, Option A**) rebuilt; granular 5W2H
+>   `DefinePhaseInput` retired.
+> - `phases/define/validate.py` — `DEFINE_REQUIRED_FOR_GATE` = the **12
+>   required fields** (no tiers, Option A — see §39.1 /
+>   `DEFINE_FINALIZATION_2026-08-26.md`).
 > - `skills/dmaic-define-phase/SKILL.md` — written, generated verbatim from
 >   §39.1.7.
 > - `CoachingResponse` (S-C05) — gained 4 presentational fields
@@ -489,10 +494,16 @@ document.
 >   UI still references v1 field names.
 > - **Count correction:** this step's prose below says "Define's six Tier 1
 >   fields" and "exactly one name survives from v1 (`goal_statement`)." Both
->   are superseded by §39.1 — Define is **8 Tier 1**, and more than one field
->   was reconciled. **§39.1 is authoritative; this step's inline counts are
->   pre-amendment** and are left unrewritten deliberately, per the
+>   are superseded — Define is **12 required fields with no Tier 1 / Tier 2
+>   split** (Option A, ratified 2026-08-26), and **two** v1 names survive:
+>   `goal_statement` and `target_date`. **§39.1 and
+>   `DEFINE_FINALIZATION_2026-08-26.md` are authoritative; this step's inline
+>   counts are pre-amendment** and are left unrewritten deliberately, per the
 >   annotate-don't-rewrite rule.
+> - **One more inline claim to read past for Define:** the "two fields on all
+>   five schemas" paragraph below tiers `secondary_metrics` as Tier 2. True for
+>   the other four phases; in Define it is **gate-required** like every other
+>   field, and it is coached at position 10 (§39.1.2).
 >
 > **Consequence — WATCH 7 (§0.2):** doing Define's schema early, without its
 > subgraph (Step 4.1), left `phases/define/orchestrate.py` still writing v1
