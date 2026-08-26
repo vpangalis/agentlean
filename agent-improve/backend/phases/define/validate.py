@@ -10,7 +10,8 @@ retyped here — **two hand-maintained copies of one list is precisely how the
 three drift apart.**
 
 **Define is the one phase with no Tier 2** (Option A, ratified 2026-08-26;
-§39.1.2). **All 12 fields block.** The "Tier 2 warns only" path of §35 has no
+§39.1.2). **All 12 coached fields block, plus the metric registry — 13 in
+total** (§63.8). The "Tier 2 warns only" path of §35 has no
 Define members, and `acknowledged_gaps` is therefore always empty for this
 phase — nothing is skippable, so nothing can be acknowledged as skipped. The
 other four phases keep both tiers, each settled at its own phase review.
@@ -51,7 +52,8 @@ import logging
 from backend.core.config import settings
 from backend.core.state import ImproveGraphState
 from backend.phases.define.schema import (
-    DEFINE_REQUIRED_FIELDS,
+    DEFINE_REQUIRED_FOR_GATE_FIELDS,
+    METRIC_DEFINITION_KEYS,
     PROJECT_SCOPE_KEYS,
     SIPOC_KEYS,
     TEAM_MEMBER_KEYS,
@@ -59,9 +61,12 @@ from backend.phases.define.schema import (
 
 logger = logging.getLogger(__name__)
 
-# All 12 Define fields BLOCK the gate (§35, §39.1.2 — Option A).
-# Sourced from schema.py — the single declaration.
-DEFINE_REQUIRED_FOR_GATE = list(DEFINE_REQUIRED_FIELDS)
+# All 12 coached Define fields BLOCK the gate (§35, §39.1.2 — Option A),
+# PLUS `metric_definitions`, the metric registry (§63.8). Thirteen in total.
+# The coached walk is still 12 positions — the registry is captured inside
+# position 5 rather than at its own — so `field_index` is unaffected.
+# Sourced from schema.py: the single declaration.
+DEFINE_REQUIRED_FOR_GATE = list(DEFINE_REQUIRED_FOR_GATE_FIELDS)
 
 
 def _missing_structured(data: dict) -> list[str]:
@@ -88,6 +93,17 @@ def _missing_structured(data: dict) -> list[str]:
         if absent:
             missing.append(f"project_scope.{'/'.join(absent)}")
 
+    registry = data.get("metric_definitions")
+    if isinstance(registry, list) and registry:
+        for i, entry in enumerate(registry):
+            if not isinstance(entry, dict):
+                missing.append(f"metric_definitions[{i}]")
+                continue
+            absent = [k for k in METRIC_DEFINITION_KEYS
+                      if not str(entry.get(k) or "").strip()]
+            if absent:
+                missing.append(f"metric_definitions[{i}].{'/'.join(absent)}")
+
     team = data.get("team")
     if isinstance(team, list) and team:
         for i, member in enumerate(team):
@@ -106,7 +122,7 @@ def validate_define(state: ImproveGraphState) -> dict:
     """Validator node for the Define phase.
 
     Gate enforcement is a **completeness check against
-    `DEFINE_REQUIRED_FOR_GATE`** — all 12 fields — not a Pydantic
+    `DEFINE_REQUIRED_FOR_GATE`** — all 13 fields — not a Pydantic
     required-field check, matching the other four phases. `DefineOutput` is the
     gate *document*, assembled once at `gate_apply` after Belt approval (§33);
     it is not the mechanism that decides whether the gate opens.
@@ -119,7 +135,7 @@ def validate_define(state: ImproveGraphState) -> dict:
     data = dict(phase_inputs.get("define") or {})
     attempts = state.get("gate_attempts") or 0
 
-    # ── Layer 2b: presence of all 12 required fields ──────────────────
+    # ── Layer 2b: presence of all 13 required fields ──────────────────
     missing: list[str] = []
     for field in DEFINE_REQUIRED_FOR_GATE:
         val = data.get(field)

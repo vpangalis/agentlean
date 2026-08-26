@@ -70,3 +70,19 @@ class AnalysePhaseInput(BaseModel):
         None,
         description="Process owner or sponsor who reviewed and agreed."
     )
+
+    # ── phase_metrics — on all five schemas (§40, §63.9, S-C39) ───────
+    # NOTE: this class is still the v1 `AnalysePhaseInput`. `phase_metrics` is added
+    # here so the uniform-on-all-five rule holds today; it carries through the
+    # v2 `AnalyseOutput` rebuild at procedure step 3.4 unchanged.
+    phase_metrics: List[dict] = Field(
+        default_factory=list,
+        description=(
+            "What this phase produced for each registry metric it engaged. One "
+            "entry per metric, `name` equal to a `metric_definitions` name from "
+            "Define (§63.8) — the grader traces a metric across phases by key "
+            "equality on `name`. Analyse records LINKAGE, not values: which registry metric each validated root cause explains. "
+            "A phase touching no metric writes 'none this phase', never a "
+            "silent gap (§40)."
+        ),
+    )

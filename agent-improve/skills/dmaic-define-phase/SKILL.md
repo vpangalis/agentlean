@@ -47,6 +47,13 @@ tiers (§35).
 | 11 | `process_map_sipoc` | **required** |
 | 12 | `issues_and_barriers` | **required** |
 
+> **A thirteenth field is gate-required but not separately coached:
+> `metric_definitions`**, the project's metric registry — one entry per metric,
+> `{name, unit, meaning}` (§63.8, S-C38). It is captured inside **position 5**,
+> where the Belt names what they are measuring, so the coached walk stays at
+> twelve positions while the gate requires thirteen. **`name` is the traceability
+> key** every later phase writes verbatim.
+
 **Capture each confirmed value into `CoachingResponse.fields_captured` under
 exactly these names** (§20). Every turn also populates `explanation`,
 `example`, `prompt` and `progress` as discrete fields — the response is
@@ -105,12 +112,18 @@ comparison one phase before anyone notices (§39, the measurement thread).
 > **Ask (one at a time):** What's happening? · Where? · When / since when? · Who's affected? · Why does it matter? · **How much — and is it one measure or more than one?** (a rough number each; many projects track both a quality measure and a time measure) · What would "fixed" look like?
 > **Compose & Confirm:** Putting that together, here's your problem statement: *"[composed from the Belt's own answers]"* — does that capture it accurately? *(Guard: assemble only what the Belt said; invent nothing. Store only after confirmation.)*
 
-**[5 · baseline_estimate · required]**
-> **Explain:** Roughly, where does performance stand today? A rough number is fine here — we'll measure it properly in the next phase. It anchors the goal. **Some projects track more than one thing** — a quality measure and a time measure, say — and that's normal; we just name each one.
-> **Show (one criterion):** *"Error rate: about 12% of invoices contain errors."*
-> **Show (two criteria):** *"Error rate: about 12% of invoices contain errors. Cycle time: about 2.6 days from order to invoice sent."*
-> **Ask:** What's the current level of the problem, as best you know it right now? Is that one measure, or is there more than one you're tracking?
-> **Confirm** each criterion by **name, number and unit** — *"Error rate: 12%. Cycle time: 2.6 days"* — one per sentence, so Measure and Control can pick them apart later. Advance.
+**[5 · baseline_estimate · required · also captures `metric_definitions`]**
+> **Explain:** Roughly, where does performance stand today? A rough number is fine here — we'll measure it properly in the next phase. It anchors the goal. **Some projects track more than one thing** — a quality measure and a time measure, say — and that's normal; we just name each one properly.
+> **Show (one metric):** *"Error rate — measured in %, meaning the share of invoices returned by collections for correction. Currently about 12%."*
+> **Show (two metrics):** *"Error rate — %, the share of invoices returned for correction. About 12%. · Cycle time — days, from order receipt to invoice sent. About 2.6 days."*
+> **Ask:** What are we measuring — one thing, or more than one? For each: what would you call it, what unit is it in, and what does it actually count? Then: where does it stand today, as best you know?
+> **Confirm** each metric by **name, unit, meaning and current value**, one per sentence. Advance.
+
+> **This one field-ask fills two fields, and the Belt should not have to know that.** `baseline_estimate` takes the current values; **`metric_definitions` takes the registry** — one entry per metric, `{name, unit, meaning}` (§63.8). Asking "what are we measuring" and "what is it now" as two separate coached positions would make the Belt say the same thing twice, so the walk stays at **twelve positions** and this conversation populates both.
+>
+> **The `name` you record here is a key, not a label.** Every later phase writes it **verbatim** — Measure's `baseline_mean`, Analyse's root-cause linkage, Control's target-vs-actual all find their metric by matching this exact string. Use a stable, lowercase, underscored form (`invoice_error_rate`), keep the Belt's own words for `meaning`, and **never re-phrase a name once it is set** — a renamed metric is an untraceable one.
+>
+> **`meaning` is the operational definition and it earns its place.** *"Error rate"* is not enough for Measure to collect against; *"the share of invoices returned by collections for correction of amount, PO reference or address"* is. If two people would classify the same invoice differently, the definition is not finished.
 
 **[6 · project_scope · required]**
 > **Explain:** Let's set boundaries — what's *in* scope and, just as importantly, what's *out*. Being explicit about what you're *not* doing protects the project from ballooning.

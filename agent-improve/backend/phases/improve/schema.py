@@ -61,3 +61,19 @@ class ImprovePhaseInput(BaseModel):
         None,
         description="Name of sponsor or process owner who approved."
     )
+
+    # ── phase_metrics — on all five schemas (§40, §63.9, S-C39) ───────
+    # NOTE: this class is still the v1 `ImprovePhaseInput`. `phase_metrics` is added
+    # here so the uniform-on-all-five rule holds today; it carries through the
+    # v2 `ImproveOutput` rebuild at procedure step 3.4 unchanged.
+    phase_metrics: List[dict] = Field(
+        default_factory=list,
+        description=(
+            "What this phase produced for each registry metric it engaged. One "
+            "entry per metric, `name` equal to a `metric_definitions` name from "
+            "Define (§63.8) — the grader traces a metric across phases by key "
+            "equality on `name`. Improve records LINKAGE, not values: which registry metric each selected solution targets. "
+            "A phase touching no metric writes 'none this phase', never a "
+            "silent gap (§40)."
+        ),
+    )

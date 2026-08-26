@@ -58,6 +58,26 @@ DEFINE_REQUIRED_FIELDS: tuple[str, ...] = (
 # so they are absent here by design.
 DEFINE_FIELD_ORDER: tuple[str, ...] = DEFINE_REQUIRED_FIELDS
 
+# `metric_definitions` is the project's METRIC REGISTRY (§63.8, S-C38) — the
+# canonical set of metrics the whole project is traced by. It is gate-required
+# but it is NOT a thirteenth coached position: the Belt names their metrics
+# inside position 5's conversation (`baseline_estimate`), because "what are we
+# measuring, in what units" and "what is it at today" are one exchange, not two.
+#
+# **The 12-position coached walk of the Option A finalization is unchanged.**
+# `field_index` still indexes DEFINE_FIELD_ORDER above; only the gate list grows.
+DEFINE_REQUIRED_FOR_GATE_FIELDS: tuple[str, ...] = DEFINE_REQUIRED_FIELDS + (
+    "metric_definitions",
+)
+
+# Keys on each `metric_definitions` entry (§63.8). `name` is the traceability
+# key — written identically in every phase, and the thing the grader matches on.
+METRIC_DEFINITION_KEYS: tuple[str, ...] = ("name", "unit", "meaning")
+
+# Keys on each `phase_metrics` entry (§63.9). `name` MUST equal a registry
+# `name`; the remaining keys are whatever state the phase produced.
+PHASE_METRIC_REQUIRED_KEYS: tuple[str, ...] = ("name",)
+
 # The six SIPOC keys. Fewer than six filled is the partial-map failure the
 # field exists to catch (§41): a Belt who maps steps 3-5 of a seven-step
 # process produces a project that cannot show improvement, because the
@@ -193,6 +213,32 @@ class DefineOutput(BaseModel):
             "Belt-stated blockers. Gate-required in every phase (§40). 'none "
             "identified at this stage' is a valid conscious answer; silence "
             "is not."
+        ),
+    )
+
+    # ── The metric registry — Define owns it (§63.8, S-C38) ──────────
+    metric_definitions: list[dict] = Field(
+        ...,
+        description=(
+            "THE PROJECT'S METRIC REGISTRY. One entry per metric the project "
+            "tracks: {name, unit, meaning}. `name` is the stable traceability "
+            "key — written identically in every phase, and what the grader "
+            "matches on to follow a metric across the five gate documents. "
+            "Gate-required, but captured inside position 5's conversation "
+            "rather than at a thirteenth coached position (§39.1.2)."
+        ),
+    )
+
+    # ── phase_metrics — on all five schemas (§40, §63.9, S-C39) ───────
+    phase_metrics: list[dict] = Field(
+        default_factory=list,
+        description=(
+            "What THIS phase produced for each registry metric it engaged. "
+            "One entry per metric, `name` equal to a registry `name`. Define "
+            "records the stated starting point and target: "
+            "{name, unit, baseline_estimate, target_value, source: 'stated'}. "
+            "A phase touching no metric writes 'none this phase' — never a "
+            "silent gap (§40)."
         ),
     )
 

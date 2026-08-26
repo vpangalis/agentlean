@@ -3669,12 +3669,18 @@ missing any of the six keys is the partial-map failure §41 describes.
 > **Ask (one at a time):** What's happening? · Where? · When / since when? · Who's affected? · Why does it matter? · **How much — and is it one measure or more than one?** (a rough number each; many projects track both a quality measure and a time measure) · What would "fixed" look like?
 > **Compose & Confirm:** Putting that together, here's your problem statement: *"[composed from the Belt's own answers]"* — does that capture it accurately? *(Guard: assemble only what the Belt said; invent nothing. Store only after confirmation.)*
 
-**[5 · baseline_estimate · required]**
-> **Explain:** Roughly, where does performance stand today? A rough number is fine here — we'll measure it properly in the next phase. It anchors the goal. **Some projects track more than one thing** — a quality measure and a time measure, say — and that's normal; we just name each one.
-> **Show (one criterion):** *"Error rate: about 12% of invoices contain errors."*
-> **Show (two criteria):** *"Error rate: about 12% of invoices contain errors. Cycle time: about 2.6 days from order to invoice sent."*
-> **Ask:** What's the current level of the problem, as best you know it right now? Is that one measure, or is there more than one you're tracking?
-> **Confirm** each criterion by **name, number and unit** — *"Error rate: 12%. Cycle time: 2.6 days"* — one per sentence, so Measure and Control can pick them apart later. Advance.
+**[5 · baseline_estimate · required · also captures `metric_definitions`]**
+> **Explain:** Roughly, where does performance stand today? A rough number is fine here — we'll measure it properly in the next phase. It anchors the goal. **Some projects track more than one thing** — a quality measure and a time measure, say — and that's normal; we just name each one properly.
+> **Show (one metric):** *"Error rate — measured in %, meaning the share of invoices returned by collections for correction. Currently about 12%."*
+> **Show (two metrics):** *"Error rate — %, the share of invoices returned for correction. About 12%. · Cycle time — days, from order receipt to invoice sent. About 2.6 days."*
+> **Ask:** What are we measuring — one thing, or more than one? For each: what would you call it, what unit is it in, and what does it actually count? Then: where does it stand today, as best you know?
+> **Confirm** each metric by **name, unit, meaning and current value**, one per sentence. Advance.
+
+> **This one field-ask fills two fields, and the Belt should not have to know that.** `baseline_estimate` takes the current values; **`metric_definitions` takes the registry** — one entry per metric, `{name, unit, meaning}` (§63.8). Asking "what are we measuring" and "what is it now" as two separate coached positions would make the Belt say the same thing twice, so the walk stays at **twelve positions** and this conversation populates both.
+>
+> **The `name` you record here is a key, not a label.** Every later phase writes it **verbatim** — Measure's `baseline_mean`, Analyse's root-cause linkage, Control's target-vs-actual all find their metric by matching this exact string. Use a stable, lowercase, underscored form (`invoice_error_rate`), keep the Belt's own words for `meaning`, and **never re-phrase a name once it is set** — a renamed metric is an untraceable one.
+>
+> **`meaning` is the operational definition and it earns its place.** *"Error rate"* is not enough for Measure to collect against; *"the share of invoices returned by collections for correction of amount, PO reference or address"* is. If two people would classify the same invoice differently, the definition is not finished.
 
 **[6 · project_scope · required]**
 > **Explain:** Let's set boundaries — what's *in* scope and, just as importantly, what's *out*. Being explicit about what you're *not* doing protects the project from ballooning.
@@ -3765,13 +3771,20 @@ behind the Belt's back.
 
 ### Field counts
 
-| Phase | Total | Gate-required | Tier 2 | Gate metadata |
-|---|---|---|---|---|
-| Define | **16** | **12 — all of them** | **— (no Tier 2)** | 4 |
-| Measure | **14** | 7 | 3 | 4 |
-| Analyse | **13** | 4 | 5 | 4 |
-| Improve | **13** | 4 | 5 | 4 |
-| Control | **15** | 3 | 8 | 4 |
+| Phase | Total | Gate-required | Tier 2 | `phase_metrics` | Gate metadata |
+|---|---|---|---|---|---|
+| Define | **18** | **13 — all of them, incl. `metric_definitions`** | **— (no Tier 2)** | 1 | 4 |
+| Measure | **15** | 7 | 3 | 1 | 4 |
+| Analyse | **14** | 4 | 5 | 1 | 4 |
+| Improve | **14** | 4 | 5 | 1 | 4 |
+| Control | **16** | 3 | 8 | 1 | 4 |
+
+**Every total rose by one for `phase_metrics`** (§63.9), which is now the third
+field on all five schemas. **Define rose by two**: it also carries
+`metric_definitions` (§63.8), the registry itself, which no other phase holds.
+**Define's 12-position coached walk is unchanged** — the registry is captured
+inside position 5's conversation, where the Belt names their metrics, rather
+than at a thirteenth position (§39.1.2). Twelve coached, thirteen gate-required.
 
 **Define's column reads differently on purpose.** Under Option A (§39.1.2) every
 Define field is gate-required, so its "gate-required" count is its whole content
@@ -3793,13 +3806,19 @@ schemas in an earlier revision** — the evidence trail reached state and then
 stopped, never arriving in the document that records what the phase was
 grounded in.
 
-### Two fields are on all five schemas
+### Three fields are on all five schemas
 
-`issues_and_barriers` and `secondary_metrics`. `issues_and_barriers` is
-gate-required everywhere; `secondary_metrics` is Tier 2 in the four tiered
-phases and **gate-required in Define** (§39.1.2). **Adding a field to one phase
-without considering the other four is how the cross-phase gaps arose in the
-first place.**
+`issues_and_barriers`, `secondary_metrics` and **`phase_metrics`** — the third
+added by the metric-registry ruling of 2026-08-26 (§63.9, S-C39), because a
+metric is only traceable end to end if **every** phase records what it did with
+it, including the phases that did nothing.
+
+`issues_and_barriers` is gate-required everywhere; `secondary_metrics` is Tier 2
+in the four tiered phases and **gate-required in Define** (§39.1.2);
+`phase_metrics` is present on all five and carries `"none this phase"` rather
+than an empty list where the phase engaged no metric (§63.9 B2). **Adding a
+field to one phase without considering the other four is how the cross-phase
+gaps arose in the first place.**
 
 ### 40.1 Gate assembly
 
@@ -3833,6 +3852,13 @@ Store.
 
 *Supersedes: REFACTORING §68; ARCHITECTURE.md §4.10.5–§4.10.7; CLAUDE.md §10.8; DECISIONS §C5, §C6.*
 **Status: RATIFIED.**
+
+> **The metric registry is a fourth, narrow exception to §7's string law**
+> (founder ruling 2026-08-26). `metric_definitions` (§63.8) and `phase_metrics`
+> (§63.9) are `list[dict]` for **the same reason and in the same class** as the
+> three cross-phase reference dicts: the grader traces a metric across phases by
+> **key equality on `name`**, which prose cannot support. **Scalar values inside
+> both stay strings** — the exception is the container, never the typing law.
 
 **Three gate-required fields are structured dicts**, distinct from the three
 cross-phase reference dicts of §7:
@@ -7769,6 +7795,10 @@ gate_document = DefineOutput(
     secondary_metrics=artifacts["secondary_metrics"],
     process_map_sipoc=artifacts["process_map_sipoc"],
     issues_and_barriers=artifacts["issues_and_barriers"],
+    # The metric registry — gate-required, captured inside position 5 (§63.8)
+    metric_definitions=artifacts["metric_definitions"],
+    # On all five schemas (§63.9); "none this phase" rather than an empty list
+    phase_metrics=artifacts.get("phase_metrics", []),
     # Gate metadata — the same four on all five schemas (§40)
     computation_results=artifacts.get("computation_results", []),
     acknowledged_gaps=acknowledged_gaps,   # always [] for Define — nothing is skippable
@@ -7786,8 +7816,12 @@ gate_document = DefineOutput(
 | Cross-phase dicts | `artifacts.get("field", {})` | Same, with the right empty type |
 
 > **The Tier 2 row does not apply to Define.** It has no Tier 2 fields, which is
-> why the worked example above shows twelve direct accesses and no `.get()` on a
-> content field. The row governs the other four phases, whose assemblies are
+> why the worked example above shows **thirteen** direct accesses — the twelve
+> coached fields plus `metric_definitions`, which is gate-required and therefore
+> read the same way (§63.8). **`phase_metrics` is the one `.get()` in Define's
+> assembly**, and it is not a Tier 2 access: it defaults to `[]` because a phase
+> may legitimately engage no metric, in which case §63.9 B2 requires
+> `"none this phase"` to be written into it rather than the field being absent. The row governs the other four phases, whose assemblies are
 > **G-28 — still unwritten**.
 
 #### SIPOC — at a glance
@@ -7838,8 +7872,9 @@ three structured dicts (S-C33).
 **Architecture:** §40 · **File:** `phases/define/schema.py` · **Procedure:** step 3.4
 *Rebuild test: met.*
 
-**Purpose:** Define's gate document. **16 fields — 12 required, 4 gate
-metadata.** No Tier 1 / Tier 2 split: Define uses **Option A**, every field
+**Purpose:** Define's gate document. **18 fields — 13 required, `phase_metrics`,
+4 gate metadata.** (Was 16: `metric_definitions` and `phase_metrics` are added
+by the metric-registry ruling of 2026-08-26.) No Tier 1 / Tier 2 split: Define uses **Option A**, every field
 blocks the gate (§39.1.2, ratified 2026-08-26). **The declaration order below is
 the coached order** of §39.1.2 — with no tiers to group by, the two lists are
 one.
@@ -7859,6 +7894,10 @@ class DefineOutput(BaseModel):
     secondary_metrics:    str         # what could get worse — on all five (§40)
     process_map_sipoc:    dict        # SIPOC + KPIs, 6 sub-fields (§41)
     issues_and_barriers:  str         # Belt-stated blockers
+    # The metric registry — Define owns it (§63.8, S-C38)
+    metric_definitions:   list[dict]  # [{name, unit, meaning}] — the traceability keys
+    # On all five schemas (§40, §63.9, S-C39)
+    phase_metrics:        list[dict]  # [{name, unit, baseline_estimate, target_value, source}]
     # Gate metadata (unchanged)
     computation_results:  list[dict] = []
     acknowledged_gaps:    list[str]  = []   # stays in schema; always empty for Define
@@ -7899,7 +7938,7 @@ Define** — no field is skippable, so nothing can be acknowledged as skipped.
 **Architecture:** §40 · **File:** `phases/measure/schema.py` · **Procedure:** step 3.4
 *Rebuild test: met.*
 
-**Purpose:** Measure's gate document. 14 fields — 7 Tier 1, 3 Tier 2, 4 gate
+**Purpose:** Measure's gate document. **15** fields — 7 Tier 1, 3 Tier 2, 4 gate
 metadata. The largest Tier 1 set of the five.
 
 ```python
@@ -7917,6 +7956,8 @@ class MeasureOutput(BaseModel):
     baseline_sigma:               str    # calculated sigma level
     measurement_system_validated: str    # GR&R or equivalent evidence
     secondary_metrics:            str
+    # On all five schemas (§40, §63.9, S-C39)
+    phase_metrics:                list[dict]  # one entry per registry metric
     # Gate metadata
     computation_results:  list[dict] = []
     acknowledged_gaps:    list[str]  = []
@@ -7938,7 +7979,7 @@ class MeasureOutput(BaseModel):
 **Architecture:** §40 · **File:** `phases/analyse/schema.py` · **Procedure:** step 3.4
 *Rebuild test: met.*
 
-**Purpose:** Analyse's gate document. 13 fields — 4 Tier 1, 5 Tier 2, 4 gate
+**Purpose:** Analyse's gate document. **14** fields — 4 Tier 1, 5 Tier 2, 4 gate
 metadata.
 
 ```python
@@ -7955,6 +7996,8 @@ class AnalyseOutput(BaseModel):
     statistical_problem_statement: str   # all Belts, in Analyse — not Define
     process_owner_buyin:           str   # owner accepts the root causes
     secondary_metrics:             str
+    # On all five schemas (§40, §63.9, S-C39)
+    phase_metrics:                list[dict]  # one entry per registry metric
     # Gate metadata
     computation_results:  list[dict] = []
     acknowledged_gaps:    list[str]  = []
@@ -7975,7 +8018,7 @@ class AnalyseOutput(BaseModel):
 **Architecture:** §40 · **File:** `phases/improve/schema.py` · **Procedure:** step 3.4
 *Rebuild test: met.*
 
-**Purpose:** Improve's gate document. 13 fields — 4 Tier 1, 5 Tier 2, 4 gate
+**Purpose:** Improve's gate document. **14** fields — 4 Tier 1, 5 Tier 2, 4 gate
 metadata.
 
 ```python
@@ -7992,6 +8035,8 @@ class ImproveOutput(BaseModel):
     explanatory_power:             str   # R² / variance explained
     process_owner_buyin:           str   # owner accepts the solution
     secondary_metrics:             str
+    # On all five schemas (§40, §63.9, S-C39)
+    phase_metrics:                list[dict]  # one entry per registry metric
     # Gate metadata
     computation_results:  list[dict] = []
     acknowledged_gaps:    list[str]  = []
@@ -8012,7 +8057,7 @@ class ImproveOutput(BaseModel):
 **Architecture:** §40 · **File:** `phases/control/schema.py` · **Procedure:** step 3.4
 *Rebuild test: met.*
 
-**Purpose:** Control's gate document. 15 fields — 3 Tier 1, 8 Tier 2, 4 gate
+**Purpose:** Control's gate document. **16** fields — 3 Tier 1, 8 Tier 2, 4 gate
 metadata. The smallest Tier 1 set and the largest Tier 2 set.
 
 ```python
@@ -8031,6 +8076,8 @@ class ControlOutput(BaseModel):
     transferability:           str    # yokoten — feeds rag_lookup_case_history
     project_signoff:           str    # Champion + Belt + Finance
     secondary_metrics:         str
+    # On all five schemas (§40, §63.9, S-C39)
+    phase_metrics:                list[dict]  # one entry per registry metric
     # Gate metadata
     computation_results:  list[dict] = []
     acknowledged_gaps:    list[str]  = []
@@ -8090,6 +8137,91 @@ causal_hypothesis = {
 deliberate — an Analyse phase without an explicit hypothesis link is weaker but
 not void, whereas a Control phase that cannot link back to the baseline has
 demonstrated nothing.
+
+### 63.8 S-C38 · `metric_definitions` — the project metric registry
+
+**Architecture:** §39.1, §40 · **File:** `phases/define/schema.py` · **Procedure:** step 3.4
+*Rebuild test: met.*
+
+**Purpose:** **The canonical set of metrics the project is traced by.** Define
+owns it; every later phase refers to its entries rather than re-naming them.
+
+```python
+metric_definitions: list[dict] = [
+    {"name": "invoice_error_rate", "unit": "%",
+     "meaning": "share of invoices returned by collections for correction"},
+    {"name": "invoice_cycle_time", "unit": "days",
+     "meaning": "order receipt to invoice sent"},
+]
+```
+
+| Key | Holds |
+|---|---|
+| `name` | **The traceability key.** A stable identifier, written **identically in every phase** — this is what the grader matches on |
+| `unit` | The unit the value is expressed in, so a target can be compared to a baseline without guessing |
+| `meaning` | What the metric actually counts, in the Belt's own words. The operational definition a later phase re-reads rather than re-deriving |
+
+> **`name` is a key, not prose, and that is the whole point.** The grader traces
+> a metric across the five gate documents by **key equality on `name`** — not by
+> reading a sentence and hoping two phases phrased it the same way. **This is
+> what a prose-string contract could not deliver**: "Error rate: 12.3%" in
+> Define and "error rate (%)" in Measure are the same metric to a human and two
+> different metrics to a matcher.
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | the Belt names a metric | record it once, here, with all three keys populated | §39.1 |
+| B2 | any later phase refers to a metric | use the registry `name` **verbatim** — never a variant, never a re-phrasing | §40 |
+| B3 | the gate is evaluated | require at least one entry, every entry carrying `name`, `unit` and `meaning` | §35 |
+| B4 | a value is written inside an entry | keep it a **string** — the dict is the exception to §7, its scalars are not | §7 |
+
+### 63.9 S-C39 · `phase_metrics` — the per-phase placeholder
+
+**Architecture:** §40 · **File:** `phases/{phase}/schema.py` · **Procedure:** step 3.4
+*Rebuild test: met.*
+
+**Purpose:** **What one phase produced for each registry metric it engaged.**
+On **all five** schemas, in the same shape, so a metric's whole journey is one
+keyed trail across the five gate documents.
+
+```python
+# Measure
+phase_metrics = [
+    {"name": "invoice_error_rate", "unit": "%", "baseline_mean": "12.3%",
+     "baseline_sigma": "2.6 sigma", "stability": "stable", "source": "measured"},
+]
+```
+
+| Phase | What its entries record |
+|---|---|
+| **Define** | The stated starting point and target — `baseline_estimate`, `target_value`, `source: "stated"` |
+| **Measure** | The measured state — `baseline_mean`, `baseline_sigma`, `stability`, `source: "measured"` |
+| **Analyse** | **Linkage, not values** — which registry metric each validated root cause explains |
+| **Improve** | **Linkage, not values** — which registry metric each selected solution targets |
+| **Control** | The achieved state and the comparison — `post_improvement_metrics`, `improvement_delta` |
+
+**`name` MUST equal a `metric_definitions` name** (S-C38 B2). The remaining keys
+are whatever state that phase produced, and differ by phase — Analyse and
+Improve act on drivers rather than outcome values, so their entries carry the
+link rather than a number.
+
+> **A phase touching no metric writes `"none this phase"` — never a silent gap.**
+> An empty list is ambiguous: it reads the same whether the phase engaged no
+> metric or simply forgot to record one, and the second is the failure worth
+> catching. This is the same reasoning that makes `issues_and_barriers` accept
+> "none identified at this stage" but not silence (§35).
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | a phase writes an entry | set `name` to a registry `name` **verbatim**, so key equality holds | §63.8 |
+| B2 | a phase engages no metric | write `"none this phase"` rather than leaving the list empty | §40 |
+| B3 | a tool runs on a multi-metric project | carry the metric's `name` in `computation_results.inputs`, so the result is attributable (§69.1) | §69 |
+| B4 | the live gate document renders | group `computation_results` by `phase_metrics` `name` when more than one metric is tracked | §50 |
+| B5 | a scalar is written inside an entry | keep it a **string** — the dict is the exception to §7, its scalars are not | §7 |
 
 ### 63.7 S-C33 · The three structured dict fields
 
@@ -8575,7 +8707,13 @@ item 1. Classification deferred rather than guessed.
 inline marker.** That bidirectional correspondence is checkable and is one of
 the §55.1 governance rules.
 
-**44 gaps identified. Ten are closed or resolved. 34 are open.** *(This line
+**46 gaps identified. Twelve are closed or resolved. 34 are open.** *(Two were
+added and resolved in the same pass on 2026-08-26 — G-45 and G-46, the metric
+registry's two spec entries. Registering a gap you are about to close in the
+same commit looks like bookkeeping theatre and is not: §55.1 requires every
+referenced spec to resolve to an entry, and the register is where that is
+checkable. A reference that resolves only because nobody looked is exactly the
+failure §55 exists to name.)* *(This line
 read "Eight … 36" until 2026-08-26: G-38's closure on 2026-08-25 was recorded in
 §66.6 and in the changelog but never counted here. Corrected in the same pass
 that closed G-25 — the count and the table now agree, which is the §55.1
@@ -8672,6 +8810,8 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-02** | What a Belt REJECT does was unstated — `POST /gate/reject` existed in §49's table and in §33.1's frontend sequence with no defined behaviour | **RESOLVED 2026-08-24, founder ruling.** Reject **loops to the planner for another coaching turn**; the Belt **MUST supply a reason**, carried as `rejection_feedback` — a new `PhaseState` field (S-C02) — so the re-coach addresses what was actually objected to rather than repeating the refused turn. **The `/gate/reject` payload gains a mandatory reason, which depends on G-18** (open). See S-F13 DP3, §33, S-C02 |
 | **G-44** | Raised 2026-08-24 as the narrow successor to G-43: the S-F10 wrapper node's inner `subgraph.ainvoke` is a third case neither §16's bare-node claim nor G-43's standalone-invoke check covered. | **RESOLVED 2026-08-24.** Pattern B (wrapper node invoking the subgraph) is correct and is in fact forced — `SupervisorState` and `PhaseState` share no keys, so `add_node(subgraph)` is unavailable. The inner invoke persists `PhaseState` across turns **provided** it is called directly inside the node function with inherited config and is never relocated inside a tool. Verified against current LangChain subgraph docs; local repro owed. See §16. |
 | **G-25** | **The 20 computation tools** — no signature, no `args_schema`, no return shape for any of them; and no defined shape for §7's required "reformatting request" | **RESOLVED 2026-08-26.** **§69** specifies all twenty as **S-F37–S-F56** — inputs, `result` keys and methodology preconditions per tool — with the repeated header fields and the string-valued `result` rule stated once at §69.1. The "reformatting request" shape is settled there as a **returned value, not a raised error** (§60.6 B3), so a tool that cannot parse its input hands the Belt something to act on rather than failing the turn. Two boundaries are stated rather than left to be rediscovered: `post_improvement_cpk` stays a separate `@tool` from `calculate_cpk` despite sharing the formula (§30's no-mode-argument rule), and **Measure deliberately has no chart-limit tool** (§69.7). §60.6 stays as the group entry and its rebuild test now reads *met*. See §69, S-F24 |
+| **G-45** | **`metric_definitions` had no spec entry.** Registered and resolved in one pass: §39.2 (Measure) and §50 both refer to the project metric registry, and until §63.8 existed those were dangling references — a spec citing a structure this document never defined | **RESOLVED 2026-08-26.** **§63.8 — S-C38** defines it: `list[dict]` of `{name, unit, meaning}`, Define-owned, with `name` as the traceability key and four EARS behaviors. Registered here rather than left implicit because §55.1 requires every referenced spec to resolve, and a reference that resolves only because nobody checked is the failure §55 names. See §63.8, §39.1 |
+| **G-46** | **`phase_metrics` had no spec entry.** Same class as G-45 and raised by the same pass: §39.2, §40 and §50 all refer to a per-phase metric placeholder that no entry defined | **RESOLVED 2026-08-26.** **§63.9 — S-C39** defines it: `list[dict]` on all five schemas, `name` equal to a registry `name` by key equality, per-phase content tables for the five, five EARS behaviors, and the `"none this phase"` rule that keeps an empty list from meaning two different things. **§40's same-field-on-all-five rule now binds three fields**, not two. See §63.9, §40 |
 | **G-38** | `field_index` had no ordering source — the per-phase field list it indexes into was stated nowhere, and §13's "advance to the next field" depended on it. **G-01 depended on it too**: S-F13 DP1's predicate could not be implemented without it | **CLOSED 2026-08-25.** §39.1.2 states Define's ordered field list — **twelve** coached fields, `business_case` through `issues_and_barriers` (the list grew from ten at the 2026-08-26 Option A finalization, which added `target_value` and brought `secondary_metrics` into the coached walk) — and **that list IS the `field_index` sequence.** DP1's predicate is now implementable for Define. **The closure is Define-only by design:** §39.1.8 gives the other four phases the same section shape at §39.2–§39.5, and their lists remain blocked on G-27 and G-28. Resolution reconciled the v1-code divergence toward the v2 names (F-11). See §39.1.2, S-F13, S-C02 |
 
 ### 66.7 Findings — recorded, not gaps
@@ -8985,6 +9125,17 @@ than twenty times below. **Read every entry in §69.2–§69.6 as carrying these
   `{"tool", "inputs", "result", "turn", "phase"}`. **Every value in `result` is
   a string**, per the typing law — a numeric like `cpk: 0.62` is stored as
   `"result": {"cpk": "0.62", …}`.
+- **Docstring opening — plain concept first, then the standard term.** All
+  twenty tool NAMES stay as they are: `Cpk`, `DPMO`, `GR&R`, `RTY`, `FTQ`,
+  `DOE`, `I-MR` and `ANOVA` are the recognised terms and a Belt will meet them
+  in every textbook and every audit. **What changes is the first line the coach
+  reads.** Each docstring opens with the plain concept, then the standard term
+  in parentheses, then plain-language substance —
+  `"""Process capability (Cpk) — can the process meet spec as it runs today…"""`.
+  The **What it computes** column in §69.2–§69.6 **is** that opening line: it is
+  what `knowledge/computation.py` is built from at step 5.3. A Belt who has to
+  already know the acronym to find out what the tool does is a Belt the tool
+  will not reach.
 - **Preconditions are business and methodology preconditions** — what must be
   true of the *project state* before the tool should be called. They are **not**
   argument validation, which is ordinary parsing (§60.6 B2, B3).
@@ -9024,46 +9175,46 @@ than twenty times below. **Read every entry in §69.2–§69.6 as carrying these
 
 | S-F | Tool | What it computes | Inputs | Output (`result` keys) | Preconditions |
 |---|---|---|---|---|---|
-| **S-F37** | `calculate_expected_savings` | Projected annualised financial benefit of closing the baseline→target gap | `baseline_value`, `target_value`, `unit_cost` (cost per defect or per unit of the gap), `annual_volume` | `annual_savings`, `currency`, `calculation_note` — **states the multiplication used**, because a Belt must be able to defend the number at the gate | `baseline_estimate` and `target_value` captured (§39.1.2 fields #5 and #8); `business_case` supplies the cost basis where the Belt has one. **The tool must accept an absent cost and return a reformatting request rather than inventing a unit cost** |
+| **S-F37** | `calculate_expected_savings` | **Expected savings** — what closing the baseline→target gap is worth over a year, in money | `baseline_value`, `target_value`, `unit_cost` (cost per defect or per unit of the gap), `annual_volume` | `annual_savings`, `currency`, `calculation_note` — **states the multiplication used**, because a Belt must be able to defend the number at the gate | `baseline_estimate` and `target_value` captured (§39.1.2 fields #5 and #8); `business_case` supplies the cost basis where the Belt has one. **The tool must accept an absent cost and return a reformatting request rather than inventing a unit cost** |
 
 ### 69.3 S-F38–S-F45 · Measure — 8 tools
 
 | S-F | Tool | What it computes | Inputs | Output (`result` keys) | Preconditions |
 |---|---|---|---|---|---|
-| **S-F38** | `calculate_sigma_level` | Defect rate → sigma level, long-term (1.5σ shift convention) | `defects`, `units`, `opportunities_per_unit` — **or** `dpmo` directly | `sigma_level`, `dpmo`, `shift_assumption` (states "1.5σ long-term shift applied") | None beyond a parseable defect count |
-| **S-F39** | `calculate_cpk` | Process capability against one or two spec limits | `mean`, `std_dev`, `usl` (optional), `lsl` (optional) | `cpk`, `cp` (**only if both limits given**), `binding_limit` — which side is closer, the centring-vs-spread read | **Hard: `stability_assessment` must read "stable"** (§63.2 B1). A `calculate_cpk` call timestamped before a stable verdict is **a grading flag** (§35, §41), not a style note — capability computed across an unstable process is not capability |
-| **S-F40** | `calculate_dpmo` | Defects per million opportunities | `defects`, `units`, `opportunities_per_unit` | `dpmo` | None |
-| **S-F41** | `calculate_yield_rty` | Rolled throughput yield across process steps | `step_yields` (list) **or** `step_units_and_defects` (list of pairs) | `rty`, `simple_average_yield` (for contrast), `hidden_factory_gap` — the difference, and **the number that makes RTY's point** | `detailed_process_map` steps populated, **at least 2 steps** |
-| **S-F42** | `calculate_ftq` | First-time quality at one step | `units_processed`, `units_reworked_or_defective` | `ftq` | The step is identified in `detailed_process_map` |
-| **S-F43** | `calculate_grr` | Measurement-system variation — Gage R&R (variable) or attribute agreement | `data_type` (`variable` / `attribute`); **variable:** `readings` (operators × parts × trials matrix); **attribute:** `agreement_matrix` (operator ratings per part per trial) | `pct_study_variation` (variable) **or** `pct_agreement` (attribute); `repeatability_pct`, `reproducibility_pct`; `verdict` — `acceptable` <10%, `marginal` 10–30%, `unacceptable` >30% (**AIAG MSA-4 bands**) | **None — this precedes the baseline by design.** It is the tool behind `measurement_system_validated`, coached before `baseline_mean` |
-| **S-F44** | `calculate_sample_size_proportion` | Sample size required to estimate a proportion within a margin | `expected_proportion`, `margin_of_error`, `confidence_level` (default `0.95`) | `required_n` | None |
-| **S-F45** | `calculate_sample_size_mean` | Sample size required to detect a difference in a mean | `estimated_std_dev`, `detectable_difference`, `confidence_level` (default `0.95`), `power` (default `0.80`) | `required_n` | None |
+| **S-F38** | `calculate_sigma_level` | **Defect rate on a common scale (sigma level)** — how good the process is, expressed so any process compares to any other. Long-term, 1.5σ shift convention | `defects`, `units`, `opportunities_per_unit` — **or** `dpmo` directly | `sigma_level`, `dpmo`, `shift_assumption` (states "1.5σ long-term shift applied") | None beyond a parseable defect count |
+| **S-F39** | `calculate_cpk` | **Process capability (Cpk)** — can the process meet spec as it runs today, given both where it sits and how much it varies | `mean`, `std_dev`, `usl` (optional), `lsl` (optional) | `cpk`, `cp` (**only if both limits given**), `binding_limit` — which side is closer, the centring-vs-spread read | **Hard: `stability_assessment` must read "stable"** (§63.2 B1). A `calculate_cpk` call timestamped before a stable verdict is **a grading flag** (§35, §41), not a style note — capability computed across an unstable process is not capability |
+| **S-F40** | `calculate_dpmo` | **Defect rate per million chances (DPMO)** — defects scaled so processes of different volume and complexity compare fairly | `defects`, `units`, `opportunities_per_unit` | `dpmo` | None |
+| **S-F41** | `calculate_yield_rty` | **End-to-end yield (RTY, rolled throughput yield)** — the share of work that clears every step first time, with no rework anywhere | `step_yields` (list) **or** `step_units_and_defects` (list of pairs) | `rty`, `simple_average_yield` (for contrast), `hidden_factory_gap` — the difference, and **the number that makes RTY's point** | `detailed_process_map` steps populated, **at least 2 steps** |
+| **S-F42** | `calculate_ftq` | **First-time quality at one step (FTQ)** — the share that step gets right without rework | `units_processed`, `units_reworked_or_defective` | `ftq` | The step is identified in `detailed_process_map` |
+| **S-F43** | `calculate_grr` | **Measurement trust (Gage R&R)** — how much of the variation you can see is the process, and how much is the measuring | `data_type` (`variable` / `attribute`); **variable:** `readings` (operators × parts × trials matrix); **attribute:** `agreement_matrix` (operator ratings per part per trial) | `pct_study_variation` (variable) **or** `pct_agreement` (attribute); `repeatability_pct`, `reproducibility_pct`; `verdict` — `acceptable` <10%, `marginal` 10–30%, `unacceptable` >30% (**AIAG MSA-4 bands**) | **None — this precedes the baseline by design.** It is the tool behind `measurement_system_validated`, coached before `baseline_mean` |
+| **S-F44** | `calculate_sample_size_proportion` | **How many to sample, for a percentage** — the count needed to pin a proportion within a stated margin | `expected_proportion`, `margin_of_error`, `confidence_level` (default `0.95`) | `required_n` | None |
+| **S-F45** | `calculate_sample_size_mean` | **How many to sample, for an average** — the count needed to detect a difference of a stated size | `estimated_std_dev`, `detectable_difference`, `confidence_level` (default `0.95`), `power` (default `0.80`) | `required_n` | None |
 
 ### 69.4 S-F46–S-F50 · Analyse — 5 tools
 
 | S-F | Tool | What it computes | Inputs | Output (`result` keys) | Preconditions |
 |---|---|---|---|---|---|
-| **S-F46** | `t_test` | Compares two sample means — **Welch's by default**, equal-variance only if the Belt states it | `sample1`, `sample2` (raw values **or** `{mean, std_dev, n}` summaries), `paired` (bool) | `t_statistic`, `degrees_of_freedom`, `p_value`, `significant` (`"yes"`/`"no"` at α=0.05) | One of `vital_few_drivers` names the factor under test |
-| **S-F47** | `chi_square_test` | Association between two categorical variables | `contingency_table` (rows × columns of counts) | `chi_square_statistic`, `degrees_of_freedom`, `p_value`, `significant` | Categorical data for both variables; **expected cell counts ≥ 5** — below that the tool returns a reformatting / small-sample warning (§60.6 B3) |
-| **S-F48** | `anova` | Compares means across 3+ groups | `groups` (list of raw-value lists or summaries) | `f_statistic`, `df_between`, `df_within`, `p_value`, `significant` | At least 3 groups |
-| **S-F49** | `pearson_correlation` | Linear correlation strength between two continuous variables | `x_values`, `y_values` (paired) | `r`, `r_squared`, `p_value`, `strength_label` — negligible / weak / moderate / strong, standard \|r\| bands | Paired continuous data, **n ≥ 10** (methodology floor). Below it the tool **returns a warning, not a suppressed result** — the Belt decides |
-| **S-F50** | `linear_regression` | Fits Y = a + bX (simple OLS) | `x_values`, `y_values` (paired) | `slope`, `intercept`, `r_squared`, `equation_string`, `p_value` | Same as `pearson_correlation`; **typically run after it, on the same pair** |
+| **S-F46** | `t_test` | **Is the gap between two averages real? (t-test)** — **Welch's by default**, equal-variance only if the Belt states it | `sample1`, `sample2` (raw values **or** `{mean, std_dev, n}` summaries), `paired` (bool) | `t_statistic`, `degrees_of_freedom`, `p_value`, `significant` (`"yes"`/`"no"` at α=0.05) | One of `vital_few_drivers` names the factor under test |
+| **S-F47** | `chi_square_test` | **Are two categories related? (chi-square test)** — association between two categorical variables | `contingency_table` (rows × columns of counts) | `chi_square_statistic`, `degrees_of_freedom`, `p_value`, `significant` | Categorical data for both variables; **expected cell counts ≥ 5** — below that the tool returns a reformatting / small-sample warning (§60.6 B3) |
+| **S-F48** | `anova` | **Do three or more groups differ? (ANOVA, analysis of variance)** | `groups` (list of raw-value lists or summaries) | `f_statistic`, `df_between`, `df_within`, `p_value`, `significant` | At least 3 groups |
+| **S-F49** | `pearson_correlation` | **Do two numbers move together? (Pearson correlation)** — strength and direction, not cause | `x_values`, `y_values` (paired) | `r`, `r_squared`, `p_value`, `strength_label` — negligible / weak / moderate / strong, standard \|r\| bands | Paired continuous data, **n ≥ 10** (methodology floor). Below it the tool **returns a warning, not a suppressed result** — the Belt decides |
+| **S-F50** | `linear_regression` | **How much does Y change when X changes? (simple linear regression, OLS)** — fits Y = a + bX | `x_values`, `y_values` (paired) | `slope`, `intercept`, `r_squared`, `equation_string`, `p_value` | Same as `pearson_correlation`; **typically run after it, on the same pair** |
 
 ### 69.5 S-F51 · Improve — 1 tool
 
 | S-F | Tool | What it computes | Inputs | Output (`result` keys) | Preconditions |
 |---|---|---|---|---|---|
-| **S-F51** | `calculate_doe_main_effects` | Main effect of each factor from a factorial experiment | `factors` (names plus the two levels each ran at), `design_matrix` (which level each factor was at, per run), `responses` (measured output per run) | `main_effects` (per-factor effect size), `ranked_factors` (largest effect first) | `experiment_justification` records that a **DOE** was chosen — not "simplified", not "none" (§63.4 B1) |
+| **S-F51** | `calculate_doe_main_effects` | **Which factor actually mattered? (DOE main effects)** — the effect of each factor from a designed experiment | `factors` (names plus the two levels each ran at), `design_matrix` (which level each factor was at, per run), `responses` (measured output per run) | `main_effects` (per-factor effect size), `ranked_factors` (largest effect first) | `experiment_justification` records that a **DOE** was chosen — not "simplified", not "none" (§63.4 B1) |
 
 ### 69.6 S-F52–S-F56 · Control — 5 tools
 
 | S-F | Tool | What it computes | Inputs | Output (`result` keys) | Preconditions |
 |---|---|---|---|---|---|
-| **S-F52** | `xbar_r_chart_limits` | Control limits for subgrouped variable data | `subgroups` (list of equal-size value-lists) | `x_bar_bar` (centre line), `ucl_x`, `lcl_x`, `r_bar`, `ucl_r`, `lcl_r` | Subgroup size **≥ 2 and constant** across subgroups (standard A2 / D3 / D4 constants by subgroup size) |
-| **S-F53** | `imr_chart_limits` | Control limits for one measurement per period | `values` (single time series) | `x_bar` (centre line), `ucl_i`, `lcl_i`, `mr_bar`, `ucl_mr` | **The default choice whenever data is one-per-period.** A Belt SHALL NOT be coached into inventing subgroups to force `xbar_r_chart_limits` (§30, §60.6 B7) |
-| **S-F54** | `p_chart_limits` | Control limits for proportion defective, variable subgroup size | `subgroups` (list of `{defectives, n}`) | `p_bar`, `ucl_note` — **limits vary per subgroup by `n`**, so it returns the formula plus the per-subgroup array, never one flat number | Attribute (pass/fail) data |
-| **S-F55** | `c_chart_limits` | Control limits for defect counts per unit, constant opportunity | `counts` (defect count per unit or period) | `c_bar`, `ucl`, `lcl` | **Constant area of opportunity** across periods |
-| **S-F56** | `post_improvement_cpk` | Capability on post-improvement data, compared against the baseline | `mean`, `std_dev`, `usl` / `lsl`, `baseline_cpk` (for the comparison) | `cpk`, `improvement_delta` (vs `baseline_cpk`), `meets_target` (`"yes"`/`"no"`) | Control's stability re-check passes first — **the same stability-before-capability rule as `calculate_cpk`** (§41) |
+| **S-F52** | `xbar_r_chart_limits` | **Control limits for batched measurements (X̄-R chart)** — the lines that separate normal variation from a real signal | `subgroups` (list of equal-size value-lists) | `x_bar_bar` (centre line), `ucl_x`, `lcl_x`, `r_bar`, `ucl_r`, `lcl_r` | Subgroup size **≥ 2 and constant** across subgroups (standard A2 / D3 / D4 constants by subgroup size) |
+| **S-F53** | `imr_chart_limits` | **Control limits for one-at-a-time measurements (I-MR, individuals and moving range)** | `values` (single time series) | `x_bar` (centre line), `ucl_i`, `lcl_i`, `mr_bar`, `ucl_mr` | **The default choice whenever data is one-per-period.** A Belt SHALL NOT be coached into inventing subgroups to force `xbar_r_chart_limits` (§30, §60.6 B7) |
+| **S-F54** | `p_chart_limits` | **Control limits for a pass/fail rate (p-chart)** — for when the batch size changes between periods | `subgroups` (list of `{defectives, n}`) | `p_bar`, `ucl_note` — **limits vary per subgroup by `n`**, so it returns the formula plus the per-subgroup array, never one flat number | Attribute (pass/fail) data |
+| **S-F55** | `c_chart_limits` | **Control limits for defect counts (c-chart)** — for when the area of opportunity is constant | `counts` (defect count per unit or period) | `c_bar`, `ucl`, `lcl` | **Constant area of opportunity** across periods |
+| **S-F56** | `post_improvement_cpk` | **Capability after the fix (post-improvement Cpk)** — the same capability figure on the new data, set against the baseline | `mean`, `std_dev`, `usl` / `lsl`, `baseline_cpk` (for the comparison) | `cpk`, `improvement_delta` (vs `baseline_cpk`), `meets_target` (`"yes"`/`"no"`) | Control's stability re-check passes first — **the same stability-before-capability rule as `calculate_cpk`** (§41) |
 
 > **Why `post_improvement_cpk` is a separate tool from `calculate_cpk`.** Same
 > formula, two entries — deliberately. §30 binds tools per phase and §60.6 B4
