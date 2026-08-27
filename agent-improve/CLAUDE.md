@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.26 — August 2026
+# Version 2.2.27 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -620,6 +620,41 @@ their reviews.
 > (`baseline_metric`, `vital_few_xs`, `process_kpis` and the rest) while Improve
 > uses the new ones. **The rules those sections state are unaffected**; only the
 > field spellings differ. Owed at back-port once Improve settles (§8).
+
+### 0.21 — What Changed in 2.2.27 — Analyse specified; the reference dicts name their metric
+
+**Analyse is the third ratified per-phase specification** (`ARCHITECTURE.md`
+§39.3, v1.16). Nothing in this file's rules changes shape; **two facts it states
+do.**
+
+| Area | v2.2.26 | v2.2.27 |
+|---|---|---|
+| Cross-phase reference dicts (§10.6) | three reference keys | **four** — adds `references_metric_name` |
+| Grader link verification (§8.2) | reads the named field's value | **resolves the `phase_metrics` entry by metric name**, then reads the value from it |
+| Analyse tiers (§9.7) | 4 Tier 1 / 5 Tier 2 | **unchanged — confirmed at review** |
+| `AnalyseOutput` count (§10.7) | 14 | **unchanged** |
+
+**`references_metric_name` closes F-13.** With one metric, "references Measure's
+`baseline_mean`" is unambiguous. **With two it is not:** `baseline_mean` is only
+the *primary* metric's mirror, and the others live solely in `phase_metrics`, so
+a hypothesis referencing the bare scalar resolves against whichever metric
+happens to be primary — **comparing two different things while looking
+verified.** The key turns a positional guess into a lookup. It is on **all three**
+reference dicts so the shape is settled once; Analyse populates it now, Improve
+and Control at their own reviews.
+
+> **This is a key INSIDE the dict value, not a new schema field.** No
+> `{Phase}Output` count moves — Analyse stays 14 — and §10.7's three-fields rule
+> is untouched. The dicts were already the exception to the string law (§10.6);
+> this adds a fourth key to that exception, not a fifth exception.
+
+**Two methodology guards are now Tier 1 rubric criteria** for Analyse:
+**correlation is not causation** — an association result requires a stated
+mechanism before it counts as a root cause — and **statistical is not practical
+significance** — a validated cause explaining a trivial share is coached back,
+not passed. **Both produce gate documents that read as complete**, which is
+exactly why they are checked explicitly rather than left to the grader's overall
+impression.
 
 ---
 

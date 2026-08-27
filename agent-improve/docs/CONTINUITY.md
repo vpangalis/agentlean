@@ -1,12 +1,20 @@
 <!--
 Document: agent-improve/docs/CONTINUITY.md
-Version: 4.3 — 2026-08-26
+Version: 4.4 — 2026-08-27
 Purpose: Session-start orientation. A new session reading ONLY this file should
          be able to orient fully and continue without losing a day.
 
 MAINTENANCE RULE: when a version number, a step, or a document location
 changes, update this file in the same commit. Verify claims against the files
 themselves; do not carry a line forward because it was here before.
+
+v4.4 delta (2026-08-27): ANALYSE phase review done — §39.3 landed (12
+subsections), F-13 CLOSED via `references_metric_name` on the S-C32 shape,
+Analyse SKILL.md rebuilt (it existed; its field order contradicted §39.3.2) and
+ANALYSE_RUBRIC gains the two methodology guards. Analyse is now a ratified
+exemplar alongside Define and Measure. §39.4/§39.5 still stubbed; F-14 still
+open but its reference shape is now defined. ARCHITECTURE.md v1.16,
+CLAUDE.md 2.2.27.
 
 v4.3 delta (2026-08-26): Measure naming convention + structured metric registry
 applied (7 renames; metric_definitions + phase_metrics; §39.2 written;
@@ -26,7 +34,7 @@ in §0.
 -->
 
 # AgentLean — Session Continuity Guide
-# Version 4.3 — 2026-08-26
+# Version 4.4 — 2026-08-27
 
 > **Read this first, then stop reading it.** This file orients. The binding
 > documents are named in §2 and they win on every point of detail.
@@ -423,6 +431,7 @@ evidence.** When you write a verification, first prove it can fail.
 
 | Version | Date | Change |
 |---|---|---|
+| **4.4** | 2026-08-27 | **ANALYSE phase review.** §39.3 written from the ratified draft — twelve subsections, the two-movements structure (generate qualitatively → validate quantitatively) and the ordering that enforces it: `causal_hypothesis` at 2, validation at 3, **`root_cause_statement` at 5 after it is proven**. **F-13 CLOSED** — `references_metric_name` added to all three cross-phase reference dicts (§63.6, S-C32); the grader resolves the `phase_metrics` entry by metric name rather than reading the bare scalar (§42, B1/B5). **Analyse `phase_metrics` = linkage form**, `"not addressed this phase"` where untouched. `AnalyseOutput` stays **14** — the key is inside the dict value, not a new field. §35 confirms 4 Tier 1 / 5 Tier 2 and `causal_hypothesis` as Tier 2. **`ANALYSE_RUBRIC` encodes two Tier-1 guards**: correlation≠causation, statistical≠practical significance. **Analyse SKILL.md REBUILT, not created** — it existed with a field order §39.3.2 rejects. Also fixed: §63.7 had been left below §63.9 by the v1.15 insert. **F-14 still open**, shape now defined. ARCHITECTURE.md **v1.16**, CLAUDE.md **2.2.27** |
 | **4.3** | 2026-08-26 | **Measure naming convention + structured metric registry.** Seven identifiers renamed on the two-tier acronym rule (`baseline_metric`→`baseline_estimate`, `target_metric`→`target_value`, `process_kpis`→`process_metrics`, `baseline_kpis`→`baseline_metrics`, `vital_few_xs`→`vital_few_drivers`, `xy_matrix_summary`→`driver_priority_summary`, `post_improvement_metric`→`post_improvement_metrics`); `baseline_mean`/`baseline_sigma`/`post_improvement_cpk` and all 20 tool names untouched. **`metric_definitions` (Define registry) + `phase_metrics` (all five schemas)** — a fourth exception to the string law, traced by key equality on `name`. **§39.2 specifies Measure in full** (12 subsections, written as an index into the cross-cutting specs). **Single-authority invariant** — `phase_metrics` authoritative, scalars mirror the primary, enforced at `gate_apply` and unit-tested across all five phases (`core/metrics.py`, 22 tests). Counts 18/15/14/14/16; same-field-on-all-five now **three** fields. Metric literacy added (§43.7, §32) and applied to Measure's SKILL.md. Register 46/12/34. ARCHITECTURE.md **v1.15**, CLAUDE.md **2.2.26**. **Root reference deliberately not renamed — diverges until back-port** |
 | **4.2** | 2026-08-26 | **`baseline` → `baseline_metric` applied and CLOSED** — founder ruling reversing `885defc`, which had renamed it the wrong direction on the authority of `DEFINE_FINALIZATION_2026-08-26.md`. §5 is authoritative. Renamed across ARCHITECTURE.md (**v1.13**), CLAUDE.md (**2.2.25**, via a proper §0.19 amendment), `phases/define/schema.py`, `skills/dmaic-define-phase/SKILL.md`, and the Analyse cross-phase-brief comment. `validate.py` needed no edit — it imports the field list rather than retyping it, which is why the atomic-unit rule earns its keep. **Siblings `baseline_mean` / `baseline_sigma` / `baseline_kpis` untouched** (27 / 8 / 15 occurrences intact) — they are the collision the rename resolves. Define's owed-item list is now empty; **WATCH 7 (`orchestrate.py`) remains open at step 4.1** |
 | **4.1** | 2026-08-26 | **Define FINALIZED to 12 required / no tiers (Option A)** — supersedes v4.0's 15/8-Tier-1; `baseline`→`baseline_metric`; `target_metric`/`baseline_metric`/`target_date` kept discrete (measurement thread); `actual_close_date` forward-noted to Control. **WATCH 3 + WATCH 8 CLOSED** (CLAUDE.md 2.2.24, `d1c7fa3`). Procedure reconciled to the out-of-band commits (`9d9e77c`, `d69a52c`). **Phase-review workstream opened** (§5) with the five-point bar; **backbone mechanics VERIFIED** against current LangGraph. **Computation-tools model ratified** — architecture holds specs, code built at step 5.3; standalone-subsystem container recommended. Measure review in progress. **§0 added: OneDrive read access for Claude Desktop** recorded so it stops being relitigated each session |

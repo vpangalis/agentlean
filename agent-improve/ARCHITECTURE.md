@@ -73,9 +73,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.15 · 2026-08-26
+Version 1.16 · 2026-08-27
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.16 (2026-08-27)** — **§56 AMENDMENT. The Analyse phase is fully specified at §39.3; F-13 CLOSED; the cross-phase reference shape gains `references_metric_name`.** **§39.3 is the third ratified per-phase HUB**, written to §39.2's template — twelve subsections indexing the cross-cutting specs and recording only Analyse specifics. **Its load-bearing content is the two movements**: generate candidate causes qualitatively (fishbone, 5 Whys, Pareto), then validate them quantitatively — and the ordering that enforces it. `causal_hypothesis` is coached at **2**, `root_cause_validation` at **3**, and **`root_cause_statement` at 5, after validation and ruling-out**. You state the cause once, once it is proven; the previous SKILL.md draft had it at position 2 as "the candidate, before it's proven", which invites a Belt to write a conclusion and then look for support. **F-13 is closed by `references_metric_name`** (§63.6, S-C32), added to **all three** cross-phase reference dicts for one uniform resolution path. **The grader now matches on it** against the referenced phase's `phase_metrics` `name` and reads the value from that entry — **never from the bare scalar**, which is only the primary metric's mirror (§39.2.3), so a link about the second metric would otherwise resolve against the first and compare two different things while looking verified (§42, S-C32 B1, B5). Analyse populates the key now; **Improve and Control carry it unpopulated until §39.4 and §39.5** — Control's is **F-14**, still open, but **its reference shape is now settled** and what remains is how N comparisons are presented and graded. **Analyse's `phase_metrics` carries the LINKAGE form** — `{name, explained_by, share_explained, source: "linkage"}` — with `"not addressed this phase"` for any registry metric the phase does not touch (§39.3.3, §63.3). **No schema field-count change: `AnalyseOutput` stays 14.** **§35 confirms Analyse's 4 Tier 1 / 5 Tier 2 split** and confirms **`causal_hypothesis` as Tier 2** — the substance is in the Tier-1 `root_cause_*` fields, and the traceability rides on `phase_metrics`, which is not skippable. **`ANALYSE_RUBRIC` encodes two methodology guards as Tier 1**: correlation is not causation (an association result needs a stated mechanism before it is a root cause) and statistical is not practical significance (a validated cause explaining a trivial share is coached back). **`skills/dmaic-analyse-phase/SKILL.md` was rebuilt, not created** — it existed and its field order contradicted §39.3.2. **Also corrected here: §63.7 had been left sitting after §63.9** by the v1.15 insertion, and is moved back above §63.8. **§39.4–§39.5 stay stubbed.** Decision record: `docs/analyse_section_39_3_draft.md`.
 
 **v1.15 (2026-08-26)** — **§56 AMENDMENT. The Measure naming convention, the structured metric registry, and Measure's full specification at §39.2.** Founder-ratified change set, applied in five steps. **(A) Seven identifiers renamed** on the two-tier acronym rule — spell out the cryptic and local, keep the industry-standard: `process_kpis`→`process_metrics`, `baseline_kpis`→`baseline_metrics`, `baseline_metric`→`baseline_estimate`, `target_metric`→`target_value`, `vital_few_xs`→`vital_few_drivers`, `xy_matrix_summary`→`driver_priority_summary`, `post_improvement_metric`→`post_improvement_metrics`. **`baseline_mean`, `baseline_sigma` and `post_improvement_cpk` survive untouched** — they are the lookalikes the rename had to route around, which is why it ran as seven word-boundary substitutions rather than one find-replace. **(B) All 20 computation-tool NAMES stay** — `Cpk`, `DPMO`, `GR&R`, `RTY`, `FTQ`, `DOE`, `I-MR`, `ANOVA` are the recognised terms — but every docstring now opens **plain concept first, then the standard term** (§69.1). **(C) The structured metric registry replaces the prose-string multi-criteria contract of v1.14.** `metric_definitions` (§63.8, S-C38) is Define's registry of `{name, unit, meaning}`; `phase_metrics` (§63.9, S-C39) is a per-phase placeholder **on all five schemas**. Both are a **narrow fourth exception to §7's string law**, same class and reason as the three cross-phase reference dicts: **the grader traces a metric by key equality on `name`**, which prose cannot support — "Error rate: 12.3%" and "error rate (%)" are one metric to a human and two to a matcher. Scalars inside stay strings. **(D) §40's same-field-on-all-five rule now binds THREE fields**, adding `phase_metrics`; counts rise to Define 18, Measure 15, Analyse 14, Improve 14, Control 16. **Define rises by two, not one** — it alone carries the registry. **Its 12-position coached walk is unchanged**: the registry is captured inside position 5, where the Belt names what they measure, so the walk stays at twelve while the gate requires thirteen. **(E) §39.2 specifies Measure in full** — twelve subsections, written as an INDEX into the cross-cutting specs rather than a restatement of them. It carries the **single-authority rule**: `phase_metrics` is authoritative, the scalars are the primary metric's mirror and MUST equal it, additional metrics live only in `phase_metrics`. **Enforced as a `gate_apply` assembly invariant that raises** (S-F28 B1–B5, `core/metrics.py`), because two stores holding one value drift invisibly — both reads succeed and the disagreement only surfaces a phase later. **(F) Metric literacy is a new coaching requirement** (§43.7, §32): the coach teaches the *metric* — what it is, why it matters here, how to read it — distinct from §43.1's education on the *statistic*. §50's gate-document rule regroups on `phase_metrics` `name` and adds `phase_metrics` to the narrative sources. Register: **46 identified, 12 closed or resolved, 34 open** — G-45 and G-46 registered and resolved in the same pass, so every reference in §39.2 resolves. **§39.3–§39.5 stay stubbed.** **The root `AGENTIC_ARCHITECTURE_REFERENCE.md` is deliberately NOT renamed** and temporarily diverges on field names — expected under §0.12, owed at back-port once Improve settles. Decision record: `docs/CLAUDE_CODE_PROMPT_measure_naming_registry.md`.
 
@@ -3206,6 +3208,14 @@ is no longer a criterion the grader can fail that the gate never asked for.
 | **Improve** | `selected_solution`, `pilot_result`, `experiment_justification`, `issues_and_barriers` | **4** |
 | **Control** | `control_plan` (**dict**, 5 sub-plans), `post_improvement_metrics`, `issues_and_barriers` | **3** |
 
+> **Analyse's 4 Tier 1 / 5 Tier 2 split was confirmed at its phase review**
+> (2026-08-26, §39.3). **`causal_hypothesis` stays Tier 2** and that is the
+> considered answer rather than an oversight: the substance of the phase is
+> carried by the Tier-1 `root_cause_statement`, `root_cause_validation` and
+> `practical_significance`, and an Analyse phase without an explicit hypothesis
+> dict is weaker but not void. **The traceability it provides rides on
+> `phase_metrics` instead**, which is not skippable (§63.9).
+
 > **Define is the one phase with no Tier 2** (founder ruling, Option A, ratified
 > 2026-08-26). Every Define field blocks the gate, so `DEFINE_REQUIRED_FOR_GATE`
 > **is** the whole coached list and there is no `acknowledged_gaps` path out of
@@ -4017,12 +4027,245 @@ contradiction-check instruction (§32).
 `phase_metrics` (the values `causal_hypothesis` references),
 `measurement_system_validated` and `stability_assessment` (preconditions).
 
-#### 39.2.12 The other three phases
+#### 39.2.12 The other two phases
 
-Analyse, Improve and Control follow **this same section shape** and take
-§39.3–§39.5 at their own reviews. Their field lists remain blocked on **G-27**
-(mappers) and **G-28** (gate assembly). **Define and Measure are the ratified
-exemplars; the other three are stubbed.**
+Improve and Control follow **this same section shape** and take §39.4–§39.5 at
+their own reviews. Their field lists remain blocked on **G-27** (mappers) and
+**G-28** (gate assembly). **Define, Measure and Analyse are the ratified
+exemplars; the other two are stubbed.**
+
+---
+
+### 39.3 Analyse phase, complete specification
+
+*Per-phase HUB: indexes the cross-cutting specs (state §6/§58.2, graph/routing
+§13–16, gate §33–38, tiers §35, tools §30/§69, multi-hop §26, cross-phase refs
+§7/§42, gate doc §50) and records only what is Analyse-specific. Define-once
+holds — nothing here re-defines a mechanism that lives in a concern Part.*
+
+**Status: RATIFIED 2026-08-26.** Files: `phases/analyse/schema.py`,
+`phases/analyse/validate.py`, `skills/dmaic-analyse-phase/SKILL.md`.
+
+#### 39.3.1 Purpose
+
+Analyse takes the vital few drivers Measure prioritised and finds — and proves —
+which of them actually cause the problem. It has two distinct movements:
+**generate** candidate root causes (qualitative — fishbone, 5 Whys, Pareto), then
+**validate** them against the data (hypothesis tests, ANOVA, regression). It ends
+with a specific, evidence-backed root cause and an honest statement of how much
+of the problem that cause explains — the input Improve needs before it designs a
+fix.
+
+#### 39.3.2 The ordered field list — the `field_index` sequence
+
+Coached in **methodology order** — frame, generate, validate, confirm, quantify,
+socialise. Schema: **§63.3 — S-C29** (canonical home).
+
+| # | Field (`artifacts` key) | Type | Tier | Note |
+|---|---|---|---|---|
+| 1 | `statistical_problem_statement` | `str` | 2 | Translate the practical problem into a testable statistical question. All Belts, in Analyse — not Define |
+| 2 | `causal_hypothesis` | `dict` | 2 | Candidate cause(s), generated (fishbone/5-Whys), linked to the metric being explained (§39.3.3) |
+| 3 | `root_cause_validation` | `str` | 1 | Statistical or observational evidence the cause is real |
+| 4 | `ruled_out_causes` | `str` | 2 | Alternatives tested and rejected, with rationale |
+| 5 | `root_cause_statement` | `str` | 1 | The confirmed, specific, actionable root cause |
+| 6 | `practical_significance` | `str` | 1 | How much of the problem it explains — the eBook's second gate |
+| 7 | `process_owner_buyin` | `str` | 2 | The owner accepts the root cause |
+| 8 | `secondary_metrics` | `str` | 2 | Carried from Measure, re-checked |
+| 9 | `issues_and_barriers` | `str` | 1 | Always last |
+
+`AnalyseOutput` = these nine **+** `phase_metrics` (§39.3.3) **+** four
+gate-metadata fields = **14**. 4 Tier 1, 5 Tier 2.
+
+**Note the generate-before-validate ordering** (2 before 3). A hypothesis is
+generated qualitatively, then tested. `root_cause_statement` (5) lands *after*
+validation (3) and ruling-out (4) — you state the cause once, once it is proven,
+not as an opening guess refined in place.
+
+#### 39.3.3 The metric registry and Analyse's placeholder (linkage form — closes F-13)
+
+Analyse holds no *measured* metric value — Measure did that. Its `phase_metrics`
+entry records the **linkage**: which root cause explains which registry metric.
+
+```
+phase_metrics = [
+  {name: "invoice_error_rate", explained_by: "root cause: onboarding gap in first 60 days",
+   share_explained: "≈70% (practical_significance)", source: "linkage"},
+  {name: "invoice_cycle_time", explained_by: "not addressed this phase", source: "linkage"}
+]
+```
+
+A metric Analyse does not address writes `"not addressed this phase"`, never a
+silent absence. This keeps the keyed trail unbroken through a phase that acts on
+drivers rather than outcome values.
+
+**`causal_hypothesis` names the metric it explains.** Its reference dict
+(§63.6 / S-C32) gains `references_metric_name` so a multi-metric project links a
+hypothesis to a *specific* Y, not just "the baseline":
+
+```
+causal_hypothesis = {
+    "hypothesis":          "Inadequate onboarding causes the error spike in first 60 days",
+    "references_phase":    "measure",
+    "references_field":    "baseline_mean",
+    "references_metric_name": "invoice_error_rate",   # NEW — which metric
+    "references_value":    "12.3%",
+}
+```
+
+The grader resolves the link by lookup against Measure's gate document (§42),
+now matching on `references_metric_name` against the `phase_metrics` key, not on
+a bare scalar. `causal_hypothesis` stays **Tier 2** (the substance is in the
+Tier-1 `root_cause_*` fields); the linkage traceability itself rides on
+`phase_metrics`, which is not skippable.
+
+#### 39.3.4 Two movements — generate, then validate
+
+*Analyse's methodology core (parallel to Measure's §39.2.4 SIPOC handling).*
+
+**Movement 1 — generate (qualitative).** From Measure's `vital_few_drivers`, the
+coach helps the Belt generate candidate causes: a **fishbone** (`propose_template`
+/ `propose_diagram`) to structure them by category, **5 Whys** (a coaching
+sequence, not a tool) to drill past symptoms, **Pareto** (`propose_diagram`) to
+focus. Output: `causal_hypothesis`. No computation tool — this is structured
+thinking, nothing to calculate.
+
+**Movement 2 — validate (quantitative).** Each surviving hypothesis is tested
+against the data with the computation tools (§39.3.5). Output: `root_cause_
+validation`, `ruled_out_causes`, and — only once proven — `root_cause_statement`.
+
+**The bright line between them is the load-bearing teaching of the phase.** A
+cause that feels obvious on a fishbone is a hypothesis, not a finding, until the
+data backs it. Skipping movement 2 is how a Belt ships their first guess as a
+root cause.
+
+#### 39.3.5 Tools bound to Analyse
+
+Passed to the executor via `tools=` on `create_agent` (§18). **Twelve** — under
+the 16 cap (§30).
+
+- **The universal seven** (§29.2), on every phase — including `propose_template`
+  and `propose_diagram`, which carry the **generation** tools here: fishbone,
+  Pareto, scatter plot, box plot. 5 Whys is a SKILL.md coaching sequence, not a
+  registered tool.
+- **Five computation tools** (§30 binding; specified §69), standard statistical
+  names kept, plain-concept-then-standard-term docstrings:
+
+| Job | Tools | Use |
+|---|---|---|
+| Compare groups | `t_test`, `anova` | Does the driver shift the outcome between groups? |
+| Association, categorical | `chi_square_test` | Are two categorical factors related? |
+| Association, continuous | `pearson_correlation` | Do two continuous variables move together? |
+| Explain / predict | `linear_regression` | How much of the outcome does the driver explain? |
+
+No `calculate_doe_main_effects` — DOE belongs to Improve (§30). Each tool runs
+under the seven-step pattern (§43.1). SKILL.md `allowed-tools` MUST match this
+exact subset (§32).
+
+#### 39.3.6 Conditions — methodology guards, routing, and the gate
+
+**Two methodology guards** (Analyse's equivalent of Measure's sequence locks):
+
+1. **Correlation is not causation.** When `pearson_correlation` or
+   `linear_regression` shows association, the coach requires a plausible
+   **mechanism** before it is written as a root cause. Association is evidence
+   toward a hypothesis, never the confirmation itself — enforced by the rubric.
+2. **Statistical ≠ practical significance.** A result may be statistically
+   significant (`p < 0.05`) and explain a trivial share of the problem. The gate
+   requires **`practical_significance`** (Tier 1) alongside validation — the
+   eBook's second gate. A validated cause explaining too little is coached back,
+   not carried to Improve.
+
+**Routing conditions** — the five-node cycle (§13), `Command`-routed (§15). The
+Analyse-specific one:
+
+| Where | Condition | Goes to |
+|---|---|---|
+| `planner` (S-F13 DP1) | current field incomplete, or more fields remain | `executor` (`field_index++`) |
+| `planner` | may select `retrieval_strategy = multi_hop` (§26) — Analyse is the phase this exists for | `executor` |
+| `planner` | all 9 captured | `validation_stack` |
+| `validation_stack` | 2b presence of the **4 Tier 1** + 2d `ANALYSE_RUBRIC` pass | `gate_review` |
+| `validation_stack` | fail | `planner` (+ `validator_feedback`); `gate_attempts ≥ 3` → escalation (§38) |
+| `gate_apply` | Belt approve / reject | `END` / `planner` (+ `rejection_feedback`) |
+
+**Gate-pass condition:** the 4 Tier 1 fields present and `ANALYSE_RUBRIC` clears;
+the 5 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
+
+#### 39.3.7 State parameters (`AnalyseState`)
+
+*Indexes §6 / §58.2 — S-C02.* `AnalyseState` extends `PhaseState`. The
+Analyse-specific reads/writes — note this is the phase where multi-hop is real:
+
+| PhaseState field | In Analyse |
+|---|---|
+| `artifacts` | the 9 captured fields + `phase_metrics` + `computation_results` |
+| `field_index` | walks the §39.3.2 list (0–8) |
+| `hop_results` / `synthesis_output` | **populated here** — Analyse's planned multi-hop retrieval chain (§26); the dedicated synthesis call's output lives in state, not a node local, so it is traced and survives resume |
+| `computation_results` | every hypothesis test run; the grader scans it for `t_test` / `anova` / `chi_square_test` evidence, not prose |
+| `gate_attempts` | Analyse's own retry counter, cap 3 |
+| `citations` / `uploads` | evidence trail; Analyse leans on `rag_lookup_case_history` (precedent from other projects) more than any phase |
+
+#### 39.3.8 Metric literacy — what each metric and statistic means
+
+New requirement (§32, §43.7), Analyse instance. The coach teaches, in plain
+language (§50), for each thing in play:
+
+- **The metric** — echo its Define `meaning`; frame what "explaining" it means
+  ("we're finding what drives the 12.3% error rate, and how much of it").
+- **The statistic** — the seven-step *educate* step (§43.1 step 1) for
+  `p-value`, `t-statistic`, `R²`, `correlation coefficient`. *"A p-value is the
+  chance you'd see this result if the driver made no difference — small means
+  the effect is probably real. R² is the share of the variation this driver
+  explains — that's your practical significance."*
+
+Never a raw dump — `t = 4.23, p = 0.001` without the plain-language read is a
+rubric failure (§43.1).
+
+#### 39.3.9 Gate, storage, progress view
+
+- **Four Tier 1 fields block** the gate (§35). Five Tier 2 warn only.
+- **The live gate document** (§50) renders the fishbone / Pareto / scatter via
+  `propose_diagram` inline, and `computation_results` (each test) with its
+  interpretation, grouped by `phase_metrics` `name`. Narrative from captured
+  field text + `computation_results` + `phase_metrics` — never `CoachingResponse`
+  turn fields (§50, WATCH 9).
+- **Two progress bars**, Tier 1 and Tier 2.
+- Written **once** to `store/projects/{case_id}/artifacts/analyse.json` by
+  `gate_apply` (§9, §33).
+
+#### 39.3.10 The SKILL.md content
+
+`skills/dmaic-analyse-phase/SKILL.md` is generated from this section and must
+match. **Authoritative during the refactor.** It carries the A→F session flow, a
+Measure-recap opening (show the Belt the `vital_few_drivers` and `baseline_mean`
+they arrive with), the two-movements structure, the seven-step sequence per
+computation tool, the 5-Whys coaching sequence, a worked example per field, the
+metric-literacy explanations (§39.3.8), the Document Layout, and the
+contradiction-check instruction (§32). **This SKILL.md does not exist yet** — it
+is written from this section.
+
+#### 39.3.11 Cross-phase reads and writes
+
+**Reads from Measure** (`store.get(("projects", case_id, "artifacts"), "measure")`):
+`vital_few_drivers` (**the starting list — Analyse tests exactly these**),
+`driver_priority_summary` (how they were ranked), `baseline_mean` and
+`phase_metrics` (the values `causal_hypothesis` references),
+`measurement_system_validated` and `stability_assessment` (preconditions — tests
+on unvalidated or unstable data are meaningless), `data_collection_plan` (reuse
+its definitions). Also reads Define's `metric_definitions` (the registry).
+
+**Writes**: the 9 content fields, `phase_metrics` (the linkage), and
+`causal_hypothesis` (with `references_metric_name`).
+
+**Hands to Improve**: `root_cause_statement` (**what the solution must address**),
+`practical_significance` (the size of the prize), `causal_hypothesis` and
+`phase_metrics` (the metric linkage Improve's `solution_linked_to_root_cause`
+extends).
+
+#### 39.3.12 The other two phases
+
+Improve and Control follow this same section shape and take §39.4–§39.5 at their
+own reviews. **Analyse, Define and Measure are now the ratified exemplars;
+Improve and Control remain stubbed.**
 
 ---
 
@@ -4215,11 +4458,11 @@ it.
 *Supersedes: ARCHITECTURE.md §4.7; CLAUDE.md §10.6.*
 **Status: RATIFIED.** Schema defined in §7; this is how the three are used.
 
-| Field | Phase | Tier | References |
-|---|---|---|---|
-| `causal_hypothesis` | Analyse | 2 | Measure's `baseline_mean` |
-| `solution_linked_to_root_cause` | Improve | 2 | Analyse's `root_cause_statement` |
-| `post_improvement_metrics` | Control | **1** | Measure's `baseline_mean` |
+| Field | Phase | Tier | References | `references_metric_name` |
+|---|---|---|---|---|
+| `causal_hypothesis` | Analyse | 2 | Measure's `baseline_mean`, for a named metric | **Yes — §39.3** |
+| `solution_linked_to_root_cause` | Improve | 2 | Analyse's `root_cause_statement` | Carried, unpopulated — §39.4 |
+| `post_improvement_metrics` | Control | **1** | Measure's `baseline_mean`, per metric | Carried, unpopulated — §39.5, **F-14** |
 
 **Only `post_improvement_metrics` is Tier 1**, and that asymmetry is
 deliberate: a Control phase that cannot link its result back to the Measure
@@ -4229,6 +4472,15 @@ without an explicit hypothesis link is weaker but not void.
 **The grader verifies each link by lookup, not judgment** (§36) — it reads the
 referenced phase's gate document from the Store and checks the named field
 carries the named value.
+
+**The lookup matches on `references_metric_name`, not on the bare scalar**
+(2026-08-26, closing F-13). It resolves the referenced phase's `phase_metrics`
+entry whose `name` equals `references_metric_name`, and reads the value from
+**that entry**. **Reading the scalar directly is wrong on any multi-metric
+project**: `baseline_mean` is only the *primary* metric's mirror (§39.2.3), so a
+link about the second metric would silently resolve against the first and
+compare two different things while looking verified. A reference that does not
+name its metric fails the lookup rather than falling back (S-C32 B5).
 
 ---
 
@@ -8354,6 +8606,25 @@ class AnalyseOutput(BaseModel):
     uploads:              list[dict] = []
 ```
 
+> **Analyse's `phase_metrics` carries the LINKAGE form, not values** (§39.3.3).
+> Analyse holds no measured metric value — Measure did that. Each entry records
+> which root cause explains which registry metric:
+>
+> ```python
+> phase_metrics = [
+>     {"name": "invoice_error_rate",
+>      "explained_by": "root cause: onboarding gap in first 60 days",
+>      "share_explained": "≈70% (practical_significance)", "source": "linkage"},
+>     {"name": "invoice_cycle_time",
+>      "explained_by": "not addressed this phase", "source": "linkage"},
+> ]
+> ```
+>
+> **A registry metric this phase does not touch writes `"not addressed this
+> phase"`** — populated-or-explicit, never silently absent (§40, §63.9 B2). That
+> is what keeps the keyed trail unbroken through a phase that acts on drivers
+> rather than outcome values.
+
 **Behaviors (EARS):**
 
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
@@ -8458,26 +8729,47 @@ cause?" is an opinion; with them it is a lookup.
 **Shape:**
 ```python
 causal_hypothesis = {
-    "hypothesis":       "Inadequate onboarding causes error spike in first 60 days",
-    "references_phase": "measure",
-    "references_field": "baseline_mean",
-    "references_value": "12.3%",
+    "hypothesis":             "Inadequate onboarding causes error spike in first 60 days",
+    "references_phase":       "measure",
+    "references_field":       "baseline_mean",
+    "references_metric_name": "invoice_error_rate",   # which metric — §63.8
+    "references_value":       "12.3%",
 }
 ```
 
+**Four reference keys, not three.** `references_metric_name` names **which
+registry metric** the link is about (§63.8), and the shape is **uniform across
+all three dicts** so the grader has one resolution path rather than three.
+
+> **Why it was added (F-13, closed 2026-08-26).** With one metric, "references
+> Measure's `baseline_mean`" is unambiguous. With two, `baseline_mean` is the
+> *primary* metric's mirror (§39.2.3) and the others live only in
+> `phase_metrics` — so a hypothesis referencing a bare scalar resolves to
+> whichever metric happens to be primary, and *"explains 60% of the problem"*
+> stops having a single referent. **The key turns a positional guess into a
+> lookup.**
+
+**Populated by Analyse now.** `solution_linked_to_root_cause` (Improve) and
+`post_improvement_metrics` (Control) **carry the key and leave it unpopulated
+until their own reviews** — §39.4 and §39.5. Control's is **F-14**, still open:
+its target-vs-actual becomes one comparison per metric, and this key is the
+shape that comparison will resolve through. **The key exists on all three now
+so the shape is settled once**, rather than three times in three reviews.
+
 **The three:**
 
-| Field | Phase | Tier | References |
-|---|---|---|---|
-| `causal_hypothesis` | Analyse | 2 | Measure's `baseline_mean` |
-| `solution_linked_to_root_cause` | Improve | 2 | Analyse's `root_cause_statement` |
-| `post_improvement_metrics` | Control | **1** | Measure's `baseline_mean` |
+| Field | Phase | Tier | References | `references_metric_name` populated? |
+|---|---|---|---|---|
+| `causal_hypothesis` | Analyse | 2 | Measure's `baseline_mean`, for a named metric | **Yes — §39.3** |
+| `solution_linked_to_root_cause` | Improve | 2 | Analyse's `root_cause_statement` | Carried, unpopulated — §39.4 |
+| `post_improvement_metrics` | Control | **1** | Measure's `baseline_mean`, per metric | Carried, unpopulated — §39.5, **F-14** |
 
 **Behaviors (EARS):**
 
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
 |---|---|---|---|
-| B1 | one of the three is graded | resolve `references_phase` / `references_field` / `references_value` against the Store by lookup, never by model judgment | §36, §42 |
+| B1 | one of the three is graded | resolve `references_phase` / `references_field` / `references_metric_name` / `references_value` against the Store by lookup, never by model judgment. **Match `references_metric_name` against the referenced phase's `phase_metrics` `name`** and read the value from that entry — **not from the bare scalar**, which is only the primary metric's mirror (§39.2.3) | §36, §42, §63.9 |
+| B5 | `references_metric_name` is absent or names no registry metric | fail the lookup rather than falling back to the scalar — a link that cannot say which metric it is about is not a verified link | §63.8 |
 | B2 | one of the three is captured | carry it through `CoachingResponse.fields_captured` with `value` as a `dict` — which is why `value` is typed `Any` | §20 |
 | B3 | values inside the dict are written | write them as strings | §7 |
 | B4 | assembly reaches one of the three | access it as `artifacts.get("field", {})` — the correct empty type | §40.1 |
@@ -8486,6 +8778,48 @@ causal_hypothesis = {
 deliberate — an Analyse phase without an explicit hypothesis link is weaker but
 not void, whereas a Control phase that cannot link back to the baseline has
 demonstrated nothing.
+
+### 63.7 S-C33 · The three structured dict fields
+
+**Architecture:** §41, §39 · **File:** `phases/{phase}/schema.py` · **Procedure:** step 3.4
+*Rebuild test: met.*
+
+**Purpose:** Three gate-required fields are structured dicts, **distinct from the three
+cross-phase reference dicts.** They are dicts rather than prose because a
+coaching conversation produces text no downstream planner can read and no grader
+can check.
+
+| Field | Phase | Sub-fields |
+|---|---|---|
+| `process_map_sipoc` | Define | `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, **`process_metrics`** |
+| `detailed_process_map` | Measure | `steps`, `cycle_times`, `resources`, `value_vs_waste`, `measurement_points`, **`baseline_metrics`** |
+| `control_plan` | Control | `documentation`, `monitoring`, `response`, `training`, `aligning_systems` |
+
+**`control_plan`, fully specified:**
+```python
+control_plan: dict = {
+    "documentation":    str,   # updated process maps, SOPs, training manuals
+    "monitoring":       str,   # what charts, what frequency, what limits, who checks
+    "response":         str,   # what happens when monitoring signals a problem
+    "training":         str,   # who needs training, in what format, verified how
+    "aligning_systems": str,   # HR, IT, budget changes needed to sustain
+}
+```
+
+**Behaviors (EARS):**
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | any of the three is graded | check **every** sub-field is populated; a partial map is the failure these fields exist to catch | §41 |
+| B2 | any of the three is typed | be `dict`, never `str` | §41 |
+| B3 | the measurement thread is verified | read `process_metrics` (WHAT), `baseline_metrics` (BEFORE) and `post_improvement_metrics` (AFTER), and confirm the same measurement points carry different values | §39 |
+
+**Invariant — FMEA has no field in any schema, and none may be added.** Not
+`fmea_summary`, not `updated_fmea`, not an FMEA sub-key anywhere. If a Black
+Belt performs one it lives in `uploads` as an attached document; the schema does
+not track it, the grader does not ask for it, and no gate blocks on it (§41).
+
+---
 
 ### 63.8 S-C38 · `metric_definitions` — the project metric registry
 
@@ -8571,48 +8905,6 @@ link rather than a number.
 | B3 | a tool runs on a multi-metric project | carry the metric's `name` in `computation_results.inputs`, so the result is attributable (§69.1) | §69 |
 | B4 | the live gate document renders | group `computation_results` by `phase_metrics` `name` when more than one metric is tracked | §50 |
 | B5 | a scalar is written inside an entry | keep it a **string** — the dict is the exception to §7, its scalars are not | §7 |
-
-### 63.7 S-C33 · The three structured dict fields
-
-**Architecture:** §41, §39 · **File:** `phases/{phase}/schema.py` · **Procedure:** step 3.4
-*Rebuild test: met.*
-
-**Purpose:** Three gate-required fields are structured dicts, **distinct from the three
-cross-phase reference dicts.** They are dicts rather than prose because a
-coaching conversation produces text no downstream planner can read and no grader
-can check.
-
-| Field | Phase | Sub-fields |
-|---|---|---|
-| `process_map_sipoc` | Define | `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, **`process_metrics`** |
-| `detailed_process_map` | Measure | `steps`, `cycle_times`, `resources`, `value_vs_waste`, `measurement_points`, **`baseline_metrics`** |
-| `control_plan` | Control | `documentation`, `monitoring`, `response`, `training`, `aligning_systems` |
-
-**`control_plan`, fully specified:**
-```python
-control_plan: dict = {
-    "documentation":    str,   # updated process maps, SOPs, training manuals
-    "monitoring":       str,   # what charts, what frequency, what limits, who checks
-    "response":         str,   # what happens when monitoring signals a problem
-    "training":         str,   # who needs training, in what format, verified how
-    "aligning_systems": str,   # HR, IT, budget changes needed to sustain
-}
-```
-
-**Behaviors (EARS):**
-
-| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
-|---|---|---|---|
-| B1 | any of the three is graded | check **every** sub-field is populated; a partial map is the failure these fields exist to catch | §41 |
-| B2 | any of the three is typed | be `dict`, never `str` | §41 |
-| B3 | the measurement thread is verified | read `process_metrics` (WHAT), `baseline_metrics` (BEFORE) and `post_improvement_metrics` (AFTER), and confirm the same measurement points carry different values | §39 |
-
-**Invariant — FMEA has no field in any schema, and none may be added.** Not
-`fmea_summary`, not `updated_fmea`, not an FMEA sub-key anywhere. If a Black
-Belt performs one it lives in `uploads` as an attached document; the schema does
-not track it, the grader does not ask for it, and no gate blocks on it (§41).
-
----
 
 ## 64. Spec — reliability
 
@@ -9189,8 +9481,8 @@ Analyse's.
 | **F-11** | **The built `DefinePhaseInput` had diverged from the v2 architecture names.** It carried granular 5W2H fields (`what`, `where`, `when`, `who_affected`, `why_it_matters`, `how_much_baseline`, `how_goal`), `scope_in`/`scope_out` as separate strings, and **both** `target_date` and `estimated_completion_date` — a duplicate date. **Resolved by the §39.1 rebuild**, in favour of the v2 names: one composed `problem_statement`, `project_scope` as a dict, one `target_date`. **Recorded so the rebuild is not later read as having introduced those names** — it retired them. The 5W2H survive as the coaching method (§39.1.3), never as stored fields |
 | **F-12** | **Control has no `actual_close_date`, and Define's `target_date` therefore has nothing to be compared against.** Define's finalization (2026-08-26) makes `target_date` a required field and states explicitly that it is the **planned** completion date — a project-management parameter that may slip without invalidating the improvement. **The pattern it belongs to is target-vs-actual**, the same one `target_value` uses: Define states the target, Control captures what actually happened, and the delta is the finding. `target_value` has its Control counterpart in `post_improvement_metrics` (S-C31); **`target_date` has none.** Recorded as a forward dependency, **not built here** — Control's field list is settled at its own phase review (§39.5, blocked on G-27/G-28), and adding a field to `ControlOutput` outside that review is exactly the one-phase-at-a-time change §40 warns about. **When Control is specified, `actual_close_date` must be on the agenda alongside the schedule-variance question it implies** (is a slipped date a Control finding, or only a record?) |
 
-| **F-13** | **Analyse's `causal_hypothesis` does not say WHICH criterion a root cause explains.** Harmless while a project tracks one measurement criterion; ambiguous the moment it tracks two. `causal_hypothesis` is a cross-phase reference dict (§7, §42) carrying `references_phase` / `references_field` / `references_value`, and the grader verifies the link by deterministic lookup — but with `baseline_estimate` naming *"Error rate: 12.3%. Cycle time: 2.6 days."*, a root cause referencing "the baseline" resolves to a string containing both, and **"explains 60% of the problem" stops having a single referent.** `practical_significance` inherits the same ambiguity. **Recorded, not built** — Analyse's field list is settled at its own phase review (§39.3, blocked on G-27/G-28), and adding a sub-key to one phase's reference dict outside that review is the one-phase-at-a-time change §40 warns against. Raised by the multi-criteria ruling, 2026-08-26 |
-| **F-14** | **Control's target-vs-actual becomes one comparison per criterion.** `post_improvement_metrics` (S-C31) is the AFTER end of the measurement thread and is graded by lookup against Measure's `baseline_mean` (§63.5 B2). With N criteria that is **N comparisons, not one** — and a Control phase reporting a single improvement delta across several metrics is the same failure `MEASURE_RUBRIC` now catches at the Measure gate, arriving one phase later. Pairs with **F-12**, which owes Control an `actual_close_date`: both are Control-side consequences of Define-side decisions, and **both should be settled in the same Control review** rather than discovered separately. **Recorded, not built.** Raised by the multi-criteria ruling, 2026-08-26 |
+| **F-13 — RESOLVED 2026-08-26** | ~~**Analyse's `causal_hypothesis` does not say WHICH criterion a root cause explains.**~~ **Closed at the Analyse phase review (§39.3):** the cross-phase reference shape (§63.6, S-C32) gains **`references_metric_name`**, and the grader now matches it against the referenced phase's `phase_metrics` `name` rather than reading a bare scalar (S-C32 B1, B5). The key is on **all three** reference dicts for a uniform resolution path; Analyse populates it now, Improve and Control at §39.4 and §39.5. **The original finding, for the record:** Harmless while a project tracks one measurement criterion; ambiguous the moment it tracks two. `causal_hypothesis` is a cross-phase reference dict (§7, §42) carrying `references_phase` / `references_field` / `references_value`, and the grader verifies the link by deterministic lookup — but with `baseline_estimate` naming *"Error rate: 12.3%. Cycle time: 2.6 days."*, a root cause referencing "the baseline" resolves to a string containing both, and **"explains 60% of the problem" stops having a single referent.** `practical_significance` inherits the same ambiguity. **Recorded, not built** — Analyse's field list is settled at its own phase review (§39.3, blocked on G-27/G-28), and adding a sub-key to one phase's reference dict outside that review is the one-phase-at-a-time change §40 warns against. Raised by the multi-criteria ruling, 2026-08-26 |
+| **F-14** | **Control's target-vs-actual becomes one comparison per criterion.** *(Still open — but its reference shape is now defined: `post_improvement_metrics` carries `references_metric_name` from 2026-08-26, unpopulated until §39.5. What remains is Control's own decision about how N comparisons are presented and graded, not how they are addressed.)* `post_improvement_metrics` (S-C31) is the AFTER end of the measurement thread and is graded by lookup against Measure's `baseline_mean` (§63.5 B2). With N criteria that is **N comparisons, not one** — and a Control phase reporting a single improvement delta across several metrics is the same failure `MEASURE_RUBRIC` now catches at the Measure gate, arriving one phase later. Pairs with **F-12**, which owes Control an `actual_close_date`: both are Control-side consequences of Define-side decisions, and **both should be settled in the same Control review** rather than discovered separately. **Recorded, not built.** Raised by the multi-criteria ruling, 2026-08-26 |
 
 ### 66.8 The Supplier/Customer cross-check — first run, 2026-08-23
 
