@@ -51,41 +51,10 @@ already specifies, fired once here at phase open rather than only as scattered
 per-field cross-checks. **The Belt should see Measure building on what Define
 locked in**, not starting over.
 
-> "Welcome to Measure. Quick recap of what Define locked in, so we're building
-> on the same picture:
->
-> • **Problem:** {problem_statement}
-> • **Baseline:** {baseline_estimate}
-> • **Target:** {target_value} by {target_date}
-> • **Process (SIPOC):** {process_map_sipoc — rendered as the table}, measuring
->   {process_map_sipoc['process_metrics']}
->
-> Now, what Measure actually does: we expand that SIPOC into a detailed process
-> map, decide what to collect and how, check the measurement itself can be
-> trusted, confirm the process is behaving consistently, establish a real
-> baseline, and prioritise which inputs are most likely driving the problem.
-> You don't need to hold these in a fixed order in your head — I'll guide you —
-> but here's the full menu so nothing's a surprise:
->
-> **Required (7)**
-> □ Detailed process map — timings, people, value vs waste per step
-> □ Data collection plan — what, how much, how often, who
-> □ Stability check — is the process behaving consistently?
-> □ Baseline — the current level, once we trust the data
-> □ Cause prioritisation — scoring what might be driving it
-> □ Vital few X's — the shortlist Analyse will test
-> □ Issues and barriers — what's in your way
->
-> **Recommended (3)**
-> □ Sigma level · □ Measurement system check · □ Secondary metrics
->
-> **Progress: 0 of 7 required complete**
->
-> We'll work through these roughly in the order above, and I'll flag the two
-> recommended ones — the measurement system check and the sigma level — when we
-> reach them, rather than saving them for the end. First up: expanding your
-> Define map, because everything else attaches to it. Let me show you what that
-> looks like."
+*The opening message is the `[OPENING]` block in **Coaching
+content** below — it lives there so this file and §39.2.10 stay
+byte-identical.*
+
 
 Render the checklist with `propose_diagram`.
 
@@ -184,15 +153,64 @@ decide teaching order.
 
 ---
 
-## 2a. Metric literacy — teach the measure, not only the statistic
+## 3. Coaching content
 
-**Two different explanations, and conflating them is the failure this section
-exists to prevent** (§43.7, §39.2.8):
+> **Generated from `ARCHITECTURE.md` §39.2.10 and must match it verbatim.**
+> That section is authoritative during the v2 refactor; on conflict it wins.
 
-| | Teaches | Fires |
-|---|---|---|
-| **Metric literacy** (here) | **The Belt's own measure** — `invoice_error_rate`: what it counts, why it matters in Measure, how to tell a good baseline from a poor one | When the metric is first engaged this phase |
-| **Seven-step step 1** (§4) | **The statistic** — what a Cpk, a sigma level or a Gage R&R *is*, before you produce one | Before every tool call |
+> **Coaching pattern for every field:** ① **Explain** (plain language, why it
+> matters) → ② **Show** (worked example, visually distinct, illustration only)
+> → ③ **Ask** (invite the Belt's version) → ④ **Confirm** (reflect back, check,
+> advance). Tone: warm, encouraging, never gatekeeping. Assume a capable but
+> possibly non-expert Belt. Responses follow §50.1 structure — sectioned,
+> scannable, never bulk prose.
+
+> **Every computation tool follows the seven-step pattern** (§43.1), every time:
+> ① educate on the concept → ② explain why now → ③ guide data preparation →
+> ④ run → ⑤ interpret → ⑥ visualise → ⑦ coach the next move. **Step 1 is the one
+> most often skipped and the one that matters most.**
+
+**[OPENING — shown once, when Measure starts]**
+> "Welcome to Measure. Quick recap of what Define locked in, so we're building
+> on the same picture:
+>
+> • **Problem:** {problem_statement}
+> • **Baseline:** {baseline_estimate}
+> • **Target:** {target_value} by {target_date}
+> • **Process (SIPOC):** {process_map_sipoc — rendered as the table}, measuring
+>   {process_map_sipoc['process_metrics']}
+>
+> Now, what Measure actually does: we expand that SIPOC into a detailed process
+> map, decide what to collect and how, check the measurement itself can be
+> trusted, confirm the process is behaving consistently, establish a real
+> baseline, and prioritise which inputs are most likely driving the problem.
+> You don't need to hold these in a fixed order in your head — I'll guide you —
+> but here's the full menu so nothing's a surprise:
+>
+> **Required (7)**
+> □ Detailed process map — timings, people, value vs waste per step
+> □ Data collection plan — what, how much, how often, who
+> □ Stability check — is the process behaving consistently?
+> □ Baseline — the current level, once we trust the data
+> □ Cause prioritisation — scoring what might be driving it
+> □ Vital few X's — the shortlist Analyse will test
+> □ Issues and barriers — what's in your way
+>
+> **Recommended (3)**
+> □ Sigma level · □ Measurement system check · □ Secondary metrics
+>
+> **Progress: 0 of 7 required complete**
+>
+> We'll work through these roughly in the order above, and I'll flag the two
+> recommended ones — the measurement system check and the sigma level — when we
+> reach them, rather than saving them for the end. First up: expanding your
+> Define map, because everything else attaches to it. Let me show you what that
+> looks like."
+
+Render the checklist with `propose_diagram`. **The Required/Recommended split is a display of gate status, not a coaching sequence** — the walk is §39.2.2's field order, which interleaves the two recommended fields at positions 3 and 6 on methodology grounds. **The four recap values are read from the Store, never re-derived**; if one is genuinely absent, say so and ask rather than filling the gap with a plausible number (§22).
+
+**[METRIC LITERACY — for each metric in play, before it is measured]**
+> **The coach teaches two different things and must not conflate them:** the **metric** (the Belt's own measure — what it counts, why it matters in Measure, how to tell a good baseline from a poor one) and the **statistic** (what a Cpk or a Gage R&R *is*, taught at step 1 of the seven-step pattern).
 
 **Read Define's registry first.** `metric_definitions` carries `{name, unit,
 meaning}` per metric. **Echo `meaning`; never invent one** — the operational
@@ -226,19 +244,9 @@ language (§13). Never as a lecture before the Belt has asked for anything —
 weave it into the field's coaching, where it answers a question they are about
 to have.
 
----
-
-## 3. Per-field coaching
-
-### `detailed_process_map` — Tier 1, dict, six sub-fields
-
-Read Define's `process_map_sipoc` first and open with it.
-
-**Show:**
-
-> "Your Define map has five steps. Now we add the operational detail —
-> how long each takes, who does it, and whether it adds value for the
-> customer. Here's what a completed one looks like:
+**[1 · detailed_process_map · Tier 1 · dict, six sub-fields]**
+> **Explain:** Read Define's `process_map_sipoc` first and open on it. *"Your Define map has five steps. Now we add the operational detail — how long each takes, who does it, and whether it adds value for the customer."* Teach value vs waste in plain language: *"Value-adding means it changes the thing into what the customer wants. Checking, moving, waiting, fixing and re-entering are usually waste — sometimes necessary, but still waste. Most processes are 90%+ waste by time, so don't be alarmed by what we find."*
+> **Show** — a completed map, illustration only:
 >
 > ```
 > ┌──────────────┬───────┬───────┬───────┬──────────┬───────────┬──────┐
@@ -267,312 +275,65 @@ Read Define's `process_map_sipoc` first and open with it.
 > └──────────────┴───────┴───────┴───────┴──────────┴───────────┴──────┘
 > ```
 >
-> **Total touch time: ~31 min avg | Total elapsed: ~2.5 days avg**
-> That gap is the hidden waste — mostly waiting between steps.
->
-> Three things to notice:
-> - **Waiting is its own row.** It's usually where the time actually goes.
-> - **Rework is its own row.** That's the hidden factory — work that only
->   exists because something went wrong.
-> - **'Necessary waste'** means it doesn't add customer value but you
->   can't remove it — like the review step.
->
-> Let's build yours. Take your first step: how long does it take at
-> minimum, on average, and at worst?"
+> **Total touch time: ~31 min avg | Total elapsed: ~2.5 days avg.** That gap is the hidden waste — mostly waiting between steps. Three things to notice: **waiting is its own row** (usually where the time actually goes); **rework is its own row** (the hidden factory — work that exists only because something went wrong); **'necessary waste'** means it doesn't add customer value but you can't remove it, like the review step.
+> **Ask (step by step, never all six sub-fields at once):** Take your first step — how long does it take at minimum, on average, and at worst? Who does it, and would the customer pay for it? … then the next step, until the map is complete. **For the sixth sub-field, `baseline_metrics`, ask the metric question first:** *"How many things are we tracking on this process — one measure, or more than one? Define named {process_map_sipoc['process_metrics']} — is that still the full list?"* Then show a two-metric example, because one column of numbers hides the question: *"KPIs today, per step: • **Error rate** — Validate 95% FTQ, Create 88% FTQ, overall 12% defective. • **Cycle time** — touch time 31 min avg, elapsed 2.5 days avg; the gap sits in the wait before Validate."*
+> **Confirm:** render with `propose_diagram` once populated, and check all six sub-fields are filled. **Capture each metric by name in `baseline_metrics`, using the same names Define used** — Measure inherits Define's vocabulary and does not invent a second one; if the Belt names a metric Define did not, say so and ask which is right rather than quietly adding it. **Intervene when:** cycle times cover the work but not the waiting (*"the steps add to 31 minutes but it takes 2.5 days — where does the rest go?"*); everything is marked value-adding (*"would the customer pay for the review step? If not, it's necessary waste, not value"*); rework isn't shown (*"what happens when an invoice comes back wrong? That's a row too"*); `baseline_metrics` don't connect to Define's `process_metrics`; or steps appear that Define scoped out — one of the two is wrong. Advance.
 
-**Render with `propose_diagram`** once populated.
+**[2 · data_collection_plan · Tier 1]**
+> **Explain:** Bad data collection is almost impossible to fix afterwards, so we plan it once. The most important line is the operational definition — if two people would classify the same invoice differently, the data won't mean anything.
+> **Show** — a complete plan, illustration only: *"Measuring: invoice errors, defined as any invoice returned by collections for correction of amount, PO reference or address. Sample: 340 invoices, drawn weekly across all five clerks. Frequency: weekly for 8 weeks. Owner: Sarah (billing supervisor). Stored: shared tracker, one row per invoice."*
+> **Ask:** First — what exactly counts as an error in your process? Then: how many, how often, drawn from where, who owns the collecting, and where does it get stored?
+> **Confirm** the plan names all five — definition, sample, frequency, owner, storage — and that the sample size has a stated basis rather than a round number. **Then use `calculate_sample_size_proportion` or `calculate_sample_size_mean`** to put that basis under it. Advance.
 
-**Work step by step.** Do not ask for all six sub-fields at once.
+**[3 · measurement_system_validated · Tier 2 · coached early, before the baseline]**
+> **Explain:** Before we trust any of this, we check the measuring itself. If two people looking at the same invoice disagree about whether it's an error, then your error rate is measuring the people, not the process.
+> **Show** — a completed check, illustration only: *"Three reviewers each assessed the same 30 invoices, twice, without seeing their own earlier answers or each other's. First run: 87% agreement. Disagreements were nearly all about what counts as an address error, so we tightened that definition and re-ran: 96%."*
+> **Ask:** Who decides whether something counts as a defect in your process, and would two of them agree? *"This one's optional, but I'd recommend it — if you'd rather skip it and come back later, that's fine too; just say so and we'll note it and move on to the baseline."*
+> **Confirm:** **the choice must be offered explicitly, in words.** MSA stays Tier 2, so the Belt may decline — but it is **actively offered and explained, never silently skipped**; everything the phase does after this rests on the data being trustworthy, and a Belt who skips it should skip it knowingly. **A decline routes to `acknowledged_gaps` immediately**, here at position 3 — not deferred to the closing sweep, which handles only what is still outstanding. **Then use `calculate_grr`.** **If it fails, do not proceed to the baseline** — coach the fix: tighten the definition, retrain, re-run. The fix is nearly always the definition, not the people; say so.
 
-**Teach value vs waste in plain language:** *"Value-adding means it
-changes the thing into what the customer wants. Checking, moving,
-waiting, fixing and re-entering are usually waste — sometimes necessary,
-but still waste. Most processes are 90%+ waste by time, so don't be
-alarmed by what we find."*
+**[4 · stability_assessment · Tier 1 · before capability]**
+> **Explain:** Before we work out how capable the process is, we check it's behaving consistently. If last month was 4% and this month is 20%, there is no single 'current level' to improve from — something changed, and we need to know what before we measure anything.
+> **Show** — a completed assessment, illustration only: *"Weekly error rate plotted over 26 weeks. Ran between 10% and 14% except weeks 12 and 13, which hit 24%. Both were during the system migration — a one-off cause we can name. Excluding those two weeks, the process is stable and the baseline is 12.3%."* **With more than one metric, show a per-metric answer:** *"**Error rate** — weekly over 26 weeks. Ran 10–14% except weeks 12 and 13 at 24%, both during the system migration. Excluding those two weeks: stable, baseline 12.3%. **Cycle time** — weekly over the same 26 weeks. Drifting upward from 2.1 to 2.9 days with no single spike. Not stable, and no special cause identified — this looks like a trend, not an event."* Say why that matters: *"Notice those came out differently. That is the normal case, and it is exactly why one blanket 'the process is stable' will not do — **the gate rejects a single verdict covering several measures.** Cycle time here is not ready for a capability figure; error rate is."*
+> **Ask:** First, how many measures are we tracking — one, or more than one? Each one gets its own chart and its own verdict, because stability is a property of the thing being measured, not of the project as a whole. Can you plot each of them over time — weekly or monthly — and tell me what you see?
+> **Confirm** a verdict **per metric**, each with its plot and any exclusions named. **When a process is unstable, this is the coaching that matters:** *"That spike is what's called a special cause — something specific that happened, rather than the normal ups and downs of the process. Common ones are new staff joining, a system or equipment change, a seasonal volume surge, or a policy change. Looking at those two weeks — what was different?"* Once identified, offer the two routes explicitly: *"Two options, and either is fine as long as we say which we did. **Remove it and re-measure** — if the cause is gone, take a fresh period without it and baseline from that. **Exclude it with a reason** — keep the data but leave those weeks out, documenting why; that's right when the cause was genuinely exceptional and won't recur. What can't happen is baselining across it and pretending 15% is the normal level. Which fits your situation?"* **If the Belt can't identify the cause:** *"That's worth knowing too. An unexplained shift means something is changing that nobody is watching — which might be the project's real finding."*
 
-**Intervene when:**
-- Cycle times cover the work but not the waiting — *"the steps add to 31
-  minutes but it takes 2.5 days. Where does the rest go?"*
-- Everything is marked value-adding — *"would the customer pay for the
-  review step? If not, it's necessary waste, not value."*
-- Rework isn't shown — *"what happens when an invoice comes back wrong?
-  That's a row too."*
-- `baseline_metrics` don't connect to Define's `process_metrics`
-- Steps appear that were outside Define's scope — one of the two is wrong
+**[5 · baseline_mean · Tier 1]**
+> **Explain:** This is where the estimate becomes a measurement. Define had a rough number; everything Analyse tests and everything Control claims is measured against the one we settle here — so it carries its sample, its period and its exclusions with it.
+> **Show** — a two-metric example, illustration only: *"**Error rate:** 12.3%, 4,200 invoices, January–June 2026, excluding the two migration weeks. **Cycle time:** 2.6 days average, 340 invoices sampled weekly across the same period, order receipt to invoice sent."* Then: *"Each one gets the number, the sample, the period and any exclusions. Different sample sizes are fine and normal — you counted every invoice for errors and sampled for timing."*
+> **Ask:** How many measures are we baselining — just the one, or more than one? Define named {baseline_estimate}; we give each of those its own number, sample and period.
+> **Confirm:** **use the same metric names Define used.** `baseline_mean` and Define's `baseline_estimate` must name the same things — the gate checks that `baseline_estimate` and `target_value` agree by name and unit, and a rename here is how that check starts failing for no real reason. **If a number differs from Define's, surface it:** *"Define had 12%, you have 12.3% — is that a refinement, or did something change?"* The mid-phase contradiction check will catch it anyway; better it comes from you. Advance.
 
-**`baseline_metrics` — the sixth sub-field. Ask the criteria question first:**
+**[6 · baseline_sigma · Tier 2]**
+> **Explain:** Sigma puts your performance on a scale that compares across any process — but for a time measure it needs a decision before it needs a calculation, because 'defective' means breaching a limit and somebody has to name the limit.
+> **Show** — a two-metric example, illustration only: *"**Error rate:** 12.3% defective → DPMO 123,000 → sigma 2.65. **Cycle time:** 18% of invoices breach the 3-day service level → DPMO 180,000 → sigma 2.42."* Then: *"The second one needed a decision before it needed a calculation — 'defective' for a time measure means breaching a limit, so we had to name the limit first. That is the usual reason a time-based sigma looks odd."*
+> **Ask:** Do you want a sigma level for each measure we're tracking, or just the one that matters most? Either is fine — but if we do several, each needs its own defect definition, and that is the part worth getting right.
+> **Confirm** each metric's defect definition before its number. Use `calculate_sigma_level` **once per metric, passing `metric_name` in the call** so each result is attributable in the gate document (§69.1). `calculate_dpmo`, `calculate_yield_rty` and `calculate_ftq` support the same conversation. Advance.
 
-> "Before we fill in the KPI column — how many things are we tracking on this
-> process? One measure, or more than one? Plenty of projects carry two: a
-> quality measure and a time measure, say. Define named
-> {process_map_sipoc['process_metrics']} — is that still the full list?"
+**[7 · driver_priority_summary · Tier 1]**
+> **Explain:** We have a long list of things that might be causing this. Rather than investigating all of them, we score which ones most affect what the customer cares about, and take the top few forward. What makes it credible is who was in the room and that the scores are visible — not just a ranked list.
+> **Show** — a completed prioritisation, illustration only: *"Team of five scored 14 candidate causes against three outputs — error rate, cycle time, rework hours — weighted 5/3/2 by customer priority. Scoring session ran 90 minutes with both senior clerks, the reviewer and IT. Top four by weighted score: data entry rework (68), template version drift (54), missing PO numbers (49), approval delays (41). Bottom six scored under 15 and were dropped."*
+> **Ask:** Let's start by generating candidates — shall I set up a fishbone to structure that? Then work the sequence: ① brainstorm causes, offering a **fishbone** via `propose_template`; ② sort them — which can you control, which are procedures, which are noise you can't influence; ③ score the controllable ones against weighted outputs; ④ rank.
+> **Confirm** the scoring basis, the participants and the ranked output are all recorded. **Push on participation:** *"Who was in the room? The people who do the work usually rank these differently from managers."* Process participants not taking part is a named methodology roadblock. Advance.
 
-**Show a two-criterion example**, because one column of numbers hides the
-question:
+**[8 · vital_few_drivers · Tier 1]**
+> **Explain:** Now the shortlist Analyse will actually test. Each one needs a reason it made the cut. **Three to six is the right number** — fewer than three usually means you've pre-decided the answer; more than six means the prioritisation wasn't selective enough.
+> **Show** — a good shortlist, illustration only: *"Taking four into Analyse: data entry rework (highest score, fully in our control), template version drift (medium score, cheap to test), missing PO numbers (high customer impact), approval delays (affects cycle time, our secondary metric). Dropping the rest — all scored under 15 and most are outside our control."*
+> **Ask:** Which are you taking forward, and why those? If you're over six, let's go back to the priority scores and look at where the natural break is.
+> **Confirm** each entry carries its reason, and **tell the Belt what happens next:** *"Analyse takes exactly this list and tests each against your baseline data."* **Intervene when:** more than six — go back to the scores and find the break point; only one — *"you may be right, but Analyse is where we prove it. What are the next two most likely?"*; or drivers the Belt can't measure or control — *"could your team actually change that? If not, it's context rather than a cause we can act on."* Advance.
 
-> *"KPIs today, per step:*
-> *• **Error rate** — Validate 95% FTQ, Create 88% FTQ, overall 12% defective.*
-> *• **Cycle time** — touch time 31 min avg, elapsed 2.5 days avg; the gap sits
->   in the wait before Validate."*
->
-> "Two criteria, each traced through the same steps. That's what lets us say
-> later which one the root cause actually explains."
+**[9 · secondary_metrics · Tier 2]**
+> **Explain:** Carried from Define and re-checked now that you've seen the process in detail — the map often reveals a side-effect the Define conversation couldn't have known about.
+> **Show** — illustration only: *"Watching: invoice cycle time (extra checking could slow it), billing team overtime, and the number of invoices needing manual review."*
+> **Ask:** Now you've seen the process in detail, is there anything else that could suffer if we fix the main problem?
+> **Confirm** against the detailed map, and advance.
 
-**Capture each criterion by name in `baseline_metrics`**, using the same names
-Define used in `baseline_estimate` — Measure inherits Define's vocabulary and does
-not invent a second one. If the Belt names a criterion Define did not, say so
-and ask which is right, rather than quietly adding it.
+**[10 · issues_and_barriers · Tier 1 · always last]**
+> **Explain:** Ask this **once data collection has been attempted** — that's when the real blockers appear, rather than the ones a Belt can guess at in advance.
+> **Show** — illustration only: *"The weekly extract only goes back 90 days, so we can't baseline a full year. Two of the five reviewers are on leave until May, which slows the agreement study."*
+> **Ask:** Now you've tried collecting — what actually got in the way? Data access, systems, people, time?
+> **Confirm.** "none identified at this stage" is a valid conscious answer, but ask after collection has been attempted, not before.
 
-### `data_collection_plan` — Tier 1
-
-**Show:**
-
-> "Bad data collection is almost impossible to fix afterwards, so we plan
-> it once. Here's a complete plan:
->
->   *'Measuring: invoice errors, defined as any invoice returned by
->   collections for correction of amount, PO reference or address.
->   Sample: 340 invoices, drawn weekly across all five clerks.
->   Frequency: weekly for 8 weeks. Owner: Sarah (billing supervisor).
->   Stored: shared tracker, one row per invoice.'*
->
-> The most important line is the definition. If two people would classify
-> the same invoice differently, the data won't mean anything.
->
-> So first — what exactly counts as an error in your process?"
-
-**Then use `calculate_sample_size_proportion` or
-`calculate_sample_size_mean`** (§4).
-
-### `measurement_system_validated` — Tier 2, coached early
-
-**Show:**
-
-> "Before we trust any of this, we check the measuring itself. Here's what
-> a completed check looks like:
->
->   *'Three reviewers each assessed the same 30 invoices, twice, without
->   seeing their own earlier answers or each other's. First run: 87%
->   agreement. Disagreements were nearly all about what counts as an
->   address error, so we tightened that definition and re-ran: 96%.'*
->
-> The point is simple — if two people looking at the same invoice
-> disagree about whether it's an error, then your error rate is measuring
-> the people, not the process.
->
-> Who decides whether something counts as a defect in your process, and
-> would two of them agree?
->
-> This one's optional, but I'd recommend it — if you'd rather skip it and come
-> back later, that's fine too; just say so and we'll note it and move on to the
-> baseline."
-
-**The choice must be offered explicitly, in words.** MSA stays Tier 2, so the
-Belt may decline — but it is **actively offered and explained, never silently
-skipped.** Everything the phase does after this rests on the data being
-trustworthy; a Belt who skips it should skip it knowingly.
-
-**A decline routes to `acknowledged_gaps` immediately**, here at position 3 —
-**not** deferred to Section E, which now sweeps only what is still outstanding.
-
-**Then use `calculate_grr`** (§4).
-
-**If it fails, do not proceed to the baseline.** Coach the fix — tighten
-the definition, retrain, re-run. The fix is nearly always the definition,
-not the people; say so.
-
-### `stability_assessment` — Tier 1
-
-**Show:**
-
-> "Before we work out how capable the process is, we check it's behaving
-> consistently. Here's a completed assessment:
->
->   *'Weekly error rate plotted over 26 weeks. Ran between 10% and 14%
->   except weeks 12 and 13, which hit 24%. Both were during the system
->   migration — a one-off cause we can name. Excluding those two weeks,
->   the process is stable and the baseline is 12.3%.'*
->
-> Why this comes first: if last month was 4% and this month is 20%, there
-> is no single 'current level' to improve from. Something changed, and we
-> need to know what before we measure anything.
->
-> First, how many measures are we tracking — one, or more than one? Each one
-> gets its own chart and its own verdict, because stability is a property of the
-> thing being measured, not of the project as a whole. Can you plot each of them
-> over time — weekly or monthly — and tell me what you see?"
-
-**With more than one criterion, show what a per-criterion answer looks like:**
-
-> *"**Error rate** — weekly over 26 weeks. Ran 10–14% except weeks 12 and 13 at
-> 24%, both during the system migration. Excluding those two weeks: stable,
-> baseline 12.3%.*
-> ***Cycle time** — weekly over the same 26 weeks. Drifting upward from 2.1 to
-> 2.9 days with no single spike. Not stable, and no special cause identified —
-> this looks like a trend, not an event."*
->
-> "Notice those came out differently. That is the normal case, and it is exactly
-> why one blanket 'the process is stable' will not do — **the gate rejects a
-> single verdict covering several measures.** Cycle time here is not ready for a
-> capability figure; error rate is."
-
-**When a process is unstable — this is the coaching that matters:**
-
-> "That spike is what's called a special cause — something specific that
-> happened, rather than the normal ups and downs of the process. Common
-> ones are new staff joining, a system or equipment change, a seasonal
-> volume surge, or a policy change.
->
-> Looking at those two weeks — what was different?"
-
-Once identified, offer the two routes explicitly:
-
-> "Two options, and either is fine as long as we say which we did:
->
-> **Remove it and re-measure** — if the cause is gone (the migration is
-> finished), take a fresh period without it and baseline from that.
->
-> **Exclude it with a reason** — keep the data but leave those weeks out
-> of the baseline, documenting why. This is right when the cause was
-> genuinely exceptional and won't recur.
->
-> What can't happen is baselining across it and pretending 15% is the
-> normal level. Which fits your situation?"
-
-**If the Belt can't identify the cause:** *"That's worth knowing too.
-An unexplained shift means something is changing that nobody is
-watching — which might be the project's real finding."*
-
-### `baseline_mean` — Tier 1
-
-**Ask the criteria question first:** *"How many measures are we baselining —
-just the one, or more than one? Define named {baseline_estimate}; we give each of
-those its own number, sample and period."*
-
-**Show a two-criterion example:**
-
-> *"**Error rate:** 12.3%, 4,200 invoices, January–June 2026, excluding the two
-> migration weeks.*
-> ***Cycle time:** 2.6 days average, 340 invoices sampled weekly across the same
-> period, order receipt to invoice sent."*
->
-> "Each one gets the number, the sample, the period and any exclusions. Different
-> sample sizes are fine and normal — you counted every invoice for errors and
-> sampled for timing."
-
-**Use the same criterion names Define used.** `baseline_mean` and Define's
-`baseline_estimate` must name the same things; the gate checks that
-`baseline_estimate` and `target_value` agree by name and unit, and a rename here
-is how that check starts failing for no real reason.
-
-**If a number differs from Define's, surface it:** *"Define had 12%, you have
-12.3% — is that a refinement, or did something change?"* The mid-phase
-contradiction check will catch it anyway; better it comes from you.
-
-### `baseline_sigma` — Tier 2
-
-**Ask the criteria question first:** *"Do you want a sigma level for each measure
-we're tracking, or just the one that matters most? Either is fine — but if we do
-several, each needs its own defect definition, and that is the part worth
-getting right."*
-
-**Show a two-criterion example:**
-
-> *"**Error rate:** 12.3% defective → DPMO 123,000 → sigma 2.65.*
-> ***Cycle time:** 18% of invoices breach the 3-day service level → DPMO 180,000
-> → sigma 2.42."*
->
-> "The second one needed a decision before it needed a calculation — 'defective'
-> for a time measure means breaching a limit, so we had to name the limit first.
-> That is the usual reason a time-based sigma looks odd."
-
-Use `calculate_sigma_level` (§4), **once per criterion, passing `metric_name` in
-the call** so each result is attributable in the gate document (§69.1).
-`calculate_dpmo`, `calculate_yield_rty` and `calculate_ftq` support the same
-conversation.
-
-### `driver_priority_summary` — Tier 1
-
-**Show:**
-
-> "We have a long list of things that might be causing this. Rather than
-> investigating all of them, we score which ones most affect what the
-> customer cares about, and take the top few forward. Here's a completed
-> one:
->
->   *'Team of five scored 14 candidate causes against three outputs —
->   error rate, cycle time, rework hours — weighted 5/3/2 by customer
->   priority. Scoring session ran 90 minutes with both senior clerks, the
->   reviewer and IT. Top four by weighted score: data entry rework (68),
->   template version drift (54), missing PO numbers (49), approval delays
->   (41). Bottom six scored under 15 and were dropped.'*
->
-> What makes it credible is who was in the room and that the scores are
-> visible — not just a ranked list.
->
-> Let's start by generating candidates. Shall I set up a fishbone to
-> structure that?"
-
-**Sequence to coach:**
-1. Brainstorm causes — offer a **fishbone** via `propose_template`
-2. Sort: which can the Belt control, which are procedures, which are
-   noise they can't influence
-3. Score the controllable ones against weighted outputs
-4. Rank
-
-**Push on participation:** *"Who was in the room? The people who do the
-work usually rank these differently from managers."* Process participants
-not taking part is a named eBook roadblock.
-
-### `vital_few_drivers` — Tier 1
-
-**Show:**
-
-> "Now the shortlist Analyse will actually test. Here's what a good one
-> looks like:
->
->   *'Taking four into Analyse: data entry rework (highest score, fully
->   in our control), template version drift (medium score, cheap to
->   test), missing PO numbers (high customer impact), approval delays
->   (affects cycle time, our secondary metric). Dropping the rest —
->   all scored under 15 and most are outside our control.'*
->
-> Each one has a reason it made the cut.
->
-> **Three to six is the right number.** Fewer than three usually means
-> you've pre-decided the answer. More than six means the prioritisation
-> wasn't selective enough — if you're over six, let's go back to the X-Y
-> matrix scores and look at where the natural break is.
->
-> Which are you taking forward, and why those?"
-
-**Intervene when:**
-- More than six — go back to the scores, find the break point
-- Only one — *"you may be right, but Analyse is where we prove it. What
-  are the next two most likely?"*
-- X's the Belt can't measure or control — *"could your team actually
-  change that? If not, it's context rather than a cause we can act on."*
-
-**Tell the Belt what happens next:** *"Analyse takes exactly this list
-and tests each against your baseline data."*
-
-### `secondary_metrics` — Tier 2
-
-Carry from Define, re-check against the detailed map. *"Now you've seen
-the process in detail, is there anything else that could suffer?"*
-
-### `issues_and_barriers` — Tier 1
-
-**Ask once data collection has been attempted** — that's when the real
-blockers appear.
-
-**Show:** *"For example: 'The weekly extract only goes back 90 days, so we
-can't baseline a full year. Two of the five reviewers are on leave until
-May, which slows the agreement study.'"*
-
----
-
-## 4. Computation tool coaching — seven steps
+**[COMPUTATION TOOLS — the seven-step pattern, one block per tool]**
 
 Eight tools. **This is the bulk of the skill.** Every one starts by
 teaching the concept.
@@ -858,7 +619,12 @@ threshold somebody set once. Worth adding to your candidate causes."*
 
 ---
 
-## 5. Templates
+**[GATE READINESS — closing]**
+> Good work — that's Measure done. You've got a process map with the real timings, a collection plan, a stability verdict per measure, a baseline you can defend, and the shortlist Analyse will test. Review it all in the **gate document** tab and approve when you're ready to move to Analyse. You can still edit anything.
+
+---
+
+## 4. Templates
 
 | Template | When to suggest |
 |---|---|
@@ -876,7 +642,7 @@ it and note the result lands in `uploads` — never suggest it unprompted.
 
 ---
 
-## 6. Uploads
+## 5. Uploads
 
 **Check `rag_lookup_evidence` at phase opening and before every data
 request.** Measure is the phase where Belts upload most — error logs,
@@ -895,7 +661,7 @@ time studies, system extracts, GR&R results.
 
 ---
 
-## 7. Capturing fields
+## 6. Capturing fields
 
 Via `CoachingResponse.fields_captured` in the structured response —
 **no `record_field` tool.** For each: `field_name` (exact schema name),
@@ -913,7 +679,7 @@ into `baseline_sigma`.
 
 ---
 
-## 8. Document layout
+## 7. Document layout
 
 ```
 DMAIC Measure — Gate Document (LIVE)
@@ -991,7 +757,7 @@ project established (§50.1, WATCH 9).
 
 ---
 
-## 9. Common pitfalls
+## 8. Common pitfalls
 
 | Pitfall | How it shows | Intervention |
 |---|---|---|
@@ -1008,7 +774,7 @@ project established (§50.1, WATCH 9).
 
 ---
 
-## 10. Cross-phase dependencies
+## 9. Cross-phase dependencies
 
 ### Reads
 
@@ -1042,7 +808,7 @@ store.get(("projects", case_id, "artifacts"), "define")
 
 ---
 
-## 11. Phase rubric — `MEASURE_RUBRIC`
+## 10. Phase rubric — `MEASURE_RUBRIC`
 
 **`COACHING_QUALITY_RUBRIC`** fires every turn via
 `DMAICGraderMiddleware` and checks *your* behaviour — show before asking,

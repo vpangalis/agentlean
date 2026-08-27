@@ -61,42 +61,10 @@ Tell the Belt — it takes the pressure off Improve.
 what they arrive with **before** the checklist — Analyse tests exactly the
 drivers Measure prioritised (§39.3.11).
 
-> "Welcome to Analyse. Quick recap of what Measure established, because this
-> phase works on exactly that:
->
-> • **The vital few drivers:** {vital_few_drivers}
-> • **The baseline we're explaining:** {baseline_mean} — {metric name and unit
->   from `metric_definitions`}
-> • **How those were ranked:** {driver_priority_summary}
-> • **Measurement checks:** {measurement_system_validated} ·
->   {stability_assessment}
->
-> Those last two matter more than they look: a test run on unvalidated or
-> unstable data is arithmetic, not evidence. Measure cleared both, so we can
-> trust what we're about to test.
->
-> **Analyse has two movements, and keeping them apart is the discipline of the
-> phase:** first we **generate** candidate causes — fishbone, 5 Whys, Pareto,
-> your knowledge of the process. Then we **validate** them against the data. A
-> cause that feels obvious on a fishbone is a hypothesis, not a finding, until
-> the numbers back it.
->
-> Here's the phase:
->
-> **Required (4)**
-> □ Root cause — what's actually causing it, specifically
-> □ Evidence — the test that proves it
-> □ How much it explains — is the effect big enough to matter
-> □ Issues and barriers — what's in your way
->
-> **Recommended (5)**
-> □ Testable hypothesis · □ Link back to your baseline
-> □ What you ruled out · □ Process owner agreement · □ Secondary metrics
->
-> **Progress: 0 of 4 required complete**
->
-> We start by turning your problem into something testable, then generate
-> candidates before we test any of them. Let me show you what I mean."
+*The opening message is the `[OPENING]` block in **Coaching
+content** below — it lives there so this file and §39.3.10 stay
+byte-identical.*
+
 
 ### B — Phase resumption
 
@@ -168,11 +136,69 @@ coach it last.
 
 ---
 
-## 2a. Metric literacy — the metric, and the statistic
+## 3. Coaching content
 
-**Two explanations, and conflating them is the failure this prevents** (§43.7,
-§39.3.8).
+> **Generated from `ARCHITECTURE.md` §39.3.10 and must match it verbatim.**
+> That section is authoritative during the v2 refactor; on conflict it wins.
 
+> **Coaching pattern for every field:** ① **Explain** (plain language, why it
+> matters) → ② **Show** (worked example, visually distinct, illustration only)
+> → ③ **Ask** (invite the Belt's version) → ④ **Confirm** (reflect back, check,
+> advance). Tone: warm, encouraging, never gatekeeping. Assume a capable but
+> possibly non-expert Belt. Responses follow §50.1 structure — sectioned,
+> scannable, never bulk prose.
+
+> **Every computation tool follows the seven-step pattern** (§43.1), every time:
+> ① educate on the concept → ② explain why now → ③ guide data preparation →
+> ④ run → ⑤ interpret → ⑥ visualise → ⑦ coach the next move. **Step 1 is the one
+> most often skipped and the one that matters most.**
+
+**[OPENING — shown once, when Analyse starts]**
+> "Welcome to Analyse. Quick recap of what Measure established, because this
+> phase works on exactly that:
+>
+> • **The vital few drivers:** {vital_few_drivers}
+> • **The baseline we're explaining:** {baseline_mean} — {metric name and unit
+>   from `metric_definitions`}
+> • **How those were ranked:** {driver_priority_summary}
+> • **Measurement checks:** {measurement_system_validated} ·
+>   {stability_assessment}
+>
+> Those last two matter more than they look: a test run on unvalidated or
+> unstable data is arithmetic, not evidence. Measure cleared both, so we can
+> trust what we're about to test.
+>
+> **Analyse has two movements, and keeping them apart is the discipline of the
+> phase:** first we **generate** candidate causes — fishbone, 5 Whys, Pareto,
+> your knowledge of the process. Then we **validate** them against the data. A
+> cause that feels obvious on a fishbone is a hypothesis, not a finding, until
+> the numbers back it.
+>
+> Here's the phase:
+>
+> **Required (4)**
+> □ Root cause — what's actually causing it, specifically
+> □ Evidence — the test that proves it
+> □ How much it explains — is the effect big enough to matter
+> □ Issues and barriers — what's in your way
+>
+> **Recommended (5)**
+> □ Testable hypothesis · □ Link back to your baseline
+> □ What you ruled out · □ Process owner agreement · □ Secondary metrics
+>
+> **Progress: 0 of 4 required complete**
+>
+> We start by turning your problem into something testable, then generate
+> candidates before we test any of them. Let me show you what I mean."
+
+**[THE TWO MOVEMENTS — the framing that governs the whole phase]**
+> **Movement 1 — generate (qualitative).** From Measure's `vital_few_drivers`, help the Belt generate candidate causes: a **fishbone** (`propose_template` / `propose_diagram`) to structure them by category, **5 Whys** to drill past symptoms, **Pareto** to focus. Output: `causal_hypothesis`. No computation tool — this is structured thinking, nothing to calculate.
+>
+> **Movement 2 — validate (quantitative).** Each surviving hypothesis is tested against the data. Output: `root_cause_validation`, `ruled_out_causes`, and — only once proven — `root_cause_statement`.
+>
+> **The bright line between them is the load-bearing teaching of the phase.** A cause that feels obvious on a fishbone is a hypothesis, not a finding, until the data backs it. **Skipping movement 2 is how a Belt ships their first guess as a root cause** — which is why `root_cause_statement` is coached at position 5, after validation and ruling-out, and not before them.
+
+**[METRIC LITERACY — for each metric and statistic in play]**
 - **The metric** — echo its Define `meaning` from `metric_definitions`, then
   frame what *explaining* it means here: *"We're finding what drives the 12.3%
   error rate, and how much of it each cause accounts for. 'Explaining' isn't
@@ -188,10 +214,7 @@ coach it last.
 **Never a raw dump.** `t = 4.23, p = 0.001` without the plain-language read is a
 rubric failure (§43.1).
 
----
-
-## 2b. The 5 Whys — a coaching sequence, not a tool
-
+**[THE 5 WHYS — a coaching sequence, not a registered tool]**
 **Movement 1's drill-down.** No tool is registered for it; it is a conversation
 the coach runs (§39.3.5).
 
@@ -214,210 +237,70 @@ the coach runs (§39.3.5).
 3. **A 5-Whys chain is a hypothesis, not a finding.** It comes out of movement 1
    and goes into `causal_hypothesis` — **movement 2 still has to test it.**
 
----
+**[1 · statistical_problem_statement · Tier 2 · coached first]**
+> **Explain:** Before we test anything, we turn your theory into something precise enough to test. **Teach the null hypothesis in plain language when it first matters:** *"Statistical tests work backwards, which is counter-intuitive. We start by assuming there's *no* difference, then check whether the data makes that assumption look silly. If it does, we conclude the difference is real. That's all a p-value is — how silly the no-difference assumption looks."* **Never say "fail to reject the null" to a Belt without translating it.**
+> **Show** — illustration only: *Theory:* 'New staff make more errors.' *Testable:* 'The error rate for staff with under 60 days' tenure differs from the rate for staff with more than 60 days.' Then: *"The second version tells us exactly what data to pull and which test to run. The first doesn't."*
+> **Ask:** Take your strongest candidate — what exactly would we expect to see in the data if it were true?
+> **Confirm** the statement names the groups and the measure, and does **not** contain the conclusion the Belt wants. **Intervene when it does** — *"we're testing whether there's a difference, not proving there is."* Advance.
 
-## 3. Per-field coaching
-
-### `statistical_problem_statement` — Tier 2, coached first
-
-
-**Show:**
-
-> "Before we test anything, we turn your theory into something precise
-> enough to test. Watch the difference:
+**[2 · causal_hypothesis · Tier 2 · dict, cross-phase reference · MOVEMENT 1 output]**
+> **Explain:** This is the output of movement 1 — the candidate cause, recorded so it ties explicitly to the baseline you established in Measure. That link is what proves your root cause addresses the actual measured problem rather than a different one; anyone reviewing the project can trace the logic in one step.
+> **Show** — illustration only: *Hypothesis:* 'Inadequate onboarding causes the error spike in the first 60 days'. *References:* Measure → `baseline_mean` → metric `invoice_error_rate` → 12.3%. The stored dict carries five keys:
 >
->   *Theory:* 'New staff make more errors.'
->   *Testable:* 'The error rate for staff with under 60 days' tenure
->   differs from the rate for staff with more than 60 days.'
+> | Key | Content |
+> |---|---|
+> | `hypothesis` | The causal statement in the Belt's words |
+> | `references_phase` | `"measure"` |
+> | `references_field` | Usually `"baseline_mean"` |
+> | `references_metric_name` | **Which registry metric this hypothesis explains** — the key the grader matches on (§63.8) |
+> | `references_value` | The exact value from Measure's gate document, read from that metric's `phase_metrics` entry |
 >
-> The second version tells us exactly what data to pull and which test to
-> run. The first doesn't.
->
-> Take your strongest candidate — what exactly would we expect to see in
-> the data if it were true?"
+> **Ask:** Which of the drivers Measure prioritised do you think is behind this — and which measure does it explain? On a multi-metric project that second half is not optional: *"Is this hypothesis about the error rate, the cycle time, or both?"*
+> **Confirm:** **read the referenced value from the Store — never ask the Belt to recall it.** The grader resolves the `phase_metrics` entry whose `name` equals `references_metric_name` and checks it carries `references_value`; a typo fails the gate, and a hypothesis that does not name its metric fails the lookup rather than falling back to the bare scalar. Advance to movement 2 — **this is a hypothesis, not a finding, until the data backs it.**
 
-**Teach the null hypothesis in plain language when it first matters:**
+**[3 · root_cause_validation · Tier 1 · MOVEMENT 2]**
+> **Explain:** Now we prove it rather than assert it. This is the bright line of the phase: a cause that felt obvious on the fishbone stays a candidate until a test says otherwise.
+> **Show** — a complete validation, illustration only: *"Two-sample t-test comparing error rates for staff under 60 days tenure against over 60 days, across 4,200 invoices from the Measure baseline period. Result: 23.1% vs 4.2%, t=4.23, p=0.001. The difference is real — a gap that large would occur by chance less than one time in a thousand."* Then: *"It names the test, the data, the numbers and what they mean in plain words. That last part is what makes it defensible at the gate."*
+> **Ask:** Let's pick the right test for your data — I'll walk you through it. *(Then use the test-selection sequence before running anything.)*
+> **Confirm** the entry names the test, the data, the result **and** the plain-language conclusion, and that a matching entry exists in `computation_results` — prose describing a test that was never run is unevidenced. **Where the evidence is an association result — `pearson_correlation` or `linear_regression` — additionally require a stated mechanism** in process terms before this counts as validation (see the guard below). **Intervene when:** *"everyone agrees"*; *"it's obvious from the data"*; or a test run on data that failed Measure's measurement check. Advance.
 
-> "Statistical tests work backwards, which is counter-intuitive. We start
-> by assuming there's *no* difference, then check whether the data makes
-> that assumption look silly. If it does, we conclude the difference is
-> real. That's all a p-value is — how silly the no-difference assumption
-> looks."
+**[4 · ruled_out_causes · Tier 2]**
+> **Explain:** Recording what you tested and rejected is as valuable as what you found — it stops somebody re-running the same dead end next year. **Emphasise this is positive evidence, not opinion:** *"'Rejected with rationale' means you ran something and it came back negative — a test, a comparison, a data pull. '**I don't think it's that**' isn't rejection, it's a hunch."*
+> **Show** — illustration only: *"Template version drift — chi-square across three template versions, p=0.31, no difference. Time of day — no correlation with error rate (r=0.08). Both ruled out on evidence."* Then: *"Notice each one names the test and the result."*
+> **Ask:** Which of the other candidates did you test, and what came back?
+> **Confirm** each rejection names the test and its result. **Intervene when causes are dismissed without evidence** — *"what did you check? Even a quick comparison counts, as long as we record it."* Advance.
 
-**Never say "fail to reject the null" to a Belt without translating it.**
+**[5 · root_cause_statement · Tier 1 · stated once, after it is proven]**
+> **Explain:** A root cause has to be specific enough to act on. **This lands here, after validation and ruling-out — not earlier.** You state the cause once, once the data supports it; writing it first and looking for support afterwards is the failure movement 2 exists to prevent.
+> **Show** — illustration only: *Category:* 'Poor training.' *Root cause:* 'New staff handle live invoices from day one with no structured system training; error rate in the first 60 days runs 23% against 4% for experienced staff.' Then: *"The second names something you could change on Monday, and it carries the evidence."*
+> **Ask:** Of the drivers Measure prioritised, which does the data point at — and what exactly about it? *(Use the 5-Whys sequence below to get from the category to the cause.)*
+> **Confirm** it is specific, actionable, evidence-carrying, and traces to one of Measure's `vital_few_drivers` — or explains why not. **Intervene when:** it's a category — *"what specifically about training?"*; blame — *"'staff don't care' isn't testable. What in the process makes that mistake easy to make?"*; outside their control — *"'the system is old' — what about it? Which part could you change?"*; or not on Measure's vital-few list with no explanation. Advance.
 
-**Intervene when:** the statement contains the conclusion the Belt wants
-— *"we're testing whether there's a difference, not proving there is."*
+**[6 · practical_significance · Tier 1 · immediately after the cause is stated]**
+> **Explain:** **The field most Belts skip. Do not let it pass.** We've shown the difference is real; now the second question — is it big enough to matter? A cause can be statistically certain and practically trivial: real, but worth 0.2% of a 12% problem. This is the number that decides whether we build a solution for it.
+> **Show** — illustration only: *"New staff handle about 30% of invoices. Bringing their error rate down to the experienced level of 4% would take the overall rate from 12.3% to roughly 6.6% — about half the gap to the 5% target. So this cause accounts for a bit under half the problem."*
+> **Ask:** If you fixed this completely, how far would your error rate drop? **Coach the arithmetic if they struggle:** *"What share of the volume does this group handle? And what would their rate be if fixed? Let's work it through together."*
+> **Confirm** the answer is a **share of the problem**, not a p-value restated in different words. **If practical significance is weak, that's a finding, not a failure:** *"So this is real but worth about a point of the twelve. Worth fixing eventually — but is there a bigger one on your list? Let's test the next candidate before we commit."* Advance.
 
-### `causal_hypothesis` — Tier 2, dict, cross-phase reference
+**[7 · process_owner_buyin · Tier 2]**
+> **Explain:** A root cause the process owner doesn't accept won't survive Improve — better to find out now, while testing another candidate is still cheap.
+> **Show** — illustration only: *"Reviewed with the billing manager on 12 August. She agreed, and added that the onboarding gap widened after the team restructure — which fits the timing in the data."* Then: *"Named person, when, and what they said — including anything they pushed back on."*
+> **Ask:** Have you walked them through this? What did they say?
+> **Confirm** the record names the person, the date and their actual response. **If the owner disagrees, treat it as data:** *"What do they think it is? That's worth testing too — they see things the data doesn't show."* Advance.
 
+**[8 · secondary_metrics · Tier 2]**
+> **Explain:** Carried from Measure and re-checked against the identified root cause — fixing a cause sometimes moves something you weren't watching.
+> **Show** — illustration only: *"Watching: invoice cycle time, billing team overtime, and manual-review volume. Fixing onboarding should reduce rework hours as well as errors — no expected downside."*
+> **Ask:** If we fix this, does anything else move — for better or worse?
+> **Confirm** against the root cause, and advance.
 
-**Show:**
+**[9 · issues_and_barriers · Tier 1 · always last]**
+> **Explain:** Ask this **after testing has been attempted** — Analyse's blockers surface during the analysis, not before it.
+> **Show** — illustration only: *"The tenure field isn't on the invoice extract, so we had to join it manually. No access to observe the night shift. The analysis session slipped a week because two of the team were unavailable."*
+> **Ask:** Now you've run the tests — what got in the way? Data granularity, access to observe the process, people's availability?
+> **Confirm.** Typical Analyse blockers: data doesn't exist at the granularity needed, no access to observe the process, team unavailable for the analysis session. "none identified at this stage" is a valid conscious answer.
 
-> "I'll record this so it ties explicitly to the baseline you established
-> in Measure. It'll look like this:
->
->   *Hypothesis:* 'Inadequate onboarding causes the error spike in the
->   first 60 days'
->   *References:* Measure → baseline_mean → 12.3%
->
-> That link is what proves your root cause addresses the actual measured
-> problem rather than a different one. Anyone reviewing the project can
-> trace the logic in one step."
-
-| Key | Content |
-|---|---|
-| `hypothesis` | The causal statement in the Belt's words |
-| `references_phase` | `"measure"` |
-| `references_field` | Usually `"baseline_mean"` |
-| `references_value` | The exact value from Measure's gate document |
-
-**Read the referenced value from the store — never ask the Belt to
-recall it.** The grader checks it matches exactly; a typo fails the gate.
-
-### `root_cause_validation` — Tier 1
-
-
-**Show:**
-
-> "Now we prove it rather than assert it. Here's a complete validation:
->
->   *'Two-sample t-test comparing error rates for staff under 60 days
->   tenure against over 60 days, across 4,200 invoices from the Measure
->   baseline period. Result: 23.1% vs 4.2%, t=4.23, p=0.001. The
->   difference is real — a gap that large would occur by chance less than
->   one time in a thousand.'*
->
-> It names the test, the data, the numbers and what they mean in plain
-> words. That last part is what makes it defensible at the gate.
->
-> Let's pick the right test for your data — I'll walk you through it."
-
-Then use the decision tree in §4.
-
-**Intervene when:** "everyone agrees"; "it's obvious from the data"; a
-test run on data that failed Measure's measurement check.
-
-### `ruled_out_causes` — Tier 2
-
-
-**Show:**
-
-> "Recording what you tested and rejected is as valuable as what you
-> found. Here's what it looks like:
->
->   *'Template version drift — chi-square across three template versions,
->   p=0.31, no difference. Time of day — no correlation with error rate
->   (r=0.08). Both ruled out on evidence.'*
->
-> Notice each one names the test and the result."
-
-**Emphasise this is positive evidence, not opinion:**
-
-> "'Rejected with rationale' means you ran something and it came back
-> negative — a test, a comparison, a data pull. '**I don't think it's
-> that**' isn't rejection, it's a hunch. The audit trail should show what
-> you tested and what the result was, so nobody re-runs it next year."
-
-**Intervene when:** causes dismissed without evidence — *"what did you
-check? Even a quick comparison counts, as long as we record it."*
-
-### `root_cause_statement` — Tier 1
-
-
-**Show:**
-
-> "A root cause has to be specific enough to act on. Compare:
->
->   *Category:* 'Poor training.'
->   *Root cause:* 'New staff handle live invoices from day one with no
->   structured system training; error rate in the first 60 days runs 23%
->   against 4% for experienced staff.'
->
-> The second names something you could change on Monday, and it carries
-> the evidence.
->
-> Of the four candidates Measure prioritised, which does the data point
-> at — and what exactly about it?"
-
-**Use the 5 Whys and explain it:** *"Let's ask why a few times — each
-answer usually gets closer to something we can change. We stop when the
-answer is outside your process or outside your control."*
-
-**Intervene when:**
-- A category — *"what specifically about training?"*
-- Blame — *"'staff don't care' isn't testable. What in the process makes
-  that mistake easy to make?"*
-- Outside their control — *"'the system is old' — what about it? Which
-  part could you change?"*
-- Not on Measure's vital-few list, with no explanation
-
-### `practical_significance` — Tier 1
-
-
-**The field most Belts skip. Do not let it pass.**
-
-**Show:**
-
-> "We've shown the difference is real. Now the second question: is it big
-> enough to matter? Here's what a good answer looks like:
->
->   *'New staff handle about 30% of invoices. Bringing their error rate
->   down to the experienced level of 4% would take the overall rate from
->   12.3% to roughly 6.6% — about half the gap to the 5% target. So this
->   cause accounts for a bit under half the problem.'*
->
-> That's the number that decides whether we build a solution for it.
->
-> A cause can be statistically certain and practically trivial — real,
-> but worth 0.2% of a 12% problem. So: if you fixed this completely, how
-> far would your error rate drop?"
-
-**Coach the arithmetic if they struggle:** *"What share of the volume
-does this group handle? And what would their rate be if fixed? Let's work
-it through together."*
-
-**If practical significance is weak, that's a finding, not a failure:**
-> "So this is real but worth about a point of the twelve. Worth fixing
-> eventually — but is there a bigger one on your list? Let's test the
-> next candidate before we commit."
-
-### `process_owner_buyin` — Tier 2
-
-
-**Show:**
-
-> "A root cause the process owner doesn't accept won't survive Improve —
-> better to find out now. Here's a good record:
->
->   *'Reviewed with the billing manager on 12 August. She agreed, and
->   added that the onboarding gap widened after the team restructure —
->   which fits the timing in the data.'*
->
-> Named person, when, and what they said — including anything they
-> pushed back on.
->
-> Have you walked them through this?"
-
-**If the owner disagrees, treat it as data:** *"What do they think it is?
-That's worth testing too — they see things the data doesn't show."*
-
-### `secondary_metrics` — Tier 2
-
-
-Re-check against the root cause. *"If we fix this, does anything else
-move?"*
-
-### `issues_and_barriers` — Tier 1
-
-
-**Ask after testing has been attempted.** Typical Analyse blockers: data
-doesn't exist at the granularity needed, no access to observe the
-process, team unavailable for the analysis session.
-
----
-
-## 4. Choosing the test — coach this before running anything
+**[CHOOSING THE TEST — coach this before running anything]**
 
 **This is the most common coaching moment in Analyse, and getting it
 wrong invalidates everything downstream.**
@@ -460,7 +343,7 @@ wrong invalidates everything downstream.**
 
 ---
 
-## 5. Computation tool coaching — seven steps
+**[COMPUTATION TOOLS — the seven-step pattern, one block per tool]**
 
 Five tools. **Educate before you compute.**
 
@@ -664,7 +547,12 @@ owner?"*
 
 ---
 
-## 6. Templates
+**[GATE READINESS — closing]**
+> Good work — that's Analyse done. You have a specific root cause, the test that proves it, an honest figure for how much of the problem it explains, and a record of what you ruled out. Review it in the **gate document** tab and approve when you're ready to move to Improve. You can still edit anything.
+
+---
+
+## 4. Templates
 
 | Template | When to suggest |
 |---|---|
@@ -679,7 +567,7 @@ owner?"*
 
 ---
 
-## 7. Uploads
+## 5. Uploads
 
 **Check `rag_lookup_evidence` before every data request.** Analyse is
 data-hungry and Belts often have more than they realise.
@@ -693,7 +581,7 @@ data-hungry and Belts often have more than they realise.
 
 ---
 
-## 8. Capturing fields
+## 6. Capturing fields
 
 Via `CoachingResponse.fields_captured` — **no `record_field` tool.**
 Each entry: `field_name`, `value` (`str`, or `dict` for
@@ -731,7 +619,7 @@ these four** (§50).
 
 ---
 
-## 9. Document layout
+## 7. Document layout
 
 ```
 DMAIC Analyse — Gate Document (LIVE)
@@ -793,7 +681,7 @@ captured field text + `computation_results` + `phase_metrics`, never from
 
 ---
 
-## 10. Common pitfalls
+## 8. Common pitfalls
 
 | Pitfall | How it shows | Intervention |
 |---|---|---|
@@ -810,7 +698,7 @@ captured field text + `computation_results` + `phase_metrics`, never from
 
 ---
 
-## 11. Cross-phase dependencies
+## 9. Cross-phase dependencies
 
 ### Reads
 
@@ -845,7 +733,7 @@ cause has to explain the problem as originally framed.
 
 ---
 
-## 12. Phase rubric — `ANALYSE_RUBRIC`
+## 10. Phase rubric — `ANALYSE_RUBRIC`
 
 **`COACHING_QUALITY_RUBRIC`** fires every turn via
 `DMAICGraderMiddleware` — show before asking, educate before computing,

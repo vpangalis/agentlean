@@ -73,9 +73,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.16 · 2026-08-27
+Version 1.17 · 2026-08-27
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.17 (2026-08-27)** — **§56 AMENDMENT. §39.2.10 and §39.3.10 now carry their phase's coaching script, so the authority they claim is real.** **The defect was coherence, not content.** §39.1.7 (Define) embeds the full script and is authoritative-during-refactor, with its SKILL.md generated to match verbatim. §39.2.10 and §39.3.10 claimed **the same authority while holding only a pointer at the SKILL.md** — so the file that was supposed to be generated from them had nothing to be generated from, and "must match verbatim" had no referent. **Both now embed the script, formatted exactly as §39.1.7**: the authority and coaching-pattern preamble, the phase opening (Measure's Define-recap, Analyse's Measure-recap), one block per field in §39.2.2 / §39.3.2 order with **Explain / Show / Ask / Confirm**, one seven-step block per bound tool, the metric-literacy explanation, and the gate-readiness closing — plus, for Analyse, the two-movements framing, the 5-Whys sequence and the test-selection sequence. **Content was lifted, not rewritten** — all thirteen tool blocks already carried seven labelled steps and moved byte-for-byte. **What was conformed on the way in:** all nineteen field blocks gained the four labelled parts (they had **Show** and little else); Analyse's `causal_hypothesis` block still showed the three-key reference shape and now shows five, including `references_metric_name` (§63.6, added at the Analyse review); and §39.3.10's line claiming the SKILL.md **does not exist** is gone — it exists and was reordered at `43c4201`. **Deliberately NOT embedded**, because they are not coaching script and several have their own §39.x home: front matter, the A→F session flow, the field-order table, templates, uploads, capture instructions, the Document Layout, pitfalls, cross-phase tables and the phase rubrics. **Both SKILL.md files were restructured to match** — their coaching content is now one contiguous `## 3. Coaching content` section holding the identical body, with the remaining sections renumbered contiguously. **Verified by containment, not by eye:** each of the three embedded scripts is a byte-exact substring of its SKILL.md — the Define atomic-unit check, now run for all three phases. Decision record: this section pair.
 
 **v1.16 (2026-08-27)** — **§56 AMENDMENT. The Analyse phase is fully specified at §39.3; F-13 CLOSED; the cross-phase reference shape gains `references_metric_name`.** **§39.3 is the third ratified per-phase HUB**, written to §39.2's template — twelve subsections indexing the cross-cutting specs and recording only Analyse specifics. **Its load-bearing content is the two movements**: generate candidate causes qualitatively (fishbone, 5 Whys, Pareto), then validate them quantitatively — and the ordering that enforces it. `causal_hypothesis` is coached at **2**, `root_cause_validation` at **3**, and **`root_cause_statement` at 5, after validation and ruling-out**. You state the cause once, once it is proven; the previous SKILL.md draft had it at position 2 as "the candidate, before it's proven", which invites a Belt to write a conclusion and then look for support. **F-13 is closed by `references_metric_name`** (§63.6, S-C32), added to **all three** cross-phase reference dicts for one uniform resolution path. **The grader now matches on it** against the referenced phase's `phase_metrics` `name` and reads the value from that entry — **never from the bare scalar**, which is only the primary metric's mirror (§39.2.3), so a link about the second metric would otherwise resolve against the first and compare two different things while looking verified (§42, S-C32 B1, B5). Analyse populates the key now; **Improve and Control carry it unpopulated until §39.4 and §39.5** — Control's is **F-14**, still open, but **its reference shape is now settled** and what remains is how N comparisons are presented and graded. **Analyse's `phase_metrics` carries the LINKAGE form** — `{name, explained_by, share_explained, source: "linkage"}` — with `"not addressed this phase"` for any registry metric the phase does not touch (§39.3.3, §63.3). **No schema field-count change: `AnalyseOutput` stays 14.** **§35 confirms Analyse's 4 Tier 1 / 5 Tier 2 split** and confirms **`causal_hypothesis` as Tier 2** — the substance is in the Tier-1 `root_cause_*` fields, and the traceability rides on `phase_metrics`, which is not skippable. **`ANALYSE_RUBRIC` encodes two methodology guards as Tier 1**: correlation is not causation (an association result needs a stated mechanism before it is a root cause) and statistical is not practical significance (a validated cause explaining a trivial share is coached back). **`skills/dmaic-analyse-phase/SKILL.md` was rebuilt, not created** — it existed and its field order contradicted §39.3.2. **Also corrected here: §63.7 had been left sitting after §63.9** by the v1.15 insertion, and is moved back above §63.8. **§39.4–§39.5 stay stubbed.** Decision record: `docs/analyse_section_39_3_draft.md`.
 
@@ -4000,15 +4002,485 @@ Plain language (§50); surfaced through `CoachingResponse.explanation` (§50.1).
 - Written **once** to `store/projects/{case_id}/artifacts/measure.json` by
   `gate_apply` (§9, §33), after the single-authority invariant clears (§39.2.3).
 
-#### 39.2.10 The SKILL.md content
+#### 39.2.10 The SKILL.md content (AUTHORITATIVE during the refactor)
 
-`skills/dmaic-measure-phase/SKILL.md` is generated from this section and must
-match. **Authoritative during the refactor** (as §39.1.7 is for Define): on
-conflict this section wins until the refactor completes, then authority flips to
-the code file. The SKILL.md carries the A→F session flow, the Define-recap
-opening, the seven-step sequence per tool, a worked example per field, the
-metric-literacy explanations (§39.2.8), the Document Layout, and the
-contradiction-check instruction (§32).
+> **Authority:** this content is authoritative during the v2 refactor.
+> `skills/dmaic-measure-phase/SKILL.md` is generated from it and **must match
+> verbatim.** On conflict this section wins until the refactor completes; then
+> authority flips to the code file and this reduces to a pointer.
+
+> **What lives here and what does not.** This section carries the **coaching
+> script** — the opening, the metric-literacy explanation, one block per field
+> in §39.2.2's order, one seven-step block per bound tool, and the closing. The
+> SKILL.md additionally carries its front matter, the A→F session flow, the
+> field-order table, templates, uploads, capture instructions, the Document
+> Layout, pitfalls, cross-phase tables and `MEASURE_RUBRIC` — **those are not
+> duplicated here**, and several have their own home in §39.2.2, §39.2.9 and
+> §39.2.11.
+
+> **Coaching pattern for every field:** ① **Explain** (plain language, why it
+> matters) → ② **Show** (worked example, visually distinct, illustration only)
+> → ③ **Ask** (invite the Belt's version) → ④ **Confirm** (reflect back, check,
+> advance). Tone: warm, encouraging, never gatekeeping. Assume a capable but
+> possibly non-expert Belt. Responses follow §50.1 structure — sectioned,
+> scannable, never bulk prose.
+
+> **Every computation tool follows the seven-step pattern** (§43.1), every time:
+> ① educate on the concept → ② explain why now → ③ guide data preparation →
+> ④ run → ⑤ interpret → ⑥ visualise → ⑦ coach the next move. **Step 1 is the one
+> most often skipped and the one that matters most.**
+
+**[OPENING — shown once, when Measure starts]**
+> "Welcome to Measure. Quick recap of what Define locked in, so we're building
+> on the same picture:
+>
+> • **Problem:** {problem_statement}
+> • **Baseline:** {baseline_estimate}
+> • **Target:** {target_value} by {target_date}
+> • **Process (SIPOC):** {process_map_sipoc — rendered as the table}, measuring
+>   {process_map_sipoc['process_metrics']}
+>
+> Now, what Measure actually does: we expand that SIPOC into a detailed process
+> map, decide what to collect and how, check the measurement itself can be
+> trusted, confirm the process is behaving consistently, establish a real
+> baseline, and prioritise which inputs are most likely driving the problem.
+> You don't need to hold these in a fixed order in your head — I'll guide you —
+> but here's the full menu so nothing's a surprise:
+>
+> **Required (7)**
+> □ Detailed process map — timings, people, value vs waste per step
+> □ Data collection plan — what, how much, how often, who
+> □ Stability check — is the process behaving consistently?
+> □ Baseline — the current level, once we trust the data
+> □ Cause prioritisation — scoring what might be driving it
+> □ Vital few X's — the shortlist Analyse will test
+> □ Issues and barriers — what's in your way
+>
+> **Recommended (3)**
+> □ Sigma level · □ Measurement system check · □ Secondary metrics
+>
+> **Progress: 0 of 7 required complete**
+>
+> We'll work through these roughly in the order above, and I'll flag the two
+> recommended ones — the measurement system check and the sigma level — when we
+> reach them, rather than saving them for the end. First up: expanding your
+> Define map, because everything else attaches to it. Let me show you what that
+> looks like."
+
+Render the checklist with `propose_diagram`. **The Required/Recommended split is a display of gate status, not a coaching sequence** — the walk is §39.2.2's field order, which interleaves the two recommended fields at positions 3 and 6 on methodology grounds. **The four recap values are read from the Store, never re-derived**; if one is genuinely absent, say so and ask rather than filling the gap with a plausible number (§22).
+
+**[METRIC LITERACY — for each metric in play, before it is measured]**
+> **The coach teaches two different things and must not conflate them:** the **metric** (the Belt's own measure — what it counts, why it matters in Measure, how to tell a good baseline from a poor one) and the **statistic** (what a Cpk or a Gage R&R *is*, taught at step 1 of the seven-step pattern).
+
+**Read Define's registry first.** `metric_definitions` carries `{name, unit,
+meaning}` per metric. **Echo `meaning`; never invent one** — the operational
+definition is the Belt's, and authoring it for them is the guard §22 forbids.
+
+**For each metric in play, say three things before measuring it:**
+
+> **What it is:** *"Error rate is your primary problem metric — the share of
+> invoices returned by collections for correction of amount, PO reference or
+> address. That's the definition you set in Define, and it's the one we collect
+> against; if two people would classify the same invoice differently, we fix the
+> definition before we count anything."*
+>
+> **Why it matters here:** *"Measure is where this stops being an estimate.
+> Define had 'about 12%' — good enough to scope a project, not good enough to
+> prove one. Everything Analyse tests and everything Control claims is measured
+> against the number we settle here."*
+>
+> **How to read it:** *"A baseline worth trusting has four things: a stable
+> process behind it, a validated way of measuring, a stated sample and period,
+> and any exclusions named. A number without those is a number you'll have to
+> defend at the gate and won't be able to."*
+
+**With more than one metric, do this per metric.** They rarely behave alike —
+a quality measure and a time measure usually have different definitions,
+different sources and different stability verdicts, and a Belt told "your
+process is fine" about both learns nothing about either.
+
+**Where it surfaces:** `CoachingResponse.explanation` (§50.1), in plain
+language (§13). Never as a lecture before the Belt has asked for anything —
+weave it into the field's coaching, where it answers a question they are about
+to have.
+
+**[1 · detailed_process_map · Tier 1 · dict, six sub-fields]**
+> **Explain:** Read Define's `process_map_sipoc` first and open on it. *"Your Define map has five steps. Now we add the operational detail — how long each takes, who does it, and whether it adds value for the customer."* Teach value vs waste in plain language: *"Value-adding means it changes the thing into what the customer wants. Checking, moving, waiting, fixing and re-entering are usually waste — sometimes necessary, but still waste. Most processes are 90%+ waste by time, so don't be alarmed by what we find."*
+> **Show** — a completed map, illustration only:
+>
+> ```
+> ┌──────────────┬───────┬───────┬───────┬──────────┬───────────┬──────┐
+> │ Step         │ Min   │ Avg   │ Max   │ People   │ Value/    │ KPI  │
+> │              │ time  │ time  │ time  │ assigned │ Waste     │ today│
+> ├──────────────┼───────┼───────┼───────┼──────────┼───────────┼──────┤
+> │ 1. Receive   │ 2min  │ 5min  │ 15min │ 1 clerk  │ Value     │ 100% │
+> │    PO        │       │       │       │          │           │      │
+> ├──────────────┼───────┼───────┼───────┼──────────┼───────────┼──────┤
+> │ (wait)       │ 1hr   │ 4hr   │ 2days │ —        │ Waste     │ —    │
+> ├──────────────┼───────┼───────┼───────┼──────────┼───────────┼──────┤
+> │ 2. Validate  │ 3min  │ 8min  │ 30min │ 1 clerk  │ Value     │ 95%  │
+> │    details   │       │       │       │          │           │ FTQ  │
+> ├──────────────┼───────┼───────┼───────┼──────────┼───────────┼──────┤
+> │ 3. Create    │ 5min  │ 12min │ 45min │ 1 clerk  │ Value     │ 88%  │
+> │    invoice   │       │       │       │          │           │ FTQ  │
+> ├──────────────┼───────┼───────┼───────┼──────────┼───────────┼──────┤
+> │ (rework)     │ 10min │ 20min │ 1hr   │ 1 clerk  │ Waste     │ 12%  │
+> │              │       │       │       │          │           │ rate │
+> ├──────────────┼───────┼───────┼───────┼──────────┼───────────┼──────┤
+> │ 4. Review    │ 2min  │ 5min  │ 20min │ 1 senior │ Necessary │ —    │
+> │    & approve │       │       │       │          │ waste     │      │
+> ├──────────────┼───────┼───────┼───────┼──────────┼───────────┼──────┤
+> │ 5. Send      │ 1min  │ 1min  │ 2min  │ auto     │ Value     │ 100% │
+> │    invoice   │       │       │       │          │           │      │
+> └──────────────┴───────┴───────┴───────┴──────────┴───────────┴──────┘
+> ```
+>
+> **Total touch time: ~31 min avg | Total elapsed: ~2.5 days avg.** That gap is the hidden waste — mostly waiting between steps. Three things to notice: **waiting is its own row** (usually where the time actually goes); **rework is its own row** (the hidden factory — work that exists only because something went wrong); **'necessary waste'** means it doesn't add customer value but you can't remove it, like the review step.
+> **Ask (step by step, never all six sub-fields at once):** Take your first step — how long does it take at minimum, on average, and at worst? Who does it, and would the customer pay for it? … then the next step, until the map is complete. **For the sixth sub-field, `baseline_metrics`, ask the metric question first:** *"How many things are we tracking on this process — one measure, or more than one? Define named {process_map_sipoc['process_metrics']} — is that still the full list?"* Then show a two-metric example, because one column of numbers hides the question: *"KPIs today, per step: • **Error rate** — Validate 95% FTQ, Create 88% FTQ, overall 12% defective. • **Cycle time** — touch time 31 min avg, elapsed 2.5 days avg; the gap sits in the wait before Validate."*
+> **Confirm:** render with `propose_diagram` once populated, and check all six sub-fields are filled. **Capture each metric by name in `baseline_metrics`, using the same names Define used** — Measure inherits Define's vocabulary and does not invent a second one; if the Belt names a metric Define did not, say so and ask which is right rather than quietly adding it. **Intervene when:** cycle times cover the work but not the waiting (*"the steps add to 31 minutes but it takes 2.5 days — where does the rest go?"*); everything is marked value-adding (*"would the customer pay for the review step? If not, it's necessary waste, not value"*); rework isn't shown (*"what happens when an invoice comes back wrong? That's a row too"*); `baseline_metrics` don't connect to Define's `process_metrics`; or steps appear that Define scoped out — one of the two is wrong. Advance.
+
+**[2 · data_collection_plan · Tier 1]**
+> **Explain:** Bad data collection is almost impossible to fix afterwards, so we plan it once. The most important line is the operational definition — if two people would classify the same invoice differently, the data won't mean anything.
+> **Show** — a complete plan, illustration only: *"Measuring: invoice errors, defined as any invoice returned by collections for correction of amount, PO reference or address. Sample: 340 invoices, drawn weekly across all five clerks. Frequency: weekly for 8 weeks. Owner: Sarah (billing supervisor). Stored: shared tracker, one row per invoice."*
+> **Ask:** First — what exactly counts as an error in your process? Then: how many, how often, drawn from where, who owns the collecting, and where does it get stored?
+> **Confirm** the plan names all five — definition, sample, frequency, owner, storage — and that the sample size has a stated basis rather than a round number. **Then use `calculate_sample_size_proportion` or `calculate_sample_size_mean`** to put that basis under it. Advance.
+
+**[3 · measurement_system_validated · Tier 2 · coached early, before the baseline]**
+> **Explain:** Before we trust any of this, we check the measuring itself. If two people looking at the same invoice disagree about whether it's an error, then your error rate is measuring the people, not the process.
+> **Show** — a completed check, illustration only: *"Three reviewers each assessed the same 30 invoices, twice, without seeing their own earlier answers or each other's. First run: 87% agreement. Disagreements were nearly all about what counts as an address error, so we tightened that definition and re-ran: 96%."*
+> **Ask:** Who decides whether something counts as a defect in your process, and would two of them agree? *"This one's optional, but I'd recommend it — if you'd rather skip it and come back later, that's fine too; just say so and we'll note it and move on to the baseline."*
+> **Confirm:** **the choice must be offered explicitly, in words.** MSA stays Tier 2, so the Belt may decline — but it is **actively offered and explained, never silently skipped**; everything the phase does after this rests on the data being trustworthy, and a Belt who skips it should skip it knowingly. **A decline routes to `acknowledged_gaps` immediately**, here at position 3 — not deferred to the closing sweep, which handles only what is still outstanding. **Then use `calculate_grr`.** **If it fails, do not proceed to the baseline** — coach the fix: tighten the definition, retrain, re-run. The fix is nearly always the definition, not the people; say so.
+
+**[4 · stability_assessment · Tier 1 · before capability]**
+> **Explain:** Before we work out how capable the process is, we check it's behaving consistently. If last month was 4% and this month is 20%, there is no single 'current level' to improve from — something changed, and we need to know what before we measure anything.
+> **Show** — a completed assessment, illustration only: *"Weekly error rate plotted over 26 weeks. Ran between 10% and 14% except weeks 12 and 13, which hit 24%. Both were during the system migration — a one-off cause we can name. Excluding those two weeks, the process is stable and the baseline is 12.3%."* **With more than one metric, show a per-metric answer:** *"**Error rate** — weekly over 26 weeks. Ran 10–14% except weeks 12 and 13 at 24%, both during the system migration. Excluding those two weeks: stable, baseline 12.3%. **Cycle time** — weekly over the same 26 weeks. Drifting upward from 2.1 to 2.9 days with no single spike. Not stable, and no special cause identified — this looks like a trend, not an event."* Say why that matters: *"Notice those came out differently. That is the normal case, and it is exactly why one blanket 'the process is stable' will not do — **the gate rejects a single verdict covering several measures.** Cycle time here is not ready for a capability figure; error rate is."*
+> **Ask:** First, how many measures are we tracking — one, or more than one? Each one gets its own chart and its own verdict, because stability is a property of the thing being measured, not of the project as a whole. Can you plot each of them over time — weekly or monthly — and tell me what you see?
+> **Confirm** a verdict **per metric**, each with its plot and any exclusions named. **When a process is unstable, this is the coaching that matters:** *"That spike is what's called a special cause — something specific that happened, rather than the normal ups and downs of the process. Common ones are new staff joining, a system or equipment change, a seasonal volume surge, or a policy change. Looking at those two weeks — what was different?"* Once identified, offer the two routes explicitly: *"Two options, and either is fine as long as we say which we did. **Remove it and re-measure** — if the cause is gone, take a fresh period without it and baseline from that. **Exclude it with a reason** — keep the data but leave those weeks out, documenting why; that's right when the cause was genuinely exceptional and won't recur. What can't happen is baselining across it and pretending 15% is the normal level. Which fits your situation?"* **If the Belt can't identify the cause:** *"That's worth knowing too. An unexplained shift means something is changing that nobody is watching — which might be the project's real finding."*
+
+**[5 · baseline_mean · Tier 1]**
+> **Explain:** This is where the estimate becomes a measurement. Define had a rough number; everything Analyse tests and everything Control claims is measured against the one we settle here — so it carries its sample, its period and its exclusions with it.
+> **Show** — a two-metric example, illustration only: *"**Error rate:** 12.3%, 4,200 invoices, January–June 2026, excluding the two migration weeks. **Cycle time:** 2.6 days average, 340 invoices sampled weekly across the same period, order receipt to invoice sent."* Then: *"Each one gets the number, the sample, the period and any exclusions. Different sample sizes are fine and normal — you counted every invoice for errors and sampled for timing."*
+> **Ask:** How many measures are we baselining — just the one, or more than one? Define named {baseline_estimate}; we give each of those its own number, sample and period.
+> **Confirm:** **use the same metric names Define used.** `baseline_mean` and Define's `baseline_estimate` must name the same things — the gate checks that `baseline_estimate` and `target_value` agree by name and unit, and a rename here is how that check starts failing for no real reason. **If a number differs from Define's, surface it:** *"Define had 12%, you have 12.3% — is that a refinement, or did something change?"* The mid-phase contradiction check will catch it anyway; better it comes from you. Advance.
+
+**[6 · baseline_sigma · Tier 2]**
+> **Explain:** Sigma puts your performance on a scale that compares across any process — but for a time measure it needs a decision before it needs a calculation, because 'defective' means breaching a limit and somebody has to name the limit.
+> **Show** — a two-metric example, illustration only: *"**Error rate:** 12.3% defective → DPMO 123,000 → sigma 2.65. **Cycle time:** 18% of invoices breach the 3-day service level → DPMO 180,000 → sigma 2.42."* Then: *"The second one needed a decision before it needed a calculation — 'defective' for a time measure means breaching a limit, so we had to name the limit first. That is the usual reason a time-based sigma looks odd."*
+> **Ask:** Do you want a sigma level for each measure we're tracking, or just the one that matters most? Either is fine — but if we do several, each needs its own defect definition, and that is the part worth getting right.
+> **Confirm** each metric's defect definition before its number. Use `calculate_sigma_level` **once per metric, passing `metric_name` in the call** so each result is attributable in the gate document (§69.1). `calculate_dpmo`, `calculate_yield_rty` and `calculate_ftq` support the same conversation. Advance.
+
+**[7 · driver_priority_summary · Tier 1]**
+> **Explain:** We have a long list of things that might be causing this. Rather than investigating all of them, we score which ones most affect what the customer cares about, and take the top few forward. What makes it credible is who was in the room and that the scores are visible — not just a ranked list.
+> **Show** — a completed prioritisation, illustration only: *"Team of five scored 14 candidate causes against three outputs — error rate, cycle time, rework hours — weighted 5/3/2 by customer priority. Scoring session ran 90 minutes with both senior clerks, the reviewer and IT. Top four by weighted score: data entry rework (68), template version drift (54), missing PO numbers (49), approval delays (41). Bottom six scored under 15 and were dropped."*
+> **Ask:** Let's start by generating candidates — shall I set up a fishbone to structure that? Then work the sequence: ① brainstorm causes, offering a **fishbone** via `propose_template`; ② sort them — which can you control, which are procedures, which are noise you can't influence; ③ score the controllable ones against weighted outputs; ④ rank.
+> **Confirm** the scoring basis, the participants and the ranked output are all recorded. **Push on participation:** *"Who was in the room? The people who do the work usually rank these differently from managers."* Process participants not taking part is a named methodology roadblock. Advance.
+
+**[8 · vital_few_drivers · Tier 1]**
+> **Explain:** Now the shortlist Analyse will actually test. Each one needs a reason it made the cut. **Three to six is the right number** — fewer than three usually means you've pre-decided the answer; more than six means the prioritisation wasn't selective enough.
+> **Show** — a good shortlist, illustration only: *"Taking four into Analyse: data entry rework (highest score, fully in our control), template version drift (medium score, cheap to test), missing PO numbers (high customer impact), approval delays (affects cycle time, our secondary metric). Dropping the rest — all scored under 15 and most are outside our control."*
+> **Ask:** Which are you taking forward, and why those? If you're over six, let's go back to the priority scores and look at where the natural break is.
+> **Confirm** each entry carries its reason, and **tell the Belt what happens next:** *"Analyse takes exactly this list and tests each against your baseline data."* **Intervene when:** more than six — go back to the scores and find the break point; only one — *"you may be right, but Analyse is where we prove it. What are the next two most likely?"*; or drivers the Belt can't measure or control — *"could your team actually change that? If not, it's context rather than a cause we can act on."* Advance.
+
+**[9 · secondary_metrics · Tier 2]**
+> **Explain:** Carried from Define and re-checked now that you've seen the process in detail — the map often reveals a side-effect the Define conversation couldn't have known about.
+> **Show** — illustration only: *"Watching: invoice cycle time (extra checking could slow it), billing team overtime, and the number of invoices needing manual review."*
+> **Ask:** Now you've seen the process in detail, is there anything else that could suffer if we fix the main problem?
+> **Confirm** against the detailed map, and advance.
+
+**[10 · issues_and_barriers · Tier 1 · always last]**
+> **Explain:** Ask this **once data collection has been attempted** — that's when the real blockers appear, rather than the ones a Belt can guess at in advance.
+> **Show** — illustration only: *"The weekly extract only goes back 90 days, so we can't baseline a full year. Two of the five reviewers are on leave until May, which slows the agreement study."*
+> **Ask:** Now you've tried collecting — what actually got in the way? Data access, systems, people, time?
+> **Confirm.** "none identified at this stage" is a valid conscious answer, but ask after collection has been attempted, not before.
+
+**[COMPUTATION TOOLS — the seven-step pattern, one block per tool]**
+
+Eight tools. **This is the bulk of the skill.** Every one starts by
+teaching the concept.
+
+### `calculate_sample_size_proportion`
+
+**1 — Educate.**
+> "Let me explain sampling before we size anything. You could check every
+> invoice, but that's expensive. Instead we check a sample and use it to
+> estimate the whole. The question is how many.
+>
+> Too few and you can't tell a real difference from random noise. Too
+> many and you've wasted your team's time for precision you didn't need.
+>
+> The answer comes with a margin — 'about 12%, give or take 3%'. The
+> result will look like:
+>
+>   *340 invoices → ±3% margin at 95% confidence*
+>
+> The 95% means: if we repeated this sampling twenty times, nineteen
+> would land inside that margin."
+
+**2 — Why now.** *"We size it before collecting, so the plan is right the
+first time."*
+
+**3 — Prepare.** Roughly what error rate they expect, how precise they
+need to be. *"A rough estimate is fine — 'about one in ten' is enough."*
+
+**4 — Run.**
+
+**5 — Interpret.**
+> "340 invoices to be confident within ±3%. At about 100 a day, that's
+> roughly three and a half working days of sampling — or you can pull it
+> from history if the last three months are representative."
+
+Always translate N into effort.
+
+**6 — Visualise.** Usually unnecessary for one number. If they're
+weighing precision against effort, `propose_diagram` a short N-vs-margin
+table.
+
+**7 — Next move.** *"Does that fit your timeline? If not, we can accept a
+wider margin — what precision does the decision actually need?"*
+
+### `calculate_sample_size_mean`
+
+**1 — Educate.**
+> "Same idea, but for a measurement rather than a pass/fail. Here we need
+> two things: how spread out the readings are, and how big a difference
+> you'd care about detecting. A process that varies wildly needs more
+> readings to pin down its average."
+
+**2 — Why now.** Same as above.
+
+**3 — Prepare.** An estimate of spread, and the difference worth
+detecting. Coach the second — Belts find it hard: *"how big a change
+would actually matter? If two minutes is worth having but thirty seconds
+isn't, that's your number."* No spread estimate? *"Take twenty readings
+first and we'll size from those."*
+
+**4 — Run.**
+
+**5 — Interpret.** *"About 65 readings to detect a two-minute difference
+reliably. That's a fortnight at your volume."*
+
+**6 — Visualise.** As above.
+
+**7 — Next move.** *"Who captures these, and does the timing fit?"*
+
+### `calculate_grr`
+
+**1 — Educate.**
+> "Before the numbers, let me explain what this checks. Every measurement
+> has two sources of variation: the thing being measured really is
+> different, or the measuring itself is inconsistent.
+>
+> Think of two people weighing the same parcel on the same scale and
+> getting different answers — that's measurement variation, and it's
+> noise pretending to be signal.
+>
+> This study separates the two. The result comes as a percentage:
+>
+>   *Measurement accounts for 17% of total variation — acceptable*
+>
+> Under about 10% is excellent, 10–30% is usually workable, over 30%
+> means the data can't support the decisions you want to make."
+
+**2 — Why now.** *"Everything downstream rests on this. If the
+measurement is unreliable, Analyse will test the wrong thing and we won't
+know."*
+
+**3 — Prepare.** Explain the design plainly: *"Take about 10 items
+covering the normal range. Have 2 or 3 people assess each one, twice,
+without seeing their earlier answer or each other's. That's 30 to 60
+measurements."* Check `rag_lookup_evidence` — they may have uploaded it.
+
+**4 — Run.**
+
+**5 — Interpret.** Verdict first.
+> "Your measurement system is acceptable. Measurement accounts for about
+> 17% of total variation, inside the usual workable band — most of what
+> you're seeing is real process variation, which is what we want.
+> Repeatability was slightly worse than reproducibility, meaning the same
+> person assessing twice varied a bit more than different people did.
+> That usually means the definition is fine but the task is fiddly."
+
+For attribute data, read agreement the same way. **Where agreement is
+poor, point at the definition, not the people.**
+
+**6 — Visualise.** `propose_diagram` a components-of-variation breakdown
+— it makes "measurement vs process" immediate.
+
+**7 — Next move.** *"Good — we can trust the baseline now."*
+
+### `calculate_sigma_level`
+
+**1 — Educate.**
+> "Sigma level is a way of putting very different processes on the same
+> scale. A hospital and a call centre can't compare error rates directly,
+> but they can compare sigma levels.
+>
+> It's a translation of your defect rate, not new information. The result
+> will look like:
+>
+>   *2.6 sigma*
+>
+> For context: most business processes that haven't been deliberately
+> improved sit between 2 and 3. Four sigma is where things feel reliably
+> good. Six sigma is about three defects per million — rare outside
+> manufacturing."
+
+**2 — Why now.** *"It tells you how much headroom there is, and it's the
+common language if your sponsor has seen Six Sigma before."*
+
+**3 — Prepare.** Defects, units, and opportunities per unit. Explain
+opportunities: *"how many distinct ways can one invoice be wrong? If
+there are five fields that can each be wrong, that's five
+opportunities."*
+
+**4 — Run.**
+
+**5 — Interpret.**
+> "2.6 sigma. That's typical for a process nobody has systematically
+> improved — which is good news, because it means real headroom. Getting
+> to 4 sigma would take your error rate from 12.3% to about 0.6%."
+
+**Never present a sigma level without a reference point.**
+
+**6 — Visualise.** `propose_diagram` a scale showing where they are and
+where the target sits.
+
+**7 — Next move.** *"Worth noting for the charter. What matters more for
+the project is which inputs drive it — that's next."*
+
+### `calculate_dpmo`
+
+**1 — Educate.** *"Defects per million opportunities — the same idea as
+sigma level, expressed as a rate rather than a scale. It lets you compare
+a process handling 100 items a day with one handling 100,000."*
+
+**2 — Why now.** *"It's the number most quality reporting uses, so it's
+useful if you're presenting outside the team."*
+
+**3 — Prepare.** Same inputs as sigma level.
+
+**4 — Run.**
+
+**5 — Interpret.** Translate to something human: *"About 25,000 defects
+per million opportunities — roughly one in forty goes wrong."*
+
+**6 — Visualise.** Skip if sigma level is already charted; don't
+duplicate.
+
+**7 — Next move.** Record alongside the baseline.
+
+### `calculate_yield_rty`
+
+**1 — Educate.**
+> "Rolled throughput yield asks a question most processes have never
+> answered: what share get all the way through without needing fixing
+> *anywhere*?
+>
+> Each step might look fine on its own — 95% good. But five steps at 95%
+> each isn't 95% overall, it's 77%, because the misses multiply. The
+> result will look like:
+>
+>   *RTY = 74% — about a quarter of your work gets touched twice*
+>
+> That gap between the step yields and the rolled yield is what's called
+> the hidden factory: rework nobody counted because each step reported
+> itself as fine."
+
+**2 — Why now.** *"It usually reframes the problem. Belts often discover
+the issue is spread across steps rather than concentrated in one."*
+
+**3 — Prepare.** Yield at each step — from `detailed_process_map`'s
+`baseline_metrics` if populated.
+
+**4 — Run.**
+
+**5 — Interpret.** This one usually surprises; say so.
+> "Every step is 88% or better on its own, but only 74% get through
+> clean. That quarter is your hidden factory — and it's where the 2.5-day
+> elapsed time is coming from, not the 31 minutes of actual work."
+
+**6 — Visualise.** `propose_diagram` a step-by-step yield waterfall.
+**One of the highest-value visuals in Measure.**
+
+**7 — Next move.** *"The steps with the worst individual yield are strong
+X-Y matrix candidates. Shall we take those forward?"*
+
+### `calculate_ftq`
+
+**1 — Educate.** *"First time quality — the share right first time at a
+single step, before any rework. It's the per-step version of what rolled
+throughput yield does across the whole process."*
+
+**2 — Why now.** *"It tells us which step to look at first."*
+
+**3 — Prepare.** Units processed and units needing rework at that step.
+
+**4 — Run.**
+
+**5 — Interpret.** Tie to the step in the map.
+
+**6 — Visualise.** Combine with the RTY waterfall rather than a separate
+chart.
+
+**7 — Next move.** Feed into the X-Y matrix.
+
+### `calculate_cpk`
+
+**⚠ Do not run before `stability_assessment`.** If stability isn't
+established, say so and go back: *"Let's check stability first — a
+capability figure from an unstable process averages two different
+processes."*
+
+**1 — Educate.**
+> "Before we look at numbers, let me explain what capability means. It
+> answers one question: can your process, as it runs today, consistently
+> meet what the customer needs?
+>
+> Imagine the customer accepts anything between 0 and 5 days processing
+> time. Your process averages 3 days but sometimes takes 7. Capability
+> measures that gap — are you reliably inside the limits, or spilling
+> over?
+>
+> The result is a number called Cpk:
+> - **Above 1.33** — comfortably meets the requirement
+> - **1.0 to 1.33** — meets it, but with little margin
+> - **Below 1.0** — can't reliably meet it as it runs today
+>
+> There's a companion number, Cp, which asks a different question: is the
+> *spread* narrow enough, ignoring where it's centred? Comparing the two
+> tells us whether you have a centring problem or a variation problem —
+> and those need different fixes."
+
+**2 — Why now.** *"It turns 'we have errors' into 'the process cannot
+meet the requirement, and here's why' — which is what a sponsor needs to
+hear."*
+
+**3 — Prepare.** Upper and lower spec limits (from `voc_summary` where
+possible), mean, standard deviation. One-sided limits are fine and
+common; say so.
+
+**4 — Run.**
+
+**5 — Interpret.** Answer the centring-vs-spread question explicitly.
+> "Cpk is 0.62 — below 1.0, so the process can't reliably meet the
+> requirement as it stands. Comparing Cp and Cpk tells us why: your
+> spread alone would nearly fit, but the average sits off-centre toward
+> the upper limit. So this is more a centring problem than a variation
+> problem, which usually points at a setting or a default rather than
+> inconsistency."
+
+Address short-term vs long-term where the data supports it.
+
+**6 — Visualise.** `propose_diagram` the distribution against the spec
+limits. **The single most persuasive visual in Measure.**
+
+**7 — Next move.** *"Centring problems often trace to a default or a
+threshold somebody set once. Worth adding to your candidate causes."*
+
+---
+
+**[GATE READINESS — closing]**
+> Good work — that's Measure done. You've got a process map with the real timings, a collection plan, a stability verdict per measure, a baseline you can defend, and the shortlist Analyse will test. Review it all in the **gate document** tab and approve when you're ready to move to Analyse. You can still edit anything.
 
 #### 39.2.11 Cross-phase reads and writes
 
@@ -4232,16 +4704,430 @@ rubric failure (§43.1).
 - Written **once** to `store/projects/{case_id}/artifacts/analyse.json` by
   `gate_apply` (§9, §33).
 
-#### 39.3.10 The SKILL.md content
+#### 39.3.10 The SKILL.md content (AUTHORITATIVE during the refactor)
 
-`skills/dmaic-analyse-phase/SKILL.md` is generated from this section and must
-match. **Authoritative during the refactor.** It carries the A→F session flow, a
-Measure-recap opening (show the Belt the `vital_few_drivers` and `baseline_mean`
-they arrive with), the two-movements structure, the seven-step sequence per
-computation tool, the 5-Whys coaching sequence, a worked example per field, the
-metric-literacy explanations (§39.3.8), the Document Layout, and the
-contradiction-check instruction (§32). **This SKILL.md does not exist yet** — it
-is written from this section.
+> **Authority:** this content is authoritative during the v2 refactor.
+> `skills/dmaic-analyse-phase/SKILL.md` is generated from it and **must match
+> verbatim.** On conflict this section wins until the refactor completes; then
+> authority flips to the code file and this reduces to a pointer.
+
+> **What lives here and what does not.** This section carries the **coaching
+> script** — the opening, the two-movements framing, the metric-literacy
+> explanation, the 5-Whys sequence, one block per field in §39.3.2's order, the
+> test-selection sequence, one seven-step block per bound tool, and the closing.
+> The SKILL.md additionally carries its front matter, the A→F session flow, the
+> field-order table, templates, uploads, capture instructions, the Document
+> Layout, pitfalls, cross-phase tables and `ANALYSE_RUBRIC` — **those are not
+> duplicated here**.
+
+> **Coaching pattern for every field:** ① **Explain** (plain language, why it
+> matters) → ② **Show** (worked example, visually distinct, illustration only)
+> → ③ **Ask** (invite the Belt's version) → ④ **Confirm** (reflect back, check,
+> advance). Tone: warm, encouraging, never gatekeeping. Assume a capable but
+> possibly non-expert Belt. Responses follow §50.1 structure — sectioned,
+> scannable, never bulk prose.
+
+> **Every computation tool follows the seven-step pattern** (§43.1), every time:
+> ① educate on the concept → ② explain why now → ③ guide data preparation →
+> ④ run → ⑤ interpret → ⑥ visualise → ⑦ coach the next move. **Step 1 is the one
+> most often skipped and the one that matters most.**
+
+**[OPENING — shown once, when Analyse starts]**
+> "Welcome to Analyse. Quick recap of what Measure established, because this
+> phase works on exactly that:
+>
+> • **The vital few drivers:** {vital_few_drivers}
+> • **The baseline we're explaining:** {baseline_mean} — {metric name and unit
+>   from `metric_definitions`}
+> • **How those were ranked:** {driver_priority_summary}
+> • **Measurement checks:** {measurement_system_validated} ·
+>   {stability_assessment}
+>
+> Those last two matter more than they look: a test run on unvalidated or
+> unstable data is arithmetic, not evidence. Measure cleared both, so we can
+> trust what we're about to test.
+>
+> **Analyse has two movements, and keeping them apart is the discipline of the
+> phase:** first we **generate** candidate causes — fishbone, 5 Whys, Pareto,
+> your knowledge of the process. Then we **validate** them against the data. A
+> cause that feels obvious on a fishbone is a hypothesis, not a finding, until
+> the numbers back it.
+>
+> Here's the phase:
+>
+> **Required (4)**
+> □ Root cause — what's actually causing it, specifically
+> □ Evidence — the test that proves it
+> □ How much it explains — is the effect big enough to matter
+> □ Issues and barriers — what's in your way
+>
+> **Recommended (5)**
+> □ Testable hypothesis · □ Link back to your baseline
+> □ What you ruled out · □ Process owner agreement · □ Secondary metrics
+>
+> **Progress: 0 of 4 required complete**
+>
+> We start by turning your problem into something testable, then generate
+> candidates before we test any of them. Let me show you what I mean."
+
+**[THE TWO MOVEMENTS — the framing that governs the whole phase]**
+> **Movement 1 — generate (qualitative).** From Measure's `vital_few_drivers`, help the Belt generate candidate causes: a **fishbone** (`propose_template` / `propose_diagram`) to structure them by category, **5 Whys** to drill past symptoms, **Pareto** to focus. Output: `causal_hypothesis`. No computation tool — this is structured thinking, nothing to calculate.
+>
+> **Movement 2 — validate (quantitative).** Each surviving hypothesis is tested against the data. Output: `root_cause_validation`, `ruled_out_causes`, and — only once proven — `root_cause_statement`.
+>
+> **The bright line between them is the load-bearing teaching of the phase.** A cause that feels obvious on a fishbone is a hypothesis, not a finding, until the data backs it. **Skipping movement 2 is how a Belt ships their first guess as a root cause** — which is why `root_cause_statement` is coached at position 5, after validation and ruling-out, and not before them.
+
+**[METRIC LITERACY — for each metric and statistic in play]**
+- **The metric** — echo its Define `meaning` from `metric_definitions`, then
+  frame what *explaining* it means here: *"We're finding what drives the 12.3%
+  error rate, and how much of it each cause accounts for. 'Explaining' isn't
+  describing — it's showing a driver moves the number."*
+- **The statistic** — the seven-step **educate** step (§5, step 1), for the four
+  Analyse produces: *"A **p-value** is the chance you'd see this result if the
+  driver made no difference — small means the effect is probably real. **R²** is
+  the share of the variation this driver explains, and that one is your practical
+  significance. A **t-statistic** is how far apart two groups are in units of
+  their own noise. A **correlation coefficient** runs −1 to +1 and says how
+  tightly two things move together — not that one causes the other."*
+
+**Never a raw dump.** `t = 4.23, p = 0.001` without the plain-language read is a
+rubric failure (§43.1).
+
+**[THE 5 WHYS — a coaching sequence, not a registered tool]**
+**Movement 1's drill-down.** No tool is registered for it; it is a conversation
+the coach runs (§39.3.5).
+
+> **Ask why five times, following the answer each time — not restarting.**
+>
+> *"Invoices go out with the wrong price."* → **Why?**
+> *"Staff pick the wrong price band."* → **Why?**
+> *"The band isn't obvious on the order screen."* → **Why?**
+> *"It's on a second tab nobody opens."* → **Why?**
+> *"The screen was laid out before banded pricing existed."* → **Why?**
+> *"Nobody owns the screen layout, so it never got revised."*
+
+**Three rules that make it work rather than perform:**
+
+1. **Stop when you reach something you can act on**, not at a fixed count. Five
+   is a guideline; three is fine, seven is fine.
+2. **If an answer names a person, you have gone sideways.** *"Because Dave
+   rushed"* is blame; *"because nothing forces the check"* is a process cause.
+   Redirect once, gently, and the Belt usually redirects themselves after.
+3. **A 5-Whys chain is a hypothesis, not a finding.** It comes out of movement 1
+   and goes into `causal_hypothesis` — **movement 2 still has to test it.**
+
+**[1 · statistical_problem_statement · Tier 2 · coached first]**
+> **Explain:** Before we test anything, we turn your theory into something precise enough to test. **Teach the null hypothesis in plain language when it first matters:** *"Statistical tests work backwards, which is counter-intuitive. We start by assuming there's *no* difference, then check whether the data makes that assumption look silly. If it does, we conclude the difference is real. That's all a p-value is — how silly the no-difference assumption looks."* **Never say "fail to reject the null" to a Belt without translating it.**
+> **Show** — illustration only: *Theory:* 'New staff make more errors.' *Testable:* 'The error rate for staff with under 60 days' tenure differs from the rate for staff with more than 60 days.' Then: *"The second version tells us exactly what data to pull and which test to run. The first doesn't."*
+> **Ask:** Take your strongest candidate — what exactly would we expect to see in the data if it were true?
+> **Confirm** the statement names the groups and the measure, and does **not** contain the conclusion the Belt wants. **Intervene when it does** — *"we're testing whether there's a difference, not proving there is."* Advance.
+
+**[2 · causal_hypothesis · Tier 2 · dict, cross-phase reference · MOVEMENT 1 output]**
+> **Explain:** This is the output of movement 1 — the candidate cause, recorded so it ties explicitly to the baseline you established in Measure. That link is what proves your root cause addresses the actual measured problem rather than a different one; anyone reviewing the project can trace the logic in one step.
+> **Show** — illustration only: *Hypothesis:* 'Inadequate onboarding causes the error spike in the first 60 days'. *References:* Measure → `baseline_mean` → metric `invoice_error_rate` → 12.3%. The stored dict carries five keys:
+>
+> | Key | Content |
+> |---|---|
+> | `hypothesis` | The causal statement in the Belt's words |
+> | `references_phase` | `"measure"` |
+> | `references_field` | Usually `"baseline_mean"` |
+> | `references_metric_name` | **Which registry metric this hypothesis explains** — the key the grader matches on (§63.8) |
+> | `references_value` | The exact value from Measure's gate document, read from that metric's `phase_metrics` entry |
+>
+> **Ask:** Which of the drivers Measure prioritised do you think is behind this — and which measure does it explain? On a multi-metric project that second half is not optional: *"Is this hypothesis about the error rate, the cycle time, or both?"*
+> **Confirm:** **read the referenced value from the Store — never ask the Belt to recall it.** The grader resolves the `phase_metrics` entry whose `name` equals `references_metric_name` and checks it carries `references_value`; a typo fails the gate, and a hypothesis that does not name its metric fails the lookup rather than falling back to the bare scalar. Advance to movement 2 — **this is a hypothesis, not a finding, until the data backs it.**
+
+**[3 · root_cause_validation · Tier 1 · MOVEMENT 2]**
+> **Explain:** Now we prove it rather than assert it. This is the bright line of the phase: a cause that felt obvious on the fishbone stays a candidate until a test says otherwise.
+> **Show** — a complete validation, illustration only: *"Two-sample t-test comparing error rates for staff under 60 days tenure against over 60 days, across 4,200 invoices from the Measure baseline period. Result: 23.1% vs 4.2%, t=4.23, p=0.001. The difference is real — a gap that large would occur by chance less than one time in a thousand."* Then: *"It names the test, the data, the numbers and what they mean in plain words. That last part is what makes it defensible at the gate."*
+> **Ask:** Let's pick the right test for your data — I'll walk you through it. *(Then use the test-selection sequence before running anything.)*
+> **Confirm** the entry names the test, the data, the result **and** the plain-language conclusion, and that a matching entry exists in `computation_results` — prose describing a test that was never run is unevidenced. **Where the evidence is an association result — `pearson_correlation` or `linear_regression` — additionally require a stated mechanism** in process terms before this counts as validation (see the guard below). **Intervene when:** *"everyone agrees"*; *"it's obvious from the data"*; or a test run on data that failed Measure's measurement check. Advance.
+
+**[4 · ruled_out_causes · Tier 2]**
+> **Explain:** Recording what you tested and rejected is as valuable as what you found — it stops somebody re-running the same dead end next year. **Emphasise this is positive evidence, not opinion:** *"'Rejected with rationale' means you ran something and it came back negative — a test, a comparison, a data pull. '**I don't think it's that**' isn't rejection, it's a hunch."*
+> **Show** — illustration only: *"Template version drift — chi-square across three template versions, p=0.31, no difference. Time of day — no correlation with error rate (r=0.08). Both ruled out on evidence."* Then: *"Notice each one names the test and the result."*
+> **Ask:** Which of the other candidates did you test, and what came back?
+> **Confirm** each rejection names the test and its result. **Intervene when causes are dismissed without evidence** — *"what did you check? Even a quick comparison counts, as long as we record it."* Advance.
+
+**[5 · root_cause_statement · Tier 1 · stated once, after it is proven]**
+> **Explain:** A root cause has to be specific enough to act on. **This lands here, after validation and ruling-out — not earlier.** You state the cause once, once the data supports it; writing it first and looking for support afterwards is the failure movement 2 exists to prevent.
+> **Show** — illustration only: *Category:* 'Poor training.' *Root cause:* 'New staff handle live invoices from day one with no structured system training; error rate in the first 60 days runs 23% against 4% for experienced staff.' Then: *"The second names something you could change on Monday, and it carries the evidence."*
+> **Ask:** Of the drivers Measure prioritised, which does the data point at — and what exactly about it? *(Use the 5-Whys sequence below to get from the category to the cause.)*
+> **Confirm** it is specific, actionable, evidence-carrying, and traces to one of Measure's `vital_few_drivers` — or explains why not. **Intervene when:** it's a category — *"what specifically about training?"*; blame — *"'staff don't care' isn't testable. What in the process makes that mistake easy to make?"*; outside their control — *"'the system is old' — what about it? Which part could you change?"*; or not on Measure's vital-few list with no explanation. Advance.
+
+**[6 · practical_significance · Tier 1 · immediately after the cause is stated]**
+> **Explain:** **The field most Belts skip. Do not let it pass.** We've shown the difference is real; now the second question — is it big enough to matter? A cause can be statistically certain and practically trivial: real, but worth 0.2% of a 12% problem. This is the number that decides whether we build a solution for it.
+> **Show** — illustration only: *"New staff handle about 30% of invoices. Bringing their error rate down to the experienced level of 4% would take the overall rate from 12.3% to roughly 6.6% — about half the gap to the 5% target. So this cause accounts for a bit under half the problem."*
+> **Ask:** If you fixed this completely, how far would your error rate drop? **Coach the arithmetic if they struggle:** *"What share of the volume does this group handle? And what would their rate be if fixed? Let's work it through together."*
+> **Confirm** the answer is a **share of the problem**, not a p-value restated in different words. **If practical significance is weak, that's a finding, not a failure:** *"So this is real but worth about a point of the twelve. Worth fixing eventually — but is there a bigger one on your list? Let's test the next candidate before we commit."* Advance.
+
+**[7 · process_owner_buyin · Tier 2]**
+> **Explain:** A root cause the process owner doesn't accept won't survive Improve — better to find out now, while testing another candidate is still cheap.
+> **Show** — illustration only: *"Reviewed with the billing manager on 12 August. She agreed, and added that the onboarding gap widened after the team restructure — which fits the timing in the data."* Then: *"Named person, when, and what they said — including anything they pushed back on."*
+> **Ask:** Have you walked them through this? What did they say?
+> **Confirm** the record names the person, the date and their actual response. **If the owner disagrees, treat it as data:** *"What do they think it is? That's worth testing too — they see things the data doesn't show."* Advance.
+
+**[8 · secondary_metrics · Tier 2]**
+> **Explain:** Carried from Measure and re-checked against the identified root cause — fixing a cause sometimes moves something you weren't watching.
+> **Show** — illustration only: *"Watching: invoice cycle time, billing team overtime, and manual-review volume. Fixing onboarding should reduce rework hours as well as errors — no expected downside."*
+> **Ask:** If we fix this, does anything else move — for better or worse?
+> **Confirm** against the root cause, and advance.
+
+**[9 · issues_and_barriers · Tier 1 · always last]**
+> **Explain:** Ask this **after testing has been attempted** — Analyse's blockers surface during the analysis, not before it.
+> **Show** — illustration only: *"The tenure field isn't on the invoice extract, so we had to join it manually. No access to observe the night shift. The analysis session slipped a week because two of the team were unavailable."*
+> **Ask:** Now you've run the tests — what got in the way? Data granularity, access to observe the process, people's availability?
+> **Confirm.** Typical Analyse blockers: data doesn't exist at the granularity needed, no access to observe the process, team unavailable for the analysis session. "none identified at this stage" is a valid conscious answer.
+
+**[CHOOSING THE TEST — coach this before running anything]**
+
+**This is the most common coaching moment in Analyse, and getting it
+wrong invalidates everything downstream.**
+
+**Show the decision tree:**
+
+> "Which test we use comes down to two questions about your data.
+>
+> **First — what are you measuring?**
+> A *number* like minutes, pounds or a percentage per item? Or a
+> *category* like pass/fail, or which template was used?
+>
+> **Second — what are you comparing?**
+> Two groups? Three or more? Or are you looking at whether two numbers
+> move together?
+>
+> Here's where that lands:
+>
+> ```
+> Comparing two groups, continuous data       →  t_test
+> Comparing three or more groups              →  anova
+> Comparing proportions or categories         →  chi_square_test
+> Relationship between two continuous things  →  pearson_correlation
+> Predicting one number from another          →  linear_regression
+> ```
+>
+> So — what are you measuring, and what are you comparing it across?"
+
+| Belt's situation | Tool |
+|---|---|
+| Average of a measurement, **two** groups | `t_test` |
+| Average of a measurement, **three or more** groups | `anova` |
+| **Counts or proportions** across categories | `chi_square_test` |
+| Do two **numbers move together** | `pearson_correlation` |
+| **Predict** one number from another, or quantify how much | `linear_regression` |
+
+**Ask the eBook's two gate questions before choosing:**
+- *"Is the thing you're measuring a number, or a category?"*
+- *"Are we looking at a difference in averages, or in spread?"*
+
+---
+
+**[COMPUTATION TOOLS — the seven-step pattern, one block per tool]**
+
+Five tools. **Educate before you compute.**
+
+### `t_test`
+
+**1 — Educate.**
+> "Let me explain what this test does before we run it. You've got two
+> groups with different average error rates — 23% and 4%. The obvious
+> question is whether that gap is real or just the luck of which invoices
+> landed in which group.
+>
+> The test answers that. It gives you a p-value — the chance you'd see a
+> gap this big if the two groups were genuinely identical.
+>
+> - **p below 0.05** — unlikely to be chance; treat the difference as real
+> - **p above 0.05** — could easily be chance; not proven
+>
+> The result will look like:
+>
+>   *t = 4.23, p = 0.001 — the difference is real*
+>
+> A p of 0.001 means: if the groups were truly the same, you'd see a gap
+> this big about once in a thousand tries."
+
+**2 — Why now.** *"This is what turns 'new staff seem worse' into
+something you can defend at the gate."*
+
+**3 — Prepare.** Two groups of the same measure, separated by one factor.
+*"Error rate per invoice for staff under 60 days, and the same for over
+60 days — the raw records, not summaries."* Check
+`rag_lookup_evidence` first. Warn about confounding: *"is anything else
+different between those groups besides tenure? Do new staff also get the
+harder accounts?"*
+
+**4 — Run.**
+
+**5 — Interpret.** Verdict, numbers, caveat.
+> "The difference is real. New staff run at 23.1% against 4.2%, and a gap
+> that large would happen by chance less than one time in a thousand.
+>
+> What the test doesn't tell us is whether tenure *causes* it or just
+> travels with it. If new staff also get the harder accounts, that would
+> produce the same result. Worth checking."
+
+**6 — Visualise.** `propose_diagram` a box plot of the two groups — it
+shows the difference and the spread at once, and Belts read it instantly.
+
+**7 — Next move.** *"That's the statistical half. Now the practical half:
+what share of invoices do new staff handle, and what would fixing this do
+to the overall rate?"*
+
+### `anova`
+
+**1 — Educate.**
+> "You've got more than two groups. You could run separate two-group
+> tests on every pair, but each test carries a small chance of a false
+> positive, and running six of them makes a false positive likely.
+>
+> ANOVA compares them all at once, avoiding that. It answers: is at least
+> one of these groups genuinely different from the others?
+>
+>   *p = 0.004 — at least one team differs*
+>
+> Note what it doesn't say: *which* one. That comes from looking at the
+> group averages afterwards."
+
+**2 — Why now.** *"You have four teams — this tells us whether team is a
+real factor before we go looking at any one of them."*
+
+**3 — Prepare.** The measure and the grouping factor. Note sample size
+per group.
+
+**4 — Run.**
+
+**5 — Interpret.**
+> "At least one team differs — p=0.004. Looking at the averages, Team C
+> sits well above the rest at 19%; the other three cluster between 8% and
+> 10%. So the effect is Team C rather than a general spread."
+
+**6 — Visualise.** `propose_diagram` box plots by group.
+
+**7 — Next move.** *"Team C looks like the driver. Worth going to see
+what they do differently — that's often where the root cause actually
+is."*
+
+### `chi_square_test`
+
+**1 — Educate.**
+> "Your data is counts in categories rather than measurements — how many
+> errors under each template version, say. Chi-square asks whether the
+> pattern of counts differs more than chance would explain.
+>
+> Think of it as: if template version made no difference, you'd expect
+> errors spread roughly in proportion to how often each is used. The test
+> measures how far reality is from that expectation.
+>
+>   *p = 0.31 — no real difference*"
+
+**2 — Why now.** *"It'll rule template drift in or out in one step."*
+
+**3 — Prepare.** A contingency table — categories on both dimensions with
+counts. Warn about small cells: *"we want at least five in each cell; if
+some categories are thin we may need to combine them."*
+
+**4 — Run.**
+
+**5 — Interpret.**
+> "No real difference — p=0.31. Error rates are about the same across all
+> three template versions, so template drift isn't driving this. That's a
+> useful negative: it comes off your list with evidence behind it."
+
+**Treat negatives as progress, explicitly.**
+
+**6 — Visualise.** `propose_diagram` a grouped bar chart of proportions.
+
+**7 — Next move.** *"I'll record that as a ruled-out cause with the
+evidence. Next candidate?"*
+
+### `pearson_correlation`
+
+**1 — Educate.**
+> "This checks whether two numbers move together — as one goes up, does
+> the other go up, down, or neither?
+>
+> The answer is a number between −1 and +1:
+> - **+1** — perfect lockstep, up together
+> - **0** — no relationship at all
+> - **−1** — perfect opposite, one up as the other goes down
+>
+> Anything past about 0.5 either way is a strong relationship in business
+> data.
+>
+>   *r = −0.62 — more training hours goes with fewer errors*
+>
+> One crucial thing: this shows things *move together*. It does not show
+> one *causes* the other. People who get more training may also be the
+> ones given easier work."
+
+**2 — Why now.** *"It'll tell us quickly whether training hours are worth
+pursuing before we invest in a fuller analysis."*
+
+**3 — Prepare.** Two columns of numbers, paired, same rows.
+
+**4 — Run.**
+
+**5 — Interpret.** Strength, direction, and the caveat.
+> "r = −0.62 — a moderately strong negative relationship. More training
+> hours goes with fewer errors. But as I mentioned, this doesn't prove
+> causation on its own. It's a strong lead, not a verdict."
+
+**6 — Visualise.** `propose_diagram` a scatter plot — **always** for
+correlation. The number hides curvature and outliers that a plot shows
+immediately.
+
+**7 — Next move.** *"If you want to know how much the error rate drops
+per extra training hour — and how much of the variation training
+explains — regression is the next step."*
+
+### `linear_regression`
+
+**1 — Educate.**
+> "Regression goes further than correlation. It answers two questions:
+>
+> **How much?** For each extra hour of training, how many percentage
+> points does the error rate drop?
+>
+> **How much of the story?** A number called R-squared, between 0 and 1,
+> telling you what share of the variation this one factor explains. If
+> R² is 0.41, then 41% of why some people have more errors than others
+> is explained by training hours — and 59% is something else.
+>
+>   *−0.8 points per hour, R² = 0.41*
+>
+> That R² is the number we need for practical significance."
+
+**2 — Why now.** *"This gives us the practical significance figure
+directly — it's the bridge from 'the effect is real' to 'the effect is
+worth acting on'."*
+
+**3 — Prepare.** Predictor and outcome, paired, enough rows. *"Roughly
+what range of training hours do you have? If everyone's had similar
+hours, we won't see much."*
+
+**4 — Run.**
+
+**5 — Interpret.** Lead with the practical reading.
+> "Each extra hour of onboarding is associated with about 0.8 percentage
+> points lower error rate, and training hours explain around 41% of the
+> variation between people.
+>
+> That 41% is the number that matters for the project. It says this is a
+> substantial driver — but not the only one. Roughly six-tenths of the
+> variation is something else, so don't expect fixing training alone to
+> solve everything."
+
+**6 — Visualise.** `propose_diagram` a scatter plot with the fitted line.
+
+**7 — Next move.** *"41% is strong enough to build a solution on. Shall
+we record that as your practical significance and take it to the process
+owner?"*
+
+---
+
+**[GATE READINESS — closing]**
+> Good work — that's Analyse done. You have a specific root cause, the test that proves it, an honest figure for how much of the problem it explains, and a record of what you ruled out. Review it in the **gate document** tab and approve when you're ready to move to Improve. You can still edit anything.
 
 #### 39.3.11 Cross-phase reads and writes
 
