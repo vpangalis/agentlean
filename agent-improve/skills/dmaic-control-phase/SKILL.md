@@ -44,24 +44,8 @@ training plan that was written and never delivered.
 
 ### A — Phase opening
 
-> "Welcome to Control — the last phase. Two jobs: prove the improvement
-> is real, and make sure it holds after you move on. Here's the phase:
->
-> **Required (3)**
-> □ Post-improvement result — proof the number actually moved
-> □ Control plan — five parts: documentation, monitoring, response,
->   training, and systems alignment
-> □ Issues and barriers — what could stop this holding
->
-> **Recommended (8)**
-> □ Improvement delta · □ Financial impact · □ Sustainability check
-> □ Handover · □ Project sign-off · □ Lessons learned
-> □ Transferability · □ Secondary metrics
->
-> **Progress: 0 of 3 required complete**
->
-> We start by proving it worked — everything else assumes the improvement
-> is real. Let me show you what that looks like."
+*The opening message is the `[OPENING]` block in **Coaching content**
+below — it lives there so this file and §39.5.10 stay byte-identical.*
 
 ### B — Phase resumption
 
@@ -116,322 +100,197 @@ closes.
 | 1 | `post_improvement_metrics` | 1 | **Prove it worked first.** Everything else assumes it |
 | 2 | `improvement_delta` | 2 | Falls out of the comparison |
 | 3 | `control_plan` | 1 | Five sub-plans, one at a time. The bulk of the phase |
-| 4 | `sustainability_check` | 2 | Overlaps monitoring — coach after it |
-| 5 | `financial_impact_verified` | 2 | Now there's a real delta to price |
+| 4 | `financial_impact_verified` | 2 | Now there's a real delta to price |
+| 5 | `sustainability_check` | 2 | Overlaps monitoring — coach after it |
 | 6 | `handover_documented` | 2 | The owner accepts running it |
-| 7 | `project_signoff` | 2 | Champion, Belt and Finance agree |
+| 7 | `actual_close_date` | 2 | **NEW (F-12)** — the achieved completion date, paired with Define's planned `target_date` |
 | 8 | `lessons_learned` | 2 | Reflection, once the outcome is known |
 | 9 | `transferability` | 2 | Where else this applies |
-| 10 | `secondary_metrics` | 2 | Final check — did anything get worse? |
-| 11 | `issues_and_barriers` | 1 | Sustainment risks, not project risks |
+| 10 | `project_signoff` | 2 | Champion, Belt and Finance agree |
+| 11 | `secondary_metrics` | 2 | Final check — did anything get worse? |
+| 12 | `issues_and_barriers` | 1 | Sustainment risks, not project risks |
 
 ---
 
-## 3. Per-field coaching
+## 3. Coaching content
 
-### `post_improvement_metrics` — Tier 1, dict, cross-phase reference
+> **Generated from `ARCHITECTURE.md` §39.5.10 and must match it verbatim.**
+> That section is authoritative during the v2 refactor; on conflict it wins.
 
-**Show, and walk the comparison arithmetic explicitly:**
+> **Coaching pattern for every field:** ① **Explain** (plain language, why it
+> matters) → ② **Show** (worked example, visually distinct, illustration only)
+> → ③ **Ask** (invite the Belt's version) → ④ **Confirm** (reflect back, check,
+> advance). Tone: warm, encouraging, never gatekeeping. Assume a capable but
+> possibly non-expert Belt. Responses follow §50.1 structure — sectioned,
+> scannable, never bulk prose.
 
-> "First thing: let's prove the number moved. I'll record it tied to the
-> baseline from Measure, so the comparison is exact rather than
-> remembered.
+> **Every computation tool follows the seven-step pattern** (§43.1), every time:
+> ① educate on the concept → ② explain why now → ③ guide data preparation →
+> ④ run → ⑤ interpret → ⑥ visualise → ⑦ coach the next move. **Step 1 is the one
+> most often skipped and the one that matters most.**
+
+**[OPENING — shown once, when Control starts]**
+> "Welcome to Control — the last phase. Quick recap of what Improve proved,
+> because this phase closes it out:
 >
-> Here's what a complete result looks like:
+> • **What's now in place:** {selected_solution}
+> • **What the pilot showed:** {pilot_result}
+> • **What we're closing against:** {target_value} from Define, and the
+>   {baseline_mean} baseline from Measure
 >
->   *'3.1% invoice error rate across 1,850 invoices, September to
->   November 2026, measured the same way as the baseline.'*
+> **Control has two jobs, and two movements.** First we **confirm** — measure
+> the improved process and show the number actually moved, against the same
+> baseline, on the same definition. Then we **lock** — build the five-part
+> control plan and hand a monitored, owned process to the business.
 >
->   **Baseline (Measure):    12.3%**
->   **Now (Control):          3.1%**
->   **Change:               −9.2 points, a 74.8% reduction**
->   **Target was:            below 5% — achieved**
+> **The bright line here is delivery, not authorship:** a control plan written
+> is not a control plan delivered. The most common reason improvements slip
+> back is a training plan that was authored and never run.
 >
-> That comparison is the proof the project worked. Three things make it
-> hold up: same measurement definition as the baseline, enough time to be
-> credible, and the whole process rather than just the pilot group.
+> Here's the phase:
 >
-> What's your measure running at now, and over what period?"
-
-**Once they answer, do the arithmetic for them and check it against the
-pilot:**
-
-> "So 12.3% down to 3.1% — that's a drop of 9.2 points, a 74.8%
-> reduction, comfortably past your 5% target. Your pilot predicted
-> around 8.4% overall; you've done better than that. Worth a sentence on
-> why — did something else improve alongside it?"
-
-| Key | Content |
-|---|---|
-| `metric` | The measured post-improvement value |
-| `references_phase` | `"measure"` |
-| `references_field` | Usually `"baseline_mean"` |
-| `references_value` | The exact baseline from Measure's gate document |
-
-**Read the baseline from the store.** The grader checks it matches.
-
-**Intervene when:**
-- Measured differently from the baseline — *"is that the same definition
-  we used in Measure?"*
-- Two weeks of data — *"is that long enough to be sure it holds?"*
-- Pilot group only, presented as the whole process
-- Measurement points differ from Define's `process_metrics` and Measure's
-  `baseline_metrics` — **that means the goalposts moved**
-
-### `improvement_delta` — Tier 2
-
-**Show:** *"'Reduced from 12.3% to 3.1% — a 74.8% reduction in error
-rate, sustained over three months.' Both absolute values and the
-relative change, so nobody has to do the arithmetic."*
-
-**Intervene when:** a percentage change with no absolute values;
-"significantly improved."
-
-### `control_plan` — Tier 1, dict, five sub-plans
-
-**Explain the whole thing once, then work each as its own conversation.**
-
-> "The control plan is what keeps this working after you move on. Five
-> parts, and I'll take you through them one at a time:
+> **Required (3)**
+> □ Post-improvement result — proof the number actually moved
+> □ Control plan — five parts: documentation, monitoring, response, training,
+>   and systems alignment
+> □ Issues and barriers — what could stop this holding
 >
-> 1. **Documentation** — what gets written down
-> 2. **Monitoring** — what gets watched, and how
-> 3. **Response** — what happens when monitoring shows a problem
-> 4. **Training** — who needs to know, and who trains the next joiner
-> 5. **Systems alignment** — what else has to change so the old way
->    doesn't creep back
+> **Recommended (9)**
+> □ Improvement delta · □ Financial impact · □ Sustainability check
+> □ Handover · □ Actual close date · □ Lessons learned
+> □ Transferability · □ Project sign-off · □ Secondary metrics
 >
-> **For each one I'll ask two questions: have you written it, and has it
-> actually happened?** A plan that exists on paper but hasn't been
-> delivered is the single most common reason improvements slip back."
-
-#### `documentation`
-
-**Show:**
-
-> "*'SOP-114 updated with the new onboarding step and re-issued 12 Nov.
-> Onboarding pack lives in the team SharePoint folder. Process map
-> updated in the quality system. Billing supervisor reviews both every
-> six months; team lead updates them whenever the process changes.'*
+> **Progress: 0 of 3 required complete**
 >
-> Notice it names who maintains it and who reviews it — not just what
-> exists today.
+> We start by proving it worked — everything else assumes the improvement is
+> real. Let me show you what that looks like."
+
+Render the checklist with `propose_diagram`. **The Required/Recommended split is
+a display of gate status, not a coaching sequence** — the walk is §39.5.2's field
+order. **The recap values are read from the Store, never re-derived** (§22).
+**Control has the smallest Tier 1 set and the largest Tier 2 set**, because it is
+rich in best-practice closure steps a Belt should be coached toward but not
+gated on (§35).
+
+**[THE TWO MOVEMENTS — the framing that governs the whole phase]**
+> **Movement 1 — confirm (did it hold?).** Measure the improved process and
+> compare: `post_improvement_metrics` against the Measure baseline,
+> `phase_metrics` against the Define target. **Re-check stability before
+> capability** before running `post_improvement_cpk`. Output:
+> `post_improvement_metrics`, `improvement_delta`, the per-metric comparison.
+> **A Control phase that cannot show before→after on the same measure has
+> demonstrated nothing** (§42 B2) — this is the measurement thread closing.
 >
-> What has to be written down so someone new could run this correctly?"
+> **Movement 2 — lock (make it stick).** Build the five-part `control_plan` and
+> hand the process over. **The bright line: a control plan written is not a
+> control plan delivered.** The most common real Control failure is a training
+> plan authored but never run (§41 B1) — so every sub-plan gets the two-stage
+> check, and `handover_documented` names an owner who has actually accepted.
 
-**Then the two-stage check:** *"Is that written and issued, or drafted?
-Either's fine — I just want to record which."*
-
-#### `monitoring`
-
-**Show:**
-
-> "*'Weekly error rate on a p-chart. Control limits calculated from the
-> post-improvement period: centre 3.1%, upper limit 5.8%. Reviewed by
-> the billing supervisor in the Monday huddle, chart on the team board.'*
+**[METRIC LITERACY — for each metric and statistic in play]**
+> **The metric** — echo its Define `meaning`, then frame the closure: *"Your
+> error rate started at 12.3%, you targeted under 3%, and it's now 2.8% —
+> here's how we keep it there."* On a multi-metric project, do this per metric:
+> `phase_metrics` shows every Y closed, and one met target does not cover a
+> missed one.
 >
-> Measure, chart, frequency, limits, and a named person.
+> **The statistic** — taught at step 1 of the seven-step pattern. For **control
+> limits**: *"Control limits are the voice of the process — the range it
+> naturally runs in. A point outside them is a signal to act, not noise to
+> ignore. That's what your monitoring plan watches for."* For the improved
+> **Cpk**: *"the same capability figure as Measure's, run on the new data —
+> and it only means anything once we've re-checked the process is stable."*
 >
-> How will anyone know if this starts slipping?"
+> **Never a raw dump** — a control limit or a Cpk without the plain-language
+> read is a rubric failure (§43.1).
 
-**Then use the chart tools** (§4).
-
-**Two-stage check:** *"Is the chart actually running — has anyone plotted
-last week's data on it yet?"*
-
-#### `response`
-
-**Show:**
-
-> "This is the part most control plans skip, and a chart nobody acts on
-> is decoration.
+**[1 · post_improvement_metrics · Tier 1 · dict, cross-phase reference · MOVEMENT 1]**
+> **Explain:** First thing: prove the number moved. Record it **tied to the baseline from Measure**, so the comparison is exact rather than remembered. **This is the only Tier-1 cross-phase reference in the system** (§42) — a Control phase that cannot link its result back to the baseline has demonstrated nothing, however good the rest of the document is. Three things make a result hold up: **the same measurement definition as the baseline, enough time to be credible, and the whole process rather than just the pilot group.**
+> **Show** — illustration only: *"3.1% invoice error rate across 1,850 invoices, September to November 2026, measured the same way as the baseline."* With the comparison spelled out: **Baseline (Measure): 12.3% · Now (Control): 3.1% · Change: −9.2 points, a 74.8% reduction · Target was: below 5% — achieved.** The stored dict carries five keys:
 >
->   *'Trigger: two consecutive points above the centre line, or any
->   single point above 5.8%. Action: supervisor pulls that week's errors
->   and checks whether the onboarding step was completed for the handlers
->   involved. If not, retrain within the week. Escalation: if the pattern
->   continues a second week, billing manager reviews with the team lead.'*
+> | Key | Content |
+> |---|---|
+> | `metric` | The measured post-improvement value |
+> | `references_phase` | `"measure"` |
+> | `references_field` | Usually `"baseline_mean"` |
+> | `references_metric_name` | **Which registry metric this result closes** — the key the grader matches on (§63.8) |
+> | `references_value` | The exact baseline from Measure's gate document |
 >
-> Trigger, action, escalation, owner.
->
-> When the chart signals a problem, what happens?"
+> **Ask:** What's your measure running at now, and over what period? On a multi-metric project, ask which metric this is — the primary one closes through this field; the rest live in `phase_metrics`.
+> **Confirm:** **once they answer, do the arithmetic for them and check it against the pilot:** *"So 12.3% down to 3.1% — that's a drop of 9.2 points, a 74.8% reduction, comfortably past your 5% target. Your pilot predicted around 8.4% overall; you've done better than that. Worth a sentence on why — did something else improve alongside it?"* **Read the baseline from the Store**, resolving Measure's `phase_metrics` entry whose `name` equals `references_metric_name`; the grader checks it matches. **Intervene when:** measured differently from the baseline — *"is that the same definition we used in Measure?"*; two weeks of data — *"is that long enough to be sure it holds?"*; pilot group only, presented as the whole process; or measurement points differing from Define's `process_metrics` and Measure's `baseline_metrics` — **that means the goalposts moved.** Advance.
 
-**Also coach mistake-proofing here:** *"Before we rely on a response —
-could we make the error harder to make in the first place? A required
-field, a default value, an automatic check? Prevention beats reaction."*
+**[2 · improvement_delta · Tier 2]**
+> **Explain:** The change from the baseline, stated so nobody has to do the arithmetic — **both the absolute values and the relative change.** On a multi-metric project this is per metric, and `phase_metrics` carries the full set.
+> **Show** — illustration only: *"Reduced from 12.3% to 3.1% — a 74.8% reduction in error rate, sustained over three months."*
+> **Ask:** How would you state the change, from what to what, over what period?
+> **Confirm** both absolutes and the relative figure are present. **Intervene when:** a percentage change with no absolute values, or *"significantly improved."* Advance.
 
-**Two-stage check:** *"Does the supervisor know this is their job? Has
-anyone walked them through it?"*
+**[3 · control_plan · Tier 1 · dict, five sub-plans · MOVEMENT 2]**
+> **Explain the whole thing once, then work each sub-plan as its own conversation.** *"The control plan is what keeps this working after you move on. Five parts, and I'll take you through them one at a time: ① **Documentation** — what gets written down. ② **Monitoring** — what gets watched, and how. ③ **Response** — what happens when monitoring shows a problem. ④ **Training** — who needs to know, and who trains the next joiner. ⑤ **Systems alignment** — what else has to change so the old way doesn't creep back."* **For each one, ask two questions: have you written it, and has it actually happened?** **A plan that exists on paper but hasn't been delivered is the single most common reason improvements slip back.**
+> **Show** — one worked example per sub-plan, illustration only.
+> **① `documentation`:** *"SOP-114 updated with the new onboarding step and re-issued 12 Nov. Onboarding pack lives in the team SharePoint folder. Process map updated in the quality system. Billing supervisor reviews both every six months; team lead updates them whenever the process changes."* — notice it names who maintains it and who reviews it, not just what exists today.
+> **② `monitoring`:** *"Weekly error rate on a p-chart. Control limits calculated from the post-improvement period: centre 3.1%, upper limit 5.8%. Reviewed by the billing supervisor in the Monday huddle, chart on the team board."* — measure, chart, frequency, limits, and a named person. **Then use the chart tools.**
+> **③ `response`:** *"Trigger: two consecutive points above the centre line, or any single point above 5.8%. Action: supervisor pulls that week's errors and checks whether the onboarding step was completed for the handlers involved. If not, retrain within the week. Escalation: if the pattern continues a second week, billing manager reviews with the team lead."* — trigger, action, escalation, owner. **This is the part most control plans skip, and a chart nobody acts on is decoration.**
+> **④ `training`:** *"All eight billing handlers trained on the new process by 30 September, delivered by the supervisor using the onboarding pack. New starters get it in week one as part of induction — added to the HR checklist. Refresher triggered if the monitoring chart signals twice in a quarter."* — who, by whom, when, and crucially what triggers it again.
+> **⑤ `aligning_systems`:** *"Onboarding completion added to the team leader's monthly checklist. Invoice system now makes the PO field mandatory — IT change 4471, deployed 8 Nov. HR induction template updated to include the billing module."* — job descriptions, system settings, targets, budget lines.
+> **Ask, one sub-plan at a time:** What has to be written down so someone new could run this correctly? · How will anyone know if this starts slipping? · When the chart signals a problem, what happens? · Who needs to know how to do this the new way? · Is anything still pulling people back to the old way? **Also coach mistake-proofing at the response step:** *"Before we rely on a response — could we make the error harder to make in the first place? A required field, a default value, an automatic check? Prevention beats reaction."*
+> **Confirm** all five sub-plans are populated — **a partial plan is the failure §41 describes** — and run **the two-stage check on each**: *"Is that written and issued, or drafted?"* · *"Is the chart actually running — has anyone plotted last week's data on it yet?"* · *"Does the supervisor know this is their job? Has anyone walked them through it?"* · **training is the sub-plan most often written and never delivered** — probe directly: *"Has that training actually run, or is it scheduled? And who trains the person who joins in March?"* · *"Is the IT change deployed, or requested?"* **If the Belt says nothing is needed for systems alignment, probe once:** *"What about incentives or targets — is anyone still measured on speed in a way that pushes against this?"* Advance.
 
-#### `training`
+**[4 · financial_impact_verified · Tier 2]**
+> **Explain:** Now we price the **actual** change, not the estimate. This is the number that gets claimed, so it needs to hold up — and it is the figure Define's `calculate_expected_savings` estimate is finally checked against.
+> **Show** — illustration only: *"Rework down from 35 to 9 hours/month — 26 hours saved at €35/hour fully loaded = ~€10,900/year. Credit notes for billing errors down from ~€8,000 to ~€2,000/year. Total ~€16,900/year. Confirmed with the finance business partner on 4 November."* Then: *"Your Define estimate was €14,700. You're showing €16,900 — worth a sentence on the difference, because that's the first thing a reviewer asks."*
+> **Ask:** What's the actual saving, and has finance seen it?
+> **Confirm:** **read Define's `business_case` and the expected-savings result, and compare explicitly.** If Define recorded no cost basis, say so: *"Define didn't set a cost estimate, so this is the first figure — worth flagging that to your sponsor."* Advance.
 
-**Show:**
+**[5 · sustainability_check · Tier 2]**
+> **Explain:** What would make this slip back? **A named risk with what stops it** — not a restatement of the monitoring plan.
+> **Show** — illustration only: *"Biggest risk is turnover in the supervisor role, since the monitoring depends on them personally. Mitigated by putting the chart review into the role handover checklist, so it transfers with the job rather than the person."*
+> **Ask:** What would make this slip back — and what stops that happening?
+> **Confirm** the answer names a specific risk and a specific mitigation, and is not the monitoring sub-plan restated. Advance.
 
-> "*'All eight billing handlers trained on the new process by 30
-> September, delivered by the supervisor using the onboarding pack. New
-> starters get it in week one as part of induction — added to the HR
-> checklist. Refresher triggered if the monitoring chart signals twice in
-> a quarter.'*
->
-> Who, by whom, when — and crucially what triggers it again.
->
-> Who needs to know how to do this the new way?"
+**[6 · handover_documented · Tier 2]**
+> **Explain:** The process needs a **named individual** who has accepted ongoing ownership — not a role, and not "the team". This is half of the second methodology guard: a control plan is not delivered until somebody owns it.
+> **Show** — illustration only: *"Billing supervisor, handover meeting 8 November. Accepted ownership of the weekly chart review, the response plan, and new-starter training. Walked through the control plan document together; she asked for the escalation threshold to be lowered from three weeks to two, which we've done."* Then: *"Named individual, date, what they accepted, and anything they changed."*
+> **Ask:** Who owns this process now? Have you sat down with them and walked the plan through?
+> **Confirm** a name, a date, what was accepted, and any change they asked for. **Intervene when:** a role with no name, or *"the team owns it."* Advance.
 
-**This is the sub-plan most often written and never delivered.** Probe
-directly: *"Has that training actually run, or is it scheduled? And who
-trains the person who joins in March?"*
+**[7 · actual_close_date · Tier 2 · NEW at this review (F-12)]**
+> **Explain:** The date the project actually closed — **the paired value for the `target_date` you set back in Define.** It is deliberately Tier 2: **a slipped date does not invalidate the improvement**, the same reasoning that makes Define's target a planning parameter rather than a result. What it gives you is an honest schedule record, and one of the more useful lines in `lessons_learned`.
+> **Show** — illustration only: *"Closed 18 November 2026. Define planned 30 September — eight weeks late, almost all of it waiting on the IT change for the mandatory PO field, which was requested in Improve and deployed in Control."*
+> **Ask:** What date are you closing on? And if it differs from the target you set in Define — what moved it?
+> **Confirm** the date is recorded in ISO form, and that a material slip carries its reason. **Do not treat a slip as a failure** — say so plainly if the Belt seems to expect otherwise: *"Late and real beats on-time and unproven. The reason is the useful part."* Advance.
 
-#### `aligning_systems`
+**[8 · lessons_learned · Tier 2]**
+> **Explain:** Both directions — what worked and what you'd change. This feeds the case index (§23.3), so it is read by Belts you will never meet.
+> **Show** — illustration only: *"The prioritisation session with the team was the turning point — I should have done it two weeks earlier instead of trying to rank alone. Underestimated how long data access would take; next time I'd start the IT request during Define. The pilot ran longer than planned because the first intake was only three people — worth checking cohort size before committing to a timeline."*
+> **Ask:** What would you do differently?
+> **Confirm** — **probe for the negative if only positives arrive.** That is where the value is, and it is the half a Belt is most likely to leave out. Advance.
 
-**Show:**
+**[9 · transferability · Tier 2]**
+> **Explain:** If this would work elsewhere, saying so is how other teams find it — **yokoten.** It gets stored and searched by future projects through `rag_lookup_case_history` (§24).
+> **Show** — illustration only: *"APAC billing runs the same process with the same onboarding gap — the pack would transfer with terminology and currency changes, probably two days of adaptation. The credit notes team has a different root cause (approval delays, not training) so it wouldn't transfer. Worth raising at the regional ops meeting in January."* Then: *"Named areas, the reasoning, and any adaptation needed."*
+> **Ask:** Where else in the business has this same problem?
+> **Confirm** the answer names areas and reasoning, including **where it would *not* transfer and why** — that judgment is what makes the entry worth retrieving. Advance.
 
-> "Sometimes the process change needs something else to change too, or
-> the old way quietly reasserts itself.
->
->   *'Onboarding completion added to the team leader's monthly checklist.
->   Invoice system now makes the PO field mandatory — IT change 4471,
->   deployed 8 Nov. HR induction template updated to include the billing
->   module.'*
->
-> Job descriptions, system settings, targets, budget lines.
->
-> Is anything still pulling people back to the old way?"
+**[10 · project_signoff · Tier 2]**
+> **Explain:** Three parties normally close a project: **the champion** confirms the business outcome, **you** confirm the work is done, and **finance** confirms the number. For a smaller project, sponsor plus a finance check is usually enough.
+> **Show** — illustration only: *"Champion (operations director) signed 15 November. Belt (me) 15 November. Finance business partner 12 November, confirming the €16,900 figure."*
+> **Ask:** Have the champion and finance both agreed this is done?
+> **Confirm** names and dates for each party. **Intervene when the Belt declares completion alone** — lack of project sign-off leads the methodology's Control roadblocks. Advance.
 
-**Two-stage check:** *"Is the IT change deployed, or requested?"*
+**[11 · secondary_metrics · Tier 2 · final check]**
+> **Explain:** **The last chance to catch a project that succeeded on its own terms and cost something elsewhere.** Over three months of real operation, a side-effect that was invisible in the pilot has had time to show.
+> **Show** — illustration only: *"Processing time unchanged. Overtime down four hours a month as rework fell. The team raised that the checklist adds about two minutes per new starter — accepted, and noted in the SOP."*
+> **Ask:** Over the three months, did anything else move the wrong way — processing time, overtime, anything the team raised?
+> **Confirm** against the full post-improvement period, not the pilot. Advance.
 
-**If the Belt says nothing is needed**, probe once: *"What about
-incentives or targets — is anyone still measured on speed in a way that
-pushes against this?"*
+**[12 · issues_and_barriers · Tier 1 · always last · sustainment risks]**
+> **Explain:** **Different from earlier phases — these are sustainment risks**, not project blockers. What could stop this holding after you have gone?
+> **Show** — illustration only: *"The p-chart is manual until the reporting team automate it in Q1 — until then it depends on the supervisor remembering. Flagged to the billing manager."*
+> **Ask:** What could stop this holding? Anything unresolved you're handing over?
+> **Confirm.** "none identified at this stage" is a valid conscious answer — but ask it as a sustainment question, because a Belt thinking about project blockers will answer the wrong one.
 
-### `sustainability_check` — Tier 2
-
-**Show:**
-
-> "*'Biggest risk is turnover in the supervisor role, since the
-> monitoring depends on them personally. Mitigated by putting the chart
-> review into the role handover checklist, so it transfers with the job
-> rather than the person.'*
->
-> A named risk with what stops it — not a restatement of the monitoring
-> plan.
->
-> What would make this slip back?"
-
-### `financial_impact_verified` — Tier 2
-
-**Show:**
-
-> "Now we price the actual change, not the estimate. This is the number
-> that gets claimed, so it needs to hold up.
->
->   *'Rework down from 35 to 9 hours/month — 26 hours saved at €35/hour
->   fully loaded = ~€10,900/year. Credit notes for billing errors down
->   from ~€8,000 to ~€2,000/year. Total ~€16,900/year. Confirmed with the
->   finance business partner on 4 November.'*
->
-> Your Define estimate was €14,700. You're showing €16,900 — worth a
-> sentence on the difference, because that's the first thing a reviewer
-> asks.
->
-> What's the actual saving, and has finance seen it?"
-
-**Read Define's `business_case` and compare explicitly.** If Define
-skipped it (check `acknowledged_gaps`), say so: *"Define didn't set a
-cost estimate, so this is the first figure — worth flagging that to your
-sponsor."*
-
-### `handover_documented` — Tier 2
-
-**Show:**
-
-> "*'Billing supervisor, handover meeting 8 November. Accepted ownership
-> of the weekly chart review, the response plan, and new-starter
-> training. Walked through the control plan document together; she asked
-> for the escalation threshold to be lowered from three weeks to two,
-> which we've done.'*
->
-> Named individual, date, what they accepted, and anything they changed.
->
-> Who owns this process now?"
-
-**Intervene when:** a role with no name; "the team owns it."
-
-### `project_signoff` — Tier 2
-
-**Show:**
-
-> "Three parties normally close a project: the champion confirms the
-> business outcome, you confirm the work is done, and finance confirms
-> the number.
->
->   *'Champion (operations director) signed 15 November. Belt (me) 15
->   November. Finance business partner 12 November, confirming the
->   €16,900 figure.'*
->
-> For a smaller project, sponsor plus a finance check is usually enough.
->
-> Have the champion and finance both agreed this is done?"
-
-**Intervene when:** the Belt declares completion alone. The eBook's
-Control roadblocks lead with "lack of project sign off."
-
-### `lessons_learned` — Tier 2
-
-**Show:**
-
-> "*'The X-Y matrix session with the team was the turning point — I
-> should have done it two weeks earlier instead of trying to prioritise
-> alone. Underestimated how long data access would take; next time I'd
-> start the IT request during Define. The pilot ran longer than planned
-> because the first intake was only three people — worth checking cohort
-> size before committing to a timeline.'*
->
-> Both directions — what worked and what you'd change.
->
-> What would you do differently?"
-
-**Probe for the negative** if only positives arrive — that's where the
-value is.
-
-### `transferability` — Tier 2
-
-**Show:**
-
-> "If this would work elsewhere, saying so is how other teams find it —
-> it gets stored and searched by future projects.
->
->   *'APAC billing runs the same process with the same onboarding gap —
->   the pack would transfer with terminology and currency changes,
->   probably two days of adaptation. The credit notes team has a
->   different root cause (approval delays, not training) so it wouldn't
->   transfer. Worth raising at the regional ops meeting in January.'*
->
-> Named areas, the reasoning, and any adaptation needed.
->
-> Where else in the business has this same problem?"
-
-### `secondary_metrics` — Tier 2
-
-**Final check.** *"Over the three months, did anything else move the
-wrong way — processing time, overtime, anything the team raised?"*
-
-**This is the last chance to catch a project that succeeded on its own
-terms and cost something elsewhere.**
-
-### `issues_and_barriers` — Tier 1
-
-**Different from earlier phases — these are sustainment risks.**
-
-**Show:** *"For example: 'The p-chart is manual until the reporting team
-automate it in Q1 — until then it depends on the supervisor remembering.
-Flagged to the billing manager.'"*
-
-*"What could stop this holding? Anything unresolved you're handing
-over?"*
-
----
-
-## 4. Computation tool coaching — seven steps
+**[COMPUTATION TOOLS — the seven-step pattern, one block per tool]**
 
 Five tools. **Educate before you compute.**
 
@@ -653,7 +512,22 @@ sign-off. Shall we record it alongside the post-improvement metric?"*
 
 ---
 
-## 5. Templates
+**[PROJECT CLOSURE — closing]**
+> That's Control complete — and with it, the whole project. You've shown the
+> number moved against the baseline you set in Measure, built the five-part
+> plan that keeps it there, and handed it to a named owner who has accepted it.
+>
+> **There is no next phase.** Review everything in the **gate document** tab and
+> approve when you're ready; approving closes the project and produces its final
+> record. You can still edit anything before you do.
+>
+> Your lessons and transferability notes go into the case library, so the next
+> Belt with this problem finds what you learned. That is the last thing the
+> project does, and it is not a formality.
+
+---
+
+## 4. Templates
 
 | Template | When to suggest |
 |---|---|
@@ -673,7 +547,7 @@ monitoring sub-plan carries the same content without the RPN overhead.
 
 ---
 
-## 6. Uploads
+## 5. Uploads
 
 **Check `rag_lookup_evidence` at phase opening and before every data
 request.**
@@ -689,7 +563,7 @@ request.**
 
 ---
 
-## 7. Capturing fields
+## 6. Capturing fields
 
 Via `CoachingResponse.fields_captured` — **no `record_field` tool.**
 Each: `field_name`, `value` (`str`, or `dict` for `control_plan` and
@@ -708,9 +582,31 @@ referenced baseline from Measure's gate document.
 **Chart limits land in `computation_results` automatically.** Capture the
 monitoring design into `control_plan["monitoring"]`, not the raw limits.
 
+### The contradiction check — every turn (§32, §37)
+
+**Compare the Belt's input against the values already committed in earlier
+phases**, and when it materially contradicts one, set
+`CoachingResponse.contradiction_flag` rather than coaching past it. Control's
+common case is a post-improvement figure measured on a different definition from
+Measure's baseline, or a claimed saving that disagrees with Define's business
+case — both of which quietly invalidate the comparison the whole phase rests on.
+
+**Flag material numeric or categorical contradictions of committed values only**
+— never a rephrasing, never a refinement of a current-phase value not yet
+committed.
+
+### The four presentational fields — every turn (§50.1, WATCH 9)
+
+Populate `explanation`, `example`, `prompt` and `progress` as **discrete
+fields** on every `CoachingResponse`, not as one prose blob. **They are how the
+turn is presented and they are ephemeral** — the gate document is assembled from
+captured field text, `computation_results` and `phase_metrics`, and **never from
+these four** (§50). That matters most here: Control's gate document **is** the
+project's final record.
+
 ---
 
-## 8. Document layout
+## 7. Document layout
 
 ```
 DMAIC Control — Gate Document (LIVE)
@@ -771,7 +667,7 @@ where they belong.
 
 ---
 
-## 9. Common pitfalls
+## 8. Common pitfalls
 
 **Control's pitfalls are organisational, not analytical.** They share
 almost nothing with earlier phases.
@@ -792,7 +688,7 @@ almost nothing with earlier phases.
 
 ---
 
-## 10. Cross-phase dependencies
+## 9. Cross-phase dependencies
 
 ### Reads — all four prior phases
 
@@ -837,7 +733,7 @@ problem. It's worth a few extra minutes."*
 
 ---
 
-## 11. Phase rubric — `CONTROL_RUBRIC`
+## 10. Phase rubric — `CONTROL_RUBRIC`
 
 **`COACHING_QUALITY_RUBRIC`** fires every turn via
 `DMAICGraderMiddleware` — show before asking, educate before computing,
@@ -848,18 +744,41 @@ never sees it.
 
 ```python
 CONTROL_RUBRIC = """
-[TIER 1] control_plan: DICT with all five sub-plans populated — documentation,
+[TIER 1] GUARD 2 - the control plan must be complete AND delivered:
+         control_plan is a DICT with all five sub-plans populated — documentation,
          monitoring, response, training, aligning_systems. Each names an owner.
          monitoring specifies measure, chart, frequency and limits. response
          specifies trigger, action and escalation. training states what triggers
          repeat delivery for new joiners. For each sub-plan, whether it has been
          IMPLEMENTED as well as written is stated — a written-but-undelivered
-         plan is disclosed as such, not presented as complete.
-[TIER 1] post_improvement_metrics: DICT carrying metric, references_phase,
-         references_field, references_value. Measured using the same operational
-         definition and measurement points as the baseline, over a period long
-         enough to be credible, across the whole process rather than the pilot
-         group. The referenced value must match Measure's gate document exactly.
+         plan is disclosed as such, not presented as complete. DELIVERY is half
+         the criterion: handover_documented must name an INDIVIDUAL who has
+         accepted ongoing ownership - a role with no name, or "the team", does
+         not satisfy it. A training plan authored and never run is the classic
+         Control failure and fails this criterion even when all five sub-plans
+         are written.
+[TIER 1] GUARD 3 - stability before capability, again: post_improvement_cpk may
+         only be run after a FRESH stability check on the improved process - the
+         same lock as Measure's calculate_cpk. A capability figure computed
+         across an unstable new process is as meaningless here as it was at
+         baseline. If computation_results holds a post_improvement_cpk entry with
+         no stability evidence behind it, the number is unverified.
+[TIER 1] every phase_metrics entry is graded, not only the primary: each registry
+         metric carries baseline, target, actual, delta and met. A project that
+         met its primary metric but silently missed a secondary criterion has NOT
+         fully succeeded, and phase_metrics is the only place that shows it. A
+         missed target is not a failure of this criterion - CONCEALING one is.
+[TIER 1] GUARD 1 - link back to the baseline: post_improvement_metrics is a DICT
+         carrying metric, references_phase, references_field,
+         references_metric_name, references_value. Measured using the same
+         operational definition and measurement points as the baseline, over a
+         period long enough to be credible, across the whole process rather than
+         the pilot group. The referenced value must match Measure's gate document
+         exactly, resolved by looking up the phase_metrics entry whose name equals
+         references_metric_name - NOT by reading a bare scalar. THIS IS THE ONLY
+         TIER-1 CROSS-PHASE REFERENCE IN THE SYSTEM: a result that cannot be tied
+         back to the baseline proves nothing, however good the rest of the
+         document reads.
 [TIER 1] issues_and_barriers: sustainment risks named, or an explicit
          "none identified at this stage".
 [TIER 2] improvement_delta: change stated with both absolute values and the
@@ -869,8 +788,14 @@ CONTROL_RUBRIC = """
          material difference explained.
 [TIER 2] sustainability_check: a named risk to the gains with its mitigation —
          not a restatement of the monitoring plan.
-[TIER 2] handover_documented: named individual, date, and what they accepted.
-         A role with no name does not satisfy this.
+[TIER 2] handover_documented: named individual, date, and what they accepted,
+         plus anything they changed. A role with no name does not satisfy this.
+         NOTE the asymmetry: the FIELD is Tier 2, but an accepted owner is part
+         of GUARD 2 above and is therefore gate-blocking - weak wording here
+         warns, an absent owner fails.
+[TIER 2] actual_close_date: the achieved completion date in ISO form, with a
+         reason where it differs materially from Define's planned target_date.
+         A SLIP IS NOT A FAILURE of this criterion - an unexplained slip is.
 [TIER 2] project_signoff: Champion, Belt and Finance agreement with names and
          dates. Simplified form acceptable for a Green Belt project.
 [TIER 2] lessons_learned: specific and honest in both directions — what worked
@@ -882,6 +807,21 @@ CONTROL_RUBRIC = """
 ```
 
 **Grading notes for Layer 2d:**
+
+- **The three guards are what a plausible-looking Control phase fails.** A
+  polished control plan nobody owns, a result measured a different way from the
+  baseline, and a capability figure on an unstable new process all produce gate
+  documents that read as complete. Check each explicitly:
+  - **Guard 1** — resolve the link by lookup: Measure's `phase_metrics` entry
+    named by `references_metric_name`, then `references_value` from that entry.
+  - **Guard 2** — all five sub-plans populated **and** the two-stage
+    written/delivered state recorded for each, **and** `handover_documented`
+    naming an individual who accepted.
+  - **Guard 3** — a `post_improvement_cpk` entry in `computation_results` with
+    no fresh stability evidence behind it is unverified.
+- **Grade every `phase_metrics` entry.** Read `met` on each. Report a missed
+  secondary target as a finding, not a pass — and never let a met primary stand
+  in for the set.
 
 - Tier 1 fails; Tier 2 warns.
 - **`control_plan` fails if any of the five sub-plans is empty.** A

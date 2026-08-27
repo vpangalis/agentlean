@@ -11,6 +11,7 @@ import pytest
 
 from backend.core.metrics import (
     NONE_THIS_PHASE,
+    PRIMARY_MIRRORED_DICT,
     PRIMARY_MIRRORED_SCALARS,
     assert_single_authority,
     check_single_authority,
@@ -54,11 +55,20 @@ GOOD = {
         ],
     },
     "control": {
-        "post_improvement_metrics": "2.8%",
+        # the cross-phase reference DICT (S-C32); its value lives under `metric`
+        "post_improvement_metrics": {
+            "metric": "2.8%",
+            "references_phase": "measure",
+            "references_field": "baseline_mean",
+            "references_metric_name": "invoice_error_rate",
+            "references_value": "12.3%",
+        },
         "phase_metrics": [
-            {"name": "invoice_error_rate", "unit": "%",
-             "post_improvement_metrics": "2.8%", "improvement_delta": "-9.5pp",
-             "source": "measured"},
+            {"name": "invoice_error_rate", "baseline": "12.3%", "target": "<3%",
+             "actual": "2.8%", "delta": "-9.5pp", "met": "yes", "source": "after"},
+            {"name": "invoice_cycle_time", "baseline": "2.6 days",
+             "target": "<1.5 days", "actual": "1.4 days", "delta": "-1.2 days",
+             "met": "yes", "source": "after"},
         ],
     },
 }
@@ -75,6 +85,46 @@ def test_all_five_phases_are_covered():
 def test_matching_primary_entry_passes(phase):
     assert check_single_authority(phase, GOOD[phase]) == []
     assert_single_authority(phase, GOOD[phase])          # must not raise
+
+
+def test_control_mirrors_through_a_dict_not_a_scalar():
+    """Control's shape is the odd one and must stay explicit (§39.5.3, F-14).
+
+    `post_improvement_metrics` is a reference dict whose value is under `metric`;
+    the `phase_metrics` entry calls the same number `actual`. Two names for one
+    number is precisely the drift this module exists to catch.
+    """
+    assert PRIMARY_MIRRORED_SCALARS["control"] == ()
+    assert PRIMARY_MIRRORED_DICT["control"] == (
+        "post_improvement_metrics", "metric", "actual")
+    assert check_single_authority("control", GOOD["control"]) == []
+
+
+def test_control_actual_drifting_from_the_dict_is_a_defect():
+    bad = {k: v for k, v in GOOD["control"].items()}
+    bad["phase_metrics"] = [dict(e) for e in GOOD["control"]["phase_metrics"]]
+    bad["phase_metrics"][0]["actual"] = "9.9%"          # drifts from the dict
+    defects = check_single_authority("control", bad)
+    assert defects, "Control actual drifted from post_improvement_metrics uncaught"
+    assert "actual" in defects[0] and "post_improvement_metrics" in defects[0]
+    with pytest.raises(ValueError):
+        assert_single_authority("control", bad)
+
+
+def test_control_dict_value_drifting_from_actual_is_a_defect():
+    bad = {k: v for k, v in GOOD["control"].items()}
+    bad["post_improvement_metrics"] = dict(GOOD["control"]["post_improvement_metrics"])
+    bad["post_improvement_metrics"]["metric"] = "9.9%"   # drifts the other way
+    assert check_single_authority("control", bad)
+
+
+def test_control_secondary_metric_is_not_mirrored():
+    """Only the PRIMARY entry mirrors; the second metric lives only here."""
+    art = {k: v for k, v in GOOD["control"].items()}
+    entries = [dict(e) for e in GOOD["control"]["phase_metrics"]]
+    entries[1]["actual"] = "a completely different value"
+    art["phase_metrics"] = entries
+    assert check_single_authority("control", art) == []
 
 
 @pytest.mark.parametrize(

@@ -73,9 +73,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.18 · 2026-08-27
+Version 1.19 · 2026-08-27
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.19 (2026-08-27)** — **§56 AMENDMENT. Control is fully specified at §39.5. THE FIVE-PHASE DMAIC SPECIFICATION IS COMPLETE.** §39.5 is the fifth and final per-phase HUB, twelve subsections with its coaching script embedded at §39.5.10. **There is no §39.6.** **Its two movements are confirm and lock:** measure the improved process and show the number moved against the same baseline on the same definition, then build the five-part control plan and hand the process over. **The bright line is delivery, not authorship** — a control plan written is not a control plan delivered, and the classic Control failure is a training plan authored and never run. **F-12 CLOSED:** `actual_close_date` is added to `ControlOutput` as **Tier 2**, taking it **16 → 17** fields and §35's Control row to **3 Tier 1 / 9 Tier 2**. It is the achieved completion date paired with Define's planned `target_date`, and it is Tier 2 for the same reason that target is a planning parameter: **a slipped date does not invalidate the improvement.** **F-14 CLOSED:** `phase_metrics` is **the authoritative store of all N comparisons**, one entry per registry metric carrying `baseline`, `target`, `actual`, `delta` and `met`; `post_improvement_metrics` stays the **primary** metric's Tier-1 deterministic link to Measure's `baseline_mean`, carrying `references_metric_name`. **The grader grades every entry, not only the primary** — a project that met its primary metric and silently missed a secondary one has not fully succeeded, and `phase_metrics` is the only place that shows. **The single-authority invariant now covers Control**, and its shape is the odd one: `post_improvement_metrics` is a reference **dict** whose value lives under `metric`, while the `phase_metrics` entry calls the same number `actual` — **two names for one number**, which is exactly the drift `core/metrics.py` exists to catch, so the mapping is written down rather than inferred and is unit-tested. **`CONTROL_RUBRIC` encodes three Tier-1 guards**: link back to the baseline (the only Tier-1 cross-phase reference in the system), the control plan complete **and** delivered with a named accepting owner, and stability before capability **again** before `post_improvement_cpk`. **The Control SKILL.md was restructured and conformed, not created** — it existed at 946 lines with a field order §39.5.2 reorders. **The measurement thread is now closed end to end** and traceable by one key across all five gate documents (§39.5.12). **What remains is build, not specification:** WATCH 7 (`orchestrate.py` still writes v1 names), **G-27** (boundary mappers) and **G-28** (gate assembly for the four phases beyond Define), and the root-reference back-port. Decision record: `docs/CLAUDE_CODE_PROMPT_control_39_5.md`.
 
 **v1.18 (2026-08-27)** — **§56 AMENDMENT. The Improve phase is fully specified at §39.4; Define's §32 tool-block gap is closed.** **§39.4 is the fourth ratified per-phase HUB**, twelve subsections to the §39.2/§39.3 template, with its coaching script **embedded at §39.4.10** in §39.1.7's format. **Its load-bearing content is the two movements** — *choose* (generate candidates, then select on explicit criteria, a decision matrix) and *prove* (pilot at limited scale, then confirm) — and the ordering that enforces them: `selected_solution` at **1**, the root-cause link at **2**, `experiment_justification` at **3**, `pilot_result` at **4**. **You decide how hard to test after you know what you are choosing between**, not before. **Two Tier-1 guards** in `IMPROVE_RUBRIC`: the solution must **trace to the validated root cause** (resolved by lookup, not judgment), and **pilot before rollout** — practical AND statistical, the same two-gate test as Analyse, with a trivial-effect pilot coached back. **DOE belt-gating is stated as a rubric criterion**: all three answers to `experiment_justification` are valid and none scores higher; DOE is recommended for Black Belts and suppressed for Green Belts, **but the question is asked of both**. **Improve's `phase_metrics` carries the linkage-plus-pilot form** — `{name, moved_by, pilot_effect, source}` — with `"not addressed this phase"` for untouched metrics (§39.4.3, §63.4), and **`solution_linked_to_root_cause` is the phase that now populates `references_metric_name`** on the uniform S-C32 shape. **No schema field-count change: `ImproveOutput` stays 14.** §35 confirms the **4 Tier 1 / 5 Tier 2** split. **The Improve SKILL.md was restructured and conformed, not created** — it existed at 656 lines, and its field order contradicted §39.4.2 (it coached `experiment_justification` first). **Separately, a §32 compliance gap is closed:** Define binds `calculate_expected_savings` (§30) but §39.1.7 carried **no seven-step block for it**, while §32 requires one for every bound computation tool. The block is added to §39.1.7 and to the Define SKILL.md at the matching position, after the `target_value` field — the tool needs both `baseline_estimate` and `target_value` to compute anything. **This is new ratified content, not a rename.** **Only §39.5 (Control) remains stubbed**; F-14 is the open finding it carries. Decision record: `docs/CLAUDE_CODE_PROMPT_improve_39_4.md`.
 
@@ -3212,6 +3214,14 @@ is no longer a criterion the grader can fail that the gate never asked for.
 | **Improve** | `selected_solution`, `pilot_result`, `experiment_justification`, `issues_and_barriers` | **4** |
 | **Control** | `control_plan` (**dict**, 5 sub-plans), `post_improvement_metrics`, `issues_and_barriers` | **3** |
 
+> **Control's 3 Tier 1 / 9 Tier 2 split was confirmed at its phase review**
+> (2026-08-27, §39.5), the ninth Tier 2 being `actual_close_date` (F-12). It is
+> **the smallest Tier 1 set and the largest Tier 2 set**, and that is
+> deliberate: Control is rich in best-practice closure steps a Belt should be
+> coached toward but not gated on. **The three that block are the three that
+> prove the project happened** — the result linked to the baseline, the control
+> plan, and the sustainment risks.
+
 > **Improve's 4 Tier 1 / 5 Tier 2 split was confirmed at its phase review**
 > (2026-08-27, §39.4). **`solution_linked_to_root_cause` stays Tier 2** — but
 > note the asymmetry the rubric encodes: the **dict** is Tier 2, while the
@@ -5597,11 +5607,669 @@ effect), and `solution_linked_to_root_cause` (with `references_metric_name`).
 out), `phase_metrics` (which metrics moved, for Control's post-improvement
 comparison).
 
-#### 39.4.12 The other phase
+#### 39.4.12 The last phase
 
-Control follows this same section shape and takes §39.5 at its own review.
-**Define, Measure, Analyse and Improve are the ratified exemplars; Control remains
-stubbed.**
+Control takes §39.5, ratified at its own review on 2026-08-27. **All five phases
+— Define, Measure, Analyse, Improve and Control — are now ratified. There is no
+§39.6.**
+
+---
+
+### 39.5 Control phase, complete specification
+
+*Per-phase HUB: indexes the cross-cutting specs (state §6/§58.2, graph/routing
+§13–16, gate §33–38, tiers §35, tools §30/§69, dicts §41, cross-phase refs
+§7/§42, gate doc §50) and records only what is Control-specific. Define-once
+holds — nothing here re-defines a mechanism that lives in a concern Part.*
+
+**Status: RATIFIED 2026-08-27.** Files: `phases/control/schema.py`,
+`phases/control/validate.py`, `skills/dmaic-control-phase/SKILL.md`.
+
+#### 39.5.1 Purpose
+
+Control makes the gain stick. It confirms the improvement actually held against the
+baseline and the target, builds the five-part control plan that keeps the process
+from regressing, verifies the financial impact, and hands a monitored, documented,
+owned process to the business before the project closes. It is where the
+measurement thread that began in Define is finally closed: before → after, on the
+same measure.
+
+#### 39.5.2 The ordered field list — the `field_index` sequence
+
+Coached in **methodology order** — confirm it held, lock it in, verify, hand over,
+close. Schema: **§63.5 — S-C31**.
+
+| # | Field (`artifacts` key) | Type | Tier | Note |
+|---|---|---|---|---|
+| 1 | `post_improvement_metrics` | `dict` | 1 | The AFTER values; cross-phase ref → Measure `baseline_mean`. **The only Tier-1 cross-phase reference** (§42) |
+| 2 | `improvement_delta` | `str` | 2 | The change from baseline, per metric |
+| 3 | `control_plan` | `dict` | 1 | **Five sub-plans** — documentation, monitoring, response, training, aligning_systems (§41) |
+| 4 | `financial_impact_verified` | `str` | 2 | Realised saving — the actual against Define's `calculate_expected_savings` estimate |
+| 5 | `sustainability_check` | `str` | 2 | How the gains are maintained after the project |
+| 6 | `handover_documented` | `str` | 2 | Named process owner accepting ongoing ownership |
+| 7 | `actual_close_date` | `str` (ISO) | 2 | **NEW (F-12)** — the achieved completion date, paired with Define's `target_date` |
+| 8 | `lessons_learned` | `str` | 2 | Feeds the case index (§23.3) |
+| 9 | `transferability` | `str` | 2 | Yokoten — feeds `rag_lookup_case_history` (§24) |
+| 10 | `project_signoff` | `str` | 2 | Champion + Belt + Finance |
+| 11 | `secondary_metrics` | `str` | 2 | Final re-check |
+| 12 | `issues_and_barriers` | `str` | 1 | Always last |
+
+`ControlOutput` = these twelve **+** `phase_metrics` (§39.5.3) **+** four
+gate-metadata fields = **17** (was 16; `actual_close_date` is the added field).
+**3 Tier 1, 9 Tier 2.**
+
+> **F-12 recommendation:** `actual_close_date` is **Tier 2** — a slipped date does
+> not invalidate the improvement (the same logic that makes Define's `target_date`
+> a planning parameter, §39.1.2). It is the paired value Control captures against
+> Define's planned `target_date`. §40 count rises 16 → 17; §35's Control row
+> becomes 3 Tier 1 / 9 Tier 2.
+
+#### 39.5.3 The metric registry, the comparison, and single authority (closes F-14)
+
+Control closes the measurement thread. Its `phase_metrics` entry carries the full
+per-metric comparison — the AFTER value against the Define target and the Measure
+baseline:
+
+```
+phase_metrics = [
+  {name: "invoice_error_rate", baseline: "12.3%", target: "<3%",
+   actual: "2.8%", delta: "-9.5pp", met: "yes", source: "after"},
+  {name: "invoice_cycle_time", baseline: "2.6 days", target: "<1.5 days",
+   actual: "1.4 days", delta: "-1.2 days", met: "yes", source: "after"}
+]
+```
+
+**F-14 recommendation — how N comparisons present and grade:**
+- **`phase_metrics` is the authoritative store of all N comparisons**, one entry
+  per registry metric, each carrying `baseline` (from Measure), `target` (from
+  Define `target_value`), `actual`, `delta`, `met`. This is where a multi-metric
+  project shows every Y closed.
+- **`post_improvement_metrics` (Tier 1, dict) is the primary metric's deterministic
+  link** back to Measure's `baseline_mean`, carrying `references_metric_name` (the
+  uniform S-C32 shape, 43c4201). It is the gate-blocking link (§42, B2).
+- **Single-authority invariant** (as Measure, §39.2.3): the primary metric's
+  `phase_metrics` `actual` **equals** `post_improvement_metrics`'s value — a
+  mismatch is a wiring defect. Additional metrics live only in `phase_metrics`.
+- **The grader grades every entry**, not just the primary: a project that met its
+  primary metric but silently missed a secondary criterion has not fully
+  succeeded, and `phase_metrics` is where that shows.
+
+#### 39.5.4 Two movements — confirm it held, then lock it in
+
+*Control's methodology core (parallel to §39.3.4 / §39.4.4).*
+
+**Movement 1 — confirm (did it hold?).** Measure the improved process and compare:
+`post_improvement_metrics` against the Measure baseline, `phase_metrics` against the
+Define target. Re-check **stability before capability** (§39.5.6) before running
+`post_improvement_cpk`. Output: `post_improvement_metrics`, `improvement_delta`, the
+per-metric comparison. **A Control phase that cannot show before→after on the same
+measure has demonstrated nothing** (§42, B2) — this is the thread closing.
+
+**Movement 2 — lock (make it stick).** Build the five-part `control_plan` and hand
+the process over. The bright line: **a control plan written is not a control plan
+delivered.** The most common real Control failure is a training plan authored but
+never run (§41, B1) — so the grader checks all five sub-plans are populated, and
+`handover_documented` names an owner who has actually accepted.
+
+#### 39.5.5 Tools bound to Control
+
+Passed to the executor via `tools=` on `create_agent` (§18). **Twelve** — under the
+16 cap (§30).
+
+- **The universal seven** (§29.2) — `propose_template` carries the control-plan,
+  SOP and reaction-plan templates; `propose_diagram` renders the control charts.
+- **Five computation tools** (§30 binding; specified §69), standard SPC names kept:
+
+| Job | Tools | Use |
+|---|---|---|
+| Variable control limits, subgroups | `xbar_r_chart_limits` | Monitoring plan, batched measurements |
+| Variable control limits, one-per-period | `imr_chart_limits` | **The default for service/transactional data** (§30) — do not invent subgroups |
+| Attribute limits, proportion | `p_chart_limits` | Defect-rate monitoring |
+| Attribute limits, counts | `c_chart_limits` | Defect-count monitoring |
+| Capability held | `post_improvement_cpk` | The improved process's capability — **after** a fresh stability check |
+
+Run under the seven-step pattern (§43.1). SKILL.md `allowed-tools` MUST equal this
+subset (§32). The chosen chart type feeds the `monitoring` sub-plan of `control_plan`.
+
+#### 39.5.6 Conditions — guards, routing, gate
+
+**Three methodology guards** (Control's sequence locks):
+
+1. **Link back to the baseline (Tier 1).** `post_improvement_metrics` references
+   Measure's `baseline_mean` by lookup (§42, B2) — the only Tier-1 cross-phase
+   reference in the system, because a result that cannot be tied to the baseline
+   proves nothing.
+2. **The control plan must be complete AND delivered.** All five sub-plans
+   populated (§41, B1); `handover_documented` names an owner who accepted — a plan
+   on paper that no one runs is the phase's classic failure.
+3. **Stability before capability, again.** `post_improvement_cpk` runs only after a
+   fresh stability check on the improved process — the same lock as Measure's
+   `calculate_cpk` (§39.2.6). A capability figure on an unstable new process is as
+   meaningless here as it was at baseline.
+
+**Routing conditions** — the five-node cycle (§13), `Command`-routed (§15). Control
+is the terminal phase: on gate pass, `gate_apply` populates
+`SupervisorState.final_output` through Control's output mapper (§5, S-C31 B3), and
+the supervisor's static edge runs to `END` — there is no next phase.
+
+| Where | Condition | Goes to |
+|---|---|---|
+| `planner` (S-F13 DP1) | current field incomplete, or more remain | `executor` (`field_index++`) |
+| `planner` | all 12 captured | `validation_stack` |
+| `validation_stack` | 2b presence of the **3 Tier 1** + 2d `CONTROL_RUBRIC` pass | `gate_review` |
+| `validation_stack` | fail | `planner` (+ `validator_feedback`); `gate_attempts ≥ 3` → escalation (§38) |
+| `gate_apply` | Belt approve | populate `final_output` → `END` (project complete) |
+| `gate_apply` | Belt reject | `planner` (+ `rejection_feedback`) |
+
+**Gate-pass condition:** the 3 Tier 1 fields present and `CONTROL_RUBRIC` clears;
+the 9 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
+
+#### 39.5.7 State parameters (`ControlState`)
+
+*Indexes §6 / §58.2 — S-C02.* `ControlState` extends `PhaseState`:
+
+| PhaseState field | In Control |
+|---|---|
+| `artifacts` | the 12 captured fields + `phase_metrics` + `computation_results` |
+| `field_index` | walks the §39.5.2 list (0–11) |
+| `computation_results` | the control-chart limits and `post_improvement_cpk` run; the grader scans for the chart-type evidence behind the monitoring sub-plan |
+| `final` / `final_output` | on gate pass, Control's mapper writes `SupervisorState.final_output` — the project's terminal artifact (§5, B3) |
+| `gate_attempts` | Control's own retry counter, cap 3 |
+| `uploads` | post-improvement data, signed control plan, sign-off record |
+
+#### 39.5.8 Metric literacy — what each metric and statistic means
+
+New requirement (§32/§43.7), Control instance. The coach teaches, in plain
+language (§50):
+
+- **The metric** — echo its Define `meaning`; frame the closure ("your error rate
+  started at 12.3%, you targeted under 3%, and it's now 2.8% — here's how we keep
+  it there").
+- **The statistic** — the seven-step *educate* step (§43.1 step 1) for **control
+  limits** and the improved **Cpk**. *"Control limits are the voice of the process —
+  the range it naturally runs in. A point outside them is a signal to act, not
+  noise to ignore. That's what your monitoring plan watches for."*
+
+Never a raw dump (§43.1).
+
+#### 39.5.9 Gate, storage, progress view
+
+- **Three Tier 1 fields block** the gate (§35) — the smallest Tier 1 set. Nine
+  Tier 2 warn only — the largest Tier 2 set, because Control is rich in
+  best-practice closure steps the Belt should be coached toward but not gated on.
+- **The live gate document** (§50) renders the before→after comparison per
+  `phase_metrics` `name`, the control charts via `propose_diagram`, the five-part
+  `control_plan` as a table, and `computation_results` with interpretation.
+  Narrative from captured field text + `computation_results` + `phase_metrics` —
+  never `CoachingResponse` turn fields (§50, WATCH 9).
+- **Two progress bars**, Tier 1 and Tier 2.
+- Written **once** to `store/projects/{case_id}/artifacts/control.json` by
+  `gate_apply` (§9, §33); this write **also** finalises the project (§5).
+
+#### 39.5.10 The SKILL.md content (AUTHORITATIVE during the refactor)
+
+`skills/dmaic-control-phase/SKILL.md` is generated from this section and must match
+verbatim, **embedded here in §39.1.7's format** — preamble, phase opening (an
+Improve-recap: show the Belt the `selected_solution` and `pilot_result` they arrive
+with, and the Define `target_value` they are closing against), one
+Explain/Show/Ask/Confirm block per field in §39.5.2 order, the seven-step block for
+each control-chart tool and `post_improvement_cpk`, the two-movements framing, the
+five-part control-plan coaching, metric literacy (§39.5.8), and a **project-closure
+closing** (not "advance to the next phase" — there is none). **Authoritative during
+the refactor.**
+
+> **Verify first — do not assume.** Whether `skills/dmaic-control-phase/SKILL.md`
+> already exists must be checked by listing the directory, not by a search miss (the
+> Analyse and Improve SKILL.md both existed when a search suggested otherwise). If it
+> exists, **restructure and conform, do not overwrite** sound content; if not, write
+> it from this section.
+
+> **What lives here and what does not.** This section carries the **coaching
+> script**. The SKILL.md additionally carries its front matter, the A→F session
+> flow, the field-order table, templates, uploads, capture instructions, the
+> Document Layout, pitfalls, cross-phase tables and `CONTROL_RUBRIC` — **those
+> are not duplicated here**.
+
+> **Coaching pattern for every field:** ① **Explain** (plain language, why it
+> matters) → ② **Show** (worked example, visually distinct, illustration only)
+> → ③ **Ask** (invite the Belt's version) → ④ **Confirm** (reflect back, check,
+> advance). Tone: warm, encouraging, never gatekeeping. Assume a capable but
+> possibly non-expert Belt. Responses follow §50.1 structure — sectioned,
+> scannable, never bulk prose.
+
+> **Every computation tool follows the seven-step pattern** (§43.1), every time:
+> ① educate on the concept → ② explain why now → ③ guide data preparation →
+> ④ run → ⑤ interpret → ⑥ visualise → ⑦ coach the next move. **Step 1 is the one
+> most often skipped and the one that matters most.**
+
+**[OPENING — shown once, when Control starts]**
+> "Welcome to Control — the last phase. Quick recap of what Improve proved,
+> because this phase closes it out:
+>
+> • **What's now in place:** {selected_solution}
+> • **What the pilot showed:** {pilot_result}
+> • **What we're closing against:** {target_value} from Define, and the
+>   {baseline_mean} baseline from Measure
+>
+> **Control has two jobs, and two movements.** First we **confirm** — measure
+> the improved process and show the number actually moved, against the same
+> baseline, on the same definition. Then we **lock** — build the five-part
+> control plan and hand a monitored, owned process to the business.
+>
+> **The bright line here is delivery, not authorship:** a control plan written
+> is not a control plan delivered. The most common reason improvements slip
+> back is a training plan that was authored and never run.
+>
+> Here's the phase:
+>
+> **Required (3)**
+> □ Post-improvement result — proof the number actually moved
+> □ Control plan — five parts: documentation, monitoring, response, training,
+>   and systems alignment
+> □ Issues and barriers — what could stop this holding
+>
+> **Recommended (9)**
+> □ Improvement delta · □ Financial impact · □ Sustainability check
+> □ Handover · □ Actual close date · □ Lessons learned
+> □ Transferability · □ Project sign-off · □ Secondary metrics
+>
+> **Progress: 0 of 3 required complete**
+>
+> We start by proving it worked — everything else assumes the improvement is
+> real. Let me show you what that looks like."
+
+Render the checklist with `propose_diagram`. **The Required/Recommended split is
+a display of gate status, not a coaching sequence** — the walk is §39.5.2's field
+order. **The recap values are read from the Store, never re-derived** (§22).
+**Control has the smallest Tier 1 set and the largest Tier 2 set**, because it is
+rich in best-practice closure steps a Belt should be coached toward but not
+gated on (§35).
+
+**[THE TWO MOVEMENTS — the framing that governs the whole phase]**
+> **Movement 1 — confirm (did it hold?).** Measure the improved process and
+> compare: `post_improvement_metrics` against the Measure baseline,
+> `phase_metrics` against the Define target. **Re-check stability before
+> capability** before running `post_improvement_cpk`. Output:
+> `post_improvement_metrics`, `improvement_delta`, the per-metric comparison.
+> **A Control phase that cannot show before→after on the same measure has
+> demonstrated nothing** (§42 B2) — this is the measurement thread closing.
+>
+> **Movement 2 — lock (make it stick).** Build the five-part `control_plan` and
+> hand the process over. **The bright line: a control plan written is not a
+> control plan delivered.** The most common real Control failure is a training
+> plan authored but never run (§41 B1) — so every sub-plan gets the two-stage
+> check, and `handover_documented` names an owner who has actually accepted.
+
+**[METRIC LITERACY — for each metric and statistic in play]**
+> **The metric** — echo its Define `meaning`, then frame the closure: *"Your
+> error rate started at 12.3%, you targeted under 3%, and it's now 2.8% —
+> here's how we keep it there."* On a multi-metric project, do this per metric:
+> `phase_metrics` shows every Y closed, and one met target does not cover a
+> missed one.
+>
+> **The statistic** — taught at step 1 of the seven-step pattern. For **control
+> limits**: *"Control limits are the voice of the process — the range it
+> naturally runs in. A point outside them is a signal to act, not noise to
+> ignore. That's what your monitoring plan watches for."* For the improved
+> **Cpk**: *"the same capability figure as Measure's, run on the new data —
+> and it only means anything once we've re-checked the process is stable."*
+>
+> **Never a raw dump** — a control limit or a Cpk without the plain-language
+> read is a rubric failure (§43.1).
+
+**[1 · post_improvement_metrics · Tier 1 · dict, cross-phase reference · MOVEMENT 1]**
+> **Explain:** First thing: prove the number moved. Record it **tied to the baseline from Measure**, so the comparison is exact rather than remembered. **This is the only Tier-1 cross-phase reference in the system** (§42) — a Control phase that cannot link its result back to the baseline has demonstrated nothing, however good the rest of the document is. Three things make a result hold up: **the same measurement definition as the baseline, enough time to be credible, and the whole process rather than just the pilot group.**
+> **Show** — illustration only: *"3.1% invoice error rate across 1,850 invoices, September to November 2026, measured the same way as the baseline."* With the comparison spelled out: **Baseline (Measure): 12.3% · Now (Control): 3.1% · Change: −9.2 points, a 74.8% reduction · Target was: below 5% — achieved.** The stored dict carries five keys:
+>
+> | Key | Content |
+> |---|---|
+> | `metric` | The measured post-improvement value |
+> | `references_phase` | `"measure"` |
+> | `references_field` | Usually `"baseline_mean"` |
+> | `references_metric_name` | **Which registry metric this result closes** — the key the grader matches on (§63.8) |
+> | `references_value` | The exact baseline from Measure's gate document |
+>
+> **Ask:** What's your measure running at now, and over what period? On a multi-metric project, ask which metric this is — the primary one closes through this field; the rest live in `phase_metrics`.
+> **Confirm:** **once they answer, do the arithmetic for them and check it against the pilot:** *"So 12.3% down to 3.1% — that's a drop of 9.2 points, a 74.8% reduction, comfortably past your 5% target. Your pilot predicted around 8.4% overall; you've done better than that. Worth a sentence on why — did something else improve alongside it?"* **Read the baseline from the Store**, resolving Measure's `phase_metrics` entry whose `name` equals `references_metric_name`; the grader checks it matches. **Intervene when:** measured differently from the baseline — *"is that the same definition we used in Measure?"*; two weeks of data — *"is that long enough to be sure it holds?"*; pilot group only, presented as the whole process; or measurement points differing from Define's `process_metrics` and Measure's `baseline_metrics` — **that means the goalposts moved.** Advance.
+
+**[2 · improvement_delta · Tier 2]**
+> **Explain:** The change from the baseline, stated so nobody has to do the arithmetic — **both the absolute values and the relative change.** On a multi-metric project this is per metric, and `phase_metrics` carries the full set.
+> **Show** — illustration only: *"Reduced from 12.3% to 3.1% — a 74.8% reduction in error rate, sustained over three months."*
+> **Ask:** How would you state the change, from what to what, over what period?
+> **Confirm** both absolutes and the relative figure are present. **Intervene when:** a percentage change with no absolute values, or *"significantly improved."* Advance.
+
+**[3 · control_plan · Tier 1 · dict, five sub-plans · MOVEMENT 2]**
+> **Explain the whole thing once, then work each sub-plan as its own conversation.** *"The control plan is what keeps this working after you move on. Five parts, and I'll take you through them one at a time: ① **Documentation** — what gets written down. ② **Monitoring** — what gets watched, and how. ③ **Response** — what happens when monitoring shows a problem. ④ **Training** — who needs to know, and who trains the next joiner. ⑤ **Systems alignment** — what else has to change so the old way doesn't creep back."* **For each one, ask two questions: have you written it, and has it actually happened?** **A plan that exists on paper but hasn't been delivered is the single most common reason improvements slip back.**
+> **Show** — one worked example per sub-plan, illustration only.
+> **① `documentation`:** *"SOP-114 updated with the new onboarding step and re-issued 12 Nov. Onboarding pack lives in the team SharePoint folder. Process map updated in the quality system. Billing supervisor reviews both every six months; team lead updates them whenever the process changes."* — notice it names who maintains it and who reviews it, not just what exists today.
+> **② `monitoring`:** *"Weekly error rate on a p-chart. Control limits calculated from the post-improvement period: centre 3.1%, upper limit 5.8%. Reviewed by the billing supervisor in the Monday huddle, chart on the team board."* — measure, chart, frequency, limits, and a named person. **Then use the chart tools.**
+> **③ `response`:** *"Trigger: two consecutive points above the centre line, or any single point above 5.8%. Action: supervisor pulls that week's errors and checks whether the onboarding step was completed for the handlers involved. If not, retrain within the week. Escalation: if the pattern continues a second week, billing manager reviews with the team lead."* — trigger, action, escalation, owner. **This is the part most control plans skip, and a chart nobody acts on is decoration.**
+> **④ `training`:** *"All eight billing handlers trained on the new process by 30 September, delivered by the supervisor using the onboarding pack. New starters get it in week one as part of induction — added to the HR checklist. Refresher triggered if the monitoring chart signals twice in a quarter."* — who, by whom, when, and crucially what triggers it again.
+> **⑤ `aligning_systems`:** *"Onboarding completion added to the team leader's monthly checklist. Invoice system now makes the PO field mandatory — IT change 4471, deployed 8 Nov. HR induction template updated to include the billing module."* — job descriptions, system settings, targets, budget lines.
+> **Ask, one sub-plan at a time:** What has to be written down so someone new could run this correctly? · How will anyone know if this starts slipping? · When the chart signals a problem, what happens? · Who needs to know how to do this the new way? · Is anything still pulling people back to the old way? **Also coach mistake-proofing at the response step:** *"Before we rely on a response — could we make the error harder to make in the first place? A required field, a default value, an automatic check? Prevention beats reaction."*
+> **Confirm** all five sub-plans are populated — **a partial plan is the failure §41 describes** — and run **the two-stage check on each**: *"Is that written and issued, or drafted?"* · *"Is the chart actually running — has anyone plotted last week's data on it yet?"* · *"Does the supervisor know this is their job? Has anyone walked them through it?"* · **training is the sub-plan most often written and never delivered** — probe directly: *"Has that training actually run, or is it scheduled? And who trains the person who joins in March?"* · *"Is the IT change deployed, or requested?"* **If the Belt says nothing is needed for systems alignment, probe once:** *"What about incentives or targets — is anyone still measured on speed in a way that pushes against this?"* Advance.
+
+**[4 · financial_impact_verified · Tier 2]**
+> **Explain:** Now we price the **actual** change, not the estimate. This is the number that gets claimed, so it needs to hold up — and it is the figure Define's `calculate_expected_savings` estimate is finally checked against.
+> **Show** — illustration only: *"Rework down from 35 to 9 hours/month — 26 hours saved at €35/hour fully loaded = ~€10,900/year. Credit notes for billing errors down from ~€8,000 to ~€2,000/year. Total ~€16,900/year. Confirmed with the finance business partner on 4 November."* Then: *"Your Define estimate was €14,700. You're showing €16,900 — worth a sentence on the difference, because that's the first thing a reviewer asks."*
+> **Ask:** What's the actual saving, and has finance seen it?
+> **Confirm:** **read Define's `business_case` and the expected-savings result, and compare explicitly.** If Define recorded no cost basis, say so: *"Define didn't set a cost estimate, so this is the first figure — worth flagging that to your sponsor."* Advance.
+
+**[5 · sustainability_check · Tier 2]**
+> **Explain:** What would make this slip back? **A named risk with what stops it** — not a restatement of the monitoring plan.
+> **Show** — illustration only: *"Biggest risk is turnover in the supervisor role, since the monitoring depends on them personally. Mitigated by putting the chart review into the role handover checklist, so it transfers with the job rather than the person."*
+> **Ask:** What would make this slip back — and what stops that happening?
+> **Confirm** the answer names a specific risk and a specific mitigation, and is not the monitoring sub-plan restated. Advance.
+
+**[6 · handover_documented · Tier 2]**
+> **Explain:** The process needs a **named individual** who has accepted ongoing ownership — not a role, and not "the team". This is half of the second methodology guard: a control plan is not delivered until somebody owns it.
+> **Show** — illustration only: *"Billing supervisor, handover meeting 8 November. Accepted ownership of the weekly chart review, the response plan, and new-starter training. Walked through the control plan document together; she asked for the escalation threshold to be lowered from three weeks to two, which we've done."* Then: *"Named individual, date, what they accepted, and anything they changed."*
+> **Ask:** Who owns this process now? Have you sat down with them and walked the plan through?
+> **Confirm** a name, a date, what was accepted, and any change they asked for. **Intervene when:** a role with no name, or *"the team owns it."* Advance.
+
+**[7 · actual_close_date · Tier 2 · NEW at this review (F-12)]**
+> **Explain:** The date the project actually closed — **the paired value for the `target_date` you set back in Define.** It is deliberately Tier 2: **a slipped date does not invalidate the improvement**, the same reasoning that makes Define's target a planning parameter rather than a result. What it gives you is an honest schedule record, and one of the more useful lines in `lessons_learned`.
+> **Show** — illustration only: *"Closed 18 November 2026. Define planned 30 September — eight weeks late, almost all of it waiting on the IT change for the mandatory PO field, which was requested in Improve and deployed in Control."*
+> **Ask:** What date are you closing on? And if it differs from the target you set in Define — what moved it?
+> **Confirm** the date is recorded in ISO form, and that a material slip carries its reason. **Do not treat a slip as a failure** — say so plainly if the Belt seems to expect otherwise: *"Late and real beats on-time and unproven. The reason is the useful part."* Advance.
+
+**[8 · lessons_learned · Tier 2]**
+> **Explain:** Both directions — what worked and what you'd change. This feeds the case index (§23.3), so it is read by Belts you will never meet.
+> **Show** — illustration only: *"The prioritisation session with the team was the turning point — I should have done it two weeks earlier instead of trying to rank alone. Underestimated how long data access would take; next time I'd start the IT request during Define. The pilot ran longer than planned because the first intake was only three people — worth checking cohort size before committing to a timeline."*
+> **Ask:** What would you do differently?
+> **Confirm** — **probe for the negative if only positives arrive.** That is where the value is, and it is the half a Belt is most likely to leave out. Advance.
+
+**[9 · transferability · Tier 2]**
+> **Explain:** If this would work elsewhere, saying so is how other teams find it — **yokoten.** It gets stored and searched by future projects through `rag_lookup_case_history` (§24).
+> **Show** — illustration only: *"APAC billing runs the same process with the same onboarding gap — the pack would transfer with terminology and currency changes, probably two days of adaptation. The credit notes team has a different root cause (approval delays, not training) so it wouldn't transfer. Worth raising at the regional ops meeting in January."* Then: *"Named areas, the reasoning, and any adaptation needed."*
+> **Ask:** Where else in the business has this same problem?
+> **Confirm** the answer names areas and reasoning, including **where it would *not* transfer and why** — that judgment is what makes the entry worth retrieving. Advance.
+
+**[10 · project_signoff · Tier 2]**
+> **Explain:** Three parties normally close a project: **the champion** confirms the business outcome, **you** confirm the work is done, and **finance** confirms the number. For a smaller project, sponsor plus a finance check is usually enough.
+> **Show** — illustration only: *"Champion (operations director) signed 15 November. Belt (me) 15 November. Finance business partner 12 November, confirming the €16,900 figure."*
+> **Ask:** Have the champion and finance both agreed this is done?
+> **Confirm** names and dates for each party. **Intervene when the Belt declares completion alone** — lack of project sign-off leads the methodology's Control roadblocks. Advance.
+
+**[11 · secondary_metrics · Tier 2 · final check]**
+> **Explain:** **The last chance to catch a project that succeeded on its own terms and cost something elsewhere.** Over three months of real operation, a side-effect that was invisible in the pilot has had time to show.
+> **Show** — illustration only: *"Processing time unchanged. Overtime down four hours a month as rework fell. The team raised that the checklist adds about two minutes per new starter — accepted, and noted in the SOP."*
+> **Ask:** Over the three months, did anything else move the wrong way — processing time, overtime, anything the team raised?
+> **Confirm** against the full post-improvement period, not the pilot. Advance.
+
+**[12 · issues_and_barriers · Tier 1 · always last · sustainment risks]**
+> **Explain:** **Different from earlier phases — these are sustainment risks**, not project blockers. What could stop this holding after you have gone?
+> **Show** — illustration only: *"The p-chart is manual until the reporting team automate it in Q1 — until then it depends on the supervisor remembering. Flagged to the billing manager."*
+> **Ask:** What could stop this holding? Anything unresolved you're handing over?
+> **Confirm.** "none identified at this stage" is a valid conscious answer — but ask it as a sustainment question, because a Belt thinking about project blockers will answer the wrong one.
+
+**[COMPUTATION TOOLS — the seven-step pattern, one block per tool]**
+
+Five tools. **Educate before you compute.**
+
+### Choosing the control chart — coach this first
+
+**Show the decision plainly:**
+
+> "Which chart depends on what you're counting.
+>
+> ```
+> Multiple measurements per period, continuous  →  X-bar R chart
+> Individual measurements per period, continuous →  I-MR chart
+> Pass/fail counts, proportion defective         →  p-chart
+> Defect counts per unit, constant opportunity   →  c-chart
+> ```
+>
+> So — is your measure a number like minutes or pounds, or a count of
+> things that passed or failed? And do you get one reading per period, or
+> a batch of several?"
+
+| Belt's data | Tool | Say it as |
+|---|---|---|
+| A measurement, in small batches | `xbar_r_chart_limits` | "Averages and spread per batch" |
+| **Individual measurements per period** | **`imr_chart_limits`** | "One reading at a time, and how much it moves between readings" |
+| Pass/fail, proportion defective | `p_chart_limits` | "Proportion going wrong each period" |
+| Count of defects, constant opportunity | `c_chart_limits` | "Number of problems per period" |
+
+**I-MR is the common case in service and transactional work.** Most
+office processes produce one number per week — a cycle time, a backlog, a
+monthly cost — rather than batches of five. If the Belt says "we get one
+figure a week", that's an individuals chart.
+
+**Do not push the Belt into batching to fit a chart.** Inventing
+subgroups from data not collected in subgroups produces meaningless
+limits.
+
+### `p_chart_limits`
+
+**1 — Educate.**
+> "Let me explain what a control chart does, because it's easy to
+> confuse with a target.
+>
+> Every process varies. Some weeks are better, some worse, and most of
+> that is just normal noise. A control chart draws lines showing the
+> range your process produces *when nothing unusual is happening*. Inside
+> the lines: normal. Outside: something genuinely changed and is worth
+> investigating.
+>
+> **These limits are not your target.** The target says what the customer
+> wants. The limits say what your process actually does. They're
+> different lines, and they often sit in different places.
+>
+> The result will look like:
+>
+>   *Centre 3.1%, upper limit 5.8%, lower limit 0.4%*
+>
+> A week at 5% would be ordinary variation — not something to react to.
+> A week at 6.2% would be a real signal."
+
+**2 — Why now.** *"This gives your team the thing they'll actually use
+every week after you've moved on."*
+
+**3 — Prepare.** Items checked and items defective per period, **for the
+post-improvement period only**. *"Use the period since the change went
+live — including old data would widen the limits and hide the
+improvement."* Check `rag_lookup_evidence` for uploaded weekly figures.
+
+**4 — Run.**
+
+**5 — Interpret.**
+> "Centre line 3.1%, upper limit 5.8%. So a week at 5% is normal — the
+> supervisor shouldn't chase it. Above 5.8%, or several weeks in a row
+> all above the centre line, means something genuinely changed and the
+> response plan should fire."
+
+Always translate limits into **when should someone act**.
+
+**6 — Visualise.** `propose_diagram` the chart with limits and plotted
+points. **Always** — this is the artefact the team will use, and it
+belongs in the control plan.
+
+**7 — Next move.** *"This goes in your monitoring sub-plan. Who reviews
+it, how often, and what happens on a point above the limit?"*
+
+### `imr_chart_limits`
+
+**1 — Educate.**
+> "You get one reading per period rather than a batch, so we use an
+> individuals chart. It's two charts stacked: the top plots each reading,
+> the bottom plots how much it moved from the one before.
+>
+> That second chart matters more than people expect. A process can look
+> steady on the top chart while jumping around underneath — and the
+> movement is what tells you it's become erratic.
+>
+>   *Individuals: centre 3.1%, limits 1.2% to 5.0%
+>   Moving range: stable*
+>
+> One thing to expect: individuals charts have **wider limits** than
+> batch charts, because a single reading carries more noise than an
+> average of five. That's normal, not a sign your process is worse."
+
+**2 — Why now.** *"Same reason — it's the weekly tool your team keeps
+after you leave."*
+
+**3 — Prepare.** Simplest of the four; say so.
+> "Just the readings in time order, one per period, from the
+> post-improvement period. No grouping needed."
+
+Two checks:
+- **Time order matters** — *"are these in the order they happened? The
+  moving range is the gap between consecutive readings."*
+- **Gaps** — *"any weeks missing? A skipped week makes the movement look
+  bigger than it was — better to note the gap than close it up."*
+
+**4 — Run.**
+
+**5 — Interpret.** Read the moving range chart first, and say why.
+> "Read the lower chart first — that's the movement between weeks. Yours
+> is stable, so the readings aren't jumping unpredictably, which means
+> the limits on the top chart are trustworthy. Centre line 3.1%, limits
+> 1.2% to 5.0%. A week at 4.6% is ordinary; above 5.0%, or a run of
+> several above the centre, is worth acting on."
+
+**6 — Visualise.** `propose_diagram` **both** charts together. An
+individuals chart without its moving range chart is half the tool.
+
+**7 — Next move.** *"Into the monitoring sub-plan. Who looks at it, how
+often, and what happens on a signal?"*
+
+### `xbar_r_chart_limits`
+
+**1 — Educate.**
+> "This tracks two things at once: the average of each batch, and how
+> spread out the readings within each batch are. They're different
+> problems — a process can drift off-centre while staying consistent, or
+> stay centred while becoming erratic, and those need different fixes."
+
+**2 — Why now.** Same monitoring purpose.
+
+**3 — Prepare.** Measurements in subgroups. Explain subgrouping: *"four
+or five consecutive items per sample, taken regularly — we want items
+measured close together, so the variation within a subgroup is the normal
+noise."*
+
+**4 — Run.**
+
+**5 — Interpret.** Both charts, in order.
+> "Read the range chart first — if the spread is out of control, the
+> average chart isn't trustworthy. Your spread is stable, so the averages
+> are meaningful: centre 3.2 minutes, limits 2.1 to 4.3."
+
+**6 — Visualise.** `propose_diagram` both together.
+
+**7 — Next move.** Into monitoring, with review cadence.
+
+### `c_chart_limits`
+
+**1 — Educate.** *"For counting problems per period when the opportunity
+is roughly constant — complaints per week, defects per batch. It's the
+right chart when you're counting events rather than measuring a
+proportion of a known total."*
+
+**2 — Why now.** Same monitoring purpose.
+
+**3 — Prepare.** Counts per period, constant opportunity. Check that:
+*"is the volume roughly the same each week? If it varies a lot, the
+proportion chart fits better."*
+
+**4 — Run.**
+
+**5 — Interpret.** Centre line, limits, when to act.
+
+**6 — Visualise.** `propose_diagram` the chart.
+
+**7 — Next move.** Into monitoring.
+
+### `post_improvement_cpk`
+
+**1 — Educate.**
+> "In Measure we worked out how capable the process was — whether it
+> could reliably meet the customer's requirement. This runs the same
+> calculation on the improved process, so you can state the change in the
+> same terms rather than two different ones.
+>
+> Same scale as before:
+> - **Above 1.33** — comfortably meets the requirement
+> - **1.0 to 1.33** — meets it with little margin
+> - **Below 1.0** — can't reliably meet it
+>
+> The interesting number is the movement. Crossing 1.0 is the meaningful
+> line — it's the point where the process goes from 'can't reliably do
+> this' to 'can'."
+
+**2 — Why now.** *"It's the clearest single piece of evidence for your
+sign-off pack — one number your sponsor already understands from
+Measure."*
+
+**3 — Prepare.** **The same spec limits used in Measure** — read them
+from the store rather than asking — plus the post-improvement mean and
+standard deviation. *"Same specs, so the comparison is like for like."*
+
+**4 — Run.**
+
+**5 — Interpret.** Compare directly to Measure's figure.
+> "Cpk has gone from 0.62 to 1.34. Crossing 1.0 is the meaningful line —
+> the process can now reliably meet the requirement where before it
+> couldn't. And 1.33 is the usual bar for a capable process, so you're
+> just over it. That's a genuine step change, not a marginal
+> improvement."
+
+**6 — Visualise.** `propose_diagram` **before and after distributions
+against the same spec limits, side by side.** This is the single most
+persuasive artefact in the whole project — it shows the improvement in
+one picture.
+
+**7 — Next move.** *"That belongs in your handover pack and your
+sign-off. Shall we record it alongside the post-improvement metric?"*
+
+---
+
+**[PROJECT CLOSURE — closing]**
+> That's Control complete — and with it, the whole project. You've shown the
+> number moved against the baseline you set in Measure, built the five-part
+> plan that keeps it there, and handed it to a named owner who has accepted it.
+>
+> **There is no next phase.** Review everything in the **gate document** tab and
+> approve when you're ready; approving closes the project and produces its final
+> record. You can still edit anything before you do.
+>
+> Your lessons and transferability notes go into the case library, so the next
+> Belt with this problem finds what you learned. That is the last thing the
+> project does, and it is not a formality.
+
+#### 39.5.11 Cross-phase reads and writes — the thread closes here
+
+**Reads across the whole project:**
+- **Define**: `metric_definitions` (registry), `target_value` (**what actual is
+  compared to**), `target_date` (paired with `actual_close_date`),
+  `calculate_expected_savings` result (the estimate `financial_impact_verified`
+  confirms).
+- **Measure**: `baseline_mean` and `phase_metrics` (**what `post_improvement_metrics`
+  references** — the before values), `stability_assessment` (the method to re-run).
+- **Improve**: `selected_solution` (**what is now in place to hold**),
+  `implementation_plan`, `pilot_result` (the expected effect the actual confirms).
+
+**Writes**: the 12 content fields, `phase_metrics` (the closing comparison),
+`post_improvement_metrics` (with `references_metric_name`), and — on gate pass —
+`SupervisorState.final_output` (§5).
+
+#### 39.5.12 The measurement thread, closed
+
+Control is the last phase; there is no §39.6. The thread that opened in Define is
+now closed end to end, and it is traceable by one key across all five gate
+documents:
+
+```
+Define    metric_definitions + target_value        — the metric named, the target set
+Measure   phase_metrics.baseline_mean               — the before value, measured
+Analyse   phase_metrics (root cause explaining it)  — why it was where it was
+Improve   phase_metrics.pilot_effect                — the fix, proven in pilot
+Control   phase_metrics.actual vs target            — the after value, the gain locked
+```
+
+**Define, Measure, Analyse, Improve and Control are all ratified. The five-phase
+DMAIC specification is complete.**
 
 ---
 
@@ -5635,7 +6303,7 @@ behind the Belt's back.
 | Measure | **15** | 7 | 3 | 1 | 4 |
 | Analyse | **14** | 4 | 5 | 1 | 4 |
 | Improve | **14** | 4 | 5 | 1 | 4 |
-| Control | **16** | 3 | 8 | 1 | 4 |
+| Control | **17** | 3 | 9 | 1 | 4 |
 
 **Every total rose by one for `phase_metrics`** (§63.9), which is now the third
 field on all five schemas. **Define rose by two**: it also carries
@@ -5798,7 +6466,7 @@ it.
 |---|---|---|---|---|
 | `causal_hypothesis` | Analyse | 2 | Measure's `baseline_mean`, for a named metric | **Yes — §39.3** |
 | `solution_linked_to_root_cause` | Improve | 2 | Analyse's `root_cause_statement`, for a named metric | **Yes — §39.4** |
-| `post_improvement_metrics` | Control | **1** | Measure's `baseline_mean`, per metric | Carried, unpopulated — §39.5, **F-14** |
+| `post_improvement_metrics` | Control | **1** | Measure's `baseline_mean`, for the primary metric | **Yes — §39.5** |
 
 **Only `post_improvement_metrics` is Tier 1**, and that asymmetry is
 deliberate: a Control phase that cannot link its result back to the Measure
@@ -10034,8 +10702,9 @@ class ImproveOutput(BaseModel):
 **Architecture:** §40 · **File:** `phases/control/schema.py` · **Procedure:** step 3.4
 *Rebuild test: met.*
 
-**Purpose:** Control's gate document. **16** fields — 3 Tier 1, 8 Tier 2, 4 gate
-metadata. The smallest Tier 1 set and the largest Tier 2 set.
+**Purpose:** Control's gate document. **17** fields — 3 Tier 1, 9 Tier 2, 4 gate
+metadata. The smallest Tier 1 set and the largest Tier 2 set. (Was 16:
+`actual_close_date` is added at the 2026-08-27 review, closing **F-12**.)
 
 ```python
 class ControlOutput(BaseModel):
@@ -10053,6 +10722,8 @@ class ControlOutput(BaseModel):
     transferability:           str    # yokoten — feeds rag_lookup_case_history
     project_signoff:           str    # Champion + Belt + Finance
     secondary_metrics:         str
+    actual_close_date:         str    # ISO — achieved date, pairs with Define's
+                                      # planned target_date (F-12)
     # On all five schemas (§40, §63.9, S-C39)
     phase_metrics:                list[dict]  # one entry per registry metric
     # Gate metadata
@@ -10062,6 +10733,31 @@ class ControlOutput(BaseModel):
     uploads:              list[dict] = []
 ```
 
+> **Control's `phase_metrics` carries the COMPARISON form** (§39.5.3) and is
+> **the authoritative store of all N comparisons** — one entry per registry
+> metric, each closing the thread:
+>
+> ```python
+> phase_metrics = [
+>     {"name": "invoice_error_rate", "baseline": "12.3%", "target": "<3%",
+>      "actual": "2.8%", "delta": "-9.5pp", "met": "yes", "source": "after"},
+>     {"name": "invoice_cycle_time", "baseline": "2.6 days", "target": "<1.5 days",
+>      "actual": "1.4 days", "delta": "-1.2 days", "met": "yes", "source": "after"},
+> ]
+> ```
+>
+> **`post_improvement_metrics` is the PRIMARY metric's link, not the store.** It
+> is Tier 1 and carries `references_metric_name`, and it is what the gate blocks
+> on (§42 B2). **Single-authority invariant** (§39.2.3, `core/metrics.py`): the
+> primary metric's `phase_metrics` **`actual`** equals
+> `post_improvement_metrics`'s **`metric`** value — two names for one number, so
+> a mismatch raises at assembly. **Additional metrics live only in
+> `phase_metrics`.**
+>
+> **The grader grades every entry, not only the primary.** A project that met its
+> primary metric but silently missed a secondary criterion has not fully
+> succeeded, and `phase_metrics` is the only place that shows.
+
 **Behaviors (EARS):**
 
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
@@ -10069,6 +10765,8 @@ class ControlOutput(BaseModel):
 | B1 | `control_plan` is graded | require all five sub-plans populated. A single string cannot show that four were done and one was skipped, and **a Training Plan written but never delivered is the most common real Control failure** | §41 |
 | B2 | `post_improvement_metrics` is graded | verify by lookup against Measure's `baseline_mean`. **It is the only cross-phase reference field that is Tier 1** — a Control phase that cannot link its result back to the baseline has not demonstrated improvement at all | §42 |
 | B3 | Control's gate passes | populate `SupervisorState.final_output` through Control's output mapper | §5 |
+| B4 | `actual_close_date` is captured | record the **achieved** completion date, paired with Define's **planned** `target_date`. **Tier 2 — a slipped date does not invalidate the improvement**, the same reasoning that makes Define's target a planning parameter | §39.1.2, F-12 |
+| B5 | `phase_metrics` is graded | grade **every** entry, not only the primary — a project that met its primary metric and missed a secondary one has not fully succeeded | §39.5.3 |
 | B4 | `lessons_learned` and `transferability` are set | feed the case index and cross-case retrieval respectively | §23.3, §24 |
 
 ### 63.6 S-C32 · The three cross-phase reference dicts
@@ -10119,7 +10817,7 @@ so the shape is settled once**, rather than three times in three reviews.
 |---|---|---|---|---|
 | `causal_hypothesis` | Analyse | 2 | Measure's `baseline_mean`, for a named metric | **Yes — §39.3** |
 | `solution_linked_to_root_cause` | Improve | 2 | Analyse's `root_cause_statement`, for a named metric | **Yes — §39.4** |
-| `post_improvement_metrics` | Control | **1** | Measure's `baseline_mean`, per metric | Carried, unpopulated — §39.5, **F-14** |
+| `post_improvement_metrics` | Control | **1** | Measure's `baseline_mean`, for the primary metric | **Yes — §39.5** |
 
 **Behaviors (EARS):**
 
@@ -10836,10 +11534,10 @@ Analyse's.
 | **F-09** | **`BeforeModelStateInjection` is named after the hook it must not use.** Its hook is `before_agent`; §19, §19.1 and `CLAUDE.md`'s no-go list each correct the `before_model` reading separately. The class name reproduces the error every time it is read |
 | **F-10** | **`degraded_mode_response` reads counts that `check_gate_status()` produces** (§46 body vs §29.2), and both are unspecified (G-31). They should be designed together, or the Belt sees two different completion counts |
 | **F-11** | **The built `DefinePhaseInput` had diverged from the v2 architecture names.** It carried granular 5W2H fields (`what`, `where`, `when`, `who_affected`, `why_it_matters`, `how_much_baseline`, `how_goal`), `scope_in`/`scope_out` as separate strings, and **both** `target_date` and `estimated_completion_date` — a duplicate date. **Resolved by the §39.1 rebuild**, in favour of the v2 names: one composed `problem_statement`, `project_scope` as a dict, one `target_date`. **Recorded so the rebuild is not later read as having introduced those names** — it retired them. The 5W2H survive as the coaching method (§39.1.3), never as stored fields |
-| **F-12** | **Control has no `actual_close_date`, and Define's `target_date` therefore has nothing to be compared against.** Define's finalization (2026-08-26) makes `target_date` a required field and states explicitly that it is the **planned** completion date — a project-management parameter that may slip without invalidating the improvement. **The pattern it belongs to is target-vs-actual**, the same one `target_value` uses: Define states the target, Control captures what actually happened, and the delta is the finding. `target_value` has its Control counterpart in `post_improvement_metrics` (S-C31); **`target_date` has none.** Recorded as a forward dependency, **not built here** — Control's field list is settled at its own phase review (§39.5, blocked on G-27/G-28), and adding a field to `ControlOutput` outside that review is exactly the one-phase-at-a-time change §40 warns about. **When Control is specified, `actual_close_date` must be on the agenda alongside the schedule-variance question it implies** (is a slipped date a Control finding, or only a record?) |
+| **F-12 — RESOLVED 2026-08-27** | ~~**Control has no `actual_close_date`.**~~ **Closed at the Control phase review (§39.5):** `actual_close_date` is added to `ControlOutput` as **Tier 2**, 16 → 17 fields, §35's Control row to 3/9. **Tier 2 is the ruling, not an oversight** — a slipped date does not invalidate the improvement, the same logic that makes Define's `target_date` a planning parameter. **The original finding, for the record:** Define's finalization (2026-08-26) makes `target_date` a required field and states explicitly that it is the **planned** completion date — a project-management parameter that may slip without invalidating the improvement. **The pattern it belongs to is target-vs-actual**, the same one `target_value` uses: Define states the target, Control captures what actually happened, and the delta is the finding. `target_value` has its Control counterpart in `post_improvement_metrics` (S-C31); **`target_date` has none.** Recorded as a forward dependency, **not built here** — Control's field list is settled at its own phase review (§39.5, blocked on G-27/G-28), and adding a field to `ControlOutput` outside that review is exactly the one-phase-at-a-time change §40 warns about. **When Control is specified, `actual_close_date` must be on the agenda alongside the schedule-variance question it implies** (is a slipped date a Control finding, or only a record?) |
 
 | **F-13 — RESOLVED 2026-08-26** | ~~**Analyse's `causal_hypothesis` does not say WHICH criterion a root cause explains.**~~ **Closed at the Analyse phase review (§39.3):** the cross-phase reference shape (§63.6, S-C32) gains **`references_metric_name`**, and the grader now matches it against the referenced phase's `phase_metrics` `name` rather than reading a bare scalar (S-C32 B1, B5). The key is on **all three** reference dicts for a uniform resolution path; Analyse populates it now, Improve and Control at §39.4 and §39.5. **The original finding, for the record:** Harmless while a project tracks one measurement criterion; ambiguous the moment it tracks two. `causal_hypothesis` is a cross-phase reference dict (§7, §42) carrying `references_phase` / `references_field` / `references_value`, and the grader verifies the link by deterministic lookup — but with `baseline_estimate` naming *"Error rate: 12.3%. Cycle time: 2.6 days."*, a root cause referencing "the baseline" resolves to a string containing both, and **"explains 60% of the problem" stops having a single referent.** `practical_significance` inherits the same ambiguity. **Recorded, not built** — Analyse's field list is settled at its own phase review (§39.3, blocked on G-27/G-28), and adding a sub-key to one phase's reference dict outside that review is the one-phase-at-a-time change §40 warns against. Raised by the multi-criteria ruling, 2026-08-26 |
-| **F-14** | **Control's target-vs-actual becomes one comparison per criterion.** *(§39.4 landed 2026-08-27, leaving Control the last unspecified phase — this is now the one open finding blocking §39.5.)* *(Still open — but its reference shape is now defined: `post_improvement_metrics` carries `references_metric_name` from 2026-08-26, unpopulated until §39.5. What remains is Control's own decision about how N comparisons are presented and graded, not how they are addressed.)* `post_improvement_metrics` (S-C31) is the AFTER end of the measurement thread and is graded by lookup against Measure's `baseline_mean` (§63.5 B2). With N criteria that is **N comparisons, not one** — and a Control phase reporting a single improvement delta across several metrics is the same failure `MEASURE_RUBRIC` now catches at the Measure gate, arriving one phase later. Pairs with **F-12**, which owes Control an `actual_close_date`: both are Control-side consequences of Define-side decisions, and **both should be settled in the same Control review** rather than discovered separately. **Recorded, not built.** Raised by the multi-criteria ruling, 2026-08-26 |
+| **F-14 — RESOLVED 2026-08-27** | ~~**Control's target-vs-actual becomes one comparison per criterion.**~~ **Closed at the Control phase review (§39.5.3):** `phase_metrics` is the authoritative store of all N comparisons, one entry per registry metric with `baseline` / `target` / `actual` / `delta` / `met`; `post_improvement_metrics` remains the primary metric's Tier-1 link, carrying `references_metric_name`; the single-authority invariant binds the two (`core/metrics.py`, unit-tested); and **the grader grades every entry, not only the primary**. **The original finding, for the record:** *(§39.4 landed 2026-08-27, leaving Control the last unspecified phase — this is now the one open finding blocking §39.5.)* *(Still open — but its reference shape is now defined: `post_improvement_metrics` carries `references_metric_name` from 2026-08-26, unpopulated until §39.5. What remains is Control's own decision about how N comparisons are presented and graded, not how they are addressed.)* `post_improvement_metrics` (S-C31) is the AFTER end of the measurement thread and is graded by lookup against Measure's `baseline_mean` (§63.5 B2). With N criteria that is **N comparisons, not one** — and a Control phase reporting a single improvement delta across several metrics is the same failure `MEASURE_RUBRIC` now catches at the Measure gate, arriving one phase later. Pairs with **F-12**, which owes Control an `actual_close_date`: both are Control-side consequences of Define-side decisions, and **both should be settled in the same Control review** rather than discovered separately. **Recorded, not built.** Raised by the multi-criteria ruling, 2026-08-26 |
 
 ### 66.8 The Supplier/Customer cross-check — first run, 2026-08-23
 

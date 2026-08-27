@@ -37,7 +37,22 @@ PRIMARY_MIRRORED_SCALARS: dict[str, tuple[str, ...]] = {
     "measure": ("baseline_mean", "baseline_sigma"),
     "analyse": (),
     "improve": (),
-    "control": ("post_improvement_metrics",),
+    "control": (),          # Control mirrors through a dict — see below
+}
+
+# **Control's mirror is shaped differently, and deliberately** (§39.5.3, F-14).
+# Its scalar is not a plain string but the cross-phase reference DICT
+# `post_improvement_metrics` (S-C32), whose measured value lives under `metric`.
+# The `phase_metrics` entry calls the same number `actual`, because there it sits
+# beside `baseline`, `target` and `delta` and "actual" is what it is in that row.
+#
+#   artifacts["post_improvement_metrics"]["metric"]  ==  entry["actual"]
+#
+# Two different names for one number is exactly the drift this module exists to
+# catch, which is why the mapping is written down rather than inferred.
+# (dict_field, key_inside_dict, key_in_phase_metrics_entry)
+PRIMARY_MIRRORED_DICT: dict[str, tuple[str, str, str]] = {
+    "control": ("post_improvement_metrics", "metric", "actual"),
 }
 
 # A phase that engaged no metric writes this rather than leaving the list empty
@@ -70,7 +85,8 @@ def check_single_authority(phase: str, artifacts: dict) -> list[str]:
     """
     defects: list[str] = []
     scalars = PRIMARY_MIRRORED_SCALARS.get(phase, ())
-    if not scalars:
+    dict_rule = PRIMARY_MIRRORED_DICT.get(phase)
+    if not scalars and not dict_rule:
         return defects                      # Analyse / Improve — linkage only
 
     pm = artifacts.get("phase_metrics")
@@ -102,6 +118,21 @@ def check_single_authority(phase: str, artifacts: dict) -> list[str]:
                 "%s: primary metric %r has %s=%r in phase_metrics but %r at the "
                 "top level — phase_metrics is authoritative (§39.2.3)"
                 % (phase, entry.get("name"), scalar, inner, top)
+            )
+
+    if dict_rule:
+        field, inner_key, entry_key = dict_rule
+        holder = artifacts.get(field)
+        top = ""
+        if isinstance(holder, dict):
+            top = str(holder.get(inner_key) or "").strip()
+        inner = str(entry.get(entry_key) or "").strip()
+        if top != inner:
+            defects.append(
+                "%s: primary metric %r has %s=%r in phase_metrics but "
+                "%s[%r]=%r — phase_metrics is authoritative (§39.5.3)"
+                % (phase, entry.get("name"), entry_key, inner, field,
+                   inner_key, top)
             )
     return defects
 

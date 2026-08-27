@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.28 — August 2026
+# Version 2.2.29 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -692,6 +692,48 @@ same two-gate test Analyse uses. **DOE belt-gating is a rubric criterion, not a
 preference**: all three answers to `experiment_justification` are valid, DOE is
 recommended for Black Belts and suppressed for Green Belts, and **the question
 is asked of both**.
+
+### 0.23 — What Changed in 2.2.29 — Control specified; the five-phase spec is complete
+
+**Control is the fifth and final ratified per-phase specification**
+(`ARCHITECTURE.md` §39.5, v1.19). **There is no §39.6.**
+
+| Area | v2.2.28 | v2.2.29 |
+|---|---|---|
+| `ControlOutput` (§10.7) | 16 | **17** — adds `actual_close_date` |
+| Control tiers (§9.7) | 3 Tier 1 / 8 Tier 2 | **3 Tier 1 / 9 Tier 2** |
+| Per-metric comparison | undefined | **`phase_metrics` is authoritative for all N** |
+
+**`actual_close_date` closes F-12** — the achieved completion date, paired with
+Define's planned `target_date`. **Tier 2, and that is the ruling:** a slipped
+date does not invalidate the improvement, exactly as Define's target is a
+planning parameter rather than a result (§39.1.2).
+
+**F-14 closes with a division of labour, not a new field.** `phase_metrics`
+holds every metric's `baseline` / `target` / `actual` / `delta` / `met`;
+`post_improvement_metrics` stays the **primary** metric's Tier-1 deterministic
+link back to Measure's `baseline_mean`. **The grader grades every entry** — a
+project that met its primary metric and silently missed a secondary one has not
+fully succeeded.
+
+> **Control's single-authority shape is the odd one, and it is written down
+> rather than inferred.** `post_improvement_metrics` is a reference dict whose
+> value sits under `metric`; the `phase_metrics` entry calls the same number
+> `actual`. **Two names for one number is precisely the drift the invariant
+> exists to catch**, so `core/metrics.py` carries an explicit mapping for
+> Control and the test suite pins it in both directions.
+
+**Three Tier-1 guards in `CONTROL_RUBRIC`**, worth knowing when quoting §9.7
+into an implementation prompt: **link back to the baseline** — the only Tier-1
+cross-phase reference in the system; **the control plan complete AND
+delivered** — all five sub-plans populated *and* a named owner who accepted, so
+a plan authored but never run fails; and **stability before capability again**,
+before `post_improvement_cpk`.
+
+**All five DMAIC phases are now specified.** What remains is build, not
+specification: **WATCH 7** (`orchestrate.py` still writes v1 field names),
+**G-27** (boundary mappers) and **G-28** (gate assembly for the four phases
+beyond Define), and the root-reference back-port.
 
 ---
 
@@ -2912,7 +2954,7 @@ are in `../AGENTIC_ARCHITECTURE_REFERENCE.md` §40. The binding rules:
 | Measure | **15** | 7 | 3 | 1 | 4 |
 | Analyse | **14** | 4 | 5 | 1 | 4 |
 | Improve | **14** | 4 | 5 | 1 | 4 |
-| Control | **16** | 3 | 8 | 1 | 4 |
+| Control | **17** | 3 | 9 | 1 | 4 |
 
 **Every total rose by one for `phase_metrics`; Define rose by two**, because it
 alone carries `metric_definitions`, the registry (§0.20).

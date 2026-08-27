@@ -62,6 +62,17 @@ class ControlPhaseInput(BaseModel):
         description="Name of sponsor who confirmed project closure."
     )
 
+    # ── actual_close_date — Tier 2, added at the Control review (F-12) ──
+    actual_close_date: Optional[str] = Field(
+        None,
+        description=(
+            "The ACHIEVED completion date, ISO format — the paired value for "
+            "Define's PLANNED `target_date` (§39.1.2). Tier 2: a slipped date "
+            "does not invalidate the improvement, the same logic that makes "
+            "Define's target_date a planning parameter. Closes F-12."
+        ),
+    )
+
     # ── phase_metrics — on all five schemas (§40, §63.9, S-C39) ───────
     # NOTE: this class is still the v1 `ControlPhaseInput`. `phase_metrics` is added
     # here so the uniform-on-all-five rule holds today; it carries through the
