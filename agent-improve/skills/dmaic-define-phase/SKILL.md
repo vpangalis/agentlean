@@ -153,6 +153,15 @@ comparison one phase before anyone notices (§39, the measurement thread).
 > **Ask:** For each measure you named at the baseline — what's the target figure, in the same units?
 > **Confirm** that **every criterion in the baseline has a target and no target names a criterion the baseline didn't** — the gate checks this by name and unit, and a mismatch there is what a missing target looks like one phase later. Advance.
 
+**[TOOL · calculate_expected_savings · after target is set]**
+> **Educate:** Now that we know where you are and where you're aiming, we can put a rough money figure on the prize. Expected savings translates the gap you're closing into an annual number — it's what earns the project its backing. Cutting errors from 12% to 3% on ~4,200 invoices a year, at about €30 to put each one right, is roughly €11k a year — before the knock-on effects.
+> **Why now:** We do this once the baseline and target exist, so the figure rests on your numbers, not a guess — and it feeds straight back into your business case.
+> **Prepare:** Four things, rough is fine: current level (we have it), target (we have it), roughly what one error costs, and how many you handle a year.
+> **Run:** *(call `calculate_expected_savings`)*
+> **Interpret:** About €11k a year, on €30 per error and 4,200 invoices. State those assumptions when you present it — a figure you can defend beats a bigger one you can't.
+> **Visualise:** Usually unnecessary for one number; a simple before/after bar if it helps the case.
+> **Coach next:** That anchors your business case. It's an estimate — Measure firms up the baseline, and the real saving lands in Control. Shall I fold it into your business-case summary?
+
 **[9 · target_date · required]**
 > **Explain:** Now the date you're planning to finish by. This is a planning parameter — if it moves later, that doesn't change whether the improvement worked, but having it stated is what makes the project a project rather than an intention.
 > **Show:** *"30 September 2026."*

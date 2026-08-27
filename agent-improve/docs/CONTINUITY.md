@@ -1,12 +1,18 @@
 <!--
 Document: agent-improve/docs/CONTINUITY.md
-Version: 4.5 — 2026-08-27
+Version: 4.6 — 2026-08-27
 Purpose: Session-start orientation. A new session reading ONLY this file should
          be able to orient fully and continue without losing a day.
 
 MAINTENANCE RULE: when a version number, a step, or a document location
 changes, update this file in the same commit. Verify claims against the files
 themselves; do not carry a line forward because it was here before.
+
+v4.6 delta (2026-08-27): IMPROVE phase review done — §39.4 landed with its
+coaching script embedded, IMPROVE_RUBRIC gains both guards + DOE belt-gating,
+Improve SKILL.md conformed (it existed; field order contradicted §39.4.2).
+Define's §32 gap closed — calculate_expected_savings seven-step block added.
+Only Control (§39.5) remains stubbed. ARCHITECTURE.md v1.18, CLAUDE.md 2.2.28.
 
 v4.5 delta (2026-08-27): §39.2.10 / §39.3.10 now embed their coaching scripts;
 all three phase sections are authoritative-during-refactor with byte-exact
@@ -38,7 +44,7 @@ in §0.
 -->
 
 # AgentLean — Session Continuity Guide
-# Version 4.5 — 2026-08-27
+# Version 4.6 — 2026-08-27
 
 > **Read this first, then stop reading it.** This file orients. The binding
 > documents are named in §2 and they win on every point of detail.
@@ -435,6 +441,7 @@ evidence.** When you write a verification, first prove it can fail.
 
 | Version | Date | Change |
 |---|---|---|
+| **4.6** | 2026-08-27 | **IMPROVE phase review + Define §32 fix.** §39.4 written from the ratified appendix — twelve subsections, coaching script embedded at §39.4.10 per the §39.1.7 pattern. **Two movements**: choose (generate → select on explicit criteria) then prove (pilot → confirm); `selected_solution` at 1, link at 2, `experiment_justification` at 3, `pilot_result` at 4 — **you decide how hard to test after you know what you're choosing between**. `IMPROVE_RUBRIC` gains **two Tier-1 guards** (solution traces to the validated root cause by lookup; pilot before rollout, practical AND statistical) and **explicit DOE belt-gating** (all three answers valid; recommended BB, suppressed GB, asked of both). Improve `phase_metrics` = linkage-plus-pilot; `solution_linked_to_root_cause` now populates `references_metric_name`. `ImproveOutput` stays **14**. **Improve SKILL.md CONFORMED, not created** — it existed at 656 lines with a field order §39.4.2 rejects (it coached `experiment_justification` first). **Define §32 gap CLOSED**: `calculate_expected_savings` had no seven-step block; added to §39.1.7 and the Define SKILL.md after the `target_value` field. **Only Control (§39.5) remains stubbed**; F-14 is its open finding. ARCHITECTURE.md **v1.18**, CLAUDE.md **2.2.28** |
 | **4.5** | 2026-08-27 | **§39.2.10 and §39.3.10 now embed their coaching script.** Both claimed §39.1.7's authoritative-during-refactor status while holding only a pointer — nothing for the SKILL.md to be generated from. Both now carry the full script in §39.1.7's format: preamble, phase opening, one block per field in §39.2.2/§39.3.2 order with Explain/Show/Ask/Confirm, one seven-step block per tool, metric literacy, gate-readiness closing; plus Analyse's two-movements framing, 5 Whys and test selection. **Content lifted, not rewritten** — 13/13 tool blocks already had seven steps and moved verbatim; 19/19 field blocks gained the four labelled parts. Fixed on the way in: Analyse's `causal_hypothesis` block showed the old three-key reference shape (now five, with `references_metric_name`), and §39.3.10's "SKILL.md does not exist yet" line. Both SKILL.md restructured to one contiguous `## 3. Coaching content` section and renumbered. **Byte-consistency verified for all three phases** by substring containment. Doc-content only — no schema, no code. ARCHITECTURE.md **v1.17** |
 | **4.4** | 2026-08-27 | **ANALYSE phase review.** §39.3 written from the ratified draft — twelve subsections, the two-movements structure (generate qualitatively → validate quantitatively) and the ordering that enforces it: `causal_hypothesis` at 2, validation at 3, **`root_cause_statement` at 5 after it is proven**. **F-13 CLOSED** — `references_metric_name` added to all three cross-phase reference dicts (§63.6, S-C32); the grader resolves the `phase_metrics` entry by metric name rather than reading the bare scalar (§42, B1/B5). **Analyse `phase_metrics` = linkage form**, `"not addressed this phase"` where untouched. `AnalyseOutput` stays **14** — the key is inside the dict value, not a new field. §35 confirms 4 Tier 1 / 5 Tier 2 and `causal_hypothesis` as Tier 2. **`ANALYSE_RUBRIC` encodes two Tier-1 guards**: correlation≠causation, statistical≠practical significance. **Analyse SKILL.md REBUILT, not created** — it existed with a field order §39.3.2 rejects. Also fixed: §63.7 had been left below §63.9 by the v1.15 insert. **F-14 still open**, shape now defined. ARCHITECTURE.md **v1.16**, CLAUDE.md **2.2.27** |
 | **4.3** | 2026-08-26 | **Measure naming convention + structured metric registry.** Seven identifiers renamed on the two-tier acronym rule (`baseline_metric`→`baseline_estimate`, `target_metric`→`target_value`, `process_kpis`→`process_metrics`, `baseline_kpis`→`baseline_metrics`, `vital_few_xs`→`vital_few_drivers`, `xy_matrix_summary`→`driver_priority_summary`, `post_improvement_metric`→`post_improvement_metrics`); `baseline_mean`/`baseline_sigma`/`post_improvement_cpk` and all 20 tool names untouched. **`metric_definitions` (Define registry) + `phase_metrics` (all five schemas)** — a fourth exception to the string law, traced by key equality on `name`. **§39.2 specifies Measure in full** (12 subsections, written as an index into the cross-cutting specs). **Single-authority invariant** — `phase_metrics` authoritative, scalars mirror the primary, enforced at `gate_apply` and unit-tested across all five phases (`core/metrics.py`, 22 tests). Counts 18/15/14/14/16; same-field-on-all-five now **three** fields. Metric literacy added (§43.7, §32) and applied to Measure's SKILL.md. Register 46/12/34. ARCHITECTURE.md **v1.15**, CLAUDE.md **2.2.26**. **Root reference deliberately not renamed — diverges until back-port** |

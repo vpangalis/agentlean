@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.27 — August 2026
+# Version 2.2.28 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -655,6 +655,43 @@ significance** — a validated cause explaining a trivial share is coached back,
 not passed. **Both produce gate documents that read as complete**, which is
 exactly why they are checked explicitly rather than left to the grader's overall
 impression.
+
+### 0.22 — What Changed in 2.2.28 — Improve specified; Define's tool block added
+
+**Improve is the fourth ratified per-phase specification** (`ARCHITECTURE.md`
+§39.4, v1.18). **No rule in this file changes shape**; one §32 compliance gap
+closes.
+
+| Area | v2.2.27 | v2.2.28 |
+|---|---|---|
+| Improve tiers (§9.7) | 4 Tier 1 / 5 Tier 2 | **unchanged — confirmed at review** |
+| `ImproveOutput` count (§10.7) | 14 | **unchanged** |
+| Define's bound tool (§5.2, §8.3) | no seven-step block | **`calculate_expected_savings` block added** |
+
+**The §32 gap is the substantive part for this file.** §8.3 requires every
+SKILL.md to carry the seven-step sequence for **every computation tool in its
+phase's `allowed-tools`**, and §5.2 binds `calculate_expected_savings` to
+Define. **Define's SKILL.md carried no block for it** — so the rule was stated
+and unmet in the one phase whose coaching content is otherwise the ratified
+exemplar. The block is now in `ARCHITECTURE.md` §39.1.7 and in the Define
+SKILL.md at the matching position, after the `target_value` field: the tool
+needs both `baseline_estimate` and `target_value` before it can compute
+anything, so placing it earlier would coach a calculation the Belt cannot yet
+supply inputs for.
+
+> **This was a real gap, not a formatting nit.** A Belt reaching Define's one
+> computation tool with no seven-step block gets exactly the raw-output dump
+> §8.2's rubric fires on every turn to prevent — the coach would run the tool
+> and hand back a number with no concept taught and no interpretation.
+
+**Improve's two Tier-1 rubric guards** are worth knowing when quoting §9.7 into
+an implementation prompt: **the solution must trace to the validated root
+cause** (resolved by lookup against Analyse's gate document, not by judgment),
+and **pilot before rollout** — practical *and* statistical significance, the
+same two-gate test Analyse uses. **DOE belt-gating is a rubric criterion, not a
+preference**: all three answers to `experiment_justification` are valid, DOE is
+recommended for Black Belts and suppressed for Green Belts, and **the question
+is asked of both**.
 
 ---
 

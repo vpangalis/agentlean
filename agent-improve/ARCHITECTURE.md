@@ -73,9 +73,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.17 · 2026-08-27
+Version 1.18 · 2026-08-27
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–E written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.18 (2026-08-27)** — **§56 AMENDMENT. The Improve phase is fully specified at §39.4; Define's §32 tool-block gap is closed.** **§39.4 is the fourth ratified per-phase HUB**, twelve subsections to the §39.2/§39.3 template, with its coaching script **embedded at §39.4.10** in §39.1.7's format. **Its load-bearing content is the two movements** — *choose* (generate candidates, then select on explicit criteria, a decision matrix) and *prove* (pilot at limited scale, then confirm) — and the ordering that enforces them: `selected_solution` at **1**, the root-cause link at **2**, `experiment_justification` at **3**, `pilot_result` at **4**. **You decide how hard to test after you know what you are choosing between**, not before. **Two Tier-1 guards** in `IMPROVE_RUBRIC`: the solution must **trace to the validated root cause** (resolved by lookup, not judgment), and **pilot before rollout** — practical AND statistical, the same two-gate test as Analyse, with a trivial-effect pilot coached back. **DOE belt-gating is stated as a rubric criterion**: all three answers to `experiment_justification` are valid and none scores higher; DOE is recommended for Black Belts and suppressed for Green Belts, **but the question is asked of both**. **Improve's `phase_metrics` carries the linkage-plus-pilot form** — `{name, moved_by, pilot_effect, source}` — with `"not addressed this phase"` for untouched metrics (§39.4.3, §63.4), and **`solution_linked_to_root_cause` is the phase that now populates `references_metric_name`** on the uniform S-C32 shape. **No schema field-count change: `ImproveOutput` stays 14.** §35 confirms the **4 Tier 1 / 5 Tier 2** split. **The Improve SKILL.md was restructured and conformed, not created** — it existed at 656 lines, and its field order contradicted §39.4.2 (it coached `experiment_justification` first). **Separately, a §32 compliance gap is closed:** Define binds `calculate_expected_savings` (§30) but §39.1.7 carried **no seven-step block for it**, while §32 requires one for every bound computation tool. The block is added to §39.1.7 and to the Define SKILL.md at the matching position, after the `target_value` field — the tool needs both `baseline_estimate` and `target_value` to compute anything. **This is new ratified content, not a rename.** **Only §39.5 (Control) remains stubbed**; F-14 is the open finding it carries. Decision record: `docs/CLAUDE_CODE_PROMPT_improve_39_4.md`.
 
 **v1.17 (2026-08-27)** — **§56 AMENDMENT. §39.2.10 and §39.3.10 now carry their phase's coaching script, so the authority they claim is real.** **The defect was coherence, not content.** §39.1.7 (Define) embeds the full script and is authoritative-during-refactor, with its SKILL.md generated to match verbatim. §39.2.10 and §39.3.10 claimed **the same authority while holding only a pointer at the SKILL.md** — so the file that was supposed to be generated from them had nothing to be generated from, and "must match verbatim" had no referent. **Both now embed the script, formatted exactly as §39.1.7**: the authority and coaching-pattern preamble, the phase opening (Measure's Define-recap, Analyse's Measure-recap), one block per field in §39.2.2 / §39.3.2 order with **Explain / Show / Ask / Confirm**, one seven-step block per bound tool, the metric-literacy explanation, and the gate-readiness closing — plus, for Analyse, the two-movements framing, the 5-Whys sequence and the test-selection sequence. **Content was lifted, not rewritten** — all thirteen tool blocks already carried seven labelled steps and moved byte-for-byte. **What was conformed on the way in:** all nineteen field blocks gained the four labelled parts (they had **Show** and little else); Analyse's `causal_hypothesis` block still showed the three-key reference shape and now shows five, including `references_metric_name` (§63.6, added at the Analyse review); and §39.3.10's line claiming the SKILL.md **does not exist** is gone — it exists and was reordered at `43c4201`. **Deliberately NOT embedded**, because they are not coaching script and several have their own §39.x home: front matter, the A→F session flow, the field-order table, templates, uploads, capture instructions, the Document Layout, pitfalls, cross-phase tables and the phase rubrics. **Both SKILL.md files were restructured to match** — their coaching content is now one contiguous `## 3. Coaching content` section holding the identical body, with the remaining sections renumbered contiguously. **Verified by containment, not by eye:** each of the three embedded scripts is a byte-exact substring of its SKILL.md — the Define atomic-unit check, now run for all three phases. Decision record: this section pair.
 
@@ -3210,6 +3212,12 @@ is no longer a criterion the grader can fail that the gate never asked for.
 | **Improve** | `selected_solution`, `pilot_result`, `experiment_justification`, `issues_and_barriers` | **4** |
 | **Control** | `control_plan` (**dict**, 5 sub-plans), `post_improvement_metrics`, `issues_and_barriers` | **3** |
 
+> **Improve's 4 Tier 1 / 5 Tier 2 split was confirmed at its phase review**
+> (2026-08-27, §39.4). **`solution_linked_to_root_cause` stays Tier 2** — but
+> note the asymmetry the rubric encodes: the **dict** is Tier 2, while the
+> **traceability it records is Tier 1**. A missing dict is weak documentation;
+> a solution aimed at a different problem is a wasted phase.
+
 > **Analyse's 4 Tier 1 / 5 Tier 2 split was confirmed at its phase review**
 > (2026-08-26, §39.3). **`causal_hypothesis` stays Tier 2** and that is the
 > considered answer rather than an oversight: the substance of the phase is
@@ -3727,6 +3735,15 @@ missing any of the six keys is the partial-map failure §41 describes.
 > **Show (two criteria):** *"Error rate: under 3%. Cycle time: under 2 days."* — one target per measure, named the same way as the baseline.
 > **Ask:** For each measure you named at the baseline — what's the target figure, in the same units?
 > **Confirm** that **every criterion in the baseline has a target and no target names a criterion the baseline didn't** — the gate checks this by name and unit, and a mismatch there is what a missing target looks like one phase later. Advance.
+
+**[TOOL · calculate_expected_savings · after target is set]**
+> **Educate:** Now that we know where you are and where you're aiming, we can put a rough money figure on the prize. Expected savings translates the gap you're closing into an annual number — it's what earns the project its backing. Cutting errors from 12% to 3% on ~4,200 invoices a year, at about €30 to put each one right, is roughly €11k a year — before the knock-on effects.
+> **Why now:** We do this once the baseline and target exist, so the figure rests on your numbers, not a guess — and it feeds straight back into your business case.
+> **Prepare:** Four things, rough is fine: current level (we have it), target (we have it), roughly what one error costs, and how many you handle a year.
+> **Run:** *(call `calculate_expected_savings`)*
+> **Interpret:** About €11k a year, on €30 per error and 4,200 invoices. State those assumptions when you present it — a figure you can defend beats a bigger one you can't.
+> **Visualise:** Usually unnecessary for one number; a simple before/after bar if it helps the case.
+> **Coach next:** That anchors your business case. It's an estimate — Measure firms up the baseline, and the real saving lands in Control. Shall I fold it into your business-case summary?
 
 **[9 · target_date · required]**
 > **Explain:** Now the date you're planning to finish by. This is a planning parameter — if it moves later, that doesn't change whether the improvement worked, but having it stated is what makes the project a project rather than an intention.
@@ -5147,11 +5164,444 @@ its definitions). Also reads Define's `metric_definitions` (the registry).
 `phase_metrics` (the metric linkage Improve's `solution_linked_to_root_cause`
 extends).
 
-#### 39.3.12 The other two phases
+#### 39.3.12 The other phase
 
-Improve and Control follow this same section shape and take §39.4–§39.5 at their
-own reviews. **Analyse, Define and Measure are now the ratified exemplars;
-Improve and Control remain stubbed.**
+Control follows this same section shape and takes §39.5 at its own review.
+**Define, Measure, Analyse and Improve are now the ratified exemplars; only
+Control remains stubbed.**
+
+---
+
+### 39.4 Improve phase, complete specification
+
+*Per-phase HUB: indexes the cross-cutting specs (state §6/§58.2, graph/routing
+§13–16, gate §33–38, tiers §35, tools §30/§69, dicts §41, cross-phase refs
+§7/§42, gate doc §50) and records only what is Improve-specific. Define-once
+holds — nothing here re-defines a mechanism that lives in a concern Part.*
+
+**Status: RATIFIED 2026-08-27.** Files: `phases/improve/schema.py`,
+`phases/improve/validate.py`, `skills/dmaic-improve-phase/SKILL.md`.
+
+#### 39.4.1 Purpose
+
+Improve designs, tests and proves the fix. It generates solutions that target the
+validated root cause, selects the best on explicit criteria, decides what level of
+experiment the choice needs, and — the discipline that defines the phase —
+**pilots on a limited scale before full rollout**, proving the improvement is real
+before the organisation commits to it. It ends with a selected, piloted,
+evidence-backed solution and a plan to implement it.
+
+#### 39.4.2 The ordered field list — the `field_index` sequence
+
+Coached in **methodology order** — generate & select, justify, pilot, prove, plan,
+socialise. Schema: **§63.4 — S-C30** (canonical home).
+
+| # | Field (`artifacts` key) | Type | Tier | Note |
+|---|---|---|---|---|
+| 1 | `selected_solution` | `str` | 1 | Candidates generated (brainstorm), then the best selected on explicit criteria (decision matrix) |
+| 2 | `solution_linked_to_root_cause` | `dict` | 2 | Cross-phase ref → Analyse `root_cause_statement`; names the metric (§39.4.3) |
+| 3 | `experiment_justification` | `str` | 1 | DOE / simplified / none — **and why**. All three valid; the failure is drifting past the question (§41) |
+| 4 | `pilot_result` | `str` | 1 | Piloted on a limited scale; practical **and** statistical significance |
+| 5 | `explanatory_power` | `str` | 2 | R² / variance the solution explains |
+| 6 | `implementation_plan` | `str` | 2 | Timeline, owner, resources for full rollout |
+| 7 | `process_owner_buyin` | `str` | 2 | The owner accepts the solution |
+| 8 | `secondary_metrics` | `str` | 2 | Carried from Analyse, re-checked against the pilot |
+| 9 | `issues_and_barriers` | `str` | 1 | Always last |
+
+`ImproveOutput` = these nine **+** `phase_metrics` (§39.4.3) **+** four
+gate-metadata fields = **14**. 4 Tier 1, 5 Tier 2.
+
+#### 39.4.3 The metric registry and Improve's placeholder (linkage form)
+
+Improve's `phase_metrics` entry records which registry metric the selected
+solution is expected to move, and what the pilot achieved on it:
+
+```
+phase_metrics = [
+  {name: "invoice_error_rate", moved_by: "selected solution: onboarding checklist",
+   pilot_effect: "12.3% → 4.1% in the pilot cell", source: "pilot"},
+  {name: "invoice_cycle_time", moved_by: "not addressed this phase", source: "linkage"}
+]
+```
+
+`"not addressed this phase"` for any registry metric the solution does not target.
+**`solution_linked_to_root_cause` names the metric** via `references_metric_name`
+(the uniform S-C32 shape, added 43c4201) — so a multi-metric project links the
+solution to the specific Y its root cause explained. The grader resolves the link
+by lookup against Analyse's gate document (§42).
+
+#### 39.4.4 Two movements — generate-and-select, then pilot-and-prove
+
+*Improve's methodology core (parallel to Analyse's §39.3.4).*
+
+**Movement 1 — choose (generate, then select).** From Analyse's
+`root_cause_statement`, the coach helps the Belt **generate** candidate solutions
+(brainstorming, poka-yoke / mistake-proofing, `propose_template`) and then
+**select** on explicit criteria — a **decision / selection matrix**
+(`propose_template`) scoring options against impact, cost, effort and risk. Output:
+`selected_solution`, `solution_linked_to_root_cause`. A solution chosen without
+visible criteria is the failure this movement prevents.
+
+**Movement 2 — prove (pilot, then confirm).** The chosen solution is **piloted on a
+limited scale** and its effect measured. Output: `pilot_result`,
+`explanatory_power`. The bright line: **a solution is a proposal until the pilot
+data backs it.** Rolling out unpiloted is the failure movement 2 exists to prevent
+— especially when the change is costly or hard to reverse.
+
+#### 39.4.5 Tools bound to Improve
+
+Passed to the executor via `tools=` on `create_agent` (§18). **Eight** — under the
+16 cap (§30).
+
+- **The universal seven** (§29.2) — `propose_template` / `propose_diagram` carry
+  the **generation and selection** tools here: brainstorming, the decision /
+  selection matrix, mistake-proofing aids. FMEA is **supported if a Black Belt
+  raises it** (result → `uploads`), never suggested unprompted, and is not a
+  schema field (§41).
+- **One computation tool** (§30 binding; specified §69), standard name kept:
+
+| Job | Tool | Use |
+|---|---|---|
+| Test factor effects | `calculate_doe_main_effects` | Which factors, at which settings, move the outcome — when a designed experiment is run |
+
+Run under the seven-step pattern (§43.1). SKILL.md `allowed-tools` MUST equal this
+subset (§32).
+
+#### 39.4.6 Conditions — methodology guards, DOE belt-gating, routing, gate
+
+**Two methodology guards** (Improve's sequence locks):
+
+1. **The solution must trace to the validated root cause.** `solution_linked_to_
+   root_cause` references Analyse's `root_cause_statement` by lookup (§42). A
+   solution that does not address the proven root cause is solving the wrong
+   problem — the rubric requires the link.
+2. **Pilot before full rollout.** `pilot_result` (Tier 1) gates on evidence from a
+   limited-scale trial showing **practical AND statistical** significance — the
+   same two-gate test as Analyse (§39.3.6). A pilot that is statistically
+   significant but trivial in effect is coached back, not passed.
+
+**DOE is belt-gated** (§35, S-C30 B1/B2): `experiment_justification` accepts three
+valid answers — DOE conducted, a simplified one-factor experiment, or none needed
+because the fix follows directly from the root cause. **All three pass**; the
+failure is drifting past the question. DOE is **recommended for Black Belts,
+suppressed for Green Belts.**
+
+**Routing conditions** — the five-node cycle (§13), `Command`-routed (§15):
+
+| Where | Condition | Goes to |
+|---|---|---|
+| `planner` (S-F13 DP1) | current field incomplete, or more fields remain | `executor` (`field_index++`) |
+| `planner` | all 9 captured | `validation_stack` |
+| `validation_stack` | 2b presence of the **4 Tier 1** + 2d `IMPROVE_RUBRIC` pass | `gate_review` |
+| `validation_stack` | fail | `planner` (+ `validator_feedback`); `gate_attempts ≥ 3` → escalation (§38) |
+| `gate_apply` | Belt approve / reject | `END` / `planner` (+ `rejection_feedback`) |
+
+**Gate-pass condition:** the 4 Tier 1 fields present and `IMPROVE_RUBRIC` clears;
+the 5 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
+
+#### 39.4.7 State parameters (`ImproveState`)
+
+*Indexes §6 / §58.2 — S-C02.* `ImproveState` extends `PhaseState`:
+
+| PhaseState field | In Improve |
+|---|---|
+| `artifacts` | the 9 captured fields + `phase_metrics` + `computation_results` |
+| `field_index` | walks the §39.4.2 list (0–8) |
+| `computation_results` | the DOE run, if any; the grader scans for `calculate_doe_main_effects` evidence behind an experiment claim, not prose |
+| `uploads` | pilot data and any FMEA a Black Belt contributes land here (§29.1) |
+| `gate_attempts` | Improve's own retry counter, cap 3 |
+| `hop_results` / `synthesis_output` | `[]` / `None` on Improve's typically single-hop turns |
+
+#### 39.4.8 Metric literacy — what each metric and statistic means
+
+New requirement (§32/§43.7), Improve instance. The coach teaches, in plain
+language (§50):
+
+- **The metric** — echo its Define `meaning`; frame the pilot as moving it
+  ("the pilot cut the error rate from 12.3% to 4.1% — here's whether that holds").
+- **The statistic** — the seven-step *educate* step (§43.1 step 1) for a DOE
+  **main effect** and **R²** (`explanatory_power`). *"A main effect is how much the
+  outcome moves when you change one factor from its low to its high setting — the
+  bigger it is, the more that factor matters."*
+
+Never a raw dump (§43.1).
+
+#### 39.4.9 Gate, storage, progress view
+
+- **Four Tier 1 fields block** the gate (§35). Five Tier 2 warn only.
+- **The live gate document** (§50) renders the decision / selection matrix as a
+  table, the pilot before/after and any DOE effects as charts via
+  `propose_diagram`, and `computation_results` with interpretation, grouped by
+  `phase_metrics` `name`. Narrative from captured field text + `computation_results`
+  + `phase_metrics` — never `CoachingResponse` turn fields (§50, WATCH 9).
+- **Two progress bars**, Tier 1 and Tier 2.
+- Written **once** to `store/projects/{case_id}/artifacts/improve.json` by
+  `gate_apply` (§9, §33).
+
+#### 39.4.10 The SKILL.md content (AUTHORITATIVE during the refactor)
+
+`skills/dmaic-improve-phase/SKILL.md` is generated from this section and must
+match verbatim, **embedded here in §39.1.7's format** — preamble, phase opening
+(an Analyse-recap: show the Belt the `root_cause_statement` and
+`practical_significance` they arrive with), one Explain/Show/Ask/Confirm block per
+field in §39.4.2 order, the seven-step block for `calculate_doe_main_effects`, the
+two-movements framing, the decision-matrix and pilot-plan coaching, metric
+literacy (§39.4.8), gate-readiness closing. **Authoritative during the refactor.**
+
+> **Verify first — do not assume.** Whether `skills/dmaic-improve-phase/SKILL.md`
+> already exists must be checked by listing the directory, not by a search miss
+> (the Analyse SKILL.md existed when a search suggested it did not, 43c4201). If it
+> exists, **restructure and conform, do not overwrite** sound content; if not,
+> write it from this section.
+
+> **What lives here and what does not.** This section carries the **coaching
+> script**. The SKILL.md additionally carries its front matter, the A→F session
+> flow, the field-order table, templates, uploads, capture instructions, the
+> Document Layout, pitfalls, cross-phase tables and `IMPROVE_RUBRIC` — **those
+> are not duplicated here**, and several have their own home in §39.4.2, §39.4.9
+> and §39.4.11.
+
+> **Coaching pattern for every field:** ① **Explain** (plain language, why it
+> matters) → ② **Show** (worked example, visually distinct, illustration only)
+> → ③ **Ask** (invite the Belt's version) → ④ **Confirm** (reflect back, check,
+> advance). Tone: warm, encouraging, never gatekeeping. Assume a capable but
+> possibly non-expert Belt. Responses follow §50.1 structure — sectioned,
+> scannable, never bulk prose.
+
+> **Every computation tool follows the seven-step pattern** (§43.1), every time:
+> ① educate on the concept → ② explain why now → ③ guide data preparation →
+> ④ run → ⑤ interpret → ⑥ visualise → ⑦ coach the next move. **Step 1 is the one
+> most often skipped and the one that matters most.**
+
+**[OPENING — shown once, when Improve starts]**
+> "Welcome to Improve. Quick recap of what Analyse proved, because this phase
+> builds directly on it:
+>
+> • **The root cause:** {root_cause_statement}
+> • **How much of the problem it explains:** {practical_significance}
+> • **The metric we're moving:** {the registry metric that cause explained, with
+>   its unit}
+> • **Ruled out already:** {ruled_out_causes} — we don't re-propose fixes for
+>   those.
+>
+> **Improve has two movements.** First we **choose** — generate candidate
+> solutions and select between them on explicit criteria. Then we **prove** —
+> pilot the chosen one at small scale and measure what it actually did. **A
+> solution is a proposal until the pilot data backs it**, and that matters most
+> when the change is expensive or hard to undo.
+>
+> Here's the phase:
+>
+> **Required (4)**
+> □ Chosen solution — what you're going to do, and why that over the alternatives
+> □ Experiment decision — do you need to test between options, or do you already
+>   know what to change?
+> □ Pilot result — proof it works, at small scale
+> □ Issues and barriers — what's in your way
+>
+> **Recommended (5)**
+> □ Link back to the root cause · □ How much it addresses · □ Implementation plan
+> □ Process owner agreement · □ Secondary metrics
+>
+> **Progress: 0 of 4 required complete**
+>
+> We start by getting options on the table — deciding what to change comes
+> before deciding how hard to test it. Let me show you what a well-chosen
+> solution looks like."
+
+Render the checklist with `propose_diagram`. **The Required/Recommended split is
+a display of gate status, not a coaching sequence** — the walk is §39.4.2's field
+order. **The recap values are read from the Store, never re-derived** (§22).
+
+**[THE TWO MOVEMENTS — the framing that governs the whole phase]**
+> **Movement 1 — choose (generate, then select).** From Analyse's
+> `root_cause_statement`, help the Belt **generate** candidate solutions
+> (brainstorming, poka-yoke / mistake-proofing, `propose_template`) and then
+> **select** on explicit criteria — a **decision / selection matrix** scoring
+> options against impact, cost, effort and risk. Output: `selected_solution`,
+> `solution_linked_to_root_cause`. **A solution chosen without visible criteria
+> is the failure this movement prevents.**
+>
+> **Movement 2 — prove (pilot, then confirm).** The chosen solution is **piloted
+> on a limited scale** and its effect measured. Output: `pilot_result`,
+> `explanatory_power`. **The bright line: a solution is a proposal until the
+> pilot data backs it.** Rolling out unpiloted is the failure movement 2 exists
+> to prevent — especially when the change is costly or hard to reverse.
+>
+> **The experiment decision sits between them**, at position 3: you decide how
+> hard to test *after* you know what you are choosing between, not before.
+
+**[METRIC LITERACY — for each metric and statistic in play]**
+> **The metric** — echo its Define `meaning`, then frame the pilot as moving it:
+> *"The pilot cut the error rate from 12.3% to 4.1% in the pilot cell. What we
+> check next is whether that's real and whether it holds at full scale."*
+>
+> **The statistic** — taught at step 1 of the seven-step pattern. For a DOE
+> **main effect**: *"A main effect is how much the outcome moves when you change
+> one factor from its low setting to its high setting — the bigger it is, the
+> more that factor matters."* For **R²** (`explanatory_power`): *"the share of
+> the variation this factor accounts for — your ceiling on what fixing it can
+> deliver."*
+>
+> **Never a raw dump** — a main effect or an R² without the plain-language read
+> is a rubric failure (§43.1).
+
+**[1 · selected_solution · Tier 1 · MOVEMENT 1 output]**
+> **Explain:** A good solution is **chosen, not settled on.** What makes it defensible is the alternatives you considered and the criteria you scored them against — not the answer on its own. **Watch for solutions that inspect rather than prevent:** *"That would catch the errors — would it stop them happening? Prevention usually costs less over time and doesn't need someone to keep doing it."*
+> **Show** — illustration only: *"Three options considered: (a) structured 5-day onboarding, (b) buddy system pairing new staff with experienced, (c) post-entry checking step. Scored with the team on impact, effort and risk. Onboarding scored highest on impact (addresses the cause directly) and medium on effort. Checking scored high on effort and would catch errors rather than prevent them. Buddy system scored well but depends on senior staff availability, which is already tight."*
+> **Ask:** What options are on the table? Let's get three or four down before we narrow. **Then offer `propose_template`** for an impact/effort or Pugh matrix, explaining a Pugh matrix plainly: *"pick one option as the baseline and score the others as better, same, or worse on each criterion."*
+> **Confirm** the record names the alternatives, the criteria and the reasoning — **a solution chosen without visible criteria is the failure movement 1 prevents.** **Intervene when:** only one option was considered; it's the sponsor's preference with no evaluation; or the solution has no clear link to the root cause. Advance.
+
+**[2 · solution_linked_to_root_cause · Tier 2 · dict, cross-phase reference]**
+> **Explain:** Record this so it is explicit that the solution addresses the cause **Analyse proved**, rather than a different problem. Anyone reviewing can trace solution back to cause in one step — and on a multi-metric project, to the specific measure that cause explained.
+> **Show** — illustration only: *Solution:* 'Structured 5-day onboarding programme'. *References:* Analyse → `root_cause_statement` → metric `invoice_error_rate` → 'New staff handle live invoices from day one with no structured system training'. The stored dict carries five keys:
+>
+> | Key | Content |
+> |---|---|
+> | `solution` | The solution in the Belt's words |
+> | `references_phase` | `"analyse"` |
+> | `references_field` | Usually `"root_cause_statement"` |
+> | `references_metric_name` | **Which registry metric this solution is expected to move** — the key the grader matches on (§63.8) |
+> | `references_value` | The exact value from Analyse's gate document |
+>
+> **Ask:** Which measure is this solution meant to move — the same one Analyse explained, or another? On a multi-metric project that is not rhetorical: the link resolves against that metric's entry, not against whichever value happens to be primary.
+> **Confirm:** **read the referenced value from the Store — never ask the Belt to recall it.** The grader resolves Analyse's `phase_metrics` entry whose `name` equals `references_metric_name` and checks it carries `references_value` (§42). **If the solution doesn't clearly address the root cause, surface it now** — that's a project problem, not a documentation one. Advance.
+
+**[3 · experiment_justification · Tier 1 · all three answers are valid]**
+> **Explain:** One decision before we prove anything: does choosing between your options need an experiment, or does the root-cause work already tell you what to change? **Most projects don't need an experiment — and that's a perfectly good answer.** What is not acceptable is drifting past the question; the reasoning goes on record either way (§41).
+> **Show** — all three options, illustration only. **Option 1 — full designed experiment**, for when several factors might interact and the Belt has the training: *"Conducted a 2³ factorial — three factors at two levels, 8 runs randomised. Factor A (training hours) significant at p=0.004; factors B (checklist format) and C (review timing) not significant. Optimum is high training hours with either checklist format."* **Option 2 — simplified experiment**, one factor at a time, before and after, no statistical training needed: *"Tested the new onboarding programme on one team for 4 weeks and compared error rates before and after. Error rate dropped from 12.3% to 4.1%. Ran it with the smallest team first so a bad result would cost least."* **Option 3 — no experiment**, the most common in service work: *"Root cause analysis conclusively showed the training gap — new staff at 23% against 4% for experienced, p=0.001, explaining 41% of the variation. The solution directly addresses it, and there are no competing options to test between. Piloting is sufficient validation."* Then: *"Notice option 3 isn't a shrug — it names why no experiment was needed."*
+> **Ask:** Looking at your root cause and the option you've chosen — do you already know what to change, or are there competing options you'd need to test between?
+> **Confirm** the answer is one of the three **with its reasoning**, not a blank. **For a Green Belt, do not push DOE** — it is the only belt-gated item (§35) — **but still ask the question**: a Green Belt must reason about experimentation even when the recommendation is suppressed, and option 2 is the natural middle ground. **If the Belt wants a DOE and it isn't justified, say so kindly:** *"You could — but your analysis already points at one change with no competing options. A DOE would tell you what you already know. I'd pilot it instead and save the weeks."* **If a DOE was run, `calculate_doe_main_effects` must appear in `computation_results`** — a claimed experiment with no run behind it is unevidenced. Advance.
+
+**[4 · pilot_result · Tier 1 · MOVEMENT 2 · the discipline of the phase]**
+> **Explain:** We test at small scale before rolling out. **Two questions, and we need both:** *did the number move enough to matter?* (practical) and *is the change real rather than normal variation?* (statistical). The p-value alone wouldn't be enough — a tiny improvement can be statistically real. And the drop alone wouldn't be enough either — without the test, it might just be a good couple of months. **A solution is a proposal until the pilot data backs it**, and that matters most exactly when the change is costly or hard to reverse.
+> **Show** — a pilot record answering both, illustration only: *"Ran the 5-day onboarding with six new starters over eight weeks. Their first-60-day error rate was 6.1% against 23% for the previous intake — a drop of nearly 17 points. Two-sample t-test on the two intakes: p=0.003, so the difference is real, not the luck of who joined. Overall team rate fell from 12.3% to 8.4% during the period."*
+> **Ask:** Before you run it — what result would make you roll this out? Let's agree that now, not afterwards. **Then coach the pilot design before it runs:** what is changing exactly; where and for how long; what is measured, using Measure's operational definition; and what success looks like, **agreed before the pilot starts.**
+> **Confirm** both gates are answered. **Intervene when:** before/after with no test — *"is that bigger than the normal week-to-week variation?"*; a p-value with no practical reading — *"real, but how much did the overall rate move?"*; no pre-agreed success criterion; a pilot too short to see the effect; or a different measurement definition from Measure's. **If the pilot fails, treat it as information:** *"That's worth knowing now rather than after rollout. Does it mean the solution is wrong, or that it wasn't implemented as designed? Those need different responses."* Advance.
+
+**[5 · explanatory_power · Tier 2]**
+> **Explain:** How much of the problem does this actually address? It sets the **ceiling** on what the project can deliver, and it's the honest answer when someone asks whether this fixes everything.
+> **Show** — illustration only: *"Training hours explained 41% of the variation in Analyse. Fully closing the new-staff gap should take the overall rate from 12.3% to about 6.6% — roughly half the distance to the 5% target. The remaining gap is other causes we haven't addressed."*
+> **Ask:** Your Analyse work already gave us this number — does 41% still look right as the ceiling, now you've seen the pilot?
+> **Confirm:** **read `practical_significance` from Analyse and propose it back** rather than asking the Belt to recall it. **Intervene when the claim exceeds Analyse's practical significance** — *"Analyse put this at about 41%. What's changed?"* Advance.
+
+**[6 · implementation_plan · Tier 2]**
+> **Explain:** How does this go from pilot to business as usual? Phases, owners, dates, resources — and a fallback if it doesn't hold.
+> **Show** — illustration only: *"Phase 1 (Nov): finalise the onboarding pack, train the two team leads who'll deliver it. Owner: me. Phase 2 (Dec): run with the January intake, six people. Owner: billing supervisor. Phase 3 (Jan): embed in HR induction, hand over to the supervisor permanently. Resources: two days of content build, half a day per new starter. If error rates don't hold below 8% by February, revert to the buddy system while we review."*
+> **Ask:** What are the phases, who owns each, by when, and what does it cost in time and people? And if it doesn't hold — what's the fallback?
+> **Confirm** all five are present, and **connect forward:** *"Control builds the training and documentation plans on top of this, so the more concrete now, the less rework there."* Advance.
+
+**[7 · process_owner_buyin · Tier 2]**
+> **Explain:** The process owner has to live with this after you move on — better they shape it now than object to it later.
+> **Show** — illustration only: *"Walked the billing manager through the pilot results on 3 October. She accepted the approach and asked that the onboarding run in week one rather than week two, because new starters currently get live work on day three. Adjusted the plan accordingly."* Then: *"Named person, when, what they said, and what changed as a result."*
+> **Ask:** Have you shown them the pilot results? What did they say, and did anything change because of it?
+> **Confirm** the record names the person, the date, their response **and** any resulting change. **Intervene when** the owner was informed rather than consulted, or consulted only after implementation planning was finished. Advance.
+
+**[8 · secondary_metrics · Tier 2]**
+> **Explain:** **This is the phase where secondary metrics earn their place** — the change is real and small enough to observe directly, so a side-effect shows up in the pilot rather than in theory.
+> **Show** — illustration only: *"During the pilot: processing time unchanged, overtime down slightly as rework fell, and the team reported the checklist added about two minutes per new starter — acceptable."*
+> **Ask:** During those eight weeks, did anything else move — processing time, overtime, anything the team mentioned?
+> **Confirm** against the pilot period specifically, not against the phase in general. Advance.
+
+**[9 · issues_and_barriers · Tier 1 · always last]**
+> **Explain:** Ask this **after the pilot** — Improve's blockers surface while running it, not while planning it.
+> **Show** — illustration only: *"No capacity to run a second pilot cell before January. The checklist needs a change to the onboarding system that IT hasn't scheduled. The pilot team was the smallest and may not represent the busiest desk."*
+> **Ask:** Now you've run the pilot — what got in the way, and what would get in the way of rolling it out?
+> **Confirm.** Typical Improve blockers: no capacity to run the pilot properly, the change needs a system modification IT won't schedule, or the pilot team isn't representative. "none identified at this stage" is a valid conscious answer.
+
+**[COMPUTATION TOOLS — the seven-step pattern, one block per tool]**
+
+### `calculate_doe_main_effects`
+
+**1 — Educate on the concept.**
+> "Let me explain what a main effect is before we look at numbers.
+>
+> You ran an experiment with several factors — say checklist use, review
+> timing and system prompts — each set at two levels. A 'main effect' is
+> how much one factor moves the result **on its own**, averaged across
+> everything the other factors were doing.
+>
+> Think of it as: if I only changed this one dial and left the rest
+> alone, how far would the needle move?
+>
+> The result will look like:
+>
+>   *Checklist use:  −7.2 points
+>   Review timing:  −2.1 points
+>   System prompts: −0.3 points*
+>
+> Bigger number means bigger lever. Small ones — like 0.3 there — are
+> usually inside the noise and can be dropped, which simplifies your
+> solution.
+>
+> One limit worth knowing: this looks at each factor alone. If two
+> factors only work when combined, that's an *interaction*, and it shows
+> up separately."
+
+**2 — Explain why now.**
+> "This tells you which parts of your change are doing the work, so you
+> can drop the ones that aren't. Fewer moving parts is easier to sustain
+> in Control."
+
+**3 — Guide data preparation.**
+> "I need the results one row per run: the settings you used for each
+> factor, and the result you got. Three factors at two levels each means
+> eight rows for a full set."
+
+Check `rag_lookup_evidence` for an uploaded results sheet. If the design
+is unbalanced or runs are missing, say so: *"you have six of the eight
+combinations — we can still read the main effects, but interactions will
+be shaky."*
+
+**4 — Run the computation.**
+
+**5 — Interpret their result.**
+> "Checklist use is the big one — turning it on moves the error rate by
+> about 7 points on its own. Review timing gives you roughly 2 points.
+> System prompts barely register at 0.3, which is inside the noise.
+>
+> So the checklist is doing almost all the work. You could drop the
+> system prompt change and lose very little — and that's one fewer thing
+> to document, train and monitor later."
+
+**6 — Visualise.** `propose_diagram` a main effects plot — factors on the
+x-axis, effect size on the y. Belts read the ranking instantly.
+
+**7 — Coach the next move.**
+> "That points at a simpler solution than you planned — checklist plus
+> review timing, skip the system change. Shall we pilot that
+> combination?"
+
+---
+
+**[GATE READINESS — closing]**
+> Good work — that's Improve done. You have a solution chosen against visible
+> criteria, a stated position on experimentation, and a pilot that proves the
+> change is both real and worth having. Review it in the **gate document** tab
+> and approve when you're ready to move to Control. You can still edit anything.
+
+#### 39.4.11 Cross-phase reads and writes
+
+**Reads from Analyse** (`store.get(("projects", case_id, "artifacts"), "analyse")`):
+`root_cause_statement` (**what the solution must address**), `practical_significance`
+(the size of the prize), `causal_hypothesis` and `phase_metrics` (the metric
+linkage `solution_linked_to_root_cause` extends), `ruled_out_causes` (do not
+re-propose a rejected cause's fix). Also reads Define's `metric_definitions` and
+`target_value` (the pilot is measured against it).
+
+**Writes**: the 9 content fields, `phase_metrics` (solution → metric, with pilot
+effect), and `solution_linked_to_root_cause` (with `references_metric_name`).
+
+**Hands to Control**: `selected_solution` (**what is now in place to hold**),
+`pilot_result` and `implementation_plan` (the proven effect and how it was rolled
+out), `phase_metrics` (which metrics moved, for Control's post-improvement
+comparison).
+
+#### 39.4.12 The other phase
+
+Control follows this same section shape and takes §39.5 at its own review.
+**Define, Measure, Analyse and Improve are the ratified exemplars; Control remains
+stubbed.**
 
 ---
 
@@ -5347,7 +5797,7 @@ it.
 | Field | Phase | Tier | References | `references_metric_name` |
 |---|---|---|---|---|
 | `causal_hypothesis` | Analyse | 2 | Measure's `baseline_mean`, for a named metric | **Yes — §39.3** |
-| `solution_linked_to_root_cause` | Improve | 2 | Analyse's `root_cause_statement` | Carried, unpopulated — §39.4 |
+| `solution_linked_to_root_cause` | Improve | 2 | Analyse's `root_cause_statement`, for a named metric | **Yes — §39.4** |
 | `post_improvement_metrics` | Control | **1** | Measure's `baseline_mean`, per metric | Carried, unpopulated — §39.5, **F-14** |
 
 **Only `post_improvement_metrics` is Tier 1**, and that asymmetry is
@@ -9550,6 +10000,27 @@ class ImproveOutput(BaseModel):
     uploads:              list[dict] = []
 ```
 
+> **Improve's `phase_metrics` carries the LINKAGE-PLUS-PILOT form** (§39.4.3).
+> Each entry records which registry metric the selected solution is expected to
+> move, and what the pilot achieved on it:
+>
+> ```python
+> phase_metrics = [
+>     {"name": "invoice_error_rate",
+>      "moved_by": "selected solution: onboarding checklist",
+>      "pilot_effect": "12.3% → 4.1% in the pilot cell", "source": "pilot"},
+>     {"name": "invoice_cycle_time",
+>      "moved_by": "not addressed this phase", "source": "linkage"},
+> ]
+> ```
+>
+> **A registry metric the solution does not target writes `"not addressed this
+> phase"`** — populated-or-explicit, never silently absent (§40, §63.9 B2).
+> **`solution_linked_to_root_cause` names the metric** via
+> `references_metric_name` (§63.6, S-C32), so a multi-metric project links the
+> solution to the specific Y its root cause explained; the grader resolves the
+> link by lookup against Analyse's gate document (§42).
+
 **Behaviors (EARS):**
 
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
@@ -9647,7 +10118,7 @@ so the shape is settled once**, rather than three times in three reviews.
 | Field | Phase | Tier | References | `references_metric_name` populated? |
 |---|---|---|---|---|
 | `causal_hypothesis` | Analyse | 2 | Measure's `baseline_mean`, for a named metric | **Yes — §39.3** |
-| `solution_linked_to_root_cause` | Improve | 2 | Analyse's `root_cause_statement` | Carried, unpopulated — §39.4 |
+| `solution_linked_to_root_cause` | Improve | 2 | Analyse's `root_cause_statement`, for a named metric | **Yes — §39.4** |
 | `post_improvement_metrics` | Control | **1** | Measure's `baseline_mean`, per metric | Carried, unpopulated — §39.5, **F-14** |
 
 **Behaviors (EARS):**
@@ -10368,7 +10839,7 @@ Analyse's.
 | **F-12** | **Control has no `actual_close_date`, and Define's `target_date` therefore has nothing to be compared against.** Define's finalization (2026-08-26) makes `target_date` a required field and states explicitly that it is the **planned** completion date — a project-management parameter that may slip without invalidating the improvement. **The pattern it belongs to is target-vs-actual**, the same one `target_value` uses: Define states the target, Control captures what actually happened, and the delta is the finding. `target_value` has its Control counterpart in `post_improvement_metrics` (S-C31); **`target_date` has none.** Recorded as a forward dependency, **not built here** — Control's field list is settled at its own phase review (§39.5, blocked on G-27/G-28), and adding a field to `ControlOutput` outside that review is exactly the one-phase-at-a-time change §40 warns about. **When Control is specified, `actual_close_date` must be on the agenda alongside the schedule-variance question it implies** (is a slipped date a Control finding, or only a record?) |
 
 | **F-13 — RESOLVED 2026-08-26** | ~~**Analyse's `causal_hypothesis` does not say WHICH criterion a root cause explains.**~~ **Closed at the Analyse phase review (§39.3):** the cross-phase reference shape (§63.6, S-C32) gains **`references_metric_name`**, and the grader now matches it against the referenced phase's `phase_metrics` `name` rather than reading a bare scalar (S-C32 B1, B5). The key is on **all three** reference dicts for a uniform resolution path; Analyse populates it now, Improve and Control at §39.4 and §39.5. **The original finding, for the record:** Harmless while a project tracks one measurement criterion; ambiguous the moment it tracks two. `causal_hypothesis` is a cross-phase reference dict (§7, §42) carrying `references_phase` / `references_field` / `references_value`, and the grader verifies the link by deterministic lookup — but with `baseline_estimate` naming *"Error rate: 12.3%. Cycle time: 2.6 days."*, a root cause referencing "the baseline" resolves to a string containing both, and **"explains 60% of the problem" stops having a single referent.** `practical_significance` inherits the same ambiguity. **Recorded, not built** — Analyse's field list is settled at its own phase review (§39.3, blocked on G-27/G-28), and adding a sub-key to one phase's reference dict outside that review is the one-phase-at-a-time change §40 warns against. Raised by the multi-criteria ruling, 2026-08-26 |
-| **F-14** | **Control's target-vs-actual becomes one comparison per criterion.** *(Still open — but its reference shape is now defined: `post_improvement_metrics` carries `references_metric_name` from 2026-08-26, unpopulated until §39.5. What remains is Control's own decision about how N comparisons are presented and graded, not how they are addressed.)* `post_improvement_metrics` (S-C31) is the AFTER end of the measurement thread and is graded by lookup against Measure's `baseline_mean` (§63.5 B2). With N criteria that is **N comparisons, not one** — and a Control phase reporting a single improvement delta across several metrics is the same failure `MEASURE_RUBRIC` now catches at the Measure gate, arriving one phase later. Pairs with **F-12**, which owes Control an `actual_close_date`: both are Control-side consequences of Define-side decisions, and **both should be settled in the same Control review** rather than discovered separately. **Recorded, not built.** Raised by the multi-criteria ruling, 2026-08-26 |
+| **F-14** | **Control's target-vs-actual becomes one comparison per criterion.** *(§39.4 landed 2026-08-27, leaving Control the last unspecified phase — this is now the one open finding blocking §39.5.)* *(Still open — but its reference shape is now defined: `post_improvement_metrics` carries `references_metric_name` from 2026-08-26, unpopulated until §39.5. What remains is Control's own decision about how N comparisons are presented and graded, not how they are addressed.)* `post_improvement_metrics` (S-C31) is the AFTER end of the measurement thread and is graded by lookup against Measure's `baseline_mean` (§63.5 B2). With N criteria that is **N comparisons, not one** — and a Control phase reporting a single improvement delta across several metrics is the same failure `MEASURE_RUBRIC` now catches at the Measure gate, arriving one phase later. Pairs with **F-12**, which owes Control an `actual_close_date`: both are Control-side consequences of Define-side decisions, and **both should be settled in the same Control review** rather than discovered separately. **Recorded, not built.** Raised by the multi-criteria ruling, 2026-08-26 |
 
 ### 66.8 The Supplier/Customer cross-check — first run, 2026-08-23
 
