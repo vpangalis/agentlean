@@ -96,10 +96,17 @@ TEAM_MEMBER_KEYS: tuple[str, ...] = ("name", "role", "function")
 
 
 class DefineOutput(BaseModel):
-    """Gate document for the Define phase — 16 fields.
+    """Gate document for the Define phase — 18 fields.
 
-    **All 12 content fields gate-required (Option A) · 4 gate metadata**
-    (§40, §63.1). No tier split — see the module docstring.
+    **12 content fields, all gate-required (Option A) · `metric_definitions`,
+    the registry, also gate-required · `phase_metrics` · 4 gate metadata**
+    (§40, §63.1). Thirteen block the gate; twelve are coached. No tier split —
+    see the module docstring.
+
+    *(This read "16 fields" until 2026-08-28 — the count from before the metric
+    registry landed at ARCHITECTURE.md v1.15, which added `metric_definitions`
+    and `phase_metrics`. §40 and §63.1 have said 18 since. Corrected against
+    `DefineOutput.model_fields`, which is 18.)*
 
     Assembled ONCE, at `gate_apply`, by Pydantic construction over values
     already captured — **there is no LLM call in this path** (§20, §33). Every
