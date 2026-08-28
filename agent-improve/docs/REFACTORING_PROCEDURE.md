@@ -65,7 +65,7 @@ agrees. The horizontal order then runs 2.5 → 3.3 → 3.4.
 > names. Reading the code says it is not contained: the v1 names are emitted by
 > **`EXTRACTION_DEFINE` in `core/prompts.py`**, not by `orchestrate.py`, which
 > merges them unfiltered; **four readers beyond the three cross-phase briefs**
-> stand on them (`ui/index.html` ~30 sites, `phases/measure/{orchestrate,
+> stand on them (`ui/index.html` 78 sites, `phases/measure/{orchestrate,
 > validate}.py`'s metric seeding, `gateway/routes.py:433`, `upload/agent.py:89`);
 > **three of the moves are not renames** (`primary_metric` + unit → the
 > `metric_definitions` registry is scalar → registry; the **5W2H fields have no
@@ -77,8 +77,17 @@ agrees. The horizontal order then runs 2.5 → 3.3 → 3.4.
 > **Consequence:** the Define gate stays inert until the v2 capture path exists
 > — executor node → `CoachingResponse.fields_captured` → `artifacts` — which is
 > the 4.1 / 6.1 / 6.2 run, not a step before it. A founder ruling is owed on the
-> route. **§0.2's WATCH 7 row and step 3.4's consequence note are left as
-> written**, per the annotate-don't-rewrite rule; read them against this banner.
+> route; the evidence and three costed routes are in
+> **`docs/WATCH7_AUDIT_2026-08-27.md`**. **§0.2's WATCH 7 row and step 3.4's
+> consequence note are left as written**, per the annotate-don't-rewrite rule;
+> read them against this banner.
+>
+> **One inconsistency this surfaced, annotated not fixed:** §0.2 says WATCH 7
+> clears when *"4.1 lands (… executor stops delegating to v1
+> `orchestrate_define`)"*, but **step 4.1's own prompt has the executor
+> delegating to `orchestrate_define`**. As written, WATCH 7 does not clear at
+> 4.1 — it clears at **6.2**, when the executor gains its own capture path via
+> `response_format=CoachingResponse`.
 
 ---
 
