@@ -6,6 +6,82 @@ Status: **RATIFIED.** The ordered path from the v1 tree to the target in
 
 ---
 
+## ⚑ STATUS BANNER — 2026-08-27 · the phase specs are now RATIFIED INPUTS
+
+*Added, not rewritten. **No step is renumbered and no step's prose is
+altered.** This document was written 2026-08-22, before the five phase reviews
+ran; several steps below therefore reason about phase content as an open
+question. It is no longer open.*
+
+**What became ratified between 2026-08-22 and 2026-08-27:**
+
+| Input | Where | State |
+|---|---|---|
+| The five per-phase specs | `ARCHITECTURE.md` **§39.1–§39.5** | ✅ ratified — ordered field list (`field_index`), tier split, bound tools, methodology guards, routing/gate conditions, cross-phase reads/writes, embedded coaching script |
+| The five gate-document schemas | **§63.1–§63.5** | ✅ ratified — Define 18 / Measure 15 / Analyse 14 / Improve 14 / Control 17 |
+| The 20 computation tools | **§69** (S-F37–S-F56) | ✅ **specified** — name, inputs, output shape, preconditions, phase binding. **Code is still this document's step 5.3** |
+| The five Layer-2d rubrics | DEFINE / MEASURE / ANALYSE / IMPROVE / CONTROL | ✅ ratified — each phase's methodology guards as Tier-1 checks |
+| The metric registry | `metric_definitions` + `phase_metrics`, **§63.8 / §63.9** | ✅ ratified — single-authority invariant live in `core/metrics.py`, unit-tested across all five phases |
+
+**What this changes for the steps below — build against these, not around
+them:**
+
+- **Step 3.4** (`{Phase}Output` schemas + validators + UI) — the four
+  outstanding phases now have a ratified field list, type and tier for every
+  field. Its Stage-2 prompt no longer has to be "written after reading the
+  audit" for *what the fields are*; §63.2–§63.5 answer that. The audit is still
+  owed for the **UI** half, which is untouched for all five phases.
+- **Step 4.1** (Define subgraph) and **4.4** (the other four) — the gate
+  conditions, routing and per-phase state parameters the nodes wire up are
+  specified in each §39.x.
+- **Step 5.3** (the 20 tools) — §69 is the build spec. Names, signatures and
+  preconditions are settled; this step writes the functions to them.
+- **Steps 7.1–7.4** (validation and gates) — the five rubrics are the Layer-2d
+  content.
+
+**Gap status at this banner** (`ARCHITECTURE.md` §66 — 46 identified, 12 closed
+or resolved, 34 open):
+
+- **CLOSED, so no step below is waiting on them:** F-12, F-13, F-14 (findings,
+  closed at the Analyse / Improve / Control reviews) and **G-25** (the
+  computation layer, resolved at spec level by §69). *Checked: no step in this
+  document names any of them in a Precondition — a `grep` for `G-25`, `G-27`,
+  `G-28`, `G-36`, `F-12`, `F-13`, `F-14` returns zero hits here. Nothing to
+  un-block.*
+- **STILL OPEN, and both are build gaps carried by steps below:** **G-27**
+  boundary mappers = **step 3.3**; **G-28** gate assembly for the four phases
+  beyond Define (only Define's was written) = **step 3.4** and **7.1**.
+
+### The resume point is step 2.4 — CONFIRMED
+
+**One spine step of 38 is done** (2.3, the dependency upgrade), plus **9.0**
+out-of-band. **The next step is 2.4** — `set_entry_point` →
+`add_edge(START, …)`, one line and an import, `grep-absence` verify. Appendix D
+agrees. The horizontal order then runs 2.5 → 3.3 → 3.4.
+
+> **⚠ WATCH 7 is NOT a viable "small first step" — reassessed 2026-08-27.**
+> It has been carried (in §0.2's gate table and in step 3.4's consequence note)
+> as a contained migration of `phases/define/orchestrate.py` to the v2 field
+> names. Reading the code says it is not contained: the v1 names are emitted by
+> **`EXTRACTION_DEFINE` in `core/prompts.py`**, not by `orchestrate.py`, which
+> merges them unfiltered; **four readers beyond the three cross-phase briefs**
+> stand on them (`ui/index.html` ~30 sites, `phases/measure/{orchestrate,
+> validate}.py`'s metric seeding, `gateway/routes.py:433`, `upload/agent.py:89`);
+> **three of the moves are not renames** (`primary_metric` + unit → the
+> `metric_definitions` registry is scalar → registry; the **5W2H fields have no
+> v2 home at all**, §39.1.3; `sipoc` gains a sixth key the generator never
+> produces); and **Appendix B marks all five `orchestrate.py` DELETE, not
+> REWRITE**. Step 3.4's own ruling would additionally force the `ui/index.html`
+> rename into the same commit, under a `manual-UI` verify.
+>
+> **Consequence:** the Define gate stays inert until the v2 capture path exists
+> — executor node → `CoachingResponse.fields_captured` → `artifacts` — which is
+> the 4.1 / 6.1 / 6.2 run, not a step before it. A founder ruling is owed on the
+> route. **§0.2's WATCH 7 row and step 3.4's consequence note are left as
+> written**, per the annotate-don't-rewrite rule; read them against this banner.
+
+---
+
 ## About this document
 
 `../../AGENTIC_ARCHITECTURE_REFERENCE.md` describes **the target**. `CLAUDE.md` states **the

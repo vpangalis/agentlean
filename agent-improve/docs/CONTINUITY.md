@@ -1,12 +1,24 @@
 <!--
 Document: agent-improve/docs/CONTINUITY.md
-Version: 4.7 — 2026-08-27
+Version: 4.8 — 2026-08-27
 Purpose: Session-start orientation. A new session reading ONLY this file should
          be able to orient fully and continue without losing a day.
 
 MAINTENANCE RULE: when a version number, a step, or a document location
 changes, update this file in the same commit. Verify claims against the files
 themselves; do not carry a line forward because it was here before.
+
+v4.8 delta (2026-08-27): THE BUILD PHASE IS OPEN. §5's status table said
+"Measure IN PROGRESS / Analyse-Improve-Control Not started" — false since v4.7;
+all five now read DONE / ratified, and §5's heading pivots from "PHASE REVIEWS,
+then the backbone, then build" to the build itself. `PRE_REFACTOR_STATE.md`
+added (the milestone snapshot). §6's gap count corrected 44/9/35 -> 46/12/34
+against §66. **WATCH 7 REASSESSED and materially enlarged** — the Define writer
+is not contained in `orchestrate.py`, four more readers stand on the v1 names,
+three of the moves are not renames, and Appendix B marks `orchestrate.py`
+DELETE not REWRITE; a founder ruling is owed on the route. The immediate next
+step is procedure step **2.4**, NOT WATCH 7. Doc-content only — no schema, no
+code. ARCHITECTURE.md v1.19, CLAUDE.md 2.2.29 (both unchanged).
 
 v4.7 delta (2026-08-27): CONTROL phase review done — §39.5 landed, F-12 and F-14
 CLOSED, actual_close_date added (ControlOutput 17), single-authority extended to
@@ -136,6 +148,7 @@ the machine-readable step index the session-start hook parses.**
 | `docs/DEFINE_AMENDMENT_2026-08-25.md` | The original Define spec (§39.1). Superseded on tier counts by the finalization; kept as history |
 | `docs/DEFINE_FINALIZATION_2026-08-26.md` | **Authoritative Define spec: 12 required fields, no tiers (Option A)** |
 | `docs/PROCEDURE_RECONCILIATION_2026-08-25.md` | The four edits reconciling the procedure to the out-of-band commits |
+| `docs/PRE_REFACTOR_STATE.md` | **The 2026-08-27 milestone snapshot** — inventory, retrospective and readiness at the seam between "designed" and "built". Functional, **not binding**; binding detail stays in ARCHITECTURE / CLAUDE / this file / the procedure |
 
 ### Historical record — not binding, do not cite in rules
 
@@ -198,7 +211,22 @@ Not-yet-existing: `core/substate.py` · `core/store.py` · `middleware/` ·
 
 ---
 
-## 5. The active workstream — PHASE REVIEWS, then the backbone, then build
+## 5. The active workstream — THE BUILD (the phase reviews are COMPLETE)
+
+> **PIVOT, 2026-08-27 (v4.8).** This heading read *"PHASE REVIEWS, then
+> the backbone, then build"* for the whole of the review workstream. **All
+> five phase reviews are done and ratified** — §39.1–§39.5, §63.1–§63.5,
+> §69's 20 tools, the five rubrics and the metric registry. The active
+> workstream is now **the build**, and the phase specs are its ratified
+> INPUTS, not open questions. The review material below is kept as the
+> record of how each phase was settled — read it as the source of the
+> field vocabulary, not as work still to do.
+
+> **Where the build resumes: procedure step 2.4**
+> (`set_entry_point` → `add_edge(START, …)`), then the horizontal order
+> 2.5 → 3.3 → 3.4's four outstanding phases. See
+> `PRE_REFACTOR_STATE.md` for the one-screen inventory of spec-done /
+> code-not-started, and `REFACTORING_PROCEDURE.md`'s status banner.
 
 **Decision (2026-08-26): phases are reviewed individually BEFORE the backbone is
 finalized, because the phases define what fields the state/schemas must hold.**
@@ -227,11 +255,23 @@ code runs anyway.
 
 ### Phase-review status
 
-| Phase | Status |
-|---|---|
-| **Define** | **DONE — being FINALIZED.** 12 required fields, NO tiers (Option A). See below |
-| **Measure** | **IN PROGRESS.** Schema exists (§40, 14 fields). Rulings captured; capture-review nearly closed; computation-tools spec pending |
-| Analyse / Improve / Control | Not started. Schemas exist in §40; need the ordered coaching + SKILL.md + tier decision |
+**ALL FIVE DONE AND RATIFIED — the workstream is CLOSED (2026-08-27).**
+
+| Phase | Status | Spec | Gate schema | Fields |
+|---|---|---|---|---|
+| **Define** | **DONE — ratified** | §39.1 | §63.1 | 18 (12 required, no tiers — Option A) |
+| **Measure** | **DONE — ratified** | §39.2 | §63.2 | 15 |
+| **Analyse** | **DONE — ratified** | §39.3 | §63.3 | 14 |
+| **Improve** | **DONE — ratified** | §39.4 | §63.4 | 14 |
+| **Control** | **DONE — ratified** | §39.5 | §63.5 | 17 |
+
+Each carries its ordered field list (`field_index`), tier split, bound tools,
+methodology guards, cross-phase reads/writes, metric literacy and an **embedded
+coaching script** (§39.1.7 / .2.10 / .3.10 / .4.10 / .5.10), byte-consistent
+with its SKILL.md. The five Layer-2d rubrics, the 20 computation-tool specs
+(§69) and the metric registry (`metric_definitions` + `phase_metrics`, with the
+single-authority invariant in `core/metrics.py`) landed with them. **There is no
+§39.6.**
 
 ### Define — FINALIZED (authoritative: `DEFINE_FINALIZATION_2026-08-26.md`)
 
@@ -273,7 +313,7 @@ still step 4.1.
 > direction** and is left as the dated record it is; if it is ever re-applied
 > verbatim it will re-introduce the collision.
 
-### Measure — rulings captured (2026-08-26), review continuing
+### Measure — rulings captured (2026-08-26); review CLOSED 2026-08-27 (§39.2)
 
 - **Rename `baseline` → `baseline_metric` EVERYWHERE — APPLIED 2026-08-26.**
   (Define's field and Measure's read of it.) `baseline` collided with
@@ -313,7 +353,11 @@ phase). The **code** is written during refactoring (procedure step 5.3), by
 Claude Code. So specifying ~20 tools is bounded spec work, not building an
 engine now.
 
-**Container decision (OPEN, next up):** the computation tools should be a
+**Container decision — CLOSED 2026-08-27 as recommended (§69).** The 20 tools
+are a STANDALONE spec section, not embedded in Measure. The rest of this
+paragraph is the reasoning that produced that ruling:
+
+The computation tools should be a
 STANDALONE subsystem spec (reusable across all 5 phases — Pareto/Analyse,
 Cpk/Measure, regression, control charts), NOT embedded inside Measure's section.
 Each phase's review NAMES its required tools; the computation-tools spec section
@@ -323,9 +367,35 @@ G-36 (upload endpoint) resolve here at the spec level. Data enters via
 `improve_evidence_index`; tools are read-only `@tool` functions; seven-step
 computation pattern §43; no fallback-fetch.
 
-**Immediate next step:** finish Measure's capture review (fields, recap, MSA
-coaching, the rename) which yields Measure's NAMED computation requirements →
-then write the computation-tools spec section (all ~20, buildable accuracy).
+> **SUPERSEDED 2026-08-27 (v4.8).** This read: *"finish Measure's capture
+> review … then write the computation-tools spec section."* Both are done —
+> Measure closed at §39.2, the 20 tools are specified at §69, and Analyse,
+> Improve and Control closed after them. Kept struck rather than deleted so the
+> sequence that produced §69 stays readable.
+
+### THE IMMEDIATE NEXT STEP — 2026-08-27
+
+**The phase-review workstream is complete. The next step is BUILD, not
+specification.**
+
+1. **Resume the procedure at step 2.4** — `set_entry_point` →
+   `add_edge(START, …)` in `core/graph.py`. One line plus an import;
+   `grep-absence` verify. Then the horizontal order: 2.5 → 2.6 → 2.7 → 3.1 →
+   3.2 → 3.3 (mappers, G-27) → 3.4's four outstanding phases + the UI rename.
+2. **WATCH 7 / `orchestrate.py` is NOT the free-standing first step it was
+   thought to be.** The 2026-08-27 audit found the Define write path is not
+   contained in `orchestrate.py`: the v1 field names are produced by
+   `EXTRACTION_DEFINE` in `core/prompts.py`, and four other readers stand on
+   them (`ui/index.html`, Measure's metric seeding, `gateway/routes.py`,
+   `upload/agent.py`). `REFACTORING_PROCEDURE.md` Appendix B lists all five
+   `orchestrate.py` files as **Delete**, not Rewrite. **See the WATCH 7 entry
+   in §6 for the full finding and the three options.** Do not start it as a
+   rename.
+3. **Ratified inputs to the build** — §39.1–§39.5, §63.1–§63.5, §69's 20 tools,
+   the five rubrics, the metric registry. Build against these; they are settled.
+   Open build gaps: **G-27** (mappers) and **G-28** (gate assembly for the four
+   phases beyond Define). The root-reference back-port is owed once Improve
+   settles.
 
 ---
 
@@ -337,9 +407,19 @@ then write the computation-tools spec section (all ~20, buildable accuracy).
 - **Two Azure index schema changes** — RATIFIED, NOT APPLIED. `improve_evidence_index` gains `phase` + `uploaded_at`; `improve_case_index` `embedding` → `content_vector`. Batch — step 9.1. (Independent of the knowledge-index rebuild, which touched a different index.)
 
 ### SPEC-GAP register
-**`ARCHITECTURE.md` §66 — 44 identified, 9 closed, 35 open. Group A empty**
-(no founder rulings outstanding). G-38 closed 2026-08-26 (Define field order).
-Pick the next gap from §66. Group D holds the computation layer (G-25, G-36).
+**`ARCHITECTURE.md` §66 — 46 identified, 12 closed or resolved, 34 open.
+Group A empty** (no founder rulings outstanding). *(This line read "44 / 9 / 35"
+until 2026-08-27 — it was never updated when §66's own header moved to 46/12/34
+at v1.15. Corrected against §66, which carries the live count.)*
+- G-38 closed 2026-08-26 (Define field order); G-45 and G-46 registered and
+  resolved in the same v1.15 pass (the metric registry's two spec entries).
+- **Group D — the computation layer (G-25, G-36) — is resolved at SPEC level**
+  by §69's 20 tool specifications. The CODE is procedure step 5.3.
+- **The next gaps are build-side: G-27** (boundary mappers,
+  `phases/{phase}/mappers.py`, procedure step 3.3) **and G-28** (gate assembly
+  for the four phases beyond Define — only Define's was written).
+- **Findings, not gaps** (§66.7): F-12, F-13 and F-14 all CLOSED at the
+  Analyse/Improve/Control reviews. They do not move the gap count.
 
 ### Watches (owed work, NOT §66 gaps — the register will not surface them)
 
@@ -355,11 +435,49 @@ Pick the next gap from §66. Group D holds the computation layer (G-25, G-36).
 - **WATCH 6 — PDF page 302 ships as `general`** (Azure content-filter false
   positive, permanent, not retried). Genuinely Analyse content; reachable
   everywhere via `general`.
-- **WATCH 7 — v1 Define gate inert until `orchestrate.py` migrates.**
-  `validate.py` reads v2 names; `orchestrate.py` still writes v1 (`what`/`where`/
-  `scope_in`…). The rename landed ahead of its writer — NOT a defect, no shim
-  (§17). Owed: migrate `orchestrate.py` AND the Define cross-phase briefs in
-  analyse/improve/control at **step 3.4/4.1**. Do not switch readers first.
+- **WATCH 7 — v1 Define gate inert. REASSESSED 2026-08-27 — it is NOT a
+  self-contained rename, and it is NOT the right first build step.**
+  `validate.py` reads the v2 names; the live v1 path still writes v1
+  (`what`/`where`/`scope_in`…). The rename landing ahead of its writer is still
+  NOT a defect and still takes no shim (§17). What changed is the size and the
+  shape of the owed work, established by reading the code rather than the spec:
+
+  1. **The writer is not `orchestrate.py`.** The v1 field names are emitted by
+     the LLM extraction prompt `EXTRACTION_DEFINE` in `core/prompts.py` (26 JSON
+     keys). `orchestrate.py:53-55` merges whatever keys come back, unfiltered.
+     Migrating "the writer" means rewriting that prompt — a file the paper spec
+     for this step never named.
+  2. **Four more readers stand on the v1 names**, none of them the three
+     cross-phase briefs: `ui/index.html` (~30 sites — `DEFINE_GATE_FIELDS`, the
+     gate checklist, the work-product rings, the 5W2H mindmap);
+     `phases/measure/{orchestrate,validate}.py` (seed
+     `primary_metric_confirmed` from Define's `primary_metric` /
+     `primary_metric_unit` / `secondary_metric`); `gateway/routes.py:433`
+     (`"what"` into the upload context); `upload/agent.py:89`.
+  3. **Three v1→v2 moves are not renames.** `primary_metric` + unit →
+     `metric_definitions` is scalar → registry, so Measure's seeding must be
+     rewritten, not renamed. The **5W2H fields have no v2 home at all** (§39.1.3
+     — coaching prompts, never stored), so the mindmap, `_build_5w2h_
+     visualisation`, `_problem_statement_complete` and the UI diagram have
+     nothing to point at. `sipoc` (5 keys) → `process_map_sipoc` (6, incl
+     `process_metrics`) needs a key the generator does not produce, so the
+     six-key check in `validate.py` would fail every time.
+  4. **`orchestrate.py` is marked DELETE, not REWRITE** —
+     `REFACTORING_PROCEDURE.md` Appendix B, all five of them; `validate.py`'s own
+     docstring says the v2 writer is the executor node and `orchestrate.py` is
+     deleted at step 11.1.
+  5. **Migrating it cannot be verified without a browser.** Procedure step 3.4
+     rules the `ui/index.html` rename must land in the SAME commit, and its
+     verify method is `manual-UI`.
+
+  **Consequence:** the gate stays inert until the v2 capture path exists
+  (executor node → `CoachingResponse.fields_captured` → `artifacts`), i.e. the
+  4.1 / 6.1 / 6.2 run — not before. Do not switch the readers first (§17), and
+  do not migrate `orchestrate.py` as a rename. **A founder ruling is owed on
+  which of three routes to take** — carry v1 to 11.1 and delete it, do a
+  full v1→v2 cutover as one large `manual-UI` commit, or bring the executor
+  forward. Recorded in full in the 2026-08-27 audit report; the three options
+  and their costs are in that report, not decided here.
 - **WATCH 9 — `CoachingResponse`'s four presentational fields render nowhere
   yet.** `explanation`/`example`/`prompt`/`progress` in the schema; UI half is
   the UI rebuild (step 10.2). The four Measure/Analyse/Improve/Control SKILL.md
@@ -449,6 +567,7 @@ evidence.** When you write a verification, first prove it can fail.
 
 | Version | Date | Change |
 |---|---|---|
+| **4.8** | 2026-08-27 | **THE FIVE-PHASE SPEC IS COMPLETE AND THE BUILD PHASE IS OPEN — a doc-content pass that records the milestone and one code finding.** **§5 was stale in the place a fresh session reads first**: its phase-review status table still said Measure *IN PROGRESS* and Analyse/Improve/Control *Not started*, false since v4.7. The table now reads **DONE / ratified for all five**, with each phase's §39.x, §63.x and field count; the §5 heading pivots from *"PHASE REVIEWS, then the backbone, then build"* to **the build**, with the review material kept as the record of how the field vocabulary was settled rather than as work outstanding. The stale *"finish Measure's capture review → then write the computation-tools spec"* next-step is superseded (both done — §39.2 and §69) and replaced by a build next-step: **resume the procedure at step 2.4**. **`PRE_REFACTOR_STATE.md` added** — the functional pre-build snapshot (inventory, retrospective, readiness), explicitly not binding. **§6's gap register corrected 44/9/35 → 46/12/34**: the line had never been updated when §66's own header moved at v1.15, and F-12/F-13/F-14 are findings, not gaps, so they do not move it. **`REFACTORING_PROCEDURE.md` gains a status banner** stating that §39.1–§39.5, §63.1–§63.5, §69, the five rubrics and the metric registry are now **ratified inputs** — steps 3.4, 4.1 and 5.3 build against them rather than against open questions — with no step renumbered. **WATCH 7 REASSESSED, and this is the substantive finding.** It was carried as the natural first build step, a contained rename of `orchestrate.py`. Reading the code says otherwise: the v1 names are emitted by **`EXTRACTION_DEFINE` in `core/prompts.py`**, not by `orchestrate.py`, which merges them unfiltered; **four readers beyond the three cross-phase briefs** stand on them (`ui/index.html` ~30 sites, Measure's metric seeding, `gateway/routes.py`, `upload/agent.py`); **three of the moves are not renames** (`primary_metric` → the `metric_definitions` registry is scalar → registry; the **5W2H fields have no v2 home at all** per §39.1.3; `sipoc` gains a sixth key the generator never produces); **Appendix B marks all five `orchestrate.py` DELETE, not REWRITE**; and step 3.4's ruling would force the `ui/index.html` rename into the same commit under a `manual-UI` verify. **The Define gate stays inert until the v2 capture path exists** (executor → `CoachingResponse.fields_captured` → `artifacts`). A founder ruling is owed on the route; the three options are in the 2026-08-27 audit report. Doc-content only — `git diff` over `*.py` is empty. ARCHITECTURE.md **v1.19** and CLAUDE.md **2.2.29**, both unchanged |
 | **4.7** | 2026-08-27 | **CONTROL phase review — THE FIVE-PHASE DMAIC SPECIFICATION IS COMPLETE.** §39.5 written from the ratified appendix — twelve subsections, coaching script embedded at §39.5.10, **no §39.6**. Two movements: confirm (did it hold?) then lock (make it stick); **the bright line is delivery, not authorship**. **F-12 CLOSED** — `actual_close_date` added as **Tier 2**, ControlOutput **16 → 17**, §35 Control row **3/9**. **F-14 CLOSED** — `phase_metrics` is the authoritative store of all N comparisons (`baseline`/`target`/`actual`/`delta`/`met`); `post_improvement_metrics` stays the primary metric's Tier-1 link; **the grader grades every entry**. **Single-authority extended to Control** — its shape is the odd one (`post_improvement_metrics["metric"]` == `phase_metrics[primary]["actual"]`), mapped explicitly in `core/metrics.py` and unit-tested both directions (24 tests). **`CONTROL_RUBRIC` encodes three Tier-1 guards**: link back to baseline, control plan complete AND delivered with a named accepting owner, stability before capability again. **Control SKILL.md CONFORMED, not created** — it existed at 946 lines with a field order §39.5.2 reorders. **All five phases ratified.** Remaining is BUILD, not spec: WATCH 7 (`orchestrate.py`), G-27 (mappers), G-28 (gate assembly ×4), root-reference back-port. ARCHITECTURE.md **v1.19**, CLAUDE.md **2.2.29** |
 | **4.6** | 2026-08-27 | **IMPROVE phase review + Define §32 fix.** §39.4 written from the ratified appendix — twelve subsections, coaching script embedded at §39.4.10 per the §39.1.7 pattern. **Two movements**: choose (generate → select on explicit criteria) then prove (pilot → confirm); `selected_solution` at 1, link at 2, `experiment_justification` at 3, `pilot_result` at 4 — **you decide how hard to test after you know what you're choosing between**. `IMPROVE_RUBRIC` gains **two Tier-1 guards** (solution traces to the validated root cause by lookup; pilot before rollout, practical AND statistical) and **explicit DOE belt-gating** (all three answers valid; recommended BB, suppressed GB, asked of both). Improve `phase_metrics` = linkage-plus-pilot; `solution_linked_to_root_cause` now populates `references_metric_name`. `ImproveOutput` stays **14**. **Improve SKILL.md CONFORMED, not created** — it existed at 656 lines with a field order §39.4.2 rejects (it coached `experiment_justification` first). **Define §32 gap CLOSED**: `calculate_expected_savings` had no seven-step block; added to §39.1.7 and the Define SKILL.md after the `target_value` field. **Only Control (§39.5) remains stubbed**; F-14 is its open finding. ARCHITECTURE.md **v1.18**, CLAUDE.md **2.2.28** |
 | **4.5** | 2026-08-27 | **§39.2.10 and §39.3.10 now embed their coaching script.** Both claimed §39.1.7's authoritative-during-refactor status while holding only a pointer — nothing for the SKILL.md to be generated from. Both now carry the full script in §39.1.7's format: preamble, phase opening, one block per field in §39.2.2/§39.3.2 order with Explain/Show/Ask/Confirm, one seven-step block per tool, metric literacy, gate-readiness closing; plus Analyse's two-movements framing, 5 Whys and test selection. **Content lifted, not rewritten** — 13/13 tool blocks already had seven steps and moved verbatim; 19/19 field blocks gained the four labelled parts. Fixed on the way in: Analyse's `causal_hypothesis` block showed the old three-key reference shape (now five, with `references_metric_name`), and §39.3.10's "SKILL.md does not exist yet" line. Both SKILL.md restructured to one contiguous `## 3. Coaching content` section and renumbered. **Byte-consistency verified for all three phases** by substring containment. Doc-content only — no schema, no code. ARCHITECTURE.md **v1.17** |
