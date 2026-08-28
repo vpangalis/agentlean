@@ -3,13 +3,36 @@ Document: agent-improve/docs/WATCH7_AUDIT_2026-08-27.md
 Created: 2026-08-27
 Purpose: Records why procedure step "4.1 / WATCH 7 — migrate orchestrate.py's
          Define writer to the v2 §39.1 names" was STOPPED rather than executed,
-         with the evidence, and states the three routes forward. A founder
-         ruling is owed on the route. NOT binding — binding detail lives in
+         with the evidence, and states the three routes forward. RULED
+         2026-08-28: ROUTE A (see the banner below). NOT binding — the ruling
+         is recorded in DECISIONS.md Part X and CONTINUITY.md §6; binding
+         detail lives in
          ARCHITECTURE.md / CLAUDE.md / CONTINUITY.md / REFACTORING_PROCEDURE.md.
 -->
 
 # WATCH 7 — audit, and why the step was stopped
 # 2026-08-27 · after commit `7dd473f` (Part A)
+
+> ## ⚑ RULED 2026-08-28 — **ROUTE A TAKEN**
+>
+> **`orchestrate.py` and `EXTRACTION_DEFINE`'s Define block are NOT migrated.**
+> They carry the v1 Define field names unchanged and are **deleted at step
+> 11.1**. **WATCH 7 clears at step 6.2**, when the executor gains its own
+> capture path — not at 4.1. **The Define gate is accepted as inert until
+> then**, and nothing else is blocked by that.
+>
+> **Routes B and C below are REJECTED, not deferred.** They are kept as the
+> record of what was weighed.
+>
+> **The consequence a future session must not undo:** every v1 Define field name
+> catalogued in this document — in `orchestrate.py`, the three cross-phase
+> briefs, Measure's metric seeding, `gateway/routes.py:433`, `upload/agent.py`
+> and the 78 `ui/index.html` sites — is the **ruled-correct state, not drift.**
+> **Leave them.**
+>
+> Recorded at `docs/DECISIONS.md` **Part X**, `CONTINUITY.md` v4.9 (§5, §6, §9),
+> and `REFACTORING_PROCEDURE.md` (§0.2's row, the status banner, steps 6.2 and
+> 11.1).
 
 The handoff `CLAUDE_CODE_HANDOFF_wrap_and_orchestrate.md` scoped Part B as:
 *"migrate `orchestrate.py`'s Define capture/write to the ratified v2 Define
@@ -192,12 +215,12 @@ Appendix D and the session-start hook both already say.
 
 ---
 
-## The three routes — a founder ruling is owed
+## The three routes — RULED 2026-08-28
 
-**Do not pick one by default.** All three are coherent; they differ in what
-they spend and what they risk.
+*Written before the ruling, as three open options. **Route A was taken.** B and
+C are kept as the record of what was weighed and rejected.*
 
-### Route A — carry v1 unchanged to 11.1, and delete it *(recommended)*
+### ✅ Route A — carry v1 unchanged to 11.1, and delete it — **TAKEN**
 Change nothing now. The v1 path keeps working end-to-end as it does today; the
 Define gate stays inert; the v2 capture path arrives with the executor at
 6.1/6.2 and `orchestrate.py` + `EXTRACTION_DEFINE`'s Define block are deleted
@@ -210,7 +233,7 @@ at 11.1.
   is the only route that does not put a `manual-UI` commit in front of the
   foundation steps that everything else depends on.
 
-### Route B — full v1→v2 cutover now, as one large commit
+### ❌ Route B — full v1→v2 cutover now, as one large commit — **REJECTED**
 Rewrite `EXTRACTION_DEFINE`, `orchestrate.py`, all 78 UI sites, Measure's
 seeding, `routes.py`, `upload/agent.py` and the three cross-phase briefs
 together — effectively executing step 3.4's Define portion *including* the UI
@@ -224,7 +247,7 @@ half that is outstanding for all five phases.
 - **When it is right:** if a working Define gate is needed for a demo before
   the foundation lands.
 
-### Route C — bring the executor forward
+### ❌ Route C — bring the executor forward — **REJECTED**
 Reorder the procedure so 6.1/6.2 (planner/executor with `CoachingResponse`)
 run before the remaining Stage 2–3 steps, so the v2 writer exists sooner and v1
 is retired earlier.

@@ -76,9 +76,15 @@ agrees. The horizontal order then runs 2.5 → 3.3 → 3.4.
 >
 > **Consequence:** the Define gate stays inert until the v2 capture path exists
 > — executor node → `CoachingResponse.fields_captured` → `artifacts` — which is
-> the 4.1 / 6.1 / 6.2 run, not a step before it. A founder ruling is owed on the
-> route; the evidence and three costed routes are in
-> **`docs/WATCH7_AUDIT_2026-08-27.md`**. **§0.2's WATCH 7 row and step 3.4's
+> the 4.1 / 6.1 / 6.2 run, not a step before it.
+>
+> **⚑ RULED 2026-08-28 — ROUTE A.** `orchestrate.py` and `EXTRACTION_DEFINE`'s
+> Define block are **not migrated**. They carry the v1 names unchanged and are
+> **deleted at step 11.1**, per Appendix B. **WATCH 7 clears at step 6.2.** The
+> Define gate is accepted as inert until then. Routes B and C rejected.
+> **Do not "fix" the v1 Define names anywhere in the tree — they are the
+> ruled-correct state.** Evidence in **`docs/WATCH7_AUDIT_2026-08-27.md`**,
+> ruling at **`docs/DECISIONS.md` Part X**. **§0.2's WATCH 7 row and step 3.4's
 > consequence note are left as written**, per the annotate-don't-rewrite rule;
 > read them against this banner.
 >
@@ -202,7 +208,7 @@ never be allowed to stall steps that do not depend on it.**
 | **`RunControl.request_drain()` UNCONFIRMED** | **8.5 only** | The API is confirmed against a real release or the LangGraph source — or a fallback drain is designed. Reference §45 |
 | **Azure Cache for Redis not provisioned** | 8.4 only | The resource exists. Reference §46, Appendix B |
 | **Two Azure index schema changes unapplied** | 5.2's `order_by` and `phase` filter; `rag_lookup_case_history`'s vector field | Step 9.1 lands |
-| **WATCH 7 — Define gate non-functional** | Define phase end-to-end runs | Step **4.1** lands (Define subgraph; executor stops delegating to v1 `orchestrate_define`, which still writes v1 names). Accepted interim, not a bug — a consequence of running 3.4's Define portion (commit `4701a09`) ahead of 4.1. `validate.py` reads v2 names; `orchestrate.py` writes v1 names; gate reads all Tier-1 fields missing. **Do not add a v1→v2 shim** (CLAUDE.md §17) — the migration happens naturally when 4.1 replaces the orchestrator's role. Cross-phase Define briefs in analyse/improve/control stay on v1 names until then, deliberately. |
+| **WATCH 7 — Define gate non-functional** | Define phase end-to-end runs | Step **4.1** lands (Define subgraph; executor stops delegating to v1 `orchestrate_define`, which still writes v1 names). Accepted interim, not a bug — a consequence of running 3.4's Define portion (commit `4701a09`) ahead of 4.1. `validate.py` reads v2 names; `orchestrate.py` writes v1 names; gate reads all Tier-1 fields missing. **Do not add a v1→v2 shim** (CLAUDE.md §17) — the migration happens naturally when 4.1 replaces the orchestrator's role. Cross-phase Define briefs in analyse/improve/control stay on v1 names until then, deliberately. **⚑ RULED 2026-08-28 — ROUTE A. This row is superseded on two points and left as written per annotate-don't-rewrite.** (a) It **clears at step 6.2**, not 4.1 — step 4.1's own prompt has the executor still delegating to `orchestrate_define`, so 4.1 cannot clear it. 6.2 gives the executor its own capture path via `response_format=CoachingResponse`. (b) `orchestrate.py` is **never migrated**; it and `EXTRACTION_DEFINE`'s Define block carry the v1 names unchanged and are **deleted at 11.1** (Appendix B). The Define gate is accepted as inert until 6.2 — nothing else is blocked. See `CONTINUITY.md` §6 and `docs/DECISIONS.md` Part X. |
 
 > ### ⛔ On `request_drain` specifically
 >
@@ -967,6 +973,19 @@ executor = create_agent(
 **Done when:** one turn returns `result["structured_response"]` as a
 `CoachingResponse` and the coaching prose is still present in `messages`.
 
+> **⚑ THIS STEP CLEARS WATCH 7 (ruled 2026-08-28, Route A).** It is where the
+> **v2 Define writer comes into existence**: `fields_captured` on the
+> `CoachingResponse` lands in `artifacts` under the §39.1.2 names, which is what
+> `phases/define/validate.py` has been reading since the rename. Until this
+> step, the Define gate is **accepted as inert** and `orchestrate.py` +
+> `EXTRACTION_DEFINE` keep writing the v1 names unchanged — deliberately, and
+> **not** to be "fixed" in the meantime.
+>
+> §0.2's gate row says WATCH 7 clears at 4.1. It does not: step 4.1's own prompt
+> has the executor delegating to the v1 `orchestrate_define`. Add to this step's
+> Done-when: **the Define gate opens on a case coached through the v2 path**,
+> and the v1 writer is then dead code awaiting deletion at 11.1.
+
 ---
 
 ## Step 6.3 — Middleware positions 1–3
@@ -1375,6 +1394,14 @@ recommended can pass the gate, and a blended 55% implies otherwise.
 
 Delete `ImproveGraphState`, the five `orchestrate.py` files, the five v1
 `analyse.py` stubs, and every retired name in Appendix D.1.
+
+> **⚑ This is where the v1 Define vocabulary dies (ruled 2026-08-28, Route A).**
+> The v1 Define field names were carried unmigrated to this point on purpose —
+> `orchestrate.py`, `EXTRACTION_DEFINE`'s Define block, the three cross-phase
+> briefs, Measure's metric seeding, `gateway/routes.py:433`, `upload/agent.py`
+> and the 78 `ui/index.html` sites. **The UI half is step 10.2's rebuild, not
+> this step** — check it has landed before deleting the backend writers, or the
+> workspace renders blank panels with no error (the failure step 3.4 names).
 
 **Done when:** every name in Appendix D.1 returns zero grep hits in
 `backend/`.

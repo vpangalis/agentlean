@@ -2923,3 +2923,102 @@ live documentation (report in-session).
   cross-phase briefs.
 - **The `CoachingResponse` UI rendering** — §50.1 defines the contract; no
   production UI exists yet.
+
+---
+
+## Part X — WATCH 7: the v1 Define writer is carried, not migrated (2026-08-28)
+
+### X1 — Route A. `orchestrate.py` is deleted at 11.1, never migrated; WATCH 7 clears at 6.2
+
+**Status:** RATIFIED 2026-08-28 (founder ruling). **Not a §56 amendment** — it
+changes no design, no schema and no rule. It rules on **build sequencing**: which
+of three routes closes a watch, and therefore what work is *not* done.
+**Lands in:** `CONTINUITY.md` §5, §6, §9 (v4.9); `REFACTORING_PROCEDURE.md`
+§0.2's gate row, the status banner, steps 6.2 and 11.1.
+**Source:** `docs/WATCH7_AUDIT_2026-08-27.md` — the evidence and the three
+costed routes.
+
+#### The ruling
+
+**`phases/define/orchestrate.py` and `EXTRACTION_DEFINE`'s Define block are NOT
+migrated to the v2 §39.1.2 field names.** They keep writing the v1 names,
+unchanged, until the executor's own capture path exists at **step 6.2**
+(`create_agent(…, response_format=CoachingResponse)`), and are then **deleted at
+step 11.1** — which is what `REFACTORING_PROCEDURE.md` Appendix B specified from
+the beginning.
+
+**The Define gate is accepted as inert until 6.2.** Nothing is blocked by that:
+no case runs the Define gate today, and steps 2.4 → 3.3 are all clear.
+
+**WATCH 7 clears at step 6.2, not step 4.1.** §0.2's gate table says 4.1, and
+that is wrong on its own terms — **step 4.1's own prompt has the executor still
+delegating to `orchestrate_define`**, so 4.1 cannot stop the v1 writer writing.
+The row is **annotated rather than rewritten**, per the annotate-don't-rewrite
+rule.
+
+#### What was ruled against
+
+**Route B — full v1→v2 cutover now: REJECTED.** It is not step 4.1; it is step
+3.4's Define portion *plus* the `ui/index.html` coupling that is outstanding for
+all five phases — 78 UI sites, Measure's metric seeding, `gateway/routes.py`,
+`upload/agent.py`, and design rulings owed on 5W2H retention, `process_metrics`
+capture and the registry's `meaning` key. Its verify method is **`manual-UI`**.
+Running it now would put the project's largest untested file in front of the
+foundation steps everything else depends on.
+
+**Route C — bring the executor forward: REJECTED.** 6.2 depends on middleware,
+tool binding and `PhaseState`; reordering it earlier pulls most of Stages 3–5
+with it, and the reorder is itself a §56-class amendment.
+
+#### Why Route A, in one line
+
+**It spends nothing on a file the procedure already marks for deletion.**
+Appendix B lists all five `orchestrate.py` under **Delete**, step 11.1 deletes
+them, and `phases/define/validate.py`'s own docstring says the v2 writer is the
+executor node. Migrating a file scheduled for deletion, purely to keep a v1 path
+alive, is the investment CLAUDE.md §17 exists to prevent.
+
+#### The consequence that must survive this ruling
+
+**Every v1 Define field name now in the tree is the RULED-CORRECT state, not
+drift.** A future session — or a drift sweep — will find `define.what`,
+`define.how_goal`, `define.primary_metric`, `define.sipoc`, `scope_in`,
+`estimated_completion_date` and the rest in:
+
+- `phases/define/orchestrate.py` and `core/prompts.py`'s `EXTRACTION_DEFINE`
+- the three cross-phase Define briefs in `analyse` / `improve` / `control`
+- `phases/measure/orchestrate.py` and `phases/measure/validate.py` (metric seeding)
+- `gateway/routes.py:433` and `upload/agent.py:89`
+- 78 sites in `ui/index.html`
+
+**Leave them.** They are removed together, at 10.2 (the UI half) and 11.1 (the
+backend half) — not one at a time, and not as a tidy-up. **Two vocabularies
+coexisting is the ruled state of this codebase until then**: `schema.py`,
+`validate.py` and the five SKILL.md files speak v2; everything that executes
+speaks v1. Only `goal_statement` and `target_date` exist in both.
+
+#### The measurement that made the ruling checkable
+
+Set-comparison of what the v1 path writes against `DefineOutput.model_fields`,
+run before any change so it was a check that could fail:
+
+| | |
+|---|---|
+| Written / declared / gate-read | **26 / 18 / 13** |
+| Names already agreeing | **2** — `goal_statement`, `target_date` |
+| Required fields v1 can never supply | **11 of 13** |
+
+The intersection of 2 matches `validate.py`'s docstring exactly. **WATCH 7's
+diagnosis was right; its estimated size was wrong** — that is the whole finding.
+
+#### Owed
+
+- **`ARCHITECTURE.md` §39.1.2 says "16 fields in total: 12 required, 4 gate
+  metadata"** where §40 and §63.1 in the same document both say **18**. Stale
+  since the metric registry landed at v1.15. **Not touched here** — it is a §56
+  route, and §56 forbids making one in passing. The code-side copy of the same
+  figure (`phases/define/schema.py`'s class docstring) **was** corrected, since
+  that is a docstring rather than a governance figure.
+- **Step 10.2 (the UI rebuild) must land before 11.1's backend deletions**, or
+  the workspace renders blank panels with no error — the failure step 3.4 names.
+  Recorded at step 11.1.
