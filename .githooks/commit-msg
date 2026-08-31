@@ -1,0 +1,39 @@
+#!/bin/sh
+# Tracked git hook — the refactor-commit guard.
+#
+# Activated per clone with:
+#     git config core.hooksPath .githooks
+#
+# This directory is version-controlled (unlike .git/hooks), so the guard is
+# reviewable in the same PR as the code it governs. Activation stays local and
+# opt-in, which is git's own rule: a repository cannot force hooks on a clone.
+#
+# The logic lives in .claude/hooks/commit-msg-refactor-guard.py, alongside the
+# project's two other hooks. This file is only the entry point.
+#
+# Fail-CLOSED: if python is missing, the commit is blocked rather than waved
+# through. A guard that disappears when its interpreter does is a check that
+# cannot fail — the failure mode CONTINUITY §7 names as worse than no check.
+# Escape hatch, always: git commit --no-verify
+
+GUARD=".claude/hooks/commit-msg-refactor-guard.py"
+
+if [ ! -f "$GUARD" ]; then
+    echo "" >&2
+    echo "  COMMIT BLOCKED — guard script missing: $GUARD" >&2
+    echo "  Restore it, or bypass with: git commit --no-verify" >&2
+    echo "" >&2
+    exit 1
+fi
+
+for PY in python3 python py; do
+    if command -v "$PY" >/dev/null 2>&1; then
+        exec "$PY" "$GUARD" "$1"
+    fi
+done
+
+echo "" >&2
+echo "  COMMIT BLOCKED — no python interpreter found for the refactor guard." >&2
+echo "  Bypass with: git commit --no-verify" >&2
+echo "" >&2
+exit 1
