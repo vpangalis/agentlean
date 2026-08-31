@@ -12,7 +12,7 @@ Legend:  ✅ done · ▶ next · ☐ to do · ⛔ blocked · ⏸ gated/external
 # Agent Improve — Refactor Build Tracker
 # updated 2026-08-31 · build target: `agent-improve/ARCHITECTURE.md`
 
-**Progress: 2 of 34 build steps done** (2.3 + 9.0 out-of-band). **Next: step 2.4.**
+**Progress: 3 of 34 build steps done** (2.3, 2.4 + 9.0 out-of-band). **Next: step 2.5.**
 Spine runs 2.3 → 11.2, one step = one commit. The spec is complete; this is the code.
 
 **Blocked / not-yet-schedulable:** 8.4 (Redis not provisioned), 8.5 (`request_drain`
@@ -24,8 +24,8 @@ unconfirmed), 9.1 (external reindex). Everything else is open once its precondit
 | Step | What | Builds (agent-improve/ARCHITECTURE.md) | Status |
 |---|---|---|---|
 | 2.3 | Dependency upgrade (LangGraph 1.2.11 etc.) | §53, §16 | ✅ done (`95926d6`) |
-| 2.4 | `set_entry_point` → `add_edge(START, …)` | §12 | ▶ **next** |
-| 2.5 | Async conversion (all nodes `async def`) | §14, §49 | ☐ |
+| 2.4 | `set_entry_point` → `add_edge(START, …)` | §12 | ✅ done |
+| 2.5 | Async conversion (all nodes `async def`) | §14, §49 | ▶ **next** |
 | 2.6 | `response.content` → `content_blocks` (20 sites) | §21 | ☐ |
 | 2.7 | LLM factory: class → functions, 6 → 11 roles | §21, §54 | ☐ |
 

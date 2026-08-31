@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from functools import lru_cache
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import StateGraph, START, END
 
 from backend.core.state import ImproveGraphState
 from backend.core.config import settings
@@ -70,7 +70,7 @@ def get_graph():
     builder.add_node("escalate",                  escalate)
 
     # ── entry point ────────────────────────────────────────────────
-    builder.set_entry_point("orchestrate_define")
+    builder.add_edge(START, "orchestrate_define")
 
     # ── define phase ───────────────────────────────────────────────
     builder.add_edge("orchestrate_define", "validate_define")
