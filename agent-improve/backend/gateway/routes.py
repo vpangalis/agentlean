@@ -441,7 +441,7 @@ async def upload_file(
     )
 
     # Process: classify + extract via Upload Intelligence agent
-    upload_record = process_upload(
+    upload_record = await process_upload(
         case_id=case_id,
         filename=file.filename,
         file_bytes=file_bytes,

@@ -12,7 +12,7 @@ from backend.upload.classifier import classify_content_type, is_image
 logger = logging.getLogger(__name__)
 
 
-def process_upload(
+async def process_upload(
     case_id: str,
     filename: str,
     file_bytes: bytes,
@@ -36,7 +36,7 @@ def process_upload(
     metrics_found = []
 
     if is_image(content_type):
-        extracted = _extract_from_image(file_bytes, case_meta, phase)
+        extracted = await _extract_from_image(file_bytes, case_meta, phase)
         extracted_text = extracted.get("extracted_text") or ""
         summary = extracted.get("summary") or ""
         process_steps = extracted.get("process_steps") or []
@@ -75,7 +75,7 @@ def process_upload(
     }
 
 
-def _extract_from_image(
+async def _extract_from_image(
     file_bytes: bytes,
     case_meta: dict,
     phase: str,
@@ -103,7 +103,7 @@ def _extract_from_image(
         ]
     )
     try:
-        result = llm.invoke([message])
+        result = await llm.ainvoke([message])
         text = block_text(result)
         if text.startswith("```"):
             text = text.split("```")[1]
