@@ -1540,7 +1540,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 2.6** | `content_blocks` · 20 sites | done |
 | **Commit 2.7** | LLM factory · 6 roles → 11 | done |
 | **Commit 3.1** | `SupervisorState` and `PhaseState` | done |
-| **Commit 3.2** | `AzureBlobStore` | pending |
+| **Commit 3.2** | `AzureBlobStore` | done |
 | **Commit 3.3** | Boundary mappers | pending |
 | **Commit 3.4** | `{Phase}Output` schemas + validators + UI | partial (Define only; 4 phases + UI outstanding) |
 | **Commit 4.1** | Define phase subgraph | pending |

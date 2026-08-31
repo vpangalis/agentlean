@@ -7,10 +7,10 @@
 
 | | |
 |---|---|
-| **Last completed** | step **3.1** — `SupervisorState` + `PhaseState` |
-| **Next** | step **3.2** — `AzureBlobStore` |
+| **Last completed** | step **3.2** — `AzureBlobStore` |
+| **Next** | step **3.3** — Boundary mappers **(closes G-27)** |
 | **Stage** | Stage 3 — State and persistence |
-| **Progress** | 7 of 34 build steps |
+| **Progress** | 8 of 34 build steps |
 | **Last spine commit** | `a3ba15e` (commit 3.1) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |
