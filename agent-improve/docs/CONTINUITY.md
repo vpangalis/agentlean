@@ -7,10 +7,10 @@
 
 | | |
 |---|---|
-| **Last completed** | step **3.2** — `AzureBlobStore` |
-| **Next** | step **3.3** — Boundary mappers **(closes G-27)** |
+| **Last completed** | step **3.3** — Boundary mappers **(G-27 CLOSED)** |
+| **Next** | step **3.4** — `{Phase}Output` schemas + validators + UI **(gate assembly, G-28)** |
 | **Stage** | Stage 3 — State and persistence |
-| **Progress** | 8 of 35 build steps |
+| **Progress** | 9 of 35 build steps |
 | **Last spine commit** | `729797c` (commit 3.2) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |

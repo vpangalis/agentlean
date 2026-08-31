@@ -1584,7 +1584,7 @@ reference's shape-level list does not enumerate.
 |---|---|
 | **Rewrite** | `core/state.py` · `core/graph.py` · `core/llm.py` · `core/prompts.py` · `core/errors.py` · `gateway/routes.py` · `knowledge/tools.py` · `escalate.py` · `phases/{phase}/schema.py` × 5 · `phases/{phase}/validate.py` × 5 |
 | **Delete** | `phases/{phase}/orchestrate.py` × 5 · `phases/{phase}/analyse.py` × 5 (v1 stubs) |
-| **New** | `core/substate.py` · `core/store.py` · `core/reliability.py` · `core/diagrams.py` · `middleware/` × 5 · `validation/` × 4 · `knowledge/{computation,tool_args,fusion}.py` · `phases/{phase}/{graph,nodes,mappers}.py` × 15 |
+| **New** | `core/substate.py` · `core/store.py` · `core/reliability.py` · `core/diagrams.py` · `middleware/` × 5 · `validation/` × 4 · `knowledge/{computation,tool_args,fusion}.py` · `phases/{phase}/{graph,nodes,mappers}.py` × 15 · **`phases/mappers_common.py`** (added at 3.3 — the ten mappers differ only in which Store key they read and what `phase_context` holds; five copies of a twenty-key `PhaseState` skeleton is how field twenty-one lands in four of them, which is not hypothetical: it is what `fix(state)` 1d6f0ab corrected) |
 | **Keep, minor edits** | `core/checkpointer.py` · `core/citations.py` · `core/config.py` · `knowledge/retriever.py` · `storage/blob.py` · `storage/models.py` · `gateway/schemas.py` |
 | **Untouched** | `app.py` · `core/logging_setup.py` · `core/request_context.py` · `core/tracing.py` · `upload/classifier.py` · all `__init__.py` |
 | **Edit only for `content_blocks` (2.6)** | `upload/agent.py` |
@@ -1625,7 +1625,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 2.7** | LLM factory · 6 roles → 11 | done |
 | **Commit 3.1** | `SupervisorState` and `PhaseState` | done |
 | **Commit 3.2** | `AzureBlobStore` | done |
-| **Commit 3.3** | Boundary mappers | pending |
+| **Commit 3.3** | Boundary mappers | done |
 | **Commit 3.4** | `{Phase}Output` schemas + validators + UI | partial (Define only; 4 phases + UI outstanding) |
 | **Commit 3.5** | `storage/blob.py` — class → functions, sync → aio | pending |
 | **Commit 4.1** | Define phase subgraph | pending |

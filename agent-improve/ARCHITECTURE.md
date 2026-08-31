@@ -9091,11 +9091,23 @@ Store rather than from the case record.
 function for that phase, invoking the compiled subgraph between the two mappers.
 The stability condition stated at S-F10 applies to all five.
 
-> **SPEC-GAP (G-27):** none of the four pairs is written. §9 gives Define's pair
-> in full and asserts the rest exist. What each phase's `phase_context`
-> contains — which fields of the prior gate document, in what form, and whether
-> `acknowledged_gaps` is included — is undesigned, and it determines what every
-> planner after Define can see — to be designed with founder.
+> **G-27 — CLOSED 2026-08-31, at procedure step 3.3.** All four pairs are
+> built, alongside Define's, in `phases/{phase}/mappers.py`. The three open
+> questions are ruled:
+>
+> | Question | Ruling |
+> |---|---|
+> | Which fields | The prior phase's **Tier-1 (gate-required) fields** per §35 / CLAUDE.md §9.7, **plus `phase_metrics`**, **plus `acknowledged_gaps`** |
+> | In what form | `field: value` lines, one per field. A field the prior phase did not capture renders as "not captured" rather than being omitted — a planner that cannot tell *absent* from *never asked* will not ask |
+> | `acknowledged_gaps` | **Included.** It is the record of what was CONSCIOUSLY skipped, and without it a deliberate Tier-2 decision is indistinguishable from an oversight — the distinction §35's two tiers exist to preserve |
+>
+> **Tier 2 is excluded**, deliberately: a Belt may proceed without a Tier-2
+> field, so carrying one forward invites the next planner to treat a permitted
+> absence as a finding.
+>
+> The ruling lives in code as one named constant per phase,
+> `PHASE_CONTEXT_FIELDS`, so a later amendment changes a list rather than
+> control flow.
 
 ### 58.22 S-F13 · Level 2 `Command` routing
 
@@ -11403,7 +11415,7 @@ item 1. Classification deferred rather than guessed.
 inline marker.** That bidirectional correspondence is checkable and is one of
 the §55.1 governance rules.
 
-**46 gaps identified. Twelve are closed or resolved. 34 are open.** *(Two were
+**46 gaps identified. Thirteen are closed or resolved. 33 are open.** *(Two were
 added and resolved in the same pass on 2026-08-26 — G-45 and G-46, the metric
 registry's two spec entries. Registering a gap you are about to close in the
 same commit looks like bookkeeping theatre and is not: §55.1 requires every
@@ -11474,7 +11486,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-23** | `DMAICGateValidator` — static method names, signatures and return shapes; must be designed with G-31 | S-C26 |
 | **G-24** | Constructor arguments for all four remaining custom middlewares — `(...)` is literal in §19 in every case | S-C11, S-C12, S-C13, S-C14 |
 | **G-26** | Retriever-layer signatures, `RETRIEVAL_EXCEPTIONS` membership, and the `_fail()` contract | S-F18 |
-| **G-27** | Boundary mappers for Measure, Analyse, Improve and Control — including what each `phase_context` contains | S-F12 |
+| ~~**G-27**~~ | ~~Boundary mappers for Measure, Analyse, Improve and Control — including what each `phase_context` contains~~ **CLOSED 2026-08-31, procedure step 3.3.** All ten mappers built. `phase_context` ruled: the prior phase's **Tier-1 fields + `phase_metrics` + `acknowledged_gaps`**, rendered as `field: value` lines; **Tier 2 excluded** — a Belt may consciously proceed without a Tier-2 field, so carrying one invites the next planner to read a permitted absence as a finding. `acknowledged_gaps` travels precisely so "decided to proceed without this" stays distinguishable from "nobody asked" | S-F12 |
 | **G-28** | Gate assembly for Measure, Analyse, Improve and Control — 55 field assignments, each selecting a tier access pattern, and an omission is silent | S-F28, S-F07 |
 | **G-29** | `propose_template` — an open "etc." type list and no `fill_data` schema | S-F19 |
 | **G-30** | `propose_diagram` — types and schemas are said to live in `core/diagrams.py`, **which does not exist** | S-F20 |
