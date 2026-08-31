@@ -26,7 +26,9 @@ from backend.core.state import (
     SupervisorState,
 )
 from backend.core.substate import (
+    PHASE_STATE_AUTHOR_POPULATED_FIELDS,
     PHASE_STATE_CONTENT_FIELDS,
+    PHASE_STATE_ENGINE_MANAGED_FIELDS,
     PHASE_STATE_IDENTITY_FIELDS,
     PHASE_STATE_PLUMBING_FIELDS,
     PHASE_STATE_READ_ONLY_FIELDS,
@@ -45,10 +47,13 @@ PHASE_PLUMBING = ["messages", "history", "phase_context"]
 PHASE_CONTENT = [
     "coaching_plan", "field_index", "draft", "artifacts", "step_log",
     "belt_edits", "turn_count", "final", "gate_attempts",
-    "validator_feedback", "citations", "uploads", "hop_results",
-    "synthesis_output",
+    "validator_feedback", "rejection_feedback", "citations", "uploads",
+    "hop_results", "synthesis_output",
 ]
-PHASE_EXPECTED = PHASE_IDENTITY + PHASE_PLUMBING + PHASE_CONTENT
+# Declared so LangGraph populates it; the input mapper must NOT (S-C02 B1).
+PHASE_ENGINE_MANAGED = ["remaining_steps"]
+PHASE_AUTHOR_POPULATED = PHASE_IDENTITY + PHASE_PLUMBING + PHASE_CONTENT
+PHASE_EXPECTED = PHASE_AUTHOR_POPULATED + PHASE_ENGINE_MANAGED
 
 
 def _annotations(td: type) -> dict:
@@ -61,9 +66,20 @@ def _annotations(td: type) -> dict:
     return typing.get_type_hints(td, include_extras=True)
 
 
+def _unwrap(hint):
+    """Strip a `NotRequired[...]` wrapper, if present.
+
+    `remaining_steps` is declared `NotRequired[RemainingSteps]` (S-C02's own
+    words), so its resolved hint nests the `Annotated` one level deeper.
+    """
+    if typing.get_origin(hint) is typing.NotRequired:
+        return typing.get_args(hint)[0]
+    return hint
+
+
 def _reducer(td: type, field: str):
     """The reducer attached to `field`, or None if it carries no `Annotated`."""
-    hint = _annotations(td)[field]
+    hint = _unwrap(_annotations(td)[field])
     if typing.get_origin(hint) is not typing.Annotated:
         return None
     metadata = typing.get_args(hint)[1:]
@@ -131,19 +147,41 @@ def test_artifacts_and_gate_documents_are_not_on_supervisor_state() -> None:
 
 # ── PhaseState — §6 / S-C02 ───────────────────────────────────────────────
 
-def test_phase_state_has_exactly_nineteen_fields() -> None:
-    """§6: 'Nineteen fields — two identity, three plumbing, fourteen content.'
+def test_phase_state_has_exactly_twenty_one_declared_fields() -> None:
+    """S-C02: twenty author-populated (2 identity, 3 plumbing, 15 content)
+    plus one engine-managed value — twenty-one declared.
 
-    Note for reviewers: the procedure's step 3.1 'Done when' line says 17.
-    That figure contradicts the same step's own Change and Prompt lines (19)
-    and reference §6/S-C02 (19). The reference is authoritative (§0.12), so
-    this asserts 19.
+    Note for reviewers: this asserts the count in the AUTHORITATIVE BUILD
+    TARGET, `agent-improve/ARCHITECTURE.md` (founder ruling 2026-08-27, named
+    in BUILD_TRACKER.md's header). The ROOT reference's §6/S-C02 still says
+    nineteen — it predates `rejection_feedback` (§0.17) and `remaining_steps`
+    (§0.16) and rides the deferred back-port (§0.12). Step 3.1 was built
+    against the root and was two fields short; corrected here.
     """
     assert len(PHASE_IDENTITY) == 2
     assert len(PHASE_PLUMBING) == 3
-    assert len(PHASE_CONTENT) == 14
-    assert len(PHASE_EXPECTED) == 19
+    assert len(PHASE_CONTENT) == 15
+    assert len(PHASE_AUTHOR_POPULATED) == 20
+    assert len(PHASE_EXPECTED) == 21
     assert list(PhaseState.__annotations__) == PHASE_EXPECTED
+
+
+def test_remaining_steps_is_declared_so_the_hop_cap_can_fire() -> None:
+    """§0.16 / §3.7 — the defect this field exists to end.
+
+    Undeclared, `state.get("remaining_steps", 10)` returned 10 forever and the
+    five-hop cap never fired. Declaring it is what makes LangGraph supply it.
+    """
+    hint = _unwrap(_annotations(PhaseState)["remaining_steps"])
+    assert typing.get_origin(hint) is typing.Annotated
+    assert typing.get_args(hint)[0] is int
+    assert "RemainingStepsManager" in typing.get_args(hint)[1].__name__
+
+
+def test_rejection_feedback_is_a_third_field_not_a_merge() -> None:
+    """§0.17 — three actors at three moments; merging any two is a violation."""
+    for f in ("validator_feedback", "belt_edits", "rejection_feedback"):
+        assert f in PhaseState.__annotations__
 
 
 def test_phase_state_census_matches_the_schema() -> None:
@@ -151,12 +189,41 @@ def test_phase_state_census_matches_the_schema() -> None:
     assert list(PHASE_STATE_IDENTITY_FIELDS) == PHASE_IDENTITY
     assert list(PHASE_STATE_PLUMBING_FIELDS) == PHASE_PLUMBING
     assert list(PHASE_STATE_CONTENT_FIELDS) == PHASE_CONTENT
+    assert list(PHASE_STATE_AUTHOR_POPULATED_FIELDS) == PHASE_AUTHOR_POPULATED
+    assert list(PHASE_STATE_ENGINE_MANAGED_FIELDS) == PHASE_ENGINE_MANAGED
 
 
 def test_phase_state_is_total() -> None:
-    """S-C02 B1: entering a subgraph populates every one of the nineteen
-    fields; no field is left undeclared."""
+    """S-C02 B1: entering a subgraph populates every author-populated field."""
     assert PhaseState.__total__ is True
+
+
+def test_engine_managed_field_is_declared_notrequired() -> None:
+    """The mapper is FORBIDDEN to supply `remaining_steps`, so the type must
+    not demand it — S-C02 calls it "`NotRequired` in intent", and this makes
+    that literal so mypy stops requiring the key from every mapper.
+
+    **Asserted on the annotation, not on `__required_keys__`.** This module
+    uses `from __future__ import annotations` (PEP 563), so annotations are
+    strings at class-creation time and `TypedDict` cannot see the
+    `NotRequired` wrapper: at RUNTIME the key still shows as required. That is
+    a Python quirk, not a defect here — mypy reads the source and honours it,
+    which is where the requirement was being enforced. Checking
+    `__required_keys__` would assert the quirk instead of the intent.
+    """
+    hint = _annotations(PhaseState)["remaining_steps"]
+    assert typing.get_origin(hint) is typing.NotRequired
+    for field in PHASE_AUTHOR_POPULATED:
+        assert typing.get_origin(_annotations(PhaseState)[field])             is not typing.NotRequired
+
+
+def test_notrequired_does_not_disable_the_managed_value() -> None:
+    """The reason `NotRequired` is safe here, asserted rather than assumed:
+    LangGraph still registers the manager, so the hop cap still fires."""
+    from langgraph.graph import StateGraph
+    from langgraph.managed.is_last_step import RemainingStepsManager
+    builder = StateGraph(PhaseState)
+    assert builder.managed.get("remaining_steps") is RemainingStepsManager
 
 
 @pytest.mark.parametrize("field", ["messages", "history", "step_log"])
@@ -169,8 +236,23 @@ def test_phase_append_only_fields_use_operator_add(field: str) -> None:
 
 
 def test_phase_state_has_exactly_three_reduced_fields() -> None:
-    reduced = {f for f in PHASE_EXPECTED if _reducer(PhaseState, f) is not None}
+    """Only the AUTHOR-POPULATED fields are candidates for a reducer.
+
+    `remaining_steps` also carries `Annotated` metadata, but the metadata is a
+    managed-value MANAGER, not a reducer — LangGraph populates the field rather
+    than folding updates into it. Counting it as reduced would blur exactly the
+    distinction S-C02 B1 draws, so the next test pins it apart.
+    """
+    reduced = {f for f in PHASE_AUTHOR_POPULATED
+               if _reducer(PhaseState, f) is not None}
     assert reduced == {"messages", "history", "step_log"}
+
+
+def test_managed_metadata_is_not_a_reducer() -> None:
+    """The engine-managed field is Annotated, and that is not the same thing."""
+    from langgraph.managed.is_last_step import RemainingStepsManager
+    assert _reducer(PhaseState, "remaining_steps") is RemainingStepsManager
+    assert _reducer(PhaseState, "remaining_steps") is not operator.add
 
 
 def test_artifacts_and_validator_feedback_carry_no_reducer() -> None:

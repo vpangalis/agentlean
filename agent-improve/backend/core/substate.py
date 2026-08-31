@@ -24,13 +24,15 @@ remains the live schema until step 11.1.
 from __future__ import annotations
 
 import operator
-from typing import Annotated, Any, Optional, TypedDict
+from typing import Annotated, Any, NotRequired, Optional, TypedDict
 
 from langchain_core.messages import BaseMessage
+from langgraph.managed import RemainingSteps
 
 
 class PhaseState(TypedDict):
-    """Nineteen fields — two identity, three plumbing, fourteen content.
+    """Twenty author-populated fields — two identity, three plumbing,
+    fifteen content — plus one engine-managed value: twenty-one declared.
 
     **Any new field requires a §56 amendment**, whatever category it is
     placed in. `test_state.py` asserts the count and the names.
@@ -56,7 +58,7 @@ class PhaseState(TypedDict):
     history:            Annotated[list[str], operator.add]
     phase_context:      str
 
-    # ── content fields (14) ──────────────────────────────────────────
+    # ── content fields (15) ──────────────────────────────────────────
     #
     # `coaching_plan` is ONE typed plan, not a queue — overwritten every time
     # the planner fires (B2). Its canonical type is the `CoachingPlan`
@@ -102,6 +104,16 @@ class PhaseState(TypedDict):
     # point: the shared cap of 3 is defensible only because each attempt is
     # better informed than the last, and this field carries the memory.
     validator_feedback: list[dict]
+
+    # The Belt's stated reasons for REJECTING at gate step 7. A THIRD actor at
+    # a THIRD moment, and it must stay separate from the other two:
+    # `validator_feedback` is what the validation layers said about the AI's
+    # output at step 2, `belt_edits` is what the Belt corrected at step 5, and
+    # this is why the Belt refused at step 7. Merging any two has the coach
+    # read one actor's intent as another's. The reason is MANDATORY — a
+    # rejection with no reason gives the coach nothing to change, so the next
+    # turn reproduces the one just refused.
+    rejection_feedback: list[dict]
     citations:          list[dict]
 
     # An EMPTY list is meaningful, not merely empty: because
@@ -119,6 +131,26 @@ class PhaseState(TypedDict):
     hop_results:        list[str]
     synthesis_output:   Optional[dict]
 
+    # ── engine-managed (1) — DECLARED, never populated by the mapper ──
+    #
+    # DECLARING IT IS WHAT ACTIVATES IT. `RemainingSteps` resolves to
+    # `Annotated[int, RemainingStepsManager]`, and the manager returns
+    # `scratchpad.stop - scratchpad.step`. Undeclared, §26's guard
+    # `state.get("remaining_steps", 10) <= 2` returned 10 FOREVER and the
+    # five-hop cap (§3.7) could never fire — a cap that cannot fire is not a
+    # loose cap, it is a check recorded as evidence while proving nothing.
+    #
+    # S-C02 B1: this is the one declared field the input mapper SHALL NOT
+    # populate. LangGraph's execution loop supplies it.
+    # `NotRequired` is S-C02's own words — "engine-managed, `NotRequired`
+    # in intent". Declaring it literally makes the type express the rule:
+    # mypy stops demanding the key from a mapper that is FORBIDDEN to
+    # supply it, and LangGraph still registers the managed value.
+    # Verified against the pinned LangGraph: with `NotRequired`, the
+    # builder still reports {'remaining_steps': RemainingStepsManager}
+    # while `__required_keys__` drops it.
+    remaining_steps:    NotRequired[RemainingSteps]
+
 
 # The field census, kept next to the schema so the count in §6 and the count
 # in the code cannot drift apart silently. Asserted in `test_state.py`.
@@ -127,8 +159,18 @@ PHASE_STATE_PLUMBING_FIELDS = ("messages", "history", "phase_context")
 PHASE_STATE_CONTENT_FIELDS = (
     "coaching_plan", "field_index", "draft", "artifacts", "step_log",
     "belt_edits", "turn_count", "final", "gate_attempts",
-    "validator_feedback", "citations", "uploads", "hop_results",
-    "synthesis_output",
+    "validator_feedback", "rejection_feedback", "citations", "uploads",
+    "hop_results", "synthesis_output",
+)
+
+# Declared so LangGraph populates it; the input mapper must NOT (S-C02 B1).
+PHASE_STATE_ENGINE_MANAGED_FIELDS = ("remaining_steps",)
+
+# What an input mapper writes: everything except the engine-managed value.
+PHASE_STATE_AUTHOR_POPULATED_FIELDS = (
+    PHASE_STATE_IDENTITY_FIELDS
+    + PHASE_STATE_PLUMBING_FIELDS
+    + PHASE_STATE_CONTENT_FIELDS
 )
 
 # Read-only inside the subgraph — see the copy-down invariant above. §55.1
@@ -142,5 +184,7 @@ __all__ = [
     "PHASE_STATE_IDENTITY_FIELDS",
     "PHASE_STATE_PLUMBING_FIELDS",
     "PHASE_STATE_CONTENT_FIELDS",
+    "PHASE_STATE_ENGINE_MANAGED_FIELDS",
+    "PHASE_STATE_AUTHOR_POPULATED_FIELDS",
     "PHASE_STATE_READ_ONLY_FIELDS",
 ]
