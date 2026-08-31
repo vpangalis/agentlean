@@ -8,7 +8,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from backend.core.state import ImproveGraphState
 from backend.core.errors import KnowledgeSearchError
-from backend.core.llm import get_llm
+from backend.core.llm import get_llm, block_text
 from backend.core.prompts import (
     ORCHESTRATOR_SYSTEM_BASE,
     ORCHESTRATOR_CONTEXT_MAP,
@@ -172,7 +172,7 @@ async def _run_extraction(prompt_template: str, conversation: str) -> dict:
     prompt = prompt_template.replace("{conversation}", conversation)
     try:
         result = await llm.ainvoke([HumanMessage(content=prompt)])
-        text = result.content.strip()
+        text = block_text(result)
         # Strip markdown fences if present
         if text.startswith("```"):
             text = text.split("```")[1]
@@ -228,7 +228,7 @@ async def _run_orchestrator(
             )
     try:
         result = await llm.ainvoke(messages)
-        return result.content.strip()
+        return block_text(result)
     except Exception as e:
         logger.error("Orchestrator LLM failed: %s", e)
         return "I'm having trouble connecting. Please try again in a moment."
@@ -241,7 +241,7 @@ async def _reflect(response: str) -> str:
     prompt = REFLECTION_CHECK.format(response=response)
     try:
         result = await llm.ainvoke([HumanMessage(content=prompt)])
-        text = result.content.strip()
+        text = block_text(result)
         if text.startswith("```"):
             text = text.split("```")[1]
             if text.startswith("json"):
@@ -281,8 +281,8 @@ async def _generate_sipoc_draft(
                 case_id=case_id,
                 k=3,
             )
-            for result in evidence_results:
-                content = result.get("content", "")
+            for hit in evidence_results:
+                content = hit.get("content", "")
                 sipoc_from_upload = await _extract_sipoc_from_text(content)
                 if sipoc_from_upload:
                     sipoc_from_upload["draft"] = True
@@ -309,7 +309,7 @@ async def _generate_sipoc_draft(
     llm = get_llm("extraction", temperature=0.3)
     try:
         result = await llm.ainvoke([HumanMessage(content=prompt)])
-        text = result.content.strip()
+        text = block_text(result)
         if text.startswith("```"):
             text = text.split("```")[1]
             if text.startswith("json"):
@@ -358,7 +358,7 @@ Return JSON only. No explanation.
 """
     try:
         result = await llm.ainvoke([HumanMessage(content=prompt)])
-        raw = result.content.strip()
+        raw = block_text(result)
         if raw.strip().lower() == "null":
             return None
         if raw.startswith("```"):

@@ -38,7 +38,7 @@ async def health() -> HealthResponse:
 @router.post("/summarise", response_model=SummariseResponse)
 async def summarise_session(request: SummariseRequest) -> SummariseResponse:
     """Generate a 2-3 sentence AI summary of a session's conversation turns."""
-    from backend.core.llm import get_llm
+    from backend.core.llm import get_llm, block_text
     from langchain_core.messages import HumanMessage, SystemMessage
 
     dialogue = "\n\n".join(
@@ -66,7 +66,7 @@ async def summarise_session(request: SummariseRequest) -> SummariseResponse:
         response = await llm.ainvoke(
             [SystemMessage(content=system), HumanMessage(content=prompt)]
         )
-        summary = response.content.strip()
+        summary = block_text(response)
     except Exception as e:
         logger.error("summarise_session() error: %s", e)
         summary = "Summary could not be generated."

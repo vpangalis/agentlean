@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from backend.core.state import ImproveGraphState
-from backend.core.llm import get_llm
+from backend.core.llm import get_llm, block_text
 from backend.core.prompts import (
     ORCHESTRATOR_SYSTEM_BASE,
     ORCHESTRATOR_CONTEXT_MAP,
@@ -193,7 +193,7 @@ async def _run_extraction(prompt_template: str, conversation: str) -> dict:
     prompt = prompt_template.replace("{conversation}", conversation)
     try:
         result = await llm.ainvoke([HumanMessage(content=prompt)])
-        text = result.content.strip()
+        text = block_text(result)
         if text.startswith("```"):
             text = text.split("```")[1]
             if text.startswith("json"):
@@ -247,7 +247,7 @@ async def _run_orchestrator(
             )
     try:
         result = await llm.ainvoke(messages)
-        return result.content.strip()
+        return block_text(result)
     except Exception as e:
         logger.error("Orchestrator LLM failed: %s", e)
         return "I'm having trouble connecting. Please try again in a moment."
@@ -260,7 +260,7 @@ async def _reflect(response: str) -> str:
     prompt = REFLECTION_CHECK.format(response=response)
     try:
         result = await llm.ainvoke([HumanMessage(content=prompt)])
-        text = result.content.strip()
+        text = block_text(result)
         if text.startswith("```"):
             text = text.split("```")[1]
             if text.startswith("json"):

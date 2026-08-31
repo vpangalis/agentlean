@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from langchain_core.messages import HumanMessage
 
 from backend.core.state import ImproveGraphState
-from backend.core.llm import get_llm
+from backend.core.llm import get_llm, block_text
 from backend.core.prompts import ESCALATION_REPORT
 from backend.core.config import settings
 
@@ -74,7 +74,7 @@ async def _generate_report(
     )
     try:
         result = await llm.ainvoke([HumanMessage(content=prompt)])
-        return result.content.strip()
+        return block_text(result)
     except Exception as e:
         logger.error("Escalation LLM failed: %s", e)
         return (

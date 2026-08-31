@@ -9,6 +9,7 @@ import os
 from functools import lru_cache
 
 from dotenv import load_dotenv
+from langchain_core.messages import BaseMessage
 from langchain_openai import AzureChatOpenAI
 
 from backend.core.config import settings
@@ -74,3 +75,28 @@ def get_llm(role: str | None = None, temperature: float = 0.2,
     return llm_provider.get_llm(
         deployment=resolved, temperature=temperature, max_tokens=max_tokens
     )
+
+
+def block_text(message: BaseMessage) -> str:
+    """Return a model response's text, read from its TYPED content blocks.
+
+    CLAUDE.md §4.5 · reference §21: read `response.content_blocks`.
+    String-indexing or substring-parsing the raw `content` field is a
+    violation — it breaks the moment a provider returns a multi-part
+    response. The returned text is stripped, which is what all callers want.
+
+    **Not `message.text`.** That accessor reads `self.content` directly
+    (verified against the pinned langchain-core 1.6.0), so it IS the raw-
+    content path §4.5 bans, and it skips the provider translator that
+    `content_blocks` runs to normalise Azure output into standard blocks.
+
+    langchain-core ships no blocks-to-text helper of its own (checked
+    2026-08-31 against 1.6.0), so this thin adapter over the primitive is
+    §0.24's declared framework-gap case, not a reinvention of one. It is
+    the single place the extraction is defined — 20 call sites read it.
+    """
+    return "".join(
+        block["text"]
+        for block in message.content_blocks
+        if block["type"] == "text"
+    ).strip()

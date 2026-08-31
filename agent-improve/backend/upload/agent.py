@@ -5,7 +5,7 @@ import json
 import logging
 from datetime import datetime, timezone
 
-from backend.core.llm import get_llm
+from backend.core.llm import get_llm, block_text
 from backend.core.prompts import VISION_EXTRACT_PROMPT
 from backend.upload.classifier import classify_content_type, is_image
 
@@ -104,7 +104,7 @@ def _extract_from_image(
     )
     try:
         result = llm.invoke([message])
-        text = result.content.strip()
+        text = block_text(result)
         if text.startswith("```"):
             text = text.split("```")[1]
             if text.startswith("json"):
