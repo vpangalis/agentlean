@@ -482,7 +482,7 @@ here; both coexist until the last v1 consumer is gone.
 produced the v1 "attempts always reset to 0" bug (§6).
 
 **Done when:** both modules import, and a field-count assertion passes: 7 and
-17.
+19.
 
 **Prompt:**
 > CLAUDE.md §10.1 gives both schemas in full. Create
@@ -1539,7 +1539,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 2.5** | Async conversion | done |
 | **Commit 2.6** | `content_blocks` · 20 sites | done |
 | **Commit 2.7** | LLM factory · 6 roles → 11 | done |
-| **Commit 3.1** | `SupervisorState` and `PhaseState` | pending |
+| **Commit 3.1** | `SupervisorState` and `PhaseState` | done |
 | **Commit 3.2** | `AzureBlobStore` | pending |
 | **Commit 3.3** | Boundary mappers | pending |
 | **Commit 3.4** | `{Phase}Output` schemas + validators + UI | partial (Define only; 4 phases + UI outstanding) |
