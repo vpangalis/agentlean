@@ -683,6 +683,89 @@ preview shows the SIPOC with six keys including `process_metrics`.
 
 ---
 
+## Step 3.5 — `storage/blob.py`: `ImproveBlobClient` class → functions, sync → aio
+
+| | |
+|---|---|
+| **Reference §** | §54 (where classes live) · §10 (concern 2) · §49 (async by default) · CLAUDE.md §2, §1.4 · **S-C08** |
+| **Touches** | `storage/blob.py` · every `blob_client.*` call site in `gateway/routes.py` |
+| **Precondition** | 3.2 |
+| **Verify** | `live-run` |
+
+**Added 2026-08-31, after step 3.2 made the gap visible.** This step did not
+exist. The procedure named `storage/blob.py` exactly once — in Appendix B's
+disposition table as *keep, minor edits* — and no step's **Touches** row
+claimed it, while **S-C08's own header read `Procedure: [tbd]`**. Two pieces
+of owed work therefore had no home, and neither is optional:
+
+| Owed | Why it binds |
+|---|---|
+| **Class → module-level functions** | §54 and CLAUDE.md §2 both list `storage/blob.py` explicitly among the files that hold *module-level functions ONLY*. `ImproveBlobClient` is a class where none is permitted — the same violation step 2.7 cleared in `core/llm.py` |
+| **Sync → aio** | §1.4 and §49 require the `aio` variants where they exist. Every method is synchronous, and since **2.5** made the route handlers `async def` this I/O runs **on the event loop** instead of in FastAPI's threadpool — a concurrency regression 2.5 recorded and deferred rather than one this step invents |
+
+**Nothing else covers it.** 11.1 deletes v1, and Appendix B marks this file
+*keep*; 3.3 touches `phases/{phase}/mappers.py`; 8.5 is the shutdown gate, not
+a rewrite. §10's concern 2 stays a distinct concern with a distinct owner —
+**this step rewrites `ImproveBlobClient`, it does not fold it into
+`AzureBlobStore`.** Merging the two would delete S-C08's subject and collapse
+the separation §10 spends a section establishing.
+
+**Change:** replace the class with module-level functions preserving the
+module-level singleton behaviour; convert the Blob calls to
+`azure.storage.blob.aio`; `await` them at every call site in
+`gateway/routes.py`. The paths this file owns are unchanged —
+`cases/case_{id}.json`, `registry.json`, `uploads/{case_id}/{file}` — and it
+still writes on case create, on gate pass and on file upload, **never
+mid-conversation** (§10).
+
+> ### ⚠ THIS STEP CARRIES A DESIGN DECISION — rule it when the step is built
+>
+> **The aio session lifecycle for `load_case` / `save_case`.** An
+> `azure.storage.blob.aio` client owns an aiohttp session bound to the running
+> loop, so it needs a deterministic close. Step 3.2 solved this **per
+> operation** — a fresh client per call under `async with` — because Store
+> writes happen a handful of times per phase.
+>
+> **That reasoning does not transfer here.** `load_case` and `save_case` run on
+> **every request**, so per-operation client construction is the wrong trade at
+> this frequency. The two candidates:
+>
+> | Option | For | Against |
+> |---|---|---|
+> | **Cached client + `aclose()` on the shutdown hook** | One client, one session, no per-request construction. The right shape for a hot path | The hook is step **8.5**, which is **GATED** on `RunControl.request_drain()` being confirmed to exist (§0.2). Building 3.5 against it couples a Stage 3 step to a gate that may never clear |
+> | **Accept 3.2's per-operation pattern** | Ships now, no dependency on 8.5, one pattern across both Blob owners | Pays a client construction per request. **Unmeasured** — the cost is asserted, not known |
+>
+> **The decision needs a measurement, not an opinion.** Time both shapes
+> against the real container on the `/ask` path before choosing; if the
+> per-operation overhead is small against the Azure round-trip it already
+> pays, the second option wins on its lack of a gated dependency. **Record the
+> figure in the commit body either way** — a performance decision with no
+> number in the record is one the next reader has to make again.
+>
+> A third shape exists and is **not** a candidate: closing over the loop
+> lifetime with no shutdown hook at all. That is the leak the per-operation
+> pattern was chosen to avoid.
+
+**Done when:** `/ask` and `/cases` both answer against case `IMPR-2026-E9D`
+with the case document read and written through the new functions, no
+`RuntimeWarning: coroutine was never awaited` and no unclosed-session warning
+in the log, and `grep -rn "class ImproveBlobClient" agent-improve/backend/`
+returns zero hits.
+
+**Rollback:** revert the commit. The blob layout is untouched, so no written
+state needs undoing.
+
+**Prompt:**
+> CLAUDE.md §2 and reference §54: `storage/blob.py` is module-level functions
+> only. §1.4 and §49: Azure SDK calls use the `aio` variants. Rewrite
+> `agent-improve/backend/storage/blob.py` — remove the `ImproveBlobClient`
+> class, keep the same public names as module-level functions, and convert the
+> Blob calls to `azure.storage.blob.aio`. Await them at every `blob_client.*`
+> call site in `gateway/routes.py`. **Do not fold this into `AzureBlobStore`**
+> — §10 keeps the two concerns separate. **Rule the session-lifecycle question
+> first and report the measurement**, per the boxed note in this step.
+
+---
 ## Step 4.1 — The Define phase subgraph
 
 | | |
@@ -1442,6 +1525,7 @@ reference section is not a step — it is an undocumented decision.
 | 3.2 | §9, §10 | `live-run` |
 | 3.3 | §9 | `pytest` |
 | 3.4 | §7, §40, §41, §53.1 | `manual-UI` |
+| 3.5 | §54, §10, §49 | `live-run` |
 | 4.1 | §12, §13, §14 | `import-check` |
 | 4.2 | §16, §47, §49, §8 | `azure-query` |
 | 4.3 | §12, §15 | `pytest` |
@@ -1543,6 +1627,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 3.2** | `AzureBlobStore` | done |
 | **Commit 3.3** | Boundary mappers | pending |
 | **Commit 3.4** | `{Phase}Output` schemas + validators + UI | partial (Define only; 4 phases + UI outstanding) |
+| **Commit 3.5** | `storage/blob.py` — class → functions, sync → aio | pending |
 | **Commit 4.1** | Define phase subgraph | pending |
 | **Commit 4.2** | `thread_id` + disconnect policy | pending |
 | **Commit 4.3** | Supervisor graph | pending |

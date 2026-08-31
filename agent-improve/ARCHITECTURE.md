@@ -8418,7 +8418,7 @@ production. The interim guard is the Blob lease of §47; the resolution is the
 
 ### 58.8 S-C08 · `ImproveBlobClient`
 
-**Architecture:** §10 · **File:** `storage/blob.py` · **Procedure:** [tbd]
+**Architecture:** §10 · **File:** `storage/blob.py` · **Procedure:** step 3.5
 
 **Purpose:** Owner of the second Blob concern — case records as the system of
 record, distinct from checkpoints. Writes on case create, on gate pass and on
