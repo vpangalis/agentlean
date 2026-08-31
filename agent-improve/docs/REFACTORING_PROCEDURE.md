@@ -1538,7 +1538,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 2.4** | `set_entry_point` → `add_edge(START, …)` | done |
 | **Commit 2.5** | Async conversion | done |
 | **Commit 2.6** | `content_blocks` · 20 sites | done |
-| **Commit 2.7** | LLM factory · 6 roles → 11 | pending |
+| **Commit 2.7** | LLM factory · 6 roles → 11 | done |
 | **Commit 3.1** | `SupervisorState` and `PhaseState` | pending |
 | **Commit 3.2** | `AzureBlobStore` | pending |
 | **Commit 3.3** | Boundary mappers | pending |

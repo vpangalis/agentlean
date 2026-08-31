@@ -62,7 +62,7 @@ async def summarise_session(request: SummariseRequest) -> SummariseResponse:
     )
 
     try:
-        llm = get_llm(role="operational", temperature=0.3)
+        llm = get_llm(role="summarizer", temperature=0.3)
         response = await llm.ainvoke(
             [SystemMessage(content=system), HumanMessage(content=prompt)]
         )

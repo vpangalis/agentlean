@@ -88,7 +88,7 @@ async def _extract_from_image(
         phase=phase,
         what=case_meta.get("what", "process improvement"),
     )
-    llm = get_llm("operational-premium", temperature=0.0)
+    llm = get_llm("vision", temperature=0.0)
     from langchain_core.messages import HumanMessage
     message = HumanMessage(
         content=[

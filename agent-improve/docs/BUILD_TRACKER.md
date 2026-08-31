@@ -12,7 +12,7 @@ Legend:  ✅ done · ▶ next · ☐ to do · ⛔ blocked · ⏸ gated/external
 # Agent Improve — Refactor Build Tracker
 # updated 2026-08-31 · build target: `agent-improve/ARCHITECTURE.md`
 
-**Progress: 5 of 34 build steps done** (2.3, 2.4, 2.5, 2.6 + 9.0 out-of-band). **Next: step 2.7.**
+**Progress: 6 of 34 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7 + 9.0 out-of-band). **Next: step 3.1.**
 Spine runs 2.3 → 11.2, one step = one commit. The spec is complete; this is the code.
 
 **Blocked / not-yet-schedulable:** 8.4 (Redis not provisioned), 8.5 (`request_drain`
@@ -27,12 +27,12 @@ unconfirmed), 9.1 (external reindex). Everything else is open once its precondit
 | 2.4 | `set_entry_point` → `add_edge(START, …)` | §12 | ✅ done |
 | 2.5 | Async conversion (all nodes `async def`) | §14, §49 | ✅ done |
 | 2.6 | `response.content` → `content_blocks` (20 sites) | §21 | ✅ done |
-| 2.7 | LLM factory: class → functions, 6 → 11 roles | §21, §54 | ▶ **next** |
+| 2.7 | LLM factory: class → functions, 6 → 11 roles | §21, §54 | ✅ done |
 
 ## Stage 3 — State and persistence
 | Step | What | Builds | Status |
 |---|---|---|---|
-| 3.1 | `SupervisorState` + `PhaseState` | §5, §6, §7 | ☐ |
+| 3.1 | `SupervisorState` + `PhaseState` | §5, §6, §7 | ▶ **next** |
 | 3.2 | `AzureBlobStore` | §9, §10 | ☐ |
 | 3.3 | Boundary mappers **(closes G-27)** | §9 | ☐ |
 | 3.4 | `{Phase}Output` schemas + validators + UI **(gate assembly, G-28)** | §7, §40, §41, §63 | ☐ |
