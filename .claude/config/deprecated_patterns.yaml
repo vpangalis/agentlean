@@ -117,3 +117,52 @@ patterns:
       - 'agent-improve/*.md'
       - 'agent-improve/**/*.md'
       - 'agent-improve/backend/phases/**/orchestrate.py'
+
+  # ── Anti-reinvention patterns (added 2026-08-31, CLAUDE.md §0.24) ──────
+  #
+  # Patterns 1-8 police SUPERSEDED APIs: a named thing that used to be right
+  # and no longer is. These three police something different — building from
+  # scratch a capability the framework already ships. There is no deprecated
+  # name to grep for, because the drift is code that should never have been
+  # written at all, so each matches a SHAPE instead.
+  #
+  # Shape-matching is looser than name-matching, so each is deliberately
+  # narrow and each message names the framework feature to use instead plus
+  # the reference section that specifies it. Verified 2026-08-31 against every
+  # .py under agent-improve/backend/: zero matches on the tree as it stands,
+  # so none of the three lands as a pre-existing violation.
+
+  - id: pattern-9-hand-rolled-llm-retry
+    regex: '(?is)(?:for\s+\w*(?:attempt|retry|retries|tries)\w*\s+in\s+range\s*\([^)\n]{0,40}\)\s*:(?:[^\n]*\n){0,12}?[^\n]*\.a?invoke\s*\(|while\s+[^\n:]{0,60}(?:attempt|retr|tries)[^\n:]{0,60}:(?:[^\n]*\n){0,12}?[^\n]*\.a?invoke\s*\(|for\s+\w+\s+in\s+range\s*\([^)\n]{0,40}\)\s*:(?:[^\n]*\n){0,15}?[^\n]*\.a?invoke\s*\((?:[^\n]*\n){0,15}?[^\n]*(?:time|asyncio)\.sleep\s*\()'
+    message: "Hand-rolled retry loop around an LLM call. The framework ships this: ModelRetryMiddleware(max_retries=2) for model calls, ToolRetryMiddleware for tool calls, both on create_agent. Reference §19.4; CLAUDE.md §8.7 (hand-writing retry plumbing is BANNED) and §0.24. The keyword is max_retries, NOT retries."
+    severity: block
+    path_exclusions:
+      # Governance documentation — see header.
+      - 'agent-improve/*.md'
+      - 'agent-improve/**/*.md'
+
+  - id: pattern-10-custom-llm-tracing
+    regex: '(?i)(?:class\s+\w*(?:Callback|Tracer|Tracing|Telemetry|Instrument)\w*\s*\([^)\n]*\)|def\s+(?:log|track|record|emit|measure|count)_(?:llm|model|token|tokens|prompt|completion|inference)\w*\s*\(|class\s+\w*(?:LLM|Model|Token|Prompt|Completion)\w*(?:Metrics|Stats|Tracker|Monitor|Recorder)\w*\s*[(:])'
+    message: "Custom tracing/metrics/callback layer for LLM calls. LangSmith already does this: set LANGCHAIN_TRACING_V2 and put @traceable on the function. Reference §51; CLAUDE.md §11.2 and §0.24. LangChain runnables and LangGraph nodes are traced automatically — @traceable is only for the plain Python functions between them."
+    severity: block
+    path_exclusions:
+      # Governance documentation — see header.
+      - 'agent-improve/*.md'
+      - 'agent-improve/**/*.md'
+      # core/tracing.py is the LangSmith WIRING (init_tracing / tracing_enabled)
+      # — the sanctioned path, not a replacement for it.
+      - 'agent-improve/backend/core/tracing.py'
+
+  - id: pattern-11-manual-state-persistence
+    regex: '(?im)(?:def\s+(?:save|load|persist|restore|dump|write|read)_(?:state|checkpoint|checkpoints|graph_state|phase_state|session_state|conversation_state)\w*\s*\(|(?:json|pickle)\.dumps?\s*\(\s*(?:state|graph_state|phase_state)[,)\s]|^\s*(?:CHECKPOINTS|STATE_STORE|_checkpoints|_state_store)\s*(?::[^=\n]+)?=\s*\{)'
+    message: "Manual checkpoint / state-persistence code. LangGraph owns this: the checkpointer persists graph state per thread_id, the store holds cross-phase artifacts. Reference §16; CLAUDE.md §1.7, §10.2 and §0.24. Attach both to the PARENT graph only — phase subgraphs compile with neither."
+    severity: block
+    path_exclusions:
+      # Governance documentation — see header.
+      - 'agent-improve/*.md'
+      - 'agent-improve/**/*.md'
+      # AzureBlobCheckpointSaver IMPLEMENTS BaseCheckpointSaver — it is the
+      # framework primitive being given a backend, which is what §1.7
+      # prescribes, not a hand-rolled replacement for it. Its test likewise.
+      - 'agent-improve/backend/core/checkpointer.py'
+      - 'agent-improve/backend/tests/test_checkpointer.py'

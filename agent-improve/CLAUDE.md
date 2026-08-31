@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.29 — August 2026
+# Version 2.2.30 — August 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -62,6 +62,9 @@ resolve:
 | `pattern-3-response-content-parsing` | §4.5 |
 | `pattern-4-custom-saga` | §3.6 |
 | `pattern-8-bind-tools-in-phase-executor` | §4.4 |
+| `pattern-9-hand-rolled-llm-retry` | §8.7, §0.24 |
+| `pattern-10-custom-llm-tracing` | §11.2, §0.24 |
+| `pattern-11-manual-state-persistence` | §1.7, §10.2, §0.24 |
 
 **Renumbering any of these rules requires updating the registry in the
 same commit.** A hook that cites a non-existent rule is worse than no
@@ -734,6 +737,62 @@ before `post_improvement_cpk`.
 specification: **WATCH 7** (`orchestrate.py` still writes v1 field names),
 **G-27** (boundary mappers) and **G-28** (gate assembly for the four phases
 beyond Define), and the root-reference back-port.
+
+
+### 0.24 — PREFER FRAMEWORK PRIMITIVES — a standing RULE, not a change record
+
+*Every other §0.x above is a dated "What Changed" entry. **This one is a rule**,
+placed in §0 because it is constitutional: it governs what may be BUILT, not
+what was decided on a particular day. Added 2026-08-31 at 2.2.30.*
+
+> **Before hand-rolling retry, tracing/metrics, state persistence,
+> checkpointing, or the agent loop, confirm LangChain / LangGraph / LangSmith
+> does not already provide it. Reinventing a framework primitive is a
+> violation.**
+
+| If you are about to build… | Use instead | Specified in |
+|---|---|---|
+| A retry loop around a model call | **`ModelRetryMiddleware(max_retries=2)`** on `create_agent` — and `ToolRetryMiddleware` for tool calls; they are different middlewares, not synonyms | Reference **§19.4** · §8.7 |
+| Tracing, metrics, or a callback layer for LLM calls | **LangSmith.** `LANGCHAIN_TRACING_V2=true`, plus **`@traceable`** on the plain Python functions between nodes — runnables and graph nodes are traced already | Reference **§51** · §11.2 |
+| Saving or restoring graph/phase state | **The LangGraph checkpointer** (per `thread_id`), and **the store** for cross-phase artifacts. Both attach to the PARENT graph only | Reference **§16** · §1.7, §10.2 |
+| An agent loop — model → tools → model | **`create_agent`**, with the eight-middleware stack | Reference **§18** · §4.4, §8.1 |
+
+**Why this is a rule and not advice.** Three of the costliest corrections in
+this file are the same mistake: code written against a remembered idea of a
+library rather than the library. §0.10's `retries=` vs **`max_retries=`** sat
+inside the canonical middleware block — the one an implementer copies verbatim
+— from adoption until 2026-08-21. §0.13's `ContradictionDetectionMiddleware`
+was adopted as a named pattern and could not do its job in three independent
+ways. §0.16's `remaining_steps` was read off a schema that never declared it,
+so a five-hop cap returned **10 forever** and never fired. **A hand-rolled
+primitive is that failure with no upstream to correct it**: the framework's own
+version gets fixed by its maintainers and covered by its tests, and yours does
+not.
+
+**This rule adds no new design.** It generalises four decisions already
+ratified — §8.7 ("Hand-writing retry plumbing is BANNED"), §11.2 (`@traceable`
+required), §1.7 (phased checkpointer/store) and §4.4 (`create_agent`) — into
+the question to ask *before* writing, rather than four prohibitions discovered
+after. **It is therefore not a §56 reference amendment**: no section of
+`../AGENTIC_ARCHITECTURE_REFERENCE.md` changes, and every § cited above already
+says what this rule says.
+
+**It is enforced, not just stated.** Three registry patterns block the write:
+`pattern-9-hand-rolled-llm-retry`, `pattern-10-custom-llm-tracing`,
+`pattern-11-manual-state-persistence` — see §0.2's table. They match a SHAPE
+rather than a name, because the drift here is code that should never have been
+written at all and so has no deprecated identifier to grep for. **Verified
+2026-08-31: zero matches across all 57 files in `agent-improve/backend/`**, so
+none of the three landed as a pre-existing violation.
+
+> **The rule is "confirm", not "never build".** A framework gap is a real
+> answer — `AzureBlobCheckpointSaver` exists because LangGraph ships no Azure
+> Blob saver, and it is correct precisely because it **implements
+> `BaseCheckpointSaver`** rather than replacing it. Supplying a backend to a
+> framework primitive is using the primitive. Writing your own alongside it is
+> the violation. When the check says "the framework does not have this",
+> **record that finding** — `/verify-current-version` against the live package
+> index, per §16.3, not against memory or a document.
 
 ---
 
@@ -3229,6 +3288,10 @@ to choose backoff strategy (§4.8).
   are needed (§9.2, §10.1)
 - Never carry phase context on parent state — every input mapper
   composes `phase_context` from the store (§10.2)
+- Never hand-roll checkpointing or state persistence — the LangGraph
+  checkpointer and store own it (§0.24, §1.7, §10.2). Supplying a BACKEND to
+  `BaseCheckpointSaver`, as `AzureBlobCheckpointSaver` does, is using the
+  primitive; writing your own alongside it is not
 - Never create a per-phase or concatenated `thread_id`
 - Never compile a checkpointer or store onto a phase subgraph
 - Never use `InMemorySaver`
@@ -3274,6 +3337,14 @@ to choose backoff strategy (§4.8).
 - Never write `RetryMiddleware` — the class does not exist in LangChain
   1.x. Model-call retries are `ModelRetryMiddleware`, tool-call retries
   are `ToolRetryMiddleware`, and they are not interchangeable (§8.7)
+- Never hand-roll a retry loop around an LLM call — no try/except/sleep/counter
+  around `.invoke()`. The middleware provides the wrap, the backoff and the
+  counter (§0.24, §8.7)
+- Never build a tracing, metrics or callback layer for LLM calls — LangSmith
+  does it, and `@traceable` covers the plain functions between nodes
+  (§0.24, §11.2)
+- Never hand-roll the agent loop — `create_agent`, with the eight middlewares
+  (§0.24, §4.4, §8.1)
 - Never set `BeforeModelStateInjection` to the `before_model` hook — it is
   `before_agent`, once per turn, not once per model call (§8.1, §8.5)
 - Never merge the three retry caps — `ModelRetryMiddleware` (2),
