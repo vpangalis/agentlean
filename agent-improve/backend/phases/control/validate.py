@@ -20,7 +20,7 @@ CONTROL_REQUIRED_FOR_GATE = [
 ]
 
 
-def validate_control(state: ImproveGraphState) -> dict:
+async def validate_control(state: ImproveGraphState) -> dict:
     """Validator node for Control phase.
 
     ControlPhaseInput fields are all optional at the schema level, so gate

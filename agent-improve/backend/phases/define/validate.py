@@ -118,7 +118,7 @@ def _missing_structured(data: dict) -> list[str]:
     return missing
 
 
-def validate_define(state: ImproveGraphState) -> dict:
+async def validate_define(state: ImproveGraphState) -> dict:
     """Validator node for the Define phase.
 
     Gate enforcement is a **completeness check against

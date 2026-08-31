@@ -22,7 +22,7 @@ MEASURE_REQUIRED_FOR_GATE = [
 ]
 
 
-def validate_measure(state: ImproveGraphState) -> dict:
+async def validate_measure(state: ImproveGraphState) -> dict:
     """Validator node for Measure phase.
 
     MeasurePhaseInput fields are all optional at the schema level, so gate

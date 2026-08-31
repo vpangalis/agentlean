@@ -26,7 +26,7 @@ from backend.knowledge.retriever import (
 logger = logging.getLogger(__name__)
 
 
-def orchestrate_define(state: ImproveGraphState) -> dict:
+async def orchestrate_define(state: ImproveGraphState) -> dict:
     """Orchestrator node for Define phase.
     1. Runs extraction to update phase_inputs from chat history
     2. Generates next Orchestrator response
@@ -43,7 +43,7 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
     # Ã¢ÂÂÃ¢ÂÂ 1. Extract structured fields from conversation Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
     extraction_prompt = EXTRACTION_MAP["define"]
     conversation_text = _format_conversation(chat_history)
-    extracted = _run_extraction(extraction_prompt, conversation_text)
+    extracted = await _run_extraction(extraction_prompt, conversation_text)
 
     # Merge extracted values into phase_inputs (null values do not overwrite)
     define_inputs = phase_inputs.get("define") or {}
@@ -65,7 +65,7 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
         and not sipoc_already_captured
     ):
         case_id = state.get("case_id") or ""
-        sipoc_diagram = _generate_sipoc_draft(
+        sipoc_diagram = await _generate_sipoc_draft(
             current_define, case_meta, case_id=case_id
         )
 
@@ -105,7 +105,7 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
     )
     state_summary = _build_state_summary(define_inputs)
     logger.info("State summary injected into orchestrator:\n%s", state_summary)
-    response_text = _run_orchestrator(
+    response_text = await _run_orchestrator(
         system_prompt, chat_history, current_user, state_summary
     )
 
@@ -114,7 +114,7 @@ def orchestrate_define(state: ImproveGraphState) -> dict:
     # terse output style and compresses the new structured coaching
     # responses, defeating the prompt rewrite. Reintroduce a
     # coaching-aware reflect later.
-    # response_text = _reflect(response_text)
+    # response_text = await _reflect(response_text)
 
     # Ã¢ÂÂÃ¢ÂÂ 4. Append AI turn to chat history Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
     now = datetime.now(timezone.utc).isoformat()
@@ -166,12 +166,12 @@ def _format_conversation(chat_history: list) -> str:
     return "\n".join(lines)
 
 
-def _run_extraction(prompt_template: str, conversation: str) -> dict:
+async def _run_extraction(prompt_template: str, conversation: str) -> dict:
     """Run extraction LLM call. Returns partial dict, empty on failure."""
     llm = get_llm("extraction", temperature=0.0)
     prompt = prompt_template.replace("{conversation}", conversation)
     try:
-        result = llm.invoke([HumanMessage(content=prompt)])
+        result = await llm.ainvoke([HumanMessage(content=prompt)])
         text = result.content.strip()
         # Strip markdown fences if present
         if text.startswith("```"):
@@ -190,7 +190,7 @@ def _run_extraction(prompt_template: str, conversation: str) -> dict:
         return {}
 
 
-def _run_orchestrator(
+async def _run_orchestrator(
     system_prompt: str,
     chat_history: list,
     current_user: str,
@@ -227,20 +227,20 @@ def _run_orchestrator(
                 HumanMessage(content=f"{turn.get('user', 'Team')}: {content}")
             )
     try:
-        result = llm.invoke(messages)
+        result = await llm.ainvoke(messages)
         return result.content.strip()
     except Exception as e:
         logger.error("Orchestrator LLM failed: %s", e)
         return "I'm having trouble connecting. Please try again in a moment."
 
 
-def _reflect(response: str) -> str:
+async def _reflect(response: str) -> str:
     """Check response quality. Returns revised response if issues found.
     Private Ã¢ÂÂ called only from orchestrate_define."""
     llm = get_llm("reasoning", temperature=0.0)
     prompt = REFLECTION_CHECK.format(response=response)
     try:
-        result = llm.invoke([HumanMessage(content=prompt)])
+        result = await llm.ainvoke([HumanMessage(content=prompt)])
         text = result.content.strip()
         if text.startswith("```"):
             text = text.split("```")[1]
@@ -256,7 +256,7 @@ def _reflect(response: str) -> str:
         return response
 
 
-def _generate_sipoc_draft(
+async def _generate_sipoc_draft(
     define_inputs: dict,
     case_meta: dict,
     case_id: str = "",
@@ -283,7 +283,7 @@ def _generate_sipoc_draft(
             )
             for result in evidence_results:
                 content = result.get("content", "")
-                sipoc_from_upload = _extract_sipoc_from_text(content)
+                sipoc_from_upload = await _extract_sipoc_from_text(content)
                 if sipoc_from_upload:
                     sipoc_from_upload["draft"] = True
                     sipoc_from_upload["source"] = "upload"
@@ -308,7 +308,7 @@ def _generate_sipoc_draft(
     )
     llm = get_llm("extraction", temperature=0.3)
     try:
-        result = llm.invoke([HumanMessage(content=prompt)])
+        result = await llm.ainvoke([HumanMessage(content=prompt)])
         text = result.content.strip()
         if text.startswith("```"):
             text = text.split("```")[1]
@@ -332,7 +332,7 @@ def _generate_sipoc_draft(
     return None
 
 
-def _extract_sipoc_from_text(text: str) -> dict | None:
+async def _extract_sipoc_from_text(text: str) -> dict | None:
     """Attempt to extract SIPOC columns from free text using LLM.
     Returns dict with five SIPOC keys or None if extraction fails."""
     if not text or len(text.strip()) < 20:
@@ -357,7 +357,7 @@ Text:
 Return JSON only. No explanation.
 """
     try:
-        result = llm.invoke([HumanMessage(content=prompt)])
+        result = await llm.ainvoke([HumanMessage(content=prompt)])
         raw = result.content.strip()
         if raw.strip().lower() == "null":
             return None

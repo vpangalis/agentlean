@@ -20,7 +20,7 @@ IMPROVE_REQUIRED_FOR_GATE = [
 ]
 
 
-def validate_improve(state: ImproveGraphState) -> dict:
+async def validate_improve(state: ImproveGraphState) -> dict:
     """Validator node for Improve phase.
 
     ImprovePhaseInput fields are all optional at the schema level, so gate

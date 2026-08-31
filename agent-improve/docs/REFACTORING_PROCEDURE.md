@@ -1536,7 +1536,7 @@ infrastructure noise. **Read both before finalising §52.**
 |---|---|---|
 | **Commit 2.3** | Dependency upgrade | done |
 | **Commit 2.4** | `set_entry_point` → `add_edge(START, …)` | done |
-| **Commit 2.5** | Async conversion | pending |
+| **Commit 2.5** | Async conversion | done |
 | **Commit 2.6** | `content_blocks` · 20 sites | pending |
 | **Commit 2.7** | LLM factory · 6 roles → 11 | pending |
 | **Commit 3.1** | `SupervisorState` and `PhaseState` | pending |

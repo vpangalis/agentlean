@@ -31,12 +31,12 @@ router = APIRouter()
 
 
 @router.get("/health", response_model=HealthResponse)
-def health() -> HealthResponse:
+async def health() -> HealthResponse:
     return HealthResponse()
 
 
 @router.post("/summarise", response_model=SummariseResponse)
-def summarise_session(request: SummariseRequest) -> SummariseResponse:
+async def summarise_session(request: SummariseRequest) -> SummariseResponse:
     """Generate a 2-3 sentence AI summary of a session's conversation turns."""
     from backend.core.llm import get_llm
     from langchain_core.messages import HumanMessage, SystemMessage
@@ -63,7 +63,9 @@ def summarise_session(request: SummariseRequest) -> SummariseResponse:
 
     try:
         llm = get_llm(role="operational", temperature=0.3)
-        response = llm.invoke([SystemMessage(content=system), HumanMessage(content=prompt)])
+        response = await llm.ainvoke(
+            [SystemMessage(content=system), HumanMessage(content=prompt)]
+        )
         summary = response.content.strip()
     except Exception as e:
         logger.error("summarise_session() error: %s", e)
@@ -73,7 +75,7 @@ def summarise_session(request: SummariseRequest) -> SummariseResponse:
 
 
 @router.post("/context", response_model=ContextResponse)
-def get_session_context(request: ContextRequest) -> ContextResponse:
+async def get_session_context(request: ContextRequest) -> ContextResponse:
     """Generate a re-entry greeting based on current gate status.
     Called when user opens the AI guide tab after a break."""
     if blob_client is None:
@@ -161,7 +163,7 @@ def get_session_context(request: ContextRequest) -> ContextResponse:
 
 
 @router.post("/cases", response_model=CaseCreateResponse)
-def create_case(request: CaseCreateRequest) -> CaseCreateResponse:
+async def create_case(request: CaseCreateRequest) -> CaseCreateResponse:
     """Create a new improvement case and register it."""
     import uuid
     from datetime import datetime, timezone
@@ -187,7 +189,7 @@ def create_case(request: CaseCreateRequest) -> CaseCreateResponse:
 
 
 @router.post("/ask", response_model=AskResponse)
-def ask(request: AskRequest) -> AskResponse:
+async def ask(request: AskRequest) -> AskResponse:
     if blob_client is None:
         raise HTTPException(503, "Storage not configured")
 
@@ -256,7 +258,7 @@ def ask(request: AskRequest) -> AskResponse:
         if node_fn is None:
             raise HTTPException(400, f"Unknown phase: {request.phase}")
 
-        result = node_fn(state)
+        result = await node_fn(state)
 
         # Update state with result
         state.update(result)
@@ -402,7 +404,7 @@ def _purpose_from_classification(classification: str, fallback_filename: str) ->
 
 
 @router.post("/upload")
-def upload_file(
+async def upload_file(
     case_id: str = Form(...),
     uploaded_by: str = Form(...),
     phase: str = Form(...),
@@ -417,7 +419,7 @@ def upload_file(
     if blob_client is None:
         raise HTTPException(503, "Storage not configured")
 
-    file_bytes = file.file.read()
+    file_bytes = await file.read()
     mime_type = file.content_type or "application/octet-stream"
 
     case = blob_client.load_case(case_id)
@@ -453,7 +455,7 @@ def upload_file(
     # Index into improve_evidence_index (best-effort)
     indexed = False
     try:
-        _index_upload(case_id, upload_record)
+        await _index_upload(case_id, upload_record)
         indexed = True
         upload_record["indexed"] = True
     except Exception as e:
@@ -505,7 +507,7 @@ def upload_file(
 
 
 @router.delete("/files/{case_id}/{file_id}")
-def delete_case_file(case_id: str, file_id: str):
+async def delete_case_file(case_id: str, file_id: str):
     """Remove a file record from the case. The corresponding blob is
     deleted on a best-effort basis if blob_client exposes a delete
     method; otherwise the upload record is removed from the case and
@@ -547,10 +549,10 @@ def delete_case_file(case_id: str, file_id: str):
     return {"deleted": True, "file_id": file_id}
 
 
-def _index_upload(case_id: str, upload_record: dict) -> None:
+async def _index_upload(case_id: str, upload_record: dict) -> None:
     """Index extracted text into improve_evidence_index."""
     import hashlib
-    from azure.search.documents import SearchClient
+    from azure.search.documents.aio import SearchClient
     from azure.core.credentials import AzureKeyCredential
     from backend.core.config import settings
     from backend.knowledge.retriever import get_embeddings
@@ -563,14 +565,8 @@ def _index_upload(case_id: str, upload_record: dict) -> None:
         )
         return
 
-    search_client = SearchClient(
-        endpoint=settings.AZURE_SEARCH_ENDPOINT,
-        index_name=settings.AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX,
-        credential=AzureKeyCredential(settings.AZURE_SEARCH_API_KEY),
-    )
-
     embeddings = get_embeddings()
-    embedding = embeddings.embed_query(extracted_text)
+    embedding = await embeddings.aembed_query(extracted_text)
 
     doc_id = hashlib.sha256(
         f"{case_id}_{upload_record['filename']}_{upload_record['timestamp']}"
@@ -595,7 +591,14 @@ def _index_upload(case_id: str, upload_record: dict) -> None:
         "case_id": case_id,
     }
 
-    search_client.upload_documents([document])
+    # The aio client owns an aiohttp session, so it is closed on the way
+    # out rather than left to the garbage collector.
+    async with SearchClient(
+        endpoint=settings.AZURE_SEARCH_ENDPOINT,
+        index_name=settings.AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX,
+        credential=AzureKeyCredential(settings.AZURE_SEARCH_API_KEY),
+    ) as search_client:
+        await search_client.upload_documents([document])
     logger.info(
         "Indexed %s -> improve_evidence_index doc %s",
         upload_record["filename"], doc_id,
@@ -603,7 +606,7 @@ def _index_upload(case_id: str, upload_record: dict) -> None:
 
 
 @router.post("/gate", response_model=GateSubmitResponse)
-def submit_gate(request: GateSubmitRequest) -> GateSubmitResponse:
+async def submit_gate(request: GateSubmitRequest) -> GateSubmitResponse:
     if blob_client is None:
         raise HTTPException(503, "Storage not configured")
     case = blob_client.load_case(request.case_id)
@@ -650,7 +653,7 @@ def submit_gate(request: GateSubmitRequest) -> GateSubmitResponse:
         },
     }
 
-    result = validate_fn(state)
+    result = await validate_fn(state)
     phase_data = result.get("phase_inputs", {}).get(request.phase, {})
     passed = phase_data.get("_gate_passed", False)
     missing = phase_data.get("_missing_fields", [])
@@ -686,7 +689,7 @@ def submit_gate(request: GateSubmitRequest) -> GateSubmitResponse:
 
 
 @router.get("/registry", response_model=list[RegistryEntryOut])
-def get_registry() -> list[RegistryEntryOut]:
+async def get_registry() -> list[RegistryEntryOut]:
     """Management dashboard â returns all cases from registry."""
     if blob_client is None:
         raise HTTPException(503, "Storage not configured")
@@ -709,7 +712,7 @@ def get_registry() -> list[RegistryEntryOut]:
 
 
 @router.get("/cases/{case_id}")
-def get_case(case_id: str):
+async def get_case(case_id: str):
     """Load full case document. Also projects every per-phase upload
     into a flat ``files`` array in CaseFile shape so the UI can render
     a single grouped files panel without walking each phase record."""

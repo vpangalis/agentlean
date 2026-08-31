@@ -21,7 +21,7 @@ ANALYSE_REQUIRED_FOR_GATE = [
 ]
 
 
-def validate_analyse(state: ImproveGraphState) -> dict:
+async def validate_analyse(state: ImproveGraphState) -> dict:
     """Validator node for Analyse phase.
 
     AnalysePhaseInput fields are all optional at the schema level, so gate

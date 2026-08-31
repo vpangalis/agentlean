@@ -94,7 +94,7 @@ CONTROL_WORK_PRODUCTS = [
 ]
 
 
-def orchestrate_control(state: ImproveGraphState) -> dict:
+async def orchestrate_control(state: ImproveGraphState) -> dict:
     """Orchestrator node for Control phase.
     1. Runs extraction to update phase_inputs from chat history
     2. Generates next Orchestrator response with a cross-phase context brief
@@ -111,7 +111,7 @@ def orchestrate_control(state: ImproveGraphState) -> dict:
     # ── 1. Extract structured fields from conversation ────────────────
     extraction_prompt = EXTRACTION_MAP["control"]
     conversation_text = _format_conversation(chat_history)
-    extracted = _run_extraction(extraction_prompt, conversation_text)
+    extracted = await _run_extraction(extraction_prompt, conversation_text)
 
     control_inputs = phase_inputs.get("control") or {}
     # Snapshot pre-merge so section completion can tell which section
@@ -140,7 +140,7 @@ def orchestrate_control(state: ImproveGraphState) -> dict:
     )
     state_summary = _build_control_context(state)
     logger.info("Control context injected:\n%s", state_summary)
-    response_text = _run_orchestrator(
+    response_text = await _run_orchestrator(
         system_prompt, chat_history, current_user, state_summary
     )
 
@@ -149,7 +149,7 @@ def orchestrate_control(state: ImproveGraphState) -> dict:
     # terse output style and compresses the new structured coaching
     # responses, defeating the prompt rewrite. Reintroduce a
     # coaching-aware reflect later.
-    # response_text = _reflect(response_text)
+    # response_text = await _reflect(response_text)
 
     # ── 4. Append AI turn to chat history ─────────────────────────────
     now = datetime.now(timezone.utc).isoformat()
@@ -187,12 +187,12 @@ def _format_conversation(chat_history: list) -> str:
     return "\n".join(lines)
 
 
-def _run_extraction(prompt_template: str, conversation: str) -> dict:
+async def _run_extraction(prompt_template: str, conversation: str) -> dict:
     """Run extraction LLM call. Returns partial dict, empty on failure."""
     llm = get_llm("extraction", temperature=0.0)
     prompt = prompt_template.replace("{conversation}", conversation)
     try:
-        result = llm.invoke([HumanMessage(content=prompt)])
+        result = await llm.ainvoke([HumanMessage(content=prompt)])
         text = result.content.strip()
         if text.startswith("```"):
             text = text.split("```")[1]
@@ -209,7 +209,7 @@ def _run_extraction(prompt_template: str, conversation: str) -> dict:
         return {}
 
 
-def _run_orchestrator(
+async def _run_orchestrator(
     system_prompt: str,
     chat_history: list,
     current_user: str,
@@ -246,20 +246,20 @@ def _run_orchestrator(
                 HumanMessage(content=f"{turn.get('user', 'Team')}: {content}")
             )
     try:
-        result = llm.invoke(messages)
+        result = await llm.ainvoke(messages)
         return result.content.strip()
     except Exception as e:
         logger.error("Orchestrator LLM failed: %s", e)
         return "I'm having trouble connecting. Please try again in a moment."
 
 
-def _reflect(response: str) -> str:
+async def _reflect(response: str) -> str:
     """Check response quality. Returns revised response if issues found.
     Private — called only from orchestrate_control."""
     llm = get_llm("reasoning", temperature=0.0)
     prompt = REFLECTION_CHECK.format(response=response)
     try:
-        result = llm.invoke([HumanMessage(content=prompt)])
+        result = await llm.ainvoke([HumanMessage(content=prompt)])
         text = result.content.strip()
         if text.startswith("```"):
             text = text.split("```")[1]

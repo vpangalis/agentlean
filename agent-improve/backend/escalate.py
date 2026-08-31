@@ -13,7 +13,7 @@ from backend.core.config import settings
 logger = logging.getLogger(__name__)
 
 
-def escalate(state: ImproveGraphState) -> dict:
+async def escalate(state: ImproveGraphState) -> dict:
     """Cross-phase escalation node.
     Generates a plain language escalation report and sets escalated=True.
     Returns dict slice only."""
@@ -32,7 +32,7 @@ def escalate(state: ImproveGraphState) -> dict:
     }
 
     # Generate plain language escalation message
-    report = _generate_report(phase, attempts, missing, str(last_submission))
+    report = await _generate_report(phase, attempts, missing, str(last_submission))
 
     # Append escalation turn to chat history
     now = datetime.now(timezone.utc).isoformat()
@@ -61,7 +61,7 @@ def escalate(state: ImproveGraphState) -> dict:
     }
 
 
-def _generate_report(
+async def _generate_report(
     phase: str, attempts: int, missing_fields: list, last_submission: str
 ) -> str:
     """Generate plain language escalation report via LLM."""
@@ -73,7 +73,7 @@ def _generate_report(
         last_submission=last_submission[:500],  # truncate for context
     )
     try:
-        result = llm.invoke([HumanMessage(content=prompt)])
+        result = await llm.ainvoke([HumanMessage(content=prompt)])
         return result.content.strip()
     except Exception as e:
         logger.error("Escalation LLM failed: %s", e)
