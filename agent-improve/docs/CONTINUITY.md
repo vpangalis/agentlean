@@ -42,6 +42,27 @@ it is opt-in per clone and none of it works until you run** `git config
 core.hooksPath .githooks`; the escape hatch is always `git commit
 --no-verify`, which records the drift rather than fixing it.
 
+**The review loop that sits on top of all that is two-role, and the split is
+deliberate.** A **Cowork/Desktop chat** does the reasoning and the review;
+**Claude Code** does the execution and is the only one that touches the repo.
+Cowork writes each procedure step's prompt; you run it in Claude Code, which
+makes every change; you paste the reply back into Cowork; Cowork runs the
+**`refactor-step-review` skill** — checking fidelity to the ratified
+`ARCHITECTURE.md` section, the current LangChain / LangGraph / LangSmith docs,
+and the §0.24 no-reinvention rule — then greenlights the commit and updates
+the build dashboard. **That skill lives in Cowork, not in Claude Code**, so
+`/refactor-step-review` is correctly unavailable at the execution end; it is
+not a missing install to go and fix.
+
+**Which end commits depends on how meaty the step is.** Steps that carry
+design judgment — state, subgraphs, middleware, validation — get **pre-commit
+review**: Claude Code stops before committing and waits for the greenlight.
+Mechanical steps **self-commit under the guards** and are reviewed after. The
+guards above are what make the second half safe: a mechanical step still
+cannot land with a malformed subject, a stale tracker or status block, a new
+type error or a red test, so the review that follows it is checking judgment
+rather than hygiene.
+
 <!--
 Document: agent-improve/docs/CONTINUITY.md
 Version: 4.9 — 2026-08-28
@@ -51,6 +72,16 @@ Purpose: Session-start orientation. A new session reading ONLY this file should
 MAINTENANCE RULE: when a version number, a step, or a document location
 changes, update this file in the same commit. Verify claims against the files
 themselves; do not carry a line forward because it was here before.
+
+v4.11 delta (2026-08-31): the **Cowork review workflow** is folded in under
+the drift-defences heading — the two-role loop (Cowork reasons and reviews,
+Claude Code executes and is the only one touching the repo), and the rule
+that decides which end commits: meaty steps stop for pre-commit review,
+mechanical steps self-commit under the guards and are reviewed after. Records
+that `refactor-step-review` is a Cowork skill and is *correctly* absent from
+Claude Code, so nobody installs it at the wrong end. This retires the
+separate `RESUME_HERE_cowork.md` note — CONTINUITY is now the single
+orientation document.
 
 v4.10 delta (2026-08-31): **CURRENT BUILD STATUS block added at the top, and
 it is GENERATED, not written.** `.githooks/pre-commit` regenerates it from
@@ -129,7 +160,7 @@ in §0.
 -->
 
 # AgentLean — Session Continuity Guide
-# Version 4.10 — 2026-08-31
+# Version 4.11 — 2026-08-31
 
 > **Read this first, then stop reading it.** This file orients. The binding
 > documents are named in §2 and they win on every point of detail.
