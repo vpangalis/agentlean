@@ -116,6 +116,21 @@ unconfirmed), 9.1 (external reindex). Everything else is open once its precondit
   the ROOT reference as the design target; per the 2026-08-27 ruling it should cite
   `agent-improve/ARCHITECTURE.md`. Annotate.
 
+## Drift defences on the spine (2026-08-31)
+
+A `refactor(arch-v2)` commit is blocked by `.githooks/commit-msg` unless all four
+hold. Activate per clone with `git config core.hooksPath .githooks`.
+
+| # | Rule |
+|---|---|
+| 1 | Subject is exactly `refactor(arch-v2): commit X.Y — <what changed>` |
+| 2 | **This file** is staged in the same commit |
+| 3 | **mypy** over the changed Python, against the pinned `.venv` (LangGraph 1.2.11) — new errors block; 97 pre-existing are baselined in `.claude/config/mypy-baseline.txt` |
+| 4 | **pytest** green |
+
+Fail-closed; every refusal prints `git commit --no-verify`. The baseline is DEBT
+— it should only ever shrink. Never widen it to silence a new error.
+
 ## Deferred (not blockers, tracked)
 - Root-reference back-port (`AGENTIC_ARCHITECTURE_REFERENCE.md`) — after Improve settles.
 - Two Azure index schema changes — batched at 9.1.

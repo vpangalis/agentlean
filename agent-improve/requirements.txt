@@ -53,3 +53,11 @@ aiofiles==23.2.1
 
 # Testing
 pytest==9.0.3
+
+# Type checking — DEV ONLY, not imported by any runtime module.
+# Added 2026-08-31 with the commit-msg type-check gate
+# (.claude/hooks/commit-msg-refactor-guard.py rule 3, config in mypy.ini).
+# It earns its place because langgraph / langchain / langchain_core / langsmith
+# / langchain_openai / pydantic all ship `py.typed`, so mypy checks calls
+# against the REAL installed signatures rather than against Any.
+mypy==2.3.1
