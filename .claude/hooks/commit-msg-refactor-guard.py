@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """commit-msg hook — the refactor-commit guard.
 
-Blocks a `refactor(arch-v2)` commit unless ALL FOUR hold:
+Blocks a `refactor(arch-v2)` commit unless ALL FIVE hold:
 
   1. SUBJECT — matches the spine format EXACTLY:
          refactor(arch-v2): commit X.Y — <what changed>
@@ -19,6 +19,22 @@ Blocks a `refactor(arch-v2)` commit unless ALL FOUR hold:
      against the real installed library's types. Ratcheted (see below).
 
   4. TESTS — pytest green.
+
+  5. CONTINUITY — `agent-improve/docs/CONTINUITY.md` is staged AND its CURRENT
+     BUILD STATUS block matches what regeneration from the staged inputs
+     produces. Same rule as 2, and for the same reason: one step, one commit,
+     and the two orientation documents move with it. BUILD_TRACKER.md is the
+     checklist; CONTINUITY.md is what a new session reads first, and a
+     first-read document that lags the build is worse than one that is merely
+     terse — it is confidently wrong. Its own title line read `Version 4.7`
+     while its header comment said 4.9, which is the drift this ends.
+
+     NORMALLY THIS RULE NEVER FIRES, and that is the design. `.githooks/
+     pre-commit` regenerates and stages the block automatically, so by the time
+     this runs it is already correct. Rule 5 is the fail-closed backstop for
+     the cases where it did not: pre-commit not installed (`core.hooksPath`
+     unset in a fresh clone), the script erroring, `git commit --no-verify` on
+     an earlier attempt leaving a stale block staged, or a hand-edited block.
 
 NON-refactor commits are not touched. Docs, fixes and chores pass through.
 
@@ -73,6 +89,10 @@ import re
 import subprocess
 import sys
 import tempfile
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import continuity_status as cs
 
 # --------------------------------------------------------------------------- #
 # Configuration
@@ -308,6 +328,69 @@ def check_types(root: str, py: str, staged: list[str]) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Rule 5 — CONTINUITY.md moved with the step
+# --------------------------------------------------------------------------- #
+def check_continuity(root: str, staged: list[str]) -> None:
+    """CONTINUITY.md staged, with a CURRENT BUILD STATUS block that is current.
+
+    The comparison ignores the `Block regenerated` date line: a commit made
+    just after midnight, or a rebase replayed on another day, would otherwise
+    be blocked over a value that carries no build meaning.
+    """
+    want = cs.CONTINUITY.lower()
+    if not any(p.lower() == want for p in staged):
+        fail("CONTINUITY.md was not updated in this commit",
+             f"Required: {cs.CONTINUITY}", "",
+             f"Staged in this commit ({len(staged)} path(s)):",
+             *[f"  - {p}" for p in staged[:20]],
+             *(["  … and more"] if len(staged) > 20 else []), "",
+             "One step = one commit = both orientation documents moved.",
+             "",
+             "This is normally automatic: .githooks/pre-commit regenerates the",
+             "CURRENT BUILD STATUS block and stages the file for you. Seeing",
+             "this message means that hook did not run. Most likely:",
+             "  git config core.hooksPath .githooks      <- not set in this clone",
+             "Set it and commit again, or stage the file yourself.")
+
+    staged_text = cs.staged_text(cs.CONTINUITY, root)
+    found = cs.extract_block(staged_text)
+    if found is None:
+        fail("CONTINUITY.md carries no CURRENT BUILD STATUS block",
+             f"Expected a block delimited by:",
+             f"  {cs.BEGIN}", f"  {cs.END}", "",
+             "It is generated, not written. Run a commit with .githooks active",
+             "and pre-commit will insert it, or regenerate manually:",
+             "  python .claude/hooks/pre-commit-continuity.py")
+
+    expected = cs.build_block(root)
+
+    def _strip_date(block: str) -> str:
+        return "\n".join(ln for ln in block.splitlines()
+                         if "Block regenerated" not in ln)
+
+    if _strip_date(found) != _strip_date(expected):
+        fail(
+            "CONTINUITY.md's CURRENT BUILD STATUS block is STALE",
+            "The staged block does not match what the staged BUILD_TRACKER.md,",
+            "CLAUDE.md and ARCHITECTURE.md produce. It is derived, so the block",
+            "is wrong by construction rather than merely out of date.",
+            "",
+            "Staged:",
+            *[f"  {ln}" for ln in _strip_date(found).splitlines()
+              if ln.startswith("| **")],
+            "",
+            "Expected:",
+            *[f"  {ln}" for ln in _strip_date(expected).splitlines()
+              if ln.startswith("| **")],
+            "",
+            "Fix by regenerating rather than by editing the block:",
+            "  python .claude/hooks/pre-commit-continuity.py && git add "
+            f"{cs.CONTINUITY}",
+        )
+    note("rule 5 continuity: PASS — status block current")
+
+
+# --------------------------------------------------------------------------- #
 # Rule 4 — tests
 # --------------------------------------------------------------------------- #
 def check_tests(root: str, py: str) -> None:
@@ -444,6 +527,11 @@ def main(argv: list[str]) -> int:
              *(["  … and more"] if len(staged) > 20 else []), "",
              "One step = one commit = one tracker row moved. Move this step's row",
              "in the tracker, `git add` it, and commit again.")
+
+    # ── Rule 5 — the other orientation document moved too ─────────────────
+    # Before the venv rules, because it is instant and needs no subprocess:
+    # a missing CONTINUITY update should not cost a 60s mypy run first.
+    check_continuity(root, staged)
 
     # ── Rules 3 and 4 — against the pinned venv ───────────────────────────
     py = venv_python(root)

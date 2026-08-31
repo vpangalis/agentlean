@@ -1,0 +1,28 @@
+#!/bin/sh
+# Tracked git hook — regenerates CONTINUITY.md's CURRENT BUILD STATUS block.
+#
+# Activated per clone with:
+#     git config core.hooksPath .githooks
+#
+# The logic lives in .claude/hooks/pre-commit-continuity.py, alongside the
+# project's other hooks. This file is only the entry point.
+#
+# Fail-SOFT, and deliberately the opposite of the commit-msg guard: this hook
+# WRITES, and a writing hook that breaks must never wedge a commit. If python
+# is missing or the script errors, the commit proceeds — because this is not
+# the enforcement point. The commit-msg guard's rule 5 still blocks a
+# refactor(arch-v2) commit whose status block is stale. Fail-soft writer,
+# fail-closed checker.
+
+HOOK=".claude/hooks/pre-commit-continuity.py"
+
+[ -f "$HOOK" ] || exit 0
+
+for PY in python3 python py; do
+    if command -v "$PY" >/dev/null 2>&1; then
+        "$PY" "$HOOK"
+        exit 0
+    fi
+done
+
+exit 0

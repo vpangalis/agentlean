@@ -118,18 +118,27 @@ unconfirmed), 9.1 (external reindex). Everything else is open once its precondit
 
 ## Drift defences on the spine (2026-08-31)
 
-A `refactor(arch-v2)` commit is blocked by `.githooks/commit-msg` unless all four
+A `refactor(arch-v2)` commit is blocked by `.githooks/commit-msg` unless all five
 hold. Activate per clone with `git config core.hooksPath .githooks`.
 
 | # | Rule |
 |---|---|
 | 1 | Subject is exactly `refactor(arch-v2): commit X.Y — <what changed>` |
 | 2 | **This file** is staged in the same commit |
-| 3 | **mypy** over the changed Python, against the pinned `.venv` (LangGraph 1.2.11) — new errors block; 97 pre-existing are baselined in `.claude/config/mypy-baseline.txt` |
+| 3 | **mypy** over the changed Python, against the pinned `.venv` (LangGraph 1.2.11) — new errors block; pre-existing ones are baselined in `.claude/config/mypy-baseline.txt` |
 | 4 | **pytest** green |
+| 5 | **`CONTINUITY.md`** is staged AND its CURRENT BUILD STATUS block is current |
 
 Fail-closed; every refusal prints `git commit --no-verify`. The baseline is DEBT
 — it should only ever shrink. Never widen it to silence a new error.
+
+**Rule 5 is normally satisfied for you.** `.githooks/pre-commit` regenerates
+CONTINUITY.md's status block from this file, `CLAUDE.md`, `ARCHITECTURE.md` and
+the git spine, then stages it — so the orientation document cannot lag the
+checklist. That writer is fail-SOFT (a hook that writes must never wedge a
+commit); rule 5 behind it is fail-CLOSED, and catches the cases where it did
+not run: `core.hooksPath` unset in a fresh clone, a `--no-verify` retry leaving
+a stale block staged, or a hand-edited block.
 
 ## Deferred (not blockers, tracked)
 - Root-reference back-port (`AGENTIC_ARCHITECTURE_REFERENCE.md`) — after Improve settles.
