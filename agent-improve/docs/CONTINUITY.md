@@ -524,12 +524,18 @@ at v1.15. Corrected against §66, which carries the live count.)*
   yet.** `explanation`/`example`/`prompt`/`progress` in the schema; UI half is
   the UI rebuild (step 10.2). The four Measure/Analyse/Improve/Control SKILL.md
   files must instruct the coach to populate them when written (only Define's does).
-- **Hook wrinkle (owed decision):** the session-start hook skips only BLOCKED/
-  GATED when picking "next", not `done`. Step 9.0 landed as `feat(knowledge):`
-  (not `refactor(arch-v2): commit 9.0`), so it never appears in the git-log scan
-  and can trap the "next" pointer once 8.3 lands. Two-line fix: add `done` to
-  `_UNAVAILABLE_STATUSES` in `.claude/hooks/session-start-context.py`. Same trap
-  applies to any future out-of-band step.
+- **Hook wrinkle — CLOSED 2026-08-31.** `done` is now in
+  `_UNAVAILABLE_STATUSES` in `.claude/hooks/session-start-context.py`, so a
+  finished step is never proposed as "next". The trap was step 9.0: it landed as
+  `feat(knowledge):` (not `refactor(arch-v2): commit 9.0`), so the git-log scan
+  can never see it and `last` can never advance past it — once 8.3 landed, 8.4
+  BLOCKED and 8.5 GATED would both be skipped and the pointer would have stuck
+  on 9.0 permanently. **Verified by reproduction**: with the old set,
+  `last=8.3` returned 9.0; with the new set it returns 9.1. The same trap no
+  longer applies to any future out-of-band step. A second constant,
+  `_BLOCKED_STATUSES`, keeps the "all remaining blocked/gated" diagnostic
+  honest — a finished step is not a blocked one. Appendix D's ⚠ note is
+  annotated to match.
 
 **CLOSED this session (were WATCH 3 + WATCH 8):** CLAUDE.md's stale "218
 `general`" → 259 and Define "6 Tier 1 / 15-6-5-4" figures — corrected via the

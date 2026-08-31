@@ -48,11 +48,29 @@ _GITLOG_STEP_RE = re.compile(r"refactor\(arch-v2\):\s*(?:step\s+|commit\s+)?(\d+
 
 # Appendix D row format, fixed by contract with the document:
 #   | **Commit 4.2** | thread_id + disconnect policy | pending |
-# A row whose status is BLOCKED or GATED is never proposed as "next".
+# A row whose status is BLOCKED, GATED or DONE is never proposed as "next".
 _STEP_ROW_RE = re.compile(
     r"\|\s*\*\*Commit (\d+\.\d+)\*\*\s*\|[^|]*\|\s*(?:\*\*)?([A-Za-z]+)"
 )
-_UNAVAILABLE_STATUSES = {"blocked", "gated"}
+
+# Statuses that must never be proposed as the next step.
+#
+# `done` joined this set on 2026-08-31. The set previously held only the two
+# "cannot be worked on" statuses, so a `done` row stayed selectable — harmless
+# for a step that landed as `refactor(arch-v2): commit X.Y`, because git history
+# advances `last` past it, but NOT for one that landed out of band under another
+# subject. Step 9.0 is exactly that: it landed as `feat(knowledge): …`
+# (`871637f`), so `_GITLOG_STEP_RE` can never see it and `last` can never move
+# past it. Once 8.3 lands, 8.4 is BLOCKED and 8.5 is GATED, so 9.0 becomes the
+# lowest remaining row and the pointer traps there permanently.
+# Tracked as the "hook wrinkle" in CONTINUITY.md §6; Appendix D carries the
+# matching note.
+_UNAVAILABLE_STATUSES = {"blocked", "gated", "done"}
+
+# The subset that means "cannot be worked on", as opposed to "already finished".
+# Used only for the diagnostic message, so a finished step is never reported to
+# the developer as though something were blocking it.
+_BLOCKED_STATUSES = {"blocked", "gated"}
 
 
 # --------------------------------------------------------------------------- #
@@ -160,7 +178,7 @@ def get_next_step_from_procedure(project_dir: str, last: str | None):
                      and _ver_key(step) > last_key]
         if not available:
             blocked = [s for s, st in rows
-                       if st.lower() in _UNAVAILABLE_STATUSES
+                       if st.lower() in _BLOCKED_STATUSES
                        and _ver_key(s) > last_key]
             if blocked:
                 return None, f"all remaining steps blocked/gated ({', '.join(blocked)})"

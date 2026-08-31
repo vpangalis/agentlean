@@ -1574,6 +1574,15 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 11.1** | Delete v1 | pending |
 | **Commit 11.2** | Governance close-out | pending |
 
+> **✅ FIXED 2026-08-31 — this whole note is now historical.** `done` was added
+> to `_UNAVAILABLE_STATUSES` in `.claude/hooks/session-start-context.py`, so a
+> `done` row is never proposed as "next" and the trap described below cannot
+> occur. Verified by reproduction: with the old set, `last=8.3` returned 9.0;
+> with the new set it returns 9.1. **The note is kept, not deleted** — it states
+> why the row is `done` while git history cannot show it, which is still true
+> and still worth reading. What is no longer true is the "will still propose
+> it" claim and the closing paragraph's reason for not fixing it.
+>
 > **⚠ Step 9.0 is `done` but the session-start hook will still propose it.**
 > The hook skips only `BLOCKED` and `GATED` rows when picking "next", so a
 > `done` row stays selectable. For every other done step that is harmless —
