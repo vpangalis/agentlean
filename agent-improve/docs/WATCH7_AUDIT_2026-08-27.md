@@ -34,7 +34,8 @@ Purpose: Records why procedure step "4.1 / WATCH 7 — migrate orchestrate.py's
 > and `REFACTORING_PROCEDURE.md` (§0.2's row, the status banner, steps 6.2 and
 > 11.1).
 
-The handoff `CLAUDE_CODE_HANDOFF_wrap_and_orchestrate.md` scoped Part B as:
+The handoff `CLAUDE_CODE_HANDOFF_wrap_and_orchestrate.md`
+*(moved to `docs/_archive/`)* scoped Part B as:
 *"migrate `orchestrate.py`'s Define capture/write to the ratified v2 Define
 schema"*, plus the Define cross-phase briefs in analyse / improve / control, as
 one commit — **and instructed: if Part B raises anything the paper spec didn't

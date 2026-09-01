@@ -3,7 +3,8 @@
 **Status: AWAITING APPROVAL. Nothing has been written to either reference file.**
 
 Produced per the audit-first requirement in
-`instruction-spec-layer-conversion.md`, against `SPEC_LAYER_GUIDE.md`.
+`instruction-spec-layer-conversion.md` *(moved to `docs/_archive/`)*, against
+`SPEC_LAYER_GUIDE.md`.
 Scope of the work this plan describes: **mechanical restructure + scaffolding +
 gap-marking only.** No missing definition, routing design or schema is invented.
 
