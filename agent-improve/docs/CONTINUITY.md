@@ -11,7 +11,7 @@
 | **Next** | step **4.1** — The Define phase subgraph |
 | **Stage** | Stage 4 — The graph |
 | **Progress** | 11 of 35 build steps |
-| **Last spine commit** | `0e69c8a` (commit 3.4) |
+| **Last spine commit** | `025bde7` (commit 3.5) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |
 | **Block regenerated** | 2026-09-01 |
