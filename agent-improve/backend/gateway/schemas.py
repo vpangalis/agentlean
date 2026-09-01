@@ -180,3 +180,32 @@ class ContextResponse(BaseModel):
     greeting: str
     missing_sections: list[str]
     next_action: str
+
+
+# ── Gate review — procedure step 3.4, §50's gate-review screen ───────
+class GateReviewField(BaseModel):
+    """One reviewable field, carrying the tier that decides what it costs."""
+
+    field: str
+    label: str
+    tier: int                    # 1 blocks the gate · 2 warns only (§35)
+    value: object | None = None
+    present: bool = False
+    structured: bool = False     # dict/list — rendered, not free-typed
+
+
+class GateReviewResponse(BaseModel):
+    """The assembled gate document, shown BEFORE approval (§9.1 steps 3–4).
+
+    `document` is populated only when every Tier 1 field is present — that is,
+    only when assembly would succeed. A gate MAY pass with warnings; it may
+    never pass with failures (§35).
+    """
+
+    phase: str
+    passed: bool
+    missing_fields: list[str] = []       # Tier 1 only — these block
+    fields: list[GateReviewField] = []
+    acknowledged_gaps: list[str] = []    # Tier 2 the Belt is proceeding past
+    document: dict | None = None
+    field_counts: dict = {}              # {total, tier_1, tier_2, captured}

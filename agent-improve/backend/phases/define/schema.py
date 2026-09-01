@@ -261,3 +261,59 @@ class DefineOutput(BaseModel):
     )
     citations: list[dict] = Field(default_factory=list)
     uploads: list[dict] = Field(default_factory=list)
+
+
+from backend.phases.gate_assembly import (  # noqa: E402
+    build_gate_document,
+    tier_1,
+)
+
+
+def assemble_define_gate_document(
+    artifacts: dict,
+    citations: list[dict],
+    uploads: list[dict],
+    acknowledged_gaps: list[str] | None = None,
+) -> DefineOutput:
+    """Construct Define's gate document from captured values (S-F28).
+
+    **Define is the one phase with no Tier 2** (Option A, §39.1.2), so every
+    content field is a direct `artifacts[...]` access and the
+    `.get(..., "")` pattern never appears here. Thirteen direct accesses: the
+    twelve coached fields plus `metric_definitions`, which is gate-required
+    and therefore read the same way (§63.8).
+
+    `phase_metrics` is the ONE `.get()` in this assembly and it is **not** a
+    Tier 2 access — it defaults to `[]` because a phase may legitimately engage
+    no metric, in which case §63.9 B2 requires `"none this phase"` to be
+    written into it rather than the field being absent.
+
+    `acknowledged_gaps` is **always empty for Define**: nothing is skippable,
+    so nothing can be acknowledged as skipped. It stays on the schema for
+    cross-schema uniformity (§40).
+    """
+    values = {
+        # The 12 gate-required fields, in coached order (§39.1.2)
+        "business_case": tier_1(artifacts, "business_case"),
+        "team": tier_1(artifacts, "team"),
+        "voc_summary": tier_1(artifacts, "voc_summary"),
+        "problem_statement": tier_1(artifacts, "problem_statement"),
+        "baseline_estimate": tier_1(artifacts, "baseline_estimate"),
+        "project_scope": tier_1(artifacts, "project_scope"),
+        "goal_statement": tier_1(artifacts, "goal_statement"),
+        "target_value": tier_1(artifacts, "target_value"),
+        "target_date": tier_1(artifacts, "target_date"),
+        "secondary_metrics": tier_1(artifacts, "secondary_metrics"),
+        "process_map_sipoc": tier_1(artifacts, "process_map_sipoc"),
+        "issues_and_barriers": tier_1(artifacts, "issues_and_barriers"),
+        # The metric registry — gate-required, captured inside position 5
+        "metric_definitions": tier_1(artifacts, "metric_definitions"),
+        # On all five schemas (§63.9)
+        "phase_metrics": artifacts.get("phase_metrics", []),
+        # Gate metadata (§40)
+        "computation_results": artifacts.get("computation_results", []),
+        "acknowledged_gaps": list(acknowledged_gaps or []),
+        "citations": citations,
+        "uploads": uploads,
+    }
+    return build_gate_document(DefineOutput, "define", artifacts, values)

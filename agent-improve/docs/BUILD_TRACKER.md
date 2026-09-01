@@ -12,7 +12,7 @@ Legend:  ✅ done · ▶ next · ☐ to do · ⛔ blocked · ⏸ gated/external
 # Agent Improve — Refactor Build Tracker
 # updated 2026-08-31 · build target: `agent-improve/ARCHITECTURE.md`
 
-**Progress: 9 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3 + 9.0 out-of-band). **Next: step 3.4.**
+**Progress: 10 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4 + 9.0 out-of-band). **Next: step 3.5.**
 Spine runs 2.3 → 11.2, one step = one commit. The spec is complete; this is the code.
 
 **Blocked / not-yet-schedulable:** 8.4 (Redis not provisioned), 8.5 (`request_drain`
@@ -35,8 +35,8 @@ unconfirmed), 9.1 (external reindex). Everything else is open once its precondit
 | 3.1 | `SupervisorState` + `PhaseState` | §5, §6, §7 | ✅ done |
 | 3.2 | `AzureBlobStore` | §9, §10 | ✅ done |
 | 3.3 | Boundary mappers **(G-27 CLOSED)** | §9 | ✅ done |
-| 3.4 | `{Phase}Output` schemas + validators + UI **(gate assembly, G-28)** | §7, §40, §41, §63 | ▶ **next** |
-| 3.5 | `storage/blob.py` — class → functions, sync → aio **(S-C08)** | §54, §10, §49 | ☐ |
+| 3.4 | `{Phase}Output` schemas + validators + UI **(gate assembly, G-28)** | §7, §40, §41, §63 | ✅ done |
+| 3.5 | `storage/blob.py` — class → functions, sync → aio **(S-C08)** | §54, §10, §49 | ▶ **next** |
 
 ## Stage 4 — The graph
 | Step | What | Builds | Status |

@@ -7,14 +7,14 @@
 
 | | |
 |---|---|
-| **Last completed** | step **3.3** — Boundary mappers **(G-27 CLOSED)** |
-| **Next** | step **3.4** — `{Phase}Output` schemas + validators + UI **(gate assembly, G-28)** |
+| **Last completed** | step **3.4** — `{Phase}Output` schemas + validators + UI **(gate assembly, G-28)** |
+| **Next** | step **3.5** — `storage/blob.py` — class → functions, sync → aio **(S-C08)** |
 | **Stage** | Stage 3 — State and persistence |
-| **Progress** | 9 of 35 build steps |
-| **Last spine commit** | `729797c` (commit 3.2) |
+| **Progress** | 10 of 35 build steps |
+| **Last spine commit** | `3435da4` (commit 3.3) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |
-| **Block regenerated** | 2026-08-31 |
+| **Block regenerated** | 2026-09-01 |
 
 *Derived from `docs/BUILD_TRACKER.md`, `CLAUDE.md`, `ARCHITECTURE.md`
 and the git spine — never hand-maintained, so it cannot drift from

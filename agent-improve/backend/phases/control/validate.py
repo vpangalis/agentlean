@@ -1,66 +1,136 @@
+"""Control phase gate validator — Layer 2b.
+
+Architecture 34 (the four-layer validation stack) - 35 (two tiers) -
+S-C31 (63.5). Procedure step 3.4.
+
+**One third of an atomic unit** (56.1): `schema.py` owns the field names and
+types, this file owns WHICH OF THEM BLOCK THE GATE, and
+`skills/dmaic-control-phase/SKILL.md` coaches those names in the same order.
+The tier tuples are IMPORTED from `schema.py` rather than retyped here —
+two hand-maintained copies of one list is how the three drift apart.
+
+**This is Layer 2b — field presence, DETERMINISTIC, no LLM** (9.2). Layer 2a
+(coherence) fires every turn in middleware; 2c (constraints) and 2d (the
+rubric) run in the same `validation_stack` node but are not this function's
+business.
+
+**Two tiers, and the difference is the whole point** (35):
+
+| Tier | This validator | The grader (2d) | The Belt |
+|---|---|---|---|
+| Tier 1 | **BLOCKS** | can `fail` | must supply it |
+| Tier 2 | not checked | at worst `warning` | supplies it, or proceeds with an acknowledged gap |
+
+A gate MAY pass with warnings. A gate may NEVER pass with failures. A Tier 2
+field the Belt proceeds past is recorded in `acknowledged_gaps` — never
+silently dropped — and the next phase's input mapper carries it forward
+(G-27 ruling) so a deliberate decision stays distinguishable from an oversight.
+
+**Why two tiers at all.** A gate that blocks on every criterion teaches Belts
+to fill fields mechanically: complete gate documents, worse projects. Tier 1
+catches genuinely incomplete phases; Tier 2 coaches toward best practice while
+leaving the judgment with the Belt, who knows the project.
+"""
 from __future__ import annotations
 
 import logging
 
-from backend.core.state import ImproveGraphState
 from backend.core.config import settings
-from backend.phases.control.schema import ControlPhaseInput
+from backend.core.state import ImproveGraphState
+from backend.phases.control.schema import (
+    CONTROL_TIER_1_FIELDS,
+    CONTROL_TIER_2_FIELDS,
+)
 
 logger = logging.getLogger(__name__)
 
+#: Sourced from `schema.py` — the single declaration (56.1).
+CONTROL_REQUIRED_FOR_GATE = list(CONTROL_TIER_1_FIELDS)
 
-# Subset of Control fields that MUST be populated for the gate to pass.
-# The ControlPhaseInput schema makes every field optional, so gate
-# enforcement is completeness-based rather than a Pydantic required-field
-# check — mirroring the Improve phase.
-CONTROL_REQUIRED_FOR_GATE = [
-    "control_plan",
-    "monitoring_method",
-    "sustainability_confirmed",
-]
+#: 41 / S-C33 — all FIVE sub-plans required. A control plan written is
+#: not a control plan delivered, and a training plan authored and never
+#: run is the most common real Control failure (B1).
+CONTROL_PLAN_KEYS: tuple[str, ...] = (
+    "documentation", "monitoring", "response", "training",
+    "aligning_systems",
+)
+
+
+
+def _is_empty(value: object) -> bool:
+    """Absent, or present-but-empty. A whitespace-only string is empty."""
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    if isinstance(value, (list, dict, tuple, set)):
+        return len(value) == 0
+    return False
+
+
+def _missing_structured(data: dict) -> list[str]:
+    """Sub-field checks for the structured dicts (41, S-C33).
+
+    **A dict that is present but half-filled passes a presence check and fails
+    the Belt at the gate.** 41 calls this the partial-map failure, and it is
+    why these fields are dicts rather than prose: a four-of-six map looks
+    complete until someone tries to use it. B1 requires EVERY sub-field.
+    """
+    missing: list[str] = []
+    plan = data.get("control_plan")
+    if isinstance(plan, dict):
+        absent = [k for k in CONTROL_PLAN_KEYS if _is_empty(plan.get(k))]
+        if absent:
+            missing.append(f"control_plan.{'/'.join(absent)}")
+    return missing
+
+
+def acknowledged_gaps(data: dict) -> list[str]:
+    """Tier 2 fields the Belt is proceeding without (35, 9.7).
+
+    Recorded rather than dropped: it is what turns a silent omission into a
+    conscious decision the audit trail can show, and the next phase's planner
+    reads it out of the gate document.
+    """
+    return [
+        f"{field} — Belt accepted gap"
+        for field in CONTROL_TIER_2_FIELDS
+        if _is_empty(data.get(field))
+    ]
 
 
 async def validate_control(state: ImproveGraphState) -> dict:
-    """Validator node for Control phase.
+    """Validator node for the Control phase.
 
-    ControlPhaseInput fields are all optional at the schema level, so gate
-    enforcement is a completeness check against CONTROL_REQUIRED_FOR_GATE
-    rather than a Pydantic required-field check. Signature and return shape
-    match the LangGraph node contract (state -> state slice) so both
-    graph.py and the HTTP /gate route can call this unchanged.
+    Gate enforcement is a **completeness check against the Tier 1 set** — not a
+    Pydantic required-field check. `ControlOutput` is the gate DOCUMENT, assembled
+    once at `gate_apply` after Belt approval (33); it is not the mechanism that
+    decides whether the gate opens.
+
+    Signature and return shape match the LangGraph node contract
+    (state -> state slice), so `graph.py` and the HTTP `/gate` route both call
+    it unchanged.
     """
-
     phase_inputs = state.get("phase_inputs") or {}
     data = dict(phase_inputs.get("control") or {})
     attempts = state.get("gate_attempts") or 0
 
-    # ── Completeness check against required fields ────────────────────
-    missing = []
-    for field in CONTROL_REQUIRED_FOR_GATE:
-        val = data.get(field)
-        if val is None or val == "" or val == []:
-            missing.append(field)
+    # -- Layer 2b: presence of every Tier 1 field ----------------------
+    missing: list[str] = [
+        field for field in CONTROL_REQUIRED_FOR_GATE if _is_empty(data.get(field))
+    ]
 
-    # Value-domain check on sustainability_confirmed: the project can only
-    # close when the team confirms the improvement will hold — it must be
-    # "yes" (a bare "no" does not pass the gate). If present but not "yes",
-    # treat as incomplete.
-    sc = data.get("sustainability_confirmed")
-    if isinstance(sc, str) and sc.strip().lower() != "yes":
-        if "sustainability_confirmed" not in missing:
-            missing.append("sustainability_confirmed")
+    # -- Sub-field completeness for the structured dicts (41) ----------
+    missing.extend(_missing_structured(data))
 
     passed = len(missing) == 0
+    gaps = acknowledged_gaps(data)
 
     if passed:
-        # Schema is permissive (all optional). model_dump normalises the
-        # shape for downstream storage (write_phase_gate).
-        try:
-            validated = ControlPhaseInput(**data).model_dump()
-        except Exception as e:
-            logger.warning("Control schema dump unexpectedly failed: %s", e)
-            validated = data
-        logger.info("Control gate PASSED")
+        logger.info(
+            "Control gate PASSED — %d acknowledged Tier 2 gap(s): %s",
+            len(gaps), gaps,
+        )
         return {
             "gate_attempts": 0,
             "escalated": False,
@@ -69,7 +139,7 @@ async def validate_control(state: ImproveGraphState) -> dict:
                 "control": {
                     **data,
                     "_gate_passed": True,
-                    "_validated": validated,
+                    "_acknowledged_gaps": gaps,
                 },
             },
         }
@@ -77,9 +147,7 @@ async def validate_control(state: ImproveGraphState) -> dict:
     new_attempts = attempts + 1
     logger.info(
         "Control gate FAILED attempt %d/%d — missing: %s",
-        new_attempts,
-        settings.GATE_MAX_ATTEMPTS,
-        missing,
+        new_attempts, settings.GATE_MAX_ATTEMPTS, missing,
     )
     escalate = new_attempts >= settings.GATE_MAX_ATTEMPTS
     return {
@@ -92,6 +160,7 @@ async def validate_control(state: ImproveGraphState) -> dict:
                 "_gate_passed": False,
                 "_missing_fields": missing,
                 "_gate_attempts": new_attempts,
+                "_acknowledged_gaps": gaps,
             },
         },
     }

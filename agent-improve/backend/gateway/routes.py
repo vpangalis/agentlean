@@ -19,6 +19,7 @@ from backend.gateway.schemas import (
     HealthResponse,
     UploadMetaRequest,
 )
+from backend.gateway.schemas import GateReviewField, GateReviewResponse
 from backend.gateway.schemas import SummariseRequest, SummariseResponse
 from backend.gateway.schemas import ContextRequest, ContextResponse
 from backend.storage.blob import blob_client
@@ -343,6 +344,73 @@ async def ask(request: AskRequest) -> AskResponse:
     except Exception as e:
         logger.error("ask() error: %s", e)
         raise HTTPException(500, f"Graph error: {str(e)}")
+
+
+@router.get("/gate/review/{case_id}/{phase}", response_model=GateReviewResponse)
+async def gate_review(case_id: str, phase: str) -> GateReviewResponse:
+    """The assembled gate document, shown to the Belt BEFORE approval.
+
+    §9.1 steps 3-4 of the nine-step HITL gate: the Belt sees validated output
+    and checks it. This is the READ half — the interrupt-based approve/reject
+    flow is step 7.3, and the conflict panel and tier progress bars are step
+    10.2. Building either here would be building 10.2's scope inside 3.4.
+
+    Tier is carried per field because it is what the Belt needs to know:
+    **a Tier 1 gap blocks, a Tier 2 gap is theirs to accept** (§35). The
+    document is assembled only when assembly would succeed, so the screen never
+    shows a half-built document as though it were the real one.
+    """
+    from backend.phases.gate_registry import GATE_SPECS, review_rows
+
+    if phase not in GATE_SPECS:
+        raise HTTPException(400, f"Unknown phase: {phase}")
+    if blob_client is None:
+        raise HTTPException(503, "Storage not configured")
+
+    case = blob_client.load_case(case_id)
+    if case is None:
+        raise HTTPException(404, f"Case {case_id} not found")
+
+    record = case.phases.get(phase)
+    artifacts = dict((record.structured or {}) if record else {})
+    spec = GATE_SPECS[phase]
+
+    rows = review_rows(phase, artifacts)
+    missing = [r["field"] for r in rows if r["tier"] == 1 and not r["present"]]
+    gaps = [f"{r['field']} — Belt accepted gap"
+            for r in rows if r["tier"] == 2 and not r["present"]]
+
+    document = None
+    if not missing:
+        try:
+            document = spec.assemble(
+                artifacts,
+                citations=[c for c in (getattr(record, "citations", []) or [])],
+                uploads=[u.model_dump() if hasattr(u, "model_dump") else u
+                         for u in (getattr(record, "uploads", []) or [])],
+                acknowledged_gaps=gaps,
+            ).model_dump()
+        except Exception as e:
+            # Assembly raising with every Tier 1 field present is a CODE
+            # DEFECT (S-F28), not an incomplete phase — surface it rather
+            # than rendering an empty document as though the gate were open.
+            logger.error("gate assembly failed for %s/%s: %s", case_id, phase, e)
+            raise HTTPException(500, f"Gate assembly failed: {e}")
+
+    return GateReviewResponse(
+        phase=phase,
+        passed=not missing,
+        missing_fields=missing,
+        fields=[GateReviewField(**r) for r in rows],
+        acknowledged_gaps=gaps,
+        document=document,
+        field_counts={
+            "total": len(rows),
+            "tier_1": len(spec.tier_1),
+            "tier_2": len(spec.tier_2),
+            "captured": sum(1 for r in rows if r["present"]),
+        },
+    )
 
 
 _PURPOSE_PREFIX = "purpose="

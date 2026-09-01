@@ -1,100 +1,144 @@
+"""Measure phase gate validator — Layer 2b.
+
+Architecture 34 (the four-layer validation stack) - 35 (two tiers) -
+S-C28 (63.2). Procedure step 3.4.
+
+**One third of an atomic unit** (56.1): `schema.py` owns the field names and
+types, this file owns WHICH OF THEM BLOCK THE GATE, and
+`skills/dmaic-measure-phase/SKILL.md` coaches those names in the same order.
+The tier tuples are IMPORTED from `schema.py` rather than retyped here —
+two hand-maintained copies of one list is how the three drift apart.
+
+**This is Layer 2b — field presence, DETERMINISTIC, no LLM** (9.2). Layer 2a
+(coherence) fires every turn in middleware; 2c (constraints) and 2d (the
+rubric) run in the same `validation_stack` node but are not this function's
+business.
+
+**Two tiers, and the difference is the whole point** (35):
+
+| Tier | This validator | The grader (2d) | The Belt |
+|---|---|---|---|
+| Tier 1 | **BLOCKS** | can `fail` | must supply it |
+| Tier 2 | not checked | at worst `warning` | supplies it, or proceeds with an acknowledged gap |
+
+A gate MAY pass with warnings. A gate may NEVER pass with failures. A Tier 2
+field the Belt proceeds past is recorded in `acknowledged_gaps` — never
+silently dropped — and the next phase's input mapper carries it forward
+(G-27 ruling) so a deliberate decision stays distinguishable from an oversight.
+
+**Why two tiers at all.** A gate that blocks on every criterion teaches Belts
+to fill fields mechanically: complete gate documents, worse projects. Tier 1
+catches genuinely incomplete phases; Tier 2 coaches toward best practice while
+leaving the judgment with the Belt, who knows the project.
+"""
 from __future__ import annotations
 
 import logging
 
-from backend.core.state import ImproveGraphState
 from backend.core.config import settings
-from backend.phases.measure.schema import MeasurePhaseInput
+from backend.core.state import ImproveGraphState
+from backend.phases.measure.schema import (
+    MEASURE_TIER_1_FIELDS,
+    MEASURE_TIER_2_FIELDS,
+)
 
 logger = logging.getLogger(__name__)
 
+#: Sourced from `schema.py` — the single declaration (56.1).
+MEASURE_REQUIRED_FOR_GATE = list(MEASURE_TIER_1_FIELDS)
 
-# Subset of MEASURE_GATE_FIELDS that MUST be populated for the Measure
-# gate to pass. The MeasurePhaseInput schema makes every field optional,
-# so gate enforcement is completeness-based rather than Pydantic-required.
-MEASURE_REQUIRED_FOR_GATE = [
-    "primary_metric_confirmed",
-    "secondary_metric_confirmed",
-    "data_collection_plan",
-    "msa_required",
-    "baseline_summary",
-    "capability_summary",
-]
+#: 41 / S-C33 — all six sub-fields required.
+DETAILED_PROCESS_MAP_KEYS: tuple[str, ...] = (
+    "steps", "cycle_times", "resources", "value_vs_waste",
+    "measurement_points", "baseline_metrics",
+)
+
+
+
+def _is_empty(value: object) -> bool:
+    """Absent, or present-but-empty. A whitespace-only string is empty."""
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    if isinstance(value, (list, dict, tuple, set)):
+        return len(value) == 0
+    return False
+
+
+def _missing_structured(data: dict) -> list[str]:
+    """Sub-field checks for the structured dicts (41, S-C33).
+
+    **A dict that is present but half-filled passes a presence check and fails
+    the Belt at the gate.** 41 calls this the partial-map failure, and it is
+    why these fields are dicts rather than prose: a four-of-six map looks
+    complete until someone tries to use it. B1 requires EVERY sub-field.
+    """
+    missing: list[str] = []
+    process_map = data.get("detailed_process_map")
+    if isinstance(process_map, dict):
+        absent = [k for k in DETAILED_PROCESS_MAP_KEYS
+                  if _is_empty(process_map.get(k))]
+        if absent:
+            missing.append(f"detailed_process_map.{'/'.join(absent)}")
+    return missing
+
+
+def acknowledged_gaps(data: dict) -> list[str]:
+    """Tier 2 fields the Belt is proceeding without (35, 9.7).
+
+    Recorded rather than dropped: it is what turns a silent omission into a
+    conscious decision the audit trail can show, and the next phase's planner
+    reads it out of the gate document.
+    """
+    return [
+        f"{field} — Belt accepted gap"
+        for field in MEASURE_TIER_2_FIELDS
+        if _is_empty(data.get(field))
+    ]
 
 
 async def validate_measure(state: ImproveGraphState) -> dict:
-    """Validator node for Measure phase.
+    """Validator node for the Measure phase.
 
-    MeasurePhaseInput fields are all optional at the schema level, so gate
-    enforcement is a completeness check against MEASURE_REQUIRED_FOR_GATE
-    rather than a Pydantic required-field check. Signature and return shape
-    match the LangGraph node contract (state -> state slice) so both
-    graph.py and the HTTP /gate route can call this unchanged.
+    Gate enforcement is a **completeness check against the Tier 1 set** — not a
+    Pydantic required-field check. `MeasureOutput` is the gate DOCUMENT, assembled
+    once at `gate_apply` after Belt approval (33); it is not the mechanism that
+    decides whether the gate opens.
 
-    Pre-populates primary_metric_confirmed and secondary_metric_confirmed
-    from Define phase inputs when they have not been confirmed explicitly,
-    so the gate does not block on values the team already approved upstream.
+    Signature and return shape match the LangGraph node contract
+    (state -> state slice), so `graph.py` and the HTTP `/gate` route both call
+    it unchanged.
     """
-
     phase_inputs = state.get("phase_inputs") or {}
-    inputs = dict(phase_inputs.get("measure") or {})
+    data = dict(phase_inputs.get("measure") or {})
     attempts = state.get("gate_attempts") or 0
 
-    # Seed metric confirmations from Define if not yet set
-    define_inputs = phase_inputs.get("define") or {}
-    if not inputs.get("primary_metric_confirmed"):
-        pm = define_inputs.get("primary_metric")
-        pm_unit = define_inputs.get("primary_metric_unit", "")
-        if pm:
-            inputs["primary_metric_confirmed"] = (
-                f"{pm} ({pm_unit})" if pm_unit else pm
-            )
+    # -- Layer 2b: presence of every Tier 1 field ----------------------
+    missing: list[str] = [
+        field for field in MEASURE_REQUIRED_FOR_GATE if _is_empty(data.get(field))
+    ]
 
-    if not inputs.get("secondary_metric_confirmed"):
-        sm = define_inputs.get("secondary_metric")
-        if sm:
-            inputs["secondary_metric_confirmed"] = sm
-
-    # Completeness check against required fields
-    missing = []
-    for field in MEASURE_REQUIRED_FOR_GATE:
-        val = inputs.get(field)
-        if val is None or val == "" or val == []:
-            missing.append(field)
-
-    # data_collection_plan needs at least one entry with metric/source/owner
-    dcp = inputs.get("data_collection_plan")
-    if isinstance(dcp, list):
-        valid_entries = [
-            e for e in dcp
-            if isinstance(e, dict)
-            and e.get("metric")
-            and e.get("data_source")
-            and e.get("data_owner")
-        ]
-        if not valid_entries and "data_collection_plan" not in missing:
-            missing.append("data_collection_plan")
+    # -- Sub-field completeness for the structured dicts (41) ----------
+    missing.extend(_missing_structured(data))
 
     passed = len(missing) == 0
+    gaps = acknowledged_gaps(data)
 
     if passed:
-        # Schema is permissive (all optional). model_dump normalises the
-        # shape for downstream storage (write_phase_gate).
-        try:
-            validated = MeasurePhaseInput(**inputs).model_dump()
-        except Exception as e:
-            logger.warning("Measure schema dump unexpectedly failed: %s", e)
-            validated = inputs
-        logger.info("Measure gate PASSED")
+        logger.info(
+            "Measure gate PASSED — %d acknowledged Tier 2 gap(s): %s",
+            len(gaps), gaps,
+        )
         return {
             "gate_attempts": 0,
             "escalated": False,
             "phase_inputs": {
                 **phase_inputs,
                 "measure": {
-                    **inputs,
+                    **data,
                     "_gate_passed": True,
-                    "_validated": validated,
+                    "_acknowledged_gaps": gaps,
                 },
             },
         }
@@ -102,9 +146,7 @@ async def validate_measure(state: ImproveGraphState) -> dict:
     new_attempts = attempts + 1
     logger.info(
         "Measure gate FAILED attempt %d/%d — missing: %s",
-        new_attempts,
-        settings.GATE_MAX_ATTEMPTS,
-        missing,
+        new_attempts, settings.GATE_MAX_ATTEMPTS, missing,
     )
     escalate = new_attempts >= settings.GATE_MAX_ATTEMPTS
     return {
@@ -113,10 +155,11 @@ async def validate_measure(state: ImproveGraphState) -> dict:
         "phase_inputs": {
             **phase_inputs,
             "measure": {
-                **inputs,
+                **data,
                 "_gate_passed": False,
                 "_missing_fields": missing,
                 "_gate_attempts": new_attempts,
+                "_acknowledged_gaps": gaps,
             },
         },
     }

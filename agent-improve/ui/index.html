@@ -602,7 +602,9 @@ a{text-decoration:none;color:inherit}
       </div>
 
       <!-- GATE VIEW -->
-      <div class="view" id="view-gate"></div>
+      <div class="view" id="view-gate">
+        <div id="gate-review-panel"></div>
+      </div>
 
       <!-- STEPS VIEW -->
       <div class="view" id="view-steps">
@@ -3150,6 +3152,102 @@ function renderDefineChecklist(){
 }
 
 // ─── GATE TAB ─────────────────────────────────────────────────────
+// ─── GATE REVIEW PANEL — procedure step 3.4 ───────────────────────
+// §50's gate-review screen: the assembled document shown BEFORE approval,
+// with each field carrying the tier that decides what a gap costs.
+//
+// SCOPE BOUNDARY, 3.4 vs 10.2 — deliberate, do not "complete" it here.
+//   3.4 (this)  the assembled document, per-field tier, acknowledged gaps,
+//               editable Tier-1 values, one explicit approve action
+//   10.2        the live gate document with the conflict panel and the tier
+//               progress bars — a different step with its own manual-UI verify
+// Nine-step HITL approve/reject over interrupt() is 7.3; this renders and
+// submits through the existing /gate route rather than resuming a graph.
+async function renderGateReview() {
+  const host = document.getElementById('gate-review-panel');
+  if (!host) return;
+  const caseId = S.case?.case_id || S.caseId;
+  const phase = S.gateViewPhase || S.phase || 'define';
+  if (!caseId) { host.innerHTML = ''; return; }
+
+  let d;
+  try {
+    const r = await fetch(`${API}/gate/review/${caseId}/${phase}`);
+    if (!r.ok) { host.innerHTML = ''; return; }
+    d = await r.json();
+  } catch (e) { host.innerHTML = ''; return; }
+
+  const c = d.field_counts || {};
+  const pill = (txt, bg, fg) => `<span style="font-size:9px;font-weight:600;
+    padding:1px 6px;border-radius:8px;background:${bg};color:${fg}">${txt}</span>`;
+
+  const row = f => {
+    const blocking = f.tier === 1 && !f.present;
+    const tierPill = f.tier === 1
+      ? pill('required', blocking ? '#FDECEC' : '#E8F4EC', blocking ? '#B3261E' : '#1E6B3A')
+      : pill('recommended', '#F4F1E8', '#7A6E52');
+    const val = f.present
+      ? (f.structured
+          ? `<span style="color:#5B6B7C;font-style:italic">structured — ${
+              Array.isArray(f.value) ? f.value.length + ' entries' : 'see document'}</span>`
+          : String(f.value))
+      : `<span style="color:#B3261E;font-style:italic">not captured</span>`;
+    // Tier 1 prose is editable here — §50 requires the Belt can correct a
+    // value before approving. Structured dicts are shown, not free-typed:
+    // editing a six-key SIPOC in a text box is how a partial map is created.
+    const editable = f.tier === 1 && !f.structured;
+    const body = editable
+      ? `<textarea data-gate-field="${f.field}" rows="2" style="width:100%;
+          font-size:11px;padding:5px;border:0.5px solid #E4E2DC;border-radius:4px;
+          font-family:inherit;color:#2C3E50">${f.present ? String(f.value) : ''}</textarea>`
+      : `<div style="font-size:11px;color:#2C3E50;line-height:1.5">${val}</div>`;
+    return `<div style="padding:8px 0;border-bottom:0.5px solid #F0EEE8">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+        <span style="font-size:11px;font-weight:600;color:#2C3E50;
+          text-transform:capitalize">${f.label}</span>${tierPill}
+      </div>${body}</div>`;
+  };
+
+  const gaps = (d.acknowledged_gaps || []).length
+    ? `<div style="margin-top:10px;padding:8px;background:#FBF8F0;
+        border:0.5px solid #E8DFC8;border-radius:6px">
+        <div style="font-size:10px;font-weight:600;color:#7A6E52;margin-bottom:3px">
+          Proceeding without ${d.acknowledged_gaps.length} recommended item(s)</div>
+        <div style="font-size:10px;color:#7A6E52;line-height:1.6">
+          ${d.acknowledged_gaps.map(g => '• ' + g).join('<br>')}</div>
+        <div style="font-size:9px;color:#9A8F78;margin-top:4px">
+          Recorded in the gate document, so the next phase can see it was a
+          decision rather than an oversight.</div>
+      </div>` : '';
+
+  host.innerHTML = `
+    <div style="max-width:680px;margin:0 auto 20px;padding:14px;
+      border:0.5px solid #E4E2DC;border-radius:8px;background:#fff">
+      <div style="display:flex;align-items:center;justify-content:space-between;
+        margin-bottom:8px">
+        <span style="font-size:12px;font-weight:600;color:#2C3E50">
+          Gate review — ${phase}</span>
+        ${d.passed
+          ? pill('ready to submit', '#E8F4EC', '#1E6B3A')
+          : pill(`${d.missing_fields.length} still needed`, '#FDECEC', '#B3261E')}
+      </div>
+      <div style="font-size:10px;color:#6B7A8D;margin-bottom:8px">
+        ${c.captured} of ${c.total} captured · ${c.tier_1} required
+        · ${c.tier_2} recommended
+      </div>
+      ${(d.fields || []).map(row).join('')}
+      ${gaps}
+      <button id="gate-approve-btn" onclick="submitGateReview()"
+        ${d.passed ? '' : 'disabled'}
+        style="margin-top:12px;width:100%;padding:9px;border-radius:6px;border:none;
+          font-size:11px;font-weight:600;cursor:${d.passed ? 'pointer' : 'not-allowed'};
+          background:${d.passed ? '#0070BA' : '#E4E2DC'};
+          color:${d.passed ? '#fff' : '#9A9689'}">
+        ${d.passed ? 'Approve and submit this gate' : 'Complete the required fields first'}
+      </button>
+    </div>`;
+}
+
 function renderGate() {
   // ── Phase selector setup ──────────────────────────────────
   const phaseOrder = ['define','measure','analyse','improve','control'];
@@ -3201,6 +3299,9 @@ function renderGate() {
   if (!el) return;
   el.style.padding = '0';
   el.style.overflowY = 'auto';
+  // Step 3.4: the tier-aware review panel renders above the gate document.
+  // Painted asynchronously so the document below is never held up by it.
+  setTimeout(renderGateReview, 0);
 
   // ── Shared helpers (used by Define + Measure gate documents) ──
   // When no structuredData is passed, the helpers fall back to the

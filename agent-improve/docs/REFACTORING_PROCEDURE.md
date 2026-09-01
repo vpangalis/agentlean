@@ -1626,7 +1626,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 3.1** | `SupervisorState` and `PhaseState` | done |
 | **Commit 3.2** | `AzureBlobStore` | done |
 | **Commit 3.3** | Boundary mappers | done |
-| **Commit 3.4** | `{Phase}Output` schemas + validators + UI | partial (Define only; 4 phases + UI outstanding) |
+| **Commit 3.4** | `{Phase}Output` schemas + validators + UI | done |
 | **Commit 3.5** | `storage/blob.py` — class → functions, sync → aio | pending |
 | **Commit 4.1** | Define phase subgraph | pending |
 | **Commit 4.2** | `thread_id` + disconnect policy | pending |
