@@ -22,7 +22,7 @@ from backend.gateway.schemas import (
 from backend.gateway.schemas import GateReviewField, GateReviewResponse
 from backend.gateway.schemas import SummariseRequest, SummariseResponse
 from backend.gateway.schemas import ContextRequest, ContextResponse
-from backend.storage.blob import blob_client
+from backend.storage import blob
 from backend.storage.models import CaseDocument, UploadRecord
 from backend.upload.agent import process_upload
 
@@ -79,9 +79,9 @@ async def summarise_session(request: SummariseRequest) -> SummariseResponse:
 async def get_session_context(request: ContextRequest) -> ContextResponse:
     """Generate a re-entry greeting based on current gate status.
     Called when user opens the AI guide tab after a break."""
-    if blob_client is None:
+    if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
-    case = blob_client.load_case(request.case_id)
+    case = await blob.load_case(request.case_id)
     if case is None:
         raise HTTPException(404, f"Case {request.case_id} not found")
 
@@ -173,7 +173,7 @@ async def create_case(request: CaseCreateRequest) -> CaseCreateResponse:
     year = datetime.now(timezone.utc).year
     short = str(uuid.uuid4())[:3].upper()
     case_id = f"IMPR-{year}-{short}"
-    if blob_client is None:
+    if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
     case = CaseDocument.new(
         case_id=case_id,
@@ -184,17 +184,17 @@ async def create_case(request: CaseCreateRequest) -> CaseCreateResponse:
         target_date=request.target_date,
         team=request.team,
     )
-    blob_client.create_case(case)
-    blob_client.register_case(case)
+    await blob.create_case(case)
+    await blob.register_case(case)
     return CaseCreateResponse(case_id=case_id, title=request.title)
 
 
 @router.post("/ask", response_model=AskResponse)
 async def ask(request: AskRequest) -> AskResponse:
-    if blob_client is None:
+    if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
 
-    case = blob_client.load_case(request.case_id)
+    case = await blob.load_case(request.case_id)
     if case is None:
         raise HTTPException(404, f"Case {request.case_id} not found")
 
@@ -276,7 +276,7 @@ async def ask(request: AskRequest) -> AskResponse:
                     case.phases[phase_key].structured = clean
 
         # Persist conversation to blob
-        blob_client.save_case(case)
+        await blob.save_case(case)
 
         # Build captured fields from phase_inputs
         phase_data = (state.get("phase_inputs") or {}).get(request.phase, {})
@@ -364,10 +364,10 @@ async def gate_review(case_id: str, phase: str) -> GateReviewResponse:
 
     if phase not in GATE_SPECS:
         raise HTTPException(400, f"Unknown phase: {phase}")
-    if blob_client is None:
+    if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
 
-    case = blob_client.load_case(case_id)
+    case = await blob.load_case(case_id)
     if case is None:
         raise HTTPException(404, f"Case {case_id} not found")
 
@@ -484,13 +484,13 @@ async def upload_file(
 
     Returns a flat ``file`` dict in the new CaseFile shape alongside
     the legacy response fields for backward compatibility."""
-    if blob_client is None:
+    if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
 
     file_bytes = await file.read()
     mime_type = file.content_type or "application/octet-stream"
 
-    case = blob_client.load_case(case_id)
+    case = await blob.load_case(case_id)
     if case is None:
         raise HTTPException(404, f"Case {case_id} not found")
 
@@ -504,7 +504,7 @@ async def upload_file(
     }
 
     # Save raw file to blob
-    blob_path = blob_client.upload_file(
+    blob_path = await blob.upload_file(
         case_id, file.filename, file_bytes, mime_type,
     )
 
@@ -548,7 +548,7 @@ async def upload_file(
                 resolved_purpose, upload_record["content_type"], indexed
             ),
         ))
-        blob_client.save_case(case)
+        await blob.save_case(case)
 
     # CaseFile-shaped dict for the UI (matches gateway.schemas.CaseFile)
     case_file = {
@@ -576,14 +576,19 @@ async def upload_file(
 
 @router.delete("/files/{case_id}/{file_id}")
 async def delete_case_file(case_id: str, file_id: str):
-    """Remove a file record from the case. The corresponding blob is
-    deleted on a best-effort basis if blob_client exposes a delete
-    method; otherwise the upload record is removed from the case and
-    the blob is left orphaned until a background sweep cleans it up."""
-    if blob_client is None:
+    """Remove a file record from the case.
+
+    The upload record is removed from the case; **the blob itself is left
+    orphaned.** `storage/blob.py` owns `uploads/{case_id}/{file}` and exposes
+    no delete, so nothing here can remove it. This was already the behaviour:
+    the previous code probed `getattr(blob_client, "delete_blob", None)` on a
+    class that never defined one, so the branch never ran. Step 3.5 preserved
+    the behaviour and dropped the probe rather than adding a deleter, which
+    would be a new capability and not a structural refactor."""
+    if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
 
-    case = blob_client.load_case(case_id)
+    case = await blob.load_case(case_id)
     if case is None:
         raise HTTPException(404, "Case not found")
 
@@ -603,17 +608,9 @@ async def delete_case_file(case_id: str, file_id: str):
     if removed_blob_path is None:
         raise HTTPException(404, "File not found")
 
-    # Best-effort blob removal (skip silently if no delete method)
-    delete_fn = getattr(blob_client, "delete_blob", None)
-    if callable(delete_fn):
-        try:
-            delete_fn(removed_blob_path)
-        except Exception as e:
-            logger.warning(
-                "Blob delete failed for %s: %s", removed_blob_path, e
-            )
-
-    blob_client.save_case(case)
+    # The blob at `removed_blob_path` is intentionally left in place — see
+    # the docstring. Only the case record is updated.
+    await blob.save_case(case)
     return {"deleted": True, "file_id": file_id}
 
 
@@ -675,9 +672,9 @@ async def _index_upload(case_id: str, upload_record: dict) -> None:
 
 @router.post("/gate", response_model=GateSubmitResponse)
 async def submit_gate(request: GateSubmitRequest) -> GateSubmitResponse:
-    if blob_client is None:
+    if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
-    case = blob_client.load_case(request.case_id)
+    case = await blob.load_case(request.case_id)
     if case is None:
         raise HTTPException(404, f"Case {request.case_id} not found")
 
@@ -728,7 +725,7 @@ async def submit_gate(request: GateSubmitRequest) -> GateSubmitResponse:
 
     if passed:
         validated = phase_data.get("_validated", {})
-        blob_client.write_phase_gate(
+        await blob.write_phase_gate(
             case_id=request.case_id,
             phase=request.phase,
             structured=validated,
@@ -759,9 +756,9 @@ async def submit_gate(request: GateSubmitRequest) -> GateSubmitResponse:
 @router.get("/registry", response_model=list[RegistryEntryOut])
 async def get_registry() -> list[RegistryEntryOut]:
     """Management dashboard â returns all cases from registry."""
-    if blob_client is None:
+    if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
-    registry = blob_client.load_registry()
+    registry = await blob.load_registry()
     return [
         RegistryEntryOut(
             case_id=e.case_id,
@@ -784,9 +781,9 @@ async def get_case(case_id: str):
     """Load full case document. Also projects every per-phase upload
     into a flat ``files`` array in CaseFile shape so the UI can render
     a single grouped files panel without walking each phase record."""
-    if blob_client is None:
+    if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
-    case = blob_client.load_case(case_id)
+    case = await blob.load_case(case_id)
     if case is None:
         raise HTTPException(404, f"Case {case_id} not found")
 

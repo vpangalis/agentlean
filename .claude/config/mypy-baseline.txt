@@ -32,7 +32,7 @@
 1	agent-improve/backend/gateway/routes.py	[arg-type]	Argument "filename" to "process_upload" has incompatible type "str | None"; expected "str"
 1	agent-improve/backend/gateway/routes.py	[arg-type]	Argument 1 to "auto_detect_purpose" has incompatible type "str | None"; expected "str"
 1	agent-improve/backend/gateway/routes.py	[arg-type]	Argument 2 to "_case_file_id" has incompatible type "str | None"; expected "str"
-1	agent-improve/backend/gateway/routes.py	[arg-type]	Argument 2 to "upload_file" of "ImproveBlobClient" has incompatible type "str | None"; expected "str"
+1	agent-improve/backend/gateway/routes.py	[arg-type]	Argument 2 to "upload_file" has incompatible type "str | None"; expected "str"
 1	agent-improve/backend/gateway/routes.py	[typeddict-item]	Argument 1 to "update" of "TypedDict" has incompatible type "dict[Any, Any]"; expected "TypedDict({'analyst_output'?: dict[Any, Any] | None, 'case_id'?: str | None, 'case_metadata'?: dict[Any, Any] | None, 'chat_history'?: list[Any] | None, 'citations'?: list[Any] | None, 'current_phase'?: str | None, 'current_user'?: str | None, 'escalated'?: bool, 'gate_attempts'?: int, 'phase_inputs'?: dict[Any, Any] | None, 'section_completed'?: str | None, 'sipoc_diagram'?: dict[Any, Any] | None, 'uploaded_files'?: list[Any] | None})"
 1	agent-improve/backend/gateway/routes.py	[union-attr]	Item "list[str | dict[Any, Any]]" of "str | list[str | dict[Any, Any]]" has no attribute "strip"
 1	agent-improve/backend/gateway/routes.py	[var-annotated]	Need type annotation for "phase_data" (hint: "phase_data: dict[<type>, <type>] = ...")

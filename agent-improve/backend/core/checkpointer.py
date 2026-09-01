@@ -405,9 +405,10 @@ _singleton: Optional[AzureBlobCheckpointSaver] = None
 
 def get_checkpointer() -> AzureBlobCheckpointSaver:
     """
-    Singleton accessor. Mirrors the ImproveBlobClient pattern in
-    storage/blob.py — single shared instance per process, lazily
-    initialised.
+    Singleton accessor — single shared instance per process, lazily
+    initialised. (It used to say it mirrored `ImproveBlobClient`; step 3.5
+    removed that class, and `storage/blob.py` now caches a client in module
+    state instead.)
     """
     global _singleton
     if _singleton is not None:

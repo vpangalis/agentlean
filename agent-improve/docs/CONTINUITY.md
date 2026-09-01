@@ -7,11 +7,11 @@
 
 | | |
 |---|---|
-| **Last completed** | step **3.4** — `{Phase}Output` schemas + validators + UI **(gate assembly, G-28)** |
-| **Next** | step **3.5** — `storage/blob.py` — class → functions, sync → aio **(S-C08)** |
-| **Stage** | Stage 3 — State and persistence |
-| **Progress** | 10 of 35 build steps |
-| **Last spine commit** | `3435da4` (commit 3.3) |
+| **Last completed** | step **3.5** — `storage/blob.py` — class → functions, sync → aio **(S-C08)** |
+| **Next** | step **4.1** — The Define phase subgraph |
+| **Stage** | Stage 4 — The graph |
+| **Progress** | 11 of 35 build steps |
+| **Last spine commit** | `0e69c8a` (commit 3.4) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |
 | **Block regenerated** | 2026-09-01 |

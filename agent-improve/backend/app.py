@@ -18,6 +18,7 @@ from backend.core.request_context import (
     get_request_id,
 )
 from backend.gateway.routes import router
+from backend.storage import blob
 
 configure_logging(level=getattr(settings, "LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
@@ -72,6 +73,13 @@ async def startup():
 
 @app.on_event("shutdown")
 async def shutdown():
+    # `storage/blob.py` caches one `azure.storage.blob.aio` client for the
+    # process; its aiohttp session needs a deterministic close or it is merely
+    # garbage-collected, which logs an unclosed-session warning (step 3.5).
+    # This is NOT the graceful drain of step 8.5 — that one waits for in-flight
+    # coaching turns via `RunControl.request_drain()` and stays gated. Closing
+    # an HTTP session is a separate, ungated concern.
+    await blob.aclose()
     logger.info("Agent Improve shutting down")
 
 
