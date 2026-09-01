@@ -6,14 +6,14 @@ Purpose: Consolidated decision register. Single navigable reference for every
          item. Synthesized from STATE_DESIGN_RESOLUTION.md (26 findings),
          SKILL_REVIEW_NOTES.md (17 notes), status-79-84-2026-08-10.md, and
          CONTINUITY.md. Replaces the scattered five-file review set as the
-         primary cross-session reference.
+         primary cross-session reference. (archived to docs/_archive/; canonical: DECISIONS.md)
 
 Source documents (stay in repo, not here):
-  agent-improve/reviews/STATE_DESIGN_RESOLUTION.md   — original 26 findings
+  agent-improve/docs/_archive/STATE_DESIGN_RESOLUTION.md   — original 26 findings
   agent-improve/reviews/REVIEW_DECISIONS.md           — full EDUCATIONAL.md review log
   agent-improve/SKILL_REVIEW_NOTES.md                 — 17 SKILL.md review notes
-  agent-improve/reviews/RESTRUCTURE_PLAN.md           — REFACTORING reorder plan
-  agent-improve/reviews/status-79-84-2026-08-10.md   — §79–§84 landing audit
+  agent-improve/docs/_archive/RESTRUCTURE_PLAN.md           — REFACTORING reorder plan
+  agent-improve/docs/_archive/status-79-84-2026-08-10.md   — §79–§84 landing audit (archived to docs/_archive/; canonical: DECISIONS.md; DECISIONS.md §G11; REVIEW_DECISIONS.md)
 
 CLAUDE.md version this was written against: v2.2.14
 ARCHITECTURE.md version: v2.2.15
@@ -44,7 +44,7 @@ v1.5 changes (2026-08-20): the Task 1 audit rulings applied. A2 field count
   citation corrections; Part P added — P1..P5 recording the audit
   contradictions and how each was resolved. Every ruling in this version is
   now APPLIED to REFACTORING_AGENT_IMPROVE.md, not merely logged.
--->
+--> (archived to docs/_archive/; canonical: no in-doc equivalent; the file is the artefact)
 
 # Agent Improve — DECISIONS.md
 # Version 1.5 — 2026-08-20
@@ -68,7 +68,7 @@ chronological record, see the source documents listed in the header comment.
 ### A1 — SupervisorState: seven fields, dict-typed gate record
 
 **Status:** ADOPTED — landed in CLAUDE.md §10.1, ARCHITECTURE.md §4.1  
-**Source:** STATE_DESIGN_RESOLUTION.md Findings 1–3, 7
+**Source:** STATE_DESIGN_RESOLUTION.md Findings 1–3, 7 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 The canonical `SupervisorState` has exactly seven fields:
 
@@ -105,7 +105,7 @@ approval). Nothing else may write them.
 ### A2 — PhaseState: seventeen fields (3 plumbing + 14 content)
 
 **Status:** ADOPTED — landed in CLAUDE.md §10.1; **applied to REFACTORING §18 on 2026-08-20**  
-**Source:** STATE_DESIGN_RESOLUTION.md Findings 4–6, 8–12; §71 compliance audit (2026-08-11)
+**Source:** STATE_DESIGN_RESOLUTION.md Findings 4–6, 8–12; §71 compliance audit (2026-08-11) (archived to docs/_archive/; canonical: DECISIONS.md)
 
 ```python
 class PhaseState(TypedDict):
@@ -146,7 +146,7 @@ Key naming decisions:
 ### A3 — Canonical identifier: `case_id` everywhere
 
 **Status:** ADOPTED — landed in CLAUDE.md §10.5  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 13
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 13 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 `project_id` is retired. The identifier is `case_id` everywhere: state
 field, store namespace, `thread_id`, blob path, log field, index field,
@@ -159,7 +159,7 @@ resolves the doc/code split.
 ### A4 — Canonical name for captured fields: `artifacts`
 
 **Status:** ADOPTED — landed in CLAUDE.md §10.5  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 14
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 14 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 Three names existed for one concept: `artifacts` (code), `captured_fields`
 (prose), `phase_inputs` (v1 field). `artifacts` wins everywhere.
@@ -172,7 +172,7 @@ added to v2 code.
 ### A5 — All captured fields are `str`; computation results in `artifacts["computation_results"]`
 
 **Status:** ADOPTED — landed in CLAUDE.md §10.6  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 15
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 15 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 Every captured field is typed `str`. No phase schema declares a typed
 numeric. Computation tools parse at the point of use and return a clear
@@ -204,7 +204,7 @@ Exception: three cross-phase reference dicts are `dict` (see A6).
 ### A6 — Three cross-phase reference dicts
 
 **Status:** ADOPTED — landed in CLAUDE.md §10.6, ARCHITECTURE.md §4.7  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 15
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 15 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 Three fields carry typed dicts (not strings) to enable deterministic grader
 linkage checks:
@@ -236,7 +236,7 @@ Values inside the dict are still strings.
 ### A7 — Store namespace convention; `gate_documents` namespace retired
 
 **Status:** ADOPTED — landed in CLAUDE.md §10.2  
-**Source:** STATE_DESIGN_RESOLUTION.md Findings 5, 9
+**Source:** STATE_DESIGN_RESOLUTION.md Findings 5, 9 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 ```
 ("projects", case_id, "case")      → "record"    (case framing, written once)
@@ -254,7 +254,7 @@ The `gate_documents` namespace is retired — it was a duplicate of
 ### A8 — `gate_apply_node` writes BOTH store and `PhaseState.final`
 
 **Status:** ADOPTED — landed in CLAUDE.md §9.6  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 11
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 11 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 After Belt approval, `gate_apply_node` writes to both:
 
@@ -279,7 +279,7 @@ dict means resumed graphs see what was approved without re-reading the store.
 ### B1 — Five subgraph nodes; `policy_advisory` and `revise` are banned
 
 **Status:** ADOPTED — landed in CLAUDE.md §3.3, ARCHITECTURE.md §3.2  
-**Source:** STATE_DESIGN_RESOLUTION.md Findings 16–17
+**Source:** STATE_DESIGN_RESOLUTION.md Findings 16–17 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 Each phase subgraph contains exactly five nodes:
 
@@ -301,7 +301,7 @@ The validation stack and policy advisory are NOT tools. Adding either to a tool 
 ### B2 — Two graders; confusing them is a violation
 
 **Status:** ADOPTED — landed in CLAUDE.md §8.2  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 18
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 18 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 | | `DMAICGraderMiddleware` | Validation stack Layer 2d |
 |---|---|---|
@@ -320,7 +320,7 @@ Never point Layer 2d at `COACHING_QUALITY_RUBRIC`.
 ### B3 — Eight middlewares; declaration order is execution order
 
 **Status:** ADOPTED — landed in CLAUDE.md §8.1  
-**Source:** STATE_DESIGN_RESOLUTION.md Findings 19–20; Mod A (2026-08-12); Mod B (2026-08-12); B3.1 amendment (2026-08-19)
+**Source:** STATE_DESIGN_RESOLUTION.md Findings 19–20; Mod A (2026-08-12); Mod B (2026-08-12); B3.1 amendment (2026-08-19) (archived to docs/_archive/; canonical: DECISIONS.md)
 
 ```python
 middleware=[
@@ -360,7 +360,7 @@ middlewares share a parameter vocabulary; `ToolRetryMiddleware` was verified
 against the reference when it was added at B3.1 and was always correct, while
 `ModelRetryMiddleware` was adopted earlier and never re-checked. Verified
 against `reference.langchain.com/python/langchain/agents/middleware/model_retry/ModelRetryMiddleware`;
-full record in `BIBLE_VERIFICATION_LOG.md` C-1.
+full record in `BIBLE_VERIFICATION_LOG.md` C-1. (archived to docs/_archive/; canonical: CLAUDE.md §0.10)
 
 `on_failure="continue"` means: if `max_retries` is exhausted, the tool call returns whatever it has (or a failure message) rather than raising an exception. This keeps the coach loop alive on tool failures — the coach sees the failure result and can decide how to proceed rather than the graph dying.
 
@@ -394,7 +394,7 @@ Adding a new middleware or reordering this stack requires an amendment to B3.
 ### B4 — `CoachingResponse` schema; `response_format=CoachingResponse` on the executor
 
 **Status:** ADOPTED — landed in CLAUDE.md §4.6, §10.7  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 21
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 21 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 ```python
 class CoachingResponse(BaseModel):
@@ -425,7 +425,7 @@ Pydantic construction at `gate_apply` — no LLM call.
 ### B5 — `record_field` tool retired; field capture via structured output
 
 **Status:** ADOPTED — landed in CLAUDE.md §5.1  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 22
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 22 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 `record_field` is retired and may not be reintroduced. Field capture
 happens through `CoachingResponse.fields_captured` on the executor — the
@@ -438,7 +438,7 @@ call.
 ### B6 — Universal tool count: seven (not eight)
 
 **Status:** ADOPTED — landed in CLAUDE.md §5.1  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 23
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 23 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 After `record_field` was retired, the universal tool count dropped from 8
 to 7. The seven:
@@ -461,7 +461,7 @@ reference the old names.
 ### B7 — Per-phase tool totals after `record_field` retirement
 
 **Status:** ADOPTED — landed in CLAUDE.md §5.2  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 23
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 23 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 | Phase | Universal | Computation | Total |
 |---|---|---|---|
@@ -481,7 +481,7 @@ No phase exceeds 16 tools. Previous totals were 9/16/13/9/12; these are
 ### C1 — Two-tier field system; grader gains `warning` verdict
 
 **Status:** ADOPTED — landed in CLAUDE.md §9.7  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 24 (eBook extraction, v2.2.11)
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 24 (eBook extraction, v2.2.11) (archived to docs/_archive/; canonical: DECISIONS.md)
 
 Every rubric criterion is Tier 1 (gate-required, blocks gate, can `fail`)
 or Tier 2 (rubric-recommended, at most `warning`, Belt may proceed with
@@ -528,7 +528,7 @@ Gate metadata (all five): `computation_results`, `acknowledged_gaps`,
 ### C2 — `issues_and_barriers` is NOT `acknowledged_gaps`
 
 **Status:** ADOPTED — landed in CLAUDE.md §9.7  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 24
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 24 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 `issues_and_barriers` = Belt-stated real-world project blockers (Tier 1).  
 `acknowledged_gaps` = system-generated record of skipped Tier 2 fields.
@@ -540,7 +540,7 @@ Merging them is a violation.
 ### C3 — eBook additions to schema fields (v2.2.11)
 
 **Status:** ADOPTED — landed in CLAUDE.md §0.6  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 24
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 24 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 Fields added to resolve BB eBook extraction gaps 24–25:
 
@@ -560,7 +560,7 @@ Fields added to resolve BB eBook extraction gaps 24–25:
 ### C4 — X-Y matrix and statistical problem statement no longer belt-gated
 
 **Status:** ADOPTED — landed in CLAUDE.md §9.7  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 24
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 24 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 | Item | Before | Now |
 |---|---|---|
@@ -574,7 +574,7 @@ Fields added to resolve BB eBook extraction gaps 24–25:
 ### C5 — Process map fields promoted to Tier 1 schema (v2.2.12)
 
 **Status:** ADOPTED — landed in CLAUDE.md §0.7, §10.8  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 26
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 26 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 Three fields promoted from coaching content to Tier 1 schema fields — a
 coaching prompt produces conversation, which cannot be read by the next
@@ -605,7 +605,7 @@ The grader verifies the same measurement points carry different values.
 ### C6 — FMEA: deliberately not tracked in any schema
 
 **Status:** ADOPTED — landed in CLAUDE.md §10.8  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 26
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 26 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 FMEA has no field in any schema. It is heavy manufacturing methodology not
 appropriate as a universal gate requirement in service/transactional DMAIC.
@@ -621,7 +621,7 @@ track it, the grader does not ask for it, and no gate blocks on it.
 ### D1 — Seven-step computation tool coaching pattern
 
 **Status:** ADOPTED — landed in CLAUDE.md §8.2 (`COACHING_QUALITY_RUBRIC`)  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 25; SKILL_REVIEW_NOTES.md Notes 1–14
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 25; SKILL_REVIEW_NOTES.md Notes 1–14 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 The coach follows a **seven-step** pattern, every computation tool, every
 time. Step 1 (educate on the concept) was not in the previous six-step
@@ -647,7 +647,7 @@ checked on every coaching turn.
 ### D2 — Show-first coaching principle (Note 15)
 
 **Status:** ADOPTED — landed in CLAUDE.md §8.2 (`COACHING_QUALITY_RUBRIC`)  
-**Source:** SKILL_REVIEW_NOTES.md Note 15 (CRITICAL)
+**Source:** SKILL_REVIEW_NOTES.md Note 15 (CRITICAL) (archived to docs/_archive/; canonical: DECISIONS.md)
 
 For every field, the coach:
 1. Shows a **concrete example of a completed answer**
@@ -682,7 +682,7 @@ Now build yours for [project name].
 ### D3 — A→F session flow with visible progress (Note 16)
 
 **Status:** ADOPTED — to be implemented in all five SKILL.md files  
-**Source:** SKILL_REVIEW_NOTES.md Note 16 (CRITICAL)
+**Source:** SKILL_REVIEW_NOTES.md Note 16 (CRITICAL) (archived to docs/_archive/; canonical: DECISIONS.md)
 
 Each SKILL.md must structure coaching as an A→F session flow with a
 visible progress count that the Belt can see at any time.
@@ -706,7 +706,7 @@ they know what they are building toward.
 ### D4 — Live gate document preview (Note 17)
 
 **Status:** ADOPTED — to be implemented in all five SKILL.md files  
-**Source:** SKILL_REVIEW_NOTES.md Note 17 (CRITICAL)
+**Source:** SKILL_REVIEW_NOTES.md Note 17 (CRITICAL) (archived to docs/_archive/; canonical: DECISIONS.md)
 
 The coach must show the Belt a preview of the gate document as it fills in,
 using `check_gate_status()` output. The Belt sees what is captured, what is
@@ -734,7 +734,7 @@ We're on Step 5 of 6. Let's capture Project Scope next.
 ### D5 — No external URLs in coaching; retrieve via `rag_lookup_methodology`
 
 **Status:** ADOPTED — landed in CLAUDE.md §8.2 (`COACHING_QUALITY_RUBRIC`), §0.8  
-**Source:** SKILL_REVIEW_NOTES.md (general note across all 17); CLAUDE.md v2.2.14
+**Source:** SKILL_REVIEW_NOTES.md (general note across all 17); CLAUDE.md v2.2.14 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 The coach must not provide external URLs from training data. When
 referencing methodology, retrieve via `rag_lookup_methodology` and weave
@@ -745,7 +745,7 @@ the content into natural coaching voice.
 ### D6 — SKILL.md allowed-tools must match §5.2 tool subsets
 
 **Status:** ADOPTED — landed in CLAUDE.md §8.3  
-**Source:** SKILL_REVIEW_NOTES.md (verified across Notes 1–14)
+**Source:** SKILL_REVIEW_NOTES.md (verified across Notes 1–14) (archived to docs/_archive/; canonical: DECISIONS.md)
 
 Each SKILL.md's `allowed-tools` must match exactly the computation tool
 subset defined for that phase in CLAUDE.md §5.2. If they drift, the skill
@@ -919,7 +919,7 @@ Rules:
 ### F1 — §79: LangGraph 1.2 native reliability primitives
 
 **Status:** LANDED — CLAUDE.md §3.6, ARCHITECTURE.md §9.2  
-**Source:** status-79-84-2026-08-10.md; REFACTORING §79
+**Source:** status-79-84-2026-08-10.md; REFACTORING §79 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 `TimeoutPolicy(run_timeout=45)` required on every phase executor node.
 `error_handler=` required on every node with external writes.
@@ -939,7 +939,7 @@ are BANNED.
 ### F2 — §80: AgentMiddleware six hooks foundation
 
 **Status:** LANDED — CLAUDE.md §8.1–§8.7, ARCHITECTURE.md §3.4  
-**Source:** status-79-84-2026-08-10.md; REFACTORING §80
+**Source:** status-79-84-2026-08-10.md; REFACTORING §80 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 The eight-middleware stack is built on the six `AgentMiddleware` hooks:
 `before_agent`, `after_agent`, `before_model`, `after_model`,
@@ -951,7 +951,7 @@ it exists."
 ### F3 — §81: `content_blocks`, not string parsing
 
 **Status:** LANDED — CLAUDE.md §4.5  
-**Source:** status-79-84-2026-08-10.md; REFACTORING §81
+**Source:** status-79-84-2026-08-10.md; REFACTORING §81 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 Read `response.content_blocks`. String-indexing or substring-parsing the
 raw content field is a violation.
@@ -965,7 +965,7 @@ constitution gap. Tracked in CONTINUITY.md §4.
 ### F4 — §82: `ProviderStrategy` / `response_format=` scoped by call type
 
 **Status:** LANDED — CLAUDE.md §4.3, §4.6  
-**Source:** status-79-84-2026-08-10.md; REFACTORING §82
+**Source:** status-79-84-2026-08-10.md; REFACTORING §82 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 The contradiction in v2.1 (§4.3 mandated `with_structured_output`
 everywhere while the hook cited a §4.6 that didn't exist) is resolved.
@@ -978,7 +978,7 @@ See CLAUDE.md §4.6 for the full mapping.
 ### F5 — §83: SKILL.md spec
 
 **Status:** LANDED — ARCHITECTURE.md §8.4, CLAUDE.md §8.3  
-**Source:** status-79-84-2026-08-10.md; REFACTORING §83
+**Source:** status-79-84-2026-08-10.md; REFACTORING §83 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 Five SKILL.md files under `agent-improve/skills/`, following the
 agentskills.io standard. On disk as `skills/dmaic-{phase}-phase/SKILL.md`.
@@ -1085,7 +1085,7 @@ Each call has one job. Temperature tuning is independent per call. Each stage is
 ### G1 — DeltaChannel: DEFERRED
 
 **Status:** DEFERRED to §87 item 12  
-**Source:** status-79-84-2026-08-10.md; REFACTORING §79
+**Source:** status-79-84-2026-08-10.md; REFACTORING §79 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 `DeltaChannel` is not adopted — beta API. Deferred until sessions exceed
 ~200 turns. Not a violation of §79; the decision to not adopt a beta API
@@ -1096,7 +1096,7 @@ is the §79-compliant choice.
 ### G2 — deepagents: REJECTED (pre-1.0)
 
 **Status:** REJECTED while pre-1.0 — landed in CLAUDE.md §4.4, §8.6  
-**Source:** status-79-84-2026-08-10.md; REFACTORING §84
+**Source:** status-79-84-2026-08-10.md; REFACTORING §84 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 `create_deep_agent`, `RubricMiddleware`, `SkillsMiddleware` from deepagents
 are BANNED while the package remains pre-1.0. Our equivalents:
@@ -1111,7 +1111,7 @@ middlewares together or not at all.
 ### G3 — `HumanInTheLoopMiddleware`: REJECTED (two confirmed bugs)
 
 **Status:** REJECTED — landed in CLAUDE.md §8.6  
-**Source:** STATE_DESIGN_RESOLUTION.md Finding 16; REFACTORING §53
+**Source:** STATE_DESIGN_RESOLUTION.md Finding 16; REFACTORING §53 (archived to docs/_archive/; canonical: DECISIONS.md)
 
 Two confirmed bugs in our exact use case:
 1. Edited tool-call args can be silently re-overwritten by the agent re-attempting the original call
@@ -1125,7 +1125,7 @@ Both would silently discard a Belt's correction. Use graph-level
 ### G4 — `LLMToolSelectorMiddleware`: REJECTED
 
 **Status:** REJECTED — landed in CLAUDE.md §8.6  
-**Source:** STATE_DESIGN_RESOLUTION.md
+**Source:** STATE_DESIGN_RESOLUTION.md (archived to docs/_archive/; canonical: DECISIONS.md)
 
 Per-phase binding (§5.2) keeps every coach at 8–15 tools. Adding a
 selector LLM spends a model call solving a problem already solved
@@ -1136,7 +1136,7 @@ structurally.
 ### G5 — `create_react_agent` / `langgraph.prebuilt`: BANNED
 
 **Status:** REJECTED — landed in CLAUDE.md §4.4  
-**Source:** STATE_DESIGN_RESOLUTION.md
+**Source:** STATE_DESIGN_RESOLUTION.md (archived to docs/_archive/; canonical: DECISIONS.md)
 
 `create_react_agent` is superseded by `create_agent` from
 `langchain.agents`. Nothing may import it, nothing may reference
@@ -1202,8 +1202,8 @@ removal in LangChain 2.0. Replacement: checkpointer + store +
 
 ### G11 — REFACTORING_AGENT_IMPROVE.md restructuring: PENDING (separate task)
 
-**Status:** PENDING — plan in `reviews/RESTRUCTURE_PLAN.md`  
-**Source:** reviews/RESTRUCTURE_PLAN.md
+**Status:** PENDING — plan in `docs/_archive/RESTRUCTURE_PLAN.md`  
+**Source:** docs/_archive/RESTRUCTURE_PLAN.md (archived to docs/_archive/; canonical: DECISIONS.md §G11)
 
 Reorder REFACTORING_AGENT_IMPROVE.md from chronological to logical
 reference structure (11 Parts + Appendix). Rules: no content changes,
@@ -1311,7 +1311,7 @@ toolset gap (I1 above).
 | M2 §38 check → ContradictionDetectionMiddleware (Mod A ratified) | New Part M (M2) | DECISIONS.md | v1.3 — 2026-08-12 |
 | M3 CoherenceMiddleware replaces L2a in COACHING_QUALITY_RUBRIC (Mod B ratified) | New Part M (M3) | DECISIONS.md | v1.3 — 2026-08-12 |
 | D68-1 ratified: AzureChatOpenAI invoke requires message list not plain string | New Part L (L1) | DECISIONS.md | v1.2 — 2026-08-12 |
-| D09 diagram added: constraint validation + retry-with-accumulated-feedback | ARCHITECTURE_DIAGRAMS.html | docs | v1.2 — 2026-08-12 |
+| D09 diagram added: constraint validation + retry-with-accumulated-feedback | **`docs/_archive/ARCHITECTURE_DIAGRAMS.html`** — archived 2026-09-01; the diagram exists only there, and `agent-improve/diagrams/` predates it and does not contain D09 | docs | v1.2 — 2026-08-12 |
 | §37-D Procedural Memory taxonomy ratified (static v2.1 / dynamic v2.2+) | New Part K | DECISIONS.md | v1.1 — 2026-08-11 |
 | §37-A/§37-B cross-references added to E3/E4 | E3, E4, E1 notes | DECISIONS.md | v1.1 — 2026-08-11 |
 | Seven-step computation pattern (was six) | §8.2 `COACHING_QUALITY_RUBRIC` | CLAUDE.md | v2.2.14 |
@@ -1324,7 +1324,7 @@ toolset gap (I1 above).
 | Executor contract (5 nodes, 2 graders, 5 middlewares) | §3.3, §8.1, §8.2 | CLAUDE.md | v2.2.10 |
 | State design (all 15 findings) | §10.1–§10.6 | CLAUDE.md | v2.2.9 |
 | Multi-query Option A | ARCHITECTURE.md §7.4 | — | **PENDING** |
-| `improve_case_index` `content_vector` rename | ARCHITECTURE.md §7.3 | — | **PENDING** |
+| `improve_case_index` `content_vector` rename | ARCHITECTURE.md §7.3 | — | **PENDING** (archived to docs/_archive/; canonical: no in-doc equivalent; the file is the artefact) |
 
 ---
 
@@ -1771,7 +1771,7 @@ which is BANNED for our gates (§53).
 
 *Superseded 2026-08-21: the keyword itself was wrong. It is `max_retries`, not
 `retries` — see B3 and `BIBLE_VERIFICATION_LOG.md` C-1. The "standardise on
-2" ruling stands; only the parameter name changed.*
+2" ruling stands; only the parameter name changed.* (archived to docs/_archive/; canonical: CLAUDE.md §0.10)
 
 ---
 
@@ -2075,14 +2075,14 @@ is now named and searched for deliberately during review.**
 
 **Status:** RATIFIED 2026-08-23
 **Source:** Spec-layer decision, 2026-08-23, governed by
-`agent-improve/docs/SPEC_LAYER_GUIDE.md`. **New decision — not a
+`agent-improve/docs/_archive/SPEC_LAYER_GUIDE.md`. **New decision — not a
 previously-logged item.**
 **Lands in:** reference **Part XII (§57–§66)** — new; **§55.1** — new; **§56**
 amendment list; **§2** canonical-ownership table; **Appendix C** Tier 1
 compliance block; and definitions relocated out of §5, §6, §7, §9, §12, §14,
 §15, §16, §17, §18, §19, §20, §24, §25, §26, §29, §33, §35, §40, §41, §45, §46
 and §48. Applied identically to `agent-improve/ARCHITECTURE.md`. This entry is
-both the decision record and the change-log entry required by §56.
+both the decision record and the change-log entry required by §56. (archived to docs/_archive/; canonical: ARCHITECTURE.md §57)
 
 **The question.** The reference is an *architecture* — it explains shape and
 reasoning. It is not a *specification*: it does not define classes and
@@ -2111,8 +2111,8 @@ non-overlapping rule eliminated.
 twelve carry `AI-ACT-REVIEW: uncertain`.
 
 **42 gaps marked, none filled.** That was the pass's binding constraint. G-41
-was closed by the founder supplying `agent-improve/docs/SPEC_SAMPLES.md`;
-**41 remain open** and are the review agenda. §66 is the register.
+was closed by the founder supplying `agent-improve/docs/_archive/SPEC_SAMPLES.md`;
+**41 remain open** and are the review agenda. §66 is the register. (archived to docs/_archive/; canonical: ARCHITECTURE.md §57.1)
 
 **§66.7 records ten findings that are inconsistencies rather than
 absences**, and §66.8 records the cross-check run that produced several of them — including that the drift registry's path exclusions still name
@@ -2204,7 +2204,7 @@ Reasoning Protocol (`SPEC_LAYER_GUIDE.md` §6.1). **New decision.**
 S-F10, S-F11, S-F12, S-F29, S-F32, plus §66; `agent-improve/ARCHITECTURE.md`
 identically; `CLAUDE.md` §0.4, §0.15, §10.1, §14; `REFACTORING_PROCEDURE.md`
 steps 3.1 and 3.3. This entry is both the decision record and the change-log
-entry required by §56.
+entry required by §56. (archived to docs/_archive/; canonical: ARCHITECTURE.md §57)
 
 **The question.** `PhaseState` declared no case identity and no phase
 identifier, and three specified functions read one or both off it:
@@ -2418,9 +2418,9 @@ dimensions, the HNSW profile and the `general` sentinel are all untouched.
 **Source:** founder ruling.
 **Lands in:** `scripts/ingest_knowledge.py` (rewritten),
 `scripts/create_indexes.py` (knowledge-index definition corrected),
-`scripts/diff_knowledge_index.py` (new), `docs/EXCEL_TOOL_INVENTORY.md` (new).
+`scripts/diff_knowledge_index.py` (new), `docs/_archive/EXCEL_TOOL_INVENTORY.md` (new).
 **Reference §23.1's stated figures go stale on swap** and are re-synced then,
-not now — the swap has not run.
+not now — the swap has not run. (archived to docs/_archive/; canonical: ARCHITECTURE.md §30)
 
 #### The decision
 
@@ -2439,12 +2439,12 @@ competing tier-1 methodology voices, because they occupy the same tier.** One
 source removes the conflict rather than ranking it.
 
 **`EXCEL_SHEET_TOOL_MAP` was preserved, not deleted** — moved to
-`docs/EXCEL_TOOL_INVENTORY.md` as the build-inventory for the §30 computation
+`docs/_archive/EXCEL_TOOL_INVENTORY.md` as the build-inventory for the §30 computation
 layer. The tool-to-phase mapping is a spec, not a corpus. That file also
 records two observations from comparing it against §30's twenty tools:
 `Normality Test` has no computation-tool counterpart, and the workbook files
 DPO/Z under Control where §30 correctly files it under Measure. **Neither was
-actioned**; both are noted so the §30 build meets them deliberately.
+actioned**; both are noted so the §30 build meets them deliberately. (archived to docs/_archive/; canonical: ARCHITECTURE.md §30)
 
 #### Extraction: the ratified rationale was wrong, the ratified choice was right
 
@@ -2800,12 +2800,12 @@ confirmed when it was confirmed. Rewriting them would falsify the trail.
 
 ### W1 — §39.1, G-38 closed, and the Define atomic unit rebuilt
 
-**Status:** RATIFIED 2026-08-25 (`docs/DEFINE_AMENDMENT_2026-08-25.md`), applied
+**Status:** RATIFIED 2026-08-25 (`docs/_archive/DEFINE_AMENDMENT_2026-08-25.md`), applied
 2026-08-26. **§56 amendment** — it adds a governance rule (§56.1), changes a
 shared schema (`CoachingResponse`), and closes a register gap.
 **Lands in:** `ARCHITECTURE.md` §39.1, §50.1, §56.1, §20/S-C05, §35, §40,
 §63.1, §66; `phases/define/{schema,validate}.py`;
-`skills/dmaic-define-phase/SKILL.md`.
+`skills/dmaic-define-phase/SKILL.md`. (archived to docs/_archive/; canonical: ARCHITECTURE.md §39.1)
 
 #### Three collisions between the amendment and the live document
 
@@ -2935,8 +2935,8 @@ changes no design, no schema and no rule. It rules on **build sequencing**: whic
 of three routes closes a watch, and therefore what work is *not* done.
 **Lands in:** `CONTINUITY.md` §5, §6, §9 (v4.9); `REFACTORING_PROCEDURE.md`
 §0.2's gate row, the status banner, steps 6.2 and 11.1.
-**Source:** `docs/WATCH7_AUDIT_2026-08-27.md` — the evidence and the three
-costed routes.
+**Source:** `docs/_archive/WATCH7_AUDIT_2026-08-27.md` — the evidence and the three
+costed routes. (archived to docs/_archive/; canonical: DECISIONS.md Part X)
 
 #### The ruling
 

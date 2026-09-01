@@ -158,8 +158,9 @@ For the pattern the user provided:
    `agent-improve/ARCHITECTURE.md` carries the design. A drift that reaches a rule is more
    serious than one confined to the rationale, and correcting it is a §18 amendment commit.
 
-   **Do not cross-check EDUCATIONAL.md.** It is the frozen historical training register
-   (its own header says so) and is deliberately not maintained. It will report stale
+   **Do not cross-check EDUCATIONAL.md** (`agent-improve/docs/_archive/EDUCATIONAL.md`
+   — archived 2026-09-01). It is the frozen historical training register (its own
+   header says so) and is deliberately not maintained. It will report stale
    versions by design, and treating agreement with it as a signal is a false positive.
 
 ## The report format

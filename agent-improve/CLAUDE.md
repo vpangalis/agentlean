@@ -18,7 +18,7 @@ no third time.
 ### 0.1 — What v2.2 Is
 
 v2.2 is a **ground-up rewrite**, not a patch. It aligns this file with
-every decision ratified in the EDUCATIONAL.md architectural review.
+every decision ratified in the EDUCATIONAL.md architectural review. (archived to docs/_archive/; canonical: REVIEW_DECISIONS.md)
 
 **Three binding documents.** The **v2.2.16 `ARCHITECTURE.md`** was absorbed
 into `../AGENTIC_ARCHITECTURE_REFERENCE.md`; on 2026-08-22 that path was reused
@@ -34,10 +34,10 @@ never at the local copy.
 
 **The historical record is not binding and is not cited by rules here.**
 `docs/REFACTORING_AGENT_IMPROVE.md` (the section-by-section review),
-`docs/EDUCATIONAL.md`, `docs/DECISIONS.md` and `docs/REVIEW_DECISIONS.md`
+`docs/_archive/EDUCATIONAL.md`, `docs/DECISIONS.md` and `docs/REVIEW_DECISIONS.md`
 hold the reasoning trail — what was considered, rejected and when. Each
 Reference section carries a **Supersedes** line naming its sources, so the
-chain back to that trail is one hop from any rule.
+chain back to that trail is one hop from any rule. (archived to docs/_archive/; canonical: REVIEW_DECISIONS.md)
 
 > **Disambiguation — `ARCHITECTURE.md §X` means two different things now.**
 > Before 2026-08-22 it meant the **v2.2.16** design document's own numbering
@@ -48,7 +48,7 @@ chain back to that trail is one hop from any rule.
 > citation** — in code comments, SKILL.md files or an older prompt — **use the
 > reference's Appendix A**, which maps the v2.2.16 numbering to the current one.
 > The v2.2.16 original is at commit `8533879`; its §17 and §18 registers are at
-> `docs/ARCHITECTURE_v2216_registers.md`.
+> `docs/_archive/ARCHITECTURE_v2216_registers.md`. (archived to docs/_archive/; canonical: ARCHITECTURE.md Appendix F)
 
 ### 0.2 — Rule Numbers Are Load-Bearing
 
@@ -210,7 +210,7 @@ against the live schema until the reindex runs (§7.3).
 
 **Three of these are API facts this file got wrong.** They were found by the
 Task 3B verification pass against live documentation and are recorded in
-`docs/BIBLE_VERIFICATION_LOG.md`.
+`docs/_archive/BIBLE_VERIFICATION_LOG.md`. (archived to docs/_archive/; canonical: CLAUDE.md §0.10)
 
 | Area | v2.2.15 | v2.2.16 |
 |---|---|---|
@@ -301,8 +301,8 @@ identical would make such a check fire constantly and mean nothing.
 **The v2.2.16 design document that used to live at `ARCHITECTURE.md`** was
 absorbed into the reference. Its two registers that existed nowhere else —
 §17 Decisions Resolved and §18 Change Log — are at
-`docs/ARCHITECTURE_v2216_registers.md`; the full original is at commit
-`8533879`.
+`docs/_archive/ARCHITECTURE_v2216_registers.md`; the full original is at commit
+`8533879`. (archived to docs/_archive/; canonical: ARCHITECTURE.md Appendix F)
 
 ### 0.13 — What Changed in 2.2.19 — contradiction detection redesigned
 
@@ -523,8 +523,8 @@ them**, and the live figures are the tables in §9.7 and §10.7.
 
 **Founder ruling, 2026-08-26. This reverses a rename made earlier the same day**
 (commit `885defc`, which renamed `baseline_metric` → `baseline` on the authority
-of `docs/DEFINE_FINALIZATION_2026-08-26.md`). **`docs/CONTINUITY.md` v4.1 §5 is
-authoritative**: the field is `baseline_metric`.
+of `docs/_archive/DEFINE_FINALIZATION_2026-08-26.md`). **`docs/CONTINUITY.md` v4.1 §5 is
+authoritative**: the field is `baseline_metric`. (archived to docs/_archive/; canonical: ARCHITECTURE.md §39.1.2)
 
 | Area | v2.2.24 | v2.2.25 |
 |---|---|---|
@@ -556,7 +556,7 @@ a vocabulary.**
 because it is one decision: **a project tracks N metrics, and the architecture
 must trace each of them across five phases by name.** Full detail:
 `ARCHITECTURE.md` v1.15 and §39.2. Prompt of record:
-`docs/CLAUDE_CODE_PROMPT_measure_naming_registry.md`.
+`docs/_archive/CLAUDE_CODE_PROMPT_measure_naming_registry.md`. (archived to docs/_archive/; canonical: ARCHITECTURE.md §39.2)
 
 | Area | v2.2.25 | v2.2.26 |
 |---|---|---|
@@ -1315,7 +1315,7 @@ checkpointer and store attach to the parent graph only (§1.2).
 and "all four" middlewares. Both contradicted rules elsewhere in this file —
 §4.6 and §10.7 mandate `CoachingResponse` on the executor, and §8.1 declares
 eight middlewares. Corrected 2026-08-21. `prompt=` → `system_prompt=`
-corrected in the same pass (`docs/BIBLE_VERIFICATION_LOG.md` C-2).*
+corrected in the same pass (`docs/_archive/BIBLE_VERIFICATION_LOG.md` C-2).* (archived to docs/_archive/; canonical: CLAUDE.md §0.10)
 
 **`create_react_agent` is superseded** by `create_agent` from
 `langchain.agents`. Nothing may import it, and nothing may import from
@@ -1907,8 +1907,8 @@ Five are custom, three are core. All are built on the six
 exposes `dynamic_prompt()`, `hook_config()` and `configure_trace_policy()`.
 Earlier revisions wrote "the six hooks" as though the set were closed,
 which would mislead anyone extending the stack. Verified against the
-LangChain middleware reference, 2026-08-21 (`docs/BIBLE_VERIFICATION_LOG.md`
-C-3).
+LangChain middleware reference, 2026-08-21 (`docs/_archive/BIBLE_VERIFICATION_LOG.md`
+C-3). (archived to docs/_archive/; canonical: CLAUDE.md §0.10)
 
 **Declaration order is execution order for hooks of the same kind, so
 this order is binding.** `BeforeModelStateInjection` MUST be first —
@@ -2202,7 +2202,7 @@ ModelRetryMiddleware(*, max_retries=2, retry_on=default_retry_on,
 vocabulary, which is exactly the situation where remembering one and
 inferring the other goes wrong — and it did: `retries=` sat in this
 stack, uncaught, from adoption until 2026-08-21
-(`docs/BIBLE_VERIFICATION_LOG.md` C-1).
+(`docs/_archive/BIBLE_VERIFICATION_LOG.md` C-1). (archived to docs/_archive/; canonical: CLAUDE.md §0.10)
 
 **Hand-writing retry plumbing is BANNED.** Do not write
 try / except / sleep / counter loops around an LLM call — this

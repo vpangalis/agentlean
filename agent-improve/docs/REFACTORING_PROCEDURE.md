@@ -83,7 +83,7 @@ agrees. The horizontal order then runs 2.5 → 3.3 → 3.4.
 > **deleted at step 11.1**, per Appendix B. **WATCH 7 clears at step 6.2.** The
 > Define gate is accepted as inert until then. Routes B and C rejected.
 > **Do not "fix" the v1 Define names anywhere in the tree — they are the
-> ruled-correct state.** Evidence in **`docs/WATCH7_AUDIT_2026-08-27.md`**,
+> ruled-correct state.** Evidence in **`docs/_archive/WATCH7_AUDIT_2026-08-27.md`**,
 > ruling at **`docs/DECISIONS.md` Part X**. **§0.2's WATCH 7 row and step 3.4's
 > consequence note are left as written**, per the annotate-don't-rewrite rule;
 > read them against this banner.
@@ -93,7 +93,7 @@ agrees. The horizontal order then runs 2.5 → 3.3 → 3.4.
 > `orchestrate_define`)"*, but **step 4.1's own prompt has the executor
 > delegating to `orchestrate_define`**. As written, WATCH 7 does not clear at
 > 4.1 — it clears at **6.2**, when the executor gains its own capture path via
-> `response_format=CoachingResponse`.
+> `response_format=CoachingResponse`. (archived to docs/_archive/; canonical: DECISIONS.md Part X)
 
 ---
 
@@ -557,9 +557,9 @@ document.
 > then `885defc`, 2026-08-26).** Read before running this step.
 >
 > The Define portion of this step's schema+validator work was done early, via
-> the ratified Define amendment (`docs/DEFINE_AMENDMENT_2026-08-25.md` →
+> the ratified Define amendment (`docs/_archive/DEFINE_AMENDMENT_2026-08-25.md` →
 > `ARCHITECTURE.md` §39.1), then **finalized at Option A**
-> (`docs/DEFINE_FINALIZATION_2026-08-26.md` → §39.1.2, §40, §63.1). **Build to
+> (`docs/_archive/DEFINE_FINALIZATION_2026-08-26.md` → §39.1.2, §40, §63.1). **Build to
 > the finalization, not the amendment** — the amendment's 8 Tier 1 / 3 Tier 2
 > split is superseded for Define.
 >
@@ -600,7 +600,7 @@ document.
 > subgraph (Step 4.1), left `phases/define/orchestrate.py` still writing v1
 > field names while the validator reads v2 names — so **the Define gate cannot
 > currently pass.** Expected given out-of-sequence execution; resolves at Step
-> 4.1 per the procedure's own order.
+> 4.1 per the procedure's own order. (archived to docs/_archive/; canonical: ARCHITECTURE.md §39.1.2; ARCHITECTURE.md §39.1)
 
 
 | | |
@@ -1101,7 +1101,7 @@ ToolRetryMiddleware(max_retries=2, on_failure="continue"),  # wrap_tool_call
 
 > **`max_retries`, not `retries`.** `retries=` does not exist and raises at
 > construction. This exact keyword sat in the canonical stack undetected from
-> adoption until 2026-08-21 (`BIBLE_VERIFICATION_LOG.md` C-1).
+> adoption until 2026-08-21 (`BIBLE_VERIFICATION_LOG.md` C-1). (archived to docs/_archive/; canonical: CLAUDE.md §0.10)
 
 **This step also removes `max_retries=3` from the `AzureChatOpenAI`
 constructor in `core/llm.py`**, deferred from step 2.7. **Sequenced here

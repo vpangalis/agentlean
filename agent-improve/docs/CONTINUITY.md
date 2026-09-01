@@ -114,7 +114,7 @@ is not contained in `orchestrate.py`, four more readers stand on the v1 names,
 three of the moves are not renames, and Appendix B marks `orchestrate.py`
 DELETE not REWRITE; a founder ruling is owed on the route. The immediate next
 step is procedure step **2.4**, NOT WATCH 7. Doc-content only — no schema, no
-code. ARCHITECTURE.md v1.19, CLAUDE.md 2.2.29 (both unchanged).
+code. ARCHITECTURE.md v1.19, CLAUDE.md 2.2.29 (both unchanged). (archived to docs/_archive/; canonical: CONTINUITY.md)
 
 v4.7 delta (2026-08-27): CONTROL phase review done — §39.5 landed, F-12 and F-14
 CLOSED, actual_close_date added (ControlOutput 17), single-authority extended to
@@ -246,18 +246,18 @@ the machine-readable step index the session-start hook parses.**
 
 | Doc | What it is |
 |---|---|
-| `docs/DEFINE_AMENDMENT_2026-08-25.md` | The original Define spec (§39.1). Superseded on tier counts by the finalization; kept as history |
-| `docs/DEFINE_FINALIZATION_2026-08-26.md` | **Authoritative Define spec: 12 required fields, no tiers (Option A)** |
-| `docs/PROCEDURE_RECONCILIATION_2026-08-25.md` | The four edits reconciling the procedure to the out-of-band commits |
-| `docs/WATCH7_AUDIT_2026-08-27.md` | **Why WATCH 7 / the `orchestrate.py` migration was STOPPED**, with the set-comparison and raw-grep evidence and three costed routes. **A founder ruling is owed on the route.** Not binding |
-| `docs/PRE_REFACTOR_STATE.md` | **The 2026-08-27 milestone snapshot** — inventory, retrospective and readiness at the seam between "designed" and "built". Functional, **not binding**; binding detail stays in ARCHITECTURE / CLAUDE / this file / the procedure |
+| `docs/_archive/DEFINE_AMENDMENT_2026-08-25.md` | The original Define spec (§39.1). Superseded on tier counts by the finalization; kept as history |
+| `docs/_archive/DEFINE_FINALIZATION_2026-08-26.md` | **Authoritative Define spec: 12 required fields, no tiers (Option A)** |
+| `docs/_archive/PROCEDURE_RECONCILIATION_2026-08-25.md` | The four edits reconciling the procedure to the out-of-band commits |
+| `docs/_archive/WATCH7_AUDIT_2026-08-27.md` | **Why WATCH 7 / the `orchestrate.py` migration was STOPPED**, with the set-comparison and raw-grep evidence and three costed routes. **A founder ruling is owed on the route.** Not binding |
+| `docs/_archive/PRE_REFACTOR_STATE.md` | **The 2026-08-27 milestone snapshot** — inventory, retrospective and readiness at the seam between "designed" and "built". Functional, **not binding**; binding detail stays in ARCHITECTURE / CLAUDE / this file / the procedure (archived to docs/_archive/; canonical: ARCHITECTURE.md §39.1.2; ARCHITECTURE.md §39.1; DECISIONS.md Part X; CONTINUITY.md; REFACTORING_PROCEDURE.md) |
 
 ### Historical record — not binding, do not cite in rules
 
 `docs/REFACTORING_AGENT_IMPROVE.md` (the review register, best source for *why*)
-· `docs/EDUCATIONAL.md` (frozen) · `docs/DECISIONS.md` · `docs/REVIEW_DECISIONS.md`
-· `docs/BIBLE_VERIFICATION_LOG.md`. The reference's **Appendix A** resolves old
-`ARCHITECTURE.md §X` / `REFACTORING §X` citations.
+· `docs/_archive/EDUCATIONAL.md` (frozen) · `docs/DECISIONS.md` · `docs/REVIEW_DECISIONS.md`
+· `docs/_archive/BIBLE_VERIFICATION_LOG.md`. The reference's **Appendix A** resolves old
+`ARCHITECTURE.md §X` / `REFACTORING §X` citations. (archived to docs/_archive/; canonical: CLAUDE.md §0.10; REVIEW_DECISIONS.md)
 
 ---
 
@@ -328,7 +328,7 @@ Not-yet-existing: `core/substate.py` · `core/store.py` · `middleware/` ·
 > (`set_entry_point` → `add_edge(START, …)`), then the horizontal order
 > 2.5 → 3.3 → 3.4's four outstanding phases. See
 > `PRE_REFACTOR_STATE.md` for the one-screen inventory of spec-done /
-> code-not-started, and `REFACTORING_PROCEDURE.md`'s status banner.
+> code-not-started, and `REFACTORING_PROCEDURE.md`'s status banner. (archived to docs/_archive/; canonical: CONTINUITY.md)
 
 **Decision (2026-08-26): phases are reviewed individually BEFORE the backbone is
 finalized, because the phases define what fields the state/schemas must hold.**
@@ -375,7 +375,7 @@ with its SKILL.md. The five Layer-2d rubrics, the 20 computation-tool specs
 single-authority invariant in `core/metrics.py`) landed with them. **There is no
 §39.6.**
 
-### Define — FINALIZED (authoritative: `DEFINE_FINALIZATION_2026-08-26.md`)
+### Define — FINALIZED (authoritative: `DEFINE_FINALIZATION_2026-08-26.md`) (archived to docs/_archive/; canonical: ARCHITECTURE.md §39.1.2)
 
 **12 required fields, NO Tier 1/Tier 2 split. Option A — every field
 gate-required; missing any → gate fails.** Order (= planner `field_index`):
@@ -413,7 +413,7 @@ still step 4.1.
 > `885defc` is superseded on this point only — its 12-required/no-tiers work
 > stands. **`DEFINE_FINALIZATION_2026-08-26.md` still states the wrong
 > direction** and is left as the dated record it is; if it is ever re-applied
-> verbatim it will re-introduce the collision.
+> verbatim it will re-introduce the collision. (archived to docs/_archive/; canonical: ARCHITECTURE.md §39.1.2)
 
 ### Measure — rulings captured (2026-08-26); review CLOSED 2026-08-27 (§39.2)
 
@@ -464,10 +464,10 @@ STANDALONE subsystem spec (reusable across all 5 phases — Pareto/Analyse,
 Cpk/Measure, regression, control charts), NOT embedded inside Measure's section.
 Each phase's review NAMES its required tools; the computation-tools spec section
 DEFINES them. `EXCEL_SHEET_TOOL_MAP` (in `ingest_knowledge.py`, preserved at
-`docs/EXCEL_TOOL_INVENTORY.md`) is the ~20-tool build-inventory. G-25 (tools) +
+`docs/_archive/EXCEL_TOOL_INVENTORY.md`) is the ~20-tool build-inventory. G-25 (tools) +
 G-36 (upload endpoint) resolve here at the spec level. Data enters via
 `improve_evidence_index`; tools are read-only `@tool` functions; seven-step
-computation pattern §43; no fallback-fetch.
+computation pattern §43; no fallback-fetch. (archived to docs/_archive/; canonical: ARCHITECTURE.md §30)
 
 > **SUPERSEDED 2026-08-27 (v4.8).** This read: *"finish Measure's capture
 > review … then write the computation-tools spec section."* Both are done —
@@ -496,12 +496,12 @@ specification.**
    `upload/agent.py`), three of the moves are not renames, and Appendix B lists
    all five `orchestrate.py` files as **Delete**, not Rewrite — which is the
    ruling. **See §6's WATCH 7 entry**; evidence in
-   `docs/WATCH7_AUDIT_2026-08-27.md`, ruling at `docs/DECISIONS.md` Part X.
+   `docs/_archive/WATCH7_AUDIT_2026-08-27.md`, ruling at `docs/DECISIONS.md` Part X.
 3. **Ratified inputs to the build** — §39.1–§39.5, §63.1–§63.5, §69's 20 tools,
    the five rubrics, the metric registry. Build against these; they are settled.
    Open build gaps: **G-27** (mappers) and **G-28** (gate assembly for the four
    phases beyond Define). The root-reference back-port is owed once Improve
-   settles.
+   settles. (archived to docs/_archive/; canonical: DECISIONS.md Part X)
 
 ---
 
@@ -564,8 +564,8 @@ at v1.15. Corrected against §66, which carries the live count.)*
   >
   > Route B (full v1→v2 cutover now) and Route C (bring the executor forward)
   > are **rejected**, not deferred. Costs for all three are in
-  > `docs/WATCH7_AUDIT_2026-08-27.md`; the ruling is recorded at
-  > `docs/DECISIONS.md` Part X.
+  > `docs/_archive/WATCH7_AUDIT_2026-08-27.md`; the ruling is recorded at
+  > `docs/DECISIONS.md` Part X. (archived to docs/_archive/; canonical: DECISIONS.md Part X)
 
   **The finding the ruling rests on** — reassessed 2026-08-27, it is NOT a
   self-contained rename and was NOT the right first build step:
@@ -604,7 +604,7 @@ at v1.15. Corrected against §66, which carries the live count.)*
 
   **Consequence, as ruled:** the gate stays inert until the v2 capture path
   exists (executor node → `CoachingResponse.fields_captured` → `artifacts`) at
-  **step 6.2**. Evidence in full at `docs/WATCH7_AUDIT_2026-08-27.md`.
+  **step 6.2**. Evidence in full at `docs/_archive/WATCH7_AUDIT_2026-08-27.md`.
 - **WATCH 9 — `CoachingResponse`'s four presentational fields render nowhere
   yet.** `explanation`/`example`/`prompt`/`progress` in the schema; UI half is
   the UI rebuild (step 10.2). The four Measure/Analyse/Improve/Control SKILL.md
@@ -620,7 +620,7 @@ at v1.15. Corrected against §66, which carries the live count.)*
   longer applies to any future out-of-band step. A second constant,
   `_BLOCKED_STATUSES`, keeps the "all remaining blocked/gated" diagnostic
   honest — a finished step is not a blocked one. Appendix D's ⚠ note is
-  annotated to match.
+  annotated to match. (archived to docs/_archive/; canonical: DECISIONS.md Part X)
 
 **CLOSED this session (were WATCH 3 + WATCH 8):** CLAUDE.md's stale "218
 `general`" → 259 and Define "6 Tier 1 / 15-6-5-4" figures — corrected via the
@@ -700,8 +700,8 @@ evidence.** When you write a verification, first prove it can fail.
 
 | Version | Date | Change |
 |---|---|---|
-| **4.9** | 2026-08-28 | **WATCH 7 RULED — ROUTE A, and it is a ruling to STOP work, not to start it.** `phases/define/orchestrate.py` and `EXTRACTION_DEFINE`'s Define block are **not migrated**: they keep writing the v1 names unchanged, the Define gate is **accepted as inert**, and both are **deleted at step 11.1** — which is what `REFACTORING_PROCEDURE.md` Appendix B specified all along. **WATCH 7 clears at step 6.2**, when the executor gains its own capture path via `create_agent(…, response_format=CoachingResponse)` — **not at 4.1**, whose own prompt still has the executor delegating to `orchestrate_define`. §0.2's gate row is therefore wrong as written and is **annotated, not rewritten**. **The load-bearing consequence for future sessions: the v1 Define field names in `orchestrate.py`, the three cross-phase briefs, Measure's metric seeding, `gateway/routes.py` and the 78 `ui/index.html` sites are the RULED-CORRECT state, not drift — do not "fix" them.** Routes B (full v1→v2 cutover now) and C (bring the executor forward) are **rejected, not deferred**. Ruling recorded at `DECISIONS.md` **Part X**; evidence at `docs/WATCH7_AUDIT_2026-08-27.md`. **Two accuracy fixes alongside:** §2's binding-documents version column read CLAUDE.md **2.2.24** and ARCHITECTURE.md **1.10.x** — five and nine revisions stale, both having moved at every phase review; corrected to **2.2.29** and **1.19** (the root reference at 1.7.2 was right). And `phases/define/schema.py`'s class docstring said *"16 fields"* where `DefineOutput` is **18** — stale since the metric registry landed at v1.15; corrected in a separate code commit, since this one is doc-content. **Still owed and NOT fixed here: `ARCHITECTURE.md` §39.1.2 carries the same stale "16 fields in total" and contradicts §40 and §63.1 in its own document** — a §56 route, not a passing edit |
-| **4.8** | 2026-08-27 | **THE FIVE-PHASE SPEC IS COMPLETE AND THE BUILD PHASE IS OPEN — a doc-content pass that records the milestone and one code finding.** **§5 was stale in the place a fresh session reads first**: its phase-review status table still said Measure *IN PROGRESS* and Analyse/Improve/Control *Not started*, false since v4.7. The table now reads **DONE / ratified for all five**, with each phase's §39.x, §63.x and field count; the §5 heading pivots from *"PHASE REVIEWS, then the backbone, then build"* to **the build**, with the review material kept as the record of how the field vocabulary was settled rather than as work outstanding. The stale *"finish Measure's capture review → then write the computation-tools spec"* next-step is superseded (both done — §39.2 and §69) and replaced by a build next-step: **resume the procedure at step 2.4**. **`PRE_REFACTOR_STATE.md` added** — the functional pre-build snapshot (inventory, retrospective, readiness), explicitly not binding. **§6's gap register corrected 44/9/35 → 46/12/34**: the line had never been updated when §66's own header moved at v1.15, and F-12/F-13/F-14 are findings, not gaps, so they do not move it. **`REFACTORING_PROCEDURE.md` gains a status banner** stating that §39.1–§39.5, §63.1–§63.5, §69, the five rubrics and the metric registry are now **ratified inputs** — steps 3.4, 4.1 and 5.3 build against them rather than against open questions — with no step renumbered. **WATCH 7 REASSESSED, and this is the substantive finding.** It was carried as the natural first build step, a contained rename of `orchestrate.py`. Reading the code says otherwise: the v1 names are emitted by **`EXTRACTION_DEFINE` in `core/prompts.py`**, not by `orchestrate.py`, which merges them unfiltered; **four readers beyond the three cross-phase briefs** stand on them (`ui/index.html` **78 sites**, Measure's metric seeding, `gateway/routes.py`, `upload/agent.py`); **three of the moves are not renames** (`primary_metric` → the `metric_definitions` registry is scalar → registry; the **5W2H fields have no v2 home at all** per §39.1.3; `sipoc` gains a sixth key the generator never produces); **Appendix B marks all five `orchestrate.py` DELETE, not REWRITE**; and step 3.4's ruling would force the `ui/index.html` rename into the same commit under a `manual-UI` verify. **The Define gate stays inert until the v2 capture path exists** (executor → `CoachingResponse.fields_captured` → `artifacts`). A founder ruling is owed on the route; the three routes are costed in `docs/WATCH7_AUDIT_2026-08-27.md`. Doc-content only — `git diff` over `*.py` is empty. ARCHITECTURE.md **v1.19** and CLAUDE.md **2.2.29**, both unchanged |
+| **4.9** | 2026-08-28 | **WATCH 7 RULED — ROUTE A, and it is a ruling to STOP work, not to start it.** `phases/define/orchestrate.py` and `EXTRACTION_DEFINE`'s Define block are **not migrated**: they keep writing the v1 names unchanged, the Define gate is **accepted as inert**, and both are **deleted at step 11.1** — which is what `REFACTORING_PROCEDURE.md` Appendix B specified all along. **WATCH 7 clears at step 6.2**, when the executor gains its own capture path via `create_agent(…, response_format=CoachingResponse)` — **not at 4.1**, whose own prompt still has the executor delegating to `orchestrate_define`. §0.2's gate row is therefore wrong as written and is **annotated, not rewritten**. **The load-bearing consequence for future sessions: the v1 Define field names in `orchestrate.py`, the three cross-phase briefs, Measure's metric seeding, `gateway/routes.py` and the 78 `ui/index.html` sites are the RULED-CORRECT state, not drift — do not "fix" them.** Routes B (full v1→v2 cutover now) and C (bring the executor forward) are **rejected, not deferred**. Ruling recorded at `DECISIONS.md` **Part X**; evidence at `docs/_archive/WATCH7_AUDIT_2026-08-27.md`. **Two accuracy fixes alongside:** §2's binding-documents version column read CLAUDE.md **2.2.24** and ARCHITECTURE.md **1.10.x** — five and nine revisions stale, both having moved at every phase review; corrected to **2.2.29** and **1.19** (the root reference at 1.7.2 was right). And `phases/define/schema.py`'s class docstring said *"16 fields"* where `DefineOutput` is **18** — stale since the metric registry landed at v1.15; corrected in a separate code commit, since this one is doc-content. **Still owed and NOT fixed here: `ARCHITECTURE.md` §39.1.2 carries the same stale "16 fields in total" and contradicts §40 and §63.1 in its own document** — a §56 route, not a passing edit |
+| **4.8** | 2026-08-27 | **THE FIVE-PHASE SPEC IS COMPLETE AND THE BUILD PHASE IS OPEN — a doc-content pass that records the milestone and one code finding.** **§5 was stale in the place a fresh session reads first**: its phase-review status table still said Measure *IN PROGRESS* and Analyse/Improve/Control *Not started*, false since v4.7. The table now reads **DONE / ratified for all five**, with each phase's §39.x, §63.x and field count; the §5 heading pivots from *"PHASE REVIEWS, then the backbone, then build"* to **the build**, with the review material kept as the record of how the field vocabulary was settled rather than as work outstanding. The stale *"finish Measure's capture review → then write the computation-tools spec"* next-step is superseded (both done — §39.2 and §69) and replaced by a build next-step: **resume the procedure at step 2.4**. **`PRE_REFACTOR_STATE.md` added** — the functional pre-build snapshot (inventory, retrospective, readiness), explicitly not binding. **§6's gap register corrected 44/9/35 → 46/12/34**: the line had never been updated when §66's own header moved at v1.15, and F-12/F-13/F-14 are findings, not gaps, so they do not move it. **`REFACTORING_PROCEDURE.md` gains a status banner** stating that §39.1–§39.5, §63.1–§63.5, §69, the five rubrics and the metric registry are now **ratified inputs** — steps 3.4, 4.1 and 5.3 build against them rather than against open questions — with no step renumbered. **WATCH 7 REASSESSED, and this is the substantive finding.** It was carried as the natural first build step, a contained rename of `orchestrate.py`. Reading the code says otherwise: the v1 names are emitted by **`EXTRACTION_DEFINE` in `core/prompts.py`**, not by `orchestrate.py`, which merges them unfiltered; **four readers beyond the three cross-phase briefs** stand on them (`ui/index.html` **78 sites**, Measure's metric seeding, `gateway/routes.py`, `upload/agent.py`); **three of the moves are not renames** (`primary_metric` → the `metric_definitions` registry is scalar → registry; the **5W2H fields have no v2 home at all** per §39.1.3; `sipoc` gains a sixth key the generator never produces); **Appendix B marks all five `orchestrate.py` DELETE, not REWRITE**; and step 3.4's ruling would force the `ui/index.html` rename into the same commit under a `manual-UI` verify. **The Define gate stays inert until the v2 capture path exists** (executor → `CoachingResponse.fields_captured` → `artifacts`). A founder ruling is owed on the route; the three routes are costed in `docs/_archive/WATCH7_AUDIT_2026-08-27.md`. Doc-content only — `git diff` over `*.py` is empty. ARCHITECTURE.md **v1.19** and CLAUDE.md **2.2.29**, both unchanged |
 | **4.7** | 2026-08-27 | **CONTROL phase review — THE FIVE-PHASE DMAIC SPECIFICATION IS COMPLETE.** §39.5 written from the ratified appendix — twelve subsections, coaching script embedded at §39.5.10, **no §39.6**. Two movements: confirm (did it hold?) then lock (make it stick); **the bright line is delivery, not authorship**. **F-12 CLOSED** — `actual_close_date` added as **Tier 2**, ControlOutput **16 → 17**, §35 Control row **3/9**. **F-14 CLOSED** — `phase_metrics` is the authoritative store of all N comparisons (`baseline`/`target`/`actual`/`delta`/`met`); `post_improvement_metrics` stays the primary metric's Tier-1 link; **the grader grades every entry**. **Single-authority extended to Control** — its shape is the odd one (`post_improvement_metrics["metric"]` == `phase_metrics[primary]["actual"]`), mapped explicitly in `core/metrics.py` and unit-tested both directions (24 tests). **`CONTROL_RUBRIC` encodes three Tier-1 guards**: link back to baseline, control plan complete AND delivered with a named accepting owner, stability before capability again. **Control SKILL.md CONFORMED, not created** — it existed at 946 lines with a field order §39.5.2 reorders. **All five phases ratified.** Remaining is BUILD, not spec: WATCH 7 (`orchestrate.py`), G-27 (mappers), G-28 (gate assembly ×4), root-reference back-port. ARCHITECTURE.md **v1.19**, CLAUDE.md **2.2.29** |
 | **4.6** | 2026-08-27 | **IMPROVE phase review + Define §32 fix.** §39.4 written from the ratified appendix — twelve subsections, coaching script embedded at §39.4.10 per the §39.1.7 pattern. **Two movements**: choose (generate → select on explicit criteria) then prove (pilot → confirm); `selected_solution` at 1, link at 2, `experiment_justification` at 3, `pilot_result` at 4 — **you decide how hard to test after you know what you're choosing between**. `IMPROVE_RUBRIC` gains **two Tier-1 guards** (solution traces to the validated root cause by lookup; pilot before rollout, practical AND statistical) and **explicit DOE belt-gating** (all three answers valid; recommended BB, suppressed GB, asked of both). Improve `phase_metrics` = linkage-plus-pilot; `solution_linked_to_root_cause` now populates `references_metric_name`. `ImproveOutput` stays **14**. **Improve SKILL.md CONFORMED, not created** — it existed at 656 lines with a field order §39.4.2 rejects (it coached `experiment_justification` first). **Define §32 gap CLOSED**: `calculate_expected_savings` had no seven-step block; added to §39.1.7 and the Define SKILL.md after the `target_value` field. **Only Control (§39.5) remains stubbed**; F-14 is its open finding. ARCHITECTURE.md **v1.18**, CLAUDE.md **2.2.28** |
 | **4.5** | 2026-08-27 | **§39.2.10 and §39.3.10 now embed their coaching script.** Both claimed §39.1.7's authoritative-during-refactor status while holding only a pointer — nothing for the SKILL.md to be generated from. Both now carry the full script in §39.1.7's format: preamble, phase opening, one block per field in §39.2.2/§39.3.2 order with Explain/Show/Ask/Confirm, one seven-step block per tool, metric literacy, gate-readiness closing; plus Analyse's two-movements framing, 5 Whys and test selection. **Content lifted, not rewritten** — 13/13 tool blocks already had seven steps and moved verbatim; 19/19 field blocks gained the four labelled parts. Fixed on the way in: Analyse's `causal_hypothesis` block showed the old three-key reference shape (now five, with `references_metric_name`), and §39.3.10's "SKILL.md does not exist yet" line. Both SKILL.md restructured to one contiguous `## 3. Coaching content` section and renumbered. **Byte-consistency verified for all three phases** by substring containment. Doc-content only — no schema, no code. ARCHITECTURE.md **v1.17** |
@@ -716,6 +716,6 @@ evidence.** When you write a verification, first prove it can fail.
 | **3.5x** | 2026-08-24 | G-04 / G-44 chain resolved; watches for the §16 repro and two-venv blocker |
 | **3.1–3.3** | 2026-08-24 | Standing Reasoning Protocol added; live gap list |
 | **3.0** | 2026-08-22 | Rebuilt from live files |
-| 2.8 | 2026-08-19 | Last version before the reference rewrite |
+| 2.8 | 2026-08-19 | Last version before the reference rewrite (archived to docs/_archive/; canonical: ARCHITECTURE.md §39.1.2; DECISIONS.md Part X; CONTINUITY.md) |
 
 *A new session should be able to act on §4 and §5 without opening another file.*
