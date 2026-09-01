@@ -83,7 +83,7 @@ agrees. The horizontal order then runs 2.5 → 3.3 → 3.4.
 > **deleted at step 11.1**, per Appendix B. **WATCH 7 clears at step 6.2.** The
 > Define gate is accepted as inert until then. Routes B and C rejected.
 > **Do not "fix" the v1 Define names anywhere in the tree — they are the
-> ruled-correct state.** Evidence in **`docs/_archive/WATCH7_AUDIT_2026-08-27.md`**,
+> ruled-correct state.** Evidence in **`docs/_archive/WATCH7_AUDIT_2026-08-27.md`**, (archived to docs/_archive/; canonical: DECISIONS.md Part X)
 > ruling at **`docs/DECISIONS.md` Part X**. **§0.2's WATCH 7 row and step 3.4's
 > consequence note are left as written**, per the annotate-don't-rewrite rule;
 > read them against this banner.
@@ -93,7 +93,7 @@ agrees. The horizontal order then runs 2.5 → 3.3 → 3.4.
 > `orchestrate_define`)"*, but **step 4.1's own prompt has the executor
 > delegating to `orchestrate_define`**. As written, WATCH 7 does not clear at
 > 4.1 — it clears at **6.2**, when the executor gains its own capture path via
-> `response_format=CoachingResponse`. (archived to docs/_archive/; canonical: DECISIONS.md Part X)
+> `response_format=CoachingResponse`.
 
 ---
 
@@ -557,9 +557,9 @@ document.
 > then `885defc`, 2026-08-26).** Read before running this step.
 >
 > The Define portion of this step's schema+validator work was done early, via
-> the ratified Define amendment (`docs/_archive/DEFINE_AMENDMENT_2026-08-25.md` →
+> the ratified Define amendment (`docs/_archive/DEFINE_AMENDMENT_2026-08-25.md` → (archived to docs/_archive/; canonical: ARCHITECTURE.md §39.1)
 > `ARCHITECTURE.md` §39.1), then **finalized at Option A**
-> (`docs/_archive/DEFINE_FINALIZATION_2026-08-26.md` → §39.1.2, §40, §63.1). **Build to
+> (`docs/_archive/DEFINE_FINALIZATION_2026-08-26.md` → §39.1.2, §40, §63.1). **Build to (archived to docs/_archive/; canonical: ARCHITECTURE.md §39.1.2)
 > the finalization, not the amendment** — the amendment's 8 Tier 1 / 3 Tier 2
 > split is superseded for Define.
 >
@@ -569,7 +569,7 @@ document.
 >   `DefinePhaseInput` retired.
 > - `phases/define/validate.py` — `DEFINE_REQUIRED_FOR_GATE` = the **12
 >   required fields** (no tiers, Option A — see §39.1 /
->   `DEFINE_FINALIZATION_2026-08-26.md`).
+>   `DEFINE_FINALIZATION_2026-08-26.md`). (archived to docs/_archive/; canonical: ARCHITECTURE.md §39.1.2)
 > - `skills/dmaic-define-phase/SKILL.md` — written, generated verbatim from
 >   §39.1.7.
 > - `CoachingResponse` (S-C05) — gained 4 presentational fields
@@ -588,7 +588,7 @@ document.
 >   are superseded — Define is **12 required fields with no Tier 1 / Tier 2
 >   split** (Option A, ratified 2026-08-26), and **two** v1 names survive:
 >   `goal_statement` and `target_date`. **§39.1 and
->   `DEFINE_FINALIZATION_2026-08-26.md` are authoritative; this step's inline
+>   `DEFINE_FINALIZATION_2026-08-26.md` are authoritative; this step's inline (archived to docs/_archive/; canonical: ARCHITECTURE.md §39.1.2)
 >   counts are pre-amendment** and are left unrewritten deliberately, per the
 >   annotate-don't-rewrite rule.
 > - **One more inline claim to read past for Define:** the "two fields on all
@@ -600,7 +600,7 @@ document.
 > subgraph (Step 4.1), left `phases/define/orchestrate.py` still writing v1
 > field names while the validator reads v2 names — so **the Define gate cannot
 > currently pass.** Expected given out-of-sequence execution; resolves at Step
-> 4.1 per the procedure's own order. (archived to docs/_archive/; canonical: ARCHITECTURE.md §39.1.2; ARCHITECTURE.md §39.1)
+> 4.1 per the procedure's own order.
 
 
 | | |

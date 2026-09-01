@@ -13,7 +13,7 @@ Source documents (stay in repo, not here):
   agent-improve/reviews/REVIEW_DECISIONS.md           — full EDUCATIONAL.md review log
   agent-improve/SKILL_REVIEW_NOTES.md                 — 17 SKILL.md review notes
   agent-improve/docs/_archive/RESTRUCTURE_PLAN.md           — REFACTORING reorder plan
-  agent-improve/docs/_archive/status-79-84-2026-08-10.md   — §79–§84 landing audit (archived to docs/_archive/; canonical: DECISIONS.md; DECISIONS.md §G11; REVIEW_DECISIONS.md)
+  agent-improve/docs/_archive/status-79-84-2026-08-10.md   — §79–§84 landing audit (archived to docs/_archive/; canonical: DECISIONS.md)
 
 CLAUDE.md version this was written against: v2.2.14
 ARCHITECTURE.md version: v2.2.15
@@ -1311,7 +1311,7 @@ toolset gap (I1 above).
 | M2 §38 check → ContradictionDetectionMiddleware (Mod A ratified) | New Part M (M2) | DECISIONS.md | v1.3 — 2026-08-12 |
 | M3 CoherenceMiddleware replaces L2a in COACHING_QUALITY_RUBRIC (Mod B ratified) | New Part M (M3) | DECISIONS.md | v1.3 — 2026-08-12 |
 | D68-1 ratified: AzureChatOpenAI invoke requires message list not plain string | New Part L (L1) | DECISIONS.md | v1.2 — 2026-08-12 |
-| D09 diagram added: constraint validation + retry-with-accumulated-feedback | **`docs/_archive/ARCHITECTURE_DIAGRAMS.html`** — archived 2026-09-01; the diagram exists only there, and `agent-improve/diagrams/` predates it and does not contain D09 | docs | v1.2 — 2026-08-12 |
+| D09 diagram added: constraint validation + retry-with-accumulated-feedback | **`docs/_archive/ARCHITECTURE_DIAGRAMS.html`** — archived 2026-09-01; the diagram exists only there, and `agent-improve/diagrams/` predates it and does not contain D09 | docs | v1.2 — 2026-08-12 (archived to docs/_archive/; canonical: no in-doc equivalent; the file is the artefact) |
 | §37-D Procedural Memory taxonomy ratified (static v2.1 / dynamic v2.2+) | New Part K | DECISIONS.md | v1.1 — 2026-08-11 |
 | §37-A/§37-B cross-references added to E3/E4 | E3, E4, E1 notes | DECISIONS.md | v1.1 — 2026-08-11 |
 | Seven-step computation pattern (was six) | §8.2 `COACHING_QUALITY_RUBRIC` | CLAUDE.md | v2.2.14 |
@@ -1324,7 +1324,7 @@ toolset gap (I1 above).
 | Executor contract (5 nodes, 2 graders, 5 middlewares) | §3.3, §8.1, §8.2 | CLAUDE.md | v2.2.10 |
 | State design (all 15 findings) | §10.1–§10.6 | CLAUDE.md | v2.2.9 |
 | Multi-query Option A | ARCHITECTURE.md §7.4 | — | **PENDING** |
-| `improve_case_index` `content_vector` rename | ARCHITECTURE.md §7.3 | — | **PENDING** (archived to docs/_archive/; canonical: no in-doc equivalent; the file is the artefact) |
+| `improve_case_index` `content_vector` rename | ARCHITECTURE.md §7.3 | — | **PENDING** |
 
 ---
 
