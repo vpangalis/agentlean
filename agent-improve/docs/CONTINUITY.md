@@ -513,10 +513,22 @@ specification.**
 - **Two Azure index schema changes** — RATIFIED, NOT APPLIED. `improve_evidence_index` gains `phase` + `uploaded_at`; `improve_case_index` `embedding` → `content_vector`. Batch — step 9.1. (Independent of the knowledge-index rebuild, which touched a different index.)
 
 ### SPEC-GAP register
-**`ARCHITECTURE.md` §66 — 46 identified, 12 closed or resolved, 34 open.
+**`ARCHITECTURE.md` §66 — 46 identified, 14 closed or resolved, 32 open.
 Group A empty** (no founder rulings outstanding). *(This line read "44 / 9 / 35"
 until 2026-08-27 — it was never updated when §66's own header moved to 46/12/34
-at v1.15. Corrected against §66, which carries the live count.)*
+at v1.15. Corrected against §66, which carries the live count.)* *(**And it
+lagged again, by two closures.** It still read 46/12/34 on 2026-09-01, having
+missed **G-27**'s closure at step 3.3 on 2026-08-31 — §66's header moved to
+13/33 then and this line did not follow. Corrected here to 46/14/32, which also
+takes in **G-21**'s closure at step 3.5. **This line has now drifted from §66
+twice in three weeks**; §66's header is the live count and this one is a copy,
+so read §66 when the two disagree.)*
+- **G-21 closed 2026-09-01** (procedure step 3.5) — `storage/blob.py`'s
+  function surface. **There is no class interface**, which is the resolution:
+  §54 holds the file to module-level functions only. Thirteen names, `write_phase_gate`
+  writing the case blob before the registry, and a loop-keyed cached `aio`
+  client. **Deletion is not covered — that is a new gap (WATCH 10).** Record:
+  `docs/DECISIONS.md` Part Y.
 - G-38 closed 2026-08-26 (Define field order); G-45 and G-46 registered and
   resolved in the same v1.15 pass (the metric registry's two spec entries).
 - **Group D — the computation layer (G-25, G-36) — is resolved at SPEC level**

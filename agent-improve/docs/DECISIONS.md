@@ -3022,3 +3022,113 @@ diagnosis was right; its estimated size was wrong** — that is the whole findin
 - **Step 10.2 (the UI rebuild) must land before 11.1's backend deletions**, or
   the workspace renders blank panels with no error — the failure step 3.4 names.
   Recorded at step 11.1.
+
+---
+
+## Part Y — G-21 resolved: the `storage/blob.py` function surface (2026-09-01)
+
+### Y1 — There is no class interface, and that is the resolution
+
+**Status:** RATIFIED 2026-09-01 (founder ruling, at the step 3.5 review).
+**Not a §56 amendment** — it changes no design, no schema and no rule. It
+**records a ratification already made** and closes a register entry that had
+been carried as open while the decision behind it was taken.
+**Lands in:** `ARCHITECTURE.md` §58.8 (S-C08) and §66's Group D row and header
+count; `CONTINUITY.md` §6.
+**Source:** procedure step 3.5, commit `025bde7`.
+
+#### The gap, and why it could not be answered as written
+
+**G-21 asked for "the class interface — method names, signatures, return types,
+and how registry updates are sequenced against case writes."** The first three
+quarters of that question had no valid answer: **§54 and `CLAUDE.md` §2 both
+name `storage/blob.py` among the files that hold module-level functions ONLY**,
+with no exception. `ImproveBlobClient` was a class where none is permitted — the
+same violation step 2.7 cleared in `core/llm.py`.
+
+**So the gap was answered by removing its subject.** Step 3.5 deleted the class.
+The `grep -rn "class ImproveBlobClient" agent-improve/backend/` in the step's
+own *Done when* returns zero.
+
+> **S-C08's own title is still `ImproveBlobClient`.** That is now a stale label
+> on a spec entry whose subject is a module, not a class. Left as-is
+> deliberately: renaming a spec-entry title is a §56 amendment and does not
+> belong in a record-keeping commit.
+
+#### The ratified surface — thirteen module-level names
+
+| Kind | Names |
+|---|---|
+| **sync** | `case_path(case_id) -> str` · `storage_configured() -> bool` |
+| **async** | `load_case` · `save_case` · `create_case` · `write_phase_gate` · `append_turn` · `load_registry` · `save_registry` · `register_case` · `upload_file` · `aclose` |
+| **const** | `REGISTRY_BLOB_PATH` |
+
+`case_path` stays synchronous because it is pure string construction; making it
+`async` would be noise. Everything that performs I/O is `async`, per §1.4 and
+§49.
+
+**`storage_configured()` replaces the import-time singleton.** The old module
+built a client at import under a bare `except` and left `blob_client = None` on
+failure — so an unrelated construction error read to every caller as "storage
+not configured", and a 503 was returned for a bug. The function reads settings
+at call time and answers only the question it is named for.
+
+#### B2's sequencing — the case blob first, then the registry
+
+**`write_phase_gate` awaits `save_case` before `_update_registry_entry`.** The
+order is not arbitrary: `cases/case_{id}.json` is the system of record and
+`registry.json` is a projection of it, so **the registry must never point at a
+phase the case document does not yet show.** The reverse order would leave a
+window where the dashboard advertises a gate the case has not recorded.
+
+They remain **two separate writes**, exactly as S-C08 B2 states, both covered by
+the node's `error_handler` (§45). This ruling settles their *order*, not their
+atomicity — Blob gives no cross-blob transaction and none is claimed.
+
+#### The aio lifecycle — ruled on a measurement, not a preference
+
+**One cached `azure.storage.blob.aio` client, keyed on its event loop, closed by
+`aclose()` on `app.py`'s existing shutdown hook.**
+
+Measured against the real container (`agent-improve-cases`, case
+`IMPR-2026-E9D`, 74,693 bytes, n=25, 2026-09-01):
+
+| shape | load (median) | save (median) |
+|---|---|---|
+| per-operation client (`core/store.py`'s pattern) | 289.2 ms | 360.3 ms |
+| **cached client** | **96.6 ms** | **82.5 ms** |
+
+**~470 ms per `/ask` request, 3–4×.** The figure that decided it: constructing a
+client and tearing down its session with **no blob I/O at all costs 0.5 ms**.
+The 470 ms is TLS and connection setup a fresh pool cannot reuse — so the
+per-operation shape was never paying for object construction, which is precisely
+why the procedure demanded a number rather than an opinion.
+
+**`core/store.py` keeps the per-operation shape and is right to.** Store writes
+happen a handful of times per phase; the trade that is wrong on `/ask` is
+correct there. Two Blob owners, two lifecycles, one measurement each.
+
+**This does not depend on the gated step 8.5.** `app.py` already had an
+`@app.on_event("shutdown")` hook; 8.5 is the graceful *drain* of in-flight
+coaching turns via `RunControl.request_drain()`, a different concern from
+closing an HTTP session. (That hook's own deprecation is **WATCH 12**.)
+
+#### What G-21 does NOT resolve
+
+**Deletion.** S-C08's *Paths owned* includes `uploads/{case_id}/{file}`, and no
+behaviour anywhere governs removing one. `DELETE /files/{case_id}/{file_id}`
+drops the upload record from the case document and leaves the blob in place
+forever. **This is a new gap, not a residue of G-21** — G-21 asked about the
+interface and the write sequencing, and both are now answered. Carried as
+**WATCH 10** with a SPEC-GAP owed.
+
+#### Register effect
+
+**§66: 46 identified, 13 → 14 closed or resolved, 33 → 32 open.**
+
+> **The 12/34 figure quoted when this closure was scoped was already stale.**
+> §66's own header had moved to 13/33 when **G-27** closed at procedure step 3.3
+> on 2026-08-31, and `CONTINUITY.md` §6 was never updated to match — the same
+> propagation failure its own bracketed note records against the earlier
+> 44/9/35. Both are corrected here, so the live figure is **46/14/32** and the
+> two documents agree.

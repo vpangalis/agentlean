@@ -74,9 +74,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.19.1 · 2026-09-01
+Version 1.19.2 · 2026-09-01
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.19.2 (2026-09-01)** — **G-21 CLOSED. Records a ratification already made; not a §56 amendment — no rule, schema, field or count of anything but the gap register changes.** `storage/blob.py`'s surface was designed and founder-approved at procedure step 3.5 (commit `025bde7`), but the register still carried G-21 as open and `docs/DECISIONS.md` held no record of it at all — the binding document asking for a decision that had been taken. **The resolution is that there is no class interface:** §54 and `CLAUDE.md` §2 hold this file to module-level functions ONLY, so three quarters of what G-21 asked for may not exist here. `ImproveBlobClient` was removed; **thirteen module-level names** replace it, tabled at S-C08. **B2's sequencing is answered** — `write_phase_gate` awaits the case blob *before* the registry, because the case document is the system of record and the registry is a projection of it. **Lifecycle:** one loop-keyed cached `azure.storage.blob.aio` client closed by `aclose()` on `app.py`'s shutdown hook, ruled on a measured **~470 ms per `/ask`** penalty for the per-operation alternative — of which client construction is 0.5 ms and the rest is TLS setup, which is why the procedure demanded a number. **`core/store.py` keeps the per-operation shape and is right to**, at a handful of writes per phase. **Deletion is explicitly NOT resolved and is a new gap** — nothing removes `uploads/{case_id}/{file}` (`CONTINUITY.md` WATCH 10). Register: **46 identified, 14 closed or resolved, 32 open** — 13→14, the 12/34 figure quoted when this was scoped having already been stale since G-27 closed at step 3.3. **S-C08's title still reads `ImproveBlobClient`**, a stale label on an entry whose subject is now a module; renaming a spec title is a §56 amendment and was deliberately not done here. Decision record: `docs/DECISIONS.md` Part Y.
 
 **v1.19.1 (2026-09-01)** — **DOCS CONSOLIDATION. Not a §56 amendment — no rule, schema, field or count changes.** A patch-level entry because this file's content moved, not its meaning. **(A) Appendix F is new**: the v2.2.16 §17 Decisions-Resolved and §18 Change-Log registers, merged in from `docs/ARCHITECTURE_v2216_registers.md`. Those two registers **lived nowhere else** — Appendix A's §17 and §18 rows read "No section here" and routed out to that file, so the reference could not answer a pre-2026-08-22 citation from its own pages. Both rows now route to **Appendix F.1 / F.2** in this file, and the provenance note at the head of the document points there too. Heading levels demoted to appendix depth; **no register text altered**. **(B) §39.1.2 now states its own authority** for the Define Option A ruling — all 12 fields gate-required, no tiers — which `CONTINUITY.md` and `REFACTORING_PROCEDURE.md` had both attributed to `docs/DEFINE_FINALIZATION_2026-08-26.md`. **The ruling was merged; two of that file's field names deliberately were not.** It still writes field 5 as `baseline` and field 8 as `target_metric`, and both are superseded — `baseline` re-introduces the collision v1.13 reversed, and v1.15's metric-registry rename made the live names `baseline_estimate` and `target_value`. §39.1.2's table already carried the current names and is unchanged; the added note records the authority transfer and warns against re-applying the archived file verbatim. §63.1 needed no edit — it already cross-references §39.1.2 rather than restating the ruling, so authority resolves through one place. Both source files move to `docs/_archive/` in the following commit.
 
@@ -8448,9 +8450,35 @@ file upload, and **never mid-conversation.**
 | B1 | a coaching turn completes | NOT write the case blob; conversation history lives in the checkpoint until gate pass | §10 |
 | B2 | a gate passes | write the case blob and update the registry — two separate writes, both covered by the node's `error_handler` | §10, §45 |
 
-> **SPEC-GAP (G-21):** the class interface — method names, signatures, return
+> ~~**SPEC-GAP (G-21):** the class interface — method names, signatures, return
 > types, and how registry updates are sequenced against case writes — is stated
-> nowhere — to be designed with founder.
+> nowhere — to be designed with founder.~~
+>
+> **RESOLVED 2026-09-01, procedure step 3.5.** Decision record:
+> `docs/DECISIONS.md` Part Y. **There is no class interface, and that is the
+> resolution** — §54 and `CLAUDE.md` §2 name this file among those holding
+> module-level functions ONLY, so the gap as originally written asked for
+> something that may not exist here. `ImproveBlobClient` was removed; the
+> surface is thirteen module-level names:
+>
+> | Kind | Names |
+> |---|---|
+> | sync | `case_path(case_id) -> str` · `storage_configured() -> bool` |
+> | async | `load_case` · `save_case` · `create_case` · `write_phase_gate` · `append_turn` · `load_registry` · `save_registry` · `register_case` · `upload_file` · `aclose` |
+> | const | `REGISTRY_BLOB_PATH` |
+>
+> **B2's sequencing is answered:** `write_phase_gate` awaits `save_case` first,
+> then `_update_registry_entry` — the case blob is the system of record, so the
+> registry must never point at a phase the case document does not yet show.
+> Both are still two separate writes covered by the node's `error_handler`
+> (§45). **Lifecycle:** one cached `azure.storage.blob.aio` client, keyed on its
+> event loop, closed by `aclose()` on `app.py`'s shutdown hook — ruled on a
+> measurement, not a preference (Part Y).
+>
+> **What this does NOT resolve:** deletion. S-C08's *Paths owned* includes
+> `uploads/{case_id}/{file}` and no behaviour governs removing one, so uploaded
+> blobs are orphaned when their case record drops them (`CONTINUITY.md` §6,
+> WATCH 10). That is a **new gap, not part of G-21**.
 
 ### 58.9 S-C09 · `storage/models.py` — the record models
 
@@ -11429,7 +11457,8 @@ item 1. Classification deferred rather than guessed.
 inline marker.** That bidirectional correspondence is checkable and is one of
 the §55.1 governance rules.
 
-**46 gaps identified. Thirteen are closed or resolved. 33 are open.** *(Two were
+**46 gaps identified. Fourteen are closed or resolved. 32 are open.** *(G-21
+closed 2026-09-01 at procedure step 3.5 — `docs/DECISIONS.md` Part Y.)* *(Two were
 added and resolved in the same pass on 2026-08-26 — G-45 and G-46, the metric
 registry's two spec entries. Registering a gap you are about to close in the
 same commit looks like bookkeeping theatre and is not: §55.1 requires every
@@ -11495,7 +11524,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | # | Gap | Marked at |
 |---|---|---|
 | **G-20** | `AzureBlobCheckpointSaver` — the on-blob format is complete; the `BaseCheckpointSaver` method set is absent | S-C07 |
-| **G-21** | `ImproveBlobClient` | S-C08 |
+| ~~**G-21**~~ | ~~`ImproveBlobClient` — the class interface, and how registry updates sequence against case writes~~ **CLOSED 2026-09-01, procedure step 3.5.** **There is no class interface** — §54 holds `storage/blob.py` to module-level functions only, so the gap asked for something that may not exist here. Thirteen module-level names replace the class (S-C08 carries the table); `write_phase_gate` awaits the case write **before** the registry update, because the case blob is the system of record. Lifecycle is one loop-keyed cached `aio` client closed by `aclose()`. **Deletion is NOT covered and is a new gap** — nothing removes `uploads/{case_id}/{file}` (WATCH 10) | S-C08 |
 | **G-22** | `CircuitBreaker` — thresholds and state machine complete, interface absent | S-C35 |
 | **G-23** | `DMAICGateValidator` — static method names, signatures and return shapes; must be designed with G-31 | S-C26 |
 | **G-24** | Constructor arguments for all four remaining custom middlewares — `(...)` is literal in §19 in every case | S-C11, S-C12, S-C13, S-C14 |
