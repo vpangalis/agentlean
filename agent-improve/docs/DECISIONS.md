@@ -3346,11 +3346,75 @@ is not, and that half needs the interrupt at stage 7.
 
 | # | Requirement | Disposition at 4.2 |
 |---|---|---|
-| 1 | Deliberate handler shape | **IN.** Inline `await`, commented at `/ask` as the deliberate choice. For a non-streaming handler it *is* ABANDON: the run is the handler's own task and dies with the client. `t.cancel()`-in-`finally` belongs to `/ask/stream`, which does not exist — deferred to 10.1 with an explicit instruction that the streaming handler must choose again rather than inherit |
+| 1 | Deliberate handler shape | **IN — but not as first shipped.** The inline `await` this step originally carried does NOT abandon on disconnect, and the `azure-query` verification disproved it (Z8). It is now a disconnect race: the run is a task, an ASGI `receive()` watcher runs beside it, and the task is cancelled and awaited the moment `http.disconnect` arrives. `/ask/stream` is still 10.1's and must choose again rather than inherit |
 | 2 | Deterministic `step_log` keys | **IN.** `f"{phase}:{turn_count}:{step_name}"` at **every** write site, via one `step_key()` helper so it is checkable rather than habitual. The parent's `history` reuses the same keys rather than minting a second identity |
 | 3 | Per-thread concurrency guard | **IN, as the optimistic ETag guard rather than the specified lease.** The guarantee is *two tabs waste a turn, they do not corrupt one*. The pessimistic lease and the unguarded history-blob orphan are WATCH 15, resolving at PostgreSQL |
 | 4 | Reconciliation sweep excluding paused threads | **OUT** — needs `interrupt()`, stage 7. WATCH 13 |
 | 5 | `thread_id` from the authenticated session | **OUT** — no auth layer; §17 places it post-refactor. `case_id` stays client-supplied. **WATCH 14, and it is a tenancy gap, not a tidiness one** |
+
+---
+
+### Z8 — The ABANDON policy did not work as first shipped. The live verification is what found it.
+
+**This is the most important thing step 4.2 learned, and it was learned by
+running the check rather than by reviewing the code.**
+
+Step 4.2 shipped `/ask` and `/gate` with a plain `await graph.ainvoke(...)`,
+commented as the deliberate §47 shape on the reasoning that *the run is the
+handler's own task, so when the client goes the task is cancelled with it*.
+**That reasoning is false on this stack**, and the step's own `azure-query`
+verification is what established it: a client killed 3 seconds into a 30-second
+turn left the turn running. It completed 5 seconds later, wrote **12 checkpoint
+blobs** across the parent and a fresh subgraph namespace, and appended **two
+turns to the case blob**. §47's opening finding, reproduced word for word —
+*the Belt sees nothing; the checkpoint says the turn happened.*
+
+**Starlette does not cancel an endpoint coroutine on client disconnect.**
+Verified against the installed starlette 0.50.0 / uvicorn 0.29.0. The server
+records the disconnect on the receive channel; a handler that never awaits
+`receive()` is never told, and runs to completion. Only a streaming response
+(whose generator is closed) or an explicit read of the receive channel observes
+it.
+
+**The second attempt also failed, and its failure is the more instructive one.**
+Racing the run against a `Request.is_disconnected()` poll looks exactly right
+and does not fire. Uvicorn's `receive()` does two things in order —
+`flow.resume_reading()`, then `await message_event.wait()` — and Starlette's
+`is_disconnected()` wraps that call in an **immediately-cancelled
+`CancelScope`**. So each poll re-arms the socket read and tears down its own
+wait in the same tick; nothing ever waits for the protocol to deliver the EOF.
+Live result: the turn completed again, 19 seconds after the client left.
+
+**What works is awaiting the raw ASGI `receive()`** in a watcher task beside
+the run, cancelling and then *awaiting* the run when `http.disconnect` arrives.
+Re-verified live: the handler logged the abandonment **in the same second as
+the abort**, **no node ran at all**, no subgraph namespace was created, and the
+case blob was untouched.
+
+**Three rulings fall out of this and bind on later steps:**
+
+1. **`t.cancel()` is not enough on its own — the cancelled task must be
+   awaited.** Cancellation is a request; a handler that returns without
+   awaiting leaves the run finishing on the loop, still checkpointing. That is
+   the original defect with extra steps.
+2. **The guarantee is scoped, and the scope is what to state.** LangGraph
+   writes an entry checkpoint when `ainvoke` begins, before any node runs, so a
+   turn abandoned after that point leaves those blobs behind. What ABANDON
+   guarantees is that **no node runs and no checkpoint is written AFTER the
+   client is gone** — not that the turn leaves no trace. A partially-executed
+   turn is what resuming from `latest.json` is for. **Procedure step 4.2's
+   *Done when* said "leaves no new checkpoint", which was written before anyone
+   knew about the entry checkpoint; it is corrected to the scoped form.**
+3. **`/ask/stream` (step 10.1) must make this choice explicitly in its own
+   `gen()`'s `finally`.** Inheriting this one silently is precisely the
+   accident §47 names.
+
+> **The standing lesson, paid for again.** *A check that cannot fail is worse
+> than no check, because it is recorded as evidence.* Here the check COULD
+> fail, was run, and failed — which is the only reason the system does not now
+> ship a documented ABANDON policy that quietly does the opposite. Both wrong
+> implementations passed a green unit suite. `backend/tests/test_abandon.py`
+> now pins the mechanism, not just the outcome, so neither can return.
 
 ---
 

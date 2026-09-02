@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from langchain_core.messages import AIMessage
 
 from backend.core import conversation
@@ -193,11 +194,148 @@ async def create_case(request: CaseCreateRequest) -> CaseCreateResponse:
     return CaseCreateResponse(case_id=case_id, title=request.title)
 
 
+class ClientGone(Exception):
+    """The Belt's client disconnected before the turn finished (§47 ABANDON)."""
+
+
+async def _until_disconnect(http: Request) -> None:
+    """Return as soon as the client is gone. Blocks forever otherwise.
+
+    ⚠ **`Request.is_disconnected()` DOES NOT WORK FOR THIS, and polling it is
+    the obvious wrong answer.** It was tried first and verified not to fire:
+    the client went, the poll kept returning `False`, and the turn ran to
+    completion exactly as it had with a plain inline `await`.
+
+    The reason is in uvicorn's own `receive()` (read from the installed
+    0.29.0, `protocols/http/httptools_impl.py`), which does two things in
+    order — `self.flow.resume_reading()`, then `await self.message_event.wait()`
+    — and only then reports `http.disconnect`. **Starlette's
+    `is_disconnected()` wraps that call in an immediately-cancelled
+    `CancelScope`**, so the resume happens and the wait is torn down in the
+    same tick: the socket read is re-armed and nothing ever waits for the
+    protocol to deliver the EOF. Polling it in a loop just re-arms the read
+    forever.
+
+    Awaiting the raw ASGI `receive()` does both halves. It parks until uvicorn
+    has a message, and uvicorn sets `message_event` on `connection_lost` — so
+    this returns on the disconnect itself rather than on a timer, and there is
+    no poll interval to tune.
+
+    The loop is not decoration: a client that keeps the connection open may
+    send further `http.request` frames, and those must be consumed and ignored
+    rather than mistaken for a disconnect.
+    """
+    while True:
+        message = await http.receive()
+        if message["type"] == "http.disconnect":
+            return
+
+
+async def _run_turn(graph, state: dict, config: dict, http: Request):
+    """Run one turn, ABANDONING it if the client goes first (§47 req 1).
+
+    ═══════════════════════════════════════════════════════════════════════
+    WHY A RACE, AND NOT THE INLINE `await` THIS ORIGINALLY SHIPPED WITH
+    ═══════════════════════════════════════════════════════════════════════
+    Step 4.2 first shipped a plain `await graph.ainvoke(...)`, commented as the
+    deliberate ABANDON shape on the reasoning that the run is the handler's own
+    task and therefore dies with the client. **That reasoning is wrong on this
+    stack, and the step's own `azure-query` verification disproved it**:
+    a client killed 3s into a 30s turn left the turn running, and it completed
+    5s later, wrote 12 checkpoint blobs across the parent and the subgraph
+    namespace, and appended two turns to the case blob. **The Belt saw nothing
+    and the checkpoint says the turn happened** — §47's opening finding, word
+    for word.
+
+    **Starlette does not cancel an endpoint coroutine on disconnect.** Verified
+    against the installed starlette 0.50.0 / uvicorn 0.29.0, not assumed: the
+    server notes the disconnect on the receive channel, and a handler that
+    never awaits `receive()` is never notified, so it runs to completion. Only
+    a streaming response (whose generator is closed) or an explicit
+    `is_disconnected()` poll observes it.
+
+    So the shape §47 requires for a non-streaming handler is this one: run the
+    graph as a task, watch the connection alongside it, and **`cancel()` the
+    task the moment the client is gone**. It is `t.cancel()` — §47's own
+    prescription — with an `is_disconnected()` poll standing in for the
+    streaming generator's `finally`. **This is NOT `asyncio.create_task` with
+    no disconnect handling**, which §47 bans; the disconnect handling is the
+    entire point of the function.
+
+    **It does not build streaming.** `/ask/stream` (§49) is still step 10.1's,
+    and when it lands its `gen()` must make this same choice explicitly in its
+    own `finally` rather than inherit this one.
+
+    **What ABANDON actually guarantees, stated precisely.** Cancellation lands
+    at the next `await` inside the graph, so an in-flight Azure OpenAI call is
+    abandoned rather than un-sent, and LangGraph may already have checkpointed
+    the nodes that completed BEFORE the disconnect. The guarantee is that **no
+    node runs, and no checkpoint is written, after the client is gone** — not
+    that the turn leaves no trace. A partially-executed turn is exactly what
+    resuming from `latest.json` is for. What it prevents is the whole turn
+    completing, and the case blob being written, behind a Belt who left.
+    """
+    task = asyncio.create_task(graph.ainvoke(state, config=config))
+    watch = asyncio.create_task(_until_disconnect(http))
+    try:
+        done, _ = await asyncio.wait(
+            {task, watch}, return_when=asyncio.FIRST_COMPLETED
+        )
+        if task not in done:
+            task.cancel()
+            # Awaited so the cancellation is delivered and the task is truly
+            # finished before the handler returns; without this the run can
+            # survive the response and keep checkpointing, which is the whole
+            # defect this function exists to fix.
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            raise ClientGone()
+        return task.result()
+    finally:
+        watch.cancel()
+        try:
+            await watch
+        except asyncio.CancelledError:
+            pass
+
+
 # ── the graph boundary ────────────────────────────────────────────────────
 #
 # §1.1 and §49: the compiled graph is the ONLY runtime path, and a route that
 # does anything beyond `await graph.ainvoke(...)` plus envelope marshalling is
 # a violation. Everything between here and `/gate` is that marshalling.
+
+
+def _requested_phase(case: CaseDocument, requested: str) -> str:
+    """The phase this turn runs, with the client's view checked against the record.
+
+    **The case record wins, and a disagreement is refused rather than resolved.**
+    `case.current_phase` is the system of record for which phase a project is in
+    (§10.4) and is what seeds `SupervisorState.current_phase`; `request.phase` is
+    what the UI believes. They are normally equal — the UI sets its phase from
+    the case document and locks every later one.
+
+    When they are not equal, silently preferring either is wrong in a way that
+    does not surface: taking the request runs a phase the record does not agree
+    the project is in, and taking the record coaches a phase the Belt did not
+    ask about while `_graph_config` reads the REQUESTED phase's artifacts. That
+    second combination is the one this function exists to stop — it would hand
+    the Define subgraph Measure's captured fields, and every individual value
+    would look valid.
+
+    A completed project is the ordinary way to reach here: `current_phase` is
+    `"complete"`, which is not a phase and has no subgraph.
+    """
+    if requested != case.current_phase:
+        raise HTTPException(409, (
+            f"Phase mismatch for {case.case_id}: the request asks for "
+            f"{requested!r}, the case record is in {case.current_phase!r}. "
+            f"The record is authoritative (§10.4); it is not overridden by a "
+            f"request parameter."
+        ))
+    return requested
 
 
 def _graph_config(case: CaseDocument, phase: str, user: str, entry: str) -> dict:
@@ -258,9 +396,28 @@ async def _graph_input(graph, config: dict, case: CaseDocument,
     carries the case document's existing conversation: a case created before 4.2
     has history in the case blob and nothing in the checkpoint, and dropping it
     would hand the coach a blank slate mid-project.
+
+    **The two records of `current_phase` are checked against each other, and a
+    disagreement is a 409 rather than a silent pick.** From the second turn on,
+    `current_phase` comes from the checkpoint and the case document is not
+    consulted for it — so if the two ever diverge, the graph would run one phase
+    while the route reported another and read a third's artifacts. It can
+    diverge: `write_phase_gate` advances `case.current_phase` on a gate pass,
+    and the checkpoint's copy is written only by the output mapper, which 4.2
+    does not call. Unreachable while the Define gate is inert (WATCH 7), and
+    checked anyway, because the failure is silent and the check is two lines.
     """
     snapshot = await graph.aget_state(config)
     if snapshot.values:
+        checkpointed = snapshot.values.get("current_phase")
+        if checkpointed != case.current_phase:
+            raise HTTPException(409, (
+                f"Phase disagreement for {case.case_id}: the checkpoint says "
+                f"{checkpointed!r}, the case record says "
+                f"{case.current_phase!r}. `current_phase` has one writer (§5 "
+                f"B2) and these are two records of it. Resolve before "
+                f"continuing rather than letting the graph pick."
+            ))
         return {"messages": new_messages}
 
     prior = [
@@ -293,7 +450,7 @@ def _last_ai(result: dict):
 
 
 @router.post("/ask", response_model=AskResponse)
-async def ask(request: AskRequest) -> AskResponse:
+async def ask(request: AskRequest, http: Request) -> AskResponse:
     """One coaching turn, through the compiled graph.
 
     ═══════════════════════════════════════════════════════════════════════
@@ -307,15 +464,19 @@ async def ask(request: AskRequest) -> AskResponse:
     generator's `finally`; **a bare `asyncio.create_task` with no disconnect
     handling is banned.**
 
-    Inline `await` is chosen here because for a non-streaming handler it *is*
-    the ABANDON policy: the graph run is the handler's own task, so when the
-    client goes the task is cancelled with it and nothing keeps running to
-    checkpoint behind the Belt's back. **The `t.cancel()`-in-`finally` variant
-    belongs to `/ask/stream`** (§49), which does not exist yet — building the
-    streaming half here would be building step 10.1's scope inside 4.2, and a
-    cancellation handler with no generator to hang it on is a comment, not a
-    policy. **When streaming lands, that handler must make this same choice
-    explicitly**; inheriting this one silently is the accident §47 names.
+    The shape is the disconnect race in `_run_turn`, and **it replaced an
+    inline `await` that this step originally shipped.** The reasoning for the
+    inline version — that the run is the handler's own task and so dies with
+    the client — is false on this stack, and the step's own `azure-query`
+    verification disproved it rather than any review catching it: a client
+    killed 3s into a 30s turn left the turn running to completion, writing 12
+    checkpoint blobs and two case-blob turns the Belt never saw. Starlette does
+    not cancel an endpoint coroutine on disconnect. Full account in `_run_turn`.
+
+    **`/ask/stream` (§49) still does not exist**, and building it here would be
+    building step 10.1's scope inside 4.2. When it lands, its `gen()` must make
+    this choice explicitly in its own `finally` — inheriting this one silently
+    is the accident §47 names.
 
     Ratified policy is ABANDON, not COMPLETE: a silently-completed gate approval
     the Belt never saw is unacceptable in a system whose premise is that the
@@ -341,15 +502,23 @@ async def ask(request: AskRequest) -> AskResponse:
         "citations": [],
     }
 
+    phase = _requested_phase(case, request.phase)
     graph = get_graph()
-    config = _graph_config(case, request.phase, request.user, entry="ask")
+    config = _graph_config(case, phase, request.user, entry="ask")
 
     try:
         state = await _graph_input(
             graph, config, case, [conversation.turn_to_message(user_turn)]
         )
-        # §47 requirement 1 — inline await. See the docstring above.
-        result = await graph.ainvoke(state, config=config)
+        # §47 requirement 1 — ABANDON on disconnect. See `_run_turn`.
+        result = await _run_turn(graph, state, config, http)
+    except ClientGone:
+        logger.info(
+            "ask() ABANDONED for %s — client disconnected mid-turn; "
+            "no further node ran and the case blob was not written",
+            request.case_id,
+        )
+        raise HTTPException(499, "Client disconnected; turn abandoned (§47).")
     except PhaseNotWired as e:
         raise HTTPException(501, str(e))
     except HTTPException:
@@ -747,7 +916,8 @@ async def _index_upload(case_id: str, upload_record: dict) -> None:
 
 
 @router.post("/gate", response_model=GateSubmitResponse)
-async def submit_gate(request: GateSubmitRequest) -> GateSubmitResponse:
+async def submit_gate(request: GateSubmitRequest,
+                      http: Request) -> GateSubmitResponse:
     """Submit the phase for gate review — through the same compiled graph.
 
     **The same graph object as `/ask`** (§12, §49). The two differ only in the
@@ -787,17 +957,23 @@ async def submit_gate(request: GateSubmitRequest) -> GateSubmitResponse:
 
     from backend.core.graph import PhaseNotWired, get_graph
 
+    phase = _requested_phase(case, request.phase)
     graph = get_graph()
-    config = _graph_config(
-        case, request.phase, request.submitted_by, entry="gate"
-    )
+    config = _graph_config(case, phase, request.submitted_by, entry="gate")
 
     try:
         state = await _graph_input(graph, config, case, [])
-        # §47 requirement 1 — inline await, the same deliberate choice `/ask`
-        # documents. A gate submission is the LAST turn that may complete
-        # behind a departed Belt.
-        result = await graph.ainvoke(state, config=config)
+        # §47 requirement 1 — ABANDON, the same shape `/ask` uses. A gate
+        # submission is the LAST turn that may complete behind a departed
+        # Belt: it is the one the whole nine-step gate exists to keep in
+        # front of them.
+        result = await _run_turn(graph, state, config, http)
+    except ClientGone:
+        logger.info(
+            "submit_gate() ABANDONED for %s/%s — client disconnected mid-turn",
+            request.case_id, request.phase,
+        )
+        raise HTTPException(499, "Client disconnected; turn abandoned (§47).")
     except PhaseNotWired as e:
         raise HTTPException(501, str(e))
     except HTTPException:

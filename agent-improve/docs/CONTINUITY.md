@@ -11,7 +11,7 @@
 | **Next** | step **4.3** — The supervisor graph |
 | **Stage** | Stage 4 — The graph |
 | **Progress** | 13 of 35 build steps |
-| **Last spine commit** | `de44d79` (commit 4.1) |
+| **Last spine commit** | `c4ec202` (commit 4.2) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |
 | **Block regenerated** | 2026-09-02 |
@@ -818,6 +818,29 @@ so read §66 when the two disagree.)*
   S-F28) and `validate.py` is deleted at 11.1. **Do not "fix" it by populating
   `_validated` in the v1 validator**; that is adding v1 code, which §17 forbids.
   Verify it is gone when stage 7 lands.
+
+- **WATCH 21 — `IMPR-2026-0CB` carries two turns from an abandoned request,
+  and they are real orphaned data.** During step 4.2's disconnect verification,
+  the pre-fix run completed behind a killed client and appended turns **23**
+  (user) and **24** (ai) to the case document plus 12 checkpoint blobs. They are
+  harmless — a test case, and the exchange is coherent — but they are exactly
+  the artefact §47 exists to prevent, sitting in live data as a specimen of it.
+  **Leave them or delete them deliberately, but do not delete them by accident**
+  while cleaning up: the case is the evidence for `DECISIONS.md` Z8. The case
+  also carries turns 19–22 and 25–26 from the verification itself, which are
+  ordinary completed turns. `checkpoints/IMPR-2026-0CB/` holds the run's
+  checkpoints and can be deleted wholesale if the case is ever reset — step
+  4.2's rollback note covers exactly that.
+
+- **WATCH 22 — step 4.2's `Done when` named a case that cannot run it, and the
+  same trap is in later steps.** `IMPR-2026-E9D` is **complete** (all five gates
+  passed June 2026, `current_phase="complete"`), so it has no wired phase and
+  `/ask` on it now returns 409 by design. The verification used
+  **`IMPR-2026-0CB`**. **Any later step whose Verify method is `live-run` or
+  `azure-query` against E9D needs the same substitution** — check the registry
+  for a case in a coachable phase before scheduling one. §17's own sequence
+  ends *"Run IMPR-2026-E9D end-to-end clean"*, which will need a **reset** case
+  rather than the completed one.
 
 **CLOSED this session (were WATCH 3 + WATCH 8):** CLAUDE.md's stale "218
 `general`" → 259 and Define "6 Tier 1 / 15-6-5-4" figures — corrected via the

@@ -829,8 +829,14 @@ separately** — §47 says so explicitly. Once checkpoints write, the FastAPI
 handler's control-flow shape, not the checkpointer, decides what survives a
 client disconnect.
 
-> *Amended 2026-09-02, on building the step: **three of the five landed, two
-> did not, and the split is a ruling rather than a shortfall.*** Requirement 4
+> *Amended 2026-09-02, twice — on building the step, then again on verifying
+> it. **Requirement 1 was reported as landed and was not**: the inline `await`
+> it shipped with does not abandon on disconnect, and only the live
+> `azure-query` found that. It is now a disconnect race and is genuinely met;
+> the full account, including the second wrong implementation, is `DECISIONS.md`
+> **Z8**, and `backend/tests/test_abandon.py` pins the mechanism. **Three of
+> the five landed, two did not, and the split is a ruling rather than a
+> shortfall.*** Requirement 4
 > (the reconciliation sweep) **cannot be written before `interrupt()` exists** —
 > its whole content is which threads to EXCLUDE, and there are no paused threads
 > to exclude until stage 7. Requirement 5 (`thread_id` from the authenticated
@@ -861,10 +867,28 @@ the Belt approves what gets committed.
 `get_graph()` is used, not discarded.
 
 **Done when:** `azure-query` shows
-`checkpoints/IMPR-2026-E9D/latest.json` exists after one `/ask` turn — **the
+`checkpoints/{case_id}/latest.json` exists after one `/ask` turn — **the
 first checkpoint this system has ever written** — and a second turn produces a
-`history/{checkpoint_id}.json` entry. Killing the client mid-turn leaves no new
-checkpoint (ABANDON verified).
+`history/{checkpoint_id}.json` entry. Killing the client mid-turn leaves **no
+checkpoint written after the disconnect** (ABANDON verified).
+
+> *Two corrections, both made while running the verification on 2026-09-02.*
+>
+> **The case is not `IMPR-2026-E9D`.** That case is **complete** — all five
+> gates passed in June 2026 under v1 — so its `current_phase` is `"complete"`,
+> which is not a phase and has no subgraph. It cannot exercise the Define path
+> and never could have. The verification ran against **`IMPR-2026-0CB`**
+> (`phase=define`, `status=active`), the only case in the registry that is in
+> a coachable phase. Any future step naming E9D for a live-run check needs the
+> same substitution.
+>
+> **"leaves no new checkpoint" was too strong**, and is corrected above.
+> LangGraph writes an entry checkpoint when `ainvoke` begins — before any node
+> runs — so a turn abandoned after that point legitimately leaves those blobs.
+> Measured: 2 blobs, both timestamped *before* the disconnect, and **nothing
+> after it**. The guarantee ABANDON gives is that no node runs and no
+> checkpoint is written once the Belt is gone, which is what §47 is protecting.
+> `DECISIONS.md` Z8.
 
 **Rollback:** revert. Delete the `checkpoints/IMPR-2026-E9D/` prefix so a
 retry starts clean.
