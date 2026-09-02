@@ -16,6 +16,7 @@ import ast
 import asyncio
 import inspect
 import pathlib
+from typing import Any
 
 import pytest
 
@@ -211,10 +212,57 @@ def test_planner_returns_a_command_carrying_a_stub_plan() -> None:
     assert plan["retrieval_strategy"] == "single_hop", "§28 — Define never multi-hops"
 
 
-def test_planner_routes_to_the_gate_once_something_is_captured() -> None:
-    """Placeholder predicate, NOT DP1 — pinned so 6.1 must consciously replace it."""
-    cmd = _run(nodes_mod.planner(_state(artifacts={"business_case": "x"})))
+def test_planner_routes_to_the_gate_when_the_route_asked_for_it() -> None:
+    """`entry="gate"` skips the executor. Placeholder, NOT DP1 (step 4.2)."""
+    cmd = _run(nodes_mod.planner(
+        _state(), {"configurable": {"entry": "gate"}}
+    ))
     assert cmd.goto == "validation_stack"
+    assert cmd.update["coaching_plan"]["next_action"] == "gate"
+
+
+def test_planner_leaves_the_cycle_after_one_coaching_turn() -> None:
+    """The 4.1 predicate could not terminate; this is the fix, pinned.
+
+    The 4.1 planner routed on `artifacts`, which the executor never writes
+    (WATCH 7 — it writes `draft`), so the planner/executor cycle ran until
+    `GraphRecursionError`. `turn_count` is incremented by the executor, so the
+    second pass leaves the cycle and one invoke is one Belt turn.
+    """
+    cmd = _run(nodes_mod.planner(_state(turn_count=1)))
+    assert cmd.goto == "validation_stack"
+    assert cmd.update["coaching_plan"]["next_action"] == "close"
+
+
+def test_planner_does_not_route_on_artifacts() -> None:
+    """The 4.1 predicate, pinned as retired — `artifacts` stays empty until 6.2."""
+    cmd = _run(nodes_mod.planner(_state(artifacts={"business_case": "x"})))
+    assert cmd.goto == "executor", (
+        "routing on `artifacts` is the 4.1 predicate that could not terminate"
+    )
+
+
+def test_every_step_log_entry_is_deterministically_keyed() -> None:
+    """§47 requirement 2 — `f\"{phase}:{turn_count}:{step_name}\"`, no timestamps."""
+    calls: list[tuple[Any, str]] = [
+        (nodes_mod.planner, "planner"),
+        (nodes_mod.validation_stack, "validation_stack"),
+        (nodes_mod.gate_review, "gate_review"),
+        (nodes_mod.gate_apply, "gate_apply"),
+    ]
+    for fn, name in calls:
+        out = _run(fn(_state(turn_count=2)))
+        update = out.update if isinstance(out, Command) else out
+        assert isinstance(update, dict)
+        entry = update["step_log"][0]
+        assert entry["key"] == f"define:2:{name}", entry
+        assert entry["key"] == nodes_mod.step_key(2, name)
+
+
+def test_step_key_carries_no_clock_reading() -> None:
+    """The identity must be reproducible: same turn, same step, same key."""
+    assert nodes_mod.step_key(3, "executor") == nodes_mod.step_key(3, "executor")
+    assert nodes_mod.step_key(3, "executor") == "define:3:executor"
 
 
 def test_validation_stack_passes_through_to_gate_review() -> None:

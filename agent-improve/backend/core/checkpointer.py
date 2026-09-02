@@ -8,7 +8,16 @@ graph state lives in:
     checkpoints/{thread_id}/latest.json
     checkpoints/{thread_id}/history/{checkpoint_id}.json
 
-where thread_id = case_id for Agent Improve.
+and, for a phase subgraph's own state, the same two files under
+a namespace segment:
+
+    checkpoints/{thread_id}/ns/{checkpoint_ns}/latest.json
+    checkpoints/{thread_id}/ns/{checkpoint_ns}/history/{id}.json
+
+where thread_id = case_id for Agent Improve and checkpoint_ns is
+the value LangGraph assigns each subgraph (empty for the parent).
+The namespace segment was ADDED at procedure step 4.2 and is not
+optional -- see _prefix() for the defect it repairs.
 
 Each put() call writes one history blob AND overwrites latest.json.
 Both writes are part of the same logical operation; the latest.json
@@ -37,6 +46,7 @@ import base64
 import json
 import logging
 import threading
+from urllib.parse import quote
 from typing import Any, AsyncIterator, Iterator, Optional, Sequence, Tuple
 
 from azure.core.exceptions import (
@@ -71,11 +81,15 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
     """
     LangGraph checkpointer backed by Azure Blob.
 
-    Layout per CLAUDE.md §1.7:
-        checkpoints/{thread_id}/latest.json
+    Layout per CLAUDE.md §1.7, plus the namespace segment §16
+    requires and §1.7 predates:
+        checkpoints/{thread_id}/latest.json                    (parent)
         checkpoints/{thread_id}/history/{checkpoint_id}.json
+        checkpoints/{thread_id}/ns/{ns}/latest.json            (subgraph)
+        checkpoints/{thread_id}/ns/{ns}/history/{id}.json
 
-    thread_id is read from config["configurable"]["thread_id"].
+    thread_id is read from config["configurable"]["thread_id"] and
+    checkpoint_ns from config["configurable"]["checkpoint_ns"].
 
     Each put() writes:
       1. history/{checkpoint_id}.json (new blob, idempotent)
@@ -114,12 +128,59 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
             ) from e
 
     @staticmethod
-    def _latest_path(thread_id: str) -> str:
-        return f"checkpoints/{thread_id}/latest.json"
+    def _checkpoint_ns(config: dict) -> str:
+        """The subgraph namespace, `""` for the parent graph.
 
-    @staticmethod
-    def _history_path(thread_id: str, checkpoint_id: str) -> str:
-        return f"checkpoints/{thread_id}/history/{checkpoint_id}.json"
+        LangGraph assigns this automatically when a subgraph runs inside a
+        parent node — `"define_phase:{task_id}"` for the Define subgraph — and
+        it is the ONLY thing distinguishing the parent's checkpoint from its
+        children's on a shared `thread_id` (§16).
+        """
+        return (config.get("configurable") or {}).get("checkpoint_ns") or ""
+
+    @classmethod
+    def _prefix(cls, thread_id: str, checkpoint_ns: str) -> str:
+        """The blob prefix for one (`thread_id`, `checkpoint_ns`) pair.
+
+        ═══════════════════════════════════════════════════════════════════
+        THE PARENT'S PATHS ARE UNCHANGED; SUBGRAPHS GAIN A NAMESPACE SEGMENT
+        ═══════════════════════════════════════════════════════════════════
+        **`checkpoint_ns` was absent from the layout, and that was a defect —
+        found at procedure step 4.2, the step that first invoked the graph.**
+        §1.7's layout was written before phase subgraphs existed in the code,
+        so every path keyed on `thread_id` alone. §16 puts the checkpointer on
+        the parent and routes the subgraph's writes through it *distinguished
+        by an auto-managed `checkpoint_ns`* — and this class discarded that
+        value, so parent and subgraph wrote to one `latest.json` and read each
+        other's state back.
+
+        **The symptom is not an error.** The subgraph loaded the parent's
+        `messages` on top of its own and the conversation doubled every turn,
+        with every individual turn still looking correct. It was invisible
+        before 4.2 for the reason §53.1 Appendix E records: zero checkpoints
+        had ever been written.
+
+        `""` — the parent — keeps `checkpoints/{thread_id}/…` **exactly**, so
+        step 4.2's `azure-query` verification reads the path it names and no
+        existing blob moves. The namespace is percent-encoded because it
+        carries `:` and `|`, which are legal in a blob name but make the path
+        unreadable and unsafe to split on.
+        """
+        if not checkpoint_ns:
+            return f"checkpoints/{thread_id}"
+        return f"checkpoints/{thread_id}/ns/{quote(checkpoint_ns, safe='')}"
+
+    @classmethod
+    def _latest_path(cls, thread_id: str, checkpoint_ns: str = "") -> str:
+        return f"{cls._prefix(thread_id, checkpoint_ns)}/latest.json"
+
+    @classmethod
+    def _history_path(cls, thread_id: str, checkpoint_id: str,
+                      checkpoint_ns: str = "") -> str:
+        return (
+            f"{cls._prefix(thread_id, checkpoint_ns)}"
+            f"/history/{checkpoint_id}.json"
+        )
 
     def _blob(self, path: str) -> BlobClient:
         return self._container.get_blob_client(path)
@@ -180,6 +241,7 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
         new_versions: dict,
     ) -> dict:
         thread_id = self._thread_id(config)
+        checkpoint_ns = self._checkpoint_ns(config)
         parent_id = (
             config.get("configurable", {}).get("checkpoint_id")
         )
@@ -190,7 +252,7 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
             # 1. Write history blob (idempotent — checkpoint id
             #    is content-derived and unique).
             history_blob = self._blob(
-                self._history_path(thread_id, checkpoint["id"])
+                self._history_path(thread_id, checkpoint["id"], checkpoint_ns)
             )
             try:
                 history_blob.upload_blob(body, overwrite=False)
@@ -203,18 +265,21 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
                 )
 
             # 2. Overwrite latest with ETag conditional. One retry on 412.
-            self._update_latest(thread_id, body, retry=True)
+            self._update_latest(thread_id, body, retry=True,
+                                checkpoint_ns=checkpoint_ns)
 
         # Return the config with the new checkpoint id for downstream resume
         return {
             "configurable": {
                 "thread_id": thread_id,
+                "checkpoint_ns": checkpoint_ns,
                 "checkpoint_id": checkpoint["id"],
             }
         }
 
-    def _update_latest(self, thread_id: str, body: bytes, retry: bool) -> None:
-        latest_blob = self._blob(self._latest_path(thread_id))
+    def _update_latest(self, thread_id: str, body: bytes, retry: bool,
+                       checkpoint_ns: str = "") -> None:
+        latest_blob = self._blob(self._latest_path(thread_id, checkpoint_ns))
         try:
             current = latest_blob.get_blob_properties()
             etag = current.etag
@@ -237,7 +302,8 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
                     "ETag mismatch updating latest for %s, retrying once",
                     thread_id,
                 )
-                self._update_latest(thread_id, body, retry=False)
+                self._update_latest(thread_id, body, retry=False,
+                                    checkpoint_ns=checkpoint_ns)
                 return
             raise ConcurrentTurnError(
                 f"Concurrent turn detected for case {thread_id} — "
@@ -248,14 +314,15 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
 
     def get_tuple(self, config: dict) -> Optional[CheckpointTuple]:
         thread_id = self._thread_id(config)
+        checkpoint_ns = self._checkpoint_ns(config)
         checkpoint_id = (
             config.get("configurable", {}).get("checkpoint_id")
         )
 
         if checkpoint_id:
-            path = self._history_path(thread_id, checkpoint_id)
+            path = self._history_path(thread_id, checkpoint_id, checkpoint_ns)
         else:
-            path = self._latest_path(thread_id)
+            path = self._latest_path(thread_id, checkpoint_ns)
 
         try:
             data = self._blob(path).download_blob().readall()
@@ -269,6 +336,7 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
             config={
                 "configurable": {
                     "thread_id": thread_id,
+                    "checkpoint_ns": checkpoint_ns,
                     "checkpoint_id": checkpoint["id"],
                 }
             },
@@ -278,6 +346,7 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
                 {
                     "configurable": {
                         "thread_id": thread_id,
+                        "checkpoint_ns": checkpoint_ns,
                         "checkpoint_id": parent_id,
                     }
                 }
@@ -299,7 +368,8 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
         if config is None:
             return iter([])
         thread_id = self._thread_id(config)
-        prefix = f"checkpoints/{thread_id}/history/"
+        checkpoint_ns = self._checkpoint_ns(config)
+        prefix = f"{self._prefix(thread_id, checkpoint_ns)}/history/"
 
         # List blobs and sort by name (checkpoint_ids are sortable
         # — LangGraph uses ULID-like ids by default).
@@ -327,6 +397,7 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
                 config={
                     "configurable": {
                         "thread_id": thread_id,
+                        "checkpoint_ns": checkpoint_ns,
                         "checkpoint_id": ckpt["id"],
                     }
                 },
@@ -336,6 +407,7 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
                     {
                         "configurable": {
                             "thread_id": thread_id,
+                            "checkpoint_ns": checkpoint_ns,
                             "checkpoint_id": parent_id,
                         }
                     }

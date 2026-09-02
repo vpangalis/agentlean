@@ -7,11 +7,11 @@
 
 | | |
 |---|---|
-| **Last completed** | step **4.1** — The Define phase subgraph |
-| **Next** | step **4.2** — `thread_id` through `graph.ainvoke` + disconnect policy |
+| **Last completed** | step **4.2** — `thread_id` through `graph.ainvoke` + disconnect policy |
+| **Next** | step **4.3** — The supervisor graph |
 | **Stage** | Stage 4 — The graph |
-| **Progress** | 12 of 35 build steps |
-| **Last spine commit** | `025bde7` (commit 3.5) |
+| **Progress** | 13 of 35 build steps |
+| **Last spine commit** | `de44d79` (commit 4.1) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |
 | **Block regenerated** | 2026-09-02 |
@@ -541,9 +541,21 @@ so read §66 when the two disagree.)*
 
 ### Watches (owed work, NOT §66 gaps — the register will not surface them)
 
-- **WATCH 1 — §16 persistence repro owed.** Documentation-verified 2026-08-26
-  (current LangGraph docs + source); a LOCAL repro against the pinned version is
-  still owed. Deferred to step 4.2 where the code runs. Not a blocker.
+- **WATCH 1 — CLOSED 2026-09-02 at step 4.2, and it did not confirm what it
+  was expected to.** The owed item was a local repro of §16's persistence
+  behaviour against the pinned LangGraph (1.2.11), documentation-verified
+  2026-08-26 but never run. It ran, and it **found a defect rather than a
+  confirmation**: §16's auto-managed `checkpoint_ns` works exactly as
+  documented — the parent gets `""`, the Define subgraph gets
+  `"define_phase:{task_id}"` — but `AzureBlobCheckpointSaver` **discarded the
+  value**, so both wrote to one `checkpoints/{case_id}/latest.json` and the
+  subgraph read the parent's `messages` back on top of its own. **The
+  conversation doubled every turn and nothing raised.** Fixed in the same
+  commit (the parent's paths are unchanged; subgraphs go under
+  `checkpoints/{case_id}/ns/{ns}/…`) and pinned by
+  `backend/tests/test_turn_graph.py`. Record: `DECISIONS.md` Part Z3.
+  *The framework behaved as its documentation says; our code did not. That is
+  what the repro was for.*
 - **WATCH 2 — two venvs / stale-blocker.** Hook reads the ROOT venv (1.1.10);
   `agent-improve/.venv` is 1.2.11. Confirm which is authoritative before editing
   any doc that states the blocker.
@@ -673,6 +685,139 @@ so read §66 when the two disagree.)*
   `_BLOCKED_STATUSES`, keeps the "all remaining blocked/gated" diagnostic
   honest — a finished step is not a blocked one. Appendix D's ⚠ note is
   annotated to match.
+
+- **WATCH 13 — §47 requirement 4 is OUT of step 4.2: there is no reconciliation
+  sweep for abandoned threads.** The requirement is *"a sweep that EXCLUDES
+  `interrupt()`-paused threads"*, and **it cannot be written before `interrupt()`
+  exists** — with no paused threads to exclude, any sweep built now would be
+  written against the wrong population and would have to be rewritten at stage 7
+  anyway. It is deferred, not dropped. **The exposure it names is live from 4.2
+  onward**, because 4.2 is the step that first writes checkpoints: an abandoned
+  turn now leaves a checkpoint that nothing cleans up, and blob growth is
+  unbounded per case. **Owed at stage 7, in the same change as the `interrupt()`
+  at `gate_review`** — a sweep and the thing it must not sweep are one design.
+  Recorded at `phases/define/nodes.py` (`gate_review`) and in the step 4.2
+  commit body.
+
+- **WATCH 14 — §47 requirement 5 is OUT, and it is a TENANCY gap, not a
+  tidiness one.** `case_id` arrives from the request body on `/ask`, `/gate`,
+  `/cases/{id}`, `/upload` and every other route, and 4.2 passes it straight
+  into `config["configurable"]["thread_id"]`. **`case_id` IS the tenancy
+  boundary** (§16, §47): one value is simultaneously the checkpoint thread, the
+  Store namespace segment, the case blob path and the `case_id` index field — so
+  **any caller who knows or guesses a `case_id` can read, resume and write
+  another Belt's session**, and from 4.2 onward that includes their checkpointed
+  conversation. §47 requires the value to be derived from the authenticated
+  session; **there is no auth layer to derive it from**, and §17 places
+  multi-user identity and isolation *after* the refactor. So this is not
+  something 4.2 could have closed — but it is the one open §47 item that is a
+  security property rather than an operational one, and it must not be read as
+  satisfied because `thread_id` is now correctly wired. **Marked at its own line
+  in `gateway/routes.py` (`_graph_config`).** Closes with §17's auth work; do not
+  expose the service beyond a single trusted user before then.
+
+- **WATCH 15 — the ETag guard is 4.2's concurrency guarantee, and it is
+  "two tabs waste a turn, they do not corrupt one".** §47 requirement 3 asks for
+  an Azure Blob **lease** as the per-thread concurrency guard. 4.2 **accepts the
+  existing optimistic guard instead** — `AzureBlobCheckpointSaver._update_latest`
+  writes `latest.json` under an `If-Match` ETag, retries once, then raises
+  `ConcurrentTurnError`. That is a real guarantee and it is worth stating
+  exactly: **the second writer's `latest.json` write fails rather than silently
+  overwriting the first, so a concurrent turn is LOST, never INTERLEAVED.** Two
+  tabs on one `case_id` waste a turn; they do not produce a corrupt checkpoint.
+
+  **Two things the optimistic guard does not cover, and both are owed:**
+  1. **A pessimistic lease is still the specified mechanism.** Optimistic
+     detection means the losing turn's LLM call has already been paid for and
+     the Belt sees an error after waiting. A lease refuses at the start.
+  2. **THE HISTORY BLOB IS UNGUARDED, AND THIS IS THE SHARPER HALF.** `put()`
+     writes `history/{checkpoint_id}.json` FIRST and `latest.json` second. When
+     the ETag check then fails, the history blob **is already written and is
+     never removed** — so a `ConcurrentTurnError` leaves an orphan history
+     checkpoint that `latest.json` does not point at and no compensating action
+     deletes. `list()` will happily yield it during time-travel. It is not a
+     correctness failure today (nothing resumes from history yet) and it becomes
+     one when time-travel debugging is used.
+
+  **Both resolve at the PostgreSQL migration** (§1.7, §8): `PostgresSaver` makes
+  the two writes one transaction, which removes the orphan, and advisory locks
+  are the natural lease — §47 itself says the Blob lease exists only because
+  advisory locks are unavailable until then. **Do not build the Blob lease if
+  the migration is near**; do build it if 4.2's shape ships to a second user
+  first. §1.7's own words: *"it was not tested for concurrent access… do not
+  defend it past the migration trigger."*
+
+- **WATCH 16 — `phase_error_recovery` does not exist, and step 4.2 routed
+  traffic past the node that is specified to carry it.** §3.6 requires an
+  `error_handler=` on every node with external writes; §45 and S-F02 B3 name
+  `phase_error_recovery` as the executor's. Step 4.1 recorded that it was not
+  applied, because the function it is specified to call —
+  `delete_or_flag_stale_in_case_index` — is itself **open gap G-35**, and G-06
+  covers the compensating-action design. 4.1 could defer it honestly: no traffic
+  reached the node. **4.2 cannot — traffic reaches it now.** What is exposed
+  today is small and should be stated rather than inflated: the 4.2 executor's
+  only external effects are LLM and Azure AI Search reads, so a `NodeTimeoutError`
+  at the 45s `TimeoutPolicy` currently loses a turn and writes nothing to undo.
+  **It stops being small at stage 7**, when `gate_apply` writes the gate document
+  to the Store, and at 5.3 when computation results are captured. **Owed at 8.2,
+  blocked on G-35 and G-06**; both must be resolved through the Standing
+  Reasoning Protocol, not by inventing a compensating action on the one path
+  that has to be trustworthy.
+
+- **WATCH 17 — only Define runs through the graph; the other four phases are
+  refused, not dispatched.** Step 4.2 removed both hand-built dispatch tables
+  from `gateway/routes.py` (§1.1, §49) and the parent graph it built has one
+  node, because 4.3 owns the five-node supervisor and 4.4 owns the four
+  remaining subgraphs. `/ask` and `/gate` on a non-Define phase now raise
+  `PhaseNotWired` → **HTTP 501**. **This is not a live regression**:
+  `build_phase_subgraph` has refused non-Define phases since 4.1, the Define
+  gate is ratified inert until 6.2 (WATCH 7), `case.current_phase` advances only
+  on a gate pass, and `ui/index.html` locks every later phase — so no case can
+  reach Measure today. It was chosen over reinstating a v1 fallback table for the
+  four, which is the thing §49 exists to remove. **Closes at 4.4.**
+
+- **WATCH 18 — `gate_attempts` is on `PhaseState` but still cannot accumulate,
+  so §34's cap of 3 still cannot fire.** Step 4.2 removed the hardcoded
+  `gate_attempts: 0` the v1 routes rebuilt on every request (§1.7's named bug):
+  the counter is now written by `validation_stack` onto `PhaseState` and read
+  out of the graph result. **What it still does not do is survive between
+  turns.** With no `interrupt()`, the Define subgraph runs to `END` on every
+  invoke, so `define_input_mapper` rebuilds the child state — `gate_attempts: 0`
+  included — each time. Two gate submissions therefore both report attempt 1,
+  and the escalation at 3 is unreachable. **The counter's home is now correct
+  and its lifetime is not**, which is the half 4.2 could deliver; the other half
+  is the interrupt holding the subgraph open across the gate, at stage 7. Until
+  then, treat any reported `attempts` value as "this attempt", not "attempts so
+  far". *A cap that cannot fire is not a loose cap — it is a check recorded as
+  evidence while proving nothing (§7's standing lesson), which is why this is
+  written down rather than left to be rediscovered.*
+
+- **WATCH 19 — the Store's `case` namespace has no writer.** §9 and S-F10
+  describe `("projects", case_id, "case") / "record"` as a **session-start copy**
+  of the case record, and `read_case_record` reads it — but **nothing anywhere
+  writes it**, so every read returns `{}` and `define_input_mapper` composes
+  `phase_context` entirely from its labelled fallbacks (*"this project — the
+  department. Belt belt, led by the project leader…"*). **Harmless at 4.2 and
+  not harmless for long**: nothing reads `phase_context` yet, because the v1
+  executor takes its framing from `case_metadata` on `config` instead. It becomes
+  load-bearing at **stage 6**, when `before_agent` injection (§8.5) puts
+  `phase_context` in front of every coach — at which point an unwritten case
+  record silently degrades every coaching prompt in the system with no error.
+  **Owed before 6.3.** The write belongs at case creation (`POST /cases`) and,
+  for cases that predate it, lazily on first read. Found while building 4.2.
+
+- **WATCH 20 — `submit_gate` writes an empty gate document on a pass.**
+  `blob.write_phase_gate(structured=phase_data.get("_validated", {}))` — and
+  **`validate_define` never writes `_validated`**, nor does any other phase's
+  validator. So a passing gate would persist `structured={}`: the gate document
+  in the case blob would be empty while the registry recorded the phase as
+  passed. **Unreachable today** (the Define gate is inert — WATCH 7), which is
+  why it survived: no gate has ever passed to expose it. Carried unchanged
+  through 4.2 rather than patched, because the fix belongs with the writer —
+  `gate_apply` assembles the real document from `artifacts` at **stage 7** (§33,
+  S-F28) and `validate.py` is deleted at 11.1. **Do not "fix" it by populating
+  `_validated` in the v1 validator**; that is adding v1 code, which §17 forbids.
+  Verify it is gone when stage 7 lands.
 
 **CLOSED this session (were WATCH 3 + WATCH 8):** CLAUDE.md's stale "218
 `general`" → 259 and Define "6 Tier 1 / 15-6-5-4" figures — corrected via the

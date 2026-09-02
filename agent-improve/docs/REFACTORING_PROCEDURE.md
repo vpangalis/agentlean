@@ -829,6 +829,21 @@ separately** — §47 says so explicitly. Once checkpoints write, the FastAPI
 handler's control-flow shape, not the checkpointer, decides what survives a
 client disconnect.
 
+> *Amended 2026-09-02, on building the step: **three of the five landed, two
+> did not, and the split is a ruling rather than a shortfall.*** Requirement 4
+> (the reconciliation sweep) **cannot be written before `interrupt()` exists** —
+> its whole content is which threads to EXCLUDE, and there are no paused threads
+> to exclude until stage 7. Requirement 5 (`thread_id` from the authenticated
+> session) **has no auth layer to derive from**; §17 places multi-user identity
+> after the refactor. Requirement 3 landed as the **optimistic ETag guard**
+> already in `AzureBlobCheckpointSaver` rather than the specified Blob lease —
+> the guarantee is *two tabs waste a turn, they do not corrupt one* — with the
+> lease and an unguarded history-blob orphan deferred to the PostgreSQL
+> migration, which §47 itself names as the point advisory locks become
+> available. **WATCHes 13, 14 and 15 in `CONTINUITY.md` §6; the reasoning is
+> `DECISIONS.md` Part Z.** Requirement 5 in particular is a **tenancy** gap and
+> must not be read as closed because `thread_id` is now correctly wired.*
+
 | # | Requirement |
 |---|---|
 | **1** | **Deliberate handler shape** — inline `await` streaming, or an explicit ABANDON policy calling `t.cancel()` in `gen()`'s `finally`. **Never a bare `asyncio.create_task` with no disconnect handling** — a handler that has not chosen has chosen COMPLETE by accident |
@@ -867,11 +882,53 @@ retry starts clean.
 > still needed.
 
 **Prompt (Stage 2 — implement):**
-> *Written after the audit. Must cover: routes call the compiled graph via
-> `await graph.ainvoke(...)` with `thread_id=case_id` and never dispatch a node
-> directly; all five §47 requirements implemented with the handler shape chosen
-> explicitly and commented as such; ABANDON policy on disconnect; deterministic
-> `step_log` keys.*
+> CLAUDE.md §1.1, §1.2, §1.7 and reference §16, §47, §49. Rewrite `/ask` and
+> `submit_gate` in `agent-improve/backend/gateway/routes.py` to call the
+> compiled graph — `await graph.ainvoke(state, config={"configurable":
+> {"thread_id": case_id}, "recursion_limit": 50})` — and delete both hand-built
+> dispatch tables (`node_map`, `validate_map`) with their function-level
+> `orchestrate_*` / `validate_*` imports. Build `SupervisorState` through the
+> input mapper at the boundary, not the eleven-field `ImproveGraphState`
+> literal; `current_phase` gets its single writer. Do not recreate the
+> hardcoded `gate_attempts=0`. Implement §47 requirements 1–3 with the handler
+> shape chosen and commented as such; **requirements 4 and 5 are OUT** — 4 needs
+> `interrupt()` (stage 7) and 5 needs an auth layer (§17, post-refactor) — carry
+> both as WATCHes and say so rather than reporting 5/5.
+
+> ### ⚠ WHAT 4.2 ACTUALLY RULED — read before starting 4.3
+>
+> Full record: `DECISIONS.md` **Part Z** (Z1–Z7). Four consequences bind on the
+> next steps:
+>
+> 1. **The parent is one node — `START → define_phase → END` over
+>    `SupervisorState`, compiled with checkpointer AND store.** That is the
+>    smallest parent §16 permits, built only so the checkpointer has something
+>    to attach to. **4.3 grows it; it does not start from scratch.** The v1
+>    chained graph and `escalate` as a node are deleted — 4.3 re-adds escalation
+>    as the conditional branch.
+> 2. **`define_output_mapper` is NOT called, and `gate_apply` writes nothing.**
+>    Reaching `END` means "the graph ran", not "the Belt approved", until the
+>    `interrupt()` lands at `gate_review`. Both reverse together at **stage 7**
+>    and neither may be enabled alone — doing so commits a gate approval the
+>    Belt never saw (§47, §33).
+> 3. **`core/checkpointer.py` was edited although it is not in `Touches`.**
+>    `checkpoint_ns` was absent from the blob layout, so parent and subgraph
+>    shared one `latest.json` and the conversation doubled every turn with no
+>    error. The parent's paths are unchanged; subgraphs go under
+>    `checkpoints/{thread_id}/ns/{ns}/…`. **Part Z3.**
+> 4. **Only Define runs through the graph.** The other four raise
+>    `PhaseNotWired` → HTTP 501 until **4.4** (WATCH 17). Not a live regression —
+>    no case can reach Measure while the Define gate is inert (WATCH 7).
+>
+> **Verification status.** `pytest` is green (362, including the new
+> `backend/tests/test_turn_graph.py`) and `mypy` adds no new errors. **The
+> step's own `azure-query` — `checkpoints/IMPR-2026-E9D/latest.json` after one
+> `/ask` turn, a `history/` entry after a second, and no checkpoint after a
+> mid-turn kill — needs the live container and is run by hand.** The unit tests
+> pin the structure beneath it (`thread_id` = `case_id`, both persistence
+> primitives on the parent and neither on the subgraph, no message duplication,
+> one executor call per invoke, `gate_apply` applying nothing); they do not
+> substitute for it.
 
 ---
 
@@ -1632,9 +1689,9 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 3.2** | `AzureBlobStore` | done |
 | **Commit 3.3** | Boundary mappers | done |
 | **Commit 3.4** | `{Phase}Output` schemas + validators + UI | done |
-| **Commit 3.5** | `storage/blob.py` — class → functions, sync → aio | pending |
-| **Commit 4.1** | Define phase subgraph | pending |
-| **Commit 4.2** | `thread_id` + disconnect policy | pending |
+| **Commit 3.5** | `storage/blob.py` — class → functions, sync → aio | done |
+| **Commit 4.1** | Define phase subgraph | done |
+| **Commit 4.2** | `thread_id` + disconnect policy | done |
 | **Commit 4.3** | Supervisor graph | pending |
 | **Commit 4.4** | Remaining four subgraphs | pending |
 | **Commit 5.1** | Retrieval failure semantics | pending |

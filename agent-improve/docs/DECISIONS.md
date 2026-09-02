@@ -3132,3 +3132,240 @@ interface and the write sequencing, and both are now answered. Carried as
 > propagation failure its own bracketed note records against the earlier
 > 44/9/35. Both are corrected here, so the live figure is **46/14/32** and the
 > two documents agree.
+
+---
+
+## Part Z — Step 4.2: the checkpointer becomes real (2026-09-02)
+
+**Procedure step 4.2**, `thread_id` through `graph.ainvoke` and the disconnect
+policy. Reference §16, §47, §49; CLAUDE.md §1.1, §1.2, §1.7. This part records
+the seven decisions the step had to make, because none of them were settled by
+the paper spec and each would otherwise have to be re-derived by the next
+session.
+
+**What the step delivered:** `gateway/routes.py` no longer dispatches a node.
+Both hand-built tables (`node_map` in `/ask`, `validate_map` in `/gate`) and all
+ten function-level `orchestrate_*` / `validate_*` imports are gone; both routes
+call `await graph.ainvoke(state, config={"configurable": {"thread_id": case_id},
+"recursion_limit": 50})` on the same compiled object. **These are the first
+checkpoints this system has ever written** (§53.1, Appendix E).
+
+---
+
+### Z1 — A one-node parent, not the supervisor
+
+**Ruled: build the smallest parent §16 permits — `START → define_phase → END`
+over `SupervisorState`, compiled with checkpointer AND store — and let 4.3 grow
+it.**
+
+The step needs *a* parent for exactly one reason: §16 puts the checkpointer and
+the store on the parent and forbids them on a subgraph, so making checkpoints
+real requires a parent to attach them to. It does not need the *supervisor*,
+which is 4.3's subject (five phase nodes, static DMAIC edges, escalation, and a
+test asserting that topology) and which cannot be built anyway while four of the
+five subgraphs land at 4.4.
+
+**The v1 chained graph was deleted rather than kept alongside.** It wired ten
+`orchestrate_*` / `validate_*` nodes over `ImproveGraphState` with conditional
+edges running Define through Control, so one `ainvoke` would have executed the
+whole DMAIC sequence — which is precisely why the route dispatched a single node
+by hand. It has no turn boundary and cannot be invoked. `escalate` goes with it
+and returns as the parent's conditional branch at 4.3.
+
+**Consequence, ruled and recorded rather than hidden: only Define runs through
+the graph until 4.4** (WATCH 17). The other four raise `PhaseNotWired` → HTTP
+501. Reinstating a v1 fallback table for them was rejected: that table is the
+thing §49 exists to remove, and no case can reach Measure today anyway — the
+Define gate is inert (WATCH 7), `current_phase` advances only on a gate pass,
+and the UI locks later phases.
+
+---
+
+### Z2 — `define_output_mapper` is designated and deliberately not called
+
+**Ruled: the parent node runs the input mapper and the subgraph, and does NOT
+run the output mapper. `gate_apply` writes nothing.**
+
+§15 says a phase subgraph reaches `END` only through `gate_apply`, so arriving
+there means the gate passed. **That is a statement about the finished subgraph
+and becomes true when stage 7 lands the `interrupt()` at `gate_review`.** At 4.2
+there is no interrupt, so the subgraph runs to `END` on every invoke and `END`
+means only "the graph ran".
+
+Calling the output mapper here would therefore write a gate document to the
+Store and advance `current_phase` **on every coaching turn** — a gate approval
+the Belt never saw, which is the exact failure §47's ABANDON policy and §33's
+nine-step gate exist to prevent. The two omissions (`gate_apply`'s writes and
+the output mapper call) are one decision and must be reversed together at
+stage 7.
+
+**What this buys is `current_phase`'s single writer, made real** (§5 B2, S-F11
+B1). The v1 routes rebuilt an eleven-field `ImproveGraphState` literal per
+request with `current_phase` in it. 4.2's routes write the seven `SupervisorState`
+fields **once**, on the turn where the thread has no checkpoint, and send only
+the new message afterwards — so the output mapper is the only thing that could
+write it, and nothing else does.
+
+---
+
+### Z3 — `checkpoint_ns` was missing from the blob layout. That was a defect.
+
+**Found at 4.2, the step that first invoked the graph. Fixed in
+`core/checkpointer.py`, which was NOT in the step's `Touches` list.**
+
+§1.7's layout — `checkpoints/{thread_id}/latest.json` plus
+`history/{checkpoint_id}.json` — was written before phase subgraphs existed in
+the code, and `AzureBlobCheckpointSaver` keyed every path on `thread_id` alone.
+§16 puts the checkpointer on the parent and routes the subgraph's writes through
+it **distinguished by an auto-managed `checkpoint_ns`**; this class read
+`thread_id` from `config["configurable"]` and discarded `checkpoint_ns`
+entirely. So parent and subgraph wrote to **one** `latest.json` and read each
+other's state back.
+
+**The symptom raised no error.** The Define subgraph loaded the parent's
+`messages` on top of its own and the conversation doubled every turn, while
+every individual turn still looked correct. Reproduced directly: LangGraph
+assigns `""` to the parent and `"define_phase:{task_id}"` to the subgraph.
+
+**Fix:** `""` keeps `checkpoints/{thread_id}/…` **exactly** — so step 4.2's own
+`azure-query` verification reads the path it names and no existing blob moves —
+and a non-empty namespace goes under
+`checkpoints/{thread_id}/ns/{percent-encoded ns}/…`. `checkpoint_ns` now flows
+through `put`, `get_tuple`, `list` and the returned configs.
+
+**Editing a file outside `Touches` was the lesser evil**, and it is recorded
+here rather than left in a commit body: without it 4.2 does not work, and the
+alternative — a step that ships a corrupted conversation — is not a step. The
+class docstring and the module header both state the added segment.
+
+> **This is the fourth instance of the pattern this project keeps naming**: a
+> rule that was correct (§16 has always said `checkpoint_ns`) paired with an
+> implementation that could not be seen to disagree with it, because nothing
+> exercised it. Zero checkpoints had ever been written.
+
+---
+
+### Z4 — Per-run framing rides on `config`, not on state
+
+**Ruled: `entry`, `current_user`, `case_metadata` and `v1_artifacts` travel in
+`config["configurable"]`.**
+
+`PhaseState` is twenty-one declared fields and a twenty-second requires a §56
+amendment; `SupervisorState` is seven and an eighth likewise. The v1
+orchestrator needs the case framing and the route needs to say whether this turn
+coaches or validates, and **none of it wants to be state**: it is immutable
+per-run configuration, which is what `configurable` is for, and
+`core/checkpointer.py` already reads `thread_id` from exactly there. No
+mechanism is invented; the one already in service is used.
+
+**One API fact, verified against the installed LangGraph 1.2.11 rather than
+remembered.** LangGraph injects `config` into a node only when the parameter's
+annotation is exactly `RunnableConfig`, `"RunnableConfig"`,
+`Optional[RunnableConfig]` or `"Optional[RunnableConfig]"`
+(`langgraph/_internal/_runnable.py`, `KWARGS_CONFIG_KEYS`). Under
+`from __future__ import annotations` — which every file here uses —
+`config: RunnableConfig | None = None` stringifies to `"RunnableConfig | None"`,
+which is **not** in that tuple: LangGraph emits a `UserWarning` and **silently
+does not inject config**. Every node would have run with `config=None` and the
+coach would have lost its framing with no error. All signatures use
+`Optional[RunnableConfig]`, and `test_config_reaches_the_v1_seam` pins it.
+
+---
+
+### Z5 — The turn's product travels on the message
+
+**Ruled: the coach's answer, the captured fields, the presentational payloads
+and the gate verdict all ride in the reply `AIMessage`'s `additional_kwargs`.**
+
+`SupervisorState` carries orchestration only (§5) and `graph.ainvoke` returns
+`SupervisorState`, so `messages` is the only channel from the graph to the
+route. That is not a workaround — it is the channel `CoachingResponse`
+formalises at 6.2 (§10.7), reached early by the seam.
+
+Two shared helpers make it one implementation rather than two: `messages` ↔ v1
+turn dicts live in the new `core/conversation.py`, because `gateway/routes.py`
+and `phases/define/nodes.py` both need the conversion and neither may import the
+other (routes importing a phase's nodes is what §1.1 forbids; `phases/`
+importing `gateway/` inverts the layering). **Not in Appendix B's `New` file
+list** — flagged, like `phases/mappers_common.py`, rather than assumed.
+
+---
+
+### Z6 — The 4.1 subgraph could not actually run; 4.2 had to fix three things
+
+Step 4.1 built the topology and **routed no traffic**, so three defects were
+latent. All three are fixed in `phases/define/nodes.py`:
+
+| # | Defect | Consequence had traffic been routed |
+|---|---|---|
+| 1 | **The planner/executor cycle did not terminate.** The predicate was `"executor" if not artifacts else "validation_stack"`, and the executor writes `draft`, never `artifacts` (deliberately — WATCH 7) | `artifacts` stays `{}` forever, the planner routes to the executor forever, `GraphRecursionError` at the §16 backstop of 50. Invisible at 4.1 because the only caller was a test that seeded `artifacts` by hand |
+| 2 | **The bridge dropped everything the route returns** — the coach's answer, the SIPOC payload, the visualisation, the section-completion marker | `/ask` returns an empty answer to the Belt |
+| 3 | **`_to_v1_state` could not run.** It passed `PhaseState.history` (`list[str]` breadcrumbs) as v1's `chat_history` (turn dicts), and omitted `case_metadata` and `current_user` | `AttributeError` on `str.get("role")` on the first turn |
+
+**The new predicate is `turn_count`-based and is a PLACEHOLDER, not DP1.**
+`entry == "gate"` → validate; `turn_count == 0` → coach one turn;
+`turn_count > 0` → leave the cycle. The executor increments it and the input
+mapper resets it, so **one `ainvoke` is one Belt turn** — the boundary the
+procedure's own ordering note says 4.2 exists to establish. S-F13's real DP1
+reads §39.1.2's field ordering and lands at 6.1. Pinned by
+`test_planner_does_not_route_on_artifacts`, so the retired predicate cannot
+return by accident.
+
+**`draft` is the v1 accumulator for the duration of the WATCH 7 seam**, and
+`artifacts` stays empty. `draft` is `PhaseState`'s "this turn's extraction" and
+the v1 running extraction is exactly that; putting v1 names into `artifacts`
+would put them on the v2 gate path, which Route A exists to prevent.
+
+---
+
+### Z7 — `validation_stack` runs the validator only on a gate submission
+
+**Ruled: `validation_stack` delegates to the v1 `validate_{phase}` when the
+planner's `next_action == "gate"`, and passes through otherwise.**
+
+Symmetric with the executor's `orchestrate_define` delegation and governed by
+the same WATCH 7 ruling: `validate.py` is carried unchanged and deleted at 11.1,
+and the verdict is the one `/gate` returned before, on the same inputs, computed
+in a different place. The Define gate stays inert.
+
+**Running it on every coaching turn was rejected, and the reason is §34's cap.**
+`validate_define` increments `gate_attempts` on failure, so validating each
+coaching turn would burn the shared cap of 3 in three turns and escalate a Belt
+who is simply still typing — the cap firing on the wrong event. Pinned by
+`test_a_coaching_turn_never_runs_the_validator`.
+
+**`gate_attempts` moved out of route scope but does not yet accumulate** — see
+WATCH 18. The counter's home is now correct (`PhaseState`, §1.7); its lifetime
+is not, and that half needs the interrupt at stage 7.
+
+---
+
+### The §47 disposition, stated once
+
+**Three in scope, two deferred. Not five of five.**
+
+| # | Requirement | Disposition at 4.2 |
+|---|---|---|
+| 1 | Deliberate handler shape | **IN.** Inline `await`, commented at `/ask` as the deliberate choice. For a non-streaming handler it *is* ABANDON: the run is the handler's own task and dies with the client. `t.cancel()`-in-`finally` belongs to `/ask/stream`, which does not exist — deferred to 10.1 with an explicit instruction that the streaming handler must choose again rather than inherit |
+| 2 | Deterministic `step_log` keys | **IN.** `f"{phase}:{turn_count}:{step_name}"` at **every** write site, via one `step_key()` helper so it is checkable rather than habitual. The parent's `history` reuses the same keys rather than minting a second identity |
+| 3 | Per-thread concurrency guard | **IN, as the optimistic ETag guard rather than the specified lease.** The guarantee is *two tabs waste a turn, they do not corrupt one*. The pessimistic lease and the unguarded history-blob orphan are WATCH 15, resolving at PostgreSQL |
+| 4 | Reconciliation sweep excluding paused threads | **OUT** — needs `interrupt()`, stage 7. WATCH 13 |
+| 5 | `thread_id` from the authenticated session | **OUT** — no auth layer; §17 places it post-refactor. `case_id` stays client-supplied. **WATCH 14, and it is a tenancy gap, not a tidiness one** |
+
+---
+
+### Confirmed before coding, as the step required
+
+**The 4.2 node path's only external write is the case-blob save.** Traced with
+an unfiltered `grep -rn`: `improve_case_index` is **read** only
+(`knowledge/retriever.py`), the single `upload_documents` call in the codebase
+writes `improve_evidence_index` from the file-upload route — outside the `/ask`
+path — and nothing in `phases/`, `escalate.py`, `knowledge/` or `upload/agent.py`
+writes an index. The Store write (`write_gate_document`) sits in the output
+mapper, which Z2 rules is not called.
+
+**The case blob is still written per turn**, which §10 says it should not be.
+That is unchanged v1 behaviour and is not 4.2's to fix: the conversation moves
+into the checkpoint only once the checkpoint is where the UI reads it from,
+which is the UI rebuild at 10.2. What 4.2 changes is that the checkpoint now
+exists alongside it.

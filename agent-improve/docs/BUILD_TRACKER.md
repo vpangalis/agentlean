@@ -12,7 +12,7 @@ Legend:  ✅ done · ▶ next · ☐ to do · ⛔ blocked · ⏸ gated/external
 # Agent Improve — Refactor Build Tracker
 # updated 2026-09-02 · build target: `agent-improve/ARCHITECTURE.md`
 
-**Progress: 12 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1 + 9.0 out-of-band). **Next: step 4.2.**
+**Progress: 13 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2 + 9.0 out-of-band). **Next: step 4.3.**
 Spine runs 2.3 → 11.2, one step = one commit. The spec is complete; this is the code.
 
 **Blocked / not-yet-schedulable:** 8.4 (Redis not provisioned), 8.5 (`request_drain`
@@ -42,8 +42,8 @@ unconfirmed), 9.1 (external reindex). Everything else is open once its precondit
 | Step | What | Builds | Status |
 |---|---|---|---|
 | 4.1 | The Define phase subgraph | §12, §13, §14, §39.1 | ✅ done |
-| 4.2 | `thread_id` through `graph.ainvoke` + disconnect policy | §16, §47, §49 | ▶ **next** *(first live checkpoints — settles WATCH 1)* |
-| 4.3 | The supervisor graph | §12, §15 | ☐ |
+| 4.2 | `thread_id` through `graph.ainvoke` + disconnect policy | §16, §47, §49 | ✅ done *(first live checkpoints ever. §47: 3 in, 2 deferred — WATCH 13, 14. Also fixed `checkpoint_ns` in the blob layout — DECISIONS Part Z3)* |
+| 4.3 | The supervisor graph | §12, §15 | ▶ **next** *(grows 4.2's one-node parent to five phase nodes + escalation — WATCH 17)* |
 | 4.4 | The remaining four phase subgraphs | §12, §13, §39.2–39.5 | ☐ |
 
 ## Stage 5 — Retrieval and tools

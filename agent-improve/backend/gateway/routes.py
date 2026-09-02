@@ -4,7 +4,10 @@ import json
 import logging
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from langchain_core.messages import AIMessage
 
+from backend.core import conversation
+from backend.core.graph import RECURSION_LIMIT
 from backend.gateway.schemas import (
     CaseCreateRequest,
     CaseCreateResponse,
@@ -22,6 +25,7 @@ from backend.gateway.schemas import (
 from backend.gateway.schemas import GateReviewField, GateReviewResponse
 from backend.gateway.schemas import SummariseRequest, SummariseResponse
 from backend.gateway.schemas import ContextRequest, ContextResponse
+from backend.phases.mappers_common import PHASE_ORDER
 from backend.storage import blob
 from backend.storage.models import CaseDocument, UploadRecord
 from backend.upload.agent import process_upload
@@ -189,8 +193,134 @@ async def create_case(request: CaseCreateRequest) -> CaseCreateResponse:
     return CaseCreateResponse(case_id=case_id, title=request.title)
 
 
+# ── the graph boundary ────────────────────────────────────────────────────
+#
+# §1.1 and §49: the compiled graph is the ONLY runtime path, and a route that
+# does anything beyond `await graph.ainvoke(...)` plus envelope marshalling is
+# a violation. Everything between here and `/gate` is that marshalling.
+
+
+def _graph_config(case: CaseDocument, phase: str, user: str, entry: str) -> dict:
+    """The per-run config: `thread_id`, and the framing the v1 seam needs.
+
+    **`thread_id` IS `case_id`** (§16) — never per phase, never concatenated.
+    One `thread_id` per project is what lets two Belts on two projects share no
+    state at any layer without a multi-tenancy mechanism being written.
+
+    ⚠ **§47 REQUIREMENT 5 IS NOT MET, AND THIS IS THE LINE WHERE IT SHOWS.**
+    `case_id` arrives from the request body. §47 requires it to be derived from
+    the authenticated session, because `case_id` is the tenancy boundary and a
+    client-supplied `thread_id` lets any caller resume any Belt's session. There
+    is no auth layer to derive it from — §17 places that post-refactor — so it
+    stays client-supplied for now and is carried as a WATCH rather than papered
+    over with a check that cannot fail. **Do not read the presence of
+    `thread_id` here as the requirement being satisfied.**
+
+    `recursion_limit` is §16's backstop against a genuine infinite loop, NOT the
+    per-turn hop budget — that is `RemainingSteps`, read inside the executor
+    (§26). Fifty, per the step.
+
+    The three seam keys — `current_user`, `case_metadata`, `v1_artifacts` —
+    carry what `orchestrate_define` needs and `PhaseState` may not declare
+    (§56). They are deleted with the seam at 6.2; see `phases/define/nodes.py`.
+    """
+    record = case.phases.get(phase)
+    return {
+        "configurable": {
+            "thread_id": case.case_id,
+            "entry": entry,
+            "current_user": user,
+            "case_metadata": {
+                "title": case.title,
+                "belt_level": case.belt_level,
+                "leader": case.leader,
+                "department": case.department,
+            },
+            "v1_artifacts": dict((record.structured or {}) if record else {}),
+        },
+        "recursion_limit": RECURSION_LIMIT,
+    }
+
+
+async def _graph_input(graph, config: dict, case: CaseDocument,
+                       new_messages: list) -> dict:
+    """What to hand `ainvoke`: the whole state on turn one, the delta after.
+
+    **`SupervisorState.messages` reduces with `operator.add`** (§5), so a state
+    update is APPENDED to what the checkpoint already holds. Passing the whole
+    conversation every turn would duplicate it, and passing the whole state
+    every turn would re-write `current_phase` from the route — exactly the
+    second writer §5 B2 forbids, and exactly what the v1 eleven-field literal
+    did on every request.
+
+    So the seven fields are written **once**, when the thread has no checkpoint,
+    and every later turn sends only the new message. The first-turn seed also
+    carries the case document's existing conversation: a case created before 4.2
+    has history in the case blob and nothing in the checkpoint, and dropping it
+    would hand the coach a blank slate mid-project.
+    """
+    snapshot = await graph.aget_state(config)
+    if snapshot.values:
+        return {"messages": new_messages}
+
+    prior = [
+        conversation.turn_to_message(t)
+        for t in (case.conversation_history or [])
+    ]
+    return {
+        "messages": prior + new_messages,
+        "history": [],
+        "case_id": case.case_id,
+        "phase_index": (
+            PHASE_ORDER.index(case.current_phase)
+            if case.current_phase in PHASE_ORDER else 0
+        ),
+        "current_phase": case.current_phase,
+        "gate_passed": {
+            name: bool(record.gate_passed)
+            for name, record in case.phases.items()
+        },
+        "final_output": None,
+    }
+
+
+def _last_ai(result: dict):
+    """The coach's reply — the last AI message the run produced."""
+    for msg in reversed(result.get("messages") or []):
+        if isinstance(msg, AIMessage):
+            return msg
+    return None
+
+
 @router.post("/ask", response_model=AskResponse)
 async def ask(request: AskRequest) -> AskResponse:
+    """One coaching turn, through the compiled graph.
+
+    ═══════════════════════════════════════════════════════════════════════
+    §47 REQUIREMENT 1 — THE HANDLER SHAPE IS INLINE `await`, DELIBERATELY
+    ═══════════════════════════════════════════════════════════════════════
+    **This is a choice, not a default.** §47's finding is that once checkpoints
+    write, the handler's control-flow shape — not the checkpointer — decides
+    what survives a client disconnect, and that *a handler which has not chosen
+    has chosen COMPLETE by accident*. The two permitted shapes are inline
+    `await` and an explicit ABANDON policy calling `t.cancel()` in a streaming
+    generator's `finally`; **a bare `asyncio.create_task` with no disconnect
+    handling is banned.**
+
+    Inline `await` is chosen here because for a non-streaming handler it *is*
+    the ABANDON policy: the graph run is the handler's own task, so when the
+    client goes the task is cancelled with it and nothing keeps running to
+    checkpoint behind the Belt's back. **The `t.cancel()`-in-`finally` variant
+    belongs to `/ask/stream`** (§49), which does not exist yet — building the
+    streaming half here would be building step 10.1's scope inside 4.2, and a
+    cancellation handler with no generator to hang it on is a comment, not a
+    policy. **When streaming lands, that handler must make this same choice
+    explicitly**; inheriting this one silently is the accident §47 names.
+
+    Ratified policy is ABANDON, not COMPLETE: a silently-completed gate approval
+    the Belt never saw is unacceptable in a system whose premise is that the
+    Belt approves what gets committed.
+    """
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
 
@@ -198,10 +328,8 @@ async def ask(request: AskRequest) -> AskResponse:
     if case is None:
         raise HTTPException(404, f"Case {request.case_id} not found")
 
-    # Append user turn to history first
     from datetime import datetime, timezone
-    from backend.core.state import ImproveGraphState
-    from backend.core.graph import get_graph
+    from backend.core.graph import PhaseNotWired, get_graph
 
     now = datetime.now(timezone.utc).isoformat()
     user_turn = {
@@ -212,138 +340,86 @@ async def ask(request: AskRequest) -> AskResponse:
         "timestamp": now,
         "citations": [],
     }
-    case.conversation_history.append(user_turn)
 
-    # Build state
-    state: ImproveGraphState = {
-        "case_id": request.case_id,
-        "current_phase": request.phase,
-        "current_user": request.user,
-        "phase_inputs": {
-            phase: (case.phases[phase].structured or {})
-            for phase in case.phases
-        },
-        "chat_history": case.conversation_history,
-        "gate_attempts": 0,
-        "escalated": False,
-        "citations": [],
-        "analyst_output": None,
-        "uploaded_files": [],
-        "case_metadata": {
-            "title": case.title,
-            "belt_level": case.belt_level,
-            "leader": case.leader,
-            "department": case.department,
-        },
-    }
-
-    # Run ONE orchestrate step (not full graph â conversational turn)
     graph = get_graph()
-    orchestrate_node = f"orchestrate_{request.phase}"
+    config = _graph_config(case, request.phase, request.user, entry="ask")
+
     try:
-        # Invoke just the orchestrate node for this turn
-        from backend.phases.define.orchestrate import orchestrate_define
-        from backend.phases.measure.orchestrate import orchestrate_measure
-        from backend.phases.analyse.orchestrate import orchestrate_analyse
-        from backend.phases.improve.orchestrate import orchestrate_improve
-        from backend.phases.control.orchestrate import orchestrate_control
-
-        node_map = {
-            "define":        orchestrate_define,
-            "measure":       orchestrate_measure,
-            "analyse":       orchestrate_analyse,
-            "improve":       orchestrate_improve,
-            "control":       orchestrate_control,
-        }
-        node_fn = node_map.get(request.phase)
-        if node_fn is None:
-            raise HTTPException(400, f"Unknown phase: {request.phase}")
-
-        result = await node_fn(state)
-
-        # Update state with result
-        state.update(result)
-
-        # Sync updated chat history and phase_inputs back to case before saving
-        updated_history = state.get("chat_history") or []
-        case.conversation_history = updated_history
-        updated_phase_inputs = state.get("phase_inputs") or {}
-        for phase_key, phase_data in updated_phase_inputs.items():
-            if phase_key in case.phases and phase_data:
-                # Store extracted (non-internal) fields in structured
-                clean = {k: v for k, v in phase_data.items() if not k.startswith("_") and v is not None and v != [] and v != {}}
-                if clean:
-                    case.phases[phase_key].structured = clean
-
-        # Persist conversation to blob
-        await blob.save_case(case)
-
-        # Build captured fields from phase_inputs
-        phase_data = (state.get("phase_inputs") or {}).get(request.phase, {})
-        captured = _build_captured_fields(phase_data, request.phase)
-
-        # Get last AI turn
-        history = state.get("chat_history") or []
-        last_ai = next(
-            (t["text"] for t in reversed(history) if t.get("role") == "ai"),
-            "Processing...",
+        state = await _graph_input(
+            graph, config, case, [conversation.turn_to_message(user_turn)]
         )
-
-        sipoc_diagram = result.get("sipoc_diagram")
-        visualisation = result.get("visualisation")
-        section_completed = result.get("section_completed")
-
-        # Extract the current structured phase inputs
-        phase_inputs_dict = None
-        try:
-            pi = result.get("phase_inputs") or {}
-            phase_data_for_response = pi.get(request.phase) or {}
-            if isinstance(phase_data_for_response, dict):
-                phase_inputs_dict = phase_data_for_response
-            elif hasattr(phase_data_for_response, 'model_dump'):
-                phase_inputs_dict = phase_data_for_response.model_dump()
-            elif hasattr(phase_data_for_response, '__dict__'):
-                phase_inputs_dict = phase_data_for_response.__dict__
-        except Exception:
-            phase_inputs_dict = None
-
-        if phase_inputs_dict:
-            phase_inputs_dict = {
-                k: v for k, v in phase_inputs_dict.items()
-                if not k.startswith('_')
-            }
-
-        return AskResponse(
-            answer=last_ai,
-            phase=request.phase,
-            captured_fields=captured,
-            phase_inputs=phase_inputs_dict,
-            gate_status=GateStatus(
-                phase=request.phase,
-                passed=phase_data.get("_gate_passed", False),
-                attempts=state.get("gate_attempts", 0),
-                missing_fields=phase_data.get("_missing_fields", []),
-            ),
-            citations=[
-                CitationOut(
-                    agent_origin=c.get("agent_origin", ""),
-                    index_name=c.get("index_name", ""),
-                    document_id=c.get("document_id", ""),
-                    relevance_summary=c.get("relevance_summary", ""),
-                )
-                for c in (state.get("citations") or [])
-            ],
-            suggestion_chips=_build_chips(request.phase, phase_data),
-            sipoc_diagram=sipoc_diagram,
-            visualisation=visualisation,
-            section_completed=section_completed,
-            escalated=state.get("escalated", False),
-        )
+        # §47 requirement 1 — inline await. See the docstring above.
+        result = await graph.ainvoke(state, config=config)
+    except PhaseNotWired as e:
+        raise HTTPException(501, str(e))
     except HTTPException:
         raise
     except Exception as e:
         logger.error("ask() error: %s", e)
         raise HTTPException(500, f"Graph error: {str(e)}")
+
+    reply = _last_ai(result)
+    payload = conversation.transport(reply) if reply is not None else {}
+    phase_data = dict(payload.get("v1_artifacts") or {})
+    verdict = dict(payload.get("gate_verdict") or {})
+    extra = dict(getattr(reply, "additional_kwargs", None) or {}) if reply else {}
+
+    # ── envelope marshalling from here down ───────────────────────────
+    #
+    # The case blob is still written per turn, which §10 says it should not be.
+    # That is unchanged v1 behaviour and is NOT this step's to fix: the
+    # conversation moves into the checkpoint only once the checkpoint is where
+    # the UI reads it from, which is the UI rebuild (step 10.2). What 4.2
+    # changes is that the checkpoint now exists alongside it.
+    case.conversation_history.append(user_turn)
+    if reply is not None:
+        case.conversation_history.append(
+            conversation.strip_transport(
+                conversation.message_to_turn(reply, len(case.conversation_history))
+            )
+        )
+    clean = {
+        k: v for k, v in phase_data.items()
+        if not k.startswith("_") and v is not None and v != [] and v != {}
+    }
+    if clean and request.phase in case.phases:
+        case.phases[request.phase].structured = clean
+    await blob.save_case(case)
+
+    return AskResponse(
+        answer=(reply.content if reply is not None else "Processing..."),
+        phase=request.phase,
+        captured_fields=_build_captured_fields(phase_data, request.phase),
+        phase_inputs=({k: v for k, v in phase_data.items()
+                       if not k.startswith("_")} or None),
+        gate_status=GateStatus(
+            phase=request.phase,
+            passed=bool(verdict.get("passed", False)),
+            # NOT a hardcoded 0. The counter lives on `PhaseState`, is written
+            # by `validation_stack` and is reported from the graph result —
+            # §1.7's rule that it may never sit in route scope. What it does not
+            # yet do is SURVIVE across turns: the input mapper rebuilds the child
+            # state on every invoke because there is no `interrupt()` holding the
+            # subgraph open, so the cap of 3 still cannot accumulate. That lands
+            # with the interrupt at stage 7 — carried as a WATCH.
+            attempts=int(verdict.get("gate_attempts", 0)),
+            missing_fields=list(verdict.get("missing") or []),
+        ),
+        citations=[
+            CitationOut(
+                agent_origin=c.get("agent_origin", ""),
+                index_name=c.get("index_name", ""),
+                document_id=c.get("document_id", ""),
+                relevance_summary=c.get("relevance_summary", ""),
+            )
+            for c in (extra.get("citations") or [])
+        ],
+        suggestion_chips=_build_chips(request.phase, phase_data),
+        sipoc_diagram=extra.get("sipoc_diagram"),
+        visualisation=extra.get("visualisation"),
+        section_completed=extra.get("section_completed"),
+        escalated=bool(verdict.get("escalated", False)),
+    )
 
 
 @router.get("/gate/review/{case_id}/{phase}", response_model=GateReviewResponse)
@@ -672,58 +748,78 @@ async def _index_upload(case_id: str, upload_record: dict) -> None:
 
 @router.post("/gate", response_model=GateSubmitResponse)
 async def submit_gate(request: GateSubmitRequest) -> GateSubmitResponse:
+    """Submit the phase for gate review — through the same compiled graph.
+
+    **The same graph object as `/ask`** (§12, §49). The two differ only in the
+    per-run `entry` on `config["configurable"]`, which the planner reads to
+    decide whether this turn coaches or validates. There is no second dispatch
+    table and no second runtime: `validate_map` and the five `validate_*`
+    imports are gone, and the validator now runs where §34 puts it — inside
+    `validation_stack`, in the subgraph.
+
+    ═══════════════════════════════════════════════════════════════════════
+    WHAT THIS ROUTE IS NOT, AT 4.2
+    ═══════════════════════════════════════════════════════════════════════
+    §49 splits this endpoint three ways — `/gate/submit` triggers the stack and
+    the interrupt, `/gate/approve` and `/gate/reject` resume from it. **All
+    three are stage 7**, because all three are the `interrupt()` this step
+    deliberately does not build (§47 requirement 4, ruled OUT). So the gate
+    still *applies* here rather than inside `gate_apply`: the graph returns the
+    verdict, and this route writes the gate document and the registry entry as
+    it did before.
+
+    That is the honest shape and the safe one. Moving the write into
+    `gate_apply` without the interrupt in front of it would commit a gate the
+    Belt never approved on every coaching turn — the failure §47's ABANDON
+    policy exists to prevent. **The write moves at stage 7, with the interrupt,
+    in one change.**
+
+    **The Define gate remains inert** (WATCH 7): `validate_define` requires the
+    §39.1.2 v2 names and the v1 writer emits the v1 ones, so every required
+    field reads as missing. The verdict below is the one this endpoint returned
+    before, on the same inputs, computed in a different place.
+    """
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
     case = await blob.load_case(request.case_id)
     if case is None:
         raise HTTPException(404, f"Case {request.case_id} not found")
 
-    from backend.core.state import ImproveGraphState
-    from backend.phases.define.validate import validate_define
-    from backend.phases.measure.validate import validate_measure
-    from backend.phases.analyse.validate import validate_analyse
-    from backend.phases.improve.validate import validate_improve
-    from backend.phases.control.validate import validate_control
+    from backend.core.graph import PhaseNotWired, get_graph
 
-    validate_map = {
-        "define":        validate_define,
-        "measure":       validate_measure,
-        "analyse":       validate_analyse,
-        "improve":       validate_improve,
-        "control":       validate_control,
-    }
-    validate_fn = validate_map.get(request.phase)
-    if validate_fn is None:
-        raise HTTPException(400, f"Unknown phase: {request.phase}")
+    graph = get_graph()
+    config = _graph_config(
+        case, request.phase, request.submitted_by, entry="gate"
+    )
 
-    state: ImproveGraphState = {
-        "case_id": request.case_id,
-        "current_phase": request.phase,
-        "current_user": request.submitted_by,
-        "phase_inputs": {
-            phase: (case.phases[phase].structured or {})
-            for phase in case.phases
-        },
-        "chat_history": case.conversation_history,
-        "gate_attempts": 0,
-        "escalated": False,
-        "citations": [],
-        "analyst_output": None,
-        "uploaded_files": [],
-        "case_metadata": {
-            "title": case.title,
-            "belt_level": case.belt_level,
-            "leader": case.leader,
-            "department": case.department,
-        },
-    }
+    try:
+        state = await _graph_input(graph, config, case, [])
+        # §47 requirement 1 — inline await, the same deliberate choice `/ask`
+        # documents. A gate submission is the LAST turn that may complete
+        # behind a departed Belt.
+        result = await graph.ainvoke(state, config=config)
+    except PhaseNotWired as e:
+        raise HTTPException(501, str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("submit_gate() error: %s", e)
+        raise HTTPException(500, f"Graph error: {str(e)}")
 
-    result = await validate_fn(state)
-    phase_data = result.get("phase_inputs", {}).get(request.phase, {})
-    passed = phase_data.get("_gate_passed", False)
-    missing = phase_data.get("_missing_fields", [])
+    reply = _last_ai(result)
+    payload = conversation.transport(reply) if reply is not None else {}
+    verdict = dict(payload.get("gate_verdict") or {})
+    phase_data = dict(payload.get("v1_artifacts") or {})
+    passed = bool(verdict.get("passed", False))
+    missing = list(verdict.get("missing") or [])
 
     if passed:
+        # `_validated` is unchanged v1 behaviour and unchanged v1 defect:
+        # `validate_define` never writes that key, so this resolves to `{}` and
+        # the gate document is written empty. It is unreachable today (the gate
+        # cannot pass — WATCH 7) and fixing it here would be repairing v1 code
+        # that step 11.1 deletes, so it is recorded as a WATCH rather than
+        # patched inside a structural step.
         validated = phase_data.get("_validated", {})
         await blob.write_phase_gate(
             case_id=request.case_id,
@@ -732,25 +828,26 @@ async def submit_gate(request: GateSubmitRequest) -> GateSubmitResponse:
             submitted_by=request.submitted_by,
             summary=f"Gate passed by {request.submitted_by}",
         )
-        phase_order = ["define", "measure", "analyse", "improve", "control"]
-        idx = phase_order.index(request.phase)
-        next_phase = phase_order[idx + 1] if idx < len(phase_order) - 1 else None
+        idx = PHASE_ORDER.index(request.phase)
+        next_phase = (
+            PHASE_ORDER[idx + 1] if idx < len(PHASE_ORDER) - 1 else None
+        )
         return GateSubmitResponse(
             passed=True,
             phase=request.phase,
             message=(
-                f"Phase complete. {'Moving to ' + next_phase if next_phase else 'Project complete!'}"
+                f"Phase complete. "
+                f"{'Moving to ' + next_phase if next_phase else 'Project complete!'}"
             ),
             next_phase=next_phase,
         )
-    else:
-        plain_missing = [f.replace("_", " ") for f in missing]
-        return GateSubmitResponse(
-            passed=False,
-            phase=request.phase,
-            missing_fields=plain_missing,
-            message=f"Not quite ready yet. {len(missing)} item(s) still needed.",
-        )
+
+    return GateSubmitResponse(
+        passed=False,
+        phase=request.phase,
+        missing_fields=[f.replace("_", " ") for f in missing],
+        message=f"Not quite ready yet. {len(missing)} item(s) still needed.",
+    )
 
 
 @router.get("/registry", response_model=list[RegistryEntryOut])
