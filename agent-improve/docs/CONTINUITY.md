@@ -7,10 +7,10 @@
 
 | | |
 |---|---|
-| **Last completed** | step **3.5** — `storage/blob.py` — class → functions, sync → aio **(S-C08)** |
-| **Next** | step **4.1** — The Define phase subgraph |
+| **Last completed** | step **4.1** — The Define phase subgraph |
+| **Next** | step **4.2** — `thread_id` through `graph.ainvoke` + disconnect policy |
 | **Stage** | Stage 4 — The graph |
-| **Progress** | 11 of 35 build steps |
+| **Progress** | 12 of 35 build steps |
 | **Last spine commit** | `025bde7` (commit 3.5) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |
