@@ -3433,3 +3433,148 @@ That is unchanged v1 behaviour and is not 4.2's to fix: the conversation moves
 into the checkpoint only once the checkpoint is where the UI reads it from,
 which is the UI rebuild at 10.2. What 4.2 changes is that the checkpoint now
 exists alongside it.
+
+---
+
+## Part AA — Step 4.3: the escalation topology, and why Level 1 still does not route (2026-09-02)
+
+**Procedure step 4.3**, the supervisor graph. Reference §12, §15, §16, §38 and
+**§58.10 — S-F01**; CLAUDE.md §1.2, §3.5. One ruling, recorded because the
+step's own prompt asked for the shape that has already been deleted once.
+
+---
+
+### AA1 — Escalation is a NODE at Level 1 and an EDGE one level down
+
+**Ruled: the supervisor gets an `escalate` node with a single static edge to
+`END`, and NO conditional edge anywhere at Level 1.** The conditional edge that
+reaches it lives inside the phase subgraph, and the hop is
+`Command(graph=Command.PARENT, goto="escalate")`.
+
+**The step's prompt says "route to escalation on the conditional edge §3.5
+describes", and read literally that rebuilds `route_after_phase`.** §3.5 names
+the *trigger* — the validation stack exhausting its shared cap of 3 — and does
+not say where the edge lives. Two ratified sections do, and they agree:
+
+  * **§15:** *"Escalation at >= 3 | A conditional edge **from inside the phase**
+    to the escalation subgraph (§38), which defers to the Belt and **never
+    returns to the supervisor**."* And, immediately above it: *"The six
+    `add_edge` calls above are the complete Level 1 wiring; there is no
+    conditional edge, no router function, and nothing for the supervisor to
+    branch on."*
+  * **§38:** the subgraph is reachable two ways — the validation stack's cap,
+    and the `request_human_approval` tool — **both of which fire inside a
+    phase.**
+  * **S-F01's invariants:** *"`route_after_phase` was deleted on 2026-08-22 and
+    MUST NOT be reinstated."*
+
+**Why the literal reading is not a smaller mistake than it looks.** The deleted
+router branched on `state["gate_attempts"]`, and `SupervisorState` has seven
+fields and not that one — so it raised `KeyError` **on the gate-failure path
+specifically**, the one path a supervisor-level branch would exist to serve.
+Any Level 1 escalation branch needs the same counter and reaches for it in the
+same place. §15 is explicit that `gate_attempts` *"is read only inside the
+phase… and must not be added to `SupervisorState`"*, which is what makes the
+Level 1 branch unbuildable rather than merely unwanted. This reaffirms §R2 and
+CLAUDE.md §0.14 rather than reopening them.
+
+**Pinned in `test_supervisor_graph.py`**, four ways, because the step's prompt
+shows this is the thing most likely to come back: the builder has no branches;
+neither `route_after_phase` nor `_gate_router` exists in the module; the module
+reads `gate_attempts` off no state (checked by AST, not text — the module's own
+docstring quotes the banned expression in order to forbid it, and a substring
+check failed on that prose); and `escalate_node` reaches for none of
+`gate_attempts` / `_missing_fields` / `phase_inputs`.
+
+---
+
+### AA2 — `Command.PARENT` survives S-F10's execution site. Verified, not assumed.
+
+**This was a real open question and the answer decides whether AA1 is
+buildable at all.**
+
+§0.17 makes the escalation hop **the only use of `Command.PARENT` in this
+architecture**, and `Command.PARENT` is documented against a subgraph added to
+the parent **as a node**. But S-F10 requires the opposite shape: each phase
+subgraph is invoked **inside** the parent's uniquely-named node function, so the
+input mapper can run at the boundary. If the hop did not cross that boundary,
+§38's escalation and §9's mapper placement would be in direct conflict and one
+of them would have to give.
+
+**Tested against the pinned langgraph 1.2.11, both shapes, before the topology
+was written.** It works. A `Command(graph=Command.PARENT, goto="escalate")`
+raised inside a subgraph invoked via `await subgraph.ainvoke(...)` propagates as
+a `ParentCommand` exception out of the call, through the parent's node function,
+and is caught by the parent's task runner (`pregel/_retry.py`), which rewrites
+its namespace and dispatches to `escalate`. **No spec gap; the two sections are
+compatible.**
+
+**One consequence is load-bearing and must survive stage 7:** because the hop is
+an exception, **the phase node function's code after the subgraph invoke does
+not run.** The output mapper is therefore skipped on an escalation — which is
+correct, since an escalated phase did not pass its gate and must not write a
+gate document, and it is correct *by accident of mechanism* rather than by an
+explicit branch. `test_command_parent_reaches_the_escalation_node` asserts the
+skip, so a LangGraph version bump that changed it would fail loudly rather than
+start writing gate documents for escalated phases.
+
+---
+
+### AA3 — The supervisor is the target; it is not yet the runtime
+
+**Ruled: `build_supervisor()` is built, tested and NOT wired to the routes.
+`get_graph()` continues to return the one-turn parent step 4.2 shipped.**
+
+§15's justification for static edges rests on a precondition it states plainly:
+**a phase subgraph reaches `END` only through `gate_apply`, which runs only
+after Belt approval, so reaching `END` MEANS the gate passed.**
+
+**That precondition is false today.** `gate_review` does not raise `interrupt()`
+until stage 7, so the Define subgraph runs straight through to `END` on every
+invoke and `END` means only "the graph ran" (Z2). Wire the DMAIC chain to live
+traffic now and **one `/ask` turn would run Define, then Measure, then
+Analyse** — the entire sequence in a single Belt turn, which is precisely the
+defect the procedure's Part 3 ordering note records against the v1 graph and
+which step 4.2 existed to remove.
+
+So 4.3 follows **4.1's precedent**: build the structure, test it, route no
+traffic to it. The alternative shapes were both rejected —
+
+| Rejected | Why |
+|---|---|
+| Swap the runtime now and accept the chained run | Breaks `/ask` for every case, to no benefit; the topology is verifiable without it |
+| Bring `interrupt()` forward to make the chain safe | That is stage 7, and an `interrupt()` with no `/gate/approve` and `/gate/reject` resume routes (§49) halts every turn with nothing able to resume it |
+
+**The swap trigger is stated in code, not left to memory:** when `gate_review`
+raises `interrupt()`, `get_graph` returns `build_supervisor()` and the node is
+renamed `define_phase` → `define`. Both functions live in `core/graph.py` so
+the swap cannot be made in one and missed in the other, and
+`test_get_graph_is_still_the_one_turn_parent` **fails if it happens early**.
+
+**The node keeps the name `define_phase` deliberately.** Renaming it to the
+supervisor's `define` now would change every subgraph's `checkpoint_ns` from
+`define_phase:{task}` to `define:{task}`, orphaning the checkpoints written
+since 4.2. It costs nothing today — the input mapper rebuilds child state on
+every invoke — but it is a rename to make once, with the swap, rather than
+twice.
+
+---
+
+### AA4 — Two smaller findings, recorded so they are not rediscovered
+
+**`escalate -> END` is absent from `get_graph()`'s drawing and present in the
+wiring.** `CompiledStateGraph.get_graph()` omits edges out of nodes not
+reachable from `START`, and nothing reaches `escalate` until stage 7 raises the
+`Command`. Verified as a general LangGraph behaviour, not a quirk of this graph.
+The topology tests therefore read `supervisor_builder()` — the uncompiled
+builder — and one test asserts the edge is *absent from the drawing*, so that
+when something does reach escalation it fails and forces a behavioural test in
+its place.
+
+**The `_subgraph(phase)` rename dropped a guard, and it was caught by the 4.2
+tests rather than by review.** Step 4.2's node read `state["current_phase"]` and
+raised `PhaseNotWired` for the four unbuilt phases; generalising the node into a
+`phase_node(phase)` factory closed over the phase instead, so a case sitting in
+Measure would have been coached as Define. Restored as an explicit check against
+`WIRED_PHASES` before the mapper runs, so the four still surface as **501** and
+not as a 500 from inside `new_phase_state`'s identity assertion.

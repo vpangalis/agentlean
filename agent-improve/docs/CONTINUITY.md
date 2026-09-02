@@ -7,11 +7,11 @@
 
 | | |
 |---|---|
-| **Last completed** | step **4.2** — `thread_id` through `graph.ainvoke` + disconnect policy |
-| **Next** | step **4.3** — The supervisor graph |
+| **Last completed** | step **4.3** — The supervisor graph |
+| **Next** | step **4.4** — The remaining four phase subgraphs |
 | **Stage** | Stage 4 — The graph |
-| **Progress** | 13 of 35 build steps |
-| **Last spine commit** | `c4ec202` (commit 4.2) |
+| **Progress** | 14 of 35 build steps |
+| **Last spine commit** | `eef7b81` (commit 4.2) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |
 | **Block regenerated** | 2026-09-02 |
@@ -841,6 +841,21 @@ so read §66 when the two disagree.)*
   for a case in a coachable phase before scheduling one. §17's own sequence
   ends *"Run IMPR-2026-E9D end-to-end clean"*, which will need a **reset** case
   rather than the completed one.
+
+- **WATCH 23 — `build_supervisor()` is the TARGET topology, not the runtime,
+  until the Stage-7 interrupt swap.** Step 4.3 built the ratified Level 1 graph
+  (five phase nodes + `escalate`, seven static edges, checkpointer and store) and
+  **routed no traffic to it** — 4.1's precedent. §15's static chain is safe
+  because *"reaching `END` means the gate passed"*, and that is false until
+  `gate_review` raises `interrupt()`: today the subgraph runs straight through,
+  so one `/ask` turn on the chained graph would run Define → Measure → Analyse.
+  `get_graph()` therefore still returns 4.2's one-turn parent. **The swap is:
+  `get_graph` returns `build_supervisor()`, and the node is renamed
+  `define_phase` → `define`** (which changes every subgraph's `checkpoint_ns` —
+  make it once, with the swap). Both functions are in `core/graph.py` so it
+  cannot be done in one and missed in the other, and
+  `test_get_graph_is_still_the_one_turn_parent` **fails if it happens early**.
+  Record: `DECISIONS.md` Part AA3.
 
 **CLOSED this session (were WATCH 3 + WATCH 8):** CLAUDE.md's stale "218
 `general`" → 259 and Define "6 Tier 1 / 15-6-5-4" figures — corrected via the

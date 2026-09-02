@@ -198,12 +198,12 @@ def wired(monkeypatch):
     monkeypatch.setattr(graph_mod, "get_checkpointer", lambda: saver)
     monkeypatch.setattr(graph_mod, "get_store", lambda: store)
     graph_mod.get_graph.cache_clear()
-    graph_mod._define_subgraph.cache_clear()
+    graph_mod._subgraph.cache_clear()
     try:
         yield graph_mod.get_graph(), saver
     finally:
         graph_mod.get_graph.cache_clear()
-        graph_mod._define_subgraph.cache_clear()
+        graph_mod._subgraph.cache_clear()
 
 
 @pytest.fixture
@@ -248,7 +248,7 @@ def test_parent_carries_both_checkpointer_and_store(wired) -> None:
 
 def test_subgraph_carries_neither(wired) -> None:
     """S-F02 B1 — the subgraph reaches the parent's through `checkpoint_ns`."""
-    subgraph = graph_mod._define_subgraph()
+    subgraph = graph_mod._subgraph("define")
     assert subgraph.checkpointer is None
     assert subgraph.store is None
 

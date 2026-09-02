@@ -960,7 +960,7 @@ retry starts clean.
 
 | | |
 |---|---|
-| **Reference §** | §12 · §15 (routing) |
+| **Reference §** | §12 · §15 (routing) · §38 (escalation) · **S-F01** |
 | **Touches** | `core/graph.py` (rewrite) |
 | **Precondition** | 4.2 |
 | **Verify** | `pytest` |
@@ -970,18 +970,58 @@ No routing LLM, no `Command` at this level — Level 1 has nothing to reason
 about (§12, §15). **Never mix static edges and `Command` from the same node**;
 both paths execute, silently.
 
+**Escalation is a NODE here and an EDGE one level down.** The supervisor gets an
+`escalate` node whose only edge is to `END` (§38 — it defers to the Belt and
+never returns to the supervisor). **There is no conditional edge at Level 1.**
+
+> ### ⚠ THIS STEP'S PROMPT USED TO SAY THE OPPOSITE — corrected 2026-09-02
+>
+> It read *"route to escalation on the conditional edge §3.5 describes"*, and
+> **read literally that rebuilds `route_after_phase`** — the function §15,
+> CLAUDE.md §0.14 and `DECISIONS.md` §R2 all record as deleted, with S-F01's
+> invariants saying it *"MUST NOT be reinstated"*.
+>
+> §3.5 names the **trigger** — the validation stack exhausting its shared cap
+> of 3 — and does not say where the edge lives. §15 and §38 both do, and they
+> agree: *"a conditional edge **from inside the phase** to the escalation
+> subgraph, which defers to the Belt and never returns to the supervisor."* The
+> hop is `Command(graph=Command.PARENT, goto="escalate")` (§0.17 — the only use
+> of `Command.PARENT` in this architecture), **verified at 4.3 to work through
+> S-F10's node-function execution site.**
+>
+> **Why the literal reading is not a small mistake:** the deleted router
+> branched on `state["gate_attempts"]`, which `SupervisorState` does not carry,
+> so it raised `KeyError` on the gate-failure path — the one path such a branch
+> would exist to serve. §15 forbids adding that counter to `SupervisorState`,
+> which makes a Level 1 escalation branch unbuildable rather than merely
+> unwanted. Full ruling: `DECISIONS.md` **Part AA**.
+
 **Done when:** a test asserts the parent graph has five phase subgraph nodes
 plus escalation, that it compiles **with** checkpointer and store, and that each
 subgraph compiles with neither.
 
+> **The supervisor built here is the TARGET, not the runtime**, and that is
+> deliberate — 4.1's precedent. §15's static chain is safe because *"reaching
+> `END` means the gate passed"*, and **that is false until `gate_review` raises
+> `interrupt()` at stage 7**: today the subgraph runs straight through to `END`,
+> so one `/ask` turn on the chained graph would run Define, then Measure, then
+> Analyse. `get_graph()` therefore still returns the one-turn parent from 4.2
+> until the interrupt lands, `build_supervisor()` is the ratified topology, both
+> live in `core/graph.py`, and `test_get_graph_is_still_the_one_turn_parent`
+> fails if the swap happens early. Part AA3.
+
 **Prompt:**
-> CLAUDE.md §1.2, §3.1, §3.3. Rewrite `agent-improve/backend/core/graph.py` as
-> the supervisor: compile the five phase subgraphs as nodes, connect them with
-> static edges in DMAIC order, `add_edge(START, "define")`, and route to
-> escalation on the conditional edge §3.5 describes. **Checkpointer and store
-> attach here and only here.** Phase sequencing is a deterministic gate-check on
-> `gate_passed` — no routing LLM. Add tests asserting the topology and that
-> subgraphs compile with neither checkpointer nor store.
+> CLAUDE.md §1.2, §3.1, §3.3 and reference §15, §38, S-F01. Rewrite
+> `agent-improve/backend/core/graph.py` as the supervisor: compile the five
+> phase subgraphs as nodes, connect them with static edges in DMAIC order,
+> `add_edge(START, "define")`, and add an `escalate` node with a single static
+> edge to `END`. **No conditional edge and no router at Level 1** — the
+> conditional escalation edge lives inside the phase subgraph and hops up with
+> `Command(graph=Command.PARENT)`. **Checkpointer and store attach here and only
+> here.** Phase sequencing is the static chain, not a gate-check function —
+> reaching `END` already means the gate passed. Add tests asserting the
+> topology, that subgraphs compile with neither checkpointer nor store, and that
+> no Level 1 branch or `gate_attempts` read has crept back.
 
 ---
 
@@ -1716,7 +1756,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 3.5** | `storage/blob.py` — class → functions, sync → aio | done |
 | **Commit 4.1** | Define phase subgraph | done |
 | **Commit 4.2** | `thread_id` + disconnect policy | done |
-| **Commit 4.3** | Supervisor graph | pending |
+| **Commit 4.3** | Supervisor graph | done |
 | **Commit 4.4** | Remaining four subgraphs | pending |
 | **Commit 5.1** | Retrieval failure semantics | pending |
 | **Commit 5.2** | Three `rag_lookup_*` + RRF | pending |
