@@ -7,11 +7,11 @@
 
 | | |
 |---|---|
-| **Last completed** | step **4.4** — The remaining four phase subgraphs |
-| **Next** | step **5.1** — Retrieval failure semantics |
+| **Last completed** | step **5.1** — Retrieval failure semantics |
+| **Next** | step **5.2** — Three `rag_lookup_*` tools + multi-query + RRF |
 | **Stage** | Stage 5 — Retrieval and tools |
-| **Progress** | 15 of 35 build steps |
-| **Last spine commit** | `b93d069` (commit 4.3) |
+| **Progress** | 16 of 35 build steps |
+| **Last spine commit** | `784c405` (commit 4.4) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |
 | **Block regenerated** | 2026-09-02 |

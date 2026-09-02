@@ -12,7 +12,7 @@ Legend:  ✅ done · ▶ next · ☐ to do · ⛔ blocked · ⏸ gated/external
 # Agent Improve — Refactor Build Tracker
 # updated 2026-09-02 · build target: `agent-improve/ARCHITECTURE.md`
 
-**Progress: 15 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4 + 9.0 out-of-band). **Stage 4 complete. Next: step 5.1.**
+**Progress: 16 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.1 + 9.0 out-of-band). **Next: step 5.2.**
 Spine runs 2.3 → 11.2, one step = one commit. The spec is complete; this is the code.
 
 **Blocked / not-yet-schedulable:** 8.4 (Redis not provisioned), 8.5 (`request_drain`
@@ -49,8 +49,8 @@ unconfirmed), 9.1 (external reindex). Everything else is open once its precondit
 ## Stage 5 — Retrieval and tools
 | Step | What | Builds | Status |
 |---|---|---|---|
-| 5.1 | Retrieval failure semantics | §27 | ▶ **next** *(partly done — `knowledge/retriever.py`)* |
-| 5.2 | Three `rag_lookup_*` tools + multi-query + RRF | §24, §25 | ☐ |
+| 5.1 | Retrieval failure semantics | §27 | ✅ done *(the classifier was already right; the gap was `build_knowledge_context` returning `None` for both a break and a no-match — the path all five orchestrators take every turn)* |
+| 5.2 | Three `rag_lookup_*` tools + multi-query + RRF | §24, §25 | ▶ **next** |
 | 5.3 | **The 20 computation tools** | §69 (S-F37–S-F56) | ☐ |
 | 5.4 | Per-phase tool binding | §30 | ☐ |
 

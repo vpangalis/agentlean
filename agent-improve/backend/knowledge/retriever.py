@@ -209,7 +209,7 @@ def _phase_filter(phase: str | None) -> str | None:
             f"or phase_relevance eq '{CROSS_PHASE_RELEVANCE}'")
 
 
-def search_knowledge(query: str, phase: str = None,
+def search_knowledge(query: str, phase: str | None = None,
                      k: int = 4) -> list[dict]:
     """Search improve_knowledge_index. Filter by phase if provided.
 
@@ -383,8 +383,15 @@ def build_knowledge_context(
     """Retrieve relevant Black Belt methodology chunks for the current
     conversation turn and format them as a SystemMessage content block.
 
-    Returns the formatted reference block, or None when nothing relevant
-    is found. The query is built from the user's latest message and, when
+    **Three outcomes, and they are three (§27), not two:** the formatted
+    reference block when the search matched; `None` when the search ran and
+    matched nothing; and an explicit *"lookup failed, this is not an absence"*
+    block when retrieval broke. Collapsing the last two into `None` is what
+    this function used to do, and it is the precise shape of the bug §27
+    exists to prevent — the coach cannot tell a silent corpus from a broken
+    one, so it reports the silence to the Belt as fact.
+
+    The query is built from the user's latest message and, when
     known, the active work product label (high-signal). Queries
     improve_knowledge_index via search_knowledge() across all phases —
     deliberately unfiltered, so cross-phase methodology stays reachable.
@@ -400,13 +407,44 @@ def build_knowledge_context(
 
     try:
         results = search_knowledge(query, k=top_k)
-    except KnowledgeSearchError:
-        # Already logged with full classification in search_knowledge.
-        # Coaching continues without grounding — a quality degradation, not
-        # an availability failure (§4.8, Search breaker).
-        return None
+    except KnowledgeSearchError as e:
+        # ═══════════════════════════════════════════════════════════════
+        # §27 — A FAILURE MUST NOT REACH THE COACH AS AN ABSENCE
+        # ═══════════════════════════════════════════════════════════════
+        # This used to `return None`, which is **the same value this function
+        # returns when nothing matched**. Coaching then continued with no
+        # grounding and no way for the coach to know grounding had been
+        # attempted and had broken — so the coach would answer as though the
+        # methodology simply had nothing on the topic. That is §27's named
+        # failure: *"the coach then told Belts the methodology had nothing on
+        # their topic, which was false and unfalsifiable from the outside."*
+        #
+        # `knowledge/tools.py` already drew this distinction for the three
+        # `@tool` entry points. This is the path the five orchestrators take on
+        # **every turn**, and it did not.
+        #
+        # The block below is §27's prescribed wording. Coaching still
+        # continues — a retrieval failure is a quality degradation, not an
+        # availability failure (§4.8, Search breaker) — but it continues
+        # *knowing*.
+        logger.error(
+            "build_knowledge_context failed | %s",
+            e.error.to_step_log_entry(layer="retrieval", phase=phase),
+        )
+        rule = "═" * 43
+        return (
+            f"{rule}\nMETHODOLOGY LOOKUP FAILED — NOT AN ABSENCE\n{rule}\n\n"
+            f"Methodology search is unavailable right now "
+            f"({e.error.error_code}). This is a retrieval failure, not an "
+            "absence of guidance — do not tell the team the methodology has "
+            "nothing on this. Answer from your own DMAIC knowledge, say the "
+            "reference lookup failed, and avoid citing sources you could not "
+            "retrieve."
+        )
 
     if not results:
+        # Genuine no-match: the search ran and the corpus had nothing
+        # relevant. Nothing to inject, and nothing to warn about.
         return None
 
     blocks = []
