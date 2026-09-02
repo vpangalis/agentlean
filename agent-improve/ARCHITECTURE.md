@@ -11160,6 +11160,37 @@ replacement for the pre-1.2 workaround.
 > **SPEC-GAP (G-06):** it writes `extraction_error` and
 > `extraction_incomplete`, and `PhaseState` declares neither — see S-C02.
 
+> **DESIGN NOTE — S-F29 / G-35, an input to step 8.2, NOT a ratification.**
+> Recorded 2026-09-02. **It closes no gap and changes no rule:** G-35 stays
+> open, and §45's mandate is untouched.
+>
+> §45's choice stands: compensation via LangGraph's native `error_handler=`
+> (`delete_or_flag_stale_in_case_index` undoes the stale `improve_case_index`
+> write); hand-rolled sagas remain banned. **Complementing it**, per LangGraph's
+> durable-execution guidance a node re-runs on resume/retry, so an
+> un-encapsulated external write is repeated. Prefer making the
+> `improve_case_index` write **idempotent** — an upsert keyed on `case_id`, so a
+> replay overwrites the same entry rather than orphaning a second — and
+> **encapsulating** it in a task/dedicated node so a completed write loads from
+> the checkpoint instead of re-executing.
+>
+> **Effect:** an idempotent write shrinks what `phase_error_recovery` must undo,
+> leaving the compensating action to cover only the genuinely non-idempotent
+> residue (e.g. a partially-written multi-document batch) rather than every
+> retry. So at step 8.2: **(a)** make the index write idempotent and
+> encapsulated first, then **(b)** scope `delete_or_flag_stale_in_case_index` to
+> the remainder.
+>
+> Source: LangGraph durable execution —
+> `docs.langchain.com/oss/python/langgraph/durable-execution`. *(Substance
+> verified 2026-09-02 against that page and its source markdown at
+> `langchain-ai/langgraph` `docs/docs/concepts/durable_execution.md`: wrap
+> side-effecting operations in tasks/nodes so a resumed workflow retrieves
+> their results from the persistence layer rather than repeating them, and make
+> those effects idempotent. The same page is explicit that **durable execution
+> does not by itself make a non-idempotent side effect safe** — which is the
+> reason (a) precedes (b) rather than replacing it.)*
+
 ### 64.4 S-F30 · `degraded_mode_response`
 
 **Architecture:** §46 · **File:** `core/reliability.py` · **Procedure:** step 8.3
@@ -11537,7 +11568,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-32** | `request_human_approval` — how a tool raises a graph-level interrupt from inside the executor's tool loop | S-F22 |
 | **G-33** | `load_skill(name)` — in neither the universal seven nor any phase count; if bound, Measure goes to 16 against a cap of 16 | S-F23, S-F02, S-C12 |
 | **G-34** | The escalation subgraph — no node list, no state schema, no exit contract | S-F08 |
-| **G-35** | `synthesise_partial()`, `delete_or_flag_stale_in_case_index()` (delete **or** flag stale — the name carries the undecided choice), and the `degraded_coaching_response` node, which is not one of §13's permitted five | S-F31, S-F32, S-F33, S-F09, S-F29 |
+| **G-35** | `synthesise_partial()`, `delete_or_flag_stale_in_case_index()` (delete **or** flag stale — the name carries the undecided choice), and the `degraded_coaching_response` node, which is not one of §13's permitted five. **STILL OPEN** — but §64.3 now carries a *design note* on making the `improve_case_index` write idempotent and encapsulated so the compensating action covers only the non-idempotent residue. **An input to step 8.2, not a ratification and not a closure** | S-F31, S-F32, S-F33, S-F09, S-F29 |
 | **G-36** | **No upload endpoint exists**, no file owns the upload handler, and §29.1 makes uploads the only channel through which external data enters the platform | S-F35, S-F34 |
 | **G-37** | **Nothing writes `improve_case_index`** — the schema is defined, cleanup of it is required, and no writer is named | S-F36 |
 

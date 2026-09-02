@@ -14,7 +14,7 @@
 | **Last spine commit** | `025bde7` (commit 3.5) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |
-| **Block regenerated** | 2026-09-01 |
+| **Block regenerated** | 2026-09-02 |
 
 *Derived from `docs/BUILD_TRACKER.md`, `CLAUDE.md`, `ARCHITECTURE.md`
 and the git spine — never hand-maintained, so it cannot drift from
@@ -708,6 +708,22 @@ whether still owed.
 - **Refactor commits:** `refactor(arch-v2): commit X.Y — <what changed>`.
 - **`/verify-current-version` before any version/API decision** — the live
   package index is authoritative for what exists now, not any document.
+- **CAPTURE-AS-YOU-GO.** Every open question and every decision made during the
+  refactor is written to its dedicated file **at the moment it arises**, never
+  left only in chat or a commit body. Routing:
+
+  | What it is | Where it goes |
+  |---|---|
+  | Open design question | **SPEC-GAP** in `ARCHITECTURE.md` §66 |
+  | Owed work that is not a gap | **WATCH** in §6 of this file |
+  | Ratified decision | `DECISIONS.md` |
+  | The reasoning behind it | `REVIEW_DECISIONS.md` |
+  | New or changed step | `BUILD_TRACKER.md` **and** `REFACTORING_PROCEDURE.md` |
+
+  **Desktop drafts; Claude Code commits it in the same step** — not in a
+  follow-up pass. A decision that lives only in a commit body is one the next
+  session cannot find, and the register cannot surface what was never written
+  to it.
 
 > **Reference sweeps must use raw `grep -rn`** — agent-facing search tools
 > filter by `.gitignore` and cannot see gitignored paths. Any "zero remaining

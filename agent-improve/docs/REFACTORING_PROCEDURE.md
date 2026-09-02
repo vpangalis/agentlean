@@ -786,8 +786,13 @@ minimal**: the planner returns a stub `CoachingPlan`, the executor still calls
 the v1 orchestrate logic. Stages 5–7 fill them. This keeps the step small
 enough to verify.
 
-**Done when:** `build_phase_subgraph("define", llm).compile()` returns a
-compiled graph with exactly those five node names, asserted in a test.
+**Done when:** `build_phase_subgraph("define", llm)` returns a compiled graph
+with exactly those five node names, asserted in a test.
+
+> *Corrected 2026-09-02: this read `build_phase_subgraph("define", llm).compile()`.
+> The builder already returns a compiled graph — S-F02's own definition ends
+> `return builder.compile()` — so the trailing call raises `AttributeError`
+> (`CompiledStateGraph` has no `.compile`). Found while building 4.1.*
 
 **Prompt:**
 > CLAUDE.md §3.1 and §3.3. Create `agent-improve/backend/phases/define/graph.py`
