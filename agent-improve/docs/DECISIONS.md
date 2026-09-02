@@ -3578,3 +3578,149 @@ raised `PhaseNotWired` for the four unbuilt phases; generalising the node into a
 Measure would have been coached as Define. Restored as an explicit check against
 `WIRED_PHASES` before the mapper runs, so the four still surface as **501** and
 not as a 500 from inside `new_phase_state`'s identity assertion.
+
+---
+
+## Part AB — Step 4.4: one builder, five phases, and the brief that was about to go empty (2026-09-02)
+
+**Procedure step 4.4**, the remaining four phase subgraphs. Reference §12, §13,
+§14, §15, §34; **§58.11 — S-F02**. Three decisions and one defect caught before
+it shipped. **WATCH 17 closes here**: all five phases are wired and the four
+501s are gone.
+
+---
+
+### AB1 — One parameterised builder, extracted; not five copies, and not four importing Define's
+
+**Ruled: `build_phase_subgraph` moves out of `phases/define/graph.py` into
+`phases/subgraph_common.py`, and the five node bodies into
+`phases/nodes_common.py`. Each `phases/{phase}/graph.py` re-exports the builder;
+each `phases/{phase}/nodes.py` keeps five real module-level `async def`s that
+delegate.**
+
+§12 is singular about this — *"the subgraph builder takes the phase as a
+parameter"* — and step 4.4's own words are *"same five-node structure, **built
+from the parameterised builder**"*. Step 4.1 had put that builder inside
+Define's module, where it refused every other phase; 4.4 is the step that makes
+the parameter mean something.
+
+**Three shapes were available and two were rejected:**
+
+| Shape | Why not |
+|---|---|
+| **Copy the builder and the five node bodies into each phase** | Five topologies that must agree by hand. §12's *"identical node-name sets"* becomes a convention rather than a fact, and the live rules inside the bodies — §47's `step_log` key format, §34's do-not-validate-a-coaching-turn, the WATCH 7 seam — end up enforced in five places to be kept in step manually. **A rule enforced in four of five places is not enforced** |
+| **The four import Define's builder** | Worse than duplication. It makes Define structurally special and puts four phases' topology behind one phase's module — the coupling §12's *"no subgraph imports another subgraph's nodes"* is guarding against, even though a builder is not literally a node |
+| **Extract to shared modules** ✅ | Every phase is a peer of every other; one copy of each rule |
+
+**The per-phase `nodes.py` files keep five real `async def`s, and that is
+deliberate rather than lazy.** §14 requires module-level async functions and the
+test suite asserts `fn.__module__` is that phase's module. Generating them in a
+factory would put `__module__` on the shared file, and satisfying the assertion
+would then mean rewriting `__module__` to something it is not — a test passed by
+making an attribute lie. The wrappers are two lines each.
+
+**How the builder finds a phase's nodes:** `importlib.import_module(
+f"backend.phases.{phase}.nodes")`, by name rather than through a registry dict.
+A registry would make every phase's nodes a load-time dependency of every other,
+which is the coupling §12 exists to prevent even though it is not the letter of
+the rule. `test_no_subgraph_imports_another_subgraphs_nodes` greps all ten
+per-phase modules for sibling imports.
+
+**Both modules are outside Appendix B's file plan** — flagged, as
+`phases/mappers_common.py` was at 3.3 and `core/conversation.py` at 4.2, and
+Appendix B is updated in this commit so the list matches reality. All four share
+one shape: **the plan enumerates `phases/{phase}/…` five times over, and the
+five copies it implies are the thing that drifts.**
+
+---
+
+### AB2 — `get_graph(phase)`: five trivial graphs, not one graph with a branch from `START`
+
+**Ruled: the runtime is one one-node graph per phase, node named
+`{phase}_phase`.**
+
+Until 4.4 only Define had a subgraph, so a single-node turn graph hardwired to
+Define was the whole runtime. With all five built, that same graph would run
+**Define's** subgraph for a Measure case — caught by the input mapper's identity
+assertion (S-C02 B8), but as a 500 and only after the wrong phase was entered.
+
+**The obvious alternative was one graph with five phase nodes and a conditional
+edge from `START` on `current_phase`. Rejected, and for the same reason 4.3
+rejected a Level 1 escalation branch** (Part AA1): that is a conditional edge at
+Level 1, the shape §15 and S-F01's invariants forbid, and `route_after_phase`
+was deleted for being exactly it. **Building one in scaffolding is how it comes
+back** — scaffolding is where a banned pattern is easiest to justify and hardest
+to notice later. Five trivial graphs cost nothing and forbid nothing.
+
+**The node name carries the phase because S-F10 makes it load-bearing:**
+checkpoint namespaces for subgraphs invoked inside node functions derive from
+the node name, so a shared name would put every phase's subgraph state in one
+namespace. **The `thread_id` is still one per project** (§16) — the five graphs
+share a thread and therefore a parent checkpoint, which is correct: parent state
+is the project's, not the phase's, and `messages` accumulating across phases is
+what §16's one-thread rule means.
+
+**The `_phase` suffix is kept** rather than renamed to the supervisor's bare
+`define` / `measure`, for the reason AA3 gives: the rename moves every
+subgraph's `checkpoint_ns`, so it is made once, with the Stage-7 swap.
+
+---
+
+### AB3 — The cross-phase brief was about to go empty, silently
+
+**This is the defect 4.4 caught, and it would not have failed a test or raised
+an error.**
+
+**Define is the only phase whose orchestrator reads its own `phase_inputs`
+alone.** It has no prior phase. Every other one reads upstream:
+
+| Phase | Reads |
+|---|---|
+| Measure | Define — seeds `primary_metric_confirmed` / `secondary_metric_confirmed` from Define's `primary_metric` / `secondary_metric` |
+| Analyse | Define + Measure — a cross-phase brief injected as a `SystemMessage` on **every** orchestrator call |
+| Improve | Define + Measure + Analyse — same |
+| Control | every prior phase — same |
+
+The 4.2 seam passed `phase_inputs = {phase: draft}`, which is all a Define-only
+runtime needed. Extended unchanged to five phases, **every brief would have
+resolved to `{}` and every upstream fact would have vanished from the prompt** —
+Measure coaching without Define's metric, Analyse without Measure's baseline —
+with no exception anywhere, because each reader is a `.get(...) or {}` with a
+labelled fallback. The coach would simply have been less informed, in a way
+visible only by reading a transcript.
+
+**Fixed:** `config["configurable"]["v1_phase_inputs"]` now carries **every**
+phase's `structured` from the case document, and `to_v1_state` overlays the
+current phase with `draft` — the live accumulator, which is newer than the case
+document's copy. `gateway/routes.py` is outside the step's `Touches` and was
+edited anyway; flagged here, as `core/checkpointer.py` was at 4.2.
+
+**A rename went with it.** Inbound and outbound had both become `v1_artifacts`
+meaning different things — inbound "every phase's stored inputs", outbound "this
+turn's draft for this phase". The outbound key is now **`v1_draft`**
+(`core/graph.py`, `core/conversation.py`'s `_TRANSPORT_KEYS`,
+`gateway/routes.py`). Two names for two things, which is the rule §10.5 states
+for `case_id` and `artifacts` and which applies with more force to a transport
+key nobody is looking at.
+
+---
+
+### AB4 — What the parameterisation must NOT flatten
+
+**§28's per-phase retrieval strategy is a real difference and is carried, not
+averaged.** Analyse plans **multi-hop** — root-cause validation is layered — and
+the other four are single-hop. It rides on the stub `coaching_plan` and **is
+read by nothing yet**; it is there because `CoachingPlan.retrieval_strategy`
+selects the executor's entire retrieval path at stage 6, and because a shared
+builder is exactly the place a genuine per-phase fact gets quietly lost.
+`test_analyse_is_the_one_phase_planning_multi_hop` pins all five values.
+
+**The four gates beyond Define are inert for the same reason Define's is**
+(WATCH 7): each `validate_{phase}` requires its §39.x v2 names and its
+orchestrator emits the v1 ones. 4.4 wires them; it does not open them.
+
+**`test_define_graph.py` became `test_phase_subgraphs.py`**, parameterised over
+all five — 133 tests where there were 34. Every assertion in it was already
+generic; only the parameterisation is new. The Done-when's own test asserts the
+five node-name sets are identical **to each other**, which five separate checks
+against a constant would not quite establish.

@@ -1,4 +1,4 @@
-"""Define's phase subgraph.
+"""Analyse's phase subgraph.
 
 Canonical: reference **§58.11 — S-F02**. Architecture: §12 (topology), §13 (five
 nodes), §15 (routing), §16 (where the checkpointer and store attach). Procedure
@@ -12,7 +12,7 @@ topology would be five things that must agree by hand, and §12's "identical
 node-name sets" would become a convention instead of a fact.
 
 This module exists because Appendix B's file list names it and because it is
-where a reader looks for Define's graph. It holds no second copy of the wiring.
+where a reader looks for Analyse's graph. It holds no second copy of the wiring.
 
 **Compiled with neither checkpointer nor store** (§16, S-F02 B1) — both attach
 to the parent graph only, and LangGraph routes this subgraph's writes through
@@ -26,7 +26,7 @@ from backend.phases.subgraph_common import (
     build_phase_subgraph,
 )
 
-PHASE = "define"
+PHASE = "analyse"
 
 __all__ = [
     "build_phase_subgraph",

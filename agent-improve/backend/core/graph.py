@@ -93,11 +93,11 @@ from backend.core.state import SupervisorState
 from backend.core.store import get_store
 from backend.phases.analyse.mappers import analyse_input_mapper
 from backend.phases.control.mappers import control_input_mapper
-from backend.phases.define.graph import build_phase_subgraph
 from backend.phases.define.mappers import define_input_mapper
 from backend.phases.improve.mappers import improve_input_mapper
 from backend.phases.mappers_common import PHASE_ORDER
 from backend.phases.measure.mappers import measure_input_mapper
+from backend.phases.subgraph_common import build_phase_subgraph
 
 logger = logging.getLogger(__name__)
 
@@ -110,8 +110,12 @@ RECURSION_LIMIT = 50
 #: so it is part of the contract between the two levels, not a local label.
 ESCALATE_NODE = "escalate"
 
-#: The phases whose subgraph is built. 4.4 makes this `PHASE_ORDER`.
-WIRED_PHASES: tuple[str, ...] = ("define",)
+#: Every phase has a compiled subgraph as of procedure step 4.4 — this closed
+#: WATCH 17. Kept as a named constant rather than inlined to `PHASE_ORDER`
+#: because it answers a different question: `PHASE_ORDER` is the DMAIC sequence,
+#: this is what the graph can actually run. They are equal now and a future
+#: phase added to one must be added to the other consciously.
+WIRED_PHASES: tuple[str, ...] = PHASE_ORDER
 
 #: S-F10 / S-F12 — one input mapper per phase, all ten landed at step 3.3.
 INPUT_MAPPERS: dict[str, Callable[..., Any]] = {
@@ -137,9 +141,8 @@ def _subgraph(phase: str):
     """
     if phase not in WIRED_PHASES:
         raise PhaseNotWired(
-            f"No compiled subgraph for phase {phase!r}. Only "
-            f"{', '.join(WIRED_PHASES)} is wired; the remaining four land at "
-            f"procedure step 4.4."
+            f"No compiled subgraph for phase {phase!r}; expected one of "
+            f"{', '.join(WIRED_PHASES)}."
         )
     return build_phase_subgraph(phase, llm=None)
 
@@ -184,9 +187,10 @@ def phase_node(phase: str) -> Callable[..., Any]:
         current = state["current_phase"]
         if current not in WIRED_PHASES:
             raise PhaseNotWired(
-                f"Case is in phase {current!r}, whose subgraph is not built. "
-                f"Only {', '.join(WIRED_PHASES)} is wired; the remaining four "
-                f"land at procedure step 4.4."
+                f"Case is in phase {current!r}, which has no subgraph. Since "
+                f"step 4.4 all five DMAIC phases are wired, so this is a case "
+                f"whose `current_phase` is not a phase — `\"complete\"` on a "
+                f"finished project is the ordinary way to reach here."
             )
 
         compiled = _subgraph(phase)          # raises PhaseNotWired until 4.4
@@ -197,11 +201,14 @@ def phase_node(phase: str) -> Callable[..., Any]:
         sent_messages = list(child["messages"])
 
         # ── the WATCH 7 seam, seeded at the boundary ──────────────────
-        # `draft` is the v1 accumulator (see `phases/define/nodes.py`). The
+        # `draft` is the v1 accumulator (see `phases/nodes_common.py`). The
         # mapper initialises it to `{}` because in the v2 design this turn's
-        # extraction starts empty; until 6.2 it has to carry what the case
-        # document already holds, or every turn re-extracts against nothing.
-        seeded = configurable.get("v1_artifacts")
+        # extraction starts empty; until the v2 capture path lands it has to
+        # carry what the case document already holds, or every turn re-extracts
+        # against nothing. The OTHER phases' inputs ride on `config` and are
+        # read by `to_v1_state` — every phase but Define builds a cross-phase
+        # brief from them.
+        seeded = (configurable.get("v1_phase_inputs") or {}).get(phase)
         if seeded:
             child["draft"] = dict(seeded)
 
@@ -225,7 +232,7 @@ def phase_node(phase: str) -> Callable[..., Any]:
         verdict = _verdict(result)
         payload: dict[str, Any] = {
             "phase": phase,
-            "v1_artifacts": dict(result.get("draft") or {}),
+            "v1_draft": dict(result.get("draft") or {}),
             "gate_verdict": verdict,
             "turn_count": turn_count,
         }
@@ -430,42 +437,74 @@ def build_supervisor():
 
 # ── the runtime, until the gate interrupt lands ───────────────────────────
 
-@lru_cache(maxsize=1)
-def get_graph():
-    """The compiled graph every route invokes (§12, §49). Cached per process.
+@lru_cache(maxsize=len(PHASE_ORDER))
+def get_graph(phase: str = PHASE_ORDER[0]):
+    """The compiled graph the routes invoke, for one phase (§12, §49).
 
-    **This is the one-turn parent step 4.2 shipped**, `START -> define_phase ->
+    **This is the one-turn parent step 4.2 shipped**, `START -> {phase}_phase ->
     END`, and it stays the runtime until `gate_review` raises `interrupt()`.
     The reason is §15's own precondition, stated in the module docstring: the
     supervisor's static DMAIC chain advances on `END`, and until the interrupt
-    exists `END` means "the graph ran", so one `/ask` turn would run every phase
-    in sequence.
+    exists `END` means "the graph ran", so one `/ask` turn on the supervisor
+    would run every phase in sequence.
+
+    ═══════════════════════════════════════════════════════════════════════
+    WHY THIS TAKES A PHASE, AS OF STEP 4.4
+    ═══════════════════════════════════════════════════════════════════════
+    Until 4.4 only Define had a subgraph, so a single-node turn graph hardwired
+    to Define was the whole runtime. Now all five are built, and a one-node
+    graph would run **Define's** subgraph for a Measure case — caught by the
+    input mapper's identity assertion (S-C02 B8) as a 500, but only after the
+    wrong phase had been entered.
+
+    **One graph per phase, rather than one graph with five nodes and a branch
+    from `START`.** A branch would be a conditional edge at Level 1, which is
+    the shape §15 and S-F01 forbid and which `route_after_phase` was deleted
+    for; building one here — even in scaffolding — is how it comes back. Five
+    trivial graphs cost nothing and forbid nothing.
+
+    **The node name carries the phase** (`measure_phase`, `analyse_phase`, …)
+    because S-F10 makes it load-bearing: checkpoint namespaces for subgraphs
+    invoked inside node functions are derived from the node name, so a shared
+    name would put every phase's subgraph state in one namespace.
+
+    **The `thread_id` is still one per project** (§16) — these five graphs share
+    a thread and therefore a parent checkpoint, which is correct: the parent
+    state is the project's, not the phase's, and `messages` accumulating across
+    phases is what §16's one-thread rule means.
 
     **The swap, when stage 7 lands the interrupt:** `return build_supervisor()`,
-    delete this function's body, and rename the node from `define_phase` to
-    `define`. Nothing in `gateway/routes.py` changes — it calls `get_graph()`
-    and marshals the envelope, which is all §49 permits it to do.
+    delete this function's body, and rename the nodes from `{phase}_phase` to
+    `{phase}`. Nothing in `gateway/routes.py` changes beyond dropping the
+    argument — it calls `get_graph(...)` and marshals the envelope, which is all
+    §49 permits it to do.
 
-    **The node keeps the name `define_phase` deliberately.** Renaming it to the
-    supervisor's `define` would change every subgraph's `checkpoint_ns` from
-    `define_phase:{task}` to `define:{task}`, orphaning the checkpoints written
-    since 4.2. That costs nothing today — the input mapper rebuilds child state
-    on every invoke — but it is a rename to make once, with the swap, rather
-    than twice.
+    **The `_phase` suffix is kept deliberately.** Renaming to the supervisor's
+    bare `define` / `measure` now would change every subgraph's `checkpoint_ns`
+    and orphan the checkpoints written since 4.2. It costs nothing today — the
+    input mapper rebuilds child state on every invoke — but it is a rename to
+    make once, with the swap, rather than twice.
     """
+    if phase not in WIRED_PHASES:
+        raise PhaseNotWired(
+            f"No compiled subgraph for phase {phase!r}; expected one of "
+            f"{', '.join(WIRED_PHASES)}."
+        )
+
+    node_name = f"{phase}_phase"
     builder = StateGraph(SupervisorState)
-    builder.add_node("define_phase", phase_node("define"))
-    builder.add_edge(START, "define_phase")
-    builder.add_edge("define_phase", END)
+    builder.add_node(node_name, phase_node(phase))
+    builder.add_edge(START, node_name)
+    builder.add_edge(node_name, END)
 
     checkpointer, store = _persistence()
     graph = builder.compile(checkpointer=checkpointer, store=store)
     logger.info(
-        "Agent Improve turn graph compiled (runtime) — checkpointer=%s "
-        "store=%s, wired phases: %s of %d",
+        "Agent Improve turn graph compiled (runtime) — phase=%s "
+        "checkpointer=%s store=%s",
+        phase,
         type(checkpointer).__name__ if checkpointer else None,
         type(store).__name__ if store else None,
-        ", ".join(WIRED_PHASES), len(PHASE_ORDER),
     )
     return graph
 

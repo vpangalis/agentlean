@@ -1706,11 +1706,20 @@ reference's shape-level list does not enumerate.
 
 ## Appendix B — Disposition of the 55 backend files
 
+> *Four shared modules have been added to the `New` row since this appendix was
+> written — `phases/mappers_common.py` (3.3), `core/conversation.py` (4.2),
+> `phases/nodes_common.py` and `phases/subgraph_common.py` (4.4). **None was in
+> the original file plan**, and each was flagged at the step that added it
+> rather than slipped in. They share one shape: the plan enumerates
+> `phases/{phase}/…` five times over, and the five copies it implies are the
+> thing that drifts. The count in this heading is the original 55 and is left
+> as the historical figure.*
+
 | Disposition | Files |
 |---|---|
 | **Rewrite** | `core/state.py` · `core/graph.py` · `core/llm.py` · `core/prompts.py` · `core/errors.py` · `gateway/routes.py` · `knowledge/tools.py` · `escalate.py` · `phases/{phase}/schema.py` × 5 · `phases/{phase}/validate.py` × 5 |
 | **Delete** | `phases/{phase}/orchestrate.py` × 5 · `phases/{phase}/analyse.py` × 5 (v1 stubs) |
-| **New** | `core/substate.py` · `core/store.py` · `core/reliability.py` · `core/diagrams.py` · `middleware/` × 5 · `validation/` × 4 · `knowledge/{computation,tool_args,fusion}.py` · `phases/{phase}/{graph,nodes,mappers}.py` × 15 · **`phases/mappers_common.py`** (added at 3.3 — the ten mappers differ only in which Store key they read and what `phase_context` holds; five copies of a twenty-key `PhaseState` skeleton is how field twenty-one lands in four of them, which is not hypothetical: it is what `fix(state)` 1d6f0ab corrected) |
+| **New** | `core/substate.py` · `core/store.py` · `core/reliability.py` · `core/diagrams.py` · `middleware/` × 5 · `validation/` × 4 · `knowledge/{computation,tool_args,fusion}.py` · `phases/{phase}/{graph,nodes,mappers}.py` × 15 · **`phases/mappers_common.py`** (added at 3.3 — the ten mappers differ only in which Store key they read and what `phase_context` holds; five copies of a twenty-key `PhaseState` skeleton is how field twenty-one lands in four of them, which is not hypothetical: it is what `fix(state)` 1d6f0ab corrected) · **`phases/nodes_common.py`** and **`phases/subgraph_common.py`** (added at 4.4 — §12 specifies ONE parameterised builder and §13's five nodes are identical across all five phases; five copies would make "identical node-name sets" a convention rather than a fact, and would put §47's key format and §34's do-not-validate-a-coaching-turn rule in five places to be kept in step by hand) · **`core/conversation.py`** (added at 4.2 — the case document's v1 turn dicts and `messages` need converting in both directions, by `gateway/routes.py` and by the phase nodes, and neither may import the other) |
 | **Keep, minor edits** | `core/checkpointer.py` · `core/citations.py` · `core/config.py` · `knowledge/retriever.py` · `storage/blob.py` · `storage/models.py` · `gateway/schemas.py` |
 | **Untouched** | `app.py` · `core/logging_setup.py` · `core/request_context.py` · `core/tracing.py` · `upload/classifier.py` · all `__init__.py` |
 | **Edit only for `content_blocks` (2.6)** | `upload/agent.py` |
@@ -1757,7 +1766,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 4.1** | Define phase subgraph | done |
 | **Commit 4.2** | `thread_id` + disconnect policy | done |
 | **Commit 4.3** | Supervisor graph | done |
-| **Commit 4.4** | Remaining four subgraphs | pending |
+| **Commit 4.4** | Remaining four subgraphs | done |
 | **Commit 5.1** | Retrieval failure semantics | pending |
 | **Commit 5.2** | Three `rag_lookup_*` + RRF | pending |
 | **Commit 5.3** | 20 computation tools | pending |

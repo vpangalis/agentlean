@@ -47,6 +47,7 @@ from langgraph.checkpoint.base import (
 
 from backend.core import graph as graph_mod
 from backend.core.state import SUPERVISOR_STATE_FIELDS
+from backend.phases.mappers_common import PHASE_ORDER
 
 
 # ── a saver that records what the Azure one would have written ────────────
@@ -178,7 +179,7 @@ def _config(entry: str = "ask", **configurable: Any) -> dict[str, Any]:
             "current_user": "Tester",
             "case_metadata": {"title": "T", "belt_level": "green",
                               "leader": "L", "department": "D"},
-            "v1_artifacts": {},
+            "v1_phase_inputs": {},
             **configurable,
         },
         "recursion_limit": graph_mod.RECURSION_LIMIT,
@@ -200,7 +201,7 @@ def wired(monkeypatch):
     graph_mod.get_graph.cache_clear()
     graph_mod._subgraph.cache_clear()
     try:
-        yield graph_mod.get_graph(), saver
+        yield graph_mod.get_graph("define"), saver
     finally:
         graph_mod.get_graph.cache_clear()
         graph_mod._subgraph.cache_clear()
@@ -253,13 +254,26 @@ def test_subgraph_carries_neither(wired) -> None:
     assert subgraph.store is None
 
 
-def test_parent_is_supervisor_state_and_one_phase_node(wired) -> None:
-    """4.2's parent is the smallest one §16 permits; 4.3 grows it."""
+def test_the_runtime_is_one_phase_node_per_phase(wired) -> None:
+    """One invoke is one Belt turn, and the node name carries the phase.
+
+    4.2's parent was a single node hardwired to Define, because Define was the
+    only built subgraph. Since **4.4 all five are built**, so the runtime is one
+    trivial graph per phase — not one graph with five nodes and a branch from
+    `START`, which would be a Level 1 conditional edge and the shape §15 and
+    S-F01 forbid. The `{phase}_phase` name is load-bearing: S-F10 derives the
+    subgraph's `checkpoint_ns` from it, so a shared name would put every phase's
+    state in one namespace.
+    """
     graph, _ = wired
     names = {n for n in graph.get_graph().nodes
              if n not in ("__start__", "__end__")}
     assert names == {"define_phase"}
-    assert graph_mod.WIRED_PHASES == ("define",)
+    assert graph_mod.WIRED_PHASES == PHASE_ORDER, "step 4.4 closed WATCH 17"
+    for phase in PHASE_ORDER:
+        other = {n for n in graph_mod.get_graph(phase).get_graph().nodes
+                 if n not in ("__start__", "__end__")}
+        assert other == {f"{phase}_phase"}, phase
 
 
 # ── the step's Done-when, at the layer a unit test can reach ──────────────
@@ -364,7 +378,7 @@ def test_the_turn_product_rides_on_the_reply_message(wired, stub_coach) -> None:
 
     reply = [m for m in result["messages"] if isinstance(m, AIMessage)][-1]
     extra = reply.additional_kwargs
-    assert extra["v1_artifacts"] == {"business_case": "b"}
+    assert extra["v1_draft"] == {"business_case": "b"}
     assert extra["sipoc_diagram"] == {"draft": True}
     assert extra["section_completed"] == "business_case"
     assert extra["gate_verdict"] == {}, "a coaching turn validates nothing"
@@ -465,11 +479,16 @@ def test_reaching_end_does_not_apply_the_gate(wired, stub_coach) -> None:
     assert result["final_output"] is None
 
 
-def test_an_unwired_phase_is_refused_rather_than_dispatched(wired) -> None:
-    """4.4 wires the other four. Until then this raises rather than falling back."""
+def test_a_case_in_a_non_phase_is_refused_rather_than_dispatched(wired) -> None:
+    """All five DMAIC phases are wired since 4.4; `"complete"` is not one.
+
+    A finished project is the ordinary way to reach this — `IMPR-2026-E9D`
+    carries `current_phase="complete"` — and it must be refused rather than
+    coached as whichever phase the graph happens to hold.
+    """
     graph, _ = wired
-    with pytest.raises(graph_mod.PhaseNotWired, match="4.4"):
+    with pytest.raises(graph_mod.PhaseNotWired, match="complete"):
         asyncio.run(graph.ainvoke(
-            _seed_state(current_phase="measure", phase_index=1),
+            _seed_state(current_phase="complete", phase_index=4),
             config=_config(),
         ))

@@ -12,7 +12,7 @@ Legend:  ✅ done · ▶ next · ☐ to do · ⛔ blocked · ⏸ gated/external
 # Agent Improve — Refactor Build Tracker
 # updated 2026-09-02 · build target: `agent-improve/ARCHITECTURE.md`
 
-**Progress: 14 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3 + 9.0 out-of-band). **Next: step 4.4.**
+**Progress: 15 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4 + 9.0 out-of-band). **Stage 4 complete. Next: step 5.1.**
 Spine runs 2.3 → 11.2, one step = one commit. The spec is complete; this is the code.
 
 **Blocked / not-yet-schedulable:** 8.4 (Redis not provisioned), 8.5 (`request_drain`
@@ -44,12 +44,12 @@ unconfirmed), 9.1 (external reindex). Everything else is open once its precondit
 | 4.1 | The Define phase subgraph | §12, §13, §14, §39.1 | ✅ done |
 | 4.2 | `thread_id` through `graph.ainvoke` + disconnect policy | §16, §47, §49 | ✅ done **+ azure-query VERIFIED** *(first live checkpoints ever. §47: 3 in, 2 deferred — WATCH 13, 14. Fixed `checkpoint_ns` in the blob layout — Z3 — and the ABANDON policy, which did not work as first shipped and was caught by the live check — Z8. Verified on `IMPR-2026-0CB`; E9D is complete — WATCH 22)* |
 | 4.3 | The supervisor graph | §12, §15, §38 | ✅ done *(five phase nodes + `escalate`, seven static edges, **no Level-1 conditional edge** — the escalation edge is inside the phase via `Command.PARENT`, DECISIONS Part AA. Target topology, **not yet the runtime** — WATCH 23)* |
-| 4.4 | The remaining four phase subgraphs | §12, §13, §39.2–39.5 | ▶ **next** *(closes WATCH 17 — only Define is wired today)* |
+| 4.4 | The remaining four phase subgraphs | §12, §13, §39.2–39.5 | ✅ done *(**WATCH 17 CLOSED** — all five from one parameterised builder, `subgraph_common` + `nodes_common`. Caught the cross-phase brief going empty — DECISIONS Part AB3)* |
 
 ## Stage 5 — Retrieval and tools
 | Step | What | Builds | Status |
 |---|---|---|---|
-| 5.1 | Retrieval failure semantics | §27 | ☐ *(partly done — `knowledge/retriever.py`)* |
+| 5.1 | Retrieval failure semantics | §27 | ▶ **next** *(partly done — `knowledge/retriever.py`)* |
 | 5.2 | Three `rag_lookup_*` tools + multi-query + RRF | §24, §25 | ☐ |
 | 5.3 | **The 20 computation tools** | §69 (S-F37–S-F56) | ☐ |
 | 5.4 | Per-phase tool binding | §30 | ☐ |

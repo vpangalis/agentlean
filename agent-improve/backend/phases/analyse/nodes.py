@@ -1,4 +1,4 @@
-"""The five nodes of the Define phase subgraph.
+"""The five nodes of the Analyse phase subgraph.
 
 Canonical: reference **§13** (the five nodes), **§14** (the node contract),
 **§15** (routing). Procedure step **4.4** — and 4.1/4.2 for Define, whose
@@ -6,7 +6,7 @@ corrected bodies these mirror.
 
 **The bodies live in `phases/nodes_common.py`.** §13's five nodes are identical
 across all five phases; they differ in the phase name, which
-`orchestrate_define` the executor delegates to, and which `validate_define`
+`orchestrate_analyse` the executor delegates to, and which `validate_analyse`
 the validation stack calls. One copy of the logic means §47's key format, §34's
 "do not validate a coaching turn" and the WATCH 7 seam hold in five places
 rather than in the one they were written in.
@@ -17,9 +17,10 @@ asserts `fn.__module__` is this module. Generating them in a factory would put
 `__module__` on the common file, and satisfying the assertion would then mean
 rewriting it to something untrue.
 
-Define is the one phase whose orchestrator reads only its own
-`phase_inputs` — it has no prior phase to carry forward. It is also
-the only one that emits `sipoc_diagram`.
+Analyse's orchestrator builds a **cross-phase brief from Define and
+Measure** on every call, so it reads their `phase_inputs` as well as
+its own. It is also the one phase whose planned retrieval strategy is
+multi-hop (§28) — carried on the stub plan, read by nothing yet.
 
 WHAT IS NOT REAL YET, AND MUST NOT BE FAKED
 -------------------------------------------
@@ -37,7 +38,7 @@ DECISIONS Part X (Route A): `orchestrate.py` keeps writing the v1 field names
 until the v2 capture path lands, and is deleted at 11.1. So **`draft` is the v1
 accumulator and `artifacts` stays empty** — putting v1 names into `artifacts`
 would put them on the v2 gate path, which the ruling exists to prevent. **The
-Define gate is inert**: `validate_define` requires the §39.x v2 names and the
+Analyse gate is inert**: `validate_analyse` requires the §39.x v2 names and the
 orchestrator emits the v1 ones.
 
 NODES MAY NOT WRITE `case_id` OR `current_phase`
@@ -54,10 +55,10 @@ from langgraph.types import Command
 
 from backend.core.substate import PhaseState
 from backend.phases import nodes_common as _c
-from backend.phases.define.orchestrate import orchestrate_define
-from backend.phases.define.validate import validate_define
+from backend.phases.analyse.orchestrate import orchestrate_analyse
+from backend.phases.analyse.validate import validate_analyse
 
-PHASE = "define"
+PHASE = "analyse"
 
 
 def step_key(turn_count: int, step_name: str) -> str:
@@ -77,16 +78,16 @@ async def executor(
     state: PhaseState,
     config: Optional[RunnableConfig] = None,
 ) -> dict[str, Any]:
-    """Run one coaching turn, delegating to `orchestrate_define` (§17)."""
-    return await _c.executor(PHASE, orchestrate_define, state, config)
+    """Run one coaching turn, delegating to `orchestrate_analyse` (§17)."""
+    return await _c.executor(PHASE, orchestrate_analyse, state, config)
 
 
 async def validation_stack(
     state: PhaseState,
     config: Optional[RunnableConfig] = None,
 ) -> Command[Literal["planner", "gate_review"]]:
-    """The four layers, shared cap of 3 (§34) — layer 2b via `validate_define`."""
-    return await _c.validation_stack(PHASE, validate_define, state, config)
+    """The four layers, shared cap of 3 (§34) — layer 2b via `validate_analyse`."""
+    return await _c.validation_stack(PHASE, validate_analyse, state, config)
 
 
 async def gate_review(state: PhaseState) -> dict[str, Any]:

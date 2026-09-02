@@ -7,11 +7,11 @@
 
 | | |
 |---|---|
-| **Last completed** | step **4.3** — The supervisor graph |
-| **Next** | step **4.4** — The remaining four phase subgraphs |
-| **Stage** | Stage 4 — The graph |
-| **Progress** | 14 of 35 build steps |
-| **Last spine commit** | `eef7b81` (commit 4.2) |
+| **Last completed** | step **4.4** — The remaining four phase subgraphs |
+| **Next** | step **5.1** — Retrieval failure semantics |
+| **Stage** | Stage 5 — Retrieval and tools |
+| **Progress** | 15 of 35 build steps |
+| **Last spine commit** | `b93d069` (commit 4.3) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |
 | **Block regenerated** | 2026-09-02 |
@@ -764,17 +764,16 @@ so read §66 when the two disagree.)*
   Reasoning Protocol, not by inventing a compensating action on the one path
   that has to be trustworthy.
 
-- **WATCH 17 — only Define runs through the graph; the other four phases are
-  refused, not dispatched.** Step 4.2 removed both hand-built dispatch tables
-  from `gateway/routes.py` (§1.1, §49) and the parent graph it built has one
-  node, because 4.3 owns the five-node supervisor and 4.4 owns the four
-  remaining subgraphs. `/ask` and `/gate` on a non-Define phase now raise
-  `PhaseNotWired` → **HTTP 501**. **This is not a live regression**:
-  `build_phase_subgraph` has refused non-Define phases since 4.1, the Define
-  gate is ratified inert until 6.2 (WATCH 7), `case.current_phase` advances only
-  on a gate pass, and `ui/index.html` locks every later phase — so no case can
-  reach Measure today. It was chosen over reinstating a v1 fallback table for the
-  four, which is the thing §49 exists to remove. **Closes at 4.4.**
+- **WATCH 17 — CLOSED 2026-09-02 at step 4.4.** All five phase subgraphs are
+  built from the one parameterised builder, `WIRED_PHASES` is `PHASE_ORDER`, and
+  the four 501s are gone. `/ask` and `/gate` now run any DMAIC phase one turn at
+  a time through `get_graph(phase)`. **A 501 from `PhaseNotWired` no longer means
+  "not built yet"** — it now means the case's `current_phase` is not a DMAIC
+  phase at all, `"complete"` on a finished project being the ordinary case.
+  Record: `DECISIONS.md` Part AB. *Closing it surfaced the defect Part AB3
+  describes: the v1 seam carried only the current phase's inputs, which is all
+  Define needs and which would have left every other phase's cross-phase brief
+  empty with no error.*
 
 - **WATCH 18 — `gate_attempts` is on `PhaseState` but still cannot accumulate,
   so §34's cap of 3 still cannot fire.** Step 4.2 removed the hardcoded

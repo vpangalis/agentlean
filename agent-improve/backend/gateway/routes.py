@@ -358,11 +358,11 @@ def _graph_config(case: CaseDocument, phase: str, user: str, entry: str) -> dict
     per-turn hop budget — that is `RemainingSteps`, read inside the executor
     (§26). Fifty, per the step.
 
-    The three seam keys — `current_user`, `case_metadata`, `v1_artifacts` —
-    carry what `orchestrate_define` needs and `PhaseState` may not declare
-    (§56). They are deleted with the seam at 6.2; see `phases/define/nodes.py`.
+    The three seam keys — `current_user`, `case_metadata`, `v1_phase_inputs` —
+    carry what `orchestrate_{phase}` needs and `PhaseState` may not declare
+    (§56). They are deleted with the seam at 11.1; see
+    `phases/nodes_common.py`.
     """
-    record = case.phases.get(phase)
     return {
         "configurable": {
             "thread_id": case.case_id,
@@ -374,7 +374,17 @@ def _graph_config(case: CaseDocument, phase: str, user: str, entry: str) -> dict
                 "leader": case.leader,
                 "department": case.department,
             },
-            "v1_artifacts": dict((record.structured or {}) if record else {}),
+            # EVERY phase's captured fields, not just this turn's phase.
+            # Measure seeds its metric confirmations from Define, and Analyse,
+            # Improve and Control each build a cross-phase brief from the
+            # phases before them (`nodes_common.to_v1_state`). Passing only the
+            # current phase — which is all the Define-only seam needed before
+            # step 4.4 — would leave every brief empty and every upstream fact
+            # missing from the prompt, with no error anywhere.
+            "v1_phase_inputs": {
+                name: dict(record.structured or {})
+                for name, record in case.phases.items()
+            },
         },
         "recursion_limit": RECURSION_LIMIT,
     }
@@ -503,7 +513,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     }
 
     phase = _requested_phase(case, request.phase)
-    graph = get_graph()
+    graph = get_graph(phase)
     config = _graph_config(case, phase, request.user, entry="ask")
 
     try:
@@ -529,7 +539,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
 
     reply = _last_ai(result)
     payload = conversation.transport(reply) if reply is not None else {}
-    phase_data = dict(payload.get("v1_artifacts") or {})
+    phase_data = dict(payload.get("v1_draft") or {})
     verdict = dict(payload.get("gate_verdict") or {})
     extra = dict(getattr(reply, "additional_kwargs", None) or {}) if reply else {}
 
@@ -958,7 +968,7 @@ async def submit_gate(request: GateSubmitRequest,
     from backend.core.graph import PhaseNotWired, get_graph
 
     phase = _requested_phase(case, request.phase)
-    graph = get_graph()
+    graph = get_graph(phase)
     config = _graph_config(case, phase, request.submitted_by, entry="gate")
 
     try:
@@ -985,7 +995,7 @@ async def submit_gate(request: GateSubmitRequest,
     reply = _last_ai(result)
     payload = conversation.transport(reply) if reply is not None else {}
     verdict = dict(payload.get("gate_verdict") or {})
-    phase_data = dict(payload.get("v1_artifacts") or {})
+    phase_data = dict(payload.get("v1_draft") or {})
     passed = bool(verdict.get("passed", False))
     missing = list(verdict.get("missing") or [])
 

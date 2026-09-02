@@ -51,7 +51,7 @@ V1_PRESENTATION_KEYS: tuple[str, ...] = (
 #: conversation. They are stripped on the way back into the case document so a
 #: turn dict never grows fields the UI does not know about.
 _TRANSPORT_KEYS: tuple[str, ...] = (
-    "phase", "v1_artifacts", "gate_verdict", "turn_count", "gate_submission",
+    "phase", "v1_draft", "gate_verdict", "turn_count", "gate_submission",
 )
 
 
