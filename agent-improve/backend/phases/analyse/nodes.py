@@ -55,7 +55,6 @@ from langgraph.types import Command
 
 from backend.core.substate import PhaseState
 from backend.phases import nodes_common as _c
-from backend.phases.analyse.orchestrate import orchestrate_analyse
 from backend.phases.analyse.validate import validate_analyse
 
 PHASE = "analyse"
@@ -78,8 +77,13 @@ async def executor(
     state: PhaseState,
     config: Optional[RunnableConfig] = None,
 ) -> dict[str, Any]:
-    """Run one coaching turn, delegating to `orchestrate_analyse` (§17)."""
-    return await _c.executor(PHASE, orchestrate_analyse, state, config)
+    """Run one coaching turn — `create_agent` + `CoachingResponse` (§18, §20).
+
+    Step 6.2 removed the `orchestrate_analyse` delegation. That module is now
+    **dead code awaiting deletion at 11.1** (Route A) — unreferenced, and
+    deliberately not migrated.
+    """
+    return await _c.executor(PHASE, state, config)
 
 
 async def validation_stack(

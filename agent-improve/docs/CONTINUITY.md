@@ -7,11 +7,11 @@
 
 | | |
 |---|---|
-| **Last completed** | step **6.1** — Planner / Executor split |
-| **Next** | step **6.2** — `create_agent` executor + `CoachingResponse` |
+| **Last completed** | step **6.2** — `create_agent` executor + `CoachingResponse` |
+| **Next** | step **6.3** — Middleware positions 1–3 |
 | **Stage** | Stage 6 — The coaching agent |
-| **Progress** | 20 of 35 build steps |
-| **Last spine commit** | `ab3734b` (commit 5.4) |
+| **Progress** | 21 of 35 build steps |
+| **Last spine commit** | `b8b20a2` (commit 6.1) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |
 | **Block regenerated** | 2026-09-03 |
@@ -541,6 +541,32 @@ so read §66 when the two disagree.)*
 
 ### Watches (owed work, NOT §66 gaps — the register will not surface them)
 
+- **WATCH 25 — two of the universal seven are not built, so the live per-phase
+  tool totals are 6 / 13 / 10 / 6 / 10, not §30's 8 / 15 / 12 / 8 / 12.**
+  Opened 2026-09-03 at step 6.2.
+
+  **§30 is unchanged and is not being redefined.** Five of the seven exist:
+  the three `rag_lookup_*` (5.2) plus `propose_template` and `propose_diagram`,
+  which S-F19/S-F20 both assign to **step 5.2** and which 5.2's prose missed —
+  6.2 built them because the executor binds `UNIVERSAL_TOOLS` and because
+  without `propose_diagram` the SIPOC the UI already renders would have
+  disappeared the moment `create_agent` replaced the v1 executor.
+
+  **The last two cannot be built yet, by the spec's own step assignments:**
+
+  | Tool | Step | Blocked on |
+  |---|---|---|
+  | `check_gate_status` | **7.1** (S-F21) | `DMAICGateValidator` — 7.1's own deliverable |
+  | `request_human_approval` | **7.5** (S-F22) | the escalation path — 7.5's |
+
+  **The arithmetic is asserted, not just written here.**
+  `test_the_universal_seven_is_seven_and_five_are_built` pins 7 ratified / 5
+  built / 2 owed, and
+  `test_the_live_per_phase_totals_while_two_tools_are_owed` pins the interim
+  totals *alongside* §30's ratified ones — so 7.1 and 7.5 have to come back and
+  update both rather than leaving a live figure quietly wrong. **Closes when
+  7.5 lands.**
+
 - **WATCH 24 — CLOSED 2026-09-03, ahead of Stage 7 rather than at it.**
   Commit `41587fa` scoped `pattern-2-with-structured-output` to permit the
   ratified builder-style `.with_structured_output()` for plain LLM calls inside
@@ -592,8 +618,30 @@ so read §66 when the two disagree.)*
 - **WATCH 6 — PDF page 302 ships as `general`** (Azure content-filter false
   positive, permanent, not retried). Genuinely Analyse content; reachable
   everywhere via `general`.
-- **WATCH 7 — RULED 2026-08-28: ROUTE A. Carry v1 unchanged and delete it at
-  11.1. WATCH 7 clears at step 6.2, not 4.1.**
+- **WATCH 7 — CLOSED 2026-09-03 at step 6.2, exactly where Route A said it
+  would.** The v2 writer exists: the executor is `create_agent(...,
+  response_format=CoachingResponse)`, and `fields_captured` lands in
+  `artifacts` under the §39.1.2 names. **Demonstrated by 6.2's live-run**, not
+  asserted — one real coaching turn captured `baseline_estimate`,
+  `target_value`, `target_date` and `team` from the Belt's prose, and the real
+  `validate_define` went 13/13 missing → 9/13 → **0 missing, `passed=True`**
+  once all thirteen were coached through the same path. The two halves that
+  had been written against different vocabularies now meet.
+
+  **What is now dead code, and stays untouched:** all five `orchestrate.py`
+  and the `EXTRACTION_{PHASE}` family. Nothing calls them — 6.2 removed the
+  delegation from the executor and the five `nodes.py` imports — and Route A
+  deletes them at **11.1**, not before. A future session finding v1 names in
+  those files is still looking at the ruled-correct state.
+
+  **`draft` changed meaning at this step** and it is worth knowing which:
+  it was the v1 accumulator; it is now S-F04's *"this turn's extraction"*,
+  with `artifacts` as the accumulation. Both are written by the executor.
+
+  *Original ruling below, kept as the record.*
+
+- **WATCH 7 (original entry) — RULED 2026-08-28: ROUTE A. Carry v1 unchanged
+  and delete it at 11.1. WATCH 7 clears at step 6.2, not 4.1.**
 
   > **The ruling.** `phases/define/orchestrate.py` and `EXTRACTION_DEFINE`'s
   > Define block are **NOT migrated**. They keep writing the v1 names, unchanged,

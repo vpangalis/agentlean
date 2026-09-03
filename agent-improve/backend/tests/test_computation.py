@@ -54,7 +54,7 @@ from backend.knowledge.computation import (
     PHASE_TOOL_CEILING,
     UNIVERSAL_TOOL_COUNT,
 )
-from backend.knowledge.tools import RAG_LOOKUP_TOOLS
+from backend.knowledge.tools import RAG_LOOKUP_TOOLS, UNIVERSAL_TOOLS
 from backend.phases.mappers_common import PHASE_ORDER
 
 #: §60.6's inventory, by phase. The names are the contract — a rename is a
@@ -214,18 +214,52 @@ def test_no_phase_exceeds_the_sixteen_tool_ceiling() -> None:
     assert "measure" == max(COMPUTATION_TOOLS_BY_PHASE, key=bound)
 
 
-def test_the_universal_seven_is_seven() -> None:
-    """§29.2 — and three of them exist, from step 5.2.
+def test_the_universal_seven_is_seven_and_five_are_built() -> None:
+    """§29.2 — seven ratified, five built, two owed to steps 7.1 and 7.5.
 
-    The remaining four (`propose_template`, `propose_diagram`,
-    `check_gate_status`, `request_human_approval`) land with the executor at
-    stage 6. **This test is where that arithmetic is recorded**, so that the
-    stage-6 commit which adds them has to come back here rather than quietly
-    making the totals above wrong.
+    **The gap is real and is not a redefinition of §30.** Step 6.2 built
+    `propose_template` and `propose_diagram`, which S-F19/S-F20 both assign to
+    step 5.2 and which 5.2's prose missed. The last two cannot be built yet by
+    the spec's own assignments:
+
+        check_gate_status       S-F21, step 7.1 — needs `DMAICGateValidator`
+        request_human_approval  S-F22, step 7.5 — needs the escalation path
+
+    So the LIVE per-phase totals are 6 / 13 / 10 / 6 / 10 against §30's
+    8 / 15 / 12 / 8 / 12 until 7.5 lands. **This test is where that arithmetic
+    is recorded** (WATCH 25), so the two steps that close it have to come back
+    here rather than quietly leaving the totals wrong.
     """
-    assert UNIVERSAL_TOOL_COUNT == 7
-    assert len(RAG_LOOKUP_TOOLS) == 3
-    assert UNIVERSAL_TOOL_COUNT - len(RAG_LOOKUP_TOOLS) == 4
+    assert UNIVERSAL_TOOL_COUNT == 7, "§30's ratified count does not move"
+    assert len(UNIVERSAL_TOOLS) == 5, "five built at 6.2"
+    assert UNIVERSAL_TOOL_COUNT - len(UNIVERSAL_TOOLS) == 2, "two owed"
+    assert [t.name for t in UNIVERSAL_TOOLS] == [
+        "rag_lookup_methodology", "rag_lookup_evidence", "rag_lookup_case_history",
+        "propose_template", "propose_diagram",
+    ]
+    assert RAG_LOOKUP_TOOLS == UNIVERSAL_TOOLS[:3], (
+        "the retrieval third leads the universal list"
+    )
+
+
+@pytest.mark.parametrize("phase, live_total", [
+    ("define", 6), ("measure", 13), ("analyse", 10),
+    ("improve", 6), ("control", 10),
+])
+def test_the_live_per_phase_totals_while_two_tools_are_owed(
+    phase: str, live_total: int
+) -> None:
+    """What the executor ACTUALLY binds today, as against §30's ratified table.
+
+    Written out separately from `EXPECTED_TOTALS` rather than replacing it: §30
+    is unchanged and stays asserted above. This records the interim, and both
+    move together when 7.5 lands.
+    """
+    assert len(UNIVERSAL_TOOLS) + len(COMPUTATION_TOOLS_BY_PHASE[phase]) \
+        == live_total
+    assert live_total + 2 == EXPECTED_TOTALS[phase], (
+        "the shortfall is exactly the two owed universal tools"
+    )
 
 
 def test_the_binding_is_a_partition_of_the_twenty() -> None:

@@ -72,11 +72,13 @@ from __future__ import annotations
 import logging
 
 from langchain_core.documents import Document
-from langchain_core.tools import tool
+from langchain_core.tools import BaseTool, tool
 
 from backend.core.config import settings
+from backend.core.diagrams import BUILDERS, DIAGRAM_TYPES, DiagramError
 from backend.core.errors import KnowledgeSearchError
 from backend.knowledge.fusion import run_multi_query
+from backend.knowledge.tool_args import ProposeDiagramArgs, ProposeTemplateArgs
 from backend.knowledge.retriever import (
     get_knowledge_vectorstore,
     search_cases,
@@ -441,3 +443,187 @@ def search_flow_vsm(query: str) -> str:
     STUB — activates when Agent Flow indexes are populated.
     Source: Agent Flow vsm_index (future)"""
     return "Agent Flow VSM index not yet available."
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# The two universal proposal tools — procedure step 6.2
+#
+# **Owed by step 5.2.** S-F19 and S-F20 both say "Procedure: step 5.2", whose
+# prose covered only the three `rag_lookup_*` tools above, so they were missed.
+# Built at 6.2 because that is where the executor binds `UNIVERSAL_TOOLS`
+# (§29.2) — and because without `propose_diagram` the Define SIPOC the UI
+# already renders would disappear the moment `create_agent` replaces the v1
+# executor that emits it.
+#
+# **NEITHER CLOSES ITS SPEC-GAP.** G-29 (template types and `fill_data`
+# schemas) and G-30 (the diagram catalogue) are open and founder-owned. What is
+# built here is the minimum the executor needs, against contracts that already
+# exist: the four template types §29.2 names, and the two diagram types
+# `ui/index.html` already draws. Adding a type is a founder decision plus a
+# renderer, not an entry added here.
+#
+# ── FOUNDER RULING, 2026-09-03 — what these two tools ARE ─────────────────
+#
+#   "Agent Improve does not export documents. The assembled {Phase}Output
+#    shown on the UI is the record. propose_diagram returns structured JSON
+#    rendered by the UI (renderSipocDiagram, render5W2HMindmap).
+#    propose_template returns a str (S-F19 signature) that the coach presents
+#    inside its coaching message for the Belt to complete — no UI renderer, by
+#    design. Neither emits a file; both are coaching aids, not document
+#    generators."
+#
+# **This is the scoping the two gaps were waiting on, and it is why the narrow
+# build above is correct rather than provisional.** Read it before extending
+# either tool: a change that makes one emit a file, or that routes the template
+# through a renderer, is outside what they are for. The gaps themselves stay
+# OPEN in §66 — closing them is a §56 amendment, not a build step's to make.
+# ─────────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════
+
+#: §29.2's four named scaffolds. G-29 calls this list "open, which is not a
+#: specification" — so it is transcribed, not extended.
+TEMPLATE_TYPES: tuple[str, ...] = (
+    "problem_statement", "sipoc", "data_collection_plan", "fishbone",
+)
+
+_TEMPLATES: dict[str, str] = {
+    "problem_statement": (
+        "PROBLEM STATEMENT — fill each line in your own words.\n\n"
+        "  What is happening:        {what}\n"
+        "  Where it happens:         {where}\n"
+        "  Since when:               {when}\n"
+        "  Who it affects:           {who_affected}\n"
+        "  How much / how often:     {how_much}\n"
+        "  How we know (evidence):   {evidence}\n\n"
+        "Keep it to what you can show. No causes and no solutions yet — "
+        "those come later, and naming one here narrows the analysis before "
+        "it starts."
+    ),
+    "sipoc": (
+        "SIPOC — the process at a glance. Three to seven entries per column.\n\n"
+        "  Suppliers:      {suppliers}\n"
+        "  Inputs:         {inputs}\n"
+        "  Process steps:  {process_steps}\n"
+        "  Outputs:        {outputs}\n"
+        "  Customers:      {customers}\n\n"
+        "Start with the process steps and work outwards — the other four "
+        "columns are easier to name once the steps are on the page."
+    ),
+    "data_collection_plan": (
+        "DATA COLLECTION PLAN\n\n"
+        "  What we measure:          {metric}\n"
+        "  Operational definition:   {definition}\n"
+        "  Where the data comes from:{source}\n"
+        "  Who collects it:          {owner}\n"
+        "  How often:                {frequency}\n"
+        "  Sample size:              {sample_size}\n"
+        "  How it is recorded:       {recording}\n\n"
+        "The operational definition is the line that matters: two people "
+        "measuring the same thing must get the same number."
+    ),
+    "fishbone": (
+        "FISHBONE — causes grouped by category, for: {effect}\n\n"
+        "  People:       {people}\n"
+        "  Process:      {process}\n"
+        "  Equipment:    {equipment}\n"
+        "  Materials:    {materials}\n"
+        "  Environment:  {environment}\n"
+        "  Measurement:  {measurement}\n\n"
+        "These are candidate causes, not validated ones. Analyse is where "
+        "they get tested."
+    ),
+}
+
+
+class _Blank(dict):
+    """`format_map` helper — an unfilled slot renders as a blank to complete."""
+
+    def __missing__(self, key: str) -> str:  # noqa: D105
+        return "________"
+
+
+@tool(args_schema=ProposeTemplateArgs)
+def propose_template(template_type: str, fill_data: dict) -> str:
+    """Produce a fill-in scaffold the team completes — show before asking.
+
+    Use it when the Belt needs to see the SHAPE of a good answer before
+    producing theirs (§43.2): a completed example first, then an invitation to
+    build their own. Anything already known goes in `fill_data` and appears
+    pre-filled; everything else renders as a blank for the Belt to complete.
+
+    Supported `template_type`: problem_statement, sipoc, data_collection_plan,
+    fishbone. It returns text for the Belt, not a captured value — nothing here
+    reaches `artifacts` unless the Belt states it back.
+
+    **Present the returned text inside your own coaching message.** There is no
+    UI renderer for a template and that is by design (founder ruling
+    2026-09-03): unlike `propose_diagram`, this is prose the coach shows, not a
+    payload the app draws. It is a coaching aid — it emits no file, and Agent
+    Improve exports no documents.
+    """
+    if template_type not in _TEMPLATES:
+        return (
+            f"I do not have a {template_type!r} template. The ones I can offer "
+            f"are: {', '.join(TEMPLATE_TYPES)}."
+        )
+    values = _Blank({k: str(v) for k, v in (fill_data or {}).items() if v})
+    return _TEMPLATES[template_type].format_map(values)
+
+
+@tool(args_schema=ProposeDiagramArgs, response_format="content_and_artifact")
+def propose_diagram(diagram_type: str, data: dict) -> tuple[str, dict]:
+    """Produce structured diagram data for the app to draw — never markup.
+
+    **B1: this returns JSON, never SVG.** You describe what to draw; the
+    frontend owns how it looks. Emitting markup here produces something that
+    drifts from the design system and cannot be restyled.
+
+    Use it at the "visualise" step of the seven-step computation pattern
+    (§43.1), and whenever a picture carries the point better than prose.
+    Supported `diagram_type`: 'sipoc' and 'mindmap_5w2h' — those are the two
+    the app can currently render, and an unsupported type comes back as a plain
+    message rather than a drawing nobody sees.
+    """
+    builder = BUILDERS.get(diagram_type)
+    if builder is None:
+        return (
+            f"I cannot draw a {diagram_type!r}. I can draw: "
+            f"{', '.join(DIAGRAM_TYPES)}.",
+            {},
+        )
+    try:
+        payload = builder(dict(data or {}))
+    except DiagramError as e:
+        return (str(e), {})
+    # `content_and_artifact`: the model reads the confirmation, the executor
+    # node lifts the ARTIFACT onto the reply's `additional_kwargs` for the UI.
+    # Returning the dict as content would hand the model a payload to
+    # re-transcribe and the executor a string to parse back.
+    return (
+        f"Diagram ready: a {diagram_type} the app will render for the Belt.",
+        {"diagram_type": diagram_type, **payload},
+    )
+
+
+#: §29.2 — **the universal seven, five of which exist.** Passed to every phase
+#: executor via `tools=` on `create_agent` (§18).
+#:
+#: **Two are still owed, and by the spec's own step assignments they cannot be
+#: here yet:**
+#:
+#:   `check_gate_status`      S-F21 — procedure step 7.1; it reports Tier-1
+#:                            readiness and needs `DMAICGateValidator`, which
+#:                            is 7.1's deliverable
+#:   `request_human_approval` S-F22 — procedure step 7.5; it escalates, and the
+#:                            escalation path is 7.5's
+#:
+#: So the per-phase totals are 6 / 13 / 10 / 6 / 10 until 7.5, against §30's
+#: 8 / 15 / 12 / 8 / 12. **That is an interim shortfall, not a redefinition of
+#: §30** — recorded as WATCH 25, and `test_computation.py` asserts the
+#: arithmetic (7 ratified, 5 built, 2 owed) so the steps that add them have to
+#: come back and update it.
+UNIVERSAL_TOOLS: list[BaseTool] = [
+    *RAG_LOOKUP_TOOLS,
+    propose_template,
+    propose_diagram,
+]

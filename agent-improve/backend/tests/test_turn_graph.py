@@ -46,6 +46,8 @@ from langgraph.checkpoint.base import (
 )
 
 from backend.core import graph as graph_mod
+from backend.core.substate import CoachingResponse
+from backend.tests.conftest import DEFAULT_REPLY
 from backend.core.state import SUPERVISOR_STATE_FIELDS
 from backend.phases.mappers_common import PHASE_ORDER
 
@@ -213,37 +215,6 @@ def wired(monkeypatch, stub_planner):
         graph_mod._subgraph.cache_clear()
 
 
-@pytest.fixture
-def stub_coach(monkeypatch):
-    """Replace the v1 orchestrator so no LLM or Azure call is made.
-
-    It returns what `orchestrate_define` returns — the WHOLE history with a
-    reply appended — because that shape is exactly what the executor's
-    duplication guard depends on.
-    """
-    calls: list[dict[str, Any]] = []
-
-    async def fake_orchestrate(state):
-        calls.append(state)
-        history = list(state.get("chat_history") or [])
-        history.append({
-            "turn": len(history) + 1, "role": "ai", "user": None,
-            "text": f"reply {len(calls)}", "timestamp": None, "citations": [],
-        })
-        return {
-            "phase_inputs": {"define": {"business_case": "b"}},
-            "chat_history": history,
-            "sipoc_diagram": {"draft": True},
-            "visualisation": None,
-            "section_completed": "business_case",
-        }
-
-    monkeypatch.setattr(
-        "backend.phases.define.nodes.orchestrate_define", fake_orchestrate
-    )
-    return calls
-
-
 # ── §16: where persistence attaches ───────────────────────────────────────
 
 def test_parent_carries_both_checkpointer_and_store(wired) -> None:
@@ -340,7 +311,7 @@ def test_the_executor_runs_exactly_once_per_invoke(wired, stub_coach) -> None:
     asyncio.run(graph.ainvoke(_seed_state(
         messages=[HumanMessage(content="hello")]
     ), config=_config()))
-    assert len(stub_coach) == 1
+    assert len(stub_coach.invocations) == 1
 
 
 def test_the_conversation_is_not_duplicated_across_turns(wired, stub_coach) -> None:
@@ -357,7 +328,8 @@ def test_the_conversation_is_not_duplicated_across_turns(wired, stub_coach) -> N
     ))
 
     texts = [m.content for m in result["messages"]]
-    assert texts == ["one", "reply 1", "two", "reply 2"], texts
+    assert texts == ["one", DEFAULT_REPLY.message,
+                     "two", DEFAULT_REPLY.message], texts
 
 
 def test_the_coach_sees_the_prior_conversation_on_turn_two(wired, stub_coach) -> None:
@@ -369,14 +341,28 @@ def test_the_coach_sees_the_prior_conversation_on_turn_two(wired, stub_coach) ->
     asyncio.run(graph.ainvoke(
         {"messages": [HumanMessage(content="two")]}, config=_config()
     ))
-    second_turn_history = stub_coach[1]["chat_history"]
-    assert [t["text"] for t in second_turn_history] == ["one", "reply 1", "two"]
+    second_turn = stub_coach.invocations[1]["messages"]
+    assert [m.content for m in second_turn] == [
+        "one", DEFAULT_REPLY.message, "two",
+    ]
 
 
 # ── what the route reads back ─────────────────────────────────────────────
 
 def test_the_turn_product_rides_on_the_reply_message(wired, stub_coach) -> None:
-    """`SupervisorState` is seven fields (§5), so this is the channel out."""
+    """`SupervisorState` is seven fields (§5), so this is the channel out.
+
+    **Step 6.2 changed WHAT rides out.** The v1 orchestrator returned
+    `sipoc_diagram` and `section_completed` on every turn; the v2 coach emits a
+    `CoachingResponse` and calls `propose_diagram` when a picture helps. So the
+    draft is what the coach captured, and the diagram is present only on a turn
+    that drew one.
+    """
+    stub_coach.reply = CoachingResponse(
+        message="Noted.",
+        fields_captured=[{"field_name": "business_case", "value": "b",
+                          "source": "belt"}],
+    )
     graph, _ = wired
     result = asyncio.run(graph.ainvoke(_seed_state(
         messages=[HumanMessage(content="hello")]
@@ -385,26 +371,29 @@ def test_the_turn_product_rides_on_the_reply_message(wired, stub_coach) -> None:
     reply = [m for m in result["messages"] if isinstance(m, AIMessage)][-1]
     extra = reply.additional_kwargs
     assert extra["v1_draft"] == {"business_case": "b"}
-    assert extra["sipoc_diagram"] == {"draft": True}
-    assert extra["section_completed"] == "business_case"
     assert extra["gate_verdict"] == {}, "a coaching turn validates nothing"
 
 
-def test_config_reaches_the_v1_seam(wired, stub_coach) -> None:
-    """`case_metadata` and `current_user` frame the coaching prompt.
+def test_config_frames_the_coach(wired, stub_coach) -> None:
+    """`case_metadata` frames the coaching prompt.
 
-    They ride on `config["configurable"]` because `PhaseState` may not grow a
+    It rides on `config["configurable"]` because `PhaseState` may not grow a
     field (§56). If LangGraph stops injecting `config` — which it does silently
     when the annotation is not exactly `RunnableConfig` or
     `Optional[RunnableConfig]` — the coach loses its framing with no error.
+
+    **`belt_level` is the one that matters most**: §35's grader suppresses
+    Black-Belt-only methodology for a Green Belt, and a coach that does not know
+    which it is talking to cannot honour that.
     """
     graph, _ = wired
     asyncio.run(graph.ainvoke(_seed_state(
         messages=[HumanMessage(content="hello")]
     ), config=_config()))
-    v1_state = stub_coach[0]
-    assert v1_state["current_user"] == "Tester"
-    assert v1_state["case_metadata"]["department"] == "D"
+    prompt = stub_coach.system_prompt
+    assert "Department: D" in prompt
+    assert "Belt level: green" in prompt
+    assert "Project: T" in prompt
 
 
 # ── §47 requirement 2, end to end ─────────────────────────────────────────
@@ -439,7 +428,7 @@ def test_the_gate_entry_skips_the_coach(wired, stub_coach, monkeypatch) -> None:
         config=_config(entry="gate"),
     ))
 
-    assert stub_coach == [], "the executor ran on a gate submission"
+    assert stub_coach.invocations == [], "the executor ran on a gate submission"
     reply = [m for m in result["messages"] if isinstance(m, AIMessage)][-1]
     verdict = reply.additional_kwargs["gate_verdict"]
     assert verdict["passed"] is False

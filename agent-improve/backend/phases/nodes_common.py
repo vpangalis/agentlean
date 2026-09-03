@@ -46,18 +46,20 @@ from __future__ import annotations
 import logging
 from typing import Any, Awaitable, Callable, Literal, Optional, cast
 
+from langchain.agents import create_agent
+from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
+from langgraph.errors import GraphRecursionError
 from langgraph.graph import END
 from langgraph.types import Command
 
-from backend.core.conversation import (
-    V1_PRESENTATION_KEYS,
-    message_to_turn,
-    turn_to_message,
-)
+from backend.core.conversation import message_to_turn
 from backend.core.llm import get_llm
+from backend.core.prompts import PHASE_COACH_PROMPT
 from backend.core.state import ImproveGraphState
-from backend.core.substate import CoachingPlan, PhaseState
+from backend.core.substate import CoachingPlan, CoachingResponse, PhaseState
+from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE
+from backend.knowledge.tools import UNIVERSAL_TOOLS
 from backend.phases.gate_registry import review_rows
 
 logger = logging.getLogger(__name__)
@@ -371,9 +373,190 @@ def to_v1_state(
 
 # ── executor ──────────────────────────────────────────────────────────────
 
+#: §3.7 — `2 * max_hops + 1` with `max_hops = 5`. **The coach's own loop
+#: budget, not the graph's backstop**: `gateway/routes.py` passes 50 on the
+#: parent invoke, which §16 calls a guard against a genuine infinite loop. This
+#: is the per-turn exploration cap, and it has to be passed explicitly — an
+#: agent invoked inside a node otherwise inherits the parent's 50 and the cap
+#: §3.7 specifies never fires.
+COACH_RECURSION_LIMIT = 11
+
+#: What the Belt reads when the cap fires. §3.7: a partial answer, never a
+#: stack trace. It says what happened in plain language (§13) and hands the
+#: turn back rather than pretending the coach finished.
+_CAP_MESSAGE = (
+    "I went further than I should have chasing that one down, and I have run "
+    "out of room this turn. Could you narrow it slightly — a single question, "
+    "or the one field you most want to work on — and I will pick it straight "
+    "back up? Nothing you have told me is lost."
+)
+
+#: Which `additional_kwargs` key each diagram type rides on. **These are the
+#: UI's names, read off `gateway/routes.py` and `ui/index.html`** — the route
+#: lifts `sipoc_diagram` and `visualisation` off the reply and puts them in the
+#: `/ask` envelope. A third diagram type needs a renderer before it needs a row.
+_DIAGRAM_TO_UI_KEY = {
+    "sipoc": "sipoc_diagram",
+    "mindmap_5w2h": "visualisation",
+}
+
+
+def _build_executor(phase: str, system_prompt: str) -> Any:
+    """The phase coach — `create_agent`, per §18's ratified template.
+
+    **Both parameter names were verified against the installed
+    `langchain.agents.create_agent` before this was written** (§16.3, and
+    CLAUDE.md §0.10 records what it cost last time): the signature carries
+    `system_prompt` and has **no** `prompt` parameter, so `prompt=` would raise
+    `TypeError` at construction rather than being silently ignored.
+
+    **Tools are passed to `create_agent(tools=...)`, never bound onto the
+    model.** Binding onto a bare model bypasses the entire middleware stack
+    (§18) — grading, skills, compression, state injection, retry, coherence and
+    contradiction — and does it silently. `pattern-8-bind-tools-in-phase-executor`
+    guards this file for exactly that reason.
+
+    **Constructed per turn, not cached.** The system prompt carries this turn's
+    project facts, and §19.1 puts those at the TOP of the prompt rather than
+    appended into `messages` (§8.5 — models weight earlier content more, and
+    facts arriving after the Belt's message let the response drift toward the
+    Belt's framing). Step 6.3's `BeforeModelStateInjection` is the ratified home
+    for that injection; when it lands, this becomes a static prompt and the
+    agent can be cached per phase. Graph construction is cheap next to the model
+    call it wraps, so the interim costs latency that is not measurable.
+    """
+    return create_agent(
+        model=get_llm("coach", max_tokens=1500),
+        tools=UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase],
+        response_format=CoachingResponse,   # §20 — never a {Phase}Output
+        middleware=[],                      # §19 — positions land at 6.3–6.5
+        system_prompt=system_prompt,        # NOT `prompt=` (§18)
+    )
+
+
+def _executor_prompt(phase: str, state: PhaseState,
+                     config: Optional[RunnableConfig] = None) -> str:
+    """The phase coach prompt plus this turn's project facts, facts LAST.
+
+    The static half is `PHASE_COACH_PROMPT[phase]` (§22) and carries the
+    mandatory memory-hierarchy paragraph and anti-hallucination guards. The
+    dynamic half is what `BeforeModelStateInjection` will supply at 6.3: the
+    phase's ratified field names, what is captured already, and the plan's
+    focus field.
+
+    **The field list is not decoration — it is the capture contract.** The coach
+    writes `fields_captured` using these names, and a name that is not on this
+    list is a value that never reaches the gate document.
+
+    **Case framing rides on `config`, not on state** — `case_metadata` and
+    `current_user` are the same three seam keys the v1 bridge carried, because
+    `PhaseState` may not grow a field for them (§56). `belt_level` in particular
+    is load-bearing: §35's grader suppresses Black-Belt-only methodology for a
+    Green Belt, and a coach that does not know which it is talking to cannot
+    honour that.
+    """
+    rows = review_rows(phase, dict(state.get("artifacts") or {}))
+    ledger = "\n".join(
+        f"  {row['field']}"
+        f"{'  [captured]' if row['present'] else '  [not yet captured]'}"
+        f"{'  (recommended, not gate-blocking)' if row['tier'] == 2 else ''}"
+        for row in rows
+    )
+    configurable = (config or {}).get("configurable") or {}
+    meta = configurable.get("case_metadata") or {}
+    case_lines = "\n".join(
+        f"  {label}: {meta[key]}"
+        for key, label in (("title", "Project"), ("belt_level", "Belt level"),
+                           ("leader", "Belt"), ("department", "Department"))
+        if meta.get(key)
+    )
+    case = f"THIS PROJECT\n{case_lines}\n" if case_lines else ""
+
+    plan = state.get("coaching_plan")
+    focus = (
+        f"\nTHIS TURN\n  Coach on: {plan.focus_field}\n"
+        f"  What to do: {plan.next_action}\n"
+        "  Coach this field and no other. Choosing a different one is the\n"
+        "  planner's job, not yours."
+        if plan else ""
+    )
+    return (
+        f"{PHASE_COACH_PROMPT[phase]}\n\n"
+        f"{case}\n"
+        f"FIELD LIST for {phase} — use these names exactly:\n{ledger}\n"
+        f"{focus}\n"
+    )
+
+
+def _captured_fields(phase: str, reply: CoachingResponse) -> dict[str, Any]:
+    """`fields_captured` -> the dict written into `artifacts` (§20, S-F04 B4).
+
+    **Entries without a `field_name` are dropped, not guessed.** The coach is
+    told the exact names; an entry that does not carry one is a malformed
+    capture, and inferring which field was meant is how a value lands under the
+    wrong key and reaches a gate document unnoticed.
+
+    `value` stays whatever the model sent — `Any`, deliberately (§20): it must
+    carry both plain strings and the three cross-phase reference dicts, and
+    coercing to `str` here would make `causal_hypothesis` uncapturable.
+    """
+    out: dict[str, Any] = {}
+    for entry in reply.fields_captured or []:
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("field_name") or "").strip()
+        if not name:
+            logger.warning(
+                "%s.executor: dropped a capture with no field_name: %r",
+                phase, entry,
+            )
+            continue
+        out[name] = entry.get("value")
+    return out
+
+
+def _with_coaching_text(messages: list, reply: CoachingResponse) -> list:
+    """Guarantee the Belt-facing prose is present in `messages`.
+
+    §18: *"the structured response and the coaching text coexist"* — the agent
+    writes prose into `messages` AND returns the structured response. The two
+    normally carry the same text. **When the terminal message has no text**, as
+    happens when a provider puts everything in the structured payload, the
+    Belt would otherwise get an empty turn, so `reply.message` is appended.
+    """
+    for msg in reversed(messages):
+        if isinstance(msg, AIMessage) and str(msg.content).strip():
+            return messages
+    return [*messages, AIMessage(content=reply.message)]
+
+
+def _attach_diagram(messages: list) -> None:
+    """Lift this turn's `propose_diagram` payload onto the reply, for the UI.
+
+    `gateway/routes.py` reads `sipoc_diagram` and `visualisation` off the
+    reply's `additional_kwargs`; the v1 orchestrator used to put them there.
+    The tool returns its payload as a ToolMessage **artifact** rather than as
+    content, so this reads a real dict instead of parsing one back out of a
+    string. Mutates in place — the last AI message is the reply.
+    """
+    payload = None
+    for msg in messages:
+        if isinstance(msg, ToolMessage) and isinstance(
+                getattr(msg, "artifact", None), dict):
+            artifact = dict(msg.artifact)
+            key = _DIAGRAM_TO_UI_KEY.get(str(artifact.pop("diagram_type", "")))
+            if key:
+                payload = (key, artifact)
+    if payload is None:
+        return
+    for msg in reversed(messages):
+        if isinstance(msg, AIMessage):
+            msg.additional_kwargs[payload[0]] = payload[1]
+            return
+
+
 async def executor(
     phase: str,
-    orchestrate: V1Node,
     state: PhaseState,
     config: Optional[RunnableConfig] = None,
 ) -> dict[str, Any]:
@@ -382,68 +565,101 @@ async def executor(
     §17: the executor consumes the plan and decides no strategy. Control returns
     to the planner on the static edge, and the planner chooses what happens next.
 
-    **What "consumes" means at 6.1, exactly.** It reads `coaching_plan` and
-    records the plan it acted under in `step_log`, so the audit trail links a
-    turn to the plan that produced it. **It does not yet steer the coach by
-    `focus_field`, and it cannot**: the body still delegates to the v1
-    `orchestrate_{phase}`, which takes no focus-field parameter, and Route A
-    forbids touching those five files — they carry the v1 names to step 11.1
-    and are deleted there, not migrated. **Full consumption is 6.2's**, where
-    `create_agent(...)` replaces the body and the plan enters the system prompt.
+    **THIS IS THE V2 FIELD WRITER, AND ITS EXISTENCE CLEARS WATCH 7.** Step 6.2
+    replaces the v1 delegation with `create_agent` +
+    `response_format=CoachingResponse` (§18, §20). `fields_captured` is written
+    into `artifacts` under the §39.x names — which is what `validate_{phase}`
+    has been reading since the rename, and why every phase's gate was inert
+    until now (DECISIONS Part X, Route A). **`orchestrate.py` and
+    `EXTRACTION_{PHASE}` are now dead code awaiting deletion at 11.1**; nothing
+    calls them, and per the ruling they are not migrated.
 
-    What matters for §17 either way is the half that IS true here: the executor
-    decides no strategy of its own. It never picks a field, never chooses a
-    retrieval mode, and never routes.
+    **§17's contract, now fully true.** The coach is told the plan's
+    `focus_field` and instructed to coach that field and no other (S-F04 B1).
+    It still decides no strategy of its own: it does not pick the field, does
+    not choose the retrieval mode, and does not route.
 
-    This delegates to the v1 `orchestrate_{phase}` (step 4.1's choice for
-    Define, extended to all five at 4.4). Step 6.2 replaces the body with
-    `create_agent(...)` bound to the universal seven plus that phase's
-    computation tools (§18, §29, §30) and `response_format=CoachingResponse`.
+    **`middleware=[]` — positions 1–8 land at 6.3–6.5** (§19). Two consequences
+    are live until then and are not defects: there is no
+    `BeforeModelStateInjection`, so this node composes the per-turn context into
+    the system prompt itself (see `_executor_prompt`), and there is no
+    `ContradictionDetectionMiddleware`, so a `contradiction_flag` the coach sets
+    is carried into `step_log` and read by nobody until 6.5.
 
-    The coach's answer goes into `messages` as an `AIMessage`, carrying whatever
-    presentational payloads that phase produces in `additional_kwargs` —
-    `sipoc_diagram` is Define's alone, `visualisation` Define's and Measure's,
-    `section_completed` every phase's. Absent ones are simply not attached.
+    The coach's answer goes into `messages` as an `AIMessage`. A `propose_diagram`
+    payload from this turn rides on `additional_kwargs` under the key the UI
+    already reads — `sipoc_diagram` for a SIPOC, `visualisation` for the 5W2H
+    mind map (`gateway/routes.py` reads exactly those).
     """
     turn_count = state.get("turn_count") or 0
-    prior = list(state.get("messages") or [])
     plan = state.get("coaching_plan")
 
-    result = await orchestrate(to_v1_state(phase, state, config))
+    agent = _build_executor(phase, _executor_prompt(phase, state, config))
+    prior = list(state.get("messages") or [])
+    hit_cap = False
+    try:
+        result = await agent.ainvoke(
+            {"messages": prior},
+            config={"recursion_limit": COACH_RECURSION_LIMIT},
+        )
+    except GraphRecursionError:
+        # §3.7 — MUST be caught here and turned into a partial answer. A Belt
+        # mid-session never sees a stack trace because the coach explored too
+        # broadly. Found by step 6.2's live-run, which looped a real turn.
+        hit_cap = True
+        logger.warning(
+            "%s.executor: hit the %d-step cap (§3.7) — returning a partial "
+            "answer. This is a MONITORING SIGNAL: either the prompt invites "
+            "too-broad exploration, or this turn warranted a premium model.",
+            phase, COACH_RECURSION_LIMIT,
+        )
+        result = {"messages": [*prior, AIMessage(content=_CAP_MESSAGE)],
+                  "structured_response": None}
 
-    captured = (result.get("phase_inputs") or {}).get(phase, {})
-    updated_history = result.get("chat_history") or []
+    reply: CoachingResponse | None = result.get("structured_response")
+    produced = list(result.get("messages") or [])
+    # The agent echoes the conversation it was given and appends its own turn.
+    # `messages` reduces with `operator.add`, so returning more than the tail
+    # would duplicate the exchange on every turn.
+    new_messages = produced[len(state.get("messages") or []):]
 
-    # The v1 orchestrator returns the WHOLE history with its reply appended.
-    # Only the tail is new; `messages` reduces with `operator.add`, so returning
-    # more than the tail would duplicate the conversation on every turn.
-    new_turns = [dict(t) for t in updated_history[len(prior):]]
-    for turn in new_turns:
-        if turn.get("role") == "ai":
-            for key in V1_PRESENTATION_KEYS:
-                if result.get(key) is not None:
-                    turn[key] = result[key]
-    new_messages = [turn_to_message(t) for t in new_turns]
+    captured: dict[str, Any] = {}
+    citations: list[dict] = list(state.get("citations") or [])
+    if reply is not None:
+        captured = _captured_fields(phase, reply)
+        citations.extend(reply.citations or [])
+        new_messages = _with_coaching_text(new_messages, reply)
+
+    _attach_diagram(new_messages)
+
+    artifacts = {**(state.get("artifacts") or {}), **captured}
 
     logger.info(
-        "%s.executor: under plan %s / %s — v1 orchestrate returned %d field(s) "
-        "into draft, %d new message(s)",
-        phase, plan.focus_field if plan else "(none)",
-        plan.next_action if plan else "(none)",
-        len(captured), len(new_messages),
+        "%s.executor: focus=%s | captured %d field(s) -> artifacts, "
+        "%d new message(s), contradiction=%s",
+        phase, plan.focus_field if plan else "(none)", len(captured),
+        len(new_messages), bool(reply and reply.contradiction_flag),
     )
     return {
         "messages": new_messages,
+        # `draft` is THIS turn's extraction, `artifacts` the accumulation
+        # (S-F04's Output). Neither field carries a reducer, so the merge
+        # happens here or not at all.
         "draft": dict(captured),
+        "artifacts": artifacts,
+        "citations": citations,
         "turn_count": turn_count + 1,
         "step_log": [_step(
             phase, turn_count, "executor",
-            status="delegated_v1", impl=f"orchestrate_{phase}",
-            fields_in_draft=len(captured), new_messages=len(new_messages),
-            # The plan this turn ran under. Recorded rather than acted on —
-            # see the docstring; `orchestrate_{phase}` takes no focus field.
+            status="partial_cap_reached" if hit_cap else "coached",
+            impl="create_agent",
             focus_field=plan.focus_field if plan else None,
             next_action=plan.next_action if plan else None,
+            fields_captured=sorted(captured),
+            tools_bound=len(UNIVERSAL_TOOLS)
+            + len(COMPUTATION_TOOLS_BY_PHASE[phase]),
+            # Carried for the audit trail; §19.6's middleware reads it at 6.5.
+            contradiction_flag=(reply.contradiction_flag if reply else None),
         )],
     }
 

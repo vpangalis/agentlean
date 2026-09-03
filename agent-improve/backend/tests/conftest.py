@@ -22,8 +22,11 @@ from typing import Any
 
 import pytest
 
+from langchain_core.messages import AIMessage
+from langgraph.errors import GraphRecursionError
+
 from backend.core.llm import role_temperature
-from backend.core.substate import CoachingPlan
+from backend.core.substate import CoachingPlan, CoachingResponse
 
 #: What the fake planner returns unless a test sets `stub_planner.plan`.
 #: A Define field name, since `_state()` defaults to that phase.
@@ -92,3 +95,86 @@ def stub_planner(monkeypatch) -> _FakePlannerModel:
     fake = _FakePlannerModel()
     monkeypatch.setattr("backend.phases.nodes_common.get_llm", fake)
     return fake
+
+
+# ── the executor's agent — step 6.2 ───────────────────────────────────────
+
+DEFAULT_REPLY = CoachingResponse(
+    message="Let's start with the business case. Here is what a good one "
+            "looks like, then you build yours.",
+    fields_captured=[],
+    citations=[],
+)
+
+
+class _FakeAgent:
+    """One `create_agent(...)` result, and the turns invoked through it."""
+
+    def __init__(self, recorder: "_CreateAgentRecorder") -> None:
+        self._rec = recorder
+
+    async def ainvoke(self, payload: dict, *args: Any, **kwargs: Any) -> dict:
+        self._rec.invocations.append(payload)
+        self._rec.invoke_configs.append(dict(kwargs.get("config") or {}))
+        if self._rec.raise_recursion:
+            # §3.7's cap, as the real agent raises it. The executor must turn
+            # this into a partial answer rather than letting it reach the Belt.
+            raise GraphRecursionError("recursion limit reached")
+        reply = self._rec.reply
+        return {
+            # The agent echoes what it was given and appends its own turn —
+            # the shape the executor's tail-slice depends on.
+            "messages": [*payload.get("messages", []),
+                         *self._rec.tool_messages,
+                         AIMessage(content=reply.message)],
+            "structured_response": reply,
+        }
+
+
+class _CreateAgentRecorder:
+    """Stands in for `create_agent`, recording HOW it was called.
+
+    **The kwargs are the point, not just the stub.** CLAUDE.md §0.10 records
+    that `prompt=` vs `system_prompt=` sat wrong in the canonical block for
+    months, and §18 forbids binding tools onto a bare model. Recording the call
+    lets a test assert both against the real construction site rather than
+    against a comment.
+    """
+
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+        self.invocations: list[dict[str, Any]] = []
+        self.invoke_configs: list[dict[str, Any]] = []
+        self.reply: CoachingResponse = DEFAULT_REPLY
+        self.tool_messages: list[Any] = []
+        #: Make the next `ainvoke` raise §3.7's cap, as the real agent does.
+        self.raise_recursion = False
+
+    def __call__(self, **kwargs: Any) -> _FakeAgent:
+        self.calls.append(kwargs)
+        return _FakeAgent(self)
+
+    @property
+    def system_prompt(self) -> str:
+        """The composed prompt from the most recent construction."""
+        return str(self.calls[-1]["system_prompt"])
+
+    @property
+    def tool_names(self) -> list[str]:
+        return [t.name for t in self.calls[-1]["tools"]]
+
+
+@pytest.fixture
+def stub_coach(monkeypatch) -> _CreateAgentRecorder:
+    """Replace `create_agent` so the executor makes no Azure call (step 6.2).
+
+    Stubs the CONSTRUCTOR rather than the model, for the same reason
+    `stub_planner` stubs `get_llm` rather than `_plan_turn`: everything the
+    executor node actually does — composing the prompt, reading
+    `structured_response`, writing `fields_captured` into `artifacts`, merging
+    citations, attaching the diagram payload — stays live, and only the model
+    and its tool loop are replaced.
+    """
+    rec = _CreateAgentRecorder()
+    monkeypatch.setattr("backend.phases.nodes_common.create_agent", rec)
+    return rec

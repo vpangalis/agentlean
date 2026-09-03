@@ -4294,3 +4294,184 @@ Done-when names live inside the subgraph, and the subgraph compiles without a
 checkpointer or store (§16) — so the check made no Azure Blob write against any
 real case. The one premium call per turn ruled in AF2 is visible as the single
 `AzureChatOpenAI` span under `planner`.
+
+---
+
+## Part AG — Step 6.2: the `create_agent` executor, and WATCH 7 closed (2026-09-03)
+
+**Procedure step 6.2.** Reference **§18** (building the executor), **§20** /
+**§58.5 — S-C05** (`CoachingResponse`), **§57.3 — S-F04** (the coach node),
+**§29.2** (the universal seven), **§30**; CLAUDE.md **§4.4**, **§4.6**, **§6.3**,
+**§6.4**, **§3.7**.
+
+**WATCH 7 CLOSES HERE**, at exactly the step Route A named (Part X).
+
+---
+
+### AG1 — §16.3 was run BEFORE the code, and it is why the parameter is right
+
+**Both names verified against the installed `langchain.agents.create_agent`,
+not against this project's documents:** the signature carries `system_prompt`
+and has **no** `prompt` parameter, so `prompt=` would raise `TypeError` at
+construction. `tools`, `response_format` and `middleware` are all present.
+
+`test_create_agent_signature_still_has_system_prompt_and_no_prompt` asserts
+against the **library**, not against our call. That distinction is the point:
+a test that only checked our own kwargs would keep passing if LangChain renamed
+the parameter back, which is precisely the shape of the failure CLAUDE.md §0.10
+records — `retries=` vs `max_retries=` sat inside the canonical block, the one
+an implementer copies verbatim, from adoption until it was verified months
+later.
+
+**Tools go to `create_agent(tools=...)`, never onto the model.** §18: binding
+onto a bare model bypasses all eight middlewares, silently.
+`pattern-8-bind-tools-in-phase-executor` guards the source; a test guards the
+behaviour; and a raw `grep -rn "bind_tools" backend/` returns zero.
+
+---
+
+### AG2 — WATCH 7 is closed by demonstration, not by assertion
+
+**The v2 field writer now exists.** `fields_captured` on the `CoachingResponse`
+is written into `artifacts` under the §39.1.2 names — which is what
+`validate_{phase}` has been reading since the rename, and whose absence made
+every phase's gate inert by ruling.
+
+**The live-run is the evidence**, on one real coaching turn:
+
+```
+artifacts written by the v2 writer:
+  baseline_estimate = 12% of invoices get sent back for correction, Q2 2026
+  target_value      = under 5%
+  target_date       = end of March 2027
+  team              = Me, Ana from AP, and Bo from IT
+
+empty case     : passed=False  missing=13/13
+after one turn : passed=False  missing=9/13
+all 13 coached : passed=True   missing=0/13
+```
+
+Those are the **v2** names, extracted from the Belt's prose by the coach and
+read by the **real** `validate_define`. The two halves that had been written
+against different vocabularies since the rename now meet.
+
+**`draft` changed meaning, and the change is easy to miss.** It was the v1
+accumulator; it is now S-F04's *"this turn's extraction"*, with `artifacts` as
+the accumulation. Both are written by the executor, and neither field carries a
+reducer — so the merge happens in the node or not at all.
+
+**The five `orchestrate.py` are now dead code and were not touched.** The
+delegation is gone from the executor and from the five `nodes.py` imports;
+Route A deletes the modules at 11.1.
+
+---
+
+### AG3 — The live-run found a cap that could never fire
+
+**CLAUDE.md §3.7 requires `GraphRecursionError` to be caught in the coach node
+and turned into a partial answer** — *"a Belt mid-session never sees a stack
+trace because the coach explored too broadly."* It was not, and worse:
+
+**the agent inherited the route's `recursion_limit=50`**, which §16 calls the
+backstop against a genuine infinite loop. An agent invoked inside a node takes
+the parent invoke's config unless given its own, so §3.7's per-turn cap of
+`2 × 5 + 1 = 11` **was not merely wrong — it was unreachable.**
+
+That is the failure mode this register keeps naming, in its third form: after
+§0.16's `remaining_steps` returning 10 forever and §0.14's `route_after_phase`,
+here a cap that cannot fire is not a loose cap but a check recorded as evidence
+while proving nothing.
+
+**Both halves fixed:** `COACH_RECURSION_LIMIT = 11` is passed explicitly, and
+the exception becomes a plain-language partial answer (§13 — the message names
+no exception, no tool and no limit), with the turn still closing so
+`turn_count` advances and the planner's predicate still terminates. The event
+is logged as the monitoring signal §3.7 calls it.
+
+**Found by running the thing, not by reading it.** No unit test would have
+produced it: the stub never loops, and the subgraph path passes 50 and
+completes. It surfaced only when a real turn explored too far.
+
+---
+
+### AG4 — Five universal tools, not seven, and the two absences are the spec's own
+
+**Ruled with founder authorisation: bind five.**
+
+`propose_template` and `propose_diagram` were **owed by step 5.2** — S-F19 and
+S-F20 both say *"Procedure: step 5.2"*, and 5.2's prose covered only the three
+`rag_lookup_*` tools. They were built here because the executor binds
+`UNIVERSAL_TOOLS`, and because without `propose_diagram` the Define SIPOC the
+UI already renders would have vanished the moment `create_agent` replaced the
+v1 executor that emits it.
+
+**The last two cannot exist yet by the spec's own assignments** —
+`check_gate_status` is step 7.1 and needs `DMAICGateValidator` (7.1's
+deliverable); `request_human_approval` is step 7.5 and needs the escalation
+path. So the live per-phase totals are **6 / 13 / 10 / 6 / 10** against §30's
+**8 / 15 / 12 / 8 / 12**. **§30 is not redefined**; the interim is asserted
+separately and alongside it, so 7.1 and 7.5 must return to both. **WATCH 25.**
+
+---
+
+### AG5 — The founder ruling on what those two tools ARE
+
+Recorded verbatim, because it is the scoping **G-29 and G-30** were waiting on:
+
+> *"Agent Improve does not export documents. The assembled `{Phase}Output`
+> shown on the UI is the record. `propose_diagram` returns structured JSON
+> rendered by the UI (`renderSipocDiagram`, `render5W2HMindmap`).
+> `propose_template` returns a `str` (S-F19 signature) that the coach presents
+> inside its coaching message for the Belt to complete — no UI renderer, by
+> design. Neither emits a file; both are coaching aids, not document
+> generators."*
+
+**This is why the narrow build is correct rather than provisional.** Neither
+tool was designed here: `propose_template` uses the four types §29.2 names, and
+`core/diagrams.py` **transcribes the two shapes `ui/index.html` already
+renders**, read off the render functions. Inventing a type catalogue would have
+closed a founder-owned gap by implementation — the mistake 6.1 declined to make
+with G-01 and DP1.
+
+**G-29 and G-30 stay OPEN in §66.** The ruling scopes what the tools are for;
+formally closing a spec gap is a §56 amendment, not a build step's to make.
+The ruling is carried in `knowledge/tools.py`'s section header, in
+`propose_template`'s own docstring (§31 — the docstring is what someone editing
+the tool reads, and what the model reads at call time), and in
+`core/diagrams.py`'s header.
+
+**The one wrinkle, checked rather than assumed:** the ruling's first phrasing
+described both tools as returning JSON the UI renders. `grep` for a template
+renderer in `ui/index.html` found none — no `renderTemplate`, no
+`template_type` — and S-F19's ratified signature is `-> str`. The founder
+confirmed: the coach presents the template inside its message, and the absence
+of a renderer is by design. **No code changed on the looser reading.**
+
+---
+
+### AG6 — The coach prompts arrived early, and had to be compliant to arrive at all
+
+**Step 6.6 owns `core/prompts.py`'s rewrite** (§22). `{PHASE}_COACH_PROMPT`
+landed at 6.2 because `create_agent` cannot be constructed without a system
+prompt — and because CLAUDE.md **§6.3** and **§6.4** make the memory-hierarchy
+paragraph and the anti-hallucination guards **mandatory on every coach
+prompt**. A thin placeholder would not have deferred a rule; it would have
+violated one. Both blocks are present in all five and are asserted.
+
+**6.6's own work is untouched:** deleting the v1 `ORCHESTRATOR_{PHASE}` /
+`EXTRACTION_{PHASE}` / `KNOWLEDGE_INJECTION_TEMPLATE` families, and landing the
+contradiction-check instruction in the five SKILL.md files.
+
+**The per-turn half is composed in the node, not injected into `messages`.**
+§19.1's `BeforeModelStateInjection` is the ratified home and lands at 6.3; until
+then the executor composes the field ledger, the captured state, the case
+framing and the plan's focus field into the system prompt — because §8.5 puts
+project facts at the **top**, and appending them into `messages` after the
+Belt's turn is the violation that rule exists to name. The agent is therefore
+constructed per turn; 6.3 makes the prompt static and lets it be cached.
+
+**Case framing was nearly dropped.** The v1 bridge carried `case_metadata` and
+`current_user` on `config`; the first draft of the v2 prompt carried neither.
+`belt_level` is load-bearing — §35's grader suppresses Black-Belt-only
+methodology for a Green Belt — so a coach that does not know which Belt it is
+talking to cannot honour a rule the grader will hold it to.

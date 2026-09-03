@@ -1772,7 +1772,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 5.3** | 20 computation tools | done |
 | **Commit 5.4** | Per-phase tool binding | done |
 | **Commit 6.1** | Planner / Executor split | done |
-| **Commit 6.2** | `create_agent` executor | pending |
+| **Commit 6.2** | `create_agent` executor | done |
 | **Commit 6.3** | Middleware 1–3 | pending |
 | **Commit 6.4** | Retry middleware 4–5 + factory retry removal | pending |
 | **Commit 6.5** | Middleware 6–8 | pending |

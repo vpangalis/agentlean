@@ -98,6 +98,79 @@ class CoachingPlan(BaseModel):
         return self
 
 
+class CoachingResponse(BaseModel):
+    """The executor's per-turn structured output — procedure step 6.2.
+
+    Canonical definition: **§58.5 — S-C05**, which carries a *rebuild test*, so
+    the four fields below are transcribed from that entry. Architecture §20,
+    §18, §37.
+
+    **Produced by `response_format=` on `create_agent`, every coaching turn**
+    (B1) — never by a second model call, and never substituted for a
+    `{Phase}Output`, which is Pydantic-constructed once per phase at
+    `gate_apply` (§20, §40).
+
+    **This is the v2 field writer.** `fields_captured` is what the executor
+    node writes into `artifacts` under the §39.x names, and its existence is
+    what clears WATCH 7: until step 6.2 the v1 `orchestrate.py` +
+    `EXTRACTION_{PHASE}` pair wrote v1 names into `draft` and `artifacts` stayed
+    empty, so every phase's gate was inert by ruling (DECISIONS Part X, Route
+    A). `record_field` is RETIRED and may not return (§29.3) — **a tool would
+    make capture a decision the coach might skip; structured output makes it
+    part of every response by construction.**
+
+    **What this does NOT give you is truth** (§20). It guarantees shape. A
+    schema-valid `baseline_estimate: "4.2"` the model invented is exactly as
+    well-formed as one the Belt gave. Content-level defence is the
+    anti-hallucination guards in the prompt (§22), validation Layer 2a (§34)
+    and the policy advisory (§33) — not this class.
+
+    **Adding a field here requires a §56 amendment**, the same as
+    `SupervisorState` and `PhaseState`.
+    """
+
+    message: str = Field(
+        description=(
+            "The coaching text the Belt reads. Plain language — no methodology "
+            "jargon in team-facing strings (§13)."
+        ),
+    )
+    fields_captured: list[dict] = Field(
+        default_factory=list,
+        description=(
+            "Values the BELT supplied this turn, as "
+            "[{field_name, value, source}]. Name each field exactly as this "
+            "phase's field list spells it. Empty when the Belt supplied "
+            "nothing new — which is the common case on a teaching turn. "
+            "Never include a value the Belt did not state."
+        ),
+    )
+    citations: list[dict] = Field(
+        default_factory=list,
+        description="Sources referenced this turn, from retrieval tool results.",
+    )
+    contradiction_flag: Optional[dict] = Field(
+        default=None,
+        description=(
+            "Set ONLY where the Belt materially contradicts a value already "
+            "gate-approved in an earlier phase, with the five keys "
+            "prior_field, approved_value, approved_phase, proposed_value, "
+            "belt_input. Leave null for prose rephrasing, and for any "
+            "refinement of a current-phase value that has not been committed "
+            "yet — that is ordinary coaching, not a contradiction."
+        ),
+    )
+
+
+#: The five keys `contradiction_flag` carries when it is set (S-C05, §37).
+#: `ContradictionDetectionMiddleware` (S-C10, step 6.5) reads them to build its
+#: interrupt payload, so a flag missing one is a flag it cannot present.
+CONTRADICTION_FLAG_KEYS: tuple[str, ...] = (
+    "prior_field", "approved_value", "approved_phase", "proposed_value",
+    "belt_input",
+)
+
+
 class PhaseState(TypedDict):
     """Twenty author-populated fields — two identity, three plumbing,
     fifteen content — plus one engine-managed value: twenty-one declared.
@@ -249,6 +322,8 @@ PHASE_STATE_READ_ONLY_FIELDS = PHASE_STATE_IDENTITY_FIELDS
 
 __all__ = [
     "CoachingPlan",
+    "CoachingResponse",
+    "CONTRADICTION_FLAG_KEYS",
     "PhaseState",
     "PHASE_STATE_IDENTITY_FIELDS",
     "PHASE_STATE_PLUMBING_FIELDS",

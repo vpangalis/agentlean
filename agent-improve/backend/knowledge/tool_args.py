@@ -314,6 +314,48 @@ class PostImprovementCpkArgs(BaseModel):
                     "report the delta."
     )
 
+# ══════════════════════════════════════════════════════════════════════════
+# The two universal proposal tools (S-F19, S-F20) — procedure step 6.2
+#
+# Owed by step 5.2: both entries say "Procedure: step 5.2", whose prose covered
+# only the three `rag_lookup_*` tools. Built at 6.2 because the executor binds
+# them (§29.2) and Define's SIPOC rendering depends on `propose_diagram`.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+class ProposeTemplateArgs(BaseModel):
+    """Args for `propose_template` (S-F19)."""
+
+    template_type: str = Field(
+        description="Which scaffold to produce. Supported: "
+                    "'problem_statement', 'sipoc', 'data_collection_plan', "
+                    "'fishbone'. Ask for one of those by name."
+    )
+    fill_data: dict = Field(
+        default_factory=dict,
+        description="What is already known, to pre-fill the scaffold. Keys "
+                    "vary by template_type; anything unrecognised is ignored "
+                    "rather than rejected. Pass {} for a blank scaffold."
+    )
+
+
+class ProposeDiagramArgs(BaseModel):
+    """Args for `propose_diagram` (S-F20)."""
+
+    diagram_type: str = Field(
+        description="Which diagram the frontend should draw. Supported: "
+                    "'sipoc' (the five-column process map) and 'mindmap_5w2h' "
+                    "(the 5W2H problem-definition map). No other type renders."
+    )
+    data: dict = Field(
+        description="The content to draw, as structured data — NEVER markup. "
+                    "For 'sipoc': suppliers, inputs, process_steps, outputs, "
+                    "customers, each a list of short strings. For "
+                    "'mindmap_5w2h': what, where, when, who_affected, why, "
+                    "how_much, how_often."
+    )
+
+
 
 __all__ = [
     "ExpectedSavingsArgs",
@@ -336,4 +378,6 @@ __all__ = [
     "PChartArgs",
     "CChartArgs",
     "PostImprovementCpkArgs",
+    "ProposeTemplateArgs",
+    "ProposeDiagramArgs",
 ]
