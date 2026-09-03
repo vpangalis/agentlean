@@ -95,6 +95,32 @@ patterns:
       - 'agent-improve/**/*.md'
       - 'agent-improve/backend/phases/**/orchestrate.py'
       - 'agent-improve/backend/phases/**/validate.py'
+      # ── The §4.6 scoping, added 2026-09-03 (procedure step 5.2) ─────────
+      #
+      # CLOSES THE UPDATE CLAUDE.md §18.1 RECORDS AS OWED. This entry's
+      # message says "deprecated in v2.2", which is THIS PROJECT'S doc
+      # version and applies to AGENT CONSTRUCTION only. CLAUDE.md §4.6
+      # replaced v2.1's §4.3 and scoped the mechanism by call type:
+      #
+      #   an agent built with create_agent   -> response_format=Schema
+      #   a plain model call inside a tool,
+      #   middleware, or validator           -> the builder-style call
+      #
+      # and §4.6's own mapping table names the site this unblocks:
+      # "Inside rag_lookup_* | Plain LLM call | QueryVariants |
+      # with_structured_output". REVIEW_DECISIONS.md ratifies the same
+      # scoping (§32, §33, §37, §42, §48, §68) — as the comment above
+      # already states. The exclusion list simply predated the files.
+      #
+      # Verified 2026-09-03 against the installed langchain-core 1.6.0:
+      # BaseChatModel.with_structured_output carries NO upstream deprecation
+      # marker. The block was ours, and it was over-broad.
+      #
+      # STILL BLOCKING where response_format= applies — notably
+      # phases/**/nodes.py, where the executor is built with create_agent at
+      # step 6.2. That is the case this pattern exists for.
+      - 'agent-improve/backend/knowledge/**'
+      - 'agent-improve/backend/middleware/**'
 
   - id: pattern-5-plain-dict-routing
     regex: 'return\s+\{\s*["\'']next["\'']:'
