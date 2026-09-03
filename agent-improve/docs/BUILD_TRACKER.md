@@ -12,7 +12,7 @@ Legend:  ✅ done · ▶ next · ☐ to do · ⛔ blocked · ⏸ gated/external
 # Agent Improve — Refactor Build Tracker
 # updated 2026-09-02 · build target: `agent-improve/ARCHITECTURE.md`
 
-**Progress: 17 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2 + 9.0 out-of-band). **Next: step 5.3.**
+**Progress: 18 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3 + 9.0 out-of-band). **Next: step 5.4.**
 Spine runs 2.3 → 11.2, one step = one commit. The spec is complete; this is the code.
 
 **Blocked / not-yet-schedulable:** 8.4 (Redis not provisioned), 8.5 (`request_drain`
@@ -51,8 +51,8 @@ unconfirmed), 9.1 (external reindex). Everything else is open once its precondit
 |---|---|---|---|
 | 5.1 | Retrieval failure semantics | §27 | ✅ done *(the classifier was already right; the gap was `build_knowledge_context` returning `None` for both a break and a no-match — the path all five orchestrators take every turn)* |
 | 5.2 | Three `rag_lookup_*` tools + multi-query + RRF | §24, §25 | ✅ done **live-run verified** *(**G-14 CLOSED**. Found that `search_knowledge` projected four index fields that do not exist, so §50 citations were unbuildable — DECISIONS Part AC3)* |
-| 5.3 | **The 20 computation tools** | §69 (S-F37–S-F56) | ▶ **next** |
-| 5.4 | Per-phase tool binding | §30 | ☐ |
+| 5.3 | **The 20 computation tools** | §69 (S-F37–S-F56) | ✅ done *(20 named tools, 20 distinct `args_schema`s, 67 known-answer tests — 8 mutations of the code all caught. Scalar inputs are `str` + `_num()`, not `float` — DECISIONS Part AD1)* |
+| 5.4 | Per-phase tool binding | §30 | ▶ **next** *(`COMPUTATION_TOOLS_BY_PHASE`; asserts 8/15/12/8/12)* |
 
 ## Stage 6 — The coaching agent
 | Step | What | Builds | Status |

@@ -7,11 +7,11 @@
 
 | | |
 |---|---|
-| **Last completed** | step **5.2** — Three `rag_lookup_*` tools + multi-query + RRF |
-| **Next** | step **5.3** — **The 20 computation tools** |
+| **Last completed** | step **5.3** — **The 20 computation tools** |
+| **Next** | step **5.4** — Per-phase tool binding |
 | **Stage** | Stage 5 — Retrieval and tools |
-| **Progress** | 17 of 35 build steps |
-| **Last spine commit** | `905bcdb` (commit 5.1) |
+| **Progress** | 18 of 35 build steps |
+| **Last spine commit** | `cb971ed` (commit 5.2) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |
 | **Block regenerated** | 2026-09-03 |

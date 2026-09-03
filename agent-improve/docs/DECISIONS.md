@@ -3870,3 +3870,141 @@ k=1 and `b` at k=60 — with a note in the test that this arithmetic is not
 eyeballable. Recorded because the failure mode is the one this project keeps
 naming: an assertion that reads as obviously true, written without checking,
 would have passed for the wrong reason had the numbers happened to line up.
+
+---
+
+## Part AD — Step 5.3: the twenty computation tools, and why their scalar inputs are strings (2026-09-03)
+
+**Procedure step 5.3.** Reference §30 (per-phase binding), §31 (arg schemas),
+§7 (the typing law); **§69 — S-F37–S-F56** for the twenty interfaces and
+**§60.6 — S-F24** for the EARS behaviours binding on all of them.
+
+**No SPEC-GAP moves here.** G-25 — *"the 20 computation tools: no signature, no
+`args_schema`, no return shape for any of them"* — was **RESOLVED at spec level
+on 2026-08-26 by §69** and already sits in §66.6. This step builds the code that
+section specified; the register is unchanged, and that is the correct outcome
+rather than an omission.
+
+    Define 1 · Measure 8 · Analyse 5 · Improve 1 · Control 5  =  20
+
+---
+
+### AD1 — Scalar inputs are `str` + `_num()`, not `float`. This is the design call.
+
+**Ruled: every scalar a Belt might have written as prose is typed `str` in
+`tool_args.py` and parsed by `_num()` in `computation.py`. Structured
+collections stay typed lists.**
+
+Two ratified behaviours force it, and `float` satisfies neither:
+
+  * **B2** — *"parse what it needs out of the string at the point of use, since
+    every captured field is a `str`"*. §7's typing law makes every captured
+    field a string. What actually arrives where §69 writes `mean` is
+    `"12.3% invoice error rate, measured over Q2 2026"`.
+  * **B3** — *"unable to parse its input, return a clear reformatting request to
+    the Belt rather than **raising** or guessing"*.
+
+**Declaring `mean: float` would coerce `"12.3"` happily and then RAISE a
+`ValidationError` on the prose** — the exact behaviour B3 forbids, at a layer
+inside Pydantic that the tool cannot intercept to phrase a question. The Belt
+would get a tool-call failure; what B3 requires is *"I could not find a number
+in the process mean — you wrote 'about ten-ish'. Could you give me just the
+figure?"*
+
+**The split is "prose the Belt typed" versus "a table the coach assembled".**
+`subgroups`, `contingency_table`, `x_values` and the rest stay `list[...]`: they
+are built by the coach from data it has read, not lifted from a captured-field
+sentence, and a malformed one is a genuine call error that Pydantic *should*
+reject. What those collections need instead is **methodology** checking — at
+least two RTY steps, expected cell counts ≥ 5, equal and constant subgroup
+sizes — and §69.1 is explicit that *"preconditions are business and methodology
+preconditions… they are NOT argument validation"*. So those live in the tools
+and return requests too.
+
+> **One internal exception type, never crossing a boundary.** `_num()` raises
+> `_NeedsReformatting`, which every tool converts to a `{"reformatting_request":
+> …}` result. `test_no_tool_raises_on_unparseable_input` sweeps all twenty to
+> confirm it never escapes — B3 says the Belt gets a question, not a stack
+> trace.
+
+---
+
+### AD2 — Three per-tool rulings worth naming
+
+**`post_improvement_cpk` is its own `@tool`, not `calculate_cpk(mode="post")`.**
+S-F24 **B4** bans parameterised grouping and §30 binds tools per phase, so the
+mode argument is not available even though the formula is identical. §69.6
+permits the shared private helper explicitly — *"The two MAY share a helper;
+they are two `@tool`s"* — and they share `_cpk_values`. **The difference is the
+contract, not the arithmetic**: `post_improvement_cpk` additionally takes
+`baseline_cpk` and returns `improvement_delta`, which is the number Control's
+`post_improvement_metrics` is graded against, not the new Cpk alone. A test
+asserts the two agree on identical data, so the shared helper cannot drift while
+they stay two tools.
+
+**A single measurement per period gets sent to I-MR, by name.** **B7**: *"a Belt
+SHALL NOT be coached into inventing subgroups to fit a batch chart."*
+`xbar_r_chart_limits` given subgroups of size 1 returns a request naming I-MR
+rather than computing limits that would look authoritative and mean nothing.
+The rule is enforced at the tool, not left to the coaching prompt, because the
+prompt is the layer that fails silently.
+
+**`pearson_correlation` below n=10 warns and still answers.** S-F49: *"the tool
+returns a warning, not a suppressed result — the Belt decides."* Suppressing it
+would have the tool overrule the Belt on a methodology floor that is a guideline,
+not arithmetic. The result carries `sample_size_warning` naming the floor.
+
+---
+
+### AD3 — The expected answers are anchored independently, and mutation-proven
+
+**All 67 tests passed on the first run**, which is precisely when this project's
+standing lesson applies: *a check that cannot fail is worse than no check,
+because it is recorded as evidence.*
+
+**No expectation is a value read back from the code.** Each is one of:
+
+  * a figure a Black Belt recognises on sight — DPMO 3.4 is six sigma, 66,807 is
+    three, and p=0.5 at ±5% needs **385**;
+  * arithmetic checkable by hand in the test docstring — a process centred at 10
+    with σ=1 between limits of 7 and 13 has Cpk of exactly 1.0, and RTY for five
+    steps at 95% is 0.95⁵ = 0.7738, not 0.95;
+  * a value computed from `scipy` *in the test*, where the tool's job is to route
+    to the right standard test rather than to reimplement it.
+
+**Then the suite was proved able to fail — eight mutations of the code under
+test, eight caught:**
+
+| Mutation | Caught by |
+|---|---|
+| `SIGMA_SHIFT` 1.5 → 0.0 | the 3.4-DPMO-is-six-sigma case |
+| Cpk takes the best side, not the worst | the off-centre process case |
+| RTY sums step yields instead of multiplying | the hidden-factory case |
+| Shewhart A2 for n=5 mistyped 0.577 → 0.677 | the X̄-R known answer |
+| `_num` **raises** instead of asking | the B3 sweep |
+| chi-square skips the expected-count ≥ 5 check | the small-sample case |
+| p-chart returns one flat limit | the varying-limits case |
+| `post_improvement_cpk` drops the delta | the delta case |
+
+**The trusted-source rule differs for this file, and §69.1 says so.** These are
+AIAG MSA-4 for GR&R, Shewhart's constant tables, the standard hypothesis tests
+and the 1.5σ long-term-shift convention — **decades-old standards that do not
+drift the way a package API does**. The check is *"matches the standard method
+as taught in the ingested BB eBook"*, not `/verify-current-version`; applying a
+package-version check to a Shewhart constant table would be a category error.
+`scipy` and `numpy` are pinned, declared dependencies and are used for the
+reference distributions rather than hand-rolled approximations of them.
+
+---
+
+### AD4 — What this step deliberately did not build
+
+**`COMPUTATION_TOOLS_BY_PHASE` is absent.** The per-phase binding is **step
+5.4's** — its own `Touches` row names that constant and its *Done when* asserts
+the totals 8 / 15 / 12 / 8 / 12 against the universal seven, with no phase over
+16. `computation.py` exposes a flat `COMPUTATION_TOOLS` list of the twenty in
+§60.6's inventory order; 5.4 partitions it.
+
+**Measure has no chart-limit tool, and that is a specified absence** (§69.7),
+not an oversight in the inventory: `stability_assessment` is coached as a
+visual read, and the chart-limit tools belong to Control.
