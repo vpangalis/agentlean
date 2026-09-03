@@ -3724,3 +3724,149 @@ all five — 133 tests where there were 34. Every assertion in it was already
 generic; only the parameterisation is new. The Done-when's own test asserts the
 five node-name sets are identical **to each other**, which five separate checks
 against a constant would not quite establish.
+
+---
+
+## Part AC — Step 5.2: the three `rag_lookup_*` tools, G-14 closed, and a citation that was never buildable (2026-09-03)
+
+**Procedure step 5.2.** Reference §24 (the three tools), §25 (multi-query +
+RRF), §23 (index schemas), §27 (failure semantics); **S-F14, S-F15, S-F16,
+S-F17, S-C19**. Verify method `live-run`, and the live run is what makes AC3
+part of this record rather than a later bug report.
+
+---
+
+### AC1 — G-14 CLOSED: the `QueryVariants` schema
+
+**Group C — a schema named but never defined — not a Group A founder ruling**,
+so it is resolvable under CONTINUITY's Standing Reasoning Protocol. §21's
+mapping table and §25 both name `QueryVariants`; neither defines it. G-14 lists
+exactly three undecided points and all three are ruled.
+
+**1. One field, `variants: list[str]`.** A `rationale` or `strategy` field was
+considered and rejected: generated on every retrieval, read by nothing, paid for
+in tokens on the hot path.
+
+**2. The original query is NOT in the schema, and is always searched anyway.**
+This is the substantive ruling. The Belt's own phrasing is the highest-signal
+formulation in the set and **must not be at the mercy of a generation call** — a
+model that paraphrases badly, or whose variants all drift the same way, would
+lose it entirely. `run_multi_query` therefore runs it as **ranked list zero,
+unconditionally**, and the model's job is purely to add alternatives. Including
+it in the schema would also let the model spend one of its three-to-five slots
+restating what it was handed.
+
+> **Consequence worth naming: the fan-out is `1 + len(variants)`, so 4–6 lists
+> reach RRF, not 3–5.** The original's list is one vote among them and is
+> **deliberately not weighted higher** — RRF's whole premise is that agreement
+> across phrasings is the signal, and privileging one phrasing would undo it.
+
+**3. Count model-chosen, bounded 3–5, enforced by the schema.** §25 says "3–5",
+which is a range and not a number. Some queries have three natural rephrasings
+and some have five; forcing exactly five produces padding, and padding produces
+near-duplicate lists that inflate one document's fused score **without adding
+evidence**. `min_length` / `max_length` on the field make a violation a parse
+failure at the boundary rather than a silent narrowing deeper in.
+
+**File: `knowledge/fusion.py`** — S-C19 sanctions either that or
+`tool_args.py`, and fusion.py keeps variant generation and fusion together,
+which is the one concern §25's encapsulation rule describes.
+
+---
+
+### AC2 — What was built, and the two classes that stay banned
+
+**`knowledge/fusion.py`** holds `reciprocal_rank_fusion` (S-F17, k=60),
+`QueryVariants`, `generate_variants` and `run_multi_query`. **`knowledge/
+tools.py`** is rewritten as the three `rag_lookup_*` tools; the three
+`search_improve_*` names are retired and `grep-absence` returns **zero** for
+all three literal strings.
+
+| Decision | Why |
+|---|---|
+| **Custom RRF, not `EnsembleRetriever`** | Two independent reasons (§25): both it and `MultiQueryRetriever` moved to `langchain_classic` and are not importable; and `EnsembleRetriever` fuses **different retriever sources**, where ours is **same-index multi-query** — N phrasings against one index. No LangChain 1.x class covers that, which is why LangChain's own rag-fusion template is custom |
+| **`AzureSearch` with the filter at call time, not `AzureAISearchRetriever`** | §24's ratified rejection: the latter takes `filters` at *construction*, which forces per-call instantiation once the filter carries a dynamic `phase` and throws away the cached singleton. Re-examined 2026-08-21; no advantage found |
+| **`response_format="content_and_artifact"`** | S-F14/15/16 all specify `list[Document]` as the output, but a `@tool` must hand the *model* readable text. Content carries the passages plus `source_file` / `page_number`; the artifact is the `list[Document]` the specs name, available for `CoachingResponse.citations` at 6.2 without the model re-transcribing it. One return, both readings |
+| **`PER_VARIANT_K = 10`, sliced after fusion** | Fetching only `top_k` per variant would starve RRF of the lower-ranked agreements that are the entire signal it reads |
+
+**Written against the LIVE index schema, not the target one** (§23, blocked on
+step 9.1): `rag_lookup_evidence` takes **no `order_by` and no `phase` filter` —
+`improve_evidence_index` has neither field as a top-level yet, both being inside
+the non-sortable `metadata` blob; and `rag_lookup_case_history` uses
+**`embedding`**, the live vector-field name on the one index that is not
+`content_vector`. Per-tool local knowledge of that name is what keeps the
+asymmetry safe (§23) — no shared code hides it, so nothing fails silently on it.
+
+---
+
+### AC3 — The citation §50 requires was never buildable, and only the live run could find it
+
+**`search_knowledge` projected four metadata fields that do not exist on the
+index.** It read `source`, `tool_name`, `phase` and `section_title`. The live
+keys on `improve_knowledge_index_v3` are:
+
+    char_count · id · page_number · phase_relevance · source_file
+
+So **every one of those four came back as `""`, on every call, forever** — and
+`.get(key, "")`'s default is exactly what made it silent. No exception, no log,
+a well-formed result dict with four empty strings in it.
+
+**The cost is not cosmetic.** §50 requires retrieval citations to surface
+`source_file` and `page_number` — *"this came from page 47 of the BB eBook"* —
+and **`page_number` was not projected at all**, so a checkable citation was
+unbuildable from this return shape. The v1 tool's `[{tool_name or
+section_title}]` label had also been rendering empty since it was written.
+
+**`phase_relevance` is the filter field, never `phase`** (§7.2, §24) — the same
+confusion that produced the original filter bug §27 exists to prevent. The
+filter itself was correct; only the projection back out was wrong, which is why
+retrieval "worked" and nobody noticed.
+
+Corrected to project `id`, `content`, `source_file`, `page_number`,
+`phase_relevance`. Citations now render:
+
+    [Methodology · BB_LSS_ebook, PDF page 54] …
+
+**"PDF page", per WATCH 5** — `page_number` is the PDF index and the printed
+number is piecewise-offset, so "page 54" alone would send the Belt to the wrong
+place.
+
+> **This is the second consecutive step where the verify method earned its
+> keep.** 5.1's mutations proved its tests could fail; 5.2's `live-run` found a
+> defect that a green unit suite, a passing type check and a working retrieval
+> path had all been consistent with. `retriever.py` and `core/prompts.py` are
+> outside 5.2's `Touches` and were edited anyway — flagged, as at 4.2 and 4.4.
+
+---
+
+### AC4 — Live-run evidence
+
+```
+rag_lookup_methodology(phase='define')  -> 6 docs
+  define  · BB_LSS_ebook · PDF page 54      general · BB_LSS_ebook · PDF page 233
+  define  · pages 53, 51, 83, 46
+  distinct phase_relevance: ['define', 'general']   <- the OR clause binds
+
+rag_lookup_methodology(phase='control') -> phase_relevance: ['control']
+                                           <- the filter binds PER PHASE
+rag_lookup_evidence(case_id='IMPR-2026-E9D') -> 1 doc, test_sipoc.png
+```
+
+**The two zero-result calls were checked rather than assumed**, which is the
+§27 distinction 5.1 spent itself on: `improve_case_index` holds **0
+documents** — consistent with §23's note that it is empty pending the
+`embedding` → `content_vector` reindex — and the single evidence document
+belongs to `E9D`, so querying `0CB` correctly matched nothing. Both are genuine
+empties, not masked failures.
+
+---
+
+### AC5 — One test was arithmetically false, and failed
+
+`test_a_large_k_is_what_makes_that_possible` originally claimed that at `k=1`
+one first-place beats three second-places. **It does not:** 3 × ½ = 1.5 > 1/1.
+Rebuilt on a case that genuinely flips — first-once versus third-twice, `a` at
+k=1 and `b` at k=60 — with a note in the test that this arithmetic is not
+eyeballable. Recorded because the failure mode is the one this project keeps
+naming: an assertion that reads as obviously true, written without checking,
+would have passed for the wrong reason had the numbers happened to line up.

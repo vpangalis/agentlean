@@ -1153,3 +1153,30 @@ ORCHESTRATOR_CONTEXT_MAP: dict[str, str] = {
     "improve":       ORCHESTRATOR_IMPROVE_CONTEXT,
     "control":       ORCHESTRATOR_CONTROL_CONTEXT,
 }
+
+
+# ─────────────────────────────────────────────────────────────────
+# RETRIEVAL — query variant generation (§25, procedure step 5.2)
+# ─────────────────────────────────────────────────────────────────
+#
+# Lives here and not in `knowledge/fusion.py` because §6.1 is unconditional:
+# all prompts are constants in this file. Consumed by
+# `fusion.generate_variants`, which parses the reply with structured output
+# (`QueryVariants`) and never by hand (§4.3, §25).
+#
+# The DIVERSITY REQUIREMENT IS CARRIED HERE, not by the sampler. Variant
+# generation runs at temperature 0.2 so the same Belt question retrieves the
+# same documents twice — reproducibility a LangSmith trace can be read
+# against — which means the instruction to vary vocabulary has to be explicit.
+
+VARIANT_PROMPT = """You are preparing search queries for a Lean Six Sigma methodology corpus (a Black Belt reference text).
+
+Rewrite the question below into {min_variants}-{max_variants} ALTERNATIVE phrasings. Each should surface documents the original wording might miss.
+
+Rules:
+- Do NOT repeat the original question. It is searched separately.
+- Vary the vocabulary. Where the question uses plain language, use the formal methodology term; where it uses jargon, use plain language.
+- Stay on the same underlying information need. These are rephrasings, not follow-up questions.
+- Keep each variant a single line, phrased as a search query or question.
+
+Question: {query}"""

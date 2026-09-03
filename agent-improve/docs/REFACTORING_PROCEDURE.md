@@ -1768,7 +1768,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 4.3** | Supervisor graph | done |
 | **Commit 4.4** | Remaining four subgraphs | done |
 | **Commit 5.1** | Retrieval failure semantics | done |
-| **Commit 5.2** | Three `rag_lookup_*` + RRF | pending |
+| **Commit 5.2** | Three `rag_lookup_*` + RRF | done |
 | **Commit 5.3** | 20 computation tools | pending |
 | **Commit 5.4** | Per-phase tool binding | pending |
 | **Commit 6.1** | Planner / Executor split | pending |

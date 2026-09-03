@@ -226,13 +226,39 @@ def search_knowledge(query: str, phase: str | None = None,
         _fail(e, settings.AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX,
               search="knowledge", filter=filters, query=query[:120])
 
+    # ═══════════════════════════════════════════════════════════════════
+    # THE KEYS BELOW ARE THE INDEX'S OWN, AND THREE OF THEM WERE WRONG
+    # ═══════════════════════════════════════════════════════════════════
+    # Until procedure step 5.2 this projection read `source`, `tool_name`,
+    # `phase` and `section_title`. **`improve_knowledge_index` has none of
+    # them.** Its live metadata keys are exactly:
+    #
+    #     char_count · id · page_number · phase_relevance · source_file
+    #
+    # so every one of those four fields came back as `""` on every result, on
+    # every call, with no error — the `.get(key, "")` default is what made it
+    # silent. Found by step 5.2's live-run, not by review.
+    #
+    # The cost was not cosmetic. §50 requires retrieval citations to surface
+    # `source_file` and `page_number` — "this came from page 47 of the BB
+    # eBook" — and `page_number` was not projected at all, so a checkable
+    # citation was unbuildable from this return shape.
+    #
+    # `phase_relevance` is the filter field (§7.2, §24), NEVER `phase`: there
+    # is no `phase` field on this index, which is the same confusion that
+    # produced the original filter bug §27 exists to prevent.
     return [
         {
+            # The index key field (§23), here for RRF: fusion dedups on it
+            # (S-F17), and without it every variant's copy of the same chunk
+            # counts as a distinct document, turning fusion into concatenation
+            # with no error. LangChain's AzureSearch puts it in
+            # `Document.metadata` — see `_result_to_document`.
+            "id": d.metadata.get("id", ""),
             "content": d.page_content,
-            "source": d.metadata.get("source", ""),
-            "tool_name": d.metadata.get("tool_name", ""),
-            "phase": d.metadata.get("phase", ""),
-            "section_title": d.metadata.get("section_title", ""),
+            "source_file": d.metadata.get("source_file", ""),
+            "page_number": d.metadata.get("page_number"),
+            "phase_relevance": d.metadata.get("phase_relevance", ""),
         }
         for d in docs
     ]
@@ -268,7 +294,9 @@ def search_cases(query: str, k: int = 3) -> list[dict]:
         results = search_client.search(
             search_text=query,
             vector_queries=[vector_query],
-            select=["content_text", "case_id", "title",
+            # `id` is selected for RRF dedup (S-F17) — a `select` that omits
+            # it makes every document unique to fusion, silently.
+            select=["id", "content_text", "case_id", "title",
                     "current_phase", "rag_status"],
             top=k,
         )
@@ -277,6 +305,7 @@ def search_cases(query: str, k: int = 3) -> list[dict]:
         # list must stay inside the try or the failure escapes unclassified.
         return [
             {
+                "id": r.get("id", ""),
                 "content": r.get("content_text", ""),
                 "case_id": r.get("case_id", ""),
                 "title": r.get("title", ""),
@@ -315,7 +344,8 @@ def search_evidence(query: str, case_id: str, k: int = 4) -> list[dict]:
             search_text=query,
             vector_queries=[vector_query],
             filter=f"case_id eq '{safe_case_id}'",
-            select=["content", "metadata", "case_id"],
+            # `id` is selected for RRF dedup (S-F17), as above.
+            select=["id", "content", "metadata", "case_id"],
             top=k,
         )
 
@@ -323,6 +353,7 @@ def search_evidence(query: str, case_id: str, k: int = 4) -> list[dict]:
         output = []
         for r in results:
             output.append({
+                "id": r.get("id", ""),
                 "content": r.get("content", ""),
                 **_evidence_metadata(r),
             })

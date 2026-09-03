@@ -7,14 +7,14 @@
 
 | | |
 |---|---|
-| **Last completed** | step **5.1** — Retrieval failure semantics |
-| **Next** | step **5.2** — Three `rag_lookup_*` tools + multi-query + RRF |
+| **Last completed** | step **5.2** — Three `rag_lookup_*` tools + multi-query + RRF |
+| **Next** | step **5.3** — **The 20 computation tools** |
 | **Stage** | Stage 5 — Retrieval and tools |
-| **Progress** | 16 of 35 build steps |
-| **Last spine commit** | `784c405` (commit 4.4) |
+| **Progress** | 17 of 35 build steps |
+| **Last spine commit** | `905bcdb` (commit 5.1) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |
-| **Block regenerated** | 2026-09-02 |
+| **Block regenerated** | 2026-09-03 |
 
 *Derived from `docs/BUILD_TRACKER.md`, `CLAUDE.md`, `ARCHITECTURE.md`
 and the git spine — never hand-maintained, so it cannot drift from
@@ -513,7 +513,7 @@ specification.**
 - **Two Azure index schema changes** — RATIFIED, NOT APPLIED. `improve_evidence_index` gains `phase` + `uploaded_at`; `improve_case_index` `embedding` → `content_vector`. Batch — step 9.1. (Independent of the knowledge-index rebuild, which touched a different index.)
 
 ### SPEC-GAP register
-**`ARCHITECTURE.md` §66 — 46 identified, 14 closed or resolved, 32 open.
+**`ARCHITECTURE.md` §66 — 46 identified, 15 closed or resolved, 31 open.
 Group A empty** (no founder rulings outstanding). *(This line read "44 / 9 / 35"
 until 2026-08-27 — it was never updated when §66's own header moved to 46/12/34
 at v1.15. Corrected against §66, which carries the live count.)* *(**And it
@@ -540,6 +540,21 @@ so read §66 when the two disagree.)*
   Analyse/Improve/Control reviews. They do not move the gap count.
 
 ### Watches (owed work, NOT §66 gaps — the register will not surface them)
+
+- **WATCH 24 — `validation/**` needs the same drift-guard exclusion at Stage 7.**
+  Commit `41587fa` scoped `pattern-2-with-structured-output` to permit the
+  ratified builder-style `.with_structured_output()` for plain LLM calls inside
+  **tools and middleware** (`knowledge/**`, `middleware/**`), closing the update
+  CLAUDE.md §18.1 records as owed. **§4.6's clause covers three call sites, not
+  two** — *"a plain model invocation inside a tool, middleware, **or
+  validator**"* — and `agent-improve/backend/validation/**` is NOT excluded.
+  It was left out deliberately: the directory does not exist yet (it arrives
+  with validation layers 2c and 2d at stage 7) and the authorisation for that
+  commit named tools and middleware. **Step 7.x will hit the same block** —
+  `ConstraintCheckResult` and `GraderVerdict` are both `with_structured_output`
+  calls in a validator (§4.6's mapping table). Add the exclusion then, in a
+  governance commit of its own per §18, not inline with the feature work.
+
 
 - **WATCH 1 — CLOSED 2026-09-02 at step 4.2, and it did not confirm what it
   was expected to.** The owed item was a local repro of §16's persistence

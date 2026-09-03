@@ -9372,10 +9372,14 @@ class SynthesisOutput(BaseModel):
 **What is stated:** it is produced by structured output, never manual JSON
 parsing (§25), and it carries 3–5 variants.
 
-> **SPEC-GAP (G-14):** the schema is named in §21's mapping table and in §25 and
-> is defined nowhere — field names, whether the original query is included among
-> the variants, and whether the variant count is fixed or model-chosen are all
-> unstated — to be designed with founder.
+> **~~SPEC-GAP (G-14)~~ — CLOSED 2026-09-03, procedure step 5.2.** All three
+> undecided points are ruled, in `knowledge/fusion.py` and in §66.3's row:
+> **one field `variants: list[str]`**; **the original query is NOT among them
+> and is always searched as ranked list zero**; **count model-chosen, bounded
+> 3–5 by the schema**. Resolved under CONTINUITY's Standing Reasoning Protocol
+> as a Group C gap — a schema named but never defined — rather than as a
+> founder ruling, which Group A is empty of. Record: `docs/DECISIONS.md`
+> Part AC.
 
 ---
 
@@ -11488,7 +11492,7 @@ item 1. Classification deferred rather than guessed.
 inline marker.** That bidirectional correspondence is checkable and is one of
 the §55.1 governance rules.
 
-**46 gaps identified. Fourteen are closed or resolved. 32 are open.** *(G-21
+**46 gaps identified. Fifteen are closed or resolved. 31 are open.** *(G-14 closed 2026-09-03 at procedure step 5.2 — `docs/DECISIONS.md` Part AC.)* *(G-21
 closed 2026-09-01 at procedure step 3.5 — `docs/DECISIONS.md` Part Y.)* *(Two were
 added and resolved in the same pass on 2026-08-26 — G-45 and G-46, the metric
 registry's two spec entries. Registering a gap you are about to close in the
@@ -11543,7 +11547,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-11** | `GraderVerdict` — only "carries a `list[CriterionVerdict]`" is stated | S-C21, S-F26 |
 | **G-12** | `CoachingGraderVerdict` | S-C22, S-C14 |
 | **G-13** | `PolicyAdvisoryResult`, and how a non-blocking advisory is surfaced without reading as a rejection of the Belt's correction | S-C25, S-F27 |
-| **G-14** | `QueryVariants` | S-C19 |
+| ~~**G-14**~~ | ~~`QueryVariants`~~ **CLOSED 2026-09-03, procedure step 5.2.** **One field, `variants: list[str]`** — a `rationale` field was considered and rejected as generated every retrieval, read by nothing, and paid for in tokens on the hot path. **The original query is NOT among the variants and is always searched anyway**, as ranked list zero: the Belt's own phrasing is the highest-signal formulation and must not be at the mercy of a generation call, and putting it in the schema would let the model spend one of its slots restating what it was given. *Consequence:* the fan-out is `1 + len(variants)`, so **4–6 lists reach RRF, not 3–5**, and the original's list is one vote among them — deliberately not weighted higher, because RRF's premise is that agreement across phrasings is the signal. **Count model-chosen, bounded 3–5 by `min_length`/`max_length`**, so a violation is a parse failure at the boundary rather than a silent narrowing; §25 says "3–5", which is a range, and forcing exactly five produces padding, which produces near-duplicate lists that inflate one document's fused score without adding evidence. File: `knowledge/fusion.py` (S-C19 sanctions it or `tool_args.py`). Record: `docs/DECISIONS.md` Part AC | S-C19 |
 | **G-15** | `HITLInterrupt` — and whether an exception raised from `after_agent` yields a resumable graph-level interrupt at all | S-C15, S-C10 |
 | **G-16** | `CitationRecord` / `CitationBundle` — and the three different citation shapes stated in §50, §6 and §23 | S-C36 |
 | **G-17** | `CaseDocument` · `PhaseRecord` · `RegistryEntry` · `PhaseSummaryRecord`, and whether `PhaseRecord` duplicates the gate document | S-C09 |
