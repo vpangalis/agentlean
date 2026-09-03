@@ -1,4 +1,4 @@
-"""The twenty DMAIC computation tools — procedure step 5.3.
+"""The twenty DMAIC computation tools — procedure steps 5.3 and 5.4.
 
 Canonical: **§69** (S-F37–S-F56, the twenty interfaces), **§60.6 — S-F24** (the
 group entry and the EARS behaviours binding on all twenty), **§31** (arg
@@ -6,6 +6,12 @@ schemas). Architecture §30 (per-phase binding), §7 (the typing law), §43.1 (t
 seven-step coaching pattern).
 
     Define 1 · Measure 8 · Analyse 5 · Improve 1 · Control 5  =  20
+
+That line is the file's structure, not a comment on it:
+`COMPUTATION_TOOLS_BY_PHASE` (step 5.4) is the partition, and the flat
+`COMPUTATION_TOOLS` is derived from it. Each phase executor binds the universal
+seven (§29.2) plus its own subset — 8 / 15 / 12 / 8 / 12, no phase over §30's
+ceiling of 16.
 
 WHAT EVERY ONE OF THEM IS
 -------------------------
@@ -66,7 +72,7 @@ import re
 from typing import Any
 
 import numpy as np
-from langchain_core.tools import tool
+from langchain_core.tools import BaseTool, tool
 from scipy import stats
 
 from backend.knowledge.tool_args import (
@@ -1265,45 +1271,89 @@ def post_improvement_cpk(
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# The inventory
+# The inventory, and the per-phase binding
 # ══════════════════════════════════════════════════════════════════════════
 
-#: All twenty, in §60.6's inventory order. **The per-phase binding
-#: (`COMPUTATION_TOOLS_BY_PHASE`) is procedure step 5.4's**, not this step's —
-#: 5.4's own Touches row names it, and its Done-when asserts the per-phase
-#: totals 8 / 15 / 12 / 8 / 12 against the universal seven.
-COMPUTATION_TOOLS = [
-    # Define (1)
-    calculate_expected_savings,
-    # Measure (8)
-    calculate_sigma_level,
-    calculate_cpk,
-    calculate_dpmo,
-    calculate_yield_rty,
-    calculate_ftq,
-    calculate_grr,
-    calculate_sample_size_proportion,
-    calculate_sample_size_mean,
-    # Analyse (5)
-    t_test,
-    chi_square_test,
-    anova,
-    pearson_correlation,
-    linear_regression,
-    # Improve (1)
-    calculate_doe_main_effects,
-    # Control (5)
-    xbar_r_chart_limits,
-    imr_chart_limits,
-    p_chart_limits,
-    c_chart_limits,
-    post_improvement_cpk,
+#: §29.2 — the universal seven, passed to **every** phase executor: the three
+#: `rag_lookup_*` tools (step 5.2, `knowledge/tools.py`) plus
+#: `propose_template`, `propose_diagram`, `check_gate_status` and
+#: `request_human_approval`, which land with the executor at stage 6. The count
+#: lives here because §30's ceiling is a statement about the *bound* total, and
+#: the partition below is the half of that total this file owns. **When stage 6
+#: assembles `UNIVERSAL_TOOLS`, that list must assert its own length against
+#: this constant** — otherwise the per-phase totals below stop meaning what
+#: they say.
+UNIVERSAL_TOOL_COUNT = 7
+
+#: §30 — the ceiling the per-phase binding exists to respect. Tool-selection
+#: quality degrades past roughly 10–15 tools per agent, which is the whole
+#: reason tool sets are per phase rather than universal. **A new tool that
+#: would push a phase past this requires an amendment, not a routine
+#: addition.**
+PHASE_TOOL_CEILING = 16
+
+#: §30's binding table, restated as the partition itself (§60.6's inventory
+#: order within each phase). The executor composes a phase's tools as
+#: `UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase]` (§18) — so the totals
+#: are 8 / 15 / 12 / 8 / 12 and the maximum is Measure's 15, one under the
+#: ceiling.
+#:
+#: **The keys are `PHASE_ORDER`'s five names** (`phases/mappers_common.py`),
+#: spelled literally rather than imported: `knowledge/` does not depend on
+#: `phases/`, and a test asserts the two agree.
+#:
+#: **Measure binds no chart-limit tool, and that is a specified absence**
+#: (§69.7), not an omission — `stability_assessment` is coached as a visual
+#: read, and the chart-limit tools belong to Control.
+COMPUTATION_TOOLS_BY_PHASE: dict[str, list[BaseTool]] = {
+    "define": [
+        calculate_expected_savings,
+    ],
+    "measure": [
+        calculate_sigma_level,
+        calculate_cpk,
+        calculate_dpmo,
+        calculate_yield_rty,
+        calculate_ftq,
+        calculate_grr,
+        calculate_sample_size_proportion,
+        calculate_sample_size_mean,
+    ],
+    "analyse": [
+        t_test,
+        chi_square_test,
+        anova,
+        pearson_correlation,
+        linear_regression,
+    ],
+    "improve": [
+        calculate_doe_main_effects,
+    ],
+    "control": [
+        xbar_r_chart_limits,
+        imr_chart_limits,
+        p_chart_limits,
+        c_chart_limits,
+        post_improvement_cpk,
+    ],
+}
+
+#: All twenty, in §60.6's inventory order — **derived from the partition rather
+#: than restated beside it**, so the flat list and the binding cannot drift
+#: into disagreeing about which tool belongs to which phase.
+#: 1 + 8 + 5 + 1 + 5 = 20.
+COMPUTATION_TOOLS: list[BaseTool] = [
+    tool_ for phase_tools in COMPUTATION_TOOLS_BY_PHASE.values()
+    for tool_ in phase_tools
 ]
 
 __all__ = [
     "COMPUTATION_TOOLS",
+    "COMPUTATION_TOOLS_BY_PHASE",
+    "PHASE_TOOL_CEILING",
     "SHEWHART",
     "SIGMA_SHIFT",
+    "UNIVERSAL_TOOL_COUNT",
     "calculate_expected_savings",
     "calculate_sigma_level",
     "calculate_cpk",

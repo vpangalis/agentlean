@@ -4008,3 +4008,106 @@ the totals 8 / 15 / 12 / 8 / 12 against the universal seven, with no phase over
 **Measure has no chart-limit tool, and that is a specified absence** (§69.7),
 not an oversight in the inventory: `stability_assessment` is coached as a
 visual read, and the chart-limit tools belong to Control.
+
+---
+
+## Part AE — Step 5.4: the per-phase binding, and the flat list that now derives from it (2026-09-03)
+
+**Procedure step 5.4.** Reference **§30** (tool sets are per phase, not
+universal; the 16-tool ceiling), **§29.2** (the universal seven), **§60.6 —
+S-F24** (the inventory, by phase). **Stage 5 closes here.**
+
+**No SPEC-GAP moves.** §30's binding table has been ratified since the reference
+was signed off; this step is the code for it, and G-25 stays resolved where §69
+left it (Part AD).
+
+| Phase | Universal | Computation | Total |
+|---|---|---|---|
+| Define | 7 | 1 | **8** |
+| Measure | 7 | 8 | **15** |
+| Analyse | 7 | 5 | **12** |
+| Improve | 7 | 1 | **8** |
+| Control | 7 | 5 | **12** |
+
+---
+
+### AE1 — `COMPUTATION_TOOLS_BY_PHASE` is §30's table, expressed as the partition itself
+
+**Ruled: the binding is a `dict[str, list[BaseTool]]` keyed by `PHASE_ORDER`'s
+five names, holding §60.6's inventory order within each phase.** The executor
+composes a phase's tools as `UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase]`
+(§18) — the form §30, `CLAUDE.md` and `ARCHITECTURE.md` all already write.
+
+**The keys are spelled literally rather than imported.** `knowledge/` does not
+depend on `phases/`, and adding that edge to reach a five-element tuple of
+strings would be the wrong trade. `test_the_binding_keys_are_the_five_dmaic_phases`
+asserts the two agree, so the coupling is a test's rather than an import's.
+
+---
+
+### AE2 — `COMPUTATION_TOOLS` now DERIVES from the partition. This kills a drift point.
+
+**Ruled: the flat list of twenty is a comprehension over
+`COMPUTATION_TOOLS_BY_PHASE.values()`, not a second literal list beside it.**
+
+This is the one place step 5.4 edited step 5.3's work, and the reason is
+specific. **5.3's flat list already carried the phase split — as comments**
+(`# Measure (8)`, `# Control (5)`). Two literals, one of them a comment, both
+claiming which tool belongs to which phase: the classic drift point, where an
+edit to one is not an edit to the other and nothing fails. Making the grouping
+structural rather than commentary leaves **one** statement of the partition.
+Order and contents are unchanged, so 5.3's `test_exactly_twenty_tools` still
+holds unmodified — which is the evidence that this was a re-expression and not a
+change.
+
+---
+
+### AE3 — `UNIVERSAL_TOOL_COUNT = 7` and `PHASE_TOOL_CEILING = 16` are named, not written into assertions
+
+**Ruled: both are module constants in `computation.py`, and both are additions
+beyond the constant step 5.4's `Touches` row names.**
+
+The step's *Done when* is *"the per-phase totals 8 / 15 / 12 / 8 / 12, and no
+phase exceeds 16"* — **neither number is expressible from the partition alone.**
+A total is universal + computation, and the ceiling applies to that total, so a
+test written against the subsets alone would assert something §30 does not say.
+The alternative was a bare `7` and a bare `16` inside test assertions, which is
+the same fact with nowhere to hang its reference.
+
+> **The 7 is owed a check it cannot yet have.** Only three of the universal
+> seven exist — `knowledge/tools.py`'s `RAG_LOOKUP_TOOLS`, from step 5.2.
+> `propose_template`, `propose_diagram`, `check_gate_status` and
+> `request_human_approval` land with the executor at **stage 6**. So
+> `UNIVERSAL_TOOL_COUNT`'s docstring records the obligation — **when stage 6
+> assembles `UNIVERSAL_TOOLS`, that list must assert its own length against this
+> constant** — and `test_the_universal_seven_is_seven` records the arithmetic
+> (7 total, 3 built, 4 owed) so the stage-6 commit that adds them has to come
+> back here rather than quietly making the totals above wrong.
+
+**The ceiling test asserts the headroom too**, not just `≤ 16`: the maximum is
+Measure's 15. A binding sitting exactly on 16 would pass a ceiling check while
+leaving no room for §30's amendment process to be the thing that adds the
+seventeenth tool.
+
+---
+
+### AE4 — The tests were mutation-checked, not merely run
+
+Seven new tests, green on the first run — which by itself is evidence of
+nothing. Three mutations of the binding, each caught by four or five of them:
+
+| Mutation | Caught by |
+|---|---|
+| `calculate_cpk` moved Measure → Define | totals · ceiling · partition · names |
+| `imr_chart_limits` bound to Measure *as well as* Control | those four **and** the chart-limit test |
+| Define padded past the ceiling | totals · ceiling · partition · names |
+
+**`test_measure_binds_no_chart_limit_tool` exists for the second row.** §69.7 and
+Part AD4 record Measure's absent chart-limit tool as a *specified absence* —
+`stability_assessment` is coached as a visual read. An editor moving a chart tool
+into Measure "to help with stability" is a plausible, well-meant edit that no
+count-based test would catch, because Measure would still hold 8 if one were
+swapped in. The test names the absence so it cannot be undone silently.
+
+**`EXPECTED_TOTALS` is written out rather than computed from the subsets.** A
+total derived from the thing it is checking agrees with any partition at all.

@@ -7,11 +7,11 @@
 
 | | |
 |---|---|
-| **Last completed** | step **5.3** — **The 20 computation tools** |
-| **Next** | step **5.4** — Per-phase tool binding |
-| **Stage** | Stage 5 — Retrieval and tools |
-| **Progress** | 18 of 35 build steps |
-| **Last spine commit** | `cb971ed` (commit 5.2) |
+| **Last completed** | step **5.4** — Per-phase tool binding |
+| **Next** | step **6.1** — Planner / Executor split |
+| **Stage** | Stage 6 — The coaching agent |
+| **Progress** | 19 of 35 build steps |
+| **Last spine commit** | `b2b0590` (commit 5.3) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |
 | **Block regenerated** | 2026-09-03 |

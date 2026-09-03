@@ -1770,7 +1770,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 5.1** | Retrieval failure semantics | done |
 | **Commit 5.2** | Three `rag_lookup_*` + RRF | done |
 | **Commit 5.3** | 20 computation tools | done |
-| **Commit 5.4** | Per-phase tool binding | pending |
+| **Commit 5.4** | Per-phase tool binding | done |
 | **Commit 6.1** | Planner / Executor split | pending |
 | **Commit 6.2** | `create_agent` executor | pending |
 | **Commit 6.3** | Middleware 1–3 | pending |

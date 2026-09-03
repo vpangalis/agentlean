@@ -1,10 +1,17 @@
-"""The twenty computation tools — what procedure step 5.3 established.
+"""The twenty computation tools — what procedure steps 5.3 and 5.4 established.
 
 **Step 5.3's *Done when*:** twenty named tools exist, each with an
 `args_schema=`, and a test suite covers each with a known-answer case. The
 structural half is `test_exactly_twenty_tools` and
 `test_every_tool_has_its_own_args_schema`; the known-answer half is one test per
 tool below, grouped by phase.
+
+**Step 5.4's *Done when*:** the per-phase totals are 8 / 15 / 12 / 8 / 12 and
+no phase exceeds 16. That is the second structural section below. The totals
+are the universal seven (§29.2) plus the phase's computation subset, so what 5.4
+actually asserts is a property of `COMPUTATION_TOOLS_BY_PHASE` *and* of the
+number the executor will add to it — which is why `UNIVERSAL_TOOL_COUNT` is a
+named constant and not a `7` written into an assertion.
 
 WHERE THE EXPECTED ANSWERS COME FROM
 ------------------------------------
@@ -41,7 +48,14 @@ import pytest
 from scipy import stats
 
 from backend.knowledge import computation as C
-from backend.knowledge.computation import COMPUTATION_TOOLS
+from backend.knowledge.computation import (
+    COMPUTATION_TOOLS,
+    COMPUTATION_TOOLS_BY_PHASE,
+    PHASE_TOOL_CEILING,
+    UNIVERSAL_TOOL_COUNT,
+)
+from backend.knowledge.tools import RAG_LOOKUP_TOOLS
+from backend.phases.mappers_common import PHASE_ORDER
 
 #: §60.6's inventory, by phase. The names are the contract — a rename is a
 #: §56 amendment, not a refactor.
@@ -159,6 +173,105 @@ def test_every_result_value_is_a_string() -> None:
             assert isinstance(value, str), (
                 f"{tool.name}.{key} is {type(value).__name__}, not str"
             )
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Step 5.4's Done-when — the per-phase binding
+# ══════════════════════════════════════════════════════════════════════════
+
+#: §30's binding table, read across: universal seven + computation subset.
+#: These five numbers are the step's whole contract, so they are written out
+#: rather than computed from the subsets — a total derived from the thing it is
+#: checking would agree with any partition at all.
+EXPECTED_TOTALS = {
+    "define": 8, "measure": 15, "analyse": 12, "improve": 8, "control": 12,
+}
+
+
+def bound(phase: str) -> int:
+    """What `create_agent` will actually be given for `phase` (§18, §30)."""
+    return UNIVERSAL_TOOL_COUNT + len(COMPUTATION_TOOLS_BY_PHASE[phase])
+
+
+def test_per_phase_totals_are_8_15_12_8_12() -> None:
+    """§30's table, and step 5.4's Done-when."""
+    assert {p: bound(p) for p in COMPUTATION_TOOLS_BY_PHASE} == EXPECTED_TOTALS
+
+
+def test_no_phase_exceeds_the_sixteen_tool_ceiling() -> None:
+    """§30 — and the actual maximum is Measure's 15, one under it.
+
+    The headroom is asserted too. A binding that sat exactly on 16 would pass a
+    ceiling check while leaving no room for the amendment process to be the
+    thing that adds the seventeenth tool.
+    """
+    for phase in COMPUTATION_TOOLS_BY_PHASE:
+        assert bound(phase) <= PHASE_TOOL_CEILING, (
+            f"{phase} binds {bound(phase)} tools, over §30's ceiling of "
+            f"{PHASE_TOOL_CEILING} — that needs an amendment, not a commit"
+        )
+    assert max(bound(p) for p in COMPUTATION_TOOLS_BY_PHASE) == 15
+    assert "measure" == max(COMPUTATION_TOOLS_BY_PHASE, key=bound)
+
+
+def test_the_universal_seven_is_seven() -> None:
+    """§29.2 — and three of them exist, from step 5.2.
+
+    The remaining four (`propose_template`, `propose_diagram`,
+    `check_gate_status`, `request_human_approval`) land with the executor at
+    stage 6. **This test is where that arithmetic is recorded**, so that the
+    stage-6 commit which adds them has to come back here rather than quietly
+    making the totals above wrong.
+    """
+    assert UNIVERSAL_TOOL_COUNT == 7
+    assert len(RAG_LOOKUP_TOOLS) == 3
+    assert UNIVERSAL_TOOL_COUNT - len(RAG_LOOKUP_TOOLS) == 4
+
+
+def test_the_binding_is_a_partition_of_the_twenty() -> None:
+    """Every tool bound exactly once, and nothing bound that is not one of
+    the twenty.
+
+    §30 says a coach chooses among *its phase's* tools; a tool appearing in two
+    phases would mean one of the two totals is a fiction.
+    """
+    flat = [t for tools in COMPUTATION_TOOLS_BY_PHASE.values() for t in tools]
+    assert len(flat) == 20
+    assert len({t.name for t in flat}) == 20, "a tool is bound to two phases"
+    assert flat == COMPUTATION_TOOLS, (
+        "the flat inventory and the binding disagree"
+    )
+
+
+def test_the_binding_keys_are_the_five_dmaic_phases() -> None:
+    """Keyed by `PHASE_ORDER`'s names — `COMPUTATION_TOOLS_BY_PHASE[phase]` is
+    indexed with the same string the subgraph builder is parameterised by
+    (§12), so a spelling that differed by even one character would fail at
+    runtime, per phase, and only for that phase.
+    """
+    assert tuple(COMPUTATION_TOOLS_BY_PHASE) == PHASE_ORDER
+
+
+def test_each_phase_binds_the_inventory_names_for_that_phase() -> None:
+    """§60.6's table, name for name and in its order."""
+    bound_names = {phase: [t.name for t in tools]
+                   for phase, tools in COMPUTATION_TOOLS_BY_PHASE.items()}
+    assert bound_names == EXPECTED_NAMES
+
+
+def test_measure_binds_no_chart_limit_tool() -> None:
+    """§69.7 — a specified absence, not an oversight (DECISIONS §AD4).
+
+    `stability_assessment` is coached as a visual read; the chart-limit tools
+    are Control's. A future editor moving one into Measure to "help with
+    stability" is the mistake this guards.
+    """
+    measure = {t.name for t in COMPUTATION_TOOLS_BY_PHASE["measure"]}
+    control = {t.name for t in COMPUTATION_TOOLS_BY_PHASE["control"]}
+    charts = {"xbar_r_chart_limits", "imr_chart_limits", "p_chart_limits",
+              "c_chart_limits"}
+    assert not measure & charts
+    assert charts < control
 
 
 # ══════════════════════════════════════════════════════════════════════════
