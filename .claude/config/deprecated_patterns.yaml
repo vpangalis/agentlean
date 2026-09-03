@@ -121,6 +121,47 @@ patterns:
       # step 6.2. That is the case this pattern exists for.
       - 'agent-improve/backend/knowledge/**'
       - 'agent-improve/backend/middleware/**'
+      # ── The §4.6 PLANNER + VALIDATOR scoping, 2026-09-03 (step 6.1) ─────
+      #
+      # The 5.2 scoping above named tools and middleware. **§4.6's clause has
+      # three call sites, not two** — "a plain model invocation inside a tool,
+      # middleware, OR VALIDATOR" — and the phase planner is a fourth site the
+      # same rule covers explicitly. Both were blocked by a list that predated
+      # the files, which is the failure mode the comment above already named.
+      #
+      # THE PHASE PLANNER. §4.6's mapping table, row 1:
+      #   "Phase planner | Plain LLM call | CoachingPlan | with_structured_output"
+      # §17 prints the invocation form as canonical — `phase_planner =
+      # llm.with_structured_output(CoachingPlan)` — and S-C04 states why
+      # response_format= cannot substitute: it is "a plain model invocation,
+      # not an agent, so response_format= does not apply". There is no
+      # model-tools loop to attach it to; §17 forbids the planner dispatching
+      # to tools at all.
+      #
+      # SINGLE FILE, NOT phases/**. Deliberately narrow. A phases/** exclusion
+      # would also un-block phases/**/nodes.py — named directly above as "the
+      # case this pattern exists for" — one step before step 6.2 builds the
+      # executor there with create_agent. The planner's call site is the one
+      # file the five phases' node bodies delegate to (§13), so one glob covers
+      # all five without widening to the directory.
+      #
+      # The alternative considered and rejected: split the planner's LLM call
+      # into its own module so the glob could be even narrower. That would put
+      # one node's private helper outside `nodes_common.py` to suit a
+      # path-based guard, against §13's "the bodies live in nodes_common".
+      # `pattern-8-bind-tools-in-phase-executor` still covers executor
+      # construction in this same file.
+      #
+      # VALIDATORS — CLOSES WATCH 24, and forward-declared on purpose.
+      # `backend/validation/**` does not exist yet; it arrives with layers 2c
+      # and 2d at stage 7, where `ConstraintCheckResult` and `GraderVerdict`
+      # are both builder-style calls in a validator (§4.6's mapping table).
+      # WATCH 24 says to add it "then, in a governance commit of its own" —
+      # this IS that commit, and landing it now costs nothing (the glob matches
+      # no file today) while removing a block step 7.x would otherwise hit
+      # cold. An exclusion for a path that does not exist excludes nothing.
+      - 'agent-improve/backend/phases/nodes_common.py'
+      - 'agent-improve/backend/validation/**'
 
   - id: pattern-5-plain-dict-routing
     regex: 'return\s+\{\s*["\'']next["\'']:'

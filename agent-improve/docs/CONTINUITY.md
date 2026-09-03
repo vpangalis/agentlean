@@ -541,19 +541,31 @@ so read §66 when the two disagree.)*
 
 ### Watches (owed work, NOT §66 gaps — the register will not surface them)
 
-- **WATCH 24 — `validation/**` needs the same drift-guard exclusion at Stage 7.**
+- **WATCH 24 — CLOSED 2026-09-03, ahead of Stage 7 rather than at it.**
   Commit `41587fa` scoped `pattern-2-with-structured-output` to permit the
   ratified builder-style `.with_structured_output()` for plain LLM calls inside
   **tools and middleware** (`knowledge/**`, `middleware/**`), closing the update
   CLAUDE.md §18.1 records as owed. **§4.6's clause covers three call sites, not
   two** — *"a plain model invocation inside a tool, middleware, **or
-  validator**"* — and `agent-improve/backend/validation/**` is NOT excluded.
-  It was left out deliberately: the directory does not exist yet (it arrives
-  with validation layers 2c and 2d at stage 7) and the authorisation for that
-  commit named tools and middleware. **Step 7.x will hit the same block** —
-  `ConstraintCheckResult` and `GraderVerdict` are both `with_structured_output`
-  calls in a validator (§4.6's mapping table). Add the exclusion then, in a
-  governance commit of its own per §18, not inline with the feature work.
+  validator**"* — and `agent-improve/backend/validation/**` was not excluded,
+  deliberately: the directory does not exist yet and that commit's
+  authorisation named tools and middleware.
+
+  **`backend/validation/**` is now excluded.** Step 6.1 hit the same stale
+  over-block from a fourth direction — the **phase planner**, which §4.6's
+  mapping table names in row 1 (*"Phase planner | Plain LLM call |
+  `CoachingPlan` | `with_structured_output`"*) and which §17/S-C04 confirm
+  cannot use `response_format=` because there is no agent loop to attach it to.
+  That needed a governance commit of its own, so the validator exclusion landed
+  in it rather than waiting for a second one at 7.x. **Forward-declared and
+  inert**: the glob matches no file today, so it excludes nothing until layers
+  2c and 2d arrive — `ConstraintCheckResult` and `GraderVerdict` are both
+  builder-style calls in a validator.
+
+  This watch asked for the exclusion *"then, in a governance commit of its own
+  per §18, not inline with the feature work."* It is that commit, one stage
+  early. Landed as `chore(governance):`, with step 6.1's code in the commit
+  after it.
 
 
 - **WATCH 1 — CLOSED 2026-09-02 at step 4.2, and it did not confirm what it
