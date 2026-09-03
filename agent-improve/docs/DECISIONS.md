@@ -4111,3 +4111,186 @@ swapped in. The test names the absence so it cannot be undone silently.
 
 **`EXPECTED_TOTALS` is written out rather than computed from the subsets.** A
 total derived from the thing it is checking agrees with any partition at all.
+
+---
+
+## Part AF — Step 6.1: the planner becomes real, and a stale block had to move first (2026-09-03)
+
+**Procedure step 6.1.** Reference **§17** (the planner/executor contract),
+**§58.4 — S-C04** (`CoachingPlan`), **§20**; CLAUDE.md **§4.6** (structured
+output scoped by call type), **§4.7** (temperature).
+
+**No SPEC-GAP closes here, and one deliberately stays open** — see AF4.
+
+---
+
+### AF1 — The block came first, and it was ours
+
+**Step 6.1's first substantive line was refused by the drift guard.**
+`pattern-2-with-structured-output` blocked the builder-style call in
+`phases/nodes_common.py` — the mechanism §4.6's mapping table names for this
+exact site in row 1: *"Phase planner | Plain LLM call | `CoachingPlan` |
+`with_structured_output`"*.
+
+**The step stopped rather than routing around it.** Three ways round were
+available and all three were wrong: `git commit --no-verify` (records the drift
+instead of fixing it), relocating the call to an already-excluded directory
+(`knowledge/**` — evasion by path, and S-C04 puts the planner in `phases/`), or
+`response_format=` (does not apply — §17/S-C04: *"a plain model invocation, not
+an agent"*, and §17 forbids the planner dispatching to tools at all, so there is
+no loop to attach it to).
+
+**Resolved by governance commit `9fce8fc`, ahead of the code.** CLAUDE.md §18:
+*"Never amend a rule in passing while making a feature change."* The exclusion
+is **single-file, not `phases/`-wide** — a directory exclusion would also
+un-block `phases/**/nodes.py`, which the registry names as *"the case this
+pattern exists for"*, one step before 6.2 builds the executor there with
+`create_agent`. `pattern-8-bind-tools-in-phase-executor` still covers that
+construction inside the same file, which is what makes the single-file scope
+safe. **WATCH 24 closed in the same commit** — `validation/**` needed the
+identical §4.6 reasoning, forward-declared and inert until stage 7.
+
+> **This is the fourth site where the same over-block has surfaced** (after
+> `orchestrate.py`, `validate.py`, then `knowledge/**` and `middleware/**` at
+> 5.2). The registry's own comment named the cause in advance: *"the exclusion
+> list simply predated the files."* Each time it has cost a stop-and-authorise
+> cycle. The remaining un-excluded §4.6 site is `gate_apply`'s policy advisory,
+> which lands in `phases/nodes_common.py` — now excluded, so it will not recur
+> there.
+
+---
+
+### AF2 — The plan is produced only on the executor-bound path
+
+**Ruled: `_plan_turn` is called when the planner routes to `executor`, and not
+otherwise.**
+
+A plan is consumed by the executor and by nothing else. Producing one on the way
+to `validation_stack` would spend a `planner`-role premium call on a plan no
+node reads, and put a `focus_field` in the LangSmith trace that never coached
+anything — a trace that reads as richer while describing less.
+
+**S-C04 B3 is not violated by this.** B3 governs what a NEW plan does to the
+previous one — *"overwrite the previous one entirely; plans SHALL NOT
+accumulate"* — not that a plan must be produced on every planner visit. On the
+gate and close paths the previous plan simply stands.
+
+**Consequence for cost, which is the reason it is worth ruling:** the planner
+node runs twice per Belt turn (the cycle returns through it), and this makes
+exactly one premium call per turn rather than two.
+
+---
+
+### AF3 — What the executor "consumes" at 6.1, stated rather than implied
+
+**The executor reads `coaching_plan` and records it in `step_log`. It does not
+steer the coach by `focus_field`, and it cannot yet.**
+
+The body still delegates to the v1 `orchestrate_{phase}`, which takes no
+focus-field parameter, and **Route A forbids touching those five files** — they
+carry the v1 names to step 11.1 and are deleted there, not migrated (Part X).
+Full consumption is **6.2's**, where `create_agent(...)` replaces the body and
+the plan enters the system prompt.
+
+**What §17 requires is nonetheless true here:** the executor decides no strategy
+of its own. It never picks a field, never chooses a retrieval mode and never
+routes. Recording the plan it ran under is what makes the audit trail link a
+turn to the plan that produced it, which is the half that was buildable now.
+
+> **The field ledger reads as entirely missing until 6.2, by the same ruling.**
+> The planner reads `artifacts` (§17), and WATCH 7 Route A keeps `artifacts`
+> empty for every phase while the v1 orchestrator writes v1 names into `draft`.
+> So the planner will keep choosing the first uncoached field. **That is the
+> seam, not a planner defect** — and handing it `draft` instead would put v1
+> names in front of a planner whose `focus_field` must be a §39.x name.
+
+---
+
+### AF4 — G-01 stays open. DP1 was not invented.
+
+**Ruled: the routing predicate is unchanged. 6.1 is the split plus the real
+planner, and nothing else.**
+
+The temptation was specific and would have looked like progress: the planner now
+returns a model-authored `next_action`, so routing could have read a `goto` out
+of it. **That would close a founder-owned gap by implementation, and would do it
+by misreading a field.** S-C04 defines `next_action` as the coaching move —
+*"ask, challenge, show an example, run a computation"* — not a routing verb.
+S-F13 marks the predicate *"to be designed with founder"*.
+
+`test_planner_does_not_read_a_goto_out_of_next_action` pins it: a plan whose
+`next_action` is literally `"gate"` must still route by the placeholder
+predicate. **The test exists because the mistake is attractive**, not because
+anyone made it.
+
+---
+
+### AF5 — A live bug the typed plan exposed in `validation_stack`
+
+**`validation_stack` was routing on the plan's `next_action`**, testing it
+against `"gate"`.
+
+That worked only because 4.4's stub dict put the ROUTING verb in that key. The
+moment `next_action` became S-C04's coaching move, the node was reading a field
+that no longer means what it was testing — and because the plan is now a
+Pydantic model, `.get()` on it raised `AttributeError` rather than quietly
+routing wrong. **Eleven tests caught it; a dict-typed plan would have let it
+pass while sending gate submissions down the coaching path.**
+
+**Fixed by reading `entry_mode(config)`** — the same per-run intent the planner
+routes from, so the two nodes cannot disagree about what kind of turn this is.
+
+> **This is the argument for S-C04 being a Pydantic model rather than a dict,
+> demonstrated rather than asserted.** S-C04 gives the reason as
+> `retrieval_strategy`'s `Literal`; the failure that actually surfaced was a
+> reader of a *renamed* field. A dict would have made it silent.
+
+---
+
+### AF6 — `conftest.py`, and stubbing `get_llm` rather than `_plan_turn`
+
+**Ruled: the planner's model is stubbed at the factory, in a shared
+`tests/conftest.py`.**
+
+Patching `_plan_turn` would skip the code under test — the prompt build, the
+structured-output wiring and the role choice would all go unexercised while the
+tests stayed green. Patching `get_llm` leaves all three live and replaces only
+the network call, **and it lets the fixture assert the role and the schema**,
+which is how §17's *"planner role, temp 0.1"* and B1's *"never by parsing JSON
+from raw model text"* become checkable at all. **B1 cannot be asserted from the
+returned plan**: a plan parsed out of raw text would look identical to one that
+came through structured output. What distinguishes them is that the schema was
+handed to the model, so the fixture records it.
+
+Two modules need the stub — `test_phase_subgraphs.py` calls the node directly,
+`test_turn_graph.py` drives it through the compiled graph — and it hangs off the
+`wired` fixture there rather than being requested by eleven tests individually.
+
+---
+
+### AF7 — The trace-check, and what it was run against
+
+**Verify method `trace-check`, run live** against Azure OpenAI with
+`LANGCHAIN_TRACING_V2=true`. The trace shows, in order:
+
+```
+step-6.1-trace-check-2bef29da        chain
+  planner                            chain   <- the plan is this span's output
+    RunnableSequence                 chain   <- the structured-output chain
+      AzureChatOpenAI                llm
+      RunnableLambda                 chain   <- the parse into CoachingPlan
+  executor                           chain
+    AzureChatOpenAI  x2              llm
+  planner / validation_stack / gate_review / gate_apply
+```
+
+The `planner` span's output carries `Command(goto="executor",
+update={"coaching_plan": {"focus_field": "business_case", "next_action": "ask
+for it", "retrieval_strategy": "single_hop", "retrieval_hops": []}})` — **the
+plan visible as the planner's output, which is the Done-when verbatim.**
+
+**Run against the phase subgraph, not the parent graph.** Both spans the
+Done-when names live inside the subgraph, and the subgraph compiles without a
+checkpointer or store (§16) — so the check made no Azure Blob write against any
+real case. The one premium call per turn ruled in AF2 is visible as the single
+`AzureChatOpenAI` span under `planner`.

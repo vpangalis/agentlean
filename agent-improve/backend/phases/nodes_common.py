@@ -55,8 +55,10 @@ from backend.core.conversation import (
     message_to_turn,
     turn_to_message,
 )
+from backend.core.llm import get_llm
 from backend.core.state import ImproveGraphState
-from backend.core.substate import PhaseState
+from backend.core.substate import CoachingPlan, PhaseState
+from backend.phases.gate_registry import review_rows
 
 logger = logging.getLogger(__name__)
 
@@ -123,11 +125,27 @@ async def planner(
     step control returns here to decide whether to keep coaching the current
     field, advance to the next, or trigger the gate.
 
-    **The plan is a stub.** `PhaseState.coaching_plan` is annotated
-    `Optional[dict[str, Any]]` because S-C04's `CoachingPlan` model does not
-    land until step 6.1; §6 sanctions the dict as the interim annotation.
+    **The plan is real as of step 6.1** — a typed `CoachingPlan` from the
+    `planner`-role model via structured output (`_plan_turn`). The 4.4 stub
+    dict, its `tools_needed` key and its `_stub` marker are gone;
+    `PhaseState.coaching_plan` is now `Optional[CoachingPlan]` and is read by
+    attribute (S-C02 B7).
 
-    **THE ROUTING PREDICATE IS A PLACEHOLDER, NOT DP1.** S-F13's DP1 reads the
+    **THE MODEL IS CALLED ONLY ON THE EXECUTOR-BOUND PATH.** A plan is consumed
+    by the executor and by nothing else, so producing one on the way to
+    `validation_stack` would spend a premium call on a plan no node reads and
+    put a meaningless `focus_field` in the trace. On those paths the previous
+    plan simply stands — B3 governs what happens when a NEW plan is produced,
+    not that one must be.
+
+    **THE ROUTING PREDICATE IS STILL A PLACEHOLDER, AND 6.1 DID NOT CHANGE IT.**
+    Routing is **G-01**, an open SPEC-GAP the reference marks *"to be designed
+    with founder"*, and it is deliberately not inferred from the plan:
+    S-C04's `next_action` is the coaching move — *"ask, challenge, show an
+    example, run a computation"* — not a routing verb, so reading a `goto` out
+    of it would invent DP1 out of a field that does not mean that.
+
+    S-F13's DP1 reads the
     per-phase field ordering (§39.x's coached positions) to decide "field
     complete". What is here is the smallest rule that **terminates**:
 
@@ -153,48 +171,153 @@ async def planner(
     coached = turn_count > 0
 
     if entry == "gate":
-        next_action, goto = "gate", "validation_stack"
+        route, goto = "gate", "validation_stack"
     elif not coached:
-        next_action, goto = "coach", "executor"
+        route, goto = "coach", "executor"
     else:
-        next_action, goto = "close", "validation_stack"
+        route, goto = "close", "validation_stack"
 
-    plan: dict[str, Any] = {
-        "focus_field": None,          # S-F13 DP1 fills this from §39.x's order
-        "next_action": next_action,
-        "retrieval_strategy": _retrieval_strategy(phase),
-        "tools_needed": [],
-        "_stub": True,                # step 4.1 marker — 6.1 removes it
-    }
+    update: dict[str, Any] = {}
+    entry_fields: dict[str, Any] = {}
 
-    logger.info(
-        "%s.planner: entry=%s turn_count=%d -> %s (%s)",
-        phase, entry, turn_count, goto, next_action,
-    )
+    if goto == "executor":
+        plan = await _plan_turn(phase, state)
+        update["coaching_plan"] = plan
+        entry_fields = {
+            "focus_field": plan.focus_field,
+            "next_action": plan.next_action,
+            "retrieval_strategy": plan.retrieval_strategy,
+            "retrieval_hops": len(plan.retrieval_hops),
+        }
+        logger.info(
+            "%s.planner: entry=%s turn_count=%d -> %s | plan: %s / %s / %s",
+            phase, entry, turn_count, goto, plan.focus_field,
+            plan.next_action, plan.retrieval_strategy,
+        )
+    else:
+        logger.info(
+            "%s.planner: entry=%s turn_count=%d -> %s (%s) — no plan produced, "
+            "the executor is not next",
+            phase, entry, turn_count, goto, route,
+        )
+
+    update["step_log"] = [_step(
+        phase, turn_count, "planner",
+        goto=goto, route=route,
+        status="planned" if entry_fields else "routed",
+        reason="G-01 — DP1 is founder-owned; the routing predicate is the "
+               "terminating placeholder, not a behavioural approximation",
+        **entry_fields,
+    )]
     return Command(
         goto=cast(Literal["executor", "validation_stack"], goto),
-        update={
-            "coaching_plan": plan,
-            "step_log": [_step(
-                phase, turn_count, "planner",
-                status="stub", goto=goto, next_action=next_action,
-                reason="step 4.4 — DP1 lands at 6.1",
-            )],
-        },
+        update=update,
     )
 
 
 def _retrieval_strategy(phase: str) -> str:
-    """§28's per-phase default, carried on the plan.
+    """§28's per-phase DEFAULT — guidance to the planner, not an override.
 
     **Analyse is the one phase that plans multi-hop** — root-cause validation is
     layered, so it is *"multi-hop, planned (3 hops)"* while the other four are
-    single-hop by default. Recorded on the stub plan now because it is a
-    per-phase fact the parameterised builder would otherwise flatten, and
-    because `CoachingPlan.retrieval_strategy` is what selects the executor's
-    entire retrieval path at stage 6. **Nothing reads it yet.**
+    single-hop by default. It goes into the planner prompt as the default to
+    depart from, because S-C04 is explicit that the choice is the planner's:
+    *"Not restricted to Analyse — the planner may select `multi_hop` in any
+    phase."* A per-phase constant that OVERRODE the plan would make
+    `retrieval_strategy` a lookup wearing a model's name.
     """
     return "multi_hop" if phase == "analyse" else "single_hop"
+
+
+_PLANNER_SYSTEM = """\
+You plan ONE coaching turn for a Six Sigma DMAIC project, in the {phase} phase.
+
+You are the planner, not the coach. You do not write coaching text, you do not
+talk to the Belt, and you call no tools. You decide what the coach does next,
+and the coach may not choose a different field.
+
+Choose `focus_field` from the field ledger below, naming it EXACTLY as the
+ledger spells it. Prefer the first field that is still missing; stay on a
+field the Belt is mid-conversation about rather than moving on early.
+
+`next_action` is this turn's move on that field — ask for it, challenge a weak
+answer, show a worked example, or run a computation. A short phrase.
+
+`retrieval_strategy` is "{default_strategy}" by default for this phase. Choose
+"multi_hop" only when answering needs a chain where each question depends on
+the previous answer; then list the hop questions in `retrieval_hops`, in order.
+For "single_hop", leave `retrieval_hops` empty.
+"""
+
+
+def _planner_prompt(phase: str, state: PhaseState) -> str:
+    """The planner's input: the field ledger, then the conversation tail.
+
+    **The ledger is `review_rows` (§50's gate-review rows), not a second list
+    built here.** That function already answers "which fields does this phase
+    owe, in the order the Belt should meet them, and which are present" — and
+    reusing it means the planner and the gate-review screen cannot disagree
+    about what the phase is for.
+
+    **The ledger reads as entirely missing until step 6.2, by ruling.** WATCH 7
+    Route A: the v1 `orchestrate_{phase}` writes v1 names into `draft`, and
+    `artifacts` — the v2 ledger this reads — stays empty for every phase until
+    the executor gets its own capture path at 6.2. So the planner will keep
+    choosing the first field. **That is the seam, not a planner defect**, and
+    handing it `draft` instead would put v1 names in front of a planner whose
+    `focus_field` must be a §39.x name.
+    """
+    rows = review_rows(phase, dict(state.get("artifacts") or {}))
+    ledger = "\n".join(
+        f"  {i}. {row['field']}"
+        f"{'  [captured]' if row['present'] else '  [missing]'}"
+        f"{'  (tier 2 — recommended)' if row['tier'] == 2 else ''}"
+        for i, row in enumerate(rows, 1)
+    )
+
+    messages = list(state.get("messages") or [])
+    tail = "\n".join(
+        f"  {'Belt' if m.type == 'human' else 'Coach'}: {str(m.content)[:400]}"
+        for m in messages[-6:]
+    ) or "  (no exchange yet — this is the opening turn)"
+
+    return (
+        _PLANNER_SYSTEM.format(
+            phase=phase, default_strategy=_retrieval_strategy(phase),
+        )
+        + f"\nFIELD LEDGER for {phase} ({len(rows)} fields):\n{ledger}\n"
+        + f"\nRECENT CONVERSATION:\n{tail}\n"
+    )
+
+
+async def _plan_turn(phase: str, state: PhaseState) -> CoachingPlan:
+    """The planner's ONE model call — a plain invocation, never an agent.
+
+    §17's invocation form, kept in the reference because it is what makes "the
+    planner decides at plan time" concrete::
+
+        phase_planner = llm.with_structured_output(CoachingPlan)
+
+    **`planner` role, temperature 0.1** (§17, §4.7) — taken from
+    `ROLE_TEMPERATURES` rather than passed, because `get_llm` documents an
+    explicit temperature as a deliberate override and 0.1 is the ratified
+    default, not an override.
+
+    **Structured output, never JSON parsed out of raw model text** (S-C04 B1).
+    §4.6 scopes the mechanism by call type, and a plain model invocation is the
+    row that takes the builder-style call — there is no agent loop here for
+    `response_format=` to attach to. The drift registry blocked this line until
+    the governance commit that precedes this one; the block was stale, and it
+    was scoped to this file rather than to `phases/**`, so the executor's
+    `create_agent` site stays guarded for 6.2.
+
+    **It dispatches to no tools** (§17). The model gets a field ledger and a
+    conversation tail and returns a plan; nothing here can search, compute or
+    write.
+    """
+    phase_planner = get_llm("planner").with_structured_output(CoachingPlan)
+    plan = await phase_planner.ainvoke(_planner_prompt(phase, state))
+    return cast(CoachingPlan, plan)
 
 
 # ── the v1 bridge ─────────────────────────────────────────────────────────
@@ -259,8 +382,21 @@ async def executor(
     §17: the executor consumes the plan and decides no strategy. Control returns
     to the planner on the static edge, and the planner chooses what happens next.
 
+    **What "consumes" means at 6.1, exactly.** It reads `coaching_plan` and
+    records the plan it acted under in `step_log`, so the audit trail links a
+    turn to the plan that produced it. **It does not yet steer the coach by
+    `focus_field`, and it cannot**: the body still delegates to the v1
+    `orchestrate_{phase}`, which takes no focus-field parameter, and Route A
+    forbids touching those five files — they carry the v1 names to step 11.1
+    and are deleted there, not migrated. **Full consumption is 6.2's**, where
+    `create_agent(...)` replaces the body and the plan enters the system prompt.
+
+    What matters for §17 either way is the half that IS true here: the executor
+    decides no strategy of its own. It never picks a field, never chooses a
+    retrieval mode, and never routes.
+
     This delegates to the v1 `orchestrate_{phase}` (step 4.1's choice for
-    Define, extended to all five at 4.4). Stage 6 replaces the body with
+    Define, extended to all five at 4.4). Step 6.2 replaces the body with
     `create_agent(...)` bound to the universal seven plus that phase's
     computation tools (§18, §29, §30) and `response_format=CoachingResponse`.
 
@@ -271,6 +407,7 @@ async def executor(
     """
     turn_count = state.get("turn_count") or 0
     prior = list(state.get("messages") or [])
+    plan = state.get("coaching_plan")
 
     result = await orchestrate(to_v1_state(phase, state, config))
 
@@ -289,9 +426,11 @@ async def executor(
     new_messages = [turn_to_message(t) for t in new_turns]
 
     logger.info(
-        "%s.executor: v1 orchestrate returned %d field(s) into draft, "
-        "%d new message(s)",
-        phase, len(captured), len(new_messages),
+        "%s.executor: under plan %s / %s — v1 orchestrate returned %d field(s) "
+        "into draft, %d new message(s)",
+        phase, plan.focus_field if plan else "(none)",
+        plan.next_action if plan else "(none)",
+        len(captured), len(new_messages),
     )
     return {
         "messages": new_messages,
@@ -301,6 +440,10 @@ async def executor(
             phase, turn_count, "executor",
             status="delegated_v1", impl=f"orchestrate_{phase}",
             fields_in_draft=len(captured), new_messages=len(new_messages),
+            # The plan this turn ran under. Recorded rather than acted on —
+            # see the docstring; `orchestrate_{phase}` takes no focus field.
+            focus_field=plan.focus_field if plan else None,
+            next_action=plan.next_action if plan else None,
         )],
     }
 
@@ -338,15 +481,23 @@ async def validation_stack(
     fix for the v1 defect of holding it in route scope.
     """
     turn_count = state.get("turn_count") or 0
-    plan = state.get("coaching_plan") or {}
+    entry = entry_mode(config)
 
-    if plan.get("next_action") != "gate":
+    # **Reads the per-run intent, not the plan** — changed at step 6.1.
+    # It used to test `coaching_plan["next_action"] != "gate"`, which worked
+    # only because 4.4's stub put the ROUTING verb in that key. S-C04 makes
+    # `next_action` the coaching move — "ask, challenge, show an example, run a
+    # computation" — so a gate submission cannot be spelled there any more, and
+    # the planner no longer produces a plan on this path at all. `entry_mode`
+    # is the same source the planner routes from, which is what keeps the two
+    # nodes from disagreeing about what kind of turn this is.
+    if entry != "gate":
         logger.info("%s.validation_stack: pass-through (coaching turn)", phase)
         return Command(
             goto="gate_review",
             update={"step_log": [_step(
                 phase, turn_count, "validation_stack",
-                status="passthrough", next_action=plan.get("next_action"),
+                status="passthrough", entry=entry,
                 reason="not a gate submission — layers 2c/2d land at stage 7",
             )]},
         )

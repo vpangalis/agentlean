@@ -24,10 +24,78 @@ remains the live schema until step 11.1.
 from __future__ import annotations
 
 import operator
-from typing import Annotated, Any, NotRequired, Optional, TypedDict
+from typing import Annotated, Any, Literal, NotRequired, Optional, TypedDict
 
 from langchain_core.messages import BaseMessage
 from langgraph.managed import RemainingSteps
+from pydantic import BaseModel, Field, model_validator
+
+
+class CoachingPlan(BaseModel):
+    """The planner's structured output — procedure step 6.1.
+
+    Canonical definition: **§58.4 — S-C04**, which carries a *rebuild test*, so
+    the four fields and their types below are transcribed from that entry rather
+    than designed here. Architecture §17 (the planner/executor contract), §6.
+
+    **A Pydantic model rather than a dict, specifically so `retrieval_strategy`
+    can carry a `Literal`** (S-C04): that field selects the executor's entire
+    retrieval path, and a typo would fall through silently to single-hop.
+
+    **One plan, never a queue.** B3 — a new plan overwrites the previous one
+    entirely. The plan is transient; its consequences are durable (captured
+    values in `artifacts`, sources in `citations`, the rationale in `step_log`,
+    the exchange in the LangSmith trace), so nothing is lost when it is
+    overwritten.
+
+    **Read by attribute, never by subscript** (S-C02 B7):
+    `plan.retrieval_hops`, not `plan["retrieval_hops"]`.
+
+    The `description=` on each field is not commentary — it is what the model
+    reads when the planner calls it through structured output, the same way a
+    tool's `args_schema` descriptions are its interface (§31).
+    """
+
+    focus_field: str = Field(
+        description=(
+            "The single field this turn coaches on, named exactly as it appears "
+            "in the phase's coached field order. The coach may not choose a "
+            "different one."
+        ),
+    )
+    next_action: str = Field(
+        description=(
+            "What the coach should do with that field this turn — ask for it, "
+            "challenge what the Belt gave, show a worked example, or run a "
+            "computation. One turn's move, in a short phrase."
+        ),
+    )
+    retrieval_strategy: Literal["single_hop", "multi_hop"] = Field(
+        description=(
+            "Which retrieval path the executor takes. 'single_hop' is one "
+            "lookup; 'multi_hop' is a planned chain where each question depends "
+            "on the previous answer. Not restricted to Analyse."
+        ),
+    )
+    retrieval_hops: list[str] = Field(
+        description=(
+            "Hop question templates, in order, for a planned multi-hop turn. "
+            "Empty for single-hop."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _single_hop_carries_no_hops(self) -> CoachingPlan:
+        """**B2** — `single_hop` leaves `retrieval_hops` empty.
+
+        Normalises rather than raises. This runs on model output, and a plan
+        rejected for a stray hop list would fail the turn over something the
+        strategy field has already decided; the planner node logs when it fired,
+        so a model that keeps doing it stays visible.
+        """
+        if self.retrieval_strategy == "single_hop" and self.retrieval_hops:
+            object.__setattr__(self, "retrieval_hops", [])
+        return self
 
 
 class PhaseState(TypedDict):
@@ -61,12 +129,12 @@ class PhaseState(TypedDict):
     # ── content fields (15) ──────────────────────────────────────────
     #
     # `coaching_plan` is ONE typed plan, not a queue — overwritten every time
-    # the planner fires (B2). Its canonical type is the `CoachingPlan`
-    # Pydantic model at S-C04, which lands with the planner at step 6.1;
-    # until then §6 explicitly sanctions `dict[str, Any]` as the interim
-    # annotation ("typed is preferred"). Read it by attribute once it is
-    # typed — `coaching_plan.retrieval_hops`, never `["retrieval_hops"]` (B7).
-    coaching_plan:      Optional[dict[str, Any]]
+    # the planner fires (B2). **It is now the `CoachingPlan` model above**:
+    # step 6.1 landed the real planner, so the `dict[str, Any]` §6 sanctioned
+    # as the interim annotation ("typed is preferred") is retired here. Read it
+    # by attribute — `coaching_plan.retrieval_hops`, never `["retrieval_hops"]`
+    # (B7). `None` until the phase's first planner turn produces one.
+    coaching_plan:      Optional[CoachingPlan]
     field_index:        int
 
     # `draft`, `belt_edits` and `final` are dicts and NEVER str (B6). A
@@ -180,6 +248,7 @@ PHASE_STATE_READ_ONLY_FIELDS = PHASE_STATE_IDENTITY_FIELDS
 
 
 __all__ = [
+    "CoachingPlan",
     "PhaseState",
     "PHASE_STATE_IDENTITY_FIELDS",
     "PHASE_STATE_PLUMBING_FIELDS",

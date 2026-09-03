@@ -187,12 +187,18 @@ def _config(entry: str = "ask", **configurable: Any) -> dict[str, Any]:
 
 
 @pytest.fixture
-def wired(monkeypatch):
+def wired(monkeypatch, stub_planner):
     """The parent graph, compiled against the recording saver and a fake store.
 
     `get_graph` and `_define_subgraph` are `lru_cache`d for the process, so both
     caches are cleared around the test — otherwise the first test to run would
     pin a graph the rest inherit.
+
+    **`stub_planner` is a dependency rather than something each test requests**
+    (step 6.1): every invoke here runs the planner node, which now makes a real
+    `planner`-role model call. Hanging it on the fixture that compiles the graph
+    keeps "this graph does not reach Azure" one statement instead of one per
+    test. `conftest.py` says why it stubs `get_llm` and not `_plan_turn`.
     """
     saver = RecordingSaver()
     store = FakeStore()

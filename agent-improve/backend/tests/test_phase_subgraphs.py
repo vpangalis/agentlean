@@ -44,7 +44,7 @@ import pytest
 from langgraph.graph import END
 from langgraph.types import Command
 
-from backend.core.substate import PhaseState
+from backend.core.substate import CoachingPlan, PhaseState
 from backend.phases.mappers_common import PHASE_ORDER
 from backend.phases.subgraph_common import NODE_NAMES, build_phase_subgraph
 
@@ -282,27 +282,59 @@ def test_no_node_writes_case_id_or_current_phase(name: str) -> None:
 # ── the planner's predicate, per phase ────────────────────────────────────
 
 @pytest.mark.parametrize("phase", PHASE_ORDER)
-def test_planner_returns_a_command_carrying_a_stub_plan(phase: str) -> None:
+def test_planner_returns_a_command_carrying_a_typed_plan(
+    phase: str, stub_planner
+) -> None:
+    """Step 6.1 — a real `CoachingPlan`, not 4.4's stub dict.
+
+    Read by ATTRIBUTE (S-C02 B7). The subscript form the stub required is what
+    this replaces, so the assertion is deliberately `plan.focus_field` rather
+    than `plan["focus_field"]` — the latter now raises, which is the point of
+    typing it.
+    """
     cmd = _run(nodes_module(phase).planner(_state(current_phase=phase)))
     assert isinstance(cmd, Command)
     assert cmd.goto == "executor"
     assert cmd.update is not None
     plan = cmd.update["coaching_plan"]
-    assert plan["_stub"] is True, "the plan is a stub; 6.1 types it as S-C04"
+    assert isinstance(plan, CoachingPlan), "6.1 types the plan as S-C04"
+    assert plan.focus_field and plan.next_action
+    assert plan.retrieval_strategy in ("single_hop", "multi_hop")
 
 
 @pytest.mark.parametrize("phase", PHASE_ORDER)
-def test_planner_routes_to_the_gate_when_the_route_asked_for_it(phase: str) -> None:
+def test_planner_calls_the_planner_role_through_structured_output(
+    phase: str, stub_planner
+) -> None:
+    """§17 — `planner` role at 0.1, and S-C04 B1 — structured output.
+
+    **B1 is "never by parsing JSON from raw model text"**, which cannot be
+    asserted by looking at a plan that came back well-formed: a parsed one
+    would look identical. What makes it checkable is that the schema was handed
+    to the model, so the fixture records it.
+    """
+    _run(nodes_module(phase).planner(_state(current_phase=phase)))
+    assert stub_planner.roles == ["planner"]
+    assert stub_planner.effective_temperature == 0.1
+    assert stub_planner.schemas == [CoachingPlan]
+
+
+@pytest.mark.parametrize("phase", PHASE_ORDER)
+def test_planner_routes_to_the_gate_when_the_route_asked_for_it(
+    phase: str, stub_planner
+) -> None:
     """`entry="gate"` skips the executor. Placeholder, NOT DP1."""
     cmd = _run(nodes_module(phase).planner(
         _state(current_phase=phase), {"configurable": {"entry": "gate"}}
     ))
     assert cmd.goto == "validation_stack"
-    assert cmd.update["coaching_plan"]["next_action"] == "gate"
+    assert cmd.update["step_log"][0]["route"] == "gate"
 
 
 @pytest.mark.parametrize("phase", PHASE_ORDER)
-def test_planner_leaves_the_cycle_after_one_coaching_turn(phase: str) -> None:
+def test_planner_leaves_the_cycle_after_one_coaching_turn(
+    phase: str, stub_planner
+) -> None:
     """The 4.1 predicate could not terminate; this is the fix, pinned.
 
     It routed on `artifacts`, which the executor never writes (WATCH 7 — it
@@ -312,11 +344,31 @@ def test_planner_leaves_the_cycle_after_one_coaching_turn(phase: str) -> None:
     """
     cmd = _run(nodes_module(phase).planner(_state(current_phase=phase, turn_count=1)))
     assert cmd.goto == "validation_stack"
-    assert cmd.update["coaching_plan"]["next_action"] == "close"
+    assert cmd.update["step_log"][0]["route"] == "close"
 
 
 @pytest.mark.parametrize("phase", PHASE_ORDER)
-def test_planner_does_not_route_on_artifacts(phase: str) -> None:
+def test_planner_spends_no_model_call_when_the_executor_is_not_next(
+    phase: str, stub_planner
+) -> None:
+    """A plan is consumed by the executor and by nothing else.
+
+    Producing one on the way to `validation_stack` would spend a premium call
+    on a plan no node reads, and put a `focus_field` in the trace that never
+    coached anything. The previous plan stands instead: B3 governs what a NEW
+    plan does to the old one, not that one must be produced every visit.
+    """
+    for config in ({"configurable": {"entry": "gate"}}, None):
+        state = _state(current_phase=phase,
+                       turn_count=0 if config else 1)
+        cmd = _run(nodes_module(phase).planner(state, config))
+        assert cmd.goto == "validation_stack"
+        assert "coaching_plan" not in (cmd.update or {})
+    assert stub_planner.calls == 0, "the model was called with no consumer"
+
+
+@pytest.mark.parametrize("phase", PHASE_ORDER)
+def test_planner_does_not_route_on_artifacts(phase: str, stub_planner) -> None:
     """The 4.1 predicate, pinned as retired — `artifacts` stays empty until 6.2."""
     cmd = _run(nodes_module(phase).planner(
         _state(current_phase=phase, artifacts={"business_case": "x"})
@@ -326,23 +378,100 @@ def test_planner_does_not_route_on_artifacts(phase: str) -> None:
     )
 
 
-def test_analyse_is_the_one_phase_planning_multi_hop() -> None:
+@pytest.mark.parametrize("phase", PHASE_ORDER)
+def test_planner_does_not_read_a_goto_out_of_next_action(
+    phase: str, stub_planner
+) -> None:
+    """**G-01 stays open.** DP1 is founder-owned and 6.1 did not invent it.
+
+    S-C04's `next_action` is the coaching move — "ask, challenge, show an
+    example, run a computation" — not a routing verb. A planner that routed on
+    it would close a founder-owned gap by implementation, and would do it by
+    reading a field that does not mean that. So a plan whose `next_action` says
+    "gate" must still route by the placeholder predicate.
+    """
+    stub_planner.plan = CoachingPlan(
+        focus_field="business_case", next_action="gate",
+        retrieval_strategy="single_hop", retrieval_hops=[],
+    )
+    cmd = _run(nodes_module(phase).planner(_state(current_phase=phase)))
+    assert cmd.goto == "executor", (
+        "the planner routed on the plan's next_action — that is DP1, and G-01 "
+        "marks it 'to be designed with founder'"
+    )
+
+
+def test_analyse_is_the_one_phase_defaulting_to_multi_hop(stub_planner) -> None:
     """§28 — Analyse's root-cause validation is layered; the other four are not.
 
-    Carried on the stub plan and read by nothing yet; pinned so the
-    parameterised builder cannot quietly flatten a real per-phase difference.
+    **It is the DEFAULT offered to the planner, not an override applied to its
+    answer.** S-C04 is explicit that the choice is the model's — "not restricted
+    to Analyse — the planner may select multi_hop in any phase" — so this
+    asserts the default reaches the prompt, and the next test asserts the
+    model's answer is what actually lands on the plan.
     """
-    strategies = {
-        phase: _run(nodes_module(phase).planner(
-            _state(current_phase=phase)
-        )).update["coaching_plan"]["retrieval_strategy"]
-        for phase in PHASE_ORDER
-    }
-    assert strategies["analyse"] == "multi_hop"
-    assert {p: s for p, s in strategies.items() if p != "analyse"} == {
-        "define": "single_hop", "measure": "single_hop",
-        "improve": "single_hop", "control": "single_hop",
-    }
+    prompts = {}
+    for phase in PHASE_ORDER:
+        stub_planner.prompts.clear()
+        _run(nodes_module(phase).planner(_state(current_phase=phase)))
+        prompts[phase] = stub_planner.prompts[0]
+
+    assert 'is "multi_hop" by default' in prompts["analyse"]
+    for phase in ("define", "measure", "improve", "control"):
+        assert 'is "single_hop" by default' in prompts[phase], phase
+
+
+def test_the_plans_strategy_is_the_models_answer_not_the_phase_default(
+    stub_planner,
+) -> None:
+    """S-C04 — "the planner may select `multi_hop` in any phase".
+
+    A per-phase constant that overrode the plan would make `retrieval_strategy`
+    a lookup wearing a model's name, and §26's planned multi-hop would be
+    unreachable in the four phases whose default is single-hop.
+    """
+    stub_planner.plan = CoachingPlan(
+        focus_field="business_case", next_action="ask",
+        retrieval_strategy="multi_hop",
+        retrieval_hops=["what drives it?", "why does that happen?"],
+    )
+    cmd = _run(nodes_module("define").planner(_state(current_phase="define")))
+    plan = cmd.update["coaching_plan"]
+    assert plan.retrieval_strategy == "multi_hop", (
+        "Define's single-hop DEFAULT overrode the planner's own choice"
+    )
+    assert len(plan.retrieval_hops) == 2
+
+
+def test_single_hop_plans_carry_no_hops() -> None:
+    """**S-C04 B2**, enforced on the model rather than at one call site.
+
+    Normalises rather than raises: this runs on model output, and rejecting a
+    plan for a stray hop list would fail the turn over something
+    `retrieval_strategy` has already decided.
+    """
+    plan = CoachingPlan(
+        focus_field="business_case", next_action="ask",
+        retrieval_strategy="single_hop",
+        retrieval_hops=["a hop the model should not have sent"],
+    )
+    assert plan.retrieval_hops == []
+
+
+def test_the_planner_prompt_carries_the_phases_field_ledger(stub_planner) -> None:
+    """The planner reads `artifacts` to derive what is next (§17).
+
+    **`review_rows` is the ledger, not a second list built in the planner** —
+    the same function §50's gate-review screen uses, so the planner and the
+    screen cannot disagree about what the phase owes.
+    """
+    _run(nodes_module("define").planner(
+        _state(current_phase="define", artifacts={"business_case": "stated"})
+    ))
+    prompt = stub_planner.prompts[0]
+    assert "business_case  [captured]" in prompt
+    assert "voc_summary  [missing]" in prompt
+    assert "problem_statement  [missing]" in prompt
 
 
 # ── the three pass-throughs ───────────────────────────────────────────────

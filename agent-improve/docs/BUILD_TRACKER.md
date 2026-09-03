@@ -12,7 +12,7 @@ Legend:  ✅ done · ▶ next · ☐ to do · ⛔ blocked · ⏸ gated/external
 # Agent Improve — Refactor Build Tracker
 # updated 2026-09-03 · build target: `agent-improve/ARCHITECTURE.md`
 
-**Progress: 19 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4 + 9.0 out-of-band). **Next: step 6.1.** **Stage 5 is complete.**
+**Progress: 20 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 6.1 + 9.0 out-of-band). **Next: step 6.2.**
 Spine runs 2.3 → 11.2, one step = one commit. The spec is complete; this is the code.
 
 **Blocked / not-yet-schedulable:** 8.4 (Redis not provisioned), 8.5 (`request_drain`
@@ -57,8 +57,8 @@ unconfirmed), 9.1 (external reindex). Everything else is open once its precondit
 ## Stage 6 — The coaching agent
 | Step | What | Builds | Status |
 |---|---|---|---|
-| 6.1 | Planner / Executor split | §17 | ▶ **next** |
-| 6.2 | `create_agent` executor + `CoachingResponse` | §18, §20 | ☐ **← clears WATCH 7** (the v2 Define writer starts here) |
+| 6.1 | Planner / Executor split | §17 | ✅ done **trace-check verified** *(the real planner: `CoachingPlan` via `with_structured_output`, `planner` role @0.1, executor-bound path only. Needed a governance commit first — `9fce8fc` scoped pattern-2. **G-01 stays open**; DP1 was not invented. Found `validation_stack` reading the routing verb off `next_action` — DECISIONS Part AF)* |
+| 6.2 | `create_agent` executor + `CoachingResponse` | §18, §20 | ▶ **next** **← clears WATCH 7** (the v2 Define writer starts here) |
 | 6.3 | Middleware positions 1–3 | §19 | ☐ |
 | 6.4 | Retry middleware 4–5 + factory hardcoded retry | §19 | ☐ |
 | 6.5 | Middleware positions 6–8 | §19 | ☐ |

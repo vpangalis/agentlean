@@ -7,11 +7,11 @@
 
 | | |
 |---|---|
-| **Last completed** | step **5.4** — Per-phase tool binding |
-| **Next** | step **6.1** — Planner / Executor split |
+| **Last completed** | step **6.1** — Planner / Executor split |
+| **Next** | step **6.2** — `create_agent` executor + `CoachingResponse` |
 | **Stage** | Stage 6 — The coaching agent |
-| **Progress** | 19 of 35 build steps |
-| **Last spine commit** | `b2b0590` (commit 5.3) |
+| **Progress** | 20 of 35 build steps |
+| **Last spine commit** | `ab3734b` (commit 5.4) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |
 | **Block regenerated** | 2026-09-03 |
