@@ -22,6 +22,9 @@ from typing import Any
 
 import pytest
 
+from langchain_core.language_models.fake_chat_models import (
+    GenericFakeChatModel,
+)
 from langchain_core.messages import AIMessage
 from langgraph.errors import GraphRecursionError
 
@@ -52,16 +55,28 @@ class _FakePlannerModel:
         self.roles: list[str] = []
         self.temperatures: list[float | None] = []
 
-    # `get_llm(role, temperature=None, ...)` — recorded, then returns self.
+    # `get_llm(role, temperature=None, ...)` — recorded, then returns self
+    # for the `planner` role and a real fake chat model for every other.
     def __call__(self, role: str, temperature: float | None = None,
-                 **kwargs: Any) -> "_FakePlannerModel":
+                 **kwargs: Any) -> Any:
         self.roles.append(role)
         self.temperatures.append(temperature)
+        if role != "planner":
+            # **Step 6.3 made this necessary and it is not a workaround.**
+            # `SummarizationMiddleware` (position 3) is LangChain core used as
+            # shipped, and it calls `.with_retry()` and reads `._llm_type` on
+            # the model it is given. Handing it this recorder would mean
+            # growing a hand-rolled impersonation of `BaseChatModel` — so
+            # non-planner roles get LangChain's OWN fake, which has the whole
+            # surface, needs no network and needs no Azure credentials.
+            return GenericFakeChatModel(messages=iter([]))
         return self
 
     def with_structured_output(self, schema: Any, **kwargs: Any) -> "_FakePlannerModel":
         self.schemas.append(schema)
         return self
+
+
 
     async def ainvoke(self, prompt: Any, *args: Any, **kwargs: Any) -> CoachingPlan:
         self.prompts.append(str(prompt))
@@ -162,6 +177,34 @@ class _CreateAgentRecorder:
     @property
     def tool_names(self) -> list[str]:
         return [t.name for t in self.calls[-1]["tools"]]
+
+    @property
+    def middleware(self) -> list[Any]:
+        """The stack the executor mounted, in declaration order (§19)."""
+        return list(self.calls[-1].get("middleware") or [])
+
+    def middleware_named(self, name: str) -> Any:
+        """One mounted middleware, by class name."""
+        for m in self.middleware:
+            if type(m).__name__ == name:
+                return m
+        raise AssertionError(
+            f"{name} is not mounted; stack is "
+            f"{[type(m).__name__ for m in self.middleware]}"
+        )
+
+    @property
+    def injected_block(self) -> str:
+        """What `BeforeModelStateInjection` would put at the top of the prompt.
+
+        Runs the real `before_agent`, so this is the block the coach actually
+        sees rather than a restatement of it. Needed because this fixture
+        replaces `create_agent`, so the mounted middleware is captured but
+        never executed by the agent loop.
+        """
+        mw = self.middleware_named("BeforeModelStateInjection")
+        mw.before_agent(None, None)
+        return mw._block
 
 
 @pytest.fixture

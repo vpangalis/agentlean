@@ -59,6 +59,8 @@ from backend.phases.define.schema import (
     TEAM_MEMBER_KEYS,
 )
 
+from backend.phases.gate_registry import missing_gate_fields
+
 logger = logging.getLogger(__name__)
 
 # All 12 coached Define fields BLOCK the gate (§35, §39.1.2 — Option A),
@@ -67,55 +69,6 @@ logger = logging.getLogger(__name__)
 # position 5 rather than at its own — so `field_index` is unaffected.
 # Sourced from schema.py: the single declaration.
 DEFINE_REQUIRED_FOR_GATE = list(DEFINE_REQUIRED_FOR_GATE_FIELDS)
-
-
-def _missing_structured(data: dict) -> list[str]:
-    """Sub-field checks for the three fields that are not plain strings.
-
-    **A dict that is present but half-filled passes a presence check and fails
-    the Belt at the gate.** §41 calls this the partial-map failure and it is
-    the reason these fields are dicts rather than prose: a four-of-six SIPOC
-    looks complete until someone tries to use it.
-    """
-    missing: list[str] = []
-
-    sipoc = data.get("process_map_sipoc")
-    if isinstance(sipoc, dict):
-        absent = [k for k in SIPOC_KEYS if not str(sipoc.get(k) or "").strip()
-                  and not sipoc.get(k)]
-        if absent:
-            missing.append(f"process_map_sipoc.{'/'.join(absent)}")
-
-    scope = data.get("project_scope")
-    if isinstance(scope, dict):
-        absent = [k for k in PROJECT_SCOPE_KEYS
-                  if not str(scope.get(k) or "").strip()]
-        if absent:
-            missing.append(f"project_scope.{'/'.join(absent)}")
-
-    registry = data.get("metric_definitions")
-    if isinstance(registry, list) and registry:
-        for i, entry in enumerate(registry):
-            if not isinstance(entry, dict):
-                missing.append(f"metric_definitions[{i}]")
-                continue
-            absent = [k for k in METRIC_DEFINITION_KEYS
-                      if not str(entry.get(k) or "").strip()]
-            if absent:
-                missing.append(f"metric_definitions[{i}].{'/'.join(absent)}")
-
-    team = data.get("team")
-    if isinstance(team, list) and team:
-        for i, member in enumerate(team):
-            if not isinstance(member, dict):
-                missing.append(f"team[{i}]")
-                continue
-            absent = [k for k in TEAM_MEMBER_KEYS
-                      if not str(member.get(k) or "").strip()]
-            if absent:
-                missing.append(f"team[{i}].{'/'.join(absent)}")
-
-    return missing
 
 
 async def validate_define(state: ImproveGraphState) -> dict:
@@ -136,14 +89,12 @@ async def validate_define(state: ImproveGraphState) -> dict:
     attempts = state.get("gate_attempts") or 0
 
     # ── Layer 2b: presence of all 13 required fields ──────────────────
-    missing: list[str] = []
-    for field in DEFINE_REQUIRED_FOR_GATE:
-        val = data.get(field)
-        if val is None or val == "" or val == [] or val == {}:
-            missing.append(field)
-
-    # ── Sub-field completeness for the structured fields ──────────────
-    missing.extend(_missing_structured(data))
+    # **ONE computation, shared with the prompt** (step 6.3). `gate_registry.
+    # missing_gate_fields` is what `BeforeModelStateInjection` also calls, so
+    # the coach cannot ask for a field this gate does not want, or stay silent
+    # about one it does (§19.1, S-C11 B3). The Tier-1 loop and the structured
+    # sub-field checks that used to live in this file are there now.
+    missing = missing_gate_fields("define", data)
 
     passed = len(missing) == 0
 

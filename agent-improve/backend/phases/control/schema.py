@@ -285,3 +285,13 @@ def assemble_control_gate_document(
         "uploads": uploads,
     }
     return build_gate_document(ControlOutput, "control", artifacts, values)
+
+
+#: §41 / S-C33 — all FIVE sub-plans required. A control plan written is not a
+#: control plan delivered, and a training plan authored and never run is the
+#: most common real Control failure (B1). **Here rather than in `validate.py`
+#: (moved at step 6.3)** — see the note on Measure's equivalent.
+CONTROL_PLAN_KEYS: tuple[str, ...] = (
+    "documentation", "monitoring", "response", "training",
+    "aligning_systems",
+)

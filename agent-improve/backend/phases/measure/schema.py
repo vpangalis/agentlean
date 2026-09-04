@@ -284,3 +284,13 @@ def assemble_measure_gate_document(
         "uploads": uploads,
     }
     return build_gate_document(MeasureOutput, "measure", artifacts, values)
+
+
+#: §41 / S-C33 — all six sub-fields required. **Here rather than in
+#: `validate.py` (moved at step 6.3)**: `gate_registry.missing_structured`
+#: needs it, and the registry imports schema only — that one-way direction is
+#: what keeps the validators able to import the registry without a cycle.
+DETAILED_PROCESS_MAP_KEYS: tuple[str, ...] = (
+    "steps", "cycle_times", "resources", "value_vs_waste",
+    "measurement_points", "baseline_metrics",
+)

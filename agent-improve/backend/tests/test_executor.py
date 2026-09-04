@@ -101,7 +101,11 @@ def test_the_executor_builds_the_agent_per_the_ratified_template(
     assert kwargs["response_format"] is CoachingResponse, (
         "§20 — never a {Phase}Output on the executor"
     )
-    assert kwargs["middleware"] == [], "§19's eight land at 6.3-6.5"
+    assert [type(m).__name__ for m in kwargs["middleware"]] == [
+        "BeforeModelStateInjection",   # 1 — before_agent, and FIRST (§19)
+        "DMAICSkillsMiddleware",       # 2 — before_agent + load_skill
+        "SummarizationMiddleware",     # 3 — before_model, core as shipped
+    ], "positions 1-3 (step 6.3); 4-5 land at 6.4 and 6-8 at 6.5"
     assert kwargs["model"] is not None
 
 
@@ -123,27 +127,34 @@ def test_tools_are_passed_to_create_agent_not_bound_to_the_model(
     assert model.kwargs.get("tools") is None if hasattr(model, "kwargs") else True
 
 
-def test_the_prompt_carries_the_phases_field_names(stub_coach) -> None:
-    """The field list IS the capture contract — a name not on it never lands."""
+def test_the_static_prompt_keeps_the_two_mandatory_blocks(stub_coach) -> None:
+    """§6.3 and §6.4 — both mandatory on every coach prompt.
+
+    The system prompt is STATIC per phase as of 6.3: the per-turn facts moved
+    into `BeforeModelStateInjection`. These two blocks did not move — they are
+    the coach's standing instructions, not this turn's state.
+    """
     _run(_c.executor("define", _state()))
     prompt = stub_coach.system_prompt
-    for field in ("business_case", "voc_summary", "problem_statement",
-                  "metric_definitions"):
-        assert field in prompt, field
     assert "MEMORY HIERARCHY" in prompt, "§6.3 block is mandatory"
     assert "NEVER INVENT A VALUE" in prompt, "§6.4 guards are mandatory"
 
 
-def test_the_prompt_names_the_plans_focus_field(stub_coach) -> None:
-    """S-F04 B1 — coach the planner's field, never a different one."""
-    _run(_c.executor("define", _state(coaching_plan=CoachingPlan(
-        focus_field="voc_summary", next_action="challenge a vague answer",
-        retrieval_strategy="single_hop", retrieval_hops=[],
-    ))))
+def test_the_per_turn_facts_are_no_longer_in_the_system_prompt(stub_coach) -> None:
+    """**Step 6.3 removed 6.2's hand-composition, and that is the point.**
+
+    §19.1 is the ratified home for project-state injection. Leaving 6.2's
+    hand-composed copy in place alongside the middleware would inject the same
+    facts twice — and the duplicate would be the one that drifted, since only
+    the middleware derives its missing-field list from the shared gate
+    computation.
+    """
+    _run(_c.executor("define", _state(artifacts={"business_case": "b"})))
     prompt = stub_coach.system_prompt
-    assert "Coach on: voc_summary" in prompt
-    assert "challenge a vague answer" in prompt
-    assert "no other" in prompt
+    assert "FIELD LIST for" not in prompt
+    assert "STILL MISSING" not in prompt
+    assert "CAPTURED THIS PHASE" not in prompt
+    assert "THIS PROJECT" not in prompt
 
 
 # ══════════════════════════════════════════════════════════════════════════

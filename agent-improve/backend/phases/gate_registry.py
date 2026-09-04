@@ -22,6 +22,7 @@ from backend.phases.analyse.schema import (
     assemble_analyse_gate_document,
 )
 from backend.phases.control.schema import (
+    CONTROL_PLAN_KEYS,
     CONTROL_TIER_1_FIELDS,
     CONTROL_TIER_2_FIELDS,
     ControlOutput,
@@ -29,6 +30,10 @@ from backend.phases.control.schema import (
 )
 from backend.phases.define.schema import (
     DEFINE_REQUIRED_FOR_GATE_FIELDS,
+    METRIC_DEFINITION_KEYS,
+    PROJECT_SCOPE_KEYS,
+    SIPOC_KEYS,
+    TEAM_MEMBER_KEYS,
     DefineOutput,
     assemble_define_gate_document,
 )
@@ -39,6 +44,7 @@ from backend.phases.improve.schema import (
     assemble_improve_gate_document,
 )
 from backend.phases.measure.schema import (
+    DETAILED_PROCESS_MAP_KEYS,
     MEASURE_TIER_1_FIELDS,
     MEASURE_TIER_2_FIELDS,
     MeasureOutput,
@@ -127,4 +133,116 @@ def _is_empty(value: object) -> bool:
     return False
 
 
-__all__ = ["GateSpec", "GATE_SPECS", "tier_of", "review_rows"]
+# ══════════════════════════════════════════════════════════════════════════
+# Gate completeness — ONE implementation, two callers (procedure step 6.3)
+#
+# **§19.1's whole point: the prompt and the gate cannot disagree about what is
+# missing.** `BeforeModelStateInjection` reports missing fields to the coach
+# every turn (S-C11 B3), and `validate_{phase}` decides whether the gate opens.
+# Before 6.3 those were two loops in six files; a divergence in either would
+# have shown as a coach confidently asking for a field the gate did not want,
+# or staying silent about one it did.
+#
+# So the loop lives HERE, in the file whose own header says *"without this,
+# every caller that needs 'the Define document' re-derives the mapping by hand,
+# and the fifth caller gets it wrong."* The five `validate.py` call it, and so
+# does the middleware.
+#
+# **Import direction is unchanged and still one-way** — registry -> schema.
+# This module imports no `validate.py`, which is what lets the validators
+# import it without a cycle.
+# ══════════════════════════════════════════════════════════════════════════
+
+def _absent_keys(container: Any, keys: tuple[str, ...]) -> list[str]:
+    """Which of `keys` are missing from one structured dict."""
+    return [k for k in keys if _is_empty(container.get(k))]
+
+
+def _missing_entries(rows: Any, keys: tuple[str, ...], label: str) -> list[str]:
+    """Sub-field completeness across a list-of-dicts field (`team`, the registry)."""
+    missing: list[str] = []
+    if not isinstance(rows, list) or not rows:
+        return missing
+    for i, entry in enumerate(rows):
+        if not isinstance(entry, dict):
+            missing.append(f"{label}[{i}]")
+            continue
+        absent = _absent_keys(entry, keys)
+        if absent:
+            missing.append(f"{label}[{i}].{'/'.join(absent)}")
+    return missing
+
+
+def missing_structured(phase: str, data: dict[str, Any]) -> list[str]:
+    """Sub-field checks for the fields that are not plain strings (§41, S-C33).
+
+    **A dict that is present but half-filled passes a presence check and fails
+    the Belt at the gate.** §41 calls this the partial-map failure, and it is
+    the reason those fields are dicts rather than prose: a four-of-six SIPOC
+    looks complete until someone tries to use it.
+
+    Analyse and Improve have no structured field and return `[]` — stated
+    rather than omitted, so all five phases can be called uniformly.
+    """
+    missing: list[str] = []
+
+    if phase == "define":
+        sipoc = data.get("process_map_sipoc")
+        if isinstance(sipoc, dict):
+            absent = _absent_keys(sipoc, SIPOC_KEYS)
+            if absent:
+                missing.append(f"process_map_sipoc.{'/'.join(absent)}")
+        scope = data.get("project_scope")
+        if isinstance(scope, dict):
+            absent = _absent_keys(scope, PROJECT_SCOPE_KEYS)
+            if absent:
+                missing.append(f"project_scope.{'/'.join(absent)}")
+        missing.extend(_missing_entries(
+            data.get("metric_definitions"), METRIC_DEFINITION_KEYS,
+            "metric_definitions"))
+        missing.extend(_missing_entries(
+            data.get("team"), TEAM_MEMBER_KEYS, "team"))
+
+    elif phase == "measure":
+        process_map = data.get("detailed_process_map")
+        if isinstance(process_map, dict):
+            absent = _absent_keys(process_map, DETAILED_PROCESS_MAP_KEYS)
+            if absent:
+                missing.append(f"detailed_process_map.{'/'.join(absent)}")
+
+    elif phase == "control":
+        plan = data.get("control_plan")
+        if isinstance(plan, dict):
+            absent = _absent_keys(plan, CONTROL_PLAN_KEYS)
+            if absent:
+                missing.append(f"control_plan.{'/'.join(absent)}")
+
+    return missing
+
+
+def missing_gate_fields(phase: str, data: dict[str, Any]) -> list[str]:
+    """Which Tier-1 fields block this phase's gate, given what is captured.
+
+    **The one computation.** `validate_{phase}` calls it to decide the gate;
+    `BeforeModelStateInjection` calls it to tell the coach what is still owed
+    (S-C11 B3). Derived from `data` every time — S-C11 B3 forbids reading a
+    stored list, and §5 removed `open_items` for the same reason: a stored
+    readiness list is a second source of truth that can disagree with the gate.
+
+    **Tier 2 is deliberately not here.** Only Tier 1 blocks (§35); a Tier-2 gap
+    the Belt proceeds past is recorded as `acknowledged_gaps`, not as missing.
+    """
+    spec = GATE_SPECS[phase]
+    missing = [f for f in spec.tier_1 if _is_empty(data.get(f))]
+    missing.extend(missing_structured(phase, data))
+    return missing
+
+
+__all__ = [
+    "GateSpec",
+    "GATE_SPECS",
+    "tier_of",
+    "review_rows",
+    "missing_gate_fields",
+    "missing_structured",
+]

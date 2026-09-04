@@ -7,14 +7,14 @@
 
 | | |
 |---|---|
-| **Last completed** | step **6.2** — `create_agent` executor + `CoachingResponse` |
-| **Next** | step **6.3** — Middleware positions 1–3 |
+| **Last completed** | step **6.3** — Middleware positions 1–3 |
+| **Next** | step **6.4** — Retry middleware 4–5 + factory hardcoded retry |
 | **Stage** | Stage 6 — The coaching agent |
-| **Progress** | 21 of 35 build steps |
-| **Last spine commit** | `b8b20a2` (commit 6.1) |
+| **Progress** | 22 of 35 build steps |
+| **Last spine commit** | `bbed082` (commit 6.2) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.30 |
-| **Block regenerated** | 2026-09-03 |
+| **Block regenerated** | 2026-09-04 |
 
 *Derived from `docs/BUILD_TRACKER.md`, `CLAUDE.md`, `ARCHITECTURE.md`
 and the git spine — never hand-maintained, so it cannot drift from
@@ -540,6 +540,68 @@ so read §66 when the two disagree.)*
   Analyse/Improve/Control reviews. They do not move the gap count.
 
 ### Watches (owed work, NOT §66 gaps — the register will not surface them)
+
+- **WATCH 26 — the coach exhausts §3.7's 11-step budget on ORDINARY turns.
+  Owned by step 6.6 (prompts).** Opened 2026-09-04 at step 6.3.
+
+  §3.7 caps a Belt turn at `2 × max_hops + 1 = 11` and says hitting it *"is a
+  monitoring signal, not just a limit — it means either the system prompt
+  encourages too-broad exploration, or the question warrants
+  `operational-premium` for that turn."* **It is firing on first turns.**
+  Observed twice in 6.3's trace-check, on a normal opening message:
+
+      propose_template -> propose_diagram -> load_skill -> calculate_expected_savings
+
+  Four tool calls is roughly nine steps once each round-trip is counted, and
+  the terminal structured-response call finishes the budget.
+
+  **It is NOT caused by 6.3, and that was checked rather than assumed.** A
+  controlled run with 11 of 13 fields already captured — so the injected block
+  listed **2** missing instead of 12 — hit the cap identically. The
+  missing-field list is not the driver.
+
+  **The cause is where §3.7 says it is: the prompt.** `COACHING_STANCE`
+  (written at 6.2, owned properly by 6.6 / §22) tells the coach to show a
+  template, retrieve methodology, visualise with `propose_diagram` and run the
+  seven-step computation pattern — and on an opening turn it tries to do all of
+  them at once.
+
+  **The mechanism works**: the Belt gets the plain-language partial answer §3.7
+  requires, not a stack trace, and `turn_count` still advances so the planner
+  terminates. But a coach that regularly answers *"I ran out of room"* on turn
+  one is not usable, so this is a 6.6 blocker rather than a note.
+
+  > **A second finding from the same traces, same owner.** The coach called
+  > `calculate_expected_savings` with `annual_volume: '100%'` and a `unit_cost`
+  > the Belt never gave — values invented to fill required arguments. **No
+  > false number reached the Belt**: the tool's B3 returns a reformatting
+  > request rather than computing (§69), so the architecture's defence held.
+  > But §6.4's anti-hallucination guard says *"never fill a gap by inference"*,
+  > and the guard is in the prompt it apparently did not outweigh. Same fix,
+  > same step.
+
+- **WATCH 27 — two §56 amendments owed to step 11.2, both approved at 6.3's
+  review.** Opened 2026-09-04.
+
+  Both are cases where the reference describes an API the installed library
+  does not have. **Neither is a design change and neither blocks anything** —
+  the code is already written the correct way in both cases; the documents need
+  to catch up.
+
+  1. **§19.1 / S-C11 B1** makes `BeforeModelStateInjection` `before_agent`
+     *and* says it "prepends at the top of the prompt". Those are two different
+     hooks: `before_agent` returns a **state update** and cannot reach the
+     prompt, which is reached through `wrap_model_call`. The build composes on
+     `before_agent` (once per turn, as B1 requires) and prepends on
+     `wrap_model_call` as a pure read. §19.1's *wording* needs to describe the
+     split; its behaviour is met.
+  2. **§19.3** shows `SummarizationMiddleware(model="azure/operational-model")`,
+     which has LangChain construct the model and **bypasses the factory** —
+     CLAUDE.md §4.1. The build passes `get_llm("summarizer")`; §21 already
+     ratifies that role on the operational tier, so only the example is wrong.
+
+  Queued in `REFACTORING_PROCEDURE.md` step 11.2, which is the governance
+  close-out.
 
 - **WATCH 25 — two of the universal seven are not built, so the live per-phase
   tool totals are 6 / 13 / 10 / 6 / 10, not §30's 8 / 15 / 12 / 8 / 12.**

@@ -47,6 +47,7 @@ import logging
 from typing import Any, Awaitable, Callable, Literal, Optional, cast
 
 from langchain.agents import create_agent
+from langchain.agents.middleware import SummarizationMiddleware
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.errors import GraphRecursionError
@@ -60,7 +61,10 @@ from backend.core.state import ImproveGraphState
 from backend.core.substate import CoachingPlan, CoachingResponse, PhaseState
 from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE
 from backend.knowledge.tools import UNIVERSAL_TOOLS
+from backend.middleware.skills import DMAICSkillsMiddleware
+from backend.middleware.state_injection import BeforeModelStateInjection
 from backend.phases.gate_registry import review_rows
+from backend.phases.mappers_common import PHASE_ORDER
 
 logger = logging.getLogger(__name__)
 
@@ -391,6 +395,24 @@ _CAP_MESSAGE = (
     "back up? Nothing you have told me is lost."
 )
 
+#: §19.3, verified against the installed `SummarizationMiddleware` before use
+#: (§16.3 — this is where `max_retries` vs `retries` was learned). The current
+#: parameter names are `trigger` and `keep`; `max_tokens_before_summary` and
+#: `messages_to_keep` are the DEPRECATED spellings the class still warns on, so
+#: a document copied from an older revision would look plausible and warn at
+#: runtime rather than fail.
+#:
+#: 100_000 is ~78% of gpt-4o's 128k window; 20 turns of raw conversation are
+#: kept below the summary. **Safe because facts do not live in `messages`** —
+#: they are in `artifacts`, `step_log`, `citations` and the Store (§19.3).
+#: Summarising conversation into prose is correct; summarising FACTS into prose
+#: is the failure this policy prevents.
+#: The `Literal` in each annotation is the installed signature's, not
+#: decoration: `tuple[str, int]` type-checks here and is REJECTED at the call
+#: site, because the middleware discriminates the trigger kind on that literal.
+SUMMARIZATION_TRIGGER: tuple[Literal["tokens"], int] = ("tokens", 100_000)
+SUMMARIZATION_KEEP: tuple[Literal["messages"], int] = ("messages", 20)
+
 #: Which `additional_kwargs` key each diagram type rides on. **These are the
 #: UI's names, read off `gateway/routes.py` and `ui/index.html`** — the route
 #: lifts `sipoc_diagram` and `visualisation` off the reply and puts them in the
@@ -401,91 +423,90 @@ _DIAGRAM_TO_UI_KEY = {
 }
 
 
-def _build_executor(phase: str, system_prompt: str) -> Any:
+def _build_executor(phase: str, state: PhaseState,
+                    config: Optional[RunnableConfig] = None) -> Any:
     """The phase coach — `create_agent`, per §18's ratified template.
 
     **Both parameter names were verified against the installed
-    `langchain.agents.create_agent` before this was written** (§16.3, and
-    CLAUDE.md §0.10 records what it cost last time): the signature carries
-    `system_prompt` and has **no** `prompt` parameter, so `prompt=` would raise
-    `TypeError` at construction rather than being silently ignored.
+    `langchain.agents.create_agent`** (§16.3, and CLAUDE.md §0.10 records what
+    it cost last time): the signature carries `system_prompt` and has **no**
+    `prompt` parameter, so `prompt=` would raise `TypeError` at construction
+    rather than being silently ignored.
 
     **Tools are passed to `create_agent(tools=...)`, never bound onto the
     model.** Binding onto a bare model bypasses the entire middleware stack
     (§18) — grading, skills, compression, state injection, retry, coherence and
-    contradiction — and does it silently. `pattern-8-bind-tools-in-phase-executor`
-    guards this file for exactly that reason.
+    contradiction — and does it silently.
+    `pattern-8-bind-tools-in-phase-executor` guards this file for that reason.
 
-    **Constructed per turn, not cached.** The system prompt carries this turn's
-    project facts, and §19.1 puts those at the TOP of the prompt rather than
-    appended into `messages` (§8.5 — models weight earlier content more, and
-    facts arriving after the Belt's message let the response drift toward the
-    Belt's framing). Step 6.3's `BeforeModelStateInjection` is the ratified home
-    for that injection; when it lands, this becomes a static prompt and the
-    agent can be cached per phase. Graph construction is cheap next to the model
-    call it wraps, so the interim costs latency that is not measurable.
+    **MIDDLEWARE POSITIONS 1-3 MOUNT HERE (step 6.3).** Declaration order is
+    execution order for hooks of the same kind, so this order is binding
+    (§19). `BeforeModelStateInjection` MUST be first — project facts have to
+    reach the top of the prompt before skills loading and summarisation shape
+    it (§19, S-C11 B4). Positions 4-5 land at 6.4 and 6-8 at 6.5.
+
+    **The system prompt is now STATIC per phase.** Step 6.2 composed this
+    turn's project facts into it by hand, because there was no middleware to
+    do it; §19.1 is the ratified home and that hand-composition came out at
+    6.3. Leaving both would inject the same facts twice — once from the
+    middleware and once from the prompt — and the second copy would be the one
+    that drifted, because only one of them is derived from the shared gate
+    computation.
+
+    Still constructed per turn: the two custom middlewares are built with this
+    turn's state, so the agent cannot outlive it. That is cheap next to the
+    model call it wraps.
     """
     return create_agent(
         model=get_llm("coach", max_tokens=1500),
         tools=UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase],
         response_format=CoachingResponse,   # §20 — never a {Phase}Output
-        middleware=[],                      # §19 — positions land at 6.3–6.5
-        system_prompt=system_prompt,        # NOT `prompt=` (§18)
+        middleware=[
+            # 1 — before_agent. FIRST, and that is a rule, not a preference.
+            BeforeModelStateInjection(
+                phase, state, config,
+                prior_documents=_prior_gate_documents(phase, config),
+            ),
+            # 2 — before_agent + a registered `load_skill` tool.
+            DMAICSkillsMiddleware(phase),
+            # 3 — before_model. LangChain core, used as shipped (§19.3).
+            SummarizationMiddleware(
+                model=get_llm("summarizer"),
+                trigger=SUMMARIZATION_TRIGGER,
+                keep=SUMMARIZATION_KEEP,
+            ),
+            # 4-5 land at step 6.4, 6-8 at 6.5.
+        ],
+        system_prompt=PHASE_COACH_PROMPT[phase],   # NOT `prompt=` (§18)
     )
 
 
-def _executor_prompt(phase: str, state: PhaseState,
-                     config: Optional[RunnableConfig] = None) -> str:
-    """The phase coach prompt plus this turn's project facts, facts LAST.
+def _prior_gate_documents(
+    phase: str, config: Optional[RunnableConfig] = None
+) -> dict[str, dict]:
+    """Earlier phases' approved values, for S-C11 B5.
 
-    The static half is `PHASE_COACH_PROMPT[phase]` (§22) and carries the
-    mandatory memory-hierarchy paragraph and anti-hallucination guards. The
-    dynamic half is what `BeforeModelStateInjection` will supply at 6.3: the
-    phase's ratified field names, what is captured already, and the plan's
-    focus field.
+    **Read from the seam that carries them today.** §9 makes the Store the
+    home of cross-phase gate documents and `gate_apply` the writer — and
+    `gate_apply` writes nothing until stage 7 (DECISIONS Z2), so there is
+    nothing in the Store to read yet. What exists is `v1_phase_inputs` on
+    `config`, which the route already assembles from the case document for
+    every phase.
 
-    **The field list is not decoration — it is the capture contract.** The coach
-    writes `fields_captured` using these names, and a name that is not on this
-    list is a value that never reaches the gate document.
-
-    **Case framing rides on `config`, not on state** — `case_metadata` and
-    `current_user` are the same three seam keys the v1 bridge carried, because
-    `PhaseState` may not grow a field for them (§56). `belt_level` in particular
-    is load-bearing: §35's grader suppresses Black-Belt-only methodology for a
-    Green Belt, and a coach that does not know which it is talking to cannot
-    honour that.
+    **This is the seam, not the design.** When `gate_apply` starts writing at
+    stage 7, this reads the Store instead — and B5 is why it matters that it
+    reads something: without prior committed values in the prompt the coach has
+    nothing to compare against, and §37's contradiction check silently detects
+    nothing, which is the exact failure of the mechanism it replaced.
     """
-    rows = review_rows(phase, dict(state.get("artifacts") or {}))
-    ledger = "\n".join(
-        f"  {row['field']}"
-        f"{'  [captured]' if row['present'] else '  [not yet captured]'}"
-        f"{'  (recommended, not gate-blocking)' if row['tier'] == 2 else ''}"
-        for row in rows
-    )
     configurable = (config or {}).get("configurable") or {}
-    meta = configurable.get("case_metadata") or {}
-    case_lines = "\n".join(
-        f"  {label}: {meta[key]}"
-        for key, label in (("title", "Project"), ("belt_level", "Belt level"),
-                           ("leader", "Belt"), ("department", "Department"))
-        if meta.get(key)
-    )
-    case = f"THIS PROJECT\n{case_lines}\n" if case_lines else ""
-
-    plan = state.get("coaching_plan")
-    focus = (
-        f"\nTHIS TURN\n  Coach on: {plan.focus_field}\n"
-        f"  What to do: {plan.next_action}\n"
-        "  Coach this field and no other. Choosing a different one is the\n"
-        "  planner's job, not yours."
-        if plan else ""
-    )
-    return (
-        f"{PHASE_COACH_PROMPT[phase]}\n\n"
-        f"{case}\n"
-        f"FIELD LIST for {phase} — use these names exactly:\n{ledger}\n"
-        f"{focus}\n"
-    )
+    prior = configurable.get("v1_phase_inputs") or {}
+    upto = PHASE_ORDER.index(phase)
+    return {
+        name: dict(values)
+        for name, values in prior.items()
+        if values and name in PHASE_ORDER[:upto]
+    }
 
 
 def _captured_fields(phase: str, reply: CoachingResponse) -> dict[str, Any]:
@@ -579,12 +600,14 @@ async def executor(
     It still decides no strategy of its own: it does not pick the field, does
     not choose the retrieval mode, and does not route.
 
-    **`middleware=[]` — positions 1–8 land at 6.3–6.5** (§19). Two consequences
-    are live until then and are not defects: there is no
-    `BeforeModelStateInjection`, so this node composes the per-turn context into
-    the system prompt itself (see `_executor_prompt`), and there is no
-    `ContradictionDetectionMiddleware`, so a `contradiction_flag` the coach sets
-    is carried into `step_log` and read by nobody until 6.5.
+    **Middleware positions 1–3 are mounted as of step 6.3** (§19); 4–5 land at
+    6.4 and 6–8 at 6.5. So the per-turn project facts now arrive through
+    `BeforeModelStateInjection` rather than being composed into the prompt
+    here — 6.2 did that by hand only because there was no middleware to do it,
+    and leaving both would inject the same facts twice. One consequence is
+    still live and is not a defect: there is no
+    `ContradictionDetectionMiddleware` until 6.5, so a `contradiction_flag` the
+    coach sets is carried into `step_log` and read by nobody until then.
 
     The coach's answer goes into `messages` as an `AIMessage`. A `propose_diagram`
     payload from this turn rides on `additional_kwargs` under the key the UI
@@ -594,7 +617,7 @@ async def executor(
     turn_count = state.get("turn_count") or 0
     plan = state.get("coaching_plan")
 
-    agent = _build_executor(phase, _executor_prompt(phase, state, config))
+    agent = _build_executor(phase, state, config)
     prior = list(state.get("messages") or [])
     hit_cap = False
     try:

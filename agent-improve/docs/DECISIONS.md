@@ -4475,3 +4475,183 @@ constructed per turn; 6.3 makes the prompt static and lets it be cached.
 `belt_level` is load-bearing — §35's grader suppresses Black-Belt-only
 methodology for a Green Belt — so a coach that does not know which Belt it is
 talking to cannot honour a rule the grader will hold it to.
+
+---
+
+## Part AH — Step 6.3: middleware 1–3, and one computation where there were six (2026-09-04)
+
+**Procedure step 6.3.** Reference **§19**, **§19.1** / §61.2 — S-C11,
+**§19.2** / §61.3 — S-C12, **§19.3**, **§32**; CLAUDE.md **§4.1**, **§4.5**,
+**§16.3**, **§21**.
+
+---
+
+### AH1 — The hook and the placement are two different hooks
+
+**§19.1 says `before_agent` AND "prepends at the top of the prompt". Verified
+against the installed `langchain.agents.middleware`, those cannot both be one
+hook.** `before_agent(state, runtime)` returns a **state update**; the prompt
+is reached through `wrap_model_call(request, handler)`, where `ModelRequest`
+carries `system_message` and `.override()`.
+
+**Ruled: compose on `before_agent`, apply on `wrap_model_call`.** Every
+`artifacts` read, every prior-document lookup and every missing-field
+computation happens once per turn on `before_agent`; `wrap_model_call` is a
+pure read-and-prepend of the already-composed string. **B1's cost argument is
+satisfied exactly** — the expensive half runs once, and the cheap half cannot
+recompute because it has nothing to recompute from. A test empties the composed
+block and asserts the request passes through untouched, so "once per turn"
+cannot quietly become "once per model call".
+
+**Proved live.** 6.3's trace-check ran a turn that made many model calls (it
+reached §3.7's cap), and `before_agent` fired **once** for both middlewares. On
+`before_model` it would have fired five or more times — which is the difference
+B1 exists to name.
+
+**§19.1's wording is what needs correcting, not the behaviour** — §56 amendment
+queued at step 11.2, WATCH 27.
+
+> **The class name still says `BeforeModelStateInjection` and the hook is
+> `before_agent`.** §61.2 records this as a naming finding and says explicitly
+> that *"renaming is not in this pass's scope"*, so the name is kept and the
+> contradiction is written into the module docstring rather than silently
+> fixed.
+
+---
+
+### AH2 — Content blocks, not string concatenation. Caught at review.
+
+**The first implementation concatenated onto `.content` with an f-string.**
+That is the §21 / CLAUDE.md §4.5 rule the project applied across **twenty
+sites at step 2.6** — and it was missed here because those twenty were about
+*reading* model responses, while this writes a `SystemMessage`. **The rule
+binds on both directions and the code did not.**
+
+The failure is concrete, not stylistic. `SystemMessage.content` is
+`str | list[dict]`, so over a multi-part message the f-string renders:
+
+```
+"...PROJECT STATE...\n\n[{'type': 'text', 'text': 'COACH PART ONE'}, …]"
+```
+
+— a Python repr, in the prompt, with **no error raised**.
+
+**Mutation-checked rather than assumed.** Restoring the old code against a
+two-block system message produces **one** block containing that repr; the fixed
+code produces three, with the originals intact. Three assertions catch it.
+
+**Position 2 is where it would actually have bitten.** `DMAICSkillsMiddleware`
+runs after position 1, so by the time it appends, the system message is
+*already* multi-part — the string form was not a hypothetical risk there but a
+live one on every turn.
+
+Fixed by operating on `.content_blocks` and constructing with
+`content_blocks=`, both verified against langchain-core 1.6.0.
+
+> **Why the test fixture is a list and not a string.** A string-content message
+> passes either way. That is precisely why the defect survived writing, review
+> of my own diff, 716 green tests and a live trace — the only thing that
+> distinguishes the two implementations is a multi-part input.
+
+---
+
+### AH3 — One missing-field computation where there were six
+
+**Ruled: `gate_registry.missing_gate_fields(phase, data)` is the single
+implementation, called by `BeforeModelStateInjection` and by all five
+`validate_{phase}`.**
+
+§19.1's requirement is not "compute it the same way" — it is *"the prompt and
+`DMAICGateValidator` cannot disagree"*. Before this step the Tier-1 loop and
+the structured sub-field checks were duplicated across five `validate.py`, and
+the middleware would have made a **sixth**. A parallel implementation that
+agrees on the day it is written is the drift this step was most likely to
+introduce, and it fails invisibly: a coach asking for a field the gate does not
+want, or silent about one it does, surfaces only when a gate refuses to open.
+
+**This is why all five `validate.py` changed at a middleware step** — the
+reason a future reader will want. Nothing about gate behaviour changed; 716
+tests passed across the consolidation, and a structural test asserts each
+validator calls the shared function and no longer carries its own
+`_missing_structured`.
+
+**Two constants moved to make it cycle-free.** `DETAILED_PROCESS_MAP_KEYS` and
+`CONTROL_PLAN_KEYS` were in `validate.py` and are now in `schema.py`, beside
+Define's equivalents which were always there. That keeps the import direction
+one-way — **registry → schema** — which is what lets the validators import the
+registry without a cycle.
+
+**Tier 2 is deliberately not in the computation.** Only Tier 1 blocks (§35); a
+Tier-2 gap the Belt proceeds past is `acknowledged_gaps`, not "missing".
+
+> **`check_gate_status()` was not stubbed.** §19.1 names it as the reporter and
+> S-F21 assigns it to step 7.1, where `DMAICGateValidator` lands. Deriving from
+> the shared function now is not a stand-in for the tool: it is the same
+> computation the tool will report, so 7.1 swaps the caller and not the answer.
+
+---
+
+### AH4 — G-33 answered: `load_skill` is outside §30's totals
+
+**Ruled: `load_skill` is registered through `AgentMiddleware.tools`, the
+framework's own documented registration point — never through
+`create_agent(tools=...)`.**
+
+Two independent facts put it outside §30's arithmetic: it is not one of §29.2's
+universal seven, and **§32 requires each SKILL.md's `allowed-tools` to match
+that phase's §30 subset exactly — not one of the five names it.**
+
+**But the model still sees it, so three counts have to be kept apart**, and a
+test pins all three so none can drift silently:
+
+| | Define | Measure | Analyse | Improve | Control |
+|---|---|---|---|---|---|
+| §30 ratified | 8 | 15 | 12 | 8 | 12 |
+| live (2 owed — WATCH 25) | 6 | 13 | 10 | 6 | 10 |
+| **actually bound** (+ `load_skill`) | 7 | 14 | 11 | 7 | 11 |
+
+**G-33's collision is real and not yet live.** The register states it exactly —
+*"if bound, Measure goes to 16 against a cap of 16"* — and that arrives only
+once 7.1 and 7.5 land the two owed universal tools. The test asserts
+`ratified + 1 == 16` for Measure so that step cannot reach the ceiling by
+surprise. **The gap stays OPEN**; this answers where the tool sits, not whether
+§30 should count it.
+
+---
+
+### AH5 — §19.3's example bypasses the factory
+
+**§19.3 shows `SummarizationMiddleware(model="azure/operational-model", …)`.**
+That string has LangChain construct the model itself, which is exactly what
+CLAUDE.md §4.1 forbids: *"Never instantiate `AzureChatOpenAI` directly. Always
+use `get_llm()`."*
+
+**Ruled: pass `get_llm("summarizer")`.** The installed signature accepts
+`str | BaseChatModel`, and §21 already ratifies a `summarizer` role on the
+operational tier — so the tier §19.3 names is right and only the form is wrong.
+§56 amendment queued at 11.2, WATCH 27.
+
+**The parameter names were checked before writing** (§16.3, and §0.10 records
+what skipping it cost): `model` / `trigger` / `keep` are current;
+`max_tokens_before_summary` and `messages_to_keep` are the deprecated spellings
+the class **still accepts and warns on** — so a config copied from an older
+document would look correct and degrade at runtime rather than fail at
+construction. A test asserts the current names against the installed class.
+
+---
+
+### AH6 — The trace-check caught Level 1 doing nothing
+
+**The first `DMAICSkillsMiddleware` logged that descriptions were "offered" and
+put them nowhere.** `level_1_catalogue()` was computed and discarded, leaving
+the coach holding a `load_skill` tool with no idea what was loadable — a
+mechanism reporting success while doing nothing, which is the failure shape
+this register keeps recording (§0.16's `remaining_steps`, §0.14's
+`route_after_phase`, 6.2's unreachable coach cap).
+
+**Found by running it, not by reading it.** Every unit test passed while Level 1
+delivered nothing, because they asserted the catalogue could be *built*. After
+the fix the coach called `load_skill('dmaic-define-phase')` on the next trace.
+Two tests now assert delivery — that the five descriptions reach the prompt,
+and that the full instructions do **not**, since a catalogue carrying Level 2
+would make three levels pointless.

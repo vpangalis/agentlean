@@ -42,19 +42,12 @@ from backend.phases.control.schema import (
     CONTROL_TIER_2_FIELDS,
 )
 
+from backend.phases.gate_registry import missing_gate_fields
+
 logger = logging.getLogger(__name__)
 
 #: Sourced from `schema.py` — the single declaration (56.1).
 CONTROL_REQUIRED_FOR_GATE = list(CONTROL_TIER_1_FIELDS)
-
-#: 41 / S-C33 — all FIVE sub-plans required. A control plan written is
-#: not a control plan delivered, and a training plan authored and never
-#: run is the most common real Control failure (B1).
-CONTROL_PLAN_KEYS: tuple[str, ...] = (
-    "documentation", "monitoring", "response", "training",
-    "aligning_systems",
-)
-
 
 
 def _is_empty(value: object) -> bool:
@@ -66,23 +59,6 @@ def _is_empty(value: object) -> bool:
     if isinstance(value, (list, dict, tuple, set)):
         return len(value) == 0
     return False
-
-
-def _missing_structured(data: dict) -> list[str]:
-    """Sub-field checks for the structured dicts (41, S-C33).
-
-    **A dict that is present but half-filled passes a presence check and fails
-    the Belt at the gate.** 41 calls this the partial-map failure, and it is
-    why these fields are dicts rather than prose: a four-of-six map looks
-    complete until someone tries to use it. B1 requires EVERY sub-field.
-    """
-    missing: list[str] = []
-    plan = data.get("control_plan")
-    if isinstance(plan, dict):
-        absent = [k for k in CONTROL_PLAN_KEYS if _is_empty(plan.get(k))]
-        if absent:
-            missing.append(f"control_plan.{'/'.join(absent)}")
-    return missing
 
 
 def acknowledged_gaps(data: dict) -> list[str]:
@@ -116,12 +92,12 @@ async def validate_control(state: ImproveGraphState) -> dict:
     attempts = state.get("gate_attempts") or 0
 
     # -- Layer 2b: presence of every Tier 1 field ----------------------
-    missing: list[str] = [
-        field for field in CONTROL_REQUIRED_FOR_GATE if _is_empty(data.get(field))
-    ]
-
-    # -- Sub-field completeness for the structured dicts (41) ----------
-    missing.extend(_missing_structured(data))
+    # **ONE computation, shared with the prompt** (step 6.3). `gate_registry.
+    # missing_gate_fields` is what `BeforeModelStateInjection` also calls, so
+    # the coach cannot ask for a field this gate does not want, or stay silent
+    # about one it does (§19.1, S-C11 B3). The Tier-1 loop and the structured
+    # sub-field checks that used to live in this file are there now.
+    missing = missing_gate_fields("control", data)
 
     passed = len(missing) == 0
     gaps = acknowledged_gaps(data)

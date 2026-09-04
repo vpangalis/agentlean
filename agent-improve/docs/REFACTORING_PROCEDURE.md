@@ -1629,6 +1629,19 @@ resolve, that the path exclusion on `agent-improve/**/*.md` is still correct
 now that the documents are stable, and that the session-start hook's step
 parsing still matches this document's format.
 
+**Two §56 amendments are QUEUED HERE, both raised at step 6.3 and both cases
+where the reference describes an API that the installed library does not have.
+Neither is a design change; both are the document catching up to the code that
+had to be written against reality.**
+
+| # | Section | What it says | What is true |
+|---|---|---|---|
+| 1 | **§19.1** / S-C11 B1 | `BeforeModelStateInjection` is `before_agent` **and** "prepends at the top of the prompt" | Those are two different hooks. `before_agent(state, runtime)` returns a **state update** and cannot reach the prompt; the prompt is reached through `wrap_model_call`, where `ModelRequest` carries `system_message` and `.override()`. The build composes on `before_agent` (once per turn, as B1 requires) and prepends on `wrap_model_call`, which is a pure read. **§19.1's wording needs to describe the split**; the behaviour it mandates is unchanged and is met |
+| 2 | **§19.3** | `SummarizationMiddleware(model="azure/operational-model", …)` | That string has LangChain construct the model itself, **bypassing the factory** — CLAUDE.md §4.1: *"Never instantiate `AzureChatOpenAI` directly. Always use `get_llm()`."* The signature accepts `BaseChatModel`, and §21 already ratifies a `summarizer` role on the operational tier, so the build passes `get_llm("summarizer")`. **The example needs correcting**; the tier it names is right |
+
+Both are recorded as **WATCH 27** and were approved at 6.3's review. Neither
+blocks any step — the code is already written the correct way in both cases.
+
 ---
 
 # Appendices
@@ -1773,7 +1786,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 5.4** | Per-phase tool binding | done |
 | **Commit 6.1** | Planner / Executor split | done |
 | **Commit 6.2** | `create_agent` executor | done |
-| **Commit 6.3** | Middleware 1–3 | pending |
+| **Commit 6.3** | Middleware 1–3 | done |
 | **Commit 6.4** | Retry middleware 4–5 + factory retry removal | pending |
 | **Commit 6.5** | Middleware 6–8 | pending |
 | **Commit 6.6** | Prompts | pending |

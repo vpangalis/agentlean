@@ -390,10 +390,14 @@ def test_config_frames_the_coach(wired, stub_coach) -> None:
     asyncio.run(graph.ainvoke(_seed_state(
         messages=[HumanMessage(content="hello")]
     ), config=_config()))
-    prompt = stub_coach.system_prompt
-    assert "Department: D" in prompt
-    assert "Belt level: green" in prompt
-    assert "Project: T" in prompt
+    # **Step 6.3 moved this.** The framing was composed into the system prompt
+    # by hand at 6.2; it now arrives through `BeforeModelStateInjection`
+    # (§19.1), which is the whole point of position 1 — so the assertion moves
+    # to the injected block rather than being deleted.
+    block = stub_coach.injected_block
+    assert "Department: D" in block
+    assert "Belt level: green" in block
+    assert "Project: T" in block
 
 
 # ── §47 requirement 2, end to end ─────────────────────────────────────────
