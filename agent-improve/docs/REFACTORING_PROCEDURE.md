@@ -1629,18 +1629,20 @@ resolve, that the path exclusion on `agent-improve/**/*.md` is still correct
 now that the documents are stable, and that the session-start hook's step
 parsing still matches this document's format.
 
-**Two §56 amendments are QUEUED HERE, both raised at step 6.3 and both cases
-where the reference describes an API that the installed library does not have.
-Neither is a design change; both are the document catching up to the code that
-had to be written against reality.**
+**Three §56 amendments are QUEUED HERE. The first two were raised at step 6.3
+and are cases where the reference describes an API the installed library does
+not have. None is a design change; all three are the document catching up to
+the code that had to be written against reality.**
 
 | # | Section | What it says | What is true |
 |---|---|---|---|
 | 1 | **§19.1** / S-C11 B1 | `BeforeModelStateInjection` is `before_agent` **and** "prepends at the top of the prompt" | Those are two different hooks. `before_agent(state, runtime)` returns a **state update** and cannot reach the prompt; the prompt is reached through `wrap_model_call`, where `ModelRequest` carries `system_message` and `.override()`. The build composes on `before_agent` (once per turn, as B1 requires) and prepends on `wrap_model_call`, which is a pure read. **§19.1's wording needs to describe the split**; the behaviour it mandates is unchanged and is met |
 | 2 | **§19.3** | `SummarizationMiddleware(model="azure/operational-model", …)` | That string has LangChain construct the model itself, **bypassing the factory** — CLAUDE.md §4.1: *"Never instantiate `AzureChatOpenAI` directly. Always use `get_llm()`."* The signature accepts `BaseChatModel`, and §21 already ratifies a `summarizer` role on the operational tier, so the build passes `get_llm("summarizer")`. **The example needs correcting**; the tier it names is right |
 
-Both are recorded as **WATCH 27** and were approved at 6.3's review. Neither
-blocks any step — the code is already written the correct way in both cases.
+| 3 | **§21** | Content blocks, stated for responses we **read** | The rule binds on messages we **write** too — step 6.3 shipped two middlewares that built a `SystemMessage` by f-string over an existing `.content`, and nothing forbade it. CLAUDE.md **§4.5 now states it** (v2.2.31, §0.25) and the no-go list carries it, but §21 is the platform section that owns the topic and **binds on all three agents**, so the rule is currently written for one and true for three. Defect record: `docs/DECISIONS.md` Part AH2 |
+
+All three are recorded as **WATCH 27**. None blocks any step — the code is
+already written the correct way in every case.
 
 ---
 

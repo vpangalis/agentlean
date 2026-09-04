@@ -11,9 +11,9 @@
 | **Next** | step **6.4** — Retry middleware 4–5 + factory hardcoded retry |
 | **Stage** | Stage 6 — The coaching agent |
 | **Progress** | 22 of 35 build steps |
-| **Last spine commit** | `bbed082` (commit 6.2) |
+| **Last spine commit** | `3983738` (commit 6.3) |
 | **ARCHITECTURE.md** | v1.19 |
-| **CLAUDE.md** | v2.2.30 |
+| **CLAUDE.md** | v2.2.31 |
 | **Block regenerated** | 2026-09-04 |
 
 *Derived from `docs/BUILD_TRACKER.md`, `CLAUDE.md`, `ARCHITECTURE.md`
@@ -580,8 +580,17 @@ so read §66 when the two disagree.)*
   > and the guard is in the prompt it apparently did not outweigh. Same fix,
   > same step.
 
-- **WATCH 27 — two §56 amendments owed to step 11.2, both approved at 6.3's
-  review.** Opened 2026-09-04.
+- **WATCH 27 — three §56 amendments owed to step 11.2.** Opened 2026-09-04;
+  the third added the same day.
+
+  **Third: §21 must state that content blocks apply on the WRITE side.**
+  CLAUDE.md §4.5 now says it (v2.2.31, §0.25) and the no-go list carries it,
+  but **§21 is the platform section that owns the topic and binds on all three
+  agents** — Improve, Resolve and Flow — so the rule is currently stated for
+  one agent and true for all of them. Full record of the defect that produced
+  it: `docs/DECISIONS.md` Part AH2.
+
+  The first two, both approved at 6.3's review:
 
   Both are cases where the reference describes an API the installed library
   does not have. **Neither is a design change and neither blocks anything** —

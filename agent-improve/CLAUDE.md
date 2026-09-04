@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.30 — August 2026
+# Version 2.2.31 — September 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -794,6 +794,43 @@ none of the three landed as a pre-existing violation.
 > **record that finding** — `/verify-current-version` against the live package
 > index, per §16.3, not against memory or a document.
 
+### 0.25 — What Changed in 2.2.31 — §4.5 covers the write side
+
+**§4.5 said "read `response.content_blocks`" and nothing about the messages we
+construct.** Step 6.3 shipped two middlewares that built a `SystemMessage` by
+f-string over an existing `.content`, and the rule as written did not forbid it.
+
+| Area | v2.2.30 | v2.2.31 |
+|---|---|---|
+| §4.5 scope | **Reading** model responses | **Both directions** — messages we write as well as responses we read |
+| Building message content | Unstated | **Never interpolate or concatenate an existing message's `.content`** — construct with `content_blocks=` |
+| Plain-string construction | Unstated | **Fine.** `AIMessage(content="text")` needs no blocks |
+| Testing it | Unstated | **A list-content fixture is required**; a string-content one passes both implementations |
+| §14 no-go list | One entry, read side | **Two** — the write side is named separately |
+
+**Why the gap was invisible.** Step 2.6 converted twenty sites, and all twenty
+were `response.content` — so the rule got filed under *reading*, and writing
+never came up. `pattern-3-response-content-parsing` matches
+`response\.content\s*\[`, which is the read side too. **Nothing in the registry
+or this file addressed construction**, and the defect passed writing, review,
+716 green tests and a live trace before it was caught by a question.
+
+**The list-content fixture is the load-bearing half.** `SystemMessage.content`
+is `str | list[dict]`, and a string-content message behaves identically under
+the correct and the broken implementation. **Only a multi-part fixture
+distinguishes them** — which is why the rule names the test requirement rather
+than leaving it to judgment.
+
+**No rule was renumbered**, so `deprecated_patterns.yaml`'s four citations still
+resolve and §0.2 is satisfied. **No registry pattern was added**: the prose rule
+in this file is the mechanism for now, and a write-side pattern stays available
+as its own governance commit.
+
+**The reference back-port is owed, not done.** §21 is the platform section that
+owns this and binds on all three agents; adding it there is a §56 amendment and
+is queued with the other two at step 11.2 (`docs/CONTINUITY.md` WATCH 27).
+Full record of the defect: `docs/DECISIONS.md` Part AH2.
+
 ---
 
 ## 1. ARCHITECTURE PRINCIPLES
@@ -1329,12 +1366,43 @@ three custom middlewares together or not at all.
 
 *Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §18, §19.*
 
-### 4.5 — Read typed content blocks, never string-index the content
+### 4.5 — Content blocks, both directions
 
 Model responses carry typed content blocks. Read
 `response.content_blocks`. String-indexing or substring-parsing the
 raw content field is a violation — it breaks the moment a provider
 returns a multi-part response.
+
+**Content blocks apply in both directions. §21 governs messages we
+write as well as responses we read. Never build message content by
+interpolating or concatenating an existing message's `.content` —
+construct with `content_blocks=`. Plain-string construction of a new
+message is fine. A string-content message passes either
+implementation, so any test covering message construction must use
+list content.**
+
+`SystemMessage.content` is `str | list[dict]`. Over a multi-part
+message an f-string renders the literal
+`[{'type': 'text', 'text': …}]` into the prompt — structure
+destroyed, **no error raised**, and the model silently reads a Python
+repr.
+
+```python
+existing = request.system_message
+blocks = list(existing.content_blocks) if existing is not None else []
+request.override(system_message=SystemMessage(
+    content_blocks=[{"type": "text", "text": block}, *blocks],
+))
+```
+
+**The write side reached a commit at step 6.3** — both custom
+middlewares concatenated onto `.content`, and it survived writing,
+review, 716 green tests and a live trace. The rule had been filed
+under *reading*, because step 2.6's twenty sites were all
+`response.content`. **The list-content fixture is the load-bearing
+half of this rule:** a string-content message passes the correct and
+the broken implementation identically, so a test built on one proves
+nothing. Full record: `docs/DECISIONS.md` Part AH2.
 
 *Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §21.*
 
@@ -3319,7 +3387,11 @@ to choose backoff strategy (§4.8).
 - Never use `create_react_agent`, or import from `langgraph.prebuilt`
 - Never add deepagents as a dependency while it is pre-1.0
 - Never parse JSON from raw LLM text
-- Never string-index the raw content field — read `content_blocks`
+- Never string-index the raw content field — read `content_blocks` (§4.5)
+- Never build message content by interpolating or concatenating an
+  existing message's `.content` — construct with `content_blocks=`.
+  Plain-string construction of a NEW message is fine, and a test covering
+  message construction MUST use a list-content fixture (§4.5)
 - Never exceed 16 tools on a phase executor
 - Never parameterise the computation tools into mode-argument groups
 - Never reference the retired **tool** names `search_improve_knowledge`,
