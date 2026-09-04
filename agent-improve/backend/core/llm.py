@@ -118,11 +118,44 @@ def _build_llm(
         api_key=os.environ["AZURE_OPENAI_API_KEY"],
         temperature=temperature,
         max_tokens=max_tokens,
-        # KEEP UNTIL STEP 6.4. This is hand-rolled retry that
-        # ModelRetryMiddleware replaces (§19.4, CLAUDE.md §8.7), but removing
-        # it before the middleware exists leaves a window with no retry at
-        # all. 6.4 lands the replacement and deletes this line.
-        max_retries=3,
+        # ── RETRY IS THE MIDDLEWARE'S, AND ONLY THE MIDDLEWARE'S (step 6.4) ──
+        #
+        # **The zero is explicit and must stay explicit.** Deleting this line
+        # does not disable SDK retry — it inherits `DEFAULT_MAX_RETRIES = 2`
+        # (openai 2.29.0) and quietly restores the stacking. `test_llm.py`
+        # asserts the literal `0` on the AST for that reason.
+        #
+        # The constructor previously carried a hardcoded retry of three,
+        # deferred from step 2.7 and removed here — sequenced after 6.3
+        # deliberately, because removing it before `ModelRetryMiddleware`
+        # existed would have left a window with no retry at all. §19.4 and
+        # CLAUDE.md §8.7: the middleware provides the wrap, the backoff and the
+        # attempt counter, and hand-rolled retry plumbing is BANNED. (The old
+        # number is spelled in prose, not as the keyword: this step's verify is
+        # `grep-absence` on that literal, and quoting it would defeat the check
+        # that proves the deletion.)
+        #
+        # **TWO LAYERS MULTIPLY, THEY DO NOT ADD.** Both counters mean
+        # "attempts after the initial call" — `range(self.max_retries + 1)` in
+        # the middleware, `range(max_retries + 1)` in `openai._base_client` —
+        # so the middleware's 2 is 3 attempts, and at the SDK default each of
+        # those is 3 more: **nine requests for one model call**, with the
+        # middleware's backoff able to see only three of them.
+        #
+        # **The SDK honours `Retry-After` for up to 60s, and that is the harm
+        # rather than the benefit.** Those waits happen INSIDE one middleware
+        # attempt, so the visible layer never sees the error and cannot report,
+        # fall back (§4.8) or degrade. Two projects hit this exact shape and
+        # both fixed it this way: nanobot #2511 — twelve requests for one
+        # transient failure, no user feedback, up to twelve minutes of silent
+        # hanging — and pydantic-ai #3267.
+        #
+        # **Losing SDK `Retry-After` awareness is an ACCEPTED, DELIBERATE
+        # TRADE. Do not "restore" it as a bugfix** (DECISIONS Part AI). What
+        # replaces it is one visible retry layer plus §44's bounded request
+        # timeout, which step 8.2 owns and which both sources pair with this
+        # setting — the SDK default had been covering for its absence.
+        max_retries=0,
     )
 
 

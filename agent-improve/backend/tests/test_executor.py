@@ -105,7 +105,9 @@ def test_the_executor_builds_the_agent_per_the_ratified_template(
         "BeforeModelStateInjection",   # 1 — before_agent, and FIRST (§19)
         "DMAICSkillsMiddleware",       # 2 — before_agent + load_skill
         "SummarizationMiddleware",     # 3 — before_model, core as shipped
-    ], "positions 1-3 (step 6.3); 4-5 land at 6.4 and 6-8 at 6.5"
+        "ModelRetryMiddleware",        # 4 — wrap_model_call, core as shipped
+        "ToolRetryMiddleware",         # 5 — wrap_tool_call, core as shipped
+    ], "positions 1-5 (steps 6.3, 6.4); 6-8 land at 6.5"
     assert kwargs["model"] is not None
 
 

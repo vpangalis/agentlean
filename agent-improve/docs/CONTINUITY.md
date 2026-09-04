@@ -7,10 +7,10 @@
 
 | | |
 |---|---|
-| **Last completed** | step **6.3** — Middleware positions 1–3 |
-| **Next** | step **6.4** — Retry middleware 4–5 + factory hardcoded retry |
+| **Last completed** | step **6.4** — Retry middleware 4–5 + factory hardcoded retry |
+| **Next** | step **6.5** — Middleware positions 6–8 |
 | **Stage** | Stage 6 — The coaching agent |
-| **Progress** | 22 of 35 build steps |
+| **Progress** | 23 of 35 build steps |
 | **Last spine commit** | `3983738` (commit 6.3) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.31 |
@@ -541,8 +541,36 @@ so read §66 when the two disagree.)*
 
 ### Watches (owed work, NOT §66 gaps — the register will not surface them)
 
+- **WATCH 28 — a bounded request timeout is now LOAD-BEARING at step 8.2.
+  Owned by 8.2 (§44, §45).** Opened 2026-09-04 at step 6.4.
+
+  **6.4 pinned `max_retries=0` on the `AzureChatOpenAI` constructor**, making
+  `ModelRetryMiddleware` the only retry layer (DECISIONS Part AI). The SDK's
+  own retry had been quietly covering for the absence of an explicit request
+  timeout; with it off, **a hung request has nothing underneath it but §44's
+  `TimeoutPolicy`.**
+
+  **Both projects that fixed this stacking pair `max_retries=0` with an
+  explicit timeout**, for exactly that reason — nanobot #2511 and pydantic-ai
+  #3267. This is not a new requirement invented at 6.4: §44 already mandates
+  `TimeoutPolicy(run_timeout=45)` on every phase executor node. What changed is
+  that it stopped being defence in depth and became the only floor.
+
+  **8.2 owns it.** This watch exists so that step knows it inherited a
+  dependency rather than a preference, and does not treat the timeout as
+  tunable-to-taste. Nothing is blocked in the meantime: the middleware's three
+  attempts and §4.8's fallback chain both still fire.
+
 - **WATCH 26 — the coach exhausts §3.7's 11-step budget on ORDINARY turns.
   Owned by step 6.6 (prompts).** Opened 2026-09-04 at step 6.3.
+
+  > **Answered at 6.4, and it is NOT worsened by the retry middlewares.**
+  > *"Does a tool retry consume steps against `COACH_RECURSION_LIMIT`?"* — no.
+  > Measured with a forced tool failure and a `max_retries=0` control: tool
+  > invocations rose by 2, **graph steps by 0**; the model side is the same.
+  > Retries happen inside the wrapped step. Pinned as
+  > `test_a_tool_retry_does_not_consume_a_graph_step` so a LangChain upgrade
+  > that moves them out fails there rather than silently making this worse.
 
   §3.7 caps a Belt turn at `2 × max_hops + 1 = 11` and says hitting it *"is a
   monitoring signal, not just a limit — it means either the system prompt

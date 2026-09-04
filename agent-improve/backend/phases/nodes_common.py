@@ -47,7 +47,11 @@ import logging
 from typing import Any, Awaitable, Callable, Literal, Optional, cast
 
 from langchain.agents import create_agent
-from langchain.agents.middleware import SummarizationMiddleware
+from langchain.agents.middleware import (
+    ModelRetryMiddleware,
+    SummarizationMiddleware,
+    ToolRetryMiddleware,
+)
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.errors import GraphRecursionError
@@ -410,6 +414,24 @@ _CAP_MESSAGE = (
 #: The `Literal` in each annotation is the installed signature's, not
 #: decoration: `tuple[str, int]` type-checks here and is REJECTED at the call
 #: site, because the middleware discriminates the trigger kind on that literal.
+#: §19.4 and §19.5 — both retry middlewares, both at 2. **"Attempts after the
+#: initial call"**, verified in source (`range(self.max_retries + 1)`), so this
+#: is THREE attempts, not two.
+#:
+#: **This is one of three retry caps and they are not merged** (§19): model 2
+#: here, `CoherenceMiddleware` 2 on response quality at 6.5, and the validation
+#: stack's shared 3 at the gate (§34). Three different failure modes, three
+#: counters, no shared state — merging any two would have a network flake
+#: consume a gate attempt.
+RETRY_MAX = 2
+
+#: §19.5. **`"continue"` is current; `"return_message"` and `"raise"` are
+#: DEPRECATED values the class still accepts and warns on** (verified against
+#: the installed middleware — accepted is not the same as current, which is the
+#: §16.3 distinction 6.3 learned on `SummarizationMiddleware`). The current set
+#: is `"continue"`, `"error"`, or a callable.
+TOOL_RETRY_ON_FAILURE: Literal["continue"] = "continue"
+
 SUMMARIZATION_TRIGGER: tuple[Literal["tokens"], int] = ("tokens", 100_000)
 SUMMARIZATION_KEEP: tuple[Literal["messages"], int] = ("messages", 20)
 
@@ -475,7 +497,20 @@ def _build_executor(phase: str, state: PhaseState,
                 trigger=SUMMARIZATION_TRIGGER,
                 keep=SUMMARIZATION_KEEP,
             ),
-            # 4-5 land at step 6.4, 6-8 at 6.5.
+            # 4 — wrap_model_call. The INVISIBLE retry tier (§19.4): the
+            # network flaked, so retry the same call. Distinct from §4.8's
+            # fallback chain, which swaps the model. `max_retries` is
+            # "attempts after the initial call", so 2 means three attempts.
+            ModelRetryMiddleware(max_retries=RETRY_MAX),
+            # 5 — wrap_tool_call. A failed retrieval is not a failed model
+            # call and `ModelRetryMiddleware` never sees it (§19.5).
+            # `on_failure="continue"` is what keeps the coaching loop alive:
+            # the coach reads a failure result and works around it instead of
+            # the graph dying mid-session.
+            ToolRetryMiddleware(
+                max_retries=RETRY_MAX, on_failure=TOOL_RETRY_ON_FAILURE,
+            ),
+            # 6-8 land at step 6.5.
         ],
         system_prompt=PHASE_COACH_PROMPT[phase],   # NOT `prompt=` (§18)
     )

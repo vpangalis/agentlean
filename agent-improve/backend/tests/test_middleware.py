@@ -24,8 +24,17 @@ import inspect
 from typing import Any, cast
 
 import pytest
-from langchain.agents.middleware import SummarizationMiddleware
-from langchain_core.messages import SystemMessage
+from langchain.agents import create_agent
+from langchain.agents.middleware import (
+    ModelRetryMiddleware,
+    SummarizationMiddleware,
+    ToolRetryMiddleware,
+)
+from langchain_core.language_models.fake_chat_models import (
+    GenericFakeChatModel,
+)
+from langchain_core.messages import AIMessage, SystemMessage
+from langchain_core.tools import tool
 
 from backend.core.substate import CoachingPlan, PhaseState
 from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE
@@ -545,10 +554,12 @@ def test_positions_one_to_three_mount_in_declaration_order(
     """
     asyncio.run(_c.executor(phase, _state(current_phase=phase)))
     assert [type(m).__name__ for m in stub_coach.middleware] == [
-        "BeforeModelStateInjection",
-        "DMAICSkillsMiddleware",
-        "SummarizationMiddleware",
-    ]
+        "BeforeModelStateInjection",   # 1 — before_agent, FIRST (S-C11 B4)
+        "DMAICSkillsMiddleware",       # 2 — before_agent + load_skill
+        "SummarizationMiddleware",     # 3 — before_model
+        "ModelRetryMiddleware",        # 4 — wrap_model_call  (step 6.4)
+        "ToolRetryMiddleware",         # 5 — wrap_tool_call   (step 6.4)
+    ], "6-8 land at 6.5"
 
 
 def test_the_injected_block_reflects_this_turns_state(stub_coach) -> None:
@@ -563,3 +574,145 @@ def test_the_injected_block_reflects_this_turns_state(stub_coach) -> None:
     assert "£120k of rework a year" in block
     assert "business_case" not in block.split("STILL MISSING")[1]
     assert "team" in block.split("STILL MISSING")[1]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Positions 4–5 — the two retry middlewares (step 6.4)
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def test_retry_kwargs_against_the_installed_classes() -> None:
+    """§16.3, and this step's own history is why.
+
+    `retries=` does not exist, raises at construction, and sat in the canonical
+    stack undetected from adoption until 2026-08-21 (CLAUDE.md §0.10). Checked
+    against the LIBRARY, so an upgrade that renames it fails here.
+    """
+    for cls in (ModelRetryMiddleware, ToolRetryMiddleware):
+        params = inspect.signature(cls.__init__).parameters
+        assert "max_retries" in params, cls.__name__
+        assert "retries" not in params, f"{cls.__name__} grew a `retries=`"
+        assert "on_failure" in params, cls.__name__
+
+    from langchain.agents import middleware as mw
+
+    assert not hasattr(mw, "RetryMiddleware"), (
+        "`RetryMiddleware` does not exist in LangChain 1.x — §19.5"
+    )
+
+
+def test_on_failure_continue_is_current_not_merely_accepted() -> None:
+    """**Accepted is not the same as current**, which is the 6.3 lesson.
+
+    `ToolRetryMiddleware` still takes `'return_message'` and `'raise'` and
+    warns on both. §19.5 mandates `'continue'`, which is in the current set —
+    so this asserts we are on the live spelling rather than a tolerated one.
+    """
+    import re
+
+    doc = ToolRetryMiddleware.__init__.__doc__ or ""
+    assert "**Deprecated values**" in doc
+    section = doc.split("**Deprecated values**")[1].split("backoff_factor:")[0]
+
+    # **Parse the bullet KEYS, not the prose.** Each deprecated entry reads
+    # ``- `'raise'`: Use `'error'` instead.`` — so `'continue'` appears in that
+    # block as a REPLACEMENT, and a substring check would read it as deprecated.
+    deprecated = set(re.findall(r"^\s*-\s*`'([a-z_]+)'`:", section, re.M))
+    assert deprecated == {"return_message", "raise"}, deprecated
+    assert _c.TOOL_RETRY_ON_FAILURE not in deprecated, (
+        f"{_c.TOOL_RETRY_ON_FAILURE!r} became deprecated — §19.5 and the "
+        f"executor need updating"
+    )
+    assert _c.TOOL_RETRY_ON_FAILURE == "continue"
+
+
+def test_max_retries_means_attempts_AFTER_the_initial_call() -> None:
+    """The number the commit body depends on: 2 means THREE attempts.
+
+    Asserted from the installed source rather than assumed, because the
+    multiplication argument for deleting the constructor's retry rests on it.
+    """
+    for cls in (ModelRetryMiddleware, ToolRetryMiddleware):
+        doc = cls.__init__.__doc__ or ""
+        assert "after the initial call" in doc, cls.__name__
+        assert "range(self.max_retries + 1)" in inspect.getsource(cls), cls.__name__
+
+
+def test_the_three_retry_caps_stay_separate() -> None:
+    """§19 — three failure modes, three counters, NO shared state.
+
+    Model 2 (transient API), coherence 2 (response quality, 6.5), validation
+    stack 3 (the gate, §34). Merging any two would have a network flake consume
+    a gate attempt — which is the v1 defect `gate_attempts` was moved onto
+    `PhaseState` to fix.
+    """
+    from backend.core.config import settings
+
+    assert _c.RETRY_MAX == 2, "§19.4/§19.5 — the model and tool cap"
+    assert settings.GATE_MAX_ATTEMPTS == 3, "§34 — the gate's own, separate cap"
+    assert _c.RETRY_MAX != settings.GATE_MAX_ATTEMPTS, (
+        "the two caps are converging — §19 keeps them independent"
+    )
+
+
+def test_a_tool_retry_does_not_consume_a_graph_step() -> None:
+    """**Step 6.4's open question, answered by running it.**
+
+    `ToolRetryMiddleware` is on `wrap_tool_call`, which wraps execution INSIDE
+    a step — so a retry should cost API calls and latency but not recursion
+    budget. That mattered because WATCH 26 records the coach already
+    exhausting §3.7's 11-step budget on ordinary turns: if retries counted,
+    6.4 would worsen a live problem before 6.6 relieves it.
+
+    **The control is `max_retries=0`, not "no middleware".** Without the
+    middleware the raised exception propagates and kills the graph, so the two
+    runs would differ in error handling as well as in retry count; holding
+    `on_failure="continue"` constant leaves the retry count as the only
+    variable.
+
+    Pinned as a test rather than left as a one-off observation, so a LangChain
+    upgrade that moves retries out to their own step fails here instead of
+    silently making WATCH 26 worse.
+    """
+    calls = {"n": 0}
+
+    @tool
+    def always_fails(query: str) -> str:
+        """Always raises, to exercise the retry path."""
+        calls["n"] += 1
+        raise RuntimeError("simulated transient tool failure")
+
+    class _ToolCapableFake(GenericFakeChatModel):
+        def bind_tools(self, tools: Any, **kwargs: Any) -> Any:
+            return self
+
+    def _run(retries: int) -> tuple[int, int]:
+        calls["n"] = 0
+        model = _ToolCapableFake(messages=iter([
+            AIMessage(content="", tool_calls=[
+                {"name": "always_fails", "args": {"query": "x"}, "id": "c1"}]),
+            AIMessage(content="worked around it"),
+        ] * 10))
+        agent = create_agent(
+            model=model, tools=[always_fails],
+            middleware=[ToolRetryMiddleware(
+                max_retries=retries, on_failure="continue",
+                initial_delay=0.0, backoff_factor=1.0, jitter=False)],
+        )
+        stream = agent.stream(
+            cast(Any, {"messages": [("user", "go")]}),
+            cast(Any, {"recursion_limit": 25}), stream_mode="updates",
+        )
+        steps = len(list(stream))
+        return steps, calls["n"]
+
+    zero_steps, zero_calls = _run(0)
+    two_steps, two_calls = _run(2)
+
+    assert two_calls - zero_calls == 2, (
+        "the retry path did not fire — the fixture is not testing anything"
+    )
+    assert two_steps == zero_steps, (
+        f"tool retries now consume graph steps ({zero_steps} -> {two_steps}); "
+        f"§3.7's budget and WATCH 26 need re-assessing"
+    )

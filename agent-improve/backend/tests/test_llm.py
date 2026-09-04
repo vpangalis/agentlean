@@ -139,12 +139,25 @@ def test_public_factory_is_a_module_level_function() -> None:
     assert not hasattr(llm_module, "llm_provider")
 
 
-def test_max_retries_stays_until_step_6_4() -> None:
-    """The constructor keeps `max_retries=3` until ModelRetryMiddleware lands.
+def test_the_constructor_pins_retry_off_explicitly() -> None:
+    """**Step 6.4: `max_retries=0`, and the zero must be EXPLICIT.**
 
-    Removing it before the replacement exists leaves a window with no retry at
-    all, so the procedure holds it to step 6.4. This test is the tripwire: when
-    6.4 deletes the line, it fails and must be deleted with it.
+    This is 2.7's tripwire, inverted — and then tightened by the 6.4 ruling.
+
+    The old test asserted the constructor kept a retry of 3 until
+    `ModelRetryMiddleware` landed — removing it earlier would have left a
+    window with no retry at all, which is why the procedure held it to 6.4.
+    Now the middleware exists and is the ONLY retry layer.
+
+    **Absence is not the same as zero, which is the whole point of this
+    assertion.** Deleting the keyword inherits `DEFAULT_MAX_RETRIES = 2` and
+    silently restores the stacking: two layers multiply rather than add, so the
+    middleware's 3 attempts become 9 requests, and the SDK's `Retry-After`
+    waits (up to 60s each) happen inside one middleware attempt where the
+    visible layer cannot see, report or fall back from them.
+
+    Checked on the AST rather than by grep so a commented-out or reformatted
+    keyword cannot pass: what matters is what the CALL actually carries.
     """
     source = pathlib.Path(inspect.getfile(llm_module)).read_text(encoding="utf-8")
     tree = ast.parse(source)
@@ -153,5 +166,34 @@ def test_max_retries_stays_until_step_6_4() -> None:
     call = next(n for n in ast.walk(builder)
                 if isinstance(n, ast.Call)
                 and getattr(n.func, "id", "") == "AzureChatOpenAI")
-    retries = {kw.arg: kw.value for kw in call.keywords}["max_retries"]
-    assert isinstance(retries, ast.Constant) and retries.value == 3
+    kwargs = {kw.arg: kw.value for kw in call.keywords}
+    retries = kwargs.get("max_retries")
+    assert retries is not None, (
+        "the constructor no longer sets `max_retries` at all — which does NOT "
+        "disable SDK retry, it inherits DEFAULT_MAX_RETRIES = 2 and silently "
+        "restores the stacking this step removed (DECISIONS Part AI)"
+    )
+    assert isinstance(retries, ast.Constant) and retries.value == 0, (
+        f"the constructor must pin retry OFF explicitly; found {retries!r}. "
+        f"§19.4 puts retry on ModelRetryMiddleware, and two layers multiply "
+        f"rather than add"
+    )
+
+
+def test_retry_is_owned_by_the_middleware_now() -> None:
+    """The replacement exists, which is what made the deletion safe."""
+    from backend.phases.nodes_common import RETRY_MAX
+
+    assert RETRY_MAX == 2
+    # "Attempts after the initial call" — so 2 is three attempts. Asserted
+    # against the installed class rather than a comment, because the number in
+    # the commit body depends on it.
+    import inspect as _i
+    from langchain.agents.middleware import ModelRetryMiddleware
+
+    doc = ModelRetryMiddleware.__init__.__doc__ or ""
+    assert "after the initial call" in doc, (
+        "the semantics of max_retries changed — the three-attempts claim in "
+        "DECISIONS Part AI and in this file's comments needs re-checking"
+    )
+    assert "range(self.max_retries + 1)" in _i.getsource(ModelRetryMiddleware)

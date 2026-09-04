@@ -1216,9 +1216,15 @@ within a turn (§19.1).
 | | |
 |---|---|
 | **Reference §** | §19.4 · §19.5 · §21 |
-| **Touches** | `phases/{phase}/graph.py` · **`core/llm.py`** |
+| **Touches** | `phases/nodes_common.py` (`_build_executor`) · **`core/llm.py`** |
 | **Precondition** | 6.3 |
 | **Verify** | `grep-absence` |
+
+> **Touches corrected at 6.4.** The row said `phases/{phase}/graph.py`, stale
+> since the **4.4 consolidation**: the middleware stack is assembled once in
+> `nodes_common._build_executor`, and the five `phases/{phase}/graph.py`
+> re-export the parameterised builder without carrying a stack of their own.
+> Positions 1–3 landed there at 6.3 and 4–5 here.
 
 ```python
 ModelRetryMiddleware(max_retries=2),                        # wrap_model_call
@@ -1229,15 +1235,29 @@ ToolRetryMiddleware(max_retries=2, on_failure="continue"),  # wrap_tool_call
 > construction. This exact keyword sat in the canonical stack undetected from
 > adoption until 2026-08-21 (`BIBLE_VERIFICATION_LOG.md` C-1). (archived to docs/_archive/; canonical: CLAUDE.md §0.10)
 
-**This step also removes `max_retries=3` from the `AzureChatOpenAI`
-constructor in `core/llm.py`**, deferred from step 2.7. **Sequenced here
-deliberately, not standalone:** the hand-rolled retry is only safe to remove
-once the middleware that replaces it exists, and removing it earlier would
-leave a window with no retry at all. CLAUDE.md §8.7 bans hand-written retry
-plumbing — that ban only becomes satisfiable at this step.
+**This step also removes the hardcoded retry from the `AzureChatOpenAI`
+constructor in `core/llm.py`**, deferred from step 2.7. **Ruled at 6.4: it is
+replaced by an explicit `max_retries=0`, not simply deleted** — deleting it
+inherits the SDK's `DEFAULT_MAX_RETRIES = 2` and silently restores the
+stacking. Two layers multiply rather than add (DECISIONS Part AI).
+
+> **⚑ THIS MAKES A BOUNDED REQUEST TIMEOUT LOAD-BEARING AT STEP 8.2** (§44,
+> §45). The SDK's own retry had been quietly covering for the absence of one;
+> with retry pinned off, a hung request has nothing underneath it but §44's
+> `TimeoutPolicy`. Both projects that fixed this stacking pair `max_retries=0`
+> with an explicit timeout for exactly that reason. **8.2 owns it** — this note
+> exists so that step knows it inherited a dependency rather than a
+> preference. Carried as WATCH 28.
+
+**Sequenced here deliberately, not standalone:** the hand-rolled retry is only
+safe to remove once the middleware that replaces it exists, and removing it
+earlier would leave a window with no retry at all. CLAUDE.md §8.7 bans
+hand-written retry plumbing — that ban only becomes satisfiable at this step.
 
 **Done when:** `grep -rn "max_retries=3" backend/core/llm.py` returns zero
-hits, and both middlewares are present in the stack.
+hits, **the constructor carries an explicit `max_retries=0`** (absence is not
+zero — it inherits the SDK default), and both middlewares are present in the
+stack.
 
 ---
 
@@ -1789,7 +1809,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 6.1** | Planner / Executor split | done |
 | **Commit 6.2** | `create_agent` executor | done |
 | **Commit 6.3** | Middleware 1–3 | done |
-| **Commit 6.4** | Retry middleware 4–5 + factory retry removal | pending |
+| **Commit 6.4** | Retry middleware 4–5 + factory retry removal | done |
 | **Commit 6.5** | Middleware 6–8 | pending |
 | **Commit 6.6** | Prompts | pending |
 | **Commit 7.1** | `DMAICGateValidator` + Layer 2b | pending |

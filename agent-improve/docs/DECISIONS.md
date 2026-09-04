@@ -4655,3 +4655,143 @@ the fix the coach called `load_skill('dmaic-define-phase')` on the next trace.
 Two tests now assert delivery — that the five descriptions reach the prompt,
 and that the full instructions do **not**, since a catalogue carrying Level 2
 would make three levels pointless.
+
+---
+
+## Part AI — Step 6.4: retry is the middleware's, and only the middleware's (2026-09-04)
+
+**Procedure step 6.4.** Reference **§19.4**, **§19.5**, **§21**, **§44**;
+CLAUDE.md **§8.7**, **§4.8**, **§16.3**.
+
+---
+
+### AI1 — `max_retries=0`, explicit, and the zero is the ruling
+
+**Ruled: the `AzureChatOpenAI` constructor pins `max_retries=0`.
+`ModelRetryMiddleware` is the only retry layer.**
+
+The step as written removes the hardcoded retry of three. **Removing it is not
+sufficient**, and that is the finding: the keyword's *absence* is not zero — it
+inherits `DEFAULT_MAX_RETRIES = 2` (openai 2.29.0) and silently restores the
+stacking the step exists to end.
+
+**Two layers multiply, they do not add.** Both counters mean *"attempts after
+the initial call"* — verified in source, `range(self.max_retries + 1)` in the
+middleware and `range(max_retries + 1)` in `openai._base_client`:
+
+| | attempts |
+|---|---|
+| middleware `max_retries=2` | 3 |
+| SDK at its default of 2 | 3, **per middleware attempt** |
+| **total for one model call** | **9 requests** |
+
+With the old hardcoded three it was 3 × 4 = **12**.
+
+---
+
+### AI2 — Losing SDK `Retry-After` awareness is a DELIBERATE TRADE
+
+**Do not "restore" it as a bugfix.** This paragraph exists to stop a future
+reader reinstating SDK retry on the reasonable-sounding grounds that the OpenAI
+client honours `Retry-After` and our middleware does not.
+
+**It does honour it — for up to 60 seconds — and that is the harm rather than
+the benefit.** Those waits happen *inside* one middleware attempt, where the
+visible layer cannot see them. So the coach cannot report the delay, §4.8's
+fallback chain cannot swap the model, and degraded mode cannot fire. The Belt
+sees nothing at all.
+
+**Two independent projects hit this exact stacking shape and both fixed it the
+same way:**
+
+| Source | What it recorded |
+|---|---|
+| **nanobot #2511** | 12 requests for one transient failure, **zero user feedback**, up to **12 minutes of silent hanging** |
+| **pydantic-ai #3267** | same stacking, same resolution — `max_retries=0` at the client |
+
+**What replaces `Retry-After` is not nothing.** It is one *visible* retry layer
+with its own exponential backoff and jitter (§19.4), plus §44's bounded request
+timeout — which is the subject of AI4.
+
+---
+
+### AI3 — Retries do not consume recursion budget, and that was measured
+
+**The question 6.4 was asked to answer: does a tool retry consume steps against
+`COACH_RECURSION_LIMIT`?** It mattered because WATCH 26 records the coach
+already exhausting §3.7's 11-step budget on ordinary opening turns — so if
+retries counted, 6.4 would have worsened a live problem before 6.6 relieves it.
+
+**Answer: no.** Measured with a forced tool failure, not reasoned from the docs:
+
+```
+TOOL   max_retries=0 : 3 graph steps, 1 tool invocation
+       max_retries=2 : 3 graph steps, 3 tool invocations
+MODEL  max_retries=0 : 1 graph step,  1 model call
+       max_retries=2 : 1 graph step,  3 model calls
+```
+
+Invocations rose by exactly 2; **graph steps by 0.** Retries happen inside the
+wrapped step — `wrap_tool_call` and `wrap_model_call` both wrap execution
+within a super-step rather than adding one.
+
+**The control is `max_retries=0`, not "no middleware".** Without the middleware
+the raised exception propagates and kills the graph, so the two runs would have
+differed in error handling as well as in retry count; holding
+`on_failure="continue"` constant leaves the retry count as the only variable.
+
+**Pinned as a test**, not left as an observation: a LangChain change that moves
+retries into their own step now fails
+`test_a_tool_retry_does_not_consume_a_graph_step` rather than silently making
+WATCH 26 worse. It also confirms the attempts arithmetic empirically — 1 → 3.
+
+---
+
+### AI4 — A bounded request timeout became load-bearing at 8.2
+
+**The SDK's retry had been quietly covering for the absence of an explicit
+request timeout.** With retry pinned off, **a hung request has nothing
+underneath it but §44's `TimeoutPolicy`.** Both sources above pair
+`max_retries=0` with an explicit timeout for that reason.
+
+This is not a new requirement invented here — §44 already mandates
+`TimeoutPolicy(run_timeout=45)` on every phase executor node. **What changed is
+that it stopped being defence in depth and became the only floor.** Recorded as
+**WATCH 28** and carried into step 8.2's own entry, so that step knows it
+inherited a dependency rather than a preference.
+
+---
+
+### AI5 — Three caps, still three. No fourth, no amendment.
+
+**§19's cap table is unchanged:** model 2, coherence 2 (6.5), validation stack 3
+(§34). `max_retries=0` is not a fourth cap — it is the **removal** of an
+unratified one that was never in the table.
+
+Three different failure modes, three counters, no shared state. Merging any two
+would let a network flake consume a gate attempt, which is the v1 defect
+`gate_attempts` was moved onto `PhaseState` to fix. A test asserts they stay
+independent.
+
+---
+
+### AI6 — What `grep-absence` could not have caught
+
+**`accepted` is not `current`, again.** §16.3 verification found `max_retries`
+and `on_failure` current on both middlewares and `retries=` absent — but
+`ToolRetryMiddleware.on_failure` has deprecated **values**: `'return_message'`
+and `'raise'` still work and warn, replaced by `'continue'` and `'error'`.
+§19.5's `'continue'` is current. **Checking the parameter name alone would have
+missed that the value space had moved** — the same shape as 6.3's
+`max_tokens_before_summary`.
+
+The test parses the deprecated bullet **keys** rather than substring-matching,
+because `'continue'` appears inside that block as the *replacement* for
+`'return_message'`; a substring check read it as deprecated and failed.
+
+> **The step's own comment nearly defeated its own verify.** The first draft of
+> the `core/llm.py` comment quoted the retired literal while explaining the
+> deletion — which would have left `grep -rn "max_retries=3"` returning a hit
+> and the `grep-absence` verify failing on prose. The number is now spelled in
+> words. Third instance of the self-reference problem in this build, after the
+> drift registry's own bootstrapping exemption and 6.3's compression sweep.

@@ -12,7 +12,7 @@ Legend:  ✅ done · ▶ next · ☐ to do · ⛔ blocked · ⏸ gated/external
 # Agent Improve — Refactor Build Tracker
 # updated 2026-09-03 · build target: `agent-improve/ARCHITECTURE.md`
 
-**Progress: 22 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 6.1, 6.2, 6.3 + 9.0 out-of-band). **Next: step 6.4.**
+**Progress: 23 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 6.1, 6.2, 6.3, 6.4 + 9.0 out-of-band). **Next: step 6.5.**
 Spine runs 2.3 → 11.2, one step = one commit. The spec is complete; this is the code.
 
 **Blocked / not-yet-schedulable:** 8.4 (Redis not provisioned), 8.5 (`request_drain`
@@ -60,8 +60,8 @@ unconfirmed), 9.1 (external reindex). Everything else is open once its precondit
 | 6.1 | Planner / Executor split | §17 | ✅ done **trace-check verified** *(the real planner: `CoachingPlan` via `with_structured_output`, `planner` role @0.1, executor-bound path only. Needed a governance commit first — `9fce8fc` scoped pattern-2. **G-01 stays open**; DP1 was not invented. Found `validation_stack` reading the routing verb off `next_action` — DECISIONS Part AF)* |
 | 6.2 | `create_agent` executor + `CoachingResponse` | §18, §20 | ✅ done **live-run verified** *(**WATCH 7 CLOSED** — `fields_captured` → `artifacts` → `validate_define` went 13/13 missing → 0, `passed=True`. Built `propose_template`/`propose_diagram` owed from 5.2 (+`core/diagrams.py`); two universal tools still owed to 7.1/7.5 — **WATCH 25**. Live-run found §3.7's coach cap could never fire — DECISIONS Part AG)* |
 | 6.3 | Middleware positions 1–3 | §19 | ✅ done **trace-check verified** *(`before_agent` fired ONCE on a many-call turn — B1 proved. `missing_gate_fields` consolidated so the prompt and all five `validate.py` share ONE computation. **G-33 answered**: `load_skill` is middleware-registered, outside §30's totals. Review caught string concatenation where §21 requires content blocks — DECISIONS Part AH)* |
-| 6.4 | Retry middleware 4–5 + factory hardcoded retry | §19 | ▶ **next** *(open question: does a tool retry consume steps against `COACH_RECURSION_LIMIT`? If so it worsens WATCH 26 before 6.6 relieves it)* |
-| 6.5 | Middleware positions 6–8 | §19 | ☐ |
+| 6.4 | Retry middleware 4–5 + factory hardcoded retry | §19 | ✅ done **grep-absence verified** *(`max_retries=0` PINNED on the constructor — the middleware is the only retry layer; two layers multiply 3×3=9, not add. **Recursion question answered by experiment: retries cost NO graph steps**, so 6.4 does not worsen WATCH 26 — DECISIONS Part AI)* |
+| 6.5 | Middleware positions 6–8 | §19 | ▶ **next** |
 | 6.6 | Prompts | §22 | ☐ |
 
 ## Stage 7 — Validation and gates
