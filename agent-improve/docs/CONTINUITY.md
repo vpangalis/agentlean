@@ -626,24 +626,35 @@ so read §66 when the two disagree.)*
   > and the guard is in the prompt it apparently did not outweigh. Same fix,
   > same step.
 
-- **WATCH 27 — SIX §56 amendments owed to step 11.2.** Opened 2026-09-04;
-  three more added 2026-09-07 at step 6.5, all in §19 and all the same shape:
-  the reference describes middleware mechanics the installed library does not
-  have. **None is a design change.** Each was measured, and LangChain's own
-  documentation confirms the first.
+- **WATCH 27 — FIVE §56 amendments owed to step 11.2.** Opened 2026-09-04;
+  two more added 2026-09-07 at step 6.5. Every one is a case where the
+  reference describes an API or a mechanism the installed library does not
+  have. **None is a design change.**
 
-  4. **§19's after-hook ordering.** *"Declaration order is execution order for
-     hooks of the same kind"* — **true for `before_agent`, false for
-     `after_agent`**, which executes last-to-first. The docs state it outright:
-     *"before_* hooks: First to last. after_* hooks: Last to first (reverse)."*
-     Positions 6–8 are therefore declared backwards so they EXECUTE 6, 7, 8.
-  5. **§19's wrap-hook independence.** *"Positions 4 and 5 compete for no slot
-     with anything else — adjacent for readability, not ordering."* **That
-     stopped being true at 6.3**, when position 1 gained a `wrap_model_call`
-     hook. Wrap hooks nest first-wraps-all, so position 1 now encloses position
-     4's retry. Measured: 3 model calls, 1 composition, 1 prepend — the
-     behaviour we want, but §19 says the positions are independent.
-  6. **§19.6's `HITLInterrupt` code sample.** ``raise HITLInterrupt(**flag)``
+  4. **§19 conflates two different orderings, and one distinction fixes all of
+     it.** The section says *"declaration order is execution order for hooks of
+     the same kind"* and, separately, that positions 4 and 5 *"compete for no
+     slot with anything else"*. Both follow from the same missing idea:
+
+     > **The middleware list is NESTING order, outermost-first. The position
+     > numbers are EXECUTION order. They are not the same ordering, and for
+     > `after_*` hooks they are opposite.**
+
+     LangChain's model is *"first in list as outermost layer"*: a `before_*`
+     hook fires on the way in, outermost-first; an `after_*` hook fires on the
+     way out, innermost-first. That single sentence explains all three things
+     §19 currently gets wrong — why positions 6-8 are layered grader-outermost,
+     why position 1's wrap encloses position 4's retry (measured: 3 model
+     calls, 1 composition), and why position 1 must be declared first to reach
+     the prompt before skills loading and summarisation.
+
+     **The amendment should teach the distinction, not patch three sentences.**
+     LangChain offers no other lever — no priority, no ordering attribute, and
+     `hook_config` governs `can_jump_to` rather than sequence — so list
+     position is the only control there is, and understanding what it controls
+     is the whole of it.
+
+  5. **§19.6's `HITLInterrupt` code sample.** ``raise HITLInterrupt(**flag)``
      does not interrupt — measured, it propagates out and hits `error_handler`.
      §33's `interrupt()` is what works, and `HITLInterrupt` is deliberately
      never defined (G-15).

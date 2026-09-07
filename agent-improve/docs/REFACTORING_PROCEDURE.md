@@ -1649,7 +1649,7 @@ resolve, that the path exclusion on `agent-improve/**/*.md` is still correct
 now that the documents are stable, and that the session-start hook's step
 parsing still matches this document's format.
 
-**SIX §56 amendments are QUEUED HERE**, from steps 6.3, 6.4 and 6.5. Every one
+**FIVE §56 amendments are QUEUED HERE**, from steps 6.3, 6.4 and 6.5. Every one
 is a case where the reference describes an API or a mechanism the installed
 library does not have. **None is a design change**; all six are the document
 catching up to code that had to be written against measured reality.
@@ -1661,11 +1661,10 @@ catching up to code that had to be written against measured reality.
 
 | 3 | **§21** | Content blocks, stated for responses we **read** | The rule binds on messages we **write** too — step 6.3 shipped two middlewares that built a `SystemMessage` by f-string over an existing `.content`, and nothing forbade it. CLAUDE.md **§4.5 now states it** (v2.2.31, §0.25) and the no-go list carries it, but §21 is the platform section that owns the topic and **binds on all three agents**, so the rule is currently written for one and true for three. Defect record: `docs/DECISIONS.md` Part AH2 |
 
-| 4 | **§19** | *"Declaration order is execution order for hooks of the same kind"* | **True for `before_agent`, false for `after_agent`.** LangChain's docs: *"before_* hooks: First to last. after_* hooks: Last to first (reverse)."* Measured the same. Positions 6–8 are declared backwards so they EXECUTE 6, 7, 8 — listed forwards, S-C13 B3's "coherence exhaustion skips the grader" could never fire |
-| 5 | **§19** | *"Positions 4 and 5 compete for no slot with anything else — adjacent for readability, not ordering"* | **Stopped being true at 6.3**, when position 1 gained a `wrap_model_call` hook. Wrap hooks nest first-wraps-all, so position 1 encloses position 4's retry. Measured: 3 model calls, 1 composition, 1 prepend. The behaviour is what we want; the claim of independence is not |
-| 6 | **§19.6** | ``raise HITLInterrupt(**flag)`` | **Does not interrupt.** Measured: a custom exception propagates out and hits `error_handler`; `interrupt()` (§33) yields a resumable interrupt. `HITLInterrupt` is deliberately never defined — a class whose documented use does not interrupt is a trap (G-15) |
+| 4 | **§19** | Two separate claims: *"declaration order is execution order for hooks of the same kind"*, and positions 4-5 *"compete for no slot with anything else"* | **Both follow from one missing distinction: the middleware list is NESTING order, outermost-first; the position numbers are EXECUTION order, and for `after_*` hooks they are opposite.** LangChain's model is *"first in list as outermost layer"* — `before_*` fires on the way in, outermost-first; `after_*` on the way out, innermost-first. That sentence explains why 6-8 are layered grader-outermost, why position 1's wrap encloses position 4's retry (measured: 3 model calls, 1 composition), and why position 1 must be declared first. **Teach the distinction; do not patch the sentences** — and note that list position is the only lever LangChain offers: no priority, no ordering attribute, and `hook_config` governs `can_jump_to`, not sequence |
+| 5 | **§19.6** | ``raise HITLInterrupt(**flag)`` | **Does not interrupt.** Measured: a custom exception propagates out and hits `error_handler`; `interrupt()` (§33) yields a resumable interrupt. `HITLInterrupt` is deliberately never defined — a class whose documented use does not interrupt is a trap (G-15) |
 
-All six are recorded as **WATCH 27**. None blocks any step — the code is
+All five are recorded as **WATCH 27**. None blocks any step — the code is
 already written the correct way in every case.
 
 ---

@@ -4809,36 +4809,48 @@ running the library, not by reading §19 — which is the point.
 
 ---
 
-### AJ1 — `after_agent` executes in REVERSE, so the trio is declared backwards
+### AJ1 — The list is nesting order; the positions are execution order
 
-**§19: *"Declaration order is execution order for hooks of the same kind."*
-That is true for `before_agent` and FALSE for `after_agent`.**
+**§19 conflates two orderings, and one distinction resolves everything this
+step found.**
 
-Measured with three middlewares:
+> **The middleware list is NESTING order, outermost-first. The position numbers
+> are EXECUTION order. For `after_*` hooks they are opposite.**
+
+LangChain's documented model is *"first in list as outermost layer"*, and the
+hooks fire accordingly: `before_*` on the way in, outermost-first; `after_*` on
+the way out, innermost-first. Measured to confirm:
 
 ```
 declared:      1st, 2nd, 3rd
-before_agent:  1st, 2nd, 3rd      <- declaration order
-after_agent:   3rd, 2nd, 1st      <- REVERSE
+before_agent:  1st, 2nd, 3rd      <- outermost first, going in
+after_agent:   3rd, 2nd, 1st      <- innermost first, coming out
 ```
 
-**LangChain's documentation states it outright**: *"before_* hooks: First to
-last. after_* hooks: Last to first (reverse)."* It is the middleware-onion
-shape — before-hooks wrap inward, after-hooks unwrap outward.
+**So the layering is the intent, not a workaround for it.** Positions 6-8 are
+listed grader, coherence, contradiction because:
 
-**Consequence, and it is not cosmetic.** Declared 6, 7, 8 the stack would
-EXECUTE grader → coherence → contradiction, and **S-C13 B3's "coherence
-exhaustion skips the grader" could never fire** because the grader would
-already have run. Nothing raises. The skip silently never happens.
+- **grader outermost** — a final quality verdict should be the last thing to
+  touch the answer on its way out;
+- **contradiction innermost** — it should be first to see the coach's raw
+  output, and able to interrupt before anything else spends effort on it;
+- **coherence between them**, so it can stand the grader down.
 
-**Ruled: positions stay as execution semantics; the declaration is reversed.**
-`_build_executor` lists grader, coherence, contradiction so they execute 6, 7,
-8. The test asserts **execution order, not the declared list** — pinning the
-list would pin the workaround rather than the requirement.
+That layering produces §19's ratified execution order, 6 → 7 → 8.
 
-**A comment at the declaration site says so in the imperative**, because the
-reversed list reads as a bug to anyone who has not seen the measurement, and a
-test only catches the "correction" after it is written.
+**Framing matters here and the first draft got it wrong.** Calling the list
+"reversed" reads as a framework quirk someone should tidy up, and leaves a test
+as the only thing standing between the codebase and a well-meant correction. A
+reason a reader respects is a better guard than a tripwire — so the comment at
+the declaration site states the nesting model and the design intent, and the
+test asserts execution order rather than the list.
+
+**List position is the only lever LangChain offers**: no priority, no ordering
+attribute, and `hook_config` governs `can_jump_to` rather than sequence.
+
+**The §56 amendment should teach the distinction, not patch three sentences** —
+it explains the after-hook order, the wrap nesting of AJ3, and why position 1
+must be declared first, all at once. WATCH 27.
 
 ---
 
@@ -4858,17 +4870,29 @@ reaches `PhaseState`** — S-C14 B7 holds.
 the **state route is not honoured**: a future "simplification" back to it would
 restore a skip that silently never fires.
 
+> **The honest reading: passing an object between middlewares is a cost, and it
+> is the price of a ratified design rather than a defect.** §19.7 split
+> coherence out of the grader for good reasons — *"running it inside
+> `DMAICGraderMiddleware` conflated two different questions"* and paid for a
+> full rubric grading call on responses already known to be incoherent. That
+> split is what creates two components needing to coordinate within one pass,
+> and the framework gives them no channel to do it. **The coupling is real and
+> should not be pretended away**: two middlewares now know about each other,
+> which is weaker than two that only know about state. It is accepted because
+> the alternative is either re-merging them — undoing a ratified decision — or
+> a skip that silently never fires.
+
 ---
 
-### AJ3 — §19's wrap-hook independence stopped being true at 6.3
+### AJ3 — The same nesting rule, one layer out: position 1 encloses position 4
 
 **§19: *"Positions 4 and 5 compete for no slot with anything else — adjacent
 for readability, not ordering."*** That held until step 6.3, when **position 1
 gained a `wrap_model_call` hook**.
 
-Wrap hooks nest, and the docs say the first middleware wraps all others — so
-**position 1 now encloses position 4's retry.** Measured with a model that
-fails twice then succeeds:
+**It is AJ1's distinction again, not a separate error.** Position 1 is declared
+first, so it is the outermost layer; its wrap therefore encloses position 4's
+retry. Measured with a model that fails twice then succeeds:
 
 ```
 model calls : 3        (2 failures + 1 success)

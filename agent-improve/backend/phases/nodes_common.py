@@ -515,15 +515,19 @@ def _build_executor(
             # fallback chain, which swaps the model. `max_retries` is
             # "attempts after the initial call", so 2 means three attempts.
             ModelRetryMiddleware(max_retries=RETRY_MAX),
-            # **Position 1's `wrap_model_call` ENCLOSES this one.** §19 says
-            # 4 and 5 "compete for no slot with anything else"; that stopped
-            # being true at 6.3, when position 1 gained a wrap hook. Wrap hooks
-            # nest first-wraps-all, so the project-state block is composed and
-            # prepended ONCE and a retry re-sends the built request rather than
-            # rebuilding it per attempt. That is the behaviour we want, it is
-            # undocumented, and `test_position_1_wrap_encloses_position_4_retry`
-            # pins it — if the nesting inverted, three attempts would mean three
-            # Store reads and three missing-field computations.
+            # **The same nesting rule, one layer out.** Position 1 is declared
+            # first, so it is the OUTERMOST layer — and since 6.3 it also wraps
+            # the model call. Its wrap therefore encloses this retry, which is
+            # why the project-state block is composed and prepended ONCE and a
+            # retry re-sends the built request rather than rebuilding it per
+            # attempt. Measured: 3 model calls, 1 composition, 1 prepend.
+            #
+            # §19 calls positions 4 and 5 independent of everything else. That
+            # was true before 6.3 and is not now — and it is the same conflation
+            # as the trio below: declaration is nesting, positions are
+            # execution. `test_position_1_wrap_encloses_position_4_retry` pins
+            # it, because if the layering inverted, three attempts would mean
+            # three Store reads and three missing-field computations.
             #
             # 5 — wrap_tool_call. A failed retrieval is not a failed model
             # call and `ModelRetryMiddleware` never sees it (§19.5).
@@ -534,40 +538,29 @@ def _build_executor(
                 max_retries=RETRY_MAX, on_failure=TOOL_RETRY_ON_FAILURE,
             ),
             # ══════════════════════════════════════════════════════════════
-            # ⚠ THE NEXT THREE ARE DECLARED BACKWARDS. THIS IS NOT A BUG AND
-            #   REORDERING THEM TO 6, 7, 8 BREAKS THE COACH.
+            # THIS LIST IS NESTING ORDER. POSITIONS 6/7/8 ARE EXECUTION ORDER.
             #
-            #   `after_agent` executes in REVERSE declaration order. LangChain's
-            #   own documentation: *"before_* hooks: First to last. after_*
-            #   hooks: Last to first (reverse)."* Verified here by measurement
-            #   as well — `test_all_eight_positions_execute_in_the_ratified_
-            #   order` fails if this list is "corrected".
+            #   **The list is outermost-first** — LangChain's documented model,
+            #   "first in list as outermost layer". A `before_*` hook fires on
+            #   the way in (outermost first) and an `after_*` hook on the way
+            #   out (innermost first). Two different orderings, one list.
             #
-            #   Listed 6, 7, 8 they would EXECUTE grader, coherence,
-            #   contradiction — and S-C13 B3's "coherence exhaustion skips the
-            #   grader" could never fire, because the grader would already have
-            #   run. Nothing would raise; the skip would just silently never
-            #   happen.
+            #   **Grader outermost**, because a final quality verdict should be
+            #   the last thing to touch the answer on its way out.
+            #   **Contradiction innermost**, because it should be first to see
+            #   the coach's raw output and able to interrupt before anything
+            #   else spends effort on it. Coherence sits between them so it can
+            #   stand the grader down.
+            #
+            #   So the layering below IS the intent, not a workaround for it,
+            #   and the execution order it produces is §19's 6, 7, 8.
+            #   `test_all_eight_positions_execute_in_the_ratified_order`
+            #   asserts what executes, not what is listed.
+            #
+            #   LangChain offers no other control: no priority, no ordering
+            #   attribute, and `hook_config` governs `can_jump_to` rather than
+            #   sequence. List position is the only lever there is.
             # ══════════════════════════════════════════════════════════════
-            #
-            # **`after_agent` runs in REVERSE declaration order.** Measured
-            # against the installed LangChain, not assumed: three middlewares
-            # declared 1st/2nd/3rd fire `before_agent` as 1st, 2nd, 3rd and
-            # `after_agent` as 3rd, 2nd, 1st. It is the middleware-onion
-            # shape — before-hooks wrap inward, after-hooks unwrap outward.
-            #
-            # §19 says *"declaration order is execution order for hooks of the
-            # same kind"*. **That is true for `before_agent` and false for
-            # `after_agent`**, so declaring 6, 7, 8 in listed order would
-            # EXECUTE grader -> coherence -> contradiction, and S-C13 B3's
-            # "coherence exhaustion skips the grader" could never fire because
-            # the grader would already have run.
-            #
-            # Reversing the trio here restores §19's ratified EXECUTION order —
-            # contradiction, then coherence, then grader — which is the
-            # behaviour the EARS entries specify. §19's wording needs the §56
-            # amendment (WATCH 30); the behaviour it mandates is met.
-            # `test_middleware.py` asserts the execution order, not the list.
             DMAICGraderMiddleware(
                 phase, on_evaluation=grader_log.append, coherence=coherence,
             ),

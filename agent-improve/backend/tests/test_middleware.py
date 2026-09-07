@@ -562,12 +562,16 @@ def test_no_hand_rolled_compression_anywhere() -> None:
 def test_all_eight_positions_execute_in_the_ratified_order(
     phase: str, stub_coach
 ) -> None:
-    """§19's eight — asserted by EXECUTION order, which is not the list order.
+    """§19's eight — asserted by EXECUTION order, which the list is not.
 
-    **`before_agent` runs in declaration order; `after_agent` runs in
-    REVERSE.** Measured against the installed LangChain. So the after-hooks
-    (6, 7, 8) are declared backwards, and asserting the raw list would pin the
-    workaround rather than the requirement. This asserts what actually fires.
+    **The list is NESTING order, outermost-first**; positions are EXECUTION
+    order. LangChain's documented model is "first in list as outermost layer",
+    so a `before_*` hook fires outermost-first on the way in and an `after_*`
+    hook innermost-first on the way out. One list, two orderings — which is the
+    distinction §19 conflates.
+
+    Asserting the raw list would pin the layering rather than the requirement,
+    so this asserts what actually fires.
     """
     asyncio.run(_c.executor(phase, _state(current_phase=phase)))
     declared = [type(m).__name__ for m in stub_coach.middleware]
@@ -583,12 +587,13 @@ def test_all_eight_positions_execute_in_the_ratified_order(
         "ContradictionDetectionMiddleware", "CoherenceMiddleware",
         "DMAICGraderMiddleware")]
     assert list(reversed(after)) == [
-        "ContradictionDetectionMiddleware",   # 6 executes first
-        "CoherenceMiddleware",                # 7
-        "DMAICGraderMiddleware",              # 8 executes last
+        "ContradictionDetectionMiddleware",   # innermost -> executes 6th
+        "CoherenceMiddleware",                # 7th
+        "DMAICGraderMiddleware",              # outermost -> executes 8th
     ], (
-        "after_agent executes in REVERSE, so the ratified order "
-        "contradiction -> coherence -> grader requires the reverse declaration"
+        "after_* hooks fire innermost-first, so the ratified execution order "
+        "contradiction -> coherence -> grader is produced by layering the "
+        "grader outermost and contradiction innermost"
     )
     assert len(declared) == 8
 
