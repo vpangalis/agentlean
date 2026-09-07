@@ -64,7 +64,7 @@ from backend.core.prompts import PHASE_COACH_PROMPT
 from backend.core.state import ImproveGraphState
 from backend.core.substate import CoachingPlan, CoachingResponse, PhaseState
 from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE
-from backend.knowledge.tools import UNIVERSAL_TOOLS
+from backend.knowledge.tools import RAG_LOOKUP_TOOLS, UNIVERSAL_TOOLS
 from backend.middleware.coherence import CoherenceMiddleware
 from backend.middleware.contradiction import ContradictionDetectionMiddleware
 from backend.middleware.grader import DMAICGraderMiddleware
@@ -384,17 +384,53 @@ def to_v1_state(
 
 # ── executor ──────────────────────────────────────────────────────────────
 
-#: §3.7 — `2 * max_hops + 1` with `max_hops = 5`. **The coach's own loop
-#: budget, not the graph's backstop**: `gateway/routes.py` passes 50 on the
-#: parent invoke, which §16 calls a guard against a genuine infinite loop. This
-#: is the per-turn exploration cap, and it has to be passed explicitly — an
-#: agent invoked inside a node otherwise inherits the parent's 50 and the cap
-#: §3.7 specifies never fires.
-COACH_RECURSION_LIMIT = 11
+#: §16 — a backstop against a genuine infinite loop, NOT the hop cap. Equal to
+#: `core.graph.RECURSION_LIMIT` and kept as its own name because this module
+#: cannot import that one: `core.graph` imports the phase subgraphs, which
+#: import this file. `test_the_coach_backstop_matches_the_graph_backstop`
+#: imports both and asserts they agree, so the two cannot drift silently.
+#:
+#: **It was 11 from step 6.2 to 6.6, and that was the WATCH 26 defect.**
+#: `2 * max_hops + 1 = 11` was §3.7's formula for capping hops, which §16
+#: rejects and which is short by one besides: measured on LangGraph 1.1.10 and
+#: 1.2.11 alike, five hops consume all eleven steps and raise BEFORE the model can
+#: compose, so a well-behaved five-hop turn could only ever end in `_CAP_MESSAGE`.
+COACH_RECURSION_BACKSTOP = 50
 
-#: What the Belt reads when the cap fires. §3.7: a partial answer, never a
+#: §3.7 — five `rag_lookup_*` calls per Belt turn. **This is the hop cap**, and
+#: it is enforced by `_budgeted_rag_tools` rather than by any step counter:
+#: hops and steps are different units (see `REMAINING_STEPS_FLOOR`). Past the
+#: budget the retrieval tools stay bound and stay callable, and answer with
+#: `_HOP_BUDGET_SPENT` instead of searching — so the coach reads a plain result
+#: and composes, exactly as it does for a search that found nothing.
+COACH_HOP_BUDGET = 5
+
+#: §26 / S-F09 B1 — the graceful off-ramp, and a DIFFERENT guard from the hop
+#: budget above. `remaining_steps` is `recursion_limit` minus graph-node
+#: transitions; the coach's whole tool loop runs inside ONE node, so this
+#: counter moves by 1 per executor turn no matter how many hops that turn made.
+#: Measured. It therefore cannot enforce five hops — and the hop budget cannot
+#: notice the GRAPH running out of room, which is what this catches. At or
+#: below the floor the executor coaches with no retrieval tools at all: it
+#: composes from what is in hand rather than starting a chain it cannot finish.
+REMAINING_STEPS_FLOOR = 2
+
+#: What the coach reads when it has spent its five hops. Addressed to the
+#: model, not to the Belt — it is a tool RESULT, and the coach's job on reading
+#: it is to answer from what it already retrieved.
+_HOP_BUDGET_SPENT = (
+    "Retrieval budget for this turn is spent — you have made the {budget} "
+    "lookups this turn allows. Do not search again. Answer the Belt now from "
+    "what you have already retrieved and from the conversation, and say which "
+    "part you would look into next turn if something is still missing."
+)
+
+#: What the Belt reads when the backstop fires. §3.7: a partial answer, never a
 #: stack trace. It says what happened in plain language (§13) and hands the
-#: turn back rather than pretending the coach finished.
+#: turn back rather than pretending the coach finished. **Since 6.7 this is
+#: the last-ditch path, not the ordinary one** — the hop budget and the
+#: `remaining_steps` floor both off-ramp into a composed answer, so reaching
+#: here means a genuine runaway loop, which is what §16 says the backstop is for.
 _CAP_MESSAGE = (
     "I went further than I should have chasing that one down, and I have run "
     "out of room this turn. Could you narrow it slightly — a single question, "
@@ -448,8 +484,88 @@ _DIAGRAM_TO_UI_KEY = {
 }
 
 
+def _executor_status(hit_cap: bool, off_ramp: bool) -> str:
+    """The `step_log` status for one coaching turn — §10.3, dicts not tuples.
+
+    Three outcomes, deliberately distinguished. **`"coached_no_retrieval"` is
+    not a failure**: the graph was low on steps, so the coach answered from
+    what it held (§26, S-F09 B1). That is the design working, and lumping it
+    in with `"partial_cap_reached"` would hide exactly the signal WATCH 26
+    needed — a turn that off-ramped cleanly looks nothing like one that died.
+    """
+    if hit_cap:
+        return "partial_cap_reached"
+    return "coached_no_retrieval" if off_ramp else "coached"
+
+
+def _budgeted_rag_tools(
+    tools: list[Any], budget: int, spent: list[int],
+) -> list[Any]:
+    """§3.7's five-hop cap — per-turn copies of the three `rag_lookup_*` tools.
+
+    **This is where the hop cap lives**, and it is a count of retrieval calls,
+    not a step counter. §16 rejects `recursion_limit` for this, and §26's
+    `remaining_steps` cannot do it either: the whole coach loop runs inside one
+    graph node, so `remaining_steps` moves by 1 per turn however many hops the
+    turn made (measured — see `REMAINING_STEPS_FLOOR`). Neither counter can
+    see a hop, so the hops are counted here.
+
+    **Copies, made fresh per turn**, so the count cannot leak between turns or
+    between concurrent cases. `model_copy` keeps `name`, `description`,
+    `args_schema` and `response_format` exactly — §5.4 makes those docstrings
+    load-bearing, and a hand-built replacement tool would quietly reword them.
+    Only the coroutine is swapped.
+
+    **Past the budget the tool still answers**, with `_HOP_BUDGET_SPENT` rather
+    than a search. That is the graceful part: the coach reads an ordinary tool
+    result, sees it has no more lookups, and composes — where a raised
+    exception or a vanished tool would end the turn with nothing to say.
+
+    `spent` is a one-element list rather than an `int` because the closure
+    mutates it; `nonlocal` cannot reach a caller's local.
+    """
+    budgeted: list[Any] = []
+    for original in tools:
+        if original not in RAG_LOOKUP_TOOLS:
+            budgeted.append(original)
+            continue
+        inner = original.coroutine
+
+        async def guarded(_inner: Any = inner, **kwargs: Any) -> Any:
+            if spent[0] >= budget:
+                return (_HOP_BUDGET_SPENT.format(budget=budget), [])
+            spent[0] += 1
+            return await _inner(**kwargs)
+
+        budgeted.append(original.model_copy(update={"coroutine": guarded}))
+    return budgeted
+
+
+def _executor_tools(
+    phase: str, hop_budget: int, hops_spent: Optional[list[int]],
+) -> list[Any]:
+    """What the coach gets to call this turn — the two guards, applied.
+
+    **`hop_budget == 0` is the `remaining_steps` off-ramp** (§26, S-F09 B1):
+    the three `rag_lookup_*` tools are not bound at all, so the coach cannot
+    start a retrieval chain the graph has no room to finish. **The other four
+    of the universal seven stay**, and so do the phase's computation tools —
+    the off-ramp is about not STARTING new retrieval, not about coaching with
+    one hand tied. `propose_template`, `propose_diagram`, `check_gate_status`
+    and `request_human_approval` all read state the executor already holds.
+
+    Any other budget binds all seven, with the retrieval three counted (§3.7).
+    """
+    tools = UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase]
+    if hop_budget <= 0:
+        return [t for t in tools if t not in RAG_LOOKUP_TOOLS]
+    return _budgeted_rag_tools(tools, hop_budget, hops_spent
+                               if hops_spent is not None else [0])
+
+
 def _build_executor(
     phase: str, state: PhaseState, config: Optional[RunnableConfig] = None,
+    *, hop_budget: int = COACH_HOP_BUDGET, hops_spent: Optional[list[int]] = None,
 ) -> tuple[Any, list[dict[str, Any]]]:
     """The phase coach — `create_agent`, per §18's ratified template.
 
@@ -494,7 +610,7 @@ def _build_executor(
     coherence = CoherenceMiddleware(phase)
     agent = create_agent(
         model=get_llm("coach", max_tokens=1500),
-        tools=UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase],
+        tools=_executor_tools(phase, hop_budget, hops_spent),
         response_format=CoachingResponse,   # §20 — never a {Phase}Output
         middleware=[
             # 1 — before_agent. FIRST, and that is a rule, not a preference.
@@ -708,24 +824,67 @@ async def executor(
     turn_count = state.get("turn_count") or 0
     plan = state.get("coaching_plan")
 
-    agent, grader_log = _build_executor(phase, state, config)
+    # ── guard 1 of 2 — §26 / S-F09 B1, the graceful off-ramp ──────────
+    # `remaining_steps` is a `RemainingSteps` managed value LangGraph fills in
+    # on its own; declaring it on `PhaseState` is what activates it (§10.1).
+    # Low means the GRAPH is running out of room, so the coach is built with no
+    # retrieval tools and answers from what is in hand — B1's *"rather than
+    # beginning a hop chain it cannot finish"*. It coaches; it does not cap.
+    #
+    # `or 0` and not a `.get` default: an ABSENT field must fail this test, not
+    # pass it. `state.get("remaining_steps", 10)` was §0.16's bug in the other
+    # direction — a default that made the guard unfireable — and a default here
+    # would make it fire on every turn instead.
+    remaining = state.get("remaining_steps") or 0
+    off_ramp = 0 < remaining <= REMAINING_STEPS_FLOOR
+    hop_budget = 0 if off_ramp else COACH_HOP_BUDGET
+    if off_ramp:
+        logger.warning(
+            "%s.executor: %d graph step(s) left (floor %d) — coaching with no "
+            "retrieval tools this turn (§26, S-F09 B1). MONITORING SIGNAL: the "
+            "graph is close to its %d-step backstop.",
+            phase, remaining, REMAINING_STEPS_FLOOR, COACH_RECURSION_BACKSTOP,
+        )
+
+    # ── guard 2 of 2 — §3.7's five hops, counted in the tools ─────────
+    # A different unit from the one above and not substitutable for it: this
+    # counts `rag_lookup_*` CALLS, `remaining_steps` counts graph-node
+    # transitions. The list is the sink `_budgeted_rag_tools` mutates, read
+    # back below for `step_log`.
+    hops_spent: list[int] = [0]
+
+    agent, grader_log = _build_executor(
+        phase, state, config, hop_budget=hop_budget, hops_spent=hops_spent,
+    )
     prior = list(state.get("messages") or [])
     hit_cap = False
     try:
         result = await agent.ainvoke(
             {"messages": prior},
-            config={"recursion_limit": COACH_RECURSION_LIMIT},
+            # §16 — the infinite-loop backstop, NOT the hop cap. Passed
+            # explicitly so it does not depend on what the caller happened to
+            # set: measured, an agent invoked inside a node inherits the
+            # parent's LIMIT with a FRESH counter, which is right when the
+            # route sets 50 and silently wrong when a test or a script invokes
+            # this node directly.
+            config={"recursion_limit": COACH_RECURSION_BACKSTOP},
         )
     except GraphRecursionError:
         # §3.7 — MUST be caught here and turned into a partial answer. A Belt
         # mid-session never sees a stack trace because the coach explored too
         # broadly. Found by step 6.2's live-run, which looped a real turn.
+        #
+        # **Belt-and-braces since 6.7, not the primary guard** (§26). The two
+        # guards above off-ramp into a composed answer, so arriving here means
+        # the coach burned 50 graph steps without stopping — a genuine runaway
+        # loop, which is what §16 says the backstop is for.
         hit_cap = True
         logger.warning(
-            "%s.executor: hit the %d-step cap (§3.7) — returning a partial "
-            "answer. This is a MONITORING SIGNAL: either the prompt invites "
-            "too-broad exploration, or this turn warranted a premium model.",
-            phase, COACH_RECURSION_LIMIT,
+            "%s.executor: hit the %d-step BACKSTOP (§16) after %d hop(s) — "
+            "returning a partial answer. This should not happen now that §3.7's "
+            "hop budget and §26's off-ramp are live; it means a genuine runaway "
+            "loop, not broad exploration.",
+            phase, COACH_RECURSION_BACKSTOP, hops_spent[0],
         )
         result = {"messages": [*prior, AIMessage(content=_CAP_MESSAGE)],
                   "structured_response": None}
@@ -750,9 +909,11 @@ async def executor(
 
     logger.info(
         "%s.executor: focus=%s | captured %d field(s) -> artifacts, "
-        "%d new message(s), contradiction=%s",
+        "%d new message(s), %d/%d hop(s), %s remaining step(s), "
+        "contradiction=%s",
         phase, plan.focus_field if plan else "(none)", len(captured),
-        len(new_messages), bool(reply and reply.contradiction_flag),
+        len(new_messages), hops_spent[0], hop_budget,
+        remaining or "no", bool(reply and reply.contradiction_flag),
     )
     return {
         "messages": new_messages,
@@ -765,13 +926,23 @@ async def executor(
         "turn_count": turn_count + 1,
         "step_log": [_step(
             phase, turn_count, "executor",
-            status="partial_cap_reached" if hit_cap else "coached",
+            status=_executor_status(hit_cap, off_ramp),
             impl="create_agent",
             focus_field=plan.focus_field if plan else None,
             next_action=plan.next_action if plan else None,
             fields_captured=sorted(captured),
-            tools_bound=len(UNIVERSAL_TOOLS)
-            + len(COMPUTATION_TOOLS_BY_PHASE[phase]),
+            # Re-derived from the SAME function that built the bound list,
+            # so the audit trail cannot disagree with what the coach actually
+            # had. The throwaway counter is never spent — nothing invokes
+            # these copies; only `len()` is read.
+            tools_bound=len(_executor_tools(phase, hop_budget, None)),
+            # §3.7's cap and §26's off-ramp, both readable in LangSmith.
+            # "Hitting the cap is a monitoring signal" — a signal nobody can
+            # read is not one, and WATCH 26 went four steps undiagnosed partly
+            # because the hop count was never written down.
+            hops_spent=hops_spent[0],
+            hop_budget=hop_budget,
+            remaining_steps=remaining or None,
             # Carried for the audit trail; §19.6's middleware reads it at 6.5.
             contradiction_flag=(reply.contradiction_flag if reply else None),
         )],

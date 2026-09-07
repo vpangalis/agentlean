@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| **Last completed** | step **6.6** — Prompts |
+| **Last completed** | step **6.7** — **WATCH 26** — the hop cap becomes `RemainingSteps` + a hop count |
 | **Next** | step **7.1** — `DMAICGateValidator` + Layer 2b **(gate assembly ×4, G-28)** |
 | **Stage** | Stage 7 — Validation and gates |
 | **Progress** | 25 of 35 build steps |
@@ -596,31 +596,37 @@ so read §66 when the two disagree.)*
   tunable-to-taste. Nothing is blocked in the meantime: the middleware's three
   attempts and §4.8's fallback chain both still fire.
 
-- **WATCH 26 — the coach exhausts the 11-step budget on ORDINARY turns.
-  REASSIGNED off 6.6 on 2026-09-07: the cause is not the prompt.** Opened
-  2026-09-04 at step 6.3.
+- **WATCH 26 — the coach exhausted its step budget on ORDINARY turns.
+  FIXED at 6.7 on 2026-09-07; the live re-run is the remaining evidence.**
+  Opened 2026-09-04 at step 6.3, reassigned off 6.6 on 2026-09-07.
 
-  > **6.6 did the prompt work and it was not sufficient — which is evidence,
-  > not failure.** The sequencing rewrite cut Define's opening turn from four
-  > tool calls to two and it completed. But across repeated runs the outcome is
-  > variable, and prompt wording only shifts WHICH phase falls over: adding a
-  > `load_skill` sequencing rule took Measure from 0/3 completing to 4/6, and
-  > took Define from completing to 3/3 capped. **A see-saw at the edge of the
-  > budget is a budget problem wearing a prompt problem's clothes.**
+  > **The cause was CLAUDE.md §3.7, not the prompt and not the library.** §3.7
+  > carried `recursion_limit = 2 * max_hops + 1 = 11` as the hop cap;
+  > ARCHITECTURE §16 rejects that outright and §26 ratified `RemainingSteps` in
+  > August 2026. §3.7 was never updated, the build followed §3.7 — correctly,
+  > it is the constitution — and every symptom follows from that line.
+  > Governance fixed first and alone (CLAUDE.md 2.2.32, §0.26), then the code.
   >
-  > **§16 says so directly.** ARCHITECTURE §26 — the ratified build target —
-  > specifies the hop cap as **`RemainingSteps`, not `recursion_limit`**, with
-  > five hops per turn and *"a graceful off-ramp — the agent composes an answer
-  > from what it has rather than dying"*, and makes the `GraphRecursionError`
-  > catch *"a belt-and-braces guard against bugs rather than the primary
-  > mechanism"*. **That guard is currently the primary mechanism**, because
-  > `RemainingSteps` is declared on `PhaseState` and read by nothing.
+  > **Two counters, measured before anything was built.** `remaining_steps`
+  > DOES cross the subgraph boundary (§26's reason for choosing it, and not
+  > stated in the LangGraph docs) — but it counts graph-NODE transitions, and
+  > the coach's whole tool loop runs inside ONE node, so it moves by 1 per
+  > executor turn however many hops that turn made. **It cannot enforce five
+  > hops, and a hop count cannot notice the graph running out of room.** Both
+  > guards are built, because they guard different things.
   >
-  > **The assignment to 6.6 rested on §3.7's monitoring-signal wording** —
-  > *"either the system prompt encourages too-broad exploration, or the question
-  > warrants premium"* — which offers no third option. The third option is the
-  > one §26 specifies and the build skipped. Reassigned by evidence, and the
-  > prompt work stands on its own merits.
+  > **`recursion_limit=11` was short by one besides**, which is why the symptom
+  > see-sawed rather than failing cleanly: five hops consume all eleven steps
+  > and raise BEFORE the model can compose. Four fit; five never did. Prompt
+  > wording changes how many tools an opening turn front-loads, so it moved the
+  > failure between Define and Measure without removing it — exactly AK3's
+  > table. DECISIONS Part AL carries both measurements.
+  >
+  > **Still owed: the live re-run of the two opening turns.** Blocked on Azure
+  > 429s on `operational-premium` in westeurope — the same AI2 blocker that cut
+  > AK3's measurement short. The unit suite pins both guards deterministically
+  > (750 green), so what is owed is the end-to-end confirmation, not the
+  > mechanism.
 
   > **Answered at 6.4, and it is NOT worsened by the retry middlewares.**
   > *"Does a tool retry consume steps against `COACH_RECURSION_LIMIT`?"* — no.
@@ -629,6 +635,17 @@ so read §66 when the two disagree.)*
   > Retries happen inside the wrapped step. Pinned as
   > `test_a_tool_retry_does_not_consume_a_graph_step` so a LangChain upgrade
   > that moves them out fails there rather than silently making this worse.
+  > **Still true, and the test still passes.** What it guards is now the
+  > `COACH_RECURSION_BACKSTOP` of 50 rather than a cap of 11 — a retry costing
+  > graph steps would eat the backstop instead of the hop budget, which is
+  > less urgent and still wrong.
+
+  ⚠ **EVERYTHING BELOW IS THE ORIGINAL RECORD, KEPT AND SUPERSEDED.** It is
+  the diagnosis as it stood from 6.3 to 6.6 and its present tense is no longer
+  true: the cap it describes no longer exists, and "the cause is the prompt"
+  was overturned by the block at the top of this entry. Kept because the route
+  from symptom to cause is the useful part, and because it records two
+  hypotheses that were tested and eliminated before the right one was found.
 
   §3.7 caps a Belt turn at `2 × max_hops + 1 = 11` and says hitting it *"is a
   monitoring signal, not just a limit — it means either the system prompt
@@ -665,7 +682,6 @@ so read §66 when the two disagree.)*
   > But §6.4's anti-hallucination guard says *"never fill a gap by inference"*,
   > and the guard is in the prompt it apparently did not outweigh. Same fix,
   > same step.
-
 - **WATCH 27 — FIVE §56 amendments owed to step 11.2.** Opened 2026-09-04;
   two more added 2026-09-07 at step 6.5. Every one is a case where the
   reference describes an API or a mechanism the installed library does not

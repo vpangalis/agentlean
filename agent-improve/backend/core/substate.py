@@ -274,6 +274,23 @@ class PhaseState(TypedDict):
 
     # ── engine-managed (1) — DECLARED, never populated by the mapper ──
     #
+    # **`remaining_steps` HAS NOTHING TO DO WITH `step_log`.** They are
+    # declared on the same object and share a word, and the word means
+    # opposite things in each: `remaining_steps` is LangGraph's own
+    # execution counter — `recursion_limit` minus graph-node transitions,
+    # engine-owned, meaningless outside a run — while `step_log` is this
+    # project's coaching audit trail, hand-written by every node and read by
+    # the UI and LangSmith (§10.3). Nothing derives one from the other, and a
+    # DMAIC "step" is not a graph step. Said here because the collision is in
+    # the schema, where the two are three fields apart.
+    #
+    # A second unit collision worth naming: `remaining_steps` counts STEPS,
+    # and §3.7's cap counts HOPS. The coach's whole tool loop runs inside one
+    # node, so this counter moves by 1 per executor turn however many hops
+    # that turn made — measured. It is the graceful off-ramp (§26, S-F09 B1),
+    # never the hop cap; `phases/nodes_common.py` holds both guards and says
+    # which is which.
+    #
     # DECLARING IT IS WHAT ACTIVATES IT. `RemainingSteps` resolves to
     # `Annotated[int, RemainingStepsManager]`, and the manager returns
     # `scratchpad.stop - scratchpad.step`. Undeclared, §26's guard

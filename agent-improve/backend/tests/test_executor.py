@@ -38,7 +38,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from backend.core.substate import CoachingPlan, CoachingResponse, PhaseState
 from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE
-from backend.knowledge.tools import UNIVERSAL_TOOLS
+from backend.knowledge.tools import RAG_LOOKUP_TOOLS, UNIVERSAL_TOOLS
 from backend.phases import nodes_common as _c
 from backend.phases.mappers_common import PHASE_ORDER
 
@@ -128,11 +128,28 @@ def test_tools_are_passed_to_create_agent_not_bound_to_the_model(
 
     `pattern-8-bind-tools-in-phase-executor` guards the source for the same
     reason; this checks the behaviour rather than the text.
+
+    **Identity holds for every tool but the retrieval three** (6.7). Those are
+    passed as per-turn copies carrying §3.7's hop budget — `model_copy` with only
+    the coroutine swapped, so `name`, `description`, `args_schema` and
+    `response_format` are the originals' and §5.4's load-bearing docstrings reach
+    the model unchanged. The set and its order are unchanged, which is what
+    this test is actually about.
     """
     _run(_c.executor(phase, _state(current_phase=phase)))
 
     kwargs = stub_coach.calls[-1]
-    assert kwargs["tools"] == UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase]
+    expected = UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase]
+    passed = kwargs["tools"]
+    assert [t.name for t in passed] == [t.name for t in expected]
+    for got, want in zip(passed, expected):
+        if want in RAG_LOOKUP_TOOLS:
+            assert got is not want, "the retrieval three are budgeted copies"
+            assert got.description == want.description
+            assert got.args_schema is want.args_schema
+            assert got.response_format == want.response_format
+        else:
+            assert got is want, f"{want.name} must be passed as-is"
     model = kwargs["model"]
     assert not getattr(model, "_bound_tools", None), "tools bound onto the model"
     assert model.kwargs.get("tools") is None if hasattr(model, "kwargs") else True
@@ -316,35 +333,185 @@ def test_the_executor_returns_no_command(stub_coach) -> None:
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# §3.7 — the exploration cap, and what the Belt sees when it fires
+# §3.7 / §26 — the two guards, and what the Belt sees when each one fires
+#
+# WATCH 26. These are two DIFFERENT guards in two DIFFERENT units, and the
+# build had neither: `recursion_limit=11` was standing in for both and could
+# do the job of neither. The tests are grouped so that is legible.
 # ══════════════════════════════════════════════════════════════════════════
 
 
-def test_the_coach_gets_its_own_recursion_limit(stub_coach) -> None:
-    """§3.7 — `2 * max_hops + 1`, passed EXPLICITLY.
+def test_recursion_limit_is_the_backstop_not_the_hop_cap(stub_coach) -> None:
+    """§16 — set high, and passed EXPLICITLY.
 
-    An agent invoked inside a node inherits the parent invoke's config, and the
-    route passes 50 (§16's infinite-loop backstop). Without an explicit limit
-    the per-turn cap §3.7 specifies never fires — the failure mode this project
-    keeps naming: a cap that cannot fire is a check recorded as evidence while
-    proving nothing.
+    It was 11 from 6.2 to 6.6 and that was the defect: §16 rejects
+    `recursion_limit` as the hop cap outright, and `2 * max_hops + 1 = 11` is
+    short by one besides — measured, five hops consume all eleven steps and
+    raise before the model can compose, so a well-behaved five-hop turn could
+    only ever end in the cap message.
+
+    **Explicit rather than inherited** because an agent invoked inside a node
+    inherits the parent's LIMIT with a FRESH counter — right when the route
+    sets 50, silently wrong when a test or a script invokes this node directly.
     """
-    assert _c.COACH_RECURSION_LIMIT == 11
+    assert _c.COACH_RECURSION_BACKSTOP == 50
+    assert not hasattr(_c, "COACH_RECURSION_LIMIT"), (
+        "the 11-step cap is gone, not renamed"
+    )
     _run(_c.executor("define", _state()))
-    invoked_config = stub_coach.invocations[-1]
-    assert invoked_config is not None
-    # The limit rides on the ainvoke config, which the fake records separately.
-    assert stub_coach.invoke_configs[-1]["recursion_limit"] == 11
+    assert stub_coach.invoke_configs[-1]["recursion_limit"] == 50
 
 
-def test_hitting_the_cap_gives_the_belt_a_partial_answer(stub_coach) -> None:
+def test_the_coach_backstop_matches_the_graph_backstop() -> None:
+    """One backstop, two names — §16 has a single number in it.
+
+    `nodes_common` cannot import `core.graph` (that module imports the phase
+    subgraphs, which import this one), so the constant is duplicated by
+    necessity. This test is what stops the copies drifting.
+    """
+    from backend.core.graph import RECURSION_LIMIT
+
+    assert _c.COACH_RECURSION_BACKSTOP == RECURSION_LIMIT
+
+
+def test_the_hop_cap_is_five_retrieval_calls(stub_coach) -> None:
+    """§3.7 — the cap is a COUNT OF `rag_lookup_*` CALLS, enforced in the tool.
+
+    Neither step counter can do this: `recursion_limit` is rejected by §16, and
+    `remaining_steps` moves by 1 per executor turn however many hops the turn
+    made, because the whole loop runs inside one node.
+    """
+    assert _c.COACH_HOP_BUDGET == 5
+    _run(_c.executor("define", _state()))
+
+    names = stub_coach.tool_names
+    for name in ("rag_lookup_methodology", "rag_lookup_evidence",
+                 "rag_lookup_case_history"):
+        assert name in names, f"{name} must stay bound on an ordinary turn"
+
+
+def test_the_sixth_lookup_answers_instead_of_searching(stub_coach) -> None:
+    """§3.7 — past the budget the tool ANSWERS; it does not vanish or raise.
+
+    That is the graceful half. A tool that disappeared mid-loop, or one that
+    raised, would end the turn with nothing to say; a tool that replies "you
+    are out of lookups, answer from what you have" is a result the coach can
+    read and act on, exactly like a search that found nothing.
+    """
+    _run(_c.executor("define", _state()))
+    lookup = next(t for t in stub_coach.calls[-1]["tools"]
+                  if t.name == "rag_lookup_methodology")
+
+    results = [_run(lookup.coroutine(query="q", phase="define"))
+               for _ in range(_c.COACH_HOP_BUDGET + 1)]
+    contents = [content for content, _artifact in results]
+
+    assert all("budget for this turn is spent" not in c
+               for c in contents[:-1]), "the first five lookups must search"
+    assert "budget for this turn is spent" in contents[-1]
+    assert "Do not search again" in contents[-1]
+
+
+def test_the_hop_budget_is_per_turn_not_per_process(stub_coach) -> None:
+    """The count is a fresh list per turn, so it cannot leak.
+
+    A module-level counter would spend one Belt's budget on another Belt's
+    turn — and with one event loop serving concurrent cases, that is not a
+    theoretical failure.
+    """
+    _run(_c.executor("define", _state()))
+    first = next(t for t in stub_coach.calls[-1]["tools"]
+                 if t.name == "rag_lookup_methodology")
+    for _ in range(_c.COACH_HOP_BUDGET):
+        _run(first.coroutine(query="q", phase="define"))
+
+    _run(_c.executor("define", _state()))          # a second turn
+    second = next(t for t in stub_coach.calls[-1]["tools"]
+                  if t.name == "rag_lookup_methodology")
+    content, _artifact = _run(
+        second.coroutine(query="q", phase="define"))
+    assert "budget for this turn is spent" not in content
+
+
+def test_low_remaining_steps_coaches_without_retrieval(stub_coach) -> None:
+    """§26 / S-F09 B1 — *"rather than beginning a hop chain it cannot finish"*.
+
+    **This is a coached turn, not a capped one.** The three `rag_lookup_*`
+    tools are not bound; the other four of the universal seven are, because the
+    off-ramp is about not STARTING new retrieval rather than about coaching
+    with one hand tied.
+    """
+    out = _run(_c.executor("define", _state(remaining_steps=1)))
+
+    names = stub_coach.tool_names
+    assert not [n for n in names if n.startswith("rag_lookup_")]
+    assert "propose_template" in names and "propose_diagram" in names, (
+        "the rest of the universal set stays — the off-ramp is about not "
+        "STARTING new retrieval, not about coaching with one hand tied"
+    )
+    assert any(t.name not in [u.name for u in UNIVERSAL_TOOLS] for t
+               in stub_coach.calls[-1]["tools"]), "phase tools stay too"
+
+    assert out["step_log"][0]["status"] == "coached_no_retrieval"
+    assert out["turn_count"] == 1
+    reply = [m for m in out["messages"] if isinstance(m, AIMessage)][-1]
+    assert "run out of room" not in str(reply.content), (
+        "the off-ramp coaches; it does not show the Belt a cap message"
+    )
+
+
+def test_an_ordinary_turn_keeps_its_retrieval_tools(stub_coach) -> None:
+    """The off-ramp must not fire on a healthy turn.
+
+    `remaining_steps` counts down from ~50, so an ordinary turn sits nowhere
+    near the floor. A guard that fired anyway would silently switch retrieval
+    off for the whole product.
+    """
+    out = _run(_c.executor("define", _state(remaining_steps=48)))
+    assert "rag_lookup_methodology" in stub_coach.tool_names
+    assert out["step_log"][0]["status"] == "coached"
+
+
+def test_an_absent_remaining_steps_does_not_trip_the_off_ramp(
+        stub_coach) -> None:
+    """The §0.16 failure, in the other direction.
+
+    Undeclared, `state.get("remaining_steps", 10)` returned 10 forever and the
+    guard could never fire. A default here would make it fire on EVERY turn
+    instead — retrieval off for everyone — which is worse, because it looks
+    like the product working.
+    """
+    state = _state()
+    state.pop("remaining_steps", None)
+    out = _run(_c.executor("define", state))
+    assert "rag_lookup_methodology" in stub_coach.tool_names
+    assert out["step_log"][0]["status"] == "coached"
+
+
+def test_both_guards_are_written_to_the_step_log(stub_coach) -> None:
+    """§26 — *"hitting the cap is a monitoring signal"*.
+
+    A signal nobody can read is not one. WATCH 26 went four steps undiagnosed
+    partly because the hop count was never written down: the see-saw could only
+    be seen by re-running turns and watching them fall over.
+    """
+    out = _run(_c.executor("define", _state(remaining_steps=40)))
+    entry = out["step_log"][0]
+    assert entry["hop_budget"] == _c.COACH_HOP_BUDGET
+    assert entry["hops_spent"] == 0
+    assert entry["remaining_steps"] == 40
+
+
+def test_hitting_the_backstop_gives_the_belt_a_partial_answer(
+        stub_coach) -> None:
     """§3.7 — *"MUST be caught in the coach node and turned into a partial
     answer. A Belt mid-session never sees a stack trace."*
 
-    **Found by step 6.2's live-run**, which looped a real turn past the cap and
-    raised. The turn still has to close cleanly: a message the Belt can act on,
-    `turn_count` advanced so the planner's predicate still terminates, and the
-    event on the audit trail as the monitoring signal §3.7 calls it.
+    **Belt-and-braces since 6.7, not the primary guard** (§26). Reaching here
+    now means the coach burned 50 graph steps without stopping — a genuine
+    runaway loop, which is what §16 says the backstop is for. The turn still
+    has to close cleanly: a message the Belt can act on, `turn_count` advanced
+    so the planner's predicate still terminates, and the event on the trail.
     """
     stub_coach.raise_recursion = True
     out = _run(_c.executor("define", _state()))

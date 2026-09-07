@@ -696,9 +696,15 @@ def test_a_tool_retry_does_not_consume_a_graph_step() -> None:
 
     `ToolRetryMiddleware` is on `wrap_tool_call`, which wraps execution INSIDE
     a step — so a retry should cost API calls and latency but not recursion
-    budget. That mattered because WATCH 26 records the coach already
-    exhausting §3.7's 11-step budget on ordinary turns: if retries counted,
-    6.4 would worsen a live problem before 6.6 relieves it.
+    budget. That mattered because WATCH 26 recorded the coach already
+    exhausting §3.7's then-11-step budget on ordinary turns: if retries
+    counted, 6.4 would worsen a live problem.
+
+    **The budget it guards changed at 6.7 and the answer did not.** The
+    11-step cap is gone — §3.7's hop cap counts `rag_lookup_*` calls now, and
+    `COACH_RECURSION_BACKSTOP` is 50 (§16). A retry that consumed graph steps
+    would eat the backstop rather than the hop budget: less urgent, still
+    wrong, still worth pinning.
 
     **The control is `max_retries=0`, not "no middleware".** Without the
     middleware the raised exception propagates and kills the graph, so the two

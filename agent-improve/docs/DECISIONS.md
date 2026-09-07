@@ -5103,3 +5103,149 @@ turn was coaching badly regardless of the budget.
 
 **Kept: the `load_skill` paragraph, still flagged unproven.** Tuning prose
 against a counter known to be the wrong mechanism would be fitting noise.
+
+---
+
+## Part AL — Step 6.7: WATCH 26, and two counters that were never the same thing (2026-09-07)
+
+**The governance rule was the defect.** CLAUDE.md §3.7 carried
+`recursion_limit = 2 * max_hops + 1 = 11` as the hop cap. ARCHITECTURE §16
+rejects that outright and §26 ratified `RemainingSteps` in its place in August
+2026 — but §3.7 was never updated, the build followed §3.7 (correctly: this
+file is the constitution), and every WATCH 26 symptom follows from that one
+line. **Fixed in its own commit first**, per §0's amendment rule, which is why
+CLAUDE.md 2.2.32 lands ahead of the code.
+
+### AL1 — The two measurements, taken before anything was built
+
+The spec has been wrong about library behaviour three times (§0.10's
+`prompt=`/`system_prompt=`, §19.3's `max_retries`/`retries`, §19's `after_agent`
+ordering), so both properties this design rests on were measured rather than
+read.
+
+**Measured on LangGraph 1.2.11 / LangChain 1.3.16 — `agent-improve/.venv`, the
+venv that actually runs the code — and again on the repo-root `.venv` at
+1.1.10 / 1.2.13. Identical results on both.**
+
+**1 — `remaining_steps` DOES cross the subgraph boundary.** This is the property
+§26 chose it over `recursion_limit` for, and the LangGraph docs do not state it.
+Both ways a subgraph can be entered were tested:
+
+| How the subgraph is entered | Child's `remaining_steps` |
+|---|---|
+| Added as a node — `add_node("sub", compiled)` | **Populated, and CONTINUES the parent's countdown** — parent at 49 → child's first node sees 49 |
+| `await compiled.ainvoke(child)` inside a node — **what `core/graph.py:225` does** | **Populated, with a FRESH counter from the INHERITED limit** — parent at 48 → child's first node sees 49 |
+
+**The second row is the one that matters, and it is not what §16's failure
+table predicts.** §16 says non-propagation "reverts to its default of 25". It
+does not: the child inherits the parent's `recursion_limit` VALUE through
+contextvars (a parent at 11 gives the child 10, a parent at 50 gives it 49) and
+restarts the STEP COUNT. So the design is safe — but it is safe for a different
+reason than §16 records, and the difference is load-bearing for row 2. §16's
+table describes `recursion_limit` as a hop cap, which is the thing it is no
+longer being used for, so the entry is left as the historical reasoning it is.
+
+**2 — Hops and steps are different units, and neither guard can do the other's
+job.** `remaining_steps` is `recursion_limit` minus graph-NODE transitions.
+Measured against a graph shaped like a phase subgraph:
+
+```
+planner      remaining_steps = 49
+executor     remaining_steps = 48   (ran 5 tool hops inside this ONE node)
+validation   remaining_steps = 47
+```
+
+**The counter moved by 1 for an executor turn that made five hops.** It cannot
+enforce a five-hop rule, because it cannot see a hop. And a hop count cannot
+notice the graph running out of room, because it cannot see a step.
+
+**So the answer to "which one?" is BOTH, and they guard different things.**
+That was the substantive design question and it is now settled in code:
+`COACH_HOP_BUDGET` counts `rag_lookup_*` calls (§3.7's five), and
+`REMAINING_STEPS_FLOOR` reads `remaining_steps` for the graceful off-ramp
+(§26, S-F09 B1).
+
+### AL2 — `recursion_limit=11` was also short by one, and that is the see-saw
+
+The arithmetic was wrong on top of the mechanism being wrong, which is why the
+symptom was variable rather than a clean failure. Measured with a model driven
+to make exactly N hops:
+
+| `recursion_limit` | Model wants 5 hops | Model wants 8 hops |
+|---|---|---|
+| 50 | completes, 5 hops made | completes, 8 hops made |
+| **11** | **`GraphRecursionError` after 5 hops** | `GraphRecursionError` after 5 hops |
+
+**Five hops consume all eleven steps on the hops themselves**, leaving nothing
+for the model to compose an answer with. `2 * max_hops + 1` counts the hops and
+one synthesis step but forgets that the loop needs a model turn to READ the
+fifth result. Four hops fit; five never did.
+
+**That is AK3's table explained.** A coach that made four tool calls completed;
+one that made five capped. Prompt wording changes how many tools an opening turn
+front-loads, so it moved the failure between Define and Measure without ever
+removing it — Define 1/1 then 3/3 capped, Measure 3/3 capped then 4/6. **A
+see-saw at the edge of the budget was a budget problem wearing a prompt
+problem's clothes**, and AK3 called that correctly without being able to prove
+it, because the confirming measurement was cut short by Azure 429s (AI2).
+
+### AL3 — Where the hop cap lives, and why not in middleware
+
+**The cap counts `rag_lookup_*` calls, in per-turn copies of the three
+retrieval tools** (`_budgeted_rag_tools`). The count has to happen inside the
+agent's tool loop, and the only in-loop hooks are middleware — but §8.1 fixes
+the stack at eight and a ninth is a governance change, not a build step. Copying
+the tools reaches the same place without touching the stack.
+
+**`model_copy` with only the coroutine swapped**, so `name`, `description`,
+`args_schema` and `response_format` are the originals'. §5.4 makes those
+docstrings load-bearing; a hand-built replacement tool would quietly reword
+them. Verified against the pinned LangChain before use: the copy rides through
+`create_agent`, binds under its own name, and returns a real
+`content_and_artifact` pair.
+
+**Past the budget the tool still ANSWERS.** It returns `_HOP_BUDGET_SPENT`
+instead of searching, so the coach reads an ordinary tool result and composes —
+exactly as it does for a search that found nothing. A tool that vanished
+mid-loop or raised would end the turn with nothing to say, which is the failure
+mode the whole WATCH is about.
+
+### AL4 — What the off-ramp does, and what it deliberately does not do
+
+At or below `REMAINING_STEPS_FLOOR`, the coach is built **without the three
+`rag_lookup_*` tools** and coaches from what it holds. The other four of the
+universal set and the phase's computation tools stay bound: the off-ramp is
+about not STARTING new retrieval, not about coaching with one hand tied.
+
+**It is a coached turn and the `step_log` says so.** `"coached_no_retrieval"`
+is a third status beside `"coached"` and `"partial_cap_reached"`, because
+folding it into the cap status would hide the exact signal WATCH 26 needed — a
+turn that off-ramped cleanly looks nothing like one that died.
+
+**An ABSENT `remaining_steps` must not trip it.** The guard reads
+`state.get("remaining_steps") or 0` and tests `0 < remaining <= FLOOR`. §0.16's
+bug was a default that made the guard unfireable; a default here would make it
+fire on every turn instead — retrieval switched off for the whole product,
+looking like the product working. Both directions are pinned by tests.
+
+### AL5 — `remaining_steps` is not `step_log`, and the schema now says so
+
+They are declared on the same object, three fields apart, and share a word that
+means opposite things: `remaining_steps` is LangGraph's execution counter,
+engine-owned and meaningless outside a run; `step_log` is this project's
+coaching audit trail, hand-written by every node (§10.3). Nothing derives one
+from the other and a DMAIC "step" is not a graph step. Said at the declaration
+because that is where the collision is.
+
+### AL6 — Two records that are stale, and are not this commit's to fix
+
+- **§16.1's *Installed* column, and the session-start hook.** Both report
+  LangGraph 1.1.10 / LangChain 1.2.13 — the repo-root `.venv`.
+  `agent-improve/.venv`, which runs the code and the tests, is at **1.2.11 /
+  1.3.16**: the §16.1 upgrade has already happened and the record does not know
+  it. Nothing here rests on it (both measurements were taken twice and agree),
+  but a hook that reports the wrong venv will mislead the next version
+  decision. **Own governance commit.**
+- **`diagrams/03-coach-node.mmd`** still reads *"recursion_limit=11 — max 5 tool
+  calls per Belt turn"*. Wrong twice over now. Regenerating the diagram set is
+  its own step.

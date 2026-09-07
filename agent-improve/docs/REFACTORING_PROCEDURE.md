@@ -1339,6 +1339,50 @@ contradiction-check instruction.
 
 ---
 
+## Step 6.7 — The hop cap, as §26 specifies it (WATCH 26)
+
+| | |
+|---|---|
+| **Reference §** | §16 · §26 · §58.18 S-F09 B1 |
+| **Touches** | `phases/nodes_common.py`, `core/substate.py` (comment) |
+| **Precondition** | 6.6, **and the CLAUDE.md §3.7 amendment landed first** |
+| **Verify** | `pytest`, then `live-run` |
+
+**Not in the original spine. Added 2026-09-07 because WATCH 26 did not close
+at 6.6 and the cause was a governance rule, not a build step.** CLAUDE.md
+§3.7 carried `recursion_limit = 2 * max_hops + 1 = 11` as the hop cap, which
+ARCHITECTURE §16 rejects outright and §26 replaced with `RemainingSteps` in
+August 2026. The build followed §3.7 — correctly; it is the constitution — so
+the fix is a governance commit (2.2.32) and then this step.
+
+**Two properties MUST be measured before anything is built on them**, and both
+were: does `remaining_steps` survive the subgraph boundary (it does, both ways
+a subgraph can be entered), and are hops and steps the same unit (they are
+not — the counter moves by 1 per executor turn however many hops that turn
+made). **Both guards are therefore required and neither substitutes for the
+other.** `DECISIONS.md` Part AL carries the numbers.
+
+- `COACH_RECURSION_BACKSTOP = 50` replaces `COACH_RECURSION_LIMIT = 11` —
+  §16's infinite-loop backstop, passed explicitly.
+- `COACH_HOP_BUDGET = 5` — §3.7's cap, counted in per-turn copies of the three
+  `rag_lookup_*` tools. **Past the budget the tool answers rather than
+  searching**, so the coach composes from what it has.
+- `REMAINING_STEPS_FLOOR = 2` — §26 / S-F09 B1's off-ramp, read at the top of
+  the executor. Below it, the coach is built with no retrieval tools bound.
+- The `GraphRecursionError` catch stays, now belt-and-braces against a bug.
+
+**Done when:** `COACH_RECURSION_LIMIT` returns zero grep hits, the executor
+reads `remaining_steps` and branches on it, the hop count is enforced and
+written to `step_log`, and **the Define and Measure opening turns that
+see-sawed both coach rather than cap, with no prompt wording changed**.
+
+> **⚑ The live half is owed, not done.** Blocked on Azure 429s on
+> `operational-premium` in westeurope — the same AI2 blocker that cut AK3's
+> measurement short. The unit suite pins both guards deterministically, so
+> what is owed is end-to-end confirmation of the mechanism, not the mechanism.
+
+---
+
 # Part 6 — Stage 7: Validation and gates
 
 ---
@@ -1349,7 +1393,7 @@ contradiction-check instruction.
 |---|---|
 | **Reference §** | §34 · §35 |
 | **Touches** | `validation/gate_validator.py`, `validation/schemas.py` (new) |
-| **Precondition** | 6.6 |
+| **Precondition** | 6.7 |
 | **Verify** | `pytest` |
 
 **`DMAICGateValidator` is the one permitted class exception** — a namespace of
@@ -1717,6 +1761,7 @@ reference section is not a step — it is an undocumented decision.
 | 6.4 | §19.4, §19.5, §21 | `grep-absence` |
 | 6.5 | §19.6–§19.8 | `pytest` |
 | 6.6 | §22 | `grep-absence` |
+| 6.7 | §16 · §26 | `pytest` + `live-run` |
 | 7.1 | §34, §35 | `pytest` |
 | 7.2 | §34, §36 | `pytest` |
 | 7.3 | §33 | `manual-UI` |
@@ -1828,6 +1873,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 6.4** | Retry middleware 4–5 + factory retry removal | done |
 | **Commit 6.5** | Middleware 6–8 | done |
 | **Commit 6.6** | Prompts | done |
+| **Commit 6.7** | The hop cap, as §26 specifies it (WATCH 26) | done — live half owed |
 | **Commit 7.1** | `DMAICGateValidator` + Layer 2b | pending |
 | **Commit 7.2** | Layers 2c, 2d + `validation_stack` | pending |
 | **Commit 7.3** | Nine-step HITL gate | pending |
