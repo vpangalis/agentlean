@@ -4795,3 +4795,159 @@ because `'continue'` appears inside that block as the *replacement* for
 > and the `grep-absence` verify failing on prose. The number is now spelled in
 > words. Third instance of the self-reference problem in this build, after the
 > drift registry's own bootstrapping exemption and 6.3's compression sweep.
+
+---
+
+## Part AJ — Step 6.5: the stack completes, and §19 is wrong three ways (2026-09-07)
+
+**Procedure step 6.5.** Reference **§19**, **§19.6**, **§19.7**, **§19.8**,
+**§32**, **§36**, **§37**; specs **§61.1 — S-C10**, **§61.4 — S-C13**,
+**§61.5 — S-C14**, **§61.6 — S-C15**, **§62.3/62.4 — S-C22/S-C23**.
+
+**The eight-middleware stack is complete.** Everything below was found by
+running the library, not by reading §19 — which is the point.
+
+---
+
+### AJ1 — `after_agent` executes in REVERSE, so the trio is declared backwards
+
+**§19: *"Declaration order is execution order for hooks of the same kind."*
+That is true for `before_agent` and FALSE for `after_agent`.**
+
+Measured with three middlewares:
+
+```
+declared:      1st, 2nd, 3rd
+before_agent:  1st, 2nd, 3rd      <- declaration order
+after_agent:   3rd, 2nd, 1st      <- REVERSE
+```
+
+**LangChain's documentation states it outright**: *"before_* hooks: First to
+last. after_* hooks: Last to first (reverse)."* It is the middleware-onion
+shape — before-hooks wrap inward, after-hooks unwrap outward.
+
+**Consequence, and it is not cosmetic.** Declared 6, 7, 8 the stack would
+EXECUTE grader → coherence → contradiction, and **S-C13 B3's "coherence
+exhaustion skips the grader" could never fire** because the grader would
+already have run. Nothing raises. The skip silently never happens.
+
+**Ruled: positions stay as execution semantics; the declaration is reversed.**
+`_build_executor` lists grader, coherence, contradiction so they execute 6, 7,
+8. The test asserts **execution order, not the declared list** — pinning the
+list would pin the workaround rather than the requirement.
+
+**A comment at the declaration site says so in the imperative**, because the
+reversed list reads as a bug to anyone who has not seen the measurement, and a
+test only catches the "correction" after it is written.
+
+---
+
+### AJ2 — `after_agent` state does not propagate, so the skip travels by reference
+
+**A dict returned from one `after_agent` is not visible to the next hook in the
+same pass.** Measured: coherence wrote its flag, and the grader — executing
+immediately after — read `None`.
+
+So B3's skip **cannot travel through state**, which is how the first
+implementation did it. **Ruled: the grader holds a reference to the coherence
+middleware and reads `coherence.degraded`.** Both are constructed per turn in
+`_build_executor`, so the reference cannot outlive the turn and **nothing
+reaches `PhaseState`** — S-C14 B7 holds.
+
+`SKIP_GRADER_KEY` survives as a named constant precisely so a test can assert
+the **state route is not honoured**: a future "simplification" back to it would
+restore a skip that silently never fires.
+
+---
+
+### AJ3 — §19's wrap-hook independence stopped being true at 6.3
+
+**§19: *"Positions 4 and 5 compete for no slot with anything else — adjacent
+for readability, not ordering."*** That held until step 6.3, when **position 1
+gained a `wrap_model_call` hook**.
+
+Wrap hooks nest, and the docs say the first middleware wraps all others — so
+**position 1 now encloses position 4's retry.** Measured with a model that
+fails twice then succeeds:
+
+```
+model calls : 3        (2 failures + 1 success)
+composed    : 1        <- before_agent, once per turn
+prepended   : 1        <- wrap_model_call, once per turn
+```
+
+**This is the behaviour we want**: the project-state block is built once and a
+retry re-sends the built request. **If the nesting inverted**, three attempts
+would mean three Store reads and three missing-field computations, and S-C11
+B1's once-per-turn guarantee would be silently gone.
+
+**Load-bearing, undocumented, and now pinned** by
+`test_position_1_wrap_encloses_position_4_retry`.
+
+---
+
+### AJ4 — G-15 answered: `HITLInterrupt` is deliberately never defined
+
+§61.6 records the open question: *"whether an exception raised from
+`after_agent` yields a resumable graph-level interrupt — as opposed to
+propagating out of the node and hitting `error_handler` — is unverified, and
+the answer determines whether the contradiction path works at all."*
+
+**Measured three ways:**
+
+| approach | result |
+|---|---|
+| `raise HITLInterrupt(**flag)` — as §19.6 writes it | **propagates out.** No interrupt; hits `error_handler` (§45) |
+| `interrupt(payload)` — §33's ratified mechanism | **resumable.** `__interrupt__` populated, `Command(resume=…)` continues cleanly |
+| `raise GraphInterrupt(...)` | `__interrupt__` populated but **resume fails** — the payload carries no interrupt id |
+
+**Ruled: use `interrupt()`, and do NOT define `HITLInterrupt`.** A class whose
+documented use does not interrupt is a trap, and S-C15 names `core/errors.py`
+as its presumed home — so a test asserts it is absent from there and from the
+middleware. **G-15 stays OPEN**; this is the evidence it asked for, not a
+closure, and formalising it is a §56 amendment.
+
+The end-to-end test runs a real graph and asserts **resumption**, not merely
+that an exception was raised — which is the distinction G-15 turns on.
+
+---
+
+### AJ5 — Position 6 ships inert, and that is scheduled
+
+**Nothing sets `contradiction_flag` until 6.6.** The middleware reads a flag;
+detection is the coach's, following an instruction that lands in the coach
+prompt and the five SKILL.md files at **6.6** (§32, §37). Until then it runs
+every turn, reads `None`, and returns.
+
+**WATCH 31**, deliberately shaped like WATCH 7 so the silence reads as the seam
+rather than a defect. **The failure to guard against is a future session
+"fixing" it by reintroducing the mechanical comparison** — deleted at §R1
+because it could not work: it read a Store key `gate_apply` does not write
+until phase end, and 38 of 41 content fields are unique to exactly one phase.
+
+`test_contradiction_middleware_reads_a_flag_and_detects_nothing` asserts the
+absence of `store.get`, `current_phase`, `get_llm` and any threshold — because
+here the **absence** is the requirement, and a behavioural test would not
+notice a `store.get` that returns nothing.
+
+---
+
+### AJ6 — What 6.5 built forward, and the two schemas that stayed narrow
+
+**`COACHING_QUALITY_RUBRIC` landed early, in 6.6's file.** `core/prompts.py`
+now carries two forward references — `{PHASE}_COACH_PROMPT` from 6.2 and this —
+because position 8 cannot grade without a rubric. Transcribed from §36's nine
+criteria. **Recorded so 6.6 does not read a half-existing file as drift.**
+
+**It carries no coherence criterion, and the absence is ratified** (S-C13 B5):
+coherence moved out when the middleware was added, and *"any rubric entry for
+coherence is stale"*. A test pins the absence so a well-meant re-addition fails.
+
+**`CoherenceResult` and `CoachingGraderVerdict`** were built to the minimum the
+EARS behaviours require. **G-09 and G-12 stay open**, and `tier` is deliberately
+**absent** from the coaching criterion type: §35's tiers are a property of gate
+*fields*, and adding one would answer G-12 in the direction the gap flags as
+undecided. **G-24** (constructors) stays open too.
+
+**Three caps, still three** — model 2, coherence 2, gate 3 — asserted
+independent.

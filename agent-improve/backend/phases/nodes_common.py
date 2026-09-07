@@ -65,6 +65,9 @@ from backend.core.state import ImproveGraphState
 from backend.core.substate import CoachingPlan, CoachingResponse, PhaseState
 from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE
 from backend.knowledge.tools import UNIVERSAL_TOOLS
+from backend.middleware.coherence import CoherenceMiddleware
+from backend.middleware.contradiction import ContradictionDetectionMiddleware
+from backend.middleware.grader import DMAICGraderMiddleware
 from backend.middleware.skills import DMAICSkillsMiddleware
 from backend.middleware.state_injection import BeforeModelStateInjection
 from backend.phases.gate_registry import review_rows
@@ -445,8 +448,9 @@ _DIAGRAM_TO_UI_KEY = {
 }
 
 
-def _build_executor(phase: str, state: PhaseState,
-                    config: Optional[RunnableConfig] = None) -> Any:
+def _build_executor(
+    phase: str, state: PhaseState, config: Optional[RunnableConfig] = None,
+) -> tuple[Any, list[dict[str, Any]]]:
     """The phase coach — `create_agent`, per §18's ratified template.
 
     **Both parameter names were verified against the installed
@@ -479,7 +483,16 @@ def _build_executor(phase: str, state: PhaseState,
     turn's state, so the agent cannot outlive it. That is cheap next to the
     model call it wraps.
     """
-    return create_agent(
+    # B6's sink. A list the node owns, so the middleware writes an audit
+    # record without reaching into state — which is what keeps B7's
+    # "internals never reach PhaseState" true by construction.
+    grader_log: list[dict[str, Any]] = []
+    # Built here rather than inline because position 8 holds a reference to it:
+    # a dict returned from one `after_agent` is NOT visible to the next hook in
+    # the same pass, so S-C13 B3's skip cannot travel through state. Per turn,
+    # so the reference cannot outlive the turn (B7).
+    coherence = CoherenceMiddleware(phase)
+    agent = create_agent(
         model=get_llm("coach", max_tokens=1500),
         tools=UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase],
         response_format=CoachingResponse,   # §20 — never a {Phase}Output
@@ -502,6 +515,16 @@ def _build_executor(phase: str, state: PhaseState,
             # fallback chain, which swaps the model. `max_retries` is
             # "attempts after the initial call", so 2 means three attempts.
             ModelRetryMiddleware(max_retries=RETRY_MAX),
+            # **Position 1's `wrap_model_call` ENCLOSES this one.** §19 says
+            # 4 and 5 "compete for no slot with anything else"; that stopped
+            # being true at 6.3, when position 1 gained a wrap hook. Wrap hooks
+            # nest first-wraps-all, so the project-state block is composed and
+            # prepended ONCE and a retry re-sends the built request rather than
+            # rebuilding it per attempt. That is the behaviour we want, it is
+            # undocumented, and `test_position_1_wrap_encloses_position_4_retry`
+            # pins it — if the nesting inverted, three attempts would mean three
+            # Store reads and three missing-field computations.
+            #
             # 5 — wrap_tool_call. A failed retrieval is not a failed model
             # call and `ModelRetryMiddleware` never sees it (§19.5).
             # `on_failure="continue"` is what keeps the coaching loop alive:
@@ -510,10 +533,50 @@ def _build_executor(phase: str, state: PhaseState,
             ToolRetryMiddleware(
                 max_retries=RETRY_MAX, on_failure=TOOL_RETRY_ON_FAILURE,
             ),
-            # 6-8 land at step 6.5.
+            # ══════════════════════════════════════════════════════════════
+            # ⚠ THE NEXT THREE ARE DECLARED BACKWARDS. THIS IS NOT A BUG AND
+            #   REORDERING THEM TO 6, 7, 8 BREAKS THE COACH.
+            #
+            #   `after_agent` executes in REVERSE declaration order. LangChain's
+            #   own documentation: *"before_* hooks: First to last. after_*
+            #   hooks: Last to first (reverse)."* Verified here by measurement
+            #   as well — `test_all_eight_positions_execute_in_the_ratified_
+            #   order` fails if this list is "corrected".
+            #
+            #   Listed 6, 7, 8 they would EXECUTE grader, coherence,
+            #   contradiction — and S-C13 B3's "coherence exhaustion skips the
+            #   grader" could never fire, because the grader would already have
+            #   run. Nothing would raise; the skip would just silently never
+            #   happen.
+            # ══════════════════════════════════════════════════════════════
+            #
+            # **`after_agent` runs in REVERSE declaration order.** Measured
+            # against the installed LangChain, not assumed: three middlewares
+            # declared 1st/2nd/3rd fire `before_agent` as 1st, 2nd, 3rd and
+            # `after_agent` as 3rd, 2nd, 1st. It is the middleware-onion
+            # shape — before-hooks wrap inward, after-hooks unwrap outward.
+            #
+            # §19 says *"declaration order is execution order for hooks of the
+            # same kind"*. **That is true for `before_agent` and false for
+            # `after_agent`**, so declaring 6, 7, 8 in listed order would
+            # EXECUTE grader -> coherence -> contradiction, and S-C13 B3's
+            # "coherence exhaustion skips the grader" could never fire because
+            # the grader would already have run.
+            #
+            # Reversing the trio here restores §19's ratified EXECUTION order —
+            # contradiction, then coherence, then grader — which is the
+            # behaviour the EARS entries specify. §19's wording needs the §56
+            # amendment (WATCH 30); the behaviour it mandates is met.
+            # `test_middleware.py` asserts the execution order, not the list.
+            DMAICGraderMiddleware(
+                phase, on_evaluation=grader_log.append, coherence=coherence,
+            ),
+            coherence,
+            ContradictionDetectionMiddleware(),
         ],
         system_prompt=PHASE_COACH_PROMPT[phase],   # NOT `prompt=` (§18)
     )
+    return agent, grader_log
 
 
 def _prior_gate_documents(
@@ -652,7 +715,7 @@ async def executor(
     turn_count = state.get("turn_count") or 0
     plan = state.get("coaching_plan")
 
-    agent = _build_executor(phase, state, config)
+    agent, grader_log = _build_executor(phase, state, config)
     prior = list(state.get("messages") or [])
     hit_cap = False
     try:

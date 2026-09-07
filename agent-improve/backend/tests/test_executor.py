@@ -101,13 +101,22 @@ def test_the_executor_builds_the_agent_per_the_ratified_template(
     assert kwargs["response_format"] is CoachingResponse, (
         "§20 — never a {Phase}Output on the executor"
     )
-    assert [type(m).__name__ for m in kwargs["middleware"]] == [
-        "BeforeModelStateInjection",   # 1 — before_agent, and FIRST (§19)
-        "DMAICSkillsMiddleware",       # 2 — before_agent + load_skill
-        "SummarizationMiddleware",     # 3 — before_model, core as shipped
-        "ModelRetryMiddleware",        # 4 — wrap_model_call, core as shipped
-        "ToolRetryMiddleware",         # 5 — wrap_tool_call, core as shipped
-    ], "positions 1-5 (steps 6.3, 6.4); 6-8 land at 6.5"
+    declared = [type(m).__name__ for m in kwargs["middleware"]]
+    assert declared == [
+        # 1-5 fire before_agent / before_model / wrap_*, where declaration
+        # order IS execution order.
+        "BeforeModelStateInjection",         # 1
+        "DMAICSkillsMiddleware",             # 2
+        "SummarizationMiddleware",           # 3
+        "ModelRetryMiddleware",              # 4
+        "ToolRetryMiddleware",               # 5
+        # 6-8 fire after_agent, which executes in REVERSE — so they are
+        # declared backwards to EXECUTE as 6, 7, 8. See
+        # `test_all_eight_positions_execute_in_the_ratified_order`.
+        "DMAICGraderMiddleware",             # executes 8th (last)
+        "CoherenceMiddleware",               # executes 7th
+        "ContradictionDetectionMiddleware",  # executes 6th (first)
+    ], "§19's eight — 1-5 in declaration order, 6-8 reversed for after_agent"
     assert kwargs["model"] is not None
 
 

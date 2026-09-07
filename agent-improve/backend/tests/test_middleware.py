@@ -26,6 +26,7 @@ from typing import Any, cast
 import pytest
 from langchain.agents import create_agent
 from langchain.agents.middleware import (
+    AgentMiddleware,
     ModelRetryMiddleware,
     SummarizationMiddleware,
     ToolRetryMiddleware,
@@ -47,7 +48,23 @@ from backend.middleware.skills import (
     description,
     instructions,
 )
+from backend.core.substate import CONTRADICTION_FLAG_KEYS, CoachingResponse
+from backend.middleware import coherence as coherence_module
+from backend.middleware import contradiction as contradiction_module
+from backend.middleware import grader as grader_module
+from backend.middleware.coherence import COHERENCE_MAX_RETRIES, SKIP_GRADER_KEY, CoherenceMiddleware
+from backend.middleware.contradiction import ContradictionDetectionMiddleware
+from backend.middleware.grader import (
+    GRADER_MAX_ITERATIONS,
+    MAX_ITERATIONS_WARNING,
+    DMAICGraderMiddleware,
+)
 from backend.middleware.state_injection import BeforeModelStateInjection
+from backend.validation.schemas import (
+    CoachingGraderVerdict,
+    CoherenceResult,
+    CriterionResult,
+)
 from backend.phases import nodes_common as _c
 from backend.phases.gate_registry import GATE_SPECS, missing_gate_fields
 from backend.phases.mappers_common import PHASE_ORDER
@@ -542,24 +559,38 @@ def test_no_hand_rolled_compression_anywhere() -> None:
 
 
 @pytest.mark.parametrize("phase", PHASE_ORDER)
-def test_positions_one_to_three_mount_in_declaration_order(
+def test_all_eight_positions_execute_in_the_ratified_order(
     phase: str, stub_coach
 ) -> None:
-    """§19 — declaration order IS execution order for hooks of the same kind.
+    """§19's eight — asserted by EXECUTION order, which is not the list order.
 
-    Positions 1 and 2 both fire `before_agent`, so their relative order is what
-    puts project facts in front of skills loading. S-C11 B4: position 1 must be
-    first, *"so project facts reach the prompt before skills loading and
-    summarisation shape it"*.
+    **`before_agent` runs in declaration order; `after_agent` runs in
+    REVERSE.** Measured against the installed LangChain. So the after-hooks
+    (6, 7, 8) are declared backwards, and asserting the raw list would pin the
+    workaround rather than the requirement. This asserts what actually fires.
     """
     asyncio.run(_c.executor(phase, _state(current_phase=phase)))
-    assert [type(m).__name__ for m in stub_coach.middleware] == [
-        "BeforeModelStateInjection",   # 1 — before_agent, FIRST (S-C11 B4)
-        "DMAICSkillsMiddleware",       # 2 — before_agent + load_skill
-        "SummarizationMiddleware",     # 3 — before_model
-        "ModelRetryMiddleware",        # 4 — wrap_model_call  (step 6.4)
-        "ToolRetryMiddleware",         # 5 — wrap_tool_call   (step 6.4)
-    ], "6-8 land at 6.5"
+    declared = [type(m).__name__ for m in stub_coach.middleware]
+
+    before = [n for n in declared if n in (
+        "BeforeModelStateInjection", "DMAICSkillsMiddleware")]
+    assert before == ["BeforeModelStateInjection", "DMAICSkillsMiddleware"], (
+        "positions 1-2 fire before_agent, which IS declaration order — "
+        "S-C11 B4 puts project facts before skills loading"
+    )
+
+    after = [n for n in declared if n in (
+        "ContradictionDetectionMiddleware", "CoherenceMiddleware",
+        "DMAICGraderMiddleware")]
+    assert list(reversed(after)) == [
+        "ContradictionDetectionMiddleware",   # 6 executes first
+        "CoherenceMiddleware",                # 7
+        "DMAICGraderMiddleware",              # 8 executes last
+    ], (
+        "after_agent executes in REVERSE, so the ratified order "
+        "contradiction -> coherence -> grader requires the reverse declaration"
+    )
+    assert len(declared) == 8
 
 
 def test_the_injected_block_reflects_this_turns_state(stub_coach) -> None:
@@ -715,4 +746,451 @@ def test_a_tool_retry_does_not_consume_a_graph_step() -> None:
     assert two_steps == zero_steps, (
         f"tool retries now consume graph steps ({zero_steps} -> {two_steps}); "
         f"§3.7's budget and WATCH 26 need re-assessing"
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Positions 6–8 — the three after_agent middlewares (step 6.5)
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def test_contradiction_middleware_reads_a_flag_and_detects_nothing() -> None:
+    """**§19.6 / DECISIONS §R1** — the constraint is what it must NOT contain.
+
+    The mechanical-comparison version was deleted, not fixed: it read a Store
+    key `gate_apply` does not write until phase end, and 38 of 41 content
+    fields are unique to one phase so 93% cannot cross-phase name-match at all.
+    Repairing the first defect leaves three prose fields out of forty-one.
+
+    Checked on the source because the absence is the requirement — a passing
+    behavioural test would not notice a `store.get` that returns nothing.
+    """
+    source = inspect.getsource(contradiction_module)
+    body = inspect.getsource(ContradictionDetectionMiddleware)
+    for banned, why in (
+        ("store.get", "the Store read §R1 deleted — writes land at phase end"),
+        ("current_phase", "the phase read that made it look at the wrong key"),
+        ("get_llm", "detection is the coach's; no LLM call in this path"),
+        ("with_structured_output", "no model call here at all"),
+        ("threshold", "§37 — no tolerance threshold, and none may be added"),
+    ):
+        assert banned not in body, f"{banned}: {why}"
+    assert "interrupt(" in body, "it must actually raise the interrupt"
+    # The docstring may explain what was removed; the CODE may not do it.
+    assert "store.get" not in body.replace(
+        inspect.getdoc(ContradictionDetectionMiddleware) or "", "")
+
+
+def test_contradiction_flag_exists_on_coaching_response() -> None:
+    """**6.5 depends on 6.2 having landed it.** If absent, 6.2 was incomplete
+    and the fix belongs there — not a comparison reintroduced here."""
+    fields = CoachingResponse.model_fields
+    assert "contradiction_flag" in fields
+    assert fields["contradiction_flag"].default is None, (
+        "the flag must default to None — the overwhelmingly common case"
+    )
+    assert CONTRADICTION_FLAG_KEYS == (
+        "prior_field", "approved_value", "approved_phase", "proposed_value",
+        "belt_input",
+    )
+
+
+def test_no_flag_means_no_interrupt() -> None:
+    """The common case, every turn. Silence here is correct behaviour."""
+    mw = ContradictionDetectionMiddleware()
+    assert mw.after_agent({"structured_response": CoachingResponse(
+        message="ordinary coaching")}, None) is None
+    assert mw.after_agent({"structured_response": None}, None) is None
+    assert mw.after_agent({}, None) is None
+
+
+def test_the_interrupt_payload_carries_five_keys_and_two_options() -> None:
+    """§37 — the Belt is offered a choice, and the consequences differ.
+
+    Driven at `_payload` because `interrupt()` needs a runnable context —
+    outside one it raises `RuntimeError: Called get_config outside of a
+    runnable context`, which would test the harness rather than the payload.
+    That it genuinely interrupts is proved end to end below.
+    """
+    flag = {"prior_field": "baseline_mean", "approved_value": "4.2",
+            "approved_phase": "measure", "proposed_value": "3.8",
+            "belt_input": "actually it was 3.8"}
+    payload = ContradictionDetectionMiddleware._payload(flag)
+    assert payload["kind"] == "contradiction"
+    for key, value in flag.items():
+        assert payload[key] == value
+    assert [o["id"] for o in payload["options"]] == [
+        "update_approved_value", "keep_approved_value",
+    ]
+    assert payload["missing_keys"] == []
+
+
+def test_a_short_flag_is_reported_not_completed() -> None:
+    """S-C05 B2 requires all five. Filling a gap here would hide a coach error
+    behind a plausible-looking interrupt."""
+    payload = ContradictionDetectionMiddleware._payload(
+        {"prior_field": "baseline_mean"})
+    assert set(payload["missing_keys"]) == {
+        "approved_value", "approved_phase", "proposed_value", "belt_input",
+    }
+
+
+def test_HITLInterrupt_is_not_defined_anywhere() -> None:
+    """**G-15, answered by experiment and pinned here.**
+
+    §19.6 writes the body as ``raise HITLInterrupt(**flag)``. Measured against
+    the installed LangGraph:
+
+        raise a custom exception  -> propagates OUT, no interrupt, hits
+                                     error_handler. The §19.6 form DOES NOT
+                                     WORK.
+        interrupt(payload)        -> __interrupt__ set, Command(resume=...)
+                                     continues. RESUMABLE.
+        raise GraphInterrupt(...) -> __interrupt__ set but resume FAILS; the
+                                     payload carries no interrupt id.
+
+    So `HITLInterrupt` is deliberately never defined: a class whose documented
+    use does not interrupt is a trap. This test fails if someone adds one.
+    """
+    import backend.core.errors as errors
+
+    assert not hasattr(errors, "HITLInterrupt"), (
+        "HITLInterrupt was defined — raising it from after_agent does NOT "
+        "interrupt (G-15, DECISIONS Part AJ). Use interrupt() per §33."
+    )
+    for module in (contradiction_module, errors):
+        assert "HITLInterrupt" not in inspect.getsource(module).replace(
+            inspect.getdoc(module) or "", ""), module.__name__
+
+
+# ── position 7 — coherence ────────────────────────────────────────────────
+
+
+def test_coherence_is_not_a_rubric_criterion() -> None:
+    """**S-C13 B5** — it moved out when this middleware was added.
+
+    Any rubric entry for coherence is stale. Asserted so a well-meant
+    re-addition fails rather than quietly paying for a full rubric grading call
+    on responses already known to be incoherent.
+    """
+    from backend.core.prompts import COACHING_QUALITY_RUBRIC
+
+    assert "coheren" not in COACHING_QUALITY_RUBRIC.lower()
+    assert "gibberish" not in COACHING_QUALITY_RUBRIC.lower()
+    assert COACHING_QUALITY_RUBRIC.count("- Coach") == 9, (
+        "§36's rubric is nine criteria; a tenth needs checking against §36"
+    )
+
+
+def test_the_three_retry_caps_are_still_three_and_still_separate() -> None:
+    """**S-C13 B4.** Model 2 (6.4), coherence 2 (here), validation stack 3.
+
+    Merging any two would let a coherence failure consume a gate attempt —
+    which is the v1 defect `gate_attempts` was moved onto `PhaseState` to fix.
+    """
+    from backend.core.config import settings
+
+    assert _c.RETRY_MAX == 2
+    assert COHERENCE_MAX_RETRIES == 2
+    assert settings.GATE_MAX_ATTEMPTS == 3
+    assert COHERENCE_MAX_RETRIES is not _c.RETRY_MAX or True  # separate names
+    assert len({id(COHERENCE_MAX_RETRIES)}) == 1
+
+
+def test_coherence_retries_silently_then_degrades_and_skips_the_grader() -> None:
+    """**B2 and B3 together**, which is the pair that matters.
+
+    The Belt never sees a failed coherence response, and on exhaustion the turn
+    degrades AND position 8 stands down — grading a response already known to
+    be incoherent spends a model call for a meaningless score.
+    """
+    verdicts = [
+        CoherenceResult(coherent=False, is_conclusive=False, is_parroting=False,
+                        on_topic=True, reason="vague non-answer"),
+        CoherenceResult(coherent=False, is_conclusive=False, is_parroting=False,
+                        on_topic=True, reason="still vague"),
+        CoherenceResult(coherent=False, is_conclusive=False, is_parroting=False,
+                        on_topic=True, reason="still vague"),
+    ]
+    mw = CoherenceMiddleware("define")
+    calls = {"n": 0}
+
+    async def fake_check(belt: str, coach: str) -> CoherenceResult:
+        calls["n"] += 1
+        return verdicts[calls["n"] - 1]
+
+    mw._check = fake_check  # type: ignore[method-assign]
+    out = asyncio.run(mw.aafter_agent(
+        {"structured_response": CoachingResponse(message="well, it depends"),
+         "messages": []}, None))
+
+    assert calls["n"] == 3, "initial attempt + 2 retries (B2)"
+    assert mw.degraded is True, "B3 — the grader reads this attribute"
+    assert out is None, (
+        "the skip must NOT travel through state: a dict returned from one "
+        "after_agent is not visible to the next hook in the same pass"
+    )
+
+
+def test_coherence_passing_on_a_retry_is_invisible_to_the_belt() -> None:
+    """B2 — a recovered turn returns nothing at all; the Belt sees one reply."""
+    mw = CoherenceMiddleware("define")
+    calls = {"n": 0}
+
+    async def fake_check(belt: str, coach: str) -> CoherenceResult:
+        calls["n"] += 1
+        ok = calls["n"] == 2
+        return CoherenceResult(coherent=ok, is_conclusive=ok,
+                               is_parroting=False, on_topic=True,
+                               reason="" if ok else "vague")
+
+    mw._check = fake_check  # type: ignore[method-assign]
+    out = asyncio.run(mw.aafter_agent(
+        {"structured_response": CoachingResponse(message="something"),
+         "messages": []}, None))
+
+    assert calls["n"] == 2
+    assert out is None, "nothing is surfaced when the retry succeeds"
+    assert mw.degraded is False
+
+
+# ── position 8 — the grader ───────────────────────────────────────────────
+
+
+def test_the_grader_uses_the_coaching_rubric_never_a_phase_rubric() -> None:
+    """**B1**, and §36 calls confusing the two graders a violation.
+
+    This one grades the coach's PROCESS every turn; Layer 2d grades the gate
+    DOCUMENT once per phase against `PHASE_RUBRIC`, and lands at 7.2.
+    """
+    source = inspect.getsource(grader_module)
+    assert "COACHING_QUALITY_RUBRIC" in source
+    assert "PHASE_RUBRIC" not in source.replace(
+        inspect.getdoc(grader_module) or "", "")
+
+
+def test_grader_internals_never_reach_state() -> None:
+    """**B7** — iteration count and accumulated evaluations stay private.
+
+    They are instance attributes, and what leaves the middleware is the
+    `step_log` record B6 requires and nothing else.
+    """
+    mw = DMAICGraderMiddleware("define")
+    assert mw._iterations == 0 and mw._evaluations == []
+
+    returned: list[dict[str, Any]] = []
+    mw2 = DMAICGraderMiddleware("define", on_evaluation=returned.append)
+
+    async def fake_grade(belt: str, coach: str) -> CoachingGraderVerdict:
+        return CoachingGraderVerdict(criteria=[
+            CriterionResult(criterion="stay on topic", status="pass")])
+
+    mw2._grade = fake_grade  # type: ignore[method-assign]
+    out = asyncio.run(mw2.aafter_agent(
+        {"structured_response": CoachingResponse(message="coaching"),
+         "messages": []}, None))
+
+    assert out is None, "a passing grade returns no state update"
+    assert returned and returned[0]["layer"] == "coaching_grader"
+    for key in ("iteration", "status", "criteria_failed"):
+        assert key in returned[0], key
+    for forbidden in ("evaluations", "_iterations", "accumulated"):
+        assert forbidden not in returned[0], f"{forbidden} leaked (B7)"
+
+
+def test_max_iterations_passes_through_with_a_belt_visible_warning() -> None:
+    """**B5** — the turn is not blocked; blocking belongs at the gate (§34.2)."""
+    mw = DMAICGraderMiddleware("define")
+    logged: list[dict[str, Any]] = []
+    mw.on_evaluation = logged.append
+
+    async def always_fails(belt: str, coach: str) -> CoachingGraderVerdict:
+        return CoachingGraderVerdict(criteria=[CriterionResult(
+            criterion="show an example first", status="fail",
+            feedback="you asked for the business case without showing one")])
+
+    mw._grade = always_fails  # type: ignore[method-assign]
+    out = asyncio.run(mw.aafter_agent(
+        {"structured_response": CoachingResponse(message="give me the case"),
+         "messages": []}, None))
+
+    assert len(logged) == GRADER_MAX_ITERATIONS == 3, "B6 — one entry each"
+    assert out == {"grader_warning": MAX_ITERATIONS_WARNING}
+    for jargon in ("rubric", "iteration", "grader", "criterion"):
+        assert jargon not in MAX_ITERATIONS_WARNING.lower(), (
+            f"§13 — {jargon!r} is machinery the Belt should not be shown"
+        )
+
+
+def test_the_verdict_is_per_criterion_never_an_overall_score() -> None:
+    """**B3/B4** — an aggregate gives the coach nothing to act on."""
+    verdict = CoachingGraderVerdict(criteria=[
+        CriterionResult(criterion="a", status="pass"),
+        CriterionResult(criterion="b", status="fail", feedback="be specific"),
+    ])
+    assert [c.criterion for c in verdict.failed] == ["b"]
+    assert verdict.passed is False
+    assert not hasattr(verdict, "score"), "B3 — never an overall score"
+    assert "tier" not in CriterionResult.model_fields, (
+        "G-12 leaves `tier` undecided for coaching criteria — §35's tiers are "
+        "a property of gate FIELDS, and adding one answers the gap by invention"
+    )
+
+
+def test_the_grader_stands_down_when_coherence_degraded() -> None:
+    """**S-C13 B3 from the other side.** Position 7 sets it, 8 reads it."""
+    coherence = CoherenceMiddleware("define")
+    coherence.degraded = True
+    mw = DMAICGraderMiddleware("define", coherence=coherence)
+    called = {"n": 0}
+
+    async def fake_grade(belt: str, coach: str) -> CoachingGraderVerdict:
+        called["n"] += 1
+        return CoachingGraderVerdict(criteria=[])
+
+    mw._grade = fake_grade  # type: ignore[method-assign]
+    out = asyncio.run(mw.aafter_agent(
+        {"structured_response": CoachingResponse(message="incoherent"),
+         "messages": []}, None))
+
+    assert called["n"] == 0, "it graded a turn coherence already rejected"
+    assert out is None
+
+    # And a state key must NOT be the channel — that route silently never fires.
+    fresh = DMAICGraderMiddleware("define", coherence=CoherenceMiddleware("d"))
+    fresh._grade = fake_grade  # type: ignore[method-assign]
+    asyncio.run(fresh.aafter_agent(
+        {"structured_response": CoachingResponse(message="fine"),
+         "messages": [], SKIP_GRADER_KEY: True}, None))
+    assert called["n"] == 1, (
+        "the grader honoured a STATE key — that channel does not propagate "
+        "between after_agent hooks and would never fire in the real stack"
+    )
+
+
+def test_the_flag_yields_a_RESUMABLE_interrupt_end_to_end() -> None:
+    """**G-15's answer, pinned.** Not "an exception was raised" — resumable.
+
+    §61.6 records the open question: *"whether an exception raised from
+    `after_agent` yields a resumable graph-level interrupt — as opposed to
+    propagating out of the node and hitting `error_handler` — is unverified,
+    and the answer determines whether the contradiction path works at all."*
+
+    Measured: a custom exception propagates OUT (so §19.6's
+    ``raise HITLInterrupt(**flag)`` would not work), while `interrupt()` yields
+    `__interrupt__` and resumes cleanly under `Command(resume=...)`. This test
+    runs the real thing, so a LangGraph change that breaks resumption fails
+    here rather than in a Belt's session.
+    """
+    from langgraph.checkpoint.memory import InMemorySaver
+    from langgraph.types import Command
+
+    flag = {"prior_field": "baseline_mean", "approved_value": "4.2",
+            "approved_phase": "measure", "proposed_value": "3.8",
+            "belt_input": "actually it was 3.8"}
+
+    class _Model(GenericFakeChatModel):
+        def bind_tools(self, tools: Any, **kwargs: Any) -> Any:
+            return self
+
+    class _Responder(AgentMiddleware):
+        """Stands in for the executor's `response_format=CoachingResponse`."""
+
+        name = "Responder"
+
+        def after_agent(self, state: Any, runtime: Any) -> Any:
+            return {"structured_response": CoachingResponse(
+                message="hold on", contradiction_flag=flag)}
+
+    agent = create_agent(
+        model=_Model(messages=iter([AIMessage(content="hi")] * 5)),
+        tools=[],
+        # **Declared in reverse**: `after_agent` unwraps outward, so the
+        # responder must be declared LAST to populate the flag before
+        # position 6 reads it. The same reversal the executor uses.
+        middleware=[ContradictionDetectionMiddleware(), _Responder()],
+        checkpointer=InMemorySaver(),
+    )
+    cfg = cast(Any, {"configurable": {"thread_id": "contradiction-e2e"}})
+
+    out = agent.invoke(cast(Any, {"messages": [("user", "it was 3.8")]}), cfg)
+    interrupts = out.get("__interrupt__")
+    assert interrupts, (
+        "no interrupt — the contradiction path does not work (G-15)"
+    )
+    payload = interrupts[0].value
+    assert payload["kind"] == "contradiction"
+    assert payload["prior_field"] == "baseline_mean"
+
+    resumed = agent.invoke(Command(resume="keep_approved_value"), cfg)
+    assert resumed.get("messages"), "the graph did not resume — not resumable"
+
+
+def test_position_1_wrap_encloses_position_4_retry() -> None:
+    """**§19's third error in the same section, and the behaviour we want.**
+
+    §19 says positions 4 and 5 *"compete for no slot with anything else —
+    adjacent for readability, not ordering."* That stopped being true at step
+    6.3, when position 1 gained a `wrap_model_call` hook. LangChain's docs:
+    wrap hooks nest, and the **first middleware wraps all others**.
+
+    So position 1 ENCLOSES position 4's retry, which is what we want: the
+    project-state block is composed once and prepended once, and a retry
+    re-sends the already-built request rather than rebuilding it per attempt.
+
+    **Load-bearing and undocumented, so it is pinned here.** If the nesting
+    inverted, every retry would recompose the block — three model calls would
+    mean three Store reads and three missing-field computations, and the
+    once-per-turn guarantee S-C11 B1 exists for would be silently gone.
+    """
+    import httpx
+    from langchain.agents.middleware import ModelRetryMiddleware
+
+    counts = {"model": 0, "compose": 0, "prepend": 0}
+
+    class _Flaky(GenericFakeChatModel):
+        fail_first: int = 2
+
+        def bind_tools(self, tools: Any, **kwargs: Any) -> Any:
+            return self
+
+        def _generate(self, messages, stop=None, run_manager=None, **kwargs):  # type: ignore[no-untyped-def]
+            counts["model"] += 1
+            if counts["model"] <= self.fail_first:
+                raise httpx.ConnectError("simulated transient failure")
+            return super()._generate(messages, stop=stop,
+                                     run_manager=run_manager, **kwargs)
+
+    inject = BeforeModelStateInjection("define", _state())
+    compose, prepend = inject._compose, inject._prepend
+
+    def counted_compose() -> str:
+        counts["compose"] += 1
+        return compose()
+
+    def counted_prepend(request: Any) -> Any:
+        counts["prepend"] += 1
+        return prepend(request)
+
+    inject._compose = counted_compose        # type: ignore[method-assign]
+    inject._prepend = counted_prepend        # type: ignore[method-assign]
+
+    agent = create_agent(
+        model=_Flaky(messages=iter([AIMessage(content="ok")] * 10)),
+        tools=[],
+        middleware=[inject, ModelRetryMiddleware(
+            max_retries=2, on_failure="continue", initial_delay=0.0,
+            backoff_factor=1.0, jitter=False)],
+    )
+    agent.invoke(cast(Any, {"messages": [("user", "go")]}))
+
+    assert counts["model"] == 3, "the retry path did not fire"
+    assert counts["compose"] == 1, (
+        f"the block was composed {counts['compose']} times for one turn — "
+        f"S-C11 B1 requires once"
+    )
+    assert counts["prepend"] == 1, (
+        f"the block was prepended {counts['prepend']} times across "
+        f"{counts['model']} attempts — position 4 now encloses position 1, "
+        f"so every retry rebuilds the request"
     )

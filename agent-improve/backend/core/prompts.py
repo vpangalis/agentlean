@@ -1335,3 +1335,45 @@ PHASE_COACH_PROMPT: dict[str, str] = {
     "improve": IMPROVE_COACH_PROMPT,
     "control": CONTROL_COACH_PROMPT,
 }
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# COACHING_QUALITY_RUBRIC — procedure step 6.5
+#
+# **One rubric, shared across all five phases** (§36). Read every turn by
+# `DMAICGraderMiddleware` (position 8), which grades the coach's PROCESS.
+#
+# **This is NOT `PHASE_RUBRIC`.** There are two graders and confusing them is a
+# violation (§36): the five `PHASE_RUBRIC` constants grade the gate DOCUMENT,
+# once per phase, in the `validation_stack` node at Layer 2d — and they land at
+# step 7.2 with that node, not here.
+#
+# **There is no coherence criterion, and its absence is the ratified state**
+# (S-C13 B5, §19.7): coherence moved OUT of this rubric when
+# `CoherenceMiddleware` was added, and *"any rubric entry for coherence is
+# stale"*. The two ask different questions — "is this a real statement at all?"
+# versus "is this good coaching?" — and running the second on a response
+# already known to be incoherent spends a model call for a meaningless score.
+# `test_middleware.py` asserts the absence, so a well-meant re-addition fails.
+#
+# Transcribed from §36, which is its canonical home. **Rubrics evolve from
+# production experience without changing the grader mechanism** — that
+# separation is the point, so editing the text here does not touch
+# `middleware/grader.py`.
+# ══════════════════════════════════════════════════════════════════════════
+
+COACHING_QUALITY_RUBRIC = """\
+- Coach must not accept vague or unmeasurable statements as captured fields
+- Coach must not invent data, metrics, or values the Belt didn't provide
+- Coach must not do the Belt's work (writing their problem statement for them)
+- Coach must stay on the current phase's topic
+- Coach must challenge weak inputs with specific follow-up questions
+- Coach must reference methodology when guiding (not just opinion)
+- Coach must show a concrete example of a completed answer before asking the
+  Belt to produce theirs
+- Coach must not provide external URLs from training data. When referencing
+  methodology, retrieve via rag_lookup_methodology and weave the content into
+  natural coaching voice
+- Coach must not dump raw statistical output without explanation. When calling
+  a computation tool, the coach must educate the Belt on the concept first,
+  explain why it matters for their project, then run the tool"""

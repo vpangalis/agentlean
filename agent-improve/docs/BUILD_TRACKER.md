@@ -12,7 +12,7 @@ Legend:  ✅ done · ▶ next · ☐ to do · ⛔ blocked · ⏸ gated/external
 # Agent Improve — Refactor Build Tracker
 # updated 2026-09-03 · build target: `agent-improve/ARCHITECTURE.md`
 
-**Progress: 23 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 6.1, 6.2, 6.3, 6.4 + 9.0 out-of-band). **Next: step 6.5.**
+**Progress: 24 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 6.1, 6.2, 6.3, 6.4, 6.5 + 9.0 out-of-band). **Next: step 6.6.** **The eight-middleware stack is complete.**
 Spine runs 2.3 → 11.2, one step = one commit. The spec is complete; this is the code.
 
 **Blocked / not-yet-schedulable:** 8.4 (Redis not provisioned), 8.5 (`request_drain`
@@ -61,8 +61,8 @@ unconfirmed), 9.1 (external reindex). Everything else is open once its precondit
 | 6.2 | `create_agent` executor + `CoachingResponse` | §18, §20 | ✅ done **live-run verified** *(**WATCH 7 CLOSED** — `fields_captured` → `artifacts` → `validate_define` went 13/13 missing → 0, `passed=True`. Built `propose_template`/`propose_diagram` owed from 5.2 (+`core/diagrams.py`); two universal tools still owed to 7.1/7.5 — **WATCH 25**. Live-run found §3.7's coach cap could never fire — DECISIONS Part AG)* |
 | 6.3 | Middleware positions 1–3 | §19 | ✅ done **trace-check verified** *(`before_agent` fired ONCE on a many-call turn — B1 proved. `missing_gate_fields` consolidated so the prompt and all five `validate.py` share ONE computation. **G-33 answered**: `load_skill` is middleware-registered, outside §30's totals. Review caught string concatenation where §21 requires content blocks — DECISIONS Part AH)* |
 | 6.4 | Retry middleware 4–5 + factory hardcoded retry | §19 | ✅ done **grep-absence verified** *(`max_retries=0` PINNED on the constructor — the middleware is the only retry layer; two layers multiply 3×3=9, not add. **Recursion question answered by experiment: retries cost NO graph steps**, so 6.4 does not worsen WATCH 26 — DECISIONS Part AI)* |
-| 6.5 | Middleware positions 6–8 | §19 | ▶ **next** |
-| 6.6 | Prompts | §22 | ☐ |
+| 6.5 | Middleware positions 6–8 | §19 | ✅ done *(**the stack is complete at eight.** Found §19 wrong three ways: `after_agent` executes in REVERSE, `after_agent` state does not propagate between hooks, and positions 4–5 are no longer unnested — position 1's wrap encloses them. G-15 answered: `HITLInterrupt` never defined. Position 6 ships INERT until 6.6 — WATCH 31. DECISIONS Part AJ)* |
+| 6.6 | Prompts | §22 | ▶ **next** *(owes: the `contradiction_flag` instruction that makes position 6 live — WATCH 31; the WATCH 26 over-exploration fix; and `core/prompts.py` already carries `{PHASE}_COACH_PROMPT` (6.2) and `COACHING_QUALITY_RUBRIC` (6.5) — forward references, not drift)* |
 
 ## Stage 7 — Validation and gates
 | Step | What | Builds | Status |

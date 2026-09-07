@@ -7,14 +7,14 @@
 
 | | |
 |---|---|
-| **Last completed** | step **6.4** — Retry middleware 4–5 + factory hardcoded retry |
-| **Next** | step **6.5** — Middleware positions 6–8 |
+| **Last completed** | step **6.5** — Middleware positions 6–8 |
+| **Next** | step **6.6** — Prompts |
 | **Stage** | Stage 6 — The coaching agent |
-| **Progress** | 23 of 35 build steps |
-| **Last spine commit** | `3983738` (commit 6.3) |
+| **Progress** | 24 of 35 build steps |
+| **Last spine commit** | `c3d3911` (commit 6.4) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.31 |
-| **Block regenerated** | 2026-09-04 |
+| **Block regenerated** | 2026-09-07 |
 
 *Derived from `docs/BUILD_TRACKER.md`, `CLAUDE.md`, `ARCHITECTURE.md`
 and the git spine — never hand-maintained, so it cannot drift from
@@ -541,6 +541,24 @@ so read §66 when the two disagree.)*
 
 ### Watches (owed work, NOT §66 gaps — the register will not surface them)
 
+- **WATCH 31 — `ContradictionDetectionMiddleware` ships INERT. Owed by 6.6.**
+  Opened 2026-09-07 at step 6.5.
+
+  Position 6 reads `CoachingResponse.contradiction_flag` and turns it into an
+  interrupt. **Nothing sets that flag yet.** Detection is semantic and belongs
+  to the coach (§19.6, DECISIONS §R1); the instruction that makes it set the
+  flag lands at **6.6**, in the coach prompt and the five SKILL.md files (§32,
+  §37). Until then the middleware runs every turn, reads `None`, and returns.
+
+  **Same shape as WATCH 7: the silence is scheduled, not broken.** A future
+  session finding a contradiction path that never fires is looking at the seam.
+  **Do NOT "fix" it by reintroducing mechanical comparison** — that version was
+  deleted at §R1 because it could not work (it read a Store key `gate_apply`
+  does not write until phase end, and 38 of 41 content fields are unique to one
+  phase).
+
+  Closes when 6.6 lands the instruction and a live turn sets the flag.
+
 - **WATCH 28 — a bounded request timeout is now LOAD-BEARING at step 8.2.
   Owned by 8.2 (§44, §45).** Opened 2026-09-04 at step 6.4.
 
@@ -608,8 +626,29 @@ so read §66 when the two disagree.)*
   > and the guard is in the prompt it apparently did not outweigh. Same fix,
   > same step.
 
-- **WATCH 27 — three §56 amendments owed to step 11.2.** Opened 2026-09-04;
-  the third added the same day.
+- **WATCH 27 — SIX §56 amendments owed to step 11.2.** Opened 2026-09-04;
+  three more added 2026-09-07 at step 6.5, all in §19 and all the same shape:
+  the reference describes middleware mechanics the installed library does not
+  have. **None is a design change.** Each was measured, and LangChain's own
+  documentation confirms the first.
+
+  4. **§19's after-hook ordering.** *"Declaration order is execution order for
+     hooks of the same kind"* — **true for `before_agent`, false for
+     `after_agent`**, which executes last-to-first. The docs state it outright:
+     *"before_* hooks: First to last. after_* hooks: Last to first (reverse)."*
+     Positions 6–8 are therefore declared backwards so they EXECUTE 6, 7, 8.
+  5. **§19's wrap-hook independence.** *"Positions 4 and 5 compete for no slot
+     with anything else — adjacent for readability, not ordering."* **That
+     stopped being true at 6.3**, when position 1 gained a `wrap_model_call`
+     hook. Wrap hooks nest first-wraps-all, so position 1 now encloses position
+     4's retry. Measured: 3 model calls, 1 composition, 1 prepend — the
+     behaviour we want, but §19 says the positions are independent.
+  6. **§19.6's `HITLInterrupt` code sample.** ``raise HITLInterrupt(**flag)``
+     does not interrupt — measured, it propagates out and hits `error_handler`.
+     §33's `interrupt()` is what works, and `HITLInterrupt` is deliberately
+     never defined (G-15).
+
+  The first three, from 6.3 and 6.4:
 
   **Third: §21 must state that content blocks apply on the WRITE side.**
   CLAUDE.md §4.5 now says it (v2.2.31, §0.25) and the no-go list carries it,

@@ -1649,10 +1649,10 @@ resolve, that the path exclusion on `agent-improve/**/*.md` is still correct
 now that the documents are stable, and that the session-start hook's step
 parsing still matches this document's format.
 
-**Three §56 amendments are QUEUED HERE. The first two were raised at step 6.3
-and are cases where the reference describes an API the installed library does
-not have. None is a design change; all three are the document catching up to
-the code that had to be written against reality.**
+**SIX §56 amendments are QUEUED HERE**, from steps 6.3, 6.4 and 6.5. Every one
+is a case where the reference describes an API or a mechanism the installed
+library does not have. **None is a design change**; all six are the document
+catching up to code that had to be written against measured reality.
 
 | # | Section | What it says | What is true |
 |---|---|---|---|
@@ -1661,7 +1661,11 @@ the code that had to be written against reality.**
 
 | 3 | **§21** | Content blocks, stated for responses we **read** | The rule binds on messages we **write** too — step 6.3 shipped two middlewares that built a `SystemMessage` by f-string over an existing `.content`, and nothing forbade it. CLAUDE.md **§4.5 now states it** (v2.2.31, §0.25) and the no-go list carries it, but §21 is the platform section that owns the topic and **binds on all three agents**, so the rule is currently written for one and true for three. Defect record: `docs/DECISIONS.md` Part AH2 |
 
-All three are recorded as **WATCH 27**. None blocks any step — the code is
+| 4 | **§19** | *"Declaration order is execution order for hooks of the same kind"* | **True for `before_agent`, false for `after_agent`.** LangChain's docs: *"before_* hooks: First to last. after_* hooks: Last to first (reverse)."* Measured the same. Positions 6–8 are declared backwards so they EXECUTE 6, 7, 8 — listed forwards, S-C13 B3's "coherence exhaustion skips the grader" could never fire |
+| 5 | **§19** | *"Positions 4 and 5 compete for no slot with anything else — adjacent for readability, not ordering"* | **Stopped being true at 6.3**, when position 1 gained a `wrap_model_call` hook. Wrap hooks nest first-wraps-all, so position 1 encloses position 4's retry. Measured: 3 model calls, 1 composition, 1 prepend. The behaviour is what we want; the claim of independence is not |
+| 6 | **§19.6** | ``raise HITLInterrupt(**flag)`` | **Does not interrupt.** Measured: a custom exception propagates out and hits `error_handler`; `interrupt()` (§33) yields a resumable interrupt. `HITLInterrupt` is deliberately never defined — a class whose documented use does not interrupt is a trap (G-15) |
+
+All six are recorded as **WATCH 27**. None blocks any step — the code is
 already written the correct way in every case.
 
 ---
@@ -1810,7 +1814,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 6.2** | `create_agent` executor | done |
 | **Commit 6.3** | Middleware 1–3 | done |
 | **Commit 6.4** | Retry middleware 4–5 + factory retry removal | done |
-| **Commit 6.5** | Middleware 6–8 | pending |
+| **Commit 6.5** | Middleware 6–8 | done |
 | **Commit 6.6** | Prompts | pending |
 | **Commit 7.1** | `DMAICGateValidator` + Layer 2b | pending |
 | **Commit 7.2** | Layers 2c, 2d + `validation_stack` | pending |
