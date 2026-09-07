@@ -12,8 +12,12 @@ Legend:  ✅ done · ▶ next · ☐ to do · ⛔ blocked · ⏸ gated/external
 # Agent Improve — Refactor Build Tracker
 # updated 2026-09-03 · build target: `agent-improve/ARCHITECTURE.md`
 
-**Progress: 25 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6 + 9.0 out-of-band). **Next: step 7.1. STAGE 6 IS COMPLETE.**
+**Progress: 26 of 49 build steps done** (2.3–2.7, 3.1–3.5, 4.1–4.4, 5.1–5.4, 6.1–6.7 + 9.0 out-of-band). **Next: step 6.8. STAGE 6 IS NOT COMPLETE — the 2026-09-07 audit reopened it.**
 Spine runs 2.3 → 11.2, one step = one commit. The spec is complete; this is the code.
+
+> **The total moved from 35 to 49 on 2026-09-07, and both halves of that are worth stating.** *35 was never right* — it was a hand-count that had drifted five rows from Appendix D, which is the machine-readable table the session-start hook actually parses. **Appendix D is authoritative; this line is derived from it.** The other eight rows are new: the pre-Stage-7 coverage audit found eleven ratified ARCHITECTURE sections with no step at all, and eight of them needed one. See `DECISIONS.md` Part AM.
+>
+> **"Stage 6 complete" was wrong when 6.6 claimed it.** Three Stage-6 holes were open the whole time — `phase_context` unread (6.8), four of five SKILL.md files unwritten (6.9), and §26's multi-hop node unbuilt (6.10).
 
 **Blocked / not-yet-schedulable:** 8.4 (Redis not provisioned), 8.5 (`request_drain`
 unconfirmed), 9.1 (external reindex). Everything else is open once its precondition step lands.
@@ -64,22 +68,30 @@ unconfirmed), 9.1 (external reindex). Everything else is open once its precondit
 | 6.5 | Middleware positions 6–8 | §19 | ✅ done *(**the stack is complete at eight.** Found §19 wrong three ways: `after_agent` executes in REVERSE, `after_agent` state does not propagate between hooks, and positions 4–5 are no longer unnested — position 1's wrap encloses them. G-15 answered: `HITLInterrupt` never defined. Position 6 ships INERT until 6.6 — WATCH 31. DECISIONS Part AJ)* |
 | 6.6 | Prompts | §22 | ✅ done *(**WATCH 31 CLOSED** — proven live both ways: a real contradiction interrupts, an ordinary refinement does not. Done-when scoped to live v2 code; the two v1 families die with their consumers at 11.1 per Route A. **WATCH 26 did NOT close and moved off this step** — the cause is §26's unbuilt `RemainingSteps`, not the prompt. DECISIONS Part AK)* |
 | 6.7 | **WATCH 26** — the hop cap becomes `RemainingSteps` + a hop count | §16, §26, S-F09 B1 | ✅ done *(**the defect was CLAUDE.md §3.7**, which carried `recursion_limit = 2*max_hops+1 = 11` — rejected by §16 — so the build followed the constitution into the wrong mechanism. Governance first and alone (2.2.32). **Both counters measured, not assumed**: `remaining_steps` DOES cross the subgraph boundary, but moves by 1 per executor turn however many hops it made, so it cannot cap hops — both guards built. `recursion_limit=11` was also short by one, which is why the symptom see-sawed. **Live re-run still owed — blocked on Azure 429s (AI2).** DECISIONS Part AL)* |
+| 6.8 | **`phase_context` is read (WATCH 19)** | §6, §9, §19.1 | ☐ ▶ **next** *(declared, written by all five input mappers, **read by nothing**. §6 names its consumers as "planner; state injection" and neither touches it. **Invalidates every live measurement since 6.3** — the coach has been running on mapper-fallback prose. Two halves: the Store `case` writer W19 has owed since before 6.3, and the injection reader 6.3 never wired)* |
+| 6.9 | The four missing SKILL.md files | §32 | ☐ *(only Define's exists; `DMAICSkillsMiddleware` loads them, so four phases run progressive disclosure against nothing. Each needs the contradiction-check instruction §37 and the `CoachingResponse`-population instruction — WATCH 9)* |
+| 6.10 | `analyse_executor_node` — §26's multi-hop | §26, S-F09 | ☐ *(the half 6.7 did not build. `hop_results` / `synthesis_output` are declared and read by nothing, and S-F09 is their named writer. Blocked on G-05 and G-35)* |
 
 ## Stage 7 — Validation and gates
 | Step | What | Builds | Status |
 |---|---|---|---|
-| 7.1 | `DMAICGateValidator` + Layer 2b **(gate assembly ×4, G-28)** | §34, §40.1 | ▶ **next** |
+| 7.0 | The evaluation suite | §52 | ☐ *(no `evals/` directory exists. Numbered before 7.1 on §52's own rule — the suite is load-bearing once the coach, tools and grader are wired, and **Stage 7 is the first stage that changes coaching behaviour**, so a suite built after it has no pre-change baseline. Baseline must be taken after 6.8)* |
+| 7.1 | `DMAICGateValidator` + Layer 2b **(gate assembly ×4, G-28)** | §34, §40.1 | ☐ *(was marked ▶ next until the 2026-09-07 audit put four steps in front of it)* |
 | 7.2 | Layers 2c and 2d + `validation_stack` node | §34, the five rubrics | ☐ |
 | 7.3 | The nine-step HITL gate | §33 | ☐ |
 | 7.4 | Two tiers + the `warning` verdict | §35 | ☐ |
 | 7.5 | Escalation | §38 | ☐ |
+| 7.6 | The re-approval cascade | §37, §9.5 | ☐ *(§37's other half — the middleware landed at 6.5, the cascade it exists to trigger was never scheduled. §3.6's `error_handler=` rule names gate reopening as one of its two correctness-critical consumers)* |
 
 ## Stage 8 — Reliability
 | Step | What | Builds | Status |
 |---|---|---|---|
+| 8.0 | **Turn telemetry and `@traceable`** | §51, §44 | ☐ *(**zero `@traceable` decorators exist in the backend**, and §51 requires one on every extractor, routing decision, direct Azure call and **all four validation layers** — none of the five `validate.py` files has one. The log line is 3 of 5 fields; `node_name` and `duration_ms` are absent. **Numbered before 8.1 because 8.2 cannot be done without it** — WATCH 28's ratified method resolves `run_timeout` by measurement, and nothing records the components today)* |
 | 8.1 | Structured errors | §48 | ☐ |
 | 8.2 | Per-node timeouts + compensating actions | §44, §45 | ☐ |
 | 8.3 | Circuit breakers + fallback chain (levels 1,2,4) | §46 | ☐ |
+| 8.6 | Context recovery (§44 Step 2) | §44, §45 | ☐ *(§44's pipeline is seven steps; six were scheduled and Step 2 — "save partial results, resume" — had no step. Native at LangGraph ≥1.2.6, which the venv already satisfies)* |
+| 8.7 | `delete_blob` + upload lifecycle | §10, S-C08 | ☐ *(**WATCH 10 said "owed as its own step" and that step was never created.** Uploaded blobs are orphaned forever. A new SPEC-GAP is owed with it — S-C08 owns the path and no behaviour governs its deletion)* |
 | 8.4 | Level 3 response cache | §46 | ⛔ Redis not provisioned |
 | 8.5 | Graceful shutdown | §45 | ⏸ `request_drain` unconfirmed |
 

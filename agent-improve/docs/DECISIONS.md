@@ -5249,3 +5249,228 @@ because that is where the collision is.
 - **`diagrams/03-coach-node.mmd`** still reads *"recursion_limit=11 — max 5 tool
   calls per Belt turn"*. Wrong twice over now. Regenerating the diagram set is
   its own step.
+
+---
+
+## Part AM — The pre-Stage-7 coverage audit (2026-09-07)
+
+**Why it was run.** §26 was ratified in August 2026, had no build step, and
+nobody noticed for six steps. It surfaced as WATCH 26 — a coach capping on
+ordinary turns — and was diagnosed as a prompt problem twice before the real
+cause was found. **The question the audit asks is not "what else is broken" but
+"what else is invisible in the same way".** Read-only, three passes, run before
+Stage 7 rather than after, because a plan known to be wrong should not be built
+against.
+
+**It found more than expected: eleven ratified sections with no step, six
+WATCHes owned by steps that do not exist, and nine state fields declared and
+read by nothing** — one of which has been silently degrading every coaching
+prompt in the system since 6.3.
+
+---
+
+### AM1 — The finding that matters most: `phase_context` is written and never read
+
+**`phase_context` is declared on `PhaseState`, written by all five input
+mappers, and read by nothing.** §6's field table names its consumers as
+*"planner; state injection (§19.1)"*. Neither touches it. A sweep of every
+production module for `["phase_context"]` and `.get("phase_context")` returns
+zero reads.
+
+**Both halves are missing, which is why neither was noticed:**
+
+| Half | Specified | Reality |
+|---|---|---|
+| The Store's `case` namespace has a writer | §9, S-F10 — a session-start copy of the case record | **Nothing writes it.** `read_case_record` returns `{}` on every call (WATCH 19, opened at 4.2, *"owed before 6.3"*) |
+| `BeforeModelStateInjection` injects it | §19.1 | **6.3 shipped the middleware without wiring the field at all** |
+
+**Fix half 2 alone and the coach gets an empty string with no error. Fix half 1
+alone and a correct value is composed and discarded.** Each half's failure is
+silent, and each half makes the other's failure invisible.
+
+**What the coach has actually been reading** is `define_input_mapper`'s labelled
+fallback prose — *"this project — the department. Belt belt, led by the project
+leader…"* — instead of the case record for Define, or the prior phase's approved
+gate document for the other four. **A coach in Measure has not been told what
+Define approved.**
+
+> ### ⚠ THIS INVALIDATES EVERY LIVE MEASUREMENT TAKEN SINCE 6.3
+>
+> Every trace-check, live-run and coaching-quality observation from step 6.3
+> onward was taken on a coach missing its phase framing. **That includes WATCH
+> 26's see-saw** — the Define and Measure opening-turn runs recorded in Part
+> AK3, and the tool-call counts those runs produced.
+>
+> **Anyone reading those numbers later needs to know the coach was missing its
+> context when they were taken.** They are not a baseline. They are not
+> comparable to post-6.8 runs. A regression measured against them would be
+> measuring the fix.
+>
+> **What survives, and why.** Part AL's two measurements are unaffected: they
+> were taken against **LangGraph and LangChain**, not against the coach — a
+> scripted model driving a real graph. The §26 arithmetic that explains the
+> see-saw (five hops consume all eleven steps and raise before composing) is a
+> property of the library and holds regardless of what the coach was told.
+> **What does not survive is every judgement about what the coach DOES**: how
+> many tools an opening turn front-loads, which phase falls over, whether a
+> prompt change helped. All provisional until 6.8 lands and the runs are
+> repeated.
+>
+> **This also re-opens Part AK3's conclusion in one respect.** AK3 ruled that
+> the prompt work "stands on its own merits" because a coach front-loading four
+> tools was coaching badly regardless of budget. That is still probably true —
+> but it was concluded from runs on a context-starved coach, and a coach with no
+> project framing has an obvious reason to over-retrieve. **Re-test after 6.8
+> before treating the prompt work as settled.**
+
+Step **6.8** owns both halves. It is numbered ahead of everything else the audit
+added.
+
+---
+
+### AM2 — Pass 1: eleven ratified sections with no step
+
+Appendix A mapped 41 steps to reference sections. Sections 1–4, 56–57 and 66–68
+are orientation or meta and are not buildable. Of the remainder, **eleven had no
+step**. Eight now do; three fold.
+
+| § | Verdict | Where it went |
+|---|---|---|
+| **51** Tracing and observability | **Own step — the largest hole found.** Zero `@traceable` decorators exist in the backend; §51 requires them on every extractor, routing decision, direct Azure call and **all four validation layers**. The five-field log line is 3 of 5 — `node_name` and `duration_ms` absent | **8.0**, numbered ahead of 8.1 |
+| **52** Evaluation and regression | **Own step.** No `evals/` directory exists; the >10% threshold is *"asserted, not measured"* | **7.0**, numbered ahead of 7.1 |
+| **32** Phase SKILL.md ×5 | **Own step.** One of five written; the middleware that loads them shipped at 6.3 | **6.9** |
+| **26** Multi-hop (the planned half) | **Own step.** 6.7 built the cap; `analyse_executor_node` was never built | **6.10** |
+| **37** Re-approval cascade | **Own step.** The middleware landed at 6.5; the cascade it exists to trigger was never scheduled | **7.6** |
+| **44** Step 2, context recovery | **Own step.** Six of seven pipeline steps were scheduled; Step 2 had none | **8.6** |
+| §6/§9 `phase_context` | **Own step** — AM1 | **6.8** |
+| WATCH 10 `delete_blob` | **Own step** — AM3 | **8.7** |
+| **11** `step_log` | **Folds.** Built incidentally by every node; the contract is enforced by §10.3 and asserted in tests | — |
+| **28** Memory taxonomy | **Folds.** A map of mechanisms specified elsewhere; four of five exist, the fifth is DEFERRED by the section itself | — |
+| **29** Universal seven | **Folds** into 7.1 and 7.5, already assigned by S-F21/S-F22 (WATCH 25) | — |
+| **39/42/43/69** | **Fold.** Built via 3.4, §7, 6.5/6.6 and 5.3/5.4 respectively | Appendix A now also cites §69 at 5.3 |
+
+**Two of the eight are numbered ahead of steps that already existed**, and both
+for the same reason — a step cannot precede the thing it depends on:
+
+- **8.0 before 8.1**, because **8.2 cannot be done honestly without it.** WATCH
+  28's ratified resolution method is *resolve by measurement, not derivation*:
+  `run_timeout` comes from an observed distribution of model latency, retry
+  count, backoff seconds, tool time and step count. **Nothing records those
+  components today.** A step that must set a number from data cannot precede the
+  step that collects it.
+- **7.0 before 7.1**, on §52's own sequencing rule — the suite *"becomes
+  load-bearing when the coach, retrieval tools and grader are wired"*, which
+  they now are, and **Stage 7 is the first stage that changes coaching
+  behaviour.** A suite built after Stage 7 has no pre-change baseline. Its
+  dataset must be captured after 6.8 for the reason in AM1.
+
+---
+
+### AM3 — Pass 2: six WATCHes owned by nothing
+
+**A WATCH owned by a step that is not scheduled is not deferred. It is lost.**
+Twenty-one open; fifteen properly owned; six were not.
+
+| WATCH | Said its owner was | Ruling |
+|---|---|---|
+| **10** orphaned upload blobs | *"owed as its own step"* | **Step 8.7.** The step was never created — the clearest single instance of the failure this audit was run to find |
+| **19** Store `case` has no writer | *"owed before 6.3"* | **Step 6.8.** The deadline passed and nothing caught it — see AM1 |
+| **12** `on_event` → `lifespan` | *"not step 8.5"*, no step named | **Its own governance commit**, with §16.1's stale *Installed* column and the hook's venv (WATCH 2) |
+| **5** "PDF page" in citations | *"the (unbuilt) citation renderer"* | **Step 10.2**, which does not currently mention citations — recorded so it must |
+| **13** reconciliation sweep | *"at stage 7"* — a stage, not a step | **Step 7.3**, and now written into 7.3's own text and Done-when |
+| **15** lease + orphan history blob | *"at the PostgreSQL migration"* | **OUT OF SCOPE, deferred beyond this refactor.** The migration is not a step — it appears once, in prose |
+
+**W15 is the ruling worth defending.** Deferring to an unscheduled migration is
+indistinguishable from dropping it, so it is now labelled what it is: a known,
+accepted, post-refactor liability, with the exposure stated exactly rather than
+softened. Nothing about it is downgraded — the orphan history blob still becomes
+a correctness problem the first time time-travel debugging is used.
+
+**Two more had no owner at all.** **WATCH 2** is CLOSED — `agent-improve/.venv`
+is authoritative, confirmed at 6.7 by measuring both. **WATCH 11** goes to
+**11.2**, which owns the guard's own tooling.
+
+**And Stage 7 carried WATCH 22's trap into its own step.** 7.3's Done-when read
+*"Vassilis passes the Define gate on `IMPR-2026-E9D`"* — a case that is
+`complete`, returns 409, and cannot pass a gate. WATCH 22 flagged exactly this
+for *"any later step whose Verify method is `live-run` or `azure-query`"*, and
+7.3 had it unfixed. Corrected to a registry lookup rather than a hard-coded id.
+
+---
+
+### AM4 — Pass 3: nine fields declared and read by nothing
+
+The §26 gap hid partly because `remaining_steps` was declared on `PhaseState`,
+which made it look built. **Declaration is not implementation**, and the sweep
+asks which other fields are in that state.
+
+**Hidden gaps — the spec names a reader that does not exist:**
+
+| Field | Spec's reader | Reality |
+|---|---|---|
+| `phase_context` | planner; state injection (§19.1) | **Neither. Live defect** — AM1 |
+| `hop_results` / `synthesis_output` | `analyse_executor_node` (S-F09) | **That node does not exist** — the state-side evidence of §26's unbuilt half, now step 6.10 |
+| `field_index` | planner writes and reads it | **Planner does neither** — it selects `focus_field` by name. Either superseded or a gap; **needs a ruling, not a guess**, and is recorded as an open question rather than folded in |
+
+**Legitimately pending — the writer arrives at a scheduled step:**
+`belt_edits` and `rejection_feedback` (both `gate_apply`, 7.3), `final_output`
+(Control's output mapper at the final gate).
+
+**Dead weight, benign, kept:** `history` — §6 itself says *"no control logic
+reads it"*; it claims *"every node, on entry"* writes it and only four sites do,
+which is a false claim in the spec rather than a defect in the code.
+`phase_index` — derived from `gate_passed` and *"stored for readability"* by the
+section's own admission; its listed consumer is the UI, which does not read it
+from state.
+
+---
+
+### AM5 — The mechanism that lets a step disappear, and the rule that stops it
+
+**The session-start hook proposes the lowest available Appendix D row with
+`_ver_key(step) > last_key`**, where `last` is the highest
+`refactor(arch-v2): commit X.Y` in git log. **A row inserted below that line is
+never selected — not late, never.**
+
+This is why remedial storage work is numbered **8.7** rather than 3.6 where its
+subject matter belongs: 3.6 would be permanently invisible. **Appendix D's
+numbering is a schedule, not a taxonomy**, and that is now stated in the
+appendix itself.
+
+---
+
+### AM6 — 41 versus 35, reconciled
+
+`BUILD_TRACKER.md` and `CONTINUITY.md` both read *"25 of 35 build steps"*.
+Appendix D held **41 rows**. Nobody reconciled them, and **the gap was already
+five rows before the audit added eight more.**
+
+**Appendix D is authoritative.** It is machine-readable, the session-start hook
+parses it, and a hand-maintained total that drifts is the same class of defect
+as a WATCH pointing at a step that does not exist. Both documents now derive
+their figure from it and say so.
+
+**The new total is 49** — 26 done, 21 pending, 1 BLOCKED (8.4), 1 GATED (8.5).
+Of the 21 pending, 9.1 is EXTERNAL, leaving **20 schedulable code steps.**
+
+**"Stage 6 is complete" was wrong when 6.6 claimed it**, and the tracker said so
+for four days. Three Stage-6 holes were open throughout: `phase_context`
+unread, four of five SKILL.md files unwritten, and §26's multi-hop node unbuilt.
+Stage 6 now runs to 6.10, and **the next step is 6.8, not 7.1.**
+
+---
+
+### AM7 — What the audit does not claim
+
+**It is a coverage audit, not a correctness audit.** It asks whether every
+ratified section has a step, whether every WATCH has a real owner, and whether
+every declared field has a reader. **It does not ask whether the built steps
+were built correctly** — a section with a step that shipped a wrong
+implementation looks identical to one that shipped a right one from here.
+
+**Three passes were chosen because they are the three ways the §26 gap was
+invisible**, not because they are exhaustive: it had no step (Pass 1), its
+WATCH pointed at a step that did not own it (Pass 2), and its state field was
+declared so it looked built (Pass 3). **A fourth pass — spec entries (S-Fxx,
+S-Cxx) with no implementation — was not run** and is the obvious next one; §66's
+SPEC-GAP register is the partial version of it that already exists.

@@ -1383,7 +1383,141 @@ see-sawed both coach rather than cap, with no prompt wording changed**.
 
 ---
 
+## Step 6.8 — `phase_context` is read (WATCH 19)
+
+| | |
+|---|---|
+| **Reference §** | §6 · §9 · §19.1 · §58 S-C02 · S-F10 |
+| **Touches** | `middleware/state_injection.py`, `gateway/routes.py` (case creation), `phases/mappers_common.py` |
+| **Precondition** | 6.7 |
+| **Verify** | `trace-check` |
+
+**Not in the original spine. Added 2026-09-07 by the pre-Stage-7 coverage
+audit, and it is the most urgent of the eight.** `phase_context` is declared on
+`PhaseState`, written by all five input mappers, and **read by nothing.** §6's
+field table names its consumers as *"planner; state injection (§19.1)"* and
+neither touches it.
+
+**Two halves, and only together do they fix anything:**
+
+1. **The Store's `case` namespace has no writer** (WATCH 19). §9 and S-F10
+   describe `("projects", case_id, "case") / "record"` as a session-start copy
+   of the case record; `read_case_record` reads it and **nothing writes it**,
+   so every read returns `{}`. The write belongs at case creation
+   (`POST /cases`) and, for cases predating it, lazily on first read.
+2. **`BeforeModelStateInjection` must inject `phase_context`.** 6.3 shipped the
+   middleware without it, which is why half 1 stayed invisible.
+
+**Fix half 2 alone and the coach gets an empty string with no error.** Fix half
+1 alone and a correct value is composed and discarded. That pairing is why this
+is one step.
+
+> **⚠ THIS INVALIDATES EVERY LIVE MEASUREMENT TAKEN SINCE 6.3.** Every
+> trace-check, live-run and coaching-quality observation from 6.3 onward was
+> taken on a coach whose phase framing was mapper-fallback prose — *"this
+> project — the department. Belt belt, led by the project leader…"* — rather
+> than the case record or the prior gate document. **WATCH 26's see-saw
+> included.** Nothing in those observations is safe to reuse as a baseline; the
+> §26 arithmetic that explains the see-saw is unaffected because it was measured
+> against the library rather than against the coach, but every judgement about
+> what the coach *does* is provisional until this step lands and the runs are
+> repeated. `DECISIONS.md` Part AM.
+
+**Done when:** `POST /cases` writes the case record to the Store; a coach turn's
+trace shows the composed `phase_context` in the injected block; and the Define
+and Measure opening turns are re-run and re-recorded as the new baseline.
+
+---
+
+## Step 6.9 — The four missing SKILL.md files (§32)
+
+| | |
+|---|---|
+| **Reference §** | §32 · §43 · §37 |
+| **Touches** | `skills/measure/`, `skills/analyse/`, `skills/improve/`, `skills/control/` |
+| **Precondition** | 6.8 |
+| **Verify** | `pytest` |
+
+**Not in the original spine — it was a parallel workstream with no scheduled
+slot, which is how four of five went unwritten through all of Stage 6.** Only
+Define's exists. `DMAICSkillsMiddleware` (§19.2) loads them, so four phases are
+running progressive disclosure against nothing.
+
+**Each must carry the contradiction-check instruction** (§37, `DECISIONS.md`
+§R1) — step 6.5's middleware reads `contradiction_flag` and nothing else sets
+it — **and the `CoachingResponse`-population instruction** (WATCH 9), without
+which `explanation`/`example`/`prompt`/`progress` stay empty for that phase.
+
+**Done when:** five SKILL.md files exist, each carrying both mandatory
+instructions, and a test asserts the count and both instructions per file.
+
+---
+
+## Step 6.10 — `analyse_executor_node` — §26's planned multi-hop
+
+| | |
+|---|---|
+| **Reference §** | §26 · §58.18 S-F09 |
+| **Touches** | `phases/analyse/nodes.py` |
+| **Precondition** | 6.9 · **blocked on G-05 and G-35** |
+| **Verify** | `pytest` + `live-run` |
+
+**The half of §26 that 6.7 did not build.** 6.7 built the hop CAP — the budget
+and the off-ramp. This is the planned three-hop dependent retrieval chain
+itself: S-F09's decomposition call, the hop loop templating each answer into
+the next question, and the dedicated synthesis call at temperature 0.1–0.2.
+
+**`hop_results` and `synthesis_output` are the evidence it is unbuilt.** Both
+are declared on `PhaseState`, both are read by nothing, and S-F09 is the node
+the spec names as their writer. They were found by the same declared-but-unread
+sweep that found `phase_context`.
+
+**B1's entry guard is already live** — 6.7's `REMAINING_STEPS_FLOOR` is exactly
+that guard, and this step consumes it rather than reimplementing it.
+
+**Done when:** `analyse_executor_node` exists and is wired for
+`retrieval_strategy == "multi_hop"`; `hop_results` and `synthesis_output` are
+written into state and read by the coach call; a live Analyse turn shows three
+dependent hops and one synthesis call in the trace.
+
+---
+
 # Part 6 — Stage 7: Validation and gates
+
+---
+
+## Step 7.0 — The evaluation suite (§52)
+
+| | |
+|---|---|
+| **Reference §** | §52 |
+| **Touches** | `backend/evals/` (new) |
+| **Precondition** | 6.10 |
+| **Verify** | `pytest` |
+
+**Not in the original spine.** §52 is ratified and there is no `evals/`
+directory; CONTINUITY carried it as a parallel workstream, which is the same
+no-scheduled-slot failure that lost §26 and §32.
+
+**It is numbered 7.0 — before 7.1 — on §52's own sequencing rule**, not on
+preference. §52: *"the suite becomes load-bearing when the coach, retrieval
+tools and grader are wired — that is when output quality changes."* All three
+are wired as of Stage 6. **Stage 7 is the first stage that changes coaching
+behaviour**, so a suite built after it has no pre-change baseline to compare
+against, and §52's >10% regression threshold stays *"asserted, not measured"*
+exactly as it is today.
+
+**The dataset is authored jointly, not generated** (§52) — coaching-quality
+judgments are domain judgments, so this step needs founder time rather than
+only build time.
+
+> **⚠ The baseline must be taken AFTER 6.8.** Any dataset captured before
+> `phase_context` reaches the coach records the behaviour of a coach missing
+> its framing, which is why this sits behind 6.8 rather than in front of it.
+
+**Done when:** `backend/evals/` holds the jointly-authored dataset, the suite
+runs in CI, and the >10% regression threshold is measured against a baseline
+captured on a post-6.8 coach.
 
 ---
 
@@ -1431,10 +1565,27 @@ and the checkpoint commit would otherwise leave the two disagreeing.
 
 **The checkpoint commits only after Belt approval** (§33.3).
 
-**Done when:** Vassilis passes the Define gate on `IMPR-2026-E9D` in the
-browser: the interrupt presents validated fields, an edit is accepted, approval
-writes `store/projects/IMPR-2026-E9D/artifacts/define.json`, and the phase
-advances to Measure.
+**WATCH 13 lands here too** — §47 requirement 4's reconciliation sweep for
+abandoned threads. It was deferred from 4.2 because *"it cannot be written
+before `interrupt()` exists"*, and this is the step that creates `interrupt()`.
+**A sweep and the thing it must not sweep are one design**; scheduling them
+apart is how the sweep gets forgotten.
+
+**Done when:** Vassilis passes the Define gate **on a case the registry shows in
+`define`** in the browser: the interrupt presents validated fields, an edit is
+accepted, approval writes
+`store/projects/{case_id}/artifacts/define.json`, and the phase advances to
+Measure. The reconciliation sweep exists and excludes `interrupt()`-paused
+threads.
+
+> **⚠ Done-when corrected 2026-09-07 — it named `IMPR-2026-E9D`, which cannot
+> run it.** E9D is complete (`current_phase="complete"`), so `/ask` returns 409
+> by design and no gate can be passed on it. **This is the exact trap WATCH 22
+> flagged for "any later step whose Verify method is `live-run` or
+> `azure-query`"**, sitting unfixed in the next stage's own step. Check the
+> registry for a case in a coachable phase at run time rather than hard-coding
+> one — `IMPR-2026-0CB` is in `define` today, and a reset case is the other
+> option §17's sequence needs.
 
 ---
 
@@ -1464,6 +1615,70 @@ recorded in `acknowledged_gaps` (§35).
 ---
 
 # Part 7 — Stage 8: Reliability
+
+---
+
+## Step 7.6 — The re-approval cascade (§37)
+
+| | |
+|---|---|
+| **Reference §** | §37 · §9.5 |
+| **Touches** | `phases/gate_assembly.py`, `phases/nodes_common.py` |
+| **Precondition** | 7.3 |
+| **Verify** | `pytest` |
+
+**Not in the original spine.** §37 has two halves and only one was scheduled:
+`ContradictionDetectionMiddleware` landed at 6.5, and **the re-approval cascade
+it exists to trigger was never given a step.** Detecting a contradiction that
+invalidates an approved upstream field, and then not reopening that field's
+gate, leaves the case document internally inconsistent while every individual
+value looks valid.
+
+**§3.6's node-level error handlers depend on this** — CLAUDE.md names gate
+reopening as one of two correctness-critical consumers of `error_handler=`: *"when
+the re-approval cascade fires, the affected phase's handler must run, or state
+and index disagree silently."*
+
+**Done when:** a contradiction against an approved upstream field reopens that
+phase's gate, the reopening is recorded in `step_log` and the registry, and a
+test drives the cascade end to end.
+
+---
+
+## Step 8.0 — Turn telemetry and `@traceable` (§51)
+
+| | |
+|---|---|
+| **Reference §** | §51 · §44 |
+| **Touches** | `core/tracing.py`, `core/logging_setup.py`, all five `phases/*/validate.py`, `phases/nodes_common.py` |
+| **Precondition** | 7.6 |
+| **Verify** | `trace-check` |
+
+**Not in the original spine, and it is the largest single hole the audit
+found.** §51 is ratified and mandatory. **There are zero `@traceable`
+decorators in the backend.** §51 requires one on every function that extracts
+fields, **validates gate criteria — all four layers of §34**, scores
+completeness, makes routing decisions outside LangGraph, or calls an Azure
+service directly. None of the five `validate.py` files carries one. §51's
+five-field log line is 3 of 5: `request_id`, `case_id` and `phase` are present,
+**`node_name` and `duration_ms` are not.**
+
+**It is numbered 8.0 — before 8.1 — because step 8.2 cannot be done honestly
+without it.** WATCH 28's ratified resolution method is *"resolve by measurement,
+not derivation"*: `run_timeout` and the retry policy come from an observed
+distribution of model-call latency, retry count, seconds lost to backoff, tool
+time and step count. **Those are components, and nothing records them today.**
+A step that must set a number from data cannot precede the step that collects
+the data.
+
+**Two consumers beyond 8.2, both already owed:**
+- WATCH 26's open question — the hop distribution across the five phases falls
+  out of the same step-count telemetry.
+- §51's own P50/P99-as-quality-signal claim, which is currently unmeasurable.
+
+**Done when:** `@traceable` is on every function §51 names, the log line carries
+all five fields, and one coaching turn's LangSmith trace shows the five
+telemetry components broken out per turn rather than as a single duration.
 
 ---
 
@@ -1561,6 +1776,58 @@ node.
 ---
 
 # Part 8 — Stage 9: Azure schema changes
+
+---
+
+## Step 8.6 — Context recovery (§44 Step 2)
+
+| | |
+|---|---|
+| **Reference §** | §44 · §45 |
+| **Touches** | `phases/nodes_common.py`, `core/checkpointer.py` |
+| **Precondition** | 8.3 |
+| **Verify** | `pytest` |
+
+**Not in the original spine.** §44's failure pipeline is seven steps; the audit
+found six of them scheduled and **Step 2 — context recovery, "save partial
+results, resume" — with no step at all.** Steps 0 and 3–6 land at 8.1–8.3;
+Step 1 is §48 at 8.1.
+
+**It is a native primitive at LangGraph ≥1.2.6** (§44), which
+`agent-improve/.venv` already satisfies at 1.2.11 — so this is wiring, not
+design.
+
+**Done when:** a node that fails mid-turn resumes from its saved partial result
+rather than restarting the turn, and a test drives the failure and the resume.
+
+---
+
+## Step 8.7 — `delete_blob`, and the upload lifecycle (WATCH 10)
+
+| | |
+|---|---|
+| **Reference §** | §10 · §58 S-C08 |
+| **Touches** | `storage/blob.py`, `gateway/routes.py` |
+| **Precondition** | 8.6 |
+| **Verify** | `azure-query` |
+
+**Not in the original spine — WATCH 10 said "owed as its own step" and that
+step was never created**, which is precisely the failure mode this audit
+exists to catch.
+
+`DELETE /files/{case_id}/{file_id}` removes the upload record from the case
+document and **leaves the blob at `uploads/{case_id}/{file}` in place forever.**
+`storage/blob.py` owns that prefix (§10, S-C08) and exposes no deleter. **This
+is not a regression from 3.5** — the pre-3.5 route probed for a `delete_blob`
+that never existed, so the branch never ran; 3.5 preserved the behaviour and
+dropped the dead probe, which is what made the gap visible.
+
+**A new SPEC-GAP is owed with it:** S-C08's *Paths owned* names
+`uploads/{case_id}/{file}` and **no behaviour governs its deletion** — G-21
+does not cover it.
+
+**Done when:** `delete_blob` exists, the DELETE route calls it, an
+`azure-query` confirms the blob is gone, and the S-C08 gap is registered in §66.
 
 ---
 
@@ -1735,6 +2002,17 @@ already written the correct way in every case.
 **Every step maps to the reference section that specifies it.** A step with no
 reference section is not a step — it is an undocumented decision.
 
+> **The converse was never checked until 2026-09-07, and it should have been.**
+> A ratified section with no step is an undocumented omission, which is how §26
+> went six steps unbuilt. The pre-Stage-7 coverage audit ran that direction:
+> **eleven ratified sections had no step. Eight now do** (6.8, 6.9, 6.10, 7.0,
+> 7.6, 8.0, 8.6, 8.7). **Three fold, ruled explicitly rather than left silent:**
+> §11 `step_log` is enforced by §10.3 and built incidentally by every node; §28
+> memory taxonomy is a map of mechanisms specified elsewhere; §29's universal
+> seven is already assigned to 7.1 and 7.5 by S-F21/S-F22. §39, §42, §43 and
+> §69 were covered by steps whose rows did not cite them — §69 is added to 5.3
+> above. `DECISIONS.md` Part AM.
+
 | Step | Reference § | Verify |
 |---|---|---|
 | 2.3 | §53, §16 | `import-check` |
@@ -1753,7 +2031,7 @@ reference section is not a step — it is an undocumented decision.
 | 4.4 | §12, §13 | `pytest` |
 | 5.1 | §27 | `pytest` |
 | 5.2 | §24, §25, §23 | `live-run` |
-| 5.3 | §30, §31 | `pytest` |
+| 5.3 | §30, §31, §69 | `pytest` |
 | 5.4 | §30 | `pytest` |
 | 6.1 | §17, §20 | `trace-check` |
 | 6.2 | §18, §20 | `live-run` |
@@ -1762,16 +2040,25 @@ reference section is not a step — it is an undocumented decision.
 | 6.5 | §19.6–§19.8 | `pytest` |
 | 6.6 | §22 | `grep-absence` |
 | 6.7 | §16 · §26 | `pytest` + `live-run` |
+| 6.8 | §6, §9, §19.1 | `trace-check` |
+| 6.9 | §32, §43, §37 | `pytest` |
+| 6.10 | §26, §58.18 | `pytest` + `live-run` |
+| 7.0 | §52 | `pytest` |
 | 7.1 | §34, §35 | `pytest` |
 | 7.2 | §34, §36 | `pytest` |
 | 7.3 | §33 | `manual-UI` |
 | 7.4 | §35 | `pytest` |
 | 7.5 | §38 | `pytest` |
+| 7.6 | §37, §9.5 | `pytest` |
+| 8.0 | §51, §44 | `trace-check` |
 | 8.1 | §48 | `pytest` |
 | 8.2 | §45 | `pytest` |
 | 8.3 | §46 | `pytest` |
 | 8.4 | §46 | **BLOCKED** |
 | 8.5 | §45 | **GATED** |
+| 8.6 | §44 | `pytest` |
+| 8.7 | §10, §58 S-C08 | `azure-query` |
+| 9.0 | §23, §23.1 | `azure-query` — DONE out-of-band |
 | 9.1 | §23.2, §23.3, §23.5 | `azure-query` |
 | 10.1 | §49 | `manual-UI` |
 | 10.2 | §50, §43.4 | `manual-UI` |
@@ -1847,6 +2134,33 @@ infrastructure noise. **Read both before finalising §52.**
 > (CLAUDE.md §0.2 applies to hooks that read documents, not only to rule
 > numbers).
 
+> **⚠ A NEW STEP MUST BE NUMBERED ABOVE THE LAST COMPLETED ONE, OR IT IS
+> STRUCTURALLY INVISIBLE.** `get_next_step_from_procedure` selects the lowest
+> available row with `_ver_key(step) > last_key`, where `last` is the highest
+> `refactor(arch-v2): commit X.Y` in git log. **A step inserted below that
+> line is never proposed as "next" and never will be** — it does not appear
+> late, it disappears. The eight steps added 2026-09-07 are all numbered above
+> 6.7 for exactly this reason, which is why remedial storage work sits at 8.7
+> rather than at 3.6 where its subject matter belongs. Ordering here is a
+> schedule, not a taxonomy.
+>
+> Version keys are numeric tuples, so `6.10 > 6.9 > 6.7`. That is `_ver_key`'s
+> documented purpose — *"so 2.10 > 2.2"* — and is safe to rely on.
+
+> **THE TOTAL: 49 ROWS. THIS TABLE IS AUTHORITATIVE.** `BUILD_TRACKER.md` and
+> `CONTINUITY.md` carried *"of 35 build steps"* until 2026-09-07; that figure
+> was a hand-count that was never reconciled against this table and was already
+> wrong by five rows before the audit added eight more. **Where the two
+> disagree, this table wins** — it is the one the hook reads, and a
+> hand-maintained total that drifts is the same class of defect as a WATCH
+> pointing at a step that does not exist. Both documents now derive their
+> figure from here and state the derivation.
+>
+> **49 = 26 done + 21 pending + 1 BLOCKED (8.4) + 1 GATED (8.5).** Of the 21
+> pending, 9.1 is EXTERNAL (an Azure-side reindex, not a code step). So **20
+> steps are schedulable code work**, and 8.4 and 8.5 cannot be scheduled until
+> Redis is provisioned and `request_drain()` is confirmed.
+
 | Step | Title | Status |
 |---|---|---|
 | **Commit 2.3** | Dependency upgrade | done |
@@ -1874,16 +2188,24 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 6.5** | Middleware 6–8 | done |
 | **Commit 6.6** | Prompts | done |
 | **Commit 6.7** | The hop cap, as §26 specifies it (WATCH 26) | done — live half owed |
+| **Commit 6.8** | `phase_context` is read (WATCH 19) | pending |
+| **Commit 6.9** | The four missing SKILL.md files | pending |
+| **Commit 6.10** | `analyse_executor_node` — §26's multi-hop | pending |
+| **Commit 7.0** | The evaluation suite | pending |
 | **Commit 7.1** | `DMAICGateValidator` + Layer 2b | pending |
 | **Commit 7.2** | Layers 2c, 2d + `validation_stack` | pending |
 | **Commit 7.3** | Nine-step HITL gate | pending |
 | **Commit 7.4** | Two tiers + `warning` verdict | pending |
 | **Commit 7.5** | Escalation | pending |
+| **Commit 7.6** | The re-approval cascade | pending |
+| **Commit 8.0** | Turn telemetry and `@traceable` | pending |
 | **Commit 8.1** | Structured errors | pending |
 | **Commit 8.2** | Timeouts + compensating actions | pending |
 | **Commit 8.3** | Circuit breakers + fallback chain | pending |
 | **Commit 8.4** | Level 3 cache | **BLOCKED** |
 | **Commit 8.5** | Graceful shutdown | **GATED** |
+| **Commit 8.6** | Context recovery (§44 Step 2) | pending |
+| **Commit 8.7** | `delete_blob` + upload lifecycle | pending |
 | **Commit 9.0** | Knowledge-index rebuild | done |
 | **Commit 9.1** | Azure batched reindex | pending |
 | **Commit 10.1** | `/ask/stream` SSE | pending |

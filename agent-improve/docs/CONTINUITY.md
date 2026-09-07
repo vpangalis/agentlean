@@ -8,10 +8,10 @@
 | | |
 |---|---|
 | **Last completed** | step **6.7** — **WATCH 26** — the hop cap becomes `RemainingSteps` + a hop count |
-| **Next** | step **7.1** — `DMAICGateValidator` + Layer 2b **(gate assembly ×4, G-28)** |
-| **Stage** | Stage 7 — Validation and gates |
-| **Progress** | 25 of 35 build steps |
-| **Last spine commit** | `1045cf0` (commit 6.6) |
+| **Next** | step **6.8** — **`phase_context` is read (WATCH 19)** |
+| **Stage** | Stage 6 — The coaching agent |
+| **Progress** | 26 of 49 build steps |
+| **Last spine commit** | `0386a1d` (commit 6.7) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.32 |
 | **Block regenerated** | 2026-09-07 |
@@ -596,6 +596,48 @@ so read §66 when the two disagree.)*
   tunable-to-taste. Nothing is blocked in the meantime: the middleware's three
   attempts and §4.8's fallback chain both still fire.
 
+  ### Resolution method — by MEASUREMENT, not derivation
+
+  **8.2 must not pick a number by reasoning about it.** The value is an
+  empirical property of this deployment, and the only way to get it right is
+  to observe the distribution it has to cover.
+
+  **Instrument turn telemetry via LangSmith (§51), in components rather than
+  outcomes.** A turn that took 46s tells you nothing actionable; the same turn
+  broken down does. Record per turn: model-call latency, retry count, seconds
+  lost to backoff, tool time, and step count. **Outcome-only telemetry is what
+  makes a timeout a guess** — it cannot distinguish a slow model from a fast
+  model behind three retries, and those two want opposite responses.
+
+  **Run generous limits with a graceful exit in place throughout the
+  measurement window.** The point is to collect the tail, not to truncate it:
+  with a graceful exit, an overrun is a data point; without one, it is a dead
+  node and the observation is lost precisely where it mattered most.
+
+  **Set `run_timeout` and the retry policy from the observed distribution — a
+  high percentile plus margin, NEVER the mean.** A mean-derived limit fails
+  half the turns by construction. §51 already calls P50/P99 a coaching-quality
+  signal rather than an ops metric; this is the same argument applied to the
+  limit itself.
+
+  **Watch for bimodality — throttled versus not.** If the distribution has two
+  modes, one limit fits neither: it will be far too slack for healthy turns and
+  still too tight for throttled ones. Where that is present the response should
+  differ BY MODE rather than being averaged into a single number.
+
+  > **This is not hypothetical.** Step 6.7's live verification could not
+  > complete because `operational-premium` in westeurope was throttled for
+  > around forty minutes of cumulative backoff, and the one turn that reached
+  > the coach died on `NodeTimeoutError` at 46.4s — a turn that spent its 45s
+  > budget waiting on retries rather than coaching. **That is the second mode,
+  > observed.** A `run_timeout` derived from healthy-path reasoning would have
+  > produced exactly the number that was already in place.
+
+  **The same telemetry answers WATCH 26's open question for free.** Step count
+  per turn across the five phases is one of the components above, so the hop
+  distribution that would tell us whether `COACH_HOP_BUDGET = 5` is the right
+  number comes out of the same instrumentation rather than needing its own.
+
 - **WATCH 26 — the coach exhausted its step budget on ORDINARY turns.
   FIXED at 6.7 on 2026-09-07; the live re-run is the remaining evidence.**
   Opened 2026-09-04 at step 6.3, reassigned off 6.6 on 2026-09-07.
@@ -814,12 +856,23 @@ so read §66 when the two disagree.)*
   `backend/tests/test_turn_graph.py`. Record: `DECISIONS.md` Part Z3.
   *The framework behaved as its documentation says; our code did not. That is
   what the repro was for.*
-- **WATCH 2 — two venvs / stale-blocker.** Hook reads the ROOT venv (1.1.10);
-  `agent-improve/.venv` is 1.2.11. Confirm which is authoritative before editing
-  any doc that states the blocker.
+- **WATCH 2 — CLOSED 2026-09-07, question answered.** Hook reads the ROOT venv
+  (1.1.10 / langchain 1.2.13); **`agent-improve/.venv` is 1.2.11 / 1.3.16 and is
+  authoritative** — it is the interpreter that runs the app, the tests, mypy and
+  the commit guard. Confirmed at step 6.7, where both venvs were measured
+  against each other and returned identical results.
+
+  **The §16.1 upgrade has therefore already happened and the record does not
+  know it.** CLAUDE.md §16.1's *Installed* column and the session-start hook
+  both still report the root venv, so both understate the installed versions and
+  will mislead the next version decision. **That correction rides with WATCH
+  12's governance commit** — it is a record fix, not a step.
 - **WATCH 5 — citations must say "PDF page", not "page".** `page_number` is the
   PDF index; printed number is piecewise-offset. Fix belongs in the (unbuilt)
-  citation renderer.
+  citation renderer. **Owner: step 10.2** (ruled 2026-09-07) — the UI rebuild is
+  where the renderer lands. It named "the unbuilt citation renderer" and no step;
+  10.2's text does not mention citations, so the ruling is recorded here and
+  10.2 must pick it up.
 - **WATCH 6 — PDF page 302 ships as `general`** (Azure content-filter false
   positive, permanent, not retried). Genuinely Analyse content; reachable
   everywhere via `general`.
@@ -926,8 +979,21 @@ so read §66 when the two disagree.)*
   no behaviour governs its deletion, and G-21 does not cover it. Adding the
   deleter inside 3.5 was rejected deliberately: it is a new capability, not a
   structural refactor. Evidence: commit `025bde7` body.
+
+  > **OWNERSHIP RULED 2026-09-07** (pre-Stage-7 coverage audit, `DECISIONS.md` Part AM). **Owner: step 8.7**, created by the
+  audit. **"Its own step" was the right call and nobody made the step** — the
+  clearest single instance of the failure this audit was run to find.
+
+  > **8.7 and not 3.6, where the subject matter belongs.** The session-start
+  > hook only proposes rows numbered above the last completed step, so a row
+  > inserted at 3.6 today would never be selected. Appendix D's numbering is a
+  > schedule, not a taxonomy.
 - **WATCH 11 — the `typeddict-item` mypy baseline key on `routes.py` is
-  order-unstable and can block an unrelated commit.** mypy renders the
+  order-unstable and can block an unrelated commit.** **Owner: step 11.2**
+  (ruled 2026-09-07) — governance close-out owns the guard's own tooling, and
+  this is a baseline-key stability defect rather than a code defect. Until
+  then it is a known intermittent: if it fires on an unrelated commit,
+  regenerate the baseline rather than editing around it. mypy renders the
   `ImproveGraphState` field list inside that error message in a
   **cache-dependent order** — alphabetical when `core/state.py` is warm in the
   shared cache, declaration order when cold. Reproduced both orderings from
@@ -953,6 +1019,13 @@ so read §66 when the two disagree.)*
   hooks to `lifespan`**, keeping `await blob.aclose()` on the shutdown side.
   Cheap now, and it is *not* step 8.5 — 8.5 is the gated `request_drain()`
   work, a different concern (§45).
+
+  > **OWNERSHIP RULED 2026-09-07** (pre-Stage-7 coverage audit, `DECISIONS.md` Part AM). **Not a spine step — its own
+  governance commit**, alongside the other two stale-record items the audit
+  surfaced: §16.1's *Installed* column and the session-start hook both report
+  the ROOT venv (1.1.10 / 1.2.13) while `agent-improve/.venv` runs 1.2.11 /
+  1.3.16 (WATCH 2). All three are record-and-tooling corrections with no
+  behaviour change, which is what makes them one commit rather than a step.
 - **Hook wrinkle — CLOSED 2026-08-31.** `done` is now in
   `_UNAVAILABLE_STATUSES` in `.claude/hooks/session-start-context.py`, so a
   finished step is never proposed as "next". The trap was step 9.0: it landed as
@@ -978,6 +1051,10 @@ so read §66 when the two disagree.)*
   at `gate_review`** — a sweep and the thing it must not sweep are one design.
   Recorded at `phases/define/nodes.py` (`gate_review`) and in the step 4.2
   commit body.
+
+  > **OWNERSHIP RULED 2026-09-07** (pre-Stage-7 coverage audit, `DECISIONS.md` Part AM). **Owner: step 7.3**, and it is
+  now written into 7.3's own text and Done-when. It was at risk: "owed at stage
+  7" named a stage rather than a step, and 7.3 said nothing about a sweep.
 
 - **WATCH 14 — §47 requirement 5 is OUT, and it is a TENANCY gap, not a
   tidiness one.** `case_id` arrives from the request body on `/ask`, `/gate`,
@@ -1026,6 +1103,20 @@ so read §66 when the two disagree.)*
   the migration is near**; do build it if 4.2's shape ships to a second user
   first. §1.7's own words: *"it was not tested for concurrent access… do not
   defend it past the migration trigger."*
+
+  > **OWNERSHIP RULED 2026-09-07** (pre-Stage-7 coverage audit, `DECISIONS.md` Part AM). **OUT OF SCOPE for this refactor,
+  deferred beyond it, and recorded so it stops pointing at a phantom.** Both
+  owed items resolve "at the PostgreSQL migration" — **and that migration is not
+  a step.** It appears once in the procedure, in prose, with no step, no
+  precondition and no stage. This WATCH has been deferred to something that was
+  never scheduled, which is indistinguishable from being dropped.
+
+  > **Nothing here is being downgraded.** The exposure is real and stated
+  > exactly: two tabs waste a turn rather than corrupting one, and a
+  > `ConcurrentTurnError` leaves an orphan history blob that becomes a
+  > correctness problem when time-travel debugging is first used. **It is
+  > carried as a known, accepted, post-refactor liability** — the honest label —
+  > rather than as work this spine will do. Re-open it with the migration.
 
 - **WATCH 16 — `phase_error_recovery` does not exist, and step 4.2 routed
   traffic past the node that is specified to carry it.** §3.6 requires an
@@ -1084,6 +1175,18 @@ so read §66 when the two disagree.)*
   record silently degrades every coaching prompt in the system with no error.
   **Owed before 6.3.** The write belongs at case creation (`POST /cases`) and,
   for cases that predate it, lazily on first read. Found while building 4.2.
+
+  > **OWNERSHIP RULED 2026-09-07** (pre-Stage-7 coverage audit, `DECISIONS.md` Part AM). **Owner: step 6.8**, which
+  did not exist until the audit created it. **The 6.3 deadline passed and
+  nothing caught it** — this WATCH named a step rather than being owned by one,
+  and the step it named came and went.
+
+  > **The prediction was exactly right and it is worse than written.** 6.3
+  > shipped `BeforeModelStateInjection` **without wiring `phase_context` at
+  > all**, so both halves are missing: nothing writes the case record, and
+  > nothing would read it if it did. Every coaching prompt since 6.3 has been
+  > running on the mapper's labelled fallbacks. **Every live measurement taken
+  > since 6.3 is invalidated, WATCH 26's see-saw included** — see Part AM.
 
 - **WATCH 20 — `submit_gate` writes an empty gate document on a pass.**
   `blob.write_phase_gate(structured=phase_data.get("_validated", {}))` — and
