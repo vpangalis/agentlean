@@ -372,6 +372,10 @@ check: deterministic dict comparison (no LLM call). Reads
 compares against store-held prior gate values for this phase. Any mismatch
 raises `HITLInterrupt`. Ratified as Mod A (2026-08-12). See M2.
 
+> ⚠ **Superseded by AJ4 (2026-09-07): `HITLInterrupt` does not interrupt and is
+> never defined — use `interrupt()`.** The mechanical comparison described here
+> was itself superseded earlier, at §R1 (2026-08-22).
+
 `CoherenceMiddleware` fires `after_agent` immediately before
 `DMAICGraderMiddleware`. Makes one LLM call (operational model, temp 0.1)
 to check whether the gate document is a real, conclusive statement — not
@@ -1485,6 +1489,13 @@ step and keeps the executor node responsible only for coaching.
 
 **Implementation shape:**
 
+> ⚠ **Superseded by AJ4 (2026-09-07): `HITLInterrupt` does not interrupt and is
+> never defined — use `interrupt()`.** Raising a custom exception from
+> `after_agent` propagates out of the node and hits `error_handler` (§45);
+> measured at step 6.5. **The comparison logic below is also superseded, by §R1
+> (2026-08-22)** — it could not work. Do not copy this block; the built shape is
+> `middleware/contradiction.py`.
+
 ```python
 class ContradictionDetectionMiddleware(AgentMiddleware):
     def after_agent(self, state, runtime):
@@ -1900,8 +1911,14 @@ understanding. Dict comparison cannot be repaired into it.
 |---|---|
 | **SKILL.md** (all five, §32) | Each phase's coach prompt gains a contradiction-check instruction: compare the Belt's input against prior committed values **already in context** (injected by `BeforeModelStateInjection` at `before_agent`), and populate `contradiction_flag` on a material contradiction |
 | **`CoachingResponse`** (§20) | Gains `contradiction_flag: Optional[dict] = None`, carrying `prior_field`, `approved_value`, `approved_phase`, `proposed_value`, `belt_input` |
-| **`ContradictionDetectionMiddleware`** (§19.6) | **Mechanical comparison deleted entirely** — the `store.get`, the name matching, the `current_phase` read. Becomes: `after_agent` reads the flag; if set, raise `HITLInterrupt` with its contents |
+| **`ContradictionDetectionMiddleware`** (§19.6) | **Mechanical comparison deleted entirely** — the `store.get`, the name matching, the `current_phase` read. Becomes: `after_agent` reads the flag; if set, raise `HITLInterrupt` with its contents ⚠ *superseded in part — see below* |
 | **§37** | Mechanics updated to semantic detection. **The cascade is unchanged** |
+
+> ⚠ **Superseded by AJ4 (2026-09-07): `HITLInterrupt` does not interrupt and is
+> never defined — use `interrupt()`.** Only the raise mechanism is superseded.
+> **The redesign this table records still stands in full**: the mechanical
+> comparison stays deleted, the flag is still set by the coach, and this
+> middleware still only reads it.
 
 **No new LLM call anywhere.** The flag is produced by the coach's existing
 `response_format=CoachingResponse` call — the same call that already returns
