@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.31 — September 2026
+# Version 2.2.32 — September 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -833,6 +833,62 @@ Full record of the defect: `docs/DECISIONS.md` Part AH2.
 
 ---
 
+### 0.26 — What Changed in 2.2.32 — §3.7 stops specifying the wrong cap
+
+**§3.7 carried `recursion_limit = 2 * max_hops + 1 = 11` as the hop cap, and
+`../AGENTIC_ARCHITECTURE_REFERENCE.md` §16 explicitly rejects it.** §26 ratified
+`RemainingSteps` instead, in August 2026. This file never caught up, and since
+step 6.2 the build has followed this file — which is the correct precedence, and
+exactly why a stale rule here is expensive.
+
+| Area | v2.2.31 | v2.2.32 |
+|---|---|---|
+| The hop cap | `recursion_limit = 11` | **A count of `rag_lookup_*` calls**, kept in the executor |
+| `recursion_limit` | The cap | **A backstop only**, 50, against a genuine infinite loop (§16) |
+| `remaining_steps` | Not mentioned in §3.7 | **The graceful off-ramp** — read at the executor's top; low means compose from what is in hand (§26, S-F09 B1) |
+| `GraphRecursionError` | The primary guard | **Belt-and-braces against a bug.** Still MUST be caught |
+| Units | Conflated | **Hops ≠ steps, and both guards are needed** — see below |
+
+**`recursion_limit=11` was also arithmetically short**, which is what made the
+symptom a see-saw rather than a clean failure. Measured on **both** LangGraph
+1.1.10 and 1.2.11, identically: a coach making its five permitted hops at
+`recursion_limit=11` consumes all eleven steps on the hops themselves and raises
+`GraphRecursionError` **before** the model can compose an answer. Four hops fit;
+five never did. A well-behaved five-hop turn could only ever end in the cap
+message, so prompt wording moved the failure between phases without removing it
+— WATCH 26 (`docs/DECISIONS.md` Part AK3).
+
+**Hops and steps are different units, and this was the substantive design
+question.** `remaining_steps` is `recursion_limit` minus graph-node transitions.
+The coach's whole tool-calling loop runs inside ONE node — the executor invokes
+its agent with `ainvoke` and returns — so the phase subgraph's counter moves by
+**1 per executor turn regardless of hop count**, measured. It can therefore
+never enforce a five-hop rule, and a five-hop counter can never notice the graph
+running out of room. **Both guards exist because they answer different
+questions.**
+
+**`remaining_steps` does cross the subgraph boundary**, which is the property
+§26 chose it for, and it was measured rather than assumed — both ways a
+subgraph can be entered, and on both library versions.
+
+**Both measurements were taken twice, and that is a finding of its own.**
+`agent-improve/.venv` runs LangGraph 1.2.11 / LangChain 1.3.16; the repo-root
+`.venv` — which the session-start hook reads, and which §16.1's *Installed*
+column still reports — is at 1.1.10 / 1.2.13. **The results are identical on
+both**, so nothing here rests on it. §16.1 and the hook are stale against the
+venv that actually runs the code — its own governance commit, not this one. Declaring it is what
+activates it — that was §0.16's fix and it still holds.
+
+**`remaining_steps` has nothing to do with `step_log`**, the coaching record
+declared beside it on the same state object. Same word, opposite meanings: one
+is a LangGraph execution counter, the other is this project's audit trail. The
+schema now says so at the declaration.
+
+**This is a governance commit and lands alone**, per §0's amendment rule — the
+code that follows it is step 6.7.
+
+---
+
 ## 1. ARCHITECTURE PRINCIPLES
 
 ### 1.1 — One State Per Level, One Runtime, One Source of Truth
@@ -1256,30 +1312,58 @@ exceed ~200 turns.
 
 ### 3.7 — Multi-hop is capped at five tool calls per Belt turn
 
-LangGraph counts steps, not hops. Each hop is two steps (LLM node →
-tool node) plus one final synthesis step:
-
-```
-recursion_limit = 2 * max_hops + 1 = 11
-```
+**The cap is a count of `rag_lookup_*` calls, kept in the executor.**
+`recursion_limit` is NOT the cap. It is a backstop against a genuine
+infinite loop, set high (50) on the parent invoke and inherited by
+everything below it:
 
 ```python
 await graph.ainvoke(
     state,
-    config={"recursion_limit": 11,
+    config={"recursion_limit": RECURSION_LIMIT,        # 50 — backstop
             "configurable": {"thread_id": case_id}},
 )
 ```
 
-**`GraphRecursionError` MUST be caught in the coach node** and turned
-into a partial answer for the Belt. A Belt mid-session never sees a
-stack trace because the coach explored too broadly.
+**`remaining_steps` is the graceful off-ramp, not the hop budget.**
+It is a `RemainingSteps` managed value declared on `PhaseState`
+(§10.1) and read at the top of the executor. When it runs low the
+executor stops calling tools and composes an answer from what it
+already holds — the Belt gets a coached turn, not a cap message:
+
+```python
+if (state.get("remaining_steps") or 0) <= REMAINING_STEPS_FLOOR:
+    ...                     # compose from what is in hand; bind no tools
+```
+
+**Hops and steps are different units and neither substitutes for the
+other.** `remaining_steps` counts graph-node transitions out of
+`recursion_limit`; the whole coach loop runs inside ONE node, so it
+moves by 1 per executor turn no matter how many hops that turn made.
+A hop count is therefore kept separately, in the executor. Both
+guards are required: the hop count enforces five, `remaining_steps`
+catches the case where the graph itself is running out of room.
+
+**`GraphRecursionError` MUST still be caught in the coach node** and
+turned into a partial answer for the Belt. It is now **belt-and-braces
+against a bug, not the primary guard** — a Belt mid-session never sees
+a stack trace because the coach explored too broadly.
 
 Hitting the cap is a **monitoring signal**, not just a limit — it
 means either the system prompt encourages too-broad exploration, or
 the question warrants `operational-premium` for that turn.
 
-*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §26.*
+**This rule is why the build was wrong from step 6.2 to 6.6.** It
+previously carried `recursion_limit = 2 * max_hops + 1 = 11` as the
+hop cap — which `../AGENTIC_ARCHITECTURE_REFERENCE.md` §16 explicitly
+rejects, and which is also arithmetically short: measured on both
+LangGraph 1.1.10 and 1.2.11, a coach making its five permitted hops at
+`recursion_limit=11` raises `GraphRecursionError` **before** it can
+compose the answer, so a well-behaved five-hop turn could only ever
+end in the cap message. That is WATCH 26's see-saw. Whatever this
+rule says is what gets built, so it says the mechanism now.
+
+*Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §16, §26; S-F09 B1.*
 
 ---
 

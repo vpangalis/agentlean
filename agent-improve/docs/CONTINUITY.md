@@ -11,9 +11,9 @@
 | **Next** | step **7.1** — `DMAICGateValidator` + Layer 2b **(gate assembly ×4, G-28)** |
 | **Stage** | Stage 7 — Validation and gates |
 | **Progress** | 25 of 35 build steps |
-| **Last spine commit** | `3046bb4` (commit 6.5) |
+| **Last spine commit** | `1045cf0` (commit 6.6) |
 | **ARCHITECTURE.md** | v1.19 |
-| **CLAUDE.md** | v2.2.31 |
+| **CLAUDE.md** | v2.2.32 |
 | **Block regenerated** | 2026-09-07 |
 
 *Derived from `docs/BUILD_TRACKER.md`, `CLAUDE.md`, `ARCHITECTURE.md`
