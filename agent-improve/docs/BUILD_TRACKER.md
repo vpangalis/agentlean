@@ -12,7 +12,7 @@ Legend:  ✅ done · ▶ next · ☐ to do · ⛔ blocked · ⏸ gated/external
 # Agent Improve — Refactor Build Tracker
 # updated 2026-09-03 · build target: `agent-improve/ARCHITECTURE.md`
 
-**Progress: 24 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 6.1, 6.2, 6.3, 6.4, 6.5 + 9.0 out-of-band). **Next: step 6.6.** **The eight-middleware stack is complete.**
+**Progress: 25 of 35 build steps done** (2.3, 2.4, 2.5, 2.6, 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 5.3, 5.4, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6 + 9.0 out-of-band). **Next: step 7.1. STAGE 6 IS COMPLETE.**
 Spine runs 2.3 → 11.2, one step = one commit. The spec is complete; this is the code.
 
 **Blocked / not-yet-schedulable:** 8.4 (Redis not provisioned), 8.5 (`request_drain`
@@ -62,12 +62,12 @@ unconfirmed), 9.1 (external reindex). Everything else is open once its precondit
 | 6.3 | Middleware positions 1–3 | §19 | ✅ done **trace-check verified** *(`before_agent` fired ONCE on a many-call turn — B1 proved. `missing_gate_fields` consolidated so the prompt and all five `validate.py` share ONE computation. **G-33 answered**: `load_skill` is middleware-registered, outside §30's totals. Review caught string concatenation where §21 requires content blocks — DECISIONS Part AH)* |
 | 6.4 | Retry middleware 4–5 + factory hardcoded retry | §19 | ✅ done **grep-absence verified** *(`max_retries=0` PINNED on the constructor — the middleware is the only retry layer; two layers multiply 3×3=9, not add. **Recursion question answered by experiment: retries cost NO graph steps**, so 6.4 does not worsen WATCH 26 — DECISIONS Part AI)* |
 | 6.5 | Middleware positions 6–8 | §19 | ✅ done *(**the stack is complete at eight.** Found §19 wrong three ways: `after_agent` executes in REVERSE, `after_agent` state does not propagate between hooks, and positions 4–5 are no longer unnested — position 1's wrap encloses them. G-15 answered: `HITLInterrupt` never defined. Position 6 ships INERT until 6.6 — WATCH 31. DECISIONS Part AJ)* |
-| 6.6 | Prompts | §22 | ▶ **next** *(owes: the `contradiction_flag` instruction that makes position 6 live — WATCH 31; the WATCH 26 over-exploration fix; and `core/prompts.py` already carries `{PHASE}_COACH_PROMPT` (6.2) and `COACHING_QUALITY_RUBRIC` (6.5) — forward references, not drift)* |
+| 6.6 | Prompts | §22 | ✅ done *(**WATCH 31 CLOSED** — proven live both ways: a real contradiction interrupts, an ordinary refinement does not. Done-when scoped to live v2 code; the two v1 families die with their consumers at 11.1 per Route A. **WATCH 26 did NOT close and moved off this step** — the cause is §26's unbuilt `RemainingSteps`, not the prompt. DECISIONS Part AK)* |
 
 ## Stage 7 — Validation and gates
 | Step | What | Builds | Status |
 |---|---|---|---|
-| 7.1 | `DMAICGateValidator` + Layer 2b **(gate assembly ×4, G-28)** | §34, §40.1 | ☐ |
+| 7.1 | `DMAICGateValidator` + Layer 2b **(gate assembly ×4, G-28)** | §34, §40.1 | ▶ **next** |
 | 7.2 | Layers 2c and 2d + `validation_stack` node | §34, the five rubrics | ☐ |
 | 7.3 | The nine-step HITL gate | §33 | ☐ |
 | 7.4 | Two tiers + the `warning` verdict | §35 | ☐ |

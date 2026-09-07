@@ -1320,9 +1320,22 @@ a committed value — never prose rephrasing, never refinement of a
 not-yet-committed current-phase value. **Step 6.5's middleware does nothing
 without it** — the flag is the only thing it reads.
 
-**Done when:** those three v1 constant families return zero grep hits, every
-`{PHASE}_COACH_PROMPT` contains the memory-hierarchy block, and all five
-SKILL.md files carry the contradiction-check instruction.
+**Done when:** the three v1 constant families return zero grep hits **in live
+v2 code**, every `{PHASE}_COACH_PROMPT` contains the memory-hierarchy block and
+the anti-hallucination guards, and all five SKILL.md files carry the
+contradiction-check instruction.
+
+> **⚑ Done-when corrected at 6.6 — "in live v2 code", not repo-wide.**
+> `KNOWLEDGE_INJECTION_TEMPLATE` is gone. **The other two families cannot reach
+> zero here**, because their only consumers are the five `orchestrate.py`, and
+> **step 11.1 owns deleting those** — it says so by name, including
+> `EXTRACTION_DEFINE`'s block. Removing the constants at 6.6 would mean editing
+> code 11.1 removes wholesale, and would break those imports; mypy analyses them
+> (40 baselined entries), so guard rule 3 would fail for nothing.
+>
+> **This follows Route A**: the v1 vocabulary is carried unmigrated and dies
+> with its writers at 11.1. `core/prompts.py` is rewritten — the v2 constants
+> are the live ones — and the retired families leave when their consumers do.
 
 ---
 
@@ -1814,7 +1827,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 6.3** | Middleware 1–3 | done |
 | **Commit 6.4** | Retry middleware 4–5 + factory retry removal | done |
 | **Commit 6.5** | Middleware 6–8 | done |
-| **Commit 6.6** | Prompts | pending |
+| **Commit 6.6** | Prompts | done |
 | **Commit 7.1** | `DMAICGateValidator` + Layer 2b | pending |
 | **Commit 7.2** | Layers 2c, 2d + `validation_stack` | pending |
 | **Commit 7.3** | Nine-step HITL gate | pending |

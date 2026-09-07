@@ -4730,6 +4730,17 @@ same way:**
 with its own exponential backoff and jitter (§19.4), plus §44's bounded request
 timeout — which is the subject of AI4.
 
+> **First observed cost, 2026-09-07 (step 6.6).** A run of live verification
+> turns hit **Azure 429s** — `"Your requests to gpt-4o for operational-premium
+> in westeurope have exceeded rate limit"` — which halted a measurement in
+> progress. This is the shape AI2 predicted: the SDK's `Retry-After` handling
+> would have absorbed those silently, and now they surface.
+>
+> **The trade stands.** Surfacing is the point — `ModelRetryMiddleware`'s
+> backoff can see them, §4.8's fallback chain can act on them, and a Belt can
+> be told. Recorded as a datapoint, not as a reason to revisit: the alternative
+> is the twelve-minute silent hang nanobot #2511 documents.
+
 ---
 
 ### AI3 — Retries do not consume recursion budget, and that was measured
@@ -4992,3 +5003,103 @@ undecided. **G-24** (constructors) stays open too.
 
 **Three caps, still three** — model 2, coherence 2, gate 3 — asserted
 independent.
+
+---
+
+## Part AK — Step 6.6: prompts, and a WATCH that moved because the evidence moved (2026-09-07)
+
+**Procedure step 6.6.** Reference **§22**, §32, §37, §26; CLAUDE.md §6.3, §6.4,
+§3.7. **Stage 6 is complete.**
+
+---
+
+### AK1 — WATCH 31 closes: the contradiction instruction, both directions
+
+**Position 6 has read a flag nothing set since 6.5. This is the writer.** The
+instruction is in all five coach prompts and all five SKILL.md files — Define
+and Measure had none and a passing mention respectively, and both now carry a
+phase-specific section.
+
+**Proven on live turns, both ways:**
+
+| the Belt says | result |
+|---|---|
+| *"actually 4%, not 12%"* — contradicts Define's committed `baseline_estimate` | flag set, **middleware interrupted** |
+| *"12.3% rather than the rough 12%"* — a refinement | **no flag, no interrupt** |
+
+**The instruction is written around the second row, not the first.** A flag that
+fires on ordinary coaching interrupts the Belt over a rephrasing, and a Belt
+interrupted for nothing twice stops reading interrupts — which costs the
+mechanism precisely when a real contradiction arrives. So the bar is three
+conditions that must ALL hold, plus five named non-cases: rewording, a
+current-phase value not yet committed, added detail, unit changes, and any value
+with no approved figure to contradict.
+
+**Define's section says the check will almost never fire there, and that is
+correct** — there is no earlier phase, so nothing is committed to contradict.
+Writing that down stops a future reader reading Define's silence as a bug.
+
+---
+
+### AK2 — The Done-when was unsatisfiable as written, and Route A is why
+
+**`grep-absence` on the three retired families cannot reach zero at 6.6.**
+`KNOWLEDGE_INJECTION_TEMPLATE` is gone. The other two are consumed **only** by
+the five `orchestrate.py` — and **step 11.1 owns deleting those**, by name,
+including `EXTRACTION_DEFINE`'s block.
+
+Deleting the constants here would mean editing code 11.1 removes wholesale, and
+would break those imports. **mypy analyses them** (40 baselined entries), so
+guard rule 3 would fail — for no gain, since the files disappear at 11.1 anyway.
+
+**Ruled: scope the Done-when to live v2 code**, and correct the procedure with
+the reason. This is Route A working as designed: the v1 vocabulary is carried
+unmigrated and dies with its writers. `core/prompts.py` **is** rewritten — the
+v2 constants are the live ones and nothing in the v2 path reads a retired
+family.
+
+---
+
+### AK3 — WATCH 26 did not close, and the prompt was not the cause
+
+**The sequencing fix was real and insufficient.** §43.1's seven steps were
+written into `COACHING_STANCE` as a single sequence, so the coach executed them
+as one turn. Recast as a sequence ACROSS turns — with an explicit "one turn is
+one move", a tool budget, and `load_skill` named as a whole turn — Define's
+opening turn went from four tool calls and a cap to two and a completed turn.
+
+**Then it stopped holding.** Across repeated runs the outcome is variable, and
+prompt wording only shifts which phase falls over:
+
+| | Define | Measure |
+|---|---|---|
+| after the sequencing rewrite | completed 1/1 | **capped 3/3** |
+| after adding `load_skill` sequencing | **capped 3/3** | completed 4/6 |
+
+**A see-saw at the edge of the budget is a budget problem wearing a prompt
+problem's clothes.** The measurement that would settle it — the same turns at a
+larger budget — was cut short by Azure 429s (AI2).
+
+**ARCHITECTURE §26 already says what the mechanism should be**, and it is not
+what was built:
+
+> *"The hop cap is `RemainingSteps` … **`RemainingSteps` rather than
+> `recursion_limit`** … it lives in graph state, so it crosses the subgraph
+> boundary intact, counts only executor steps, and **provides a graceful
+> off-ramp** — the agent composes an answer from what it has rather than dying.
+> `GraphRecursionError` must still be caught in the coach node … It is now a
+> **belt-and-braces guard against bugs rather than the primary mechanism.**"*
+
+**That belt-and-braces guard is currently the primary mechanism.**
+`RemainingSteps` is declared on `PhaseState` (S-C02) and **read by nothing**.
+
+**Why the WATCH was assigned to 6.6 in the first place** is worth recording:
+§3.7's monitoring-signal wording offers exactly two explanations — *"either the
+system prompt encourages too-broad exploration, or the question warrants
+premium"* — and no third. The third is the one §26 specifies and the build
+skipped. **Reassigned by evidence, not by preference**, and the prompt work
+stands on its own merits: a coach that front-loads four tools into an opening
+turn was coaching badly regardless of the budget.
+
+**Kept: the `load_skill` paragraph, still flagged unproven.** Tuning prose
+against a counter known to be the wrong mechanism would be fitting noise.

@@ -774,6 +774,26 @@ project established (§50.1, WATCH 9).
 
 ---
 
+### The contradiction check — every turn (§32, §37)
+
+**Compare the Belt's input against the values already committed in earlier
+phases**, and when it materially contradicts one, set
+`CoachingResponse.contradiction_flag` rather than coaching past it.
+
+**Measure is where the first real ones appear**, because Define has closed and
+its numbers are committed. A Belt who says "the error rate is really 8%" while
+building the baseline is contradicting Define's approved `baseline_estimate` —
+and the whole measurement plan is being built on the number they just moved.
+
+**But most of what looks like a contradiction here is not one.** `baseline_mean`
+is Measure's own field and is not yet committed, so a Belt refining it is doing
+the work. Define's `baseline_estimate` was explicitly an ESTIMATE; the measured
+value differing from it is the expected outcome of measuring, not a conflict —
+say so in `message` and move on. Flag material numeric or categorical
+contradictions of committed values only, never a rephrasing, and never a
+current-phase refinement.
+
+
 ## 9. Cross-phase dependencies
 
 ### Reads

@@ -7,11 +7,11 @@
 
 | | |
 |---|---|
-| **Last completed** | step **6.5** — Middleware positions 6–8 |
-| **Next** | step **6.6** — Prompts |
-| **Stage** | Stage 6 — The coaching agent |
-| **Progress** | 24 of 35 build steps |
-| **Last spine commit** | `c3d3911` (commit 6.4) |
+| **Last completed** | step **6.6** — Prompts |
+| **Next** | step **7.1** — `DMAICGateValidator` + Layer 2b **(gate assembly ×4, G-28)** |
+| **Stage** | Stage 7 — Validation and gates |
+| **Progress** | 25 of 35 build steps |
+| **Last spine commit** | `3046bb4` (commit 6.5) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.31 |
 | **Block regenerated** | 2026-09-07 |
@@ -541,7 +541,24 @@ so read §66 when the two disagree.)*
 
 ### Watches (owed work, NOT §66 gaps — the register will not surface them)
 
-- **WATCH 31 — `ContradictionDetectionMiddleware` ships INERT. Owed by 6.6.**
+- **WATCH 31 — CLOSED 2026-09-07 at step 6.6, the step that owed it.**
+  The instruction landed in all five coach prompts and all five SKILL.md files,
+  and **both directions were proven on live turns**:
+
+  | | the Belt says | result |
+  |---|---|---|
+  | real contradiction | *"actually 4%, not 12%"* | flag set, **middleware interrupted**, naming `baseline_estimate` |
+  | ordinary refinement | *"12.3% rather than the rough 12%"* | **no flag, no interrupt** |
+
+  **The second row is the one that mattered.** An interrupt firing on normal
+  coaching trains the Belt to dismiss the mechanism, which costs it exactly when
+  a real contradiction arrives — so the instruction sets three conditions that
+  must ALL hold, and names five non-cases explicitly (rewording, current-phase
+  refinement, added detail, unit changes, and a value with no approved figure).
+
+  *Original entry below, kept as the record.*
+
+- **WATCH 31 (original) — `ContradictionDetectionMiddleware` ships INERT.**
   Opened 2026-09-07 at step 6.5.
 
   Position 6 reads `CoachingResponse.contradiction_flag` and turns it into an
@@ -579,8 +596,31 @@ so read §66 when the two disagree.)*
   tunable-to-taste. Nothing is blocked in the meantime: the middleware's three
   attempts and §4.8's fallback chain both still fire.
 
-- **WATCH 26 — the coach exhausts §3.7's 11-step budget on ORDINARY turns.
-  Owned by step 6.6 (prompts).** Opened 2026-09-04 at step 6.3.
+- **WATCH 26 — the coach exhausts the 11-step budget on ORDINARY turns.
+  REASSIGNED off 6.6 on 2026-09-07: the cause is not the prompt.** Opened
+  2026-09-04 at step 6.3.
+
+  > **6.6 did the prompt work and it was not sufficient — which is evidence,
+  > not failure.** The sequencing rewrite cut Define's opening turn from four
+  > tool calls to two and it completed. But across repeated runs the outcome is
+  > variable, and prompt wording only shifts WHICH phase falls over: adding a
+  > `load_skill` sequencing rule took Measure from 0/3 completing to 4/6, and
+  > took Define from completing to 3/3 capped. **A see-saw at the edge of the
+  > budget is a budget problem wearing a prompt problem's clothes.**
+  >
+  > **§16 says so directly.** ARCHITECTURE §26 — the ratified build target —
+  > specifies the hop cap as **`RemainingSteps`, not `recursion_limit`**, with
+  > five hops per turn and *"a graceful off-ramp — the agent composes an answer
+  > from what it has rather than dying"*, and makes the `GraphRecursionError`
+  > catch *"a belt-and-braces guard against bugs rather than the primary
+  > mechanism"*. **That guard is currently the primary mechanism**, because
+  > `RemainingSteps` is declared on `PhaseState` and read by nothing.
+  >
+  > **The assignment to 6.6 rested on §3.7's monitoring-signal wording** —
+  > *"either the system prompt encourages too-broad exploration, or the question
+  > warrants premium"* — which offers no third option. The third option is the
+  > one §26 specifies and the build skipped. Reassigned by evidence, and the
+  > prompt work stands on its own merits.
 
   > **Answered at 6.4, and it is NOT worsened by the retry middlewares.**
   > *"Does a tool retry consume steps against `COACH_RECURSION_LIMIT`?"* — no.

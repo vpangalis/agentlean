@@ -201,6 +201,24 @@ comparison one phase before anyone notices (§39, the measurement thread).
 
 ---
 
+### The contradiction check — every turn (§32, §37)
+
+**Compare the Belt's input against the values already committed in earlier
+phases**, and when it materially contradicts one, set
+`CoachingResponse.contradiction_flag` rather than coaching past it.
+
+**Define is the phase where this almost never fires, and that is correct.**
+There is no earlier phase, so on a first project there is nothing committed to
+contradict — the list of approved values above Define is empty. Setting the flag
+here would mean contradicting a value from a re-opened phase, which is rare.
+
+**Do NOT flag the Belt refining their own Define values.** Moving from "about
+12%" to "12.3%" for `baseline_estimate`, or tightening `problem_statement` after
+seeing an example, is the coached walk working — those values have not been
+through a gate yet. Flag material numeric or categorical contradictions of
+COMMITTED values only, never a rephrasing, and never a current-phase refinement.
+
+
 ## Document layout
 
 **The live gate document, rendered from `artifacts` as the Belt fills it in**
