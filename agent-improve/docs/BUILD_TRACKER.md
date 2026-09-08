@@ -21,14 +21,16 @@ steps. Say "the cursor" in prose; keep the character for the cursor itself.
 -->
 
 # Agent Improve — Refactor Build Tracker
-# updated 2026-09-03 · build target: `agent-improve/ARCHITECTURE.md`
+# updated 2026-09-08 · build target: `agent-improve/ARCHITECTURE.md`
 
-**Progress: 26 of 49 build steps done** (2.3–2.7, 3.1–3.5, 4.1–4.4, 5.1–5.4, 6.1–6.7 + 9.0 out-of-band). **Next: step 6.8. STAGE 6 IS NOT COMPLETE — the 2026-09-07 audit reopened it.**
+**Progress: 27 of 49 build steps done** (2.3–2.7, 3.1–3.5, 4.1–4.4, 5.1–5.4, 6.1–6.8 + 9.0 out-of-band). **Next: step 6.10. STAGE 6 IS NOT COMPLETE — the 2026-09-07 audit reopened it.**
+
+> **This header line is hand-maintained and the table is not — keep them in step.** On 2026-09-08 it still read *"26 of 49 … Next: step 6.8"*, dated 2026-09-03, while the table below already showed 6.8 done and the cursor on 6.9. The machine path (Appendix D → session-start hook, and the ▶ cursor → `continuity_status.py`) was correct throughout; only the line a human reads was wrong. **A stale human line is the same defect class as a stale count** — see the 35-vs-49 note below.
 Spine runs 2.3 → 11.2, one step = one commit. The spec is complete; this is the code.
 
 > **The total moved from 35 to 49 on 2026-09-07, and both halves of that are worth stating.** *35 was never right* — it was a hand-count that had drifted five rows from Appendix D, which is the machine-readable table the session-start hook actually parses. **Appendix D is authoritative; this line is derived from it.** The other eight rows are new: the pre-Stage-7 coverage audit found eleven ratified ARCHITECTURE sections with no step at all, and eight of them needed one. See `DECISIONS.md` Part AM.
 >
-> **"Stage 6 complete" was wrong when 6.6 claimed it.** Three Stage-6 holes were open the whole time — `phase_context` unread (6.8), four of five SKILL.md files unwritten (6.9), and §26's multi-hop node unbuilt (6.10).
+> **"Stage 6 complete" was wrong when 6.6 claimed it.** Three Stage-6 holes were open the whole time — `phase_context` unread (6.8), the five SKILL.md files not audited against §32's seven mandatory items (6.9), and §26's multi-hop node unbuilt (6.10). **The 6.9 description was itself wrong until 2026-09-08** — it said four files were missing; all five exist and load. See the row.
 
 **Blocked / not-yet-schedulable:** 8.4 (Redis not provisioned), 8.5 (`request_drain`
 unconfirmed), 9.1 (external reindex). Everything else is open once its precondition step lands.
@@ -80,9 +82,8 @@ unconfirmed), 9.1 (external reindex). Everything else is open once its precondit
 | 6.6 | Prompts | §22 | ✅ done *(**WATCH 31 CLOSED** — proven live both ways: a real contradiction interrupts, an ordinary refinement does not. Done-when scoped to live v2 code; the two v1 families die with their consumers at 11.1 per Route A. **WATCH 26 did NOT close and moved off this step** — the cause is §26's unbuilt `RemainingSteps`, not the prompt. DECISIONS Part AK)* |
 | 6.7 | **WATCH 26** — the hop cap becomes `RemainingSteps` + a hop count | §16, §26, S-F09 B1 | ✅ done *(**the defect was CLAUDE.md §3.7**, which carried `recursion_limit = 2*max_hops+1 = 11` — rejected by §16 — so the build followed the constitution into the wrong mechanism. Governance first and alone (2.2.32). **Both counters measured, not assumed**: `remaining_steps` DOES cross the subgraph boundary, but moves by 1 per executor turn however many hops it made, so it cannot cap hops — both guards built. `recursion_limit=11` was also short by one, which is why the symptom see-sawed. **Live re-run still owed — blocked on Azure 429s (AI2).** DECISIONS Part AL)* |
 | 6.8 | **`phase_context` is read (WATCH 19)** | §6, §9, §19.1 | ✅ done **live-run verified** *(**WATCH 19 CLOSED.** Both breaks fixed: `write_case_record` at `POST /cases` + a lazy backfill on `/ask` and `/gate`, and both of §9's named readers wired — the planner prompt and `BeforeModelStateInjection`. Proved live: a real case created through the route landed 5 framing fields in the Store, and a Measure turn's injected block carried the case facts, the approved Define values and the 7 missing gate fields. The fallback is KEPT and made loud — WARNING + an in-block marker. DECISIONS Part AN)* *(was: declared, written by all five input mappers, **read by nothing**. §6 names its consumers as "planner; state injection" and neither touches it. **Invalidates every live measurement since 6.3** — the coach has been running on mapper-fallback prose. Two halves: the Store `case` writer W19 has owed since before 6.3, and the injection reader 6.3 never wired)* |
-| 6.9 | The four missing SKILL.md files | §32 | ☐ ▶ **next** *(only Define's exists; `DMAICSkillsMiddleware` loads them, so four phases run progressive disclosure against nothing. Each needs the contradiction-check instruction §37 and the `CoachingResponse`-population instruction — WATCH 9)* |
-| 6.10 | `analyse_executor_node` — §26's multi-hop | §26, S-F09 | ☐ *(the half 6.7 did not build. `hop_results` / `synthesis_output` are declared and read by nothing, and S-F09 is their named writer. Blocked on G-05 and G-35)* |
-
+| 6.9 | SKILL.md conformance to §32's seven | §32, §43, §37 | ✅ done **live-run verified** *(**the step was the opposite file.** All five existed; the four "drafts" carried 7/7 of §32's items and **Define — recorded as the finished one — carried 4.5/7**. Written into Define: the A→F session flow with its `n of 12` count, §43.7 metric literacy, and Uploads + capture as real sections. 21.8K → 32.0K chars. Metric literacy landed in §39.1.7 too — v1.17 embeds coaching script, not flow or capture — and containment re-verified byte-exact. Version labels aligned and their meaning declared: Define 1.2, the four 1.1, "0.2-draft" false since v1.17. DECISIONS Part AO)* |
+| 6.10 | `analyse_executor_node` — §26's multi-hop | §26, S-F09 | ☐ ▶ **next** *(the half 6.7 did not build. `hop_results` / `synthesis_output` are declared and read by nothing, and S-F09 is their named writer. Blocked on G-05 and G-35)* |
 ## Stage 7 — Validation and gates
 | Step | What | Builds | Status |
 |---|---|---|---|

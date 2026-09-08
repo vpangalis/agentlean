@@ -5591,3 +5591,136 @@ exists to be compared against later, not to settle an open question now.**
 > same AI2 blocker that stopped 6.7's live run and that WATCH 28's telemetry
 > plan exists to characterise. **The wiring is verified live and the baseline is
 > not yet taken**; those are separate claims and only the first is made here.
+
+---
+
+## Part AO — Step 6.9: the file that was recorded as finished was the deficient one (2026-09-08)
+
+**The step was scoped as "write the four missing SKILL.md files". All five
+existed.** The scoping check that caught it was a founder question, not a
+process: *"at 6.6 you reported Measure was reaching for `load_skill` and its
+SKILL.md is 52K chars — if it were missing, `load_skill` would have failed
+rather than returned 52K."* That is the whole finding, and it was available to
+anyone who put those two facts side by side at any point in the preceding three
+steps.
+
+### AO1 — What was actually true
+
+| Phase | Chars (before 6.9) | §32 items | Recorded as |
+|---|---|---|---|
+| Measure | 53,809 | **7 / 7** | *owed* |
+| Control | 50,541 | **7 / 7** | *owed* |
+| Analyse | 44,416 | **7 / 7** | *owed* |
+| Improve | 37,905 | **7 / 7** | *owed* |
+| **Define** | **21,826** | **4.5 / 7** | ***written*** |
+
+**The four carried all seven of §32's mandatory items. Define carried four and
+a half** — no A→F session flow, no Uploads section, and no §43.7 metric
+literacy. So the step was one file, and it was the file the tracker called
+finished.
+
+**All five are generated from a ratified §39.x.10 section and byte-match it**,
+which was verified rather than assumed — the containment check v1.17 introduced
+for three phases, run for all five. The "0.2-draft" label the four carried had
+been false since v1.17 embedded their scripts.
+
+### AO2 — The repo held both answers, in one file, for three steps
+
+`CONTINUITY.md`'s parallel-workstream line said *"Define's written;
+Measure/Analyse/Improve/Control owed"*. **Two WATCH 31 entries in the same file
+said the contradiction instruction "landed in all five coach prompts and all
+five SKILL.md files"** — which cannot be true of files that do not exist.
+
+**Nothing cross-checked one line against the other.** The wrong line was then
+copied into `BUILD_TRACKER.md`'s 6.9 row, and from there into
+`ARCHITECTURE_STATUS.md` on the day that file was created — a document whose own
+header promises *"verified against the tree, never from memory or from a
+document"*, carrying a number copied from a document in its first commit.
+
+**This is the audit's own finding recurring inside the audit's own remedy**, and
+it is the third instance of the pattern in four steps: `phase_context` declared
+and unread (AM), the `▶` cursor duplicated into a parenthetical (AM/6.8), and
+now a count propagated three documents deep without once being run.
+
+### AO3 — The method lesson: a keyword pass scored it wrong twice
+
+**Both wrong scores were mine, and both came from grepping instead of reading.**
+
+- **First pass: Define 3.5 / 7.** `grep -ci 'seven-step'` returned 0, so the
+  seven-step item was scored absent. The file carries a full
+  `[TOOL · calculate_expected_savings]` block with all seven steps labelled
+  *Educate / Why now / Prepare / Run / Interpret / Visualise / Coach next* — it
+  simply never uses the phrase.
+- **Second pass: 4.5 / 7.** Corrected after reading the block, but only because
+  the tool name was grepped for a different reason.
+
+**The failure mode is specific: a grep tests for a token, and a specification
+item is a behaviour.** §32 requires "the seven-step sequence for every
+computation tool" — nothing in that requires the words "seven-step" to appear,
+and a file could equally contain the phrase and none of the steps.
+
+**Applied consequence, not just a lesson recorded.** The re-runnable counts now
+in `ARCHITECTURE_STATUS.md` include a `METRIC LITERACY` grep as the §32
+conformance signal, and it is **labelled a proxy in the file itself** with this
+episode as the reason. A cheap regression signal is worth having; a cheap signal
+mistaken for a proof is what produced 3.5.
+
+### AO4 — What was written, and where it was allowed to go
+
+**Three sections into `skills/dmaic-define-phase/SKILL.md`**, in the shape the
+four conformant files already use — they are the reference, not a document.
+
+**The placement was constrained and the constraint is load-bearing.** v1.17
+records which parts of a SKILL.md are embedded in §39.x.10 and which are
+deliberately not:
+
+| Section | Home | Why |
+|---|---|---|
+| Metric literacy | **Both** — §39.1.7 *and* the SKILL.md, byte-identical | It is coaching script; v1.17 embeds it |
+| A→F session flow | SKILL.md only | v1.17: *"deliberately NOT embedded… not coaching script"* |
+| Uploads, capture instructions | SKILL.md only | Same ruling |
+
+So metric literacy went into `ARCHITECTURE.md` §39.1.7 in the same edit, at the
+same position, and **the containment check was re-run after every write**:
+§39.1.7's script is still a byte-exact substring of the SKILL.md, now at 15,174
+chars.
+
+**Define's metric literacy is the one that inverts the rule.** Every other phase
+opens `metric_definitions` and echoes what Define wrote — §32's *"echo
+`meaning`, never invent one"*. **Define is where the registry is born**, so
+there is nothing to echo; the block says so explicitly and holds the §22 guard
+by having the coach draw the definition out of the Belt rather than author one.
+
+**Define's Section E inverts a second time.** In the four tiered phases the
+final sweep re-offers deferred Tier 2 fields. **Define has no Tier 2 and no
+`acknowledged_gaps` path** (Option A), so there is nothing to sweep — E is a
+thinness check against the twelve instead, and the section says why rather than
+copying a beat that cannot apply.
+
+### AO5 — The version numbers told a reader the opposite of the truth
+
+Define sat at **1.1** while carrying 4.5 of 7. The four sat at **0.2-draft**
+while carrying 7 of 7. **A reader picking the most trustworthy file by version
+would have picked the least conformant one.**
+
+**Fixed by stating what the number tracks**, which is the part that was missing
+— the labels were not merely stale, they had no declared meaning:
+
+```yaml
+version_tracks: §32 conformance + §39.x.10 ratification — NOT authoring order.
+  1.x = all seven §32 items present and the coaching script byte-matches its
+  §39 section; 0.x = it does not.
+```
+
+Define → **1.2**, the four → **1.1**. Their `source:` was also stale
+(`skills/extraction/*_extraction.md`, the pre-v1.17 provenance) and now names
+the §39.x.10 section each is generated from; their *"Status: draft for review"*
+notes are replaced with the same authority note Define carries, stating that
+they stopped being drafts at v1.17 and nobody moved the label.
+
+**The frontmatter parser reads only top-level scalar keys** (§0.24 — no YAML
+dependency to read three strings), so everything under `metadata:` is
+documentation. These edits change no behaviour, and that was checked rather
+than assumed: 750 tests green, all five tool counts unchanged, level-1
+catalogue still ~1,036 tokens against §32's 2K budget.
+

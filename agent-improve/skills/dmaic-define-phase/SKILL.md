@@ -5,7 +5,8 @@ license: MIT
 compatibility: Requires Azure AI Search access for improve_knowledge_index, improve_evidence_index and improve_case_index
 metadata:
   author: valuesims/agentlean
-  version: "1.1"
+  version: "1.2"
+  version_tracks: §32 conformance + §39.x.10 ratification — NOT authoring order. 1.x = all seven §32 items present and the coaching script byte-matches its §39 section; 0.x = it does not.
   phase: define
   phase_index: 0
   output_schema: DefineOutput
@@ -23,7 +24,112 @@ allowed-tools: rag_lookup_methodology, rag_lookup_evidence, rag_lookup_case_hist
 > `phases/define/validate.py` (§56.1), and the three share one field
 > vocabulary.
 
-## The twelve fields, in coached order
+## 1. Session flow
+
+### A — Phase opening
+
+**Define opens on nothing, and that is the difference.** Every later phase
+opens by reading the prior gate document from the Store and recapping it. Define
+has no prior phase, so there is nothing to read and nothing to recap — the
+opening orients the Belt in DMAIC itself rather than in what was already
+decided.
+
+*The opening message is the `[OPENING]` block in **Coaching content** below —
+it lives there so this file and §39.1.7 stay byte-identical.*
+
+**Do not fabricate a recap.** A Define opening that summarises "what we know so
+far" on turn one is describing a project that does not exist yet. If the case
+record carries framing — title, department, belt level, leader, target date —
+that is the project's *setting*, not its findings, and it arrives through
+`phase_context` (§19.1) without needing to be restated as progress.
+
+### B — Phase resumption
+
+> "Welcome back. Define so far:
+>
+> ✓ Business case — €340k annual cost of rework and credits
+> ✓ Team — you leading, 2 team leaders, 1 MI analyst
+> ✓ Voice of the customer — repeat contact, long hold times
+> ✓ Problem statement — complaints up from 3.1% to 5.8%, Jan–Jun 2026
+> □ Baseline estimate
+> □ Project scope
+> □ Goal statement
+> □ Target value
+> □ Target date
+> □ Secondary metrics
+> □ SIPOC
+> □ Issues and barriers
+>
+> **Progress: 4 of 12 complete**
+>
+> Next is the baseline — the number your project is judged against. Before we
+> put a figure on it, let's make sure we agree what we're counting."
+
+**The count is `n of 12`, always, and there is only one.** Define has no Tier 1
+/ Tier 2 split (Option A), so there is no second population and no second
+progress bar — the Document Layout section says the same thing about the live
+gate document, and the two must not disagree.
+
+**Read the count from `artifacts`, never from a running tally.** A resumption
+that reports a number the gate document contradicts is worse than no count: the
+Belt trusts it, and the gate then tells them something different.
+
+### C — Per-field coaching
+
+Explain → Show → Ask → Confirm, on every field. Order in §2, and the order is
+methodology, not preference — `problem_statement` is composed from 5W2H at
+position 4, and `metric_definitions` is captured inside position 5 rather than
+at a position of its own (§39.1.2).
+
+### D — After every capture
+
+**Echo the value, show the updated count, name what is next.** Three beats, one
+short paragraph — not a re-render of the whole checklist on every turn.
+
+> "Got it — baseline logged as *12% of invoices returned, roughly, from last
+> quarter's collections log*. **That's 5 of 12.** Next is scope: what's in, and
+> just as importantly what's out."
+
+**Echoing is not confirmation theatre.** It is the last cheap moment to catch a
+mis-capture — the Belt reads their own words back and says "no, I meant per
+month, not per quarter" before that value reaches a gate document and six
+downstream fields.
+
+### E — Final sweep
+
+**Define's sweep is a completeness check, not a Tier 2 re-offer.** The other
+four phases use this beat to revisit recommended fields the Belt deferred.
+**Define has no recommended fields and no `acknowledged_gaps` path** — all 12
+block the gate, so nothing can be consciously skipped and there is nothing to
+sweep back up.
+
+What this beat does instead is check the twelve for *thinness* before the gate
+sees them:
+
+> "All 12 are filled. Two I'd look at again before we run the gate check:
+>
+> • **Issues and barriers** — you put 'none identified'. That's allowed, but
+>   have another think: data you don't have yet, people who need to agree,
+>   systems you can't change?
+> • **Secondary metrics** — one metric listed. Is there anything that could get
+>   worse while the main one gets better?
+>
+> Happy to leave either as it stands — but the gate grades on quality, not just
+> presence, and these two are where thin answers usually surface."
+
+**If nothing is thin, say so and move on.** Manufacturing a concern to fill the
+beat teaches the Belt to discount it.
+
+### F — Gate ready
+
+Announce the gate check, then the four-layer validation fires (§34). **All 12
+must pass the rubric, not merely exist** — Option A means presence is necessary
+and not sufficient, and a Belt told "all fields complete" who then fails the
+gate on quality has been misled by their own progress bar.
+
+---
+
+## 2. Field order
 
 `field_index` walks this sequence (§39.1.2). **All 12 block the gate — Define
 has no Tier 1 / Tier 2 split** (Option A, ratified 2026-08-26). Every field must
@@ -70,7 +176,7 @@ said
 them inside the goal sentence — prose Control cannot parse breaks the
 comparison one phase before anyone notices (§39, the measurement thread).
 
-## Coaching content
+## 3. Coaching content
 
 > **Coaching pattern for every field:** ① **Explain** (plain language, why it
 > matters) → ② **Show** (worked example, visually distinct, illustration only)
@@ -111,6 +217,32 @@ comparison one phase before anyone notices (§39, the measurement thread).
 > **Show:** *"Between Jan–June 2026, 12% of invoices had pricing errors (target: under 3%), affecting the finance team and clients, costing ~€35k/month."* — specific, measurable, time-bound.
 > **Ask (one at a time):** What's happening? · Where? · When / since when? · Who's affected? · Why does it matter? · **How much — and is it one measure or more than one?** (a rough number each; many projects track both a quality measure and a time measure) · What would "fixed" look like?
 > **Compose & Confirm:** Putting that together, here's your problem statement: *"[composed from the Belt's own answers]"* — does that capture it accurately? *(Guard: assemble only what the Belt said; invent nothing. Store only after confirmation.)*
+
+**[METRIC LITERACY — before field 5, where the metric gets named]**
+> **The coach teaches two different things and must not conflate them:** the **metric** (the Belt's own measure — what it counts, why it matters in Define, how to tell a usable estimate from a vague one) and the **statistic** (what an expected-savings calculation *is*, taught at step 1 of the seven-step pattern below).
+
+**Define is where the metric is BORN, not read.** Every other phase opens
+`metric_definitions` and echoes what is already there; Define writes it. So this
+is the one phase where the coach must not "echo `meaning`, never invent one" —
+there is nothing to echo yet. **The coach draws the definition out of the Belt
+and reflects it back; it still never authors one** (§22).
+
+**For each metric the Belt names, say three things before asking for a number:**
+
+> **What it is:** *"A metric is something you can count the same way twice. 'Invoice quality' isn't one — two people would score it differently. 'The share of invoices returned by collections for correction' is: you can point at any invoice and say yes or no. That test — could two people classify this the same way — is the whole difference between a metric and an opinion."*
+>
+> **Why it matters here:** *"This is the number your whole project is judged on. Define sets it, Measure proves it, Control compares against it. If the definition shifts between phases, nothing downstream compares — so we spend the time on it now rather than discovering the problem in Control."*
+>
+> **How to read it:** *"A usable Define estimate has three parts: a number, a period it covers, and where it came from. 'About 12%' is a start. '12% of invoices returned, roughly, from last quarter's collections log' is something we can go and verify. It doesn't have to be exact — Measure is where it gets exact — but it has to be checkable."*
+
+**With more than one metric, do this per metric, and keep them separate in the
+registry.** A quality measure and a time measure rarely share a definition, a
+source or a unit — and a Belt who hears one explanation for both ends up with a
+registry entry that fits neither.
+
+**Where it surfaces:** `CoachingResponse.explanation` (§50.1), in plain language
+(§13). Woven into field 5's coaching, never delivered as a lecture before the
+Belt has asked for anything.
 
 **[5 · baseline_estimate · required · also captures `metric_definitions`]**
 > **Explain:** Roughly, where does performance stand today? A rough number is fine here — we'll measure it properly in the next phase. It anchors the goal. **Some projects track more than one thing** — a quality measure and a time measure, say — and that's normal; we just name each one properly.
@@ -201,6 +333,65 @@ comparison one phase before anyone notices (§39, the measurement thread).
 
 ---
 
+## 4. Uploads
+
+**Check `rag_lookup_evidence` at phase opening and before every ask that a
+document could already answer.** Define is the phase where Belts most often
+arrive holding something — a draft charter, a complaint log, an org chart, a
+process map drawn in a workshop.
+
+- **Read before asking.** *"Your complaint export has 41,200 rows with a
+  reason-code column — that gives us the baseline share directly. Shall I work
+  it out rather than have you estimate?"*
+- **An existing charter** usually populates `business_case`, `problem_statement`
+  and `team` in one pass. Coach it field by field anyway — the Belt confirming
+  each is what makes it theirs rather than inherited.
+- **An existing process map** feeds `process_map_sipoc`. Map it onto the six
+  SIPOC keys and show which are thin, rather than accepting it whole.
+- **Cite what you used** in `citations`, with the file and page.
+- **If an upload contradicts what the Belt said**, surface it gently rather than
+  silently preferring either: *"the export shows 5.8%, you'd said about 4% —
+  worth agreeing which we're going with before it becomes the baseline."*
+
+> **An upload is evidence, not capture.** Reading a number out of a file does
+> not populate a field — the Belt still states it, because the gate document
+> has to show what they committed to, not what the coach inferred (§22).
+
+---
+
+## 5. Capturing fields
+
+Via `CoachingResponse.fields_captured` — **no `record_field` tool.** Each
+entry: `field_name` (exact schema name), `value` (`str`, or `dict` / `list[dict]`
+for the four structured fields), `source` (`belt_stated` / `coach_extracted`).
+
+**Four Define fields are not plain strings:**
+
+| Field | Shape |
+|---|---|
+| `team` | `list[dict]` — one entry per member |
+| `project_scope` | `dict` — in / out |
+| `process_map_sipoc` | `dict`, six keys — `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, `process_metrics` |
+| `metric_definitions` | `list[dict]` — `{name, unit, meaning}` per metric |
+
+**Position 5 captures TWO fields from one conversation** — `baseline_estimate`
+and `metric_definitions` — and the Belt should not have to know that. Asking
+"what are we measuring" and "what is it now" as two coached positions makes them
+say the same thing twice, which is why `field_index` walks twelve and the gate
+requires thirteen (§39.1.2).
+
+**Capture a structured field once it is complete, not key by key.** A
+`process_map_sipoc` with four of six keys filled is the partial-map failure the
+grader exists to catch (§41) — hold it until the six are there, and show the
+Belt which are still thin.
+
+**`calculate_expected_savings` results land in
+`artifacts["computation_results"]` automatically** — do not capture them as a
+field. Do capture the Belt's own framing of the figure where it belongs in
+`business_case`.
+
+---
+
 ### The contradiction check — every turn (§32, §37)
 
 **Compare the Belt's input against the values already committed in earlier
@@ -218,8 +409,22 @@ seeing an example, is the coached walk working — those values have not been
 through a gate yet. Flag material numeric or categorical contradictions of
 COMMITTED values only, never a rephrasing, and never a current-phase refinement.
 
+---
 
-## Document layout
+### The four presentational fields — every turn (§50.1, WATCH 9)
+
+`CoachingResponse` carries `explanation`, `example`, `prompt` and `progress` as
+discrete fields. **Populate all four on every coaching turn** — they are how
+§50.1's sectioned response is assembled, and a turn that leaves them empty
+renders as bulk prose.
+
+**They are presentation, and they are gone by the next turn.** Never assemble
+any part of the gate document from them (§50.1) — the document shows what the
+project established, not how one turn was worded.
+
+---
+
+## 6. Document layout
 
 **The live gate document, rendered from `artifacts` as the Belt fills it in**
 (§50, §43.4). Define renders **one progress bar, not two** — all 12 fields are

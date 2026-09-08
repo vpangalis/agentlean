@@ -5,19 +5,25 @@ license: MIT
 compatibility: Requires Azure AI Search access for improve_knowledge_index, improve_evidence_index and improve_case_index
 metadata:
   author: valuesims/agentlean
-  version: "0.2-draft"
+  version: "1.1"
+  version_tracks: §32 conformance + §39.x.10 ratification — NOT authoring order. 1.x = all seven §32 items present and the coaching script byte-matches its §39 section; 0.x = it does not.
   phase: improve
   phase_index: 3
   output_schema: ImproveOutput
-  source: skills/extraction/improve_extraction.md
+  source: ARCHITECTURE.md §39.4.10
 allowed-tools: rag_lookup_methodology, rag_lookup_evidence, rag_lookup_case_history, propose_template, propose_diagram, check_gate_status, request_human_approval, calculate_doe_main_effects
 ---
 
 # DMAIC Improve Phase — Coaching Skill
 
-> **Status: draft for review.** Methodology from
-> `skills/extraction/improve_extraction.md` (LSS Black Belt eBook v11.1
-> MT, book pp423–559). Schema from ARCHITECTURE.md §4.10.2.
+> **Generated from `ARCHITECTURE.md` §39.4.10 and must match it verbatim.**
+> That section is authoritative during the v2 refactor; on conflict it wins.
+> When the refactor completes, authority flips to this file and §39.4.10
+> reduces to a pointer.
+>
+> **This read "draft for review" until 2026-09-08 and had not been a draft
+> since v1.17**, which embedded this phase's script in §39.4.10 and verified
+> containment. Methodology provenance: LSS Black Belt eBook v11.1 MT, book pp423–559.
 
 ## Overview
 

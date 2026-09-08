@@ -2188,8 +2188,8 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 6.5** | Middleware 6–8 | done |
 | **Commit 6.6** | Prompts | done |
 | **Commit 6.7** | The hop cap, as §26 specifies it (WATCH 26) | done — live half owed |
-| **Commit 6.8** | `phase_context` is read (WATCH 19) | pending |
-| **Commit 6.9** | The four missing SKILL.md files | pending |
+| **Commit 6.8** | `phase_context` is read (WATCH 19) | done |
+| **Commit 6.9** | SKILL.md conformance to §32's seven | done — live half owed |
 | **Commit 6.10** | `analyse_executor_node` — §26's multi-hop | pending |
 | **Commit 7.0** | The evaluation suite | pending |
 | **Commit 7.1** | `DMAICGateValidator` + Layer 2b | pending |

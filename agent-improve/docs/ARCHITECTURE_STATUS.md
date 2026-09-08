@@ -14,7 +14,8 @@ Legend:  ✅ built · ⚠️ built with a known defect · ☐ not built · ⛔ b
 
 # Agent Improve — Architecture Status
 
-# verified against the tree 2026-09-08 · at commit 6.8
+# verified against the tree 2026-09-08 · at commit 6.9
+# every count below is reproduced by a command in «Re-running the counts»
 
 **This is what exists, not what is specified.** `ARCHITECTURE.md` is the build
 target; `BUILD_TRACKER.md` is the spine's progress; this is the standing answer
@@ -37,7 +38,7 @@ measurements by sitting in that state unrecorded.
 | **3** | **Phase subgraphs** — §13 | **5 / 5 phases · 5 / 5 nodes** | ✅ one parameterised builder, all five phases wired: `planner` `executor` `validation_stack` `gate_review` `gate_apply` · ✅ `PhaseState`, no checkpointer of its own (§16) · ✅ ten boundary mappers |
 | **4** | **The coaching agent** — §17, §18, §26 | **2 / 3 nodes** | ✅ `planner` (structured `CoachingPlan`, temp 0.1) · ✅ `executor` (`create_agent`, `response_format=CoachingResponse`) · ☐ `analyse_executor_node` — §26's planned multi-hop (step 6.10; `hop_results` / `synthesis_output` have no writer) |
 | **5** | **Middleware stack** — §19 | **8 / 8 mounted** ⚠️ | all eight construct and fire; two carry defects — see the control-point table |
-| **6** | **Tools and knowledge** — §23–§32 | **25 / 27 tools · 3 / 3 indexes** | ✅ 3 `rag_lookup_*` + `propose_template` + `propose_diagram` · ☐ `check_gate_status` (7.1) ☐ `request_human_approval` (7.5) — WATCH 25 · ✅ 20 computation tools, bound 1/8/5/1/5 per phase · ✅ `load_skill` via middleware 2 · ⚠️ **1 of 5 SKILL.md files written** (step 6.9) |
+| **6** | **Tools and knowledge** — §23–§32 | **25 / 27 tools · 3 / 3 indexes** | ✅ 3 `rag_lookup_*` + `propose_template` + `propose_diagram` · ☐ `check_gate_status` (7.1) ☐ `request_human_approval` (7.5) — WATCH 25 · ✅ 20 computation tools, bound 1/8/5/1/5 per phase · ✅ `load_skill` via middleware 2 · ✅ **5 of 5 SKILL.md files exist, load, and carry all seven of §32's mandatory items** — Define's A→F flow, Uploads and §43.7 metric literacy landed at 6.9. All five byte-match their §39.x.10 section |
 | **7** | **Validation, gates and escalation** — §33–§38 | **1.5 / 9** | ⚠️ Layer 2b delegates to the v1 `validate_{phase}` and **all five gates are inert** · ✅ Layer 2a is `CoherenceMiddleware` · ☐ Layers 2c, 2d ☐ nine-step HITL ☐ two tiers + `warning` ☐ escalation logic ☐ §37 re-approval cascade (7.6) |
 | **8** | **Persistence and cross-cutting** — §8–§10, §44–§48, §51–§52 | **3 / 3 persistence · 1 / 10 cross-cutting** | ✅ checkpointer (Azure Blob, per `case_id`) ✅ Store (cross-phase artifacts) ✅ case blob (system of record) · ✅ §44 Step 0 only · ☐ §44 Steps 1–6 ☐ §46 circuit breaker + fallback chain ☐ §48 structured errors (the schema exists, nothing raises it) ☐ **§51 tracing — zero `@traceable` in the backend** ☐ §52 evaluation — no suite ⛔ §46 L3 cache (Redis) |
 
@@ -45,6 +46,77 @@ measurements by sitting in that state unrecorded.
 needs a hand-built harness, and WATCH 28's ratified *"set the limits from
 measured data"* cannot run at all. That is why §51 is numbered **8.0**, ahead of
 the step that consumes it.
+
+---
+
+### Re-running the counts
+
+**Every number in this document is produced by one of these commands.** The
+header promises *"verified against the tree, never from a document"*, and until
+2026-09-08 that promise was broken by the row it mattered most on: *"1 of 5
+SKILL.md files written"* was copied from `CONTINUITY.md` on the day this file
+was created and was wrong from its first commit. **A re-runnable row is
+verified. A bare number is a claim** — and a claim ages without saying so.
+
+Run from the repo root. The Python ones `cd agent-improve` first and use that project's venv — the repo-root `.venv` is a different, older interpreter (WATCH 2), so `python` alone gives the wrong answer or none.
+
+```sh
+# Block 1 — API surface (11)
+grep -cE '^@router\.(get|post|delete|put)' agent-improve/backend/gateway/routes.py
+
+# Block 3 — phase subgraph nodes (5)
+grep -c 'builder.add_node' agent-improve/backend/phases/subgraph_common.py
+
+# Block 5 — middleware mounted (8)
+#   7 constructor calls + `coherence`, which is built above the list and
+#   passed by name so position 8 can hold a reference to it.
+grep -c 'Middleware(\|^            coherence,' agent-improve/backend/phases/nodes_common.py
+
+# Block 6 — universal tools BUILT, of 7 ratified (5)
+(cd agent-improve && ./.venv/Scripts/python -c 'from backend.knowledge.tools import UNIVERSAL_TOOLS as U; print(len(U))')
+
+# Block 6 — distinct computation tools (20), and the per-phase split (1/8/5/1/5)
+(cd agent-improve && ./.venv/Scripts/python -c 'from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE as C; print(len({t.name for p in C for t in C[p]}))')
+(cd agent-improve && ./.venv/Scripts/python -c 'from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE as C
+from backend.phases.mappers_common import PHASE_ORDER as P
+print("/".join(str(len(C[p])) for p in P))')
+
+# Block 6 — SKILL.md files that EXIST (5)
+ls agent-improve/skills/*/SKILL.md | wc -l
+
+# Block 6 — SKILL.md files carrying §32's metric-literacy item (5)
+#   The item Define lacked until 6.9, and the cheapest single proxy for
+#   §32 conformance. It is a proxy, not a proof — see the note below.
+grep -l 'METRIC LITERACY' agent-improve/skills/*/SKILL.md | wc -l
+
+# Block 6 — each phase script byte-matches its §39.x.10 section (5 of 5)
+(cd agent-improve && ./.venv/Scripts/python - <<'EOF'
+import io, re
+arch = io.open('ARCHITECTURE.md', encoding='utf-8').read()
+SEC = {'define':'39.1.7','measure':'39.2.10','analyse':'39.3.10',
+       'improve':'39.4.10','control':'39.5.10'}
+for ph, sec in SEC.items():
+    i = arch.index(f'#### {sec}')
+    j = arch.index('\n#### ', i + 1)
+    m = re.search(r'\*\*\[OPENING', arch[i:j])
+    script = arch[i:j][m.start():].rstrip('\n')
+    skill = io.open(f'skills/dmaic-{ph}-phase/SKILL.md', encoding='utf-8').read()
+    print(f'{ph:8s} {script in skill}')
+EOF
+)
+
+# Block 8 — @traceable decorators in the backend, excluding tests (0)
+grep -rl '@traceable' agent-improve/backend --include=*.py | grep -v tests | wc -l
+```
+
+> **The `METRIC LITERACY` grep is a proxy and is labelled as one.** It answers
+> "does this file carry the one §32 item Define was missing", not "does it carry
+> all seven". **A grep is exactly how the wrong count was produced twice** — the
+> 6.9 scoping audit scored Define 3.5/7 on a keyword pass, then 4.5/7 on a
+> second, because the file carries all seven of `calculate_expected_savings`'s
+> steps without ever using the phrase "seven-step". The full check is reading
+> the file against §32's list; this line is the cheap regression signal, not a
+> replacement for it. `DECISIONS.md` Part AO.
 
 ---
 
@@ -58,7 +130,7 @@ is the table the coverage audit needed and had to rebuild by grep.
 | # | Middleware | Hook(s) | Status |
 |---|---|---|---|
 | 1 | `BeforeModelStateInjection` | `before_agent` composes · `wrap_model_call` prepends | ✅ **as of 6.8 it injects `phase_context`.** Was ⚠️ from 6.3 to 6.8 — composed the block without it |
-| 2 | `DMAICSkillsMiddleware` | `before_agent` + registers the `load_skill` tool | ⚠️ mounted and working; **4 of 5 SKILL.md files do not exist**, so four phases disclose nothing (step 6.9) |
+| 2 | `DMAICSkillsMiddleware` | `before_agent` + registers the `load_skill` tool | ✅ mounted and working; **all five SKILL.md files exist, load and are §32-conformant** as of 6.9. This table carried "1 of 5" from its first commit until 2026-09-08 — copied from a document, which is what the counts block above now prevents |
 | 3 | `SummarizationMiddleware` | `before_model` | ✅ LangChain core, as shipped · trigger 100k tokens, keep 20 |
 | 4 | `ModelRetryMiddleware` | `wrap_model_call` | ✅ `max_retries=2` → three attempts. The only model-retry layer; the factory's own is pinned to 0 |
 | 5 | `ToolRetryMiddleware` | `wrap_tool_call` | ✅ `max_retries=2`, `on_failure="continue"` — a failed retrieval does not kill the turn. **Costs no graph steps** (measured at 6.4) |

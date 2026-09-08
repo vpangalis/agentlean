@@ -3721,6 +3721,32 @@ missing any of the six keys is the partial-map failure §41 describes.
 > **Ask (one at a time):** What's happening? · Where? · When / since when? · Who's affected? · Why does it matter? · **How much — and is it one measure or more than one?** (a rough number each; many projects track both a quality measure and a time measure) · What would "fixed" look like?
 > **Compose & Confirm:** Putting that together, here's your problem statement: *"[composed from the Belt's own answers]"* — does that capture it accurately? *(Guard: assemble only what the Belt said; invent nothing. Store only after confirmation.)*
 
+**[METRIC LITERACY — before field 5, where the metric gets named]**
+> **The coach teaches two different things and must not conflate them:** the **metric** (the Belt's own measure — what it counts, why it matters in Define, how to tell a usable estimate from a vague one) and the **statistic** (what an expected-savings calculation *is*, taught at step 1 of the seven-step pattern below).
+
+**Define is where the metric is BORN, not read.** Every other phase opens
+`metric_definitions` and echoes what is already there; Define writes it. So this
+is the one phase where the coach must not "echo `meaning`, never invent one" —
+there is nothing to echo yet. **The coach draws the definition out of the Belt
+and reflects it back; it still never authors one** (§22).
+
+**For each metric the Belt names, say three things before asking for a number:**
+
+> **What it is:** *"A metric is something you can count the same way twice. 'Invoice quality' isn't one — two people would score it differently. 'The share of invoices returned by collections for correction' is: you can point at any invoice and say yes or no. That test — could two people classify this the same way — is the whole difference between a metric and an opinion."*
+>
+> **Why it matters here:** *"This is the number your whole project is judged on. Define sets it, Measure proves it, Control compares against it. If the definition shifts between phases, nothing downstream compares — so we spend the time on it now rather than discovering the problem in Control."*
+>
+> **How to read it:** *"A usable Define estimate has three parts: a number, a period it covers, and where it came from. 'About 12%' is a start. '12% of invoices returned, roughly, from last quarter's collections log' is something we can go and verify. It doesn't have to be exact — Measure is where it gets exact — but it has to be checkable."*
+
+**With more than one metric, do this per metric, and keep them separate in the
+registry.** A quality measure and a time measure rarely share a definition, a
+source or a unit — and a Belt who hears one explanation for both ends up with a
+registry entry that fits neither.
+
+**Where it surfaces:** `CoachingResponse.explanation` (§50.1), in plain language
+(§13). Woven into field 5's coaching, never delivered as a lecture before the
+Belt has asked for anything.
+
 **[5 · baseline_estimate · required · also captures `metric_definitions`]**
 > **Explain:** Roughly, where does performance stand today? A rough number is fine here — we'll measure it properly in the next phase. It anchors the goal. **Some projects track more than one thing** — a quality measure and a time measure, say — and that's normal; we just name each one properly.
 > **Show (one metric):** *"Error rate — measured in %, meaning the share of invoices returned by collections for correction. Currently about 12%."*

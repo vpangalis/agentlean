@@ -7,10 +7,10 @@
 
 | | |
 |---|---|
-| **Last completed** | step **6.8** — **`phase_context` is read (WATCH 19)** |
-| **Next** | step **6.9** — The four missing SKILL.md files |
+| **Last completed** | step **6.9** — SKILL.md conformance to §32's seven |
+| **Next** | step **6.10** — `analyse_executor_node` — §26's multi-hop |
 | **Stage** | Stage 6 — The coaching agent |
-| **Progress** | 26 of 49 build steps |
+| **Progress** | 27 of 49 build steps |
 | **Last spine commit** | `1575330` (commit 6.8) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.32 |
@@ -1248,8 +1248,19 @@ WATCH-8 entry retired here.** WATCH 4 (drift-registry pattern-2 scope) — verif
 whether still owed.
 
 ### Parallel workstreams — not steps, do not block the spine
-- **Five SKILL.md files** — Define's written; Measure/Analyse/Improve/Control
-  owed (must include the CoachingResponse-population instruction, WATCH 9).
+- **Five SKILL.md files — CLOSED 2026-09-08 at step 6.9. All five exist, load,
+  and carry all seven of §32's mandatory items.** This line said Define's was written and the other four were owed, and
+  it was wrong for long enough to scope a step around. Measure 53.8K, Control
+  50.5K, Analyse 44.4K, Improve 37.9K, Define 21.8K chars.
+  **The four carry all seven of §32's mandatory items; Define carries 4.5** —
+  it has no A→F session flow, no Uploads section and no §43.7 metric literacy.
+  So the conformance work is Define's, and step 6.9 owns it.
+
+  > **Two lines in this same file already contradicted it** — the WATCH 31
+  > entries state the contradiction instruction *"landed in all five coach
+  > prompts and all five SKILL.md files"*, which cannot be true of files that
+  > do not exist. The evidence was in the repository the whole time; nothing
+  > cross-checked one line against the other.
 - **Eval dataset (§52)** — becomes load-bearing once step 6.2 lands; the >10%
   regression threshold is asserted, not measured.
 
