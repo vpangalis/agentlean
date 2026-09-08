@@ -242,6 +242,9 @@ def _retrieval_strategy(phase: str) -> str:
     return "multi_hop" if phase == "analyse" else "single_hop"
 
 
+#: Newline, named so the planner prompt's f-strings stay backslash-free.
+NL = "\n"
+
 _PLANNER_SYSTEM = """\
 You plan ONE coaching turn for a Six Sigma DMAIC project, in the {phase} phase.
 
@@ -294,10 +297,27 @@ def _planner_prompt(phase: str, state: PhaseState) -> str:
         for m in messages[-6:]
     ) or "  (no exchange yet — this is the opening turn)"
 
+    # §9 names TWO consumers of `phase_context` — "the planner; state
+    # injection (§19.1)" — and until step 6.8 neither read it. This is the
+    # first. **The planner needs it for the same reason the coach does**:
+    # choosing which field to coach next is a judgement about THIS project,
+    # and a planner given only the field ledger and the conversation tail is
+    # choosing in the abstract. For Define it carries the case record; for
+    # the other four it carries the prior phase's APPROVED values, which is
+    # what makes "stay on a field the Belt is mid-conversation about"
+    # answerable at all.
+    context = str(state.get("phase_context") or "").strip()
+    framing = (
+        f"{NL}THIS PROJECT:{NL}  {context}{NL}" if context else
+        f"{NL}THIS PROJECT:{NL}  (no phase context was composed — plan"
+        f" from the ledger and the conversation alone){NL}"
+    )
+
     return (
         _PLANNER_SYSTEM.format(
             phase=phase, default_strategy=_retrieval_strategy(phase),
         )
+        + framing
         + f"\nFIELD LEDGER for {phase} ({len(rows)} fields):\n{ledger}\n"
         + f"\nRECENT CONVERSATION:\n{tail}\n"
     )

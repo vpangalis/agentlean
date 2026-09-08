@@ -67,6 +67,42 @@ def read_case_record(store: BaseStore, case_id: str) -> dict[str, Any]:
     return dict(item.value) if item is not None else {}
 
 
+#: The framing fields `define_input_mapper` composes `phase_context` from.
+#: Named here rather than in the mapper because the WRITER has to know what the
+#: reader needs — WATCH 19 existed for six steps because those two facts lived
+#: in different files and neither named the other.
+CASE_RECORD_FRAMING_FIELDS = (
+    "title", "department", "belt_level", "leader", "target_date",
+)
+
+
+def case_record_from_document(case: Any) -> dict[str, Any]:
+    """The Store's `case` copy, from the blob case document (§9, S-F10).
+
+    **A COPY, deliberately, and not the whole document.** §9: the `case`
+    namespace exists so mappers depend on `BaseStore` alone;
+    `cases/case_{id}.json` stays the system of record. Copying only the framing
+    fields keeps the copy small and makes the drift surface obvious — if the
+    mapper ever needs a sixth field, `CASE_RECORD_FRAMING_FIELDS` is the one
+    place that has to change.
+    """
+    return {f: getattr(case, f, None) for f in CASE_RECORD_FRAMING_FIELDS
+            if getattr(case, f, None)}
+
+
+def write_case_record(store: BaseStore, case_id: str, record: dict[str, Any]) -> None:
+    """Put the case record at `("projects", case_id, "case") / "record"`.
+
+    **This is WATCH 19's missing writer.** `read_case_record` has read this key
+    since step 3.3 and nothing anywhere wrote it, so every read returned `{}`
+    and Define's `phase_context` was composed entirely from labelled fallbacks
+    — silently, from 6.3 when the coach started being handed that context, to
+    6.8 when this landed. Idempotent by key, which is what makes the lazy
+    backfill safe to run on every turn.
+    """
+    store.put(("projects", case_id, KIND_CASE), "record", record)
+
+
 def read_gate_document(store: BaseStore, case_id: str, phase: str) -> dict[str, Any]:
     """The approved gate document for `phase`, written by `gate_apply_node`.
 
@@ -229,6 +265,8 @@ def compose_phase_context(
 
 __all__ = [
     "PHASE_ORDER", "KIND_CASE", "KIND_ARTIFACTS",
+    "CASE_RECORD_FRAMING_FIELDS", "case_record_from_document",
+    "write_case_record",
     "PriorGateDocumentMissing",
     "prior_phase", "read_case_record", "read_gate_document",
     "new_phase_state", "advance", "write_gate_document",

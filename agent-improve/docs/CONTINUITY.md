@@ -7,14 +7,14 @@
 
 | | |
 |---|---|
-| **Last completed** | step **6.7** — **WATCH 26** — the hop cap becomes `RemainingSteps` + a hop count |
-| **Next** | step **6.8** — **`phase_context` is read (WATCH 19)** |
-| **Stage** | Stage 6 — The coaching agent |
+| **Last completed** | step **6.8** — **`phase_context` is read (WATCH 19)** |
+| **Next** | step **7.1** — `DMAICGateValidator` + Layer 2b **(gate assembly ×4, G-28)** |
+| **Stage** | Stage 7 — Validation and gates |
 | **Progress** | 26 of 49 build steps |
 | **Last spine commit** | `0386a1d` (commit 6.7) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.32 |
-| **Block regenerated** | 2026-09-07 |
+| **Block regenerated** | 2026-09-08 |
 
 *Derived from `docs/BUILD_TRACKER.md`, `CLAUDE.md`, `ARCHITECTURE.md`
 and the git spine — never hand-maintained, so it cannot drift from
@@ -1162,7 +1162,9 @@ so read §66 when the two disagree.)*
   evidence while proving nothing (§7's standing lesson), which is why this is
   written down rather than left to be rediscovered.*
 
-- **WATCH 19 — the Store's `case` namespace has no writer.** §9 and S-F10
+- **WATCH 19 — CLOSED 2026-09-08 at step 6.8, the step the audit created for it.** Both halves are built: `write_case_record` at `POST /cases` plus a lazy backfill on `/ask` and `/gate` (every case in the registry predated the writer), and both of §9's named readers — the planner prompt and `BeforeModelStateInjection`. **Proved live, not by test**: a case created through the real route landed five framing fields in the Store, and a Measure turn's injected block carried the case facts, the approved Define values and the seven missing gate fields. **The fallback is kept and made loud** — a WARNING naming the missing fields and the writer, plus a marker inside the block itself, because a silent fallback around a missing wire is the shape this project keeps getting caught by. *Original entry follows.*
+
+- **WATCH 19 (original) — the Store's `case` namespace has no writer.** §9 and S-F10
   describe `("projects", case_id, "case") / "record"` as a **session-start copy**
   of the case record, and `read_case_record` reads it — but **nothing anywhere
   writes it**, so every read returns `{}` and `define_input_mapper` composes

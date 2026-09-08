@@ -5474,3 +5474,120 @@ WATCH pointed at a step that did not own it (Pass 2), and its state field was
 declared so it looked built (Pass 3). **A fourth pass — spec entries (S-Fxx,
 S-Cxx) with no implementation — was not run** and is the obvious next one; §66's
 SPEC-GAP register is the partial version of it that already exists.
+
+---
+
+## Part AN — Step 6.8: two breaks at opposite ends of one chain (2026-09-08)
+
+**The middle of the chain always worked.** All five input mappers have composed
+`phase_context` at every phase entry since step 3.3. What was missing was a
+writer at one end and a reader at the other, and because each end failed
+silently, neither end's failure was visible from the other.
+
+| | Break | Since | Fixed by |
+|---|---|---|---|
+| **1** | Nothing wrote the Store's `case` namespace | 3.3 (WATCH 19) | `write_case_record` at `POST /cases`, plus a lazy backfill on `/ask` and `/gate` |
+| — | *the mapper composes `phase_context`* | *worked throughout* | — |
+| **2** | Nothing read `phase_context` | 6.3 | the planner prompt, and `BeforeModelStateInjection` |
+
+**Fix either alone and nothing changes.** With only the writer, a correct value
+is composed and discarded. With only the readers, the coach is handed the
+mapper's labelled fallbacks — *"this project — the department. Belt belt, led by
+the project leader"* — which read as plausible prose and are not. That pairing is
+why one step owns both, and why the audit's Pass 3 could see it when six steps
+of ordinary review could not.
+
+### AN1 — The lazy backfill is not belt-and-braces, it is the only path for every existing case
+
+WATCH 19 named two sites — *"at case creation, and for cases that predate it,
+lazily on first read"* — and the second is doing the real work today: **every
+case in the registry predates the writer.** `_ensure_case_record` therefore runs
+on `/ask` and `/gate` as well as at creation, unconditionally rather than behind
+an existence check.
+
+**Unconditional deliberately.** `write_case_record` is idempotent by key, so the
+repeat cost is one small blob write against a turn that already makes several
+model calls. A branch that asked *"does the record exist yet"* would be one more
+place for the record to be quietly absent, which is the failure this step exists
+to remove.
+
+**A Store write that fails must not fail the turn.** The Store is a copy; the
+blob case document is the system of record (§9). A failed write is logged and
+the turn proceeds on the fallback — which now says so.
+
+### AN2 — The fallback is kept, and made loud in two places
+
+**Deleting the fallback would have been the wrong fix.** A case record missing
+one framing field should thin the prompt, not raise at phase entry — that is
+S-F10's own design, and it is right. *"Missing gate document"* is an ordering
+fault and raises; *"missing framing field"* is not.
+
+**What was wrong was that it fired in total silence.** No error, no empty
+prompt, no log line, for six steps and every live measurement in them.
+
+So it is announced twice, because the two have different readers:
+
+- **A `WARNING`** naming how many fields fell back, which ones, and *the writer
+  that should have run* — so whoever reads the log is pointed at the fix rather
+  than at the symptom.
+- **A marker inside `phase_context` itself**, so it appears in the injected
+  block and therefore in the LangSmith trace: *"[!] PROJECT DETAILS UNAVAILABLE
+  — N of 5 framing fields are placeholders, not this project's values."*
+
+The second is the one that matters. The log line is only read by someone already
+suspicious; the block is read by anyone looking at a trace, which is exactly the
+person who was previously seeing plausible prose with nothing to distinguish it
+from real project facts.
+
+**The same treatment is applied at the reader end.** `BeforeModelStateInjection`
+logs a warning and writes `[!] No phase framing was composed for this turn.`
+into the block when `phase_context` is empty. **A silent fallback around a
+missing wire is the shape this project keeps getting caught by** — §0.16's
+unfireable cap, §26's undeclared field, and this — so the guard against it is
+noise, deliberately.
+
+### AN3 — What the coach now sees, and why it is not a duplicate
+
+`BeforeModelStateInjection` already had a `THIS PROJECT` block, built from
+`case_metadata` riding on `config`. **The new block is not a second copy of it.**
+
+- `THIS PROJECT` is the **v1 seam** — case metadata passed on `config`, deleted
+  with the seam at 11.1.
+- `HOW THIS PHASE WAS ENTERED` is the phase's **own composed framing**: for
+  Define the case record, and **for the other four the prior phase's APPROVED
+  gate values.**
+
+They overlap for Define and do not overlap at all for the other four. Before
+this step, **a Measure coach had no route by which to learn what Define
+committed to** — the gate document was read by the mapper, composed into
+`phase_context`, and dropped.
+
+### AN4 — Verified live, and the block is on the record
+
+One Measure turn on a case created through the real route, with a seeded Define
+gate document (7.3 does not exist, so nothing else can write one). Real Store,
+real mappers, real middleware. The injected block carried all three things it
+owed: the case facts, the approved Define values, and the seven missing Measure
+gate fields. The block is reproduced in the step 6.8 commit body.
+
+**The `_compose` call was tee'd, not stubbed** — the real method ran and its
+real return value was recorded on the way past.
+
+### AN5 — The re-measurement, and what may not be concluded from it
+
+Every number this project holds about coach behaviour was taken between 6.3 and
+6.8, on a coach running without its framing. Part AM records that those are
+invalidated. This step re-runs the Define and Measure opening turns to replace
+them.
+
+**Record only.** Nothing about WATCH 26 may be concluded from these numbers:
+its fix is `RemainingSteps` and the hop budget, which landed at 6.7 and whose
+remaining half is 6.10. A step count that looks better here is not evidence the
+cap works, and one that looks worse is not evidence it does not. **The baseline
+exists to be compared against later, not to settle an open question now.**
+
+> **⚠ The re-measurement did not complete in this session.** Azure throttled
+> `operational-premium` in westeurope through the whole attempt window — the
+> same AI2 blocker that stopped 6.7's live run and that WATCH 28's telemetry
+> plan exists to characterise. **The wiring is verified live and the baseline is
+> not yet taken**; those are separate claims and only the first is made here.

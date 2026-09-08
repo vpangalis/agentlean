@@ -191,7 +191,43 @@ async def create_case(request: CaseCreateRequest) -> CaseCreateResponse:
     )
     await blob.create_case(case)
     await blob.register_case(case)
+    # WATCH 19's writer, at the site the watch names (step 6.8). §9: the Store's
+    # `case` namespace is a session-start COPY so that boundary mappers depend
+    # on `BaseStore` alone; the blob above stays the system of record.
+    _ensure_case_record(case)
     return CaseCreateResponse(case_id=case_id, title=request.title)
+
+
+def _ensure_case_record(case: CaseDocument) -> None:
+    """Copy the case's framing fields into the Store — WATCH 19, both halves.
+
+    **Called at creation AND on every turn.** `write_case_record` is idempotent
+    by key, so the second call is a cheap overwrite rather than a branch, and
+    that is deliberate: a branch that checked "does it exist yet" would be one
+    more place for the record to be silently absent. WATCH 19 named exactly
+    these two sites — *"the write belongs at case creation (`POST /cases`) and,
+    for cases that predate it, lazily on first read"* — and every case in the
+    registry today predates it.
+
+    **Failure here must not fail the turn.** The Store is a copy; the blob is
+    the system of record. A Store write that fails leaves the mapper on its
+    labelled fallbacks, which now says so loudly rather than silently.
+    """
+    from backend.core.store import get_store
+    from backend.phases.mappers_common import (
+        case_record_from_document, write_case_record,
+    )
+
+    record = case_record_from_document(case)
+    try:
+        write_case_record(get_store(), case.case_id, record)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "case record NOT written to the Store for %s (%s: %s) — the "
+            "coach will be framed with placeholder prose this turn. The blob "
+            "case document is unaffected; this is the §9 copy.",
+            case.case_id, type(exc).__name__, exc,
+        )
 
 
 class ClientGone(Exception):
@@ -498,6 +534,8 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     case = await blob.load_case(request.case_id)
     if case is None:
         raise HTTPException(404, f"Case {request.case_id} not found")
+    # WATCH 19's lazy half — every case in the registry predates the writer.
+    _ensure_case_record(case)
 
     from datetime import datetime, timezone
     from backend.core.graph import PhaseNotWired, get_graph
@@ -964,6 +1002,9 @@ async def submit_gate(request: GateSubmitRequest,
     case = await blob.load_case(request.case_id)
     if case is None:
         raise HTTPException(404, f"Case {request.case_id} not found")
+    # WATCH 19's lazy half — /gate enters a phase subgraph too, so the input
+    # mapper runs here as well and needs the same record.
+    _ensure_case_record(case)
 
     from backend.core.graph import PhaseNotWired, get_graph
 

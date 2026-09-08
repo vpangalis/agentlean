@@ -205,6 +205,35 @@ class BeforeModelStateInjection(AgentMiddleware):
                                          ("department", "Department"))
                       if meta.get(key)]
 
+        # ── phase_context — §9's SECOND named consumer (step 6.8) ────
+        #
+        # §9 names two readers of `phase_context`, "the planner; state
+        # injection (§19.1)", and until 6.8 NEITHER existed. The field was
+        # composed at every phase entry by all five input mappers and thrown
+        # away, which is why nothing broke and nothing was noticed for six
+        # steps (WATCH 19, `DECISIONS.md` Part AM).
+        #
+        # **This is not a duplicate of THIS PROJECT above.** That block is the
+        # case metadata riding on `config` — the v1 seam, deleted at 11.1.
+        # This is the phase's own composed framing: for Define the case record,
+        # and for the other four **the prior phase's APPROVED gate values**,
+        # which is the only route by which a Measure coach learns what Define
+        # committed to. The two overlap for Define and do not for the rest.
+        context = str(self._state.get("phase_context") or "").strip()
+        parts.append("\nHOW THIS PHASE WAS ENTERED")
+        if context:
+            parts.append(f"  {context}")
+        else:
+            # Silence is what hid this for six steps. Say it in the block the
+            # trace shows, not only in the log.
+            logger.warning(
+                "%s.state_injection: phase_context is EMPTY — the coach is "
+                "being framed without the case record or the prior gate "
+                "document. The input mapper composes it at phase entry, so an "
+                "empty value here means it did not reach state.", self.phase,
+            )
+            parts.append("  [!] No phase framing was composed for this turn.")
+
         if self._prior:
             parts.append("\nAPPROVED IN EARLIER PHASES — gate-committed, "
                          "do not contradict without flagging (§37)")
