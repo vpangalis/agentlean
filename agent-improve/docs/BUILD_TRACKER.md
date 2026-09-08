@@ -9,6 +9,17 @@ Purpose: The one-screen "where are we in the refactor" checklist. A human-readab
 Legend:  ✅ done · ▶ next · ☐ to do · ⛔ blocked · ⏸ gated/external
 -->
 
+<!--
+⚠ THE ▶ CURSOR IS LOAD-BEARING AND MUST APPEAR EXACTLY ONCE.
+`.claude/hooks/continuity_status.py` takes the FIRST row whose status cell
+contains ▶ as "next", and regenerates CONTINUITY.md's status block from it.
+It matches the character anywhere in the cell — including inside a
+parenthetical. On 2026-09-08 a note reading "was marked ▶ next until the
+audit …" left on step 7.1 made the block report "next 7.1" while Appendix D
+and the session-start hook both said 6.9, which would have skipped three
+steps. Say "the cursor" in prose; keep the character for the cursor itself.
+-->
+
 # Agent Improve — Refactor Build Tracker
 # updated 2026-09-03 · build target: `agent-improve/ARCHITECTURE.md`
 
@@ -69,14 +80,14 @@ unconfirmed), 9.1 (external reindex). Everything else is open once its precondit
 | 6.6 | Prompts | §22 | ✅ done *(**WATCH 31 CLOSED** — proven live both ways: a real contradiction interrupts, an ordinary refinement does not. Done-when scoped to live v2 code; the two v1 families die with their consumers at 11.1 per Route A. **WATCH 26 did NOT close and moved off this step** — the cause is §26's unbuilt `RemainingSteps`, not the prompt. DECISIONS Part AK)* |
 | 6.7 | **WATCH 26** — the hop cap becomes `RemainingSteps` + a hop count | §16, §26, S-F09 B1 | ✅ done *(**the defect was CLAUDE.md §3.7**, which carried `recursion_limit = 2*max_hops+1 = 11` — rejected by §16 — so the build followed the constitution into the wrong mechanism. Governance first and alone (2.2.32). **Both counters measured, not assumed**: `remaining_steps` DOES cross the subgraph boundary, but moves by 1 per executor turn however many hops it made, so it cannot cap hops — both guards built. `recursion_limit=11` was also short by one, which is why the symptom see-sawed. **Live re-run still owed — blocked on Azure 429s (AI2).** DECISIONS Part AL)* |
 | 6.8 | **`phase_context` is read (WATCH 19)** | §6, §9, §19.1 | ✅ done **live-run verified** *(**WATCH 19 CLOSED.** Both breaks fixed: `write_case_record` at `POST /cases` + a lazy backfill on `/ask` and `/gate`, and both of §9's named readers wired — the planner prompt and `BeforeModelStateInjection`. Proved live: a real case created through the route landed 5 framing fields in the Store, and a Measure turn's injected block carried the case facts, the approved Define values and the 7 missing gate fields. The fallback is KEPT and made loud — WARNING + an in-block marker. DECISIONS Part AN)* *(was: declared, written by all five input mappers, **read by nothing**. §6 names its consumers as "planner; state injection" and neither touches it. **Invalidates every live measurement since 6.3** — the coach has been running on mapper-fallback prose. Two halves: the Store `case` writer W19 has owed since before 6.3, and the injection reader 6.3 never wired)* |
-| 6.9 | The four missing SKILL.md files | §32 | ☐ *(only Define's exists; `DMAICSkillsMiddleware` loads them, so four phases run progressive disclosure against nothing. Each needs the contradiction-check instruction §37 and the `CoachingResponse`-population instruction — WATCH 9)* |
+| 6.9 | The four missing SKILL.md files | §32 | ☐ ▶ **next** *(only Define's exists; `DMAICSkillsMiddleware` loads them, so four phases run progressive disclosure against nothing. Each needs the contradiction-check instruction §37 and the `CoachingResponse`-population instruction — WATCH 9)* |
 | 6.10 | `analyse_executor_node` — §26's multi-hop | §26, S-F09 | ☐ *(the half 6.7 did not build. `hop_results` / `synthesis_output` are declared and read by nothing, and S-F09 is their named writer. Blocked on G-05 and G-35)* |
 
 ## Stage 7 — Validation and gates
 | Step | What | Builds | Status |
 |---|---|---|---|
 | 7.0 | The evaluation suite | §52 | ☐ *(no `evals/` directory exists. Numbered before 7.1 on §52's own rule — the suite is load-bearing once the coach, tools and grader are wired, and **Stage 7 is the first stage that changes coaching behaviour**, so a suite built after it has no pre-change baseline. Baseline must be taken after 6.8)* |
-| 7.1 | `DMAICGateValidator` + Layer 2b **(gate assembly ×4, G-28)** | §34, §40.1 | ☐ *(was marked ▶ next until the 2026-09-07 audit put four steps in front of it)* |
+| 7.1 | `DMAICGateValidator` + Layer 2b **(gate assembly ×4, G-28)** | §34, §40.1 | ☐ *(was the cursor until the 2026-09-07 audit put four steps in front of it)* |
 | 7.2 | Layers 2c and 2d + `validation_stack` node | §34, the five rubrics | ☐ |
 | 7.3 | The nine-step HITL gate | §33 | ☐ |
 | 7.4 | Two tiers + the `warning` verdict | §35 | ☐ |

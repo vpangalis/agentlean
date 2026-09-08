@@ -8,10 +8,10 @@
 | | |
 |---|---|
 | **Last completed** | step **6.8** — **`phase_context` is read (WATCH 19)** |
-| **Next** | step **7.1** — `DMAICGateValidator` + Layer 2b **(gate assembly ×4, G-28)** |
-| **Stage** | Stage 7 — Validation and gates |
+| **Next** | step **6.9** — The four missing SKILL.md files |
+| **Stage** | Stage 6 — The coaching agent |
 | **Progress** | 26 of 49 build steps |
-| **Last spine commit** | `0386a1d` (commit 6.7) |
+| **Last spine commit** | `1575330` (commit 6.8) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.32 |
 | **Block regenerated** | 2026-09-08 |

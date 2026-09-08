@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """commit-msg hook — the refactor-commit guard.
 
-Blocks a `refactor(arch-v2)` commit unless ALL FIVE hold:
+Blocks a `refactor(arch-v2)` commit unless ALL FIVE hold (and rule 2b binds on EVERY commit):
 
   1. SUBJECT — matches the spine format EXACTLY:
          refactor(arch-v2): commit X.Y — <what changed>
@@ -13,6 +13,13 @@ Blocks a `refactor(arch-v2)` commit unless ALL FIVE hold:
 
   2. TRACKER — `agent-improve/docs/BUILD_TRACKER.md` is staged in the same
      commit. One step = one commit = one tracker row moved.
+
+  2b. STATUS — `agent-improve/docs/ARCHITECTURE_STATUS.md` is staged whenever
+     the commit touches a path that file tabulates (STATUS_WATCHED). **This one
+     is NOT scoped to `refactor(arch-v2)`** and runs before the prefix gate:
+     a middleware swap lands as a `fix(` as easily as a `refactor(`, and
+     scoping it would exempt exactly the commits nobody reviews against the
+     spine. Added 2026-09-08 with the file itself.
 
   3. TYPE-CHECK — mypy over the changed Python, against the PINNED venv, so an
      invented LangGraph/LangChain/LangSmith method or a wrong signature fails
@@ -112,6 +119,33 @@ GUARDED_PREFIX = "refactor(arch-v2)"
 SUBJECT_RE = re.compile(r"^refactor\(arch-v2\): commit \d+\.\d+ — \S.*$")
 
 TRACKER_PATH = "agent-improve/docs/BUILD_TRACKER.md"
+
+# Rule 2b — the architecture panel's repo-side source, and the paths it
+# tabulates. Unlike the rest of this guard it is NOT scoped to
+# `refactor(arch-v2)` commits: the rule is "whenever a commit changes something
+# that file describes", and a middleware swap lands as a `fix(` just as easily
+# as a `refactor(`. Scoping it to the prefix would have exempted exactly the
+# commits nobody is reviewing against the spine.
+STATUS_PATH = "agent-improve/docs/ARCHITECTURE_STATUS.md"
+
+# Deliberately narrow: the twelve paths whose contents are literally tabulated
+# in that file. A rule that fired on every backend file gets routed around with
+# --no-verify within a week, and a guard people route around is worse than none
+# (the same argument that makes rule 3 a ratchet rather than a wall).
+STATUS_WATCHED = (
+    "agent-improve/backend/core/graph.py",
+    "agent-improve/backend/core/state.py",
+    "agent-improve/backend/core/substate.py",
+    "agent-improve/backend/core/checkpointer.py",
+    "agent-improve/backend/core/store.py",
+    "agent-improve/backend/middleware/",          # prefix — the whole package
+    "agent-improve/backend/phases/subgraph_common.py",
+    "agent-improve/backend/phases/nodes_common.py",
+    "agent-improve/backend/knowledge/tools.py",
+    "agent-improve/backend/knowledge/computation.py",
+    "agent-improve/backend/gateway/routes.py",
+    "agent-improve/backend/storage/blob.py",
+)
 
 # Everything type-checked and tested lives under this project.
 PROJECT = "agent-improve"
@@ -328,6 +362,43 @@ def check_types(root: str, py: str, staged: list[str]) -> None:
 
 
 # --------------------------------------------------------------------------- #
+def check_architecture_status(root: str, staged: list[str]) -> None:
+    """Rule 2b — ARCHITECTURE_STATUS.md moved with the thing it describes.
+
+    **The one rule here that is not scoped to `refactor(arch-v2)`.** That file
+    is the repo-side source for the board's architecture panel, and it states
+    concrete counts — eight blocks with built/total, every middleware with its
+    hook, every cap with its value. A commit that changes a watched path and
+    leaves it alone makes one of those rows quietly false, which is the exact
+    failure the coverage audit was run to find: `phase_context` was declared,
+    written, read by nothing, and no document said so for six steps.
+
+    Fires on the union of staged paths and STATUS_WATCHED. Prefix entries match
+    a whole package.
+    """
+    hits = sorted({
+        w for w in STATUS_WATCHED
+        for p in staged
+        if (p.lower().startswith(w.lower()) if w.endswith("/")
+            else p.lower() == w.lower())
+    })
+    if not hits:
+        return
+    if any(p.lower() == STATUS_PATH.lower() for p in staged):
+        return
+    fail("the architecture status document was not updated in this commit",
+         f"Required: {STATUS_PATH}", "",
+         "This commit touches path(s) that document tabulates:",
+         *[f"  - {h}" for h in hits], "",
+         "That file states built/total counts, every middleware and its hook,",
+         "and every cap and its value. Changing one of these paths without it",
+         "leaves a row silently false — which is how `phase_context` stayed",
+         "declared-but-unread for six steps.",
+         "",
+         "Update it (or confirm nothing it states changed, and touch it so the",
+         "check of that is on the record), `git add` it, and commit again.")
+
+
 # Rule 5 — CONTINUITY.md moved with the step
 # --------------------------------------------------------------------------- #
 def check_continuity(root: str, staged: list[str]) -> None:
@@ -487,6 +558,17 @@ def main(argv: list[str]) -> int:
                 break
     if not subject:
         return 0  # git aborts an empty message itself, with a better error
+
+    # ── Rule 2b — applies to EVERY commit, not only spine commits ─────────
+    # Deliberately ahead of the prefix gate: the rule is "changed something it
+    # describes", and that is as true of a `fix(` as of a `refactor(`.
+    try:
+        all_staged = staged_paths(root)
+    except Exception as exc:  # noqa: BLE001 — fail CLOSED
+        fail("the guard itself failed", f"{exc}",
+             "Blocking rather than passing: a guard that waves a commit through",
+             "when its own logic breaks is worse than no guard.")
+    check_architecture_status(root, all_staged)
 
     if not subject.startswith(GUARDED_PREFIX):
         return 0
