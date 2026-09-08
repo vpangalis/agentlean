@@ -8,10 +8,10 @@
 | | |
 |---|---|
 | **Last completed** | step **6.9** — SKILL.md conformance to §32's seven |
-| **Next** | step **6.10** — `analyse_executor_node` — §26's multi-hop |
+| **Next** | step **6.11** — **The upload path (G-36)** |
 | **Stage** | Stage 6 — The coaching agent |
-| **Progress** | 27 of 49 build steps |
-| **Last spine commit** | `1575330` (commit 6.8) |
+| **Progress** | 27 of 51 build steps |
+| **Last spine commit** | `8f3b4c7` (commit 6.9) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.32 |
 | **Block regenerated** | 2026-09-08 |

@@ -9346,6 +9346,16 @@ class Plan(BaseModel):
 | B1 | a plan is produced | contain exactly three hops, which is the loop's bound | §26 |
 | B2 | a plan is produced | be produced at `planner` role, temperature 0.1, and never be shown to the Belt | §26 |
 
+> **SCHEMA GAP — `Hop` carries no index or tool field** (recorded 2026-09-08).
+> `hop_number` and `hop_question` are all a hop has, and S-F09's reference
+> implementation hardcodes `rag_lookup_methodology`, so **a planned hop can only
+> target `improve_knowledge_index`.** §26 does not forbid the other two — its
+> opening defines multi-hop over `rag_lookup_*`, and its three-query-type table
+> excludes non-retrieval question types rather than enumerating permitted
+> indexes. **This is a limit of the schema, not a rule**, and it is recorded
+> here so the table is not read as a whitelist. Revisit after the upload path
+> (procedure step 6.11) makes evidence worth hopping against.
+
 **Note.** This class and `CoachingPlan` (S-C04) are different things with
 similar names: `CoachingPlan` is the per-turn coaching strategy on
 `PhaseState`; `Plan` is the retrieval decomposition inside one multi-hop

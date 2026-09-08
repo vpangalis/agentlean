@@ -5724,3 +5724,157 @@ documentation. These edits change no behaviour, and that was checked rather
 than assumed: 750 tests green, all five tool counts unchanged, level-1
 catalogue still ~1,036 tokens against §32's 2K budget.
 
+---
+
+## Part AP — The evidence channel: G-36 scheduled, six rulings taken (2026-09-08)
+
+**§29.1 calls `improve_evidence_index` "the only channel through which external,
+real-world data enters AgentLean". For the formats a Belt actually uploads, it
+does nothing.** That sentence and that fact have coexisted since the platform
+was specified, and the read-only investigation that preceded this Part is the
+first time they were put side by side.
+
+**This is the twelfth unstepped section**, after the eleven the pre-Stage-7
+coverage audit found (Part AM), and the largest of them. It was not missed by
+the audit: the audit swept §-sections against procedure steps, and **the upload
+handler already had a spec entry (§65.4, S-F35) carrying an open gap (G-36)** —
+so it was *registered* rather than unstepped. What nobody had done was ask what
+the live route does.
+
+### AP1 — What the investigation found
+
+| | |
+|---|---|
+| `classify_content_type` buckets | `image · pdf · document · text · other` — **csv and xlsx fall to `other`** |
+| Extraction actually runs for | **images only** (vision LLM) and `.txt` (decode + first 300 chars) |
+| pdf and docx | **no extractor**, while `is_supported()` returns True for both |
+| `_index_upload` | **returns early on empty `extracted_text`** — so an unparsed file is never indexed at all |
+| `PhaseState.uploads` | **no writer anywhere.** `new_phase_state` sets `[]`; the route persists to the case blob instead |
+| `UploadRecord.rows` | declared, **never set** |
+| Structural extraction that does exist | `process_steps`, `metrics_found`, `sipoc_columns` — vision-only, and **discarded** before persistence |
+| The coach's view of an upload | **nothing.** No uploads section in the injected block; `nodes_common` never mentions uploads |
+
+**A Belt uploads a spreadsheet. It is stored to Blob, never parsed, never
+indexed, never retrievable, and the coach is never told it exists.**
+
+**Two consequences that were already live and unrecorded:**
+
+1. **Every gate document asserts something false.** Gate assembly reads
+   `PhaseState.uploads`; nothing writes it; §6 states that an empty list means
+   *"the phase reached its conclusions from typed statements alone, and a
+   reviewer should be able to see that."* Every gate document makes that claim,
+   including for phases where the Belt uploaded. **This is why the upload path
+   must land before Stage 7 completes**, not after.
+2. **An evidence hop would retrieve nothing.** The design question that started
+   the investigation — does Analyse's multi-hop need an evidence hop — resolves
+   before it reaches §26: for the tabular files that motivate it, there is no
+   indexed document to hop against.
+
+### AP2 — Six founder rulings
+
+**1 — An upload is bound to the coach's request that prompted it, not to its
+filename.** The ask carries the expected shape — columns, units, period — drawn
+from the SKILL.md worked examples the coach already shows. The arriving file is
+validated against it. **A mismatch is a coaching question, not an error**:
+*"this has a date and an amount but no reason code — is that somewhere else, or
+not collected?"* is the coaching move.
+
+**2 — The ask is the logical identity; files are its versions.** A second upload
+against the same ask is a revision. **No naming convention, no inference from
+filenames.** The binding is recorded when the coach asks, not reconstructed
+afterwards from what arrived.
+
+**3 — Evidence and artefact are different kinds.** Evidence describes the world
+and goes to the index. An artefact is what the team *designed* — a to-be
+process, a control-plan draft — and belongs to the gate document as captured
+content. **One bucket would let a proposed future be retrieved later as a fact
+about the present**, which is a correctness failure in a system whose premise is
+that an approved gate document is worth trusting.
+
+**4 — Parse is deterministic first.** Columns, rows, types and ranges come from
+the file. **Only meaning costs a model call, once, at ingest.** Do not spend a
+premium model to be told a spreadsheet has fourteen columns. This also bounds
+the cost: one call per upload, not one per question about the upload.
+
+**5 — A file that cannot be extracted is refused or reported, never silently
+accepted.** Today four formats are accepted and dropped, and two of them report
+as supported. **Silent acceptance is the failure mode this project keeps paying
+for** — §0.16's unfireable cap, §26's undeclared field, `phase_context` composed
+and discarded, and now a file the Belt believes they have provided.
+
+**6 — Interpretation stores to `computation_results` and cites its source
+upload.** §50's traceability binds on **computed figures, not only quotations**.
+A baseline derived from an uploaded extract must be followable back to the file
+it came from, or the gate document shows a number whose provenance stops at the
+coach.
+
+### AP3 — Placement, and why the numbers are where they are
+
+**Two new steps: 6.11 the upload path, 6.12 the ask-binding.** Both sit in the
+6.x range and neither is coaching-agent work. That follows Appendix D's own
+rule, added at the coverage audit: **numbering is a schedule, not a taxonomy**,
+because the session-start hook selects the lowest available row above the last
+completed one, so a row's number is its position in the queue and nothing else.
+
+**Three constraints fix the position, and there is no free number between 7.0
+and 7.1:**
+
+| Constraint | Consequence |
+|---|---|
+| Gate assembly reads `uploads`, so the false claim must stop before Stage 7 finishes | before **7.3** |
+| §52's eval baseline must not be captured on a system whose evidence channel is broken | before **7.0** |
+| Ask-binding needs the parse; supersession detection (7.6) needs both | 6.11 → 6.12, in order |
+
+**The eval-baseline constraint is the one that decides it.** Part AM already
+placed 7.0 ahead of 7.1 so the suite has a pre-Stage-7 baseline, and Part AN
+recorded that a baseline taken before `phase_context` was wired measured a coach
+missing its framing. **A baseline taken before the upload path works would
+repeat that mistake with evidence instead of context** — and the invalidation
+would surface the same way, months later, as numbers nobody can compare.
+
+**Three amendments to existing steps rather than new ones:**
+
+- **9.1 gains contextual chunk labels.** Anthropic measures a ~35% reduction in
+  retrieval failure from contextual embeddings at ~$1 per million document
+  tokens at ingest. **It is a schema change on the same indexes**, so it rides
+  the batched rebuild or pays for a second one. 9.1 now carries three riders and
+  the batch is explicitly the point of the step.
+- **7.6 gains evidence supersession.** Changed evidence under a committed value
+  **is** a material contradiction of a gate-committed value, which is what §37
+  already handles. The trigger differs; the cascade is the same. **A second
+  mechanism would give one concept two paths that could disagree about whether a
+  phase is provisional.**
+- **6.10 and S-C17 record the `Hop` schema gap** — see AP4.
+
+**New total: 51.** Appendix D is authoritative; `BUILD_TRACKER` and
+`CONTINUITY` derive from it.
+
+**Two stale Appendix D rows were repaired in the same pass, and the reason they
+were stale is worth recording.** 6.8's row still read `pending` after 6.8
+committed, and 6.9's still carried its pre-audit title. **Guard rule 2 requires
+`BUILD_TRACKER.md` to be staged with a refactor commit; it does not check
+Appendix D** — so the two orientation documents can diverge exactly where one
+of them is machine-read. Recorded rather than fixed in the guard, because
+widening rule 2 is a governance change of its own.
+
+### AP4 — The three-query-type table is not an index whitelist
+
+**Read as a whitelist, §26's table says planned hops may only touch
+`improve_knowledge_index`. The text does not support that reading.**
+
+| What the table says | Why it is not a whitelist |
+|---|---|
+| Its framing sentence: *"Three query types exist, and only the first is a retrieval problem"* | The axis is **retrieval versus not**, not which index |
+| Row 2's Source is `The Belt`; row 3's is `artifacts` already in state | **A column containing "The Belt" is not a list of indexes** |
+| §26's opening: *"multi-hop is what the executor's ReAct loop does when it makes several `rag_lookup_*` calls in one Belt turn"* | The glob covers all three retrieval tools |
+
+**The whitelist reading has one real anchor and it is a schema limit, not a
+rule.** `Hop` carries `hop_number` and `hop_question` and **no index or tool
+field**, and S-F09's reference implementation hardcodes
+`rag_lookup_methodology`. So a *planned* hop cannot express a non-methodology
+target — while the *reactive* ReAct path is unrestricted and can call
+`rag_lookup_evidence` repeatedly today.
+
+**Recorded at S-C17 and at procedure step 6.10, and deliberately not fixed
+there.** Widening `Hop` before 6.11 would produce a planned hop against an index
+holding no document to find.

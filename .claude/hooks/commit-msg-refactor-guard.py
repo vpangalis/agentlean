@@ -11,8 +11,17 @@ Blocks a `refactor(arch-v2)` commit unless ALL FIVE hold (and rule 2b binds on E
      (`_GITLOG_STEP_RE`); a malformed one silently drops the step out of the
      only automated continuity signal the project has.
 
-  2. TRACKER — `agent-improve/docs/BUILD_TRACKER.md` is staged in the same
-     commit. One step = one commit = one tracker row moved.
+  2. TRACKER — `agent-improve/docs/BUILD_TRACKER.md` AND
+     `agent-improve/docs/REFACTORING_PROCEDURE.md` are staged in the same
+     commit. One step = one commit = one row moved IN BOTH.
+
+     **Appendix D joined this rule on 2026-09-08, and the reason is a live
+     drift.** BUILD_TRACKER is the human checklist; Appendix D is the
+     machine-readable index `session-start-context.py` parses for "next step".
+     Requiring only the first let them disagree exactly where one of them is
+     read by a tool: after commit 6.8 landed, Appendix D still carried 6.8 as
+     `pending` and 6.9 under its pre-audit title, because nothing made the
+     commit touch that file. Both move, or the commit is blocked.
 
   2b. STATUS — `agent-improve/docs/ARCHITECTURE_STATUS.md` is staged whenever
      the commit touches a path that file tabulates (STATUS_WATCHED). **This one
@@ -119,6 +128,8 @@ GUARDED_PREFIX = "refactor(arch-v2)"
 SUBJECT_RE = re.compile(r"^refactor\(arch-v2\): commit \d+\.\d+ — \S.*$")
 
 TRACKER_PATH = "agent-improve/docs/BUILD_TRACKER.md"
+# Appendix D lives here — the machine-readable step index (rule 2).
+PROCEDURE_PATH = "agent-improve/docs/REFACTORING_PROCEDURE.md"
 
 # Rule 2b — the architecture panel's repo-side source, and the paths it
 # tabulates. Unlike the rest of this guard it is NOT scoped to
@@ -600,15 +611,20 @@ def main(argv: list[str]) -> int:
              "Blocking rather than passing: a guard that waves a commit through",
              "when its own logic breaks is worse than no guard.")
 
-    want = TRACKER_PATH.lower()
-    if not any(p.lower() == want for p in staged):
-        fail("the build tracker was not updated in this commit",
-             f"Required: {TRACKER_PATH}", "",
+    missing = [want for want in (TRACKER_PATH, PROCEDURE_PATH)
+               if not any(p.lower() == want.lower() for p in staged)]
+    if missing:
+        fail("a step-index document was not updated in this commit",
+             *[f"Required: {m}" for m in missing], "",
              f"Staged in this commit ({len(staged)} path(s)):",
              *[f"  - {p}" for p in staged[:20]],
              *(["  … and more"] if len(staged) > 20 else []), "",
-             "One step = one commit = one tracker row moved. Move this step's row",
-             "in the tracker, `git add` it, and commit again.")
+             "One step = one commit = one row moved IN BOTH.",
+             "BUILD_TRACKER.md is the human checklist; REFACTORING_PROCEDURE.md's",
+             "Appendix D is what session-start-context.py parses for \"next step\".",
+             "Staging only one lets them disagree where a tool reads one of them —",
+             "which is how 6.8 stayed `pending` in Appendix D after it shipped.",
+             "Move this step's row in both, `git add` them, and commit again.")
 
     # ── Rule 5 — the other orientation document moved too ─────────────────
     # Before the venv rules, because it is instant and needs no subprocess:

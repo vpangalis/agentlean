@@ -1475,10 +1475,119 @@ sweep that found `phase_context`.
 **B1's entry guard is already live** — 6.7's `REMAINING_STEPS_FLOOR` is exactly
 that guard, and this step consumes it rather than reimplementing it.
 
+> **⚠ `Hop` CANNOT EXPRESS A NON-METHODOLOGY TARGET, AND THAT IS A SCHEMA GAP
+> RATHER THAN A PROHIBITION** (recorded 2026-09-08). `Hop` carries
+> `hop_number` and `hop_question` — **no index or tool field** — and S-F09's
+> reference implementation hardcodes `rag_lookup_methodology` in the loop. So a
+> *planned* hop can only ever hit `improve_knowledge_index`.
+>
+> **§26 does not forbid the others.** Its opening defines multi-hop as *"what
+> the executor's ReAct loop does when it makes several `rag_lookup_*` calls in
+> one Belt turn"* — a glob over all three tools — and its three-query-type
+> table is **excluding non-retrieval question types, not enumerating permitted
+> indexes**: the table's own framing is *"three query types exist, and only the
+> first is a retrieval problem"*, and two of its three Source cells are `The
+> Belt` and `artifacts` already in state, which are not indexes at all.
+>
+> **Build this step as specified — methodology hops — and do not widen `Hop`
+> here.** An evidence hop retrieves nothing useful until 6.11 makes tabular
+> uploads parseable and indexable; widening the schema first would produce a
+> planned hop against an index that has no document to find. Revisit after 6.11.
+
 **Done when:** `analyse_executor_node` exists and is wired for
 `retrieval_strategy == "multi_hop"`; `hop_results` and `synthesis_output` are
 written into state and read by the coach call; a live Analyse turn shows three
 dependent hops and one synthesis call in the trace.
+
+---
+
+## Step 6.11 — The upload path (G-36)
+
+| | |
+|---|---|
+| **Reference §** | §29.1 · §6 · §10 · §23.2 · §65.4 S-F35 · §50 |
+| **Touches** | `backend/upload/` (parsers, classifier), `gateway/routes.py`, `phases/mappers_common.py`, `storage/models.py` |
+| **Precondition** | 6.10 |
+| **Verify** | `live-run` + `azure-query` |
+
+**Not in the original spine. Added 2026-09-08 as the twelfth unstepped
+section, and the largest.** §29.1 calls `improve_evidence_index` *"the only
+channel through which external, real-world data enters AgentLean"*, and for the
+formats a Belt actually uploads it does nothing: `classify_content_type` buckets
+CSV and XLSX as `other`, PDF and DOCX get no extractor despite `is_supported()`
+returning True for them, and `_index_upload` returns early on empty text — so a
+spreadsheet is stored to Blob, never parsed, never indexed, and never
+retrievable.
+
+**`PhaseState.uploads` has no writer.** The route persists an `UploadRecord` to
+the case blob instead. Gate assembly reads `PhaseState.uploads`, so **every gate
+document currently asserts what §6 says an empty list means** — *"the phase
+reached its conclusions from typed statements alone"* — including for phases
+where the Belt uploaded. That is why this step must land before Stage 7
+completes.
+
+**Four founder rulings bind here** (`DECISIONS.md` Part AP):
+
+- **Deterministic parse first.** Columns, row count, types and ranges come from
+  the file. **Only meaning costs a model call, once, at ingest** — never spend a
+  premium model to be told a spreadsheet has fourteen columns.
+- **Evidence and artefact are different kinds.** Evidence describes the world
+  and goes to the index. An artefact is what the team designed — a to-be
+  process, a control-plan draft — and belongs to the gate document as captured
+  content. **One bucket would let a proposed future be retrieved later as a fact
+  about the present.**
+- **A file that cannot be extracted is refused or reported, never silently
+  accepted.**
+- **Interpretation stores to `computation_results` and cites its source
+  upload** — §50's traceability binds on computed figures, not only quotations.
+
+**Done when:** xlsx, csv, pdf and docx parse to columns / rows / types / ranges
+deterministically; `PhaseState.uploads` is written with the §6 entry shape and
+reaches a gate document; the case-record inventory carries the same set;
+evidence and artefact route to different destinations; an unparseable file is
+refused with a Belt-readable reason; and `azure-query` confirms a parsed
+spreadsheet is retrievable by `rag_lookup_evidence`.
+
+> **G-36 closes here, or is re-scoped here.** S-F35 says the entire external
+> data channel *"is currently specified as one cell in a field table"*. The
+> rulings above are the founder input that gap asked for; this step is where
+> they become a specification and then code.
+
+---
+
+## Step 6.12 — Ask-binding: an upload answers a request
+
+| | |
+|---|---|
+| **Reference §** | §29.1 · §32 · §43 · §50 · §65.4 S-F35 |
+| **Touches** | `backend/upload/`, `core/substate.py`, `middleware/state_injection.py`, the five SKILL.md files |
+| **Precondition** | 6.11 |
+| **Verify** | `live-run` |
+
+**Not in the original spine.** Founder ruling: **an upload is bound to the
+coach's request that prompted it, not to its filename.**
+
+- **The ask carries the expected shape** — columns, units, period — drawn from
+  the SKILL.md worked examples the coach already shows (§32, §43). The arriving
+  file is validated against it.
+- **A mismatch is a coaching question, not an error.** *"This has a `date` and
+  an `amount` but no reason code — is the reason somewhere else, or not
+  collected?"* is the coaching move; a validation failure is not.
+- **The ask is the logical identity; files are its versions.** A second upload
+  against the same ask is a revision. **No naming convention, no inference from
+  filenames** — the binding is recorded when the coach asks, not reconstructed
+  afterwards.
+
+**This is what makes feeding uploaded data to a computation tool safe.** Without
+it the only route from a file to `calculate_grr` is the coach transcribing
+numbers out of retrieved chunks — which is the anti-pattern §22 exists to
+prevent, performed on the platform's own evidence.
+
+**Done when:** a coach request for data is recorded with its expected shape; an
+upload resolves to that ask; a shape mismatch produces a coaching turn rather
+than a rejection; a second file against one ask is recorded as a revision rather
+than a second upload; and a computation tool consumes a bound upload without the
+coach retyping a figure.
 
 ---
 
@@ -1639,9 +1748,23 @@ reopening as one of two correctness-critical consumers of `error_handler=`: *"wh
 the re-approval cascade fires, the affected phase's handler must run, or state
 and index disagree silently."*
 
+**Evidence supersession routes in here, and does NOT get its own mechanism**
+(founder ruling, 2026-09-08). When a Belt uploads evidence that supersedes what
+an approved value rests on — a corrected extract, a longer period, a re-run
+GR&R — **that is a material contradiction of a gate-committed value, which is
+exactly what §37 already handles.** The trigger is different; the cascade is the
+same. Building a second path would give one concept two mechanisms that could
+disagree about whether a phase is provisional.
+
+**What 6.11 and 6.12 owe this step:** the ask-binding makes supersession
+detectable — a second file against the same ask is a revision (6.12), and the
+deterministic parse gives the comparable shape (6.11). Without both, "this
+upload supersedes that one" is a filename guess.
+
 **Done when:** a contradiction against an approved upstream field reopens that
-phase's gate, the reopening is recorded in `step_log` and the registry, and a
-test drives the cascade end to end.
+phase's gate, the reopening is recorded in `step_log` and the registry, **a
+superseding upload against a committed value fires the same cascade rather than
+a separate path**, and a test drives both triggers end to end.
 
 ---
 
@@ -1883,6 +2006,19 @@ rebuilds once (§23.3).
 |---|---|
 | `improve_evidence_index` | Add `phase` (from `metadata.upload_phase`) and `uploaded_at` (from `metadata.timestamp`), both top-level, both **server-set** |
 | `improve_case_index` | Rename `embedding` → `content_vector`. Delete + recreate — the index holds 0 documents, so no data migration |
+| **Both, plus `improve_knowledge_index`** | **Contextual chunk labels** — a short generated preamble per chunk situating it in its parent document, embedded with the chunk (**added 2026-09-08**) |
+
+**Contextual chunk labels join this batch, and the reason is arithmetic.**
+Anthropic measures a **~35% reduction in retrieval failure** from contextual
+embeddings, at roughly **$1 per million document tokens** at ingest — a
+one-time cost against a permanent recall improvement. **It is a schema change on
+the same indexes**, so it either rides this rebuild or pays for a second one.
+Batching it here is the whole reason this step exists (§23.3).
+
+> **This is the step's third rider and the batch is now the point.** A reindex is
+> the expensive, disruptive operation; the changes riding it are individually
+> cheap. Anything else needing a schema change before production should be
+> proposed here rather than scheduled separately.
 
 **Normalise the HNSW profile name while the index is being recreated.**
 `improve_case_index` uses `improve-vector-profile` where the other two use
@@ -1891,7 +2027,9 @@ cheaply (§23.3).
 
 **Done when:** `azure-query` confirms `phase` and `uploaded_at` are filterable
 / sortable on `improve_evidence_index`, `content_vector` exists on
-`improve_case_index` at 3072 dimensions, and both re-ingest cleanly.
+`improve_case_index` at 3072 dimensions, **contextual labels are present on
+re-ingested chunks across all three indexes**, and all three re-ingest
+cleanly.
 
 **Then unblock:** `rag_lookup_evidence` gains `order_by=["uploaded_at desc"]`
 and the optional default-off `phase` filter; `rag_lookup_case_history` switches
@@ -2043,6 +2181,8 @@ reference section is not a step — it is an undocumented decision.
 | 6.8 | §6, §9, §19.1 | `trace-check` |
 | 6.9 | §32, §43, §37 | `pytest` |
 | 6.10 | §26, §58.18 | `pytest` + `live-run` |
+| 6.11 | §29.1, §6, §10, §23.2, §65.4 | `live-run` + `azure-query` |
+| 6.12 | §29.1, §32, §43, §50 | `live-run` |
 | 7.0 | §52 | `pytest` |
 | 7.1 | §34, §35 | `pytest` |
 | 7.2 | §34, §36 | `pytest` |
@@ -2156,10 +2296,16 @@ infrastructure noise. **Read both before finalising §52.**
 > pointing at a step that does not exist. Both documents now derive their
 > figure from here and state the derivation.
 >
-> **49 = 26 done + 21 pending + 1 BLOCKED (8.4) + 1 GATED (8.5).** Of the 21
-> pending, 9.1 is EXTERNAL (an Azure-side reindex, not a code step). So **20
-> steps are schedulable code work**, and 8.4 and 8.5 cannot be scheduled until
-> Redis is provisioned and `request_drain()` is confirmed.
+> **51 = 28 done + 20 pending + 2 BLOCKED (6.10, 8.4) + 1 GATED (8.5)** as of
+> 2026-09-08. Of the 20 pending, 9.1 is EXTERNAL (an Azure-side reindex, not a
+> code step). So **20 steps are schedulable code work**, and 8.4 and 8.5 cannot
+> be scheduled until Redis is provisioned and `request_drain()` is confirmed.
+>
+> **49 → 51 on 2026-09-08**: the evidence channel got its two steps — 6.11 the
+> upload path (G-36) and 6.12 the ask-binding. **The twelfth unstepped section**,
+> and the one the coverage audit could not see, because it *had* a spec entry
+> (S-F35) carrying an open gap; what nobody had checked was what the live route
+> does. `DECISIONS.md` Part AP.
 
 | Step | Title | Status |
 |---|---|---|
@@ -2190,7 +2336,9 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 6.7** | The hop cap, as §26 specifies it (WATCH 26) | done — live half owed |
 | **Commit 6.8** | `phase_context` is read (WATCH 19) | done |
 | **Commit 6.9** | SKILL.md conformance to §32's seven | done — live half owed |
-| **Commit 6.10** | `analyse_executor_node` — §26's multi-hop | pending |
+| **Commit 6.10** | `analyse_executor_node` — §26's multi-hop | **BLOCKED** |
+| **Commit 6.11** | The upload path (G-36) | pending |
+| **Commit 6.12** | Ask-binding: an upload answers a request | pending |
 | **Commit 7.0** | The evaluation suite | pending |
 | **Commit 7.1** | `DMAICGateValidator` + Layer 2b | pending |
 | **Commit 7.2** | Layers 2c, 2d + `validation_stack` | pending |
