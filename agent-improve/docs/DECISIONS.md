@@ -6257,3 +6257,146 @@ every query must remember to filter on.
 > caught by a different instrument than the one that produced it**, which is the
 > argument for keeping more than one — and none of the three would have been
 > caught by running the same check again more carefully.
+
+---
+
+## Part AR — Two prerequisites for step 6.12 (2026-09-09)
+
+**Both founder-taken, both spec only, both blocking 6.12** — they were surfaced
+by the 6.12 implementation audit as conflicts between what the step owes and
+what the tree and the governance documents permit, and §8 forbids resolving
+either inside a feature commit.
+
+### AR1 — The universal seven becomes the universal eight
+
+**`load_evidence_series(blob_path, column)` joins the universal set.** It returns
+a column's typed values plus `n`, `mean`, `sigma`, `min` and `max`, re-parsed
+from the case blob with step 6.11's deterministic parser. Spec entry: **§60.7 —
+S-F57**. Built at step 6.12.
+
+**It cannot be a computation tool, and the universal set is not where it lands
+by elimination.** §30 defines the twenty as **pure functions with no I/O** —
+which is exactly what makes them unit-testable without a network — and this one
+reads a blob. **The universal set is already where the I/O-performing tools
+live**: all three `rag_lookup_*` tools call Azure AI Search, and this one calls
+Azure Blob. It sits with them because it does what they do.
+
+> **That reasoning is what makes this a classification rather than an
+> exception**, and the distinction is worth keeping. An exception is a hole in a
+> rule and invites the next one. A classification says the rule already had two
+> categories and this belongs in the second — so the next tool that does I/O has
+> a place to go without anyone re-arguing it.
+
+**Why a loader exists at all.** Similarity search is the wrong mechanism for
+loading data: you do not fetch five hundred rows by vector similarity.
+**Retrieval finds WHICH file; a deterministic fetch loads THE VALUES.** That
+split is what satisfies 6.12's last Done-when clause — *"a computation tool
+consumes a bound upload without the coach retyping a figure"* — because the
+coach never sees the numbers as text and therefore cannot transcribe them.
+
+**It re-parses and stores nothing.** `UploadRecord.rows` is a row *count*; the
+parsed table is stored nowhere, deliberately. A second copy would be the drift
+§39.2's single-authority rule exists to prevent, and re-parsing costs
+milliseconds against a file the platform already holds.
+
+**The twenty computation tools are untouched.** They take scalar strings (Part
+AD1) and the loader hands them exactly that. One new tool, zero changes to
+twenty.
+
+**Carried through every site**: seventeen occurrences of "the universal seven"
+across `ARCHITECTURE.md`, `CLAUDE.md` and `ARCHITECTURE_STATUS.md`; §30's
+per-phase table and CLAUDE.md §5.2's copy of it (8/15/12/8/12 → 9/16/13/9/13);
+ARCHITECTURE_STATUS block 6 (25 / 27 → 25 / 28); and the new S-F57 entry, since
+every other tool has one.
+
+> **⚠ THE 16 CEILING NOW HAS NO MARGIN, AND THAT IS THE PART TO CARRY FORWARD.**
+> Measure moves from 15 to **16 — the ceiling exactly**. §30's rule is that a
+> tool pushing a phase *past* 16 needs an amendment, so this is legal by the
+> letter and legal only just.
+>
+> **A ninth universal tool breaks the rule for Measure on the day it is added.**
+> The two universal tools still unbuilt — `check_gate_status` (7.1) and
+> `request_human_approval` (7.5) — are already counted inside the eight, so they
+> consume none of the remaining headroom, because there is none.
+>
+> **The ceiling must be revisited BEFORE a ninth is added, not after.** A
+> per-phase total that is legal only because nothing else has been added is a
+> constraint with no margin, and **the margin is what usually gets discovered by
+> exceeding it.** The question to settle then is whether 16 is still the right
+> number given per-phase binding — not whether one more tool can be fitted under
+> it.
+
+### AR2 — `PhaseState` gains `asks` — a §56 amendment
+
+**`asks` records the coach's requests for data**, each carrying the expected
+shape — columns, units, period — drawn from the SKILL.md worked examples the
+coach already shows (§32, §43). Created during a coaching turn; read by the
+upload route when a file arrives, by the planner when it routes, and by the
+upload manifest. Built at step 6.12.
+
+**It could not have been anything but an amendment.** §6's rule is that **any**
+new `PhaseState` field requires one, whatever category it is placed in — wording
+tightened at CLAUDE.md §0.15 precisely so that a field could not skip the gate
+by being labelled non-content. `PhaseState` goes to **21 author-populated + 1
+engine-managed = 22 declared**.
+
+**An ask is the logical identity of a document; files are its versions.** That is
+ruling AP2.2, and this field is where the binding is recorded **when the coach
+asks**, rather than reconstructed afterwards from a filename — which the same
+ruling forbids.
+
+#### Why `artifacts["asks"]` was rejected
+
+§10.6's precedent is real and was the reason the question arose: it put
+`computation_results` inside `artifacts` explicitly to avoid a new top-level
+field. **It does not extend here**, for three reasons, and the first decides it.
+
+| | |
+|---|---|
+| **Whose record it is** | `artifacts` holds **the Belt's captured values**. An ask is a **system** record — the coach's own request. The precedent turns on that distinction, not on the convenience of avoiding an amendment |
+| **What reads `artifacts`** | Gate assembly and `check_gate_status()` both walk it. An `asks` key would appear in every gate document and would have to be excluded by name from the completeness computation — a special case in two places to avoid declaring a field in one |
+| **§7's string law** | Every value in `artifacts` is a string, with **four** ratified exceptions. A structured `asks` list needs a **fifth** — so the "no amendment" route costs an amendment to the typing law instead, and a weaker one: it widens a law rather than declaring a field |
+
+> **The general form is worth stating: a route that avoids an amendment by
+> widening a law is not the cheaper route.** It is the same cost paid somewhere
+> less visible, and §0.15's own lesson is that a gate whose scope is set by a
+> label the adder chooses is not a gate.
+
+#### Why the case blob was rejected
+
+**§10 was checked before this was written**, and it says what the ruling assumed:
+the case record is *"written on case create, on gate pass, on file upload —
+**never mid-conversation**"*, and §10's own subsection removes the v1 pattern of
+overwriting it per turn.
+
+**An ask is born in a coaching turn.** There is no sanctioned write moment
+between that turn and the upload that answers it moments later — the blob may be
+written *on upload*, but the ask must already exist by then in order to be
+resolved against. Recording asks there would reinstate exactly the per-turn write
+§10 deleted, and would do it on the system of record.
+
+> **The asymmetry is the whole argument**: uploads may write the case blob and
+> coaching turns may not, and an ask is created by a coaching turn and read by an
+> upload. A store that cannot be written when the value is produced is not a
+> store for that value.
+
+### AR3 — One stale figure corrected in passing, and said out loud
+
+**CLAUDE.md §10.1's caption read *"Nineteen author-populated fields — two
+identity, three plumbing, fourteen content — plus one engine-managed value,
+twenty declared"* while the field list directly beneath it carried fifteen
+content fields.** The block was right; the caption had been stale since
+`rejection_feedback` landed at 2.2.23, and **CLAUDE.md §0.17's own table says
+"20 + 1 managed, 21 declared"** — so the file disagreed with itself four hundred
+lines apart.
+
+Corrected to 21 / 22 in the same pass, because the sentence was being edited
+anyway and leaving a known-wrong base under a new figure is how the next reader
+inherits both. **§0.18's rule is that a figure sync gets stated rather than
+slipped in**, which is what this entry is.
+
+> **Third instance of a caption that outlived its own list.** The tracker row at
+> Part AP6, the 6.9 row's badge, and now this. Each was found by editing the
+> thing beside it rather than by any check — **nothing in this project verifies
+> that a count in prose matches the list it describes**, and all three were in
+> documents whose §55.1 rule is that references resolve.

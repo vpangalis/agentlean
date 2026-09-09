@@ -620,11 +620,43 @@ structural rather than stylistic.
 **Specification:** the canonical schema and its field table are **§58.2 — S-C02**.
 This section keeps the reasoning.
 
-**Twenty author-populated fields** (two identity, three plumbing, fifteen
-content) **plus one engine-managed value — twenty-one declared.** The managed value
+**Twenty-one author-populated fields** (two identity, three plumbing, sixteen
+content) **plus one engine-managed value — twenty-two declared.** The managed value
 is **declared but NOT populated by the input mapper**; LangGraph's execution loop
 supplies it. **Any new field requires an amendment**,
 whatever category it is placed in (§56).
+
+### `asks` — §56 AMENDMENT, ratified 2026-09-09
+
+**`asks` is the coach's recorded requests for data**, each carrying the expected
+shape — columns, units, period — drawn from the SKILL.md worked examples the
+coach already shows (§32, §43). Created during a coaching turn; read by the
+upload route when a file arrives, by the planner when it routes, and by the
+upload manifest. Built at step 6.12. `DECISIONS.md` Part AR.
+
+**An ask is the logical identity of a document; files are its versions.** That is
+ruling AP2.2, and this field is where the binding is recorded **when the coach
+asks** rather than reconstructed afterwards from a filename — which the same
+ruling forbids.
+
+**`artifacts["asks"]` was considered and rejected, and §10.6's precedent is why
+the question arose.** That precedent put `computation_results` inside `artifacts`
+explicitly to avoid a new top-level field. It does not extend here, for three
+reasons:
+
+| | |
+|---|---|
+| **Whose record it is** | `artifacts` holds **the Belt's captured values**. An ask is a **system** record — the coach's own request. The precedent turns on that distinction, not on convenience |
+| **What reads `artifacts`** | Gate assembly and `missing_gate_fields` both walk it. An `asks` key would appear in every gate document and would have to be excluded by name from the completeness computation |
+| **§7's string law** | Every value in `artifacts` is a string, with **four** ratified exceptions. A structured `asks` list would need a **fifth** — so the "no amendment" route costs an amendment to §7 instead, and a weaker one, because it widens a typing law rather than declaring a field |
+
+**`PhaseRecord.asks` in the case blob was also rejected, and §10 is the reason.**
+The case record is *"written on case create, on gate pass, on file upload —
+**never mid-conversation**"*, and §10's own subsection removes the v1 pattern of
+writing it per turn. **An ask is born in a coaching turn**, and there is no
+sanctioned write moment between that turn and the upload that answers it
+moments later. Recording asks there would reinstate exactly the per-turn write
+§10 deleted.
 
 ### `draft`, `belt_edits` and `final` are `dict`, never `str`
 
@@ -1303,7 +1335,7 @@ as middleware it is a named, LangSmith-visible step.
 
 ### Leaf tools are NOT subgraph nodes
 
-The universal seven (§29) and the phase's computation tools are passed to the
+The universal eight (§29) and the phase's computation tools are passed to the
 executor via `tools=` on `create_agent`. **From the subgraph's perspective the
 executor is one node.** The tool-calling loop happens inside it.
 
@@ -2882,7 +2914,7 @@ them, never overriding them.**
 
 ---
 
-## 29. The data channel and the universal seven
+## 29. The data channel and the universal eight
 
 *Supersedes: REFACTORING §39, §60, §63; ARCHITECTURE.md §8.1; CLAUDE.md §1.9, §5.1; DECISIONS §B5, §B6.*
 **Status: RATIFIED.**
@@ -2923,12 +2955,44 @@ remain `@tool` functions, read-only.
 
 **Never add an MCP server, client, or dependency.**
 
-### 29.2 The universal seven
+### 29.2 The universal eight
 
 Passed to **every** phase executor via `tools=`:
 
 **Specification:** the three retrieval tools are **§59.5–§59.7 — S-F14 to S-F16**; the four
-remaining universal tools are **§60.1–§60.4 — S-F19 to S-F22**.
+remaining universal tools are **§60.1–§60.4 — S-F19 to S-F22**;
+`load_evidence_series` is **§60.7 — S-F57**.
+
+#### `load_evidence_series` joins the set — RATIFIED 2026-09-09
+
+**`load_evidence_series(blob_path, column)` returns a column's typed values plus
+`n`, `mean`, `sigma`, `min` and `max`, re-parsed from the case blob** with the
+deterministic parser built at step 6.11. It is built at **step 6.12**;
+`DECISIONS.md` Part AR.
+
+**It is a CLASSIFICATION, not an exception, and the reasoning is what makes that
+true.** §30 defines a computation tool as a **pure function with no I/O** — all
+twenty are, deliberately, because that is what makes them unit-testable without
+a network. `load_evidence_series` reads a blob. **It therefore cannot be a
+computation tool**, and the universal set is not a residual category it falls
+into by elimination: **the universal set is already where the I/O-performing
+tools live.** All three `rag_lookup_*` tools call Azure AI Search; this one
+calls Azure Blob. It sits with them because it does what they do.
+
+**Why a loader exists at all, rather than retrieval returning the numbers.**
+Similarity search is the wrong mechanism for loading data — you do not fetch
+five hundred rows by vector similarity. **Retrieval finds WHICH file; a
+deterministic fetch loads THE VALUES.** The split is the point (§24).
+
+**It re-parses the blob and reads no stored values.** `UploadRecord.rows` is a
+row *count*; the parsed values themselves are stored nowhere, and stay that way.
+Storing a second copy of the table would be the drift §39.2's single-authority
+rule exists to prevent. Re-parsing costs milliseconds and keeps one source of
+truth.
+
+**The twenty computation tools are NOT touched.** They take scalar strings
+(Part AD1), and the loader hands them exactly that. One new tool, zero changes
+to twenty.
 
 **`propose_diagram` returns structured JSON, not SVG.** The model describes
 what to draw; the frontend owns how it looks. A model emitting SVG produces
@@ -2942,7 +3006,11 @@ executor (§20) — the coach emits `fields_captured` as structured output on
 
 **A tool would make capture a decision the coach might skip; structured output
 makes it part of every response by construction.** That is the whole argument,
-and it is why the universal count is seven rather than eight.
+and it is why `record_field` is not among the universal tools. *(The set became
+eight on 2026-09-09 when `load_evidence_series` joined it — §29.2. This sentence
+previously read "which is why the universal count is seven rather than eight",
+counting `record_field` as the absent eighth; the eighth is now a different tool
+and the argument here is unchanged.)*
 
 ### 29.4 Cross-agent tools — a third category, present but NOT BOUND
 
@@ -2952,7 +3020,7 @@ and it is why the universal count is seven rather than eight.
 
 | Category | Where | Bound to |
 |---|---|---|
-| **The universal seven** (§29.2) | `knowledge/tools.py` | **Every** phase executor |
+| **The universal eight** (§29.2) | `knowledge/tools.py` | **Every** phase executor |
 | **Computation tools** (§30) | `knowledge/computation.py` | Per phase, 1–8 of them |
 | **Cross-agent tools** (this section) | `knowledge/tools.py` | **Nothing. Deliberately** |
 
@@ -2967,7 +3035,7 @@ search_flow_vsm(query)           → Agent Flow     vsm_index   [STUB]
 
 **This section exists because §29.1 and §29.2 were in tension.** §29.1
 sanctions cross-agent sharing via Python imports and says those *remain `@tool`
-functions*; §29.2 defines the universal seven, which these are not among. Read
+functions*; §29.2 defines the universal eight, which these are not among. Read
 together the four were simultaneously permitted and unaccounted for. Neither
 section was wrong — the category was missing.
 
@@ -2998,7 +3066,7 @@ evidence needs the §52 eval dataset.
 >    `Exception` and return a prose string, which makes retrieval failure
 >    indistinguishable from no matches. That is tolerable **only** because they
 >    are unreachable; it becomes a live violation the moment one is bound.
-> 3. **They must return citations the way the universal seven do** (§50). They
+> 3. **They must return citations the way the universal eight do** (§50). They
 >    return `str` with an inline source prefix, not structured citation
 >    metadata, so nothing downstream can surface `source_file` / `page_number`.
 
@@ -3019,17 +3087,30 @@ Per-phase binding keeps every coach inside the tractable range.
 
 | Phase | Universal | Computation tools | Total |
 |---|---|---|---|
-| **Define** | 7 | `calculate_expected_savings` | **8** |
-| **Measure** | 7 | `calculate_sigma_level`, `calculate_cpk`, `calculate_dpmo`, `calculate_yield_rty`, `calculate_ftq`, `calculate_grr`, `calculate_sample_size_proportion`, `calculate_sample_size_mean` | **15** |
-| **Analyse** | 7 | `t_test`, `chi_square_test`, `anova`, `pearson_correlation`, `linear_regression` | **12** |
-| **Improve** | 7 | `calculate_doe_main_effects` | **8** |
-| **Control** | 7 | `xbar_r_chart_limits`, `imr_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | **12** |
+| **Define** | 8 | `calculate_expected_savings` | **9** |
+| **Measure** | 8 | `calculate_sigma_level`, `calculate_cpk`, `calculate_dpmo`, `calculate_yield_rty`, `calculate_ftq`, `calculate_grr`, `calculate_sample_size_proportion`, `calculate_sample_size_mean` | **16** |
+| **Analyse** | 8 | `t_test`, `chi_square_test`, `anova`, `pearson_correlation`, `linear_regression` | **13** |
+| **Improve** | 8 | `calculate_doe_main_effects` | **9** |
+| **Control** | 8 | `xbar_r_chart_limits`, `imr_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | **13** |
 
 **20 computation tools total.** 1 + 8 + 5 + 1 + 5 = 20.
 
-**No phase exceeds 16 tools**, and the actual maximum is 15 (Measure). A new
-tool that would push a phase past 16 requires an amendment, not a routine
-addition.
+**No phase exceeds 16 tools**, and **as of 2026-09-09 the maximum is 16
+(Measure) — the ceiling exactly.** A new tool that would push a phase past 16
+requires an amendment, not a routine addition.
+
+> **⚠ THE CEILING MUST BE REVISITED BEFORE A NINTH UNIVERSAL TOOL IS ADDED, NOT
+> AFTER.** `load_evidence_series` took Measure from 15 to 16 (§29.2, Part AR).
+> There is now **no margin**: a ninth universal tool breaks the rule for Measure
+> on the day it is added, and the two universal tools still unbuilt —
+> `check_gate_status` (7.1) and `request_human_approval` (7.5) — are already
+> inside the eight and inside this count.
+>
+> **A per-phase total that is legal only because nothing else has been added is
+> a constraint with no margin, and the margin is what usually gets discovered by
+> exceeding it.** The question to settle first is whether 16 is still the right
+> ceiling given per-phase binding, not whether one more tool can be squeezed
+> under it.
 
 ### Each of the 20 is a separate named tool
 
@@ -4193,7 +4274,7 @@ Passed to the executor via `tools=` on `create_agent` (§18); from the subgraph'
 view the executor is one node (§13). **Fifteen — the phase maximum**, under the
 16 cap (§30).
 
-- **The universal seven** (§29.2), on every phase: `rag_lookup_methodology`,
+- **The universal eight** (§29.2), on every phase: `rag_lookup_methodology`,
   `rag_lookup_evidence`, `rag_lookup_case_history`, `propose_template`,
   `propose_diagram`, `check_gate_status`, `request_human_approval`.
 - **Eight computation tools** (§30 binding; specified §69, **S-F38–S-F45**),
@@ -4904,7 +4985,7 @@ root cause.
 Passed to the executor via `tools=` on `create_agent` (§18). **Twelve** — under
 the 16 cap (§30).
 
-- **The universal seven** (§29.2), on every phase — including `propose_template`
+- **The universal eight** (§29.2), on every phase — including `propose_template`
   and `propose_diagram`, which carry the **generation** tools here: fishbone,
   Pareto, scatter plot, box plot. 5 Whys is a SKILL.md coaching sequence, not a
   registered tool.
@@ -5525,7 +5606,7 @@ data backs it.** Rolling out unpiloted is the failure movement 2 exists to preve
 Passed to the executor via `tools=` on `create_agent` (§18). **Eight** — under the
 16 cap (§30).
 
-- **The universal seven** (§29.2) — `propose_template` / `propose_diagram` carry
+- **The universal eight** (§29.2) — `propose_template` / `propose_diagram` carry
   the **generation and selection** tools here: brainstorming, the decision /
   selection matrix, mistake-proofing aids. FMEA is **supported if a Black Belt
   raises it** (result → `uploads`), never suggested unprompted, and is not a
@@ -5978,7 +6059,7 @@ never run (§41, B1) — so the grader checks all five sub-plans are populated, 
 Passed to the executor via `tools=` on `create_agent` (§18). **Twelve** — under the
 16 cap (§30).
 
-- **The universal seven** (§29.2) — `propose_template` carries the control-plan,
+- **The universal eight** (§29.2) — `propose_template` carries the control-plan,
   SOP and reaction-plan templates; `propose_diagram` renders the control charts.
 - **Five computation tools** (§30 binding; specified §69), standard SPC names kept:
 
@@ -8325,14 +8406,15 @@ class PhaseState(TypedDict):
     rejection_feedback: list[dict]
     citations:          list[dict]
     uploads:            list[dict]
+    asks:               list[dict]
     hop_results:        list[str]
     synthesis_output:   Optional[dict]
 
     # ── engine-managed (1) ──────────────────────────
     remaining_steps:    RemainingSteps
 ```
-**Twenty author-populated fields** (two identity, three plumbing, fifteen
-content) **plus one engine-managed value — twenty-one declared.** The managed value
+**Twenty-one author-populated fields** (two identity, three plumbing, sixteen
+content) **plus one engine-managed value — twenty-two declared.** The managed value
 is **declared but NOT populated by the input mapper**; LangGraph's execution loop
 supplies it. **Any new
 field requires a §56 amendment, whatever category it is placed in.**
@@ -8359,6 +8441,7 @@ field requires a §56 amendment, whatever category it is placed in.**
 | `rejection_feedback` | `list[dict]` | The Belt's per-reject reasons at the gate — the stated reason plus the rejected edits as context. Read on the re-coaching turn so the coach addresses what the Belt actually objected to | none (append by the writer) | `gate_apply`, on a Belt reject; reset to `[]` by `gate_apply` when the gate passes | the planner (S-F03), on the re-coaching turn |
 | `citations` | `list[dict]` | Sources the coach cited this phase — `source`, `page`, `content_summary`, `turn`, plus **`blob_path` and `content_digest`** (**RATIFIED 2026-09-09 — NOT YET APPLIED**; Part AQ). The first four identify a passage; **none identifies the FILE underneath**, so a citation could not tell that its source had been replaced and §37 / step 7.6's cascade had nothing to compare. The anchor turns supersession from something the system records into something it can detect | none (append by the writer) | executor, from `CoachingResponse.citations` | gate document assembly |
 | `uploads` | `list[dict]` | Files the Belt uploaded this phase — `evidence_index_id`, `filename`, `phase`, `uploaded_at`, `summary`, **`consumed_at`** (**RATIFIED 2026-09-09 — NOT YET APPLIED**; set when a citation or a load references the document. **`None` at a gate on an upload bound to an open ask means the Belt supplied evidence and the coaching proceeded without it** — undetectable without the field, which is why it is specified here rather than at Stage 7; Part AQ), plus `ask_id` and `version` — **both RESERVED FOR STEP 6.12**: declared at 6.11, written `None`, filled by the ask-binding (Part AP5). An empty list means the phase reached its conclusions from typed statements alone | none (append by the writer) | the upload handler — **see G-36** | gate document assembly; evidence context |
+| `asks` | `list[dict]` | **The coach's recorded requests for data** — `ask_id`, `role` (§23.2.1's vocabulary), `expected_shape` (columns, units, period, from the SKILL.md worked examples), `phase`, `asked_at`, `status`. **RATIFIED 2026-09-09 — built at step 6.12** (§56 amendment; Part AR). An ask is the **logical identity** of a document and files are its versions (ruling AP2.2), so the binding is recorded when the coach asks rather than inferred from a filename afterwards. **A system record, not a captured value** — which is why it is here and not in `artifacts` (§6) | none (append by the writer) | the executor, when the coach requests data | the upload route, resolving an arriving file; the planner (S-F13), routing on an unconsumed ask; `BeforeModelStateInjection` (S-C11), for the manifest |
 | `hop_results` | `list[str]` | Ordered answers from a planned multi-hop chain. `[]` on every single-hop turn. State rather than a node local, so LangSmith can see it and a resume does not lose it | none | `analyse_executor_node` | the synthesis call; the LangSmith state view |
 | `synthesis_output` | `Optional[dict]` | The dedicated synthesis call's `SynthesisOutput`, dumped. `None` on single-hop turns | none | `analyse_executor_node` | the coach call |
 | `remaining_steps` | `RemainingSteps` (managed) | Live per-turn hop budget, = `recursion_limit` − steps taken. Read by the executor entry guard; the graceful off-ramp that keeps a Belt from ever seeing `GraphRecursionError` | none (engine-managed) | LangGraph execution loop, **not user code** | `analyse_executor_node` entry guard (S-F09) |
@@ -8367,7 +8450,7 @@ field requires a §56 amendment, whatever category it is placed in.**
 
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
 |---|---|---|---|
-| B1 | a phase subgraph is entered | populate the **twenty author-populated fields** from the input mapper; no field SHALL be left undeclared. **`remaining_steps` is the one declared field the mapper SHALL NOT populate** — it is engine-managed, `NotRequired` in intent, and LangGraph's execution loop supplies it | §9 |
+| B1 | a phase subgraph is entered | populate the **twenty-one author-populated fields** from the input mapper; no field SHALL be left undeclared. **`remaining_steps` is the one declared field the mapper SHALL NOT populate** — it is engine-managed, `NotRequired` in intent, and LangGraph's execution loop supplies it | §9 |
 | B2 | the planner fires | replace `coaching_plan` entirely; it SHALL NOT be appended to or queued | §6 |
 | B3 | a validation layer fails | increment `gate_attempts` by one and append one entry to `validator_feedback` | §34 |
 | B4 | the gate passes | reset `gate_attempts` to `0` and `validator_feedback` to `[]`, and only `gate_apply` SHALL do so | §33.2 |
@@ -8904,7 +8987,7 @@ def build_phase_subgraph(phase: str, llm):
 | B1 | compiling | pass neither checkpointer nor store; writes route through the parent's saver under an auto-managed `checkpoint_ns` | §16 |
 | B2 | registering nodes | register exactly the five of §13; a sixth requires a §56 amendment | §13 |
 | B3 | registering the executor node | apply `timeout=TimeoutPolicy(run_timeout=45)` and `error_handler=phase_error_recovery` | §45 |
-| B4 | selecting tools | bind the universal seven plus that phase's computation subset, never more than 16 in total | §30 |
+| B4 | selecting tools | bind the universal eight plus that phase's computation subset, never more than 16 in total | §30 |
 
 > **Resolved — G-01, see S-F13.** The intra-phase edges this function wires are
 > the Level 2 `Command` routing, designed 2026-08-24. **Its DP1 predicate reads
@@ -9950,7 +10033,7 @@ binding inventory rather than a signature set, and §30 is where an amendment
 against the 16-tool cap is evaluated. The entries below specify the tools
 themselves.
 
-**Three categories exist, and only two are bound:** the universal seven
+**Three categories exist, and only two are bound:** the universal eight
 (§29.2), the computation tools (§30), and the four cross-agent tools of §29.4,
 which are **present and deliberately bound to nothing.** The cross-agent four
 get no spec entry in this pass: they are unreachable by construction, and §29.4
@@ -10116,7 +10199,7 @@ which argues against. Deferred with S-F08.
 full phase instructions when it enters a phase.
 
 > **SPEC-GAP (G-33):** this is described in both §19.2 and §32 as "a registered
-> `load_skill(name)` tool," and it appears in **neither the universal seven
+> `load_skill(name)` tool," and it appears in **neither the universal eight
 > (§29.2) nor any phase's tool count (§30).** If it is bound to the executor it
 > is an eighth universal tool, and every per-phase total in §30 moves — Measure
 > from 15 to 16, against a hard cap of 16, which would then also constrain
@@ -10179,6 +10262,59 @@ happen.
 > coach handles it; (c) B6's `computation_results` entry shape is illustrated in
 > §7 for `t_test` only. **The inventory above is complete and is not a gap; the
 > interfaces are entirely absent** — to be designed with founder.
+
+### 60.7 S-F57 · `load_evidence_series(blob_path, column)`
+
+**Architecture:** §29.2, §24, §30 · **File:** `knowledge/tools.py` · **Procedure:** step 6.12
+*Rebuild test: not met — ratified 2026-09-09, built at 6.12. `DECISIONS.md` Part AR.*
+
+**Purpose:** The eighth universal tool, and the one that gets a Belt's numbers
+into a computation without the coach retyping them. **Retrieval finds WHICH
+file; this loads THE VALUES.** It takes a `blob_path` — obtained from
+`PhaseState.uploads` or from `rag_lookup_evidence`'s record (§24) — and one
+column name, and returns that column's typed values with `n`, `mean`, `sigma`,
+`min` and `max`.
+
+**It re-parses the blob with step 6.11's deterministic parser.** It reads no
+stored values: `UploadRecord.rows` is a row *count*, and the parsed table is
+stored nowhere, deliberately. **Storing a second copy would be the drift
+§39.2's single-authority rule exists to prevent**, and re-parsing costs
+milliseconds against a file the platform already holds.
+
+**Why it is universal rather than a computation tool.** §30's twenty are pure
+functions with no I/O, which is what makes them unit-testable without a network.
+This one reads a blob. **The universal set is where the I/O-performing tools
+already live** — all three `rag_lookup_*` tools call Azure AI Search, this one
+calls Azure Blob — so the placement is a classification, not an exception
+carved for it.
+
+#### SIPOC — at a glance
+
+| | |
+|---|---|
+| **Supplier** | `PhaseState.uploads` (§6) for the `blob_path`; `rag_lookup_evidence` (S-F15) where the coach found the file by search; `storage/blob.py` for the bytes |
+| **Input** | `blob_path: str`, `column: str` |
+| **Process** | Fetch the blob → parse with `upload/parsers.py` → select the named column → compute `n` / `mean` / `sigma` / `min` / `max` over its typed values |
+| **Output** | The column's typed values plus the five summary scalars, as **strings** (§7's typing law, Part AD1) |
+| **Customer** | The twenty computation tools (S-F24), which take scalar strings and are **not modified**; `consumed_at` on the upload record and the §6 entry |
+
+#### Behaviors (EARS)
+
+| # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
+|---|---|---|---|
+| B1 | the tool is called | re-parse the blob at `blob_path`; it SHALL NOT read a stored copy of the parsed values, and no such copy SHALL be created | §39.2 |
+| B2 | the named column is absent | return a Belt-readable reformatting request naming the columns that ARE present, never a bare failure | §27, ruling AP2.5 |
+| B3 | values are returned | return them as strings, so the twenty computation tools consume them unchanged | §7, AD1 |
+| B4 | a load succeeds | set `consumed_at` on that upload's record and its §6 entry — this is the write that makes an unread upload detectable at the gate | S-C02, S-C09 |
+| B5 | the column is mixed-typed | carry the parse's own `mixed` report rather than silently coercing; a mixed column is a coaching question | step 6.11 |
+
+**Invariants:**
+- **The twenty computation tools are not touched by this entry.** One new tool,
+  zero changes to twenty.
+- **This tool never writes to `improve_evidence_index`.** It reads a blob and
+  returns values; the index is §23.2's concern and step 6.13's.
+
+---
 
 ---
 
@@ -11900,7 +12036,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-30** | `propose_diagram` — types and schemas are said to live in `core/diagrams.py`, **which does not exist** | S-F20 |
 | **G-31** | `check_gate_status()` — return shape unspecified, and a zero-argument signature that must nonetheless know the phase and read `artifacts` | S-F21 |
 | **G-32** | `request_human_approval` — how a tool raises a graph-level interrupt from inside the executor's tool loop | S-F22 |
-| **G-33** | `load_skill(name)` — in neither the universal seven nor any phase count; if bound, Measure goes to 16 against a cap of 16 | S-F23, S-F02, S-C12 |
+| **G-33** | `load_skill(name)` — in neither the universal eight nor any phase count; if bound, Measure goes to 16 against a cap of 16 | S-F23, S-F02, S-C12 |
 | **G-34** | The escalation subgraph — no node list, no state schema, no exit contract | S-F08 |
 | **G-35** | `synthesise_partial()`, `delete_or_flag_stale_in_case_index()` (delete **or** flag stale — the name carries the undecided choice), and the `degraded_coaching_response` node, which is not one of §13's permitted five. **STILL OPEN** — but §64.3 now carries a *design note* on making the `improve_case_index` write idempotent and encapsulated so the compensating action covers only the non-idempotent residue. **An input to step 8.2, not a ratification and not a closure** | S-F31, S-F32, S-F33, S-F09, S-F29 |
 | **G-36** | ~~No upload endpoint exists, no file owns the upload handler~~ — **both answered; the endpoint is in §49 and S-F34 (Part AP5) and the handler has steps 6.11 / 6.12.** STILL OPEN on the code: §29.1's sole external channel, and step 6.11 is where it closes or is re-scoped | S-F35, S-F34 |

@@ -13,7 +13,7 @@
 | **Progress** | 29 of 52 build steps |
 | **Last spine commit** | `806a39d` (commit 6.11) |
 | **ARCHITECTURE.md** | v1.19 |
-| **CLAUDE.md** | v2.2.32 |
+| **CLAUDE.md** | v2.2.33 |
 | **Block regenerated** | 2026-09-09 |
 
 *Derived from `docs/BUILD_TRACKER.md`, `CLAUDE.md`, `ARCHITECTURE.md`

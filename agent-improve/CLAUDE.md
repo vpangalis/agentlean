@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.32 — September 2026
+# Version 2.2.33 — September 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -887,6 +887,67 @@ schema now says so at the declaration.
 **This is a governance commit and lands alone**, per §0's amendment rule — the
 code that follows it is step 6.7.
 
+### 0.27 — What Changed in 2.2.33 — the universal eight, and `PhaseState` gains `asks`
+
+**Two founder rulings, 2026-09-09, both prerequisites for step 6.12.** Full
+record: `docs/DECISIONS.md` Part AR.
+
+| Area | v2.2.32 | v2.2.33 |
+|---|---|---|
+| The universal set | **seven** | **eight** — adds `load_evidence_series` (§5.1) |
+| Per-phase totals (§5.2) | 8 / 15 / 12 / 8 / 12 | **9 / 16 / 13 / 9 / 13** |
+| Measure against the 16 cap | 15, one under | **16, the ceiling exactly** |
+| `PhaseState` | 20 author-populated + 1 managed | **21 + 1 managed, 22 declared** — adds `asks` (§10.1) |
+| §10.1's caption | said nineteen / fourteen content / twenty | **corrected** — it had been stale since §0.17 |
+
+**`load_evidence_series` is universal because of what it does, not because
+nothing else fits.** §5.2's twenty computation tools are pure functions with no
+I/O — that is what makes them unit-testable without a network — and this reads
+a blob. **The universal set is already where the I/O-performing tools live**:
+all three `rag_lookup_*` tools call Azure AI Search, and this one calls Azure
+Blob. Classification, not exception.
+
+**It exists because similarity search is the wrong mechanism for loading data.**
+You do not fetch five hundred rows by vector similarity. **Retrieval finds WHICH
+file; a deterministic fetch loads THE VALUES**, and the split is what lets a
+computation tool receive a Belt's numbers without the coach transcribing them —
+the §6.4 anti-pattern performed on the platform's own evidence.
+
+> **⚠ THE 16 CEILING NOW HAS NO MARGIN, AND THAT IS THE PART TO CARRY FORWARD.**
+> Measure sits at exactly 16. **A ninth universal tool breaks §5.2 for Measure on
+> the day it is added**, and the two universal tools still unbuilt —
+> `check_gate_status` (7.1) and `request_human_approval` (7.5) — are already
+> counted inside the eight. **Revisit the ceiling before adding a ninth, not
+> after.** A per-phase total that is legal only because nothing further has been
+> added is a constraint with no margin, and the margin is what usually gets
+> discovered by exceeding it.
+
+**`asks` is a §56 amendment and could not have been anything else.** §10.1's rule
+is that **any** new `PhaseState` field requires one, whatever category it is
+placed in — the wording §0.15 tightened precisely so a field could not skip the
+gate on a category label.
+
+**`artifacts["asks"]` was considered and rejected on three grounds**, and the
+first is the one that decides it:
+
+| | |
+|---|---|
+| **Whose record it is** | `artifacts` holds **the Belt's captured values**. An ask is a **system** record — the coach's own request. §10.6's precedent turns on that distinction, not on convenience |
+| **What reads `artifacts`** | Gate assembly and `check_gate_status()` both walk it; an `asks` key would land in every gate document and need excluding by name from the completeness computation |
+| **§10.6's string law** | Every value in `artifacts` is a string with four ratified exceptions. A structured `asks` list needs a **fifth** — so the "no amendment" route costs an amendment to the typing law instead, and a worse one |
+
+**The case blob was rejected on §10.4.** The case record is written *"on case
+create, on gate pass, on file upload — never mid-conversation"*. **An ask is
+born in a coaching turn**, and there is no sanctioned write moment between that
+turn and the upload answering it moments later. Putting asks there would
+reinstate the per-turn write §10.4 removed.
+
+**No rule was renumbered**, so `deprecated_patterns.yaml`'s citations still
+resolve and §0.2 is satisfied. **No code changed** — both rulings are
+specification, and step 6.12 builds them.
+
+---
+
 ---
 
 ## 1. ARCHITECTURE PRINCIPLES
@@ -1214,7 +1275,7 @@ times per phase, not once: after each executor step, control returns
 to the planner to decide whether to continue on the current field,
 advance to the next, or trigger the gate.
 
-**Leaf tools are NOT subgraph nodes.** The universal seven (§5.1) and
+**Leaf tools are NOT subgraph nodes.** The universal eight (§5.1) and
 the phase's computation tools are passed to the executor via `tools=`
 on `create_agent`. From the subgraph's perspective the executor is one
 node.
@@ -1616,7 +1677,7 @@ Defined in `knowledge/tools.py` (universal) and
 `knowledge/computation.py` (per-phase), with Pydantic arg schemas in
 `knowledge/tool_args.py`.
 
-### 5.1 — The universal seven
+### 5.1 — The universal eight
 
 Passed to every phase executor via `tools=`:
 
@@ -1646,7 +1707,20 @@ check_gate_status() -> dict
 request_human_approval(reason: str) -> str
   Triggers an interrupt awaiting human decision, beyond standard gate
   submission.
+
+load_evidence_series(blob_path: str, column: str) -> dict
+  A column's typed values plus n, mean, sigma, min, max — RE-PARSED from the
+  case blob with step 6.11's parser. Retrieval finds WHICH file; this loads
+  THE VALUES. Ratified 2026-09-09; built at step 6.12.
 ```
+
+**`load_evidence_series` is universal rather than a computation tool, and that
+is a classification rather than an exception.** §5.2's twenty are pure functions
+with no I/O; this reads a blob. **The universal set is already where the
+I/O-performing tools live** — all three `rag_lookup_*` call Azure AI Search,
+this one calls Azure Blob. It stores no parsed values and re-parses instead,
+because a second copy of the table is the drift the single-authority rule exists
+to prevent.
 
 **The superseded tool names are `search_improve_knowledge`,
 `search_improve_cases` and `search_improve_evidence`** — the three `@tool`
@@ -1687,15 +1761,23 @@ every coach inside the tractable range.
 
 | Phase | Universal | Computation tools | Total |
 |---|---|---|---|
-| Define | 7 | `calculate_expected_savings` | **8** |
-| Measure | 7 | `calculate_sigma_level`, `calculate_cpk`, `calculate_dpmo`, `calculate_yield_rty`, `calculate_ftq`, `calculate_grr`, `calculate_sample_size_proportion`, `calculate_sample_size_mean` | **15** |
-| Analyse | 7 | `t_test`, `chi_square_test`, `anova`, `pearson_correlation`, `linear_regression` | **12** |
-| Improve | 7 | `calculate_doe_main_effects` | **8** |
-| Control | 7 | `xbar_r_chart_limits`, `imr_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | **12** |
+| Define | 8 | `calculate_expected_savings` | **9** |
+| Measure | 8 | `calculate_sigma_level`, `calculate_cpk`, `calculate_dpmo`, `calculate_yield_rty`, `calculate_ftq`, `calculate_grr`, `calculate_sample_size_proportion`, `calculate_sample_size_mean` | **16** |
+| Analyse | 8 | `t_test`, `chi_square_test`, `anova`, `pearson_correlation`, `linear_regression` | **13** |
+| Improve | 8 | `calculate_doe_main_effects` | **9** |
+| Control | 8 | `xbar_r_chart_limits`, `imr_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | **13** |
 
-**No phase exceeds 16 tools**, and after `record_field` was retired the
-actual maximum is 15 (Measure). If a new tool would push a phase past
+**No phase exceeds 16 tools**, and **as of 2026-09-09 the maximum is 16
+(Measure) — the ceiling exactly.** If a new tool would push a phase past
 16, that is an amendment to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56), not a routine addition.
+
+> **⚠ REVISIT THE CEILING BEFORE A NINTH UNIVERSAL TOOL, NOT AFTER.**
+> `load_evidence_series` took Measure from 15 to 16. **There is no margin left**,
+> and the two universal tools still unbuilt — `check_gate_status` and
+> `request_human_approval` — are already inside the eight and inside this count.
+> A per-phase total that is legal only because nothing else has been added is a
+> constraint with no margin, and **the margin is what usually gets discovered by
+> exceeding it.**
 
 **`imr_chart_limits` is the individuals / moving-range chart** and is
 the right choice whenever the Belt has **one measurement per period**
@@ -2833,7 +2915,7 @@ class PhaseState(TypedDict):
     history:            Annotated[list[str], operator.add]
     phase_context:      str                # composed at the boundary — §10.2
 
-    # the fourteen content fields
+    # the sixteen content fields
     coaching_plan:      Optional[CoachingPlan]  # ONE typed plan per planner turn
     field_index:        int                # field within the phase
     draft:              dict[str, Any]     # this turn's extraction
@@ -2847,6 +2929,7 @@ class PhaseState(TypedDict):
     rejection_feedback: list[dict]         # Belt reject reasons — §9.1 step 7
     citations:          list[dict]         # sources cited this phase
     uploads:            list[dict]         # files the Belt uploaded this phase
+    asks:               list[dict]         # the coach's data requests — §10.9
     hop_results:        list[str]          # ordered hop answers; [] otherwise
     synthesis_output:   Optional[dict]     # SynthesisOutput; None for single-hop
 
@@ -2854,8 +2937,18 @@ class PhaseState(TypedDict):
     remaining_steps:    RemainingSteps     # recursion_limit − steps taken
 ```
 
-**Nineteen author-populated fields — two identity, three plumbing, fourteen
-content — plus one engine-managed value, twenty declared.**
+**Twenty-one author-populated fields — two identity, three plumbing, sixteen
+content — plus one engine-managed value, twenty-two declared.**
+
+> **Two of those three figures were already stale before `asks` was added, and
+> the block above was right the whole time.** This caption read *"Nineteen …
+> fourteen content … twenty declared"* while the field list beneath it carried
+> fifteen content fields, because **`rejection_feedback` was added at 2.2.23
+> (§0.17) and the caption was never updated with it.** §0.17's own table says
+> *"20 + 1 managed, 21 declared"*, so this file disagreed with itself four
+> hundred lines apart. Corrected here rather than separately: the count was
+> being edited anyway, and §0.18's rule is that a figure sync gets said out loud
+> rather than slipped in.
 
 **`remaining_steps` is engine-managed and the input mapper MUST NOT populate
 it.** Declaring it is what makes LangGraph supply it (`recursion_limit` − steps
