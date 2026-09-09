@@ -10,11 +10,11 @@
 | **Last completed** | step **6.9** — SKILL.md conformance to §32's seven |
 | **Next** | step **6.11** — **The upload path (G-36)** |
 | **Stage** | Stage 6 — The coaching agent |
-| **Progress** | 27 of 51 build steps |
+| **Progress** | 28 of 51 build steps |
 | **Last spine commit** | `8f3b4c7` (commit 6.9) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.32 |
-| **Block regenerated** | 2026-09-08 |
+| **Block regenerated** | 2026-09-09 |
 
 *Derived from `docs/BUILD_TRACKER.md`, `CLAUDE.md`, `ARCHITECTURE.md`
 and the git spine — never hand-maintained, so it cannot drift from
@@ -1306,6 +1306,18 @@ whether still owed.
 > **Reference sweeps must use raw `grep -rn`** — agent-facing search tools
 > filter by `.gitignore` and cannot see gitignored paths. Any "zero remaining
 > references" conclusion ends with an unfiltered `grep -rn`.
+
+### Session records
+
+**Commits carry a `Claude-Session:` trailer after `Co-Authored-By:`, supplied
+per commit.** Where a run of commits was made without one, the coverage is
+recorded here instead of by amending them — **rewriting landed history to add
+provenance costs more than it records**, and every hash below is already cited
+by a `DECISIONS.md` Part, a `BUILD_TRACKER` row or Appendix D.
+
+| Session | Covers | Note |
+|---|---|---|
+| `013BnN7DapE9gHxSJHvky3pp` — https://claude.ai/code/session_013BnN7DapE9gHxSJHvky3pp | `1045cf0..fbec3a7` (commit 6.6 through the evidence-channel scheduling) | Trailer absent on all of them. **Not amended, deliberately.** The trailer resumes at the next commit |
 
 ### STANDING REASONING PROTOCOL — filling SPEC-GAPs
 Every spec gap is resolved through this discipline, never a quick local patch:

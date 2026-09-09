@@ -2287,7 +2287,7 @@ infrastructure noise. **Read both before finalising §52.**
 > Version keys are numeric tuples, so `6.10 > 6.9 > 6.7`. That is `_ver_key`'s
 > documented purpose — *"so 2.10 > 2.2"* — and is safe to rely on.
 
-> **THE TOTAL: 49 ROWS. THIS TABLE IS AUTHORITATIVE.** `BUILD_TRACKER.md` and
+> **THE TOTAL: 51 ROWS. THIS TABLE IS AUTHORITATIVE.** `BUILD_TRACKER.md` and
 > `CONTINUITY.md` carried *"of 35 build steps"* until 2026-09-07; that figure
 > was a hand-count that was never reconciled against this table and was already
 > wrong by five rows before the audit added eight more. **Where the two

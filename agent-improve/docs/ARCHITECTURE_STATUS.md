@@ -199,7 +199,7 @@ Recorded here because the panel is regenerated from this file, so a correction
 that lives only in chat gets rebuilt wrong next time.
 
 1. **"25 of 35 steps" — both figures are wrong.** Appendix D is authoritative
-   and now reads **26 of 49**. The 35 was an unreconciled hand-count already
+   and now reads **28 of 51**. The 35 was an unreconciled hand-count already
    five rows adrift before the audit added eight steps.
 2. **"§26 multi-hop + the step guard" under NONE OF THIS EXISTS YET — half
    wrong.** The step guard shipped at 6.7: the five-hop cap, the
