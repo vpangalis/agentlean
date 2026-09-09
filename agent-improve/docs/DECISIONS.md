@@ -5878,3 +5878,55 @@ target — while the *reactive* ReAct path is unrestricted and can call
 **Recorded at S-C17 and at procedure step 6.10, and deliberately not fixed
 there.** Widening `Hop` before 6.11 would produce a planned hop against an index
 holding no document to find.
+
+---
+
+### AP5 — Two ratifications for step 6.11's brief (2026-09-08)
+
+**Both were taken while scoping 6.11's implementation, and both are about the
+same thing: a record that is true in the tree and absent from the document.**
+They are recorded here rather than as a new lettered Part because they are the
+evidence-channel decision continued, not a second one.
+
+#### 1 — The tree is ahead of the spec, and 6.11 closes that gap too
+
+**An `/upload` route and an `UploadRecord` model already exist in the tree.
+Neither is named in §49's endpoint table (RATIFIED) or in S-C09's model list.**
+S-C09 names four models — `CaseDocument`, `PhaseRecord`, `RegistryEntry`,
+`PhaseSummaryRecord` — and `UploadRecord` is not among them, while
+`PhaseRecord.uploads` is typed as a list of it.
+
+**This is not new work invented for 6.11.** It is the same category of drift
+6.11 exists to fix in the upload path generally — a channel that behaves one
+way in the code and another way in the document — so it lands in the same
+commit rather than as a separate reconciliation:
+
+| Addition | Where |
+|---|---|
+| `/upload` joins the endpoint table | §49 |
+| `UploadRecord` joins the model list | S-C09, and `storage/models.py` |
+
+#### 2 — `ask_id` and `version` are reserved at 6.11, not deferred to 6.12
+
+**Both fields are added at this step — declared, `Optional`, `None` — to the
+S-C02 upload entry shape (§6) and to `UploadRecord`.** 6.12 fills them; 6.11
+reserves them.
+
+**This follows §23.2's own precedent.** `phase` and `uploaded_at` on
+`improve_evidence_index` are carried as **RATIFIED — NOT YET APPLIED**, declared
+in the field table with the code forbidden to reference them until the reindex
+runs. The alternative is worse in a specific, costed way: **a second amendment
+at 6.12 plus a backfill of every 6.11-era upload with no version identity.**
+An upload written between the two steps would have no way to say which ask it
+answered or which revision it was, and nothing to reconstruct it from — ruling
+AP2.2 having already forbidden inference from filenames.
+
+**State plainly in both spec entries and in the commit body that these are
+reserved for 6.12.** This project already carries three fields on record as
+declared-and-forgotten — `UploadRecord.rows` (declared, never set; AP1),
+`phase_context` before 6.8 (composed, read by nothing; Part AN) and
+`hop_results` / `synthesis_output` before 6.10 (declared, no writer) — and each
+one cost a step to rediscover. **"Reserved on purpose" has to be visible in the
+document, not merely true in someone's memory**, because the two are
+indistinguishable to the next reader and the expensive one is the default
+assumption.

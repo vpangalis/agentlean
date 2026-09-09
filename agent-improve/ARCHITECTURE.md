@@ -7068,6 +7068,22 @@ wired at Step 2.1 does not yet take effect (§53).
 | `POST /gate/reject` | Resumes from the interrupt with rejection |
 | `GET /cases`, `GET /cases/{id}` | Case records |
 | `GET /registry` | Case registry |
+| `POST /upload` | Belt evidence and artefacts — the only channel through which external data enters the system (§29.1). **Ratified 2026-09-08 (`DECISIONS.md` Part AP5): the route already existed and this table did not name it.** Parse, evidence/artefact routing and refusal behaviour are step 6.11 |
+
+> **SPEC-GAP (G-47): this table is still not what the tree serves.** Adding
+> `/upload` closed one row of a wider drift, and registering the rest is how
+> §55.1's bidirectional rule stays honest. **Six routes exist in
+> `gateway/routes.py` and in neither this table nor S-F34's copy of it** —
+> `/health`, `/summarise`, `/context`, `POST /gate`, `/gate/review/{case}/{phase}`
+> and `/files/{case}/{file}`. **`POST /gate` is the sharpest of them**: this
+> table ratifies `/gate/submit`, `/gate/approve` and `/gate/reject`, and the
+> tree serves one route where the spec names three, so the disagreement is a
+> shape, not an omission. `/ask/stream` is the reverse case and is NOT part of
+> this gap — ratified, unbuilt, and owned by step 10.1. **Registered rather
+> than fixed in passing**: which of the six are ratified, which are v1 residue
+> due to die at 11.1, and whether `/gate` becomes three routes are founder
+> questions, and §8's rule is that a table is not amended while making a
+> feature change. Raised 2026-09-08 while scoping 6.11 — Part AP5.
 
 **All of them invoke the same compiled graph object.**
 
@@ -8122,7 +8138,7 @@ field requires a §56 amendment, whatever category it is placed in.**
 | `validator_feedback` | `list[dict]` | Accumulated per-attempt validation failures, each recording attempt, layer, criteria failed and specific feedback. What makes the shared cap of 3 defensible | none (append by the writer) | validation stack appends; `gate_apply` resets to `[]` | the coach, on retry |
 | `rejection_feedback` | `list[dict]` | The Belt's per-reject reasons at the gate — the stated reason plus the rejected edits as context. Read on the re-coaching turn so the coach addresses what the Belt actually objected to | none (append by the writer) | `gate_apply`, on a Belt reject; reset to `[]` by `gate_apply` when the gate passes | the planner (S-F03), on the re-coaching turn |
 | `citations` | `list[dict]` | Sources the coach cited this phase — `source`, `page`, `content_summary`, `turn` | none (append by the writer) | executor, from `CoachingResponse.citations` | gate document assembly |
-| `uploads` | `list[dict]` | Files the Belt uploaded this phase — `evidence_index_id`, `filename`, `phase`, `uploaded_at`, `summary`. An empty list means the phase reached its conclusions from typed statements alone | none (append by the writer) | the upload handler — **see G-36** | gate document assembly; evidence context |
+| `uploads` | `list[dict]` | Files the Belt uploaded this phase — `evidence_index_id`, `filename`, `phase`, `uploaded_at`, `summary`, plus `ask_id` and `version` — **both RESERVED FOR STEP 6.12**: declared at 6.11, written `None`, filled by the ask-binding (Part AP5). An empty list means the phase reached its conclusions from typed statements alone | none (append by the writer) | the upload handler — **see G-36** | gate document assembly; evidence context |
 | `hop_results` | `list[str]` | Ordered answers from a planned multi-hop chain. `[]` on every single-hop turn. State rather than a node local, so LangSmith can see it and a resume does not lose it | none | `analyse_executor_node` | the synthesis call; the LangSmith state view |
 | `synthesis_output` | `Optional[dict]` | The dedicated synthesis call's `SynthesisOutput`, dumped. `None` on single-hop turns | none | `analyse_executor_node` | the coach call |
 | `remaining_steps` | `RemainingSteps` (managed) | Live per-turn hop budget, = `recursion_limit` − steps taken. Read by the executor entry guard; the graceful off-ramp that keeps a Belt from ever seeing `GraphRecursionError` | none (engine-managed) | LangGraph execution loop, **not user code** | `analyse_executor_node` entry guard (S-F09) |
@@ -8511,8 +8527,19 @@ file upload, and **never mid-conversation.**
 **Architecture:** §10, §23.3 · **File:** `storage/models.py` · **Procedure:** [tbd]
 
 **Purpose:** The Pydantic models for the system of record: `CaseDocument`,
-`PhaseRecord`, `RegistryEntry`, and `PhaseSummaryRecord` (which feeds the five
-`phase_summary_{phase}` fields of `improve_case_index`, §23.3).
+`PhaseRecord`, `RegistryEntry`, `PhaseSummaryRecord` (which feeds the five
+`phase_summary_{phase}` fields of `improve_case_index`, §23.3), and
+`UploadRecord`.
+
+> **`UploadRecord` joined this list on 2026-09-08** (`DECISIONS.md` Part AP5).
+> It has been in `storage/models.py` since before the refactor and is the
+> element type of `PhaseRecord.uploads`; this entry named four models and not
+> it. **It carries `ask_id: Optional[str]` and `version: Optional[int]`, both
+> RESERVED FOR STEP 6.12 and written `None` at 6.11** — the ask-binding fills
+> them. Declared early on §23.2's precedent, so no upload written between the
+> two steps lacks a place to record which ask it answered. **`rows` is declared
+> and has never had a writer** (Part AP1); 6.11's deterministic parse gives it
+> one.
 
 > **SPEC-GAP (G-17):** all four are named — in `CLAUDE.md` §2's permitted-class
 > list, in §23.3's rename scope table — and none is defined anywhere. Their
@@ -11409,6 +11436,7 @@ marshalling is a violation — the rule the v1 codebase most conspicuously break
 | `POST /gate/reject` | Resumes from the interrupt with rejection — **behaviour undefined (G-02)** |
 | `GET /cases`, `GET /cases/{id}` | Case records |
 | `GET /registry` | Case registry |
+| `POST /upload` | Belt evidence and artefacts — §29.1's sole external channel. **Added 2026-09-08 (Part AP5)**; behaviour specified at step 6.11 |
 
 #### SIPOC — at a glance
 
@@ -11432,9 +11460,13 @@ marshalling is a violation — the rule the v1 codebase most conspicuously break
 | B6 | two tabs write one `case_id` | be guarded by the Azure Blob lease, until the PostgreSQL migration provides advisory locks | §47 |
 | B7 | a reconciliation sweep runs for abandoned threads | **exclude interrupt-paused threads** — a thread paused at a gate looks identical to an abandoned one by inactivity alone, and a sweep that misses this cleans up Belts who are thinking about their gate review overnight | §47 |
 
-> **SPEC-GAP (G-36):** **there is no upload endpoint in this table**, and
-> §29.1 makes uploaded documents the only channel through which external data
-> enters AgentLean — see S-F35.
+> **SPEC-GAP (G-36) — STILL OPEN, but no longer the naming half.** `POST /upload`
+> joined this table on 2026-09-08 (Part AP5); **the sentence that stood here
+> — "there is no upload endpoint in this table" — was true until then and is
+> not now.** What remains open is the channel itself: §29.1 makes uploaded
+> documents the only route by which external data enters AgentLean, and for the
+> formats a Belt actually uploads the handler parses nothing. **Behaviour is
+> step 6.11** — see S-F35.
 
 > **SPEC-GAP (G-18):** no envelope is defined for any endpoint — see S-C37.
 
@@ -11478,11 +11510,16 @@ table suggests.
 | B4 | it writes to the index | write with explicit ids and with `fields=` declaring the real schema, or the metadata is silently demoted to an unfilterable JSON blob | §23.4 |
 | B5 | a phase completes with no uploads | leave `uploads` empty and let that stand as a visible finding — the phase reached its conclusions from typed statements alone | §6 |
 
-> **SPEC-GAP (G-36):** **no upload endpoint exists in §49's endpoint table**, no
-> file owns this handler, and it appears in no procedure step. It is named only
-> as a writer in §6's field table. Given §29.1, the entire external-data channel
-> of the platform is currently specified as one cell in a field table — to be
-> designed with founder.
+> **SPEC-GAP (G-36) — STILL OPEN; two of its three clauses have been answered.**
+> As written this read: *"no upload endpoint exists in §49's endpoint table, no
+> file owns this handler, and it appears in no procedure step."* `POST /upload`
+> was added to §49 and to S-F34 on 2026-09-08 (Part AP5), and the handler now
+> has procedure steps — **6.11 the upload path, 6.12 the ask-binding** (Part AP3).
+> **The founder input the gap asked for has been given**: six rulings at Part AP2.
+> **What is still open is the code.** §29.1's sole external channel does not parse
+> csv, xlsx, pdf or docx; `PhaseState.uploads` has no writer; and until 6.11
+> lands, the entire channel remains specified more thinly than §29.1's claim on
+> it. **G-36 closes at 6.11, or is re-scoped there.**
 
 ### 65.5 S-F36 · The `improve_case_index` write path
 
@@ -11528,7 +11565,7 @@ item 1. Classification deferred rather than guessed.
 inline marker.** That bidirectional correspondence is checkable and is one of
 the §55.1 governance rules.
 
-**46 gaps identified. Fifteen are closed or resolved. 31 are open.** *(G-14 closed 2026-09-03 at procedure step 5.2 — `docs/DECISIONS.md` Part AC.)* *(G-21
+**47 gaps identified. Fifteen are closed or resolved. 32 are open.** *(G-14 closed 2026-09-03 at procedure step 5.2 — `docs/DECISIONS.md` Part AC.)* *(G-21
 closed 2026-09-01 at procedure step 3.5 — `docs/DECISIONS.md` Part Y.)* *(Two were
 added and resolved in the same pass on 2026-08-26 — G-45 and G-46, the metric
 registry's two spec entries. Registering a gap you are about to close in the
@@ -11569,6 +11606,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 |---|---|---|
 | ~~**G-03**~~ | **RESOLVED 2026-08-24** — `PhaseState` gains `case_id` and `current_phase`, copied down by the input mapper and read-only in the subgraph. See §66.6 and DECISIONS §T1 | — |
 | **G-05** | `extracted_entity` is read off `PhaseState` (§26); undeclared, and no writer is named anywhere | S-C02, S-F09 |
+| **G-47** | **§49's endpoint table and S-F34's copy of it are not what `gateway/routes.py` serves.** Six routes exist in the tree and in neither table — `/health`, `/summarise`, `/context`, `POST /gate`, `/gate/review/{case}/{phase}`, `/files/{case}/{file}`. **`POST /gate` is a shape disagreement rather than an omission**: the spec ratifies three gate routes and the tree serves one. `/ask/stream` is the opposite case and is excluded — ratified, unbuilt, owned by step 10.1. **This is a spec-versus-tree cross-check, not the state-schema class the rest of this group holds**, and it is here because that is what the group's title covers. Raised 2026-09-08 while scoping 6.11, when `/upload` was found to be in the tree and in neither table; that row was ratified into both (Part AP5) and the remaining six registered rather than fixed in passing — which of them are ratified, which are v1 residue dying at 11.1, and whether `/gate` becomes three are founder questions | §49, S-F34 |
 | **G-06** | `extraction_error` and `extraction_incomplete` are written into `PhaseState` by `phase_error_recovery` (§45); neither is declared | S-C02, S-F29 |
 | **G-07** | `state["structured_response"]` is read by `ContradictionDetectionMiddleware` (§19.6). Whether middleware observes `PhaseState` or `create_agent`'s internal agent state is unstated | S-F04, S-C10 |
 | **G-08** | `validation_stack.get_acknowledged_gaps()` (§40) is attribute access on a node, and §14 requires nodes to be module-level async functions. Where acknowledged gaps are produced and how they reach assembly is unspecified | S-F05, S-F07, S-F28 |

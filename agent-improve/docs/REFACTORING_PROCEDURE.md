@@ -1506,8 +1506,8 @@ dependent hops and one synthesis call in the trace.
 | | |
 |---|---|
 | **Reference §** | §29.1 · §6 · §10 · §23.2 · §65.4 S-F35 · §50 |
-| **Touches** | `backend/upload/` (parsers, classifier), `gateway/routes.py`, `phases/mappers_common.py`, `storage/models.py` |
-| **Precondition** | 6.10 |
+| **Touches** | `backend/upload/` (parsers, classifier), `gateway/routes.py`, `phases/mappers_common.py`, `storage/models.py`, **`ARCHITECTURE.md` — §49 / S-F34, S-C09 and S-C02** (Part AP5) |
+| **Precondition** | **none.** Was `6.10`; 6.10 was marked ⛔ BLOCKED on 2026-09-08 and the cursor moved here, so a precondition on it would park the queue on an unresolvable step. **The dependency runs the other way** — AP4 records that widening `Hop` before 6.11 would produce a planned hop against an index holding no document to find |
 | **Verify** | `live-run` + `azure-query` |
 
 **Not in the original spine. Added 2026-09-08 as the twelfth unstepped
@@ -1545,8 +1545,21 @@ completes.
 deterministically; `PhaseState.uploads` is written with the §6 entry shape and
 reaches a gate document; the case-record inventory carries the same set;
 evidence and artefact route to different destinations; an unparseable file is
-refused with a Belt-readable reason; and `azure-query` confirms a parsed
-spreadsheet is retrievable by `rag_lookup_evidence`.
+refused with a Belt-readable reason; `azure-query` confirms a parsed
+spreadsheet is retrievable by `rag_lookup_evidence`; **`/upload` is named in
+§49's endpoint table and `UploadRecord` in S-C09's model list**; and
+**`ask_id` and `version` are declared on both the S-C02 upload entry shape and
+`UploadRecord`, written `None`, and labelled reserved for 6.12 in the spec text
+and the commit body**.
+
+> **The last two are ratifications, not new scope** (`DECISIONS.md` Part AP5,
+> 2026-09-08). The `/upload` route and the `UploadRecord` model already exist in
+> the tree and neither was named in the ratified spec — **the same class of
+> drift this step exists to close, so it closes in the same commit** rather
+> than in a second reconciliation pass. `ask_id` and `version` are reserved
+> here rather than added at 6.12 because an upload written between the two
+> steps would otherwise carry no version identity and nothing to reconstruct
+> one from — AP2 ruling 2 having forbidden inference from filenames.
 
 > **G-36 closes here, or is re-scoped here.** S-F35 says the entire external
 > data channel *"is currently specified as one cell in a field table"*. The

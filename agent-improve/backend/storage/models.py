@@ -13,12 +13,29 @@ class TeamMemberRecord(BaseModel):
 
 
 class UploadRecord(BaseModel):
+    """One Belt-uploaded file, as held in `PhaseRecord.uploads` (S-C09).
+
+    **`ask_id` and `version` are RESERVED FOR STEP 6.12 and written `None`
+    here.** 6.12's ask-binding is what fills them: an upload is bound to the
+    coach's request that prompted it, never inferred from its filename
+    (`DECISIONS.md` Part AP2 ruling 2), and the ask is the logical identity of
+    which files are versions. They are declared one step early on §23.2's
+    `phase` / `uploaded_at` precedent — RATIFIED, NOT YET APPLIED — so that no
+    upload written between 6.11 and 6.12 lacks a place to record which ask it
+    answered. Reconstructing that afterwards is exactly what ruling 2 forbids,
+    which is why the alternative is a backfill with no source. Part AP5.
+    """
+
     filename: str
     blob_path: str
     uploaded_by: str
     uploaded_at: str
     classification: str               # e.g. maintenance_log, operational_data
     rows: Optional[int] = None
+
+    # RESERVED FOR 6.12 — declared, never written at 6.11. See the docstring.
+    ask_id: Optional[str] = None
+    version: Optional[int] = None
 
 
 class ChartRecord(BaseModel):
