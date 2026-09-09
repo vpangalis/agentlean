@@ -2468,15 +2468,24 @@ semantics of §27.
 contradicted §27, and a grep for the named strings would have passed while every
 real retired name survived. Verification depends on literal strings.*
 
+*Corrected again 2026-09-09, and the repetition is the point. The structured-record
+subsection below shipped citing §29.1 and §7.1 for rules that live in this section's
+own "RAG via tool" subsection thirty-five lines further down — §7 is the field
+typing law and §29.1 is "There is no MCP". **Second wrong citation in this
+section, in a document whose §55.1 governance rule is that every reference must
+resolve to what it names.** The 2026-08-21 note above ends "verification depends
+on literal strings"; a §-number is a literal string, and nothing checks them.*
+
 ### `rag_lookup_evidence` returns a structured record, not rendered text
 
 **RATIFIED 2026-09-09 — NOT YET APPLIED**, with §23.2's five new fields, which
 three of these keys read. `DECISIONS.md` Part AQ.
 
 **The MECHANISM is unchanged.** Retrieval is a tool call the model decides to
-make, never a prepended system message (§29.1's rule, and §7.1's prohibition on
-an unconditional retrieval pipeline, both stand). **Only the shape of what comes
-back changes.** One record per hit:
+make, never a prepended system message — *"RAG via tool, never via prepended
+system message"* below, including its prohibition on an unconditional retrieval
+pipeline. Both stand. **Only the shape of what comes back changes.** One record
+per hit:
 
 ```
 role · kind · description · phase · uploaded_at · shape_match
@@ -2501,6 +2510,28 @@ retrieval layer.
 — they are what a citation stores so that §37 / step 7.6 can detect that an
 approved gate rested on a file that has since been replaced. A record that
 omitted them would leave that cascade with nothing to compare.
+
+**This applies to `rag_lookup_evidence` ONLY.** `rag_lookup_methodology` and
+`rag_lookup_case_history` keep their current return shape, and the asymmetry is
+deliberate rather than an oversight: **the evidence index is the only one whose
+documents have identity, versions and supersession.** `(case_id, role)` is a
+logical identity, `content_digest` a version identity, and a superseded document
+is deleted (§23.2) — so *"which of these three is the current cycle-time data"*
+is a question about fields. The BB eBook has no versions a Belt chooses between,
+and a past case is retrieved for its pattern rather than selected as an object.
+**Choosing between hits is a question about fields only where the hits are
+distinguishable objects**, and only this index makes them so.
+
+> **OPEN QUESTION — §50's citation argument reaches further than this change
+> does.** §23.1 declares `source_file` and `page_number` on
+> `improve_knowledge_index` as *"Returned for citation"*, so the second reason
+> above — that a coach can only cite accurately what it received as values —
+> applies to `rag_lookup_methodology` as well. **It is recorded here and not
+> folded in**: changing that tool's return shape touches step 5.2's landed work
+> and the coach prompts that consume it, which is a change with its own blast
+> radius and deserves to be argued on its own rather than carried by an evidence
+> amendment. The asymmetry above is the *design* reason for the split; this is
+> the part of it that is unfinished.
 
 ### RAG via tool, never via prepended system message
 

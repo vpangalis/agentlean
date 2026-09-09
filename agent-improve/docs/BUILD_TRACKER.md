@@ -33,7 +33,8 @@ Spine runs 2.3 → 11.2, one step = one commit. The spec is complete; this is th
 > **"Stage 6 complete" was wrong when 6.6 claimed it.** Three Stage-6 holes were open the whole time — `phase_context` unread (6.8), the five SKILL.md files not audited against §32's seven mandatory items (6.9), and §26's multi-hop node unbuilt (6.10). **The 6.9 description was itself wrong until 2026-09-08** — it said four files were missing; all five exist and load. See the row.
 
 **Blocked / not-yet-schedulable:** 8.4 (Redis not provisioned), 8.5 (`request_drain`
-unconfirmed), 9.1 (external reindex). Everything else is open once its precondition step lands.
+unconfirmed), 9.1 (external reindex — **case index only** since 2026-09-09; the evidence
+half is step 6.13 and is NOT blocked). Everything else is open once its precondition step lands.
 
 ---
 
@@ -171,5 +172,8 @@ a stale block staged, or a hand-edited block.
 
 ## Deferred (not blockers, tracked)
 - Root-reference back-port (`AGENTIC_ARCHITECTURE_REFERENCE.md`) — after Improve settles.
-- Two Azure index schema changes — batched at 9.1.
+- ~~Two Azure index schema changes — batched at 9.1.~~ **Split 2026-09-09.** The
+  evidence index's seven fields are **step 6.13**, in-repo and unblocked — adding a
+  field to a live index is additive and needs no rebuild (DECISIONS Part AQ3). Only
+  `improve_case_index`'s `embedding` → `content_vector` rename still rides 9.1.
 - Eval dataset (§52) — load-bearing once 6.2 lands.
