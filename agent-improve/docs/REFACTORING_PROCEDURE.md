@@ -2309,9 +2309,9 @@ infrastructure noise. **Read both before finalising §52.**
 > pointing at a step that does not exist. Both documents now derive their
 > figure from here and state the derivation.
 >
-> **51 = 28 done + 20 pending + 2 BLOCKED (6.10, 8.4) + 1 GATED (8.5)** as of
-> 2026-09-08. Of the 20 pending, 9.1 is EXTERNAL (an Azure-side reindex, not a
-> code step). So **20 steps are schedulable code work**, and 8.4 and 8.5 cannot
+> **51 = 29 done + 19 pending + 2 BLOCKED (6.10, 8.4) + 1 GATED (8.5)** as of
+> 2026-09-09. Of the 19 pending, 9.1 is EXTERNAL (an Azure-side reindex, not a
+> code step). So **19 steps are schedulable code work**, and 8.4 and 8.5 cannot
 > be scheduled until Redis is provisioned and `request_drain()` is confirmed.
 >
 > **49 → 51 on 2026-09-08**: the evidence channel got its two steps — 6.11 the
@@ -2350,7 +2350,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 6.8** | `phase_context` is read (WATCH 19) | done |
 | **Commit 6.9** | SKILL.md conformance to §32's seven | done — live half owed |
 | **Commit 6.10** | `analyse_executor_node` — §26's multi-hop | **BLOCKED** |
-| **Commit 6.11** | The upload path (G-36) | pending |
+| **Commit 6.11** | The upload path (G-36) | done — live half owed |
 | **Commit 6.12** | Ask-binding: an upload answers a request | pending |
 | **Commit 7.0** | The evaluation suite | pending |
 | **Commit 7.1** | `DMAICGateValidator` + Layer 2b | pending |

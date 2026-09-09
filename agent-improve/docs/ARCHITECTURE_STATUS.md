@@ -14,7 +14,7 @@ Legend:  ✅ built · ⚠️ built with a known defect · ☐ not built · ⛔ b
 
 # Agent Improve — Architecture Status
 
-# verified against the tree 2026-09-08 · at commit 6.9
+# verified against the tree 2026-09-09 · at commit 6.11
 # every count below is reproduced by a command in «Re-running the counts»
 
 **This is what exists, not what is specified.** `ARCHITECTURE.md` is the build
@@ -33,12 +33,12 @@ measurements by sitting in that state unrecorded.
 
 | # | Block | Built / total | The parts |
 |---|---|---|---|
-| **1** | **API surface** — §49 | **11 / 12** | ✅ `/health` `/summarise` `/context` `/cases` `/ask` `/gate` `/gate/review/{case}/{phase}` `/upload` `/files/{case}/{file}` `/registry` `/cases/{case}` · ☐ `/ask/stream` SSE (step 10.1) |
+| **1** | **API surface** — §49 | **11 / 12** ⚠️ | ✅ `/health` `/summarise` `/context` `/cases` `/ask` `/gate` `/gate/review/{case}/{phase}` `/upload` `/files/{case}/{file}` `/registry` `/cases/{case}` · ☐ `/ask/stream` SSE (step 10.1) · ⚠️ **§49's table names 8 of the 11 built** — `/upload` joined it at 6.11 (Part AP5); `/health`, `/summarise`, `/context`, `POST /gate` and `/gate/review/{case}/{phase}`, `/files/{case}/{file}` are in the tree and in no ratified table (**G-47**) |
 | **2** | **Supervisor graph** — §12, §15 | **6 / 6 nodes** ⚠️ | ✅ five phase nodes + `escalate`, seven static edges, checkpointer and store attached · ⚠️ **it is the target topology, not the runtime** — `get_graph()` still returns the one-turn parent (WATCH 23); the swap is Stage 7's `interrupt()` |
 | **3** | **Phase subgraphs** — §13 | **5 / 5 phases · 5 / 5 nodes** | ✅ one parameterised builder, all five phases wired: `planner` `executor` `validation_stack` `gate_review` `gate_apply` · ✅ `PhaseState`, no checkpointer of its own (§16) · ✅ ten boundary mappers |
 | **4** | **The coaching agent** — §17, §18, §26 | **2 / 3 nodes** | ✅ `planner` (structured `CoachingPlan`, temp 0.1) · ✅ `executor` (`create_agent`, `response_format=CoachingResponse`) · ☐ `analyse_executor_node` — §26's planned multi-hop (step 6.10; `hop_results` / `synthesis_output` have no writer) |
 | **5** | **Middleware stack** — §19 | **8 / 8 mounted** ⚠️ | all eight construct and fire; two carry defects — see the control-point table |
-| **6** | **Tools and knowledge** — §23–§32 | **25 / 27 tools · 3 / 3 indexes** | ✅ 3 `rag_lookup_*` + `propose_template` + `propose_diagram` · ☐ `check_gate_status` (7.1) ☐ `request_human_approval` (7.5) — WATCH 25 · ✅ 20 computation tools, bound 1/8/5/1/5 per phase · ✅ `load_skill` via middleware 2 · ✅ **5 of 5 SKILL.md files exist, load, and carry all seven of §32's mandatory items** — Define's A→F flow, Uploads and §43.7 metric literacy landed at 6.9. All five byte-match their §39.x.10 section |
+| **6** | **Tools and knowledge** — §23–§32 | **25 / 27 tools · 3 / 3 indexes** | ✅ 3 `rag_lookup_*` + `propose_template` + `propose_diagram` · ☐ `check_gate_status` (7.1) ☐ `request_human_approval` (7.5) — WATCH 25 · ✅ 20 computation tools, bound 1/8/5/1/5 per phase · ✅ **the upload path is built (6.11)** — csv/xlsx/pdf/docx parse deterministically, an unreadable file is refused before the blob write, evidence indexes and artefacts do not · ✅ `load_skill` via middleware 2 · ✅ **5 of 5 SKILL.md files exist, load, and carry all seven of §32's mandatory items** — Define's A→F flow, Uploads and §43.7 metric literacy landed at 6.9. All five byte-match their §39.x.10 section |
 | **7** | **Validation, gates and escalation** — §33–§38 | **1.5 / 9** | ⚠️ Layer 2b delegates to the v1 `validate_{phase}` and **all five gates are inert** · ✅ Layer 2a is `CoherenceMiddleware` · ☐ Layers 2c, 2d ☐ nine-step HITL ☐ two tiers + `warning` ☐ escalation logic ☐ §37 re-approval cascade (7.6) |
 | **8** | **Persistence and cross-cutting** — §8–§10, §44–§48, §51–§52 | **3 / 3 persistence · 1 / 10 cross-cutting** | ✅ checkpointer (Azure Blob, per `case_id`) ✅ Store (cross-phase artifacts) ✅ case blob (system of record) · ✅ §44 Step 0 only · ☐ §44 Steps 1–6 ☐ §46 circuit breaker + fallback chain ☐ §48 structured errors (the schema exists, nothing raises it) ☐ **§51 tracing — zero `@traceable` in the backend** ☐ §52 evaluation — no suite ⛔ §46 L3 cache (Redis) |
 
@@ -105,6 +105,11 @@ for ph, sec in SEC.items():
 EOF
 )
 
+# Block 6 — upload formats with a REAL deterministic parser (4 + text)
+#   The check `is_supported` used to fail: it named pdf and document with
+#   no extractor behind either. Membership in PARSERS is what it now means.
+(cd agent-improve && ./.venv/Scripts/python -c 'from backend.upload.parsers import PARSERS; print(sorted(PARSERS))')
+
 # Block 8 — @traceable decorators in the backend, excluding tests (0)
 grep -rl '@traceable' agent-improve/backend --include=*.py | grep -v tests | wc -l
 ```
@@ -165,7 +170,7 @@ accumulate across turns (WATCH 18), the supervisor graph is not the runtime
 | Phase subgraphs — no checkpointer of their own; `checkpoint_ns` assigned by the engine | ✅ §16, deliberate |
 | ETag / `ConcurrentTurnError` on `latest.json` | ⚠️ optimistic, not the specified lease. **A concurrent turn is LOST, never interleaved**, and a failed write orphans a history blob (WATCH 15 — out of scope, post-refactor) |
 | Store — `("projects", {case}, "artifacts")` | ✅ written by the boundary mappers |
-| Store — `("projects", {case}, "case")` | ✅ **as of 6.8.** Had no writer at all from 3.3 to 6.8 (WATCH 19) |
+| Store — `("projects", {case}, "case")` | ✅ **as of 6.8.** Had no writer at all from 3.3 to 6.8 (WATCH 19). **Carries the uploads inventory as of 6.11** — keyed by phase, and the input mappers seed `PhaseState.uploads` from it |
 
 ### Caps
 
@@ -199,7 +204,7 @@ Recorded here because the panel is regenerated from this file, so a correction
 that lives only in chat gets rebuilt wrong next time.
 
 1. **"25 of 35 steps" — both figures are wrong.** Appendix D is authoritative
-   and now reads **28 of 51**. The 35 was an unreconciled hand-count already
+   and now reads **29 of 51**. The 35 was an unreconciled hand-count already
    five rows adrift before the audit added eight steps.
 2. **"§26 multi-hop + the step guard" under NONE OF THIS EXISTS YET — half
    wrong.** The step guard shipped at 6.7: the five-hop cap, the

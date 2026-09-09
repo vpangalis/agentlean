@@ -46,6 +46,16 @@ numpy==1.26.4
 openpyxl==3.1.2
 pyxlsb==1.0.10
 
+# Upload parsing (step 6.11) — deterministic extraction for the four
+# formats a Belt actually uploads. Verified against PyPI 2026-09-09;
+# each is the latest release at pin time. python-docx was NOT installed
+# before this step; pypdf and pdfplumber were present but pinned by
+# nothing and required by nothing (`pip show` Required-by: empty), so
+# the parse rested on packages no manifest declared.
+python-docx==1.2.0
+pypdf==6.18.0
+pdfplumber==0.11.10
+
 # Utils
 httpx==0.28.1
 python-multipart==0.0.9

@@ -30,6 +30,7 @@ from backend.phases.mappers_common import PHASE_ORDER
 from backend.storage import blob
 from backend.storage.models import CaseDocument, UploadRecord
 from backend.upload.agent import process_upload
+from backend.upload.classifier import EVIDENCE as CLASSIFIER_EVIDENCE
 
 logger = logging.getLogger(__name__)
 
@@ -771,17 +772,36 @@ async def upload_file(
     phase: str = Form(...),
     file: UploadFile = File(...),
     purpose: str = Form(""),
+    kind: str = Form(""),
 ):
-    """Upload a file, extract content via Vision LLM if image,
-    store in blob, index into improve_evidence_index.
+    """§29.1's external-data channel — procedure step 6.11.
 
-    Returns a flat ``file`` dict in the new CaseFile shape alongside
-    the legacy response fields for backward compatibility."""
+    Classify, parse DETERMINISTICALLY, refuse what cannot be read, interpret
+    once, then route by kind: **evidence goes to `improve_evidence_index`; an
+    artefact does not** (ruling 3). The upload record is persisted to the case
+    blob, which is the system of record, and reaches `PhaseState.uploads`
+    through the Store copy at the next phase entry.
+
+    **A file that cannot be extracted is refused with a Belt-readable reason
+    and is not stored** (ruling 5). Before 6.11 the opposite happened: csv and
+    xlsx bucketed as `other`, pdf and docx reported as supported with no
+    extractor, `_index_upload` returned early on empty text, and the file was
+    saved to blob regardless — so a Belt could upload a spreadsheet, see it
+    accepted, and have it be invisible to the coach and absent from the index.
+
+    Returns a flat ``file`` dict in the CaseFile shape alongside the legacy
+    response fields for backward compatibility.
+    """
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
 
     file_bytes = await file.read()
     mime_type = file.content_type or "application/octet-stream"
+    # `UploadFile.filename` is `str | None`. Resolved ONCE here rather than
+    # at each of the four use sites — those four were carried as mypy DEBT
+    # and are retired with this step, since a nameless upload is a real case
+    # (some clients omit it) and every downstream consumer wants a `str`.
+    filename = file.filename or "upload"
 
     case = await blob.load_case(case_id)
     if case is None:
@@ -796,57 +816,97 @@ async def upload_file(
         "what": define_structured.get("what", ""),
     }
 
-    # Save raw file to blob
-    blob_path = await blob.upload_file(
-        case_id, file.filename, file_bytes, mime_type,
-    )
+    # Resolve purpose first — `classify_kind` reads it, and the parse below
+    # is the expensive half, so a purpose that changes the destination should
+    # be settled before anything is spent.
+    resolved_purpose = (purpose or "").strip() or auto_detect_purpose(filename)
 
-    # Process: classify + extract via Upload Intelligence agent
+    # ── Parse BEFORE storing (ruling 5) ───────────────────────────────
+    #
+    # **The refusal has to come before the blob write, or it is not a
+    # refusal.** A file saved and then rejected leaves the Belt with an
+    # upload they can see in the case and the coach cannot use — which is
+    # the state this step exists to end, arrived at from the other side.
     upload_record = await process_upload(
         case_id=case_id,
-        filename=file.filename,
+        filename=filename,
         file_bytes=file_bytes,
         mime_type=mime_type,
         uploaded_by=uploaded_by,
         phase=phase,
         case_meta=case_meta,
+        purpose=resolved_purpose,
+        declared_kind=kind,
+    )
+
+    if not upload_record.get("parsed"):
+        # 422, not 400: the request was well formed and the file is the
+        # problem. The reason is written for the Belt, not for a log.
+        raise HTTPException(422, upload_record.get("refusal_reason")
+                            or "We could not read this file.")
+
+    # Save raw file to blob — only now that it is known to be readable
+    blob_path = await blob.upload_file(
+        case_id, filename, file_bytes, mime_type,
     )
     upload_record["blob_path"] = blob_path
+    interpretation = dict(upload_record.get("interpretation") or {})
+    if interpretation:
+        # Ruling 6: the interpretation cites its source upload, and the blob
+        # path is the half only this layer knows.
+        interpretation["source_blob_path"] = blob_path
+        upload_record["interpretation"] = interpretation
 
-    # Index into improve_evidence_index (best-effort)
-    indexed = False
-    try:
-        await _index_upload(case_id, upload_record)
-        indexed = True
-        upload_record["indexed"] = True
-    except Exception as e:
-        logger.warning(
-            "Evidence indexing failed for %s: %s", file.filename, e,
+    # ── Route by kind (ruling 3) ──────────────────────────────────────
+    #
+    # **Evidence describes the world and goes to the index. An artefact is
+    # what the team designed and does not.** One bucket would let a proposed
+    # future — a to-be process map, a draft control plan — be retrieved later
+    # as a fact about the present.
+    upload_kind = upload_record.get("kind", CLASSIFIER_EVIDENCE)
+    evidence_index_id = None
+    if upload_kind == CLASSIFIER_EVIDENCE:
+        try:
+            evidence_index_id = await _index_upload(case_id, upload_record)
+            upload_record["indexed"] = True
+        except Exception as e:
+            logger.warning(
+                "Evidence indexing failed for %s: %s", filename, e,
+            )
+    else:
+        logger.info(
+            "Upload %s classified as %s — captured content, not indexed "
+            "(ruling 3).", filename, upload_kind,
         )
-
-    # Resolve purpose (form value wins; otherwise auto-detect)
-    resolved_purpose = (purpose or "").strip() or auto_detect_purpose(
-        file.filename
-    )
+    indexed = evidence_index_id is not None
 
     # Persist upload record into case blob (canonical phases[phase].uploads)
     phase_record = case.phases.get(phase)
     if phase_record is not None:
         phase_record.uploads.append(UploadRecord(
-            filename=file.filename,
+            filename=filename,
             blob_path=blob_path,
             uploaded_by=uploaded_by,
             uploaded_at=upload_record["timestamp"],
             classification=_classification_for(
                 resolved_purpose, upload_record["content_type"], indexed
             ),
+            rows=upload_record.get("row_count"),
+            kind=upload_kind,
+            evidence_index_id=evidence_index_id,
+            summary=upload_record.get("summary") or "",
+            interpretation=upload_record.get("interpretation"),
         ))
         await blob.save_case(case)
+        # The Store's `case` copy is what the input mappers read (§9), so it
+        # has to move with the blob or `PhaseState.uploads` goes stale by one
+        # upload — the same two-ends problem WATCH 19 was.
+        _ensure_case_record(case)
 
     # CaseFile-shaped dict for the UI (matches gateway.schemas.CaseFile)
     case_file = {
-        "file_id": _case_file_id(case_id, file.filename, upload_record["timestamp"]),
-        "filename": file.filename,
+        "file_id": _case_file_id(case_id, filename, upload_record["timestamp"]),
+        "filename": filename,
         "phase": phase,
         "purpose": resolved_purpose,
         "blob_url": blob_path,
@@ -859,11 +919,20 @@ async def upload_file(
         "file": case_file,
         # Legacy fields kept for callers that read them
         "blob_path": blob_path,
-        "filename": file.filename,
+        "filename": filename,
         "content_type": upload_record["content_type"],
         "summary": upload_record["summary"],
         "sipoc_columns": upload_record.get("sipoc_columns"),
         "indexed": indexed,
+        # ── step 6.11 ────────────────────────────────────────────────
+        "kind": upload_kind,
+        "evidence_index_id": evidence_index_id,
+        "structure": upload_record.get("structure"),
+        "columns": upload_record.get("columns") or [],
+        "row_count": upload_record.get("row_count"),
+        "column_types": upload_record.get("column_types") or {},
+        "column_ranges": upload_record.get("column_ranges") or {},
+        "interpretation": upload_record.get("interpretation"),
     }
 
 
@@ -907,8 +976,24 @@ async def delete_case_file(case_id: str, file_id: str):
     return {"deleted": True, "file_id": file_id}
 
 
-async def _index_upload(case_id: str, upload_record: dict) -> None:
-    """Index extracted text into improve_evidence_index."""
+async def _index_upload(case_id: str, upload_record: dict) -> str:
+    """Index one evidence upload into `improve_evidence_index`. Returns its id.
+
+    **Returns the document id rather than None** — §6 names
+    `evidence_index_id` as what makes the evidence trail traversable, and
+    before 6.11 this function computed the id and dropped it, so a reviewer
+    reading a gate document had no way back to the indexed chunk.
+
+    **The empty-text early return is gone.** It used to swallow every
+    unparsed file silently (Part AP1); a file with nothing to index now
+    cannot reach this function at all, because `parse_upload` refuses it at
+    the route. An empty text here is therefore a real fault and raises, which
+    the caller logs and turns into `indexed=False`.
+
+    **Only evidence reaches this function** (ruling 3). The caller does that
+    routing; nothing here re-checks it, because a second opinion on the same
+    question is how two answers to it come to exist.
+    """
     import hashlib
     from azure.search.documents.aio import SearchClient
     from azure.core.credentials import AzureKeyCredential
@@ -917,11 +1002,11 @@ async def _index_upload(case_id: str, upload_record: dict) -> None:
 
     extracted_text = (upload_record.get("extracted_text") or "").strip()
     if not extracted_text:
-        logger.info(
-            "Skipping evidence indexing - no extracted text for %s",
-            upload_record.get("filename"),
+        raise ValueError(
+            f"No extracted text for {upload_record.get('filename')!r}. A "
+            "parsed upload always has text; reaching here means the parse "
+            "contract was bypassed."
         )
-        return
 
     embeddings = get_embeddings()
     embedding = await embeddings.aembed_query(extracted_text)
@@ -931,6 +1016,11 @@ async def _index_upload(case_id: str, upload_record: dict) -> None:
         .encode()
     ).hexdigest()[:32]
 
+    # `phase` and `uploaded_at` are STILL only in this blob, not top-level
+    # fields — §23.2 carries both as RATIFIED, NOT YET APPLIED, and forbids
+    # code referencing them until the reindex at 9.1. `upload_phase` and
+    # `timestamp` are the keys 9.1 backfills them from, so they keep their
+    # names exactly.
     metadata = json.dumps({
         "case_id": case_id,
         "upload_phase": upload_record.get("phase"),
@@ -939,6 +1029,12 @@ async def _index_upload(case_id: str, upload_record: dict) -> None:
         "blob_path": upload_record.get("blob_path"),
         "uploaded_by": upload_record.get("uploaded_by"),
         "timestamp": upload_record.get("timestamp"),
+        # The deterministic parse (ruling 4), carried so a retrieved chunk can
+        # say what shape it came from without a second read of the file.
+        "kind": upload_record.get("kind"),
+        "structure": upload_record.get("structure"),
+        "columns": upload_record.get("columns") or [],
+        "row_count": upload_record.get("row_count"),
     })
 
     document = {
@@ -961,6 +1057,7 @@ async def _index_upload(case_id: str, upload_record: dict) -> None:
         "Indexed %s -> improve_evidence_index doc %s",
         upload_record["filename"], doc_id,
     )
+    return doc_id
 
 
 @router.post("/gate", response_model=GateSubmitResponse)

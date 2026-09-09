@@ -1125,6 +1125,40 @@ Return JSON only. No explanation. No markdown fences.
 Use null or [] for fields not applicable or not found.
 """
 
+UPLOAD_INTERPRET_PROMPT = """A team member on an improvement project has
+uploaded a file. It has already been read. Your job is ONLY to say what it
+means for their project — the structure below was measured from the file and
+is not in question.
+
+Project context:
+- Project title: {title}
+- Department: {department}
+- Current phase: {phase}
+- What is being improved: {what}
+
+The file:
+- Name: {filename}
+- Shape: {structure}
+- Columns: {columns}
+- Column types: {column_types}
+- Column ranges: {column_ranges}
+- Rows: {row_count}
+
+A sample of the contents:
+{sample}
+
+Say:
+1. What this file is and what it shows - 2 to 3 plain sentences.
+2. What it could substantiate for this project, as short phrases.
+3. What a coach should ask about it - gaps, ambiguities or limits. If a
+   column is mixed, undated, or has no obvious unit, that belongs here.
+
+Do NOT restate the column names, types, row count or ranges back. They were
+measured from the file and are already known. Do not invent figures that are
+not in the sample. Plain language only - no methodology jargon.
+"""
+
+
 # ANALYST_MEASURE_SUMMARY and ANALYST_ANALYSE_SUMMARY were removed here
 # (v2.2.8). Both were v1 remnants that nothing imported or referenced,
 # and ANALYST_* is not a naming pattern CLAUDE.md §6.2 recognises. The

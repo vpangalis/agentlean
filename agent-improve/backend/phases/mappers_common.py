@@ -75,6 +75,14 @@ CASE_RECORD_FRAMING_FIELDS = (
     "title", "department", "belt_level", "leader", "target_date",
 )
 
+#: Where the uploads inventory sits inside the Store's `case` record.
+#: **Not one of the framing fields** — it is not part of `phase_context` and
+#: must not leak into it; it is carried in the same record because the record
+#: is already the one thing the input mappers read (§9), and adding a second
+#: Store namespace for it would give `PhaseState.uploads` a writer that the
+#: `case` backfill could not keep current.
+CASE_RECORD_UPLOADS = "uploads_by_phase"
+
 
 def case_record_from_document(case: Any) -> dict[str, Any]:
     """The Store's `case` copy, from the blob case document (§9, S-F10).
@@ -86,8 +94,44 @@ def case_record_from_document(case: Any) -> dict[str, Any]:
     mapper ever needs a sixth field, `CASE_RECORD_FRAMING_FIELDS` is the one
     place that has to change.
     """
-    return {f: getattr(case, f, None) for f in CASE_RECORD_FRAMING_FIELDS
-            if getattr(case, f, None)}
+    record: dict[str, Any] = {
+        f: getattr(case, f, None) for f in CASE_RECORD_FRAMING_FIELDS
+        if getattr(case, f, None)
+    }
+    record[CASE_RECORD_UPLOADS] = uploads_from_document(case)
+    return record
+
+
+def uploads_from_document(case: Any) -> dict[str, list[dict[str, Any]]]:
+    """Every phase's uploads, in §6's entry shape, keyed by phase — step 6.11.
+
+    **This is `PhaseState.uploads`'s missing writer, at the Store end.** The
+    field was declared in `PhaseState` from step 3.1 and set to `[]` by the
+    input mapper with nothing ever putting anything in it; the route persisted
+    an `UploadRecord` to the case blob instead and the two halves never met.
+    Gate assembly reads `PhaseState.uploads`, and §6 says an empty list means
+    *"the phase reached its conclusions from typed statements alone, and a
+    reviewer should be able to see that"* — so **every gate document asserted
+    that, including for phases where the Belt had uploaded** (Part AP1).
+
+    **Keyed by phase, and the whole inventory travels.** The input mapper takes
+    its own phase's slice. Carrying all five costs a few hundred bytes in the
+    Store copy and means a later step that needs a cross-phase view — 7.6's
+    evidence supersession is the named one — does not need a second writer.
+
+    §9's copy rule is unchanged: this is a COPY for mappers to read, and
+    `cases/case_{id}.json` stays the system of record.
+    """
+    inventory: dict[str, list[dict[str, Any]]] = {}
+    for phase, record in (getattr(case, "phases", {}) or {}).items():
+        entries = []
+        for upload in (getattr(record, "uploads", []) or []):
+            if hasattr(upload, "to_phase_state_entry"):
+                entries.append(upload.to_phase_state_entry(phase))
+            elif isinstance(upload, dict):
+                entries.append({**upload, "phase": phase})
+        inventory[phase] = entries
+    return inventory
 
 
 def write_case_record(store: BaseStore, case_id: str, record: dict[str, Any]) -> None:
@@ -120,10 +164,25 @@ class PriorGateDocumentMissing(RuntimeError):
     """A phase was entered before the previous phase's gate was applied."""
 
 
+def uploads_for_phase(
+    case_record: dict[str, Any], phase: str
+) -> list[dict[str, Any]]:
+    """This phase's uploads, in §6's entry shape — step 6.11.
+
+    Returns `[]` when the case has none, which is the honest answer and the
+    one §6 gives meaning to. **The difference this step makes is that `[]` is
+    now a fact about the phase rather than a fact about the wiring.**
+    """
+    inventory = case_record.get(CASE_RECORD_UPLOADS) or {}
+    entries = inventory.get(phase) or []
+    return [dict(e) for e in entries]
+
+
 def new_phase_state(
     parent: SupervisorState,
     phase: str,
     phase_context: str,
+    uploads: list[dict[str, Any]] | None = None,
 ) -> PhaseState:
     """The twenty author-populated fields, initialised (S-C02 B1).
 
@@ -167,7 +226,11 @@ def new_phase_state(
         "validator_feedback": [],
         "rejection_feedback": [],
         "citations":          [],
-        "uploads":            [],
+        # **Seeded, not blanked** (step 6.11). This literal was `[]` from 3.1
+        # to 6.11 and was the entire reason `PhaseState.uploads` had no
+        # writer: the mapper is the only thing that builds this dict, so a
+        # constant here meant no upload could ever reach a gate document.
+        "uploads":            list(uploads or []),
         "hop_results":        [],
         "synthesis_output":   None,
     }

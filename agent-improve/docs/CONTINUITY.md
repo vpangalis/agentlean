@@ -7,10 +7,10 @@
 
 | | |
 |---|---|
-| **Last completed** | step **6.9** — SKILL.md conformance to §32's seven |
-| **Next** | step **6.11** — **The upload path (G-36)** |
+| **Last completed** | step **6.11** — **The upload path (G-36)** |
+| **Next** | step **6.12** — **Ask-binding: an upload answers a request** |
 | **Stage** | Stage 6 — The coaching agent |
-| **Progress** | 28 of 51 build steps |
+| **Progress** | 29 of 51 build steps |
 | **Last spine commit** | `8f3b4c7` (commit 6.9) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.32 |

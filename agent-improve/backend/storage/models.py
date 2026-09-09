@@ -12,8 +12,49 @@ class TeamMemberRecord(BaseModel):
     role: str
 
 
+class UploadInterpretation(BaseModel):
+    """What one upload MEANS — the single model call the parse is allowed.
+
+    **Ruling 4: parse is deterministic first, and only meaning costs a model
+    call, once, at ingest.** Every field here is a judgment the file itself
+    cannot state; the columns, types and ranges that this call is *given* were
+    read off the file by `upload/parsers.py` and are never asked for back.
+    One call per upload, not one per question about the upload.
+
+    **`source_filename` and `source_blob_path` are ruling 6.** §50's
+    traceability binds on computed figures, not only quotations: a baseline
+    derived from an uploaded extract must be followable back to the file it
+    came from, or the gate document shows a number whose provenance stops at
+    the coach. They travel with the interpretation so that whatever consumes
+    it downstream cannot separate the two. **Step 6.12 is where a computation
+    tool consumes this and writes to `computation_results`** — the citation
+    exists now so that the write has something true to carry.
+    """
+
+    summary: str = Field(
+        description="2-3 plain sentences: what this file is and what it shows."
+    )
+    supports: list[str] = Field(
+        default_factory=list,
+        description="What this file could substantiate for the project.",
+    )
+    caveats: list[str] = Field(
+        default_factory=list,
+        description="Gaps, ambiguities or limits a coach should raise.",
+    )
+    source_filename: str = ""
+    source_blob_path: str = ""
+
+
 class UploadRecord(BaseModel):
     """One Belt-uploaded file, as held in `PhaseRecord.uploads` (S-C09).
+
+    **This record is the case-blob half of the §6 uploads entry shape.** The
+    §6 shape a gate document reads is `evidence_index_id`, `filename`, `phase`,
+    `uploaded_at`, `summary` (plus the two reserved fields); `phase` is the key
+    this record is stored under rather than a field on it, and the rest are
+    here. `to_phase_state_entry` below is the one place the two shapes are
+    reconciled, so they cannot drift apart in four mappers' worth of copies.
 
     **`ask_id` and `version` are RESERVED FOR STEP 6.12 and written `None`
     here.** 6.12's ask-binding is what fills them: an upload is bound to the
@@ -31,11 +72,63 @@ class UploadRecord(BaseModel):
     uploaded_by: str
     uploaded_at: str
     classification: str               # e.g. maintenance_log, operational_data
+
+    #: Row count from the deterministic parse. **Declared since before the
+    #: refactor and written by nothing until 6.11** (Part AP1) — the parse is
+    #: what finally gives it a writer.
     rows: Optional[int] = None
+
+    #: evidence | artefact (ruling 3). **The destination, not the format.**
+    #: Evidence describes the world and goes to `improve_evidence_index`; an
+    #: artefact is what the team designed and belongs to the gate document as
+    #: captured content. One bucket would let a proposed future be retrieved
+    #: later as a fact about the present.
+    kind: str = "evidence"
+
+    #: The `improve_evidence_index` document id, when this upload was indexed.
+    #: **`None` for every artefact, and for evidence whose indexing failed** —
+    #: which is why it is Optional rather than defaulted to "". §6 names it as
+    #: what makes the evidence trail traversable.
+    evidence_index_id: Optional[str] = None
+
+    #: The interpretation's summary, lifted to the top level because §6's entry
+    #: shape names `summary` and a gate document reads that shape.
+    summary: str = ""
+
+    interpretation: Optional[UploadInterpretation] = None
+
+    #: Set when the deterministic parse could not read the file. **An upload
+    #: that reaches the case record with this set was reported, not silently
+    #: accepted** (ruling 5) — the route refuses before persisting, so this is
+    #: the belt-and-braces record for any path that later chooses to keep one.
+    refusal_reason: Optional[str] = None
 
     # RESERVED FOR 6.12 — declared, never written at 6.11. See the docstring.
     ask_id: Optional[str] = None
     version: Optional[int] = None
+
+    def to_phase_state_entry(self, phase: str) -> dict[str, Any]:
+        """This record in §6's `PhaseState.uploads` entry shape (S-C02).
+
+        **The single reconciliation point between the two shapes.** Gate
+        assembly reads `PhaseState.uploads`; the case blob holds
+        `UploadRecord`; before 6.11 nothing connected them and
+        `PhaseState.uploads` had no writer at all, so every gate document
+        asserted §6's "this phase reached its conclusions from typed
+        statements alone" — including for phases where the Belt uploaded.
+        """
+        return {
+            "evidence_index_id": self.evidence_index_id,
+            "filename": self.filename,
+            "phase": phase,
+            "uploaded_at": self.uploaded_at,
+            "summary": self.summary,
+            "kind": self.kind,
+            # Reserved for 6.12 — carried so the shape is stable across the
+            # two steps rather than growing under the gate document.
+            "ask_id": self.ask_id,
+            "version": self.version,
+        }
 
 
 class ChartRecord(BaseModel):

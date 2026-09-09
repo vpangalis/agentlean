@@ -20,7 +20,9 @@ from backend.phases.mappers_common import (
     advance,
     compose_phase_context,
     new_phase_state,
+    read_case_record,
     read_gate_document,
+    uploads_for_phase,
     write_gate_document,
 )
 
@@ -79,7 +81,14 @@ def control_input_mapper(parent: SupervisorState, store: BaseStore) -> PhaseStat
     """
     gate_document = read_gate_document(store, parent["case_id"], PRIOR_PHASE)
     phase_context = compose_phase_context(PHASE, gate_document, PHASE_CONTEXT_FIELDS)
-    return new_phase_state(parent, PHASE, phase_context)
+    # Step 6.11: the case record is read for the uploads inventory ONLY.
+    # `phase_context` still comes from the prior gate document above and is
+    # unchanged — §6 keeps `uploads` out of the framing prose deliberately,
+    # because the gate document reads the list and the coach reads the prose.
+    uploads = uploads_for_phase(
+        read_case_record(store, parent["case_id"]), PHASE
+    )
+    return new_phase_state(parent, PHASE, phase_context, uploads)
 
 
 def control_output_mapper(

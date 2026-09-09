@@ -11647,7 +11647,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-33** | `load_skill(name)` — in neither the universal seven nor any phase count; if bound, Measure goes to 16 against a cap of 16 | S-F23, S-F02, S-C12 |
 | **G-34** | The escalation subgraph — no node list, no state schema, no exit contract | S-F08 |
 | **G-35** | `synthesise_partial()`, `delete_or_flag_stale_in_case_index()` (delete **or** flag stale — the name carries the undecided choice), and the `degraded_coaching_response` node, which is not one of §13's permitted five. **STILL OPEN** — but §64.3 now carries a *design note* on making the `improve_case_index` write idempotent and encapsulated so the compensating action covers only the non-idempotent residue. **An input to step 8.2, not a ratification and not a closure** | S-F31, S-F32, S-F33, S-F09, S-F29 |
-| **G-36** | **No upload endpoint exists**, no file owns the upload handler, and §29.1 makes uploads the only channel through which external data enters the platform | S-F35, S-F34 |
+| **G-36** | ~~No upload endpoint exists, no file owns the upload handler~~ — **both answered; the endpoint is in §49 and S-F34 (Part AP5) and the handler has steps 6.11 / 6.12.** STILL OPEN on the code: §29.1's sole external channel, and step 6.11 is where it closes or is re-scoped | S-F35, S-F34 |
 | **G-37** | **Nothing writes `improve_case_index`** — the schema is defined, cleanup of it is required, and no writer is named | S-F36 |
 
 ### 66.5 Group E — content the build sequence defers
