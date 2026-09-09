@@ -212,18 +212,50 @@ async def _interpret(
     except Exception as exc:  # noqa: BLE001 — degrade, never drop the upload
         logger.warning("Upload interpretation failed for %s: %s", filename, exc)
 
+    return _interpretation_unavailable(filename, parsed, citation)
+
+
+def _interpretation_unavailable(
+    filename: str,
+    parsed: dict[str, Any],
+    citation: dict[str, str],
+) -> UploadInterpretation:
+    """The fallback, and it SAYS it is one (step 6.11a).
+
+    **The first version of this read like a summary**, and that is exactly how
+    a dead interpretation path survived 781 green tests: every upload came back
+    with a fluent sentence about the file's shape, so nothing — not the Belt,
+    not the gate document, not the test suite — could tell that the meaning
+    call had produced no meaning. It took a live run to find, and only because
+    the sentence was read closely.
+
+    **Ruling 5 one level down.** An unextractable FILE is refused outright; an
+    uninterpreted file is real, parsed and indexable, so it is kept — but it is
+    *reported*, never passed off as interpreted. The marker follows §6's
+    `phase_context` convention from step 6.8: a WARNING for whoever reads logs,
+    and `[!] … UNAVAILABLE` inside the value itself for whoever reads the
+    artefact, because those are different people and the log reaches only one
+    of them. `summary` is what §6's uploads entry shape carries into the gate
+    document, so this text is what a reviewer sees there.
+    """
     columns = parsed.get("columns") or []
-    detail = (
-        f" with {len(columns)} columns and {parsed.get('row_count')} rows"
-        if columns else ""
+    shape = parsed.get("structure") or "file"
+    measured = (
+        f"{shape}, {len(columns)} columns, {parsed.get('row_count')} rows"
+        if columns else f"{shape}, {parsed.get('row_count')} rows"
     )
     return UploadInterpretation(
         summary=(
-            f"'{filename}' was read successfully as a "
-            f"{parsed.get('structure') or 'file'}{detail}. An automatic "
-            "description of what it shows was not available."
+            f"[!] INTERPRETATION UNAVAILABLE — '{filename}' was read and its "
+            f"structure recorded ({measured}), but the description of what it "
+            f"CONTAINS did not run. Nothing here says what is in this file. "
+            f"Ask the team what it shows; do not treat this line as a summary "
+            f"of it."
         ),
-        caveats=["The automatic description of this file did not run."],
+        caveats=[
+            "The automatic description of this file did not run — its "
+            "contents have not been summarised by anything.",
+        ],
         **citation,
     )
 

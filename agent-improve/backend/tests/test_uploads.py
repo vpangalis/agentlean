@@ -228,6 +228,73 @@ def test_a_refusal_never_looks_like_an_empty_success():
 
 
 # ─────────────────────────────────────────────────────────────────────────
+# The interpretation, and the fallback that has to announce itself
+# ─────────────────────────────────────────────────────────────────────────
+
+def test_the_prompt_asks_for_the_json_it_is_parsed_as():
+    """The 6.11 live-run defect, pinned.
+
+    `UPLOAD_INTERPRET_PROMPT` was written for `with_structured_output`, where
+    the schema carries the format contract. When the call switched to parsing
+    JSON, the prompt was not updated — so the model returned good numbered
+    prose, `_json_object` returned `{}`, and every upload silently took the
+    fallback. 781 tests were green throughout, because none of them ran the
+    call. **The prompt and the parser have to agree, and that is checkable
+    without a model.**
+    """
+    from backend.core.prompts import UPLOAD_INTERPRET_PROMPT
+
+    assert "JSON" in UPLOAD_INTERPRET_PROMPT.upper()
+    for key in ("summary", "supports", "caveats"):
+        assert f'"{key}"' in UPLOAD_INTERPRET_PROMPT, (
+            f"the prompt must name {key!r} — it is what the parser reads"
+        )
+
+
+def test_a_parsed_reply_becomes_a_real_interpretation():
+    """Fenced JSON is what the model actually returns, so it is what is
+    tested — `_json_object` has to survive the fence."""
+    from backend.upload.agent import _json_object
+
+    reply = (
+        '```json' + chr(10)
+        + '{"summary": "Five days of complaint counts.",'
+        + ' "supports": ["baseline"], "caveats": ["no unit stated"]}'
+        + chr(10) + '```'
+    )
+    payload = _json_object(reply)
+
+    assert payload["summary"].startswith("Five days")
+    assert payload["caveats"] == ["no unit stated"]
+
+
+def test_the_fallback_announces_itself_rather_than_reading_as_a_summary():
+    """Ruling 5, one level down — reported, never silently accepted.
+
+    The first version of this returned *"'complaints.csv' was read
+    successfully as a table with 3 columns and 5 rows"*, which is a true
+    sentence that reads exactly like a summary. That is why a dead
+    interpretation path survived a green suite and a code review: nothing
+    downstream could tell the difference between a described file and an
+    undescribed one.
+    """
+    from backend.upload.agent import _interpretation_unavailable
+
+    parsed = parsers.parse_upload("complaints.csv", CSV_BYTES, "spreadsheet")
+    result = _interpretation_unavailable(
+        "complaints.csv", parsed,
+        {"source_filename": "complaints.csv", "source_blob_path": ""},
+    )
+
+    assert result.summary.startswith("[!]")
+    assert "UNAVAILABLE" in result.summary
+    assert result.caveats, "a fallback with no caveat is a silent fallback"
+    # It must not read as a description of the CONTENTS.
+    for word in ("late delivery", "wrong item", "damaged packaging"):
+        assert word not in result.summary
+
+
+# ─────────────────────────────────────────────────────────────────────────
 # Classification — the two questions, and the lie that used to be told
 # ─────────────────────────────────────────────────────────────────────────
 

@@ -1127,7 +1127,7 @@ Use null or [] for fields not applicable or not found.
 
 UPLOAD_INTERPRET_PROMPT = """A team member on an improvement project has
 uploaded a file. It has already been read. Your job is ONLY to say what it
-means for their project — the structure below was measured from the file and
+means for their project - the structure below was measured from the file and
 is not in question.
 
 Project context:
@@ -1147,11 +1147,21 @@ The file:
 A sample of the contents:
 {sample}
 
-Say:
-1. What this file is and what it shows - 2 to 3 plain sentences.
-2. What it could substantiate for this project, as short phrases.
-3. What a coach should ask about it - gaps, ambiguities or limits. If a
-   column is mixed, undated, or has no obvious unit, that belongs here.
+Your task:
+1. Say what this file is and what it shows
+2. Say what it could substantiate for this project
+3. Say what a coach should ask about it - gaps, ambiguities or limits. If a
+   column is mixed, undated, or has no obvious unit, that belongs here
+
+Return a JSON object with exactly these keys:
+{{
+  "summary": "2-3 plain sentences: what this file is and what it shows",
+  "supports": ["short phrases - what this file could substantiate"],
+  "caveats": ["what a coach should ask about - gaps, ambiguities, limits"]
+}}
+
+Return JSON only. No explanation. No markdown fences.
+Use [] for a list with nothing to put in it; "summary" is never empty.
 
 Do NOT restate the column names, types, row count or ranges back. They were
 measured from the file and are already known. Do not invent figures that are

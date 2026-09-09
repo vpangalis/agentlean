@@ -2350,7 +2350,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 6.8** | `phase_context` is read (WATCH 19) | done |
 | **Commit 6.9** | SKILL.md conformance to §32's seven | done — live half owed |
 | **Commit 6.10** | `analyse_executor_node` — §26's multi-hop | **BLOCKED** |
-| **Commit 6.11** | The upload path (G-36) | done — live half owed |
+| **Commit 6.11** | The upload path (G-36) | done |
 | **Commit 6.12** | Ask-binding: an upload answers a request | pending |
 | **Commit 7.0** | The evaluation suite | pending |
 | **Commit 7.1** | `DMAICGateValidator` + Layer 2b | pending |
