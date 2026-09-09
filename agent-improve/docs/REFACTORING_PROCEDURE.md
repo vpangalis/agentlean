@@ -1604,6 +1604,77 @@ coach retyping a figure.
 
 ---
 
+## Step 6.13 — The evidence index migration
+
+| | |
+|---|---|
+| **Reference §** | §23.2 · §23.2.1 · §23.4 · §24 · §6 / S-C02 · S-C09 |
+| **Touches** | Azure AI Search — `improve_evidence_index` · `gateway/routes.py` · `knowledge/retriever.py` · `knowledge/tools.py` |
+| **Precondition** | 6.12 |
+| **Verify** | `azure-query` + `live-run` |
+
+**Not in the original spine. Added 2026-09-09** with the evidence-channel schema
+amendment (`DECISIONS.md` Part AQ). It applies the seven ratified-not-yet-applied
+fields of §23.2 — `phase` and `uploaded_at` from the original ratification, plus
+`role`, `kind`, `description`, `content_digest` and `shape_match`.
+
+**No drop-and-rebuild is required, and that is what makes this a step rather
+than a reindex.** All seven are *additive*; Azure assigns `null` to existing
+documents. Only changing an EXISTING field forces a rebuild (Part AQ3, verified
+against Microsoft Learn). 9.1's framing assumed the opposite and is narrowed
+accordingly.
+
+### Four sub-steps, and the order is load-bearing
+
+| # | Sub-step | What it does |
+|---|---|---|
+| 1 | **Schema add** | The seven fields on the live index. Existing documents take `null` |
+| 2 | **Write path** | `_index_upload` writes all seven, with `fields=EVIDENCE_INDEX_FIELDS` on the vectorstore |
+| 3 | **Backfill** | Re-index every existing upload **from the case blobs**, which already hold `kind`, `summary`, `evidence_index_id` and the bytes a digest is computed from |
+| 4 | **Retrieval filters** | `search_evidence` defaults to `kind eq 'evidence'`; `rag_lookup_evidence` returns §24's structured record |
+
+**Why the order cannot change:**
+
+- **Filters before the write path exposes artefacts with nothing hiding them.**
+  A default `kind eq 'evidence'` filter against documents where `kind` is `null`
+  matches nothing — or, if the filter is written to tolerate nulls, matches
+  everything including the artefacts ruling 3's revision depends on separating.
+  The filter is only safe once every document carries a `kind`.
+- **Backfill before the schema has nothing to write into.** The fields must
+  exist before a document can carry a value for them.
+- **The write path before the backfill** means new uploads and backfilled ones
+  land in the same shape, and the backfill is a one-pass job rather than a job
+  that has to be repeated for anything uploaded while it ran.
+
+> **§23.4 binds on sub-step 2 and is the most likely way this step fails
+> silently.** A metadata key becomes a filterable field only if the key is named
+> **and** the vectorstore declares it in `fields=`. Miss either and the value is
+> written into the `metadata` JSON blob where `$filter` cannot reach it, **with
+> no error raised** — which is exactly how `phase_relevance` went unpopulated.
+> **`fields=EVIDENCE_INDEX_FIELDS` is not optional**, and each of the seven is
+> two changes rather than one.
+
+> **`mergeOrUpload` must carry `content_vector`.** If the vector field is
+> declared `stored: false`, a partial update that omits the vector drops it and
+> reports success (Part AQ3). This step's backfill touches existing documents,
+> which is precisely where that trap fires.
+
+**Placed AFTER 6.12, and it is not a precondition of it.** 6.12's ask-binding
+works on `PhaseState` and the case blob alone and does not read the index.
+**Anything uploaded between the two steps is picked up by sub-step 3**, because
+the case blob holds everything the index needs — which is the property that lets
+these two be sequenced rather than merged.
+
+**Done when:** `azure-query` confirms all seven fields are present and
+filterable on `improve_evidence_index`; every pre-existing upload carries a
+`role`, a `kind` and a `content_digest` after the backfill; an artefact does not
+surface on an unfiltered evidence query (Part AP2 ruling 3's second binding
+condition, and a test rather than an observation); `rag_lookup_evidence` returns
+§24's structured record rather than rendered text; and a `live-run` confirms a
+Belt asking what the to-be process is now reaches the artefact.
+
+---
+
 # Part 6 — Stage 7: Validation and gates
 
 ---
@@ -2003,7 +2074,7 @@ underneath it is rebuilt.
 
 ---
 
-## Step 9.1 — The batched reindex · **EXTERNAL**
+## Step 9.1 — The batched reindex, case index only · **EXTERNAL**
 
 | | |
 |---|---|
@@ -2015,9 +2086,21 @@ underneath it is rebuilt.
 **Both changes are RATIFIED and NOT YET APPLIED. Batch them** so the corpus
 rebuilds once (§23.3).
 
+> **⚠ NARROWED 2026-09-09 — the evidence half of this step moved to step 6.13.**
+> This step used to carry `improve_evidence_index`'s `phase` and `uploaded_at`
+> additions as well, on the assumption that they needed the expensive
+> drop-and-rebuild and were therefore external and blocked. **That assumption
+> was wrong**: adding a field to a live index is additive, needs no rebuild, and
+> assigns `null` to existing documents (`DECISIONS.md` Part AQ3, verified
+> against Microsoft Learn). The evidence index now gains all seven of its fields
+> at **step 6.13**, in-repo and unblocked. **What remains here is the case index
+> and the shared contextual-label re-ingest.** Leaving the old scope in place
+> would have implied the evidence work was still external and still blocked,
+> which this amendment makes false.
+
 | Index | Change |
 |---|---|
-| `improve_evidence_index` | Add `phase` (from `metadata.upload_phase`) and `uploaded_at` (from `metadata.timestamp`), both top-level, both **server-set** |
+| ~~`improve_evidence_index`~~ | ~~Add `phase` and `uploaded_at`~~ — **MOVED to step 6.13**, along with the five fields ratified 2026-09-09 |
 | `improve_case_index` | Rename `embedding` → `content_vector`. Delete + recreate — the index holds 0 documents, so no data migration |
 | **Both, plus `improve_knowledge_index`** | **Contextual chunk labels** — a short generated preamble per chunk situating it in its parent document, embedded with the chunk (**added 2026-09-08**) |
 
@@ -2038,15 +2121,14 @@ Batching it here is the whole reason this step exists (§23.3).
 `default` — safe by construction, but the opportunity to fix it does not recur
 cheaply (§23.3).
 
-**Done when:** `azure-query` confirms `phase` and `uploaded_at` are filterable
-/ sortable on `improve_evidence_index`, `content_vector` exists on
+**Done when:** `content_vector` exists on
 `improve_case_index` at 3072 dimensions, **contextual labels are present on
 re-ingested chunks across all three indexes**, and all three re-ingest
 cleanly.
 
-**Then unblock:** `rag_lookup_evidence` gains `order_by=["uploaded_at desc"]`
-and the optional default-off `phase` filter; `rag_lookup_case_history` switches
-to `content_vector`. **Update CLAUDE.md §7.2's table in the same commit** — it
+**Then unblock:** `rag_lookup_case_history` switches to `content_vector`.
+*(`rag_lookup_evidence`'s `order_by=["uploaded_at desc"]` and its optional
+default-off `phase` filter unblock at **6.13**, not here.)* **Update CLAUDE.md §7.2's table in the same commit** — it
 says so explicitly.
 
 ---
@@ -2300,7 +2382,7 @@ infrastructure noise. **Read both before finalising §52.**
 > Version keys are numeric tuples, so `6.10 > 6.9 > 6.7`. That is `_ver_key`'s
 > documented purpose — *"so 2.10 > 2.2"* — and is safe to rely on.
 
-> **THE TOTAL: 51 ROWS. THIS TABLE IS AUTHORITATIVE.** `BUILD_TRACKER.md` and
+> **THE TOTAL: 52 ROWS. THIS TABLE IS AUTHORITATIVE.** `BUILD_TRACKER.md` and
 > `CONTINUITY.md` carried *"of 35 build steps"* until 2026-09-07; that figure
 > was a hand-count that was never reconciled against this table and was already
 > wrong by five rows before the audit added eight more. **Where the two
@@ -2309,10 +2391,16 @@ infrastructure noise. **Read both before finalising §52.**
 > pointing at a step that does not exist. Both documents now derive their
 > figure from here and state the derivation.
 >
-> **51 = 29 done + 19 pending + 2 BLOCKED (6.10, 8.4) + 1 GATED (8.5)** as of
-> 2026-09-09. Of the 19 pending, 9.1 is EXTERNAL (an Azure-side reindex, not a
-> code step). So **19 steps are schedulable code work**, and 8.4 and 8.5 cannot
+> **52 = 29 done + 20 pending + 2 BLOCKED (6.10, 8.4) + 1 GATED (8.5)** as of
+> 2026-09-09. Of the 20 pending, 9.1 is EXTERNAL (an Azure-side reindex, now
+> narrowed to the case index). So **19 steps are schedulable code work**, and 8.4 and 8.5 cannot
 > be scheduled until Redis is provisioned and `request_drain()` is confirmed.
+>
+> **51 → 52 on 2026-09-09**: the evidence index migration got its own step — 6.13,
+> the seven §23.2 fields, their write path, a backfill from the case blobs and the
+> retrieval filters. **It is a step rather than a rider on 9.1 because adding a
+> field to a live index is additive and needs no rebuild**, which 9.1's framing
+> had assumed was untrue. `DECISIONS.md` Part AQ.
 >
 > **49 → 51 on 2026-09-08**: the evidence channel got its two steps — 6.11 the
 > upload path (G-36) and 6.12 the ask-binding. **The twelfth unstepped section**,
@@ -2352,6 +2440,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 6.10** | `analyse_executor_node` — §26's multi-hop | **BLOCKED** |
 | **Commit 6.11** | The upload path (G-36) | done |
 | **Commit 6.12** | Ask-binding: an upload answers a request | pending |
+| **Commit 6.13** | The evidence index migration | pending |
 | **Commit 7.0** | The evaluation suite | pending |
 | **Commit 7.1** | `DMAICGateValidator` + Layer 2b | pending |
 | **Commit 7.2** | Layers 2c, 2d + `validation_stack` | pending |
@@ -2368,7 +2457,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 8.6** | Context recovery (§44 Step 2) | pending |
 | **Commit 8.7** | `delete_blob` + upload lifecycle | pending |
 | **Commit 9.0** | Knowledge-index rebuild | done |
-| **Commit 9.1** | Azure batched reindex | pending |
+| **Commit 9.1** | Azure batched reindex — case index only | pending |
 | **Commit 10.1** | `/ask/stream` SSE | pending |
 | **Commit 10.2** | Live gate document + conflict panel | pending |
 | **Commit 11.1** | Delete v1 | pending |

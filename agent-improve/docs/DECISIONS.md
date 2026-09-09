@@ -5791,6 +5791,38 @@ content. **One bucket would let a proposed future be retrieved later as a fact
 about the present**, which is a correctness failure in a system whose premise is
 that an approved gate document is worth trusting.
 
+> ### ⚠ RULING 3 IS REVISED — 2026-09-09, Part AQ
+>
+> **As revised: both kinds enter the index.** They are separated by a
+> server-set `kind` field (§23.2), and `search_evidence` filters to
+> `kind eq 'evidence'` unless a caller explicitly asks otherwise.
+>
+> **This is a revision, not a reversal, and the original reasoning is answered
+> rather than discarded.** The failure mode ruling 3 guarded against was
+> **indistinguishability, not co-location**. Nothing in the index could tell a
+> to-be design from an as-is measurement, so with no way to separate them the
+> only safe move was to keep one kind out entirely. **A declared, server-set
+> `kind` removes that condition** — and §23.2.1's vocabulary removes it at the
+> point of declaration, by making `kind` a property of `role` so that an as-is
+> map and a to-be map cannot collapse to one label.
+>
+> **What the original ruling costs, measured rather than argued.** The 6.11 live
+> run put a query at an artefact's own content — *invoice intake triage approval
+> process steps minutes* — and got the three evidence files and not the
+> artefact. So **a Belt asking what the team decided the to-be process would be
+> gets silence today**, and the team's own design work is unreachable to the
+> coach that helped produce it.
+>
+> **Two conditions bind the revision, and neither is optional:**
+>
+> 1. **The default filter lives in `search_evidence`** (`knowledge/retriever.py`),
+>    **not in each caller.** One place, default-on; a caller opts out
+>    explicitly. A default enforced per call site is a default that one new call
+>    site silently drops.
+> 2. **A test must prove an artefact does not surface on an unfiltered evidence
+>    query.** Without it the first forgotten filter restores the original defect
+>    silently — and silently is how this project has lost six steps twice.
+
 **4 — Parse is deterministic first.** Columns, rows, types and ranges come from
 the file. **Only meaning costs a model call, once, at ingest.** Do not spend a
 premium model to be told a spreadsheet has fourteen columns. This also bounds
@@ -6066,3 +6098,153 @@ or a `refactor(arch-v2, fixup)` scope — changes what
 parse, and §0.2's rule about hook-read documents applies. **That is its own
 governance change**, and it belongs with the G-48 ruling rather than folded into
 a step.
+
+---
+
+## Part AQ — The evidence channel's schema, and what a dry run does not prove (2026-09-09)
+
+**Ratifies the amendment drafted at
+`docs/_archive/EVIDENCE_CHANNEL_AMENDMENT_draft.md`**, which is the drafting
+record and carries a header saying so. That document is not canonical and must
+never be read as a competing source; where it and a binding document differ, the
+binding one wins. **It is kept for its two appendices**, which are provenance and
+are not reproduced in full anywhere else.
+
+**This part is SPEC ONLY.** §23.5 binds: a schema change lands in its
+`ARCHITECTURE.md` section before it lands anywhere else. No code changed.
+
+### AQ1 — What was ratified, and where it lives
+
+| Amendment | Landed at |
+|---|---|
+| Five fields on `improve_evidence_index` — `role`, `kind`, `description`, `content_digest`, `shape_match` | §23.2 |
+| The twelve-row `role` vocabulary, with `kind` as a property of the row | §23.2.1 |
+| Supersession deletes rather than flags; citations anchor on `blob_path` + digest | §23.2 |
+| `rag_lookup_evidence` returns a structured record per hit | §24 |
+| `citations` gains `blob_path` and `content_digest`; the uploads entry gains `consumed_at` | §6 / S-C02 |
+| `UploadRecord` gains `consumed_at` | S-C09 |
+| Ruling 3's revision | Part AP2, in place |
+| The migration step, and 9.1 narrowed to the case index | Appendix D, step 6.13 |
+
+**All seven ratified-not-yet-applied index fields are server-set**, for the
+reason §23.2 already applied to `phase` and `uploaded_at`: a Belt-entered value
+makes a filter unreliable, and an unreliable filter fails as an empty result
+rather than as an error.
+
+### AQ2 — The structural profile is not indexed, and that is a single-authority call
+
+Columns, types, ranges and row count stay on `UploadRecord` in the case blob.
+**Copying them into the index would create a second source of truth for one
+fact** — the drift §39.2's single-authority rule exists to prevent — and would
+repeat per chunk rather than per document. The index carries the pointer; the
+blob carries the data. This is the same division `description` follows in the
+other direction: the summary's system of record is the blob, and the index copy
+exists only because it must be *searchable*, which the blob cannot serve.
+
+### AQ3 — Two Azure behaviours that govern the migration
+
+*Verified against Microsoft Learn, "Update or rebuild an index in Azure AI
+Search", read 2026-09-09. Recorded because both change what the migration step
+may assume, and one of them is a trap that reports success.*
+
+**All seven additions are additive; no drop-and-rebuild is required.** "Add a
+new field" is on that page's *updates with no rebuild* list, and existing
+documents are assigned `null` for the new field. **Only changing an EXISTING
+field forces a rebuild** — a rename, a data-type change, or a change to
+`searchable` / `filterable` / `sortable` / `facetable`. Nothing in this
+amendment changes an existing field.
+
+**This is why the migration is a step rather than a batched reindex.** 9.1's
+framing assumed the evidence-index work required the expensive rebuild and was
+therefore external and blocked. It does not, and it is not.
+
+**`mergeOrUpload` drops `content_vector` when that field is declared
+`stored: false`, and reports success.** Microsoft's own words: *"A side effect
+of setting `stored` to false is that vectors are dropped on a reindexing
+operation. Providing the vector in the documents payload prevents this from
+happening."*
+
+> **A write that succeeds and silently destroys retrievability is a §23.4-class
+> trap**, and it is recorded beside that one deliberately. §23.4's failure is a
+> metadata key that lands unfilterable because `fields=` was not declared; this
+> one is a vector that disappears because a partial update omitted it. **Both
+> return success. Both are invisible until a query returns nothing.** Any
+> partial update to a document in this index must carry `content_vector` even
+> when the vector has not changed.
+
+### AQ4 — The dry run, and its five findings
+
+**The amendment was tested before ratification by walking eight events of case
+`IMPR-2026-ED8` through the proposed design**, writing down the actual field
+value at each step rather than describing the step, and asking three questions
+at each: does a field exist to hold this value; does the operation this step
+requires exist in the write path; does this contradict a ruling already taken.
+The events were chosen to include failure shapes — an identical re-upload, a
+correction, an ambiguous document type, a cross-phase read and a leakage check —
+rather than only the happy path.
+
+**Five of the eight broke something.**
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | A partial shape match had nowhere to live | `shape_match` added to the schema |
+| 2 | As-is and to-be maps collapse to one purpose string | `kind` derives from a controlled `role` (§23.2.1) |
+| 3 | `is_current` earns almost nothing | Superseded chunks are deleted; the flag is dropped |
+| 4 | Deletion would break citations by index id | Citations anchor on `blob_path` + `content_digest` |
+| 5 | The loader had no stored values to read | It re-parses the blob with 6.11's parser |
+
+**Finding 2 was already latent in shipped 6.11 code, not introduced by this
+amendment.** The live run recorded `purpose=Process map → kind=artefact`, and
+nobody read what that would cost *once artefacts became retrievable*: an as-is
+map describes reality and is evidence, and filing it as an artefact filters the
+current-state description out of evidence retrieval by default — removing
+exactly the document a Measure or Analyse coach needs most. **The behaviour was
+observed and recorded at 6.11 and its consequence was not seen for a day.**
+
+> **Finding 3 is the one to be careful about, and the draft's own summary
+> overstates it.** That table's closing note groups findings 2 and 3 as "already
+> latent in the shipped 6.11 code". **Only finding 2 was.** `is_current` never
+> existed in shipped code — it was a field in an earlier draft of this
+> amendment, and finding 3 killed it before it reached the tree. The
+> distinction matters because a latent defect in shipped code is a cost already
+> being paid, and a rejected draft field is a cost avoided.
+
+### AQ5 — The premise that was false, and the lesson
+
+**Finding 3's original argument was withdrawn.** As first written it claimed the
+write path offers no partial update, so flipping `is_current` on a superseded
+document would cost a re-chunk and a re-embed to change one boolean. **That claim
+is false.** Azure AI Search supports `mergeOrUpload` through the push API; it is
+LangChain's `AzureSearch.add_texts` wrapper that lacks it. The flag is cheap to
+maintain.
+
+**The conclusion survived; the premise did not.** `is_current` is still dropped,
+on a use-case count instead: of four moments that could need it — a Belt asking
+for their current data, §37's cascade reopening a gate, a gate document citing
+its source, and a Belt asking what an earlier version said — **only the last
+needs the flag**, and surfacing superseded evidence to a coach is arguably wrong
+behaviour rather than a feature. One case in four does not earn a field that
+every query must remember to filter on.
+
+**It was caught by reading the vendor documentation, not by the dry run.**
+
+> **A dry run tests a design against the documents it was run against. It does
+> not test the documents.**
+>
+> That is the general lesson and it is worth stating plainly, because a dry run
+> is persuasive in a way that invites over-trust: it produces concrete findings,
+> in a numbered list, with worked values, and four of these five were correct
+> and structural. **The fifth was confidently wrong about a library.** Findings
+> 1, 4 and 5 hold on the documents alone — a value had no field, or a reference
+> would dangle — and finding 2 rests on observed behaviour recorded in the 6.11
+> live-run report. **Finding 3 rested on a belief about an API, and beliefs
+> about APIs are exactly what §16.3 requires be checked against the live source
+> rather than remembered.**
+>
+> **This project has now been confidently wrong in three instruments**: a commit
+> body asserting an edit that was never made (Part AP6.4 records the tracker row
+> that carried two descriptions), 781 green tests over a dead code path
+> (AP6.3), and a dry run resting on a false premise about a library. **Each was
+> caught by a different instrument than the one that produced it**, which is the
+> argument for keeping more than one — and none of the three would have been
+> caught by running the same check again more carefully.

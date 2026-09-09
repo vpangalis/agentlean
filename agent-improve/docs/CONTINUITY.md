@@ -10,7 +10,7 @@
 | **Last completed** | step **6.11** — **The upload path (G-36)** |
 | **Next** | step **6.12** — **Ask-binding: an upload answers a request** |
 | **Stage** | Stage 6 — The coaching agent |
-| **Progress** | 29 of 51 build steps |
+| **Progress** | 29 of 52 build steps |
 | **Last spine commit** | `806a39d` (commit 6.11) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.32 |

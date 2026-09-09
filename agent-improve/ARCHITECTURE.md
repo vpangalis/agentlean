@@ -2190,9 +2190,83 @@ than "uploaded files" suggests.
 | `case_id` | String | **Filter** — scopes to the current case |
 | `phase` | String | **RATIFIED — NOT YET APPLIED.** Optional filter, default OFF |
 | `uploaded_at` | String | **RATIFIED — NOT YET APPLIED.** Order by, ISO 8601 |
+| `role` | String | **RATIFIED — NOT YET APPLIED.** **Filter + searchable.** The document's function in the project. With `case_id` this is the document's **logical identity**. Drawn from the ratified vocabulary at §23.2.1 |
+| `kind` | String | **RATIFIED — NOT YET APPLIED.** **Filter.** `evidence` or `artefact`. **Derived from `role`, never declared separately.** Retrieval filters to `evidence` by default |
+| `description` | String | **RATIFIED — NOT YET APPLIED.** **Searchable + retrievable.** The interpretation's summary — a **projection** of `UploadRecord.summary`, written once at index time |
+| `content_digest` | String | **RATIFIED — NOT YET APPLIED.** **Filter.** SHA-256 of the uploaded bytes. **Version identity** — the same bytes re-uploaded are not a new version |
+| `shape_match` | String | **RATIFIED — NOT YET APPLIED.** **Filter.** `full`, `partial`, `none` or `unsolicited` — whether the file matched the ask's expected shape. Paired with `missing_columns` in `metadata` |
 
 **Until the reindex runs, the live index is the first five fields and code must
-not reference `phase` or `uploaded_at`.**
+not reference `phase`, `uploaded_at`, `role`, `kind`, `description`,
+`content_digest` or `shape_match`.**
+
+**All seven ratified-not-yet-applied fields are server-set.** `phase` from
+`state["current_phase"]` at upload, `uploaded_at` from the server clock, `role`
+from the ask when the upload was solicited and from the Belt's declared purpose
+when it was not, `kind` from `role`, `description` from the interpretation,
+`content_digest` from the bytes, `shape_match` from the check against the ask.
+**A Belt-entered value for any of them makes it unreliable as a filter or a sort
+key**, which is the rule this section already applied to the first two.
+
+**`description` is a PROJECTION and is declared as one.** The system of record
+for the summary is the case blob (§10). The index copy exists because it must be
+*searchable*, which the blob cannot serve. **A change to the summary requires
+re-indexing that document — never an in-place edit of the index copy.** This
+follows `phase_summary_{phase}` in `improve_case_index` (§23.3).
+
+**The structural profile is deliberately NOT indexed.** Columns, types, ranges
+and row count stay on `UploadRecord` in the case blob. Copying them into the
+index would create a second source of truth for one fact — the drift §39.2's
+single-authority rule exists to prevent — and would repeat per chunk. **The
+index carries the pointer; the blob carries the data.**
+
+#### Supersession deletes; it does not flag
+
+**When a document is superseded, its chunks are DELETED from the index.** The
+index holds only current versions and needs no `is_current` flag. History is not
+lost: the case blob is the system of record (§10) and retains every version,
+which is where a superseded file belongs.
+
+An `is_current` boolean was drafted and dropped. **The reason is a use-case
+count, not a cost.** Of four moments that could need it — a Belt asking for
+their current data, §37's cascade reopening a gate, a gate document citing its
+source, and a Belt asking what the earlier version said — **only the last needs
+the flag**, and surfacing superseded evidence to a coach is arguably wrong
+behaviour rather than a feature. *(An earlier argument that the write path
+offers no partial update was withdrawn as false — `DECISIONS.md` Part AQ.)*
+
+Two consequences bind:
+
+- **Supersession is scoped to `(case_id, role)`.** A Control-phase measurement
+  does not supersede the Measure baseline, because they are different roles.
+  Only a correction of the same document supersedes.
+- **Citations anchor on `blob_path` + `content_digest`, never on the index id.**
+  An index id disappears when its document is superseded, and a gate document
+  citing one would break. This is what lets §37 / step 7.6's cascade detect that
+  an approved gate rested on a file that has since changed (§6, S-C02).
+
+#### Two Azure behaviours govern the migration
+
+*Verified against Microsoft Learn, "Update or rebuild an index in Azure AI
+Search", 2026-09-09.*
+
+**1 — All seven additions are ADDITIVE, so no drop-and-rebuild is required.**
+"Add a new field" is on that page's *updates with no rebuild* list, and
+**"when you update an index schema to include a new field, existing documents in
+the index are given a null value for that field."** Only changing an EXISTING
+field forces a rebuild — a rename, a data-type change, or a change to
+`searchable` / `filterable` / `sortable` / `facetable`. **Nothing here changes an
+existing field**, so the schema add is cheap and reversible in a way the original
+"batched reindex" framing assumed it was not.
+
+**2 — `mergeOrUpload` DROPS `content_vector` when that field is declared
+`stored: false`, and reports success.** The same page: *"A side effect of setting
+`stored` to false is that vectors are dropped on a reindexing operation.
+Providing the vector in the documents payload prevents this from happening."*
+**A write that succeeds and silently destroys retrievability is a §23.4-class
+trap** — the same shape as the `fields=` failure below, and it belongs recorded
+beside it. Any partial update to a document in this index MUST carry
+`content_vector` in the payload even when the vector has not changed.
 
 Both new fields **backfill from `metadata`** at reindex time — `uploaded_at`
 from `metadata.timestamp`, `phase` from `metadata.upload_phase`. No new data
@@ -2213,6 +2287,51 @@ sole external channel, that ambiguity lands directly on the coaching answer.
 the *normal* case — a Control Belt comparing against the Measure baseline —
 so filtering to the current phase by default would break the comparison the
 field exists to enable.
+
+### 23.2.1 The `role` vocabulary — ratified, not invented per phase
+
+**`role` is only a reliable filter if it is drawn from a fixed list.** Free text
+drifts — "cycle times", "cycle time data", "cycle_times" — and **every drift is
+a retrieval miss that looks like an empty result rather than an error**, which is
+the failure class §27 exists to make impossible elsewhere.
+
+**`kind` is a property of the row, not a separately declarable field.** A Belt or
+an ask names the `role`; nothing names the `kind`. An inconsistent pair is
+therefore unrepresentable rather than merely discouraged.
+
+| `role` | `kind` | Typical phase |
+|---|---|---|
+| `as-is process map` | evidence | Define · Measure |
+| `voice-of-customer data` | evidence | Define |
+| `baseline defect data` | evidence | Measure |
+| `cycle time data` | evidence | Measure · Analyse |
+| `capability study data` | evidence | Measure · Control |
+| `root cause analysis` | artefact | Analyse |
+| `fmea worksheet` | artefact | Analyse · Improve |
+| `to-be process map` | artefact | Improve |
+| `improvement proposal` | artefact | Improve |
+| `control plan draft` | artefact | Control |
+| `other evidence` | evidence | any |
+| `other artefact` | artefact | any |
+
+**"Process map" is why the pairing exists.** An **as-is** map describes the world
+and is evidence; a **to-be** map is what the team designed and is an artefact.
+The 6.11 live run classified `purpose=Process map` as `artefact`, which would
+filter the current-state description out of evidence retrieval by default —
+removing exactly the document a Measure or Analyse coach needs most. The
+vocabulary distinguishes the two at the point of declaration.
+
+**The two `other` rows are deliberate.** A Belt with a document that fits nothing
+must still be able to upload it, and **forcing a wrong role is worse than an
+honest catch-all**. A rising count of `other` is the signal that the vocabulary
+needs extending.
+
+> **Extending this vocabulary is a GOVERNANCE EVENT, not a code change.** A new
+> row is a §56 amendment to this section, because `role` is a filter value that
+> retrieval, supersession scoping and §6's uploads entry all read. Adding one in
+> code produces a value no query filters on and no reviewer can see.
+
+---
 
 ### 23.3 `improve_case_index` — case records (cross-case memory)
 
@@ -2348,6 +2467,40 @@ semantics of §27.
 `search_evidence` is a live retriever function §27 depends on — so the rule
 contradicted §27, and a grep for the named strings would have passed while every
 real retired name survived. Verification depends on literal strings.*
+
+### `rag_lookup_evidence` returns a structured record, not rendered text
+
+**RATIFIED 2026-09-09 — NOT YET APPLIED**, with §23.2's five new fields, which
+three of these keys read. `DECISIONS.md` Part AQ.
+
+**The MECHANISM is unchanged.** Retrieval is a tool call the model decides to
+make, never a prepended system message (§29.1's rule, and §7.1's prohibition on
+an unconditional retrieval pipeline, both stand). **Only the shape of what comes
+back changes.** One record per hit:
+
+```
+role · kind · description · phase · uploaded_at · shape_match
+blob_path · content_digest · excerpt
+```
+
+**Two reasons, each sufficient on its own.**
+
+**The coach has to CHOOSE a file, and choosing needs attributes rather than
+prose.** *"Which of these three is the current cycle-time data"* is a question
+about fields — `role`, `uploaded_at`, `shape_match` — not about similarity.
+Rendered text forces the model to re-derive from prose what the index already
+knows as values.
+
+**§50's citations are built from `source`, `page` and `content_summary`**, and a
+coach can only cite those accurately if it received them as values. Returning
+prose and asking the model to reconstruct the citation from it is the
+transcription anti-pattern §22 exists to prevent, performed on the platform's own
+retrieval layer.
+
+**`blob_path` and `content_digest` are in the record for §6's citation anchor**
+— they are what a citation stores so that §37 / step 7.6 can detect that an
+approved gate rested on a file that has since been replaced. A record that
+omitted them would leave that cascade with nothing to compare.
 
 ### RAG via tool, never via prepended system message
 
@@ -8151,8 +8304,8 @@ field requires a §56 amendment, whatever category it is placed in.**
 | `gate_attempts` | `int` | The shared retry counter for the four-layer validation stack. Per phase, in the checkpoint — never in route scope | none | validation stack increments; `gate_apply` resets to `0` | validation stack; the escalation edge at `>= 3` |
 | `validator_feedback` | `list[dict]` | Accumulated per-attempt validation failures, each recording attempt, layer, criteria failed and specific feedback. What makes the shared cap of 3 defensible | none (append by the writer) | validation stack appends; `gate_apply` resets to `[]` | the coach, on retry |
 | `rejection_feedback` | `list[dict]` | The Belt's per-reject reasons at the gate — the stated reason plus the rejected edits as context. Read on the re-coaching turn so the coach addresses what the Belt actually objected to | none (append by the writer) | `gate_apply`, on a Belt reject; reset to `[]` by `gate_apply` when the gate passes | the planner (S-F03), on the re-coaching turn |
-| `citations` | `list[dict]` | Sources the coach cited this phase — `source`, `page`, `content_summary`, `turn` | none (append by the writer) | executor, from `CoachingResponse.citations` | gate document assembly |
-| `uploads` | `list[dict]` | Files the Belt uploaded this phase — `evidence_index_id`, `filename`, `phase`, `uploaded_at`, `summary`, plus `ask_id` and `version` — **both RESERVED FOR STEP 6.12**: declared at 6.11, written `None`, filled by the ask-binding (Part AP5). An empty list means the phase reached its conclusions from typed statements alone | none (append by the writer) | the upload handler — **see G-36** | gate document assembly; evidence context |
+| `citations` | `list[dict]` | Sources the coach cited this phase — `source`, `page`, `content_summary`, `turn`, plus **`blob_path` and `content_digest`** (**RATIFIED 2026-09-09 — NOT YET APPLIED**; Part AQ). The first four identify a passage; **none identifies the FILE underneath**, so a citation could not tell that its source had been replaced and §37 / step 7.6's cascade had nothing to compare. The anchor turns supersession from something the system records into something it can detect | none (append by the writer) | executor, from `CoachingResponse.citations` | gate document assembly |
+| `uploads` | `list[dict]` | Files the Belt uploaded this phase — `evidence_index_id`, `filename`, `phase`, `uploaded_at`, `summary`, **`consumed_at`** (**RATIFIED 2026-09-09 — NOT YET APPLIED**; set when a citation or a load references the document. **`None` at a gate on an upload bound to an open ask means the Belt supplied evidence and the coaching proceeded without it** — undetectable without the field, which is why it is specified here rather than at Stage 7; Part AQ), plus `ask_id` and `version` — **both RESERVED FOR STEP 6.12**: declared at 6.11, written `None`, filled by the ask-binding (Part AP5). An empty list means the phase reached its conclusions from typed statements alone | none (append by the writer) | the upload handler — **see G-36** | gate document assembly; evidence context |
 | `hop_results` | `list[str]` | Ordered answers from a planned multi-hop chain. `[]` on every single-hop turn. State rather than a node local, so LangSmith can see it and a resume does not lose it | none | `analyse_executor_node` | the synthesis call; the LangSmith state view |
 | `synthesis_output` | `Optional[dict]` | The dedicated synthesis call's `SynthesisOutput`, dumped. `None` on single-hop turns | none | `analyse_executor_node` | the coach call |
 | `remaining_steps` | `RemainingSteps` (managed) | Live per-turn hop budget, = `recursion_limit` − steps taken. Read by the executor entry guard; the graceful off-ramp that keeps a Belt from ever seeing `GraphRecursionError` | none (engine-managed) | LangGraph execution loop, **not user code** | `analyse_executor_node` entry guard (S-F09) |
@@ -8569,6 +8722,7 @@ record is stored under rather than a field on it, and the rest are here.
 | `summary` | `str` | The interpretation's summary, lifted to the top level because §6's entry shape names `summary` and a gate document reads that shape |
 | `interpretation` | `Optional[UploadInterpretation]` | The one model call the parse is allowed (ruling AP2.4), with its source citation (ruling AP2.6) |
 | `refusal_reason` | `Optional[str]` | Belt-readable. The route refuses before persisting, so this is the belt-and-braces record for any later path that chooses to keep a refused upload |
+| `consumed_at` | `Optional[str]` | **RATIFIED 2026-09-09 — NOT YET APPLIED.** ISO 8601, set when a `load_evidence_series` call or a citation references this document. `None` means nothing has read it. Mirrors the §6 uploads entry (S-C02) |
 | `ask_id` | `Optional[str]` | **RESERVED FOR STEP 6.12**, written `None` at 6.11 |
 | `version` | `Optional[int]` | **RESERVED FOR STEP 6.12**, written `None` at 6.11 |
 
