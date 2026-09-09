@@ -2265,8 +2265,30 @@ existing field**, so the schema add is cheap and reversible in a way the origina
 Providing the vector in the documents payload prevents this from happening."*
 **A write that succeeds and silently destroys retrievability is a §23.4-class
 trap** — the same shape as the `fields=` failure below, and it belongs recorded
-beside it. Any partial update to a document in this index MUST carry
-`content_vector` in the payload even when the vector has not changed.
+beside it.
+
+**The rule is CONDITIONAL ON THE DECLARATION, and on this index the trap is not
+armed.** Measured against the live index on **2026-09-09**:
+
+| | `improve_evidence_index.content_vector` |
+|---|---|
+| `stored` | **`true`** |
+| `retrievable` | **`false`** |
+| dimensions · profile | 3072 · `default` |
+
+**Under `stored: true` a partial update may omit the vector safely — and it
+should.** The field is **not retrievable**, so a writer cannot read the existing
+vector back to carry it; supplying it would mean **re-embedding every document
+touched**. Mandating that unconditionally would impose exactly the cost
+`stored: true` exists to avoid, on a backfill whose whole point is that it does
+not need to re-embed.
+
+> **If `stored` is ever declared `false` on this index, every partial write path
+> must be revisited BEFORE that change lands.** `stored` is a field attribute, so
+> it can only change at a rebuild (behaviour 1 above) and cannot drift silently.
+> **But a 3072-dimension vector is exactly where someone reaches for that
+> optimisation**, and taking it at a rebuild would arm this trap for every later
+> partial write — silently, and with each write reporting success.
 
 Both new fields **backfill from `metadata`** at reindex time — `uploaded_at`
 from `metadata.timestamp`, `phase` from `metadata.upload_phase`. No new data

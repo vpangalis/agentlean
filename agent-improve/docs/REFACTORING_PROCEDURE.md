@@ -1654,10 +1654,14 @@ accordingly.
 > **`fields=EVIDENCE_INDEX_FIELDS` is not optional**, and each of the seven is
 > two changes rather than one.
 
-> **`mergeOrUpload` must carry `content_vector`.** If the vector field is
-> declared `stored: false`, a partial update that omits the vector drops it and
-> reports success (Part AQ3). This step's backfill touches existing documents,
-> which is precisely where that trap fires.
+> **`mergeOrUpload` may OMIT `content_vector` on this index, and should.**
+> Measured 2026-09-09: `improve_evidence_index.content_vector` is `stored: true`
+> and `retrievable: false`, so a partial update that omits the vector keeps it
+> — and **carrying it would mean re-embedding every document the backfill
+> touches**, since a non-retrievable field cannot be read back. **The backfill is
+> therefore a merge, not a re-ingest**, which is what makes sub-step 3 cheap.
+> §23.2 carries the conditional and its tripwire: **if `stored` is ever declared
+> `false` here, this sub-step must be rewritten before that change lands.**
 
 **Placed AFTER 6.12, and it is not a precondition of it.** 6.12's ask-binding
 works on `PhaseState` and the case blob alone and does not read the index.

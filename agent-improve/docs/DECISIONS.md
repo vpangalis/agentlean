@@ -6168,9 +6168,18 @@ happening."*
 > trap**, and it is recorded beside that one deliberately. §23.4's failure is a
 > metadata key that lands unfilterable because `fields=` was not declared; this
 > one is a vector that disappears because a partial update omitted it. **Both
-> return success. Both are invisible until a query returns nothing.** Any
-> partial update to a document in this index must carry `content_vector` even
-> when the vector has not changed.
+> return success. Both are invisible until a query returns nothing.**
+>
+> **⚠ THE RULE THIS PART TOOK WAS MADE CONDITIONAL ON 2026-09-09.** As ratified
+> here it read *"any partial update to a document in this index must carry
+> `content_vector` even when the vector has not changed"* — an unconditional
+> MUST, taken before anyone had read the index's own declaration. **Measured
+> afterwards: `content_vector` is `stored: true` AND `retrievable: false`**, so
+> the trap is not armed, and the MUST was self-defeating — a non-retrievable
+> field cannot be read back to be carried, so obeying it would have meant
+> re-embedding every document a partial write touched. **§23.2 carries the
+> conditional form and the tripwire; this paragraph records what was ratified,
+> not what now binds.**
 
 ### AQ4 — The dry run, and its five findings
 
