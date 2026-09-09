@@ -5930,3 +5930,139 @@ one cost a step to rediscover. **"Reserved on purpose" has to be visible in the
 document, not merely true in someone's memory**, because the two are
 indistinguishable to the next reader and the expensive one is the default
 assumption.
+
+---
+
+### AP6 — Step 6.11's implementation findings (2026-09-09)
+
+**Five findings from building and live-verifying the upload path.** Recorded
+here because until now they lived only in commit bodies and chat, and a finding
+that lives in a commit body is one the next session cannot search for. Three are
+defects that were found and fixed; two are gaps left open on purpose.
+
+#### AP6.1 — A numeric column split in two, and the larger half fell out of range
+
+**Excel returns `63.0` as `63`.** So a `cycle_seconds` column holding
+`41.5 / 63.0 / 55.25 / 12` came back from `openpyxl` as two decimals and two
+integers — and the first profiler treated `whole number` and `decimal` as
+different types, took the dominant one, and computed `min`/`max` over that
+subset alone. **The column's largest value was reported as 55.25, and the 63 was
+filed under `mixed`.**
+
+**A range that silently excludes the round numbers is worse than no range: it is
+wrong in the direction of looking right.** Nothing in the output says it is
+partial, and a Belt reading *"cycle times run 41.5 to 55.25 seconds"* has a
+sentence they would repeat at a gate.
+
+**Fixed by making the two labels one family for range purposes**, and by
+labelling the column by the widest member present rather than the most frequent
+— a column holding any decimal is a decimal column for anything that computes on
+it. **`percentage` is deliberately NOT in the family**: `"50%"` beside `"0.5"`
+is a real ambiguity about units, worth surfacing rather than averaging away.
+
+> **A test found this, not the live run**, and it found it because the fixture
+> was a real `.xlsx` written by `openpyxl` rather than a hand-built dict of what
+> a spreadsheet "would" contain. A dict fixture would have carried `63.0` as a
+> float and passed.
+
+#### AP6.2 — `pypdf` and `pdfplumber` were orphan installs, not transitive dependencies
+
+**Correction to what was said while scoping 6.11.** Both were reported as
+*"present but unpinned — transitive"*. They were neither: `pip show` reports
+`Required-by:` **empty** for both. Nothing in the environment depended on them.
+They had been installed directly at some point and recorded nowhere.
+
+**That is a worse state than transitive, and the distinction is worth keeping.**
+A transitive dependency is at least declared by something, and
+`pip install -r requirements.txt` reproduces it. An orphan install is reproduced
+by nothing: **a clean clone would have had no PDF parser at all**, and the
+failure would have surfaced as a Belt-readable refusal rather than an import
+error — the refusal path swallowing a missing dependency, which is the shape of
+failure ruling AP2.5 exists to prevent.
+
+`python-docx==1.2.0`, `pypdf==6.18.0` and `pdfplumber==0.11.10` are now pinned in
+`requirements.txt`, verified against live PyPI at pin time (§53).
+
+#### AP6.3 — The prompt and its parser drifted out of contract, and the tests could not see it
+
+**The most instructive of the five.** `UPLOAD_INTERPRET_PROMPT` was written for
+`with_structured_output`, where the *schema* carries the format contract and the
+prompt need only say what to think about. `pattern-2` blocks that binding in
+`backend/upload/**` (**G-48**), so the call was switched to parsing JSON — **and
+the prompt was not changed with it.** It never asked for JSON.
+
+**Every upload took the degradation fallback, on every format, from the moment
+6.11 shipped.** The model returned good numbered prose; `_json_object` returned
+`{}`; no `summary`; fallback.
+
+**781 tests were green throughout, and not one of them was wrong.** They covered
+the parsers, the classifier, the entry shape, the mappers and the refusal path.
+**None crossed the prompt-to-parser boundary**, because doing so needs a model
+call. The boundary between two artefacts that must agree is exactly where unit
+tests stop and where nothing else had started.
+
+**The live run found it, and only because the fallback sentence was read
+closely** — see AP6.4 for why that was harder than it should have been.
+
+**What pins it now is a test with no model and no network:**
+`test_the_prompt_asks_for_the_json_it_is_parsed_as` asserts that
+`UPLOAD_INTERPRET_PROMPT` contains the word JSON and names `summary`, `supports`
+and `caveats` — the three keys the parser reads. **A contract between two
+artefacts can be checked as a property of the pair, without executing either.**
+That is the generalisable lesson: where a schema is not carrying a contract,
+something else must, and it can be cheap.
+
+#### AP6.4 — The fallback read like a summary, and the convention it now follows is used twice and specified nowhere
+
+**The first fallback returned:** *"'complaints.csv' was read successfully as a
+table with 3 columns and 5 rows. An automatic description of what it shows was
+not available."* Every word true. It reads like a summary.
+
+**That sentence is why AP6.3 survived a green suite, a review and a first live
+run.** It reached `PhaseState.uploads` as §6's `summary`, so a gate document
+would have carried a description of the file's SHAPE where a reviewer expects
+its CONTENTS — and nothing downstream, human or machine, could tell a described
+file from an undescribed one.
+
+**Ruling AP2.5, one level down.** An unextractable *file* is refused outright; an
+uninterpreted file is real, parsed and indexable, so it is kept — but it is
+**reported**, never passed off as interpreted. The fallback now leads with
+`[!] INTERPRETATION UNAVAILABLE`, states what is known (the file was read, its
+measured structure) and what is not (anything about its contents), and tells the
+reader not to treat the line as a summary.
+
+> **THIS IS THE SECOND SITE USING 6.8's CONVENTION, AND THE CONVENTION IS
+> SPECIFIED NOWHERE.** Step 6.8 made `phase_context`'s fallback loud in two
+> places at once — a `WARNING` for whoever reads logs, and a `[!] … UNAVAILABLE`
+> marker **inside the value itself** for whoever reads the artefact — on the
+> reasoning that those are different readers and the log reaches only one of
+> them. 6.11a reproduced that shape by reading the code, not from a rule. **Two
+> instances of a pattern that exists in neither `CLAUDE.md` nor `ARCHITECTURE.md`
+> is how a convention becomes folklore**, and the third site will either
+> reinvent it or skip it. Not raised as a SPEC-GAP because it is a writing
+> convention rather than a design gap; recorded here so the next person who
+> needs it can find it.
+
+#### AP6.5 — Guard rule 1 has no grammar for a fix-up on a landed step
+
+**`SUBJECT_RE` requires `refactor(arch-v2): commit <digits>.<digits> — <what>`.**
+A fix-up on an already-committed step has no expressible subject: `commit 6.11a`
+is rejected on the digits, and there is no other spine-prefixed form.
+
+**Both available options are wrong in a small way.** A `fix(` or `governance:`
+prefix passes rule 1 by **skipping rules 2–5 entirely** — the tracker check,
+mypy, pytest and the continuity block — which is the wrong trade for a change
+that touches code. Reusing `commit 6.11` produces two commits under one subject;
+the session-start hook takes the highest version key, so `last completed` still
+reads 6.11, which is *true*, while the log carries two lines that look like one
+step done twice.
+
+**6.11a took the duplicate subject**, on the ground that running all five guards
+matters more than a legible `git log`, and named itself 6.11a in the body.
+
+**Recorded, not fixed.** Widening the subject grammar — a `commit X.Ya` suffix,
+or a `refactor(arch-v2, fixup)` scope — changes what
+`.claude/hooks/commit-msg-refactor-guard.py` and `session-start-context.py` both
+parse, and §0.2's rule about hook-read documents applies. **That is its own
+governance change**, and it belongs with the G-48 ruling rather than folded into
+a step.

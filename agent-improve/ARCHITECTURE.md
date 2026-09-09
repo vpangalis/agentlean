@@ -1545,6 +1545,20 @@ coaching_plan: CoachingPlan = phase_planner.invoke(planner_prompt)
 
 Full field semantics and the "one plan, not a queue" rule are in §6.
 
+> **SPEC-GAP (G-48): the builder-style call above is permitted here and blocked
+> in `backend/upload/**`, and the two calls are the same shape.** §4.6 scopes
+> this form to a plain model invocation inside a tool, middleware or validator,
+> plus this planner — and `deprecated_patterns.yaml`'s `pattern-2` excludes
+> exactly those paths by name. **The upload interpretation (§29.1, step 6.11) is
+> also a plain model invocation for a typed result**, with no agent and no
+> model-tools loop for `response_format=` to attach to, and it is on none of the
+> listed paths, so the hook blocks it and the call parses JSON by hand instead.
+> **That is not a style difference and it has already cost a defect** — a schema
+> binding cannot drift out of contract with its own parser, a hand-written one
+> can, and did (Part AP6). **Registered rather than fixed**: §8 forbids amending
+> a rule in passing during a feature change, and the ruling waits on what
+> `9fce8fc` recorded when it scoped `pattern-2`.
+
 **The planner decides retrieval strategy at plan time, not the executor at
 retrieval time.** This is what makes multi-hop *planned* rather than emergent
 in Analyse (§26), and it is why `retrieval_strategy` lives on the plan rather
@@ -8534,12 +8548,46 @@ file upload, and **never mid-conversation.**
 > **`UploadRecord` joined this list on 2026-09-08** (`DECISIONS.md` Part AP5).
 > It has been in `storage/models.py` since before the refactor and is the
 > element type of `PhaseRecord.uploads`; this entry named four models and not
-> it. **It carries `ask_id: Optional[str]` and `version: Optional[int]`, both
-> RESERVED FOR STEP 6.12 and written `None` at 6.11** — the ask-binding fills
-> them. Declared early on §23.2's precedent, so no upload written between the
-> two steps lacks a place to record which ask it answered. **`rows` is declared
-> and has never had a writer** (Part AP1); 6.11's deterministic parse gives it
-> one.
+> it.
+
+**`UploadRecord` — the case-blob half of §6's uploads entry shape.** The §6 shape
+a gate document reads is `evidence_index_id`, `filename`, `phase`,
+`uploaded_at`, `summary` plus the two reserved fields; `phase` is the key this
+record is stored under rather than a field on it, and the rest are here.
+`to_phase_state_entry(phase)` is the single place the two shapes are reconciled.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `filename` | `str` | As uploaded. **Not an identity** — ruling AP2.2 forbids inferring anything from it |
+| `blob_path` | `str` | `uploads/{case_id}/{filename}` |
+| `uploaded_by` | `str` | Who uploaded it |
+| `uploaded_at` | `str` | ISO 8601, server clock (§23.2) |
+| `classification` | `str` | `purpose=<p> · <content_type> · <indexed\|pending>` |
+| `rows` | `Optional[int]` | Row count from the deterministic parse. **Declared since before the refactor and written by nothing until 6.11** (Part AP1) |
+| `kind` | `str` | `evidence` \| `artefact` — **the destination, not the format** (ruling AP2.3). Evidence goes to `improve_evidence_index`; an artefact is what the team designed and does not, because one bucket would let a proposed future be retrieved later as a fact about the present |
+| `evidence_index_id` | `Optional[str]` | The index document id. **`None` for every artefact, and for evidence whose indexing failed** — §6 names it as what makes the evidence trail traversable |
+| `summary` | `str` | The interpretation's summary, lifted to the top level because §6's entry shape names `summary` and a gate document reads that shape |
+| `interpretation` | `Optional[UploadInterpretation]` | The one model call the parse is allowed (ruling AP2.4), with its source citation (ruling AP2.6) |
+| `refusal_reason` | `Optional[str]` | Belt-readable. The route refuses before persisting, so this is the belt-and-braces record for any later path that chooses to keep a refused upload |
+| `ask_id` | `Optional[str]` | **RESERVED FOR STEP 6.12**, written `None` at 6.11 |
+| `version` | `Optional[int]` | **RESERVED FOR STEP 6.12**, written `None` at 6.11 |
+
+**`UploadInterpretation` is a nested model of it** — `summary`, `supports`,
+`caveats`, `source_filename`, `source_blob_path`. The two source fields are
+ruling AP2.6: §50's traceability binds on computed figures, not only
+quotations, so a baseline derived from an uploaded extract must be followable
+back to the file it came from.
+
+> **Six of these thirteen fields were in the tree and in no document until
+> 2026-09-09** (`DECISIONS.md` Part AP6). AP5 documented `ask_id` and `version`
+> because it ratified them; `evidence_index_id`, `summary`, `kind`,
+> `interpretation` and `refusal_reason` were added at 6.11 as things the
+> Done-when *entailed* — §6's entry shape names `evidence_index_id` and
+> `summary`, and neither existed on the record — and entailed additions are
+> exactly the ones that reach a tree without reaching a spec. **`ask_id` and
+> `version` are still RESERVED FOR 6.12**; the ask-binding fills them, on
+> §23.2's RATIFIED-NOT-YET-APPLIED precedent, so that no upload written between
+> the two steps lacks a place to record which ask it answered.
 
 > **SPEC-GAP (G-17):** all four are named — in `CLAUDE.md` §2's permitted-class
 > list, in §23.3's rename scope table — and none is defined anywhere. Their
@@ -11565,7 +11613,7 @@ item 1. Classification deferred rather than guessed.
 inline marker.** That bidirectional correspondence is checkable and is one of
 the §55.1 governance rules.
 
-**47 gaps identified. Fifteen are closed or resolved. 32 are open.** *(G-14 closed 2026-09-03 at procedure step 5.2 — `docs/DECISIONS.md` Part AC.)* *(G-21
+**48 gaps identified. Fifteen are closed or resolved. 33 are open.** *(G-14 closed 2026-09-03 at procedure step 5.2 — `docs/DECISIONS.md` Part AC.)* *(G-21
 closed 2026-09-01 at procedure step 3.5 — `docs/DECISIONS.md` Part Y.)* *(Two were
 added and resolved in the same pass on 2026-08-26 — G-45 and G-46, the metric
 registry's two spec entries. Registering a gap you are about to close in the
@@ -11607,6 +11655,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | ~~**G-03**~~ | **RESOLVED 2026-08-24** — `PhaseState` gains `case_id` and `current_phase`, copied down by the input mapper and read-only in the subgraph. See §66.6 and DECISIONS §T1 | — |
 | **G-05** | `extracted_entity` is read off `PhaseState` (§26); undeclared, and no writer is named anywhere | S-C02, S-F09 |
 | **G-47** | **§49's endpoint table and S-F34's copy of it are not what `gateway/routes.py` serves.** Six routes exist in the tree and in neither table — `/health`, `/summarise`, `/context`, `POST /gate`, `/gate/review/{case}/{phase}`, `/files/{case}/{file}`. **`POST /gate` is a shape disagreement rather than an omission**: the spec ratifies three gate routes and the tree serves one. `/ask/stream` is the opposite case and is excluded — ratified, unbuilt, owned by step 10.1. **This is a spec-versus-tree cross-check, not the state-schema class the rest of this group holds**, and it is here because that is what the group's title covers. Raised 2026-09-08 while scoping 6.11, when `/upload` was found to be in the tree and in neither table; that row was ratified into both (Part AP5) and the remaining six registered rather than fixed in passing — which of them are ratified, which are v1 residue dying at 11.1, and whether `/gate` becomes three are founder questions | §49, S-F34 |
+| **G-48** | **`backend/upload/**` makes a plain model call for a typed result and is on none of the four paths `pattern-2` permits.** §4.6 scopes the builder-style structured-output call to *"a plain model invocation inside a tool, middleware, or validator"*, plus the phase planner; `deprecated_patterns.yaml` excludes exactly `knowledge/**`, `middleware/**`, `phases/**/validate.py`, `phases/**/orchestrate.py` and the planner's site. **The upload interpretation is structurally the same call** — not an agent, no model-tools loop for `response_format=` to attach to — and the hook blocks it, so the call parses JSON by hand. **The cost is already recorded**: the prompt was written for the binding, the call was switched to parsing, and the prompt was not — so every summary was the degradation fallback and 781 green tests could not see it, because none crossed that boundary (Part AP6). A schema binding cannot drift out of contract with its own parser; a hand-written one can, and did. **Registered OPEN and deliberately not fixed here** — §8 forbids amending a rule in passing during a feature change, and the ruling waits on reading what `9fce8fc` recorded when it scoped `pattern-2`. The registry's own comment already says twice that "the exclusion list simply predated the files"; this would be the third instance | §4.6, `deprecated_patterns.yaml` |
 | **G-06** | `extraction_error` and `extraction_incomplete` are written into `PhaseState` by `phase_error_recovery` (§45); neither is declared | S-C02, S-F29 |
 | **G-07** | `state["structured_response"]` is read by `ContradictionDetectionMiddleware` (§19.6). Whether middleware observes `PhaseState` or `create_agent`'s internal agent state is unstated | S-F04, S-C10 |
 | **G-08** | `validation_stack.get_acknowledged_gaps()` (§40) is attribute access on a node, and §14 requires nodes to be module-level async functions. Where acknowledged gaps are produced and how they reach assembly is unspecified | S-F05, S-F07, S-F28 |

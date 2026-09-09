@@ -11,7 +11,7 @@
 | **Next** | step **6.12** — **Ask-binding: an upload answers a request** |
 | **Stage** | Stage 6 — The coaching agent |
 | **Progress** | 29 of 51 build steps |
-| **Last spine commit** | `f77e687` (commit 6.11) |
+| **Last spine commit** | `806a39d` (commit 6.11) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.32 |
 | **Block regenerated** | 2026-09-09 |

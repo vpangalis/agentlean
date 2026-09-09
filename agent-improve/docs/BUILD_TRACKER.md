@@ -21,7 +21,7 @@ steps. Say "the cursor" in prose; keep the character for the cursor itself.
 -->
 
 # Agent Improve — Refactor Build Tracker
-# updated 2026-09-08 · build target: `agent-improve/ARCHITECTURE.md`
+# updated 2026-09-09 · build target: `agent-improve/ARCHITECTURE.md`
 
 **Progress: 29 of 51 build steps done** (2.3–2.7, 3.1–3.5, 4.1–4.4, 5.1–5.4, 6.1–6.9, 6.11 + 9.0 out-of-band). **Next: step 6.12 — 6.10 is BLOCKED. STAGE 6 IS NOT COMPLETE — the 2026-09-07 audit reopened it.**
 
