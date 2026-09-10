@@ -8135,6 +8135,34 @@ Blob to Azure Files changes the spec and leaves the architecture untouched.*
 
 ---
 
+### 56.2 The rule lands here; the reasoning lands in the commit
+
+**Founder ruling 2026-09-10.** Every amendment has two halves and they go to
+different places:
+
+| | Goes to | Why there |
+|---|---|---|
+| **The RULE** — what is now true, and what a build step is checked against | **This document**, as a §56 amendment with a version bump | Permanent, indexed, and the thing §55.1's cross-check can resolve |
+| **The REASONING** — what was decided, what was rejected, what an audit found, what was deliberately left unfixed | **The commit message body** | Already required, already permanent, and tied to the diff it explains |
+
+**A commit body is never re-read except when investigating that commit, and
+that is the correct cost.** The moment you want the reasoning is the moment you
+are already looking at the diff.
+
+**`docs/DECISIONS.md` is CLOSED** — frozen, historical, no new entries. It held
+the reasoning half for Parts A–AU. Its own *How to read this document* required
+`Status / Landed in / Source` on every entry; that field appears **40 times in
+Parts A–Q and zero times in Parts R–AU**, so the register had stopped recording
+where its rules landed long before it was closed. **A decision whose rule never
+reached this document is a decision nothing can be checked against.**
+
+> **THE TEST FOR WHETHER SOMETHING IS A RULE:** would a build step be checked
+> against it? Then it belongs here, in the section that owns the subject —
+> never in a decision log, a tracker row or a status file. The 2026-09-10
+> document collapse exists because four documents held overlapping answers and
+> a guard rule checked only that two of them had been *touched*, never that
+> they *agreed*.
+
 ## 57. The specification layer — how to read and write a spec entry
 
 *Supersedes: none — new Part, ratified 2026-08-23. Decision record: `agent-improve/docs/DECISIONS.md` §S1.*

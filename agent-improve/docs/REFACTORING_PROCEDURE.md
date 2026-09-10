@@ -2,7 +2,7 @@
 **AgentLean Platform · DMAIC Improvement Agent**
 Version 1.2 · 2026-08-22
 Status: **RATIFIED.** The ordered path from the v1 tree to the target in
-`../../AGENTIC_ARCHITECTURE_REFERENCE.md`.
+`../ARCHITECTURE.md`.
 
 ---
 
@@ -2739,6 +2739,17 @@ infrastructure noise. **Read both before finalising §52.**
 
 > **The total is the row count.** Why a row was added is in the commit that
 > added it.
+>
+> **The LANDED count is `git ∩ this table`, not the number of spine commits.**
+> Git history carries five commits from before this table existed — 0.1, 1.1,
+> 1.2, 2.1, 2.2, under ARCHITECTURE.md §15's old numbering — and the table
+> starts at 2.3, so counting every spine commit against a total drawn from here
+> would measure two different populations. **A step that landed under any other
+> subject is therefore not counted either**: 9.0 shipped as
+> `feat(knowledge): 871637f` and is invisible to the scan by construction.
+> **The figure fell 31 → 30 on 2026-09-10 for that reason alone** — no work was
+> lost, and the hand-maintained 31 had been counting 9.0 that the derived
+> figure cannot see.
 
 | Step | Title | Status |
 |---|---|---|
@@ -2798,33 +2809,25 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 11.1** | Delete v1 |  |
 | **Commit 11.2** | Governance close-out |  |
 
-> **✅ FIXED 2026-08-31 — this whole note is now historical.** `done` was added
-> to `_UNAVAILABLE_STATUSES` in `.claude/hooks/session-start-context.py`, so a
-> `done` row is never proposed as "next" and the trap described below cannot
-> occur. Verified by reproduction: with the old set, `last=8.3` returned 9.0;
-> with the new set it returns 9.1. **The note is kept, not deleted** — it states
-> why the row is `done` while git history cannot show it, which is still true
-> and still worth reading. What is no longer true is the "will still propose
-> it" claim and the closing paragraph's reason for not fixing it.
+> **Step 9.0 is `EXTERNAL`, and that is what keeps the pointer off it.**
+> It landed as `feat(knowledge): 871637f`, not as a `refactor(arch-v2): commit
+> 9.0` subject, so the git-log scan cannot see it and `last` can never advance
+> past it on its own. Without a status it would become the lowest available row
+> once 8.3 lands — 8.4 is BLOCKED and 8.5 GATED — and the pointer would stop
+> there permanently.
 >
-> **⚠ Step 9.0 is `done` but the session-start hook will still propose it.**
-> The hook skips only `BLOCKED` and `GATED` rows when picking "next", so a
-> `done` row stays selectable. For every other done step that is harmless —
-> git history advances `last` past it. **9.0 is the exception: it landed as
-> `feat(knowledge): …` (`871637f`), not as a `refactor(arch-v2): commit 9.0`
-> subject, so it will never appear in the hook's git-log scan and `last` can
-> never advance past it on its own.**
+> **`EXTERNAL` is true on its own terms** (an Azure-side knowledge-index
+> rebuild is exactly what this document's reading conventions define it to
+> mean), so the row stays unavailable on its merits rather than on a completion
+> claim the tooling has to be taught to ignore.
 >
-> **Concretely: once 8.3 lands, the hook says "next 9.0"** — because 8.4 is
-> BLOCKED and 8.5 GATED, so both are skipped and 9.0 becomes the lowest
-> available row. It said 9.1 before this row was added. **Read Step 9.0's own
-> heading — it says DONE out-of-band — and go to 9.1.**
->
-> Left as a documented wrinkle rather than fixed, because the fix is a change
-> to `.claude/hooks/session-start-context.py`'s `_UNAVAILABLE_STATUSES` (add
-> `done`), and that is a hook-semantics change outside this reconciliation's
-> scope. **The same trap applies to any future out-of-band step recorded
-> here.**
+> **This replaces two earlier notes, both now wrong.** The first said the hook
+> "will still propose it" and left the trap documented rather than fixed. The
+> second said `done` had been added to `_UNAVAILABLE_STATUSES` — **that fix was
+> removed on 2026-09-10** when the status column stopped carrying `done` at
+> all, because a `done` status was a second, hand-maintained source for a fact
+> git already owns. **The same trap applies to any future out-of-band step**:
+> give its row `EXTERNAL`, `BLOCKED` or `GATED`.
 
 ---
 

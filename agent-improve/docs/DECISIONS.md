@@ -7,9 +7,15 @@
 > **WHY IT CLOSED.** Its own *How to read this document* requires every entry
 > to carry `Status / Landed in / Source`. That field appears **40 times in
 > Parts A–Q** (through 2026-08-20) and **zero times in Parts R–AU**
-> (2026-08-22 onward). A register whose landing field stopped being filled
-> nine months of entries ago is not a register — it is an archive that has not
-> been told. Closing it says out loud what had already happened.
+> (2026-08-22 onward). **Thirty entries and three weeks**, in which the field
+> that says where a decision landed was never once filled. That is not a
+> register — it is an archive that has not been told. Closing it says out loud
+> what had already happened.
+>
+> *(This paragraph read "nine months of entries" until 2026-09-10. Parts R–AU
+> span 2026-08-22 to 2026-09-10. The exaggeration made the neglect sound
+> ancient and structural when it is recent and fixable, which is the opposite
+> of useful.)*
 >
 > **WHERE THE TWO HALVES GO NOW:**
 >
