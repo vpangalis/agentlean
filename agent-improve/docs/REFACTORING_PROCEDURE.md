@@ -1,6 +1,6 @@
 # Agent Improve — Refactoring Procedure
 **AgentLean Platform · DMAIC Improvement Agent**
-Version 1.3 · 2026-09-10
+Version 1.4 · 2026-09-10
 Status: **RATIFIED.** The ordered path from the v1 tree to the target in
 `../ARCHITECTURE.md`.
 
@@ -457,8 +457,8 @@ citing CLAUDE.md §4.5), so leaving 18 of them in place means the hook fires
 against the codebase's own existing state.
 
 **Change:** read `response.content_blocks` and extract text from the typed
-blocks. String-indexing or substring-parsing the raw content field breaks the
-moment a provider returns a multi-part response.
+blocks, per §21 — which states why the raw `content` field must not be
+index­ed or substring-parsed.
 
 **Done when:** `grep -rn "\.content\.strip()\|\.content\[" backend/` returns
 zero hits, and a `/ask` turn still returns coaching text.
@@ -538,9 +538,8 @@ resolve to a deployment and that grader temperature is 0.1.
 | **Verify** | `import-check` |
 
 **Change:** `core/state.py` holds `SupervisorState` — exactly seven fields
-(§5). `core/substate.py` holds `PhaseState` — exactly 19: two identity
-(`case_id`, `current_phase`, copied down by the input mapper and read-only in
-the subgraph), three plumbing, fourteen content (§6). The v1 `ImproveGraphState` is deleted in step 11.1, not
+(§5). `core/substate.py` holds `PhaseState` — §6 / S-C02 is authoritative for the
+field census, its categories and the copy-down rule. The v1 `ImproveGraphState` is deleted in step 11.1, not
 here; both coexist until the last v1 consumer is gone.
 
 **`gate_attempts` must be on `PhaseState`** — holding it in route scope is what
@@ -675,9 +674,8 @@ document.
 | **Precondition** | 3.3 |
 | **Verify** | `manual-UI` |
 
-**Rewritten in place** — `{Phase}PhaseInput` becomes `{Phase}Output` in the
-same file. No parallel schema, no deprecation window, no retirement step
-(§53.1). There is no production consumer to protect.
+**Rewritten in place, per §53.1** — `{Phase}PhaseInput` becomes
+`{Phase}Output` in the same file. There is no production consumer to protect.
 
 **All five phases in one step, deliberately.** Two fields are on all five
 schemas — `issues_and_barriers` (Tier 1) and `secondary_metrics` (Tier 2) — and
@@ -915,17 +913,8 @@ client disconnect.
 > `DECISIONS.md` Part Z.** Requirement 5 in particular is a **tenancy** gap and
 > must not be read as closed because `thread_id` is now correctly wired.*
 
-| # | Requirement |
-|---|---|
-| **1** | **Deliberate handler shape** — inline `await` streaming, or an explicit ABANDON policy calling `t.cancel()` in `gen()`'s `finally`. **Never a bare `asyncio.create_task` with no disconnect handling** — a handler that has not chosen has chosen COMPLETE by accident |
-| **2** | **Deterministic `step_log` keys** — `f"{phase}:{turn_count}:{step_name}"`, never a raw timestamp as identity |
-| **3** | **Azure Blob lease as the per-thread concurrency guard** — two tabs on one `case_id` means two writers on one `thread_id` |
-| **4** | **A reconciliation sweep that EXCLUDES `interrupt()`-paused threads** — a thread paused at a gate is indistinguishable from an abandoned one by "no recent activity" alone |
-| **5** | **`thread_id` / `case_id` derived from the authenticated session, never client-supplied** — `case_id` is the tenancy boundary |
-
-**Ratified policy is ABANDON, not COMPLETE** (§47). A silently-completed gate
-approval the Belt never saw is unacceptable in a system whose premise is that
-the Belt approves what gets committed.
+**The five requirements are §47's "Five requirements", and are not restated
+here.** Read them there. **Ratified policy is ABANDON, not COMPLETE** (§47).
 
 **Change:** routes stop dispatching nodes manually and call
 `await graph.ainvoke(state, config={"configurable": {"thread_id": case_id}, "recursion_limit": 50})`.
@@ -1143,8 +1132,10 @@ with `severity="permanent"` on a 4xx, and that a genuine no-match returns `[]`.
 | **Precondition** | 5.1 |
 | **Verify** | `live-run` |
 
-**The retired tool names are `search_improve_knowledge`,
-`search_improve_cases` and `search_improve_evidence`** — corrected in CLAUDE.md
+**§24's three retired names — `search_improve_knowledge`,
+`search_improve_cases`, `search_improve_evidence` — are quoted because they ARE
+the `grep-absence` target**, and §24 records that verification depends on
+literal strings — corrected in CLAUDE.md
 §5.1 and the reference's Appendix D.1 on 2026-08-21. **`grep-absence` must target those
 three strings.**
 
@@ -1599,8 +1590,7 @@ completes.
 - **Evidence and artefact are different kinds.** Evidence describes the world
   and goes to the index. An artefact is what the team designed — a to-be
   process, a control-plan draft — and belongs to the gate document as captured
-  content. **One bucket would let a proposed future be retrieved later as a fact
-  about the present.**
+  content. **Why the split binds is ruling AP2.3, in §23.2.1.**
 - **A file that cannot be extracted is refused or reported, never silently
   accepted.**
 - **Interpretation stores to `computation_results` and cites its source
@@ -1651,8 +1641,8 @@ and the commit body**.
 **Not in the original spine.** Founder ruling: **an upload is bound to the
 coach's request that prompted it, not to its filename.**
 
-- **The ask carries the expected shape** — columns, units, period — drawn from
-  the SKILL.md worked examples the coach already shows (§32, §43). The arriving
+- **The ask carries an `expected_shape`.** Its keys and where they come from
+  are §6 / S-C02's `asks` entry. The arriving
   file is validated against it.
 - **A mismatch is a coaching question, not an error.** *"This has a `date` and
   an `amount` but no reason code — is the reason somewhere else, or not
@@ -1785,7 +1775,7 @@ own doc-only commit **before** the code commit, on the ordering this step alread
 uses for its own seven fields.
 
 **1 — Pre-6.12 uploads take `role = "unclassified (pre-ask-binding)"`.** New
-§23.2.1 row. `role`, `shape_match` and `content_digest` are absent keys in the
+§23.2.1 row. the three fields are **absent keys** in the
 stored JSON on every pre-6.12 record; what a loaded `UploadRecord` shows for them
 is a Pydantic default. The full reasoning, including why the sentinel is not
 `other evidence`, is at §23.2.1.
@@ -2132,9 +2122,8 @@ threads.
 | **Precondition** | 7.3 |
 | **Verify** | `pytest` |
 
-**A gate MAY pass with warnings. A gate may NEVER pass with failures.** Only
-Tier 1 criteria may produce `fail`. A Tier 2 gap the Belt proceeds past MUST be
-recorded in `acknowledged_gaps` (§35).
+**The rule is §35's — the grader's three verdict statuses, what may produce a
+`fail`, and what `acknowledged_gaps` must record. Read it there.**
 
 ---
 
@@ -2277,8 +2266,8 @@ replacement, and it is what the drift hook's `pattern-4-custom-saga` guards.
 | **Precondition** | 8.2 |
 | **Verify** | `pytest` |
 
-**Three-state, two instances.** Two-state breakers are not permitted — this is
-a long-running service and must recover without a restart (§46).
+**Three-state, two instances — §46**, which states why two-state breakers are
+not permitted here.
 
 Levels 1, 2 and 4 of the chain land here. **Level 3 (cache) is step 8.4 and is
 BLOCKED.**
@@ -2504,8 +2493,7 @@ handler shape must be deliberate, and streaming is the shape §47 prefers.
 Three §50 surfaces: the live gate document updating on every capture; the
 conflict-resolution panel, which **must surface which downstream phases become
 provisional *before* the Belt confirms**; and **separate Tier 1 / Tier 2
-progress bars, never one blended count** — a Belt at 6/6 required and 0/5
-recommended can pass the gate, and a blended 55% implies otherwise.
+progress bars, never one blended count** — §43.4 gives the worked case for why a blended count misleads.
 
 ---
 
@@ -2584,31 +2572,38 @@ never changes while the spec it implements moves is not stable; it is
 unwatched, and that is how the two came to disagree in ways only a cross-check
 could find.
 
-**v1.3 (2026-09-10)** — **The document collapse, Parts 1–5.** **(A) Completion
-is read from git log**, not from a status column: `BUILD_TRACKER.md` is deleted,
-guard rule 2 is gone and its number is not reused, and Appendix D's status
-column carries only `BLOCKED` / `GATED` / `EXTERNAL` — empty for every
-schedulable step, done or not. Step 9.0 carries `EXTERNAL`, which resolves the
-out-of-band wrinkle on its own terms rather than by a completion claim the
-tooling must be taught to ignore. **(B) The landed count is `git ∩ Appendix D`**
-— it fell 31 → 30 because 9.0 shipped as `feat(knowledge): 871637f` and the
-derived figure cannot see it. No work was lost. **(C) The build target is
-`../ARCHITECTURE.md`**, corrected in the status line and the three-document
-table; the root reference binds at platform level and is not what a step is
-built against. **(D) The drift-defence table and the live-run debt moved here**
-from the deleted tracker, the table corrected on the way because its copy still
-listed the retired rule 2. **(E) `docs/` now holds this file, `CONTINUITY.md`
-and `_archive/`.** `DECISIONS.md`, `ARCHITECTURE_STATUS.md` and
-`REFACTORING_AGENT_IMPROVE.md` are archived; the built markers they carried are
-now `> **BUILT:**` lines on the items they describe (ARCHITECTURE.md §55.2),
-re-run by `.claude/hooks/verify_built.py`. **(F) Appendix A's cross-check was
-re-run in both directions** for the first time since 2026-09-07 — **four
-mismatches found and none silently fixed**, because a disagreement between the
-plan and the spec is a founder decision. They are listed in the commit that
-records this entry: Appendix A is four rows short (6.13–6.16 have no row at
-all, not the two the brief expected); §62's fifteen spec entries are cited by
-no step; §57, §59, §61 and §64 are cited only glancingly; and 38 of 44 open
-gaps are never named here, so nothing schedules their closure.
+**v1.4 (2026-09-10)** — **The alignment pass: three restatements removed, and
+this document gains a generated block.** **(A) THREE PASSAGES THAT RESTATED
+`ARCHITECTURE.md` ARE NOW CITATIONS** — §47's five requirements (a verbatim copy
+of its table), §35's warnings-versus-failures rule, and §53.1's rewrite-in-place
+rule, which already carried the citation it was restating. **(B) A 12-word
+overlap check was then run over both files and found more**: 17 distinct shared
+passages, of which 8 were unattributed copies. All 8 are now citations. **One of
+them proves the whole rule** — this document's restatement of the `PhaseState`
+census read *"exactly 19: two identity, three plumbing, fourteen content"*. **It
+is 22.** The copy had been wrong since `rejection_feedback` landed and nobody
+compared it to §6, because a restatement has no mechanism that makes anyone
+look. **The check now stands at 9 shared passages, every one an attributed
+quotation** — a quoted LangGraph changelog string, §24's three retired names
+quoted because they ARE the `grep-absence` target, §26's own definition of
+multi-hop, §52's sequencing rule, §45's named candidates, and the deleted
+contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
+`<!-- BEGIN STEP BOARD -->
+<!-- Generated by .githooks/pre-commit, from git log + Appendix D.
+     DO NOT HAND-EDIT — it is rewritten on the next commit.
+     Step 6.16's board generator reads THIS block. -->
+
+## Step board
+
+| State | Count | Steps |
+|---|---|---|
+| **DONE** | 30 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13** |
+| **BUILDING NOW** | 1 | **6.14** — SKILL.md shape pass — Define, Analyse, Improve, Control |
+| **BLOCKED** | 5 | **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL) |
+| **QUEUED** | 19 | **6.15**, **6.16**, **7.0**, **7.1**, **7.2**, **7.3**, **7.4**, **7.5**, **7.6**, **8.0**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **10.2**, **11.1**, **11.2** |
+
+*55 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-10.*
+<!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
 
@@ -2726,8 +2721,7 @@ reference's shape-level list does not enumerate.
 
 ## Appendix C — The two parallel workstreams
 
-**Neither is a step, and neither blocks one.** Both encode Black Belt domain
-judgment and both inform the design as it lands (§53.1).
+**Neither is a step, and neither blocks one.** Both encode Black Belt domain judgment and inform the design as it lands (§53.1).
 
 | Workstream | Reference § | Cadence |
 |---|---|---|

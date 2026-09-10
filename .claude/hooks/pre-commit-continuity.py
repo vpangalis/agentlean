@@ -79,6 +79,45 @@ def _git(args: list[str], root: str) -> subprocess.CompletedProcess:
     )
 
 
+def _write_board(root: str) -> None:
+    """Regenerate the step board in REFACTORING_PROCEDURE.md, if it has one.
+
+    Fail-soft like the rest of this hook, and additionally SKIPPED when the
+    procedure has unstaged edits — folding someone's in-progress prose into
+    this commit is exactly what the CONTINUITY.md guard above refuses to do.
+    """
+    path = os.path.join(root, cs.PROCEDURE)
+    if not os.path.isfile(path):
+        return
+    with open(path, encoding="utf-8", newline="") as fh:
+        before = fh.read()
+    if cs.BOARD_BEGIN not in before:
+        return                      # no markers: this file does not carry one
+
+    unstaged = {
+        ln.strip().replace("\\", "/")
+        for ln in _git(["git", "diff", "--name-only"], root).stdout.splitlines()
+        if ln.strip()
+    }
+    staged = {
+        ln.strip().replace("\\", "/")
+        for ln in _git(["git", "diff", "--cached", "--name-only"], root).stdout.splitlines()
+        if ln.strip()
+    }
+    if cs.PROCEDURE in unstaged and cs.PROCEDURE not in staged:
+        note(f"{cs.PROCEDURE} has unstaged edits — step board NOT regenerated")
+        return
+
+    after = cs.splice(before, cs.build_step_board(root),
+                      cs.BOARD_BEGIN, cs.BOARD_END)
+    if after == before:
+        return
+    with open(path, "w", encoding="utf-8", newline="") as fh:
+        fh.write(after)
+    _git(["git", "add", "--", cs.PROCEDURE], root)
+    note("step board regenerated and staged")
+
+
 def main() -> int:
     root = _git(["git", "rev-parse", "--show-toplevel"], ".").stdout.strip()
     if not root:
@@ -118,6 +157,11 @@ def main() -> int:
 
     block = cs.build_block(root)
     after = cs.splice(before, block)
+
+    # The STEP BOARD, written into REFACTORING_PROCEDURE.md by this same hook.
+    # Same generator, same inputs — so the board and the plan cannot disagree
+    # by construction, which is what step 6.16's generator relies on.
+    _write_board(root)
 
     if after == before:
         # Rule 5 wants CONTINUITY.md in the INDEX, not merely correct on disk.
