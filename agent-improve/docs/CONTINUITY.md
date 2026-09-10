@@ -8,10 +8,10 @@
 | | |
 |---|---|
 | **Last completed** | step **6.13** — **The evidence index migration** |
-| **Next** | step **6.16** — **The board is generated, not written** |
+| **Next** | step **6.14** — **SKILL.md shape pass — the other four phases** |
 | **Stage** | Stage 6 — The coaching agent |
 | **Progress** | 31 of 55 build steps |
-| **Last spine commit** | `bc34213` (commit 6.12) |
+| **Last spine commit** | `1396627` (commit 6.13) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.33 |
 | **Block regenerated** | 2026-09-10 |

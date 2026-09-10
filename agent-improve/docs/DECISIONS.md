@@ -6762,3 +6762,45 @@ indistinguishable from a to-do.
 **What it owes**, and it is not 6.13's debt: a diagnosis of why the executor
 ignores a planner instruction naming a specific tool and a specific blob path.
 That is §26 / S-F04 territory and a step of its own.
+
+### AU4 — The cursor trap fired a second time, and the tracker's own warning describes it exactly
+
+**Found by 6.13's commit disagreeing with itself.** The pre-commit hook printed
+`last 6.13, next 6.16` while `BUILD_TRACKER.md`'s header line and
+`session-start-context.py` both said **6.14** — a three-step skip, silently, in
+the file a new session reads first.
+
+**Two prose strings in step 6.16's status cell were being read as data:**
+
+| what `continuity_status.py` did | what the cell actually says |
+|---|---|
+| `"\u25b6" in status` → this row is the cursor | *"…§66 and the ▶ cursor, **reading nothing else**…"* |
+| `"done" in status.lower()` → this row is done | *"…what is true about the product if this step is **never done**…"* |
+
+6.16 is the step that BUILDS the board generator, so its description necessarily
+talks about the cursor. **A row that mentions the cursor was taken to be the
+cursor.**
+
+**The tracker's own header comment describes this failure in advance**, added
+2026-09-08 after a note reading *"was marked ▶ next until the audit…"* left on
+step 7.1 made the block report `next 7.1` against Appendix D's 6.9:
+
+> ⚠ THE ▶ CURSOR IS LOAD-BEARING AND MUST APPEAR EXACTLY ONCE. … It matches the
+> character anywhere in the cell — including inside a parenthetical. … Say "the
+> cursor" in prose; keep the character for the cursor itself.
+
+**Second instance of a documented trap, sixteen days after the warning was
+written.** It stayed dormant only because step 6.13's row also carried the
+cursor and sorted first; removing that marker on completion is what exposed it.
+**A latent parse bug hidden behind row ordering is not fixed, it is queued.**
+
+**Fixed here** — 6.16's prose now says "the cursor", and the cursor itself moved
+to 6.14. Both tools agree on 6.14.
+
+> **NOT fixed, and it is the real defect:** `continuity_status.py` decides both
+> "is this the cursor" and "is this done" by substring-searching human prose. A
+> convention that a document must avoid two English words to keep a parser
+> correct is a parser problem, not a writing problem — and the guard's rule 2
+> cannot catch it, because that rule checks the two files were *touched*
+> together, never that they *agree*. Belongs with step 6.16, which replaces this
+> hand-maintenance with generation.
