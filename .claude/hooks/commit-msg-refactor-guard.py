@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 """commit-msg hook — the refactor-commit guard.
 
-Blocks a `refactor(arch-v2)` commit unless ALL FIVE hold (and rule 2b binds on EVERY commit):
+Blocks a `refactor(arch-v2)` commit unless ALL FOUR hold (and rule 2b binds on EVERY commit):
+
+**Rule 2 was DELETED 2026-09-10** and its number is not reused — every other
+rule keeps the number it has been referred to by in commit messages, DECISIONS
+entries and this file's own prose since 2026-08-31. Renumbering to close the
+gap would silently redirect every one of those references. The rules are
+therefore 1, 2b, 3, 4, 5.
 
   1. SUBJECT — matches the spine format EXACTLY:
          refactor(arch-v2): commit X.Y — <what changed>
@@ -11,17 +17,16 @@ Blocks a `refactor(arch-v2)` commit unless ALL FIVE hold (and rule 2b binds on E
      (`_GITLOG_STEP_RE`); a malformed one silently drops the step out of the
      only automated continuity signal the project has.
 
-  2. TRACKER — `agent-improve/docs/BUILD_TRACKER.md` AND
-     `agent-improve/docs/REFACTORING_PROCEDURE.md` are staged in the same
-     commit. One step = one commit = one row moved IN BOTH.
+  2. ~~TRACKER~~ — **DELETED 2026-09-10.** It required BUILD_TRACKER.md and
+     REFACTORING_PROCEDURE.md to be staged together: *one step = one commit =
+     one row moved IN BOTH.* BUILD_TRACKER.md no longer exists, and a landing
+     step no longer moves a row in Appendix D either — completion is read from
+     git log.
 
-     **Appendix D joined this rule on 2026-09-08, and the reason is a live
-     drift.** BUILD_TRACKER is the human checklist; Appendix D is the
-     machine-readable index `session-start-context.py` parses for "next step".
-     Requiring only the first let them disagree exactly where one of them is
-     read by a tool: after commit 6.8 landed, Appendix D still carried 6.8 as
-     `pending` and 6.9 under its pre-audit title, because nothing made the
-     commit touch that file. Both move, or the commit is blocked.
+     **It was never the check it looked like.** It verified both files were
+     TOUCHED, never that they AGREED, and that gap is not theoretical: 6.13
+     shipped with the two disagreeing about the next step while this rule
+     passed. The real defence was to stop storing the same fact twice.
 
   2b. STATUS — `agent-improve/docs/ARCHITECTURE_STATUS.md` is staged whenever
      the commit touches a path that file tabulates (STATUS_WATCHED). **This one
@@ -127,9 +132,9 @@ GUARDED_PREFIX = "refactor(arch-v2)"
 # exists to catch.
 SUBJECT_RE = re.compile(r"^refactor\(arch-v2\): commit \d+\.\d+ — \S.*$")
 
-TRACKER_PATH = "agent-improve/docs/BUILD_TRACKER.md"
-# Appendix D lives here — the machine-readable step index (rule 2).
-PROCEDURE_PATH = "agent-improve/docs/REFACTORING_PROCEDURE.md"
+# `TRACKER_PATH` and `PROCEDURE_PATH` were rule 2's, and went with it.
+# Appendix D's location is `continuity_status.PROCEDURE`, which rule 5 reaches
+# through `build_block` — this file no longer needs to know it.
 
 # Rule 2b — the architecture panel's repo-side source, and the paths it
 # tabulates. Unlike the rest of this guard it is NOT scoped to
@@ -603,28 +608,25 @@ def main(argv: list[str]) -> int:
              "\"last completed\". A malformed one drops the step out of the only",
              "automated continuity signal the project has, silently.")
 
-    # ── Rule 2 — the tracker moved with the code ──────────────────────────
-    try:
-        staged = staged_paths(root)
-    except Exception as exc:  # noqa: BLE001 — fail CLOSED
-        fail("the guard itself failed", f"{exc}",
-             "Blocking rather than passing: a guard that waves a commit through",
-             "when its own logic breaks is worse than no guard.")
-
-    missing = [want for want in (TRACKER_PATH, PROCEDURE_PATH)
-               if not any(p.lower() == want.lower() for p in staged)]
-    if missing:
-        fail("a step-index document was not updated in this commit",
-             *[f"Required: {m}" for m in missing], "",
-             f"Staged in this commit ({len(staged)} path(s)):",
-             *[f"  - {p}" for p in staged[:20]],
-             *(["  … and more"] if len(staged) > 20 else []), "",
-             "One step = one commit = one row moved IN BOTH.",
-             "BUILD_TRACKER.md is the human checklist; REFACTORING_PROCEDURE.md's",
-             "Appendix D is what session-start-context.py parses for \"next step\".",
-             "Staging only one lets them disagree where a tool reads one of them —",
-             "which is how 6.8 stayed `pending` in Appendix D after it shipped.",
-             "Move this step's row in both, `git add` them, and commit again.")
+    # ── Rule 2 — DELETED 2026-09-10 ───────────────────────────────────────
+    #
+    # It required BUILD_TRACKER.md and REFACTORING_PROCEDURE.md to be staged
+    # together on every spine commit — "one step = one commit = one row moved
+    # IN BOTH". **Both halves of that are now false.** BUILD_TRACKER.md is
+    # deleted, and Appendix D no longer carries a per-step status a landing
+    # commit has to move: completion is read from git log, so a step that
+    # lands changes no document at all.
+    #
+    # What the rule was really defending was that two documents holding the
+    # same fact must not disagree. **The fix was to stop holding it twice**,
+    # which is a stronger answer than checking they moved together — the rule
+    # only ever verified both files were TOUCHED, never that they AGREED, and
+    # 6.13 shipped with them disagreeing while the rule passed.
+    #
+    # Rule 2b keeps its own number and is untouched; it ran above, ahead of
+    # the prefix gate, because it binds on every commit rather than only on
+    # spine commits.
+    staged = all_staged
 
     # ── Rule 5 — the other orientation document moved too ─────────────────
     # Before the venv rules, because it is instant and needs no subprocess:

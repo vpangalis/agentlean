@@ -47,30 +47,40 @@ MAX_OUTPUT_CHARS = 10000
 _GITLOG_STEP_RE = re.compile(r"refactor\(arch-v2\):\s*(?:step\s+|commit\s+)?(\d+\.\d+)")
 
 # Appendix D row format, fixed by contract with the document:
-#   | **Commit 4.2** | thread_id + disconnect policy | pending |
-# A row whose status is BLOCKED, GATED or DONE is never proposed as "next".
+#   | **Commit 4.2** | thread_id + disconnect policy |  |
+#   | **Commit 8.5** | Graceful shutdown | GATED |
+#
+# **THE STATUS CELL IS EMPTY FOR EVERY SCHEDULABLE STEP** (2026-09-10). It
+# carries only what git cannot say, so `[A-Za-z]*` — with a star, not a plus —
+# is load-bearing: an empty cell must MATCH and read as available. With `+` the
+# row would not match at all, drop out of `rows`, and every remaining step
+# would become invisible rather than merely unstatused.
 _STEP_ROW_RE = re.compile(
-    r"\|\s*\*\*Commit (\d+\.\d+)\*\*\s*\|[^|]*\|\s*(?:\*\*)?([A-Za-z]+)"
+    r"\|\s*\*\*Commit (\d+\.\d+)\*\*\s*\|[^|]*\|\s*(?:\*\*)?([A-Za-z]*)"
 )
 
-# Statuses that must never be proposed as the next step.
+# Statuses that must never be proposed as the next step — the three things git
+# history cannot tell you about a step that has not landed.
 #
-# `done` joined this set on 2026-08-31. The set previously held only the two
-# "cannot be worked on" statuses, so a `done` row stayed selectable — harmless
-# for a step that landed as `refactor(arch-v2): commit X.Y`, because git history
-# advances `last` past it, but NOT for one that landed out of band under another
-# subject. Step 9.0 is exactly that: it landed as `feat(knowledge): …`
-# (`871637f`), so `_GITLOG_STEP_RE` can never see it and `last` can never move
-# past it. Once 8.3 lands, 8.4 is BLOCKED and 8.5 is GATED, so 9.0 becomes the
-# lowest remaining row and the pointer traps there permanently.
-# Tracked as the "hook wrinkle" in CONTINUITY.md §6; Appendix D carries the
-# matching note.
-_UNAVAILABLE_STATUSES = {"blocked", "gated", "done"}
+# `done` LEFT this set on 2026-09-10, when the column stopped carrying it.
+# Completion now comes from `_GITLOG_STEP_RE` alone, so a "done" status was a
+# second source of truth for a fact git already owns — and the one that drifts,
+# because it is hand-maintained.
+#
+# THE 9.0 WRINKLE IS RESOLVED, NOT CARRIED. Step 9.0 landed out of band as
+# `feat(knowledge): …` (`871637f`), so the git-log scan cannot see it and `last`
+# can never advance past it. While `done` was a status this was papered over by
+# 9.0's row saying "done"; removing that word would have re-armed the trap —
+# once 8.3 lands, 8.4 is BLOCKED and 8.5 is GATED, leaving 9.0 the lowest
+# remaining row and the pointer stuck there forever. **9.0 is now EXTERNAL**,
+# which is both true (it is an Azure-side knowledge-index rebuild, exactly what
+# the procedure's reading conventions define EXTERNAL to mean) and permanent:
+# it stays unavailable on its own merits rather than on a completion claim.
+_UNAVAILABLE_STATUSES = {"blocked", "gated", "external"}
 
-# The subset that means "cannot be worked on", as opposed to "already finished".
-# Used only for the diagnostic message, so a finished step is never reported to
-# the developer as though something were blocking it.
-_BLOCKED_STATUSES = {"blocked", "gated"}
+# All three now mean "cannot be worked on as a code step". The distinction this
+# set used to draw — blocked-vs-finished — disappeared with `done`.
+_BLOCKED_STATUSES = {"blocked", "gated", "external"}
 
 
 # --------------------------------------------------------------------------- #

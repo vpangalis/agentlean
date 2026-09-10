@@ -2688,61 +2688,61 @@ infrastructure noise. **Read both before finalising §52.**
 
 | Step | Title | Status |
 |---|---|---|
-| **Commit 2.3** | Dependency upgrade | done |
-| **Commit 2.4** | `set_entry_point` → `add_edge(START, …)` | done |
-| **Commit 2.5** | Async conversion | done |
-| **Commit 2.6** | `content_blocks` · 20 sites | done |
-| **Commit 2.7** | LLM factory · 6 roles → 11 | done |
-| **Commit 3.1** | `SupervisorState` and `PhaseState` | done |
-| **Commit 3.2** | `AzureBlobStore` | done |
-| **Commit 3.3** | Boundary mappers | done |
-| **Commit 3.4** | `{Phase}Output` schemas + validators + UI | done |
-| **Commit 3.5** | `storage/blob.py` — class → functions, sync → aio | done |
-| **Commit 4.1** | Define phase subgraph | done |
-| **Commit 4.2** | `thread_id` + disconnect policy | done |
-| **Commit 4.3** | Supervisor graph | done |
-| **Commit 4.4** | Remaining four subgraphs | done |
-| **Commit 5.1** | Retrieval failure semantics | done |
-| **Commit 5.2** | Three `rag_lookup_*` + RRF | done |
-| **Commit 5.3** | 20 computation tools | done |
-| **Commit 5.4** | Per-phase tool binding | done |
-| **Commit 6.1** | Planner / Executor split | done |
-| **Commit 6.2** | `create_agent` executor | done |
-| **Commit 6.3** | Middleware 1–3 | done |
-| **Commit 6.4** | Retry middleware 4–5 + factory retry removal | done |
-| **Commit 6.5** | Middleware 6–8 | done |
-| **Commit 6.6** | Prompts | done |
-| **Commit 6.7** | The hop cap, as §26 specifies it (WATCH 26) | done — live half owed |
-| **Commit 6.8** | `phase_context` is read (WATCH 19) | done |
-| **Commit 6.9** | SKILL.md conformance to §32's seven | done — live half owed |
-| **Commit 6.10** | `analyse_executor_node` — §26's multi-hop | **BLOCKED** |
-| **Commit 6.11** | The upload path (G-36) | done |
-| **Commit 6.12** | Ask-binding: an upload answers a request | done — live half owed |
-| **Commit 6.13** | The evidence index migration | done — live half BLOCKED, not owed |
-| **Commit 6.14** | SKILL.md shape pass — Define, Analyse, Improve, Control | pending |
-| **Commit 6.15** | The count-check — a written count against the list it describes | pending |
-| **Commit 6.16** | The board is generated, not written | pending |
-| **Commit 7.0** | The evaluation suite | pending |
-| **Commit 7.1** | `DMAICGateValidator` + Layer 2b | pending |
-| **Commit 7.2** | Layers 2c, 2d + `validation_stack` | pending |
-| **Commit 7.3** | Nine-step HITL gate | pending |
-| **Commit 7.4** | Two tiers + `warning` verdict | pending |
-| **Commit 7.5** | Escalation | pending |
-| **Commit 7.6** | The re-approval cascade | pending |
-| **Commit 8.0** | Turn telemetry and `@traceable` | pending |
-| **Commit 8.1** | Structured errors | pending |
-| **Commit 8.2** | Timeouts + compensating actions | pending |
-| **Commit 8.3** | Circuit breakers + fallback chain | pending |
-| **Commit 8.4** | Level 3 cache | **BLOCKED** |
-| **Commit 8.5** | Graceful shutdown | **GATED** |
-| **Commit 8.6** | Context recovery (§44 Step 2) | pending |
-| **Commit 8.7** | `delete_blob` + upload lifecycle | pending |
-| **Commit 9.0** | Knowledge-index rebuild | done |
-| **Commit 9.1** | Azure batched reindex — case index only | pending |
-| **Commit 10.1** | `/ask/stream` SSE | pending |
-| **Commit 10.2** | Live gate document + conflict panel | pending |
-| **Commit 11.1** | Delete v1 | pending |
-| **Commit 11.2** | Governance close-out | pending |
+| **Commit 2.3** | Dependency upgrade |  |
+| **Commit 2.4** | `set_entry_point` → `add_edge(START, …)` |  |
+| **Commit 2.5** | Async conversion |  |
+| **Commit 2.6** | `content_blocks` · 20 sites |  |
+| **Commit 2.7** | LLM factory · 6 roles → 11 |  |
+| **Commit 3.1** | `SupervisorState` and `PhaseState` |  |
+| **Commit 3.2** | `AzureBlobStore` |  |
+| **Commit 3.3** | Boundary mappers |  |
+| **Commit 3.4** | `{Phase}Output` schemas + validators + UI |  |
+| **Commit 3.5** | `storage/blob.py` — class → functions, sync → aio |  |
+| **Commit 4.1** | Define phase subgraph |  |
+| **Commit 4.2** | `thread_id` + disconnect policy |  |
+| **Commit 4.3** | Supervisor graph |  |
+| **Commit 4.4** | Remaining four subgraphs |  |
+| **Commit 5.1** | Retrieval failure semantics |  |
+| **Commit 5.2** | Three `rag_lookup_*` + RRF |  |
+| **Commit 5.3** | 20 computation tools |  |
+| **Commit 5.4** | Per-phase tool binding |  |
+| **Commit 6.1** | Planner / Executor split |  |
+| **Commit 6.2** | `create_agent` executor |  |
+| **Commit 6.3** | Middleware 1–3 |  |
+| **Commit 6.4** | Retry middleware 4–5 + factory retry removal |  |
+| **Commit 6.5** | Middleware 6–8 |  |
+| **Commit 6.6** | Prompts |  |
+| **Commit 6.7** | The hop cap, as §26 specifies it (WATCH 26) |  |
+| **Commit 6.8** | `phase_context` is read (WATCH 19) |  |
+| **Commit 6.9** | SKILL.md conformance to §32's seven |  |
+| **Commit 6.10** | `analyse_executor_node` — §26's multi-hop | BLOCKED |
+| **Commit 6.11** | The upload path (G-36) |  |
+| **Commit 6.12** | Ask-binding: an upload answers a request |  |
+| **Commit 6.13** | The evidence index migration |  |
+| **Commit 6.14** | SKILL.md shape pass — Define, Analyse, Improve, Control |  |
+| **Commit 6.15** | The count-check — a written count against the list it describes |  |
+| **Commit 6.16** | The board is generated, not written |  |
+| **Commit 7.0** | The evaluation suite |  |
+| **Commit 7.1** | `DMAICGateValidator` + Layer 2b |  |
+| **Commit 7.2** | Layers 2c, 2d + `validation_stack` |  |
+| **Commit 7.3** | Nine-step HITL gate |  |
+| **Commit 7.4** | Two tiers + `warning` verdict |  |
+| **Commit 7.5** | Escalation |  |
+| **Commit 7.6** | The re-approval cascade |  |
+| **Commit 8.0** | Turn telemetry and `@traceable` |  |
+| **Commit 8.1** | Structured errors |  |
+| **Commit 8.2** | Timeouts + compensating actions |  |
+| **Commit 8.3** | Circuit breakers + fallback chain |  |
+| **Commit 8.4** | Level 3 cache | BLOCKED |
+| **Commit 8.5** | Graceful shutdown | GATED |
+| **Commit 8.6** | Context recovery (§44 Step 2) |  |
+| **Commit 8.7** | `delete_blob` + upload lifecycle |  |
+| **Commit 9.0** | Knowledge-index rebuild | EXTERNAL |
+| **Commit 9.1** | Azure batched reindex — case index only | EXTERNAL |
+| **Commit 10.1** | `/ask/stream` SSE |  |
+| **Commit 10.2** | Live gate document + conflict panel |  |
+| **Commit 11.1** | Delete v1 |  |
+| **Commit 11.2** | Governance close-out |  |
 
 > **✅ FIXED 2026-08-31 — this whole note is now historical.** `done` was added
 > to `_UNAVAILABLE_STATUSES` in `.claude/hooks/session-start-context.py`, so a

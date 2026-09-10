@@ -13,19 +13,22 @@ WHY HERE AND NOT IN THE GUARD
     is left behind as a dirty working tree. The second failure mode is the
     dangerous one, because it looks like it worked.
 
-WHEN IT FIRES
-    Only when one of the block's INPUTS is staged — BUILD_TRACKER.md,
-    CLAUDE.md or ARCHITECTURE.md. Those are exactly the files the block is
-    derived from, so:
+WHEN IT FIRES — EVERY COMMIT, since 2026-09-10
+    It used to fire only when a document input was staged (BUILD_TRACKER.md,
+    CLAUDE.md, ARCHITECTURE.md), which was sound while every value came from a
+    document. **`last completed` and the landed count now come from git log**,
+    and git log moves on every commit — including commits that stage none of
+    those files. Scoping by staged document would leave the block reporting a
+    step behind, with nothing to notice it.
 
-      * every `refactor(arch-v2)` commit qualifies (rule 2 already requires
-        the tracker), and
-      * an unrelated commit is never silently given an extra file.
+    Two things make firing always cheap: an unchanged block writes nothing,
+    and `git add` on an unchanged file adds no entry to the commit. So the
+    common case costs one git-log read and produces no diff.
 
-    pre-commit cannot read the commit subject — it runs before the message
-    exists — so scoping by subject is not available here. Scoping by input is
-    better anyway: it fires exactly when the derived values can have changed,
-    including on a CLAUDE.md version bump that touches no tracker row.
+    Rule 2 used to guarantee that a spine commit staged the tracker, which is
+    how this hook was guaranteed to run on one. **Rule 2 is gone** — it forced
+    two documents to move for a step that no longer needs either — so that
+    guarantee had to be replaced rather than quietly inherited.
 
 FAIL-SOFT, DELIBERATELY, AND THE OPPOSITE OF THE GUARD
     This hook WRITES. A writing hook that breaks must not wedge a commit, so
@@ -52,7 +55,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import continuity_status as cs  # noqa: E402
 
-TRIGGERS = {cs.TRACKER, cs.CLAUDE_MD, cs.ARCH_MD}
+# Files whose STAGED content feeds the block. Since 2026-09-10 they are no
+# longer the whole input: `last completed` and the landed count come from git
+# log, which moves on EVERY commit. So this hook no longer early-returns on
+# them — see `main`. The set survives for one narrower job: deciding whether to
+# stage an UNCHANGED CONTINUITY.md so rule 5 finds it in the index.
+TRIGGERS = {cs.PROCEDURE, cs.CLAUDE_MD, cs.ARCH_MD}
 
 
 def note(msg: str) -> None:
@@ -84,9 +92,11 @@ def main() -> int:
         ).stdout.splitlines()
         if ln.strip()
     }
-    if not (staged & TRIGGERS):
-        return 0                     # nothing that feeds the block moved
-
+    # NO EARLY RETURN ON THE TRIGGER SET ANY MORE. `last completed` and the
+    # landed count are derived from git log, so every commit can move them —
+    # scoping by staged document would leave the block stale after any commit
+    # that touched neither Appendix D nor a version line. Regenerating is
+    # cheap, and an unchanged block writes nothing.
     path = os.path.join(root, cs.CONTINUITY)
     if not os.path.isfile(path):
         note(f"{cs.CONTINUITY} not found — skipped")
@@ -110,9 +120,10 @@ def main() -> int:
     after = cs.splice(before, block)
 
     if after == before:
-        # Still stage it if the commit needs it present (rule 5 wants it in
-        # the index, not merely correct on disk).
-        if cs.CONTINUITY not in staged:
+        # Rule 5 wants CONTINUITY.md in the INDEX, not merely correct on disk.
+        # Staging an unchanged file adds no entry to the commit, so this is
+        # free on the many commits that move nothing.
+        if cs.CONTINUITY not in staged and (staged & TRIGGERS):
             _git(["git", "add", "--", cs.CONTINUITY], root)
             note("status block already current — staged CONTINUITY.md")
         return 0
@@ -121,7 +132,7 @@ def main() -> int:
         fh.write(after)
     _git(["git", "add", "--", cs.CONTINUITY], root)
 
-    t = cs.parse_tracker(cs.staged_text(cs.TRACKER, root))
+    t = cs.derive(root)
     note(f"status block regenerated and staged — "
          f"last {t['last_step']}, next {t['next_step']}")
     return 0
