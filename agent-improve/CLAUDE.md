@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.33 — September 2026
+# Version 2.2.34 — September 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -945,6 +945,61 @@ reinstate the per-turn write §10.4 removed.
 **No rule was renumbered**, so `deprecated_patterns.yaml`'s citations still
 resolve and §0.2 is satisfied. **No code changed** — both rulings are
 specification, and step 6.12 builds them.
+
+---
+
+### 0.28 — What Changed in 2.2.34 — the document set collapses to two
+
+**FOUNDER RULING 2026-09-10.** Five documents were hand-maintained per build
+step and three carried the same facts in different shapes. **Two are
+hand-written from here:**
+
+| Document | Holds |
+|---|---|
+| `ARCHITECTURE.md` | the design, the gap register, and what is built |
+| `REFACTORING_PROCEDURE.md` | the plan — step specs plus Appendix D's step list |
+
+Everything else is **generated from git, or frozen.**
+
+#### THE SPLIT — where a decision goes now
+
+| | Goes to | Why there |
+|---|---|---|
+| **The RULE** | `ARCHITECTURE.md`, as a §56 amendment **with a version bump** | Permanent, indexed, and what a build step is checked against |
+| **The REASONING** | **the commit message body** | Already required, already permanent, already tied to the diff it explains |
+
+**`DECISIONS.md` is CLOSED** — frozen at Part AU, historical, no new entries.
+Nothing was deleted. It closed because its own *How to read this document*
+requires `Status / Landed in / Source` on every entry, and that field appears
+**40 times in Parts A–Q and zero times in Parts R–AU**. Closing it stated what
+had already happened.
+
+**The reasoning half is the load-bearing claim.** What was decided, what was
+rejected, what an audit found, what you chose not to fix — all of it belongs
+with the change it justifies. **A commit body is never re-read except when
+investigating that commit, and that is the correct cost**: the moment you want
+the reasoning is the moment you are already looking at the diff.
+
+#### What this ends
+
+Three documents held one fact in three shapes and a fourth summarised all of
+them. Guard **rule 2** existed to keep two of them in step and checked only that
+both had been *touched*, never that they *agreed* — and step 6.13 shipped with
+them disagreeing about the next step while that rule passed. **Rule 2 is
+deleted; its number is not reused.** The rules are 1, 2b, 3, 4, 5.
+
+**`BUILD_TRACKER.md` is deleted** and `REVIEW_DECISIONS.md` archived. Build
+completion is now **git log** — the highest `refactor(arch-v2): commit X.Y` —
+and Appendix D's status column carries only what git cannot say: `BLOCKED`,
+`GATED`, `EXTERNAL`. **No hook parses prose for done-ness any more**, which is
+what fired twice: once on step 7.1 (2026-09-08) and once on step 6.16
+(2026-09-10), the second because that step's description necessarily contains
+the words "cursor" and "never done".
+
+`ARCHITECTURE_STATUS.md` is **kept and stripped** — its *Re-running the counts*
+block is the only thing in the repo that verifies a claim against the tree.
+Converting it to generated output belongs to step **6.16**, which already
+builds a generator and already reads it.
 
 ---
 

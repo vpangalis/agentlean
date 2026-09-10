@@ -18,14 +18,18 @@ Legend:  ✅ built · ⚠️ built with a known defect · ☐ not built · ⛔ b
 # every count below is reproduced by a command in «Re-running the counts»
 
 **This is what exists, not what is specified.** `ARCHITECTURE.md` is the build
-target; Appendix D plus git log are the spine's progress; this is the standing answer
-to *"is that thing actually wired?"* — the question the coverage audit had to
-reconstruct by hand because nothing recorded it.
+target; Appendix D plus git log are the spine's progress; this is the standing
+answer to *"is that thing actually wired?"*
 
-**⚠️ means built and defective, which is the row that costs measurements.** A
-`☐` is honest — nobody is relying on it. A `⚠️` looks finished from every angle
-except the one that matters, and `phase_context` cost six steps of live
-measurements by sitting in that state unrecorded.
+**⚠️ means built and defective.** A `☐` is honest — nobody is relying on it. A
+`⚠️` looks finished from every angle except the one that matters.
+
+> **TO BE GENERATED AT STEP 6.16, NOT BY HAND.** That step already builds a
+> board generator and already reads this file, so writing the generator twice
+> is the only alternative. **Until then this file is measured, never copied** —
+> "1 of 5 SKILL.md files written" sat wrong here for weeks because it had been
+> transcribed from a document instead of counted in the tree, which is the
+> whole reason the «Re-running the counts» block exists.
 
 ---
 
@@ -42,10 +46,9 @@ measurements by sitting in that state unrecorded.
 | **7** | **Validation, gates and escalation** — §33–§38 | **1.5 / 9** | ⚠️ Layer 2b delegates to the v1 `validate_{phase}` and **all five gates are inert** · ✅ Layer 2a is `CoherenceMiddleware` · ☐ Layers 2c, 2d ☐ nine-step HITL ☐ two tiers + `warning` ☐ escalation logic ☐ §37 re-approval cascade (7.6) |
 | **8** | **Persistence and cross-cutting** — §8–§10, §44–§48, §51–§52 | **3 / 3 persistence · 1 / 10 cross-cutting** | ✅ checkpointer (Azure Blob, per `case_id`) ✅ Store (cross-phase artifacts) ✅ case blob (system of record) · ✅ §44 Step 0 only · ☐ §44 Steps 1–6 ☐ §46 circuit breaker + fallback chain ☐ §48 structured errors (the schema exists, nothing raises it) ☐ **§51 tracing — zero `@traceable` in the backend** ☐ §52 evaluation — no suite ⛔ §46 L3 cache (Redis) |
 
-**Block 8 is the one that compounds.** With no tracing, every investigation
-needs a hand-built harness, and WATCH 28's ratified *"set the limits from
-measured data"* cannot run at all. That is why §51 is numbered **8.0**, ahead of
-the step that consumes it.
+**Block 8 compounds**: with no tracing, every investigation needs a hand-built
+harness and WATCH 28's *"set the limits from measured data"* cannot run at all.
+Hence §51 at **8.0**, ahead of the step that consumes it.
 
 ---
 
@@ -114,14 +117,11 @@ EOF
 grep -rl '@traceable' agent-improve/backend --include=*.py | grep -v tests | wc -l
 ```
 
-> **The `METRIC LITERACY` grep is a proxy and is labelled as one.** It answers
+> **The `METRIC LITERACY` grep is a PROXY and is labelled as one.** It answers
 > "does this file carry the one §32 item Define was missing", not "does it carry
-> all seven". **A grep is exactly how the wrong count was produced twice** — the
-> 6.9 scoping audit scored Define 3.5/7 on a keyword pass, then 4.5/7 on a
-> second, because the file carries all seven of `calculate_expected_savings`'s
-> steps without ever using the phrase "seven-step". The full check is reading
-> the file against §32's list; this line is the cheap regression signal, not a
-> replacement for it. `DECISIONS.md` Part AO.
+> all seven" — a file can satisfy an item without ever using the phrase the grep
+> matches. The full check is reading the file against §32's list; this line is
+> the cheap regression signal, not a replacement for it.
 
 ---
 
@@ -198,44 +198,11 @@ accumulate across turns (WATCH 18), the supervisor graph is not the runtime
 
 ---
 
-## Corrections against the published Architecture Board (2026-09-07)
-
-Recorded here because the panel is regenerated from this file, so a correction
-that lives only in chat gets rebuilt wrong next time.
-
-1. **"25 of 35 steps" — both figures are wrong.** Appendix D is authoritative
-   and now reads **29 of 51**. The 35 was an unreconciled hand-count already
-   five rows adrift before the audit added eight steps.
-2. **"§26 multi-hop + the step guard" under NONE OF THIS EXISTS YET — half
-   wrong.** The step guard shipped at 6.7: the five-hop cap, the
-   `remaining_steps` off-ramp and the backstop are all live. Only
-   `analyse_executor_node` is unbuilt.
-3. **"§44 failure pipeline · 7 steps" under NONE OF THIS EXISTS YET — Step 0
-   exists.** `TimeoutPolicy(run_timeout=45)` is on the executor node and was
-   observed firing. Six of seven are missing, not seven.
-4. **"none of the gate exists yet" — overstated.** All three gate nodes exist
-   and run; `validation_stack` carries Layer 2b against the v1 validator, and
-   Layer 2a is live as `CoherenceMiddleware`. What does not exist is the
-   `interrupt()`, Layers 2c/2d, and everything that makes a gate *decide*.
-5. **"MIDDLEWARE — 8, IN NESTING ORDER" then numbering 6 contradiction, 7
-   coherence, 8 grader — the header contradicts the list.** That numbering is
-   EXECUTION order; nesting order is its mirror for 6–8. The caption underneath
-   explains the inversion, so only the header is wrong.
-6. **"PERSISTENCE — THREE LAYERS, ALL BUILT" — true of the layers, not of the
-   Store's contents.** The `case` namespace had no writer until 6.8, which is
-   the defect the board's own amber input-mapper note was describing from the
-   other end.
-
-**Right, and worth keeping:** the amber-versus-outline distinction, the
-`phase_context` call-out, the SKILL.md count, the §37 cascade note, and the
-observation that §51 compounds. Items 1 and 2 above are now stale in the
-board's favour — both were fixed after it was published.
-
----
-
 ## Watched paths — what obliges an update to this file
 
-Guard rule 2 requires this file staged when a commit touches any of:
+Guard **rule 2b** requires this file staged when a commit touches any of
+(rule 2 was deleted 2026-09-10; 2b is the one that binds here, and it binds on
+EVERY commit rather than only spine commits):
 
 ```
 agent-improve/backend/core/graph.py            supervisor topology, backstop

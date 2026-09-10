@@ -1,3 +1,38 @@
+> # ⛔ CLOSED — 2026-09-10. Historical record. No new entries.
+>
+> **This file is frozen at Part AU and 6,806 lines. Nothing is deleted: every
+> word stays readable, and the Parts below remain the authority for what was
+> decided on the day they record.**
+>
+> **WHY IT CLOSED.** Its own *How to read this document* requires every entry
+> to carry `Status / Landed in / Source`. That field appears **40 times in
+> Parts A–Q** (through 2026-08-20) and **zero times in Parts R–AU**
+> (2026-08-22 onward). A register whose landing field stopped being filled
+> nine months of entries ago is not a register — it is an archive that has not
+> been told. Closing it says out loud what had already happened.
+>
+> **WHERE THE TWO HALVES GO NOW:**
+>
+> | | Goes to | Why there |
+> |---|---|---|
+> | **The RULE** | `ARCHITECTURE.md`, as a §56 amendment with a version bump | Permanent, indexed, and the thing a build step is checked against |
+> | **The REASONING** | The **commit message body** | Already required, already permanent, already tied to the diff it explains |
+>
+> **The reasoning half is the interesting claim.** What was decided, what was
+> rejected and why, what an audit turned up, what was deliberately left
+> unfixed — all of it belongs with the change it justifies. A commit body is
+> never re-read except when investigating that commit, **which is exactly the
+> right cost**: the cases where you want the reasoning are the cases where you
+> are already looking at the diff.
+>
+> **What this stops.** Three documents held the same fact in three shapes and
+> a fourth pointed at all of them. The rule lived in `ARCHITECTURE.md`, the
+> reasoning here, a status row in `BUILD_TRACKER.md` and a summary in
+> `CONTINUITY.md` — and 6.13 shipped with two of them disagreeing while a
+> guard rule checked only that both had been touched.
+>
+> Recorded in `CLAUDE.md` §0.28 so it survives a session boundary.
+
 <!--
 Document: agent-improve/DECISIONS.md
 Version: 1.4 — 2026-08-19
