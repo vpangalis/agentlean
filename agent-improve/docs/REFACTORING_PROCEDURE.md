@@ -1,6 +1,6 @@
 # Agent Improve — Refactoring Procedure
 **AgentLean Platform · DMAIC Improvement Agent**
-Version 1.4 · 2026-09-10
+Version 1.5 · 2026-09-10
 Status: **RATIFIED.** The ordered path from the v1 tree to the target in
 `../ARCHITECTURE.md`.
 
@@ -2050,7 +2050,7 @@ captured on a post-6.8 coach.
 
 | | |
 |---|---|
-| **Reference §** | §34 · §35 |
+| **Reference §** | §34 · §35 · **S-C26** |
 | **Touches** | `validation/gate_validator.py`, `validation/schemas.py` (new) |
 | **Precondition** | 6.7 |
 | **Verify** | `pytest` |
@@ -2064,7 +2064,7 @@ captured on a post-6.8 coach.
 
 | | |
 |---|---|
-| **Reference §** | §34 · §36 |
+| **Reference §** | §34 · §36 · **S-C21 · S-C24 · S-F25 · S-F26** |
 | **Precondition** | 7.1 |
 | **Verify** | `pytest` |
 
@@ -2080,7 +2080,7 @@ is a violation.
 
 | | |
 |---|---|
-| **Reference §** | §33 · §33.1 · §33.2 |
+| **Reference §** | §33 · §33.1 · §33.2 · **S-C25 · S-F27** |
 | **Precondition** | 7.2 |
 | **Verify** | `manual-UI` |
 
@@ -2118,7 +2118,7 @@ threads.
 
 | | |
 |---|---|
-| **Reference §** | §35 |
+| **Reference §** | §35 · **S-C20** |
 | **Precondition** | 7.3 |
 | **Verify** | `pytest` |
 
@@ -2572,6 +2572,20 @@ never changes while the spec it implements moves is not stable; it is
 unwatched, and that is how the two came to disagree in ways only a cross-check
 could find.
 
+**v1.5 (2026-09-10)** — **Appendix A is complete in both directions for the
+first time.** **(A) THE FOUR MISSING ROWS LAND** — 6.13, 6.14, 6.15, 6.16. The
+matrix had 51 rows against Appendix D's 55 and had been four short since the
+evidence-index migration was scheduled on 2026-09-09; **6.13 landed without ever
+appearing in it.** 55 / 55 now, with no row in one table absent from the other.
+**(B) §62's ELEVEN SPEC ENTRIES ARE CITED BACK BY THE STEPS THAT BUILD THEM** —
+S-C26 by 7.1; S-C21, S-C24, S-F25 and S-F26 by 7.2; S-C25 and S-F27 by 7.3;
+S-C20 by 7.4. **This was bookkeeping, not a judgment**, and the audit that
+raised it overstated the problem: every §62 entry already declared its own
+`Procedure:` step, and three of the eleven (S-C22, S-C23 at 6.5; S-F28 at 3.4)
+are already built. What was missing was the REVERSE citation — §55.1's
+bidirectional rule satisfied in one direction only, which is exactly the
+condition that rule exists to make checkable.
+
 **v1.4 (2026-09-10)** — **The alignment pass: three restatements removed, and
 this document gains a generated block.** **(A) THREE PASSAGES THAT RESTATED
 `ARCHITECTURE.md` ARE NOW CITATIONS** — §47's five requirements (a verbatim copy
@@ -2653,6 +2667,10 @@ reference section is not a step — it is an undocumented decision.
 | 6.10 | §26, §58.18 | `pytest` + `live-run` |
 | 6.11 | §29.1, §6, §10, §23.2, §65.4 | `live-run` + `azure-query` |
 | 6.12 | §29.1, §32, §43, §50 | `live-run` |
+| 6.13 | §23.2, §23.2.1, §23.4, §24, §6 / S-C02, S-C09 | `azure-query` + `live-run` |
+| 6.14 | §32, §43, §23.2.1 | `pytest` |
+| 6.15 | §55.1, §6 / S-C02, §29.2 | `pytest` |
+| 6.16 | §55.1, §66, Appendix D | `grep-absence` + a commit that moves a step |
 | 7.0 | §52 | `pytest` |
 | 7.1 | §34, §35 | `pytest` |
 | 7.2 | §34, §36 | `pytest` |
