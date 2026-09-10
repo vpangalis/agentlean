@@ -109,7 +109,7 @@ a second file. Where a concept has a definition, that definition appears
 log. The reasoning trail that produced these decisions — what a course taught,
 what was corrected, which options were rejected and when — lives in
 `agent-improve/docs/EDUCATIONAL.md` (the original chronological register),
-`agent-improve/docs/REFACTORING_AGENT_IMPROVE.md` (the section-by-section
+`agent-improve/docs/_archive/REFACTORING_AGENT_IMPROVE.md` (the section-by-section
 review), and `agent-improve/docs/REVIEW_DECISIONS.md` /
 `agent-improve/docs/DECISIONS.md` (the decision log). Those remain the
 historical record, and they live under `agent-improve/` because that is where
@@ -8293,7 +8293,7 @@ files, or code comments.
 | §85 | §51 | LangSmith 2026 additions |
 | §86 | §55 | Hook mechanics |
 | §87 | Appendix B | Deferred backlog |
-| §3, §4, §6–§9, §12–§16, §26, §31, §54 | — | Course material and historical notes — **no section here**; retained in `agent-improve/docs/REFACTORING_AGENT_IMPROVE.md` |
+| §3, §4, §6–§9, §12–§16, §26, §31, §54 | — | Course material and historical notes — **no section here**; retained in `agent-improve/docs/_archive/REFACTORING_AGENT_IMPROVE.md` |
 
 ### A.2 `agent-improve/ARCHITECTURE.md` → this reference
 

@@ -33,7 +33,7 @@ never at the local copy.
 | `ARCHITECTURE.md` | **How Agent Improve specifically is shaped.** Began as a copy of the reference, expected to diverge (§0.12) | **Yes** |
 
 **The historical record is not binding and is not cited by rules here.**
-`docs/REFACTORING_AGENT_IMPROVE.md` (the section-by-section review),
+`docs/_archive/REFACTORING_AGENT_IMPROVE.md` (the section-by-section review),
 `docs/_archive/EDUCATIONAL.md`, `docs/_archive/DECISIONS.md` and `docs/REVIEW_DECISIONS.md`
 hold the reasoning trail — what was considered, rejected and when. Each
 Reference section carries a **Supersedes** line naming its sources, so the

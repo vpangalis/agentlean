@@ -74,9 +74,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.21 · 2026-09-10
+Version 1.22 · 2026-09-10
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.22 (2026-09-10)** — **§56 AMENDMENT. §19's ordering rule is CORRECTED, `ARCHITECTURE_STATUS.md`'s tables become BUILT markers on the items they describe, and the counts behind them become a check that runs.** **(A) §19 "Ordering rules that bind" WAS BACKWARDS AND THE CODE HAS BEEN RIGHT SINCE 6.5.** It read *"Declaration order is execution order for hooks of the same kind"* and *"positions 6, 7 and 8 … run in declaration order: contradiction, then coherence, then grader"*. **Both sentences are false.** LangChain's documented middleware model is *sequential on the way in, reverse sequential on the way back* (`langchain.com/blog/agent-middleware`), measured at step 6.5 (ruling AJ1, 2026-09-07): **the declared list is NESTING order, outermost-first**; `before_*` fires outermost-first and `after_*` innermost-first. So positions 6–8 are **declared grader, coherence, contradiction** and **execute contradiction, coherence, grader** — which is what those position numbers have always meant. `test_all_eight_positions_execute_in_the_ratified_order` pins the built behaviour and `test_position_1_wrap_encloses_position_4_retry` pins the `wrap_*` case. **Rule 3 was corrected with it**: positions 4 and 5 have not been "independent of everything else" since 6.3, because position 1's `wrap_model_call` encloses position 4's retry — which is why the project-state block is composed once per turn rather than once per attempt. **Corrected before step 7.1 is built against it**, that being the next step to add to this stack. **(B) THE BUILT MARKERS MOVE ONTO THE SPECIFIED ITEMS.** `docs/ARCHITECTURE_STATUS.md` held eight Level-1 blocks and four Level-3 control-point tables that restated this document's own items with a built-marker attached — the same fact in two files, and the file that carried *"1 of 5 SKILL.md files written"* wrong from its first commit. **17 `> **BUILT:**` markers now sit under the items they describe** — §16, §19.1–§19.8, §26, §33, §34, §44, §46, §49, §51, §53 — in one vocabulary: ✅ built · ⚠️ built with a known defect · ☐ not built · ⛔ blocked, with the rule, the reason and the status on one line. §55.2 states the contract and carries the twelve watched paths. **(C) `.claude/hooks/verify_built.py` RE-RUNS THE COUNTS.** Eleven checks plus the five-phase script byte-match, against the pinned venv, reporting any marker that disagrees with the tree. **A marker nothing re-runs is a claim**, and the first cut of the script proved the point on itself: two probes shelled out to `grep`, returned empty under cmd.exe's quoting, and reported disagreements against a tree that was correct — the probes are now pure Python and shell-free. It also caught one real error, `PARSERS`' keys being `document/pdf/spreadsheet/text` rather than the file extensions the expectation guessed. **(D) Guard rule 2b repointed** to `ARCHITECTURE.md`; verified by probe that it blocks a watched-path commit without it and passes with it, BEFORE the archive move. `docs/` now holds `REFACTORING_PROCEDURE.md`, `CONTINUITY.md` and `_archive/`. **CARRIED FORWARD UNRESOLVED, per the ruling**: §21's role map versus the 11-role factory, and `HITLInterrupt`'s prose call sites in §19.6 and S-C15 (step 7.3's work).
 
 **v1.21 (2026-09-10)** — **§56 AMENDMENT. Parts R–AU are classified and the four rules that existed only in `DECISIONS.md` land here; that file is archived.** **THE POINT OF THE PASS IS THE FOUR, NOT THE 28.** Parts A–Q each carry `landed in ARCHITECTURE.md §X`; Parts R–AU carry no landing pointer at all, so a rule stated there and nowhere else was a rule nothing could be checked against. Working through 28 Parts and ~120 subsections against this document: **4 LAND · 3 SUPERSEDED · 21 REASONING**, with 4 contradictions found and deliberately NOT resolved (below). **(A) AS2 → §58.2 S-C02's `asks` row: ASKS ARE KEYED ON `role`, NEVER ON FIELD.** Several coached fields draw on one dataset — `baseline_mean` and `baseline_sigma` are two reads of one file — so a per-field ask opens three requests for one upload and leaves two permanently unanswered, which is the unread-evidence condition `consumed_at` exists to detect. The row named `role` as a field of an ask and never said it was the key. **(B) AI1 → §21: THE FACTORY PASSES `max_retries=0`, EXPLICITLY.** Retry belongs to the middleware and nothing else; a factory that also retried would multiply against §19.4's cap of 2 and §19.7's cap of 2, turning a documented 2 into an undocumented 6 that no §34 counter can see. Written as an explicit zero because the SDK default is non-zero and omission yields silent retries that look like latency. **(C) AH4 → G-33: `load_skill` is MIDDLEWARE-REGISTERED and outside §30's totals** — and the row's own arithmetic was corrected, because it was false in the dangerous direction. It read *"if bound, Measure goes to 16 against a cap of 16"*, legal by a hair; with the universal eight it is **17 against 16**, illegal on the day it happens. The gap stays open: the answer is a placement, not a ceiling. **(D) AJ4 → G-15: `HITLInterrupt` is DELIBERATELY NEVER DEFINED.** Step 7.3 pauses with LangGraph's own `interrupt()`, resumable by construction; an exception from `after_agent` is not, and defining one would create a second pause mechanism competing with the framework primitive §0.24 requires preferring. Open as a naming problem — §19.6 and S-C15 still raise it in prose. **FOUR CONTRADICTIONS FOUND AND LEFT FOR A FOUNDER, per the ruling that a disagreement between spec and decision is a decision and not a typo** — the largest is **§19's "Ordering rules that bind"**, which states *"declaration order is execution order for hooks of the same kind"* and *"positions 6, 7 and 8 … run in declaration order: contradiction, then coherence, then grader"*. Part AJ1 measured the opposite on 2026-09-07 and the built stack implements it: the list is NESTING order, `after_*` fires innermost-first, and 6–8 are declared **grader, coherence, contradiction** to execute contradiction, coherence, grader. `test_all_eight_positions_execute_in_the_ratified_order` pins the built behaviour. **A build step checked against §19 today would produce the wrong declaration order.** Full list in the commit body. **No rule renumbered**, so `deprecated_patterns.yaml`'s citations still resolve and §0.2 is satisfied.
 
@@ -208,7 +210,7 @@ a second file. Where a concept has a definition, that definition appears
 log. The reasoning trail that produced these decisions — what a course taught,
 what was corrected, which options were rejected and when — lives in
 `agent-improve/docs/_archive/EDUCATIONAL.md` (the original chronological register),
-`agent-improve/docs/REFACTORING_AGENT_IMPROVE.md` (the section-by-section
+`agent-improve/docs/_archive/REFACTORING_AGENT_IMPROVE.md` (the section-by-section
 review), and `agent-improve/docs/REVIEW_DECISIONS.md` /
 `agent-improve/docs/_archive/DECISIONS.md` (the decision log). Those remain the
 historical record, and they live under `agent-improve/` because that is where
@@ -1463,6 +1465,8 @@ A direct import creates a dependency the graph does not model.
 
 ## 16. `thread_id`, `checkpoint_ns`, and where persistence attaches
 
+> **BUILT:** ✅ built · `AzureBlobCheckpointSaver` on the parent graph keyed by `case_id`, live since 4.2; phase subgraphs carry no checkpointer of their own and the engine assigns `checkpoint_ns`. ⚠️ the ETag / `ConcurrentTurnError` guard on `latest.json` is **optimistic, not the specified lease** — a concurrent turn is LOST rather than interleaved, and a failed write orphans a history blob (WATCH 15, post-refactor)
+
 *Supersedes: REFACTORING §23, §44; ARCHITECTURE.md §3.1, §6.1.*
 **Status: RATIFIED.**
 
@@ -1680,17 +1684,62 @@ reserved for genuinely domain-specific logic.
 
 ### Ordering rules that bind
 
-**Declaration order is execution order for hooks of the same kind.**
+> **⚑ CORRECTED 2026-09-10 — §56 AMENDMENT. This section stated the rule
+> backwards and the built stack has been right since step 6.5.** It read
+> *"Declaration order is execution order for hooks of the same kind"* and
+> *"positions 6, 7 and 8 … run in declaration order: contradiction, then
+> coherence, then grader"*. **Both sentences are false**, measured at 6.5
+> (ruling AJ1, 2026-09-07) against LangChain's documented middleware model —
+> *sequential on the way in, reverse sequential on the way back*
+> (`langchain.com/blog/agent-middleware`). **Corrected here before step 7.1 is
+> built against it**, which is the first step that adds to this stack.
+
+**THE DECLARED LIST IS NESTING ORDER, OUTERMOST-FIRST. THE POSITION NUMBERS ARE
+EXECUTION ORDER. For `after_*` hooks the two are OPPOSITE.**
+
+| Hook kind | Fires | Relative to the list |
+|---|---|---|
+| `before_*` | on the way **in** | outermost-first — **same** as declaration order |
+| `after_*` | on the way **out** | innermost-first — **the reverse** of declaration order |
+| `wrap_*` | around the call it wraps | an earlier declaration **encloses** a later one |
+
+Measured, not inferred:
+
+```
+declared:      1st, 2nd, 3rd
+before_agent:  1st, 2nd, 3rd      <- outermost first, going in
+after_agent:   3rd, 2nd, 1st      <- innermost first, coming out
+```
 
 1. **`BeforeModelStateInjection` MUST be first.** Project facts have to reach
    the top of the prompt before skills loading and summarisation shape it.
-2. **Positions 6, 7 and 8 all fire `after_agent`** and therefore run in
-   declaration order: contradiction, then coherence, then grader.
-3. **Positions 4 and 5 sit on `wrap_*` hooks** and compete for no slot with
-   anything else. They are adjacent for readability, not ordering.
+   Declared first means **outermost**, so this is also the rule that makes its
+   `wrap_model_call` enclose position 4's retry — the project-state block is
+   composed and prepended **once**, and a retry re-sends the built request
+   rather than rebuilding it per attempt. Pinned by
+   `test_position_1_wrap_encloses_position_4_retry`.
+2. **Positions 6, 7 and 8 all fire `after_agent`, so they EXECUTE in the
+   reverse of how they are declared.** They are **declared grader, coherence,
+   contradiction** and therefore **execute contradiction, coherence, grader** —
+   which is what the position numbers 6, 7, 8 mean. Pinned by
+   `test_all_eight_positions_execute_in_the_ratified_order`, which asserts what
+   executes rather than what is listed.
+   - **Grader outermost** — a final quality verdict should be the last thing to
+     touch the answer on its way out.
+   - **Contradiction innermost** — it should be first to see the coach's raw
+     output, and able to interrupt before anything else spends effort on it.
+   - **Coherence between them**, so it can stand the grader down.
+3. ~~**Positions 4 and 5 sit on `wrap_*` hooks** and compete for no slot with
+   anything else.~~ **No longer true, and it is the same conflation.** That
+   held before step 6.3; since 6.3 position 1 also wraps the model call, so it
+   encloses position 4 — see rule 1. Position 5 (`wrap_tool_call`) is still
+   independent: a failed retrieval is not a failed model call, and
+   `ModelRetryMiddleware` never sees it (§19.5).
 4. **If `CoherenceMiddleware` exhausts its retries, `DMAICGraderMiddleware` is
    skipped for that turn** — deliberately. Grading a response already known to
-   be incoherent spends a model call to produce a meaningless score.
+   be incoherent spends a model call to produce a meaningless score. **This is
+   why coherence must sit inside the grader**: the skip travels outward on the
+   way out, which only works if the grader has not run yet.
 
 ### Three independent retry caps
 
@@ -1705,6 +1754,8 @@ shared state. An API timeout and an incoherent response are not the same event
 and must not consume the same budget.
 
 ### 19.1 `BeforeModelStateInjection` — injection timing
+
+> **BUILT:** ✅ built · also injects `phase_context` (6.8) and the UPLOAD MANIFEST (6.12). Its `wrap_model_call` encloses §19.4's retry, so the block is composed once per turn, not once per attempt
 
 **Custom · `before_agent` · position 1.** Prepends structured project state at
 the **top** of the prompt, ahead of the conversation: this phase's `artifacts`,
@@ -1728,6 +1779,8 @@ add it to the history" option.
 
 ### 19.2 `DMAICSkillsMiddleware` — progressive disclosure
 
+> **BUILT:** ✅ built · mounted and working; all five SKILL.md files exist, load and are §32-conformant as of 6.9
+
 **Custom · `before_agent` + a registered tool · position 2.** Full treatment in
 §32; the stack-level facts are:
 
@@ -1742,6 +1795,8 @@ Storage backend is `FilesystemBackend` — git-versioned alongside the code, so 
 skill change is reviewable in the same PR as the code depending on it.
 
 ### 19.3 `SummarizationMiddleware` — context compression
+
+> **BUILT:** ✅ built · LangChain core as shipped; trigger 100k tokens, keep 20
 
 **LangChain core, used as shipped · `before_model` · position 3.**
 
@@ -1782,6 +1837,8 @@ middleware.
 
 ### 19.4 `ModelRetryMiddleware` — API-level retry
 
+> **BUILT:** ✅ built · `max_retries=2` → three attempts. The only model-retry layer; §21's factory is pinned to 0
+
 **LangChain core, used as shipped · `wrap_model_call` · position 4.**
 
 ```python
@@ -1810,6 +1867,8 @@ attempt counter.
 
 ### 19.5 `ToolRetryMiddleware` — tool-level retry
 
+> **BUILT:** ✅ built · `max_retries=2`, `on_failure="continue"`. Costs no graph steps (measured at 6.4)
+
 **LangChain core, used as shipped · `wrap_tool_call` · position 5.**
 `max_retries=2`, `on_failure="continue"`, exponential backoff with jitter.
 
@@ -1821,6 +1880,8 @@ exhaust, the tool returns a failure result the coach can read and work around,
 rather than raising and killing the graph mid-session.
 
 ### 19.6 `ContradictionDetectionMiddleware` — the mid-phase check
+
+> **BUILT:** ⚠️ built with a known defect · detects and sets `contradiction_flag`, but **the §37 re-approval cascade it exists to trigger is unbuilt** (step 7.6), so nothing consumes the flag
 
 **Custom · `after_agent` · position 6.** Implements the mid-phase conflict
 detection of §37.
@@ -1868,6 +1929,8 @@ responsible only for coaching.
 
 ### 19.7 `CoherenceMiddleware` — validation Layer 2a
 
+> **BUILT:** ✅ built · validation Layer 2a; can stand the grader down
+
 **Custom · `after_agent` · position 7, immediately before the grader.**
 
 One LLM call — `coherence` role, temperature 0.1. Checks: is this a real,
@@ -1892,6 +1955,8 @@ rubric grading call on responses already known to be incoherent. Catching
 incoherence at a cheaper gate is both faster and cleaner.
 
 ### 19.8 `DMAICGraderMiddleware` — coaching process quality
+
+> **BUILT:** ✅ built · coaching-quality grading, per turn
 
 **Custom · `after_agent` · position 8.** Grades the **coach's process** against
 `COACHING_QUALITY_RUBRIC` — one rubric, shared across all five phases.
@@ -2756,6 +2821,8 @@ manual JSON parsing.
 
 ## 26. Multi-hop retrieval
 
+> **BUILT:** ☐ not built · `analyse_executor_node` is step 6.10, ⛔ blocked on G-05 and G-35. The **caps are built**: the five-hop cap and the `remaining_steps` floor of 2 both landed at 6.7, and `recursion_limit=50` is a backstop rather than the cap (WATCH 26)
+
 *Supersedes: REFACTORING §34, §71; ARCHITECTURE.md §7.5; DECISIONS §F6, §F7.*
 **Status: RATIFIED.**
 
@@ -3306,6 +3373,8 @@ proposition is that a gate document it approved is worth trusting.*
 
 ## 33. The nine-step HITL gate
 
+> **BUILT:** ☐ not built · the `gate_review` node exists and passes through; `interrupt()` is raised at step 7.3. **Nothing in the system currently pauses for a human**, which is why `gate_attempts` cannot accumulate (WATCH 18), the supervisor graph is not yet the runtime (WATCH 23) and §47's reconciliation sweep cannot be written (WATCH 13)
+
 *Supersedes: REFACTORING §2, §44, §53; ARCHITECTURE.md §3.6; CLAUDE.md §9.1, §9.6.*
 **Status: RATIFIED.**
 
@@ -3422,6 +3491,8 @@ rejects loses nothing but the turn.
 ---
 
 ## 34. The four-layer validation stack
+
+> **BUILT:** ⚠️ built with a known defect · Layer 2a is live as `CoherenceMiddleware` and Layer 2b delegates to the v1 `validate_{phase}`; Layers 2c and 2d are step 7.2. **`GATE_MAX_ATTEMPTS=3` cannot fire**: with no `interrupt()` the subgraph reruns from the mapper each turn, so every submission reports attempt 1 (WATCH 18)
 
 *Supersedes: REFACTORING §48, §68, §69; ARCHITECTURE.md §3.7; CLAUDE.md §9.2, §9.3.*
 **Status: RATIFIED.** **Canonical home.**
@@ -7070,6 +7141,8 @@ and in Control (did it move, and will it stay moved?).
 
 ## 44. The failure pipeline
 
+> **BUILT:** ☐ not built · **Step 0 only.** `TimeoutPolicy(run_timeout=45)` is on the executor node and has been observed firing. Steps 1–6 are step 8.2, and `error_handler=` / `phase_error_recovery` is blocked on G-35 and G-06 (WATCH 16)
+
 *Supersedes: REFACTORING §66, §79; ARCHITECTURE.md §9.1.*
 **Status: RATIFIED.**
 
@@ -7204,6 +7277,8 @@ yet. Deferred (Appendix B item 12) until sessions exceed roughly 200 turns.
 ---
 
 ## 46. The fallback chain and circuit breakers
+
+> **BUILT:** ☐ not built · circuit breaker (3 fails / 30s → OPEN) and the fallback chain are both step 8.3. ⛔ the L3 Redis cache is blocked — the resource is not provisioned (step 8.4)
 
 *Supersedes: REFACTORING §66, §67; ARCHITECTURE.md §9.3, §9.4; CLAUDE.md §4.8; DECISIONS §N1.*
 **Status: RATIFIED for v2.1; a v2.2 replacement is ratified and deferred.**
@@ -7387,6 +7462,8 @@ malformed query, and retrying fails identically.
 ---
 
 ## 49. API surface
+
+> **BUILT:** ⚠️ built with a known defect · **11 of 12 routes exist**; `/ask/stream` SSE is step 10.1. **This section's table names 8 of the 11** — six are in the tree and in no ratified table (**G-47**)
 
 *Supersedes: ARCHITECTURE.md §10; CLAUDE.md §1.1, §1.4, §1.5.*
 **Status: RATIFIED.** File: `gateway/routes.py`.
@@ -7608,6 +7685,8 @@ the choice the design intends them to have.
 
 ## 51. Tracing and observability
 
+> **BUILT:** ☐ not built · **zero `@traceable` in the backend.** This is the block that compounds: with no tracing every investigation needs a hand-built harness, and WATCH 28's *"set the limits from measured data"* cannot run at all — which is why it is scheduled at 8.0, ahead of the step that consumes it
+
 *Supersedes: REFACTORING §45; ARCHITECTURE.md §12; CLAUDE.md §11.*
 **Status: RATIFIED.**
 
@@ -7718,6 +7797,8 @@ returning different verdicts across runs makes these thresholds meaningless.
 ---
 
 ## 53. Configuration, dependencies and deployment
+
+> **BUILT:** ✅ built · fail-fast environment validation at startup
 
 *Supersedes: REFACTORING §72, §74, §76; ARCHITECTURE.md §15; CLAUDE.md §11.4, §16.*
 **Status: RATIFIED.**
@@ -8050,6 +8131,50 @@ with no enforcement is a rule that rots.
 > its own audit-trailed commit (§0.2 of `agent-improve/CLAUDE.md`).
 
 ---
+
+### 55.2 The BUILT markers, and the paths that oblige a re-check
+
+**A `> **BUILT:**` line sits under the item it describes**, never in a parallel
+table. `docs/_archive/ARCHITECTURE_STATUS.md` held that parallel table until 2026-09-10
+and is archived; the same fact in two files is what this section exists to
+prevent.
+
+| Marker | Means |
+|---|---|
+| ✅ built | exists and works as specified |
+| ⚠️ built with a known defect | exists, and the defect is named on the same line |
+| ☐ not built | with the step that builds it |
+| ⛔ blocked | with what unblocks it |
+
+> **A MARKER NOTHING RE-RUNS IS A CLAIM.** `.claude/hooks/verify_built.py`
+> re-runs the counting commands against the tree and reports any marker that
+> disagrees. **The rule comes from the row it cost most on**: *"1 of 5 SKILL.md
+> files written"* was copied from `CONTINUITY.md` on the day the status file was
+> created and was wrong from its first commit, in the one place whose header
+> promised *"verified against the tree, never from a document"*.
+
+**Guard rule 2b requires the file carrying these markers staged whenever a
+commit touches a path they tabulate.** Twelve paths, deliberately narrow — a
+guard that fired on every backend file would be routed around inside a week:
+
+```
+agent-improve/backend/core/graph.py              supervisor topology, backstop
+agent-improve/backend/core/state.py              SupervisorState
+agent-improve/backend/core/substate.py           PhaseState, caps
+agent-improve/backend/core/checkpointer.py       checkpoints
+agent-improve/backend/core/store.py              Store namespaces
+agent-improve/backend/middleware/**              §19's eight positions
+agent-improve/backend/phases/subgraph_common.py  nodes, TimeoutPolicy
+agent-improve/backend/phases/nodes_common.py     planner, executor, caps, guards
+agent-improve/backend/knowledge/tools.py         the universal eight
+agent-improve/backend/knowledge/computation.py   the twenty
+agent-improve/backend/gateway/routes.py          §49's API surface
+agent-improve/backend/storage/blob.py            system of record
+```
+
+**Rule 2b binds on EVERY commit**, not only spine commits: a middleware swap
+lands as a `fix(` as easily as a `refactor(`, and scoping it to the spine would
+exempt exactly the commits nobody reviews against the plan.
 
 ## 56. Amendment procedure
 
@@ -12654,7 +12779,7 @@ files, or code comments.
 | §85 | §51 | LangSmith 2026 additions |
 | §86 | §55 | Hook mechanics |
 | §87 | Appendix B | Deferred backlog |
-| §3, §4, §6–§9, §12–§16, §26, §31, §54 | — | Course material and historical notes — **no section here**; retained in `agent-improve/docs/REFACTORING_AGENT_IMPROVE.md` |
+| §3, §4, §6–§9, §12–§16, §26, §31, §54 | — | Course material and historical notes — **no section here**; retained in `agent-improve/docs/_archive/REFACTORING_AGENT_IMPROVE.md` |
 
 ### A.2 `agent-improve/ARCHITECTURE.md` → this reference
 

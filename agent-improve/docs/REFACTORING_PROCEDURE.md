@@ -1870,7 +1870,7 @@ artefact.
 | | |
 |---|---|
 | **Reference §** | §55.1 · §66 · Appendix D · `ARCHITECTURE_STATUS.md` |
-| **Touches** | `docs/REFACTORING_PROCEDURE.md` (Appendix D's two new columns) · `docs/ARCHITECTURE_STATUS.md` (the closer token) · `.claude/hooks/build_board.py` **(new)** · `.githooks/pre-commit` · `.claude/hooks/commit-msg-refactor-guard.py` (watched paths) · `docs/board.html` **(generated)** |
+| **Touches** | `docs/REFACTORING_PROCEDURE.md` (Appendix D's two new columns) · `docs/_archive/ARCHITECTURE_STATUS.md` (the closer token) · `.claude/hooks/build_board.py` **(new)** · `.githooks/pre-commit` · `.claude/hooks/commit-msg-refactor-guard.py` (watched paths) · `docs/board.html` **(generated)** |
 | **Precondition** | none — **READY** |
 | **Verify** | `grep-absence` + a commit that moves a step |
 

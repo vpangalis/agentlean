@@ -11,7 +11,7 @@
 | **Next** | step **6.14** — SKILL.md shape pass — Define, Analyse, Improve, Control |
 | **Spine steps landed** | 30 of 55 |
 | **Last spine commit** | `1396627` (commit 6.13) |
-| **ARCHITECTURE.md** | v1.21 |
+| **ARCHITECTURE.md** | v1.22 |
 | **CLAUDE.md** | v2.2.34 |
 | **Block regenerated** | 2026-09-10 |
 
@@ -257,7 +257,7 @@ the machine-readable step index the session-start hook parses.**
 
 ### Historical record — not binding, do not cite in rules
 
-`docs/REFACTORING_AGENT_IMPROVE.md` (the review register, best source for *why*)
+`docs/_archive/REFACTORING_AGENT_IMPROVE.md` (the review register, best source for *why*)
 · `docs/_archive/EDUCATIONAL.md` (frozen) · `docs/_archive/DECISIONS.md` · `docs/REVIEW_DECISIONS.md`
 · `docs/_archive/BIBLE_VERIFICATION_LOG.md`. The reference's **Appendix A** resolves old
 `ARCHITECTURE.md §X` / `REFACTORING §X` citations. (archived to docs/_archive/; canonical: REVIEW_DECISIONS.md)

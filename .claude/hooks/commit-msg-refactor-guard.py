@@ -28,7 +28,7 @@ therefore 1, 2b, 3, 4, 5.
      shipped with the two disagreeing about the next step while this rule
      passed. The real defence was to stop storing the same fact twice.
 
-  2b. STATUS — `agent-improve/docs/ARCHITECTURE_STATUS.md` is staged whenever
+  2b. STATUS — `agent-improve/ARCHITECTURE.md` is staged whenever
      the commit touches a path that file tabulates (STATUS_WATCHED). **This one
      is NOT scoped to `refactor(arch-v2)`** and runs before the prefix gate:
      a middleware swap lands as a `fix(` as easily as a `refactor(`, and
@@ -140,7 +140,10 @@ SUBJECT_RE = re.compile(r"^refactor\(arch-v2\): commit \d+\.\d+ — \S.*$")
 # that file describes", and a middleware swap lands as a `fix(` just as easily
 # as a `refactor(`. Scoping it to the prefix would have exempted exactly the
 # commits nobody is reviewing against the spine.
-STATUS_PATH = "agent-improve/docs/ARCHITECTURE_STATUS.md"
+# Repointed 2026-09-10: `docs/ARCHITECTURE_STATUS.md` is archived and its
+# tables now live as `> **BUILT:**` markers on the items they describe
+# (ARCHITECTURE.md §55.2). Same rule, one file.
+STATUS_PATH = "agent-improve/ARCHITECTURE.md"
 
 # Deliberately narrow: the twelve paths whose contents are literally tabulated
 # in that file. A rule that fired on every backend file gets routed around with
@@ -379,13 +382,20 @@ def check_types(root: str, py: str, staged: list[str]) -> None:
 def check_architecture_status(root: str, staged: list[str]) -> None:
     """Rule 2b — ARCHITECTURE_STATUS.md moved with the thing it describes.
 
-    **The one rule here that is not scoped to `refactor(arch-v2)`.** That file
-    is the repo-side source for the board's architecture panel, and it states
-    concrete counts — eight blocks with built/total, every middleware with its
-    hook, every cap with its value. A commit that changes a watched path and
-    leaves it alone makes one of those rows quietly false, which is the exact
-    failure the coverage audit was run to find: `phase_context` was declared,
-    written, read by nothing, and no document said so for six steps.
+    **The one rule here that is not scoped to `refactor(arch-v2)`.**
+    ARCHITECTURE.md carries a `> **BUILT:**` marker on every item whose built
+    state is claimed — §19's eight positions, §49's route count, §44's Step 0,
+    §51's zero `@traceable` (§55.2). A commit that changes a watched path and
+    leaves the document alone makes one of those markers quietly false, which
+    is the exact failure the coverage audit was run to find: `phase_context`
+    was declared, written, read by nothing, and no document said so for six
+    steps.
+
+    **Renamed target, unchanged rule (2026-09-10).** This pointed at
+    `docs/ARCHITECTURE_STATUS.md`, which held the same claims in a parallel
+    table. That file is archived; the markers moved onto the specified items.
+    `.claude/hooks/verify_built.py` re-runs the counts behind them, because a
+    marker nothing re-runs is a claim.
 
     Fires on the union of staged paths and STATUS_WATCHED. Prefix entries match
     a whole package.
