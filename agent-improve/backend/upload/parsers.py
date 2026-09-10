@@ -2,7 +2,7 @@
 
 Architecture: **§29.1** (the evidence channel), **§23.2** (the index),
 **§65.4 S-F35** (the upload handler). Procedure step **6.11**. Rulings:
-`docs/DECISIONS.md` Part AP2.
+`docs/_archive/DECISIONS.md` Part AP2.
 
 RULING 4 — PARSE IS DETERMINISTIC FIRST
     Columns, row count, types and ranges come from the file. **Only meaning

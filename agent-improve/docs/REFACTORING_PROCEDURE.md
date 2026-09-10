@@ -84,7 +84,7 @@ agrees. The horizontal order then runs 2.5 → 3.3 → 3.4.
 > Define gate is accepted as inert until then. Routes B and C rejected.
 > **Do not "fix" the v1 Define names anywhere in the tree — they are the
 > ruled-correct state.** Evidence in **`docs/_archive/WATCH7_AUDIT_2026-08-27.md`**, (archived to docs/_archive/; canonical: DECISIONS.md Part X)
-> ruling at **`docs/DECISIONS.md` Part X**. **§0.2's WATCH 7 row and step 3.4's
+> ruling at **`docs/_archive/DECISIONS.md` Part X**. **§0.2's WATCH 7 row and step 3.4's
 > consequence note are left as written**, per the annotate-don't-rewrite rule;
 > read them against this banner.
 >
@@ -273,7 +273,7 @@ never be allowed to stall steps that do not depend on it.**
 | **`RunControl.request_drain()` UNCONFIRMED** | **8.5 only** | The API is confirmed against a real release or the LangGraph source — or a fallback drain is designed. Reference §45 |
 | **Azure Cache for Redis not provisioned** | 8.4 only | The resource exists. Reference §46, Appendix B |
 | **Two Azure index schema changes unapplied** | 5.2's `order_by` and `phase` filter; `rag_lookup_case_history`'s vector field | Step 9.1 lands |
-| **WATCH 7 — Define gate non-functional** | Define phase end-to-end runs | Step **4.1** lands (Define subgraph; executor stops delegating to v1 `orchestrate_define`, which still writes v1 names). Accepted interim, not a bug — a consequence of running 3.4's Define portion (commit `4701a09`) ahead of 4.1. `validate.py` reads v2 names; `orchestrate.py` writes v1 names; gate reads all Tier-1 fields missing. **Do not add a v1→v2 shim** (CLAUDE.md §17) — the migration happens naturally when 4.1 replaces the orchestrator's role. Cross-phase Define briefs in analyse/improve/control stay on v1 names until then, deliberately. **⚑ RULED 2026-08-28 — ROUTE A. This row is superseded on two points and left as written per annotate-don't-rewrite.** (a) It **clears at step 6.2**, not 4.1 — step 4.1's own prompt has the executor still delegating to `orchestrate_define`, so 4.1 cannot clear it. 6.2 gives the executor its own capture path via `response_format=CoachingResponse`. (b) `orchestrate.py` is **never migrated**; it and `EXTRACTION_DEFINE`'s Define block carry the v1 names unchanged and are **deleted at 11.1** (Appendix B). The Define gate is accepted as inert until 6.2 — nothing else is blocked. See `CONTINUITY.md` §6 and `docs/DECISIONS.md` Part X. |
+| **WATCH 7 — Define gate non-functional** | Define phase end-to-end runs | Step **4.1** lands (Define subgraph; executor stops delegating to v1 `orchestrate_define`, which still writes v1 names). Accepted interim, not a bug — a consequence of running 3.4's Define portion (commit `4701a09`) ahead of 4.1. `validate.py` reads v2 names; `orchestrate.py` writes v1 names; gate reads all Tier-1 fields missing. **Do not add a v1→v2 shim** (CLAUDE.md §17) — the migration happens naturally when 4.1 replaces the orchestrator's role. Cross-phase Define briefs in analyse/improve/control stay on v1 names until then, deliberately. **⚑ RULED 2026-08-28 — ROUTE A. This row is superseded on two points and left as written per annotate-don't-rewrite.** (a) It **clears at step 6.2**, not 4.1 — step 4.1's own prompt has the executor still delegating to `orchestrate_define`, so 4.1 cannot clear it. 6.2 gives the executor its own capture path via `response_format=CoachingResponse`. (b) `orchestrate.py` is **never migrated**; it and `EXTRACTION_DEFINE`'s Define block carry the v1 names unchanged and are **deleted at 11.1** (Appendix B). The Define gate is accepted as inert until 6.2 — nothing else is blocked. See `CONTINUITY.md` §6 and `docs/_archive/DECISIONS.md` Part X. |
 
 > ### ⛔ On `request_drain` specifically
 >
@@ -1156,7 +1156,7 @@ supposed to survive.
 **The four cross-agent tools stay, unbound** — `search_resolve_cases`,
 `search_resolve_knowledge`, `search_resolve_evidence`, `search_flow_vsm`.
 Ratified as a distinct third category in **Reference §29.4** (2026-08-21,
-`docs/DECISIONS.md` §Q1). **Do not delete them and do not bind them to the
+`docs/_archive/DECISIONS.md` §Q1). **Do not delete them and do not bind them to the
 executor in this step.** Binding one is an amendment, and §29.4 names three
 rules that bind first — §27 compliance among them.
 
@@ -2558,7 +2558,7 @@ catching up to code that had to be written against measured reality.
 | 1 | **§19.1** / S-C11 B1 | `BeforeModelStateInjection` is `before_agent` **and** "prepends at the top of the prompt" | Those are two different hooks. `before_agent(state, runtime)` returns a **state update** and cannot reach the prompt; the prompt is reached through `wrap_model_call`, where `ModelRequest` carries `system_message` and `.override()`. The build composes on `before_agent` (once per turn, as B1 requires) and prepends on `wrap_model_call`, which is a pure read. **§19.1's wording needs to describe the split**; the behaviour it mandates is unchanged and is met |
 | 2 | **§19.3** | `SummarizationMiddleware(model="azure/operational-model", …)` | That string has LangChain construct the model itself, **bypassing the factory** — CLAUDE.md §4.1: *"Never instantiate `AzureChatOpenAI` directly. Always use `get_llm()`."* The signature accepts `BaseChatModel`, and §21 already ratifies a `summarizer` role on the operational tier, so the build passes `get_llm("summarizer")`. **The example needs correcting**; the tier it names is right |
 
-| 3 | **§21** | Content blocks, stated for responses we **read** | The rule binds on messages we **write** too — step 6.3 shipped two middlewares that built a `SystemMessage` by f-string over an existing `.content`, and nothing forbade it. CLAUDE.md **§4.5 now states it** (v2.2.31, §0.25) and the no-go list carries it, but §21 is the platform section that owns the topic and **binds on all three agents**, so the rule is currently written for one and true for three. Defect record: `docs/DECISIONS.md` Part AH2 |
+| 3 | **§21** | Content blocks, stated for responses we **read** | The rule binds on messages we **write** too — step 6.3 shipped two middlewares that built a `SystemMessage` by f-string over an existing `.content`, and nothing forbade it. CLAUDE.md **§4.5 now states it** (v2.2.31, §0.25) and the no-go list carries it, but §21 is the platform section that owns the topic and **binds on all three agents**, so the rule is currently written for one and true for three. Defect record: `docs/_archive/DECISIONS.md` Part AH2 |
 
 | 4 | **§19** | Two separate claims: *"declaration order is execution order for hooks of the same kind"*, and positions 4-5 *"compete for no slot with anything else"* | **Both follow from one missing distinction: the middleware list is NESTING order, outermost-first; the position numbers are EXECUTION order, and for `after_*` hooks they are opposite.** LangChain's model is *"first in list as outermost layer"* — `before_*` fires on the way in, outermost-first; `after_*` on the way out, innermost-first. That sentence explains why 6-8 are layered grader-outermost, why position 1's wrap encloses position 4's retry (measured: 3 model calls, 1 composition), and why position 1 must be declared first. **Teach the distinction; do not patch the sentences** — and note that list position is the only lever LangChain offers: no priority, no ordering attribute, and `hook_config` governs `can_jump_to`, not sequence |
 | 5 | **§19.6** | ``raise HITLInterrupt(**flag)`` | **Does not interrupt.** Measured: a custom exception propagates out and hits `error_handler`; `interrupt()` (§33) yields a resumable interrupt. `HITLInterrupt` is deliberately never defined — a class whose documented use does not interrupt is a trap (G-15) |
@@ -2844,7 +2844,7 @@ universal seven excludes them) — permitted and unaccounted for at once.
 
 **Ruled: a distinct third category, RATIFIED as present-but-not-bound.** Added
 as **Reference §29.4** through the §56 amendment procedure; decision record
-`docs/DECISIONS.md` §Q1. Kept because the three `search_resolve_*` tools are
+`docs/_archive/DECISIONS.md` §Q1. Kept because the three `search_resolve_*` tools are
 verified read-only paths into a production system; unbound because §30's tool
 ceiling would put Measure at 18 against a cap of 16, and there is no evidence
 cross-agent retrieval helps DMAIC coaching until the §52 dataset exists. **Three

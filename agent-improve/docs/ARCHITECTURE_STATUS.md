@@ -14,7 +14,9 @@ Legend:  ✅ built · ⚠️ built with a known defect · ☐ not built · ⛔ b
 
 # Agent Improve — Architecture Status
 
-# verified against the tree 2026-09-10 · at commit 6.13 (code; live-run owed)
+# verified against the tree 2026-09-10 · at commit 6.13 (code; live-run BLOCKED, G-49)
+# re-checked 2026-09-10 after the DECISIONS.md archive: the middleware change was
+# a citation-path repoint only, so no row below changed. The check is on the record.
 # every count below is reproduced by a command in «Re-running the counts»
 
 **This is what exists, not what is specified.** `ARCHITECTURE.md` is the build

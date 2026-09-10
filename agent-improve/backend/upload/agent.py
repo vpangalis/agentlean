@@ -2,7 +2,7 @@
 
 Architecture: **§29.1** (the evidence channel), **§6** (the uploads entry
 shape), **§23.2** (the index). Procedure step **6.11**. Rulings:
-`docs/DECISIONS.md` Part AP2.
+`docs/_archive/DECISIONS.md` Part AP2.
 
 THE ORDER IS THE RULING
     Classify → parse deterministically → refuse if unreadable → interpret

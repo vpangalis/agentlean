@@ -2,7 +2,7 @@
 
 Architecture §29.1 (the evidence channel) · §6 / S-C02 (the uploads entry
 shape) · §23.2 (the index) · §65.4 S-F35 (the handler). Rulings:
-`docs/DECISIONS.md` Part AP2.
+`docs/_archive/DECISIONS.md` Part AP2.
 
 **Every parser test builds a REAL file of its format and parses it.** A test
 that fed the parsers a hand-written dict would pass against a parser that

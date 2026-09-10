@@ -2,7 +2,7 @@
 
 Architecture §23.2 (the seven fields) · §23.2.1 (the `role` vocabulary and its
 migration sentinel) · §23.4 (the write-path trap) · §24 (the structured
-record). Rulings: `docs/DECISIONS.md` Part AT.
+record). Rulings: `docs/_archive/DECISIONS.md` Part AT.
 
 **No network.** Every Azure boundary is a fake, so what these assert is the
 code that runs in production rather than a copy of it.

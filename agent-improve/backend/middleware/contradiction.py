@@ -1,7 +1,7 @@
 """`ContradictionDetectionMiddleware` — position 6 — procedure step 6.5.
 
 Canonical: **§61.1 — S-C10**. Architecture **§19.6**, **§37**, §33; the redesign
-record is `docs/DECISIONS.md` §R1.
+record is `docs/_archive/DECISIONS.md` §R1.
 
 IT READS A FLAG. IT DETECTS NOTHING.
 ------------------------------------
@@ -57,7 +57,7 @@ graph-level `interrupt()` + `Command(resume=...)`"*) and what §19.9's ban on
 `HumanInTheLoopMiddleware` points at. **`HITLInterrupt` is deliberately NOT
 defined**: creating a class whose documented use does not interrupt would be
 building a trap. G-15 stays open for the founder to formalise; the evidence is
-in `docs/DECISIONS.md` Part AJ.
+in `docs/_archive/DECISIONS.md` Part AJ.
 
 IT SHIPS INERT, AND THAT IS EXPECTED — WATCH 29
 ------------------------------------------------

@@ -11,7 +11,7 @@
 | **Next** | step **6.14** — SKILL.md shape pass — Define, Analyse, Improve, Control |
 | **Spine steps landed** | 30 of 55 |
 | **Last spine commit** | `1396627` (commit 6.13) |
-| **ARCHITECTURE.md** | v1.20 |
+| **ARCHITECTURE.md** | v1.21 |
 | **CLAUDE.md** | v2.2.34 |
 | **Block regenerated** | 2026-09-10 |
 
@@ -258,7 +258,7 @@ the machine-readable step index the session-start hook parses.**
 ### Historical record — not binding, do not cite in rules
 
 `docs/REFACTORING_AGENT_IMPROVE.md` (the review register, best source for *why*)
-· `docs/_archive/EDUCATIONAL.md` (frozen) · `docs/DECISIONS.md` · `docs/REVIEW_DECISIONS.md`
+· `docs/_archive/EDUCATIONAL.md` (frozen) · `docs/_archive/DECISIONS.md` · `docs/REVIEW_DECISIONS.md`
 · `docs/_archive/BIBLE_VERIFICATION_LOG.md`. The reference's **Appendix A** resolves old
 `ARCHITECTURE.md §X` / `REFACTORING §X` citations. (archived to docs/_archive/; canonical: REVIEW_DECISIONS.md)
 
@@ -499,7 +499,7 @@ specification.**
    `upload/agent.py`), three of the moves are not renames, and Appendix B lists
    all five `orchestrate.py` files as **Delete**, not Rewrite — which is the
    ruling. **See §6's WATCH 7 entry**; evidence in
-   `docs/_archive/WATCH7_AUDIT_2026-08-27.md`, ruling at `docs/DECISIONS.md` Part X. (archived to docs/_archive/; canonical: DECISIONS.md Part X)
+   `docs/_archive/WATCH7_AUDIT_2026-08-27.md`, ruling at `docs/_archive/DECISIONS.md` Part X. (archived to docs/_archive/; canonical: DECISIONS.md Part X)
 3. **Ratified inputs to the build** — §39.1–§39.5, §63.1–§63.5, §69's 20 tools,
    the five rubrics, the metric registry. Build against these; they are settled.
    Open build gaps: **G-27** (mappers) and **G-28** (gate assembly for the four
@@ -531,7 +531,7 @@ so read §66 when the two disagree.)*
   §54 holds the file to module-level functions only. Thirteen names, `write_phase_gate`
   writing the case blob before the registry, and a loop-keyed cached `aio`
   client. **Deletion is not covered — that is a new gap (WATCH 10).** Record:
-  `docs/DECISIONS.md` Part Y.
+  `docs/_archive/DECISIONS.md` Part Y.
 - G-38 closed 2026-08-26 (Define field order); G-45 and G-46 registered and
   resolved in the same v1.15 pass (the metric registry's two spec entries).
 - **Group D — the computation layer (G-25, G-36) — is resolved at SPEC level**
@@ -767,7 +767,7 @@ so read §66 when the two disagree.)*
   but **§21 is the platform section that owns the topic and binds on all three
   agents** — Improve, Resolve and Flow — so the rule is currently stated for
   one agent and true for all of them. Full record of the defect that produced
-  it: `docs/DECISIONS.md` Part AH2.
+  it: `docs/_archive/DECISIONS.md` Part AH2.
 
   The first two, both approved at 6.3's review:
 
@@ -925,7 +925,7 @@ so read §66 when the two disagree.)*
   > Route B (full v1→v2 cutover now) and Route C (bring the executor forward)
   > are **rejected**, not deferred. Costs for all three are in
   > `docs/_archive/WATCH7_AUDIT_2026-08-27.md`; the ruling is recorded at (archived to docs/_archive/; canonical: DECISIONS.md Part X)
-  > `docs/DECISIONS.md` Part X.
+  > `docs/_archive/DECISIONS.md` Part X.
 
   **The finding the ruling rests on** — reassessed 2026-08-27, it is NOT a
   self-contained rename and was NOT the right first build step:

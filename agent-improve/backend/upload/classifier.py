@@ -1,6 +1,6 @@
 """Content-type and kind classification for uploads — procedure step 6.11.
 
-Architecture §29.1, §23.2. Rulings: `docs/DECISIONS.md` Part AP2.
+Architecture §29.1, §23.2. Rulings: `docs/_archive/DECISIONS.md` Part AP2.
 
 TWO CLASSIFICATIONS, AND THEY ANSWER DIFFERENT QUESTIONS
     `classify_content_type` answers *"how do we read this file"* and selects a

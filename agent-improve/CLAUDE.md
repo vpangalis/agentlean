@@ -34,7 +34,7 @@ never at the local copy.
 
 **The historical record is not binding and is not cited by rules here.**
 `docs/REFACTORING_AGENT_IMPROVE.md` (the section-by-section review),
-`docs/_archive/EDUCATIONAL.md`, `docs/DECISIONS.md` and `docs/REVIEW_DECISIONS.md`
+`docs/_archive/EDUCATIONAL.md`, `docs/_archive/DECISIONS.md` and `docs/REVIEW_DECISIONS.md`
 hold the reasoning trail — what was considered, rejected and when. Each
 Reference section carries a **Supersedes** line naming its sources, so the
 chain back to that trail is one hop from any rule. (archived to docs/_archive/; canonical: REVIEW_DECISIONS.md)
@@ -262,7 +262,7 @@ recorded as evidence.
 | Cross-agent tools | Unaccounted for | **A distinct third category, present and deliberately unbound** — `../AGENTIC_ARCHITECTURE_REFERENCE.md` §29.4 (§5.1, §14) |
 
 **The cross-agent addition went through the reference's §56 amendment procedure**,
-not directly into a rule here: decision recorded at `docs/DECISIONS.md` §Q1,
+not directly into a rule here: decision recorded at `docs/_archive/DECISIONS.md` §Q1,
 section added as reference §29.4, its version incremented to 1.1. This file
 carries only the pointer, because the disposition is a design fact and §29.4 is
 its canonical home.
@@ -334,7 +334,7 @@ mechanism against DMAIC's phase-partitioned, differently-named, gate-written
 state. **A pattern adopted by name carries its source's assumptions about state
 shape, write timing and naming, and those assumptions are invisible in the
 name.** Other course-derived components are flagged for the same review. Full
-record: `docs/DECISIONS.md` §R1.
+record: `docs/_archive/DECISIONS.md` §R1.
 
 ### 0.14 — What Changed in 2.2.20 — the supervisor does not route
 
@@ -371,7 +371,7 @@ re-derived — **loose-but-plausible language is how a deleted design regrows.**
 > path-excluded for the good reason that a governance file must be able to name
 > a construct to forbid it. **Third instance of one pattern: a correct rule
 > paired with a check that structurally cannot see what it governs.** Full
-> record: `docs/DECISIONS.md` §R2.
+> record: `docs/_archive/DECISIONS.md` §R2.
 
 ### 0.15 — What Changed in 2.2.21 — `PhaseState` learns who and where it is
 
@@ -408,7 +408,7 @@ as a key — any hit is a violation.**
 > category label. **The two fields added here would themselves have slipped
 > through it.** A gate whose scope is set by a label the adder chooses is not a
 > gate. Corrected in the same commit — the reference's §56 now fires on any new
-> `PhaseState` field. Full record: `docs/DECISIONS.md` §T1.
+> `PhaseState` field. Full record: `docs/_archive/DECISIONS.md` §T1.
 
 ### 0.16 — What Changed in 2.2.22 — the hop cap starts firing
 
@@ -829,7 +829,7 @@ as its own governance commit.
 **The reference back-port is owed, not done.** §21 is the platform section that
 owns this and binds on all three agents; adding it there is a §56 amendment and
 is queued with the other two at step 11.2 (`docs/CONTINUITY.md` WATCH 27).
-Full record of the defect: `docs/DECISIONS.md` Part AH2.
+Full record of the defect: `docs/_archive/DECISIONS.md` Part AH2.
 
 ---
 
@@ -856,7 +856,7 @@ symptom a see-saw rather than a clean failure. Measured on **both** LangGraph
 `GraphRecursionError` **before** the model can compose an answer. Four hops fit;
 five never did. A well-behaved five-hop turn could only ever end in the cap
 message, so prompt wording moved the failure between phases without removing it
-— WATCH 26 (`docs/DECISIONS.md` Part AK3).
+— WATCH 26 (`docs/_archive/DECISIONS.md` Part AK3).
 
 **Hops and steps are different units, and this was the substantive design
 question.** `remaining_steps` is `recursion_limit` minus graph-node transitions.
@@ -890,7 +890,7 @@ code that follows it is step 6.7.
 ### 0.27 — What Changed in 2.2.33 — the universal eight, and `PhaseState` gains `asks`
 
 **Two founder rulings, 2026-09-09, both prerequisites for step 6.12.** Full
-record: `docs/DECISIONS.md` Part AR.
+record: `docs/_archive/DECISIONS.md` Part AR.
 
 | Area | v2.2.32 | v2.2.33 |
 |---|---|---|
@@ -1602,7 +1602,7 @@ under *reading*, because step 2.6's twenty sites were all
 `response.content`. **The list-content fixture is the load-bearing
 half of this rule:** a string-content message passes the correct and
 the broken implementation identically, so a test built on one proves
-nothing. Full record: `docs/DECISIONS.md` Part AH2.
+nothing. Full record: `docs/_archive/DECISIONS.md` Part AH2.
 
 *Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §21.*
 
@@ -2550,7 +2550,7 @@ the coach in the response call that already runs every turn, and arrives as
 **The mechanical dict comparison this replaced could not work** — it read
 `store.get(..., current_phase)`, which `gate_apply` does not write until phase
 end, and it matched on field names where 38 of 41 fields are unique to one
-phase. Full analysis: `docs/DECISIONS.md` §R1. **Never reintroduce the
+phase. Full analysis: `docs/_archive/DECISIONS.md` §R1. **Never reintroduce the
 comparison.**
 
 **Why middleware rather than logic inside the executor node:** the check
@@ -2698,7 +2698,7 @@ Every attempt at every layer is logged to `step_log` as a dict (§10.3).
 The policy advisory does **not** only run at gate boundaries. It runs
 **before each coach response is returned to the Belt**.
 
-**Mechanics — semantic detection by the coach** (`docs/DECISIONS.md` §R1):
+**Mechanics — semantic detection by the coach** (`docs/_archive/DECISIONS.md` §R1):
 - **The coach compares** the Belt's input against the prior committed values
   already in its context, and sets `CoachingResponse.contradiction_flag`
   (§10.7) on a **material** contradiction. The instruction governing this
@@ -3823,14 +3823,14 @@ prefix.
 
 This file is amended only via:
 
-1. A new architectural decision recorded in `docs/DECISIONS.md` and stated in
+1. A new architectural decision recorded in `docs/_archive/DECISIONS.md` and stated in
    the `../AGENTIC_ARCHITECTURE_REFERENCE.md` section that owns the topic
 2. A commit to CLAUDE.md updating the relevant rule
 3. Increment to the version number at the top
 3b. **A new field on `SupervisorState`, `PhaseState` or `CoachingResponse`
    requires an amendment** — all three are load-bearing schemas (§10.1, §10.7)
 4. **A numbered `§0.x` change entry in this file**, saying what changed and
-   why. The reference's own change log lives in `docs/DECISIONS.md` plus a
+   why. The reference's own change log lives in `docs/_archive/DECISIONS.md` plus a
    one-line version note at its head — it has no change-log section, by design
    (`../AGENTIC_ARCHITECTURE_REFERENCE.md` §56 step 4)
 5. **If a rule number cited in `deprecated_patterns.yaml` changes, the
