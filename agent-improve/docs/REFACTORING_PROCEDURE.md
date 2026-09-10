@@ -1677,7 +1677,7 @@ accordingly.
 |---|---|---|
 | 1 | **Schema add** | The seven fields on the live index. Existing documents take `null` |
 | 2 | **Write path** | `_index_upload` writes all seven, with `fields=EVIDENCE_INDEX_FIELDS` on the vectorstore |
-| 3 | **Backfill** | Re-index every existing upload **from the case blobs**, which already hold `kind`, `summary`, `evidence_index_id` and the bytes a digest is computed from |
+| 3 | **Backfill** | Re-index every existing upload **from the case blobs**, which already hold `kind`, `summary`, `evidence_index_id` and the bytes a digest is computed from — **and, for a live document no blob record names, from the index's own `metadata`** (ruling 2 below) |
 | 4 | **Retrieval filters** | `search_evidence` defaults to `kind eq 'evidence'`; `rag_lookup_evidence` returns §24's structured record |
 
 **Why the order cannot change:**
@@ -1716,13 +1716,54 @@ works on `PhaseState` and the case blob alone and does not read the index.
 the case blob holds everything the index needs — which is the property that lets
 these two be sequenced rather than merged.
 
+### Three rulings taken at the implementation audit, 2026-09-10
+
+**The Done-when below was unsatisfiable as originally written**, and the audit
+that found it measured the live index and the stored blob JSON rather than the
+loaded models. All three are governance events under §23.5 and landed in their
+own doc-only commit **before** the code commit, on the ordering this step already
+uses for its own seven fields.
+
+**1 — Pre-6.12 uploads take `role = "unclassified (pre-ask-binding)"`.** New
+§23.2.1 row. `role`, `shape_match` and `content_digest` are absent keys in the
+stored JSON on every pre-6.12 record; what a loaded `UploadRecord` shows for them
+is a Pydantic default. The full reasoning, including why the sentinel is not
+`other evidence`, is at §23.2.1.
+
+**2 — The backfill's source widens to include the index's own `metadata`.**
+`IMPR-2026-E9D` holds one live document (`test_sipoc.png`, 2026-05-27) and **no
+upload record at all** — the case blob loads, carries all five phase records, and
+its `uploads` list is empty. A backfill sourced only from case blobs never visits
+that document, so it would keep `role = null` whatever sentinel were ratified:
+**the sentinel fixes a value problem and this is a missing-record problem.** Its
+`metadata` blob carries `filename`, `upload_phase` and `timestamp`, and its bytes
+survive at `uploads/IMPR-2026-E9D/test_sipoc.png`, so a real digest is computable
+without a case record. Following Part AQ4 finding 2 again — hiding a legacy
+document is the worse failure.
+
+**3 — A superseded document whose bytes are gone is DELETED, not backfilled.**
+`IMPR-2026-ED8` uploaded the same three files twice (08:09/08:10, then 10:23).
+The index kept both batches; blob storage kept one blob per filename, because
+`storage/blob.py` writes with `overwrite=True`. **The earlier bytes no longer
+exist**, so a digest for the 08:09 documents could only be computed from the
+10:23 bytes — writing the newer version's digest onto the older chunk, which is
+the exact version-identity claim `content_digest` exists to make, made falsely.
+§23.2's ratified rule already answers it: *supersession deletes; it does not
+flag*, and the index holds only current versions. These three predate 6.12's
+supersession path and survive only for that reason. **The case-blob record's
+`evidence_index_id` is nulled in the same pass**, or the blob points at a
+document that no longer exists.
+
 **Done when:** `azure-query` confirms all seven fields are present and
-filterable on `improve_evidence_index`; every pre-existing upload carries a
-`role`, a `kind` and a `content_digest` after the backfill; an artefact does not
-surface on an unfiltered evidence query (Part AP2 ruling 3's second binding
-condition, and a test rather than an observation); `rag_lookup_evidence` returns
-§24's structured record rather than rendered text; and a `live-run` confirms a
-Belt asking what the to-be process is now reaches the artefact.
+filterable on `improve_evidence_index`; every pre-existing upload **that survives
+the ruling-3 supersession sweep** carries a `role` — the §23.2.1 sentinel where
+it predates 6.12 — a `kind` and a `content_digest` after the backfill, **the
+document with no blob record included, backfilled from the index's own
+`metadata`**; an artefact does not surface on an unfiltered evidence query (Part
+AP2 ruling 3's second binding condition, and a test rather than an observation);
+`rag_lookup_evidence` returns §24's structured record rather than rendered text;
+and a `live-run` confirms a Belt asking what the to-be process is now reaches the
+artefact.
 
 ---
 

@@ -11,7 +11,7 @@
 | **Next** | step **6.13** — **The evidence index migration** |
 | **Stage** | Stage 6 — The coaching agent |
 | **Progress** | 30 of 55 build steps |
-| **Last spine commit** | `806a39d` (commit 6.11) |
+| **Last spine commit** | `bc34213` (commit 6.12) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.33 |
 | **Block regenerated** | 2026-09-10 |

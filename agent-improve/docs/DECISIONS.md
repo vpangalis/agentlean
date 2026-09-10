@@ -6557,3 +6557,122 @@ universal tool fails the test on the day it is added.
 > made its collision survivable is gone**, and whoever resolves G-33 must settle
 > the ceiling first rather than discovering this at bind time. Pinned in
 > `test_the_three_tool_counts_that_must_not_drift`.
+
+---
+
+## Part AT — Step 6.13's prerequisites: what the stored bytes said (2026-09-10)
+
+**Three founder rulings, all taken because 6.13's implementation audit found the
+ratified Done-when unsatisfiable.** Doc-only, landed before the code commit on
+the ordering 6.13 already uses for its own seven fields. **The audit measured the
+live index and the raw stored JSON**, and the second of those is what made the
+difference: two of the three rulings would have been decided the other way from a
+loaded `UploadRecord`.
+
+### AT1 — `unclassified (pre-ask-binding)` joins §23.2.1
+
+**Ruling.** A thirteenth vocabulary row, `kind: evidence`, phase `any`, carried
+only by documents uploaded before step 6.12 gave an upload an ask to answer.
+
+**THE PREMISE HELD, BUT NOT FOR THE REASON THE BRIEF GAVE.** The brief reasoned
+from `ask_id = None`. The stronger fact is that **`role`, `shape_match` and
+`content_digest` are absent KEYS** in the case blob's stored JSON on every
+pre-6.12 upload record — not empty, not null, absent:
+
+```
+KEYS PRESENT: ['ask_id', 'blob_path', 'classification', 'evidence_index_id',
+               'filename', 'interpretation', 'kind', 'refusal_reason', 'rows',
+               'summary', 'uploaded_at', 'uploaded_by', 'version']
+```
+
+Load one of those records and `role` reads `'other evidence'` and `shape_match`
+reads `'unsolicited'`. **Both are Pydantic defaults manufactured at load time.**
+An audit conducted against loaded models would have concluded the values were
+already correct and that no ruling was needed — and the backfill would then have
+written a fabricated role into a filterable field, which is §23.4's failure class
+arriving through the model layer instead of the write path.
+
+**Why not `other evidence`, which is what the default already produced.**
+§23.2.1 reads a rising count of `other` as the signal that the vocabulary needs
+extending. Backfilling legacy documents into that row raises the count without a
+Belt having chosen it once, and **the only signal that section relies on would
+then be measuring the migration.** The sentinel keeps the signal clean and says
+something true that `other evidence` does not: nobody classified this.
+
+`kind` is `evidence` on Part AQ4 finding 2's precedent — hiding a legacy document
+from evidence retrieval is the worse of the two available failures.
+
+### AT2 — The backfill reads the index's own `metadata` where no blob record exists
+
+**Ruling.** Sub-step 3's source widens from "the case blobs" to the case blobs
+plus, for any live document no blob record names, the document's own `metadata`.
+
+**`IMPR-2026-E9D` holds one live index document and zero upload records.** The
+case blob loads, carries all five phase records, and its `uploads` list is empty;
+the index holds `d7188cd2…` (`test_sipoc.png`, 2026-05-27). A backfill sourced
+only from case blobs never visits it.
+
+**This is why AT1 alone would not have closed the Done-when.** The sentinel fixes
+a *value* problem — what to write where nothing says. This is a *missing record*
+problem: with no record there is no visit, and the field stays `null` whatever
+value were ratified. The two were conflated in the brief and are separate.
+
+Its `metadata` carries `filename`, `upload_phase` and `timestamp`, and the bytes
+survive at `uploads/IMPR-2026-E9D/test_sipoc.png` (19,062 bytes, sha256
+`79ae0cba3e95be367cf6fee9f647ef94ae03636ce09c9c6403c77c400b12d35f`), so a real
+digest is computable with no case record at all.
+
+### AT3 — A superseded document whose bytes are gone is DELETED, not backfilled
+
+**Ruling.** The three 08:09/08:10 `IMPR-2026-ED8` documents are removed from the
+index, and the matching `evidence_index_id` is nulled on the case-blob record in
+the same pass.
+
+**`storage/blob.py` writes uploads with `overwrite=True`.** `IMPR-2026-ED8`
+uploaded `complaints.csv`, `cycle_times.xlsx` and `capability_report.pdf` at
+08:09/08:10 and again at 10:23. The index kept six documents; the container kept
+three blobs. **The earlier bytes are gone.**
+
+So `content_digest` for the 08:09 documents could only be computed from the 10:23
+bytes — **writing the newer version's digest onto the older chunk.** That is the
+precise claim the field exists to make, made falsely, and it would leave two
+documents asserting they are the same version of the same file.
+
+**§23.2 already answers this and needed no amendment:** *supersession deletes; it
+does not flag*, and the index holds only current versions with history living in
+the case blob. These three survive only because the supersession path landed at
+6.12, after they were written. Deleting them applies the existing rule to the
+backlog it predates.
+
+> **The alternative was to keep them with `content_digest` null.** Rejected: it
+> preserves three chunks that §23.2 says should not exist, and buys retrievability
+> of a superseded version that §23.2's `is_current` analysis already decided is
+> *arguably wrong behaviour rather than a feature*.
+
+### Recorded, not fixed
+
+**Sub-step 2 names a vectorstore that no code path uses.** It reads "`fields=`
+`EVIDENCE_INDEX_FIELDS` on the vectorstore", but `_index_upload` writes through a
+raw `SearchClient.upload_documents` and `search_evidence` reads through a raw
+`SearchClient.search`. **`get_evidence_vectorstore()` is defined at
+`knowledge/retriever.py:181` and called by nothing** — the fourth instance of the
+WATCH-19 shape, and the first where the thing declared-and-unread is a function
+rather than a field. §23.4's trap is therefore not armed on this path, but the
+sub-step as written instructs a change to a dead function.
+
+**One role/kind pair is already inconsistent in the stored data.**
+`process_steps.docx` persists `kind = 'artefact'` and, once loaded, presents
+`role = 'other evidence'` from the default — a pair §23.2.1 calls
+*unrepresentable*. It is latent rather than live: the record's
+`evidence_index_id` is `None`, artefacts are never indexed, so no query can
+return the contradiction today. It becomes real the moment anything derives
+`kind` from `role` for an existing record.
+
+**§56 step 3 has not been honoured by any of the last five amendments.** The
+procedure requires "increment to the version number at the top"; `ARCHITECTURE.md`
+still reads **Version 1.19.2 · 2026-09-01** across `c6566f4`, `bd0b4fe`,
+`29a744b`, `b90b9f2` and `bc34213`, two of which are explicit §56 amendments.
+**This commit follows the established practice rather than breaking the run**,
+and records the divergence instead of resolving it silently — the rule is not
+amended here (§8). Fifth consecutive commit is the point at which it stops being
+an oversight and becomes the de facto rule.

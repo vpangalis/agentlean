@@ -2367,6 +2367,7 @@ therefore unrepresentable rather than merely discouraged.
 | `control plan draft` | artefact | Control |
 | `other evidence` | evidence | any |
 | `other artefact` | artefact | any |
+| `unclassified (pre-ask-binding)` | evidence | any |
 
 **"Process map" is why the pairing exists.** An **as-is** map describes the world
 and is evidence; a **to-be** map is what the team designed and is an artefact.
@@ -2379,6 +2380,33 @@ vocabulary distinguishes the two at the point of declaration.
 must still be able to upload it, and **forcing a wrong role is worse than an
 honest catch-all**. A rising count of `other` is the signal that the vocabulary
 needs extending.
+
+#### `unclassified (pre-ask-binding)` is a MIGRATION SENTINEL, not a thirteenth role
+
+**Ratified 2026-09-10**, when step 6.13's implementation audit found the ratified
+Done-when unsatisfiable as written. It marks a document uploaded **before step
+6.12 gave an upload an ask to answer**, and nothing else may carry it.
+
+**The premise was verified against the stored bytes, not against a loaded
+model.** `role`, `shape_match` and `content_digest` are **absent keys** in the
+case blob's JSON on every pre-6.12 upload record. The `other evidence` and
+`unsolicited` that appear when such a record is loaded are **Pydantic defaults
+manufactured at load time** — read them as evidence of a stored value and the
+migration writes a fabricated role into a filterable field. There is nothing in
+the tree from which a real role can be derived for these documents.
+
+**It is distinct from `other evidence` on purpose, and the reason is the signal
+above.** `other evidence` is a Belt's honest *"this fits nothing"*, and this
+section reads a rising count of it as the trigger to extend the vocabulary.
+Backfilling legacy documents into that row would raise the count without a Belt
+having chosen it once, and **the only signal this section relies on would then be
+measuring the migration** rather than the corpus.
+
+**Its `kind` is `evidence`, following Part AQ4 finding 2** — of the two available
+failures, hiding a legacy document from evidence retrieval is the worse. **No
+document may be given this role after 6.13's backfill.** A new upload has either
+an ask or a declared purpose, and both yield a real role; a sentinel appearing on
+a post-6.13 upload is a defect in the write path, not a classification.
 
 > **Extending this vocabulary is a GOVERNANCE EVENT, not a code change.** A new
 > row is a §56 amendment to this section, because `role` is a filter value that
