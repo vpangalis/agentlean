@@ -143,6 +143,11 @@ A step is done when its **Verify** method passes and its **Done when**
 condition is observably true. Not when the code is written. Not when it looks
 right.
 
+**Push after every commit that passes the five guard rules** — the hooks already
+gate quality, so an unpushed commit buys no safety and carries only risk:
+`start.ps1` does `git reset --hard origin/main` and destroys it. Ruled
+2026-09-10, after 6.12 landed with `main` ten commits ahead.
+
 ### Numbering
 
 **The commit spine continues from 2.2**, the last completed step under the old
