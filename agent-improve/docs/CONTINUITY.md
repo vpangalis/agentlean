@@ -35,7 +35,7 @@ CLAUDE.md rule it enforces — and blocks a write that reintroduces a
 superseded API or hand-rolls a framework primitive; it is fail-OPEN, because
 a broken editing hook must never wedge work mid-change. The **commit-msg
 guard** is the opposite, fail-CLOSED: a `refactor(arch-v2)` commit needs all
-five of a well-formed subject, a staged `BUILD_TRACKER.md`, a staged
+a well-formed subject, a staged
 `CONTINUITY.md` whose status block is current, mypy clean against the pinned
 `.venv` (new errors block; pre-existing ones are baselined as DEBT that only
 ever shrinks), and pytest green. The **pre-commit** hook regenerates this
@@ -88,7 +88,7 @@ orientation document.
 
 v4.10 delta (2026-08-31): **CURRENT BUILD STATUS block added at the top, and
 it is GENERATED, not written.** `.githooks/pre-commit` regenerates it from
-BUILD_TRACKER.md, CLAUDE.md, ARCHITECTURE.md and the git spine and stages
+git log, Appendix D, CLAUDE.md and ARCHITECTURE.md and stages
 this file; the commit-msg guard gains **rule 5**, which blocks a
 `refactor(arch-v2)` commit whose block is missing or stale. The title line
 said `Version 4.7` while this header said 4.9 — that is the drift the block
@@ -1299,7 +1299,7 @@ whether still owed.
   | Owed work that is not a gap | **WATCH** in §6 of this file |
   | Ratified decision | `DECISIONS.md` |
   | The reasoning behind it | `REVIEW_DECISIONS.md` |
-  | New or changed step | `BUILD_TRACKER.md` **and** `REFACTORING_PROCEDURE.md` |
+  | New or changed step | `REFACTORING_PROCEDURE.md` (the step spec **and** Appendix D) |
 
   **Desktop drafts; Claude Code commits it in the same step** — not in a
   follow-up pass. A decision that lives only in a commit body is one the next
@@ -1316,7 +1316,7 @@ whether still owed.
 per commit.** Where a run of commits was made without one, the coverage is
 recorded here instead of by amending them — **rewriting landed history to add
 provenance costs more than it records**, and every hash below is already cited
-by a `DECISIONS.md` Part, a `BUILD_TRACKER` row or Appendix D.
+by a `DECISIONS.md` Part or an Appendix D row.
 
 | Session | Covers | Note |
 |---|---|---|

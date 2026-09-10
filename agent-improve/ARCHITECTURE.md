@@ -2228,8 +2228,7 @@ than "uploaded files" suggests.
 | `content_digest` | String | **APPLIED 2026-09-10, step 6.13.** **Filter.** SHA-256 of the uploaded bytes. **Version identity** — the same bytes re-uploaded are not a new version |
 | `shape_match` | String | **APPLIED 2026-09-10, step 6.13.** **Filter.** `full`, `partial`, `none` or `unsolicited` — whether the file matched the ask's expected shape. Paired with `missing_columns` in `metadata` |
 
-**All twelve fields are live as of 2026-09-10** (step 6.13, commit recorded in
-`docs/BUILD_TRACKER.md`). The prohibition this paragraph carried — *"the live
+**All twelve fields are live as of 2026-09-10** (step 6.13). The prohibition this paragraph carried — *"the live
 index is the first five fields and code must not reference the other seven"* —
 is **discharged**, and `azure-query` confirmed each of the seven present and
 filterable on `improve_evidence_index`, with a live `kind eq 'evidence'` filter

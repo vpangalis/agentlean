@@ -43,9 +43,7 @@ therefore 1, 2b, 3, 4, 5.
 
   5. CONTINUITY — `agent-improve/docs/CONTINUITY.md` is staged AND its CURRENT
      BUILD STATUS block matches what regeneration from the staged inputs
-     produces. Same rule as 2, and for the same reason: one step, one commit,
-     and the two orientation documents move with it. BUILD_TRACKER.md is the
-     checklist; CONTINUITY.md is what a new session reads first, and a
+     produces. CONTINUITY.md is what a new session reads first, and a
      first-read document that lags the build is worse than one that is merely
      terse — it is confidently wrong. Its own title line read `Version 4.7`
      while its header comment said 4.9, which is the drift this ends.
@@ -458,9 +456,10 @@ def check_continuity(root: str, staged: list[str]) -> None:
     if _strip_date(found) != _strip_date(expected):
         fail(
             "CONTINUITY.md's CURRENT BUILD STATUS block is STALE",
-            "The staged block does not match what the staged BUILD_TRACKER.md,",
-            "CLAUDE.md and ARCHITECTURE.md produce. It is derived, so the block",
-            "is wrong by construction rather than merely out of date.",
+            "The staged block does not match what git log, Appendix D of",
+            "REFACTORING_PROCEDURE.md, CLAUDE.md and ARCHITECTURE.md produce.",
+            "It is derived, so the block is wrong by construction rather than",
+            "merely out of date.",
             "",
             "Staged:",
             *[f"  {ln}" for ln in _strip_date(found).splitlines()

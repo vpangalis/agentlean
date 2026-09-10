@@ -3,8 +3,8 @@ Document: agent-improve/docs/ARCHITECTURE_STATUS.md
 Created: 2026-09-08 (step 6.8's governance commit)
 Purpose: The REPO-SIDE SOURCE for the board's architecture panel. What exists in
          the tree, drawn as containers and control points rather than as steps.
-         BUILD_TRACKER.md answers "how far along the spine are we"; this answers
-         "what is actually wired, and where are the holes".
+         Appendix D plus git log answer "how far along the spine are we"; this
+         answers "what is actually wired, and where are the holes".
 Rule:    Verified against the tree, never from memory or from a document. Every
          figure here was read out of the code on the date in the header.
 Guard:   `.claude/hooks/commit-msg-refactor-guard.py` rule 2 requires this file
@@ -18,7 +18,7 @@ Legend:  ✅ built · ⚠️ built with a known defect · ☐ not built · ⛔ b
 # every count below is reproduced by a command in «Re-running the counts»
 
 **This is what exists, not what is specified.** `ARCHITECTURE.md` is the build
-target; `BUILD_TRACKER.md` is the spine's progress; this is the standing answer
+target; Appendix D plus git log are the spine's progress; this is the standing answer
 to *"is that thing actually wired?"* — the question the coverage audit had to
 reconstruct by hand because nothing recorded it.
 

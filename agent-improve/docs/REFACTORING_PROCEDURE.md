@@ -99,10 +99,20 @@ agrees. The horizontal order then runs 2.5 → 3.3 → 3.4.
 
 ## About this document
 
-`../../AGENTIC_ARCHITECTURE_REFERENCE.md` describes **the target**. `CLAUDE.md` states **the
-rules**. This document is **the route** — the ordered, verifiable sequence of
-commits that gets the codebase from where it is to where the reference says it
+`../ARCHITECTURE.md` describes **the target**. `CLAUDE.md` states **the rules**.
+This document is **the route** — the ordered, verifiable sequence of commits
+that gets the codebase from where it is to where the architecture says it
 should be.
+
+> **Corrected 2026-09-10.** These three lines named
+> `../../AGENTIC_ARCHITECTURE_REFERENCE.md` as the target, which the founder
+> ruling of **2026-08-27** superseded: `agent-improve/ARCHITECTURE.md` is the
+> authoritative build target for every step. The correction was carried as an
+> open item in `BUILD_TRACKER.md` — *"Procedure framing … Annotate"* — from
+> 2026-08-27 until that file was deleted, and is applied here rather than moved
+> to another list. **The root reference still binds at the platform level** and
+> is what a back-port owes once Improve settles (§0.12); it is simply not what
+> a step here is built against.
 
 **It contains no design.** Every *what* and every *why* is a reference citation.
 Where this document appears to state a design decision, the reference section named
@@ -113,8 +123,9 @@ in the step is authoritative and this document is a bug.
 | Document | Answers | Binding? |
 |---|---|---|
 | `agent-improve/CLAUDE.md` | **What the rule is** | **Yes** |
-| `../../AGENTIC_ARCHITECTURE_REFERENCE.md` | **How the system is shaped, and why** | **Yes** |
+| `../ARCHITECTURE.md` | **How the system is shaped, and why** — the build target | **Yes** |
 | This document | **In what order it gets built, and how each step is proved** | **Yes** |
+| `../../AGENTIC_ARCHITECTURE_REFERENCE.md` | The platform-level shape, across all three agents | Yes, at platform level — **not what a step is built against** |
 
 `../ARCHITECTURE.md` is **no longer the v2.2.16 design document** — since
 2026-08-22 that path holds a copy of the root reference, Improve's own
@@ -143,10 +154,59 @@ A step is done when its **Verify** method passes and its **Done when**
 condition is observably true. Not when the code is written. Not when it looks
 right.
 
-**Push after every commit that passes the five guard rules** — the hooks already
+**Push after every commit that passes the guard rules** — the hooks already
 gate quality, so an unpushed commit buys no safety and carries only risk:
 `start.ps1` does `git reset --hard origin/main` and destroys it. Ruled
 2026-09-10, after 6.12 landed with `main` ten commits ahead.
+
+### The drift defences on the spine
+
+*Moved here from `BUILD_TRACKER.md` when that file was deleted, 2026-09-10, and
+corrected on the way: its copy still listed the retired rule 2 as binding. The
+authority is the guard's own docstring —
+`.claude/hooks/commit-msg-refactor-guard.py` — and this table is a reader's
+summary of it.* Activate per clone with `git config core.hooksPath .githooks`.
+
+| # | Rule |
+|---|---|
+| 1 | Subject is exactly `refactor(arch-v2): commit X.Y — <what changed>` |
+| ~~2~~ | **Retired 2026-09-10.** Required `BUILD_TRACKER.md` and this file staged together. The tracker is gone and completion is read from git log, so a landing step moves no row in either. The number is deliberately not reused |
+| 2b | `ARCHITECTURE_STATUS.md` is staged whenever the commit touches a path it tabulates. **Binds on EVERY commit**, not only spine commits |
+| 3 | **mypy** over the changed Python against the pinned `.venv` — new errors block; existing ones are baselined in `.claude/config/mypy-baseline.txt` |
+| 4 | **pytest** green |
+| 5 | **`CONTINUITY.md`** is staged and its CURRENT BUILD STATUS block is current |
+
+Fail-closed; every refusal prints `git commit --no-verify`. **The baseline is
+DEBT and should only ever shrink** — never widen it to silence a new error.
+
+**Rule 5 is normally satisfied for you.** `.githooks/pre-commit` regenerates the
+status block from git log, Appendix D and the two version lines, then stages it.
+That writer is fail-SOFT, because a hook that writes must never wedge a commit;
+rule 5 behind it is fail-CLOSED and catches the cases where it did not run —
+`core.hooksPath` unset in a fresh clone, a `--no-verify` retry leaving a stale
+block staged, or a hand-edited block.
+
+### Verification owed, and by which steps
+
+**A step whose `Verify` names `live-run` can be complete in code and incomplete
+in proof.** Appendix D's status column cannot say so — it carries only what git
+cannot supply, and "the code landed" is exactly what git does supply. So the
+list lives here.
+
+| Step | Owed | State |
+|---|---|---|
+| 6.7 | `live-run` | Owed — never run |
+| 6.9 | `live-run` | Owed — never run |
+| 6.12 | `live-run` | Owed — never run |
+| 6.13 | `live-run` | **Attempted and FAILED**, cause isolated to code 6.13 did not touch — see its section |
+
+**All four run through the same path, and that path currently times out.** The
+executor loops on `rag_lookup_evidence` instead of calling the
+`load_evidence_series` its own planner named, so no Define turn on
+`IMPR-2026-ED8` completes (`ARCHITECTURE.md`'s gap register, and 6.13's
+section). The first three were recorded as owed on the assumption that running
+them was merely pending. **It is not pending; it is blocked**, and until
+2026-09-10 none of the three said so.
 
 ### Numbering
 
@@ -1882,12 +1942,31 @@ exactly what this project keeps losing.
 | **Appendix D** | every step, its status, **zone**, **impact**, and the total |
 | **`ARCHITECTURE_STATUS.md`** | the eight blocks, the control points, built states, **and each unbuilt row's closing step** |
 | **`ARCHITECTURE.md` §66** | the gap register, for blocked reasons |
-| **`BUILD_TRACKER.md`** | the ▶ cursor |
+| **git log** | **which steps have landed** — the `refactor(arch-v2): commit X.Y` subjects |
+
+> **⚑ AMENDED 2026-09-10 and the amendment reverses one of this step's own
+> premises.** The fourth input read `BUILD_TRACKER.md` for *"the ▶ cursor"*.
+> **That file is deleted and the cursor no longer exists**: completion is the
+> highest spine subject in git log, and `next` is the lowest available Appendix
+> D row above it.
+>
+> **The constraint below explicitly forbade reading git log**, on the grounds
+> that it would *"report something no reviewer ratified"*. That reasoning does
+> not survive contact with what replaced it. **A commit subject is the most
+> reviewed artefact this project produces** — rule 1 of the commit-msg guard
+> refuses a malformed one, so a spine subject cannot enter history without
+> passing a check, which is more than any hand-typed `▶` ever had to do. The
+> alternative the constraint was protecting fired wrong twice (2026-09-08 on
+> step 7.1, 2026-09-10 on step 6.16) because it read English prose.
+>
+> **What the constraint still forbids stands**: no reaching into the CODE, and
+> no figure on the board that traces to nothing. Git history is a ratified
+> record, not an inference from the tree.
 
 **Reading nothing else is a constraint, not a description of one.** A generator
-that reached into git log, or into the code, would report something no reviewer
-ratified. **Every figure on the board must trace to a line in a document a human
-approved** — which is the same rule §55.1 applies to references and the reason
+that reached into the code would report something no reviewer ratified.
+**Every figure on the board must trace to a line a human approved** — which is
+the same rule §55.1 applies to references and the reason
 the board can be trusted at a glance.
 
 **Writes `docs/board.html`** — four containers:
@@ -2626,11 +2705,24 @@ infrastructure noise. **Read both before finalising §52.**
 
 ## Appendix D — Step index
 
-> **Machine-readable. The session-start hook parses this table.**
+> **Machine-readable. Two hooks parse this table.**
 > Format is fixed: `| **Commit X.Y** | <title> | <status> |`. Do not reformat
-> without updating `.claude/hooks/session-start-context.py` in the same commit
-> (CLAUDE.md §0.2 applies to hooks that read documents, not only to rule
-> numbers).
+> without updating `.claude/hooks/session-start-context.py` AND
+> `.claude/hooks/continuity_status.py` in the same commit (CLAUDE.md §0.2
+> applies to hooks that read documents, not only to rule numbers).
+>
+> **The status column carries only what git cannot say** — `BLOCKED`, `GATED`,
+> `EXTERNAL`. It is EMPTY for every schedulable step, done or not: completion
+> is the highest `refactor(arch-v2): commit X.Y` in git log, and a status cell
+> claiming it would be a second, hand-maintained source for a fact git already
+> owns. Both readers match the cell with `[A-Za-z]*` — **the star is
+> load-bearing**, because with `+` an empty cell fails to match and the row
+> vanishes from the parse entirely.
+>
+> **A step that lands under any other subject is invisible to this scheme.**
+> Give it `EXTERNAL` (or `BLOCKED` / `GATED`) so the pointer does not stop on
+> it forever — that is what 9.0 carries, having landed as
+> `feat(knowledge): 871637f`.
 
 > **⚠ A NEW STEP MUST BE NUMBERED ABOVE THE LAST COMPLETED ONE, OR IT IS
 > STRUCTURALLY INVISIBLE.** `get_next_step_from_procedure` selects the lowest
@@ -2645,46 +2737,8 @@ infrastructure noise. **Read both before finalising §52.**
 > Version keys are numeric tuples, so `6.10 > 6.9 > 6.7`. That is `_ver_key`'s
 > documented purpose — *"so 2.10 > 2.2"* — and is safe to rely on.
 
-> **THE TOTAL: 55 ROWS. THIS TABLE IS AUTHORITATIVE.** `BUILD_TRACKER.md` and
-> `CONTINUITY.md` carried *"of 35 build steps"* until 2026-09-07; that figure
-> was a hand-count that was never reconciled against this table and was already
-> wrong by five rows before the audit added eight more. **Where the two
-> disagree, this table wins** — it is the one the hook reads, and a
-> hand-maintained total that drifts is the same class of defect as a WATCH
-> pointing at a step that does not exist. Both documents now derive their
-> figure from here and state the derivation.
->
-> **55 = 30 done + 22 pending + 2 BLOCKED (6.10, 8.4) + 1 GATED (8.5)** as of
-> 2026-09-10. Of the 22 pending, 9.1 is EXTERNAL (an Azure-side reindex, now
-> narrowed to the case index). So **21 steps are schedulable code work**, and 8.4 and 8.5 cannot
-> be scheduled until Redis is provisioned and `request_drain()` is confirmed.
->
-> **54 → 55 on 2026-09-10**: the board gets a generator (6.16). It is READY —
-> nothing blocks it — and it is scheduled rather than done ad hoc because the
-> board is the artefact a founder reads and the only one still made by hand.
-> Appendix D gains a `Zone` column, which is the sole new information the
-> board needs; everything else it shows is already in a tracked document.
->
-> **52 → 54 on 2026-09-10**: step 6.12 surfaced two pieces of work it could not
-> honestly absorb. **6.14** carries the SKILL.md shape pass for the four phases
-> 6.12 did not do — scheduled rather than assumed, because four-fifths of a
-> content pass silently owed is this project's recurring disease — and it
-> carries §23.2.1's vocabulary extension with it, once, with complete
-> information. **6.15** is the count-check: hand-written assertions that a
-> written count matches the list it describes, after Part AR3 found the third
-> caption to outlive its own list. `DECISIONS.md` Part AS.
->
-> **51 → 52 on 2026-09-09**: the evidence index migration got its own step — 6.13,
-> the seven §23.2 fields, their write path, a backfill from the case blobs and the
-> retrieval filters. **It is a step rather than a rider on 9.1 because adding a
-> field to a live index is additive and needs no rebuild**, which 9.1's framing
-> had assumed was untrue. `DECISIONS.md` Part AQ.
->
-> **49 → 51 on 2026-09-08**: the evidence channel got its two steps — 6.11 the
-> upload path (G-36) and 6.12 the ask-binding. **The twelfth unstepped section**,
-> and the one the coverage audit could not see, because it *had* a spec entry
-> (S-F35) carrying an open gap; what nobody had checked was what the live route
-> does. `DECISIONS.md` Part AP.
+> **The total is the row count.** Why a row was added is in the commit that
+> added it.
 
 | Step | Title | Status |
 |---|---|---|

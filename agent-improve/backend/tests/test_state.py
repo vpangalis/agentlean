@@ -158,8 +158,7 @@ def test_phase_state_has_exactly_twenty_two_declared_fields() -> None:
     `artifacts`.
 
     Note for reviewers: this asserts the count in the AUTHORITATIVE BUILD
-    TARGET, `agent-improve/ARCHITECTURE.md` (founder ruling 2026-08-27, named
-    in BUILD_TRACKER.md's header). The ROOT reference's §6/S-C02 still says
+    TARGET, `agent-improve/ARCHITECTURE.md` (founder ruling 2026-08-27). The ROOT reference's §6/S-C02 still says
     nineteen — it predates `rejection_feedback` (§0.17) and `remaining_steps`
     (§0.16) and rides the deferred back-port (§0.12). Step 3.1 was built
     against the root and was two fields short; corrected here.
