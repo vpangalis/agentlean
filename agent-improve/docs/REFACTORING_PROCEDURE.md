@@ -1,6 +1,6 @@
 # Agent Improve — Refactoring Procedure
 **AgentLean Platform · DMAIC Improvement Agent**
-Version 1.2 · 2026-08-22
+Version 1.3 · 2026-09-10
 Status: **RATIFIED.** The ordered path from the v1 tree to the target in
 `../ARCHITECTURE.md`.
 
@@ -2571,6 +2571,44 @@ already written the correct way in every case.
 # Appendices
 
 ---
+
+---
+
+## Change log
+
+**Same discipline as `ARCHITECTURE.md` §56: an amendment to this document
+increments the version at the top and adds an entry here.** Added 2026-09-10,
+and the reason is the gap it closes — **this document sat at `Version 1.2 ·
+2026-08-22` while the architecture moved through five versions.** A plan that
+never changes while the spec it implements moves is not stable; it is
+unwatched, and that is how the two came to disagree in ways only a cross-check
+could find.
+
+**v1.3 (2026-09-10)** — **The document collapse, Parts 1–5.** **(A) Completion
+is read from git log**, not from a status column: `BUILD_TRACKER.md` is deleted,
+guard rule 2 is gone and its number is not reused, and Appendix D's status
+column carries only `BLOCKED` / `GATED` / `EXTERNAL` — empty for every
+schedulable step, done or not. Step 9.0 carries `EXTERNAL`, which resolves the
+out-of-band wrinkle on its own terms rather than by a completion claim the
+tooling must be taught to ignore. **(B) The landed count is `git ∩ Appendix D`**
+— it fell 31 → 30 because 9.0 shipped as `feat(knowledge): 871637f` and the
+derived figure cannot see it. No work was lost. **(C) The build target is
+`../ARCHITECTURE.md`**, corrected in the status line and the three-document
+table; the root reference binds at platform level and is not what a step is
+built against. **(D) The drift-defence table and the live-run debt moved here**
+from the deleted tracker, the table corrected on the way because its copy still
+listed the retired rule 2. **(E) `docs/` now holds this file, `CONTINUITY.md`
+and `_archive/`.** `DECISIONS.md`, `ARCHITECTURE_STATUS.md` and
+`REFACTORING_AGENT_IMPROVE.md` are archived; the built markers they carried are
+now `> **BUILT:**` lines on the items they describe (ARCHITECTURE.md §55.2),
+re-run by `.claude/hooks/verify_built.py`. **(F) Appendix A's cross-check was
+re-run in both directions** for the first time since 2026-09-07 — **four
+mismatches found and none silently fixed**, because a disagreement between the
+plan and the spec is a founder decision. They are listed in the commit that
+records this entry: Appendix A is four rows short (6.13–6.16 have no row at
+all, not the two the brief expected); §62's fifteen spec entries are cited by
+no step; §57, §59, §61 and §64 are cited only glancingly; and 38 of 44 open
+gaps are never named here, so nothing schedules their closure.
 
 ## Appendix A — Traceability matrix
 
