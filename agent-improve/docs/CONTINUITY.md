@@ -11,7 +11,7 @@
 | **Next** | step **6.14** — SKILL.md shape pass — Define, Analyse, Improve, Control |
 | **Spine steps landed** | 30 of 55 |
 | **Last spine commit** | `1396627` (commit 6.13) |
-| **ARCHITECTURE.md** | v1.19.2 |
+| **ARCHITECTURE.md** | v1.20 |
 | **CLAUDE.md** | v2.2.33 |
 | **Block regenerated** | 2026-09-10 |
 
