@@ -1,6 +1,6 @@
 # Agent Improve — Refactoring Procedure
 **AgentLean Platform · DMAIC Improvement Agent**
-Version 1.5 · 2026-09-10
+Version 1.6 · 2026-09-10
 Status: **RATIFIED.** The ordered path from the v1 tree to the target in
 `../ARCHITECTURE.md`.
 
@@ -1855,6 +1855,177 @@ artefact.
 
 ---
 
+## Step 6.14 — The SKILL.md shape pass: Define, Analyse, Improve, Control
+
+| | |
+|---|---|
+| **Reference §** | §32 · §43 · §23.2.1 |
+| **Touches** | `skills/dmaic-{define,analyse,improve,control}-phase/SKILL.md` · `backend/upload/asks.py` (`SHAPES_BY_PHASE`) · `ARCHITECTURE.md` §23.2.1 (the vocabulary extension) |
+| **Precondition** | 6.12 |
+| **Verify** | `pytest` |
+
+> ### ⛔ THIS SPECIFICATION IS INCOMPLETE BY DESIGN. It needs founder content before it can be built.
+>
+> **Everything below the "What the founder owes" heading is a SHAPE, not a
+> plan.** The mechanism is settled — 6.12 built it for Measure and it works —
+> but **the content is Black Belt domain judgment and inventing it would be the
+> worst possible way to fill this section.** A wrong `expected_shape` does not
+> fail loudly: it produces an ask the Belt cannot satisfy, or accepts a file
+> that answers a different question, and either way the coach proceeds
+> confidently. Written 2026-09-10 to stop the step existing as a title with
+> nothing behind it (it had an Appendix D row and no section for two days).
+
+### What this step is
+
+**6.12 did Measure only, and said so.** `SHAPES_BY_PHASE` in
+`backend/upload/asks.py` carries `MEASURE_SHAPES` and four empty dicts. The
+planner derives an ask when it routes to a field with a declared shape, so a
+phase with no declared shapes **opens no asks at all** — Define, Analyse,
+Improve and Control currently cannot ask a Belt for data, and nothing says so
+to the Belt or to the coach.
+
+**Scheduled rather than assumed**, because four-fifths of a content pass
+silently owed is this project's recurring failure and 6.12 chose not to repeat
+it.
+
+### The mechanism, which is NOT in question
+
+Settled at 6.12 and unchanged here:
+
+- A shape is keyed by **the coached field it answers**, and carries `role`,
+  `columns`, `unit`, `period` and `rule`.
+- **The ASK is keyed on `role`, never on field** (§6 / S-C02) — several fields
+  may draw on one dataset, and per-field asks would open several requests for
+  one upload.
+- `role` must come from **§23.2.1's ratified vocabulary**. A role invented in
+  code is a value no query filters on and no reviewer can see.
+- **The SKILL.md prose and the declared shape must agree**, and that agreement
+  is asserted, not assumed — `test_the_measure_skill_table_and_MEASURE_SHAPES_agree`
+  is the pattern to copy per phase.
+
+### What the founder owes, and it is the whole content of this step
+
+**1 — WHICH COACHED FIELDS IN EACH OF THE FOUR PHASES ARE ANSWERED BY A FILE.**
+Measure has three of ten (§39.2.2). The equivalent list for Define (§39.1.2),
+Analyse (§39.3.2), Improve (§39.4.2) and Control (§39.5.2) is a judgment about
+what a Belt actually brings to a coaching session, and it is not derivable from
+the schemas — a field can be data-bearing and still be something the Belt
+states rather than uploads.
+
+**2 — FOR EACH SUCH FIELD, THE EXPECTED SHAPE.** `columns` as descriptions
+rather than literal headers (a real export says `invoice_id`, not
+`identifier`), `unit` — `None` where it comes from `metric_definitions`, since
+the primary metric's unit is a project value and hardcoding it makes the
+SKILL.md wrong for every project whose metric differs — `period`, and the
+`rule` that makes a file usable rather than merely present. Measure's *"one row
+per observation, never pre-aggregated"* is the model: **a rule that rules
+something out.**
+
+**3 — THE §23.2.1 VOCABULARY EXTENSION, ONCE, WITH COMPLETE INFORMATION.**
+6.12 found the vocabulary has **no role for a measurement-system study** — GR&R
+is not a capability study — and used `other evidence` as an honest placeholder
+rather than inventing a row. The four-phase pass is where every missing role is
+visible at the same time, which is why the extension was deferred to here
+rather than taken four times. **Extending §23.2.1 is a governance event** (§56
+amendment, and §23.5 requires it to land in `ARCHITECTURE.md` first).
+
+> **What must NOT happen here:** shapes reverse-engineered from the schema field
+> names, roles chosen to fit the existing vocabulary rather than the document,
+> or a phase given an empty dict "for now". The third is how Measure-only became
+> a four-phase debt in the first place.
+
+### Done when
+
+`SHAPES_BY_PHASE` carries a non-empty, founder-ratified shape set for all five
+phases; each of the four SKILL.md files coaches those exact fields in
+`field_index` order (§39.x.2) with the shape stated in its Uploads section;
+**one test per phase asserts the SKILL.md table and the declared shapes agree**
+— no model, no network; every `role` used resolves to a row in §23.2.1, with
+any new row landed in `ARCHITECTURE.md` first as a §56 amendment; and
+`other evidence` appears only where the founder ruled it the honest answer.
+
+---
+
+## Step 6.15 — The count-check: a written count against the list it describes
+
+| | |
+|---|---|
+| **Reference §** | §55.1 · §6 / S-C02 · §29.2 |
+| **Touches** | `backend/tests/test_document_counts.py` (new) |
+| **Precondition** | none — **READY** |
+| **Verify** | `pytest` |
+
+### The defect this closes
+
+**A caption that outlived its own list, three times, and every one was found by
+editing the thing beside it rather than by any check.**
+
+| # | Where | What it said | What was true |
+|---|---|---|---|
+| 1 | The tracker row (Part AP6) | a stale count | the list beneath it |
+| 2 | The 6.9 row's badge | "1 of 5 SKILL.md files" | all five existed |
+| 3 | `CLAUDE.md` §10.1's caption (Part AR3) | *"Nineteen author-populated fields — two identity, three plumbing, fourteen content — plus one engine-managed value, twenty declared"* | the list directly beneath carried **fifteen** content fields, and §0.17's own table said 21 / 22 |
+
+Instance 3 is the one that names the class: **the file disagreed with itself
+four hundred lines apart**, and had done since `rejection_feedback` landed at
+2.2.23. **Nothing in this project verifies that a count written in prose matches
+the list it describes** — and all three were in documents whose §55.1 rule is
+that references resolve.
+
+> **§55.1 is bidirectional for REFERENCES and silent on COUNTS.** *"Every gap
+> marked inline has a row here, and every row here has an inline marker"* is
+> checkable and checked. *"Twenty-one author-populated fields"* is a claim about
+> a list two paragraphs down, and nothing looks.
+
+### Not the same check as `verify_built.py`, and the boundary is the point
+
+`.claude/hooks/verify_built.py` (§55.2) compares a claim in `ARCHITECTURE.md`
+against **the tree** — *are there really twenty computation tools?* **This step
+compares a claim against the LIST IN THE SAME DOCUMENT** — *does the sentence
+saying "twenty-one" sit above twenty-one rows?*
+
+**Both failures have occurred and neither catches the other.** A caption can be
+wrong while the tree is right (instance 3: the code had 21 fields, the prose
+said 19), and the tree can drift while the prose stays internally consistent.
+
+### What to assert
+
+**Hand-written assertions, one per counted claim, in one test file. No model,
+no network** — the AR3 class of check, and the same class as 6.12's
+`test_the_measure_skill_table_and_MEASURE_SHAPES_agree`.
+
+The two named in this step's Reference §, and the ones AR3 lists:
+
+- **§6 / S-C02's author-populated sentence against S-C02's field-table rows**,
+  and against `PHASE_STATE_AUTHOR_POPULATED_FIELDS` in `core/substate.py` —
+  which already exists precisely so the count in §6 and the count in the code
+  cannot drift apart silently, and is asserted by `test_state.py`. This step
+  adds the third corner: the PROSE.
+- **§29.2's universal count against the S-F entries that define those tools** —
+  the count moved from seven to eight on 2026-09-09 and was carried through 17
+  occurrences by hand.
+- **`CLAUDE.md` §10.1's caption against the field list beneath it**, and
+  §0.17's table against both.
+- **§30's per-phase tool totals against `COMPUTATION_TOOLS_BY_PHASE`.**
+- **§66's "N gaps identified, M closed, K open" against the register's rows** —
+  that line has been corrected by hand at least twice.
+
+> **A count with no list is out of scope.** This check compares a written figure
+> to an enumeration in the same document. Where a figure describes the tree
+> instead, it belongs in `verify_built.py`, and the two must not both claim it —
+> a fact checked in two places is the condition the 2026-09-10 document collapse
+> exists to remove.
+
+### Done when
+
+`pytest` carries one assertion per counted claim above; **each failure message
+names the sentence and the list it disagrees with**, so a failure is actionable
+without reading the test; a deliberate off-by-one introduced into any counted
+sentence fails the suite (mutation-checked, per the 5.3 and 5.4 precedent); and
+no assertion duplicates one `verify_built.py` already makes.
+
+---
+
 ## Step 6.16 — The board is generated, not written
 
 | | |
@@ -2571,6 +2742,23 @@ and the reason is the gap it closes — **this document sat at `Version 1.2 ·
 never changes while the spec it implements moves is not stable; it is
 unwatched, and that is how the two came to disagree in ways only a cross-check
 could find.
+
+**v1.6 (2026-09-10)** — **6.14 and 6.15 gain the specifications they never
+had.** Both existed as an Appendix D row and a title, with no section — found
+by v1.5's work on Appendix A, where they were the two rows whose Reference §
+had to be inferred rather than transcribed. **6.15 is complete**: the
+count-check, its three recorded instances, the five claims to assert, and the
+boundary against `verify_built.py` — that script compares a claim to the TREE,
+this compares a claim to the LIST IN THE SAME DOCUMENT, and both failures have
+occurred without either catching the other. **6.14 is deliberately INCOMPLETE
+and says so in its own first block.** The mechanism is settled — 6.12 built it
+for Measure — but the content is Black Belt domain judgment: which coached
+fields in Define, Analyse, Improve and Control are answered by a file, the
+expected shape of each, and §23.2.1's missing role for a measurement-system
+study. **A wrong `expected_shape` does not fail loudly** — it produces an ask
+the Belt cannot satisfy, or accepts a file answering a different question, and
+the coach proceeds confidently either way. The section states what the founder
+owes and stops there.
 
 **v1.5 (2026-09-10)** — **Appendix A is complete in both directions for the
 first time.** **(A) THE FOUR MISSING ROWS LAND** — 6.13, 6.14, 6.15, 6.16. The
