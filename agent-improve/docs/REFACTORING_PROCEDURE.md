@@ -1754,6 +1754,44 @@ supersession path and survive only for that reason. **The case-blob record's
 `evidence_index_id` is nulled in the same pass**, or the blob points at a
 document that no longer exists.
 
+> ### ⛔ `azure-query` PASSED. `live-run` was ATTEMPTED AND FAILED — and the cause is not this step.
+>
+> **The status is `done — live half BLOCKED, not owed`, and the last three words
+> are the point.** 6.7, 6.9 and 6.12 each landed `done — live half owed`, meaning
+> the live-run had not been run. **This one was run.** It failed, the cause was
+> isolated to code this step did not touch, and "owed" would file a diagnosed
+> blocker under the same word as three un-attempted checks — which is how a
+> known defect becomes indistinguishable from a to-do.
+>
+> **What passed, 2026-09-10.** Sub-steps 1–4 are built and applied. `azure-query`
+> confirms all seven fields present and filterable, all four surviving documents
+> carrying `role` / `kind` / `content_digest`, `kind eq 'evidence'` returning 4
+> and `kind eq 'artefact'` returning 0. 813 tests green, 17 of them new. The
+> three superseded documents are deleted and the case blob no longer names them.
+>
+> **What blocked the live-run, and it is NOT this step's defect.** A Belt asking
+> what the to-be process is never reaches an answer: `POST /ask` on
+> `IMPR-2026-ED8` returns *"Node 'executor' exceeded its run timeout of 45.000s"*.
+> The log shows the planner routing correctly — *"routing to an UNREAD upload …
+> call `load_evidence_series` on `uploads/IMPR-2026-ED8/complaints.csv`"* — and
+> the executor then calling `rag_lookup_evidence` roughly six times (nineteen
+> underlying searches, three per multi-query call) **without ever calling
+> `load_evidence_series`**, until the node timeout fires.
+>
+> **Reproduced on HEAD to prove ownership.** The four changed source files were
+> reverted to `1714d75`, the server restarted, and the identical request produced
+> the identical failure at the identical elapsed time. **The loop predates 6.13
+> and belongs to the executor, not to the evidence index.** The `BlobNotFound`
+> entries in the log are first-turn checkpoint misses and are not related.
+>
+> **What this owes, and it is NOT 6.13's debt:** a diagnosis of why the executor
+> ignores a planner instruction naming a specific tool and a specific blob path,
+> which is §26 / S-F04 territory and a step of its own. **It also silently
+> invalidates the live half of 6.7, 6.9 and 6.12** — three steps carrying `live
+> half owed` against a path that cannot currently complete a Define turn on
+> `IMPR-2026-ED8`. 6.13's live-run re-runs once that clears, and so should
+> theirs.
+
 **Done when:** `azure-query` confirms all seven fields are present and
 filterable on `improve_evidence_index`; every pre-existing upload **that survives
 the ruling-3 supersession sweep** carries a `role` — the §23.2.1 sentinel where
@@ -2680,7 +2718,7 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 6.10** | `analyse_executor_node` — §26's multi-hop | **BLOCKED** |
 | **Commit 6.11** | The upload path (G-36) | done |
 | **Commit 6.12** | Ask-binding: an upload answers a request | done — live half owed |
-| **Commit 6.13** | The evidence index migration | pending |
+| **Commit 6.13** | The evidence index migration | done — live half BLOCKED, not owed |
 | **Commit 6.14** | SKILL.md shape pass — Define, Analyse, Improve, Control | pending |
 | **Commit 6.15** | The count-check — a written count against the list it describes | pending |
 | **Commit 6.16** | The board is generated, not written | pending |

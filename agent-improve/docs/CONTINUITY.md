@@ -7,10 +7,10 @@
 
 | | |
 |---|---|
-| **Last completed** | step **6.12** — **Ask-binding: an upload answers a request** |
-| **Next** | step **6.13** — **The evidence index migration** |
+| **Last completed** | step **6.13** — **The evidence index migration** |
+| **Next** | step **6.16** — **The board is generated, not written** |
 | **Stage** | Stage 6 — The coaching agent |
-| **Progress** | 30 of 55 build steps |
+| **Progress** | 31 of 55 build steps |
 | **Last spine commit** | `bc34213` (commit 6.12) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.33 |

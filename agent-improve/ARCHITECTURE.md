@@ -2220,17 +2220,22 @@ than "uploaded files" suggests.
 | `content_vector` | SingleCollection (3072d) | Vector field |
 | `metadata` | String | JSON blob |
 | `case_id` | String | **Filter** — scopes to the current case |
-| `phase` | String | **RATIFIED — NOT YET APPLIED.** Optional filter, default OFF |
-| `uploaded_at` | String | **RATIFIED — NOT YET APPLIED.** Order by, ISO 8601 |
-| `role` | String | **RATIFIED — NOT YET APPLIED.** **Filter + searchable.** The document's function in the project. With `case_id` this is the document's **logical identity**. Drawn from the ratified vocabulary at §23.2.1 |
-| `kind` | String | **RATIFIED — NOT YET APPLIED.** **Filter.** `evidence` or `artefact`. **Derived from `role`, never declared separately.** Retrieval filters to `evidence` by default |
-| `description` | String | **RATIFIED — NOT YET APPLIED.** **Searchable + retrievable.** The interpretation's summary — a **projection** of `UploadRecord.summary`, written once at index time |
-| `content_digest` | String | **RATIFIED — NOT YET APPLIED.** **Filter.** SHA-256 of the uploaded bytes. **Version identity** — the same bytes re-uploaded are not a new version |
-| `shape_match` | String | **RATIFIED — NOT YET APPLIED.** **Filter.** `full`, `partial`, `none` or `unsolicited` — whether the file matched the ask's expected shape. Paired with `missing_columns` in `metadata` |
+| `phase` | String | **APPLIED 2026-09-10, step 6.13.** Optional filter, default OFF |
+| `uploaded_at` | String | **APPLIED 2026-09-10, step 6.13.** Order by, ISO 8601 |
+| `role` | String | **APPLIED 2026-09-10, step 6.13.** **Filter + searchable.** The document's function in the project. With `case_id` this is the document's **logical identity**. Drawn from the ratified vocabulary at §23.2.1 |
+| `kind` | String | **APPLIED 2026-09-10, step 6.13.** **Filter.** `evidence` or `artefact`. **Derived from `role`, never declared separately.** Retrieval filters to `evidence` by default |
+| `description` | String | **APPLIED 2026-09-10, step 6.13.** **Searchable + retrievable.** The interpretation's summary — a **projection** of `UploadRecord.summary`, written once at index time |
+| `content_digest` | String | **APPLIED 2026-09-10, step 6.13.** **Filter.** SHA-256 of the uploaded bytes. **Version identity** — the same bytes re-uploaded are not a new version |
+| `shape_match` | String | **APPLIED 2026-09-10, step 6.13.** **Filter.** `full`, `partial`, `none` or `unsolicited` — whether the file matched the ask's expected shape. Paired with `missing_columns` in `metadata` |
 
-**Until the reindex runs, the live index is the first five fields and code must
-not reference `phase`, `uploaded_at`, `role`, `kind`, `description`,
-`content_digest` or `shape_match`.**
+**All twelve fields are live as of 2026-09-10** (step 6.13, commit recorded in
+`docs/BUILD_TRACKER.md`). The prohibition this paragraph carried — *"the live
+index is the first five fields and code must not reference the other seven"* —
+is **discharged**, and `azure-query` confirmed each of the seven present and
+filterable on `improve_evidence_index`, with a live `kind eq 'evidence'` filter
+returning documents rather than zero. **Zero is what a filter on a
+metadata-buried value returns**, so the count is the check, not the presence of
+the field (§23.4).
 
 **All seven ratified-not-yet-applied fields are server-set.** `phase` from
 `state["current_phase"]` at upload, `uploaded_at` from the server clock, `role`
@@ -2560,8 +2565,9 @@ on literal strings"; a §-number is a literal string, and nothing checks them.*
 
 ### `rag_lookup_evidence` returns a structured record, not rendered text
 
-**RATIFIED 2026-09-09 — NOT YET APPLIED**, with §23.2's five new fields, which
-three of these keys read. `DECISIONS.md` Part AQ.
+**APPLIED 2026-09-10, step 6.13**, with §23.2's five new fields, which three of
+these keys read. `DECISIONS.md` Part AQ. `knowledge/tools.py::_evidence_record`
+builds it; `test_evidence_index.py` pins that every key §24 names is present.
 
 **The MECHANISM is unchanged.** Retrieval is a tool call the model decides to
 make, never a prepended system message — *"RAG via tool, never via prepended
@@ -9903,7 +9909,7 @@ rag_lookup_evidence(query: str, case_id: str, top_k: int = 10,
 |---|---|---|---|
 | B1 | called | filter on `case_id` always; evidence SHALL NOT leak across cases | §23.2 |
 | B2 | called without an explicit `phase` | leave the phase filter OFF — cross-phase evidence retrieval is the normal case | §23.2 |
-| B3 | called before the batched reindex lands | take no `order_by` argument; `uploaded_at` does not exist on the live index | §23.2 |
+| B3 | ~~called before the batched reindex lands~~ | ~~take no `order_by` argument; `uploaded_at` does not exist on the live index~~ **DISCHARGED 2026-09-10 at step 6.13** — `uploaded_at` is live, filterable and sortable. The tool still takes no `order_by`, now as a design choice rather than a schema constraint: B4 forbids presenting a re-sorted `top_k` as recency ordering, and §24's structured record carries `uploaded_at` as a VALUE so the coach can choose on it without the tool ranking on it | §23.2 |
 | B4 | results are returned | never re-sort the returned `top_k` client-side and present it as recency ordering | §24 |
 | B5 | the search fails | raise `KnowledgeSearchError`, never return `[]` | §27 |
 

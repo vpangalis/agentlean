@@ -222,6 +222,46 @@ async def rag_lookup_methodology(
     return (content, docs)
 
 
+def _evidence_record(row: dict) -> str:
+    """One §24 structured record — attributes as VALUES, then the excerpt.
+
+    **The shape is §24's, field for field**: role · kind · description ·
+    phase · uploaded_at · shape_match, then blob_path · content_digest, then
+    the excerpt. Applied at step 6.13 with §23.2's seven index fields, three
+    of which this reads.
+
+    **Two reasons it is not rendered prose**, each sufficient (§24). The coach
+    has to CHOOSE a file — *"which of these three is the current cycle-time
+    data"* is a question about `role`, `uploaded_at` and `shape_match`, not
+    about similarity, and prose forces the model to re-derive from sentences
+    what the index already holds as values. And §50's citations are built from
+    source, page and summary: a coach can only cite accurately what it received
+    as values, so returning prose and asking for the citation back is the
+    transcription anti-pattern §22 exists to prevent, performed on the
+    platform's own retrieval layer.
+
+    **`blob_path` and `content_digest` are here for §6's citation anchor** —
+    what §37 / step 7.6's cascade compares to detect that an approved gate
+    rested on a file that has since been replaced. A record omitting them
+    would leave that cascade with nothing to compare.
+
+    An empty value is rendered as `unknown` rather than omitted: a missing
+    line reads as "this file has no role", and it means "this index document
+    predates the field".
+    """
+    def v(key: str) -> str:
+        return (row.get(key) or "").strip() or "unknown"
+
+    return (
+        f"role: {v('role')} · kind: {v('kind')} · phase: {v('phase')}\n"
+        f"description: {v('description')}\n"
+        f"uploaded_at: {v('uploaded_at')} · shape_match: {v('shape_match')}\n"
+        f"blob_path: {v('blob_path')} · content_digest: {v('content_digest')}\n"
+        f"filename: {v('filename')}\n"
+        f"excerpt: {(row.get('content') or '').strip()}"
+    )
+
+
 @tool(response_format="content_and_artifact")
 async def rag_lookup_evidence(
     query: str, case_id: str, top_k: int = 10
@@ -267,12 +307,7 @@ async def rag_lookup_evidence(
         return ("No uploaded documents found for this case.", [])
 
     docs = _as_documents(rows)
-    content = "\n\n".join(
-        f"[Uploaded: {r.get('filename', 'document')}"
-        f" · phase: {r.get('upload_phase', 'unknown')}] {r.get('content', '')}"
-        for r in rows
-    )
-    return (content, docs)
+    return ("\n\n".join(_evidence_record(r) for r in rows), docs)
 
 
 @tool(response_format="content_and_artifact")

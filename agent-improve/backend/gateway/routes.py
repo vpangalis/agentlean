@@ -1003,7 +1003,11 @@ async def upload_file(
     evidence_index_id = None
     if upload_kind == CLASSIFIER_EVIDENCE:
         try:
-            evidence_index_id = await _index_upload(case_id, upload_record)
+            evidence_index_id = await _index_upload(
+                case_id, upload_record,
+                role=resolved_role, shape_match=shape_match,
+                content_digest=digest,
+            )
             upload_record["indexed"] = True
         except Exception as e:
             logger.warning(
@@ -1122,7 +1126,9 @@ async def delete_case_file(case_id: str, file_id: str):
     return {"deleted": True, "file_id": file_id}
 
 
-async def _index_upload(case_id: str, upload_record: dict) -> str:
+async def _index_upload(case_id: str, upload_record: dict, *,
+                        role: str, shape_match: str,
+                        content_digest: str) -> str:
     """Index one evidence upload into `improve_evidence_index`. Returns its id.
 
     **Returns the document id rather than None** — §6 names
@@ -1162,11 +1168,12 @@ async def _index_upload(case_id: str, upload_record: dict) -> str:
         .encode()
     ).hexdigest()[:32]
 
-    # `phase` and `uploaded_at` are STILL only in this blob, not top-level
-    # fields — §23.2 carries both as RATIFIED, NOT YET APPLIED, and forbids
-    # code referencing them until the reindex at 9.1. `upload_phase` and
-    # `timestamp` are the keys 9.1 backfills them from, so they keep their
-    # names exactly.
+    # **`upload_phase` and `timestamp` KEEP THEIR NAMES**, now for a different
+    # reason than before 6.13. They were the keys the reindex was to backfill
+    # `phase` and `uploaded_at` from; the backfill has run, both are top-level
+    # fields below, and these two stay because `scripts/backfill_evidence_index.py`
+    # reads them for any document it has to reconstruct from the index alone
+    # (DECISIONS Part AT2 — one live document has no case-blob record).
     metadata = json.dumps({
         "case_id": case_id,
         "upload_phase": upload_record.get("phase"),
@@ -1183,12 +1190,33 @@ async def _index_upload(case_id: str, upload_record: dict) -> str:
         "row_count": upload_record.get("row_count"),
     })
 
+    # §23.2's seven, applied at 6.13. **Each is TOP-LEVEL, not a metadata key**
+    # — that distinction is the whole of §23.4: a value buried in the metadata
+    # blob is unreachable by `$filter`, with no error raised, which is exactly
+    # how `phase_relevance` went unpopulated. All seven are server-set; a
+    # Belt-entered value for any of them makes it unreliable as a filter or a
+    # sort key.
     document = {
         "id": doc_id,
         "content": extracted_text,
         "content_vector": embedding,
         "metadata": metadata,
         "case_id": case_id,
+        "phase": upload_record.get("phase") or "",
+        "uploaded_at": upload_record.get("timestamp") or "",
+        "role": role,
+        # Derived from `role` upstream and carried, never re-derived here —
+        # §23.2.1 makes an inconsistent pair unrepresentable by having one
+        # source, and a second opinion on the same question is how two
+        # answers to it come to exist.
+        "kind": upload_record.get("kind") or "",
+        # A PROJECTION of `UploadRecord.summary` (§23.2). The case blob is the
+        # system of record; this copy exists because it must be searchable,
+        # which the blob cannot serve. Changing the summary means re-indexing
+        # the document, never editing this in place.
+        "description": upload_record.get("summary") or "",
+        "content_digest": content_digest,
+        "shape_match": shape_match,
     }
 
     # The aio client owns an aiohttp session, so it is closed on the way

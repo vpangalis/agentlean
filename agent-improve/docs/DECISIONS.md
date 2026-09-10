@@ -6676,3 +6676,89 @@ still reads **Version 1.19.2 · 2026-09-01** across `c6566f4`, `bd0b4fe`,
 and records the divergence instead of resolving it silently — the rule is not
 amended here (§8). Fifth consecutive commit is the point at which it stops being
 an oversight and becomes the de facto rule.
+
+---
+
+## Part AU — Step 6.13: the migration landed, and the live-run found something older (2026-09-10)
+
+**The evidence index carries all twelve fields. `azure-query` passed on every
+clause. The `live-run` was attempted, failed, and the failure belongs to the
+executor rather than to this step** — which is why 6.13's Appendix D status reads
+`done — live half BLOCKED, not owed` rather than the `done — live half owed` that
+6.7, 6.9 and 6.12 carry.
+
+### AU1 — What the migration actually did
+
+Four sub-steps in the ratified order. Schema add (seven additive fields, no
+rebuild), write path (`_index_upload` writes all seven TOP-LEVEL), backfill,
+retrieval filters (`kind eq 'evidence'` by default; §24's structured record).
+
+**The corpus turned out to have three populations, not one**, which is what
+Part AT's three rulings exist to handle:
+
+| | documents | outcome |
+|---|---|---|
+| Reachable from a case blob | 3 | merged, sentinel role, real digest |
+| No case-blob record at all | 1 | reconstructed from the index's own metadata |
+| Superseded, bytes destroyed by `overwrite=True` | 3 | **deleted**, per §23.2 |
+
+Seven live documents in, four out. `azure-query` after: all seven fields present
+and filterable, all four documents carrying `role` / `kind` / `content_digest`,
+`kind eq 'evidence'` returning **4** and `kind eq 'artefact'` returning **0**.
+
+**The count is the check, not the presence of the field.** A filter on a value
+buried in the `metadata` JSON blob returns zero with no error — that is §23.4's
+entire failure mode — so a schema listing the field proves nothing and only a
+non-zero filtered count does.
+
+### AU2 — The live-run failure, and how ownership was established
+
+A Belt asking *"what does our to-be process look like"* on `IMPR-2026-ED8` never
+reaches an answer. `POST /ask` returns:
+
+```
+Node 'executor' exceeded its run timeout of 45.000s (elapsed: 45.157s).
+```
+
+The log shows the planner behaving correctly:
+
+```
+define.planner: routing to an UNREAD upload — role='other evidence'
+                path=uploads/IMPR-2026-ED8/complaints.csv
+define.planner: entry=ask turn_count=0 -> executor | plan: business_case /
+    Call load_evidence_series on uploads/IMPR-2026-ED8/complaints.csv before
+    asking for anything further
+```
+
+and the executor then issuing **nineteen evidence searches** — roughly six
+`rag_lookup_evidence` calls at three multi-query variants each — **without ever
+calling `load_evidence_series`**, until the node timeout fires. No `uploads/`
+blob is fetched in the whole turn. (The `BlobNotFound` entries in the log are
+first-turn checkpoint misses on a new thread and are unrelated.)
+
+**OWNERSHIP WAS ESTABLISHED BY EXPERIMENT, NOT BY ARGUMENT.** The four changed
+source files were reverted to `1714d75`, the server restarted on that code, and
+the identical request produced the identical failure at the identical elapsed
+time. **The loop predates 6.13.** Had this been reasoned about rather than run,
+the honest conclusion available was only "probably not us" — and the shape of
+the change (a tool's return value going from prose to a structured record) is
+exactly the shape that *could* alter model behaviour, so "probably" was not
+good enough to record.
+
+### AU3 — Why the status is BLOCKED rather than owed
+
+`done — live half owed` means *the live-run has not been run*. Three steps carry
+it. **This one was run**, and putting a diagnosed, reproduced defect under the
+same word as three un-attempted checks is how a known failure becomes
+indistinguishable from a to-do.
+
+> **The finding is larger than 6.13.** If no Define turn on `IMPR-2026-ED8`
+> completes, then the live halves owed by **6.7, 6.9 and 6.12** cannot be
+> discharged either — three steps whose remaining verification runs through a
+> path that currently times out. They were recorded as owed on the assumption
+> that running them was merely pending. **It is not pending; it is blocked**,
+> and none of the three says so.
+
+**What it owes**, and it is not 6.13's debt: a diagnosis of why the executor
+ignores a planner instruction naming a specific tool and a specific blob path.
+That is §26 / S-F04 territory and a step of its own.

@@ -177,6 +177,65 @@ def get_knowledge_vectorstore() -> AzureSearch:
     )
 
 
+# The full field list of improve_evidence_index (§23.2), as of step 6.13.
+#
+# Same contract as KNOWLEDGE_INDEX_FIELDS above and the same reason: LangChain
+# never introspects the live index, so a metadata key reaches a top-level
+# filterable field only when it is named here. §23.4.
+#
+# > **This list guards a function nothing currently calls.** Both live paths
+# > use a raw `SearchClient` — `_index_upload` writes with `upload_documents`
+# > and `search_evidence` reads with `search` — so §23.4's trap is not armed on
+# > either. `get_evidence_vectorstore` below is declared and called by nothing
+# > (recorded at DECISIONS Part AT). It is declared correctly anyway, because a
+# > dead function that is revived without this list fails silently, and the
+# > silence is the whole failure mode §23.4 exists to describe.
+EVIDENCE_INDEX_FIELDS = [
+    SimpleField(name="id", type=SearchFieldDataType.String,
+                key=True, filterable=True),
+    SearchableField(name="content", type=SearchFieldDataType.String),
+    SearchField(
+        name="content_vector",
+        type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
+        searchable=True,
+        vector_search_dimensions=3072,          # text-embedding-3-large
+        vector_search_profile_name="default",
+    ),
+    SearchableField(name="metadata", type=SearchFieldDataType.String),
+    SimpleField(name="case_id", type=SearchFieldDataType.String,
+                filterable=True),
+    # The seven applied at 6.13. Attributes are §23.2's, field for field.
+    SimpleField(name="phase", type=SearchFieldDataType.String,
+                filterable=True),
+    SimpleField(name="uploaded_at", type=SearchFieldDataType.String,
+                filterable=True, sortable=True),
+    SearchableField(name="role", type=SearchFieldDataType.String,
+                    filterable=True),
+    SimpleField(name="kind", type=SearchFieldDataType.String,
+                filterable=True),
+    SearchableField(name="description", type=SearchFieldDataType.String),
+    SimpleField(name="content_digest", type=SearchFieldDataType.String,
+                filterable=True),
+    SimpleField(name="shape_match", type=SearchFieldDataType.String,
+                filterable=True),
+]
+
+# What `search_evidence` asks the index to return. `select` is not `fields`:
+# this is the projection on a raw SearchClient read, and a field missing here
+# comes back absent rather than empty — which is why the structured record
+# (§24) reads every one of the seven from this list.
+EVIDENCE_SELECT = [
+    "id", "content", "metadata", "case_id",
+    "phase", "uploaded_at", "role", "kind",
+    "description", "content_digest", "shape_match",
+]
+
+# §23.2: retrieval filters to evidence by default. An artefact is what the team
+# DESIGNED, and one bucket would let a proposed future be retrieved later as a
+# fact about the present (ruling AP2.3).
+EVIDENCE_KIND_DEFAULT = "evidence"
+
+
 @lru_cache(maxsize=1)
 def get_evidence_vectorstore() -> AzureSearch:
     """Cached vectorstore for improve_evidence_index."""
@@ -186,6 +245,7 @@ def get_evidence_vectorstore() -> AzureSearch:
         index_name=settings.AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX,
         embedding_function=get_embeddings(),
         search_type="hybrid",
+        fields=EVIDENCE_INDEX_FIELDS,
     )
 
 
@@ -319,9 +379,21 @@ def search_cases(query: str, k: int = 3) -> list[dict]:
               search="case_history", query=query[:120])
 
 
-def search_evidence(query: str, case_id: str, k: int = 4) -> list[dict]:
+def search_evidence(query: str, case_id: str, k: int = 4,
+                    kind: str | None = EVIDENCE_KIND_DEFAULT) -> list[dict]:
     """Search improve_evidence_index filtered by case_id.
     Returns uploaded document extracts for this specific case only.
+
+    **`kind` defaults to `evidence` and filtering it OFF is explicit** (§23.2,
+    step 6.13). An artefact is what the team designed; returning one to an
+    unfiltered evidence query lets a proposed future be read back as a fact
+    about the present, which is ruling AP2.3's whole subject. Pass
+    `kind=None` to search both — a deliberate, visible act at the call site.
+
+    **The filter is safe only because the backfill ran first.** Against
+    documents where `kind` is null it would match nothing, which is why
+    6.13's sub-steps are ordered schema → write path → backfill → filters and
+    why that order is load-bearing rather than tidy.
 
     Returns [] only when the search ran and matched nothing. Raises
     KnowledgeSearchError if the search itself fails."""
@@ -331,6 +403,9 @@ def search_evidence(query: str, case_id: str, k: int = 4) -> list[dict]:
         credential=AzureKeyCredential(settings.AZURE_SEARCH_API_KEY),
     )
     safe_case_id = case_id.replace("'", "''")   # OData escapes ' by doubling
+    odata = f"case_id eq '{safe_case_id}'"
+    if kind:
+        odata += f" and kind eq '{kind.replace(chr(39), chr(39) * 2)}'"
 
     try:
         query_vector = get_embeddings().embed_query(query)
@@ -343,9 +418,9 @@ def search_evidence(query: str, case_id: str, k: int = 4) -> list[dict]:
         results = search_client.search(
             search_text=query,
             vector_queries=[vector_query],
-            filter=f"case_id eq '{safe_case_id}'",
+            filter=odata,
             # `id` is selected for RRF dedup (S-F17), as above.
-            select=["id", "content", "metadata", "case_id"],
+            select=EVIDENCE_SELECT,
             top=k,
         )
 
@@ -382,6 +457,19 @@ def _evidence_metadata(row: dict) -> dict:
         "filename": meta.get("filename", ""),
         "upload_phase": meta.get("upload_phase", ""),
         "content_type": meta.get("content_type", ""),
+        # §24's structured record. Six come off the row as top-level fields
+        # applied at 6.13; `blob_path` stays in the metadata blob, because
+        # §23.2 deliberately does not index it — the index carries the
+        # pointer's identity (`role`, `content_digest`), the blob carries the
+        # data. A citation anchors on the pair (§23.2, §6).
+        "role": row.get("role") or "",
+        "kind": row.get("kind") or "",
+        "description": row.get("description") or "",
+        "phase": row.get("phase") or meta.get("upload_phase", ""),
+        "uploaded_at": row.get("uploaded_at") or meta.get("timestamp", ""),
+        "shape_match": row.get("shape_match") or "",
+        "content_digest": row.get("content_digest") or "",
+        "blob_path": meta.get("blob_path", ""),
     }
 
 

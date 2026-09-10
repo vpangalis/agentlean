@@ -38,6 +38,24 @@ ANSWERED = "answered"
 #: files rather than incomplete ones.
 FULL, PARTIAL, NONE, UNSOLICITED = "full", "partial", "none", "unsolicited"
 
+#: §23.2.1's MIGRATION SENTINEL — ratified 2026-09-10, applied by step 6.13's
+#: backfill (`scripts/backfill_evidence_index.py`, DECISIONS Part AT1).
+#:
+#: **It lives here rather than in that script, and the reason is §23.2.1's own
+#: warning.** `role` is a filter value that retrieval, supersession scoping and
+#: §6's uploads entry all read; a role defined only inside a one-off migration
+#: is "a value no query filters on and no reviewer can see", which is the
+#: failure that section names when it makes extending the vocabulary a
+#: governance event.
+#:
+#: **Carried ONLY by uploads predating 6.12's ask-binding.** A post-6.13 upload
+#: has either an ask or a declared purpose, and both yield a real role — so a
+#: sentinel appearing on a new upload is a write-path defect, not a
+#: classification.
+SENTINEL_ROLE = "unclassified (pre-ask-binding)"
+SENTINEL_KIND = "evidence"          # Part AQ4 finding 2
+SENTINEL_SHAPE = UNSOLICITED        # true by construction: there was no ask
+
 #: **Measure's three shapes — ratified 2026-09-10.** Only three of Measure's
 #: ten coached fields (§39.2.2) are answered by a file, so only three appear
 #: here. The coaching prose in `skills/dmaic-measure-phase/SKILL.md` teaches
