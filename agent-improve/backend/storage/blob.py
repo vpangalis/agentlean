@@ -167,6 +167,20 @@ async def _download(path: str) -> str:
     return raw.decode("utf-8")
 
 
+async def download_bytes(path: str) -> bytes:
+    """The raw bytes at `path`, undecoded — step 6.12, S-F57's SIPOC.
+
+    **`_download` decodes UTF-8 and would corrupt every format this is for.**
+    xlsx, pdf and docx are binary; running `.decode("utf-8")` over them either
+    raises or silently mangles them, so `load_evidence_series` needs a reader
+    that does not. This is the fourteenth module-level name in this file;
+    S-C08's count moved from thirteen with it, in the same commit (Part AS).
+    """
+    blob = _container().get_blob_client(path)
+    downloader = await blob.download_blob()
+    return await downloader.readall()
+
+
 async def _exists(path: str) -> bool:
     try:
         await _container().get_blob_client(path).get_blob_properties()
@@ -357,6 +371,7 @@ __all__ = [
     "append_turn",
     "case_path",
     "create_case",
+    "download_bytes",
     "load_case",
     "load_registry",
     "register_case",

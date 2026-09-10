@@ -78,6 +78,24 @@ class UploadRecord(BaseModel):
     #: what finally gives it a writer.
     rows: Optional[int] = None
 
+    #: The document's function in the project, from §23.2.1's ratified
+    #: twelve-row vocabulary. **With `case_id` this is the LOGICAL IDENTITY**
+    #: (ruling AP2.2): supersession resolves on `(case_id, role)`, and files
+    #: are versions of the ask, never identified by filename.
+    #: From the ask when the upload was solicited; from the Belt's declared
+    #: purpose when it was not.
+    role: str = "other evidence"
+
+    #: `full` | `partial` | `none` | `unsolicited` — whether the file matched
+    #: the ask's expected shape. **A mismatch is a coaching question, not a
+    #: rejection**, so this records the answer rather than blocking the upload.
+    shape_match: str = "unsolicited"
+
+    #: SHA-256 of the uploaded bytes. **VERSION IDENTITY** — the same bytes
+    #: re-uploaded are not a new version, and a different digest under the
+    #: same `(case_id, role)` supersedes.
+    content_digest: str = ""
+
     #: evidence | artefact (ruling 3). **The destination, not the format.**
     #: Evidence describes the world and goes to `improve_evidence_index`; an
     #: artefact is what the team designed and belongs to the gate document as
@@ -103,7 +121,13 @@ class UploadRecord(BaseModel):
     #: the belt-and-braces record for any path that later chooses to keep one.
     refusal_reason: Optional[str] = None
 
-    # RESERVED FOR 6.12 — declared, never written at 6.11. See the docstring.
+    #: Set when a `load_evidence_series` call or a citation references this
+    #: document. **`None` at a gate on an upload bound to an open ask means
+    #: the Belt supplied evidence and the coaching proceeded without it** —
+    #: a condition undetectable without the field (S-C02, S-C09).
+    consumed_at: Optional[str] = None
+
+    # Filled at 6.12 by the ask-binding; declared at 6.11. See the docstring.
     ask_id: Optional[str] = None
     version: Optional[int] = None
 
@@ -124,6 +148,11 @@ class UploadRecord(BaseModel):
             "uploaded_at": self.uploaded_at,
             "summary": self.summary,
             "kind": self.kind,
+            "role": self.role,
+            "shape_match": self.shape_match,
+            "content_digest": self.content_digest,
+            "blob_path": self.blob_path,
+            "consumed_at": self.consumed_at,
             # Reserved for 6.12 — carried so the shape is stable across the
             # two steps rather than growing under the gate document.
             "ask_id": self.ask_id,

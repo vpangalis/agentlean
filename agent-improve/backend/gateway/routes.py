@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from langchain_core.messages import AIMessage
@@ -26,11 +27,35 @@ from backend.gateway.schemas import (
 from backend.gateway.schemas import GateReviewField, GateReviewResponse
 from backend.gateway.schemas import SummariseRequest, SummariseResponse
 from backend.gateway.schemas import ContextRequest, ContextResponse
-from backend.phases.mappers_common import PHASE_ORDER
+from backend.core.store import get_store
+from backend.phases.mappers_common import PHASE_ORDER, asks_for_phase, read_case_record
 from backend.storage import blob
 from backend.storage.models import CaseDocument, UploadRecord
 from backend.upload.agent import process_upload
 from backend.upload.classifier import EVIDENCE as CLASSIFIER_EVIDENCE
+from backend.upload.asks import (
+    check_shape,
+    content_digest,
+    open_ask_for_role,
+)
+
+#: Purpose label → §23.2.1 role, for an upload nobody asked for. **Not a
+#: filename heuristic** — the purpose is what the Belt declared, and AP2.2
+#: forbids inferring identity from a filename. Anything unrecognised falls to
+#: the vocabulary's own catch-all, which is what those two rows exist for.
+_PURPOSE_TO_ROLE = {
+    "Process map": "as-is process map",
+    "Data file": "baseline defect data",
+    "Survey data": "voice-of-customer data",
+    "Capability report": "capability study data",
+    "Analysis": "root cause analysis",
+    "Improvement plan": "improvement proposal",
+    "Project document": "other artefact",
+}
+
+
+def _role_from_purpose(purpose: str) -> str:
+    return _PURPOSE_TO_ROLE.get(purpose, "other evidence")
 
 logger = logging.getLogger(__name__)
 
@@ -345,6 +370,40 @@ async def _run_turn(graph, state: dict, config: dict, http: Request):
 # a violation. Everything between here and `/gate` is that marshalling.
 
 
+
+def _mirror_asks(case_id: str, phase: str, result: Any) -> None:
+    """Copy this turn's `asks` into the Store, for the upload route to read.
+
+    **The upload route cannot read `PhaseState`** — it has the case blob and
+    the Store, not the checkpoint. An ask is created by the planner during a
+    coaching turn and must be resolvable by a file arriving moments later, so
+    something has to carry it across. This is that something, and it runs
+    AFTER the turn rather than during it.
+
+    **Same mechanism `uploads` already uses in the other direction** (step
+    6.11): the Store's `case` record is the one thing both a mapper and a route
+    can see. A second namespace would need a second writer that the existing
+    backfill could not keep current.
+
+    **Fails soft.** The Store is a copy; the checkpoint holds the real asks. A
+    failed mirror costs the next upload its ask binding, which degrades to
+    `shape_match="unsolicited"` — honest, and not a lost file.
+    """
+    asks = list((result or {}).get("asks") or [])
+    if not asks:
+        return
+    from backend.phases.mappers_common import write_asks
+    try:
+        write_asks(get_store(), case_id, phase, asks)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "asks NOT mirrored to the Store for %s/%s (%s: %s) — an upload "
+            "arriving before the next turn will not resolve to an ask and "
+            "will be recorded as unsolicited. The checkpoint is unaffected.",
+            case_id, phase, type(exc).__name__, exc,
+        )
+
+
 def _requested_phase(case: CaseDocument, requested: str) -> str:
     """The phase this turn runs, with the client's view checked against the record.
 
@@ -561,6 +620,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
         )
         # §47 requirement 1 — ABANDON on disconnect. See `_run_turn`.
         result = await _run_turn(graph, state, config, http)
+        _mirror_asks(request.case_id, phase, result)
     except ClientGone:
         logger.info(
             "ask() ABANDONED for %s — client disconnected mid-turn; "
@@ -773,6 +833,7 @@ async def upload_file(
     file: UploadFile = File(...),
     purpose: str = Form(""),
     kind: str = Form(""),
+    role: str = Form(""),
 ):
     """§29.1's external-data channel — procedure step 6.11.
 
@@ -821,6 +882,26 @@ async def upload_file(
     # be settled before anything is spent.
     resolved_purpose = (purpose or "").strip() or auto_detect_purpose(filename)
 
+    # ── Ask-binding, step 6.12 ────────────────────────────────────────
+    #
+    # **The digest is the VERSION identity and is computed before anything
+    # else** (§23.2). The same bytes re-uploaded are not a new version.
+    digest = content_digest(file_bytes)
+
+    # `role` is the LOGICAL identity, with `case_id` (ruling AP2.2). **From
+    # the ask when the upload was solicited, from the Belt's declared purpose
+    # when it was not** — never from the filename, which AP2.2 forbids.
+    open_asks = asks_for_phase(read_case_record(get_store(), case_id), phase)
+    declared_role = (role or "").strip()
+    matched_ask = (open_ask_for_role(open_asks, declared_role)
+                   if declared_role else
+                   (open_asks[0] if len(open_asks) == 1 else None))
+    resolved_role = (
+        declared_role
+        or (matched_ask or {}).get("role")
+        or _role_from_purpose(resolved_purpose)
+    )
+
     # ── Parse BEFORE storing (ruling 5) ───────────────────────────────
     #
     # **The refusal has to come before the blob write, or it is not a
@@ -839,11 +920,66 @@ async def upload_file(
         declared_kind=kind,
     )
 
+    # Shape check against the ask — **a mismatch is a coaching question, not
+    # a rejection**, so it classifies and never blocks (the step's own ruling;
+    # AP2.5 governs unreadable files, not incomplete ones).
+    shape_match, missing_columns = check_shape(
+        matched_ask, upload_record.get("columns") or [])
+
     if not upload_record.get("parsed"):
         # 422, not 400: the request was well formed and the file is the
         # problem. The reason is written for the Belt, not for a log.
         raise HTTPException(422, upload_record.get("refusal_reason")
                             or "We could not read this file.")
+
+    # ── Supersession, resolved on (case_id, role) by digest (§23.2) ────
+    #
+    # **Same digest is not a new version.** The Belt re-uploading the identical
+    # file gets the existing record back, with no blob write, no re-index and
+    # no version bump — which is what the digest is for.
+    #
+    # **A different digest under the same role SUPERSEDES.** Scoped to
+    # `(case_id, role)` deliberately: a Control-phase measurement does not
+    # supersede the Measure baseline, because they are different roles. Only a
+    # correction of the same document supersedes.
+    phase_record = case.phases.get(phase)
+    prior = [u for u in (getattr(phase_record, "uploads", []) or [])
+             if u.role == resolved_role]
+    identical = next((u for u in prior if u.content_digest == digest), None)
+    if identical is not None:
+        logger.info(
+            "Upload %s is byte-identical to the current %r — not a new "
+            "version; returning the existing record.", filename, resolved_role,
+        )
+        return {
+            "file": {
+                "file_id": _case_file_id(case_id, identical.filename,
+                                         identical.uploaded_at),
+                "filename": identical.filename, "phase": phase,
+                "purpose": resolved_purpose, "blob_url": identical.blob_path,
+                "uploaded_at": identical.uploaded_at,
+                "uploaded_by": identical.uploaded_by,
+                "size_bytes": len(file_bytes) if file_bytes else None,
+            },
+            "blob_path": identical.blob_path, "filename": identical.filename,
+            "content_type": upload_record["content_type"],
+            "summary": identical.summary, "indexed": bool(identical.evidence_index_id),
+            "kind": identical.kind, "role": identical.role,
+            "shape_match": identical.shape_match,
+            "content_digest": identical.content_digest,
+            "version": identical.version, "superseded": False,
+            "unchanged": True,
+        }
+
+    # A revision: this becomes the current version of the same ask.
+    version = max([(u.version or 1) for u in prior], default=0) + 1
+    if prior:
+        logger.info(
+            "Upload %s SUPERSEDES %d earlier version(s) of role %r — "
+            "version %d. The earlier blobs are kept; the case blob is the "
+            "system of record and retains every version (§10).",
+            filename, len(prior), resolved_role, version,
+        )
 
     # Save raw file to blob — only now that it is known to be readable
     blob_path = await blob.upload_file(
@@ -881,7 +1017,6 @@ async def upload_file(
     indexed = evidence_index_id is not None
 
     # Persist upload record into case blob (canonical phases[phase].uploads)
-    phase_record = case.phases.get(phase)
     if phase_record is not None:
         phase_record.uploads.append(UploadRecord(
             filename=filename,
@@ -892,6 +1027,11 @@ async def upload_file(
                 resolved_purpose, upload_record["content_type"], indexed
             ),
             rows=upload_record.get("row_count"),
+            role=resolved_role,
+            shape_match=shape_match,
+            content_digest=digest,
+            ask_id=(matched_ask or {}).get("ask_id"),
+            version=version,
             kind=upload_kind,
             evidence_index_id=evidence_index_id,
             summary=upload_record.get("summary") or "",
@@ -926,6 +1066,12 @@ async def upload_file(
         "indexed": indexed,
         # ── step 6.11 ────────────────────────────────────────────────
         "kind": upload_kind,
+        "role": resolved_role,
+        "shape_match": shape_match,
+        "missing_columns": missing_columns,
+        "content_digest": digest,
+        "version": version,
+        "ask_id": (matched_ask or {}).get("ask_id"),
         "evidence_index_id": evidence_index_id,
         "structure": upload_record.get("structure"),
         "columns": upload_record.get("columns") or [],

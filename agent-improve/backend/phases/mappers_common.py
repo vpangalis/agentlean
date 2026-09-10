@@ -83,6 +83,14 @@ CASE_RECORD_FRAMING_FIELDS = (
 #: `case` backfill could not keep current.
 CASE_RECORD_UPLOADS = "uploads_by_phase"
 
+#: Where the open asks sit inside the Store's `case` record — step 6.12.
+#: **The upload route cannot read `PhaseState`.** An ask is created by the
+#: planner during a coaching turn and must be resolvable by an upload arriving
+#: moments later, and the route has the case blob and the Store, not the
+#: checkpoint. This mirrors `CASE_RECORD_UPLOADS` exactly, which 6.11
+#: established for the same reason in the other direction.
+CASE_RECORD_ASKS = "asks_by_phase"
+
 
 def case_record_from_document(case: Any) -> dict[str, Any]:
     """The Store's `case` copy, from the blob case document (§9, S-F10).
@@ -164,6 +172,31 @@ class PriorGateDocumentMissing(RuntimeError):
     """A phase was entered before the previous phase's gate was applied."""
 
 
+def asks_for_phase(
+    case_record: dict[str, Any], phase: str
+) -> list[dict[str, Any]]:
+    """This phase's asks, from the Store's `case` copy — step 6.12."""
+    inventory = case_record.get(CASE_RECORD_ASKS) or {}
+    return [dict(a) for a in (inventory.get(phase) or [])]
+
+
+def write_asks(
+    store: BaseStore, case_id: str, phase: str, asks: list[dict[str, Any]]
+) -> None:
+    """Mirror this phase's asks into the Store copy the upload route reads.
+
+    **Called after a coaching turn, not during one.** The planner writes asks
+    to `PhaseState`; this puts them where a route can see them. Idempotent by
+    key, like every other write to this record.
+    """
+    item = store.get(("projects", case_id, KIND_CASE), "record")
+    record = dict(item.value) if item is not None else {}
+    inventory = dict(record.get(CASE_RECORD_ASKS) or {})
+    inventory[phase] = [dict(a) for a in asks or []]
+    record[CASE_RECORD_ASKS] = inventory
+    store.put(("projects", case_id, KIND_CASE), "record", record)
+
+
 def uploads_for_phase(
     case_record: dict[str, Any], phase: str
 ) -> list[dict[str, Any]]:
@@ -183,6 +216,7 @@ def new_phase_state(
     phase: str,
     phase_context: str,
     uploads: list[dict[str, Any]] | None = None,
+    asks: list[dict[str, Any]] | None = None,
 ) -> PhaseState:
     """The twenty author-populated fields, initialised (S-C02 B1).
 
@@ -231,6 +265,10 @@ def new_phase_state(
         # writer: the mapper is the only thing that builds this dict, so a
         # constant here meant no upload could ever reach a gate document.
         "uploads":            list(uploads or []),
+        # Seeded from the Store copy for the same reason `uploads` is: the
+        # upload route has to resolve an arriving file against an ask created
+        # in a coaching turn, and it reads the Store, not the checkpoint.
+        "asks":               list(asks or []),
         "hop_results":        [],
         "synthesis_output":   None,
     }

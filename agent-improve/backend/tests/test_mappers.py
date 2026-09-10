@@ -84,7 +84,7 @@ def test_input_mapper_populates_every_author_populated_field(phase: str) -> None
     inp, _ = mappers(phase)
     state = inp(parent_state(phase), seeded_store(phase))
     assert set(state) == set(PHASE_STATE_AUTHOR_POPULATED_FIELDS)
-    assert len(state) == 20
+    assert len(state) == 21
 
 
 @pytest.mark.parametrize("phase", PHASE_ORDER)

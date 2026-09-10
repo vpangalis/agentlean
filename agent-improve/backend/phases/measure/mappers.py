@@ -22,6 +22,7 @@ from backend.phases.mappers_common import (
     new_phase_state,
     read_case_record,
     read_gate_document,
+    asks_for_phase,
     uploads_for_phase,
     write_gate_document,
 )
@@ -94,10 +95,11 @@ def measure_input_mapper(parent: SupervisorState, store: BaseStore) -> PhaseStat
     # `phase_context` still comes from the prior gate document above and is
     # unchanged — §6 keeps `uploads` out of the framing prose deliberately,
     # because the gate document reads the list and the coach reads the prose.
-    uploads = uploads_for_phase(
-        read_case_record(store, parent["case_id"]), PHASE
+    case = read_case_record(store, parent["case_id"])
+    return new_phase_state(
+        parent, PHASE, phase_context,
+        uploads_for_phase(case, PHASE), asks_for_phase(case, PHASE),
     )
-    return new_phase_state(parent, PHASE, phase_context, uploads)
 
 
 def measure_output_mapper(

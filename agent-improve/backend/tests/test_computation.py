@@ -183,8 +183,11 @@ def test_every_result_value_is_a_string() -> None:
 #: These five numbers are the step's whole contract, so they are written out
 #: rather than computed from the subsets — a total derived from the thing it is
 #: checking would agree with any partition at all.
+#: §30's ratified per-phase totals. **Moved 2026-09-09** when the universal
+#: set became eight (DECISIONS Part AR1): every phase gains one, and Measure
+#: lands on §30's ceiling of 16 exactly.
 EXPECTED_TOTALS = {
-    "define": 8, "measure": 15, "analyse": 12, "improve": 8, "control": 12,
+    "define": 9, "measure": 16, "analyse": 13, "improve": 9, "control": 13,
 }
 
 
@@ -199,23 +202,47 @@ def test_per_phase_totals_are_8_15_12_8_12() -> None:
 
 
 def test_no_phase_exceeds_the_sixteen_tool_ceiling() -> None:
-    """§30 — and the actual maximum is Measure's 15, one under it.
+    """§30 — and Measure now sits ON the ceiling at 16, not under it.
 
-    The headroom is asserted too. A binding that sat exactly on 16 would pass a
-    ceiling check while leaving no room for the amendment process to be the
-    thing that adds the seventeenth tool.
+    **This test argued against its own outcome before the ruling was taken.**
+    It used to assert the headroom too, on the reasoning that *"a binding that
+    sat exactly on 16 would pass a ceiling check while leaving no room for the
+    amendment process to be the thing that adds the seventeenth tool."* On
+    2026-09-09 `load_evidence_series` made the universal set eight and took
+    Measure from 15 to 16 (Part AR1), so **that is now the state, and the
+    warning it carried is now a fact rather than a hypothetical.**
+
+    The assertion is kept and inverted rather than deleted: it pins that
+    Measure is exactly on the ceiling, so **a ninth universal tool fails this
+    test on the day it is added** rather than passing quietly and being
+    discovered at bind time. ⚠ Revisit the ceiling before adding one, not
+    after — and see `test_the_three_tool_counts_that_must_not_drift`, where
+    G-33's collision is now one PAST the cap rather than at it.
     """
     for phase in COMPUTATION_TOOLS_BY_PHASE:
         assert bound(phase) <= PHASE_TOOL_CEILING, (
             f"{phase} binds {bound(phase)} tools, over §30's ceiling of "
             f"{PHASE_TOOL_CEILING} — that needs an amendment, not a commit"
         )
-    assert max(bound(p) for p in COMPUTATION_TOOLS_BY_PHASE) == 15
+    assert max(bound(p) for p in COMPUTATION_TOOLS_BY_PHASE) == 16, (
+        "Measure sits ON §30's ceiling since 2026-09-09. If this fails at 17 "
+        "a ninth universal tool was added without settling the ceiling first"
+    )
     assert "measure" == max(COMPUTATION_TOOLS_BY_PHASE, key=bound)
 
 
-def test_the_universal_seven_is_seven_and_five_are_built() -> None:
-    """§29.2 — seven ratified, five built, two owed to steps 7.1 and 7.5.
+def test_the_universal_eight_is_eight_and_six_are_built() -> None:
+    """§29.2 — EIGHT ratified, six built, two owed to steps 7.1 and 7.5.
+
+    **The set became eight on 2026-09-09** (`DECISIONS.md` Part AR1):
+    `load_evidence_series` joined it, built at step 6.12. It is universal
+    rather than a computation tool because §30's twenty are pure functions with
+    no I/O and this reads a blob — and the universal set is already where the
+    I/O-performing tools live.
+
+    **⚠ Measure now sits at 16, the §30 ceiling exactly.** A ninth universal
+    tool breaks the rule for Measure on the day it is added. Revisit the
+    ceiling before adding one, not after.
 
     **The gap is real and is not a redefinition of §30.** Step 6.2 built
     `propose_template` and `propose_diagram`, which S-F19/S-F20 both assign to
@@ -230,12 +257,12 @@ def test_the_universal_seven_is_seven_and_five_are_built() -> None:
     is recorded** (WATCH 25), so the two steps that close it have to come back
     here rather than quietly leaving the totals wrong.
     """
-    assert UNIVERSAL_TOOL_COUNT == 7, "§30's ratified count does not move"
-    assert len(UNIVERSAL_TOOLS) == 5, "five built at 6.2"
+    assert UNIVERSAL_TOOL_COUNT == 8, "§30's ratified count — eight since 2026-09-09"
+    assert len(UNIVERSAL_TOOLS) == 6, "five at 6.2, load_evidence_series at 6.12"
     assert UNIVERSAL_TOOL_COUNT - len(UNIVERSAL_TOOLS) == 2, "two owed"
     assert [t.name for t in UNIVERSAL_TOOLS] == [
         "rag_lookup_methodology", "rag_lookup_evidence", "rag_lookup_case_history",
-        "propose_template", "propose_diagram",
+        "propose_template", "propose_diagram", "load_evidence_series",
     ]
     assert RAG_LOOKUP_TOOLS == UNIVERSAL_TOOLS[:3], (
         "the retrieval third leads the universal list"
@@ -243,8 +270,8 @@ def test_the_universal_seven_is_seven_and_five_are_built() -> None:
 
 
 @pytest.mark.parametrize("phase, live_total", [
-    ("define", 6), ("measure", 13), ("analyse", 10),
-    ("improve", 6), ("control", 10),
+    ("define", 7), ("measure", 14), ("analyse", 11),
+    ("improve", 7), ("control", 11),
 ])
 def test_the_live_per_phase_totals_while_two_tools_are_owed(
     phase: str, live_total: int

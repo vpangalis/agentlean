@@ -264,6 +264,23 @@ class PhaseState(TypedDict):
     # should be able to see that.
     uploads:            list[dict]
 
+    # The coach's recorded requests for data — §56 amendment, ratified
+    # 2026-09-09 (DECISIONS Part AR2), built at step 6.12. Entry shape:
+    # `ask_id`, `role` (§23.2.1's vocabulary), `expected_shape`, `phase`,
+    # `asked_at`, `status`.
+    #
+    # **A SYSTEM record, not a captured value**, which is why it is here and
+    # not in `artifacts`: `artifacts` holds what the BELT produced, gate
+    # assembly walks it, and a structured `asks` list would need a fifth
+    # exception to §7's string law. The case blob was rejected too — §10 says
+    # it is written "never mid-conversation" and an ask is born in a coaching
+    # turn (Part AR2).
+    #
+    # **An ask is the logical identity of a document; files are its versions**
+    # (ruling AP2.2). The binding is recorded when the coach asks, never
+    # reconstructed from a filename afterwards.
+    asks:               list[dict]
+
     # Both carry the planned multi-hop chain (§26) and are `[]` / `None` on
     # every single-hop turn in every phase (B5). They are state rather than
     # node locals because LangSmith traces node inputs and outputs, not
@@ -318,7 +335,7 @@ PHASE_STATE_CONTENT_FIELDS = (
     "coaching_plan", "field_index", "draft", "artifacts", "step_log",
     "belt_edits", "turn_count", "final", "gate_attempts",
     "validator_feedback", "rejection_feedback", "citations", "uploads",
-    "hop_results", "synthesis_output",
+    "asks", "hop_results", "synthesis_output",
 )
 
 # Declared so LangGraph populates it; the input mapper must NOT (S-C02 B1).

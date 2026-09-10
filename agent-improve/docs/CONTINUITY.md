@@ -7,14 +7,14 @@
 
 | | |
 |---|---|
-| **Last completed** | step **6.11** — **The upload path (G-36)** |
-| **Next** | step **6.12** — **Ask-binding: an upload answers a request** |
+| **Last completed** | step **6.12** — **Ask-binding: an upload answers a request** |
+| **Next** | step **6.13** — **The evidence index migration** |
 | **Stage** | Stage 6 — The coaching agent |
-| **Progress** | 29 of 52 build steps |
+| **Progress** | 30 of 55 build steps |
 | **Last spine commit** | `806a39d` (commit 6.11) |
 | **ARCHITECTURE.md** | v1.19 |
 | **CLAUDE.md** | v2.2.33 |
-| **Block regenerated** | 2026-09-09 |
+| **Block regenerated** | 2026-09-10 |
 
 *Derived from `docs/BUILD_TRACKER.md`, `CLAUDE.md`, `ARCHITECTURE.md`
 and the git spine — never hand-maintained, so it cannot drift from

@@ -444,3 +444,130 @@ def test_the_framing_fields_do_not_absorb_the_inventory():
     from backend.phases.mappers_common import CASE_RECORD_FRAMING_FIELDS
 
     assert CASE_RECORD_UPLOADS not in CASE_RECORD_FRAMING_FIELDS
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Step 6.12 — ask-binding
+# ─────────────────────────────────────────────────────────────────────────
+
+def test_the_skill_md_shapes_and_the_code_shapes_agree():
+    """The contract AR3 says nothing checks — pinned, with no model.
+
+    The SKILL.md table teaches the Belt; `MEASURE_SHAPES` is what the system
+    validates against. **Two artefacts that must agree, checkable as a property
+    of the pair** — the same class of test as
+    `test_the_prompt_asks_for_the_json_it_is_parsed_as`.
+    """
+    import io as _io
+    from backend.upload.asks import MEASURE_SHAPES
+
+    text = _io.open(
+        "skills/dmaic-measure-phase/SKILL.md", encoding="utf-8").read()
+    assert "### 5.1 The three shapes" in text
+    for field, shape in MEASURE_SHAPES.items():
+        assert shape["role"] in text, f"{field}'s role is not in the SKILL.md"
+    for field in ("baseline_mean", "baseline_sigma", "stability_assessment",
+                  "measurement_system_validated"):
+        assert field in text, f"{field} is not named in the SKILL.md"
+
+
+def test_no_shape_hardcodes_a_unit():
+    """The unit comes from `metric_definitions`, never from methodology.
+
+    A shape carrying "seconds" would be wrong for every project whose primary
+    metric is something else.
+    """
+    from backend.upload.asks import SHAPES_BY_PHASE
+
+    for phase, shapes in SHAPES_BY_PHASE.items():
+        for field, shape in shapes.items():
+            assert shape["unit"] is None, f"{phase}.{field} hardcodes a unit"
+
+
+def test_asks_are_keyed_on_role_so_one_file_is_asked_for_once():
+    """Measure's baseline and stability shapes are one dataset.
+
+    Per-field asks would open three requests for one upload and leave two
+    permanently unanswered — which is the unread-evidence condition
+    `consumed_at` exists to detect, manufactured by the system itself.
+    """
+    from backend.upload.asks import ensure_ask
+
+    asks = ensure_ask([], "measure", "baseline_mean")
+    asks = ensure_ask(asks, "measure", "baseline_sigma")
+    asks = ensure_ask(asks, "measure", "stability_assessment")
+
+    assert len(asks) == 1, "one role, one ask"
+    assert asks[0]["role"] == "baseline defect data"
+
+    asks = ensure_ask(asks, "measure", "measurement_system_validated")
+    assert len(asks) == 2, "a different role opens a second ask"
+
+
+def test_a_field_with_no_shape_opens_no_ask():
+    from backend.upload.asks import ensure_ask
+
+    assert ensure_ask([], "measure", "issues_and_barriers") == []
+    assert ensure_ask([], "define", "problem_statement") == []
+
+
+def test_the_digest_is_version_identity():
+    from backend.upload.asks import content_digest
+
+    assert content_digest(CSV_BYTES) == content_digest(CSV_BYTES)
+    assert content_digest(CSV_BYTES) != content_digest(CSV_BYTES + b"x")
+    assert len(content_digest(CSV_BYTES)) == 64
+
+
+@pytest.mark.parametrize("columns, expected, missing", [
+    (["identifier", "measured value", "date"], "full", []),
+    (["invoice_id", "error_count", "date"], "full", []),
+    (["invoice_id", "error_count"], "partial", ["date"]),
+    (["colour", "shape"], "none", ["identifier", "measured value", "date"]),
+])
+def test_a_shape_mismatch_is_classified_not_rejected(columns, expected, missing):
+    """**A mismatch is a coaching question, not an error** — the step's ruling.
+
+    `check_shape` classifies and never raises, so a partial file is stored,
+    described and coached about rather than refused.
+    """
+    from backend.upload.asks import check_shape, new_ask, MEASURE_SHAPES
+
+    ask = new_ask("measure", "baseline_mean", MEASURE_SHAPES["baseline_mean"])
+    result, gaps = check_shape(ask, columns)
+
+    assert result == expected
+    assert gaps == missing
+
+
+def test_a_file_answering_no_ask_is_unsolicited_not_failed():
+    """`unsolicited` is an honest label. Ruling AP2.5 governs unreadable files,
+    not unrequested ones."""
+    from backend.upload.asks import check_shape
+
+    assert check_shape(None, ["anything"]) == ("unsolicited", [])
+
+
+def test_pre_6_12_uploads_default_to_the_catch_all_role():
+    """6.13's backfill is not expected to invent a role for old uploads.
+
+    `other evidence` / `unsolicited` is the truest thing that can be said about
+    a file uploaded before roles existed.
+    """
+    record = UploadRecord(
+        filename="old.csv", blob_path="p", uploaded_by="b",
+        uploaded_at="t", classification="c",
+    )
+    assert record.role == "other evidence"
+    assert record.shape_match == "unsolicited"
+    assert record.content_digest == ""
+    assert record.consumed_at is None
+
+
+def test_the_entry_shape_carries_what_6_13_backfills_from():
+    """6.13 reads the case blob. Without these it has nothing to write."""
+    entry = _record("complaints.csv").to_phase_state_entry("measure")
+
+    for key in ("role", "shape_match", "content_digest", "blob_path",
+                "consumed_at"):
+        assert key in entry, f"6.13's backfill needs {key}"

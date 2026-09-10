@@ -48,6 +48,7 @@ PHASE_CONTENT = [
     "coaching_plan", "field_index", "draft", "artifacts", "step_log",
     "belt_edits", "turn_count", "final", "gate_attempts",
     "validator_feedback", "rejection_feedback", "citations", "uploads",
+    "asks",
     "hop_results", "synthesis_output",
 ]
 # Declared so LangGraph populates it; the input mapper must NOT (S-C02 B1).
@@ -147,9 +148,14 @@ def test_artifacts_and_gate_documents_are_not_on_supervisor_state() -> None:
 
 # ── PhaseState — §6 / S-C02 ───────────────────────────────────────────────
 
-def test_phase_state_has_exactly_twenty_one_declared_fields() -> None:
-    """S-C02: twenty author-populated (2 identity, 3 plumbing, 15 content)
-    plus one engine-managed value — twenty-one declared.
+def test_phase_state_has_exactly_twenty_two_declared_fields() -> None:
+    """S-C02: twenty-one author-populated (2 identity, 3 plumbing, 16 content)
+    plus one engine-managed value — twenty-two declared.
+
+    **`asks` joined at step 6.12** (§56 amendment, `DECISIONS.md` Part AR2):
+    the coach's recorded requests for data. A SYSTEM record rather than a
+    captured value, which is why it is a `PhaseState` field and not a key in
+    `artifacts`.
 
     Note for reviewers: this asserts the count in the AUTHORITATIVE BUILD
     TARGET, `agent-improve/ARCHITECTURE.md` (founder ruling 2026-08-27, named
@@ -160,9 +166,9 @@ def test_phase_state_has_exactly_twenty_one_declared_fields() -> None:
     """
     assert len(PHASE_IDENTITY) == 2
     assert len(PHASE_PLUMBING) == 3
-    assert len(PHASE_CONTENT) == 15
-    assert len(PHASE_AUTHOR_POPULATED) == 20
-    assert len(PHASE_EXPECTED) == 21
+    assert len(PHASE_CONTENT) == 16
+    assert len(PHASE_AUTHOR_POPULATED) == 21
+    assert len(PHASE_EXPECTED) == 22
     assert list(PhaseState.__annotations__) == PHASE_EXPECTED
 
 

@@ -252,6 +252,8 @@ class BeforeModelStateInjection(AgentMiddleware):
         else:
             parts.append("  (nothing captured yet)")
 
+        parts += self._upload_manifest()
+
         parts.append(f"\nSTILL MISSING FOR THE {self.phase.upper()} GATE "
                      f"({len(missing)} of {len(spec.tier_1)})")
         parts += [f"  {f}" for f in missing] or ["  (none — the gate can open)"]
@@ -260,6 +262,56 @@ class BeforeModelStateInjection(AgentMiddleware):
                          + ", ".join(spec.tier_2))
 
         return "\n".join(parts)
+
+    def _upload_manifest(self) -> list[str]:
+        """The uploads INVENTORY — one line per entry, never the content.
+
+        **§6 names two readers of `uploads`: "gate document assembly; evidence
+        context". Gate assembly was wired; THIS ONE NEVER WAS** — verified
+        against the tree at step 6.12 and recorded as a defect found rather
+        than a gap filled (`DECISIONS.md` Part AS). Third instance of the
+        WATCH-19 shape: a field declared, written, and read by nothing.
+
+        **This is the guarantee that an upload reaches the coach at all.**
+        §24 makes retrieval a tool call the model decides to make — *"there is
+        no unconditional retrieval pipeline"* — so **no uploaded document is
+        guaranteed to be read via `rag_lookup_evidence`**. A coach that never
+        calls the tool never sees the file. The manifest is deterministic and
+        costs one line per upload: the coach cannot fail to know a file exists,
+        though it may still choose not to open it.
+
+        **Inventory, not content.** The values stay in the blob and are loaded
+        by `load_evidence_series` (S-F57), which is what keeps this block from
+        growing with the data.
+        """
+        uploads = list(self._state.get("uploads") or [])
+        asks = [a for a in (self._state.get("asks") or [])
+                if a.get("status") == "open"]
+        if not uploads and not asks:
+            return []
+
+        parts = ["", "FILES THE BELT HAS UPLOADED THIS PHASE"]
+        if not uploads:
+            parts.append("  (none yet)")
+        for u in uploads:
+            consumed = "consumed" if u.get("consumed_at") else "NOT YET READ"
+            summary = " ".join(str(u.get("summary") or "").split())
+            parts.append(
+                f"  - {u.get('role') or 'other evidence'} "
+                f"[{u.get('shape_match') or 'unsolicited'}, {consumed}] "
+                f"- {summary[:160]}"
+            )
+            parts.append(f"    blob_path: {u.get('blob_path') or '(unknown)'}")
+        parts.append("  To use any of these numbers, call load_evidence_series "
+                     "with the blob_path above. Never retype a figure.")
+
+        if asks:
+            parts += ["", "DATA YOU HAVE ASKED FOR AND NOT YET RECEIVED"]
+            for a in asks:
+                shape = a.get("expected_shape") or {}
+                cols = ", ".join(shape.get("columns") or []) or "unspecified"
+                parts.append(f"  - {a.get('role')} - columns: {cols}")
+        return parts
 
 
 __all__ = ["BeforeModelStateInjection"]

@@ -77,7 +77,7 @@ def _state(**overrides: Any) -> PhaseState:
         "coaching_plan": None, "field_index": 0, "draft": {}, "artifacts": {},
         "step_log": [], "belt_edits": {}, "turn_count": 0, "final": {},
         "gate_attempts": 0, "validator_feedback": [], "rejection_feedback": [],
-        "citations": [], "uploads": [], "hop_results": [],
+        "citations": [], "uploads": [], "asks": [], "hop_results": [],
         "synthesis_output": None,
     }
     base.update(overrides)  # type: ignore[typeddict-item]
@@ -456,8 +456,8 @@ def test_load_skill_is_not_in_any_allowed_tools_list(phase: str) -> None:
 
 
 @pytest.mark.parametrize("phase, ratified, live", [
-    ("define", 8, 6), ("measure", 15, 13), ("analyse", 12, 10),
-    ("improve", 8, 6), ("control", 12, 10),
+    ("define", 9, 7), ("measure", 16, 14), ("analyse", 13, 11),
+    ("improve", 9, 7), ("control", 13, 11),
 ])
 def test_the_three_tool_counts_that_must_not_drift(
     phase: str, ratified: int, live: int
@@ -466,14 +466,26 @@ def test_the_three_tool_counts_that_must_not_drift(
 
     | | Define | Measure | Analyse | Improve | Control |
     |---|---|---|---|---|---|
-    | §30 ratified | 8 | 15 | 12 | 8 | 12 |
-    | live (2 owed) | 6 | 13 | 10 | 6 | 10 |
-    | + `load_skill` | 7 | 14 | 11 | 7 | 11 |
+    | §30 ratified | 9 | 16 | 13 | 9 | 13 |
+    | live (2 owed) | 7 | 14 | 11 | 7 | 11 |
+    | + `load_skill` | 8 | 15 | 12 | 8 | 12 |
 
-    **G-33's collision is real but not yet live.** Once 7.1 and 7.5 land, the
-    bound count is ratified + 1 — and Measure reaches **16, exactly the §30
-    ceiling**, which is what G-33 says: *"if bound, Measure goes to 16 against
-    a cap of 16."* Asserted here so that step cannot arrive at it by surprise.
+    **The ratified row moved on 2026-09-09** when `load_evidence_series` made
+    the universal set eight (Part AR1). **Measure's ratified total is now 16 —
+    the §30 ceiling EXACTLY**, with no margin left.
+
+    ⚠ **G-33'S RECORDED ARITHMETIC IS NOW STALE, AND THE DIRECTION MATTERS.**
+    G-33 says *"if bound, Measure goes to 16 against a cap of 16"* — true when
+    the universal set was seven. With eight, binding `load_skill` would take
+    Measure to **17, over the cap**. The collision G-33 describes as "exactly
+    at the ceiling" is now "one past it".
+
+    **Nothing is broken today**: `load_skill` is middleware-registered and
+    outside §30's totals, which is G-33's own answer. But the headroom that
+    made its collision survivable is gone, and **whoever resolves G-33 must
+    settle the ceiling first** rather than discovering this at bind time.
+    Asserted below so it cannot be arrived at by surprise — which is what this
+    test has always been for.
     """
     bound_by_create_agent = len(UNIVERSAL_TOOLS) + len(
         COMPUTATION_TOOLS_BY_PHASE[phase])
@@ -485,7 +497,12 @@ def test_the_three_tool_counts_that_must_not_drift(
 
     assert ratified + 1 == live + 3, "the two owed tools, and load_skill"
     if phase == "measure":
-        assert ratified + 1 == 16, "G-33's collision, at the ceiling"
+        # Was 16 — "at the ceiling" — while the universal set was seven.
+        assert ratified == 16, "Measure sits ON §30's ceiling since 2026-09-09"
+        assert ratified + 1 == 17, (
+            "G-33's collision is now one PAST the cap, not at it — the "
+            "ceiling must be settled before load_skill is ever bound"
+        )
 
 
 def test_skills_are_read_from_the_git_versioned_tree() -> None:

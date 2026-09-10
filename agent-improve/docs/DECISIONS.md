@@ -6400,3 +6400,160 @@ slipped in**, which is what this entry is.
 > thing beside it rather than by any check — **nothing in this project verifies
 > that a count in prose matches the list it describes**, and all three were in
 > documents whose §55.1 rule is that references resolve.
+
+---
+
+## Part AS — Step 6.12: the ask-binding, and the third instance of WATCH 19 (2026-09-10)
+
+**Four founder rulings resolving conflicts the implementation audit surfaced,
+and one defect found by building.** The step's own section was updated in the
+same commit: as written it predated Part AQ and listed five Done-when clauses,
+so **6.12 could have been marked done while owing four more.**
+
+### AS1 — The planner derives the ask; the model never declares one
+
+**Ruling R1.** `CoachingResponse` carries four fields and none of them says
+"I am asking for data of this shape". Declaring one would be a §56 amendment on
+a load-bearing schema (CLAUDE.md §18.3b). The planner derives it instead: when
+it routes to a field with a declared shape, the ask exists.
+
+**The reason is not that it avoids an amendment.** It is the stronger mechanism.
+**An ask whose existence depends on the model emitting a field is absent
+whenever the model forgets, and nothing anywhere says it should have been
+there** — the same failure shape as §0.16's unfireable cap and 6.11's silent
+fallback. The planner is code.
+
+> **The caveat, written out because it is real.** An ask created when the
+> planner routes to a data-bearing field is **not the same event** as the
+> coach's sentence asking for the data. They coincide in practice — the planner
+> picks the field, the coach's turn asks for it.
+>
+> **Where they do not coincide**: a turn that routes to `baseline_mean` in
+> order to *teach* the metric, without requesting a file, still opens the ask.
+> A phantom ask then sits open for a turn.
+>
+> **The failure is benign, and that is why the ruling stands.** A Belt who
+> uploads matching data against that ask is arguably answering it — the data
+> was going to be needed. The visible cost is one manifest line reading
+> "DATA YOU HAVE ASKED FOR AND NOT YET RECEIVED" a turn earlier than the coach
+> said it aloud. **The cost of the alternative is an ask that silently never
+> existed**, and those are not comparable.
+
+### AS2 — Asks are keyed on ROLE, not on field
+
+Measure's baseline and stability shapes are **usually the same file** — a run
+chart and a baseline are two reads of one dataset — and `baseline_mean` and
+`baseline_sigma` are two fields on one dataset. **Per-field asks would open
+three requests for one upload and leave two permanently unanswered.**
+
+That is not merely untidy: an unanswered ask with an unconsumed upload is
+precisely the condition `consumed_at` exists to detect at the gate, so
+per-field keying would have the system manufacture its own false positives. A
+Belt asked three times for one spreadsheet also stops believing the coaching.
+
+### AS3 — WATCH 19, third instance: `uploads` had a reader that was never wired
+
+**§6 names two consumers of `uploads`: "gate document assembly; evidence
+context".** Gate assembly was wired at 6.11. **The second was never wired at
+all** — verified against the tree while building this step: nothing anywhere
+read `PhaseState.uploads` into the coach's context.
+
+**Recorded as a defect found, not a gap filled**, and it belongs beside the
+other two:
+
+| # | Field | Declared | Read by nothing until |
+|---|---|---|---|
+| 1 | `phase_context` | step 3.1 | step 6.8 — six steps, every prompt composed from labelled fallbacks |
+| 2 | `remaining_steps` | §26 | §0.16 — `.get(key, 10)` returned 10 forever and the hop cap never fired |
+| 3 | **`uploads`' "evidence context" reader** | §6, step 3.1 | **step 6.12** |
+
+**The shape is identical every time: a field is declared, something writes it,
+and the consumer named in the specification does not exist.** None of the three
+was caught by a test, because a test written from the code cannot see a reader
+the code never had. All three were found by reading the specification against
+the tree — which is what the coverage audit, WATCH 19 and this step each did.
+
+**The manifest is what closes it**, and it is more than housekeeping: §24 makes
+retrieval a tool call the model decides to make — *"there is no unconditional
+retrieval pipeline"* — so **no uploaded document is guaranteed to be read via
+`rag_lookup_evidence`**. A coach that never calls the tool never sees the file.
+The manifest is deterministic and costs one line per upload: **the coach cannot
+fail to know a file exists**, though it may still choose not to open it. The
+planner's routing (clause 5) is what makes the choosing non-discretionary.
+
+### AS4 — `consumed_at` is written by the node, not the tool
+
+**Ruling R4**, and it is a placement rather than a behaviour change. S-F57 B4
+says *"the system shall"* set `consumed_at` on a successful load. A `@tool`
+receives only its arguments and cannot reach `PhaseState`, so the **executor
+node** inspects the turn's tool calls afterwards and writes it. Recorded in
+S-F57's own entry so the next reader does not have to re-derive it.
+
+### AS5 — `download_bytes`, and a spec count that moved with it
+
+**Ruling R3.** `blob._download` ends in `raw.decode("utf-8")`, which corrupts
+every binary format the parser handles. S-F57's SIPOC names `storage/blob.py`
+as the supplier of bytes, so the reader is entailed by the spec rather than new
+scope — but it is the **fourteenth** module-level name in a file S-C08
+enumerates as thirteen.
+
+**S-C08's count moved in the same commit, announced.** A count that moves
+alongside the thing it counts is not the defect; an unannounced one is — which
+is AR3's lesson applied the same day it was written.
+
+### AS6 — Column matching needs a synonym layer, and the bias is deliberate
+
+`expected_shape.columns` holds descriptions — *"one identifier per
+observation"* — because that is what teaches a Belt in the SKILL.md. **A real
+export never matches a methodology label literally**: it says `invoice_id`, not
+`identifier`. Without a synonym table every well-formed file would report a
+mismatch, and `shape_match` would mean *"the Belt did not use our words"*
+rather than *"a column is missing"*.
+
+**The bias runs toward matching, on an asymmetry of cost.** A false `partial`
+costs one coaching question about a column that is present. A false `full` lets
+a genuinely missing column through — which is the thing `shape_match` exists to
+catch. So the matcher is generous and the coach asks.
+
+### AS7 — What this step does NOT close
+
+**Half of clause 7, by ruling.** Citations are anchored on `blob_path` and
+`content_digest` **in code, matched on `role`** — never on filename, which
+ruling AP2.2 forbids and which matching on filename would reintroduce through
+the back door. A citation the coach made against an upload it saw in the
+manifest can be anchored now. **One sourced from `rag_lookup_evidence` cannot**:
+the structured record carrying those fields is §24's, and that is **step 6.13**.
+Those citations pass through unanchored rather than being given a guessed
+anchor.
+
+**Four phases of SKILL.md shapes, and one vocabulary extension.** Ruling R2
+scoped the content pass to Measure and gave the rest **step 6.14** — scheduled
+rather than assumed. §23.2.1 has no `role` for a measurement-system study and
+GR&R is not a capability study, so shape 3 uses the `other evidence` catch-all
+that row exists for. **Extending a controlled vocabulary once with complete
+information beats extending it four times**, so it rides 6.14.
+
+### AS8 — A test that argued against the ruling before the ruling was taken
+
+`test_no_phase_exceeds_the_sixteen_tool_ceiling` asserted Measure's headroom on
+this reasoning, written before any of this was proposed:
+
+> *"A binding that sat exactly on 16 would pass a ceiling check while leaving
+> no room for the amendment process to be the thing that adds the seventeenth
+> tool."*
+
+**That is now the state.** `load_evidence_series` took Measure from 15 to 16
+(Part AR1). The assertion is kept and inverted rather than deleted, so a ninth
+universal tool fails the test on the day it is added.
+
+> **⚠ G-33'S RECORDED ARITHMETIC IS NOW STALE, AND THE DIRECTION MATTERS.**
+> G-33 says *"`load_skill` — if bound, Measure goes to 16 against a cap of 16."*
+> True when the universal set was seven. **With eight, binding `load_skill`
+> would take Measure to 17 — over the cap.** The collision G-33 describes as
+> *at* the ceiling is now *one past* it.
+>
+> **Nothing is broken today**: `load_skill` is middleware-registered and sits
+> outside §30's totals, which is G-33's own answer. But **the headroom that
+> made its collision survivable is gone**, and whoever resolves G-33 must settle
+> the ceiling first rather than discovering this at bind time. Pinned in
+> `test_the_three_tool_counts_that_must_not_drift`.

@@ -1572,10 +1572,16 @@ and the commit body**.
 
 | | |
 |---|---|
-| **Reference §** | §29.1 · §32 · §43 · §50 · §65.4 S-F35 |
-| **Touches** | `backend/upload/`, `core/substate.py`, `middleware/state_injection.py`, the five SKILL.md files |
-| **Precondition** | 6.11 |
+| **Reference §** | §29.1 · §32 · §43 · §50 · §6 / S-C02 · §23.2.1 · §60.7 S-F57 · §65.4 S-F35 |
+| **Touches** | `backend/upload/` (asks), `core/substate.py`, `middleware/state_injection.py`, `phases/nodes_common.py`, `phases/mappers_common.py`, `gateway/routes.py`, `knowledge/tools.py`, `storage/models.py`, `storage/blob.py`, **Measure's SKILL.md** |
+| **Precondition** | 6.11 · the two §56 amendments of `b90b9f2` |
 | **Verify** | `live-run` |
+
+> **This section was updated on 2026-09-10 and its Done-when grew.** As
+> originally written it predated the evidence-channel amendment
+> (`DECISIONS.md` Part AQ) and listed five clauses, so **the step could have
+> been marked done while owing four more.** The founder rulings behind the
+> additions are Part AR and Part AS.
 
 **Not in the original spine.** Founder ruling: **an upload is bound to the
 coach's request that prompted it, not to its filename.**
@@ -1596,11 +1602,47 @@ it the only route from a file to `calculate_grr` is the coach transcribing
 numbers out of retrieved chunks — which is the anti-pattern §22 exists to
 prevent, performed on the platform's own evidence.
 
-**Done when:** a coach request for data is recorded with its expected shape; an
-upload resolves to that ask; a shape mismatch produces a coaching turn rather
-than a rejection; a second file against one ask is recorded as a revision rather
-than a second upload; and a computation tool consumes a bound upload without the
-coach retyping a figure.
+**Done when — the original five:** a coach request for data is recorded with its
+expected shape; an upload resolves to that ask; a shape mismatch produces a
+coaching turn rather than a rejection; a second file against one ask is recorded
+as a revision rather than a second upload; and a computation tool consumes a
+bound upload without the coach retyping a figure.
+
+**Done when — the amendment's seven** (Part AQ, ruled into this step 2026-09-10):
+
+1. `role`, `shape_match` and `content_digest` are on `UploadRecord` and in §6's
+   uploads entry, with S-C09 and S-C02 updated. **Without all three, 6.13's
+   backfill has nothing to read** — it reads the case blob.
+2. Supersession resolves on `(case_id, role)` by comparing `content_digest`:
+   the same digest is not a new version; a different one supersedes.
+3. `consumed_at` is written when a load or a citation references the document.
+4. **The upload manifest is injected every turn** by
+   `BeforeModelStateInjection` — one line per uploads entry, inventory and not
+   content.
+5. The planner routes on an unconsumed upload bound to an open ask.
+6. `load_evidence_series` per **S-F57**.
+7. Citations carry `blob_path` and `content_digest`, **enriched in code and
+   matched on `role`** — never on filename, which ruling AP2.2 forbids.
+
+> **⚠ CLAUSE 7 IS HALF-SATISFIABLE HERE, AND THE SEAM IS PART OF THE
+> ACCEPTANCE CRITERIA.** A citation the coach made against an upload it saw in
+> the manifest **can** be anchored now, because `PhaseState.uploads` carries
+> both fields. **One sourced from `rag_lookup_evidence` cannot** — the
+> structured record carrying them is §24's, and that is **step 6.13**. Those
+> citations pass through unanchored rather than being given a guessed anchor.
+> **This step is done with half of clause 7 outstanding, by ruling**, and 6.13
+> closes it.
+
+**Measure's SKILL.md carries the three shapes; the other four phases do not.**
+Ruling AR-R2 scoped the content pass to one phase and gave the rest their own
+Appendix D row — **four-fifths of a content pass silently owed is the failure
+this project keeps paying for**, so it is scheduled rather than assumed.
+
+> **A vocabulary gap is recorded here and deliberately not fixed.** §23.2.1 has
+> no `role` for a measurement-system study, and GR&R is not a capability study,
+> so shape 3 uses `other evidence` — the catch-all that row exists for.
+> **Extending a controlled vocabulary once with complete information beats
+> extending it four times**, so it is batched with the four-phase pass.
 
 ---
 
@@ -1676,6 +1718,139 @@ surface on an unfiltered evidence query (Part AP2 ruling 3's second binding
 condition, and a test rather than an observation); `rag_lookup_evidence` returns
 §24's structured record rather than rendered text; and a `live-run` confirms a
 Belt asking what the to-be process is now reaches the artefact.
+
+---
+
+## Step 6.16 — The board is generated, not written
+
+| | |
+|---|---|
+| **Reference §** | §55.1 · §66 · Appendix D · `ARCHITECTURE_STATUS.md` |
+| **Touches** | `docs/REFACTORING_PROCEDURE.md` (Appendix D's two new columns) · `docs/ARCHITECTURE_STATUS.md` (the closer token) · `.claude/hooks/build_board.py` **(new)** · `.githooks/pre-commit` · `.claude/hooks/commit-msg-refactor-guard.py` (watched paths) · `docs/board.html` **(generated)** |
+| **Precondition** | none — **READY** |
+| **Verify** | `grep-absence` + a commit that moves a step |
+
+**Not in the original spine. Added 2026-09-10.** The refactor board is hand-made
+in a chat and **goes stale the moment a commit lands**. Four captions in this
+repository have already outlived the lists they describe (`DECISIONS.md` Part
+AR3) — the tracker row that carried two descriptions, the 6.9 row's badge,
+CLAUDE.md §10.1's field count, §29.3's universal count. **A hand-written board
+is the fifth waiting to happen**, and it is the one a founder reads.
+
+### 1 — Appendix D gains two columns
+
+**`Zone`** — one of seven: **UI · SUP · PHASE · COACH · GATE · STORE · OPS.**
+Which container the step changes. A step may carry two; **the first is primary.**
+
+**`Impact`** — one sentence: **what is true about the product if this step is
+never done.** Not a restatement of the title. The shape is
+*"Nothing ever pauses for a human, so no gate decides and the supervisor graph
+is never the runtime"* — a consequence, in the product's terms.
+
+> **`Impact` is the column that lets a reader judge whether a step is worth its
+> slot, and it exists in no document today.** Every other field on the board is
+> a projection of something already tracked; this one is new information and is
+> **the bulk of this step's work** — 55 sentences, each of which has to be true
+> and none of which can be derived. Write them from the step's own section,
+> which usually already argues the consequence in prose.
+
+> **⚠ THE ZONE-TO-BLOCK MAPPING IS NOT 1:1 — SETTLE IT FIRST.**
+> `ARCHITECTURE_STATUS.md` carries **eight** Level 1 blocks; this column has
+> **seven** zones. A 3→1 collapse and a 1→2 split:
+>
+> | Zone | Block |
+> |---|---|
+> | UI | 1 — API surface |
+> | SUP | 2 — Supervisor graph |
+> | PHASE | 3 — Phase subgraphs |
+> | **COACH** | **4 + 5 + 6** — the coaching agent, the middleware stack, tools and knowledge |
+> | GATE | 7 — Validation, gates and escalation |
+> | **STORE** | **8, persistence half** |
+> | **OPS** | **8, cross-cutting half** |
+>
+> Container 1 is drawn from the blocks and container 2 is coloured by zone, so
+> **without a declared mapping the two cannot cross-highlight** — which is most
+> of what a board is for. **Declare the table above in the generator as DATA,
+> not as a comment**, so adding a block or a zone raises a `KeyError` rather
+> than silently unmapping a step.
+
+### 2 — `ARCHITECTURE_STATUS.md` gets a parseable closer
+
+**Every ☐ and ⚠ row already names its closing step in prose.** Move it to a
+fixed position — a trailing **`[6.10]`** or equivalent — so the generator reads
+a token rather than parsing a sentence.
+
+**Rows with no closing step say so explicitly** — `[none]` — rather than being
+silent. A silent row and an unparseable row look identical to a generator, and
+the difference between "nothing closes this" and "nobody wrote it down" is
+exactly what this project keeps losing.
+
+> **This is the same move `▶` made and for the same reason.** A cursor in prose
+> is a sentence a tool has to understand; a cursor in one cell is a token it can
+> read. §55.1's bidirectional rule works because references are literal strings.
+
+### 3 — The generator: `.claude/hooks/build_board.py`
+
+**It reads four documents and nothing else:**
+
+| Source | What it takes |
+|---|---|
+| **Appendix D** | every step, its status, **zone**, **impact**, and the total |
+| **`ARCHITECTURE_STATUS.md`** | the eight blocks, the control points, built states, **and each unbuilt row's closing step** |
+| **`ARCHITECTURE.md` §66** | the gap register, for blocked reasons |
+| **`BUILD_TRACKER.md`** | the ▶ cursor |
+
+**Reading nothing else is a constraint, not a description of one.** A generator
+that reached into git log, or into the code, would report something no reviewer
+ratified. **Every figure on the board must trace to a line in a document a human
+approved** — which is the same rule §55.1 applies to references and the reason
+the board can be trusted at a glance.
+
+**Writes `docs/board.html`** — four containers:
+
+| # | Container | Carries |
+|---|---|---|
+| **0** | **The timeline** | now → testing |
+| **1** | **The nested architecture diagram** | **every ☐ and ⚠ carrying its step number** — so a reader looking at a hole sees which step fills it, without leaving the picture |
+| **2** | **Five lanes** | QUEUED · BUILDING NOW · BLOCKED · READY · DONE |
+| **3** | **A detail panel per task** | including its **impact** |
+
+### 4 — Lane assignment is DERIVED, never declared
+
+| Lane | Rule |
+|---|---|
+| **BLOCKED** | its precondition is unmet, **or** an open §66 gap names it — the gap is the displayed reason |
+| **BUILDING NOW** | the ▶ cursor |
+| **READY** | preconditions met |
+| **DONE** | Appendix D says `done` |
+| **QUEUED** | everything else, in Appendix D order |
+
+**Nothing anywhere declares a lane.** A declared lane is a fifth caption to keep
+current; a derived one cannot disagree with the table it came from.
+
+### 5 — Wired into `.githooks/pre-commit`, fail-SOFT
+
+*(Carried from the 2026-09-10 scoping message, which truncated before restating
+it — flagged rather than assumed.)*
+
+Beside the `CONTINUITY.md` regeneration and under the same rule: **a hook that
+writes must never wedge a commit.** A generator that raises leaves the previous
+board in place and logs; it does not block the commit that would have refreshed
+it.
+
+### 6 — `docs/board.html` joins the watched paths
+
+*(Carried from the same message.)*
+
+`commit-msg-refactor-guard.py`'s rule 2b, so **a stale board is visible the same
+way a stale `ARCHITECTURE_STATUS.md` is** — the board is a projection of
+documents that move, and the guard is what notices when the projection did not
+move with them.
+
+**Done when:** a commit that moves a step in Appendix D produces a `board.html`
+whose lane for that step has moved, **with no human edit anywhere**; every ☐ and
+⚠ in container 1 shows a step number or `[none]`; and `grep-absence` confirms no
+hand-written board survives.
 
 ---
 
@@ -2386,7 +2561,7 @@ infrastructure noise. **Read both before finalising §52.**
 > Version keys are numeric tuples, so `6.10 > 6.9 > 6.7`. That is `_ver_key`'s
 > documented purpose — *"so 2.10 > 2.2"* — and is safe to rely on.
 
-> **THE TOTAL: 52 ROWS. THIS TABLE IS AUTHORITATIVE.** `BUILD_TRACKER.md` and
+> **THE TOTAL: 55 ROWS. THIS TABLE IS AUTHORITATIVE.** `BUILD_TRACKER.md` and
 > `CONTINUITY.md` carried *"of 35 build steps"* until 2026-09-07; that figure
 > was a hand-count that was never reconciled against this table and was already
 > wrong by five rows before the audit added eight more. **Where the two
@@ -2395,10 +2570,25 @@ infrastructure noise. **Read both before finalising §52.**
 > pointing at a step that does not exist. Both documents now derive their
 > figure from here and state the derivation.
 >
-> **52 = 29 done + 20 pending + 2 BLOCKED (6.10, 8.4) + 1 GATED (8.5)** as of
-> 2026-09-09. Of the 20 pending, 9.1 is EXTERNAL (an Azure-side reindex, now
-> narrowed to the case index). So **19 steps are schedulable code work**, and 8.4 and 8.5 cannot
+> **55 = 30 done + 22 pending + 2 BLOCKED (6.10, 8.4) + 1 GATED (8.5)** as of
+> 2026-09-10. Of the 22 pending, 9.1 is EXTERNAL (an Azure-side reindex, now
+> narrowed to the case index). So **21 steps are schedulable code work**, and 8.4 and 8.5 cannot
 > be scheduled until Redis is provisioned and `request_drain()` is confirmed.
+>
+> **54 → 55 on 2026-09-10**: the board gets a generator (6.16). It is READY —
+> nothing blocks it — and it is scheduled rather than done ad hoc because the
+> board is the artefact a founder reads and the only one still made by hand.
+> Appendix D gains a `Zone` column, which is the sole new information the
+> board needs; everything else it shows is already in a tracked document.
+>
+> **52 → 54 on 2026-09-10**: step 6.12 surfaced two pieces of work it could not
+> honestly absorb. **6.14** carries the SKILL.md shape pass for the four phases
+> 6.12 did not do — scheduled rather than assumed, because four-fifths of a
+> content pass silently owed is this project's recurring disease — and it
+> carries §23.2.1's vocabulary extension with it, once, with complete
+> information. **6.15** is the count-check: hand-written assertions that a
+> written count matches the list it describes, after Part AR3 found the third
+> caption to outlive its own list. `DECISIONS.md` Part AS.
 >
 > **51 → 52 on 2026-09-09**: the evidence index migration got its own step — 6.13,
 > the seven §23.2 fields, their write path, a backfill from the case blobs and the
@@ -2443,8 +2633,11 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 6.9** | SKILL.md conformance to §32's seven | done — live half owed |
 | **Commit 6.10** | `analyse_executor_node` — §26's multi-hop | **BLOCKED** |
 | **Commit 6.11** | The upload path (G-36) | done |
-| **Commit 6.12** | Ask-binding: an upload answers a request | pending |
+| **Commit 6.12** | Ask-binding: an upload answers a request | done — live half owed |
 | **Commit 6.13** | The evidence index migration | pending |
+| **Commit 6.14** | SKILL.md shape pass — Define, Analyse, Improve, Control | pending |
+| **Commit 6.15** | The count-check — a written count against the list it describes | pending |
+| **Commit 6.16** | The board is generated, not written | pending |
 | **Commit 7.0** | The evaluation suite | pending |
 | **Commit 7.1** | `DMAICGateValidator` + Layer 2b | pending |
 | **Commit 7.2** | Layers 2c, 2d + `validation_stack` | pending |

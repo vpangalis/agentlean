@@ -4325,7 +4325,7 @@ phase, §6).
 #### 39.2.7 State parameters (`MeasureState`)
 
 *Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* `MeasureState` extends
-`PhaseState` — explicit `TypedDict`, not `MessagesState` (§6). All 21 declared
+`PhaseState` — explicit `TypedDict`, not `MessagesState` (§6). All 22 declared
 `PhaseState` fields apply; the Measure-specific reads and writes:
 
 | `PhaseState` field | In Measure |
@@ -8440,7 +8440,7 @@ field requires a §56 amendment, whatever category it is placed in.**
 | `validator_feedback` | `list[dict]` | Accumulated per-attempt validation failures, each recording attempt, layer, criteria failed and specific feedback. What makes the shared cap of 3 defensible | none (append by the writer) | validation stack appends; `gate_apply` resets to `[]` | the coach, on retry |
 | `rejection_feedback` | `list[dict]` | The Belt's per-reject reasons at the gate — the stated reason plus the rejected edits as context. Read on the re-coaching turn so the coach addresses what the Belt actually objected to | none (append by the writer) | `gate_apply`, on a Belt reject; reset to `[]` by `gate_apply` when the gate passes | the planner (S-F03), on the re-coaching turn |
 | `citations` | `list[dict]` | Sources the coach cited this phase — `source`, `page`, `content_summary`, `turn`, plus **`blob_path` and `content_digest`** (**RATIFIED 2026-09-09 — NOT YET APPLIED**; Part AQ). The first four identify a passage; **none identifies the FILE underneath**, so a citation could not tell that its source had been replaced and §37 / step 7.6's cascade had nothing to compare. The anchor turns supersession from something the system records into something it can detect | none (append by the writer) | executor, from `CoachingResponse.citations` | gate document assembly |
-| `uploads` | `list[dict]` | Files the Belt uploaded this phase — `evidence_index_id`, `filename`, `phase`, `uploaded_at`, `summary`, **`consumed_at`** (**RATIFIED 2026-09-09 — NOT YET APPLIED**; set when a citation or a load references the document. **`None` at a gate on an upload bound to an open ask means the Belt supplied evidence and the coaching proceeded without it** — undetectable without the field, which is why it is specified here rather than at Stage 7; Part AQ), plus `ask_id` and `version` — **both RESERVED FOR STEP 6.12**: declared at 6.11, written `None`, filled by the ask-binding (Part AP5). An empty list means the phase reached its conclusions from typed statements alone | none (append by the writer) | the upload handler — **see G-36** | gate document assembly; evidence context |
+| `uploads` | `list[dict]` | Files the Belt uploaded this phase — `evidence_index_id`, `filename`, `phase`, `uploaded_at`, `summary`, **`role`**, **`shape_match`**, **`content_digest`**, `blob_path`, **`consumed_at`** (**RATIFIED 2026-09-09 — NOT YET APPLIED**; set when a citation or a load references the document. **`None` at a gate on an upload bound to an open ask means the Belt supplied evidence and the coaching proceeded without it** — undetectable without the field, which is why it is specified here rather than at Stage 7; Part AQ), plus `ask_id` and `version` — **both RESERVED FOR STEP 6.12**: declared at 6.11, written `None`, filled by the ask-binding (Part AP5). An empty list means the phase reached its conclusions from typed statements alone | none (append by the writer) | the upload handler — **see G-36** | gate document assembly; evidence context |
 | `asks` | `list[dict]` | **The coach's recorded requests for data** — `ask_id`, `role` (§23.2.1's vocabulary), `expected_shape` (columns, units, period, from the SKILL.md worked examples), `phase`, `asked_at`, `status`. **RATIFIED 2026-09-09 — built at step 6.12** (§56 amendment; Part AR). An ask is the **logical identity** of a document and files are its versions (ruling AP2.2), so the binding is recorded when the coach asks rather than inferred from a filename afterwards. **A system record, not a captured value** — which is why it is here and not in `artifacts` (§6) | none (append by the writer) | the executor, when the coach requests data | the upload route, resolving an arriving file; the planner (S-F13), routing on an unconsumed ask; `BeforeModelStateInjection` (S-C11), for the manifest |
 | `hop_results` | `list[str]` | Ordered answers from a planned multi-hop chain. `[]` on every single-hop turn. State rather than a node local, so LangSmith can see it and a resume does not lose it | none | `analyse_executor_node` | the synthesis call; the LangSmith state view |
 | `synthesis_output` | `Optional[dict]` | The dedicated synthesis call's `SynthesisOutput`, dumped. `None` on single-hop turns | none | `analyse_executor_node` | the coach call |
@@ -8804,7 +8804,9 @@ file upload, and **never mid-conversation.**
 > resolution** — §54 and `CLAUDE.md` §2 name this file among those holding
 > module-level functions ONLY, so the gap as originally written asked for
 > something that may not exist here. `ImproveBlobClient` was removed; the
-> surface is thirteen module-level names:
+> surface is fourteen module-level names — **thirteen until 2026-09-10**,
+> when `download_bytes` joined them for S-F57's loader: `_download` decodes
+> UTF-8 and would corrupt every binary format the parser handles (Part AS):
 >
 > | Kind | Names |
 > |---|---|
@@ -8853,6 +8855,9 @@ record is stored under rather than a field on it, and the rest are here.
 | `uploaded_at` | `str` | ISO 8601, server clock (§23.2) |
 | `classification` | `str` | `purpose=<p> · <content_type> · <indexed\|pending>` |
 | `rows` | `Optional[int]` | Row count from the deterministic parse. **Declared since before the refactor and written by nothing until 6.11** (Part AP1) |
+| `role` | `str` | The document's function, from §23.2.1's vocabulary. **With `case_id` this is the LOGICAL IDENTITY** — supersession resolves on `(case_id, role)`, never on filename (ruling AP2.2). From the ask when solicited; from the Belt's declared purpose when not. **Built at 6.12** |
+| `shape_match` | `str` | `full` \| `partial` \| `none` \| `unsolicited` — whether the file matched the ask's expected shape. **A mismatch is a coaching question, not a rejection**, so this records the answer and never blocks. **Built at 6.12** |
+| `content_digest` | `str` | SHA-256 of the uploaded bytes — **VERSION IDENTITY**. The same bytes re-uploaded are not a new version; a different digest under the same role supersedes. **Built at 6.12** |
 | `kind` | `str` | `evidence` \| `artefact` — **the destination, not the format** (ruling AP2.3). Evidence goes to `improve_evidence_index`; an artefact is what the team designed and does not, because one bucket would let a proposed future be retrieved later as a fact about the present |
 | `evidence_index_id` | `Optional[str]` | The index document id. **`None` for every artefact, and for evidence whose indexing failed** — §6 names it as what makes the evidence trail traversable |
 | `summary` | `str` | The interpretation's summary, lifted to the top level because §6's entry shape names `summary` and a gate document reads that shape |
@@ -10305,7 +10310,7 @@ carved for it.
 | B1 | the tool is called | re-parse the blob at `blob_path`; it SHALL NOT read a stored copy of the parsed values, and no such copy SHALL be created | §39.2 |
 | B2 | the named column is absent | return a Belt-readable reformatting request naming the columns that ARE present, never a bare failure | §27, ruling AP2.5 |
 | B3 | values are returned | return them as strings, so the twenty computation tools consume them unchanged | §7, AD1 |
-| B4 | a load succeeds | set `consumed_at` on that upload's record and its §6 entry — this is the write that makes an unread upload detectable at the gate | S-C02, S-C09 |
+| B4 | a load succeeds | set `consumed_at` on that upload's record and its §6 entry — the write that makes an unread upload detectable at the gate. **The EXECUTOR NODE performs it, not the tool** (ruling AR-R4, 2026-09-10): a `@tool` receives only its arguments and cannot reach `PhaseState`, so the node inspects the turn's tool calls afterwards. The behaviour is the system's; the placement is the node's | S-C02, S-C09 |
 | B5 | the column is mixed-typed | carry the parse's own `mixed` report rather than silently coercing; a mixed column is a coaching question | step 6.11 |
 
 **Invariants:**

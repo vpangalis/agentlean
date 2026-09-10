@@ -78,7 +78,11 @@ from backend.core.config import settings
 from backend.core.diagrams import BUILDERS, DIAGRAM_TYPES, DiagramError
 from backend.core.errors import KnowledgeSearchError
 from backend.knowledge.fusion import run_multi_query
-from backend.knowledge.tool_args import ProposeDiagramArgs, ProposeTemplateArgs
+from backend.knowledge.tool_args import (
+    LoadEvidenceSeriesArgs,
+    ProposeDiagramArgs,
+    ProposeTemplateArgs,
+)
 from backend.knowledge.retriever import (
     get_knowledge_vectorstore,
     search_cases,
@@ -622,8 +626,151 @@ def propose_diagram(diagram_type: str, data: dict) -> tuple[str, dict]:
 #: §30** — recorded as WATCH 25, and `test_computation.py` asserts the
 #: arithmetic (7 ratified, 5 built, 2 owed) so the steps that add them have to
 #: come back and update it.
+@tool(args_schema=LoadEvidenceSeriesArgs, response_format="content_and_artifact")
+async def load_evidence_series(
+    blob_path: str, column: str
+) -> tuple[str, dict]:
+    """Load one column of numbers from a file the Belt uploaded.
+
+    USE THIS WHENEVER YOU NEED THE ACTUAL VALUES from an upload — before any
+    calculation, and instead of reading numbers out of retrieved text. Search
+    finds WHICH file; this loads THE VALUES.
+
+    Returns the column's values with n, mean, sigma, min and max, ready to hand
+    to a calculation tool. **Never retype a figure you have seen in a chunk or
+    in your own earlier message** — load it.
+
+    `blob_path` comes from the uploads manifest at the top of your context, or
+    from a `rag_lookup_evidence` result. If the column name is wrong, the reply
+    lists the columns the file actually has, so ask the Belt using those names.
+    """
+    from backend.storage import blob as blob_store
+    from backend.upload.parsers import parse_upload
+
+    filename = (blob_path or "").rsplit("/", 1)[-1]
+    try:
+        raw = await blob_store.download_bytes(blob_path)
+    except Exception as exc:  # noqa: BLE001 — a missing file is a coaching fact
+        logger.warning("load_evidence_series: cannot read %s: %s",
+                       blob_path, exc)
+        return (
+            f"That file could not be opened ({filename}). Ask the Belt to "
+            f"upload it again, or pick a different file from the list you "
+            f"were shown.",
+            {"ok": False, "reason": "unreadable"},
+        )
+
+    # B1 — RE-PARSE. It reads no stored copy of the values and creates none:
+    # `UploadRecord.rows` is a row count, and a second copy of the table is the
+    # drift §39.2's single-authority rule exists to prevent.
+    parsed = parse_upload(filename, raw, _content_type_for(filename))
+    if not parsed.get("parsed"):
+        return (
+            f"That file could not be read: {parsed.get('refusal_reason')}",
+            {"ok": False, "reason": "unparseable"},
+        )
+
+    columns = parsed.get("columns") or []
+    match = _match_column(column, columns)
+    if match is None:
+        # B2 — a Belt-readable reformatting request naming what IS there,
+        # never a bare failure.
+        listed = ", ".join(columns) if columns else "none"
+        return (
+            f"'{column}' is not a column in {filename}. The columns it has "
+            f"are: {listed}. Ask the Belt which of those holds the value you "
+            f"need, using their own column names.",
+            {"ok": False, "reason": "no_such_column", "columns": columns},
+        )
+
+    profile = (parsed.get("column_ranges") or {}).get(match) or {}
+    kind = (parsed.get("column_types") or {}).get(match, "text")
+    values = _column_values(parsed, match)
+
+    if kind not in ("whole number", "decimal", "percentage"):
+        return (
+            f"'{match}' in {filename} holds {kind}, not numbers, so it cannot "
+            f"be measured. The file's numeric columns are: "
+            f"{', '.join(_numeric_columns(parsed)) or 'none'}.",
+            {"ok": False, "reason": "not_numeric", "column_type": kind},
+        )
+
+    n = len(values)
+    mean = sum(values) / n if n else 0.0
+    sigma = (sum((v - mean) ** 2 for v in values) / (n - 1)) ** 0.5 if n > 1 else 0.0
+
+    # B5 — a mixed column carries the parse's own report rather than being
+    # silently coerced. A mixed column is a coaching question.
+    mixed = profile.get("mixed")
+    mixed_note = (
+        f" NOTE: {sum(mixed.values())} of {n + sum(mixed.values())} rows in "
+        f"this column are not numbers ({', '.join(mixed)}); they were left "
+        f"out. Ask the Belt whether that is expected before relying on these "
+        f"figures." if mixed else ""
+    )
+
+    # B3 — STRINGS, so the twenty computation tools consume them unchanged.
+    summary = {
+        "column": match, "n": str(n), "mean": f"{mean:.4f}",
+        "sigma": f"{sigma:.4f}",
+        "min": str(profile.get("min", "")), "max": str(profile.get("max", "")),
+        "unit_note": "unit is whatever the Belt declared in metric_definitions",
+    }
+    logger.info("load_evidence_series: %s[%s] n=%d", filename, match, n)
+    return (
+        f"{filename} · column '{match}': n={n}, mean={mean:.4f}, "
+        f"sigma={sigma:.4f}, min={profile.get('min')}, "
+        f"max={profile.get('max')}.{mixed_note}",
+        {"ok": True, "blob_path": blob_path, **summary,
+         "values": [str(v) for v in values]},
+    )
+
+
+def _content_type_for(filename: str) -> str:
+    """The parser bucket for a filename, without a mime type to go on."""
+    from backend.upload.classifier import classify_content_type
+    return classify_content_type(filename, "")
+
+
+def _match_column(wanted: str, columns: list[str]) -> str | None:
+    """A column name, matched leniently — a Belt's header is not a label."""
+    want = (wanted or "").strip().lower().replace("_", " ")
+    for c in columns:
+        if c.strip().lower().replace("_", " ") == want:
+            return c
+    for c in columns:
+        norm = c.strip().lower().replace("_", " ")
+        if want and (want in norm or norm in want):
+            return c
+    return None
+
+
+def _numeric_columns(parsed: dict) -> list[str]:
+    return [c for c, t in (parsed.get("column_types") or {}).items()
+            if t in ("whole number", "decimal", "percentage")]
+
+
+def _column_values(parsed: dict, column: str) -> list[float]:
+    """The column's numeric values, re-derived from the parsed text.
+
+    The parser keeps `column: value` lines rather than a table, so the values
+    are read back from there — still one parse, still no stored copy.
+    """
+    out: list[float] = []
+    for line in (parsed.get("text") or "").splitlines()[1:]:
+        for cell in line.split(" | "):
+            name, _, value = cell.partition(": ")
+            if name.strip() == column:
+                try:
+                    out.append(float(value.strip().rstrip("%")))
+                except ValueError:
+                    pass
+    return out
+
+
 UNIVERSAL_TOOLS: list[BaseTool] = [
     *RAG_LOOKUP_TOOLS,
     propose_template,
     propose_diagram,
+    load_evidence_series,
 ]

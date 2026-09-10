@@ -1283,7 +1283,14 @@ def post_improvement_cpk(
 #: assembles `UNIVERSAL_TOOLS`, that list must assert its own length against
 #: this constant** — otherwise the per-phase totals below stop meaning what
 #: they say.
-UNIVERSAL_TOOL_COUNT = 7
+#:
+#: **EIGHT since 2026-09-09** — `load_evidence_series` joined the set
+#: (DECISIONS Part AR1), built at step 6.12. It is universal rather than a
+#: computation tool because the twenty below are pure functions with no I/O
+#: and it reads a blob; the universal set is already where the I/O-performing
+#: tools live. **Measure now sits at 16, the ceiling below EXACTLY** — a ninth
+#: universal tool breaks §30 for Measure on the day it is added.
+UNIVERSAL_TOOL_COUNT = 8
 
 #: §30 — the ceiling the per-phase binding exists to respect. Tool-selection
 #: quality degrades past roughly 10–15 tools per agent, which is the whole

@@ -63,6 +63,9 @@ from backend.core.llm import get_llm
 from backend.core.prompts import PHASE_COACH_PROMPT
 from backend.core.state import ImproveGraphState
 from backend.core.substate import CoachingPlan, CoachingResponse, PhaseState
+from datetime import datetime, timezone
+
+from backend.upload.asks import ensure_ask
 from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE
 from backend.knowledge.tools import RAG_LOOKUP_TOOLS, UNIVERSAL_TOOLS
 from backend.middleware.coherence import CoherenceMiddleware
@@ -126,6 +129,114 @@ def entry_mode(config: Optional[RunnableConfig]) -> str:
 
 
 # ── planner ───────────────────────────────────────────────────────────────
+
+
+
+def _anchored(citations: list[dict], state: PhaseState) -> list[dict]:
+    """Citations with `blob_path` and `content_digest` attached — step 6.12.
+
+    **Enriched in CODE, never by the model** (clause 7). The coach is shown a
+    `role` in the manifest and cites it; the anchor is looked up here, so a
+    64-character digest never has to survive a round trip through a language
+    model that was never shown it.
+
+    **Matched on ROLE, not on filename.** Ruling AP2.2 forbids inferring a
+    document's identity from what it is called, and matching on filename would
+    reintroduce exactly that through the back door.
+
+    **ONLY HALF OF CLAUSE 7 IS SATISFIABLE HERE, and the seam is deliberate.**
+    A citation the coach made against an upload it saw in the manifest can be
+    anchored now, because `PhaseState.uploads` carries both fields. **One
+    sourced from `rag_lookup_evidence` cannot** — the structured record that
+    would carry them is §24's, and that is step 6.13. Those citations pass
+    through unanchored rather than being given a guessed anchor.
+    """
+    by_role = {u.get("role"): u for u in (state.get("uploads") or [])
+               if u.get("role")}
+    if not by_role:
+        return [dict(c) for c in citations]
+
+    out: list[dict] = []
+    for citation in citations:
+        entry = dict(citation)
+        if entry.get("blob_path"):
+            out.append(entry)
+            continue
+        source = str(entry.get("source") or "").strip().lower()
+        match = next(
+            (u for role, u in by_role.items()
+             if role and (role.lower() in source or source in role.lower())),
+            None,
+        )
+        if match is not None:
+            entry["blob_path"] = match.get("blob_path")
+            entry["content_digest"] = match.get("content_digest")
+        out.append(entry)
+    return out
+
+
+def _mark_consumed(
+    state: PhaseState, messages: list, citations: list[dict],
+) -> tuple[list[dict], int]:
+    """`(uploads, n_marked)` — stamp `consumed_at` on what this turn read.
+
+    **S-F57 B4, placed at the node because a tool cannot write state.** An
+    upload counts as consumed when `load_evidence_series` was called on its
+    `blob_path`, or when a citation anchored to it.
+
+    **`consumed_at = None` at a gate on an upload bound to an open ask means
+    the Belt supplied evidence and the coaching proceeded without it.** That
+    condition is undetectable without this write, which is why the field is
+    part of 6.12 rather than of the Stage 7 validation that will read it.
+    """
+    uploads = [dict(u) for u in (state.get("uploads") or [])]
+    if not uploads:
+        return uploads, 0
+
+    touched: set[str] = {
+        str(c.get("blob_path")) for c in citations if c.get("blob_path")
+    }
+    for message in messages:
+        for call in (getattr(message, "tool_calls", None) or []):
+            if (call.get("name") if isinstance(call, dict) else None)                     == "load_evidence_series":
+                args = call.get("args") or {}
+                if args.get("blob_path"):
+                    touched.add(str(args["blob_path"]))
+
+    if not touched:
+        return uploads, 0
+
+    stamp = datetime.now(timezone.utc).isoformat()
+    marked = 0
+    for upload in uploads:
+        if upload.get("blob_path") in touched and not upload.get("consumed_at"):
+            upload["consumed_at"] = stamp
+            marked += 1
+    if marked:
+        logger.info("executor: marked %d upload(s) consumed", marked)
+    return uploads, marked
+
+
+def _unconsumed_for_open_ask(state: PhaseState) -> dict | None:
+    """An upload bound to an open ask that nothing has read yet — step 6.12.
+
+    **This is what turns "the coach will use the file" from a hope into a
+    fact.** §24 makes retrieval discretionary by design, so no prompt can
+    carry the guarantee; per S-F13 DP1 the planner owns the routing decision
+    and the planner is code.
+
+    Matched on `role`, never on filename — ruling AP2.2 forbids inferring a
+    document's identity from what it happens to be called.
+    """
+    open_roles = {a.get("role") for a in (state.get("asks") or [])
+                  if a.get("status") == "open"}
+    for upload in state.get("uploads") or []:
+        if upload.get("consumed_at"):
+            continue
+        if upload.get("role") in open_roles or not open_roles:
+            return upload
+    return None
+
 
 async def planner(
     phase: str,
@@ -196,6 +307,40 @@ async def planner(
     if goto == "executor":
         plan = await _plan_turn(phase, state)
         update["coaching_plan"] = plan
+
+        # ── Ask-binding, step 6.12 (ruling AR-R1) ─────────────────────
+        #
+        # **The PLANNER derives the ask; the model never declares one.** An
+        # ask whose existence depends on the model emitting a field is absent
+        # whenever the model forgets, and nothing anywhere says it should have
+        # been there. This node is code, so when it routes to a field with a
+        # declared shape the ask exists.
+        #
+        # **Keyed on ROLE, not on field** (`ensure_ask`): Measure's baseline
+        # and stability shapes are usually one file, so per-field asks would
+        # open three for one upload and leave two permanently unanswered.
+        asks = ensure_ask(list(state.get("asks") or []), phase, plan.focus_field)
+        if asks != list(state.get("asks") or []):
+            update["asks"] = asks
+
+        # **Routing on an unread upload is the guarantee's third leg.** The
+        # manifest makes the coach AWARE (§19.1); this makes the planner ACT.
+        # It is the only point in the loop that is not the model's discretion.
+        pending = _unconsumed_for_open_ask(state)
+        if pending is not None:
+            update["asks"] = asks
+            plan.next_action = (
+                f"The Belt has uploaded {pending.get('role')} that you have "
+                f"not read yet. Call load_evidence_series on "
+                f"{pending.get('blob_path')} before asking for anything "
+                f"further, then interpret what it shows. "
+                f"({plan.next_action})"
+            )
+            logger.info(
+                "%s.planner: routing to an UNREAD upload — role=%r path=%s",
+                phase, pending.get("role"), pending.get("blob_path"),
+            )
+
         entry_fields = {
             "focus_field": plan.focus_field,
             "next_action": plan.next_action,
@@ -920,8 +1065,13 @@ async def executor(
     citations: list[dict] = list(state.get("citations") or [])
     if reply is not None:
         captured = _captured_fields(phase, reply)
-        citations.extend(reply.citations or [])
+        citations.extend(_anchored(reply.citations or [], state))
         new_messages = _with_coaching_text(new_messages, reply)
+
+    # R4 — `consumed_at` is written HERE, not inside the tool. A `@tool`
+    # receives only its arguments and cannot reach `PhaseState`; the node
+    # inspects the turn's tool calls afterwards. S-F57 B4.
+    uploads, consumed = _mark_consumed(state, produced, citations)
 
     _attach_diagram(new_messages)
 
@@ -943,6 +1093,7 @@ async def executor(
         "draft": dict(captured),
         "artifacts": artifacts,
         "citations": citations,
+        "uploads": uploads,
         "turn_count": turn_count + 1,
         "step_log": [_step(
             phase, turn_count, "executor",

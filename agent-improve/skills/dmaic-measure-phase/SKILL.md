@@ -665,6 +665,38 @@ time studies, system extracts, GR&R results.
   *"the extract shows 517 errors, which is 12.3% — you'd mentioned about
   10%. Worth a look at which is right."*
 
+### 5.1 The three shapes — what a file has to look like
+
+**Only three of Measure's ten coached fields are answered by a file.** These
+are the shapes the system validates an arriving upload against, and the coaching
+prose above teaches the same thing in the Belt's language. **The two must
+agree**: if you change one, change the other.
+
+**Never read a unit out of this table.** The unit is whatever the Belt declared
+in `metric_definitions` for the primary metric. A shape that hardcoded "seconds"
+or "defects" would be wrong for every project whose metric is something else.
+
+| Shape | Answers | `role` | Columns | Period |
+|---|---|---|---|---|
+| **1 — baseline measurement data** | `baseline_mean`, `baseline_sigma` | `baseline defect data`, or `cycle time data` where the primary metric is a duration | one identifier per observation · one measured value · one date | the baseline window agreed in the data collection plan |
+| **2 — stability data** | `stability_assessment` | same as shape 1 | the measured value · a date or sequence number, **in collection order** | long enough to show the process moving |
+| **3 — measurement-system study** | `measurement_system_validated` | `other evidence` | part · operator · trial · measurement | not applicable — a study, not a window |
+
+**Shape 1's rule: one row per observation, never pre-aggregated.** A file of
+weekly averages cannot produce a sigma, and a Belt who sends one has usually
+already thrown away the variation you are trying to measure. Ask for the rows.
+
+**Shapes 1 and 2 are usually THE SAME FILE.** A run chart and a baseline are two
+reads of one dataset — so **ask once**. The system opens one request per `role`,
+not one per field, and a Belt asked three times for one spreadsheet loses
+confidence in the coaching.
+
+> **Shape 3 has no role of its own, and that is recorded rather than hidden.**
+> §23.2.1's vocabulary has no entry for a measurement-system study, and GR&R is
+> not a capability study. `other evidence` is the honest placeholder — which is
+> what that row exists for. The vocabulary is extended once, when the other four
+> phases get their shapes, rather than four times.
+
 ---
 
 ## 6. Capturing fields

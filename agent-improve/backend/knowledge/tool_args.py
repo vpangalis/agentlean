@@ -323,6 +323,21 @@ class PostImprovementCpkArgs(BaseModel):
 # ══════════════════════════════════════════════════════════════════════════
 
 
+class LoadEvidenceSeriesArgs(BaseModel):
+    """Args for `load_evidence_series` (S-F57)."""
+
+    blob_path: str = Field(
+        description="Which uploaded file to read, exactly as it appears in "
+                    "the uploads manifest at the top of your context. Do not "
+                    "guess a path and do not construct one from a filename."
+    )
+    column: str = Field(
+        description="Which column of that file to load, by the name the Belt "
+                    "gave it. If you are unsure of the name, load any column "
+                    "and the reply will list the ones that exist."
+    )
+
+
 class ProposeTemplateArgs(BaseModel):
     """Args for `propose_template` (S-F19)."""
 

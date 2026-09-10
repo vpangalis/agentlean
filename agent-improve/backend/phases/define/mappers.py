@@ -28,6 +28,7 @@ from backend.phases.mappers_common import (
     CASE_RECORD_FRAMING_FIELDS,
     advance,
     new_phase_state,
+    asks_for_phase,
     read_case_record,
     uploads_for_phase,
     write_gate_document,
@@ -105,7 +106,8 @@ def define_input_mapper(parent: SupervisorState, store: BaseStore) -> PhaseState
     # Step 6.11: `case` is already in hand, so Define's uploads cost no
     # second Store read — the inventory rides the record the framing came from.
     return new_phase_state(
-        parent, PHASE, phase_context, uploads_for_phase(case, PHASE)
+        parent, PHASE, phase_context,
+        uploads_for_phase(case, PHASE), asks_for_phase(case, PHASE),
     )
 
 
