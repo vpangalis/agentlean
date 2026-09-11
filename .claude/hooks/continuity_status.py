@@ -306,8 +306,15 @@ def build_step_board(cwd: str, today: str | None = None) -> str:
     t = derive(cwd)
     nxt = t["next_step"]
 
+    # **Rows are (seq, step, title, status) and the board is built in SEQ
+    # ORDER** (2026-09-11). `parse_step_index` gained the Seq cell and this
+    # loop still unpacked three values — it raised `too many values to unpack`
+    # on the first commit after the change and the pre-commit hook, which is
+    # fail-soft by design, let the commit through with the board unregenerated.
+    # Fail-soft is right for a writer; it also means a break here is quiet, so
+    # `test_the_step_board_regenerates` now covers it.
     done, blocked, queued = [], [], []
-    for step, title, status in rows:
+    for _seq, step, title, status in sorted(rows):
         if step in landed:
             done.append((step, title))
         elif status in UNAVAILABLE:

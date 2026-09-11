@@ -9,9 +9,9 @@
 |---|---|
 | **Last completed** | step **6.16** — The board is generated, not written |
 | **Next** | step **6.17** — The count-check — a written count against the list it describes |
-| **Spine steps landed** | 31 of 57 |
+| **Spine steps landed** | 31 of 58 |
 | **Last spine commit** | `336cd69` (commit 6.16) |
-| **ARCHITECTURE.md** | v1.23 |
+| **ARCHITECTURE.md** | v1.24 |
 | **CLAUDE.md** | v2.2.34 |
 | **Block regenerated** | 2026-09-11 |
 

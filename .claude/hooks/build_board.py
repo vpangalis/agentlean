@@ -335,7 +335,7 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, str],
     unbuilt = [m for m in markers if m["state"] in ("unbuilt", "blocked")]
 
     def _gnum(m: dict) -> str:
-        """OPEN §66 gaps that name this marker's section, newest first.
+        r"""OPEN §66 gaps that name this marker's section, newest first.
 
         **From the REGISTER, never from the marker's prose.** Reading the first
         `G-\d+` out of the marker text put G-15 against §19.6 - a reference to

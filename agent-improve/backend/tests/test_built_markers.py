@@ -165,3 +165,77 @@ def test_every_phase_SKILL_md_carries_its_section_39_script() -> None:
         "script byte-for-byte. §56.1 makes the script and its section one "
         "atomic unit — a drifting copy is what that rule exists to prevent."
     )
+
+
+# ── The governance hooks that WRITE. ──────────────────────────────────────
+#
+# `.githooks/pre-commit` is fail-SOFT by design: a hook that writes must never
+# wedge a commit. That is right, and it means a break here is QUIET — proved
+# on 2026-09-11, when `parse_step_index` gained a Seq cell, this loop still
+# unpacked three values, and the commit went through with the board silently
+# unregenerated. Fail-soft needs a loud test behind it.
+
+def _continuity() -> Any:
+    spec = importlib.util.spec_from_file_location(
+        "continuity_status", Path(_ROOT) / ".claude" / "hooks" / "continuity_status.py")
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_the_step_board_regenerates() -> None:
+    """`build_step_board` must not raise, and must order by Seq.
+
+    It reads Appendix D through `parse_step_index`, whose row shape changed on
+    2026-09-11. The pre-commit hook swallowed the resulting TypeError and said
+    so on stderr, where it scrolled past; nothing failed.
+    """
+    cs = _continuity()
+    rows = cs.parse_step_index(cs.staged_text(cs.PROCEDURE, _ROOT))
+    assert rows, "Appendix D parsed to zero rows"
+    assert len(rows[0]) == 4, (
+        f"row shape is {len(rows[0])}-tuple, not (seq, step, title, status) — "
+        "every consumer of parse_step_index unpacks this"
+    )
+    seqs = [r[0] for r in rows]
+    assert len(set(seqs)) == len(seqs), "duplicate Seq values in Appendix D"
+
+    board = cs.build_step_board(_ROOT, today="2026-01-01")
+    assert cs.BOARD_BEGIN in board and cs.BOARD_END in board
+    assert "## Step board" in board
+
+
+def test_the_status_block_regenerates() -> None:
+    """`derive` must not raise and must name a real next step."""
+    cs = _continuity()
+    d = cs.derive(_ROOT)
+    assert d["next_step"] != "—", "no next step — Appendix D parse is broken"
+    assert d["total"] != "?", "row total unknown — Appendix D parse is broken"
+    assert int(d["done"]) <= int(d["total"])
+
+
+def test_all_three_readers_agree_on_the_next_step() -> None:
+    """**The board, the banner and the status block are three parsers.**
+
+    They read the same table through three different regexes, and nothing
+    forced them to agree until this test. On 2026-09-10 two of them disagreed
+    about the next step while a guard rule that checked only that both files
+    had been TOUCHED passed — which is why rule 2 was deleted.
+    """
+    cs = _continuity()
+    spec = importlib.util.spec_from_file_location(
+        "build_board", Path(_ROOT) / ".claude" / "hooks" / "build_board.py")
+    assert spec and spec.loader
+    bb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(bb)
+
+    rows = bb.read_appendix_d()
+    bb.assign_lanes(rows, bb.landed_steps(), bb.read_preconditions())
+    board_next = [r["step"] for r in rows if r["lane"] == "BUILDING NOW"]
+
+    assert board_next == [cs.derive(_ROOT)["next_step"]], (
+        f"build_board says next={board_next}, continuity_status says "
+        f"{cs.derive(_ROOT)['next_step']} — two parsers, one table, "
+        "disagreeing about what to build"
+    )
