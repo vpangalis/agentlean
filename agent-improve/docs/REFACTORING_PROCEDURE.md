@@ -3439,6 +3439,20 @@ infrastructure noise. **Read both before finalising §52.**
 > lost, and the hand-maintained 31 had been counting 9.0 that the derived
 > figure cannot see.
 
+### The bands — what the Seq ranges mean
+
+**Machine-readable: `.claude/hooks/build_board.py` renders the board from this
+table.** Ranges are inclusive. **Edit the band here, not in the generator** —
+hardcoding a Seq range in code would make the plan a thing only a developer can
+restate, which is the opposite of what the board is for.
+
+| Band | Seq | Name | Delivers |
+|---|---|---|---|
+| A | 320–380 | THE LOOP | One Belt turn, end to end: it completes, it has fields to render, its writes land, it can be watched, it pauses at a gate, and the Belt sees it |
+| B | 390–440 | GATE QUALITY | What the validator catches, and what happens when it does. **Deliberately after A** — running the loop is what tells you what the validator must catch |
+| C | 450–460 | PHASES 2–5 | The remaining four phases, one slice each, on machinery A and B already proved |
+| D | 470–580 | CROSS-CUTTING | Reliability, transport and cleanup. Nothing here is needed for a slice to work |
+
 | Seq | Step | Title | Status | Zone | Scope | Impact — what is true about the product if this step is never done |
 |---|---|---|---|---|---|---|
 | 10 | **Commit 2.3** | Dependency upgrade |  | OPS | SHARED | Every later step is written against APIs the installed version may not have, and the checkpoint-namespace regression §16 names is live. |

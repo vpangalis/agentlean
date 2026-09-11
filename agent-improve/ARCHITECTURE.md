@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.24 · 2026-09-11
+Version 1.25 · 2026-09-11
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.25 (2026-09-11)** — **§56 AMENDMENT. EIGHTEEN BUILT MARKERS ADDED — MAIN's three items and the five phases — so the board can show state PER PHASE rather than only per architectural block.** Founder ruling: *"If a fact is worth showing it is worth marking, and the board reads markers."* **(A) MAIN, all ✅ and expected to stay that way:** §57.2 (`SupervisorState` 7/7 exact), §58.2 (`PhaseState` 22/22 exact and in order), §15 (the supervisor graph compiles exactly as specified and is deliberately not yet the runtime — one line at 7.3). **(B) PER PHASE, fifteen markers over three facts each.** The **ordered field list** (§39.x.2): built for Define only — `DEFINE_FIELD_ORDER`, 12 fields — and **absent for the other four**, which expose tier SETS and no `*_FIELD_ORDER`, so the sequence those tables state has no runtime form. **⚠ No step owns those four**: 6.20 covers Define's and group C's slices do not create ordered lists. The **state contract** (§39.x.7): the captured fields land as specified in all four, and **three rows do not hold in any of them** — `artifacts["computation_results"]` and `artifacts["phase_metrics"]` are read by the gate-document assembler and written by nothing, and `field_index` never advances. Analyse additionally never populates `hop_results`/`synthesis_output` despite §39.3.7 saying *"populated here"* (6.10, blocked); Control never writes `SupervisorState.final_output`, and **no step owns that clause**. The **SKILL.md content** (§39.1.7, §39.x.10): ✅ all five, §32-conformant and byte-matching. **(C) DEFINE HAS NO STATE-PARAMETERS SECTION AND NOW SAYS SO** — 39.1.7 is its SKILL.md content, so the phase being proven first is the one phase with no state contract; 6.20 writes it. **(D) §39.x.2's four missing lists and Control's `final_output` are recorded as UNOWNED**, which is the finding rather than a footnote. **(E) The board leads with the four Seq BANDS, not with readiness lanes** — 11.1 and 11.2 had been sitting in READY beside 6.18, correct on readiness and misleading about what to do next. Band ranges and their descriptions are **data in Appendix D**, not constants in the generator. Reasoning: this commit body (§56.2).
 
 **v1.24 (2026-09-11)** — **§56 AMENDMENT. The five `{Phase}State` variants are RULED NOT BUILT, a state MAP joins the head of this document, and Appendix D is re-sequenced around the Define vertical slice.** **(A) S-C03 IS INVERTED — IT NOW DECLARES AN ABSENCE.** It read *"`DefineState`, `MeasureState`, `AnalyseState`, `ImproveState` and `ControlState` extend `PhaseState` with phase-specific transient fields"*; the targeted state audit found **zero occurrences in `backend/` and no subclass of `PhaseState` anywhere**, against a spec naming them **thirteen times**. **They were never specifiable, which is the finding**: G-19 said so for two months — *"the phase-specific transient fields are never enumerated for any of the five"* — and a class whose fields nobody can name is not a design that was missed but one never made. S-C03 assigned them to **step 3.1**, DONE, whose Done-when never mentioned them, so **a completed step silently dropped a spec entry assigned to it**. §7 had already ruled against the concrete case (*"no per-phase typed destinations"*); the general ruling now matches. **§39.2.7–§39.5.7 become descriptions of per-phase USE of the shared 22-field `PhaseState`**, which is what those tables always contained — every row already read *"`artifacts` — holds the 10 captured fields…"*, usage and not declaration. Thirteen references removed; the survivors are explicit negations, kept so the names cannot quietly return. **G-19 CLOSED by ruling.** **(B) A STATE MAP AT THE HEAD OF THE DOCUMENT**, after the provenance block: four rows pointing at §57.2, §58.2 and §39.x.7, **holding no field list of its own** — a second copy of a field list is the duplication that cost two days on 2026-09-10, so the map says where, never what. **(C) THE WRITE PATHS ARE A STEP: 6.20.** `artifacts["computation_results"]` and `artifacts["phase_metrics"]` are read by all five gate-document assemblers and **written by nothing**; `field_index` is set to 0 and never advanced. **The grader scans `computation_results` to answer "was a hypothesis test run?"** — against an always-empty list its answer is always no, so a gate document records that a project did no analysis whatever it actually did. **(D) APPENDIX D GAINS `Seq` AND `Scope`.** `Seq` orders; the step number becomes a stable identifier. **The watermark is gone with it** — completion is per-row, so a step at any position is reachable once unblocked and **the numbering trap that cost a renumber on 2026-09-10 is removed rather than relocated**. `Scope` splits SHARED machinery from PHASE work: **25 of the 27 unlanded steps are SHARED**, which is the vertical-slice argument as a number. **(E) THE BOARD GAINS A HEALTH PANEL** — built / built-and-defective / not-started, counted from the markers, with G-numbers attributed **from §66's own refs column rather than from marker prose** (the first cut read the first `G-\d+` in the text and put G-15 against §19.6, a reference rather than a cause). Reasoning: this commit body (§56.2).
 
@@ -1429,6 +1431,8 @@ belong in the graph topology.
 ---
 
 ## 15. Routing — static edges and `Command`
+
+> **BUILT:** ✅ built · **the supervisor graph compiles exactly as §15 and S-F01 specify** — five phase-subgraph nodes plus escalation, checkpointer and store on the parent, neither on the subgraphs, pinned by `test_supervisor_graph.py`. **It is deliberately NOT the runtime yet**, and step 4.3 said so when it built it: `get_graph()` returns the one-turn per-phase graph until `gate_review` raises `interrupt()`, because §15's static chain advances on `END` and until the interrupt exists `END` means only *"the graph ran"*. **The swap is one line at 7.3** · **closes:** `[7.3]`
 
 *Supersedes: REFACTORING §44; ARCHITECTURE.md §3.1.*
 **Status: RATIFIED.**
@@ -4033,6 +4037,8 @@ improvement, whatever else its gate documents contain.
 
 ### 39.1 Define phase, complete specification
 
+> **BUILT:** ⚠️ built with a known defect · **Define has NO state-parameters section.** §39.2.7–§39.5.7 give Measure, Analyse, Improve and Control one each; **39.1.7 is the SKILL.md content**, so the phase this project is proving first is the one phase with no state contract at all. Found by the targeted state audit, 2026-09-11. **Step 6.20 writes it**, in the same shape as the other four · **closes:** `[6.20]`
+
 *Supersedes: the built `DefinePhaseInput` (F-11).*
 **Status: RATIFIED 2026-08-25.** Files: `phases/define/schema.py`,
 `phases/define/validate.py`, `skills/dmaic-define-phase/SKILL.md`.
@@ -4054,6 +4060,8 @@ problem, who owns it, what is in and out of scope, the target, and the process
 at a high level.
 
 #### 39.1.2 The ordered field list — the `field_index` sequence (closes G-38)
+
+> **BUILT:** ⚠️ built with a known defect · **the list EXISTS and nothing walks it.** `DEFINE_FIELD_ORDER` carries all 12 fields in this order — **the only phase whose ordered list is in code at all** — but `field_index` is set to `0` by the input mapper and **never read or advanced by any node**, so the planner indexes into nothing, which is the condition G-38 was closed for. (The gate list is 13; `field_index` indexes the 12 above, by design.) · **closes:** `[6.20]`
 
 **This is the order the planner walks.** `field_index` indexes into this list;
 S-F13's DP1 predicate ("is the current field complete?") reads it. Before this
@@ -4175,6 +4183,8 @@ missing any of the six keys is the partial-map failure §41 describes.
   `gate_apply` (§9, §33).
 
 #### 39.1.7 The SKILL.md content (AUTHORITATIVE during the refactor)
+
+> **BUILT:** ✅ built · `skills/dmaic-define-phase/SKILL.md` exists, is §32-conformant as of 6.9, and its §39.1.7 opening script is **byte-identical** to this section — §56.1's atomic unit, re-run by `verify_built.py`'s *phase scripts byte-matching* check · **closes:** `[none]`
 
 > **Authority:** this content is authoritative during the v2 refactor.
 > `skills/dmaic-define-phase/SKILL.md` is generated from it and **must match
@@ -4365,6 +4375,8 @@ vital few drivers Analyse will test.
 
 #### 39.2.2 The ordered field list — the `field_index` sequence
 
+> **BUILT:** ☐ not built · **this list does not exist in code.** `measure/schema.py` exposes tier SETS only — no `MEASURE_FIELD_ORDER` — so the 10-field sequence this table states has no runtime form and `field_index` has nothing to index into. **Only Define's list is built.** ⚠ **NO STEP OWNS THIS**: 6.20 covers Define's, and group C's phase slices (6.14, 6.10) do not create ordered lists. It is a transcription of the table above, not a decision · **closes:** `[none]`
+
 The order the planner walks (`field_index` indexes into it). Coached in
 **methodology order, not tier order** — the inversion at 3–4 is deliberate
 (§39.2.6). Schema: **§63.2 — S-C28** (canonical home).
@@ -4523,6 +4535,8 @@ phase, §6).
 
 #### 39.2.7 State parameters — Measure's use of `PhaseState`
 
+> **BUILT:** ⚠️ built with a known defect · **10 captured fields land in `artifacts` as specified; three rows of this table do not hold.** Verified row-by-row by the targeted state audit, 2026-09-11: **`artifacts["computation_results"]` and `artifacts["phase_metrics"]` are read by the gate-document assembler and WRITTEN BY NOTHING** — the executor merges only `CoachingResponse.fields_captured`, so both always read `[]`; **`field_index` never advances**; and `gate_attempts` is written but resets every turn because nothing interrupts (WATCH 18). `citations` / `uploads` hold. `validator_feedback` accumulates across the ≤3 validation retries, and `draft`/`belt_edits`/`final` are `dict` and never `str` · **closes:** `[6.20]`
+
 *Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `MeasureState`.** Measure uses the shared **22-field `PhaseState`**; this table is its USAGE — which Measure field each shared field carries, and who reads it:
 
 | `PhaseState` field | In Measure |
@@ -4570,6 +4584,8 @@ Plain language (§50); surfaced through `CoachingResponse.explanation` (§50.1).
   `gate_apply` (§9, §33), after the single-authority invariant clears (§39.2.3).
 
 #### 39.2.10 The SKILL.md content (AUTHORITATIVE during the refactor)
+
+> **BUILT:** ✅ built · `skills/dmaic-measure-phase/SKILL.md` exists, is §32-conformant as of 6.9, and its §39.2.10 opening script is **byte-identical** to this section (§56.1's atomic unit). ⚠ Its **ask shapes** are a different question: Measure's landed at 6.12, and Define, Analyse, Improve and Control are step 6.14, ⛔ blocked awaiting founder domain content · **closes:** `[none]`
 
 > **Authority:** this content is authoritative during the v2 refactor.
 > `skills/dmaic-measure-phase/SKILL.md` is generated from it and **must match
@@ -5097,6 +5113,8 @@ fix.
 
 #### 39.3.2 The ordered field list — the `field_index` sequence
 
+> **BUILT:** ☐ not built · **this list does not exist in code.** `analyse/schema.py` exposes tier SETS only — no `ANALYSE_FIELD_ORDER` — so the 9-field sequence this table states has no runtime form and `field_index` has nothing to index into. **Only Define's list is built.** ⚠ **NO STEP OWNS THIS**: 6.20 covers Define's, and group C's phase slices (6.14, 6.10) do not create ordered lists. It is a transcription of the table above, not a decision · **closes:** `[none]`
+
 Coached in **methodology order** — frame, generate, validate, confirm, quantify,
 socialise. Schema: **§63.3 — S-C29** (canonical home).
 
@@ -5231,6 +5249,8 @@ the 5 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
 
 #### 39.3.7 State parameters — Analyse's use of `PhaseState`
 
+> **BUILT:** ⚠️ built with a known defect · **9 captured fields land in `artifacts` as specified; three rows of this table do not hold.** Verified row-by-row by the targeted state audit, 2026-09-11: **`artifacts["computation_results"]` and `artifacts["phase_metrics"]` are read by the gate-document assembler and WRITTEN BY NOTHING** — the executor merges only `CoachingResponse.fields_captured`, so both always read `[]`; **`field_index` never advances**; and `gate_attempts` is written but resets every turn because nothing interrupts (WATCH 18). `citations` / `uploads` hold. **`hop_results` / `synthesis_output` say *"populated here"* and are never populated** — only `[]` / `None` at the mapper; that is step 6.10, ⛔ blocked on G-05 and G-35 · **closes:** `[6.20]`
+
 *Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `AnalyseState`.** Analyse uses the shared **22-field `PhaseState`**; this table is its USAGE — which Analyse field each shared field carries, and who reads it — note this is the phase where multi-hop is real:
 
 | PhaseState field | In Analyse |
@@ -5271,6 +5291,8 @@ rubric failure (§43.1).
   `gate_apply` (§9, §33).
 
 #### 39.3.10 The SKILL.md content (AUTHORITATIVE during the refactor)
+
+> **BUILT:** ✅ built · `skills/dmaic-analyse-phase/SKILL.md` exists, is §32-conformant as of 6.9, and its §39.3.10 opening script is **byte-identical** to this section (§56.1's atomic unit). ⚠ Its **ask shapes** are a different question: Measure's landed at 6.12, and Define, Analyse, Improve and Control are step 6.14, ⛔ blocked awaiting founder domain content · **closes:** `[6.14]`
 
 > **Authority:** this content is authoritative during the v2 refactor.
 > `skills/dmaic-analyse-phase/SKILL.md` is generated from it and **must match
@@ -5742,6 +5764,8 @@ evidence-backed solution and a plan to implement it.
 
 #### 39.4.2 The ordered field list — the `field_index` sequence
 
+> **BUILT:** ☐ not built · **this list does not exist in code.** `improve/schema.py` exposes tier SETS only — no `IMPROVE_FIELD_ORDER` — so the 9-field sequence this table states has no runtime form and `field_index` has nothing to index into. **Only Define's list is built.** ⚠ **NO STEP OWNS THIS**: 6.20 covers Define's, and group C's phase slices (6.14, 6.10) do not create ordered lists. It is a transcription of the table above, not a decision · **closes:** `[none]`
+
 Coached in **methodology order** — generate & select, justify, pilot, prove, plan,
 socialise. Schema: **§63.4 — S-C30** (canonical home).
 
@@ -5850,6 +5874,8 @@ the 5 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
 
 #### 39.4.7 State parameters — Improve's use of `PhaseState`
 
+> **BUILT:** ⚠️ built with a known defect · **9 captured fields land in `artifacts` as specified; three rows of this table do not hold.** Verified row-by-row by the targeted state audit, 2026-09-11: **`artifacts["computation_results"]` and `artifacts["phase_metrics"]` are read by the gate-document assembler and WRITTEN BY NOTHING** — the executor merges only `CoachingResponse.fields_captured`, so both always read `[]`; **`field_index` never advances**; and `gate_attempts` is written but resets every turn because nothing interrupts (WATCH 18). `citations` / `uploads` hold. `uploads` carries pilot data as specified · **closes:** `[6.20]`
+
 *Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `ImproveState`.** Improve uses the shared **22-field `PhaseState`**; this table is its USAGE — which Improve field each shared field carries, and who reads it:
 
 | PhaseState field | In Improve |
@@ -5888,6 +5914,8 @@ Never a raw dump (§43.1).
   `gate_apply` (§9, §33).
 
 #### 39.4.10 The SKILL.md content (AUTHORITATIVE during the refactor)
+
+> **BUILT:** ✅ built · `skills/dmaic-improve-phase/SKILL.md` exists, is §32-conformant as of 6.9, and its §39.4.10 opening script is **byte-identical** to this section (§56.1's atomic unit). ⚠ Its **ask shapes** are a different question: Measure's landed at 6.12, and Define, Analyse, Improve and Control are step 6.14, ⛔ blocked awaiting founder domain content · **closes:** `[6.14]`
 
 `skills/dmaic-improve-phase/SKILL.md` is generated from this section and must
 match verbatim, **embedded here in §39.1.7's format** — preamble, phase opening
@@ -6175,6 +6203,8 @@ same measure.
 
 #### 39.5.2 The ordered field list — the `field_index` sequence
 
+> **BUILT:** ☐ not built · **this list does not exist in code.** `control/schema.py` exposes tier SETS only — no `CONTROL_FIELD_ORDER` — so the 12-field sequence this table states has no runtime form and `field_index` has nothing to index into. **Only Define's list is built.** ⚠ **NO STEP OWNS THIS**: 6.20 covers Define's, and group C's phase slices (6.14, 6.10) do not create ordered lists. It is a transcription of the table above, not a decision · **closes:** `[none]`
+
 Coached in **methodology order** — confirm it held, lock it in, verify, hand over,
 close. Schema: **§63.5 — S-C31**.
 
@@ -6305,6 +6335,8 @@ the 9 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
 
 #### 39.5.7 State parameters — Control's use of `PhaseState`
 
+> **BUILT:** ⚠️ built with a known defect · **12 captured fields land in `artifacts` as specified; three rows of this table do not hold.** Verified row-by-row by the targeted state audit, 2026-09-11: **`artifacts["computation_results"]` and `artifacts["phase_metrics"]` are read by the gate-document assembler and WRITTEN BY NOTHING** — the executor merges only `CoachingResponse.fields_captured`, so both always read `[]`; **`field_index` never advances**; and `gate_attempts` is written but resets every turn because nothing interrupts (WATCH 18). `citations` / `uploads` hold. **`final` → `SupervisorState.final_output` never happens** — `control_output_mapper` returns `advance()`, which by contract returns orchestration values ONLY, so the project's terminal artifact is never written. ⚠ no step owns this clause · **closes:** `[6.20]`
+
 *Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `ControlState`.** Control uses the shared **22-field `PhaseState`**; this table is its USAGE — which Control field each shared field carries, and who reads it:
 
 | PhaseState field | In Control |
@@ -6346,6 +6378,8 @@ Never a raw dump (§43.1).
   `gate_apply` (§9, §33); this write **also** finalises the project (§5).
 
 #### 39.5.10 The SKILL.md content (AUTHORITATIVE during the refactor)
+
+> **BUILT:** ✅ built · `skills/dmaic-control-phase/SKILL.md` exists, is §32-conformant as of 6.9, and its §39.5.10 opening script is **byte-identical** to this section (§56.1's atomic unit). ⚠ Its **ask shapes** are a different question: Measure's landed at 6.12, and Define, Analyse, Improve and Control are step 6.14, ⛔ blocked awaiting founder domain content · **closes:** `[6.14]`
 
 `skills/dmaic-control-phase/SKILL.md` is generated from this section and must match
 verbatim, **embedded here in §39.1.7's format** — preamble, phase opening (an
@@ -8577,6 +8611,8 @@ here rather than restating them. (archived to docs/_archive/; canonical: ARCHITE
 
 ### 57.2 SAMPLE 1 — CLASS TEMPLATE — S-C01 `SupervisorState`
 
+> **BUILT:** ✅ built · **`SupervisorState` is 7 of 7, exact** — names, types and both `operator.add` reducers transcribed verbatim into `core/state.py`. Nothing present-and-unspecified, nothing specified-and-absent; `SUPERVISOR_STATE_FIELDS` sits beside the class as a census and `test_state.py` asserts it. Re-run by `verify_built.py`'s *state field counts* check · **closes:** `[none]`
+
 #### SPEC — `SupervisorState`
 
 **Canonical definition. File: `core/state.py`. Referenced by architecture §5 (rationale), procedure step [tbd].**
@@ -8709,6 +8745,8 @@ reads or writes what is defined here.
 **Defined in §57.2** as the calibrated class sample. Architecture rationale: §5.
 
 ### 58.2 S-C02 · `PhaseState`
+
+> **BUILT:** ✅ built · **22 of 22, exact and in the same order** as this entry's definition — verified field-by-field by the targeted state audit, 2026-09-11. Step 3.1's Done-when still says *"7 and 19"*; **the number is stale and the substance is not** — four ratified amendments moved it (v1.7 17→19, v1.9's `remaining_steps`, then `asks`, `uploads`, `hop_results`). Re-run by `verify_built.py`'s *state field counts* check · **closes:** `[none]`
 
 **Architecture:** §6 · **File:** `core/substate.py` · **Procedure:** step 3.1
 *Rebuild test: `core/substate.py`'s `PhaseState` must be reconstructable from this entry alone.*
