@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.27 · 2026-09-11
+Version 1.28 · 2026-09-11
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.28 (2026-09-11)** — **§56 AMENDMENT. §63 and §69's aliases were CHECKED rather than assumed, and two of sixteen subsections turned out not to be covered.** Founder ruling, after §55.3's completeness view exposed both Parts as UNMEASURED against a note claiming their entries carried their own markers — which they did not. **(A) THIRTEEN OF SIXTEEN GENUINELY ALIAS.** §63.1–§63.5 (the five `{Phase}Output`), §63.7 (the three structured dicts) and §63.8 (`metric_definitions`) are covered by §40–§42; §69.1–§69.6 by §30 and §31. **(B) §63.6 IS NOT COVERED.** The three cross-phase reference dicts exist, and `references_phase` / `references_field` / `references_value` / `references_metric_name` appear only as INSTRUCTION — a field description and three SKILL.md files. **Nothing validates them**: `missing_structured()` states in its own docstring that Analyse and Improve return `[]`, and Control checks `control_plan` alone. **So the one thing that entry exists for cannot happen** — *"the grader verifies the link by LOOKUP rather than judgment"* is judgment again, and the gate passes either way. §42's ✅ would have covered it. **(C) §63.9 IS NOT COVERED.** `phase_metrics` is on all five schemas, is a coached field on NONE, and is written by nothing — `verify_built.py` reports `phase_metrics:W`. The keyed trail across five gate documents is five empty lists. §40's ✅ would have covered it. **(D) §69.7 GAINS A ✅ AND A CORRECTION**: the deliberate absence of a Measure chart-limit tool holds and is pinned by `test_measure_binds_no_chart_limit_tool` — **a deliberate absence is a buildable claim** — and the section's own arithmetic read *"15 of the 16-tool ceiling"* when Measure has been ON the ceiling at 16 since 2026-09-09. **(E) Both Part-level notes are corrected** to say where their entries are measured and which carry their own. UNMEASURED falls 4 → 2, and the two that remain — §43 and §28 — are unmarkable by nature. Reasoning: this commit body (§56.2).
 
 **v1.27 (2026-09-11)** — **§56 AMENDMENT. §55.3 RATIFIES THE PHASE COMPLETENESS SET — the real denominator for "is this phase done".** Founder ruling. **(A) THE OLD FRACTION MEASURED THE WRONG THING.** The board showed each phase as a fraction of the three markers NAMED after it — *"Define 1/3"* — which is the sections named after a phase, not the sections a phase DEPENDS ON. §55.3 lists the **fifty-one items a phase traverses to run end to end with a visible gate**: the API surface and UI, orchestration and persistence, the subgraph, the coach, what it knows, what the Belt gives it, what it computes, validation and the gate, the gate document, reliability, observability, and the phase's own spec. **Define is 25 of 51**, not 1 of 3. **(B) NUMBERING VERIFIED BEFORE USE**, as the ruling required — the set was drawn against a v1.22 snapshot and this document is v1.26; all fifty cited sections still carry the titles named. **(C) SHARED vs PHASE, and a shared break is ONE break.** Fifty of the fifty-one rows are SHARED, which is the vertical-slice argument restated from the other side: **a phase is 98% shared machinery**, so the second slice inherits almost everything the first proves. **(D) UNMEASURED IS NOT A PASS**, and four rows come back UNMEASURED: §43 and §28 are unmarkable by nature, but **§63 and §69 were classified as spec containers *"whose entries carry their own markers"* and their entries carry NONE** — a false claim in the 2026-09-11 sweep, caught by this view on its first run, which is what a denominator is for. **(E) §39.x IS NOT EQUAL ACROSS PHASES.** Four phases carry twelve subsections; **Define carries eight, and not the same eight** — six of the twelve topics have no Define section at all. The phase being proven first has the least specified spec. Reasoning: this commit body (§56.2).
 
@@ -11619,7 +11621,7 @@ gate_document = DefineOutput(
 
 ## 63. Spec — the DMAIC gate documents
 
-> **NOT-MARKABLE:** **a spec-layer container.** Its entries (S-C / S-F) carry their own markers where they have a built form; marking the Part as well would be the parallel table §55.2 exists to prevent.
+> **NOT-MARKABLE at Part level · its entries are measured at §40, §41 and §42.** **⛑ Corrected 2026-09-11.** This note read *"its entries carry their own markers where they have a built form"* and **they carried none** — a claim that looked fine in a list of sections and failed the moment §55.3's completeness view counted it. **§63.6 and §63.9 carry their OWN markers** — checked 2026-09-11, and both turned out NOT to be covered: the cross-phase reference keys are validated by nothing, and `phase_metrics` is written by nothing. Under the alias both would have rendered green.
 
 *Supersedes: none — new. Definitions relocated from §40, §41, §7.*
 **Status: RATIFIED. This subsystem's entries are complete — no gaps.**
@@ -11932,6 +11934,30 @@ class ControlOutput(BaseModel):
 
 ### 63.6 S-C32 · The three cross-phase reference dicts
 
+> **BUILT:** ⚠️ built with a known defect · **the three dicts exist and the four
+> reference keys are validated by NOTHING** · **closes:** `[7.1]`
+>
+> `causal_hypothesis` (Analyse), `solution_linked_to_root_cause` (Improve) and
+> `post_improvement_metrics` (Control) are all declared `dict`, and
+> `references_phase` / `references_field` / `references_value` /
+> `references_metric_name` appear in `analyse/schema.py`'s field description
+> and in three SKILL.md files — **as instruction to the coach.** Nothing checks
+> they arrived: `missing_structured()` says so in its own docstring — *"Analyse
+> and Improve have no structured field and return `[]`"* — and Control's branch
+> validates `control_plan` only.
+>
+> **So the one thing this entry exists for cannot happen.** Its purpose is that
+> *"the grader can verify the link deterministically — it reads the referenced
+> phase's gate document from the Store and checks the named field carries the
+> named value. Without the reference keys, ‘does this solution address the
+> validated root cause?’ is an opinion; with them it is a lookup."* **With the
+> keys unvalidated it is an opinion again**, and the gate passes either way.
+>
+> **Found 2026-09-11 by checking the alias instead of assuming it.** This
+> section was covered by §42's ✅ marker, which pins only that
+> `post_improvement_metrics` is the sole Tier-1 cross-phase reference — true,
+> and nothing to do with whether the keys are there.
+
 **Architecture:** §7, §42 · **File:** `phases/{phase}/schema.py` · **Procedure:** step 3.4
 *Rebuild test: met.*
 
@@ -12077,6 +12103,24 @@ metric_definitions: list[dict] = [
 | B4 | a value is written inside an entry | keep it a **string** — the dict is the exception to §7, its scalars are not | §7 |
 
 ### 63.9 S-C39 · `phase_metrics` — the per-phase placeholder
+
+> **BUILT:** ⚠️ built with a known defect · **the field is on all five schemas
+> and NOTHING WRITES IT** · **closes:** `[6.20]`
+>
+> `phase_metrics` is declared on every `{Phase}Output` and
+> `test_gate_documents.py` pins that. **It is not a coached field on any phase**
+> — it appears in no tier set — so the coach never captures it, and
+> `verify_built.py`'s reader/writer pass reports it `phase_metrics:W`: read by
+> all five gate-document assemblers, written by none.
+>
+> **So the keyed trail this entry exists for does not exist.** Its purpose is
+> that a metric's *"whole journey is one keyed trail across the five gate
+> documents"*; today every gate document carries an empty list where that trail
+> should be. Step 6.20 writes it.
+>
+> **Found 2026-09-11 by checking the alias instead of assuming it.** §40's ✅
+> marker covers the schemas and their field counts — both true — and says
+> nothing about whether a declared field is ever populated.
 
 **Architecture:** §40 · **File:** `phases/{phase}/schema.py` · **Procedure:** step 3.4
 *Rebuild test: met.*
@@ -12986,7 +13030,7 @@ flag-is-canonical rule is not read as broken by its presence.
 
 ## 69. Spec — computation tools
 
-> **NOT-MARKABLE:** **a spec-layer container.** Its entries (S-C / S-F) carry their own markers where they have a built form; marking the Part as well would be the parallel table §55.2 exists to prevent.
+> **NOT-MARKABLE at Part level · its entries are measured at §30 and §31.** **⛑ Corrected 2026-09-11.** This note read *"its entries carry their own markers where they have a built form"* and **they carried none** — a claim that looked fine in a list of sections and failed the moment §55.3's completeness view counted it. **§69.7 carries its OWN marker** — a deliberately absent tool is a buildable claim, and it is the one section here that makes one.
 
 *Supersedes: the inventory-only treatment of the twenty tools at §60.6 (S-F24).*
 **Status: RATIFIED 2026-08-26.** File: `knowledge/computation.py`. **Canonical
@@ -13138,12 +13182,21 @@ than twenty times below. **Read every entry in §69.2–§69.6 as carrying these
 
 ### 69.7 The Measure control-chart boundary — a tool that is deliberately absent
 
+> **BUILT:** ✅ built · **the absence holds and is pinned** — neither
+> `xbar_r_chart_limits` nor `imr_chart_limits` is bound to Measure, asserted by
+> `test_measure_binds_no_chart_limit_tool`. **A deliberate absence is a
+> buildable claim**, and this is the one section in §69 that carries one ·
+> **closes:** `[none]`
+
 **`stability_assessment` (Measure, gate-required) is coached as a visual,
 qualitative run-chart read** — *"plot it, tell me what you see"* — **with no
 calculated control limits.** Neither `xbar_r_chart_limits` nor `imr_chart_limits`
 is bound to Measure: §30's Measure list contains no chart-limit tool, and
-Measure already sits at **15 of the 16-tool ceiling**, so adding one would hit
-the cap and needs its own amendment.
+Measure already sits at **16 of the 16-tool ceiling** — ON it, not under it —
+so adding one would BREACH the cap, not approach it, and needs its own
+amendment. *(Corrected 2026-09-11: this read "15 of the 16", true until
+`load_evidence_series` made the universal set eight on 2026-09-09 and took
+Measure to 16. The same caption drift this document keeps finding.)*
 
 **Formal control-chart mathematics is Control-only** — S-F52 through S-F55.
 

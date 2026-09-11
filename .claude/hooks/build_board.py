@@ -164,6 +164,12 @@ MARKER_HOME: dict[str, tuple[str, str]] = {
     "§47": ("8", "STORE"),        # disconnect policy
     "§48": ("8", "OPS"),          # structured errors
     "§52": ("7", "GATE"),         # evaluation and regression
+
+    # Spec entries that turned out NOT to be covered by their Part's alias
+    # (checked 2026-09-11 rather than assumed).
+    "§63.6": ("7", "GATE"),       # S-C32 · cross-phase reference keys
+    "§63.9": ("7", "GATE"),       # S-C39 · phase_metrics
+    "§69.7": ("6", "COACH"),      # the deliberately absent Measure chart tool
 }
 
 #: The per-phase panel's six rows. **MAIN is exactly three items** (founder,
