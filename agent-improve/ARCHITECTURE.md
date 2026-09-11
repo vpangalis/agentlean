@@ -8381,6 +8381,8 @@ prevent.
 > **A pointer is not a state.** The board's `closes:` chip names the step that
 > fills a hole; it used to take that step's LANE colour, which put green beside
 > a `☐ not built` marker. It is neutral.
+>
+> **A G-NUMBER ON THE BOARD CARRIES ITS NAME** — CLAUDE.md §19.2, founder ruling 2026-09-11. Not `G-49` but **G-49 — the executor does not call the tool its own planner names**. The name is the first clause of that gap's own §66 row, **read at generation time and never typed**, so it cannot drift from the register. A bare code is legible only to a reader already holding the register it indexes, and the founder reading a finding is not holding it.
 
 > **A MARKER NOTHING RE-RUNS IS A CLAIM.** `.claude/hooks/verify_built.py`
 > re-runs the counting commands against the tree and reports any marker that

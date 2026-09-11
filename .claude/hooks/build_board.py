@@ -750,6 +750,25 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
         body.append(src("ARCHITECTURE.md", f"\u00a766 \u00b7 the SPEC-GAP register"))
         return "".join(body)
 
+    def gap_name(g: str) -> str:
+        """`G-49 \u2014 the executor ignores the tool its planner names`.
+
+        **CLAUDE.md \u00a719.2, added by the founder 2026-09-11**: every code
+        carries the name of what it points at, in the same breath, every time
+        it appears. The board rendered bare `G-47` and `G-49` chips, legible
+        only to a reader already holding the register they index.
+
+        The name is the first clause of the gap's own \u00a766 row \u2014 those rows
+        open with a capitalised statement of the defect \u2014 so it is read, never
+        written here.
+        """
+        desc = gaps.get(g, {}).get("desc", "")
+        first = re.split(r"(?<=[a-z])\. |\. \*\*|\. Given", desc)[0]
+        first = re.sub(r"\s+", " ", first).strip(" .")
+        # Casing is the source's: these clauses carry identifiers
+        # (CoachingResponse, S-C05, storage/models.py) that .lower() destroys.
+        return f"{g} — {first[:62]}" if first else g
+
     def gnums(m: dict) -> str:
         hits = [g for g, v in gaps.items()
                 if not v["closed"] and (v["refs"] & m["aliases"])]
@@ -781,7 +800,8 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
         shown = sorted(items, key=lambda m: m["section"])[:14]
         chips = "".join(
             f'<span class="hchip">{named(m["section"])}'
-            + (f' <b>{e(gnums(m))}</b>' if gnums(m) else "") + "</span>"
+            + (f' <b>{e(gap_name(gnums(m).split(", ")[0]))}</b>'
+               if gnums(m) else "") + "</span>"
             for m in shown)
         if len(items) > len(shown):
             chips += f'<span class="hchip">+{len(items) - len(shown)} more</span>'
@@ -892,8 +912,9 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
                 for c in it["closes"])
         else:
             cl = ' \u00b7 <b class="bad">no step owns this</b>'
-        gtag = (f' <b class="gnum" data-b="{bub(gap_bubble(gn.split(", ")[0]))}">'
-                f'{e(gn)}</b>') if gn else ""
+        first_g = gn.split(", ")[0] if gn else ""
+        gtag = (f' <b class="gnum" data-b="{bub(gap_bubble(first_g))}">'
+                f'{e(gap_name(first_g))}</b>') if gn else ""
         open_html.append(
             f'<li class="ci {it["state"]}" '
             f'data-b="{bub(section_bubble(sec, it["scope"]))}">'
