@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """commit-msg hook — the refactor-commit guard.
 
-Blocks a `refactor(arch-v2)` commit unless ALL FOUR hold (and rule 2b binds on EVERY commit):
+Blocks a `refactor(arch-v2)` commit unless ALL FOUR hold (rules 2b and 6 bind on
+EVERY commit, each on its own trigger):
 
 **Rule 2 was DELETED 2026-09-10** and its number is not reused — every other
 rule keeps the number it has been referred to by in commit messages, DECISIONS
@@ -55,7 +56,31 @@ therefore 1, 2b, 3, 4, 5.
      unset in a fresh clone), the script erroring, `git commit --no-verify` on
      an earlier attempt leaving a stale block staged, or a hand-edited block.
 
-NON-refactor commits are not touched. Docs, fixes and chores pass through.
+  6. 8D — the body of a FIX commit answers **D2 IS, D2 IS-NOT, D4 OCCURRENCE,
+     D4 ESCAPE, D5 FIX and D7 PREVENT**. CLAUDE.md §20, founder ruling
+     2026-09-11: every defect, modification or adaptation is worked as an 8D
+     before a fix is proposed, and *"convention decays; a gate does not"*.
+
+     **NOT scoped to `refactor(arch-v2)`, and not scoped to `fix(` either.**
+     Three triggers: the subject's type is a fix; the subject names a registered
+     defect (`G-49`, `F-15`, `WATCH 26`); or the body already carries a
+     `D<n>` label, which is what stops a half-written 8D from passing. The
+     middle trigger — and only that one — can be declined on the record with
+     `8D: NOT A FIX — <why>`.
+
+     **D4's two halves are the point.** An occurrence cause with no escape
+     cause is the shape that lets the same CLASS of defect return through the
+     same blind spot, and §20 names that split as the clause carrying the
+     weight. An empty discipline is a finding: `NONE — <reason>` passes, bare
+     `NONE` does not.
+
+     It checks that each discipline is ANSWERED, never that the answer is
+     right. That limit is written into `check_8d`'s docstring rather than left
+     for someone to assume away.
+
+NON-refactor commits are touched by rules 2b and 6 only. A docs or chore commit
+that neither changes a tabulated path nor claims to fix anything still passes
+through untouched.
 
 USAGE
     commit-msg hook:   <guard> <path-to-commit-message-file>
@@ -429,6 +454,210 @@ def check_architecture_status(root: str, staged: list[str]) -> None:
          "check of that is on the record), `git add` it, and commit again.")
 
 
+# --------------------------------------------------------------------------- #
+# Rule 6 — the 8D body on a FIX commit (CLAUDE.md §20)
+# --------------------------------------------------------------------------- #
+
+# A commit "is a fix" on any of three triggers. Deliberately three and not one:
+# this project's real fixes land under `refactor(arch-v2)` far more often than
+# under `fix(`, so a type-only trigger would exempt exactly the commits the rule
+# is for — G-49's fix lands as `commit 6.21`, not as a `fix(`.
+FIX_TYPE_RE = re.compile(r"^(?:fix|hotfix)(?:\([^)]*\))?!?:", re.I)
+
+# Trigger 2 — the subject names a REGISTERED defect. Subject only, never body:
+# half the commits in this log mention a G-number in passing, and a rule that
+# fired on a mention would be routed around by the end of the week.
+DEFECT_CODE_RE = re.compile(r"\b(?:[GF]-\d+|WATCH\s+\d+)\b")
+
+# The opt-out, and it exempts TRIGGER 2 ONLY. A commit whose subject carries a
+# defect code but which changes no behaviour — a register row, a board caption —
+# says so on the record instead of reaching for --no-verify. **It cannot exempt
+# a `fix(` subject and it cannot exempt a body that already carries D-labels**:
+# a commit that calls itself a fix does not get to opt out of being one.
+NOT_A_FIX_RE = re.compile(
+    r"^[\s*_]*8D[\s*_]*:[ \t]*NOT A FIX\b[^0-9A-Za-z]*(?P<why>.*)$", re.M)
+
+# Trigger 3 — any `D<n>` label already in the body. A half-written 8D is the
+# failure mode a presence check invites, so writing one label opts the commit
+# into all six.
+ANY_D_LABEL_RE = re.compile(r"^[\s*_]*D[0-8]\b", re.M)
+
+TRAILER_RE = re.compile(
+    r"^(?:Co-Authored-By|Claude-Session|Signed-off-by|Reviewed-by|Refs):",
+    re.I | re.M)
+
+#: The five §20 requires, with D2 split into its two halves because §20 states
+#: D2 as *"describe, with IS / IS-NOT"* — and IS-NOT is the half that bounds the
+#: defect. Label, then the pattern that finds it.
+EIGHTD = (
+    ("D2 IS",         r"D2\s+IS(?![\w-])"),
+    ("D2 IS-NOT",     r"D2\s+IS-NOT\b"),
+    ("D4 OCCURRENCE", r"D4\s+OCCURRENCE\b"),
+    ("D4 ESCAPE",     r"D4\s+ESCAPE\b"),
+    ("D5 FIX",        r"D5\s+FIX\b"),
+    ("D7 PREVENT",    r"D7\s+PREVENT\b"),
+)
+
+#: Content below this is empty in all but form. "tbd", "see above" and "unknown"
+#: are what a decaying convention produces, and they pass a presence check.
+MIN_ANSWER = 20
+#: Characters of reason required after the word NONE.
+MIN_REASON = 12
+
+# §20's own shape, so the failure message teaches the rule rather than citing it.
+EIGHTD_TEMPLATE = (
+    "D2 IS: <what happens, where, since when, how you know>",
+    "D2 IS-NOT: <the nearest thing this is NOT — what bounds it>",
+    "D4 OCCURRENCE: <why the defect happened>",
+    "D4 ESCAPE: <why nothing DETECTED it — a separate answer>",
+    "D5 FIX: <the permanent change chosen, and why that one>",
+    "D7 PREVENT: <what stops a recurrence of the CLASS, not the instance>",
+)
+
+
+def _label_re(pattern):
+    return re.compile(r"^[\s*_]*" + pattern + r"[\s*_]*:[ \t]*", re.M)
+
+
+def read_message(path: str) -> tuple:
+    """`(subject, message)` from a commit-message file, comments dropped.
+
+    **A named function because rule 6 reads the BODY, and what counts as the
+    body is a decision worth testing.** git's own commit template is comment
+    lines, and so is the `# ------------------------ >8 ---` scissors block of a
+    verbose commit — which carries the whole staged diff. Dropping `#` lines
+    removes the template, the instructions and that diff in one pass, so no
+    discipline can be "answered" by text git wrote or by a diff hunk that
+    happens to contain the word ESCAPE.
+    """
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        lines = [ln.rstrip("\n") for ln in fh
+                 if not ln.lstrip().startswith("#")]
+    message = "\n".join(lines)
+    subject = next((ln.strip() for ln in lines if ln.strip()), "")
+    return subject, message
+
+
+def is_fix_commit(subject: str, body: str) -> str:
+    """Why rule 6 applies to this commit, or an empty string if it does not."""
+    if FIX_TYPE_RE.match(subject):
+        return "the subject's type is a fix"
+    if ANY_D_LABEL_RE.search(body):
+        return "the body already carries an 8D label"
+    if DEFECT_CODE_RE.search(subject):
+        optout = NOT_A_FIX_RE.search(body)
+        if optout and len((optout.group("why") or "").strip()) >= MIN_REASON:
+            return ""
+        return "the subject names a registered defect"
+    return ""
+
+
+def eightd_disciplines(message: str) -> dict:
+    """Each §20 label to its content — `None` where the label is absent.
+
+    Content runs from the label to the next `D<n>` label or to the first
+    trailer, so an answer may be several paragraphs long and the last one does
+    not swallow the `Co-Authored-By` block.
+    """
+    cut = TRAILER_RE.search(message)
+    body = message[:cut.start()] if cut else message
+    bounds = [m.start() for m in ANY_D_LABEL_RE.finditer(body)]
+
+    found = {}
+    for name, pattern in EIGHTD:
+        match = _label_re(pattern).search(body)
+        if not match:
+            found[name] = None
+            continue
+        nxt = min((b for b in bounds if b > match.start()), default=len(body))
+        found[name] = " ".join(body[match.end():nxt].split())
+    return found
+
+
+def eightd_verdict(content) -> str:
+    """An empty string if this discipline is answered; otherwise why it is not."""
+    if content is None:
+        return "MISSING — no such line in the body"
+    if not content:
+        return "EMPTY — the label is present and says nothing"
+    if content.upper().startswith("NONE"):
+        reason = content[4:].lstrip(" \t:\u2014\u2013-,.")
+        if len(reason) < MIN_REASON:
+            return ("NONE WITH NO REASON — §20 allows an empty discipline and "
+                    "requires the reason with it (%d+ chars)" % MIN_REASON)
+        return ""
+    if len(content) < MIN_ANSWER:
+        return ("TOO SHORT — %d chars, %d needed. Below that it is empty in "
+                "all but form" % (len(content), MIN_ANSWER))
+    return ""
+
+
+def check_8d(subject: str, message: str) -> None:
+    """Rule 6 — D2, D4-occurrence, D4-escape, D5 and D7 in a fix's body.
+
+    **CLAUDE.md §20, founder ruling 2026-09-11.** Every defect, modification or
+    adaptation is worked as an 8D before a fix is proposed, and *"convention
+    decays; a gate does not"*. This is the gate.
+
+    **WHY THESE FIVE AND NOT ALL EIGHT.** D0, D1, D6 and D8 are checkable
+    elsewhere or are not prose: D6 is the step's `Verify` and rules 3 and 4
+    already run it, D8 is its Done-when, D1 is one person on this project, and
+    D0 is preparation. **The five left are the ones nothing else can see**, and
+    D4's two halves are why the rule exists: an occurrence cause with no escape
+    cause is the shape that lets the same class of defect return through the
+    same blind spot. §20 names that split as the clause carrying the weight.
+
+    **AN EMPTY DISCIPLINE IS A FINDING AND SAYS SO.** `NONE` plus a reason
+    passes — G-49's own D3 and D7 are empty, and §20 calls that the most useful
+    thing the structure produced. `NONE` alone does not pass: the reason IS the
+    finding, and without it the word is only a way through the gate.
+
+    **WHAT THIS RULE CANNOT CHECK, stated so nobody mistakes green for good.**
+    It checks that each discipline is ANSWERED, never that the answer is right.
+    A plausible D4 ESCAPE naming the wrong blind spot passes here and is caught
+    only on review. The gate raises the floor; it does not do the thinking.
+
+    **And one parsing limit, measured rather than assumed.** A discipline's
+    content runs to the next `D<n>` label or to the trailer, so the LAST label
+    in a body absorbs everything after it — `D7 PREVENT` is usually satisfied by
+    the rest of the message. Bounding it at a blank line was rejected: a real
+    answer is often several paragraphs, and the check is a MINIMUM length, so
+    over-capturing makes a commit easier to pass and under-capturing would
+    reject a complete answer. Both are the wrong error for a floor.
+    """
+    why = is_fix_commit(subject, message)
+    if not why:
+        return
+
+    found = eightd_disciplines(message)
+    names = [n for n, _ in EIGHTD]
+    problems = [(n, eightd_verdict(found[n])) for n in names
+                if eightd_verdict(found[n])]
+    if not problems:
+        note("rule 6 8D: PASS — six disciplines answered (%s)" % why)
+        return
+
+    answered = ["  %-15s %s" % (n, (found[n] or "")[:60])
+                for n in names if not eightd_verdict(found[n])]
+    fail("the 8D body is incomplete — CLAUDE.md §20",
+         "Rule 6 applies because %s." % why, "",
+         "NOT ANSWERED",
+         *["  %-15s %s" % (n, v) for n, v in problems], "",
+         "ANSWERED",
+         *(answered or ["  (none)"]), "",
+         "§20 requires these five, and D2 in both halves:", "",
+         *["  " + line for line in EIGHTD_TEMPLATE], "",
+         "An EMPTY discipline is a finding, not an omission — write",
+         "`NONE — <why it is empty>` and it passes. D4 ESCAPE is the one most",
+         "often missing and usually the expensive one: \"why did nothing detect",
+         "this\" is a different question from \"why did it happen\".", "",
+         "If this commit changes no behaviour and only its subject names a",
+         "defect, say so on the record instead of bypassing:",
+         "  8D: NOT A FIX — <why>",
+         "That line cannot exempt a `fix(` subject, or a body that already",
+         "carries D-labels.")
+
+
 # Rule 5 — CONTINUITY.md moved with the step
 # --------------------------------------------------------------------------- #
 def check_continuity(root: str, staged: list[str]) -> None:
@@ -580,13 +809,7 @@ def main(argv: list[str]) -> int:
     if os.path.exists(os.path.join(root, ".git", "MERGE_HEAD")):
         return 0
 
-    subject = ""
-    with open(argv[1], encoding="utf-8", errors="replace") as fh:
-        for line in fh:
-            s = line.strip()
-            if s and not s.startswith("#"):
-                subject = s
-                break
+    subject, message = read_message(argv[1])
     if not subject:
         return 0  # git aborts an empty message itself, with a better error
 
@@ -600,6 +823,12 @@ def main(argv: list[str]) -> int:
              "Blocking rather than passing: a guard that waves a commit through",
              "when its own logic breaks is worse than no guard.")
     check_architecture_status(root, all_staged)
+
+    # ── Rule 6 — also ahead of the prefix gate, and for the same reason ────
+    # A fix lands under any type. It is a pure message check, so it costs
+    # nothing and runs before mypy and pytest can spend a minute on a commit
+    # that was going to be rejected on its body anyway.
+    check_8d(subject, message)
 
     if not subject.startswith(GUARDED_PREFIX):
         return 0

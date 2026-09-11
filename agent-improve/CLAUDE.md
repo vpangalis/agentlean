@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.35 — September 2026
+# Version 2.2.36 — September 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -1030,6 +1030,42 @@ load-bearing is satisfied with no registry edit. The 1,128 parenthetical
 are converted **as each rule is next amended, not in one sweep**, which is the
 one scoping call in this amendment and is flagged for the founder at
 §19.4 — where the rule bites, and the open item.
+
+### 0.30 — What Changed in 2.2.36 — 8D is the structure for every fix
+
+**FOUNDER RULING 2026-09-11.** Every **defect, modification or adaptation** is
+worked as an 8D **before any fix is proposed** — not features, defects and
+changes — and it is **enforced at the commit** rather than trusted.
+**§20 — every fix is an 8D** holds the rule; **rule 6** of the commit-msg guard
+holds the gate.
+
+| | Before | From 2026-09-11 |
+|---|---|---|
+| **A defect's structure** | whatever the author reached for, per defect | **the nine disciplines**, D0 to D8, worked before a fix is proposed (§20.1 — the nine disciplines) |
+| **A root cause** | one answer — why it happened | **two answers** — occurrence AND escape. *"Why did nothing detect this"* is separate, and usually the expensive one (§20.2 — three clauses carry the weight) |
+| **An interim containment** | put in place, and lives on | **records its own removal condition**, or it becomes permanent (§20.2 — three clauses carry the weight) |
+| **An empty discipline** | omitted, and reads as forgotten | **`NONE — <reason>`, never omitted.** An empty discipline is a finding (§20.2 — three clauses carry the weight) |
+| **The commit body of a fix** | prose, in whatever shape | **five labels the guard checks** — D2 IS, D2 IS-NOT, D4 OCCURRENCE, D4 ESCAPE, D5 FIX, D7 PREVENT (§20.4 — enforced at the commit, as rule 6) |
+| **A defect report to the founder** | §19's visual, in any shape | **the 8D table**, with the empty disciplines shown empty (§20.5 — every defect report is delivered in this structure) |
+
+**THE WORKED EXAMPLE IS G-49, AND ITS TWO EMPTY DISCIPLINES ARE THE POINT.**
+§20.3 — the worked example carries the whole of it, and D3 and D7 both read
+`NONE` with a reason: nothing protects the Belt today, and nothing yet stops a
+second instance of the class. **Those two lines say more about the product's
+state than the four answered disciplines do**, and neither would have appeared
+in a report written without the structure.
+
+**WHY A GATE AND NOT A CONVENTION.** The founder's words, recorded because they
+are the whole argument: *convention decays; a gate does not.* Rule 6 is
+deliberately **not** scoped to `fix(` subjects — this project's real fixes land
+as spine commits, and G-49's own fix will land as `commit 6.21`, so a type-only
+trigger would have exempted the most important fix commit in the backlog. What
+the gate cannot check is written into its own docstring and into §20.4: it
+checks that a discipline is ANSWERED, never that the answer is right.
+
+**No rule was renumbered**, so `deprecated_patterns.yaml`'s citations still
+resolve (§0.2 — rule numbers are load-bearing). **The guard's rule numbers are
+now 1, 2b, 3, 4, 5, 6** — rule 2's number stays retired.
 
 ---
 
@@ -3746,6 +3782,16 @@ to choose backoff strategy (§4.8).
 - Never render a bare number or a bare code in anything a human reads —
   "6.20 — the write paths", never "6.20" (§19.2 — never a bare number,
   never a bare code)
+- Never propose a fix before the 8D is worked — a defect, a
+  modification and an adaptation are all worked first (§20 — every fix
+  is an 8D)
+- Never give an occurrence cause without an escape cause — "why did
+  nothing detect this" is a separate answer (§20.2 — three clauses carry
+  the weight)
+- Never put an interim containment in place without its removal
+  condition (§20.2 — three clauses carry the weight)
+- Never omit an empty discipline — it is a finding, and it is written
+  `NONE — <reason>` (§20.2 — three clauses carry the weight)
 
 ---
 
@@ -3909,6 +3955,7 @@ section numbers.
 | **Explaining a flow or a structure** — how a mechanism works, where a value is written, what a guard checks | **A diagram** | a walk-through the reader has to hold in their head to compare |
 | **Explaining a set of facts** — what an audit found, which sites disagree, what is missing | **A table**: one row per fact, the site and the verdict in cells | a numbered prose list |
 | **Status** | **the board** — `agent-improve/docs/board.html`, generated (§0.28 — the document set collapses to two) | a prose paragraph restating what the board already shows |
+| **Explaining a DEFECT** — what broke, why, and why nothing caught it | **the 8D table**, nine rows, empty disciplines shown empty (§20.5 — every defect report is delivered in this structure) | a narrative that hides which discipline went unanswered |
 
 **"Carrying the full detail" is the load-bearing half of the rule.** A summary
 table sitting on top of three pages of prose does not satisfy it — the visual
@@ -3969,3 +4016,103 @@ not on taste — §19.1 and §19.2 are not about how writing looks.
 
 *Founder ruling 2026-09-11. Reason: §19.3 — why this is a rule and not a style
 note. Change record: §0.29 — a finding is delivered as a visual.*
+
+---
+
+## 20. EVERY FIX IS AN 8D
+
+**FOUNDER RULING 2026-09-11.** Every **defect, modification or adaptation** is
+worked as an 8D **before any fix is proposed**. Not features — defects and
+changes.
+
+**The 8D is the work, not the write-up.** It is what is done first; the commit
+body is where it lands, because the commit body is already the decision record
+(§0.28 — the document set collapses to two). **And it is enforced at the commit,
+not trusted** — rule 6 of `.claude/hooks/commit-msg-refactor-guard.py`
+(§20.4 — enforced at the commit, as rule 6). Convention decays; a gate does not.
+
+### 20.1 — The nine disciplines
+
+| | Discipline | What it answers |
+|---|---|---|
+| **D0** | **prepare** | Is there a reproduction that is not a story — the request, the case, the build, re-runnable after a change? |
+| **D1** | **team** | Who is working it, and who rules on what. One person plus the founder, here — and which session holds which file, when more than one is live |
+| **D2** | **describe, with IS / IS-NOT** | What happens, where, since when, how you know — **and the nearest thing this is NOT.** IS-NOT is the half that bounds the defect; without it every adjacent system is a suspect |
+| **D3** | **interim containment, WITH its removal condition** | What protects the Belt while the real fix is built, **and the condition on which it comes out again** |
+| **D4** | **root cause, in TWO parts** | **Occurrence** — why it happened. **Escape** — why nothing detected it. Two answers, never one |
+| **D5** | **chosen permanent fix** | Which change, and why that one rather than the others costed |
+| **D6** | **verification** | What proves the fix works — and what would have failed before it |
+| **D7** | **prevention of recurrence** | What stops the **class**, not this instance. Usually a check, a schema, or a rule — rarely a prompt |
+| **D8** | **closure conditions** | What has to be true to call it closed. In this project that is the step's Done-when |
+
+### 20.2 — Three clauses carry the weight
+
+**D4 IS NOT COMPLETE WITH ONLY AN OCCURRENCE CAUSE.** *"Why did nothing detect
+this"* is a separate answer and is usually the expensive one. An occurrence
+cause alone repairs the instance and leaves the blind spot, so the same class
+returns by the same route. G-49's occurrence cause is one line — the plan is not
+in the request. **Its escape cause is the finding**: every executor test stubs
+`create_agent` and asserts the kwargs, so nothing in 849 tests ever looked at
+what the model RECEIVES, and the upload manifest shipped at step 6.12 with no
+test at all.
+
+**D3 RECORDS ITS OWN REMOVAL CONDITION, OR IT BECOMES PERMANENT.** A containment
+with no exit is a workaround with a long life. **The `interrupt()` guard is the
+working example**: `test_ContradictionDetectionMiddleware_does_not_call_interrupt`
+contains position 6 until the real gate exists, and its removal is **clause 1 of
+step 7.3's Done-when** — written where the fix lands, not where the guard sits.
+
+**AN EMPTY DISCIPLINE IS A FINDING AND SAYS SO. IT IS NEVER OMITTED.** Write
+**`NONE — <why it is empty>`**. An omitted discipline reads as forgotten; an
+empty one with its reason reads as measured. **D3 and D7 are empty for G-49, and
+that is the most useful thing the structure produced** — it says in two lines
+that the product is unprotected today and that nothing yet stops a second
+instance, which no amount of correct D4 would have surfaced.
+
+### 20.3 — The worked example: G-49, empty disciplines included
+
+| | G-49 — the executor ignores the tool its planner names |
+|---|---|
+| **D0** | `POST /ask` on `IMPR-2026-ED8`, *"what does our to-be process look like"*, re-runnable; reproduced on `09960df` at 45.141s against 2026-09-10's 45.157s on `1714d75` |
+| **D1** | This session and the founder; the board and verifier files were held by a second live session at the time (§19.4 — where the rule bites, and the open item) |
+| **D2 IS** | A Define turn with an unread upload issues 18 evidence searches across 3 multi-query calls, fetches no `uploads/` blob, and ends on the 45s node timeout. The planner routes correctly and names the tool and the blob path |
+| **D2 IS-NOT** | **Not the hop cap** — §3.7's budget fired correctly. **Not retrieval quality** — the searches returned documents. **Not a binding failure** — `load_evidence_series` is bound in all five phases. **Not §26's off-ramp** — the turn had budget to spend |
+| **D3** | **NONE — and that is the finding.** Nothing protects the Belt today: the same question still times out. The only quick containment available was raising the node timeout, which would convert a visible failure into a slow one and pin the symptom the step forbids pinning. Recorded as unprotected rather than papered over |
+| **D4 OCCURRENCE** | The plan has no transport into the model's request. `executor()` invokes the agent with `{"messages": prior}`; `coaching_plan` is read for the logger and the `step_log` and nothing else; the system prompt is a per-phase constant; the one state-holding middleware never mentions the plan |
+| **D4 ESCAPE** | **No test asserted what the model RECEIVES.** Every executor test stubs `create_agent` and asserts its kwargs, so the composition path never ran under test; and the manifest that the coach does receive landed at step 6.12 with no assertion anywhere in the suite |
+| **D5** | **NOT CHOSEN — the founder's ruling.** Four transports are costed at step 6.21 — the plan reaches the model, two of which amend §17. Prompt wording is excluded by the diagnosis itself |
+| **D6** | `live-run` **then** `pytest`, in that order: a test written before the cause was known would have pinned the 45s timeout. `test_the_planners_instruction_reaches_the_model` is `xfail(strict=True)`, so the suite goes red the day the transport lands without the marker coming out |
+| **D7** | **NONE — nothing here stops the class.** The class is *a decision that is recorded and never delivered*, and the only real prevention is structural — a rule that a node's routing output must reach the consumer it was written for. That is a §17 or §26 amendment and belongs to 6.21, not here |
+| **D8** | Step 6.21's Done-when: the strict marker removed, the ruled transport applied and its section amended, a `live-run` in which the named blob is read and an upload is stamped `consumed_at`, and the live halves of 6.7, 6.12 and 6.13 run in the same pass |
+
+### 20.4 — Enforced at the commit, as rule 6
+
+**`.claude/hooks/commit-msg-refactor-guard.py` blocks a fix commit whose body
+does not answer five of the nine.** The rules are 1, 2b, 3, 4, 5 and now **6**.
+
+| | |
+|---|---|
+| **Required labels** | `D2 IS:` · `D2 IS-NOT:` · `D4 OCCURRENCE:` · `D4 ESCAPE:` · `D5 FIX:` · `D7 PREVENT:` |
+| **Why these and not all nine** | D6 is the step's `Verify` and rules 3 and 4 already run it; D8 is its Done-when; D1 is one person here; D0 is preparation. **These five are the ones nothing else can see** |
+| **What counts as a fix** | the subject's type is `fix` or `hotfix`; **or** the subject names a registered defect — `G-49`, `F-15`, `WATCH 26`; **or** the body already carries any `D<n>` label, which stops a half-written 8D from passing |
+| **Missing or empty** | fails. `NONE` **plus a reason** passes; bare `NONE` does not — the reason is the finding |
+| **Too short to be an answer** | fails at under 20 characters. `tbd`, `see above` and `n/a` are what a decaying convention produces and they pass a presence check |
+| **The one opt-out** | `8D: NOT A FIX — <why>` clears the **defect-code** trigger only. It cannot exempt a `fix(` subject, and it cannot exempt a body carrying D-labels: **a commit that calls itself a fix does not get to opt out of being one.** It stays on the record, where `--no-verify` leaves nothing |
+| **What the gate cannot check** | whether an answer is RIGHT. A plausible `D4 ESCAPE` naming the wrong blind spot passes, and the last label in a body absorbs the text after it, so `D7 PREVENT` is usually satisfied by whatever follows. **The gate raises the floor; it does not do the thinking** — and `test_commit_guard_8d.py` pins the gate itself, because a gate with no test is a convention wearing a gate's clothes |
+
+### 20.5 — Every defect report is delivered in this structure
+
+**A report on a defect — to the founder, in chat, in a brief, in a review reply
+— is delivered as the 8D**, with the empty disciplines shown empty. This is
+§19.1 — a decision or an explanation is delivered as a visual applied to the one
+shape that recurs most: a table of nine rows, each discipline named, `NONE` and
+its reason where a discipline is empty.
+
+**The reason is the same as §19.3 — why this is a rule and not a style note.** A
+defect report in prose invites the reader to reconstruct which question was
+answered and which was skipped. The nine rows make an unanswered discipline
+visible at a glance, which is exactly what a narrative hides — and D4's missing
+half is the thing most worth seeing.
+
+*Founder ruling 2026-09-11. Change record: §0.30 — 8D is the structure for every
+fix. Gate: rule 6 of the commit-msg guard.*

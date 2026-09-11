@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.30 · 2026-09-11
+Version 1.31 · 2026-09-11
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.31 (2026-09-11)** — **§56 AMENDMENT. §55's mechanism table gains the one mechanism that actually blocks a commit, and that mechanism gains a sixth rule.** Founder ruling: every defect, modification or adaptation is worked as an 8D before any fix is proposed, and it is enforced at the commit rather than trusted — *convention decays; a gate does not*. **(A) RULE 6 EXISTS.** The commit-msg guard now requires **D2 IS, D2 IS-NOT, D4 OCCURRENCE, D4 ESCAPE, D5 FIX and D7 PREVENT** in the body of any commit that is a fix, on three triggers: the subject's type is `fix`; the subject names a registered defect (`G-49`, `F-15`, `WATCH 26`); or the body already carries a `D<n>` label, which is what stops a half-written 8D passing. **Trigger 2 carries the design**: this project's fixes land as spine commits, so G-49's own fix lands as `commit 6.21` and a type-only trigger would have exempted the most important fix commit in the backlog. The rule, the nine disciplines and G-49 worked end to end live at `agent-improve/CLAUDE.md` §20 — every fix is an 8D (v2.2.36, change record §0.30); 37 tests pin the gate, because a message check fails SILENTLY by letting commits through. **(B) §55's TABLE SAID THREE MECHANISMS AND OMITTED THE GUARD.** The constitution is read, the skill is invoked by choice, the drift hook warns before a write — **the commit-msg guard refuses**, and it had been refusing since 2026-08-31 while the section named *Anti-drift* did not list it. Same shape as the findings §55.1 records: a correct mechanism paired with a document that cannot see it. **(C) FOUND BY THE GUARD ITSELF.** Rule 2b blocked the commit adding rule 6 — `git commit --only` still lets the pre-commit hook stage `docs/board.html`, and a watched path staged without this file is exactly what 2b exists to stop. The omission surfaced because the mechanism it omitted did its job on its own amendment. **No rule was renumbered** and rule 2's number stays retired, so the guard's rules are 1, 2b, 3, 4, 5, 6 and `deprecated_patterns.yaml`'s citations still resolve. Reasoning: this commit body, per §56.2.
 
 **v1.30 (2026-09-11)** — **§56 AMENDMENT. G-49 IS DIAGNOSED — the planner's routing decision has no transport into the model's request, and the fix is a step of its own.** Step 6.18, a diagnosis step, ends with a cause rather than a change. **(A) THE CAUSE IS LAYER 2 of the four the step listed: the plan does not reach the executor's context.** The planner rewrites `CoachingPlan.next_action` into an imperative naming a tool and a blob path and logs that it did; `executor()` then invokes the agent with `{"messages": prior}`, reads `coaching_plan` only for the logger and the `step_log`, passes a per-phase constant as `system_prompt`, and mounts the one state-holding middleware — `BeforeModelStateInjection` — which never mentions `coaching_plan`, `focus_field` or `next_action`. Measured at the boundary rather than argued: the imperative reaches **none** of the three channels the model reads — system prompt 7,770 chars, injected block 797 chars, messages 5 chars. **(B) THE OTHER THREE LAYERS ARE RULED OUT ON EVIDENCE.** Layer 1 — `load_evidence_series` has been in `UNIVERSAL_TOOLS` since step 6.12 and is bound in all five phases, pinned by a new test. Layer 3 — excluded by construction, a model cannot deprioritise what is not in its request. Layer 4 — present and not the cause: the upload manifest reaches the coach every turn with the file, its `NOT YET READ` state, its `blob_path` and the tool that opens it (2,893 composed chars on the failing run) and 18 evidence searches followed anyway, so ranking explains a preference and not a missing instruction. **(C) §19.1's GUARANTEE IS TWO-LEGGED, NOT THREE.** The manifest makes the coach AWARE and the planner's routing was meant to make it ACT; that second leg is decided, logged, and never delivered. This node's own comment calls the unread-upload route *"the only point in the loop that is not the model's discretion"* — and because the plan has no transport, it is entirely the model's discretion. **(D) THE FIX IS STEP 6.21, `GATED` on a founder ruling**, because all four candidate transports change a ratified section: the injected block (G-24, founder-owned), a turn-level message, a node-executed call (a real §17 amendment — *"the executor decides no strategy"* would become *"the executor executes the plan's named call"*), or forced tool choice (unverified against the installed library, §16.3). **Prompt wording is excluded as a fix by the diagnosis itself.** **(E) 6.9 COMES OFF G-49's BLOCKING LIST — it never belonged.** Its Verify is `pytest`, it has no live clause, and its Done-when is satisfied by the tree; the blocking claim narrows from four steps to three (6.7, 6.12, 6.13), which re-run on the first `live-run` after 6.21 lands and are re-reported to the founder if that has not happened by 2026-09-25. One correction to the audit that raised the 6.9 question: it recorded *"a test asserts the count and both instructions per file"* as satisfied when only the count was — all five SKILL.md files do carry both instructions and nothing asserted it, which is a missing guarantee over correct content. **No rule was renumbered and no schema changed**, so `deprecated_patterns.yaml`'s citations still resolve. Reasoning: this commit body, per §56.2.
 
@@ -8236,13 +8238,23 @@ skills/       dmaic-{phase}-phase/SKILL.md
 *Supersedes: REFACTORING §45, §50, §86; CLAUDE.md §0.2, §16.3.*
 **Status: RATIFIED.**
 
-Three mechanisms, layered:
+Four mechanisms, layered:
 
 | Layer | Mechanism | Enforces |
 |---|---|---|
 | **Constitution** | `{agent}/CLAUDE.md` | The rules, quoted in every implementation prompt. **Per agent** — see *Scope* |
 | **Skills** | `.claude/skills/verify-current-version` | Version currency at decision time |
 | **Hooks** | `.claude/hooks/pre-tool-use-drift-check.py` + `deprecated_patterns.yaml` | Deprecated patterns blocked before they land |
+| **Gates** | `.githooks/commit-msg` → `.claude/hooks/commit-msg-refactor-guard.py` | **Six rules at the commit itself: 1, 2b, 3, 4, 5, 6.** Subject format; the BUILT-marker document staged with a watched path; mypy against the pinned venv; pytest; CONTINUITY.md current; and **rule 6 — a fix commit's body answers D2 IS, D2 IS-NOT, D4 OCCURRENCE, D4 ESCAPE, D5 FIX and D7 PREVENT** (`agent-improve/CLAUDE.md` §20 — every fix is an 8D) |
+
+> **THE TABLE READ "THREE MECHANISMS" UNTIL 2026-09-11, AND THE ONE IT OMITTED
+> IS THE ONLY ONE THAT BLOCKS ANYTHING.** The drift hook warns before a write;
+> the skill is invoked by choice; the constitution is read. **The commit-msg
+> guard refuses.** It has carried enforcing rules since 2026-08-31 and this
+> section — the section named *Anti-drift* — did not list it, which is the same
+> shape as the findings §55.1 records: a correct mechanism paired with a
+> document that cannot see it. Found while adding rule 6, by rule 2b blocking
+> the commit that added it.
 
 ### Rule numbers are load-bearing
 
