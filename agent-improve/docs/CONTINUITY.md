@@ -8,10 +8,10 @@
 | | |
 |---|---|
 | **Last completed** | step **6.18** — The executor ignores the tool its planner names (G-49) |
-| **Next** | step **6.19** — `CoachingResponse` gains §50.1's four presentational fields (G-50) |
+| **Next** | step **6.21** — The plan reaches the model (G-49's fix) |
 | **Spine steps landed** | 32 of 59 |
 | **Last spine commit** | `e2c536d` (commit 6.18) |
-| **ARCHITECTURE.md** | v1.31 |
+| **ARCHITECTURE.md** | v1.32 |
 | **CLAUDE.md** | v2.2.37 |
 | **Block regenerated** | 2026-09-11 |
 

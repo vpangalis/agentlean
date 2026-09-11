@@ -2602,14 +2602,31 @@ retype.
 | **Touches** | depends on the ruling below — `phases/nodes_common.py` in every case, `middleware/state_injection.py` for transport A, `backend/tests/test_executor.py` always |
 | **Precondition** | **6.18** — the diagnosis. Written, not started |
 | **Verify** | `live-run`, then `pytest` |
-| **Status** | **GATED — awaiting a founder ruling on the transport** |
+| **Status** | **RULED — option C, founder 2026-09-11. Building** |
 
 **Step 6.18 named the cause at layer 2: the plan does not reach the executor's
 context.** The planner decides, writes `CoachingPlan.next_action`, logs the
 decision — and the executor invokes the agent with `{"messages": prior}`, so
 nothing the planner decided is in the request. This step gives the decision a
-transport. **It is GATED rather than READY because every candidate changes a
-ratified section**, and two of them change what §17 means.
+transport. **It was GATED rather than READY because every candidate changes a ratified
+section**, and two of them change what §17 means.
+
+> ### ✅ RULED 2026-09-11 — OPTION C, and the scope is part of the ruling
+>
+> **The node executes the planner's named call itself when `coaching_plan`
+> routes to an unread upload. The coach model is never offered that decision.**
+> Scoped to that one case: every other tool stays model-chosen.
+>
+> A and B leave the guarantee probabilistic in front of a model that had already
+> issued 18 evidence searches against the file the plan named; D stays
+> unverified against the installed library. **C is the only candidate whose
+> guarantee does not depend on how the model ranks an instruction.**
+>
+> §17's executor row gains the node-issued call and the planner's *"Never
+> dispatches"* row is untouched — the planner still decides and still calls
+> nothing (`ARCHITECTURE.md` v1.32, §56 entry). **§26's open question is
+> answered in that amendment: a node-issued read costs NO hop**, because
+> §3.7's budget counts `rag_lookup_*` and `load_evidence_series` is not one.
 
 ### The four candidates, and what each costs
 
@@ -3313,9 +3330,9 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | State | Count | Steps |
 |---|---|---|
 | **DONE** | 32 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18** |
-| **BUILDING NOW** | 1 | **6.19** — `CoachingResponse` gains §50.1's four presentational fields (G-50) |
-| **BLOCKED** | 7 | **6.21** (GATED), **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL) |
-| **QUEUED** | 19 | **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **11.1**, **11.2** |
+| **BUILDING NOW** | 1 | **6.21** — The plan reaches the model (G-49's fix) |
+| **BLOCKED** | 6 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL) |
+| **QUEUED** | 20 | **6.19**, **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **11.1**, **11.2** |
 
 *59 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-11.*
 <!-- END STEP BOARD -->
@@ -3615,7 +3632,7 @@ restate, which is the opposite of what the board is for.
 | 300 | **Commit 6.13** | The evidence index migration |  | STORE | SHARED | Evidence and artefacts share one bucket with no role, kind or version identity, so a proposed future is retrievable later as a fact about the present. |
 | 310 | **Commit 6.16** | The board is generated, not written |  | OPS | SHARED | The board a founder reads is hand-drawn and stale from the first commit after it is drawn. |
 | 330 | **Commit 6.18** | The executor ignores the tool its planner names (G-49) |  | COACH | SHARED | The planner's routing decision is advisory, so a Belt asking a question whose answer is in an uploaded file gets a timeout instead - and four landed steps keep verification debt nothing else can discharge. |
-| 335 | **Commit 6.21** | The plan reaches the model (G-49's fix) | GATED | COACH | SHARED | The planner's routing decision stays advisory, so the guarantee that an uploaded file is read is whatever the model felt like doing - and the live halves of three landed steps can never be run. |
+| 335 | **Commit 6.21** | The plan reaches the model (G-49's fix) |  | COACH | SHARED | The planner's routing decision stays advisory, so the guarantee that an uploaded file is read is whatever the model felt like doing - and the live halves of three landed steps can never be run. |
 | 340 | **Commit 6.19** | `CoachingResponse` gains §50.1's four presentational fields (G-50) |  | COACH | SHARED | Every coaching turn arrives as one prose blob, so there is nothing structured for a gate UI to display and five SKILL.md files keep instructing the coach to fill fields that do not exist. |
 | 350 | **Commit 6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` |  | PHASE | SHARED | Three things §39.x.7 specifies are read by the gate document and written by nothing, so a computed figure never reaches a gate and the coach cannot tell which field it is on. |
 | 360 | **Commit 8.0** | Turn telemetry and `@traceable` |  | OPS | SHARED | Nothing is traced, so every investigation needs a hand-built harness and no limit can be set from measured data. |

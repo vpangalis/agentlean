@@ -25,7 +25,7 @@ import pytest
 from langchain_core.language_models.fake_chat_models import (
     GenericFakeChatModel,
 )
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.errors import GraphRecursionError
 
 from backend.core.llm import role_temperature
@@ -205,6 +205,55 @@ class _CreateAgentRecorder:
         mw = self.middleware_named("BeforeModelStateInjection")
         mw.before_agent(None, None)
         return mw._block
+
+
+# ── the node-dispatched read — step 6.21, option C ────────────────────────
+
+DEFAULT_SERIES = (
+    "complaints.csv · column 'complaints': n=5, mean=3.4000, sigma=1.5166, "
+    "min=2, max=6."
+)
+
+
+class _RoutedRead:
+    """Stands in for `load_evidence_series` where the NODE dispatches it.
+
+    Step 6.21 has `executor()` call the tool itself when the planner routes to
+    an unread upload, so a `PhaseState` carrying one now performs a real Azure
+    blob read unless something replaces it. **That is why this fixture is
+    autouse**: the trap is not in the tests that exist, it is in the next test
+    someone writes with an upload in its state, which would reach the network
+    and fail somewhere unrelated to what it was testing.
+    """
+
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+        self.content: str = DEFAULT_SERIES
+        self.artifact: dict = {"ok": True, "column": "complaints", "n": "5"}
+        #: Set to an exception to exercise the fail-soft path.
+        self.raises: Exception | None = None
+
+    async def ainvoke(self, call: dict, *args: Any, **kwargs: Any) -> Any:
+        self.calls.append(call)
+        if self.raises is not None:
+            raise self.raises
+        return ToolMessage(
+            content=self.content, tool_call_id=str(call.get("id")),
+            name=str(call.get("name")), artifact=self.artifact,
+        )
+
+    @property
+    def blob_paths(self) -> list[str]:
+        return [str((c.get("args") or {}).get("blob_path")) for c in self.calls]
+
+
+@pytest.fixture(autouse=True)
+def routed_read(monkeypatch) -> _RoutedRead:
+    """Replace the tool the node dispatches (step 6.21). Autouse — see above."""
+    fake = _RoutedRead()
+    monkeypatch.setattr(
+        "backend.phases.nodes_common.load_evidence_series", fake)
+    return fake
 
 
 @pytest.fixture

@@ -67,7 +67,11 @@ from datetime import datetime, timezone
 
 from backend.upload.asks import ensure_ask
 from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE
-from backend.knowledge.tools import RAG_LOOKUP_TOOLS, UNIVERSAL_TOOLS
+from backend.knowledge.tools import (
+    RAG_LOOKUP_TOOLS,
+    UNIVERSAL_TOOLS,
+    load_evidence_series,
+)
 from backend.middleware.coherence import CoherenceMiddleware
 from backend.middleware.contradiction import ContradictionDetectionMiddleware
 from backend.middleware.grader import DMAICGraderMiddleware
@@ -217,7 +221,9 @@ def _mark_consumed(
     return uploads, marked
 
 
-def _unconsumed_for_open_ask(state: PhaseState) -> dict | None:
+def _unconsumed_for_open_ask(
+    state: PhaseState, asks: Optional[list[dict]] = None,
+) -> dict | None:
     """An upload bound to an open ask that nothing has read yet — step 6.12.
 
     **This is what turns "the coach will use the file" from a hope into a
@@ -227,8 +233,20 @@ def _unconsumed_for_open_ask(state: PhaseState) -> dict | None:
 
     Matched on `role`, never on filename — ruling AP2.2 forbids inferring a
     document's identity from what it happens to be called.
+
+    **`asks` IS EXPLICIT SINCE STEP 6.21, AND THAT IS A CORRECTNESS FIX.**
+    Option C has the executor DISPATCH what this returns, so the planner and
+    the executor must reach the same answer or the turn's prose and its action
+    disagree. They read different states: the planner decides before its own
+    `update["asks"]` is applied, the executor after. With Define carrying no
+    ask shapes the two agreed by accident; in Measure, `ensure_ask` opening an
+    ask for a role no upload carries would narrow `open_roles` between the two
+    reads and the executor would dispatch nothing while the plan said to. The
+    planner now passes the asks it just computed, so both sides decide on the
+    same input by construction rather than by coincidence.
     """
-    open_roles = {a.get("role") for a in (state.get("asks") or [])
+    open_roles = {a.get("role") for a in
+                  (asks if asks is not None else state.get("asks") or [])
                   if a.get("status") == "open"}
     for upload in state.get("uploads") or []:
         if upload.get("consumed_at"):
@@ -326,7 +344,7 @@ async def planner(
         # **Routing on an unread upload is the guarantee's third leg.** The
         # manifest makes the coach AWARE (§19.1); this makes the planner ACT.
         # It is the only point in the loop that is not the model's discretion.
-        pending = _unconsumed_for_open_ask(state)
+        pending = _unconsumed_for_open_ask(state, asks)
         if pending is not None:
             update["asks"] = asks
             plan.next_action = (
@@ -649,6 +667,90 @@ _DIAGRAM_TO_UI_KEY = {
 }
 
 
+#: What the node asks for when nothing has declared a column. The tool answers
+#: a miss by naming the columns the file DOES have (its B2 path), which is the
+#: coaching move the Belt needs — so a routed read is useful even here.
+_COLUMN_UNDECLARED = "(not specified)"
+
+
+def _routed_column(state: PhaseState, upload: dict) -> str:
+    """The column to read, from the ask that solicited this upload."""
+    for ask in state.get("asks") or []:
+        if ask.get("status") == "open" and ask.get("role") == upload.get("role"):
+            columns = (ask.get("expected_shape") or {}).get("columns") or []
+            if columns:
+                return str(columns[0])
+    return _COLUMN_UNDECLARED
+
+
+async def _dispatch_routed_read(state: PhaseState) -> list:
+    """The planner's named call, EXECUTED HERE — §17, step 6.21, option C.
+
+    **FOUNDER RULING 2026-09-11, and it changes what §17 means.** The planner
+    owns the routing decision (S-F13 DP1) and G-49 was that the decision never
+    reached the model: `executor()` invoked the agent with `{"messages":
+    prior}`, so the one point in the loop that was not the model's discretion
+    was, in fact, entirely the model's discretion. Options A and B put the
+    instruction in front of the model and leave it free to rank a retrieval
+    tool above it — which is the behaviour 6.18 measured, 18 evidence searches
+    against a file the plan named. **C removes the decision from the model.**
+
+    **SCOPED TO ONE CASE, deliberately.** This dispatches `load_evidence_series`
+    and only when `_unconsumed_for_open_ask` routes to an unread upload. Every
+    other tool stays model-chosen: §24's "no unconditional retrieval pipeline"
+    is untouched, and nothing here decides WHAT to coach.
+
+    **The result arrives as a real tool exchange**, an `AIMessage` carrying the
+    call plus its `ToolMessage`, prepended to the turn's messages. Three things
+    follow from that shape rather than from extra code: the coach reads the
+    values as a tool result it can quote; `_mark_consumed` stamps `consumed_at`
+    from the same call it already scans for; and the next turn's history shows
+    the file was read, so the coach does not read it again.
+
+    **No hop is spent.** §3.7's budget counts `rag_lookup_*` calls and
+    `load_evidence_series` is not one — the same accounting as when the model
+    issues it. A node-issued read that cost a hop would make the guarantee
+    compete with the retrieval the coach still needs.
+
+    **Fails soft, and says so.** A blob that cannot be read is a coaching fact,
+    not a dead turn: the tool's own message carries it. An exception here
+    returns no messages at all, leaving the manifest to make the coach aware —
+    the pre-6.21 behaviour, which is degraded rather than broken.
+    """
+    upload = _unconsumed_for_open_ask(state)
+    if upload is None or not upload.get("blob_path"):
+        return []
+
+    # Typed separately: a heterogeneous dict literal infers a value type the
+    # args cannot be read back out of, and mypy is right to refuse it.
+    args: dict[str, str] = {
+        "blob_path": str(upload["blob_path"]),
+        "column": _routed_column(state, upload),
+    }
+    call: dict[str, Any] = {
+        "name": "load_evidence_series",
+        "args": args,
+        "id": f"routed-{abs(hash(args['blob_path'])) % 10**12:012d}",
+        "type": "tool_call",
+    }
+    try:
+        result = await load_evidence_series.ainvoke(call)
+    except Exception as exc:  # noqa: BLE001 — the turn survives a bad read
+        logger.warning(
+            "executor: the routed read of %s failed (%s) — the coach keeps the "
+            "manifest and the turn continues",
+            upload.get("blob_path"), exc,
+        )
+        return []
+
+    logger.info(
+        "executor: DISPATCHED the planner's call — load_evidence_series on %s "
+        "[column=%s] (§17, option C). The model was not offered this decision.",
+        args["blob_path"], args["column"],
+    )
+    return [AIMessage(content="", tool_calls=[call]), result]
+
+
 def _executor_status(hit_cap: bool, off_ramp: bool) -> str:
     """The `step_log` status for one coaching turn — §10.3, dicts not tuples.
 
@@ -967,10 +1069,24 @@ async def executor(
     `EXTRACTION_{PHASE}` are now dead code awaiting deletion at 11.1**; nothing
     calls them, and per the ruling they are not migrated.
 
-    **§17's contract, now fully true.** The coach is told the plan's
-    `focus_field` and instructed to coach that field and no other (S-F04 B1).
-    It still decides no strategy of its own: it does not pick the field, does
-    not choose the retrieval mode, and does not route.
+    **§17's contract, and what step 6.21 changed about it.** The coach decides
+    no strategy: it does not pick the field, does not choose the retrieval mode,
+    and does not route.
+
+    **That sentence was FALSE between steps 6.2 and 6.21 and this docstring
+    asserted it anyway.** It said the contract was "now fully true" and that the
+    coach "is told the plan's `focus_field`" — the coach was told neither. The
+    plan reached no channel the model reads (G-49, diagnosed at 6.18 as layer
+    2: system prompt 7,770 chars, injected block 797, messages 5, and the
+    planner's imperative in none of them). A docstring claiming a contract holds
+    is the last place a reader looks for the news that it does not.
+
+    **It is true now, for the one case the planner routes**: an unread upload's
+    read is dispatched by this node (`_dispatch_routed_read`), so the model is
+    not offered that decision at all. Everything else the coach calls is still
+    the coach's choice, and the plan's `focus_field` still reaches the model
+    through nothing — which is transport A or B's job if it is ever wanted, and
+    is NOT claimed here.
 
     **Middleware positions 1–3 are mounted as of step 6.3** (§19); 4–5 land at
     6.4 and 6–8 at 6.5. So the per-turn project facts now arrive through
@@ -1021,7 +1137,13 @@ async def executor(
     agent, grader_log = _build_executor(
         phase, state, config, hop_budget=hop_budget, hops_spent=hops_spent,
     )
-    prior = list(state.get("messages") or [])
+    # ── the planner's named call, executed before the model runs ──────
+    # §17, step 6.21, option C. `prior` is what the agent is invoked with;
+    # `state["messages"]` is what the tail slice below measures against, so the
+    # dispatched exchange is returned as new messages and checkpointed with the
+    # turn — which is what stops the next turn re-reading the same file.
+    dispatched = await _dispatch_routed_read(state)
+    prior = [*(state.get("messages") or []), *dispatched]
     hit_cap = False
     try:
         result = await agent.ainvoke(
@@ -1113,6 +1235,13 @@ async def executor(
             # because the hop count was never written down.
             hops_spent=hops_spent[0],
             hop_budget=hop_budget,
+            # §17 option C — what the NODE called, as against what the model
+            # chose. Empty on every turn with no unread routed upload, which
+            # is most of them.
+            dispatched=[
+                c["name"] for m in dispatched
+                for c in (getattr(m, "tool_calls", None) or [])
+            ],
             remaining_steps=remaining or None,
             # Carried for the audit trail; §19.6's middleware reads it at 6.5.
             contradiction_flag=(reply.contradiction_flag if reply else None),

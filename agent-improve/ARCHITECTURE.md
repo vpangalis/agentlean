@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.31 · 2026-09-11
+Version 1.32 · 2026-09-11
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.32 (2026-09-11)** — **§56 AMENDMENT. §17 CHANGES MEANING: the executor dispatches the planner's named call, and G-49 closes.** **FOUNDER RULING — option C**, of the four transports costed at step 6.21. **(A) THE EXECUTOR'S `Dispatches` CELL GAINS THE NODE-ISSUED CALL.** Where `coaching_plan` routes to an unread upload, `executor()` calls `load_evidence_series` on that blob path itself, before the model runs, and puts the result in front of the coach as a real tool exchange. **The planner's `Never dispatches` cell is untouched** — the planner still decides and still calls nothing; what changed is that its decision is now carried out rather than suggested. **(B) SCOPED TO ONE CASE, and the scope is the ruling.** One tool, one condition. Every other tool stays model-chosen, §24's *"no unconditional retrieval pipeline"* is untouched, and nothing here decides what to coach. **(C) WHY C AND NOT A OR B.** Step 6.18 established that the instruction was not being outranked, it was not arriving; A and B put prose in front of a model that had already issued 18 evidence searches against a file the plan named. C is the only one of the four whose guarantee does not depend on the model's ranking. D — forced tool choice — stays unverified against the installed library and was not taken. **(D) §26's HOP ACCOUNTING IS ANSWERED, which 6.21's spec left open: a node-issued read costs NO hop.** §3.7's budget counts `rag_lookup_*` calls and `load_evidence_series` is not one, so the accounting is the same as when the model issues it. A guarantee that spent a hop would compete with the retrieval the coach still needs. **(E) A CORRECTNESS FIX TRAVELS WITH IT.** `_unconsumed_for_open_ask` now takes the asks it must decide on: the planner decided before its own `update["asks"]` was applied and the executor reads after it, so under C the two could have disagreed about which upload was routed — the plan naming a file the node then did not read. Define carries no ask shapes, so the two agreed by accident; Measure would not have. **(F) THE EXECUTOR'S DOCSTRING CLAIMED THIS CONTRACT WAS "now fully true" THROUGHOUT.** It said so from step 6.2, while the coach was told neither the plan's `focus_field` nor its `next_action`. Corrected in the same commit: a docstring asserting a contract holds is the last place a reader looks for the news that it does not. **Verification owed and named:** the `live-run` halves of 6.7, 6.12 and 6.13. Reasoning: this commit body, per §56.2.
 
 **v1.31 (2026-09-11)** — **§56 AMENDMENT. §55's mechanism table gains the one mechanism that actually blocks a commit, and that mechanism gains a sixth rule.** Founder ruling: every defect, modification or adaptation is worked as an 8D before any fix is proposed, and it is enforced at the commit rather than trusted — *convention decays; a gate does not*. **(A) RULE 6 EXISTS.** The commit-msg guard now requires **D2 IS, D2 IS-NOT, D4 OCCURRENCE, D4 ESCAPE, D5 FIX and D7 PREVENT** in the body of any commit that is a fix, on three triggers: the subject's type is `fix`; the subject names a registered defect (`G-49`, `F-15`, `WATCH 26`); or the body already carries a `D<n>` label, which is what stops a half-written 8D passing. **Trigger 2 carries the design**: this project's fixes land as spine commits, so G-49's own fix lands as `commit 6.21` and a type-only trigger would have exempted the most important fix commit in the backlog. The rule, the nine disciplines and G-49 worked end to end live at `agent-improve/CLAUDE.md` §20 — every fix is an 8D (v2.2.36, change record §0.30); 37 tests pin the gate, because a message check fails SILENTLY by letting commits through. **(B) §55's TABLE SAID THREE MECHANISMS AND OMITTED THE GUARD.** The constitution is read, the skill is invoked by choice, the drift hook warns before a write — **the commit-msg guard refuses**, and it had been refusing since 2026-08-31 while the section named *Anti-drift* did not list it. Same shape as the findings §55.1 records: a correct mechanism paired with a document that cannot see it. **(C) FOUND BY THE GUARD ITSELF.** Rule 2b blocked the commit adding rule 6 — `git commit --only` still lets the pre-commit hook stage `docs/board.html`, and a watched path staged without this file is exactly what 2b exists to stop. The omission surfaced because the mechanism it omitted did its job on its own amendment. **No rule was renumbered** and rule 2's number stays retired, so the guard's rules are 1, 2b, 3, 4, 5, 6 and `deprecated_patterns.yaml`'s citations still resolve. Reasoning: this commit body, per §56.2.
 
@@ -1633,38 +1635,46 @@ coach close out gracefully.
 *Supersedes: REFACTORING §5, §11, §20; ARCHITECTURE.md §3.5; CLAUDE.md §1.3.*
 **Status: RATIFIED.**
 
-> **BUILT:** ⚠️ built with a known defect · **the split exists structurally and does not hold at runtime** (**G-49**) · **closes:** `[6.21]`
+> **BUILT:** ✅ built · **the split holds at runtime for the one decision the
+> planner owns outright** (G-49 closed) · **closed by:** `[6.21]`
 >
 > Both nodes exist, the planner emits a structured plan, and a LangSmith trace
-> shows the two spans in order. **But the executor does not act on the plan it
-> is given**: handed *"call `load_evidence_series` on
-> `uploads/IMPR-2026-ED8/complaints.csv`"* it issues ~6 `rag_lookup_evidence`
-> calls and never calls the named tool, until the 45s node timeout ends the
-> turn. **The routing decision this section assigns to the planner is
-> advisory in practice**, which is not a degraded split — it is the split not
-> existing where it matters.
+> shows the two spans in order. **Since step 6.21 the planner's routing decision
+> is executed rather than suggested**: where the plan routes to an unread
+> upload, `executor()` calls `load_evidence_series` on that blob path itself and
+> puts the result in front of the coach as a tool exchange. The model is not
+> asked. Everything else it calls remains its own choice, and §24's *"no
+> unconditional retrieval pipeline"* is untouched.
 >
-> **MARKER ADDED 2026-09-11, and its absence was itself the finding.** G-49 was
-> registered on 2026-09-10 and **no section carried a marker for it**, because
-> the code is *built* — nothing here is missing, it misbehaves. So the board's
-> architecture view showed this block clean while four landed steps sat blocked
-> on it. **A `☐ not built` vocabulary cannot express "built and wrong"**; that
-> is what `⚠️ built with a known defect` is for, and it was not used here.
-> Blocks the `live-run` half of 6.7, 6.12 and 6.13. **6.9 came off that list at
-> step 6.18, 2026-09-11 — it never belonged**: its Verify is `pytest`, it has no
-> live clause, and its Done-when is satisfied by the tree.
+> **WHAT G-49 WAS, kept because the shape recurs.** Handed *"call
+> `load_evidence_series` on `uploads/IMPR-2026-ED8/complaints.csv`"* the
+> executor issued 18 evidence searches, read no `uploads/` blob at all, and
+> ended on the 45s node timeout. Diagnosed at step 6.18 as **layer 2 — the plan
+> reached no channel the model reads**: the agent was invoked with `{"messages":
+> prior}`, `coaching_plan` fed the logger and the `step_log` and nothing else,
+> and the one state-holding middleware never mentioned it. **The routing
+> decision this section assigns to the planner was advisory in practice** — not
+> a degraded split, the split not existing where it mattered.
 >
-> **DIAGNOSED at step 6.18, 2026-09-11 — and the marker now closes at 6.21, not
-> 6.18.** 6.18 was the diagnosis and it ends with a cause; the defect is still
-> live, so the step that closes this marker is the one that changes the
-> behaviour. **The cause is that the plan has no transport into the model's
-> request:** the executor invokes the agent with `{"messages": prior}`, reads
-> `coaching_plan` only for the logger and the `step_log`, and the one
-> state-holding middleware never mentions it. Measured — the planner's
-> imperative reaches none of the three channels the model reads. **So the
-> routing decision is not being outranked; it is not arriving**, and the four
-> transports that could make it arrive are costed at step 6.21, `GATED` on a
-> founder ruling because two of them amend this section.
+> **Why C and not a prompt.** 6.18 established that the instruction was not
+> being outranked, it was not arriving; and options A and B would have put it in
+> front of a model that had already shown it would rank a retrieval tool above
+> it. C removes the decision from the model, which is the only form of the fix
+> that does not depend on how the model feels about the instruction.
+>
+> **The `⚠️ built with a known defect` marker was added here on 2026-09-11 and
+> its ABSENCE had been the finding.** G-49 was registered on 2026-09-10 and no
+> section carried a marker for it, because the code was *built* — nothing was
+> missing, it misbehaved — and `☐ not built` cannot express "built and wrong".
+> The board's architecture view showed this block clean while four landed steps
+> sat blocked on it.
+>
+> **VERIFICATION STATE, stated rather than implied.** `pytest` pins the
+> dispatch — that the node calls the routed path, that nothing is dispatched
+> without one, that `consumed_at` is stamped by the node-issued call, and that a
+> failed read leaves the turn alive. **The `live-run` halves of 6.7, 6.12 and
+> 6.13 are the verification this step owes** (step 6.18's re-schedule), and they
+> are what turns "the tests say so" into "the product does it".
 
 Each phase subgraph contains a **Planner-Executor pair**, not a single coaching
 node.
@@ -1673,7 +1683,7 @@ node.
 |---|---|---|
 | Produces | A structured `CoachingPlan` | The coaching response + extraction |
 | Decides | **Strategy** — which field, which action, which retrieval mode | **Nothing about strategy** |
-| Dispatches | **Never** dispatches to tools | Dispatches to leaf tools via the tool-calling loop |
+| Dispatches | **Never** dispatches to tools | Dispatches to leaf tools via the tool-calling loop — **and, since step 6.21, executes the planner's own named call**: when the plan routes to an unread upload the NODE calls `load_evidence_series` on that blob path before the model runs, so the model is never offered that decision. Scoped to that one case; every other tool stays model-chosen |
 | Model | `planner` role, temp 0.1 | `coach` role, temp 0.5–0.7 |
 
 **The two are distinct nodes and are never fused.** Fusing them loses the

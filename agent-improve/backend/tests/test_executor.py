@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from langchain.agents import create_agent
@@ -664,32 +664,30 @@ def _unread_upload() -> dict:
     }
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "G-49, layer 2 — the executor invokes the agent with {'messages': prior} "
-    "and the plan reaches no channel the model reads. STRICT: the day the "
-    "transport lands this test PASSES, the suite goes RED on the unexpected "
-    "pass, and removing this marker is step 6.21's first Done-when clause. "
-    "A pinned defect that quietly starts passing is not pinned."
-))
-def test_the_planners_instruction_reaches_the_model(stub_coach) -> None:
-    """**G-49, LAYER 2 — the plan does not reach the executor's context.**
+def test_the_planners_instruction_reaches_the_model(
+        stub_coach, routed_read) -> None:
+    """**G-49 IS CLOSED HERE — step 6.21, option C, founder ruling.**
 
-    THIS TEST FAILS ON TODAY'S BUILD, AND THAT IS ITS PURPOSE — it is marked
-    `xfail(strict=True)` so the suite stays green on a defect that is
-    diagnosed and deliberately unfixed, and goes red the moment it is fixed
-    without the marker being removed.
+    **This test carried `xfail(strict=True)` from step 6.18 until 6.21**, which
+    is why the marker's removal is clause 1 of 6.21's Done-when: strict means
+    the suite would have gone red on an unexpected pass, so the fix could not
+    land while the diagnosis marker rotted beside it.
 
-    §17 gives the planner the routing decision. The planner makes it — it
-    rewrites `CoachingPlan.next_action` into an imperative naming a tool and a
-    blob path, and logs that it did. `executor()` then reads `coaching_plan`
-    for the logger and the `step_log` and **invokes the agent with
-    `{"messages": prior}`**, so the decision is recorded and never delivered.
+    **THE ASSERTION MOVED WITH THE RULING, AND THAT IS THE POINT.** 6.18 wrote
+    it channel-agnostically — *the plan must arrive somewhere the model can
+    read* — precisely so it would not pin one transport. Option C does not put
+    the planner's PROSE in front of the model at all; it removes the decision
+    from the model by executing the call. So the test asks the question a level
+    up: **did the planner's decision reach the model in any form the model can
+    act on — as the imperative in a channel, or as the call already made and
+    its result?** A or B landing later would satisfy it through the first
+    branch without an edit here.
 
-    The sentinel is deliberately NOT the bare tool name: the upload manifest
-    (§19.1, step 6.12) already says *"call load_evidence_series with the
-    blob_path above"*, so asserting on `load_evidence_series` alone would pass
-    on the manifest and prove nothing. What only the plan carries is the
-    planner's imperative — *"before asking for anything further"*.
+    What it must never do is pass on the manifest. §19.1's manifest already
+    says *"call load_evidence_series with the blob_path above"*, so a bare
+    tool-name search would have passed since step 6.12 and proved nothing: the
+    prose branch looks for the planner's own imperative, and the dispatch
+    branch looks for an executed call carrying the routed blob path.
     """
     directive = (
         "Call load_evidence_series on uploads/IMPR-TEST-618/complaints.csv "
@@ -708,15 +706,29 @@ def test_the_planners_instruction_reaches_the_model(stub_coach) -> None:
     _run(_c.executor("define", state))
 
     channels = _model_channels(stub_coach)
-    carried = [name for name, text in channels.items()
-               if "before asking for anything further" in text]
-    assert carried, (
-        "THE PLANNER'S ROUTING INSTRUCTION REACHES NO CHANNEL THE MODEL "
-        "READS (G-49, layer 2). Searched "
+    as_prose = [name for name, text in channels.items()
+                if "before asking for anything further" in text]
+    as_dispatch = [
+        call for message in stub_coach.invocations[-1]["messages"]
+        for call in (getattr(message, "tool_calls", None) or [])
+        if call.get("name") == "load_evidence_series"
+        and str((call.get("args") or {}).get("blob_path")).endswith(
+            "complaints.csv")
+    ]
+
+    assert as_prose or as_dispatch, (
+        "THE PLANNER'S ROUTING DECISION REACHED THE MODEL IN NO FORM (G-49). "
+        "Searched "
         + ", ".join(f"{n} ({len(t)} chars)" for n, t in channels.items())
-        + ". The plan is in PhaseState and in the step_log; §17's routing "
-          "decision is therefore advisory at runtime, and what the coach does "
-          "with the upload stays entirely its own discretion."
+        + ", and the invoked messages for an executed `load_evidence_series` "
+          "on the routed path. The plan is in PhaseState and in the step_log; "
+          "if it is in neither of those, §17's routing decision is advisory at "
+          "runtime and what the coach does with the upload is its own choice."
+    )
+    assert routed_read.blob_paths == [
+        "uploads/IMPR-TEST-618/complaints.csv"], (
+        "option C dispatches the routed read exactly once, on the path the "
+        "planner named"
     )
 
 
@@ -768,3 +780,113 @@ def test_the_upload_manifest_reaches_the_coach(stub_coach) -> None:
         "the manifest names the tool that opens the file — without it the "
         "coach is told a file exists and not how to read it"
     )
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Step 6.21 — option C. What the NODE dispatches, and what it must not.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def test_nothing_is_dispatched_when_no_upload_is_routed(
+        stub_coach, routed_read) -> None:
+    """**The scope IS the ruling** — one tool, one condition.
+
+    Most turns route to no unread upload. If the node dispatched on any other
+    condition it would be an unconditional retrieval pipeline, which §24
+    excludes by design, and the coach's own tool choices would stop being its
+    own.
+    """
+    _run(_c.executor("define", _state()))
+    assert routed_read.calls == []
+    assert _run(_c.executor("define", _state(uploads=[]))) is not None
+    assert routed_read.calls == []
+
+
+def test_a_consumed_upload_is_not_read_again(stub_coach, routed_read) -> None:
+    """`consumed_at` is the whole of the "unread" test — S-F57 B4."""
+    already = {**_unread_upload(), "consumed_at": "2026-09-11T10:00:00+00:00"}
+    _run(_c.executor("define", _state(uploads=[already])))
+    assert routed_read.calls == []
+
+
+def test_the_node_issued_call_stamps_consumed_at(
+        stub_coach, routed_read) -> None:
+    """The node's call is a real tool call, so the existing writer sees it.
+
+    `_mark_consumed` scans the turn's messages for a `load_evidence_series`
+    call and stamps the upload it names. Dispatching as an `AIMessage` +
+    `ToolMessage` pair rather than as a bare function call is what makes that
+    work with no second implementation — and `consumed_at = None` at a gate on
+    an upload bound to an open ask is the condition S-C02 exists to detect.
+    """
+    out = _run(_c.executor("define", _state(uploads=[_unread_upload()])))
+    stamped = [u for u in out["uploads"] if u.get("consumed_at")]
+    assert len(stamped) == 1
+    assert stamped[0]["blob_path"] == "uploads/IMPR-TEST-618/complaints.csv"
+
+
+def test_the_dispatched_exchange_is_checkpointed_with_the_turn(
+        stub_coach, routed_read) -> None:
+    """It returns as new messages, so the next turn knows the file was read.
+
+    Dropping it would leave the coach reading the same file every turn until
+    something else stamped `consumed_at` — and the stamp is what stops the
+    dispatch, so it would be read exactly once and then be missing from the
+    context of every turn that followed.
+    """
+    out = _run(_c.executor("define", _state(uploads=[_unread_upload()])))
+    calls = [c for m in out["messages"]
+             for c in (getattr(m, "tool_calls", None) or [])]
+    assert [c["name"] for c in calls] == ["load_evidence_series"]
+    assert any(isinstance(m, ToolMessage) and "complaints.csv" in str(m.content)
+               for m in out["messages"])
+    assert out["step_log"][0]["dispatched"] == ["load_evidence_series"]
+
+
+def test_a_failed_routed_read_leaves_the_turn_alive(
+        stub_coach, routed_read) -> None:
+    """Fail SOFT, and degrade to the pre-6.21 behaviour rather than to nothing.
+
+    A blob that cannot be read is a coaching fact — the tool's own message says
+    so and the coach can work with it. An EXCEPTION is different: there is no
+    message to hand over, so the turn proceeds on the manifest alone, which is
+    exactly what the coach had before this step. A dead turn would be a worse
+    failure than the one this step fixed.
+    """
+    routed_read.raises = RuntimeError("blob store unreachable")
+    out = _run(_c.executor("define", _state(uploads=[_unread_upload()])))
+
+    assert out["step_log"][0]["dispatched"] == []
+    assert out["turn_count"] == 1
+    assert [m for m in out["messages"] if isinstance(m, AIMessage)]
+    assert not [u for u in out["uploads"] if u.get("consumed_at")]
+
+
+def test_the_planner_and_the_executor_route_to_the_same_upload(
+        stub_planner, stub_coach, routed_read) -> None:
+    """**The correctness fix that travels with option C.**
+
+    The planner decided which upload to route to BEFORE its own `asks` update
+    was applied; the executor now dispatches that decision, reading state
+    AFTER it. `_unconsumed_for_open_ask` therefore takes the asks explicitly,
+    and the planner passes the ones it just computed.
+
+    Under the old signature the two read different `open_roles` and could
+    disagree — the plan naming a file the node then did not read, which is
+    G-49 again in a narrower form. Define carries no ask shapes so the two
+    agreed by accident; this drives the planner and the executor in sequence
+    and asserts they reach the same file.
+    """
+    upload = _unread_upload()
+    state = _state(uploads=[upload])
+
+    command = _run(_c.planner("define", state))
+    planned = command.update.get("coaching_plan")
+    assert "uploads/IMPR-TEST-618/complaints.csv" in planned.next_action, (
+        "the planner did not route to the unread upload — the premise of this "
+        "test is gone, not the conclusion"
+    )
+
+    after = cast(PhaseState, {**state, **command.update})
+    _run(_c.executor("define", after))
+    assert routed_read.blob_paths == ["uploads/IMPR-TEST-618/complaints.csv"]
