@@ -72,11 +72,44 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 ---
 
+## 🗺 Where state lives — a MAP, not a definition
+
+**Four places, and this table is not one of them.** It holds no field list of
+its own and never will: it says where each thing is defined and sends you
+there. **If this section ever restates §57.2 or §58.2, it is wrong** — a second
+copy of a field list is the exact duplication that cost two days to remove on
+2026-09-10, when four documents held overlapping answers and the guard checked
+only that two of them had been touched, never that they agreed.
+
+| What | Defined in | Size | Holds |
+|---|---|---|---|
+| **`SupervisorState`** | **§57.2** (S-C01) | 7 fields | Orchestration. Spans the whole case, one per project |
+| **`PhaseState`** | **§58.2** (S-C02) | 22 fields | One in-flight turn inside one phase subgraph |
+| **Per-phase usage** | **§39.x.7** (S-C03) | — | Which `PhaseState` field carries what, per phase. **Reads and writes, NOT variant classes** |
+| **Nothing else holds state** | — | — | Captured values go to `artifacts`; durable ones to the Store (§9); conversation to the checkpointer (§8) |
+
+> **There are NO `{Phase}State` classes — ruled 2026-09-11, step 6.20.** This
+> document named `DefineState`, `MeasureState`, `AnalyseState`, `ImproveState`
+> and `ControlState` thirteen times and the tree contained none of them, with
+> **G-19 open for two months** because their fields could never be enumerated.
+> They are not built and will not be; §39.x.7 describes per-phase USE of the
+> shared `PhaseState`, which is what those tables always actually contained.
+> S-C03 carries the ruling.
+
+**Adding a field to either class is a §56 amendment**, and the test it must
+pass is the one §5 already sets: **name the node that writes it and the node
+that reads it.** `project_context` failed exactly there — no writer at all, and
+its only reader ran before the point it was supposed to be set.
+
+---
+
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.23 · 2026-09-11
+Version 1.24 · 2026-09-11
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.24 (2026-09-11)** — **§56 AMENDMENT. The five `{Phase}State` variants are RULED NOT BUILT, a state MAP joins the head of this document, and Appendix D is re-sequenced around the Define vertical slice.** **(A) S-C03 IS INVERTED — IT NOW DECLARES AN ABSENCE.** It read *"`DefineState`, `MeasureState`, `AnalyseState`, `ImproveState` and `ControlState` extend `PhaseState` with phase-specific transient fields"*; the targeted state audit found **zero occurrences in `backend/` and no subclass of `PhaseState` anywhere**, against a spec naming them **thirteen times**. **They were never specifiable, which is the finding**: G-19 said so for two months — *"the phase-specific transient fields are never enumerated for any of the five"* — and a class whose fields nobody can name is not a design that was missed but one never made. S-C03 assigned them to **step 3.1**, DONE, whose Done-when never mentioned them, so **a completed step silently dropped a spec entry assigned to it**. §7 had already ruled against the concrete case (*"no per-phase typed destinations"*); the general ruling now matches. **§39.2.7–§39.5.7 become descriptions of per-phase USE of the shared 22-field `PhaseState`**, which is what those tables always contained — every row already read *"`artifacts` — holds the 10 captured fields…"*, usage and not declaration. Thirteen references removed; the survivors are explicit negations, kept so the names cannot quietly return. **G-19 CLOSED by ruling.** **(B) A STATE MAP AT THE HEAD OF THE DOCUMENT**, after the provenance block: four rows pointing at §57.2, §58.2 and §39.x.7, **holding no field list of its own** — a second copy of a field list is the duplication that cost two days on 2026-09-10, so the map says where, never what. **(C) THE WRITE PATHS ARE A STEP: 6.20.** `artifacts["computation_results"]` and `artifacts["phase_metrics"]` are read by all five gate-document assemblers and **written by nothing**; `field_index` is set to 0 and never advanced. **The grader scans `computation_results` to answer "was a hypothesis test run?"** — against an always-empty list its answer is always no, so a gate document records that a project did no analysis whatever it actually did. **(D) APPENDIX D GAINS `Seq` AND `Scope`.** `Seq` orders; the step number becomes a stable identifier. **The watermark is gone with it** — completion is per-row, so a step at any position is reachable once unblocked and **the numbering trap that cost a renumber on 2026-09-10 is removed rather than relocated**. `Scope` splits SHARED machinery from PHASE work: **25 of the 27 unlanded steps are SHARED**, which is the vertical-slice argument as a number. **(E) THE BOARD GAINS A HEALTH PANEL** — built / built-and-defective / not-started, counted from the markers, with G-numbers attributed **from §66's own refs column rather than from marker prose** (the first cut read the first `G-\d+` in the text and put G-15 against §19.6, a reference rather than a cause). Reasoning: this commit body (§56.2).
 
 **v1.23 (2026-09-11)** — **§56 AMENDMENT. The three-way alignment audit: four BUILT markers were wrong, and the eleven checks guarding them all passed.** **(A) §49's MARKER CONTRADICTED ITSELF** — *"11 of 12 routes exist … this section's table names 8 of the 11 — six are in the tree and in no ratified table"*: **8 + 6 = 14 against 11 built routes**, and the `12` traced to nothing. The true split is **4 named, 7 unnamed, 5 table rows unbuilt**. **G-47 gains `POST /cases`** (six → seven), missed because the table's `GET /cases` row was read as covering the path rather than the verb — while **step 6.8's own Done-when opens *"`POST /cases` writes the case record to the Store"***. **(B) §33 SAID NOTHING PAUSES FOR A HUMAN, AND SOMETHING DOES.** `ContradictionDetectionMiddleware.after_agent` has called `langgraph.types.interrupt` since 6.5. The gate interrupt is genuinely unbuilt; the blanket claim was not, and it is load-bearing — §34, §49 and S-F01 all cite that absence. **A contradiction interrupt fires today with no built route able to resume it**, which is worse than not pausing; §19.6's *"nothing consumes the flag"* is corrected with it. **(C) G-50 REGISTERED — `CoachingResponse` IS BUILT AT 4 OF S-C05's 8 FIELDS.** §50.1's `explanation` / `example` / `prompt` / `progress` do not exist, so the render contract that section calls *"schema-backed, not prompt-hoped"* is prompt-hoped, and **all five SKILL.md files instruct the coach to populate fields the schema cannot receive** — **WATCH 9 is not closed by 6.9**, contrary to that step's body. The built class's docstring claims transcription from the entry defining eight: **S-C05's rebuild test, failed inside the file that cites it.** **(D) G-51 REGISTERED** — `storage/models.py` defines eleven models where S-C09 names six; the same shape as Part AP6 one level up, AP6 having checked the fields of one named model while nothing checked the model list. **(E) §30 GAINS A MARKER because FOUR figures for one quantity were in the tree**: ratified 9/16/13/9/13, step 5.4's Done-when at the superseded 8/15/12/8/12, the live bind at 7/14/11/7/11, and `test_computation.py`'s docstring at 6/13/10/6/10 — in the file recording WATCH 25 to prevent exactly this, under a test named `test_per_phase_totals_are_8_15_12_8_12` asserting 9/16/13/9/13. All four reconciled. **(F) `verify_built.py` GOES 11 → 21 CHECKS.** Every one of the eleven counted a POPULATION; none pinned a VALUE or a SET, which is why all eleven passed against four wrong markers. Added: the route SET, `CoachingResponse`'s fields, `SupervisorState`/`PhaseState` counts, the model count, §19.3's trigger/keep, §19.4/§19.5's retry caps, §26's three caps, §44's timeout, `interrupt()` call sites **parsed with `ast`** (its line-matching first cut returned 3 where the answer is 1), and **the LIVE per-phase tool bind — the figure none of the four captions was measuring**. **(G) `session-start-context.py` WAS THE LIVE INSTANCE OF WATCH 2**, probing `sys.executable` — the root venv — so every session opened reporting `langgraph 1.1.10 ⚠` against a project on **1.2.11**, contradicting step 2.3's Done-when at the top of every session. Now pinned to `agent-improve/.venv`, as `verify_built.py` always was. Reasoning: this commit body (§56.2).
 
@@ -770,7 +803,7 @@ declared on `PhaseState` rather than an Analyse-only variant because
 
 ### Per-phase variants
 
-`DefineState`, `MeasureState`, … extend `PhaseState` with phase-specific
+**there are no per-phase state classes** (ruling 2026-09-11, step 6.20); each phase uses the shared 22-field `PhaseState` and §39.x.7 describes its
 transient fields. **All use explicit `TypedDict`, not `MessagesState`
 inheritance** — their dominant content is structured fields, not conversation.
 `MessagesState` inheritance is appropriate only where the dominant content
@@ -4488,11 +4521,9 @@ Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35). Each pha
 runs its own validation loop with its own budget of 3 (`gate_attempts` is per
 phase, §6).
 
-#### 39.2.7 State parameters (`MeasureState`)
+#### 39.2.7 State parameters — Measure's use of `PhaseState`
 
-*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* `MeasureState` extends
-`PhaseState` — explicit `TypedDict`, not `MessagesState` (§6). All 22 declared
-`PhaseState` fields apply; the Measure-specific reads and writes:
+*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `MeasureState`.** Measure uses the shared **22-field `PhaseState`**; this table is its USAGE — which Measure field each shared field carries, and who reads it:
 
 | `PhaseState` field | In Measure |
 |---|---|
@@ -5198,10 +5229,9 @@ Analyse-specific one:
 **Gate-pass condition:** the 4 Tier 1 fields present and `ANALYSE_RUBRIC` clears;
 the 5 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
 
-#### 39.3.7 State parameters (`AnalyseState`)
+#### 39.3.7 State parameters — Analyse's use of `PhaseState`
 
-*Indexes §6 / §58.2 — S-C02.* `AnalyseState` extends `PhaseState`. The
-Analyse-specific reads/writes — note this is the phase where multi-hop is real:
+*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `AnalyseState`.** Analyse uses the shared **22-field `PhaseState`**; this table is its USAGE — which Analyse field each shared field carries, and who reads it — note this is the phase where multi-hop is real:
 
 | PhaseState field | In Analyse |
 |---|---|
@@ -5818,9 +5848,9 @@ suppressed for Green Belts.**
 **Gate-pass condition:** the 4 Tier 1 fields present and `IMPROVE_RUBRIC` clears;
 the 5 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
 
-#### 39.4.7 State parameters (`ImproveState`)
+#### 39.4.7 State parameters — Improve's use of `PhaseState`
 
-*Indexes §6 / §58.2 — S-C02.* `ImproveState` extends `PhaseState`:
+*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `ImproveState`.** Improve uses the shared **22-field `PhaseState`**; this table is its USAGE — which Improve field each shared field carries, and who reads it:
 
 | PhaseState field | In Improve |
 |---|---|
@@ -6273,9 +6303,9 @@ the supervisor's static edge runs to `END` — there is no next phase.
 **Gate-pass condition:** the 3 Tier 1 fields present and `CONTROL_RUBRIC` clears;
 the 9 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
 
-#### 39.5.7 State parameters (`ControlState`)
+#### 39.5.7 State parameters — Control's use of `PhaseState`
 
-*Indexes §6 / §58.2 — S-C02.* `ControlState` extends `PhaseState`:
+*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `ControlState`.** Control uses the shared **22-field `PhaseState`**; this table is its USAGE — which Control field each shared field carries, and who reads it:
 
 | PhaseState field | In Control |
 |---|---|
@@ -8836,20 +8866,42 @@ field requires a §56 amendment, whatever category it is placed in.**
 > deterministic `step_log` key, so an ambiguous contract produces either
 > duplicate or colliding audit entries — to be designed with founder.
 
-### 58.3 S-C03 · Per-phase `PhaseState` variants
+### 58.3 S-C03 · Per-phase use of `PhaseState`
 
-**Architecture:** §6 · **File:** `core/substate.py` · **Procedure:** step 3.1
+**Architecture:** §6 · **File:** `core/substate.py` · **Procedure:** step 6.20
+*Rebuild test: there is nothing to rebuild — this entry declares an absence.*
 
-**Purpose:** `DefineState`, `MeasureState`, `AnalyseState`, `ImproveState` and
-`ControlState` extend `PhaseState` with phase-specific transient fields. All
-use explicit `TypedDict`; `MessagesState` inheritance is not used, because the
-dominant content is structured fields rather than conversation.
+**Purpose:** **To record that there are NO per-phase state classes.** All five
+phases run on the single shared **22-field `PhaseState`** (S-C02). What varies
+by phase is which fields carry what, and that is §39.x.7 — usage, not
+declaration.
 
-> **SPEC-GAP (G-19):** the phase-specific transient fields are never
-> enumerated for any of the five. Their existence also interacts with §6's
-> fourteen-content-field ceiling and §56's amendment rule — whether a variant's
-> extra field counts against that ceiling is undecided — to be designed with
-> founder.
+> ### ⛑ RULING 2026-09-11: the five variants are NOT built, and will not be
+>
+> This entry used to read *"`DefineState`, `MeasureState`, `AnalyseState`,
+> `ImproveState` and `ControlState` extend `PhaseState` with phase-specific
+> transient fields."* **They never existed.** The targeted state audit of
+> 2026-09-11 found **zero occurrences in `backend/`** and no subclass of
+> `PhaseState` anywhere, against a spec that named them thirteen times.
+>
+> **They were never specifiable, which is the real finding.** G-19 said so for
+> two months: *"the phase-specific transient fields are never enumerated for
+> any of the five."* **A class whose fields nobody could name is not a design
+> that was missed; it is a design that was never made.** This entry assigned
+> them to step **3.1**, which is DONE and whose Done-when never mentioned them
+> — so a completed step silently dropped a spec entry assigned to it, and
+> nothing noticed until something went looking.
+>
+> **§7 had already ruled against the one concrete case**: *"No new top-level
+> `PhaseState` field, and no per-phase typed destinations"*, because typed
+> per-phase destinations *"multiply schema surface for a question a scan
+> already answers"*. The general ruling now matches the specific one.
+>
+> **G-19 is CLOSED by this ruling**, not by enumerating the fields.
+
+**A phase needing state that `PhaseState` does not carry is a §56 amendment to
+S-C02**, adding a field every phase declares — the same rule as any other new
+field. It is not licence to reintroduce a variant class.
 
 ### 58.4 S-C04 · `CoachingPlan`
 
@@ -9701,7 +9753,7 @@ has no prior phase, so its source is the record loaded at session start.
 **Definition:**
 ```python
 def define_input_mapper(parent: SupervisorState, store: BaseStore) -> PhaseState:
-    """SupervisorState → DefineState. Context is composed from the store,
+    """SupervisorState → PhaseState, for Define. Context is composed from the store,
     never carried on parent state. Define has no prior phase, so its source
     is the case record loaded at session start (§10)."""
     case = store.get(("projects", parent["case_id"], "case"), "record").value
@@ -9798,7 +9850,7 @@ derived-field exemption safe.
 ```python
 def define_output_mapper(child: PhaseState, parent: SupervisorState,
                          store: BaseStore) -> dict[str, Any]:
-    """DefineState → SupervisorState update. The gate document goes to the
+    """PhaseState → SupervisorState update, from Define. The gate document goes to the
     store; only orchestration-relevant values return to the parent."""
     store.put(
         ("projects", parent["case_id"], "artifacts"),
@@ -12367,7 +12419,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-16** | `CitationRecord` / `CitationBundle` — and the three different citation shapes stated in §50, §6 and §23 | S-C36 |
 | **G-17** | `CaseDocument` · `PhaseRecord` · `RegistryEntry` · `PhaseSummaryRecord`, and whether `PhaseRecord` duplicates the gate document | S-C09 |
 | **G-18** | All `gateway/schemas.py` envelopes, for all seven endpoints, plus the gate interrupt and resume payloads and the SSE event shape. **G-02 now depends on this** — the `/gate/reject` payload must carry a mandatory reason | S-C37, S-F06, S-F34, S-F13 |
-| **G-19** | Per-phase `PhaseState` variants — the transient fields are never enumerated, and whether they count against §6's ceiling is undecided | S-C03 |
+| **G-19** | Per-phase `PhaseState` variants — the transient fields are never enumerated, and whether they count against §6's ceiling is undecided  **✅ CLOSED 2026-09-11 by ruling** — the five variants are not built and will not be; §39.x.7 describes per-phase USE of the shared 22-field `PhaseState` (S-C03). The fields were never enumerable because the classes were never designed. | S-C02, S-C03, §6, §39.x.7 |
 
 ### 66.4 Group D — described in prose, no interface
 

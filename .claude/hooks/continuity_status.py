@@ -106,8 +106,12 @@ BOARD_END = "<!-- END STEP BOARD -->"
 # git, so the column carries only what git cannot say. Hence `[A-Za-z]*`, not
 # `+`: an empty cell must match and read as available, and the same widening
 # is made in `session-start-context.py`.
+# **`Seq` is column 1 and ORDERING READS IT** (2026-09-11). The step number is
+# a stable identifier, not a position: Appendix D is no longer in execution
+# order, so `next` is the lowest-`Seq` row that has not landed.
 _STEP_ROW = re.compile(
-    r"\|\s*\*\*Commit (?P<step>\d+\.\d+)\*\*\s*\|(?P<what>[^|]*)\|\s*(?:\*\*)?(?P<status>[A-Za-z]*)"
+    r"\|\s*(?P<seq>\d+)\s*\|\s*\*\*Commit (?P<step>\d+\.\d+)\*\*\s*"
+    r"\|(?P<what>[^|]*)\|\s*(?:\*\*)?(?P<status>[A-Za-z]*)"
 )
 
 # Statuses git cannot supply. A row carrying one is never proposed as `next`.
@@ -147,8 +151,8 @@ def _key(step: str) -> tuple[int, ...]:
     return tuple(int(p) for p in step.split("."))
 
 
-def parse_step_index(text: str) -> list[tuple[str, str, str]]:
-    """Appendix D's rows as (step, title, status). Nothing else is read.
+def parse_step_index(text: str) -> list[tuple[int, str, str, str]]:
+    """Appendix D's rows as (seq, step, title, status). Nothing else is read.
 
     Bounded to the Appendix D section so a `| **Commit X.Y** |` written inside
     a step's prose elsewhere in the document cannot be mistaken for a row.
@@ -165,7 +169,8 @@ def parse_step_index(text: str) -> list[tuple[str, str, str]]:
             break
     rows = []
     for m in _STEP_ROW.finditer("\n".join(lines[start:end])):
-        rows.append((m.group("step"), m.group("what").strip(),
+        rows.append((int(m.group("seq")), m.group("step"),
+                     m.group("what").strip(),
                      m.group("status").strip().lower()))
     return rows
 
@@ -184,15 +189,29 @@ def spine_steps(cwd: str) -> list[str]:
 def derive(cwd: str) -> dict:
     """The block's values, from git history and Appendix D."""
     rows = parse_step_index(staged_text(PROCEDURE, cwd))
-    title_of = {step: what for step, what, _ in rows}
+    title_of = {step: what for _, step, what, _ in rows}
+    seq_of = {step: seq for seq, step, _, _ in rows}
 
     landed = spine_steps(cwd)
-    last_step = landed[-1] if landed else "—"
-    last_key = _key(last_step) if landed else (-1,)
+    done_set = set(landed)
 
-    available = [step for step, _, status in rows
-                 if status not in UNAVAILABLE and _key(step) > last_key]
-    next_step = min(available, key=_key) if available else "—"
+    # **`Last completed` is the landed step with the highest `Seq`, not the
+    # highest NUMBER** (2026-09-11). Ordering moved to `Seq`; the number is a
+    # stable identifier. A landed step absent from the table - history carries
+    # 0.1, 1.1, 1.2, 2.1, 2.2 from before it existed - has no Seq and cannot be
+    # the answer, which is the same population rule the count below applies.
+    in_table_landed = [s_ for s_ in landed if s_ in seq_of]
+    last_step = max(in_table_landed, key=lambda s_: seq_of[s_]) \
+        if in_table_landed else "—"
+
+    # **No watermark.** `next` is the lowest-Seq row that has not landed and is
+    # not blocked/gated/external. A row BELOW the last completed one is
+    # therefore still reachable - which is exactly what the old
+    # "strictly greater than last" rule made impossible, and what cost a
+    # renumber on 2026-09-11.
+    available = [(seq, step) for seq, step, _, status in rows
+                 if status not in UNAVAILABLE and step not in done_set]
+    next_step = min(available)[1] if available else "—"
 
     # **The count is the INTERSECTION, not len(landed).** Git history carries
     # five spine commits from before this table existed — 0.1, 1.1, 1.2, 2.1,
@@ -201,7 +220,7 @@ def derive(cwd: str) -> dict:
     # progress over two different populations, which is the drift class this
     # whole module was rewritten to remove. Only rows the table actually lists
     # count towards its total.
-    in_table = {step for step, _, _ in rows}
+    in_table = {step for _, step, _, _ in rows}
     done = sum(1 for step in landed if step in in_table)
 
     return {

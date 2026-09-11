@@ -129,8 +129,12 @@ for _sec, (_b, _z) in MARKER_HOME.items():
 
 UNAVAILABLE = {"blocked", "gated", "external"}
 
+# **`Seq` is column 1 and is what orders the board** (2026-09-11). The step
+# number is a stable identifier. This regex is ANCHORED where the other two
+# readers' are not, so adding the column broke it immediately and fail-soft -
+# which is how a generator should react to its input changing shape.
 _ROW = re.compile(
-    r"^\| \*\*Commit (?P<step>\d+\.\d+)\*\* \| (?P<title>.*?) \| ?(?P<status>\w*) ?"
+    r"^\| (?P<seq>\d+) \| \*\*Commit (?P<step>\d+\.\d+)\*\* \| (?P<title>.*?) \| ?(?P<status>\w*) ?"
     r"\| (?P<zone>\w+) \| (?P<impact>.*?) \|$", re.M)
 _SPINE = re.compile(r"refactor\(arch-v2\):\s*commit\s+(?P<step>\d+\.\d+)")
 _PRECON = re.compile(r"^\| \*\*Precondition\*\* \| (?P<p>.*?) \|$", re.M)
@@ -156,6 +160,12 @@ def read_appendix_d() -> list[dict]:
     rows = [m.groupdict() for m in _ROW.finditer("\n".join(lines[start:end]))]
     if not rows:
         raise ValueError("Appendix D found but no rows matched the row format")
+    for r in rows:
+        r["seq"] = int(r["seq"])
+    seqs = [r["seq"] for r in rows]
+    if len(set(seqs)) != len(seqs):
+        dupes = sorted({n for n in seqs if seqs.count(n) > 1})
+        raise ValueError(f"duplicate Seq values in Appendix D: {dupes}")
     return rows
 
 
@@ -189,12 +199,13 @@ def read_markers() -> list[dict]:
     """The `> **BUILT:**` lines: state, the section they sit under, closer."""
     text = Path(ARCH).read_text(encoding="utf-8")
     lines = text.splitlines()
-    sec = "?"
+    sec, spec_id = "?", ""
     out = []
     for i, ln in enumerate(lines):
-        h = re.match(r"^#{2,4} (?P<n>(?:\d+(?:\.\d+)*|58\.\d+ S-C\d+)).*", ln)
+        h = re.match(r"^#{2,4} (?P<n>\d+(?:\.\d+)*)\s*(?P<spec>S-[CF]\d+)?", ln)
         if h:
             sec = h.group("n")
+            spec_id = h.group("spec") or ""
         m = _MARKER.match(ln)
         if not m:
             continue
@@ -205,6 +216,10 @@ def read_markers() -> list[dict]:
         tok = _CLOSES.search(body)
         out.append({
             "section": f"§{sec}",
+            # Both names for the same item: §66's rows cite S-C05 where the
+            # heading is §58.5, and an attribution that knew only one would
+            # silently miss every spec-layer gap.
+            "aliases": {f"§{sec}", spec_id} - {""},
             "state": state,
             "closes": [] if not tok or tok.group("tok") == "none"
                       else [t.strip() for t in tok.group("tok").split(",")],
@@ -213,14 +228,32 @@ def read_markers() -> list[dict]:
     return out
 
 
-def read_gaps() -> dict[str, str]:
-    """`G-nn -> first sentence`, for blocked reasons in the detail panel."""
+def read_gaps() -> dict[str, dict]:
+    """`G-nn -> {desc, refs, closed}` from §66.
+
+    `refs` is the row's last column - the sections the gap affects - and is
+    what attributes a gap to a BUILT marker. `closed` is membership of
+    §66.6, so a resolved gap never appears against a live defect.
+    """
     text = Path(ARCH).read_text(encoding="utf-8")
     i = text.index("## 66. The SPEC-GAP register")
-    out = {}
-    for m in _GAP.finditer(text, i):
-        desc = re.sub(r"\*\*|`", "", m.group("desc"))
-        out[m.group("gap")] = desc[:240]
+    closed_at = text.find("### 66.6 Closed", i)
+    closed_end = text.find("### 66.7", closed_at) if closed_at > 0 else -1
+    closed = set(re.findall(r"G-\d+", text[closed_at:closed_end])) \
+        if closed_at > 0 else set()
+
+    out: dict[str, dict] = {}
+    for m in re.finditer(r"^\| \*\*(?P<gap>G-\d+)\*\* \|(?P<body>.*)\|\s*$",
+                         text[i:], re.M):
+        cells = m.group("body").split("|")
+        desc = re.sub(r"\*\*|`", "", cells[0]).strip()
+        refs = {r.strip() for r in re.split(r"[,·]", cells[-1])
+                if r.strip()} if len(cells) > 1 else set()
+        out[m.group("gap")] = {
+            "desc": desc[:240],
+            "refs": {r.strip("`") for r in refs},
+            "closed": m.group("gap") in closed,
+        }
     return out
 
 
@@ -238,13 +271,17 @@ def assign_lanes(rows: list[dict], landed: set[str],
     """
     table = {r["step"] for r in rows}
     done = landed & table
-    last = max(done, key=_ver) if done else None
-    last_key = _ver(last) if last else (-1,)
 
-    available = [r["step"] for r in rows
+    # **No watermark, and ordering is by `Seq`** (2026-09-11). The pointer is
+    # the lowest-`Seq` row that has neither landed nor been made unavailable -
+    # the same rule `session-start-context.py` uses, so the board and the
+    # session banner cannot disagree about what is next. A row BELOW the last
+    # completed one is reachable, which is what the old "strictly greater than"
+    # rule made impossible and what cost a renumber on 2026-09-11.
+    available = [(r["seq"], r["step"]) for r in rows
                  if r["status"].lower() not in UNAVAILABLE
-                 and _ver(r["step"]) > last_key and r["step"] not in done]
-    pointer = min(available, key=_ver) if available else None
+                 and r["step"] not in done]
+    pointer = min(available)[1] if available else None
 
     for r in rows:
         step, status = r["step"], r["status"].lower()
@@ -275,7 +312,7 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, str],
     for r in rows:
         by_lane[r["lane"]].append(r)
     for k in by_lane:
-        by_lane[k].sort(key=lambda r: _ver(r["step"]))
+        by_lane[k].sort(key=lambda r: r["seq"])      # Seq, never the number
 
     closers = {}
     for m in markers:
@@ -285,6 +322,52 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, str],
     # container 0 — the timeline
     n_done, n_all = len(by_lane["DONE"]), len(rows)
     pct = round(100 * n_done / n_all)
+
+    # ── PART 5 — the health panel, GENERATED from the markers. ───────────
+    #
+    # Founder ruling 2026-09-11: "five defects and twenty unstarted steps look
+    # identical on it". They are not the same thing and must not read the same
+    # - a defect is live code doing the wrong thing, an unstarted step is
+    # absent code doing nothing. The three counts come from the marker states
+    # and the §66 register; none is typed anywhere.
+    built = [m for m in markers if m["state"] == "built"]
+    defective = [m for m in markers if m["state"] == "defect"]
+    unbuilt = [m for m in markers if m["state"] in ("unbuilt", "blocked")]
+
+    def _gnum(m: dict) -> str:
+        """OPEN §66 gaps that name this marker's section, newest first.
+
+        **From the REGISTER, never from the marker's prose.** Reading the first
+        `G-\d+` out of the marker text put G-15 against §19.6 - a reference to
+        a measurement, not the reason it is defective. A fabricated attribution
+        in the panel whose job is to say what is wrong is worse than none, so
+        where §66 names no gap for a section this returns empty and the chip
+        carries only the section and its closing step.
+        """
+        hits = [g for g, v in gaps.items()
+                if not v["closed"] and (v["refs"] & m["aliases"])]
+        return ", ".join(sorted(hits, key=lambda g: -int(g.split("-")[1])))
+
+    health = []
+    for title, items, cls, note in (
+        ("Built", built, "ok",
+         "exists and works as specified"),
+        ("Built and defective", defective, "warn",
+         "live code, doing something other than what is specified"),
+        ("Not started", unbuilt, "none",
+         "absent — nothing runs, nothing misbehaves"),
+    ):
+        chips = "".join(
+            f'<span class="hchip">{e(m["section"])}'
+            + (f' <b>{e(_gnum(m))}</b>' if _gnum(m) else "")
+            + (f' <i>{e(", ".join(m["closes"]))}</i>' if m["closes"] else "")
+            + "</span>"
+            for m in sorted(items, key=lambda m: m["section"]))
+        health.append(
+            f'<div class="hcard {cls}"><div class="hn">{len(items)}</div>'
+            f'<div class="ht">{title}</div><div class="hnote">{e(note)}</div>'
+            f'<div class="hchips">{chips or "&mdash;"}</div></div>')
+    health_html = "".join(health)
 
     # container 1 — the nested architecture diagram, by block
     blocks_html = []
@@ -318,8 +401,9 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, str],
         for r in by_lane[lane]:
             gap_note = ""
             if lane == "BLOCKED":
-                found = [f"{g}: {d}" for g, d in gaps.items()
-                         if re.search(rf"\b{re.escape(r['step'])}\b", d)]
+                found = [f"{g}: {v['desc']}" for g, v in gaps.items()
+                         if not v["closed"]
+                         and re.search(rf"\b{re.escape(r['step'])}\b", v["desc"])]
                 reason = r["status"] or "blocked"
                 if found:
                     gap_note = f'<div class="gap">{e(found[0][:200])}</div>'
@@ -347,9 +431,11 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, str],
     # names as worse than no guard. The board therefore changes when, and only
     # when, Appendix D, a BUILT marker, §66 or the spine log changes. The last
     # spine commit below carries the recency a date would have.
-    last_spine = max((r["step"] for r in rows if r["lane"] == "DONE"),
-                     key=_ver, default="none")
+    _done_rows = [r for r in rows if r["lane"] == "DONE"]
+    last_spine = (max(_done_rows, key=lambda r: r["seq"])["step"]
+                  if _done_rows else "none")
     return TEMPLATE.format(
+        health=health_html,
         last_spine=last_spine,
         n_done=n_done, n_all=n_all, pct=pct,
         blocks="".join(blocks_html),
@@ -377,6 +463,22 @@ margin:30px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}}
 .bar{{height:9px;background:var(--line);border-radius:5px;overflow:hidden;max-width:560px}}
 .bar>i{{display:block;height:100%;width:{pct}%;background:var(--done)}}
 .tl{{color:var(--mut);font-size:12px;margin-top:7px}}
+.health{{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:11px;
+margin-bottom:8px}}
+.hcard{{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--line);
+border-radius:9px;padding:11px 13px}}
+.hcard.ok{{border-left-color:var(--done)}}
+.hcard.warn{{border-left-color:var(--now)}}
+.hcard.none{{border-left-color:var(--queued)}}
+.hn{{font-size:26px;font-weight:600;line-height:1.1}}
+.hcard.ok .hn{{color:var(--done)}} .hcard.warn .hn{{color:var(--now)}}
+.hcard.none .hn{{color:var(--mut)}}
+.ht{{font-size:12.5px;font-weight:600;margin-top:1px}}
+.hnote{{font-size:11.5px;color:var(--mut);margin-top:3px}}
+.hchips{{margin-top:8px;display:flex;flex-wrap:wrap;gap:4px}}
+.hchip{{font-size:10.5px;border:1px solid var(--line);border-radius:9px;padding:1px 6px;
+color:var(--mut);white-space:nowrap}}
+.hchip b{{color:var(--now)}} .hchip i{{font-style:normal;opacity:.75}}
 .blocks{{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:11px}}
 .block{{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:11px 13px}}
 .block h4{{margin:0 0 7px;font-size:13px;display:flex;justify-content:space-between;
@@ -427,6 +529,9 @@ Every figure traces to Appendix D, ARCHITECTURE.md's BUILT markers, §66, or git
 <div class="bar"><i></i></div>
 <div class="tl">{n_done} of {n_all} spine steps landed · {pct}% ·
 {n_open} of {n_markers} BUILT markers still open</div>
+
+<h2>Health — what the markers say, counted</h2>
+<div class="health">{health}</div>
 
 <h2>Architecture — every open marker carries the step that fills it</h2>
 <div class="blocks">{blocks}</div>

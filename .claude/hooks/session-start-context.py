@@ -55,8 +55,13 @@ _GITLOG_STEP_RE = re.compile(r"refactor\(arch-v2\):\s*(?:step\s+|commit\s+)?(\d+
 # is load-bearing: an empty cell must MATCH and read as available. With `+` the
 # row would not match at all, drop out of `rows`, and every remaining step
 # would become invisible rather than merely unstatused.
+# **`Seq` is column 1 and ORDERING READS IT; the step number is identity only.**
+# Ratified 2026-09-11. Appendix D's rows are no longer in execution order -
+# they are in identifier order, and `Seq` says what to build next. The number
+# stays stable so every commit subject, every §-citation and every register
+# entry that names a step keeps resolving.
 _STEP_ROW_RE = re.compile(
-    r"\|\s*\*\*Commit (\d+\.\d+)\*\*\s*\|[^|]*\|\s*(?:\*\*)?([A-Za-z]*)"
+    r"\|\s*(\d+)\s*\|\s*\*\*Commit (\d+\.\d+)\*\*\s*\|[^|]*\|\s*(?:\*\*)?([A-Za-z]*)"
 )
 
 # Statuses that must never be proposed as the next step — the three things git
@@ -135,11 +140,23 @@ def get_git_info() -> str:
         return "git: not a repository"
 
 
-def get_last_completed_step_from_gitlog() -> str | None:
-    """Highest refactor(arch-v2) X.Y in recent history, or None if none."""
+def get_last_completed_step_from_gitlog() -> list[str] | None:
+    """EVERY refactor(arch-v2) X.Y in recent history, or None if none.
+
+    **Returns the SET, not the maximum, since 2026-09-11.** A single "highest"
+    value only means something when the table is in execution order, and
+    Appendix D is now ordered by `Seq` with the number as a stable identifier.
+    Completion is therefore per-row: a step is done because a commit says so,
+    not because a later-numbered one landed.
+    """
     try:
+        # **NO `-n` WINDOW, since 2026-09-11.** A watermark survived a short
+        # window: reading the last 20 spine commits still gave the right
+        # MAXIMUM. Per-row completion does not — every step outside the window
+        # reads as not-landed, and the banner proposed 2.3 as next on its
+        # first run after the change. The full log is the completion record.
         out = _git(
-            ["log", "--oneline", "--grep=^refactor(arch-v2):", "-n", "20"],
+            ["log", "--oneline", "--grep=^refactor(arch-v2):"],
             get_project_dir(),
         )
         if out.returncode != 0:
@@ -148,19 +165,28 @@ def get_last_completed_step_from_gitlog() -> str | None:
                  if (m := _GITLOG_STEP_RE.search(ln))]
         if not found:
             return None
-        return max(found, key=_ver_key)
+        return sorted(set(found), key=_ver_key)
     except Exception as exc:  # noqa: BLE001
         _log(f"git-log step parse failed: {exc}")
         return None
 
 
-def get_next_step_from_procedure(project_dir: str, last: str | None):
-    """Lowest available **Commit X.Y** in Appendix D strictly greater than `last`.
+def get_next_step_from_procedure(project_dir: str, landed: list[str] | None):
+    """Lowest-`Seq` Appendix D row that is neither landed nor unavailable.
 
     Returns (step, None) on success, or (None, reason) so the caller can say
     WHY it failed. A silent "undetermined" is what let the previous version of
     this lookup rot unnoticed against ARCHITECTURE.md §15 — a parse failure and
     "you have finished" must not render identically.
+
+    **⚑ THE WATERMARK IS GONE, AND THAT IS THE POINT (2026-09-11).** This used
+    to select the lowest row STRICTLY ABOVE the highest landed step, which is
+    why Appendix D carried a warning that a step numbered below the last
+    completed one *"does not appear late, it disappears"* — met for real on
+    2026-09-10 when 6.16 landed ahead of 6.15 and the banner jumped to 7.0.
+    **Re-sequencing alone would have moved that trap into `Seq` space rather
+    than removing it.** Completion is now per-row, so a step at ANY position is
+    reachable the moment it is unblocked — `6.10` included, with no renumber.
     """
     try:
         doc_path = os.path.join(project_dir, PROCEDURE_DOC_PATH)
@@ -170,7 +196,7 @@ def get_next_step_from_procedure(project_dir: str, last: str | None):
         start = next((i for i, ln in enumerate(lines)
                       if ln.startswith("## ") and STEP_INDEX_HEADING in ln), None)
         if start is None:
-            return None, f"step index heading '{STEP_INDEX_HEADING}' not found"
+            return None, None, f"step index heading '{STEP_INDEX_HEADING}' not found"
 
         end = len(lines)
         for j in range(start + 1, len(lines)):
@@ -180,23 +206,31 @@ def get_next_step_from_procedure(project_dir: str, last: str | None):
 
         rows = _STEP_ROW_RE.findall("\n".join(lines[start:end]))
         if not rows:
-            return None, "step index found but no rows matched the row format"
+            return None, None, "step index found but no rows matched the row format"
 
-        last_key = _ver_key(last) if last else (-1,)
-        available = [step for step, status in rows
+        done = set(landed or ())
+        seq_of = {step: int(seq) for seq, step, _ in rows}
+
+        # `last completed` is the landed step with the HIGHEST Seq, not the
+        # highest number. A landed step absent from the table (history carries
+        # 0.1, 1.1, 1.2, 2.1, 2.2 from before it existed) has no Seq and is
+        # not a candidate — the same population rule the landed count uses.
+        in_table = [s_ for s_ in done if s_ in seq_of]
+        last = max(in_table, key=lambda s_: seq_of[s_]) if in_table else None
+
+        available = [(int(seq), step) for seq, step, status in rows
                      if status.lower() not in _UNAVAILABLE_STATUSES
-                     and _ver_key(step) > last_key]
+                     and step not in done]
         if not available:
-            blocked = [s for s, st in rows
-                       if st.lower() in _BLOCKED_STATUSES
-                       and _ver_key(s) > last_key]
+            blocked = [step for seq, step, st in rows
+                       if st.lower() in _BLOCKED_STATUSES and step not in done]
             if blocked:
-                return None, f"all remaining steps blocked/gated ({', '.join(blocked)})"
-            return None, "no steps remain — procedure complete"
-        return min(available, key=_ver_key), None
+                return None, last, f"all remaining steps blocked/gated ({', '.join(blocked)})"
+            return None, last, "no steps remain — procedure complete"
+        return min(available)[1], last, None
     except Exception as exc:  # noqa: BLE001
         _log(f"procedure next-step parse failed: {exc}")
-        return None, f"parse error: {exc}"
+        return None, None, f"parse error: {exc}"
 
 
 def get_refactor_step() -> str:
@@ -206,8 +240,8 @@ def get_refactor_step() -> str:
     if not os.path.isfile(doc_path):
         return f"refactor step: PROCEDURE DOC MISSING (expected {PROCEDURE_DOC_PATH})"
 
-    last = get_last_completed_step_from_gitlog()
-    nxt, reason = get_next_step_from_procedure(project_dir, last)
+    landed = get_last_completed_step_from_gitlog()
+    nxt, last, reason = get_next_step_from_procedure(project_dir, landed)
     last_str = last if last else "none"
 
     if nxt is None:
