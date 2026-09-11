@@ -2513,12 +2513,20 @@ is a violation.
 > so it survives a restart. **The routes this step builds — `/gate/approve`
 > and `/gate/reject` — are exactly what makes it safe again.**
 >
-> **Two tests will fail when you do it, and both should:**
-> `test_position_6_is_GUARDED_and_does_not_park_the_case` is the tripwire and
-> must be rewritten here; `verify_built.py`'s `interrupt() call sites (§33)`
-> expects **0** and must become **2** in the same commit. **Neither is
-> optional and neither should be silenced** — they exist so this cannot be
-> re-enabled by accident, and so it cannot be forgotten either.
+> **THREE CHECKS WILL FAIL WHEN YOU DO IT, AND ALL THREE SHOULD** — in
+> `backend/tests/test_middleware.py` unless noted:
+>
+> | Check | Today | At 7.3 |
+> |---|---|---|
+> | `test_ContradictionDetectionMiddleware_does_not_call_interrupt` | 0 live call sites | **1** |
+> | `test_position_6_is_GUARDED_and_does_not_park_the_case` | asserts suspension | **rewrite to assert RESUMPTION** |
+> | `verify_built.py` — `interrupt() call sites (§33)` | 0 | **2** (this one **and** `gate_review`'s) |
+>
+> **None is optional and none may be silenced to land the step.** They exist
+> so position 6 cannot be re-enabled by accident — and, equally, so that
+> re-enabling it cannot be forgotten. `test_the_guarded_import_is_kept_for_7_3`
+> keeps the `interrupt` import in place meanwhile, so restoring is one
+> uncommented line rather than a line plus a re-import.
 >
 > **Un-guard only after the resume path can actually resume**, which for
 > position 6 means a route accepting the two options S-C05 B2's payload
@@ -2536,15 +2544,37 @@ before `interrupt()` exists"*, and this is the step that creates `interrupt()`.
 **A sweep and the thing it must not sweep are one design**; scheduling them
 apart is how the sweep gets forgotten.
 
-**Done when — and the first clause is new, added 2026-09-11:**
-**middleware position 6's `interrupt()` is restored**, its tripwire test
-rewritten, and `verify_built.py`'s call-site expectation moved 0 → 2; then
-Vassilis passes the Define gate **on a case the registry shows in
-`define`** in the browser: the interrupt presents validated fields, an edit is
-accepted, approval writes
+**Done when — CLAUSE 1 IS A GATE CONDITION, ADDED 2026-09-11 BY FOUNDER RULING:**
+
+**1 — The guard on middleware position 6 is REMOVED and its `interrupt()` call
+RESTORED, with a resume route PROVING it.** Proof is a live contradiction
+raised and resumed end to end — a Belt revises a value approved in an earlier
+phase, position 6 interrupts, and a route this step builds resumes the thread
+with one of S-C05 B2's two options (`update_approved_value` /
+`keep_approved_value`), after which **the next turn on that case is answered
+normally.** That last part is the whole clause: the defect being closed is not
+"the interrupt does not fire", it is **"a fired interrupt parks the case
+forever"** — measured 2026-09-11 — so a restored call with no demonstrated
+resume re-opens it rather than closing it. In the same commit:
+`test_ContradictionDetectionMiddleware_does_not_call_interrupt` expects **1**,
+`test_position_6_is_GUARDED_and_does_not_park_the_case` is rewritten to assert
+resumption instead of suspension, and `verify_built.py`'s `interrupt() call
+sites (§33)` expectation moves **0 → 2**. **Three checks will fail until this
+clause is done, and none may be silenced to land the step.**
+
+**2 — The gate itself.** Vassilis passes the Define gate **on a case the
+registry shows in `define`** in the browser: the interrupt presents validated
+fields, an edit is accepted, approval writes
 `store/projects/{case_id}/artifacts/define.json`, and the phase advances to
 Measure. The reconciliation sweep exists and excludes `interrupt()`-paused
 threads.
+
+> **Why clause 1 is here and not left to a comment.** The guard lives in
+> `backend/middleware/contradiction.py` — §19.6's file, not §33's — and a
+> commented-out line in another section's module is exactly the kind of thing
+> that survives a step nobody thought to check it against. **A gate condition
+> is read when the step is closed; a comment is read when someone opens the
+> file.** The two tests above make it fail loudly in between.
 
 > **⚠ Done-when corrected 2026-09-07 — it named `IMPR-2026-E9D`, which cannot
 > run it.** E9D is complete (`current_phase="complete"`), so `/ask` returns 409

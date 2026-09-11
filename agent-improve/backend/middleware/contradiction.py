@@ -145,9 +145,17 @@ class ContradictionDetectionMiddleware(AgentMiddleware):
         # until 2026-09-11.
         #
         # ⬇ STEP 7.3 RESTORES THE LINE BELOW. Do not delete it, and do not
-        #    re-enable it before a route can resume. `verify_built.py`'s
-        #    "interrupt() call sites (§33)" check expects 0 while this is
-        #    guarded and must go back to 1 in the same commit that restores it.
+        #    re-enable it before a route can resume. **THREE CHECKS PIN THIS
+        #    AND ALL THREE MUST MOVE IN THAT SAME COMMIT:**
+        #      test_ContradictionDetectionMiddleware_does_not_call_interrupt
+        #        — expects 0 live call sites here; becomes 1
+        #      test_position_6_is_GUARDED_and_does_not_park_the_case
+        #        — rewrite to assert RESUMPTION, not suspension
+        #      verify_built.py "interrupt() call sites (§33)"
+        #        — expects 0 across the backend; becomes 2, because 7.3
+        #          restores `gate_review`'s interrupt as well as this one.
+        #    Step 7.3's Done-when clause 1 is the gate condition; none of the
+        #    three may be silenced to land the step.
         #
         #     interrupt(self._payload(flag))
         #

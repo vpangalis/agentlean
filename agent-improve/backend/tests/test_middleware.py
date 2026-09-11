@@ -1220,6 +1220,87 @@ def test_position_6_is_GUARDED_and_does_not_park_the_case() -> None:
     assert "GUARDED UNTIL STEP 7.3" in source
 
 
+def _live_call_sites(module: Any, func: str) -> int:
+    """Real calls to `func` in `module`, parsed with `ast`.
+
+    **The same technique as `verify_built.py`'s probe**, and deliberately so:
+    that probe is what found §33's marker claiming nothing pauses for a human
+    while position 6 had been calling `interrupt()` since 6.5. A parse
+    distinguishes a CALL from a MENTION, which no grep can — the probe's own
+    line-matching first cut returned 3 where the answer is 1, because two hits
+    were the token inside a logging format string.
+    """
+    import ast
+
+    tree = ast.parse(inspect.getsource(module))
+    n = 0
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        fn = node.func
+        name = (fn.id if isinstance(fn, ast.Name) else
+                fn.attr if isinstance(fn, ast.Attribute) else None)
+        n += name == func
+    return n
+
+
+def test_ContradictionDetectionMiddleware_does_not_call_interrupt() -> None:
+    """**The guard, pinned STRUCTURALLY. Founder condition, 2026-09-11.**
+
+    The tripwire above proves the guard by BEHAVIOUR — `after_agent` returns
+    without raising the `RuntimeError` that `interrupt()` throws outside a
+    runnable context. This asserts the requirement itself: **there is no live
+    `interrupt(...)` call in the module at all.**
+
+    **WHY THIS IS A TEST AND NOT ONLY A `verify_built.py` CHECK, which is the
+    whole point of the founder's condition.** That probe found this defect and
+    it is the right tool for markers — but it is ADVISORY: nothing runs it, a
+    human does, and its own docstring is about claims that age because nothing
+    asks them again. **`pytest` is a GATE** — rule 4 of the commit-msg guard
+    runs it on every spine commit. Moving the assertion here moves it from
+    *remembered* to *enforced*, which is the difference between the guard
+    surviving and the guard surviving until someone tidies the module.
+
+    **This is the same standard `test_all_eight_positions_execute_in_the_
+    ratified_order` sets**: assert the requirement, not a proxy for it. That
+    test refuses to assert the declared middleware list because the list is
+    nesting order and the requirement is execution order; this refuses to
+    assert a comment's presence because the comment is documentation and the
+    requirement is that no call happens.
+
+    ⬇ **STEP 7.3 FLIPS THIS TO 1** when it restores the line, in the same
+       commit that builds the route able to resume it.
+    """
+    assert _live_call_sites(contradiction_module, "interrupt") == 0, (
+        "ContradictionDetectionMiddleware calls interrupt() again. Nothing "
+        "can resume it until step 7.3 builds /gate/approve and /gate/reject, "
+        "and a fired interrupt does NOT pause one turn — measured 2026-09-11, "
+        "it parks the CASE permanently: every later turn returns nothing, "
+        "checkpointed to Azure Blob so it survives a restart. If this is "
+        "step 7.3, change the expectation to 1 here and to 2 in "
+        "verify_built.py, and rewrite the tripwire above."
+    )
+
+
+def test_the_guarded_import_is_kept_for_7_3() -> None:
+    """`interrupt` stays imported while unused, and that is deliberate.
+
+    Nothing calls it (the test above pins that), so a tidying pass would drop
+    the import and 7.3's "one uncommented line" becomes a line plus an import
+    a reviewer has to notice is missing. The `noqa: F401` and its comment are
+    the record; this is what stops the tidy.
+    """
+    source = inspect.getsource(contradiction_module)
+    assert "from langgraph.types import interrupt" in source, (
+        "the `interrupt` import was removed from contradiction.py — step 7.3 "
+        "needs it in place so restoring the call is one line"
+    )
+    assert "noqa: F401" in source, (
+        "the import is unused by design; keep the noqa and its reason so a "
+        "linter sweep does not delete it"
+    )
+
+
 def test_position_1_wrap_encloses_position_4_retry() -> None:
     """**§19's third error in the same section, and the behaviour we want.**
 
