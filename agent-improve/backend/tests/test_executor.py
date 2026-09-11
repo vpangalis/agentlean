@@ -615,3 +615,156 @@ def test_the_v1_orchestrators_are_no_longer_called(stub_coach) -> None:
         assert f"orchestrate_{phase}" not in source.replace(
             f"`orchestrate_{phase}`", ""
         ), f"{phase}/nodes.py still references its v1 orchestrator in code"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# G-49 / procedure step 6.18 — THE DIAGNOSIS
+#
+# **These three tests are the instrument, not the fix.** 6.18 is a diagnosis
+# step: it ends when the cause is named at one of four layers, and each test
+# below rules one layer in or out. The `live-run` came FIRST, deliberately — a
+# test written before the cause was known would have pinned the 45s node
+# timeout, and a pinned timeout passes the day the timeout is raised.
+#
+# Reproduction, re-run 2026-09-11 on `09960df`: `POST /ask` on
+# `IMPR-2026-ED8` — *"what does our to-be process look like"* — planner routes
+# to the unread upload, executor issues 18 evidence searches across 3
+# multi-query calls, fetches no `uploads/` blob at all, and the node timeout
+# ends the turn at 45.141s (2026-09-10 recorded 45.157s on `1714d75`).
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _model_channels(stub_coach) -> dict[str, str]:
+    """Every channel the executor can reach the model through, this turn.
+
+    **Deliberately channel-agnostic.** The fix may deliver the plan through the
+    injected block, through a message, or through the system prompt; a test
+    that named one of those would fail a valid fix made through another. What
+    cannot change is that the model reads only what arrives in these three.
+    """
+    payload = stub_coach.invocations[-1]
+    return {
+        "system_prompt": stub_coach.system_prompt,
+        "injected_block": stub_coach.injected_block,
+        "messages": "\n".join(
+            str(getattr(m, "content", m)) for m in payload.get("messages") or []
+        ),
+    }
+
+
+def _unread_upload() -> dict:
+    """One upload in the shape the live case carries it (`IMPR-2026-ED8`)."""
+    return {
+        "filename": "complaints.csv",
+        "blob_path": "uploads/IMPR-TEST-618/complaints.csv",
+        "role": "other evidence",
+        "shape_match": "unsolicited",
+        "consumed_at": None,
+        "summary": "five days of complaint counts and reasons",
+    }
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "G-49, layer 2 — the executor invokes the agent with {'messages': prior} "
+    "and the plan reaches no channel the model reads. STRICT: the day the "
+    "transport lands this test PASSES, the suite goes RED on the unexpected "
+    "pass, and removing this marker is step 6.21's first Done-when clause. "
+    "A pinned defect that quietly starts passing is not pinned."
+))
+def test_the_planners_instruction_reaches_the_model(stub_coach) -> None:
+    """**G-49, LAYER 2 — the plan does not reach the executor's context.**
+
+    THIS TEST FAILS ON TODAY'S BUILD, AND THAT IS ITS PURPOSE — it is marked
+    `xfail(strict=True)` so the suite stays green on a defect that is
+    diagnosed and deliberately unfixed, and goes red the moment it is fixed
+    without the marker being removed.
+
+    §17 gives the planner the routing decision. The planner makes it — it
+    rewrites `CoachingPlan.next_action` into an imperative naming a tool and a
+    blob path, and logs that it did. `executor()` then reads `coaching_plan`
+    for the logger and the `step_log` and **invokes the agent with
+    `{"messages": prior}`**, so the decision is recorded and never delivered.
+
+    The sentinel is deliberately NOT the bare tool name: the upload manifest
+    (§19.1, step 6.12) already says *"call load_evidence_series with the
+    blob_path above"*, so asserting on `load_evidence_series` alone would pass
+    on the manifest and prove nothing. What only the plan carries is the
+    planner's imperative — *"before asking for anything further"*.
+    """
+    directive = (
+        "Call load_evidence_series on uploads/IMPR-TEST-618/complaints.csv "
+        "before asking for anything further, then interpret what it shows."
+    )
+    state = _state(
+        uploads=[_unread_upload()],
+        coaching_plan=CoachingPlan(
+            focus_field="business_case",
+            next_action=directive,
+            retrieval_strategy="single_hop",
+            retrieval_hops=[],
+        ),
+    )
+
+    _run(_c.executor("define", state))
+
+    channels = _model_channels(stub_coach)
+    carried = [name for name, text in channels.items()
+               if "before asking for anything further" in text]
+    assert carried, (
+        "THE PLANNER'S ROUTING INSTRUCTION REACHES NO CHANNEL THE MODEL "
+        "READS (G-49, layer 2). Searched "
+        + ", ".join(f"{n} ({len(t)} chars)" for n, t in channels.items())
+        + ". The plan is in PhaseState and in the step_log; §17's routing "
+          "decision is therefore advisory at runtime, and what the coach does "
+          "with the upload stays entirely its own discretion."
+    )
+
+
+def test_load_evidence_series_is_bound_on_every_phase(stub_coach) -> None:
+    """**LAYER 1 RULED OUT — the tool IS bound at call time.**
+
+    `load_evidence_series` joined `UNIVERSAL_TOOLS` at step 6.12, so it is
+    bound in all five phases, and `_executor_tools`' off-ramp strips only the
+    three `rag_lookup_*`. The failing turn made retrieval calls, so its budget
+    was non-zero and the whole universal set was bound.
+
+    Left behind as the standing check that the diagnosis stays true: if this
+    ever fails, G-49's cause moves from layer 2 to layer 1 and the fix is a
+    different one.
+    """
+    for phase in PHASE_ORDER:
+        _run(_c.executor(phase, _state(current_phase=phase)))
+        assert "load_evidence_series" in stub_coach.tool_names, (
+            f"{phase}: the tool the planner names is not bound — that is "
+            f"layer 1, not layer 2"
+        )
+
+
+def test_the_upload_manifest_reaches_the_coach(stub_coach) -> None:
+    """**LAYERS 3 AND 4, AND WHAT THE COACH DOES SEE.**
+
+    Awareness is not the gap. The manifest puts the file, its `NOT YET READ`
+    state, its `blob_path` and the tool that opens it in front of the model
+    every turn — measured live at 2893 composed chars on the failing run. So
+    the coach that issued 18 evidence searches was not uninformed; it was
+    uninstructed, which is what makes layer 2 the cause and layer 4 an
+    aggravator rather than the explanation.
+
+    Layer 3 — *the model sees the plan and deprioritises it* — is excluded by
+    construction, not by measurement: a model cannot deprioritise what is not
+    in its request.
+
+    **This also closes a coverage hole.** The manifest landed at 6.12 with no
+    test; `_upload_manifest` appears in no assertion anywhere in the suite.
+    """
+    state = _state(uploads=[_unread_upload()])
+    _run(_c.executor("define", state))
+
+    block = stub_coach.injected_block
+    assert "FILES THE BELT HAS UPLOADED THIS PHASE" in block
+    assert "uploads/IMPR-TEST-618/complaints.csv" in block
+    assert "NOT YET READ" in block
+    assert "load_evidence_series" in block, (
+        "the manifest names the tool that opens the file — without it the "
+        "coach is told a file exists and not how to read it"
+    )

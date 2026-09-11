@@ -2350,6 +2350,69 @@ discharge.**
 > cause is established and the four blocked live-runs can be scheduled**, not
 > necessarily when the behaviour changes.
 
+> ### ✅ DIAGNOSED 2026-09-11 — LAYER 2: THE PLAN DOES NOT REACH THE EXECUTOR'S CONTEXT
+>
+> **The `live-run` ran first and it reproduced**, on `09960df`, unchanged from the
+> 2026-09-10 record:
+>
+> | | 2026-09-10, on `1714d75` | 2026-09-11, on `09960df` |
+> |---|---|---|
+> | Request | `POST /ask`, `IMPR-2026-ED8`, *"what does our to-be process look like"* | identical |
+> | Planner | routes to the unread upload, names `load_evidence_series` and the blob path | identical — `plan: business_case / Call load_evidence_series on uploads/IMPR-2026-ED8/complaints.csv before asking for anything further` |
+> | Executor | ~6 `rag_lookup_evidence` calls, 19 underlying searches | 3 `rag_lookup_evidence` calls, **18 underlying searches** (6 queries per call, fused 3 ways) |
+> | `uploads/` blob fetched | none | **none** — every blob request in the turn is a checkpoint, the store's case record, or the case JSON |
+> | Ending | node timeout at **45.157s** | node timeout at **45.141s** |
+>
+> **THE CAUSE IS LAYER 2, and the other three are ruled out on evidence rather
+> than on argument:**
+>
+> | Layer | Verdict | What decides it |
+> |---|---|---|
+> | 1 — the tool is not bound at call time | **RULED OUT** | `load_evidence_series` has been in `UNIVERSAL_TOOLS` since step 6.12 — six tools — and `_executor_tools` strips only the three `rag_lookup_*`, only on §26's `remaining_steps` off-ramp. The failing turn issued 18 searches, so its hop budget was non-zero and the whole universal set was bound. Pinned across all five phases by `test_load_evidence_series_is_bound_on_every_phase` |
+> | **2 — the plan does not reach the executor's context** | **THE CAUSE** | `executor()` invokes the agent with `{"messages": prior}`. `plan = state.get("coaching_plan")` is read for the logger and for `step_log` and for **nothing else**. `system_prompt=PHASE_COACH_PROMPT[phase]` is a per-phase constant composed at import. `BeforeModelStateInjection` — the only middleware handed state — contains **no occurrence of `coaching_plan`, `focus_field` or `next_action`**. Measured at the boundary: the planner's imperative appears in none of the three channels the model reads — system prompt **7,770 chars**, injected block **797 chars**, messages **5 chars**. Pinned by `test_the_planners_instruction_reaches_the_model`, `xfail(strict=True)` |
+> | 3 — the model sees the plan and deprioritises it | **EXCLUDED BY CONSTRUCTION** | a model cannot deprioritise what is not in its request. Layer 2 forecloses layer 3; there is nothing left to measure |
+> | 4 — bound, but unattractive beside three multi-query retrieval tools | **PRESENT, AND NOT THE CAUSE** | the coach is not uninformed. The manifest reaches it every turn — the file, `NOT YET READ`, the `blob_path`, and the tool that opens it — **2,893 composed chars on the failing run** — and it still issued 18 searches. That is a real ranking problem, and it is why the manifest alone cannot carry the guarantee. **Ranking explains a preference; it does not explain the absence of an instruction** |
+>
+> **THE SHARP FORM OF IT.** This node's own comment says routing on an unread
+> upload *"is the only point in the loop that is not the model's discretion"*.
+> Because the plan has no transport into the request, **it is entirely the
+> model's discretion** — the planner decides, logs that it decided, and the
+> decision stops there. §19.1's manifest makes the coach AWARE; the planner's
+> routing was meant to make it ACT; **the third leg of that guarantee was never
+> connected.**
+>
+> One detail worth keeping, because it compounds layer 4: the static coach prompt
+> names four tools — `rag_lookup_methodology`, `rag_lookup_case_history`,
+> `propose_template`, `propose_diagram` — and names **neither**
+> `rag_lookup_evidence` **nor** `load_evidence_series`. The only place the model
+> is told which tool opens an upload is the manifest.
+>
+> **THE FIX IS NOT IN THIS STEP, AND THAT IS THIS STEP'S RULING.** The cause is
+> structural: the plan needs a transport, and choosing one changes §17 — the
+> planner/executor split — or §19.1 — the injected block, whose composition and
+> token budget are **G-24, explicitly founder-owned**. It lands as **step 6.21 —
+> the plan reaches the model**, `GATED` on that ruling, with the four candidate
+> transports costed in its own section. Guessing one here is what the step
+> forbids: *"a fix guessed at before the cause is known would most likely be
+> prompt wording"*.
+>
+> **6.9 IS RULED OFF THE G-49 REGISTER — it never belonged.** Its `Verify` is
+> `pytest`, it has no live clause anywhere, and every clause of its Done-when is
+> satisfied by the tree. **One correction to the audit that raised it:** it
+> recorded *"a test asserting the count and both instructions per file"* as
+> satisfied, and only the count was. All five files do carry both instructions;
+> nothing asserted it. `test_every_skill_md_carries_both_mandatory_instructions`
+> now does — a missing assertion over correct content, which is the kind nobody
+> notices because the tree is right.
+>
+> **THE THREE REMAINING LIVE-RUNS ARE RE-SCHEDULED, WITH A DATE.** 6.7, 6.12 and
+> 6.13 re-run **on the first `live-run` after step 6.21 lands** — they exercise
+> the same Define turn on `IMPR-2026-ED8`, which still cannot complete, so
+> running them today would only re-measure this defect. **If 6.21 has not landed
+> by 2026-09-25, the block is re-reported to the founder rather than carried
+> quietly into a fifth step.** That date is the point of this clause: `owed` was
+> what let this sit through four steps.
+
 **Done when:** the reproduction is recorded and re-runnable; the cause is named
 at one of the four layers above with the evidence that distinguishes it from
 the other three; a test that fails on the unfixed build exists; the G-49
@@ -2528,6 +2591,50 @@ retype.
 ---
 
 # Part 6 — Stage 7: Validation and gates
+
+---
+
+## Step 6.21 — The plan reaches the model (G-49's fix)
+
+| | |
+|---|---|
+| **Reference §** | §17 (planner/executor split) · §26 · §19.1 / S-C11 (the injected block) · §58.18 S-F13 · §60.7 S-F57 |
+| **Touches** | depends on the ruling below — `phases/nodes_common.py` in every case, `middleware/state_injection.py` for transport A, `backend/tests/test_executor.py` always |
+| **Precondition** | **6.18** — the diagnosis. Written, not started |
+| **Verify** | `live-run`, then `pytest` |
+| **Status** | **GATED — awaiting a founder ruling on the transport** |
+
+**Step 6.18 named the cause at layer 2: the plan does not reach the executor's
+context.** The planner decides, writes `CoachingPlan.next_action`, logs the
+decision — and the executor invokes the agent with `{"messages": prior}`, so
+nothing the planner decided is in the request. This step gives the decision a
+transport. **It is GATED rather than READY because every candidate changes a
+ratified section**, and two of them change what §17 means.
+
+### The four candidates, and what each costs
+
+| | Transport | What it changes | What it costs |
+|---|---|---|---|
+| **A** | The plan joins the injected block — `BeforeModelStateInjection` composes `focus_field` and `next_action` into the block it already prepends every turn | one composition point, already at the top of the prompt, already measured (§19.1) | **Lands inside G-24**, whose block composition and token budget the reference marks *"to be designed with founder"*. And it is still prose the model may rank below a tool it likes better — the failure mode layer 4 already demonstrates |
+| **B** | The plan arrives as a message in the turn's `messages` — the executor appends the directive as a turn-level instruction | the model reads it as part of the conversation rather than as background facts, which is a stronger position than the block | a synthetic message enters the checkpointed transcript a Belt can be shown. §21's content-block rule applies to its construction |
+| **C** | The node executes the routed call itself — `load_evidence_series` runs in `executor()` before the model does, and its result is put in front of the coach | **the planner's routing stops being advice.** Deterministic: the guarantee holds whatever the model prefers | a real §17 amendment. *"The executor consumes the plan and decides no strategy"* becomes *"the executor executes the plan's named call"*, and §26's hop accounting has to say whether a node-issued read costs a hop |
+| **D** | Forced tool choice for the turn — bind `load_evidence_series` as required when the plan names it | the model cannot skip it | LangChain's forced-choice semantics bind **one model call**, not a turn, so a second call may drop it. **Unverified against the installed version — §16.3 applies before this is costed, not after** |
+
+> **THE RULING IS THE FOUNDER'S AND THIS SECTION DOES NOT PRE-EMPT IT.** A and B
+> keep §17 as written and leave the guarantee probabilistic. C makes it
+> deterministic and amends §17. D is unverified. **What 6.18 established is that
+> prompt wording is not a fix**: the instruction is not being outranked, it is
+> not arriving.
+
+**Done when:** `test_the_planners_instruction_reaches_the_model`'s
+`xfail(strict=True)` marker is **removed** — it is strict precisely so this
+cannot be skipped; the ruled transport is applied and its ratified section
+amended under §56 with a version bump; a `live-run` of `POST /ask` on
+`IMPR-2026-ED8` — *"what does our to-be process look like"* — completes a turn
+in which `load_evidence_series` is called on the named blob path and at least one
+upload is stamped `consumed_at`; `pytest` is green; and the `live-run` halves of
+**6.7**, **6.12** and **6.13** are run in the same pass, which is what discharges
+their verification debt (step 6.18's re-schedule).
 
 ---
 
@@ -3207,10 +3314,10 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 |---|---|---|
 | **DONE** | 31 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16** |
 | **BUILDING NOW** | 1 | **6.18** — The executor ignores the tool its planner names (G-49) |
-| **BLOCKED** | 6 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL) |
+| **BLOCKED** | 7 | **6.21** (GATED), **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL) |
 | **QUEUED** | 20 | **6.19**, **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **11.1**, **11.2** |
 
-*58 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-11.*
+*59 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-11.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -3267,6 +3374,7 @@ reference section is not a step — it is an undocumented decision.
 | 6.18 | §17, §26, S-F04, S-F13, S-F57 | `live-run` |
 | 6.19 | §20, S-C05, §50.1 | `pytest` |
 | 6.20 | §7, §39.x.7, S-C02, S-C03 | `pytest` + `manual-UI` |
+| 6.21 | §17, §26, §19.1 / S-C11, S-F13, S-F57 | `live-run` + `pytest` |
 | 6.16 | §55.1, §66, Appendix D | `grep-absence` + a commit that moves a step |
 | 7.0 | §52 | `pytest` |
 | 7.1 | §34, §35 | `pytest` |
@@ -3507,6 +3615,7 @@ restate, which is the opposite of what the board is for.
 | 300 | **Commit 6.13** | The evidence index migration |  | STORE | SHARED | Evidence and artefacts share one bucket with no role, kind or version identity, so a proposed future is retrievable later as a fact about the present. |
 | 310 | **Commit 6.16** | The board is generated, not written |  | OPS | SHARED | The board a founder reads is hand-drawn and stale from the first commit after it is drawn. |
 | 330 | **Commit 6.18** | The executor ignores the tool its planner names (G-49) |  | COACH | SHARED | The planner's routing decision is advisory, so a Belt asking a question whose answer is in an uploaded file gets a timeout instead - and four landed steps keep verification debt nothing else can discharge. |
+| 335 | **Commit 6.21** | The plan reaches the model (G-49's fix) | GATED | COACH | SHARED | The planner's routing decision stays advisory, so the guarantee that an uploaded file is read is whatever the model felt like doing - and the live halves of three landed steps can never be run. |
 | 340 | **Commit 6.19** | `CoachingResponse` gains §50.1's four presentational fields (G-50) |  | COACH | SHARED | Every coaching turn arrives as one prose blob, so there is nothing structured for a gate UI to display and five SKILL.md files keep instructing the coach to fill fields that do not exist. |
 | 350 | **Commit 6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` |  | PHASE | SHARED | Three things §39.x.7 specifies are read by the gate document and written by nothing, so a computed figure never reaches a gate and the coach cannot tell which field it is on. |
 | 360 | **Commit 8.0** | Turn telemetry and `@traceable` |  | OPS | SHARED | Nothing is traced, so every investigation needs a hand-built harness and no limit can be set from measured data. |

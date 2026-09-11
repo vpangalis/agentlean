@@ -514,6 +514,46 @@ def test_skills_are_read_from_the_git_versioned_tree() -> None:
         assert (SKILLS_ROOT / directory / "SKILL.md").is_file(), directory
 
 
+def test_every_skill_md_carries_both_mandatory_instructions() -> None:
+    """**Step 6.9's Done-when, the half of it nothing asserted.**
+
+    6.9 requires *"a test asserts the count AND both instructions per file"*.
+    The count was pinned by the test above; **the two instructions were pinned
+    nowhere** — found at step 6.18 while ruling 6.9 off the G-49 register, where
+    the audit had recorded every clause of its Done-when as satisfied. All five
+    files do carry both, so this is a missing assertion rather than missing
+    content — which is the harder kind to notice, because the tree is right and
+    only the guarantee is absent.
+
+    The two, and why each exists:
+
+    **The contradiction-check instruction** (§37) — step 6.5's
+    `ContradictionDetectionMiddleware` reads `contradiction_flag` and **nothing
+    else sets it**, so a file that omits the instruction makes the middleware
+    unfireable for that phase.
+
+    **The `CoachingResponse`-population instruction** (WATCH 9) — without it
+    `explanation`, `example`, `prompt` and `progress` stay empty for that phase.
+    Those four are G-50's subject at step 6.19 and do not yet exist on the
+    class; the instruction is still what step 6.19 writes them for.
+    """
+    from backend.middleware.skills import SKILLS_ROOT
+
+    assert len(SKILL_DIRS) == 5, "five phases, five skills (§32)"
+    for phase, directory in SKILL_DIRS.items():
+        text = (SKILLS_ROOT / directory / "SKILL.md").read_text(encoding="utf-8")
+        assert "CoachingResponse.contradiction_flag" in text, (
+            f"{phase}: no contradiction-check instruction — §37's flag is set "
+            f"by the coach or by nothing"
+        )
+        missing = [f for f in ("explanation", "example", "prompt", "progress")
+                   if f"`{f}`" not in text]
+        assert not missing, (
+            f"{phase}: the CoachingResponse-population instruction does not "
+            f"name {missing} (WATCH 9)"
+        )
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # Position 3 — SummarizationMiddleware, core as shipped
 # ══════════════════════════════════════════════════════════════════════════
