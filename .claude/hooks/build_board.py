@@ -275,6 +275,74 @@ def read_section_titles() -> dict[str, str]:
     return out
 
 
+_COMPLETENESS = re.compile(
+    r"^\| (?P<group>[^|]+?) \| `(?P<sec>§[\d.x]+)` \| (?P<scope>SHARED|PHASE) \| "
+    r"(?P<at>`§[\d.]+`|—) \|$", re.M)
+
+
+def read_completeness_set() -> list[dict]:
+    """§55.3's table — what ONE phase traverses end to end.
+
+    **This is the denominator, and it lives in the document.** The board used
+    to show each phase as a fraction of the three markers NAMED after it,
+    which read "Define 1/3" and measured the wrong thing entirely: the
+    sections named after a phase, not the sections a phase depends on.
+    """
+    text = Path(ARCH).read_text(encoding="utf-8")
+    i = text.index("### 55.3 The phase completeness set")
+    j = text.index("## 56. Amendment procedure", i)
+    rows = [m.groupdict() for m in _COMPLETENESS.finditer(text[i:j])]
+    if not rows:
+        raise ValueError("§55.3 found but no rows matched the row format")
+    for r in rows:
+        r["at"] = "" if r["at"] == "—" else r["at"].strip("`")
+        r["group"] = r["group"].strip()
+    return rows
+
+
+def phase_completeness(items: list[dict], markers: list[dict]) -> dict:
+    """`phase -> [rows]`, each item carrying a state for that phase.
+
+    **Roll-up, not exact match.** An item's state is the WORST state among the
+    markers at or beneath its section: §19 has no marker of its own but eight
+    beneath it, and §39.x resolves per phase to §39.N plus its subsections. A
+    `Measured at` alias redirects the lookup where an item is specified in one
+    place and marked in another (§5 → §57.2, §20 → §58.5) — without it those
+    rows would read UNMEASURED, which would be false.
+
+    **No marker anywhere is UNMEASURED, and UNMEASURED IS NOT A PASS.** A
+    blank and a green look identical at a glance and mean opposite things, so
+    they render differently and only `built` counts toward the fraction.
+    """
+    rank = {"built": 0, "defect": 1, "unbuilt": 2, "blocked": 3}
+    by_sec: dict[str, list[dict]] = {}
+    for m in markers:
+        by_sec.setdefault(m["section"], []).append(m)
+
+    def resolve(sec: str) -> list[dict]:
+        hit = list(by_sec.get(sec, []))
+        for k, v in by_sec.items():
+            if k.startswith(sec + "."):
+                hit += v
+        return hit
+
+    out: dict[str, list[dict]] = {}
+    for name, digit in PHASE_ROWS[1:]:
+        rows = []
+        for it in items:
+            sec = f"§39.{digit}" if it["sec"] == "§39.x" else it["sec"]
+            found = resolve(it["at"] or sec)
+            if found:
+                worst = max(found, key=lambda m: rank[m["state"]])
+                state, closes = worst["state"], worst["closes"]
+            else:
+                state, closes = "unmeasured", []
+            rows.append({**it, "sec_resolved": sec, "state": state,
+                         "closes": closes, "n_markers": len(found)})
+        out[name] = rows
+    return out
+
+
 def read_bands() -> list[dict]:
     """Appendix D's band table - the PLAN, as data.
 
@@ -459,7 +527,7 @@ LANE_CLASS = {"BUILDING NOW": "now", "READY": "ready", "QUEUED": "queued",
 
 def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
            landed: set[str], bands: list[dict], done_when: dict[str, str],
-           titles: dict[str, str]) -> str:
+           titles: dict[str, str], comp_set: list[dict]) -> str:
     """The board: the PLAN first, readiness second.
 
     **Bands replaced lanes as the organising axis on 2026-09-11**, by founder
@@ -592,30 +660,44 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
             f'</span></h3><div class="bdel">{e(b["delivers"])}</div>'
             f'<div class="bcards">{cards}</div></section>')
 
-    # ── PART 3: the per-phase panel, FROM THE MARKERS ──────────────────────
-    rank = {"built": 0, "defect": 1, "unbuilt": 2, "blocked": 3}
-    glyph = {"built": "\u2705", "defect": "\u26a0\ufe0f", "unbuilt": "\u2610",
-             "blocked": "\u26d4"}
+    # ── The phase completeness view (§55.3). ─────────────────────
+    #
+    # **The denominator is §55.3, not the three markers named after the
+    # phase.** That older fraction read "Define 1/3" and measured the wrong
+    # thing entirely - the sections NAMED after a phase, not the sections a
+    # phase DEPENDS ON. A phase running end to end traverses all fifty-one.
+    rank = {"built": 0, "defect": 1, "unbuilt": 2, "blocked": 3,
+            "unmeasured": 4}
+    glyph = {"built": "✅", "defect": "⚠️", "unbuilt": "☐",
+             "blocked": "⛔", "unmeasured": "?"}
+    comp = phase_completeness(comp_set, markers)
+
     phase_html = []
-    for name, _digit in PHASE_ROWS:
-        mine = [m for m in markers if phase_of(m["section"]) == name]
-        if not mine:
-            phase_html.append(
-                f'<tr><td class="pn">{e(name)}</td><td colspan="2" class="pnone">'
-                "nothing marked</td></tr>")
-            continue
-        worst = max(mine, key=lambda m: rank[m["state"]])["state"]
-        items = "".join(
-            f'<span class="pchip {m["state"]}">{glyph[m["state"]]} '
-            f'{named(m["section"])}'
-            + (f' <i>→ {e(closes_named(m))}</i>' if m["closes"] else "")
-            + "</span>"
-            for m in sorted(mine, key=lambda m: (rank[m["state"]], m["section"])))
-        n_ok = sum(1 for m in mine if m["state"] == "built")
+    for name, _digit in PHASE_ROWS[1:]:
+        rows_p = comp[name]
+        nb = sum(1 for r in rows_p if r["state"] == "built")
+        nd = sum(1 for r in rows_p if r["state"] == "defect")
+        nn = sum(1 for r in rows_p if r["state"] in ("unbuilt", "blocked"))
+        nu = sum(1 for r in rows_p if r["state"] == "unmeasured")
+        pct_p = round(100 * nb / len(rows_p))
+        cells = []
+        for r in rows_p:
+            lbl = (r["sec_resolved"] + " "
+                   + titles.get(r["sec_resolved"], "")).strip()
+            tag = "<b>S</b>" if r["scope"] == "SHARED" else "<b class=\"ph\">P</b>"
+            cells.append(
+                '<span class="cchip ' + r["state"] + '" title="' + e(lbl)
+                + '">' + glyph[r["state"]] + " " + e(r["sec_resolved"])
+                + tag + "</span>")
         phase_html.append(
-            f'<tr class="{worst}"><td class="pn">{e(name)}</td>'
-            f'<td class="pc">{n_ok}/{len(mine)}</td>'
-            f'<td class="pi">{items}</td></tr>')
+            '<div class="pcard"><div class="ph1">' + e(name)
+            + '<span class="pfrac">' + str(nb) + " of " + str(len(rows_p))
+            + '</span></div><div class="pbar"><i style="width:'
+            + str(pct_p) + '%"></i></div>'
+            + '<div class="pmeta">' + str(nb) + " built · " + str(nd)
+            + " defective · " + str(nn) + " not built · <b>" + str(nu)
+            + ' unmeasured</b></div><div class="cchips">'
+            + "".join(cells) + "</div></div>")
 
     # ── architecture blocks (unchanged in substance) ───────────────────────
     blocks_html = []
@@ -769,6 +851,23 @@ border-radius:8px;padding:8px 10px}}
 .btitle{{font-size:11.5px;color:var(--mut);margin:2px 0 6px;min-height:2.4em}}
 .brow{{display:flex;gap:6px;align-items:center}}
 .bzone{{margin-left:auto;font-size:9.5px;color:var(--mut);letter-spacing:.05em}}
+.pgrid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:11px}}
+.pcard{{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:11px 13px}}
+.ph1{{font-size:13px;font-weight:600;display:flex;align-items:baseline}}
+.pfrac{{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--mut);font-weight:400}}
+.pbar{{height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin:6px 0 5px}}
+.pbar>i{{display:block;height:100%;background:var(--done)}}
+.pmeta{{font-size:11px;color:var(--mut);margin-bottom:7px}}
+.pmeta b{{color:var(--blocked)}}
+.cchips{{display:flex;flex-wrap:wrap;gap:3px}}
+.cchip{{font-size:10px;border:1px solid var(--line);border-radius:8px;padding:0 5px;
+color:var(--mut);white-space:nowrap}}
+.cchip b{{opacity:.4;margin-left:3px}}
+.cchip b.ph{{color:var(--now);opacity:.95}}
+.cchip.built{{border-color:color-mix(in srgb,var(--done) 50%,var(--line))}}
+.cchip.defect{{border-color:color-mix(in srgb,var(--now) 50%,var(--line))}}
+.cchip.unbuilt,.cchip.blocked{{border-color:color-mix(in srgb,var(--blocked) 40%,var(--line))}}
+.cchip.unmeasured{{border-style:dashed;border-color:var(--mut);color:var(--fg)}}
 /* per-phase */
 table.ph{{width:100%;border-collapse:collapse;font-size:12.5px}}
 table.ph td{{border-top:1px solid var(--line);padding:8px 6px;vertical-align:top}}
@@ -849,8 +948,8 @@ Every figure traces to Appendix D, ARCHITECTURE.md's BUILT markers, §66, or git
 <h2>The plan — four bands, in Seq order</h2>
 {bands}
 
-<h2>Per phase — what is marked, and what it says</h2>
-<table class="ph">{phases}</table>
+<h2>Per phase — the full dependency set a phase traverses (§55.3)</h2>
+<div class="pgrid">{phases}</div>
 
 <h2>Health — what the markers say, counted</h2>
 <div class="health">{health}</div>
@@ -905,7 +1004,8 @@ def main(argv: list[str]) -> int:
 
         Path(OUT).write_text(
             render(rows, markers, gaps, landed, read_bands(),
-                   read_done_when(), read_section_titles()),
+                   read_done_when(), read_section_titles(),
+                   read_completeness_set()),
             encoding="utf-8")
         print(f"  [board] {os.path.relpath(OUT, ROOT)} regenerated "
               f"— {len(rows)} steps, {len(markers)} markers")

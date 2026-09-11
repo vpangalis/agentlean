@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.26 · 2026-09-11
+Version 1.27 · 2026-09-11
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.27 (2026-09-11)** — **§56 AMENDMENT. §55.3 RATIFIES THE PHASE COMPLETENESS SET — the real denominator for "is this phase done".** Founder ruling. **(A) THE OLD FRACTION MEASURED THE WRONG THING.** The board showed each phase as a fraction of the three markers NAMED after it — *"Define 1/3"* — which is the sections named after a phase, not the sections a phase DEPENDS ON. §55.3 lists the **fifty-one items a phase traverses to run end to end with a visible gate**: the API surface and UI, orchestration and persistence, the subgraph, the coach, what it knows, what the Belt gives it, what it computes, validation and the gate, the gate document, reliability, observability, and the phase's own spec. **Define is 25 of 51**, not 1 of 3. **(B) NUMBERING VERIFIED BEFORE USE**, as the ruling required — the set was drawn against a v1.22 snapshot and this document is v1.26; all fifty cited sections still carry the titles named. **(C) SHARED vs PHASE, and a shared break is ONE break.** Fifty of the fifty-one rows are SHARED, which is the vertical-slice argument restated from the other side: **a phase is 98% shared machinery**, so the second slice inherits almost everything the first proves. **(D) UNMEASURED IS NOT A PASS**, and four rows come back UNMEASURED: §43 and §28 are unmarkable by nature, but **§63 and §69 were classified as spec containers *"whose entries carry their own markers"* and their entries carry NONE** — a false claim in the 2026-09-11 sweep, caught by this view on its first run, which is what a denominator is for. **(E) §39.x IS NOT EQUAL ACROSS PHASES.** Four phases carry twelve subsections; **Define carries eight, and not the same eight** — six of the twelve topics have no Define section at all. The phase being proven first has the least specified spec. Reasoning: this commit body (§56.2).
 
 **v1.26 (2026-09-11)** — **§56 AMENDMENT. MARKER COVERAGE IS NOW COMPLETE: every ratified section ends in a marker or in an explicit reason it cannot carry one.** Founder ruling. **(A) THE SWEEP.** All 62 ratified top-level sections walked. **45 carry a `> **BUILT:**` marker** with a closing step or `no step owns this`; **17 carry a `> **NOT-MARKABLE:**` note** giving the reason — methodology or coaching content (§28, §43), a rule enforced elsewhere (§54, §56), or **marked at its canonical home** (§5→§57.2, §6→§58.2, §12→§15, §20→§58.5, §45→§44) and the eight spec-layer Parts whose entries carry their own. **Zero sections are in neither state**, which was the point: a section nobody classified is indistinguishable from one nobody built. Markers go 21 → 66. **(B) THE UNOWNED LIST, ENUMERATED FOR THE FIRST TIME.** Four markers are `☐ not built` with **no step that closes them**: §39.2.2, §39.3.2, §39.4.2 and §39.5.2 — the ordered field lists for Measure, Analyse, Improve and Control, which exist as tables here and in no runtime form. A fifth unowned item sits inside §39.5.7: **`SupervisorState.final_output` is never written**, so the project's terminal artifact does not exist. **(C) F-15 IS CHECKED AT LAST.** `verify_built.py` gains an `ast` pass asserting a writer AND a reader for every state field and every `artifacts` key — **one check for a pattern that recurred seven times**, each found by hand months apart. Nine fields are unpaired and each is accounted for; three are exempt **with declared reasons** (`history` diagnostic-only, `remaining_steps` engine-managed, `phase_index` read by the UI). The check took two cuts to get right and both failure modes are recorded in it: counting every dict literal called a READ a write, and counting only `return {...}` called two written fields unwritten. **(D) THE BOARD NAMES EVERY NUMBER.** No bare `§` or step reference renders anywhere — titles come from the headings, and a section with no usable heading is reported by `--check` (there are none). A generated legend gives the prefixes in plain words. Reasoning: this commit body (§56.2).
 
@@ -8422,6 +8424,102 @@ agent-improve/docs/board.html                    the generated board (6.16)
 **Rule 2b binds on EVERY commit**, not only spine commits: a middleware swap
 lands as a `fix(` as easily as a `refactor(`, and scoping it to the spine would
 exempt exactly the commits nobody reviews against the plan.
+
+### 55.3 The phase completeness set — what one phase actually traverses
+
+**Machine-readable: `.claude/hooks/build_board.py` renders the per-phase view
+from this table.** Ratified 2026-09-11 by founder ruling, and checked against
+this document's own section list before use — all fifty cited numbers still
+carry the titles the ruling names.
+
+**A phase running end to end with a visible gate traverses every row below.**
+Until now the board showed each phase as a fraction of its THREE per-phase
+markers, which read *"Define 1/3"* and meant almost nothing: it measured the
+sections named after the phase, not the sections the phase depends on. **The
+honest denominator is this table.**
+
+| Group | Section | Scope | Measured at |
+|---|---|---|---|
+| In and out | `§49` | SHARED | — |
+| In and out | `§50` | SHARED | — |
+| In and out | `§53` | SHARED | — |
+| Orchestration and persistence | `§5` | SHARED | `§57.2` |
+| Orchestration and persistence | `§12` | SHARED | `§15` |
+| Orchestration and persistence | `§15` | SHARED | — |
+| Orchestration and persistence | `§16` | SHARED | — |
+| Orchestration and persistence | `§8` | SHARED | — |
+| Orchestration and persistence | `§9` | SHARED | — |
+| Orchestration and persistence | `§10` | SHARED | — |
+| Orchestration and persistence | `§11` | SHARED | — |
+| The phase subgraph | `§13` | SHARED | — |
+| The phase subgraph | `§14` | SHARED | — |
+| The phase subgraph | `§6` | SHARED | `§58.2` |
+| The phase subgraph | `§7` | SHARED | — |
+| The coach | `§17` | SHARED | — |
+| The coach | `§18` | SHARED | — |
+| The coach | `§19` | SHARED | — |
+| The coach | `§20` | SHARED | `§58.5` |
+| The coach | `§21` | SHARED | — |
+| The coach | `§22` | SHARED | — |
+| What the coach knows | `§32` | SHARED | — |
+| What the coach knows | `§43` | SHARED | — |
+| What the coach knows | `§23` | SHARED | — |
+| What the coach knows | `§24` | SHARED | — |
+| What the coach knows | `§25` | SHARED | — |
+| What the coach knows | `§26` | SHARED | — |
+| What the coach knows | `§27` | SHARED | — |
+| What the coach knows | `§28` | SHARED | — |
+| What the Belt gives it | `§29` | SHARED | — |
+| What the coach computes | `§30` | SHARED | — |
+| What the coach computes | `§31` | SHARED | — |
+| What the coach computes | `§69` | SHARED | — |
+| Validation and the gate | `§34` | SHARED | — |
+| Validation and the gate | `§35` | SHARED | — |
+| Validation and the gate | `§36` | SHARED | — |
+| Validation and the gate | `§33` | SHARED | — |
+| Validation and the gate | `§37` | SHARED | — |
+| Validation and the gate | `§38` | SHARED | — |
+| The gate document | `§40` | SHARED | — |
+| The gate document | `§41` | SHARED | — |
+| The gate document | `§42` | SHARED | — |
+| The gate document | `§63` | SHARED | — |
+| Reliability | `§44` | SHARED | — |
+| Reliability | `§45` | SHARED | `§44` |
+| Reliability | `§46` | SHARED | — |
+| Reliability | `§47` | SHARED | — |
+| Reliability | `§48` | SHARED | — |
+| Observability | `§51` | SHARED | — |
+| Observability | `§52` | SHARED | — |
+| The phase's own spec | `§39.x` | PHASE | — |
+
+**`Scope`.** `SHARED` is machinery every phase runs; `PHASE` is per-phase. **A
+SHARED item that is broken is broken for all five phases and is ONE defect,
+not five** — it appears in every phase's row because every phase traverses it,
+labelled so the count is not mistaken for five separate problems.
+
+**`Measured at`** names the section carrying the marker where an item is
+specified in one place and marked in another — §5's class is marked at §57.2,
+§20's at §58.5. **Without it those rows would read UNMEASURED, which would be
+false**: the item is measured, just not here.
+
+**An item with no marker anywhere is UNMEASURED, and UNMEASURED is not a
+pass.** A blank cell and a green cell look identical at a glance and mean
+opposite things; the view renders them differently and the fraction counts
+only what is actually built.
+
+> **⚠ §39.x IS ONE ROW AND IT IS NOT EQUAL ACROSS THE PHASES.** Measure,
+> Analyse, Improve and Control each carry **twelve** subsections; **Define
+> carries eight**, and not the same eight — its numbering is a different shape.
+> Six of the twelve topics have **no Define section at all**: the metric
+> registry, tools bound to the phase, conditions, state parameters, metric
+> literacy, and cross-phase reads. **The phase this project is proving first
+> has the least specified spec**, which is worth knowing before its slice is
+> called complete.
+
+**The spec layer (§57–§65) is not listed separately.** Each S-C / S-F entry is
+attributed to the section it specifies, so `S-C05` counts under §20 and
+`S-F01` under §15. Listing the spec layer as its own group would count the
+same obligation twice — once as the architecture and once as its spec.
 
 ## 56. Amendment procedure
 
