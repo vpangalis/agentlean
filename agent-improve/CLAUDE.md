@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.34 — September 2026
+# Version 2.2.35 — September 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -1002,6 +1002,34 @@ Converting it to generated output belongs to step **6.16**, which already
 builds a generator and already reads it.
 
 ---
+
+### 0.29 — What Changed in 2.2.35 — a finding is delivered as a visual
+
+**FOUNDER RULING 2026-09-11.** Nothing about the architecture changed. What
+changed is **how a finding reaches the person who has to act on it**, and it is
+a rule — **§19 — how findings reach the founder** — because the failure it
+closes has cost this refactor more than any code defect in it.
+
+| | Before | From 2026-09-11 |
+|---|---|---|
+| **An output asking for a DECISION** | prose, the options described one after another | **a table** — one row per option, the full detail in the cells (§19.1 — a decision or an explanation is delivered as a visual) |
+| **An output that EXPLAINS** — an audit finding, a mechanism, a breakage | prose threaded with section numbers | **a diagram or a table**, carrying the full detail (§19.1 — a decision or an explanation is delivered as a visual) |
+| **A number or a code in human-facing text** | `6.20`, `§39.1.7`, `G-49` | **6.20 — the write paths**, **§39.1.7 — Define's state contract**, **G-49 — the executor ignores the tool its planner names** (§19.2 — never a bare number, never a bare code) |
+| **Where it binds** | the board alone, from step 6.16 — the board is generated, not written | **the board, plus every report, brief, finding and reply** (§19.4 — where the rule bites, and the open item) |
+
+**The reason is recorded so the rule is not read as a style note.** The largest
+cost of this refactor has not been code. It has been **findings the founder
+could not read, and therefore could not act on.** A correct finding that does
+not reach a decision has not been delivered.
+
+**What this amendment does NOT do.** No rule is renumbered, no schema changes,
+and `.claude/config/deprecated_patterns.yaml` is untouched — §19 is a new
+number after the last one and nothing moved, so §0.2 — rule numbers are
+load-bearing is satisfied with no registry edit. The 1,128 parenthetical
+`(§x)` cross-references already standing in this file and in `ARCHITECTURE.md`
+are converted **as each rule is next amended, not in one sweep**, which is the
+one scoping call in this amendment and is flagged for the founder at
+§19.4 — where the rule bites, and the open item.
 
 ---
 
@@ -3712,6 +3740,12 @@ to choose backoff strategy (§4.8).
 - Never use methodology jargon in team-facing strings
 - Never renumber a rule cited in `deprecated_patterns.yaml` without
   updating the registry in the same commit (§0.2)
+- Never deliver a decision or an explanation as prose threaded with
+  section numbers — it is a diagram or a table carrying the full detail
+  (§19.1 — a decision or an explanation is delivered as a visual)
+- Never render a bare number or a bare code in anything a human reads —
+  "6.20 — the write paths", never "6.20" (§19.2 — never a bare number,
+  never a bare code)
 
 ---
 
@@ -3854,3 +3888,84 @@ should prefer `response_format=`. Until that update lands,
 documents stay writable.
 
 *Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §55, §56.*
+
+---
+
+## 19. HOW FINDINGS REACH THE FOUNDER
+
+**FOUNDER RULING 2026-09-11.** Two rules. They bind **every output a human
+reads** — the board, an audit's findings, a step report, a brief, a review
+reply, an answer in chat.
+
+### 19.1 — A decision or an explanation is delivered as a VISUAL
+
+**If an output asks the founder to DECIDE, or exists to EXPLAIN, it is a
+diagram or a table carrying the full detail** — never prose threaded with
+section numbers.
+
+| An output whose job is | Takes this shape | Not this |
+|---|---|---|
+| **A decision** — choose one, approve or reject, rule on a split | **A table**: one row per option, one column per thing that differs, the cost of each in its own cell | paragraphs describing the options one after another |
+| **Explaining a flow or a structure** — how a mechanism works, where a value is written, what a guard checks | **A diagram** | a walk-through the reader has to hold in their head to compare |
+| **Explaining a set of facts** — what an audit found, which sites disagree, what is missing | **A table**: one row per fact, the site and the verdict in cells | a numbered prose list |
+| **Status** | **the board** — `agent-improve/docs/board.html`, generated (§0.28 — the document set collapses to two) | a prose paragraph restating what the board already shows |
+
+**"Carrying the full detail" is the load-bearing half of the rule.** A summary
+table sitting on top of three pages of prose does not satisfy it — the visual
+IS the finding, not an index to it. **If a fact matters, it is a cell.** A fact
+that will not fit in a cell has not been reduced yet, and reducing it is the
+work, not the reader's job.
+
+### 19.2 — Never a bare number, never a bare code
+
+**Every number and every code carries the name of what it points at, in the
+same breath, every time it appears** — not once at the top and bare thereafter.
+
+| Never write | Always write |
+|---|---|
+| `6.20` | **6.20 — the write paths** |
+| `§39.1.7` | **§39.1.7 — Define's state contract** |
+| `G-49` | **G-49 — the executor ignores the tool its planner names** |
+| "the guard's rule 5" | **rule 5 — CONTINUITY.md is staged and its status block matches regeneration** |
+| "18/15/14/14/17 fields" | **the gate schemas — Define 18 fields, Measure 15, Analyse 14, Improve 14, Control 17** |
+
+**This already held for the board**, where every number carries its subject and
+one colour means one thing (§0.28 — the document set collapses to two). **It
+now holds for reports, briefs, findings and replies.**
+
+A bare number is legible only to a reader already holding the register it
+indexes. The founder reading a finding is not holding that register — being
+sent the finding is the whole point.
+
+### 19.3 — Why this is a RULE and not a style note
+
+**The largest cost of this refactor has not been code. It has been findings the
+founder could not read, and therefore could not act on.**
+
+A correct finding that does not reach a decision has not been delivered, and it
+costs more than a wrong one: a wrong finding gets corrected, an unreadable one
+gets filed. This paragraph exists so the rule is enforced on that ground and
+not on taste — §19.1 and §19.2 are not about how writing looks.
+
+### 19.4 — Where the rule bites, and the open item
+
+| Output | Bound? |
+|---|---|
+| An audit's findings, a step report, a brief, a review reply, an answer in chat | **Yes** — the rule was written for exactly these |
+| `agent-improve/docs/board.html` — the board | **Yes**, and already conformant since step 6.16 — the board is generated, not written |
+| A commit body — the decision record since the 2026-09-10 ruling (§0.28 — the document set collapses to two) | **Yes** — a human reads it, while investigating the diff it explains |
+| A NEW or AMENDED rule in this file or in `ARCHITECTURE.md` | **Yes** — a rule written from 2026-09-11 names what its own citations point at |
+| The 1,128 parenthetical `(§x)` citations ALREADY standing in those two files | **Ratchet, not sweep** — each is named when its rule is next amended. Open item below |
+
+> **OPEN ITEM — for the founder, one call to make.** The ruling says *any output
+> a human reads*, and both binding documents are read by a human. Between them
+> they carry **1,128** parenthetical `(§x)` cross-references — 310 in this file,
+> 818 in `ARCHITECTURE.md`. Naming all of them in one pass is a diff across
+> nearly every rule in the constitution, so **this amendment binds them forward
+> only**: every rule touched from 2026-09-11 names its citations, and the
+> back-catalogue stands as it is. **If the sweep is wanted instead it is its own
+> step and its own commit** — say so and it happens. Nothing else in §19 is
+> scoped, narrowed, or deferred.
+
+*Founder ruling 2026-09-11. Reason: §19.3 — why this is a rule and not a style
+note. Change record: §0.29 — a finding is delivered as a visual.*

@@ -349,6 +349,97 @@ def phase_completeness(items: list[dict], markers: list[dict]) -> dict:
     return out
 
 
+_VERIFY = re.compile(r"^\| \*\*Verify\*\* \| (?P<v>.*?) \|$", re.M)
+
+
+def read_done_when_full() -> dict[str, str]:
+    """`step -> its Done-when, VERBATIM`, flattened but not summarised.
+
+    The bubble shows what the procedure actually says. A paraphrase would be a
+    fourth copy of a sentence that already exists, and the one nobody edits.
+    """
+    text = Path(PROCEDURE).read_text(encoding="utf-8")
+    heads = [(m.group("step"), m.start()) for m in _STEP_H.finditer(text)]
+    out: dict[str, str] = {}
+    for idx, (step, pos) in enumerate(heads):
+        end = heads[idx + 1][1] if idx + 1 < len(heads) else len(text)
+        m = _DONE.search(text, pos, end)
+        if not m:
+            continue
+        body = text[m.start("text"):m.start("text") + 1400]
+        # Stop at the next block: a heading, a blockquote, or a blank line
+        # followed by bold - the shapes a Done-when paragraph ends on.
+        body = re.split(r"\n\s*\n(?=[>#*\|]|\*\*)", body)[0]
+        body = re.sub(r"\s+", " ", re.sub(r"\*\*|`|\*", "", body)).strip()
+        out[step] = body
+    return out
+
+
+def read_verify() -> dict[str, str]:
+    """`step -> its Verify method`, from each step's own table."""
+    text = Path(PROCEDURE).read_text(encoding="utf-8")
+    heads = [(m.group("step"), m.start()) for m in _STEP_H.finditer(text)]
+    out: dict[str, str] = {}
+    for idx, (step, pos) in enumerate(heads):
+        end = heads[idx + 1][1] if idx + 1 < len(heads) else len(text)
+        m = _VERIFY.search(text, pos, end)
+        if m:
+            out[step] = re.sub(r"`|\*\*", "", m.group("v")).strip()
+    return out
+
+
+#: The recurring subsection topics, matched on a distinctive phrase from the
+#: heading. Declared because heading wording varies ("Two movements" vs
+#: "SIPOC -> the detailed process map"); the PHRASES are read from the
+#: headings, only the vocabulary is here.
+_TOPICS = ("purpose", "ordered field list", "metric registry", "movements",
+           "sipoc", "tools bound", "conditions", "state parameters",
+           "metric literacy", "gate, storage", "skill.md content",
+           "cross-phase reads")
+
+
+def _topic(title: str) -> str:
+    low = title.lower()
+    return next((t for t in _TOPICS if t in low), low[:26])
+
+
+def read_phase_subsections() -> dict[str, dict]:
+    """Per phase: its subsections, and which CANONICAL topics it lacks.
+
+    **Counted by topic, not by subtraction**, and the difference is the whole
+    point for Define. It has 8 subsections against the other four's 12, so
+    arithmetic says "4 missing" - but its eight are NOT the same eight. Three
+    are Define-only (the composed-problem-statement rule, the `team`
+    structure, SIPOC handling), so **six canonical topics have no Define
+    section at all**: the metric registry, tools bound to the phase,
+    conditions, state parameters, metric literacy, and cross-phase reads.
+
+    Canonical = a topic all four of Measure/Analyse/Improve/Control carry. A
+    topic only some carry is not a standard this document holds Define to.
+    """
+    text = Path(ARCH).read_text(encoding="utf-8")
+    subs: dict[str, dict[str, str]] = {}
+    for m in re.finditer(r"^#### 39\.(\d)\.(\d+)\s+(.+?)\s*$", text, re.M):
+        subs.setdefault(m.group(1), {})[m.group(2)] = re.sub(
+            r"\*\*|`", "", m.group(3))
+
+    seen: dict[str, set] = {}
+    for ph in "2345":
+        for title in subs.get(ph, {}).values():
+            seen.setdefault(_topic(title), set()).add(ph)
+    canonical = {t for t, who in seen.items() if len(who) == 4}
+
+    out: dict[str, dict] = {}
+    for ph, items in subs.items():
+        mine = {_topic(t) for t in items.values()}
+        out[f"§39.{ph}"] = {
+            "n": len(items),
+            "canonical": len(canonical),
+            "missing": sorted(canonical - mine),
+        }
+    return out
+
+
 def read_bands() -> list[dict]:
     """Appendix D's band table - the PLAN, as data.
 
@@ -476,7 +567,11 @@ def read_gaps() -> dict[str, dict]:
         refs = {r.strip() for r in re.split(r"[,·]", cells[-1])
                 if r.strip()} if len(cells) > 1 else set()
         out[m.group("gap")] = {
-            "desc": desc[:240],
+            # **Not truncated here.** The first cut stored `desc[:240]`, which
+            # cut off the step numbers G-49 names - so the bubble's "blocks"
+            # line came back empty for the one gap that blocks four steps.
+            # Truncation is a rendering decision and belongs at the render.
+            "desc": desc,
             "refs": {r.strip("`") for r in refs},
             "closed": m.group("gap") in closed,
         }
@@ -533,7 +628,9 @@ LANE_CLASS = {"BUILDING NOW": "now", "READY": "ready", "QUEUED": "queued",
 
 def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
            landed: set[str], bands: list[dict], done_when: dict[str, str],
-           titles: dict[str, str], comp_set: list[dict]) -> str:
+           titles: dict[str, str], comp_set: list[dict],
+           done_when_full: dict[str, str], verify: dict[str, str],
+           precon: dict[str, str]) -> str:
     """The board: the PLAN first, readiness second.
 
     **Bands replaced lanes as the organising axis on 2026-09-11**, by founder
@@ -564,6 +661,100 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
         t = title_of.get(step, "")
         return f"{e(step)} — {e(t)}" if t else e(step)
 
+    STATE_WORDS = {"built": "built", "defect": "built and wrong",
+                   "unbuilt": "not built", "blocked": "blocked",
+                   "unmeasured": "unmeasured — not a pass"}
+    glyph = {"built": "\u2705", "defect": "\u26a0\ufe0f", "unbuilt": "\u2610",
+             "blocked": "\u26d4", "unmeasured": "?"}
+    comp = phase_completeness(comp_set, markers)
+    marker_of = {m["section"]: m for m in markers}
+    seq_of_step = {r["step"]: r["seq"] for r in rows}
+    band_of_step = {}
+    for r in rows:
+        b = next((x for x in bands if x["lo"] <= r["seq"] <= x["hi"]), None)
+        if b:
+            band_of_step[r["step"]] = b
+
+    def bub(*parts: str) -> str:
+        """A bubble, as an escaped attribute. Last part is always the source."""
+        return e("".join(parts), quote=True)
+
+    def src(doc: str, where: str) -> str:
+        return f'<div class="bsrc">source: {e(doc)} \u00b7 {e(where)}</div>'
+
+    def step_bubble(step: str) -> str:
+        t = title_of.get(step, "")
+        b = band_of_step.get(step)
+        dw = done_when_full.get(step)
+        pre = precon.get(step) or "\u2014"
+        vfy = verify.get(step) or "\u2014"
+        body = [f'<div class="bt">{e(step)} \u2014 {e(t)}</div>']
+        if b:
+            body.append(f'<div class="br"><span>band</span>{e(b["id"])} \u00b7 '
+                        f'{e(b["name"])} \u2014 {e(b["delivers"])}</div>')
+        if dw:
+            body.append(f'<div class="br"><span>done when</span>{e(dw)}</div>')
+        else:
+            body.append('<div class="br bad"><span>done when</span>'
+                        'no Done-when in the procedure \u2014 nothing states what '
+                        'this step has to achieve</div>')
+        body.append(f'<div class="br"><span>precondition</span>{e(pre)}</div>')
+        body.append(f'<div class="br"><span>verify</span>{e(vfy)}</div>')
+        body.append(src("REFACTORING_PROCEDURE.md",
+                        f"Step {step} \u00b7 Appendix D"))
+        return "".join(body)
+
+    def section_bubble(sec: str, scope: str) -> str:
+        m = marker_of.get(sec)
+        t = titles.get(sec, "")
+        body = [f'<div class="bt">{e(sec)} \u2014 {e(t)}</div>']
+        st = m["state"] if m else "unmeasured"
+        body.append(f'<div class="br"><span>state</span>{glyph[st]} '
+                    f'{e(STATE_WORDS[st])}</div>')
+        if m:
+            why = re.sub(r"\s+", " ", re.sub(r"\*\*|`|>", "", m["text"])).strip()
+            body.append(f'<div class="br"><span>why</span>{e(why[:520])}</div>')
+            if m["closes"]:
+                cl = ", ".join(f'{c} \u2014 {title_of.get(c, "")}'.strip(" \u2014")
+                               for c in m["closes"])
+                body.append(f'<div class="br"><span>closes</span>{e(cl)}</div>')
+            elif st != "built":
+                # A BUILT item needs no closing step; only an open one does,
+                # and saying "no step owns this" on finished work reads as a
+                # defect that is not there.
+                body.append('<div class="br bad"><span>closes</span>'
+                            'no step owns this</div>')
+        else:
+            body.append('<div class="br bad"><span>closes</span>'
+                        'nothing marks it, so nothing measures it</div>')
+        # Hoisted: Python 3.11 forbids a backslash inside an f-string
+        # EXPRESSION, and these two strings carry an escaped em dash.
+        scope_words = ("SHARED \u2014 every phase traverses it"
+                       if scope == "SHARED" else "PHASE \u2014 per phase")
+        body.append(
+            '<div class="br"><span>scope</span>' + scope_words + "</div>")
+        body.append(src("ARCHITECTURE.md", f"{sec} \u00b7 \u00a755.3"))
+        return "".join(body)
+
+    def gap_bubble(g: str) -> str:
+        v = gaps.get(g, {})
+        desc = re.sub(r"\s+", " ", v.get("desc", ""))[:340]
+        blocks = [r["step"] for r in rows
+                  if re.search(rf"\b{re.escape(r['step'])}\b", v.get("desc", ""))]
+        body = [f'<div class="bt">{e(g)}</div>',
+                f'<div class="br"><span>what it is</span>{e(desc)}</div>']
+        if blocks:
+            body.append('<div class="br"><span>blocks</span>'
+                        + e(", ".join(f'{b} \u2014 {title_of.get(b, "")}'.strip(" \u2014")
+                                      for b in blocks[:6])) + "</div>")
+        body.append(src("ARCHITECTURE.md", f"\u00a766 \u00b7 the SPEC-GAP register"))
+        return "".join(body)
+
+    def gnums(m: dict) -> str:
+        hits = [g for g, v in gaps.items()
+                if not v["closed"] and (v["refs"] & m["aliases"])]
+        return ", ".join(sorted(hits, key=lambda g: -int(g.split("-")[1])))
+
     by_seq = sorted(rows, key=lambda r: r["seq"])
     seq_of = {r["step"]: r["seq"] for r in rows}
     pointer = next((r["step"] for r in rows if r["lane"] == "BUILDING NOW"), None)
@@ -578,11 +769,6 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
     built = [m for m in markers if m["state"] == "built"]
     defective = [m for m in markers if m["state"] == "defect"]
     unbuilt = [m for m in markers if m["state"] in ("unbuilt", "blocked")]
-
-    def gnums(m: dict) -> str:
-        hits = [g for g, v in gaps.items()
-                if not v["closed"] and (v["refs"] & m["aliases"])]
-        return ", ".join(sorted(hits, key=lambda g: -int(g.split("-")[1])))
 
     health = []
     for title, items, cls, note in (
@@ -621,7 +807,8 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
                 'nothing states what this step has to achieve</div>')
         mark = ' \u25b6' if r["step"] == pointer else ""
         slice_rows.append(
-            f'<li class="{"cursor" if r["step"] == pointer else ""}">'
+            f'<li class="{"cursor" if r["step"] == pointer else ""}"'
+            f' data-b="{bub(step_bubble(r["step"]))}">'
             f'<div class="sh"><b>{e(r["step"])}{mark}</b> {e(r["title"])}'
             f'<span class="badge {LANE_CLASS[r["lane"]]}">{e(r["lane"])}</span></div>'
             f'{goal}</li>')
@@ -652,7 +839,8 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
         left = [r for r in mine if r["lane"] != "DONE"]
         cards = "".join(
             f'<div class="bcard {LANE_CLASS[r["lane"]]}'
-            f'{" cursor" if r["step"] == pointer else ""}">'
+            f'{" cursor" if r["step"] == pointer else ""}"'
+            f' data-b="{bub(step_bubble(r["step"]))}">'
             f'<div class="bstep">{e(r["step"])}'
             f'{cursor_mark if r["step"] == pointer else ""}</div>'
             f'<div class="btitle">{e(r["title"])}</div>'
@@ -667,44 +855,86 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
             f'</h3><div class="bdel">{e(b["delivers"])}</div>'
             f'<div class="bcards">{cards}</div></section>')
 
-    # ── The phase completeness view (§55.3). ─────────────────────
+    # ── The completeness panel (§55.3), with hover detail. ────────────────
     #
-    # **The denominator is §55.3, not the three markers named after the
-    # phase.** That older fraction read "Define 1/3" and measured the wrong
-    # thing entirely - the sections NAMED after a phase, not the sections a
-    # phase DEPENDS ON. A phase running end to end traverses all fifty-one.
-    rank = {"built": 0, "defect": 1, "unbuilt": 2, "blocked": 3,
-            "unmeasured": 4}
-    glyph = {"built": "✅", "defect": "⚠️", "unbuilt": "☐",
-             "blocked": "⛔", "unmeasured": "?"}
-    comp = phase_completeness(comp_set, markers)
+    # **COMPLETE and OPEN, both named.** The panel used to show five fractions
+    # and a row of chips; a fraction says how far, never what is left. Every
+    # item renders as "§49 — API surface" and never as a bare number.
+    #
+    # **Every bubble is read from a source document at generation time.** The
+    # generator types no title, no Done-when and no gap text - if it did, the
+    # bubble would be a fourth copy of a sentence nobody edits.
+    # ── the SHARED block ──────────────────────────────────────────────────
+    shared = [it for it in comp["Define"] if it["scope"] == "SHARED"]
+    done_items = [it for it in shared if it["state"] == "built"]
 
-    phase_html = []
-    for name, _digit in PHASE_ROWS[1:]:
-        rows_p = comp[name]
-        nb = sum(1 for r in rows_p if r["state"] == "built")
-        nd = sum(1 for r in rows_p if r["state"] == "defect")
-        nn = sum(1 for r in rows_p if r["state"] in ("unbuilt", "blocked"))
-        nu = sum(1 for r in rows_p if r["state"] == "unmeasured")
-        pct_p = round(100 * nb / len(rows_p))
-        cells = []
-        for r in rows_p:
-            lbl = (r["sec_resolved"] + " "
-                   + titles.get(r["sec_resolved"], "")).strip()
-            tag = "<b>S</b>" if r["scope"] == "SHARED" else "<b class=\"ph\">P</b>"
-            cells.append(
-                '<span class="cchip ' + r["state"] + '" title="' + e(lbl)
-                + '">' + glyph[r["state"]] + " " + e(r["sec_resolved"])
-                + tag + "</span>")
-        phase_html.append(
-            '<div class="pcard"><div class="ph1">' + e(name)
-            + '<span class="pfrac">' + str(nb) + " of " + str(len(rows_p))
-            + '</span></div><div class="pbar"><i style="width:'
-            + str(pct_p) + '%"></i></div>'
-            + '<div class="pmeta">' + str(nb) + " built · " + str(nd)
-            + " defective · " + str(nn) + " not built · <b>" + str(nu)
-            + ' unmeasured</b></div><div class="cchips">'
-            + "".join(cells) + "</div></div>")
+    def blocks_soonest(it: dict) -> tuple:
+        """Order OPEN by what blocks soonest: the Seq of its closing step."""
+        seqs = [seq_of_step[c] for c in it["closes"] if c in seq_of_step]
+        return (0, min(seqs)) if seqs else (1, 0)
+
+    open_items = sorted([it for it in shared if it["state"] != "built"],
+                        key=blocks_soonest)
+
+    comp_html = "".join(
+        f'<li class="ci built" data-b="{bub(section_bubble(it["sec_resolved"], it["scope"]))}">'
+        f'\u2705 {named(it["sec_resolved"])}</li>' for it in done_items)
+
+    open_html = []
+    for it in open_items:
+        sec = it["sec_resolved"]
+        m = marker_of.get(sec)
+        gn = gnums(m) if m else ""
+        if it["closes"]:
+            cl = " \u00b7 closes " + ", ".join(
+                f'<u data-b="{bub(step_bubble(c))}">{e(c)} '
+                f'{e(title_of.get(c, ""))}</u>'.strip()
+                for c in it["closes"])
+        else:
+            cl = ' \u00b7 <b class="bad">no step owns this</b>'
+        gtag = (f' <b class="gnum" data-b="{bub(gap_bubble(gn.split(", ")[0]))}">'
+                f'{e(gn)}</b>') if gn else ""
+        open_html.append(
+            f'<li class="ci {it["state"]}" '
+            f'data-b="{bub(section_bubble(sec, it["scope"]))}">'
+            f'{glyph[it["state"]]} {named(sec)}{gtag} \u00b7 '
+            f'<i>{e(STATE_WORDS[it["state"]])}</i>{cl}</li>')
+
+    # ── one line per phase: what DIFFERS ──────────────────────────────────
+    subs = read_phase_subsections()
+    phase_rows = []
+    for name, digit in PHASE_ROWS[1:]:
+        own = f"\u00a739.{digit}"
+        info = subs.get(own, {"n": 0, "canonical": 0, "missing": []})
+        # the phase item from §55.3 (the one PHASE-scoped row)
+        it = next(x for x in comp[name] if x["scope"] == "PHASE")
+        m = marker_of.get(own)
+        if info["missing"]:
+            differs = (f'<b class="bad">{info["n"]} of {info["canonical"]} '
+                       f'subsections</b> \u2014 {len(info["missing"])} missing: '
+                       + e(", ".join(info["missing"])))
+        else:
+            lst = f"\u00a739.{digit}.2"
+            lm = marker_of.get(lst)
+            state = lm["state"] if lm else "unmeasured"
+            differs = (f'{named(lst)} \u2014 <i>{e(STATE_WORDS[state])}</i>'
+                       + ('' if (lm and lm["closes"]) else
+                          ' \u00b7 <b class="bad">no step owns this</b>'))
+        phase_rows.append(
+            f'<tr><td class="pn" data-b="{bub(section_bubble(own, "PHASE"))}">'
+            f'{glyph[it["state"]]} {named(own)}</td>'
+            f'<td class="pd">{differs}</td></tr>')
+
+    phase_html = (
+        '<div class="shcard"><div class="shh">SHARED \u2014 the '
+        + str(len(shared)) + ' items every phase traverses</div>'
+        '<div class="shcols"><div><h5>Complete \u00b7 ' + str(len(done_items))
+        + '</h5><ul class="cil">' + comp_html + '</ul></div>'
+        '<div><h5>Open \u00b7 ' + str(len(open_items))
+        + ' <i>\u2014 soonest-blocking first</i></h5><ul class="cil">'
+        + "".join(open_html) + '</ul></div></div></div>'
+        '<table class="phd"><tr><th>Phase \u00b7 its own spec</th>'
+        '<th>What differs</th></tr>' + "".join(phase_rows) + "</table>")
 
     # ── architecture blocks (unchanged in substance) ───────────────────────
     blocks_html = []
@@ -885,7 +1115,41 @@ border-radius:8px;padding:8px 10px}}
 .btitle{{font-size:11.5px;color:var(--mut);margin:2px 0 6px;min-height:2.4em}}
 .brow{{display:flex;gap:6px;align-items:center}}
 .bzone{{margin-left:auto;font-size:9.5px;color:var(--mut);letter-spacing:.05em}}
-.pgrid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:11px}}
+.shcard{{background:var(--card);border:1px solid var(--line);border-radius:9px;
+padding:12px 14px;margin-bottom:11px}}
+.shh{{font-size:12px;letter-spacing:.05em;color:var(--mut);margin-bottom:9px}}
+.shcols{{display:grid;grid-template-columns:1fr 1.35fr;gap:18px}}
+@media(max-width:900px){{.shcols{{grid-template-columns:1fr}}}}
+.shcols h5{{margin:0 0 6px;font-size:11px;letter-spacing:.07em;text-transform:uppercase;
+color:var(--mut)}}
+.shcols h5 i{{font-style:normal;opacity:.7;text-transform:none;letter-spacing:0}}
+ul.cil{{margin:0;padding:0;list-style:none}}
+.cil .ci{{font-size:12px;padding:2px 0;border-top:1px solid var(--line);cursor:help}}
+.cil .ci:first-child{{border-top:0}}
+.cil .ci.built{{color:var(--mut)}}
+.cil .ci i{{font-style:normal;color:var(--mut)}}
+.cil .ci b.bad{{color:var(--blocked);font-weight:600}}
+.cil .ci b.gnum{{color:var(--defect);cursor:help}}
+.cil .ci u{{text-decoration:none;border-bottom:1px dotted var(--mut);cursor:help}}
+table.phd{{width:100%;border-collapse:collapse;font-size:12.5px}}
+table.phd th{{text-align:left;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;
+color:var(--mut);font-weight:600;padding:0 6px 5px}}
+table.phd td{{border-top:1px solid var(--line);padding:7px 6px;vertical-align:top}}
+td.pn{{width:340px;cursor:help}}
+td.pd b.bad{{color:var(--blocked)}}
+td.pd i{{font-style:normal;color:var(--mut)}}
+/* the hover bubble - no library, no network */
+#bub{{position:fixed;z-index:99;max-width:520px;background:var(--card);
+border:1px solid var(--line);border-left:3px solid var(--now);border-radius:9px;
+padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.18);font-size:12px;
+pointer-events:none}}
+#bub .bt{{font-weight:600;margin-bottom:5px}}
+#bub .br{{display:flex;gap:8px;padding:2px 0;align-items:baseline}}
+#bub .br>span{{flex:0 0 84px;color:var(--mut);font-size:10.5px;letter-spacing:.05em;
+text-transform:uppercase}}
+#bub .br.bad{{color:var(--blocked)}}
+#bub .bsrc{{margin-top:7px;padding-top:6px;border-top:1px solid var(--line);
+font-size:10.5px;color:var(--mut)}}
 .pcard{{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:11px 13px}}
 .ph1{{font-size:13px;font-weight:600;display:flex;align-items:baseline}}
 .pfrac{{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--mut);font-weight:400}}
@@ -956,6 +1220,8 @@ Every figure traces to Appendix D, ARCHITECTURE.md's BUILT markers, §66, or git
 <div class="tl">{n_done} of {n_all} spine steps landed · {pct}% ·
 {n_open} of {n_markers} BUILT markers still open</div>
 
+<div id="bub" hidden></div>
+
 <h2>How to read this board</h2>
 <div class="legend">{legend}</div>
 
@@ -971,8 +1237,8 @@ Every figure traces to Appendix D, ARCHITECTURE.md's BUILT markers, §66, or git
 <h2>The plan — four bands, in Seq order</h2>
 {bands}
 
-<h2>Per phase — the full dependency set a phase traverses (§55.3)</h2>
-<div class="pgrid">{phases}</div>
+<h2>What every phase traverses — complete and open (§55.3)</h2>
+{phases}
 
 <h2>Health — what the markers say, counted</h2>
 <div class="health">{health}</div>
@@ -982,6 +1248,37 @@ Every figure traces to Appendix D, ARCHITECTURE.md's BUILT markers, §66, or git
 
 <h2>Landed</h2>
 <details><summary>{n_done} steps — show</summary><div style="margin-top:8px">{landed}</div></details>
+
+<script>
+/* Hover detail. Everything shown is baked into data-b at generation time by
+   build_board.py, read from ARCHITECTURE.md and REFACTORING_PROCEDURE.md -
+   so the page is self-contained and works opened as a local file. */
+(function () {{
+  var bub = document.getElementById('bub');
+  function show(el, ev) {{
+    bub.innerHTML = el.getAttribute('data-b');
+    bub.hidden = false;
+    var r = bub.getBoundingClientRect(), pad = 12;
+    var x = Math.min(ev.clientX + 16, window.innerWidth - r.width - pad);
+    var y = ev.clientY + 18;
+    if (y + r.height > window.innerHeight - pad) y = ev.clientY - r.height - 12;
+    bub.style.left = Math.max(pad, x) + 'px';
+    bub.style.top = Math.max(pad, y) + 'px';
+  }}
+  document.addEventListener('mouseover', function (ev) {{
+    var el = ev.target.closest('[data-b]');
+    if (el) show(el, ev);
+  }});
+  document.addEventListener('mousemove', function (ev) {{
+    var el = ev.target.closest('[data-b]');
+    if (el && !bub.hidden) show(el, ev); else if (!el) bub.hidden = true;
+  }});
+  document.addEventListener('mouseout', function (ev) {{
+    if (!ev.relatedTarget || !ev.relatedTarget.closest('[data-b]'))
+      bub.hidden = true;
+  }});
+}})();
+</script>
 
 <footer><b>Bands are the plan; readiness is a badge.</b> Until 2026-09-11 this
 board led with lanes, and 11.1 and 11.2 sat in READY beside 6.18 — correct on
@@ -1028,7 +1325,8 @@ def main(argv: list[str]) -> int:
         Path(OUT).write_text(
             render(rows, markers, gaps, landed, read_bands(),
                    read_done_when(), read_section_titles(),
-                   read_completeness_set()),
+                   read_completeness_set(), read_done_when_full(),
+                   read_verify(), read_preconditions()),
             encoding="utf-8")
         print(f"  [board] {os.path.relpath(OUT, ROOT)} regenerated "
               f"— {len(rows)} steps, {len(markers)} markers")

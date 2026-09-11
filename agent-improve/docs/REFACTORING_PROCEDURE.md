@@ -615,7 +615,7 @@ document.
 
 ---
 
-## Step 3.4 — `{Phase}PhaseInput` → `{Phase}Output`, with validators and UI
+## Step 3.4 — `{Phase}PhaseInput` → `{Phase}Output` schemas, with validators and UI
 
 > ⚠ **PARTIALLY EXECUTED AHEAD OF SEQUENCE — Define only (commits `4701a09`
 > then `885defc`, 2026-08-26).** Read before running this step.
@@ -1281,7 +1281,7 @@ within a turn (§19.1).
 
 ---
 
-## Step 6.4 — Retry middleware, positions 4–5 · and the factory's hardcoded retry
+## Step 6.4 — Retry middleware, positions 4–5 · and the factory hardcoded-retry removal
 
 | | |
 |---|---|
@@ -1499,7 +1499,7 @@ and Measure opening turns are re-run and re-recorded as the new baseline.
 
 ---
 
-## Step 6.9 — The four missing SKILL.md files (§32)
+## Step 6.9 — The four missing SKILL.md files, and §32 conformance
 
 | | |
 |---|---|
@@ -2851,7 +2851,7 @@ BLOCKED.**
 
 ---
 
-## Step 8.4 — Level 3 response cache · **BLOCKED**
+## Step 8.4 — Level 3 response cache
 
 | | |
 |---|---|
@@ -2867,7 +2867,7 @@ is correct behaviour, not a bug.
 
 ---
 
-## Step 8.5 — Graceful shutdown · **GATED**
+## Step 8.5 — Graceful shutdown
 
 | | |
 |---|---|
@@ -2946,7 +2946,7 @@ does not cover it.
 
 ---
 
-## Step 9.0 — Knowledge-index rebuild · **DONE out-of-band (commit `871637f`, 2026-08-25)**
+## Step 9.0 — Knowledge-index rebuild
 
 | | |
 |---|---|
@@ -2982,7 +2982,7 @@ underneath it is rebuilt.
 
 ---
 
-## Step 9.1 — The batched reindex, case index only · **EXTERNAL**
+## Step 9.1 — The Azure batched reindex, case index only
 
 | | |
 |---|---|
@@ -3381,6 +3381,14 @@ infrastructure noise. **Read both before finalising §52.**
 > projection of something already tracked, and it is what lets a reader judge
 > whether a step is worth its slot.
 >
+> **A STEP'S BODY HEADING MAY NOT CARRY A STATUS TOKEN.** Ratified
+> 2026-09-11. Four headings carried `· **BLOCKED**`, `· **GATED**`,
+> `· **DONE out-of-band**` and `· **EXTERNAL**` — **a second, hand-maintained
+> source for the one fact this column exists to own.** A heading and a cell
+> that can disagree will. `verify_built.py`'s *step titles* check now fails
+> on a status token in a heading, and on a row whose words are not in its
+> own section heading.
+>
 > **The status column carries only what git cannot say** — `BLOCKED`, `GATED`,
 > `EXTERNAL`. It is EMPTY for every schedulable step, done or not: completion
 > is the highest `refactor(arch-v2): commit X.Y` in git log, and a status cell
@@ -3493,7 +3501,7 @@ restate, which is the opposite of what the board is for.
 | 240 | **Commit 6.6** | Prompts |  | COACH | SHARED | The five coach prompts carry no memory hierarchy and no anti-hallucination guards - the content-level defence a schema cannot provide. |
 | 250 | **Commit 6.7** | The hop cap, as §26 specifies it (WATCH 26) |  | COACH | SHARED | Retrieval has no budget, so a coach can see-saw between searches until the recursion backstop ends the turn with no answer. |
 | 260 | **Commit 6.8** | `phase_context` is read (WATCH 19) |  | PHASE | SHARED | The composed project context is declared and read by nothing, so the coach opens every phase as though the project had just started. |
-| 270 | **Commit 6.9** | SKILL.md conformance to §32's seven |  | COACH | SHARED | Four of five phases run progressive disclosure against nothing, so the coach has no phase-specific method to follow. |
+| 270 | **Commit 6.9** | The four missing SKILL.md files + §32 conformance |  | COACH | SHARED | Four of five phases run progressive disclosure against nothing, so the coach has no phase-specific method to follow. |
 | 280 | **Commit 6.11** | The upload path (G-36) |  | STORE | SHARED | No external data can enter the system, so every figure the coach uses is one the Belt typed into a chat box. |
 | 290 | **Commit 6.12** | Ask-binding: an upload answers a request |  | COACH | SHARED | An upload binds to its filename rather than the request that prompted it, so feeding a file to a computation tool means the coach transcribing numbers out of chunks. |
 | 300 | **Commit 6.13** | The evidence index migration |  | STORE | SHARED | Evidence and artefacts share one bucket with no role, kind or version identity, so a proposed future is retrievable later as a fact about the present. |

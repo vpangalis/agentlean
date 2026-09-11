@@ -338,6 +338,107 @@ def unpaired_state_fields() -> str:
     return " ".join(sorted(out))
 
 
+
+# ── Titles: the board renders names, so the names have to be the source's. ─
+#
+# **The board types no title anywhere** — section names come from
+# ARCHITECTURE.md's headings, step names from Appendix D. That makes the board
+# safe and moves the risk one level back: **the two sources can disagree with
+# each other**, and then the board faithfully renders a wrong name.
+#
+# Found on the first run, 2026-09-11: **seven steps**. One was semantic — 6.9's
+# row said *"SKILL.md conformance to §32's seven"* while its section said *"The
+# four missing SKILL.md files"*, two descriptions of different work. Four were
+# body headings carrying `· **BLOCKED**` / `**GATED**` / `**DONE**` /
+# `**EXTERNAL**`, **a second hand-maintained source for the one fact Appendix
+# D's Status column exists to own.**
+PROCEDURE_DOC = os.path.join(PROJECT, "docs", "REFACTORING_PROCEDURE.md")
+
+#: Words carried by both forms of a title without being part of its name.
+_TITLE_STOP = {"the", "a", "an", "and", "of", "to", "with", "its",
+               "·", "—", "in", "for", "on"}
+#: Status belongs in Appendix D's cell, never in a heading.
+_TITLE_STATUS = {"blocked", "gated", "external", "done"}
+
+
+def _title_tokens(text: str) -> set:
+    text = re.sub(r"\*\*|`", "", text).lower()
+    return {w for w in re.split(r"[^\w§'\-\{\}./]+", text)
+            if w and w not in _TITLE_STOP}
+
+
+def step_title_mismatches() -> str:
+    """Appendix D's row title vs the step's own `## Step X.Y — ...` heading.
+
+    **Not byte-equality, deliberately.** A row is a SHORT FORM — *"Middleware
+    1–3"* against *"Middleware positions 1–3"* — and demanding equality would
+    force 58 edits that make the index worse. The rule is that a short form may
+    DROP words and may not INVENT them: every significant word in the row must
+    appear in the heading. That passes abbreviation and fails drift.
+
+    Also fails a status token in a heading, which is a second source for
+    Appendix D's Status cell.
+    """
+    text = Path(PROCEDURE_DOC).read_text(encoding="utf-8")
+    i = text.index("## Appendix D")
+    j = text.index("## Appendix E", i)
+    rows = {m.group(1): m.group(2).strip() for m in re.finditer(
+        r"^\| \d+ \| \*\*Commit (\d+\.\d+)\*\* \| (.*?) \| ?\w* ?\| \w+ \| \w+ \|",
+        text[i:j], re.M)}
+    heads = {m.group(1): m.group(2).strip() for m in re.finditer(
+        r"^## Step (\d+\.\d+) — (.+?)\s*$", text, re.M)}
+
+    bad = []
+    for step in sorted(set(rows) | set(heads),
+                       key=lambda x: tuple(int(n) for n in x.split("."))):
+        if step not in heads:
+            bad.append(f"{step}:no-section")
+            continue
+        if step not in rows:
+            bad.append(f"{step}:no-row")
+            continue
+        invented = _title_tokens(rows[step]) - _title_tokens(heads[step])
+        if invented:
+            bad.append(f"{step}:row-invents({','.join(sorted(invented))})")
+        status = _title_tokens(heads[step]) & _TITLE_STATUS
+        if status:
+            bad.append(f"{step}:status-in-heading({','.join(sorted(status))})")
+    return " ".join(bad)
+
+
+def section_title_sources() -> str:
+    """How many rendered names the board TYPES rather than reads. Must be 0.
+
+    `build_board.py` must derive every section name from ARCHITECTURE.md's
+    headings and every step name from Appendix D. A literal title in the
+    generator is a third copy, and the one that cannot be corrected by editing
+    a document.
+    """
+    src = Path(os.path.join(ROOT, ".claude", "hooks", "build_board.py")
+               ).read_text(encoding="utf-8")
+    # **The RENDERED form, not "any string with a § in it".** The first cut
+    # matched `"§55.3 found but no rows matched the row format"` - an error
+    # message - and reported a typed title that did not exist. A check whose
+    # failures are its own regex teaches you to ignore it, which is the one
+    # thing this file exists to prevent.
+    #
+    # The board renders `§N — Title`; a typed name would have to look like
+    # that, or map a section to prose in a literal.
+    # **STRING LITERALS ONLY, via `ast`** - the third cut of this probe. A
+    # regex over raw source counted the example inside a COMMENT that
+    # explains the rule ("§49 — API surface"), and reported a typed title
+    # that does not exist. Comments are not rendered; `ast` never sees them.
+    import ast
+
+    rx = re.compile(r"^§\d+(?:\.\d+)*\s+—\s+[A-Za-z].{3,}")
+    n = 0
+    for node in ast.walk(ast.parse(src)):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if rx.match(node.value.strip()):
+                n += 1
+    return str(n)
+
+
 # ── The checks. (label, expected, probe, which BUILT marker it backs) ──────
 #
 # `expected` is written here rather than parsed out of the prose, deliberately:
@@ -504,6 +605,21 @@ CHECKS = [
      "rejection_feedback and acknowledged_gaps need the gate (7.3, 7.4); "
      "**final_output has NO OWNING STEP**. Exemptions are declared in "
      "PAIRING_EXEMPT with reasons"),
+
+    # The board renders NAMES. These two keep the names honest: the first that
+    # the two sources agree with each other, the second that the generator
+    # reads them rather than carrying its own copy.
+    ("step titles — Appendix D row vs its own section heading", "",
+     step_title_mismatches,
+     "Appendix D · a row may DROP words (it is a short form) and may not "
+     "INVENT them, and a heading may not carry a status token — that is "
+     "Appendix D's Status cell's job. Seven steps failed on 2026-09-11"),
+
+    ("section names TYPED into build_board.py", "0",
+     section_title_sources,
+     "§55.2 — every rendered name is read from a heading or from Appendix D. "
+     "A literal in the generator is a third copy, and the only one an editor "
+     "cannot correct by editing a document"),
 ]
 
 

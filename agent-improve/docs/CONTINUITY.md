@@ -12,7 +12,7 @@
 | **Spine steps landed** | 31 of 58 |
 | **Last spine commit** | `336cd69` (commit 6.16) |
 | **ARCHITECTURE.md** | v1.28 |
-| **CLAUDE.md** | v2.2.34 |
+| **CLAUDE.md** | v2.2.35 |
 | **Block regenerated** | 2026-09-11 |
 
 *`Last completed` and the landed count come from **git log** — the
