@@ -1560,6 +1560,26 @@ coach close out gracefully.
 *Supersedes: REFACTORING §5, §11, §20; ARCHITECTURE.md §3.5; CLAUDE.md §1.3.*
 **Status: RATIFIED.**
 
+> **BUILT:** ⚠️ built with a known defect · **the split exists structurally and does not hold at runtime** (**G-49**) · **closes:** `[6.18]`
+>
+> Both nodes exist, the planner emits a structured plan, and a LangSmith trace
+> shows the two spans in order. **But the executor does not act on the plan it
+> is given**: handed *"call `load_evidence_series` on
+> `uploads/IMPR-2026-ED8/complaints.csv`"* it issues ~6 `rag_lookup_evidence`
+> calls and never calls the named tool, until the 45s node timeout ends the
+> turn. **The routing decision this section assigns to the planner is
+> advisory in practice**, which is not a degraded split — it is the split not
+> existing where it matters.
+>
+> **MARKER ADDED 2026-09-11, and its absence was itself the finding.** G-49 was
+> registered on 2026-09-10 and **no section carried a marker for it**, because
+> the code is *built* — nothing here is missing, it misbehaves. So the board's
+> architecture view showed this block clean while four landed steps sat blocked
+> on it. **A `☐ not built` vocabulary cannot express "built and wrong"**; that
+> is what `⚠️ built with a known defect` is for, and it was not used here.
+> Blocks the `live-run` half of 6.7, 6.12 and 6.13 — and nominally 6.9, which
+> step 6.18 rules on.
+
 Each phase subgraph contains a **Planner-Executor pair**, not a single coaching
 node.
 
@@ -7578,11 +7598,17 @@ presents as visually distinct sections, not a paragraph block:
 carries these as **discrete presentational fields** (`explanation`, `example`,
 `prompt`, `progress`), not one free-text blob (§20, S-C05).
 
-> **BUILT:** ☐ not built · **the four fields do not exist on the built · **closes:** `[10.2]`
-> `CoachingResponse`** (S-C05's marker, **G-50**). Until step 10.2 this rule is
-> stated and unenforced, and the five SKILL.md files instruct the coach to
-> populate four fields the response schema cannot receive — which is why
-> **WATCH 9 is NOT closed by step 6.9**, contrary to that step's own body **Prose one turn
+> **BUILT:** ☐ not built · **these four fields do not exist** (**G-50**) · **closes:** `[6.19]`
+>
+> The built `CoachingResponse` carries `message`, `fields_captured`, `citations`
+> and `contradiction_flag` — see S-C05's marker. **Until step 6.19 declares
+> them, this rule is stated and unenforced**, and the five SKILL.md files
+> instruct the coach to populate four fields the response schema cannot
+> receive — which is why **WATCH 9 is NOT closed by step 6.9**, contrary to
+> that step's own body. **6.19 declares them; 10.2 renders them and cannot run
+> first.**
+
+**Prose one turn
 and structure the next erodes trust**, and a prompt asking for structure
 produces exactly that inconsistency; a schema field cannot be skipped. The UI
 renders one block per field and never parses prose to find the boundaries.
@@ -8860,7 +8886,7 @@ model at temperature 0.1 — a plain model invocation, not an agent, so
 **Architecture:** §20 · **File:** `phases/{phase}/schema.py` or `core/substate.py` · **Procedure:** step 6.2
 *Rebuild test: reconstructable from this entry alone.*
 
-> **BUILT:** ⚠️ built with a known defect · **4 of the 8 fields below exist** · **closes:** `[10.2]`
+> **BUILT:** ⚠️ built with a known defect · **4 of the 8 fields below exist** (**G-50**) · **closes:** `[6.19]`
 > — `message`, `fields_captured`, `citations`, `contradiction_flag`. **§50.1's
 > four presentational fields — `explanation`, `example`, `prompt`, `progress`
 > — are NOT BUILT** (**G-50**), so the render contract §50.1 calls
@@ -8869,8 +8895,13 @@ model at temperature 0.1 — a plain model invocation, not an agent, so
 > forbids. **Found 2026-09-11 by the three-way alignment audit; the rebuild
 > test above is what it failed.** The built class's own docstring reads *"the
 > four fields below are transcribed from that entry"* against an entry defining
-> eight — a conformance claim made in the file that breaks it. Closed by step
-> **10.2**, which is the step that renders them
+> eight — a conformance claim made in the file that breaks it.
+>
+> **Closed by step 6.19, not by 10.2** — which was the first guess and was
+> wrong. **10.2 RENDERS these fields; it cannot DECLARE them**, and it sits
+> behind seven Stage-7 steps while 6.19 is `READY` now. The four are already
+> ratified here, so 6.19 applies a ratified definition rather than amending
+> one, on the RATIFIED-NOT-YET-APPLIED precedent §23.2 set
 
 **Purpose:** The per-turn structured output of the executor, produced via
 `response_format=` on `create_agent`. It carries the Belt-facing coaching text,
@@ -12291,8 +12322,8 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | ~~**G-03**~~ | **RESOLVED 2026-08-24** — `PhaseState` gains `case_id` and `current_phase`, copied down by the input mapper and read-only in the subgraph. See §66.6 and DECISIONS §T1 | — |
 | **G-05** | `extracted_entity` is read off `PhaseState` (§26); undeclared, and no writer is named anywhere | S-C02, S-F09 |
 | **G-47** | **§49's endpoint table and S-F34's copy of it are not what `gateway/routes.py` serves.** Six routes exist in the tree and in neither table — `/health`, `/summarise`, `/context`, `POST /gate`, `/gate/review/{case}/{phase}`, `/files/{case}/{file}`. **`POST /gate` is a shape disagreement rather than an omission**: the spec ratifies three gate routes and the tree serves one. `/ask/stream` is the opposite case and is excluded — ratified, unbuilt, owned by step 10.1. **This is a spec-versus-tree cross-check, not the state-schema class the rest of this group holds**, and it is here because that is what the group's title covers. Raised 2026-09-08 while scoping 6.11, when `/upload` was found to be in the tree and in neither table; that row was ratified into both (Part AP5) and the remaining six registered rather than fixed in passing — which of them are ratified, which are v1 residue dying at 11.1, and whether `/gate` becomes three are founder questions | §49, S-F34 |
-| **G-49** | **THE EXECUTOR DOES NOT CALL THE TOOL ITS OWN PLANNER NAMES.** Given a plan reading *"call `load_evidence_series` on `uploads/IMPR-2026-ED8/complaints.csv` before asking for anything further"*, the executor issues ~6 `rag_lookup_evidence` calls (19 underlying searches, 3 per multi-query) and **never calls `load_evidence_series` at all**, until the 45s per-node timeout ends the turn. No `uploads/` blob is fetched in the whole turn. **Found at step 6.13, reproduced identically at `1714d75` on 6.12's code**, so it belongs to neither step. **It blocks the `live-run` half of 6.7, 6.9, 6.12 and 6.13** — all four run through this path, and no Define turn on `IMPR-2026-ED8` completes. §17's planner/executor split gives the planner the routing decision and the executor the execution; here the executor silently substitutes its own. Diagnosis is a step of its own. `DECISIONS.md` Part AU2 | S-F04, S-F13, S-F57, §17, §26 |
-| **G-50** | **`CoachingResponse` IS BUILT AT 4 OF S-C05's 8 FIELDS.** `explanation`, `example`, `prompt` and `progress` — §50.1's render contract, the four blocks the UI is specified to draw one per field — **are not on the class**, so the only presentational field the UI receives is `message`: the single free-text blob §50.1 exists to forbid. **All five SKILL.md files instruct the coach to populate them** (step 6.9's second mandatory instruction, WATCH 9), so five live prompts name four fields the response schema cannot receive — **the instruction is inert, and WATCH 9 is therefore not closed by 6.9 as that step's body claims.** Step 6.2's Done-when asks only that a turn return *a* `CoachingResponse`, so four of eight satisfied it. The built class's docstring asserts *"the four fields below are transcribed from that entry"* against an entry defining eight — **S-C05's rebuild test, failed inside the file that cites it.** Found 2026-09-11 by the three-way alignment audit. Closes at step 10.2 | S-C05, §20, §50.1, §32 |
+| **G-49** | **THE EXECUTOR DOES NOT CALL THE TOOL ITS OWN PLANNER NAMES.** Given a plan reading *"call `load_evidence_series` on `uploads/IMPR-2026-ED8/complaints.csv` before asking for anything further"*, the executor issues ~6 `rag_lookup_evidence` calls (19 underlying searches, 3 per multi-query) and **never calls `load_evidence_series` at all**, until the 45s per-node timeout ends the turn. No `uploads/` blob is fetched in the whole turn. **Found at step 6.13, reproduced identically at `1714d75` on 6.12's code**, so it belongs to neither step. **It blocks the `live-run` half of 6.7, 6.9, 6.12 and 6.13** — all four run through this path, and no Define turn on `IMPR-2026-ED8` completes. §17's planner/executor split gives the planner the routing decision and the executor the execution; here the executor silently substitutes its own. **Diagnosis is a step of its own, and it is now NUMBERED: step 6.18** (added 2026-09-11, `READY`, no precondition). **⚠ The claim that it blocks 6.9 is under review IN that step:** 6.9's Verify is `pytest` and every clause of its Done-when is satisfied by the tree, so it may never have belonged on this list — 6.18 settles that rather than carrying it a fifth time. `DECISIONS.md` Part AU2 | S-F04, S-F13, S-F57, §17, §26 |
+| **G-50** | **`CoachingResponse` IS BUILT AT 4 OF S-C05's 8 FIELDS.** `explanation`, `example`, `prompt` and `progress` — §50.1's render contract, the four blocks the UI is specified to draw one per field — **are not on the class**, so the only presentational field the UI receives is `message`: the single free-text blob §50.1 exists to forbid. **All five SKILL.md files instruct the coach to populate them** (step 6.9's second mandatory instruction, WATCH 9), so five live prompts name four fields the response schema cannot receive — **the instruction is inert, and WATCH 9 is therefore not closed by 6.9 as that step's body claims.** Step 6.2's Done-when asks only that a turn return *a* `CoachingResponse`, so four of eight satisfied it. The built class's docstring asserts *"the four fields below are transcribed from that entry"* against an entry defining eight — **S-C05's rebuild test, failed inside the file that cites it.** Found 2026-09-11 by the three-way alignment audit. **Closed by step 6.19** (added 2026-09-11, `READY`, no precondition) — **not by 10.2, which was the first guess and was wrong.** 10.2 RENDERS the fields; it cannot declare them, and it is queued behind seven Stage-7 steps while this is ready now. The four are already RATIFIED, so 6.19 applies a ratified definition rather than amending one | S-C05, §20, §50.1, §32 |
 | **G-51** | **`storage/models.py` DEFINES ELEVEN MODELS AND S-C09 NAMES SIX.** Unnamed: `AnalystOutputRecord`, `CaseRegistry`, `ChartRecord`, `CitationRecord`, `TeamMemberRecord`. **The same shape as Part AP6 one level up** — AP6 found six `UploadRecord` fields in the tree and in no document; nothing then checked the model LIST. `CaseRegistry` is the sharpest: `GET /registry`, which §49 ratifies, returns it. Found 2026-09-11 by the three-way alignment audit | S-C09, §10, §23.3 |
 | **G-48** | **`backend/upload/**` makes a plain model call for a typed result and is on none of the four paths `pattern-2` permits.** §4.6 scopes the builder-style structured-output call to *"a plain model invocation inside a tool, middleware, or validator"*, plus the phase planner; `deprecated_patterns.yaml` excludes exactly `knowledge/**`, `middleware/**`, `phases/**/validate.py`, `phases/**/orchestrate.py` and the planner's site. **The upload interpretation is structurally the same call** — not an agent, no model-tools loop for `response_format=` to attach to — and the hook blocks it, so the call parses JSON by hand. **The cost is already recorded**: the prompt was written for the binding, the call was switched to parsing, and the prompt was not — so every summary was the degradation fallback and 781 green tests could not see it, because none crossed that boundary (Part AP6). A schema binding cannot drift out of contract with its own parser; a hand-written one can, and did. **Registered OPEN and deliberately not fixed here** — §8 forbids amending a rule in passing during a feature change, and the ruling waits on reading what `9fce8fc` recorded when it scoped `pattern-2`. The registry's own comment already says twice that "the exclusion list simply predated the files"; this would be the third instance | §4.6, `deprecated_patterns.yaml` |
 | **G-06** | `extraction_error` and `extraction_incomplete` are written into `PhaseState` by `phase_error_recovery` (§45); neither is declared | S-C02, S-F29 |

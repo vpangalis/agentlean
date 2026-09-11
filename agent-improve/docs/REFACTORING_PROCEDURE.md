@@ -2264,6 +2264,165 @@ hand-written board survives.
 
 ---
 
+## Step 6.18 — The executor ignores the tool its own planner names (G-49)
+
+| | |
+|---|---|
+| **Reference §** | §17 (planner/executor split) · §26 · §58.18 S-F04 · S-F13 · §60.7 S-F57 |
+| **Touches** | `phases/nodes_common.py` (the executor's tool binding and system prompt) · `backend/tests/test_executor.py` |
+| **Precondition** | none — **READY**. It needs no unbuilt step; the failing path is fully built |
+| **Verify** | `live-run`, then `pytest` — **in that order, and that is unusual** |
+
+**A DIAGNOSIS STEP. Its deliverable is a cause, not a feature.** Registered as
+**G-49** on 2026-09-10, found while running 6.13's `live-run`, and **reproduced
+identically at `1714d75` on 6.12's code** — so it belongs to neither step and
+has no owner until this one.
+
+### What was observed, and it is precise
+
+`POST /ask` on `IMPR-2026-ED8`, a Belt asking what the to-be process is:
+
+- The **planner routes correctly** — *"routing to an UNREAD upload … call
+  `load_evidence_series` on `uploads/IMPR-2026-ED8/complaints.csv`"*. The plan
+  names a specific tool and a specific blob path.
+- The **executor then calls `rag_lookup_evidence` roughly six times** —
+  nineteen underlying searches, three per multi-query call — **and never calls
+  `load_evidence_series` at all.**
+- No `uploads/` blob is fetched in the entire turn. The 45s node timeout ends
+  it: *"Node 'executor' exceeded its run timeout of 45.000s"*.
+
+### Why this is a step of its own rather than a bug fix
+
+**§17 gives the planner the routing decision and the executor the execution.**
+Here the executor silently substitutes its own strategy — which is not a
+degraded version of the split, it is the split not existing at runtime. **A fix
+guessed at before the cause is known would most likely be prompt wording**, and
+prompt wording is exactly what cannot be shown to have worked: the failure is
+probabilistic and the same request must be replayable against a changed build.
+
+**IT BLOCKS THE `live-run` HALF OF FOUR LANDED STEPS** — 6.7, 6.9, 6.12 and
+6.13 — because all four verify through a path that cannot currently complete a
+Define turn on this case. That is what makes this schedulable rather than
+merely open: **four steps carry verification debt that only this step can
+discharge.**
+
+> **⚠ 6.9 IS ON THAT LIST AND SHOULD PROBABLY NOT BE.** Found by the three-way
+> alignment audit, 2026-09-11: 6.9's **Verify is `pytest`** and **every clause
+> of its Done-when is satisfied by the tree** — five SKILL.md files, both
+> mandatory instructions, a test asserting the count and both instructions per
+> file. It has no live clause at all. **Either its Done-when is missing a
+> clause someone intended when they filed it under G-49, or it never belonged
+> there.** Settle that here rather than carrying it a fifth time — and if it
+> never belonged, say so in the commit body and take 6.9 off the G-49 register
+> entry in the same pass.
+
+### What the step must produce
+
+1. **A reproduction that is not a story.** The request, the case, the build,
+   and the observed tool sequence, runnable again after a change. The 2026-09-10
+   revert-to-`1714d75` reproduction is the model.
+2. **A cause, named at one of four layers** — and it is worth stating them up
+   front because they need different fixes and only one is a prompt change:
+   the tool is not bound at call time; the plan does not reach the executor's
+   context; the model sees the plan and deprioritises it; or `load_evidence_series`
+   is bound but unattractive next to three multi-query retrieval tools.
+3. **A deterministic test that fails on today's build.** The `pytest` half runs
+   **after** the `live-run`, which inverts this document's usual order, because
+   **there is nothing to pin until the cause is known.** A test written first
+   would pin the symptom — a timeout — and pass the day the timeout is raised.
+
+> **THE FIX MAY NOT BELONG TO THIS STEP.** If the cause is structural — the
+> executor needing a bound-tool ordering rule, or the planner's instruction
+> needing to arrive as something other than prose — that is a change to §17 or
+> §26 and lands as a §56 amendment plus its own step. **This step ends when the
+> cause is established and the four blocked live-runs can be scheduled**, not
+> necessarily when the behaviour changes.
+
+**Done when:** the reproduction is recorded and re-runnable; the cause is named
+at one of the four layers above with the evidence that distinguishes it from
+the other three; a test that fails on the unfixed build exists; the G-49
+register entry carries the cause and its `live-run`-blocking claim is narrowed
+to the steps it actually blocks; and **the `live-run` halves of 6.7, 6.12 and
+6.13 are either run or explicitly re-scheduled with a date** — 6.9 per the
+ruling taken above.
+
+---
+
+## Step 6.19 — `CoachingResponse` gains §50.1's four presentational fields (G-50)
+
+| | |
+|---|---|
+| **Reference §** | §20 · §58.5 S-C05 · §50.1 · §32 · §43 |
+| **Touches** | `core/substate.py` (`CoachingResponse`) · `phases/nodes_common.py` (the executor node's write path) · `gateway/schemas.py` · `backend/tests/test_executor.py` · the five `skills/dmaic-{phase}-phase/SKILL.md` only if their wording proves wrong |
+| **Precondition** | none — **READY**. The schema is the whole of it; no unbuilt step gates it |
+| **Verify** | `pytest` |
+
+**Registered as G-50 by the three-way alignment audit, 2026-09-11.** S-C05
+ratifies **eight** fields and the built class carries **four**: `message`,
+`fields_captured`, `citations`, `contradiction_flag`. **`explanation`,
+`example`, `prompt` and `progress` do not exist.**
+
+### Why this is not cosmetic
+
+**§50.1 calls this contract *"schema-backed, not prompt-hoped"* and today it is
+prompt-hoped.** The one presentational field the UI receives is `message` —
+**the single free-text blob that section exists to forbid.** Its own reasoning:
+*"prose one turn and structure the next erodes trust, and a prompt asking for
+structure produces exactly that inconsistency; a schema field cannot be
+skipped."*
+
+**There is nothing structured for a gate UI to display.** Step 10.2 renders the
+live gate document and 10.1 streams the turn; both assume one block per field
+and neither can be built against a blob. **This step is upstream of both**, and
+it is `READY` while they are not, which is the argument for doing it early
+rather than folding it into 10.2.
+
+**Five SKILL.md files already instruct the coach to fill these four fields** —
+that is step 6.9's second mandatory instruction, and the files name
+`CoachingResponse.explanation` and the rest explicitly. **So five live prompts
+currently name four fields the response schema cannot receive.** The
+instruction is not wrong; it is inert, and it has been since 6.9.
+
+> **⚑ THIS IS WHAT ACTUALLY CLOSES WATCH 9, AND 6.9's SECTION CLAIMS TO.**
+> That step's body reads *"without which `explanation`/`example`/`prompt`/
+> `progress` stay empty for that phase"* — true, and it treats the SKILL.md
+> instruction as sufficient. It is not: the fields must exist before an
+> instruction to populate them can do anything. **6.9's claim on WATCH 9 is
+> corrected when this lands**, and until then WATCH 9 is open with 6.9 marked
+> done, which is the ambiguity the alignment audit exists to remove.
+
+### The rebuild test failed inside the file that cites it
+
+`core/substate.py`'s docstring reads *"the four fields below are transcribed
+from that entry"* — against an entry defining eight. **S-C05 carries a rebuild
+test** (*"reconstructable from this entry alone"*) and the built class asserts
+conformance to it in prose while breaking it. **Correct the docstring in the
+same commit**; a transcription claim that survives the transcription being
+completed is the next stale caption.
+
+**`message` is NOT replaced and the split is the point.** S-C05 is explicit:
+`message` is the **transcript** entry, appended to `messages` and compressed by
+§19.3's summarization; the four are the **render contract**, drawn one block
+per field. **Collapsing them is what §50.1 forbids; dropping `message` would
+leave the conversation history with nothing to append.** Eight fields, not
+four renamed.
+
+> **ADDING A FIELD HERE REQUIRES A §56 AMENDMENT** — S-C05 says so, the same as
+> `SupervisorState` and `PhaseState`. **These four are already ratified**, so
+> this step APPLIES a ratified definition rather than amending one, on the
+> RATIFIED-NOT-YET-APPLIED precedent §23.2 set. No amendment is owed; the BUILT
+> marker and the G-50 register entry move to closed.
+
+**Done when:** `CoachingResponse.model_fields` is exactly S-C05's eight; the
+executor node writes all four from the turn and a test asserts each is
+non-empty on a turn that coaches; `gateway/schemas.py` carries them to the API
+boundary; `verify_built.py`'s `CoachingResponse fields (S-C05)` check expects
+all eight and passes; the class docstring no longer claims to transcribe four;
+and S-C05's BUILT marker plus §50.1's are both updated, with **G-50 closed in
+§66 and the register counts moved**.
+
+---
+
 # Part 6 — Stage 7: Validation and gates
 
 ---
@@ -2888,9 +3047,9 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **DONE** | 31 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16** |
 | **BUILDING NOW** | 1 | **6.17** — The count-check — a written count against the list it describes |
 | **BLOCKED** | 6 | **6.10** (BLOCKED), **6.14** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL) |
-| **QUEUED** | 17 | **7.0**, **7.1**, **7.2**, **7.3**, **7.4**, **7.5**, **7.6**, **8.0**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **10.2**, **11.1**, **11.2** |
+| **QUEUED** | 19 | **6.18**, **6.19**, **7.0**, **7.1**, **7.2**, **7.3**, **7.4**, **7.5**, **7.6**, **8.0**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **10.2**, **11.1**, **11.2** |
 
-*55 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-11.*
+*57 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-11.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -2944,6 +3103,8 @@ reference section is not a step — it is an undocumented decision.
 | 6.13 | §23.2, §23.2.1, §23.4, §24, §6 / S-C02, S-C09 | `azure-query` + `live-run` |
 | 6.14 | §32, §43, §23.2.1 | `pytest` |
 | 6.17 | §55.1, §6 / S-C02, §29.2 | `pytest` |
+| 6.18 | §17, §26, S-F04, S-F13, S-F57 | `live-run` |
+| 6.19 | §20, S-C05, §50.1 | `pytest` |
 | 6.16 | §55.1, §66, Appendix D | `grep-absence` + a commit that moves a step |
 | 7.0 | §52 | `pytest` |
 | 7.1 | §34, §35 | `pytest` |
@@ -3133,6 +3294,8 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 6.14** | SKILL.md shape pass — Define, Analyse, Improve, Control | BLOCKED | COACH | Four of five phases cannot ask for a file in a shape they can validate, so 6.12's ask-binding works for Measure alone. |
 | **Commit 6.16** | The board is generated, not written |  | OPS | The board a founder reads is hand-drawn and stale from the first commit after it is drawn. |
 | **Commit 6.17** | The count-check — a written count against the list it describes |  | OPS | A written count and the list it describes can disagree indefinitely - the failure five captions in this repository have already had. |
+| **Commit 6.18** | The executor ignores the tool its planner names (G-49) |  | COACH | The planner's routing decision is advisory, so a Belt asking a question whose answer is in an uploaded file gets a timeout instead - and four landed steps keep verification debt nothing else can discharge. |
+| **Commit 6.19** | `CoachingResponse` gains §50.1's four presentational fields (G-50) |  | COACH | Every coaching turn arrives as one prose blob, so there is nothing structured for a gate UI to display and five SKILL.md files keep instructing the coach to fill fields that do not exist. |
 | **Commit 7.0** | The evaluation suite |  | GATE | Coaching quality has no baseline, so no later change can be shown to have improved or regressed it. |
 | **Commit 7.1** | `DMAICGateValidator` + Layer 2b |  | GATE | Nothing checks a gate document against its phase's rules, so a gate passes on presence rather than on correctness. |
 | **Commit 7.2** | Layers 2c, 2d + `validation_stack` |  | GATE | Cross-phase consistency and statistical validity go unchecked, so Measure can contradict Define and both pass. |

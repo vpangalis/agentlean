@@ -109,6 +109,7 @@ MARKER_HOME: dict[str, tuple[str, str]] = {
     "§19.6":  ("5", "COACH"),   # gate-ish work, but structurally middleware
     "§19.7":  ("5", "COACH"),   # gate-ish work, but structurally middleware
     "§19.8":  ("5", "COACH"),   # gate-ish work, but structurally middleware
+    "§17":    ("4", "COACH"),
     "§26":    ("4", "COACH"),
     "§30":    ("6", "COACH"),
     "§33":    ("7", "GATE"),

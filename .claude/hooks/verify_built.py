@@ -249,7 +249,8 @@ CHECKS = [
      lambda: py("from backend.core.substate import CoachingResponse as C; "
                 "print(', '.join(sorted(C.model_fields)))"),
      "S-C05 — 4 of the ratified 8; §50.1's explanation/example/prompt/"
-     "progress are unbuilt (G-50), step 10.2"),
+     "progress are unbuilt (G-50). **Step 6.19 takes this to 8** — update the "
+     "expectation in the same commit, or this check passes the day it lands"),
 
     ("state field counts (S-C01 / S-C02)", "7 / 22",
      lambda: py("from backend.core.state import SupervisorState as S; "
