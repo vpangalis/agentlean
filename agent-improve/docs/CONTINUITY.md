@@ -8,12 +8,12 @@
 | | |
 |---|---|
 | **Last completed** | step **6.13** — The evidence index migration |
-| **Next** | step **6.14** — SKILL.md shape pass — Define, Analyse, Improve, Control |
+| **Next** | step **6.15** — The count-check — a written count against the list it describes |
 | **Spine steps landed** | 30 of 55 |
 | **Last spine commit** | `1396627` (commit 6.13) |
-| **ARCHITECTURE.md** | v1.22 |
+| **ARCHITECTURE.md** | v1.23 |
 | **CLAUDE.md** | v2.2.34 |
-| **Block regenerated** | 2026-09-10 |
+| **Block regenerated** | 2026-09-11 |
 
 *`Last completed` and the landed count come from **git log** — the
 `refactor(arch-v2): commit X.Y` subjects. `Next` and the total come

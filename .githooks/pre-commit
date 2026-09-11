@@ -14,13 +14,20 @@
 # refactor(arch-v2) commit whose status block is stale. Fail-soft writer,
 # fail-closed checker.
 
-HOOK=".claude/hooks/pre-commit-continuity.py"
-
-[ -f "$HOOK" ] || exit 0
+# Two writers, both fail-soft, both under the rule above. `build_board.py`
+# (step 6.16) regenerates docs/board.html from Appendix D, ARCHITECTURE.md's
+# BUILT markers, §66 and git log, then stages it - so the board a founder
+# reads is a projection of the documents rather than a hand-drawn caption that
+# goes stale on the first commit after it is drawn.
+CONTINUITY=".claude/hooks/pre-commit-continuity.py"
+BOARD=".claude/hooks/build_board.py"
 
 for PY in python3 python py; do
     if command -v "$PY" >/dev/null 2>&1; then
-        "$PY" "$HOOK"
+        [ -f "$CONTINUITY" ] && "$PY" "$CONTINUITY"
+        if [ -f "$BOARD" ]; then
+            "$PY" "$BOARD" && git add agent-improve/docs/board.html 2>/dev/null
+        fi
         exit 0
     fi
 done

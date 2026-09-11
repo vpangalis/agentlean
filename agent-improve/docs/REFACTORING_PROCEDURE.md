@@ -1188,8 +1188,22 @@ suite covers each with a known-answer case.
 | **Precondition** | 5.3 |
 | **Verify** | `pytest` |
 
-**Done when:** a test asserts per-phase totals 8 / 15 / 12 / 8 / 12 and that no
-phase exceeds 16.
+**Done when:** a test asserts per-phase totals **9 / 16 / 13 / 9 / 13** and that
+no phase exceeds 16.
+
+> **⛑ Done-when corrected 2026-09-11 — it carried the superseded figure.**
+> It read `8 / 15 / 12 / 8 / 12`, which was right until `load_evidence_series`
+> made the universal set eight on 2026-09-09 (Part AR1) and every phase gained
+> one. §30's table moved; this clause did not, so **the step's acceptance
+> criterion and the section it verifies disagreed for two days** while the test
+> — which had been updated — passed against neither number written down.
+>
+> **The live bind is 7 / 14 / 11 / 7 / 11 and that is not a defect of this
+> step.** Two of the ratified eight universal tools are unbuilt by the spec's
+> own assignment: `check_gate_status` (7.1) and `request_human_approval` (7.5).
+> The ratified figure is what this step is checked against; the live figure is
+> what `verify_built.py` pins, so the gap is measured rather than assumed. See
+> §30's BUILT marker.
 
 ---
 
@@ -1863,6 +1877,31 @@ artefact.
 | **Touches** | `skills/dmaic-{define,analyse,improve,control}-phase/SKILL.md` · `backend/upload/asks.py` (`SHAPES_BY_PHASE`) · `ARCHITECTURE.md` §23.2.1 (the vocabulary extension) |
 | **Precondition** | 6.12 |
 | **Verify** | `pytest` |
+| **Status** | **BLOCKED — awaiting founder domain content for the ask shapes** |
+
+> ### ⛔ BLOCKED IN APPENDIX D, 2026-09-11 — the prose said so; the status cell did not
+>
+> **The note below has said this step is incomplete by design since it was
+> written. Appendix D's status cell was EMPTY**, so every tool that reads the
+> board called 6.14 the next schedulable step and `CURRENT BUILD STATUS`
+> printed it as `Next` — **a pointer at work that cannot start, waiting on
+> input deliberately deferred.** The cell is the only part of the row a tool
+> reads; a paragraph above it is not a status.
+>
+> **This is the failure mode Appendix D's own header warns about, inverted.**
+> That header explains why the column carries only what git cannot say —
+> `BLOCKED`, `GATED`, `EXTERNAL` — and 9.0 carries `EXTERNAL` for exactly this
+> reason. **The rule was applied to a step that had landed out-of-band and not
+> to one that cannot start**, though the consequence is identical: the pointer
+> rests forever on a row nothing can advance.
+>
+> **The block is an INPUT, not a defect** — unlike 6.10 (G-05/G-35) or the four
+> steps behind G-49, no code change unblocks it and nothing is wrong with the
+> tree. It clears when the three lists below arrive.
+>
+> **The cursor moves to 6.15**, which needs nothing from Vassilis, and 6.16
+> behind it. Both sit above 6.14 in `_ver_key` order, so the spine keeps moving
+> while the content is owed.
 
 > ### ⛔ THIS SPECIFICATION IS INCOMPLETE BY DESIGN. It needs founder content before it can be built.
 >
@@ -2079,7 +2118,33 @@ is never the runtime"* — a consequence, in the product's terms.
 > not as a comment**, so adding a block or a zone raises a `KeyError` rather
 > than silently unmapping a step.
 
-### 2 — `ARCHITECTURE_STATUS.md` gets a parseable closer
+> ### ⛑ TWO OF THIS STEP'S PREMISES WERE STALE BY THE TIME IT WAS BUILT
+>
+> **Corrected 2026-09-11, while building it.** Recorded here rather than
+> silently worked around, because this is the step about captions outliving
+> their lists and its own specification had done exactly that.
+>
+> **1 — `ARCHITECTURE_STATUS.md` is ARCHIVED.** Sub-step 2 below and the
+> generator's second source both name it. It moved to `docs/_archive/` on
+> 2026-09-10 and its tables became the `> **BUILT:**` markers inside
+> `ARCHITECTURE.md` (§55.2) — the very commit that also added this step.
+> **The markers are read there instead**, and the parseable closer landed on
+> them as a trailing `· **closes:** `[X.Y]`` / `[none]` token: twenty markers,
+> every one tokened, `[none]` written explicitly so *"nothing closes this"* and
+> *"nobody wrote it down"* stay distinguishable.
+>
+> **2 — THE ▶ CURSOR DOES NOT EXIST**, and sub-step 4's lane table names it
+> twice: `BUILDING NOW | the ▶ cursor` and `DONE | Appendix D says done`.
+> Both were deleted on 2026-09-10 — completion is the highest spine subject in
+> git log, and the status column stopped carrying `done` because it was a
+> second hand-maintained source for a fact git owns. **This step's own
+> amendment note says so** about the fourth source and did not carry the
+> correction down into its lane table. `BUILDING NOW` is now derived with the
+> **same next-step rule `session-start-context.py` uses**, so the board and the
+> session banner cannot disagree about what is next; `DONE` is `git log ∩
+> Appendix D`.
+
+### 2 — `ARCHITECTURE_STATUS.md` gets a parseable closer — **read as: the BUILT markers do**
 
 **Every ☐ and ⚠ row already names its closing step in prose.** Move it to a
 fixed position — a trailing **`[6.10]`** or equivalent — so the generator reads
@@ -2800,11 +2865,11 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | State | Count | Steps |
 |---|---|---|
 | **DONE** | 30 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13** |
-| **BUILDING NOW** | 1 | **6.14** — SKILL.md shape pass — Define, Analyse, Improve, Control |
-| **BLOCKED** | 5 | **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL) |
-| **QUEUED** | 19 | **6.15**, **6.16**, **7.0**, **7.1**, **7.2**, **7.3**, **7.4**, **7.5**, **7.6**, **8.0**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **10.2**, **11.1**, **11.2** |
+| **BUILDING NOW** | 1 | **6.15** — The count-check — a written count against the list it describes |
+| **BLOCKED** | 6 | **6.10** (BLOCKED), **6.14** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL) |
+| **QUEUED** | 18 | **6.16**, **7.0**, **7.1**, **7.2**, **7.3**, **7.4**, **7.5**, **7.6**, **8.0**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **10.2**, **11.1**, **11.2** |
 
-*55 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-10.*
+*55 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-11.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -2943,11 +3008,33 @@ infrastructure noise. **Read both before finalising §52.**
 
 ## Appendix D — Step index
 
-> **Machine-readable. Two hooks parse this table.**
-> Format is fixed: `| **Commit X.Y** | <title> | <status> |`. Do not reformat
-> without updating `.claude/hooks/session-start-context.py` AND
-> `.claude/hooks/continuity_status.py` in the same commit (CLAUDE.md §0.2
-> applies to hooks that read documents, not only to rule numbers).
+> **Machine-readable. THREE hooks parse this table.**
+> Format is fixed: `| **Commit X.Y** | <title> | <status> | <zone> | <impact> |`.
+> Do not reformat without updating `.claude/hooks/session-start-context.py`,
+> `.claude/hooks/continuity_status.py` AND `.claude/hooks/build_board.py` in
+> the same commit (CLAUDE.md §0.2 applies to hooks that read documents, not
+> only to rule numbers).
+>
+> **`Zone` and `Impact` were added 2026-09-11 by step 6.16**, and they were
+> appended rather than inserted **deliberately**: the two older readers match
+> `| **Commit X.Y** | <what> | <status>` and stop at the status cell, so
+> columns 4 and 5 are invisible to them and neither needed a change. **Adding
+> a column anywhere left of `status` would have silently broken both** — the
+> row would not vanish, it would parse with the wrong cell as its status,
+> which is worse.
+>
+> **`Zone`** — one of seven: `UI` `SUP` `PHASE` `COACH` `GATE` `STORE` `OPS`.
+> Which container the step changes. The zone↔block mapping is **not 1:1** and
+> is declared as data in `build_board.py`, so adding a block or a zone raises a
+> `KeyError` rather than silently unmapping a step. It caught a real error on
+> its first run: §19.6–§19.8 were labelled `GATE` while sitting in the
+> middleware block, which `GATE` does not span.
+>
+> **`Impact`** — one sentence: **what is true about the product if this step is
+> never done.** A consequence in the product's terms, never a restatement of
+> the title. It is the only column that is new information rather than a
+> projection of something already tracked, and it is what lets a reader judge
+> whether a step is worth its slot.
 >
 > **The status column carries only what git cannot say** — `BLOCKED`, `GATED`,
 > `EXTERNAL`. It is EMPTY for every schedulable step, done or not: completion
@@ -2989,63 +3076,63 @@ infrastructure noise. **Read both before finalising §52.**
 > lost, and the hand-maintained 31 had been counting 9.0 that the derived
 > figure cannot see.
 
-| Step | Title | Status |
-|---|---|---|
-| **Commit 2.3** | Dependency upgrade |  |
-| **Commit 2.4** | `set_entry_point` → `add_edge(START, …)` |  |
-| **Commit 2.5** | Async conversion |  |
-| **Commit 2.6** | `content_blocks` · 20 sites |  |
-| **Commit 2.7** | LLM factory · 6 roles → 11 |  |
-| **Commit 3.1** | `SupervisorState` and `PhaseState` |  |
-| **Commit 3.2** | `AzureBlobStore` |  |
-| **Commit 3.3** | Boundary mappers |  |
-| **Commit 3.4** | `{Phase}Output` schemas + validators + UI |  |
-| **Commit 3.5** | `storage/blob.py` — class → functions, sync → aio |  |
-| **Commit 4.1** | Define phase subgraph |  |
-| **Commit 4.2** | `thread_id` + disconnect policy |  |
-| **Commit 4.3** | Supervisor graph |  |
-| **Commit 4.4** | Remaining four subgraphs |  |
-| **Commit 5.1** | Retrieval failure semantics |  |
-| **Commit 5.2** | Three `rag_lookup_*` + RRF |  |
-| **Commit 5.3** | 20 computation tools |  |
-| **Commit 5.4** | Per-phase tool binding |  |
-| **Commit 6.1** | Planner / Executor split |  |
-| **Commit 6.2** | `create_agent` executor |  |
-| **Commit 6.3** | Middleware 1–3 |  |
-| **Commit 6.4** | Retry middleware 4–5 + factory retry removal |  |
-| **Commit 6.5** | Middleware 6–8 |  |
-| **Commit 6.6** | Prompts |  |
-| **Commit 6.7** | The hop cap, as §26 specifies it (WATCH 26) |  |
-| **Commit 6.8** | `phase_context` is read (WATCH 19) |  |
-| **Commit 6.9** | SKILL.md conformance to §32's seven |  |
-| **Commit 6.10** | `analyse_executor_node` — §26's multi-hop | BLOCKED |
-| **Commit 6.11** | The upload path (G-36) |  |
-| **Commit 6.12** | Ask-binding: an upload answers a request |  |
-| **Commit 6.13** | The evidence index migration |  |
-| **Commit 6.14** | SKILL.md shape pass — Define, Analyse, Improve, Control |  |
-| **Commit 6.15** | The count-check — a written count against the list it describes |  |
-| **Commit 6.16** | The board is generated, not written |  |
-| **Commit 7.0** | The evaluation suite |  |
-| **Commit 7.1** | `DMAICGateValidator` + Layer 2b |  |
-| **Commit 7.2** | Layers 2c, 2d + `validation_stack` |  |
-| **Commit 7.3** | Nine-step HITL gate |  |
-| **Commit 7.4** | Two tiers + `warning` verdict |  |
-| **Commit 7.5** | Escalation |  |
-| **Commit 7.6** | The re-approval cascade |  |
-| **Commit 8.0** | Turn telemetry and `@traceable` |  |
-| **Commit 8.1** | Structured errors |  |
-| **Commit 8.2** | Timeouts + compensating actions |  |
-| **Commit 8.3** | Circuit breakers + fallback chain |  |
-| **Commit 8.4** | Level 3 cache | BLOCKED |
-| **Commit 8.5** | Graceful shutdown | GATED |
-| **Commit 8.6** | Context recovery (§44 Step 2) |  |
-| **Commit 8.7** | `delete_blob` + upload lifecycle |  |
-| **Commit 9.0** | Knowledge-index rebuild | EXTERNAL |
-| **Commit 9.1** | Azure batched reindex — case index only | EXTERNAL |
-| **Commit 10.1** | `/ask/stream` SSE |  |
-| **Commit 10.2** | Live gate document + conflict panel |  |
-| **Commit 11.1** | Delete v1 |  |
-| **Commit 11.2** | Governance close-out |  |
+| Step | Title | Status | Zone | Impact — what is true about the product if this step is never done |
+|---|---|---|---|---|
+| **Commit 2.3** | Dependency upgrade |  | OPS | Every later step is written against APIs the installed version may not have, and the checkpoint-namespace regression §16 names is live. |
+| **Commit 2.4** | `set_entry_point` → `add_edge(START, …)` |  | SUP | The graph declares its entry with a superseded call, so CLAUDE.md §3.1's no-go list has a standing exception in the one file it most matters. |
+| **Commit 2.5** | Async conversion |  | OPS | Blocking calls sit inside an async graph, so one slow Azure call stalls every concurrent coaching session rather than just its own. |
+| **Commit 2.6** | `content_blocks` · 20 sites |  | COACH | Twenty sites parse the raw content field, so a provider response-shape change breaks coaching text silently instead of loudly. |
+| **Commit 2.7** | LLM factory · 6 roles → 11 |  | OPS | Five of the eleven specified roles have no deployment, so grader, coherence, synthesis, intent and constraint calls all run at another role's model and temperature. |
+| **Commit 3.1** | `SupervisorState` and `PhaseState` |  | SUP | Neither level has typed state, so every node reads and writes an untyped dict and a misspelled field is a silent no-op. |
+| **Commit 3.2** | `AzureBlobStore` |  | STORE | Gate documents have nowhere durable to live, so a phase's approved output exists only inside the turn that produced it. |
+| **Commit 3.3** | Boundary mappers |  | PHASE | Parent and subgraph share state keys directly - the coupling that stops a phase running on its own and makes checkpoint namespaces collide. |
+| **Commit 3.4** | `{Phase}Output` schemas + validators + UI |  | GATE | No phase has a canonical gate document, so what a gate approves is whatever the UI happened to render that day. |
+| **Commit 3.5** | `storage/blob.py` — class → functions, sync → aio |  | STORE | The system of record is reached through a sync class inside an async app, so every case read blocks the event loop. |
+| **Commit 4.1** | Define phase subgraph |  | PHASE | Define has no subgraph, so there is no node structure for a coaching turn to run inside and no per-phase state to carry. |
+| **Commit 4.2** | `thread_id` + disconnect policy |  | STORE | Nothing is checkpointed, so a dropped connection loses the turn and a returning Belt starts the phase again from nothing. |
+| **Commit 4.3** | Supervisor graph |  | SUP | There is no Level-1 graph, so nothing advances a project from Define to Measure and DMAIC order is whatever the caller asks for. |
+| **Commit 4.4** | Remaining four subgraphs |  | PHASE | Only Define can be coached; Measure, Analyse, Improve and Control have no runnable graph at all. |
+| **Commit 5.1** | Retrieval failure semantics |  | COACH | A failed Azure search is indistinguishable from a genuine no-match, so the coach teaches from silence and presents it as evidence. |
+| **Commit 5.2** | Three `rag_lookup_*` + RRF |  | COACH | The coach cannot retrieve methodology, evidence or case history, so every answer is model recall with no source behind it. |
+| **Commit 5.3** | 20 computation tools |  | COACH | The coach cannot compute a sigma level, a Cpk or a t-test, so it either transcribes the Belt's arithmetic or invents its own. |
+| **Commit 5.4** | Per-phase tool binding |  | COACH | Every phase is handed every tool, and selection quality degrades past the tractable range in all five at once. |
+| **Commit 6.1** | Planner / Executor split |  | COACH | One model call decides strategy and executes it, so there is no point at which a routing decision can be inspected or corrected. |
+| **Commit 6.2** | `create_agent` executor |  | COACH | Nothing structured comes out of a coaching turn, so no field is ever captured and every gate is inert by construction. |
+| **Commit 6.3** | Middleware 1–3 |  | COACH | The coach sees no project facts, loads no skill and never compresses - it forgets the case, then exceeds the context window. |
+| **Commit 6.4** | Retry middleware 4–5 + factory retry removal |  | OPS | Retries are hardcoded in the factory where nothing can see or tune them, and a transient tool failure ends the whole turn. |
+| **Commit 6.5** | Middleware 6–8 |  | GATE | Nothing detects a contradiction, checks coherence or grades the turn, so coaching quality is entirely unmeasured. |
+| **Commit 6.6** | Prompts |  | COACH | The five coach prompts carry no memory hierarchy and no anti-hallucination guards - the content-level defence a schema cannot provide. |
+| **Commit 6.7** | The hop cap, as §26 specifies it (WATCH 26) |  | COACH | Retrieval has no budget, so a coach can see-saw between searches until the recursion backstop ends the turn with no answer. |
+| **Commit 6.8** | `phase_context` is read (WATCH 19) |  | PHASE | The composed project context is declared and read by nothing, so the coach opens every phase as though the project had just started. |
+| **Commit 6.9** | SKILL.md conformance to §32's seven |  | COACH | Four of five phases run progressive disclosure against nothing, so the coach has no phase-specific method to follow. |
+| **Commit 6.10** | `analyse_executor_node` — §26's multi-hop | BLOCKED | COACH | Analyse cannot chain retrieval, so root-cause work needing a second hop returns a first-hop answer and stops. |
+| **Commit 6.11** | The upload path (G-36) |  | STORE | No external data can enter the system, so every figure the coach uses is one the Belt typed into a chat box. |
+| **Commit 6.12** | Ask-binding: an upload answers a request |  | COACH | An upload binds to its filename rather than the request that prompted it, so feeding a file to a computation tool means the coach transcribing numbers out of chunks. |
+| **Commit 6.13** | The evidence index migration |  | STORE | Evidence and artefacts share one bucket with no role, kind or version identity, so a proposed future is retrievable later as a fact about the present. |
+| **Commit 6.14** | SKILL.md shape pass — Define, Analyse, Improve, Control | BLOCKED | COACH | Four of five phases cannot ask for a file in a shape they can validate, so 6.12's ask-binding works for Measure alone. |
+| **Commit 6.15** | The count-check — a written count against the list it describes |  | OPS | A written count and the list it describes can disagree indefinitely - the failure five captions in this repository have already had. |
+| **Commit 6.16** | The board is generated, not written |  | OPS | The board a founder reads is hand-drawn and stale from the first commit after it is drawn. |
+| **Commit 7.0** | The evaluation suite |  | GATE | Coaching quality has no baseline, so no later change can be shown to have improved or regressed it. |
+| **Commit 7.1** | `DMAICGateValidator` + Layer 2b |  | GATE | Nothing checks a gate document against its phase's rules, so a gate passes on presence rather than on correctness. |
+| **Commit 7.2** | Layers 2c, 2d + `validation_stack` |  | GATE | Cross-phase consistency and statistical validity go unchecked, so Measure can contradict Define and both pass. |
+| **Commit 7.3** | Nine-step HITL gate |  | GATE | Nothing pauses for a human at a gate, so no gate decides, `gate_attempts` cannot accumulate, and the supervisor graph can never become the runtime. |
+| **Commit 7.4** | Two tiers + `warning` verdict |  | GATE | Every finding blocks equally, so a missing nice-to-have stops a project exactly as a missing baseline does. |
+| **Commit 7.5** | Escalation |  | GATE | A project failing its gate three times has nowhere to go, so it loops instead of reaching a human. |
+| **Commit 7.6** | The re-approval cascade |  | GATE | A contradiction against an approved value never reopens the field it contradicts, so the gate document keeps a figure the Belt has withdrawn. |
+| **Commit 8.0** | Turn telemetry and `@traceable` |  | OPS | Nothing is traced, so every investigation needs a hand-built harness and no limit can be set from measured data. |
+| **Commit 8.1** | Structured errors |  | OPS | Failures arrive as free text, so the circuit breaker and the fallback chain have nothing to read to tell retry from stop. |
+| **Commit 8.2** | Timeouts + compensating actions |  | OPS | A node failing mid-turn leaves its partial writes in place, so the next turn resumes from a state nobody wrote deliberately. |
+| **Commit 8.3** | Circuit breakers + fallback chain |  | OPS | A failing dependency is retried until it takes the rest of the system down with it. |
+| **Commit 8.4** | Level 3 cache | BLOCKED | OPS | Identical requests re-run end to end. A cost item rather than a correctness one, and the resource is not provisioned. |
+| **Commit 8.5** | Graceful shutdown | GATED | OPS | A deploy landing mid-turn drops that turn instead of draining it. |
+| **Commit 8.6** | Context recovery (§44 Step 2) |  | STORE | A mid-turn failure loses the work the turn had already done, so the Belt is asked to repeat it. |
+| **Commit 8.7** | `delete_blob` + upload lifecycle |  | STORE | An upload can be created and never removed, so a superseded or mistaken file stays retrievable as evidence forever. |
+| **Commit 9.0** | Knowledge-index rebuild | EXTERNAL | STORE | The methodology corpus is not retrievable, so `rag_lookup_methodology` has nothing to search. |
+| **Commit 9.1** | Azure batched reindex — case index only | EXTERNAL | STORE | The case index carries no content vector, so case-history retrieval stays keyword-only and misses paraphrase. |
+| **Commit 10.1** | `/ask/stream` SSE |  | UI | Every coaching turn arrives as one block after a long wait - the interaction §50 was written to replace. |
+| **Commit 10.2** | Live gate document + conflict panel |  | UI | A Belt cannot see the document being built, so the gate is the first time anyone looks at it whole. |
+| **Commit 11.1** | Delete v1 |  | OPS | Two implementations of every phase stay in the tree, and the dead one is still the one writing the v1 field names. |
+| **Commit 11.2** | Governance close-out |  | OPS | The refactor has no end, so procedure and architecture drift apart again with nothing marking the handover. |
 
 > **Step 9.0 is `EXTERNAL`, and that is what keeps the pointer off it.**
 > It landed as `feat(knowledge): 871637f`, not as a `refactor(arch-v2): commit

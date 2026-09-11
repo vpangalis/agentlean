@@ -74,9 +74,11 @@ Verification: 9 of 10 automated claim checks passed against the live files; the 
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.22 · 2026-09-10
+Version 1.23 · 2026-09-11
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.23 (2026-09-11)** — **§56 AMENDMENT. The three-way alignment audit: four BUILT markers were wrong, and the eleven checks guarding them all passed.** **(A) §49's MARKER CONTRADICTED ITSELF** — *"11 of 12 routes exist … this section's table names 8 of the 11 — six are in the tree and in no ratified table"*: **8 + 6 = 14 against 11 built routes**, and the `12` traced to nothing. The true split is **4 named, 7 unnamed, 5 table rows unbuilt**. **G-47 gains `POST /cases`** (six → seven), missed because the table's `GET /cases` row was read as covering the path rather than the verb — while **step 6.8's own Done-when opens *"`POST /cases` writes the case record to the Store"***. **(B) §33 SAID NOTHING PAUSES FOR A HUMAN, AND SOMETHING DOES.** `ContradictionDetectionMiddleware.after_agent` has called `langgraph.types.interrupt` since 6.5. The gate interrupt is genuinely unbuilt; the blanket claim was not, and it is load-bearing — §34, §49 and S-F01 all cite that absence. **A contradiction interrupt fires today with no built route able to resume it**, which is worse than not pausing; §19.6's *"nothing consumes the flag"* is corrected with it. **(C) G-50 REGISTERED — `CoachingResponse` IS BUILT AT 4 OF S-C05's 8 FIELDS.** §50.1's `explanation` / `example` / `prompt` / `progress` do not exist, so the render contract that section calls *"schema-backed, not prompt-hoped"* is prompt-hoped, and **all five SKILL.md files instruct the coach to populate fields the schema cannot receive** — **WATCH 9 is not closed by 6.9**, contrary to that step's body. The built class's docstring claims transcription from the entry defining eight: **S-C05's rebuild test, failed inside the file that cites it.** **(D) G-51 REGISTERED** — `storage/models.py` defines eleven models where S-C09 names six; the same shape as Part AP6 one level up, AP6 having checked the fields of one named model while nothing checked the model list. **(E) §30 GAINS A MARKER because FOUR figures for one quantity were in the tree**: ratified 9/16/13/9/13, step 5.4's Done-when at the superseded 8/15/12/8/12, the live bind at 7/14/11/7/11, and `test_computation.py`'s docstring at 6/13/10/6/10 — in the file recording WATCH 25 to prevent exactly this, under a test named `test_per_phase_totals_are_8_15_12_8_12` asserting 9/16/13/9/13. All four reconciled. **(F) `verify_built.py` GOES 11 → 21 CHECKS.** Every one of the eleven counted a POPULATION; none pinned a VALUE or a SET, which is why all eleven passed against four wrong markers. Added: the route SET, `CoachingResponse`'s fields, `SupervisorState`/`PhaseState` counts, the model count, §19.3's trigger/keep, §19.4/§19.5's retry caps, §26's three caps, §44's timeout, `interrupt()` call sites **parsed with `ast`** (its line-matching first cut returned 3 where the answer is 1), and **the LIVE per-phase tool bind — the figure none of the four captions was measuring**. **(G) `session-start-context.py` WAS THE LIVE INSTANCE OF WATCH 2**, probing `sys.executable` — the root venv — so every session opened reporting `langgraph 1.1.10 ⚠` against a project on **1.2.11**, contradicting step 2.3's Done-when at the top of every session. Now pinned to `agent-improve/.venv`, as `verify_built.py` always was. Reasoning: this commit body (§56.2).
 
 **v1.22 (2026-09-10)** — **§56 AMENDMENT. §19's ordering rule is CORRECTED, `ARCHITECTURE_STATUS.md`'s tables become BUILT markers on the items they describe, and the counts behind them become a check that runs.** **(A) §19 "Ordering rules that bind" WAS BACKWARDS AND THE CODE HAS BEEN RIGHT SINCE 6.5.** It read *"Declaration order is execution order for hooks of the same kind"* and *"positions 6, 7 and 8 … run in declaration order: contradiction, then coherence, then grader"*. **Both sentences are false.** LangChain's documented middleware model is *sequential on the way in, reverse sequential on the way back* (`langchain.com/blog/agent-middleware`), measured at step 6.5 (ruling AJ1, 2026-09-07): **the declared list is NESTING order, outermost-first**; `before_*` fires outermost-first and `after_*` innermost-first. So positions 6–8 are **declared grader, coherence, contradiction** and **execute contradiction, coherence, grader** — which is what those position numbers have always meant. `test_all_eight_positions_execute_in_the_ratified_order` pins the built behaviour and `test_position_1_wrap_encloses_position_4_retry` pins the `wrap_*` case. **Rule 3 was corrected with it**: positions 4 and 5 have not been "independent of everything else" since 6.3, because position 1's `wrap_model_call` encloses position 4's retry — which is why the project-state block is composed once per turn rather than once per attempt. **Corrected before step 7.1 is built against it**, that being the next step to add to this stack. **(B) THE BUILT MARKERS MOVE ONTO THE SPECIFIED ITEMS.** `docs/ARCHITECTURE_STATUS.md` held eight Level-1 blocks and four Level-3 control-point tables that restated this document's own items with a built-marker attached — the same fact in two files, and the file that carried *"1 of 5 SKILL.md files written"* wrong from its first commit. **17 `> **BUILT:**` markers now sit under the items they describe** — §16, §19.1–§19.8, §26, §33, §34, §44, §46, §49, §51, §53 — in one vocabulary: ✅ built · ⚠️ built with a known defect · ☐ not built · ⛔ blocked, with the rule, the reason and the status on one line. §55.2 states the contract and carries the twelve watched paths. **(C) `.claude/hooks/verify_built.py` RE-RUNS THE COUNTS.** Eleven checks plus the five-phase script byte-match, against the pinned venv, reporting any marker that disagrees with the tree. **A marker nothing re-runs is a claim**, and the first cut of the script proved the point on itself: two probes shelled out to `grep`, returned empty under cmd.exe's quoting, and reported disagreements against a tree that was correct — the probes are now pure Python and shell-free. It also caught one real error, `PARSERS`' keys being `document/pdf/spreadsheet/text` rather than the file extensions the expectation guessed. **(D) Guard rule 2b repointed** to `ARCHITECTURE.md`; verified by probe that it blocks a watched-path commit without it and passes with it, BEFORE the archive move. `docs/` now holds `REFACTORING_PROCEDURE.md`, `CONTINUITY.md` and `_archive/`. **CARRIED FORWARD UNRESOLVED, per the ruling**: §21's role map versus the 11-role factory, and `HITLInterrupt`'s prose call sites in §19.6 and S-C15 (step 7.3's work).
 
@@ -1465,7 +1467,7 @@ A direct import creates a dependency the graph does not model.
 
 ## 16. `thread_id`, `checkpoint_ns`, and where persistence attaches
 
-> **BUILT:** ✅ built · `AzureBlobCheckpointSaver` on the parent graph keyed by `case_id`, live since 4.2; phase subgraphs carry no checkpointer of their own and the engine assigns `checkpoint_ns`. ⚠️ the ETag / `ConcurrentTurnError` guard on `latest.json` is **optimistic, not the specified lease** — a concurrent turn is LOST rather than interleaved, and a failed write orphans a history blob (WATCH 15, post-refactor)
+> **BUILT:** ✅ built · `AzureBlobCheckpointSaver` on the parent graph keyed by `case_id`, live since 4.2; phase subgraphs carry no checkpointer of their own and the engine assigns `checkpoint_ns`. ⚠️ the ETag / `ConcurrentTurnError` guard on `latest.json` is **optimistic, not the specified lease** — a concurrent turn is LOST rather than interleaved, and a failed write orphans a history blob (WATCH 15, post-refactor) · **closes:** `[none]`
 
 *Supersedes: REFACTORING §23, §44; ARCHITECTURE.md §3.1, §6.1.*
 **Status: RATIFIED.**
@@ -1755,7 +1757,7 @@ and must not consume the same budget.
 
 ### 19.1 `BeforeModelStateInjection` — injection timing
 
-> **BUILT:** ✅ built · also injects `phase_context` (6.8) and the UPLOAD MANIFEST (6.12). Its `wrap_model_call` encloses §19.4's retry, so the block is composed once per turn, not once per attempt
+> **BUILT:** ✅ built · also injects `phase_context` (6.8) and the UPLOAD MANIFEST (6.12). Its `wrap_model_call` encloses §19.4's retry, so the block is composed once per turn, not once per attempt · **closes:** `[none]`
 
 **Custom · `before_agent` · position 1.** Prepends structured project state at
 the **top** of the prompt, ahead of the conversation: this phase's `artifacts`,
@@ -1779,7 +1781,7 @@ add it to the history" option.
 
 ### 19.2 `DMAICSkillsMiddleware` — progressive disclosure
 
-> **BUILT:** ✅ built · mounted and working; all five SKILL.md files exist, load and are §32-conformant as of 6.9
+> **BUILT:** ✅ built · mounted and working; all five SKILL.md files exist, load and are §32-conformant as of 6.9 · **closes:** `[none]`
 
 **Custom · `before_agent` + a registered tool · position 2.** Full treatment in
 §32; the stack-level facts are:
@@ -1796,7 +1798,7 @@ skill change is reviewable in the same PR as the code depending on it.
 
 ### 19.3 `SummarizationMiddleware` — context compression
 
-> **BUILT:** ✅ built · LangChain core as shipped; trigger 100k tokens, keep 20
+> **BUILT:** ✅ built · LangChain core as shipped; trigger 100k tokens, keep 20 · **closes:** `[none]`
 
 **LangChain core, used as shipped · `before_model` · position 3.**
 
@@ -1837,7 +1839,7 @@ middleware.
 
 ### 19.4 `ModelRetryMiddleware` — API-level retry
 
-> **BUILT:** ✅ built · `max_retries=2` → three attempts. The only model-retry layer; §21's factory is pinned to 0
+> **BUILT:** ✅ built · `max_retries=2` → three attempts. The only model-retry layer; §21's factory is pinned to 0 · **closes:** `[none]`
 
 **LangChain core, used as shipped · `wrap_model_call` · position 4.**
 
@@ -1867,7 +1869,7 @@ attempt counter.
 
 ### 19.5 `ToolRetryMiddleware` — tool-level retry
 
-> **BUILT:** ✅ built · `max_retries=2`, `on_failure="continue"`. Costs no graph steps (measured at 6.4)
+> **BUILT:** ✅ built · `max_retries=2`, `on_failure="continue"`. Costs no graph steps (measured at 6.4) · **closes:** `[none]`
 
 **LangChain core, used as shipped · `wrap_tool_call` · position 5.**
 `max_retries=2`, `on_failure="continue"`, exponential backoff with jitter.
@@ -1881,7 +1883,7 @@ rather than raising and killing the graph mid-session.
 
 ### 19.6 `ContradictionDetectionMiddleware` — the mid-phase check
 
-> **BUILT:** ⚠️ built with a known defect · detects and sets `contradiction_flag`, but **the §37 re-approval cascade it exists to trigger is unbuilt** (step 7.6), so nothing consumes the flag
+> **BUILT:** ⚠️ built with a known defect · detects the flag and **raises a real `interrupt()`** — the one call site in the backend (§33's marker). **What is unbuilt is everything downstream:** §37's re-approval cascade (step 7.6) and any route able to resume the interrupt it raises (§49's `/gate/approve`, `/gate/reject`, step 7.3). **⛑ Corrected 2026-09-11:** this line said *"nothing consumes the flag"*, which reads as inert and is not — the flag is consumed, the graph suspends, and there is nowhere to resume from · **closes:** `[7.3, 7.6]`
 
 **Custom · `after_agent` · position 6.** Implements the mid-phase conflict
 detection of §37.
@@ -1929,7 +1931,7 @@ responsible only for coaching.
 
 ### 19.7 `CoherenceMiddleware` — validation Layer 2a
 
-> **BUILT:** ✅ built · validation Layer 2a; can stand the grader down
+> **BUILT:** ✅ built · validation Layer 2a; can stand the grader down · **closes:** `[none]`
 
 **Custom · `after_agent` · position 7, immediately before the grader.**
 
@@ -1956,7 +1958,7 @@ incoherence at a cheaper gate is both faster and cleaner.
 
 ### 19.8 `DMAICGraderMiddleware` — coaching process quality
 
-> **BUILT:** ✅ built · coaching-quality grading, per turn
+> **BUILT:** ✅ built · coaching-quality grading, per turn · **closes:** `[none]`
 
 **Custom · `after_agent` · position 8.** Grades the **coach's process** against
 `COACHING_QUALITY_RUBRIC` — one rubric, shared across all five phases.
@@ -2821,7 +2823,7 @@ manual JSON parsing.
 
 ## 26. Multi-hop retrieval
 
-> **BUILT:** ☐ not built · `analyse_executor_node` is step 6.10, ⛔ blocked on G-05 and G-35. The **caps are built**: the five-hop cap and the `remaining_steps` floor of 2 both landed at 6.7, and `recursion_limit=50` is a backstop rather than the cap (WATCH 26)
+> **BUILT:** ☐ not built · `analyse_executor_node` is step 6.10, ⛔ blocked on G-05 and G-35. The **caps are built**: the five-hop cap and the `remaining_steps` floor of 2 both landed at 6.7, and `recursion_limit=50` is a backstop rather than the cap (WATCH 26) · **closes:** `[6.10]`
 
 *Supersedes: REFACTORING §34, §71; ARCHITECTURE.md §7.5; DECISIONS §F6, §F7.*
 **Status: RATIFIED.**
@@ -3213,6 +3215,26 @@ Per-phase binding keeps every coach inside the tractable range.
 
 **20 computation tools total.** 1 + 8 + 5 + 1 + 5 = 20.
 
+> **BUILT:** ⚠️ built with a known defect · **the twenty and the partition are · **closes:** `[7.1, 7.5]`
+> built exactly as tabled; the per-phase TOTALS above are the ratified figure,
+> not the live one.** `_executor_tools` binds `len(UNIVERSAL_TOOLS)` — **six**,
+> because `check_gate_status` (7.1) and `request_human_approval` (7.5) are
+> unbuilt — so what `create_agent` actually receives today is
+> **7 / 14 / 11 / 7 / 11**. Both steps must return here.
+>
+> **⚠ FOUR DIFFERENT FIGURES FOR THIS ONE QUANTITY were in the tree on
+> 2026-09-11**, which is why this marker states the live bind rather than only
+> the ceiling: this table's ratified **9/16/13/9/13**; procedure step 5.4's
+> Done-when at the superseded **8/15/12/8/12**; the live bind at
+> **7/14/11/7/11**; and `test_computation.py`'s own docstring describing the
+> live bind as **6/13/10/6/10**, stale by one since `load_evidence_series`
+> landed at 6.12. The test asserting the ratified figure was named
+> `test_per_phase_totals_are_8_15_12_8_12` while asserting 9/16/13/9/13.
+> **This is the caption-outliving-its-list failure step 6.16 exists to end,
+> found inside the test file that records WATCH 25 to prevent it.** All four
+> are reconciled in that commit, and `verify_built.py` now pins the LIVE bind
+> — the figure none of the four was measuring.
+
 **No phase exceeds 16 tools**, and **as of 2026-09-09 the maximum is 16
 (Measure) — the ceiling exactly.** A new tool that would push a phase past 16
 requires an amendment, not a routine addition.
@@ -3373,7 +3395,9 @@ proposition is that a gate document it approved is worth trusting.*
 
 ## 33. The nine-step HITL gate
 
-> **BUILT:** ☐ not built · the `gate_review` node exists and passes through; `interrupt()` is raised at step 7.3. **Nothing in the system currently pauses for a human**, which is why `gate_attempts` cannot accumulate (WATCH 18), the supervisor graph is not yet the runtime (WATCH 23) and §47's reconciliation sweep cannot be written (WATCH 13)
+> **BUILT:** ☐ not built · **the GATE interrupt is not built** — the `gate_review` node exists and passes through, and raises `interrupt()` at step 7.3. That is why `gate_attempts` cannot accumulate (WATCH 18), the supervisor graph is not yet the runtime (WATCH 23) and §47's reconciliation sweep cannot be written (WATCH 13). · **closes:** `[7.3]`
+>
+> **⛑ CORRECTED 2026-09-11 — this line read *"Nothing in the system currently pauses for a human"*, and one thing does.** `ContradictionDetectionMiddleware.after_agent` calls `langgraph.types.interrupt` at middleware position 6 and has since step 6.5 (§19.6). **The blanket claim was wrong for six steps and nothing re-read it**; it was found by the `ast` call-site probe added to `verify_built.py` on the same day, after the line-matching first cut of that probe returned 3 and the parse returned the true 1. **The distinction is not pedantic:** a contradiction interrupt fires today into a system with **no built route that can resume it** — §49's `/gate/approve` and `/gate/reject` are unbuilt — so the turn suspends and the Belt has no way forward. **That is a worse state than not pausing at all**, and it is invisible while the marker says nothing pauses. Step 7.3 owns the resume path; **the fact that something can already suspend is what makes 7.3 urgent rather than merely next**
 
 *Supersedes: REFACTORING §2, §44, §53; ARCHITECTURE.md §3.6; CLAUDE.md §9.1, §9.6.*
 **Status: RATIFIED.**
@@ -3492,7 +3516,7 @@ rejects loses nothing but the turn.
 
 ## 34. The four-layer validation stack
 
-> **BUILT:** ⚠️ built with a known defect · Layer 2a is live as `CoherenceMiddleware` and Layer 2b delegates to the v1 `validate_{phase}`; Layers 2c and 2d are step 7.2. **`GATE_MAX_ATTEMPTS=3` cannot fire**: with no `interrupt()` the subgraph reruns from the mapper each turn, so every submission reports attempt 1 (WATCH 18)
+> **BUILT:** ⚠️ built with a known defect · Layer 2a is live as `CoherenceMiddleware` and Layer 2b delegates to the v1 `validate_{phase}`; Layers 2c and 2d are step 7.2. **`GATE_MAX_ATTEMPTS=3` cannot fire**: with no `interrupt()` the subgraph reruns from the mapper each turn, so every submission reports attempt 1 (WATCH 18) · **closes:** `[7.2]`
 
 *Supersedes: REFACTORING §48, §68, §69; ARCHITECTURE.md §3.7; CLAUDE.md §9.2, §9.3.*
 **Status: RATIFIED.** **Canonical home.**
@@ -7141,7 +7165,7 @@ and in Control (did it move, and will it stay moved?).
 
 ## 44. The failure pipeline
 
-> **BUILT:** ☐ not built · **Step 0 only.** `TimeoutPolicy(run_timeout=45)` is on the executor node and has been observed firing. Steps 1–6 are step 8.2, and `error_handler=` / `phase_error_recovery` is blocked on G-35 and G-06 (WATCH 16)
+> **BUILT:** ☐ not built · **Step 0 only.** `TimeoutPolicy(run_timeout=45)` is on the executor node and has been observed firing. Steps 1–6 are step 8.2, and `error_handler=` / `phase_error_recovery` is blocked on G-35 and G-06 (WATCH 16) · **closes:** `[8.2]`
 
 *Supersedes: REFACTORING §66, §79; ARCHITECTURE.md §9.1.*
 **Status: RATIFIED.**
@@ -7278,7 +7302,7 @@ yet. Deferred (Appendix B item 12) until sessions exceed roughly 200 turns.
 
 ## 46. The fallback chain and circuit breakers
 
-> **BUILT:** ☐ not built · circuit breaker (3 fails / 30s → OPEN) and the fallback chain are both step 8.3. ⛔ the L3 Redis cache is blocked — the resource is not provisioned (step 8.4)
+> **BUILT:** ☐ not built · circuit breaker (3 fails / 30s → OPEN) and the fallback chain are both step 8.3. ⛔ the L3 Redis cache is blocked — the resource is not provisioned (step 8.4) · **closes:** `[8.3, 8.4]`
 
 *Supersedes: REFACTORING §66, §67; ARCHITECTURE.md §9.3, §9.4; CLAUDE.md §4.8; DECISIONS §N1.*
 **Status: RATIFIED for v2.1; a v2.2 replacement is ratified and deferred.**
@@ -7463,7 +7487,7 @@ malformed query, and retrying fails identically.
 
 ## 49. API surface
 
-> **BUILT:** ⚠️ built with a known defect · **11 of 12 routes exist**; `/ask/stream` SSE is step 10.1. **This section's table names 8 of the 11** — six are in the tree and in no ratified table (**G-47**)
+> **BUILT:** ⚠️ built with a known defect · **11 routes are served; this section's table names 4 of them** — `POST /ask`, `GET /cases/{id}`, `GET /registry`, `POST /upload`. **Seven are in the tree and in no ratified table** (**G-47**), and **five table rows are unbuilt**: `/ask/stream` (step 10.1), `/gate/approve` and `/gate/reject` (step 7.3, which has no `interrupt()` to resume from), `GET /cases`, and `/gate/submit` in the three-route shape this table ratifies. **Corrected 2026-09-11:** this line read *"11 of 12 routes exist … names 8 of the 11 — six are in the tree and in no ratified table"*, and **8 + 6 = 14 against 11 built routes**, so the marker contradicted itself; neither figure was derivable and the `12` traced to nothing. `verify_built.py` now pins the route SET, not the count, so the named/unnamed split is re-derived rather than restated · **closes:** `[10.1, 7.3]`
 
 *Supersedes: ARCHITECTURE.md §10; CLAUDE.md §1.1, §1.4, §1.5.*
 **Status: RATIFIED.** File: `gateway/routes.py`.
@@ -7501,10 +7525,17 @@ wired at Step 2.1 does not yet take effect (§53).
 
 > **SPEC-GAP (G-47): this table is still not what the tree serves.** Adding
 > `/upload` closed one row of a wider drift, and registering the rest is how
-> §55.1's bidirectional rule stays honest. **Six routes exist in
+> §55.1's bidirectional rule stays honest. **Seven routes exist in
 > `gateway/routes.py` and in neither this table nor S-F34's copy of it** —
-> `/health`, `/summarise`, `/context`, `POST /gate`, `/gate/review/{case}/{phase}`
-> and `/files/{case}/{file}`. **`POST /gate` is the sharpest of them**: this
+> `/health`, `/summarise`, `/context`, **`POST /cases`**, `POST /gate`,
+> `/gate/review/{case}/{phase}` and `/files/{case}/{file}`. **`POST /cases` was
+> added to this list on 2026-09-11**: the register said six and the tree served
+> seven, because this table's `GET /cases` row was read as covering the path
+> rather than the verb. **It is the sharpest omission of the seven after
+> `POST /gate`** — step 6.8's own Done-when opens *"`POST /cases` writes the
+> case record to the Store"*, so a ratified step names a route this section
+> does not, which is precisely the direction §55.1's bidirectional rule exists
+> to catch. **`POST /gate` is the sharpest of them**: this
 > table ratifies `/gate/submit`, `/gate/approve` and `/gate/reject`, and the
 > tree serves one route where the spec names three, so the disagreement is a
 > shape, not an omission. `/ask/stream` is the reverse case and is NOT part of
@@ -7545,7 +7576,13 @@ presents as visually distinct sections, not a paragraph block:
 
 **Reliability rule — schema-backed, not prompt-hoped.** `CoachingResponse`
 carries these as **discrete presentational fields** (`explanation`, `example`,
-`prompt`, `progress`), not one free-text blob (§20, S-C05). **Prose one turn
+`prompt`, `progress`), not one free-text blob (§20, S-C05).
+
+> **BUILT:** ☐ not built · **the four fields do not exist on the built · **closes:** `[10.2]`
+> `CoachingResponse`** (S-C05's marker, **G-50**). Until step 10.2 this rule is
+> stated and unenforced, and the five SKILL.md files instruct the coach to
+> populate four fields the response schema cannot receive — which is why
+> **WATCH 9 is NOT closed by step 6.9**, contrary to that step's own body **Prose one turn
 and structure the next erodes trust**, and a prompt asking for structure
 produces exactly that inconsistency; a schema field cannot be skipped. The UI
 renders one block per field and never parses prose to find the boundaries.
@@ -7685,7 +7722,7 @@ the choice the design intends them to have.
 
 ## 51. Tracing and observability
 
-> **BUILT:** ☐ not built · **zero `@traceable` in the backend.** This is the block that compounds: with no tracing every investigation needs a hand-built harness, and WATCH 28's *"set the limits from measured data"* cannot run at all — which is why it is scheduled at 8.0, ahead of the step that consumes it
+> **BUILT:** ☐ not built · **zero `@traceable` in the backend.** This is the block that compounds: with no tracing every investigation needs a hand-built harness, and WATCH 28's *"set the limits from measured data"* cannot run at all — which is why it is scheduled at 8.0, ahead of the step that consumes it · **closes:** `[8.0]`
 
 *Supersedes: REFACTORING §45; ARCHITECTURE.md §12; CLAUDE.md §11.*
 **Status: RATIFIED.**
@@ -7798,7 +7835,7 @@ returning different verdicts across runs makes these thresholds meaningless.
 
 ## 53. Configuration, dependencies and deployment
 
-> **BUILT:** ✅ built · fail-fast environment validation at startup
+> **BUILT:** ✅ built · fail-fast environment validation at startup · **closes:** `[none]`
 
 *Supersedes: REFACTORING §72, §74, §76; ARCHITECTURE.md §15; CLAUDE.md §11.4, §16.*
 **Status: RATIFIED.**
@@ -8148,13 +8185,25 @@ prevent.
 
 > **A MARKER NOTHING RE-RUNS IS A CLAIM.** `.claude/hooks/verify_built.py`
 > re-runs the counting commands against the tree and reports any marker that
-> disagrees. **The rule comes from the row it cost most on**: *"1 of 5 SKILL.md
+> disagrees. **Twenty checks plus the five-phase script byte-match**, against
+> the pinned venv.
+>
+> **It ran eleven until 2026-09-11, and all eleven passed against four wrong
+> markers.** §49's contradicted itself, §33's asserted an absence the tree
+> disproved, §19.6's called a consumed flag inert, and S-C05 had no marker at
+> all while the class was built at half its fields. **What the eleven had in
+> common is the lesson: every one counted a POPULATION** — routes, tools,
+> files — **and not one pinned a VALUE or a SET.** A count of eleven routes
+> agrees with the tree whatever the routes are called and whichever of them
+> the spec covers. The ten added that day pin sets, constants and field lists,
+> and one of them — `interrupt()` call sites, parsed with `ast` — found the
+> §33 defect on its first run. **The rule comes from the row it cost most on**: *"1 of 5 SKILL.md
 > files written"* was copied from `CONTINUITY.md` on the day the status file was
 > created and was wrong from its first commit, in the one place whose header
 > promised *"verified against the tree, never from a document"*.
 
 **Guard rule 2b requires the file carrying these markers staged whenever a
-commit touches a path they tabulate.** Twelve paths, deliberately narrow — a
+commit touches a path they tabulate.** Thirteen paths, deliberately narrow — a
 guard that fired on every backend file would be routed around inside a week:
 
 ```
@@ -8170,7 +8219,17 @@ agent-improve/backend/knowledge/tools.py         the universal eight
 agent-improve/backend/knowledge/computation.py   the twenty
 agent-improve/backend/gateway/routes.py          §49's API surface
 agent-improve/backend/storage/blob.py            system of record
+agent-improve/docs/board.html                    the generated board (6.16)
 ```
+
+> **`board.html` is the thirteenth, added 2026-09-11 with step 6.16**, and it
+> is the only watched path that is GENERATED rather than authored. It is a
+> projection of Appendix D, the markers above, §66 and the spine log, so the
+> guard is what notices when the projection did not move with its sources.
+> **It carries no wall-clock date, and that is load-bearing**: a byte changing
+> for a reason unrelated to those four sources would force this file into the
+> first commit of every day, and a guard that fires for nothing is one people
+> route around — which this section already names as worse than no guard.
 
 **Rule 2b binds on EVERY commit**, not only spine commits: a middleware swap
 lands as a `fix(` as easily as a `refactor(`, and scoping it to the spine would
@@ -8801,6 +8860,18 @@ model at temperature 0.1 — a plain model invocation, not an agent, so
 **Architecture:** §20 · **File:** `phases/{phase}/schema.py` or `core/substate.py` · **Procedure:** step 6.2
 *Rebuild test: reconstructable from this entry alone.*
 
+> **BUILT:** ⚠️ built with a known defect · **4 of the 8 fields below exist** · **closes:** `[10.2]`
+> — `message`, `fields_captured`, `citations`, `contradiction_flag`. **§50.1's
+> four presentational fields — `explanation`, `example`, `prompt`, `progress`
+> — are NOT BUILT** (**G-50**), so the render contract §50.1 calls
+> *"schema-backed, not prompt-hoped"* is currently prompt-hoped: the one field
+> the UI receives is `message`, which is the single free-text blob that section
+> forbids. **Found 2026-09-11 by the three-way alignment audit; the rebuild
+> test above is what it failed.** The built class's own docstring reads *"the
+> four fields below are transcribed from that entry"* against an entry defining
+> eight — a conformance claim made in the file that breaks it. Closed by step
+> **10.2**, which is the step that renders them
+
 **Purpose:** The per-turn structured output of the executor, produced via
 `response_format=` on `create_agent`. It carries the Belt-facing coaching text,
 the fields captured this turn, the sources cited, and — only on a material
@@ -9040,6 +9111,19 @@ file upload, and **never mid-conversation.**
 `phase_summary_{phase}` fields of `improve_case_index`, §23.3), and
 `UploadRecord`.
 
+> **SPEC-GAP (G-51): `storage/models.py` defines ELEVEN models and this entry
+> names six.** Unnamed: **`AnalystOutputRecord`, `CaseRegistry`, `ChartRecord`,
+> `CitationRecord`, `TeamMemberRecord`.** Found 2026-09-11 by the three-way
+> alignment audit, and it is the **same shape as Part AP6** — which found six
+> `UploadRecord` FIELDS in the tree and in no document — one level up: AP6
+> checked the fields of one named model and nothing checked the model list
+> itself. `CaseRegistry` is the sharpest: `storage/blob.py`'s `load_registry` /
+> `save_registry` return it, and `GET /registry` serves it, so a route this
+> section's sibling §49 ratifies returns a model this section does not name.
+> **Registered rather than fixed in passing** — which of the five are v1
+> residue due to die at 11.1 and which are load-bearing is a founder question,
+> and §8's rule is that a table is not amended while making a feature change.
+
 > **`UploadRecord` joined this list on 2026-09-08** (`DECISIONS.md` Part AP5).
 > It has been in `storage/models.py` since before the refactor and is the
 > element type of `PhaseRecord.uploads`; this entry named four models and not
@@ -9067,7 +9151,7 @@ record is stored under rather than a field on it, and the rest are here.
 | `summary` | `str` | The interpretation's summary, lifted to the top level because §6's entry shape names `summary` and a gate document reads that shape |
 | `interpretation` | `Optional[UploadInterpretation]` | The one model call the parse is allowed (ruling AP2.4), with its source citation (ruling AP2.6) |
 | `refusal_reason` | `Optional[str]` | Belt-readable. The route refuses before persisting, so this is the belt-and-braces record for any later path that chooses to keep a refused upload |
-| `consumed_at` | `Optional[str]` | **RATIFIED 2026-09-09 — NOT YET APPLIED.** ISO 8601, set when a `load_evidence_series` call or a citation references this document. `None` means nothing has read it. Mirrors the §6 uploads entry (S-C02) |
+| `consumed_at` | `Optional[str]` | **APPLIED at step 6.12** (was *"RATIFIED — NOT YET APPLIED"*; corrected 2026-09-11 — the field is on the model and `phases/nodes_common.py` stamps it). ISO 8601, set when a `load_evidence_series` call or a citation references this document. `None` means nothing has read it. Mirrors the §6 uploads entry (S-C02) |
 | `ask_id` | `Optional[str]` | **RESERVED FOR STEP 6.12**, written `None` at 6.11 |
 | `version` | `Optional[int]` | **RESERVED FOR STEP 6.12**, written `None` at 6.11 |
 
@@ -12165,7 +12249,7 @@ item 1. Classification deferred rather than guessed.
 inline marker.** That bidirectional correspondence is checkable and is one of
 the §55.1 governance rules.
 
-**49 gaps identified. Fifteen are closed or resolved. 34 are open.** *(G-49 registered 2026-09-10 — the executor's tool selection, found at step 6.13 and reproduced on 6.12's code. `docs/_archive/DECISIONS.md` Part AU2.)* *(G-14 closed 2026-09-03 at procedure step 5.2 — `docs/_archive/DECISIONS.md` Part AC.)* *(G-21
+**51 gaps identified. Fifteen are closed or resolved. 36 are open.** *(G-50 and G-51 registered 2026-09-11 by the three-way alignment audit — `CoachingResponse` built at four of S-C05's eight fields, and `storage/models.py` defining eleven models where S-C09 names six; reasoning in that commit body per §56.2.)* *(G-49 registered 2026-09-10 — the executor's tool selection, found at step 6.13 and reproduced on 6.12's code. `docs/_archive/DECISIONS.md` Part AU2.)* *(G-14 closed 2026-09-03 at procedure step 5.2 — `docs/_archive/DECISIONS.md` Part AC.)* *(G-21
 closed 2026-09-01 at procedure step 3.5 — `docs/_archive/DECISIONS.md` Part Y.)* *(Two were
 added and resolved in the same pass on 2026-08-26 — G-45 and G-46, the metric
 registry's two spec entries. Registering a gap you are about to close in the
@@ -12208,6 +12292,8 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-05** | `extracted_entity` is read off `PhaseState` (§26); undeclared, and no writer is named anywhere | S-C02, S-F09 |
 | **G-47** | **§49's endpoint table and S-F34's copy of it are not what `gateway/routes.py` serves.** Six routes exist in the tree and in neither table — `/health`, `/summarise`, `/context`, `POST /gate`, `/gate/review/{case}/{phase}`, `/files/{case}/{file}`. **`POST /gate` is a shape disagreement rather than an omission**: the spec ratifies three gate routes and the tree serves one. `/ask/stream` is the opposite case and is excluded — ratified, unbuilt, owned by step 10.1. **This is a spec-versus-tree cross-check, not the state-schema class the rest of this group holds**, and it is here because that is what the group's title covers. Raised 2026-09-08 while scoping 6.11, when `/upload` was found to be in the tree and in neither table; that row was ratified into both (Part AP5) and the remaining six registered rather than fixed in passing — which of them are ratified, which are v1 residue dying at 11.1, and whether `/gate` becomes three are founder questions | §49, S-F34 |
 | **G-49** | **THE EXECUTOR DOES NOT CALL THE TOOL ITS OWN PLANNER NAMES.** Given a plan reading *"call `load_evidence_series` on `uploads/IMPR-2026-ED8/complaints.csv` before asking for anything further"*, the executor issues ~6 `rag_lookup_evidence` calls (19 underlying searches, 3 per multi-query) and **never calls `load_evidence_series` at all**, until the 45s per-node timeout ends the turn. No `uploads/` blob is fetched in the whole turn. **Found at step 6.13, reproduced identically at `1714d75` on 6.12's code**, so it belongs to neither step. **It blocks the `live-run` half of 6.7, 6.9, 6.12 and 6.13** — all four run through this path, and no Define turn on `IMPR-2026-ED8` completes. §17's planner/executor split gives the planner the routing decision and the executor the execution; here the executor silently substitutes its own. Diagnosis is a step of its own. `DECISIONS.md` Part AU2 | S-F04, S-F13, S-F57, §17, §26 |
+| **G-50** | **`CoachingResponse` IS BUILT AT 4 OF S-C05's 8 FIELDS.** `explanation`, `example`, `prompt` and `progress` — §50.1's render contract, the four blocks the UI is specified to draw one per field — **are not on the class**, so the only presentational field the UI receives is `message`: the single free-text blob §50.1 exists to forbid. **All five SKILL.md files instruct the coach to populate them** (step 6.9's second mandatory instruction, WATCH 9), so five live prompts name four fields the response schema cannot receive — **the instruction is inert, and WATCH 9 is therefore not closed by 6.9 as that step's body claims.** Step 6.2's Done-when asks only that a turn return *a* `CoachingResponse`, so four of eight satisfied it. The built class's docstring asserts *"the four fields below are transcribed from that entry"* against an entry defining eight — **S-C05's rebuild test, failed inside the file that cites it.** Found 2026-09-11 by the three-way alignment audit. Closes at step 10.2 | S-C05, §20, §50.1, §32 |
+| **G-51** | **`storage/models.py` DEFINES ELEVEN MODELS AND S-C09 NAMES SIX.** Unnamed: `AnalystOutputRecord`, `CaseRegistry`, `ChartRecord`, `CitationRecord`, `TeamMemberRecord`. **The same shape as Part AP6 one level up** — AP6 found six `UploadRecord` fields in the tree and in no document; nothing then checked the model LIST. `CaseRegistry` is the sharpest: `GET /registry`, which §49 ratifies, returns it. Found 2026-09-11 by the three-way alignment audit | S-C09, §10, §23.3 |
 | **G-48** | **`backend/upload/**` makes a plain model call for a typed result and is on none of the four paths `pattern-2` permits.** §4.6 scopes the builder-style structured-output call to *"a plain model invocation inside a tool, middleware, or validator"*, plus the phase planner; `deprecated_patterns.yaml` excludes exactly `knowledge/**`, `middleware/**`, `phases/**/validate.py`, `phases/**/orchestrate.py` and the planner's site. **The upload interpretation is structurally the same call** — not an agent, no model-tools loop for `response_format=` to attach to — and the hook blocks it, so the call parses JSON by hand. **The cost is already recorded**: the prompt was written for the binding, the call was switched to parsing, and the prompt was not — so every summary was the degradation fallback and 781 green tests could not see it, because none crossed that boundary (Part AP6). A schema binding cannot drift out of contract with its own parser; a hand-written one can, and did. **Registered OPEN and deliberately not fixed here** — §8 forbids amending a rule in passing during a feature change, and the ruling waits on reading what `9fce8fc` recorded when it scoped `pattern-2`. The registry's own comment already says twice that "the exclusion list simply predated the files"; this would be the third instance | §4.6, `deprecated_patterns.yaml` |
 | **G-06** | `extraction_error` and `extraction_incomplete` are written into `PhaseState` by `phase_error_recovery` (§45); neither is declared | S-C02, S-F29 |
 | **G-07** | `state["structured_response"]` is read by `ContradictionDetectionMiddleware` (§19.6). Whether middleware observes `PhaseState` or `create_agent`'s internal agent state is unstated | S-F04, S-C10 |

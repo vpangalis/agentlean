@@ -196,8 +196,14 @@ def bound(phase: str) -> int:
     return UNIVERSAL_TOOL_COUNT + len(COMPUTATION_TOOLS_BY_PHASE[phase])
 
 
-def test_per_phase_totals_are_8_15_12_8_12() -> None:
-    """§30's table, and step 5.4's Done-when."""
+def test_per_phase_totals_are_9_16_13_9_13() -> None:
+    """§30's table, and step 5.4's Done-when.
+
+    **Renamed 2026-09-11.** It was `test_per_phase_totals_are_8_15_12_8_12`
+    while asserting 9/16/13/9/13 — the name kept the figure Part AR1
+    superseded on 2026-09-09, in the one file whose job is to stop exactly
+    that. A test name is a caption like any other.
+    """
     assert {p: bound(p) for p in COMPUTATION_TOOLS_BY_PHASE} == EXPECTED_TOTALS
 
 
@@ -252,10 +258,19 @@ def test_the_universal_eight_is_eight_and_six_are_built() -> None:
         check_gate_status       S-F21, step 7.1 — needs `DMAICGateValidator`
         request_human_approval  S-F22, step 7.5 — needs the escalation path
 
-    So the LIVE per-phase totals are 6 / 13 / 10 / 6 / 10 against §30's
-    8 / 15 / 12 / 8 / 12 until 7.5 lands. **This test is where that arithmetic
-    is recorded** (WATCH 25), so the two steps that close it have to come back
-    here rather than quietly leaving the totals wrong.
+    So the LIVE per-phase totals are **7 / 14 / 11 / 7 / 11** against §30's
+    ratified **9 / 16 / 13 / 9 / 13** until 7.5 lands. **This test is where that
+    arithmetic is recorded** (WATCH 25), so the two steps that close it have to
+    come back here rather than quietly leaving the totals wrong.
+
+    **Both figures in this paragraph were wrong until 2026-09-11.** It read
+    *"6 / 13 / 10 / 6 / 10 against §30's 8 / 15 / 12 / 8 / 12"* — the live half
+    stale by one since `load_evidence_series` joined `UNIVERSAL_TOOLS` at 6.12,
+    the ratified half stale since Part AR1 made the set eight. **The paragraph
+    warning that the two steps must not leave the totals wrong was itself the
+    thing left wrong**, in both of its numbers, for two days. `verify_built.py`
+    now pins the live bind so the next drift is caught by a run rather than by
+    an audit.
     """
     assert UNIVERSAL_TOOL_COUNT == 8, "§30's ratified count — eight since 2026-09-09"
     assert len(UNIVERSAL_TOOLS) == 6, "five at 6.2, load_evidence_series at 6.12"

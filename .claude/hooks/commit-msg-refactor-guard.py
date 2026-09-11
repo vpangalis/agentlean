@@ -162,6 +162,12 @@ STATUS_WATCHED = (
     "agent-improve/backend/knowledge/computation.py",
     "agent-improve/backend/gateway/routes.py",
     "agent-improve/backend/storage/blob.py",
+    # Added 2026-09-11 with step 6.16. The board is a PROJECTION of Appendix D,
+    # the BUILT markers, §66 and git log; the guard is what notices when the
+    # projection did not move with them - a stale board visible the way a stale
+    # marker is. It carries NO wall-clock date precisely so that it changes
+    # when, and only when, one of those four sources does.
+    "agent-improve/docs/board.html",
 )
 
 # Everything type-checked and tested lives under this project.

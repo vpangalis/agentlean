@@ -115,7 +115,7 @@ rules that bind, and where they live:
 | Executor `response_format` | `ProviderStrategy(PhaseOutput)` | **`CoachingResponse`** (§4.6, §10.7) |
 | Field capture | `record_field` tool | **`CoachingResponse.fields_captured`** (§5.1) |
 | Universal tools | 8 | **7** (§5.1) |
-| Per-phase totals | 9 / 16 / 13 / 9 / 12 | **8 / 15 / 12 / 8 / 12** (§5.2) |
+| Per-phase totals | 9 / 16 / 13 / 9 / 12 | **9 / 16 / 13 / 9 / 13** (§5.2) — *was `8 / 15 / 12 / 8 / 12`; corrected 2026-09-11, superseded by §898's amendment of 2026-09-09* |
 | Gate document schemas | Undefined, or two conflicting | **Five canonical `{Phase}Output`** (§10.7) |
 
 ### 0.6 — What Changed in 2.2.11 — the eBook gaps closed

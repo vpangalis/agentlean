@@ -217,11 +217,36 @@ def get_refactor_step() -> str:
             f"({PROCEDURE_DOC_PATH} Appendix D)")
 
 
+def _pinned_python() -> str:
+    """`agent-improve/.venv`'s interpreter — NEVER `sys.executable`.
+
+    **WATCH 2, and this hook was the live instance of it until 2026-09-11.**
+    The repo root carries a second, older virtualenv. This function used
+    `sys.executable`, which is whatever interpreter Claude Code launched the
+    hook with — the ROOT venv — so every session opened with a dependency
+    report for the wrong tree: `langgraph 1.1.10` against a project running
+    **1.2.11**, flagged `⚠` as behind when it is current.
+
+    **The report contradicted step 2.3's Done-when** (*"reports ≥1.2.6"*) at
+    the top of every session, which is the worst possible place for a false
+    negative: it is the first thing read and the last thing anyone re-derives.
+    `verify_built.py` has pinned the venv since it was written and says so in
+    its own docstring; this hook was never given the same rule.
+    """
+    root = get_project_dir()
+    for rel in (("agent-improve", ".venv", "Scripts", "python.exe"),
+                ("agent-improve", ".venv", "bin", "python")):
+        cand = os.path.join(root, *rel)
+        if os.path.exists(cand):
+            return cand
+    return sys.executable                       # fail-soft, as the hook must
+
+
 def get_installed_version(pkg: str) -> str | None:
-    """Installed version via `<python> -m pip show`, or None if absent."""
+    """Installed version via the PINNED venv's `pip show`, or None if absent."""
     try:
         out = subprocess.run(
-            [sys.executable, "-m", "pip", "show", pkg],
+            [_pinned_python(), "-m", "pip", "show", pkg],
             capture_output=True, encoding="utf-8", errors="replace", timeout=10,
         )
         if out.returncode != 0:

@@ -94,6 +94,72 @@ def count_tree_containing(rel_dir: str, needle: str, skip: str) -> str:
     return str(n)
 
 
+def route_set() -> str:
+    """Every `@router.<verb>("<path>")` in `routes.py`, as `VERB /path`.
+
+    **The SET, not the count** - added 2026-09-11. Section 49's marker
+    miscounted which routes its own table names, while a count of eleven
+    agreed with the tree on every run. A population check cannot see a route
+    renamed, and cannot be asked which ones the spec covers; a sorted set can
+    be diffed against the table by eye in one line.
+    """
+    rx = re.compile(r'^@router\.(get|post|delete|put|patch)\(\s*"([^"]+)"')
+    text = Path(os.path.join(ROOT, "agent-improve/backend/gateway/routes.py")
+                ).read_text(encoding="utf-8", errors="replace")
+    found = set()
+    for ln in text.splitlines():
+        m = rx.match(ln)
+        if m:
+            found.add(f"{m.group(1).upper()} {m.group(2)}")
+    return " | ".join(sorted(found))
+
+
+def count_call_sites(rel_dir: str, func: str) -> str:
+    """Real calls to `func` in `rel_dir`, parsed with `ast`. Tests excluded.
+
+    **THE PARSE IS THE POINT, AND THE FIRST CUT PROVED IT.** This began as a
+    line filter that stripped `#` comments, skipped docstring bodies and
+    dropped any line carrying a backtick. It returned **3** where the true
+    answer is **1**: two of its hits were the token inside a logging format
+    string, and no amount of further line-level filtering reaches those
+    without also hiding real code. `ast` distinguishes a call from a mention
+    by construction, which no grep can.
+
+    **Why a call-site check exists at all.** A `grep-absence` claim is
+    self-falsifying the moment someone writes a guard naming the token it
+    forbids - found twice on 2026-09-11: `set_entry_point` returns three
+    hits, all comments reading *"never set_entry_point"*, and
+    `COACH_RECURSION_LIMIT` returns one, the regression test asserting its
+    absence. Steps 2.4 and 6.7 both HOLD; both Done-whens, read literally,
+    now fail. The mechanism they describe is fine; the phrasing is not
+    re-runnable, and this is what re-runnable looks like.
+    """
+    import ast
+
+    n = 0
+    for base, _, files in os.walk(os.path.join(ROOT, rel_dir)):
+        norm = base.replace(chr(92), "/")
+        if "/tests" in norm or "__pycache__" in norm:
+            continue
+        for f in files:
+            if not f.endswith(".py"):
+                continue
+            try:
+                tree = ast.parse(Path(base, f).read_text(
+                    encoding="utf-8", errors="replace"))
+            except SyntaxError:
+                continue
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                fn = node.func
+                name = (fn.id if isinstance(fn, ast.Name) else
+                        fn.attr if isinstance(fn, ast.Attribute) else None)
+                if name == func:
+                    n += 1
+    return str(n)
+
+
 def py(code: str) -> str:
     out = subprocess.run([VENV, "-c", code], cwd=PROJECT, capture_output=True,
                          text=True, timeout=120)
@@ -155,6 +221,98 @@ CHECKS = [
      lambda: count_tree_containing("agent-improve/backend", "@traceable",
                                   "/tests"),
      "§51 — zero, and that is the ☐ marker"),
+
+    # ── Added 2026-09-11 by the three-way alignment audit. ────────────────
+    # Ten checks for markers that had none. The audit found FOUR markers
+    # stale or self-contradictory in a document whose eleven checks all
+    # passed — so the eleven were not wrong, they were not enough. What
+    # they had in common: every one counted a POPULATION (routes, tools,
+    # files) and none pinned a VALUE or a SET. A count cannot see a route
+    # renamed, a constant retuned, or a field dropped.
+
+    # §49. The SET, not the count. The marker this backs contradicted
+    # itself — "names 8 of the 11 — six … in no ratified table", 8 + 6 = 14
+    # — and a count of 11 agreed with the tree throughout.
+    ("API route set (§49)",
+     "DELETE /files/{case_id}/{file_id} | GET /cases/{case_id} | "
+     "GET /gate/review/{case_id}/{phase} | GET /health | GET /registry | "
+     "POST /ask | POST /cases | POST /context | POST /gate | "
+     "POST /summarise | POST /upload",
+     lambda: route_set(),
+     "§49 — 4 named by the table, 7 in no ratified table (G-47)"),
+
+    # S-C05. Four of the ratified eight. Expected is the BUILT state, with
+    # the gap named on the marker — §29.2's pattern. A check expecting
+    # eight would fail every run until 10.2 and teach the reader to skip it.
+    ("CoachingResponse fields (S-C05)",
+     "citations, contradiction_flag, fields_captured, message",
+     lambda: py("from backend.core.substate import CoachingResponse as C; "
+                "print(', '.join(sorted(C.model_fields)))"),
+     "S-C05 — 4 of the ratified 8; §50.1's explanation/example/prompt/"
+     "progress are unbuilt (G-50), step 10.2"),
+
+    ("state field counts (S-C01 / S-C02)", "7 / 22",
+     lambda: py("from backend.core.state import SupervisorState as S; "
+                "from backend.core.substate import PhaseState as P; "
+                "print(f'{len(S.__annotations__)} / {len(P.__annotations__)}')"),
+     "S-C01 — seven · S-C02 — twenty-two. Step 3.1's Done-when said "
+     "7 and 19; four ratified amendments have moved it since"),
+
+    ("storage models (S-C09)", "11",
+     lambda: py("import backend.storage.models as M; "
+                "from pydantic import BaseModel; "
+                "print(sum(1 for n in dir(M) if isinstance(getattr(M, n), type) "
+                "and issubclass(getattr(M, n), BaseModel) and getattr(M, n) "
+                "is not BaseModel))"),
+     "S-C09 — eleven defined, six named by the entry (G-51)"),
+
+    # §19.3 / §19.4 / §19.5 / §26 / §44 — the tuned values. Five markers
+    # state these numbers and nothing re-read them.
+    ("summarization trigger / keep (§19.3)",
+     "('tokens', 100000) / ('messages', 20)",
+     lambda: py("import backend.phases.nodes_common as N; "
+                "print(f'{N.SUMMARIZATION_TRIGGER} / {N.SUMMARIZATION_KEEP}')"),
+     "§19.3 — trigger 100k, keep 20"),
+
+    ("retry caps (§19.4 / §19.5)", "2 / continue",
+     lambda: py("import backend.phases.nodes_common as N; "
+                "print(f'{N.RETRY_MAX} / {N.TOOL_RETRY_ON_FAILURE}')"),
+     "§19.4 — max_retries=2 · §19.5 — on_failure='continue'"),
+
+    ("hop caps (§26 / S-F09 B1)", "5 / 2 / 50",
+     lambda: py("import backend.phases.nodes_common as N; "
+                "from backend.core.graph import RECURSION_LIMIT; "
+                "print(f'{N.COACH_HOP_BUDGET} / {N.REMAINING_STEPS_FLOOR} / "
+                "{RECURSION_LIMIT}')"),
+     "§26 — the caps ARE built (6.7): budget 5, floor 2, backstop 50. "
+     "It is `analyse_executor_node` that is not"),
+
+    ("executor run timeout (§44)", "45",
+     lambda: py("from backend.phases.subgraph_common import "
+                "EXECUTOR_RUN_TIMEOUT as T; print(T)"),
+     "§44 — Step 0 only; TimeoutPolicy(run_timeout=45)"),
+
+    # §33. The ☐ marker's own load-bearing fact. This flips the day 7.3
+    # lands, which is the point — four other markers name the interrupt's
+    # absence as their reason (WATCH 13, 18, 23).
+    # Expected is ONE, not zero, and finding that out is what this check was
+    # worth. §33's marker read "Nothing in the system currently pauses for a
+    # human"; `ContradictionDetectionMiddleware.after_agent` has called
+    # `langgraph.types.interrupt` since 6.5. The GATE interrupt is genuinely
+    # unbuilt (7.3) - the blanket claim was not. Goes to 2 when 7.3 lands.
+    ("interrupt() call sites (§33)", "1",
+     lambda: count_call_sites("agent-improve/backend", "interrupt"),
+     "§33 — the one is §19.6's contradiction interrupt (position 6); "
+     "`gate_review` is still pass-through, step 7.3"),
+
+    # §30. The figure NONE of the four captions was measuring.
+    ("LIVE per-phase tool bind (§30)", "7/14/11/7/11",
+     lambda: py("from backend.phases.nodes_common import _executor_tools as E, "
+                "COACH_HOP_BUDGET as B; "
+                "from backend.phases.mappers_common import PHASE_ORDER as P; "
+                "print('/'.join(str(len(E(p, B, None))) for p in P))"),
+     "§30 — ratified 9/16/13/9/13; two universal tools unbuilt (7.1, 7.5). "
+     "Four captions carried four different figures for this on 2026-09-11"),
 ]
 
 
