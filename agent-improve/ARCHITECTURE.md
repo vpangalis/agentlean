@@ -8214,6 +8214,28 @@ prevent.
 > disagrees. **Twenty checks plus the five-phase script byte-match**, against
 > the pinned venv.
 >
+> **AND SINCE 2026-09-11 `pytest` RUNS THEM, which is the difference between a
+> guard and a habit.** `backend/tests/test_built_markers.py` parametrises the
+> table one test per check, so rule 4 of the commit-msg guard enforces all 21
+> on every spine commit and a failure names **which marker went stale** rather
+> than reporting that the hook exited non-zero. **Until then nothing invoked
+> it**: no hook, no CI step, only a human remembering the command — which is
+> this section's own failure mode applied to the thing guarding against it.
+> *A check nobody runs and a check that passes look identical until you run
+> it.*
+>
+> **The check COUNT is pinned separately**, because parametrising over a list
+> means deleting a check deletes its test and the suite goes green — the
+> cheapest possible answer to a red build. It may only move in a commit that
+> means to move it.
+>
+> **Cost: ~2s, not ~49s.** `py()` skips its subprocess when the running
+> interpreter is already the pinned venv, which it is under `pytest`, so the
+> eleven probes stop paying a cold `langchain` import each. WATCH 2's rule is
+> about WHICH interpreter answers, not about spawning one, and the subprocess
+> path still applies to every other caller. **A check people wait 49s for is a
+> check someone eventually skips.**
+>
 > **It ran eleven until 2026-09-11, and all eleven passed against four wrong
 > markers.** §49's contradicted itself, §33's asserted an absence the tree
 > disproved, §19.6's called a consumed flag inert, and S-C05 had no marker at

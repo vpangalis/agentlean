@@ -160,7 +160,55 @@ def count_call_sites(rel_dir: str, func: str) -> str:
     return str(n)
 
 
+def _is_pinned_interpreter() -> bool:
+    """Are we ALREADY running under `agent-improve/.venv`?
+
+    WATCH 2 is why `py()` shells out to a pinned interpreter at all: the repo
+    root carries a second, older venv, and a probe against it answers for the
+    wrong tree. **That rule is about WHICH interpreter answers, not about
+    spawning a process** - so when this one is already the pinned one, the
+    subprocess is a copy of ourselves and the guarantee is met without it.
+    """
+    try:
+        return os.path.realpath(sys.executable) == os.path.realpath(VENV)
+    except Exception:                               # noqa: BLE001
+        return False
+
+
 def py(code: str) -> str:
+    """Run a probe against the pinned venv and return its last stdout line.
+
+    **IN-PROCESS when we are already the pinned interpreter, subprocess
+    otherwise.** Eleven probes, each importing langchain and langgraph in a
+    cold interpreter, cost 49 seconds - acceptable for a hand-run advisory
+    tool, not acceptable inside `pytest`, which rule 4 runs on every spine
+    commit. A check people wait 49s for is a check someone eventually skips.
+
+    The fast path `exec`s the same probe source with `cwd` set to PROJECT,
+    because two probes open `ARCHITECTURE.md` by relative path. Failures are
+    returned as text, exactly as the subprocess path returns stderr, so a
+    broken probe reads as a disagreement rather than crashing the run.
+    """
+    if _is_pinned_interpreter():
+        import contextlib
+        import io as _io
+
+        buf = _io.StringIO()
+        cwd = os.getcwd()
+        if PROJECT not in sys.path:
+            sys.path.insert(0, PROJECT)
+        try:
+            os.chdir(PROJECT)
+            with contextlib.redirect_stdout(buf):
+                exec(compile(code, "<verify_built probe>", "exec"),
+                     {"__name__": "__probe__"})
+        except BaseException as exc:                # noqa: BLE001
+            return f"PROBE FAILED: {exc!r}"
+        finally:
+            os.chdir(cwd)
+        lines = buf.getvalue().strip().splitlines()
+        return lines[-1] if lines else ""
+
     out = subprocess.run([VENV, "-c", code], cwd=PROJECT, capture_output=True,
                          text=True, timeout=120)
     return (out.stdout.strip() or out.stderr.strip().splitlines()[-1:] or [""])[0] \
