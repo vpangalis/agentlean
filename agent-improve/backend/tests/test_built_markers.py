@@ -72,8 +72,9 @@ pytestmark = pytest.mark.skipif(
 
 _vb = _load() if _HOOK.exists() else None
 
-#: The eleven counted checks plus the five-phase script byte-match.
-_EXPECTED_CHECK_COUNT = 21
+#: The eleven counted checks, the nine from the 2026-09-11 alignment audit,
+#: F-15's reader/writer pairing pass, and the five-phase script byte-match.
+_EXPECTED_CHECK_COUNT = 22
 
 
 def test_the_hook_is_where_this_file_thinks_it_is() -> None:
@@ -100,7 +101,7 @@ def test_the_check_count_is_pinned() -> None:
     only in a commit that means to move it.
 
     Eleven counted checks + the nine added by the 2026-09-11 alignment audit +
-    the five-phase script byte-match = 21.
+    F-15's pairing pass + the five-phase script byte-match = 22.
     """
     total = len(_vb.CHECKS) + 1          # +1: check_phase_scripts, run separately
     assert total == _EXPECTED_CHECK_COUNT, (

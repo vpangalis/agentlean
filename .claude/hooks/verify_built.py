@@ -215,6 +215,129 @@ def py(code: str) -> str:
         if not out.stdout.strip() else out.stdout.strip()
 
 
+
+# ── F-15's check: every state field needs a writer AND a reader. ───────────
+#
+# **Seven instances before anything checked for it.** The Store's `case`
+# namespace (closed 6.8), `PhaseState.uploads` (6.11), §6's "evidence context"
+# reader (6.12), `get_evidence_vectorstore()` (called by nothing),
+# `computation_results`, `phase_metrics` and `final_output`. §55.1's
+# bidirectional rule governs references between DOCUMENTS; nothing applied it
+# between a declaration and its reader, so each was found by hand, while
+# building something adjacent, months apart.
+#
+# **Exemptions are DECLARED with a reason, never baselined.** Three fields are
+# genuinely one-sided by specification, and a check that quietly tolerated
+# them would tolerate the next one too.
+PAIRING_EXEMPT = {
+    "history": "§5 / §6 — diagnostic only; *no control logic reads it*, by spec",
+    "remaining_steps": "§6 — engine-managed: LangGraph writes it, the executor "
+                       "reads it. A writer here would be the WATCH-26 bug",
+    "phase_index": "§5 — its readers are the UI progress display, which is "
+                   "`ui/index.html`; no Python reader is expected",
+}
+
+#: Keys §7 and §39.x.7 name on `artifacts` that are not coached fields, so
+#: nothing writes them by capture. This is where F-15 keeps recurring.
+PAIRING_ARTIFACT_KEYS = ("computation_results", "phase_metrics", "acknowledged_gaps")
+
+_STATE_ANNOTATIONS = {"PhaseState", "SupervisorState"}
+
+
+def _state_write_dicts(tree: "object") -> set:
+    """ids of dict literals that are a STATE WRITE, by the three real idioms.
+
+    **Not "any dict literal anywhere", and not "only `return {...}`".** The
+    first cut counted every key in every dict and reported
+    `computation_results` as written five times - those five are the
+    gate-document assemblers CONSTRUCTING a document from
+    `artifacts.get("computation_results", [])`, which is a READ. A heuristic
+    that calls a read a write cannot find a missing write.
+
+    The second cut counted only `return {...}` and swung the other way,
+    calling `final` and `validator_feedback` unwritten when both are written
+    through the other two idioms. **A check that cries wolf is worse than no
+    check.** All three idioms the codebase actually uses:
+
+        return {...}                a node's state update
+        Command(update={...})       §17's routing update
+        state: PhaseState = {...}   the input mappers' construction
+    """
+    import ast
+
+    out = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Return) and isinstance(node.value, ast.Dict):
+            out.add(id(node.value))
+        elif isinstance(node, ast.Call):
+            for kw in node.keywords:
+                if kw.arg == "update" and isinstance(kw.value, ast.Dict):
+                    out.add(id(kw.value))
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.value, ast.Dict):
+            ann = node.annotation
+            name = ann.id if isinstance(ann, ast.Name) else getattr(ann, "attr", "")
+            if name in _STATE_ANNOTATIONS:
+                out.add(id(node.value))
+    return out
+
+
+def unpaired_state_fields() -> str:
+    """`name:W` / `name:R` for every field missing a writer / a reader.
+
+    `W` means nothing writes it; `R` means nothing reads it. Declared-and-
+    entirely-unused reads `WR`.
+    """
+    import ast
+
+    writes: dict[str, set] = {}
+    reads: dict[str, set] = {}
+    for base, _, files in os.walk(os.path.join(PROJECT, "backend")):
+        norm = base.replace("\\", "/")
+        if "/tests" in norm or "__pycache__" in norm:
+            continue
+        for f in files:
+            if not f.endswith(".py"):
+                continue
+            try:
+                tree = ast.parse(Path(base, f).read_text(
+                    encoding="utf-8", errors="replace"))
+            except SyntaxError:
+                continue
+            state_dicts = _state_write_dicts(tree)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Dict) and id(node) in state_dicts:
+                    for k in node.keys:
+                        if isinstance(k, ast.Constant) and isinstance(k.value, str):
+                            writes.setdefault(k.value, set()).add(f)
+                elif isinstance(node, ast.Subscript):
+                    sl = node.slice
+                    if isinstance(sl, ast.Constant) and isinstance(sl.value, str):
+                        (writes if isinstance(node.ctx, ast.Store) else reads
+                         ).setdefault(sl.value, set()).add(f)
+                elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                    if node.func.attr in ("get", "setdefault", "pop") and node.args:
+                        a0 = node.args[0]
+                        if isinstance(a0, ast.Constant) and isinstance(a0.value, str):
+                            reads.setdefault(a0.value, set()).add(f)
+                            if node.func.attr == "setdefault":
+                                writes.setdefault(a0.value, set()).add(f)
+
+    names = py("from backend.core.state import SupervisorState as S; "
+               "from backend.core.substate import PhaseState as P; "
+               "print(','.join(dict.fromkeys(list(S.__annotations__) + "
+               "list(P.__annotations__))))")
+    fields = [n for n in names.split(",") if n] + list(PAIRING_ARTIFACT_KEYS)
+
+    out = []
+    for name in fields:
+        if name in PAIRING_EXEMPT:
+            continue
+        flag = ("W" if name not in writes else "") + ("R" if name not in reads else "")
+        if flag:
+            out.append(f"{name}:{flag}")
+    return " ".join(sorted(out))
+
+
 # ── The checks. (label, expected, probe, which BUILT marker it backs) ──────
 #
 # `expected` is written here rather than parsed out of the prose, deliberately:
@@ -367,6 +490,20 @@ CHECKS = [
                 "print('/'.join(str(len(E(p, B, None))) for p in P))"),
      "§30 — ratified 9/16/13/9/13; two universal tools unbuilt (7.1, 7.5). "
      "Four captions carried four different figures for this on 2026-09-11"),
+
+    # F-15, checked at last. Every name here is accounted for by a step or is
+    # registered as unowned; the VALUE of the check is that a NEW name cannot
+    # join the list quietly, which is how all seven previous instances began.
+    ("state fields with no writer (W) or no reader (R)",
+     "acknowledged_gaps:WR belt_edits:R computation_results:W field_index:R "
+     "final_output:R hop_results:R phase_metrics:W rejection_feedback:R "
+     "synthesis_output:R",
+     unpaired_state_fields,
+     "F-15 · §6 / §7 — computation_results and phase_metrics are step 6.20; "
+     "field_index 6.20; hop_results / synthesis_output 6.10; belt_edits, "
+     "rejection_feedback and acknowledged_gaps need the gate (7.3, 7.4); "
+     "**final_output has NO OWNING STEP**. Exemptions are declared in "
+     "PAIRING_EXEMPT with reasons"),
 ]
 
 

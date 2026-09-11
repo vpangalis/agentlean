@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.25 · 2026-09-11
+Version 1.26 · 2026-09-11
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.26 (2026-09-11)** — **§56 AMENDMENT. MARKER COVERAGE IS NOW COMPLETE: every ratified section ends in a marker or in an explicit reason it cannot carry one.** Founder ruling. **(A) THE SWEEP.** All 62 ratified top-level sections walked. **45 carry a `> **BUILT:**` marker** with a closing step or `no step owns this`; **17 carry a `> **NOT-MARKABLE:**` note** giving the reason — methodology or coaching content (§28, §43), a rule enforced elsewhere (§54, §56), or **marked at its canonical home** (§5→§57.2, §6→§58.2, §12→§15, §20→§58.5, §45→§44) and the eight spec-layer Parts whose entries carry their own. **Zero sections are in neither state**, which was the point: a section nobody classified is indistinguishable from one nobody built. Markers go 21 → 66. **(B) THE UNOWNED LIST, ENUMERATED FOR THE FIRST TIME.** Four markers are `☐ not built` with **no step that closes them**: §39.2.2, §39.3.2, §39.4.2 and §39.5.2 — the ordered field lists for Measure, Analyse, Improve and Control, which exist as tables here and in no runtime form. A fifth unowned item sits inside §39.5.7: **`SupervisorState.final_output` is never written**, so the project's terminal artifact does not exist. **(C) F-15 IS CHECKED AT LAST.** `verify_built.py` gains an `ast` pass asserting a writer AND a reader for every state field and every `artifacts` key — **one check for a pattern that recurred seven times**, each found by hand months apart. Nine fields are unpaired and each is accounted for; three are exempt **with declared reasons** (`history` diagnostic-only, `remaining_steps` engine-managed, `phase_index` read by the UI). The check took two cuts to get right and both failure modes are recorded in it: counting every dict literal called a READ a write, and counting only `return {...}` called two written fields unwritten. **(D) THE BOARD NAMES EVERY NUMBER.** No bare `§` or step reference renders anywhere — titles come from the headings, and a section with no usable heading is reported by `--check` (there are none). A generated legend gives the prefixes in plain words. Reasoning: this commit body (§56.2).
 
 **v1.25 (2026-09-11)** — **§56 AMENDMENT. EIGHTEEN BUILT MARKERS ADDED — MAIN's three items and the five phases — so the board can show state PER PHASE rather than only per architectural block.** Founder ruling: *"If a fact is worth showing it is worth marking, and the board reads markers."* **(A) MAIN, all ✅ and expected to stay that way:** §57.2 (`SupervisorState` 7/7 exact), §58.2 (`PhaseState` 22/22 exact and in order), §15 (the supervisor graph compiles exactly as specified and is deliberately not yet the runtime — one line at 7.3). **(B) PER PHASE, fifteen markers over three facts each.** The **ordered field list** (§39.x.2): built for Define only — `DEFINE_FIELD_ORDER`, 12 fields — and **absent for the other four**, which expose tier SETS and no `*_FIELD_ORDER`, so the sequence those tables state has no runtime form. **⚠ No step owns those four**: 6.20 covers Define's and group C's slices do not create ordered lists. The **state contract** (§39.x.7): the captured fields land as specified in all four, and **three rows do not hold in any of them** — `artifacts["computation_results"]` and `artifacts["phase_metrics"]` are read by the gate-document assembler and written by nothing, and `field_index` never advances. Analyse additionally never populates `hop_results`/`synthesis_output` despite §39.3.7 saying *"populated here"* (6.10, blocked); Control never writes `SupervisorState.final_output`, and **no step owns that clause**. The **SKILL.md content** (§39.1.7, §39.x.10): ✅ all five, §32-conformant and byte-matching. **(C) DEFINE HAS NO STATE-PARAMETERS SECTION AND NOW SAYS SO** — 39.1.7 is its SKILL.md content, so the phase being proven first is the one phase with no state contract; 6.20 writes it. **(D) §39.x.2's four missing lists and Control's `final_output` are recorded as UNOWNED**, which is the finding rather than a footnote. **(E) The board leads with the four Seq BANDS, not with readiness lanes** — 11.1 and 11.2 had been sitting in READY beside 6.18, correct on readiness and misleading about what to do next. Band ranges and their descriptions are **data in Appendix D**, not constants in the generator. Reasoning: this commit body (§56.2).
 
@@ -388,6 +390,8 @@ exist at all.
 
 ## 2. How to read this document
 
+> **NOT-MARKABLE:** reading instructions.
+
 *Supersedes: REFACTORING §Document Navigation; ARCHITECTURE.md §0.*
 
 ### By what you are trying to do
@@ -437,6 +441,8 @@ section wins and the other is a bug.** Report it rather than picking one.
 ---
 
 ## 3. Terminology
+
+> **NOT-MARKABLE:** terminology.
 
 *Supersedes: REFACTORING §Terminology Reference.*
 
@@ -600,6 +606,8 @@ here. It is deliberately first.*
 
 ## 5. `SupervisorState` — orchestration only
 
+> **NOT-MARKABLE:** specified here, **marked at its canonical home §57.2 (S-C01)**, which carries the rebuild test. One marker per item, never one per section that mentions it.
+
 *Supersedes: REFACTORING §17; ARCHITECTURE.md §4.1; DECISIONS §A1.*
 **Status: RATIFIED.** File: `core/state.py`.
 
@@ -656,6 +664,8 @@ structural rather than stylistic.
 ---
 
 ## 6. `PhaseState` — per-phase subgraph state
+
+> **NOT-MARKABLE:** specified here, **marked at §58.2 (S-C02)**, which carries the rebuild test and the field census.
 
 *Supersedes: REFACTORING §18; ARCHITECTURE.md §4.2; DECISIONS §A2.*
 **Status: RATIFIED.** File: `core/substate.py`.
@@ -822,6 +832,8 @@ ambiguity between the two is exactly what the rename removed.
 
 ## 7. Field typing law — every captured field is a string
 
+> **BUILT:** ✅ built · **the typing law is enforced by schema, not by convention** — all five `{Phase}Output` declare captured fields as `str` or `dict`, and `test_gate_documents.py` pins both the `dict` fields and their Tier-1 placement · **closes:** `[none]`
+
 *Supersedes: REFACTORING §10.6-equivalent; ARCHITECTURE.md §4.6, §4.7, §4.8; DECISIONS §A5, §A6.*
 **Status: RATIFIED.**
 
@@ -891,6 +903,8 @@ the same result in two places.
 ---
 
 ## 8. The checkpointer / store split
+
+> **BUILT:** ✅ built · both primitives are wired and distinct: the checkpointer on the parent graph (§16), the Store passed to nodes (§9). **Passing only a checkpointer is the mistake this section names, and the tree does not make it** · **closes:** `[none]`
 
 *Supersedes: REFACTORING §1, §52, §52a; ARCHITECTURE.md §6.1, §6.2.*
 **Status: RATIFIED.**
@@ -983,6 +997,8 @@ from the original spec, discovered during implementation.
 ---
 
 ## 9. The Store — cross-phase artifacts and boundary mappers
+
+> **BUILT:** ✅ built · `AzureBlobStore(BaseStore)` at 3.2 and **ten boundary mappers** — an input and an output pair per phase — at 3.3, whose only dependency is `BaseStore` · **closes:** `[none]`
 
 *Supersedes: REFACTORING §19, §44 (Mechanism 3), §52a; ARCHITECTURE.md §4.3, §6.3; DECISIONS §A7, §O1.*
 **Status: RATIFIED.** File: `core/store.py`.
@@ -1106,6 +1122,8 @@ cannot resume, there is no second session for stored artifacts to serve.
 
 ## 10. Azure Blob — two distinct concerns
 
+> **BUILT:** ✅ built · `storage/blob.py` is module-level `async` functions since 3.5; the class is gone and `grep -rn "class ImproveBlobClient"` returns zero · **closes:** `[none]`
+
 *Supersedes: REFACTORING §1; ARCHITECTURE.md §6.2, §6.4, §6.5.*
 **Status: RATIFIED.**
 
@@ -1163,6 +1181,8 @@ update remain two separate writes. Both are covered by the node's
 
 ## 11. `step_log` — the audit trail
 
+> **BUILT:** ✅ built · written by every node through one deterministic key helper. **Built incidentally rather than by a step**, which Appendix A ruled explicitly in the 2026-09-07 coverage audit · **closes:** `[none]`
+
 *Supersedes: REFACTORING §18 (step_log); ARCHITECTURE.md §4.4.*
 **Status: RATIFIED.**
 
@@ -1219,6 +1239,8 @@ This is a hard requirement of the disconnect policy (§47).
 
 ## 12. Topology
 
+> **NOT-MARKABLE:** topology overview. **The buildable claim is §15's**, which marks the supervisor graph and the fact that it is not yet the runtime.
+
 *Supersedes: REFACTORING §23, §44; ARCHITECTURE.md §3.1.*
 **Status: RATIFIED.** Files: `core/graph.py`, `phases/{phase}/graph.py`, `escalate.py`.
 
@@ -1257,6 +1279,8 @@ omission — see §16.
 ---
 
 ## 13. The phase subgraph — five nodes
+
+> **BUILT:** ✅ built · five nodes, identical node-name sets across all five phases, re-run by `verify_built.py`'s *phase subgraph nodes* check. ⚠ `gate_review` is a pass-through until 7.3 · **closes:** `[7.3]`
 
 *Supersedes: REFACTORING §23; ARCHITECTURE.md §3.2, §3.3.1; DECISIONS §B1.*
 **Status: RATIFIED.**
@@ -1396,6 +1420,8 @@ executor is one node.** The tool-calling loop happens inside it.
 ---
 
 ## 14. Node contract
+
+> **BUILT:** ✅ built · every node is `async def` since 2.5 — all five `orchestrate_*`, all five `validate_*`, `escalate`, and all eleven route handlers · **closes:** `[none]`
 
 *Supersedes: REFACTORING §21; ARCHITECTURE.md §3.2.*
 **Status: RATIFIED.**
@@ -1672,6 +1698,8 @@ retired** (§29).
 ---
 
 ## 18. Building the executor — `create_agent`
+
+> **BUILT:** ✅ built · `create_agent` with `system_prompt=` and `response_format=CoachingResponse`, both parameter names verified against the installed signature. ⚠ the response schema itself is four of eight fields (§58.5, G-50) · **closes:** `[6.19]`
 
 *Supersedes: REFACTORING §42, §50, §84; ARCHITECTURE.md §3.3; CLAUDE.md §4.4.*
 **Status: RATIFIED.**
@@ -2046,6 +2074,8 @@ Full treatment, including the rubric text and the two-grader distinction, is
 
 ## 20. `CoachingResponse` — the per-turn schema
 
+> **NOT-MARKABLE:** specified here, **marked at §58.5 (S-C05)** — which records that `CoachingResponse` is built at four of its eight fields (G-50).
+
 *Supersedes: REFACTORING §82; ARCHITECTURE.md §4.10; CLAUDE.md §10.7; DECISIONS §B4.*
 **Status: RATIFIED.**
 
@@ -2111,6 +2141,8 @@ believing structured output is a defence against hallucinated content.
 ---
 
 ## 21. LLM roles, temperature, and the factory
+
+> **BUILT:** ✅ built · eleven roles resolve to a deployment and grader temperature is 0.1, pinned by `test_llm.py`; the factory's retry is explicitly 0 (§19.4 owns retry). ⚠ **§21's own role map versus the 11-role factory is carried forward unresolved** from v1.22 · **closes:** `[none]`
 
 *Supersedes: REFACTORING §34-D, §42; ARCHITECTURE.md §3.3; CLAUDE.md §4.1, §4.2, §4.7.*
 **Status: RATIFIED.** File: `core/llm.py`.
@@ -2223,6 +2255,8 @@ multi-part response.
 
 ## 22. Prompts
 
+> **BUILT:** ✅ built · the five `{PHASE}_COACH_PROMPT` carry the memory-hierarchy block and the anti-hallucination guards (6.6). The v1 `EXTRACTION_{PHASE}` family survives only in `core/prompts.py` and the five v1 `orchestrate.py`, which **step 11.1 deletes wholesale** · **closes:** `[11.1]`
+
 *Supersedes: REFACTORING §38, §40; ARCHITECTURE.md §3.3; CLAUDE.md §6.*
 **Status: RATIFIED.** File: `core/prompts.py`.
 
@@ -2284,6 +2318,8 @@ requires all three of:
 ---
 
 ## 23. The three indexes
+
+> **BUILT:** ⚠️ built with a known defect · all three indexes exist and the evidence index carries §23.2's seven fields as of 6.13. **The case index has no `content_vector`**, so case-history retrieval is keyword-only and misses paraphrase — step 9.1, ⛔ EXTERNAL · **closes:** `[9.1]`
 
 *Supersedes: REFACTORING §36, §40; ARCHITECTURE.md §7.1–§7.3; CLAUDE.md §7.3.*
 **Status: RATIFIED, with two pending schema changes marked below.**
@@ -2675,6 +2711,8 @@ the Azure AI Search change. Never record a schema change only in code.
 
 ## 24. The three `rag_lookup_*` tools
 
+> **BUILT:** ✅ built · three `rag_lookup_*` tools, and `rag_lookup_evidence` returns §24's structured record rather than rendered text since 6.13 · **closes:** `[none]`
+
 *Supersedes: REFACTORING §32, §33, §37; ARCHITECTURE.md §7.4; CLAUDE.md §7.2; DECISIONS §E1, §E4.*
 **Status: RATIFIED.** File: `knowledge/tools.py`.
 
@@ -2822,6 +2860,8 @@ eBook" (§50). Using them as filters is a category error.
 ---
 
 ## 25. Multi-query and Reciprocal Rank Fusion
+
+> **BUILT:** ✅ built · `RRF_K = 60`, unit-tested in `test_fusion.py`. Not a tuning knob — 60 is the constant from the original RRF paper · **closes:** `[none]`
 
 *Supersedes: REFACTORING §32, §33, §35; ARCHITECTURE.md §7.4; DECISIONS §E1.*
 **Status: RATIFIED.**
@@ -3002,6 +3042,8 @@ extend the mechanism.
 
 ## 27. Retrieval failure semantics
 
+> **BUILT:** ✅ built · a 4xx raises `KnowledgeSearchError` with `severity="permanent"`, and a genuine no-match returns `[]` — the distinction this section exists to make · **closes:** `[none]`
+
 *Supersedes: ARCHITECTURE.md §7.1.1; CLAUDE.md §7.2; DECISIONS §E5.*
 **Status: RATIFIED.**
 
@@ -3048,6 +3090,8 @@ Belt acts on it.
 
 ## 28. Memory taxonomy
 
+> **NOT-MARKABLE:** **a map of mechanisms specified elsewhere** — Appendix A of the procedure ruled exactly that on 2026-09-07 when it found eleven ratified sections with no step. Working memory is `PhaseState`, durable memory is the Store, retrieval is §23–§25; each is marked where it is built. There is no artefact called *the memory taxonomy*.
+
 *Supersedes: REFACTORING §37; DECISIONS §K1.*
 **Status: RATIFIED.**
 
@@ -3092,6 +3136,8 @@ them, never overriding them.**
 ---
 
 ## 29. The data channel and the universal eight
+
+> **BUILT:** ⚠️ built with a known defect · **six of the ratified eight universal tools** are built; `check_gate_status` (7.1) and `request_human_approval` (7.5) cannot be built until the things they call exist. The upload channel is built (6.11–6.13) · **closes:** `[7.1, 7.5]`
 
 *Supersedes: REFACTORING §39, §60, §63; ARCHITECTURE.md §8.1; CLAUDE.md §1.9, §5.1; DECISIONS §B5, §B6.*
 **Status: RATIFIED.**
@@ -3343,6 +3389,8 @@ under the seven-step pattern (§43) and the rubric that enforces it.
 
 ## 31. Tool arg schemas and docstrings
 
+> **BUILT:** ✅ built · all twenty computation tools carry an `args_schema=`, re-run by `verify_built.py` · **closes:** `[none]`
+
 *Supersedes: REFACTORING §32, §39; ARCHITECTURE.md §8.1; CLAUDE.md §5.3, §5.4.*
 **Status: RATIFIED.** File: `knowledge/tool_args.py`.
 
@@ -3374,6 +3422,8 @@ someone editing the tool will read (Appendix B item 1).
 ---
 
 ## 32. Phase skills — SKILL.md
+
+> **BUILT:** ✅ built · five SKILL.md files, §32-conformant as of 6.9, each byte-matching its §39.x opening script. ⚠ their **ask shapes** are Measure only — the other four are step 6.14, ⛔ blocked on founder content · **closes:** `[6.14]`
 
 *Supersedes: REFACTORING §83, §84; ARCHITECTURE.md §8.4; CLAUDE.md §8.3.*
 **Status: RATIFIED.** Loaded by `DMAICSkillsMiddleware` (§19.2).
@@ -3678,6 +3728,8 @@ low-risk, whereas a high-risk project's decision inherently involves risk.
 
 ## 35. Two tiers of field, and the `warning` verdict
 
+> **BUILT:** ☐ not built · the tier SETS exist on all five gate schemas and `tier_of()` reads them, but **nothing produces a `warning` verdict**: every finding still blocks equally, so a missing nice-to-have stops a project the way a missing baseline does — step 7.4 · **closes:** `[7.4]`
+
 *Supersedes: REFACTORING §42, §68; ARCHITECTURE.md §3.7.1; CLAUDE.md §9.7; DECISIONS §C1, §C2.*
 **Status: RATIFIED.**
 
@@ -3813,6 +3865,8 @@ warning about it (§41).
 
 ## 36. Two graders — and why they are not redundant
 
+> **BUILT:** ⚠️ built with a known defect · the **coaching** grader is live (§19.8) and the **gate** grader is not — `DMAICGateValidator` is step 7.1. The two are not redundant, and today only one of them runs · **closes:** `[7.1]`
+
 *Supersedes: REFACTORING §42; ARCHITECTURE.md §3.4.1; CLAUDE.md §8.2; DECISIONS §B2.*
 **Status: RATIFIED.**
 
@@ -3906,6 +3960,8 @@ mechanism** — that separation is the point.
 
 ## 37. Mid-phase contradiction and the re-approval cascade
 
+> **BUILT:** ☐ not built · the flag is set and §19.6 raises on it, but **the re-approval cascade this section specifies does not exist**: a contradiction against an approved value never reopens the field it contradicts — step 7.6. Position 6's `interrupt()` is guarded until 7.3 · **closes:** `[7.6, 7.3]`
+
 *Supersedes: REFACTORING §38; ARCHITECTURE.md §3.8; CLAUDE.md §9.4, §9.5.*
 **Status: RATIFIED.** Implemented by `ContradictionDetectionMiddleware` (§19.6).
 
@@ -3977,6 +4033,8 @@ conclusions.
 ---
 
 ## 38. Escalation
+
+> **BUILT:** ☐ not built · `escalate.py` exists and is **v1** — it takes `ImproveGraphState`, the class step 11.1 deletes. The v2 escalation path is step 7.5 · **closes:** `[7.5]`
 
 *Supersedes: REFACTORING §2; ARCHITECTURE.md §3.9; CLAUDE.md §3.5.*
 **Status: RATIFIED.** File: `escalate.py`.
@@ -6849,6 +6907,8 @@ DMAIC specification is complete.**
 
 ## 40. The five `{Phase}Output` schemas
 
+> **BUILT:** ✅ built · five `{Phase}Output` schemas with their tier sets and assembly functions, in one registry (`gate_registry.py`), field counts pinned by `test_gate_documents.py` · **closes:** `[none]`
+
 *Supersedes: REFACTORING §18, §82; ARCHITECTURE.md §4.10.2, §4.10.3; CLAUDE.md §10.7.*
 **Status: RATIFIED.** File: `phases/{phase}/schema.py`. **Canonical home.**
 
@@ -6949,6 +7009,8 @@ Store.
 
 ## 41. Structured dict fields, and FMEA
 
+> **BUILT:** ✅ built · the structured `dict` fields are declared `dict` and Tier 1, and **no FMEA field exists on any schema** — both asserted · **closes:** `[none]`
+
 *Supersedes: REFACTORING §68; ARCHITECTURE.md §4.10.5–§4.10.7; CLAUDE.md §10.8; DECISIONS §C5, §C6.*
 **Status: RATIFIED.**
 
@@ -7032,6 +7094,8 @@ it.
 
 ## 42. Cross-phase reference fields in practice
 
+> **BUILT:** ✅ built · `post_improvement_metrics` is pinned as the only Tier-1 cross-phase reference, asserted in `test_gate_documents.py` · **closes:** `[none]`
+
 *Supersedes: ARCHITECTURE.md §4.7; CLAUDE.md §10.6.*
 **Status: RATIFIED.** Schema defined in §7; this is how the three are used.
 
@@ -7062,6 +7126,8 @@ name its metric fails the lookup rather than falling back (S-C32 B5).
 ---
 
 ## 43. The coaching method
+
+> **NOT-MARKABLE:** **coaching method — methodology content, not code.** What a good coaching turn does is taught through the SKILL.md files (§32, marked per phase) and the prompts (§22). A probe can check that a file exists and matches its section; it cannot check that the method is sound.
 
 *Supersedes: REFACTORING §42; ARCHITECTURE.md §3.4.2; CLAUDE.md §0.8, §8.2; DECISIONS §D1–§D5.*
 **Status: RATIFIED.** Enforced by `COACHING_QUALITY_RUBRIC` every turn (§36).
@@ -7277,6 +7343,8 @@ version and are unavailable at the currently installed 1.1.10 (§1).
 ---
 
 ## 45. Timeouts and compensating actions
+
+> **NOT-MARKABLE:** specified here, **marked at §44**, which records that only Step 0 (`TimeoutPolicy(run_timeout=45)`) is built and steps 1–6 are step 8.2.
 
 *Supersedes: REFACTORING §49, §79; ARCHITECTURE.md §9.2; CLAUDE.md §3.6.*
 **Status: RATIFIED — BLOCKED on the LangGraph upgrade.**
@@ -7503,6 +7571,8 @@ activates. The amendment addresses Frankfurt being unreachable outright, or
 
 ## 47. Disconnect policy — what a dropped client commits
 
+> **BUILT:** ✅ built · ABANDON: a disconnect mid-turn commits nothing, verified at 4.2 and pinned by `test_abandon.py`. ⚠ §47's reconciliation sweep needs `interrupt()`-paused threads to exist — step 7.3 · **closes:** `[7.3]`
+
 *Supersedes: DECISIONS §O3. New scope, ratified 2026-08-20.*
 **Status: RATIFIED.** Part of the `thread_id` wiring step (§53.1), not a separate step.
 
@@ -7542,6 +7612,8 @@ safe. **The exposure is in `step_log` (requirement 2) and concurrent writers
 ---
 
 ## 48. Structured errors
+
+> **BUILT:** ☐ not built · `core/errors.py` carries the exception types, but **S-C34's structured payload — `severity` and `retry_recommendation` — is not produced**, so §46's circuit breaker and fallback chain have nothing to read — step 8.1 · **closes:** `[8.1]`
 
 *Supersedes: REFACTORING §64; ARCHITECTURE.md §9.5; CLAUDE.md §12.3.*
 **Status: RATIFIED.** File: `core/errors.py`.
@@ -7871,6 +7943,8 @@ Belt can actually name — their case — rather than only by timestamp.
 
 ## 52. Evaluation and regression testing
 
+> **BUILT:** ☐ not built · **no `backend/evals/` exists**, so coaching quality has no baseline and no later change can be shown to improve or regress it — step 7.0, whose dataset needs founder time · **closes:** `[7.0]`
+
 *Supersedes: REFACTORING §75; ARCHITECTURE.md §14; CLAUDE.md §12.*
 **Status: RATIFIED, sequencing deliberate.**
 
@@ -8094,6 +8168,8 @@ these rules and committed with a `refactor(arch-v2):` prefix.
 ---
 
 ## 54. Where code is allowed to live
+
+> **NOT-MARKABLE:** **a placement rule, enforced elsewhere.** Where a class may live is checked by CLAUDE.md §2 at review time and by the commit-msg guard's mypy pass, not by a count. Marking it would claim a probe this file does not have.
 
 *Supersedes: CLAUDE.md §2; ARCHITECTURE.md §5.*
 **Status: RATIFIED.**
@@ -8348,6 +8424,8 @@ lands as a `fix(` as easily as a `refactor(`, and scoping it to the spine would
 exempt exactly the commits nobody reviews against the plan.
 
 ## 56. Amendment procedure
+
+> **NOT-MARKABLE:** **governance procedure.** How this document is amended has no built form; §56.2's split (rule here, reasoning in the commit) is followed or it is not, and the commit-msg guard is what notices.
 
 *Supersedes: CLAUDE.md §18.*
 **Status: RATIFIED.**
@@ -10076,6 +10154,8 @@ rejecting the document are two actors at two moments (§6).
 
 ## 59. Spec — knowledge and retrieval
 
+> **NOT-MARKABLE:** **a spec-layer container.** Its entries (S-C / S-F) carry their own markers where they have a built form; marking the Part as well would be the parallel table §55.2 exists to prevent.
+
 *Supersedes: none — new. Definitions relocated from §24, §25, §26, §27.*
 **Status: RATIFIED as a structure; individual entries carry their own gaps.**
 
@@ -10461,6 +10541,8 @@ failure semantics.
 
 ## 60. Spec — tools
 
+> **NOT-MARKABLE:** **a spec-layer container.** Its entries (S-C / S-F) carry their own markers where they have a built form; marking the Part as well would be the parallel table §55.2 exists to prevent.
+
 *Supersedes: none — new. Definitions relocated from §29.2, §30.*
 **Status: RATIFIED as a structure; most entries carry gaps.**
 
@@ -10756,6 +10838,8 @@ carved for it.
 
 ## 61. Spec — the coaching agent's middleware
 
+> **NOT-MARKABLE:** **a spec-layer container.** Its entries (S-C / S-F) carry their own markers where they have a built form; marking the Part as well would be the parallel table §55.2 exists to prevent.
+
 *Supersedes: none — new. Definitions relocated from §19.*
 **Status: RATIFIED as a structure; four of five custom middlewares carry a constructor gap.**
 
@@ -11001,6 +11085,8 @@ a contradiction flag into a Belt-facing interrupt carrying the five-key payload.
 ---
 
 ## 62. Spec — validation and gates
+
+> **NOT-MARKABLE:** **a spec-layer container.** Its entries (S-C / S-F) carry their own markers where they have a built form; marking the Part as well would be the parallel table §55.2 exists to prevent.
 
 *Supersedes: none — new. Definitions relocated from §34, §35, §40.1.*
 **Status: RATIFIED as a structure; six of eleven entries are gap stubs.**
@@ -11407,6 +11493,8 @@ gate_document = DefineOutput(
 ---
 
 ## 63. Spec — the DMAIC gate documents
+
+> **NOT-MARKABLE:** **a spec-layer container.** Its entries (S-C / S-F) carry their own markers where they have a built form; marking the Part as well would be the parallel table §55.2 exists to prevent.
 
 *Supersedes: none — new. Definitions relocated from §40, §41, §7.*
 **Status: RATIFIED. This subsystem's entries are complete — no gaps.**
@@ -11911,6 +11999,8 @@ link rather than a number.
 
 ## 64. Spec — reliability
 
+> **NOT-MARKABLE:** **a spec-layer container.** Its entries (S-C / S-F) carry their own markers where they have a built form; marking the Part as well would be the parallel table §55.2 exists to prevent.
+
 *Supersedes: none — new. Definitions relocated from §45, §46, §48.*
 **Status: RATIFIED as a structure. Everything in this subsystem is BLOCKED on the LangGraph upgrade (§53).**
 
@@ -12197,6 +12287,8 @@ been undone.
 ---
 
 ## 65. Spec — API, UI and evidence
+
+> **NOT-MARKABLE:** **a spec-layer container.** Its entries (S-C / S-F) carry their own markers where they have a built form; marking the Part as well would be the parallel table §55.2 exists to prevent.
 
 *Supersedes: none — new. Definitions relocated from §49.*
 **Status: RATIFIED as a structure; every entry in this subsystem carries a gap.**
@@ -12768,6 +12860,8 @@ prospect and a bank will ask this question first. It is marked as such so the
 flag-is-canonical rule is not read as broken by its presence.
 
 ## 69. Spec — computation tools
+
+> **NOT-MARKABLE:** **a spec-layer container.** Its entries (S-C / S-F) carry their own markers where they have a built form; marking the Part as well would be the parallel table §55.2 exists to prevent.
 
 *Supersedes: the inventory-only treatment of the twenty tools at §60.6 (S-F24).*
 **Status: RATIFIED 2026-08-26.** File: `knowledge/computation.py`. **Canonical

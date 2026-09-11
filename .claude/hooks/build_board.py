@@ -133,6 +133,37 @@ MARKER_HOME: dict[str, tuple[str, str]] = {
     "§39.3.2": ("3", "PHASE"), "§39.3.7": ("3", "PHASE"), "§39.3.10": ("3", "PHASE"),
     "§39.4.2": ("3", "PHASE"), "§39.4.7": ("3", "PHASE"), "§39.4.10": ("3", "PHASE"),
     "§39.5.2": ("3", "PHASE"), "§39.5.7": ("3", "PHASE"), "§39.5.10": ("3", "PHASE"),
+
+    # ── The 2026-09-11 coverage sweep: every ratified section now ends in a
+    #    marker or a NOT-MARKABLE note, so the markers that were missing are
+    #    here. Block and zone are declared, not inferred from the number.
+    "§7": ("3", "PHASE"),         # field typing law — the gate schemas
+    "§8": ("8", "STORE"),         # checkpointer / store split
+    "§9": ("8", "STORE"),         # the Store and the boundary mappers
+    "§10": ("8", "STORE"),        # Azure Blob
+    "§11": ("8", "OPS"),          # step_log
+    "§13": ("3", "PHASE"),        # the five subgraph nodes
+    "§14": ("3", "PHASE"),        # node contract
+    "§18": ("4", "COACH"),        # create_agent
+    "§21": ("4", "COACH"),        # LLM roles and the factory
+    "§22": ("4", "COACH"),        # prompts
+    "§23": ("6", "COACH"),        # the three indexes
+    "§24": ("6", "COACH"),        # the rag_lookup_* tools
+    "§25": ("6", "COACH"),        # multi-query + RRF
+    "§27": ("6", "COACH"),        # retrieval failure semantics
+    "§29": ("6", "COACH"),        # the data channel and the universal eight
+    "§31": ("6", "COACH"),        # tool arg schemas
+    "§32": ("4", "COACH"),        # SKILL.md
+    "§35": ("7", "GATE"),         # two tiers + warning
+    "§36": ("7", "GATE"),         # the two graders
+    "§37": ("7", "GATE"),         # contradiction + re-approval cascade
+    "§38": ("7", "GATE"),         # escalation
+    "§40": ("7", "GATE"),         # the five {Phase}Output schemas
+    "§41": ("7", "GATE"),         # structured dict fields
+    "§42": ("7", "GATE"),         # cross-phase reference fields
+    "§47": ("8", "STORE"),        # disconnect policy
+    "§48": ("8", "OPS"),          # structured errors
+    "§52": ("7", "GATE"),         # evaluation and regression
 }
 
 #: The per-phase panel's six rows. **MAIN is exactly three items** (founder,
@@ -213,6 +244,35 @@ _BAND = re.compile(
 _DONE = re.compile(
     r"^(?:\*\*Done when[^:]*:?\*\*|### Done when\s*$)\s*(?P<text>.*)",
     re.M | re.S)
+
+
+_HEAD = re.compile(r"^#{2,4} (?P<num>\d+(?:\.\d+)*)\.?\s+(?P<title>.+?)\s*$", re.M)
+#: Words a heading can open with that add nothing to a short label.
+_TRIM = re.compile(r"^(?:The|A|An)\s+", re.I)
+
+
+def read_section_titles() -> dict[str, str]:
+    """`§N -> a short name`, from the headings themselves.
+
+    **PART 1's rule: no bare number anywhere the board renders.** A reader who
+    has to hold "§49" in their head to know it means the API surface is doing
+    the document's work for it, and the board exists so they do not have to.
+
+    Titles come from the headings and are never written here. A heading with
+    no usable text is returned as `""`, and `main --check` reports it — a
+    section nobody could name is a finding about the section.
+    """
+    out: dict[str, str] = {}
+    for m in _HEAD.finditer(Path(ARCH).read_text(encoding="utf-8")):
+        t = m.group("title")
+        t = re.sub(r"\*\*|`|—\s*$", "", t).strip()
+        # "39.2.7 State parameters — Measure's use of PhaseState" -> keep it all;
+        # "57.2 SAMPLE 1 — CLASS TEMPLATE — S-C01 SupervisorState" -> last part.
+        if t.count(" — ") >= 2:
+            t = t.split(" — ")[-1].strip()
+        t = _TRIM.sub("", t)
+        out.setdefault(f"§{m.group('num')}", t[:58])
+    return out
 
 
 def read_bands() -> list[dict]:
@@ -398,7 +458,8 @@ LANE_CLASS = {"BUILDING NOW": "now", "READY": "ready", "QUEUED": "queued",
 
 
 def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
-           landed: set[str], bands: list[dict], done_when: dict[str, str]) -> str:
+           landed: set[str], bands: list[dict], done_when: dict[str, str],
+           titles: dict[str, str]) -> str:
     """The board: the PLAN first, readiness second.
 
     **Bands replaced lanes as the organising axis on 2026-09-11**, by founder
@@ -409,6 +470,26 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
     of a step, not a plan**, so it is a badge now.
     """
     e = html.escape
+    title_of = {r["step"]: r["title"] for r in rows}
+
+    def named(sec: str) -> str:
+        """`§49 — the API surface`. Never a bare number (PART 1)."""
+        t = titles.get(sec, "")
+        return f"{e(sec)} — {e(t)}" if t else f"{e(sec)} <i>(unnamed section)</i>"
+
+    def closes_named(m: dict) -> str:
+        """`6.20 write paths` — the step number with a short name beside it."""
+        out = []
+        for st in m["closes"]:
+            t = title_of.get(st, "")
+            short = " ".join(re.sub(r"[`—§]", "", t).split()[:3]) if t else ""
+            out.append(f"{st} {short}".strip())
+        return ", ".join(out)
+
+    def step_named(step: str) -> str:
+        t = title_of.get(step, "")
+        return f"{e(step)} — {e(t)}" if t else e(step)
+
     by_seq = sorted(rows, key=lambda r: r["seq"])
     seq_of = {r["step"]: r["seq"] for r in rows}
     pointer = next((r["step"] for r in rows if r["lane"] == "BUILDING NOW"), None)
@@ -439,7 +520,7 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
     ):
         shown = sorted(items, key=lambda m: m["section"])[:14]
         chips = "".join(
-            f'<span class="hchip">{e(m["section"])}'
+            f'<span class="hchip">{named(m["section"])}'
             + (f' <b>{e(gnums(m))}</b>' if gnums(m) else "") + "</span>"
             for m in shown)
         if len(items) > len(shown):
@@ -526,8 +607,8 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
         worst = max(mine, key=lambda m: rank[m["state"]])["state"]
         items = "".join(
             f'<span class="pchip {m["state"]}">{glyph[m["state"]]} '
-            f'{e(m["section"])}'
-            + (f' <i>{e(", ".join(m["closes"]))}</i>' if m["closes"] else "")
+            f'{named(m["section"])}'
+            + (f' <i>→ {e(closes_named(m))}</i>' if m["closes"] else "")
             + "</span>"
             for m in sorted(mine, key=lambda m: (rank[m["state"]], m["section"])))
         n_ok = sum(1 for m in mine if m["state"] == "built")
@@ -546,13 +627,13 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
                  and MARKER_HOME[m["section"]][0] == bid]
         items = []
         for m in sorted(holes, key=lambda m: m["section"]):
-            steps = ", ".join(m["closes"]) if m["closes"] else "none"
+            steps = closes_named(m) if m["closes"] else "no step owns this"
             lanes = {r["step"]: r["lane"] for r in rows}
             cls = LANE_CLASS.get(lanes.get(m["closes"][0], ""), "queued") \
                 if m["closes"] else "none"
             items.append(
                 f'<li><span class="g">{glyph[m["state"]]}</span> '
-                f'<b>{e(m["section"])}</b>'
+                f'<span class="sn">{named(m["section"])}</span>'
                 f'<span class="chip {cls}">{e(steps)}</span></li>')
         ok = "" if items else '<li class="ok">\u2705 no open markers</li>'
         blocks_html.append(
@@ -561,10 +642,45 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
             f'<ul>{"".join(items) or ok}</ul></div>')
 
     landed_html = " ".join(
-        f'<span class="lchip">{e(r["step"])}</span>' for r in by_seq
+        f'<span class="lchip">{step_named(r["step"])}</span>' for r in by_seq
         if r["lane"] == "DONE")
 
+    # ── PART 2: the legend. Prefixes in plain words, then the bands. ──────
+    #
+    # Generated rather than typed: the band half comes from Appendix D's band
+    # table, so a band renamed there is renamed here. The prefix half is a
+    # vocabulary, which does not live anywhere machine-readable - it is
+    # declared once, here, and nowhere else.
+    legend_prefix = [
+        ("§", "a section of the architecture — the design"),
+        ("G-", "a registered gap — something known wrong or missing"),
+        ("F-", "a recurring fault pattern"),
+        ("S-", "a named contract — a schema, or a function surface"),
+        ("WATCH", "a standing hazard being tracked"),
+    ]
+    legend_state = [
+        ("✅", "built", "exists and works as specified"),
+        ("⚠️", "built and wrong", "live code doing something else"),
+        ("☐", "not built", "absent — nothing runs"),
+        ("⛔", "blocked", "cannot start"),
+    ]
+    legend = (
+        '<div class="lgcard"><h4>What the prefixes mean</h4>'
+        + "".join(f'<div class="lgrow"><span class="lgk">{e(k)}</span>'
+                  f'<span class="lgv">{e(v)}</span></div>'
+                  for k, v in legend_prefix)
+        + "</div><div class=\"lgcard\"><h4>What the marks mean</h4>"
+        + "".join(f'<div class="lgrow"><span class="lgk">{g} {e(n)}</span>'
+                  f'<span class="lgv">{e(d)}</span></div>'
+                  for g, n, d in legend_state)
+        + '</div><div class="lgcard lgwide"><h4>What the bands deliver</h4>'
+        + "".join(f'<div class="lgrow"><span class="lgk">{e(b["id"])} · '
+                  f'{e(b["name"])}</span><span class="lgv">{e(b["delivers"])}'
+                  "</span></div>" for b in bands)
+        + "</div>")
+
     return TEMPLATE.format(
+        legend=legend,
         last_spine=last_spine, n_done=n_done, n_all=n_all, pct=pct,
         n_markers=len(markers),
         n_open=sum(1 for m in markers if m["state"] != "built"),
@@ -604,6 +720,15 @@ padding:0 6px;color:var(--mut);white-space:nowrap}}
 .badge.ready{{color:var(--ready);border-color:var(--ready)}}
 .badge.blocked{{color:var(--blocked);border-color:var(--blocked)}}
 .badge.done{{color:var(--done);border-color:var(--done)}}
+.legend{{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:10px}}
+.lgcard{{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px 12px}}
+.lgcard.lgwide{{grid-column:1/-1}}
+.lgcard h4{{margin:0 0 6px;font-size:11px;letter-spacing:.07em;text-transform:uppercase;
+color:var(--mut)}}
+.lgrow{{display:flex;gap:9px;font-size:12px;padding:2px 0;align-items:baseline}}
+.lgk{{flex:0 0 132px;font-weight:600}}
+.lgv{{color:var(--mut)}}
+.sn{{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 /* current slice */
 .slice{{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--now);
 border-radius:10px;padding:15px 17px}}
@@ -709,6 +834,9 @@ Every figure traces to Appendix D, ARCHITECTURE.md's BUILT markers, §66, or git
 <div class="tl">{n_done} of {n_all} spine steps landed · {pct}% ·
 {n_open} of {n_markers} BUILT markers still open</div>
 
+<h2>How to read this board</h2>
+<div class="legend">{legend}</div>
+
 <h2>Building now — the current slice</h2>
 <div class="slice">
   <div class="sname"><span class="sid">{slice_id}</span>{slice_name}</div>
@@ -777,7 +905,7 @@ def main(argv: list[str]) -> int:
 
         Path(OUT).write_text(
             render(rows, markers, gaps, landed, read_bands(),
-                   read_done_when()),
+                   read_done_when(), read_section_titles()),
             encoding="utf-8")
         print(f"  [board] {os.path.relpath(OUT, ROOT)} regenerated "
               f"— {len(rows)} steps, {len(markers)} markers")
