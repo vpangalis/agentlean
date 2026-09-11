@@ -1,5 +1,5 @@
 # Agent Improve — CLAUDE.md
-# Version 2.2.36 — September 2026
+# Version 2.2.37 — September 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 ---
@@ -1066,6 +1066,39 @@ checks that a discipline is ANSWERED, never that the answer is right.
 **No rule was renumbered**, so `deprecated_patterns.yaml`'s citations still
 resolve (§0.2 — rule numbers are load-bearing). **The guard's rule numbers are
 now 1, 2b, 3, 4, 5, 6** — rule 2's number stays retired.
+
+### 0.31 — What Changed in 2.2.37 — a claim about code carries the code
+
+**FOUNDER RULING 2026-09-11.** **Any claim about what the code does carries the
+lines it rests on, quoted, with file and line number** — not a description of
+them (§20.5.1 — a claim about code carries the code). An absence claim carries
+the command and its output, since there are no lines to quote.
+
+| | Before | From 2026-09-11 |
+|---|---|---|
+| **A code claim in a report** | the claim, with a `file:line` pointer | **the claim, plus the three-to-six lines it rests on, quoted** (§20.5.1 — a claim about code carries the code) |
+| **An absence claim** | *"nothing reads this"* | **the search that shows it, with its output** — and absence claims are usually the load-bearing half of a diagnosis (§20.5.1 — a claim about code carries the code) |
+| **What a reviewer can do with it** | take it on trust, or open the file by hand | **check it where it is read** (§20.5.2 — why, and what it cost to learn) |
+
+**THE REASON IS A TOOL LIMIT, NOT A PREFERENCE.** Claude Desktop can locate any
+source file in this repository and **read none of them** — the file reader
+refuses `.py` as `application/octet-stream`. A code claim in a report is
+therefore **unverifiable at review** unless the report carries its own evidence,
+and "take it on trust" is what actually happens. Quoting four lines costs
+nothing.
+
+**IT CAUGHT TWO WRONG CITATIONS IN THE REPORT THAT PROMPTED IT.** Step 6.18's
+G-49 report cited `nodes_common.py:1035` for the agent invocation — **it is
+1028**, with 1035 being the `recursion_limit` argument four lines below — and
+`:995` for the `coaching_plan` read, which is **990**. **The diagnosis was
+correct and the pointers were not**, and both pointed at plausible neighbouring
+code inside the right function. A line number is the one part of a code claim
+that carries no evidence of its own truth; quoting the lines would have failed
+at writing time, because the quote and the claim would not have matched.
+
+**No rule was renumbered** (§0.2 — rule numbers are load-bearing), and rule 6
+of the commit-msg guard is unchanged: this rule governs reports, which no gate
+reads.
 
 ---
 
@@ -3792,6 +3825,10 @@ to choose backoff strategy (§4.8).
   condition (§20.2 — three clauses carry the weight)
 - Never omit an empty discipline — it is a finding, and it is written
   `NONE — <reason>` (§20.2 — three clauses carry the weight)
+- Never make a claim about what the code does without quoting the lines
+  it rests on, with file and line number — and never state an absence
+  without the command and its output (§20.5.1 — a claim about code
+  carries the code)
 
 ---
 
@@ -4114,5 +4151,62 @@ answered and which was skipped. The nine rows make an unanswered discipline
 visible at a glance, which is exactly what a narrative hides — and D4's missing
 half is the thing most worth seeing.
 
-*Founder ruling 2026-09-11. Change record: §0.30 — 8D is the structure for every
-fix. Gate: rule 6 of the commit-msg guard.*
+#### 20.5.1 — A claim about code carries the code
+
+**FOUNDER RULING 2026-09-11.** **Any claim about what the code does carries the
+lines it rests on, quoted, with file and line number. Not a description of
+them.**
+
+| Not this | This |
+|---|---|
+| *"the executor invokes the agent with `{"messages": prior}`"* | the same claim, **plus the lines**: |
+
+```python
+# agent-improve/backend/phases/nodes_common.py:1024-1028
+    prior = list(state.get("messages") or [])
+    hit_cap = False
+    try:
+        result = await agent.ainvoke(
+            {"messages": prior},
+```
+
+**Three to six lines is the normal size.** A claim needing more than about ten
+is more than one claim, and splits.
+
+**AN ABSENCE CLAIM CARRIES THE COMMAND AND ITS OUTPUT**, because there are no
+lines to quote — and absence claims are usually the load-bearing half of a
+diagnosis. *"`BeforeModelStateInjection` never mentions the plan"* is delivered
+as the search that shows it:
+
+```
+$ grep -n "coaching_plan\|focus_field\|next_action" backend/middleware/state_injection.py
+(no matches)
+```
+
+#### 20.5.2 — Why, and what it cost to learn
+
+**The reason, recorded so it is not read as a formatting preference.** Claude
+Desktop can locate any source file in this repository and **read none of them**
+— the file reader refuses `.py` as `application/octet-stream`. **So a code claim
+in a report is unverifiable at review unless the report carries its own
+evidence.** The reviewer's only options are to take it on trust or to go and
+open the file by hand, and the first is what actually happens. **Quoting four
+lines costs nothing and converts a relayed claim into a checkable one.**
+
+> **THIS RULE CAUGHT TWO WRONG CITATIONS IN THE REPORT THAT PROMPTED IT.**
+> Step 6.18's G-49 report cited `nodes_common.py:1035` for the agent invocation
+> — **it is line 1028**, and 1035 is the `recursion_limit` argument four lines
+> below it. The same report cited `:995` for `plan = state.get("coaching_plan")`
+> — **it is line 990**. Both numbers pointed at plausible neighbouring code in
+> the right function, which is exactly why neither looked wrong.
+>
+> **The diagnosis those citations supported was correct.** The claims held; the
+> pointers did not. **That is the failure mode this rule exists for** — a line
+> number is the one part of a code claim that carries no evidence of its own
+> truth, and a reader who cannot open the file cannot tell a right one from a
+> wrong one. Quoting the lines would have failed loudly at writing time, because
+> the quote and the claim would not have matched.
+
+*Founder rulings 2026-09-11. Change records: §0.30 — 8D is the structure for
+every fix, and §0.31 — a claim about code carries the code. Gate: rule 6 of the
+commit-msg guard.*
