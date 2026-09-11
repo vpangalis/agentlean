@@ -1899,9 +1899,10 @@ artefact.
 > steps behind G-49, no code change unblocks it and nothing is wrong with the
 > tree. It clears when the three lists below arrive.
 >
-> **The cursor moves to 6.15**, which needs nothing from Vassilis, and 6.16
-> behind it. Both sit above 6.14 in `_ver_key` order, so the spine keeps moving
-> while the content is owed.
+> **The cursor moves past this row**, to the lowest unblocked step above it —
+> 6.16 when this was written, and **6.17 after 6.16 landed and the count-check
+> was renumbered above it** (see that step's note). Either way the spine keeps
+> moving while the content is owed.
 
 > ### ⛔ THIS SPECIFICATION IS INCOMPLETE BY DESIGN. It needs founder content before it can be built.
 >
@@ -1985,7 +1986,27 @@ any new row landed in `ARCHITECTURE.md` first as a §56 amendment; and
 
 ---
 
-## Step 6.15 — The count-check: a written count against the list it describes
+## Step 6.17 — The count-check: a written count against the list it describes
+
+> ### ⛑ RENUMBERED 6.15 → 6.17 on 2026-09-11, and the reason is this table's own rule
+>
+> **6.16 landed first, which put this step BELOW the last completed one — and
+> Appendix D's header says what that means: *"a step inserted below that line is
+> never proposed as next and never will be. It does not appear late, it
+> disappears."*** The session banner proved it within a minute of the commit:
+> `last completed 6.16 | next 7.0`, stepping straight over an unbuilt,
+> fully-specified step.
+>
+> **The ordering was the founder's and correct on its merits** — 6.16 was built
+> from data 4a had just corrected, which is the whole point of generating a
+> board rather than drawing one. The renumber is the cost of that ordering, paid
+> openly. **Numbering here is a schedule, not a taxonomy**, which is why
+> remedial storage work sits at 8.7 rather than at 3.6, and why the eight steps
+> added 2026-09-07 were all numbered above 6.7.
+>
+> **The content is unchanged.** Searching this document for `6.15` finds this
+> note and the historical change-log entries that named it; those are left as
+> written, because they were true when written.
 
 | | |
 |---|---|
@@ -2864,10 +2885,10 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 
 | State | Count | Steps |
 |---|---|---|
-| **DONE** | 30 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13** |
-| **BUILDING NOW** | 1 | **6.15** — The count-check — a written count against the list it describes |
+| **DONE** | 31 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16** |
+| **BUILDING NOW** | 1 | **6.17** — The count-check — a written count against the list it describes |
 | **BLOCKED** | 6 | **6.10** (BLOCKED), **6.14** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL) |
-| **QUEUED** | 18 | **6.16**, **7.0**, **7.1**, **7.2**, **7.3**, **7.4**, **7.5**, **7.6**, **8.0**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **10.2**, **11.1**, **11.2** |
+| **QUEUED** | 17 | **7.0**, **7.1**, **7.2**, **7.3**, **7.4**, **7.5**, **7.6**, **8.0**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **10.2**, **11.1**, **11.2** |
 
 *55 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-11.*
 <!-- END STEP BOARD -->
@@ -2922,7 +2943,7 @@ reference section is not a step — it is an undocumented decision.
 | 6.12 | §29.1, §32, §43, §50 | `live-run` |
 | 6.13 | §23.2, §23.2.1, §23.4, §24, §6 / S-C02, S-C09 | `azure-query` + `live-run` |
 | 6.14 | §32, §43, §23.2.1 | `pytest` |
-| 6.15 | §55.1, §6 / S-C02, §29.2 | `pytest` |
+| 6.17 | §55.1, §6 / S-C02, §29.2 | `pytest` |
 | 6.16 | §55.1, §66, Appendix D | `grep-absence` + a commit that moves a step |
 | 7.0 | §52 | `pytest` |
 | 7.1 | §34, §35 | `pytest` |
@@ -3110,8 +3131,8 @@ infrastructure noise. **Read both before finalising §52.**
 | **Commit 6.12** | Ask-binding: an upload answers a request |  | COACH | An upload binds to its filename rather than the request that prompted it, so feeding a file to a computation tool means the coach transcribing numbers out of chunks. |
 | **Commit 6.13** | The evidence index migration |  | STORE | Evidence and artefacts share one bucket with no role, kind or version identity, so a proposed future is retrievable later as a fact about the present. |
 | **Commit 6.14** | SKILL.md shape pass — Define, Analyse, Improve, Control | BLOCKED | COACH | Four of five phases cannot ask for a file in a shape they can validate, so 6.12's ask-binding works for Measure alone. |
-| **Commit 6.15** | The count-check — a written count against the list it describes |  | OPS | A written count and the list it describes can disagree indefinitely - the failure five captions in this repository have already had. |
 | **Commit 6.16** | The board is generated, not written |  | OPS | The board a founder reads is hand-drawn and stale from the first commit after it is drawn. |
+| **Commit 6.17** | The count-check — a written count against the list it describes |  | OPS | A written count and the list it describes can disagree indefinitely - the failure five captions in this repository have already had. |
 | **Commit 7.0** | The evaluation suite |  | GATE | Coaching quality has no baseline, so no later change can be shown to have improved or regressed it. |
 | **Commit 7.1** | `DMAICGateValidator` + Layer 2b |  | GATE | Nothing checks a gate document against its phase's rules, so a gate passes on presence rather than on correctness. |
 | **Commit 7.2** | Layers 2c, 2d + `validation_stack` |  | GATE | Cross-phase consistency and statistical validity go unchecked, so Measure can contradict Define and both pass. |
