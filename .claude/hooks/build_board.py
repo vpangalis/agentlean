@@ -632,7 +632,7 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
                  if blocked else f'waits on band {e(cur["id"])}')
         others.append(
             f'<div class="obandrow"><b>{e(b["id"])} \u00b7 {e(b["name"].strip())}</b>'
-            f'<span class="on">{len(left)} left</span>'
+            f'<span class="on">{len(left)} remaining</span>'
             f'<div class="od">{e(b["delivers"])}</div>'
             f'<div class="ow">{waits}</div></div>')
 
@@ -656,8 +656,9 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
             for r in mine)
         band_html.append(
             f'<section class="band"><h3><span class="bid">{e(b["id"])}</span>'
-            f'{e(b["name"].strip())}<span class="bn">{len(left)} of {len(mine)} left'
-            f'</span></h3><div class="bdel">{e(b["delivers"])}</div>'
+            f'{e(b["name"].strip())}'
+            f'<span class="bn">{len(mine) - len(left)} of {len(mine)} done</span>'
+            f'</h3><div class="bdel">{e(b["delivers"])}</div>'
             f'<div class="bcards">{cards}</div></section>')
 
     # ── The phase completeness view (§55.3). ─────────────────────
@@ -740,21 +741,36 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
         ("S-", "a named contract — a schema, or a function surface"),
         ("WATCH", "a standing hazard being tracked"),
     ]
+    # **One meaning per colour, and the legend is where that is stated.**
+    # A colour rule nobody can read off the page is a convention, not a key -
+    # and the clash this replaced (READY green, DONE green) survived precisely
+    # because nothing on the board ever said what green meant.
     legend_state = [
-        ("✅", "built", "exists and works as specified"),
-        ("⚠️", "built and wrong", "live code doing something else"),
-        ("☐", "not built", "absent — nothing runs"),
-        ("⛔", "blocked", "cannot start"),
+        ("done", "green", "exists and works",
+         "DONE · ✅ built"),
+        ("ready", "blue", "can start now",
+         "READY"),
+        ("now", "orange", "in progress",
+         "BUILDING NOW — the cursor"),
+        ("defect", "amber", "live, and wrong",
+         "⚠️ built with a known defect"),
+        ("blocked", "red", "cannot proceed",
+         "BLOCKED · ⛔"),
+        ("queued", "grey", "scheduled, not started",
+         "QUEUED · ☐ not built"),
+        ("unmeasured", "dashed", "unmeasured — not a pass",
+         "no marker exists for it"),
     ]
     legend = (
         '<div class="lgcard"><h4>What the prefixes mean</h4>'
         + "".join(f'<div class="lgrow"><span class="lgk">{e(k)}</span>'
                   f'<span class="lgv">{e(v)}</span></div>'
                   for k, v in legend_prefix)
-        + "</div><div class=\"lgcard\"><h4>What the marks mean</h4>"
-        + "".join(f'<div class="lgrow"><span class="lgk">{g} {e(n)}</span>'
-                  f'<span class="lgv">{e(d)}</span></div>'
-                  for g, n, d in legend_state)
+        + '</div><div class="lgcard"><h4>What the colours mean — one each</h4>'
+        + "".join(f'<div class="lgrow"><span class="sw {c}"></span>'
+                  f'<span class="lgk lgn">{e(name)}</span>'
+                  f'<span class="lgv">{e(mean)} — <i>{e(where)}</i></span></div>'
+                  for c, name, mean, where in legend_state)
         + '</div><div class="lgcard lgwide"><h4>What the bands deliver</h4>'
         + "".join(f'<div class="lgrow"><span class="lgk">{e(b["id"])} · '
                   f'{e(b["name"])}</span><span class="lgv">{e(b["delivers"])}'
@@ -782,10 +798,11 @@ TEMPLATE = """<!doctype html>
 <meta charset="utf-8"><title>Agent Improve — refactor board</title>
 <style>
 :root{{--bg:#fbfbfa;--fg:#1a1a18;--mut:#6b6b66;--line:#e3e3de;--card:#fff;
---now:#b45309;--ready:#15803d;--queued:#6b6b66;--blocked:#b91c1c;--done:#3f6212}}
+--now:#c2410c;--ready:#1d4ed8;--queued:#6b6b66;--blocked:#b91c1c;--done:#3f6212;
+--defect:#a16207}}
 @media(prefers-color-scheme:dark){{:root{{--bg:#161614;--fg:#eceae5;--mut:#9b9b94;
---line:#2e2c28;--card:#1e1c1a;--now:#f59e0b;--ready:#4ade80;--queued:#9b9b94;
---blocked:#f87171;--done:#a3e635}}}}
+--line:#2e2c28;--card:#1e1c1a;--now:#fb923c;--ready:#60a5fa;--queued:#9b9b94;
+--blocked:#f87171;--done:#a3e635;--defect:#fbbf24}}}}
 *{{box-sizing:border-box}}
 body{{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 ui-sans-serif,
 -apple-system,Segoe UI,Roboto,sans-serif;padding:28px;max-width:1280px}}
@@ -809,6 +826,17 @@ padding:0 6px;color:var(--mut);white-space:nowrap}}
 color:var(--mut)}}
 .lgrow{{display:flex;gap:9px;font-size:12px;padding:2px 0;align-items:baseline}}
 .lgk{{flex:0 0 132px;font-weight:600}}
+.lgk.lgn{{flex:0 0 74px}}
+.sw{{flex:0 0 14px;height:14px;border-radius:4px;border:1px solid var(--line);
+align-self:center}}
+.sw.done{{background:var(--done);border-color:var(--done)}}
+.sw.ready{{background:var(--ready);border-color:var(--ready)}}
+.sw.now{{background:var(--now);border-color:var(--now)}}
+.sw.defect{{background:var(--defect);border-color:var(--defect)}}
+.sw.blocked{{background:var(--blocked);border-color:var(--blocked)}}
+.sw.queued{{background:var(--queued);border-color:var(--queued)}}
+.sw.unmeasured{{background:transparent;border-style:dashed;border-color:var(--mut)}}
+.lgv i{{font-style:normal;opacity:.75}}
 .lgv{{color:var(--mut)}}
 .sn{{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 /* current slice */
@@ -858,46 +886,36 @@ border-radius:8px;padding:8px 10px}}
 .pbar{{height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin:6px 0 5px}}
 .pbar>i{{display:block;height:100%;background:var(--done)}}
 .pmeta{{font-size:11px;color:var(--mut);margin-bottom:7px}}
-.pmeta b{{color:var(--blocked)}}
+.pmeta b{{color:var(--fg)}}
 .cchips{{display:flex;flex-wrap:wrap;gap:3px}}
 .cchip{{font-size:10px;border:1px solid var(--line);border-radius:8px;padding:0 5px;
 color:var(--mut);white-space:nowrap}}
 .cchip b{{opacity:.4;margin-left:3px}}
-.cchip b.ph{{color:var(--now);opacity:.95}}
+.cchip b.ph{{opacity:.85}}
 .cchip.built{{border-color:color-mix(in srgb,var(--done) 50%,var(--line))}}
-.cchip.defect{{border-color:color-mix(in srgb,var(--now) 50%,var(--line))}}
-.cchip.unbuilt,.cchip.blocked{{border-color:color-mix(in srgb,var(--blocked) 40%,var(--line))}}
+.cchip.defect{{border-color:color-mix(in srgb,var(--defect) 60%,var(--line));
+color:var(--defect)}}
+.cchip.unbuilt{{border-color:var(--line)}}
+.cchip.blocked{{border-color:color-mix(in srgb,var(--blocked) 55%,var(--line));
+color:var(--blocked)}}
 .cchip.unmeasured{{border-style:dashed;border-color:var(--mut);color:var(--fg)}}
 /* per-phase */
-table.ph{{width:100%;border-collapse:collapse;font-size:12.5px}}
-table.ph td{{border-top:1px solid var(--line);padding:8px 6px;vertical-align:top}}
-table.ph tr.built td.pn{{color:var(--done)}}
-table.ph tr.defect td.pn{{color:var(--now)}}
-table.ph tr.unbuilt td.pn,table.ph tr.blocked td.pn{{color:var(--blocked)}}
-td.pn{{font-weight:600;width:92px}}
-td.pc{{width:52px;color:var(--mut);font-variant-numeric:tabular-nums}}
-td.pnone{{color:var(--mut)}}
-.pchip{{display:inline-block;font-size:10.5px;border:1px solid var(--line);border-radius:9px;
-padding:1px 7px;margin:0 4px 4px 0;color:var(--mut);white-space:nowrap}}
-.pchip.built{{border-color:color-mix(in srgb,var(--done) 45%,var(--line))}}
-.pchip.defect{{border-color:color-mix(in srgb,var(--now) 45%,var(--line))}}
-.pchip i{{font-style:normal;opacity:.7}}
 /* health */
 .health{{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:11px}}
 .hcard{{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--line);
 border-radius:9px;padding:11px 13px}}
 .hcard.ok{{border-left-color:var(--done)}}
-.hcard.warn{{border-left-color:var(--now)}}
+.hcard.warn{{border-left-color:var(--defect)}}
 .hcard.none{{border-left-color:var(--queued)}}
 .hn{{font-size:26px;font-weight:600;line-height:1.1}}
-.hcard.ok .hn{{color:var(--done)}} .hcard.warn .hn{{color:var(--now)}}
+.hcard.ok .hn{{color:var(--done)}} .hcard.warn .hn{{color:var(--defect)}}
 .hcard.none .hn{{color:var(--mut)}}
 .ht{{font-size:12.5px;font-weight:600;margin-top:1px}}
 .hnote{{font-size:11.5px;color:var(--mut);margin-top:3px}}
 .hchips{{margin-top:8px;display:flex;flex-wrap:wrap;gap:4px}}
 .hchip{{font-size:10.5px;border:1px solid var(--line);border-radius:9px;padding:1px 6px;
 color:var(--mut);white-space:nowrap}}
-.hchip b{{color:var(--now)}}
+.hchip b{{color:var(--defect)}}
 /* blocks */
 .blocks{{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:11px}}
 .block{{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:11px 13px}}
@@ -912,10 +930,9 @@ border-top:1px solid var(--line)}}
 .g{{width:17px;display:inline-block}}
 .chip{{margin-left:auto;font-size:11px;padding:1px 7px;border-radius:9px;
 border:1px solid var(--line);color:var(--mut);white-space:nowrap}}
-.chip.now{{color:var(--now);border-color:var(--now)}}
-.chip.ready{{color:var(--ready);border-color:var(--ready)}}
-.chip.blocked{{color:var(--blocked);border-color:var(--blocked)}}
-.chip.done{{color:var(--done);border-color:var(--done)}}
+/* A `closes` chip POINTS AT A STEP; it is not a state. Colouring it by
+   that step's lane put green beside a "not built" marker, which is the
+   one thing the colour rule forbids. Neutral, always. */
 .lchip{{display:inline-block;font-size:10.5px;border:1px solid var(--line);border-radius:9px;
 padding:0 6px;margin:0 3px 3px 0;color:var(--mut)}}
 footer{{margin-top:34px;color:var(--mut);font-size:11.5px;border-top:1px solid var(--line);

@@ -8,7 +8,7 @@
 | | |
 |---|---|
 | **Last completed** | step **6.16** — The board is generated, not written |
-| **Next** | step **6.17** — The count-check — a written count against the list it describes |
+| **Next** | step **6.18** — The executor ignores the tool its planner names (G-49) |
 | **Spine steps landed** | 31 of 58 |
 | **Last spine commit** | `336cd69` (commit 6.16) |
 | **ARCHITECTURE.md** | v1.27 |

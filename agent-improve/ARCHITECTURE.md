@@ -8344,12 +8344,39 @@ table. `docs/_archive/ARCHITECTURE_STATUS.md` held that parallel table until 202
 and is archived; the same fact in two files is what this section exists to
 prevent.
 
-| Marker | Means |
-|---|---|
-| ✅ built | exists and works as specified |
-| ⚠️ built with a known defect | exists, and the defect is named on the same line |
-| ☐ not built | with the step that builds it |
-| ⛔ blocked | with what unblocks it |
+| Marker | Means | Renders |
+|---|---|---|
+| ✅ built | exists and works as specified | **green** |
+| ⚠️ built with a known defect | exists, and the defect is named on the same line | **amber** |
+| ☐ not built | with the step that builds it | **grey** |
+| ⛔ blocked | with what unblocks it | **red** |
+
+> **ONE MEANING PER COLOUR, ACROSS THE WHOLE BOARD.** Ratified 2026-09-11 by
+> founder ruling. The `Renders` column is not decoration — it is the half of
+> the vocabulary a reader actually perceives first, and it was wrong in three
+> places before anyone wrote it down:
+>
+> | Colour | Means | Where |
+> |---|---|---|
+> | green | exists and works | `DONE` lane · ✅ built |
+> | blue | can start now | `READY` lane |
+> | orange | in progress | `BUILDING NOW` — the cursor |
+> | amber | live, and wrong | ⚠️ built with a known defect |
+> | red | cannot proceed | `BLOCKED` lane · ⛔ |
+> | grey | scheduled, not started | `QUEUED` lane · ☐ not built |
+> | dashed | unmeasured | no marker exists — **not a pass** |
+>
+> **What was wrong.** `READY` rendered GREEN, the same family as `DONE`, so an
+> unstarted step read as finished. ORANGE meant both *"building now"* (a
+> position in the plan) and *"built and wrong"* (a quality of the code). RED
+> meant both *"blocked"* and *"not built"*, when not-built is the ordinary
+> state of scheduled work. **A lane state and a marker state may never share a
+> colour**: one is where a thing sits in the plan, the other is whether it
+> works, and a reader cannot hold both off one hue.
+>
+> **A pointer is not a state.** The board's `closes:` chip names the step that
+> fills a hole; it used to take that step's LANE colour, which put green beside
+> a `☐ not built` marker. It is neutral.
 
 > **A MARKER NOTHING RE-RUNS IS A CLAIM.** `.claude/hooks/verify_built.py`
 > re-runs the counting commands against the tree and reports any marker that

@@ -1988,6 +1988,18 @@ any new row landed in `ARCHITECTURE.md` first as a §56 amendment; and
 
 ## Step 6.17 — The count-check: a written count against the list it describes
 
+> ### ⛑ MOVED OUT OF BAND A ON 2026-09-11 — it is housekeeping, not loop work
+>
+> **Founder ruling.** This sat at Seq 320, first in THE LOOP, and therefore
+> rendered as `BUILDING NOW` — so the first thing on the board was a
+> consistency check rather than the first thing that serves the goal.
+>
+> **The count-check is worth doing and it does not move the product.** It
+> stops a written count disagreeing with the list it describes, which is a
+> governance property; band A is the one Belt turn running end to end. Moved
+> to **Seq 565**, with the rest of the cross-cutting work, and the cursor
+> moved to **6.18** — the executor actually completing a turn.
+
 > ### ⛑ RENUMBERED 6.15 → 6.17 on 2026-09-11, and the reason is this table's own rule
 >
 > **6.16 landed first, which put this step BELOW the last completed one — and
@@ -3194,9 +3206,9 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | State | Count | Steps |
 |---|---|---|
 | **DONE** | 31 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16** |
-| **BUILDING NOW** | 1 | **6.17** — The count-check — a written count against the list it describes |
+| **BUILDING NOW** | 1 | **6.18** — The executor ignores the tool its planner names (G-49) |
 | **BLOCKED** | 6 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL) |
-| **QUEUED** | 20 | **6.18**, **6.19**, **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **11.1**, **11.2** |
+| **QUEUED** | 20 | **6.19**, **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **11.1**, **11.2** |
 
 *58 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-11.*
 <!-- END STEP BOARD -->
@@ -3448,7 +3460,7 @@ restate, which is the opposite of what the board is for.
 
 | Band | Seq | Name | Delivers |
 |---|---|---|---|
-| A | 320–380 | THE LOOP | One Belt turn, end to end: it completes, it has fields to render, its writes land, it can be watched, it pauses at a gate, and the Belt sees it |
+| A | 330–380 | THE LOOP | One Belt turn, end to end: it completes, it has fields to render, its writes land, it can be watched, it pauses at a gate, and the Belt sees it |
 | B | 390–440 | GATE QUALITY | What the validator catches, and what happens when it does. **Deliberately after A** — running the loop is what tells you what the validator must catch |
 | C | 450–460 | PHASES 2–5 | The remaining four phases, one slice each, on machinery A and B already proved |
 | D | 470–580 | CROSS-CUTTING | Reliability, transport and cleanup. Nothing here is needed for a slice to work |
@@ -3486,7 +3498,6 @@ restate, which is the opposite of what the board is for.
 | 290 | **Commit 6.12** | Ask-binding: an upload answers a request |  | COACH | SHARED | An upload binds to its filename rather than the request that prompted it, so feeding a file to a computation tool means the coach transcribing numbers out of chunks. |
 | 300 | **Commit 6.13** | The evidence index migration |  | STORE | SHARED | Evidence and artefacts share one bucket with no role, kind or version identity, so a proposed future is retrievable later as a fact about the present. |
 | 310 | **Commit 6.16** | The board is generated, not written |  | OPS | SHARED | The board a founder reads is hand-drawn and stale from the first commit after it is drawn. |
-| 320 | **Commit 6.17** | The count-check — a written count against the list it describes |  | OPS | SHARED | A written count and the list it describes can disagree indefinitely - the failure five captions in this repository have already had. |
 | 330 | **Commit 6.18** | The executor ignores the tool its planner names (G-49) |  | COACH | SHARED | The planner's routing decision is advisory, so a Belt asking a question whose answer is in an uploaded file gets a timeout instead - and four landed steps keep verification debt nothing else can discharge. |
 | 340 | **Commit 6.19** | `CoachingResponse` gains §50.1's four presentational fields (G-50) |  | COACH | SHARED | Every coaching turn arrives as one prose blob, so there is nothing structured for a gate UI to display and five SKILL.md files keep instructing the coach to fill fields that do not exist. |
 | 350 | **Commit 6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` |  | PHASE | SHARED | Three things §39.x.7 specifies are read by the gate document and written by nothing, so a computed figure never reaches a gate and the coach cannot tell which field it is on. |
@@ -3511,6 +3522,7 @@ restate, which is the opposite of what the board is for.
 | 540 | **Commit 8.5** | Graceful shutdown | GATED | OPS | SHARED | A deploy landing mid-turn drops that turn instead of draining it. |
 | 550 | **Commit 9.0** | Knowledge-index rebuild | EXTERNAL | STORE | SHARED | The methodology corpus is not retrievable, so `rag_lookup_methodology` has nothing to search. |
 | 560 | **Commit 9.1** | Azure batched reindex — case index only | EXTERNAL | STORE | SHARED | The case index carries no content vector, so case-history retrieval stays keyword-only and misses paraphrase. |
+| 565 | **Commit 6.17** | The count-check — a written count against the list it describes |  | OPS | SHARED | A written count and the list it describes can disagree indefinitely - the failure five captions in this repository have already had. |
 | 570 | **Commit 11.1** | Delete v1 |  | OPS | SHARED | Two implementations of every phase stay in the tree, and the dead one is still the one writing the v1 field names. |
 | 580 | **Commit 11.2** | Governance close-out |  | OPS | SHARED | The refactor has no end, so procedure and architecture drift apart again with nothing marking the handover. |
 
