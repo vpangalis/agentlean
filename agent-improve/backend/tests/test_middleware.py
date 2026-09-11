@@ -1096,7 +1096,7 @@ def test_the_grader_stands_down_when_coherence_degraded() -> None:
     )
 
 
-def test_the_flag_yields_a_RESUMABLE_interrupt_end_to_end() -> None:
+def test_interrupt_from_after_agent_is_RESUMABLE_end_to_end() -> None:
     """**G-15's answer, pinned.** Not "an exception was raised" — resumable.
 
     §61.6 records the open question: *"whether an exception raised from
@@ -1106,12 +1106,19 @@ def test_the_flag_yields_a_RESUMABLE_interrupt_end_to_end() -> None:
 
     Measured: a custom exception propagates OUT (so §19.6's
     ``raise HITLInterrupt(**flag)`` would not work), while `interrupt()` yields
-    `__interrupt__` and resumes cleanly under `Command(resume=...)`. This test
-    runs the real thing, so a LangGraph change that breaks resumption fails
-    here rather than in a Belt's session.
+    `__interrupt__` and resumes cleanly under `Command(resume=...)`.
+
+    ⛔ **RETARGETED 2026-09-11 when position 6 was guarded until step 7.3.**
+    It used to drive `ContradictionDetectionMiddleware` directly, so guarding
+    that middleware made this test fail — and the tempting fix, deleting it,
+    would have thrown away the one measurement 7.3 is built on. It now drives
+    a LOCAL subclass that still calls `interrupt()`, so **the MECHANISM stays
+    under test while the POLICY is suspended.** A LangGraph change that breaks
+    resumption still fails here rather than in a Belt's session, and 7.3 can
+    trust this result on the day it restores the line.
     """
     from langgraph.checkpoint.memory import InMemorySaver
-    from langgraph.types import Command
+    from langgraph.types import Command, interrupt
 
     flag = {"prior_field": "baseline_mean", "approved_value": "4.2",
             "approved_phase": "measure", "proposed_value": "3.8",
@@ -1130,13 +1137,27 @@ def test_the_flag_yields_a_RESUMABLE_interrupt_end_to_end() -> None:
             return {"structured_response": CoachingResponse(
                 message="hold on", contradiction_flag=flag)}
 
+    class _StillInterrupts(ContradictionDetectionMiddleware):
+        """Position 6 as §33 ratifies it, with the 7.3 guard lifted.
+
+        The production class detects and logs; this one interrupts. Keeping
+        the subclass here rather than a bare `interrupt()` call means it still
+        exercises `_flag` and `_payload` — the parts the guard does not touch.
+        """
+
+        def after_agent(self, state: Any, runtime: Any) -> Any:
+            found = self._flag(state)
+            if found:
+                interrupt(self._payload(found))
+            return None
+
     agent = create_agent(
         model=_Model(messages=iter([AIMessage(content="hi")] * 5)),
         tools=[],
         # **Declared in reverse**: `after_agent` unwraps outward, so the
         # responder must be declared LAST to populate the flag before
         # position 6 reads it. The same reversal the executor uses.
-        middleware=[ContradictionDetectionMiddleware(), _Responder()],
+        middleware=[_StillInterrupts(), _Responder()],
         checkpointer=InMemorySaver(),
     )
     cfg = cast(Any, {"configurable": {"thread_id": "contradiction-e2e"}})
@@ -1152,6 +1173,51 @@ def test_the_flag_yields_a_RESUMABLE_interrupt_end_to_end() -> None:
 
     resumed = agent.invoke(Command(resume="keep_approved_value"), cfg)
     assert resumed.get("messages"), "the graph did not resume — not resumable"
+
+
+def test_position_6_is_GUARDED_and_does_not_park_the_case() -> None:
+    """**Founder ruling, 2026-09-11.** Detection yes; enforcement not until 7.3.
+
+    §33's mechanism is right and nothing can resume it: §49's `/gate/approve`
+    and `/gate/reject` are step 7.3. **Measured before the ruling, in the real
+    runtime shape** — a bare `create_agent` inside a node under a checkpointed
+    parent:
+
+        turn 1  pauses cleanly, returns `__interrupt__`, no structured_response
+        turn 2  the Belt's next message is NOT processed and NOT resumed
+        ...     every later turn on that case returns nothing, forever
+
+    **The blast radius is the CASE, not the turn**, the checkpoint is Azure
+    Blob so it survives restarts, and the trigger — a Belt revising a figure
+    they committed earlier — is the INTENDED one, i.e. ordinary coaching.
+
+    This test is the tripwire on the guard. It fails the day someone
+    un-guards position 6, which is correct: that should be step 7.3 doing it
+    deliberately, and 7.3 updates this test in the same commit.
+    """
+    flag = {"prior_field": "baseline_mean", "approved_value": "4.2",
+            "approved_phase": "measure", "proposed_value": "3.8",
+            "belt_input": "actually it was 3.8"}
+    mw = ContradictionDetectionMiddleware()
+
+    # Detection is unchanged: the flag is still read and still recognised.
+    assert mw._flag({"structured_response": CoachingResponse(
+        message="hold on", contradiction_flag=flag)}) == flag
+
+    # Enforcement is suspended: no runnable context is needed, because
+    # nothing calls `interrupt()`. Before the guard this raised
+    # `RuntimeError: Called get_config outside of a runnable context`.
+    assert mw.after_agent({"structured_response": CoachingResponse(
+        message="hold on", contradiction_flag=flag)}, None) is None
+
+    # The restore line must survive as a comment, or 7.3 has nothing to
+    # uncomment and will rewrite it from the spec instead.
+    source = inspect.getsource(contradiction_module)
+    assert "#     interrupt(self._payload(flag))" in source, (
+        "step 7.3's restore line is gone from contradiction.py — it must "
+        "stay as a comment so re-enabling is one line, not a rewrite"
+    )
+    assert "GUARDED UNTIL STEP 7.3" in source
 
 
 def test_position_1_wrap_encloses_position_4_retry() -> None:

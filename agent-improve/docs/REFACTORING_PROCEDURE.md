@@ -2496,9 +2496,33 @@ is a violation.
 
 | | |
 |---|---|
-| **Reference §** | §33 · §33.1 · §33.2 · **S-C25 · S-F27** |
+| **Reference §** | §33 · §33.1 · §33.2 · **§19.6** · **S-C25 · S-F27** |
 | **Precondition** | 7.2 |
 | **Verify** | `manual-UI` |
+
+> ### ⛔ THIS STEP ALSO UN-GUARDS MIDDLEWARE POSITION 6. Added 2026-09-11.
+>
+> **It now owns TWO interrupts, not one.** §33's `gate_review` interrupt is
+> this step's subject; the second arrived by founder ruling on 2026-09-11 and
+> is easy to lose because it lives in another section's file.
+>
+> **`ContradictionDetectionMiddleware.after_agent` has a commented-out
+> `interrupt(self._payload(flag))`.** It was guarded because a fired interrupt
+> with no resume path does not pause a turn — **measured: it parks the CASE
+> permanently**, every later turn returning nothing, checkpointed to Azure Blob
+> so it survives a restart. **The routes this step builds — `/gate/approve`
+> and `/gate/reject` — are exactly what makes it safe again.**
+>
+> **Two tests will fail when you do it, and both should:**
+> `test_position_6_is_GUARDED_and_does_not_park_the_case` is the tripwire and
+> must be rewritten here; `verify_built.py`'s `interrupt() call sites (§33)`
+> expects **0** and must become **2** in the same commit. **Neither is
+> optional and neither should be silenced** — they exist so this cannot be
+> re-enabled by accident, and so it cannot be forgotten either.
+>
+> **Un-guard only after the resume path can actually resume**, which for
+> position 6 means a route accepting the two options S-C05 B2's payload
+> offers: `update_approved_value` and `keep_approved_value`.
 
 **`gate_apply_node` writes the gate document TWICE** — to the store and to
 `PhaseState.final` (§33.2). Both are required; a crash between the store write
@@ -2512,7 +2536,10 @@ before `interrupt()` exists"*, and this is the step that creates `interrupt()`.
 **A sweep and the thing it must not sweep are one design**; scheduling them
 apart is how the sweep gets forgotten.
 
-**Done when:** Vassilis passes the Define gate **on a case the registry shows in
+**Done when — and the first clause is new, added 2026-09-11:**
+**middleware position 6's `interrupt()` is restored**, its tripwire test
+rewritten, and `verify_built.py`'s call-site expectation moved 0 → 2; then
+Vassilis passes the Define gate **on a case the registry shows in
 `define`** in the browser: the interrupt presents validated fields, an edit is
 accepted, approval writes
 `store/projects/{case_id}/artifacts/define.json`, and the phase advances to

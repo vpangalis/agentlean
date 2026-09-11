@@ -296,15 +296,20 @@ CHECKS = [
     # §33. The ☐ marker's own load-bearing fact. This flips the day 7.3
     # lands, which is the point — four other markers name the interrupt's
     # absence as their reason (WATCH 13, 18, 23).
-    # Expected is ONE, not zero, and finding that out is what this check was
-    # worth. §33's marker read "Nothing in the system currently pauses for a
-    # human"; `ContradictionDetectionMiddleware.after_agent` has called
-    # `langgraph.types.interrupt` since 6.5. The GATE interrupt is genuinely
-    # unbuilt (7.3) - the blanket claim was not. Goes to 2 when 7.3 lands.
-    ("interrupt() call sites (§33)", "1",
+    # ZERO, and the journey of this number in one day is the whole argument
+    # for the check. It went 0 (assumed) -> 1 (measured: §19.6's contradiction
+    # interrupt, which disproved §33's "nothing pauses for a human") -> 0
+    # again (founder ruling: position 6 GUARDED until 7.3, because a fired
+    # interrupt parks the CASE permanently with no route able to resume it).
+    #
+    # **The two zeros mean opposite things.** The first was nobody having
+    # looked. This one is a deliberate, tested, reversible suspension with a
+    # commented restore line. STEP 7.3 TAKES THIS TO 2 - `gate_review`'s
+    # interrupt plus position 6's, restored in the same commit.
+    ("interrupt() call sites (§33)", "0",
      lambda: count_call_sites("agent-improve/backend", "interrupt"),
-     "§33 — the one is §19.6's contradiction interrupt (position 6); "
-     "`gate_review` is still pass-through, step 7.3"),
+     "§33 — position 6 GUARDED until 7.3 (founder ruling 2026-09-11); "
+     "`gate_review` still pass-through. Both land at 7.3"),
 
     # §30. The figure NONE of the four captions was measuring.
     ("LIVE per-phase tool bind (§30)", "7/14/11/7/11",
