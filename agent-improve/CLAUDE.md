@@ -2270,37 +2270,77 @@ multi-hop deepens across hops.
 
 ### 8.1 — Eight middlewares, all on `create_agent`
 
+**Canonical: ARCHITECTURE.md §19.** §19 owns the stack and its ordering rules;
+this section reproduces them. The block below is generated from
+`_build_executor()` in `backend/phases/nodes_common.py` by AST parse, not
+transcribed — a reorder in the code shows up here as a diff.
+
+**The list is NESTING order. The position numbers are EXECUTION order. For
+`after_*` hooks the two are opposite.**
+
 ```python
 middleware=[
-    BeforeModelStateInjection(...),          # §8.5 — custom        · before_agent
-    DMAICSkillsMiddleware(...),              # §8.3 — custom        · before_agent
-    SummarizationMiddleware(...),            # §8.4 — LangChain core · before_model
-    ModelRetryMiddleware(max_retries=2),     # §8.7 — LangChain core · wrap_model_call
-    ToolRetryMiddleware(                     # §8.7 — LangChain core · wrap_tool_call
-        max_retries=2, on_failure="continue"),
-    ContradictionDetectionMiddleware(...),   # §8.8 — custom        · after_agent
-    CoherenceMiddleware(...),                # §8.9 — custom        · after_agent
-    DMAICGraderMiddleware(...),              # §8.2 — custom        · after_agent
+    BeforeModelStateInjection(...),                             # 1
+    DMAICSkillsMiddleware(...),                                 # 2
+    SummarizationMiddleware(
+        trigger=("tokens", 100_000), keep=("messages", 20)),    # 3
+    ModelRetryMiddleware(max_retries=2),                        # 4
+    ToolRetryMiddleware(max_retries=2, on_failure="continue"),  # 5
+    DMAICGraderMiddleware(...),                                 # 6
+    CoherenceMiddleware(...),                                   # 7
+    ContradictionDetectionMiddleware(...),                      # 8
 ]
 ```
 
-Five are custom, three are core. All are built on the six
-`AgentMiddleware` hooks **this stack uses** — `before_agent`,
-`after_agent`, `before_model`, `after_model`, `wrap_model_call`,
-`wrap_tool_call`.
+| # | Middleware | | Hook(s) it implements |
+|---|---|---|---|
+| 1 | `BeforeModelStateInjection` §8.5 | custom | `before_agent`, `wrap_model_call` |
+| 2 | `DMAICSkillsMiddleware` §8.3 | custom | `before_agent`, `wrap_model_call` |
+| 3 | `SummarizationMiddleware` §8.4 | core | `before_model` |
+| 4 | `ModelRetryMiddleware` §8.7 | core | `wrap_model_call` |
+| 5 | `ToolRetryMiddleware` §8.7 | core | `wrap_tool_call` |
+| 6 | `DMAICGraderMiddleware` §8.2 | custom | `after_agent` |
+| 7 | `CoherenceMiddleware` §8.9 | custom | `after_agent` |
+| 8 | `ContradictionDetectionMiddleware` §8.8 | custom | `after_agent` |
 
-**These six are not the complete hook surface.** `AgentMiddleware` also
-exposes `dynamic_prompt()`, `hook_config()` and `configure_trace_policy()`.
-Earlier revisions wrote "the six hooks" as though the set were closed,
-which would mislead anyone extending the stack. Verified against the
-LangChain middleware reference, 2026-08-21 (`docs/_archive/BIBLE_VERIFICATION_LOG.md`
-C-3). (archived to docs/_archive/; canonical: CLAUDE.md §0.10)
+Applying the three clauses to that list:
 
-**Declaration order is execution order for hooks of the same kind, so
-this order is binding.** `BeforeModelStateInjection` MUST be first —
-project facts have to reach the top of the prompt before skills loading
-and summarisation shape it. Listing it last, as an earlier revision did,
-defeats the ordering rule §8.5 exists to enforce.
+- **`before_*` fire 1 → 2 → 3** — `BeforeModelStateInjection`,
+  `DMAICSkillsMiddleware`, `SummarizationMiddleware`.
+- **`after_*` fire 8 → 7 → 6** — `ContradictionDetectionMiddleware`,
+  `CoherenceMiddleware`, `DMAICGraderMiddleware`.
+- **`wrap_*` nest 1 ⊃ 2 ⊃ 4 ⊃ 5** — `BeforeModelStateInjection`,
+  `DMAICSkillsMiddleware`, `ModelRetryMiddleware`, `ToolRetryMiddleware`;
+  position 1 is the outermost layer.
+
+Five are custom, three are core.
+
+**Three ordering clauses, not one.** LangChain states them separately. An
+earlier revision of this section collapsed them into *"declaration order is
+execution order for hooks of the same kind, so this order is binding"* — a
+sentence that is true of `before_*`, **false of `after_*`**, and not even the
+right shape for `wrap_*`.
+
+| Hook kind | Ordering, relative to the declared list |
+|---|---|
+| `before_*` | first to last — **same** as declaration order |
+| `after_*` | **last to first** — the **reverse** of declaration order |
+| `wrap_*` | nested; the first declared wraps all the others |
+
+Verified against the installed `langchain` 1.3.16, not the documentation alone.
+In `langchain/agents/factory.py`, `middleware_w_after_agent` is collected in
+declaration order, the graph **enters** that chain at the last element —
+`exit_node = f"{middleware_w_after_agent[-1].name}.after_agent"` — and walks it
+downward, `for idx in range(len(...) - 1, 0, -1)`, until `[0]` takes the edge to
+`END`. `before_agent` enters at `[0]` and is chained forward with
+`itertools.pairwise`. `wrap_*` composes with `for wrapper in
+reversed(wrappers[:-1])`, which leaves the first declared outermost.
+
+**`BeforeModelStateInjection` MUST be first, and the `before_*` clause is why.**
+Project facts have to reach the top of the prompt before skills loading and
+summarisation shape it; `before_*` fires first-to-last, so first in the list is
+first to run. Listing it last, as an earlier revision did, defeats the ordering
+rule §8.5 exists to enforce.
 
 **`BeforeModelStateInjection`'s hook is `before_agent`, not
 `before_model`.** State injection belongs at agent-loop start, once per
@@ -2308,14 +2348,38 @@ turn — `before_model` fires before every individual model call within a
 turn, which re-injects the same project facts repeatedly and wastes
 context. An earlier revision typed it `before_model`; that is corrected.
 
-**Positions 6, 7 and 8 all fire `after_agent`** and run in declaration
-order: contradiction check, then coherence, then grader. **If
-`CoherenceMiddleware` exhausts its retries, `DMAICGraderMiddleware` is
-skipped for that turn** — deliberately: grading a response already known
-to be incoherent spends a model call for a meaningless score.
+**Positions 6, 7 and 8 all fire `after_agent`**, so they execute in the reverse
+of how they are declared: **declared** grader, coherence, contradiction and
+therefore **executing** contradiction, coherence, grader.
+`test_all_eight_positions_execute_in_the_ratified_order` asserts what executes
+rather than what is listed — cite it; do not restate the order. **If
+`CoherenceMiddleware` exhausts its retries, `DMAICGraderMiddleware` is skipped
+for that turn** — deliberately: grading a response already known to be
+incoherent spends a model call for a meaningless score. The skip travels
+outward on the way out, which works only because coherence sits **inside** the
+grader.
 
-**Positions 4 and 5 are on `wrap_*` hooks** and compete for no slot with
-the others; they are adjacent for readability, not ordering.
+**Positions 4 and 5 do compete for a slot.** An earlier revision said they
+"compete for no slot with the others; they are adjacent for readability, not
+ordering" — false, and it is the same conflation. `wrap_*` hooks nest, so a
+`wrap_*` middleware wraps everything declared after it. Since 6.3 positions 1
+and 2 also implement `wrap_model_call`, so position 1 **encloses** position 4's
+retry: the project-state block is composed and prepended once, and a retry
+re-sends the built request rather than rebuilding it per attempt
+(`test_position_1_wrap_encloses_position_4_retry`). Position 5 wraps tool calls
+rather than model calls, so it is independent of the other three — independent
+of *them*, not of position.
+
+**The six named lifecycle hooks ARE the complete set** — `before_agent`,
+`before_model`, `after_model`, `after_agent`, `wrap_model_call` and
+`wrap_tool_call`, each with an `a`-prefixed async twin. An earlier revision
+wrote that `AgentMiddleware` "also exposes `dynamic_prompt()`, `hook_config()`
+and `configure_trace_policy()`" and that the set was therefore open. **It does
+not.** Those three are module-level names in `langchain.agents.middleware` —
+two decorators and a process-wide trace-policy setter — not members of
+`AgentMiddleware` and not lifecycle hooks. Checked against the installed
+1.3.16: the public members of `AgentMiddleware` are the six, their six async
+twins, and `name`, `state_schema`, `trace_policy`, `transformers`.
 
 **Three independent retry caps, and they must not be merged:**
 `ModelRetryMiddleware` 2 retries on transient API failure,

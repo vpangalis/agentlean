@@ -7,13 +7,13 @@
 
 | | |
 |---|---|
-| **Last completed** | step **6.18** — The executor ignores the tool its planner names (G-49) |
-| **Next** | step **6.21** — The plan reaches the model (G-49's fix) |
-| **Spine steps landed** | 32 of 59 |
-| **Last spine commit** | `e2c536d` (commit 6.18) |
-| **ARCHITECTURE.md** | v1.32 |
+| **Last completed** | step **6.21** — The plan reaches the model (G-49's fix) |
+| **Next** | step **6.19** — `CoachingResponse` gains §50.1's four presentational fields (G-50) |
+| **Spine steps landed** | 33 of 59 |
+| **Last spine commit** | `a1a0a5d` (commit 6.21) |
+| **ARCHITECTURE.md** | v1.33 |
 | **CLAUDE.md** | v2.2.37 |
-| **Block regenerated** | 2026-09-11 |
+| **Block regenerated** | 2026-09-12 |
 
 *`Last completed` and the landed count come from **git log** — the
 `refactor(arch-v2): commit X.Y` subjects. `Next` and the total come
