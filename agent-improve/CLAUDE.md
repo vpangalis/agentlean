@@ -2046,16 +2046,18 @@ it is a violation.
 | Tool | Index | Filter | Ordering | Vector field |
 |---|---|---|---|---|
 | `rag_lookup_methodology` | `improve_knowledge_index` | `phase_relevance eq '{phase}' or phase_relevance eq 'general'` | — | `content_vector` |
-| `rag_lookup_evidence` | `improve_evidence_index` | `case_id`; optional `phase` (default OFF) | `uploaded_at desc` † | `content_vector` |
+| `rag_lookup_evidence` | `improve_evidence_index` | `case_id`; `kind` (default `evidence`); optional `phase` (default OFF) | **none — by ruling, not by schema** | `content_vector` |
 | `rag_lookup_case_history` | `improve_case_index` | `status eq 'completed'` | `created_at desc` | `embedding` † |
 
-† **Both marked fields depend on schema changes that are ratified but NOT
-yet applied in Azure** (§7.3). Until the reindex runs,
-`improve_evidence_index` has no `phase` or `uploaded_at` and
-`rag_lookup_evidence` takes no `order_by`; and `improve_case_index`'s
-vector field is still named `embedding`. **Write code against the live
-schema, not the target schema** — the two converge at the reindex, and
-this table changes in that same commit.
+† `improve_case_index`'s vector field **is still named `embedding`** — that
+rename is ratified and not yet applied, and it is now the only one left
+(§7.3). **Write code against the live schema, not the target schema.**
+
+> **The evidence index's half of this footnote is DISCHARGED.** It read
+> *"`improve_evidence_index` has no `phase` or `uploaded_at`"*. It has both,
+> and has had since step 6.13 landed §23.2's seven fields (`1396627`,
+> 2026-09-10). Live definition read from Azure on 2026-09-12: **12 fields**,
+> `phase` filterable, `uploaded_at` filterable **and sortable**.
 
 **Each tool is bound to exactly one index and knows that index's
 vector field name locally.** There is no shared retriever. This is why
@@ -2105,18 +2107,27 @@ Three rules that fall out of it, each of which has already bitten:
 
 Full rationale: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §27.
 
-**`rag_lookup_evidence` takes no `order_by` argument — until the reindex
-lands.** Verified against the live index (Aug 2026): `improve_evidence_index`
-has **no `uploaded_at` field** today. The upload timestamp exists only inside
-the non-sortable `metadata` JSON blob, which `$orderby` cannot reach, so
-recency ranking is unavailable on this index **as currently shaped**.
+**`rag_lookup_evidence` takes no `order_by` argument — and that is now a
+DESIGN CHOICE, not a schema constraint.** The distinction is the whole of this
+paragraph, because the rule reads the same either way and means something
+different.
 
-**That schema change is now ratified** (§7.3, `../AGENTIC_ARCHITECTURE_REFERENCE.md` §23.2): promote
-`metadata.timestamp` to a top-level `uploaded_at`, and `metadata.upload_phase`
-to a top-level `phase`, at reindex time. Once it lands, `order_by=["uploaded_at
-desc"]` and the optional `phase` filter both become available and this
-prohibition lifts. **Until then the rule stands as written** — a tool cannot
-sort on a field the index does not have.
+This prohibition was justified by *"a tool cannot sort on a field the index does
+not have"*. **That justification expired on 2026-09-10** and the rule outlived
+it by two days: `uploaded_at` is live, filterable and sortable. Ruled at
+ARCHITECTURE.md v1.20 (D) — *"`uploaded_at` exists now, and the tool still takes
+no `order_by` as a design choice rather than a schema constraint"* — which is
+the owner of this fact; S-F15 B3 is discharged there.
+
+**What keeps it out of the signature is §7.4.** Retrieval here is multi-query +
+RRF, and a fused rank is what the tool returns; an `$orderby` applied to that
+discards the fusion and returns recency, which is a different tool. Wanting
+recency is a real requirement and the answer to it is a filter on `uploaded_at`,
+not a sort of the fused set.
+
+**A rule whose reason has expired is not the same rule.** It survived here on
+its restated form after its basis was gone, which is exactly what a citation
+would have prevented.
 
 Never re-sort the returned `top_k` client-side and present it as recency
 ordering: that reorders only what was already retrieved, which is a different
@@ -2131,75 +2142,49 @@ It does not duplicate the schema, and it is not the place to record a
 schema change — that lands in `../AGENTIC_ARCHITECTURE_REFERENCE.md` §23 first, in the same
 commit as the Azure AI Search change (§23.5).
 
-**`improve_knowledge_index`** — LSS Black Belt eBook, static
-```
-id                String
-content           String
-content_vector    SingleCollection (3072d)
-metadata          String
-source_file       String
-phase_relevance   String
-page_number       Int32
-```
+> **THIS SUBSECTION SAID THAT AND THEN TABLED ALL THREE SCHEMAS ANYWAY,
+> AND THE COPY WENT STALE.** It carried `phase ← RATIFIED, pending reindex`
+> and `uploaded_at ← RATIFIED, pending reindex` and asserted *"`phase` and
+> `uploaded_at` are ratified additions, not live fields"*. **Both have been
+> live since step 6.13 landed §23.2's seven fields** (`1396627`, 2026-09-10).
+> The tables are removed rather than corrected: a schema transcribed into a
+> second document is a schema that will disagree with the index again, and
+> the rule this subsection states about itself is the one it broke.
+>
+> **Read the live definition, do not read this file for it.** Three indexes,
+> introspected 2026-09-12 against the pinned venv:
+>
+> ```python
+> from azure.search.documents.indexes import SearchIndexClient
+> [f.name for f in client.get_index(name).fields]
+> ```
+>
+> | Index | Live fields | Notes |
+> |---|---|---|
+> | `improve_knowledge_index` | 7 | as §23 specifies |
+> | `improve_evidence_index` | **12** | §23.2's seven APPLIED; `uploaded_at` filterable **and sortable** |
+> | `improve_case_index` | 19 | vector field still `embedding` — see below |
 
-**`improve_evidence_index`** — Belt-uploaded documents, per case.
-*The only channel for external data (§1.9).*
-```
-id                String
-content           String
-content_vector    SingleCollection (3072d)
-metadata          String
-case_id           String
-phase             String      ← RATIFIED, pending reindex
-uploaded_at       String      ← RATIFIED, pending reindex (ISO 8601)
-```
+**The facts a rule depends on**, and nothing else:
 
-**`phase` and `uploaded_at` are ratified additions, not live fields.**
-Both backfill from `metadata` at reindex time — `uploaded_at` from
-`metadata.timestamp`, `phase` from `metadata.upload_phase` — so no new
-data collection is needed; the values already exist in the wrong shape.
-Both are **server-set**: `phase` from `state["current_phase"]` at upload,
-`uploaded_at` from the server clock. A Belt-entered value for either makes
-it unreliable as a filter or sort key.
+**`improve_case_index`'s vector field is `embedding`, not `content_vector`.**
+It is the only index where this is true, the difference is historical rather
+than deliberate, and **`rag_lookup_case_history` must use the live name**. The
+rename to `content_vector` is ratified and still pending — delete + recreate,
+0 documents, no data loss. **This is the last unapplied schema change of the
+three this subsection used to track.** The per-tool local knowledge of vector
+field names (§7.2) is what makes the asymmetry safe in the meantime — that was
+the reason not to rush it, never a reason to keep it.
 
-`phase` exists because two similar documents uploaded at different phases
-were otherwise indistinguishable at retrieval time. **Its filter defaults
-OFF** — a Control-phase Belt comparing against the Measure baseline is the
+**`phase` and `uploaded_at` are SERVER-SET.** `phase` from
+`state["current_phase"]` at upload, `uploaded_at` from the server clock. A
+Belt-entered value for either makes it unreliable as a filter or a sort key,
+which is the whole reason they were promoted out of `metadata`.
+
+**`phase`'s filter defaults OFF.** It exists because two similar documents
+uploaded at different phases were otherwise indistinguishable at retrieval
+time — but a Control-phase Belt comparing against the Measure baseline is the
 normal case, and filtering by default would break it.
-
-**`improve_case_index`** — live case records, cross-case memory
-```
-id                      String
-case_id                 String
-title                   String
-belt_level              String
-leader                  String
-department              String
-current_phase           String
-rag_status              String
-status                  String
-created_at              String
-target_date             String
-days_in_phase           Int32
-phase_summary_define    String
-phase_summary_measure   String
-phase_summary_analyse   String   ← renamed from phase_summary_analyse_phase
-phase_summary_improve   String
-phase_summary_control   String
-content_text            String
-embedding               SingleCollection (3072d)  ← renaming to content_vector
-```
-
-**`embedding` → `content_vector` is RATIFIED, pending reindex.** This is
-the only index whose vector field is not `content_vector`, and the
-difference is historical, not deliberate. Delete + recreate (0 documents,
-no data loss), batched with the `improve_evidence_index` additions above
-so the corpus rebuilds once. **Until it lands, `embedding` is the live
-name and `rag_lookup_case_history` must use it.**
-
-The per-tool local knowledge of vector field names (§7.2) is what makes
-the asymmetry safe in the meantime — that was the reason not to rush it,
-never a reason to keep it.
 
 **Breaking schema change — LANDED Aug 2026.**
 `phase_summary_analyse_phase` was renamed to `phase_summary_analyse` in

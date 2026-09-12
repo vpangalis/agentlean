@@ -42,16 +42,20 @@ it. One return, both readings satisfied.
 
 WRITTEN AGAINST THE LIVE INDEX SCHEMA, NOT THE TARGET ONE
 ---------------------------------------------------------
-Two ratified schema changes are **NOT YET APPLIED** in Azure (§23, blocked on
-procedure step 9.1), and this file writes against what exists today:
+ONE ratified schema change is **NOT YET APPLIED** in Azure (§23), and this file
+writes against what exists today:
 
-  * **`rag_lookup_evidence` takes no `order_by` and applies no `phase`
-    filter.** `improve_evidence_index` has neither `uploaded_at` nor `phase`
-    as a top-level field yet — both live inside the non-sortable `metadata`
-    JSON blob, which `$orderby` and `$filter` cannot reach. A tool cannot sort
-    on a field the index does not have. §23 ratifies promoting both at reindex;
-    the parameters arrive then, and **`phase` defaults OFF even after that** —
-    a Control-phase Belt comparing against the Measure baseline is the normal
+  * **`rag_lookup_evidence` takes no `order_by` — and since 2026-09-10 that is
+    a DESIGN CHOICE, not a schema constraint.** This paragraph read *"a tool
+    cannot sort on a field the index does not have"*; `improve_evidence_index`
+    has had top-level `uploaded_at` and `phase` since step 6.13 landed §23.2's
+    seven fields, and `uploaded_at` is both filterable and sortable. Ruled at
+    ARCHITECTURE.md v1.20 (D), S-F15 B3 discharged. **What keeps `order_by` out
+    of the signature now is the fusion**: retrieval is multi-query + RRF and
+    this returns a fused rank, which an `$orderby` would discard in favour of
+    recency — a different tool. Recency is answered by a FILTER on
+    `uploaded_at`, never by sorting the fused set. **`phase` defaults OFF** — a
+    Control-phase Belt comparing against the Measure baseline is the normal
     case.
   * **`rag_lookup_case_history` uses `embedding`, not `content_vector`.**
     `improve_case_index` is the one index whose vector field is not
