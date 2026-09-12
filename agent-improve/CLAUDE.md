@@ -3903,32 +3903,37 @@ more than 2 full function replacements per prompt for `index.html`.
 
 ## 16. VERSION TARGETS AND DEPENDENCIES
 
-### 16.1 — Pinned targets
+### 16.1 — The floor, and where the pins live
 
-**Verified against PyPI 2026-08-21. The floor is a rule; the targets are a
-snapshot — re-resolve at upgrade time.**
+**THIS FILE STATES NO VERSION NUMBER FOR A DEPENDENCY.**
+`agent-improve/requirements.txt` carries every resolved pin and is the only
+place that does. **Read it; do not read this section for it.**
 
-| Package | Installed | Latest | Why |
-|---|---|---|---|
-| `langgraph` | 1.1.10 | **1.2.11** | **BLOCKER.** Floor is **≥1.2.6** — the subgraph `checkpoint_ns` fix (§1.2) and native reliability primitives (§3.6) both require it |
-| `langchain` | 1.2.13 | **1.3.16** | Pins `langgraph>=1.2.11,<1.3.0`, so this upgrade satisfies the floor with margin |
-| `langchain-core` | 1.3.3 | — | **`langchain` 1.3.16 requires ≥1.6.0.** A three-minor jump and the most likely source of upgrade surprises |
-| `langchain-classic` | 1.0.3 | **1.0.8** | Retains legacy classes we do **not** use — presence is not permission |
+| Floor | Attribution |
+|---|---|
+| `langgraph >= 1.2.6` | LangGraph 1.2.6 (2026-06-18) carries *"nested subgraph inherits parent `checkpoint_ns` (regression in 1.2.3)"* — the fix §1.2 depends on, and the native reliability primitives §3.6 needs |
+| `langchain-core >= 1.6.0` | Required by `langchain` 1.x as resolved |
 
-**The ≥1.2.6 floor is precisely attributable:** LangGraph 1.2.6 (2026-06-18)
-carries *"nested subgraph inherits parent `checkpoint_ns` (regression in
-1.2.3)"*.
+**A floor is a rule and does not move. A pin is a fact `pip` owns.** The floor
+is stated here because a rule belongs in a rule file; the pin is not, because a
+version transcribed into a document is stale the day the project upgrades.
 
-**The 1.2.10 / 1.3.11 pins previously written here were already stale when
-written. Do not upgrade to a documented pin — re-resolve against live PyPI**
-(§16.3). Full table and reasoning: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §53.
+> **THIS SECTION CALLED THE UPGRADE A BLOCKER UNTIL 2026-09-12 — three weeks
+> after step 2.3 performed it.** It tabled `langgraph` 1.1.10 and
+> `langchain-core` 1.3.3 as *Installed* against a venv running 1.2.11 and 1.6.0,
+> under the heading `Pinned targets`. The table even warned that *"the targets
+> are a snapshot — re-resolve at upgrade time"* and then went stale in exactly
+> the way it described. **A snapshot that warns it is a snapshot is still a
+> snapshot.** Owner: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §53.
 
-Adjacent packages (`langchain-openai`, `langchain-community`,
-`langchain-text-splitters`, `langsmith`, `langfuse`) — let pip resolve during
-the upgrade, then repin.
+**Do not upgrade to a version written in a document — re-resolve against live
+PyPI** (§16.3). Let pip resolve the adjacent packages during an upgrade, then
+repin in `requirements.txt`.
 
 **During the upgrade, sweep for imports from `langgraph.prebuilt`** —
-deprecated in 1.0 → 1.1, functionality moved to `langchain.agents`.
+deprecated in 1.0 → 1.1, functionality moved to `langchain.agents`. Its presence
+as a transitive dependency is not a violation: §4.4 bans the import, not the
+package.
 
 ### 16.2 — New infrastructure required
 

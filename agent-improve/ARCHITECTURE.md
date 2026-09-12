@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.37 · 2026-09-12
+Version 1.38 · 2026-09-12
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.38 (2026-09-12)** — **§56 AMENDMENT. THE DEPENDENCY UPGRADE IS NOT A BLOCKER AND HAS NOT BEEN SINCE STEP 2.3. The Installed/Latest tables are removed and replaced by floors plus a pointer to `requirements.txt`.** **(A) FIVE SITES CALLED IT BLOCKED, THREE WEEKS AFTER IT WAS DONE.** §53's table read `langgraph` **1.1.10** installed against a venv running **1.2.11**, and `langchain-core` 1.3.3 against an installed 1.6.0; §1 said *"the installed version is below it … unavailable today"*; §44 said the fallback chain's native primitives were *"unavailable at the currently installed 1.1.10"*; §45's drain question said the dependency was *"separate and also unmet"*; Appendix E listed it under **Blocked**. CLAUDE.md §16.1 carried the same table with **BLOCKER** in the first row. **§1's own status line recorded the upgrade** — *"Step 2.3 upgraded dependencies (langgraph 1.1.10 → 1.2.11, langchain-core 1.3.3 → 1.6.0)"* — so §1 contradicted itself inside one section, and four more sections agreed with the wrong half. **(B) THE TABLE WAS THE DEFECT, NOT THE NUMBERS IN IT.** An `Installed` column in a document is a copy of a fact `pip` owns. It can be right only between upgrades, and it goes wrong **silently at the moment the project improves** — the one event nobody re-reads a dependency table after. §53's header even said *"the targets are a snapshot — re-resolve at upgrade time"*, and it went stale in exactly the way it described. A snapshot that warns it is a snapshot is still a snapshot. **(C) WHAT REPLACES THEM: FLOORS, WHICH ARE RULES.** `langgraph >= 1.2.6`, attributable to one release note — 1.2.6 (2026-06-18), *"nested subgraph inherits parent `checkpoint_ns` (regression in 1.2.3)"* — and `langchain-core >= 1.6.0`. **A floor does not move; a pin is a fact.** The floors stay in the documents because a rule belongs in a rule file; every pin now lives only in `agent-improve/requirements.txt`, which already carried the floor rule in its own comments and was right throughout. **(D) `deepagents` STAYS EXCLUDED** — still pre-1.0, §18's exclusion stands, not installed. `langchain-classic` retains legacy classes we do not use; presence is not permission. `langgraph-prebuilt` is present transitively and that is not a violation — §4.4 bans the import, not the package. **(E) APPENDIX E's TWO BLOCKED ITEMS ARE STRUCK, NOT DELETED.** It is a dated snapshot and says so, but a `Blocked` heading over two things that are not blocked is the one staleness a dated header does not excuse. The second item is corrected with it: *"two Azure schema changes ratified and unapplied"* is now **one** — the evidence index's `phase` and `uploaded_at` landed at step 6.13 — and with one left there is nothing to batch it with. **(F) `session-start-context.py` IS NOT TOUCHED.** It pins the right interpreter and reports installed-versus-latest from the live environment, which is the correct place for that comparison: it reads, it does not assert. Reasoning: this commit body.
 
 **v1.37 (2026-09-12)** — **§56 RECORD. CLAUDE.md §7.2 and §7.3 carried the evidence index as unbuilt for two days after §23.2's fields landed, and §7.3 was tabling a schema its own preamble forbids it to hold.** **(A) NOTHING IN THIS DOCUMENT CHANGES.** §23.2's seven fields were marked APPLIED at v1.20 and S-F15 B3 discharged there — *"`uploaded_at` exists now, and the tool still takes no `order_by` as a design choice rather than a schema constraint"*. §59.6's B3 row already reads DISCHARGED. CLAUDE.md was the stale copy, exactly as §8.1 was of §19. **(B) THE LIVE SHAPE, READ FROM AZURE RATHER THAN FROM A DOCUMENT** — 2026-09-12, `SearchIndexClient.get_index(name).fields`: `improve_evidence_index` **12 fields**, `phase` filterable, `uploaded_at` filterable AND sortable, plus §23.2's `role`, `kind`, `description`, `content_digest`, `shape_match`; `improve_knowledge_index` 7; `improve_case_index` 19, vector field still `embedding`. CLAUDE.md §7.3 had tabled seven for the evidence index and asserted *"`phase` and `uploaded_at` are ratified additions, not live fields"*. **(C) THE TABLES ARE REMOVED, NOT CORRECTED.** §7.3's own preamble says it *"does not duplicate the schema"* and then duplicated all three — so correcting the copy would have rebuilt the thing that went stale. It now cites §23 as owner, names the introspection that reads the live shape, and keeps only the facts a rule depends on: `improve_case_index`'s vector field is `embedding` and `rag_lookup_case_history` must use it; `phase` and `uploaded_at` are server-set; `phase`'s filter defaults OFF. **That rename is now the ONLY unapplied schema change of the three this subsection used to track.** **(D) A RULE WHOSE REASON EXPIRED IS NOT THE SAME RULE.** §7.2's `order_by` prohibition survived on its restated form after its basis was gone. The prohibition itself stands — `rag_lookup_evidence` still takes no `order_by` — but for a different and now-stated reason: §7.4's multi-query + RRF returns a FUSED rank, and an `$orderby` over it discards the fusion for recency, which is a different tool. Recency is answered by a filter on `uploaded_at`, never by sorting the fused set. **(E) THE SAME ASSERTION WAS IN CODE.** `backend/knowledge/tools.py`'s module docstring said *"`improve_evidence_index` has neither `uploaded_at` nor `phase` as a top-level field yet"* and named two unapplied changes where one remains. Corrected; rule 2b brought this file in on that path. `verify_built.py`: 24 checks, zero disagreements. **(F) LEFT DELIBERATELY:** CLAUDE.md §0's v2.2.15 row calling the two fields *"ratified, pending reindex"* is a DATED CHANGELOG ENTRY and was true when written; it is retired wholesale at the brief's step 5, not repaired here. Reasoning: this commit body.
 
@@ -396,12 +398,18 @@ Azure Cache for Redis       fallback chain level 3   [NOT YET PROVISIONED]
 
 **MCP is not in this stack and is not deferred** — see §29.1.
 
-**The LangGraph floor is ≥1.2.6, and the installed version is below it.**
-As of 2026-08-21 the venv has `langgraph 1.1.10`. Per-node `TimeoutPolicy`,
-`error_handler=` (Part IX) and the subgraph `checkpoint_ns` fix (§16) all
-require ≥1.2.6 and are therefore **unavailable today**. Verified upgrade targets
-are in §53; the previously documented 1.2.10 pin was already stale and has been
-corrected.
+**The LangGraph floor is ≥1.2.6 and it is MET.** Step 2.3 upgraded the venv to
+`langgraph 1.2.11`, so per-node `TimeoutPolicy`, `error_handler=` (Part IX) and
+the subgraph `checkpoint_ns` fix (§16) are all available. **The floor is the
+rule; the pin is not stated here.** `agent-improve/requirements.txt` carries the
+resolved versions, and it is the only place that does — a version written into a
+document is stale the day something upgrades.
+
+> **THIS PARAGRAPH READ *"the installed version is below it … unavailable
+> today"* UNTIL 2026-09-12**, against a venv that had satisfied the floor since
+> step 2.3 landed. §1 own status line two hundred lines above it recorded that
+> upgrade — *"Step 2.3 upgraded dependencies (langgraph 1.1.10 → 1.2.11 …)"* —
+> so the document contradicted itself inside one section.
 
 **Graceful shutdown is a separate and weaker claim.** The mechanism named for
 it, `RunControl.request_drain()`, is **UNCONFIRMED — MAY NOT EXIST** (§45). It
@@ -7405,8 +7413,9 @@ at 45 seconds and `NodeTimeoutError` is what *triggers* the chain — so fallbac
 fires **before the Belt notices the delay**, rather than after retries have
 already burned the budget.
 
-**LangGraph ≥1.2.6 required.** Steps 0 and 2 are native primitives at that
-version and are unavailable at the currently installed 1.1.10 (§1).
+**LangGraph ≥1.2.6 required, and MET** — steps 0 and 2 are native primitives at
+that version, and the venv has satisfied the floor since step 2.3 (§1). The
+pinned version lives in `requirements.txt`.
 
 ---
 
@@ -7509,9 +7518,11 @@ mechanism is not.**
 >
 > Recorded in `agent-improve/docs/_archive/BIBLE_VERIFICATION_LOG.md` under *Not verified*. (archived to docs/_archive/; canonical: CLAUDE.md §0.10)
 
-**The dependency this sits behind is separate and also unmet:** everything in
-this section requires LangGraph ≥1.2.6, and the venv has 1.1.10 (§53). Fixing
-the version does not resolve the question above.
+**The dependency this sits behind is separate and IS met:** everything in this
+section requires LangGraph ≥1.2.6, which step 2.3 satisfied (§53). **That
+changes nothing about the question above** — `RunControl.request_drain()` is
+gated on the API being shown to exist at all, not on a version, which is why the
+two were stated separately.
 
 ### `DeltaChannel` is NOT used
 
@@ -8091,36 +8102,36 @@ remove it if redundant.
 
 ### Dependency floor
 
-**All versions below verified against PyPI on 2026-08-21.**
+**THE FLOOR IS THE RULE. THE PINS ARE NOT STATED HERE** —
+`agent-improve/requirements.txt` carries every resolved version and is the only
+place that does.
 
-| Package | Installed | Latest | Note |
-|---|---|---|---|
-| `langgraph` | **1.1.10** | **1.2.11** | **BLOCKER** — floor is **≥1.2.6** |
-| `langchain` | 1.2.13 | **1.3.16** | Pins `langgraph>=1.2.11,<1.3.0` |
-| `langchain-core` | 1.3.3 | — | `langchain` 1.3.16 requires **≥1.6.0** — a larger jump than the installed version suggests |
-| `langchain-openai` | 1.1.11 | — | let pip resolve |
-| `langchain-community` | 0.4.1 | — | supplies `AzureSearch` (§24) |
-| `langsmith` | 0.7.3 | — | |
-| `langchain-classic` | 1.0.3 | **1.0.8** | Retains legacy classes we do **not** use — **presence is not permission** |
-| `deepagents` | not installed | 0.4.11 stable | **Still pre-1.0** — §18's exclusion stands |
+| Floor | Why it is a floor and not a preference |
+|---|---|
+| `langgraph >= 1.2.6` | **1.2.6 (2026-06-18) carries *"nested subgraph inherits parent `checkpoint_ns` (regression in 1.2.3)"*** — the fix §16 depends on. Node-level `TimeoutPolicy` and `error_handler` (§45) require 1.2+. Attributable to one release note, which is what makes it a floor rather than a preference |
+| `langchain-core >= 1.6.0` | Required by `langchain` 1.x as resolved. The jump from the pre-2.3 venv was three minors and was that upgrade main risk |
+| `deepagents` — EXCLUDED | **Still pre-1.0** — §18 exclusion stands, and it is not installed |
 
-**The ≥1.2.6 floor is precisely attributable.** LangGraph **1.2.6**
-(2026-06-18) carries *"nested subgraph inherits parent `checkpoint_ns`
-(regression in 1.2.3)"* — the fix §16 depends on. Node-level `TimeoutPolicy`
-and `error_handler` (§45) require 1.2+.
+**`langchain-classic` retains legacy classes we do NOT use — presence is not
+permission.**
 
-**Upgrading `langchain` resolves `langgraph` for you.** `langchain` 1.3.16
-requires `langgraph>=1.2.11`, so a single upgrade satisfies the floor with
-margin. **Watch `langchain-core`:** installed 1.3.3 against a required ≥1.6.0
-is a three-minor jump, and is the most likely source of surprises in the
-upgrade.
+> **THIS SECTION CALLED THE UPGRADE A BLOCKER UNTIL 2026-09-12, THREE WEEKS
+> AFTER STEP 2.3 PERFORMED IT.** It tabled `langgraph` **1.1.10** as installed
+> against a venv running 1.2.11, and `langchain-core` 1.3.3 against an installed
+> 1.6.0. **The table was the defect, not the numbers in it.** An `Installed`
+> column in a document is a copy of a fact `pip` owns; it can be right only
+> between upgrades, and it goes wrong silently at the moment the project
+> improves. Replaced by floors, which are rules and do not move, and a pointer
+> to the manifest, which is the fact.
 
-**Do not upgrade to a stale pin.** The previously documented 1.2.10 / 1.3.11
-targets were already superseded when written. Re-resolve against live PyPI at
-upgrade time.
+**Do not upgrade to a version written in a document — re-resolve against live
+PyPI** (`/verify-current-version`). That rule is the reason the floors above
+name no current version at all.
 
 **During the upgrade, sweep for imports from `langgraph.prebuilt`** —
-deprecated, functionality moved to `langchain.agents` (§18).
+deprecated, functionality moved to `langchain.agents` (§18). `langgraph-prebuilt`
+is present as a transitive dependency and that is not a violation: CLAUDE.md §4.4
+bans IMPORTING from it, not its presence.
 
 ### `/verify-current-version` is a mandatory checkpoint
 
@@ -13669,12 +13680,19 @@ than discovered.
 
 ### Blocked
 
-**`langgraph` 1.1.10 < 1.2.6** blocks all of §45 and the §16 subgraph
-namespacing (§53).
+> **BOTH ENTRIES BELOW WERE CLEARED AFTER THIS APPENDIX DATE, and are struck
+> rather than deleted.** The appendix is a dated snapshot and says so — but a
+> heading reading `Blocked` over two things that are not is the one kind of
+> staleness a dated header does not excuse.
 
-**Two Azure schema changes are ratified and unapplied** — `improve_evidence_index`
-`phase` + `uploaded_at`, and `improve_case_index` `embedding` →
-`content_vector` (§23). **Batch them.**
+~~**`langgraph` 1.1.10 < 1.2.6** blocks all of §45 and the §16 subgraph
+namespacing (§53).~~ **CLEARED at step 2.3.** The venv satisfies the ≥1.2.6
+floor; the pin lives in `requirements.txt` and not here.
+
+~~**Two Azure schema changes are ratified and unapplied**~~ → **ONE.**
+`improve_evidence_index` `phase` + `uploaded_at` **LANDED at step 6.13**
+(2026-09-10, §23.2). What remains is `improve_case_index` `embedding` →
+`content_vector` (§23) — and with one left there is nothing to batch it with.
 
 ---
 
