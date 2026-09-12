@@ -2153,6 +2153,70 @@ which is a different and still-useful property. **The new one pins what fires.**
 stubbed one still passes — which is the demonstration that the two check
 different things, and the only evidence that the new one closes G-52.
 
+
+## Step 6.23 — The source-method check: verification against the installed object, not the page (G-54)
+
+| | |
+|---|---|
+| **Reference §** | §9 · §16.3 · §25 · §53 · §55.1 · G-54 |
+| **Touches** | `docs/_archive/BIBLE_VERIFICATION_LOG.md` · possibly §9, §25, §53 if a verdict moves |
+| **Precondition** | none — **READY** |
+| **Verify** | `pytest`, plus each re-verified entry carrying the introspection that settles it |
+
+### The defect this closes
+
+**Every verdict in the verification log was reached by reading a page.** Four of
+its five `Source` cells name `reference.langchain.com` or
+`docs.langchain.com`; not one names an introspection of the installed package.
+That is the method, not an oversight in one entry.
+
+**C-3 is the proven instance and it is instructive rather than embarrassing.**
+Its Source cell named a MODULE's API page while its Claim was about a CLASS's
+member list. The page lists what the module exports; the verdict read that as
+what the class exposes, stamped **CORRECTED**, and overwrote a statement that
+had been right. It then propagated to CLAUDE.md §8.1 — *the machinery carried a
+wrong verdict exactly as fast as it would have carried a right one*. Withdrawn
+2026-09-12, ARCHITECTURE.md v1.35.
+
+**What is still exposed.** C-1 (`retries=` vs `max_retries=`) and C-2 (`prompt=`
+vs `system_prompt=`) happen to be pinned by
+`test_retry_kwargs_against_the_installed_classes` and `test_executor.py`'s
+signature assertions — **by accident of what those steps needed, not by
+anything the log did**. S-1 is pinned by nothing: it asserts
+`BaseStore.search()`'s parameter surface from two documentation pages, and §9's
+ruling to keep `improve_case_index` on Azure AI Search already rests on the one
+reason that survived that entry. If its surface has moved again, the decision
+rests on less than §9 says it does.
+
+### What to build
+
+**1 — Re-verify each entry against the installed package.** One introspection
+per claim, run against the pinned venv and recorded verbatim in the entry:
+`inspect.signature()` for a parameter claim, `vars()` for a member-list claim,
+`importlib.metadata.version()` for a version claim. **Never the page a second
+time** — that is what produced the error.
+
+**2 — Correct in place, never delete.** C-3's pattern: strike the withdrawn
+text, state what is actually true, and say why the entry got it wrong. A
+verification log that removes its own errors cannot be used to judge what its
+other verdicts are worth.
+
+**3 — Add a `Source method` column** to every entry's table, so the distinction
+is visible at a glance and a future entry cannot omit it silently. Two values
+to start: `introspection — <the expression>` and `documentation page — NOT
+RE-CHECKED`. **The second is a finding, not a placeholder.**
+
+**4 — If a verdict moves, follow it.** S-1's is the one that can: it feeds §9
+and §25. A re-verification that changes a verdict and leaves the sections
+citing it alone would be the same failure one layer down.
+
+### Done when
+
+Every entry in `BIBLE_VERIFICATION_LOG.md` carries a `Source method` cell; every
+one whose method was a documentation page has been re-run against the installed
+package with the expression recorded; any verdict that moved has been propagated
+to the sections citing it; and `pytest` is green.
+
 ## Step 6.16 — The board is generated, not written
 
 | | |
@@ -3429,9 +3493,9 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **DONE** | 33 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21** |
 | **BUILDING NOW** | 1 | **6.19** — `CoachingResponse` gains §50.1's four presentational fields (G-50) |
 | **BLOCKED** | 7 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL) |
-| **QUEUED** | 20 | **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.22**, **11.1**, **11.2** |
+| **QUEUED** | 21 | **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.22**, **6.23**, **11.1**, **11.2** |
 
-*61 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-12.*
+*62 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-12.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -3756,6 +3820,7 @@ restate, which is the opposite of what the board is for.
 | 562 | **Commit 9.2** | Premium deployment's quota — the coach's own model call (G-53) | EXTERNAL | OPS | SHARED | `operational-premium` returns 429, so every live run degrades to the retry message and no `live-run` verification in any remaining step can reach a coached turn. |
 | 565 | **Commit 6.17** | The count-check — a written count against the list it describes |  | OPS | SHARED | A written count and the list it describes can disagree indefinitely - the failure five captions in this repository have already had. |
 | 567 | **Commit 6.22** | The order-check — the middleware stack's ordering test observes execution (G-52) |  | OPS | SHARED | The one test pinning §19's order replaces `create_agent`, so it asserts the rule against itself and stayed green through a three-week document split it existed to prevent. |
+| 569 | **Commit 6.23** | The source-method check — verification against the installed object, not the page (G-54) |  | OPS | SHARED | Every verdict in the verification log was reached by reading a page; one of them overwrote a correct statement and propagated the error to a second document. |
 | 570 | **Commit 11.1** | Delete v1 |  | OPS | SHARED | Two implementations of every phase stay in the tree, and the dead one is still the one writing the v1 field names. |
 | 580 | **Commit 11.2** | Governance close-out |  | OPS | SHARED | The refactor has no end, so procedure and architecture drift apart again with nothing marking the handover. |
 
