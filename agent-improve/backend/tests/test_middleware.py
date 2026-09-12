@@ -5,9 +5,11 @@ trace cannot show. Three things would be silent if they broke:
 
   * **the hook** — `before_agent` vs `before_model` is a cost and correctness
     difference the trace shows only as extra tokens, and S-C11 B1 names it;
-  * **the order** — declaration order is execution order for hooks of the same
-    kind (§19), and position 1 being first is what puts project facts above
-    skills loading and summarisation;
+  * **the order** — the declared list is NESTING order and the position numbers
+    are EXECUTION order, opposite for `after_*` (§19). Position 1 being FIRST is
+    what puts project facts above skills loading and summarisation, and that
+    follows from the `before_*` clause specifically — first-to-last — not from
+    any single rule covering all three hook kinds;
   * **the missing-field agreement** — §19.1's whole point. A coach asking for a
     field the gate does not want, or silent about one it does, is a bug nobody
     sees until a gate refuses to open.
