@@ -115,8 +115,22 @@ rules that bind, and where they live:
 | Executor `response_format` | `ProviderStrategy(PhaseOutput)` | **`CoachingResponse`** (§4.6, §10.7) |
 | Field capture | `record_field` tool | **`CoachingResponse.fields_captured`** (§5.1) |
 | Universal tools | 8 | **7** (§5.1) |
-| Per-phase totals | 9 / 16 / 13 / 9 / 12 | **9 / 16 / 13 / 9 / 13** (§5.2) — *was `8 / 15 / 12 / 8 / 12`; corrected 2026-09-11, superseded by §898's amendment of 2026-09-09* |
+| Per-phase totals | 9 / 16 / 13 / 9 / 12 | **9 / 16 / 13 / 9 / 13** (§5.2) — *was `8 / 15 / 12 / 8 / 12`; corrected 2026-09-11, superseded by the amendment of 2026-09-09* † |
 | Gate document schemas | Undefined, or two conflicting | **Five canonical `{Phase}Output`** (§10.7) |
+
+> † **`§898` IS STRUCK — IT RESOLVED TO NOTHING.** The row read *"superseded by
+> ~~§898's~~ amendment of 2026-09-09"*. There is no §898 in CLAUDE.md,
+> ARCHITECTURE.md or the platform reference, and the string occurred exactly
+> once in all three: here. **The amendment is real and its citation was not.**
+> It is **ARCHITECTURE.md §29.2 — *"`load_evidence_series` joins the set —
+> RATIFIED 2026-09-09"*** (tool spec at §60.7 / S-F57), which is what took the
+> universal set to its current membership and moved Control's total to 13.
+>
+> Struck rather than silently repointed, on C-3's precedent: a citation that
+> pointed nowhere for three weeks is evidence about how citations are checked
+> here, and §55.1 requires every reference to resolve to what it names. **A
+> §-number is a literal string and nothing checks them** — which §30's own
+> 2026-09-09 note says, about itself, two wrong citations earlier.
 
 ### 0.6 — What Changed in 2.2.11 — the eBook gaps closed
 
