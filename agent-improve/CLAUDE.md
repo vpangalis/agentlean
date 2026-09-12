@@ -2327,14 +2327,12 @@ right shape for `wrap_*`.
 | `after_*` | **last to first** — the **reverse** of declaration order |
 | `wrap_*` | nested; the first declared wraps all the others |
 
-Verified against the installed `langchain` 1.3.16, not the documentation alone.
-In `langchain/agents/factory.py`, `middleware_w_after_agent` is collected in
-declaration order, the graph **enters** that chain at the last element —
-`exit_node = f"{middleware_w_after_agent[-1].name}.after_agent"` — and walks it
-downward, `for idx in range(len(...) - 1, 0, -1)`, until `[0]` takes the edge to
-`END`. `before_agent` enters at `[0]` and is chained forward with
-`itertools.pairwise`. `wrap_*` composes with `for wrapper in
-reversed(wrappers[:-1])`, which leaves the first declared outermost.
+Read off the installed `langchain` 1.3.16's own graph construction, not the
+documentation alone — the reading is quoted in the commit that made this
+correction. **Not reproduced here: `langchain/agents/factory.py` is the
+framework's code and the framework owns it**, so a copy in this file would be
+one more transcription to go stale. Re-derive it rather than trusting this
+paragraph if it ever matters.
 
 **`BeforeModelStateInjection` MUST be first, and the `before_*` clause is why.**
 Project facts have to reach the top of the prompt before skills loading and
@@ -2377,9 +2375,12 @@ wrote that `AgentMiddleware` "also exposes `dynamic_prompt()`, `hook_config()`
 and `configure_trace_policy()`" and that the set was therefore open. **It does
 not.** Those three are module-level names in `langchain.agents.middleware` —
 two decorators and a process-wide trace-policy setter — not members of
-`AgentMiddleware` and not lifecycle hooks. Checked against the installed
-1.3.16: the public members of `AgentMiddleware` are the six, their six async
-twins, and `name`, `state_schema`, `trace_policy`, `transformers`.
+`AgentMiddleware` and not lifecycle hooks — `vars(AgentMiddleware)` on the
+installed 1.3.16 returns the six, their six async twins, and `name`,
+`state_schema`, `trace_policy`, `transformers`, and none of those three.
+ARCHITECTURE.md §19 owns this and carries the check;
+`docs/_archive/BIBLE_VERIFICATION_LOG.md` C-3, which asserted the opposite, is
+withdrawn in place.
 
 **Three independent retry caps, and they must not be merged:**
 `ModelRetryMiddleware` 2 retries on transient API failure,
@@ -2605,13 +2606,24 @@ is needed here (§10.1).
 The replacement is checkpointer (thread-scoped) + store (cross-thread)
 + this middleware.
 
-### 8.5 — `before_model` state injection — injection timing
+### 8.5 — state injection — injection timing
 
-**Custom.** Prepends structured project state at the **top** of the
-prompt, ahead of the conversation: captured fields (this phase's
-`artifacts` plus prior phases' gate documents from the store), current
-phase requirements, and the missing fields reported by
-`check_gate_status()`.
+*Canonical: ARCHITECTURE.md §19.1.*
+
+**Custom · `before_agent` + `wrap_model_call` · position 1.** Prepends
+structured project state at the **top** of the prompt, ahead of the
+conversation: captured fields (this phase's `artifacts` plus prior
+phases' gate documents from the store), current phase requirements, and
+the missing fields reported by `check_gate_status()`.
+
+**Two hooks, and the division of labour is the design.** `before_agent`
+composes the block once per turn; `wrap_model_call` prepends the composed
+block to each request and recomputes nothing — a pure read, or the
+once-per-turn guarantee would be decorative. Both are defined on the
+class rather than inherited, so both are its hooks:
+`'wrap_model_call' in vars(BeforeModelStateInjection)` is `True`. This
+heading read *"`before_model` state injection"* until 2026-09-12, naming
+a hook the class does not implement and hiding the one it does.
 
 **Missing fields are computed at injection time, never read from a
 stored list.** The middleware derives them the same way the gate does,
@@ -3096,7 +3108,7 @@ each duplicated something an existing mechanism already carries:
 | `dmaic_plan` | DMAIC order is fixed and static (§1.2), so there is no plan to store. The project's actual plan is Define's gate document in the store plus `improve_case_index` metadata |
 | `key_decisions` | Decisions the Belt commits are captured fields, arriving via `CoachingResponse.fields_captured` and approved at a gate. A decision that is not worth a field is not worth replaying into every prompt |
 | `open_items` | Outstanding work is derived, not stored: `check_gate_status()` reports which required fields are unpopulated, and the four-layer validation stack (§9.2) is what surfaces blockers |
-| `project_context` | Composed at the boundary by each input mapper (§10.2). Define reads the case record from the store; every later phase reads the prior phase's artifacts. The substance is Define's gate document; the framing is the case record and the `improve_case_index` row (§7.3). `before_model` injection (§8.5) already puts both in front of every coach |
+| `project_context` | Composed at the boundary by each input mapper (§10.2). Define reads the case record from the store; every later phase reads the prior phase's artifacts. The substance is Define's gate document; the framing is the case record and the `improve_case_index` row (§7.3). `before_agent` injection (§8.5) already puts both in front of every coach |
 
 Deriving these on demand is what keeps them correct. A stored
 `open_items` list is a second source of truth for gate readiness that

@@ -92,17 +92,51 @@ Bible states, and adds `state_schema`, `context_schema`, `checkpointer`,
 |---|---|
 | **Claim** | Middleware is built on *the six* hooks — stated as a complete set |
 | **Source** | `reference.langchain.com/python/langchain/agents/middleware` |
-| **Verdict** | **CORRECTED** |
+| **Verdict** | ~~**CORRECTED**~~ → **WITHDRAWN 2026-09-12 — THE CORRECTION WAS WRONG AND THE ORIGINAL CLAIM WAS RIGHT** |
 
-The six named are all real and all present. **But they are not the complete
+> **AMENDED IN PLACE, NOT DELETED.** A verification log that removes its own
+> errors cannot be used to judge how much its other verdicts are worth. This
+> entry is the one in this file that made a document worse, and it stays
+> legible as that.
+
+~~The six named are all real and all present. **But they are not the complete
 set** — the reference also lists `dynamic_prompt()`, `hook_config()` and
-`configure_trace_policy()`.
+`configure_trace_policy()`.~~
 
-A small error with a real consequence: "the six hooks" framed the middleware
-surface as closed, which would mislead anyone extending the stack.
+~~A small error with a real consequence: "the six hooks" framed the middleware
+surface as closed, which would mislead anyone extending the stack.~~
 
-**Fixed:** Bible §19 now says these are the six *we use*, not the six that
-exist.
+**What is actually true.** The six ARE the complete set of `AgentMiddleware`
+lifecycle hooks: `before_agent`, `before_model`, `after_model`, `after_agent`,
+`wrap_model_call`, `wrap_tool_call`, each with an `a`-prefixed async twin.
+`dynamic_prompt()`, `hook_config()` and `configure_trace_policy()` are
+**module-level** names in `langchain.agents.middleware` — two decorators and a
+process-wide trace-policy setter — and are not members of `AgentMiddleware`.
+
+**Why this entry got it wrong, which is the reusable part.** The Source cell
+names a MODULE's API page and the Claim is about a CLASS's member list. The
+page lists everything the module exports; the verdict read that as everything
+the class exposes. **The check that settles it takes one line and touches no
+page**, and is what should have been run:
+
+```python
+>>> from langchain.agents.middleware import AgentMiddleware
+>>> 'dynamic_prompt' in vars(AgentMiddleware)
+False
+>>> sorted(n for n in vars(AgentMiddleware) if not n.startswith('_'))
+['aafter_agent', 'aafter_model', 'abefore_agent', 'abefore_model',
+ 'after_agent', 'after_model', 'awrap_model_call', 'awrap_tool_call',
+ 'before_agent', 'before_model', 'name', 'state_schema', 'trace_policy',
+ 'transformers', 'wrap_model_call', 'wrap_tool_call']
+```
+
+Run against the installed `langchain` 1.3.16 on 2026-09-12. **A documentation
+page is evidence about an API; the installed object is the API** — which is the
+rule this log's own §16.3 companion states and this entry did not follow.
+
+**Fixed:** ~~Bible §19 now says these are the six *we use*, not the six that
+exist.~~ → ARCHITECTURE.md §19 and CLAUDE.md §8.1 both state the six as the
+complete set, with the `vars()` check recorded. See ARCHITECTURE.md v1.35.
 
 ---
 
@@ -305,7 +339,12 @@ The five recommendations at the foot of this log, and what happened to each.
 **C-3 was propagated in the same pass** though it was not on the follow-up
 list: `CLAUDE.md` §8.1 said "the six `AgentMiddleware` hooks" as though the set
 were closed. It now says the six *this stack uses*, and names the three it does
-not.
+not. **⚑ AND THAT PROPAGATION CARRIED THE ERROR TO A SECOND DOCUMENT —
+WITHDRAWN 2026-09-12, see C-3 above.** Both are corrected; §8.1's original
+wording was right and was overwritten. **The propagation machinery worked
+perfectly and that is the point**: a wrong verdict propagates exactly as fast
+as a right one, so the check that a verdict is right cannot live downstream
+of it.
 
 **S-2 was propagated in the same pass** for the same reason: `CLAUDE.md` §16.1
 still carried the stale 1.2.10 / 1.3.11 / 1.0.3 targets the Bible §53 had

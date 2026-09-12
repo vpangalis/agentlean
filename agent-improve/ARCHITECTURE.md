@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.34 · 2026-09-12
+Version 1.35 · 2026-09-12
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.35 (2026-09-12)** — **§56 AMENDMENT. §19's hook surface is CORRECTED — the six named lifecycle hooks ARE the complete set — and the verification-log entry that made it wrong is withdrawn in place.** **(A) THE ORIGINAL WORDING WAS RIGHT AND A VERIFICATION PASS OVERWROTE IT.** This section read *"`AgentMiddleware` exposes more than six — the reference also lists `dynamic_prompt()`, `hook_config()` and `configure_trace_policy()`"*. Those three are **module-level** names in `langchain.agents.middleware` — two decorators and a process-wide trace-policy setter — and are not members of `AgentMiddleware` at all. `AgentMiddleware`'s hooks are `before_agent`, `before_model`, `after_model`, `after_agent`, `wrap_model_call` and `wrap_tool_call`, each with an `a`-prefixed async twin: twelve methods, six hooks, nothing else. **(B) VERIFIED BY `vars()`, NOT BY THE PAGE AGAIN.** `'dynamic_prompt' in vars(AgentMiddleware)` is `False` for all three against the installed 1.3.16; the public members are the twelve hook methods plus `name`, `state_schema`, `trace_policy`, `transformers`. **The failure mode is the reusable part: C-3's Source cell names a MODULE's API page and its Claim is about a CLASS's member list.** A page lists what a module exports; the verdict read that as what the class exposes, and stamped it CORRECTED. **A documentation page is evidence about an API; the installed object is the API.** **(C) C-3 IS AMENDED IN PLACE, NOT DELETED** — `docs/_archive/BIBLE_VERIFICATION_LOG.md`. A verification log that removes its own errors cannot be used to judge what its other verdicts are worth. Its propagation note is amended with it: the machinery carried the wrong verdict to CLAUDE.md §8.1 exactly as fast as it would have carried a right one, **so the check that a verdict is right cannot live downstream of it**. **(D) §19.1 AND §19.2 UNDERSTATED THEIR OWN HOOK SETS.** `vars()` shows `wrap_model_call` and `awrap_model_call` defined on both LEAF classes rather than inherited, against header lines reading *"Custom · `before_agent` · position 1"* and *"Custom · `before_agent` + a registered tool · position 2"*. §19.1's BUILT marker had named the enclosure since v1.22 while its own header did not — the fact was in the file and not where a reader of the spec would meet it. Both headers now name both hooks, and §19.1 states the division of labour: `before_agent` composes once per turn, `wrap_model_call` prepends and recomputes nothing. Propagated to CLAUDE.md §8.5, whose heading had read *"`before_model` state injection"* — naming a hook the class does not implement — and to §10.2's `project_context` row, a third site of the same wrong name. **(E) TWO GAPS REGISTERED, EACH WITH THE STEP IT NEEDS.** **G-52 — the stack's ordering test cannot observe order**: `test_all_eight_positions_execute_in_the_ratified_order` runs under `stub_coach`, which replaces `create_agent`, so it asserts `reversed(declared)` — the rule checked against itself. That is the escape cause for the whole §19/§8.1 split, and no existing step's Done-when covered it. **Step 6.22.** **G-53 — the premium deployment returns 429**, so no live run reaches a coached turn and the healthy path (coherence passing, the grader actually grading) is unobserved. A quota condition, not a defect, and EXTERNAL like §9.0 and §9.1. **Step 9.2.** Appendix D goes 59 rows to 61. Reasoning: this commit body.
 
 **v1.34 (2026-09-12)** — **§56 RECORD, NOT AN AMENDMENT. The retired ordering sentence had two more sites, both in code, and neither is a separate defect.** **(A) SAME DEFECT, THIRD AND FOURTH SITE.** `backend/middleware/__init__.py`'s module docstring asserted *"Declaration order is execution order for hooks of the same kind, so the order in `create_agent(middleware=[...])` is binding, not cosmetic"*, and its `__all__` numbered contradiction 6, coherence 7, grader 8 against a declaration list that is the reverse — a reader of the package's own front door got the inversion §8.1 had. `backend/tests/test_middleware.py`'s module docstring repeated the sentence as one of the three things it exists to pin. Same occurrence cause and same escape cause as `8b10e8d`, whose body carries the 8D; this commit adds none of its own. **(B) THE `__all__` NUMBERING IS NOW GENERATED**, from the same AST parse of `_build_executor()` that §8.1's block comes from, and carries both numbers where they differ — `declared 6, executes 8` — because a single number is what let the two readings be confused. **(C) `verify_built.py` re-run: 24 checks, zero disagreements.** Rule 2b brought this file in because `backend/middleware/` is a watched path; no marker it carries moves, and §19 is untouched. **(D) OPEN, AND OWNED BY THE NEXT COMMIT:** `vars()` on positions 1 and 2 shows `wrap_model_call` and `awrap_model_call` defined on the LEAF classes, not inherited, so §19.1's *"Custom · `before_agent` · position 1"* and §19.2's *"Custom · `before_agent` + a registered tool · position 2"* both understate the hook set of the middleware they specify. §19.1's BUILT marker already names the enclosure; its header line does not. Reasoning: this commit body.
 
@@ -1792,16 +1794,34 @@ not cost you the other.
 order and its ordering rules stay here; the three core middlewares are used
 as shipped and keep their configuration in §19.3–§19.5.
 
-**Five custom, three core.** All are built on `AgentMiddleware` hooks. The six
-this architecture uses are `before_agent`, `after_agent`, `before_model`,
-`after_model`, `wrap_model_call` and `wrap_tool_call`.
+**Five custom, three core.** All are built on `AgentMiddleware` hooks.
 
-**`AgentMiddleware` exposes more than six.** The reference also lists
-`dynamic_prompt()`, `hook_config()` and `configure_trace_policy()`. Earlier
-revisions of this design described "the six hooks" as though that were the
-complete set; it is the set *we use*, not the set that exists. Nothing in the
-stack below depends on the difference, but a reader extending the stack should
-check the reference rather than this list.
+**THE SIX ARE THE COMPLETE SET, AND THIS SECTION SAID OTHERWISE FOR THREE
+WEEKS.** `AgentMiddleware`'s lifecycle hooks are `before_agent`, `before_model`,
+`after_model`, `after_agent`, `wrap_model_call` and `wrap_tool_call` — each with
+an `a`-prefixed async twin, twelve methods for six hooks. A middleware extending
+this stack has these and no others.
+
+> **CORRECTED 2026-09-12.** This section read *"`AgentMiddleware` exposes more
+> than six — the reference also lists `dynamic_prompt()`, `hook_config()` and
+> `configure_trace_policy()`"*, and called the original "the six hooks" wording
+> an error. **The original was right.** Those three are module-level names in
+> `langchain.agents.middleware` — two decorators and a process-wide trace-policy
+> setter — and are not members of `AgentMiddleware` at all. Verified against the
+> installed 1.3.16 by `vars()`, not by reading the reference page a second time:
+> `'dynamic_prompt' in vars(AgentMiddleware)` is `False` for all three, and
+> `sorted(n for n in vars(AgentMiddleware) if not n.startswith('_'))` returns
+> the twelve hook methods plus `name`, `state_schema`, `trace_policy` and
+> `transformers`.
+>
+> **The source of the error is the reason the rule exists.** The claim came from
+> `BIBLE_VERIFICATION_LOG.md` C-3, a verification pass whose whole purpose was
+> to check documented claims against live documentation — and it read a MODULE's
+> API page as a CLASS's member list. A verification that reads the wrong surface
+> produces a confident wrong answer and stamps it CORRECTED, which is harder to
+> undo than the error it replaced. C-3 is amended in place rather than deleted;
+> a verification log that hides its own errors is worse than one that carries
+> them.
 
 **Prefer built-in middleware wherever it exists.** Custom middleware is
 reserved for genuinely domain-specific logic.
@@ -1881,15 +1901,22 @@ and must not consume the same budget.
 
 > **BUILT:** ✅ built · also injects `phase_context` (6.8) and the UPLOAD MANIFEST (6.12). Its `wrap_model_call` encloses §19.4's retry, so the block is composed once per turn, not once per attempt · **closes:** `[none]`
 
-**Custom · `before_agent` · position 1.** Prepends structured project state at
+**Custom · `before_agent` + `wrap_model_call` · position 1.** Prepends structured project state at
 the **top** of the prompt, ahead of the conversation: this phase's `artifacts`,
 prior phases' gate documents from the Store, current phase requirements, and
 the missing fields reported by `check_gate_status()`.
 
-**The hook is `before_agent`, not `before_model`.** State injection belongs at
-agent-loop start, once per turn. `before_model` fires before every individual
-model call within a turn, which re-injects the same project facts repeatedly
-and wastes context.
+**The COMPOSING hook is `before_agent`, not `before_model`.** State injection
+belongs at agent-loop start, once per turn. `before_model` fires before every
+individual model call within a turn, which would re-compose the same project
+facts repeatedly and waste context.
+
+**Two hooks, and the division of labour is the design.** `before_agent`
+composes the block once; `wrap_model_call` prepends the composed block to each
+request and recomputes nothing — *"a pure read of what `before_agent` composed,
+or the once-per-turn guarantee would be decorative"*. Both are defined on this
+class rather than inherited, which is why the header names both: checked by
+`'wrap_model_call' in vars(BeforeModelStateInjection)`, which is `True`.
 
 **Missing fields are computed at injection time, never read from a stored
 list.** The middleware derives them the same way the gate does, so the prompt
@@ -1905,7 +1932,7 @@ add it to the history" option.
 
 > **BUILT:** ✅ built · mounted and working; all five SKILL.md files exist, load and are §32-conformant as of 6.9 · **closes:** `[none]`
 
-**Custom · `before_agent` + a registered tool · position 2.** Full treatment in
+**Custom · `before_agent` + `wrap_model_call` + a registered tool · position 2.** Full treatment in
 §32; the stack-level facts are:
 
 | Level | When | What loads |
@@ -12698,7 +12725,7 @@ item 1. Classification deferred rather than guessed.
 inline marker.** That bidirectional correspondence is checkable and is one of
 the §55.1 governance rules.
 
-**51 gaps identified. Fifteen are closed or resolved. 36 are open.** *(G-50 and G-51 registered 2026-09-11 by the three-way alignment audit — `CoachingResponse` built at four of S-C05's eight fields, and `storage/models.py` defining eleven models where S-C09 names six; reasoning in that commit body per §56.2.)* *(G-49 registered 2026-09-10 — the executor's tool selection, found at step 6.13 and reproduced on 6.12's code. `docs/_archive/DECISIONS.md` Part AU2.)* *(G-14 closed 2026-09-03 at procedure step 5.2 — `docs/_archive/DECISIONS.md` Part AC.)* *(G-21
+**53 gaps identified. Fifteen are closed or resolved. 38 are open.** *(G-52 and G-53 registered 2026-09-12 while correcting §19's hook surface — the ordering test that cannot observe order, and the premium deployment's rate limit. Both carry a step number, because a gap without one does not render on the board and so is not scheduled by anything.)* *(G-50 and G-51 registered 2026-09-11 by the three-way alignment audit — `CoachingResponse` built at four of S-C05's eight fields, and `storage/models.py` defining eleven models where S-C09 names six; reasoning in that commit body per §56.2.)* *(G-49 registered 2026-09-10 — the executor's tool selection, found at step 6.13 and reproduced on 6.12's code. `docs/_archive/DECISIONS.md` Part AU2.)* *(G-14 closed 2026-09-03 at procedure step 5.2 — `docs/_archive/DECISIONS.md` Part AC.)* *(G-21
 closed 2026-09-01 at procedure step 3.5 — `docs/_archive/DECISIONS.md` Part Y.)* *(Two were
 added and resolved in the same pass on 2026-08-26 — G-45 and G-46, the metric
 registry's two spec entries. Registering a gap you are about to close in the
@@ -12747,6 +12774,8 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-06** | `extraction_error` and `extraction_incomplete` are written into `PhaseState` by `phase_error_recovery` (§45); neither is declared | S-C02, S-F29 |
 | **G-07** | `state["structured_response"]` is read by `ContradictionDetectionMiddleware` (§19.6). Whether middleware observes `PhaseState` or `create_agent`'s internal agent state is unstated | S-F04, S-C10 |
 | **G-08** | `validation_stack.get_acknowledged_gaps()` (§40) is attribute access on a node, and §14 requires nodes to be module-level async functions. Where acknowledged gaps are produced and how they reach assembly is unspecified | S-F05, S-F07, S-F28 |
+| **G-52** | **THE STACK'S ORDERING TEST CANNOT OBSERVE ORDER, AND IT IS THE ESCAPE CAUSE FOR THE §19 / §8.1 DOCUMENT SPLIT.** `test_all_eight_positions_execute_in_the_ratified_order` runs under the `stub_coach` fixture, which replaces `create_agent` itself — so no graph is built, no hook fires, and the test asserts `reversed(declared)`: the rule restated, checked against itself. It was green for every day the documents disagreed and could not have been otherwise. **The fix is an integration test that invokes the real compiled agent and records which `after_agent` hooks fire in what sequence**, which the live-trace harness written on 2026-09-12 already does — it observed `8 → 7 → 6` across four consecutive runs. Promoting it is **step 6.22**. No existing step's Done-when covers this, which is why it is registered rather than assumed. | §19, §19.1, §19.6, §19.7, §19.8 |
+| **G-53** | **AZURE RETURNS 429 ON THE PREMIUM DEPLOYMENT, SO NO LIVE RUN REACHES A COACHED TURN.** `operational-premium` (gpt-4o, westeurope) rate-limits the coach's own model call; `ModelRetryMiddleware` exhausts its two retries, the answer becomes the 429 text, `CoherenceMiddleware` correctly fails it three times and stands the grader down per S-C13 B3. **Not a defect — a quota condition** — but it blocks every remaining `live-run` verification, and it means the HEALTHY path is still unobserved: coherence passing on its first attempt and `DMAICGraderMiddleware` actually grading have been seen in no trace. Four runs on 2026-09-12, all degraded identically. Resolving the quota is **step 9.2**; it is EXTERNAL, like §9.0 and §9.1, because the action is a provisioning change and not a code change. | §19.4, §19.7, §19.8, §21 |
 | ~~**G-42**~~ | **RESOLVED 2026-08-24** — the mapper runs inside the parent's uniquely-named node function for that phase, which is the documented LangGraph pattern for parent and subgraph with different state schemas. See §66.6, S-F10 and DECISIONS §T1. *Original statement:* **the boundary mappers have no execution site.** §9 defines them as "two plain functions per phase"; §13 states a phase subgraph contains **exactly five nodes**, none of which is a mapper, and forbids a sixth without a §56 amendment; §12 embeds each subgraph as a node of the parent. Whether a mapper runs inside the subgraph, inside the parent's node wrapper, or somewhere else is stated nowhere — and every phase boundary depends on it | S-F10, S-F11, S-F12 |
 
 ### 66.3 Group C — schemas named but never defined

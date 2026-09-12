@@ -2098,6 +2098,61 @@ no assertion duplicates one `verify_built.py` already makes.
 
 ---
 
+
+## Step 6.22 — The order-check: the middleware stack's ordering test observes execution (G-52)
+
+| | |
+|---|---|
+| **Reference §** | §19 · §19.1 · §19.6 · §19.7 · §19.8 · G-52 |
+| **Touches** | `backend/tests/test_middleware.py` · a new integration test |
+| **Precondition** | none — **READY** |
+| **Verify** | `pytest`, plus the new test failing when the declaration order is reversed |
+
+### The defect this closes
+
+**`test_all_eight_positions_execute_in_the_ratified_order` asserts the rule
+against itself.** It runs under the `stub_coach` fixture, which replaces
+`create_agent` — so no graph is built, no hook fires, and the assertion reduces
+to `reversed(declared) == [contradiction, coherence, grader]`. That is the
+ratified order restated, not observed.
+
+**The cost is measured, not hypothetical.** CLAUDE.md §8.1 carried the
+declaration order backwards from step 6.5 until 2026-09-12, ARCHITECTURE.md §19
+carried it backwards until v1.22, and the package docstring and this test's own
+module docstring carried the false ordering sentence until `886b987`. The suite
+was green for every one of those days. **A test that cannot fail for the reason
+it exists is indistinguishable from no test**, and this is the second instance
+of that shape in this repository — §55.2 records the first, eleven marker checks
+that all passed against four wrong markers because every one counted a
+population rather than pinning a value.
+
+### What to build
+
+An integration test that invokes the **real** compiled agent and records which
+hooks fire in what sequence. The harness written on 2026-09-12 while correcting
+§8.1 already does it and is the starting point:
+
+- instrument each middleware's own hook at **class level, before the agent is
+  built**, so LangChain's `m.__class__.after_agent is not
+  AgentMiddleware.after_agent` discrimination is unchanged and every hook body
+  still runs;
+- collapse each hook's async twin with its sync name — the base class delegates,
+  so an instrumented class reports both for one entry;
+- assert `before_agent` fires 1 → 2 and `after_agent` fires 8 → 7 → 6.
+
+**It must not need a live model.** The observed defect is in the graph
+LangChain builds, which is decided at construction and needs no completion —
+`GenericFakeChatModel` is enough, and G-53 means a live model is not reliably
+available anyway. Keep the existing stubbed test: it pins the declaration list,
+which is a different and still-useful property. **The new one pins what fires.**
+
+### Done when
+
+`pytest` is green; the new test is in `backend/tests/`; and reversing positions
+6 and 8 in `_build_executor()` makes the NEW test fail while the existing
+stubbed one still passes — which is the demonstration that the two check
+different things, and the only evidence that the new one closes G-52.
+
 ## Step 6.16 — The board is generated, not written
 
 | | |
@@ -3169,6 +3224,48 @@ says so explicitly.
 
 ---
 
+
+## Step 9.2 — The premium deployment's quota, on the coach's own model call (G-53)
+
+| | |
+|---|---|
+| **Reference §** | §19.4 · §19.7 · §19.8 · §21 · G-53 |
+| **Touches** | Azure provisioning — no code in this repository |
+| **Precondition** | **EXTERNAL** — a quota change, like §9.0 and §9.1 |
+| **Verify** | `live-run`: one turn on a real case reaching a coached answer |
+
+### The condition this clears
+
+**`operational-premium` (gpt-4o, westeurope) returns 429 on the coach's own
+model call.** Measured across four consecutive runs on 2026-09-12, all
+degrading identically: `ModelRetryMiddleware` exhausts its two retries, the
+answer becomes `Model call failed after 3 attempts with RateLimitError`,
+`CoherenceMiddleware` correctly rejects that three times, and the grader is
+stood down per S-C13 B3.
+
+**Every middleware behaved correctly.** That is why this is a quota condition
+and not a defect: the stack degraded exactly as §19.4, §19.7 and S-C13 B3
+specify. Nothing here is a code change.
+
+### Why it is registered rather than tolerated
+
+**It blocks every remaining `live-run` verification.** Steps 6.7, 6.12 and 6.13
+already owe live-run halves, and 6.21's Done-when requires a real turn on
+`IMPR-2026-ED8`. None of them can be discharged while the coach's model call
+cannot complete.
+
+**And it leaves the healthy path unobserved.** Coherence passing on its first
+attempt, and `DMAICGraderMiddleware` actually grading rather than standing
+down, have been seen in **no trace to date** — only the degraded path has. The
+ordering evidence for §19 survives this, because position 6 fires third either
+way, but the grader's own behaviour is unevidenced.
+
+### Done when
+
+One live turn on a real case reaches a coached answer: `CoherenceMiddleware`
+passes on attempt 1, `DMAICGraderMiddleware` returns a verdict rather than
+logging `SKIPPED`, and the turn captures at least one field into `artifacts`.
+
 ## Step 10.1 — `/ask/stream` SSE
 
 | | |
@@ -3331,10 +3428,10 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 |---|---|---|
 | **DONE** | 33 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21** |
 | **BUILDING NOW** | 1 | **6.19** — `CoachingResponse` gains §50.1's four presentational fields (G-50) |
-| **BLOCKED** | 6 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL) |
-| **QUEUED** | 19 | **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **11.1**, **11.2** |
+| **BLOCKED** | 7 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL) |
+| **QUEUED** | 20 | **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.22**, **11.1**, **11.2** |
 
-*59 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-12.*
+*61 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-12.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -3656,7 +3753,9 @@ restate, which is the opposite of what the board is for.
 | 540 | **Commit 8.5** | Graceful shutdown | GATED | OPS | SHARED | A deploy landing mid-turn drops that turn instead of draining it. |
 | 550 | **Commit 9.0** | Knowledge-index rebuild | EXTERNAL | STORE | SHARED | The methodology corpus is not retrievable, so `rag_lookup_methodology` has nothing to search. |
 | 560 | **Commit 9.1** | Azure batched reindex — case index only | EXTERNAL | STORE | SHARED | The case index carries no content vector, so case-history retrieval stays keyword-only and misses paraphrase. |
+| 562 | **Commit 9.2** | Premium deployment's quota — the coach's own model call (G-53) | EXTERNAL | OPS | SHARED | `operational-premium` returns 429, so every live run degrades to the retry message and no `live-run` verification in any remaining step can reach a coached turn. |
 | 565 | **Commit 6.17** | The count-check — a written count against the list it describes |  | OPS | SHARED | A written count and the list it describes can disagree indefinitely - the failure five captions in this repository have already had. |
+| 567 | **Commit 6.22** | The order-check — the middleware stack's ordering test observes execution (G-52) |  | OPS | SHARED | The one test pinning §19's order replaces `create_agent`, so it asserts the rule against itself and stayed green through a three-week document split it existed to prevent. |
 | 570 | **Commit 11.1** | Delete v1 |  | OPS | SHARED | Two implementations of every phase stay in the tree, and the dead one is still the one writing the v1 field names. |
 | 580 | **Commit 11.2** | Governance close-out |  | OPS | SHARED | The refactor has no end, so procedure and architecture drift apart again with nothing marking the handover. |
 
