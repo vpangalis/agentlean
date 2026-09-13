@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.43 · 2026-09-13
+Version 1.44 · 2026-09-13
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.44 (2026-09-13)** — **§56 AMENDMENT. The ownership minimum is ratified at TWO rows, encoded as data, and enforced by two hooks — the countermeasure G-56 names.** **(A) TWO ROWS, NOT EIGHT.** §55.4 ratifies `requirements.txt` as the owner of every dependency pin and the floor, and the schema modules — `core/state.py`, `core/substate.py`, `phases/*/schema.py` — as the owner of state and output field names, counts and types. CLAUDE.md's *Facts have one owner* table lists eight classes; the other six are intent until ruled, and **a guard enforcing an unratified row is a guard nobody trusts.** **(B) THE REGISTRY STORES NO VALUES.** `.claude/config/fact_owners.yaml` names each owner and says HOW TO DERIVE its value; it holds not one count. A registry of owned values would be the ninth copy of every fact it governs — this section's own failure mode, rebuilt inside its countermeasure. Both hooks derive at check time, in the pinned venv, through one shared module so they cannot disagree. **(C) TWO HOOKS, TWO JOBS, AND THE DIVISION IS THE POINT.** `fact-ownership-guard.py` (PreToolUse) denies a NEW restatement; `drift-check.py` (Stop, and runnable in CI) catches an EXISTING one that has gone stale. The guard cannot reach backwards — every restatement written before today is still in the documents, agreeing with the code now and free to disagree later. **(D) THIS IS WHAT G-56 ASKED FOR.** `deprecated_patterns.yaml` excludes `agent-improve/**/*.md` correctly, because architecture markdown must be able to show a superseded form beside its replacement; the ownership guard matches OWNERSHIP rather than patterns, so it needs no exclusion and watches exactly the files the pattern registry cannot. **G-56 is NOT closed**: it names the governing documents being guarded by nothing, and two of eight fact classes are now guarded. Closing it needs the remaining six ruled. **(E) PENDING IS RATIFIED AS A FIRST-CLASS RESULT.** Where a declared owner does not exist — `validation/gate_validator.py`, which §2 designates and the 7.x gate work builds — the fact has no owner to cite, so both hooks report PENDING and allow. Registered now so the owner is live the day the file lands. **(F) THE DRIFT CHECK'S FIRST THREE CUTS WERE ALL CRY-WOLF, AND THAT IS RECORDED BECAUSE IT IS THE LESSON.** Cut one matched any number within 80 characters of an owned symbol: **200+ findings, every one false** — §58.2 beside `PhaseState`, step numbers, years. Cut two bound every count on a line to every symbol on it, a cross product that turned one changelog sentence into thirty-six findings. Cut three still flagged dated records and spec-vs-built pairs. The check now requires a number bound to a count noun, belonging to the NEAREST symbol within 60 characters, skipping dated records and `N of M fields` pairs: **15 claims checked, zero false positives, and a corrupted count still fails it.** A check that cries wolf gets switched off, which is the failure this registry exists to prevent — building it three times over was cheaper than shipping the first one. Reasoning: this commit body.
 
 **v1.43 (2026-09-13)** — **§56 AMENDMENT. The five per-phase coaching scripts leave this document for the phase directories, and the byte-consistency check becomes FILE-to-FILE.** **(A) THE MOVE.** §39.1.7, §39.2.10, §39.3.10, §39.4.10 and §39.5.10 each carried their phase's opening script from `**[OPENING` to the end of the section. All five now live at `skills/dmaic-{phase}-phase/coaching_script.md`, beside the `SKILL.md` that ships them. **965,368 → 847,809 bytes, 117,559 removed, 12.2%.** Each section keeps its heading, its BUILT marker and its shape description, and cites the file. **(B) THE BRIEF'S "FORTY PERCENT" WAS WRONG BY A FACTOR OF THREE, AND THE NUMBER IS REPORTED RATHER THAN THE EXPECTATION MET.** It predicted *"roughly 555 KB expected; forty percent is coaching script"*. The five scripts are **12.3% of the original**; **all of §39 — every phase specification, not just the scripts — is 20.4%.** There is no extraction of coaching content that reaches 40%, so 555 KB was never reachable this way. The measurement that produced it was not re-run before it became a target. **(C) THE CHECK IS SIMPLER, WHICH WAS THE POINT.** It used to locate `#### 39.x.10` inside a 965 KB document, find `**[OPENING` within that section, slice to the next heading, and compare — three steps that could each break on an edit touching neither artifact. It now reads two files in one directory and asks whether one contains the other. **A person can reproduce it with `diff`.** Containment rather than equality is deliberate: SKILL.md wraps the script in §32's frontmatter and the middleware loads it whole. **(D) PROVEN TO FAIL, NOT JUST TO PASS.** One byte appended to `dmaic-analyse-phase/coaching_script.md` takes the check from 5 to 4 and the run to `1 marker(s) DISAGREE`. That demonstration is recorded because a check that has only ever been seen passing is the G-52 shape, and this pass has registered that defect twice already. **(E) FIVE BUILT MARKERS AND FIVE AUTHORITY NOTES CORRECTED IN THE SAME COMMIT.** Each marker claimed the script was *"byte-identical to this section"*, which the move makes false. Each Authority note said *"this section wins until the refactor completes; then authority flips to the code file and this reduces to a pointer"* — **that flip happened here**, and the notes now say so rather than continuing to anticipate it. Reasoning: this commit body.
 
@@ -7151,6 +7153,48 @@ only what is actually built.
 attributed to the section it specifies, so `S-C05` counts under §20 and
 `S-F01` under §15. Listing the spec layer as its own group would count the
 same obligation twice — once as the architecture and once as its spec.
+
+### 55.4 Facts have one owner — the ratified minimum
+
+**Status: RATIFIED 2026-09-13.** Founder ruling. Encoded as data at
+`.claude/config/fact_owners.yaml`, read by `fact-ownership-guard.py` and
+`drift-check.py`.
+
+**TWO ROWS, DELIBERATELY.** The table CLAUDE.md carries under *Facts have one
+owner* lists eight classes of fact; **only these two are ratified and only these
+two are enforced.** The rest are a statement of intent until each is ruled, and
+a guard that enforces an unratified row is a guard nobody trusts.
+
+| Class of fact | Owner |
+|---|---|
+| **Dependency versions** — every pin, and the floor | `agent-improve/requirements.txt` |
+| **State and output field names, counts and types** | the schema modules: `core/state.py` (`SupervisorState`), `core/substate.py` (`PhaseState`, `CoachingResponse`), `phases/*/schema.py` (the five `{Phase}Output`) |
+
+**The rule is CITE, NOT RESTATE.** A governing document naming one of these
+values in prose creates a second copy that can drift; the September audit found
+that every contradiction it turned up was of that shape. Naming the owner is
+always permitted — *"`PhaseState`'s field count (`backend/core/substate.py`)"* —
+and so is quoting a value **with** its owner cited on the same line, which is
+what makes a correction readable.
+
+> **THE VALUES ARE NOT WRITTEN HERE, AND THAT IS THE POINT.** This section names
+> owners and no counts. `fact_owners.yaml` likewise declares *how to derive* each
+> value and stores none. A registry of owned values would be the ninth copy of
+> every fact it governs — the failure mode this section exists to end, rebuilt
+> inside its own countermeasure.
+
+**PENDING IS NOT A VIOLATION.** Where a declared owner does not exist yet —
+`phases/*/schema.py` for a phase not built, a pin for a package not added — the
+fact has no owner to cite and the guard reports **PENDING** rather than denying.
+A check that goes red on correct behaviour gets switched off, which is the
+lesson `verify_rule_triggers.py` learned on its first run against §2's
+designation of `core/reliability.py`.
+
+**CODE IS NOT A GOVERNING DOCUMENT.** A field count in a docstring or a comment
+sits beside the definition it describes and moves with it; that is a use of the
+owner, not a copy of it. The guard fires on `CLAUDE.md`, `ARCHITECTURE.md`,
+`.claude/rules/**` and `docs/**` — and never on `docs/_archive/**`, which records
+what was true when written.
 
 ## 56. Amendment procedure
 

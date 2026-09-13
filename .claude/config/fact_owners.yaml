@@ -1,0 +1,85 @@
+# Fact-ownership registry — ARCHITECTURE.md §55.4, ratified 2026-09-13.
+#
+# Read by .claude/hooks/fact-ownership-guard.py (PreToolUse, denies) and
+# .claude/hooks/drift-check.py (Stop, re-derives and compares).
+#
+# ── THIS FILE STORES NO VALUES, AND THAT IS THE DESIGN ────────────────
+#
+# It names an owner and says HOW TO DERIVE the value from it. A registry
+# holding "PhaseState: 22" would be one more copy of the fact it governs —
+# the failure mode §55.4 exists to end, rebuilt inside its own countermeasure.
+# Every number the hooks compare is read from the owner at check time.
+#
+# ── TWO ROWS, DELIBERATELY ────────────────────────────────────────────
+#
+# CLAUDE.md's "Facts have one owner" table lists eight classes. Only these
+# two are RATIFIED and only these two are enforced. The rest are intent
+# until ruled — and a guard enforcing an unratified row is a guard nobody
+# trusts.
+#
+# ── PENDING IS NOT A VIOLATION ────────────────────────────────────────
+#
+# Where a declared owner does not exist yet, the fact has no owner to cite:
+# the hooks report PENDING and allow. A check that goes red on correct
+# behaviour gets switched off.
+
+version: 1
+
+# Documents the guard governs. Code is NOT here: a count in a docstring sits
+# beside the definition it describes and moves with it.
+governed_paths:
+  - 'agent-improve/CLAUDE.md'
+  - 'agent-improve/ARCHITECTURE.md'
+  - '.claude/rules/*.md'
+  - '.claude/rules/**/*.md'
+  - 'agent-improve/docs/*.md'
+  - 'agent-improve/docs/**/*.md'
+
+# Records what was true when written. Never governed.
+governed_exclusions:
+  - 'agent-improve/docs/_archive/**'
+
+owners:
+  - id: dependency-versions
+    owns: Every dependency pin, and the floor
+    owner_path: 'agent-improve/requirements.txt'
+    derive: requirements          # parse `name==version` lines
+    # A version number written next to one of these names, in a governed
+    # document, without the owner cited on the same line.
+    symbol_source: requirements   # the package names ARE the symbols
+
+  - id: schema-fields
+    owns: State and output field names, counts and types
+    derive: python_symbols
+    symbols:
+      - module: backend.core.state
+        name: SupervisorState
+        path: 'agent-improve/backend/core/state.py'
+      - module: backend.core.substate
+        name: PhaseState
+        path: 'agent-improve/backend/core/substate.py'
+      - module: backend.core.substate
+        name: CoachingResponse
+        path: 'agent-improve/backend/core/substate.py'
+      - module: backend.phases.define.schema
+        name: DefineOutput
+        path: 'agent-improve/backend/phases/define/schema.py'
+      - module: backend.phases.measure.schema
+        name: MeasureOutput
+        path: 'agent-improve/backend/phases/measure/schema.py'
+      - module: backend.phases.analyse.schema
+        name: AnalyseOutput
+        path: 'agent-improve/backend/phases/analyse/schema.py'
+      - module: backend.phases.improve.schema
+        name: ImproveOutput
+        path: 'agent-improve/backend/phases/improve/schema.py'
+      - module: backend.phases.control.schema
+        name: ControlOutput
+        path: 'agent-improve/backend/phases/control/schema.py'
+      # NOT BUILT YET — §2 designates DMAICGateValidator here and the 7.x gate
+      # work creates it. Declared now so the owner is registered the day the
+      # file lands; until then every hook reports PENDING and allows, because
+      # a fact with no owner cannot be restated.
+      - module: backend.validation.gate_validator
+        name: DMAICGateValidator
+        path: 'agent-improve/backend/validation/gate_validator.py'
