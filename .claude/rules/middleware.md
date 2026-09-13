@@ -94,7 +94,7 @@ context. An earlier revision typed it `before_model`; that is corrected.
 **Positions 6, 7 and 8 all fire `after_agent`**, so they execute in the reverse
 of how they are declared: **declared** grader, coherence, contradiction and
 therefore **executing** contradiction, coherence, grader.
-`test_all_eight_positions_execute_in_the_ratified_order` asserts what executes
+`test_the_declared_middleware_list_is_the_ratified_layering` asserts what executes
 rather than what is listed — cite it; do not restate the order. **If
 `CoherenceMiddleware` exhausts its retries, `DMAICGraderMiddleware` is skipped
 for that turn** — deliberately: grading a response already known to be

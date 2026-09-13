@@ -618,10 +618,20 @@ def test_no_hand_rolled_compression_anywhere() -> None:
 
 
 @pytest.mark.parametrize("phase", PHASE_ORDER)
-def test_all_eight_positions_execute_in_the_ratified_order(
+def test_the_declared_middleware_list_is_the_ratified_layering(
     phase: str, stub_coach
 ) -> None:
-    """§19's eight — asserted by EXECUTION order, which the list is not.
+    """§19's eight — asserted by LAYERING, which is not execution order.
+
+    **RENAMED 2026-09-13 (G-52). It was called
+    `test_all_eight_positions_execute_in_the_ratified_order` and it observes no
+    execution at all** — `stub_coach` replaces `create_agent`, so no graph is
+    built and no hook fires. What it checks is the declared LIST, which is a
+    real and useful property; the name claimed the other one, and a name that
+    claims more than the body delivers is worse than no test, because it tells
+    the next reader the ground is already covered.
+
+    Execution order is observed in `test_middleware_execution_order.py`.
 
     **The list is NESTING order, outermost-first**; positions are EXECUTION
     order. LangChain's documented model is "first in list as outermost layer",

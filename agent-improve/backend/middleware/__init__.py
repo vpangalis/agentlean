@@ -10,8 +10,9 @@ opposite** (§19, ARCHITECTURE.md). LangChain applies three separate clauses:
 `before_*` fire first-to-last, `after_*` fire LAST-to-first, and `wrap_*` nest
 with the first declared enclosing all the others. So the trio below is declared
 grader, coherence, contradiction in order to execute contradiction, coherence,
-grader — `test_all_eight_positions_execute_in_the_ratified_order` asserts what
-executes rather than what is listed. The order is binding either way; what is
+grader. `test_middleware_execution_order.py` OBSERVES that on a real graph;
+`test_the_declared_middleware_list_is_the_ratified_layering` checks the declared
+list, which is a different property and was misnamed until 2026-09-13 (G-52). The order is binding either way; what is
 not cosmetic is the distinction.
 """
 from __future__ import annotations

@@ -2110,7 +2110,7 @@ no assertion duplicates one `verify_built.py` already makes.
 
 ### The defect this closes
 
-**`test_all_eight_positions_execute_in_the_ratified_order` asserts the rule
+**`test_the_declared_middleware_list_is_the_ratified_layering` asserts the rule
 against itself.** It runs under the `stub_coach` fixture, which replaces
 `create_agent` — so no graph is built, no hook fires, and the assertion reduces
 to `reversed(declared) == [contradiction, coherence, grader]`. That is the
@@ -2148,10 +2148,38 @@ which is a different and still-useful property. **The new one pins what fires.**
 
 ### Done when
 
-`pytest` is green; the new test is in `backend/tests/`; and reversing positions
-6 and 8 in `_build_executor()` makes the NEW test fail while the existing
-stubbed one still passes — which is the demonstration that the two check
-different things, and the only evidence that the new one closes G-52.
+`pytest` is green; the new test is in `backend/tests/`; and a mutation the
+DECLARED LIST cannot see makes the new test fail while the stubbed one passes.
+
+> **⚑ THE DEMONSTRATION THIS STEP ORIGINALLY SPECIFIED DOES NOT HOLD, and that
+> is recorded rather than quietly swapped.** It said *"reversing positions 6 and
+> 8 makes the NEW test fail while the existing stubbed one still passes"*. Run
+> on 2026-09-13: **both fail.** The stubbed test asserts
+> `reversed(declared) == [contradiction, coherence, grader]`, so reversing the
+> declaration breaks it too. The mutation is visible to both and separates
+> nothing.
+>
+> **What separates them is a mutation that leaves the list intact.** Removing
+> position 8's `after_agent` AND `aafter_agent` — the class stays in
+> `middleware=[...]`, so the declared list is unchanged — gives:
+>
+> ```
+> test_the_declared_middleware_list_is_the_ratified_layering   5 passed
+> test_middleware_execution_order.py                           2 failed
+> ```
+>
+> **And the first attempt at that mutation was itself wrong**: disabling only
+> `after_agent` left `aafter_agent` overriding, the middleware still fired, and
+> the new test passed — a green result that meant nothing. A mutation that does
+> not do what you think produces a passing test that proves nothing, which is
+> the same trap one layer down.
+>
+> **What the stubbed test genuinely cannot catch** is LangChain changing its
+> composition semantics. It asserts our BELIEF about reversal rather than
+> verifying it: if `after_*` began firing in declaration order, the stubbed test
+> would still pass and the runtime would be wrong. That cannot be demonstrated
+> by editing this repository, which is why the mutation above is the evidence
+> offered instead.
 
 
 ## Step 6.23 — The source-method check: verification against the installed object, not the page (G-54)

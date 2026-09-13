@@ -45,7 +45,7 @@ output.** A report saying "no test asserts this" without the grep is not a
 finding, it is a belief.
 
 **Check the check.** A test that has only ever been seen passing is not evidence
-it can fail. `test_all_eight_positions_execute_in_the_ratified_order` encoded
+it can fail. `test_the_declared_middleware_list_is_the_ratified_layering` encoded
 the right rule for months under a fixture that replaced `create_agent`, so it
 asserted `reversed(declared)` and could not fail — registered as **G-52**. Ask
 of any check offered as proof: *what edit makes this go red?*
