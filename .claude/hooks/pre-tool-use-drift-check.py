@@ -149,6 +149,44 @@ def find_violations(rel_path: str, content: str, patterns: list[dict]) -> list[d
     return violations
 
 
+def rule_cites(message: str) -> str:
+    """The § numbers a pattern's message names, in order, deduplicated.
+
+    The registry's `message` is what a reader acts on and already carries the
+    rule it rests on. Pulling the numbers out of it keeps ONE copy — adding a
+    `cites:` key beside the prose would be a second, and §0.2's whole subject
+    is what happens when a rule number is stated twice.
+    """
+    seen, out = set(), []
+    for m in re.finditer(r"§\d+(?:\.\d+)*[a-z]?", message):
+        if m.group(0) not in seen:
+            seen.add(m.group(0))
+            out.append(m.group(0))
+    return ", ".join(out)
+
+
+def deny(reason: str) -> int:
+    """Emit a structured PreToolUse denial AND keep the exit-2 channel.
+
+    The JSON form is the documented interface — `permissionDecision: "deny"`
+    with `permissionDecisionReason`, verified against the installed CLI's own
+    schema. Exit 2 with the reason on stderr is the older mechanism and still
+    blocks. **Both are emitted deliberately**: a harness that reads the JSON
+    gets the structured reason, one that does not still refuses the write. A
+    guard that silently stops guarding on a version change is the failure this
+    project has registered twice (G-52, G-56).
+    """
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }))
+    sys.stderr.write(reason + "\n")
+    return 2
+
+
 def main() -> int:
     raw = sys.stdin.read()
     if not raw.strip():
@@ -186,13 +224,22 @@ def main() -> int:
     if not violations:
         return 0
 
-    sys.stderr.write(
-        f"Drift check blocked this write to {rel_path} — "
-        f"deprecated pattern(s) detected:\n"
-    )
+    lines = [f"Blocked — {len(violations)} banned pattern(s) in {rel_path}.", ""]
     for v in violations:
-        sys.stderr.write(f"  [{v['id']}] line {v['line']}: {v['message']}\n")
-    return 2  # block; stderr is surfaced to Claude for self-correction
+        cites = rule_cites(v["message"])
+        head = f"  {v['id']}"
+        if cites:
+            head += f"  (cites {cites})"
+        lines.append(head)
+        lines.append(f"    line {v['line']}: {v['message']}")
+        lines.append("")
+    lines.append(
+        "Registry: .claude/config/deprecated_patterns.yaml — the same file the "
+        "commit-msg guard reads. This fires one lifecycle event earlier, so the "
+        "write never lands; the commit guard stays as the backstop for edits "
+        "made outside Claude Code."
+    )
+    return deny("\n".join(lines))
 
 
 if __name__ == "__main__":

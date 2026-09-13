@@ -25,3 +25,4 @@ uvicorn_out.txt
 .claude/**/local/
 .claude/**/.cache/
 docs/CLAUDE.md
+.claude/logs/

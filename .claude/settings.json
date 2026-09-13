@@ -22,6 +22,17 @@
           }
         ]
       }
+    ],
+    "InstructionsLoaded": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/instructions-loaded-log.py\"",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }
