@@ -112,7 +112,7 @@ def test_the_executor_builds_the_agent_per_the_ratified_template(
         "ToolRetryMiddleware",               # 5
         # 6-8 fire after_agent, which executes in REVERSE — so they are
         # declared backwards to EXECUTE as 6, 7, 8. See
-        # `test_all_eight_positions_execute_in_the_ratified_order`.
+        # `test_the_declared_middleware_list_is_the_ratified_layering`.
         "DMAICGraderMiddleware",             # executes 8th (last)
         "CoherenceMiddleware",               # executes 7th
         "ContradictionDetectionMiddleware",  # executes 6th (first)

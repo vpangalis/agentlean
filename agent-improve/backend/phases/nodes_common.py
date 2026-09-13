@@ -937,7 +937,7 @@ def _build_executor(
             #
             #   So the layering below IS the intent, not a workaround for it,
             #   and the execution order it produces is §19's 6, 7, 8.
-            #   `test_all_eight_positions_execute_in_the_ratified_order`
+            #   `test_the_declared_middleware_list_is_the_ratified_layering`
             #   asserts what executes, not what is listed.
             #
             #   LangChain offers no other control: no priority, no ordering
