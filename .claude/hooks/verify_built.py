@@ -624,24 +624,31 @@ CHECKS = [
 
 
 def check_phase_scripts() -> tuple[str, str]:
-    """Each phase's SKILL.md must contain its §39.x.10 script byte-for-byte."""
-    code = (
-        "import io, re\n"
-        "arch = io.open('ARCHITECTURE.md', encoding='utf-8').read()\n"
-        "SEC = {'define':'39.1.7','measure':'39.2.10','analyse':'39.3.10',\n"
-        "       'improve':'39.4.10','control':'39.5.10'}\n"
-        "n = 0\n"
-        "for ph, sec in SEC.items():\n"
-        "    i = arch.index(f'#### {sec}')\n"
-        "    j = arch.index(chr(10) + '#### ', i + 1)\n"
-        "    m = re.search(r'\\*\\*\\[OPENING', arch[i:j])\n"
-        "    script = arch[i:j][m.start():].rstrip(chr(10))\n"
-        "    skill = io.open(f'skills/dmaic-{ph}-phase/SKILL.md', encoding='utf-8').read()\n"
-        "    n += 1 if script in skill else 0\n"
-        "print(n)\n"
-    )
-    return "5", py(code)
+    """Each phase's SKILL.md must contain its coaching script byte-for-byte.
 
+    **FILE TO FILE since 2026-09-13 (brief step 8).** The script used to live in
+    ARCHITECTURE.md §39.x.7/.10, so this check had to find a heading inside a
+    965 KB document, locate the `**[OPENING` marker within it, and slice —
+    three steps that could each break on an edit touching neither artifact.
+    Both sides are now files in the same directory, so the check is a
+    containment test a person can reproduce with `diff`.
+
+    **Containment rather than equality, deliberately.** SKILL.md wraps the
+    script in §32's frontmatter and structure and the middleware loads it
+    whole; the script file is the atomic unit §56.1 names. Equality would
+    force SKILL.md to be nothing but the script.
+    """
+    n = 0
+    for ph in ("define", "measure", "analyse", "improve", "control"):
+        d = Path(PROJECT) / "skills" / f"dmaic-{ph}-phase"
+        try:
+            script = (d / "coaching_script.md").read_text(
+                encoding="utf-8").rstrip("\n")
+            skill = (d / "SKILL.md").read_text(encoding="utf-8")
+        except OSError:
+            continue
+        n += 1 if script and script in skill else 0
+    return "5", str(n)
 
 def main(argv: list[str]) -> int:
     quiet = "--quiet" in argv
@@ -659,7 +666,7 @@ def main(argv: list[str]) -> int:
     exp, got = check_phase_scripts()
     ok = got == exp
     bad += 0 if ok else 1
-    rows.append((ok, "phase scripts byte-matching §39.x.10", exp, got,
+    rows.append((ok, "phase scripts byte-matching their SKILL.md", exp, got,
                  "§56.1 — the atomic unit"))
 
     if not quiet:
