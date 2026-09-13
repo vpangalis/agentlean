@@ -44,7 +44,13 @@ designs themselves held.
 |---|---|
 | **Claim** | `ModelRetryMiddleware(retries=2)` |
 | **Source** | `reference.langchain.com/python/langchain/agents/middleware/model_retry/ModelRetryMiddleware` |
-| **Verdict** | **CORRECTED** |
+| **Source method** | ~~documentation page~~ → **introspection — `inspect.signature(ModelRetryMiddleware.__init__)`, re-run 2026-09-13** |
+| **Verdict** | **CORRECTED — RE-VERIFIED AND STANDS** |
+
+> **Re-verified under G-54, 2026-09-13.** Against `langchain` 1.3.16:
+> `['max_retries', 'retry_on', 'on_failure', 'backoff_factor', 'initial_delay',
+> 'max_delay', 'jitter']`. **`retries` is absent; `max_retries` is present.**
+> The verdict was right and is now grounded in the object rather than the page.
 
 The parameter is **`max_retries`**, not `retries`. Full signature:
 
@@ -74,7 +80,13 @@ remembering one and inferring the other goes wrong.**
 |---|---|
 | **Claim** | `create_agent(..., prompt=PHASE_COACH_PROMPT[phase])` |
 | **Source** | `reference.langchain.com/python/langchain/agents/create_agent`; LangGraph v1 migration guide |
-| **Verdict** | **CORRECTED** |
+| **Source method** | ~~documentation page~~ → **introspection — `inspect.signature(create_agent)`, re-run 2026-09-13** |
+| **Verdict** | **CORRECTED — RE-VERIFIED AND STANDS** |
+
+> **Re-verified under G-54, 2026-09-13.** Against `langchain` 1.3.16:
+> `'prompt' in signature` is **False**, `'system_prompt' in signature` is
+> **True**. `prompt=` would raise `TypeError` at construction rather than being
+> silently ignored, which is what makes this one loud rather than expensive.
 
 The parameter is **`system_prompt`**. `create_react_agent` took `prompt`;
 `create_agent` renamed it, and the migration guide calls this out explicitly as
@@ -92,6 +104,7 @@ Bible states, and adds `state_schema`, `context_schema`, `checkpointer`,
 |---|---|
 | **Claim** | Middleware is built on *the six* hooks — stated as a complete set |
 | **Source** | `reference.langchain.com/python/langchain/agents/middleware` |
+| **Source method** | ~~documentation page — and it was a MODULE page read as a CLASS member list~~ → **introspection — `vars(AgentMiddleware)`, re-run 2026-09-12** |
 | **Verdict** | ~~**CORRECTED**~~ → **WITHDRAWN 2026-09-12 — THE CORRECTION WAS WRONG AND THE ORIGINAL CLAIM WAS RIGHT** |
 
 > **AMENDED IN PLACE, NOT DELETED.** A verification log that removes its own
@@ -203,7 +216,18 @@ table; §25 records that it is the second of two rather than the only one.
 |---|---|
 | **Claim** | Upgrade targets `langgraph` 1.2.10, `langchain` 1.3.11, `langchain-classic` 1.0.3 |
 | **Source** | PyPI JSON API |
-| **Verdict** | **NOW-STALE-AND-FIXED** |
+| **Source method** | **installed-distribution metadata — `importlib.metadata.version()`, re-run 2026-09-13.** The PyPI API answers *what exists*; only the distribution answers *what is here* |
+| **Verdict** | **NOW-STALE-AND-FIXED — RE-VERIFIED AND STANDS** |
+
+> **Re-verified under G-54, 2026-09-13.** Installed: `langgraph` **1.2.11**,
+> `langchain` **1.3.16**, `langchain-classic` **1.0.8** — every target this
+> entry named (1.2.10 / 1.3.11 / 1.0.3) was superseded, exactly as it said.
+>
+> **The entry is now superseded in a second way, and better.** Since
+> ARCHITECTURE.md §55.4 there is an OWNER for this class of fact:
+> `agent-improve/requirements.txt`. A verification-log entry recording pins is
+> a copy; the pin lives in the manifest and the floor lives in the documents.
+> Nothing here should be cited for a version again.
 
 | Package | Documented target | Actual latest |
 |---|---|---|
@@ -240,6 +264,11 @@ result is unsafe, and **a handler must never catch itself.**
 
 **Added:** Bible §45.
 
+**Source method** — ~~documentation page~~ → **introspection, re-run
+2026-09-13 (G-54).** `hasattr(StateGraph, "set_node_defaults")` is **True**
+against `langgraph` 1.2.11. It is a method on `StateGraph`, not a module-level
+function, which this entry never claimed either way. **Verdict stands.**
+
 ### E-2 · Retry/handler composition order
 
 **Source:** as above
@@ -252,6 +281,16 @@ The real order has retries in between, which changes how long a failing node
 takes to reach the fallback chain.
 
 **Added:** Bible §45.
+
+**Source method** — ~~documentation page~~ → **introspection, PARTIAL, re-run
+2026-09-13 (G-54).** Both objects exist: `RetryPolicy` carries
+`['initial_interval', 'backoff_factor', 'max_interval', 'max_attempts',
+'jitter', 'retry_on']`. **But this entry claims an ORDER — retries decide
+first, `error_handler` runs only after they are exhausted — and an order is
+BEHAVIOUR, not a signature.** Introspection cannot settle it; a runtime test
+that raises inside a node and counts attempts before the handler fires can.
+**Recorded as the one entry whose verdict rests on the page still**, rather
+than marked verified on the strength of the classes existing.
 
 ### E-3 · `TimeoutPolicy(idle_timeout=...)`
 
@@ -266,7 +305,22 @@ a long legitimate tool call ever needs distinguishing from a hang.
 
 **Added:** Bible §45.
 
+**Source method** — ~~documentation page~~ → **introspection, re-run
+2026-09-13 (G-54).** `TimeoutPolicy` carries `['run_timeout', 'idle_timeout',
+'refresh_on']` against `langgraph` 1.2.11 — all three named here, plus
+`refresh_on`, which this entry did not mention and which is how `idle_timeout`
+learns that progress happened. **Verdict stands.**
+
 ### E-4 · Anthropic index — three posts missing from Tier 1
+
+**Source method** — **NOT INTROSPECTABLE, and that is the finding rather than a
+gap left open.** This entry is about which posts an external index has
+published. There is no installed object to read: the claim is about the world,
+not about an API. It is the one entry in this log that a page is the RIGHT
+source for, and it is marked so that a future pass does not spend time looking
+for an object to introspect. Re-verifying it means re-reading the index, with a
+date.
+
 
 **Source:** `anthropic.com/engineering` index, read in full
 
