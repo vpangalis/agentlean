@@ -201,3 +201,39 @@ before it enters the codebase.
 If all primary sources for the relevant library fail (network outage, all URLs 404,
 etc.), the verdict is UNKNOWN. Do not guess. Do not fall back to your training data.
 Explicitly output UNKNOWN and let the user decide whether to proceed at their own risk.
+
+## Why this is a checkpoint and not background reading
+
+*Moved from CLAUDE.md §16.3 on 2026-09-13 (brief step 10). The rule stays in the
+root; the reason it exists is here, where someone running the check reads it.*
+
+**A deprecation notice is not sufficient guidance.** During the v2.2 review
+`create_agent` was found to carry a reported regression relative to
+`create_react_agent`, and the deprecation message pointed at a function that did
+not yet exist in the installed package. Following the notice would have ported
+working code onto an API that was not there.
+
+**So the question is never "is X deprecated". It is "is the replacement shipped
+and feature-complete in the version we have installed".** Those are different
+questions and only the second one is answerable from the tree.
+
+**Read the installed object, not the page.** `BIBLE_VERIFICATION_LOG.md` C-3 read
+a module's API page as a class's member list, stamped it CORRECTED, and
+overwrote a statement that had been right — then propagated the error to a
+second document. S-1 read two doc pages and made a sound ruling look
+worse-supported than it was. Both are registered as **G-54**.
+
+```python
+>>> import inspect, importlib.metadata as md
+>>> md.version("langgraph")
+>>> from langgraph.store.base import BaseStore
+>>> [p for p in inspect.signature(BaseStore.search).parameters if p != "self"]
+>>> 'dynamic_prompt' in vars(AgentMiddleware)
+```
+
+**A documentation page is evidence ABOUT an API; the installed object IS the
+API.** When the two disagree, the object wins and the page is the finding.
+
+**The floor, not the pin.** `agent-improve/requirements.txt` owns every version
+(ARCHITECTURE.md §55.4). Never upgrade to a number written in a document —
+re-resolve against live PyPI, then repin there.

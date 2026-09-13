@@ -213,37 +213,11 @@ none of the three landed as a pre-existing violation.
 - A claim about what the code does quotes the lines it rests on, with file and
   line number; a claim of absence carries the command and its output (§20.5.1)
 
-### 20.1 — The nine disciplines
-
-> **MOVES TO THE `eight-d` SKILL AT STEP 10.** This table and §20.4's below are
-> the reference a person reads while working a defect, which is what a skill is
-> for — loaded on invocation rather than carried in every session. They stay
-> here until that skill exists, because the gate in §20.4 is live now.
-
-| | Discipline | What it answers |
-|---|---|---|
-| **D0** | **prepare** | Is there a reproduction that is not a story — the request, the case, the build, re-runnable |
-| **D1** | **team** | Who is working it, and who rules on what |
-| **D2** | **describe, with IS / IS-NOT** | What happens, where, since when, how you know — **and the nearest thing it is NOT**, which is what bounds it |
-| **D3** | **interim containment, WITH its removal condition** | What protects the Belt while the real fix is built, and what retires it |
-| **D4** | **root cause, in TWO parts** | **Occurrence** — why it happened. **Escape** — why nothing detected it |
-| **D5** | **chosen permanent fix** | Which change, and why that one rather than the others costed |
-| **D6** | **verification** | What proves the fix works — and what would have failed before it |
-| **D7** | **prevention of recurrence** | What stops the **class**, not this instance. Usually a check, a schema, or a gate |
-| **D8** | **closure conditions** | What has to be true to call it closed — here, the step's Done-when |
-
-### 20.4 — Enforced at the commit, as rule 6
-
-`.claude/hooks/commit-msg-refactor-guard.py` blocks a fix commit whose body does
-not answer the six.
-
-| | |
-|---|---|
-| **Required labels** | `D2 IS:` · `D2 IS-NOT:` · `D4 OCCURRENCE:` · `D4 ESCAPE:` · `D5 FIX:` · `D7 PREVENT:` — each starting a line, each followed by a colon |
-| **Why these six and not all nine** | D6 is the step's `Verify` and guard rules 3 and 4 already run it; D8 is its Done-when; D0 and D1 are process the commit does not need to carry |
-| **What counts as a fix** | the subject's type is `fix` or `hotfix`; **or** the subject names a registered defect (`G-49`, `F-15`, `WATCH 26`); **or** the body already carries a `D<n>` label |
-| **Declining on the record** | `8D: NOT A FIX — <why>` — valid only for the middle trigger. It cannot exempt a `fix(` subject or a body that already carries D-labels |
-| **What it checks** | that each discipline is ANSWERED, never that the answer is right. An empty one passes as `NONE — <reason>`; bare `NONE` does not |
+> **The nine disciplines and the six the gate requires are the `eight-d` skill.**
+> `.claude/skills/eight-d/` carries the D0–D8 table, the enforcement contract
+> and the worked example. It loads when you invoke it, which is when you are
+> working a defect — the rules above bind always and are seven lines; the
+> reference is thirty and was carried in every session that never opened it.
 
 ## Versions
 
@@ -262,9 +236,9 @@ permission.** `langgraph-prebuilt` is present as a transitive dependency — its
 presence is permitted, importing from it is not.
 
 `/verify-current-version` is a mandatory checkpoint before any architectural
-decision is finalised, not background reading. Confirm a replacement is actually
-shipped and feature-complete in the **installed** version before porting to it
-(§16.3).
+decision is finalised. Confirm a replacement is actually shipped and
+feature-complete in the **installed** version before porting to it — the skill
+carries why, and the two verification errors that cost most.
 
 Not yet provisioned: Azure Cache for Redis (fallback chain Level 3), Azure
 Database for PostgreSQL (checkpointer and store migration).
