@@ -2319,6 +2319,98 @@ position — into a `.md` under `agent-improve/` is DENIED with its owner named;
 an edit quoting a superseded form beside its replacement is ALLOWED;
 `deprecated_patterns.yaml`'s exclusions are unchanged; and `pytest` is green.
 
+## Step 6.25 — Scratch leaves the tree
+
+| | |
+|---|---|
+| **Reference §** | §0.32 · §56.3 · §55.1 |
+| **Touches** | `.gitignore` · `docs/_archive/audit-2026-07-03.md` (new) · `docs/_archive/HANDOVER_AGENT_IMPROVE.md` (new) · `docs/_archive/response-to-audit-2026-08-19.md` |
+| **Precondition** | none — **READY** |
+| **Verify** | `git status --porcelain` reports no untracked path inside the tree; every citation in the archive document resolves to a tracked path |
+
+### The condition this ends
+
+**Two working folders sat untracked INSIDE the tree** — `_Artifacts/` at the
+root and `agent-improve/_Claude_chat_Prompts/` — and a tracked document cited a
+file in each. **A citation from a tracked document to an untracked file
+resolves for whoever has the folder on disk and for nobody else**, which is
+§55.1's bidirectional rule failing in the direction nothing checks.
+
+**The ignore rule that was supposed to cover one of them matched nothing.**
+`.gitignore` carried `ARTIFACTS/` while the directory is `_Artifacts/`. **An
+ignore rule that matches nothing fails the same silent way a rule file's
+`paths:` glob does**: no error, no warning, and the thing it was written to
+handle simply is not handled. `agent-improve/.gitignore` did carry `_Artifacts/`
+— scoped to a directory where no such folder exists.
+
+### What to do
+
+**Sort by CONTENT, not by folder.** The folder is not the unit; what a document
+cites is.
+
+| | Goes | Because |
+|---|---|---|
+| Cited by a tracked document | `docs/_archive/`, **tracked** | §0.32 clause 2: if a scratch artifact matters it becomes a tracked file |
+| Cited by nothing | **outside the tree**, kept | Clause 2 says outside, not deleted |
+
+**Redact on the way in, because this repository is public.** A file that was
+safe as working material is not automatically safe as a published one, and the
+check is what the tracked tree does NOT already contain.
+
+### Done when
+
+`git status --porcelain` shows no untracked path inside the tree; both cited
+files are tracked under `docs/_archive/` and their citations name the new
+paths; the uncited files exist outside the tree and are not deleted;
+`.gitignore` matches the directories that actually exist, proven with
+`git check-ignore -v`; and `pytest` is green.
+
+## Step 6.26 — The guard's tree rules get a test suite (G-57)
+
+| | |
+|---|---|
+| **Reference §** | §0.32 · §56.3 · G-57 |
+| **Touches** | `backend/tests/test_commit_guard_tree_rules.py` (new) |
+| **Precondition** | none — **READY** |
+| **Verify** | `pytest`, plus each rule failing when its own matcher is defeated |
+
+### The gap this closes
+
+**Rules 7 and 8 of the commit-msg guard are proven by hand and re-run by
+nothing.** Ten cases were demonstrated when the rules landed — a staged
+`scratch/` path and a staged `.bak` blocked by name, an undeclared new path
+blocked, an unresolvable step and an unresolvable gap blocked, a registered gap
+on disk but not in the index blocked, the same gap staged in the commit
+allowed. **None of it runs again.**
+
+**An index check fails the way a message check fails: silently, by letting
+commits through.** That is the argument `test_commit_guard_8d.py` already makes
+for rule 6, and it transfers without a word changed. A pattern list that stops
+matching reports nothing. A register regex that stops resolving after Appendix
+D or §66 is reformatted reports nothing — and **rule 8 is the fourth hook
+parsing Appendix D's table and the second parsing §66's**, both of which carry
+format warnings in their own headers for exactly this reason.
+
+### What to build
+
+A test file beside the existing guard tests, loading the hook by path the same
+way. **It pins what the rules RANGE OVER, not only what they match**: that a
+modified path is invisible to both (the ratchet), that a rename into a scratch
+name is caught, that the registers are read from the index rather than the
+disk, and that a declared number must resolve.
+
+**What it deliberately does not pin** is whether a file genuinely belongs to
+the step it declares. Rule 8 checks that a number is declared and exists; that
+limit is in its docstring and belongs in the test file too, so a green suite is
+not read as evidence the numbers are honest.
+
+### Done when
+
+Every case blocks when it should and passes when it should; defeating a
+matcher — emptying the scratch segment set, or pointing the register regex at a
+pattern the table does not use — turns the suite red rather than leaving it
+green; `pytest` is green; and G-57 is closed in §66 with the count updated.
+
 ## Step 6.16 — The board is generated, not written
 
 | | |
@@ -3595,9 +3687,9 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **DONE** | 33 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21** |
 | **BUILDING NOW** | 1 | **6.19** — `CoachingResponse` gains §50.1's four presentational fields (G-50) |
 | **BLOCKED** | 7 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL) |
-| **QUEUED** | 22 | **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.22**, **6.23**, **11.1**, **6.24**, **11.2** |
+| **QUEUED** | 24 | **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.22**, **6.23**, **11.1**, **6.24**, **6.25**, **6.26**, **11.2** |
 
-*63 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-13.*
+*65 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-13.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -3924,6 +4016,8 @@ restate, which is the opposite of what the board is for.
 | 567 | **Commit 6.22** | The order-check — the middleware stack's ordering test observes execution (G-52) |  | OPS | SHARED | The one test pinning §19's order replaces `create_agent`, so it asserts the rule against itself and stayed green through a three-week document split it existed to prevent. |
 | 569 | **Commit 6.23** | The source-method check — verification against the installed object, not the page (G-54) |  | OPS | SHARED | Every verdict in the verification log was reached by reading a page; one of them overwrote a correct statement and propagated the error to a second document. |
 | 571 | **Commit 6.24** | The drift hook learns to read the documents (G-56) |  | OPS | SHARED | The governing documents are excluded from every drift pattern, so the six defects worked on 2026-09-12 and 2026-09-13 were all in files nothing guards. |
+| 572 | **Commit 6.25** | Scratch leaves the tree |  | OPS | SHARED | Working material sits untracked inside the tree and tracked documents cite it, so a citation resolves for whoever has the folder on disk and for nobody else. |
+| 573 | **Commit 6.26** | The guard's tree rules get a test suite (G-57) |  | OPS | SHARED | The two rules that keep scratch and unnumbered files out of the tree are proven by hand and re-run by nothing, so they can stop matching without reporting it. |
 | 570 | **Commit 11.1** | Delete v1 |  | OPS | SHARED | Two implementations of every phase stay in the tree, and the dead one is still the one writing the v1 field names. |
 | 580 | **Commit 11.2** | Governance close-out |  | OPS | SHARED | The refactor has no end, so procedure and architecture drift apart again with nothing marking the handover. |
 

@@ -13,7 +13,19 @@ operational items below.
    Untracked but on disk in a synced folder is still exposed. Not a
    documentation question — do it immediately, independent of everything else.
 
-`_Artifacts/audit-2026-07-03.md` — no action needed, leave as historical record.
+`docs/_archive/audit-2026-07-03.md` — no action needed, leave as historical
+record.
+
+> **Both files this document cites moved into `docs/_archive/` and are tracked,
+> 2026-09-13 at step 6.25.** They were cited from a tracked document while
+> sitting untracked in `_Artifacts/` and `_Claude_chat_Prompts/`, so the
+> citations resolved for whoever had the folders on disk and for nobody else —
+> CLAUDE.md §0.32 clause 2, and §55.1's bidirectional rule. The handover's line
+> 364 is still the right reference and the PAT there was redacted on
+> 2026-08-20; **redacting it did not revoke it**, so item 2 above stands until
+> the token is revoked. Three further identifiers were redacted when the file
+> was tracked, because this repository is public — the handover's own tracking
+> note lists them.
 
 ## B1 — resolved: SupervisorState wins, store-mediated only
 

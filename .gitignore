@@ -15,7 +15,13 @@ logs/
 *.jsonl
 
 # Local working files � not part of the repo
+# Each line must match the directory that ACTUALLY EXISTS. `ARTIFACTS/`
+# matched nothing while `_Artifacts/` sat untracked in the tree: an ignore
+# rule that matches nothing fails the same silent way a rule file's
+# `paths:` glob does. CLAUDE.md §0.32 clause 2.
 ARTIFACTS/
+_Artifacts/
+_Claude_chat_Prompts/
 PROMPT_AUDIT.md
 quick_test_langfuse.py
 uvicorn_err.txt
