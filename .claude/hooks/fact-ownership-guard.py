@@ -103,7 +103,21 @@ def main() -> int:
         for s in owner.get("symbols", []) or []:
             owner_of[s["name"]] = s["path"]
     symbols = [s for s in owner_of if s in content]
-    if not symbols:
+
+    # Dependency versions declare no `symbols:` — the PACKAGE NAMES are the
+    # symbols, derived from requirements.txt. This is the half G-56's Done-when
+    # clause [2] was failing on: a version pin in a governing document went
+    # undetected, which is the exact class that produced the three-week false
+    # blocker in §16.1 and §53.
+    pins = []
+    version_owner = next((o.get("owner_path", "requirements.txt")
+                          for o in reg.get("owners", [])
+                          if o.get("symbol_source") == "requirements"), None)
+    if version_owner:
+        packages = [k for k, v in values.items() if isinstance(v, str)]
+        pins = fo.version_claims(content, packages, values)
+
+    if not symbols and not pins:
         return 0
 
     hits, held = [], []
@@ -123,11 +137,18 @@ def main() -> int:
             + ", ".join(sorted(set(held)))
             + " — the owner does not exist yet, so there is nothing to restate.\n")
 
-    if not hits:
+    if not hits and not pins:
         return 0
 
     out = [f"Blocked — {target} restates a fact it does not own "
            f"(ARCHITECTURE.md §55.4).", ""]
+    for line_no, pkg, ver in pins:
+        out.append(f"  line {line_no}: `{pkg}` {ver}")
+        out.append(f"    this fact is owned by `{version_owner}` — cite it, "
+                   f"do not restate it.")
+        out.append(f"    (it is the CURRENT pin. A FLOOR is different and "
+                   f"belongs here: `{pkg} >= x.y.z` is a rule and passes.)")
+        out.append("")
     for line_no, sym, raw_num, owner_path, live in hits:
         out.append(f"  line {line_no}: `{sym}` … {raw_num}")
         out.append(f"    this fact is owned by `{owner_path}` — cite it, "

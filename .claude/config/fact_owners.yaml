@@ -38,6 +38,10 @@ governed_paths:
 # Records what was true when written. Never governed.
 governed_exclusions:
   - 'agent-improve/docs/_archive/**'
+  # GENERATED, never hand-edited — guarding them denies an edit nobody makes
+  # by hand and would block the pre-commit hook that regenerates them.
+  - 'agent-improve/docs/CONTINUITY.md'
+  - 'agent-improve/docs/board.html'
 
 owners:
   - id: dependency-versions

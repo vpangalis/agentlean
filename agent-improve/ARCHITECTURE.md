@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.46 · 2026-09-13
+Version 1.47 · 2026-09-13
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.47 (2026-09-13)** — **§56 RECORD. The ownership guard reads the dependency-versions row at last, and G-56's Done-when passes on all four clauses.** **(A) THE GAP.** The guard built its symbol table only from `owner.get("symbols")`. `dependency-versions` declares no symbols — it declares `symbol_source: requirements`, because **the package names ARE the symbols** — so the guard read nothing for it and **a version pin written into a governing document went undetected.** That is the exact class that put a false BLOCKER into §16.1 and §53 and left it there three weeks. Found by testing step 6.24's Done-when clause by clause rather than by assuming a passing check passes. **(B) A FLOOR IS NOT A PIN, AND THAT DISTINCTION IS THE RULE.** §55.4 puts the floor in the documents deliberately — `langgraph >= 1.2.6` is a rule and belongs where rules live — and the pin in `requirements.txt`, which owns it. So `>= 1.2.6` PASSES and a bare `1.2.11` beside the same package name is denied. **(C) ONLY THE CURRENT PIN IS A RESTATEMENT.** `langgraph 1.1.10 → 1.2.11` records a migration and names a version that is no longer the pin; nothing can drift out of a fact about the past. A dated line is likewise a record — *"Introspected against `langgraph` 1.2.11 on 2026-09-12"* is EVIDENCE, the G-54 discipline working, and the date is looked for on the preceding line too because a record is a sentence and a sentence wraps. **(D) MEASURED BEFORE ENFORCED, WHICH IS NOW THE HABIT.** A 40-character proximity window reported **82** claims across four documents, nearly all step numbers sitting near a package name; adjacency of three characters plus the current-pin test brought that to **4, every one genuine** — and **four of them were written this week, by the session that built the guard.** All four are corrected to cite `requirements.txt` rather than restate it. **(E) `CONTINUITY.md` AND `board.html` ARE EXCLUDED.** Both are generated on every commit and never hand-edited, so guarding them would deny an edit nobody makes by hand and block the pre-commit hook that writes them. **(F) G-56 IS STILL OPEN** — its remaining condition is a ruling, not an engineering problem: gate tier splits and tool inventory. Reasoning: this commit body.
 
 **v1.46 (2026-09-13)** — **§56 RECORD. The seven skills exist, and the root file loses the two references that were carried in every session and opened in almost none.** **(A) SEVEN SKILLS, ALL UNDER THE 500-LINE BUDGET** — `eight-d` 115, `verify-current-version` 239, `upgrade-langchain-stack` 89, `refactor-step-review` 77, `add-computation-tool` 71, `change-gate-schema` 68, `reconcile-docs` 58. Directory name is the command; every `name:` matches its directory and every description says WHEN to reach for it rather than what it contains, because a description that does not name the trigger is a skill nobody invokes. **(B) THE BRIEF WAS STALE ON TWO OF THEM.** It records `verify-current-version` and `refactor-step-review` as slash commands to be converted. `.claude/commands/` does not exist; `verify-current-version` was **already a skill** at 203 lines and was extended rather than converted, and `refactor-step-review` existed nowhere and was written. **(C) WHAT LEFT THE ROOT FILE.** §20.1's D0–D8 table and §20.4's enforcement contract moved to `eight-d`; §16.3's worked reason — the `create_agent` regression whose deprecation notice pointed at a function that did not yet exist — moved to `verify-current-version`. **The rules stay in the root and bind always; the references load when someone is actually working a defect or an upgrade.** Root: 296 → 270 lines. **(D) THE SKILLS CARRY THIS PROJECT'S OWN SCARS, NOT GENERIC ADVICE.** `add-computation-tool` leads with the 16-tool cap because Measure sits nearest it and the answer to a breach is a placement rather than a higher ceiling. `change-gate-schema` ends on `computation_results` and `phase_metrics` — read by all five gate assemblers and written by nothing — because that is what half-landing looks like here. `upgrade-langchain-stack` leads with the venv trap that produced a false blocker in two documents. `refactor-step-review` asks of any check offered as proof: *what edit makes this go red?* Reasoning: this commit body.
 
@@ -415,7 +417,8 @@ Azure Cache for Redis       fallback chain level 3   [NOT YET PROVISIONED]
 **MCP is not in this stack and is not deferred** — see §29.1.
 
 **The LangGraph floor is ≥1.2.6 and it is MET.** Step 2.3 upgraded the venv to
-`langgraph 1.2.11`, so per-node `TimeoutPolicy`, `error_handler=` (Part IX) and
+a `langgraph` above the floor (`requirements.txt` owns the pin), so per-node
+`TimeoutPolicy`, `error_handler=` (Part IX) and
 the subgraph `checkpoint_ns` fix (§16) are all available. **The floor is the
 rule; the pin is not stated here.** `agent-improve/requirements.txt` carries the
 resolved versions, and it is the only place that does — a version written into a
@@ -3044,7 +3047,7 @@ dependency-free.
 > Both were re-verified by introspection rather than from a documentation page:
 > `inspect.signature(BaseStore.search)` returns
 > `['namespace_prefix', 'query', 'filter', 'limit', 'offset', 'refresh_ttl']`
-> on `langgraph` 1.2.11, and the string `hybrid` occurs nowhere in the
+> on the pinned `langgraph`, and the string `hybrid` occurs nowhere in the
 > installed package.
 >
 > **§9 previously conceded the hybrid reason to a `mode="hybrid"` parameter

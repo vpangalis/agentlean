@@ -339,7 +339,7 @@ first action.** As of 2026-08-21 that resolved to `langgraph` 1.2.11,
 different values, the skill wins** — Reference §53's table is a snapshot and says
 so.
 
-**The `langchain-core` jump is the risk.** `langchain` 1.3.16 requires
+**The `langchain-core` jump is the risk.** The resolved `langchain` requires
 `langchain-core>=1.6.0`; installed is 1.3.3. Three minors. Expect this to be
 where surprises land, not in `langgraph`.
 

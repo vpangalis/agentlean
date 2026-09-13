@@ -127,6 +127,8 @@ def cites_owner(line: str) -> bool:
 #: Same principle that keeps `docs/_archive/**` out of scope: §0's change
 #: records, ARCHITECTURE.md's §56 changelog entries, and the version-history
 #: table all state what was true on a date.
+DATE_ANY = re.compile(r"20\d\d-\d\d-\d\d")
+
 DATED = re.compile(
     r"^\s*(>\s*)?(\*\*)?v\d+\.\d+\s*\(\d{4}-\d{2}-\d{2}\)"      # **v1.26 (2026-09-11)**
     r"|^\s*\|\s*\w{3,9}\s+20\d\d\s*\|"                          # | Aug 2026 | 2.2.10 |
@@ -288,3 +290,66 @@ def coaching_leaks(text: str, reg: dict) -> list[tuple[int, str]]:
                 hits.append((i, script.parent.name))
                 break
     return hits
+
+
+def version_claims(text: str, packages: list[str],
+                   current: dict[str, object] | None = None
+                   ) -> list[tuple[int, str, str]]:
+    """(line_no, package, version) for each PIN restated in prose.
+
+    **A floor is not a pin, and the difference is the whole rule.** §55.4 puts
+    the floor in the documents deliberately — `langgraph >= 1.2.6` is a rule and
+    belongs where rules live — and the pin in `requirements.txt`, which owns it.
+    So `>= 1.2.6` is allowed and `1.2.11` beside the same package name is not.
+
+    Same discipline the prose-count check was deleted for: measure before
+    enforcing. A version is distinctive where a count is not — `1.2.11` cannot
+    be confused with ordinary English — but a §-number, a document version and
+    a dated record all look like one, so each is excluded explicitly.
+    """
+    out = []
+    ver = re.compile(r"(?<![\w.§#])(\d+\.\d+(?:\.\d+)?)\b")
+    floor = re.compile(r"(>=|≥|>|at least|floor|minimum)\s*$", re.I)
+    rows = text.splitlines()
+    for i, line in enumerate(rows, 1):
+        # A dated line is a record. `Introspected against langgraph 1.2.11 on
+        # 2026-09-12` is EVIDENCE — the G-54 discipline working — not a copy.
+        # The date often sits one line up, because a record is a sentence and
+        # a sentence wraps: `As of 2026-08-21 that resolved to` / `langgraph
+        # 1.2.11, langchain 1.3.16`. Both lines belong to the same record.
+        near = line + (chr(10) + rows[i - 2] if i >= 2 else "")
+        if DATED.search(line) or cites_owner(line) or DATE_ANY.search(near):
+            continue
+        spots = [(m.start(), p) for p in packages
+                 for m in re.finditer(rf"\b{re.escape(p)}\b", line, re.I)]
+        if not spots:
+            continue
+        for m in ver.finditer(line):
+            before = line[max(0, m.start() - 14):m.start()]
+            if floor.search(before):
+                continue                       # a floor: documents may state it
+            if before.rstrip().endswith(("v", "V")):
+                continue                       # a document version
+            # ADJACENCY, not proximity. `langgraph 1.2.11` is a pin restated;
+            # "langgraph ... step 2.3" is a step number that happens to sit on
+            # the same line. A 40-character window reported 82 claims across
+            # four documents, nearly all of them step numbers — the same
+            # cry-wolf failure the prose-count check was deleted for. A pin
+            # written as a pin touches its package name.
+            best = None
+            for pos, pkg in spots:
+                gap = (m.start() - (pos + len(pkg))) if pos < m.start()                       else (pos - m.end())
+                if 0 <= gap <= 3 and (best is None or gap < best[0]):
+                    best = (gap, pkg)
+            if best is None:
+                continue
+            # **Only the CURRENT pin is a restatement.** `langgraph 1.1.10 ->
+            # 1.2.11` records a migration and states a version that is no
+            # longer the pin; nothing can drift out of a fact about the past.
+            # What creates a second copy is writing today's value.
+            if current is not None:
+                live = current.get(best[1].lower())
+                if not isinstance(live, str) or live != m.group(1):
+                    continue
+            out.append((i, best[1], m.group(1)))
+    return out

@@ -71,7 +71,8 @@ right shape for `wrap_*`.
 | `after_*` | **last to first** — the **reverse** of declaration order |
 | `wrap_*` | nested; the first declared wraps all the others |
 
-Read off the installed `langchain` 1.3.16's own graph construction, not the
+Read off the installed `langchain`'s own graph construction — the version is
+`requirements.txt`'s — not the
 documentation alone — the reading is quoted in the commit that made this
 correction. **Not reproduced here: `langchain/agents/factory.py` is the
 framework's code and the framework owns it**, so a copy in this file would be
