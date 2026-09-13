@@ -1,6 +1,7 @@
 ---
 paths:
   - "agent-improve/backend/middleware/**"
+  - "agent-improve/backend/phases/nodes_common.py"
 ---
 # §8 — Middleware stack
 

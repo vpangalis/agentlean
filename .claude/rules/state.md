@@ -2,7 +2,10 @@
 paths:
   - "agent-improve/backend/core/state.py"
   - "agent-improve/backend/core/substate.py"
+  - "agent-improve/backend/core/store.py"
   - "agent-improve/backend/storage/**"
+  - "agent-improve/backend/phases/mappers_common.py"
+  - "agent-improve/backend/phases/*/mappers.py"
 ---
 # §10 — State and storage
 

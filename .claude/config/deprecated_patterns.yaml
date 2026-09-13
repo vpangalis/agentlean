@@ -97,7 +97,12 @@ patterns:
       - 'agent-improve/backend/phases/**/validate.py'
       # ── The §4.6 scoping, added 2026-09-03 (procedure step 5.2) ─────────
       #
-      # CLOSES THE UPDATE CLAUDE.md §18.1 RECORDS AS OWED. This entry's
+      # CLOSES THE UPDATE FORMERLY RECORDED AS OWED AT CLAUDE.md §18.1.
+      # §18.1 was retired from CLAUDE.md on 2026-09-13 (brief step 7): this
+      # half had been closed since 2026-09-03 and the document never said
+      # so. The half that is STILL open — `agent-improve/**/*.md` excluded
+      # above, so no drift check can see the governing documents — is
+      # ARCHITECTURE.md §66 G-56, step 6.24. This entry's
       # message says "deprecated in v2.2", which is THIS PROJECT'S doc
       # version and applies to AGENT CONSTRUCTION only. CLAUDE.md §4.6
       # replaced v2.1's §4.3 and scoped the mechanism by call type:

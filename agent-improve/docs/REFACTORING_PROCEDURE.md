@@ -2217,6 +2217,58 @@ one whose method was a documentation page has been re-run against the installed
 package with the expression recorded; any verdict that moved has been propagated
 to the sections citing it; and `pytest` is green.
 
+
+## Step 6.24 — The drift hook learns to read the documents (G-56)
+
+| | |
+|---|---|
+| **Reference §** | §55 · §55.1 · §56 · G-56 |
+| **Touches** | `.claude/hooks/fact-ownership-guard.py` (new) · `.claude/config/fact_owners.yaml` (new) · `.claude/settings.json` |
+| **Precondition** | none — **READY** |
+| **Verify** | `pytest`, plus a test edit writing an owned value into a document being DENIED |
+
+### The gap this closes
+
+**`deprecated_patterns.yaml` excludes `agent-improve/*.md` and
+`agent-improve/**/*.md`.** CLAUDE.md, ARCHITECTURE.md and everything under
+`docs/` sit outside every pattern the drift hook enforces.
+
+**The exclusion is correct and that is what makes this hard.** Architecture
+markdown deliberately shows a superseded form beside its replacement — a
+registry that guards code must not match that, or every correction that shows
+its work would be blocked. So the documents are excluded for a good reason and
+guarded by nothing as a result.
+
+**The cost is measured, not hypothetical.** Every defect worked between
+2026-09-12 and 2026-09-13 was in a document: §8.1's inverted ordering rule,
+§7.3's tabled schema, §16.1's dependency blocker, §9's conceded reason, C-3's
+and S-1's verdicts. Not one was in code, and not one could have been caught by
+the mechanism that exists.
+
+### What to build
+
+**A hook that reads OWNERSHIP rather than patterns**, which is why it needs no
+exclusion. `fact-ownership-guard.py` reads `.claude/config/fact_owners.yaml` —
+the table stated under *Facts have one owner* in CLAUDE.md — and denies a write
+that states an owned value in prose:
+
+> this fact is owned by `<owner>` — cite it, do not restate it.
+
+A pattern list has to name what is wrong. An ownership list names what is
+*owned*, and everything else is free, so a document that quotes a superseded
+form to correct it is untouched while a document that restates a field count is
+denied.
+
+**The registry's exclusion stays exactly as it is.** This adds a second hook on
+the same event; it does not widen the first.
+
+### Done when
+
+A test edit writing an owned value — a field count, a version pin, a middleware
+position — into a `.md` under `agent-improve/` is DENIED with its owner named;
+an edit quoting a superseded form beside its replacement is ALLOWED;
+`deprecated_patterns.yaml`'s exclusions are unchanged; and `pytest` is green.
+
 ## Step 6.16 — The board is generated, not written
 
 | | |
@@ -3493,9 +3545,9 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **DONE** | 33 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21** |
 | **BUILDING NOW** | 1 | **6.19** — `CoachingResponse` gains §50.1's four presentational fields (G-50) |
 | **BLOCKED** | 7 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL) |
-| **QUEUED** | 21 | **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.22**, **6.23**, **11.1**, **11.2** |
+| **QUEUED** | 22 | **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.22**, **6.23**, **11.1**, **6.24**, **11.2** |
 
-*62 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-13.*
+*63 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-13.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -3821,6 +3873,7 @@ restate, which is the opposite of what the board is for.
 | 565 | **Commit 6.17** | The count-check — a written count against the list it describes |  | OPS | SHARED | A written count and the list it describes can disagree indefinitely - the failure five captions in this repository have already had. |
 | 567 | **Commit 6.22** | The order-check — the middleware stack's ordering test observes execution (G-52) |  | OPS | SHARED | The one test pinning §19's order replaces `create_agent`, so it asserts the rule against itself and stayed green through a three-week document split it existed to prevent. |
 | 569 | **Commit 6.23** | The source-method check — verification against the installed object, not the page (G-54) |  | OPS | SHARED | Every verdict in the verification log was reached by reading a page; one of them overwrote a correct statement and propagated the error to a second document. |
+| 571 | **Commit 6.24** | The drift hook learns to read the documents (G-56) |  | OPS | SHARED | The governing documents are excluded from every drift pattern, so the six defects worked on 2026-09-12 and 2026-09-13 were all in files nothing guards. |
 | 570 | **Commit 11.1** | Delete v1 |  | OPS | SHARED | Two implementations of every phase stay in the tree, and the dead one is still the one writing the v1 field names. |
 | 580 | **Commit 11.2** | Governance close-out |  | OPS | SHARED | The refactor has no end, so procedure and architecture drift apart again with nothing marking the handover. |
 

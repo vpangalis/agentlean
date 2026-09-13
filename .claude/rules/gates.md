@@ -1,7 +1,10 @@
 ---
 paths:
   - "agent-improve/backend/validation/**"
-  - "agent-improve/backend/phases/**"
+  - "agent-improve/backend/phases/gate_assembly.py"
+  - "agent-improve/backend/phases/gate_registry.py"
+  - "agent-improve/backend/phases/*/validate.py"
+  - "agent-improve/backend/phases/*/schema.py"
 ---
 # §9 — Validation and gates
 
