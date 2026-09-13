@@ -1,5 +1,5 @@
 # CLAUDE.md — Agent Improve
-# Version 2.2.39 — September 2026
+# Version 2.2.40 — September 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 DMAIC coaching agent: LangGraph phase subgraphs, LangChain `create_agent` with a
@@ -155,12 +155,19 @@ what this rule is for. Full procedure: ARCHITECTURE.md §56.
 
 ## Always — regardless of what you are touching
 
-*Only two. Every other ban from §14 lives in the rule file for the code it
-governs, which is where it loads.*
+*Five. Every other ban from §14 lives in the rule file for the code it governs,
+which is where it loads.*
 
 - Never renumber a rule cited in `deprecated_patterns.yaml` without updating the
   registry in the same commit (§0.2)
 - Never restate an owned fact in prose — cite its owner
+- The git working tree at HEAD is the only source of truth. A claim about a
+  file's content is made against that file at its repo path, read at the time of
+  the claim — never a cached copy, a snapshot, a draft, a scratchpad, or a
+  synced mirror (§0.32)
+- Scratch lives outside the tree, is never committed, and is never evidence. If
+  a scratch artifact matters it becomes a tracked file with a step number (§0.32)
+- A new file in the tree needs a step number or a gap number (§0.32)
 
 ### 0.24 — PREFER FRAMEWORK PRIMITIVES — a standing RULE, not a change record
 
@@ -218,6 +225,45 @@ none of the three landed as a pre-existing violation.
 > the violation. When the check says "the framework does not have this",
 > **record that finding** — `/verify-current-version` against the live package
 > index, per §16.3, not against memory or a document.
+
+### 0.32 — THE TREE AT HEAD IS THE ONLY SOURCE OF TRUTH
+
+*Constitutional, and kept in the root for §0.24's reason: it governs what may be
+CLAIMED and what may be COMMITTED, rather than one domain's code. Ratified
+2026-09-13; the ruling is ARCHITECTURE.md §56.3.*
+
+> **A claim about a file is made against that file, at its repo path, read at
+> the time of the claim.** Not a copy read earlier in the session, not a draft
+> of it, not a scratchpad summary of it, and not a mirror that syncs it.
+
+**The mirror is the sharpest case, because this tree lives inside one.** A
+synced copy can be complete, current-looking, and still not hold what git holds:
+`.claude/` does not appear in the OneDrive mirror at all, so from a seat that
+trusts the mirror the entire governance layer — every rule file, every hook,
+every skill — reads as absent. **A source of truth you can be wrong about
+without noticing is not one.** The test is a git command and never a directory
+listing: a file is in the tree, or `git ls-files` does not name it.
+
+**Clauses two and three are enforced, not merely stated.** Two rules of the
+commit-msg guard refuse the commit; `.claude/hooks/commit-msg-refactor-guard.py`
+owns the patterns and the resolution and its docstring carries both. One blocks
+a staged scratch path **by name**. The other blocks a path new to the tree with
+no step and no gap behind it — declared in the spine subject or in a `Step:` /
+`Gap:` trailer, and resolved against Appendix D or §66's register, **both read
+from the index**, so a gap registered in the same commit counts.
+
+**Both are ratchets rather than walls**, on rule 3's argument: they read only
+what is NEW to the tree, so paths already tracked stay visible and countable
+instead of blocking every commit that touches one.
+
+> **Neither rule can check clause one, and that is a limit, not an oversight.**
+> A gate sees the index; it never sees a sentence. A claim sourced from a stale
+> copy passes every hook in this repository and is caught only by the reader who
+> resolves the citation — which is why §20.5.1 already requires the file, the
+> line number, and the command behind a claim of absence. **G-57 carries the
+> other half**: these two rules are demonstrated and untested, where the 8D rule
+> carries a test suite written against exactly this failure mode — a message
+> check that stops matching fails SILENTLY, by letting commits through.
 
 ## How to deliver work
 

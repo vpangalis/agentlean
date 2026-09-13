@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """commit-msg hook — the refactor-commit guard.
 
-Blocks a `refactor(arch-v2)` commit unless ALL FOUR hold (rules 2b and 6 bind on
-EVERY commit, each on its own trigger):
+Blocks a `refactor(arch-v2)` commit unless ALL FOUR hold (rules 2b, 6, 7 and 8
+bind on EVERY commit, each on its own trigger):
 
 **Rule 2 was DELETED 2026-09-10** and its number is not reused — every other
 rule keeps the number it has been referred to by in commit messages, DECISIONS
 entries and this file's own prose since 2026-08-31. Renumbering to close the
 gap would silently redirect every one of those references. The rules are
-therefore 1, 2b, 3, 4, 5.
+therefore 1, 2b, 3, 4, 5, 6, 7 and 8.
 
   1. SUBJECT — matches the spine format EXACTLY:
          refactor(arch-v2): commit X.Y — <what changed>
@@ -78,9 +78,25 @@ therefore 1, 2b, 3, 4, 5.
      right. That limit is written into `check_8d`'s docstring rather than left
      for someone to assume away.
 
-NON-refactor commits are touched by rules 2b and 6 only. A docs or chore commit
-that neither changes a tabulated path nor claims to fix anything still passes
-through untouched.
+  7. SCRATCH — no path NEW to the tree matches a scratch pattern: a `scratch/`
+     or `_drafts/` segment, a `.bak`/`.tmp`/`.old` suffix, a `~$` lock file or
+     a OneDrive `conflicted copy`. **CLAUDE.md §0.32, clause 2**: scratch lives
+     outside the tree, is never committed, and is never evidence. It reads the
+     NAME and never the content, and only paths new to the tree — a ratchet,
+     like rule 3, because two `.bak` archives are tracked deliberately.
+
+  8. STEP OR GAP — every path NEW to the tree has a number behind it.
+     **CLAUDE.md §0.32, clause 3.** A spine subject declares its own step;
+     any other type carries `Step: 6.22` or `Gap: G-57` in the body, and the
+     number must RESOLVE — Appendix D for a step, §66's register for a gap,
+     both read from the INDEX so a gap registered in the same commit counts.
+     It checks that a number is declared and exists, never that the file
+     belongs to it: the same limit rule 6 carries, and stated for the same
+     reason.
+
+NON-refactor commits are touched by rules 2b, 6, 7 and 8 only. A docs or chore
+commit that changes no tabulated path, claims to fix nothing, and adds no file
+still passes through untouched.
 
 USAGE
     commit-msg hook:   <guard> <path-to-commit-message-file>
@@ -128,6 +144,7 @@ subprocesses of the pinned venv; this script imports neither.
 from __future__ import annotations
 
 import collections
+import fnmatch
 import os
 import re
 import subprocess
@@ -452,6 +469,236 @@ def check_architecture_status(root: str, staged: list[str]) -> None:
          "",
          "Update it (or confirm nothing it states changed, and touch it so the",
          "check of that is on the record), `git add` it, and commit again.")
+
+
+# --------------------------------------------------------------------------- #
+# Rules 7 and 8 — what may ENTER the tree (CLAUDE.md §0.32)
+# --------------------------------------------------------------------------- #
+#
+# §0.32's FIRST clause — the tree at HEAD is the only source of truth — binds on
+# what is CLAIMED, and a commit hook cannot check a claim. Its other two clauses
+# bind on what ENTERS the tree, which is precisely what a commit is, so they are
+# gated here and the first is left to the rule and to review.
+#
+# BOTH RANGE OVER `added_paths`, NOT `staged_paths`, AND THAT IS A RATCHET —
+# rule 3's argument applied to paths. They see only what is NEW TO THE TREE at
+# this commit; a path that is merely modified is invisible to them. Two `.bak`
+# files are tracked today under `agent-improve/docs/_archive/`, deliberately, as
+# archives of the root file. A rule reading every staged path would block every
+# commit that touched one, and a guard people route around with --no-verify is
+# worse than no guard. New scratch cannot land; what is already tracked stays
+# visible and countable.
+#
+# NEITHER HAS A SOFT OPT-OUT, unlike rule 6's `8D: NOT A FIX`. Rule 6's opt-out
+# exists because its trigger 2 fires on a MENTION and can therefore be wrong
+# about what a commit is. These two fire on the INDEX, which cannot be wrong
+# about it: either a scratch path is staged or it is not, either a number is
+# declared or it is not. The escape is `--no-verify`, which is on the record.
+
+# Rule 7 — path SEGMENTS that mean "working material". Matched whole, lowered,
+# against the DIRECTORY part only, so `docs/scratch/note.md` is caught and
+# `backend/knowledge/scratchpad_tools.py` is not. The list is not hypothetical:
+# `_Artifacts/` and `agent-improve/_Claude_chat_Prompts/` sit untracked in this
+# tree today, and `.gitignore` already calls `ARTIFACTS/` "not part of the repo"
+# while spelling it in a case the working directory does not use.
+SCRATCH_SEGMENTS = frozenset({
+    "scratch", "_scratch", "scratchpad", "_scratchpad",
+    "tmp", "_tmp", "temp", "_temp",
+    "draft", "drafts", "_draft", "_drafts",
+    "wip", "_wip", "sandbox", "playground",
+    "snapshot", "snapshots", "_snapshot", "_snapshots",
+    "artifacts", "_artifacts", "_claude_chat_prompts",
+})
+
+# Rule 7 — basename SUFFIXES. `.bak`, `.orig` and `.rej` are an editor's or a
+# merge's leavings. `.new`, `.old` and `.save` are a hand-rolled version control
+# standing beside the one the repository already has, which is the shape §0.32
+# names: a second copy that can disagree with the tracked file, with no history
+# to settle which of the two is the file.
+SCRATCH_SUFFIXES = (
+    ".bak", ".orig", ".rej", ".tmp", ".temp", ".swp", ".swo",
+    ".save", ".new", ".old", ".draft", ".log", ".jsonl",
+)
+
+# Rule 7 — basename SHAPES, matched case-insensitively with fnmatch. The last
+# two are what a SYNCED MIRROR produces, and §0.32's first clause names exactly
+# that mirror: OneDrive writes a conflicted copy when two machines edit one
+# file, and Office writes a `~$` lock file beside an open document. Both look
+# like content and are not.
+SCRATCH_GLOBS = (
+    "untitled*", "*.copy.*", "* - copy*", "*~",
+    "*conflicted copy*", "~$*",
+)
+
+# Rule 8 — where a declared number has to RESOLVE. Steps live in Appendix D of
+# the procedure (`cs.PROCEDURE` owns that path); gaps live in §66's register in
+# ARCHITECTURE.md, which `STATUS_PATH` already names for rule 2b.
+_APPENDIX_D_STEP_RE = re.compile(r"\*\*Commit (\d+\.\d+)\*\*")
+_GAP_ROW_RE = re.compile(r"\|\s*~{0,2}\*\*(G-\d+)\*\*")
+
+# Rule 8 — where a number may be DECLARED. A spine subject already carries one
+# and is not made to repeat it; every other commit type declares a trailer.
+_SPINE_STEP_RE = re.compile(r"^refactor\(arch-v2\): commit (\d+\.\d+)\b")
+_STEP_TRAILER_RE = re.compile(r"^[\s*_]*Steps?[\s*_]*:[ \t]*(?P<v>.+)$", re.M | re.I)
+_GAP_TRAILER_RE = re.compile(r"^[\s*_]*Gaps?[\s*_]*:[ \t]*(?P<v>.+)$", re.M | re.I)
+_STEP_TOKEN_RE = re.compile(r"\b\d+\.\d+\b")
+_GAP_TOKEN_RE = re.compile(r"\bG-\d+\b", re.I)
+
+
+def added_paths(root: str) -> list[str]:
+    """Paths NEW TO THE TREE AT THIS NAME — added, or renamed into place.
+
+    **`R` is in the filter on purpose.** `git mv REPORT.md REPORT.md.bak` puts a
+    scratch name into the tree while adding nothing, and a check reading only
+    `A` would watch it happen.
+    """
+    out = subprocess.run(
+        ["git", "diff", "--cached", "--name-only", "--diff-filter=AR"],
+        capture_output=True, encoding="utf-8", errors="replace",
+        cwd=root, timeout=10,
+    )
+    if out.returncode != 0:
+        raise RuntimeError(
+            f"git diff --cached --diff-filter=AR failed: {out.stderr.strip()}")
+    return [ln.strip().replace("\\", "/") for ln in out.stdout.splitlines() if ln.strip()]
+
+
+def scratch_reason(path: str) -> str:
+    """Why `path` is scratch, or an empty string. Names the pattern, not a verdict.
+
+    The message a developer reads has to say WHICH pattern caught the path:
+    "this looks like scratch" is an opinion, and "a .bak suffix" is a fact they
+    can act on.
+    """
+    parts = path.lower().split("/")
+    name = parts[-1]
+    for seg in parts[:-1]:
+        if seg in SCRATCH_SEGMENTS:
+            return f"a `{seg}/` directory"
+    for suffix in SCRATCH_SUFFIXES:
+        if name.endswith(suffix):
+            return f"a `{suffix}` suffix"
+    for glob in SCRATCH_GLOBS:
+        if fnmatch.fnmatch(name, glob):
+            return f"the `{glob}` shape"
+    return ""
+
+
+def check_scratch(added: list[str]) -> None:
+    """Rule 7 — scratch never enters the tree (CLAUDE.md §0.32, clause 2).
+
+    **The clause is "never evidence", and this is the half a gate can hold.**
+    A scratch artifact that stays outside the tree cannot be cited as what the
+    code says, because a citation resolves to a repo path or it does not
+    resolve at all. What this rule stops is the other direction — the draft
+    getting committed and thereby becoming citable, at which point two files
+    hold the same content and nothing says which one is the file.
+
+    IT CHECKS THE NAME, NEVER THE CONTENT. A scratch file called `notes.md`
+    passes. That limit is `check_8d`'s limit restated: the gate makes the
+    convention cheap to follow, and does not make it impossible to evade.
+    """
+    hits = [(p, why) for p in added if (why := scratch_reason(p))]
+    if not hits:
+        return
+    fail("scratch is staged, and scratch never enters the tree",
+         "CLAUDE.md §0.32: scratch lives OUTSIDE the tree, is never committed,",
+         "and is never evidence.", "",
+         "Staged as new, and caught by name:",
+         *[f"  - {p}   ({why})" for p, why in hits], "",
+         "If the artifact matters it becomes a TRACKED FILE WITH A STEP NUMBER",
+         "— a real path, a real name, and rule 8 asking which step or gap it",
+         "belongs to. If it does not matter it belongs outside the tree:",
+         "",
+         "  git restore --staged <path>     # then move it out, or ignore it",
+         "",
+         "Only paths NEW to the tree are read, so this is about what you are",
+         "adding now and never about anything already tracked.")
+
+
+def _declared_numbers(subject: str, message: str) -> tuple:
+    """The step and gap numbers this commit CLAIMS, before any of them resolve."""
+    steps = set(_SPINE_STEP_RE.findall(subject))
+    for m in _STEP_TRAILER_RE.finditer(message):
+        steps.update(_STEP_TOKEN_RE.findall(m.group("v")))
+    gaps = set()
+    for m in _GAP_TRAILER_RE.finditer(message):
+        gaps.update(t.upper() for t in _GAP_TOKEN_RE.findall(m.group("v")))
+    return steps, gaps
+
+
+def _staged_text(root: str, rel: str) -> str:
+    """A tracked document AS THIS COMMIT WILL CONTAIN IT — the index, not the disk.
+
+    **This is §0.32's first clause applied to the guard's own reading.** A
+    commit that registers G-57 and adds the file that gap schedules, together,
+    has to pass — and only the index knows both halves. Reading the working
+    tree would read a version this commit is not making, which is the
+    cached-copy failure the rule names.
+    """
+    out = subprocess.run(
+        ["git", "show", f":{rel}"],
+        capture_output=True, encoding="utf-8", errors="replace",
+        cwd=root, timeout=20,
+    )
+    if out.returncode != 0 or not out.stdout:
+        raise RuntimeError(f"cannot read `{rel}` from the index: {out.stderr.strip()}")
+    return out.stdout
+
+
+def check_step_or_gap(root: str, subject: str, message: str, added: list[str]) -> None:
+    """Rule 8 — a new file in the tree needs a step number or a gap number (§0.32).
+
+    **A file with no number is a file nothing scheduled**, and §66's register
+    already states the consequence in its own words: *"a gap without one does
+    not render on the board and so is not scheduled by anything."* A path that
+    entered the tree with no step and no gap behind it is that condition one
+    level down — present, costing review, owned by no plan.
+
+    THE NUMBER IS DECLARED AND RESOLVED; IT IS NOT VERIFIED TO FIT. A spine
+    subject declares its own step; any other type carries `Step: 6.22` or
+    `Gap: G-57` in the body. The number must exist — in Appendix D, or in §66's
+    register — and that is ALL this checks. Declaring `Step: 2.3` for a file
+    with nothing to do with the dependency upgrade passes. Like rule 6, it makes
+    the discipline cheap and auditable rather than impossible to evade: the
+    trailer is greppable, so a wrong one is findable afterwards, which is more
+    than an undeclared file leaves behind.
+    """
+    if not added:
+        return
+    steps, gaps = _declared_numbers(subject, message)
+    if not steps and not gaps:
+        fail("a new file is entering the tree with no step number and no gap number",
+             "CLAUDE.md §0.32: a new file in the tree needs a step number or a",
+             "gap number.", "",
+             "New in this commit:",
+             *[f"  - {p}" for p in added], "",
+             "Declare the work it belongs to, in the subject or in the body:",
+             "",
+             "  refactor(arch-v2): commit 6.22 — <what changed>  # the spine says it",
+             "  Step: 6.22                                       # any other type",
+             "  Gap: G-57                                        # or the register",
+             "",
+             "The number must RESOLVE — Appendix D of docs/REFACTORING_PROCEDURE.md",
+             "for a step, §66's register in ARCHITECTURE.md for a gap. If neither",
+             "exists yet then nothing is scheduling this file: register the gap",
+             "first, in its own commit, per §56.")
+
+    known_steps = set(_APPENDIX_D_STEP_RE.findall(_staged_text(root, cs.PROCEDURE)))
+    known_gaps = {g.upper() for g in _GAP_ROW_RE.findall(_staged_text(root, STATUS_PATH))}
+    if (steps & known_steps) or (gaps & known_gaps):
+        return
+    fail("the step or gap number this commit declares does not resolve",
+         "Declared, and found in no register:",
+         *[f"  - {d}" for d in sorted(steps) + sorted(gaps)], "",
+         f"Steps resolve against Appendix D of {cs.PROCEDURE}.",
+         f"Gaps resolve against §66's register in {STATUS_PATH}.",
+         "Both are read from the INDEX, so a number registered in THIS commit",
+         "counts — stage the register row alongside the file.", "",
+         "A number that resolves nowhere schedules nothing, which leaves the",
+         "file in the state rule 8 exists to prevent. §66's own words: a gap",
+         "without a number does not render on the board, and so is not",
+         "scheduled by anything.")
 
 
 # --------------------------------------------------------------------------- #
@@ -822,6 +1069,23 @@ def main(argv: list[str]) -> int:
         fail("the guard itself failed", f"{exc}",
              "Blocking rather than passing: a guard that waves a commit through",
              "when its own logic breaks is worse than no guard.")
+    # ── Rules 7 and 8 — what may ENTER the tree (CLAUDE.md §0.32) ─────────
+    # FIRST of all the rules, and ahead of the prefix gate with 2b and 6.
+    # A scratch path in the index is a more basic failure than a stale status
+    # table, and both of these are lexical: they read the index and the message
+    # and spend no subprocess on mypy or pytest to reject a commit that was
+    # never going to land. Both bind on EVERY commit — a draft lands under a
+    # `docs(` subject as easily as under a `refactor(`, which is the same
+    # argument that put 2b ahead of the gate.
+    try:
+        added = added_paths(root)
+    except Exception as exc:  # noqa: BLE001 — fail CLOSED
+        fail("the guard itself failed", f"{exc}",
+             "Blocking rather than passing: a guard that waves a commit through",
+             "when its own logic breaks is worse than no guard.")
+    check_scratch(added)
+    check_step_or_gap(root, subject, message, added)
+
     check_architecture_status(root, all_staged)
 
     # ── Rule 6 — also ahead of the prefix gate, and for the same reason ────
