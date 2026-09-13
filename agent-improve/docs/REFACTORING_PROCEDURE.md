@@ -2224,6 +2224,28 @@ per claim, run against the pinned venv and recorded verbatim in the entry:
 `importlib.metadata.version()` for a version claim. **Never the page a second
 time** — that is what produced the error.
 
+> **THE COROLLARY, AND IT BOUNDS STEP 1: INTROSPECTION SETTLES MEMBERSHIP,
+> NEVER ORDER OR BEHAVIOUR.** `vars()` and `inspect.signature()` answer *is this
+> name there, and what does it take*. They are silent about *what happens
+> first*, *what happens when this raises*, and *how these compose*.
+>
+> **An entry claiming an ORDER is settled by a runtime test, not a signature** —
+> one that exercises the path and observes what happened. **Until such a test
+> exists the entry is marked as resting on a page, not verified.** Marking it is
+> a result; leaving it looking verified because the classes exist is the defect
+> this step closes, one layer down.
+>
+> **E-2 is the worked example.** It claims retries decide first and
+> `error_handler` runs only after they are exhausted. `RetryPolicy` exists and
+> carries `max_attempts` — and none of that settles it. What would: a test that
+> raises inside a node and counts attempts before the handler fires. E-2 is
+> therefore the one entry in the log still marked as resting on a page.
+>
+> **§19's middleware order is the same shape settled the other way**, which is
+> why G-52 and G-54 are one lesson from two ends. No `vars()` could establish
+> that `after_*` fires innermost-first; `test_middleware_execution_order.py`
+> invokes the real compiled graph and observes it.
+
 **2 — Correct in place, never delete.** C-3's pattern: strike the withdrawn
 text, state what is actually true, and say why the entry got it wrong. A
 verification log that removes its own errors cannot be used to judge what its

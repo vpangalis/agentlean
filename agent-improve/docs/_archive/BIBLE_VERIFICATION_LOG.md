@@ -292,6 +292,14 @@ that raises inside a node and counts attempts before the handler fires can.
 **Recorded as the one entry whose verdict rests on the page still**, rather
 than marked verified on the strength of the classes existing.
 
+**THE WORKED EXAMPLE FOR G-54's COROLLARY** — *introspection settles
+MEMBERSHIP, never ORDER or BEHAVIOUR* (`verify-current-version`, step 6.23).
+`RetryPolicy` existing and carrying `max_attempts` establishes that the pieces
+are there. It says nothing about which runs first, and an order is exactly what
+this entry claims. **Marked as resting on a page is a RESULT here, not an
+omission**: the alternative — calling it verified because the classes exist —
+is the C-3 failure with a different surface.
+
 ### E-3 · `TimeoutPolicy(idle_timeout=...)`
 
 **Source:** as above

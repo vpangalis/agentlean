@@ -234,6 +234,37 @@ worse-supported than it was. Both are registered as **G-54**.
 **A documentation page is evidence ABOUT an API; the installed object IS the
 API.** When the two disagree, the object wins and the page is the finding.
 
+### The corollary: introspection settles MEMBERSHIP, never ORDER or BEHAVIOUR
+
+`vars()` and `inspect.signature()` answer one kind of question — **is this name
+there, and what does it take.** They cannot answer *what happens first*, *what
+happens when this raises*, or *how these compose*. Those are behaviour, and a
+signature is silent about behaviour.
+
+| The claim is about… | Settled by |
+|---|---|
+| a member, a parameter, a version | **introspection** — `vars()`, `inspect.signature()`, `importlib.metadata.version()` |
+| an order, a composition, a failure path | **a runtime test** that exercises it and observes what happened |
+
+**Worked, and the two halves are the same lesson from opposite ends.**
+
+**E-2** in `BIBLE_VERIFICATION_LOG.md` claims an order: *retries decide first,
+`error_handler` runs only after they are exhausted.* Both classes exist and
+`RetryPolicy` carries `max_attempts` — and **none of that settles the claim.**
+No test raises inside a node and counts attempts before the handler fires, so
+the entry is marked as **resting on a page, not verified**. That is the honest
+state, and it is not the same as unverified-by-oversight.
+
+**§19's middleware order** was the same shape and was settled the other way. No
+amount of `vars()` could establish that `after_*` fires innermost-first;
+`test_middleware_execution_order.py` invokes the real compiled graph and
+observes 8 → 7 → 6. Until it existed the only "proof" was a test that reversed
+the declared list and compared it with itself — registered as **G-52**.
+
+**So: when a claim is about order, do not reach for `vars()` and feel finished.**
+Write the runtime test, or mark the entry as resting on a page. Marking it is a
+result; leaving it looking verified is the defect G-54 exists to end.
+
 **The floor, not the pin.** `agent-improve/requirements.txt` owns every version
 (ARCHITECTURE.md §55.4). Never upgrade to a number written in a document —
 re-resolve against live PyPI, then repin there.
