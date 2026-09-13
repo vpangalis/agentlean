@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.47 · 2026-09-13
+Version 1.48 · 2026-09-13
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.48 (2026-09-13)** — **§56 AMENDMENT. The amendment procedure is reconciled with the topology the September refactor produced, and §56 was stale about ITSELF in two places.** **(A) STEP 1 NAMED A DESTINATION THAT TAKES NO ENTRIES.** It routed every ruling to `docs/_archive/DECISIONS.md`, archived on 2026-09-10. **(B) STEP 4 DESCRIBED THIS FILE'S OWN STRUCTURE, WRONGLY.** It said *"this document has no change-log section, by design"* — while this document has carried one at its head since v1.0 and every amendment of the September pass was written into it. **A procedure that describes a file's structure is a copy of a fact the file owns, and it went stale exactly the way every other copy in this repository did.** Step 4 also required a numbered `§0.x` entry in `CLAUDE.md`; §0's change records moved to `docs/_archive/` at brief step 5 and the root carries a version line and nothing else. **(C) THE PROCEDURE NOW HAS SIX STEPS AND ACCOUNTS FOR WHAT EXISTS**: the ruling lands here with a §56 entry and a version increment; the rule change lands in the file that HOLDS the rule — the root or one of thirteen under `.claude/rules/`; the registry is updated in the same commit if it cites the number; **the enforcement column of §55.4 is CHECKED rather than assumed, because enforcement is not uniform across the five owners**; reference material is amended in the skill that holds it rather than added back to the root; and the body states occurrence and escape. **(D) §56.0 — WHAT CHANGED WHEN THE RULES STOPPED BEING ONE FILE.** A rule number now resolves in fourteen places. Moving a rule between files is safe, since the number travels with it; **renumbering is what breaks silently**, and there are fourteen places for the break to hide. Three checks stand behind the topology and each answers a different question — citations resolve, `paths:` globs match, owned facts agree. **(E) §56.0.1 — RULE, REFERENCE, OR OWNED FACT.** An amendment goes wrong most often by putting the right content in the wrong place, so the test is what KIND of thing it is: a rule binds on code and goes where that code's `paths:` reach; reference goes to the task's skill; **a value some file owns goes nowhere — cite the owner.** **(F) THE CHECK THIS SECTION PRESCRIBES WAS BUILT, AND ITS FIRST TWO CUTS WERE WRONG.** `verify_rule_citations.py` reads only `message:` fields, because a §-number in a YAML comment is prose about history — a whole-file grep called `§18.1` dangling when the comment beside it explains its retirement. And it resolves **three namespaces** against three corpora: `CLAUDE.md §x`, `Reference §x`, `EDUCATIONAL §x`. A checker that assumed one reported six false failures on its first run. **A prescribed command that cries wolf is worse than no command, because it is written into governance.** Proven to fail: renumbering a cited rule to `§8.99` gives exit 1 naming it. Reasoning: this commit body.
 
 **v1.47 (2026-09-13)** — **§56 RECORD. The ownership guard reads the dependency-versions row at last, and G-56's Done-when passes on all four clauses.** **(A) THE GAP.** The guard built its symbol table only from `owner.get("symbols")`. `dependency-versions` declares no symbols — it declares `symbol_source: requirements`, because **the package names ARE the symbols** — so the guard read nothing for it and **a version pin written into a governing document went undetected.** That is the exact class that put a false BLOCKER into §16.1 and §53 and left it there three weeks. Found by testing step 6.24's Done-when clause by clause rather than by assuming a passing check passes. **(B) A FLOOR IS NOT A PIN, AND THAT DISTINCTION IS THE RULE.** §55.4 puts the floor in the documents deliberately — `langgraph >= 1.2.6` is a rule and belongs where rules live — and the pin in `requirements.txt`, which owns it. So `>= 1.2.6` PASSES and a bare `1.2.11` beside the same package name is denied. **(C) ONLY THE CURRENT PIN IS A RESTATEMENT.** `langgraph 1.1.10 → 1.2.11` records a migration and names a version that is no longer the pin; nothing can drift out of a fact about the past. A dated line is likewise a record — *"Introspected against `langgraph` 1.2.11 on 2026-09-12"* is EVIDENCE, the G-54 discipline working, and the date is looked for on the preceding line too because a record is a sentence and a sentence wraps. **(D) MEASURED BEFORE ENFORCED, WHICH IS NOW THE HABIT.** A 40-character proximity window reported **82** claims across four documents, nearly all step numbers sitting near a package name; adjacency of three characters plus the current-pin test brought that to **4, every one genuine** — and **four of them were written this week, by the session that built the guard.** All four are corrected to cite `requirements.txt` rather than restate it. **(E) `CONTINUITY.md` AND `board.html` ARE EXCLUDED.** Both are generated on every commit and never hand-edited, so guarding them would deny an edit nobody makes by hand and block the pre-commit hook that writes them. **(F) G-56 IS STILL OPEN** — its remaining condition is a ruling, not an engineering problem: gate tier splits and tool inventory. Reasoning: this commit body.
 
@@ -7234,25 +7236,94 @@ what was true when written.
 > **NOT-MARKABLE:** **governance procedure.** How this document is amended has no built form; §56.2's split (rule here, reasoning in the commit) is followed or it is not, and the commit-msg guard is what notices.
 
 *Supersedes: CLAUDE.md §18.*
-**Status: RATIFIED.**
+**Status: RATIFIED.** Reconciled 2026-09-13 against the topology the September
+refactor produced — thirteen rule files, five ratified owners, seven skills.
 
 This document and an agent's `CLAUDE.md` are amended only via:
 
-1. A new architectural decision, recorded in `agent-improve/docs/_archive/DECISIONS.md`
-2. A commit updating the relevant section here and/or the rule in that agent's `CLAUDE.md`
-3. Increment to the version number at the top
-4. **The change log goes in `agent-improve/docs/_archive/DECISIONS.md` — in the same entry as step 1 —
-   plus a one-line version note at the head of this document. This document has
-   no change-log section, by design** (see *About this document*: it states
-   conclusions, not their history). An agent's `CLAUDE.md` is the exception: it carries its
-   own numbered `§0.x` change entries, and an amendment touching a rule there
-   adds one.
-5. **If a rule number cited in `deprecated_patterns.yaml` changes, the registry
-   is updated in the same commit** (§55)
+1. **The ruling is recorded HERE** — in the section that owns the topic, **plus
+   a `§56` changelog entry at the head of this file and an increment to the
+   version line.** Rulings do not go to `docs/_archive/DECISIONS.md`; that file
+   was archived on 2026-09-10 and takes no new entries.
+2. **The rule change is committed to the file that HOLDS the rule** — the root
+   `CLAUDE.md` or one of `.claude/rules/*.md`. Its own commit, `docs(rules):`
+   prefix, no code alongside it.
+3. **If the rule number is cited in `deprecated_patterns.yaml`, the registry is
+   updated in the same commit** (§55, and CLAUDE.md §0.2).
+4. **If the change touches a ratified owner (§55.4), the enforcement column is
+   checked** — not assumed. Enforcement is not uniform across the five rows.
+5. **If the material is REFERENCE rather than rule, it is amended in the skill
+   that holds it**, not added back to the root.
+6. **The commit body states the occurrence and the escape causes** (CLAUDE.md
+   §20). An amendment is a fix to a rule, and rule 6 of the commit-msg guard
+   applies on its own trigger.
 
-*Step 4 previously read only "a change-log entry", against a document that
-deliberately has no change log — leaving the amender to invent a destination.
-Corrected 2026-08-21.*
+> **STEP 1 WAS WRONG IN TWO DIRECTIONS UNTIL 2026-09-13, AND BOTH WERE ABOUT
+> THIS FILE.** It routed the ruling to `DECISIONS.md`, which has been archived
+> since 2026-09-10 — so the procedure named a destination that takes no
+> entries. And its step 4 said *"this document has no change-log section, by
+> design"* while **this document has carried one at its head since v1.0** and
+> every amendment in the September pass was written into it. A procedure that
+> describes a file's structure is a copy of a fact the file owns, and it went
+> stale the way every other copy in this repository did.
+>
+> The old step 4 also required a numbered `§0.x` change entry in `CLAUDE.md`.
+> §0's change records moved to `docs/_archive/` at brief step 5; the root file
+> carries the version line and nothing else. **The changelog for a rule change
+> is this file's §56 entry and the commit body — there is no second place.**
+
+### 56.0 What changed about amending, when the rules stopped being one file
+
+**A rule number used to resolve in one document.** It now resolves in the root
+`CLAUDE.md` **or** in one of thirteen files under `.claude/rules/`, and the
+registry's citations must still resolve across both. That is the whole of
+§0.2's invariant restated for the topology that exists:
+
+```bash
+python .claude/hooks/verify_rule_citations.py
+```
+
+**Three namespaces, not one.** The registry's messages cite `CLAUDE.md §x` for a
+rule, `Reference §x` for a section of this document, and `EDUCATIONAL §x` for the
+archived design review — and each resolves against a different corpus. A checker
+that assumed one reported **six false failures on its first run**, every one an
+`EDUCATIONAL` citation. Only `message:` fields are read: a §-number in a YAML
+comment is prose about history, not text the hook quotes back.
+
+**Renumbering is the dangerous edit, and it is more dangerous now than it was.**
+A rule moved between files keeps its number and the citation still resolves; a
+rule RENUMBERED breaks every citation silently, and there are now fourteen
+places for it to hide instead of one.
+
+**Three checks stand behind this and each answers a different question:**
+
+| Check | Answers |
+|---|---|
+| the rule-number sweep above | does every cited number still resolve? |
+| `verify_rule_triggers.py` | does every `paths:` glob still match a real file? |
+| `drift-check.py` | does every owned fact still agree with its owner? |
+
+**A `paths:` glob that matches nothing fails silently** — the rule simply never
+loads. That is not a hypothetical: thirteen rule files shipped at brief step 6
+with globs rooted at `backend/**` when `.claude/` sits above `agent-improve/`,
+and every one matched zero files.
+
+### 56.0.1 Rule, reference, and owned fact — three destinations
+
+An amendment goes wrong most often by putting the right content in the wrong
+place, so the test is **what kind of thing is it**:
+
+| It is… | It goes to | Because |
+|---|---|---|
+| a RULE that binds on code | the root, or the rule file whose `paths:` cover that code | it must load when that code is opened |
+| REFERENCE read while doing a task | the skill for that task | it loads on invocation, not in every session |
+| a VALUE some code or file owns | nowhere — **cite the owner** (§55.4) | a second copy is a copy that can drift |
+
+**The third row is the one that keeps being got wrong.** Every contradiction the
+September audit found was a document restating a value it did not own —
+`PhaseState`'s field count, the evidence index's schema, the dependency pins,
+the middleware order. `fact-ownership-guard.py` now denies the write; §55.4
+names the five owners and how each is enforced.
 
 ### 56.1 A phase is one atomic unit — schema, validator, skill
 

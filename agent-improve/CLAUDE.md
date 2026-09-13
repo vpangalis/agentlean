@@ -1,5 +1,5 @@
 # CLAUDE.md — Agent Improve
-# Version 2.2.38 — September 2026
+# Version 2.2.39 — September 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 DMAIC coaching agent: LangGraph phase subgraphs, LangChain `create_agent` with a
@@ -124,13 +124,34 @@ was of that kind.
 `fact-ownership-guard.py` denies an edit that writes an owned value into prose.
 Cite the owner instead.
 
-### 0.2 — Rule numbers are load-bearing
+### 0.2 — Rule numbers are load-bearing, across fourteen files
 
 `.claude/config/deprecated_patterns.yaml` cites rule numbers in the messages the
-drift hook feeds back. **Those citations must resolve. Renumbering a cited rule
-requires updating the registry in the same commit.** A hook that cites a
-non-existent rule is worse than no hook. The registry owns the pattern-to-rule
-mapping; it is not restated here.
+drift hook feeds back when it denies a write. **Those citations must resolve.
+Renumbering a cited rule requires updating the registry in the same commit.** A
+hook that cites a non-existent rule is worse than no hook. The registry owns the
+pattern-to-rule mapping; it is not restated here.
+
+**A rule number now resolves in this file OR in one of thirteen files under
+`.claude/rules/`**, and the invariant spans both. Moving a rule between files is
+safe — the number travels with it and the citation still resolves. **Renumbering
+is what breaks silently**, and there are now fourteen places for the break to
+hide instead of one:
+
+```bash
+python .claude/hooks/verify_rule_citations.py
+```
+
+It reads the registry's `message:` fields — the text actually quoted back when a
+write is denied — and resolves each citation in its own namespace: `CLAUDE.md §x`
+against the root and the rule files, `Reference §x` against ARCHITECTURE.md,
+`EDUCATIONAL §x` against the archived review. **A §-number in a YAML comment is
+prose about history and is not checked**; a grep over the whole file reports it
+as dangling and is the wrong tool here.
+
+**This fired for real on 2026-09-13.** Retiring §18.1 left the registry citing a
+rule that no longer existed; the sweep caught it in the same commit, which is
+what this rule is for. Full procedure: ARCHITECTURE.md §56.
 
 ## Always — regardless of what you are touching
 
@@ -255,16 +276,27 @@ counts as migrated when it is rewritten under v2.2 rules and committed with a
 
 ## Amending the rules
 
-1. Record the ruling in `ARCHITECTURE.md` — the section that owns the topic, plus
-   its §56 changelog entry. Rulings do not go to any archived document.
-2. Commit the rule change to this file or the owning rule file — its own commit,
-   `docs(rules):` prefix, no code alongside it.
+*Canonical: ARCHITECTURE.md §56, reconciled 2026-09-13 with the topology this
+file now sits in.*
+
+1. Record the ruling in `ARCHITECTURE.md` — the section that owns the topic,
+   plus a §56 changelog entry and a version increment there. **Rulings do not go
+   to any archived document**; `docs/_archive/DECISIONS.md` takes no new entries.
+2. Commit the rule change to the file that HOLDS the rule — this file or one of
+   `.claude/rules/*.md`. Its own commit, `docs(rules):` prefix, no code
+   alongside it.
 3. **Increment the version number at the top of this file.**
 3b. **A new field on `SupervisorState`, `PhaseState` or `CoachingResponse`
-   requires an amendment** — all three are load-bearing schemas (§10.1, §10.7).
+   requires an amendment** — all three are load-bearing schemas.
 4. If the rule number appears in `deprecated_patterns.yaml`, update the registry
-   in that same commit (§0.2).
-5. State the occurrence and escape causes in the commit body (§20).
+   in that same commit, and re-resolve every citation across this file and the
+   rule files (§0.2).
+5. **Before writing the content, decide what KIND of thing it is.** A rule binds
+   on code and goes to the file whose `paths:` cover that code. Reference read
+   while doing a task goes to that task's skill, not back into this file. **A
+   value some code or file owns goes nowhere — cite the owner** (ARCHITECTURE.md
+   §55.4, five ratified owners, enforcement per row and not uniform).
+6. State the occurrence and escape causes in the commit body (§20).
 
 **Never amend a rule "in passing" while making a feature change.** Architecture
 changes are separate commits.

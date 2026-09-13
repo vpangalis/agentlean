@@ -70,6 +70,34 @@ exists.
 empty>`. An omitted discipline reads as forgotten; an empty one that explains
 itself is a result. Bare `NONE` does not pass the gate.
 
+## D6 — a proof covers every case the Done-when names
+
+**Run the Done-when as a CHECKLIST, clause by clause, and report a partial proof
+as partial.** A proof that covers one of three named cases reads exactly like a
+proof, and that is what makes it dangerous rather than merely incomplete.
+
+**Worked, 2026-09-13, and it is this project's own.** Step 6.24's Done-when
+named three things an ownership guard must deny — *"a field count, a version
+pin, a middleware position"*. The guard was proven on three cases: deny in a
+document, allow in code, allow with the owner cited. All three exercise **the
+same registry row**. The version-pin row declared its symbols a different way,
+the guard never read it, and **version pins in governing documents were silently
+allowed for a day** — the exact class that had put a false dependency blocker
+into two documents for three weeks.
+
+Nothing was wrong with the three tests. What was wrong is that they were
+reported as *the* proof rather than as proof of one clause.
+
+| Ask of every D6 | Why |
+|---|---|
+| Which clause of the Done-when does each test cover? | a clause with no test is the gap |
+| Which cases are NOT covered, named explicitly? | an unnamed gap is indistinguishable from no gap |
+| What edit makes this check go red? | a check only ever seen passing is not known to fail |
+| Did I test the path I WROTE, or the path that ships? | the code path you exercise while writing is the one that works |
+
+**Report it as `D6: PARTIAL — covers <clauses>; NOT covered: <clauses>`.** That
+is a complete D6. Silence about the uncovered half is not.
+
 ## Worked example — G-49, empty disciplines included
 
 The value of this example is D3, D5 and D7, which are all empty and all say why.
