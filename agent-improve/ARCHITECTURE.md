@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.39 · 2026-09-12
+Version 1.40 · 2026-09-13
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.40 (2026-09-13)** — **§56 AMENDMENT. §9 CONCEDED A REASON TO A PARAMETER THAT HAS NEVER EXISTED. The Azure AI Search ruling stands on TWO technical reasons, not one.** **(A) THE RULING IS UNCHANGED; ITS BASIS IS CORRECTED.** §9 recorded three reasons for keeping `improve_case_index` on Azure AI Search — the Store has no metadata filtering, no hybrid BM25 + vector scoring, no multi-query + RRF — then conceded two of them and concluded the decision *"now rests on one technical reason rather than three"*. **The hybrid concession followed entirely from `mode="hybrid"`, which does not exist.** **(B) READ FROM THE INSTALLED PACKAGE, NOT A PAGE.** `inspect.signature(BaseStore.search)` on `langgraph` 1.2.11 returns `['namespace_prefix', 'query', 'filter', 'limit', 'offset', 'refresh_ttl']` — six parameters. §9 named eight, of which **four do not exist** (`mode`, `similarity_threshold`, `vector_weight`, `distance_metric`) and one that is REQUIRED (`namespace_prefix`) was not among them. Checked past the base class because a concrete store could have widened it and none does: `InMemoryStore.search`/`.asearch` identical, `SearchOp` identical, `IndexConfig` exposes only `dims`/`embed`/`fields`, and **the string `hybrid` occurs nowhere in the installed package.** **(C) THE SCORECARD.** Metadata filtering — **CONCEDED**, `filter=` exists and does the job. Hybrid scoring — **STANDS**. Multi-query + RRF — **STANDS** (§25). §25 gains the tie-in, because §9's old text left it looking like the sole support for a live ruling; it is one of two. §25's own `MultiQueryRetriever` / `EnsembleRetriever` ban was re-verified by import in the same pass — `langchain.retrievers` raises `ModuleNotFoundError`, both classes present under `langchain_classic.retrievers`, and §18's rule holds that presence is not permission. **(D) THE DIRECTION OF THE ERROR IS THE PART TO KEEP.** C-3 made a document worse; S-1 made a sound ruling look **worse-supported than it was** and then flagged it for re-examination on that false basis. **An error that understates your own position is not a safe error** — it invites reopening a decision that was never in doubt, and it reads as diligence while doing it. **(E) S-1 IS CORRECTED IN PLACE UNDER G-54's RULE**, with a `Source method` row added — *"~~documentation page~~ → introspection — `inspect.signature(BaseStore.search)`, re-run 2026-09-13"* — which is the column step 6.23 will add to every entry. S-1 was named in G-54 as the one entry in that log pinned by nothing while a live ruling rested on it; that is how this was found, and it is the first of the four the step will work. Reasoning: this commit body.
 
 **v1.39 (2026-09-12)** — **§56 RECORD. The §0-retirement dependency check: TWO OF §0's SUBSECTIONS ARE LIVE RULES, NOT CHANGE RECORDS, and one of them is cited by the drift hook.** **(A) THE CHECK, AND WHY IT WAS RUN BEFORE THE RETIREMENT AND NOT DURING IT.** CLAUDE.md §0 is scheduled for wholesale retirement to `docs/_archive/` — 1,112 lines, 26% of the file. Every `§0.x` citation from a live section (line > §0's end) was enumerated first: **§0.18 ×5, §0.28 ×4, §0.24 ×4, §0.20 ×3, §0.2 ×2, §0.17 ×2, §0.10 ×2, §0.29 / §0.30 / §0.31 ×1 each.** **(B) MOST ARE PROVENANCE AND MOVE NOTHING.** §0.17, §0.18, §0.20, §0.28–§0.31 are cited for the DATE a thing was ratified, while the live sections state the values themselves — §9.7 carries *"Thirteen gate-required, twelve coached"* in its own text and cites §0.18 only for *"Option A, ratified 2026-08-26"*. Retiring those rows costs a provenance pointer, not a fact, and no value needs moving. **(C) §0.2 AND §0.24 ARE DIFFERENT IN KIND AND MUST NOT BE RETIRED.** §0.24 says so in its own first line — *"Every other §0.x above is a dated 'What Changed' entry. **This one is a rule**, placed in §0 because it is constitutional"* — and §0.2 states the rule-numbers-are-load-bearing invariant plus the registry's citation table. **`.claude/config/deprecated_patterns.yaml` cites `§0.24` three times**, in the `permissionDecisionReason` messages `pattern-9-hand-rolled-llm-retry`, `pattern-10-custom-llm-tracing` and `pattern-11-manual-state-persistence` feed back to Claude. **Archiving §0.24 would therefore break §0.2's own invariant — *"these citations must resolve"* — using the one mechanism §0.2 exists to protect.** Four live sections cite §0.24 besides. **(D) THE RETIREMENT'S LINE RANGE IS WRONG AS WRITTEN** and is corrected here rather than discovered during the move: §0.2 is **CLAUDE.md lines 53–72** and §0.24 is **lines 756–810**, both inside the range marked for archiving, and both must be carried forward into the surviving file. §0.2 already has an owning step; **no step owns §0.24**, which is the finding rather than a footnote. **(E) §898 IS STRUCK FROM §0.5.** The per-phase-totals row cited *"§898's amendment of 2026-09-09"*; there is no §898 in any of the three documents and the string occurred exactly once across all of them — in that row. The amendment is real and is **§29.2, *"`load_evidence_series` joins the set — RATIFIED 2026-09-09"*** (tool spec §60.7 / S-F57). Struck in place rather than silently repointed, on C-3's precedent, because **a §-number is a literal string and nothing checks them** — which §30's own 2026-09-09 note says about itself, after two wrong citations in one section. **(F) §0'S INTERNAL CONTRADICTIONS ARE DELIBERATELY NOT REPAIRED**, per the ruling: the retired gate field names, Define's counts, and `PhaseState`'s *"20 + 1 managed, 21 declared"* at §0.17 against §10.1's twenty-two all stand, because repairing a section scheduled for deletion spends effort on text nobody will read again. Reasoning: this commit body.
 
@@ -1037,24 +1039,58 @@ from the original spec, discovered during implementation.
 
 **Specification:** **§58.6 — S-C06**.
 
-> **`BaseStore.search()` is more capable than earlier revisions of this design
-> assumed** (verified 2026-08-21). Beyond `query` and `filter` it supports
-> `mode` (`text` | `vector` | `hybrid` | `auto`), `offset`,
-> `similarity_threshold`, `vector_weight` and `distance_metric`.
+> **`BaseStore.search()`'s real surface, read from the installed package.**
+> Six parameters, and that is all there is:
 >
-> **This weakens one of the three reasons previously given for keeping
-> `improve_case_index` on Azure AI Search.** The old argument was that the
+> ```python
+> >>> import inspect
+> >>> from langgraph.store.base import BaseStore
+> >>> [p for p in inspect.signature(BaseStore.search).parameters if p != "self"]
+> ['namespace_prefix', 'query', 'filter', 'limit', 'offset', 'refresh_ttl']
+> ```
+>
+> Introspected against `langgraph` 1.2.11 on 2026-09-12. Checked past the base
+> class, because a concrete store could have widened it and none does:
+> `InMemoryStore.search` and `.asearch` carry the identical six, `SearchOp`
+> declares the same six, `IndexConfig` exposes only `dims`, `embed`, `fields`,
+> and **the string `hybrid` does not occur anywhere in the installed package.**
+>
+> **TWO of the three reasons for keeping `improve_case_index` on Azure AI
+> Search stand; one is genuinely conceded.** The old argument was that the
 > Store provides neither metadata filtering, nor hybrid BM25 + vector scoring,
-> nor multi-query + RRF. The first was already corrected — `filter=` exists —
-> and `mode="hybrid"` now undercuts the second.
+> nor multi-query + RRF.
 >
-> **The conclusion still holds, on the remaining reason plus migration cost:**
-> the Store has no multi-query + RRF (§25), which is the mechanism Agent
-> Resolve production experience showed this corpus needs, and moving a live
-> index is work with no user-visible payoff. **But the decision now rests on
-> one technical reason rather than three, and should be re-examined if the
-> Store's search surface keeps growing.** Flagged rather than quietly left to
-> look better-supported than it is.
+> | Reason | Status |
+> |---|---|
+> | Metadata filtering | **CONCEDED** — `filter=` exists and does the job |
+> | Hybrid BM25 + vector scoring | **STANDS** — there is no `mode` parameter, on any store, at any version installed here |
+> | Multi-query + RRF | **STANDS** — §25, the mechanism Agent Resolve production experience showed this corpus needs |
+>
+> **The decision rests on two technical reasons plus migration cost.**
+> Re-examine if the Store's search surface grows — but note that it has not
+> grown in the direction this section once recorded, and the thing to re-run is
+> the introspection above, not a documentation page.
+
+> **⚑ CORRECTED 2026-09-13. THE PARAGRAPH THIS REPLACES CONCEDED A REASON TO A
+> PARAMETER THAT HAS NEVER EXISTED.** It read *"Beyond `query` and `filter` it
+> supports `mode` (`text` | `vector` | `hybrid` | `auto`), `offset`,
+> `similarity_threshold`, `vector_weight` and `distance_metric`"* and concluded
+> the decision *"now rests on one technical reason rather than three"*. Four of
+> those eight parameters do not exist, `namespace_prefix` — which is REQUIRED —
+> was not among the eight, and the concession of hybrid scoring followed
+> entirely from `mode="hybrid"`.
+>
+> **The direction of the error is worth keeping.** It did not weaken a
+> conclusion that should have held; it made a sound ruling look
+> worse-supported than it was, and then flagged itself for re-examination on
+> that false basis. **An error that understates your own position is not a safe
+> error** — it invites revisiting a decision that was never in doubt.
+>
+> Source: `BIBLE_VERIFICATION_LOG.md` S-1, whose method was two documentation
+> pages. Same class as C-3 and the reason **G-54** is registered; S-1 was named
+> there as the one entry pinned by nothing, which is how this was found. S-1's
+> verdict is corrected in place at that entry, per G-54's rule, with the
+> introspection recorded.
 
 ### Namespace convention
 
@@ -2974,7 +3010,11 @@ across framework versions.** It lives in `knowledge/fusion.py`.
 ### `MultiQueryRetriever` and `EnsembleRetriever` are BANNED
 
 **Both moved to `langchain_classic` in the LangChain 1.0 namespace split** and
-are not importable from `langchain` in the current version.
+are not importable from `langchain` in the current version. Re-verified by
+import against the installed packages, 2026-09-13 — `langchain.retrievers`
+raises `ModuleNotFoundError`, and both classes are present under
+`langchain_classic.retrievers`. §18's rule applies: presence in
+`langchain-classic` is not permission.
 
 `EnsembleRetriever` would be the wrong class even if it were importable: it
 fuses results from **different retriever sources** (BM25 + vector, say),
@@ -2984,6 +3024,26 @@ rag-fusion template used a custom implementation for the same reason.
 
 **Two independent reasons, one conclusion.** Custom RRF is correct, stable and
 dependency-free.
+
+> **THIS SECTION IS ALSO THE SECOND OF §9'S TWO REASONS, AND SINCE 2026-09-13
+> IT IS TWO REASONS THERE RATHER THAN ONE.** §9 records why
+> `improve_case_index` stays on Azure AI Search: the Store has **no multi-query
+> + RRF** — this section's mechanism — and **no hybrid BM25 + vector scoring.**
+> Both were re-verified by introspection rather than from a documentation page:
+> `inspect.signature(BaseStore.search)` returns
+> `['namespace_prefix', 'query', 'filter', 'limit', 'offset', 'refresh_ttl']`
+> on `langgraph` 1.2.11, and the string `hybrid` occurs nowhere in the
+> installed package.
+>
+> **§9 previously conceded the hybrid reason to a `mode="hybrid"` parameter
+> that has never existed**, leaving its decision looking as though it rested on
+> this section alone. It does not. Corrected at §9 and at
+> `BIBLE_VERIFICATION_LOG.md` S-1 (G-54).
+>
+> **Note what does NOT follow.** Azure AI Search doing hybrid retrieval is why
+> the gap here is *one query formulation*, not *missing BM25* — that argument
+> is about Azure and is untouched. What changed is the comparison against the
+> Store, which does neither.
 
 ### Encapsulation
 

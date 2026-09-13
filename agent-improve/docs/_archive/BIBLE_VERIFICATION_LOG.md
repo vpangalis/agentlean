@@ -148,22 +148,54 @@ complete set, with the `vars()` check recorded. See ARCHITECTURE.md v1.35.
 |---|---|
 | **Claim** | The Store lacks metadata filtering, hybrid BM25+vector scoring, and multi-query+RRF — three reasons to keep `improve_case_index` on Azure AI Search |
 | **Source** | `docs.langchain.com/oss/python/langgraph/stores`; `reference.langchain.com/python/langgraph.store/base/BaseStore` |
-| **Verdict** | **NOW-STALE-AND-FIXED** |
+| **Source method** | ~~documentation page~~ → **introspection — `inspect.signature(BaseStore.search)`, re-run 2026-09-13** |
+| **Verdict** | ~~**NOW-STALE-AND-FIXED**~~ → **PARTLY WITHDRAWN 2026-09-13 — two of the three reasons STAND** |
 
-`search()` supports `query`, **`filter`**, `limit`, **`mode`
+> **AMENDED IN PLACE, NOT DELETED**, on C-3's precedent and under **G-54**,
+> which was registered because this entry was the one in this log pinned by
+> nothing while a live ruling rested on it.
+
+~~`search()` supports `query`, **`filter`**, `limit`, **`mode`
 (`text` | `vector` | `hybrid` | `auto`)**, `offset`, `similarity_threshold`,
-`vector_weight` and `distance_metric`.
+`vector_weight` and `distance_metric`.~~
 
-- **Metadata filtering** — already corrected on 2026-08-20 (`filter=` exists)
-- **Hybrid scoring** — `mode="hybrid"` now undercuts the second reason too
+**What the installed package actually exposes** — six parameters, not eight:
 
-**The conclusion survives on the third reason plus migration cost:** the Store
-has no multi-query + RRF (§25), which is the mechanism Agent Resolve production
-experience showed this corpus needs.
+```python
+>>> import inspect, importlib.metadata as md
+>>> md.version("langgraph")
+'1.2.11'
+>>> from langgraph.store.base import BaseStore
+>>> [p for p in inspect.signature(BaseStore.search).parameters if p != "self"]
+['namespace_prefix', 'query', 'filter', 'limit', 'offset', 'refresh_ttl']
+```
 
-**But the decision now rests on one technical reason rather than three.**
-Recorded in §9 rather than left looking better-supported than it is, and
-flagged for re-examination if the Store's search surface keeps growing.
+**Four of the eight named above do not exist**: `mode`,
+`similarity_threshold`, `vector_weight`, `distance_metric`. And
+`namespace_prefix`, which is **required**, was not among the eight. Checked
+past the base class, because a concrete store could have widened it and none
+does: `InMemoryStore.search`/`.asearch` carry the identical six, `SearchOp`
+declares the same six, `IndexConfig` exposes only `dims`, `embed`, `fields`,
+and **the string `hybrid` occurs nowhere in the installed package.**
+
+- **Metadata filtering** — **CONCEDED, and this half was right.** `filter=`
+  exists and does the job.
+- ~~**Hybrid scoring** — `mode="hybrid"` now undercuts the second reason too~~
+  **WITHDRAWN. There is no `mode` parameter.** The second reason stands.
+- **Multi-query + RRF** — stands (§25), unchanged.
+
+**The decision rests on TWO technical reasons plus migration cost, not one.**
+
+**Why this entry got it wrong, which is the reusable part.** Two documentation
+pages, neither of them the object. The failure differs from C-3's in direction
+and that is the part worth keeping: C-3 made a document *worse*, while this
+made a sound ruling look **worse-supported than it was** and then flagged it
+for re-examination on that false basis. **An error that understates your own
+position is not a safe error** — it invites reopening a decision that was never
+in doubt, and it reads as diligence while doing it.
+
+**Fixed:** ARCHITECTURE.md §9 carries the introspection and the two-reason
+table; §25 records that it is the second of two rather than the only one.
 
 ### S-2 · Pinned dependency targets
 

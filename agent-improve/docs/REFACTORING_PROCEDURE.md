@@ -3495,7 +3495,7 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **BLOCKED** | 7 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL) |
 | **QUEUED** | 21 | **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.22**, **6.23**, **11.1**, **11.2** |
 
-*62 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-12.*
+*62 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-13.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix

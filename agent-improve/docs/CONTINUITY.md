@@ -11,9 +11,9 @@
 | **Next** | step **6.19** — `CoachingResponse` gains §50.1's four presentational fields (G-50) |
 | **Spine steps landed** | 33 of 62 |
 | **Last spine commit** | `a1a0a5d` (commit 6.21) |
-| **ARCHITECTURE.md** | v1.39 |
+| **ARCHITECTURE.md** | v1.40 |
 | **CLAUDE.md** | v2.2.37 |
-| **Block regenerated** | 2026-09-12 |
+| **Block regenerated** | 2026-09-13 |
 
 *`Last completed` and the landed count come from **git log** — the
 `refactor(arch-v2): commit X.Y` subjects. `Next` and the total come
