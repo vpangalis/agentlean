@@ -188,3 +188,103 @@ def assertions(text: str, symbols: list[str]) -> list[tuple[int, str, str, int]]
                 continue
             out.append((i, sym, raw, val))
     return out
+
+
+def derive_singletons(reg: dict) -> tuple[dict[str, int], list[str]]:
+    """Facts that are ONE number for the whole project, not one per symbol.
+
+    The middleware stack has a length; the registry has a pattern count. Each
+    is derived from its owner, never stored.
+    """
+    out: dict[str, int] = {}
+    pending: list[str] = []
+    for owner in reg.get("owners", []):
+        kind = owner.get("derive")
+
+        if kind == "middleware_list":
+            src = ROOT / owner["owner_path"]
+            if not src.exists():
+                pending.append(owner["id"])
+                continue
+            import ast
+            tree = ast.parse(src.read_text(encoding="utf-8"))
+            found = None
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call):
+                    f = node.func
+                    name = getattr(f, "id", None) or getattr(f, "attr", None)
+                    if name == "create_agent":
+                        for kw in node.keywords:
+                            if kw.arg == "middleware" and isinstance(kw.value, ast.List):
+                                found = len(kw.value.elts)
+            if found is None:
+                pending.append(owner["id"])
+            else:
+                out[owner["id"]] = found
+
+        elif kind == "pattern_registry":
+            src = ROOT / owner["owner_path"]
+            if not src.exists():
+                pending.append(owner["id"])
+                continue
+            import yaml
+            data = yaml.safe_load(src.read_text(encoding="utf-8")) or {}
+            out[owner["id"]] = len(data.get("patterns") or [])
+
+        elif kind == "skills_dirs":
+            base = ROOT / owner["owner_path"]
+            scripts = sorted(base.glob("dmaic-*-phase/coaching_script.md")) \
+                if base.is_dir() else []
+            if not scripts:
+                pending.append(owner["id"])
+            else:
+                out[owner["id"]] = len(scripts)
+    return out, pending
+
+
+def singleton_claims(text: str, noun: str) -> list[tuple[int, str, int]]:
+    """(line_no, raw, value) for `N <noun>` in live prose.
+
+    Same discipline as `assertions`: dated records are skipped, and a number
+    written as `§8` is a reference rather than a count.
+    """
+    out = []
+    num = r"(\d{1,3}|" + "|".join(WORDS) + r")"
+    rx = re.compile(rf"\b{num}[\s\u2011-]+{noun}s?\b", re.I)
+    for i, line in enumerate(text.splitlines(), 1):
+        if DATED.search(line) or SPEC_VS_BUILT.search(line):
+            continue
+        for m in rx.finditer(line):
+            if m.start() and line[m.start() - 1] in "\u00a7#":
+                continue
+            raw = m.group(1)
+            val = WORDS.get(raw.lower()) if not raw.isdigit() else int(raw)
+            if val is not None:
+                out.append((i, raw, val))
+    return out
+
+
+def coaching_leaks(text: str, reg: dict) -> list[tuple[int, str]]:
+    """A governed document carrying a run of a phase's coaching script.
+
+    Step 8 moved those scripts OUT of ARCHITECTURE.md precisely so the phase
+    directory owns them. This is what stops them coming back: the opening line
+    of each script is distinctive, and finding it in a governed document means
+    the content was copied rather than cited.
+    """
+    base = ROOT / "agent-improve" / "skills"
+    hits = []
+    for script in sorted(base.glob("dmaic-*-phase/coaching_script.md")):
+        try:
+            first = next((ln for ln in script.read_text(encoding="utf-8")
+                          .splitlines() if len(ln.strip()) > 60), None)
+        except OSError:
+            continue
+        if not first:
+            continue
+        probe = first.strip()[:80]
+        for i, line in enumerate(text.splitlines(), 1):
+            if probe in line:
+                hits.append((i, script.parent.name))
+                break
+    return hits

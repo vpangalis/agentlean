@@ -57,10 +57,20 @@ def governed_files(reg: dict) -> list[Path]:
 
 def scan(reg: dict) -> tuple[list[tuple], list[str], int]:
     values, pending = fo.derive(reg)
+    singles, s_pending = fo.derive_singletons(reg)
+    pending = pending + s_pending
+
     owner_of = {s["name"]: s["path"]
                 for o in reg.get("owners", [])
                 for s in (o.get("symbols") or [])}
     live = [s for s in owner_of if s not in pending]
+    # Only owners that opt in with `count_noun` get a prose-count check.
+    # `middleware-order` and `banned-patterns` deliberately do NOT: both nouns
+    # are ordinary English here (164 and 122 uses), and both facts are already
+    # enforced against the tree elsewhere. See fact_owners.yaml.
+    nouns = [(o["id"], o.get("count_noun"), o.get("owner_path", "?"))
+             for o in reg.get("owners", [])
+             if o.get("count_noun") and o["id"] in singles]
 
     wrong, checked = [], 0
     for path in governed_files(reg):
@@ -68,28 +78,39 @@ def scan(reg: dict) -> tuple[list[tuple], list[str], int]:
             text = path.read_text(encoding="utf-8")
         except OSError:
             continue
-        present = [s for s in live if s in text]
-        if not present:
-            continue
+        rel = str(path.relative_to(ROOT)).replace("\\", "/")
         lines = text.splitlines()
+
+        # per-symbol field counts
+        present = [s for s in live if s in text]
         for line_no, sym, raw, val in fo.assertions(text, present):
             expected = values.get(sym)
             if not isinstance(expected, int):
                 continue
             line = lines[line_no - 1] if line_no <= len(lines) else ""
             checked += 1
-            # A number near a symbol is not always a claim about its field
-            # count — §-numbers, years, step numbers and list indices all sit
-            # in that window. Only a MISMATCH on a number that looks like a
-            # count is reported, and only when the line does not cite an
-            # owner. Deliberately conservative: a check that cries wolf is a
-            # check that gets switched off.
             if val == expected or fo.cites_owner(line):
                 continue
-            if not any(w in line.lower() for w in ("field", "carries", "declare")):
-                continue
-            wrong.append((str(path.relative_to(ROOT)).replace("\\", "/"),
-                          line_no, sym, raw, expected, owner_of[sym]))
+            wrong.append((rel, line_no, sym, raw, expected, owner_of[sym]))
+
+        # singleton counts — `eight middlewares`, `eleven patterns`
+        for oid, noun, owner_path in nouns:
+            if noun == "coaching script":
+                continue                      # containment, not a count
+            expected = singles[oid]
+            for line_no, raw, val in fo.singleton_claims(text, noun):
+                checked += 1
+                if val == expected:
+                    continue
+                wrong.append((rel, line_no, noun, raw, expected, owner_path))
+
+        # coaching scripts must not be COPIED back into a document
+        if any(o["id"] == "coaching-content" for o in reg.get("owners", [])):
+            for line_no, phase in fo.coaching_leaks(text, reg):
+                checked += 1
+                wrong.append((rel, line_no, f"{phase} script", "verbatim run",
+                              "a citation", f"agent-improve/skills/{phase}/"))
+
     return wrong, pending, checked
 
 

@@ -83,3 +83,43 @@ owners:
       - module: backend.validation.gate_validator
         name: DMAICGateValidator
         path: 'agent-improve/backend/validation/gate_validator.py'
+
+  # ── Ratified 2026-09-13, second pass. Already true in practice; these
+  #    rows RECORD that rather than decide it. ────────────────────────────
+
+  - id: middleware-order
+    owns: The middleware stack — its members, their order, and how many
+    owner_path: 'agent-improve/backend/phases/nodes_common.py'
+    owner_test: test_all_eight_positions_execute_in_the_ratified_order
+    derive: middleware_list       # AST of create_agent(middleware=[...])
+    enforced_by: verify_built.py 'middleware mounted' + the ordering test
+    # NO PROSE COUNT CHECK, and the reason is measured. "middleware" appears
+    # 164 times in two governed documents as an ordinary English word, and a
+    # `N middleware` matcher fired on `### 19.9 Middleware deliberately NOT
+    # used` (a heading number) and on "step 6.3 shipped two middlewares"
+    # (a true statement about two specific ones). The count is ALREADY
+    # enforced against the tree by verify_built.py and the order by
+    # `test_all_eight_positions_execute_in_the_ratified_order`. A second,
+    # noisier check would not add cover — it would add false positives to a
+    # check that already passes, which is how a check gets switched off.
+
+  - id: coaching-content
+    owns: The per-phase coaching scripts
+    owner_path: 'agent-improve/skills'
+    derive: skills_dirs
+    count_noun: coaching script
+    # Enforced by CONTAINMENT, not by a count: a governed document carrying a
+    # run of a script has copied it. Step 8 moved these out of
+    # ARCHITECTURE.md; this is what stops them coming back.
+
+  - id: banned-patterns
+    owns: The banned-pattern registry — its entries and their rule citations
+    owner_path: '.claude/config/deprecated_patterns.yaml'
+    derive: pattern_registry
+    enforced_by: the rule-number resolution sweep (steps 6 and 7)
+    # NO PROSE COUNT CHECK, same measurement: "pattern" appears 122 times as
+    # an ordinary word — "3.2's per-operation pattern", "the coaching
+    # pattern". What is enforceable and enforced is that every rule number
+    # the registry CITES resolves to a real section; that sweep runs on every
+    # structural change and caught §18.1 at step 7.
+

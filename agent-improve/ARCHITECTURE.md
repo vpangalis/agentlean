@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.44 · 2026-09-13
+Version 1.45 · 2026-09-13
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.45 (2026-09-13)** — **§56 RECORD. Three more rows join §55.4's ownership table — middleware order, coaching content, banned patterns — and each was RECORDED rather than decided.** **(A) NOTHING HAD TO CHANGE, WHICH IS THE ARGUMENT.** The factory has owned the middleware order since step 6.5, `skills/` has owned the coaching scripts since step 8, and the registry has always owned its own entries. Ratifying them cost an afternoon where the first two rows cost a week — **because by the time the files made the answer obvious, there was nothing left to argue.** That is the case for ruling a row when the vertical work next touches it rather than in the abstract. **(B) ENFORCEMENT IS NOT UNIFORM AND THE TABLE NOW SAYS SO.** Dependency versions and schema fields are enforced by the guard and the drift check. **Middleware order** is enforced by `verify_built.py`'s *middleware mounted* check and by `test_all_eight_positions_execute_in_the_ratified_order` — both already running. **Banned patterns** by the rule-number resolution sweep, which caught §18.1 at step 7. **Coaching content** by CONTAINMENT in the drift check: a governed document carrying a verbatim run of a phase script has copied it, and nothing else would notice step 8 being undone. **(C) A PROSE-COUNT CHECK WAS BUILT FOR TWO ROWS AND THEN DELETED.** *middleware* and *pattern* appear **164 and 122 times** in two governed documents as ordinary English, and the matcher fired on `### 19.9 Middleware deliberately NOT used` — a heading number — and on *"step 6.3 shipped two middlewares"*, which is true. Both facts were already checked against the tree, so the second check would have added false positives to something that already passes. **A row can be owned without every claim about it being mechanically comparable.** Pretending otherwise is how a check gets switched off — the same lesson the drift check itself took three cuts to learn. **(D) THE CONTAINMENT CHECK IS PROVEN, NOT ASSERTED.** One line of `dmaic-define-phase/coaching_script.md` pasted back into this document takes the drift check to exit 2 naming the file and the phase; removing it returns exit 0. **(E) TWO ROWS REMAIN UNRULED BY DECISION, NOT BY OVERSIGHT** — gate tier splits and tool inventory. They are left for the vertical refactor to settle in the file. Reasoning: this commit body.
 
 **v1.44 (2026-09-13)** — **§56 AMENDMENT. The ownership minimum is ratified at TWO rows, encoded as data, and enforced by two hooks — the countermeasure G-56 names.** **(A) TWO ROWS, NOT EIGHT.** §55.4 ratifies `requirements.txt` as the owner of every dependency pin and the floor, and the schema modules — `core/state.py`, `core/substate.py`, `phases/*/schema.py` — as the owner of state and output field names, counts and types. CLAUDE.md's *Facts have one owner* table lists eight classes; the other six are intent until ruled, and **a guard enforcing an unratified row is a guard nobody trusts.** **(B) THE REGISTRY STORES NO VALUES.** `.claude/config/fact_owners.yaml` names each owner and says HOW TO DERIVE its value; it holds not one count. A registry of owned values would be the ninth copy of every fact it governs — this section's own failure mode, rebuilt inside its countermeasure. Both hooks derive at check time, in the pinned venv, through one shared module so they cannot disagree. **(C) TWO HOOKS, TWO JOBS, AND THE DIVISION IS THE POINT.** `fact-ownership-guard.py` (PreToolUse) denies a NEW restatement; `drift-check.py` (Stop, and runnable in CI) catches an EXISTING one that has gone stale. The guard cannot reach backwards — every restatement written before today is still in the documents, agreeing with the code now and free to disagree later. **(D) THIS IS WHAT G-56 ASKED FOR.** `deprecated_patterns.yaml` excludes `agent-improve/**/*.md` correctly, because architecture markdown must be able to show a superseded form beside its replacement; the ownership guard matches OWNERSHIP rather than patterns, so it needs no exclusion and watches exactly the files the pattern registry cannot. **G-56 is NOT closed**: it names the governing documents being guarded by nothing, and two of eight fact classes are now guarded. Closing it needs the remaining six ruled. **(E) PENDING IS RATIFIED AS A FIRST-CLASS RESULT.** Where a declared owner does not exist — `validation/gate_validator.py`, which §2 designates and the 7.x gate work builds — the fact has no owner to cite, so both hooks report PENDING and allow. Registered now so the owner is live the day the file lands. **(F) THE DRIFT CHECK'S FIRST THREE CUTS WERE ALL CRY-WOLF, AND THAT IS RECORDED BECAUSE IT IS THE LESSON.** Cut one matched any number within 80 characters of an owned symbol: **200+ findings, every one false** — §58.2 beside `PhaseState`, step numbers, years. Cut two bound every count on a line to every symbol on it, a cross product that turned one changelog sentence into thirty-six findings. Cut three still flagged dated records and spec-vs-built pairs. The check now requires a number bound to a count noun, belonging to the NEAREST symbol within 60 characters, skipping dated records and `N of M fields` pairs: **15 claims checked, zero false positives, and a corrupted count still fails it.** A check that cries wolf gets switched off, which is the failure this registry exists to prevent — building it three times over was cheaper than shipping the first one. Reasoning: this commit body.
 
@@ -7160,15 +7162,41 @@ same obligation twice — once as the architecture and once as its spec.
 `.claude/config/fact_owners.yaml`, read by `fact-ownership-guard.py` and
 `drift-check.py`.
 
-**TWO ROWS, DELIBERATELY.** The table CLAUDE.md carries under *Facts have one
-owner* lists eight classes of fact; **only these two are ratified and only these
-two are enforced.** The rest are a statement of intent until each is ruled, and
-a guard that enforces an unratified row is a guard nobody trusts.
+**FIVE ROWS OF EIGHT.** The table CLAUDE.md carries under *Facts have one owner*
+lists eight classes of fact; **these five are ratified.** The rest are a
+statement of intent until each is ruled, and a guard enforcing an unratified row
+is a guard nobody trusts.
 
-| Class of fact | Owner |
-|---|---|
-| **Dependency versions** — every pin, and the floor | `agent-improve/requirements.txt` |
-| **State and output field names, counts and types** | the schema modules: `core/state.py` (`SupervisorState`), `core/substate.py` (`PhaseState`, `CoachingResponse`), `phases/*/schema.py` (the five `{Phase}Output`) |
+| Class of fact | Owner | How it is enforced |
+|---|---|---|
+| **Dependency versions** — every pin, and the floor | `agent-improve/requirements.txt` | guard + drift check |
+| **State and output field names, counts and types** | the schema modules: `core/state.py`, `core/substate.py`, `phases/*/schema.py` | guard + drift check |
+| **Middleware order** | the agent factory `_build_executor()`, and `test_all_eight_positions_execute_in_the_ratified_order` | `verify_built.py` *middleware mounted*, and the test |
+| **Coaching content** | the phase directories under `skills/` | drift check, by **containment** |
+| **Banned patterns** | `.claude/config/deprecated_patterns.yaml` | the rule-number resolution sweep |
+
+> **THE LAST THREE WERE RECORDED, NOT DECIDED.** Each was already true in
+> practice — the factory has owned the order since 6.5, `skills/` has owned the
+> scripts since step 8, the registry has always owned its own entries. Writing
+> them down cost nothing because nothing had to change, **which is the argument
+> for ruling a row when the work touches it rather than in the abstract.** The
+> first two rows were argued for a week; these three took an afternoon, and the
+> difference is that by then the files made the answer obvious.
+
+> **ENFORCEMENT IS NOT UNIFORM, AND SAYING SO IS THE POINT.** A prose-count
+> check was built for *middleware* and *banned patterns* and then **deleted**:
+> those nouns appear 164 and 122 times in two governed documents as ordinary
+> English, and the matcher fired on `### 19.9 Middleware deliberately NOT used`
+> — a heading number — and on *"step 6.3 shipped two middlewares"*, which is
+> true. Both facts were already checked against the tree elsewhere, so a second
+> noisier check would have added false positives to something that already
+> passes. **A row can be owned without every claim about it being mechanically
+> comparable**, and pretending otherwise is how a check gets switched off.
+
+**Coaching content is enforced by CONTAINMENT, not by a count.** A governed
+document carrying a verbatim run of a phase script has copied it. That check
+exists because step 8 moved those scripts out of this document, and nothing
+else would notice them coming back.
 
 **The rule is CITE, NOT RESTATE.** A governing document naming one of these
 values in prose creates a second copy that can drift; the September audit found
