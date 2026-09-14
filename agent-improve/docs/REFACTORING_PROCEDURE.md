@@ -2500,6 +2500,66 @@ Both mutation directions fail:
 §0.4 — from a baseline outside the tree, reading the test NAME rather than the
 failure count.
 
+## Step 6.28 — Fact-ownership moves to the commit gate (G-59, G-60)
+
+| | |
+|---|---|
+| **Reference §** | §55.4 · §55.5 · G-59 · G-60 |
+| **Touches** | `.claude/hooks/commit-msg-refactor-guard.py` · `.claude/settings.json` · `.claude/config/fact_owners.yaml` |
+| **Precondition** | none for G-59 — **READY**. G-60's row needs a ruling first |
+| **Verify** | `pytest`, plus a Bash-written restatement being caught that the `PreToolUse` guard misses |
+
+### The gap this closes
+
+**The guard runs on the path fewest edits take.** `fact-ownership-guard.py` is
+registered on `PreToolUse` with matcher `Write|Edit|MultiEdit`, and `extract()`
+reads `content` or `new_string`. **A Bash envelope carries neither.** In auto
+mode Bash is the primary edit path, so a document restating an owned value lands
+unchecked whenever the edit came through `sed`, a heredoc, or a script.
+
+**Widening the matcher is the wrong fix and must not be done.** `extract()`
+would return `""`, the guard would early-exit on `if not content`, and every
+Bash call would pass — a check that cannot fail, recorded as coverage.
+
+**Shell parsing cannot recover the content.** Measured across one session, files
+were written six ways — heredoc Python, an external script, `sed -i`,
+`printf >>`, `cp`, `git checkout` — and **four carry no content in the command
+string at all**. Recovering it means predicting the effect of an arbitrary
+program.
+
+### What to build
+
+**The same ownership logic, run at the commit gate over the staged governed
+documents.** `_fact_owners.py` already separates derivation from the hook, so
+this is a second caller rather than a reimplementation.
+
+| | |
+|---|---|
+| Sound where parsing is not | the index holds the final content whatever wrote it |
+| Complete where `PreToolUse` is not | it also catches a peer session's writes and hand edits |
+| Cheaper | **2.52 s once per commit**, against a measured **~2.8 s per Bash call** |
+
+**Admitted cost, stated rather than discovered later:** it catches the
+restatement at commit rather than at write, so the author fixes it minutes
+later instead of immediately. That is the trade §55.5 ratifies.
+
+**Whether the `PreToolUse` registration stays is part of this step.** Keeping it
+gives immediate feedback on the paths it does cover, at 2.52 s per governed
+write; removing it leaves one enforcement point and one story. Decide it here
+and record the reason — do not leave both running by default.
+
+**G-60 rides along once ruled.** Search index schemas are the third unregistered
+ownership class and the only one whose owner is a live Azure resource rather
+than a parseable file. The ruling comes first; the registry row is one line
+after it.
+
+### Done when
+
+A restatement of an owned value written **through Bash** into a governed
+document is caught at commit; the same restatement through `Write` is caught by
+whichever layer the step rules stays; `pytest` green; and the `PreToolUse`
+registration's fate is recorded either way, with its reason.
+
 ## Step 6.16 — The board is generated, not written
 
 | | |
@@ -3148,6 +3208,19 @@ is a violation.
 
 ---
 
+> ### ⚠ ATTACHED 2026-09-14 — §15's safety argument is owned by this step (G-61)
+>
+> §15 states the supervisor has no conditional edge at a phase boundary, and
+> argues: *“Why that is safe, rather than a simplification that ignores gate
+> failure”* — because a phase subgraph reaches `END` only through `gate_apply`,
+> and `gate_apply` runs only after Belt approval.
+>
+> **That is a graph property, so it is testable**: assert `END`'s only
+> predecessor is `gate_apply`. It is attached here because this step builds the
+> approval path the argument depends on — until the nine-step gate exists, the
+> second half of the claim has nothing behind it. Add the assertion to this
+> step's Done-when, or withdraw the argument and state what is actually true.
+
 ## Step 7.3 — The nine-step HITL gate
 
 | | |
@@ -3534,6 +3607,22 @@ underneath it is rebuilt.
 
 ---
 
+> ### ⚠ ATTACHED 2026-09-14 — two dismissed hazards are owned by this step (G-61)
+>
+> Both rest on argument alone and nothing re-runs the argument — the §55.2
+> shape, which cost `ef59aa8`.
+>
+> | Where | The claim |
+> |---|---|
+> | §23.3 | *“Safe by construction — each tool addresses its own index”* — the `embedding` / `content_vector` asymmetry |
+> | §23.2 | *“it can only change at a rebuild … and cannot drift silently”* |
+>
+> **This step applies the case-index rename**, which either dissolves (a) — the
+> asymmetry is gone — or leaves it needing a test that binds each tool to its
+> own vector field name. (b) is a claim about Azure's rebuild semantics and is
+> discharged by the reindex being observed, or withdrawn. **Discharge or
+> withdraw; do not carry them forward unexamined.**
+
 ## Step 9.1 — The Azure batched reindex, case index only
 
 | | |
@@ -3802,9 +3891,9 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **DONE** | 36 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.25**, **6.26**, **6.27** |
 | **BUILDING NOW** | 1 | **6.19** — `CoachingResponse` gains §50.1's four presentational fields (G-50) |
 | **BLOCKED** | 7 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL) |
-| **QUEUED** | 22 | **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.22**, **6.23**, **11.1**, **6.24**, **11.2** |
+| **QUEUED** | 23 | **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.22**, **6.23**, **11.1**, **6.24**, **6.28**, **11.2** |
 
-*66 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-14.*
+*67 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-14.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -4134,6 +4223,7 @@ restate, which is the opposite of what the board is for.
 | 572 | **Commit 6.25** | Scratch leaves the tree |  | OPS | SHARED | Working material sits untracked inside the tree and tracked documents cite it, so a citation resolves for whoever has the folder on disk and for nobody else. |
 | 573 | **Commit 6.26** | The guard's tree rules get a test suite (G-57) |  | OPS | SHARED | The two rules that keep scratch and unnumbered files out of the tree are proven by hand and re-run by nothing, so they can stop matching without reporting it. |
 | 574 | **Commit 6.27** | The watched-path contract has one owner (G-58) |  | OPS | SHARED | The same twelve paths are stated in §55.2 and hardcoded in the guard, so the document and the gate can disagree about which paths oblige a re-check — and did. |
+| 575 | **Commit 6.28** | Fact-ownership moves to the commit gate (G-59, G-60) |  | OPS | SHARED | The ownership guard runs on a tool path most edits do not take, so a document restating an owned value lands unchecked whenever the edit came through Bash. |
 | 570 | **Commit 11.1** | Delete v1 |  | OPS | SHARED | Two implementations of every phase stay in the tree, and the dead one is still the one writing the v1 field names. |
 | 580 | **Commit 11.2** | Governance close-out |  | OPS | SHARED | The refactor has no end, so procedure and architecture drift apart again with nothing marking the handover. |
 
