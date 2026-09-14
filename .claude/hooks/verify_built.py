@@ -513,16 +513,17 @@ CHECKS = [
      lambda: route_set(),
      "§49 — 4 named by the table, 7 in no ratified table (G-47)"),
 
-    # S-C05. Four of the ratified eight. Expected is the BUILT state, with
-    # the gap named on the marker — §29.2's pattern. A check expecting
-    # eight would fail every run until 10.2 and teach the reader to skip it.
+    # S-C05. **All eight, since step 6.19 closed G-50** (2026-09-14). This
+    # expectation read four until that step, with the gap named on the marker
+    # — §29.2's pattern — because a check expecting eight would have failed
+    # every run and taught the reader to skip it. The step's own comment here
+    # said to update it in the same commit, and this is that update.
     ("CoachingResponse fields (S-C05)",
-     "citations, contradiction_flag, fields_captured, message",
+     "citations, contradiction_flag, example, explanation, fields_captured, "
+     "message, progress, prompt",
      lambda: py("from backend.core.substate import CoachingResponse as C; "
                 "print(', '.join(sorted(C.model_fields)))"),
-     "S-C05 — 4 of the ratified 8; §50.1's explanation/example/prompt/"
-     "progress are unbuilt (G-50). **Step 6.19 takes this to 8** — update the "
-     "expectation in the same commit, or this check passes the day it lands"),
+     "S-C05 — all 8 ratified fields, since step 6.19 closed G-50"),
 
     ("state field counts (S-C01 / S-C02)", "7 / 22",
      lambda: py("from backend.core.state import SupervisorState as S; "

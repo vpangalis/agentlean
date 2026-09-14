@@ -11,7 +11,7 @@
 | **Next** | step **6.19** — `CoachingResponse` gains §50.1's four presentational fields (G-50) |
 | **Spine steps landed** | 36 of 69 |
 | **Last spine commit** | `1fb7abb` (commit 6.27) |
-| **ARCHITECTURE.md** | v1.61 |
+| **ARCHITECTURE.md** | v1.62 |
 | **CLAUDE.md** | v2.2.40 |
 | **Block regenerated** | 2026-09-14 |
 

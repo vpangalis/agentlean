@@ -114,7 +114,7 @@ def stub_planner(monkeypatch) -> _FakePlannerModel:
 
 # ── the executor's agent — step 6.2 ───────────────────────────────────────
 
-DEFAULT_REPLY = CoachingResponse(
+DEFAULT_REPLY = CoachingResponse(explanation="", example="", prompt="", progress="", 
     message="Let's start with the business case. Here is what a good one "
             "looks like, then you build yours.",
     fields_captured=[],

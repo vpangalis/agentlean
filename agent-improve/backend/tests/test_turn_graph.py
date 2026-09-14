@@ -358,7 +358,7 @@ def test_the_turn_product_rides_on_the_reply_message(wired, stub_coach) -> None:
     draft is what the coach captured, and the diagram is present only on a turn
     that drew one.
     """
-    stub_coach.reply = CoachingResponse(
+    stub_coach.reply = CoachingResponse(explanation="", example="", prompt="", progress="", 
         message="Noted.",
         fields_captured=[{"field_name": "business_case", "value": "b",
                           "source": "belt"}],

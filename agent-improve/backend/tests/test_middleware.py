@@ -878,7 +878,7 @@ def test_contradiction_flag_exists_on_coaching_response() -> None:
 def test_no_flag_means_no_interrupt() -> None:
     """The common case, every turn. Silence here is correct behaviour."""
     mw = ContradictionDetectionMiddleware()
-    assert mw.after_agent({"structured_response": CoachingResponse(
+    assert mw.after_agent({"structured_response": CoachingResponse(explanation="", example="", prompt="", progress="", 
         message="ordinary coaching")}, None) is None
     assert mw.after_agent({"structured_response": None}, None) is None
     assert mw.after_agent({}, None) is None
@@ -1001,7 +1001,7 @@ def test_coherence_retries_silently_then_degrades_and_skips_the_grader() -> None
 
     mw._check = fake_check  # type: ignore[method-assign]
     out = asyncio.run(mw.aafter_agent(
-        {"structured_response": CoachingResponse(message="well, it depends"),
+        {"structured_response": CoachingResponse(explanation="", example="", prompt="", progress="", message="well, it depends"),
          "messages": []}, None))
 
     assert calls["n"] == 3, "initial attempt + 2 retries (B2)"
@@ -1026,7 +1026,7 @@ def test_coherence_passing_on_a_retry_is_invisible_to_the_belt() -> None:
 
     mw._check = fake_check  # type: ignore[method-assign]
     out = asyncio.run(mw.aafter_agent(
-        {"structured_response": CoachingResponse(message="something"),
+        {"structured_response": CoachingResponse(explanation="", example="", prompt="", progress="", message="something"),
          "messages": []}, None))
 
     assert calls["n"] == 2
@@ -1067,7 +1067,7 @@ def test_grader_internals_never_reach_state() -> None:
 
     mw2._grade = fake_grade  # type: ignore[method-assign]
     out = asyncio.run(mw2.aafter_agent(
-        {"structured_response": CoachingResponse(message="coaching"),
+        {"structured_response": CoachingResponse(explanation="", example="", prompt="", progress="", message="coaching"),
          "messages": []}, None))
 
     assert out is None, "a passing grade returns no state update"
@@ -1091,7 +1091,7 @@ def test_max_iterations_passes_through_with_a_belt_visible_warning() -> None:
 
     mw._grade = always_fails  # type: ignore[method-assign]
     out = asyncio.run(mw.aafter_agent(
-        {"structured_response": CoachingResponse(message="give me the case"),
+        {"structured_response": CoachingResponse(explanation="", example="", prompt="", progress="", message="give me the case"),
          "messages": []}, None))
 
     assert len(logged) == GRADER_MAX_ITERATIONS == 3, "B6 — one entry each"
@@ -1130,7 +1130,7 @@ def test_the_grader_stands_down_when_coherence_degraded() -> None:
 
     mw._grade = fake_grade  # type: ignore[method-assign]
     out = asyncio.run(mw.aafter_agent(
-        {"structured_response": CoachingResponse(message="incoherent"),
+        {"structured_response": CoachingResponse(explanation="", example="", prompt="", progress="", message="incoherent"),
          "messages": []}, None))
 
     assert called["n"] == 0, "it graded a turn coherence already rejected"
@@ -1140,7 +1140,7 @@ def test_the_grader_stands_down_when_coherence_degraded() -> None:
     fresh = DMAICGraderMiddleware("define", coherence=CoherenceMiddleware("d"))
     fresh._grade = fake_grade  # type: ignore[method-assign]
     asyncio.run(fresh.aafter_agent(
-        {"structured_response": CoachingResponse(message="fine"),
+        {"structured_response": CoachingResponse(explanation="", example="", prompt="", progress="", message="fine"),
          "messages": [], SKIP_GRADER_KEY: True}, None))
     assert called["n"] == 1, (
         "the grader honoured a STATE key — that channel does not propagate "
@@ -1186,7 +1186,7 @@ def test_interrupt_from_after_agent_is_RESUMABLE_end_to_end() -> None:
         name = "Responder"
 
         def after_agent(self, state: Any, runtime: Any) -> Any:
-            return {"structured_response": CoachingResponse(
+            return {"structured_response": CoachingResponse(explanation="", example="", prompt="", progress="", 
                 message="hold on", contradiction_flag=flag)}
 
     class _StillInterrupts(ContradictionDetectionMiddleware):
@@ -1253,13 +1253,13 @@ def test_position_6_is_GUARDED_and_does_not_park_the_case() -> None:
     mw = ContradictionDetectionMiddleware()
 
     # Detection is unchanged: the flag is still read and still recognised.
-    assert mw._flag({"structured_response": CoachingResponse(
+    assert mw._flag({"structured_response": CoachingResponse(explanation="", example="", prompt="", progress="", 
         message="hold on", contradiction_flag=flag)}) == flag
 
     # Enforcement is suspended: no runnable context is needed, because
     # nothing calls `interrupt()`. Before the guard this raised
     # `RuntimeError: Called get_config outside of a runnable context`.
-    assert mw.after_agent({"structured_response": CoachingResponse(
+    assert mw.after_agent({"structured_response": CoachingResponse(explanation="", example="", prompt="", progress="", 
         message="hold on", contradiction_flag=flag)}, None) is None
 
     # The restore line must survive as a comment, or 7.3 has nothing to

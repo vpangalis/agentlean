@@ -102,8 +102,23 @@ class CoachingResponse(BaseModel):
     """The executor's per-turn structured output — procedure step 6.2.
 
     Canonical definition: **§58.5 — S-C05**, which carries a *rebuild test*, so
-    the four fields below are transcribed from that entry. Architecture §20,
+    the eight fields below are transcribed from that entry. Architecture §20,
     §18, §37.
+
+    **The four presentational fields landed at step 6.19, closing G-50.** Until
+    then this class carried four of the ratified eight, and the only field the
+    UI received was `message` — the single free-text blob §50.1 exists to
+    forbid, so that section's *"schema-backed, not prompt-hoped"* render
+    contract was prompt-hoped. **The docstring above this one used to read
+    "the four fields below are transcribed from that entry" against an entry
+    defining eight** — a conformance claim made in the file that broke it.
+
+    **`message` and the four presentational fields are not duplicates.**
+    `message` is the TRANSCRIPT entry — appended to `messages`, and what
+    `SummarizationMiddleware` later compresses (§19.3). The other four are the
+    RENDER CONTRACT: the UI draws one block per field without parsing prose.
+    Collapsing them back into one is what §50.1 prevents; dropping `message`
+    would leave the conversation history nothing to append.
 
     **Produced by `response_format=` on `create_agent`, every coaching turn**
     (B1) — never by a second model call, and never substituted for a
@@ -133,6 +148,31 @@ class CoachingResponse(BaseModel):
         description=(
             "The coaching text the Belt reads. Plain language — no methodology "
             "jargon in team-facing strings (§13)."
+        ),
+    )
+    explanation: str = Field(
+        description=(
+            "§50.1 — plain-language 'what this deliverable is', 2-3 short "
+            "lines. Its OWN block in the UI. Never methodology jargon (§13)."
+        ),
+    )
+    example: str = Field(
+        description=(
+            "§50.1 — the worked example, MARKED AS AN ILLUSTRATION so the Belt "
+            "cannot mistake it for their own data. Its own visually distinct "
+            "block. Never invent a value and present it as theirs."
+        ),
+    )
+    prompt: str = Field(
+        description=(
+            "§50.1 — the request to the Belt, the call to action. One ask, not "
+            "three. This is the CTA block the UI draws last."
+        ),
+    )
+    progress: str = Field(
+        description=(
+            "§50.1 — the position indicator, e.g. 'Define · 4 of 12'. Always "
+            "visible. Count the phase's COACHED positions, not the gate set."
         ),
     )
     fields_captured: list[dict] = Field(

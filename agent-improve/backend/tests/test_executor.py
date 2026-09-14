@@ -196,7 +196,7 @@ def test_the_coaching_prose_stays_in_messages(stub_coach) -> None:
     Reading one must not cost the other: the Belt sees `messages`, and the
     executor writes from `structured_response`.
     """
-    stub_coach.reply = CoachingResponse(message="Here is where I would start.")
+    stub_coach.reply = CoachingResponse(explanation="", example="", prompt="", progress="", message="Here is where I would start.")
     out = _run(_c.executor("define", _state()))
     replies = [m for m in out["messages"] if isinstance(m, AIMessage)]
     assert replies and replies[-1].content == "Here is where I would start."
@@ -211,7 +211,7 @@ def test_a_reply_with_no_prose_still_reaches_the_belt() -> None:
     node's: constructing it through the fixture would be staging the very thing
     being guarded against.
     """
-    reply = CoachingResponse(message="Recovered text.")
+    reply = CoachingResponse(explanation="", example="", prompt="", progress="", message="Recovered text.")
     out = _c._with_coaching_text([AIMessage(content="   ")], reply)
     assert out[-1].content == "Recovered text."
 
@@ -230,7 +230,7 @@ def test_captured_fields_land_in_artifacts_under_v2_names(
     orchestrator wrote v1 names into `draft`. Now `fields_captured` goes into
     `artifacts` under the §39.x names, which is what `validate_{phase}` reads.
     """
-    stub_coach.reply = CoachingResponse(
+    stub_coach.reply = CoachingResponse(explanation="", example="", prompt="", progress="", 
         message="Noted.",
         fields_captured=[
             {"field_name": "business_case", "value": "£120k rework a year",
@@ -252,7 +252,7 @@ def test_a_capture_without_a_field_name_is_dropped_not_guessed(stub_coach) -> No
     A wrong key reaches the gate document looking exactly like a right one, so
     the malformed entry is dropped and logged instead.
     """
-    stub_coach.reply = CoachingResponse(
+    stub_coach.reply = CoachingResponse(explanation="", example="", prompt="", progress="", 
         message="Noted.",
         fields_captured=[
             {"value": "orphaned", "source": "belt"},
@@ -275,7 +275,7 @@ def test_a_reference_dict_value_survives_as_a_dict(stub_coach) -> None:
                   "references_field": "baseline_mean",
                   "references_value": "12.3",
                   "references_metric_name": "invoice error rate"}
-    stub_coach.reply = CoachingResponse(
+    stub_coach.reply = CoachingResponse(explanation="", example="", prompt="", progress="", 
         message="Noted.",
         fields_captured=[{"field_name": "causal_hypothesis",
                           "value": hypothesis, "source": "belt"}],
@@ -286,7 +286,7 @@ def test_a_reference_dict_value_survives_as_a_dict(stub_coach) -> None:
 
 def test_citations_accumulate_rather_than_replace(stub_coach) -> None:
     """`citations` carries no reducer, so the merge happens in the node."""
-    stub_coach.reply = CoachingResponse(
+    stub_coach.reply = CoachingResponse(explanation="", example="", prompt="", progress="", 
         message="Noted.", citations=[{"source_file": "bb.pdf", "page": 47}],
     )
     out = _run(_c.executor("define", _state(
@@ -302,7 +302,7 @@ def test_the_contradiction_flag_is_carried_for_6_5(stub_coach) -> None:
     flag = {"prior_field": "baseline_mean", "approved_value": "4.2",
             "approved_phase": "measure", "proposed_value": "3.8",
             "belt_input": "actually it was 3.8"}
-    stub_coach.reply = CoachingResponse(message="Hold on.",
+    stub_coach.reply = CoachingResponse(explanation="", example="", prompt="", progress="", message="Hold on.",
                                         contradiction_flag=flag)
     out = _run(_c.executor("define", _state()))
     assert out["step_log"][0]["contradiction_flag"] == flag
@@ -585,7 +585,7 @@ def test_the_define_gate_opens_on_v2_captured_fields(stub_coach) -> None:
     """
     from backend.phases.define.schema import DEFINE_REQUIRED_FOR_GATE_FIELDS
 
-    stub_coach.reply = CoachingResponse(
+    stub_coach.reply = CoachingResponse(explanation="", example="", prompt="", progress="", 
         message="Captured.",
         fields_captured=[
             {"field_name": name, "value": f"value for {name}", "source": "belt"}
@@ -890,3 +890,77 @@ def test_the_planner_and_the_executor_route_to_the_same_upload(
     after = cast(PhaseState, {**state, **command.update})
     _run(_c.executor("define", after))
     assert routed_read.blob_paths == ["uploads/IMPR-TEST-618/complaints.csv"]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# G-63 — the node-issued read names no column, so it loads nothing
+# ══════════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "G-63 — DIAGNOSIS ONLY, no fix proposed yet. `_routed_column` derives the "
+    "column from an open ask's `expected_shape.columns`, and Define populates "
+    "no ask shapes — `_unconsumed_for_open_ask`'s own docstring says so. So "
+    "every Define routed read is issued with `_COLUMN_UNDECLARED` and the tool "
+    "answers `no_such_column`. strict=True so this cannot rot: the day a fix "
+    "lands the suite goes red until the marker is removed, which is the same "
+    "contract 6.18 used on G-49."
+))
+def test_a_node_issued_read_names_a_column_the_file_has() -> None:
+    """**The 45s timeout's cause, pinned one layer above the timeout.**
+
+    Trace `01a09ff4-db43-7532-bec0-89329f886482` (2026-09-14 12:46:59):
+    `load_evidence_series` was dispatched by the node on the path the plan
+    named — option C's transport works — with
+    `{"blob_path": "uploads/IMPR-2026-ED8/complaints.csv",
+      "column": "(not specified)"}`.
+
+    The tool answered, correctly::
+
+        artifact: {"columns": ["date", "complaints", "reason"],
+                   "ok": false, "reason": "no_such_column"}
+
+    **So no evidence was loaded.** The coach, holding no data, issued three
+    `rag_lookup_evidence` calls at ~9.5s each and the executor hit its 45s
+    wall at 45.156s.
+
+    **THE ASSERTION IS CHANNEL-AGNOSTIC, ON PURPOSE** — the same discipline
+    6.18 used when it refused to pin a transport. It says the dispatched call
+    must name a column the file actually has. It does not say WHERE that
+    column comes from: an ask shape Define does not yet populate, a column
+    the plan carries, a header read before dispatch, or a decision not to
+    dispatch at all when nothing declares one. Any of those satisfies it, and
+    choosing between them is the fix, which is not proposed here.
+
+    **What this test does NOT cover**, stated so a green result is not
+    over-read: whether the coach would still have searched had the data
+    loaded. The trace cannot separate that — the tool's own message told the
+    coach to *"Ask the Belt which of those holds the value you need"* and the
+    coach searched instead, which is a second finding about the authority of
+    a node-issued result. It has no evidence independent of this defect.
+    """
+    upload = {
+        "role": "complaints log",
+        "blob_path": "uploads/IMPR-2026-ED8/complaints.csv",
+        "filename": "complaints.csv",
+        "consumed_at": None,
+    }
+    # Define's real shape: an ask is open for the role, and it declares no
+    # columns — which is exactly what `_unconsumed_for_open_ask`'s docstring
+    # records as "Define carrying no ask shapes".
+    # cast for the same reason `_dispatch_routed_read` types its args dict
+    # separately: a heterogeneous literal infers a value type the callee's
+    # signature will not accept, and mypy is right to refuse it.
+    state = cast(PhaseState, {
+        "asks": [{"role": "complaints log", "status": "open",
+                  "expected_shape": {}}],
+        "uploads": [upload],
+    })
+
+    column = _c._routed_column(state, upload)
+
+    assert column != _c._COLUMN_UNDECLARED, (
+        "the node dispatched load_evidence_series with a placeholder column, "
+        "so the tool can only answer no_such_column and the routed read loads "
+        "nothing — trace 01a09ff4-db43-7532-bec0-89329f886482"
+    )
