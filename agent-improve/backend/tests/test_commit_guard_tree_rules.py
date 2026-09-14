@@ -264,14 +264,32 @@ def test_the_registers_are_read_from_the_INDEX_not_the_disk() -> None:
     `_staged_text` goes through `git show :<path>`, so what it returns is what
     the commit will contain. A gap registered in the same commit counts; a row
     edited on disk and left unstaged does not. Demonstrated by hand when the
-    rule landed — `Gap: G-57` was refused with the row on disk and accepted once
-    the row was staged — and pinned here so the demonstration survives.
+    rule landed — `Gap: G-57` was refused with the row on disk and accepted
+    once the row was staged — and pinned here so the demonstration survives.
+
+    **It asserts the SOURCE, not a byte count.** An earlier cut compared
+    `count("**Commit ")` between index and disk, which is equal only in a clean
+    tree — so it went red on any working copy with an unstaged procedure edit,
+    which is the normal state while writing a step. A test that fails for a
+    reason unrelated to what it checks is a false-alarm generator, and this
+    file already carries the argument for why that is not tolerable.
+
+    The limit: when the tree is clean, index and disk agree, so the strong
+    half of this test only bites when the path is genuinely dirty. That is
+    stated rather than papered over.
     """
-    from_index = g._staged_text(_ROOT, g.cs.PROCEDURE)
-    on_disk = (Path(_ROOT) / g.cs.PROCEDURE).read_text(encoding="utf-8")
-    assert from_index, "the index read returned nothing"
-    # Equal in a clean tree; the point is the SOURCE, which the call proves.
-    assert from_index.count("**Commit ") == on_disk.count("**Commit ")
+    rel = g.cs.PROCEDURE
+    from_index = g._staged_text(_ROOT, rel)
+    raw = subprocess.run(["git", "show", f":{rel}"], capture_output=True,
+                         cwd=_ROOT).stdout.decode("utf-8", "replace")
+    assert from_index == raw, "_staged_text no longer reads the index"
+
+    on_disk = (Path(_ROOT) / rel).read_text(encoding="utf-8")
+    if on_disk != raw:
+        assert from_index != on_disk, (
+            "the path is dirty and `_staged_text` returned the DISK content — "
+            "the guard would resolve numbers against a version this commit is "
+            "not making, which is the cached-copy failure §0.32 names")
 
 
 def test_a_missing_register_fails_CLOSED() -> None:
@@ -399,3 +417,71 @@ def test_the_watch_list_still_has_teeth() -> None:
     assert len(g.STATUS_WATCHED) >= 10, (
         f"STATUS_WATCHED is down to {len(g.STATUS_WATCHED)} entries — rule 2b "
         "was narrowed into irrelevance rather than corrected")
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Step 6.27 / G-58 — §55.2 and STATUS_WATCHED are ONE fact
+# ══════════════════════════════════════════════════════════════════════════
+
+#: §55.2 tabulates the watched paths for a human reader; the guard hardcodes
+#: them for the gate. CLAUDE.md's *Facts have one owner* rule says a set is
+#: stated once and cited everywhere else, and this is two copies of one set.
+#:
+#: **An equality test rather than a runtime read, deliberately.** Parsing a
+#: prose section inside the hook would put a document on the critical path of
+#: every commit and fail closed on a reformat — §55.2's block is authored for a
+#: reader, not a data file. The assertion gets the ownership benefit without the
+#: coupling: either copy may move, and the suite says so before the gate and the
+#: document can disagree in production.
+_ARCH_552_HEADING = "### 55.2"
+
+
+def _watched_paths_from_arch() -> set:
+    """The paths §55.2 tabulates, read from its fenced block ONLY.
+
+    Anchored to the fence rather than to the whole section, because the removal
+    note below the block names `board.html` twice and a section-wide scan would
+    read those mentions as rows.
+    """
+    import re
+    text = (Path(_ROOT) / "agent-improve" / "ARCHITECTURE.md").read_text(encoding="utf-8")
+    section = text[text.index(_ARCH_552_HEADING):]
+    end = section.find("\n## ")
+    if end != -1:
+        section = section[:end]
+    fence = re.search(r"```[a-z]*\n(.*?)```", section, re.S)
+    assert fence, "section 55.2 no longer carries a fenced path block"
+    return {
+        line.split()[0] for line in fence.group(1).splitlines()
+        if line.strip().startswith("agent-improve/")
+    }
+
+
+def _norm(path: str) -> str:
+    """`middleware/**` and `middleware/` are one entry in two notations.
+
+    §55.2 writes a package as a glob because that is how it reads; the guard
+    writes a trailing slash because `check_architecture_status` prefix-matches
+    on it. Normalising is honest — asserting the raw strings match would not be.
+    """
+    return path.rstrip("*").rstrip("/")
+
+
+def test_the_watch_list_and_ss552_state_the_same_paths() -> None:
+    """**One fact, two owners — and it has already drifted twice.**
+
+    The board was added to both on 2026-09-11 and removed from only the guard
+    on 2026-09-14, so between `258d0dd` and step 6.27 the document said
+    thirteen paths and the gate enforced twelve. The first drift cost
+    `ef59aa8`; the second was created by the commit that fixed the first.
+    """
+    doc = {_norm(x) for x in _watched_paths_from_arch()}
+    gate = {_norm(x) for x in g.STATUS_WATCHED}
+    assert doc == gate, (
+        "section 55.2 and STATUS_WATCHED disagree about which paths oblige an "
+        "ARCHITECTURE.md re-check. "
+        f"In 55.2 only: {sorted(doc - gate)}. "
+        f"In the guard only: {sorted(gate - doc)}. "
+        "One moved without the other; per CLAUDE.md's fact-ownership rule they "
+        "are one fact, so fix whichever is wrong in the same commit."
+    )

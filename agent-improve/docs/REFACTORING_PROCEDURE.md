@@ -320,6 +320,46 @@ and each is independently valuable if the refactor stalls.*
 
 ---
 
+## 0.4 Mutation proofs — restore from OUTSIDE the tree, never from HEAD
+
+**A check nobody has watched fail is a check nobody has tested.** Every gate in
+this repository is therefore proven by breaking it: defeat the matcher, watch
+the suite go red, restore, watch it go green. That is the standing method and
+it is not optional for a step whose Done-when names a check.
+
+**THE RESTORE IS THE PART THAT GOES WRONG.**
+
+> **Never restore a mutation with `git checkout -- <path>`.** It restores from
+> **HEAD**, not from the state you were in. While the fix is uncommitted — which
+> is exactly when mutation proofs are run — HEAD is the state *before* the fix,
+> so the "restore" silently reverts the fix and leaves the mutation's premise
+> gone. Every subsequent mutation then runs against the old code.
+
+**Copy the file to a path outside the tree first, and restore from that copy.**
+Outside the tree, because a baseline inside it is scratch and CLAUDE.md §0.32
+clause 2 forbids that; the scratchpad is the place.
+
+```bash
+cp .claude/hooks/<hook>.py "$SCRATCH/hook.baseline.py"   # once, after the fix
+# ... mutate, run, then:
+cp "$SCRATCH/hook.baseline.py" .claude/hooks/<hook>.py   # restore, every time
+```
+
+**Read which test failed, never just the count.** A restore that reverted the
+fix still produces `1 failed` — the same shape as a successful proof — while
+failing a *different* test. The count is not the evidence; the test name is.
+Finish by confirming the restored file still carries the change, by grep, and
+that the suite is fully green.
+
+**Twice now, and both times it produced a false result.** ARCHITECTURE.md
+v1.49(D): disabling only `after_agent` left `aafter_agent` overriding, the
+middleware still fired, and the new test passed — a mutation that did nothing,
+read as proof. v1.58: a `git checkout --` restore reverted the uncommitted fix
+instead of the mutation, and the next mutation reported a different test
+failing that would have been recorded as a pass of a check never exercised.
+**A mutation that does not do what you think produces a result that means
+nothing**, and it looks identical to one that does.
+
 ## Step 2.3 — Dependency upgrade
 
 | | |
@@ -2411,6 +2451,55 @@ matcher — emptying the scratch segment set, or pointing the register regex at 
 pattern the table does not use — turns the suite red rather than leaving it
 green; `pytest` is green; and G-57 is closed in §66 with the count updated.
 
+## Step 6.27 — The watched-path contract has one owner (G-58)
+
+| | |
+|---|---|
+| **Reference §** | §55.2 · §55.4 · G-58 · CLAUDE.md *Facts have one owner* |
+| **Touches** | `backend/tests/test_commit_guard_tree_rules.py` |
+| **Precondition** | none — **READY** |
+| **Verify** | `pytest`, plus BOTH mutation directions failing (procedure §0.4) |
+
+### The defect this closes
+
+**One fact, two owners.** §55.2 tabulates the paths that oblige an
+`ARCHITECTURE.md` re-check; `commit-msg-refactor-guard.py` hardcodes the same
+list as `STATUS_WATCHED`. CLAUDE.md's *Facts have one owner* rule says a value
+is stated in exactly one place and cited everywhere else, and this is two
+copies of a set.
+
+**It has already drifted, twice, in opposite directions.** The board was added
+to both on 2026-09-11 and removed from only the guard on 2026-09-14 — so
+between `258d0dd` and this step, the document said thirteen paths and the gate
+enforced twelve. The first drift cost `ef59aa8`; the second was created by the
+commit that fixed the first, which is the shape this rule exists to stop.
+
+### What to build
+
+**A test asserting the two are equal**, not a second source that reads the
+first. Parsing a prose section at hook runtime would put a document on the
+critical path of every commit and fail closed on a reformat — §55.2's table is
+authored for a human reader and is not a data file. **The equality assertion
+gets the ownership benefit without the coupling**: one of the two may move,
+and the suite says so before the gate and the document can disagree in
+production.
+
+The parse is deliberately narrow and anchored to the fenced block in §55.2, so
+a path mentioned in that section's prose is not mistaken for a table row.
+
+### Done when
+
+Both mutation directions fail:
+
+| Mutate | Expect |
+|---|---|
+| add or remove a path in **§55.2** | the equality test fails |
+| add or remove a path in **`STATUS_WATCHED`** | the equality test fails |
+
+`pytest` green with neither mutation in place, and the restore verified per
+§0.4 — from a baseline outside the tree, reading the test NAME rather than the
+failure count.
+
 ## Step 6.16 — The board is generated, not written
 
 | | |
@@ -3687,9 +3776,9 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **DONE** | 35 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.25**, **6.26** |
 | **BUILDING NOW** | 1 | **6.19** — `CoachingResponse` gains §50.1's four presentational fields (G-50) |
 | **BLOCKED** | 7 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL) |
-| **QUEUED** | 22 | **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.22**, **6.23**, **11.1**, **6.24**, **11.2** |
+| **QUEUED** | 23 | **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.22**, **6.23**, **11.1**, **6.24**, **6.27**, **11.2** |
 
-*65 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-14.*
+*66 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-14.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -4018,6 +4107,7 @@ restate, which is the opposite of what the board is for.
 | 571 | **Commit 6.24** | The drift hook learns to read the documents (G-56) |  | OPS | SHARED | The governing documents are excluded from every drift pattern, so the six defects worked on 2026-09-12 and 2026-09-13 were all in files nothing guards. |
 | 572 | **Commit 6.25** | Scratch leaves the tree |  | OPS | SHARED | Working material sits untracked inside the tree and tracked documents cite it, so a citation resolves for whoever has the folder on disk and for nobody else. |
 | 573 | **Commit 6.26** | The guard's tree rules get a test suite (G-57) |  | OPS | SHARED | The two rules that keep scratch and unnumbered files out of the tree are proven by hand and re-run by nothing, so they can stop matching without reporting it. |
+| 574 | **Commit 6.27** | The watched-path contract has one owner (G-58) |  | OPS | SHARED | The same twelve paths are stated in §55.2 and hardcoded in the guard, so the document and the gate can disagree about which paths oblige a re-check — and did. |
 | 570 | **Commit 11.1** | Delete v1 |  | OPS | SHARED | Two implementations of every phase stay in the tree, and the dead one is still the one writing the v1 field names. |
 | 580 | **Commit 11.2** | Governance close-out |  | OPS | SHARED | The refactor has no end, so procedure and architecture drift apart again with nothing marking the handover. |
 

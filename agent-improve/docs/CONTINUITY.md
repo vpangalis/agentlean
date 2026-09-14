@@ -9,9 +9,9 @@
 |---|---|
 | **Last completed** | step **6.26** — The guard's tree rules get a test suite (G-57) |
 | **Next** | step **6.19** — `CoachingResponse` gains §50.1's four presentational fields (G-50) |
-| **Spine steps landed** | 35 of 65 |
+| **Spine steps landed** | 35 of 66 |
 | **Last spine commit** | `87f4fd9` (commit 6.26) |
-| **ARCHITECTURE.md** | v1.57 |
+| **ARCHITECTURE.md** | v1.58 |
 | **CLAUDE.md** | v2.2.40 |
 | **Block regenerated** | 2026-09-14 |
 
