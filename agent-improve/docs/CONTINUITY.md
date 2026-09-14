@@ -24,6 +24,58 @@ count by design — give it a BLOCKED / GATED / EXTERNAL status in
 Appendix D so the pointer does not stop on it.*
 <!-- END CURRENT BUILD STATUS -->
 
+## ⇒ NEXT WORK — THE DEFINE VERTICAL
+
+*Hand-authored and deliberately placed BELOW the generated block. Everything
+above `END CURRENT BUILD STATUS` is rewritten from git log and Appendix D on
+every commit; this section is not, and survives regeneration. Set 2026-09-14.*
+
+**The next work is the DEFINE VERTICAL, in this order. Do not start at the
+bottom.**
+
+| # | Work | Clears |
+|---|---|---|
+| **1** | **One live Define turn on `IMPR-2026-ED8`** | **G-53**, and the `live-run` debts on **6.7, 6.9, 6.12, 6.13** |
+| **2** | **Step 6.19** — `CoachingResponse` gains §50.1's four presentational fields | **G-50** — the UI can draw Define's coaching as four blocks instead of one blob |
+| **3** | **Define's missing §39.1 subsections** — six canonical topics absent from the spec | **Propose the split across steps and REPORT BEFORE BUILDING** |
+| **4** | **A Define gate passing end-to-end in the browser** at `127.0.0.1:8020` | the vertical is real, or it is not |
+
+**Item 1 is unblocked as of 2026-09-14 and was not before.** G-53 was *“Azure
+returns 429 on the premium deployment, so no live run reaches a coached turn”*.
+`operational-premium` was raised **50K → 200K TPM** that morning —
+`sku.capacity 200`, `rateLimits` token `200000` per `60`s, regional quota 200 of
+1350 used. **The 429 condition that blocked every live run is gone**, so item 1
+is now a run-it question rather than a provisioning one. Step **9.2** owns the
+quota and should be closed against this if the run confirms it.
+
+> **Do not size `max_tokens` off the old telemetry.** The 7-day figures — 6,924
+> prompt / **25 completion** / 572 requests — were measured against the 50K
+> deployment while it was degrading. A healthy `CoachingResponse` is several
+> hundred completion tokens; 25 is the 429-text path. **Item 1 produces the
+> first honest measurement**, and the planner's unset `max_tokens` is the only
+> unbounded call on that deployment.
+
+**Item 3's concrete hook:** §39.1 carries **eight** subsections (39.1.1–39.1.8)
+against §39.2's **twelve**. That gap is the thing to enumerate first — name
+which six topics are missing and which step each belongs to, **before** writing
+any of them.
+
+### Governance work WAITS behind this list
+
+**Steps 6.28, 6.29 and 6.30 are governance and are NOT next.** They wait behind
+the Define vertical unless one of them blocks it — and as written, none does:
+
+| Step | What it is | Blocks the vertical? |
+|---|---|---|
+| **6.28** | fact-ownership moves to the commit gate (G-59, G-60) | **No** — the existing guard still runs on `Write`/`Edit` |
+| **6.29** | search index schema ownership, ruled (G-60) | **No** — a ruling about a registry row |
+| **6.30** | a commit body's code claims carry a resolvable reference (G-62) | **No** — a commit-message shape rule |
+
+**If one of them starts to block the vertical, that is a finding** — say so and
+re-sequence deliberately rather than drifting into it because governance is
+easier to make progress on than a live run.
+
+
 ## How this build defends itself against drift
 
 **Four mechanisms, all automatic, all fail-visible.** The `.claude/hooks/`
