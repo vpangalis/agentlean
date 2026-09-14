@@ -204,13 +204,37 @@ STATUS_WATCHED = (
     "agent-improve/backend/knowledge/computation.py",
     "agent-improve/backend/gateway/routes.py",
     "agent-improve/backend/storage/blob.py",
-    # Added 2026-09-11 with step 6.16. The board is a PROJECTION of Appendix D,
-    # the BUILT markers, §66 and git log; the guard is what notices when the
-    # projection did not move with them - a stale board visible the way a stale
-    # marker is. It carries NO wall-clock date precisely so that it changes
-    # when, and only when, one of those four sources does.
-    "agent-improve/docs/board.html",
 )
+
+# ── `docs/board.html` WAS HERE AND IS REMOVED, 2026-09-14 ─────────────────
+#
+# **A WATCHED PATH MUST BE A SOURCE OF TRUTH, NEVER THE OUTPUT OF A
+# GENERATOR.** That is the rule this list is now held to, and the board broke
+# it: `build_board.py` regenerates it from Appendix D, the BUILT markers, §66
+# and **git log** during pre-commit.
+#
+# **Git log moves on every commit, so the board changes on every commit** —
+# and because the hook runs BEFORE the commit it is part of exists, the board
+# permanently lags one commit and spends every commit catching up with the
+# previous one. Rule 2b therefore demanded an `ARCHITECTURE.md` edit on every
+# commit, whether or not any architectural fact had changed.
+#
+# **The entry's own comment argued the opposite and was wrong when written**:
+# *"It carries NO wall-clock date precisely so that it changes when, and only
+# when, one of those four sources does."* True, and it defeats the point —
+# git log IS one of those four sources, and it is the one that moves
+# unconditionally. Removing the date removed a clock and left a counter.
+#
+# **What it cost is on the record**: `ef59aa8`, a `fix(ops)` commit touching
+# only `start.ps1`, was blocked and carries an `ARCHITECTURE.md` §56 entry
+# written only to satisfy this rule. **A gate that always fires is a gate that
+# gets bypassed** — the argument rule 3 is a ratchet for, and rule 2b is
+# deliberately narrow for, applied to itself.
+#
+# **The board is not left unguarded.** `verify_built.py` re-runs the counts
+# behind it, which is the check appropriate to a projection: a derived file is
+# verified by REGENERATING it and comparing, never by asking whether someone
+# remembered to touch a different file in the same commit.
 
 # Everything type-checked and tested lives under this project.
 PROJECT = "agent-improve"

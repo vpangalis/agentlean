@@ -17,6 +17,14 @@ their own headers because of the readers that came before, and a regex that
 stops resolving after a reformat would let every new file through while
 reporting success.
 
+IT ALSO CARRIES RULE 2b's WATCH-LIST INVARIANT
+----------------------------------------------
+**This is the guard's PATH-LIST test file**, and `STATUS_WATCHED` is one of its
+path lists. The invariant added 2026-09-14: **a watched path must be a source of
+truth, never the output of a generator.** `docs/board.html` was on that list and
+is regenerated from git log every commit, so rule 2b fired on every commit
+whether or not an architectural fact had changed.
+
 WHAT IS PINNED
 --------------
 What the rules RANGE OVER, not only what they match: that a modified path is
@@ -332,3 +340,62 @@ def test_the_rules_run_ahead_of_the_prefix_gate() -> None:
     number_at = src.index("check_step_or_gap(root, subject, message, added)")
     gate_at = src.index("if not subject.startswith(GUARDED_PREFIX)")
     assert scratch_at < gate_at and number_at < gate_at
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Rule 2b's watch list — a source of truth, never a generator's output
+# ══════════════════════════════════════════════════════════════════════════
+
+#: Every path a generator in this repository writes, and what writes it. A
+#: watched path may not appear here. Kept as data rather than inferred, because
+#: inferring "is this generated" from file content is what missed the board:
+#: `board.html` carries no DO-NOT-EDIT banner, and `routes.py` contains the word
+#: "generated" in a user-facing error string and is hand-written.
+GENERATED_PATHS = {
+    "agent-improve/docs/board.html": "build_board.py rewrites the whole file",
+    "agent-improve/docs/CONTINUITY.md": "pre-commit-continuity.py splices its status block",
+    "agent-improve/docs/REFACTORING_PROCEDURE.md": "pre-commit-continuity.py splices its step board",
+}
+
+
+def test_no_watched_path_is_a_generators_output() -> None:
+    """**The rule the list is held to, and the one the board broke.**
+
+    A derived file changes when its INPUTS change, and `build_board.py` takes
+    git log as an input — which moves on every commit. So a watch on it asks
+    "did the generator run", never "did an architectural fact change", and the
+    two are indistinguishable from inside the hook.
+
+    **A gate that always fires is a gate that gets bypassed.** That is rule 3's
+    argument for being a ratchet and rule 2b's own argument for being narrow,
+    and it applies to 2b itself. Cost on the record: `ef59aa8`.
+    """
+    offenders = {p: GENERATED_PATHS[p] for p in g.STATUS_WATCHED
+                 if p in GENERATED_PATHS}
+    assert not offenders, (
+        "rule 2b watches a DERIVED path, so it will fire on commits that change "
+        f"no architectural fact: {offenders}. Verify a projection by "
+        "REGENERATING it and comparing (verify_built.py), never by requiring a "
+        "different file to be touched in the same commit."
+    )
+
+
+def test_every_watched_path_still_exists() -> None:
+    """The opposite failure, and it is silent in the other direction.
+
+    A watched path that has been renamed or deleted matches nothing and the rule
+    simply never fires — no error, no warning. That is the class recorded twice
+    already: a `paths:` glob rooted at `backend/**` when `.claude/` sits above
+    it, and `.gitignore` carrying `ARTIFACTS/` against a directory named
+    `_Artifacts/`.
+    """
+    missing = [w for w in g.STATUS_WATCHED
+               if not (Path(_ROOT) / w.rstrip("/")).exists()]
+    assert not missing, f"rule 2b watches paths that do not exist: {missing}"
+
+
+def test_the_watch_list_still_has_teeth() -> None:
+    """Removing an entry must not empty the rule. Guards the over-correction."""
+    assert len(g.STATUS_WATCHED) >= 10, (
+        f"STATUS_WATCHED is down to {len(g.STATUS_WATCHED)} entries — rule 2b "
+        "was narrowed into irrelevance rather than corrected")
