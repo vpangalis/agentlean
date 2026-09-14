@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.58 · 2026-09-14
+Version 1.59 · 2026-09-14
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.59 (2026-09-14)** — **§56 AMENDMENT. THE COMMIT GATES GOVERN; THE THIRTEEN RULE FILES ARE ADVISORY CONTEXT. §55.5 ratified, and three places that implied the reverse are corrected.** **(A) MEASURED, NOT ASSUMED.** `.claude/logs/instructions-loaded.log` holds **six records across two days** of heavy editing — one `session_start` and five `path_glob_match`. Probed four ways on files under live globs: **Write no, Bash no, Edit no, Read yes** — the Read delivering both matching rule files in full. The Edit was NOT refused for lacking a prior read, so this is not `Read`-always-precedes-`Edit`. **Path-scoped rules are delivered on READ.** **(B) WHAT WAS WRONG.** §55's mechanism table listed the constitution under *Enforces* as *“the rules, quoted in every implementation prompt”*; §56.0.1 said a rule *“must load when that code is opened”*. **Opened is the word the measurement contradicts** — written is not opened. Both corrected, and the table now names the rule files alongside the root rather than leaving them implied. **(C) THIS IS NOT A DEFECT TO PATCH.** A rule that must hold whether or not anyone read it belongs in a gate; a rule that teaches or bounds a judgment belongs in a rule file and earns its place even when it loads late. **What stops is writing a rule file as though it were a control** — §55's own shape, a correct mechanism paired with a document claiming more for it than it does. **(D) RULE DELIVERY AT WRITE TIME IS AVAILABLE AND LANDS ONE STEP LATE.** A `PreToolUse` hook returning `hookSpecificOutput.additionalContext` **does** reach the model — probed with a throwaway hook registered in the gitignored `settings.local.json`, which took effect **without a session restart**. It arrives WITH the tool result, after the write it fired on, so it informs the correction and never prevents the edit. **Only `permissionDecision: deny` prevents.** The probe carried a log line written unconditionally, so a negative result could be told apart from a hook that never ran; the observed envelope carries eleven keys including `cwd`, `permission_mode` and `transcript_path`. **(E) THE BASH BYPASS IS REPORTED AND DELIBERATELY NOT FIXED** — both `PreToolUse` guards match `Write|Edit|MultiEdit` and read `content` / `new_string`, fields a Bash call does not carry. Widening the matcher without a shell-parsing path in `extract()` yields a guard that always passes: **a check that cannot fail, recorded as coverage**, which CONTINUITY §7 names as worse than no check. Reasoning: this commit body.
 
 **v1.58 (2026-09-14)** — **§56 AMENDMENT. The board's cause is corrected: it was not an oversight and not a violated exclusion — it was a RATIFIED argument that was false on its face. Plus G-58, and the mutation-restore rule gets a number.** **(A) WHAT v1.57 AND `258d0dd`'s 8D GOT WRONG.** Both state the occurrence cause as *a derived artifact was placed on a source-of-truth list* — which reads as an oversight. **§55.2 ratified it deliberately**, named it *“the only watched path that is GENERATED rather than authored”*, and argued the hazard away: *“it carries no wall-clock date, and that is load-bearing … a guard that fires for nothing is one people route around.”* **The section identified the exact failure mode it was about to cause, attributed it to the wrong mechanism, and cleared the entry.** That is a worse cause than an oversight and a different one: **review did not miss this; review considered it and got the arithmetic wrong**, because `build_board.py` takes git log as one of four inputs and git log moves unconditionally. **(B) A CORRECTION TO THE CORRECTION, RECORDED RATHER THAN ACCEPTED.** The amendment was requested against *§42, the generated-file exclusion, ratified 2026-09-12*. **No such ratification exists.** §42 is *Cross-phase reference fields in practice*. The only exclusion naming `board.html` verbatim is `governed_exclusions` in `.claude/config/fact_owners.yaml`, added **2026-09-13** (v1.47(E)) and governing the **fact-ownership guard**, not rule 2b — two days AFTER the board joined 2b on 2026-09-11, so there was nothing to violate. The cause above is what the tree supports. **(C) v1.31 IS THE ESCAPE CAUSE, AND IT IS SHARPER THAN THE ONE RECORDED.** v1.31(C), dated the day the board was added: *“Rule 2b blocked the commit adding rule 6 … a watched path staged without this file is exactly what 2b exists to stop.”* **It was not — it was the board being regenerated.** The first false trigger fired immediately and was written into the changelog as the rule working. From inside the hook, *the board changed* and *the status changed* are the same observation. **(D) §55.2 IS CORRECTED, AND IT WAS WRONG FOR THREE COMMITS.** `258d0dd` removed the board from the guard and left §55.2 tabulating it, so the document said thirteen and the gate enforced twelve. **The fix for a drift created a fresh instance of the same drift**, which is the argument for (E). **(E) G-58 AND STEP 6.27 — ONE FACT, ONE OWNER, ENFORCED.** An equality test now asserts §55.2's fenced block and `STATUS_WATCHED` state the same set, normalising `middleware/**` against `middleware/` because they are one entry in two notations. Both mutation directions fail. **(F) THE MUTATION-RESTORE RULE IS NOW PROCEDURE §0.4, NOT A THIRD CHANGELOG ENTRY.** Never restore a mutation with `git checkout --`: it restores from HEAD, and while the fix is uncommitted — which is exactly when mutation proofs run — that reverts the fix and leaves every later mutation running against the old code. Copy a baseline OUTSIDE the tree and restore from that, and **read which test failed, never the count**, because a reverted fix also produces `1 failed`. **Three instances now**: v1.49(D), the `git checkout --` revert during `258d0dd`, and a third caught while proving 6.27 — a document mutation whose string did not match, which reported a clean pass until the file was checked for having actually changed. **(G) A TEST OF MINE WAS A FALSE-ALARM GENERATOR AND IS FIXED WITH IT.** `test_the_registers_are_read_from_the_INDEX_not_the_disk` compared byte counts between index and disk, which are equal only in a clean tree — so it went red on any working copy with an unstaged procedure edit. It now asserts the SOURCE. Same class as the defect this entry is about: a check that fires for a reason unrelated to what it checks. Reasoning: this commit body.
 
@@ -6844,7 +6846,7 @@ Four mechanisms, layered:
 
 | Layer | Mechanism | Enforces |
 |---|---|---|
-| **Constitution** | `{agent}/CLAUDE.md` | The rules, quoted in every implementation prompt. **Per agent** — see *Scope* |
+| **Constitution** | `{agent}/CLAUDE.md` + `.claude/rules/*.md` | **ADVISORY CONTEXT, not enforcement** (§55.5). The root loads at session start; the thirteen rule files load on READ of a matching path and were measured silent on Write, Edit and Bash. **Per agent** — see *Scope* |
 | **Skills** | `.claude/skills/verify-current-version` | Version currency at decision time |
 | **Hooks** | `.claude/hooks/pre-tool-use-drift-check.py` + `deprecated_patterns.yaml` | Deprecated patterns blocked before they land |
 | **Gates** | `.githooks/commit-msg` → `.claude/hooks/commit-msg-refactor-guard.py` | **Six rules at the commit itself: 1, 2b, 3, 4, 5, 6.** Subject format; the BUILT-marker document staged with a watched path; mypy against the pinned venv; pytest; CONTINUITY.md current; and **rule 6 — a fix commit's body answers D2 IS, D2 IS-NOT, D4 OCCURRENCE, D4 ESCAPE, D5 FIX and D7 PREVENT** (`agent-improve/CLAUDE.md` §20 — every fix is an 8D) |
@@ -7276,6 +7278,56 @@ owner, not a copy of it. The guard fires on `CLAUDE.md`, `ARCHITECTURE.md`,
 `.claude/rules/**` and `docs/**` — and never on `docs/_archive/**`, which records
 what was true when written.
 
+### 55.5 The commit gates govern. The rule files are advisory context.
+
+**Ratified 2026-09-14, on measurement rather than on design intent.** This
+section exists because §55's own table implied the reverse, and three other
+places in this document were written as though a rule file were a control.
+
+**THE MEASUREMENT.** `.claude/logs/instructions-loaded.log` is written by the
+`InstructionsLoaded` hook, which records every instruction file the CLI loads
+and why. Across **two days of heavy editing it holds six records**: one
+`session_start` for the root `CLAUDE.md`, and five `path_glob_match` — `ui.md`,
+`middleware.md`, `testing.md`, `module-layout.md`, `rag.md`.
+
+**Probed directly, four ways, on files under live globs:**
+
+| Action | Tool | Rule text delivered? |
+|---|---|---|
+| Write a new file | `Write` | **No** |
+| Append to a file | `Bash` | **No** |
+| Edit a file, no prior read | `Edit` | **No** |
+| Read that same file | `Read` | **Yes — both matching rule files, in full** |
+
+The `Edit` was not refused for lacking a prior read, so this is not a case of
+`Read` always preceding `Edit`. **Path-scoped rules are delivered on READ.**
+
+**WHAT FOLLOWS, AND WHAT DOES NOT.**
+
+| | |
+|---|---|
+| **Governs** | The commit gates. `.githooks/commit-msg` → the guard's rules, and `.githooks/pre-commit`. They read the index and refuse. They cannot be unloaded, forgotten, or missed |
+| **Advises** | The root `CLAUDE.md` at session start, and a rule file when a matching path is READ |
+| **Does not reach the write path at all** | The thirteen rule files, during Write, Edit, and Bash-mediated edits |
+
+**This is not a defect to patch and it is not a reason to distrust the rule
+files.** It is a statement of what each layer can carry. A rule that must hold
+regardless of whether anyone read it belongs in a gate; a rule that teaches,
+explains, or bounds a judgment belongs in a rule file and is worth having even
+when it loads late. **What must stop is writing a rule file as though it were a
+control** — the §55 shape of a correct mechanism paired with a document that
+claims more for it than it does.
+
+> **Rule delivery at write time IS available, and it lands one step late.**
+> Probed 2026-09-14: a `PreToolUse` hook returning
+> `hookSpecificOutput.additionalContext` **does** reach the model, surfaced as
+> *"PreToolUse:Write hook additional context"*. But it arrives **with the tool
+> result** — after the write it fired on. So it can inform the next action and
+> the correction, never prevent the edit. **Only `permissionDecision: deny`
+> prevents**, which is what `fact-ownership-guard.py` already uses. Any design
+> that moves rule text onto the write path has to choose between those two, and
+> the choice is not a detail.
+
 ## 56. Amendment procedure
 
 > **NOT-MARKABLE:** **governance procedure.** How this document is amended has no built form; §56.2's split (rule here, reasoning in the commit) is followed or it is not, and the commit-msg guard is what notices.
@@ -7360,7 +7412,7 @@ place, so the test is **what kind of thing is it**:
 
 | It is… | It goes to | Because |
 |---|---|---|
-| a RULE that binds on code | the root, or the rule file whose `paths:` cover that code | it must load when that code is opened |
+| a RULE that binds on code | the root, or the rule file whose `paths:` cover that code | it loads when that code is **READ** — not when it is written (§55.5) |
 | REFERENCE read while doing a task | the skill for that task | it loads on invocation, not in every session |
 | a VALUE some code or file owns | nowhere — **cite the owner** (§55.4) | a second copy is a copy that can drift |
 

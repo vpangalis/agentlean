@@ -3106,6 +3106,32 @@ captured on a post-6.8 coach.
 
 ---
 
+> ### ⚠ FORWARD-NOTE, 2026-09-14 — two claims in this document are waiting on this step
+>
+> **ARCHITECTURE.md carries two “cannot disagree” claims that name
+> `DMAICGateValidator`, and neither has ever been exercised**, because the
+> component does not exist yet:
+>
+> | Where | The claim |
+> |---|---|
+> | L9624, S-F21 B2 | *“derive it the same way Layer 2b does, so the prompt and `DMAICGateValidator` cannot disagree”* |
+> | L10193, S-C26 B4 | *“produce the same answer, derived the same way, so the prompt and the gate cannot disagree”* |
+>
+> **Both are the §55.2 shape**: a hazard named and argued away in prose, with
+> nothing re-running the argument. §55.2's version of that cost `ef59aa8`.
+>
+> **This step discharges them or withdraws them — not both, and not neither.**
+> Add to this step's Done-when: a test that derives the missing-field set BOTH
+> ways — through the prompt path and through `DMAICGateValidator` — and asserts
+> they agree, with a mutation showing it goes red when one side changes. If
+> that test is not written here, **the two claims are withdrawn from
+> ARCHITECTURE.md in this same commit** and replaced with what is actually
+> true: two components intended to agree, with nothing checking that they do.
+>
+> `drift-check.py` currently reports `PENDING (owner not built, not checked):
+> DMAICGateValidator` — so the checker knows it is absent and the prose does
+> not. Raised by the full structure audit; §55.5 is the governing ruling.
+
 ## Step 7.2 — Layers 2c and 2d, and the `validation_stack` node
 
 | | |
