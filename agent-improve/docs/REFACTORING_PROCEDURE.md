@@ -2560,6 +2560,106 @@ document is caught at commit; the same restatement through `Write` is caught by
 whichever layer the step rules stays; `pytest` green; and the `PreToolUse`
 registration's fate is recorded either way, with its reason.
 
+## Step 6.29 — Search index schema ownership, ruled (G-60)
+
+| | |
+|---|---|
+| **Reference §** | §55.4 · §7.3 · §23 · G-60 |
+| **Touches** | `.claude/config/fact_owners.yaml` — one row, after the ruling |
+| **Precondition** | none — **READY.** The work is the ruling |
+| **Verify** | the row exists, or the class is recorded as deliberately unowned with its reason |
+
+### Why this is a step and not a sentence
+
+**It was a sentence — *“ruling first, engineering second”* — with no owner, no
+deadline and no consequence.** That is the shape *live-run owed* had when four
+of them stacked up over six days before anyone noticed they were blocked rather
+than pending. A step renders on the board and the cursor reaches it. A sentence
+in a register row does neither.
+
+### The ruling to make
+
+CLAUDE.md's *Facts have one owner* table names **eight** classes;
+`fact_owners.yaml` registers **five**. G-56 covers two of the three missing —
+gate tier splits and tool inventory. **This is the third**, and it is the
+hardest, because the table gives its owner as *“the index definition, confirmed
+by query”*: **a live Azure resource, not a file the guard can parse.** A derive
+step would need a network call on the write path, which is not viable at the
+measured cost of the existing derive (2.52 s).
+
+| Candidate | What it costs |
+|---|---|
+| Cached schema snapshot + staleness rule | a second copy of a live fact — the thing ownership exists to prevent — bounded by how stale it may be |
+| Rule the class OUT of mechanical ownership | honest, cheap, and leaves §7.3's *read the live definition* instruction as the whole control |
+
+**Either is acceptable; leaving it undecided is not.** Whichever is chosen, the
+row or the exclusion is written in the same commit as the ruling.
+
+### Done when
+
+`fact_owners.yaml` carries the row, **or** §55.4 records the class as
+deliberately outside mechanical ownership with the reason — and the count of
+registered owners against CLAUDE.md's eight classes is stated wherever that
+table is, so the gap cannot silently reopen.
+
+## Step 6.30 — A commit body's code claims carry a resolvable reference (G-62)
+
+| | |
+|---|---|
+| **Reference §** | §56.3 · §20.5.1 · G-62 |
+| **Touches** | `.claude/hooks/commit-msg-refactor-guard.py` · `backend/tests/test_commit_guard_*.py` |
+| **Precondition** | none — **READY** |
+| **Verify** | `pytest`, plus a body asserting a code fact with no reference being refused, and the same body with a `path:line` passing |
+
+### The ruling
+
+**Founder ruling 2026-09-14, overriding §56.3's *ruled to stay untested*.** The
+reasoning §56.3 gave is accepted and unchanged: **a gate cannot judge whether a
+prose claim is TRUE.** The ruling is that it can gate the **SHAPE**.
+
+> **A commit body that asserts a fact about code carries a git-resolvable
+> reference — a path with a line range, or a commit sha. It never judges
+> correctness.**
+
+### The worked case
+
+**v1.31(C)**, in this repository's own changelog:
+
+> *“Rule 2b blocked the commit adding rule 6 — `git commit --only` still lets
+> the pre-commit hook stage `docs/board.html`, and a watched path staged
+> without this file is exactly what 2b exists to stop.”*
+
+A claim about what the guard did, carrying **no reference**, and **wrong**: that
+was the board being regenerated — the first false trigger — recorded as the rule
+working. **It stood six weeks and cost `ef59aa8`.** A `path:line` beside it
+would not have made it true. It would have made it checkable, by pointing the
+next reader at `build_board.py`'s inputs instead of at a conclusion.
+
+> **The example first offered for this step was wrong and is recorded as such.**
+> It was *“the executor times out at 45s while nothing in the repository
+> enforces any timeout”*. **The timeout is enforced**:
+> `backend/phases/subgraph_common.py:73` sets `EXECUTOR_RUN_TIMEOUT = 45`, line
+> 129 attaches `timeout=TimeoutPolicy(run_timeout=EXECUTOR_RUN_TIMEOUT)`, and
+> `verify_built.py` re-runs it. What **step 8.2** owns and has not built is the
+> bounded **request** timeout at the HTTP layer — a different timeout at a
+> different layer. **A step whose purpose is to gate unresolvable citations must
+> not open with one.**
+
+### The known limit, recorded with the ruling
+
+**It does not catch a citation that RESOLVES AND IS WRONG.** §55.2 cited
+`build_board.py`'s four inputs accurately and drew a false conclusion from them;
+a shape gate passes that unchanged. **State this in the rule's own message**, so
+a passing commit is not read as a verified one — the same discipline
+`check_step_or_gap` carries about numbers that resolve but do not fit.
+
+### Done when
+
+A body asserting a code fact with no reference is refused, naming the sentence;
+the same body with `path:line` or a sha passes; a body asserting nothing about
+code is untouched; the rule's message states the limit; `pytest` green; and both
+mutation directions are shown per §0.4.
+
 ## Step 6.16 — The board is generated, not written
 
 | | |
@@ -3891,9 +3991,9 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **DONE** | 36 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.25**, **6.26**, **6.27** |
 | **BUILDING NOW** | 1 | **6.19** — `CoachingResponse` gains §50.1's four presentational fields (G-50) |
 | **BLOCKED** | 7 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL) |
-| **QUEUED** | 23 | **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.22**, **6.23**, **11.1**, **6.24**, **6.28**, **11.2** |
+| **QUEUED** | 25 | **6.20**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.22**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **11.2** |
 
-*67 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-14.*
+*69 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-14.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -4224,6 +4324,8 @@ restate, which is the opposite of what the board is for.
 | 573 | **Commit 6.26** | The guard's tree rules get a test suite (G-57) |  | OPS | SHARED | The two rules that keep scratch and unnumbered files out of the tree are proven by hand and re-run by nothing, so they can stop matching without reporting it. |
 | 574 | **Commit 6.27** | The watched-path contract has one owner (G-58) |  | OPS | SHARED | The same twelve paths are stated in §55.2 and hardcoded in the guard, so the document and the gate can disagree about which paths oblige a re-check — and did. |
 | 575 | **Commit 6.28** | Fact-ownership moves to the commit gate (G-59, G-60) |  | OPS | SHARED | The ownership guard runs on a tool path most edits do not take, so a document restating an owned value lands unchecked whenever the edit came through Bash. |
+| 576 | **Commit 6.29** | Search index schema ownership — ruled (G-60) |  | OPS | SHARED | An ownership class with no owner is a class nothing guards, and this one is named in CLAUDE.md's table as though it were covered. |
+| 577 | **Commit 6.30** | A commit body's code claims carry a resolvable reference (G-62) |  | OPS | SHARED | A claim about code can enter the permanent record with nothing to check it against, and the record is what the next session reads as fact. |
 | 570 | **Commit 11.1** | Delete v1 |  | OPS | SHARED | Two implementations of every phase stay in the tree, and the dead one is still the one writing the v1 field names. |
 | 580 | **Commit 11.2** | Governance close-out |  | OPS | SHARED | The refactor has no end, so procedure and architecture drift apart again with nothing marking the handover. |
 

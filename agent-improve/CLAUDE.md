@@ -14,6 +14,20 @@ violate it silently.
 **Violations of this constitution cost weeks of rework. We have proven this
 twice with Agent Resolve and once with Agent Improve. There is no third time.**
 
+## Where this is
+
+```
+C:\Users\mavep\OneDrive - Vassilis Pangalis Valuesims\_DEVELOPMENT\AgentLean\agent-improve
+```
+
+The repository root is one level up; `.claude/` sits **there**, not here, which
+is why every `paths:` glob is written `agent-improve/...` (§0.2).
+
+**It is recorded here and not in `CONTINUITY.md`** — that file is regenerated on
+every commit and hand edits are overwritten. **The tree lives inside OneDrive,
+and the mirror does not carry `.claude/`**: resolve through git, never a
+directory listing (§0.32).
+
 ## Commands
 
 ```powershell
