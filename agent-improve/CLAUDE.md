@@ -19,13 +19,20 @@ twice with Agent Resolve and once with Agent Improve. There is no third time.**
 ```powershell
 .venv\Scripts\Activate.ps1         # Windows venv — there is no bin/activate
 pip install -r requirements.txt
-pytest                             # 893 tests; must pass before any commit
-mypy .                             # mypy.ini; the commit hook gates on this
+pytest                             # must pass before any commit; the suite owns its count
+mypy .                             # reports the WHOLE tree, v1 debt included — see below
 ./start.ps1                        # local run — SEE THE WARNING BELOW
 ```
 
 **`./start.ps1` HARD-RESETS TO `origin/main` AND DISCARDS UNCOMMITTED WORK.** Its
 own header says so. Commit or stash first; it is not a plain "run the app".
+
+**`mypy .` is NOT the gate, and a clean run is not what you are aiming for.** It
+type-checks the whole tree and reports the v1 debt with it. **The gate is a
+RATCHET**: the commit hook runs mypy over the CHANGED files only and blocks
+errors absent from `.claude/config/mypy-baseline.txt`. Read a bare `mypy .`
+count as a measurement, never as a pass/fail — a first run showing dozens of
+errors is the expected state, not a broken checkout.
 
 **Use `agent-improve/.venv`, never the repo-root venv.** The root one is stale.
 Probing the wrong one is what put a false dependency blocker into two governing
