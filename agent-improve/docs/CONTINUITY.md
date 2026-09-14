@@ -7,13 +7,13 @@
 
 | | |
 |---|---|
-| **Last completed** | step **6.25** — Scratch leaves the tree |
+| **Last completed** | step **6.26** — The guard's tree rules get a test suite (G-57) |
 | **Next** | step **6.19** — `CoachingResponse` gains §50.1's four presentational fields (G-50) |
-| **Spine steps landed** | 34 of 65 |
-| **Last spine commit** | `e621391` (commit 6.25) |
-| **ARCHITECTURE.md** | v1.55 |
+| **Spine steps landed** | 35 of 65 |
+| **Last spine commit** | `87f4fd9` (commit 6.26) |
+| **ARCHITECTURE.md** | v1.56 |
 | **CLAUDE.md** | v2.2.40 |
-| **Block regenerated** | 2026-09-13 |
+| **Block regenerated** | 2026-09-14 |
 
 *`Last completed` and the landed count come from **git log** — the
 `refactor(arch-v2): commit X.Y` subjects. `Next` and the total come
