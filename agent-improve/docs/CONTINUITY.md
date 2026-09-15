@@ -9,7 +9,7 @@
 |---|---|
 | **Last completed** | step **6.31** — The build matrix — one row per step, anchored to a symbol |
 | **Next** | step **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
-| **Spine steps landed** | 38 of 72 |
+| **Spine steps landed** | 38 of 73 |
 | **Last spine commit** | `663a378` (commit 6.31) |
 | **ARCHITECTURE.md** | v1.64 |
 | **CLAUDE.md** | v2.2.40 |
@@ -27,8 +27,8 @@ Appendix D so the pointer does not stop on it.*
 
 | # | Step | State |
 |---|---|---|
-| **1** | **6.21** — The plan reaches the model (G-49's fix) | ⚠️ |
-| **2** | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ |
+| **1** | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ |
+| **2** | **6.33** — The capture path accumulates — a field survives the next turn | ☐ |
 | **3** | **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning | ☐ |
 | **4** | **7.3** — Nine-step HITL gate | ☐ |
 | **5** | **10.2** — Live gate document + conflict panel | ☐ |

@@ -199,9 +199,17 @@ list lives here.
 | 6.9 | `live-run` | Owed — never run |
 | 6.12 | `live-run` | Owed — never run |
 | 6.13 | `live-run` | **Attempted and FAILED**, cause isolated to code 6.13 did not touch — see its section |
-| 6.21 | `live-run` | **Owed. The code LANDED as `a1a0a5d` and the proof did not**, so git counts the step DONE and the board renders it in the DONE lane while its Done-when is unmet. Added 2026-09-15 — it should have been added the day 6.21 landed |
+| ~~6.21~~ | `live-run` | **DISCHARGED 2026-09-15**, rid `20167cc9-ea86-4501-a827-0e19ebb2420a`. See the closure in 6.21's own section |
 
-> **6.21 IS THE CASE THIS TABLE EXISTS FOR, AND IT WAS MISSING FROM IT.** The
+> **THREE ROWS ABOVE ARE STILL OPEN, AND 6.21'S CLOSURE DID NOT DISCHARGE
+> THEM.** 6.21's Done-when required the live halves of **6.7**, **6.12** and
+> **6.13** *“run in the same pass”*. **That clause is NOT met**, and each is
+> assessed on its own evidence in 6.21's closure rather than carried silently
+> by the clause. **6.12's cannot be met by any Define turn at all**: Define
+> declares **0** ask shapes against Measure's 4 (ruling AR-R2), so an upload
+> has no ask to resolve to.
+>
+> **6.21 WAS THE CASE THIS TABLE EXISTS FOR, AND IT WAS MISSING FROM IT.** The
 > four rows above were added when their steps landed; 6.21's was not, for
 > eleven days. **A step whose `Verify` names `live-run` is exactly the step
 > most likely to land on its code half alone**, because the code half is the
@@ -3542,6 +3550,46 @@ the `live-run` halves of **6.7**, **6.12** and **6.13** are run in the same
 pass, which is what discharges their verification debt (step 6.18's
 re-schedule).
 
+> ### ✅ CLOSED 2026-09-15 — rid `20167cc9-ea86-4501-a827-0e19ebb2420a`
+>
+> | Evidence | |
+> |---|---|
+> | **The coach returned the source file's exact statistics** | mean **10.23%**, range **7.04–16.01%** — the computed values of `docs/_archive/SAMPLE_PROJECT/define_baseline_weekly.csv` |
+> | Upload consumed | `executor: marked 1 upload(s) consumed` |
+> | Hops | **0/5** — zero redundant searches, against three in the failure |
+> | Duration | **~22s**, 19:11:45→19:12:07, inside `run_timeout=45` |
+>
+> **THE STATISTICS ARE THE LOAD-BEARING CLAUSE AND THE OTHERS ARE CORROBORATION.**
+> A dispatch count, a `consumed_at` stamp and a hop count can all be produced by
+> a read that failed — **G-63 is the proof, because every one of those looked
+> right while `load_evidence_series` returned `no_such_column` and loaded
+> nothing.** Values that match the file's own arithmetic cannot be produced
+> that way. The data reached the model.
+>
+> **THE SPAN IS DELIBERATELY NOT CITED.** A LangSmith trace id is not offered
+> and would add nothing: the span reports `status: "success"` on a read that
+> loaded no data, which is **the open half of G-63's escape cause** and is step
+> 8.0's to fix. Citing it would be citing the instrument this step's own defect
+> proved unreliable. The request id is the anchor instead.
+>
+> **⛑ THE DONE-WHEN'S LAST CLAUSE IS NOT MET, AND IS NOT TREATED AS MET.** It
+> required the live halves of 6.7, 6.12 and 6.13 *“run in the same pass”*.
+> **None of the three is discharged by this run**, each for a reason of its own
+> — assessed below — and all three keep their rows in *Verification owed*.
+> Closing 6.21 on its own evidence while silently absorbing three other steps'
+> debts is precisely the shape this document exists to refuse.
+>
+> | Step | Its live half | Verdict |
+> |---|---|---|
+> | **6.7** | *“the Define and Measure opening turns that see-sawed both coach rather than cap”* | **STILL OWED.** The turn spent **0 of 5 hops**, so the coach never searched and the cap never engaged — zero hops exercises neither *coaching instead of capping* nor the cap itself. **And Measure's opening turn was not run at all**; this was a Define turn |
+> | **6.12** | *“a coach request for data is recorded with its expected shape; an upload resolves to that ask”* | **STILL OWED, AND UNREACHABLE FROM DEFINE.** `SHAPES_BY_PHASE` declares **0** ask shapes for Define and **4** for Measure (ruling AR-R2), so **no Define turn can bind an upload to an ask** — the upload here answered no request. What the run DID exercise is the fifth clause: a tool consumed a bound upload without the coach retyping a figure. **One clause of five, and not the one the step is named for** |
+> | **6.13** | *“a `live-run` confirms a Belt asking what the to-be process is now reaches the artefact”* | **STILL OWED.** 0/5 hops means **`rag_lookup_evidence` was never called**, so the evidence INDEX was not queried at all — the figures came from `load_evidence_series`, a direct blob read that bypasses it. The question asked was also not *“what the to-be process is”*. Its `azure-query` half is a separate method and was not run either |
+>
+> **What 6.21 itself proves is narrow and sufficient**: the planner's routed
+> call is dispatched by the node, reaches the tool with a column the file has,
+> and its result reaches the model. That is option C working, which is the
+> whole of this step.
+
 > **⛑ THE CASE THIS CLAUSE NAMED NO LONGER EXISTS. Repointed 2026-09-15.**
 > It read `IMPR-2026-ED8`. **The store was reset to exactly one case that
 > morning and that case is `IMPR-2026-0E5`**, so the clause instructed a run
@@ -4172,6 +4220,76 @@ One live turn on a real case reaches a coached answer: `CoherenceMiddleware`
 passes on attempt 1, `DMAICGraderMiddleware` returns a verdict rather than
 logging `SKIPPED`, and the turn captures at least one field into `artifacts`.
 
+## Step 6.33 — The capture path accumulates — a field survives the next turn
+
+| | |
+|---|---|
+| **Reference §** | §6 · §7 · §20 · §39.1 · S-C02 · S-F04 · G-78 |
+| **Touches** | `backend/phases/mappers_common.py` · `backend/gateway/routes.py` · `backend/tests/` |
+| **Precondition** | none — **READY**. Independent of 6.20, which is in flight |
+| **Verify** | `pytest` + `live-run` |
+| **Status** | **RULED — founder 2026-09-15. Not started** |
+
+**Every coached capture destroys the ones before it.** Two defects at opposite
+ends of a path that otherwise works (G-78), found by the first live turn:
+
+1. **The input mapper blanks the accumulator every turn.**
+   `mappers_common.py:252-253` seeds `"draft": {}` **and** `"artifacts": {}`,
+   so `artifacts` — documented at `nodes_common.py:1275` as *"the
+   accumulation"* — accumulates within a single turn and is reset on the next.
+   `artifacts` and `draft` are consequently always identical.
+2. **The write replaces instead of merging.** `routes.py:661-665` builds
+   `clean` from THIS turn's extraction and assigns
+   `case.phases[phase].structured = clean`.
+
+> ### ⛑ THIS IS THE DEFECT 6.11 FIXED ONE FIELD OVER
+>
+> The comment directly beneath those two mapper lines records that `uploads`
+> was blanked *"from 3.1 to 6.11"* and that this *"was the entire reason
+> `PhaseState.uploads` had no writer"*. **6.11 seeded `uploads` and left
+> `draft` and `artifacts` blanked.** The fix is known because it has been
+> applied here before, to the field beside these two.
+
+### Why it is its own step and not a widening of 6.20
+
+**6.20 does not touch `routes.py`**, where half the defect lives, and 6.20 is
+in flight — widening a moving step adds scope to something already moving.
+6.20 owns `computation_results`, `phase_metrics` and `field_index`; **this owns
+the capture path 6.2 built and S-F04 B4 ratified**, which is supposed to work
+today. Adjacent, not the same.
+
+### Why it runs AHEAD of 10.0
+
+**A Belt fills 26 fields across many turns.** While each capture wipes the
+last, the gate document can never accumulate, `gate_attempts` has nothing to
+count and **§33's gate is unreachable** — so 7.3 is blocked behind this, and
+rendering the turn better (10.0) renders a document that is still being
+emptied. Order: **6.20 → 6.33 → 10.0 → 7.3 → 10.2**.
+
+### The trap in the evidence, and it is why the log is not enough
+
+**The log counts KEYS and the filter drops on VALUES.**
+`nodes_common.py:1269` logs `len(captured)`; `clean` discards entries whose
+value is `None`, `[]` or `{}`. So *"captured 1 field(s) -> artifacts"* and
+*"nothing reached the gate document"* are **both true of the same turn**, which
+is exactly what the 2026-09-15 run produced — and the reason it produced the
+BENIGN branch: `clean` came out empty, `if clean` skipped the write, and the
+two creation-form fields survived. **Had the capture carried a real value they
+would have been destroyed.** A fix that makes the write succeed without fixing
+the merge turns a silent no-op into silent data loss.
+
+**Done when:** the input mapper seeds `artifacts` from the case record rather
+than blanking it, on the same argument 6.11 used for `uploads`; the write
+MERGES into `structured` rather than replacing it, so a field captured on turn
+1 is still present after turn 5; a capture whose value is empty is **reported
+rather than silently dropped**, so the log and the write can no longer disagree;
+a test drives **five successive turns** and asserts all five fields are present
+at the end — a single-turn test passes today and proves nothing; and a
+`live-run` on `IMPR-2026-0E5` captures fields across at least two turns with
+both surviving into the gate document.
+
+---
+
 ## Step 10.0 — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning
 
 | | |
@@ -4432,9 +4550,9 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **DONE** | 38 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.25**, **6.26**, **6.27**, **6.31** |
 | **BUILDING NOW** | 1 | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 25 | **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
+| **QUEUED** | 26 | **6.33**, **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
-*72 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-15.*
+*73 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-15.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -4735,6 +4853,7 @@ restate, which is the opposite of what the board is for.
 | 335 | **Commit 6.21** | The plan reaches the model (G-49's fix) |  | COACH | SHARED | The planner's routing decision stays advisory, so the guarantee that an uploaded file is read is whatever the model felt like doing - and the live halves of three landed steps can never be run. |
 | 340 | **Commit 6.19** | `CoachingResponse` gains §50.1's four presentational fields (G-50) |  | COACH | SHARED | Every coaching turn arrives as one prose blob, so there is nothing structured for a gate UI to display and five SKILL.md files keep instructing the coach to fill fields that do not exist. |
 | 350 | **Commit 6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` |  | PHASE | SHARED | Three things §39.x.7 specifies are read by the gate document and written by nothing, so a computed figure never reaches a gate and the coach cannot tell which field it is on. |
+| 352 | **Commit 6.33** | The capture path accumulates — a field survives the next turn |  | PHASE | SHARED | Every coached capture destroys the ones before it, so a Belt filling 26 fields across many turns can never reach a gate. |
 | 355 | **Commit 10.0** | The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |  | UI | SHARED | The coach produces `explanation`, `example`, `prompt` and `progress` every turn and the API discards all four, so §50.1’s render contract stays prompt-hoped and the Belt reads one prose blob. |
 | 360 | **Commit 8.0** | Turn telemetry and `@traceable` |  | OPS | SHARED | Nothing is traced, so every investigation needs a hand-built harness and no limit can be set from measured data. |
 | 370 | **Commit 7.3** | Nine-step HITL gate |  | GATE | SHARED | Nothing pauses for a human at a gate, so no gate decides, `gate_attempts` cannot accumulate, and the supervisor graph can never become the runtime. |
@@ -4965,7 +5084,8 @@ home.**
 | L3 |  | **4.1** | Define phase subgraph | ✅ | `backend.phases.subgraph_common::build_phase_subgraph` | §12, §13, §14 |
 | L3 |  | **4.4** | Remaining four subgraphs | ✅ | `backend.phases.mappers_common::PHASE_ORDER {define,measure,analyse,improve,control}` | §12, §13 |
 | L3 |  | **6.8** | `phase_context` is read (WATCH 19) | ✅ | `backend.middleware.state_injection::BeforeModelStateInjection` | §6, §9, §19.1 |
-| L3 | 2 | **6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ | `absent: backend.phases.nodes_common::_advance_field_index` | §7, §39.x.7, S-C02, S-C03 |
+| L3 | 1 | **6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ | `absent: backend.phases.nodes_common::_advance_field_index` | §7, §39.x.7, S-C02, S-C03 |
+| L3 | 2 | **6.33** | The capture path accumulates — a field survives the next turn | ☐ | `absent: backend.phases.mappers_common::seed_capture_state` | §6, §7, §20, S-F04 |
 
 #### L4 · Coaching agent
 
@@ -4979,12 +5099,20 @@ home.**
 | L4 |  | **6.9** | The four missing SKILL.md files + §32 conformance | ✅ | `repo:agent-improve/skills/dmaic-define-phase/SKILL.md` | §32, §43, §37 |
 | L4 |  | **6.12** | Ask-binding: an upload answers a request | ✅ | `backend.phases.nodes_common::_unconsumed_for_open_ask` | §29.1, §32, §43, §50 |
 | L4 |  | **6.18** | The executor ignores the tool its planner names (G-49) | ✅ | `backend.phases.nodes_common::_dispatch_routed_read` | §17, §26, S-F04, S-F13, S-F57 |
-| L4 | 1 | **6.21** | The plan reaches the model (G-49's fix) | ⚠️ | `backend.phases.nodes_common::_dispatch_routed_read` | §17, §26, §19.1 / S-C11, S-F13, S-F57 |
+| L4 |  | **6.21** | The plan reaches the model (G-49's fix) | ✅ | `backend.phases.nodes_common::_dispatch_routed_read` | §17, §26, §19.1 / S-C11, S-F13, S-F57 |
 | L4 |  | **6.19** | `CoachingResponse` gains §50.1's four presentational fields (G-50) | ✅ | `backend.core.substate::CoachingResponse {message,explanation,example,prompt,progress,fields_captured,citations,contradiction_flag}` | §20, S-C05, §50.1 |
 | L4 |  | **6.14** | SKILL.md shape pass — Define, Analyse, Improve, Control | ⛔ | `backend.upload.asks::SHAPES_BY_PHASE.define {}` | §32, §43, §23.2.1 |
 | L4 |  | **6.10** | `analyse_executor_node` — §26's multi-hop | ⛔ | `absent: backend.phases.nodes_common::analyse_executor_node` | §26, §58.18 |
 
-> **6.21 IS ⚠️ RATHER THAN ✅, AND IT IS THE ONE ROW WHERE `State` IS NOT
+> **6.21 IS ✅ AS OF 2026-09-15, AND THE HAND-SET ⚠️ IS WITHDRAWN.** Its
+> `live-run` ran — rid `20167cc9-ea86-4501-a827-0e19ebb2420a`, the coach
+> returning the source file's exact statistics. The cell is derived again, and
+> agrees with git. **The three debts its Done-when named are NOT discharged**
+> and keep their own rows; see the closure in 6.21's section.
+>
+> *What follows is why the cell was hand-set, kept because the condition
+> recurs:*
+> **6.21 WAS ⚠️ RATHER THAN ✅, AND IT WAS THE ONE ROW WHERE `State` WAS NOT
 > DERIVED.** Git carries `a1a0a5d refactor(arch-v2): commit 6.21`, so the
 > derivation says ✅ and the board's DONE lane agrees. **Its Done-when is not
 > met**: it requires a `live-run` on `IMPR-2026-0E5` carrying the live halves
