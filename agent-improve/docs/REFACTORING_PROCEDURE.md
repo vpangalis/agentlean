@@ -197,7 +197,7 @@ list lives here.
 |---|---|---|
 | 6.7 | `live-run` | Owed — never run |
 | 6.9 | `live-run` | Owed — never run |
-| 6.12 | `live-run` | Owed — never run |
+| 6.12 | `live-run` **(Measure)** | **Owed, and RE-HOMED 2026-09-15.** It was never runnable in Define — 0 ask shapes against Measure's 4 (AR-R2) — so this was a **defective clause, not a debt**, for as long as it named Define. Real, and owed against a MEASURE turn |
 | 6.13 | `live-run` | **Attempted and FAILED**, cause isolated to code 6.13 did not touch — see its section |
 | ~~6.21~~ | `live-run` | **DISCHARGED 2026-09-15**, rid `20167cc9-ea86-4501-a827-0e19ebb2420a`. See the closure in 6.21's own section |
 
@@ -1504,10 +1504,26 @@ reads `remaining_steps` and branches on it, the hop count is enforced and
 written to `step_log`, and **the Define and Measure opening turns that
 see-sawed both coach rather than cap, with no prompt wording changed**.
 
-> **⚑ The live half is owed, not done.** Blocked on Azure 429s on
-> `operational-premium` in westeurope — the same AI2 blocker that cut AK3's
-> measurement short. The unit suite pins both guards deterministically, so
-> what is owed is end-to-end confirmation of the mechanism, not the mechanism.
+> **⚑ The live half is owed, not done.** The 429 blocker on
+> `operational-premium` is CLEARED (quota raised 50K → 200K TPM, 2026-09-14),
+> so what remains is running the turns. The unit suite pins both guards
+> deterministically, so what is owed is end-to-end confirmation of the
+> mechanism, not the mechanism.
+>
+> ### ⚑ WHAT THIS CLAUSE ASKS FOR IS **COACH RATHER THAN CAP** — read it twice
+>
+> **It does NOT ask for the hop cap to ENGAGE.** The clause is *"the Define and
+> Measure opening turns that see-sawed both **coach rather than cap**"* — the
+> see-saw was the PRE-6.7 behaviour, and the evidence wanted is that those two
+> turns now produce coaching instead of exhausting retrieval. **A run
+> engineered to spend six lookups and trip `_HOP_BUDGET_SPENT` would
+> demonstrate the opposite of what this asks** and would not discharge it.
+>
+> **The Define half is arguably already met** by the 2026-09-15 turn (rid
+> `20167cc9`): it coached, returned the file's real statistics, and spent
+> **0 of 5 hops** — coaching without approaching the cap. **The MEASURE half
+> is not**, because no Measure turn has been run. Recorded 2026-09-15 rather
+> than claimed, because *"arguably"* is not a verdict and the founder owns it.
 
 ---
 
@@ -1729,8 +1745,33 @@ it the only route from a file to `calculate_grr` is the coach transcribing
 numbers out of retrieved chunks — which is the anti-pattern §22 exists to
 prevent, performed on the platform's own evidence.
 
-**Done when — the original five:** a coach request for data is recorded with its
-expected shape; an upload resolves to that ask; a shape mismatch produces a
+> ### ⛑ CORRECTED 2026-09-15 — THE LIVE-RUN CLAUSE WAS WRONG, NOT UNMET
+>
+> **This step's verification is RE-HOMED TO MEASURE.** Founder ruling. The
+> five clauses below are unchanged; what changes is the phase they are
+> verified in, and the reason is structural rather than practical.
+>
+> **THE TEST APPLIED: could any run have satisfied it? No.**
+> `SHAPES_BY_PHASE` declares **0** ask shapes for Define and **4** for Measure
+> — ruling AR-R2, and a deliberate one. So *"a coach request for data is
+> recorded with its expected shape"* has nothing to record in Define, and
+> *"an upload resolves to that ask"* has no ask to resolve to. **No Define
+> turn could ever have satisfied clauses 1 and 2**, however many were run.
+>
+> **A Done-when requiring something structurally impossible in the phase under
+> work is a defect in the CLAUSE, not a debt against the WORK.** It was
+> carried as owed verification from 6.12's landing until today, and it was
+> never owed — it was unsatisfiable. It also propagated: **6.21's Done-when
+> required this step's live half *"in the same pass"***, so a false debt was
+> inherited by a second step and would have been inherited by any step that
+> named it next.
+>
+> **NOT QUIETLY DELETED.** The clause stands, re-homed, because the thing it
+> asks for is real and is worth verifying — in the phase where ask shapes
+> exist. **Verify becomes `live-run` (Measure).**
+
+**Done when — the original five, VERIFIED IN MEASURE:** a coach request for data
+is recorded with its expected shape; an upload resolves to that ask; a shape mismatch produces a
 coaching turn rather than a rejection; a second file against one ask is recorded
 as a revision rather than a second upload; and a computation tool consumes a
 bound upload without the coach retyping a figure.
@@ -3574,15 +3615,17 @@ re-schedule).
 >
 > **⛑ THE DONE-WHEN'S LAST CLAUSE IS NOT MET, AND IS NOT TREATED AS MET.** It
 > required the live halves of 6.7, 6.12 and 6.13 *“run in the same pass”*.
-> **None of the three is discharged by this run**, each for a reason of its own
-> — assessed below — and all three keep their rows in *Verification owed*.
+> **TWO are genuinely owed and the third was never owed at all**: 6.12's clause
+> could not be satisfied by any Define turn and is corrected and re-homed to
+> Measure rather than carried. **Closing 6.21 against a false debt would have
+> recorded a failure that never existed.**
 > Closing 6.21 on its own evidence while silently absorbing three other steps'
 > debts is precisely the shape this document exists to refuse.
 >
 > | Step | Its live half | Verdict |
 > |---|---|---|
 > | **6.7** | *“the Define and Measure opening turns that see-sawed both coach rather than cap”* | **STILL OWED.** The turn spent **0 of 5 hops**, so the coach never searched and the cap never engaged — zero hops exercises neither *coaching instead of capping* nor the cap itself. **And Measure's opening turn was not run at all**; this was a Define turn |
-> | **6.12** | *“a coach request for data is recorded with its expected shape; an upload resolves to that ask”* | **STILL OWED, AND UNREACHABLE FROM DEFINE.** `SHAPES_BY_PHASE` declares **0** ask shapes for Define and **4** for Measure (ruling AR-R2), so **no Define turn can bind an upload to an ask** — the upload here answered no request. What the run DID exercise is the fifth clause: a tool consumed a bound upload without the coach retyping a figure. **One clause of five, and not the one the step is named for** |
+> | **6.12** | *“an upload resolves to that ask”* | **NOT A DEBT — THE CLAUSE WAS WRONG AND IS CORRECTED.** Define declares **0** ask shapes against Measure's **4** (AR-R2), so no Define turn could ever have satisfied it. Re-homed to Measure 2026-09-15; see 6.12's own correction block. **6.21 therefore inherited a FALSE DEBT**, and carried it from the moment this clause was written. The run did exercise the fifth clause — a tool consumed a bound upload without the coach retyping a figure |
 > | **6.13** | *“a `live-run` confirms a Belt asking what the to-be process is now reaches the artefact”* | **STILL OWED.** 0/5 hops means **`rag_lookup_evidence` was never called**, so the evidence INDEX was not queried at all — the figures came from `load_evidence_series`, a direct blob read that bypasses it. The question asked was also not *“what the to-be process is”*. Its `azure-query` half is a separate method and was not run either |
 >
 > **What 6.21 itself proves is narrow and sufficient**: the planner's routed
