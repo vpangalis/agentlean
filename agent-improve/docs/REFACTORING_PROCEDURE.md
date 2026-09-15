@@ -3535,11 +3535,29 @@ section**, and two of them change what §17 means.
 `xfail(strict=True)` marker is **removed** — it is strict precisely so this
 cannot be skipped; the ruled transport is applied and its ratified section
 amended under §56 with a version bump; a `live-run` of `POST /ask` on
-`IMPR-2026-ED8` — *"what does our to-be process look like"* — completes a turn
-in which `load_evidence_series` is called on the named blob path and at least one
-upload is stamped `consumed_at`; `pytest` is green; and the `live-run` halves of
-**6.7**, **6.12** and **6.13** are run in the same pass, which is what discharges
-their verification debt (step 6.18's re-schedule).
+**`IMPR-2026-0E5`** — a Belt question whose answer is in an uploaded file —
+completes a turn in which `load_evidence_series` is called on the named blob
+path and at least one upload is stamped `consumed_at`; `pytest` is green; and
+the `live-run` halves of **6.7**, **6.12** and **6.13** are run in the same
+pass, which is what discharges their verification debt (step 6.18's
+re-schedule).
+
+> **⛑ THE CASE THIS CLAUSE NAMED NO LONGER EXISTS. Repointed 2026-09-15.**
+> It read `IMPR-2026-ED8`. **The store was reset to exactly one case that
+> morning and that case is `IMPR-2026-0E5`**, so the clause instructed a run
+> against a case that could not be opened — an unsatisfiable Done-when, which
+> is worse than a demanding one because it fails for a reason that has nothing
+> to do with the step.
+>
+> **ONLY THE FORWARD INSTRUCTIONS WERE REPOINTED.** Every `IMPR-2026-ED8` in
+> 6.13's and 6.18's sections is a RECORD OF A TRACE THAT HAPPENED on that
+> case, and those are untouched. Rewriting them would falsify the evidence the
+> diagnosis rests on — the trace really did run on ED8, and a register that
+> edits its own history to match the present is the drift this document exists
+> to prevent.
+>
+> **`docs/_archive/SAMPLE_PROJECT/` is the data behind the new case**, and its
+> dossier names `define_baseline_weekly.csv` as the file to upload first.
 
 ---
 
@@ -4154,6 +4172,70 @@ One live turn on a real case reaches a coached answer: `CoherenceMiddleware`
 passes on attempt 1, `DMAICGraderMiddleware` returns a verdict rather than
 logging `SKIPPED`, and the turn captures at least one field into `artifacts`.
 
+## Step 10.0 — §50.1’s four fields reach the Belt — the coaching turn renders as four blocks
+
+| | |
+|---|---|
+| **Reference §** | §50.1 · §49 · §20 · S-C05 (§58.5) · G-69 |
+| **Touches** | `backend/gateway/schemas.py` · `backend/gateway/routes.py` · **`ui/index.html`** · `backend/tests/` |
+| **Precondition** | **6.19** — the fields exist on `CoachingResponse`. Landed |
+| **Verify** | `pytest` + `manual-UI` |
+| **Status** | **RULED — founder 2026-09-15. Not started** |
+
+**The coach produces `explanation`, `example`, `prompt` and `progress` on every
+turn and the API throws all four away.** `AskResponse` does not declare them,
+and `routes.py` builds `answer=(reply.content if …)` and nothing else — so
+§50.1's render contract, the one that section calls *"schema-backed, not
+prompt-hoped"*, is prompt-hoped at the only boundary that matters. The Belt
+reads one prose blob.
+
+> ### ⛑ THIS IS THE FIRST STEP THAT NAMES `ui/index.html`
+>
+> **7,273 lines of Belt-facing product that no step builds and nothing
+> verifies** — G-71. This step does not close that gap; it puts the first row
+> against the file, which is what lets the next one be written.
+
+### Why this is a step and not a bug fix
+
+**6.19 is landed and STAYS landed.** It did what it said: it added the four
+fields to `CoachingResponse` under a §56 amendment, with the rebuild test and
+the marker moved. **What it did not do is carry them to a reader.** The step
+that declares a schema and the step that delivers its outcome are different
+steps, and collapsing them would make 6.19 retroactively wrong — which it is
+not.
+
+**G-50's CLOSURE IS THE THING TO RE-EXAMINE, and this step owns that.** G-50
+was *"`CoachingResponse` is built at four of eight fields"* and was closed on
+6.19 because the class reached eight. **The condition G-50 described — §50.1's
+render contract being prompt-hoped, the UI receiving one free-text field — is
+still true today.** So either the gap was scoped to the class and closed
+correctly, or it was scoped to the outcome and closed early. **Rule on it here,
+in writing, rather than leaving two defensible readings in the register.**
+
+### What to build
+
+1. **`AskResponse` gains the four**, defaulted `""` to match S-C05 as amended
+   at v1.64 — a missing block is a finding, never a failed turn (§4.8).
+2. **`routes.py` projects them** from the `CoachingResponse` it already holds,
+   beside `answer` rather than instead of it. `message` stays the transcript
+   entry; the four are the render contract. **Collapsing them is what §50.1
+   forbids**, and `message` carries the text `messages` and summarisation need.
+3. **The UI draws one block per field**, in §50.1's order, with `example`
+   visually distinct so a Belt cannot mistake an illustration for their own
+   data (B6), and `progress` always visible.
+4. **An empty block renders as absent, not as a gap in the layout** —
+   `presentational_gaps()` already names which came back empty.
+
+**Done when:** `AskResponse` declares all four; a turn's response carries them
+end to end, asserted against the ROUTE rather than against the schema alone;
+the UI renders four blocks and `pytest` is green; a `manual-UI` pass confirms
+the Belt sees four blocks rather than one blob; the Appendix F row's anchor
+moves off `absent:` to a positive one; **and G-50's closure is re-examined on
+the record — upheld with its scope stated, or reopened with this step named as
+what closes it.** One or the other, never silence.
+
+---
+
 ## Step 10.1 — `/ask/stream` SSE
 
 | | |
@@ -4319,9 +4401,9 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **DONE** | 38 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.25**, **6.26**, **6.27**, **6.31** |
 | **BUILDING NOW** | 1 | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 24 | **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
+| **QUEUED** | 25 | **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
-*71 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-15.*
+*72 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-15.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -4622,6 +4704,7 @@ restate, which is the opposite of what the board is for.
 | 335 | **Commit 6.21** | The plan reaches the model (G-49's fix) |  | COACH | SHARED | The planner's routing decision stays advisory, so the guarantee that an uploaded file is read is whatever the model felt like doing - and the live halves of three landed steps can never be run. |
 | 340 | **Commit 6.19** | `CoachingResponse` gains §50.1's four presentational fields (G-50) |  | COACH | SHARED | Every coaching turn arrives as one prose blob, so there is nothing structured for a gate UI to display and five SKILL.md files keep instructing the coach to fill fields that do not exist. |
 | 350 | **Commit 6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` |  | PHASE | SHARED | Three things §39.x.7 specifies are read by the gate document and written by nothing, so a computed figure never reaches a gate and the coach cannot tell which field it is on. |
+| 355 | **Commit 10.0** | §50.1’s four fields reach the Belt — the coaching turn renders as four blocks |  | UI | SHARED | The coach produces `explanation`, `example`, `prompt` and `progress` every turn and the API discards all four, so §50.1’s render contract stays prompt-hoped and the Belt reads one prose blob. |
 | 360 | **Commit 8.0** | Turn telemetry and `@traceable` |  | OPS | SHARED | Nothing is traced, so every investigation needs a hand-built harness and no limit can be set from measured data. |
 | 370 | **Commit 7.3** | Nine-step HITL gate |  | GATE | SHARED | Nothing pauses for a human at a gate, so no gate decides, `gate_attempts` cannot accumulate, and the supervisor graph can never become the runtime. |
 | 380 | **Commit 10.2** | Live gate document + conflict panel |  | UI | SHARED | A Belt cannot see the document being built, so the gate is the first time anyone looks at it whole. |
@@ -4809,7 +4892,7 @@ home.**
 | L0 |  | **6.28** | Fact-ownership moves to the commit gate (G-59, G-60) | ☐ | `absent: repo:.claude/hooks/ownership_gate.py` | — |
 | L0 |  | **6.29** | Search index schema ownership — ruled (G-60) | ☐ | `absent: repo:.claude/config/search_index_owner.yaml` | — |
 | L0 |  | **6.30** | A commit body's code claims carry a resolvable reference (G-62) | ☐ | `absent: repo:.claude/hooks/code_ref_gate.py` | — |
-| L0 | 2 | **6.31** | The build matrix — one row per step, anchored to a symbol | ☐ | `verify_built::matrix_covers_appendix_d` | — |
+| L0 |  | **6.31** | The build matrix — one row per step, anchored to a symbol | ☐ | `verify_built::matrix_covers_appendix_d` | — |
 | L0 |  | **6.32** | An out-of-band landing gets the lane it earned (G-65) | ☐ | `absent: backend.tests.test_board_lanes` | §55.2 · Appendix D · G-65 |
 | L0 |  | **11.2** | Governance close-out | ☐ | `absent: repo:agent-improve/docs/HANDOVER.md` | §55 |
 
@@ -4817,6 +4900,7 @@ home.**
 
 | Layer | Order | Step | Item | State | Evidence | § |
 |---|---|---|---|---|---|---|
+| L1 | 3 | **10.0** | §50.1’s four fields reach the Belt — the coaching turn renders as four blocks | ☐ | `absent: backend.gateway.schemas::CoachingBlocks` | §50.1, §49, S-C05 |
 | L1 | 5 | **10.2** | Live gate document + conflict panel | ☐ | `absent: repo:agent-improve/ui/gate_document.js` | §50, §43.4 |
 
 > **⛑ 10.2's ANCHOR WAS THE SECOND UNFAILABLE `absent:` — G-72.** It read
@@ -4850,7 +4934,7 @@ home.**
 | L3 |  | **4.1** | Define phase subgraph | ✅ | `backend.phases.subgraph_common::build_phase_subgraph` | §12, §13, §14 |
 | L3 |  | **4.4** | Remaining four subgraphs | ✅ | `backend.phases.mappers_common::PHASE_ORDER {define,measure,analyse,improve,control}` | §12, §13 |
 | L3 |  | **6.8** | `phase_context` is read (WATCH 19) | ✅ | `backend.middleware.state_injection::BeforeModelStateInjection` | §6, §9, §19.1 |
-| L3 | 3 | **6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ | `absent: backend.phases.nodes_common::_advance_field_index` | §7, §39.x.7, S-C02, S-C03 |
+| L3 | 2 | **6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ | `absent: backend.phases.nodes_common::_advance_field_index` | §7, §39.x.7, S-C02, S-C03 |
 
 #### L4 · Coaching agent
 
@@ -4872,7 +4956,7 @@ home.**
 > **6.21 IS ⚠️ RATHER THAN ✅, AND IT IS THE ONE ROW WHERE `State` IS NOT
 > DERIVED.** Git carries `a1a0a5d refactor(arch-v2): commit 6.21`, so the
 > derivation says ✅ and the board's DONE lane agrees. **Its Done-when is not
-> met**: it requires a `live-run` on `IMPR-2026-ED8` carrying the live halves
+> met**: it requires a `live-run` on `IMPR-2026-0E5` carrying the live halves
 > of 6.7, 6.12 and 6.13, and that evidence does not exist. See *Verification
 > owed*.
 >

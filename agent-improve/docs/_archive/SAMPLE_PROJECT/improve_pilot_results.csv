@@ -1,0 +1,13 @@
+phase,week,channel,error_rate_pct,invoices_processed,errors_found
+pre_pilot,1,email_pdf,17.11,228,39
+pre_pilot,2,email_pdf,14.74,190,28
+pre_pilot,3,email_pdf,16.67,198,33
+pre_pilot,4,email_pdf,15.27,203,31
+pre_pilot,5,email_pdf,15.35,228,35
+pre_pilot,6,email_pdf,11.22,196,22
+post_pilot,1,email_pdf,5.17,174,9
+post_pilot,2,email_pdf,7.45,188,14
+post_pilot,3,email_pdf,6.6,212,14
+post_pilot,4,email_pdf,4.57,219,10
+post_pilot,5,email_pdf,10.48,210,22
+post_pilot,6,email_pdf,4.44,180,8
