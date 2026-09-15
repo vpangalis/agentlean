@@ -789,6 +789,64 @@ def _numeric_columns(parsed: dict) -> list[str]:
             if t in ("whole number", "decimal", "percentage")]
 
 
+async def first_numeric_column(blob_path: str) -> str | None:
+    """The file's first numeric column, read from its own header — G-63.
+
+    **The second source for a routed read's column.** The first is the ask
+    that solicited the upload (S-F13, §17); this exists because
+    `SHAPES_BY_PHASE["define"]` is empty by ruling AR-R2, so in Define every
+    ask declares no columns and the node had nothing to name. It named a
+    placeholder instead, the tool could only answer `no_such_column`, and the
+    routed read loaded nothing while the span still reported success (G-63).
+
+    **It lives HERE rather than in the node, and that placement is the point.**
+    The download, the parse, the column vocabulary and `_numeric_columns` are
+    already this module's. A second parse site in `nodes_common` would be a
+    second answer to *"what columns does this file have"*, which is the
+    single-authority drift §39.2 exists to prevent — the same reason
+    `_match_column` is not reimplemented at the call site.
+
+    **NUMERIC, not merely first.** `load_evidence_series` returns a SERIES
+    with n, mean and sigma, so a date or a free-text `reason` column satisfies
+    the letter of *"a column the file has"* and none of its purpose. On the
+    G-63 trace's own file — `date, complaints, reason` — the first column is a
+    date and the only useful answer is `complaints`.
+
+    Returns `None` when the file cannot be read, cannot be parsed, or carries
+    no numeric column at all. **`None` is a caller's signal not to dispatch,
+    never a failure**: a file with nothing to read is a coaching fact, and
+    §4.8 forbids turning it into a hard failure for the Belt.
+    """
+    from backend.storage import blob as blob_store
+    from backend.upload.parsers import parse_upload
+
+    filename = (blob_path or "").rsplit("/", 1)[-1]
+    try:
+        raw = await blob_store.download_bytes(blob_path)
+        parsed = parse_upload(filename, raw, _content_type_for(filename))
+    except Exception as exc:  # noqa: BLE001 — a header read is best-effort
+        logger.warning(
+            "first_numeric_column: cannot read %s (%s) — the caller declines "
+            "the routed read rather than naming a column blindly",
+            blob_path, exc,
+        )
+        return None
+
+    if not parsed.get("parsed"):
+        logger.info("first_numeric_column: %s did not parse (%s)",
+                    filename, parsed.get("refusal_reason"))
+        return None
+
+    numeric = _numeric_columns(parsed)
+    if not numeric:
+        logger.info(
+            "first_numeric_column: %s has no numeric column (columns: %s)",
+            filename, ", ".join(parsed.get("columns") or []) or "none",
+        )
+        return None
+    return numeric[0]
+
+
 def _column_values(parsed: dict, column: str) -> list[float]:
     """The column's numeric values, re-derived from the parsed text.
 

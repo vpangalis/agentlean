@@ -214,6 +214,11 @@ DEFAULT_SERIES = (
     "min=2, max=6."
 )
 
+#: The columns of the file on the G-63 trace (`01a09ff4`), verbatim. `date` is
+#: first and is NOT the answer — which is why the header read resolves the
+#: first NUMERIC column rather than the first one.
+FILE_COLUMNS = ["date", "complaints", "reason"]
+
 
 class _RoutedRead:
     """Stands in for `load_evidence_series` where the NODE dispatches it.
@@ -232,6 +237,27 @@ class _RoutedRead:
         self.artifact: dict = {"ok": True, "column": "complaints", "n": "5"}
         #: Set to an exception to exercise the fail-soft path.
         self.raises: Exception | None = None
+
+        # ── the header read — G-63 ────────────────────────────────────
+        #
+        # **Stubbed here for the same reason the tool is, and it is the same
+        # trap through a second door.** Since G-63, a routed read whose ask
+        # declares no column resolves one from the file's own header, which
+        # is another real Azure blob read. Define populates no ask shapes
+        # (ruling AR-R2), so in Define this is the NORMAL path — every test
+        # with an upload and no declared column would reach the network.
+        #
+        # `FILE_COLUMNS` is the G-63 trace's own file, so a test asserting
+        # "a column the file has" is asserting against the real thing.
+        self.file_columns: list[str] = list(FILE_COLUMNS)
+        #: What the header read resolves. `None` exercises the refusal branch
+        #: — a file with no numeric column is not dispatched at all.
+        self.numeric_column: str | None = "complaints"
+        self.header_reads: list[str] = []
+
+    async def first_numeric_column(self, blob_path: str) -> str | None:
+        self.header_reads.append(blob_path)
+        return self.numeric_column
 
     async def ainvoke(self, call: dict, *args: Any, **kwargs: Any) -> Any:
         self.calls.append(call)
@@ -253,6 +279,9 @@ def routed_read(monkeypatch) -> _RoutedRead:
     fake = _RoutedRead()
     monkeypatch.setattr(
         "backend.phases.nodes_common.load_evidence_series", fake)
+    monkeypatch.setattr(
+        "backend.phases.nodes_common.first_numeric_column",
+        fake.first_numeric_column)
     return fake
 
 

@@ -897,16 +897,7 @@ def test_the_planner_and_the_executor_route_to_the_same_upload(
 # ══════════════════════════════════════════════════════════════════════════
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "G-63 — DIAGNOSIS ONLY, no fix proposed yet. `_routed_column` derives the "
-    "column from an open ask's `expected_shape.columns`, and Define populates "
-    "no ask shapes — `_unconsumed_for_open_ask`'s own docstring says so. So "
-    "every Define routed read is issued with `_COLUMN_UNDECLARED` and the tool "
-    "answers `no_such_column`. strict=True so this cannot rot: the day a fix "
-    "lands the suite goes red until the marker is removed, which is the same "
-    "contract 6.18 used on G-49."
-))
-def test_a_node_issued_read_names_a_column_the_file_has() -> None:
+def test_a_node_issued_read_names_a_column_the_file_has(routed_read) -> None:
     """**The 45s timeout's cause, pinned one layer above the timeout.**
 
     Trace `01a09ff4-db43-7532-bec0-89329f886482` (2026-09-14 12:46:59):
@@ -929,15 +920,22 @@ def test_a_node_issued_read_names_a_column_the_file_has() -> None:
     must name a column the file actually has. It does not say WHERE that
     column comes from: an ask shape Define does not yet populate, a column
     the plan carries, a header read before dispatch, or a decision not to
-    dispatch at all when nothing declares one. Any of those satisfies it, and
-    choosing between them is the fix, which is not proposed here.
+    dispatch at all when nothing declares one.
+
+    **The fix chosen was the third.** This test was rewritten to assert on the
+    DISPATCHED CALL rather than on `_routed_column`'s return: the old
+    assertion read `column != _COLUMN_UNDECLARED`, a constant that no longer
+    exists, and it tested the source rather than the contract. Asserting on
+    the call is what keeps it channel-agnostic — a later move to ask shapes or
+    a plan-carried column passes it unchanged.
 
     **What this test does NOT cover**, stated so a green result is not
     over-read: whether the coach would still have searched had the data
     loaded. The trace cannot separate that — the tool's own message told the
     coach to *"Ask the Belt which of those holds the value you need"* and the
     coach searched instead, which is a second finding about the authority of
-    a node-issued result. It has no evidence independent of this defect.
+    a node-issued result. It has no evidence independent of this defect, and
+    only the live turn can close it.
     """
     upload = {
         "role": "complaints log",
@@ -948,19 +946,183 @@ def test_a_node_issued_read_names_a_column_the_file_has() -> None:
     # Define's real shape: an ask is open for the role, and it declares no
     # columns — which is exactly what `_unconsumed_for_open_ask`'s docstring
     # records as "Define carrying no ask shapes".
-    # cast for the same reason `_dispatch_routed_read` types its args dict
-    # separately: a heterogeneous literal infers a value type the callee's
-    # signature will not accept, and mypy is right to refuse it.
     state = cast(PhaseState, {
         "asks": [{"role": "complaints log", "status": "open",
                   "expected_shape": {}}],
         "uploads": [upload],
     })
 
-    column = _c._routed_column(state, upload)
+    out = _run(_c._dispatch_routed_read(state))
 
-    assert column != _c._COLUMN_UNDECLARED, (
-        "the node dispatched load_evidence_series with a placeholder column, "
-        "so the tool can only answer no_such_column and the routed read loads "
-        "nothing — trace 01a09ff4-db43-7532-bec0-89329f886482"
+    assert routed_read.calls, (
+        "the routed read was not dispatched at all — option C's transport is "
+        "what step 6.21 landed and this test assumes it"
     )
+    column = (routed_read.calls[0].get("args") or {}).get("column")
+    assert column in routed_read.file_columns, (
+        f"the node dispatched load_evidence_series with column={column!r}, "
+        f"which is not one of {routed_read.file_columns} — so the tool can "
+        "only answer no_such_column and the routed read loads nothing "
+        "(G-63, trace 01a09ff4-db43-7532-bec0-89329f886482)"
+    )
+    assert out, "a dispatched read returns the AIMessage/ToolMessage pair"
+
+
+def test_the_header_read_resolves_the_column_when_no_ask_declares_one(
+        routed_read) -> None:
+    """**The second source, and why it is NUMERIC rather than first.**
+
+    `SHAPES_BY_PHASE["define"]` is empty by ruling AR-R2, so in Define no ask
+    ever declares a column. The header read is therefore Define's normal path
+    rather than its exception — and on the trace's own file the FIRST column
+    is `date`, which satisfies "a column the file has" and none of its
+    purpose. `load_evidence_series` returns a series with n, mean and sigma.
+    """
+    upload = {"role": "complaints log", "filename": "complaints.csv",
+              "blob_path": "uploads/IMPR-2026-ED8/complaints.csv",
+              "consumed_at": None}
+    state = cast(PhaseState, {
+        "asks": [{"role": "complaints log", "status": "open",
+                  "expected_shape": {}}],
+        "uploads": [upload],
+    })
+
+    _run(_c._dispatch_routed_read(state))
+
+    assert routed_read.header_reads == [upload["blob_path"]], (
+        "the header was read exactly once, on the routed path"
+    )
+    resolved = routed_read.calls[0]["args"]["column"]
+    assert resolved == "complaints", "the first NUMERIC column, not the first"
+    assert resolved != routed_read.file_columns[0], (
+        "`date` is the file's first column and is not a series — resolving "
+        "'first' rather than 'first numeric' would reintroduce G-63 with a "
+        "column that merely exists"
+    )
+
+
+def test_an_ask_that_declares_a_column_is_not_overridden_by_the_header(
+        routed_read) -> None:
+    """The ask stays authoritative — the header read is a FALLBACK.
+
+    A declared column is what the coach asked the Belt for, so it wins even
+    where the file might suggest another. Without this, G-63's fix would
+    quietly move the routing decision off the ask layer that owns it (S-F13
+    DP1), which is the same class of drift G-49 was.
+    """
+    upload = {"role": "baseline defect data", "filename": "complaints.csv",
+              "blob_path": "uploads/IMPR-2026-ED8/complaints.csv",
+              "consumed_at": None}
+    state = cast(PhaseState, {
+        "asks": [{"role": "baseline defect data", "status": "open",
+                  "expected_shape": {"columns": ["reason"]}}],
+        "uploads": [upload],
+    })
+
+    _run(_c._dispatch_routed_read(state))
+
+    assert routed_read.calls[0]["args"]["column"] == "reason"
+    assert routed_read.header_reads == [], (
+        "no header read happens when the ask already declares a column — the "
+        "fallback must not cost a blob read it does not need"
+    )
+
+
+def test_no_column_anywhere_declines_the_dispatch_rather_than_faking_one(
+        routed_read) -> None:
+    """**The half of the G-63 fix that is easy to miss.**
+
+    A file with no numeric column has nothing `load_evidence_series` can
+    return. Dispatching anyway is precisely the defect: the tool answers
+    `no_such_column`, the coach holds nothing, and the span reports success
+    either way. Declining leaves the manifest to make the coach aware — the
+    pre-6.21 behaviour, degraded rather than broken, and §4.8's "never a hard
+    failure to the Belt".
+    """
+    routed_read.numeric_column = None          # no series anywhere in the file
+    upload = {"role": "complaints log", "filename": "notes.docx",
+              "blob_path": "uploads/IMPR-2026-ED8/notes.docx",
+              "consumed_at": None}
+    state = cast(PhaseState, {
+        "asks": [{"role": "complaints log", "status": "open",
+                  "expected_shape": {}}],
+        "uploads": [upload],
+    })
+
+    out = _run(_c._dispatch_routed_read(state))
+
+    assert out == [], "the turn continues with no tool exchange prepended"
+    assert routed_read.calls == [], (
+        "nothing was dispatched — a read that can only answer no_such_column "
+        "is worse than no read, because the span still reports success (G-63)"
+    )
+
+
+def test_first_numeric_column_picks_the_series_not_the_first_column(
+        monkeypatch) -> None:
+    """**The G-63 fix's own logic, against the REAL parser.**
+
+    The four tests above exercise the node through `routed_read`, which stubs
+    `first_numeric_column` — so none of them touches the numeric-vs-first
+    decision that makes the resolved column useful rather than merely real.
+    **That is the gap this closes**, and it is the shape §0.4 exists for: a
+    helper proven only through its own stub is not proven.
+
+    The bytes are the G-63 trace's file: `date, complaints, reason`. The
+    parser types them `date` / `whole number` / `text`, so `complaints` is the
+    only series in the file and `date` is what "first column" would have
+    returned.
+    """
+    from backend.knowledge.tools import first_numeric_column
+
+    raw = (b"date,complaints,reason\n"
+           b"2026-01-04,17,late delivery\n"
+           b"2026-01-05,12,damaged\n")
+
+    async def _fake_download(path: str) -> bytes:
+        assert path == "uploads/IMPR-2026-ED8/complaints.csv"
+        return raw
+
+    monkeypatch.setattr(
+        "backend.storage.blob.download_bytes", _fake_download)
+
+    got = _run(first_numeric_column("uploads/IMPR-2026-ED8/complaints.csv"))
+
+    assert got == "complaints", (
+        f"resolved {got!r} — `date` is the file's first column and is not a "
+        "series; load_evidence_series returns n, mean and sigma, so a date "
+        "column satisfies 'a column the file has' and none of its purpose"
+    )
+
+
+def test_first_numeric_column_returns_None_when_the_file_has_no_series(
+        monkeypatch) -> None:
+    """No numeric column is a REFUSAL SIGNAL, never an exception.
+
+    `None` is what tells `_dispatch_routed_read` not to dispatch. A raise here
+    would turn a file with nothing to read into a dead turn, which §4.8
+    forbids — the Belt uploaded something, and being told about it is the
+    coaching move.
+    """
+    from backend.knowledge.tools import first_numeric_column
+
+    async def _fake_download(path: str) -> bytes:
+        return b"reason,owner\nlate delivery,ops\ndamaged,logistics\n"
+
+    monkeypatch.setattr(
+        "backend.storage.blob.download_bytes", _fake_download)
+
+    assert _run(first_numeric_column("uploads/X/reasons.csv")) is None
+
+
+def test_first_numeric_column_returns_None_when_the_blob_cannot_be_read(
+        monkeypatch) -> None:
+    """An unreadable blob declines the read; it does not end the turn."""
+    from backend.knowledge.tools import first_numeric_column
+
+    async def _boom(path: str) -> bytes:
+        raise RuntimeError("blob 404")
+
+    monkeypatch.setattr("backend.storage.blob.download_bytes", _boom)
+
+    assert _run(first_numeric_column("uploads/X/missing.csv")) is None

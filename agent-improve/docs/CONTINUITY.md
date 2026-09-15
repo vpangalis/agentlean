@@ -8,12 +8,12 @@
 | | |
 |---|---|
 | **Last completed** | step **6.27** — The watched-path contract has one owner (G-58) |
-| **Next** | step **6.19** — `CoachingResponse` gains §50.1's four presentational fields (G-50) |
-| **Spine steps landed** | 36 of 69 |
-| **Last spine commit** | `1fb7abb` (commit 6.27) |
-| **ARCHITECTURE.md** | v1.62 |
+| **Next** | step **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
+| **Spine steps landed** | 37 of 69 |
+| **Last spine commit** | `7e4dfce` (commit 6.19) |
+| **ARCHITECTURE.md** | v1.63 |
 | **CLAUDE.md** | v2.2.40 |
-| **Block regenerated** | 2026-09-14 |
+| **Block regenerated** | 2026-09-15 |
 
 *`Last completed` and the landed count come from **git log** — the
 `refactor(arch-v2): commit X.Y` subjects. `Next` and the total come

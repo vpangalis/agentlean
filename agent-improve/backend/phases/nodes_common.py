@@ -70,6 +70,7 @@ from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE
 from backend.knowledge.tools import (
     RAG_LOOKUP_TOOLS,
     UNIVERSAL_TOOLS,
+    first_numeric_column,
     load_evidence_series,
 )
 from backend.middleware.coherence import CoherenceMiddleware
@@ -667,20 +668,30 @@ _DIAGRAM_TO_UI_KEY = {
 }
 
 
-#: What the node asks for when nothing has declared a column. The tool answers
-#: a miss by naming the columns the file DOES have (its B2 path), which is the
-#: coaching move the Belt needs — so a routed read is useful even here.
-_COLUMN_UNDECLARED = "(not specified)"
+def _routed_column(state: PhaseState, upload: dict) -> str | None:
+    """The column to read, from the ask that solicited this upload.
 
+    **Returns `None` when no ask declares one, and that is the G-63 fix.**
 
-def _routed_column(state: PhaseState, upload: dict) -> str:
-    """The column to read, from the ask that solicited this upload."""
+    It used to return a `"(not specified)"` placeholder, on the reasoning that
+    the tool answers a miss by naming the columns the file DOES have (its B2
+    path) and that this is a useful coaching move. **The reasoning was sound
+    and the consequence was not.** `SHAPES_BY_PHASE["define"]` is empty by
+    ruling AR-R2, so in Define NO ask ever declares a column — the placeholder
+    was not an edge case there, it was every routed read. The tool could only
+    answer `no_such_column`, the coach held no data and searched anyway, and
+    the executor hit its 45s wall (trace `01a09ff4`). A read that can only
+    fail is worse than no read, because the span still reports success.
+
+    `None` is the honest answer: the ask layer has nothing to say. The caller
+    decides whether to find a column elsewhere or to decline the dispatch.
+    """
     for ask in state.get("asks") or []:
         if ask.get("status") == "open" and ask.get("role") == upload.get("role"):
             columns = (ask.get("expected_shape") or {}).get("columns") or []
             if columns:
                 return str(columns[0])
-    return _COLUMN_UNDECLARED
+    return None
 
 
 async def _dispatch_routed_read(state: PhaseState) -> list:
@@ -720,13 +731,39 @@ async def _dispatch_routed_read(state: PhaseState) -> list:
     upload = _unconsumed_for_open_ask(state)
     if upload is None or not upload.get("blob_path"):
         return []
+    blob_path = str(upload["blob_path"])
+
+    # ── the column: two sources and a refusal — G-63 ───────────────────
+    #
+    # 1. THE ASK that solicited the upload (§17, S-F13). Authoritative when it
+    #    exists, because it is what the coach asked the Belt for.
+    # 2. THE FILE'S OWN HEADER, when no ask declares one. Define populates no
+    #    ask shapes (ruling AR-R2), so this is Define's normal path, not its
+    #    exception. `first_numeric_column` owns the read — a parse here would
+    #    be a second answer to a question `knowledge/tools.py` already owns.
+    # 3. NEITHER — and then DO NOT DISPATCH. This is the half of the fix that
+    #    is easy to miss: a read naming a column the file lacks IS G-63. The
+    #    tool answers `no_such_column`, the coach holds nothing, and the span
+    #    reports success either way. Declining leaves the manifest to make the
+    #    coach aware — the pre-6.21 behaviour, degraded rather than broken,
+    #    and §4.8's "never a hard failure to the Belt".
+    column = _routed_column(state, upload)
+    column_source = "ask"
+    if column is None:
+        column = await first_numeric_column(blob_path)
+        column_source = "header"
+    if column is None:
+        logger.info(
+            "executor: NOT dispatching a routed read of %s — no open ask "
+            "declares a column and the file carries no numeric column. The "
+            "coach keeps the manifest and the turn continues (G-63).",
+            blob_path,
+        )
+        return []
 
     # Typed separately: a heterogeneous dict literal infers a value type the
     # args cannot be read back out of, and mypy is right to refuse it.
-    args: dict[str, str] = {
-        "blob_path": str(upload["blob_path"]),
-        "column": _routed_column(state, upload),
-    }
+    args: dict[str, str] = {"blob_path": blob_path, "column": column}
     call: dict[str, Any] = {
         "name": "load_evidence_series",
         "args": args,
@@ -745,8 +782,9 @@ async def _dispatch_routed_read(state: PhaseState) -> list:
 
     logger.info(
         "executor: DISPATCHED the planner's call — load_evidence_series on %s "
-        "[column=%s] (§17, option C). The model was not offered this decision.",
-        args["blob_path"], args["column"],
+        "[column=%s, from the %s] (§17, option C). The model was not offered "
+        "this decision.",
+        args["blob_path"], args["column"], column_source,
     )
     return [AIMessage(content="", tool_calls=[call]), result]
 
