@@ -637,6 +637,44 @@ a{text-decoration:none;color:inherit}
 <script>
 const API = 'http://127.0.0.1:8020';
 
+// A server-written message goes into innerHTML in one place (loadRegistry's
+// failure panel), so it is escaped. `detail` is backend prose today, but an
+// error string is the last thing that should be trusted as markup.
+function escapeHtml(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ─── apiJSON — G-66 ───────────────────────────────────────────────────
+//
+// EVERY call goes through this. `fetch` does NOT reject on 4xx or 5xx, so
+// `fetch(u).then(r=>r.json())` hands an ERROR BODY back as if it were data,
+// and the caller's own success test decides what happens next. That is how
+// a 503 came to render as "No cases yet — create your first one.": the body
+// was `{detail:"Storage not configured"}`, `data.length` was `undefined`,
+// and the empty-state branch fired. The Belt cannot tell an empty registry
+// from a backend that is not answering, and neither could the founder.
+//
+// Throws on a non-2xx, carrying the server's own `detail` so the message a
+// Belt sees is the one the backend wrote. `status` is on the error for the
+// callers that need to treat 404 as a distinct case rather than a failure.
+async function apiJSON(url, opts) {
+  const r = await fetch(url, opts);
+  let body = null;
+  try { body = await r.json(); } catch (e) { body = null; }
+  if (!r.ok) {
+    const d = body && (body.detail || body.message);
+    const err = new Error(
+      typeof d === 'string' ? d : (d ? JSON.stringify(d)
+                                     : `${r.status} ${r.statusText}`));
+    err.status = r.status;
+    err.body = body;
+    throw err;
+  }
+  return body;
+}
+
 // ─── STATE ────────────────────────────────────────────────────────
 const S = {
   screen: 'landing',
@@ -916,7 +954,12 @@ function showSectionToast(sectionKey) {
 async function loadRegistry(){
   const el=document.getElementById('recent-list');
   try{
-    const data=await fetch(`${API}/registry`).then(r=>r.json());
+    const data=await apiJSON(`${API}/registry`);
+    // An empty registry and a broken backend are DIFFERENT facts and must
+    // never render the same (G-66). `apiJSON` throws on non-2xx, so reaching
+    // here means the server answered 200 — and an array that is not an array
+    // is still a failure, not an empty list.
+    if(!Array.isArray(data)){throw new Error('The registry did not return a list.');}
     if(!data.length){el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3);font-size:12px">No cases yet — create your first one.</div>';return;}
     el.innerHTML=data.map(c=>{
       const p=PHASES[c.current_phase]||PHASES.define;
@@ -928,7 +971,9 @@ async function loadRegistry(){
         <div class="rag-dot ${rag}"></div>
       </div>`;
     }).join('');
-  }catch(e){el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3);font-size:12px">Could not load cases — is the backend running?</div>';}
+  }catch(e){el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3);font-size:12px">'+
+    '<strong>Could not load your cases.</strong><br>'+escapeHtml(e.message||String(e))+
+    '<br><span style="color:var(--text3)">This is not an empty registry — the server did not answer with one.</span></div>';}
 }
 
 async function quickOpenCase(caseId){
@@ -996,12 +1041,12 @@ async function submitCreateCase(){
   const caseId=document.getElementById('new-case-id').textContent;
   const team=[...S.teamMembers];
   try{
-    const data=await fetch(`${API}/cases`,{method:'POST',headers:{'Content-Type':'application/json'},
+    const data=await apiJSON(`${API}/cases`,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({title,belt_level:S.beltLevel,leader:S.user,department:dept||'General',
-        target_date:date||new Date().toISOString().split('T')[0],team})}).then(r=>r.json());
-    if(data.case_id){await openWorkspace(data.case_id);}
-    else{toast('Error creating case: '+(data.detail||'Unknown error'));}
-  }catch(e){toast('Could not connect to backend. Is it running?');}
+        target_date:date||new Date().toISOString().split('T')[0],team})});
+    if(data&&data.case_id){await openWorkspace(data.case_id);}
+    else{toast('The server created no case id — nothing was saved.',5000);}
+  }catch(e){toast('Could not create case: '+(e.message||e),5000);}
 }
 
 // ─── SEARCH ───────────────────────────────────────────────────────
@@ -1009,7 +1054,8 @@ async function doSearch(){
   const q=document.getElementById('search-input').value.trim().toLowerCase();
   if(!q)return;
   try{
-    const data=await fetch(`${API}/registry`).then(r=>r.json());
+    const data=await apiJSON(`${API}/registry`);
+    if(!Array.isArray(data)){throw new Error('The registry did not return a list.');}
     const found=data.find(c=>c.case_id.toLowerCase().includes(q)||c.title.toLowerCase().includes(q)||(c.leader&&c.leader.toLowerCase().includes(q)));
     if(!found){toast('No case found matching that search');return;}
     S.foundCase=found;
@@ -1021,7 +1067,7 @@ async function doSearch(){
     document.getElementById('sr-badge').textContent=`${p.label} · day ${found.days_in_phase||0}`;
     document.getElementById('sr-badge').style.cssText=`background:${p.bg};color:${p.color}`;
     document.getElementById('search-result').style.display='block';
-  }catch(e){toast('Could not search — is the backend running?');}
+  }catch(e){toast('Could not search: '+(e.message||e),5000);}
 }
 
 async function joinCase(){
@@ -1035,7 +1081,11 @@ async function joinCase(){
 // ─── WORKSPACE ───────────────────────────────────────────────────
 async function openWorkspace(caseId){
   try{
-    const caseData=await fetch(`${API}/cases/${caseId}`).then(r=>r.json());
+    // A 404 body is `{detail:"Case X not found"}` — assigning it to S.case
+    // renders a workspace around an error object, with an undefined title and
+    // a phase nav built from nothing (G-66). `apiJSON` throws instead.
+    const caseData=await apiJSON(`${API}/cases/${caseId}`);
+    if(!caseData||!caseData.case_id){throw new Error('The server returned no case record.');}
     S.case=caseData;
     S.localChat=[];
     // Find current phase
@@ -1047,7 +1097,12 @@ async function openWorkspace(caseId){
     showScreen('scr-workspace');
     renderPhaseNav();
     selectPhase(S.phase);
-  }catch(e){toast('Could not load case');}
+  }catch(e){
+    // Stay on the landing screen. Half-opening a workspace is worse than not
+    // opening one, because the Belt cannot tell which case they are looking at.
+    toast((e&&e.status===404)?('Case '+caseId+' was not found on the server.')
+                             :('Could not open case: '+(e.message||e)),5000);
+  }
 }
 
 const PHASE_NAV_SUBTITLES = {
@@ -1447,20 +1502,19 @@ function triggerFileUpload() {
     fd.append('phase', S.phase || 'define');
     fd.append('uploaded_by', S.user || 'team');
     try {
-      const r = await fetch(`${API}/upload`, {
-        method: 'POST', body: fd
-      });
-      const d = await r.json();
-      if (d.file) {
+      // 422 is the refusal path — `parse_upload` could not read the file and
+      // the reason is written for the Belt. `apiJSON` surfaces it verbatim.
+      const d = await apiJSON(`${API}/upload`, { method: 'POST', body: fd });
+      if (d && d.file) {
         if (!S.case.files) S.case.files = [];
         S.case.files.push(d.file);
         renderPhaseNav();
         toast('File uploaded: ' + file.name);
-      } else if (d.detail) {
-        toast('Upload failed: ' + d.detail, 4000);
+      } else {
+        toast('The server stored no file record for ' + file.name, 5000);
       }
     } catch (err) {
-      toast('Upload failed: ' + (err.message || err), 4000);
+      toast('Upload failed: ' + (err.message || err), 6000);
     }
   };
   input.click();
@@ -1478,12 +1532,11 @@ function previewCaseFile(fileId) {
 async function deleteCaseFile(fileId, filename) {
   if (!confirm('Remove "' + filename + '" from this case?')) return;
   try {
-    const r = await fetch(
+    const d = await apiJSON(
       `${API}/files/${S.case.case_id}/${fileId}`,
       { method: 'DELETE' }
     );
-    const d = await r.json();
-    if (d.deleted) {
+    if (d && d.deleted) {
       S.case.files = (S.case.files || [])
         .filter(f => f.file_id !== fileId);
       renderPhaseNav();
@@ -6009,8 +6062,8 @@ async function sendMessage(){
   appendMsgToDOM(renderTurn(userTurn));
   document.getElementById('typing').classList.add('show');
   try{
-    const resp=await fetch(`${API}/ask`,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({case_id:S.case.case_id,user:S.user,message:text,phase:S.phase})}).then(r=>r.json());
+    const resp=await apiJSON(`${API}/ask`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({case_id:S.case.case_id,user:S.user,message:text,phase:S.phase})});
     document.getElementById('typing').classList.remove('show');
     if(resp.answer){
       S.lastAsk=resp;
@@ -6036,8 +6089,15 @@ async function sendMessage(){
       renderDiagram();
       renderSteps();
       renderLiveViz();
-    }else if(resp.detail){toast('Error: '+resp.detail);}
-  }catch(e){document.getElementById('typing').classList.remove('show');toast('Could not reach backend');}
+    }else{toast('The coach returned no answer for that turn.',6000);}
+  }catch(e){
+    document.getElementById('typing').classList.remove('show');
+    // G-70 owns the real surface here — a transient toast is not an adequate
+    // report of a lost turn. This keeps the SERVER'S reason instead of
+    // replacing it with "could not reach backend", which was wrong whenever
+    // the backend answered and failed.
+    toast('Turn failed: '+(e.message||e),6000);
+  }
 }
 
 function appendMsgToDOM(html){
@@ -6054,11 +6114,11 @@ async function handleChatFile(input){
   form.append('uploaded_by',S.user);form.append('phase',S.phase);
   try{
     appendMsgToDOM(`<div class="msg user"><div class="mav mu">${S.user.charAt(0)}</div><div class="bbl bbl-user">📎 ${file.name}</div></div>`);
-    const resp=await fetch(`${API}/upload`,{method:'POST',body:form}).then(r=>r.json());
+    const resp=await apiJSON(`${API}/upload`,{method:'POST',body:form});
     const aiTurn={role:'ai',user:null,text:`I've received the file <strong>${file.name}</strong>. ${resp.classification?'Classification: '+resp.classification+'.':''} Let me process it.`,timestamp:new Date().toISOString(),citations:[]};
     S.localChat.push(aiTurn);
     appendMsgToDOM(renderTurn(aiTurn));
-  }catch(e){toast('Upload failed');}
+  }catch(e){toast('Upload failed: '+(e.message||e),6000);}
 }
 
 async function submitGateReview() {
@@ -6081,7 +6141,7 @@ async function submitGateReview() {
   }
 
   try {
-    const resp = await fetch(`${API}/gate`, {
+    const resp = await apiJSON(`${API}/gate`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -6089,7 +6149,7 @@ async function submitGateReview() {
         submitted_by: S.user,
         phase: S.phase,
       })
-    }).then(r => r.json());
+    });
 
     renderGateResult(resp);
 
@@ -6563,13 +6623,13 @@ async function generateSessionSummary(date, turns) {
       phase: S.phase || 'define',
       case_title: S.case?.title || ''
     };
-    const response = await fetch('http://127.0.0.1:8020/summarise', {
+    // `${API}`, not a second hardcoded base URL — one source for the origin.
+    const data = await apiJSON(`${API}/summarise`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await response.json();
-    SESSION_SUMMARIES[date] = data.summary || 'Summary unavailable.';
+    SESSION_SUMMARIES[date] = (data && data.summary) || 'Summary unavailable.';
   } catch(e) {
     SESSION_SUMMARIES[date] = 'Summary could not be generated.';
   }

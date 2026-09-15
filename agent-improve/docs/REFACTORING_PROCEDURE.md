@@ -4316,10 +4316,10 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 
 | State | Count | Steps |
 |---|---|---|
-| **DONE** | 37 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.25**, **6.26**, **6.27** |
+| **DONE** | 38 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.25**, **6.26**, **6.27**, **6.31** |
 | **BUILDING NOW** | 1 | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 25 | **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.31**, **6.32**, **11.2** |
+| **QUEUED** | 24 | **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
 *71 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-15.*
 <!-- END STEP BOARD -->
@@ -4817,7 +4817,21 @@ home.**
 
 | Layer | Order | Step | Item | State | Evidence | § |
 |---|---|---|---|---|---|---|
-| L1 | 5 | **10.2** | Live gate document + conflict panel | ☐ | `absent: repo:agent-improve/frontend/gate_document.js` | §50, §43.4 |
+| L1 | 5 | **10.2** | Live gate document + conflict panel | ☐ | `absent: repo:agent-improve/ui/gate_document.js` | §50, §43.4 |
+
+> **⛑ 10.2's ANCHOR WAS THE SECOND UNFAILABLE `absent:` — G-72.** It read
+> `absent: repo:agent-improve/frontend/gate_document.js`, and **there is no
+> `agent-improve/frontend/`** — the UI is `agent-improve/ui/`. The cell passed,
+> and would have kept passing after 10.2 shipped, because 10.2 ships into
+> `ui/`. Repointed at `ui/`, where the parent now exists, so the cell flips the
+> day the file appears.
+>
+> **THE LIMIT, STATED RATHER THAN HIDDEN:** the UI is a SINGLE 7,273-line
+> `ui/index.html`, so if 10.2 ships inside that file rather than beside it,
+> this anchor still will not flip and 10.2's Done-when must replace the cell —
+> which is the standing rule for every `absent:` cell. **The UI cannot be
+> symbol-anchored at all**, and that is G-71, not a property of this row.
+
 | L1 |  | **10.1** | `/ask/stream` SSE | ☐ | `absent: backend.gateway.routes::ask_stream` | §49 |
 
 #### L2 · Supervisor graph

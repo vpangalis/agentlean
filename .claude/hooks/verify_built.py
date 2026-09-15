@@ -568,6 +568,39 @@ def _evaluate_anchor(cell: str, root: str) -> tuple[str, str]:
     if cell.startswith("repo:"):
         rel = cell[5:].strip().rstrip("/")
         hit = os.path.exists(os.path.join(root, rel))
+
+        # ── G-72: an `absent:` path whose PARENT does not exist ───────
+        #
+        # **The second instance of the unfailable-`absent:` class in one day,
+        # which is why this fixes the CLASS and not the row.** Step 10.2
+        # carried `absent: repo:agent-improve/frontend/gate_document.js` and
+        # there is no `agent-improve/frontend/` — the UI is
+        # `agent-improve/ui/`. The cell passed, and **would have kept passing
+        # after 10.2 shipped**, because 10.2 ships into `ui/`.
+        #
+        # `MalformedAnchor` already catches the MODULE form of this. It
+        # validates a module name and cannot reach a path — which is exactly
+        # how the same defect survived in a different spelling.
+        #
+        # **The rule: to declare a FILE absent, the directory it belongs in
+        # must exist.** If the whole directory is missing, declare the
+        # DIRECTORY absent (`absent: repo:backend/evals`) or use the module
+        # form (`absent: backend.evals`). Both start failing the moment the
+        # thing is created; a file inside a directory that will never be
+        # created starts failing never.
+        #
+        # **Scoped to `absent:` deliberately.** A POSITIVE path anchor whose
+        # parent is missing already FAILs, and a loud failure needs no guard.
+        if negated and not hit:
+            parent = os.path.dirname(rel)
+            if parent and not os.path.isdir(os.path.join(root, parent)):
+                raise MalformedAnchor(
+                    f"{rel!r} claims a file is absent, but its directory "
+                    f"{parent!r} does not exist — so this can never start "
+                    f"failing, whatever is built. Declare the DIRECTORY "
+                    f"absent instead (`absent: repo:{parent}`), or use the "
+                    f"module form")
+
         ok = (not hit) if negated else hit
         return (PASS if ok else FAIL,
                 f"path {'present' if hit else 'absent'}: {rel}")

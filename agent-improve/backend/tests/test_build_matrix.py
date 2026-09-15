@@ -174,6 +174,71 @@ def test_an_unimportable_module_path_is_MALFORMED_never_a_silent_pass() -> None:
     assert "never resolve" in detail
 
 
+def test_an_absent_path_under_a_missing_directory_is_MALFORMED() -> None:
+    """**G-72 — the second unfailable `absent:`, in the path spelling.**
+
+    Step 10.2 carried `absent: repo:agent-improve/frontend/gate_document.js`.
+    There is no `agent-improve/frontend/`, so the cell passed — and would have
+    kept passing after 10.2 shipped, because 10.2 ships into `ui/`.
+
+    `MalformedAnchor` caught the MODULE form of this the day before and could
+    not reach a path. Same defect, different spelling, which is why the rule is
+    about the class.
+    """
+    got, detail = _vb().evaluate_anchor(
+        "absent: repo:agent-improve/frontend/gate_document.js", str(_ROOT))
+    assert got == "MALFORMED"
+    assert "never start failing" in detail
+
+
+def test_an_absent_path_beside_an_existing_directory_is_allowed() -> None:
+    """The rule must not reject a legitimate forward declaration.
+
+    `ui/` exists, so claiming a file absent inside it is a claim that can start
+    failing the moment the file appears — which is the whole point.
+    """
+    got, _ = _vb().evaluate_anchor(
+        "absent: repo:agent-improve/ui/not_built_yet.js", str(_ROOT))
+    assert got == "PASS"
+
+
+def test_a_whole_missing_directory_may_still_be_declared_absent() -> None:
+    """The escape the rule's own message names: declare the DIRECTORY.
+
+    `agent-improve/` exists, so `absent: repo:agent-improve/frontend` is a
+    claim that flips the day that directory is created.
+    """
+    got, _ = _vb().evaluate_anchor(
+        "absent: repo:agent-improve/frontend", str(_ROOT))
+    assert got == "PASS"
+
+
+def test_a_positive_path_anchor_is_not_subject_to_the_parent_rule() -> None:
+    """Scoped to `absent:` deliberately — a positive anchor already FAILs
+    loudly when its parent is missing, and a loud failure needs no guard."""
+    got, _ = _vb().evaluate_anchor(
+        "repo:agent-improve/frontend/gate_document.js", str(_ROOT))
+    assert got == "FAIL"
+
+
+def test_no_matrix_row_carries_an_unfailable_absent_anchor() -> None:
+    """The live matrix, swept for the whole class — both spellings.
+
+    This is the regression guard: `evaluate_anchor` returning MALFORMED for a
+    constructed case proves the rule, and this proves no row is using it.
+    """
+    vb = _vb()
+    bad = []
+    for r in vb.read_matrix():
+        cell = r["evidence"].strip().strip("`")
+        if not cell.startswith("absent:"):
+            continue
+        verdict, detail = vb.evaluate_anchor(cell, str(_ROOT))
+        if verdict == "MALFORMED":
+            bad.append(f"{r['step'].strip()}: {detail}")
+    assert bad == [], "unfailable absent: anchors -> " + "; ".join(bad)
+
+
 # ── The two referee checks ──────────────────────────────────────────────────
 
 def test_the_matrix_covers_appendix_d_in_both_directions() -> None:

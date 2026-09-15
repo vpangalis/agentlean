@@ -7,10 +7,10 @@
 
 | | |
 |---|---|
-| **Last completed** | step **6.27** — The watched-path contract has one owner (G-58) |
+| **Last completed** | step **6.31** — The build matrix — one row per step, anchored to a symbol |
 | **Next** | step **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
-| **Spine steps landed** | 37 of 71 |
-| **Last spine commit** | `7e4dfce` (commit 6.19) |
+| **Spine steps landed** | 38 of 71 |
+| **Last spine commit** | `663a378` (commit 6.31) |
 | **ARCHITECTURE.md** | v1.64 |
 | **CLAUDE.md** | v2.2.40 |
 | **Block regenerated** | 2026-09-15 |
