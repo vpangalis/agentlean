@@ -14,6 +14,7 @@ commit; these pin the GRAMMAR, which must not move without a ruling.
 from __future__ import annotations
 
 import importlib.util
+import re
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -276,6 +277,34 @@ def test_the_order_column_is_a_sequence_with_no_duplicates() -> None:
           if r["order"].strip().isdigit()]
     assert len(ns) == len(set(ns)), f"duplicate Order numbers: {sorted(ns)}"
     assert ns == sorted(ns) or sorted(ns) == list(range(1, len(ns) + 1))
+
+
+def test_no_board_attribute_carries_unescaped_markup() -> None:
+    """**The board rendered as garbage for two commits and nothing noticed.**
+
+    `step_bubble` RETURNS HTML full of double quotes. Dropped into
+    `data-b="..."` unescaped, the attribute ends at the first `class="` and the
+    browser reads the remainder of the bubble as stray attributes and text —
+    so the page renders as a mess from that point down. Every other `data-b`
+    site went through `bub()`; the vertical's did not, and it shipped with
+    6.31.
+
+    **A generated artefact that is wrong is not a generator that crashed.** The
+    board regenerated cleanly, byte-matched its committed copy, and was broken
+    the whole time — which is why this asserts on the OUTPUT rather than on the
+    call site. A second unescaped site would pass a source-level check that
+    merely grepped for `bub(`.
+    """
+    board = _ROOT / "agent-improve" / "docs" / "board.html"
+    if not board.exists():
+        pytest.skip("board.html not generated in this checkout")
+    html = board.read_text(encoding="utf-8")
+    broken = [m.group(0)[:80] for m in re.finditer(r'data-b="(.*?)"', html, re.S)
+              if "<" in m.group(1)]
+    assert broken == [], (
+        f"{len(broken)} data-b attribute(s) carry unescaped markup and will "
+        f"break the page where they appear: {broken[:3]}")
+    assert html.count("data-b=") > 0, "no bubbles rendered at all"
 
 
 def test_the_referee_fails_closed_when_appendix_f_is_missing() -> None:

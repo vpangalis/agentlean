@@ -29,7 +29,7 @@ Appendix D so the pointer does not stop on it.*
 |---|---|---|
 | **1** | **6.21** — The plan reaches the model (G-49's fix) | ⚠️ |
 | **2** | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ |
-| **3** | **10.0** — §50.1’s four fields reach the Belt — the coaching turn renders as four blocks | ☐ |
+| **3** | **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning | ☐ |
 | **4** | **7.3** — Nine-step HITL gate | ☐ |
 | **5** | **10.2** — Live gate document + conflict panel | ☐ |
 

@@ -830,7 +830,14 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
         r_lane = next((r["lane"] for r in rows if r["step"] == o["step"]), "")
         cls = "vrow" if i == 0 else "vrow later"
         vrows.append(
-            f'<div class="{cls}" data-b="{step_bubble(o["step"])}">'
+            # `bub()`, NOT the raw bubble. `step_bubble` RETURNS HTML full of
+            # double quotes, and dropping it into an attribute unescaped ends
+            # the attribute at the first `class="` - the browser then reads the
+            # rest of the bubble as stray attributes and text, and the page
+            # renders as garbage below this point. Every other data-b site in
+            # this file already goes through `bub`; this one did not, and it
+            # shipped in 6.31 with the vertical.
+            f'<div class="{cls}" data-b="{bub(step_bubble(o["step"]))}">'
             f'<div class="vn">{o["n"]}</div>'
             f'<div class="vb"><div class="vs">{step_named(o["step"])}</div>'
             f'<div class="vi">{e(r_lane.lower() or "—")}</div></div>'

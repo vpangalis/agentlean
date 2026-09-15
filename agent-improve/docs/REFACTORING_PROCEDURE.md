@@ -4172,7 +4172,7 @@ One live turn on a real case reaches a coached answer: `CoherenceMiddleware`
 passes on attempt 1, `DMAICGraderMiddleware` returns a verdict rather than
 logging `SKIPPED`, and the turn captures at least one field into `artifacts`.
 
-## Step 10.0 — §50.1’s four fields reach the Belt — the coaching turn renders as four blocks
+## Step 10.0 — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning
 
 | | |
 |---|---|
@@ -4194,6 +4194,31 @@ reads one prose blob.
 > **7,273 lines of Belt-facing product that no step builds and nothing
 > verifies** — G-71. This step does not close that gap; it puts the first row
 > against the file, which is what lets the next one be written.
+
+> ### ⇒ WIDENED 2026-09-15, AFTER THE FIRST LIVE TURN
+>
+> **Scope was “the four fields”. It is now THE RESPONSE TRANSPORT**, on the
+> founder's ruling, and it grew by exactly what shares this step's seam — not
+> by everything the live turn found.
+>
+> **ADDED — `grader_warning` (G-76).** The grader fails a turn three times,
+> logs *“passing the turn through with a Belt-visible warning”*, and returns a
+> key **declared on no schema and read nowhere**. It is G-69's shape with no
+> seam at all: the same schema edit, the same `routes.py` projection, the same
+> UI pass. **Leaving it out would mean opening this seam twice.**
+>
+> **ADDED — the UI rebuilds render state from `conversation_history` (G-79).**
+> `S.lastAsk` and `renderLiveViz()` are each called from one place inside
+> `sendMessage`, so a visual the server has stored dies on a tab switch. This
+> step already says the UI draws from the response; it must also draw from
+> what the response was LAST time.
+>
+> **NOT ADDED — the capture path (G-78).** It is not transport: nothing is
+> lost between the graph and the response. It is a state and persistence
+> defect two layers down — a mapper that blanks an accumulator and a write
+> that replaces instead of merging. **Folding a data-loss fix behind a
+> rendering change would hide it in a step nobody would look in.** It has its
+> own step and it runs BEFORE this one.
 
 ### Why this is a step and not a bug fix
 
@@ -4226,9 +4251,15 @@ in writing, rather than leaving two defensible readings in the register.**
 4. **An empty block renders as absent, not as a gap in the layout** —
    `presentational_gaps()` already names which came back empty.
 
-**Done when:** `AskResponse` declares all four; a turn's response carries them
-end to end, asserted against the ROUTE rather than against the schema alone;
-the UI renders four blocks and `pytest` is green; a `manual-UI` pass confirms
+**Done when:** `AskResponse` declares all four **and `grader_warning`**; a
+turn's response carries them end to end, asserted against the ROUTE rather than
+against the schema alone; **a turn that exhausts the grader's iterations
+carries its warning to the Belt, asserted on the RESPONSE and not on the
+middleware's return value** — the existing test asserts the latter and is the
+G-63 shape (G-76); **the UI rebuilds its render state from
+`conversation_history` rather than only from the last send, so a visual
+survives a tab switch (G-79)**; the UI renders four blocks and `pytest` is
+green; a `manual-UI` pass confirms
 the Belt sees four blocks rather than one blob; the Appendix F row's anchor
 moves off `absent:` to a positive one; **and G-50's closure is re-examined on
 the record — upheld with its scope stated, or reopened with this step named as
@@ -4704,7 +4735,7 @@ restate, which is the opposite of what the board is for.
 | 335 | **Commit 6.21** | The plan reaches the model (G-49's fix) |  | COACH | SHARED | The planner's routing decision stays advisory, so the guarantee that an uploaded file is read is whatever the model felt like doing - and the live halves of three landed steps can never be run. |
 | 340 | **Commit 6.19** | `CoachingResponse` gains §50.1's four presentational fields (G-50) |  | COACH | SHARED | Every coaching turn arrives as one prose blob, so there is nothing structured for a gate UI to display and five SKILL.md files keep instructing the coach to fill fields that do not exist. |
 | 350 | **Commit 6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` |  | PHASE | SHARED | Three things §39.x.7 specifies are read by the gate document and written by nothing, so a computed figure never reaches a gate and the coach cannot tell which field it is on. |
-| 355 | **Commit 10.0** | §50.1’s four fields reach the Belt — the coaching turn renders as four blocks |  | UI | SHARED | The coach produces `explanation`, `example`, `prompt` and `progress` every turn and the API discards all four, so §50.1’s render contract stays prompt-hoped and the Belt reads one prose blob. |
+| 355 | **Commit 10.0** | The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |  | UI | SHARED | The coach produces `explanation`, `example`, `prompt` and `progress` every turn and the API discards all four, so §50.1’s render contract stays prompt-hoped and the Belt reads one prose blob. |
 | 360 | **Commit 8.0** | Turn telemetry and `@traceable` |  | OPS | SHARED | Nothing is traced, so every investigation needs a hand-built harness and no limit can be set from measured data. |
 | 370 | **Commit 7.3** | Nine-step HITL gate |  | GATE | SHARED | Nothing pauses for a human at a gate, so no gate decides, `gate_attempts` cannot accumulate, and the supervisor graph can never become the runtime. |
 | 380 | **Commit 10.2** | Live gate document + conflict panel |  | UI | SHARED | A Belt cannot see the document being built, so the gate is the first time anyone looks at it whole. |
@@ -4900,7 +4931,7 @@ home.**
 
 | Layer | Order | Step | Item | State | Evidence | § |
 |---|---|---|---|---|---|---|
-| L1 | 3 | **10.0** | §50.1’s four fields reach the Belt — the coaching turn renders as four blocks | ☐ | `absent: backend.gateway.schemas::CoachingBlocks` | §50.1, §49, S-C05 |
+| L1 | 3 | **10.0** | The coaching turn’s output reaches the Belt — four blocks and the grader’s warning | ☐ | `absent: backend.gateway.schemas::CoachingBlocks` | §50.1, §49, S-C05 |
 | L1 | 5 | **10.2** | Live gate document + conflict panel | ☐ | `absent: repo:agent-improve/ui/gate_document.js` | §50, §43.4 |
 
 > **⛑ 10.2's ANCHOR WAS THE SECOND UNFAILABLE `absent:` — G-72.** It read
