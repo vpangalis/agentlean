@@ -38,6 +38,8 @@ Python 3.11+, standard library only.
 """
 from __future__ import annotations
 
+import importlib
+import importlib.metadata
 import os
 import re
 import subprocess
@@ -51,6 +53,12 @@ VENV = os.path.join(PROJECT, ".venv", "Scripts", "python.exe")
 if not os.path.exists(VENV):                       # POSIX layout
     VENV = os.path.join(PROJECT, ".venv", "bin", "python")
 ARCH = os.path.join(PROJECT, "ARCHITECTURE.md")
+PROCEDURE = os.path.join(PROJECT, "docs", "REFACTORING_PROCEDURE.md")
+
+
+def _ver(step: str) -> tuple:
+    """`6.9` sorts below `6.10`. String order would put it above."""
+    return tuple(int(p) for p in step.split("."))
 
 
 def count_lines(rel: str, pattern: str) -> str:
@@ -444,6 +452,312 @@ def section_title_sources() -> str:
 # `expected` is written here rather than parsed out of the prose, deliberately:
 # a check that reads its own expectation from the document it is checking
 # cannot fail. That is the "check that cannot fail" this project keeps naming.
+
+# ═══ THE ANCHOR EVALUATOR — Appendix F’s Evidence column (step 6.31) ═══
+#
+# Never a line number. A line number is invalidated by an edit to any line
+# ABOVE it, and it fails by pointing at the WRONG line rather than at
+# nothing — which is the silent half of every anchoring scheme this
+# repository has already rejected.
+
+
+
+PASS, FAIL, DEPENDENCY, EXTERNAL, MALFORMED = (
+    "PASS", "FAIL", "DEPENDENCY", "EXTERNAL", "MALFORMED")
+
+_SET_RE = re.compile(r"^(?P<body>[^{=]+?)\s*\{(?P<items>[^}]*)\}$")
+_VAL_RE = re.compile(r"^(?P<body>[^{=]+?)\s*=(?P<val>.+)$")
+
+
+def _members(obj) -> set[str] | None:
+    """The comparable member set of a symbol, or None if it has none.
+
+    A dict gives its KEYS; a list of tool objects gives their `.name`; a
+    pydantic model gives its field names; any other iterable gives `str()` of
+    its elements. **Deliberately not `dir()`** — a set anchor is about the
+    thing's declared contents, never about its Python attributes.
+    """
+    if isinstance(obj, dict):
+        return {str(k) for k in obj}
+    flds = getattr(obj, "model_fields", None)
+    if isinstance(flds, dict):
+        return {str(k) for k in flds}
+    if isinstance(obj, (list, tuple, set, frozenset)):
+        return {str(getattr(x, "name", x)) for x in obj}
+    return None
+
+
+_MODULE_RE = re.compile(r"^[A-Za-z_][\w]*(\.[A-Za-z_][\w]*)*$")
+
+
+class MalformedAnchor(ValueError):
+    """A module path that could never import, whatever the tree looked like.
+
+    **This exists because of a FALSE PASS it caught on its first run.** Step
+    6.31's own row carried `absent: .claude.hooks.verify_built::read_matrix`.
+    `.claude.hooks.verify_built` is not a legal module name — it starts with a
+    dot — so the import could never succeed, so the `absent:` was **trivially
+    true and would have stayed true forever**, including after the symbol was
+    built. The row would have reported PASS while claiming the opposite of the
+    tree.
+
+    **An anchor that cannot fail is the failure mode this whole appendix
+    exists to end**, and an `absent:` anchor is where it hides: a positive
+    anchor that cannot resolve fails loudly, while a negative one goes quiet.
+    So a malformed module path is MALFORMED, never PASS.
+    """
+
+
+def _resolve(body: str):
+    """`mod::Symbol` or `mod::Symbol.attr` -> (found, value)."""
+    if "::" not in body:
+        return None, None
+    mod, _, path = body.partition("::")
+    if not _MODULE_RE.match(mod.strip()):
+        raise MalformedAnchor(
+            f"{mod.strip()!r} is not a legal module name, so this anchor can "
+            f"never resolve — which would make an `absent:` cell permanently "
+            f"and silently true")
+    try:
+        obj = importlib.import_module(mod.strip())
+    except Exception:                                    # noqa: BLE001
+        return False, None
+    for part in path.strip().split("."):
+        # A dict is traversed by KEY first. `SHAPES_BY_PHASE.define` means the
+        # "define" entry, not an attribute called `define` — and a mapping
+        # almost never has the latter, so attribute-first would report every
+        # dict anchor as unresolved.
+        if isinstance(obj, dict) and part in obj:
+            obj = obj[part]
+        elif hasattr(obj, part):
+            obj = getattr(obj, part)
+        else:
+            return False, None
+    return True, obj
+
+
+def evaluate_anchor(cell: str, root: str) -> tuple[str, str]:
+    """(verdict, detail) for one Evidence cell."""
+    try:
+        return _evaluate_anchor(cell, root)
+    except MalformedAnchor as exc:
+        return MALFORMED, str(exc)
+
+
+def _evaluate_anchor(cell: str, root: str) -> tuple[str, str]:
+    cell = (cell or "").strip().strip("`")
+    if not cell:
+        return MALFORMED, "empty Evidence cell — nothing proves this row"
+
+    if cell.startswith("azure:"):
+        return EXTERNAL, cell[6:].strip()
+
+    negated = cell.startswith("absent:")
+    if negated:
+        cell = cell[7:].strip()
+    installed = cell.startswith("installed:")
+    if installed:
+        cell = cell[10:].strip()
+
+    # ---- `repo:` — a path, resolved from the REPOSITORY ROOT --------------
+    #
+    # Explicit, because the two roots in this tree are a real trap: `.claude/`
+    # sits ABOVE `agent-improve/`, so a bare relative path is ambiguous and
+    # gets resolved silently against whichever root the caller passed. It cost
+    # five false FAILs on this evaluator's first run.
+    if cell.startswith("repo:"):
+        rel = cell[5:].strip().rstrip("/")
+        hit = os.path.exists(os.path.join(root, rel))
+        ok = (not hit) if negated else hit
+        return (PASS if ok else FAIL,
+                f"path {'present' if hit else 'absent'}: {rel}")
+
+    # ---- `installed: <dist> =<version>` — a DISTRIBUTION, not a module ----
+    if installed and "::" not in cell:
+        m = _VAL_RE.match(cell)
+        dist = (m.group("body") if m else cell).strip()
+        try:
+            got = importlib.metadata.version(dist)
+        except Exception:                                # noqa: BLE001
+            return DEPENDENCY, f"{dist} is not installed"
+        if not m:
+            return PASS, f"{dist} {got}"
+        want = m.group("val").strip()
+        return ((PASS, f"{dist} {got}") if got == want
+                else (DEPENDENCY, f"{dist} is {got}, the matrix says {want}"))
+
+    # ---- a bare dotted MODULE — `backend.evals` ---------------------------
+    #
+    # A whole package is the honest anchor for a step that creates one, and
+    # `absent: backend.evals` is the cleanest statement that 7.0 is not built.
+    if "::" not in cell:
+        if "/" in cell or "\\" in cell:
+            return MALFORMED, ("a path anchor needs the `repo:` prefix so the "
+                               "root it resolves against is not a guess")
+        if not re.fullmatch(r"[A-Za-z_][\w.]*", cell):
+            return MALFORMED, f"not an anchor: {cell}"
+        try:
+            importlib.import_module(cell)
+            found = True
+        except Exception:                                # noqa: BLE001
+            found = False
+        ok = (not found) if negated else found
+        if ok:
+            return PASS, ("module absent, as claimed" if negated
+                          else "module imports")
+        if installed:
+            return DEPENDENCY, f"module not in the installed library: {cell}"
+        return FAIL, (f"{cell} imports, but the row claims it is absent"
+                      if negated else f"{cell} does not import")
+
+    # ---- set form: mod::Symbol {a,b} --------------------------------------
+    m = _SET_RE.match(cell)
+    if m:
+        found, obj = _resolve(m.group("body"))
+        if not found:
+            ok = negated
+            v = DEPENDENCY if (installed and not ok) else (PASS if ok else FAIL)
+            return v, f"unresolved: {m.group('body').strip()}"
+        want = {s.strip() for s in m.group("items").split(",") if s.strip()}
+        got = _members(obj)
+        if got is None:
+            return MALFORMED, f"{m.group('body').strip()} has no member set"
+        ok = (got != want) if negated else (got == want)
+        if ok:
+            return PASS, f"set of {len(got)}"
+        return FAIL, (f"set differs — missing {sorted(want - got) or '[]'}, "
+                      f"unexpected {sorted(got - want) or '[]'}")
+
+    # ---- value form: mod::Symbol =v ---------------------------------------
+    m = _VAL_RE.match(cell)
+    if m:
+        found, obj = _resolve(m.group("body"))
+        if not found:
+            ok = negated
+            v = DEPENDENCY if (installed and not ok) else (PASS if ok else FAIL)
+            return v, f"unresolved: {m.group('body').strip()}"
+        want = m.group("val").strip()
+        got = str(obj)
+        ok = (got != want) if negated else (got == want)
+        return (PASS if ok else FAIL), f"value {got!r} vs {want!r}"
+
+    # ---- bare resolve: mod::Symbol ----------------------------------------
+    found, _ = _resolve(cell)
+    ok = (not found) if negated else found
+    if ok:
+        return PASS, "resolves" if not negated else "absent, as claimed"
+    if installed:
+        return DEPENDENCY, f"not in the installed library: {cell}"
+    return FAIL, ("resolves, but the row claims it is absent" if negated
+                  else f"does not resolve: {cell}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# THE MATRIX REFEREE — Appendix F (step 6.31)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# The 24 checks above are HAND-WRITTEN: someone chose a claim and typed an
+# expected value beside it. That is why there were only 24 of them against 69
+# markers — every one costs an author. Appendix F inverts it: the DOCUMENT
+# carries the claim and the anchor, and this reads them all.
+#
+# **FAIL-CLOSED, and that is a change of character for this script.** It was
+# advisory — `build_board.py` calls it and renders the board either way. As
+# the referee for the one document that now owns build status, an internal
+# error must BLOCK. `CONTINUITY.md` §7: a check that cannot fail is worse than
+# no check, because it is recorded as evidence.
+
+MATRIX_ROW_RE = re.compile(
+    r"^\|\s*L(?P<layer>\d+)\s*\|"          # Layer
+    r"(?P<order>[^|]*)\|"                  # Order — sparse, hand-set
+    r"\s*\*\*(?P<step>\d+\.\d+)\*\*\s*\|"  # Step
+    r"(?P<item>[^|]*)\|"                   # Item
+    r"(?P<state>[^|]*)\|"                  # State
+    r"(?P<evidence>[^|]*)\|"               # Evidence — the anchor
+    r"(?P<ref>[^|]*)\|\s*$", re.M)
+
+#: The four verdicts that are NOT a disagreement between matrix and tree.
+#: `EXTERNAL` is owed, never passed; `DEPENDENCY` has a different owner.
+_NOT_A_MARKER_FAILURE = ("PASS", "EXTERNAL")
+
+
+def read_matrix() -> list[dict]:
+    """Appendix F's rows. Raises if the appendix is missing — fail-CLOSED."""
+    text = Path(PROCEDURE).read_text(encoding="utf-8")
+    start = text.find("## Appendix F — The build matrix")
+    if start < 0:
+        raise RuntimeError(
+            "Appendix F is missing from REFACTORING_PROCEDURE.md. It is the "
+            "leading document for build status (step 6.31); without it this "
+            "script cannot referee anything, and reporting success would be "
+            "the failure mode §55.2 exists to name.")
+    end = text.find("\n## Appendix ", start + 10)
+    body = text[start:end if end > 0 else len(text)]
+    return [m.groupdict() for m in MATRIX_ROW_RE.finditer(body)]
+
+
+def appendix_d_steps() -> set:
+    """The steps Appendix D declares. Read, never typed."""
+    text = Path(PROCEDURE).read_text(encoding="utf-8")
+    return set(re.findall(r"^\|\s*\d+\s*\|\s*\*\*Commit (\d+\.\d+)\*\*\s*\|",
+                          text, re.M))
+
+
+def matrix_covers_appendix_d() -> str:
+    """SET EQUALITY, in both directions. Not a count.
+
+    **The ruling said "GROUP BY Step must return exactly 69. Assert it."** A
+    literal 69 would have failed on the very commit that introduced it: step
+    6.31 adds its own Appendix D row and makes the total 70.
+
+    **Set equality is stronger than the count anyway** — a count of 69 passes
+    when one step is dropped and another added, which is precisely the edit a
+    renumber makes. It is also this document's own rule, twice stated: *"the
+    total is the row count"*, and *"edit the band here, not in the generator"*.
+    """
+    want = appendix_d_steps()
+    got = {r["step"].strip() for r in read_matrix()}
+    if want == got:
+        return f"{len(want)} steps, both directions"
+    missing = sorted(want - got, key=_ver)
+    extra = sorted(got - want, key=_ver)
+    parts = []
+    if missing:
+        parts.append(f"in Appendix D, NOT in the matrix: {', '.join(missing)}")
+    if extra:
+        parts.append(f"in the matrix, NOT in Appendix D: {', '.join(extra)}")
+    return " · ".join(parts)
+
+
+def matrix_anchors() -> str:
+    """Every Evidence cell, evaluated against the tree.
+
+    Returns the empty string when every row is `PASS`, `EXTERNAL` or
+    `DEPENDENCY` — the expected value in CHECKS is `""`, so the check reads the
+    same way as `step titles` and `unpaired state fields` already do.
+
+    **`DEPENDENCY` is reported and does not fail**, because a library that
+    moved under us is not a stale marker and has a different owner. It is
+    printed on its own line so it cannot be mistaken for a pass.
+    """
+    rows = read_matrix()
+    findings, deps = [], []
+    for r in rows:
+        cell = r["evidence"].strip().strip("`")
+        verdict, detail = evaluate_anchor(cell, ROOT)
+        if verdict in _NOT_A_MARKER_FAILURE:
+            continue
+        if verdict == "DEPENDENCY":
+            deps.append(f"{r['step'].strip()} {detail}")
+            continue
+        findings.append(f"{r['step'].strip()} [{verdict}] {detail}")
+    out = "; ".join(findings)
+    if deps:
+        out += ("  —— DEPENDENCY (different owner, not a marker "
+                "failure): " + "; ".join(deps))
+    return out
+
+
 CHECKS = [
     ("API routes in routes.py", "11",
      lambda: count_lines("agent-improve/backend/gateway/routes.py",
@@ -621,6 +935,23 @@ CHECKS = [
      "§55.2 — every rendered name is read from a heading or from Appendix D. "
      "A literal in the generator is a third copy, and the only one an editor "
      "cannot correct by editing a document"),
+
+    # ── Step 6.31: the matrix is the leading document, and these two are what
+    #    make that true rather than asserted. ───────────────────────────────
+    ("Appendix F covers Appendix D — set equality, both directions",
+     f"{len(appendix_d_steps())} steps, both directions",
+     matrix_covers_appendix_d,
+     "Appendix F · step 6.31 — one row per step. NOT a count: a count passes "
+     "when one step is dropped and another added. The expectation is DERIVED "
+     "from Appendix D, so adding a step cannot make this stale"),
+
+    ("Appendix F anchors — every Evidence cell against the tree", "",
+     matrix_anchors,
+     "Appendix F · step 6.31 — PASS or EXTERNAL passes; DEPENDENCY is "
+     "reported with a different owner; FAIL means the matrix and the tree "
+     "disagree and MALFORMED means the cell is not an anchor. An `absent:` "
+     "cell that starts resolving is the step that built the thing failing to "
+     "remove its own cell"),
 ]
 
 

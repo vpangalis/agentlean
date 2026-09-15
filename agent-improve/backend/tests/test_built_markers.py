@@ -70,12 +70,21 @@ pytestmark = pytest.mark.skipif(
     not _HOOK.exists(), reason=f"{_HOOK} not present",
 )
 
-_vb = _load() if _HOOK.exists() else None
+#: `Any`, not `Any | None`: `pytestmark` skips this module when the hook is
+#: absent, so every use below is reached only when it loaded. Without the
+#: annotation mypy reads the ternary as optional and flags each access.
+_vb: Any = _load() if _HOOK.exists() else None
 
 #: The eleven counted checks, the nine from the 2026-09-11 alignment audit,
 #: F-15's reader/writer pairing pass, the two title checks, and the
 #: five-phase script byte-match.
-_EXPECTED_CHECK_COUNT = 24
+#: Moved 24 -> 26 at step 6.31, and this commit means to move it. The two
+#: added are Appendix F's referee pair: `matrix_covers_appendix_d` (set
+#: equality against Appendix D, in both directions) and `matrix_anchors`
+#: (every Evidence cell evaluated against the tree). **The pin is what stops a
+#: red check being deleted rather than fixed**, which is the cheapest possible
+#: answer to a failing build.
+_EXPECTED_CHECK_COUNT = 26
 
 
 def test_the_hook_is_where_this_file_thinks_it_is() -> None:

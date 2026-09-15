@@ -1,6 +1,6 @@
 # Agent Improve — Refactoring Procedure
 **AgentLean Platform · DMAIC Improvement Agent**
-Version 1.6 · 2026-09-10
+Version 1.7 · 2026-09-15
 Status: **RATIFIED.** The ordered path from the v1 tree to the target in
 `../ARCHITECTURE.md`.
 
@@ -199,8 +199,18 @@ list lives here.
 | 6.9 | `live-run` | Owed — never run |
 | 6.12 | `live-run` | Owed — never run |
 | 6.13 | `live-run` | **Attempted and FAILED**, cause isolated to code 6.13 did not touch — see its section |
+| 6.21 | `live-run` | **Owed. The code LANDED as `a1a0a5d` and the proof did not**, so git counts the step DONE and the board renders it in the DONE lane while its Done-when is unmet. Added 2026-09-15 — it should have been added the day 6.21 landed |
 
-**All four run through the same path, and that path currently times out.** The
+> **6.21 IS THE CASE THIS TABLE EXISTS FOR, AND IT WAS MISSING FROM IT.** The
+> four rows above were added when their steps landed; 6.21's was not, for
+> eleven days. **A step whose `Verify` names `live-run` is exactly the step
+> most likely to land on its code half alone**, because the code half is the
+> half a session can finish unaided — so the row recording the debt is owed
+> at the SAME COMMIT as the code, never later. **G-63's fix (2026-09-15) did
+> not close 6.21 and said so in its own body**; the evidence is still the
+> founder's live turn.
+
+**All five run through the same path.** The
 executor loops on `rag_lookup_evidence` instead of calling the
 `load_evidence_series` its own planner named, so no Define turn on
 `IMPR-2026-ED8` completes (`ARCHITECTURE.md`'s gap register, and 6.13's
@@ -226,7 +236,7 @@ break the only automated continuity signal the project has.
 |---|---|
 | **BLOCKED** | Cannot start. The blocker is named, with what unblocks it |
 | **GATED** | Can be written, must not be merged until the gate clears |
-| **EXTERNAL** | Not a code change — an Azure or infrastructure operation |
+| **EXTERNAL** | **Off the spine, for either of two reasons.** (a) Not a code change — an Azure or infrastructure operation. (b) **A code change that LANDED UNDER ANOTHER SUBJECT**, so the `refactor(arch-v2): commit X.Y` scan cannot see it — and then **the row cites the commit**. Widened 2026-09-15: 6.22 landed as `2e17f3f fix(tests):` and (a) alone would have been a false statement about it |
 | **PARALLEL** | Not on the critical path; runs alongside (Appendix C) |
 
 ### Verification vocabulary
@@ -2089,6 +2099,26 @@ that references resolve.
 > checkable and checked. *"Twenty-one author-populated fields"* is a claim about
 > a list two paragraphs down, and nothing looks.
 
+> ### ⇒ THIS STEP ALSO OWNS **G-64** — assigned 2026-09-15
+>
+> **Appendix A has 59 rows against Appendix D's 70**, and the eleven it lacks
+> are 6.22–6.31 and 9.2. **It is not that those steps are undocumented** —
+> every one carries its own `| **Reference §** |` row, which is the row a
+> reader of the step actually sees. **Appendix A RESTATES that row**, and the
+> restatement is what fell behind.
+>
+> **It lands here because of the boundary this section draws.** Appendix A and
+> the step sections are **both inside this document**, so the disagreement is
+> a claim against the list in the same document — this step's subject exactly,
+> and not `verify_built.py`'s, which compares a claim against the TREE.
+>
+> **The fix is not to type eleven rows.** That leaves the second copy in place
+> and buys one commit of agreement. Appendix A becomes a projection of the
+> step sections' own `Reference §` rows, or is asserted against them by set
+> equality in both directions — and **that check already exists** as
+> `verify_built.py::matrix_covers_appendix_d` (6.31). Generalise it; do not
+> write a second one.
+
 ### Not the same check as `verify_built.py`, and the boundary is the point
 
 `.claude/hooks/verify_built.py` (§55.2) compares a claim in `ARCHITECTURE.md`
@@ -2659,6 +2689,302 @@ A body asserting a code fact with no reference is refused, naming the sentence;
 the same body with `path:line` or a sha passes; a body asserting nothing about
 code is untouched; the rule's message states the limit; `pytest` green; and both
 mutation directions are shown per §0.4.
+
+## Step 6.31 — The build matrix: one row per step, anchored to a symbol
+
+| | |
+|---|---|
+| **Reference §** | §55.1 (governance rules) · §55.2 (the BUILT markers this replaces) · §56 (amendment procedure) · Appendix D · Appendix F |
+| **Touches** | `docs/REFACTORING_PROCEDURE.md` (Appendix F, new) · `../ARCHITECTURE.md` (§55.2, and the marker migration that follows) · `.claude/hooks/verify_built.py` · `.claude/hooks/build_board.py` · `docs/CONTINUITY.md` |
+| **Precondition** | **6.16** — the board is generated. Landed |
+| **Verify** | `pytest` + `grep-absence` |
+| **Status** | **RULED — founder 2026-09-15. Building** |
+
+**Build status is stated in two places and re-run in one.** `ARCHITECTURE.md`
+carries 69 `> **BUILT:**` markers, each mixing *what the thing is for* with
+*whether it exists today*; `verify_built.py` re-runs **24** hand-written checks
+against the tree. **The two populations are not the same population**, and
+nothing makes them converge — 45 markers are backed by no check at all, and a
+marker nothing re-runs is, in §55.2's own words, a claim.
+
+**§58.5 is what this step is for.** Its marker reads, in one unbroken block:
+
+> ✅ **all 8 fields exist** — step 6.19 (**G-50 CLOSED**) … **§50.1's four
+> presentational fields … are NOT BUILT** (**G-50**)
+
+**Both sentences are in the same marker and they contradict each other.** 6.19
+landed and edited the first line; the paragraph beneath it still describes the
+world before. That is not an editing slip — it is the predictable outcome of
+storing a *status* inside a *design rationale*, where the reader's eye goes to
+the prose and the status rides along unmaintained.
+
+### The ruling this step carries
+
+> ### ✅ RULED 2026-09-15 — STATUS LEAVES `ARCHITECTURE.md`; RATIONALE STAYS
+>
+> **`REFACTORING_PROCEDURE.md` is the single leading document for build
+> status.** No new file: this document already owns the route, and a third
+> document would be a third place for the same fact to go stale.
+>
+> **Design rationale STAYS in `ARCHITECTURE.md`.** *Why* `CoachingResponse`
+> splits `message` from the four presentational fields is architecture and
+> belongs nowhere else. *Whether the class has eight fields today* is build
+> status and belongs here, next to the step that put them there.
+>
+> **`CONTINUITY.md` CITES, IT DOES NOT MOVE.** It is the first-read document
+> and it stays terse. Its hand-written vertical becomes a generated projection
+> of Appendix F's `Order` column into the region the pre-commit hook already
+> rewrites.
+
+### Appendix F — the shape, and why each column is there
+
+**Seven columns, organised BY LAYER.** One row per step, so the matrix and the
+plan cannot describe different populations.
+
+| Column | Owns | Why it is not somewhere else |
+|---|---|---|
+| **Layer** | which part of the system the step changes | the organising axis — the thing a reader scans for |
+| **Order** | the near-term execution sequence | **the only hand-set column.** Sparse: a number means *"in the run of work being done now"* |
+| **Step** | the identifier | **`GROUP BY Step` is the completeness assertion** |
+| **Item** | what the step delivers | joined from Appendix D's title; never retyped |
+| **State** | ✅ / ⚠️ / ☐ / ⛔ | §55.2's vocabulary, unchanged, moved |
+| **Evidence** | the anchor that proves the State | **the column that makes this a matrix and not a caption** |
+| **§** | the ratified section that owns the rationale | joined from Appendix A — *cite, do not move* |
+
+> **`Order` IS NOT Appendix D's `Seq`, and conflating them would lose the
+> thing the founder actually asked for.** `Seq` is the global schedule and the
+> board already renders it as four bands. `Order` is the **short vertical a
+> founder works to** — what `CONTINUITY.md`'s hand-written *"NEXT WORK"* list
+> has been since 2026-09-14. It is sparse, it is hand-set, and it is the one
+> column nothing derives.
+
+### The anchor grammar — never a line number
+
+**A line number is not an anchor.** It is invalidated by an edit to any line
+above it, which is to say by almost every commit, and it fails silently by
+pointing at the wrong line rather than at nothing.
+
+| Form | Means | Passes when |
+|---|---|---|
+| `mod::Symbol` | the symbol resolves | import succeeds and the attribute exists |
+| `mod::Symbol {a,b}` | set equality over its members | dict keys, model fields, or `.name` of its elements, exactly |
+| `mod::Symbol =v` | scalar equality | `str(value) == v` |
+| `absent: <anchor>` | the anchor does **not** hold | **this is what proves a `☐ not built` row** |
+| `installed: <anchor>` | resolved against the **installed library** | a failure prints as a **DEPENDENCY finding**, never a marker one |
+| `repo:<path>` | a path, from the **repository root** | the path exists |
+| `azure:<resource>` | an Azure-side fact | **EXTERNAL — owed, never passed** from this machine |
+
+> **`repo:` is explicit because the ambiguity is a real trap, and it cost five
+> false failures on the evaluator's first run.** `.claude/` sits ABOVE
+> `agent-improve/`, so a bare relative path resolves against whichever root the
+> caller happened to pass, and reports a present file as absent.
+>
+> **A BEHAVIOUR IS ANCHORED ON THE TEST THAT OBSERVES IT, and that needs no
+> new form.** Steps 2.6, 6.22, 6.26 and 6.27 deliver a behaviour spread over
+> many sites with no single symbol to name — so their Evidence is the test
+> function, which is still `mod::Symbol`. This was nearly ruled a fifth form;
+> it is not one.
+>
+> **`installed:` failures are a DIFFERENT finding with a DIFFERENT owner.** A
+> library that moved under us is not a stale marker, and reporting both as
+> *"the matrix disagrees with the tree"* would train a reader to re-baseline
+> the matrix to silence a dependency upgrade.
+
+### The two assertions
+
+**1 — `GROUP BY Step` covers Appendix D exactly.**
+
+> ⚠ **THE LITERAL 69 IS WRONG BY ONE THE MOMENT THIS STEP LANDS.** The ruling
+> said *"GROUP BY Step must return exactly 69. Assert it."* Appendix D carried
+> 69 rows when that was written; **this step adds 6.31 and makes it 70.** A
+> hardcoded `69` would fail on the very commit that introduces it.
+>
+> **So the assertion is SET EQUALITY against Appendix D, in both directions**,
+> which is strictly stronger than the count the ruling asked for: a count of
+> 69 passes when one step is dropped and another added, and set equality does
+> not. It is also this document's own lesson — *"the total is the row count"*,
+> and *"edit the band here, not in the generator"*.
+
+**2 — every `absent:` cell is removed by its owning step's Done-when.**
+
+Without that clause the matrix **rots in the opposite direction from the
+markers**. A marker goes stale by claiming something is built when it is not;
+an `absent:` cell goes stale by claiming something is *missing* after it has
+been built — and the referee catches that one, loudly, because the anchor
+starts resolving. **The failure is the feature**; the step that builds the
+thing must replace its cell with a positive anchor in the same commit.
+
+> **Deletion steps invert the polarity, and 11.1 is the case.** *"Delete v1"*
+> makes an ABSENCE true. So its not-built anchor is the POSITIVE form —
+> `backend.core.state::ImproveGraphState` resolves today, and that is exactly
+> why the row reads ☐ — and its Done-when flips the cell to `absent:`. Stated
+> here because the first seed got it backwards and the referee caught it.
+
+### `verify_built.py` becomes the referee, fail-CLOSED
+
+The 24 hand-written checks stay. Appendix F's rows are read and evaluated
+**alongside** them, under the same reporting and the same exit code.
+
+**Fail-CLOSED, and that is a change of character for this script.** It has been
+advisory — `build_board.py` calls it and the board renders either way. As the
+referee for the one document that now owns build status, an internal error must
+BLOCK, on the argument `CONTINUITY.md` §7 already makes and the commit-msg
+guard already follows: *a check that cannot fail is worse than no check,
+because it is recorded as evidence.*
+
+**Each new check lands with a mutation proof, per §0.4** — break it, watch the
+named test go red, restore from a baseline held OUTSIDE the tree, watch it go
+green. Never `git checkout --`.
+
+### The board shows the vertical — §55.2's colour rule is not touched
+
+`board.html` renders the `Order` column **above the five lanes**, as the
+sequence. The founder opens the board from the repo and needs the run of work
+visible there, not only in a table inside a 4,000-line document.
+
+**Lane and marker colours are unchanged.** `Order` is a POSITION IN A PLAN, so
+it renders in the lane family, never in the marker family — §55.2's *"a lane
+state and a marker state may never share a colour"* applies to this addition
+exactly as to everything else. **The full C4 container picture is a later step
+with its own number and is not this one.**
+
+### Two §56 amendments land in the same commit
+
+**`ARCHITECTURE.md` v1.63 → v1.64.**
+
+1. **S-C05's four presentational fields become `default=""`.** They are
+   REQUIRED `str` today, so a model omitting `progress` fails the whole turn's
+   structured output — against §4.8's *never a hard failure to the Belt*. **An
+   empty field is recorded as a FINDING**, which is the behaviour §50.1 wants:
+   the block renders, and the gap is visible rather than fatal.
+2. **Build status begins leaving the document.** §55.2 gains the pointer to
+   Appendix F and the rule that a marker states rationale, not status.
+
+> ⚠ **THE VERSION NUMBERS MOVED BY ONE AND THAT WAS NOT A CHOICE.** The ruling
+> said v1.62 → v1.63 for these two. **G-63's fix consumed v1.63** — guard rule
+> 2b obliged `ARCHITECTURE.md` into that commit, because `nodes_common.py` and
+> `knowledge/tools.py` are both watched paths and §66's G-63 row was still
+> saying *"NO FIX PROPOSED"*. These two are therefore **v1.64**.
+
+**`REFACTORING_PROCEDURE.md` v1.6 → v1.7** — Appendix F, and this step.
+
+### The marker migration is NOT in this step
+
+**One at a time, by judgement, after this lands.** §58.5 goes first, because it
+is the one that states both versions of the same fact in a single block.
+Rationale stays; status moves. **Not a script** — a marker's prose has to be
+read to know which half is which, and a regex that guessed would produce 69
+edits nobody reviewed.
+
+### ⚑ THE FORECAST, RECORDED SO IT CAN BE SCORED
+
+**When the 69 markers migrate, 9–15 of them will disagree with the tree**, and
+**the ⚠️ band will fail more often than the ☐ band.**
+
+**The reasoning, so a wrong forecast is informative rather than just wrong.** A
+`☐ not built` marker asserts an ABSENCE, and absences are stable — nothing
+drifts into existence. A `⚠️ built with a known defect` marker names a SPECIFIC
+defect on the same line, and that line goes stale two ways the ☐ line cannot:
+the defect gets fixed in passing and nobody edits the marker, or the defect is
+re-described in a later audit and the two descriptions diverge. **15 markers
+are ⚠️ and 15 are ☐** as of this commit, so the bands are the same size and the
+comparison is fair.
+
+**Scoring it is part of the migration's Done-when**, not an optional look back.
+
+> **What the seed already scored, and it is evidence for the forecast.** The
+> 70 seeded anchors ran against the tree before this step was written: **66
+> PASS, 3 EXTERNAL (Azure), 0 FAIL** — but that is the score AFTER eight
+> corrections, and **five of the eight were wrong anchors in the seed rather
+> than disagreements in the tree** (the `repo:` root ambiguity, twice a symbol
+> that does not exist under the name the document used). **Two were real
+> findings** and are recorded below.
+
+### What the seed found on its first run — two real defects
+
+**(a) G-52 was recorded closed at a step the git-log scan could not see —
+RESOLVED 2026-09-15.** §66 read *"CLOSED 2026-09-13 at step 6.22"* while git
+carried only `2e17f3f fix(tests): the stack ordering is observed on a real
+graph — G-52 closed`, with **no `refactor(arch-v2): commit 6.22` subject**, so
+Appendix D showed 6.22 unlanded and the pointer would have stopped on it.
+
+**`2e17f3f` was checked against 6.22's Done-when before anything was changed,
+rather than assumed from its subject line**: the new test is
+`backend/tests/test_middleware_execution_order.py`, `pytest` was green at 896,
+and the separating mutation gave **stubbed 5 passed, new 2 failed**. It even
+corrected the step's own Done-when, which had specified a mutation that
+separates nothing. **It satisfies the step in full**, so 6.22 takes `EXTERNAL`
+with its commit cited and §66's closure claim STANDS. `EXTERNAL`'s definition
+is widened in the reading conventions in the same pass, because *"not a code
+change"* alone would have been a false statement about it.
+
+**(b) Appendix A is a DUPLICATE that fell behind — registered as G-64, owned by
+step 6.17.** It has **59 rows against Appendix D's 70**, missing 6.22–6.31 and
+9.2.
+
+> **⛑ THE FIRST READING OF THIS WAS WRONG, AND THE CORRECTION IS THE POINT.**
+> It was reported as *"ten steps have no Appendix A row"*, against Appendix A's
+> rule that *"a step with no reference section is not a step"* — which reads
+> as ten undocumented decisions. **All eleven steps DO carry a `Reference §`
+> row in their own section**, checked afterwards. Nothing is undocumented.
+> **The COPY is incomplete**, which is a different defect with a different fix:
+> *Facts have one owner*, the same class as G-58's watched-path list.
+>
+> **So the fix is not to type eleven rows** — that leaves the second copy in
+> place and buys one commit of agreement. It lands on **6.17** because that
+> step's boundary is *"a claim against the list in the same document"*, and
+> both tables are in this file.
+
+**Thirteen steps also carry no `Touches` row.** Recorded here, not registered:
+unlike the `Reference §` case there is no second copy to disagree with, so it
+is an absence rather than a drift.
+
+**Done when:** `Appendix F` exists with **one row per Appendix D step and no
+others**, asserted as SET EQUALITY in both directions by a check in
+`verify_built.py` that fails closed; every row carries an `Evidence` anchor
+that the evaluator classifies as `PASS`, `EXTERNAL` or `DEPENDENCY`, and **zero
+rows are `FAIL` or `MALFORMED`**; `verify_built.py` reports the matrix rows
+alongside its 24 checks and exits non-zero on any disagreement; **each new
+check has a recorded mutation proof per §0.4**, naming the test that went red;
+`board.html` renders the `Order` column above the lanes, in lane colours;
+`CONTINUITY.md`'s vertical is generated from `Order` inside the pre-commit
+region and its hand-written four-item list — **wrong at HEAD, since 6.19 and
+the §39.1 subsections both landed** — is gone; both §56 amendments are applied
+with their version bumps; and `pytest` is green.
+
+---
+
+## Step 6.32 — An out-of-band landing gets the lane it earned (G-65)
+
+| | |
+|---|---|
+| **Reference §** | §55.2 (the colour ruling) · Appendix D (the status column) · G-65 |
+| **Touches** | `.claude/hooks/build_board.py` (`assign_lanes`) · `.claude/hooks/continuity_status.py` (`build_step_board`) · `backend/tests/` |
+| **Precondition** | none — **READY** |
+| **Verify** | `pytest`, plus a mutation per §0.4 |
+
+**Two finished steps render red on the board.** `assign_lanes` maps `EXTERNAL`,
+`BLOCKED` and `GATED` alike to the BLOCKED lane, and §55.2 ratifies red as
+*"cannot proceed"*. **9.0 has rendered that way since it landed** as
+`feat(knowledge): 871637f`; **6.22 joined it on 2026-09-15** as `2e17f3f`. Both
+are done, both are shown as blocked, on the one artefact a founder opens.
+
+**It is NOT a status-token problem and widening the vocabulary again will not
+fix it.** `EXTERNAL` is now true on its own terms for both of its cases
+(reading conventions, 2026-09-15). **The lane is what is wrong**: a row whose
+status cites a landing commit belongs in DONE, and the pointer already skips
+DONE without needing the row to be unavailable.
+
+**Done when:** a row whose status is `EXTERNAL` **and whose text cites a commit
+sha that resolves in git** is assigned the DONE lane by `assign_lanes` and
+counted DONE by `build_step_board`; 9.0 and 6.22 both render green; a row with
+`EXTERNAL` and **no** resolvable sha still renders BLOCKED, because that is a
+step genuinely off the spine; the landed COUNT is unchanged, since it is git
+∩ Appendix D and these rows are not in git under a spine subject — **so the
+count and the lanes may legitimately disagree, and the step states which is
+which rather than reconciling them**; `pytest` green; mutation proof per §0.4.
+
+---
 
 ## Step 6.16 — The board is generated, not written
 
@@ -3932,6 +4258,8 @@ never changes while the spec it implements moves is not stable; it is
 unwatched, and that is how the two came to disagree in ways only a cross-check
 could find.
 
+**v1.7 (2026-09-15)** — **Step 6.31, and Appendix F: build status becomes a matrix with one row per step and an anchor in every row.** **(A) THE CONDITION.** `ARCHITECTURE.md` carried 69 `> **BUILT:**` markers, each mixing design rationale with today's status, and `verify_built.py` re-ran 24 hand-written checks — **two populations that nothing made converge**, with 45 markers backed by no check at all. §58.5 stated BOTH versions of the same fact inside ONE marker block after 6.19 landed. **(B) THE SPLIT.** Rationale stays in `ARCHITECTURE.md`; STATUS moves here, to **Appendix F** — seven columns, organised by layer, one row per Appendix D step. `CONTINUITY.md` **cites and does not move**, and its hand-written vertical becomes a generated projection of Appendix F's `Order` column. **(C) THE ANCHOR GRAMMAR, NEVER A LINE NUMBER.** `mod::Symbol`, `{a,b}`, `=v`, `absent:`, `installed:`, `repo:` and `azure:`. **`installed:` failures print as a DEPENDENCY finding**, because a library that moved is not a stale marker. A BEHAVIOUR anchors on the test that observes it — still `mod::Symbol`, and deliberately **not** a new form. **(D) THE ASSERTION IS SET EQUALITY, NOT THE COUNT THAT WAS ASKED FOR.** The ruling said *“GROUP BY Step must return exactly 69”*; **this step adds 6.31 and makes it 70**, so a literal would fail on the commit that introduced it. Set equality against Appendix D in both directions is stronger anyway — a count passes when one step is dropped and another added. **(E) TWO DEFECTS FOUND BY THE SEED'S FIRST RUN.** §66 records **G-52 as closed at step 6.22**, but git carries only `2e17f3f fix(tests):` and no `commit 6.22` subject — the row is unlanded and the pointer will stop on it, the exact trap Appendix D's own note describes. And **ten steps have no Appendix A row** (9.2, 6.22–6.30) against Appendix A's rule that a step without one *“is not a step”*; thirteen more carry no `Touches`. Recorded, not fixed. **(F) 6.21 JOINS THE VERIFICATION-OWED TABLE**, which it should have joined when it landed.
+
 **v1.6 (2026-09-10)** — **6.14 and 6.15 gain the specifications they never
 had.** Both existed as an Appendix D row and a title, with no section — found
 by v1.5's work on Appendix A, where they were the two rows whose Reference §
@@ -3990,10 +4318,10 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 |---|---|---|
 | **DONE** | 37 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.25**, **6.26**, **6.27** |
 | **BUILDING NOW** | 1 | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
-| **BLOCKED** | 7 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL) |
-| **QUEUED** | 24 | **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.22**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **11.2** |
+| **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
+| **QUEUED** | 25 | **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.31**, **6.32**, **11.2** |
 
-*69 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-15.*
+*71 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-15.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -4317,7 +4645,7 @@ restate, which is the opposite of what the board is for.
 | 560 | **Commit 9.1** | Azure batched reindex — case index only | EXTERNAL | STORE | SHARED | The case index carries no content vector, so case-history retrieval stays keyword-only and misses paraphrase. |
 | 562 | **Commit 9.2** | Premium deployment's quota — the coach's own model call (G-53) | EXTERNAL | OPS | SHARED | `operational-premium` returns 429, so every live run degrades to the retry message and no `live-run` verification in any remaining step can reach a coached turn. |
 | 565 | **Commit 6.17** | The count-check — a written count against the list it describes |  | OPS | SHARED | A written count and the list it describes can disagree indefinitely - the failure five captions in this repository have already had. |
-| 567 | **Commit 6.22** | The order-check — the middleware stack's ordering test observes execution (G-52) |  | OPS | SHARED | The one test pinning §19's order replaces `create_agent`, so it asserts the rule against itself and stayed green through a three-week document split it existed to prevent. |
+| 567 | **Commit 6.22** | The order-check — the middleware stack's ordering test observes execution (G-52) | EXTERNAL | OPS | SHARED | The one test pinning §19's order replaces `create_agent`, so it asserts the rule against itself and stayed green through a three-week document split it existed to prevent. |
 | 569 | **Commit 6.23** | The source-method check — verification against the installed object, not the page (G-54) |  | OPS | SHARED | Every verdict in the verification log was reached by reading a page; one of them overwrote a correct statement and propagated the error to a second document. |
 | 571 | **Commit 6.24** | The drift hook learns to read the documents (G-56) |  | OPS | SHARED | The governing documents are excluded from every drift pattern, so the six defects worked on 2026-09-12 and 2026-09-13 were all in files nothing guards. |
 | 572 | **Commit 6.25** | Scratch leaves the tree |  | OPS | SHARED | Working material sits untracked inside the tree and tracked documents cite it, so a citation resolves for whoever has the folder on disk and for nobody else. |
@@ -4326,8 +4654,29 @@ restate, which is the opposite of what the board is for.
 | 575 | **Commit 6.28** | Fact-ownership moves to the commit gate (G-59, G-60) |  | OPS | SHARED | The ownership guard runs on a tool path most edits do not take, so a document restating an owned value lands unchecked whenever the edit came through Bash. |
 | 576 | **Commit 6.29** | Search index schema ownership — ruled (G-60) |  | OPS | SHARED | An ownership class with no owner is a class nothing guards, and this one is named in CLAUDE.md's table as though it were covered. |
 | 577 | **Commit 6.30** | A commit body's code claims carry a resolvable reference (G-62) |  | OPS | SHARED | A claim about code can enter the permanent record with nothing to check it against, and the record is what the next session reads as fact. |
+| 578 | **Commit 6.31** | The build matrix — one row per step, anchored to a symbol |  | OPS | SHARED | Build status is stated in a document and re-run in a generator, the two describe different populations, and 45 of the 69 markers are backed by no check at all. |
+| 579 | **Commit 6.32** | An out-of-band landing gets the lane it earned (G-65) |  | OPS | SHARED | Two completed steps show as red on the board a founder reads, and red is ratified to mean "cannot proceed". |
 | 570 | **Commit 11.1** | Delete v1 |  | OPS | SHARED | Two implementations of every phase stay in the tree, and the dead one is still the one writing the v1 field names. |
 | 580 | **Commit 11.2** | Governance close-out |  | OPS | SHARED | The refactor has no end, so procedure and architecture drift apart again with nothing marking the handover. |
+
+> **Step 6.22 is `EXTERNAL` for the SECOND reason, and it cites its commit.**
+> It landed as **`2e17f3f fix(tests): the stack ordering is observed on a real
+> graph — G-52 closed`**, not as a `refactor(arch-v2): commit 6.22` subject,
+> so the git-log scan cannot see it and the pointer would have stopped on it
+> forever. **Its Done-when is satisfied in full** and was checked before the
+> status was applied, not assumed: the new test is
+> `backend/tests/test_middleware_execution_order.py`, `pytest` was green at 896,
+> and the separating mutation — removing position 8's `after_agent` AND
+> `aafter_agent` while the class stays in `middleware=[...]` — gave **stubbed 5
+> passed, new 2 failed**. The same commit corrected this step's own Done-when,
+> which had specified a mutation that separates nothing. **§66's claim that
+> G-52 closed at 6.22 therefore STANDS.**
+>
+> **⛑ AND IT RENDERS RED, WHICH IS WRONG — registered as G-65, not fixed here.**
+> `EXTERNAL` maps to the BLOCKED lane, and §55.2 defines red as *"cannot
+> proceed"*. **9.0 has rendered that way since it landed**; 6.22 now joins it.
+> Two completed steps shown as blocked is a real defect on the one artefact a
+> founder opens, and it is a lane-assignment fix, not a status-token one.
 
 > **Step 9.0 is `EXTERNAL`, and that is what keeps the pointer off it.**
 > It landed as `feat(knowledge): 871637f`, not as a `refactor(arch-v2): commit
@@ -4349,6 +4698,230 @@ restate, which is the opposite of what the board is for.
 > git already owns. **The same trap applies to any future out-of-band step**:
 > give its row `EXTERNAL`, `BLOCKED` or `GATED`.
 
+---
+
+## Appendix F — The build matrix
+
+> **THIS IS THE SINGLE LEADING DOCUMENT FOR BUILD STATUS.** Ratified
+> 2026-09-15 by founder ruling, built at step 6.31. `ARCHITECTURE.md` keeps
+> the *rationale* — why a thing is shaped the way it is — and this table keeps
+> *whether it exists today*. **A `> **BUILT:**` marker that still states a
+> status is mid-migration, not authoritative.**
+
+> **Machine-readable. `.claude/hooks/verify_built.py` is the REFEREE and it
+> fails CLOSED.** It reads every row, evaluates the `Evidence` anchor against
+> the tree, and exits non-zero on any disagreement. Format is fixed:
+> `| L<n> | <order> | **<step>** | <item> | <state> | \`<anchor>\` | <§> |`.
+> `.claude/hooks/build_board.py` reads the `Order` column to render the
+> vertical.
+
+**One row per Appendix D step, and `GROUP BY Step` is asserted as SET EQUALITY
+against Appendix D in both directions.** Not a count: a count passes when one
+step is dropped and another added. Rows may be ADDED for a claim a step makes
+beyond its own delivery — that is how the 69 `BUILT` markers migrate in — but
+no step may be missing and no row may name a step Appendix D does not have.
+
+### The columns
+
+| Column | Owns | Source |
+|---|---|---|
+| **Layer** | which part of the system the step changes | declared here — the organising axis |
+| **Order** | the near-term execution sequence | **hand-set, and the only column that is.** Sparse |
+| **Step** | the identifier | Appendix D |
+| **Item** | what the step delivers | joined from Appendix D's title |
+| **State** | ✅ built · ⚠️ built with a known defect · ☐ not built · ⛔ blocked | §55.2's vocabulary, unchanged |
+| **Evidence** | the anchor that proves the State | declared here — see the grammar below |
+| **§** | the ratified section carrying the rationale | joined from Appendix A |
+
+> **`Order` IS NOT Appendix D's `Seq`.** `Seq` is the global schedule and the
+> board renders it as four bands. `Order` is the **short vertical actually
+> being worked**, which is what `CONTINUITY.md` carried by hand until this
+> step. A number means *"in the run of work being done now"*; every other row
+> is empty, and that emptiness is the point.
+
+> **`State` is DERIVED, not typed** — `⛔` from Appendix D's status cell, then
+> `✅` if git carries the step's spine subject, else `☐`. **`⚠️` is the one
+> state a human sets**, and it arrives with the marker migration: a defect is
+> a judgement about built code, and nothing derives it.
+
+### The anchor grammar — never a line number
+
+**A line number is invalidated by an edit to any line above it, and it fails by
+pointing at the wrong line rather than at nothing.**
+
+| Form | Passes when |
+|---|---|
+| `mod::Symbol` | the module imports and the attribute exists |
+| `mod::Symbol {a,b}` | its member set is exactly `{a,b}` — dict keys, model fields, or `.name` of its elements |
+| `mod::Symbol =v` | `str(value) == v` |
+| `mod` | a bare dotted module imports |
+| `absent: <anchor>` | the anchor does **not** hold — **this is what proves a ☐ row** |
+| `installed: <anchor>` | it holds in the **installed library**; a failure is a **DEPENDENCY** finding, never a marker one |
+| `repo:<path>` | the path exists, resolved from the **repository root** |
+| `azure:<resource>` | never, from here — reported **EXTERNAL**, owed rather than passed |
+
+> **`repo:` is explicit because the ambiguity is real: `.claude/` sits ABOVE
+> `agent-improve/`.** A bare relative path resolves against whichever root the
+> caller passed and reports a present file as absent — which it did, five
+> times, on the evaluator's first run.
+
+> **A BEHAVIOUR IS ANCHORED ON THE TEST THAT OBSERVES IT.** Steps 2.6, 6.22,
+> 6.26 and 6.27 deliver behaviour spread across many sites with no single
+> symbol to name, so their `Evidence` is the test function — **still
+> `mod::Symbol`, and deliberately not a fifth form.**
+
+> ### ⚑ EVERY `absent:` CELL IS REMOVED BY ITS OWNING STEP'S DONE-WHEN
+>
+> **Without this the matrix rots in the OPPOSITE direction from the markers.**
+> A marker goes stale claiming a thing is built when it is not. An `absent:`
+> cell goes stale claiming a thing is missing after it has been built — and
+> **the referee catches that one loudly, because the anchor starts resolving.**
+> The failure is the feature. The step that builds the thing replaces its cell
+> with a positive anchor in the same commit, or its own gate refuses it.
+>
+> **DELETION STEPS INVERT THE POLARITY.** Step 11.1 *"Delete v1"* makes an
+> ABSENCE true, so its not-built anchor is the POSITIVE form —
+> `backend.core.state::ImproveGraphState` resolves today, which is exactly why
+> the row reads ☐ — and its Done-when flips the cell to `absent:`. The first
+> seed had this backwards and the referee caught it.
+
+### Layers — nine, not eight
+
+The eight Level-1 blocks describe the **runtime**. Thirteen steps change
+`.claude/`, `.githooks/` or these documents and touch no runtime file at all;
+without a home of their own they all fall into block 8 and *"Persistence and
+cross-cutting"* becomes a junk drawer holding 33 of 70 rows. **L0 is that
+home.**
+
+
+#### L0 · Governance and build tooling
+
+| Layer | Order | Step | Item | State | Evidence | § |
+|---|---|---|---|---|---|---|
+| L0 |  | **6.16** | The board is generated, not written | ✅ | `repo:.claude/hooks/build_board.py` | §55.1, §66, Appendix D |
+| L0 |  | **6.17** | The count-check — a written count against the list it describes | ☐ | `absent: repo:.claude/hooks/count_check.py` | §55.1, §6 / S-C02, §29.2 |
+| L0 |  | **6.22** | The order-check — the middleware stack's ordering test observes execution (G-52) | ⛔ | `backend.tests.test_middleware_execution_order::test_this_observes_a_real_graph_and_not_a_stub` | — |
+| L0 |  | **6.23** | The source-method check — verification against the installed object, not the page (G-54) | ☐ | `repo:agent-improve/docs/_archive/BIBLE_VERIFICATION_LOG.md` | — |
+| L0 |  | **6.24** | The drift hook learns to read the documents (G-56) | ☐ | `repo:.claude/hooks/fact-ownership-guard.py` | — |
+| L0 |  | **6.25** | Scratch leaves the tree | ✅ | `absent: repo:scratch` | — |
+| L0 |  | **6.26** | The guard's tree rules get a test suite (G-57) | ✅ | `backend.tests.test_commit_guard_tree_rules::test_a_scratch_directory_segment_is_caught` | — |
+| L0 |  | **6.27** | The watched-path contract has one owner (G-58) | ✅ | `backend.tests.test_commit_guard_tree_rules::test_the_watch_list_and_ss552_state_the_same_paths` | — |
+| L0 |  | **6.28** | Fact-ownership moves to the commit gate (G-59, G-60) | ☐ | `absent: repo:.claude/hooks/ownership_gate.py` | — |
+| L0 |  | **6.29** | Search index schema ownership — ruled (G-60) | ☐ | `absent: repo:.claude/config/search_index_owner.yaml` | — |
+| L0 |  | **6.30** | A commit body's code claims carry a resolvable reference (G-62) | ☐ | `absent: repo:.claude/hooks/code_ref_gate.py` | — |
+| L0 | 2 | **6.31** | The build matrix — one row per step, anchored to a symbol | ☐ | `verify_built::matrix_covers_appendix_d` | — |
+| L0 |  | **6.32** | An out-of-band landing gets the lane it earned (G-65) | ☐ | `absent: backend.tests.test_board_lanes` | §55.2 · Appendix D · G-65 |
+| L0 |  | **11.2** | Governance close-out | ☐ | `absent: repo:agent-improve/docs/HANDOVER.md` | §55 |
+
+#### L1 · API surface
+
+| Layer | Order | Step | Item | State | Evidence | § |
+|---|---|---|---|---|---|---|
+| L1 | 5 | **10.2** | Live gate document + conflict panel | ☐ | `absent: repo:agent-improve/frontend/gate_document.js` | §50, §43.4 |
+| L1 |  | **10.1** | `/ask/stream` SSE | ☐ | `absent: backend.gateway.routes::ask_stream` | §49 |
+
+#### L2 · Supervisor graph
+
+| Layer | Order | Step | Item | State | Evidence | § |
+|---|---|---|---|---|---|---|
+| L2 |  | **2.4** | `set_entry_point` → `add_edge(START, …)` | ✅ | `absent: backend.core.graph::set_entry_point` | §12 |
+| L2 |  | **3.1** | `SupervisorState` and `PhaseState` | ✅ | `backend.core.state::SupervisorState` | §5, §6, §7 |
+| L2 |  | **4.3** | Supervisor graph | ✅ | `backend.core.graph::get_graph` | §12, §15 |
+
+#### L3 · Phase subgraphs
+
+| Layer | Order | Step | Item | State | Evidence | § |
+|---|---|---|---|---|---|---|
+| L3 |  | **3.3** | Boundary mappers | ✅ | `backend.phases.mappers_common::PHASE_ORDER` | §9 |
+| L3 |  | **4.1** | Define phase subgraph | ✅ | `backend.phases.subgraph_common::build_phase_subgraph` | §12, §13, §14 |
+| L3 |  | **4.4** | Remaining four subgraphs | ✅ | `backend.phases.mappers_common::PHASE_ORDER {define,measure,analyse,improve,control}` | §12, §13 |
+| L3 |  | **6.8** | `phase_context` is read (WATCH 19) | ✅ | `backend.middleware.state_injection::BeforeModelStateInjection` | §6, §9, §19.1 |
+| L3 | 3 | **6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ | `absent: backend.phases.nodes_common::_advance_field_index` | §7, §39.x.7, S-C02, S-C03 |
+
+#### L4 · Coaching agent
+
+| Layer | Order | Step | Item | State | Evidence | § |
+|---|---|---|---|---|---|---|
+| L4 |  | **2.6** | `content_blocks` · 20 sites | ✅ | `backend.tests.test_middleware::test_injection_uses_content_blocks_not_string_concatenation` | §21 |
+| L4 |  | **6.1** | Planner / Executor split | ✅ | `backend.phases.nodes_common::planner` | §17, §20 |
+| L4 |  | **6.2** | `create_agent` executor | ✅ | `backend.core.substate::CoachingResponse` | §18, §20 |
+| L4 |  | **6.6** | Prompts | ✅ | `backend.core.prompts::DEFINE_COACH_PROMPT` | §22 |
+| L4 |  | **6.7** | The hop cap, as §26 specifies it (WATCH 26) | ✅ | `backend.phases.nodes_common::COACH_HOP_BUDGET =5` | §16 · §26 |
+| L4 |  | **6.9** | The four missing SKILL.md files + §32 conformance | ✅ | `repo:agent-improve/skills/dmaic-define-phase/SKILL.md` | §32, §43, §37 |
+| L4 |  | **6.12** | Ask-binding: an upload answers a request | ✅ | `backend.phases.nodes_common::_unconsumed_for_open_ask` | §29.1, §32, §43, §50 |
+| L4 |  | **6.18** | The executor ignores the tool its planner names (G-49) | ✅ | `backend.phases.nodes_common::_dispatch_routed_read` | §17, §26, S-F04, S-F13, S-F57 |
+| L4 | 1 | **6.21** | The plan reaches the model (G-49's fix) | ⚠️ | `backend.phases.nodes_common::_dispatch_routed_read` | §17, §26, §19.1 / S-C11, S-F13, S-F57 |
+| L4 |  | **6.19** | `CoachingResponse` gains §50.1's four presentational fields (G-50) | ✅ | `backend.core.substate::CoachingResponse {message,explanation,example,prompt,progress,fields_captured,citations,contradiction_flag}` | §20, S-C05, §50.1 |
+| L4 |  | **6.14** | SKILL.md shape pass — Define, Analyse, Improve, Control | ⛔ | `backend.upload.asks::SHAPES_BY_PHASE.define {}` | §32, §43, §23.2.1 |
+| L4 |  | **6.10** | `analyse_executor_node` — §26's multi-hop | ⛔ | `absent: backend.phases.nodes_common::analyse_executor_node` | §26, §58.18 |
+
+> **6.21 IS ⚠️ RATHER THAN ✅, AND IT IS THE ONE ROW WHERE `State` IS NOT
+> DERIVED.** Git carries `a1a0a5d refactor(arch-v2): commit 6.21`, so the
+> derivation says ✅ and the board's DONE lane agrees. **Its Done-when is not
+> met**: it requires a `live-run` on `IMPR-2026-ED8` carrying the live halves
+> of 6.7, 6.12 and 6.13, and that evidence does not exist. See *Verification
+> owed*.
+>
+> **This is the gap between "the code landed" and "the step is done" that
+> Appendix D's status column cannot express** — it carries only what git
+> cannot supply, and *the code landed* is exactly what git does supply. ⚠️ is
+> the honest cell until the run reports, and **the run is what flips it**, not
+> another commit.
+
+#### L5 · Middleware
+
+| Layer | Order | Step | Item | State | Evidence | § |
+|---|---|---|---|---|---|---|
+| L5 |  | **6.3** | Middleware 1–3 | ✅ | `backend.middleware.skills::DMAICSkillsMiddleware` | §19.1–§19.3 |
+| L5 |  | **6.4** | Retry middleware 4–5 + factory retry removal | ✅ | `installed: langchain.agents.middleware::ModelRetryMiddleware` | §19.4, §19.5, §21 |
+| L5 |  | **6.5** | Middleware 6–8 | ✅ | `backend.middleware.coherence::CoherenceMiddleware` | §19.6–§19.8 |
+
+#### L6 · Tools and knowledge
+
+| Layer | Order | Step | Item | State | Evidence | § |
+|---|---|---|---|---|---|---|
+| L6 |  | **5.1** | Retrieval failure semantics | ✅ | `backend.core.errors::KnowledgeSearchError` | §27 |
+| L6 |  | **5.2** | Three `rag_lookup_*` + RRF | ✅ | `backend.knowledge.tools::RAG_LOOKUP_TOOLS` | §24, §25, §23 |
+| L6 |  | **5.3** | 20 computation tools | ✅ | `backend.knowledge.computation::COMPUTATION_TOOLS_BY_PHASE` | §30, §31, §69 |
+| L6 |  | **5.4** | Per-phase tool binding | ✅ | `backend.knowledge.fusion::RRF_K =60` | §30 |
+| L6 |  | **9.0** | Knowledge-index rebuild | ⛔ | `azure: improve-knowledge-index` | §23, §23.1 |
+| L6 |  | **9.1** | Azure batched reindex — case index only | ⛔ | `azure: improve-cases-index.content_vector` | §23.2, §23.3, §23.5 |
+
+#### L7 · Validation, gates, escalation
+
+| Layer | Order | Step | Item | State | Evidence | § |
+|---|---|---|---|---|---|---|
+| L7 |  | **3.4** | `{Phase}Output` schemas + validators + UI | ✅ | `backend.phases.define.schema::DefineOutput` | §7, §40, §41, §53.1 |
+| L7 | 4 | **7.3** | Nine-step HITL gate | ☐ | `backend.phases.nodes_common::gate_review` | §33 |
+| L7 |  | **7.1** | `DMAICGateValidator` + Layer 2b | ☐ | `absent: backend.validation.gate_validator::DMAICGateValidator` | §34, §35 |
+| L7 |  | **7.2** | Layers 2c, 2d + `validation_stack` | ☐ | `absent: backend.validation.stack::validation_stack` | §34, §36 |
+| L7 |  | **7.4** | Two tiers + `warning` verdict | ☐ | `absent: backend.validation.tiers::WARNING` | §35 |
+| L7 |  | **7.0** | The evaluation suite | ☐ | `absent: backend.evals` | §52 |
+| L7 |  | **7.5** | Escalation | ☐ | `absent: backend.phases.escalate_v2::escalate` | §38 |
+| L7 |  | **7.6** | The re-approval cascade | ☐ | `absent: backend.validation.cascade::reopen_field` | §37, §9.5 |
+
+#### L8 · Persistence and cross-cutting
+
+| Layer | Order | Step | Item | State | Evidence | § |
+|---|---|---|---|---|---|---|
+| L8 |  | **2.3** | Dependency upgrade | ✅ | `installed: langgraph =1.2.11` | §53, §16 |
+| L8 |  | **2.5** | Async conversion | ✅ | `backend.phases.subgraph_common::build_phase_subgraph` | §14, §49 |
+| L8 |  | **2.7** | LLM factory · 6 roles → 11 | ✅ | `backend.core.llm::get_llm` | §21, §54 |
+| L8 |  | **3.2** | `AzureBlobStore` | ✅ | `backend.core.store::AzureBlobStore` | §9, §10 |
+| L8 |  | **3.5** | `storage/blob.py` — class → functions, sync → aio | ✅ | `backend.storage.blob::download_bytes` | §54, §10, §49 |
+| L8 |  | **4.2** | `thread_id` + disconnect policy | ✅ | `backend.core.checkpointer::AzureBlobCheckpointSaver` | §16, §47, §49, §8 |
+| L8 |  | **6.11** | The upload path (G-36) | ✅ | `backend.upload.parsers::PARSERS {document,pdf,spreadsheet,text}` | §29.1, §6, §10, §23.2, §65.4 |
+| L8 |  | **6.13** | The evidence index migration | ✅ | `backend.knowledge.tools::rag_lookup_evidence` | §23.2, §23.2.1, §23.4, §24, §6 / S-C02, S-C09 |
+| L8 |  | **8.0** | Turn telemetry and `@traceable` | ☐ | `absent: backend.core.tracing::traced_turn` | §51, §44 |
+| L8 |  | **8.1** | Structured errors | ☐ | `absent: backend.errors::StructuredError` | §48 |
+| L8 |  | **8.2** | Timeouts + compensating actions | ☐ | `absent: backend.core.timeouts::NODE_TIMEOUTS` | §45 |
+| L8 |  | **8.3** | Circuit breakers + fallback chain | ☐ | `absent: backend.core.resilience::CircuitBreaker` | §46 |
+| L8 |  | **8.6** | Context recovery (§44 Step 2) | ☐ | `absent: backend.core.recovery::recover_context` | §44 |
+| L8 |  | **8.7** | `delete_blob` + upload lifecycle | ☐ | `absent: backend.storage.blob::delete_blob` | §10, §58 S-C08 |
+| L8 |  | **8.4** | Level 3 cache | ⛔ | `absent: backend.core.cache::response_cache` | §46 |
+| L8 |  | **8.5** | Graceful shutdown | ⛔ | `absent: backend.gateway.lifespan::drain` | §45 |
+| L8 |  | **9.2** | Premium deployment's quota — the coach's own model call (G-53) | ⛔ | `azure: operational-premium.rateLimits =200000` | — |
+| L8 |  | **11.1** | Delete v1 | ☐ | `backend.core.state::ImproveGraphState` | §54, App. D |
 ---
 
 ## Appendix E — Questions raised by this procedure · BOTH RESOLVED

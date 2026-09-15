@@ -9,9 +9,9 @@
 |---|---|
 | **Last completed** | step **6.27** — The watched-path contract has one owner (G-58) |
 | **Next** | step **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
-| **Spine steps landed** | 37 of 69 |
+| **Spine steps landed** | 37 of 71 |
 | **Last spine commit** | `7e4dfce` (commit 6.19) |
-| **ARCHITECTURE.md** | v1.63 |
+| **ARCHITECTURE.md** | v1.64 |
 | **CLAUDE.md** | v2.2.40 |
 | **Block regenerated** | 2026-09-15 |
 
@@ -22,59 +22,63 @@ is hand-maintained and no prose is parsed, so this cannot drift from
 either. A step that landed under another subject is invisible to the
 count by design — give it a BLOCKED / GATED / EXTERNAL status in
 Appendix D so the pointer does not stop on it.*
+
+### ⇒ THE VERTICAL — the run of work being done now
+
+| # | Step | State |
+|---|---|---|
+| **1** | **6.21** — The plan reaches the model (G-49's fix) | ⚠️ |
+| **2** | **6.31** — The build matrix — one row per step, anchored to a symbol | ☐ |
+| **3** | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ |
+| **4** | **7.3** — Nine-step HITL gate | ☐ |
+| **5** | **10.2** — Live gate document + conflict panel | ☐ |
+
+*Projected from the `Order` column of **Appendix F** in
+`docs/REFACTORING_PROCEDURE.md`, which is the leading document for
+build status (step 6.31). `Order` is the one column a human sets; to
+change what is next, edit it THERE. The hand-written list that stood
+here until 2026-09-15 named two items that had already landed.*
 <!-- END CURRENT BUILD STATUS -->
 
-## ⇒ NEXT WORK — THE DEFINE VERTICAL
+## ⇒ WHERE THE PLAN LIVES
 
-*Hand-authored and deliberately placed BELOW the generated block. Everything
-above `END CURRENT BUILD STATUS` is rewritten from git log and Appendix D on
-every commit; this section is not, and survives regeneration. Set 2026-09-14.*
+*The run of work is the **vertical** in the generated block above, projected
+from **Appendix F**'s `Order` column in `docs/REFACTORING_PROCEDURE.md`.
+**Cite, do not move**: this file stays terse and the plan has one home.*
 
-**The next work is the DEFINE VERTICAL, in this order. Do not start at the
-bottom.**
+**This section used to BE the plan, and that is what went wrong with it.** A
+four-item list was hand-written here on 2026-09-14 and placed deliberately
+BELOW the generated region so regeneration could not touch it. **Two of its
+four items had landed within a day** — step 6.19, and §39.1's six missing
+subsections — while the list still named them as next work. A session reading
+this file first, which is what this file is for, would have started on work
+already done.
 
-| # | Work | Clears |
-|---|---|---|
-| **1** | **One live Define turn on `IMPR-2026-ED8`** | **G-53**, and the `live-run` debts on **6.7, 6.9, 6.12, 6.13** |
-| **2** | **Step 6.19** — `CoachingResponse` gains §50.1's four presentational fields | **G-50** — the UI can draw Define's coaching as four blocks instead of one blob |
-| **3** | **Define's missing §39.1 subsections** — six canonical topics absent from the spec | **Propose the split across steps and REPORT BEFORE BUILDING** |
-| **4** | **A Define gate passing end-to-end in the browser** at `127.0.0.1:8020` | the vertical is real, or it is not |
+**The fix is not a better list; it is a list nothing has to remember to
+update.** To change what is next, edit the `Order` column in Appendix F. The
+pre-commit hook projects it here and `build_board.py` renders it on the board,
+so the founder sees the same sequence in both places and neither can be edited
+into disagreeing with the other.
 
-**Item 1 is unblocked as of 2026-09-14 and was not before.** G-53 was *“Azure
-returns 429 on the premium deployment, so no live run reaches a coached turn”*.
-`operational-premium` was raised **50K → 200K TPM** that morning —
-`sku.capacity 200`, `rateLimits` token `200000` per `60`s, regional quota 200 of
-1350 used. **The 429 condition that blocked every live run is gone**, so item 1
-is now a run-it question rather than a provisioning one. Step **9.2** owns the
-quota and should be closed against this if the run confirms it.
+> **What survived the move, because it is a FACT and not a plan:** item 1's
+> live Define turn on `IMPR-2026-ED8` is unblocked as of 2026-09-14. G-53 was
+> *"Azure returns 429 on the premium deployment"*; `operational-premium` was
+> raised **50K → 200K TPM** that morning, so the 429 condition that blocked
+> every live run is gone and step **9.2** should be closed against the run.
+>
+> **Do not size `max_tokens` off the old telemetry.** The 7-day figures —
+> 6,924 prompt / **25 completion** / 572 requests — were measured against the
+> 50K deployment while it was degrading. A healthy `CoachingResponse` is
+> several hundred completion tokens; 25 is the 429-text path.
 
-> **Do not size `max_tokens` off the old telemetry.** The 7-day figures — 6,924
-> prompt / **25 completion** / 572 requests — were measured against the 50K
-> deployment while it was degrading. A healthy `CoachingResponse` is several
-> hundred completion tokens; 25 is the 429-text path. **Item 1 produces the
-> first honest measurement**, and the planner's unset `max_tokens` is the only
-> unbounded call on that deployment.
+### Governance work WAITS behind the vertical
 
-**Item 3's concrete hook:** §39.1 carries **eight** subsections (39.1.1–39.1.8)
-against §39.2's **twelve**. That gap is the thing to enumerate first — name
-which six topics are missing and which step each belongs to, **before** writing
-any of them.
-
-### Governance work WAITS behind this list
-
-**Steps 6.28, 6.29 and 6.30 are governance and are NOT next.** They wait behind
-the Define vertical unless one of them blocks it — and as written, none does:
-
-| Step | What it is | Blocks the vertical? |
-|---|---|---|
-| **6.28** | fact-ownership moves to the commit gate (G-59, G-60) | **No** — the existing guard still runs on `Write`/`Edit` |
-| **6.29** | search index schema ownership, ruled (G-60) | **No** — a ruling about a registry row |
-| **6.30** | a commit body's code claims carry a resolvable reference (G-62) | **No** — a commit-message shape rule |
-
+**Steps 6.28, 6.29 and 6.30 are governance and are NOT next.** None of them
+blocks the vertical: the ownership guard still runs on `Write`/`Edit` (6.28),
+6.29 is a ruling about a registry row, and 6.30 is a commit-message shape rule.
 **If one of them starts to block the vertical, that is a finding** — say so and
-re-sequence deliberately rather than drifting into it because governance is
+re-sequence deliberately rather than drifting into governance because it is
 easier to make progress on than a live run.
-
 
 ## How this build defends itself against drift
 

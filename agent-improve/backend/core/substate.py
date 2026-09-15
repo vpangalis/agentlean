@@ -142,6 +142,20 @@ class CoachingResponse(BaseModel):
 
     **Adding a field here requires a §56 amendment**, the same as
     `SupervisorState` and `PhaseState`.
+
+    **THE FOUR PRESENTATIONAL FIELDS DEFAULT TO `""` — §56 amendment, v1.64,
+    founder ruling 2026-09-15.** They were REQUIRED `str` from 6.19 until then,
+    which made a model omitting `progress` fail the WHOLE TURN's structured
+    output. **That is a hard failure to the Belt, and §4.8 forbids exactly
+    that**: the Belt asked a coaching question and would get an error because
+    a position indicator was missing.
+
+    **An empty field is a FINDING, not a silence.** `presentational_gaps()`
+    names which of the four came back empty, and the executor logs it at
+    WARNING. The block still renders, the turn still completes, and the gap is
+    visible to whoever is watching rather than fatal to whoever is coaching.
+    **Degraded, not broken** — the same shape as the routed read's refusal to
+    dispatch (G-63).
     """
 
     message: str = Field(
@@ -151,12 +165,14 @@ class CoachingResponse(BaseModel):
         ),
     )
     explanation: str = Field(
+        default="",
         description=(
             "§50.1 — plain-language 'what this deliverable is', 2-3 short "
             "lines. Its OWN block in the UI. Never methodology jargon (§13)."
         ),
     )
     example: str = Field(
+        default="",
         description=(
             "§50.1 — the worked example, MARKED AS AN ILLUSTRATION so the Belt "
             "cannot mistake it for their own data. Its own visually distinct "
@@ -164,12 +180,14 @@ class CoachingResponse(BaseModel):
         ),
     )
     prompt: str = Field(
+        default="",
         description=(
             "§50.1 — the request to the Belt, the call to action. One ask, not "
             "three. This is the CTA block the UI draws last."
         ),
     )
     progress: str = Field(
+        default="",
         description=(
             "§50.1 — the position indicator, e.g. 'Define · 4 of 12'. Always "
             "visible. Count the phase's COACHED positions, not the gate set."
@@ -210,6 +228,30 @@ CONTRADICTION_FLAG_KEYS: tuple[str, ...] = (
     "belt_input",
 )
 
+
+
+#: The four §50.1 fields whose absence is a FINDING rather than a failure.
+#: §56 amendment v1.64. `message` is NOT among them — a turn with no coaching
+#: text has nothing to say to the Belt and is a real failure, not a gap.
+PRESENTATIONAL_FIELDS = ("explanation", "example", "prompt", "progress")
+
+
+def presentational_gaps(response: CoachingResponse) -> list[str]:
+    """Which of §50.1's four blocks came back empty this turn.
+
+    **Empty is a finding, and this is what makes it one.** Before v1.64 the
+    four were required, so an omission failed the turn's structured output —
+    against §4.8's *never a hard failure to the Belt*. Making them optional
+    without this would have traded a loud failure for a silent one, which is
+    the worse of the two: the UI would draw four blocks, one of them blank,
+    and nothing anywhere would have noticed.
+
+    Whitespace counts as empty. A `progress` of `" "` renders as a layout
+    break exactly as `""` does, and §58.5 B6 already says an absence must be
+    stated plainly rather than folded away.
+    """
+    return [f for f in PRESENTATIONAL_FIELDS
+            if not str(getattr(response, f, "") or "").strip()]
 
 class PhaseState(TypedDict):
     """Twenty author-populated fields — two identity, three plumbing,

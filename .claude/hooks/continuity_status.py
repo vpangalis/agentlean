@@ -247,6 +247,53 @@ def last_spine_commit(cwd: str) -> str:
     return "—"
 
 
+def read_order(cwd: str) -> list[tuple]:
+    """Appendix F's `Order` column — the vertical (step 6.31).
+
+    **This is what CONTINUITY.md's hand-written *NEXT WORK* list used to be.**
+    That list was set on 2026-09-14, sat BELOW the generated region so that
+    regeneration could not touch it, and was **wrong at HEAD within a day**:
+    two of its four items — step 6.19 and §39.1's missing subsections — had
+    both landed while it still named them as next.
+
+    **A hand-written list placed where nothing can correct it does not survive
+    contact with the build.** So the vertical is now a PROJECTION of the one
+    column a human does set, read from the document that owns it.
+    """
+    text = staged_text(PROCEDURE, cwd)
+    start = text.find("## Appendix F — The build matrix")
+    if start < 0:
+        return []
+    end = text.find(chr(10) + "## Appendix ", start + 10)
+    body = text[start:end if end > 0 else len(text)]
+    out = []
+    for m in re.finditer(
+            r"^\|\s*L\d+\s*\|(?P<order>[^|]*)\|\s*\*\*(?P<step>\d+\.\d+)"
+            r"\*\*\s*\|(?P<item>[^|]*)\|(?P<state>[^|]*)\|", body, re.M):
+        o = m.group("order").strip()
+        if o.isdigit():
+            out.append((int(o), m.group("step"), m.group("item").strip(),
+                        m.group("state").strip()))
+    return sorted(out)
+
+
+def _vertical_lines(cwd: str) -> list[str]:
+    """The vertical as table rows, or an explicit statement that it is empty.
+
+    **An empty vertical renders a SENTENCE, never an empty table.** A blank
+    table reads as a rendering failure; "nothing is declared" is a fact about
+    the plan and has to look like one.
+    """
+    order = read_order(cwd)
+    if not order:
+        return ["**No row in Appendix F carries an `Order` number** — nothing "
+                "is declared as the current run of work."]
+    out = ["| # | Step | State |", "|---|---|---|"]
+    out += [f"| **{n}** | **{step}** — {item} | {state} |"
+            for n, step, item, state in order]
+    return out
+
+
 def build_block(cwd: str, today: str | None = None) -> str:
     t = derive(cwd)
     claude = _CLAUDE_V.search(staged_text(CLAUDE_MD, cwd))
@@ -278,6 +325,16 @@ def build_block(cwd: str, today: str | None = None) -> str:
         "either. A step that landed under another subject is invisible to the",
         "count by design — give it a BLOCKED / GATED / EXTERNAL status in",
         "Appendix D so the pointer does not stop on it.*",
+        "",
+        "### ⇒ THE VERTICAL — the run of work being done now",
+        "",
+        *_vertical_lines(cwd),
+        "",
+        "*Projected from the `Order` column of **Appendix F** in",
+        "`docs/REFACTORING_PROCEDURE.md`, which is the leading document for",
+        "build status (step 6.31). `Order` is the one column a human sets; to",
+        "change what is next, edit it THERE. The hand-written list that stood",
+        "here until 2026-09-15 named two items that had already landed.*",
         END,
     ])
 

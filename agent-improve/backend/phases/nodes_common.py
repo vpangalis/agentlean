@@ -62,7 +62,12 @@ from backend.core.conversation import message_to_turn
 from backend.core.llm import get_llm
 from backend.core.prompts import PHASE_COACH_PROMPT
 from backend.core.state import ImproveGraphState
-from backend.core.substate import CoachingPlan, CoachingResponse, PhaseState
+from backend.core.substate import (
+    CoachingPlan,
+    CoachingResponse,
+    PhaseState,
+    presentational_gaps,
+)
 from datetime import datetime, timezone
 
 from backend.upload.asks import ensure_ask
@@ -1227,6 +1232,26 @@ async def executor(
         captured = _captured_fields(phase, reply)
         citations.extend(_anchored(reply.citations or [], state))
         new_messages = _with_coaching_text(new_messages, reply)
+
+        # §50.1's four blocks are OPTIONAL as of §56 amendment v1.64, and an
+        # empty one is a FINDING rather than a failure. Required `str` meant a
+        # model omitting `progress` failed the whole turn's structured output
+        # — a hard failure to the Belt, which §4.8 forbids.
+        #
+        # **Logged loudly BECAUSE it is no longer fatal.** Making the fields
+        # optional without this would trade a loud failure for a silent one:
+        # the UI would draw four blocks, one of them blank, and nothing would
+        # have noticed. Degraded, not broken — and visible.
+        gaps = presentational_gaps(reply)
+        if gaps:
+            logger.warning(
+                "%s.executor: FINDING — §50.1 presentational field(s) came "
+                "back empty: %s. The turn completes and the block renders "
+                "empty (§56 amendment v1.64, §4.8: never a hard failure to "
+                "the Belt). A recurring gap here is a PROMPT defect, not a "
+                "schema one.",
+                phase, ", ".join(gaps),
+            )
 
     # R4 — `consumed_at` is written HERE, not inside the tool. A `@tool`
     # receives only its arguments and cannot reach `PhaseState`; the node

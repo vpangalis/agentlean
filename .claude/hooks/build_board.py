@@ -440,6 +440,37 @@ def read_phase_subsections() -> dict[str, dict]:
     return out
 
 
+def read_order() -> list[dict]:
+    """Appendix F's `Order` column - THE VERTICAL (step 6.31).
+
+    **The only hand-set column in the matrix, and the only thing on this board
+    that is not derived from a schedule.** `Seq` is the global plan and the
+    bands already render it; `Order` is the short run of work actually being
+    done, which is what `CONTINUITY.md` carried by hand until 6.31.
+
+    Sparse on purpose: a row with no number is not in the current run. Sorted
+    by the number, and a duplicate is reported rather than silently ordered -
+    two items numbered 3 is a person having edited one and not the other.
+    """
+    text = Path(PROCEDURE).read_text(encoding="utf-8")
+    start = text.find("## Appendix F — The build matrix")
+    if start < 0:
+        return []
+    end = text.find(chr(10) + "## Appendix ", start + 10)
+    body = text[start:end if end > 0 else len(text)]
+    out = []
+    for m in re.finditer(
+            r"^\|\s*L(\d+)\s*\|(?P<order>[^|]*)\|\s*\*\*(?P<step>\d+\.\d+)"
+            r"\*\*\s*\|(?P<item>[^|]*)\|(?P<state>[^|]*)\|", body, re.M):
+        o = m.group("order").strip()
+        if o.isdigit():
+            out.append({"n": int(o), "step": m.group("step"),
+                        "item": m.group("item").strip(),
+                        "state": m.group("state").strip()})
+    out.sort(key=lambda r: r["n"])
+    return out
+
+
 def read_bands() -> list[dict]:
     """Appendix D's band table - the PLAN, as data.
 
@@ -630,7 +661,8 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
            landed: set[str], bands: list[dict], done_when: dict[str, str],
            titles: dict[str, str], comp_set: list[dict],
            done_when_full: dict[str, str], verify: dict[str, str],
-           precon: dict[str, str]) -> str:
+           precon: dict[str, str],
+           order: list[dict]) -> str:
     """The board: the PLAN first, readiness second.
 
     **Bands replaced lanes as the organising axis on 2026-09-11**, by founder
@@ -783,6 +815,29 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
     _done_rows = [r for r in rows if r["lane"] == "DONE"]
     last_spine = (max(_done_rows, key=lambda r: r["seq"])["step"]
                   if _done_rows else "none")
+
+    # ── THE VERTICAL ─ Appendix F's Order column (step 6.31) ───────────
+    #
+    # The founder opens this file from the repo. The run of work being done
+    # now has to be visible HERE, not only in a table inside a 4,000-line
+    # document - which is the whole reason the column exists.
+    #
+    # LANE colours, never marker colours (SS55.2): a position in a plan and a
+    # judgement about code may not share a hue. The step's STATE glyph rides
+    # alongside and carries the other half.
+    vrows = []
+    for i, o in enumerate(order):
+        r_lane = next((r["lane"] for r in rows if r["step"] == o["step"]), "")
+        cls = "vrow" if i == 0 else "vrow later"
+        vrows.append(
+            f'<div class="{cls}" data-b="{step_bubble(o["step"])}">'
+            f'<div class="vn">{o["n"]}</div>'
+            f'<div class="vb"><div class="vs">{step_named(o["step"])}</div>'
+            f'<div class="vi">{e(r_lane.lower() or "—")}</div></div>'
+            f'<div class="vg">{e(o["state"])}</div></div>')
+    vertical = "".join(vrows) or (
+        '<div class="vnone">No row in Appendix F carries an Order number — '
+        'nothing is declared as the current run of work.</div>')
 
     # ── health panel: counts from the markers, G-numbers from the register ──
     built = [m for m in markers if m["state"] == "built"]
@@ -1035,7 +1090,7 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
         + "</div>")
 
     return TEMPLATE.format(
-        legend=legend,
+        legend=legend, vertical=vertical,
         last_spine=last_spine, n_done=n_done, n_all=n_all, pct=pct,
         n_markers=len(markers),
         n_open=sum(1 for m in markers if m["state"] != "built"),
@@ -1097,6 +1152,24 @@ align-self:center}}
 .lgv{{color:var(--mut)}}
 .sn{{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 /* current slice */
+/* THE VERTICAL - Appendix F's Order column (step 6.31).
+   LANE colours, never marker colours. Order is a POSITION IN A PLAN, and
+   SS55.2's rule is that a lane state and a marker state may never share a
+   hue - a reader cannot hold "where it sits" and "whether it works" off one
+   colour. The step's own STATE glyph rides alongside, carrying the other. */
+.vert{{max-width:860px;margin:10px 0 4px}}
+.vrow{{display:flex;align-items:flex-start;gap:10px;padding:7px 10px;
+background:var(--card);border:1px solid var(--line);border-left:3px solid var(--now);
+border-radius:7px;margin-bottom:5px}}
+.vn{{flex:0 0 22px;height:22px;border-radius:50%;background:var(--now);color:#fff;
+font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}}
+.vrow.later{{border-left-color:var(--queued)}}
+.vrow.later .vn{{background:var(--queued)}}
+.vb{{flex:1;min-width:0}}
+.vs{{font-size:13px;font-weight:600}}
+.vi{{font-size:11.5px;color:var(--mut);margin-top:1px}}
+.vg{{flex:0 0 auto;font-size:13px}}
+.vnone{{color:var(--mut);font-size:12px;font-style:italic}}
 .slice{{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--now);
 border-radius:10px;padding:15px 17px}}
 .sname{{font-size:16px;font-weight:600}}
@@ -1236,6 +1309,9 @@ last spine step landed: <b>{last_spine}</b>.
 Every figure traces to Appendix D, ARCHITECTURE.md's BUILT markers, §66, or git log.
 <b>Nothing here is hand-written — edit the documents, not this page.</b></div>
 
+<h2>The vertical — the run of work being done now</h2>
+<div class="vert">{vertical}</div>
+
 <h2>Now → testing</h2>
 <div class="bar"><i></i></div>
 <div class="tl">{n_done} of {n_all} spine steps landed · {pct}% ·
@@ -1347,7 +1423,8 @@ def main(argv: list[str]) -> int:
             render(rows, markers, gaps, landed, read_bands(),
                    read_done_when(), read_section_titles(),
                    read_completeness_set(), read_done_when_full(),
-                   read_verify(), read_preconditions()),
+                   read_verify(), read_preconditions(),
+                   read_order()),
             encoding="utf-8")
         print(f"  [board] {os.path.relpath(OUT, ROOT)} regenerated "
               f"— {len(rows)} steps, {len(markers)} markers")
