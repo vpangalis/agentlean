@@ -1,0 +1,55 @@
+TO-BE PROCESS MAP — Supplier invoice receipt to posting
+Case IMPR-2026-0E5, Reduce invoice handling errors
+Status: DESIGN. Not yet implemented. Describes the intended future state.
+
+SCOPE
+In:  Supplier invoices received through email PDF, supplier portal, and EDI,
+     EU entity, from receipt through to posting.
+Out: Purchase-order creation, supplier master data, disputes already in the
+     escalation queue.
+
+STEP 1 — INTAKE
+Supplier submits an invoice. Every channel is subject to the same mandatory
+check at the point of entry: the invoice must carry a valid purchase-order
+reference before it is accepted into the AP queue. An invoice without one is
+returned to the supplier at intake with the reason stated, rather than being
+accepted and corrected later by AP.
+Today this check exists only downstream, and only on the portal and EDI paths.
+
+STEP 2 — CHANNEL MIGRATION
+Tail suppliers submitting by email PDF are onboarded onto the supplier portal,
+highest volume first. The email PDF path remains open but is the exception
+route, not the default. Target: the majority of invoice volume arrives through
+portal or EDI.
+
+STEP 3 — VALIDATION
+Automated validation on receipt: PO reference present and open, line values
+within tolerance against the PO, tax code resolvable from the supplier record,
+and duplicate detection against invoices already in the queue. Anything failing
+validation is held in an exceptions queue and never enters the manual stream.
+
+STEP 4 — MATCHING AND CODING
+Clean invoices match and code without manual intervention. AP staff work the
+exceptions queue only.
+
+STEP 5 — APPROVAL ROUTING
+Routed by value and cost centre against a maintained approver matrix.
+Escalation on age, so nothing sits unactioned.
+
+STEP 6 — POSTING
+Posted and released to the Treasury payment run.
+
+CAPACITY AT MONTH-END
+Month-end volume peaks are levelled rather than absorbed. Invoice submission
+cut-offs are communicated to suppliers, and approval capacity is planned
+against the expected peak rather than the average week.
+
+WHAT GOOD LOOKS LIKE
+- Error rate reduced from the current baseline to 3.0 percent.
+- Rework concentrated in a visible exceptions queue rather than spread through
+  the normal flow.
+- Errors that do occur are caught at intake, where correction is cheapest.
+
+MEASUREMENT NOTE
+Error classification needs an agreed operational definition and appraiser
+re-training before the post-implementation numbers can be trusted.

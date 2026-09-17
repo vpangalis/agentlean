@@ -4263,6 +4263,103 @@ One live turn on a real case reaches a coached answer: `CoherenceMiddleware`
 passes on attempt 1, `DMAICGraderMiddleware` returns a verdict rather than
 logging `SKIPPED`, and the turn captures at least one field into `artifacts`.
 
+## Step 6.34 — A node that runs out of time answers the Belt instead of failing (G-84)
+
+| | |
+|---|---|
+| **Reference §** | §4.8 · §44 · §45 · §3.7 · G-84 |
+| **Touches** | `backend/phases/nodes_common.py` · `backend/phases/subgraph_common.py` · `backend/tests/test_executor_timeout.py` **(new)** |
+| **Precondition** | none — **READY** |
+| **Verify** | `pytest`, plus three mutation proofs per §0.4 |
+| **Status** | **RULED — founder 2026-09-17. Built** |
+
+**A slow turn reached the Belt as `500 Internal Server Error` carrying a stack
+trace**, against §4.8's *never a hard failure to the Belt*. Observed on rid
+`ca6ba417-3319-433d-8bfb-9240252dfc0a`: *"Node 'executor' exceeded its run
+timeout of 45.000s (elapsed: 52.219s)"*.
+
+### The options, and why the chosen one is not the obvious one
+
+| | Approach | Cost | What it hides | Slow model day |
+|---|---|---|---|---|
+| **(a)** | Catch `NodeTimeoutError` **above** the node, in `core/graph.py`, the way `GraphRecursionError` is caught | small — one handler | **The turn's work.** The graph raised, so there is no child state: no `messages`, no `citations`, no `turn_count`, no `step_log`. The degraded answer is composed from the parent's view alone and the turn's retrieval is discarded | Survives, but degrades to a thinner answer each time and silently loses whatever the coach had gathered |
+| **(b)** | **Budget the model loop INSIDE the node**, below the engine's wall, so the node's own paths run | small — one `wait_for` and one handler | Nothing. The node still holds `prior`, the dispatched read, and its hop count, and composes from them | **Survives, and degrades honestly.** The engine's wall goes back to being a backstop for a node that has stopped cooperating |
+| **(c)** | Raise `EXECUTOR_RUN_TIMEOUT` | trivial | **Everything.** The 500 still happens, just later; §4.8 is still violated; and G-83 says a hop costs ~9.5s, so a larger wall moves the line without making the 5-hop cap reachable **or the failure visible** | **Fails.** A slow day is precisely when the new wall is crossed too, and there is still no graceful path |
+
+> ### ✅ CHOSEN: (b), AND (c) IS DECLINED AS THE WHOLE FIX
+>
+> **(a) is the same shape as the defect.** The engine cancels the node from
+> above its body; catching one frame further up is still above the body, and
+> the thing that makes a degraded answer worth having — what the coach already
+> retrieved — is gone by the time it is caught.
+>
+> **(b) puts the decision where the information is.** The node knows its hop
+> count, holds its messages, and already composes a partial answer for two
+> other failure modes. It is a third case of a pattern that exists.
+>
+> **THE WALL IS NOT RAISED IN THIS STEP.** 45s stands. Raising it trades
+> Belt-facing latency for a failure that is now handled gracefully anyway, and
+> **G-83 remains open**: a hop costs ~9.5s, three is the ceiling, and
+> `COACH_HOP_BUDGET = 5` is still unreachable configuration. **That
+> contradiction is not closed here and must not be read as closed** — whether
+> to lower the cap to 3, cut per-hop cost, or raise the wall is a founder
+> ruling about latency, not a bug fix.
+
+### What was built
+
+`EXECUTOR_SOFT_BUDGET = 40.0` in `nodes_common.py` wraps `agent.ainvoke` in
+`asyncio.wait_for`. On expiry the node catches `asyncio.TimeoutError` **inside
+its own body**, composes `_TIMEOUT_MESSAGE`, and returns normally — 200, a
+partial and honest answer, and the engine's wall never reached.
+
+**The five seconds of headroom are for composing, which makes no model call**:
+marking uploads consumed, attaching a diagram, building the `step_log` entry.
+
+**THE ORDER OF THE TWO NUMBERS IS THE WHOLE GUARANTEE**, and it is asserted at
+import in `subgraph_common.py` rather than left as a convention. Invert them
+and the fix silently stops working with no symptom until a slow turn 500s
+again.
+
+### Where the failure is recorded, and what reads it
+
+`_executor_status` gains **`"partial_timeout"`**, ranked first so a turn that
+also hit the cap is reported by the cause that actually ended it. It is written
+to `step_log`, and `core/graph.py` turns every `step_log` entry into a
+`history` key on `SupervisorState` — so a degraded turn is **checkpointed with
+the turn**, not left in a log line nobody reads. **A degraded turn that leaves
+no trace is the same error class this step closes**: the Belt got an answer, so
+nothing else would notice the coach never finished.
+
+### D7 — the escape, and a test that failed its own proof first
+
+The escape cause was that **no test exercised a node that exceeds its wall,
+because tests run fast**. `test_executor_timeout.py` injects the budget instead
+of waiting for it: `EXECUTOR_SOFT_BUDGET` is read from the module global at
+call time, so a test sets it to 10ms. **No `sleep(40)` anywhere** — a suite
+that takes forty seconds to prove one branch is a suite people stop running,
+which is the condition that let this through.
+
+> **⛑ THE FIRST VERSION OF THE GUARD TEST PASSED ITS OWN MUTATION, AND THAT IS
+> RECORDED RATHER THAN QUIETLY REWRITTEN.** It read
+> `assert "asyncio.wait_for" in inspect.getsource(executor)`. Removing the
+> guard left the phrase behind **in the comment explaining it**, so the test
+> passed against an unguarded executor — **a check satisfied by prose ABOUT the
+> mechanism rather than by the mechanism.** Same class as G-63's escape cause
+> and G-76's grader test. It is now parsed with `ast`, which cannot read a
+> comment, and asserts all three of: a `wait_for`, that it wraps
+> `agent.ainvoke`, and that its timeout is the module's budget.
+
+**Done when:** an agent outliving the budget yields a 200 with
+`_TIMEOUT_MESSAGE` and `structured_response is None`; the message names what
+happened and leaks no internals; `partial_timeout` is written to `step_log` and
+outranks the other outcomes; the soft budget is asserted below the wall at
+import AND the headroom is pinned by a test; the guard is verified by `ast`
+rather than by grep; **three mutation proofs per §0.4** — remove the guard,
+remove the handler, invert the two limits — each shown red then green; and
+`pytest` green.
+
+---
+
 ## Step 6.33 — The capture path accumulates — a field survives the next turn
 
 | | |
@@ -4593,9 +4690,9 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **DONE** | 38 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.25**, **6.26**, **6.27**, **6.31** |
 | **BUILDING NOW** | 1 | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 26 | **6.33**, **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
+| **QUEUED** | 27 | **6.34**, **6.33**, **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
-*73 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-15.*
+*74 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-17.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -4896,6 +4993,7 @@ restate, which is the opposite of what the board is for.
 | 335 | **Commit 6.21** | The plan reaches the model (G-49's fix) |  | COACH | SHARED | The planner's routing decision stays advisory, so the guarantee that an uploaded file is read is whatever the model felt like doing - and the live halves of three landed steps can never be run. |
 | 340 | **Commit 6.19** | `CoachingResponse` gains §50.1's four presentational fields (G-50) |  | COACH | SHARED | Every coaching turn arrives as one prose blob, so there is nothing structured for a gate UI to display and five SKILL.md files keep instructing the coach to fill fields that do not exist. |
 | 350 | **Commit 6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` |  | PHASE | SHARED | Three things §39.x.7 specifies are read by the gate document and written by nothing, so a computed figure never reaches a gate and the coach cannot tell which field it is on. |
+| 351 | **Commit 6.34** | A node that runs out of time answers the Belt instead of failing (G-84) |  | OPS | SHARED | A slow turn reaches the Belt as a 500 carrying a stack trace, against §4.8, and every remaining live-run verification runs through that path. |
 | 352 | **Commit 6.33** | The capture path accumulates — a field survives the next turn |  | PHASE | SHARED | Every coached capture destroys the ones before it, so a Belt filling 26 fields across many turns can never reach a gate. |
 | 355 | **Commit 10.0** | The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |  | UI | SHARED | The coach produces `explanation`, `example`, `prompt` and `progress` every turn and the API discards all four, so §50.1’s render contract stays prompt-hoped and the Belt reads one prose blob. |
 | 360 | **Commit 8.0** | Turn telemetry and `@traceable` |  | OPS | SHARED | Nothing is traced, so every investigation needs a hand-built harness and no limit can be set from measured data. |
@@ -5085,7 +5183,7 @@ home.**
 | L0 |  | **6.28** | Fact-ownership moves to the commit gate (G-59, G-60) | ☐ | `absent: repo:.claude/hooks/ownership_gate.py` | — |
 | L0 |  | **6.29** | Search index schema ownership — ruled (G-60) | ☐ | `absent: repo:.claude/config/search_index_owner.yaml` | — |
 | L0 |  | **6.30** | A commit body's code claims carry a resolvable reference (G-62) | ☐ | `absent: repo:.claude/hooks/code_ref_gate.py` | — |
-| L0 |  | **6.31** | The build matrix — one row per step, anchored to a symbol | ☐ | `verify_built::matrix_covers_appendix_d` | — |
+| L0 |  | **6.31** | The build matrix — one row per step, anchored to a symbol | ✅ | `verify_built::matrix_covers_appendix_d` | — |
 | L0 |  | **6.32** | An out-of-band landing gets the lane it earned (G-65) | ☐ | `absent: backend.tests.test_board_lanes` | §55.2 · Appendix D · G-65 |
 | L0 |  | **11.2** | Governance close-out | ☐ | `absent: repo:agent-improve/docs/HANDOVER.md` | §55 |
 
@@ -5212,6 +5310,7 @@ home.**
 | L8 |  | **4.2** | `thread_id` + disconnect policy | ✅ | `backend.core.checkpointer::AzureBlobCheckpointSaver` | §16, §47, §49, §8 |
 | L8 |  | **6.11** | The upload path (G-36) | ✅ | `backend.upload.parsers::PARSERS {document,pdf,spreadsheet,text}` | §29.1, §6, §10, §23.2, §65.4 |
 | L8 |  | **6.13** | The evidence index migration | ✅ | `backend.knowledge.tools::rag_lookup_evidence` | §23.2, §23.2.1, §23.4, §24, §6 / S-C02, S-C09 |
+| L8 |  | **6.34** | A node that runs out of time answers the Belt instead of failing (G-84) | ✅ | `backend.phases.nodes_common::EXECUTOR_SOFT_BUDGET =40.0` | §4.8, §44, §45 |
 | L8 |  | **8.0** | Turn telemetry and `@traceable` | ☐ | `absent: backend.core.tracing::traced_turn` | §51, §44 |
 | L8 |  | **8.1** | Structured errors | ☐ | `absent: backend.errors::StructuredError` | §48 |
 | L8 |  | **8.2** | Timeouts + compensating actions | ☐ | `absent: backend.core.timeouts::NODE_TIMEOUTS` | §45 |

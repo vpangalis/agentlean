@@ -64,13 +64,41 @@ from langgraph.types import TimeoutPolicy
 
 from backend.core.substate import PhaseState
 from backend.phases.mappers_common import PHASE_ORDER
-from backend.phases.nodes_common import NODE_NAMES
+from backend.phases.nodes_common import (
+    EXECUTOR_SOFT_BUDGET,
+    NODE_NAMES,
+)
 
 logger = logging.getLogger(__name__)
 
 #: §45 — the executor's wall-clock limit. `NodeTimeoutError` is what triggers
 #: the fallback chain before the Belt notices the delay.
 EXECUTOR_RUN_TIMEOUT = 45
+
+#: **THE WALL IS A BACKSTOP, NOT THE ORDINARY FAILURE PATH — G-84.**
+#:
+#: `TimeoutPolicy` cancels the node FROM ABOVE ITS OWN BODY, so when it fires
+#: none of the executor's graceful paths run and the `NodeTimeoutError` reaches
+#: the route's bare `except Exception` as a **500 carrying a stack trace** —
+#: against §4.8's *never a hard failure to the Belt*. Observed on rid
+#: `ca6ba417`, 52.219s against this 45s.
+#:
+#: The executor therefore budgets its OWN model loop at `EXECUTOR_SOFT_BUDGET`
+#: and composes a degraded answer in the headroom, so this wall is reached only
+#: by a node that has stopped cooperating with its own budget.
+#:
+#: **ASSERTED AT IMPORT, NOT LEFT AS A CONVENTION.** Two numbers in two modules
+#: whose ORDER is the whole guarantee is exactly the shape that drifts — raise
+#: the soft budget above the wall and the fix silently stops working, with no
+#: symptom until a slow turn 500s again. `test_the_node_budget_sits_below_the_
+#: engine_wall` pins the headroom; this catches an import-time inversion even
+#: in a checkout where the suite has not been run.
+assert EXECUTOR_SOFT_BUDGET < EXECUTOR_RUN_TIMEOUT, (
+    f"EXECUTOR_SOFT_BUDGET ({EXECUTOR_SOFT_BUDGET}s) must stay BELOW "
+    f"EXECUTOR_RUN_TIMEOUT ({EXECUTOR_RUN_TIMEOUT}s), or the engine cancels "
+    f"the node before it can compose a degraded answer and the Belt gets a "
+    f"500 again (G-84)."
+)
 
 
 def phase_nodes(phase: str) -> ModuleType:
@@ -149,4 +177,4 @@ def build_phase_subgraph(phase: str, llm: Any = None):
 
 
 __all__ = ["build_phase_subgraph", "phase_nodes", "NODE_NAMES",
-           "EXECUTOR_RUN_TIMEOUT"]
+           "EXECUTOR_RUN_TIMEOUT", "EXECUTOR_SOFT_BUDGET"]

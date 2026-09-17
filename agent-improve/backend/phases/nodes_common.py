@@ -43,6 +43,7 @@ THE WATCH 7 SEAM APPLIES TO ALL FIVE PHASES NOW
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, Awaitable, Callable, Literal, Optional, cast
 
@@ -604,6 +605,36 @@ COACH_HOP_BUDGET = 5
 #: composes from what is in hand rather than starting a chain it cannot finish.
 REMAINING_STEPS_FLOOR = 2
 
+#: §44 — the node's OWN wall, deliberately BELOW `EXECUTOR_RUN_TIMEOUT`.
+#:
+#: **The engine's `TimeoutPolicy` cancels this node FROM ABOVE ITS OWN BODY**
+#: (`subgraph_common.py`), so none of the graceful paths below run and the
+#: `NodeTimeoutError` reaches the route's bare `except Exception` as a 500 —
+#: G-84, observed on rid `ca6ba417` at 52.219s against a 45s wall.
+#:
+#: **The fix is to finish FIRST.** The node budgets its own model loop at this
+#: value and composes a degraded answer in the headroom that remains, so the
+#: engine's wall is never reached and stays what it should be: a backstop for
+#: a node that has stopped cooperating, not the ordinary failure path.
+#:
+#: **The headroom is for composing, which makes no model call** — marking
+#: uploads consumed, attaching a diagram, building the step_log entry. Five
+#: seconds is generous for that and cheap to hold back.
+EXECUTOR_SOFT_BUDGET = 40.0
+
+#: What the Belt reads when the coach ran out of time. **§4.8: never a hard
+#: failure.** Addressed to the BELT, unlike `_HOP_BUDGET_SPENT` — it is the
+#: turn's answer, not a tool result, and it says plainly what happened rather
+#: than pretending the turn succeeded or returning nothing.
+_TIMEOUT_MESSAGE = (
+    "I ran out of time on that one before I could finish composing an answer "
+    "— I was still gathering material when the turn's limit was reached. "
+    "Nothing you have entered is lost." + chr(10) + chr(10) +
+    "Asking me something narrower usually gets there: name the single field or "
+    "figure you want, or point me at one uploaded file, and I will work from "
+    "that rather than searching broadly."
+)
+
 #: What the coach reads when it has spent its five hops. Addressed to the
 #: model, not to the Belt — it is a tool RESULT, and the coach's job on reading
 #: it is to answer from what it already retrieved.
@@ -794,15 +825,26 @@ async def _dispatch_routed_read(state: PhaseState) -> list:
     return [AIMessage(content="", tool_calls=[call]), result]
 
 
-def _executor_status(hit_cap: bool, off_ramp: bool) -> str:
+def _executor_status(hit_cap: bool, off_ramp: bool,
+                     timed_out: bool = False) -> str:
     """The `step_log` status for one coaching turn — §10.3, dicts not tuples.
 
-    Three outcomes, deliberately distinguished. **`"coached_no_retrieval"` is
+    Four outcomes, deliberately distinguished. **`"coached_no_retrieval"` is
     not a failure**: the graph was low on steps, so the coach answered from
     what it held (§26, S-F09 B1). That is the design working, and lumping it
     in with `"partial_cap_reached"` would hide exactly the signal WATCH 26
     needed — a turn that off-ramped cleanly looks nothing like one that died.
+
+    **`"partial_timeout"` is the G-84 outcome and is FIRST, because it is the
+    one that must never be silent.** A degraded turn that leaves no trace is
+    the same error class G-84 closes — the Belt got an answer, so nothing else
+    in the system would notice the coach never finished. This entry is what
+    notices: `step_log` reaches the parent as `history` keys
+    (`core/graph.py`), so it is checkpointed with the turn rather than living
+    only in a log line.
     """
+    if timed_out:
+        return "partial_timeout"
     if hit_cap:
         return "partial_cap_reached"
     return "coached_no_retrieval" if off_ramp else "coached"
@@ -1188,8 +1230,15 @@ async def executor(
     dispatched = await _dispatch_routed_read(state)
     prior = [*(state.get("messages") or []), *dispatched]
     hit_cap = False
+    timed_out = False
+    _started = asyncio.get_running_loop().time()
     try:
-        result = await agent.ainvoke(
+        # §44 / G-84 — the node's OWN budget, so the ENGINE's wall is never
+        # the thing that ends this turn. `asyncio.wait_for` cancels the agent
+        # loop and raises HERE, inside the node, where the composition below
+        # can still run. Read from the module global at call time so a test
+        # can inject a small budget without sleeping for forty seconds.
+        result = await asyncio.wait_for(agent.ainvoke(
             {"messages": prior},
             # §16 — the infinite-loop backstop, NOT the hop cap. Passed
             # explicitly so it does not depend on what the caller happened to
@@ -1198,7 +1247,24 @@ async def executor(
             # route sets 50 and silently wrong when a test or a script invokes
             # this node directly.
             config={"recursion_limit": COACH_RECURSION_BACKSTOP},
+        ), timeout=EXECUTOR_SOFT_BUDGET)
+    except asyncio.TimeoutError:
+        # §4.8 — NEVER A HARD FAILURE TO THE BELT, and this is the path that
+        # was missing. Before G-84 the engine's `TimeoutPolicy` fired instead,
+        # cancelling the node from above and delivering a 500 carrying a stack
+        # trace. The turn now completes: 200, a partial and honest answer, and
+        # a `step_log` entry that says it was partial.
+        timed_out = True
+        logger.warning(
+            "%s.executor: TIMED OUT at %.1fs of a %.1fs budget after %d "
+            "hop(s) — composing a degraded answer (§4.8, G-84). The engine's "
+            "%.0fs wall was NOT reached, which is the point: it stays a "
+            "backstop rather than the ordinary failure path.",
+            phase, asyncio.get_running_loop().time() - _started,
+            EXECUTOR_SOFT_BUDGET, hops_spent[0], 45.0,
         )
+        result = {"messages": [*prior, AIMessage(content=_TIMEOUT_MESSAGE)],
+                  "structured_response": None}
     except GraphRecursionError:
         # §3.7 — MUST be caught here and turned into a partial answer. A Belt
         # mid-session never sees a stack trace because the coach explored too
@@ -1282,7 +1348,7 @@ async def executor(
         "turn_count": turn_count + 1,
         "step_log": [_step(
             phase, turn_count, "executor",
-            status=_executor_status(hit_cap, off_ramp),
+            status=_executor_status(hit_cap, off_ramp, timed_out),
             impl="create_agent",
             focus_field=plan.focus_field if plan else None,
             next_action=plan.next_action if plan else None,

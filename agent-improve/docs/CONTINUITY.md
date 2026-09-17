@@ -9,11 +9,11 @@
 |---|---|
 | **Last completed** | step **6.31** — The build matrix — one row per step, anchored to a symbol |
 | **Next** | step **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
-| **Spine steps landed** | 38 of 73 |
+| **Spine steps landed** | 38 of 74 |
 | **Last spine commit** | `663a378` (commit 6.31) |
 | **ARCHITECTURE.md** | v1.64 |
 | **CLAUDE.md** | v2.2.40 |
-| **Block regenerated** | 2026-09-15 |
+| **Block regenerated** | 2026-09-17 |
 
 *`Last completed` and the landed count come from **git log** — the
 `refactor(arch-v2): commit X.Y` subjects. `Next` and the total come
