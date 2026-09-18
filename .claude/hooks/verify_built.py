@@ -900,7 +900,7 @@ CHECKS = [
                 "print(f'{N.RETRY_MAX} / {N.TOOL_RETRY_ON_FAILURE}')"),
      "§19.4 — max_retries=2 · §19.5 — on_failure='continue'"),
 
-    ("hop caps (§26 / S-F09 B1)", "5 / 2 / 50",
+    ("hop caps (§26 / S-F09 B1)", "3 / 2 / 50",
      lambda: py("import backend.phases.nodes_common as N; "
                 "from backend.core.graph import RECURSION_LIMIT; "
                 "print(f'{N.COACH_HOP_BUDGET} / {N.REMAINING_STEPS_FLOOR} / "

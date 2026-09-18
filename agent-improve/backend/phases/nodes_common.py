@@ -587,13 +587,45 @@ def to_v1_state(
 #: compose, so a well-behaved five-hop turn could only ever end in `_CAP_MESSAGE`.
 COACH_RECURSION_BACKSTOP = 50
 
-#: §3.7 — five `rag_lookup_*` calls per Belt turn. **This is the hop cap**, and
+#: What one hop COSTS, measured rather than assumed — the number that decides
+#: the cap below, and the provenance is kept because a constant justified by a
+#: measurement nobody can find is a constant nobody can revise.
+#:
+#: **§25's multi-query fusion makes a hop far more than one search**: one MODEL
+#: CALL to generate variants, then six searches, then RRF. Measured **~9.5s**
+#: on G-63's trace (2026-09-14) and consistent with rid `ca6ba417`
+#: (2026-09-15), where three hops plus the coach's own calls reached 52.2s.
+MEASURED_HOP_SECONDS = 9.5
+
+#: Reserved out of the node budget for everything that is NOT a hop: the
+#: coach's own model calls, and composing the answer. What is left over after
+#: the cap's hops must still fit here or the turn degrades instead of capping.
+HOP_BUDGET_COMPOSE_RESERVE = 10.0
+
+#: §3.7 — `rag_lookup_*` calls per Belt turn. **This is the hop cap**, and
 #: it is enforced by `_budgeted_rag_tools` rather than by any step counter:
 #: hops and steps are different units (see `REMAINING_STEPS_FLOOR`). Past the
 #: budget the retrieval tools stay bound and stay callable, and answer with
 #: `_HOP_BUDGET_SPENT` instead of searching — so the coach reads a plain result
 #: and composes, exactly as it does for a search that found nothing.
-COACH_HOP_BUDGET = 5
+#:
+#: **FIVE → THREE, founder ruling 2026-09-18, closing G-83.** Five was never
+#: reachable: at `MEASURED_HOP_SECONDS` a fifth hop lands at ~47.5s against a
+#: 40s node budget, so the turn died on the wall before the cap could fire and
+#: `_HOP_BUDGET_SPENT` was unreachable code. **It was dead the day it was
+#: written** — fusion landed at step 5.2 and the cap at 6.7, so the cap was
+#: built on top of a per-hop cost that already excluded it.
+#:
+#: **THIS COSTS NO CAPABILITY.** Hops four and five could never be taken; the
+#: declared cap now matches the ceiling that was always in force. What changes
+#: is that the limit is REACHABLE, so the coach gets `_HOP_BUDGET_SPENT` and
+#: composes — instead of the engine cancelling it mid-search.
+#:
+#: **The arithmetic is a TEST, not a comment**
+#: (`test_hop_cap.py::test_the_cap_can_actually_fire_inside_the_node_budget`).
+#: An unreachable cap is unfalsifiable, which is exactly how five survived
+#: eleven steps.
+COACH_HOP_BUDGET = 3
 
 #: §26 / S-F09 B1 — the graceful off-ramp, and a DIFFERENT guard from the hop
 #: budget above. `remaining_steps` is `recursion_limit` minus graph-node

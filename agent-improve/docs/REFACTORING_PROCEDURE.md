@@ -4263,6 +4263,69 @@ One live turn on a real case reaches a coached answer: `CoherenceMiddleware`
 passes on attempt 1, `DMAICGraderMiddleware` returns a verdict rather than
 logging `SKIPPED`, and the turn captures at least one field into `artifacts`.
 
+## Step 6.35 — The hop cap matches the ceiling that was always in force (G-83)
+
+| | |
+|---|---|
+| **Reference §** | §26 · §25 · §3.7 · §44 · S-F09 · G-83 |
+| **Touches** | `backend/phases/nodes_common.py` · `backend/tests/test_hop_cap.py` **(new)** · `backend/tests/test_executor.py` · `.claude/hooks/verify_built.py` · `../ARCHITECTURE.md` (§26, §56 amendment) |
+| **Precondition** | **6.34** — the node budget the cap must fit inside. Landed |
+| **Verify** | `pytest`, plus two mutation proofs per §0.4 |
+| **Status** | **RULED — founder 2026-09-18. Built** |
+
+**`COACH_HOP_BUDGET` goes 5 → 3.** The declared cap now matches the ceiling
+that was always in force.
+
+### Why five cost nothing to give up
+
+§25's multi-query fusion makes one hop **a model call to generate variants,
+then six searches, then RRF** — measured **~9.5s** on G-63's trace and
+consistent with rid `ca6ba417`. A fifth hop lands near **47.5s** against the
+executor's **40s** budget (6.34), so the turn died on the wall before the cap
+could fire and `_HOP_BUDGET_SPENT` was **unreachable code**.
+
+**Hops four and five could never be taken.** What changes is that the limit is
+now REACHABLE: the coach receives `_HOP_BUDGET_SPENT` and composes, instead of
+being cancelled mid-search and handed to 6.34's degraded path.
+
+> ### ⛑ AN UNREACHABLE CAP IS UNFALSIFIABLE, AND THAT IS HOW FIVE SURVIVED
+>
+> Five was written at **6.7**, on top of a per-hop cost introduced at **5.2**
+> that already excluded it. **No check compared the two**, and the existing cap
+> tests could not: `test_executor.py` drives `COACH_HOP_BUDGET + 1` calls and
+> asserts the last is refused, so it is **budget-RELATIVE and passes at any
+> value**, including one no turn can reach. Those tests prove the MECHANISM.
+> Nothing proved the NUMBER.
+>
+> **So the arithmetic is now a test.** `MEASURED_HOP_SECONDS = 9.5` and
+> `HOP_BUDGET_COMPOSE_RESERVE = 10.0` sit beside the cap **with their
+> provenance**, because a constant justified by a measurement nobody can find
+> is a constant nobody can revise. `test_hop_cap.py` asserts a full-budget turn
+> FITS, that **five would not**, and that **four would not either** — so the
+> cap is the largest value that fits rather than a guess under it.
+
+### The deferral, on a condition rather than as an open question
+
+**Cutting per-hop cost is the other lever and it is DEFERRED TO STEP 9.0.**
+Fusion runs six queries per hop; narrowing that would let more hops fit. It
+waits for **9.0's knowledge-corpus ingest, which is the first moment recall can
+be measured.**
+
+**Cutting query breadth before there is a corpus to measure recall against
+would trade an unmeasured quality for a measured latency** — the trade §52's
+regression thresholds exist to prevent. **This is a scheduled condition, not an
+open question**: when 9.0 lands, re-measure recall at six queries and at fewer,
+and rule then.
+
+**Done when:** `COACH_HOP_BUDGET == 3`; a full-budget turn's worst case fits
+`EXECUTOR_SOFT_BUDGET` **and a test asserts it**; the same test REJECTS five and
+rejects four, so the cap is provably the ceiling; `MEASURED_HOP_SECONDS` cites
+its traces; `verify_built.py`'s *hop caps* expectation reads `3 / 2 / 50`;
+§26 is amended under §56 with a version bump; the deferral is recorded against
+9.0's condition; two mutation proofs per §0.4; and `pytest` green.
+
+---
+
 ## Step 6.34 — A node that runs out of time answers the Belt instead of failing (G-84)
 
 | | |
@@ -4687,12 +4750,12 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 
 | State | Count | Steps |
 |---|---|---|
-| **DONE** | 38 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.25**, **6.26**, **6.27**, **6.31** |
+| **DONE** | 39 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.34**, **6.25**, **6.26**, **6.27**, **6.31** |
 | **BUILDING NOW** | 1 | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 27 | **6.34**, **6.33**, **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
+| **QUEUED** | 27 | **6.33**, **6.35**, **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
-*74 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-17.*
+*75 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-18.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -4995,6 +5058,7 @@ restate, which is the opposite of what the board is for.
 | 350 | **Commit 6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` |  | PHASE | SHARED | Three things §39.x.7 specifies are read by the gate document and written by nothing, so a computed figure never reaches a gate and the coach cannot tell which field it is on. |
 | 351 | **Commit 6.34** | A node that runs out of time answers the Belt instead of failing (G-84) |  | OPS | SHARED | A slow turn reaches the Belt as a 500 carrying a stack trace, against §4.8, and every remaining live-run verification runs through that path. |
 | 352 | **Commit 6.33** | The capture path accumulates — a field survives the next turn |  | PHASE | SHARED | Every coached capture destroys the ones before it, so a Belt filling 26 fields across many turns can never reach a gate. |
+| 353 | **Commit 6.35** | The hop cap matches the ceiling that was always in force (G-83) |  | COACH | SHARED | The declared retrieval budget is larger than any turn can spend, so the cap never fires and the coach is cancelled mid-search instead of composing. |
 | 355 | **Commit 10.0** | The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |  | UI | SHARED | The coach produces `explanation`, `example`, `prompt` and `progress` every turn and the API discards all four, so §50.1’s render contract stays prompt-hoped and the Belt reads one prose blob. |
 | 360 | **Commit 8.0** | Turn telemetry and `@traceable` |  | OPS | SHARED | Nothing is traced, so every investigation needs a hand-built harness and no limit can be set from measured data. |
 | 370 | **Commit 7.3** | Nine-step HITL gate |  | GATE | SHARED | Nothing pauses for a human at a gate, so no gate decides, `gate_attempts` cannot accumulate, and the supervisor graph can never become the runtime. |
@@ -5236,7 +5300,8 @@ home.**
 | L4 |  | **6.1** | Planner / Executor split | ✅ | `backend.phases.nodes_common::planner` | §17, §20 |
 | L4 |  | **6.2** | `create_agent` executor | ✅ | `backend.core.substate::CoachingResponse` | §18, §20 |
 | L4 |  | **6.6** | Prompts | ✅ | `backend.core.prompts::DEFINE_COACH_PROMPT` | §22 |
-| L4 |  | **6.7** | The hop cap, as §26 specifies it (WATCH 26) | ✅ | `backend.phases.nodes_common::COACH_HOP_BUDGET =5` | §16 · §26 |
+| L4 |  | **6.35** | The hop cap matches the ceiling that was always in force (G-83) | ✅ | `backend.phases.nodes_common::MEASURED_HOP_SECONDS =9.5` | §26, §25, §3.7 |
+| L4 |  | **6.7** | The hop cap, as §26 specifies it (WATCH 26) | ✅ | `backend.phases.nodes_common::COACH_HOP_BUDGET =3` | §16 · §26 |
 | L4 |  | **6.9** | The four missing SKILL.md files + §32 conformance | ✅ | `repo:agent-improve/skills/dmaic-define-phase/SKILL.md` | §32, §43, §37 |
 | L4 |  | **6.12** | Ask-binding: an upload answers a request | ✅ | `backend.phases.nodes_common::_unconsumed_for_open_ask` | §29.1, §32, §43, §50 |
 | L4 |  | **6.18** | The executor ignores the tool its planner names (G-49) | ✅ | `backend.phases.nodes_common::_dispatch_routed_read` | §17, §26, S-F04, S-F13, S-F57 |

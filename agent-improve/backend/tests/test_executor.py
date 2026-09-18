@@ -382,7 +382,7 @@ def test_the_hop_cap_is_five_retrieval_calls(stub_coach) -> None:
     `remaining_steps` moves by 1 per executor turn however many hops the turn
     made, because the whole loop runs inside one node.
     """
-    assert _c.COACH_HOP_BUDGET == 5
+    assert _c.COACH_HOP_BUDGET == 3
     _run(_c.executor("define", _state()))
 
     names = stub_coach.tool_names
