@@ -226,11 +226,14 @@ def test_the_dual_read_returns_exactly_what_the_single_read_returned(board):
                   ruling` in its own cell while the row was never struck, so
                   every closure parse that keys on `~~` counted it OPEN and the
                   board rendered a resolved gap as live.
+        74 -> 75  **G-87 registered** — the unanchored-fact bound only ever
+                  rises, so it constrains regression and not growth. Owned by
+                  step 6.41.
     """
     markers, gaps = board.read_markers(), board.read_gaps()
     assert len(markers) == 70, f"{len(markers)} markers, not 70"
     assert sum(1 for m in markers if m["state"] != "built") == 31
-    assert len(gaps) == 74, f"{len(gaps)} gap rows, not 74"
+    assert len(gaps) == 75, f"{len(gaps)} gap rows, not 75"
 
 
 def test_the_dual_read_is_marked_temporary_and_names_the_step_that_ends_it(rs):

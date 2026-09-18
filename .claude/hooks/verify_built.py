@@ -1129,7 +1129,7 @@ CHECKS = [
      "number comes down deliberately, and a new row parked at an em dash "
      "fails here. **70 -> 166 at 6.39**: the 96 spec entries joined the "
      "register and not one of them carries an anchor either, which is the "
-     "ratchet doing its job rather than being relaxed"),
+     "ratchet doing its job rather than being relaxed. **G-87: it constrains regression and NOT growth** — every movement so far has been upward, which makes it a counter until 6.41 gives it a way down"),
 
     ("Appendix F covers Appendix D — set equality, both directions",
      f"{len(appendix_d_steps())} steps, both directions",

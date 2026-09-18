@@ -4469,6 +4469,54 @@ and the board is byte-identical across the change.
 
 ---
 
+## Step 6.41 — The symbol-anchor ratchet comes down (G-87)
+
+| | |
+|---|---|
+| **Reference §** | §55.1 · §55.2 · Appendix F · G-87 |
+| **Touches** | Appendix F · `.claude/hooks/verify_built.py` · `backend/tests/test_anchor_ratchet.py` **(new)** |
+| **Precondition** | **6.40** — both populations and every section declared, so the denominator stops moving |
+| **Verify** | `pytest`, `verify_built.py`, plus a mutation proof per §0.4 |
+| **Status** | **RULED — founder 2026-09-18. Not built** |
+
+**A bound that is raised whenever it is exceeded constrains regression and
+nothing else.** `register facts carrying no symbol anchor` has moved **70 →
+166** and will move again at 6.40, every rise legitimate and every rise
+upward. **It cannot tell a register that is growing from one that is rotting**,
+and the number reads as progress precisely because somebody keeps updating it.
+
+### What this step owes, and what it must not do
+
+**Anchors get attached to facts that can carry one.** A `> **BUILT:**` line
+never had a symbol because its evidence was its prose; some of those facts name
+a module, a class or a test in that prose and can be anchored mechanically.
+**How many is the step's first measurement, not a number to promise here.**
+
+> ### ⛑ LOWERING THE NUMBER IS NOT THE GOAL — MAKING IT ABLE TO FALL IS
+>
+> **The cheapest way to satisfy this step is the one that must not be taken**:
+> deleting rows, or inventing anchors that resolve without proving anything.
+> An anchor is evidence or it is decoration, and `matrix_anchors` evaluates
+> every one against the tree — so a decorative anchor fails there, which is the
+> structural reason this cannot be gamed quietly.
+>
+> **Some facts legitimately have no symbol and must say so.** A ratified
+> design that is not built has nothing in the tree to point at. Those keep the
+> em dash, and the step's real output is the SPLIT: how many are unanchored
+> because nobody has done the work, against how many are unanchored because
+> there is nothing yet to anchor to. **A single number conflates a backlog
+> with a specification**, which is what G-87 records.
+
+### Done when
+
+The unanchored count is **split** into *anchorable, not yet anchored* and
+*nothing to anchor to*, each pinned separately; the first number is **lower
+than at 6.40** and the check fails if it rises; `matrix_anchors` still
+evaluates every anchor that exists, so none of the new ones is decorative; a
+mutation proof shows the ratchet red on a fact whose anchor was removed; and
+`pytest` green.
+
+---
 ## Step 6.39 — The spec-entry population joins the register (assertion 5)
 
 | | |
@@ -5054,12 +5102,12 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 
 | State | Count | Steps |
 |---|---|---|
-| **DONE** | 42 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.34**, **6.35**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37** |
+| **DONE** | 43 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.34**, **6.35**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39** |
 | **BUILDING NOW** | 1 | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 29 | **6.33**, **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **6.39**, **6.40**, **6.38**, **11.2** |
+| **QUEUED** | 29 | **6.33**, **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **6.40**, **6.38**, **6.41**, **11.2** |
 
-*80 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-18.*
+*81 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-18.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -5404,7 +5452,8 @@ restate, which is the opposite of what the board is for.
 | 582 | **Commit 6.39** | The spec-entry population joins the register (assertion 5) |  | OPS | SHARED | Ninety-two spec entries carry no row, so twenty-six open gaps can name no fact and the gap invariant is satisfied by an escape hatch rather than by a fact. |
 | 583 | **Commit 6.40** | Every section declares a row or declares itself not-markable (assertion 7) |  | OPS | SHARED | One hundred and ninety-eight sections are neither marked nor declared unmarkable, so the section-to-row direction of the bidirectional rule has no population to range over. |
 | 584 | **Commit 6.38** | The dual-read is removed — one register, one reader |  | OPS | SHARED | Both documents stay readable as the register, which is the two-sources-of-truth condition the repartition was performed to end. |
-| 585 | **Commit 11.2** | Governance close-out |  | OPS | SHARED | The refactor has no end, so procedure and architecture drift apart again with nothing marking the handover. |
+| 585 | **Commit 6.41** | The symbol-anchor ratchet comes down |  | OPS | SHARED | The bound on unanchored facts only ever rises, so the register counts a backlog it has no mechanism to reduce and the count reads as progress. |
+| 586 | **Commit 11.2** | Governance close-out |  | OPS | SHARED | The refactor has no end, so procedure and architecture drift apart again with nothing marking the handover. |
 
 > **Step 6.22 is `EXTERNAL` for the SECOND reason, and it cites its commit.**
 > It landed as **`2e17f3f fix(tests): the stack ordering is observed on a real
@@ -5562,6 +5611,7 @@ home.**
 | L0 |  | — | **6.37** | The repartition — the operational register moves to the procedure | ☐ | `absent: backend.tests.test_operational_register` | §55.1 · §55.2 · §66 · Appendix F |
 | L0 |  | — | **6.39** | The spec-entry population joins the register (assertion 5) | ✅ | `backend.tests.test_spec_entry_rows::test_assertion_5_is_clean_on_the_real_register` | §55.1 · §66 · Appendix F |
 | L0 |  | — | **6.40** | Every section declares a row or declares itself not-markable (assertion 7) | ☐ | `absent: backend.tests.test_not_markable_coverage` | §55.1 · §55.2 · Appendix F |
+| L0 |  | — | **6.41** | The symbol-anchor ratchet comes down (G-87) | ☐ | `absent: backend.tests.test_anchor_ratchet` | §55.2 · Appendix F |
 | L0 |  | — | **6.38** | The dual-read is removed — one register, one reader | ☐ | `repo:.claude/hooks/_register_source.py` | §55.1 · §66 |
 | L0 |  | — | **11.2** | Governance close-out | ☐ | `absent: repo:agent-improve/docs/HANDOVER.md` | §55 |
 
@@ -6048,6 +6098,8 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-45** | **`metric_definitions` had no spec entry.** Registered and resolved in one pass: §39.2 (Measure) and §50 both refer to the project metric registry, and until §63.8 existed those were dangling references — a spec citing a structure this document never defined | **RESOLVED 2026-08-26.** **§63.8 — S-C38** defines it: `list[dict]` of `{name, unit, meaning}`, Define-owned, with `name` as the traceability key and four EARS behaviors. Registered here rather than left implicit because §55.1 requires every referenced spec to resolve, and a reference that resolves only because nobody checked is the failure §55 names. See §63.8, §39.1 | closed |
 | **G-46** | **`phase_metrics` had no spec entry.** Same class as G-45 and raised by the same pass: §39.2, §40 and §50 all refer to a per-phase metric placeholder that no entry defined | **RESOLVED 2026-08-26.** **§63.9 — S-C39** defines it: `list[dict]` on all five schemas, `name` equal to a registry `name` by key equality, per-phase content tables for the five, five EARS behaviors, and the `"none this phase"` rule that keeps an empty list from meaning two different things. **§40's same-field-on-all-five rule now binds three fields**, not two. See §63.9, §40 | closed |
 | **G-38** | `field_index` had no ordering source — the per-phase field list it indexes into was stated nowhere, and §13's "advance to the next field" depended on it. **G-01 depended on it too**: S-F13 DP1's predicate could not be implemented without it | **CLOSED 2026-08-25.** §39.1.2 states Define's ordered field list — **twelve** coached fields, `business_case` through `issues_and_barriers` (the list grew from ten at the 2026-08-26 Option A finalization, which added `target_value` and brought `secondary_metrics` into the coached walk) — and **that list IS the `field_index` sequence.** DP1's predicate is now implementable for Define. **The closure is Define-only by design:** §39.1.8 gives the other four phases the same section shape at §39.2–§39.5, and their lists remain blocked on G-27 and G-28. Resolution reconciled the v1-code divergence toward the v2 names (F-11). See §39.1.2, S-F13, S-C02 | closed |
+
+| **G-87** | **THE UNANCHORED-FACT BOUND ONLY EVER RISES, SO IT IS A COUNTER AND NOT A RATCHET.** `register facts carrying no symbol anchor` pins how many register rows carry an em dash where a symbol belongs. It was introduced at **6.31**'s successor 6.37 at **70**, rose to **166** at 6.39 when the 96 spec entries arrived, and rises again at 6.40. **Every movement so far has been upward and each was legitimate**, which is the problem: a bound that is raised whenever it is exceeded constrains regression and nothing else. **It cannot distinguish a register that is growing from one that is rotting**, and the number reads as progress because it keeps being updated. **The check is not wrong and is deliberately not weakened** — it does catch a new row parked at an em dash, which is what it was built for. What is missing is the other direction: nothing lowers it, and no step owned that work until this gap. Founder observation 2026-09-18, registered rather than left in a commit body, on §66's own argument that a gap without a step is scheduled by nothing | Appendix F, verify_built.py | **6.41** |
 
 ### 66.7 Findings — recorded, not gaps
 
