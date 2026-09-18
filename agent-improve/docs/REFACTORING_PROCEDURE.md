@@ -5102,10 +5102,10 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 
 | State | Count | Steps |
 |---|---|---|
-| **DONE** | 44 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.34**, **6.35**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40** |
+| **DONE** | 45 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.34**, **6.35**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.41** |
 | **BUILDING NOW** | 1 | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 28 | **6.33**, **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **6.38**, **6.41**, **11.2** |
+| **QUEUED** | 27 | **6.33**, **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **6.38**, **11.2** |
 
 *81 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-18.*
 <!-- END STEP BOARD -->
@@ -5607,12 +5607,12 @@ home.**
 | L0 |  | — | **6.30** | A commit body's code claims carry a resolvable reference (G-62) | ☐ | `absent: repo:.claude/hooks/code_ref_gate.py` | — |
 | L0 |  | — | **6.31** | The build matrix — one row per step, anchored to a symbol | ✅ | `verify_built::matrix_covers_appendix_d` | — |
 | L0 |  | — | **6.32** | An out-of-band landing gets the lane it earned (G-65) | ☐ | `absent: backend.tests.test_board_lanes` | §55.2 · Appendix D · G-65 |
-| L0 |  | — | **6.36** | The register's readers read either document | ✅ | `backend.tests.test_register_dual_read::test_the_guard_takes_the_union_and_not_the_first_hit` | §55.1 · §66 · Appendix D |
+| L0 |  | — | **6.36** | The register's readers read either document — **the scaffolding that made 6.37 committable at all. REMOVED AT 6.38**, which is what its own code said would happen: a permanent dual-read is two sources of truth | ✅ | `backend.tests.test_register_single_source::test_the_scaffolding_is_gone` | §55.1 · Appendix G |
 | L0 |  | — | **6.37** | The repartition — the operational register moves to the procedure | ☐ | `absent: backend.tests.test_operational_register` | §55.1 · §55.2 · §66 · Appendix F |
 | L0 |  | — | **6.39** | The spec-entry population joins the register (assertion 5) | ✅ | `backend.tests.test_spec_entry_rows::test_assertion_5_is_clean_on_the_real_register` | §55.1 · §66 · Appendix F |
 | L0 |  | — | **6.40** | Every section declares a row or declares itself not-markable (assertion 7) | ✅ | `backend.tests.test_not_markable_coverage::test_assertion_7_is_clean_on_the_real_documents` | §55.1 · §55.2 · Appendix F |
 | L0 |  | — | **6.41** | The symbol-anchor ratchet comes down (G-87) | ✅ | `backend.tests.test_anchor_ratchet::test_the_three_categories_partition_the_unanchored_rows` | §55.2 · Appendix F |
-| L0 |  | — | **6.38** | The dual-read is removed — one register, one reader | ☐ | `repo:.claude/hooks/_register_source.py` | §55.1 · §66 |
+| L0 |  | — | **6.38** | The dual-read is removed — one register, one reader | ✅ | `absent: repo:.claude/hooks/_register_source.py` | §55.1 · §66 |
 | L0 |  | — | **11.2** | Governance close-out | ☐ | `absent: repo:agent-improve/docs/HANDOVER.md` | §55 |
 
 #### L1 · API surface

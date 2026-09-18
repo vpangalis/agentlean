@@ -155,7 +155,6 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import continuity_status as cs
-import _register_source as rs
 
 # --------------------------------------------------------------------------- #
 # Configuration
@@ -672,25 +671,21 @@ def _staged_text(root: str, rel: str) -> str:
     return out.stdout
 
 
-def _known_gaps(root: str, read=None) -> set:
-    """Every gap number registered in EITHER document — TEMPORARY, ends at 6.38.
+def _known_gaps(root: str, text: str | None = None) -> set:
+    """Every gap number registered in the procedure's Appendix G.
 
-    **The UNION, and it is the one reader that takes one** (`_register_source`
-    states why). Rule 8 asks *does this number exist*, and during the
-    repartition a gap is registered in whichever of the two documents has been
-    reached. Refusing a commit because the register is mid-move is the deadlock
-    this dual-read was added to break.
+    **ONE source since 6.38.** Rule 8 unioned two documents while the register
+    was moving, so that a gap registered in whichever half the migration had
+    reached would still resolve. With the move complete that union was two
+    sources of truth, which is the condition the repartition ended.
 
-    Read from the INDEX through `_staged_text`, unchanged: a gap registered in
-    THIS commit still counts, in whichever document it was registered.
+    Read from the INDEX, unchanged: a gap registered in THIS commit still
+    counts, which is what lets a commit register a gap and add the file that
+    gap schedules in one go.
     """
-    if read is None:
-        def read(rel: str) -> str:
-            return _staged_text(root, rel)
-    out = set()
-    for _rel, text in rs.texts(read):
-        out.update(g.upper() for g in _GAP_ROW_RE.findall(text))
-    return out
+    if text is None:
+        text = _staged_text(root, cs.PROCEDURE)
+    return {g.upper() for g in _GAP_ROW_RE.findall(text)}
 
 
 def check_build_matrix(root: str) -> None:
@@ -779,8 +774,7 @@ def check_step_or_gap(root: str, subject: str, message: str, added: list[str]) -
              "  Gap: G-57                                        # or the register",
              "",
              "The number must RESOLVE — Appendix D of docs/REFACTORING_PROCEDURE.md",
-             "for a step, §66's register for a gap (read from the procedure first,",
-             "then ARCHITECTURE.md, until step 6.38). If neither",
+             "for a step, Appendix G's register for a gap. If neither",
              "exists yet then nothing is scheduling this file: register the gap",
              "first, in its own commit, per §56.")
 
@@ -792,8 +786,7 @@ def check_step_or_gap(root: str, subject: str, message: str, added: list[str]) -
          "Declared, and found in no register:",
          *[f"  - {d}" for d in sorted(steps) + sorted(gaps)], "",
          f"Steps resolve against Appendix D of {cs.PROCEDURE}.",
-         "Gaps resolve against §66's register, in "
-         + " or ".join(rs.REGISTER_SOURCES) + ".",
+         f"Gaps resolve against Appendix G's register in {cs.PROCEDURE}.",
          "Both are read from the INDEX, so a number registered in THIS commit",
          "counts — stage the register row alongside the file.", "",
          "A number that resolves nowhere schedules nothing, which leaves the",

@@ -57,8 +57,6 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import _register_source as rs  # noqa: E402  TEMPORARY — removed at step 6.38
-
 ROOT = subprocess.run(["git", "rev-parse", "--show-toplevel"],
                       capture_output=True, text=True).stdout.strip() or "."
 PROJECT = os.path.join(ROOT, "agent-improve")
@@ -493,41 +491,31 @@ def landed_steps() -> set[str]:
     return {m.group("step") for m in _SPINE.finditer(log)}
 
 
-def _disk_text(rel: str) -> str:
-    """One register source, read from the WORKING TREE. TEMPORARY — 6.38.
+def _procedure_text() -> str:
+    """The register, read from the working tree.
 
-    The board is a projection of the documents as they stand, not as they were
-    committed, which is why this reads the tree where the commit guard reads
-    the index. Both go through `_register_source.texts` so the ORDER is stated
-    in one place.
+    **ONE source since 6.38.** The dual-read that let this fall back to
+    `ARCHITECTURE.md` existed so the 6.37 migration could be committed at all;
+    with the register moved it was two sources of truth, which is the condition
+    the repartition was performed to end. `ARCHITECTURE.md` parses to zero
+    markers and zero gap rows, measured before the fallback was deleted.
     """
-    return Path(os.path.join(ROOT, rel)).read_text(encoding="utf-8")
+    return Path(PROCEDURE).read_text(encoding="utf-8")
 
 
-def read_markers(read=None) -> list[dict]:
-    """The `> **BUILT:**` lines, from whichever document carries them.
+def read_markers(text: str | None = None) -> list[dict]:
+    """The register's fact rows — one source since 6.38.
 
-    **First definition of a section wins**, and `_register_source` puts the
-    procedure first — so a marker moved to the procedure at step 6.37 wins over
-    the copy still sitting in `ARCHITECTURE.md`, and the two cannot disagree on
-    the board while the move is half done.
+    They were `> **BUILT:**` lines in `ARCHITECTURE.md` until 6.37 moved them
+    into Appendix F as rows. The dual-read that let this fall back to the
+    bible was deleted at 6.38: with the move complete it was two sources of
+    truth, which is the condition the repartition ended.
 
-    Today the procedure carries none and this returns exactly what the single
-    read returned, which is what makes the change provably output-neutral.
-
-    `read` is injected by the tests so BOTH paths can be exercised without
-    editing the two real documents — the fallback path cannot otherwise be
-    distinguished from the preferred one while only one document has content.
+    `text` is injected by the tests. It is no longer there to exercise a second
+    path — there is no second path — but so a parse can be driven against a
+    document that is not the live one.
     """
-    out: list[dict] = []
-    seen: set[str] = set()
-    for _rel, text in rs.texts(read or _disk_text):
-        for m in _markers_in(text):
-            if m["section"] in seen:
-                continue
-            seen.add(m["section"])
-            out.append(m)
-    return out
+    return _markers_in(text if text is not None else _procedure_text())
 
 
 #: A register fact row: `| L<n> | <order> | <zone> | <step> | <fact> | <state> |
@@ -623,7 +611,7 @@ def _markers_in(text: str) -> list[dict]:
     return out
 
 
-def read_gaps(read=None) -> dict[str, dict]:
+def read_gaps(text: str | None = None) -> dict[str, dict]:
     """`G-nn -> {desc, refs, closed}` from §66, in whichever document holds it.
 
     **First definition of a G-number wins**, procedure first. A union would
@@ -633,11 +621,7 @@ def read_gaps(read=None) -> dict[str, dict]:
     Today only `ARCHITECTURE.md` carries §66, so this returns exactly what the
     single read returned. TEMPORARY — collapses to one source at step 6.38.
     """
-    out: dict[str, dict] = {}
-    for _rel, text in rs.texts(read or _disk_text):
-        for g, v in _gaps_in(text).items():
-            out.setdefault(g, v)
-    return out
+    return _gaps_in(text if text is not None else _procedure_text())
 
 
 def _gaps_in(text: str) -> dict[str, dict]:
