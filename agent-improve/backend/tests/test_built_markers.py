@@ -84,7 +84,7 @@ _vb: Any = _load() if _HOOK.exists() else None
 #: (every Evidence cell evaluated against the tree). **The pin is what stops a
 #: red check being deleted rather than fixed**, which is the cheapest possible
 #: answer to a failing build.
-_EXPECTED_CHECK_COUNT = 30
+_EXPECTED_CHECK_COUNT = 32
 
 
 def test_the_hook_is_where_this_file_thinks_it_is() -> None:
@@ -118,6 +118,8 @@ def test_the_check_count_is_pinned() -> None:
     **+1 at 6.39** — `every S-id an open gap names has a fact row`, assertion 5.
     **+2 at 6.40** — assertion 7 and the pinned list of sections still
     awaiting a founder ruling.
+    **+2 at 6.41** — G-87: one conflated bound became three, so a backlog,
+    a specification and an unassessed population each move on their own.
     """
     total = len(_vb.CHECKS) + 1          # +1: check_phase_scripts, run separately
     assert total == _EXPECTED_CHECK_COUNT, (

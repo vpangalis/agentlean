@@ -235,11 +235,13 @@ def test_the_dual_read_returns_exactly_what_the_single_read_returned(board):
                   unclassified only because its parent was. §43's seven rules
                   are grader criteria and join as facts, not exemptions.
         31 -> 42  all 11 are non-built: four phases ⚠️, §43 five ⚠️ and two ☐.
+        75 -> 74  **G-87 closed at 6.41** — the bound it named is now three
+                  bounds, and the one that is a backlog can fall.
     """
     markers, gaps = board.read_markers(), board.read_gaps()
     assert len(markers) == 81, f"{len(markers)} markers, not 81"
     assert sum(1 for m in markers if m["state"] != "built") == 42
-    assert len(gaps) == 75, f"{len(gaps)} gap rows, not 75"
+    assert len(gaps) == 74, f"{len(gaps)} gap rows, not 74"
 
 
 def test_the_dual_read_is_marked_temporary_and_names_the_step_that_ends_it(rs):

@@ -943,21 +943,60 @@ def sections_awaiting_a_ruling(text: str | None = None,
     return str(len(still_open))
 
 
-def facts_without_a_symbol(text: str | None = None) -> str:
-    """How many register rows carry `—` where a symbol anchor belongs.
+def _unanchored(text: str | None = None) -> list:
+    """Register rows carrying `—` where a symbol anchor belongs."""
+    return [r for r in read_matrix(text)
+            if r["evidence"].strip().strip("`") == NOT_SET]
 
-    **A RATCHET, NOT A TOLERANCE.** 6.31 already recorded the condition -
-    *"45 of the 69 markers are backed by no check at all"* - and moving the
-    markers into the register does not fix it; it makes it COUNTABLE. Every
-    marker arrived at 6.37 with no anchor of its own, because a `> **BUILT:**`
-    line never had one: its evidence was its prose.
 
-    Pinned so the number can only come down deliberately. A new row added with
-    `—` fails this check, which is the point - the register is not a place
-    to park unanchored claims.
+def facts_anchorable_not_anchored(text: str | None = None) -> str:
+    """G-87: the half of the old bound that is a BACKLOG.
+
+    A fact whose State is ✅ or ⚠️ asserts that something exists in the tree.
+    **Something that exists can be pointed at**, so every row here is work
+    nobody has done — not a limitation of the register.
+
+    **This is the number 6.41 exists to bring down**, and it is the only one of
+    the three whose rise is unambiguously bad: a new built fact arriving
+    without an anchor is exactly the drift `matrix_anchors` cannot see, because
+    it evaluates anchors that exist and says nothing about a row that has none.
     """
-    return str(sum(1 for r in read_matrix(text)
-                   if r["evidence"].strip().strip("`") == NOT_SET))
+    return str(sum(1 for r in _unanchored(text)
+                   if r["state"].strip() in ("✅", "⚠️")))
+
+
+def facts_with_nothing_to_anchor(text: str | None = None) -> str:
+    """G-87: the half that is a SPECIFICATION, not a backlog.
+
+    A fact whose State is ☐ asserts that something does NOT exist. There is
+    nothing in the tree to point at, so the em dash is the honest cell and
+    anchoring it would mean inventing a symbol.
+
+    **A rise here is normal and means the spec grew.** Conflating it with the
+    backlog above is what made the single number unreadable — the register
+    could gain ratified-but-unbuilt design and look like it was rotting.
+
+    The `absent:` form is the exception and is preferred where the claim is
+    that something is GONE rather than not yet arrived: §10 says the class is
+    gone, so `absent: backend.storage.blob::ImproveBlobClient` proves it.
+    """
+    return str(sum(1 for r in _unanchored(text)
+                   if r["state"].strip() == "☐"))
+
+
+def facts_unassessed(text: str | None = None) -> str:
+    """G-87: the half that is neither, and was hiding inside the other two.
+
+    A fact whose State is itself `—` has never been assessed against the tree.
+    **96 spec entries arrived this way at 6.39** and were counted as unanchored
+    alongside built facts, which is how 70 became 166 in one step and read as a
+    collapse rather than as a population change.
+
+    Whether these are anchorable is unknown by definition — that is what
+    unassessed means — so they belong in neither of the other two.
+    """
+    return str(sum(1 for r in _unanchored(text)
+                   if r["state"].strip() in ("", NOT_SET)))
 
 
 def matrix_covers_appendix_d(text: str | None = None) -> str:
@@ -1234,16 +1273,29 @@ CHECKS = [
      "sections an open gap names have neither today, and inventing rows for "
      "them would pre-empt that judgement"),
 
-    ("register facts carrying no symbol anchor", "166",
-     facts_without_a_symbol,
-     "Appendix F · step 6.37 — every marker arrived with an em dash because "
-     "a `> **BUILT:**` line never had an anchor: its evidence was its prose. "
-     "6.31 recorded the same condition as '45 of the 69 markers are backed "
-     "by no check at all'. This makes it COUNTABLE and ratchets it: the "
-     "number comes down deliberately, and a new row parked at an em dash "
-     "fails here. **70 -> 166 at 6.39**: the 96 spec entries joined the "
-     "register and not one of them carries an anchor either, which is the "
-     "ratchet doing its job rather than being relaxed. **G-87: it constrains regression and NOT growth** — every movement so far has been upward, which makes it a counter until 6.41 gives it a way down"),
+    # ── Step 6.41: G-87 — one bound became three, each meaning something
+    #    different. The old single number could not tell a backlog from a
+    #    specification, so every rise looked the same and none could fall.
+    ("facts built but not anchored — the BACKLOG", "50",
+     facts_anchorable_not_anchored,
+     "Appendix F · step 6.41 — G-87. ✅ or ⚠️ means something EXISTS in the "
+     "tree, and what exists can be pointed at, so every row here is work "
+     "nobody has done. **A rise is unambiguously bad** and needs a reason in "
+     "the commit body; `matrix_anchors` cannot see it, because it evaluates "
+     "anchors that exist and says nothing about a row that has none"),
+
+    ("facts with nothing to anchor to — ratified, unbuilt", "16",
+     facts_with_nothing_to_anchor,
+     "Appendix F · step 6.41 — G-87. ☐ means something does NOT exist, so the "
+     "em dash is the honest cell. **A rise here is normal** and means the "
+     "spec grew; conflating it with the backlog is what made one number "
+     "unreadable"),
+
+    ("facts never assessed against the tree", "96",
+     facts_unassessed,
+     "Appendix F · step 6.41 — G-87. State is itself an em dash. The 96 spec "
+     "entries arrived this way at 6.39 and were counted beside built facts, which is how 70 became 166 in one step and read as a collapse"),
+
 
     ("Appendix F covers Appendix D — set equality, both directions",
      f"{len(appendix_d_steps())} steps, both directions",
