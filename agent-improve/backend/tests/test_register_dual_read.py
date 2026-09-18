@@ -229,10 +229,16 @@ def test_the_dual_read_returns_exactly_what_the_single_read_returned(board):
         74 -> 75  **G-87 registered** — the unanchored-fact bound only ever
                   rises, so it constrains regression and not growth. Owned by
                   step 6.41.
+        70 -> 81  **11 rows at 6.40**, and 40 sections depended on four of
+                  them: §39.2–§39.5 had no row while §39.1 did, so every
+                  sub-section of Measure, Analyse, Improve and Control was
+                  unclassified only because its parent was. §43's seven rules
+                  are grader criteria and join as facts, not exemptions.
+        31 -> 42  all 11 are non-built: four phases ⚠️, §43 five ⚠️ and two ☐.
     """
     markers, gaps = board.read_markers(), board.read_gaps()
-    assert len(markers) == 70, f"{len(markers)} markers, not 70"
-    assert sum(1 for m in markers if m["state"] != "built") == 31
+    assert len(markers) == 81, f"{len(markers)} markers, not 81"
+    assert sum(1 for m in markers if m["state"] != "built") == 42
     assert len(gaps) == 75, f"{len(gaps)} gap rows, not 75"
 
 

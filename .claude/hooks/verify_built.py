@@ -842,6 +842,107 @@ def gap_refs_resolve(text: str | None = None) -> str:
     return "; ".join(sorted(set(bad)))
 
 
+#: The 11 sections that carry neither a register row nor a `NOT-MARKABLE`
+#: note and whose classification is a FOUNDER judgement, not a rule. Declared
+#: with their reason for being open, never baselined, and ratcheted at 11 so
+#: the list can only shrink.
+#:
+#: **Each is a top-level section or a close relative of one**, which is why no
+#: category rule reached them: §1 and §4 are orientation, §19 and §39 are
+#: parents whose children carry the facts, §50, §58, §63 and §69 are section
+#: heads whose sub-sections own the rows, §19.9 and §66 are deliberate
+#: absences, and §69.1 states conventions binding on twenty entries.
+PENDING_CLASSIFICATION = {
+    "§1", "§4", "§19", "§19.9", "§39", "§50",
+    "§58", "§63", "§66", "§69", "§69.1",
+}
+
+_HEADING = re.compile(r"^#{2,4}\s+(\d+(?:\.\d+)*)\.?\s+(.*)$")
+_NOT_MARKABLE = "> **NOT-MARKABLE:"
+
+
+def _sections_and_declarations(arch_text: str) -> tuple:
+    """`(ordered sections, those declaring themselves NOT-MARKABLE)`."""
+    order, declared, cur = [], set(), None
+    for line in arch_text.splitlines():
+        h = _HEADING.match(line)
+        if h:
+            cur = "§" + h.group(1)
+            order.append(cur)
+        if line.startswith(_NOT_MARKABLE) and cur:
+            declared.add(cur)
+    return list(dict.fromkeys(order)), declared
+
+
+def _ancestors(section: str) -> list:
+    parts = section[1:].split(".")
+    return ["§" + ".".join(parts[:k]) for k in range(len(parts) - 1, 0, -1)]
+
+
+def every_section_declares_itself(text: str | None = None,
+                                  arch_text: str | None = None) -> str:
+    """ASSERTION 7 — every numbered section owns a row or declares it cannot.
+
+    **§66's header always claimed this correspondence "is checkable" and in
+    this direction it was not**, because the population it ranges over was
+    never defined: nothing distinguished the 198 sections carrying no
+    annotation from the 17 that carried one, since the 17 were simply the ones
+    somebody had annotated.
+
+    A section is accounted for when any of these holds:
+
+      * it owns a register row, keyed on its §;
+      * it declares `> **NOT-MARKABLE:` with a reason;
+      * **an ANCESTOR owns a row** — §16's own convention, *"One marker per
+        item, never one per section that mentions it"*, so a sub-section of a
+        marked item is marked at its canonical home;
+      * it is in `PENDING_CLASSIFICATION`, which is 11 founder judgements.
+
+    **The ancestor clause is what makes this a check rather than a backlog.**
+    Without it the population is 112 and the check reports 112 violations on
+    its first run, which is the failure `section_title_sources` records
+    happening twice to the typed-title probe.
+    """
+    if text is None:
+        text = Path(PROCEDURE).read_text(encoding="utf-8")
+    if arch_text is None:
+        arch_text = Path(ARCH).read_text(encoding="utf-8")
+    rows, _ = _register_facts(text)
+    order, declared = _sections_and_declarations(arch_text)
+    if not order:
+        raise RuntimeError(
+            "no numbered sections parsed from ARCHITECTURE.md — the heading "
+            "shape changed and this check would otherwise report success "
+            "over an empty population, which is the failure §55.2 names.")
+    undeclared = [
+        s for s in order
+        if s not in rows
+        and s not in declared
+        and s not in PENDING_CLASSIFICATION
+        and not any(a in rows for a in _ancestors(s))
+    ]
+    return ", ".join(undeclared)
+
+
+def sections_awaiting_a_ruling(text: str | None = None,
+                               arch_text: str | None = None) -> str:
+    """How many sections are parked in `PENDING_CLASSIFICATION` and still real.
+
+    Pinned so the list can only shrink. **A section that gains a row or a
+    declaration must leave the set**, or the exemption outlives its reason —
+    which is the shape §55.2 keeps finding.
+    """
+    if text is None:
+        text = Path(PROCEDURE).read_text(encoding="utf-8")
+    if arch_text is None:
+        arch_text = Path(ARCH).read_text(encoding="utf-8")
+    rows, _ = _register_facts(text)
+    _, declared = _sections_and_declarations(arch_text)
+    still_open = [s for s in PENDING_CLASSIFICATION
+                  if s not in rows and s not in declared]
+    return str(len(still_open))
+
+
 def facts_without_a_symbol(text: str | None = None) -> str:
     """How many register rows carry `—` where a symbol anchor belongs.
 
@@ -1112,6 +1213,19 @@ CHECKS = [
 
     # ── Step 6.31: the matrix is the leading document, and these two are what
     #    make that true rather than asserted. ───────────────────────────────
+    # ── Step 6.40: assertion 7 — the section-to-row direction. ──────
+    ("every section owns a row or declares it cannot", "",
+     every_section_declares_itself,
+     "§66 · step 6.40 — assertion 7. A section is accounted for by a row, a "
+     "NOT-MARKABLE note, an ANCESTOR owning a row (§16's one-marker-per-item "
+     "convention), or membership of the 11 founder judgements"),
+
+    ("sections awaiting a founder ruling", "11",
+     sections_awaiting_a_ruling,
+     "§66 · step 6.40 — pinned so the list can only shrink. A section that "
+     "gains a row or a declaration must LEAVE the set, or the exemption "
+     "outlives its reason"),
+
     # ── Step 6.39: assertion 5, the S-id half. ───────────────────────────
     ("every S-id an open gap names has a fact row", "",
      gap_refs_resolve,

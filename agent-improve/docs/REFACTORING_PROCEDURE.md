@@ -5610,7 +5610,7 @@ home.**
 | L0 |  | — | **6.36** | The register's readers read either document | ✅ | `backend.tests.test_register_dual_read::test_the_guard_takes_the_union_and_not_the_first_hit` | §55.1 · §66 · Appendix D |
 | L0 |  | — | **6.37** | The repartition — the operational register moves to the procedure | ☐ | `absent: backend.tests.test_operational_register` | §55.1 · §55.2 · §66 · Appendix F |
 | L0 |  | — | **6.39** | The spec-entry population joins the register (assertion 5) | ✅ | `backend.tests.test_spec_entry_rows::test_assertion_5_is_clean_on_the_real_register` | §55.1 · §66 · Appendix F |
-| L0 |  | — | **6.40** | Every section declares a row or declares itself not-markable (assertion 7) | ☐ | `absent: backend.tests.test_not_markable_coverage` | §55.1 · §55.2 · Appendix F |
+| L0 |  | — | **6.40** | Every section declares a row or declares itself not-markable (assertion 7) | ✅ | `backend.tests.test_not_markable_coverage::test_assertion_7_is_clean_on_the_real_documents` | §55.1 · §55.2 · Appendix F |
 | L0 |  | — | **6.41** | The symbol-anchor ratchet comes down (G-87) | ☐ | `absent: backend.tests.test_anchor_ratchet` | §55.2 · Appendix F |
 | L0 |  | — | **6.38** | The dual-read is removed — one register, one reader | ☐ | `repo:.claude/hooks/_register_source.py` | §55.1 · §66 |
 | L0 |  | — | **11.2** | Governance close-out | ☐ | `absent: repo:agent-improve/docs/HANDOVER.md` | §55 |
@@ -5705,6 +5705,10 @@ home.**
 | L3 |  | PHASE | **6.20** | **12 captured fields land in `artifacts` as specified; three rows of this table do not hold.** Verified row-by-row by the targeted state audit, 2026-09-11: **`artifacts["computation_results"]` and `artifacts["phase_metrics"]` are read by the gate-document assembler and WRITTEN BY NOTHING** — the executor merges only `CoachingResponse.fields_captured`, so both always read `[]`; **`field_index` never advances**; and `gate_attempts` is written but resets every turn because nothing interrupts (WATCH 18). `citations` / `uploads` hold. **`final` → `SupervisorState.final_output` never happens** — `control_output_mapper` returns `advance()`, which by contract returns orchestration values ONLY, so the project's terminal artifact is never written. ⚠ no step owns this clause | ⚠️ | — | §39.5.7 |
 | L3 |  | PHASE | — | `skills/dmaic-control-phase/SKILL.md` exists and is §32-conformant as of 6.9; its opening script is **byte-identical to `skills/dmaic-control-phase/coaching_script.md`**, which is where the script lives as of 2026-09-13 — §56.1's atomic unit, re-run by `verify_built.py`'s *phase scripts byte-matching their SKILL.md* check, now a FILE-to-FILE comparison | ✅ | — | §39.5.10 |
 | L3 |  | PHASE | — | **22 of 22, exact and in the same order** as this entry's definition — verified field-by-field by the targeted state audit, 2026-09-11. Step 3.1's Done-when still says *"7 and 19"*; **the number is stale and the substance is not** — four ratified amendments moved it (v1.7 17→19, v1.9's `remaining_steps`, then `asks`, `uploads`, `hop_results`). Re-run by `verify_built.py`'s *state field counts* check | ✅ | — | §58.2 |
+| L3 |  | PHASE | — | **Measure phase, complete specification** · schema and validator exist in v2 form; the known defect is the one its §39.2.7 row records — captured fields land as specified, three do not | ⚠️ | `backend.phases.measure.schema::MeasureOutput` | §39.2 |
+| L3 |  | PHASE | — | **Analyse phase, complete specification** · schema and validator exist in v2 form; the known defect is the one its §39.3.7 row records — captured fields land as specified, three do not | ⚠️ | `backend.phases.analyse.schema::AnalyseOutput` | §39.3 |
+| L3 |  | PHASE | — | **Improve phase, complete specification** · schema and validator exist in v2 form; the known defect is the one its §39.4.7 row records — captured fields land as specified, three do not | ⚠️ | `backend.phases.improve.schema::ImproveOutput` | §39.4 |
+| L3 |  | PHASE | — | **Control phase, complete specification** · schema and validator exist in v2 form; the known defect is the one its §39.5.7 row records — captured fields land as specified, three do not | ⚠️ | `backend.phases.control.schema::ControlOutput` | §39.5 |
 
 #### L4 · Coaching agent
 
@@ -5730,6 +5734,13 @@ home.**
 | L4 |  | COACH | **6.10** | `analyse_executor_node` is step 6.10, ⛔ blocked on G-05 and G-35. The **caps are built**: the five-hop cap and the `remaining_steps` floor of 2 both landed at 6.7, and `recursion_limit=50` is a backstop rather than the cap (WATCH 26) | ☐ | — | §26 |
 | L4 |  | COACH | **6.14** | five SKILL.md files, §32-conformant as of 6.9, each byte-matching its §39.x opening script. ⚠ their **ask shapes** are Measure only — the other four are step 6.14, ⛔ blocked on founder content | ✅ | — | §32 |
 | L4 |  | COACH | — | **all 8 fields exist** — step 6.19, 2026-09-14 (**G-50 CLOSED**) | ✅ | — | §58.5 |
+| L4 |  | COACH | — | The seven-step computation pattern · a grader criterion: the coach educates on the concept, explains why it matters, then runs the tool | ⚠️ | `backend.core.prompts::COACHING_QUALITY_RUBRIC` | §43.1 |
+| L4 |  | COACH | — | Show before asking · a grader criterion: a concrete example of a completed answer before the Belt is asked for theirs. **Observed failing a live turn 2026-09-15** | ⚠️ | `backend.core.prompts::COACHING_QUALITY_RUBRIC` | §43.2 |
+| L4 |  | COACH | — | The A→F session flow · six stages with a visible progress count. **No SKILL.md carries the count** and nothing checks for it | ☐ | `absent: backend.tests.test_session_flow` | §43.3 |
+| L4 |  | COACH | — | The live gate document preview · depends on `check_gate_status()`, which is **absent from the tree** — G-31 is the gap that specifies it | ☐ | `absent: backend.knowledge.tools::check_gate_status` | §43.4 |
+| L4 |  | COACH | — | No external URLs · a grader criterion: methodology is retrieved via `rag_lookup_methodology`, never recalled from training data | ⚠️ | `backend.core.prompts::COACHING_QUALITY_RUBRIC` | §43.5 |
+| L4 |  | COACH | — | What the coach must not do · the four `must not` criteria — vague fields, invented data, doing the Belt's work, drifting off phase | ⚠️ | `backend.core.prompts::COACHING_QUALITY_RUBRIC` | §43.6 |
+| L4 |  | COACH | — | Metric literacy — the metric, and the statistic · a grader criterion: methodology is referenced when guiding, not opinion | ⚠️ | `backend.core.prompts::COACHING_QUALITY_RUBRIC` | §43.7 |
 
 > **6.21 IS ✅ AS OF 2026-09-15, AND THE HAND-SET ⚠️ IS WITHDRAWN.** Its
 > `live-run` ran — rid `20167cc9-ea86-4501-a827-0e19ebb2420a`, the coach

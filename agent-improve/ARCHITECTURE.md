@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.65 · 2026-09-18
+Version 1.66 · 2026-09-18
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.66 (2026-09-18)** — **§56 AMENDMENT. EVERY SECTION NOW OWNS A ROW OR DECLARES IT CANNOT, AND v1.26’S COMPLETENESS CLAIM IS CORRECTED.** Step 6.40, founder ruling. **(A) THE POPULATION WAS NEVER DEFINED.** §66’s header has always said the correspondence *“is checkable”*; in the section-to-row direction it was not, because nothing distinguished the sections carrying no annotation from the 17 that carried one — the 17 were simply the ones somebody had annotated. **(B) 198 → 11, MEASURED AT EACH STAGE.** 6.39’s 96 spec rows already covered their own sections (112). §16’s own convention — *“one marker per item, never one per section that mentions it”* — accounts for every sub-section whose ANCESTOR owns a row (78). **Four missing markers cost 40 sections**: §39.1 owned a row and §39.2–§39.5 did not, though all five are “complete specification” sections of the same kind (38). §43 gains seven rows and §56, §57, §67 and §68 are declared NOT-MARKABLE by category (11). **(C) THE FOUR PHASE SECTIONS ARE ⚠️ AND THE TREE RULED IT, NOT THE FOUNDER.** The ruling said ☐ NOT BUILT on the premise that step 3.4 left four phases outstanding, and instructed that the tree overrides. It does: **3.4 is ✅ built**, all five `{Phase}Output` classes exist as Pydantic models citing their spec entries, and all five validators exist — `validate_define` is `async def`, which is why a `^def ` sweep first reported it absent. **(D) §43 IS BUILT AND FAILING, NOT UNBUILT.** Its rules are grader criteria: `COACHING_QUALITY_RUBRIC` at `core/prompts.py:1510`, imported by `middleware/grader.py:53`. Five map to a criterion and are ⚠️; **§43.3 and §43.4 are ☐** — no SKILL.md carries the six-stage count, and `check_gate_status()` is absent from the tree, which is G-31. **(E) v1.26 IS CORRECTED IN PLACE RATHER THAN DELETED.** It claimed *“MARKER COVERAGE IS NOW COMPLETE”* and was accurate on the day: it walked **62 top-level sections** and **nothing re-ran it**. There are now 69, nine carry neither, and it never ranged over sub-sections at all. **§55.2’s own sentence, turned on a changelog entry — a claim nothing re-runs is a claim.** The cost of a completeness claim that aged silently is the evidence, so the entry stands with its correction attached. **(F) ELEVEN JUDGEMENTS REMAIN AND ARE PINNED.** `PENDING_CLASSIFICATION` carries §1, §4, §19, §19.9, §39, §50, §58, §63, §66, §69 and §69.1, ratcheted at 11 so a section that gains a row or a declaration must LEAVE the set rather than merely stop mattering. Reasoning: this commit body.
 
 **v1.65 (2026-09-18)** — **§56 AMENDMENT. §26’s HOP CAP GOES FIVE → THREE, AND G-83 CLOSES.** Founder ruling, applied at step 6.35. **(A) THE DECLARED CAP NOW MATCHES THE MEASURED CEILING.** §25’s fusion makes one hop a MODEL CALL plus six searches plus RRF — **~9.5s measured** on G-63’s trace and on rid `ca6ba417` — so a fifth hop landed near 47.5s against the executor’s 40s budget (6.34). The turn died on the wall before the cap could fire and `_HOP_BUDGET_SPENT` was **unreachable code**. **(B) IT WAS DEAD THE DAY IT WAS WRITTEN**: fusion landed at step 5.2, the cap at 6.7 — the cap was built on top of a per-hop cost that already excluded it, and no check compared the two. **(C) NO CAPABILITY IS LOST.** Hops four and five could never be taken. What changes is that the limit is REACHABLE, so the coach composes from `_HOP_BUDGET_SPENT` instead of being cancelled mid-search. **(D) THE ARITHMETIC IS A TEST, NOT A COMMENT.** `MEASURED_HOP_SECONDS` and `HOP_BUDGET_COMPOSE_RESERVE` are declared beside the cap with their provenance, and `test_hop_cap.py` asserts a full-budget turn FITS the node budget, that five would NOT, and that four would not either — so the cap is the largest value that fits rather than a guess under it. **An unreachable cap is unfalsifiable, which is how five survived eleven steps**, and the existing cap tests could not catch it because they are budget-RELATIVE and pass at any value. **(E) PER-HOP COST IS DEFERRED ON A CONDITION.** Cutting fusion’s six queries per hop is the other lever; it **waits for step 9.0**, when the corpus is ingested and recall can first be measured. Cutting breadth before then would trade an unmeasured quality for a measured latency. Reasoning: this commit body (§56.2).
 
@@ -187,7 +189,7 @@ Task 3B verification pass completed 2026-08-21.
 
 **v1.27 (2026-09-11)** — **§56 AMENDMENT. §55.3 RATIFIES THE PHASE COMPLETENESS SET — the real denominator for "is this phase done".** Founder ruling. **(A) THE OLD FRACTION MEASURED THE WRONG THING.** The board showed each phase as a fraction of the three markers NAMED after it — *"Define 1/3"* — which is the sections named after a phase, not the sections a phase DEPENDS ON. §55.3 lists the **fifty-one items a phase traverses to run end to end with a visible gate**: the API surface and UI, orchestration and persistence, the subgraph, the coach, what it knows, what the Belt gives it, what it computes, validation and the gate, the gate document, reliability, observability, and the phase's own spec. **Define is 25 of 51**, not 1 of 3. **(B) NUMBERING VERIFIED BEFORE USE**, as the ruling required — the set was drawn against a v1.22 snapshot and this document is v1.26; all fifty cited sections still carry the titles named. **(C) SHARED vs PHASE, and a shared break is ONE break.** Fifty of the fifty-one rows are SHARED, which is the vertical-slice argument restated from the other side: **a phase is 98% shared machinery**, so the second slice inherits almost everything the first proves. **(D) UNMEASURED IS NOT A PASS**, and four rows come back UNMEASURED: §43 and §28 are unmarkable by nature, but **§63 and §69 were classified as spec containers *"whose entries carry their own markers"* and their entries carry NONE** — a false claim in the 2026-09-11 sweep, caught by this view on its first run, which is what a denominator is for. **(E) §39.x IS NOT EQUAL ACROSS PHASES.** Four phases carry twelve subsections; **Define carries eight, and not the same eight** — six of the twelve topics have no Define section at all. The phase being proven first has the least specified spec. Reasoning: this commit body (§56.2).
 
-**v1.26 (2026-09-11)** — **§56 AMENDMENT. MARKER COVERAGE IS NOW COMPLETE: every ratified section ends in a marker or in an explicit reason it cannot carry one.** Founder ruling. **(A) THE SWEEP.** All 62 ratified top-level sections walked. **45 carry a `> **BUILT:**` marker** with a closing step or `no step owns this`; **17 carry a `> **NOT-MARKABLE:**` note** giving the reason — methodology or coaching content (§28, §43), a rule enforced elsewhere (§54, §56), or **marked at its canonical home** (§5→§57.2, §6→§58.2, §12→§15, §20→§58.5, §45→§44) and the eight spec-layer Parts whose entries carry their own. **Zero sections are in neither state**, which was the point: a section nobody classified is indistinguishable from one nobody built. Markers go 21 → 66. **(B) THE UNOWNED LIST, ENUMERATED FOR THE FIRST TIME.** Four markers are `☐ not built` with **no step that closes them**: §39.2.2, §39.3.2, §39.4.2 and §39.5.2 — the ordered field lists for Measure, Analyse, Improve and Control, which exist as tables here and in no runtime form. A fifth unowned item sits inside §39.5.7: **`SupervisorState.final_output` is never written**, so the project's terminal artifact does not exist. **(C) F-15 IS CHECKED AT LAST.** `verify_built.py` gains an `ast` pass asserting a writer AND a reader for every state field and every `artifacts` key — **one check for a pattern that recurred seven times**, each found by hand months apart. Nine fields are unpaired and each is accounted for; three are exempt **with declared reasons** (`history` diagnostic-only, `remaining_steps` engine-managed, `phase_index` read by the UI). The check took two cuts to get right and both failure modes are recorded in it: counting every dict literal called a READ a write, and counting only `return {...}` called two written fields unwritten. **(D) THE BOARD NAMES EVERY NUMBER.** No bare `§` or step reference renders anywhere — titles come from the headings, and a section with no usable heading is reported by `--check` (there are none). A generated legend gives the prefixes in plain words. Reasoning: this commit body (§56.2).
+**v1.26 (2026-09-11)** — **§56 AMENDMENT. [CLAIM CORRECTED AT 6.40, 2026-09-18 — IT WAS TRUE OF A PASS AND WAS WRITTEN AS A PROPERTY OF THE DOCUMENT.]** The sentence read *“MARKER COVERAGE IS NOW COMPLETE: every ratified section ends in a marker or in an explicit reason it cannot carry one.”* **It was accurate on the day and nothing re-ran it.** The sweep walked **62 top-level sections**; there are now **69**, and of those **9 carry neither a register row nor a `NOT-MARKABLE` note** — §1, §4, §19, §39, §50, §58, §63, §66 and §69. **It also never ranged over sub-sections at all**, where the real population is: 277 numbered sections, of which assertion 7 found 112 undeclared before this step. **This is §55.2's own sentence turned on a changelog entry — a claim nothing re-runs is a claim** — and the entry is corrected rather than deleted because the cost of a completeness claim that aged silently is the evidence. The remaining 9 are the singles ruled individually at 6.40; assertion 7 is what stops this recurring. Founder ruling. **(A) THE SWEEP.** All 62 ratified top-level sections walked. **45 carry a `> **BUILT:**` marker** with a closing step or `no step owns this`; **17 carry a `> **NOT-MARKABLE:**` note** giving the reason — methodology or coaching content (§28, §43), a rule enforced elsewhere (§54, §56), or **marked at its canonical home** (§5→§57.2, §6→§58.2, §12→§15, §20→§58.5, §45→§44) and the eight spec-layer Parts whose entries carry their own. **Zero sections are in neither state**, which was the point: a section nobody classified is indistinguishable from one nobody built. Markers go 21 → 66. **(B) THE UNOWNED LIST, ENUMERATED FOR THE FIRST TIME.** Four markers are `☐ not built` with **no step that closes them**: §39.2.2, §39.3.2, §39.4.2 and §39.5.2 — the ordered field lists for Measure, Analyse, Improve and Control, which exist as tables here and in no runtime form. A fifth unowned item sits inside §39.5.7: **`SupervisorState.final_output` is never written**, so the project's terminal artifact does not exist. **(C) F-15 IS CHECKED AT LAST.** `verify_built.py` gains an `ast` pass asserting a writer AND a reader for every state field and every `artifacts` key — **one check for a pattern that recurred seven times**, each found by hand months apart. Nine fields are unpaired and each is accounted for; three are exempt **with declared reasons** (`history` diagnostic-only, `remaining_steps` engine-managed, `phase_index` read by the UI). The check took two cuts to get right and both failure modes are recorded in it: counting every dict literal called a READ a write, and counting only `return {...}` called two written fields unwritten. **(D) THE BOARD NAMES EVERY NUMBER.** No bare `§` or step reference renders anywhere — titles come from the headings, and a section with no usable heading is reported by `--check` (there are none). A generated legend gives the prefixes in plain words. Reasoning: this commit body (§56.2).
 
 **v1.25 (2026-09-11)** — **§56 AMENDMENT. EIGHTEEN BUILT MARKERS ADDED — MAIN's three items and the five phases — so the board can show state PER PHASE rather than only per architectural block.** Founder ruling: *"If a fact is worth showing it is worth marking, and the board reads markers."* **(A) MAIN, all ✅ and expected to stay that way:** §57.2 (`SupervisorState` 7/7 exact), §58.2 (`PhaseState` 22/22 exact and in order), §15 (the supervisor graph compiles exactly as specified and is deliberately not yet the runtime — one line at 7.3). **(B) PER PHASE, fifteen markers over three facts each.** The **ordered field list** (§39.x.2): built for Define only — `DEFINE_FIELD_ORDER`, 12 fields — and **absent for the other four**, which expose tier SETS and no `*_FIELD_ORDER`, so the sequence those tables state has no runtime form. **⚠ No step owns those four**: 6.20 covers Define's and group C's slices do not create ordered lists. The **state contract** (§39.x.7): the captured fields land as specified in all four, and **three rows do not hold in any of them** — `artifacts["computation_results"]` and `artifacts["phase_metrics"]` are read by the gate-document assembler and written by nothing, and `field_index` never advances. Analyse additionally never populates `hop_results`/`synthesis_output` despite §39.3.7 saying *"populated here"* (6.10, blocked); Control never writes `SupervisorState.final_output`, and **no step owns that clause**. The **SKILL.md content** (§39.1.7, §39.x.10): ✅ all five, §32-conformant and byte-matching. **(C) DEFINE HAS NO STATE-PARAMETERS SECTION AND NOW SAYS SO** — 39.1.7 is its SKILL.md content, so the phase being proven first is the one phase with no state contract; 6.20 writes it. **(D) §39.x.2's four missing lists and Control's `final_output` are recorded as UNOWNED**, which is the finding rather than a footnote. **(E) The board leads with the four Seq BANDS, not with readiness lanes** — 11.1 and 11.2 had been sitting in READY beside 6.18, correct on readiness and misleading about what to do next. Band ranges and their descriptions are **data in Appendix D**, not constants in the generator. Reasoning: this commit body (§56.2).
 
@@ -7446,6 +7448,8 @@ This document and an agent's `CLAUDE.md` are amended only via:
 
 ### 56.0 What changed about amending, when the rules stopped being one file
 
+> **NOT-MARKABLE:** the procedure for amending rules. **A rule about how rules change has nothing in the tree to be checked against** — its subject is this document, not the code.
+
 **A rule number used to resolve in one document.** It now resolves in the root
 `CLAUDE.md` **or** in one of thirteen files under `.claude/rules/`, and the
 registry's citations must still resolve across both. That is the whole of
@@ -7502,6 +7506,8 @@ and every one matched zero files.
 
 ### 56.0.1 Rule, reference, and owned fact — three destinations
 
+> **NOT-MARKABLE:** the procedure for amending rules. **A rule about how rules change has nothing in the tree to be checked against** — its subject is this document, not the code.
+
 An amendment goes wrong most often by putting the right content in the wrong
 place, so the test is **what kind of thing is it**:
 
@@ -7518,6 +7524,8 @@ the middleware order. `fact-ownership-guard.py` now denies the write; §55.4
 names the five owners and how each is enforced.
 
 ### 56.1 A phase is one atomic unit — schema, validator, skill
+
+> **NOT-MARKABLE:** the procedure for amending rules. **A rule about how rules change has nothing in the tree to be checked against** — its subject is this document, not the code.
 
 **A phase's `schema.py`, `validate.py` and `SKILL.md` are ONE unit sharing one
 field vocabulary. They are always rebuilt together, never independently.**
@@ -7596,6 +7604,8 @@ Blob to Azure Files changes the spec and leaves the architecture untouched.*
 
 ### 56.2 The rule lands here; the reasoning lands in the commit
 
+> **NOT-MARKABLE:** the procedure for amending rules. **A rule about how rules change has nothing in the tree to be checked against** — its subject is this document, not the code.
+
 **Founder ruling 2026-09-10.** Every amendment has two halves and they go to
 different places:
 
@@ -7623,6 +7633,8 @@ reached this document is a decision nothing can be checked against.**
 > they *agreed*.
 
 ### 56.3 The tree at HEAD is the only source of truth
+
+> **NOT-MARKABLE:** the procedure for amending rules. **A rule about how rules change has nothing in the tree to be checked against** — its subject is this document, not the code.
 
 **Ratified 2026-09-13.** The rule is `CLAUDE.md` §0.32 and binds always; this
 section is the ruling behind it, and the reason it sits in §56 rather than in a
@@ -7662,6 +7674,8 @@ number, a claim of absence carries the command and its output — and **G-57
 carries the rest**: two enforcing rules with demonstrations and no test suite.
 
 ## 57. The specification layer — how to read and write a spec entry
+
+> **NOT-MARKABLE:** reading instructions for the specification layer — how to write an entry, and two calibrated samples of one. **The entries it teaches you to read carry the rows**; teaching is not a second claim.
 
 *Supersedes: none — new Part, ratified 2026-08-23. Decision record: `agent-improve/docs/_archive/DECISIONS.md` §S1.*
 **Status: RATIFIED.** **Canonical home for the entry template and the two calibrated samples.**
@@ -7782,6 +7796,8 @@ this paragraph.
 
 ### 57.1 The two calibrated samples
 
+> **NOT-MARKABLE:** reading instructions for the specification layer — how to write an entry, and two calibrated samples of one. **The entries it teaches you to read carry the rows**; teaching is not a second claim.
+
 **These two entries are the approved standard, transcribed verbatim from
 `agent-improve/docs/_archive/SPEC_SAMPLES.md`.** Every other entry in this Part is built
 to match one of them. They are also the canonical entries for their subjects —
@@ -7851,6 +7867,8 @@ class SupervisorState(TypedDict):
 
 ### 57.3 SAMPLE 2 — FUNCTION/NODE TEMPLATE — S-F04 `phase_executor` (the coach node)
 
+> **NOT-MARKABLE:** reading instructions for the specification layer — how to write an entry, and two calibrated samples of one. **The entries it teaches you to read carry the rows**; teaching is not a second claim.
+
 #### SPEC — `phase_executor` (the coach node)
 
 **Canonical definition. File: `phases/{phase}/nodes.py` (one per phase). References: architecture §14 (node contract), §17 (planner/executor split), §18. Procedure step [tbd].**
@@ -7899,6 +7917,8 @@ class SupervisorState(TypedDict):
 | R-EXEC-01 | `phase_executor` (coach) | AI coaching output could influence a Belt's competence/employment assessment without adequate oversight, or could assert an unverified fact | 13, 14, 15, 12 | Med | High | HITL gate approval (§13); anti-hallucination guard; 4-layer validation (§35); full audit log (§51) | Low–Med — residual depends on whether customer uses gate outputs in formal evaluation | [Provider] | *open — depends on deployment context; customer confirms whether coaching feeds formal assessment* |
 
 ### 57.4 Entry index
+
+> **NOT-MARKABLE:** reading instructions for the specification layer — how to write an entry, and two calibrated samples of one. **The entries it teaches you to read carry the rows**; teaching is not a second claim.
 
 **73 entries — 37 classes, 36 functions and nodes.** Five carry an AI-ACT flag;
 twelve carry `AI-ACT-REVIEW: uncertain`. **§66 carries the live gap count.**
@@ -11634,10 +11654,14 @@ one that is amended.
 
 ## 67. EU AI Act compliance posture
 
+> **NOT-MARKABLE:** compliance posture. **A legal obligation is not a buildable claim** — an obligation is met by evidence and by process, and neither is a symbol in this tree. Where a finding IS actionable it is carried as a gap, which is what §67.4 records.
+
 *Supersedes: none — new. Decision record: `agent-improve/docs/_archive/DECISIONS.md` §S2.*
 **Status: SCAFFOLD. The classification question is UNRESOLVED and requires qualified legal advice.**
 
 ### 67.1 The deadlines are now fixed
+
+> **NOT-MARKABLE:** compliance posture. **A legal obligation is not a buildable claim** — an obligation is met by evidence and by process, and neither is a symbol in this tree. Where a finding IS actionable it is carried as a gap, which is what §67.4 records.
 
 **Verified as of 2026-08-23.** The Digital Omnibus is enacted law — Regulation
 (EU) 2026/1744, in force 27 July 2026 — and the high-risk deadlines are
@@ -11652,6 +11676,8 @@ Transparency (Art. 50), GPAI and prohibited-practices duties are **already in
 force** and were not delayed.
 
 ### 67.2 The classification question — open, and not answered here
+
+> **NOT-MARKABLE:** compliance posture. **A legal obligation is not a buildable claim** — an obligation is met by evidence and by process, and neither is a symbol in this tree. Where a finding IS actionable it is carried as a gap, which is what §67.4 records.
 
 **Agent Improve MAY be Annex III high-risk via the employment category.** It
 coaches professionals and produces assessments that *could* feed competence or
@@ -11677,6 +11703,8 @@ as legal advice.**
 
 ### 67.3 The eight core provider obligations
 
+> **NOT-MARKABLE:** compliance posture. **A legal obligation is not a buildable claim** — an obligation is met by evidence and by process, and neither is a symbol in this tree. Where a finding IS actionable it is carried as a gap, which is what §67.4 records.
+
 **Agent Improve already has much of the skeleton.** Each row names the existing
 mechanism, not an aspiration:
 
@@ -11693,6 +11721,8 @@ mechanism, not an aspiration:
 
 ### 67.4 One compliance finding is already recorded in this document
 
+> **NOT-MARKABLE:** compliance posture. **A legal obligation is not a buildable claim** — an obligation is met by evidence and by process, and neither is a symbol in this tree. Where a finding IS actionable it is carried as a gap, which is what §67.4 records.
+
 **§46.1 states that the v2.1 single-region fallback chain is non-compliant for
 any regulated-entity deployment** under DORA's ICT resilience obligations, and
 that EU AI Act data-governance provisions are why the secondary region must be
@@ -11701,6 +11731,8 @@ inside the EU. It is Appendix B item 16, and it gates a production launch.
 **It is carried into the register at §68 rather than restated here.**
 
 ### 67.5 Compliance-source discipline
+
+> **NOT-MARKABLE:** compliance posture. **A legal obligation is not a buildable claim** — an obligation is met by evidence and by process, and neither is a symbol in this tree. Where a finding IS actionable it is carried as a gap, which is what §67.4 records.
 
 **The EU AI Act and DORA are in active implementation with shifting guidance.**
 
@@ -11716,10 +11748,14 @@ Sources are in Appendix C, under *Tier 1 — compliance*.
 
 ## 68. The DORA-structured compliance risk register
 
+> **NOT-MARKABLE:** a risk register. **A risk is a statement about what could happen, not about what exists**, so it has no built/not-built state to assert. The mitigations that ARE built carry their own rows.
+
 *Supersedes: none — new. Decision record: `agent-improve/docs/_archive/DECISIONS.md` §S2.*
 **Status: SCAFFOLD, populated from the five AI-ACT flags placed 2026-08-23.**
 
 ### 68.1 Why DORA structure
+
+> **NOT-MARKABLE:** a risk register. **A risk is a statement about what could happen, not about what exists**, so it has no built/not-built state to assert. The mitigations that ARE built carry their own rows.
 
 **DORA — Regulation (EU) 2022/2554 — applies directly to financial customers**,
 who must track a third-party AI vendor as ICT risk. Its register structure is
@@ -11737,6 +11773,8 @@ how each is already mitigated, here is the residual risk to discuss.*
 
 ### 68.2 The register
 
+> **NOT-MARKABLE:** a risk register. **A risk is a statement about what could happen, not about what exists**, so it has no built/not-built state to assert. The mitigations that ARE built carry their own rows.
+
 **The flag is canonical; the register is derived.** When they disagree, the
 flag wins and the row is regenerated (§55.1). Each row cites the function and
 the behavior IDs it aggregates, so row-to-flag correspondence is checkable by
@@ -11751,6 +11789,8 @@ Risk ID.
 | **R-CONTRA-01** | `ContradictionDetectionMiddleware` — S-C10, behaviors B1–B5 | The only component that can retroactively unsettle a committed record, via the re-approval cascade. **Detection is best-effort semantic judgment by the coach and can miss**, so a Belt's contradiction of a gate-approved value may go unflagged and downstream analysis may continue against a superseded number | 14, 15, 12, 13 | **Med–High** | Med | No tolerance threshold, so any material change is a mini-gate rather than a silent overwrite (§37); the Belt is given two explicit options with the approved value, its approving phase and their own words (§50); **§50's always-referenceable all-gate-fields tab is the acknowledged human backstop**, which is architecture rather than UI polish | **Med — stated honestly.** The previous mechanism detected nothing while appearing deterministic (DECISIONS §R1); this one is weaker in claim and stronger in fact, and the backstop is a human reading a tab | [Provider] | *open — customer should be told detection is best-effort and the tab is the control* |
 
 ### 68.3 Pending classification — not register rows
+
+> **NOT-MARKABLE:** a risk register. **A risk is a statement about what could happen, not about what exists**, so it has no built/not-built state to assert. The mitigations that ARE built carry their own rows.
 
 **Twelve entries carry `AI-ACT-REVIEW: uncertain`.** They are held here rather
 than in the register above, because §55.1's rule is bidirectional — every row
@@ -11773,6 +11813,8 @@ unresolved classifications in it would break the check in both directions.
 | The `improve_case_index` write path (S-F36) | Publishes one Belt's project record into a corpus other Belts retrieve from, with no tenancy filter (Art. 10) |
 
 ### 68.4 The infrastructure risk already on record
+
+> **NOT-MARKABLE:** a risk register. **A risk is a statement about what could happen, not about what exists**, so it has no built/not-built state to assert. The mitigations that ARE built carry their own rows.
 
 **Carried from §46.1, not newly asserted:**
 
