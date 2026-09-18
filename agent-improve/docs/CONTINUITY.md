@@ -7,10 +7,10 @@
 
 | | |
 |---|---|
-| **Last completed** | step **6.36** — The register's readers read either document |
+| **Last completed** | step **6.37** — The repartition — the operational register moves to the procedure |
 | **Next** | step **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
-| **Spine steps landed** | 41 of 80 |
-| **Last spine commit** | `92446ab` (commit 6.36) |
+| **Spine steps landed** | 42 of 80 |
+| **Last spine commit** | `3f65805` (commit 6.37) |
 | **ARCHITECTURE.md** | v1.65 |
 | **CLAUDE.md** | v2.2.40 |
 | **Block regenerated** | 2026-09-18 |

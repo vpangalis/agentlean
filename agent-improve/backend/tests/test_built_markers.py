@@ -84,7 +84,7 @@ _vb: Any = _load() if _HOOK.exists() else None
 #: (every Evidence cell evaluated against the tree). **The pin is what stops a
 #: red check being deleted rather than fixed**, which is the cheapest possible
 #: answer to a failing build.
-_EXPECTED_CHECK_COUNT = 27
+_EXPECTED_CHECK_COUNT = 28
 
 
 def test_the_hook_is_where_this_file_thinks_it_is() -> None:
@@ -115,6 +115,7 @@ def test_the_check_count_is_pinned() -> None:
     **+1 at 6.37** — `register facts carrying no symbol anchor`, the ratchet
     on the 70 marker facts that moved into the register with no anchor of
     their own, because a `> **BUILT:**` line never had one.
+    **+1 at 6.39** — `every S-id an open gap names has a fact row`, assertion 5.
     """
     total = len(_vb.CHECKS) + 1          # +1: check_phase_scripts, run separately
     assert total == _EXPECTED_CHECK_COUNT, (
@@ -340,3 +341,34 @@ def test_the_governance_steps_render_a_card_and_not_only_a_count() -> None:
     assert not missing, (
         f"no card rendered for: {', '.join(missing)} — counted in the totals, "
         "drawn nowhere")
+
+
+def test_no_hook_carries_a_stray_control_character() -> None:
+    """**A regex written `\b` in a non-raw generator string becomes a BACKSPACE.**
+
+    It compiles, it matches nothing, and it fails SILENTLY — which is the worst
+    of the three. `_STEP_IN_CELL` carried one at 6.37 and reported every step
+    missing from the build matrix, reading as a data problem; `_SID` carried one
+    at 6.39 and made assertion 5 pass VACUOUSLY, returning "clean" because it
+    found nothing to check.
+
+    **Both were written by a script that generated source through a non-raw
+    Python string**, where `\b` is an escape the language already owns. The
+    repair in both cases was a lookaround, which says what was meant and cannot
+    be mangled on the way in.
+
+    This sweeps for the whole class rather than the two instances: backspace,
+    bell, vertical tab and form feed have no business in a hook.
+    """
+    hooks = sorted((Path(_ROOT) / ".claude" / "hooks").glob("*.py"))
+    assert hooks, "no hooks found — this test is pointing at the wrong place"
+    found = []
+    for h in hooks:
+        text = h.read_text(encoding="utf-8")
+        for code, name in ((8, "backspace"), (7, "bell"),
+                           (11, "vertical tab"), (12, "form feed")):
+            if chr(code) in text:
+                line = next(n for n, l in enumerate(text.splitlines(), 1)
+                            if chr(code) in l)
+                found.append(f"{h.name}:{line} carries a literal {name}")
+    assert not found, "; ".join(found)

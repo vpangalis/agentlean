@@ -5054,10 +5054,10 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 
 | State | Count | Steps |
 |---|---|---|
-| **DONE** | 41 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.34**, **6.35**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36** |
+| **DONE** | 42 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.34**, **6.35**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37** |
 | **BUILDING NOW** | 1 | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 30 | **6.33**, **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **6.37**, **6.39**, **6.40**, **6.38**, **11.2** |
+| **QUEUED** | 29 | **6.33**, **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **6.39**, **6.40**, **6.38**, **11.2** |
 
 *80 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-18.*
 <!-- END STEP BOARD -->
@@ -5560,7 +5560,7 @@ home.**
 | L0 |  | — | **6.32** | An out-of-band landing gets the lane it earned (G-65) | ☐ | `absent: backend.tests.test_board_lanes` | §55.2 · Appendix D · G-65 |
 | L0 |  | — | **6.36** | The register's readers read either document | ✅ | `backend.tests.test_register_dual_read::test_the_guard_takes_the_union_and_not_the_first_hit` | §55.1 · §66 · Appendix D |
 | L0 |  | — | **6.37** | The repartition — the operational register moves to the procedure | ☐ | `absent: backend.tests.test_operational_register` | §55.1 · §55.2 · §66 · Appendix F |
-| L0 |  | — | **6.39** | The spec-entry population joins the register (assertion 5) | ☐ | `absent: backend.tests.test_spec_entry_rows` | §55.1 · §66 · Appendix F |
+| L0 |  | — | **6.39** | The spec-entry population joins the register (assertion 5) | ✅ | `backend.tests.test_spec_entry_rows::test_assertion_5_is_clean_on_the_real_register` | §55.1 · §66 · Appendix F |
 | L0 |  | — | **6.40** | Every section declares a row or declares itself not-markable (assertion 7) | ☐ | `absent: backend.tests.test_not_markable_coverage` | §55.1 · §55.2 · Appendix F |
 | L0 |  | — | **6.38** | The dual-read is removed — one register, one reader | ☐ | `repo:.claude/hooks/_register_source.py` | §55.1 · §66 |
 | L0 |  | — | **11.2** | Governance close-out | ☐ | `absent: repo:agent-improve/docs/HANDOVER.md` | §55 |
@@ -5573,6 +5573,11 @@ home.**
 | L1 | 5 | — | **10.2** | Live gate document + conflict panel | ☐ | `absent: repo:agent-improve/ui/gate_document.js` | §50, §43.4 |
 | L1 |  | UI | **10.1**, **7.3** | **11 routes are served; this section's table names 4 of them** — `POST /ask`, `GET /cases/{id}`, `GET /registry`, `POST /upload`. **Seven are in the tree and in no ratified table** (**G-47**), and **five table rows are unbuilt**: `/ask/stream` (step 10.1), `/gate/approve` and `/gate/reject` (step 7.3, which has no `interrupt()` to resume from), `GET /cases`, and `/gate/submit` in the three-route shape this table ratifies. **Corrected 2026-09-11:** this line read *"11 of 12 routes exist … names 8 of the 11 — six are in the tree and in no ratified table"*, and **8 + 6 = 14 against 11 built routes**, so the marker contradicted itself; neither figure was derivable and the `12` traced to nothing. `verify_built.py` now pins the route SET, not the count, so the named/unnamed split is re-derived rather than restated | ⚠️ | — | §49 |
 | L1 |  | UI | **6.19** | **these four fields do not exist** (**G-50**) | ☐ | — | §50.1 |
+| L1 |  | UI | — | **S-C36** · `CitationRecord` and `CitationBundle` | — | — | §65.1 |
+| L1 |  | UI | — | **S-C37** · The API envelopes | — | — | §65.2 |
+| L1 |  | UI | — | **S-F34** · The API surface | — | — | §65.3 |
+| L1 |  | UI | — | **S-F35** · The upload handler | — | — | §65.4 |
+| L1 |  | UI | — | **S-F36** · The `improve_case_index` write path | — | — | §65.5 |
 
 > **⛑ 10.2's ANCHOR WAS THE SECOND UNFAILABLE `absent:` — G-72.** It read
 > `absent: repo:agent-improve/frontend/gate_document.js`, and **there is no
@@ -5598,6 +5603,28 @@ home.**
 | L2 |  | — | **4.3** | Supervisor graph | ✅ | `backend.core.graph::get_graph` | §12, §15 |
 | L2 |  | SUP | **7.3** | **the supervisor graph compiles exactly as §15 and S-F01 specify** — five phase-subgraph nodes plus escalation, checkpointer and store on the parent, neither on the subgraphs, pinned by `test_supervisor_graph.py`. **It is deliberately NOT the runtime yet**, and step 4.3 said so when it built it: `get_graph()` returns the one-turn per-phase graph until `gate_review` raises `interrupt()`, because §15's static chain advances on `END` and until the interrupt exists `END` means only *"the graph ran"*. **The swap is one line at 7.3** | ✅ | — | §15 |
 | L2 |  | SUP | — | **`SupervisorState` is 7 of 7, exact** — names, types and both `operator.add` reducers transcribed verbatim into `core/state.py`. Nothing present-and-unspecified, nothing specified-and-absent; `SUPERVISOR_STATE_FIELDS` sits beside the class as a census and `test_state.py` asserts it. Re-run by `verify_built.py`'s *state field counts* check | ✅ | — | §57.2 |
+| L2 |  | SUP | — | **S-C01** · `SupervisorState` | — | — | §58.1 |
+| L2 |  | SUP | — | **S-F01** · The supervisor graph — static edges | — | — | §58.10 |
+| L2 |  | SUP | — | **S-F02** · `build_phase_subgraph(phase, llm)` | — | — | §58.11 |
+| L2 |  | SUP | — | **S-F03** · `phase_planner` node | — | — | §58.12 |
+| L2 |  | SUP | — | **S-F04** · `phase_executor` node | — | — | §58.13 |
+| L2 |  | SUP | — | **S-F05** · `validation_stack` node | — | — | §58.14 |
+| L2 |  | SUP | — | **S-F06** · `gate_review_node` | — | — | §58.15 |
+| L2 |  | SUP | — | **S-F07** · `gate_apply_node` | — | — | §58.16 |
+| L2 |  | SUP | — | **S-F08** · The escalation subgraph | — | — | §58.17 |
+| L2 |  | SUP | — | **S-F09** · `analyse_executor_node` | — | — | §58.18 |
+| L2 |  | SUP | — | **S-F10** · `define_input_mapper` | — | — | §58.19 |
+| L2 |  | SUP | — | **S-C02** · `PhaseState` | — | — | §58.2 |
+| L2 |  | SUP | — | **S-F11** · `define_output_mapper` | — | — | §58.20 |
+| L2 |  | SUP | — | **S-F12** · The Measure, Analyse, Improve and Control mapper pairs | — | — | §58.21 |
+| L2 |  | SUP | — | **S-F13** · Level 2 `Command` routing | — | — | §58.22 |
+| L2 |  | SUP | — | **S-C03** · Per-phase use of `PhaseState` | — | — | §58.3 |
+| L2 |  | SUP | — | **S-C04** · `CoachingPlan` | — | — | §58.4 |
+| L2 |  | SUP | — | **S-C05** · `CoachingResponse` | — | — | §58.5 |
+| L2 |  | SUP | — | **S-C06** · `AzureBlobStore` | — | — | §58.6 |
+| L2 |  | SUP | — | **S-C07** · `AzureBlobCheckpointSaver` | — | — | §58.7 |
+| L2 |  | SUP | — | **S-C08** · `ImproveBlobClient` | — | — | §58.8 |
+| L2 |  | SUP | — | **S-C09** · `storage/models.py` — the record models | — | — | §58.9 |
 
 #### L3 · Phase subgraphs
 
@@ -5690,6 +5717,12 @@ home.**
 | L5 |  | COACH | **7.3**, **7.6** | built, ENFORCEMENT DELIBERATELY SUSPENDED · detection runs every turn and the flag still rides on the response; **the `interrupt()` call is GUARDED until step 7.3**. **Founder ruling, 2026-09-11.** §33's mechanism is correct and nothing can resume it — §49's `/gate/approve` and `/gate/reject` are step 7.3. **Measured in the real runtime shape before the ruling was taken:** turn 1 pauses cleanly and returns `__interrupt__` with no `structured_response`; turn 2's message is neither processed nor resumed; **every later turn on that case returns nothing, permanently.** The blast radius is the CASE, not the turn; the checkpoint is Azure Blob, so it survives a restart; and the trigger — a Belt revising a figure they committed earlier — is the INTENDED one, which is to say ordinary coaching. **§37's cascade (7.6) loses nothing**, because the flag is still set. **THREE TESTS PIN THIS, and step 7.3 moves all three** (its Done-when clause 1): `test_ContradictionDetectionMiddleware_does_not_call_interrupt` asserts **zero live `interrupt(...)` call sites, parsed with `ast`** — the same technique as `verify_built.py`'s probe, but in `pytest`, which is a GATE where that probe is only advisory; `test_position_6_is_GUARDED_and_does_not_park_the_case` pins the behaviour and 7.3 rewrites it to assert RESUMPTION; and `test_the_guarded_import_is_kept_for_7_3` stops a tidying pass dropping the unused import and turning 7.3's one uncommented line into a line plus a re-import. `test_interrupt_from_after_agent_is_RESUMABLE_end_to_end` keeps G-15's measurement under test via a local subclass that still interrupts, so **the mechanism stays verified while the policy is suspended** and 7.3 can still trust it. **Both tripwires were proved to trip**: the line was un-guarded exactly as 7.3 would, both failed, and the file was restored. **⛑ This line has twice said the opposite of the truth**: until 2026-09-11 it read *"nothing consumes the flag"* — wrong, the flag was consumed and the graph suspended — and was corrected that morning to *"raises a real `interrupt()`"*, which was true, and had been true for six steps during which a reachable path could brick a live case | ⚠️ | — | §19.6 |
 | L5 |  | COACH | — | validation Layer 2a; can stand the grader down | ✅ | — | §19.7 |
 | L5 |  | COACH | — | coaching-quality grading, per turn | ✅ | — | §19.8 |
+| L5 |  | COACH | — | **S-C10** · `ContradictionDetectionMiddleware` | — | — | §61.1 |
+| L5 |  | COACH | — | **S-C11** · `BeforeModelStateInjection` | — | — | §61.2 |
+| L5 |  | COACH | — | **S-C12** · `DMAICSkillsMiddleware` | — | — | §61.3 |
+| L5 |  | COACH | — | **S-C13** · `CoherenceMiddleware` | — | — | §61.4 |
+| L5 |  | COACH | — | **S-C14** · `DMAICGraderMiddleware` | — | — | §61.5 |
+| L5 |  | COACH | — | **S-C15** · `HITLInterrupt` | — | — | §61.6 |
 
 #### L6 · Tools and knowledge
 
@@ -5709,6 +5742,42 @@ home.**
 | L6 |  | COACH | **7.1**, **7.5** | **the twenty and the partition are | ⚠️ | — | §30 |
 | L6 |  | COACH | — | all twenty computation tools carry an `args_schema=`, re-run by `verify_built.py` | ✅ | — | §31 |
 | L6 |  | COACH | — | **the absence holds and is pinned** — neither | ✅ | — | §69.7 |
+| L6 |  | COACH | — | **S-C16** · `Hop` | — | — | §59.1 |
+| L6 |  | COACH | — | **S-C17** · `Plan` — the hop decomposition plan | — | — | §59.2 |
+| L6 |  | COACH | — | **S-C18** · `SynthesisOutput` | — | — | §59.3 |
+| L6 |  | COACH | — | **S-C19** · `QueryVariants` | — | — | §59.4 |
+| L6 |  | COACH | — | **S-F14** · `rag_lookup_methodology` | — | — | §59.5 |
+| L6 |  | COACH | — | **S-F15** · `rag_lookup_evidence` | — | — | §59.6 |
+| L6 |  | COACH | — | **S-F16** · `rag_lookup_case_history` | — | — | §59.7 |
+| L6 |  | COACH | — | **S-F17** · `reciprocal_rank_fusion` | — | — | §59.8 |
+| L6 |  | COACH | — | **S-F18** · The retriever layer — `search_knowledge`, `search_cases`, `search_evidence` | — | — | §59.9 |
+| L6 |  | COACH | — | **S-F19** · `propose_template` | — | — | §60.1 |
+| L6 |  | COACH | — | **S-F20** · `propose_diagram` | — | — | §60.2 |
+| L6 |  | COACH | — | **S-F21** · `check_gate_status` | — | — | §60.3 |
+| L6 |  | COACH | — | **S-F22** · `request_human_approval` | — | — | §60.4 |
+| L6 |  | COACH | — | **S-F23** · `load_skill(name)` | — | — | §60.5 |
+| L6 |  | COACH | — | **S-F24** · The 20 computation tools | — | — | §60.6 |
+| L6 |  | COACH | — | **S-F57** · `load_evidence_series(blob_path, column)` | — | — | §60.7 |
+| L6 |  | COACH | — | **S-F37** · Define — 1 tool | — | — | §69.2 |
+| L6 |  | COACH | — | **S-F38** · –S-F45 · Measure — 8 tools | — | — | §69.3 |
+| L6 |  | COACH | — | **S-F39** · `calculate_cpk` — **Process capability (Cpk)** — can the process meet spec as it runs today, given both where it sits and how much it varies | — | — | §69.3 |
+| L6 |  | COACH | — | **S-F40** · `calculate_dpmo` — **Defect rate per million chances (DPMO)** — defects scaled so processes of different volume and complexity compare fairly | — | — | §69.3 |
+| L6 |  | COACH | — | **S-F41** · `calculate_yield_rty` — **End-to-end yield (RTY, rolled throughput yield)** — the share of work that clears every step first time, with no rework anyw | — | — | §69.3 |
+| L6 |  | COACH | — | **S-F42** · `calculate_ftq` — **First-time quality at one step (FTQ)** — the share that step gets right without rework | — | — | §69.3 |
+| L6 |  | COACH | — | **S-F43** · `calculate_grr` — **Measurement trust (Gage R&R)** — how much of the variation you can see is the process, and how much is the measuring | — | — | §69.3 |
+| L6 |  | COACH | — | **S-F44** · `calculate_sample_size_proportion` — **How many to sample, for a percentage** — the count needed to pin a proportion within a stated margin | — | — | §69.3 |
+| L6 |  | COACH | — | **S-F45** · `calculate_sample_size_mean` — **How many to sample, for an average** — the count needed to detect a difference of a stated size | — | — | §69.3 |
+| L6 |  | COACH | — | **S-F46** · –S-F50 · Analyse — 5 tools | — | — | §69.4 |
+| L6 |  | COACH | — | **S-F47** · `chi_square_test` — **Are two categories related? (chi-square test)** — association between two categorical variables | — | — | §69.4 |
+| L6 |  | COACH | — | **S-F48** · `anova` — **Do three or more groups differ? (ANOVA, analysis of variance)** | — | — | §69.4 |
+| L6 |  | COACH | — | **S-F49** · `pearson_correlation` — **Do two numbers move together? (Pearson correlation)** — strength and direction, not cause | — | — | §69.4 |
+| L6 |  | COACH | — | **S-F50** · `linear_regression` — **How much does Y change when X changes? (simple linear regression, OLS)** — fits Y = a + bX | — | — | §69.4 |
+| L6 |  | COACH | — | **S-F51** · Improve — 1 tool | — | — | §69.5 |
+| L6 |  | COACH | — | **S-F52** · –S-F56 · Control — 5 tools | — | — | §69.6 |
+| L6 |  | COACH | — | **S-F53** · `imr_chart_limits` — **Control limits for one-at-a-time measurements (I-MR, individuals and moving range)** | — | — | §69.6 |
+| L6 |  | COACH | — | **S-F54** · `p_chart_limits` — **Control limits for a pass/fail rate (p-chart)** — for when the batch size changes between periods | — | — | §69.6 |
+| L6 |  | COACH | — | **S-F55** · `c_chart_limits` — **Control limits for defect counts (c-chart)** — for when the area of opportunity is constant | — | — | §69.6 |
+| L6 |  | COACH | — | **S-F56** · `post_improvement_cpk` — **Capability after the fix (post-improvement Cpk)** — the same capability figure on the new data, set against the baseline | — | — | §69.6 |
 
 #### L7 · Validation, gates, escalation
 
@@ -5735,6 +5804,26 @@ home.**
 | L7 |  | GATE | — | **the three dicts exist and the four | ⚠️ | — | §63.6 |
 | L7 |  | GATE | — | **the field is on all five schemas | ⚠️ | — | §63.9 |
 | L7 |  | GATE | **7.3** | `gate_review` is a **pass-through** — no `interrupt()` is raised and `gate_apply` applies nothing. Define's own instance of §33's *nothing pauses for a human*. **Normalised at 6.37 from a prose-form marker no reader had ever matched** | ☐ | — | §39.1.11 |
+| L7 |  | GATE | — | **S-C20** · `CriterionVerdict` | — | — | §62.1 |
+| L7 |  | GATE | — | **S-F27** · The policy advisory | — | — | §62.10 |
+| L7 |  | GATE | — | **S-F28** · Gate document assembly | — | — | §62.11 |
+| L7 |  | GATE | — | **S-C21** · `GraderVerdict` | — | — | §62.2 |
+| L7 |  | GATE | — | **S-C22** · `CoachingGraderVerdict` | — | — | §62.3 |
+| L7 |  | GATE | — | **S-C23** · `CoherenceResult` | — | — | §62.4 |
+| L7 |  | GATE | — | **S-C24** · `ConstraintCheckResult` / `ConstraintVerdict` | — | — | §62.5 |
+| L7 |  | GATE | — | **S-C25** · `PolicyAdvisoryResult` | — | — | §62.6 |
+| L7 |  | GATE | — | **S-C26** · `DMAICGateValidator` | — | — | §62.7 |
+| L7 |  | GATE | — | **S-F25** · Layer 2c — the constraint check | — | — | §62.8 |
+| L7 |  | GATE | — | **S-F26** · Layer 2d — the gate grader | — | — | §62.9 |
+| L7 |  | GATE | — | **S-C27** · `DefineOutput` | — | — | §63.1 |
+| L7 |  | GATE | — | **S-C28** · `MeasureOutput` | — | — | §63.2 |
+| L7 |  | GATE | — | **S-C29** · `AnalyseOutput` | — | — | §63.3 |
+| L7 |  | GATE | — | **S-C30** · `ImproveOutput` | — | — | §63.4 |
+| L7 |  | GATE | — | **S-C31** · `ControlOutput` | — | — | §63.5 |
+| L7 |  | GATE | — | **S-C32** · The three cross-phase reference dicts | — | — | §63.6 |
+| L7 |  | GATE | — | **S-C33** · The three structured dict fields | — | — | §63.7 |
+| L7 |  | GATE | — | **S-C38** · `metric_definitions` — the project metric registry | — | — | §63.8 |
+| L7 |  | GATE | — | **S-C39** · `phase_metrics` — the per-phase placeholder | — | — | §63.9 |
 
 #### L8 · Persistence and cross-cutting
 
@@ -5770,6 +5859,13 @@ home.**
 | L8 |  | OPS | **8.1** | `core/errors.py` carries the exception types, but **S-C34's structured payload — `severity` and `retry_recommendation` — is not produced**, so §46's circuit breaker and fallback chain have nothing to read — step 8.1 | ☐ | — | §48 |
 | L8 |  | OPS | **8.0** | **zero `@traceable` in the backend.** This is the block that compounds: with no tracing every investigation needs a hand-built harness, and WATCH 28's *"set the limits from measured data"* cannot run at all — which is why it is scheduled at 8.0, ahead of the step that consumes it | ☐ | — | §51 |
 | L8 |  | OPS | — | fail-fast environment validation at startup | ✅ | — | §53 |
+| L8 |  | OPS | — | **S-C34** · `AgentImproveError` | — | — | §64.1 |
+| L8 |  | OPS | — | **S-C35** · `CircuitBreaker` | — | — | §64.2 |
+| L8 |  | OPS | — | **S-F29** · `phase_error_recovery` | — | — | §64.3 |
+| L8 |  | OPS | — | **S-F30** · `degraded_mode_response` | — | — | §64.4 |
+| L8 |  | OPS | — | **S-F31** · `synthesise_partial` | — | — | §64.5 |
+| L8 |  | OPS | — | **S-F32** · `delete_or_flag_stale_in_case_index` | — | — | §64.6 |
+| L8 |  | OPS | — | **S-F33** · `degraded_coaching_response` node | — | — | §64.7 |
 ---
 
 ## Appendix G — The SPEC-GAP register

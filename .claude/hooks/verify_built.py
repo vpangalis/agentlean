@@ -767,6 +767,81 @@ def appendix_d_steps(text: str | None = None) -> set:
                           text, re.M))
 
 
+#: Things an open gap legitimately attaches to that are NOT architectural
+#: facts and never will be: appendices, other gaps, and FILES that carry no §
+#: of their own. **Enumerated with a reason, never baselined** - `ui/index.html`
+#: is here because G-71 IS the gap that it has no owner, and a check demanding
+#: a fact row for it would force inventing the very thing G-71 says is absent.
+ATTACH_NOT_A_FACT = {
+    "Appendix D", "Appendix F", "F-15", "G-63", "build_board.py",
+    "deprecated_patterns.yaml", "gateway/routes.py", "storage/blob.py",
+    "ui/index.html", "verify_built.py",
+}
+
+_GAP_OPEN = re.compile(r"^\|\s*(?P<struck>~~)?\*\*(?P<gap>G-\d+)\*\*")
+_SID = re.compile(r"(?<![\w-])S-[CF]\d+(?![\w-])")
+
+
+def _register_facts(text: str) -> tuple:
+    """`(§ keys, S-id keys)` the fact table defines."""
+    secs, sids = set(), set()
+    for r in read_matrix(text):
+        ref = r["ref"].strip()
+        if re.fullmatch(r"§[\d.]+", ref):
+            secs.add(ref)
+        sids |= set(_SID.findall(r["item"]))
+    return secs, sids
+
+
+def gap_refs_resolve(text: str | None = None) -> str:
+    """ASSERTION 5, the half that is checkable at 6.39.
+
+    **Every `S-id` an OPEN gap attaches to must have a row in the register.**
+    Before this step 26 gaps referenced an `S-id` whose section carried no
+    marker, so not one of them could name a fact that exists; the 96 spec-entry
+    rows are what make the question answerable.
+
+    **THE `§` HALF WAITS FOR 6.40 AND THE CONDITION IS STATED RATHER THAN
+    ASSUMED.** 19 distinct sections an open gap names carry neither a fact row
+    nor a `NOT-MARKABLE` declaration - §19, §20.5.1, §55.1, §56, §6, §4.6 among
+    them. Most are governance rules that are probably NOT-MARKABLE, and
+    **creating a fact row for each would pre-empt exactly the judgement 6.40
+    exists to make** - then delete it again. So this ranges over `S-id`s now
+    and gains its `§` half when every section declares one or the other.
+
+    Closed gaps are out of scope: §66.6's rows use the `Attaches to` column for
+    a resolution note rather than a reference list, and a resolved gap owes no
+    live fact.
+    """
+    if text is None:
+        text = Path(PROCEDURE).read_text(encoding="utf-8")
+    i = text.find("## Appendix G")
+    if i < 0:
+        raise RuntimeError(
+            "Appendix G is missing from REFACTORING_PROCEDURE.md. It is the "
+            "gap register since step 6.37; reporting success without it is the "
+            "failure mode §55.2 exists to name.")
+    _, sids = _register_facts(text)
+    sub, bad = "", []
+    for ln in text[i:].splitlines():
+        h = re.match(r"^### (66\.\d+)", ln)
+        if h:
+            sub = h.group(1)
+        m = _GAP_OPEN.match(ln)
+        if not m or m.group("struck") or sub == "66.6":
+            continue
+        cells = ln.split("|")
+        if len(cells) < 4:
+            continue
+        # **From the RIGHT.** Two rows carry a `|` inside their gap text, so a
+        # left-indexed parse reads the wrong cell for G-59 and G-64.
+        for tok in re.split(r"[,·]", cells[-3]):
+            tok = tok.strip().strip("`").strip()
+            if _SID.fullmatch(tok) and tok not in sids:
+                bad.append(f"{m.group('gap')} -> {tok}")
+    return "; ".join(sorted(set(bad)))
+
+
 def facts_without_a_symbol(text: str | None = None) -> str:
     """How many register rows carry `—` where a symbol anchor belongs.
 
@@ -1037,14 +1112,24 @@ CHECKS = [
 
     # ── Step 6.31: the matrix is the leading document, and these two are what
     #    make that true rather than asserted. ───────────────────────────────
-    ("register facts carrying no symbol anchor", "70",
+    # ── Step 6.39: assertion 5, the S-id half. ───────────────────────────
+    ("every S-id an open gap names has a fact row", "",
+     gap_refs_resolve,
+     "Appendix G · step 6.39 — assertion 5. The § half turns on at 6.40, when "
+     "every section declares a row or declares itself NOT-MARKABLE; 19 "
+     "sections an open gap names have neither today, and inventing rows for "
+     "them would pre-empt that judgement"),
+
+    ("register facts carrying no symbol anchor", "166",
      facts_without_a_symbol,
      "Appendix F · step 6.37 — every marker arrived with an em dash because "
      "a `> **BUILT:**` line never had an anchor: its evidence was its prose. "
      "6.31 recorded the same condition as '45 of the 69 markers are backed "
      "by no check at all'. This makes it COUNTABLE and ratchets it: the "
      "number comes down deliberately, and a new row parked at an em dash "
-     "fails here"),
+     "fails here. **70 -> 166 at 6.39**: the 96 spec entries joined the "
+     "register and not one of them carries an anchor either, which is the "
+     "ratchet doing its job rather than being relaxed"),
 
     ("Appendix F covers Appendix D — set equality, both directions",
      f"{len(appendix_d_steps())} steps, both directions",
