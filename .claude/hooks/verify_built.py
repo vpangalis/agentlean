@@ -700,6 +700,11 @@ def _evaluate_anchor(cell: str, root: str) -> tuple[str, str]:
 # error must BLOCK. `CONTINUITY.md` §7: a check that cannot fail is worse than
 # no check, because it is recorded as evidence.
 
+#: The exact shape `matrix_covers_appendix_d` returns when the two agree.
+#: The commit guard matches on this rather than re-deriving set equality —
+#: two implementations of one invariant is the drift this file exists to catch.
+MATRIX_CLEAN_RE = re.compile(r"^\d+ steps, both directions$")
+
 MATRIX_ROW_RE = re.compile(
     r"^\|\s*L(?P<layer>\d+)\s*\|"          # Layer
     r"(?P<order>[^|]*)\|"                  # Order — sparse, hand-set
@@ -714,9 +719,19 @@ MATRIX_ROW_RE = re.compile(
 _NOT_A_MARKER_FAILURE = ("PASS", "EXTERNAL")
 
 
-def read_matrix() -> list[dict]:
-    """Appendix F's rows. Raises if the appendix is missing — fail-CLOSED."""
-    text = Path(PROCEDURE).read_text(encoding="utf-8")
+def read_matrix(text: str | None = None) -> list[dict]:
+    """Appendix F's rows. Raises if the appendix is missing — fail-CLOSED.
+
+    `text` is injected by the COMMIT GUARD, which must read the **index** and
+    not the disk: §0.32 clause 1, the same reason rule 8 resolves its registers
+    from `git show :<path>`. A matrix check that read the working tree would
+    pass a commit whose STAGED matrix is broken, and fail one whose staged
+    matrix is fine while the tree is mid-edit. Default `None` keeps every
+    existing caller — `CHECKS` included — reading the tree, which is correct
+    for a hand-run tool.
+    """
+    if text is None:
+        text = Path(PROCEDURE).read_text(encoding="utf-8")
     start = text.find("## Appendix F — The build matrix")
     if start < 0:
         raise RuntimeError(
@@ -729,14 +744,15 @@ def read_matrix() -> list[dict]:
     return [m.groupdict() for m in MATRIX_ROW_RE.finditer(body)]
 
 
-def appendix_d_steps() -> set:
+def appendix_d_steps(text: str | None = None) -> set:
     """The steps Appendix D declares. Read, never typed."""
-    text = Path(PROCEDURE).read_text(encoding="utf-8")
+    if text is None:
+        text = Path(PROCEDURE).read_text(encoding="utf-8")
     return set(re.findall(r"^\|\s*\d+\s*\|\s*\*\*Commit (\d+\.\d+)\*\*\s*\|",
                           text, re.M))
 
 
-def matrix_covers_appendix_d() -> str:
+def matrix_covers_appendix_d(text: str | None = None) -> str:
     """SET EQUALITY, in both directions. Not a count.
 
     **The ruling said "GROUP BY Step must return exactly 69. Assert it."** A
@@ -748,8 +764,8 @@ def matrix_covers_appendix_d() -> str:
     renumber makes. It is also this document's own rule, twice stated: *"the
     total is the row count"*, and *"edit the band here, not in the generator"*.
     """
-    want = appendix_d_steps()
-    got = {r["step"].strip() for r in read_matrix()}
+    want = appendix_d_steps(text)
+    got = {r["step"].strip() for r in read_matrix(text)}
     if want == got:
         return f"{len(want)} steps, both directions"
     missing = sorted(want - got, key=_ver)

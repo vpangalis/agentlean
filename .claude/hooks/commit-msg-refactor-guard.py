@@ -147,6 +147,7 @@ import collections
 import fnmatch
 import os
 import re
+import importlib.util
 import subprocess
 import sys
 import tempfile
@@ -692,6 +693,58 @@ def _known_gaps(root: str, read=None) -> set:
     return out
 
 
+def check_build_matrix(root: str) -> None:
+    """Rule 9 — Appendix F covers Appendix D, on EVERY commit.
+
+    **THE REFEREE WAS FAIL-CLOSED AND UNREACHABLE.** `verify_built.py` is the
+    matrix's referee and it exits non-zero on a disagreement, but the only path
+    from it to a commit's exit code ran through rule 4's `pytest` — and rule 4
+    sits BEHIND the `GUARDED_PREFIX` gate. Measured 2026-09-18 by deleting
+    Appendix F's row for 6.16: `verify_built.py` reported the mismatch, `pytest`
+    went red on it, and the guard handed a `docs(ops):` subject **exit 0**.
+
+    **`docs(` is the subject that edits an appendix.** Two commits in the
+    session that found this — `170d003` (`fix(ops):`) and `01e10b4`
+    (`docs(ops):`) — never ran the referee at all, and the first of them changed
+    `build_board.py` and added four tests.
+
+    **So it binds ahead of the prefix gate**, on rules 7, 8, 2b and 6's own
+    argument, already written one screen below: *a draft lands under a `docs(`
+    subject as easily as under a `refactor(`*.
+
+    **Set equality only — `matrix_anchors` stays on the spine path.** Measured:
+    this check is **0.01 s** against **8.20 s** for the anchors, which is above
+    the 2.52 s G-59's ruling accepted for once-per-commit work. Set equality is
+    what catches a dropped or invented row, which is the failure a large matrix
+    actually produces; a stale anchor moves slowly and the spine still catches it.
+
+    **Read from the INDEX, never the disk** (§0.32 clause 1) — the version being
+    committed, not the one being edited.
+    """
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        spec = importlib.util.spec_from_file_location(
+            "verify_built", os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "verify_built.py"))
+        vb = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(vb)
+        verdict = vb.matrix_covers_appendix_d(_staged_text(root, cs.PROCEDURE))
+    except Exception as exc:                          # noqa: BLE001 — fail CLOSED
+        fail("the build-matrix check could not run", f"{exc}",
+             "Blocking rather than passing. A referee that disappears when its",
+             "own machinery breaks is the advisory check 6.31 was built to end.")
+    if vb.MATRIX_CLEAN_RE.match(verdict.strip()):
+        note(f"rule 9 build matrix: PASS — {verdict.strip()}")
+        return
+    fail("Appendix F and Appendix D disagree",
+         verdict, "",
+         "Every step in Appendix D needs a row in Appendix F and every row",
+         "needs a step. This is read from the INDEX, so it is the matrix THIS",
+         "commit makes — stage both edits together.", "",
+         "Run the full referee for the anchors too:",
+         "  python .claude/hooks/verify_built.py")
+
+
 def check_step_or_gap(root: str, subject: str, message: str, added: list[str]) -> None:
     """Rule 8 — a new file in the tree needs a step number or a gap number (§0.32).
 
@@ -1135,6 +1188,9 @@ def main(argv: list[str]) -> int:
     check_step_or_gap(root, subject, message, added)
 
     check_architecture_status(root, all_staged)
+
+    # Rule 9 — the matrix referee, ahead of the prefix gate (see its docstring).
+    check_build_matrix(root)
 
     # ── Rule 6 — also ahead of the prefix gate, and for the same reason ────
     # A fix lands under any type. It is a pure message check, so it costs
