@@ -154,6 +154,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import continuity_status as cs
+import _register_source as rs
 
 # --------------------------------------------------------------------------- #
 # Configuration
@@ -670,6 +671,27 @@ def _staged_text(root: str, rel: str) -> str:
     return out.stdout
 
 
+def _known_gaps(root: str, read=None) -> set:
+    """Every gap number registered in EITHER document — TEMPORARY, ends at 6.38.
+
+    **The UNION, and it is the one reader that takes one** (`_register_source`
+    states why). Rule 8 asks *does this number exist*, and during the
+    repartition a gap is registered in whichever of the two documents has been
+    reached. Refusing a commit because the register is mid-move is the deadlock
+    this dual-read was added to break.
+
+    Read from the INDEX through `_staged_text`, unchanged: a gap registered in
+    THIS commit still counts, in whichever document it was registered.
+    """
+    if read is None:
+        def read(rel: str) -> str:
+            return _staged_text(root, rel)
+    out = set()
+    for _rel, text in rs.texts(read):
+        out.update(g.upper() for g in _GAP_ROW_RE.findall(text))
+    return out
+
+
 def check_step_or_gap(root: str, subject: str, message: str, added: list[str]) -> None:
     """Rule 8 — a new file in the tree needs a step number or a gap number (§0.32).
 
@@ -704,19 +726,21 @@ def check_step_or_gap(root: str, subject: str, message: str, added: list[str]) -
              "  Gap: G-57                                        # or the register",
              "",
              "The number must RESOLVE — Appendix D of docs/REFACTORING_PROCEDURE.md",
-             "for a step, §66's register in ARCHITECTURE.md for a gap. If neither",
+             "for a step, §66's register for a gap (read from the procedure first,",
+             "then ARCHITECTURE.md, until step 6.38). If neither",
              "exists yet then nothing is scheduling this file: register the gap",
              "first, in its own commit, per §56.")
 
     known_steps = set(_APPENDIX_D_STEP_RE.findall(_staged_text(root, cs.PROCEDURE)))
-    known_gaps = {g.upper() for g in _GAP_ROW_RE.findall(_staged_text(root, STATUS_PATH))}
+    known_gaps = _known_gaps(root)
     if (steps & known_steps) or (gaps & known_gaps):
         return
     fail("the step or gap number this commit declares does not resolve",
          "Declared, and found in no register:",
          *[f"  - {d}" for d in sorted(steps) + sorted(gaps)], "",
          f"Steps resolve against Appendix D of {cs.PROCEDURE}.",
-         f"Gaps resolve against §66's register in {STATUS_PATH}.",
+         "Gaps resolve against §66's register, in "
+         + " or ".join(rs.REGISTER_SOURCES) + ".",
          "Both are read from the INDEX, so a number registered in THIS commit",
          "counts — stage the register row alongside the file.", "",
          "A number that resolves nowhere schedules nothing, which leaves the",

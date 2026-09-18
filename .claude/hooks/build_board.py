@@ -56,6 +56,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _register_source as rs  # noqa: E402  TEMPORARY — removed at step 6.38
+
 ROOT = subprocess.run(["git", "rev-parse", "--show-toplevel"],
                       capture_output=True, text=True).stdout.strip() or "."
 PROJECT = os.path.join(ROOT, "agent-improve")
@@ -543,9 +546,45 @@ def landed_steps() -> set[str]:
     return {m.group("step") for m in _SPINE.finditer(log)}
 
 
-def read_markers() -> list[dict]:
-    """The `> **BUILT:**` lines: state, the section they sit under, closer."""
-    text = Path(ARCH).read_text(encoding="utf-8")
+def _disk_text(rel: str) -> str:
+    """One register source, read from the WORKING TREE. TEMPORARY — 6.38.
+
+    The board is a projection of the documents as they stand, not as they were
+    committed, which is why this reads the tree where the commit guard reads
+    the index. Both go through `_register_source.texts` so the ORDER is stated
+    in one place.
+    """
+    return Path(os.path.join(ROOT, rel)).read_text(encoding="utf-8")
+
+
+def read_markers(read=None) -> list[dict]:
+    """The `> **BUILT:**` lines, from whichever document carries them.
+
+    **First definition of a section wins**, and `_register_source` puts the
+    procedure first — so a marker moved to the procedure at step 6.37 wins over
+    the copy still sitting in `ARCHITECTURE.md`, and the two cannot disagree on
+    the board while the move is half done.
+
+    Today the procedure carries none and this returns exactly what the single
+    read returned, which is what makes the change provably output-neutral.
+
+    `read` is injected by the tests so BOTH paths can be exercised without
+    editing the two real documents — the fallback path cannot otherwise be
+    distinguished from the preferred one while only one document has content.
+    """
+    out: list[dict] = []
+    seen: set[str] = set()
+    for _rel, text in rs.texts(read or _disk_text):
+        for m in _markers_in(text):
+            if m["section"] in seen:
+                continue
+            seen.add(m["section"])
+            out.append(m)
+    return out
+
+
+def _markers_in(text: str) -> list[dict]:
+    """The marker parse itself — one document's worth."""
     lines = text.splitlines()
     sec, spec_id = "?", ""
     out = []
@@ -576,15 +615,39 @@ def read_markers() -> list[dict]:
     return out
 
 
-def read_gaps() -> dict[str, dict]:
-    """`G-nn -> {desc, refs, closed}` from §66.
+def read_gaps(read=None) -> dict[str, dict]:
+    """`G-nn -> {desc, refs, closed}` from §66, in whichever document holds it.
+
+    **First definition of a G-number wins**, procedure first. A union would
+    make a half-finished migration unverifiable: every gap would resolve from
+    both halves and nothing would report that the move was incomplete.
+
+    Today only `ARCHITECTURE.md` carries §66, so this returns exactly what the
+    single read returned. TEMPORARY — collapses to one source at step 6.38.
+    """
+    out: dict[str, dict] = {}
+    for _rel, text in rs.texts(read or _disk_text):
+        for g, v in _gaps_in(text).items():
+            out.setdefault(g, v)
+    return out
+
+
+def _gaps_in(text: str) -> dict[str, dict]:
+    """The §66 parse itself — one document's worth.
 
     `refs` is the row's last column - the sections the gap affects - and is
     what attributes a gap to a BUILT marker. `closed` is membership of
     §66.6, so a resolved gap never appears against a live defect.
+
+    **A document without §66 yields nothing rather than raising.** During the
+    repartition one of the two legitimately lacks the section, and `main()`
+    fails soft: an exception here would stop the board regenerating at exactly
+    the commit that moves the register.
     """
-    text = Path(ARCH).read_text(encoding="utf-8")
-    i = text.index("## 66. The SPEC-GAP register")
+    try:
+        i = text.index("## 66. The SPEC-GAP register")
+    except ValueError:
+        return {}
     closed_at = text.find("### 66.6 Closed", i)
     closed_end = text.find("### 66.7", closed_at) if closed_at > 0 else -1
     closed = set(re.findall(r"G-\d+", text[closed_at:closed_end])) \
