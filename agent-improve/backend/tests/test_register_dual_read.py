@@ -214,15 +214,23 @@ def test_read_markers_prefers_the_procedure_for_the_same_section(board):
 def test_the_dual_read_returns_exactly_what_the_single_read_returned(board):
     """**The counts the board was built from, unchanged.**
 
-    Measured at the 2026-09-18 audit, on the tree at `1469d08`: 69 markers of
-    which 30 are open, and 75 gap rows visible to this parser. The procedure
-    carries no §66 and no markers today, so the dual-read must be invisible in
-    the output - that is what makes it safe to land before the content moves.
+    Measured at the 2026-09-18 audit on `1469d08`: 69 markers of which 30 were
+    open, and 75 gap rows. **All three moved at 6.37 and each moved for a
+    stated reason**, which is why they are pinned rather than derived:
+
+        69 -> 70  the prose-form marker at §39.1.11 was normalised. No reader
+                  had ever matched it, so the register gained a fact the
+                  document always carried.
+        30 -> 31  that fact is `☐ not built`.
+        75 -> 74  **G-19 is struck through at last.** It read `✅ CLOSED by
+                  ruling` in its own cell while the row was never struck, so
+                  every closure parse that keys on `~~` counted it OPEN and the
+                  board rendered a resolved gap as live.
     """
     markers, gaps = board.read_markers(), board.read_gaps()
-    assert len(markers) == 69, f"{len(markers)} markers, not 69"
-    assert sum(1 for m in markers if m["state"] != "built") == 30
-    assert len(gaps) == 75, f"{len(gaps)} gap rows, not 75"
+    assert len(markers) == 70, f"{len(markers)} markers, not 70"
+    assert sum(1 for m in markers if m["state"] != "built") == 31
+    assert len(gaps) == 74, f"{len(gaps)} gap rows, not 74"
 
 
 def test_the_dual_read_is_marked_temporary_and_names_the_step_that_ends_it(rs):

@@ -9,7 +9,7 @@
 |---|---|
 | **Last completed** | step **6.36** — The register's readers read either document |
 | **Next** | step **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
-| **Spine steps landed** | 41 of 78 |
+| **Spine steps landed** | 41 of 80 |
 | **Last spine commit** | `92446ab` (commit 6.36) |
 | **ARCHITECTURE.md** | v1.65 |
 | **CLAUDE.md** | v2.2.40 |
@@ -25,13 +25,7 @@ Appendix D so the pointer does not stop on it.*
 
 ### ⇒ THE VERTICAL — the run of work being done now
 
-| # | Step | State |
-|---|---|---|
-| **1** | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ |
-| **2** | **6.33** — The capture path accumulates — a field survives the next turn | ☐ |
-| **3** | **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning | ☐ |
-| **4** | **7.3** — Nine-step HITL gate | ☐ |
-| **5** | **10.2** — Live gate document + conflict panel | ☐ |
+**No row in Appendix F carries an `Order` number** — nothing is declared as the current run of work.
 
 *Projected from the `Order` column of **Appendix F** in
 `docs/REFACTORING_PROCEDURE.md`, which is the leading document for

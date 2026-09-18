@@ -705,14 +705,29 @@ def _evaluate_anchor(cell: str, root: str) -> tuple[str, str]:
 #: two implementations of one invariant is the drift this file exists to catch.
 MATRIX_CLEAN_RE = re.compile(r"^\d+ steps, both directions$")
 
+#: **The row key is the FACT, not the step** (founder ruling 2026-09-18).
+#: `Step` is an ATTRIBUTE: a step row names the step that delivers it, a marker
+#: row names the step that closes it, and a fact nothing schedules carries `—`.
+#: So the step cell is `[^|]*` where it used to be `\*\*\d+\.\d+\*\*` — a
+#: pattern that REQUIRED a step would drop every unscheduled fact from the parse
+#: silently, which is the failure mode this register exists to end.
 MATRIX_ROW_RE = re.compile(
-    r"^\|\s*L(?P<layer>\d+)\s*\|"          # Layer
+    r"^\|\s*L(?P<layer>\d+)\s*\|"          # Layer — also the board's block
     r"(?P<order>[^|]*)\|"                  # Order — sparse, hand-set
-    r"\s*\*\*(?P<step>\d+\.\d+)\*\*\s*\|"  # Step
-    r"(?P<item>[^|]*)\|"                   # Item
+    r"(?P<zone>[^|]*)\|"                   # Zone — Container derives from it
+    r"(?P<step>[^|]*)\|"                   # Step — an attribute, may be `—`
+    r"(?P<item>[^|]*)\|"                   # Fact — what the § specifies
     r"(?P<state>[^|]*)\|"                  # State
-    r"(?P<evidence>[^|]*)\|"               # Evidence — the anchor
+    r"(?P<evidence>[^|]*)\|"               # Symbol — the anchor, may be `—`
     r"(?P<ref>[^|]*)\|\s*$", re.M)
+
+#: Every step number a row's `Step` cell names. A cell may name more than one
+#: (a marker closing 7.3 and 7.6), or none.
+_STEP_IN_CELL = re.compile(r"(?<!\d)(\d+\.\d+)(?!\d)")
+
+#: A cell carrying no anchor and no step. Not a blank: blank is a malformed
+#: cell and stays an error.
+NOT_SET = "—"
 
 #: The four verdicts that are NOT a disagreement between matrix and tree.
 #: `EXTERNAL` is owed, never passed; `DEPENDENCY` has a different owner.
@@ -752,8 +767,34 @@ def appendix_d_steps(text: str | None = None) -> set:
                           text, re.M))
 
 
+def facts_without_a_symbol(text: str | None = None) -> str:
+    """How many register rows carry `—` where a symbol anchor belongs.
+
+    **A RATCHET, NOT A TOLERANCE.** 6.31 already recorded the condition -
+    *"45 of the 69 markers are backed by no check at all"* - and moving the
+    markers into the register does not fix it; it makes it COUNTABLE. Every
+    marker arrived at 6.37 with no anchor of its own, because a `> **BUILT:**`
+    line never had one: its evidence was its prose.
+
+    Pinned so the number can only come down deliberately. A new row added with
+    `—` fails this check, which is the point - the register is not a place
+    to park unanchored claims.
+    """
+    return str(sum(1 for r in read_matrix(text)
+                   if r["evidence"].strip().strip("`") == NOT_SET))
+
+
 def matrix_covers_appendix_d(text: str | None = None) -> str:
-    """SET EQUALITY, in both directions. Not a count.
+    """EVERY STEP HAS AT LEAST ONE ROW, and every row's step is a real one.
+
+    **Restated from set equality by founder ruling 2026-09-18**, because the
+    row key became the FACT. Set equality was correct while the table held one
+    row per step; it is wrong now that a step may own several rows and a fact
+    may own none. What survives is the part that catches a drop: a step with no
+    row is invisible, and a row naming a step that does not exist is a typo
+    that would otherwise schedule nothing.
+
+    The original reasoning, still binding on the direction it covers:
 
     **The ruling said "GROUP BY Step must return exactly 69. Assert it."** A
     literal 69 would have failed on the very commit that introduced it: step
@@ -765,7 +806,9 @@ def matrix_covers_appendix_d(text: str | None = None) -> str:
     total is the row count"*, and *"edit the band here, not in the generator"*.
     """
     want = appendix_d_steps(text)
-    got = {r["step"].strip() for r in read_matrix(text)}
+    got = set()
+    for r in read_matrix(text):
+        got.update(_STEP_IN_CELL.findall(r["step"]))
     if want == got:
         return f"{len(want)} steps, both directions"
     missing = sorted(want - got, key=_ver)
@@ -793,6 +836,13 @@ def matrix_anchors() -> str:
     findings, deps = [], []
     for r in rows:
         cell = r["evidence"].strip().strip("`")
+        # `—` is a fact with NO symbol anchor yet. It asserts nothing, so it
+        # cannot be evaluated - but it is not silently tolerated either:
+        # `facts_without_a_symbol` pins the count, so the backlog can shrink and
+        # cannot grow. **A blank cell stays MALFORMED**, because "nobody filled
+        # this in" and "this is knowingly unanchored" are different claims.
+        if cell == NOT_SET:
+            continue
         verdict, detail = evaluate_anchor(cell, ROOT)
         if verdict in _NOT_A_MARKER_FAILURE:
             continue
@@ -987,6 +1037,15 @@ CHECKS = [
 
     # ── Step 6.31: the matrix is the leading document, and these two are what
     #    make that true rather than asserted. ───────────────────────────────
+    ("register facts carrying no symbol anchor", "70",
+     facts_without_a_symbol,
+     "Appendix F · step 6.37 — every marker arrived with an em dash because "
+     "a `> **BUILT:**` line never had an anchor: its evidence was its prose. "
+     "6.31 recorded the same condition as '45 of the 69 markers are backed "
+     "by no check at all'. This makes it COUNTABLE and ratchets it: the "
+     "number comes down deliberately, and a new row parked at an em dash "
+     "fails here"),
+
     ("Appendix F covers Appendix D — set equality, both directions",
      f"{len(appendix_d_steps())} steps, both directions",
      matrix_covers_appendix_d,

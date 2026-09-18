@@ -94,90 +94,40 @@ ZONE_TO_BLOCKS: dict[str, tuple[str, ...]] = {
     "STORE": ("8",),                   # block 8, persistence half
     "OPS":   ("8",),                   # block 8, cross-cutting half
 }
-# Where each BUILT marker lives: (block, zone). **Both, explicitly.**
+# ── `MARKER_HOME` IS GONE — DELETED AT STEP 6.37 ──────────────────────────
 #
-# An earlier cut stored only the zone and let container 1 place the marker in
-# every block that zone spans - so each COACH marker rendered three times
-# (blocks 4, 5 and 6) and container 1 reported 17 open markers against a true
-# 11. **A 3→1 collapse read backwards is a 1→3 duplication**, which is the
-# trap the step's own "NOT 1:1" warning is about. The pair is declared here so
-# neither direction is inferred.
-MARKER_HOME: dict[str, tuple[str, str]] = {
-    "§16":    ("8", "STORE"),
-    "§19.1":  ("5", "COACH"),
-    "§19.2":  ("5", "COACH"),
-    "§19.3":  ("5", "COACH"),
-    "§19.4":  ("5", "COACH"),
-    "§19.5":  ("5", "COACH"),
-    "§19.6":  ("5", "COACH"),   # gate-ish work, but structurally middleware
-    "§19.7":  ("5", "COACH"),   # gate-ish work, but structurally middleware
-    "§19.8":  ("5", "COACH"),   # gate-ish work, but structurally middleware
-    "§17":    ("4", "COACH"),
-    "§26":    ("4", "COACH"),
-    "§30":    ("6", "COACH"),
-    "§33":    ("7", "GATE"),
-    "§34":    ("7", "GATE"),
-    "§44":    ("8", "OPS"),
-    "§46":    ("8", "OPS"),
-    "§49":    ("1", "UI"),
-    "§50.1":  ("1", "UI"),
-    "§51":    ("8", "OPS"),
-    "§53":    ("8", "OPS"),
-    "§58.5":  ("4", "COACH"),        # S-C05 · CoachingResponse
+# It mapped each marker's § to a `(block, zone)` pair: **69 rows of
+# hand-maintained data living inside a generator**, which is the class G-86
+# names. Both halves are now document facts in the register:
+#
+#     block  ->  Appendix F's `Layer`. **They were always the same axis** -
+#                L1..L8 and `BLOCKS` 1..8 carry identical names - so the block
+#                was never anywhere else; it was the appendix's own grouping
+#                under a second name.
+#     zone   ->  the register's `Zone` column, which is genuinely new.
+#
+# What stays here is the 7 -> 4 mapping below, because a RULE is logic and a
+# 69-row table is data. That distinction is the whole point of the move.
 
-    # ── MAIN: the three items the per-phase panel's first row covers. ───
-    "§15":    ("2", "SUP"),          # the supervisor graph
-    "§57.2":  ("2", "SUP"),          # S-C01 · SupervisorState
-    "§58.2":  ("3", "PHASE"),        # S-C02 · PhaseState
-
-    # ── Per-phase (§39.N.*). All block 3; the PANEL groups them by phase. ─
-    "§39.1": ("3", "PHASE"), "§39.1.2": ("3", "PHASE"), "§39.1.7": ("3", "PHASE"),
-    "§39.2.2": ("3", "PHASE"), "§39.2.7": ("3", "PHASE"), "§39.2.10": ("3", "PHASE"),
-    "§39.3.2": ("3", "PHASE"), "§39.3.7": ("3", "PHASE"), "§39.3.10": ("3", "PHASE"),
-    "§39.4.2": ("3", "PHASE"), "§39.4.7": ("3", "PHASE"), "§39.4.10": ("3", "PHASE"),
-    "§39.5.2": ("3", "PHASE"), "§39.5.7": ("3", "PHASE"), "§39.5.10": ("3", "PHASE"),
-
-    # ── The 2026-09-11 coverage sweep: every ratified section now ends in a
-    #    marker or a NOT-MARKABLE note, so the markers that were missing are
-    #    here. Block and zone are declared, not inferred from the number.
-    "§7": ("3", "PHASE"),         # field typing law — the gate schemas
-    "§8": ("8", "STORE"),         # checkpointer / store split
-    "§9": ("8", "STORE"),         # the Store and the boundary mappers
-    "§10": ("8", "STORE"),        # Azure Blob
-    "§11": ("8", "OPS"),          # step_log
-    "§13": ("3", "PHASE"),        # the five subgraph nodes
-    "§14": ("3", "PHASE"),        # node contract
-    "§18": ("4", "COACH"),        # create_agent
-    "§21": ("4", "COACH"),        # LLM roles and the factory
-    "§22": ("4", "COACH"),        # prompts
-    "§23": ("6", "COACH"),        # the three indexes
-    "§24": ("6", "COACH"),        # the rag_lookup_* tools
-    "§25": ("6", "COACH"),        # multi-query + RRF
-    "§27": ("6", "COACH"),        # retrieval failure semantics
-    "§29": ("6", "COACH"),        # the data channel and the universal eight
-    "§31": ("6", "COACH"),        # tool arg schemas
-    "§32": ("4", "COACH"),        # SKILL.md
-    "§35": ("7", "GATE"),         # two tiers + warning
-    "§36": ("7", "GATE"),         # the two graders
-    "§37": ("7", "GATE"),         # contradiction + re-approval cascade
-    "§38": ("7", "GATE"),         # escalation
-    "§40": ("7", "GATE"),         # the five {Phase}Output schemas
-    "§41": ("7", "GATE"),         # structured dict fields
-    "§42": ("7", "GATE"),         # cross-phase reference fields
-    "§47": ("8", "STORE"),        # disconnect policy
-    "§48": ("8", "OPS"),          # structured errors
-    "§52": ("7", "GATE"),         # evaluation and regression
-
-    # Spec entries that turned out NOT to be covered by their Part's alias
-    # (checked 2026-09-11 rather than assumed).
-    "§63.6": ("7", "GATE"),       # S-C32 · cross-phase reference keys
-    "§63.9": ("7", "GATE"),       # S-C39 · phase_metrics
-    "§69.7": ("6", "COACH"),      # the deliberately absent Measure chart tool
+#: Zone to container, founder ruling 2026-09-18. **`OPS` maps to NOTHING**: it
+#: is build-time tooling, not a container of the running system. **`System`
+#: owns no rows by construction** - it is the view, not a container.
+ZONE_TO_CONTAINER = {
+    "UI": "UI",
+    "STORE": "Storage",
+    "SUP": "Backend",
+    "PHASE": "Backend",
+    "COACH": "Backend",
+    "GATE": "Backend",
+    "OPS": None,
 }
 
-#: The per-phase panel's six rows. **MAIN is exactly three items** (founder,
-#: 2026-09-11): the two state classes and the supervisor graph - all verified
-#: exact, so this row should read green and stay that way.
+
+def container_of(marker: dict) -> str | None:
+    """The container a placed fact belongs to, DERIVED from its zone."""
+    return ZONE_TO_CONTAINER.get(marker.get("zone", ""))
+
+
 MAIN_MARKERS = {"§15", "§57.2", "§58.2"}
 PHASE_ROWS = [("MAIN", None), ("Define", "1"), ("Measure", "2"),
               ("Analyse", "3"), ("Improve", "4"), ("Control", "5")]
@@ -195,10 +145,7 @@ def phase_of(section: str) -> str | None:
     if not m:
         return None
     return {digit: name for name, digit in PHASE_ROWS[1:]}.get(m.group(1))
-for _sec, (_b, _z) in MARKER_HOME.items():
-    BLOCKS[_b]                                  # KeyError if the block is gone
-    if _b not in ZONE_TO_BLOCKS[_z]:            # KeyError if the zone is gone
-        raise KeyError(f"{_sec}: block {_b} is not in zone {_z}")
+
 
 UNAVAILABLE = {"blocked", "gated", "external"}
 
@@ -583,8 +530,62 @@ def read_markers(read=None) -> list[dict]:
     return out
 
 
+#: A register fact row: `| L<n> | <order> | <zone> | <step> | <fact> | <state> |
+#: <symbol> | <§> |`. **`Layer` IS the board's block** — Appendix F's L1..L8 and
+#: `BLOCKS` 1..8 carry identical names, which is what let `MARKER_HOME`'s 69-row
+#: table be deleted at 6.37 rather than moved: the block was already a document
+#: fact in the appendix's own grouping, and only `Zone` was new.
+_FACT_ROW = re.compile(
+    r"^\|\s*L(?P<layer>\d+)\s*\|[^|]*\|(?P<zone>[^|]*)\|(?P<step>[^|]*)\|"
+    r"(?P<fact>[^|]*)\|(?P<state>[^|]*)\|[^|]*\|\s*(?P<sec>§[\d.]+)\s*\|\s*$",
+    re.M)
+
+_STATE_OF = {"✅": "built", "⚠": "defect", "☐": "unbuilt", "⛔": "blocked"}
+
+
+def _facts_in(text: str) -> list[dict]:
+    """Marker facts from the REGISTER's rows — the shape after 6.37.
+
+    A row whose `§` cell is empty is a step row and not a marker fact; the
+    regex requires a `§n` there, so step rows never enter this parse.
+    """
+    out = []
+    for m in _FACT_ROW.finditer(text):
+        glyph = m.group("state").strip()[:1]
+        if glyph not in _STATE_OF:
+            continue
+        # **A ZONE is what makes a fact PLACED**, and placement is what the
+        # board's blocks render. A step row's `§` cell is a reference list
+        # joined from Appendix A, not an anchor, and it carries no zone - so a
+        # step row whose cell happens to hold ONE section (§55, §12, §45) must
+        # not be read as a marker fact. The first cut had no zone test and
+        # reported 73 markers against a true 70.
+        zone = m.group("zone").strip()
+        if not zone or zone == "—":
+            continue
+        sec = m.group("sec").strip()
+        steps = re.findall(r"(?<!\d)(\d+\.\d+)(?!\d)", m.group("step"))
+        out.append({
+            "section": sec,
+            "aliases": {sec},
+            "state": _STATE_OF[glyph],
+            "closes": steps,
+            "text": m.group("fact").strip(),
+            "layer": m.group("layer"),
+            "zone": zone,
+        })
+    return out
+
+
 def _markers_in(text: str) -> list[dict]:
-    """The marker parse itself — one document's worth."""
+    """The marker parse itself — one document's worth.
+
+    **The register's rows first, the old `> **BUILT:**` lines as the fallback.**
+    TEMPORARY, ends at 6.38 with the rest of the dual-read.
+    """
+    facts = _facts_in(text)
+    if facts:
+        return facts
     lines = text.splitlines()
     sec, spec_id = "?", ""
     out = []
@@ -603,6 +604,13 @@ def _markers_in(text: str) -> list[dict]:
         tok = _CLOSES.search(body)
         out.append({
             "section": f"§{sec}",
+            # **A legacy `> **BUILT:**` line carries no placement and none is
+            # guessed.** `MARKER_HOME` held it and is deleted; the register's
+            # row holds it now. A fact reaching here is one the register does
+            # not have, so it is UNPLACEABLE and `--check` says so by name
+            # rather than putting it in an arbitrary block.
+            "layer": "?",
+            "zone": "?",
             # Both names for the same item: §66's rows cite S-C05 where the
             # heading is §58.5, and an attribution that knew only one would
             # silently miss every spec-layer gap.
@@ -644,9 +652,22 @@ def _gaps_in(text: str) -> dict[str, dict]:
     fails soft: an exception here would stop the board regenerating at exactly
     the commit that moves the register.
     """
-    try:
-        i = text.index("## 66. The SPEC-GAP register")
-    except ValueError:
+    # **Two anchors, one register.** The procedure carries it as `Appendix G`
+    # and `ARCHITECTURE.md` carried it as `§66`; the dual-read exists precisely
+    # so a document may name its own section in its own scheme. TEMPORARY in
+    # the same sense as the rest of the dual-read — 6.38 leaves one.
+    for anchor in ("## Appendix G — The SPEC-GAP register",
+                   "## 66. The SPEC-GAP register"):
+        i = text.find(anchor)
+        if i >= 0:
+            break
+    else:
+        return {}
+    # The pointer left behind in ARCHITECTURE.md is a heading and no rows.
+    # **Matched on the heading itself**, not on the word MOVED anywhere nearby:
+    # the moved register's own note opens "MOVED HERE FROM ARCHITECTURE.md",
+    # so a loose test reads the real register as the pointer and returns none.
+    if text.startswith("## 66. The SPEC-GAP register — MOVED", i):
         return {}
     closed_at = text.find("### 66.6 Closed", i)
     closed_end = text.find("### 66.7", closed_at) if closed_at > 0 else -1
@@ -1085,11 +1106,10 @@ def render(rows: list[dict], markers: list[dict], gaps: dict[str, dict],
     # ── architecture blocks (unchanged in substance) ───────────────────────
     blocks_html = []
     for bid, bname in BLOCKS.items():
-        zones = sorted({MARKER_HOME[m["section"]][1] for m in markers
-                        if MARKER_HOME[m["section"]][0] == bid})
+        zones = sorted({m["zone"] for m in markers if m["layer"] == bid})
         holes = [m for m in markers
                  if m["state"] in ("unbuilt", "defect", "blocked")
-                 and MARKER_HOME[m["section"]][0] == bid]
+                 and m["layer"] == bid]
         items = []
         for m in sorted(holes, key=lambda m: m["section"]):
             steps = closes_named(m) if m["closes"] else "no step owns this"
@@ -1515,10 +1535,12 @@ def main(argv: list[str]) -> int:
                   f"({sum(1 for m in markers if m['state'] != 'built')} open), "
                   f"{len(gaps)} gaps")
             print(" · ".join(f"{k} {v}" for k, v in counts.items()))
-            unmapped = [m["section"] for m in markers
-                        if m["section"] not in MARKER_HOME]
+            unmapped = [f"{m['section']} (L{m['layer']}/{m['zone']})"
+                        for m in markers
+                        if m["layer"] not in BLOCKS
+                        or m["zone"] not in ZONE_TO_CONTAINER]
             if unmapped:
-                print("UNMAPPED markers:", unmapped)
+                print("UNPLACEABLE facts — layer or zone unknown:", unmapped)
                 return 1
             orphans = unbanded_steps(rows, read_bands())
             if orphans:

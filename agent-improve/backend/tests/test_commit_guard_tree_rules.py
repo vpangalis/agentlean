@@ -47,6 +47,9 @@ evidence that the numbers are honest.
 from __future__ import annotations
 
 import importlib.util
+import re
+
+NEWLINE = chr(10)
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -245,16 +248,20 @@ def test_appendix_D_still_parses_into_step_numbers() -> None:
 
 
 def test_the_gap_register_still_parses_into_gap_numbers() -> None:
-    """Same assertion for §66, which rule 8 is the second hook to parse.
+    """Same assertion for the register, which rule 8 is one of two hooks to parse.
 
     The row shape is `| **G-nn** |` for an open gap and `| ~~**G-nn**~~ |` for a
     closed one, and BOTH must parse: a closed gap is still a number that
     resolves, because a file added under a gap does not stop being scheduled
     when the gap closes.
+
+    **Reads through `_known_gaps` since 6.37**, not through `STATUS_PATH`
+    directly. The register moved to the procedure's Appendix G and
+    `ARCHITECTURE.md` now parses to ZERO gap rows, so a test pinned to that one
+    path asserted the register had been emptied rather than moved.
     """
-    gaps = {x.upper() for x in g._GAP_ROW_RE.findall(
-        g._staged_text(_ROOT, g.STATUS_PATH))}
-    assert len(gaps) > 50, f"§66 parsed to {len(gaps)} gaps"
+    gaps = g._known_gaps(_ROOT)
+    assert len(gaps) > 50, f"the register parsed to {len(gaps)} gaps"
     assert {"G-57", "G-52", "G-49"} <= gaps, "G-52 is struck through and must still parse"
 
 
@@ -533,8 +540,12 @@ def test_a_step_missing_from_the_matrix_is_not_clean() -> None:
     """The shape that shipped: a row deleted from Appendix F."""
     g, vb = _guard(), _verify_built()
     text = g._staged_text(_ROOT, g.cs.PROCEDURE)
-    broken = text.replace(
-        "| L0 |  | **6.16** | The board is generated, not written |", "", 1)
+    # The row gained a `Zone` cell at 6.37, so the fixture matches the cells
+    # either side of it rather than the row's literal text.
+    rows = text.split(NEWLINE)
+    idx = next(i for i, l in enumerate(rows)
+               if re.match(r"^\| L0 \|[^|]*\|[^|]*\|\s*\*\*6\.16\*\*", l))
+    broken = NEWLINE.join(rows[:idx] + rows[idx + 1:])
     assert broken != text, "the 6.16 row moved — this fixture is stale"
     verdict = vb.matrix_covers_appendix_d(broken)
     assert not vb.MATRIX_CLEAN_RE.match(verdict.strip())

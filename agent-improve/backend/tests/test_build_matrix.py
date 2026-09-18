@@ -243,19 +243,23 @@ def test_no_matrix_row_carries_an_unfailable_absent_anchor() -> None:
 # ── The two referee checks ──────────────────────────────────────────────────
 
 def test_the_matrix_covers_appendix_d_in_both_directions() -> None:
-    """SET equality, not the count that was originally asked for.
+    """EVERY STEP HAS AT LEAST ONE ROW — restated at 6.37 from set equality.
 
-    A count of 69 passes when one step is dropped and another added — which is
-    exactly the edit a renumber makes. It would also have been wrong by one the
-    moment step 6.31 added its own Appendix D row.
+    A count of 69 passes when one step is dropped and another added, which is
+    exactly the edit a renumber makes; it would also have been wrong by one the
+    moment 6.31 added its own Appendix D row. **Set equality was right while
+    the table held one row per step and is wrong now the row key is the FACT**
+    — a step may own several rows and a marker fact may own none.
+
+    **It calls `matrix_covers_appendix_d` rather than re-deriving the
+    comparison.** The first version of this test rebuilt the set arithmetic
+    inline, so the invariant had two implementations and this one did not move
+    when the ruling changed the other.
     """
     vb = _vb()
-    want = vb.appendix_d_steps()
-    got = {r["step"].strip() for r in vb.read_matrix()}
-    assert want == got, (
-        f"in Appendix D not the matrix: {sorted(want - got)}; "
-        f"in the matrix not Appendix D: {sorted(got - want)}")
-    assert len(want) >= 69
+    verdict = vb.matrix_covers_appendix_d()
+    assert vb.MATRIX_CLEAN_RE.match(verdict.strip()), verdict
+    assert len(vb.appendix_d_steps()) >= 69
 
 
 def test_every_evidence_cell_holds_against_the_tree() -> None:

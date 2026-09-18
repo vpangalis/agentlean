@@ -917,7 +917,6 @@ ambiguity between the two is exactly what the rename removed.
 
 ## 7. Field typing law — every captured field is a string
 
-> **BUILT:** ✅ built · **the typing law is enforced by schema, not by convention** — all five `{Phase}Output` declare captured fields as `str` or `dict`, and `test_gate_documents.py` pins both the `dict` fields and their Tier-1 placement · **closes:** `[none]`
 
 *Supersedes: REFACTORING §10.6-equivalent; ARCHITECTURE.md §4.6, §4.7, §4.8; DECISIONS §A5, §A6.*
 **Status: RATIFIED.**
@@ -989,7 +988,6 @@ the same result in two places.
 
 ## 8. The checkpointer / store split
 
-> **BUILT:** ✅ built · both primitives are wired and distinct: the checkpointer on the parent graph (§16), the Store passed to nodes (§9). **Passing only a checkpointer is the mistake this section names, and the tree does not make it** · **closes:** `[none]`
 
 *Supersedes: REFACTORING §1, §52, §52a; ARCHITECTURE.md §6.1, §6.2.*
 **Status: RATIFIED.**
@@ -1083,7 +1081,6 @@ from the original spec, discovered during implementation.
 
 ## 9. The Store — cross-phase artifacts and boundary mappers
 
-> **BUILT:** ✅ built · `AzureBlobStore(BaseStore)` at 3.2 and **ten boundary mappers** — an input and an output pair per phase — at 3.3, whose only dependency is `BaseStore` · **closes:** `[none]`
 
 *Supersedes: REFACTORING §19, §44 (Mechanism 3), §52a; ARCHITECTURE.md §4.3, §6.3; DECISIONS §A7, §O1.*
 **Status: RATIFIED.** File: `core/store.py`.
@@ -1241,7 +1238,6 @@ cannot resume, there is no second session for stored artifacts to serve.
 
 ## 10. Azure Blob — two distinct concerns
 
-> **BUILT:** ✅ built · `storage/blob.py` is module-level `async` functions since 3.5; the class is gone and `grep -rn "class ImproveBlobClient"` returns zero · **closes:** `[none]`
 
 *Supersedes: REFACTORING §1; ARCHITECTURE.md §6.2, §6.4, §6.5.*
 **Status: RATIFIED.**
@@ -1300,7 +1296,6 @@ update remain two separate writes. Both are covered by the node's
 
 ## 11. `step_log` — the audit trail
 
-> **BUILT:** ✅ built · written by every node through one deterministic key helper. **Built incidentally rather than by a step**, which Appendix A ruled explicitly in the 2026-09-07 coverage audit · **closes:** `[none]`
 
 *Supersedes: REFACTORING §18 (step_log); ARCHITECTURE.md §4.4.*
 **Status: RATIFIED.**
@@ -1399,7 +1394,6 @@ omission — see §16.
 
 ## 13. The phase subgraph — five nodes
 
-> **BUILT:** ✅ built · five nodes, identical node-name sets across all five phases, re-run by `verify_built.py`'s *phase subgraph nodes* check. ⚠ `gate_review` is a pass-through until 7.3 · **closes:** `[7.3]`
 
 *Supersedes: REFACTORING §23; ARCHITECTURE.md §3.2, §3.3.1; DECISIONS §B1.*
 **Status: RATIFIED.**
@@ -1540,7 +1534,6 @@ executor is one node.** The tool-calling loop happens inside it.
 
 ## 14. Node contract
 
-> **BUILT:** ✅ built · every node is `async def` since 2.5 — all five `orchestrate_*`, all five `validate_*`, `escalate`, and all eleven route handlers · **closes:** `[none]`
 
 *Supersedes: REFACTORING §21; ARCHITECTURE.md §3.2.*
 **Status: RATIFIED.**
@@ -1577,7 +1570,6 @@ belong in the graph topology.
 
 ## 15. Routing — static edges and `Command`
 
-> **BUILT:** ✅ built · **the supervisor graph compiles exactly as §15 and S-F01 specify** — five phase-subgraph nodes plus escalation, checkpointer and store on the parent, neither on the subgraphs, pinned by `test_supervisor_graph.py`. **It is deliberately NOT the runtime yet**, and step 4.3 said so when it built it: `get_graph()` returns the one-turn per-phase graph until `gate_review` raises `interrupt()`, because §15's static chain advances on `END` and until the interrupt exists `END` means only *"the graph ran"*. **The swap is one line at 7.3** · **closes:** `[7.3]`
 
 *Supersedes: REFACTORING §44; ARCHITECTURE.md §3.1.*
 **Status: RATIFIED.**
@@ -1649,7 +1641,6 @@ A direct import creates a dependency the graph does not model.
 
 ## 16. `thread_id`, `checkpoint_ns`, and where persistence attaches
 
-> **BUILT:** ✅ built · `AzureBlobCheckpointSaver` on the parent graph keyed by `case_id`, live since 4.2; phase subgraphs carry no checkpointer of their own and the engine assigns `checkpoint_ns`. ⚠️ the ETag / `ConcurrentTurnError` guard on `latest.json` is **optimistic, not the specified lease** — a concurrent turn is LOST rather than interleaved, and a failed write orphans a history blob (WATCH 15, post-refactor) · **closes:** `[none]`
 
 *Supersedes: REFACTORING §23, §44; ARCHITECTURE.md §3.1, §6.1.*
 **Status: RATIFIED.**
@@ -1742,7 +1733,6 @@ coach close out gracefully.
 *Supersedes: REFACTORING §5, §11, §20; ARCHITECTURE.md §3.5; CLAUDE.md §1.3.*
 **Status: RATIFIED.**
 
-> **BUILT:** ✅ built · **the split holds at runtime for the one decision the
 > planner owns outright** (G-49 closed) · **closed by:** `[6.21]`
 >
 > Both nodes exist, the planner emits a structured plan, and a LangSmith trace
@@ -1839,7 +1829,6 @@ retired** (§29).
 
 ## 18. Building the executor — `create_agent`
 
-> **BUILT:** ✅ built · `create_agent` with `system_prompt=` and `response_format=CoachingResponse`, both parameter names verified against the installed signature. ⚠ the response schema itself is four of eight fields (§58.5, G-50) · **closes:** `[6.19]`
 
 *Supersedes: REFACTORING §42, §50, §84; ARCHITECTURE.md §3.3; CLAUDE.md §4.4.*
 **Status: RATIFIED.**
@@ -2000,7 +1989,6 @@ and must not consume the same budget.
 
 ### 19.1 `BeforeModelStateInjection` — injection timing
 
-> **BUILT:** ✅ built · also injects `phase_context` (6.8) and the UPLOAD MANIFEST (6.12). Its `wrap_model_call` encloses §19.4's retry, so the block is composed once per turn, not once per attempt · **closes:** `[none]`
 
 **Custom · `before_agent` + `wrap_model_call` · position 1.** Prepends structured project state at
 the **top** of the prompt, ahead of the conversation: this phase's `artifacts`,
@@ -2031,7 +2019,6 @@ add it to the history" option.
 
 ### 19.2 `DMAICSkillsMiddleware` — progressive disclosure
 
-> **BUILT:** ✅ built · mounted and working; all five SKILL.md files exist, load and are §32-conformant as of 6.9 · **closes:** `[none]`
 
 **Custom · `before_agent` + `wrap_model_call` + a registered tool · position 2.** Full treatment in
 §32; the stack-level facts are:
@@ -2048,7 +2035,6 @@ skill change is reviewable in the same PR as the code depending on it.
 
 ### 19.3 `SummarizationMiddleware` — context compression
 
-> **BUILT:** ✅ built · LangChain core as shipped; trigger 100k tokens, keep 20 · **closes:** `[none]`
 
 **LangChain core, used as shipped · `before_model` · position 3.**
 
@@ -2089,7 +2075,6 @@ middleware.
 
 ### 19.4 `ModelRetryMiddleware` — API-level retry
 
-> **BUILT:** ✅ built · `max_retries=2` → three attempts. The only model-retry layer; §21's factory is pinned to 0 · **closes:** `[none]`
 
 **LangChain core, used as shipped · `wrap_model_call` · position 4.**
 
@@ -2119,7 +2104,6 @@ attempt counter.
 
 ### 19.5 `ToolRetryMiddleware` — tool-level retry
 
-> **BUILT:** ✅ built · `max_retries=2`, `on_failure="continue"`. Costs no graph steps (measured at 6.4) · **closes:** `[none]`
 
 **LangChain core, used as shipped · `wrap_tool_call` · position 5.**
 `max_retries=2`, `on_failure="continue"`, exponential backoff with jitter.
@@ -2133,7 +2117,6 @@ rather than raising and killing the graph mid-session.
 
 ### 19.6 `ContradictionDetectionMiddleware` — the mid-phase check
 
-> **BUILT:** ⚠️ built, ENFORCEMENT DELIBERATELY SUSPENDED · detection runs every turn and the flag still rides on the response; **the `interrupt()` call is GUARDED until step 7.3**. **Founder ruling, 2026-09-11.** §33's mechanism is correct and nothing can resume it — §49's `/gate/approve` and `/gate/reject` are step 7.3. **Measured in the real runtime shape before the ruling was taken:** turn 1 pauses cleanly and returns `__interrupt__` with no `structured_response`; turn 2's message is neither processed nor resumed; **every later turn on that case returns nothing, permanently.** The blast radius is the CASE, not the turn; the checkpoint is Azure Blob, so it survives a restart; and the trigger — a Belt revising a figure they committed earlier — is the INTENDED one, which is to say ordinary coaching. **§37's cascade (7.6) loses nothing**, because the flag is still set. **THREE TESTS PIN THIS, and step 7.3 moves all three** (its Done-when clause 1): `test_ContradictionDetectionMiddleware_does_not_call_interrupt` asserts **zero live `interrupt(...)` call sites, parsed with `ast`** — the same technique as `verify_built.py`'s probe, but in `pytest`, which is a GATE where that probe is only advisory; `test_position_6_is_GUARDED_and_does_not_park_the_case` pins the behaviour and 7.3 rewrites it to assert RESUMPTION; and `test_the_guarded_import_is_kept_for_7_3` stops a tidying pass dropping the unused import and turning 7.3's one uncommented line into a line plus a re-import. `test_interrupt_from_after_agent_is_RESUMABLE_end_to_end` keeps G-15's measurement under test via a local subclass that still interrupts, so **the mechanism stays verified while the policy is suspended** and 7.3 can still trust it. **Both tripwires were proved to trip**: the line was un-guarded exactly as 7.3 would, both failed, and the file was restored. **⛑ This line has twice said the opposite of the truth**: until 2026-09-11 it read *"nothing consumes the flag"* — wrong, the flag was consumed and the graph suspended — and was corrected that morning to *"raises a real `interrupt()`"*, which was true, and had been true for six steps during which a reachable path could brick a live case · **closes:** `[7.3, 7.6]`
 
 **Custom · `after_agent` · position 6.** Implements the mid-phase conflict
 detection of §37.
@@ -2181,7 +2164,6 @@ responsible only for coaching.
 
 ### 19.7 `CoherenceMiddleware` — validation Layer 2a
 
-> **BUILT:** ✅ built · validation Layer 2a; can stand the grader down · **closes:** `[none]`
 
 **Custom · `after_agent` · position 7, immediately before the grader.**
 
@@ -2208,7 +2190,6 @@ incoherence at a cheaper gate is both faster and cleaner.
 
 ### 19.8 `DMAICGraderMiddleware` — coaching process quality
 
-> **BUILT:** ✅ built · coaching-quality grading, per turn · **closes:** `[none]`
 
 **Custom · `after_agent` · position 8.** Grades the **coach's process** against
 `COACHING_QUALITY_RUBRIC` — one rubric, shared across all five phases.
@@ -2307,7 +2288,6 @@ believing structured output is a defence against hallucinated content.
 
 ## 21. LLM roles, temperature, and the factory
 
-> **BUILT:** ✅ built · eleven roles resolve to a deployment and grader temperature is 0.1, pinned by `test_llm.py`; the factory's retry is explicitly 0 (§19.4 owns retry). ⚠ **§21's own role map versus the 11-role factory is carried forward unresolved** from v1.22 · **closes:** `[none]`
 
 *Supersedes: REFACTORING §34-D, §42; ARCHITECTURE.md §3.3; CLAUDE.md §4.1, §4.2, §4.7.*
 **Status: RATIFIED.** File: `core/llm.py`.
@@ -2420,7 +2400,6 @@ multi-part response.
 
 ## 22. Prompts
 
-> **BUILT:** ✅ built · the five `{PHASE}_COACH_PROMPT` carry the memory-hierarchy block and the anti-hallucination guards (6.6). The v1 `EXTRACTION_{PHASE}` family survives only in `core/prompts.py` and the five v1 `orchestrate.py`, which **step 11.1 deletes wholesale** · **closes:** `[11.1]`
 
 *Supersedes: REFACTORING §38, §40; ARCHITECTURE.md §3.3; CLAUDE.md §6.*
 **Status: RATIFIED.** File: `core/prompts.py`.
@@ -2484,7 +2463,6 @@ requires all three of:
 
 ## 23. The three indexes
 
-> **BUILT:** ⚠️ built with a known defect · all three indexes exist and the evidence index carries §23.2's seven fields as of 6.13. **The case index has no `content_vector`**, so case-history retrieval is keyword-only and misses paraphrase — step 9.1, ⛔ EXTERNAL · **closes:** `[9.1]`
 
 *Supersedes: REFACTORING §36, §40; ARCHITECTURE.md §7.1–§7.3; CLAUDE.md §7.3.*
 **Status: RATIFIED, with two pending schema changes marked below.**
@@ -2876,7 +2854,6 @@ the Azure AI Search change. Never record a schema change only in code.
 
 ## 24. The three `rag_lookup_*` tools
 
-> **BUILT:** ✅ built · three `rag_lookup_*` tools, and `rag_lookup_evidence` returns §24's structured record rather than rendered text since 6.13 · **closes:** `[none]`
 
 *Supersedes: REFACTORING §32, §33, §37; ARCHITECTURE.md §7.4; CLAUDE.md §7.2; DECISIONS §E1, §E4.*
 **Status: RATIFIED.** File: `knowledge/tools.py`.
@@ -3026,7 +3003,6 @@ eBook" (§50). Using them as filters is a category error.
 
 ## 25. Multi-query and Reciprocal Rank Fusion
 
-> **BUILT:** ✅ built · `RRF_K = 60`, unit-tested in `test_fusion.py`. Not a tuning knob — 60 is the constant from the original RRF paper · **closes:** `[none]`
 
 *Supersedes: REFACTORING §32, §33, §35; ARCHITECTURE.md §7.4; DECISIONS §E1.*
 **Status: RATIFIED.**
@@ -3109,7 +3085,6 @@ manual JSON parsing.
 
 ## 26. Multi-hop retrieval
 
-> **BUILT:** ☐ not built · `analyse_executor_node` is step 6.10, ⛔ blocked on G-05 and G-35. The **caps are built**: the five-hop cap and the `remaining_steps` floor of 2 both landed at 6.7, and `recursion_limit=50` is a backstop rather than the cap (WATCH 26) · **closes:** `[6.10]`
 
 *Supersedes: REFACTORING §34, §71; ARCHITECTURE.md §7.5; DECISIONS §F6, §F7.*
 **Status: RATIFIED.**
@@ -3258,7 +3233,6 @@ extend the mechanism.
 
 ## 27. Retrieval failure semantics
 
-> **BUILT:** ✅ built · a 4xx raises `KnowledgeSearchError` with `severity="permanent"`, and a genuine no-match returns `[]` — the distinction this section exists to make · **closes:** `[none]`
 
 *Supersedes: ARCHITECTURE.md §7.1.1; CLAUDE.md §7.2; DECISIONS §E5.*
 **Status: RATIFIED.**
@@ -3353,7 +3327,6 @@ them, never overriding them.**
 
 ## 29. The data channel and the universal eight
 
-> **BUILT:** ⚠️ built with a known defect · **six of the ratified eight universal tools** are built; `check_gate_status` (7.1) and `request_human_approval` (7.5) cannot be built until the things they call exist. The upload channel is built (6.11–6.13) · **closes:** `[7.1, 7.5]`
 
 *Supersedes: REFACTORING §39, §60, §63; ARCHITECTURE.md §8.1; CLAUDE.md §1.9, §5.1; DECISIONS §B5, §B6.*
 **Status: RATIFIED.**
@@ -3534,7 +3507,6 @@ Per-phase binding keeps every coach inside the tractable range.
 
 **20 computation tools total.** 1 + 8 + 5 + 1 + 5 = 20.
 
-> **BUILT:** ⚠️ built with a known defect · **the twenty and the partition are · **closes:** `[7.1, 7.5]`
 > built exactly as tabled; the per-phase TOTALS above are the ratified figure,
 > not the live one.** `_executor_tools` binds `len(UNIVERSAL_TOOLS)` — **six**,
 > because `check_gate_status` (7.1) and `request_human_approval` (7.5) are
@@ -3605,7 +3577,6 @@ under the seven-step pattern (§43) and the rubric that enforces it.
 
 ## 31. Tool arg schemas and docstrings
 
-> **BUILT:** ✅ built · all twenty computation tools carry an `args_schema=`, re-run by `verify_built.py` · **closes:** `[none]`
 
 *Supersedes: REFACTORING §32, §39; ARCHITECTURE.md §8.1; CLAUDE.md §5.3, §5.4.*
 **Status: RATIFIED.** File: `knowledge/tool_args.py`.
@@ -3639,7 +3610,6 @@ someone editing the tool will read (Appendix B item 1).
 
 ## 32. Phase skills — SKILL.md
 
-> **BUILT:** ✅ built · five SKILL.md files, §32-conformant as of 6.9, each byte-matching its §39.x opening script. ⚠ their **ask shapes** are Measure only — the other four are step 6.14, ⛔ blocked on founder content · **closes:** `[6.14]`
 
 *Supersedes: REFACTORING §83, §84; ARCHITECTURE.md §8.4; CLAUDE.md §8.3.*
 **Status: RATIFIED.** Loaded by `DMAICSkillsMiddleware` (§19.2).
@@ -3718,7 +3688,6 @@ proposition is that a gate document it approved is worth trusting.*
 
 ## 33. The nine-step HITL gate
 
-> **BUILT:** ☐ not built · **nothing pauses for a human — and since 2026-09-11 that is a RULING, not an oversight** · **the GATE interrupt is not built** — the `gate_review` node exists and passes through, and raises `interrupt()` at step 7.3. That is why `gate_attempts` cannot accumulate (WATCH 18), the supervisor graph is not yet the runtime (WATCH 23) and §47's reconciliation sweep cannot be written (WATCH 13). · **closes:** `[7.3]`
 >
 > **⛑ CORRECTED 2026-09-11 — this line read *"Nothing in the system currently pauses for a human"*, and one thing does.** `ContradictionDetectionMiddleware.after_agent` calls `langgraph.types.interrupt` at middleware position 6 and has since step 6.5 (§19.6). **The blanket claim was wrong for six steps and nothing re-read it**; it was found by the `ast` call-site probe added to `verify_built.py` on the same day, after the line-matching first cut of that probe returned 3 and the parse returned the true 1. **The distinction is not pedantic:** a contradiction interrupt fires today into a system with **no built route that can resume it** — §49's `/gate/approve` and `/gate/reject` are unbuilt — so the turn suspends and the Belt has no way forward. **That is a worse state than not pausing at all**, and it is invisible while the marker says nothing pauses. Step 7.3 owns the resume path; **the fact that something could already suspend is what made 7.3 urgent rather than merely next**. **⛑ RESOLVED THE SAME DAY, and this marker is true again for a different reason.** The founder ruled position 6 **GUARDED** until 7.3 (§19.6's marker carries the measurement): detection continues, enforcement is suspended, and one commented line restores it. So *"nothing pauses for a human"* is accurate today — **but it is now a decision with a tripwire test rather than an absence nobody had checked, and that difference is the whole point of the exercise.** **STEP 7.3 RESTORES BOTH INTERRUPTS** — `gate_review`'s, and position 6's commented line — in the same commit, and takes `verify_built.py`'s call-site count from 0 to 2
 
@@ -3839,7 +3808,6 @@ rejects loses nothing but the turn.
 
 ## 34. The four-layer validation stack
 
-> **BUILT:** ⚠️ built with a known defect · Layer 2a is live as `CoherenceMiddleware` and Layer 2b delegates to the v1 `validate_{phase}`; Layers 2c and 2d are step 7.2. **`GATE_MAX_ATTEMPTS=3` cannot fire**: with no `interrupt()` the subgraph reruns from the mapper each turn, so every submission reports attempt 1 (WATCH 18) · **closes:** `[7.2]`
 
 *Supersedes: REFACTORING §48, §68, §69; ARCHITECTURE.md §3.7; CLAUDE.md §9.2, §9.3.*
 **Status: RATIFIED.** **Canonical home.**
@@ -3944,7 +3912,6 @@ low-risk, whereas a high-risk project's decision inherently involves risk.
 
 ## 35. Two tiers of field, and the `warning` verdict
 
-> **BUILT:** ☐ not built · the tier SETS exist on all five gate schemas and `tier_of()` reads them, but **nothing produces a `warning` verdict**: every finding still blocks equally, so a missing nice-to-have stops a project the way a missing baseline does — step 7.4 · **closes:** `[7.4]`
 
 *Supersedes: REFACTORING §42, §68; ARCHITECTURE.md §3.7.1; CLAUDE.md §9.7; DECISIONS §C1, §C2.*
 **Status: RATIFIED.**
@@ -4081,7 +4048,6 @@ warning about it (§41).
 
 ## 36. Two graders — and why they are not redundant
 
-> **BUILT:** ⚠️ built with a known defect · the **coaching** grader is live (§19.8) and the **gate** grader is not — `DMAICGateValidator` is step 7.1. The two are not redundant, and today only one of them runs · **closes:** `[7.1]`
 
 *Supersedes: REFACTORING §42; ARCHITECTURE.md §3.4.1; CLAUDE.md §8.2; DECISIONS §B2.*
 **Status: RATIFIED.**
@@ -4176,7 +4142,6 @@ mechanism** — that separation is the point.
 
 ## 37. Mid-phase contradiction and the re-approval cascade
 
-> **BUILT:** ☐ not built · the flag is set and §19.6 raises on it, but **the re-approval cascade this section specifies does not exist**: a contradiction against an approved value never reopens the field it contradicts — step 7.6. Position 6's `interrupt()` is guarded until 7.3 · **closes:** `[7.6, 7.3]`
 
 *Supersedes: REFACTORING §38; ARCHITECTURE.md §3.8; CLAUDE.md §9.4, §9.5.*
 **Status: RATIFIED.** Implemented by `ContradictionDetectionMiddleware` (§19.6).
@@ -4250,7 +4215,6 @@ conclusions.
 
 ## 38. Escalation
 
-> **BUILT:** ☐ not built · `escalate.py` exists and is **v1** — it takes `ImproveGraphState`, the class step 11.1 deletes. The v2 escalation path is step 7.5 · **closes:** `[7.5]`
 
 *Supersedes: REFACTORING §2; ARCHITECTURE.md §3.9; CLAUDE.md §3.5.*
 **Status: RATIFIED.** File: `escalate.py`.
@@ -4311,7 +4275,6 @@ improvement, whatever else its gate documents contain.
 
 ### 39.1 Define phase, complete specification
 
-> **BUILT:** ⚠️ built with a known defect · **Define has NO state-parameters section.** §39.2.7–§39.5.7 give Measure, Analyse, Improve and Control one each; **39.1.7 is the SKILL.md content**, so the phase this project is proving first is the one phase with no state contract at all. Found by the targeted state audit, 2026-09-11. **Step 6.20 writes it**, in the same shape as the other four · **closes:** `[6.20]`
 
 *Supersedes: the built `DefinePhaseInput` (F-11).*
 **Status: RATIFIED 2026-08-25.** Files: `phases/define/schema.py`,
@@ -4335,7 +4298,6 @@ at a high level.
 
 #### 39.1.2 The ordered field list — the `field_index` sequence (closes G-38)
 
-> **BUILT:** ⚠️ built with a known defect · **the list EXISTS and nothing walks it.** `DEFINE_FIELD_ORDER` carries all 12 fields in this order — **the only phase whose ordered list is in code at all** — but `field_index` is set to `0` by the input mapper and **never read or advanced by any node**, so the planner indexes into nothing, which is the condition G-38 was closed for. (The gate list is 13; `field_index` indexes the 12 above, by design.) · **closes:** `[6.20]`
 
 **This is the order the planner walks.** `field_index` indexes into this list;
 S-F13's DP1 predicate ("is the current field complete?") reads it. Before this
@@ -4458,7 +4420,6 @@ missing any of the six keys is the partial-map failure §41 describes.
 
 #### 39.1.7 The SKILL.md content (AUTHORITATIVE during the refactor)
 
-> **BUILT:** ✅ built · `skills/dmaic-define-phase/SKILL.md` exists and is §32-conformant as of 6.9; its opening script is **byte-identical to `skills/dmaic-define-phase/coaching_script.md`**, which is where the script lives as of 2026-09-13 — §56.1's atomic unit, re-run by `verify_built.py`'s *phase scripts byte-matching their SKILL.md* check, now a FILE-to-FILE comparison · **closes:** `[none]`
 
 > **Authority: THE FILES, not this section.** The flip this note
 > anticipated happened on 2026-09-13 (brief step 8).
@@ -4528,12 +4489,6 @@ routing condition. The planner cycles to the executor until it routes to the
 gate; the validation stack returns to the planner with `validator_feedback` on a
 failure, sharing the cap of 3 (§34).
 
-> **NOT BUILT, and the marker belongs here rather than in prose elsewhere:**
-> `gate_review` is a **pass-through** — no `interrupt()` is raised until stage 7
-> (**step 7.3**), and `gate_apply` applies nothing yet. §33's marker already says
-> *"nothing pauses for a human"*; this subsection is where Define's own instance
-> of that is recorded, because a reader checking Define's conditions should not
-> have to infer it from a section about gates in general.
 
 #### 39.1.12 State parameters — Define's use of `PhaseState`
 
@@ -4598,7 +4553,6 @@ vital few drivers Analyse will test.
 
 #### 39.2.2 The ordered field list — the `field_index` sequence
 
-> **BUILT:** ☐ not built · **this list does not exist in code.** `measure/schema.py` exposes tier SETS only — no `MEASURE_FIELD_ORDER` — so the 10-field sequence this table states has no runtime form and `field_index` has nothing to index into. **Only Define's list is built.** ⚠ **NO STEP OWNS THIS**: 6.20 covers Define's, and group C's phase slices (6.14, 6.10) do not create ordered lists. It is a transcription of the table above, not a decision · **closes:** `[none]`
 
 The order the planner walks (`field_index` indexes into it). Coached in
 **methodology order, not tier order** — the inversion at 3–4 is deliberate
@@ -4758,7 +4712,6 @@ phase, §6).
 
 #### 39.2.7 State parameters — Measure's use of `PhaseState`
 
-> **BUILT:** ⚠️ built with a known defect · **10 captured fields land in `artifacts` as specified; three rows of this table do not hold.** Verified row-by-row by the targeted state audit, 2026-09-11: **`artifacts["computation_results"]` and `artifacts["phase_metrics"]` are read by the gate-document assembler and WRITTEN BY NOTHING** — the executor merges only `CoachingResponse.fields_captured`, so both always read `[]`; **`field_index` never advances**; and `gate_attempts` is written but resets every turn because nothing interrupts (WATCH 18). `citations` / `uploads` hold. `validator_feedback` accumulates across the ≤3 validation retries, and `draft`/`belt_edits`/`final` are `dict` and never `str` · **closes:** `[6.20]`
 
 *Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `MeasureState`.** Measure uses the shared **22-field `PhaseState`**; this table is its USAGE — which Measure field each shared field carries, and who reads it:
 
@@ -4808,7 +4761,6 @@ Plain language (§50); surfaced through `CoachingResponse.explanation` (§50.1).
 
 #### 39.2.10 The SKILL.md content (AUTHORITATIVE during the refactor)
 
-> **BUILT:** ✅ built · `skills/dmaic-measure-phase/SKILL.md` exists and is §32-conformant as of 6.9; its opening script is **byte-identical to `skills/dmaic-measure-phase/coaching_script.md`**, which is where the script lives as of 2026-09-13 — §56.1's atomic unit, re-run by `verify_built.py`'s *phase scripts byte-matching their SKILL.md* check, now a FILE-to-FILE comparison · **closes:** `[none]`
 
 > **Authority: THE FILES, not this section.** The flip this note
 > anticipated happened on 2026-09-13 (brief step 8).
@@ -4893,7 +4845,6 @@ fix.
 
 #### 39.3.2 The ordered field list — the `field_index` sequence
 
-> **BUILT:** ☐ not built · **this list does not exist in code.** `analyse/schema.py` exposes tier SETS only — no `ANALYSE_FIELD_ORDER` — so the 9-field sequence this table states has no runtime form and `field_index` has nothing to index into. **Only Define's list is built.** ⚠ **NO STEP OWNS THIS**: 6.20 covers Define's, and group C's phase slices (6.14, 6.10) do not create ordered lists. It is a transcription of the table above, not a decision · **closes:** `[none]`
 
 Coached in **methodology order** — frame, generate, validate, confirm, quantify,
 socialise. Schema: **§63.3 — S-C29** (canonical home).
@@ -5029,7 +4980,6 @@ the 5 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
 
 #### 39.3.7 State parameters — Analyse's use of `PhaseState`
 
-> **BUILT:** ⚠️ built with a known defect · **9 captured fields land in `artifacts` as specified; three rows of this table do not hold.** Verified row-by-row by the targeted state audit, 2026-09-11: **`artifacts["computation_results"]` and `artifacts["phase_metrics"]` are read by the gate-document assembler and WRITTEN BY NOTHING** — the executor merges only `CoachingResponse.fields_captured`, so both always read `[]`; **`field_index` never advances**; and `gate_attempts` is written but resets every turn because nothing interrupts (WATCH 18). `citations` / `uploads` hold. **`hop_results` / `synthesis_output` say *"populated here"* and are never populated** — only `[]` / `None` at the mapper; that is step 6.10, ⛔ blocked on G-05 and G-35 · **closes:** `[6.20]`
 
 *Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `AnalyseState`.** Analyse uses the shared **22-field `PhaseState`**; this table is its USAGE — which Analyse field each shared field carries, and who reads it — note this is the phase where multi-hop is real:
 
@@ -5072,7 +5022,6 @@ rubric failure (§43.1).
 
 #### 39.3.10 The SKILL.md content (AUTHORITATIVE during the refactor)
 
-> **BUILT:** ✅ built · `skills/dmaic-analyse-phase/SKILL.md` exists and is §32-conformant as of 6.9; its opening script is **byte-identical to `skills/dmaic-analyse-phase/coaching_script.md`**, which is where the script lives as of 2026-09-13 — §56.1's atomic unit, re-run by `verify_built.py`'s *phase scripts byte-matching their SKILL.md* check, now a FILE-to-FILE comparison · **closes:** `[none]`
 
 > **Authority: THE FILES, not this section.** The flip this note
 > anticipated happened on 2026-09-13 (brief step 8).
@@ -5156,7 +5105,6 @@ evidence-backed solution and a plan to implement it.
 
 #### 39.4.2 The ordered field list — the `field_index` sequence
 
-> **BUILT:** ☐ not built · **this list does not exist in code.** `improve/schema.py` exposes tier SETS only — no `IMPROVE_FIELD_ORDER` — so the 9-field sequence this table states has no runtime form and `field_index` has nothing to index into. **Only Define's list is built.** ⚠ **NO STEP OWNS THIS**: 6.20 covers Define's, and group C's phase slices (6.14, 6.10) do not create ordered lists. It is a transcription of the table above, not a decision · **closes:** `[none]`
 
 Coached in **methodology order** — generate & select, justify, pilot, prove, plan,
 socialise. Schema: **§63.4 — S-C30** (canonical home).
@@ -5266,7 +5214,6 @@ the 5 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
 
 #### 39.4.7 State parameters — Improve's use of `PhaseState`
 
-> **BUILT:** ⚠️ built with a known defect · **9 captured fields land in `artifacts` as specified; three rows of this table do not hold.** Verified row-by-row by the targeted state audit, 2026-09-11: **`artifacts["computation_results"]` and `artifacts["phase_metrics"]` are read by the gate-document assembler and WRITTEN BY NOTHING** — the executor merges only `CoachingResponse.fields_captured`, so both always read `[]`; **`field_index` never advances**; and `gate_attempts` is written but resets every turn because nothing interrupts (WATCH 18). `citations` / `uploads` hold. `uploads` carries pilot data as specified · **closes:** `[6.20]`
 
 *Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `ImproveState`.** Improve uses the shared **22-field `PhaseState`**; this table is its USAGE — which Improve field each shared field carries, and who reads it:
 
@@ -5307,7 +5254,6 @@ Never a raw dump (§43.1).
 
 #### 39.4.10 The SKILL.md content (AUTHORITATIVE during the refactor)
 
-> **BUILT:** ✅ built · `skills/dmaic-improve-phase/SKILL.md` exists and is §32-conformant as of 6.9; its opening script is **byte-identical to `skills/dmaic-improve-phase/coaching_script.md`**, which is where the script lives as of 2026-09-13 — §56.1's atomic unit, re-run by `verify_built.py`'s *phase scripts byte-matching their SKILL.md* check, now a FILE-to-FILE comparison · **closes:** `[none]`
 
 **Authority is the FILES as of 2026-09-13 (brief step 8).** The script is
 `skills/dmaic-improve-phase/coaching_script.md`; `skills/dmaic-improve-phase/SKILL.md`
@@ -5397,7 +5343,6 @@ same measure.
 
 #### 39.5.2 The ordered field list — the `field_index` sequence
 
-> **BUILT:** ☐ not built · **this list does not exist in code.** `control/schema.py` exposes tier SETS only — no `CONTROL_FIELD_ORDER` — so the 12-field sequence this table states has no runtime form and `field_index` has nothing to index into. **Only Define's list is built.** ⚠ **NO STEP OWNS THIS**: 6.20 covers Define's, and group C's phase slices (6.14, 6.10) do not create ordered lists. It is a transcription of the table above, not a decision · **closes:** `[none]`
 
 Coached in **methodology order** — confirm it held, lock it in, verify, hand over,
 close. Schema: **§63.5 — S-C31**.
@@ -5529,7 +5474,6 @@ the 9 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
 
 #### 39.5.7 State parameters — Control's use of `PhaseState`
 
-> **BUILT:** ⚠️ built with a known defect · **12 captured fields land in `artifacts` as specified; three rows of this table do not hold.** Verified row-by-row by the targeted state audit, 2026-09-11: **`artifacts["computation_results"]` and `artifacts["phase_metrics"]` are read by the gate-document assembler and WRITTEN BY NOTHING** — the executor merges only `CoachingResponse.fields_captured`, so both always read `[]`; **`field_index` never advances**; and `gate_attempts` is written but resets every turn because nothing interrupts (WATCH 18). `citations` / `uploads` hold. **`final` → `SupervisorState.final_output` never happens** — `control_output_mapper` returns `advance()`, which by contract returns orchestration values ONLY, so the project's terminal artifact is never written. ⚠ no step owns this clause · **closes:** `[6.20]`
 
 *Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `ControlState`.** Control uses the shared **22-field `PhaseState`**; this table is its USAGE — which Control field each shared field carries, and who reads it:
 
@@ -5573,7 +5517,6 @@ Never a raw dump (§43.1).
 
 #### 39.5.10 The SKILL.md content (AUTHORITATIVE during the refactor)
 
-> **BUILT:** ✅ built · `skills/dmaic-control-phase/SKILL.md` exists and is §32-conformant as of 6.9; its opening script is **byte-identical to `skills/dmaic-control-phase/coaching_script.md`**, which is where the script lives as of 2026-09-13 — §56.1's atomic unit, re-run by `verify_built.py`'s *phase scripts byte-matching their SKILL.md* check, now a FILE-to-FILE comparison · **closes:** `[none]`
 
 **Authority is the FILES as of 2026-09-13 (brief step 8).** The script is
 `skills/dmaic-control-phase/coaching_script.md`; `skills/dmaic-control-phase/SKILL.md`
@@ -5656,7 +5599,6 @@ DMAIC specification is complete.**
 
 ## 40. The five `{Phase}Output` schemas
 
-> **BUILT:** ✅ built · five `{Phase}Output` schemas with their tier sets and assembly functions, in one registry (`gate_registry.py`), field counts pinned by `test_gate_documents.py` · **closes:** `[none]`
 
 *Supersedes: REFACTORING §18, §82; ARCHITECTURE.md §4.10.2, §4.10.3; CLAUDE.md §10.7.*
 **Status: RATIFIED.** File: `phases/{phase}/schema.py`. **Canonical home.**
@@ -5758,7 +5700,6 @@ Store.
 
 ## 41. Structured dict fields, and FMEA
 
-> **BUILT:** ✅ built · the structured `dict` fields are declared `dict` and Tier 1, and **no FMEA field exists on any schema** — both asserted · **closes:** `[none]`
 
 *Supersedes: REFACTORING §68; ARCHITECTURE.md §4.10.5–§4.10.7; CLAUDE.md §10.8; DECISIONS §C5, §C6.*
 **Status: RATIFIED.**
@@ -5843,7 +5784,6 @@ it.
 
 ## 42. Cross-phase reference fields in practice
 
-> **BUILT:** ✅ built · `post_improvement_metrics` is pinned as the only Tier-1 cross-phase reference, asserted in `test_gate_documents.py` · **closes:** `[none]`
 
 *Supersedes: ARCHITECTURE.md §4.7; CLAUDE.md §10.6.*
 **Status: RATIFIED.** Schema defined in §7; this is how the three are used.
@@ -6064,7 +6004,6 @@ and in Control (did it move, and will it stay moved?).
 
 ## 44. The failure pipeline
 
-> **BUILT:** ☐ not built · **Step 0 only.** `TimeoutPolicy(run_timeout=45)` is on the executor node and has been observed firing. Steps 1–6 are step 8.2, and `error_handler=` / `phase_error_recovery` is blocked on G-35 and G-06 (WATCH 16) · **closes:** `[8.2]`
 
 *Supersedes: REFACTORING §66, §79; ARCHITECTURE.md §9.1.*
 **Status: RATIFIED.**
@@ -6206,7 +6145,6 @@ yet. Deferred (Appendix B item 12) until sessions exceed roughly 200 turns.
 
 ## 46. The fallback chain and circuit breakers
 
-> **BUILT:** ☐ not built · circuit breaker (3 fails / 30s → OPEN) and the fallback chain are both step 8.3. ⛔ the L3 Redis cache is blocked — the resource is not provisioned (step 8.4) · **closes:** `[8.3, 8.4]`
 
 *Supersedes: REFACTORING §66, §67; ARCHITECTURE.md §9.3, §9.4; CLAUDE.md §4.8; DECISIONS §N1.*
 **Status: RATIFIED for v2.1; a v2.2 replacement is ratified and deferred.**
@@ -6323,7 +6261,6 @@ activates. The amendment addresses Frankfurt being unreachable outright, or
 
 ## 47. Disconnect policy — what a dropped client commits
 
-> **BUILT:** ✅ built · ABANDON: a disconnect mid-turn commits nothing, verified at 4.2 and pinned by `test_abandon.py`. ⚠ §47's reconciliation sweep needs `interrupt()`-paused threads to exist — step 7.3 · **closes:** `[7.3]`
 
 *Supersedes: DECISIONS §O3. New scope, ratified 2026-08-20.*
 **Status: RATIFIED.** Part of the `thread_id` wiring step (§53.1), not a separate step.
@@ -6365,7 +6302,6 @@ safe. **The exposure is in `step_log` (requirement 2) and concurrent writers
 
 ## 48. Structured errors
 
-> **BUILT:** ☐ not built · `core/errors.py` carries the exception types, but **S-C34's structured payload — `severity` and `retry_recommendation` — is not produced**, so §46's circuit breaker and fallback chain have nothing to read — step 8.1 · **closes:** `[8.1]`
 
 *Supersedes: REFACTORING §64; ARCHITECTURE.md §9.5; CLAUDE.md §12.3.*
 **Status: RATIFIED.** File: `core/errors.py`.
@@ -6395,7 +6331,6 @@ malformed query, and retrying fails identically.
 
 ## 49. API surface
 
-> **BUILT:** ⚠️ built with a known defect · **11 routes are served; this section's table names 4 of them** — `POST /ask`, `GET /cases/{id}`, `GET /registry`, `POST /upload`. **Seven are in the tree and in no ratified table** (**G-47**), and **five table rows are unbuilt**: `/ask/stream` (step 10.1), `/gate/approve` and `/gate/reject` (step 7.3, which has no `interrupt()` to resume from), `GET /cases`, and `/gate/submit` in the three-route shape this table ratifies. **Corrected 2026-09-11:** this line read *"11 of 12 routes exist … names 8 of the 11 — six are in the tree and in no ratified table"*, and **8 + 6 = 14 against 11 built routes**, so the marker contradicted itself; neither figure was derivable and the `12` traced to nothing. `verify_built.py` now pins the route SET, not the count, so the named/unnamed split is re-derived rather than restated · **closes:** `[10.1, 7.3]`
 
 *Supersedes: ARCHITECTURE.md §10; CLAUDE.md §1.1, §1.4, §1.5.*
 **Status: RATIFIED.** File: `gateway/routes.py`.
@@ -6486,7 +6421,6 @@ presents as visually distinct sections, not a paragraph block:
 carries these as **discrete presentational fields** (`explanation`, `example`,
 `prompt`, `progress`), not one free-text blob (§20, S-C05).
 
-> **BUILT:** ☐ not built · **these four fields do not exist** (**G-50**) · **closes:** `[6.19]`
 >
 > The built `CoachingResponse` carries `message`, `fields_captured`, `citations`
 > and `contradiction_flag` — see S-C05's marker. **Until step 6.19 declares
@@ -6636,7 +6570,6 @@ the choice the design intends them to have.
 
 ## 51. Tracing and observability
 
-> **BUILT:** ☐ not built · **zero `@traceable` in the backend.** This is the block that compounds: with no tracing every investigation needs a hand-built harness, and WATCH 28's *"set the limits from measured data"* cannot run at all — which is why it is scheduled at 8.0, ahead of the step that consumes it · **closes:** `[8.0]`
 
 *Supersedes: REFACTORING §45; ARCHITECTURE.md §12; CLAUDE.md §11.*
 **Status: RATIFIED.**
@@ -6695,7 +6628,6 @@ Belt can actually name — their case — rather than only by timestamp.
 
 ## 52. Evaluation and regression testing
 
-> **BUILT:** ☐ not built · **no `backend/evals/` exists**, so coaching quality has no baseline and no later change can be shown to improve or regress it — step 7.0, whose dataset needs founder time · **closes:** `[7.0]`
 
 *Supersedes: REFACTORING §75; ARCHITECTURE.md §14; CLAUDE.md §12.*
 **Status: RATIFIED, sequencing deliberate.**
@@ -6751,7 +6683,6 @@ returning different verdicts across runs makes these thresholds meaningless.
 
 ## 53. Configuration, dependencies and deployment
 
-> **BUILT:** ✅ built · fail-fast environment validation at startup · **closes:** `[none]`
 
 *Supersedes: REFACTORING §72, §74, §76; ARCHITECTURE.md §15; CLAUDE.md §11.4, §16.*
 **Status: RATIFIED.**
@@ -7866,7 +7797,6 @@ here rather than restating them. (archived to docs/_archive/; canonical: ARCHITE
 
 ### 57.2 SAMPLE 1 — CLASS TEMPLATE — S-C01 `SupervisorState`
 
-> **BUILT:** ✅ built · **`SupervisorState` is 7 of 7, exact** — names, types and both `operator.add` reducers transcribed verbatim into `core/state.py`. Nothing present-and-unspecified, nothing specified-and-absent; `SUPERVISOR_STATE_FIELDS` sits beside the class as a census and `test_state.py` asserts it. Re-run by `verify_built.py`'s *state field counts* check · **closes:** `[none]`
 
 #### SPEC — `SupervisorState`
 
@@ -8001,7 +7931,6 @@ reads or writes what is defined here.
 
 ### 58.2 S-C02 · `PhaseState`
 
-> **BUILT:** ✅ built · **22 of 22, exact and in the same order** as this entry's definition — verified field-by-field by the targeted state audit, 2026-09-11. Step 3.1's Done-when still says *"7 and 19"*; **the number is stale and the substance is not** — four ratified amendments moved it (v1.7 17→19, v1.9's `remaining_steps`, then `asks`, `uploads`, `hop_results`). Re-run by `verify_built.py`'s *state field counts* check · **closes:** `[none]`
 
 **Architecture:** §6 · **File:** `core/substate.py` · **Procedure:** step 3.1
 *Rebuild test: `core/substate.py`'s `PhaseState` must be reconstructable from this entry alone.*
@@ -8253,7 +8182,6 @@ model at temperature 0.1 — a plain model invocation, not an agent, so
 **Architecture:** §20 · **File:** `phases/{phase}/schema.py` or `core/substate.py` · **Procedure:** step 6.2
 *Rebuild test: reconstructable from this entry alone.*
 
-> **BUILT:** ✅ **all 8 fields exist** — step 6.19, 2026-09-14 (**G-50 CLOSED**)
 > — `message`, `fields_captured`, `citations`, `contradiction_flag`. **§50.1's
 > four presentational fields — `explanation`, `example`, `prompt`, `progress`
 > — are NOT BUILT** (**G-50**), so the render contract §50.1 calls
@@ -10984,7 +10912,6 @@ class ControlOutput(BaseModel):
 
 ### 63.6 S-C32 · The three cross-phase reference dicts
 
-> **BUILT:** ⚠️ built with a known defect · **the three dicts exist and the four
 > reference keys are validated by NOTHING** · **closes:** `[7.1]`
 >
 > `causal_hypothesis` (Analyse), `solution_linked_to_root_cause` (Improve) and
@@ -11154,7 +11081,6 @@ metric_definitions: list[dict] = [
 
 ### 63.9 S-C39 · `phase_metrics` — the per-phase placeholder
 
-> **BUILT:** ⚠️ built with a known defect · **the field is on all five schemas
 > and NOTHING WRITES IT** · **closes:** `[6.20]`
 >
 > `phase_metrics` is declared on every `{Phase}Output` and
@@ -11694,271 +11620,17 @@ item 1. Classification deferred rather than guessed.
 
 ---
 
-## 66. The SPEC-GAP register
+## 66. The SPEC-GAP register — MOVED
 
-*Supersedes: none — new. Decision record: `agent-improve/docs/_archive/DECISIONS.md` §S1.*
-**Status: OPEN — this is a working register, not a ratified statement.**
+**The register moved to `docs/REFACTORING_PROCEDURE.md`, Appendix G, at step
+6.37.** `ARCHITECTURE.md` holds the architecture and nothing else: no gap
+register, no BUILT markers, no status. Founder ruling 2026-09-18.
 
-**Every gap marked inline in Part XII has a row here, and every row here has an
-inline marker.** That bidirectional correspondence is checkable and is one of
-the §55.1 governance rules.
-
-**86 gaps identified. Twenty-four are closed or resolved. 62 are open.** *(G-55 and G-56 registered 2026-09-13 at brief step 7, both converted from CLAUDE.md prose that was retired with it — §19.4's citation ratchet and §18.1's live half. **An open item stated only in prose is not scheduled by anything**, which is the reason for the conversion rather than the deletion. §18.1's other half turned out to have been closed on 2026-09-03 and is counted among the sixteen.)*  *(G-54 registered 2026-09-12 immediately after withdrawing C-3: the failure was a SOURCE METHOD, not a typo, and the same method produced every other verdict in that log.)* *(G-52 and G-53 registered 2026-09-12 while correcting §19's hook surface — the ordering test that cannot observe order, and the premium deployment's rate limit. Both carry a step number, because a gap without one does not render on the board and so is not scheduled by anything.)* *(G-50 and G-51 registered 2026-09-11 by the three-way alignment audit — `CoachingResponse` built at four of S-C05's eight fields, and `storage/models.py` defining eleven models where S-C09 names six; reasoning in that commit body per §56.2.)* *(G-49 registered 2026-09-10 — the executor's tool selection, found at step 6.13 and reproduced on 6.12's code. `docs/_archive/DECISIONS.md` Part AU2.)* *(G-14 closed 2026-09-03 at procedure step 5.2 — `docs/_archive/DECISIONS.md` Part AC.)* *(G-21
-closed 2026-09-01 at procedure step 3.5 — `docs/_archive/DECISIONS.md` Part Y.)* *(Two were
-added and resolved in the same pass on 2026-08-26 — G-45 and G-46, the metric
-registry's two spec entries. Registering a gap you are about to close in the
-same commit looks like bookkeeping theatre and is not: §55.1 requires every
-referenced spec to resolve to an entry, and the register is where that is
-checkable. A reference that resolves only because nobody looked is exactly the
-failure §55 exists to name.)* *(This line
-read "Eight … 36" until 2026-08-26: G-38's closure on 2026-08-25 was recorded in
-§66.6 and in the changelog but never counted here. Corrected in the same pass
-that closed G-25 — the count and the table now agree, which is the §55.1
-bidirectional rule applied to the summary as well as the rows.)* None was
-filled by the 2026-08-23 conversion pass — that was the pass's binding
-constraint; G-03 and G-42 were resolved together on 2026-08-24 (DECISIONS
-§T1), and **G-43 was raised and closed the same day as a false alarm**
-(DECISIONS §U1). **Its narrower successor G-44 was registered in its place and
-resolved the same day** — the wrapper node's inner `subgraph.ainvoke` does
-persist `PhaseState`, provided it is called directly inside the node function
-and never behind a tool (§16).
-
-### 66.1 Group A — founder ruling required
-
-**EMPTY. No founder rulings are currently outstanding.** G-01 and G-02, the two
-that stood here since the conversion pass, were resolved together on 2026-08-24
-(§66.6). The group is kept rather than deleted because it is where the next one
-lands.
-
-| # | Gap | Marked at |
-|---|---|---|
-
-### 66.2 Group B — cross-check defects
-
-**The same defect class as `route_after_phase` (DECISIONS §R2): specified code
-reading state a schema does not declare.** Each fix is a design choice, and
-adding a `PhaseState` field is a §56 amendment. **G-03, G-42 and G-04 have been
-resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
-
-| # | Gap | Marked at |
-|---|---|---|
-| ~~**G-03**~~ | **RESOLVED 2026-08-24** — `PhaseState` gains `case_id` and `current_phase`, copied down by the input mapper and read-only in the subgraph. See §66.6 and DECISIONS §T1 | — |
-| **G-05** | `extracted_entity` is read off `PhaseState` (§26); undeclared, and no writer is named anywhere | S-C02, S-F09 |
-| **G-47** | **§49's endpoint table and S-F34's copy of it are not what `gateway/routes.py` serves.** Six routes exist in the tree and in neither table — `/health`, `/summarise`, `/context`, `POST /gate`, `/gate/review/{case}/{phase}`, `/files/{case}/{file}`. **`POST /gate` is a shape disagreement rather than an omission**: the spec ratifies three gate routes and the tree serves one. `/ask/stream` is the opposite case and is excluded — ratified, unbuilt, owned by step 10.1. **This is a spec-versus-tree cross-check, not the state-schema class the rest of this group holds**, and it is here because that is what the group's title covers. Raised 2026-09-08 while scoping 6.11, when `/upload` was found to be in the tree and in neither table; that row was ratified into both (Part AP5) and the remaining six registered rather than fixed in passing — which of them are ratified, which are v1 residue dying at 11.1, and whether `/gate` becomes three are founder questions | §49, S-F34 |
-| **G-49** | **THE EXECUTOR DOES NOT CALL THE TOOL ITS OWN PLANNER NAMES.** Given a plan reading *"call `load_evidence_series` on `uploads/IMPR-2026-ED8/complaints.csv` before asking for anything further"*, the executor issues ~6 `rag_lookup_evidence` calls (19 underlying searches, 3 per multi-query) and **never calls `load_evidence_series` at all**, until the 45s per-node timeout ends the turn. No `uploads/` blob is fetched in the whole turn. **Found at step 6.13, reproduced identically at `1714d75` on 6.12's code**, so it belongs to neither step. **It blocks the `live-run` half of 6.7, 6.12 and 6.13** — three steps whose remaining verification runs through this path, and no Define turn on `IMPR-2026-ED8` completes. §17's planner/executor split gives the planner the routing decision and the executor the execution; here the executor silently substitutes its own. **DIAGNOSED at step 6.18, 2026-09-11 — THE CAUSE IS LAYER 2: THE PLAN DOES NOT REACH THE EXECUTOR'S CONTEXT.** `executor()` invokes the agent with `{"messages": prior}`; `coaching_plan` is read for the logger and for `step_log` and for nothing else; `system_prompt` is a per-phase constant; and `BeforeModelStateInjection` — the only middleware handed state — never mentions `coaching_plan`, `focus_field` or `next_action`. Measured at the boundary, the planner's imperative reaches none of the three channels the model reads (system prompt 7,770 chars, injected block 797 chars, messages 5 chars), and `test_the_planners_instruction_reaches_the_model` pins it `xfail(strict=True)`. **Layer 1 is ruled out** — `load_evidence_series` is in `UNIVERSAL_TOOLS` and bound in all five phases. **Layer 3 is excluded by construction** — a model cannot deprioritise what is not in its request. **Layer 4 is present and is not the cause** — the manifest reaches the coach every turn with the file, `NOT YET READ`, the `blob_path` and the tool that opens it, 2,893 composed chars on the failing run, and 18 evidence searches followed anyway: ranking explains a preference, not a missing instruction. **THE FIX IS NOT 6.18's — it is step 6.21, `GATED` on a founder ruling on the transport** (four candidates costed in that step; two of them amend §17). **6.9 IS RULED OFF THIS LIST, 2026-09-11 — it never belonged:** its Verify is `pytest`, it has no live clause, and its Done-when is satisfied by the tree. One correction the ruling turned up — the audit recorded *"a test asserts the count and both instructions per file"* as satisfied and only the count was; `test_every_skill_md_carries_both_mandatory_instructions` now pins both. The three live-runs re-run on the first `live-run` after 6.21 lands, **re-reported to the founder if that has not happened by 2026-09-25**. Reproduction re-run on `09960df`: the identical failure at 45.141s against 2026-09-10's 45.157s. `DECISIONS.md` Part AU2 | S-F04, S-F13, S-F57, §17, §26 |
-| ~~**G-50**~~ | **CLOSED 2026-09-14 at step 6.19.** `CoachingResponse` carries all eight ratified fields: `explanation`, `example`, `prompt` and `progress` join `message`, `fields_captured`, `citations` and `contradiction_flag`. **§50.1's render contract is schema-backed at last** — the UI can draw one block per field without parsing prose, where the only presentational field it received was `message`, the single free-text blob that section forbids. The four are transcribed from S-C05 rather than designed here, on the RATIFIED-NOT-YET-APPLIED precedent §23.2 set, and the class docstring's conformance claim — *“the four fields below are transcribed from that entry”* against an entry defining eight — is corrected with them. **`verify_built.py`'s expectation moved 4 → 8 in the same commit**, which its own comment required: *“or this check passes the day it lands.”* Twenty test constructions updated; 941 pass | S-C05, §20, §50.1, §32 |
-| **G-51** | **`storage/models.py` DEFINES ELEVEN MODELS AND S-C09 NAMES SIX.** Unnamed: `AnalystOutputRecord`, `CaseRegistry`, `ChartRecord`, `CitationRecord`, `TeamMemberRecord`. **The same shape as Part AP6 one level up** — AP6 found six `UploadRecord` fields in the tree and in no document; nothing then checked the model LIST. `CaseRegistry` is the sharpest: `GET /registry`, which §49 ratifies, returns it. Found 2026-09-11 by the three-way alignment audit | S-C09, §10, §23.3 |
-| **G-48** | **`backend/upload/**` makes a plain model call for a typed result and is on none of the four paths `pattern-2` permits.** §4.6 scopes the builder-style structured-output call to *"a plain model invocation inside a tool, middleware, or validator"*, plus the phase planner; `deprecated_patterns.yaml` excludes exactly `knowledge/**`, `middleware/**`, `phases/**/validate.py`, `phases/**/orchestrate.py` and the planner's site. **The upload interpretation is structurally the same call** — not an agent, no model-tools loop for `response_format=` to attach to — and the hook blocks it, so the call parses JSON by hand. **The cost is already recorded**: the prompt was written for the binding, the call was switched to parsing, and the prompt was not — so every summary was the degradation fallback and 781 green tests could not see it, because none crossed that boundary (Part AP6). A schema binding cannot drift out of contract with its own parser; a hand-written one can, and did. **Registered OPEN and deliberately not fixed here** — §8 forbids amending a rule in passing during a feature change, and the ruling waits on reading what `9fce8fc` recorded when it scoped `pattern-2`. The registry's own comment already says twice that "the exclusion list simply predated the files"; this would be the third instance | §4.6, `deprecated_patterns.yaml` |
-| **G-06** | `extraction_error` and `extraction_incomplete` are written into `PhaseState` by `phase_error_recovery` (§45); neither is declared | S-C02, S-F29 |
-| **G-07** | `state["structured_response"]` is read by `ContradictionDetectionMiddleware` (§19.6). Whether middleware observes `PhaseState` or `create_agent`'s internal agent state is unstated | S-F04, S-C10 |
-| **G-08** | `validation_stack.get_acknowledged_gaps()` (§40) is attribute access on a node, and §14 requires nodes to be module-level async functions. Where acknowledged gaps are produced and how they reach assembly is unspecified | S-F05, S-F07, S-F28 |
-| ~~**G-52**~~ | **CLOSED 2026-09-13 at step 6.22.** `backend/tests/test_middleware_execution_order.py` invokes the REAL compiled agent — `GenericFakeChatModel`, no network — and records which `after_agent` hooks fire in what sequence: **8 → 7 → 6**, contradiction, coherence, grader. The stubbed test is **renamed** to `test_the_declared_middleware_list_is_the_ratified_layering`, which is what it actually checks; the old name claimed execution it never observed, and a name that claims more than the body delivers tells the next reader the ground is covered. **The Done-when's specified demonstration did not hold and the step records why** — reversing positions 6 and 8 fails BOTH tests, so it separates nothing; removing position 8's hooks while leaving the declared list intact passes the stubbed test 5/5 and fails the new one. | §19, §19.1, §19.6, §19.7, §19.8 |
-| **G-53** | **AZURE RETURNS 429 ON THE PREMIUM DEPLOYMENT, SO NO LIVE RUN REACHES A COACHED TURN.** `operational-premium` (gpt-4o, westeurope) rate-limits the coach's own model call; `ModelRetryMiddleware` exhausts its two retries, the answer becomes the 429 text, `CoherenceMiddleware` correctly fails it three times and stands the grader down per S-C13 B3. **Not a defect — a quota condition** — but it blocks every remaining `live-run` verification, and it means the HEALTHY path is still unobserved: coherence passing on its first attempt and `DMAICGraderMiddleware` actually grading have been seen in no trace. Four runs on 2026-09-12, all degraded identically. Resolving the quota is **step 9.2**; it is EXTERNAL, like §9.0 and §9.1, because the action is a provisioning change and not a code change. | §19.4, §19.7, §19.8, §21 |
-| ~~**G-54**~~ | **CLOSED 2026-09-13 at step 6.23.** All nine entries in `BIBLE_VERIFICATION_LOG.md` carry a `Source method` row and every one with an installed object was re-run against it: **C-1** `retries` absent and `max_retries` present; **C-2** `prompt` absent and `system_prompt` present; **C-3** withdrawn (`vars(AgentMiddleware)`); **S-1** partly withdrawn, two of three reasons stand; **S-2** installed 1.2.11 / 1.3.16 / 1.0.8, and the class of fact now has an owner in `requirements.txt` (§55.4), so the entry should not be cited for a version again; **E-1** `set_node_defaults` present on `StateGraph`; **E-3** `TimeoutPolicy` carries `run_timeout`, `idle_timeout`, `refresh_on`. **NO VERDICT MOVED**, so nothing propagated — the two that were wrong had already been caught. **Two entries are NOT fully settled by introspection and say so rather than being marked verified**: **E-2** claims an ORDER, which is behaviour and needs a runtime test; **E-4** is about which posts an external index published, for which a page is the right source. | §9, §16.3, §25, §53, §55.1 |
-| **G-55** | **1,128 PARENTHETICAL `(§x)` CITATIONS PREDATE §19.2's RULE THAT A CODE IS NEVER RENDERED BARE.** 310 in CLAUDE.md as it then stood, 818 in this file. **RULED 2026-09-13: NO SWEEP. The ratchet stands** — every rule touched from 2026-09-11 names what its citations point at, and the back-catalogue stands as written. A single pass would be a diff across nearly every rule in the constitution, for a gain that arrives anyway as rules are amended. **Revisit when the platform reference is authored FROM Agent Improve** (§53's forward-document ruling): that pass rewrites citations wholesale, so the sweep costs nothing done alongside it and a diff of its own before then. Carried at **step 11.2**, governance close-out, which is where the handover is marked. Was CLAUDE.md §19.4's open item; retired from prose at brief step 7 because an open item that renders nowhere is not scheduled. | §19.1, §19.2, §55.1, §56 |
-| **G-59** | **THE OWNERSHIP CHECK CANNOT COVER THE PATH MOST EDITS TAKE, AND THE FIX IS RATIFIED BUT NOT BUILT.** `fact-ownership-guard.py` runs on `PreToolUse` with matcher `Write|Edit|MultiEdit` and reads `content` / `new_string` — **fields a Bash envelope does not carry**. In auto mode Bash is the primary edit path, so the guard did not run on the great majority of this session's edits. **Widening the matcher is NOT the fix**: `extract()` would return `""` and the guard would early-exit, giving a check that always passes — CONTINUITY §7's *a check that cannot fail*, recorded as coverage. **Static shell parsing cannot recover the content either**: measured in one session, files were written via heredoc Python, an external script, `sed -i`, `printf >>`, `cp` and `git checkout`, and four of those six carry no content in the command string at all. **RULED 2026-09-14 (§55.5): move the check to the COMMIT GATE**, over the staged governed documents — the index holds the final content whatever mechanism produced it, it also catches writes by a peer session or by hand, and it costs **2.52 s once per commit** against a measured **~2.8 s per Bash call** if the guards ran there. The cost admitted: it catches the restatement at commit rather than at write. **Step 6.28** | §55, §55.4, §55.5 |
-| **G-60** | **SEARCH INDEX SCHEMAS ARE AN OWNERSHIP CLASS WITH NO REGISTERED OWNER.** CLAUDE.md's *Facts have one owner* table names eight classes; `fact_owners.yaml` registers **five**. Three are unregistered, and G-56 names only two of them — gate tier splits and tool inventory. **This is the third, and it was in no gap until now.** It is the hardest of the three: the table gives the owner as *“the index definition, confirmed by query”*, so the owner is a **live Azure resource**, not a file the guard can parse — a derive step would need a network call on the write path, which is not viable at the measured cost. **Needs a ruling before it needs engineering**, exactly as G-56's two do; the candidates are a cached schema snapshot with a staleness rule, or ruling the class out of mechanical ownership and leaving it to §7.3's read-the-live-definition instruction. **STEP 6.29** — the ruling is the step's work, and the registry row is one line after it. **Given a step number on 2026-09-14 rather than a name and a date**: *ruling first, engineering second* with no owner, no deadline and no consequence is the shape *live-run owed* had when four of them stacked up over six days. A step renders on the board and is picked up by the cursor; a sentence does not | §55.4, §7.3, §23 |
-| **G-63** | **THE NODE-ISSUED READ NAMES NO COLUMN, SO IT LOADS NOTHING — AND THE 45s TIMEOUT IS ITS CONSEQUENCE, NOT ITS CAUSE.** Step 6.21's option C works as a TRANSPORT: on trace `01a09ff4-db43-7532-bec0-89329f886482` (2026-09-14 12:46:59) the node dispatched `load_evidence_series` on the path the plan named, before the model, with no error. **But it dispatched `column="(not specified)"`**, and the tool answered `{"ok": false, "reason": "no_such_column", "columns": ["date","complaints","reason"]}` — **so no evidence was loaded.** The coach, holding no data, issued three `rag_lookup_evidence` calls at ~9.5s each and the executor hit its wall at **45.156s**. **THE CAUSE IS AT THE ARGUMENT LAYER, NOT THE TRANSPORT LAYER.** `_routed_column` derives the column from an open ask's `expected_shape.columns`; **Define populates no ask shapes**, which `_unconsumed_for_open_ask`'s own docstring already records — *“With Define carrying no ask shapes the two agreed by accident”*. So **every Define routed read is a placeholder read by construction**, and always has been. **The framing hypothesis is RULED OUT as the cause and kept as a separate finding**: the question was whether the result lands *“already answered, do not search”* or merely present, the §19.1/G-24 seam applied to the plan's RESULT. There was no result to frame — `ok:false`. Separately, the tool's message told the coach to *“Ask the Belt which of those holds the value you need”* and the coach searched instead; that behaviour is real and has **no evidence independent of this defect**. **OCCURRENCE CAUSE FIXED 2026-09-15; THE GAP STAYS OPEN ON ITS ESCAPE HALF.** `_routed_column` now returns `None` rather than a placeholder, the column comes from the ask or from the file’s own header (`knowledge/tools.py::first_numeric_column`), and **when neither answers the node does not dispatch** — the manifest carries the file instead, which is the pre-6.21 behaviour. The `xfail(strict=True)` probe is replaced by seven tests asserting on the DISPATCHED CALL rather than on a constant, so a later move to Define ask shapes or a plan-carried column passes them unchanged. **The span reported `status: "success"` throughout**, which is the escape cause: nothing distinguishes a routed read that loaded data from one that did not — **and THAT half is not fixed.** A routed read that reports its own outcome is **step 8.0**’s turn telemetry, and this row is what keeps it scheduled. **STEP 6.21 IS ALSO NOT CLOSED BY THE FIX**: its Done-when owes a `live-run` on `IMPR-2026-ED8` carrying the 6.7 / 6.12 / 6.13 live halves, and that evidence does not exist yet | §17, §26, §24, S-F13, §19.1 |
-| **G-64** | **APPENDIX A IS A HAND-MAINTAINED DUPLICATE OF A FACT EVERY STEP SECTION ALREADY OWNS, AND IT HAS FALLEN ELEVEN ROWS BEHIND.** `REFACTORING_PROCEDURE.md` Appendix A maps each step to its reference sections. **Every step section ALSO carries its own `| **Reference §** |` row**, and that row is the one a reader of the step actually sees. Appendix A restates it. **Found 2026-09-15 by step 6.31’s matrix seed**: Appendix A has **59 rows against Appendix D’s 70**, missing 6.22–6.31 and 9.2. **THE FIRST READING OF THIS FINDING WAS WRONG AND IS RECORDED AS SUCH** — it was reported as *“ten steps have no reference section”*, which would breach Appendix A’s own rule that *“a step with no reference section is not a step”*. **All eleven DO have one.** Nothing is undocumented; the COPY is incomplete, which is a different defect with a different fix. **This is `Facts have one owner`, the same class as G-58** — the watched-path list stated in §55.2 and hardcoded in the guard — and it drifts the same way: the copy is updated when someone remembers. **THE FIX IS NOT TO TYPE ELEVEN ROWS.** Appendix A becomes a projection of the step sections’ own `Reference §` rows, or is asserted against them by set equality in both directions — **the check shape already exists** as `verify_built.py::matrix_covers_appendix_d`, built at 6.31, and should be generalised rather than rewritten. Filling the rows by hand would leave the second copy in place and buy one commit of agreement | §55.1, §55.4, Appendix A, Appendix D |
-| **G-65** | **A COMPLETED STEP THAT LANDED OUT OF BAND RENDERS RED ON THE BOARD.** `EXTERNAL`, `BLOCKED` and `GATED` all map to the BLOCKED lane in `build_board.py::assign_lanes`, and **§55.2 ratifies red as *“cannot proceed”*.** But `EXTERNAL` also marks a step whose work is DONE and simply landed under a subject the git-log scan cannot see. **9.0 has rendered this way since it landed** as `feat(knowledge): 871637f`, and **6.22 joins it 2026-09-15** (`2e17f3f`). **Two finished steps shown as blocked, on the one artefact a founder opens.** §55.2’s own colour ruling is the thing being broken: *“a lane state and a marker state may never share a colour”* was written because a reader cannot hold *where it sits* and *whether it works* off one hue — and this is the same error in the lane axis alone. **NOT A STATUS-TOKEN PROBLEM**, so widening the vocabulary again would not fix it: `EXTERNAL` is now true on its own terms for both cases (procedure reading conventions, 2026-09-15). **It is a LANE-ASSIGNMENT fix** — a row whose status cites a landing commit belongs in DONE, and the pointer skips DONE already. **Registered rather than fixed at 6.31** because that commit is a 70-row restructure and a lane change needs its own mutation proof | §55.2, Appendix D, `build_board.py` |
-| **G-66** | **A BACKEND ERROR RENDERS AS “No cases yet — create your first one.”** `loadRegistry` does `fetch(...).then(r=>r.json())` with **no `r.ok` check**, then branches on `!data.length`. A 503 `{"detail":"Storage not configured"}` is a valid JSON OBJECT, so `data.length` is `undefined`, falsy, and the empty-state message renders — **byte-identical to a genuinely empty registry**. The `catch` arm that says *“is the backend running?”* is reached only on a network-level failure, never on a 4xx or 5xx. **Systemic: 10 of 12 `fetch` calls ignore `r.ok`**; only the case refresh and the gate review check it. `openWorkspace` is the worst of them — a 404 body becomes `S.case` and the workspace renders around `{detail: …}`. **Found 2026-09-15 by the UI audit, from the founder being unable to see IMPR-2026-0E5 while `verify_store` resolved it from the same `load_registry`.** The registry may or may not have held the case — **the defect is that the UI cannot tell you which**, and one read-only `curl -i /registry` separates them. FIXED 2026-09-15 | §49, §50.1, §55.1, `ui/index.html` |
-| **G-67** | **THE NEW-CASE FORM DISPLAYS AN ID THAT IS DISCARDED ON SUBMIT.** `initCreate` writes `IMPR-{year}-{Math.random().toString(36).substr(2,3).toUpperCase()}` into the form. **No endpoint is called on mount**, so an abandoned form reserves nothing and writes nothing — abandoned forms are NOT how empty cases accumulate. **But `submitCreateCase` does not send `case_id` either**, and `POST /cases` mints its own from `str(uuid.uuid4())[:3].upper()`. So the id the Belt is shown is never the id the case gets. **`IMPR-2026-GTN` is the proof**: `uuid4()` is HEX, and `G`, `T`, `N` are not hex digits — that string can only have come from the browser's base36. A false affordance on the one screen where identity is established. NOT FIXED | §49, §50.1, §55.1, `ui/index.html` |
-| **G-68** | **THE CASE ID SPACE IS 4,096 VALUES AND A COLLISION IS A 500.** `str(uuid.uuid4())[:3].upper()` is three hex characters — 16³. **By the birthday bound, collision probability passes 50% at about 75 cases**, and roughly 1% is reached by the ninth case. `blob.create_case` raises `ValueError` when the path exists; `POST /cases` has no handler for it, so it surfaces as an unhandled 500 and the UI shows `toast('Error creating case: ' + detail)`. **This has a SHELF LIFE rather than being theoretical** — it is not a question of whether but of how many cases, and the failure arrives as an opaque server error on the Belt's first action. NOT FIXED, and deliberately so: it is a data-shape change and the live turn comes first | §49, `gateway/routes.py`, `storage/blob.py` |
-| **G-69** | **§50.1'S FOUR PRESENTATIONAL FIELDS NEVER LEAVE THE BACKEND — 6.19 SHIPPED THE SCHEMA AND NOT THE OUTCOME.** Step 6.19 added `explanation`, `example`, `prompt` and `progress` to `CoachingResponse` and closed G-50 on that basis. **`AskResponse` carries none of them.** `routes.py` builds `answer=(reply.content if reply is not None else "Processing…")` and discards the other four, so the API surface still emits the single free-text blob §50.1 exists to forbid. The UI reads `resp.answer` alone and renders one bubble; its only `explanation`/`example` references are `s.explainer.*`, a STATIC per-section explainer baked into the HTML and unrelated to the coach. **The fields are produced every turn and thrown away at the boundary.** **G-50's closure should be re-examined against this**: the schema half landed, the render contract did not, and §50.1 remains prompt-hoped — which is the condition G-50 named. **6.19 is landed and stays landed**; a new step delivers the outcome. Found 2026-09-15 by the UI audit | §20, §50.1, S-C05, §49 |
-| **G-70** | **A FAILED TURN SURFACES AS A THREE-SECOND TOAST AND NOTHING ELSE.** The executor's `TimeoutPolicy(run_timeout=45)` fires, LangGraph raises, `/ask`'s bare `except Exception` returns `HTTPException(500, f"Graph error: {e}")`. The UI lands on `toast('Error: ' + resp.detail)` with `dur=3000`. **After 45 seconds of a typing indicator the Belt gets three seconds of a raw Python exception string**, their own message left in the transcript with no reply and no error marker, no retry affordance and nothing persisted — scroll away and the failure is gone. **There is no client-side timeout at all**: `AbortController` appears zero times, so a server hanging past 45s spins the indicator indefinitely. **This and step 8.0's telemetry gap are one blind spot seen from both ends** — the span reported `status: success` and the Belt saw a toast. NOT FIXED | §44, §4.8, §50, §51 |
-| **G-71** | **THE UI HAS NO STEP, NO `Touches` AND NO ANCHOR.** `agent-improve/ui/index.html` is **7,273 lines** and is the entire Belt-facing product. **No Appendix D row builds it, no step's `Touches` names it, and no Appendix F anchor covers it.** Zone `UI` has exactly two rows, 10.1 and 10.2, and both are FUTURE work — so every line of the UI a Belt uses today was written outside the spine and is verified by nothing. **This is why the UI was the only layer with no audit behind it**: there was no row to hang one on. Found 2026-09-15 by the UI audit, which is the first reading of that file against the ratified tables | §49, §50, §55.1, Appendix D, Appendix F |
-| **G-72** | **A `repo:` ANCHOR CAN NAME A PATH UNDER A DIRECTORY THAT DOES NOT EXIST, MAKING `absent:` PERMANENTLY TRUE.** Appendix F's row for step 10.2 carries `absent: repo:agent-improve/frontend/gate_document.js`. **There is no `agent-improve/frontend/` directory** — the UI is `agent-improve/ui/`. So the cell passes today and **would keep passing after 10.2 ships**, because 10.2 will ship into `ui/`. **This is the SECOND instance of the unfailable-`absent:` class in one day.** The first was step 6.31's own row naming a module that could never import, which is why `MalformedAnchor` exists — but that guard validates MODULE names and does not reach a path anchor. **An `absent:` anchor is where an unfailable check hides**: a positive anchor that cannot resolve fails loudly, a negative one goes quiet. **Fix the CLASS, not the row.** FIXED 2026-09-15 | §55.1, §55.2, Appendix F |
-| **G-73** | **THE CREATE SCREEN LISTS THE BELT’S FILES BACK TO THEM AND THEN DISCARDS THEM.** `handleCreateFiles(input)` renders `input.files` into `#create-uploaded` as a list of filenames — **and stores the FileList nowhere.** `submitCreateCase` contains no `FormData`, no `/upload` call and no reference to the input at all, so it posts `POST /cases` and navigates away. **The Belt gets positive visual confirmation that their evidence is attached, and nothing is ever uploaded.** Worse than a missing feature: a missing attach control teaches the Belt to upload later, and a list of their own filenames teaches them it is already done. The files are unrecoverable — the FileList dies with the screen. **§29.1 makes `/upload` the ONLY channel through which external data enters the system**, and this screen presents a second one that goes nowhere. Found 2026-09-15 | §29.1, §49, §50, `ui/index.html` |
-| ~~**G-74**~~ | **THE CHAT UPLOAD REPORTED SUCCESS ON EVERY SERVER FAILURE. CLOSED 2026-09-15 by `04644e5`.** `handleChatFile` did `fetch(…).then(r=>r.json())` and then unconditionally appended *“I’ve received the file … Let me process it.”* — so a **422 refusal**, the path §6.11 built specifically to tell a Belt their file could not be read, rendered as the coach confirming receipt. The Belt then waited for coaching on a file the system had rejected and never stored. **Closed by the G-66 sweep rather than on its own merits**: `apiJSON` throws on a non-2xx, so the confirmation line is now unreachable on failure and the refusal reason surfaces instead. **Registered although already closed, deliberately** — §55.1 requires a defect found by an audit to be recorded whether or not the fix happened to land first, and a defect that leaves no trace is one nobody can check did not return | §29.1, §4.8, §50, `ui/index.html` |
-| **G-75** | **THE BOARD DISPLAYS ONE GAP PER MARKER AND SILENTLY DROPS THE REST — IN APPENDIX F’S OWN RENDERER.** `build_board.py` computes `gnums(m)`, the full list of open gaps whose refs match a marker, and **both render sites then take `.split(", ")[0]`** — the highest-numbered one — and discard the others with no `+N more` and no indication anything was dropped. Measured 2026-09-15: **seven gaps registered, three displayed.** §49’s marker carries G-47, G-66, G-67, G-68, G-69 and G-71 and **renders G-71 alone**. **THIS IS THE FAILURE CLASS APPENDIX F EXISTS FOR, SITTING INSIDE APPENDIX F’S RENDERER.** §66’s header states that a gap without a step *“does not render on the board and so is not scheduled by anything”* — a gap WITH a step that still does not render fails the same way, and the board is the artefact a founder reads to decide what is scheduled. **A register that is complete and a board that under-reports it are indistinguishable to the reader**, which is the `1 of 5 SKILL.md files written` shape one level up. Not a data defect — `read_gaps` returns all seven and is correct | §55.1, §55.2, §66, Appendix F |
-| **G-76** | **THE GRADER'S BELT-VISIBLE WARNING IS VISIBLE TO NOBODY — A FAILING QUALITY GATE SHIPS SILENTLY.** §19.8's grader runs every turn. On `max_iterations` (3) it logs *“passing the turn through with a Belt-visible warning”* and returns `{"grader_warning": MAX_ITERATIONS_WARNING}` — `grader.py:152`, **the only write in the tree**. It is **declared on NO state schema** (absent from `core/substate.py` and `core/state.py`), **carried on no response model**, and **read in zero places** across `backend/` and `ui/index.html`. **It does not die at `routes.py:668` with §50.1's four fields (G-69)** — it never reaches the route at all; it is returned as an UNDECLARED key into `create_agent`'s internal state and goes nowhere. Observed on the 2026-09-15 live turn: the coach failed its own rubric three times, the turn returned 200, and the founder saw nothing. **SECOND ESCAPE CAUSE, and it is the G-63 shape exactly**: `test_max_iterations_passes_through_with_a_belt_visible_warning` asserts `out == {"grader_warning": …}` — it checks the middleware RETURNS a dict and never that a Belt sees anything. A test named for the contract, asserting the source. The STRUCTURAL escape is **G-77**, registered separately because it outlives this fix | §19.8, §34, §36, §49, S-C05 |
-| **G-77** | **AN UNDECLARED STATE KEY IS INVISIBLE TO THE F-15 PAIRING CHECK, SO “WRITTEN AND NEVER READ” GOES UNCAUGHT FOR ANY MIDDLEWARE THAT RETURNS ONE.** `verify_built.py`'s F-15 pass walks the fields DECLARED on `SupervisorState` and `PhaseState` plus `artifacts` keys, and asserts a writer and a reader for each — *“one check for a pattern that recurred seven times”*. **A key that is returned from a middleware without being declared anywhere is in neither population**, so the check cannot see it and reports green. `grader_warning` (G-76) is the first confirmed instance and was found by a live run, not by any check. **REGISTERED SEPARATELY FROM G-76 DELIBERATELY**: fixing `grader_warning` closes one field and leaves the blind spot open for the next middleware that returns an ad-hoc key — and §19 mounts eight of them. **The escape cause outlives the defect**, which is the whole reason §20 splits D4 in two | §55.2, §19, F-15, `verify_built.py` |
-| **G-78** | **EVERY COACHED FIELD CAPTURE DESTROYS THE ONES BEFORE IT, AND THE GATE DOCUMENT CANNOT ACCUMULATE.** Two defects at the ends of one working path. **(a) THE INPUT MAPPER BLANKS THE ACCUMULATOR EVERY TURN** — `mappers_common.py:252-253` seeds `"draft": {}` AND `"artifacts": {}`, so `artifacts`, documented at `nodes_common.py:1275` as *“the accumulation”*, accumulates within a single turn and is reset on the next. `artifacts` and `draft` are therefore always identical. **This is the defect 6.11 fixed one field over**: the comment directly beneath those two lines records that `uploads` was blanked *“from 3.1 to 6.11”* and that this *“was the entire reason `PhaseState.uploads` had no writer”*. **(b) THE WRITE REPLACES INSTEAD OF MERGING** — `routes.py:661-665` builds `clean` from THIS TURN's extraction and assigns `case.phases[phase].structured = clean`. Any turn that captures a field wipes every field captured before it. **OBSERVED 2026-09-15 on the benign branch**: the turn captured one field whose value was falsy, `clean` came out empty, `if clean` skipped the write, and the two creation-form fields survived — had the capture carried a real value they would have been destroyed. **THE LOG AND THE WRITE DISAGREE AND NOTHING RECONCILES THEM**: `nodes_common.py:1269` logs `len(captured)`, which counts KEYS, while the filter drops on VALUES — so *“captured 1 field(s) -> artifacts”* and *“nothing reached the gate document”* are both true of the same turn. **NOT step 6.20**, which owns `computation_results`, `phase_metrics` and `field_index`; this is the capture path 6.2 built and S-F04 B4 ratified. **A Belt fills 26 fields across many turns and this makes accumulation impossible, so §33's gate is unreachable** | §6, §7, §20, §39.1, S-C02, S-F04 |
-| **G-79** | **A RENDERED VISUAL IS PERSISTED AND NEVER RENDERED FROM STORAGE.** The 5W2H mindmap IS stored: `visualisation` is in `conversation.py`'s `V1_PRESENTATION_KEYS`, copied onto the turn by `message_to_turn`, and NOT in `_TRANSPORT_KEYS`, so `strip_transport` leaves it on the persisted turn in `case.conversation_history`. **The UI never reads it back.** `S.lastAsk` is assigned in exactly ONE place — `ui/index.html:6069`, inside `sendMessage` — and is never rebuilt from `conversation_history`; `renderLiveViz()` is called from exactly ONE place, `ui/index.html:6091`, also inside `sendMessage`. `selectTab('chat')` calls `renderChat()`, which rebuilds the chat DOM and destroys `#viz-live`, re-appends `S.localChat` **and never calls `renderLiveViz()`**. So the diagram survives the server and dies on a tab switch. **COUPLED TO G-78, and the coupling matters**: `renderLiveViz` branches on `detectCurrentWorkProduct(getStructured())`, and while G-78 stands no coached field reaches `structured` — so even a correct re-render call routes off the two creation-form fields and would draw the WRONG visual. **Fixing the render call alone is not sufficient** | §50, §50.1, §49, `ui/index.html` |
-| **G-80** | **A GENERATED ARTEFACT IS CHECKED AT ITS INPUTS AND NEVER AT ITS OUTPUT.** `docs/board.html` is produced by `build_board.py` and every check around it reads the DOCUMENTS it is generated from — Appendix D, the markers, §66, git log. **Nothing read the rendered file.** So the board shipped visibly broken for two commits while `build_board.py` exited 0 and printed *“72 steps, 69 markers”*, `verify_built.py` reported 26 checks with zero disagreements, and `pytest` was green — found only when the founder opened it (the unescaped `data-b` attribute, fixed 2026-09-15). **DISTINCT FROM G-71, AND THE TEST IS WHETHER ONE FIX CLOSES BOTH — IT DOES NOT.** G-71 is *no owner*: `ui/index.html` has no step, no `Touches` and no anchor, and its fix is to give the UI steps, which 10.0 begins. **This artefact HAS an owner** — step 6.16 built the generator, Appendix F anchors it at `repo:.claude/hooks/build_board.py`, and guard rule 2b watches the file. Its defect is that **the owner verifies the wrong thing**: inputs, not output. Giving the UI a step would not add an output check here, and adding one here would not give the UI a step. **A gap whose fix closes half of it is two gaps.** **PARTIALLY MITIGATED, and the limit is stated rather than claimed as closure**: `test_no_board_attribute_carries_unescaped_markup` now reads the rendered file — for ONE failure class, malformed attributes. A board that renders cleanly and says something FALSE still passes everything. §55.2's *“a marker nothing re-runs is a claim”* applied to the artefact rather than to the marker | §55.1, §55.2, Appendix D, Appendix F, `build_board.py` |
-| **G-81** | **A FIX THAT REMOVES A WASTEFUL PATH CAN DELETE THE ONLY COVERAGE ANOTHER STEP WAS RELYING ON, AND NOTHING NOTICES.** Before G-63 was fixed, the Define turn issued **three redundant `rag_lookup_evidence` calls** because the routed read had loaded nothing and the coach searched to compensate. **Those wasteful searches were the only thing exercising the evidence index end to end**, and step 6.13's live half depended on that path being walked. The fix removed the waste — the 2026-09-15 run spent **0 of 5 hops** — and **deleted 6.13's coverage with it**. So the same fact, *0/5 hops*, is simultaneously the proof that 6.21 worked and the proof that 6.13 was not exercised. **THE COVERAGE WAS ACCIDENTAL AND NOBODY KNEW IT EXISTED**, which is why its removal was invisible: it was not a test, it was a side effect of a defect, and no step recorded a dependency on it. **THIS WILL RECUR.** Every efficiency fix in a retrieval-driven system removes calls, and any verification that was riding on those calls goes with them — silently, because the suite stays green and the step that lost its coverage is not the step being changed. **The general rule this registers: a fix that REMOVES calls must name what was depending on those calls, and a `live-run` debt that was being satisfied incidentally is not satisfied at all.** Registered 2026-09-15 from the first live turn after G-63 | §24, §26, §55.1, G-63 |
-| **G-82** | **AN ARTEFACT IS REACHABLE ONLY AS A 160-CHARACTER SUMMARY, AND NO TOOL CAN READ ONE.** Observed on rid `ca6ba417-3319-433d-8bfb-9240252dfc0a`: `to_be_process_map.txt` classified **artefact** (`auto_detect_purpose` → *Process map* → `ARTEFACT_PURPOSES`, derived not declared), so by ruling 3 it was **captured and not indexed**. **THE ROUTE IS NOT BROKEN AND THAT IS THE POINT** — traced end to end: `routes.py:1041` persists `summary`, `models.py:149` carries it through `to_phase_state_entry`, `mappers_common.py:137-138` builds the entries, the mapper seeds `uploads` (6.11), and `state_injection.py:298` puts it in the prompt. **The coach HAD the artefact and searched anyway**, three times. **WHY IT COULD NOT USE IT:** the manifest truncates at **`summary[:160]`**, and its only usage instruction is *“To use any of these numbers, call `load_evidence_series` with the blob_path above”* — **numbers**, via a tool that returns n/mean/sigma from a numeric column. A to-be process map has no numeric column, so `first_numeric_column` returns `None` and G-63's fix correctly declines to dispatch. `UNIVERSAL_TOOLS` is six and **not one of them reads an artefact's text**. So the coach holds a 160-char fragment, is told the only way to open it is a numeric reader, and falls back to `rag_lookup_evidence` — the one index artefacts are guaranteed absent from. **A file the Belt uploaded, correctly classified and correctly stored, that the coach can see and cannot read** | §24, §29.1, §29.2, S-F57, G-63 |
-| ~~**G-83**~~ | **CLOSED 2026-09-18 at step 6.35** — the cap is now **3**, which fits the node budget at the measured per-hop cost, and `test_hop_cap.py` asserts the arithmetic so the constant is falsifiable. **Per-hop cost is deferred to step 9.0**, when recall can first be measured. Original finding: **THE FIVE-HOP CAP HAD NEVER BEEN REACHABLE. THE 45s TIMEOUT BINDS AT THREE, AND THE TWO LIMITS DISAGREE.** `COACH_HOP_BUDGET = 5` (`nodes_common.py:590`) against `EXECUTOR_RUN_TIMEOUT = 45` (`subgraph_common.py:73`). **Each hop is not one search.** §25's multi-query fusion makes it **one MODEL CALL to generate variants** (`fusion.py:~236`, `await … ainvoke`) **plus six searches plus RRF** — the log reads *“Generated 5 query variant(s)”* then *“6 quer(ies) -> 2 unique doc(s)”*. **Measured: ~9.5s per hop on G-63's trace (2026-09-14), and on `ca6ba417` three hops plus the coach's own calls reached 52.219s against a 45s wall.** At 9.5s four hops consume 38s and leave too little to compose; at the observed rate three is the ceiling. **SO THE BUDGET'S 5 IS DEAD CONFIGURATION** — the turn dies at 3 and `_HOP_BUDGET_SPENT` is unreachable code. **AND IT WAS DEAD THE DAY IT WAS WRITTEN**: fusion landed at step **5.2** (Seq 160) and the cap at step **6.7** (Seq 250), so the cap was built on top of a per-hop cost that already made it unreachable. **This bears on 6.7 and 6.13.** 6.7's live half asks that the opening turns *coach rather than cap* — a condition **trivially true, because capping is impossible**, which makes the clause unfalsifiable rather than satisfied. And 6.13's index path now costs ~9.5s a query against a wall that allows three | §25, §26, §3.7, §44, S-F09 |
-| ~~**G-84**~~ | **CLOSED 2026-09-17 at step 6.34.** The node now budgets its own model loop at `EXECUTOR_SOFT_BUDGET = 40.0`, below the engine's 45s wall, catches `asyncio.TimeoutError` inside its own body and returns a 200 with a partial answer; `partial_timeout` is written to `step_log` and reaches the parent as a `history` key. The wall was NOT raised — **G-83's cap contradiction stays open**. Original finding: **AN EXECUTOR TIMEOUT WAS A 500 TO THE BELT, AGAINST §4.8'S *NEVER A HARD FAILURE*.** On rid `ca6ba417` the Belt asked a coaching question and received **`POST /ask HTTP/1.1” 500 Internal Server Error`** with *“Node 'executor' exceeded its run timeout of 45.000s”*. **OCCURRENCE:** the timeout is enforced by `TimeoutPolicy(run_timeout=…)` at `subgraph_common.py:129`, which fires from the ENGINE and cancels the node **from above its own body** — so none of the node's graceful paths run. Those paths exist and are thorough: `except GraphRecursionError` at `nodes_common.py:1202` turns a runaway loop into a partial answer, the hop cap yields `_CAP_MESSAGE`, and the `remaining_steps` floor off-ramps into a composed answer with no retrieval. **Every failure the node can SEE is degraded; the one enforced above it is not.** It propagates to `routes.py`'s bare `except Exception` and becomes `HTTPException(500, f"Graph error: {e}")`. **NO path degrades it** — `grep` for timeout handling across `backend/` returns the policy line and nothing else. **ESCAPE:** the same file that promises *“a Belt mid-session never sees a stack trace”* (`nodes_common.py:1204`) adds the policy that guarantees they will, ~1,000 lines away, and **no test exercises a node that times out** — tests run fast, so the one failure mode that needs wall-clock to reproduce is the one the suite cannot reach. Compounded by **G-70**: what the Belt then sees is a three-second toast carrying the raw exception string | §4.8, §44, §45, §48, §50 |
-| **G-85** | **NOTHING DETECTS A RETRIEVAL HOP THAT RETURNED NOTHING NEW.** On rid `ca6ba417`, `rag_lookup_evidence` ran **three times** and each run logged *“6 quer(ies) -> 2 unique doc(s), returning 2”* — **eighteen searches, the same two documents, three rounds**, ~9.5s a round, and the turn then died on the wall. **`PhaseState.hop_results` is the field for exactly this and it is inert**: declared at `substate.py:371`, listed in `PHASE_STATE_CONTENT_FIELDS` at `substate.py:420`, initialised to `[]` at `mappers_common.py:272` — and **written by no node and read by no node**. So no hop can compare itself with the one before it, and a coach that searches the same corpus with rephrased queries pays full price each time for a result it already holds. **The hop budget counts CALLS, not PROGRESS** — it would stop a sixth identical search and cannot stop a second. **The escape is G-77's shape**: `hop_results` is declared, so F-15 should see it; it is unpaired in BOTH directions and is carried as a known exemption for step 6.10, which means the one signal that would have caught this is booked as somebody else's future work | §24, §25, §26, S-C02, F-15 |
-| **G-86** | **APPENDIX F'S `State` COLUMN IS DOCUMENTED AS DERIVED AND IS IN FACT HAND-MAINTAINED, WITH NOTHING CHECKING IT.** Appendix F's header states *“`State` is DERIVED, not typed — ⛔ from Appendix D's status cell, then ✅ if git carries the step's spine subject, else ☐”*. **Nothing derives it.** The emitter that seeded the column at 6.31 was a one-off, and `verify_built.py`'s two matrix checks validate the `Evidence` anchor and the step-set — **neither reads the `State` glyph**. **Found 2026-09-17 on the matrix's OWN row**: 6.31 landed as `663a378` on 2026-09-15 and its cell still read `☐ not built` two days later, while the board — which DOES derive from git log — showed it DONE. **So the artefact built to stop a document disagreeing with the tree was itself disagreeing with the tree, in the column that says it cannot.** Corrected by hand at 6.34, which is the defect repeating rather than the fix. **THE CHECK IS CHEAP AND IS DELIBERATELY NOT BUILT HERE**: `matrix_states_agree_with_git` is the same shape as `matrix_covers_appendix_d` and belongs with a ruling on what to do about ⚠️, **the one state a human legitimately sets** and which git cannot derive — so a naive derivation would overwrite the judgement calls the column exists to carry | §55.1, §55.2, Appendix D, Appendix F |
-| **G-62** | **A COMMIT BODY MAY ASSERT A CODE FACT WITH NOTHING TO RESOLVE IT AGAINST.** **FOUNDER RULING 2026-09-14, overriding §56.3's *ruled to stay untested*.** The accepted reasoning stands — a gate cannot judge whether a prose claim is TRUE — **but it can gate the SHAPE**: a commit body asserting a fact about code carries a git-resolvable reference, a path with a line range or a commit sha. **It never judges correctness.** Worked case in the register: **v1.31(C)** asserted *“Rule 2b blocked the commit adding rule 6 … a watched path staged without this file is exactly what 2b exists to stop”* — a claim about what the guard did, carrying no reference, **and wrong**: that was the board being regenerated, the first false trigger, read as the rule working. It stood six weeks and cost `ef59aa8`. A `path:line` beside it would not have made it true, but it would have made it checkable. **KNOWN LIMIT, recorded with the ruling: it does not catch a citation that RESOLVES AND IS WRONG.** §55.2 cited `build_board.py`'s four inputs accurately and drew a false conclusion from them; a shape gate passes that unchanged. **Step 6.30** | §56.3, §20.5.1, §55.2 |
-| **G-61** | **FOUR DISMISSED HAZARDS REST ON ARGUMENT ALONE, AND NOTHING RE-RUNS THE ARGUMENT.** The §55.2 shape: a risk named in prose and cleared in prose. The full-structure audit found 52 dismissal-shaped statements; most are prose, §55.2's own is tested, and two naming `DMAICGateValidator` are forward-noted onto step 7.1. These four carry no owner: **(a)** §23.3 *“Safe by construction — each tool addresses its own index”*, the `embedding` / `content_vector` asymmetry — **step 9.1**, which applies the rename and either dissolves the claim or leaves a test binding each tool to its vector field name. **(b)** §23.2 *“it can only change at a rebuild … and cannot drift silently”* — **step 9.1**, same reindex. **(c)** §15 *“Why that is safe, rather than a simplification that ignores gate failure”* — the supervisor has no conditional edge because a subgraph reaches `END` only through `gate_apply`, which runs only after Belt approval. Testable as a graph property: assert `END`'s only predecessor is `gate_apply`. **Step 7.3**, which builds the approval path the claim depends on. **(d)** §56.3 *“a claim resolves through git, or is not made”* — **RULED: STAYS UNTESTED, NO STEP.** A gate reads the index and cannot read a sentence; §0.32 clause one is stated as ungateable in the rule itself, and §20.5.1 already carries the discipline that catches it. Recording it as owned by a step would claim coverage that cannot exist. **§19.6 WAS ON THIS LIST AND IS WITHDRAWN** — its *“every turn, by construction”* sits inside a record of three defects fixed on 2026-08-22 and describes the OLD behaviour, not a live safety claim. The audit misread a diagnosis as a dismissal | §55.2, §23.2, §23.3, §15, §56.3 |
-| ~~**G-58**~~ | **THE WATCHED-PATH CONTRACT HAD TWO OWNERS. CLOSED 2026-09-14 at step 6.27.** §55.2 tabulated the paths that oblige an `ARCHITECTURE.md` re-check and `commit-msg-refactor-guard.py` hardcoded the same set as `STATUS_WATCHED` — one fact, two copies, against CLAUDE.md's *Facts have one owner* rule. **It drifted twice, in opposite directions**: the board was added to both on 2026-09-11 and removed from only the guard on 2026-09-14, so between `258d0dd` and this step the document said thirteen paths and the gate enforced twelve — **the second drift was created by the commit that fixed the first**, which is the shape the ownership rule exists to stop. Closed by an EQUALITY TEST rather than a runtime read: parsing a prose section inside the hook would put a document on the critical path of every commit and fail closed on a reformat, and §55.2's block is authored for a reader, not a data file. Both mutation directions proven — a path added to §55.2 fails the test, a path added to `STATUS_WATCHED` fails the test | §55.2, §55.4, §56.3 |
-| ~~**G-57**~~ | **CLOSED 2026-09-13 at step 6.26.** `backend/tests/test_commit_guard_tree_rules.py` — 41 tests — pins what rules 7 and 8 RANGE OVER and not only what they match: the ratchet (`--diff-filter=AR`, so a modification is invisible to both), the rename into a scratch name, the index-versus-disk read of both registers, and that a declared number must resolve. **Two of its assertions go red on a REFORMAT rather than on a rule change** — Appendix D and §66 parsing into more than fifty entries each, with a struck-through `~~**G-52**~~` row asserted to still parse, because a closed gap is still a number that resolves. **The mutations are recorded with their results**: emptying `SCRATCH_SEGMENTS` gives 8 failed / 33 passed; pointing the Appendix D regex at `**Step X.Y**`, a shape the table does not use, gives 1 failed / 40 passed; dropping the filter from `AR` to `A` gives 1 failed / 40 passed. **What it deliberately does not pin is whether a file belongs to the step it declares** — rule 8 checks a number is declared and exists, and stating that limit in the test file is what stops a green suite being read as evidence the numbers are honest | §0.32, §56.3, §55.1 |
-| **G-56** | **NO DRIFT CHECK CAN SEE THE GOVERNING DOCUMENTS.** `deprecated_patterns.yaml` excludes `agent-improve/*.md` and `agent-improve/**/*.md`, so CLAUDE.md, ARCHITECTURE.md and everything under `docs/` are outside every pattern the drift hook enforces. **The exclusion is correct as written and that is the problem**: architecture markdown deliberately shows a superseded form beside its replacement, so a registry guarding CODE must not match it — which leaves the documents guarded by nothing. Every defect worked between 2026-09-12 and 2026-09-13 was in a document. The countermeasure is a hook that reads OWNERSHIP rather than patterns — `fact-ownership-guard.py` denying a write that restates an owned fact, which needs no pattern list and so needs no exclusion. **Step 6.24.** Was the live half of CLAUDE.md §18.1; its other half — `pattern-2`'s §4.6 scoping — **was closed at step 5.2 on 2026-09-03 and the document never said so**, which is why it read as owed for ten days. | §55, §55.1, §56 |
-| ~~**G-42**~~ | **RESOLVED 2026-08-24** — the mapper runs inside the parent's uniquely-named node function for that phase, which is the documented LangGraph pattern for parent and subgraph with different state schemas. See §66.6, S-F10 and DECISIONS §T1. *Original statement:* **the boundary mappers have no execution site.** §9 defines them as "two plain functions per phase"; §13 states a phase subgraph contains **exactly five nodes**, none of which is a mapper, and forbids a sixth without a §56 amendment; §12 embeds each subgraph as a node of the parent. Whether a mapper runs inside the subgraph, inside the parent's node wrapper, or somewhere else is stated nowhere — and every phase boundary depends on it | S-F10, S-F11, S-F12 |
-
-### 66.3 Group C — schemas named but never defined
-
-| # | Gap | Marked at |
-|---|---|---|
-| **G-09** | `CoherenceResult` | S-C23, S-C13 |
-| **G-10** | `ConstraintCheckResult`, plus the `ConstraintVerdict` / `ConstraintCheckResult` naming split between `CLAUDE.md` §2 and reference §21 | S-C24, S-F25 |
-| **G-11** | `GraderVerdict` — only "carries a `list[CriterionVerdict]`" is stated | S-C21, S-F26 |
-| **G-12** | `CoachingGraderVerdict` | S-C22, S-C14 |
-| **G-13** | `PolicyAdvisoryResult`, and how a non-blocking advisory is surfaced without reading as a rejection of the Belt's correction | S-C25, S-F27 |
-| ~~**G-14**~~ | ~~`QueryVariants`~~ **CLOSED 2026-09-03, procedure step 5.2.** **One field, `variants: list[str]`** — a `rationale` field was considered and rejected as generated every retrieval, read by nothing, and paid for in tokens on the hot path. **The original query is NOT among the variants and is always searched anyway**, as ranked list zero: the Belt's own phrasing is the highest-signal formulation and must not be at the mercy of a generation call, and putting it in the schema would let the model spend one of its slots restating what it was given. *Consequence:* the fan-out is `1 + len(variants)`, so **4–6 lists reach RRF, not 3–5**, and the original's list is one vote among them — deliberately not weighted higher, because RRF's premise is that agreement across phrasings is the signal. **Count model-chosen, bounded 3–5 by `min_length`/`max_length`**, so a violation is a parse failure at the boundary rather than a silent narrowing; §25 says "3–5", which is a range, and forcing exactly five produces padding, which produces near-duplicate lists that inflate one document's fused score without adding evidence. File: `knowledge/fusion.py` (S-C19 sanctions it or `tool_args.py`). Record: `docs/_archive/DECISIONS.md` Part AC | S-C19 |
-| **G-15** | `HITLInterrupt` — and whether an exception raised from `after_agent` yields a resumable graph-level interrupt at all. **ANSWERED 2026-09-07 (ruling AJ4), landed here 2026-09-10: it is DELIBERATELY NEVER DEFINED.** The nine-step HITL gate (step 7.3) pauses with LangGraph's own `interrupt()`, which is resumable by construction; an exception raised from `after_agent` is not, and defining one would create a second, non-resumable pause mechanism competing with the framework primitive §0.24 requires preferring. **The gap stays OPEN as a naming problem rather than a design one** — §19.6 and S-C15 still raise `HITLInterrupt(**flag)` in prose, and those call sites need rewriting to `interrupt()` at step 7.3 | S-C15, S-C10 |
-| **G-16** | `CitationRecord` / `CitationBundle` — and the three different citation shapes stated in §50, §6 and §23 | S-C36 |
-| **G-17** | `CaseDocument` · `PhaseRecord` · `RegistryEntry` · `PhaseSummaryRecord`, and whether `PhaseRecord` duplicates the gate document | S-C09 |
-| **G-18** | All `gateway/schemas.py` envelopes, for all seven endpoints, plus the gate interrupt and resume payloads and the SSE event shape. **G-02 now depends on this** — the `/gate/reject` payload must carry a mandatory reason | S-C37, S-F06, S-F34, S-F13 |
-| **G-19** | Per-phase `PhaseState` variants — the transient fields are never enumerated, and whether they count against §6's ceiling is undecided  **✅ CLOSED 2026-09-11 by ruling** — the five variants are not built and will not be; §39.x.7 describes per-phase USE of the shared 22-field `PhaseState` (S-C03). The fields were never enumerable because the classes were never designed. | S-C02, S-C03, §6, §39.x.7 |
-
-### 66.4 Group D — described in prose, no interface
-
-| # | Gap | Marked at |
-|---|---|---|
-| **G-20** | `AzureBlobCheckpointSaver` — the on-blob format is complete; the `BaseCheckpointSaver` method set is absent | S-C07 |
-| ~~**G-21**~~ | ~~`ImproveBlobClient` — the class interface, and how registry updates sequence against case writes~~ **CLOSED 2026-09-01, procedure step 3.5.** **There is no class interface** — §54 holds `storage/blob.py` to module-level functions only, so the gap asked for something that may not exist here. Thirteen module-level names replace the class (S-C08 carries the table); `write_phase_gate` awaits the case write **before** the registry update, because the case blob is the system of record. Lifecycle is one loop-keyed cached `aio` client closed by `aclose()`. **Deletion is NOT covered and is a new gap** — nothing removes `uploads/{case_id}/{file}` (WATCH 10) | S-C08 |
-| **G-22** | `CircuitBreaker` — thresholds and state machine complete, interface absent | S-C35 |
-| **G-23** | `DMAICGateValidator` — static method names, signatures and return shapes; must be designed with G-31 | S-C26 |
-| **G-24** | Constructor arguments for all four remaining custom middlewares — `(...)` is literal in §19 in every case | S-C11, S-C12, S-C13, S-C14 |
-| **G-26** | Retriever-layer signatures, `RETRIEVAL_EXCEPTIONS` membership, and the `_fail()` contract | S-F18 |
-| ~~**G-27**~~ | ~~Boundary mappers for Measure, Analyse, Improve and Control — including what each `phase_context` contains~~ **CLOSED 2026-08-31, procedure step 3.3.** All ten mappers built. `phase_context` ruled: the prior phase's **Tier-1 fields + `phase_metrics` + `acknowledged_gaps`**, rendered as `field: value` lines; **Tier 2 excluded** — a Belt may consciously proceed without a Tier-2 field, so carrying one invites the next planner to read a permitted absence as a finding. `acknowledged_gaps` travels precisely so "decided to proceed without this" stays distinguishable from "nobody asked" | S-F12 |
-| **G-28** | Gate assembly for Measure, Analyse, Improve and Control — 55 field assignments, each selecting a tier access pattern, and an omission is silent | S-F28, S-F07 |
-| **G-29** | `propose_template` — an open "etc." type list and no `fill_data` schema | S-F19 |
-| **G-30** | `propose_diagram` — types and schemas are said to live in `core/diagrams.py`, **which does not exist** | S-F20 |
-| **G-31** | `check_gate_status()` — return shape unspecified, and a zero-argument signature that must nonetheless know the phase and read `artifacts` | S-F21 |
-| **G-32** | `request_human_approval` — how a tool raises a graph-level interrupt from inside the executor's tool loop | S-F22 |
-| **G-33** | `load_skill(name)` — in neither the universal eight nor any phase count. **ANSWERED 2026-09-04 (ruling AH4), landed here 2026-09-10: `load_skill` is MIDDLEWARE-REGISTERED and therefore outside §30's totals**, so it consumes none of the per-phase budget and the collision does not arise while it is never bound as a tool. **THE ARITHMETIC IN THIS ROW WAS FALSE IN THE DANGEROUS DIRECTION**: it read *"if bound, Measure goes to 16 against a cap of 16"* — legal by a hair. With the universal EIGHT (§60.7, 2026-09-09) binding it takes Measure to **17 against a cap of 16**, illegal on the day it happens. The gap stays OPEN because the answer is a placement, not a ceiling: whoever revisits §30's cap must settle it BEFORE a ninth universal tool. Pinned by `test_the_three_tool_counts_that_must_not_drift` | S-F23, S-F02, S-C12 |
-| **G-34** | The escalation subgraph — no node list, no state schema, no exit contract | S-F08 |
-| **G-35** | `synthesise_partial()`, `delete_or_flag_stale_in_case_index()` (delete **or** flag stale — the name carries the undecided choice), and the `degraded_coaching_response` node, which is not one of §13's permitted five. **STILL OPEN** — but §64.3 now carries a *design note* on making the `improve_case_index` write idempotent and encapsulated so the compensating action covers only the non-idempotent residue. **An input to step 8.2, not a ratification and not a closure** | S-F31, S-F32, S-F33, S-F09, S-F29 |
-| **G-36** | ~~No upload endpoint exists, no file owns the upload handler~~ — **both answered; the endpoint is in §49 and S-F34 (Part AP5) and the handler has steps 6.11 / 6.12.** STILL OPEN on the code: §29.1's sole external channel, and step 6.11 is where it closes or is re-scoped | S-F35, S-F34 |
-| **G-37** | **Nothing writes `improve_case_index`** — the schema is defined, cleanup of it is required, and no writer is named | S-F36 |
-
-### 66.5 Group E — content the build sequence defers
-
-| # | Gap | Marked at |
-|---|---|---|
-| **G-39** | `turn_count`'s increment contract, load-bearing in §11's deterministic `step_log` key | S-C02 |
-| **G-40** | Prompt constants — `{PHASE}_COACH_PROMPT`, `{PHASE}_PLANNER_PROMPT`, five `PHASE_RUBRIC`s and four `{PHASE}_CONSTRAINTS` sets are named with coverage lists and no text. Only `COACHING_QUALITY_RUBRIC` is written out | S-F26 |
-
-### 66.6 Closed
-
-| # | Gap | Resolution |
-|---|---|---|
-| **G-41** | The two calibrated samples' verbatim text was in no file in the repository — `SPEC_LAYER_GUIDE.md` §7 gave their skeletons and deferred the full text to the 2026-08-23 conversation | **CLOSED 2026-08-23.** The approved verbatim text was supplied at `agent-improve/docs/_archive/SPEC_SAMPLES.md` and transcribed into §57.2 and §57.3 (archived to docs/_archive/; canonical: ARCHITECTURE.md §57.1; ARCHITECTURE.md §57) |
-| **G-03** | `PhaseState` declared no case identity and no phase identifier, while three specified functions read one or both off it | **RESOLVED 2026-08-24**, ruling A2. Two fields added — `case_id`, `current_phase` — copied down by the input mapper at phase entry, read-only in the subgraph, never written back up. Chosen over reading `case_id` from config and phase from a build constant, **because mixing sources is what made the defect latent.** S-C02; DECISIONS §T1 |
-| **G-42** | The boundary mappers had no stated execution site: §9 made them plain functions, §13 permits exactly five nodes and none is a mapper, §12 embeds each subgraph as a parent node | **RESOLVED 2026-08-24**, as the same fix. The mapper runs **inside the parent's uniquely-named node function** for that phase — the documented LangGraph pattern where parent and subgraph share no state keys — so it adds no sixth node. Carries the call-order namespace stability condition. S-F10, S-F12; DECISIONS §T1 |
-| **G-43** | Raised 2026-08-24: subgraph state might not persist across Belt turns, because §16 compiles phase subgraphs with no checkpointer argument | **RESOLVED 2026-08-24 — FALSE ALARM. Design confirmed correct.** Every `.invoke`/`.ainvoke` in this document is either the single parent-graph entry point or an LLM call; **no subgraph is invoked standalone, outside the parent.** Checkpointer placement is the prescribed pattern — parent compiles with the checkpointer, subgraphs compile bare and inherit persistence through an auto-managed `checkpoint_ns`. The `checkpointer=True` clause whose absence raised the alarm applies to **independently-persisted** subgraphs, which Agent Improve deliberately does not use; **omitting it is correct, not a defect.** What remains is the already-known **⚠ WIRED, INERT** checkpointer — `thread_id` is not yet passed at `ainvoke` in the current *code* — which is already scheduled as the `thread_id`-through-`ainvoke` step (§16, §47, §53.1). **G-43 folds entirely into that step and adds no new work.** **What it did NOT verify is the wrapper-internal invoke prescribed by G-42/S-F10 — that distinct case was tracked as G-44 and is itself now resolved (below).** DECISIONS §U1 |
-| **G-04** | `remaining_steps` read off `PhaseState` twice (§26), undeclared — the `.get(..., 10)` default returned 10 forever and the 5-hop cap never fired | **RESOLVED 2026-08-24.** Declared as a LangGraph managed value (`remaining_steps: RemainingSteps`) on `PhaseState`; the engine now populates it live. The 10 was a bug artifact and is gone; the 5-hop business rule, enforced by the `<= 2` entry guard, is unchanged and now actually fires. Verified against current LangGraph docs/source. See S-C02, §26. |
-| **G-01** | Level 2 (subgraph-internal) `Command` routing was undesigned: §13 drew the branching, §15 stated the rule, and no `Command(goto=…)` existed anywhere | **RESOLVED 2026-08-24.** Three decision points, at S-F13: the **planner** owns field/gate routing and the executor returns plainly (§17); the validation exit increments `gate_attempts` **once at entry** and branches pass / retry / escalate; the gate exit is approve → `END`, reject → planner. Verified against current LangGraph docs. **DP1's predicate depended on G-38, closed 2026-08-25 for Define** (§39.1.2); **the escalation exit's node name still depends on G-34** (open). See S-F13, §13, §15 |
-| **G-02** | What a Belt REJECT does was unstated — `POST /gate/reject` existed in §49's table and in §33.1's frontend sequence with no defined behaviour | **RESOLVED 2026-08-24, founder ruling.** Reject **loops to the planner for another coaching turn**; the Belt **MUST supply a reason**, carried as `rejection_feedback` — a new `PhaseState` field (S-C02) — so the re-coach addresses what was actually objected to rather than repeating the refused turn. **The `/gate/reject` payload gains a mandatory reason, which depends on G-18** (open). See S-F13 DP3, §33, S-C02 |
-| **G-44** | Raised 2026-08-24 as the narrow successor to G-43: the S-F10 wrapper node's inner `subgraph.ainvoke` is a third case neither §16's bare-node claim nor G-43's standalone-invoke check covered. | **RESOLVED 2026-08-24.** Pattern B (wrapper node invoking the subgraph) is correct and is in fact forced — `SupervisorState` and `PhaseState` share no keys, so `add_node(subgraph)` is unavailable. The inner invoke persists `PhaseState` across turns **provided** it is called directly inside the node function with inherited config and is never relocated inside a tool. Verified against current LangChain subgraph docs; local repro owed. See §16. |
-| **G-25** | **The 20 computation tools** — no signature, no `args_schema`, no return shape for any of them; and no defined shape for §7's required "reformatting request" | **RESOLVED 2026-08-26.** **§69** specifies all twenty as **S-F37–S-F56** — inputs, `result` keys and methodology preconditions per tool — with the repeated header fields and the string-valued `result` rule stated once at §69.1. The "reformatting request" shape is settled there as a **returned value, not a raised error** (§60.6 B3), so a tool that cannot parse its input hands the Belt something to act on rather than failing the turn. Two boundaries are stated rather than left to be rediscovered: `post_improvement_cpk` stays a separate `@tool` from `calculate_cpk` despite sharing the formula (§30's no-mode-argument rule), and **Measure deliberately has no chart-limit tool** (§69.7). §60.6 stays as the group entry and its rebuild test now reads *met*. See §69, S-F24 |
-| **G-45** | **`metric_definitions` had no spec entry.** Registered and resolved in one pass: §39.2 (Measure) and §50 both refer to the project metric registry, and until §63.8 existed those were dangling references — a spec citing a structure this document never defined | **RESOLVED 2026-08-26.** **§63.8 — S-C38** defines it: `list[dict]` of `{name, unit, meaning}`, Define-owned, with `name` as the traceability key and four EARS behaviors. Registered here rather than left implicit because §55.1 requires every referenced spec to resolve, and a reference that resolves only because nobody checked is the failure §55 names. See §63.8, §39.1 |
-| **G-46** | **`phase_metrics` had no spec entry.** Same class as G-45 and raised by the same pass: §39.2, §40 and §50 all refer to a per-phase metric placeholder that no entry defined | **RESOLVED 2026-08-26.** **§63.9 — S-C39** defines it: `list[dict]` on all five schemas, `name` equal to a registry `name` by key equality, per-phase content tables for the five, five EARS behaviors, and the `"none this phase"` rule that keeps an empty list from meaning two different things. **§40's same-field-on-all-five rule now binds three fields**, not two. See §63.9, §40 |
-| **G-38** | `field_index` had no ordering source — the per-phase field list it indexes into was stated nowhere, and §13's "advance to the next field" depended on it. **G-01 depended on it too**: S-F13 DP1's predicate could not be implemented without it | **CLOSED 2026-08-25.** §39.1.2 states Define's ordered field list — **twelve** coached fields, `business_case` through `issues_and_barriers` (the list grew from ten at the 2026-08-26 Option A finalization, which added `target_value` and brought `secondary_metrics` into the coached walk) — and **that list IS the `field_index` sequence.** DP1's predicate is now implementable for Define. **The closure is Define-only by design:** §39.1.8 gives the other four phases the same section shape at §39.2–§39.5, and their lists remain blocked on G-27 and G-28. Resolution reconciled the v1-code divergence toward the v2 names (F-11). See §39.1.2, S-F13, S-C02 |
-
-### 66.7 Findings — recorded, not gaps
-
-**A gap is something missing. A finding is something present and wrong, or
-present and inconsistent.** These were surfaced by the conversion pass and the
-Supplier/Customer cross-check, whose first run is recorded at §66.8; by the
-Define finalization of 2026-08-26 (**F-12**); and by the multi-criteria ruling
-of the same day (**F-13**, **F-14**). **None was fixed by the pass that raised
-it**; each needs a §56-routed decision of its own. **F-12, F-13 and F-14 are all
-owed to phase reviews that have not happened yet** — two to Control's, one to
-Analyse's.
-
-| # | Finding |
-|---|---|
-| **F-01** | **The drift registry cannot see this document.** `.claude/config/deprecated_patterns.yaml` excludes `agent-improve/*.md` and `agent-improve/**/*.md` from patterns 2–8. **This file moved to the monorepo root in v1.2 and the exclusion was never updated**, so the platform governance document is now guarded as if it were code — while the registry's own header names `AGENTIC_ARCHITECTURE_REFERENCE.md` among the documents that must be able to name a deprecated construct in order to prohibit it. **Fourth instance of the pattern §55 names:** a correct rule paired with a check that cannot see what it governs |
-| **F-02** | **§33 step 9 still reads "Supervisor reads `gate_passed`, static edge advances."** v2.2.20 of `CLAUDE.md` deliberately tightened its equivalent step to "the parent's static edge advances," on the ground that "routes onward" was the last phrasing from which the deleted `route_after_phase` design could be re-derived. **The reference's own step 9 was not tightened with it**, so the two binding documents now differ on the sentence that DECISIONS §R2 exists to police |
-| **F-03** | **The calibrated `phase_executor` sample cites "(§35)" for the four-layer validation stack, twice** — once in its Art. 15 row and once in its DORA row. §34 is the four-layer stack; §35 is the two-tier field rule. Transcribed verbatim and not corrected, because the sample is the approved standard |
-| **F-04** | **The calibrated `phase_executor` sample's Supplier cell names only `phase_planner`.** `analyse_executor_node` (S-F09) produces `synthesis_output` that the coach call reads, which makes it a second supplier on multi-hop turns. Not corrected — verbatim |
-| **F-05** | **Middleware is invisible to the Supplier/Customer cross-check.** Per the approved judgment call, the five custom middlewares are class entries without SIPOC tables — yet `phase_executor`'s Customer cell names `ContradictionDetectionMiddleware` as its first consumer. The cross-check cannot close on that edge. Either middleware needs SIPOC cells, or the rule needs to state that it ranges over nodes and functions only |
-| **F-06** | **The 20 computation tools are likewise invisible**, for the same reason: S-F24 is one entry with behaviors and no SIPOC. They are named in `phase_executor`'s Input cell via `tools=` and nowhere else in the cross-check |
-| **F-07** | **The cross-check rule does not model two structures it meets constantly.** *Request/response pairs*: the API surface both triggers the graph and consumes its output, so each is the other's Supplier and Customer, and a strict reading reports a mismatch. *Nesting*: Layers 2c and 2d, gate assembly, the policy advisory, RRF and the retriever layer are sub-components of their own callers, so their Supplier and Customer are the same entry. Both are correct designs that the rule as written flags. **Recommendation: state the rule as ranging over peer node-to-node edges, and exclude nested sub-components and return paths explicitly** — otherwise it produces noise that trains people to ignore it, which is the §55 failure mode |
-| **F-08** | **The gate document is written to the same Store key twice** — by `gate_apply_node` (§33.2) and again by the phase's output mapper (§9). The write is idempotent by key so nothing breaks, but **neither section names which is authoritative**, and a future change to one will not obviously require a change to the other |
-| **F-09** | **`BeforeModelStateInjection` is named after the hook it must not use.** Its hook is `before_agent`; §19, §19.1 and `CLAUDE.md`'s no-go list each correct the `before_model` reading separately. The class name reproduces the error every time it is read |
-| **F-10** | **`degraded_mode_response` reads counts that `check_gate_status()` produces** (§46 body vs §29.2), and both are unspecified (G-31). They should be designed together, or the Belt sees two different completion counts |
-| **F-11** | **The built `DefinePhaseInput` had diverged from the v2 architecture names.** It carried granular 5W2H fields (`what`, `where`, `when`, `who_affected`, `why_it_matters`, `how_much_baseline`, `how_goal`), `scope_in`/`scope_out` as separate strings, and **both** `target_date` and `estimated_completion_date` — a duplicate date. **Resolved by the §39.1 rebuild**, in favour of the v2 names: one composed `problem_statement`, `project_scope` as a dict, one `target_date`. **Recorded so the rebuild is not later read as having introduced those names** — it retired them. The 5W2H survive as the coaching method (§39.1.3), never as stored fields |
-| **F-12 — RESOLVED 2026-08-27** | ~~**Control has no `actual_close_date`.**~~ **Closed at the Control phase review (§39.5):** `actual_close_date` is added to `ControlOutput` as **Tier 2**, 16 → 17 fields, §35's Control row to 3/9. **Tier 2 is the ruling, not an oversight** — a slipped date does not invalidate the improvement, the same logic that makes Define's `target_date` a planning parameter. **The original finding, for the record:** Define's finalization (2026-08-26) makes `target_date` a required field and states explicitly that it is the **planned** completion date — a project-management parameter that may slip without invalidating the improvement. **The pattern it belongs to is target-vs-actual**, the same one `target_value` uses: Define states the target, Control captures what actually happened, and the delta is the finding. `target_value` has its Control counterpart in `post_improvement_metrics` (S-C31); **`target_date` has none.** Recorded as a forward dependency, **not built here** — Control's field list is settled at its own phase review (§39.5, blocked on G-27/G-28), and adding a field to `ControlOutput` outside that review is exactly the one-phase-at-a-time change §40 warns about. **When Control is specified, `actual_close_date` must be on the agenda alongside the schedule-variance question it implies** (is a slipped date a Control finding, or only a record?) |
-
-| **F-13 — RESOLVED 2026-08-26** | ~~**Analyse's `causal_hypothesis` does not say WHICH criterion a root cause explains.**~~ **Closed at the Analyse phase review (§39.3):** the cross-phase reference shape (§63.6, S-C32) gains **`references_metric_name`**, and the grader now matches it against the referenced phase's `phase_metrics` `name` rather than reading a bare scalar (S-C32 B1, B5). The key is on **all three** reference dicts for a uniform resolution path; Analyse populates it now, Improve and Control at §39.4 and §39.5. **The original finding, for the record:** Harmless while a project tracks one measurement criterion; ambiguous the moment it tracks two. `causal_hypothesis` is a cross-phase reference dict (§7, §42) carrying `references_phase` / `references_field` / `references_value`, and the grader verifies the link by deterministic lookup — but with `baseline_estimate` naming *"Error rate: 12.3%. Cycle time: 2.6 days."*, a root cause referencing "the baseline" resolves to a string containing both, and **"explains 60% of the problem" stops having a single referent.** `practical_significance` inherits the same ambiguity. **Recorded, not built** — Analyse's field list is settled at its own phase review (§39.3, blocked on G-27/G-28), and adding a sub-key to one phase's reference dict outside that review is the one-phase-at-a-time change §40 warns against. Raised by the multi-criteria ruling, 2026-08-26 |
-| **F-14 — RESOLVED 2026-08-27** | ~~**Control's target-vs-actual becomes one comparison per criterion.**~~ **Closed at the Control phase review (§39.5.3):** `phase_metrics` is the authoritative store of all N comparisons, one entry per registry metric with `baseline` / `target` / `actual` / `delta` / `met`; `post_improvement_metrics` remains the primary metric's Tier-1 link, carrying `references_metric_name`; the single-authority invariant binds the two (`core/metrics.py`, unit-tested); and **the grader grades every entry, not only the primary**. **The original finding, for the record:** *(§39.4 landed 2026-08-27, leaving Control the last unspecified phase — this is now the one open finding blocking §39.5.)* *(Still open — but its reference shape is now defined: `post_improvement_metrics` carries `references_metric_name` from 2026-08-26, unpopulated until §39.5. What remains is Control's own decision about how N comparisons are presented and graded, not how they are addressed.)* `post_improvement_metrics` (S-C31) is the AFTER end of the measurement thread and is graded by lookup against Measure's `baseline_mean` (§63.5 B2). With N criteria that is **N comparisons, not one** — and a Control phase reporting a single improvement delta across several metrics is the same failure `MEASURE_RUBRIC` now catches at the Measure gate, arriving one phase later. Pairs with **F-12**, which owes Control an `actual_close_date`: both are Control-side consequences of Define-side decisions, and **both should be settled in the same Control review** rather than discovered separately. **Recorded, not built.** Raised by the multi-criteria ruling, 2026-08-26 |
-
-| **F-15** | **DECLARED, AND READ BY NOTHING — four instances, and the fourth was found by looking.** WATCH 19's shape, registered here 2026-09-10 because it stopped being an incident and became a pattern. **(1)** The Store's `case` namespace had no writer — §9 and S-F10 named readers, nothing wrote it; closed at step 6.8. **(2)** `PhaseState.uploads` had no writer: the boundary mapper hardcoded `[]` from 3.1 to 6.11, so no upload could reach a gate document; closed at 6.11. **(3)** §6 declares an *"evidence context"* reader of `uploads` and nothing read it, until 6.12's upload manifest (`DECISIONS.md` Part AS3). **(4)** `knowledge/retriever.py::get_evidence_vectorstore()` is defined, correct, and **called by nothing** — both live evidence paths use a raw `SearchClient` (Part AT). **The first three were each found while building something adjacent, never by a check.** The fourth was found by 6.13's audit reading a sub-step that instructed a change to it. **§55.1's bidirectional rule covers references between documents; nothing applies it between a declaration and its reader** — that absent check is the finding, and step **6.17** (the count-check, renumbered from 6.15 on 2026-09-11 when 6.16 landed ahead of it) is the nearest thing scheduled to it |
-
-### 66.8 The Supplier/Customer cross-check — first run, 2026-08-23
-
-**Run mechanically over all 73 entries as the conversion landed.** 28 entries
-carry a SIPOC table; 58 directed edges were checked in both directions;
-**36 did not close.**
-
-**Five are substantive, and three of those confirm a gap this document already
-names.** The cross-check found them without being told to look:
-
-| Edge | What it means |
-|---|---|
-| S-F05 names S-F03 as Supplier; **S-F03's Customers are S-F04 and S-F09 only** | **G-01, decision point 1, detected mechanically.** The validation stack says the planner triggers it and the planner does not say it routes there — because that routing does not exist |
-| S-F10 names S-F03 as Customer; **S-F03's Suppliers do not include it** | **G-42, detected mechanically.** A mapper cannot be named as a supplier of the planner because it has no stated execution site |
-| S-F12 names S-F03 as Customer; **same** | **G-42**, on the other four phases |
-| S-F09 names S-F04 as Customer; **the sample's Supplier cell names only `phase_planner`** | **F-04.** The multi-hop path feeds the coach call and is not accounted for. Not corrected — the sample is verbatim |
-| S-F29 names S-F33 as Customer; **S-F33 has no SIPOC table at all** | **G-35.** The error handler routes to `degraded_coaching_response`, which is undefined and would be a sixth node §13 forbids without an amendment |
-
-**The remaining 31 are structural, and they are the rule's problem rather than
-the architecture's.** They fall into five classes:
-
-| Class | Count | Finding |
-|---|---|---|
-| The calibrated sample names its neighbours in prose (`phase_planner`) rather than by entry ID, so the parser cannot match them | 11 | F-04 |
-| Nested sub-components — Layers 2c and 2d inside the validation stack, gate assembly and the policy advisory inside `gate_apply`, RRF and the retriever layer inside the `rag_lookup_*` tools | 12 | F-07 |
-| Request/response and build-time/run-time pairs — the API surface both triggers the graph and consumes its output; the supervisor graph both builds subgraphs and runs them | 6 | F-07 |
-| Edges pointing at class entries, which carry no SIPOC table | 2 | F-05, F-06 |
-| **Store-mediated data handoffs** — neither party invokes the other; the value travels through a Store key | 1 | **F-08 — see the note below** |
-
-> **The conclusion was about the rule, not the result — and the rule has since
-> been narrowed.** A check reporting 36 failures of which a handful matter would
-> have been ignored by its third run, becoming the fourth instance of the
-> pattern §55 names: a check whose output nobody reads.
->
-> **RESOLVED 2026-08-24. §55.1 rule 3 now applies only to peer runtime call
-> edges.** The re-run under the narrowed scope was **executed, not estimated**:
->
-> | | Count |
-> |---|---|
-> | Non-closures, un-narrowed | 36 |
-> | Out of scope — return paths | 13 |
-> | Out of scope — nested sub-components | 11 |
-> | Out of scope — build-time relations | 2 |
-> | Out of scope — edges into class entries | 2 |
-> | Out of scope — Store-mediated data handoff | 1 |
-> | **In scope** | **7** |
->
-> **Of the 7, two are one edge counted in both directions** — `phase_planner`
-> ↔ `phase_executor` — and it fails only because the verbatim sample names its
-> neighbours in prose rather than by entry ID. **Notation, not wiring.** The
-> other **five are real, and every one traces to something already registered**:
-> G-01, G-42 twice, F-04 and G-35. Signal-to-noise moves from 4-in-36 to
-> 5-in-7.
->
-> **Four of those five are now closed.** G-42's two edges and G-01 were all
-> resolved on 2026-08-24 (§66.6), leaving F-04 and G-35 open on this run.
->
-> **One detection is lost to the narrowing, and it is recorded rather than
-> quietly absorbed.** **F-08** — the gate document written to one Store key by
-> two claimed writers — was found on the S-F11 → S-F12 edge, which is a
-> **Store-mediated data handoff and not a call**. The narrowed rule does not
-> reach it and will not re-find it. **Data-handoff edges are outside rule 3 by
-> construction**; checking them is a separate rule with its own scope, and none
-> is proposed here. F-08 itself stays open at §66.7.
->
-> The scope definition and its reasoning are in §55.1.
-
----
-
-# Part XIII — Compliance and Risk
-
-*The EU AI Act and DORA obligations this architecture is designed to satisfy,
-and the register that aggregates them. **This Part is scaffolding placed
-2026-08-23**: the posture is stated, the obligations are mapped to mechanisms
-that already exist, and the classification question is left open because it is a
-legal determination.*
-
----
+**The section number is kept rather than reclaimed.** 1,128 parenthetical
+citations exist across the two binding documents and many of them are `§66`;
+a number that silently pointed at nothing would break every one. §0.2's rule
+against renumbering applies to a section that MOVES exactly as it applies to
+one that is amended.
 
 ## 67. EU AI Act compliance posture
 
@@ -12267,7 +11939,6 @@ than twenty times below. **Read every entry in §69.2–§69.6 as carrying these
 
 ### 69.7 The Measure control-chart boundary — a tool that is deliberately absent
 
-> **BUILT:** ✅ built · **the absence holds and is pinned** — neither
 > `xbar_r_chart_limits` nor `imr_chart_limits` is bound to Measure, asserted by
 > `test_measure_binds_no_chart_limit_tool`. **A deliberate absence is a
 > buildable claim**, and this is the one section in §69 that carries one ·
