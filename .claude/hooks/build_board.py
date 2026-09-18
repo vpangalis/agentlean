@@ -1459,6 +1459,39 @@ invisible to the count by design — that is what EXTERNAL is for.</footer>
 """
 
 
+def unbanded_steps(rows: list[dict], bands: list[dict]) -> list[dict]:
+    """Unlanded steps outside every band range — each renders NO card.
+
+    **THE SYMMETRIC TWIN OF THE `UNMAPPED markers` CHECK**, and it was missing
+    while that one existed. The band sections are what emit step cards, so a
+    step whose `Seq` falls in no band is counted in every total on this board
+    and drawn nowhere on it. `40 of 78 spine steps landed` reads identically
+    whether all 78 render or 75 do.
+
+    **Found 2026-09-18, caused by step 6.36 and caught by the founder reading
+    the board.** 6.36 put three new steps at Seq 580-582 against a band D that
+    ended at 580, and moved `11.2 — governance close-out` from 580 to 583 to
+    keep it last: 11.2 had a card at `1469d08` and none at `92446ab`. Nothing
+    failed — the generator is fail-soft, `verify_built.py`'s set equality
+    passed because both tables HELD the rows, and `pytest` was green.
+
+    **DONE steps below the first band are excluded, and the reason is stated
+    rather than left to be rediscovered.** Thirty-one completed steps sit at
+    Seq 10-310, beneath band A's 330, because the bands are the PLAN and
+    finished history is not in it. A check that reported those would fire 31
+    false positives on its first run and be ignored by its second — which is
+    the failure `section_title_sources` already records happening twice to the
+    typed-title probe.
+    """
+    if not bands:
+        return []
+    floor = min(b["lo"] for b in bands)
+    return [r for r in rows
+            if r["lane"] != "DONE"
+            and not any(b["lo"] <= int(r["seq"]) <= b["hi"] for b in bands)
+            and int(r["seq"]) >= floor]
+
+
 def main(argv: list[str]) -> int:
     """Fail-SOFT. A hook that WRITES must never wedge a commit (6.16 §5).
 
@@ -1486,6 +1519,13 @@ def main(argv: list[str]) -> int:
                         if m["section"] not in MARKER_HOME]
             if unmapped:
                 print("UNMAPPED markers:", unmapped)
+                return 1
+            orphans = unbanded_steps(rows, read_bands())
+            if orphans:
+                print("UNBANDED steps (counted in every total, rendered "
+                      "nowhere):",
+                      ", ".join(f"{r['step']} at Seq {r['seq']}"
+                                for r in orphans))
                 return 1
             return 0
 

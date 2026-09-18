@@ -7,10 +7,10 @@
 
 | | |
 |---|---|
-| **Last completed** | step **6.31** — The build matrix — one row per step, anchored to a symbol |
+| **Last completed** | step **6.36** — The register's readers read either document |
 | **Next** | step **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
-| **Spine steps landed** | 40 of 78 |
-| **Last spine commit** | `1469d08` (commit 6.35) |
+| **Spine steps landed** | 41 of 78 |
+| **Last spine commit** | `92446ab` (commit 6.36) |
 | **ARCHITECTURE.md** | v1.65 |
 | **CLAUDE.md** | v2.2.40 |
 | **Block regenerated** | 2026-09-18 |

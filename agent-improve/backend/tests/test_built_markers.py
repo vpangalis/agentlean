@@ -250,3 +250,90 @@ def test_all_three_readers_agree_on_the_next_step() -> None:
         f"{cs.derive(_ROOT)['next_step']} — two parsers, one table, "
         "disagreeing about what to build"
     )
+
+
+def _board():
+    """`build_board.py` as a module — its filename is not importable."""
+    spec = importlib.util.spec_from_file_location(
+        "build_board", Path(_ROOT) / ".claude" / "hooks" / "build_board.py")
+    assert spec and spec.loader
+    bb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(bb)
+    return bb
+
+
+def _laned_rows(bb):
+    rows = bb.read_appendix_d()
+    bb.assign_lanes(rows, bb.landed_steps(), bb.read_preconditions())
+    return rows
+
+
+def test_every_unlanded_step_falls_inside_a_band() -> None:
+    """**A step counted in every total and drawn nowhere.**
+
+    The band sections emit the step cards, so a `Seq` outside every band range
+    renders no card while `N of 78 spine steps landed` keeps counting it. A
+    complete register and an under-reporting board are indistinguishable to
+    the reader — which is G-75's finding about gap chips, one level up.
+
+    **Caused by step 6.36 and caught by the founder reading the board**, not by
+    any check here: 6.36 placed three steps at Seq 580-582 against a band D
+    ending at 580, and moved `11.2 — governance close-out` to 583, which had a
+    card at `1469d08` and none at `92446ab`.
+    """
+    bb = _board()
+    orphans = bb.unbanded_steps(_laned_rows(bb), bb.read_bands())
+    assert not orphans, (
+        "unlanded steps outside every band range — each is counted in the "
+        "board's totals and renders no card: "
+        + ", ".join(f"{r['step']} at Seq {r['seq']}" for r in orphans)
+        + ". Widen the band in Appendix D's band table, never in the generator."
+    )
+
+
+def test_a_step_past_the_last_band_ceiling_is_caught() -> None:
+    """The check must FAIL on the shape that shipped, or it proves nothing."""
+    bb = _board()
+    bands = bb.read_bands()
+    past = max(b["hi"] for b in bands) + 1
+    rows = [{"seq": str(past), "step": "9.9", "lane": "READY"}]
+    caught = bb.unbanded_steps(rows, bands)
+    assert [r["step"] for r in caught] == ["9.9"], (
+        f"a READY step at Seq {past}, one past the last ceiling, was not "
+        "reported — this is exactly what happened to 11.2")
+
+
+def test_a_done_step_below_the_first_band_is_not_reported() -> None:
+    """**Thirty-one of them exist and they are correct.**
+
+    Completed steps sit at Seq 10-310, beneath band A's 330, because the bands
+    are the PLAN and finished history is not in it. A check that reported them
+    would fire 31 false positives on its first run and be ignored by its
+    second.
+    """
+    bb = _board()
+    bands = bb.read_bands()
+    below = min(b["lo"] for b in bands) - 1
+    rows = [{"seq": str(below), "step": "2.3", "lane": "DONE"}]
+    assert bb.unbanded_steps(rows, bands) == []
+
+
+def test_the_governance_steps_render_a_card_and_not_only_a_count() -> None:
+    """**Rendered output, never a substring count over the whole document.**
+
+    6.36's own verification ran `grep -o "6.37" | wc -l`, got 1, and read it as
+    *it appears* — the one hit was prose inside 6.36's Done-when. So this
+    asserts the CARD: the `bsrc` provenance line the renderer emits per step.
+    """
+    bb = _board()
+    rows = _laned_rows(bb)
+    html = bb.render(rows, bb.read_markers(), bb.read_gaps(), bb.landed_steps(),
+                     bb.read_bands(), bb.read_done_when(),
+                     bb.read_section_titles(), bb.read_completeness_set(),
+                     bb.read_done_when_full(), bb.read_verify(),
+                     bb.read_preconditions(), bb.read_order())
+    missing = [s for s in ("6.36", "6.37", "6.38", "11.2")
+               if f"Step {s} \u00b7 Appendix D" not in html]
+    assert not missing, (
+        f"no card rendered for: {', '.join(missing)} — counted in the totals, "
+        "drawn nowhere")
