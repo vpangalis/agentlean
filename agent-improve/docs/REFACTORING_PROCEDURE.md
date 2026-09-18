@@ -5102,10 +5102,10 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 
 | State | Count | Steps |
 |---|---|---|
-| **DONE** | 45 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.34**, **6.35**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.41** |
+| **DONE** | 46 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.34**, **6.35**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.38**, **6.41** |
 | **BUILDING NOW** | 1 | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 27 | **6.33**, **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **6.38**, **11.2** |
+| **QUEUED** | 26 | **6.33**, **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
 *81 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-18.*
 <!-- END STEP BOARD -->
@@ -5839,6 +5839,7 @@ home.**
 | L6 |  | COACH | — | **S-F54** · `p_chart_limits` — **Control limits for a pass/fail rate (p-chart)** — for when the batch size changes between periods | — | — | §69.6 |
 | L6 |  | COACH | — | **S-F55** · `c_chart_limits` — **Control limits for defect counts (c-chart)** — for when the area of opportunity is constant | — | — | §69.6 |
 | L6 |  | COACH | — | **S-F56** · `post_improvement_cpk` — **Capability after the fix (post-improvement Cpk)** — the same capability figure on the new data, set against the baseline | — | — | §69.6 |
+| L6 |  | COACH | — | **§69.1 conventions** · the header fields factored out of all twenty computation-tool entries — each is a separately named `@tool` with its own `args_schema=`, and mode-argument grouping is BANNED. **Twenty `@tool` decorators in `computation.py`, measured** | ✅ | `backend.knowledge.tool_args` | §69.1 |
 
 #### L7 · Validation, gates, escalation
 

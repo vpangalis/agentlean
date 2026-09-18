@@ -108,9 +108,12 @@ def test_the_readers_still_return_what_the_dual_read_returned(board) -> None:
                   depended on those four alone
         31 -> 42  all 11 are non-built
         75 -> 74  6.41: G-87 closed
+        81 -> 82  the ruling on 6.40's eleven: §69.1 given a row — its
+                  conventions were factored OUT of the twenty tool entries,
+                  so no child restates them and the parent owns them
     """
     markers, gaps = board.read_markers(), board.read_gaps()
-    assert len(markers) == 81, f"{len(markers)} markers, not 81"
+    assert len(markers) == 82, f"{len(markers)} markers, not 82"
     assert sum(1 for m in markers if m["state"] != "built") == 42
     assert len(gaps) == 74, f"{len(gaps)} gap rows, not 74"
 

@@ -842,20 +842,19 @@ def gap_refs_resolve(text: str | None = None) -> str:
     return "; ".join(sorted(set(bad)))
 
 
-#: The 11 sections that carry neither a register row nor a `NOT-MARKABLE`
-#: note and whose classification is a FOUNDER judgement, not a rule. Declared
-#: with their reason for being open, never baselined, and ratcheted at 11 so
-#: the list can only shrink.
+#: **EMPTY, and the check that ranges over it is kept at zero.**
 #:
-#: **Each is a top-level section or a close relative of one**, which is why no
-#: category rule reached them: §1 and §4 are orientation, §19 and §39 are
-#: parents whose children carry the facts, §50, §58, §63 and §69 are section
-#: heads whose sub-sections own the rows, §19.9 and §66 are deliberate
-#: absences, and §69.1 states conventions binding on twenty entries.
-PENDING_CLASSIFICATION = {
-    "§1", "§4", "§19", "§19.9", "§39", "§50",
-    "§58", "§63", "§66", "§69", "§69.1",
-}
+#: It held the 11 sections whose classification was a founder judgement rather
+#: than a rule. All eleven were ruled on 2026-09-18: ten NOT-MARKABLE, and
+#: §69.1 given a row because the conventions binding on all twenty
+#: computation-tool entries were factored OUT of the children to avoid twenty
+#: repetitions, so no child restates them and the parent genuinely owns them.
+#:
+#: **Emptied rather than deleted.** A set that exists and is pinned at zero
+#: means a future section cannot be quietly parked here: adding one fails
+#: `sections awaiting a founder ruling` and the number has to be raised in the
+#: open, with a reason. Deleting the mechanism would make parking free again.
+PENDING_CLASSIFICATION: set = set()
 
 _HEADING = re.compile(r"^#{2,4}\s+(\d+(?:\.\d+)*)\.?\s+(.*)$")
 _NOT_MARKABLE = "> **NOT-MARKABLE:"
@@ -1259,7 +1258,7 @@ CHECKS = [
      "NOT-MARKABLE note, an ANCESTOR owning a row (§16's one-marker-per-item "
      "convention), or membership of the 11 founder judgements"),
 
-    ("sections awaiting a founder ruling", "11",
+    ("sections awaiting a founder ruling", "0",
      sections_awaiting_a_ruling,
      "§66 · step 6.40 — pinned so the list can only shrink. A section that "
      "gains a row or a declaration must LEAVE the set, or the exemption "

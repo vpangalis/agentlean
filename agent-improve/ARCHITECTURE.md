@@ -397,6 +397,8 @@ numbering. Each section carries a **Supersedes** line naming its sources, and
 
 ## 1. What Agent Improve is
 
+> **NOT-MARKABLE:** a statement of purpose. **Nothing to anchor**: it says what Agent Improve IS, which no symbol in the tree can confirm or refute.
+
 *Supersedes: REFACTORING §Purpose, §Overview Architecture; ARCHITECTURE.md §1.*
 
 Agent Improve is a **DMAIC coaching agent for Lean Six Sigma practitioners**.
@@ -627,6 +629,8 @@ was a recurring error in the source material:
 ---
 
 ## 4. Architecture at a glance
+
+> **NOT-MARKABLE:** a summary of facts that own rows elsewhere. **It MENTIONS, it does not OWN** — every box in the diagram is specified somewhere that carries the row, and duplicating the claim here is how two copies drift.
 
 *Supersedes: REFACTORING §Overview Architecture, Diagrams 1–4; ARCHITECTURE.md §1, §3.1.*
 
@@ -1879,6 +1883,8 @@ not cost you the other.
 
 ## 19. The middleware stack — eight, in order
 
+> **NOT-MARKABLE:** a parent whose CHILDREN own the facts. §16's convention — *“one marker per item, never one per section that mentions it”* — and a row here would be a second claim over the same ground. Eight of its nine children own rows.
+
 *Supersedes: REFACTORING §80, §84; ARCHITECTURE.md §3.4; DECISIONS §B3, §M2, §M3.*
 **Status: RATIFIED.** **This is the canonical definition. Everything else cross-references it.**
 
@@ -2211,6 +2217,8 @@ Full treatment, including the rubric text and the two-grader distinction, is
   before the interrupt (§33)
 
 ### 19.9 Middleware deliberately NOT used
+
+> **NOT-MARKABLE:** a deliberate absence — what was considered and rejected. **A middleware that is not used has nothing to build**, and recording the decision is the point of the section.
 
 | Middleware | Why not |
 |---|---|
@@ -4245,6 +4253,8 @@ This Part is where DMAIC itself enters the schema.*
 ---
 
 ## 39. The five phases
+
+> **NOT-MARKABLE:** a parent whose CHILDREN own the facts. §16's convention — *“one marker per item, never one per section that mentions it”* — and a row here would be a second claim over the same ground. **All FIVE direct children own rows** since 6.40 — §39.1 through §39.5, one per phase. (An earlier count of *20 of 67* was wrong in kind: it counted grandchildren, which have their own canonical homes.)
 
 *Supersedes: REFACTORING §2; ARCHITECTURE.md §13.*
 **Status: RATIFIED.**
@@ -6400,6 +6410,8 @@ Request and response schemas live in `gateway/schemas.py` (§54).
 
 ## 50. UI and language rules
 
+> **NOT-MARKABLE:** a parent whose CHILDREN own the facts. §16's convention — *“one marker per item, never one per section that mentions it”* — and a row here would be a second claim over the same ground. Its one child owns a row.
+
 *Supersedes: REFACTORING §77; ARCHITECTURE.md §11; CLAUDE.md §13.*
 **Status: RATIFIED.**
 
@@ -7938,6 +7950,8 @@ twelve carry `AI-ACT-REVIEW: uncertain`. **§66 carries the live gap count.**
 ---
 
 ## 58. Spec — graph management
+
+> **NOT-MARKABLE:** a parent whose CHILDREN own the facts. §16's convention — *“one marker per item, never one per section that mentions it”* — and a row here would be a second claim over the same ground. All 22 children own rows — the spec entries themselves.
 
 *Supersedes: none — new. Definitions relocated from §5, §6, §9, §12, §13, §14, §15, §16, §17, §20.*
 **Status: RATIFIED as a structure; individual entries carry their own gaps.**
@@ -10619,6 +10633,8 @@ gate_document = DefineOutput(
 
 ## 63. Spec — the DMAIC gate documents
 
+> **NOT-MARKABLE:** a parent whose CHILDREN own the facts. §16's convention — *“one marker per item, never one per section that mentions it”* — and a row here would be a second claim over the same ground. All 9 children own rows.
+
 > **NOT-MARKABLE at Part level · its entries are measured at §40, §41 and §42.** **⛑ Corrected 2026-09-11.** This note read *"its entries carry their own markers where they have a built form"* and **they carried none** — a claim that looked fine in a list of sections and failed the moment §55.3's completeness view counted it. **§63.6 and §63.9 carry their OWN markers** — checked 2026-09-11, and both turned out NOT to be covered: the cross-phase reference keys are validated by nothing, and `phase_metrics` is written by nothing. Under the alias both would have rendered green.
 
 *Supersedes: none — new. Definitions relocated from §40, §41, §7.*
@@ -11642,6 +11658,8 @@ item 1. Classification deferred rather than guessed.
 
 ## 66. The SPEC-GAP register — MOVED
 
+> **NOT-MARKABLE:** a deliberate absence — the pointer left where the register used to be. **The register moved to Appendix G at 6.37** and the number is kept so the §66 citations still resolve; a pointer asserts nothing buildable.
+
 **The register moved to `docs/REFACTORING_PROCEDURE.md`, Appendix G, at step
 6.37.** `ARCHITECTURE.md` holds the architecture and nothing else: no gap
 register, no BUILT markers, no status. Founder ruling 2026-09-18.
@@ -11828,6 +11846,8 @@ prospect and a bank will ask this question first. It is marked as such so the
 flag-is-canonical rule is not read as broken by its presence.
 
 ## 69. Spec — computation tools
+
+> **NOT-MARKABLE:** a parent whose CHILDREN own the facts. §16's convention — *“one marker per item, never one per section that mentions it”* — and a row here would be a second claim over the same ground. Six of its seven children own rows, and §69.1 — the seventh — owns one as of this step.
 
 > **NOT-MARKABLE at Part level · its entries are measured at §30 and §31.** **⛑ Corrected 2026-09-11.** This note read *"its entries carry their own markers where they have a built form"* and **they carried none** — a claim that looked fine in a list of sections and failed the moment §55.3's completeness view counted it. **§69.7 carries its OWN marker** — a deliberately absent tool is a buildable claim, and it is the one section here that makes one.
 

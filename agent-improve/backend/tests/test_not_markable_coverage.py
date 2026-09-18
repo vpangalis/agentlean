@@ -100,27 +100,50 @@ def test_the_ancestor_clause_is_what_makes_this_checkable() -> None:
     assert vb.every_section_declares_itself(proc, arch) == ""
 
 
-def test_the_pending_list_is_exactly_the_eleven_founder_judgements() -> None:
-    vb = _vb()
-    assert vb.PENDING_CLASSIFICATION == {
-        "§1", "§4", "§19", "§19.9", "§39", "§50",
-        "§58", "§63", "§66", "§69", "§69.1"}
-    assert vb.sections_awaiting_a_ruling() == "11"
+def test_nothing_is_parked_pending_a_ruling() -> None:
+    """**All eleven were ruled on 2026-09-18 and the set is EMPTY.**
 
+    Ten are NOT-MARKABLE — six parents whose children own the facts (§19, §39,
+    §50, §58, §63, §69), two deliberate absences (§19.9, §66), §1 a statement
+    of purpose with nothing to anchor, and §4 a summary that MENTIONS facts
+    owned elsewhere rather than owning them.
 
-def test_a_pending_section_that_gains_a_declaration_leaves_the_set() -> None:
-    """**An exemption that outlives its reason is the shape §55.2 keeps
-    finding.** Ruling on one of the eleven must lower the count, not merely
-    stop it mattering.
+    §69.1 got a ROW instead, and the reason is the interesting one: its
+    conventions were factored OUT of the twenty computation-tool entries to
+    avoid twenty repetitions, so no child restates them and the parent
+    genuinely owns them. The parent-of-facts rule does not apply where the
+    parent is where the fact was deliberately put.
     """
     vb = _vb()
+    assert vb.PENDING_CLASSIFICATION == set()
+    assert vb.sections_awaiting_a_ruling() == "0"
+
+
+def test_the_pending_mechanism_still_bites_if_something_is_parked() -> None:
+    """**Emptied, not deleted, so parking cannot become free again.**
+
+    A set that exists and is pinned at zero means a future section cannot be
+    quietly exempted: adding one fails the check and the number has to be
+    raised in the open. Deleting the mechanism would have removed the cost.
+    """
+    vb = _vb()
+    proc = _PROC.read_text(encoding="utf-8")
     arch = _ARCH.read_text(encoding="utf-8")
-    ruled = arch.replace(
-        "## 1. What Agent Improve is",
-        "## 1. What Agent Improve is\n\n> **NOT-MARKABLE:** orientation.", 1)
-    assert ruled != arch, "§1's heading moved — this fixture is stale"
-    assert vb.sections_awaiting_a_ruling(
-        _PROC.read_text(encoding="utf-8"), ruled) == "10"
+    try:
+        vb.PENDING_CLASSIFICATION.add("§99.9")
+        assert vb.sections_awaiting_a_ruling(proc, arch) == "1", (
+            "parking a section did not move the count — the mechanism is inert "
+            "and an exemption could be added for free")
+    finally:
+        vb.PENDING_CLASSIFICATION.discard("§99.9")
+    assert vb.sections_awaiting_a_ruling(proc, arch) == "0"
+
+
+def test_section_69_1_owns_a_row_rather_than_an_exemption() -> None:
+    """The one of the eleven that is a FACT, not an absence."""
+    vb = _vb()
+    rows, _ = vb._register_facts(_PROC.read_text(encoding="utf-8"))
+    assert "§69.1" in rows
 
 
 def test_the_four_phase_sections_now_own_rows() -> None:
