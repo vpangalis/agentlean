@@ -1366,6 +1366,33 @@ whether still owed.
 > filter by `.gitignore` and cannot see gitignored paths. Any "zero remaining
 > references" conclusion ends with an unfiltered `grep -rn`.
 
+### How answers reach the founder — the grouping contract
+
+**Founder ruling 2026-09-18.** Desktop's answers to the founder are grouped the
+way the control board is grouped, so that a reader moving between the board and
+an answer is not re-learning an organising axis each time.
+
+| Content | Grouped by | The groups |
+|---|---|---|
+| **Architectural** | **container** | System · UI · Backend · Storage |
+| **Plan work** | **epic** | A the loop · B gate quality · C phases 2–5 · D cross-cutting |
+| **Neither** | — | **stated as ungroupable**, never forced into a group |
+
+**This is a COMMUNICATION contract, not a build rule.** It binds how findings
+are presented to the founder. It imposes nothing on the code, the schemas, the
+registers or the commit gates, and no hook reads it.
+
+**It lives in the handoff because it is inherited, not enforced.** Nothing fails
+when it is broken — the only thing that keeps it true is the next session
+reading this file, which is why it is written here rather than left in the
+conversation that ruled it.
+
+**The third row is the one that carries the weight.** A grouping that always
+has an answer has stopped carrying information; forcing an ungroupable finding
+into System or into band D makes the grouping a decoration and hides the thing
+that did not fit. Saying "this does not group" is the honest answer and is
+permitted for that reason.
+
 ### Session records
 
 **Commits carry a `Claude-Session:` trailer after `Co-Authored-By:`, supplied
