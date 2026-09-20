@@ -44,6 +44,7 @@ THE WATCH 7 SEAM APPLIES TO ALL FIVE PHASES NOW
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from typing import Any, Awaitable, Callable, Literal, Optional, cast
 
@@ -72,7 +73,11 @@ from backend.core.substate import (
 from datetime import datetime, timezone
 
 from backend.upload.asks import ensure_ask
-from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE
+from backend.knowledge.computation import (
+    COMPUTATION_TOOLS,
+    COMPUTATION_TOOLS_BY_PHASE,
+)
+from backend.phases.define.schema import DEFINE_FIELD_ORDER
 from backend.knowledge.tools import (
     RAG_LOOKUP_TOOLS,
     UNIVERSAL_TOOLS,
@@ -1142,6 +1147,111 @@ def _with_coaching_text(messages: list, reply: CoachingResponse) -> list:
     return [*messages, AIMessage(content=reply.message)]
 
 
+#: The twenty computation tools, by name. Derived from the registry rather
+#: than typed, so a tool added at 5.3's successor is picked up here without a
+#: second list to remember — the failure `MARKER_HOME` was deleted for.
+_COMPUTATION_TOOL_NAMES: frozenset = frozenset(
+    t.name for t in COMPUTATION_TOOLS
+)
+
+
+def _computation_results(
+    messages: list, phase: str, turn: int,
+) -> list[dict]:
+    """§7's five-key rows for the computation tools THIS turn called.
+
+    **The same inspection `_mark_consumed` already does, over a different tool
+    set.** Ruling AR-R4: *a `@tool` receives only its arguments and cannot
+    reach `PhaseState`, so the node inspects the turn's tool calls afterwards.*
+    No new pattern, and `computation.py` says the rest outright — each tool
+    returns the `result` sub-dict and *"the executor wraps it in §7's full
+    `{"tool", "inputs", "result", "turn", "phase"}` shape … the turn and phase
+    are not knowable here."*
+
+    **THE GRADER IS WHY THIS IS NOT A DICT KEY.** §35 and §41 have it answer
+    *"was a hypothesis test actually run?"* by scanning this list for
+    `"tool": "t_test"` rather than by reading the coach's prose — the whole
+    anti-hallucination design. Against a list nothing wrote, its answer was
+    always **no**, and a gate document recorded that a project did no analysis
+    whatever the Belt and the coach actually did.
+
+    **The result is read as JSON, not parsed by hand.** LangChain serialises a
+    `dict`-returning tool into the `ToolMessage`'s content as JSON — verified
+    against the installed library rather than assumed:
+
+        calculate_sigma_level -> '{"sigma_level": "3.76", "dpmo": "12000", …}'
+
+    so `json.loads` recovers `Result` exactly. G-48 records what hand-parsing a
+    structured payload costs; this is the same shape and takes the standard
+    format instead. A tool whose content stops being JSON lands in the row as
+    a `parse_error` rather than vanishing — **a computation that ran and could
+    not be recorded is a finding, and dropping it silently would leave the
+    grader in exactly the state this step exists to end.**
+    """
+    by_id: dict[str, ToolMessage] = {
+        str(m.tool_call_id): m
+        for m in messages
+        if isinstance(m, ToolMessage) and getattr(m, "tool_call_id", None)
+    }
+    rows: list[dict] = []
+    for message in messages:
+        for call in (getattr(message, "tool_calls", None) or []):
+            if not isinstance(call, dict):
+                continue
+            name = call.get("name")
+            if name not in _COMPUTATION_TOOL_NAMES:
+                continue
+            reply = by_id.get(str(call.get("id")))
+            if reply is None:
+                continue
+            raw = reply.content if isinstance(reply.content, str) else ""
+            try:
+                result = json.loads(raw)
+            except (ValueError, TypeError):
+                result = {"parse_error": raw[:200]}
+            if not isinstance(result, dict):
+                result = {"parse_error": str(result)[:200]}
+            rows.append({
+                "tool": str(name),
+                "inputs": dict(call.get("args") or {}),
+                "result": result,
+                "turn": turn,
+                "phase": phase,
+            })
+    return rows
+
+
+def _advance_field_index(phase: str, artifacts: dict) -> int | None:
+    """Where the coach is in the phase's ordered field list, or `None`.
+
+    §39.x.7 says `field_index` *"walks the §39.x.2 list"*. It was set to `0` by
+    the input mapper and **advanced by nothing**, so it indexed the first field
+    for the whole phase.
+
+    **Define only, and that is the step's scope rather than an omission.** Only
+    Define has an ordered `DEFINE_FIELD_ORDER`; Measure, Analyse, Improve and
+    Control expose tier SETS, so the §39.x.2 sequence does not exist in code
+    for four of the five phases whose §39.x.7 tells this to walk it. Returning
+    `None` for those four leaves `field_index` untouched rather than writing a
+    number derived from an order nobody declared — **a number that looks
+    walked and is not is worse than one that never moved**, which is what the
+    original `0` at least made obvious.
+
+    The index is the first field NOT yet captured, so it names what to work on
+    next; once every field is in, it rests on the LAST field rather than
+    running off the end, because there is no next one to point at.
+    """
+    if phase != "define":
+        return None
+    order = DEFINE_FIELD_ORDER
+    if not order:
+        return None
+    for i, field in enumerate(order):
+        if not str(artifacts.get(field) or "").strip():
+            return i
+    return len(order) - 1
+
+
 def _attach_diagram(messages: list) -> None:
     """Lift this turn's `propose_diagram` payload onto the reply, for the UI.
 
@@ -1360,6 +1470,16 @@ async def executor(
 
     artifacts = {**(state.get("artifacts") or {}), **captured}
 
+    # ── 6.20 — the write paths. Three things §39.x.7 specifies were READ by
+    #    the gate document and written by NOTHING; each was a one-directional
+    #    break where the reader existed, was correct, and always found nothing.
+    results = _computation_results(produced, phase, turn_count)
+    if results:
+        artifacts["computation_results"] = [
+            *(artifacts.get("computation_results") or []), *results,
+        ]
+    next_field = _advance_field_index(phase, artifacts)
+
     logger.info(
         "%s.executor: focus=%s | captured %d field(s) -> artifacts, "
         "%d new message(s), %d/%d hop(s), %s remaining step(s), "
@@ -1378,6 +1498,9 @@ async def executor(
         "citations": citations,
         "uploads": uploads,
         "turn_count": turn_count + 1,
+        # Only Define has an ordered list to walk, so the other four keep the
+        # value they had rather than gaining a derived one (see the helper).
+        **({"field_index": next_field} if next_field is not None else {}),
         "step_log": [_step(
             phase, turn_count, "executor",
             status=_executor_status(hit_cap, off_ramp, timed_out),

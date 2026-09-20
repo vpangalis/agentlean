@@ -5107,7 +5107,7 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
 | **QUEUED** | 26 | **6.33**, **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
-*81 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-18.*
+*81 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-20.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -5684,7 +5684,7 @@ home.**
 | L3 |  | — | **4.1** | Define phase subgraph | ✅ | `backend.phases.subgraph_common::build_phase_subgraph` | §12, §13, §14 |
 | L3 |  | — | **4.4** | Remaining four subgraphs | ✅ | `backend.phases.mappers_common::PHASE_ORDER {define,measure,analyse,improve,control}` | §12, §13 |
 | L3 |  | — | **6.8** | `phase_context` is read (WATCH 19) | ✅ | `backend.middleware.state_injection::BeforeModelStateInjection` | §6, §9, §19.1 |
-| L3 | 1 | — | **6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ | `absent: backend.phases.nodes_common::_advance_field_index` | §7, §39.x.7, S-C02, S-C03 |
+| L3 | 1 | — | **6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ | `backend.phases.nodes_common::_advance_field_index` | §7, §39.x.7, S-C02, S-C03 |
 | L3 | 2 | — | **6.33** | The capture path accumulates — a field survives the next turn | ☐ | `absent: backend.phases.mappers_common::seed_capture_state` | §6, §7, §20, S-F04 |
 | L3 |  | PHASE | — | **the typing law is enforced by schema, not by convention** — all five `{Phase}Output` declare captured fields as `str` or `dict`, and `test_gate_documents.py` pins both the `dict` fields and their Tier-1 placement | ✅ | — | §7 |
 | L3 |  | PHASE | **7.3** | five nodes, identical node-name sets across all five phases, re-run by `verify_built.py`'s *phase subgraph nodes* check. ⚠ `gate_review` is a pass-through until 7.3 | ✅ | — | §13 |

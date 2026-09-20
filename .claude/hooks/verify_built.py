@@ -1224,7 +1224,12 @@ CHECKS = [
     # registered as unowned; the VALUE of the check is that a NEW name cannot
     # join the list quietly, which is how all seven previous instances began.
     ("state fields with no writer (W) or no reader (R)",
-     "acknowledged_gaps:WR belt_edits:R computation_results:W field_index:R "
+     # **`computation_results:W` LEAVES THIS LIST AT 6.20** — it had a reader
+     # in all five gate documents and no writer anywhere, and the executor
+     # now writes it. `phase_metrics:W` STAYS: nothing builds an entry, and
+     # `core/metrics.py` only CHECKS one against its scalar mirror. `field_index:R`
+     # stays too — 6.20 advances it and nothing reads it yet.
+     "acknowledged_gaps:WR belt_edits:R field_index:R "
      "final_output:R hop_results:R phase_metrics:W rejection_feedback:R "
      "synthesis_output:R",
      unpaired_state_fields,

@@ -325,7 +325,8 @@ def test_the_executor_returns_no_command(stub_coach) -> None:
 
     out = _run(_c.executor("define", _state()))
     assert not isinstance(out, Command)
-    assert set(out) <= {"messages", "draft", "artifacts", "citations",
+    # `field_index` joins at 6.20 — Define's ordered list is walked now.
+    assert set(out) <= {"field_index", "messages", "draft", "artifacts", "citations",
                         "uploads",
                         "turn_count", "step_log"}
     assert "case_id" not in out and "current_phase" not in out, (

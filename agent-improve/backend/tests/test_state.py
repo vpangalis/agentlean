@@ -347,3 +347,155 @@ def test_step_3_1_wires_nothing_into_a_graph() -> None:
         source_names = dir(module)
         assert "StateGraph" not in source_names
         assert "get_graph" not in source_names
+
+
+# ── Step 6.20 — the write paths ────────────────────────────────────────────
+#
+# **Three things §39.x.7 specifies were READ by the gate document and written
+# by NOTHING.** Each was a one-directional break: the reader existed, was
+# correct, and always found nothing. Found by the targeted state audit,
+# 2026-09-11.
+#
+# **The grader is why this is not cosmetic.** §35 and §41 have it answer *"was
+# a hypothesis test actually run?"* by scanning `computation_results` for
+# `"tool": "t_test"` rather than by reading the coach's prose — the whole
+# anti-hallucination design. Against a list nothing wrote, its answer was
+# always **no**, and a gate document recorded that a project did no analysis
+# whatever the Belt and the coach actually did.
+
+from langchain_core.messages import AIMessage, ToolMessage  # noqa: E402
+
+from backend.phases import nodes_common as _nc              # noqa: E402
+from backend.phases.define.schema import DEFINE_FIELD_ORDER  # noqa: E402
+
+
+def _turn(tool: str, args: dict, result: str) -> list:
+    """One tool call and its reply, as the executor sees them."""
+    return [
+        AIMessage(content="", tool_calls=[
+            {"name": tool, "args": args, "id": "c1", "type": "tool_call"}]),
+        ToolMessage(content=result, tool_call_id="c1"),
+    ]
+
+
+def test_every_computation_tool_is_known_to_the_write_path() -> None:
+    """**Derived from the registry, never typed.**
+
+    A second hand-maintained list of tool names is the failure `MARKER_HOME`
+    was deleted for: a tool added later would compute, be shown to the Belt,
+    and be invisible to the grader.
+    """
+    from backend.knowledge.computation import COMPUTATION_TOOLS
+    assert len(_nc._COMPUTATION_TOOL_NAMES) == 20
+    assert _nc._COMPUTATION_TOOL_NAMES == {t.name for t in COMPUTATION_TOOLS}
+
+
+def test_a_computation_call_becomes_a_five_key_row() -> None:
+    """§7's shape, and `computation.py` names all five: the tool returns the
+    `result` sub-dict and *"the executor wraps it"*."""
+    rows = _nc._computation_results(
+        _turn("calculate_sigma_level", {"defects": "12", "units": "1000"},
+              '{"sigma_level": "3.76", "dpmo": "12000"}'),
+        "measure", 3)
+    assert len(rows) == 1
+    assert set(rows[0]) == {"tool", "inputs", "result", "turn", "phase"}
+    assert rows[0]["tool"] == "calculate_sigma_level"
+    assert rows[0]["result"] == {"sigma_level": "3.76", "dpmo": "12000"}
+    assert rows[0]["turn"] == 3 and rows[0]["phase"] == "measure"
+
+
+def test_the_gate_document_carries_the_tool_that_ran() -> None:
+    """**The clause that makes 6.20 about the product rather than a dict key.**
+
+    §35 and §41 specify the grader answering *"was a hypothesis test actually
+    run?"* by scanning this list for `"tool": "t_test"`. **THE TREE'S GRADER
+    DOES NOT SCAN IT** — `middleware/grader.py` builds an LLM-judge prompt from
+    `COACHING_QUALITY_RUBRIC` and never reads `artifacts` at all, so that half
+    of the specification is a second one-directional break and is NOT closed by
+    this step.
+
+    What IS closed is the reader that exists: all five
+    `{Phase}Output.from_artifacts` read `artifacts.get("computation_results",
+    [])` and always got `[]`. This asserts against that reader, by the real
+    tool name — `t_test`, which is what §35 scans for.
+    """
+    rows = _nc._computation_results(
+        _turn("t_test", {"group_a": "1,2,3", "group_b": "4,5,6"},
+              '{"p_value": "0.03", "significant": "yes"}'),
+        "analyse", 5)
+    assert [r["tool"] for r in rows] == ["t_test"]
+
+    # **The JOIN, asserted where it actually is.** Constructing a gate document
+    # needs a fully-populated phase — S-F28's invariants run first — so the
+    # unit here is the key the two sides agree on: all five assemblers read
+    # `artifacts["computation_results"]`, and the write path writes it.
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    readers = [p for p in (root / "backend" / "phases").glob("*/schema.py")
+               if 'artifacts.get("computation_results"' in p.read_text(encoding="utf-8")]
+    assert len(readers) == 5, (
+        f"{len(readers)} of 5 gate documents read computation_results — the "
+        "write path and the readers have stopped agreeing on the key")
+    artifacts = {"computation_results": rows}
+    assert artifacts.get("computation_results", []) == rows
+
+
+def test_a_non_computation_tool_is_not_recorded() -> None:
+    """`rag_lookup_evidence` is not a computation and must not look like one."""
+    assert _nc._computation_results(
+        _turn("rag_lookup_evidence", {"query": "x"}, '{"hits": "3"}'),
+        "define", 1) == []
+
+
+def test_a_call_with_no_reply_is_skipped_not_guessed() -> None:
+    """A call the model made and the graph never answered has no result. The
+    row would be a fabrication."""
+    only_call = [AIMessage(content="", tool_calls=[
+        {"name": "calculate_cpk", "args": {}, "id": "c9", "type": "tool_call"}])]
+    assert _nc._computation_results(only_call, "measure", 1) == []
+
+
+def test_unparseable_content_is_recorded_as_a_finding_not_dropped() -> None:
+    """**A computation that ran and could not be recorded is a finding.**
+
+    Dropping it silently leaves the grader in exactly the state this step
+    exists to end — answering "no" for work that happened.
+    """
+    rows = _nc._computation_results(
+        _turn("calculate_cpk", {"usl": "10"}, "not json at all"),
+        "measure", 2)
+    assert len(rows) == 1 and "parse_error" in rows[0]["result"]
+
+
+def test_field_index_walks_defines_ordered_list() -> None:
+    """§39.x.7: *"walks the §39.x.2 list"*. It was set to 0 by the input mapper
+    and advanced by nothing, so it indexed the first field all phase."""
+    assert _nc._advance_field_index("define", {}) == 0
+    three = {f: "x" for f in DEFINE_FIELD_ORDER[:3]}
+    assert _nc._advance_field_index("define", three) == 3
+
+
+def test_field_index_reaches_the_last_field() -> None:
+    """The Done-when's clause. It rests on the last field rather than running
+    off the end — there is no next one to point at."""
+    every = {f: "x" for f in DEFINE_FIELD_ORDER}
+    assert _nc._advance_field_index("define", every) == len(DEFINE_FIELD_ORDER) - 1
+
+
+def test_a_blank_field_does_not_count_as_captured() -> None:
+    """`artifacts` carries `str` (§7), and an empty one is not an answer."""
+    blank = {DEFINE_FIELD_ORDER[0]: "   "}
+    assert _nc._advance_field_index("define", blank) == 0
+
+
+def test_the_other_four_phases_get_no_derived_index() -> None:
+    """**Only Define has an ordered list**; the other four expose tier SETS, so
+    the §39.x.2 sequence does not exist in code for them.
+
+    Returning `None` leaves `field_index` alone rather than writing a number
+    derived from an order nobody declared — a number that looks walked and is
+    not is worse than one that never moved.
+    """
+    every = {f: "x" for f in DEFINE_FIELD_ORDER}
+    for phase in ("measure", "analyse", "improve", "control"):
+        assert _nc._advance_field_index(phase, every) is None
