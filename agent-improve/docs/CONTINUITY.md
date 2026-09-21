@@ -11,7 +11,7 @@
 | **Next** | step **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
 | **Spine steps landed** | 46 of 81 |
 | **Last spine commit** | `533398f` (commit 6.38) |
-| **ARCHITECTURE.md** | v1.67 |
+| **ARCHITECTURE.md** | v1.68 |
 | **CLAUDE.md** | v2.2.41 |
 | **Block regenerated** | 2026-09-21 |
 

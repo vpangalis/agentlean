@@ -28,6 +28,7 @@ from backend.gateway.schemas import GateReviewField, GateReviewResponse
 from backend.gateway.schemas import SummariseRequest, SummariseResponse
 from backend.gateway.schemas import ContextRequest, ContextResponse
 from backend.core.store import get_store
+from backend.core.substate import merge_field_log, split_captures
 from backend.phases.mappers_common import PHASE_ORDER, asks_for_phase, read_case_record
 from backend.storage import blob
 from backend.storage.models import CaseDocument, UploadRecord
@@ -404,6 +405,64 @@ def _mirror_asks(case_id: str, phase: str, result: Any) -> None:
         )
 
 
+def apply_capture(case: CaseDocument, phase: str, payload: dict[str, Any]) -> None:
+    """Fold one turn's product into the case record — **MERGE, never replace**.
+
+    ═══════════════════════════════════════════════════════════════════════
+    STEP 6.33 — THE HALF OF G-78 THAT LIVED HERE
+    ═══════════════════════════════════════════════════════════════════════
+    This was four lines in `ask()`: build `clean` from THIS turn's extraction,
+    then `case.phases[phase].structured = clean`. **An assignment, so every
+    coached capture destroyed the ones before it** — a Belt filling Define's
+    thirteen fields across a dozen turns arrived at the gate with one. Five
+    turns, five fields, one survivor; the reproduction is in
+    `test_capture_accumulates.py`.
+
+    **It was invisible because the other half hid it.** The input mapper
+    blanked `artifacts` every turn, so `clean` was usually empty, so
+    `if clean` skipped the write and the prior value survived by accident.
+    Fixing either half alone turns a silent no-op into silent data loss —
+    which is why both land in one commit.
+
+    **Extracted from the route body deliberately.** `ask()` needs a FastAPI
+    request, a case blob and Azure; this needs a case document and a dict, so
+    a test can drive five turns through the code that ships rather than
+    through a copy of it. §49's "the route marshals the envelope and nothing
+    else" is unchanged — this IS the marshalling, named.
+
+    Silent about a phase the case has no record for, as the assignment's own
+    `and request.phase in case.phases` guard was.
+    """
+    record = case.phases.get(phase)
+    if record is None:
+        return
+
+    captured, empty = split_captures(payload.get("v1_draft") or {})
+    if empty:
+        logger.warning(
+            "%s: FINDING — %d capture(s) arrived with no value and did NOT "
+            "reach the case record: %s. The turn's own log counts them as "
+            "captured because the coach NAMED the field; nothing downstream "
+            "can see them. Reported rather than silently dropped (step 6.33) "
+            "— and the prior value, if there was one, is kept rather than "
+            "overwritten with nothing.",
+            phase, len(empty), ", ".join(empty),
+        )
+
+    if captured:
+        # **MERGED, never assigned.** The prior values are the phase's other
+        # twelve turns; this turn carries one or two.
+        record.structured = {**(record.structured or {}), **captured}
+
+    entries = list(payload.get("field_log") or [])
+    if entries:
+        # The SAME function the channel reduces with (`core/substate.py`), so
+        # the log merges identically in the checkpoint and in the blob. Two
+        # merge rules for one log is how the two copies come to disagree, and
+        # a disagreement here is indistinguishable from a lost change.
+        record.field_log = merge_field_log(record.field_log, entries)
+
+
 def _requested_phase(case: CaseDocument, requested: str) -> str:
     """The phase this turn runs, with the client's view checked against the record.
 
@@ -656,12 +715,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
                 conversation.message_to_turn(reply, len(case.conversation_history))
             )
         )
-    clean = {
-        k: v for k, v in phase_data.items()
-        if not k.startswith("_") and v is not None and v != [] and v != {}
-    }
-    if clean and request.phase in case.phases:
-        case.phases[request.phase].structured = clean
+    apply_capture(case, request.phase, payload)
     await blob.save_case(case)
 
     return AskResponse(

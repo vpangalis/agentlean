@@ -41,11 +41,12 @@ SUPERVISOR_EXPECTED = [
     "gate_passed", "final_output",
 ]
 
-# ── S-C02, transcribed: 2 identity + 3 plumbing + 14 content ──────────────
+# ── S-C02, transcribed: 2 identity + 3 plumbing + 17 content ──────────────
 PHASE_IDENTITY = ["case_id", "current_phase"]
 PHASE_PLUMBING = ["messages", "history", "phase_context"]
 PHASE_CONTENT = [
     "coaching_plan", "field_index", "draft", "artifacts", "step_log",
+    "field_log",
     "belt_edits", "turn_count", "final", "gate_attempts",
     "validator_feedback", "rejection_feedback", "citations", "uploads",
     "asks",
@@ -148,14 +149,21 @@ def test_artifacts_and_gate_documents_are_not_on_supervisor_state() -> None:
 
 # ── PhaseState — §6 / S-C02 ───────────────────────────────────────────────
 
-def test_phase_state_has_exactly_twenty_two_declared_fields() -> None:
-    """S-C02: twenty-one author-populated (2 identity, 3 plumbing, 16 content)
-    plus one engine-managed value — twenty-two declared.
+def test_phase_state_has_exactly_twenty_three_declared_fields() -> None:
+    """S-C02: twenty-two author-populated (2 identity, 3 plumbing, 17 content)
+    plus one engine-managed value — twenty-three declared.
 
     **`asks` joined at step 6.12** (§56 amendment, `DECISIONS.md` Part AR2):
     the coach's recorded requests for data. A SYSTEM record rather than a
     captured value, which is why it is a `PhaseState` field and not a key in
     `artifacts`.
+
+    **`field_log` joined at step 6.33** (§56 amendment, ARCHITECTURE.md v1.68):
+    when each captured value changed and what it was before. A third thing
+    again — `artifacts` holds only the current value and `step_log` is one
+    entry per node per turn — and the one channel whose reducer is not
+    `operator.add`, because §11's deterministic key has to be enforced rather
+    than merely recorded.
 
     Note for reviewers: this asserts the count in the AUTHORITATIVE BUILD
     TARGET, `agent-improve/ARCHITECTURE.md` (founder ruling 2026-08-27). The ROOT reference's §6/S-C02 still says
@@ -165,9 +173,9 @@ def test_phase_state_has_exactly_twenty_two_declared_fields() -> None:
     """
     assert len(PHASE_IDENTITY) == 2
     assert len(PHASE_PLUMBING) == 3
-    assert len(PHASE_CONTENT) == 16
-    assert len(PHASE_AUTHOR_POPULATED) == 21
-    assert len(PHASE_EXPECTED) == 22
+    assert len(PHASE_CONTENT) == 17
+    assert len(PHASE_AUTHOR_POPULATED) == 22
+    assert len(PHASE_EXPECTED) == 23
     assert list(PhaseState.__annotations__) == PHASE_EXPECTED
 
 
@@ -240,17 +248,22 @@ def test_phase_append_only_fields_use_operator_add(field: str) -> None:
     assert _reducer(PhaseState, field) is operator.add
 
 
-def test_phase_state_has_exactly_three_reduced_fields() -> None:
+def test_phase_state_has_exactly_four_reduced_fields() -> None:
     """Only the AUTHOR-POPULATED fields are candidates for a reducer.
 
     `remaining_steps` also carries `Annotated` metadata, but the metadata is a
     managed-value MANAGER, not a reducer — LangGraph populates the field rather
     than folding updates into it. Counting it as reduced would blur exactly the
     distinction S-C02 B1 draws, so the next test pins it apart.
+
+    **`field_log` is the fourth, and the first whose reducer is not
+    `operator.add`** (step 6.33). Three fields APPEND; this one UPSERTS on
+    §11's deterministic key, which is what makes a replayed turn replace its
+    own entry instead of logging the same change twice.
     """
     reduced = {f for f in PHASE_AUTHOR_POPULATED
                if _reducer(PhaseState, f) is not None}
-    assert reduced == {"messages", "history", "step_log"}
+    assert reduced == {"messages", "history", "step_log", "field_log"}
 
 
 def test_managed_metadata_is_not_a_reducer() -> None:
@@ -258,6 +271,21 @@ def test_managed_metadata_is_not_a_reducer() -> None:
     from langgraph.managed.is_last_step import RemainingStepsManager
     assert _reducer(PhaseState, "remaining_steps") is RemainingStepsManager
     assert _reducer(PhaseState, "remaining_steps") is not operator.add
+
+
+def test_the_field_log_reducer_is_the_upsert_and_not_operator_add() -> None:
+    """§11's key is enforced by the channel, or it is only recorded.
+
+    **The distinction this pins is the whole reason `field_log` exists as its
+    own channel** rather than as more rows in `step_log`: `step_log` carries
+    the same deterministic key and reduces with `operator.add`, so a replayed
+    turn writes its entries twice. Asserting `is not operator.add` is not
+    pedantry — `operator.add` is the reducer a future edit reaches for.
+    """
+    from backend.core.substate import merge_field_log
+    assert _reducer(PhaseState, "field_log") is merge_field_log
+    assert _reducer(PhaseState, "field_log") is not operator.add
+    assert _reducer(PhaseState, "step_log") is operator.add
 
 
 def test_artifacts_and_validator_feedback_carry_no_reducer() -> None:

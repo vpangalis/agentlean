@@ -83,6 +83,27 @@ CASE_RECORD_FRAMING_FIELDS = (
 #: `case` backfill could not keep current.
 CASE_RECORD_UPLOADS = "uploads_by_phase"
 
+#: Where each phase's captured values sit inside the Store's `case` record —
+#: step 6.33. **The accumulator's source.** `new_phase_state` seeded
+#: `artifacts` to `{}` from step 3.1 to 6.33, so a value captured on turn 1 was
+#: gone by turn 2 and `artifacts` — documented as *"the accumulation"* — could
+#: only ever hold one turn's worth. **This is the same seam `uploads` was
+#: missing at 6.11 and the same argument** (`CASE_RECORD_UPLOADS` below says
+#: it): the mapper is the only thing that builds `PhaseState`, so a constant
+#: there means nothing can reach a gate document.
+#:
+#: A COPY, per §9 — `cases/case_{id}.json` stays the system of record and this
+#: is rebuilt from it by `case_record_from_document` on every turn.
+CASE_RECORD_CAPTURED = "captured_by_phase"
+
+#: Where each phase's field change log sits inside the Store's `case` record —
+#: step 6.33. Travels beside `CASE_RECORD_CAPTURED` rather than anywhere else
+#: **because the log and the values it is a log OF must cross the turn
+#: boundary together**: persisted on different schedules they can disagree,
+#: and a disagreement between a value and its own history looks exactly like a
+#: change that never happened.
+CASE_RECORD_FIELD_LOG = "field_log_by_phase"
+
 #: Where the open asks sit inside the Store's `case` record — step 6.12.
 #: **The upload route cannot read `PhaseState`.** An ask is created by the
 #: planner during a coaching turn and must be resolvable by an upload arriving
@@ -107,7 +128,44 @@ def case_record_from_document(case: Any) -> dict[str, Any]:
         if getattr(case, f, None)
     }
     record[CASE_RECORD_UPLOADS] = uploads_from_document(case)
+    # Step 6.33 — the accumulator and its history, keyed by phase like the
+    # uploads inventory above and carried for the same reason: the input
+    # mapper reads `BaseStore` and nothing else (S-F10 B1), so anything it
+    # must seed has to arrive through this record.
+    record[CASE_RECORD_CAPTURED] = captured_from_document(case)
+    record[CASE_RECORD_FIELD_LOG] = field_log_from_document(case)
     return record
+
+
+def captured_from_document(case: Any) -> dict[str, dict[str, Any]]:
+    """Every phase's captured values, keyed by phase — step 6.33.
+
+    **This is `PhaseState.artifacts`'s missing SEED**, the other end of the
+    defect `uploads` had at 6.11. The field was initialised to `{}` by the
+    input mapper on every turn, so it accumulated within one turn and was
+    blanked at the start of the next — which made `artifacts` and `draft`
+    permanently identical, against S-F04's Output where `draft` is this turn's
+    extraction and `artifacts` is *"the accumulation"*.
+
+    **Keyed by phase and the whole inventory travels**, exactly as
+    `uploads_from_document` carries all five: the mapper takes its own slice,
+    and a later step wanting a cross-phase view needs no second writer.
+
+    §9's copy rule is unchanged: a COPY for mappers to read, rebuilt from
+    `cases/case_{id}.json` every turn.
+    """
+    return {
+        phase: dict(getattr(record, "structured", None) or {})
+        for phase, record in (getattr(case, "phases", {}) or {}).items()
+    }
+
+
+def field_log_from_document(case: Any) -> dict[str, list[dict[str, Any]]]:
+    """Every phase's field change log, keyed by phase — step 6.33."""
+    return {
+        phase: [dict(e) for e in (getattr(record, "field_log", None) or [])]
+        for phase, record in (getattr(case, "phases", {}) or {}).items()
+    }
 
 
 def uploads_from_document(case: Any) -> dict[str, list[dict[str, Any]]]:
@@ -211,12 +269,36 @@ def uploads_for_phase(
     return [dict(e) for e in entries]
 
 
+def captured_for_phase(
+    case_record: dict[str, Any], phase: str
+) -> dict[str, Any]:
+    """This phase's captured values, from the Store's `case` copy — step 6.33.
+
+    Returns `{}` when the phase has captured nothing, which is the honest
+    answer on turn one of a phase. **From turn two on, `{}` is now a fact
+    about the phase rather than a fact about the wiring** — the same sentence
+    `uploads_for_phase` earns at 6.11, and for the same reason.
+    """
+    inventory = case_record.get(CASE_RECORD_CAPTURED) or {}
+    return dict(inventory.get(phase) or {})
+
+
+def field_log_for_phase(
+    case_record: dict[str, Any], phase: str
+) -> list[dict[str, Any]]:
+    """This phase's field change log, from the Store's `case` copy — step 6.33."""
+    inventory = case_record.get(CASE_RECORD_FIELD_LOG) or {}
+    return [dict(e) for e in (inventory.get(phase) or [])]
+
+
 def new_phase_state(
     parent: SupervisorState,
     phase: str,
     phase_context: str,
     uploads: list[dict[str, Any]] | None = None,
     asks: list[dict[str, Any]] | None = None,
+    artifacts: dict[str, Any] | None = None,
+    field_log: list[dict[str, Any]] | None = None,
 ) -> PhaseState:
     """The twenty author-populated fields, initialised (S-C02 B1).
 
@@ -250,9 +332,23 @@ def new_phase_state(
         # content
         "coaching_plan":      None,
         "field_index":        0,
+        # THIS TURN's extraction, and it is right that it starts empty
+        # (S-F04's Output). The field beneath it is the accumulation, and
+        # until step 6.33 both were blanked here — which is why the two were
+        # always identical and why nothing captured could reach a second turn.
         "draft":              {},
-        "artifacts":          {},
+        # **Seeded, not blanked** (step 6.33), on the argument the `uploads`
+        # comment below has carried since 6.11: this function is the only
+        # thing that builds `PhaseState`, so a constant here is not a default,
+        # it is a ceiling. `{}` now means the phase has captured nothing yet.
+        "artifacts":          dict(artifacts or {}),
         "step_log":           [],
+        # Seeded for the same reason, and from the same record. The channel's
+        # reducer (`merge_field_log`) is what stops a node REPLACING it; the
+        # seed is what carries it across the turn boundary, which the reducer
+        # cannot — the subgraph gets a fresh `checkpoint_ns` per parent turn,
+        # so nothing in the child state survives a turn on its own.
+        "field_log":          list(field_log or []),
         "belt_edits":         {},
         "turn_count":         0,
         "final":              {},
@@ -366,7 +462,10 @@ def compose_phase_context(
 
 __all__ = [
     "PHASE_ORDER", "KIND_CASE", "KIND_ARTIFACTS",
-    "CASE_RECORD_FRAMING_FIELDS", "case_record_from_document",
+    "CASE_RECORD_FRAMING_FIELDS", "CASE_RECORD_CAPTURED",
+    "CASE_RECORD_FIELD_LOG",
+    "case_record_from_document", "captured_from_document",
+    "field_log_from_document", "captured_for_phase", "field_log_for_phase",
     "write_case_record",
     "PriorGateDocumentMissing",
     "prior_phase", "read_case_record", "read_gate_document",

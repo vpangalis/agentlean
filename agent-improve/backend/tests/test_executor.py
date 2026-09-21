@@ -53,7 +53,8 @@ def _state(**overrides: Any) -> PhaseState:
             retrieval_strategy="single_hop", retrieval_hops=[],
         ),
         "field_index": 0, "draft": {}, "artifacts": {},
-        "step_log": [], "belt_edits": {}, "turn_count": 0, "final": {},
+        "step_log": [], "field_log": [],
+        "belt_edits": {}, "turn_count": 0, "final": {},
         "gate_attempts": 0, "validator_feedback": [], "rejection_feedback": [],
         "citations": [], "uploads": [], "asks": [], "hop_results": [],
         "synthesis_output": None,
@@ -326,9 +327,10 @@ def test_the_executor_returns_no_command(stub_coach) -> None:
     out = _run(_c.executor("define", _state()))
     assert not isinstance(out, Command)
     # `field_index` joins at 6.20 — Define's ordered list is walked now.
+    # `field_log` joins at 6.33 — the field change log (§56, 2026-09-21).
     assert set(out) <= {"field_index", "messages", "draft", "artifacts", "citations",
                         "uploads",
-                        "turn_count", "step_log"}
+                        "turn_count", "step_log", "field_log"}
     assert "case_id" not in out and "current_phase" not in out, (
         "S-C02 B9 — both are read-only inside the subgraph"
     )

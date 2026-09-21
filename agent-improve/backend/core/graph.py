@@ -235,6 +235,13 @@ def phase_node(phase: str) -> Callable[..., Any]:
             "v1_draft": dict(result.get("draft") or {}),
             "gate_verdict": verdict,
             "turn_count": turn_count,
+            # Step 6.33 — the turn's field change entries, on the same channel
+            # and for the same reason as the draft above. **The subgraph's
+            # state does not otherwise reach the route**: the child gets a
+            # fresh `checkpoint_ns` per parent turn and the parent returns
+            # `messages` and `history` only, so a `PhaseState` field the route
+            # must persist has to ride out here or not at all.
+            "field_log": [dict(e) for e in (result.get("field_log") or [])],
         }
         if new_messages:
             _attach(new_messages[-1], payload)

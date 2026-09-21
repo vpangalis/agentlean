@@ -54,7 +54,7 @@ from langchain.agents.middleware import (
     SummarizationMiddleware,
     ToolRetryMiddleware,
 )
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.errors import GraphRecursionError
 from langgraph.graph import END
@@ -68,7 +68,9 @@ from backend.core.substate import (
     CoachingPlan,
     CoachingResponse,
     PhaseState,
+    field_log_key,
     presentational_gaps,
+    split_captures,
 )
 from datetime import datetime, timezone
 
@@ -1132,6 +1134,84 @@ def _captured_fields(phase: str, reply: CoachingResponse) -> dict[str, Any]:
     return out
 
 
+def _turn_ordinal(state: PhaseState) -> int:
+    """Which Belt turn this is, counted in the conversation itself — step 6.33.
+
+    **NOT `turn_count`, and the difference is load-bearing.** `turn_count` is
+    seeded to `0` by the input mapper on every invoke and read by `core/graph.py`
+    as the ENTRY MODE — `0` means "coach one turn", non-zero means "we are here
+    for the gate" — so on a coaching turn it is `0` every time. That is why
+    every `step_log` key of every turn of a phase reads `{phase}:0:{node}`. A
+    change log keyed on it would have each turn overwrite the one before, which
+    is the defect this step exists to end, reproduced in the fix.
+
+    **The conversation is the one thing that does accumulate**: the parent's
+    `messages` carry it across turns and the input mapper copies it down, so the
+    number of Belt messages IS the turn ordinal. It is also stable under a
+    REPLAY — a resumed turn has the same conversation and so the same ordinal —
+    which is what makes §11's key idempotent rather than merely unique.
+    """
+    return sum(1 for m in (state.get("messages") or [])
+               if isinstance(m, HumanMessage))
+
+
+def _field_log_entries(
+    phase: str,
+    turn: int,
+    captured: dict[str, Any],
+    prior: dict[str, Any],
+    reply: CoachingResponse | None,
+    at: str,
+) -> list[dict[str, Any]]:
+    """One entry per CHANGE this turn made to a captured field — step 6.33.
+
+    **The first capture of a field is a change too**, and carries
+    `prior_value: None`. A re-statement of the value already held is NOT: the
+    Belt repeating themselves is not a revision, and logging it would bury the
+    revisions that matter under turns where nothing moved.
+
+    **`reason` is the Belt's stated reason WHERE GIVEN, and today it is given
+    nowhere — G-89.** It is read from a `reason` key on the capture entry, which
+    `CoachingResponse.fields_captured` permits — the entries are free-form
+    dicts — but which nothing asks the coach to supply. So it will be `None` on
+    every turn until the schema's field description asks for one, and that is a
+    §56 amendment to `CoachingResponse` rather than something to slip in here.
+    **Recorded as a known-empty column rather than left out**: a column that
+    exists and is empty says "nobody was asked"; a column that does not exist
+    says nothing at all, and the next reader has to rediscover why.
+
+    `prior_value: None` also reads as "first capture" when the prior value was
+    itself empty. Unambiguous going forward — `split_captures` keeps empty
+    values out of `artifacts` from this step on — and not reconstructable for
+    anything captured before it.
+    """
+    reasons: dict[str, str] = {}
+    for entry in ((reply.fields_captured if reply else None) or []):
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("field_name") or "").strip()
+        reason = str(entry.get("reason") or "").strip()
+        if name and reason:
+            reasons[name] = reason
+
+    entries: list[dict[str, Any]] = []
+    for field, value in captured.items():
+        seen = field in prior
+        if seen and prior[field] == value:
+            continue
+        entries.append({
+            "key":         field_log_key(phase, turn, field),
+            "field":       field,
+            "phase":       phase,
+            "turn":        turn,
+            "value":       value,
+            "prior_value": prior[field] if seen else None,
+            "timestamp":   at,
+            "reason":      reasons.get(field),
+        })
+    return entries
+
+
 def _with_coaching_text(messages: list, reply: CoachingResponse) -> list:
     """Guarantee the Belt-facing prose is present in `messages`.
 
@@ -1468,7 +1548,36 @@ async def executor(
 
     _attach_diagram(new_messages)
 
-    artifacts = {**(state.get("artifacts") or {}), **captured}
+    # ── 6.33 — the accumulation, and the two ways it used to be lost ──
+    #
+    # `state["artifacts"]` is now the phase's whole capture history, seeded by
+    # the input mapper from the case record rather than blanked (G-78, half
+    # one). And an EMPTY capture no longer overwrites a real prior value:
+    # `{**prior, **captured}` with a `None` in `captured` destroyed the value
+    # the gate document reads, while the case-blob write discarded the same
+    # entry — so the two records of one field disagreed, silently, in the
+    # direction that loses data.
+    prior_artifacts = dict(state.get("artifacts") or {})
+    kept, empty_captures = split_captures(captured)
+    if empty_captures:
+        logger.warning(
+            "%s.executor: FINDING — %d capture(s) arrived with no value and "
+            "did NOT reach `artifacts`: %s. The coach named the field, so it "
+            "counts as captured in its own reply and does not exist anywhere "
+            "the gate can read — which is the disagreement step 6.33 closes. "
+            "Reported rather than dropped; the prior value (if any) is kept.",
+            phase, len(empty_captures), ", ".join(empty_captures),
+        )
+    artifacts = {**prior_artifacts, **kept}
+
+    # The field change log — §56 amendment, ratified 2026-09-21. Built from
+    # the SAME `kept` the merge above uses, so the log and the accumulator
+    # cannot disagree about what changed.
+    turn_ordinal = _turn_ordinal(state)
+    log_entries = _field_log_entries(
+        phase, turn_ordinal, kept, prior_artifacts, reply,
+        datetime.now(timezone.utc).isoformat(),
+    )
 
     # ── 6.20 — the write paths. Three things §39.x.7 specifies were READ by
     #    the gate document and written by NOTHING; each was a one-directional
@@ -1480,11 +1589,17 @@ async def executor(
         ]
     next_field = _advance_field_index(phase, artifacts)
 
+    # **The count that used to disagree with the write, reconciled.** This
+    # line logged `len(captured)` — the KEYS the coach named — while the write
+    # filtered on VALUES, so "captured 1 field(s)" and "nothing reached the
+    # gate document" were both true of the same turn (6.33's trap). It now
+    # reports all three numbers, and they add up.
     logger.info(
-        "%s.executor: focus=%s | captured %d field(s) -> artifacts, "
-        "%d new message(s), %d/%d hop(s), %s remaining step(s), "
-        "contradiction=%s",
-        phase, plan.focus_field if plan else "(none)", len(captured),
+        "%s.executor: focus=%s | turn %d | captured %d -> %d field(s) into "
+        "artifacts (%d empty, %d changed), %d new message(s), %d/%d hop(s), "
+        "%s remaining step(s), contradiction=%s",
+        phase, plan.focus_field if plan else "(none)", turn_ordinal,
+        len(captured), len(kept), len(empty_captures), len(log_entries),
         len(new_messages), hops_spent[0], hop_budget,
         remaining or "no", bool(reply and reply.contradiction_flag),
     )
@@ -1495,6 +1610,11 @@ async def executor(
         # happens here or not at all.
         "draft": dict(captured),
         "artifacts": artifacts,
+        # Returned as THIS TURN's entries only. The channel's reducer folds
+        # them onto what the input mapper seeded — which is the whole reason
+        # this field carries one: a node cannot destroy the history it does
+        # not return.
+        "field_log": log_entries,
         "citations": citations,
         "uploads": uploads,
         "turn_count": turn_count + 1,
@@ -1508,6 +1628,13 @@ async def executor(
             focus_field=plan.focus_field if plan else None,
             next_action=plan.next_action if plan else None,
             fields_captured=sorted(captured),
+            # 6.33 — what the coach named and what the record now holds, in
+            # the audit trail rather than only in a log line. `fields_empty`
+            # is the clause "reported rather than silently dropped" made
+            # queryable: `len(fields_captured)` and `len(fields_empty)` are
+            # what reconcile a turn's log against its write.
+            fields_empty=empty_captures,
+            fields_changed=sorted(e["field"] for e in log_entries),
             # Re-derived from the SAME function that built the bound list,
             # so the audit trail cannot disagree with what the coach actually
             # had. The throwaway counter is never spent — nothing invokes

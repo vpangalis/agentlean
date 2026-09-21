@@ -52,6 +52,13 @@ V1_PRESENTATION_KEYS: tuple[str, ...] = (
 #: turn dict never grows fields the UI does not know about.
 _TRANSPORT_KEYS: tuple[str, ...] = (
     "phase", "v1_draft", "gate_verdict", "turn_count", "gate_submission",
+    # Step 6.33 — this turn's field change entries. Rides out with the rest
+    # of the turn's product for the same reason they do (`SupervisorState` is
+    # seven fields and may not grow an eighth, §5), and is STRIPPED before the
+    # case blob's `conversation_history` like the rest: the log's home is
+    # `PhaseRecord.field_log`, beside the values it is a log of, not a copy
+    # inside every turn of the transcript.
+    "field_log",
 )
 
 

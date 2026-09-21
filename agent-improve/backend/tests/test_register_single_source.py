@@ -111,11 +111,18 @@ def test_the_readers_still_return_what_the_dual_read_returned(board) -> None:
         81 -> 82  the ruling on 6.40's eleven: §69.1 given a row — its
                   conventions were factored OUT of the twenty tool entries,
                   so no child restates them and the parent owns them
+        74 -> 77  6.33: G-88, G-89 and G-90 registered by founder ruling —
+                  the asks mirror reading a key `SupervisorState` does not
+                  declare, `field_log.reason` declared and populated by
+                  nothing, and the verification tooling parsing an error body
+                  as data. **REGISTER-ONLY: none of the three is fixed in
+                  that commit.** The MARKER counts above are untouched —
+                  these are gap rows, and no marker changed state
     """
     markers, gaps = board.read_markers(), board.read_gaps()
     assert len(markers) == 82, f"{len(markers)} markers, not 82"
     assert sum(1 for m in markers if m["state"] != "built") == 42
-    assert len(gaps) == 74, f"{len(gaps)} gap rows, not 74"
+    assert len(gaps) == 77, f"{len(gaps)} gap rows, not 77"
 
 
 def test_the_guard_resolves_a_gap_from_the_one_register(guard) -> None:

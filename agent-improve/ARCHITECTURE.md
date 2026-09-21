@@ -84,7 +84,7 @@ only that two of them had been touched, never that they agreed.
 | What | Defined in | Size | Holds |
 |---|---|---|---|
 | **`SupervisorState`** | **§57.2** (S-C01) | 7 fields | Orchestration. Spans the whole case, one per project |
-| **`PhaseState`** | **§58.2** (S-C02) | 22 fields | One in-flight turn inside one phase subgraph |
+| **`PhaseState`** | **§58.2** (S-C02) | 23 fields | One in-flight turn inside one phase subgraph |
 | **Per-phase usage** | **§39.x.7** (S-C03) | — | Which `PhaseState` field carries what, per phase. **Reads and writes, NOT variant classes** |
 | **Nothing else holds state** | — | — | Captured values go to `artifacts`; durable ones to the Store (§9); conversation to the checkpointer (§8) |
 
@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.67 · 2026-09-20
+Version 1.68 · 2026-09-21
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.68 (2026-09-21)** — **§56 AMENDMENT. `PhaseState` GAINS `field_log`, ITS TWENTY-THIRD FIELD, AND §6 GAINS THE RULE THAT `artifacts` IS SEEDED RATHER THAN BLANKED.** Founder ruling, ratified for step 6.33. **(A) THE FIELD.** `field_log` records WHEN each captured value changed and what it was before — one entry per change, keyed `{phase}:{turn}:{field}` per §11, the first capture of a field included with no `prior_value`. **A third thing that neither existing field can answer for**: `artifacts` holds only the current value because the merge overwrote the last one, and `step_log` is one entry per NODE per turn and never held a value at all. §7's argument for string-typed fields is that *"the Belt must be able to show what they stated"*; a Belt who revised a baseline on turn 9 after an upload contradicted it can show the figure and not the revision. **(B) THE CHANNEL CARRIES A REDUCER, AND THAT IS THE DECLARATION.** `merge_field_log` is attached in `core/substate.py`, so a node returning only this turn's entries cannot replace the history — the move `messages` and `step_log` already make, and the opposite of `artifacts`, which merges in its writer and depends on every writer remembering to. **A log is exactly the field where "every writer must remember" fails**, because the writer that forgets leaves no trace of what it dropped. **(C) IT IS NOT `operator.add`, AND §11 IS WHY.** §11 requires a deterministic key so *"the replay overwrites its own earlier entry instead of duplicating it"*. `operator.add` cannot honour that and does not honour it for `step_log` today — a replayed turn appends its entries twice. `merge_field_log` upserts on the key. **§11 states the rule; this is the first channel that enforces it**, and §11 now says so rather than leaving the two channels to be assumed alike. **(D) THE TURN NUMBER IS COUNTED IN THE CONVERSATION, NOT TAKEN FROM `turn_count`.** G-39 leaves that field's increment contract unstated and the measured behaviour is worse than ambiguous: the input mapper seeds it to `0` every invoke and `core/graph.py` reads it as the ENTRY MODE, so it is `0` on every coaching turn — which is why every `step_log` key reads `{phase}:0:{node}`. **A change log keyed on it would have each turn overwrite the one before, which is the defect 6.33 exists to end, reproduced inside the fix.** The Belt-message count accumulates across turns and is stable under a replay. **G-39 is routed around, NOT closed.** **(E) `artifacts` IS SEEDED FROM THE CASE RECORD — A NEW INVARIANT ON S-C02.** `new_phase_state` initialised it to `{}` on every turn from step 3.1, so the field §6 calls *"the accumulation"* could hold one turn's worth and was permanently identical to `draft`. **This is the defect step 6.11 fixed one field over**, on `uploads`, and its comment already carried the argument: the input mapper is the only thing that builds `PhaseState`, so a constant there is not a default but a ceiling. **(F) AN EMPTY CAPTURE IS REPORTED, NEVER SILENTLY DROPPED — B13.** The turn's log counted KEYS and the write filtered on VALUES, so *"captured 1 field(s)"* and *"nothing reached the gate document"* were both true of the same turn. Worse, an empty value in the merge DESTROYED the prior value in `artifacts` while the case-blob write discarded the same entry — two records of one field disagreeing, silently, in the direction that loses data. Both ends now split the capture through one function and name the fields they dropped. **(G) THE LOG PERSISTS IN `PhaseRecord.field_log`, NOT THE STORE'S `case` RECORD, AND §6's `asks` RULING DOES NOT EXTEND.** That ruling turns on who must read the thing BETWEEN turns: an ask is answered by an upload arriving on a route that cannot see the checkpoint. A field change has no such reader, and **a history persisted on a different schedule from the value it is a history OF can disagree with it** — which reads exactly like a change that never happened. It inherits §10's open per-turn case-blob write rather than adding one, and moves with `structured` when step 10.2 removes it. Reasoning: this commit body (§56.2).
 
 **v1.67 (2026-09-20)** — **§56 RECORD. Two of step 6.20's three write paths land, and §39.x.7's contract statements are CONFIRMED UNCHANGED rather than assumed to be.** **(A) WHAT CHANGED IS THE TREE, NOT THIS DOCUMENT.** The executor now writes `artifacts["computation_results"]` in §7's five-key shape from the turn's computation-tool calls, and advances `field_index` through Define's ordered list. §39.x.7 already said both — *“`computation_results` — every tool run (§7 shape)”*, *“`field_index` walks the §39.x.2 list”* — so a claim that was true as a contract and false as a description of the tree is now true as both. **Nothing here needed correcting**, and this entry exists because rule 2b asks for that confirmation to be on the record rather than inferred from silence. **(B) THE BUILD STATUS IS NOT HERE AND MUST NOT COME BACK.** It is Appendix F's row, since 6.37. This document holds the contract; whether the tree meets it is the register's column. **(C) TWO CLAUSES OF 6.20 ARE HANDLED BY AMENDMENT ELSEWHERE AND ARE DELIBERATELY UNTOUCHED HERE** — `phase_metrics`, whose Define entry shape is being written into §39.1.9, and the grader clause, where §36's two graders must not be conflated and Layer 2d is the reader meant (step 7.2). **(D) A MISATTRIBUTION IS REPORTED AT ITS SOURCE.** `docs/REFACTORING_PROCEDURE.md` line 3457 attributes the `computation_results` scan to §35 and §41; **checked rather than repeated, both sections mention it zero times** — §35 is *Two tiers of field, and the `warning` verdict* and §41 is *Structured dict fields, and FMEA*. Left for the amendment that owns the step text. Reasoning: this commit body.
 
@@ -766,8 +768,8 @@ structural rather than stylistic.
 **Specification:** the canonical schema and its field table are **§58.2 — S-C02**.
 This section keeps the reasoning.
 
-**Twenty-one author-populated fields** (two identity, three plumbing, sixteen
-content) **plus one engine-managed value — twenty-two declared.** The managed value
+**Twenty-two author-populated fields** (two identity, three plumbing, seventeen
+content) **plus one engine-managed value — twenty-three declared.** The managed value
 is **declared but NOT populated by the input mapper**; LangGraph's execution loop
 supplies it. **Any new field requires an amendment**,
 whatever category it is placed in (§56).
@@ -803,6 +805,76 @@ writing it per turn. **An ask is born in a coaching turn**, and there is no
 sanctioned write moment between that turn and the upload that answers it
 moments later. Recording asks there would reinstate exactly the per-turn write
 §10 deleted.
+
+### `field_log` — §56 AMENDMENT, ratified 2026-09-21
+
+**`field_log` is when each captured value changed, and what it was before.**
+One entry per change — `field`, `value`, `prior_value`, `turn`, `timestamp`
+and the Belt's stated `reason` where one was given — keyed `{phase}:{turn}:{field}`
+per §11. **`reason` is declared and nothing populates it: G-89**, whose fix is
+one clause on S-C05's `fields_captured` description and is owned by the
+procedure amendment, not by the step that declared the column. **The first capture of a field is an entry too**, carrying no
+`prior_value`. Built at step 6.33 alongside the capture path it logs.
+
+**It is a THIRD thing and neither of the other two can answer for it.**
+
+| | Holds | Cannot say |
+|---|---|---|
+| `artifacts` | WHAT is captured — the current value of each field | what the field said before, because the merge overwrote it |
+| `step_log` | HOW a TURN went — one entry per node, per turn | which field moved, or from what to what; it never held the value |
+| `field_log` | WHEN each value changed, from what, and why | — |
+
+**For a quality system this is not bookkeeping.** §7's whole argument for
+string-typed fields is that *"the Belt must be able to show what they stated,
+not what the system parsed out of it"* — and a Belt who revised a baseline on
+turn 9 after an upload contradicted their estimate can show the figure and not
+the revision. The gate document records the last state of a value; this records
+its history.
+
+**The channel carries a reducer, and that is the declaration.** `merge_field_log`
+is attached in `core/substate.py`, so a node that returns only this turn's
+entries cannot replace the history — the same move `messages` and `step_log`
+make with `operator.add`, and the opposite of `artifacts`, which merges in its
+writer and depends on every writer remembering to. **A log is exactly the field
+where "every writer must remember" fails**, because the writer that forgets
+leaves no trace of what it dropped.
+
+**The reducer is NOT `operator.add`, and §11 is the reason.** §11 requires a
+deterministic key so that *"the replay overwrites its own earlier entry instead
+of duplicating it"*. `operator.add` cannot honour that — it appends whatever it
+is given, so a resumed or replayed turn logs the same change twice and the log
+inflates on every retry until it stops being evidence. `merge_field_log` upserts
+on the key. **§11 states that rule for `step_log` and `operator.add` does not
+deliver it there; it is delivered here.**
+
+**The turn number is counted in the conversation, not taken from `turn_count`.**
+G-39 records that `turn_count`'s increment contract is unstated, and the
+measured behaviour is worse than ambiguous: the input mapper seeds it to `0` on
+every invoke and `core/graph.py` reads it as the ENTRY MODE, so it is `0` on
+every coaching turn — which is why every `step_log` key of every turn reads
+`{phase}:0:{node}`. A change log keyed on it would have each turn overwrite the
+one before, **which is the defect step 6.33 exists to end, reproduced inside the
+fix.** The Belt-message count is what accumulates across turns and is stable
+under a replay, so it is what the key uses. **G-39 is not closed by this** — it
+is routed around, and `turn_count` remains ambiguous for everything else.
+
+**`artifacts["field_log"]` was considered and rejected, on §6's own `asks`
+reasoning**: `artifacts` holds the Belt's captured values, gate assembly and
+`missing_gate_fields` walk it, and a log key would appear in every gate document
+and need excluding by name from the completeness computation. §7's string law
+would need a fifth exception besides.
+
+**It persists in `PhaseRecord.field_log` — the case blob — and NOT in the
+Store's `case` record, which is where `asks` went for the same-shaped
+question.** §6's `asks` ruling turns on who must read the thing BETWEEN turns:
+an ask is answered by an upload arriving moments later on a route that cannot
+see the checkpoint, and no case-blob write moment exists between them. A field
+change has no such reader. It is written from the same turn's product, by the
+same statement, as `structured` — and **a history persisted on a different
+schedule from the value it is a history OF can disagree with it**, which reads
+exactly like a change that never happened. It therefore inherits §10's open
+per-turn-write violation rather than adding one, and moves with `structured`
+when step 10.2 removes it.
 
 ### `draft`, `belt_edits` and `final` are `dict`, never `str`
 
@@ -908,7 +980,7 @@ declared on `PhaseState` rather than an Analyse-only variant because
 
 ### Per-phase variants
 
-**there are no per-phase state classes** (ruling 2026-09-11, step 6.20); each phase uses the shared 22-field `PhaseState` and §39.x.7 describes its
+**there are no per-phase state classes** (ruling 2026-09-11, step 6.20); each phase uses the shared 23-field `PhaseState` and §39.x.7 describes its
 transient fields. **All use explicit `TypedDict`, not `MessagesState`
 inheritance** — their dominant content is structured fields, not conversation.
 `MessagesState` inheritance is appropriate only where the dominant content
@@ -1350,6 +1422,16 @@ earlier entry instead of duplicating it. Without this, `step_log` inflates on
 every retry and stops being evidence of what happened.
 
 This is a hard requirement of the disconnect policy (§47).
+
+> **AND `step_log`'s OWN REDUCER DOES NOT DELIVER IT.** The key above is
+> deterministic; the channel reduces with `operator.add`, which appends. So a
+> replayed turn writes its entries a second time under the same keys, and the
+> idempotence this subsection requires is available to a reader who de-duplicates
+> and to nobody else. **`field_log` (§6, step 6.33) is the first channel where
+> the key is enforced by the reducer** — `merge_field_log` upserts on it, so a
+> re-run of a turn replaces its own entry. Recorded here because the rule lives
+> here: closing the gap for `step_log` is not step 6.33's, and the two channels
+> must not be assumed to behave alike because they share this paragraph.
 
 ---
 
@@ -4507,7 +4589,7 @@ failure, sharing the cap of 3 (§34).
 #### 39.1.12 State parameters — Define's use of `PhaseState`
 
 **There is no `DefineState`.** §39.x.7 describes per-phase USE of the shared
-22-field `PhaseState` — **S-C03 carries that ruling**, and G-19 was closed by it
+23-field `PhaseState` — **S-C03 carries that ruling**, and G-19 was closed by it
 on 2026-09-11. Define reads `asks`, `uploads`, `artifacts`, `coaching_plan` and
 `field_index`; it writes `artifacts` through `fields_captured` (S-C05). Field
 names, counts and types are owned by `core/substate.py` and are not restated
@@ -4727,7 +4809,7 @@ phase, §6).
 #### 39.2.7 State parameters — Measure's use of `PhaseState`
 
 
-*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `MeasureState`.** Measure uses the shared **22-field `PhaseState`**; this table is its USAGE — which Measure field each shared field carries, and who reads it:
+*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `MeasureState`.** Measure uses the shared **23-field `PhaseState`**; this table is its USAGE — which Measure field each shared field carries, and who reads it:
 
 | `PhaseState` field | In Measure |
 |---|---|
@@ -4995,7 +5077,7 @@ the 5 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
 #### 39.3.7 State parameters — Analyse's use of `PhaseState`
 
 
-*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `AnalyseState`.** Analyse uses the shared **22-field `PhaseState`**; this table is its USAGE — which Analyse field each shared field carries, and who reads it — note this is the phase where multi-hop is real:
+*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `AnalyseState`.** Analyse uses the shared **23-field `PhaseState`**; this table is its USAGE — which Analyse field each shared field carries, and who reads it — note this is the phase where multi-hop is real:
 
 | PhaseState field | In Analyse |
 |---|---|
@@ -5229,7 +5311,7 @@ the 5 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
 #### 39.4.7 State parameters — Improve's use of `PhaseState`
 
 
-*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `ImproveState`.** Improve uses the shared **22-field `PhaseState`**; this table is its USAGE — which Improve field each shared field carries, and who reads it:
+*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `ImproveState`.** Improve uses the shared **23-field `PhaseState`**; this table is its USAGE — which Improve field each shared field carries, and who reads it:
 
 | PhaseState field | In Improve |
 |---|---|
@@ -5489,7 +5571,7 @@ the 9 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
 #### 39.5.7 State parameters — Control's use of `PhaseState`
 
 
-*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `ControlState`.** Control uses the shared **22-field `PhaseState`**; this table is its USAGE — which Control field each shared field carries, and who reads it:
+*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `ControlState`.** Control uses the shared **23-field `PhaseState`**; this table is its USAGE — which Control field each shared field carries, and who reads it:
 
 | PhaseState field | In Control |
 |---|---|
@@ -7980,6 +8062,7 @@ every value that must survive context compression lives (§19.3).
 **Definition:**
 ```python
 from langgraph.managed import RemainingSteps
+from backend.core.substate import merge_field_log   # declared in this module
 
 class PhaseState(TypedDict):
     # ── identity, copied down by the input mapper (2) ────
@@ -7991,12 +8074,13 @@ class PhaseState(TypedDict):
     history:            Annotated[list[str], operator.add]
     phase_context:      str
 
-    # ── content fields (14) ─────────────────────────────────────
+    # ── content fields (17) ─────────────────────────────────────
     coaching_plan:      Optional[CoachingPlan]
     field_index:        int
     draft:              dict[str, Any]
     artifacts:          dict[str, Any]
     step_log:           Annotated[list[dict[str, Any]], operator.add]
+    field_log:          Annotated[list[dict[str, Any]], merge_field_log]
     belt_edits:         dict[str, Any]
     turn_count:         int
     final:              dict[str, Any]
@@ -8012,8 +8096,8 @@ class PhaseState(TypedDict):
     # ── engine-managed (1) ──────────────────────────
     remaining_steps:    RemainingSteps
 ```
-**Twenty-one author-populated fields** (two identity, three plumbing, sixteen
-content) **plus one engine-managed value — twenty-two declared.** The managed value
+**Twenty-two author-populated fields** (two identity, three plumbing, seventeen
+content) **plus one engine-managed value — twenty-three declared.** The managed value
 is **declared but NOT populated by the input mapper**; LangGraph's execution loop
 supplies it. **Any new
 field requires a §56 amendment, whatever category it is placed in.**
@@ -8032,6 +8116,7 @@ field requires a §56 amendment, whatever category it is placed in.**
 | `draft` | `dict[str, Any]` | This turn's extraction, before validation. Structured, never prose | none | executor node | validation stack; `gate_review` |
 | `artifacts` | `dict[str, Any]` | Everything captured in this phase so far, keyed by field name. Values are strings, except the three cross-phase reference dicts and the three structured dicts (§7, §41). Also holds `computation_results` | none (merge by the writer) | executor, from `CoachingResponse.fields_captured`; `gate_apply`, applying Belt edits | planner, `check_gate_status()`, validation stack, gate assembly, state injection, the live gate document (§50) |
 | `step_log` | `Annotated[list[dict], operator.add]` | The audit trail — HOW each thing was captured, as opposed to WHAT (§11). Dicts only; tuples are banned. Keyed deterministically | `operator.add` | validation layers, grader `on_evaluation`, the fallback chain | audit trail; written into the gate document |
+| `field_log` | `Annotated[list[dict], merge_field_log]` | **WHEN each captured value changed, and what it was before** — §56 amendment, ratified 2026-09-21, built at step 6.33. One entry per change: `key`, `field`, `phase`, `turn`, `value`, `prior_value`, `timestamp`, `reason`. The first capture of a field is an entry, with `prior_value: None`; a re-statement of the value already held is not. **`turn` is the Belt-message count, not `turn_count`** — G-39 leaves that field's contract unstated and it is `0` on every coaching turn, so a key built on it would collide across turns | **`merge_field_log`** — upserts on `key`, so a replayed turn replaces its own entry (§11). The one channel whose reducer is not `operator.add`, and the only one where §11's deterministic key is enforced rather than merely recorded | executor node, from the same split the `artifacts` merge uses | the gate document's provenance; a reviewer asking what a value said before; `gateway/routes.py`, persisting it to `PhaseRecord.field_log` |
 | `belt_edits` | `dict[str, Any]` | The Belt's corrections made at gate step 5. A different thing from `validator_feedback`, and must stay separate | none | `gate_apply`, from the interrupt resume payload | `gate_apply` |
 | `turn_count` | `int` | How many coaching turns this phase has taken. Load-bearing: it is a component of the deterministic `step_log` key (§11) | none | executor node | planner; `step_log` key construction |
 | `final` | `dict[str, Any]` | The approved gate document. A `dict` and never a `str`, so a resumed graph can read what was approved without re-reading the Store | none | `gate_apply_node` | output mapper; crash recovery |
@@ -8049,7 +8134,7 @@ field requires a §56 amendment, whatever category it is placed in.**
 
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
 |---|---|---|---|
-| B1 | a phase subgraph is entered | populate the **twenty-one author-populated fields** from the input mapper; no field SHALL be left undeclared. **`remaining_steps` is the one declared field the mapper SHALL NOT populate** — it is engine-managed, `NotRequired` in intent, and LangGraph's execution loop supplies it | §9 |
+| B1 | a phase subgraph is entered | populate the **twenty-two author-populated fields** from the input mapper; no field SHALL be left undeclared. **`remaining_steps` is the one declared field the mapper SHALL NOT populate** — it is engine-managed, `NotRequired` in intent, and LangGraph's execution loop supplies it | §9 |
 | B2 | the planner fires | replace `coaching_plan` entirely; it SHALL NOT be appended to or queued | §6 |
 | B3 | a validation layer fails | increment `gate_attempts` by one and append one entry to `validator_feedback` | §34 |
 | B4 | the gate passes | reset `gate_attempts` to `0` and `validator_feedback` to `[]`, and only `gate_apply` SHALL do so | §33.2 |
@@ -8059,6 +8144,9 @@ field requires a §56 amendment, whatever category it is placed in.**
 | B8 | a phase subgraph is entered | copy `case_id` and `current_phase` down from the parent `SupervisorState`, and take them from **no other source** — not config, not a build-time constant | §5, §9 |
 | B9 | any node inside the subgraph runs | treat `case_id` and `current_phase` as **read-only**; no node SHALL return either key in its state-update dict | §5 |
 | B10 | a Belt rejects at the gate | `gate_apply` SHALL append one entry to `rejection_feedback` and route to the planner; it SHALL NOT merge that entry into `validator_feedback` | §33, S-F13 |
+| B11 | a coaching turn captures a field whose value differs from the one `artifacts` holds | append one `field_log` entry keyed `{phase}:{turn}:{field}`, carrying the new value, the prior value (`None` on a first capture) and the timestamp. A capture that re-states the value already held SHALL NOT produce an entry | §6, §11 |
+| B12 | a node returns `field_log` | return THIS TURN's entries only; the channel's reducer SHALL fold them onto what is already held, and no node SHALL assign the whole log | §6 |
+| B13 | a capture arrives with an empty value — `None`, `[]`, `{}`, or a blank or whitespace string | REPORT it by field name and leave the prior value standing; it SHALL NOT enter `artifacts`, SHALL NOT be written to the case record, and SHALL NOT produce a `field_log` entry. **The log that counts captures and the write that stores them must agree** (step 6.33, G-78) | §6, §7 |
 
 **Invariants:**
 - `validator_feedback` (what the system said about the AI's output at step 2)
@@ -8069,8 +8157,14 @@ field requires a §56 amendment, whatever category it is placed in.**
   it into `validator_feedback` would have the coach read a Belt's rejection as a
   validation failure — the exact conflation the `feedback` field was split to
   end.
-- `artifacts` (WHAT was captured) and `step_log` (HOW) MUST stay separate
-  fields.
+- `artifacts` (WHAT was captured), `step_log` (HOW a turn went) and `field_log`
+  (WHEN a value changed, and from what) are **three** fields and MUST stay
+  separate. Each answers a question the other two cannot.
+- `artifacts` MUST be SEEDED at phase entry from the case record, never
+  initialised to `{}`. A constant there is not a default but a ceiling: the
+  input mapper is the only thing that builds `PhaseState`, so a blank
+  accumulator means nothing captured can survive into a second turn (step 6.33,
+  G-78 — the defect step 6.11 fixed one field over, on `uploads`).
 - `gate_attempts` MUST be in the checkpoint. Holding it in route scope is the
   specific defect this placement fixes (§6).
 - Every captured value in `artifacts` is a `str`, except the three cross-phase
@@ -8130,7 +8224,7 @@ field requires a §56 amendment, whatever category it is placed in.**
 *Rebuild test: there is nothing to rebuild — this entry declares an absence.*
 
 **Purpose:** **To record that there are NO per-phase state classes.** All five
-phases run on the single shared **22-field `PhaseState`** (S-C02). What varies
+phases run on the single shared **23-field `PhaseState`** (S-C02). What varies
 by phase is which fields carry what, and that is §39.x.7 — usage, not
 declaration.
 

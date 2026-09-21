@@ -253,12 +253,169 @@ def presentational_gaps(response: CoachingResponse) -> list[str]:
     return [f for f in PRESENTATIONAL_FIELDS
             if not str(getattr(response, f, "") or "").strip()]
 
+
+# ── the capture path — what an empty value means, and who may say so ──────
+#
+# **The log counted KEYS and the filter dropped on VALUES, and both were
+# right about different things.** `nodes_common.executor` logged
+# *"captured 1 field(s) -> artifacts"* while `gateway/routes.py` discarded
+# every entry whose value was `None`, `[]` or `{}` — so *"captured a field"*
+# and *"nothing reached the gate document"* were both true of the same turn
+# (step 6.33, G-78). A capture is now split ONCE, here, and the two ends of
+# the path read the same answer.
+
+
+def is_empty_capture(value: Any) -> bool:
+    """Whether a captured value carries nothing the Belt could point at.
+
+    `None`, an empty list, an empty dict, and a string that is blank or
+    **whitespace**. Whitespace counts on two existing arguments rather than a
+    new one: `presentational_gaps` above already treats `" "` as absent
+    because it renders as a layout break, and `nodes_common._advance_field_index`
+    already reads `str(artifacts.get(field) or "").strip()` when it looks for
+    the next uncaptured field. A value the field walk does not count as
+    captured must not be one the write counts either.
+
+    **`0` and `False` are values, not absences.** The membership tests are
+    typed rather than written `value == []`, which is what keeps `0` out of
+    the empty bucket — §7's law makes every captured field a string, so this
+    is defence against a model returning a bare numeric, not a supported shape.
+    """
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    if isinstance(value, (list, dict, tuple, set)):
+        return not value
+    return False
+
+
+def split_captures(values: Any) -> tuple[dict[str, Any], list[str]]:
+    """One turn's captures, split into what carries a value and what does not.
+
+    Returns `(kept, empty)` — `empty` being the FIELD NAMES whose capture
+    arrived with nothing in it. **The names, not a count**, because the point
+    is that the turn can now say WHICH field the Belt appeared to give and the
+    record does not hold: a count reconciles the two logs and still leaves a
+    reader guessing.
+
+    **Underscore-prefixed keys are skipped and are not reported as empty.**
+    `_gate_passed` and `_missing_fields` are the v1 seam's own internals
+    (`nodes_common.to_v1_state`), not captures, and naming them as dropped
+    fields would report a defect on every turn.
+    """
+    kept: dict[str, Any] = {}
+    empty: list[str] = []
+    for name, value in dict(values or {}).items():
+        if str(name).startswith("_"):
+            continue
+        if is_empty_capture(value):
+            empty.append(str(name))
+        else:
+            kept[str(name)] = value
+    return kept, sorted(empty)
+
+
+# ── the field change log — §56 amendment, ratified 2026-09-21 ─────────────
+
+
+#: The keys one `field_log` entry carries. Named here because the WRITER
+#: (`nodes_common.executor`) and the READER (`gateway/routes.py`, and a
+#: reviewer at a gate) are in different files and neither owns the shape.
+FIELD_LOG_ENTRY_KEYS: tuple[str, ...] = (
+    "key", "field", "phase", "turn", "value", "prior_value",
+    "timestamp", "reason",
+)
+
+
+def field_log_key(phase: str, turn: int, field: str) -> str:
+    """The deterministic identity of one field change — §11.
+
+    ``f"{phase}:{turn}:{field}"`` — §11's key shape with the FIELD in the slot
+    `step_log` gives the node, and the whole of the idempotence guarantee:
+    *"a turn that is retried, resumed from a checkpoint, or replayed after a
+    client disconnect re-executes the same logical step … a deterministic key
+    makes the write idempotent, so the replay overwrites its own earlier entry
+    instead of duplicating it."*
+
+    **It is not `nodes_common.step_key`, and that is the import direction
+    rather than an oversight.** `nodes_common` imports this module; importing
+    it back would be a cycle. `test_capture_accumulates.py` asserts the two
+    produce the same string for the same three arguments, so the shape cannot
+    drift apart in two files.
+    """
+    return f"{phase}:{turn}:{field}"
+
+
+def _entry_identity(entry: dict[str, Any]) -> str:
+    """One entry's key, rebuilt from its own fields if it carries none."""
+    key = str(entry.get("key") or "").strip()
+    if key:
+        return key
+    return field_log_key(
+        str(entry.get("phase") or ""),
+        int(entry.get("turn") or 0),
+        str(entry.get("field") or ""),
+    )
+
+
+def merge_field_log(
+    left: list[dict[str, Any]] | None,
+    right: list[dict[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """The `field_log` reducer — **append-only BY DECLARATION**, keyed per §11.
+
+    **This is why `field_log` carries a reducer and `artifacts` does not.**
+    `artifacts` merges in its writer (S-C02), which is safe because the
+    executor is its only writer and merges every time. A change log has to
+    survive a writer that forgets: a node returning `{"field_log": [one new
+    entry]}` into a channel with no reducer REPLACES the history with that one
+    entry, and the replacement is silent. Declaring the reducer moves
+    "append, never replace" from something every writer must remember into
+    something the channel does — which is the same move `messages` and
+    `step_log` already make with `operator.add`.
+
+    **It is not `operator.add`, and the difference is §11's idempotence.**
+    `operator.add` cannot honour a deterministic key: a resumed or replayed
+    turn appends its entries a second time, and the log inflates on every
+    retry until it stops being evidence of what happened. This upserts on
+    `key` — `{phase}:{turn}:{field}` — so **a re-run of the same turn replaces
+    its own entry** and a run of the NEXT turn adds one. §11 requires that of
+    `step_log` too and `operator.add` does not deliver it there; it is
+    delivered here.
+
+    **Order is first-appearance order**, which is chronological: assigning to
+    an existing `dict` key keeps the key's original position, so a replaced
+    entry stays where it was rather than jumping to the end.
+
+    Used by the channel AND by the case-record write in `gateway/routes.py`,
+    deliberately: a log that merges one way in the checkpoint and another way
+    in the blob can disagree with itself, and the disagreement would look
+    exactly like a missing change.
+    """
+    merged: dict[str, dict[str, Any]] = {
+        _entry_identity(e): dict(e) for e in (left or [])
+    }
+    for entry in (right or []):
+        merged[_entry_identity(entry)] = dict(entry)
+    return list(merged.values())
+
+
 class PhaseState(TypedDict):
-    """Twenty author-populated fields — two identity, three plumbing,
-    fifteen content — plus one engine-managed value: twenty-one declared.
+    """Twenty-two author-populated fields — two identity, three plumbing,
+    seventeen content — plus one engine-managed value: twenty-three declared.
 
     **Any new field requires a §56 amendment**, whatever category it is
     placed in. `test_state.py` asserts the count and the names.
+
+    **This caption was stale by two fields before `field_log` was added, and
+    the field list beneath it was right the whole time.** It read *"Twenty …
+    fifteen content … twenty-one declared"* while the class carried sixteen
+    content fields: `asks` landed at step 6.12 and the caption was never
+    updated with it, exactly as `.claude/rules/state.md`'s own caption was
+    left behind by `rejection_feedback` at 2.2.23 and says so. Corrected here
+    rather than separately — the count was being edited anyway, and a figure
+    sync gets said out loud rather than slipped in.
     """
 
     # ── identity, copied down by the input mapper (2) ────────────────
@@ -307,6 +464,26 @@ class PhaseState(TypedDict):
     # `artifacts`. The two must stay separate. Dicts only — tuples are
     # banned (§10.3).
     step_log:           Annotated[list[dict[str, Any]], operator.add]
+
+    # WHEN each captured value changed, and what it was before — §56
+    # amendment, ratified 2026-09-21, built at step 6.33. One entry per
+    # change, keyed `{phase}:{turn}:{field}` per §11, including the first
+    # capture of a field, which carries no `prior_value`.
+    #
+    # **A THIRD thing, and it is neither of the other two.** `artifacts` is
+    # WHAT is captured and holds only the current value; `step_log` is HOW a
+    # TURN went, one entry per node. Neither can answer *"what did
+    # `baseline_estimate` say before the Belt changed it on turn 9, and
+    # why"* — `artifacts` has overwritten it and `step_log` never held it.
+    # For a quality system that is not bookkeeping: a gate document the Belt
+    # must be able to stand behind has to be able to show the value's
+    # history, not only its last state.
+    #
+    # **The one channel here whose reducer is not `operator.add`**, because
+    # §11's deterministic key has to mean something: `merge_field_log` upserts
+    # on the key, so a replayed turn overwrites its own entry instead of
+    # logging the same change twice.
+    field_log:          Annotated[list[dict[str, Any]], merge_field_log]
 
     # The Belt's corrections at gate step 5. NOT the same thing as
     # `validator_feedback` and must never be merged with it: two actors, two
@@ -415,6 +592,7 @@ PHASE_STATE_IDENTITY_FIELDS = ("case_id", "current_phase")
 PHASE_STATE_PLUMBING_FIELDS = ("messages", "history", "phase_context")
 PHASE_STATE_CONTENT_FIELDS = (
     "coaching_plan", "field_index", "draft", "artifacts", "step_log",
+    "field_log",
     "belt_edits", "turn_count", "final", "gate_attempts",
     "validator_feedback", "rejection_feedback", "citations", "uploads",
     "asks", "hop_results", "synthesis_output",
@@ -440,6 +618,11 @@ __all__ = [
     "CoachingPlan",
     "CoachingResponse",
     "CONTRADICTION_FLAG_KEYS",
+    "FIELD_LOG_ENTRY_KEYS",
+    "field_log_key",
+    "is_empty_capture",
+    "merge_field_log",
+    "split_captures",
     "PhaseState",
     "PHASE_STATE_IDENTITY_FIELDS",
     "PHASE_STATE_PLUMBING_FIELDS",

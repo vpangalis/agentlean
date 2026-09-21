@@ -200,6 +200,7 @@ list lives here.
 | 6.12 | `live-run` **(Measure)** | **Owed, and RE-HOMED 2026-09-15.** It was never runnable in Define — 0 ask shapes against Measure's 4 (AR-R2) — so this was a **defective clause, not a debt**, for as long as it named Define. Real, and owed against a MEASURE turn |
 | 6.13 | `live-run` | **Attempted and FAILED**, cause isolated to code 6.13 did not touch — see its section |
 | ~~6.21~~ | `live-run` | **DISCHARGED 2026-09-15**, rid `20167cc9-ea86-4501-a827-0e19ebb2420a`. See the closure in 6.21's own section |
+| ~~6.33~~ | `live-run` | **DISCHARGED 2026-09-21**, rid `5415c73d-6b80-426a-b5f4-7daabef1ec4b` and the turn after it. **The row is written in the SAME COMMIT as the code**, which is what this table asks for and what 6.21's absence for eleven days cost. See the closure in 6.33's own section — including what the run does NOT prove |
 
 > **THREE ROWS ABOVE ARE STILL OPEN, AND 6.21'S CLOSURE DID NOT DISCHARGE
 > THEM.** 6.21's Done-when required the live halves of **6.7**, **6.12** and
@@ -3496,7 +3497,7 @@ for Define and the other four get their ordered list with their own slice
   schema surface for a question a scan already answers"*.
 
 **What §39.x.7 becomes: a description of per-phase USAGE of the shared
-22-field `PhaseState`** — which is what those tables always actually contained.
+23-field `PhaseState`** — which is what those tables always actually contained.
 Every row in them already reads *"`artifacts` — holds the 10 captured
 fields…"*: **usage of a shared field, not the declaration of a new one.** Only
 the heading and one sentence per section ever claimed a variant class.
@@ -4779,11 +4780,33 @@ remove the handler, invert the two limits — each shown red then green; and
 
 | | |
 |---|---|
-| **Reference §** | §6 · §7 · §20 · §39.1 · S-C02 · S-F04 · G-78 |
-| **Touches** | `backend/phases/mappers_common.py` · `backend/gateway/routes.py` · `backend/tests/` |
+| **Reference §** | §6 · §7 · §11 · §20 · §39.1 · S-C02 · S-F04 · G-78 |
+| **Touches** | `backend/core/substate.py` · `backend/core/graph.py` · `backend/core/conversation.py` · `backend/phases/mappers_common.py` · `backend/phases/*/mappers.py` · `backend/phases/nodes_common.py` · `backend/storage/models.py` · `backend/gateway/routes.py` · `backend/tests/` |
 | **Precondition** | none — **READY**. Independent of 6.20, which is in flight |
 | **Verify** | `pytest` + `live-run` |
-| **Status** | **RULED — founder 2026-09-15. Not started** |
+| **Status** | **RULED — founder 2026-09-15. EXTENDED — founder 2026-09-21** |
+
+> ### ⇒ EXTENDED 2026-09-21 — THE FIELD CHANGE LOG, SAME COMMIT
+>
+> **The step as ruled fixes the accumulator. The extension records its
+> history.** Founder ruling: `PhaseState` gains **`field_log`** — one entry per
+> change, carrying field, new value, prior value, turn, timestamp and the
+> Belt's stated reason where given; the first capture of a field is an entry
+> too, with no prior value. **Append-only BY DECLARATION** — the channel
+> carries a reducer, proven by mutation — and **keyed by turn and field**, so a
+> re-run of the same turn replaces its own entry rather than logging the change
+> twice.
+>
+> **The `Touches` row above grew with it**, and the growth is the amendment's,
+> not the step's: a new `PhaseState` field is a §56 amendment (CLAUDE.md
+> *Amending the rules*, 3b), so `core/substate.py` carries the field and its
+> reducer, `phases/nodes_common.py` writes the entries, `core/graph.py` and
+> `core/conversation.py` carry them out on the turn's transport — the subgraph's
+> state reaches the route no other way — and `storage/models.py` gives them a
+> home beside the values they are a log of. **ARCHITECTURE.md v1.68 is the
+> ruling; this row is its consequence.**
+>
+> **Out of scope and stated so**: the gate write, the UI, and `phase_metrics`.
 
 **Every coached capture destroys the ones before it.** Two defects at opposite
 ends of a path that otherwise works (G-78), found by the first live turn:
@@ -4821,6 +4844,12 @@ count and **§33's gate is unreachable** — so 7.3 is blocked behind this, and
 rendering the turn better (10.0) renders a document that is still being
 emptied. Order: **6.20 → 6.33 → 10.0 → 7.3 → 10.2**.
 
+> **6.33 LEFT THE VERTICAL ON 2026-09-21 AND THE REST CLOSED UP** — Appendix
+> F's `Order` runs 6.20 → 10.0 → 7.3 → 10.2 as 1–4. **The sequence above is
+> unchanged**; only the labels moved, because `Order` must be a contiguous run
+> (`test_the_order_column_is_a_sequence_with_no_duplicates`). **What runs next
+> is the founder's column and was not re-decided here.**
+
 ### The trap in the evidence, and it is why the log is not enough
 
 **The log counts KEYS and the filter drops on VALUES.**
@@ -4842,6 +4871,55 @@ a test drives **five successive turns** and asserts all five fields are present
 at the end — a single-turn test passes today and proves nothing; and a
 `live-run` on `IMPR-2026-0E5` captures fields across at least two turns with
 both surviving into the gate document.
+
+**And for the ratified extension, in the same commit:** `field_log` carries one
+entry per change with field, new value, prior value, turn, timestamp and the
+Belt's stated reason where given; the first capture of a field is an entry with
+no prior value; the channel is **append-only by declaration** and the reducer is
+proven by mutation — removed, the test goes red; entries are **keyed by turn and
+field**, proven by resuming a turn and asserting one entry; and the `live-run`
+changes one field across two turns with **both values present, each with its
+date**.
+
+> ### ✅ CLOSED 2026-09-21 — `live-run` on `IMPR-2026-0E5`, two turns
+>
+> | Evidence | |
+> |---|---|
+> | **One field changed across two turns, both values kept** | `business_case` captured at **13:42:01Z** as *"…about GBP 180,000 a year…"*, revised at **13:43:39Z** to *"…GBP 245,000 annually…"* — the second entry carrying the first as its `prior_value` |
+> | **The accumulator survived the turn boundary** | `baseline_estimate`, captured in an earlier session, was still in `structured` after both turns. **It is the load-bearing half**: it is the value the old assignment destroyed, and it was not written by either turn |
+> | The turn's own reconciliation | `captured 1 -> 1 field(s) into artifacts (0 empty, 1 changed)` — the log line whose count used to disagree with the write |
+> | Request ids | `5415c73d-6b80-426a-b5f4-7daabef1ec4b` (capture) · the revision one turn later |
+>
+> **THE SURVIVING PRIOR FIELD IS THE CLAUSE THAT CANNOT BE FAKED.** A capture
+> appearing in `structured` proves only that the write ran; it looked exactly
+> like this before the fix, because a single turn's assignment also produces a
+> populated `structured`. **A field the run never touched, still present after
+> two turns that both wrote, can only come from a merge.**
+>
+> **`reason` IS `None` ON BOTH ENTRIES, AND THAT IS THE PREDICTED RESULT, NOT A
+> FAILURE — REGISTERED AS G-89.** *"The Belt's stated reason where given"* is read from a `reason`
+> key on the capture entry, which `CoachingResponse.fields_captured` permits
+> because its entries are free-form dicts — and **nothing asks the coach to
+> supply one**: S-C05's field description names `field_name`, `value` and
+> `source`. The Belt's second message stated a reason in prose (*"the earlier
+> figure left out the late-payment penalties"*) and it reached the coaching
+> text, not the log. **The column will be empty in live use until a §56
+> amendment to S-C05 asks for it**, and that is carried as G-89 rather than as
+> a closed clause; the procedure amendment now being drafted owns the fix. It is proven only by a unit test that supplies one.
+>
+> **WHAT THE RUN DOES NOT PROVE.** The gate document was not assembled — this
+> step does not touch the gate write, by ruling — so *"both surviving into the
+> gate document"* is proven at `PhaseRecord.structured`, which is what gate
+> assembly reads, and **not by a rendered gate document**. The five-turn clause
+> is proven by `pytest`, not live: the live run is two turns.
+>
+> **A METHOD DEFECT, RECORDED BECAUSE IT NEARLY BECAME EVIDENCE — G-90.** Two reads
+> during this run parsed a **404** and a **400** body as though they were data —
+> `{"detail":"Not Found"}` has no `phases` key, so the first read reported
+> *"structured: null"* and looked exactly like a case that had captured
+> nothing. **This is G-66 in the verifier rather than in the UI**, and it was
+> caught only by adding `-w "%{http_code}"`. Every live read in this document's
+> future steps checks the status before it reads the body.
 
 ---
 
@@ -5107,7 +5185,7 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
 | **QUEUED** | 26 | **6.33**, **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
-*81 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-20.*
+*81 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-21.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -5619,8 +5697,8 @@ home.**
 
 | Layer | Order | Zone | Step | Fact — what the § specifies | State | Symbol | § |
 |---|---|---|---|---|---|---|---|
-| L1 | 3 | — | **10.0** | The coaching turn’s output reaches the Belt — four blocks and the grader’s warning | ☐ | `absent: backend.gateway.schemas::CoachingBlocks` | §50.1, §49, S-C05 |
-| L1 | 5 | — | **10.2** | Live gate document + conflict panel | ☐ | `absent: repo:agent-improve/ui/gate_document.js` | §50, §43.4 |
+| L1 | 2 | — | **10.0** | The coaching turn’s output reaches the Belt — four blocks and the grader’s warning | ☐ | `absent: backend.gateway.schemas::CoachingBlocks` | §50.1, §49, S-C05 |
+| L1 | 4 | — | **10.2** | Live gate document + conflict panel | ☐ | `absent: repo:agent-improve/ui/gate_document.js` | §50, §43.4 |
 | L1 |  | UI | **10.1**, **7.3** | **11 routes are served; this section's table names 4 of them** — `POST /ask`, `GET /cases/{id}`, `GET /registry`, `POST /upload`. **Seven are in the tree and in no ratified table** (**G-47**), and **five table rows are unbuilt**: `/ask/stream` (step 10.1), `/gate/approve` and `/gate/reject` (step 7.3, which has no `interrupt()` to resume from), `GET /cases`, and `/gate/submit` in the three-route shape this table ratifies. **Corrected 2026-09-11:** this line read *"11 of 12 routes exist … names 8 of the 11 — six are in the tree and in no ratified table"*, and **8 + 6 = 14 against 11 built routes**, so the marker contradicted itself; neither figure was derivable and the `12` traced to nothing. `verify_built.py` now pins the route SET, not the count, so the named/unnamed split is re-derived rather than restated | ⚠️ | `repo:agent-improve/backend/gateway/routes.py` | §49 |
 | L1 |  | UI | **6.19** | **these four fields do not exist** (**G-50**) | ☐ | — | §50.1 |
 | L1 |  | UI | — | **S-C36** · `CitationRecord` and `CitationBundle` | — | — | §65.1 |
@@ -5685,7 +5763,7 @@ home.**
 | L3 |  | — | **4.4** | Remaining four subgraphs | ✅ | `backend.phases.mappers_common::PHASE_ORDER {define,measure,analyse,improve,control}` | §12, §13 |
 | L3 |  | — | **6.8** | `phase_context` is read (WATCH 19) | ✅ | `backend.middleware.state_injection::BeforeModelStateInjection` | §6, §9, §19.1 |
 | L3 | 1 | — | **6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ | `backend.phases.nodes_common::_advance_field_index` | §7, §39.x.7, S-C02, S-C03 |
-| L3 | 2 | — | **6.33** | The capture path accumulates — a field survives the next turn | ☐ | `absent: backend.phases.mappers_common::seed_capture_state` | §6, §7, §20, S-F04 |
+| L3 |  | — | **6.33** | The capture path accumulates — a field survives the next turn, and the field change log records what it said before | ✅ | `backend.phases.mappers_common::captured_for_phase` | §6, §7, §11, §20, S-F04 |
 | L3 |  | PHASE | — | **the typing law is enforced by schema, not by convention** — all five `{Phase}Output` declare captured fields as `str` or `dict`, and `test_gate_documents.py` pins both the `dict` fields and their Tier-1 placement | ✅ | — | §7 |
 | L3 |  | PHASE | **7.3** | five nodes, identical node-name sets across all five phases, re-run by `verify_built.py`'s *phase subgraph nodes* check. ⚠ `gate_review` is a pass-through until 7.3 | ✅ | — | §13 |
 | L3 |  | PHASE | — | every node is `async def` since 2.5 — all five `orchestrate_*`, all five `validate_*`, `escalate`, and all eleven route handlers | ✅ | — | §14 |
@@ -5846,7 +5924,7 @@ home.**
 | Layer | Order | Zone | Step | Fact — what the § specifies | State | Symbol | § |
 |---|---|---|---|---|---|---|---|
 | L7 |  | — | **3.4** | `{Phase}Output` schemas + validators + UI | ✅ | `backend.phases.define.schema::DefineOutput` | §7, §40, §41, §53.1 |
-| L7 | 4 | — | **7.3** | Nine-step HITL gate | ☐ | `backend.phases.nodes_common::gate_review` | §33 |
+| L7 | 3 | — | **7.3** | Nine-step HITL gate | ☐ | `backend.phases.nodes_common::gate_review` | §33 |
 | L7 |  | — | **7.1** | `DMAICGateValidator` + Layer 2b | ☐ | `absent: backend.validation.gate_validator::DMAICGateValidator` | §34, §35 |
 | L7 |  | — | **7.2** | Layers 2c, 2d + `validation_stack` | ☐ | `absent: backend.validation.stack::validation_stack` | §34, §36 |
 | L7 |  | — | **7.4** | Two tiers + `warning` verdict | ☐ | `absent: backend.validation.tiers::WARNING` | §35 |
@@ -6048,6 +6126,9 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | ~~**G-57**~~ | **CLOSED 2026-09-13 at step 6.26.** `backend/tests/test_commit_guard_tree_rules.py` — 41 tests — pins what rules 7 and 8 RANGE OVER and not only what they match: the ratchet (`--diff-filter=AR`, so a modification is invisible to both), the rename into a scratch name, the index-versus-disk read of both registers, and that a declared number must resolve. **Two of its assertions go red on a REFORMAT rather than on a rule change** — Appendix D and §66 parsing into more than fifty entries each, with a struck-through `~~**G-52**~~` row asserted to still parse, because a closed gap is still a number that resolves. **The mutations are recorded with their results**: emptying `SCRATCH_SEGMENTS` gives 8 failed / 33 passed; pointing the Appendix D regex at `**Step X.Y**`, a shape the table does not use, gives 1 failed / 40 passed; dropping the filter from `AR` to `A` gives 1 failed / 40 passed. **What it deliberately does not pin is whether a file belongs to the step it declares** — rule 8 checks a number is declared and exists, and stating that limit in the test file is what stops a green suite being read as evidence the numbers are honest | §0.32, §56.3, §55.1 | closed |
 | **G-56** | **NO DRIFT CHECK CAN SEE THE GOVERNING DOCUMENTS.** `deprecated_patterns.yaml` excludes `agent-improve/*.md` and `agent-improve/**/*.md`, so CLAUDE.md, ARCHITECTURE.md and everything under `docs/` are outside every pattern the drift hook enforces. **The exclusion is correct as written and that is the problem**: architecture markdown deliberately shows a superseded form beside its replacement, so a registry guarding CODE must not match it — which leaves the documents guarded by nothing. Every defect worked between 2026-09-12 and 2026-09-13 was in a document. The countermeasure is a hook that reads OWNERSHIP rather than patterns — `fact-ownership-guard.py` denying a write that restates an owned fact, which needs no pattern list and so needs no exclusion. **Step 6.24.** Was the live half of CLAUDE.md §18.1; its other half — `pattern-2`'s §4.6 scoping — **was closed at step 5.2 on 2026-09-03 and the document never said so**, which is why it read as owed for ten days. | §55, §55.1, §56 | **6.24** |
 | ~~**G-42**~~ | **RESOLVED 2026-08-24** — the mapper runs inside the parent's uniquely-named node function for that phase, which is the documented LangGraph pattern for parent and subgraph with different state schemas. See §66.6, S-F10 and DECISIONS §T1. *Original statement:* **the boundary mappers have no execution site.** §9 defines them as "two plain functions per phase"; §13 states a phase subgraph contains **exactly five nodes**, none of which is a mapper, and forbids a sixth without a §56 amendment; §12 embeds each subgraph as a node of the parent. Whether a mapper runs inside the subgraph, inside the parent's node wrapper, or somewhere else is stated nowhere — and every phase boundary depends on it | S-F10, S-F11, S-F12 | closed |
+| **G-88** | **AN ASK NEVER SURVIVES THE TURN THAT CREATED IT, FOR TWO INDEPENDENT REASONS, AND NEITHER IS FIXED HERE.** **(a) THE MIRROR READS A KEY THAT IS NOT ON THE SCHEMA IT READS FROM.** `gateway/routes.py::_mirror_asks` does `(result or {}).get("asks")`, where `result` is the return of `graph.ainvoke` on the **PARENT** graph — and `SupervisorState` is seven fields (§5), none of them `asks`. The parent's phase node returns `messages` and `history` and nothing else, so the child's `asks` reach no caller. The lookup yields `None`, the function returns at its own guard, and **`write_asks` has never once been called.** This is the `route_after_phase` class this group is named for: specified code reading state a schema does not declare. **(b) AND THE RECORD IS WHOLESALE-REPLACED EACH TURN REGARDLESS.** `_ensure_case_record` runs at the top of every `/ask` and calls `write_case_record(store, id, case_record_from_document(case))`, which `store.put`s a record built from the case blob alone — framing, uploads, and since step 6.33 the captured values and the field log. `asks_by_phase` is **written by `write_asks` and rebuilt by nothing**, so even a mirror that ran would be erased before the next turn's input mapper read it. **The two stack**: fixing (a) alone leaves the write destroyed one turn later, and fixing (b) alone leaves nothing to preserve. **NEITHER IS FIXED.** Found 2026-09-21 while step 6.33 chose a home for `field_log` — the choice turned on this exact question, and `PhaseRecord.field_log` was taken partly because the Store record is not safe to write mid-turn until (b) is fixed. **Does not block Define**, which declares zero ask shapes (ruling AR-R2), so no Define turn can create an ask to lose. **Scheduled for stage three with 6.12's re-homed `live-run`.** | S-C02, S-F10, §6, §9, §10.2 | **stage 3** |
+| **G-89** | **`field_log.reason` IS DECLARED AND NOTHING WILL EVER POPULATE IT — THE DECLARED-AND-NEVER-POPULATED CLASS, CAUGHT AT BIRTH THIS TIME.** Step 6.33's ratified entry shape carries *"the Belt's stated reason where given"*, read from a `reason` key on the capture entry — which `CoachingResponse.fields_captured` PERMITS, its entries being free-form dicts, and which **nothing asks the coach to supply**: S-C05's field description names `field_name`, `value` and `source`, and no more. **Both entries from the 2026-09-21 `live-run` carry `None`**, and the Belt's second message stated a reason in prose — *"the earlier figure left out the late-payment penalties"* — which reached the coaching text and not the log. **This is `computation_results` and `phase_metrics`' class** (read by five gate assemblers, written by nothing) and `field_index`' class (set to `0`, advanced by nothing) — a field that lands in a schema and not in the path that fills it. **What is different is that it is registered on the day it was built rather than found months later**, which is the whole of §55.2's argument. **The fix is one clause on `CoachingResponse`** — add `reason` to the `fields_captured` description so the coach is asked — **and it is a §56 amendment to S-C05, deliberately NOT made in commit 6.33.** **OWNER: the procedure amendment now being drafted**, which carries it with 6.42 and §39.1.9. Until then the column is honestly empty: a column that exists and is empty says *"nobody was asked"*, where a column that does not exist says nothing at all and the next reader rediscovers why. | S-C05, S-C02, §6, §20 | **the procedure amendment** |
+| **G-90** | **THE VERIFICATION TOOLING PARSES AN ERROR BODY AS DATA, SO A FAILED READ IS INDISTINGUISHABLE FROM AN EMPTY RESULT — G-66'S SHAPE, ONE LAYER UP.** During step 6.33's `live-run` a read of the case document was issued against `/case/{id}`; the served route is `/cases/{id}`, so the response was a **404** carrying `{"detail":"Not Found"}`. The reader did `json.load(...)` and walked `(c.get("phases") or {}).get("define")` — **a valid JSON object with no `phases` key, so the walk yielded `{}` and the check reported `structured: null`.** That is byte-identical to what a case which had genuinely captured nothing would report, and it was believed until `-w "%{http_code}"` was added. A **400** was read the same way one turn later, reporting `phase_inputs: null` for a turn that never ran at all. **This is G-66 exactly** — *"a 503 `{"detail": …}` is a valid JSON OBJECT, so `data.length` is `undefined`, falsy, and the empty-state message renders"* — with the verifier in the UI's place, and it is the more dangerous seat of the two: **the UI misleads a Belt, and this misleads a step's own evidence.** G-66 was fixed in `ui/index.html` on 2026-09-15; **nothing generalised it**, because the tooling side is ad-hoc `curl` in step prose rather than a file anybody owns. **NOT FIXED.** Interim containment, with its removal condition: **every live read written into this document from 2026-09-21 checks the status before it reads the body** — 6.33's own section carries that instruction, and it retires when a checked reader exists that a step can call instead of writing its own. | §49, §55.1, G-66 | **unscheduled** |
 
 ### 66.3 Group C — schemas named but never defined
 
@@ -6063,7 +6144,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-16** | `CitationRecord` / `CitationBundle` — and the three different citation shapes stated in §50, §6 and §23 | S-C36 | **unscheduled** |
 | **G-17** | `CaseDocument` · `PhaseRecord` · `RegistryEntry` · `PhaseSummaryRecord`, and whether `PhaseRecord` duplicates the gate document | S-C09 | **unscheduled** |
 | **G-18** | All `gateway/schemas.py` envelopes, for all seven endpoints, plus the gate interrupt and resume payloads and the SSE event shape. **G-02 now depends on this** — the `/gate/reject` payload must carry a mandatory reason | S-C37, S-F06, S-F34, S-F13 | **unscheduled** |
-| ~~**G-19**~~ | Per-phase `PhaseState` variants — the transient fields are never enumerated, and whether they count against §6's ceiling is undecided  **✅ CLOSED 2026-09-11 by ruling** — the five variants are not built and will not be; §39.x.7 describes per-phase USE of the shared 22-field `PhaseState` (S-C03). The fields were never enumerable because the classes were never designed. | S-C02, S-C03, §6, §39.x.7 | closed |
+| ~~**G-19**~~ | Per-phase `PhaseState` variants — the transient fields are never enumerated, and whether they count against §6's ceiling is undecided  **✅ CLOSED 2026-09-11 by ruling** — the five variants are not built and will not be; §39.x.7 describes per-phase USE of the shared 23-field `PhaseState` (S-C03). The fields were never enumerable because the classes were never designed. | S-C02, S-C03, §6, §39.x.7 | closed |
 
 ### 66.4 Group D — described in prose, no interface
 

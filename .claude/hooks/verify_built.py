@@ -1152,12 +1152,13 @@ CHECKS = [
                 "print(', '.join(sorted(C.model_fields)))"),
      "S-C05 — all 8 ratified fields, since step 6.19 closed G-50"),
 
-    ("state field counts (S-C01 / S-C02)", "7 / 22",
+    ("state field counts (S-C01 / S-C02)", "7 / 23",
      lambda: py("from backend.core.state import SupervisorState as S; "
                 "from backend.core.substate import PhaseState as P; "
                 "print(f'{len(S.__annotations__)} / {len(P.__annotations__)}')"),
-     "S-C01 — seven · S-C02 — twenty-two. Step 3.1's Done-when said "
-     "7 and 19; four ratified amendments have moved it since"),
+     "S-C01 — seven · S-C02 — twenty-three. Step 3.1's Done-when said "
+     "7 and 19; five ratified amendments have moved it since — the latest "
+     "is `field_log` (v1.68, 2026-09-21, built at step 6.33)"),
 
     ("storage models (S-C09)", "11",
      lambda: py("import backend.storage.models as M; "

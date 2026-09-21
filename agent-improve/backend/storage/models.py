@@ -182,6 +182,28 @@ class PhaseRecord(BaseModel):
     citations: list[CitationRecord] = []
     uploads: list[UploadRecord] = []
 
+    #: The field change log — one entry per change to `structured`, keyed
+    #: `{phase}:{turn}:{field}` (§11). Step 6.33; entry shape and the merge
+    #: rule are `core/substate.FIELD_LOG_ENTRY_KEYS` / `merge_field_log`.
+    #:
+    #: **HERE, and not in the Store's `case` record, which is where `asks`
+    #: went for the same-shaped question.** §6's ruling on `asks` turns on WHO
+    #: must read the thing BETWEEN turns: an ask is answered by an upload
+    #: arriving moments later on a route that cannot see the checkpoint, and
+    #: there is no sanctioned case-blob write between those two moments. A
+    #: field change has no such reader. It is written by the same statement,
+    #: at the same moment, from the same turn's product as `structured` above
+    #: — and a history persisted on a different schedule from the value it is
+    #: a history OF can disagree with it, which would read exactly like a
+    #: change that never happened.
+    #:
+    #: **It therefore inherits §10's open violation rather than adding one.**
+    #: The case blob is written per turn today — `gateway/routes.py` says so
+    #: in its own words and names step 10.2 as the removal. When that write
+    #: moves, this field moves with `structured`; that is the point of them
+    #: sharing a line.
+    field_log: list[dict[str, Any]] = []
+
 
 class PhaseSummaryRecord(BaseModel):
     """Lightweight summary written to registry on gate pass."""

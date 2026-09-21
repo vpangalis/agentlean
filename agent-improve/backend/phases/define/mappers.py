@@ -29,6 +29,8 @@ from backend.phases.mappers_common import (
     advance,
     new_phase_state,
     asks_for_phase,
+    captured_for_phase,
+    field_log_for_phase,
     read_case_record,
     uploads_for_phase,
     write_gate_document,
@@ -108,6 +110,9 @@ def define_input_mapper(parent: SupervisorState, store: BaseStore) -> PhaseState
     return new_phase_state(
         parent, PHASE, phase_context,
         uploads_for_phase(case, PHASE), asks_for_phase(case, PHASE),
+        # Step 6.33 — the accumulator is SEEDED from the case record, not
+        # blanked. `case` is already in hand, so this costs no second read.
+        captured_for_phase(case, PHASE), field_log_for_phase(case, PHASE),
     )
 
 
