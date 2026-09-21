@@ -11,9 +11,9 @@
 | **Next** | step **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
 | **Spine steps landed** | 46 of 81 |
 | **Last spine commit** | `533398f` (commit 6.38) |
-| **ARCHITECTURE.md** | v1.66 |
-| **CLAUDE.md** | v2.2.40 |
-| **Block regenerated** | 2026-09-18 |
+| **ARCHITECTURE.md** | v1.67 |
+| **CLAUDE.md** | v2.2.41 |
+| **Block regenerated** | 2026-09-21 |
 
 *`Last completed` and the landed count come from **git log** — the
 `refactor(arch-v2): commit X.Y` subjects. `Next` and the total come

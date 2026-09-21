@@ -1,5 +1,5 @@
 # CLAUDE.md — Agent Improve
-# Version 2.2.40 — September 2026
+# Version 2.2.41 — September 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 DMAIC coaching agent: LangGraph phase subgraphs, LangChain `create_agent` with a

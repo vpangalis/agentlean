@@ -88,12 +88,13 @@ class PhaseState(TypedDict):
     history:            Annotated[list[str], operator.add]
     phase_context:      str                # composed at the boundary — §10.2
 
-    # the sixteen content fields
+    # the seventeen content fields
     coaching_plan:      Optional[CoachingPlan]  # ONE typed plan per planner turn
     field_index:        int                # field within the phase
     draft:              dict[str, Any]     # this turn's extraction
-    artifacts:          dict[str, Any]     # accumulated for the phase
+    artifacts:          dict[str, Any]     # accumulated for the phase — SEEDED
     step_log:           Annotated[list[dict[str, Any]], operator.add]
+    field_log:          Annotated[list[dict[str, Any]], merge_field_log]
     belt_edits:         dict[str, Any]     # Belt corrections at the gate
     turn_count:         int
     final:              dict[str, Any]     # approved gate document — §9.6
@@ -110,8 +111,8 @@ class PhaseState(TypedDict):
     remaining_steps:    RemainingSteps     # recursion_limit − steps taken
 ```
 
-**Twenty-one author-populated fields — two identity, three plumbing, sixteen
-content — plus one engine-managed value, twenty-two declared.**
+**Twenty-two author-populated fields — two identity, three plumbing, seventeen
+content — plus one engine-managed value, twenty-three declared.**
 
 > **Two of those three figures were already stale before `asks` was added, and
 > the block above was right the whole time.** This caption read *"Nineteen …
@@ -122,6 +123,35 @@ content — plus one engine-managed value, twenty-two declared.**
 > hundred lines apart. Corrected here rather than separately: the count was
 > being edited anyway, and §0.18's rule is that a figure sync gets said out loud
 > rather than slipped in.
+
+**`field_log` is WHEN each captured value changed and what it was before** —
+§56 amendment, ratified 2026-09-21, built at step 6.33. One entry per change,
+keyed `{phase}:{turn}:{field}` (§10.3's rule), the first capture of a field
+included with no prior value. **A third thing, and neither of the other two can
+answer for it**: `artifacts` is WHAT is captured and holds only the current
+value, `step_log` is HOW a turn went and never held a value at all. Design:
+`../AGENTIC_ARCHITECTURE_REFERENCE.md` §6.
+
+**Its reducer is `merge_field_log`, NOT `operator.add`, and the difference is
+enforcement.** A deterministic key exists so a replayed turn overwrites its own
+entry instead of duplicating it; `operator.add` appends and cannot honour that.
+**`step_log` carries the same key and the appending reducer**, so the two
+channels must not be assumed to behave alike. **Declaring the reducer is what
+makes the log append-only**: a node that returns only this turn's entries into
+a channel with no reducer REPLACES the history, silently.
+
+**`artifacts` MUST be SEEDED at phase entry from the case record, never
+initialised to `{}`.** The input mapper is the only thing that builds
+`PhaseState`, so a constant there is not a default but a ceiling — nothing
+captured survives into a second turn. This is the defect step 6.11 fixed one
+field over, on `uploads`, and 6.33 fixed here.
+
+**An empty capture is REPORTED by field name and never silently dropped.** A
+`None`, `[]`, `{}` or blank string does not enter `artifacts`, is not written
+to the case record, and does not overwrite the prior value. The turn's log used
+to count captured KEYS while the write filtered on VALUES, so *"captured 1
+field(s)"* and *"nothing reached the gate document"* were both true of the same
+turn.
 
 **`remaining_steps` is engine-managed and the input mapper MUST NOT populate
 it.** Declaring it is what makes LangGraph supply it (`recursion_limit` − steps
@@ -582,6 +612,13 @@ blocks on it. Full rationale: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §41.
 - Never write checkpoints to the case blob path
 - Never pass cross-phase data through parent state or string interpolation
 - Never log to `step_log` as tuples
+- Never initialise `artifacts` to `{}` in an input mapper — it is SEEDED from
+  the case record, and a constant there is a ceiling, not a default (§10.1)
+- Never give `field_log` `operator.add` — the reducer upserts on the
+  deterministic key, which is what makes a replayed turn idempotent (§10.1,
+  §10.3)
+- Never let an empty capture overwrite a stored value, and never drop one
+  without naming the field (§10.1)
 - Never reintroduce `analyse_phase` as a phase key — the key is
   `analyse`, matching the index field and the other four phases (§7.3)
 - Never leave `hop_results` or `synthesis_output` in a node-local variable
