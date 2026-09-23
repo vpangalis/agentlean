@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.68 · 2026-09-21
+Version 1.69 · 2026-09-23
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.69 (2026-09-23)** — **§56 AMENDMENT. FOUR CORRECTIONS THAT UNBLOCK THE DEFINE VERTICAL — the document half of the founder's procedure amendment. NO CODE AND NO SCHEMA CHANGE; every code change stays a step.** **(A) §39.1.9 GAINS DEFINE'S `phase_metrics` ENTRY, AND IT IS WHAT UNBLOCKS 6.20's SCORECARD HALF.** One entry per registry metric engaged, assembled deterministically in `gate_apply` immediately before the `{Phase}Output` is constructed — **no model call** — carrying `name` and `unit` verbatim from `metric_definitions`, `baseline_estimate` and `target_value` from the captured fields of the same names, and `source: "stated"`, because Define states rather than measures. **The single-authority invariant (§39.2.3, S-F28) then holds BY CONSTRUCTION**: the entry's values ARE the captured scalars, so the two cannot drift — which is the reason the assembly is deterministic rather than a convenience. A model asked to restate a number it was shown is a second author of that number. **6.20's scorecard half was never blocked on code; it was blocked on this shape never having been written down**, and this subsection states once what §63.1's type comment and §63.9's table row carried separately. **(B) THE `computation_results` SCAN IS VALIDATION STACK LAYER 2d, NOT "THE GRADER" — §7 AND §39.3.7 CORRECTED.** §36 forbids conflating the two graders and this is where the conflation entered: `DMAICGraderMiddleware` (§19.8) judges COACHING PROCESS QUALITY every turn, Layer 2d judges GATE CONTENT once at the gate, and the scan is Layer 2d's — §62.9 B3, *"scan `artifacts["computation_results"]` for the relevant tool entry rather than asking the model."* **Attributing it to the middleware put a gate check on the turn path**, which step 7.2 would have inherited. **THREE MORE SITES CARRY THE SAME WORDING AND ARE DELIBERATELY UNTOUCHED** — §39.2.7 (Measure), §39.4.7 (Improve) and §39.5.7 (Control) — because the ratified card named two and widening a ratified card is how a correction becomes a sweep nobody reviewed. **They are reported rather than fixed**, and they are the same defect. **(C) §37 NAMED A STOP MECHANISM ITS OWN RULING FORBIDS.** It specified that the middleware *"raises `HITLInterrupt`"*; **that class is DELIBERATELY NEVER DEFINED** — ruling v1.21(D), carried as G-15 since 2026-09-10 — because step 7.3 pauses with LangGraph's own `interrupt()`, which is resumable by construction, and an exception from `after_agent` is not. **Anything built to this text would have built the forbidden thing.** Left open as *"a naming problem"* in v1.21 and v1.22; closed here by naming what actually pauses. Placement is step 6.44's: a stop belongs in a node, detection stays in the coach's existing reply. **AND §37's SCOPE IS STATED FOR THE FIRST TIME: it governs contradiction of a GATE-COMMITTED value only.** A Belt revising an uncommitted field mid-phase is ordinary coaching, its record is `PhaseState.field_log` (§6, step 6.33), and conflating the two would make every ordinary revision an interrupt. That warning existed only inside a field description the coach reads, never in the section governing the behaviour. **(D) §63.9's CONTROL ROW AND §39.5.3 NAMED DIFFERENT KEYS FOR ONE SHAPE.** The row said `post_improvement_metrics, improvement_delta`; the worked example writes `actual` and `delta`. **Both names exist elsewhere in Control's schema as top-level captured fields**, which is what made the disagreement plausible in both directions rather than obviously wrong in one. **§39.5.3 wins because it carries the worked example**, and the row now points there rather than restating it. Reasoning: this commit body (§56.2).
 
 **v1.68 (2026-09-21)** — **§56 AMENDMENT. `PhaseState` GAINS `field_log`, ITS TWENTY-THIRD FIELD, AND §6 GAINS THE RULE THAT `artifacts` IS SEEDED RATHER THAN BLANKED.** Founder ruling, ratified for step 6.33. **(A) THE FIELD.** `field_log` records WHEN each captured value changed and what it was before — one entry per change, keyed `{phase}:{turn}:{field}` per §11, the first capture of a field included with no `prior_value`. **A third thing that neither existing field can answer for**: `artifacts` holds only the current value because the merge overwrote the last one, and `step_log` is one entry per NODE per turn and never held a value at all. §7's argument for string-typed fields is that *"the Belt must be able to show what they stated"*; a Belt who revised a baseline on turn 9 after an upload contradicted it can show the figure and not the revision. **(B) THE CHANNEL CARRIES A REDUCER, AND THAT IS THE DECLARATION.** `merge_field_log` is attached in `core/substate.py`, so a node returning only this turn's entries cannot replace the history — the move `messages` and `step_log` already make, and the opposite of `artifacts`, which merges in its writer and depends on every writer remembering to. **A log is exactly the field where "every writer must remember" fails**, because the writer that forgets leaves no trace of what it dropped. **(C) IT IS NOT `operator.add`, AND §11 IS WHY.** §11 requires a deterministic key so *"the replay overwrites its own earlier entry instead of duplicating it"*. `operator.add` cannot honour that and does not honour it for `step_log` today — a replayed turn appends its entries twice. `merge_field_log` upserts on the key. **§11 states the rule; this is the first channel that enforces it**, and §11 now says so rather than leaving the two channels to be assumed alike. **(D) THE TURN NUMBER IS COUNTED IN THE CONVERSATION, NOT TAKEN FROM `turn_count`.** G-39 leaves that field's increment contract unstated and the measured behaviour is worse than ambiguous: the input mapper seeds it to `0` every invoke and `core/graph.py` reads it as the ENTRY MODE, so it is `0` on every coaching turn — which is why every `step_log` key reads `{phase}:0:{node}`. **A change log keyed on it would have each turn overwrite the one before, which is the defect 6.33 exists to end, reproduced inside the fix.** The Belt-message count accumulates across turns and is stable under a replay. **G-39 is routed around, NOT closed.** **(E) `artifacts` IS SEEDED FROM THE CASE RECORD — A NEW INVARIANT ON S-C02.** `new_phase_state` initialised it to `{}` on every turn from step 3.1, so the field §6 calls *"the accumulation"* could hold one turn's worth and was permanently identical to `draft`. **This is the defect step 6.11 fixed one field over**, on `uploads`, and its comment already carried the argument: the input mapper is the only thing that builds `PhaseState`, so a constant there is not a default but a ceiling. **(F) AN EMPTY CAPTURE IS REPORTED, NEVER SILENTLY DROPPED — B13.** The turn's log counted KEYS and the write filtered on VALUES, so *"captured 1 field(s)"* and *"nothing reached the gate document"* were both true of the same turn. Worse, an empty value in the merge DESTROYED the prior value in `artifacts` while the case-blob write discarded the same entry — two records of one field disagreeing, silently, in the direction that loses data. Both ends now split the capture through one function and name the fields they dropped. **(G) THE LOG PERSISTS IN `PhaseRecord.field_log`, NOT THE STORE'S `case` RECORD, AND §6's `asks` RULING DOES NOT EXTEND.** That ruling turns on who must read the thing BETWEEN turns: an ask is answered by an upload arriving on a route that cannot see the checkpoint. A field change has no such reader, and **a history persisted on a different schedule from the value it is a history OF can disagree with it** — which reads exactly like a change that never happened. It inherits §10's open per-turn case-blob write rather than adding one, and moves with `structured` when step 10.2 removes it. Reasoning: this commit body (§56.2).
 
@@ -1059,8 +1061,18 @@ artifacts["computation_results"] = [
 ```
 
 **No new top-level `PhaseState` field, and no per-phase typed destinations.**
-The grader answers "was a hypothesis test run?" by scanning that list for
-`"tool": "t_test"`. Adding typed per-phase computation fields is a violation:
+**Validation stack Layer 2d** answers "was a hypothesis test run?" by scanning
+that list for `"tool": "t_test"` — **§62.9 B3: *"scan `artifacts["computation_results"]`
+for the relevant tool entry rather than asking the model."***
+
+> **"THE GRADER" WAS WRONG HERE, AND §36 IS THE REASON IT MATTERS.** This
+> sentence read *"the grader answers…"* until 2026-09-23. **There are two
+> graders and §36 forbids conflating them**: `DMAICGraderMiddleware` (§19.8)
+> judges COACHING PROCESS QUALITY on every turn, and Layer 2d of the validation
+> stack judges GATE CONTENT once, at the gate. The scan is Layer 2d's — it is
+> deterministic, it runs at the gate, and it reads a list rather than a model.
+> **Attributing it to the middleware put a gate check on the turn path**, which
+> is where the conflation entered and what step 7.2 would have inherited. Adding typed per-phase computation fields is a violation:
 it multiplies schema surface for a question a scan already answers, and it puts
 the same result in two places.
 
@@ -4250,11 +4262,52 @@ mechanism** — that separation is the point.
 - On a **material** contradiction of a gate-committed value it sets
   `CoachingResponse.contradiction_flag` (§20) — **in the response call that
   already runs every turn. No additional LLM call**
-- `ContradictionDetectionMiddleware` (§19.6) reads the flag on `after_agent`
-  and **raises `HITLInterrupt`**; the coach's response is suppressed and the
-  interrupt payload goes to the Belt
+- The flag is read after the turn and **the graph PAUSES with LangGraph's own
+  `interrupt()`**; the coach's response is suppressed and the interrupt payload
+  goes to the Belt
 - Payload: the contradicted field, its approved value and approving phase, the
   proposed value, the Belt's own words, and the two Belt-facing options below
+
+> ### ⛑ CORRECTED 2026-09-23 — THIS SECTION NAMED A STOP MECHANISM THAT WAS
+> ### RULED NEVER TO EXIST
+>
+> It read *"`ContradictionDetectionMiddleware` (§19.6) reads the flag on
+> `after_agent` and **raises `HITLInterrupt`**"*. **`HITLInterrupt` is
+> DELIBERATELY NEVER DEFINED** — ruling v1.21(D), 2026-09-10, carried since as
+> G-15: step 7.3 pauses with LangGraph's own `interrupt()`, which is resumable
+> by construction, and **an exception raised from `after_agent` is not**.
+> Defining one would create a second pause mechanism competing with the
+> framework primitive §0.24 requires preferring.
+>
+> **So the section specified a mechanism whose own ruling forbids it**, and
+> anything built to this text would have built the forbidden thing. The naming
+> was left open as *"a naming problem"* in v1.21 and v1.22; it is closed here
+> by naming what actually pauses.
+>
+> **THE PLACEMENT IS A SEPARATE QUESTION AND IT IS STEP 6.44's.** `interrupt()`
+> cannot be raised from middleware and be resumable — **a stop belongs in a
+> node**. Detection stays exactly where it is (the coach sets the flag in the
+> reply it already writes, no extra model call); the planner routes on it; the
+> stop lives in a node that writes nothing, so a resumed turn writes once
+> rather than twice. This section states WHAT pauses; 6.44 builds WHERE.
+
+### §37 governs a GATE-COMMITTED value only
+
+**A correction to an uncommitted field WITHIN a phase is not a §37 event.**
+The Belt raising a baseline from "about 12%" to "12.4%" on turn 9 of Define,
+before any gate has approved either, is **ordinary coaching** — it is the
+system working, not a contradiction to stop the turn for. §37 fires only where
+the Belt materially contradicts a value **an earlier phase's gate already
+approved**, which is why the payload carries an `approved_phase` at all.
+
+**The record of an in-phase correction is `PhaseState.field_log`** (§6, step
+6.33): what the field said before, what it says now, on which turn, and the
+Belt's stated reason where given. **Two different events, two different
+records, and conflating them would make every ordinary revision an interrupt** —
+which is the failure mode §20's *"leave null for prose rephrasing, and for any
+refinement of a current-phase value that has not been committed yet"* already
+warns the coach against. Stated here because that warning lived only in a field
+description the coach reads, and not in the section that governs the behaviour.
 
 **The check still runs every turn** — the coach runs every turn, so moving
 detection into it changes the mechanism, not the cadence.
@@ -4569,6 +4622,26 @@ gate list grows. The owner is `phases/define/schema.py` — `DEFINE_REQUIRED_FIE
 > also captures metric_definitions]`**, and says *"this one field-ask fills two
 > fields, and the Belt should not have to know that."* **The finding was that the
 > spec did not say so, which is what this subsection fixes.**
+
+**Define writes one `phase_metrics` entry per registry metric it engaged**,
+assembled deterministically in `gate_apply` immediately before the
+`{Phase}Output` is constructed — **no model call**. Each entry carries five
+keys: `name` and `unit` taken verbatim from `metric_definitions`;
+`baseline_estimate` and `target_value` taken from the captured fields of the
+same names; and `source: "stated"`, because **Define states rather than
+measures**. A phase engaging no metric writes `"none this phase"` (§63.9 B2).
+
+**The single-authority invariant (§39.2.3, S-F28) then holds BY CONSTRUCTION** —
+the entry's values ARE the captured scalars, so the two cannot drift. That is
+the whole reason the assembly is deterministic and sited at `gate_apply`: a
+model asked to restate a number it was shown is a second author of that number,
+and §39.2.3 exists because two authors of one figure is how a gate document
+comes to disagree with the field it was built from.
+
+**This subsection states ONCE what §63.1's type comment and §63.9's table row
+have carried separately; neither is superseded.** Ratified 2026-09-23 with the
+procedure amendment, and it is what unblocks step 6.20's scorecard half — which
+was not blocked on code but on this shape never having been written down.
 
 #### 39.1.10 Tools bound to Define
 
@@ -5084,7 +5157,7 @@ the 5 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
 | `artifacts` | the 9 captured fields + `phase_metrics` + `computation_results` |
 | `field_index` | walks the §39.3.2 list (0–8) |
 | `hop_results` / `synthesis_output` | **populated here** — Analyse's planned multi-hop retrieval chain (§26); the dedicated synthesis call's output lives in state, not a node local, so it is traced and survives resume |
-| `computation_results` | every hypothesis test run; the grader scans it for `t_test` / `anova` / `chi_square_test` evidence, not prose |
+| `computation_results` | every hypothesis test run; **validation stack Layer 2d** scans it for `t_test` / `anova` / `chi_square_test` evidence, not prose (§62.9 B3 — **not `DMAICGraderMiddleware`**; §36 forbids conflating the two graders, and this row is where that conflation entered) |
 | `gate_attempts` | Analyse's own retry counter, cap 3 |
 | `citations` / `uploads` | evidence trail; Analyse leans on `rag_lookup_case_history` (precedent from other projects) more than any phase |
 
@@ -11251,12 +11324,26 @@ phase_metrics = [
 | **Measure** | The measured state — `baseline_mean`, `baseline_sigma`, `stability`, `source: "measured"` |
 | **Analyse** | **Linkage, not values** — which registry metric each validated root cause explains |
 | **Improve** | **Linkage, not values** — which registry metric each selected solution targets |
-| **Control** | The achieved state and the comparison — `post_improvement_metrics`, `improvement_delta` |
+| **Control** | The achieved state and the comparison — `actual`, `delta`, against `baseline` and `target`, with `met` and `source: "after"` (**§39.5.3's worked example is the shape**) |
 
 **`name` MUST equal a `metric_definitions` name** (S-C38 B2). The remaining keys
 are whatever state that phase produced, and differ by phase — Analyse and
 Improve act on drivers rather than outcome values, so their entries carry the
 link rather than a number.
+
+> **⛑ CORRECTED 2026-09-23 — THIS ROW AND §39.5.3 NAMED DIFFERENT KEYS FOR ONE
+> SHAPE.** The row read *"`post_improvement_metrics`, `improvement_delta`"*
+> while §39.5.3's worked example writes `actual` and `delta`. **Two sites, one
+> shape, and an implementer reading either alone would have built the other's
+> entry wrong** — silently, because both names exist elsewhere in Control's
+> schema as TOP-LEVEL captured fields (§39.5.4). That is what made the
+> disagreement plausible in both directions rather than obviously wrong in one.
+>
+> **§39.5.3 wins because it carries the worked example** — a shape stated as a
+> literal entry is harder to misread than one named in prose, and the
+> single-authority invariant in that same subsection binds `actual` to
+> `post_improvement_metrics`'s value by name. This row now points there rather
+> than restating it, which is why it cannot drift again.
 
 > **A phase touching no metric writes `"none this phase"` — never a silent gap.**
 > An empty list is ambiguous: it reads the same whether the phase engaged no

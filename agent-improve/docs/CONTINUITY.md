@@ -9,11 +9,11 @@
 |---|---|
 | **Last completed** | step **6.41** — The symbol-anchor ratchet comes down |
 | **Next** | step **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
-| **Spine steps landed** | 46 of 81 |
-| **Last spine commit** | `533398f` (commit 6.38) |
-| **ARCHITECTURE.md** | v1.68 |
+| **Spine steps landed** | 47 of 81 |
+| **Last spine commit** | `704c669` (commit 6.33) |
+| **ARCHITECTURE.md** | v1.69 |
 | **CLAUDE.md** | v2.2.41 |
-| **Block regenerated** | 2026-09-21 |
+| **Block regenerated** | 2026-09-23 |
 
 *`Last completed` and the landed count come from **git log** — the
 `refactor(arch-v2): commit X.Y` subjects. `Next` and the total come
