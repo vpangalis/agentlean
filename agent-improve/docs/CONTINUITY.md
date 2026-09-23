@@ -8,9 +8,9 @@
 | | |
 |---|---|
 | **Last completed** | step **6.41** — The symbol-anchor ratchet comes down |
-| **Next** | step **6.42** — The gate document records what Define established |
-| **Spine steps landed** | 49 of 93 |
-| **Last spine commit** | `01e8f8a` (commit 6.20) |
+| **Next** | step **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
+| **Spine steps landed** | 50 of 95 |
+| **Last spine commit** | `90948de` (commit 6.42) |
 | **ARCHITECTURE.md** | v1.70 |
 | **CLAUDE.md** | v2.2.41 |
 | **Block regenerated** | 2026-09-23 |

@@ -5543,10 +5543,30 @@ argument §56 amendment v1.64 used for the four presentational fields: making a
 thing optional without recording its absence trades a loud failure for a silent
 one, which is the worse of the two.
 
+> ### ⇒ ADDED 2026-09-23 — THE §22 GUARD BECOMES LOAD-BEARING HERE
+>
+> **Once the script reaches the model every turn, its WORKED EXAMPLES do too.**
+> §43.2 requires a field to be shown with an example before it is asked, and
+> every one of those examples is a plausible, well-formed value for the field
+> being coached — *"Between Jan–June 2026, 12% of invoices had pricing
+> errors…"* is exactly what a `problem_statement` looks like.
+>
+> **§22's guard — an example is NEVER captured as the Belt's data — is
+> dormant today because the examples do not arrive.** This step is what makes
+> them arrive, so it is the step that owns the guard. Shipping the script
+> without it would hand the coach a page of realistic values and no rule
+> against recording them, and the resulting gate document would be
+> well-formed, complete, and not the Belt's project.
+>
+> **Seven capability rows wait on this step** — rows 26 to 32 are §43.1 to
+> §43.7, one per rule, all owned here. That is why it is not a logging step.
+
 **Done when:** a turn coached without the script is **distinguishable from one
 coached with it, in the record** — so the question *"did this coaching turn
 have its methodology"* is answerable after the fact rather than by re-running
-it.
+it; and **no value the coach offered as an EXAMPLE is captured as the Belt's
+data** (§22), proven on a turn where the example and the Belt's own answer
+differ.
 
 ---
 
@@ -5637,6 +5657,109 @@ coerced into its declared shape is **REPORTED by field name and not silently
 stored as prose**; a test drives each of the four and fails when the coercion
 is removed; and a `live-run` on `IMPR-2026-0E5` produces a case whose thirteen
 captured values all satisfy `DefineOutput`'s declared types.
+
+## Step 6.49 — The checks card — twelve capability rows get the check that proves them
+
+| | |
+|---|---|
+| **Reference §** | §43 · §47 · §51 · §55.1 · Appendix H |
+| **Touches** | `backend/tests/` · `agent-improve/docs/REFACTORING_PROCEDURE.md` (Appendix H) |
+| **Precondition** | **Appendix H's seed for rows 1, 2, 5, 6, 8, 10, 11, 12, 13 and 17** — landed 2026-09-23 |
+| **NEEDS** | *(nothing in code — the rows it checks are already built or already false)* |
+| **GIVES** | Capability rows **1, 2, 5, 6, 8, 10, 11, 12, 13, 17, 33 and 35** — each gets the single executable check that proves it |
+| **Verify** | `pytest` |
+| **Status** | **RULED — founder 2026-09-23. Not started** |
+
+**Checks only. No code changes.** A row without a check is a claim, and a
+register of claims is what Appendix H exists to replace. **This card does not
+fix what the checks find** — clause 5 decides whether a finding becomes a step,
+and a check that goes red is the input to that decision rather than a licence
+to start work.
+
+> ### ⇒ ROWS 33 AND 35 ARE IN THIS CARD DELIBERATELY
+>
+> | Row | Why it cannot wait |
+> |---|---|
+> | **33** — a checkpoint is written after every node of a Define turn | **7.3 cannot pause without a checkpointer that writes, and nobody has confirmed ours does.** `test_turn_graph.py` pins the PATHS a fake saver would write; it says nothing about the Azure one. §16 puts the checkpointer on the parent and `test_checkpointer.py` is its subject, but *"after every node"* has never been counted |
+> | **35** — every Define turn leaves a LangSmith trace, with the model call, the tools and the middleware visible | §51 makes tracing the answer to *"what did the coach actually do"*, and G-63 is the standing proof that a span can report `status: "success"` on a read that loaded nothing. **A trace nobody has looked at is not observability** |
+>
+> **Both are about whether the machinery underneath the pause works.** Finding
+> out at 7.3 that the checkpointer writes once per turn rather than once per
+> node would be finding out while building the thing that depends on it.
+
+> ### ✅ UNBLOCKED 2026-09-23 — the seed has landed, and the card is startable
+>
+> **The card was registered blocked**: ten of its twelve rows were among the
+> twenty Appendix H had not yet written, and **a check cannot be written
+> against a row whose capability nobody has stated** — writing one anyway
+> would have meant choosing what the row requires and then checking my own
+> answer. **The founder's seed states all ten**, so every row this card checks
+> now has its capability in the founder's words, and the check is written
+> against that sentence rather than against a reading of it.
+>
+> **Four of the twelve are built already and red anyway** — rows 5 and 6 at
+> 6.33, rows 10 and 11 at 6.20. Their `Given by` reads *built at X · proven by
+> 6.49*: the mechanism exists, and this card is what turns *"exists"* into
+> *"proven on the product"*.
+
+**Done when:** each of the twelve rows carries **one executable check**, named
+`module::test_name` in its Appendix H row; every check runs in `pytest`; each
+one that reads product state **reads what the system wrote and constructs no
+input**, on rows 18–21's rule; a row whose check cannot be evaluated **SKIPS
+rather than passes**; and each row is marked 🟢 or 🔴 on what its check
+actually returns — **no row is marked green by argument**.
+
+---
+
+## Step 6.51 — The baseline and the target are values Control can compare
+
+| | |
+|---|---|
+| **Reference §** | §7 · §39.1.2 · §63.1 B7 · §39.5.3 · S-C05 |
+| **Touches** | `backend/core/substate.py` · `backend/phases/gate_registry.py` · `backend/tests/` |
+| **Precondition** | **6.48** — the capture site already validates a declared TYPE; this adds a value check beside it. Landed |
+| **NEEDS** | Captured values carry their declared type (row 18, green) |
+| **GIVES** | Capability row **25** — the baseline and target are stored as values Control can compare |
+| **Verify** | `pytest` + `live-run` |
+| **Status** | **RULED — founder 2026-09-23. Not started** |
+
+**Control computes target-versus-actual, and it cannot subtract a sentence.**
+§63.1 B7 requires `baseline_estimate` and `target_value` to be values with
+units. The measurement thread §39.1.2 defends — *"do NOT simplify these away"*
+— exists so that Control can extract and compare them; a baseline that reads as
+prose breaks the comparison three phases later, where nobody is looking.
+
+> ### ⛑ THE LIVE BUG THIS CLOSES, MEASURED ON `IMPR-2026-0E5`
+>
+> The case carries **`baseline_estimate: "Rework hours range from 6.1 to 25.1,
+> averaging 12.78."`** against **`target_value: "3%"`**. Both are `str`, so
+> **step 6.48's type check passes them both** — the declared type is satisfied
+> and the values still cannot be compared: one is a sentence about hours, the
+> other a percentage, and they are not measuring the same thing.
+>
+> **That pair reached a gate document.** It is in the `phase_metrics` entry
+> 6.20 derived, mirrored exactly as the invariant requires — **the mirror is
+> correct and the number is unusable**, which is precisely the gap a type check
+> cannot see.
+
+**The shape goes on the field description, as S-C05 did at 6.48.** That is the
+one channel the model reads on every turn, with nothing to fetch and nothing to
+choose, and it is the pattern that turned four prose fields structured on their
+first attempt. **Plus a value check at capture**, beside the type check, on the
+same argument: a contract that is only described is a contract nothing enforces.
+
+**What "a value with a unit" means is the decision this card carries.** A
+number and a unit, parseable, comparable to another value of the same unit —
+and a Belt who says *"about 12%"* must not be refused for the "about". §7's law
+keeps the Belt's own words; this asks that the words contain a figure Control
+can find.
+
+**Done when:** `baseline_estimate` and `target_value` are stored as values that
+parse as a number with a unit; the shape is on the field description **and**
+checked at capture; a capture that carries no parseable value is **REPORTED by
+field name and not stored**, so the coach asks again (§4.8); a test drives the
+`IMPR-2026-0E5` pair and fails on it; and a `live-run` produces a baseline and
+target that Control could compare.
 
 ## Step 6.50 — The conformance pass — the tree against the framework's own documentation
 
@@ -6105,12 +6228,12 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 
 | State | Count | Steps |
 |---|---|---|
-| **DONE** | 49 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.20**, **6.34**, **6.33**, **6.35**, **6.48**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.38**, **6.41** |
-| **BUILDING NOW** | 1 | **6.42** — The gate document records what Define established |
+| **DONE** | 50 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.20**, **6.34**, **6.33**, **6.35**, **6.42**, **6.48**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.38**, **6.41** |
+| **BUILDING NOW** | 1 | **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 35 | **10.0**, **6.43**, **10.3**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.46**, **6.47**, **10.4**, **6.50**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
+| **QUEUED** | 36 | **6.43**, **10.3**, **6.51**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.49**, **6.46**, **6.47**, **10.4**, **6.50**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
-*93 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-23.*
+*95 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-23.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -6417,6 +6540,7 @@ restate, which is the opposite of what the board is for.
 | 353 | **Commit 6.35** | The hop cap matches the ceiling that was always in force (G-83) |  | COACH | SHARED | The declared retrieval budget is larger than any turn can spend, so the cap never fires and the coach is cancelled mid-search instead of composing. |
 | 355 | **Commit 10.0** | The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |  | UI | SHARED | The coach produces `explanation`, `example`, `prompt` and `progress` every turn and the API discards all four, so §50.1’s render contract stays prompt-hoped and the Belt reads one prose blob. |
 | 356 | **Commit 6.43** | The coach can read an uploaded document |  | COACH | SHARED | The Belt uploads a process map and the coach can see that it exists without reading a word of it. |
+| 358 | **Commit 6.51** | The baseline and the target are values Control can compare |  | COACH | SHARED | Control cannot compute target-versus-actual, because the baseline is a sentence and the target is a percentage of something else. |
 | 357 | **Commit 10.3** | The workspace reads the v2 field names, and progress counts them |  | UI | SHARED | The Belt completes every coached field and the progress bar does not move, because it counts a vocabulary that was renamed underneath it. |
 | 360 | **Commit 8.0** | Turn telemetry and `@traceable` |  | OPS | SHARED | Nothing is traced, so every investigation needs a hand-built harness and no limit can be set from measured data. |
 | 365 | **Commit 6.44** | The contradiction stop moves from middleware into a node |  | COACH | SHARED | A Belt who contradicts a gate-approved value is never stopped, because the stop is specified as a mechanism that was ruled never to exist. |
@@ -6437,6 +6561,7 @@ restate, which is the opposite of what the board is for.
 | 475 | **Commit 6.47** | Durable writes inside a node, and persistence loss is never silent |  | STORE | SHARED | A deployment with no storage configured runs, answers and loses everything, looking healthy throughout. |
 | 478 | **Commit 6.48** | A captured value carries its declared type |  | COACH | SHARED | A Belt answers every question and the gate document cannot be assembled, because four structured fields are stored as prose. |
 | 479 | **Commit 6.50** | The conformance pass — the tree against the framework's own documentation |  | OPS | SHARED | Every checker compares the code to documents this project wrote, so a mechanism used against the framework's documented behaviour satisfies all four and is caught only by somebody reading the docs by chance. |
+| 472 | **Commit 6.49** | The checks card — twelve capability rows get the check that proves them |  | OPS | SHARED | Twelve rows of the register are claims: nobody can say whether a checkpoint is written per node, or whether a Define turn leaves a readable trace. |
 | 477 | **Commit 10.4** | The error contract — a failed turn is readable |  | UI | SHARED | A failed turn reaches the Belt as a stack fragment in a three-second toast, with no way to tell a timeout from a rate limit. |
 | 470 | **Commit 8.1** | Structured errors |  | OPS | SHARED | Failures arrive as free text, so the circuit breaker and the fallback chain have nothing to read to tell retry from stop. |
 | 480 | **Commit 8.2** | Timeouts + compensating actions |  | OPS | SHARED | A node failing mid-turn leaves its partial writes in place, so the next turn resumes from a state nobody wrote deliberately. |
@@ -6629,6 +6754,7 @@ home.**
 | L0 |  | — | **6.41** | The symbol-anchor ratchet comes down (G-87) | ✅ | `backend.tests.test_anchor_ratchet::test_the_three_categories_partition_the_unanchored_rows` | §55.2 · Appendix F |
 | L0 |  | — | **6.38** | The dual-read is removed — one register, one reader | ✅ | `absent: repo:.claude/hooks/_register_source.py` | §55.1 · §66 |
 | L0 |  | — | **6.50** | The conformance pass — the tree against the framework's own documentation | ☐ | — | §0.24, §16, §55.1, §66 |
+| L0 | 1 | — | **6.49** | The checks card — twelve capability rows get the check that proves them | ☐ | — | §43, §47, §51, §55.1 |
 | L0 |  | — | **11.2** | Governance close-out | ☐ | `absent: repo:agent-improve/docs/HANDOVER.md` | §55 |
 
 #### L1 · API surface
@@ -6702,15 +6828,16 @@ home.**
 | L3 |  | — | **4.1** | Define phase subgraph | ✅ | `backend.phases.subgraph_common::build_phase_subgraph` | §12, §13, §14 |
 | L3 |  | — | **4.4** | Remaining four subgraphs | ✅ | `backend.phases.mappers_common::PHASE_ORDER {define,measure,analyse,improve,control}` | §12, §13 |
 | L3 |  | — | **6.8** | `phase_context` is read (WATCH 19) | ✅ | `backend.middleware.state_injection::BeforeModelStateInjection` | §6, §9, §19.1 |
-| L3 | 2 | — | **6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ | `backend.phases.nodes_common::_advance_field_index` | §7, §39.x.7, S-C02, S-C03 |
+| L3 |  | — | **6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ | `backend.phases.nodes_common::_advance_field_index` | §7, §39.x.7, S-C02, S-C03 |
 | L3 |  | — | **6.33** | The capture path accumulates — a field survives the next turn, and the field change log records what it said before | ✅ | `backend.phases.mappers_common::captured_for_phase` | §6, §7, §11, §20, S-F04 |
-| L3 | 3 | — | **6.42** | The gate document records what Define established | ☐ | — | §33, §40, §50, S-F07, S-F28 |
+| L3 |  | — | **6.42** | The gate document records what Define established | ☐ | — | §33, §40, §50, S-F07, S-F28 |
 | L3 |  | — | **6.43** | The coach can read an uploaded document | ☐ | — | §29.1, §32, S-F57, G-82 |
+| L3 | 2 | — | **6.51** | The baseline and the target are values Control can compare | ☐ | — | §7, §39.1.2, §63.1 |
 | L3 | 5 | — | **6.44** | The contradiction stop moves from middleware into a node | ☐ | — | §37, §19.6, S-C10, G-15, G-89 |
 | L3 |  | — | **6.45** | The planner decides on field completeness | ☐ | — | §17, §39.1.2, S-F13 |
-| L3 |  | — | **6.46** | The coaching script is guaranteed to reach the model, or its absence is recorded | ☐ | — | §32, §19.2, S-C12 |
+| L3 | 3 | — | **6.46** | The coaching script is guaranteed to reach the model, or its absence is recorded | ☐ | — | §32, §19.2, S-C12 |
 | L3 |  | — | **6.47** | Durable writes inside a node, and persistence loss is never silent | ☐ | — | §10, §16, §47, S-C06 |
-| L3 | 1 | — | **6.48** | A captured value carries its declared type | ☐ | — | §7, §20, §41, S-C05, S-C33 |
+| L3 |  | — | **6.48** | A captured value carries its declared type | ☐ | — | §7, §20, §41, S-C05, S-C33 |
 | L3 |  | PHASE | — | **the typing law is enforced by schema, not by convention** — all five `{Phase}Output` declare captured fields as `str` or `dict`, and `test_gate_documents.py` pins both the `dict` fields and their Tier-1 placement | ✅ | — | §7 |
 | L3 |  | PHASE | **7.3** | five nodes, identical node-name sets across all five phases, re-run by `verify_built.py`'s *phase subgraph nodes* check. ⚠ `gate_review` is a pass-through until 7.3 | ✅ | — | §13 |
 | L3 |  | PHASE | — | every node is `async def` since 2.5 — all five `orchestrate_*`, all five `validate_*`, `escalate`, and all eleven route handlers | ✅ | — | §14 |
@@ -7279,6 +7406,34 @@ can be green in one and red in the other, which is the partial state under
 another name. A row whose `Check` reads *"a live run shows…"* is a row nobody
 can run, and an unrunnable check is indistinguishable from a passing one.
 
+> ### ⛑ ONE EXCEPTION, RULED 2026-09-23 — THE `live-turn` METHOD
+>
+> **Rows 26–32 are checked by WATCHING A LIVE TURN**, and the reason is
+> §43's own: *a structural probe cannot tell whether the method is sound.*
+> Whether a calculation was TAUGHT before its number was given, whether an
+> example was offered before a field was asked, whether a weak answer was
+> CHALLENGED rather than completed for the Belt — none of these is visible to
+> a check that reads state. A probe can confirm a tool ran; it cannot confirm
+> the coaching was coaching.
+>
+> **The paragraph above still binds on every other row**, and this exception
+> is deliberately narrow: it is available only where a structural probe would
+> answer a DIFFERENT question from the one the row asks, and the row must say
+> so in its own `Check` cell.
+>
+> **The cost is stated rather than hidden.** A `live-turn` row cannot go green
+> in CI and cannot go green without a person. It is **🔴 until somebody
+> watches a turn and records what they saw**, with the case id and the date —
+> the same evidence standard a `live-run` step carries. A `live-turn` row that
+> is green with no such record is the unrunnable check this contract warns
+> about, wearing the exception as cover.
+>
+> **Tightened by founder ruling, 2026-09-23: once row 35 is green, the record
+> carries the LangSmith TRACE ID of the turn that was watched**, as well as the
+> case id and the date. A person's observation becomes a pointer anyone can
+> reopen — the turn is re-readable by the next reviewer, and the claim *"I
+> watched it"* stops being the only evidence that it happened.
+
 **A row is about the PRODUCT, not the tree.** *"A Belt's captured value
 survives the next turn"* is a capability; *"`merge_field_log` has a reducer"*
 is an implementation detail that might be one way of delivering it. The
@@ -7297,36 +7452,85 @@ green for a Define slice in which no Belt can pass a gate — it did, for weeks 
 because each specified fact was built exactly as specified. The capabilities
 were never the thing being counted.
 
-### ⧗ THE SEED IS PENDING — 23 of Define's 24 rows
+### ✅ THE SEED HAS LANDED — all 35 of Define's rows are written
 
-**Not written here.** The 2026-09-23 ruling seeds this register with **Define's
-24 rows — one owning step each**, to be handed over once the founder has
-checked them. **They are not
-drafted in this amendment on purpose**: the rows are the definition of done for
-the whole vertical, and an implementer drafting them would be choosing what the
-product is required to do and then building against their own answer.
+**Handed over by the founder, 2026-09-23**, after the founder had checked
+them: rows 1–17 and 22–24, the twenty that were pending. **They were not
+drafted by an implementer, on purpose**: the rows are the definition of done
+for the whole vertical, and an implementer drafting them would be choosing what
+the product is required to do and then building against their own answer.
 
-**ROWS 18 TO 21 ARE HERE AHEAD OF THE SEED** because the steps that give
-them landed first — 6.48 plus the S-C05 amendment, then 6.20's scorecard half,
-then 6.42, all 2026-09-23. **The other 20 are still pending founder check**, so
-the project's status by clause 1 is `4 of 24` against a register that is 4/24
-written. **Both halves of that sentence
-matter**: the count is honest about what has been measured, and honest that
-almost nothing has been.
+**ROWS 18 TO 21 ARRIVED AHEAD OF THE SEED** because the steps that give them
+landed first — 6.48 plus the S-C05 amendment, then 6.20's scorecard half, then
+6.42, all 2026-09-23. **Rows 25 to 35 arrived with the register's growth
+24 → 35** the same day. **The twenty seed rows arrive 🔴**, including the four
+whose mechanism is already built (5, 6, 10, 11): **a row is green on what its
+check returns, never on the argument that the code exists**, and none of them
+has a check yet.
+
+**The project's status by clause 1 is `4 of 35`**, against a register that is
+now **35/35 written**: 4 green, 31 red, 0 unwritten. The count did not move,
+and that is the honest result — the seed turned twenty unstated requirements
+into twenty visible, ordered pieces of red work. **Nothing was measured by
+writing them down.**
+
+**Two kinds of `Given by` in the seed, and they are not the same claim.**
+
+| `Given by` reads | Means |
+|---|---|
+| **6.xx** | The step that BUILDS the capability, and whose check turns the row green |
+| **built at X · proven by 6.49** | The mechanism landed at X; **the row stays red until 6.49 writes the check** that proves it on the product (rows 5, 6, 10, 11) |
+
+**Row 24 has NO owning step**, the one departure from *"one owning step
+each"*, and it is deliberate: Measure reading Define's record waits on the
+graph owning its own boundary (**the boundary finding, stage 7**), and no step
+exists for that yet. A step invented to fill the cell would be ordering work
+nobody has specified. **Row 22 is BLOCKED-ON-SPEC** (clause 4) — its owner 7.2
+waits on the Define rubric text, founder.
 
 **`NEEDS` and `GIVES` on the Define steps are written as capability
-STATEMENTS** rather than as `CAP-n` references, for the same reason — an
-implementer inventing the IDs would be inventing the rows. **Each statement
-binds to exactly one row when the seed arrives**, and that binding is the first
-thing to check when it does.
+STATEMENTS** rather than as `CAP-n` references, because an implementer
+inventing the IDs would have been inventing the rows. **Each statement now
+binds to exactly one row**, and that binding is the first thing each step's
+card is checked against when it starts.
 
 | ID | Capability | Check | State | Given by |
 |---|---|---|---|---|
+| **1** | A case can be created and opened — the case list returns it and it opens | *pending — 6.49 writes it* | 🔴 | **6.49** |
+| **2** | A turn returns a coached reply — one POST, one graph run, a message back | *pending — 6.49 writes it* | 🔴 | **6.49** |
+| **3** | The coach follows the Define script for the current field — the turn records that the script reached the model | *pending — 6.46 writes it* | 🔴 | **6.46** |
+| **4** | The Belt is asked for the right next field — field two is asked only once field one is complete | *pending — 6.45 writes it* | 🔴 | **6.45** |
+| **5** | A captured field survives the next turn — turn two captures the team and the business case is still there | *pending — 6.49 writes it* | 🔴 | built at **6.33** · proven by **6.49** |
+| **6** | Every change is kept, dated, with its prior value — a correction leaves both values readable in `field_log` | *pending — 6.49 writes it* | 🔴 | built at **6.33** · proven by **6.49** |
+| **7** | The Belt's reason for a change is recorded — `field_log.reason` is non-empty after a correction | *pending — 6.44 writes it* | 🔴 | **6.44** |
+| **8** | The Belt can upload evidence — the file lands and is indexed | *pending — 6.49 writes it* | 🔴 | **6.49** |
+| **9** | The coach can read an uploaded document — a turn quotes a line from the upload | *pending — 6.43 writes it* | 🔴 | **6.43** |
+| **10** | Calculations are recorded — `computation_results` carries its five keys | *pending — 6.49 writes it* | 🔴 | built at **6.20** · proven by **6.49** |
+| **11** | The metric entry mirrors the primary scalars — `phase_metrics` equals `baseline_estimate` and `target_value`. **Row 25 is the other half**: the mirrored values must be usable | *pending — 6.49 writes it* | 🔴 | built at **6.20** · proven by **6.49** |
+| **12** | Vague or contradictory answers are caught inside the turn — layer 2a rejects and re-asks | *pending — 6.49 writes it* | 🔴 | **6.49** |
+| **13** | The coach's own process is graded every turn — the coaching rubric scores the turn | *pending — 6.49 writes it* | 🔴 | **6.49** |
+| **14** | Progress shows the real field count — the bar reads *5 of 12*, not *0 of 26* | *pending — 10.3 writes it* | 🔴 | **10.3** |
+| **15** | The coaching blocks render — explanation, example, prompt and citations are visible | *pending — 10.0 writes it* | 🔴 | **10.0** |
+| **16** | A failed turn gives a readable error — a backend failure says what happened and stays on screen | *pending — 10.4 writes it* | 🔴 | **10.4** |
+| **17** | Required fields are checked before the gate — layer 2b refuses a case missing a required field | *pending — 6.49 writes it* | 🔴 | **6.49** |
 | **18** | Captured values carry their declared type — container 4. Team, scope, the SIPOC map and the registry arrive structured, not as prose, on a live run | `backend.tests.test_declared_types::test_row_18_captured_values_carry_their_declared_type` | 🟢 | **6.48** + the S-C05 amendment (ARCHITECTURE.md v1.70) |
 | **19** | A complete case ASSEMBLES a gate document | `backend.tests.test_define_phase_metrics::test_row_19_a_complete_case_assembles_a_gate_document` | 🟢 | **6.20**, the scorecard half |
 | **20** | The document is WRITTEN, and safe to write twice | `backend.tests.test_gate_write::test_row_20_the_document_is_written_and_safe_to_write_twice` | 🟢 | **6.42** |
 | **21** | The gate write preserves the change log and the uploads | `backend.tests.test_gate_write::test_row_21_the_gate_write_preserves_the_change_log_and_the_uploads` | 🟢 | **6.42** |
-| — | *the other 20 — pending founder check* | — | — | — |
+| **22** | Constraints and the phase rubric grade the gate document — 2c and 2d run at the gate and can fail it | *pending — 7.2 writes it* | 🔴 | **7.2** — BLOCKED-ON-SPEC: the Define rubric text, founder |
+| **23** | The Belt sees the gate document and approves it — the run pauses and an answer resumes it | *pending — 7.7 writes it* | 🔴 | **7.7**, which needs **7.3** |
+| **24** | Measure can read Define's record — Measure starts without `PriorGateDocumentMissing` | *pending — no step yet* | 🔴 | **none yet** — waits on the graph owning its own boundary (the boundary finding, stage 7) |
+| **25** | The baseline and target are stored as values Control can compare — each parses as a number with a unit, not a sentence (§63.1 B7) | *pending — 6.51 writes it* | 🔴 | **6.51** |
+| **26** | A calculation is TAUGHT before its number is given — a turn that runs `calculate_expected_savings` explains the concept first (§43.1) | *`live-turn` — see the contract exception* | 🔴 | **6.46** |
+| **27** | Every field is shown with an example BEFORE it is asked (§43.2), and the example is never captured as the Belt's data (§22) | *`live-turn`* | 🔴 | **6.46** |
+| **28** | The Belt always knows where they are in the session — every coaching turn states *Step n of 12* (§43.3) | *`live-turn`* | 🔴 | **6.46** |
+| **29** | The Belt can see the gate document filling in — `check_gate_status` returns captured and missing fields and the coach shows them (§43.4) | *`live-turn`* | 🔴 | **6.46** |
+| **30** | The coach teaches in its own voice and never hands over a link (§43.5) | *`live-turn`* | 🔴 | **6.46** |
+| **31** | Weak answers are CHALLENGED; the coach never writes the Belt's answer for them (§43.6) | *`live-turn`* | 🔴 | **6.46** |
+| **32** | The Belt understands what their metric means, why it matters and how to read it — from the registry's `meaning`, never invented (§43.7) | *`live-turn`* | 🔴 | **6.46** |
+| **33** | A checkpoint is written after EVERY NODE of a Define turn | *pending — 6.49 writes it* | 🔴 | **6.49** |
+| **34** | A paused case survives a restart and resumes where it stopped | *pending — 7.3 writes it* | 🔴 | **7.3** |
+| **35** | Every Define turn leaves a LangSmith trace, with the model call, the tools and the middleware visible | *pending — 6.49 writes it* | 🔴 | **6.49** |
 
 > **ROW 18's CHECK READS THE CASE THE SYSTEM WROTE, AND BUILDS NO INPUT OF ITS
 > OWN.** That is the whole of its design. A seeded version would have been
@@ -7367,6 +7571,81 @@ thing to check when it does.
 > `1FF` carries no uploads, because none were uploaded to it. The live half
 > proves the change log; the fixture proves that a call naming neither
 > `citations` nor `uploads` no longer erases them.
+
+> ### ⇒ SEVEN OF THE ELEVEN NEW ROWS BELONG TO ONE STEP, AND THAT IS THE POINT
+>
+> **Rows 26–32 are §43.1–§43.7, one per rule, and all seven are owned by
+> 6.46** — *the coaching script is guaranteed to reach the model, or its
+> absence is recorded.* They are the SEVEN THINGS the script is supposed to
+> make true, and every one of them is currently unobservable for the same
+> reason: **`load_skill` is called zero times on a live turn** (measured
+> 2026-09-23 at step 6.48), so the script that carries §43's method never
+> reaches the coach.
+>
+> **So 6.46 is not a logging step.** It is the step seven capability rows wait
+> on, and the register now shows that rather than leaving it as one row of
+> plumbing among many.
+
+---
+
+## Appendix I — The plan: epics, stories and rank
+
+> **THE SINGLE SOURCE IS `agent-improve/tools/control_board/stories.py`** —
+> nine epics, 37 stories, each with its capability rows, its steps and one
+> rank. Founder ruling, 2026-09-23. **This appendix is a POINTER, not a copy**:
+> a second table of 37 stories is the duplication this document has paid for
+> three times over, and the file is the thing the generator reads.
+
+### The rule
+
+**Appendix F's `Order` column is DERIVED from story rank. It is no longer
+maintained by hand.**
+
+**Two hand-maintained orderings of one run of work will disagree**, and this
+document's own history is the evidence: `Order` has been corrected twice in two
+weeks — once when two rows collided on the same number, once when a step left
+the critical path by inference rather than by ruling. That is the failure the
+`Seq` watermark had, that two copies of the `PhaseState` census had, and that
+Appendix D and `BUILD_TRACKER.md` had before guard rule 2 was deleted for it.
+**One is written and the other is computed, or they drift.**
+
+### ⛔ THE FILE IS NOT IN THE TREE YET — recorded 2026-09-23
+
+**Checked at the time of writing, per §0.32**, and the pointer above does not
+resolve today:
+
+```
+git ls-files | grep -iE "control_board|stories\.py|system_view|build_control_board"
+   → (no output)
+git status --porcelain -uall | grep -i "tools/"
+   → (no output)
+```
+
+`agent-improve/tools/` does not exist, tracked or untracked. **So the rule is
+ratified and the derivation is NOT LIVE**: `Order` is still hand-set in
+Appendix F, and the run below was transcribed from the 2026-09-23 ruling rather
+than computed from rank.
+
+**Saying so is the point.** A projection that does not run is a hand-maintained
+column with a story about itself, and this appendix would otherwise read as
+though the drift had been closed when it has not. **It closes when the file
+lands and something reads it.**
+
+### The run of work, as ruled 2026-09-23
+
+Transcribed, pending derivation. `Order` in Appendix F matches it exactly.
+
+| Order | Step | |
+|---|---|---|
+| 1 | **6.49** | The checks card |
+| 2 | **6.51** | The baseline card |
+| 3 | **6.46** | The coaching script reaches the model, or its absence is recorded |
+| 4 | **10.3** | The workspace reads the v2 field names |
+| 5 | **6.44** | The contradiction stop moves into a node |
+| 6 | **7.3** | The gate pauses, and the pause is resumable |
+| 7 | **7.7** | The approve endpoint |
+
+**6.42 and everything before it has landed**, which is why the run starts here.
 
 ---
 
