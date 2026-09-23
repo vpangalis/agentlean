@@ -78,8 +78,17 @@ def test_the_three_categories_partition_the_unanchored_rows() -> None:
 
 
 def test_the_backlog_is_the_category_that_must_fall() -> None:
+    """50 → 49 on 2026-09-23, and the direction is the point.
+
+    §63.9's row read *"the field is on all five schemas"* with an em dash where
+    a symbol belongs — built, and nobody pointing at it. Step 6.20 gave
+    `phase_metrics` a writer for Define and the row gained
+    `define_phase_metrics`. **This is the first fall since 6.41 split one bound
+    into three**, and 6.41's own body said why that mattered: *lowering the
+    number is not the goal — making it able to fall is.*
+    """
     vb = _vb()
-    assert vb.facts_anchorable_not_anchored() == "50"
+    assert vb.facts_anchorable_not_anchored() == "49"
 
 
 def test_the_four_anchors_applied_here_actually_resolve() -> None:

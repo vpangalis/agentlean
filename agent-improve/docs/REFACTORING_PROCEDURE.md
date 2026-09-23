@@ -6105,10 +6105,10 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 
 | State | Count | Steps |
 |---|---|---|
-| **DONE** | 47 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.34**, **6.33**, **6.35**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.38**, **6.41** |
+| **DONE** | 48 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.34**, **6.33**, **6.35**, **6.48**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.38**, **6.41** |
 | **BUILDING NOW** | 1 | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 37 | **6.42**, **10.0**, **6.43**, **10.3**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.46**, **6.47**, **10.4**, **6.48**, **6.50**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
+| **QUEUED** | 36 | **6.42**, **10.0**, **6.43**, **10.3**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.46**, **6.47**, **10.4**, **6.50**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
 *93 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-23.*
 <!-- END STEP BOARD -->
@@ -6891,7 +6891,7 @@ home.**
 | L7 |  | GATE | — | `post_improvement_metrics` is pinned as the only Tier-1 cross-phase reference, asserted in `test_gate_documents.py` | ✅ | — | §42 |
 | L7 |  | GATE | **7.0** | **no `backend/evals/` exists**, so coaching quality has no baseline and no later change can be shown to improve or regress it — step 7.0, whose dataset needs founder time | ☐ | — | §52 |
 | L7 |  | GATE | — | **the three dicts exist and the four | ⚠️ | — | §63.6 |
-| L7 |  | GATE | — | **the field is on all five schemas | ⚠️ | — | §63.9 |
+| L7 |  | GATE | **6.20** | **the field is on all five schemas and DEFINE NOW WRITES IT** — `define_phase_metrics` derives one entry per registry metric at assembly, deterministically and with no model call (§39.1.9). **Measure, Analyse, Improve and Control still write nothing**, by the 2026-09-23 fence, so the keyed trail exists for one phase of five | ⚠️ | `backend.phases.define.schema::define_phase_metrics` | §63.9 |
 | L7 |  | GATE | **7.3** | `gate_review` is a **pass-through** — no `interrupt()` is raised and `gate_apply` applies nothing. Define's own instance of §33's *nothing pauses for a human*. **Normalised at 6.37 from a prose-form marker no reader had ever matched** | ☐ | — | §39.1.11 |
 | L7 |  | GATE | — | **S-C20** · `CriterionVerdict` | — | — | §62.1 |
 | L7 |  | GATE | — | **S-F27** · The policy advisory | — | — | §62.10 |
@@ -7306,10 +7306,11 @@ drafted in this amendment on purpose**: the rows are the definition of done for
 the whole vertical, and an implementer drafting them would be choosing what the
 product is required to do and then building against their own answer.
 
-**ROW 18 IS HERE AHEAD OF THE SEED** because the step that gives it landed
-first — 6.48 plus the S-C05 amendment, 2026-09-23. **The other 23 are still
-pending founder check**, so the project's status by clause 1 is `1 of 24`
-against a register that is 1/24 written. **Both halves of that sentence
+**ROWS 18 AND 19 ARE HERE AHEAD OF THE SEED** because the steps that give
+them landed first — 6.48 plus the S-C05 amendment, then 6.20's scorecard half,
+both 2026-09-23. **The other 22 are still pending founder check**, so the
+project's status by clause 1 is `2 of 24` against a register that is 2/24
+written. **Both halves of that sentence
 matter**: the count is honest about what has been measured, and honest that
 almost nothing has been.
 
@@ -7322,7 +7323,8 @@ thing to check when it does.
 | ID | Capability | Check | State | Given by |
 |---|---|---|---|---|
 | **18** | Captured values carry their declared type — container 4. Team, scope, the SIPOC map and the registry arrive structured, not as prose, on a live run | `backend.tests.test_declared_types::test_row_18_captured_values_carry_their_declared_type` | 🟢 | **6.48** + the S-C05 amendment (ARCHITECTURE.md v1.70) |
-| — | *the other 23 — pending founder check* | — | — | — |
+| **19** | A complete case ASSEMBLES a gate document | `backend.tests.test_define_phase_metrics::test_row_19_a_complete_case_assembles_a_gate_document` | 🟢 | **6.20**, the scorecard half |
+| — | *the other 22 — pending founder check* | — | — | — |
 
 > **ROW 18's CHECK READS THE CASE THE SYSTEM WROTE, AND BUILDS NO INPUT OF ITS
 > OWN.** That is the whole of its design. A seeded version would have been
@@ -7334,6 +7336,12 @@ thing to check when it does.
 >
 > **Evidence, 2026-09-23** — red against `IMPR-2026-0E5` before the run,
 > green after, on the same four prompts that returned prose the day before.
+>
+> **ROW 19 IS THE SAME DESIGN AND THE SAME REASON.** `GET /gate/review` had
+> answered **500** on a complete real case since before the audit — first for
+> the missing metric entry, then for the four prose fields. It now returns an
+> eighteen-key document, `passed: true`, `missing_fields: []`. **Both rows read
+> the case the system wrote; neither builds its own input.**
 
 ---
 

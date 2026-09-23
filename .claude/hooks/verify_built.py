@@ -1281,13 +1281,17 @@ CHECKS = [
     # ── Step 6.41: G-87 — one bound became three, each meaning something
     #    different. The old single number could not tell a backlog from a
     #    specification, so every rise looked the same and none could fall.
-    ("facts built but not anchored — the BACKLOG", "50",
+    ("facts built but not anchored — the BACKLOG", "49",
      facts_anchorable_not_anchored,
      "Appendix F · step 6.41 — G-87. ✅ or ⚠️ means something EXISTS in the "
      "tree, and what exists can be pointed at, so every row here is work "
      "nobody has done. **A rise is unambiguously bad** and needs a reason in "
      "the commit body; `matrix_anchors` cannot see it, because it evaluates "
-     "anchors that exist and says nothing about a row that has none"),
+     "anchors that exist and says nothing about a row that has none. "
+     "50 → 49 on 2026-09-23: §63.9's row gained "
+     "`define_phase_metrics` when step 6.20 gave it a writer — **the first "
+     "fall since this bound was split**, which is what 6.41 said the number "
+     "existed to make possible"),
 
     ("facts with nothing to anchor to — ratified, unbuilt", "28",
      facts_with_nothing_to_anchor,

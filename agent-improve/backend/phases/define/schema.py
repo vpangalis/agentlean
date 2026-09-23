@@ -269,6 +269,93 @@ from backend.phases.gate_assembly import (  # noqa: E402
 )
 
 
+#: What Define states about a metric, as against what Measure measures (§63.9).
+#: Written into every entry rather than inferred, because a later phase reading
+#: the trail has to know which kind of number it is looking at.
+DEFINE_METRIC_SOURCE = "stated"
+
+#: What a registry metric this phase did not address writes into its scalars.
+#: **Founder ruling 2026-09-23**, matching Analyse (§39.3.3) and Improve
+#: (§39.4.3), which both write it into the content key of an entry they carry
+#: but did not act on. **Two conventions for one fact would be read by one
+#: grader**, so Define does not invent a third — an empty string would have
+#: been that third, and §63.9's *"never a silent absence"* is the rule both
+#: existing phases already follow.
+#:
+#: **Distinct from `"none this phase"`** (§63.9 B2), which replaces the WHOLE
+#: list when a phase engaged no metric at all. This marks ONE entry inside a
+#: list the phase does carry, which is why the keyed trail stays unbroken.
+NOT_ADDRESSED = "not addressed this phase"
+
+
+def define_phase_metrics(artifacts: dict) -> list[dict]:
+    """Define's `phase_metrics`, DERIVED from what the Belt already stated.
+
+    **§39.1.9 — one entry per registry metric, assembled deterministically
+    immediately before the `{Phase}Output` is constructed, with no model call.**
+    Five keys: `name` and `unit` verbatim from `metric_definitions` (§63.8 B2 —
+    the registry name is a matching KEY, not prose), `baseline_estimate` and
+    `target_value` from the captured fields of the same names, and
+    `source: "stated"`, because Define states rather than measures.
+
+    **THE SINGLE-AUTHORITY INVARIANT NOW HOLDS BY CONSTRUCTION, AND THAT IS THE
+    POINT RATHER THAN A SIDE EFFECT.** S-F28 B2 exists because two stores of one
+    number drift invisibly. Deriving the entry from the scalars removes the
+    second author instead of detecting it: there is no value here that anything
+    else authored. **For Define the invariant becomes a tautology** — it still
+    guards Measure and Control, whose entries are captured rather than derived,
+    and a Define-specific drift test would now be testing something that cannot
+    happen. Said out loud so nobody writes that test and reads its green as
+    evidence.
+
+    **The FIRST emitted entry is the primary**, because `core.metrics.primary_entry`
+    defines the primary as the first entry carrying a name, and it is the only
+    one the invariant mirrors. Define captures ONE `baseline_estimate` and ONE
+    `target_value` (§39.1.2), so only the first entry can carry them; any further
+    registry metric gets its `name` and `unit` with both scalars set to
+    **`"not addressed this phase"`** — the marker Analyse (§39.3.3) and Improve
+    (§39.4.3) already write into an entry they carry but did not act on.
+    **Founder ruling 2026-09-23**: an empty string would have been a third
+    convention for one fact, and one grader reads all three phases.
+
+    **`"none this phase"` is NOT written here and the branch is deliberately
+    absent.** §63.9 B2 offers it to a phase that engaged no metric; Define's
+    `baseline_estimate` and `target_value` are both gate-required (§39.1.2,
+    Option A), so a Define gate that reaches assembly has always engaged one. A
+    branch that cannot fire is the unfireable-check class this project keeps
+    paying for — so if the registry is empty, this returns `[]` and S-F28 B3
+    raises with the message it already has: *the value cannot be traced to a
+    registry metric*. That is the correct outcome, not a gap.
+
+    Scalars are coerced with `str` per §63.9 B5 — the dict is §7's exception,
+    its values are not.
+    """
+    registry = artifacts.get("metric_definitions") or []
+    if not isinstance(registry, list):
+        return []
+
+    entries: list[dict] = []
+    for metric in registry:
+        if not isinstance(metric, dict):
+            continue
+        name = str(metric.get("name") or "").strip()
+        if not name:
+            continue                    # §63.8 B1 — an unnamed metric is not a key
+        primary = not entries
+        entries.append({
+            "name": name,
+            "unit": str(metric.get("unit") or ""),
+            "baseline_estimate": (
+                str(artifacts.get("baseline_estimate") or "") if primary
+                else NOT_ADDRESSED),
+            "target_value": (
+                str(artifacts.get("target_value") or "") if primary
+                else NOT_ADDRESSED),
+            "source": DEFINE_METRIC_SOURCE,
+        })
+    return entries
+
+
 def assemble_define_gate_document(
     artifacts: dict,
     citations: list[dict],
@@ -292,6 +379,14 @@ def assemble_define_gate_document(
     so nothing can be acknowledged as skipped. It stays on the schema for
     cross-schema uniformity (§40).
     """
+    # §39.1.9 — derived HERE, immediately before construction, and folded into
+    # the artifacts the invariants run against. `build_gate_document` calls
+    # `assert_single_authority(phase, artifacts)` (S-F28 B1), so an entry that
+    # existed only in `values` would be invisible to the check it exists to
+    # satisfy.
+    phase_metrics = define_phase_metrics(artifacts)
+    artifacts = {**artifacts, "phase_metrics": phase_metrics}
+
     values = {
         # The 12 gate-required fields, in coached order (§39.1.2)
         "business_case": tier_1(artifacts, "business_case"),
@@ -308,8 +403,11 @@ def assemble_define_gate_document(
         "issues_and_barriers": tier_1(artifacts, "issues_and_barriers"),
         # The metric registry — gate-required, captured inside position 5
         "metric_definitions": tier_1(artifacts, "metric_definitions"),
-        # On all five schemas (§63.9)
-        "phase_metrics": artifacts.get("phase_metrics", []),
+        # On all five schemas (§63.9). DERIVED, never read back out of
+        # `artifacts`: §39.1.9 makes this assembly the single author, so a
+        # `phase_metrics` that arrived some other way is overridden rather
+        # than trusted.
+        "phase_metrics": phase_metrics,
         # Gate metadata (§40)
         "computation_results": artifacts.get("computation_results", []),
         "acknowledged_gaps": list(acknowledged_gaps or []),
