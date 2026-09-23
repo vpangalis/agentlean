@@ -1289,7 +1289,7 @@ CHECKS = [
      "the commit body; `matrix_anchors` cannot see it, because it evaluates "
      "anchors that exist and says nothing about a row that has none"),
 
-    ("facts with nothing to anchor to — ratified, unbuilt", "25",
+    ("facts with nothing to anchor to — ratified, unbuilt", "26",
      facts_with_nothing_to_anchor,
      "Appendix F · step 6.41 — G-87. ☐ means something does NOT exist, so the "
      "em dash is the honest cell. **A rise here is normal** and means the "
@@ -1297,7 +1297,8 @@ CHECKS = [
      "unreadable. 16 → 25 on 2026-09-23: the procedure amendment added NINE "
      "ratified-and-unbuilt steps, and every one carries an em dash because "
      "inventing an anchor for an undesigned step is the G-72 trap — a cell "
-     "that resolves, proves nothing, and keeps passing after the step ships"),
+     "that resolves, proves nothing, and keeps passing after the step ships. "
+     "25 → 26 on 2026-09-23: step 6.50, the conformance pass"),
 
     ("facts never assessed against the tree", "96",
      facts_unassessed,

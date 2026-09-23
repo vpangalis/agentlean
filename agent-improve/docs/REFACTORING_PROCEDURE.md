@@ -5296,6 +5296,113 @@ can quietly not happen at all.
 **Done when:** intermediate node writes are no longer a no-op; and an
 unconfigured connection string **fails loudly rather than in a log line**.
 
+## Step 6.50 — The conformance pass — the tree against the framework's own documentation
+
+| | |
+|---|---|
+| **Reference §** | §0.24 · §16 · §16.3 · §55.1 · §55.2 · §66 |
+| **Touches** | `.claude/hooks/` (new) · `agent-improve/docs/REFACTORING_PROCEDURE.md` (§66) |
+| **Precondition** | **none** — it is a check, not a change |
+| **Verify** | `pytest` |
+| **Status** | **RULED — founder 2026-09-23. Not started** |
+
+**Four checkers guard this project and all four compare the tree to OUR
+documents.**
+
+| Checker | What it compares |
+|---|---|
+| `commit-msg-refactor-guard.py` | the commit against **our rules** |
+| `verify_built.py` | the tree against **our architecture's claims** |
+| `fact-ownership-guard.py` / `drift-check.py` | a document against **our fact owners** |
+| `build_board.py` | the board against **our register** |
+
+**Nothing compares the code to what the framework itself documents.** That is
+the entire gap, and it is not a gap in coverage — each of the four does its own
+job well. It is a gap in *direction*: every one of them closes the loop between
+two artefacts this project wrote. **A mechanism used against LangGraph's or
+LangChain's documented behaviour satisfies all four**, because our documents
+can be internally consistent and externally wrong at the same time.
+
+**The evidence is that five findings came out of one afternoon of reading the
+documentation, and none of the four had caught any of them.** Four checkers,
+running on every commit for weeks, against defects a person found by reading.
+
+> ### ⇒ THIS IS §0.24's OTHER HALF, AND THE HALF NOBODY RE-RUNS
+>
+> §0.24 already requires confirming that the framework does not provide a
+> thing **before** hand-rolling it, and `/verify-current-version` is the
+> mandatory checkpoint before an architectural decision is finalised. **Both
+> are forward-looking and both are discharged once, by a person, at the moment
+> of the decision.** Nothing looks again.
+>
+> **A decision confirmed correct in August is not a fact about the tree in
+> September** — the library moves, the tree moves, and the confirmation is a
+> sentence in a commit body that no longer resolves against anything. This
+> step is the standing sweep that §0.24's per-decision discipline cannot be:
+> it does not replace `/verify-current-version`, it re-runs what
+> `/verify-current-version` concluded.
+
+### The five mechanisms the first run must cover
+
+**Each has already produced a defect, which is why these five and not a survey
+of the framework.**
+
+| Mechanism | What the documented default is | The defect it already produced |
+|---|---|---|
+| **Reducers on accumulating channels** | **An update OVERRIDES** unless the channel declares a reducer | G-78 — `artifacts` was documented as *"the accumulation"* and built from a constant, so every capture destroyed the one before it. Fixed at 6.33, where `field_log` was declared with a reducer for exactly this reason |
+| **Where a pause may be called from, and what re-runs on resume** | `interrupt()` is resumable by construction; an exception raised from a middleware hook is not, and the node a pause lands in **re-executes on resume** | G-15 — §37 specified a stop that *"raises `HITLInterrupt`"* against a ruling that the class must never exist. Corrected in text at v1.69; step 6.44 moves the stop into a node |
+| **Subgraph invocation, config inheritance and checkpoint namespacing** | A subgraph invoked directly inside a node is statically discovered and namespaced through the parent's saver; invoked behind an indirection it is not | G-44 — and see the open question below, which is this same mechanism and is **not** resolved |
+| **The write strategy on the case document** | Azure Blob is **last-writer-wins** unless the write carries an ETag | G-88 — `_ensure_case_record` replaces the whole record every turn, so `asks_by_phase`, written by another writer, is erased before anything reads it. The cross-process version of the same race arrives with step 7.3, whose clause 3 is where it must be answered |
+| **Durability of writes inside a node** | A write made mid-node is not guaranteed to survive the node | Step 6.47's first half — intermediate node writes are a no-op, so state a node believes it persisted is not there |
+
+> ### ⛑ THE WORKED EXAMPLE IS ALREADY OPEN, AND IT IS §16's OWN CLAIM
+>
+> **§16 states that the wrapper's inner invoke *"persists `PhaseState` across
+> Belt turns"*** (the G-44 rule), *"verified against current LangChain subgraph
+> documentation, 2026-08-24."*
+>
+> **The tree behaves otherwise, and two places in it say so.**
+> `gateway/routes.py` carries *"what it does not yet do is SURVIVE across
+> turns: the input mapper rebuilds the child state on every invoke … so the
+> cap of 3 still cannot accumulate"*, and
+> `test_the_coach_sees_the_prior_conversation_on_turn_two` pins a turn-two
+> coach seeing exactly three messages — which it could not, if the subgraph's
+> own `messages` channel had persisted and reduced across the turn boundary.
+> **Step 6.33 was designed around the same behaviour**: `field_log` is seeded
+> from the case record precisely because a reducer cannot carry it across a
+> turn.
+>
+> **WHICH IS WRONG IS NOT DECIDED HERE, AND THAT IS THE POINT.** §16 may mean
+> persistence WITHIN a run, the tree may be defeating a mechanism that would
+> otherwise work, or the documentation may have moved since August. **All three
+> are conformance findings and none is a typo.** It is recorded as the example
+> because it is exactly what this pass would emit on its first run — and
+> because it was found while building 6.33, by reading, which is the method
+> this step exists to replace.
+
+### It runs at a cadence, and it reports
+
+**A check that runs when somebody gets suspicious is not a check** — it is the
+reading that produced the five findings, with no guarantee it happens twice.
+The cadence is **monthly, and additionally after any LangChain / LangGraph /
+LangSmith upgrade**, which is the second trigger and the sharper one: an
+upgrade can change documented behaviour underneath a tree that did not move, so
+the commit that raises a pin is the commit most likely to invalidate a
+conformance conclusion. `upgrade-langchain-stack` is where that trigger binds.
+
+**It REPORTS; it does not fix.** Each disagreement becomes a numbered finding
+in §66, with the documented requirement and the tree's behaviour stated side by
+side — **the same discipline `reconcile-docs` applies to our own documents, and
+for the same reason**: a pass that fixes what it finds decides, silently, which
+side was wrong. **On these five mechanisms that is a design decision every
+time**, as the worked example above shows.
+
+**Done when:** a pass exists that, **for each framework mechanism this system
+relies on**, states what the documentation requires and what the tree does, and
+**emits a finding with a number wherever they differ**; its first run covers
+the five mechanisms above; it runs at a named cadence rather than on suspicion;
+and it **reports without fixing**.
+
 ## Step 10.0 — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning
 
 | | |
@@ -5657,9 +5764,9 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **DONE** | 47 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.34**, **6.33**, **6.35**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.38**, **6.41** |
 | **BUILDING NOW** | 1 | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 34 | **6.42**, **10.0**, **6.43**, **10.3**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.46**, **6.47**, **10.4**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
+| **QUEUED** | 35 | **6.42**, **10.0**, **6.43**, **10.3**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.46**, **6.47**, **10.4**, **6.50**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
-*90 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-23.*
+*91 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-23.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -5983,6 +6090,7 @@ restate, which is the opposite of what the board is for.
 | 471 | **Commit 6.45** | The planner decides on field completeness |  | COACH | SHARED | The coach asks one question per turn regardless of whether the field is already answered, because the routing predicate counts turns rather than reading what is captured. |
 | 473 | **Commit 6.46** | The coaching script is guaranteed to reach the model, or its absence is recorded |  | COACH | SHARED | A turn coached with no methodology looks exactly like one coached with it, so nobody can tell which turns had it. |
 | 475 | **Commit 6.47** | Durable writes inside a node, and persistence loss is never silent |  | STORE | SHARED | A deployment with no storage configured runs, answers and loses everything, looking healthy throughout. |
+| 479 | **Commit 6.50** | The conformance pass — the tree against the framework's own documentation |  | OPS | SHARED | Every checker compares the code to documents this project wrote, so a mechanism used against the framework's documented behaviour satisfies all four and is caught only by somebody reading the docs by chance. |
 | 477 | **Commit 10.4** | The error contract — a failed turn is readable |  | UI | SHARED | A failed turn reaches the Belt as a stack fragment in a three-second toast, with no way to tell a timeout from a rate limit. |
 | 470 | **Commit 8.1** | Structured errors |  | OPS | SHARED | Failures arrive as free text, so the circuit breaker and the fallback chain have nothing to read to tell retry from stop. |
 | 480 | **Commit 8.2** | Timeouts + compensating actions |  | OPS | SHARED | A node failing mid-turn leaves its partial writes in place, so the next turn resumes from a state nobody wrote deliberately. |
@@ -6174,6 +6282,7 @@ home.**
 | L0 |  | — | **6.40** | Every section declares a row or declares itself not-markable (assertion 7) | ✅ | `backend.tests.test_not_markable_coverage::test_assertion_7_is_clean_on_the_real_documents` | §55.1 · §55.2 · Appendix F |
 | L0 |  | — | **6.41** | The symbol-anchor ratchet comes down (G-87) | ✅ | `backend.tests.test_anchor_ratchet::test_the_three_categories_partition_the_unanchored_rows` | §55.2 · Appendix F |
 | L0 |  | — | **6.38** | The dual-read is removed — one register, one reader | ✅ | `absent: repo:.claude/hooks/_register_source.py` | §55.1 · §66 |
+| L0 |  | — | **6.50** | The conformance pass — the tree against the framework's own documentation | ☐ | — | §0.24, §16, §55.1, §66 |
 | L0 |  | — | **11.2** | Governance close-out | ☐ | `absent: repo:agent-improve/docs/HANDOVER.md` | §55 |
 
 #### L1 · API surface
