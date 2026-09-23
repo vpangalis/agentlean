@@ -8656,7 +8656,21 @@ file upload, and **never mid-conversation.**
 > then `_update_registry_entry` — the case blob is the system of record, so the
 > registry must never point at a phase the case document does not yet show.
 > Both are still two separate writes covered by the node's `error_handler`
-> (§45). **Lifecycle:** one cached `azure.storage.blob.aio` client, keyed on its
+> (§45).
+>
+> **`write_phase_gate` MERGES into the phase record and is SAFE TO PERFORM
+> TWICE — step 6.42, 2026-09-23.** It replaced the whole `PhaseRecord` with five
+> fields until then, which dropped `field_log` (§6), `analyst_output`, and —
+> because the call site passed neither and the defaults were `[]` — the Belt's
+> citations and uploads, **at the one moment a reviewer goes looking for them**.
+> `citations` and `uploads` now default to `None`, meaning NOT SUPPLIED, which
+> the `[]` default could not express. The approval stamp is written on the
+> TRANSITION only, so two writes leave one record rather than one with a moving
+> timestamp; `current_phase` is computed from the `phase` argument rather than
+> the case's current value. **That is a framework requirement, not caution**:
+> when step 7.3 moves this write behind `interrupt()`, *"the runtime restarts
+> the entire node from the beginning"* and every resume re-runs it
+> (`docs.langchain.com/oss/python/langgraph/interrupts`, verified 2026-09-23). **Lifecycle:** one cached `azure.storage.blob.aio` client, keyed on its
 > event loop, closed by `aclose()` on `app.py`'s shutdown hook — ruled on a
 > measurement, not a preference (Part Y).
 >

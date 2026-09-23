@@ -29,7 +29,11 @@ from backend.gateway.schemas import SummariseRequest, SummariseResponse
 from backend.gateway.schemas import ContextRequest, ContextResponse
 from backend.core.store import get_store
 from backend.core.substate import merge_field_log, split_captures
-from backend.phases.gate_registry import split_by_declared_type
+from backend.phases.gate_registry import (
+    GATE_SPECS,
+    review_rows,
+    split_by_declared_type,
+)
 from backend.phases.mappers_common import PHASE_ORDER, asks_for_phase, read_case_record
 from backend.storage import blob
 from backend.storage.models import CaseDocument, UploadRecord
@@ -786,8 +790,6 @@ async def gate_review(case_id: str, phase: str) -> GateReviewResponse:
     document is assembled only when assembly would succeed, so the screen never
     shows a half-built document as though it were the real one.
     """
-    from backend.phases.gate_registry import GATE_SPECS, review_rows
-
     if phase not in GATE_SPECS:
         raise HTTPException(400, f"Unknown phase: {phase}")
     if not blob.storage_configured():
@@ -1306,6 +1308,71 @@ async def _index_upload(case_id: str, upload_record: dict, *,
     return doc_id
 
 
+def assemble_gate_document(
+    case: CaseDocument, phase: str,
+) -> tuple[dict[str, Any], dict[str, list[dict]]]:
+    """The approved gate document, and the evidence that must travel with it.
+
+    ═══════════════════════════════════════════════════════════════════════
+    STEP 6.42 — THE WRITING DOOR USES THE READING DOOR'S FUNCTION
+    ═══════════════════════════════════════════════════════════════════════
+    `POST /gate` built its document from `phase_data.get("_validated", {})`.
+    **Nothing in the tree has ever set `_validated`** — `validate_define` does
+    not write it — so the expression resolved to `{}`, the document was written
+    EMPTY, and the phase advanced anyway. The code's own comment had said so
+    since step 4.2; it was unreachable while the gate could not pass, and steps
+    6.48 and 6.20 made it reachable.
+
+    `GET /gate/review` one route away has assembled correctly since 3.4 and
+    returns a complete document on a real case as of `01e8f8a`. **This is not
+    new logic** — it is `GATE_SPECS[phase].assemble`, called by the path that
+    WRITES rather than only by the path that READS.
+
+    **Extracted rather than left inline** so the step's own proofs drive the
+    function that ships, not a copy of its logic — the same reason
+    `apply_capture` was lifted out at 6.33.
+
+    **It REFUSES rather than returning a partial document.** Assembly raising
+    with the validator already satisfied is a CODE DEFECT (S-F28), not an
+    incomplete phase, and writing anyway is what let a phase advance to Measure
+    with nothing behind it. The caller never reaches its write, so the phase
+    does not advance — the write is what advances it.
+
+    Returns `(document, evidence)`, where `evidence` is the `citations` and
+    `uploads` kwargs for `write_phase_gate`, read from the record ONCE here so
+    the write cannot disagree with the document about what the phase rested on.
+    """
+    record = case.phases.get(phase)
+    artifacts = dict((record.structured or {}) if record else {})
+    evidence = {
+        "citations": [c.model_dump() if hasattr(c, "model_dump") else dict(c)
+                      for c in (getattr(record, "citations", None) or [])],
+        "uploads": [u.model_dump() if hasattr(u, "model_dump") else dict(u)
+                    for u in (getattr(record, "uploads", None) or [])],
+    }
+    rows = review_rows(phase, artifacts)
+    gaps = [f"{r['field']} — Belt accepted gap"
+            for r in rows if r["tier"] == 2 and not r["present"]]
+    try:
+        document = GATE_SPECS[phase].assemble(
+            artifacts,
+            citations=evidence["citations"],
+            uploads=evidence["uploads"],
+            acknowledged_gaps=gaps,
+        ).model_dump()
+    except Exception as exc:                        # noqa: BLE001
+        logger.error(
+            "gate assembly REFUSED for %s/%s, so the gate was NOT written and "
+            "the phase did NOT advance: %s", case.case_id, phase, exc,
+        )
+        raise HTTPException(500, (
+            "The gate document could not be assembled, so nothing was written "
+            "and the phase did not advance. This is a defect in the system, "
+            "not something to answer differently."
+        ))
+    return document, evidence
+
+
 @router.post("/gate", response_model=GateSubmitResponse)
 async def submit_gate(request: GateSubmitRequest,
                       http: Request) -> GateSubmitResponse:
@@ -1384,19 +1451,33 @@ async def submit_gate(request: GateSubmitRequest,
     missing = list(verdict.get("missing") or [])
 
     if passed:
-        # `_validated` is unchanged v1 behaviour and unchanged v1 defect:
-        # `validate_define` never writes that key, so this resolves to `{}` and
-        # the gate document is written empty. It is unreachable today (the gate
-        # cannot pass — WATCH 7) and fixing it here would be repairing v1 code
-        # that step 11.1 deletes, so it is recorded as a WATCH rather than
-        # patched inside a structural step.
-        validated = phase_data.get("_validated", {})
+        # ── 6.42 — THE WRITING DOOR NOW USES THE READING DOOR'S FUNCTION ──
+        #
+        # This read `phase_data.get("_validated", {})`. **Nothing in the tree
+        # has ever set `_validated`** — `validate_define` does not write it —
+        # so the expression resolved to `{}` and the gate document was written
+        # EMPTY, while the phase advanced and the Belt was moved to Measure.
+        # The code's own comment had said so since 4.2; it was unreachable
+        # while the gate could not pass, and 6.48 and 6.20 made it reachable.
+        #
+        # `GET /gate/review` one route away already assembles correctly and
+        # has returned a complete document on a real case since 01e8f8a. **This
+        # is not new logic. It is the same assembly, called by the path that
+        # WRITES rather than only by the path that READS.**
+        document, evidence = assemble_gate_document(case, request.phase)
+
         await blob.write_phase_gate(
             case_id=request.case_id,
             phase=request.phase,
-            structured=validated,
+            structured=document,
             submitted_by=request.submitted_by,
             summary=f"Gate passed by {request.submitted_by}",
+            # Passed EXPLICITLY, from what assembly already read. The old call
+            # passed neither, and the `[]` defaults then replaced the Belt's
+            # evidence trail with nothing at the one moment a reviewer goes
+            # looking for it.
+            citations=evidence["citations"],
+            uploads=evidence["uploads"],
         )
         idx = PHASE_ORDER.index(request.phase)
         next_phase = (

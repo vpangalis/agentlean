@@ -52,11 +52,14 @@ from azure.storage.blob.aio import (
 )
 
 from backend.core.config import settings
+from backend.core.citations import CitationRecord
 from backend.storage.models import (
+    AnalystOutputRecord,
     CaseDocument,
     CaseRegistry,
     PhaseRecord,
     RegistryEntry,
+    UploadRecord,
 )
 
 logger = logging.getLogger(__name__)
@@ -232,27 +235,96 @@ async def write_phase_gate(
     structured: dict,
     submitted_by: str,
     summary: str,
-    citations: list[dict] = [],
-    uploads: list[dict] = [],
+    citations: list[dict] | None = None,
+    uploads: list[dict] | None = None,
     analyst_output: Optional[dict] = None,
 ) -> None:
-    """Write a validated phase record to blob and update registry.
-    Called only after Pydantic gate passes."""
+    """Write the approved gate document into the phase record — MERGING.
+
+    Called only after assembly succeeded and the gate passed.
+
+    ══════════════════════════════════════════════════════════════════════
+    STEP 6.42 — IT REPLACED THE WHOLE RECORD, AND THE GATE WAS WHERE THE
+    BELT'S OWN WORK WENT MISSING
+    ══════════════════════════════════════════════════════════════════════
+    This was `case.phases[phase] = PhaseRecord(...)` with five fields, so
+    approving a gate DESTROYED everything the record held that those five did
+    not name:
+
+      * **`field_log`** — the field change log step 6.33 built, one file over.
+        Every test 6.33 wrote still passed, because none of them approved a
+        gate;
+      * **`analyst_output`** — accepted as an argument here and never written
+        to the record even when supplied;
+      * **`citations` and `uploads`** — the call site passed neither, so the
+        `[]` defaults replaced the Belt's evidence trail with nothing. **The
+        gate is exactly where a reviewer goes looking for it.**
+
+    **The assignment made the loss invisible.** A replaced record is a
+    well-formed record; nothing reads as missing until somebody asks a question
+    only the dropped fields can answer.
+
+    SAFE TO PERFORM TWICE — AND THAT IS A FRAMEWORK REQUIREMENT, NOT CAUTION
+    ─────────────────────────────────────────────────────────────────────
+    `docs.langchain.com/oss/python/langgraph/interrupts`, verified 2026-09-23:
+    *"the runtime restarts the entire node from the beginning — it does not
+    resume from the exact line where `interrupt()` was called"*, and **"Do not
+    create new records without checking if they exist."** When step 7.3 moves
+    this write behind a pause, **every resume re-runs it**. So:
+
+      * the approval stamp (`submitted_by` / `submitted_at`) is written on the
+        TRANSITION only — re-writing an already-passed gate leaves the original
+        stamp, so two writes produce one record rather than one record with a
+        moving timestamp;
+      * `current_phase` is computed from the `phase` argument, never from the
+        case's current value, so it lands on the same answer however many times
+        it runs;
+      * `_update_registry_entry` matches on `case_id` and updates in place — it
+        appends nothing.
+
+    **A re-approval after a §37 reopen still re-stamps**, because reopening
+    sets `gate_passed` back to `False` and the write is then a transition
+    again. The stamp records when the gate LAST became passed, which is what it
+    is for.
+    """
     case = await load_case(case_id)
     if case is None:
         raise ValueError(f"Case {case_id} not found")
 
     now = datetime.now(timezone.utc).isoformat()
 
-    # Update phase record
-    case.phases[phase] = PhaseRecord(
-        gate_passed=True,
-        submitted_by=submitted_by,
-        submitted_at=now,
-        structured=structured,
-        citations=[c for c in citations],
-        uploads=[u for u in uploads],
-    )
+    # ── MERGE, never replace ─────────────────────────────────────
+    # Whatever this record holds that is not named below SURVIVES the gate.
+    record = case.phases.get(phase) or PhaseRecord()
+    already_passed = bool(record.gate_passed)
+
+    record.structured = structured
+    record.gate_passed = True
+    if not already_passed:                  # the transition, stamped once
+        record.submitted_by = submitted_by
+        record.submitted_at = now
+
+    # `None` means NOT SUPPLIED and keeps what the record holds; an explicit
+    # empty list means supplied-and-empty. The old signature could not tell
+    # those apart, which is how a call site passing nothing erased the Belt's
+    # evidence trail.
+    #
+    # **Converted explicitly, because ASSIGNMENT DOES NOT VALIDATE.** The old
+    # code passed these to `PhaseRecord(...)`, where Pydantic coerced the dicts
+    # into models on the way in. Assigning to an attribute does not: the record
+    # would hold raw dicts, serialise back out looking correct, and fail the
+    # next time anything read `.filename` off one. Caught by mypy on this
+    # change rather than by a reader.
+    if citations is not None:
+        record.citations = [CitationRecord(**c) if isinstance(c, dict) else c
+                            for c in citations]
+    if uploads is not None:
+        record.uploads = [UploadRecord(**u) if isinstance(u, dict) else u
+                          for u in uploads]
+    if analyst_output is not None:
+        record.analyst_output = AnalystOutputRecord(**analyst_output)
+
+    case.phases[phase] = record
 
     # Advance current phase
     phase_order = ["define", "measure", "analyse", "improve", "control"]
