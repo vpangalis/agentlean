@@ -3518,13 +3518,29 @@ the heading and one sentence per section ever claimed a variant class.
 five-key shape from the turn's computation-tool calls, and
 `artifacts["phase_metrics"]` per §39.x.7, both asserted by tests that fail on
 today's build; `field_index` advances through `DEFINE_FIELD_ORDER` and a test
-pins that it reaches the last field; **a grader run on a turn that called a
-computation tool finds it in `computation_results`** — the clause that makes
-this step about the product rather than about a dict key; §39.x.7 describes
-per-phase usage with all thirteen `{Phase}State` references gone and **Define's
-own §39.1.7 written**; S-C03 amended; **G-19 closed**; and the Define gate
+pins that it reaches the last field; §39.x.7 describes per-phase usage with
+all thirteen `{Phase}State` references gone; S-C03 amended; and the Define gate
 document, viewed in the browser, shows a computed figure that the coach did not
 retype.
+
+> ### ⇒ THREE CLAUSES STRUCK 2026-09-23 — ONE MOVED, TWO ALREADY SATISFIED
+>
+> | Clause | Why it is gone |
+> |---|---|
+> | *“a grader run … finds it in `computation_results`”* | **MOVED TO 7.2**, where §62.9 B3 already specifies it. It is **validation stack Layer 2d's** scan, not `DMAICGraderMiddleware`'s, and §36 forbids conflating the two — so this clause put a GATE check inside a step that builds the TURN path, and 6.20 could only ever have satisfied it by building the wrong grader. ARCHITECTURE.md v1.69(B) corrects §7 and §39.3.7, which is where the conflation entered |
+> | *“Define's own §39.1.7 written”* | **ALREADY SATISFIED at §39.1.12**, 2026-09-11 |
+> | *“G-19 closed”* | **ALREADY SATISFIED** — closed by ruling 2026-09-11; §66.6 carries it struck |
+>
+> **A Done-when clause that is already true is not harmless.** It makes a step
+> look unfinished when it is not, and it invites a session to “do” it again —
+> which for the two satisfied clauses means re-amending a section that is
+> already correct.
+>
+> **AND THE SCORECARD HALF IS NOW UNBLOCKED.** `artifacts["phase_metrics"]`
+> above was never blocked on code; it was blocked on **Define's entry shape
+> never having been written down**. ARCHITECTURE.md **v1.69(A)** writes it into
+> §39.1.9: five keys, assembled deterministically in `gate_apply` with no model
+> call, so the single-authority invariant holds by construction.
 
 ---
 
@@ -3696,6 +3712,25 @@ captured on a post-6.8 coach.
 | **Touches** | `validation/gate_validator.py`, `validation/schemas.py` (new) |
 | **Precondition** | 6.7 |
 | **Verify** | `pytest` |
+| **Status** | **BLOCKED ON A FOUNDER DECISION — G-23, recorded 2026-09-23** |
+
+> ### ⛔ WHY THIS STEP HAS NO DONE-WHEN, STATED RATHER THAN LEFT QUEUED
+>
+> **The validator's RETURN SHAPE is undecided, and it is coupled to G-31.**
+> Layer 2b must report which gate-required fields are missing; what it returns
+> — and whether `check_gate_status()` is that function, a caller of it, or a
+> second answer to the same question — is **G-23, coupled to G-31**
+> (`check_gate_status()` is named across this architecture and is **absent from
+> the tree**).
+>
+> **A Done-when cannot be written over an undecided return shape.** It would
+> have to assert on a structure nobody has chosen, and the test would then pin
+> the guess rather than the decision — which is how a placeholder becomes the
+> design by default. **The board now shows WHY this is queued, not merely
+> that it is**, which is the whole point of recording a blocker in the row.
+>
+> **What is NOT blocked**: the forward-note below is independent of the return
+> shape and stands whatever the founder rules.
 
 **`DMAICGateValidator` is the one permitted class exception** — a namespace of
 `@staticmethod` deterministic checks holding no state (§54).
@@ -3735,6 +3770,29 @@ captured on a post-6.8 coach.
 | **Reference §** | §34 · §36 · **S-C21 · S-C24 · S-F25 · S-F26** |
 | **Precondition** | 7.1 |
 | **Verify** | `pytest` |
+| **Status** | **BLOCKED ON TWO FOUNDER DECISIONS — G-23 and G-40, recorded 2026-09-23** |
+
+> ### ⛔ WHY THIS STEP HAS NO DONE-WHEN, STATED RATHER THAN LEFT QUEUED
+>
+> **Two decisions, and this step cannot be written over either.**
+>
+> | | Blocker |
+> |---|---|
+> | **G-23**, coupled to **G-31** | Inherited through 7.1 — Layer 2c runs on what 2b returns, so an undecided return shape is undecided here too |
+> | **G-40** | **The Define rubric TEXT does not exist.** Layer 2d grades against `PHASE_RUBRIC`; what Define's criteria SAY is domain content, not engineering, and no amount of build work produces it |
+>
+> **G-40 is the harder of the two and the reason it must be a founder
+> decision**: a rubric written by an implementer is a guess at what good
+> coaching looks like, graded by a model, at a gate that blocks a Belt.
+> **The failure mode is invisible and expensive** — a plausible rubric passes
+> plausible work.
+>
+> **The grader clause that used to sit on 6.20 belongs HERE**, and moved on
+> 2026-09-23: §62.9 B3 already specifies it — *“scan
+> `artifacts["computation_results"]` for the relevant tool entry rather than
+> asking the model”* — and that is Layer 2d's scan, not
+> `DMAICGraderMiddleware`'s. ARCHITECTURE.md v1.69(B) corrects §7 and §39.3.7,
+> which named “the grader” and put a gate check on the turn path.
 
 **The cap is 3, SHARED across all four layers**, with accumulated
 `validator_feedback` — not three per layer (§34).
@@ -3834,12 +3892,52 @@ fields, an edit is accepted, approval writes
 Measure. The reconciliation sweep exists and excludes `interrupt()`-paused
 threads.
 
+**3 — THE CASE RECORD HAS ONE WRITER, OR THE WRITE CARRIES ITS ETag.** Added
+2026-09-23. **This is the step that switches the output mapper on**, and the
+output mapper writes the case record at the same moment the HTTP route does.
+Azure Blob's default is **last-writer-wins**, and nobody chose it: a gate
+approval landing while a coaching turn's `save_case` is in flight loses
+whichever finished first, silently and without an error on either side.
+
+**Two acceptable answers and the step must pick one out loud:**
+
+| | |
+|---|---|
+| **The route stops writing** | §10's own rule — the case blob is written *“never mid-conversation”* — and step 10.2 is already scheduled to move the conversation into the checkpoint. The per-turn write would end where §10 says it should |
+| **The write carries the ETag it read, and a 412 is handled** | Optimistic concurrency. The loser of the race **learns that it lost** instead of overwriting, and what it does next is a decision rather than an accident |
+
+**What is NOT acceptable is reaching this step without answering**, which is
+why it is a Done-when clause and not a note: today the collision is
+unreachable because the output mapper never fires, and this step is what makes
+it reachable. **A race that arrives with the feature that creates it is the
+cheapest one to have prevented and the most expensive to diagnose.**
+
 > **Why clause 1 is here and not left to a comment.** The guard lives in
 > `backend/middleware/contradiction.py` — §19.6's file, not §33's — and a
 > commented-out line in another section's module is exactly the kind of thing
 > that survives a step nobody thought to check it against. **A gate condition
 > is read when the step is closed; a comment is read when someone opens the
 > file.** The two tests above make it fail loudly in between.
+
+> ### ⛔ CLAUSE 1 AND STEP 6.44 DISAGREE — RECORDED 2026-09-23, NOT RESOLVED
+>
+> **Clause 1 requires position 6's `interrupt()` call to be RESTORED in
+> middleware. Step 6.44 moves the stop OUT of middleware and into a node.**
+> Both are founder-ratified, five weeks apart, and they cannot both be built.
+>
+> **Neither is edited here**, because a disagreement between two rulings is a
+> decision and not a typo — the standing rule this document applies to every
+> spec-versus-decision conflict it finds. **What is recorded is that the
+> conflict exists and where**, so whichever step is built first does not
+> silently settle it.
+>
+> **The substance, stated so the decision does not have to be re-derived**:
+> `interrupt()` raised from `after_agent` is the shape G-15 ruled against —
+> an exception from middleware is not resumable by construction, and clause 1's
+> own measured defect was *“a fired interrupt parks the case forever.”* 6.44's
+> node placement is the answer to that measurement. **Clause 1 may therefore be
+> the older half of the same finding rather than a competing design** — but
+> that is an argument, and this is a founder's call.
 
 > **⚠ Done-when corrected 2026-09-07 — it named `IMPR-2026-E9D`, which cannot
 > run it.** E9D is complete (`current_phase="complete"`), so `/ask` returns 409
@@ -3876,6 +3974,34 @@ threads.
 
 ---
 
+---
+
+## Step 7.7 — The approve endpoint
+
+| | |
+|---|---|
+| **Reference §** | §33 · §49 · §50 · S-F34 · S-F13 |
+| **Touches** | `backend/gateway/routes.py` · `backend/gateway/schemas.py` · **`ui/index.html`** · `backend/tests/` |
+| **Precondition** | **7.3** — the nine-step HITL gate raises `interrupt()`. Not started |
+| **Verify** | `manual-UI` |
+| **Status** | **RULED — founder 2026-09-23. Not started** |
+
+**The gate can be reviewed and cannot be approved.** `GET /gate/review/{case}/{phase}`
+serves the assembled document — the READ half, built at 3.4 — and §49's own
+endpoint table names `/gate/approve` and `/gate/reject` as **unbuilt** (G-47).
+So the nine-step HITL flow stops at step 4: the Belt sees what they are being
+asked to approve and has nowhere to say yes.
+
+**It depends on 7.3 and cannot be pulled forward.** An approval has to reach a
+graph that is PAUSED — `interrupt()` is what creates the thing an approval
+resumes, and until it exists there is no pause to deliver a decision to. An
+approve endpoint built first would either write the gate directly, which is the
+single-writer violation §5 B2 forbids, or hold the decision somewhere until the
+interrupt arrives, which is a queue nobody designed.
+
+**Done when:** the browser can approve a reviewed gate; the approval **reaches
+the paused graph**; and a `live-run` closes Define from the screen.
+
 # Part 7 — Stage 8: Reliability
 
 ---
@@ -3886,8 +4012,27 @@ threads.
 |---|---|
 | **Reference §** | §37 · §9.5 |
 | **Touches** | `phases/gate_assembly.py`, `phases/nodes_common.py` |
-| **Precondition** | 7.3 |
+| **Precondition** | **7.3 AND 8.2 — both HARD** (8.2 recorded 2026-09-23) |
 | **Verify** | `pytest` |
+
+> ### ⛔ 8.2 IS A PRECONDITION, NOT A NOTE — RECORDED 2026-09-23
+>
+> **§37's own words:** *“a cascade that marks phases provisional but leaves
+> published values in place is worse than no cascade.”* Marking a phase
+> provisional is a COMPENSATING ACTION, and compensating actions are step
+> **8.2**. **Today 7.6 is reachable first** — its only recorded precondition
+> was 7.3 — so the order the spine permits is the order §37 names as worse
+> than not building it at all.
+>
+> **Why “worse than no cascade” and not merely incomplete**: a phase marked
+> provisional while its values stay published tells a reader the document is
+> under review AND shows them the figures as though they stood. A reviewer who
+> trusts the mark stops checking; a reviewer who trusts the figures never sees
+> the mark. **No cascade at least leaves one consistent story.**
+>
+> Recorded as a precondition rather than a note **because a note does not
+> block** — the board reads the row, and a hazard that renders as prose beside
+> a schedulable step is a hazard the schedule ignores.
 
 **Not in the original spine.** §37 has two halves and only one was scheduled:
 `ContradictionDetectionMiddleware` landed at 6.5, and **the re-approval cascade
@@ -4923,6 +5068,234 @@ date**.
 
 ---
 
+## Step 6.42 — The gate document records what Define established
+
+| | |
+|---|---|
+| **Reference §** | §33 · §40 · §50 · §63.9 · S-F07 · S-F28 · G-78 |
+| **Touches** | `backend/gateway/routes.py` · `backend/phases/gate_assembly.py` · `backend/tests/` |
+| **Precondition** | **6.33** — the capture path accumulates. Landed |
+| **Verify** | `pytest` + `live-run` |
+| **Status** | **RULED — founder 2026-09-23. Not started** |
+
+**The gate document is assembled from a key nothing sets.** `routes.py:1375`
+reads `validated = phase_data.get("_validated", {})` and hands the result to
+`write_phase_gate` as the phase's `structured` record. **`validate_define` never
+writes that key**, so the expression resolves to `{}` and the document is
+written EMPTY — and the code's own comment has said so since step 4.2, carried
+as a WATCH because the gate could not pass and repairing v1 code that 11.1
+deletes was the wrong place to spend a structural step.
+
+**6.33 is what makes it reachable.** While every capture destroyed the one
+before it the gate could never accumulate enough to pass, so the empty write
+was unreachable and correctly deferred. The capture path now accumulates; the
+write is next on the path, and it is the last thing between a completed Define
+and a recorded one.
+
+> ### ⛑ AN EMPTY DOCUMENT AND A REFUSAL ARE NOT THE SAME OUTCOME
+>
+> The defect is not only that the document is empty. It is that **the phase
+> ADVANCES anyway** — `write_phase_gate` succeeds, `next_phase` is returned and
+> the Belt is moved to Measure, with the gate marked passed and nothing behind
+> it. Measure's input mapper then composes its framing from a gate document
+> with no fields, and `compose_phase_context` renders twelve *"not captured in
+> define"* lines as though the Belt had skipped the phase.
+>
+> **So the fix is a REFUSAL, not a default.** Assembly that cannot produce a
+> complete document must raise rather than write a partial one, which makes
+> advancing to Measure with no record **impossible by construction** rather
+> than merely unlikely. That is S-C06's failure-mode rule applied one level up:
+> a missing prior gate document is an ordering fault, and a caller that papers
+> over it hides a broken transition.
+
+**Done when:** the document is assembled from the captured field set rather
+than from `_validated`; assembly **REFUSES** rather than writing a partial or
+empty document, so advancing to Measure with no record is impossible by
+construction; a test asserts a twelve-field case yields a complete document
+**and fails when the source is emptied**; and a `live-run` on `IMPR-2026-0E5`
+produces a document carrying all twelve.
+
+---
+
+## Step 6.43 — The coach can read an uploaded document
+
+| | |
+|---|---|
+| **Reference §** | §29.1 · §32 · §50 · S-F57 · G-82 |
+| **Touches** | `backend/knowledge/tools.py` · `backend/gateway/routes.py` · `skills/` · `backend/tests/` |
+| **Precondition** | none — **READY** |
+| **Verify** | `pytest` + `live-run` |
+| **Status** | **RULED — founder 2026-09-23. Not started** |
+
+**An artefact is reachable only as a 160-character summary, and no tool can
+read one** (G-82). The Belt uploads a to-be process map; it is classified an
+artefact, so it never enters `improve_evidence_index`, and the only tool that
+reads a file directly — `load_evidence_series` — computes statistics over a
+numeric column. **A prose document has no numeric column.** So the coach can
+see that a map exists and cannot read a word of it.
+
+**The label is wrong in the same place.** `routes.py:48` maps `"Process map"`
+to **`"as-is process map"`**, unconditionally — while `classifier.py:36`
+carries the reason it must not: *"a to-be map is a design, not an
+observation."* Every uploaded map is therefore recorded as a statement about
+the present, including the ones that are proposals about the future, and
+§29.1's evidence/artefact split exists precisely to keep those apart.
+
+> ### ⇒ THE SUMMARY TRUNCATION IS NOT LIFTED, AND THAT IS THE EARLIER RULING
+>
+> **Discovery and access stay distinct.** The 160-character summary is how the
+> coach learns a document EXISTS without carrying its contents into every
+> prompt; lifting it would put whole documents into the context window on turns
+> that never needed them, which is what §19.3's compression exists to avoid.
+> **The fix is a tool the coach CALLS when it decides it needs the text**, not
+> a wider window. A per-kind usage instruction is what makes that decision
+> teachable rather than hoped for.
+
+**Done when:** a tool returns the text of a named uploaded artefact; a per-kind
+usage instruction tells the coach when to reach for it; the label that calls
+every uploaded map an as-is map is corrected; and a `live-run` quotes from a
+process map the Belt uploaded. **The summary truncation is NOT lifted.**
+
+---
+
+## Step 6.44 — The contradiction stop moves from middleware into a node
+
+| | |
+|---|---|
+| **Reference §** | §37 · §19.6 · §17 · S-C05 · S-C10 · S-F13 · G-15 · G-89 |
+| **Touches** | `backend/middleware/contradiction.py` · `backend/phases/nodes_common.py` · `backend/phases/subgraph_common.py` · `backend/core/substate.py` · `backend/tests/` |
+| **Precondition** | **the §37 correction** — ARCHITECTURE.md v1.69. Landed with this amendment |
+| **Verify** | `pytest` + a resume test |
+| **Status** | **RULED — founder 2026-09-23. Not started** |
+
+**§37 specified a stop mechanism its own ruling forbids.** The section said
+`ContradictionDetectionMiddleware` *"raises `HITLInterrupt`"*; that class is
+**deliberately never defined** (G-15, ruling v1.21(D)), because a pause must be
+resumable and an exception raised from `after_agent` is not. ARCHITECTURE.md
+v1.69 corrects the text to name LangGraph's own `interrupt()`. **This step
+builds where it is raised**, which the correction deliberately left open.
+
+**Detection does not move.** The coach already sets `contradiction_flag` in the
+response call that runs every turn — no additional model call, which is §37's
+own mechanics and DECISIONS §R1's ruling. What moves is the STOP: a node can
+`interrupt()` and be resumed; middleware cannot.
+
+> ### ⛑ THE NODE WRITES NOTHING, AND THAT IS THE WHOLE OF THE RESUME PROBLEM
+>
+> **A resumed graph re-executes the node it paused in.** A stop node that also
+> wrote state would write it twice — once before the pause and once on resume —
+> and for a contradiction that means the same flag recorded twice against one
+> event. §11's deterministic key exists for exactly this class and `field_log`
+> now enforces it (step 6.33), but **the cheaper answer is a node with nothing
+> to write**: it reads the flag, it pauses, and every durable write stays in
+> the nodes that already own one.
+
+**`CoachingResponse` gains a `reason` field in this step — G-89's named
+owner.** The field change log declares a `reason` column that nothing
+populates, because S-C05's `fields_captured` description names `field_name`,
+`value` and `source` and no more. This step is already inside that schema and
+inside the contradiction path, where the Belt's stated reason for changing a
+value is exactly what a reviewer needs. **It is a §56 amendment to S-C05 and
+carries one**; it is a clause here rather than a step of its own because a
+one-field schema change with no reader of its own is not a step.
+
+**Done when:** detection stays where it is — the coach sets the flag in the
+reply it already writes, no extra model call; the planner routes on that flag;
+the stop lives in a node that writes nothing; a resumed turn is **proven to
+write once rather than twice**; `CoachingResponse` carries `reason` under a §56
+amendment, closing G-89; and §37 no longer names a stop mechanism that was
+ruled never to exist.
+
+---
+
+## Step 6.45 — The planner decides on field completeness
+
+| | |
+|---|---|
+| **Reference §** | §17 · §39.1.2 · S-F13 · S-C04 |
+| **Touches** | `backend/phases/nodes_common.py` · `backend/tests/` |
+| **Precondition** | **6.33** — the accumulator is real. Landed |
+| **Verify** | `pytest` |
+| **Status** | **RULED — founder 2026-09-23. Not started** |
+
+**S-F13's DP1 predicate is a placeholder and says so in its own docstring.**
+`nodes_common.py:326` reads `turn_count` and routes on whether the phase has
+coached at all — *"the smallest rule that TERMINATES"*, in the docstring's own
+words, against a DP1 that is supposed to read the per-phase field ordering and
+decide **"field complete"**.
+
+**It could not have been built before 6.33.** The real predicate asks whether
+the field under coaching has been captured, and until the capture path
+accumulated, `artifacts` was blanked every turn — so the honest answer was
+always "no" and a predicate reading it would have re-asked the same field
+forever. **The 4.1 predicate did exactly that** and ran until
+`GraphRecursionError`, which is why the placeholder exists at all.
+
+**Done when:** the real S-F13 DP1 predicate replaces the turn-count
+placeholder; a test proves a field is **re-asked while incomplete and not
+re-asked once complete**; and the placeholder's self-disclaiming comment is
+gone — because a comment describing code that no longer exists is the drift
+this document's §55 rules are written against.
+
+---
+
+## Step 6.46 — The coaching script is guaranteed to reach the model, or its absence is recorded
+
+| | |
+|---|---|
+| **Reference §** | §32 · §19.2 · §43 · S-C12 |
+| **Touches** | `backend/middleware/skills.py` · `backend/phases/nodes_common.py` · `backend/tests/` |
+| **Precondition** | none — **READY** |
+| **Verify** | `pytest` |
+| **Status** | **RULED — founder 2026-09-23. Not started** |
+
+**A turn coached without the script is indistinguishable from one coached with
+it.** `DMAICSkillsMiddleware` (§19.2) discloses the phase's SKILL.md
+progressively; whether the disclosure actually landed in the request is not
+recorded anywhere, so a turn whose script never loaded produces a plausible
+coaching answer and no trace of what was missing.
+
+**This is the shape G-49 had and the class §55.2 exists for**: a mechanism that
+is specified, built, and unobservable. The remedy is not a guarantee that
+loading never fails — it is that **failing leaves a mark**, on the same
+argument §56 amendment v1.64 used for the four presentational fields: making a
+thing optional without recording its absence trades a loud failure for a silent
+one, which is the worse of the two.
+
+**Done when:** a turn coached without the script is **distinguishable from one
+coached with it, in the record** — so the question *"did this coaching turn
+have its methodology"* is answerable after the fact rather than by re-running
+it.
+
+---
+
+## Step 6.47 — Durable writes inside a node, and persistence loss is never silent
+
+| | |
+|---|---|
+| **Reference §** | §10 · §10.2 · §16 · §47 · S-C06 |
+| **Touches** | `backend/storage/blob.py` · `backend/core/store.py` · `backend/phases/nodes_common.py` · `backend/tests/` |
+| **Precondition** | none — **READY** |
+| **Verify** | `pytest` |
+| **Status** | **RULED — founder 2026-09-23. Not started** |
+
+**Two failures of the same kind.** An intermediate write made inside a node is
+a no-op, so state a node believes it persisted is not there; and an
+unconfigured connection string reports itself **in a log line** —
+`storage_configured()` returns `False` and callers degrade — so a deployment
+with no storage runs, answers, and loses everything, looking healthy
+throughout.
+
+**The second is the one that decides the shape of the first.** A write that
+cannot succeed must fail where it is made, not where its absence is eventually
+noticed. §47's disconnect policy already turns on this distinction: what it
+guarantees is *"no node runs, and no checkpoint is written, after the client is
+gone"* — a guarantee about WHEN writes stop, which is meaningless if a write
+can quietly not happen at all.
+
+**Done when:** intermediate node writes are no longer a no-op; and an
+unconfigured connection string **fails loudly rather than in a log line**.
+
 ## Step 10.0 — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning
 
 | | |
@@ -5039,6 +5412,32 @@ handler shape must be deliberate, and streaming is the shape §47 prefers.
 | **Touches** | `ui/index.html` |
 | **Precondition** | 10.1 |
 | **Verify** | `manual-UI` |
+| **Status** | **NEEDS A DESIGN BEFORE A DONE-WHEN CAN EXIST — recorded 2026-09-23** |
+
+> ### ⛔ THIS STEP HAS NO ARCHITECTURAL SOURCE AT ALL, AND THAT IS A FINDING
+>
+> **No spec entry points at it, and “conflict panel” appears nowhere in
+> `ARCHITECTURE.md`.** The two § citations above are the closest things to a
+> source and neither specifies this step: §50 is the Belt-facing surface in
+> general, §43.4 gives the worked case for why a blended progress count
+> misleads. **The panel itself — what it shows, when it appears, what the Belt
+> can do in it, and what happens to the phases it marks provisional — is
+> specified nowhere.**
+>
+> **So a Done-when cannot be written, and writing one anyway is the trap.** It
+> would be a description of a screen somebody imagined, and the test behind it
+> would pin that imagining as the design. **That is how an unspecified feature
+> acquires a specification nobody ratified.**
+>
+> **RECORDED AS A FINDING, NOT PAPERED OVER.** This is §55.2's shape in the
+> other direction: not a claim nothing re-runs, but a step nothing specifies.
+> It needs a DESIGN — a ratified section in `ARCHITECTURE.md` that this row can
+> cite — before it can carry a Done-when. **Until then it is not schedulable**,
+> and the row now says why rather than sitting in the queue looking ready.
+>
+> **G-71 is the other half**: `ui/index.html` is 7,273 lines of Belt-facing
+> product that no step builds and nothing verifies. A step with no source is
+> harder to see inside a file with no coverage.
 
 Three §50 surfaces: the live gate document updating on every capture; the
 conflict-resolution panel, which **must surface which downstream phases become
@@ -5046,6 +5445,81 @@ provisional *before* the Belt confirms**; and **separate Tier 1 / Tier 2
 progress bars, never one blended count** — §43.4 gives the worked case for why a blended count misleads.
 
 ---
+
+---
+
+## Step 10.3 — The workspace reads the v2 field names, and progress counts them
+
+| | |
+|---|---|
+| **Reference §** | §50 · §50.1 · §39.1.2 · §13 · G-71 |
+| **Touches** | **`ui/index.html`** · `backend/tests/` |
+| **Precondition** | **6.33** — the capture path accumulates. Landed |
+| **Verify** | `manual-UI` + a count test |
+| **Status** | **RULED — founder 2026-09-23. Not started** |
+
+**The workspace checks for fields the backend stopped writing.**
+`GATE_CHECKS.define` in `ui/index.html` reads `structured.what`,
+`structured.scope_in`, `structured.scope_out`, `structured.sipoc`,
+`structured.hard_benefits`, `structured.current_cost` and
+`structured.project_milestones` — **v1 names**. The v2 set is
+`problem_statement`, `project_scope`, `process_map_sipoc`, `business_case`,
+`team` and the rest of §39.1.2's twelve. **Exactly one key overlaps**:
+`goal_statement`.
+
+**So the progress indicator counts a set the coach does not fill.** A Belt can
+complete every coached field and watch the bar stay where it was, because the
+bar is counting a vocabulary that was renamed underneath it. Before 6.33 this
+was invisible — nothing accumulated, so nothing was expected to move.
+
+> ### ⛑ THE 5W2H FIELDS ARE A DECISION, NOT A MAPPING
+>
+> `structured.what` is not a renamed `problem_statement`. It is one element of
+> Define's **5W2H** problem statement — what, where, when, who, why — which
+> `SKILL.md` coaches as a technique inside position 1 and which §39.1.2's
+> twelve do not carry as separate fields. **There are two honest answers and
+> the step must pick one out loud**: the elements get a home in the captured
+> set, or they are recorded as **deliberately absent with the reason**, so the
+> next reader is not left to infer that seven fields went missing.
+>
+> **A silent drop is the one outcome that is not allowed here**, and it is the
+> class §55.2 exists for: a thing specified in one place, quietly not carried
+> in another, with nothing that disagrees.
+
+**Done when:** the page's field list is the v2 set; the counter counts that
+set; Define's 5W2H fields have a home **or are recorded as deliberately absent
+with the reason**; a `manual-UI` pass shows the bar advancing turn by turn; and
+**renaming one field back makes the count wrong** — the mutation that proves
+the test reads the list rather than a constant.
+
+---
+
+## Step 10.4 — The error contract — a failed turn is readable
+
+| | |
+|---|---|
+| **Reference §** | §4.8 · §49 · §50 · §12.3 · G-70 |
+| **Touches** | **`ui/index.html`** · `backend/gateway/routes.py` · `backend/gateway/schemas.py` · `backend/tests/` |
+| **Precondition** | **8.1** — structured errors. Not started |
+| **Verify** | `manual-UI` |
+| **Status** | **RULED — founder 2026-09-23. Not started** |
+
+**A failed turn reaches the Belt as a raw exception in a three-second toast**
+(G-70). `/ask`'s bare `except Exception` returns
+`HTTPException(500, f"Graph error: {e}")`, and the UI lands on
+`toast('Error: ' + resp.detail)` with `dur=3000`. **The Belt sees a stack
+fragment for three seconds and then nothing**, with no way to tell a timeout
+from a rate limit from a lost connection — and §4.8's rule is that a failure is
+*never a hard failure to the Belt*.
+
+**This closes G-70's Belt-facing half only.** The backend half is §12.3's
+`AgentImproveError` and step 8.1, which is why 8.1 is the precondition rather
+than a note: a readable condition needs a typed condition behind it, and
+inventing one in the UI would put the vocabulary in the layer least able to own
+it.
+
+**Done when:** a backend failure reaches the Belt as a **stated condition**
+rather than a raw exception in a three-second toast.
 
 # Part 10 — Stage 11: Cleanup and governance
 
@@ -5180,12 +5654,12 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 
 | State | Count | Steps |
 |---|---|---|
-| **DONE** | 46 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.34**, **6.35**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.38**, **6.41** |
+| **DONE** | 47 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.34**, **6.33**, **6.35**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.38**, **6.41** |
 | **BUILDING NOW** | 1 | **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 26 | **6.33**, **10.0**, **8.0**, **7.3**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
+| **QUEUED** | 34 | **6.42**, **10.0**, **6.43**, **10.3**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.46**, **6.47**, **10.4**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
-*81 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-21.*
+*90 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-23.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -5488,10 +5962,15 @@ restate, which is the opposite of what the board is for.
 | 350 | **Commit 6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` |  | PHASE | SHARED | Three things §39.x.7 specifies are read by the gate document and written by nothing, so a computed figure never reaches a gate and the coach cannot tell which field it is on. |
 | 351 | **Commit 6.34** | A node that runs out of time answers the Belt instead of failing (G-84) |  | OPS | SHARED | A slow turn reaches the Belt as a 500 carrying a stack trace, against §4.8, and every remaining live-run verification runs through that path. |
 | 352 | **Commit 6.33** | The capture path accumulates — a field survives the next turn |  | PHASE | SHARED | Every coached capture destroys the ones before it, so a Belt filling 26 fields across many turns can never reach a gate. |
+| 354 | **Commit 6.42** | The gate document records what Define established |  | GATE | SHARED | A completed Define is recorded as an empty document and the phase advances anyway, so Measure is framed as though the Belt skipped Define. |
 | 353 | **Commit 6.35** | The hop cap matches the ceiling that was always in force (G-83) |  | COACH | SHARED | The declared retrieval budget is larger than any turn can spend, so the cap never fires and the coach is cancelled mid-search instead of composing. |
 | 355 | **Commit 10.0** | The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |  | UI | SHARED | The coach produces `explanation`, `example`, `prompt` and `progress` every turn and the API discards all four, so §50.1’s render contract stays prompt-hoped and the Belt reads one prose blob. |
+| 356 | **Commit 6.43** | The coach can read an uploaded document |  | COACH | SHARED | The Belt uploads a process map and the coach can see that it exists without reading a word of it. |
+| 357 | **Commit 10.3** | The workspace reads the v2 field names, and progress counts them |  | UI | SHARED | The Belt completes every coached field and the progress bar does not move, because it counts a vocabulary that was renamed underneath it. |
 | 360 | **Commit 8.0** | Turn telemetry and `@traceable` |  | OPS | SHARED | Nothing is traced, so every investigation needs a hand-built harness and no limit can be set from measured data. |
+| 365 | **Commit 6.44** | The contradiction stop moves from middleware into a node |  | COACH | SHARED | A Belt who contradicts a gate-approved value is never stopped, because the stop is specified as a mechanism that was ruled never to exist. |
 | 370 | **Commit 7.3** | Nine-step HITL gate |  | GATE | SHARED | Nothing pauses for a human at a gate, so no gate decides, `gate_attempts` cannot accumulate, and the supervisor graph can never become the runtime. |
+| 375 | **Commit 7.7** | The approve endpoint |  | GATE | SHARED | The Belt can read the gate document they are being asked to approve and has nowhere to say yes. |
 | 380 | **Commit 10.2** | Live gate document + conflict panel |  | UI | SHARED | A Belt cannot see the document being built, so the gate is the first time anyone looks at it whole. |
 | 390 | **Commit 7.1** | `DMAICGateValidator` + Layer 2b |  | GATE | SHARED | Nothing checks a gate document against its phase's rules, so a gate passes on presence rather than on correctness. |
 | 400 | **Commit 7.2** | Layers 2c, 2d + `validation_stack` |  | GATE | SHARED | Cross-phase consistency and statistical validity go unchecked, so Measure can contradict Define and both pass. |
@@ -5501,6 +5980,10 @@ restate, which is the opposite of what the board is for.
 | 440 | **Commit 7.6** | The re-approval cascade |  | GATE | SHARED | A contradiction against an approved value never reopens the field it contradicts, so the gate document keeps a figure the Belt has withdrawn. |
 | 450 | **Commit 6.14** | SKILL.md shape pass — Define, Analyse, Improve, Control | BLOCKED | COACH | PHASE | Four of five phases cannot ask for a file in a shape they can validate, so 6.12's ask-binding works for Measure alone. |
 | 460 | **Commit 6.10** | `analyse_executor_node` — §26's multi-hop | BLOCKED | COACH | PHASE | Analyse cannot chain retrieval, so root-cause work needing a second hop returns a first-hop answer and stops. |
+| 471 | **Commit 6.45** | The planner decides on field completeness |  | COACH | SHARED | The coach asks one question per turn regardless of whether the field is already answered, because the routing predicate counts turns rather than reading what is captured. |
+| 473 | **Commit 6.46** | The coaching script is guaranteed to reach the model, or its absence is recorded |  | COACH | SHARED | A turn coached with no methodology looks exactly like one coached with it, so nobody can tell which turns had it. |
+| 475 | **Commit 6.47** | Durable writes inside a node, and persistence loss is never silent |  | STORE | SHARED | A deployment with no storage configured runs, answers and loses everything, looking healthy throughout. |
+| 477 | **Commit 10.4** | The error contract — a failed turn is readable |  | UI | SHARED | A failed turn reaches the Belt as a stack fragment in a three-second toast, with no way to tell a timeout from a rate limit. |
 | 470 | **Commit 8.1** | Structured errors |  | OPS | SHARED | Failures arrive as free text, so the circuit breaker and the fallback chain have nothing to read to tell retry from stop. |
 | 480 | **Commit 8.2** | Timeouts + compensating actions |  | OPS | SHARED | A node failing mid-turn leaves its partial writes in place, so the next turn resumes from a state nobody wrote deliberately. |
 | 490 | **Commit 8.3** | Circuit breakers + fallback chain |  | OPS | SHARED | A failing dependency is retried until it takes the rest of the system down with it. |
@@ -5698,7 +6181,9 @@ home.**
 | Layer | Order | Zone | Step | Fact — what the § specifies | State | Symbol | § |
 |---|---|---|---|---|---|---|---|
 | L1 | 2 | — | **10.0** | The coaching turn’s output reaches the Belt — four blocks and the grader’s warning | ☐ | `absent: backend.gateway.schemas::CoachingBlocks` | §50.1, §49, S-C05 |
+| L1 |  | UI | **10.3** | The workspace reads the v2 field names, and progress counts them | ☐ | — | §50, §50.1, §39.1.2, G-71 |
 | L1 | 4 | — | **10.2** | Live gate document + conflict panel | ☐ | `absent: repo:agent-improve/ui/gate_document.js` | §50, §43.4 |
+| L1 |  | UI | **10.4** | The error contract — a failed turn is readable | ☐ | — | §4.8, §12.3, §49, G-70 |
 | L1 |  | UI | **10.1**, **7.3** | **11 routes are served; this section's table names 4 of them** — `POST /ask`, `GET /cases/{id}`, `GET /registry`, `POST /upload`. **Seven are in the tree and in no ratified table** (**G-47**), and **five table rows are unbuilt**: `/ask/stream` (step 10.1), `/gate/approve` and `/gate/reject` (step 7.3, which has no `interrupt()` to resume from), `GET /cases`, and `/gate/submit` in the three-route shape this table ratifies. **Corrected 2026-09-11:** this line read *"11 of 12 routes exist … names 8 of the 11 — six are in the tree and in no ratified table"*, and **8 + 6 = 14 against 11 built routes**, so the marker contradicted itself; neither figure was derivable and the `12` traced to nothing. `verify_built.py` now pins the route SET, not the count, so the named/unnamed split is re-derived rather than restated | ⚠️ | `repo:agent-improve/backend/gateway/routes.py` | §49 |
 | L1 |  | UI | **6.19** | **these four fields do not exist** (**G-50**) | ☐ | — | §50.1 |
 | L1 |  | UI | — | **S-C36** · `CitationRecord` and `CitationBundle` | — | — | §65.1 |
@@ -5764,6 +6249,12 @@ home.**
 | L3 |  | — | **6.8** | `phase_context` is read (WATCH 19) | ✅ | `backend.middleware.state_injection::BeforeModelStateInjection` | §6, §9, §19.1 |
 | L3 | 1 | — | **6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ | `backend.phases.nodes_common::_advance_field_index` | §7, §39.x.7, S-C02, S-C03 |
 | L3 |  | — | **6.33** | The capture path accumulates — a field survives the next turn, and the field change log records what it said before | ✅ | `backend.phases.mappers_common::captured_for_phase` | §6, §7, §11, §20, S-F04 |
+| L3 |  | — | **6.42** | The gate document records what Define established | ☐ | — | §33, §40, §50, S-F07, S-F28 |
+| L3 |  | — | **6.43** | The coach can read an uploaded document | ☐ | — | §29.1, §32, S-F57, G-82 |
+| L3 |  | — | **6.44** | The contradiction stop moves from middleware into a node | ☐ | — | §37, §19.6, S-C10, G-15, G-89 |
+| L3 |  | — | **6.45** | The planner decides on field completeness | ☐ | — | §17, §39.1.2, S-F13 |
+| L3 |  | — | **6.46** | The coaching script is guaranteed to reach the model, or its absence is recorded | ☐ | — | §32, §19.2, S-C12 |
+| L3 |  | — | **6.47** | Durable writes inside a node, and persistence loss is never silent | ☐ | — | §10, §16, §47, S-C06 |
 | L3 |  | PHASE | — | **the typing law is enforced by schema, not by convention** — all five `{Phase}Output` declare captured fields as `str` or `dict`, and `test_gate_documents.py` pins both the `dict` fields and their Tier-1 placement | ✅ | — | §7 |
 | L3 |  | PHASE | **7.3** | five nodes, identical node-name sets across all five phases, re-run by `verify_built.py`'s *phase subgraph nodes* check. ⚠ `gate_review` is a pass-through until 7.3 | ✅ | — | §13 |
 | L3 |  | PHASE | — | every node is `async def` since 2.5 — all five `orchestrate_*`, all five `validate_*`, `escalate`, and all eleven route handlers | ✅ | — | §14 |
@@ -5925,6 +6416,7 @@ home.**
 |---|---|---|---|---|---|---|---|
 | L7 |  | — | **3.4** | `{Phase}Output` schemas + validators + UI | ✅ | `backend.phases.define.schema::DefineOutput` | §7, §40, §41, §53.1 |
 | L7 | 3 | — | **7.3** | Nine-step HITL gate | ☐ | `backend.phases.nodes_common::gate_review` | §33 |
+| L7 |  | — | **7.7** | The approve endpoint | ☐ | — | §33, §49, S-F34 |
 | L7 |  | — | **7.1** | `DMAICGateValidator` + Layer 2b | ☐ | `absent: backend.validation.gate_validator::DMAICGateValidator` | §34, §35 |
 | L7 |  | — | **7.2** | Layers 2c, 2d + `validation_stack` | ☐ | `absent: backend.validation.stack::validation_stack` | §34, §36 |
 | L7 |  | — | **7.4** | Two tiers + `warning` verdict | ☐ | `absent: backend.validation.tiers::WARNING` | §35 |

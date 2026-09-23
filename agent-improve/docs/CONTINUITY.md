@@ -9,7 +9,7 @@
 |---|---|
 | **Last completed** | step **6.41** — The symbol-anchor ratchet comes down |
 | **Next** | step **6.20** — The write paths — `computation_results`, `phase_metrics`, `field_index` |
-| **Spine steps landed** | 47 of 81 |
+| **Spine steps landed** | 47 of 90 |
 | **Last spine commit** | `704c669` (commit 6.33) |
 | **ARCHITECTURE.md** | v1.69 |
 | **CLAUDE.md** | v2.2.41 |
