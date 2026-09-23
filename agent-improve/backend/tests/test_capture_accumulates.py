@@ -193,8 +193,13 @@ FIVE_TURNS = [
     ("problem_statement", "Invoices are wrong 12% of the time"),
     ("goal_statement",    "Cut invoice errors to 3% by December"),
     ("business_case",     "Rework costs GBP 180k a year"),
-    ("project_scope",     "UK billing only, excludes credit notes"),
-    ("team",              "Ana (lead), Ben (finance), Cara (IT)"),
+    # `project_scope` is declared `dict` — `{in_scope, out_scope}` (§39.1.2).
+    ("project_scope",     {"in_scope": "UK billing",
+                           "out_scope": "credit notes"}),
+    # `team` is declared `list[dict]` (§39.1.4); prose is refused at capture
+    # since step 6.48, so the fixture carries the shape the schema declares.
+    ("team",              [{"name": "Ana", "role": "lead",
+                            "function": "finance"}]),
 ]
 
 
@@ -295,12 +300,12 @@ def test_a_capture_with_an_empty_value_is_reported_not_dropped(
     with caplog.at_level("WARNING"):
         apply_capture(case, "define", {"v1_draft": {
             "goal_statement": "", "business_case": None,
-            "team": "Ana, Ben, Cara",
+            "team": [{"name": "Ana", "role": "lead", "function": "finance"}],
         }})
 
     assert case.phases["define"].structured == {
         "business_case": "GBP 180k",        # NOT overwritten with nothing
-        "team": "Ana, Ben, Cara",
+        "team": [{"name": "Ana", "role": "lead", "function": "finance"}],
     }
     reported = "\n".join(r.getMessage() for r in caplog.records)
     assert "business_case" in reported and "goal_statement" in reported
@@ -338,7 +343,9 @@ def test_the_turn_reports_captured_kept_and_empty_together(
     stub_coach.reply = CoachingResponse(
         message="Noted.",
         fields_captured=[
-            {"field_name": "team", "value": "Ana, Ben", "source": "belt"},
+            {"field_name": "team",
+             "value": [{"name": "Ana", "role": "lead", "function": "finance"}],
+             "source": "belt"},
             {"field_name": "goal_statement", "value": "  ", "source": "belt"},
         ],
     )
@@ -346,8 +353,9 @@ def test_the_turn_reports_captured_kept_and_empty_together(
         messages=[HumanMessage(content="hello")],
     )))
 
-    assert out["artifacts"] == {"team": "Ana, Ben"}
-    assert out["draft"] == {"team": "Ana, Ben", "goal_statement": "  "}, (
+    team = [{"name": "Ana", "role": "lead", "function": "finance"}]
+    assert out["artifacts"] == {"team": team}
+    assert out["draft"] == {"team": team, "goal_statement": "  "}, (
         "`draft` is the honest record of what the coach returned, empties "
         "included — the split is about what gets STORED"
     )

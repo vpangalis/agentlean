@@ -404,6 +404,11 @@ here as the single ordered statement; Appendix F's `Order` column projects it.
 | 6 | **7.3** | The gate pauses, and the pause is resumable (**NARROWED** — see the step) |
 | 7 | **7.7** | A route that answers the pause and resumes the run |
 
+> **10.0 IS OFF THE CRITICAL PATH — BY RULING, 2026-09-23.** It was first
+> taken off by OMISSION, because Part 3's seven steps did not name it, and
+> that inference was flagged rather than relied on. **It is now ruled**, so
+> the row's empty `Order` cell rests on a decision rather than on a reading.
+>
 > **10.2 IS OFF THE CRITICAL PATH**, ratified 2026-09-23. The pause is proven
 > through the route at **7.7**; the screen is what makes it usable, not what
 > makes it work. It is also `BLOCKED-ON-SPEC` (clause 4), so leaving it on the
@@ -5578,10 +5583,10 @@ unconfigured connection string **fails loudly rather than in a log line**.
 |---|---|
 | **Label** | **`CO-1`** — the 2026-09-23 ruling's own name for this step |
 | **Reference §** | §7 · §20 · §41 · §63.8 · S-C05 · S-C32 · S-C33 · S-F28 |
-| **Touches** | `backend/phases/nodes_common.py` · `backend/core/substate.py` · `backend/tests/` |
+| **Touches** | `backend/phases/gate_registry.py` · `backend/phases/nodes_common.py` · `backend/gateway/routes.py` · `skills/dmaic-define-phase/` (SKILL.md **and** coaching_script.md, §56.1's atomic unit) · `backend/tests/` |
 | **Precondition** | none — **READY** |
 | **NEEDS** | *(nothing — it is the head of the critical path)* |
-| **GIVES** | A value the Belt states is stored in the shape its schema declares · a value stored in the wrong shape is REPORTED, not carried to the gate |
+| **GIVES** | **Capability row 18**, container 4 — *"captured values carry their declared type"*. Check: team, scope, the SIPOC map and the registry arrive structured, not as prose, on a live run — `backend.tests.test_declared_types::test_row_18_captured_values_carry_their_declared_type` |
 | **Verify** | `pytest` + `live-run` |
 | **Status** | **RULED — founder 2026-09-23. Not started** |
 
@@ -7292,18 +7297,21 @@ green for a Define slice in which no Belt can pass a gate — it did, for weeks 
 because each specified fact was built exactly as specified. The capabilities
 were never the thing being counted.
 
-### ⧗ THE SEED IS PENDING — Define's 23 rows
+### ⧗ THE SEED IS PENDING — 23 of Define's 24 rows
 
 **Not written here.** The 2026-09-23 ruling seeds this register with **Define's
-23 rows**, to be handed over once the founder has checked them. **They are not
+24 rows — one owning step each**, to be handed over once the founder has
+checked them. **They are not
 drafted in this amendment on purpose**: the rows are the definition of done for
 the whole vertical, and an implementer drafting them would be choosing what the
 product is required to do and then building against their own answer.
 
-**Until the seed lands, this appendix is a contract with no rows**, and the
-project's status by clause 1 is `0 of 0`. **That is an honest zero, not a
-green field**: nothing here has been measured yet, which is a different
-statement from nothing working.
+**ROW 18 IS HERE AHEAD OF THE SEED** because the step that gives it landed
+first — 6.48 plus the S-C05 amendment, 2026-09-23. **The other 23 are still
+pending founder check**, so the project's status by clause 1 is `1 of 24`
+against a register that is 1/24 written. **Both halves of that sentence
+matter**: the count is honest about what has been measured, and honest that
+almost nothing has been.
 
 **`NEEDS` and `GIVES` on the Define steps are written as capability
 STATEMENTS** rather than as `CAP-n` references, for the same reason — an
@@ -7313,7 +7321,19 @@ thing to check when it does.
 
 | ID | Capability | Check | State | Given by |
 |---|---|---|---|---|
-| — | *Define's 23 rows — pending founder check* | — | — | — |
+| **18** | Captured values carry their declared type — container 4. Team, scope, the SIPOC map and the registry arrive structured, not as prose, on a live run | `backend.tests.test_declared_types::test_row_18_captured_values_carry_their_declared_type` | 🟢 | **6.48** + the S-C05 amendment (ARCHITECTURE.md v1.70) |
+| — | *the other 23 — pending founder check* | — | — | — |
+
+> **ROW 18's CHECK READS THE CASE THE SYSTEM WROTE, AND BUILDS NO INPUT OF ITS
+> OWN.** That is the whole of its design. A seeded version would have been
+> **green throughout the entire life of the defect it exists to catch** —
+> every fixture in the suite handed the capture path a correctly-typed value,
+> which is why four structured Define fields sat as prose for months under
+> 1,100 passing tests. **It SKIPS rather than passes when there is no case to
+> read**: a row that could not be evaluated is not a green row.
+>
+> **Evidence, 2026-09-23** — red against `IMPR-2026-0E5` before the run,
+> green after, on the same four prompts that returned prose the day before.
 
 ---
 

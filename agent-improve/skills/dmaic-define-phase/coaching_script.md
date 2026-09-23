@@ -18,6 +18,7 @@
 > **Show:** *"Leader: Anna (Green Belt, runs the project day-to-day). Sponsor: Mark, Finance Director (approves and removes blockers). Process Owner: Jo, Billing Manager (owns the process). Members: two billing clerks (subject-matter experts)."*
 > **Ask:** Who's leading this project? Who's the sponsor who can approve and clear obstacles? Who owns the process? And who are your team members — the people who know the work?
 > **Confirm** each name with its role and function, then advance.
+> **Capture as:** a LIST, one entry per person, each `{name, role, function}` — never one sentence naming everybody. A sentence cannot be read back as four people (§39.1.4).
 
 **[3 · voc_summary · required]**
 > **Explain:** Next, the Voice of the Customer — who your process serves and what *they* actually need. It keeps us honest: we improve what matters to the people receiving the output, not just what we assume is broken.
@@ -74,6 +75,7 @@ Belt has asked for anything.
 > the Belt ever having agreed to it.
 >
 > **This one field-ask fills two fields, and the Belt should not have to know that.** `baseline_estimate` takes the current values; **`metric_definitions` takes the registry** — one entry per metric, `{name, unit, meaning}` (§63.8). Asking "what are we measuring" and "what is it now" as two separate coached positions would make the Belt say the same thing twice, so the walk stays at **twelve positions** and this conversation populates both.
+> **Capture `metric_definitions` as:** a LIST, one entry per metric, each `{name, unit, meaning}`. `name` is a MATCHING KEY every later phase repeats verbatim, so it is an identifier and never a phrase (§63.8).
 >
 > **The `name` you record here is a key, not a label.** Every later phase writes it **verbatim** — Measure's `baseline_mean`, Analyse's root-cause linkage, Control's target-vs-actual all find their metric by matching this exact string. Use a stable, lowercase, underscored form (`invoice_error_rate`), keep the Belt's own words for `meaning`, and **never re-phrase a name once it is set** — a renamed metric is an untraceable one.
 >
@@ -84,6 +86,7 @@ Belt has asked for anything.
 > **Show:** *"In: UK invoice generation, order receipt to invoice sent. Out: payment collection, non-UK regions, the pricing database."*
 > **Ask:** Where does your process start and end (in scope)? And what are you deliberately keeping out?
 > **Confirm** both in and out, advance.
+> **Capture as:** `{in_scope, out_scope}` — both keys, both filled. What is excluded is half the field (§39.1.2).
 
 **[7 · goal_statement · required]**
 > **Explain:** Your goal should mirror your problem — same metric, a target value, a deadline. That makes success unambiguous.
@@ -134,6 +137,7 @@ Belt has asked for anything.
 > Reads left to right: Suppliers give Inputs; your Process (5–7 high-level steps) turns them into Outputs, which go to Customers.
 > **Ask (column by column):** Let's build yours. First, the **Process** — what are the 5–7 main steps, start to end? … then Suppliers, Inputs, Outputs, Customers in turn. And: what do you measure on those outputs? (that's the sixth key, `process_metrics`). You can also upload a SIPOC if you have one.
 > **Confirm** the assembled SIPOC as a table; flag any thin column; check all six keys filled. Advance.
+> **Capture as:** `{suppliers, inputs, process_steps, outputs, customers, process_metrics}` — ALL SIX keys. Fewer than six filled is the partial-map failure the field exists to catch (§41).
 
 **[12 · issues_and_barriers · required]**
 > **Explain:** Last one — what might get in the way? Missing data, people to convince, systems you can't change, timing? Naming these now is what separates projects that finish from projects that stall.

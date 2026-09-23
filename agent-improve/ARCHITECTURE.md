@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.69 · 2026-09-23
+Version 1.70 · 2026-09-23
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.70 (2026-09-23)** — **§56 AMENDMENT. `CoachingResponse.fields_captured`'s DESCRIPTION CARRIES THE DECLARED SHAPE OF ALL NINE STRUCTURED COACHED FIELDS.** Founder ruling, applied as step A of the Define critical path with 6.48's enforcement half. **(A) WHAT CHANGED, AND WHAT DID NOT.** The description now names `team`, `metric_definitions`, `project_scope`, `process_map_sipoc`, `detailed_process_map`, `control_plan` and S-C32's three cross-phase reference dicts, each with its keys. **It is a DESCRIPTION, not a type change**: the ratified eight fields stay eight, `value` stays `Any`, and **a per-phase response schema stays ruled out — this is not one.** What changed is what the model is told, on the one channel it cannot miss. **(B) WHY THE CONTRACT AND NOT THE COACHING SCRIPT, MEASURED RATHER THAN ARGUED.** The shape was written into `skills/dmaic-define-phase/SKILL.md` first — correct content, right file, and **it did not reach the model.** SKILL.md loads at **level 2, on demand**, through the `load_skill` tool the coach must choose to call (§19.2, S-C12). **On four live turns, 2026-09-23, `load_skill` was called ZERO times and all four Define fields came back as prose.** **(C) A DECLARED SHAPE IS PART OF THE TYPE CONTRACT, NOT PART OF COACHING.** A contract that lives only in a document can be broken by editing that document, with nothing failing until a Belt reaches a gate — the failure class §55.2 exists for. **(D) FOUR REFERENCE KEYS, NOT THREE.** S-C32 carries `references_phase`, `references_field`, **`references_metric_name`** and `references_value`; the fourth names WHICH registry metric a link is about (F-13, closed 2026-08-26) and the shape is uniform across all three dicts. Checked against §63.6 before writing rather than recalled — the description would otherwise have taught the model a three-key shape the grader cannot resolve. **(E) ENFORCEMENT IS STILL AT CAPTURE** (step 6.48). This makes the contract REACHABLE; 6.48 makes it ENFORCED. Capability row 18 goes green on both, and neither does it alone. Reasoning: this commit body (§56.2).
 
 **v1.69 (2026-09-23)** — **§56 AMENDMENT. FOUR CORRECTIONS THAT UNBLOCK THE DEFINE VERTICAL — the document half of the founder's procedure amendment. NO CODE AND NO SCHEMA CHANGE; every code change stays a step.** **(A) §39.1.9 GAINS DEFINE'S `phase_metrics` ENTRY, AND IT IS WHAT UNBLOCKS 6.20's SCORECARD HALF.** One entry per registry metric engaged, assembled deterministically in `gate_apply` immediately before the `{Phase}Output` is constructed — **no model call** — carrying `name` and `unit` verbatim from `metric_definitions`, `baseline_estimate` and `target_value` from the captured fields of the same names, and `source: "stated"`, because Define states rather than measures. **The single-authority invariant (§39.2.3, S-F28) then holds BY CONSTRUCTION**: the entry's values ARE the captured scalars, so the two cannot drift — which is the reason the assembly is deterministic rather than a convenience. A model asked to restate a number it was shown is a second author of that number. **6.20's scorecard half was never blocked on code; it was blocked on this shape never having been written down**, and this subsection states once what §63.1's type comment and §63.9's table row carried separately. **(B) THE `computation_results` SCAN IS VALIDATION STACK LAYER 2d, NOT "THE GRADER" — §7 AND §39.3.7 CORRECTED.** §36 forbids conflating the two graders and this is where the conflation entered: `DMAICGraderMiddleware` (§19.8) judges COACHING PROCESS QUALITY every turn, Layer 2d judges GATE CONTENT once at the gate, and the scan is Layer 2d's — §62.9 B3, *"scan `artifacts["computation_results"]` for the relevant tool entry rather than asking the model."* **Attributing it to the middleware put a gate check on the turn path**, which step 7.2 would have inherited. **THREE MORE SITES CARRY THE SAME WORDING AND ARE DELIBERATELY UNTOUCHED** — §39.2.7 (Measure), §39.4.7 (Improve) and §39.5.7 (Control) — because the ratified card named two and widening a ratified card is how a correction becomes a sweep nobody reviewed. **They are reported rather than fixed**, and they are the same defect. **(C) §37 NAMED A STOP MECHANISM ITS OWN RULING FORBIDS.** It specified that the middleware *"raises `HITLInterrupt`"*; **that class is DELIBERATELY NEVER DEFINED** — ruling v1.21(D), carried as G-15 since 2026-09-10 — because step 7.3 pauses with LangGraph's own `interrupt()`, which is resumable by construction, and an exception from `after_agent` is not. **Anything built to this text would have built the forbidden thing.** Left open as *"a naming problem"* in v1.21 and v1.22; closed here by naming what actually pauses. Placement is step 6.44's: a stop belongs in a node, detection stays in the coach's existing reply. **AND §37's SCOPE IS STATED FOR THE FIRST TIME: it governs contradiction of a GATE-COMMITTED value only.** A Belt revising an uncommitted field mid-phase is ordinary coaching, its record is `PhaseState.field_log` (§6, step 6.33), and conflating the two would make every ordinary revision an interrupt. That warning existed only inside a field description the coach reads, never in the section governing the behaviour. **(D) §63.9's CONTROL ROW AND §39.5.3 NAMED DIFFERENT KEYS FOR ONE SHAPE.** The row said `post_improvement_metrics, improvement_delta`; the worked example writes `actual` and `delta`. **Both names exist elsewhere in Control's schema as top-level captured fields**, which is what made the disagreement plausible in both directions rather than obviously wrong in one. **§39.5.3 wins because it carries the worked example**, and the row now points there rather than restating it. Reasoning: this commit body (§56.2).
 
@@ -8449,7 +8451,7 @@ would leave the conversation history with nothing to append.
 | `example` | `str` | The worked example, marked as illustration | none | the executor's model call | the UI, as its own visually distinct block (§50.1) |
 | `prompt` | `str` | The request to the Belt — the call to action | none | the executor's model call | the UI, as the CTA block (§50.1) |
 | `progress` | `str` | Position indicator, e.g. "Define · 4 of 10" | none | the executor's model call | the UI, always visible (§50.1) |
-| `fields_captured` | `list[dict]` | Values the Belt supplied this turn. `value` is `Any`, deliberately: it must carry both plain strings and the three cross-phase reference dicts | none | the executor's model call | the executor node, which writes each entry to `artifacts` |
+| `fields_captured` | `list[dict]` | Values the Belt supplied this turn. `value` is `Any`, deliberately: it must carry both plain strings and the three cross-phase reference dicts. **Its DESCRIPTION carries the declared shape of all NINE structured coached fields** — §56 amendment, 2026-09-23; see below | none | the executor's model call | the executor node, which writes each entry to `artifacts` |
 | `citations` | `list[dict]` | Sources referenced this turn | none | the executor's model call | the executor node, which extends `PhaseState.citations` |
 | `contradiction_flag` | `Optional[dict]` | Set only where the Belt materially contradicts a gate-committed value. `None` otherwise, which is the overwhelmingly common case | none | the executor's model call | `ContradictionDetectionMiddleware` (S-C10) |
 
@@ -8482,6 +8484,38 @@ would leave the conversation history with nothing to append.
 - Structured output guarantees the flag's shape and presence, never the
   correctness of the coach's judgment in setting it. §50's all-gate-fields tab
   is the documented human backstop.
+
+> ### ⛑ `fields_captured`'s DESCRIPTION CARRIES THE DECLARED SHAPE
+> ### §56 AMENDMENT, ratified 2026-09-23
+>
+> **Nine coached fields across the five phases are objects rather than
+> strings** — §7's enumerated exceptions, S-C32's three cross-phase reference
+> dicts and S-C33's three structured dicts, plus `team`, `metric_definitions`
+> and `project_scope`. The description now names each with its keys.
+>
+> **WHY THE CONTRACT AND NOT THE COACHING SCRIPT.** The shape was written into
+> `skills/dmaic-define-phase/SKILL.md` first. That is correct content in the
+> right file and **it did not reach the model**: SKILL.md loads at **level 2,
+> on demand**, through the `load_skill` tool the coach must choose to call
+> (§19.2, S-C12). **Measured on four live turns, 2026-09-23: `load_skill` was
+> called ZERO times and all four Define fields came back as prose.**
+>
+> **A field's declared shape is part of its TYPE CONTRACT, not part of
+> coaching.** A contract that lives only in a document can be broken by editing
+> that document, and nothing fails until a Belt reaches a gate — which is the
+> failure class §55.2 exists for. This description is the structured-output
+> contract the model receives on **every** turn, with nothing to fetch and
+> nothing to choose.
+>
+> **IT IS A DESCRIPTION, NOT A TYPE CHANGE.** The ratified eight fields stay
+> eight; `value` stays `Any`; **a per-phase response schema stays ruled out**
+> and this is not one. What changed is what the model is told, on the one
+> channel it cannot miss.
+>
+> **Enforcement is still at capture** (step 6.48): a value that is not the
+> declared shape is refused and not stored, so this description makes the
+> contract *reachable* rather than making it *enforced*. The two halves are
+> what turn capability row 18 green, and neither does it alone.
 
 ### 58.6 S-C06 · `AzureBlobStore`
 

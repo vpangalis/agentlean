@@ -143,6 +143,29 @@ class CoachingResponse(BaseModel):
     **Adding a field here requires a §56 amendment**, the same as
     `SupervisorState` and `PhaseState`.
 
+    **`fields_captured` CARRIES THE DECLARED SHAPE — §56 amendment, ratified
+    2026-09-23.** Nine coached fields across the five phases are objects rather
+    than strings (§7's enumerated exceptions, S-C32 and S-C33), and the
+    description above names each with its keys.
+
+    **WHY THE CONTRACT AND NOT THE COACHING SCRIPT.** The shape was first
+    written into `skills/dmaic-define-phase/SKILL.md`, which is correct content
+    in the right file and **did not reach the model**: SKILL.md loads at LEVEL
+    2, on demand, through the `load_skill` tool the coach must choose to call
+    (§19.2, S-C12). Measured on four live turns, 2026-09-23 — `load_skill` was
+    called **zero** times and all four fields came back as prose.
+
+    **A field's declared shape is part of its TYPE CONTRACT, not part of
+    coaching.** A contract that lives only in a document can be broken by
+    editing that document, with nothing failing until a Belt reaches a gate.
+    This description is the structured-output contract the model receives on
+    **every** turn, with nothing to fetch and nothing to choose.
+
+    **It is a DESCRIPTION, not a type change.** The ratified eight fields stay
+    eight and `value` stays `Any` — S-C05 B-whatever is untouched, and a
+    per-phase response schema stays ruled out. What changed is what the model
+    is told, on the one channel it cannot miss.
+
     **THE FOUR PRESENTATIONAL FIELDS DEFAULT TO `""` — §56 amendment, v1.64,
     founder ruling 2026-09-15.** They were REQUIRED `str` from 6.19 until then,
     which made a model omitting `progress` fail the WHOLE TURN's structured
@@ -200,7 +223,29 @@ class CoachingResponse(BaseModel):
             "[{field_name, value, source}]. Name each field exactly as this "
             "phase's field list spells it. Empty when the Belt supplied "
             "nothing new — which is the common case on a teaching turn. "
-            "Never include a value the Belt did not state."
+            "Never include a value the Belt did not state.\n"
+            "\n"
+            "SHAPE OF `value`. For almost every field it is a plain string — "
+            "the Belt's own words, kept as they said them. NINE FIELDS ARE "
+            "NOT: they are objects, and a sentence describing one is REFUSED "
+            "and NOT STORED, which leaves the field uncaptured and the Belt "
+            "answering it again. Emit real structure, never prose about "
+            "structure:\n"
+            "  team → LIST of {name, role, function}, one entry per person\n"
+            "  metric_definitions → LIST of {name, unit, meaning}, one entry "
+            "per metric\n"
+            "  project_scope → {in_scope, out_scope}\n"
+            "  process_map_sipoc → {suppliers, inputs, process_steps, "
+            "outputs, customers, process_metrics} — all six\n"
+            "  detailed_process_map → {steps, cycle_times, resources, "
+            "value_vs_waste, measurement_points, baseline_metrics}\n"
+            "  control_plan → {documentation, monitoring, response, "
+            "training, aligning_systems}\n"
+            "  causal_hypothesis, solution_linked_to_root_cause, "
+            "post_improvement_metrics → the Belt's content PLUS "
+            "references_phase, references_field, references_metric_name, "
+            "references_value\n"
+            "Values INSIDE those objects are still strings."
         ),
     )
     citations: list[dict] = Field(

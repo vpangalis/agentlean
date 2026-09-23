@@ -91,7 +91,7 @@ from backend.middleware.contradiction import ContradictionDetectionMiddleware
 from backend.middleware.grader import DMAICGraderMiddleware
 from backend.middleware.skills import DMAICSkillsMiddleware
 from backend.middleware.state_injection import BeforeModelStateInjection
-from backend.phases.gate_registry import review_rows
+from backend.phases.gate_registry import review_rows, split_by_declared_type
 from backend.phases.mappers_common import PHASE_ORDER
 
 logger = logging.getLogger(__name__)
@@ -1559,6 +1559,32 @@ async def executor(
     # direction that loses data.
     prior_artifacts = dict(state.get("artifacts") or {})
     kept, empty_captures = split_captures(captured)
+
+    # ── 6.48 — the declared type is enforced HERE, at the capture site ──
+    #
+    # **Not at the model and not at assembly**, and both were ruled out rather
+    # than passed over. A per-phase response schema would make the model the
+    # enforcer, which is a §56 amendment and still leaves the value unchecked
+    # when the model ignores it. Coercing at assembly would INVENT the Belt's
+    # data — a sentence about three people is not three `{name, role, function}`
+    # entries, and anything turning one into the other is guessing which words
+    # were the names.
+    #
+    # Ordered AFTER the empty split deliberately: a `""` for a `dict` field is
+    # EMPTY, not malformed, and reporting it as the wrong type would send a
+    # reader looking for a shape problem in a field the Belt never answered.
+    kept, malformed = split_by_declared_type(phase, kept)
+    if malformed:
+        logger.warning(
+            "%s.executor: FINDING — %d capture(s) did not carry the type their "
+            "schema declares and were NOT stored: %s. The field stays "
+            "uncaptured, so the coach asks again — §4.8, the turn does not fail "
+            "for the Belt. Storing the prose would put a value in `artifacts` "
+            "that no gate document can be assembled from (step 6.48).",
+            phase, len(malformed),
+            ", ".join(f"{f} (needs {t})" for f, t in sorted(malformed.items())),
+        )
+
     if empty_captures:
         logger.warning(
             "%s.executor: FINDING — %d capture(s) arrived with no value and "
@@ -1596,10 +1622,11 @@ async def executor(
     # reports all three numbers, and they add up.
     logger.info(
         "%s.executor: focus=%s | turn %d | captured %d -> %d field(s) into "
-        "artifacts (%d empty, %d changed), %d new message(s), %d/%d hop(s), "
-        "%s remaining step(s), contradiction=%s",
+        "artifacts (%d not stored, %d changed), %d new message(s), %d/%d "
+        "hop(s), %s remaining step(s), contradiction=%s",
         phase, plan.focus_field if plan else "(none)", turn_ordinal,
-        len(captured), len(kept), len(empty_captures), len(log_entries),
+        len(captured), len(kept), len(empty_captures) + len(malformed),
+        len(log_entries),
         len(new_messages), hops_spent[0], hop_budget,
         remaining or "no", bool(reply and reply.contradiction_flag),
     )
@@ -1634,6 +1661,11 @@ async def executor(
             # queryable: `len(fields_captured)` and `len(fields_empty)` are
             # what reconcile a turn's log against its write.
             fields_empty=empty_captures,
+            # 6.48 — named with the type each needed, so the audit trail can
+            # answer "why is this field still blank on turn nine" without a
+            # re-run. `fields_captured` minus `fields_empty` minus this is what
+            # actually reached `artifacts`.
+            fields_malformed=dict(sorted(malformed.items())),
             fields_changed=sorted(e["field"] for e in log_entries),
             # Re-derived from the SAME function that built the bound list,
             # so the audit trail cannot disagree with what the coach actually

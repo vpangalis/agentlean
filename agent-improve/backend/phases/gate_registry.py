@@ -28,6 +28,10 @@ from backend.phases.control.schema import (
     ControlOutput,
     assemble_control_gate_document,
 )
+from collections.abc import Mapping
+
+from pydantic import TypeAdapter, ValidationError
+
 from backend.phases.define.schema import (
     DEFINE_REQUIRED_FOR_GATE_FIELDS,
     METRIC_DEFINITION_KEYS,
@@ -88,6 +92,77 @@ GATE_SPECS: dict[str, GateSpec] = {
         assemble_control_gate_document,
     ),
 }
+
+
+def _type_name(annotation: Any) -> str:
+    """`dict`, `list[dict]`, `str` — the name a person would write.
+
+    `str(dict)` is `"<class 'dict'>"` and `list[dict].__name__` is `"list"`,
+    so neither alone reads correctly for both. The report names the type the
+    Belt's value must carry, and a type named `list` when it means `list[dict]`
+    sends whoever reads it to the wrong place.
+    """
+    rendered = str(annotation)
+    if rendered.startswith("<class "):
+        return getattr(annotation, "__name__", rendered)
+    return rendered
+
+
+def declared_type(phase: str, field: str) -> Any | None:
+    """The type this phase's `{Phase}Output` declares for `field`, or `None`.
+
+    `None` means the schema does not declare the field at all — which is a
+    different condition from "declares it loosely", and the caller must not
+    conflate them. A name the schema does not know is not type-checked here;
+    that it was captured at all is a separate question (§39.x.2 tells the coach
+    the exact names) and is not this step's.
+    """
+    spec = GATE_SPECS.get(phase)
+    if spec is None:
+        return None
+    field_info = spec.model.model_fields.get(field)
+    return None if field_info is None else field_info.annotation
+
+
+def split_by_declared_type(
+    phase: str, values: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, str]]:
+    """Captured values split into those carrying their declared type and those not.
+
+    **Step 6.48 — the type is enforced AT CAPTURE.** Returns
+    `(conforming, malformed)`, where `malformed` maps a field name to the
+    declared type it failed, so the report can name both.
+
+    **NOTHING IS COERCED, AND THAT IS THE RULING RATHER THAN A LIMITATION.**
+    `TypeAdapter.validate_python` is used for the check and its RESULT IS
+    DISCARDED: the original value is stored when it passes, and when it fails
+    the field stays uncaptured. **Coercing prose into a declared shape invents
+    the Belt's data** — a sentence about three people is not a list of three
+    `{name, role, function}` entries, and anything that turns one into the
+    other is guessing which words were the names. §7's whole argument for
+    string fields is that *"the gate document shows the Belt's exact words"*.
+    Measured before relying on it: Pydantic rejects prose for `dict` and
+    `list[dict]` in lax mode as well as strict, so the check does not depend on
+    a mode setting that a later edit could relax.
+
+    **A field the schema does not declare passes through untouched.** It has no
+    declared type to carry, so there is nothing to enforce; reporting it here
+    would report a different defect under this one's name.
+    """
+    conforming: dict[str, Any] = {}
+    malformed: dict[str, str] = {}
+    for name, value in dict(values or {}).items():
+        annotation = declared_type(phase, name)
+        if annotation is None:
+            conforming[name] = value
+            continue
+        try:
+            TypeAdapter(annotation).validate_python(value)
+        except ValidationError:
+            malformed[name] = _type_name(annotation)
+        else:
+            conforming[name] = value          # the ORIGINAL, never the parsed copy
+    return conforming, malformed
 
 
 def tier_of(phase: str, field: str) -> int | None:
@@ -239,6 +314,7 @@ def missing_gate_fields(phase: str, data: dict[str, Any]) -> list[str]:
 
 
 __all__ = [
+    "declared_type", "split_by_declared_type",
     "GateSpec",
     "GATE_SPECS",
     "tier_of",

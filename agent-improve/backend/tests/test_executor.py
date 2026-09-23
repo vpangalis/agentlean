@@ -258,11 +258,15 @@ def test_a_capture_without_a_field_name_is_dropped_not_guessed(stub_coach) -> No
         fields_captured=[
             {"value": "orphaned", "source": "belt"},
             {"field_name": "  ", "value": "also orphaned"},
-            {"field_name": "team", "value": "Ana, Bo"},
+            # `team` is declared `list[dict]` (§39.1.4). Prose here was
+            # stored until step 6.48 enforced the declared type at capture.
+            {"field_name": "team", "value": [{"name": "Ana", "role": "lead",
+                                              "function": "finance"}]},
         ],
     )
     out = _run(_c.executor("define", _state()))
-    assert out["artifacts"] == {"team": "Ana, Bo"}
+    assert out["artifacts"] == {"team": [{"name": "Ana", "role": "lead",
+                                          "function": "finance"}]}
 
 
 def test_a_reference_dict_value_survives_as_a_dict(stub_coach) -> None:
@@ -577,6 +581,32 @@ def test_a_turn_that_drew_nothing_attaches_nothing(stub_coach) -> None:
 # ══════════════════════════════════════════════════════════════════════════
 
 
+def _typed_value(field: str):
+    """A value carrying the type `DefineOutput` declares for `field`.
+
+    Step 6.48. Four of Define's thirteen gate-required fields are structured;
+    a fixture that hands them prose is testing a capture the gate can never
+    assemble from, which is what made this defect invisible for months.
+    """
+    from backend.phases.gate_registry import declared_type
+
+    shapes = {
+        "team": [{"name": "Ana", "role": "lead", "function": "finance"}],
+        "project_scope": {"in_scope": "UK billing", "out_scope": "credit notes"},
+        "process_map_sipoc": {"suppliers": "s", "inputs": "i",
+                              "process_steps": "p", "outputs": "o",
+                              "customers": "c", "process_metrics": "m"},
+        "metric_definitions": [{"name": "invoice_error_rate", "unit": "%",
+                                "meaning": "returned for correction"}],
+    }
+    if field in shapes:
+        return shapes[field]
+    assert declared_type("define", field) is str, (
+        f"{field} is not `str` and has no shape in this fixture"
+    )
+    return f"value for {field}"
+
+
 def test_the_define_gate_opens_on_v2_captured_fields(stub_coach) -> None:
     """**WATCH 7's closing condition, checked against `validate_define`.**
 
@@ -590,8 +620,12 @@ def test_the_define_gate_opens_on_v2_captured_fields(stub_coach) -> None:
 
     stub_coach.reply = CoachingResponse(explanation="", example="", prompt="", progress="", 
         message="Captured.",
+        # **Each value carries the type its schema declares** (step 6.48).
+        # A uniform `f"value for {name}"` put prose into the four structured
+        # fields, and until 6.48 nothing noticed — which is why a complete
+        # capture set could never assemble a gate document.
         fields_captured=[
-            {"field_name": name, "value": f"value for {name}", "source": "belt"}
+            {"field_name": name, "value": _typed_value(name), "source": "belt"}
             for name in DEFINE_REQUIRED_FOR_GATE_FIELDS
         ],
     )

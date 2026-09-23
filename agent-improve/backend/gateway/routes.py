@@ -29,6 +29,7 @@ from backend.gateway.schemas import SummariseRequest, SummariseResponse
 from backend.gateway.schemas import ContextRequest, ContextResponse
 from backend.core.store import get_store
 from backend.core.substate import merge_field_log, split_captures
+from backend.phases.gate_registry import split_by_declared_type
 from backend.phases.mappers_common import PHASE_ORDER, asks_for_phase, read_case_record
 from backend.storage import blob
 from backend.storage.models import CaseDocument, UploadRecord
@@ -438,6 +439,23 @@ def apply_capture(case: CaseDocument, phase: str, payload: dict[str, Any]) -> No
         return
 
     captured, empty = split_captures(payload.get("v1_draft") or {})
+
+    # 6.48 — THE SAME REFUSAL AT THIS END, and it is not belt-and-braces.
+    # `structured` seeds the next turn's `artifacts` through
+    # `captured_from_document`, so prose stored here is prose the accumulator
+    # inherits tomorrow — and the two records of one field would disagree,
+    # which is exactly the condition step 6.33 closed one field over.
+    captured, malformed = split_by_declared_type(phase, captured)
+    if malformed:
+        logger.warning(
+            "%s: FINDING — %d capture(s) did not carry the type their schema "
+            "declares and did NOT reach the case record: %s. The field stays "
+            "uncaptured and the coach asks again; the gate document cannot be "
+            "assembled from prose (step 6.48).",
+            phase, len(malformed),
+            ", ".join(f"{f} (needs {t})" for f, t in sorted(malformed.items())),
+        )
+
     if empty:
         logger.warning(
             "%s: FINDING — %d capture(s) arrived with no value and did NOT "
