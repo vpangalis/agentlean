@@ -19,14 +19,32 @@
 # BUILT markers, §66 and git log, then stages it - so the board a founder
 # reads is a projection of the documents rather than a hand-drawn caption that
 # goes stale on the first commit after it is drawn.
+#
+# A third, AFTER the board because it reads it: the control board generator
+# (agent-improve/tools/control_board/) renders docs/control-board.html - the
+# plan, NEXT and the capability count - from board.html, stories.py,
+# Appendix H and git log. Same rule: if it fails, the previous page stays
+# and the commit proceeds - but VISIBLY (founder, 2026-09-23, G-91): the hook
+# prints a warning, and the page's BUILT FROM line keeps naming the last
+# commit it was built from, so a stale board announces itself.
 CONTINUITY=".claude/hooks/pre-commit-continuity.py"
 BOARD=".claude/hooks/build_board.py"
+CONTROL="agent-improve/tools/control_board/build_control_board.py"
 
 for PY in python3 python py; do
     if command -v "$PY" >/dev/null 2>&1; then
         [ -f "$CONTINUITY" ] && "$PY" "$CONTINUITY"
         if [ -f "$BOARD" ]; then
             "$PY" "$BOARD" && git add agent-improve/docs/board.html 2>/dev/null
+        fi
+        if [ -f "$CONTROL" ]; then
+            if "$PY" "$CONTROL" agent-improve/docs/board.html \
+                     agent-improve/docs/control-board.html; then
+                git add agent-improve/docs/control-board.html 2>/dev/null
+            else
+                echo "  [control-board] WARNING: control-board.html was NOT rebuilt;" \
+                     "it is stale from this commit on - see the error above" >&2
+            fi
         fi
         exit 0
     fi

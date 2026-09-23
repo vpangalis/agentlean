@@ -7205,7 +7205,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-88** | **AN ASK NEVER SURVIVES THE TURN THAT CREATED IT, FOR TWO INDEPENDENT REASONS, AND NEITHER IS FIXED HERE.** **(a) THE MIRROR READS A KEY THAT IS NOT ON THE SCHEMA IT READS FROM.** `gateway/routes.py::_mirror_asks` does `(result or {}).get("asks")`, where `result` is the return of `graph.ainvoke` on the **PARENT** graph — and `SupervisorState` is seven fields (§5), none of them `asks`. The parent's phase node returns `messages` and `history` and nothing else, so the child's `asks` reach no caller. The lookup yields `None`, the function returns at its own guard, and **`write_asks` has never once been called.** This is the `route_after_phase` class this group is named for: specified code reading state a schema does not declare. **(b) AND THE RECORD IS WHOLESALE-REPLACED EACH TURN REGARDLESS.** `_ensure_case_record` runs at the top of every `/ask` and calls `write_case_record(store, id, case_record_from_document(case))`, which `store.put`s a record built from the case blob alone — framing, uploads, and since step 6.33 the captured values and the field log. `asks_by_phase` is **written by `write_asks` and rebuilt by nothing**, so even a mirror that ran would be erased before the next turn's input mapper read it. **The two stack**: fixing (a) alone leaves the write destroyed one turn later, and fixing (b) alone leaves nothing to preserve. **NEITHER IS FIXED.** Found 2026-09-21 while step 6.33 chose a home for `field_log` — the choice turned on this exact question, and `PhaseRecord.field_log` was taken partly because the Store record is not safe to write mid-turn until (b) is fixed. **Does not block Define**, which declares zero ask shapes (ruling AR-R2), so no Define turn can create an ask to lose. **Scheduled for stage three with 6.12's re-homed `live-run`.** | S-C02, S-F10, §6, §9, §10.2 | **stage 3** |
 | **G-89** | **`field_log.reason` IS DECLARED AND NOTHING WILL EVER POPULATE IT — THE DECLARED-AND-NEVER-POPULATED CLASS, CAUGHT AT BIRTH THIS TIME.** Step 6.33's ratified entry shape carries *"the Belt's stated reason where given"*, read from a `reason` key on the capture entry — which `CoachingResponse.fields_captured` PERMITS, its entries being free-form dicts, and which **nothing asks the coach to supply**: S-C05's field description names `field_name`, `value` and `source`, and no more. **Both entries from the 2026-09-21 `live-run` carry `None`**, and the Belt's second message stated a reason in prose — *"the earlier figure left out the late-payment penalties"* — which reached the coaching text and not the log. **This is `computation_results` and `phase_metrics`' class** (read by five gate assemblers, written by nothing) and `field_index`' class (set to `0`, advanced by nothing) — a field that lands in a schema and not in the path that fills it. **What is different is that it is registered on the day it was built rather than found months later**, which is the whole of §55.2's argument. **The fix is one clause on `CoachingResponse`** — add `reason` to the `fields_captured` description so the coach is asked — **and it is a §56 amendment to S-C05, deliberately NOT made in commit 6.33.** **OWNER: the procedure amendment now being drafted**, which carries it with 6.42 and §39.1.9. Until then the column is honestly empty: a column that exists and is empty says *"nobody was asked"*, where a column that does not exist says nothing at all and the next reader rediscovers why. | S-C05, S-C02, §6, §20 | **the procedure amendment** |
 | **G-90** | **THE VERIFICATION TOOLING PARSES AN ERROR BODY AS DATA, SO A FAILED READ IS INDISTINGUISHABLE FROM AN EMPTY RESULT — G-66'S SHAPE, ONE LAYER UP.** During step 6.33's `live-run` a read of the case document was issued against `/case/{id}`; the served route is `/cases/{id}`, so the response was a **404** carrying `{"detail":"Not Found"}`. The reader did `json.load(...)` and walked `(c.get("phases") or {}).get("define")` — **a valid JSON object with no `phases` key, so the walk yielded `{}` and the check reported `structured: null`.** That is byte-identical to what a case which had genuinely captured nothing would report, and it was believed until `-w "%{http_code}"` was added. A **400** was read the same way one turn later, reporting `phase_inputs: null` for a turn that never ran at all. **This is G-66 exactly** — *"a 503 `{"detail": …}` is a valid JSON OBJECT, so `data.length` is `undefined`, falsy, and the empty-state message renders"* — with the verifier in the UI's place, and it is the more dangerous seat of the two: **the UI misleads a Belt, and this misleads a step's own evidence.** G-66 was fixed in `ui/index.html` on 2026-09-15; **nothing generalised it**, because the tooling side is ad-hoc `curl` in step prose rather than a file anybody owns. **NOT FIXED.** Interim containment, with its removal condition: **every live read written into this document from 2026-09-21 checks the status before it reads the body** — 6.33's own section carries that instruction, and it retires when a checked reader exists that a step can call instead of writing its own. | §49, §55.1, G-66 | **unscheduled** |
-| **G-91** | **THE PLAN AND ITS GENERATOR LIVED OUTSIDE THE REPOSITORY, WHERE NO HOOK COULD READ THEM OR CHECK THEM AGAINST THE TREE.** The epics, stories and rank (`stories.py`) and the generator that renders the control board from them were kept in the Desktop session's workspace. **Appendix I names `stories.py` as the plan's single source** (founder ruling, 2026-09-23), and at that moment the pointer did not resolve: `git ls-files` returned nothing for it, tracked or untracked. So the plan could drift from Appendix H and from git log with nothing to notice. The control board's rows-proven count, its story and task statuses and its NEXT were all TYPED, and they stayed right only while somebody remembered to retype them. **Registered first, in its own commit, because §0.32's guard refused the generator's files for want of a number that schedules them** — which was accurate, since nothing did. **Closes when** the generator is tracked under `agent-improve/tools/control_board/`, runs in the pre-commit hook, and derives from Appendix H and git log what it used to declare | §0.32, §55.1, Appendix H, Appendix I | **unscheduled** — closed by the commit carrying `Gap: G-91` |
+| ~~**G-91**~~ | **THE PLAN AND ITS GENERATOR LIVED OUTSIDE THE REPOSITORY. CLOSED 2026-09-23** by the commit carrying `Gap: G-91`: the generator is tracked under `agent-improve/tools/control_board/`, runs in `.githooks/pre-commit` after `build_board.py`, derives rows proven, story and task status and NEXT from Appendix H, git log and rank, and fails VISIBLY — a warning from the hook, and a BUILT FROM line on the page that goes stale when a build fails. **Still open, and not this gap:** Appendix F's `Order` is hand-set (Appendix I says so). As registered: The epics, stories and rank (`stories.py`) and the generator that renders the control board from them were kept in the Desktop session's workspace. **Appendix I names `stories.py` as the plan's single source** (founder ruling, 2026-09-23), and at that moment the pointer did not resolve: `git ls-files` returned nothing for it, tracked or untracked. So the plan could drift from Appendix H and from git log with nothing to notice. The control board's rows-proven count, its story and task statuses and its NEXT were all TYPED, and they stayed right only while somebody remembered to retype them. **Registered first, in its own commit, because §0.32's guard refused the generator's files for want of a number that schedules them** — which was accurate, since nothing did. **Closes when** the generator is tracked under `agent-improve/tools/control_board/`, runs in the pre-commit hook, and derives from Appendix H and git log what it used to declare | §0.32, §55.1, Appendix H, Appendix I | closed |
 
 ### 66.3 Group C — schemas named but never defined
 
@@ -7610,31 +7610,41 @@ the critical path by inference rather than by ruling. That is the failure the
 Appendix D and `BUILD_TRACKER.md` had before guard rule 2 was deleted for it.
 **One is written and the other is computed, or they drift.**
 
-### ⛔ THE FILE IS NOT IN THE TREE YET — recorded 2026-09-23
+### ✅ THE FILE IS IN THE TREE, AND THE PRE-COMMIT HOOK READS IT — 2026-09-23
 
-**Checked at the time of writing, per §0.32**, and the pointer above does not
-resolve today:
+**`agent-improve/tools/control_board/stories.py` resolves**, and
+`build_control_board.py` reads it on every commit — `.githooks/pre-commit`
+runs it after `build_board.py` and stages `docs/control-board.html`. What that
+page shows from the plan is now DERIVED, not typed:
 
-```
-git ls-files | grep -iE "control_board|stories\.py|system_view|build_control_board"
-   → (no output)
-git status --porcelain -uall | grep -i "tools/"
-   → (no output)
-```
+| On the control board | Derived from |
+|---|---|
+| Capability rows proven | **Appendix H** — the count of 🟢 rows, not the stories that claim them |
+| A story is DONE | **Appendix H** — every one of its rows is 🟢 |
+| A task is DONE | **git log** — `refactor(arch-v2): commit X.Y`, the rule `build_board.py` uses |
+| NEXT | **rank** — the top-ranked story that is not done, and its first open step |
 
-`agent-improve/tools/` does not exist, tracked or untracked. **So the rule is
-ratified and the derivation is NOT LIVE**: `Order` is still hand-set in
-Appendix F, and the run below was transcribed from the 2026-09-23 ruling rather
-than computed from rank.
+**What is still typed, and labelled `HAND` on the page:** the status of a
+story with no rows yet, of a task that is not a procedure step, and of every
+bug — no source owns those. The component inventory stays `RELAYED`, from the
+tree audit at `208e4a7`.
 
-**Saying so is the point.** A projection that does not run is a hand-maintained
-column with a story about itself, and this appendix would otherwise read as
-though the drift had been closed when it has not. **It closes when the file
-lands and something reads it.**
+> ### ⧗ NOT YET LIVE — Appendix F's `Order` is still hand-set
+>
+> **The rule above is ratified; its derivation is not built.** `build_board.py`
+> reads `Order` from Appendix F (`read_order()`), and nothing computes that
+> column from `stories.py`'s rank. **The two agree today**: ranks 1–6 are
+> S9, S33, S7, S4, S5 and S6, and S6's two steps (7.3 and 7.7) take `Order` 6
+> and 7. They agree because both were written from the same ruling, **not
+> because anything enforces it**. The control board's NEXT and order strip
+> read rank, and the step board reads `Order`, so an edit to one shows up as
+> the two boards disagreeing. It closes when `Order` is computed from rank, or
+> checked against it at the commit gate.
 
 ### The run of work, as ruled 2026-09-23
 
-Transcribed, pending derivation. `Order` in Appendix F matches it exactly.
+Transcribed from the ruling. `Order` in Appendix F and rank in `stories.py`
+both match it.
 
 | Order | Step | |
 |---|---|---|
