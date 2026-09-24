@@ -1409,6 +1409,13 @@ async def executor(
     already reads — `sipoc_diagram` for a SIPOC, `visualisation` for the 5W2H
     mind map (`gateway/routes.py` reads exactly those).
     """
+    # §44 / G-92 — THE BUDGET'S CLOCK STARTS HERE, at node entry, because the
+    # engine's `TimeoutPolicy` wall starts here too. Anchored at
+    # `agent.ainvoke` instead, the ~5 s this node spends building the agent and
+    # dispatching the planner's read came off the WALL but not off the budget,
+    # so the soft deadline fell after the wall and the engine cancelled the
+    # node first (trace 01a0d215…: soft at 54.7 s, wall at 54.2 s).
+    _node_entered = asyncio.get_running_loop().time()
     turn_count = state.get("turn_count") or 0
     plan = state.get("coaching_plan")
 
@@ -1453,13 +1460,19 @@ async def executor(
     prior = [*(state.get("messages") or []), *dispatched]
     hit_cap = False
     timed_out = False
-    _started = asyncio.get_running_loop().time()
+    # What is LEFT of the node's budget, not a fresh one: time already spent
+    # above is time the wall has already counted. Floored at zero, so a setup
+    # that overran the budget times the agent out at once and still composes.
+    remaining_budget = max(
+        0.0,
+        EXECUTOR_SOFT_BUDGET - (asyncio.get_running_loop().time() - _node_entered),
+    )
     try:
-        # §44 / G-84 — the node's OWN budget, so the ENGINE's wall is never
-        # the thing that ends this turn. `asyncio.wait_for` cancels the agent
-        # loop and raises HERE, inside the node, where the composition below
-        # can still run. Read from the module global at call time so a test
-        # can inject a small budget without sleeping for forty seconds.
+        # §44 / G-84, G-92 — the node's OWN budget, so the ENGINE's wall is
+        # never the thing that ends this turn. `asyncio.wait_for` cancels the
+        # agent loop and raises HERE, inside the node, where the composition
+        # below can still run. `EXECUTOR_SOFT_BUDGET` is read from the module
+        # global at call time so a test can inject a small budget.
         result = await asyncio.wait_for(agent.ainvoke(
             {"messages": prior},
             # §16 — the infinite-loop backstop, NOT the hop cap. Passed
@@ -1469,7 +1482,7 @@ async def executor(
             # route sets 50 and silently wrong when a test or a script invokes
             # this node directly.
             config={"recursion_limit": COACH_RECURSION_BACKSTOP},
-        ), timeout=EXECUTOR_SOFT_BUDGET)
+        ), timeout=remaining_budget)
     except asyncio.TimeoutError:
         # §4.8 — NEVER A HARD FAILURE TO THE BELT, and this is the path that
         # was missing. Before G-84 the engine's `TimeoutPolicy` fired instead,
@@ -1478,11 +1491,11 @@ async def executor(
         # a `step_log` entry that says it was partial.
         timed_out = True
         logger.warning(
-            "%s.executor: TIMED OUT at %.1fs of a %.1fs budget after %d "
+            "%s.executor: TIMED OUT at %.1fs (from node entry) of a %.1fs budget after %d "
             "hop(s) — composing a degraded answer (§4.8, G-84). The engine's "
             "%.0fs wall was NOT reached, which is the point: it stays a "
             "backstop rather than the ordinary failure path.",
-            phase, asyncio.get_running_loop().time() - _started,
+            phase, asyncio.get_running_loop().time() - _node_entered,
             EXECUTOR_SOFT_BUDGET, hops_spent[0], 45.0,
         )
         result = {"messages": [*prior, AIMessage(content=_TIMEOUT_MESSAGE)],

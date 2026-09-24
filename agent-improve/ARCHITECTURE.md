@@ -6220,6 +6220,17 @@ accepted as a hard cap that is *not* refreshed. `run_timeout=45` is the
 ratified value; `idle_timeout` is available if a long legitimate tool call ever
 needs distinguishing from a hang.
 
+> **STATUS, 2026-09-24 — step 6.52 B1, G-92. What is built, recorded so this
+> section is not silently false; the rule that would bind it is a DRAFTED
+> amendment in that commit's body, not applied.** The wall is still
+> `run_timeout=45`. Beneath it, the executor's own soft budget
+> (`EXECUTOR_SOFT_BUDGET`, 40 s, step 6.34) is now measured from **node
+> entry** — the moment the wall starts — rather than from `agent.ainvoke`, and
+> the three `rag_lookup_*` tools run their synchronous searches in worker
+> threads, together, so they cannot hold the event loop that both timers need.
+> Before this, two live turns on 2026-09-24 reached the wall and the Belt got a
+> 500 (traces `01a0d215…`, `01a0d28e…`).
+
 **Prefer `set_node_defaults` over repeating the policy on every node.**
 LangGraph provides graph-wide defaults for `retry_policy`, `error_handler`,
 `timeout` and `cache_policy`, which is a better fit for a rule phrased as

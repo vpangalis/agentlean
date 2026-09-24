@@ -56,56 +56,13 @@ def test_the_import_time_assert_catches_an_inversion() -> None:
 
 # ── the degraded turn ───────────────────────────────────────────────────────
 
-class _SlowAgent:
-    """An agent that outlives the budget. `ainvoke` awaits a real sleep, but
-    a MILLISECOND one — the budget is what shrinks, never the clock."""
-
-    def __init__(self, delay: float = 0.20) -> None:
-        self.delay = delay
-        self.invoked = False
-
-    async def ainvoke(self, payload: Any, config: Any = None) -> dict:
-        self.invoked = True
-        await asyncio.sleep(self.delay)
-        return {"messages": [], "structured_response": None}
-
-
-def test_an_agent_that_outlives_the_budget_yields_a_degraded_answer(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The shape of the fix, at the seam where it happens.
-
-    `asyncio.wait_for` must raise INSIDE the node so the composition below it
-    still runs. Asserted on the OUTCOME — a message the Belt can read — rather
-    than on the exception, because the exception is the mechanism and the
-    message is the contract.
-    """
-    monkeypatch.setattr(nodes_common, "EXECUTOR_SOFT_BUDGET", 0.01)
-    agent = _SlowAgent()
-    prior: list = []
-
-    async def drive() -> tuple[bool, dict]:
-        # The executor's own shape, at the seam. `asyncio.run` rather than a
-        # pytest-asyncio marker: this suite has no async plugin, and the other
-        # async tests here drive coroutines the same way.
-        try:
-            return False, await asyncio.wait_for(
-                agent.ainvoke({"messages": prior}),
-                timeout=nodes_common.EXECUTOR_SOFT_BUDGET,
-            )
-        except asyncio.TimeoutError:
-            return True, {
-                "messages": [*prior, nodes_common.AIMessage(
-                    content=nodes_common._TIMEOUT_MESSAGE)],
-                "structured_response": None,
-            }
-
-    timed_out, result = asyncio.run(drive())
-
-    assert agent.invoked, "the agent must have been started, not skipped"
-    assert timed_out, "the budget did not fire — the test proves nothing"
-    assert result["structured_response"] is None
-    assert result["messages"][-1].content == _TIMEOUT_MESSAGE
+# RETIRED at step 6.52 (G-92): `_SlowAgent` and
+# `test_an_agent_that_outlives_the_budget_yields_a_degraded_answer`. It proved
+# the budget by RE-IMPLEMENTING the executor's `wait_for` inside the test,
+# around an agent that awaited a millisecond sleep — so it passed while two
+# live turns hit the 45 s wall with a 500 (traces 01a0d215…, 01a0d28e…). The
+# real executor node, under the real `TimeoutPolicy`, with a setup delay and a
+# BLOCKING tool, is `test_turn_budget.py::test_a_slow_turn_answers_before_the_wall`.
 
 
 def test_the_belt_facing_message_says_what_happened() -> None:
@@ -178,6 +135,15 @@ def test_the_executor_guards_its_own_invoke() -> None:
 
     tree = ast.parse(textwrap.dedent(inspect.getsource(nodes_common.executor)))
 
+    def names_in(node: ast.AST) -> set[str]:
+        return {n.id for n in ast.walk(node) if isinstance(n, ast.Name)}
+
+    anchored_names = {
+        t.id for n in ast.walk(tree) if isinstance(n, ast.Assign)
+        for t in n.targets if isinstance(t, ast.Name)
+        if {"EXECUTOR_SOFT_BUDGET", "_node_entered"} <= names_in(n.value)
+    }
+
     guarded = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Await):
@@ -199,8 +165,11 @@ def test_the_executor_guards_its_own_invoke() -> None:
         )
         budget = next((k.value for k in call.keywords if k.arg == "timeout"),
                       None)
+        # 6.52 (G-92): the timeout is what REMAINS of the node's budget, and
+        # that name must be computed from BOTH the module's budget and the
+        # node-entry anchor — read off the assignment, never off a comment.
         from_module = (isinstance(budget, ast.Name)
-                       and budget.id == "EXECUTOR_SOFT_BUDGET")
+                       and budget.id in anchored_names)
         guarded.append((wraps_agent, from_module))
 
     assert guarded, (
@@ -211,8 +180,9 @@ def test_the_executor_guards_its_own_invoke() -> None:
         "`asyncio.wait_for` is present but does not wrap `agent.ainvoke` — "
         "the guarded await is the wrong one")
     assert any(b for _, b in guarded), (
-        "the timeout is not `EXECUTOR_SOFT_BUDGET` — a literal here cannot be "
-        "injected by a test and cannot be kept below the engine wall")
+        "the timeout is not what remains of `EXECUTOR_SOFT_BUDGET` since node "
+        "entry — a literal cannot be injected by a test, and a budget started at "
+        "the agent call lands after the engine wall (G-92)")
 
 
 def test_the_timeout_is_caught_where_it_is_raised() -> None:

@@ -44,6 +44,7 @@ Complexity belongs inside the tool, not exposed to the model.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import (
     Any,
@@ -292,9 +293,23 @@ async def run_multi_query(
     variants = await make_variants(query)
     queries = [query, *variants]
 
-    ranked_lists: list[list[T]] = []
-    for q in queries:
-        ranked_lists.append(list(search(q)))
+    # §44 / G-92 — OFF THE EVENT LOOP, AND TOGETHER. Every `search` makes two
+    # synchronous HTTP round trips (`embed_query`, then the index search), and
+    # a lookup makes one per query — four to six. Run inline they held the
+    # loop for ~10 s per lookup, so no timer could fire, the node's own
+    # budget included (trace 01a0d28e…: the wall surfaced 0.1 s after
+    # `rag_lookup_case_history` returned). A worker thread each, gathered:
+    # the loop stays free and the lookup costs about one round trip, not six.
+    # A search failure still propagates — `gather` raises the first one.
+    #
+    # FOLLOW-UP, NOT DONE HERE: the aio `SearchClient` and async embeddings
+    # would remove the threads altogether. That needs its own step number.
+    def one(q: str) -> list[T]:
+        return list(search(q))
+
+    ranked_lists: list[list[T]] = list(await asyncio.gather(
+        *(asyncio.to_thread(one, q) for q in queries)
+    ))
 
     fused = reciprocal_rank_fusion(ranked_lists, k=RRF_K, key=key)
     logger.info(

@@ -5761,6 +5761,84 @@ field name and not stored**, so the coach asks again (§4.8); a test drives the
 `IMPR-2026-0E5` pair and fails on it; and a `live-run` produces a baseline and
 target that Control could compare.
 
+## Step 6.52 — A turn always answers inside its budget
+
+| | |
+|---|---|
+| **Reference §** | §4.8 · §19.7 · §19.8 · §44 · §45 · G-84 · G-92 |
+| **Touches** | `backend/phases/nodes_common.py` · `backend/knowledge/fusion.py` · `backend/middleware/grader.py` · `backend/middleware/coherence.py` · `backend/tests/` |
+| **Precondition** | **6.49** — row 2's check exists and is red on two live turns. Landed |
+| **NEEDS** | *(nothing — 6.34's soft budget and the three lookups exist; this makes them hold)* |
+| **GIVES** | Capability row **2** (a turn returns a coached reply) and row **13** (the coaching rubric scores the turn) |
+| **Verify** | `pytest` + `live-run` |
+| **Status** | **RULED — founder 2026-09-24. Part A reviewed; Part B building** |
+
+**Admission (clause 5): row 2 is red, and it blocks every live-turn check
+still to come.** Both live turns on `IMPR-2026-0E5` on 2026-09-24 hit the
+executor's 45 s wall and reached the Belt as a 500.
+
+| Trace | Where the 45 s went |
+|---|---|
+| `01a0d215-a216-75e2-ba80-1c80597f891f` | The grader failed the reply twice and was re-judging **the same text** (three inputs, 2,642 characters each, zero differing lines) |
+| `01a0d28e-d4da-7901-a75e-44d86b102098` | Three knowledge lookups in a row, ~32 s; each held the event loop |
+
+> ### ⇒ PART A FOUND TWO REASONS THE SOFT BUDGET NEVER FIRED (G-92)
+>
+> 1. **Its clock started late.** `asyncio.wait_for` wrapped only
+>    `agent.ainvoke`; the engine's wall starts at node entry. 5.5 s and 4.9 s
+>    had gone before the budget began, so the soft deadline fell AFTER the
+>    wall (trace 01a0d215…: soft at 54.7 s, wall at 54.2 s).
+> 2. **The lookups blocked the event loop.** Each `rag_lookup_*` is `async`
+>    but ran synchronous `embed_query` + `search`, once per query, four to six
+>    queries in a row. No timer can fire on a blocked loop: on trace
+>    01a0d28e… the wall surfaced 0.1 s after `rag_lookup_case_history`
+>    returned.
+>
+> **Escape:** `test_executor_timeout.py` proved the budget by
+> re-implementing `wait_for` inside the test around an agent that awaited a
+> millisecond sleep — never the real node, never the real wall, never a
+> blocking tool.
+
+### B1 — the soft budget holds
+
+1. The soft deadline is anchored at executor-node **ENTRY**: what remains of
+   `EXECUTOR_SOFT_BUDGET` since entry is what `wait_for` gets. The import-time
+   assertion that soft < wall stays.
+2. The lookups stop blocking the loop: each query's synchronous search runs in
+   `asyncio.to_thread`, and a lookup's four to six queries run together under
+   `asyncio.gather`. **Not in this step:** the aio `SearchClient` and async
+   embeddings — follow-up work that needs its own step number.
+3. Tests on the REAL executor node under the REAL `TimeoutPolicy`, with a
+   setup delay and a tool that BLOCKS (`time.sleep`); a watchdog that no
+   lookup holds the loop > 100 ms; a mutation proof per fix. The
+   re-implementation in `test_executor_timeout.py` is retired.
+4. Appendix F's 6.34 anchor moves from the constant to the new check.
+5. Live: one open-question turn on `0E5` (two or more lookups) returns 200 in
+   under 45 s; its trace id goes into Appendix H row 2.
+
+### B2 — a judge judges each distinct reply once
+
+1. **Grader:** one grading per distinct reply text. On FAIL, pass through with
+   the Belt-visible warning (§19.8's end state). The verdict is written to
+   `step_log` with `layer: "coaching_grader"`.
+2. **Coherence:** one check per distinct reply. On reject, degrade and skip the
+   grader, as today, without re-checking identical text.
+3. Tests: each judge is called once per distinct text; a FAIL verdict is in
+   `step_log`; any middleware retry changes its input or makes one call. Row
+   13's strict-xfail marker comes off; row 12 stays xfail.
+
+**Not this step — 6.53:** regeneration on a FAIL (`jump_to="model"`), gated on
+the latency ruling for G-83. Until then a judge's iterations are one.
+
+**Done when:** a slow turn — setup delay plus a blocking lookup — ends in the
+node's own degraded answer and a `partial_timeout` entry, never the engine's
+`NodeTimeoutError`; no lookup holds the event loop; each judge sees a given
+reply once and the grader's verdict is in `step_log`; each fix has a mutation
+proof that goes red; and a live open-question turn on `0E5` returns 200 in
+under 45 s, recorded by trace id against row 2.
+
+---
+
 ## Step 6.50 — The conformance pass — the tree against the framework's own documentation
 
 | | |
@@ -6228,12 +6306,12 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 
 | State | Count | Steps |
 |---|---|---|
-| **DONE** | 50 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.20**, **6.34**, **6.33**, **6.35**, **6.42**, **6.48**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.38**, **6.41** |
+| **DONE** | 51 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.20**, **6.34**, **6.33**, **6.35**, **6.42**, **6.49**, **6.48**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.38**, **6.41** |
 | **BUILDING NOW** | 1 | **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 36 | **6.43**, **10.3**, **6.51**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.49**, **6.46**, **6.47**, **10.4**, **6.50**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
+| **QUEUED** | 36 | **6.43**, **10.3**, **6.51**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.46**, **6.52**, **6.47**, **10.4**, **6.50**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
-*95 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-24.*
+*96 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-24.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -6562,6 +6640,7 @@ restate, which is the opposite of what the board is for.
 | 478 | **Commit 6.48** | A captured value carries its declared type |  | COACH | SHARED | A Belt answers every question and the gate document cannot be assembled, because four structured fields are stored as prose. |
 | 479 | **Commit 6.50** | The conformance pass — the tree against the framework's own documentation |  | OPS | SHARED | Every checker compares the code to documents this project wrote, so a mechanism used against the framework's documented behaviour satisfies all four and is caught only by somebody reading the docs by chance. |
 | 472 | **Commit 6.49** | The checks card — twelve capability rows get the check that proves them |  | OPS | SHARED | Twelve rows of the register are claims: nobody can say whether a checkpoint is written per node, or whether a Define turn leaves a readable trace. |
+| 474 | **Commit 6.52** | A turn always answers inside its budget |  | COACH | SHARED | A Belt who asks an open question gets a 500 after 45 seconds, because the node's own budget starts late and the knowledge lookups hold the event loop so no timer can fire. |
 | 477 | **Commit 10.4** | The error contract — a failed turn is readable |  | UI | SHARED | A failed turn reaches the Belt as a stack fragment in a three-second toast, with no way to tell a timeout from a rate limit. |
 | 470 | **Commit 8.1** | Structured errors |  | OPS | SHARED | Failures arrive as free text, so the circuit breaker and the fallback chain have nothing to read to tell retry from stop. |
 | 480 | **Commit 8.2** | Timeouts + compensating actions |  | OPS | SHARED | A node failing mid-turn leaves its partial writes in place, so the next turn resumes from a state nobody wrote deliberately. |
@@ -6762,7 +6841,7 @@ home.**
 | Layer | Order | Zone | Step | Fact — what the § specifies | State | Symbol | § |
 |---|---|---|---|---|---|---|---|
 | L1 |  | — | **10.0** | The coaching turn’s output reaches the Belt — four blocks and the grader’s warning | ☐ | `absent: backend.gateway.schemas::CoachingBlocks` | §50.1, §49, S-C05 |
-| L1 | 3 | UI | **10.3** | The workspace reads the v2 field names, and progress counts them | ☐ | — | §50, §50.1, §39.1.2, G-71 |
+| L1 | 4 | UI | **10.3** | The workspace reads the v2 field names, and progress counts them | ☐ | — | §50, §50.1, §39.1.2, G-71 |
 | L1 |  | — | **10.2** | Live gate document + conflict panel | ☐ | `absent: repo:agent-improve/ui/gate_document.js` | §50, §43.4 |
 | L1 |  | UI | **10.4** | The error contract — a failed turn is readable | ☐ | — | §4.8, §12.3, §49, G-70 |
 | L1 |  | UI | **10.1**, **7.3** | **11 routes are served; this section's table names 4 of them** — `POST /ask`, `GET /cases/{id}`, `GET /registry`, `POST /upload`. **Seven are in the tree and in no ratified table** (**G-47**), and **five table rows are unbuilt**: `/ask/stream` (step 10.1), `/gate/approve` and `/gate/reject` (step 7.3, which has no `interrupt()` to resume from), `GET /cases`, and `/gate/submit` in the three-route shape this table ratifies. **Corrected 2026-09-11:** this line read *"11 of 12 routes exist … names 8 of the 11 — six are in the tree and in no ratified table"*, and **8 + 6 = 14 against 11 built routes**, so the marker contradicted itself; neither figure was derivable and the `12` traced to nothing. `verify_built.py` now pins the route SET, not the count, so the named/unnamed split is re-derived rather than restated | ⚠️ | `repo:agent-improve/backend/gateway/routes.py` | §49 |
@@ -6832,10 +6911,10 @@ home.**
 | L3 |  | — | **6.33** | The capture path accumulates — a field survives the next turn, and the field change log records what it said before | ✅ | `backend.phases.mappers_common::captured_for_phase` | §6, §7, §11, §20, S-F04 |
 | L3 |  | — | **6.42** | The gate document records what Define established | ☐ | — | §33, §40, §50, S-F07, S-F28 |
 | L3 |  | — | **6.43** | The coach can read an uploaded document | ☐ | — | §29.1, §32, S-F57, G-82 |
-| L3 | 1 | — | **6.51** | The baseline and the target are values Control can compare | ☐ | — | §7, §39.1.2, §63.1 |
-| L3 | 4 | — | **6.44** | The contradiction stop moves from middleware into a node | ☐ | — | §37, §19.6, S-C10, G-15, G-89 |
+| L3 | 2 | — | **6.51** | The baseline and the target are values Control can compare | ☐ | — | §7, §39.1.2, §63.1 |
+| L3 | 5 | — | **6.44** | The contradiction stop moves from middleware into a node | ☐ | — | §37, §19.6, S-C10, G-15, G-89 |
 | L3 |  | — | **6.45** | The planner decides on field completeness | ☐ | — | §17, §39.1.2, S-F13 |
-| L3 | 2 | — | **6.46** | The coaching script is guaranteed to reach the model, or its absence is recorded | ☐ | — | §32, §19.2, S-C12 |
+| L3 | 3 | — | **6.46** | The coaching script is guaranteed to reach the model, or its absence is recorded | ☐ | — | §32, §19.2, S-C12 |
 | L3 |  | — | **6.47** | Durable writes inside a node, and persistence loss is never silent | ☐ | — | §10, §16, §47, S-C06 |
 | L3 |  | — | **6.48** | A captured value carries its declared type | ☐ | — | §7, §20, §41, S-C05, S-C33 |
 | L3 |  | PHASE | — | **the typing law is enforced by schema, not by convention** — all five `{Phase}Output` declare captured fields as `str` or `dict`, and `test_gate_documents.py` pins both the `dict` fields and their Tier-1 placement | ✅ | — | §7 |
@@ -6998,8 +7077,8 @@ home.**
 | Layer | Order | Zone | Step | Fact — what the § specifies | State | Symbol | § |
 |---|---|---|---|---|---|---|---|
 | L7 |  | — | **3.4** | `{Phase}Output` schemas + validators + UI | ✅ | `backend.phases.define.schema::DefineOutput` | §7, §40, §41, §53.1 |
-| L7 | 5 | — | **7.3** | Nine-step HITL gate | ☐ | `backend.phases.nodes_common::gate_review` | §33 |
-| L7 | 6 | — | **7.7** | The approve endpoint | ☐ | — | §33, §49, S-F34 |
+| L7 | 6 | — | **7.3** | Nine-step HITL gate | ☐ | `backend.phases.nodes_common::gate_review` | §33 |
+| L7 | 7 | — | **7.7** | The approve endpoint | ☐ | — | §33, §49, S-F34 |
 | L7 |  | — | **7.1** | `DMAICGateValidator` + Layer 2b | ☐ | `absent: backend.validation.gate_validator::DMAICGateValidator` | §34, §35 |
 | L7 |  | — | **7.2** | Layers 2c, 2d + `validation_stack` | ☐ | `absent: backend.validation.stack::validation_stack` | §34, §36 |
 | L7 |  | — | **7.8** | The gate steps that consume validation results | ☐ | — | §33, §34, §35, S-F27 |
@@ -7053,7 +7132,8 @@ home.**
 | L8 |  | — | **4.2** | `thread_id` + disconnect policy | ✅ | `backend.core.checkpointer::AzureBlobCheckpointSaver` | §16, §47, §49, §8 |
 | L8 |  | — | **6.11** | The upload path (G-36) | ✅ | `backend.upload.parsers::PARSERS {document,pdf,spreadsheet,text}` | §29.1, §6, §10, §23.2, §65.4 |
 | L8 |  | — | **6.13** | The evidence index migration | ✅ | `backend.knowledge.tools::rag_lookup_evidence` | §23.2, §23.2.1, §23.4, §24, §6 / S-C02, S-C09 |
-| L8 |  | — | **6.34** | A node that runs out of time answers the Belt instead of failing (G-84) | ✅ | `backend.phases.nodes_common::EXECUTOR_SOFT_BUDGET =40.0` | §4.8, §44, §45 |
+| L8 |  | — | **6.34** | A node that runs out of time answers the Belt instead of failing (G-84) | ✅ | `backend.tests.test_turn_budget::test_a_slow_turn_answers_before_the_wall` | §4.8, §44, §45 |
+| L8 | 1 | — | **6.52** | A turn always answers inside its budget | ☐ | — | §4.8, §19.7, §19.8, §44, §45 |
 | L8 |  | — | **8.0** | Turn telemetry and `@traceable` | ☐ | `absent: backend.core.tracing::traced_turn` | §51, §44 |
 | L8 |  | — | **8.1** | Structured errors | ☐ | `absent: backend.errors::StructuredError` | §48 |
 | L8 |  | — | **8.2** | Timeouts + compensating actions | ☐ | `absent: backend.core.timeouts::NODE_TIMEOUTS` | §45 |
@@ -7206,6 +7286,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-89** | **`field_log.reason` IS DECLARED AND NOTHING WILL EVER POPULATE IT — THE DECLARED-AND-NEVER-POPULATED CLASS, CAUGHT AT BIRTH THIS TIME.** Step 6.33's ratified entry shape carries *"the Belt's stated reason where given"*, read from a `reason` key on the capture entry — which `CoachingResponse.fields_captured` PERMITS, its entries being free-form dicts, and which **nothing asks the coach to supply**: S-C05's field description names `field_name`, `value` and `source`, and no more. **Both entries from the 2026-09-21 `live-run` carry `None`**, and the Belt's second message stated a reason in prose — *"the earlier figure left out the late-payment penalties"* — which reached the coaching text and not the log. **This is `computation_results` and `phase_metrics`' class** (read by five gate assemblers, written by nothing) and `field_index`' class (set to `0`, advanced by nothing) — a field that lands in a schema and not in the path that fills it. **What is different is that it is registered on the day it was built rather than found months later**, which is the whole of §55.2's argument. **The fix is one clause on `CoachingResponse`** — add `reason` to the `fields_captured` description so the coach is asked — **and it is a §56 amendment to S-C05, deliberately NOT made in commit 6.33.** **OWNER: the procedure amendment now being drafted**, which carries it with 6.42 and §39.1.9. Until then the column is honestly empty: a column that exists and is empty says *"nobody was asked"*, where a column that does not exist says nothing at all and the next reader rediscovers why. | S-C05, S-C02, §6, §20 | **the procedure amendment** |
 | **G-90** | **THE VERIFICATION TOOLING PARSES AN ERROR BODY AS DATA, SO A FAILED READ IS INDISTINGUISHABLE FROM AN EMPTY RESULT — G-66'S SHAPE, ONE LAYER UP.** During step 6.33's `live-run` a read of the case document was issued against `/case/{id}`; the served route is `/cases/{id}`, so the response was a **404** carrying `{"detail":"Not Found"}`. The reader did `json.load(...)` and walked `(c.get("phases") or {}).get("define")` — **a valid JSON object with no `phases` key, so the walk yielded `{}` and the check reported `structured: null`.** That is byte-identical to what a case which had genuinely captured nothing would report, and it was believed until `-w "%{http_code}"` was added. A **400** was read the same way one turn later, reporting `phase_inputs: null` for a turn that never ran at all. **This is G-66 exactly** — *"a 503 `{"detail": …}` is a valid JSON OBJECT, so `data.length` is `undefined`, falsy, and the empty-state message renders"* — with the verifier in the UI's place, and it is the more dangerous seat of the two: **the UI misleads a Belt, and this misleads a step's own evidence.** G-66 was fixed in `ui/index.html` on 2026-09-15; **nothing generalised it**, because the tooling side is ad-hoc `curl` in step prose rather than a file anybody owns. **NOT FIXED.** Interim containment, with its removal condition: **every live read written into this document from 2026-09-21 checks the status before it reads the body** — 6.33's own section carries that instruction, and it retires when a checked reader exists that a step can call instead of writing its own. | §49, §55.1, G-66 | **unscheduled** |
 | ~~**G-91**~~ | **THE PLAN AND ITS GENERATOR LIVED OUTSIDE THE REPOSITORY. CLOSED 2026-09-23** by the commit carrying `Gap: G-91`: the generator is tracked under `agent-improve/tools/control_board/`, runs in `.githooks/pre-commit` after `build_board.py`, derives rows proven, story and task status and NEXT from Appendix H, git log and rank, and fails VISIBLY — a warning from the hook, and a BUILT FROM line on the page that goes stale when a build fails. **Still open, and not this gap:** Appendix F's `Order` is hand-set (Appendix I says so). As registered: The epics, stories and rank (`stories.py`) and the generator that renders the control board from them were kept in the Desktop session's workspace. **Appendix I names `stories.py` as the plan's single source** (founder ruling, 2026-09-23), and at that moment the pointer did not resolve: `git ls-files` returned nothing for it, tracked or untracked. So the plan could drift from Appendix H and from git log with nothing to notice. The control board's rows-proven count, its story and task statuses and its NEXT were all TYPED, and they stayed right only while somebody remembered to retype them. **Registered first, in its own commit, because §0.32's guard refused the generator's files for want of a number that schedules them** — which was accurate, since nothing did. **Closes when** the generator is tracked under `agent-improve/tools/control_board/`, runs in the pre-commit hook, and derives from Appendix H and git log what it used to declare | §0.32, §55.1, Appendix H, Appendix I | closed |
+| **G-92** | **G-84'S GUARANTEE DOES NOT HOLD: THE SOFT BUDGET NEVER ENDS A TURN BEFORE THE ENGINE'S WALL.** G-84 closed at 6.34 on the claim that the node budgets its own model loop at `EXECUTOR_SOFT_BUDGET = 40.0`, below the 45 s wall, so the engine's `TimeoutPolicy` is only a backstop. **On 2026-09-24 both live turns on `IMPR-2026-0E5` hit the wall with a 500** — traces `01a0d215-a216-75e2-ba80-1c80597f891f` and `01a0d28e-d4da-7901-a75e-44d86b102098`. Two causes, found in 6.52 Part A: **(1)** the budget's clock started at `agent.ainvoke`, ~5 s after node entry, so its deadline fell after the wall's; **(2)** the three `rag_lookup_*` tools ran synchronous `embed_query` + `search` on the event loop, four to six in a row, so no timer could fire until each returned. **Escape:** 6.34's proof re-implemented `wait_for` inside the test around an agent that awaited a millisecond sleep — never the real node, never the real wall, never a blocking tool | §4.8, §44, §45, G-84 | **6.52** |
 
 ### 66.3 Group C — schemas named but never defined
 
@@ -7541,7 +7622,7 @@ card is checked against when it starts.
 >
 > | Row | State | Evidence |
 > |---|---|---|
-> | **2** | 🔴 | **Both live turns on 2026-09-24 failed** with 500 — the executor's 45 s run timeout, one graph run each. Trace `01a0d215-a216-75e2-ba80-1c80597f891f` (06:23): the grader failed the reply twice and was re-judging **the same text** when time ran out. Trace `01a0d28e-d4da-7901-a75e-44d86b102098` (08:36): three knowledge lookups in a row — `rag_lookup_methodology` 12.2 s, `rag_lookup_evidence` 9.8 s, `rag_lookup_case_history` 10.4 s, about 32 s. **The executor soft budget (`nodes_common.py:647`) did not end either turn before the 45 s limit.** The case is not stuck: the second turn started cleanly on top of the first. Opt-in: `CAPABILITY_LIVE_TURN=1` |
+> | **2** | 🔴 | **Both live turns on 2026-09-24 failed** with 500 — the executor's 45 s run timeout, one graph run each. Trace `01a0d215-a216-75e2-ba80-1c80597f891f` (06:23): the grader failed the reply twice and was re-judging **the same text** when time ran out. Trace `01a0d28e-d4da-7901-a75e-44d86b102098` (08:36): three knowledge lookups in a row — `rag_lookup_methodology` 12.2 s, `rag_lookup_evidence` 9.8 s, `rag_lookup_case_history` 10.4 s, about 32 s. **The executor soft budget (`nodes_common.py:647`) did not end either turn before the 45 s limit.** The case is not stuck: the second turn started cleanly on top of the first. Opt-in: `CAPABILITY_LIVE_TURN=1` **After 6.52 B1 (trace `01a0d2c0-457e-74e0-9934-88dff9573a5f`, 09:30): 200, not 500** — the executor node ended at 40.4 s, inside its wall, and two lookups ran in parallel. **Still red:** the Belt got the degraded *"I ran out of time"* answer, because coherence judged the coach's finished reply three times (7.2 s) and the budget ran out in the grader — B2's defect; and the whole turn took 50.8 s end to end |
 > | **10** | 🔴 | **Skipped: no calculation turn yet on 0E5.** No turn's `artifacts` carry a `computation_results` row. Red because a row that did not run is not green |
 > | **12** | 🔴 | **10 of 10** turns on `0E5` in which layer 2a checked more than once — i.e. rejected — show **no model call after the rejection**: the loop re-checks the same reply rather than re-asking. `CoherenceMiddleware.aafter_agent` calls `self._check(belt_text, coach_text)` with an unchanged `coach_text` each iteration. Also: 2a judges the **coach's** reply, not the Belt's answer, so the row's premise and the mechanism ask different questions |
 > | **13** | 🔴 | The latest completed coaching turn's `step_log` has 6 entries and **none** with `layer: "coaching_grader"`. The grader runs (its hook is in every trace) and its verdicts are collected into `grader_log` (`nodes_common.py:996`, `:1072`), which `_build_executor` returns at `:1444` and **nothing ever reads** |

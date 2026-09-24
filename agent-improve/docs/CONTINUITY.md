@@ -9,8 +9,8 @@
 |---|---|
 | **Last completed** | step **6.41** — The symbol-anchor ratchet comes down |
 | **Next** | step **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
-| **Spine steps landed** | 50 of 95 |
-| **Last spine commit** | `90948de` (commit 6.42) |
+| **Spine steps landed** | 51 of 96 |
+| **Last spine commit** | `c08c737` (commit 6.49) |
 | **ARCHITECTURE.md** | v1.70 |
 | **CLAUDE.md** | v2.2.41 |
 | **Block regenerated** | 2026-09-24 |
@@ -41,7 +41,7 @@ Update it with every commit that moves the position.*
 
 | | |
 |---|---|
-| **Last commit** | **6.49 — the checks card** (the commit that carries this section; `git log -1`) |
+| **Last commit** | **6.52 B1 — the soft budget holds** (the commit that carries this line; `git log -1`). B2 (each judge sees a reply once) follows |
 | **Register** | **12 of 35** proven (Appendix H). Green: **1, 5, 6, 8, 11, 17, 18, 19, 20, 21, 33, 35** |
 | **Red from 6.49** | **2** (turns time out) · **10** (skipped: no calculation turn yet on 0E5) · **12** (coherence re-checks, never re-asks) · **13** (grader's score never recorded). 12 and 13 are `xfail(strict=True)` |
 | **Case `IMPR-2026-0E5`** | **Not stuck** — a turn after the timed-out one started cleanly. **Its turns time out**: two traces on 2026-09-24, two causes |
@@ -53,8 +53,10 @@ Update it with every commit that moves the position.*
 
 **The executor soft budget (`nodes_common.py:647`) ended neither turn before the 45 s limit.**
 
-**Next: step 6.52 (or the next free number) — "a turn always answers inside its
-budget".** Part A is a read-only diagnosis, then STOP for review.
+**Now: step 6.52 — "a turn always answers inside its budget" (G-92).** Part A reviewed;
+B1 landed: live turn `01a0d2c0-457e-74e0-9934-88dff9573a5f` returned 200 (was 500), executor
+40.4 s inside its wall, but a degraded answer — coherence re-judged the finished reply
+three times. B2 fixes that. 6.53 (regeneration on FAIL) is gated on the G-83 latency ruling.
 
 **Rank after that:**
 
