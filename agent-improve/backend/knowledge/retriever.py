@@ -25,7 +25,7 @@ from azure.search.documents.indexes.models import (
 )
 from azure.search.documents.models import VectorizedQuery
 from dotenv import load_dotenv
-from langsmith import trace, traceable
+from backend.core.tracing import child_span, child_trace
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings
 from openai import (
@@ -207,7 +207,7 @@ _SEARCH_CLIENTS: dict[str, SearchClient] = {}
 _SEARCH_LOCK = threading.Lock()
 
 
-@traceable(run_type="chain", name="retriever.build_search_client")
+@child_span(run_type="chain", name="retriever.build_search_client")
 def _build_search_client(index_name: str) -> SearchClient:
     return SearchClient(
         endpoint=settings.AZURE_SEARCH_ENDPOINT,
@@ -253,7 +253,7 @@ def close_clients() -> None:
 
 @_single_flight
 @lru_cache(maxsize=1)
-@traceable(run_type="chain", name="retriever.get_embeddings")
+@child_span(run_type="chain", name="retriever.get_embeddings")
 def get_embeddings() -> AzureOpenAIEmbeddings:
     """Return cached embeddings instance — text-embedding-3-large.
     Mirrors agent-resolve embeddings.py pattern: load_dotenv + os.environ."""
@@ -305,7 +305,7 @@ KNOWLEDGE_INDEX_FIELDS = [
 
 @_single_flight
 @lru_cache(maxsize=1)
-@traceable(run_type="chain", name="retriever.get_knowledge_vectorstore")
+@child_span(run_type="chain", name="retriever.get_knowledge_vectorstore")
 def get_knowledge_vectorstore() -> AzureSearch:
     """Cached vectorstore for improve_knowledge_index."""
     return AzureSearch(
@@ -379,7 +379,7 @@ EVIDENCE_KIND_DEFAULT = "evidence"
 
 @_single_flight
 @lru_cache(maxsize=1)
-@traceable(run_type="chain", name="retriever.get_evidence_vectorstore")
+@child_span(run_type="chain", name="retriever.get_evidence_vectorstore")
 def get_evidence_vectorstore() -> AzureSearch:
     """Cached vectorstore for improve_evidence_index."""
     return AzureSearch(
@@ -424,7 +424,7 @@ def search_knowledge(query: str, phase: str | None = None,
     vs = get_knowledge_vectorstore()
     filters = _phase_filter(phase)
     try:
-        with trace("azure.search.knowledge.similarity_search", run_type="retriever",
+        with child_trace("azure.search.knowledge.similarity_search", run_type="retriever",
                    inputs={"query": query[:200], "k": k, "filter": filters}) as span, _http_watch() as ev:
             docs = vs.similarity_search(query, k=k, filters=filters)
             # One shared, cached vectorstore: its embeddings call rides on
@@ -490,7 +490,7 @@ def search_cases(query: str, k: int = 3) -> list[dict]:
     search_client = get_search_client(settings.AZURE_SEARCH_IMPROVE_CASE_INDEX)
 
     try:
-        with trace("azure.openai.embed_query", run_type="embedding",
+        with child_trace("azure.openai.embed_query", run_type="embedding",
                    inputs={"query": query[:200]}) as espan, _http_watch() as ev:
             embedder = get_embeddings()
             query_vector = embedder.embed_query(query)
@@ -504,7 +504,7 @@ def search_cases(query: str, k: int = 3) -> list[dict]:
         # The HTTP call is lazy — it fires on iteration, so the span wraps the
         # materialised list, and both stay inside the try so a failure is
         # still classified.
-        with trace("azure.search.case.query", run_type="retriever",
+        with child_trace("azure.search.case.query", run_type="retriever",
                    inputs={"query": query[:200], "k": k}) as span, _http_watch() as ev:
             results = list(search_client.search(
                 raw_response_hook=_azure_hook(ev),
@@ -560,7 +560,7 @@ def search_evidence(query: str, case_id: str, k: int = 4,
         odata += f" and kind eq '{kind.replace(chr(39), chr(39) * 2)}'"
 
     try:
-        with trace("azure.openai.embed_query", run_type="embedding",
+        with child_trace("azure.openai.embed_query", run_type="embedding",
                    inputs={"query": query[:200]}) as espan, _http_watch() as ev:
             embedder = get_embeddings()
             query_vector = embedder.embed_query(query)
@@ -573,7 +573,7 @@ def search_evidence(query: str, case_id: str, k: int = 4,
 
         # Iteration is what fires the HTTP call — the span wraps it, inside
         # the try.
-        with trace("azure.search.evidence.query", run_type="retriever",
+        with child_trace("azure.search.evidence.query", run_type="retriever",
                    inputs={"query": query[:200], "k": k, "filter": odata}) as span, _http_watch() as ev:
             results = list(search_client.search(
                 raw_response_hook=_azure_hook(ev),

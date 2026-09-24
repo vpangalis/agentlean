@@ -20,7 +20,7 @@ from typing import Any
 from dotenv import load_dotenv
 from langchain_core.messages import BaseMessage
 from langchain_openai import AzureChatOpenAI
-from langsmith import traceable
+from backend.core.tracing import child_span
 
 from backend.core.config import settings
 
@@ -187,7 +187,7 @@ def warm_turn_llms() -> None:
         get_llm(role, **kwargs)
 
 
-@traceable(run_type="chain", name="llm.get_llm", process_outputs=lambda o: {})
+@child_span(run_type="chain", name="llm.get_llm", process_outputs=lambda o: {})
 def get_llm(
     role: str,
     temperature: float | None = None,

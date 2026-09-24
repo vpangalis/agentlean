@@ -58,7 +58,7 @@ from typing import (
     TypeVar,
 )
 
-from langsmith import trace, traceable
+from backend.core.tracing import child_span, child_trace
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -200,7 +200,7 @@ def _default_key(doc: Any) -> Hashable:
     return getattr(doc, "page_content", repr(doc))
 
 
-@traceable(run_type="chain", name="fusion.generate_variants")
+@child_span(run_type="chain", name="fusion.generate_variants")
 async def generate_variants(query: str) -> list[str]:
     """Ask the model for 3–5 alternative phrasings. Structured output, never JSON.
 
@@ -315,7 +315,7 @@ async def run_multi_query(
 
     def one(i: int, q: str) -> list[T]:
         t0 = time.monotonic() - started
-        with trace("fusion.search_query", run_type="retriever",
+        with child_trace("fusion.search_query", run_type="retriever",
                    inputs={"query": q[:200], "index": i},
                    metadata={"thread": threading.current_thread().name,
                              "start_s": round(t0, 3)}) as span:
@@ -335,7 +335,7 @@ async def run_multi_query(
         "; ".join(f"q{i}@{t}: {a:.2f}-{b:.2f}s" for i, t, a, b in sorted(timings)),
     )
 
-    with trace("fusion.rrf", run_type="chain",
+    with child_trace("fusion.rrf", run_type="chain",
                inputs={"lists": len(ranked_lists),
                        "docs": sum(len(x) for x in ranked_lists)}) as rrf_span:
         fused = reciprocal_rank_fusion(ranked_lists, k=RRF_K, key=key)

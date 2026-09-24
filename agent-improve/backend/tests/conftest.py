@@ -316,3 +316,68 @@ def _fresh_search_clients():
     retriever._SEARCH_CLIENTS.clear()
     yield
     retriever._SEARCH_CLIENTS.clear()
+
+
+# ── gap G-95 — the test suite never sends a trace ─────────────────────────
+#
+# `init_tracing()` sets LANGCHAIN_TRACING_V2=true for the WHOLE process, so the
+# first test that started the app (6.49's row checks, 6.54's warm-up test)
+# switched tracing on for every test after it — 827 test graph runs went to
+# LangSmith on 2026-09-24, on top of ~4,070 standalone spans, and the monthly
+# unique-traces quota ran out (429 on every trace since, real turns included).
+#
+# Two layers. The switch: tracing off for the session — both environment
+# names, the SDK's cached reads cleared, `langsmith.run_trees.configure(
+# enabled=False)`, and `init_tracing` made a no-op in the two modules that
+# hold it. The GUARD: every run the LangSmith client is asked to create or
+# send is COUNTED and NOT sent, and `pytest_sessionfinish` fails the session
+# if the count is not zero — so a regression fails the suite instead of
+# spending quota.
+
+TRACE_CALLS: list[str] = []
+_CLIENT_SENDS = ("create_run", "update_run", "batch_ingest_runs", "multipart_ingest")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _count_tracing_calls():
+    """The GUARD: every run the LangSmith client is asked to create or send is
+    counted and NOT sent. Separate from the switch below on purpose — remove
+    the switch and this still sees, and fails the session."""
+    from langsmith import Client
+    mp = pytest.MonkeyPatch()
+    for method in _CLIENT_SENDS:
+        if hasattr(Client, method):
+            mp.setattr(Client, method,
+                       lambda self, *a, _m=method, **k: TRACE_CALLS.append(_m))
+    yield
+    mp.undo()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _no_tracing(_count_tracing_calls):
+    """The SWITCH: tracing off for the session, and `init_tracing` unable to
+    turn it back on."""
+    import langsmith.utils as ls_utils
+    from langsmith.run_trees import configure
+
+    import backend.app as app_mod
+    import backend.core.tracing as tracing_mod
+
+    mp = pytest.MonkeyPatch()
+    for name in ("LANGCHAIN_TRACING_V2", "LANGSMITH_TRACING_V2",
+                 "LANGSMITH_TRACING", "LANGCHAIN_TRACING"):
+        mp.setenv(name, "false")
+    getattr(ls_utils.get_env_var, "cache_clear")()   # lru_cached in the SDK
+    mp.setattr(tracing_mod, "init_tracing", lambda: None)
+    mp.setattr(app_mod, "init_tracing", lambda: None)
+    configure(enabled=False)
+    yield
+    mp.undo()
+
+
+def pytest_sessionfinish(session, exitstatus):
+    if TRACE_CALLS:
+        print(f"\n\nG-95 GUARD: the suite asked LangSmith to create/send "
+              f"{len(TRACE_CALLS)} run(s) ({sorted(set(TRACE_CALLS))}). Tests must "
+              f"never trace — every trace counts against the monthly quota.")
+        session.exitstatus = 1

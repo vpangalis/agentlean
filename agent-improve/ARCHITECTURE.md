@@ -6804,6 +6804,15 @@ REQUIRED on every function that:
 > **Still untraced, as this section requires:** the five `validate.py` files and
 > field extraction. Recorded so the section is not read as met; no rule changed.
 
+> **STATUS, 2026-09-24 — gap G-95. Spans are CHILD-ONLY; tests never trace.**
+> The executor slice's spans now record only inside an already-traced run
+> (`child_span` / `child_trace` in `core/tracing.py`); a span with no enclosing
+> run is the bare call, not a root trace. The test suite never traces. Before
+> this, standalone spans and test runs exhausted LangSmith's monthly trace quota
+> and every trace since is refused (429) until the quota is restored — so
+> *"every Define turn leaves a trace"* is currently unmet. Recorded, no rule
+> changed.
+
 ### What gets traced
 
 Every graph invocation (parent span) · every node (child span) · every LLM call

@@ -56,7 +56,7 @@ from langchain.agents.middleware import (
 )
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
-from langsmith import traceable
+from backend.core.tracing import child_span
 from langgraph.errors import GraphRecursionError
 from langgraph.graph import END
 from langgraph.types import Command
@@ -772,7 +772,7 @@ def _routed_column(state: PhaseState, upload: dict) -> str | None:
 
 # §51 / step 8.0 slice — the executor's setup, between node entry and the
 # agent, is spanned so a trace shows where the pre-agent seconds go.
-@traceable(run_type="chain", name="executor.setup.dispatch_routed_read",
+@child_span(run_type="chain", name="executor.setup.dispatch_routed_read",
            process_inputs=lambda i: {})
 async def _dispatch_routed_read(state: PhaseState) -> list:
     """The planner's named call, EXECUTED HERE — §17, step 6.21, option C.
@@ -959,7 +959,7 @@ def _executor_tools(
                                if hops_spent is not None else [0])
 
 
-@traceable(run_type="chain", name="executor.setup.build_executor",
+@child_span(run_type="chain", name="executor.setup.build_executor",
            process_inputs=lambda i: {"phase": i.get("phase")},
            process_outputs=lambda o: {})
 def _build_executor(
@@ -1087,7 +1087,7 @@ def _build_executor(
     return agent, grader_log
 
 
-@traceable(run_type="chain", name="executor.setup.prior_gate_documents",
+@child_span(run_type="chain", name="executor.setup.prior_gate_documents",
            process_outputs=lambda o: {"documents": len(o) if isinstance(o, dict) else None})
 def _prior_gate_documents(
     phase: str, config: Optional[RunnableConfig] = None

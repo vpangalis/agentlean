@@ -1117,7 +1117,9 @@ CHECKS = [
      "§29.1 — membership in PARSERS is what 'supported' now means"),
 
     ("@traceable in the backend", "4",
-     lambda: count_tree_containing("agent-improve/backend", "@traceable",
+     # G-95 (2026-09-24): the spans are `@child_span` — `@traceable` that
+     # records only inside an already-traced run — so that is what is counted.
+     lambda: count_tree_containing("agent-improve/backend", "@child_span",
                                   "/tests"),
      "§51 — files carrying one. 0 → 4 on 2026-09-24: step 8.0's EXECUTOR "
      "SLICE, pulled forward by founder ruling — retriever.py, fusion.py, "
