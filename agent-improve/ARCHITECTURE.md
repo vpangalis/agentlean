@@ -6795,6 +6795,15 @@ REQUIRED on every function that:
 - Makes routing decisions outside LangGraph node routing
 - Calls an external Azure service directly, outside a LangChain runnable
 
+> **STATUS, 2026-09-24 — step 8.0's EXECUTOR SLICE, pulled forward by founder
+> ruling ahead of its precondition 7.6.** `@traceable` spans now cover the
+> executor's setup (`_build_executor`, the dispatched read, the prior-document
+> read, `get_llm`), the knowledge lookups (variant call, each query in its thread,
+> the RRF merge) and every direct Azure AI Search and embeddings call in
+> `retriever.py`, each recording its HTTP attempts, statuses, 429s and backoff.
+> **Still untraced, as this section requires:** the five `validate.py` files and
+> field extraction. Recorded so the section is not read as met; no rule changed.
+
 ### What gets traced
 
 Every graph invocation (parent span) · every node (child span) · every LLM call

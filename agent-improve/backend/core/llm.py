@@ -18,6 +18,7 @@ from functools import lru_cache
 from dotenv import load_dotenv
 from langchain_core.messages import BaseMessage
 from langchain_openai import AzureChatOpenAI
+from langsmith import traceable
 
 from backend.core.config import settings
 
@@ -159,6 +160,7 @@ def _build_llm(
     )
 
 
+@traceable(run_type="chain", name="llm.get_llm", process_outputs=lambda o: {})
 def get_llm(
     role: str,
     temperature: float | None = None,

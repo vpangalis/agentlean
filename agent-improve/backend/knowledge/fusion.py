@@ -46,6 +46,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
+import time
 from typing import (
     Any,
     Awaitable,
@@ -56,6 +58,7 @@ from typing import (
     TypeVar,
 )
 
+from langsmith import trace, traceable
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -197,6 +200,7 @@ def _default_key(doc: Any) -> Hashable:
     return getattr(doc, "page_content", repr(doc))
 
 
+@traceable(run_type="chain", name="fusion.generate_variants")
 async def generate_variants(query: str) -> list[str]:
     """Ask the model for 3–5 alternative phrasings. Structured output, never JSON.
 
@@ -304,14 +308,38 @@ async def run_multi_query(
     #
     # FOLLOW-UP, NOT DONE HERE: the aio `SearchClient` and async embeddings
     # would remove the threads altogether. That needs its own step number.
-    def one(q: str) -> list[T]:
-        return list(search(q))
+    # Step 8.0 slice — each query's span, and its start and end on one
+    # clock, so the trace can answer whether the queries actually overlap.
+    started = time.monotonic()
+    timings: list[tuple[int, str, float, float]] = []
+
+    def one(i: int, q: str) -> list[T]:
+        t0 = time.monotonic() - started
+        with trace("fusion.search_query", run_type="retriever",
+                   inputs={"query": q[:200], "index": i},
+                   metadata={"thread": threading.current_thread().name,
+                             "start_s": round(t0, 3)}) as span:
+            rows = list(search(q))
+            t1 = time.monotonic() - started
+            span.end(outputs={"hits": len(rows), "end_s": round(t1, 3)})
+        timings.append((i, threading.current_thread().name, t0, t1))
+        return rows
 
     ranked_lists: list[list[T]] = list(await asyncio.gather(
-        *(asyncio.to_thread(one, q) for q in queries)
+        *(asyncio.to_thread(one, i, q) for i, q in enumerate(queries))
     ))
+    pool = getattr(asyncio.get_running_loop(), "_default_executor", None)
+    logger.info(
+        "fusion: %d quer(ies), to_thread pool max_workers=%s | %s",
+        len(queries), getattr(pool, "_max_workers", "?"),
+        "; ".join(f"q{i}@{t}: {a:.2f}-{b:.2f}s" for i, t, a, b in sorted(timings)),
+    )
 
-    fused = reciprocal_rank_fusion(ranked_lists, k=RRF_K, key=key)
+    with trace("fusion.rrf", run_type="chain",
+               inputs={"lists": len(ranked_lists),
+                       "docs": sum(len(x) for x in ranked_lists)}) as rrf_span:
+        fused = reciprocal_rank_fusion(ranked_lists, k=RRF_K, key=key)
+        rrf_span.end(outputs={"fused": len(fused)})
     logger.info(
         "Multi-query fusion: %d quer(ies) -> %d unique doc(s), returning %d",
         len(queries), len(fused), min(top_k, len(fused)),

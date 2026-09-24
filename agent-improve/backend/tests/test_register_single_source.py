@@ -123,11 +123,13 @@ def test_the_readers_still_return_what_the_dual_read_returned(board) -> None:
         78 -> 77  6.52 B2: G-92 closed in the same step. A struck-through
                   (closed) row is not read as a gap row — which is also why
                   closing G-91 never moved this count
+        77 -> 78  8.0 (executor slice): G-93 registered — open questions do
+                  not fit the budget (row 2), owner 8.0
     """
     markers, gaps = board.read_markers(), board.read_gaps()
     assert len(markers) == 82, f"{len(markers)} markers, not 82"
     assert sum(1 for m in markers if m["state"] != "built") == 42
-    assert len(gaps) == 77, f"{len(gaps)} gap rows, not 77"
+    assert len(gaps) == 78, f"{len(gaps)} gap rows, not 78"
 
 
 def test_the_guard_resolves_a_gap_from_the_one_register(guard) -> None:

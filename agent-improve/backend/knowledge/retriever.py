@@ -3,8 +3,12 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
+import threading
+import time
+from contextlib import contextmanager
 from functools import lru_cache
-from typing import NoReturn
+from typing import Any, Iterator, NoReturn
 
 from azure.core.credentials import AzureKeyCredential
 from azure.core.exceptions import (
@@ -21,6 +25,7 @@ from azure.search.documents.indexes.models import (
 )
 from azure.search.documents.models import VectorizedQuery
 from dotenv import load_dotenv
+from langsmith import trace, traceable
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_openai import AzureOpenAIEmbeddings
 from openai import (
@@ -114,7 +119,70 @@ def _fail(exc: Exception, index: str, **extra: object) -> NoReturn:
     raise KnowledgeSearchError(err) from exc
 
 
+# ── step 8.0 slice: what each HTTP attempt did, per thread ──────────────
+#
+# A span's wall time cannot say whether it was ONE slow call or a fast call
+# retried after a 429. So each embed/search span collects, for its own thread
+# only, every attempt the clients report:
+#   * httpx logs one INFO line per HTTP response ("HTTP Request: POST ... 429")
+#     — the OpenAI embeddings client rides on httpx;
+#   * the OpenAI client logs "Retrying request to ... in N seconds" — its
+#     backoff wait;
+#   * Azure AI Search (azure-core, not httpx) reports each attempt through the
+#     per-call `raw_response_hook`, which azure-core runs inside its retry loop.
+# Observation only: the filters return True, so no record is suppressed, and
+# nothing is collected on a thread that has no watch open.
+_WATCH = threading.local()
+_STATUS = re.compile(r'"HTTP/[\d.]+ (\d{3})')
+_RETRY_WAIT = re.compile(r"Retrying request to \S+ in ([\d.]+) seconds")
+
+
+def _observe(record: logging.LogRecord) -> bool:
+    events = getattr(_WATCH, "events", None)
+    if events is not None:
+        events.append((time.monotonic(), record.name, record.getMessage()))
+    return True
+
+
+logging.getLogger("httpx").addFilter(_observe)
+logging.getLogger("openai._base_client").addFilter(_observe)
+
+
+@contextmanager
+def _http_watch() -> Iterator[list[tuple[float, str, str]]]:
+    _WATCH.events = []
+    try:
+        yield _WATCH.events
+    finally:
+        _WATCH.events = None
+
+
+def _azure_hook(events: list[tuple[float, str, str]]) -> Any:
+    def hook(response: Any) -> None:
+        events.append((time.monotonic(), "azure.search",
+                       f'"HTTP/1.1 {response.http_response.status_code}'))
+    return hook
+
+
+def _http_summary(events: list[tuple[float, str, str]]) -> dict[str, Any]:
+    """Attempts, statuses, retries and backoff seconds, from one watch."""
+    statuses = [int(m.group(1)) for _, _, msg in events
+                for m in [_STATUS.search(msg)] if m]
+    waits = [float(m.group(1)) for _, _, msg in events
+             for m in [_RETRY_WAIT.search(msg)] if m]
+    return {"attempts": len(statuses), "statuses": statuses,
+            "http_429": statuses.count(429), "retries": max(0, len(statuses) - 1),
+            "backoff_s": round(sum(waits), 3),
+            "thread": threading.current_thread().name}
+
+
+# §51 / step 8.0 slice — every direct Azure call gets a span. Inputs are cut
+# to the query and its parameters: a 1,536-float vector in every span would
+# cost more to ship than the call it measures.
+
+
 @lru_cache(maxsize=1)
+@traceable(run_type="chain", name="retriever.get_embeddings")
 def get_embeddings() -> AzureOpenAIEmbeddings:
     """Return cached embeddings instance — text-embedding-3-large.
     Mirrors agent-resolve embeddings.py pattern: load_dotenv + os.environ."""
@@ -165,6 +233,7 @@ KNOWLEDGE_INDEX_FIELDS = [
 
 
 @lru_cache(maxsize=1)
+@traceable(run_type="chain", name="retriever.get_knowledge_vectorstore")
 def get_knowledge_vectorstore() -> AzureSearch:
     """Cached vectorstore for improve_knowledge_index."""
     return AzureSearch(
@@ -237,6 +306,7 @@ EVIDENCE_KIND_DEFAULT = "evidence"
 
 
 @lru_cache(maxsize=1)
+@traceable(run_type="chain", name="retriever.get_evidence_vectorstore")
 def get_evidence_vectorstore() -> AzureSearch:
     """Cached vectorstore for improve_evidence_index."""
     return AzureSearch(
@@ -281,7 +351,14 @@ def search_knowledge(query: str, phase: str | None = None,
     vs = get_knowledge_vectorstore()
     filters = _phase_filter(phase)
     try:
-        docs = vs.similarity_search(query, k=k, filters=filters)
+        with trace("azure.search.knowledge.similarity_search", run_type="retriever",
+                   inputs={"query": query[:200], "k": k, "filter": filters}) as span, _http_watch() as ev:
+            docs = vs.similarity_search(query, k=k, filters=filters)
+            # One shared, cached vectorstore: its embeddings call rides on
+            # httpx (collected); its search on azure-core, which this call
+            # path does not expose to a hook — the span's remainder is it.
+            span.end(outputs={"hits": len(docs), **_http_summary(ev),
+                              "client_id": id(vs)})
     except RETRIEVAL_EXCEPTIONS as e:
         _fail(e, settings.AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX,
               search="knowledge", filter=filters, query=query[:120])
@@ -344,25 +421,35 @@ def search_cases(query: str, k: int = 3) -> list[dict]:
     )
 
     try:
-        query_vector = get_embeddings().embed_query(query)
+        with trace("azure.openai.embed_query", run_type="embedding",
+                   inputs={"query": query[:200]}) as espan, _http_watch() as ev:
+            embedder = get_embeddings()
+            query_vector = embedder.embed_query(query)
+            espan.end(outputs={**_http_summary(ev), "client_id": id(embedder)})
         vector_query = VectorizedQuery(
             vector=query_vector,
             k_nearest_neighbors=k,
             fields="embedding",
         )
 
-        results = search_client.search(
-            search_text=query,
-            vector_queries=[vector_query],
-            # `id` is selected for RRF dedup (S-F17) — a `select` that omits
-            # it makes every document unique to fusion, silently.
-            select=["id", "content_text", "case_id", "title",
-                    "current_phase", "rag_status"],
-            top=k,
-        )
+        # The HTTP call is lazy — it fires on iteration, so the span wraps the
+        # materialised list, and both stay inside the try so a failure is
+        # still classified.
+        with trace("azure.search.case.query", run_type="retriever",
+                   inputs={"query": query[:200], "k": k}) as span, _http_watch() as ev:
+            results = list(search_client.search(
+                raw_response_hook=_azure_hook(ev),
+                search_text=query,
+                vector_queries=[vector_query],
+                # `id` is selected for RRF dedup (S-F17) — a `select` that
+                # omits it makes every document unique to fusion, silently.
+                select=["id", "content_text", "case_id", "title",
+                        "current_phase", "rag_status"],
+                top=k,
+            ))
+            span.end(outputs={"hits": len(results), **_http_summary(ev),
+                              "client_id": id(search_client)})
 
-        # The HTTP call is lazy — it fires on iteration, so materialising the
-        # list must stay inside the try or the failure escapes unclassified.
         return [
             {
                 "id": r.get("id", ""),
@@ -408,23 +495,33 @@ def search_evidence(query: str, case_id: str, k: int = 4,
         odata += f" and kind eq '{kind.replace(chr(39), chr(39) * 2)}'"
 
     try:
-        query_vector = get_embeddings().embed_query(query)
+        with trace("azure.openai.embed_query", run_type="embedding",
+                   inputs={"query": query[:200]}) as espan, _http_watch() as ev:
+            embedder = get_embeddings()
+            query_vector = embedder.embed_query(query)
+            espan.end(outputs={**_http_summary(ev), "client_id": id(embedder)})
         vector_query = VectorizedQuery(
             vector=query_vector,
             k_nearest_neighbors=k,
             fields="content_vector",
         )
 
-        results = search_client.search(
-            search_text=query,
-            vector_queries=[vector_query],
-            filter=odata,
-            # `id` is selected for RRF dedup (S-F17), as above.
-            select=EVIDENCE_SELECT,
-            top=k,
-        )
+        # Iteration is what fires the HTTP call — the span wraps it, inside
+        # the try.
+        with trace("azure.search.evidence.query", run_type="retriever",
+                   inputs={"query": query[:200], "k": k, "filter": odata}) as span, _http_watch() as ev:
+            results = list(search_client.search(
+                raw_response_hook=_azure_hook(ev),
+                search_text=query,
+                vector_queries=[vector_query],
+                filter=odata,
+                # `id` is selected for RRF dedup (S-F17), as above.
+                select=EVIDENCE_SELECT,
+                top=k,
+            ))
+            span.end(outputs={"hits": len(results), **_http_summary(ev),
+                              "client_id": id(search_client)})
 
-        # Iteration is what fires the HTTP call — keep it inside the try.
         output = []
         for r in results:
             output.append({

@@ -1116,10 +1116,13 @@ CHECKS = [
      lambda: py("from backend.upload.parsers import PARSERS; print(sorted(PARSERS))"),
      "§29.1 — membership in PARSERS is what 'supported' now means"),
 
-    ("@traceable in the backend", "0",
+    ("@traceable in the backend", "4",
      lambda: count_tree_containing("agent-improve/backend", "@traceable",
                                   "/tests"),
-     "§51 — zero, and that is the ☐ marker"),
+     "§51 — files carrying one. 0 → 4 on 2026-09-24: step 8.0's EXECUTOR "
+     "SLICE, pulled forward by founder ruling — retriever.py, fusion.py, "
+     "nodes_common.py (executor setup) and core/llm.py. §51 is still ☐: "
+     "the five validate.py files and field extraction carry none"),
 
     # ── Added 2026-09-11 by the three-way alignment audit. ────────────────
     # Ten checks for markers that had none. The audit found FOUR markers
