@@ -66,6 +66,13 @@ MODEL_NODE = "model"
 MIDDLEWARE_MARK = "Middleware."
 COHERENCE_NODE = "CoherenceMiddleware.after_agent"
 
+def _degraded() -> set[str]:
+    from backend.phases.nodes_common import _CAP_MESSAGE, _TIMEOUT_MESSAGE
+    return {_TIMEOUT_MESSAGE.strip(), _CAP_MESSAGE.strip()}
+
+
+_DEGRADED = _degraded()
+
 NOT_A_PASS = " — this is NOT a pass (Appendix H: a row that did not run is not green)."
 
 
@@ -253,6 +260,10 @@ def _row_2(driven: dict) -> list[str]:
     answer = driven["body"].get("answer") if isinstance(driven["body"], dict) else None
     if not (isinstance(answer, str) and answer.strip()):
         problems.append(f"no coached message came back (answer={answer!r})")
+    elif answer.strip() in _DEGRADED:
+        # 6.52: a 200 carrying the node's own out-of-time or out-of-steps
+        # message is the budget working, not the coach answering.
+        problems.append("the reply is the degraded out-of-budget message, not a coached one")
     runs = driven["inputs_after"] - driven["inputs_before"]
     if runs != 1:
         problems.append(f"one POST started {runs} graph run(s) — the parent namespace "
@@ -576,10 +587,10 @@ def test_row_11_the_metric_entry_mirrors_the_primary_scalars() -> None:
 
 
 @pytest.mark.xfail(strict=True, reason=(
-    "RED — coherence re-checks without re-asking: CoherenceMiddleware.aafter_agent "
-    "re-runs self._check(belt_text, coach_text) on the SAME coach_text each attempt "
-    "(middleware/coherence.py:124-126), so a rejection is never followed by a fresh "
-    "reply. 10 of 10 rejecting turns on IMPR-2026-0E5. Bug in stories.py, S9."))
+    "RED — layer 2a rejects and never re-asks. Until 6.52 B2 it re-checked the SAME "
+    "reply up to three times (10 of 10 rejecting turns on IMPR-2026-0E5, no model "
+    "call after the rejection); since B2 it checks once and degrades. A fresh "
+    "reply on reject is step 6.53, gated on G-83. Bug in stories.py, S40."))
 def test_row_12_vague_answers_are_caught_inside_the_turn() -> None:
     """**Row 12.** Read from the case's traces: layer 2a writes nothing to state
     (its B7), so the trace is the only record of a rejection.
@@ -605,17 +616,17 @@ def test_row_12_vague_answers_are_caught_inside_the_turn() -> None:
                           + "; ".join(problems))
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "RED — the grader's verdicts never reach step_log: DMAICGraderMiddleware hands "
-    "them to grader_log (phases/nodes_common.py:1072), which _build_executor returns "
-    "at :1444 and nothing reads. Bug in stories.py, S9."))
 def test_row_13_the_coaching_rubric_scores_the_turn(turn) -> None:
     """**Row 13.** The latest turn the coach COMPLETED carries the grader's
     score in its `step_log`. A turn that failed inside the executor wrote no
     `step_log` at all, so it cannot answer this row either way.
     """
+    # COMPLETED means the coach's own loop finished: a `partial_timeout` or
+    # `partial_cap_reached` turn was cut before its after_agent hooks could
+    # settle, so it answers nothing about whether grading happens.
     finals = [f for f in _all_subgraph_finals(_checkpointer())
               if any(isinstance(e, dict) and e.get("node") == "executor"
+                     and e.get("status") in ("coached", "coached_no_retrieval")
                      for e in (f["values"].get("step_log") or []))]
     if not finals:
         pytest.skip(f"no coaching turn on {CASE_ID} completed" + NOT_A_PASS)
@@ -645,7 +656,12 @@ def test_row_33_a_checkpoint_is_written_after_every_node(turn) -> None:
     record = turn["record"]
     if not record:
         pytest.skip(f"{CASE_ID} has no recorded turn" + NOT_A_PASS)
-    expected = {str(e["node"]) for e in _turn_step_log(record) if e.get("node")}
+    # Graph nodes only: `step_log` also carries entries that are not nodes —
+    # the grader's verdict (`coaching_grader`, 6.52) — and a checkpoint is
+    # owed per NODE, not per audit record.
+    from backend.phases.nodes_common import NODE_NAMES
+    expected = {str(e["node"]) for e in _turn_step_log(record)
+                if e.get("node") in NODE_NAMES}
     problems = _row_33(record, expected)
     assert not problems, "; ".join(problems)
 
@@ -741,6 +757,9 @@ def test_mutation_row_2_two_graph_runs_or_no_reply_is_red() -> None:
     assert not _row_2(good)
     assert _row_2({**good, "inputs_after": 7})
     assert _row_2({**good, "body": {"answer": ""}})
+    from backend.phases.nodes_common import _TIMEOUT_MESSAGE
+    assert _row_2({**good, "body": {"answer": _TIMEOUT_MESSAGE}}), (
+        "a 200 carrying the out-of-time message passed as a coached reply")
 
 
 def test_mutation_row_5_the_assignment_6_33_replaced_is_red() -> None:

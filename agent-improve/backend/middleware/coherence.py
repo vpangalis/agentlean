@@ -119,32 +119,31 @@ class CoherenceMiddleware(AgentMiddleware):
         self.attempts = 0
         self.degraded = False
 
-        # **Initial attempt + up to `max_retries` more** — the same shape the
-        # retry middlewares use (§19.4), so "2" means three checks at most.
-        for attempt in range(self.max_retries + 1):
-            self.attempts = attempt + 1
-            result = await self._check(belt_text, coach_text)
-            self.last = result
-            if result.coherent:
-                if attempt:
-                    logger.info(
-                        "%s.coherence: passed on attempt %d — the Belt saw "
-                        "none of this (B2)", self.phase, self.attempts,
-                    )
-                return None
-            logger.info(
-                "%s.coherence: attempt %d failed — %s",
-                self.phase, self.attempts, result.reason or "(no reason given)",
-            )
+        # 6.52 B2 — ONE CHECK PER DISTINCT REPLY. The loop that stood here
+        # re-checked the SAME `coach_text` up to `max_retries + 1` times: a
+        # "silent retry" (§19.7) that asked a temperature-0.1 judge the same
+        # question and regenerated nothing — 10 of 10 rejecting turns on
+        # IMPR-2026-0E5 show no model call after the rejection. A real retry
+        # rewrites the reply first; that is step 6.53, and `max_retries` is
+        # held for it. Until then one check decides.
+        self.attempts = 1
+        result = await self._check(belt_text, coach_text)
+        self.last = result
+        if result.coherent:
+            return None
+        logger.info(
+            "%s.coherence: rejected — %s", self.phase,
+            result.reason or "(no reason given)",
+        )
 
-        # B3 — exhausted. Degrade, and tell position 8 to stand down. The
-        # grader reads `self.degraded` directly; see SKIP_GRADER_KEY.
+        # B3 — degrade, and tell position 8 to stand down. The grader reads
+        # `self.degraded` directly; see SKIP_GRADER_KEY.
         self.degraded = True
         logger.warning(
-            "%s.coherence: %d attempts exhausted; degrading the turn and "
-            "SKIPPING the grader — grading a response already known to be "
-            "incoherent spends a model call for a meaningless score",
-            self.phase, self.attempts,
+            "%s.coherence: reply rejected; degrading the turn and SKIPPING the "
+            "grader — grading a response already known to be incoherent spends "
+            "a model call for a meaningless score",
+            self.phase,
         )
         return None
 

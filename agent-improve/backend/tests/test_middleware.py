@@ -77,10 +77,10 @@ def _state(**overrides: Any) -> PhaseState:
         "case_id": "IMPR-TEST-63", "current_phase": "define",
         "messages": [], "history": [], "phase_context": "",
         "coaching_plan": None, "field_index": 0, "draft": {}, "artifacts": {},
-        "step_log": [], "belt_edits": {}, "turn_count": 0, "final": {},
-        "gate_attempts": 0, "validator_feedback": [], "rejection_feedback": [],
-        "citations": [], "uploads": [], "asks": [], "hop_results": [],
-        "synthesis_output": None,
+        "step_log": [], "field_log": [], "belt_edits": {}, "turn_count": 0,
+        "final": {}, "gate_attempts": 0, "validator_feedback": [],
+        "rejection_feedback": [], "citations": [], "uploads": [], "asks": [],
+        "hop_results": [], "synthesis_output": None,
     }
     base.update(overrides)  # type: ignore[typeddict-item]
     return base
@@ -977,61 +977,18 @@ def test_the_three_retry_caps_are_still_three_and_still_separate() -> None:
     assert len({id(COHERENCE_MAX_RETRIES)}) == 1
 
 
-def test_coherence_retries_silently_then_degrades_and_skips_the_grader() -> None:
-    """**B2 and B3 together**, which is the pair that matters.
-
-    The Belt never sees a failed coherence response, and on exhaustion the turn
-    degrades AND position 8 stands down — grading a response already known to
-    be incoherent spends a model call for a meaningless score.
-    """
-    verdicts = [
-        CoherenceResult(coherent=False, is_conclusive=False, is_parroting=False,
-                        on_topic=True, reason="vague non-answer"),
-        CoherenceResult(coherent=False, is_conclusive=False, is_parroting=False,
-                        on_topic=True, reason="still vague"),
-        CoherenceResult(coherent=False, is_conclusive=False, is_parroting=False,
-                        on_topic=True, reason="still vague"),
-    ]
-    mw = CoherenceMiddleware("define")
-    calls = {"n": 0}
-
-    async def fake_check(belt: str, coach: str) -> CoherenceResult:
-        calls["n"] += 1
-        return verdicts[calls["n"] - 1]
-
-    mw._check = fake_check  # type: ignore[method-assign]
-    out = asyncio.run(mw.aafter_agent(
-        {"structured_response": CoachingResponse(explanation="", example="", prompt="", progress="", message="well, it depends"),
-         "messages": []}, None))
-
-    assert calls["n"] == 3, "initial attempt + 2 retries (B2)"
-    assert mw.degraded is True, "B3 — the grader reads this attribute"
-    assert out is None, (
-        "the skip must NOT travel through state: a dict returned from one "
-        "after_agent is not visible to the next hook in the same pass"
-    )
+# RETIRED at step 6.52 B2: `test_coherence_retries_silently_then_degrades_and_
+# skips_the_grader` asserted THREE checks of one reply. The reply cannot change
+# inside the hook, so the retries re-asked a temperature-0.1 judge the same
+# question (10 of 10 rejecting turns on IMPR-2026-0E5 show no model call after
+# the rejection). One check, then degrade and stand the grader down:
+# `test_judges_once.py::test_coherence_checks_a_reply_once`.
 
 
-def test_coherence_passing_on_a_retry_is_invisible_to_the_belt() -> None:
-    """B2 — a recovered turn returns nothing at all; the Belt sees one reply."""
-    mw = CoherenceMiddleware("define")
-    calls = {"n": 0}
-
-    async def fake_check(belt: str, coach: str) -> CoherenceResult:
-        calls["n"] += 1
-        ok = calls["n"] == 2
-        return CoherenceResult(coherent=ok, is_conclusive=ok,
-                               is_parroting=False, on_topic=True,
-                               reason="" if ok else "vague")
-
-    mw._check = fake_check  # type: ignore[method-assign]
-    out = asyncio.run(mw.aafter_agent(
-        {"structured_response": CoachingResponse(explanation="", example="", prompt="", progress="", message="something"),
-         "messages": []}, None))
-
-    assert calls["n"] == 2
-    assert out is None, "nothing is surfaced when the retry succeeds"
-    assert mw.degraded is False
+# RETIRED at step 6.52 B2: `test_coherence_passing_on_a_retry_is_invisible_to_
+# the_belt` relied on a second check of the SAME reply coming back coherent —
+# the same question, answered differently by chance. A reply is checked once:
+# `test_judges_once.py::test_a_coherent_reply_is_checked_once_and_left_alone`.
 
 
 # ── position 8 — the grader ───────────────────────────────────────────────
@@ -1078,24 +1035,16 @@ def test_grader_internals_never_reach_state() -> None:
         assert forbidden not in returned[0], f"{forbidden} leaked (B7)"
 
 
-def test_max_iterations_passes_through_with_a_belt_visible_warning() -> None:
-    """**B5** — the turn is not blocked; blocking belongs at the gate (§34.2)."""
-    mw = DMAICGraderMiddleware("define")
-    logged: list[dict[str, Any]] = []
-    mw.on_evaluation = logged.append
+# RETIRED at step 6.52 B2: `test_max_iterations_passes_through_with_a_belt_
+# visible_warning` asserted `len(logged) == GRADER_MAX_ITERATIONS == 3` — it
+# ENCODED re-judging identical text as correct (trace 01a0d215…: three grader
+# calls, identical inputs, the wall ran out on the third). The §13 jargon check
+# on the warning is kept below; the rest is
+# `test_judges_once.py::test_the_grader_judges_a_reply_once`.
 
-    async def always_fails(belt: str, coach: str) -> CoachingGraderVerdict:
-        return CoachingGraderVerdict(criteria=[CriterionResult(
-            criterion="show an example first", status="fail",
-            feedback="you asked for the business case without showing one")])
 
-    mw._grade = always_fails  # type: ignore[method-assign]
-    out = asyncio.run(mw.aafter_agent(
-        {"structured_response": CoachingResponse(explanation="", example="", prompt="", progress="", message="give me the case"),
-         "messages": []}, None))
-
-    assert len(logged) == GRADER_MAX_ITERATIONS == 3, "B6 — one entry each"
-    assert out == {"grader_warning": MAX_ITERATIONS_WARNING}
+def test_the_belt_visible_warning_carries_no_machinery() -> None:
+    """§13 — the warning names no rubric, iteration, grader or criterion."""
     for jargon in ("rubric", "iteration", "grader", "criterion"):
         assert jargon not in MAX_ITERATIONS_WARNING.lower(), (
             f"§13 — {jargon!r} is machinery the Belt should not be shown"

@@ -1701,6 +1701,17 @@ async def executor(
             remaining_steps=remaining or None,
             # Carried for the audit trail; §19.6's middleware reads it at 6.5.
             contradiction_flag=(reply.contradiction_flag if reply else None),
+        ), *(
+            # §19.8 / S-C14 B6 — each grading written to `step_log`, which the
+            # grader's `on_evaluation` callback was always meant to reach.
+            # `grader_log` was collected here and read by nothing until 6.52
+            # B2, so a verdict existed only for the length of the turn
+            # (capability row 13). One grading per reply until 6.53; the
+            # iteration goes into the key should 6.53 ever make more.
+            _step(phase, turn_count,
+                  "coaching_grader" if int(e.get("iteration") or 1) == 1
+                  else f"coaching_grader:{e['iteration']}", **e)
+            for e in grader_log
         )],
     }
 

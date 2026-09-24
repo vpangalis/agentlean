@@ -2314,6 +2314,17 @@ Full treatment, including the rubric text and the two-grader distinction, is
 - **The Belt does not see the grader loop.** It runs at step 2 of the gate,
   before the interrupt (§33)
 
+> **STATUS, 2026-09-24 — step 6.52 B2. What is built, recorded so §19.7 and
+> §19.8 are not silently false; the rule change is a DRAFTED amendment in that
+> commit's body, not applied.** Coherence and the grader each make **one call
+> per reply**. Their "retries" re-sent the SAME text to a temperature-0.1 judge
+> — no rewrite happened between them (trace `01a0d215…`: three grader calls,
+> identical inputs). Until step 6.53 asks the coach to rewrite on a FAIL (gated
+> on G-83), coherence rejects once and degrades the turn, and the grader grades
+> once and passes a FAIL through with its warning. `max_iterations=3` and the
+> two coherence retries are held for 6.53. **Each grading now reaches
+> `step_log`** (`layer: "coaching_grader"`), as §19.8 says it does.
+
 ### 19.9 Middleware deliberately NOT used
 
 > **NOT-MARKABLE:** a deliberate absence — what was considered and rejected. **A middleware that is not used has nothing to build**, and recording the decision is the point of the section.

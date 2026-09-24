@@ -128,26 +128,26 @@ class DMAICGraderMiddleware(AgentMiddleware):
             return None
         belt_text = self._belt_text(state)
 
-        self._iterations = 0
-        self._evaluations = []
+        # 6.52 B2 — ONE GRADING PER DISTINCT REPLY, and inside this hook the
+        # reply cannot change. The loop that stood here re-sent the SAME text
+        # to a temperature-0.1 judge up to `max_iterations` times — trace
+        # 01a0d215…: three calls, identical inputs, and the executor's wall ran
+        # out on the third. Iterating means something only once a FAIL asks
+        # the coach to rewrite (step 6.53, gated on G-83's latency ruling);
+        # until then `max_iterations` is held for that step and one call is made.
+        self._iterations = 1
+        verdict = await self._grade(belt_text, coach_text)
+        self._evaluations = [verdict]
+        self._emit(verdict)
+        if verdict.passed:
+            return None
 
-        for _ in range(self.max_iterations):
-            self._iterations += 1
-            verdict = await self._grade(belt_text, coach_text)
-            self._evaluations.append(verdict)
-            self._emit(verdict)
-            if verdict.passed:
-                return None
-            logger.info(
-                "%s.grader: iteration %d — %d criterion/criteria failed: %s",
-                self.phase, self._iterations, len(verdict.failed),
-                [c.criterion for c in verdict.failed],
-            )
-
-        # B5 — passes through, with a warning the Belt sees.
-        logger.warning(
-            "%s.grader: max_iterations=%d reached; passing the turn through "
-            "with a Belt-visible warning", self.phase, self.max_iterations,
+        # B5's end state — the turn passes through, with a warning the Belt sees.
+        logger.info(
+            "%s.grader: %d criterion/criteria failed: %s — passing the turn "
+            "through with a Belt-visible warning (one grading per reply until "
+            "6.53 regenerates)",
+            self.phase, len(verdict.failed), [c.criterion for c in verdict.failed],
         )
         return {"grader_warning": MAX_ITERATIONS_WARNING}
 
