@@ -13,7 +13,9 @@ cache is now on a module-level function, where it belongs.
 from __future__ import annotations
 
 import os
+import threading
 from functools import lru_cache
+from typing import Any
 
 from dotenv import load_dotenv
 from langchain_core.messages import BaseMessage
@@ -160,6 +162,31 @@ def _build_llm(
     )
 
 
+#: Step 6.54 (G-93) — ONE build per model, however many threads miss the cache
+#: together. `lru_cache` does not stop N concurrent misses from each building:
+#: six lookup threads did exactly that on a first turn (trace 01a0d357…).
+_BUILD_LOCK = threading.Lock()
+
+#: Every `get_llm` call a Define turn makes, with the arguments its call site
+#: passes — the cache keys the startup warm-up must hit. Pinned to the call
+#: sites by `test_client_warmup.py::test_every_get_llm_call_on_the_turn_path_
+#: is_warmed`, so a new role on the turn path cannot be missed.
+TURN_LLM_CALLS: tuple[tuple[str, dict[str, Any]], ...] = (
+    ("planner", {}),                        # phases/nodes_common.py — the planner
+    ("coach", {"max_tokens": 1500}),        # the executor's agent
+    ("summarizer", {}),                     # SummarizationMiddleware
+    ("coherence", {}),                      # layer 2a
+    ("grader", {}),                         # the coaching grader
+    ("extraction", {"temperature": 0.2}),   # knowledge-lookup query variants
+)
+
+
+def warm_turn_llms() -> None:
+    """Build every model a turn uses, so no Belt waits for a build (6.54)."""
+    for role, kwargs in TURN_LLM_CALLS:
+        get_llm(role, **kwargs)
+
+
 @traceable(run_type="chain", name="llm.get_llm", process_outputs=lambda o: {})
 def get_llm(
     role: str,
@@ -190,7 +217,8 @@ def get_llm(
     if temperature is None:
         temperature = role_temperature(role)
 
-    return _build_llm(deployment, temperature, max_tokens)
+    with _BUILD_LOCK:
+        return _build_llm(deployment, temperature, max_tokens)
 
 
 def block_text(message: BaseMessage) -> str:

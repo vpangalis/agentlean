@@ -70,6 +70,7 @@ EPICS: list[dict[str, Any]] = [
        title="Every turn answers me inside its time limit",
        ask="When I ask an open question, I get the coach's answer — never an error after forty-five seconds.",
        tasks=[("6.52","The budget starts at node entry, lookups stop blocking, and each judge sees a reply once","Coach","todo"),
+              ("6.54","The clients are built once, at startup, before any Belt waits for them","Coach","todo"),
               ("—","6.53: a failed judgement asks the coach again — gated on the G-83 latency ruling","Coach","blocked")],
        bugs=[("The grader re-judges the same unchanged reply on each iteration, inside the executor's time budget — rows 2 and 13",
               "Coach","done","6.49 · trace 01a0d215 · fixed 6.52 B2"),

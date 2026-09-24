@@ -5839,6 +5839,45 @@ under 45 s, recorded by trace id against row 2.
 
 ---
 
+## Step 6.54 — The clients are built once, at startup, before any Belt waits for them
+
+| | |
+|---|---|
+| **Reference §** | §44 · §45 · §51 · G-93 |
+| **Touches** | `backend/app.py` · `backend/core/llm.py` · `backend/knowledge/retriever.py` · `backend/tests/` |
+| **Precondition** | **8.0's executor slice** — the spans that found the cause. Landed |
+| **NEEDS** | *(nothing — the clients exist; this decides WHEN they are built, and how many times)* |
+| **GIVES** | Capability row **2** — an open question is coached inside its budget on the FIRST turn in a process |
+| **Verify** | `pytest` + `live-run` |
+| **Status** | **RULED — founder 2026-09-24** |
+
+**The cause, measured (G-93).** The clients a Define turn uses were built lazily,
+inside the first turn, and six lookup threads missing an empty `lru_cache`
+together each built their own. Step 0 of this card measured one build apart:
+
+| Build | Cost | Of which |
+|---|---|---|
+| Embeddings client | ~2.5 s | 2 TLS certificate-bundle loads, 1.72 s — construction; no login (API key) |
+| Knowledge vectorstore (embeddings cached) | ~3.5 s | 4 certificate-bundle loads, 1.76 s, plus the index-definition read (network) |
+| Six threads on an empty cache | **7.2 s each** | 24 certificate loads, 38.3 s summed |
+
+Case and evidence searches also built a new `SearchClient` per call — 7–12 per
+lookup, each with its own certificates to load.
+
+**The fix.** Every client a turn uses is built in the app's startup, before it
+accepts a request (`warm_turn_llms`, `retriever.warm_clients`), and the search
+clients are closed on shutdown beside the blob client. Each cached builder is
+single-flight: however many threads miss an empty cache, one builds. One
+`SearchClient` per index for the process.
+
+**Done when:** six threads on an empty cache produce exactly one build of each
+client; a started app leaves no client for a turn to build; mutation proofs
+for the lock and the warm-up; and on a restarted server the FIRST turn — an open
+question on `0E5` — is coached inside its budget, recorded with its trace id
+and *"first turn in process: yes"*.
+
+---
+
 ## Step 6.50 — The conformance pass — the tree against the framework's own documentation
 
 | | |
@@ -6309,9 +6348,9 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **DONE** | 52 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.20**, **6.34**, **6.33**, **6.35**, **6.42**, **6.49**, **6.52**, **6.48**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.38**, **6.41** |
 | **BUILDING NOW** | 1 | **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 35 | **6.43**, **10.3**, **6.51**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.46**, **6.47**, **10.4**, **6.50**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
+| **QUEUED** | 36 | **6.43**, **10.3**, **6.51**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.46**, **6.47**, **6.54**, **10.4**, **6.50**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
-*96 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-24.*
+*97 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-24.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -6641,6 +6680,7 @@ restate, which is the opposite of what the board is for.
 | 479 | **Commit 6.50** | The conformance pass — the tree against the framework's own documentation |  | OPS | SHARED | Every checker compares the code to documents this project wrote, so a mechanism used against the framework's documented behaviour satisfies all four and is caught only by somebody reading the docs by chance. |
 | 472 | **Commit 6.49** | The checks card — twelve capability rows get the check that proves them |  | OPS | SHARED | Twelve rows of the register are claims: nobody can say whether a checkpoint is written per node, or whether a Define turn leaves a readable trace. |
 | 474 | **Commit 6.52** | A turn always answers inside its budget |  | COACH | SHARED | A Belt who asks an open question gets a 500 after 45 seconds, because the node's own budget starts late and the knowledge lookups hold the event loop so no timer can fire. |
+| 476 | **Commit 6.54** | The clients are built once, at startup, before any Belt waits for them |  | COACH | SHARED | The first open question after a restart spends ~20 s building clients the app could have built before it opened, and the Belt gets the out-of-time answer. |
 | 477 | **Commit 10.4** | The error contract — a failed turn is readable |  | UI | SHARED | A failed turn reaches the Belt as a stack fragment in a three-second toast, with no way to tell a timeout from a rate limit. |
 | 470 | **Commit 8.1** | Structured errors |  | OPS | SHARED | Failures arrive as free text, so the circuit breaker and the fallback chain have nothing to read to tell retry from stop. |
 | 480 | **Commit 8.2** | Timeouts + compensating actions |  | OPS | SHARED | A node failing mid-turn leaves its partial writes in place, so the next turn resumes from a state nobody wrote deliberately. |
@@ -7134,6 +7174,7 @@ home.**
 | L8 |  | — | **6.13** | The evidence index migration | ✅ | `backend.knowledge.tools::rag_lookup_evidence` | §23.2, §23.2.1, §23.4, §24, §6 / S-C02, S-C09 |
 | L8 |  | — | **6.34** | A node that runs out of time answers the Belt instead of failing (G-84) | ✅ | `backend.tests.test_turn_budget::test_a_slow_turn_answers_before_the_wall` | §4.8, §44, §45 |
 | L8 |  | — | **6.52** | A turn always answers inside its budget | ✅ | `backend.tests.test_judges_once::test_the_graders_verdict_reaches_step_log` | §4.8, §19.7, §19.8, §44, §45 |
+| L8 |  | — | **6.54** | The clients are built once, at startup, before any Belt waits for them | ✅ | `backend.tests.test_client_warmup::test_the_started_app_leaves_no_client_for_a_turn_to_build` | §44, §45, §51 |
 | L8 |  | — | **8.0** | Turn telemetry and `@traceable` | ☐ | `absent: backend.core.tracing::traced_turn` | §51, §44 |
 | L8 |  | — | **8.1** | Structured errors | ☐ | `absent: backend.errors::StructuredError` | §48 |
 | L8 |  | — | **8.2** | Timeouts + compensating actions | ☐ | `absent: backend.core.timeouts::NODE_TIMEOUTS` | §45 |
@@ -7287,7 +7328,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-90** | **THE VERIFICATION TOOLING PARSES AN ERROR BODY AS DATA, SO A FAILED READ IS INDISTINGUISHABLE FROM AN EMPTY RESULT — G-66'S SHAPE, ONE LAYER UP.** During step 6.33's `live-run` a read of the case document was issued against `/case/{id}`; the served route is `/cases/{id}`, so the response was a **404** carrying `{"detail":"Not Found"}`. The reader did `json.load(...)` and walked `(c.get("phases") or {}).get("define")` — **a valid JSON object with no `phases` key, so the walk yielded `{}` and the check reported `structured: null`.** That is byte-identical to what a case which had genuinely captured nothing would report, and it was believed until `-w "%{http_code}"` was added. A **400** was read the same way one turn later, reporting `phase_inputs: null` for a turn that never ran at all. **This is G-66 exactly** — *"a 503 `{"detail": …}` is a valid JSON OBJECT, so `data.length` is `undefined`, falsy, and the empty-state message renders"* — with the verifier in the UI's place, and it is the more dangerous seat of the two: **the UI misleads a Belt, and this misleads a step's own evidence.** G-66 was fixed in `ui/index.html` on 2026-09-15; **nothing generalised it**, because the tooling side is ad-hoc `curl` in step prose rather than a file anybody owns. **NOT FIXED.** Interim containment, with its removal condition: **every live read written into this document from 2026-09-21 checks the status before it reads the body** — 6.33's own section carries that instruction, and it retires when a checked reader exists that a step can call instead of writing its own. | §49, §55.1, G-66 | **unscheduled** |
 | ~~**G-91**~~ | **THE PLAN AND ITS GENERATOR LIVED OUTSIDE THE REPOSITORY. CLOSED 2026-09-23** by the commit carrying `Gap: G-91`: the generator is tracked under `agent-improve/tools/control_board/`, runs in `.githooks/pre-commit` after `build_board.py`, derives rows proven, story and task status and NEXT from Appendix H, git log and rank, and fails VISIBLY — a warning from the hook, and a BUILT FROM line on the page that goes stale when a build fails. **Still open, and not this gap:** Appendix F's `Order` is hand-set (Appendix I says so). As registered: The epics, stories and rank (`stories.py`) and the generator that renders the control board from them were kept in the Desktop session's workspace. **Appendix I names `stories.py` as the plan's single source** (founder ruling, 2026-09-23), and at that moment the pointer did not resolve: `git ls-files` returned nothing for it, tracked or untracked. So the plan could drift from Appendix H and from git log with nothing to notice. The control board's rows-proven count, its story and task statuses and its NEXT were all TYPED, and they stayed right only while somebody remembered to retype them. **Registered first, in its own commit, because §0.32's guard refused the generator's files for want of a number that schedules them** — which was accurate, since nothing did. **Closes when** the generator is tracked under `agent-improve/tools/control_board/`, runs in the pre-commit hook, and derives from Appendix H and git log what it used to declare | §0.32, §55.1, Appendix H, Appendix I | closed |
 | ~~**G-92**~~ | **CLOSED 2026-09-24 at step 6.52.** The budget is measured from node entry and no lookup holds the event loop: the real executor node, under the real `TimeoutPolicy` with a setup delay and a blocking tool, answers before the wall (`test_turn_budget.py`), and live turn `01a0d2c0…` returned 200 where two had returned 500. **Not closed by it:** open questions still end in the degraded answer — a latency problem, G-83. As registered: **G-84'S GUARANTEE DOES NOT HOLD: THE SOFT BUDGET NEVER ENDS A TURN BEFORE THE ENGINE'S WALL.** G-84 closed at 6.34 on the claim that the node budgets its own model loop at `EXECUTOR_SOFT_BUDGET = 40.0`, below the 45 s wall, so the engine's `TimeoutPolicy` is only a backstop. **On 2026-09-24 both live turns on `IMPR-2026-0E5` hit the wall with a 500** — traces `01a0d215-a216-75e2-ba80-1c80597f891f` and `01a0d28e-d4da-7901-a75e-44d86b102098`. Two causes, found in 6.52 Part A: **(1)** the budget's clock started at `agent.ainvoke`, ~5 s after node entry, so its deadline fell after the wall's; **(2)** the three `rag_lookup_*` tools ran synchronous `embed_query` + `search` on the event loop, four to six in a row, so no timer could fire until each returned. **Escape:** 6.34's proof re-implemented `wait_for` inside the test around an agent that awaited a millisecond sleep — never the real node, never the real wall, never a blocking tool | §4.8, §44, §45, G-84 | closed |
-| **G-93** | **OPEN QUESTIONS DO NOT FIT THE BUDGET — CAUSE: COLD START.** Since 6.52 a turn never 500s, but an open question that makes two or more knowledge lookups ended in the degraded *"I ran out of time"* answer (row 2 red). **Cause, measured at step 8.0's executor slice: the clients are built lazily inside the first turn, and 6 threads build the same client at once** — the cached `get_embeddings` (~5 s) and knowledge search client (~10.6 s) were each built SIX times in parallel on one cache miss, and first-time `get_llm` builds cost 2–3 s each. Not throttling (54 HTTP attempts, zero 429s, zero retries) and not serialised embeddings (six queries start within 0.02 s). **Traces:** `01a0d357-f9fc-7123-be14-fb5bc4229bb1` — COLD, first turn in process: executor 40.1 s, degraded. `01a0d358-c1ef-7aa0-9c81-6370593dff71` and `01a0d359-3a3d-7db0-a970-eaf830885902` — WARM: executor 23.6 s and 21.6 s, coached 200s. Every degraded live turn before this was a first turn in a fresh process | §44, §45, §51, G-83 | **8.0** |
+| ~~**G-93**~~ | **CLOSED 2026-09-24 at step 6.54.** Every client a turn uses is built at startup, once; on a restarted server the FIRST turn — an open question with two parallel lookups — was coached in 24.1 s of executor time, zero client builds in its trace (`01a0d366-bf6e-7020-9d5f-1bb5a972bcdf`, first turn in process: yes). As registered: **OPEN QUESTIONS DO NOT FIT THE BUDGET — CAUSE: COLD START.** Since 6.52 a turn never 500s, but an open question that makes two or more knowledge lookups ended in the degraded *"I ran out of time"* answer (row 2 red). **Cause, measured at step 8.0's executor slice: the clients are built lazily inside the first turn, and 6 threads build the same client at once** — the cached `get_embeddings` (~5 s) and knowledge search client (~10.6 s) were each built SIX times in parallel on one cache miss, and first-time `get_llm` builds cost 2–3 s each. Not throttling (54 HTTP attempts, zero 429s, zero retries) and not serialised embeddings (six queries start within 0.02 s). **Traces:** `01a0d357-f9fc-7123-be14-fb5bc4229bb1` — COLD, first turn in process: executor 40.1 s, degraded. `01a0d358-c1ef-7aa0-9c81-6370593dff71` and `01a0d359-3a3d-7db0-a970-eaf830885902` — WARM: executor 23.6 s and 21.6 s, coached 200s. Every degraded live turn before this was a first turn in a fresh process | §44, §45, §51, G-83 | closed |
 
 ### 66.3 Group C — schemas named but never defined
 
@@ -7517,6 +7558,16 @@ can run, and an unrunnable check is indistinguishable from a passing one.
 > reopen — the turn is re-readable by the next reviewer, and the claim *"I
 > watched it"* stops being the only evidence that it happened.
 
+> ### ⛑ EVERY LIVE PROOF STATES *"FIRST TURN IN PROCESS: YES/NO"* — ruled 2026-09-24
+>
+> **A live turn's timing depends on whether it is the first in its process.** At
+> step 8.0's executor slice, every degraded open question on record turned out
+> to be a first turn in a fresh process, paying for client builds a later turn
+> never sees (G-93, closed at 6.54). A proof that does not say which it was
+> cannot be compared with another. **Every live proof — a `live-run` step, a
+> `live-turn` row, a trace cited as evidence — records its trace id AND
+> *"first turn in process: yes"* or *"no"*.**
+
 **A row is about the PRODUCT, not the tree.** *"A Belt's captured value
 survives the next turn"* is a capability; *"`merge_field_log` has a reducer"*
 is an implementation detail that might be one way of delivering it. The
@@ -7553,7 +7604,7 @@ has a check yet.
 
 **The project's status by clause 1 was `4 of 35`** when the seed landed, against a
 register **35/35 written**: 4 green, 31 red, 0 unwritten. **Step 6.49 (the checks
-card) moves it to `12 of 35`**, and **6.52 B2 to `13 of 35`** (row 13) — see the notes after the table. The count did not move,
+card) moves it to `12 of 35`**, **6.52 B2 to `13 of 35`** (row 13), and **6.54 to `14 of 35`** (row 2) — see the notes after the table. The count did not move,
 and that is the honest result — the seed turned twenty unstated requirements
 into twenty visible, ordered pieces of red work. **Nothing was measured by
 writing them down.**
@@ -7581,7 +7632,7 @@ card is checked against when it starts.
 | ID | Capability | Check | State | Given by |
 |---|---|---|---|---|
 | **1** | A case can be created and opened — the case list returns it and it opens | `backend.tests.test_capability_rows::test_row_1_a_case_can_be_created_and_opened` | 🟢 | **6.49** |
-| **2** | A turn returns a coached reply — one POST, one graph run, a message back | `backend.tests.test_capability_rows::test_row_2_a_turn_returns_a_coached_reply` | 🔴 | **6.49** |
+| **2** | A turn returns a coached reply — one POST, one graph run, a message back | `backend.tests.test_capability_rows::test_row_2_a_turn_returns_a_coached_reply` | 🟢 | **6.49** · **6.54** |
 | **3** | The coach follows the Define script for the current field — the turn records that the script reached the model | *pending — 6.46 writes it* | 🔴 | **6.46** |
 | **4** | The Belt is asked for the right next field — field two is asked only once field one is complete | *pending — 6.45 writes it* | 🔴 | **6.45** |
 | **5** | A captured field survives the next turn — turn two captures the team and the business case is still there | `backend.tests.test_capability_rows::test_row_5_a_captured_field_survives_the_next_turn` | 🟢 | built at **6.33** · proven by **6.49** |
@@ -7623,7 +7674,7 @@ card is checked against when it starts.
 >
 > | Row | State | Evidence |
 > |---|---|---|
-> | **2** | 🔴 | **Both live turns on 2026-09-24 failed** with 500 — the executor's 45 s run timeout, one graph run each. Trace `01a0d215-a216-75e2-ba80-1c80597f891f` (06:23): the grader failed the reply twice and was re-judging **the same text** when time ran out. Trace `01a0d28e-d4da-7901-a75e-44d86b102098` (08:36): three knowledge lookups in a row — `rag_lookup_methodology` 12.2 s, `rag_lookup_evidence` 9.8 s, `rag_lookup_case_history` 10.4 s, about 32 s. **The executor soft budget (`nodes_common.py:647`) did not end either turn before the 45 s limit.** The case is not stuck: the second turn started cleanly on top of the first. Opt-in: `CAPABILITY_LIVE_TURN=1` **After 6.52 B1 (trace `01a0d2c0-457e-74e0-9934-88dff9573a5f`, 09:30): 200, not 500** — the executor node ended at 40.4 s, inside its wall, and two lookups ran in parallel. **Still red:** the Belt got the degraded *"I ran out of time"* answer, because coherence judged the coach's finished reply three times (7.2 s) and the budget ran out in the grader — B2's defect; and the whole turn took 50.8 s end to end **After 6.52 B2:** each judge makes one call — the open-question turn `01a0d2ca-4ca3-7951-b128-2b7e3e1651ed` (09:41) made one coherence call and one grader call, and still ended degraded: 7.4 s of setup before the first model call, two parallel lookups of 15.5 s and 10.7 s, and the grader's one call cut at the 40 s budget. A narrow question (`01a0d2cc…`, 09:43) returned a coached 200 in 29.7 s. **The row's check now refuses the out-of-budget message as a coached reply.** Open questions are a latency problem — G-83 |
+> | **2** | 🟢 since 6.54 | **Both live turns on 2026-09-24 failed** with 500 — the executor's 45 s run timeout, one graph run each. Trace `01a0d215-a216-75e2-ba80-1c80597f891f` (06:23): the grader failed the reply twice and was re-judging **the same text** when time ran out. Trace `01a0d28e-d4da-7901-a75e-44d86b102098` (08:36): three knowledge lookups in a row — `rag_lookup_methodology` 12.2 s, `rag_lookup_evidence` 9.8 s, `rag_lookup_case_history` 10.4 s, about 32 s. **The executor soft budget (`nodes_common.py:647`) did not end either turn before the 45 s limit.** The case is not stuck: the second turn started cleanly on top of the first. Opt-in: `CAPABILITY_LIVE_TURN=1` **After 6.52 B1 (trace `01a0d2c0-457e-74e0-9934-88dff9573a5f`, 09:30): 200, not 500** — the executor node ended at 40.4 s, inside its wall, and two lookups ran in parallel. **Still red:** the Belt got the degraded *"I ran out of time"* answer, because coherence judged the coach's finished reply three times (7.2 s) and the budget ran out in the grader — B2's defect; and the whole turn took 50.8 s end to end **After 6.52 B2:** each judge makes one call — the open-question turn `01a0d2ca-4ca3-7951-b128-2b7e3e1651ed` (09:41) made one coherence call and one grader call, and still ended degraded: 7.4 s of setup before the first model call, two parallel lookups of 15.5 s and 10.7 s, and the grader's one call cut at the 40 s budget. A narrow question (`01a0d2cc…`, 09:43) returned a coached 200 in 29.7 s. **The row's check now refuses the out-of-budget message as a coached reply.** Open questions are a latency problem — G-83 **Green at 6.54:** row 2's own check, run live — trace `01a0d36b-49dc-7470-b924-9e30c9505235`, **first turn in process: yes**, coached, executor 14.6 s, no client built in the turn. The open-question proof on a restarted server: `01a0d366-bf6e-7020-9d5f-1bb5a972bcdf`, **first turn in process: yes**, two parallel lookups, coached in 24.1 s of executor time; a warm turn after it, `01a0d367-3d03-7ee3-b4c5-a191a60d8c97` (first turn in process: no), 23.8 s |
 > | **10** | 🔴 | **Skipped: no calculation turn yet on 0E5.** No turn's `artifacts` carry a `computation_results` row. Red because a row that did not run is not green |
 > | **12** | 🔴 | **10 of 10** turns on `0E5` in which layer 2a checked more than once — i.e. rejected — show **no model call after the rejection**: the loop re-checks the same reply rather than re-asking. `CoherenceMiddleware.aafter_agent` calls `self._check(belt_text, coach_text)` with an unchanged `coach_text` each iteration. Also: 2a judges the **coach's** reply, not the Belt's answer, so the row's premise and the mechanism ask different questions |
 > | **13** | 🟢 since 6.52 B2 | The latest completed coaching turn's `step_log` has 6 entries and **none** with `layer: "coaching_grader"`. The grader runs (its hook is in every trace) and its verdicts are collected into `grader_log` (`nodes_common.py:996`, `:1072`), which `_build_executor` returns at `:1444` and **nothing ever reads** **Green at 6.52 B2:** the executor now writes `grader_log` into `step_log`; the first completed coaching turn after it (trace `01a0d2cc-a58b-7ed0-83aa-cf718340f376`, 09:43) carries `coaching_grader · failed`, from ONE grader call |

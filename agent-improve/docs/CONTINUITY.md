@@ -9,7 +9,7 @@
 |---|---|
 | **Last completed** | step **6.41** — The symbol-anchor ratchet comes down |
 | **Next** | step **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
-| **Spine steps landed** | 52 of 96 |
+| **Spine steps landed** | 52 of 97 |
 | **Last spine commit** | `fd0ac62` (commit 6.52) |
 | **ARCHITECTURE.md** | v1.70 |
 | **CLAUDE.md** | v2.2.41 |
@@ -41,8 +41,8 @@ Update it with every commit that moves the position.*
 
 | | |
 |---|---|
-| **Last commit** | **6.52 B2 — each judge sees a reply once** (`git log -1`); B1 `20dbca4`. Step 6.52 has landed |
-| **Register** | **13 of 35** proven (Appendix H). Green: **1, 5, 6, 8, 11, 13, 17, 18, 19, 20, 21, 33, 35** |
+| **Last commit** | **6.54 — the clients are built once, at startup** (`git log -1`); before it, 8.0's executor slice `a2067db` |
+| **Register** | **14 of 35** proven (Appendix H). Green: **1, 2, 5, 6, 8, 11, 13, 17, 18, 19, 20, 21, 33, 35** |
 | **Red from 6.49** | **2** (turns time out) · **10** (skipped: no calculation turn yet on 0E5) · **12** (coherence re-checks, never re-asks) · **13** (grader's score never recorded). 12 and 13 are `xfail(strict=True)` |
 | **Case `IMPR-2026-0E5`** | **Not stuck** — a turn after the timed-out one started cleanly. **Its turns time out**: two traces on 2026-09-24, two causes |
 
@@ -53,14 +53,16 @@ Update it with every commit that moves the position.*
 
 **The executor soft budget (`nodes_common.py:647`) ended neither turn before the 45 s limit.**
 
-**6.52 landed (G-92 closed).** A turn no longer 500s: the budget runs from node
-entry and lookups no longer hold the event loop (B1); each judge makes one call
-and the grader's verdict is in `step_log` (B2, row 13 green). **Open questions
-still end in the degraded answer** — trace `01a0d2ca-4ca3-7951-b128-2b7e3e1651ed`:
-7.4 s of setup, two parallel lookups of 15.5 s and 10.7 s, and the grader's one
-call cut at 40 s. A narrow question returned a coached 200 in 29.7 s
-(`01a0d2cc-a58b-7ed0-83aa-cf718340f376`). That is latency — **G-83's ruling**, which
-also gates **6.53** (a judge's FAIL asks the coach to rewrite). Row 2 stays red.
+**6.52, 8.0's executor slice and 6.54 landed; G-92 and G-93 closed; row 2 green.**
+The spans found the open-question timeouts were a COLD START — clients built
+inside the first turn, six threads building each one at once. 6.54 builds them at
+startup, once: server start 8.9 s -> 22.6 s (warm-up 14.3 s), and the FIRST turn
+after a restart — an open question with two parallel lookups — was coached in
+24.1 s of executor time (`01a0d366-bf6e-7020-9d5f-1bb5a972bcdf`, first turn in
+process: yes). **Every live proof now states "first turn in process: yes/no"**
+(Appendix H). Still open: row 12 and 6.53 (a judge's FAIL asks for a rewrite),
+G-76 at 10.0 (the grader's warning reaches nobody), and the untraced `validate.py`
+layers (8.0's remainder).
 
 **Rank after that:**
 

@@ -7,8 +7,8 @@ import re
 import threading
 import time
 from contextlib import contextmanager
-from functools import lru_cache
-from typing import Any, Iterator, NoReturn
+from functools import lru_cache, wraps
+from typing import Any, Callable, Iterator, NoReturn, TypeVar
 
 from azure.core.credentials import AzureKeyCredential
 from azure.core.exceptions import (
@@ -176,11 +176,82 @@ def _http_summary(events: list[tuple[float, str, str]]) -> dict[str, Any]:
             "thread": threading.current_thread().name}
 
 
+# ── step 6.54 (G-93): each client is built ONCE, and before any turn ──────
+#
+# Measured at 6.54's step 0: one embeddings build costs ~2.5 s and one knowledge
+# vectorstore build ~3.5 s — mostly loading the TLS certificate bundle, plus the
+# vectorstore's index-definition read; no login token (API-key auth). Six lookup
+# threads missing an empty `lru_cache` together each built their own: 7.2 s
+# apiece, 38 s of certificate loading summed. `lru_cache` guarantees one CACHED
+# value, not one BUILD. `_single_flight` serialises the miss so the first caller
+# builds and the rest read what it built.
+_T = TypeVar("_T")
+
+
+def _single_flight(cached: Callable[..., _T]) -> Callable[..., _T]:
+    lock = threading.Lock()
+
+    @wraps(cached)
+    def call(*args: Any, **kwargs: Any) -> _T:
+        with lock:
+            return cached(*args, **kwargs)
+
+    call.cache_clear = getattr(cached, "cache_clear")  # type: ignore[attr-defined]
+    return call
+
+
+#: One `SearchClient` per index for the process. Case and evidence searches
+#: built one PER CALL — 7–12 per lookup, each loading certificates afresh.
+#: Azure SDK clients are documented as thread-safe for concurrent use.
+_SEARCH_CLIENTS: dict[str, SearchClient] = {}
+_SEARCH_LOCK = threading.Lock()
+
+
+@traceable(run_type="chain", name="retriever.build_search_client")
+def _build_search_client(index_name: str) -> SearchClient:
+    return SearchClient(
+        endpoint=settings.AZURE_SEARCH_ENDPOINT,
+        index_name=index_name,
+        credential=AzureKeyCredential(settings.AZURE_SEARCH_API_KEY),
+    )
+
+
+def get_search_client(index_name: str) -> SearchClient:
+    """The process's one client for `index_name`, built on first use."""
+    with _SEARCH_LOCK:
+        client = _SEARCH_CLIENTS.get(index_name)
+        if client is None:
+            client = _SEARCH_CLIENTS[index_name] = _build_search_client(index_name)
+        return client
+
+
+def warm_clients() -> None:
+    """Build every retrieval client a Define turn uses (app startup, 6.54)."""
+    get_embeddings()
+    get_knowledge_vectorstore()
+    get_search_client(settings.AZURE_SEARCH_IMPROVE_CASE_INDEX)
+    get_search_client(settings.AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX)
+
+
+def close_clients() -> None:
+    """Close the per-index search clients and forget every cached client
+    (app shutdown). Idempotent."""
+    with _SEARCH_LOCK:
+        clients = list(_SEARCH_CLIENTS.values())
+        _SEARCH_CLIENTS.clear()
+    for client in clients:
+        client.close()
+    for getter in (get_embeddings, get_knowledge_vectorstore,
+                   get_evidence_vectorstore):
+        getattr(getter, "cache_clear")()
+
+
 # §51 / step 8.0 slice — every direct Azure call gets a span. Inputs are cut
 # to the query and its parameters: a 1,536-float vector in every span would
 # cost more to ship than the call it measures.
 
 
+@_single_flight
 @lru_cache(maxsize=1)
 @traceable(run_type="chain", name="retriever.get_embeddings")
 def get_embeddings() -> AzureOpenAIEmbeddings:
@@ -232,6 +303,7 @@ KNOWLEDGE_INDEX_FIELDS = [
 ]
 
 
+@_single_flight
 @lru_cache(maxsize=1)
 @traceable(run_type="chain", name="retriever.get_knowledge_vectorstore")
 def get_knowledge_vectorstore() -> AzureSearch:
@@ -305,6 +377,7 @@ EVIDENCE_SELECT = [
 EVIDENCE_KIND_DEFAULT = "evidence"
 
 
+@_single_flight
 @lru_cache(maxsize=1)
 @traceable(run_type="chain", name="retriever.get_evidence_vectorstore")
 def get_evidence_vectorstore() -> AzureSearch:
@@ -414,11 +487,7 @@ def search_cases(query: str, k: int = 3) -> list[dict]:
 
     Returns [] only when the search ran and matched nothing. Raises
     KnowledgeSearchError if the search itself fails."""
-    search_client = SearchClient(
-        endpoint=settings.AZURE_SEARCH_ENDPOINT,
-        index_name=settings.AZURE_SEARCH_IMPROVE_CASE_INDEX,
-        credential=AzureKeyCredential(settings.AZURE_SEARCH_API_KEY),
-    )
+    search_client = get_search_client(settings.AZURE_SEARCH_IMPROVE_CASE_INDEX)
 
     try:
         with trace("azure.openai.embed_query", run_type="embedding",
@@ -484,11 +553,7 @@ def search_evidence(query: str, case_id: str, k: int = 4,
 
     Returns [] only when the search ran and matched nothing. Raises
     KnowledgeSearchError if the search itself fails."""
-    search_client = SearchClient(
-        endpoint=settings.AZURE_SEARCH_ENDPOINT,
-        index_name=settings.AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX,
-        credential=AzureKeyCredential(settings.AZURE_SEARCH_API_KEY),
-    )
+    search_client = get_search_client(settings.AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX)
     safe_case_id = case_id.replace("'", "''")   # OData escapes ' by doubling
     odata = f"case_id eq '{safe_case_id}'"
     if kind:

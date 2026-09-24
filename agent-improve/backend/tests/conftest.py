@@ -299,3 +299,20 @@ def stub_coach(monkeypatch) -> _CreateAgentRecorder:
     rec = _CreateAgentRecorder()
     monkeypatch.setattr("backend.phases.nodes_common.create_agent", rec)
     return rec
+
+
+# ── step 6.54 — the per-index search clients are process-wide ─────────────
+@pytest.fixture(autouse=True)
+def _fresh_search_clients():
+    """Empty `retriever`'s per-index `SearchClient` registry around each test.
+
+    Since 6.54 a search reuses one client per index for the whole process, so
+    a test that patches `retriever.SearchClient` would otherwise be handed a
+    client an EARLIER test built. Clearing the registry is test isolation for a
+    module-level cache — the same thing `cache_clear()` is for `lru_cache` — not
+    a change to what the code under test does.
+    """
+    from backend.knowledge import retriever
+    retriever._SEARCH_CLIENTS.clear()
+    yield
+    retriever._SEARCH_CLIENTS.clear()

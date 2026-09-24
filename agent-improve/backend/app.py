@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +20,8 @@ from backend.core.request_context import (
     get_request_id,
 )
 from backend.gateway.routes import router
+from backend.core.llm import warm_turn_llms
+from backend.knowledge import retriever
 from backend.storage import blob
 
 configure_logging(level=getattr(settings, "LOG_LEVEL", "INFO"))
@@ -68,6 +72,24 @@ app.mount("/", StaticFiles(directory="ui", html=True), name="ui")
 @app.on_event("startup")
 async def startup():
     init_tracing()
+    # Step 6.54 (G-93) — every client a Define turn uses is built HERE, before
+    # the app accepts a request, rather than inside the first Belt's turn. On
+    # a first turn the lazy builds cost ~20 s (trace 01a0d357…) and pushed an
+    # open question past its budget. Built in a worker thread: the builds are
+    # synchronous and load certificate bundles. A failure is logged and the
+    # app still starts — a turn then builds lazily, as it did before 6.54.
+    started = time.monotonic()
+    try:
+        await asyncio.to_thread(warm_turn_llms)
+        await asyncio.to_thread(retriever.warm_clients)
+        logger.info("Clients built before the first turn in %.1fs (step 6.54)",
+                    time.monotonic() - started)
+    except Exception as exc:  # noqa: BLE001 — startup must not fail on a warm-up
+        logger.warning(
+            "Client warm-up FAILED after %.1fs (%s: %s) — the first turn will "
+            "build its clients and may miss its budget (G-93)",
+            time.monotonic() - started, type(exc).__name__, exc,
+        )
     logger.info("Agent Improve starting on port 8020")
 
 
@@ -80,6 +102,8 @@ async def shutdown():
     # coaching turns via `RunControl.request_drain()` and stays gated. Closing
     # an HTTP session is a separate, ungated concern.
     await blob.aclose()
+    # 6.54 — the per-index search clients built at startup, closed the same way.
+    retriever.close_clients()
     logger.info("Agent Improve shutting down")
 
 
