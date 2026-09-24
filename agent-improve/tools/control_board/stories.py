@@ -13,10 +13,12 @@ with no rows yet, a task that is not a procedure step, every bug — and the pag
 labels those HAND. Where a source exists, the typed value can still say WHICH kind
 of not-done (todo / blocked); it can never say done.
 """
+from typing import Any
+
 import derived
 # task: (code, title, component, status)   status: done | now | next | todo | blocked
 # bug:  (title, component, status, where found)
-EPICS = [
+EPICS: list[dict[str, Any]] = [
  dict(id="E1", title="A Belt can complete Define and close its gate",
       why="The vertical. Done when every story below is done.",
       stories=[
@@ -114,7 +116,12 @@ EPICS = [
        title="Everything that already works is proven by a check",
        ask="A case opens, a turn replies, answers survive, changes are logged, uploads land, calculations and metrics are kept, coherence and grading run, required fields are checked.",
        tasks=[("6.49","Write one check per row, reading the live case; checks only, no code changes","all","todo")],
-       bugs=[]),
+       bugs=[("The grader re-judges the same unchanged reply on each iteration, inside the executor's time budget — rows 2 and 13",
+              "Coach","todo","6.49 · trace 01a0d215"),
+             ("Coherence (layer 2a) re-checks the same reply after rejecting it, and never asks for a new one — row 12",
+              "Coach","todo","6.49 · 10 of 10 rejecting turns"),
+             ("The executor's soft budget does not end the turn before the 45 s limit — row 2, two traces",
+              "Coach","todo","6.49 · traces 01a0d215, 01a0d28e")]),
  ]),
  dict(id="E4", title="Quality, once Define works end to end",
       why="Real, and none of it stops a Belt closing Define.",
@@ -232,7 +239,9 @@ EPICS = [
               ("6.23","The source-method check","Governance","todo"),("6.24","The drift hook reads the documents","Governance","todo"),
               ("6.28","Fact ownership at the commit gate","Governance","todo"),("6.29","Search index schema ownership","Governance","todo"),
               ("6.30","Commit claims carry a resolvable reference","Governance","todo"),("6.32","An out-of-band landing gets its lane","Governance","todo"),
-              ("6.50","The conformance pass: the tree against the framework's documentation","Governance","todo")], bugs=[]),
+              ("6.50","The conformance pass: the tree against the framework's documentation","Governance","todo")],
+       bugs=[("read_order() reads zero rows since the Zone column arrived at 6.37 — two copies of one regex, build_board.py and continuity_status.py, so both the step board and CONTINUITY.md show an empty vertical",
+              "Governance","todo","6.49 · plan-order check")]),
   dict(id="S29", rank=None, status="todo", rows=[], comps=["Coach"],
        title="As the founder, I can see whether coaching quality is going up or down",
        ask="A fixed set of cases is run on every change and scored.",
@@ -291,7 +300,7 @@ def resolve():
             else:
                 st["src"] = "hand"
             tasks = []
-            for code, title, comp, status in st["tasks"]:
+            for code, title, comp, status, *_ in st["tasks"]:   # idempotent: a second call sees 5-tuples
                 if derived.is_step(code):
                     tasks.append((code, title, comp, "done" if code in committed else _not_done(status), "git"))
                 else:
@@ -308,7 +317,7 @@ def next_story():
 
 
 def step_index():
-    idx = {}
+    idx: dict[str, str] = {}
     for ep in EPICS:
         for st in ep["stories"]:
             for t in st["tasks"]:

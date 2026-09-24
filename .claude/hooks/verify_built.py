@@ -1293,7 +1293,7 @@ CHECKS = [
      "fall since this bound was split**, which is what 6.41 said the number "
      "existed to make possible"),
 
-    ("facts with nothing to anchor to — ratified, unbuilt", "30",
+    ("facts with nothing to anchor to — ratified, unbuilt", "29",
      facts_with_nothing_to_anchor,
      "Appendix F · step 6.41 — G-87. ☐ means something does NOT exist, so the "
      "em dash is the honest cell. **A rise here is normal** and means the "
@@ -1305,7 +1305,8 @@ CHECKS = [
      "25 → 26 on 2026-09-23: step 6.50, the conformance pass; "
      "26 → 28 the same day: steps 6.48 and 7.8, the working-method "
      "amendment's two registrations; 28 → 30 on 2026-09-23 for the checks "
-     "card (6.49) and the baseline card (6.51)"),
+     "card (6.49) and the baseline card (6.51); 30 → 29 on 2026-09-24: 6.49 "
+     "landed and anchors to its row-33 check"),
 
     ("facts never assessed against the tree", "96",
      facts_unassessed,

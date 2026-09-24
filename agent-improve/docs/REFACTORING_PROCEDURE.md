@@ -6233,7 +6233,7 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
 | **QUEUED** | 36 | **6.43**, **10.3**, **6.51**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.49**, **6.46**, **6.47**, **10.4**, **6.50**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
-*95 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-23.*
+*95 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-24.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -6754,7 +6754,7 @@ home.**
 | L0 |  | — | **6.41** | The symbol-anchor ratchet comes down (G-87) | ✅ | `backend.tests.test_anchor_ratchet::test_the_three_categories_partition_the_unanchored_rows` | §55.2 · Appendix F |
 | L0 |  | — | **6.38** | The dual-read is removed — one register, one reader | ✅ | `absent: repo:.claude/hooks/_register_source.py` | §55.1 · §66 |
 | L0 |  | — | **6.50** | The conformance pass — the tree against the framework's own documentation | ☐ | — | §0.24, §16, §55.1, §66 |
-| L0 | 1 | — | **6.49** | The checks card — twelve capability rows get the check that proves them | ☐ | — | §43, §47, §51, §55.1 |
+| L0 |  | — | **6.49** | The checks card — twelve capability rows get the check that proves them | ✅ | `backend.tests.test_capability_rows::test_row_33_a_checkpoint_is_written_after_every_node` | §43, §47, §51, §55.1 |
 | L0 |  | — | **11.2** | Governance close-out | ☐ | `absent: repo:agent-improve/docs/HANDOVER.md` | §55 |
 
 #### L1 · API surface
@@ -6762,7 +6762,7 @@ home.**
 | Layer | Order | Zone | Step | Fact — what the § specifies | State | Symbol | § |
 |---|---|---|---|---|---|---|---|
 | L1 |  | — | **10.0** | The coaching turn’s output reaches the Belt — four blocks and the grader’s warning | ☐ | `absent: backend.gateway.schemas::CoachingBlocks` | §50.1, §49, S-C05 |
-| L1 | 4 | UI | **10.3** | The workspace reads the v2 field names, and progress counts them | ☐ | — | §50, §50.1, §39.1.2, G-71 |
+| L1 | 3 | UI | **10.3** | The workspace reads the v2 field names, and progress counts them | ☐ | — | §50, §50.1, §39.1.2, G-71 |
 | L1 |  | — | **10.2** | Live gate document + conflict panel | ☐ | `absent: repo:agent-improve/ui/gate_document.js` | §50, §43.4 |
 | L1 |  | UI | **10.4** | The error contract — a failed turn is readable | ☐ | — | §4.8, §12.3, §49, G-70 |
 | L1 |  | UI | **10.1**, **7.3** | **11 routes are served; this section's table names 4 of them** — `POST /ask`, `GET /cases/{id}`, `GET /registry`, `POST /upload`. **Seven are in the tree and in no ratified table** (**G-47**), and **five table rows are unbuilt**: `/ask/stream` (step 10.1), `/gate/approve` and `/gate/reject` (step 7.3, which has no `interrupt()` to resume from), `GET /cases`, and `/gate/submit` in the three-route shape this table ratifies. **Corrected 2026-09-11:** this line read *"11 of 12 routes exist … names 8 of the 11 — six are in the tree and in no ratified table"*, and **8 + 6 = 14 against 11 built routes**, so the marker contradicted itself; neither figure was derivable and the `12` traced to nothing. `verify_built.py` now pins the route SET, not the count, so the named/unnamed split is re-derived rather than restated | ⚠️ | `repo:agent-improve/backend/gateway/routes.py` | §49 |
@@ -6832,10 +6832,10 @@ home.**
 | L3 |  | — | **6.33** | The capture path accumulates — a field survives the next turn, and the field change log records what it said before | ✅ | `backend.phases.mappers_common::captured_for_phase` | §6, §7, §11, §20, S-F04 |
 | L3 |  | — | **6.42** | The gate document records what Define established | ☐ | — | §33, §40, §50, S-F07, S-F28 |
 | L3 |  | — | **6.43** | The coach can read an uploaded document | ☐ | — | §29.1, §32, S-F57, G-82 |
-| L3 | 2 | — | **6.51** | The baseline and the target are values Control can compare | ☐ | — | §7, §39.1.2, §63.1 |
-| L3 | 5 | — | **6.44** | The contradiction stop moves from middleware into a node | ☐ | — | §37, §19.6, S-C10, G-15, G-89 |
+| L3 | 1 | — | **6.51** | The baseline and the target are values Control can compare | ☐ | — | §7, §39.1.2, §63.1 |
+| L3 | 4 | — | **6.44** | The contradiction stop moves from middleware into a node | ☐ | — | §37, §19.6, S-C10, G-15, G-89 |
 | L3 |  | — | **6.45** | The planner decides on field completeness | ☐ | — | §17, §39.1.2, S-F13 |
-| L3 | 3 | — | **6.46** | The coaching script is guaranteed to reach the model, or its absence is recorded | ☐ | — | §32, §19.2, S-C12 |
+| L3 | 2 | — | **6.46** | The coaching script is guaranteed to reach the model, or its absence is recorded | ☐ | — | §32, §19.2, S-C12 |
 | L3 |  | — | **6.47** | Durable writes inside a node, and persistence loss is never silent | ☐ | — | §10, §16, §47, S-C06 |
 | L3 |  | — | **6.48** | A captured value carries its declared type | ☐ | — | §7, §20, §41, S-C05, S-C33 |
 | L3 |  | PHASE | — | **the typing law is enforced by schema, not by convention** — all five `{Phase}Output` declare captured fields as `str` or `dict`, and `test_gate_documents.py` pins both the `dict` fields and their Tier-1 placement | ✅ | — | §7 |
@@ -6998,8 +6998,8 @@ home.**
 | Layer | Order | Zone | Step | Fact — what the § specifies | State | Symbol | § |
 |---|---|---|---|---|---|---|---|
 | L7 |  | — | **3.4** | `{Phase}Output` schemas + validators + UI | ✅ | `backend.phases.define.schema::DefineOutput` | §7, §40, §41, §53.1 |
-| L7 | 6 | — | **7.3** | Nine-step HITL gate | ☐ | `backend.phases.nodes_common::gate_review` | §33 |
-| L7 | 7 | — | **7.7** | The approve endpoint | ☐ | — | §33, §49, S-F34 |
+| L7 | 5 | — | **7.3** | Nine-step HITL gate | ☐ | `backend.phases.nodes_common::gate_review` | §33 |
+| L7 | 6 | — | **7.7** | The approve endpoint | ☐ | — | §33, §49, S-F34 |
 | L7 |  | — | **7.1** | `DMAICGateValidator` + Layer 2b | ☐ | `absent: backend.validation.gate_validator::DMAICGateValidator` | §34, §35 |
 | L7 |  | — | **7.2** | Layers 2c, 2d + `validation_stack` | ☐ | `absent: backend.validation.stack::validation_stack` | §34, §36 |
 | L7 |  | — | **7.8** | The gate steps that consume validation results | ☐ | — | §33, §34, §35, S-F27 |
@@ -7469,8 +7469,9 @@ whose mechanism is already built (5, 6, 10, 11): **a row is green on what its
 check returns, never on the argument that the code exists**, and none of them
 has a check yet.
 
-**The project's status by clause 1 is `4 of 35`**, against a register that is
-now **35/35 written**: 4 green, 31 red, 0 unwritten. The count did not move,
+**The project's status by clause 1 was `4 of 35`** when the seed landed, against a
+register **35/35 written**: 4 green, 31 red, 0 unwritten. **Step 6.49 (the checks
+card) moves it to `12 of 35`** — see the note after the table. The count did not move,
 and that is the honest result — the seed turned twenty unstated requirements
 into twenty visible, ordered pieces of red work. **Nothing was measured by
 writing them down.**
@@ -7497,23 +7498,23 @@ card is checked against when it starts.
 
 | ID | Capability | Check | State | Given by |
 |---|---|---|---|---|
-| **1** | A case can be created and opened — the case list returns it and it opens | *pending — 6.49 writes it* | 🔴 | **6.49** |
-| **2** | A turn returns a coached reply — one POST, one graph run, a message back | *pending — 6.49 writes it* | 🔴 | **6.49** |
+| **1** | A case can be created and opened — the case list returns it and it opens | `backend.tests.test_capability_rows::test_row_1_a_case_can_be_created_and_opened` | 🟢 | **6.49** |
+| **2** | A turn returns a coached reply — one POST, one graph run, a message back | `backend.tests.test_capability_rows::test_row_2_a_turn_returns_a_coached_reply` | 🔴 | **6.49** |
 | **3** | The coach follows the Define script for the current field — the turn records that the script reached the model | *pending — 6.46 writes it* | 🔴 | **6.46** |
 | **4** | The Belt is asked for the right next field — field two is asked only once field one is complete | *pending — 6.45 writes it* | 🔴 | **6.45** |
-| **5** | A captured field survives the next turn — turn two captures the team and the business case is still there | *pending — 6.49 writes it* | 🔴 | built at **6.33** · proven by **6.49** |
-| **6** | Every change is kept, dated, with its prior value — a correction leaves both values readable in `field_log` | *pending — 6.49 writes it* | 🔴 | built at **6.33** · proven by **6.49** |
+| **5** | A captured field survives the next turn — turn two captures the team and the business case is still there | `backend.tests.test_capability_rows::test_row_5_a_captured_field_survives_the_next_turn` | 🟢 | built at **6.33** · proven by **6.49** |
+| **6** | Every change is kept, dated, with its prior value — a correction leaves both values readable in `field_log` | `backend.tests.test_capability_rows::test_row_6_every_change_is_kept_dated_with_its_prior_value` | 🟢 | built at **6.33** · proven by **6.49** |
 | **7** | The Belt's reason for a change is recorded — `field_log.reason` is non-empty after a correction | *pending — 6.44 writes it* | 🔴 | **6.44** |
-| **8** | The Belt can upload evidence — the file lands and is indexed | *pending — 6.49 writes it* | 🔴 | **6.49** |
+| **8** | The Belt can upload evidence — the file lands and is indexed | `backend.tests.test_capability_rows::test_row_8_the_belt_can_upload_evidence` | 🟢 | **6.49** |
 | **9** | The coach can read an uploaded document — a turn quotes a line from the upload | *pending — 6.43 writes it* | 🔴 | **6.43** |
-| **10** | Calculations are recorded — `computation_results` carries its five keys | *pending — 6.49 writes it* | 🔴 | built at **6.20** · proven by **6.49** |
-| **11** | The metric entry mirrors the primary scalars — `phase_metrics` equals `baseline_estimate` and `target_value`. **Row 25 is the other half**: the mirrored values must be usable | *pending — 6.49 writes it* | 🔴 | built at **6.20** · proven by **6.49** |
-| **12** | Vague or contradictory answers are caught inside the turn — layer 2a rejects and re-asks | *pending — 6.49 writes it* | 🔴 | **6.49** |
-| **13** | The coach's own process is graded every turn — the coaching rubric scores the turn | *pending — 6.49 writes it* | 🔴 | **6.49** |
+| **10** | Calculations are recorded — `computation_results` carries its five keys | `backend.tests.test_capability_rows::test_row_10_calculations_are_recorded` | 🔴 | built at **6.20** · proven by **6.49** |
+| **11** | The metric entry mirrors the primary scalars — `phase_metrics` equals `baseline_estimate` and `target_value`. **Row 25 is the other half**: the mirrored values must be usable | `backend.tests.test_capability_rows::test_row_11_the_metric_entry_mirrors_the_primary_scalars` | 🟢 | built at **6.20** · proven by **6.49** |
+| **12** | Vague or contradictory answers are caught inside the turn — layer 2a rejects and re-asks | `backend.tests.test_capability_rows::test_row_12_vague_answers_are_caught_inside_the_turn` | 🔴 | **6.49** |
+| **13** | The coach's own process is graded every turn — the coaching rubric scores the turn | `backend.tests.test_capability_rows::test_row_13_the_coaching_rubric_scores_the_turn` | 🔴 | **6.49** |
 | **14** | Progress shows the real field count — the bar reads *5 of 12*, not *0 of 26* | *pending — 10.3 writes it* | 🔴 | **10.3** |
 | **15** | The coaching blocks render — explanation, example, prompt and citations are visible | *pending — 10.0 writes it* | 🔴 | **10.0** |
 | **16** | A failed turn gives a readable error — a backend failure says what happened and stays on screen | *pending — 10.4 writes it* | 🔴 | **10.4** |
-| **17** | Required fields are checked before the gate — layer 2b refuses a case missing a required field | *pending — 6.49 writes it* | 🔴 | **6.49** |
+| **17** | Required fields are checked before the gate — layer 2b refuses a case missing a required field | `backend.tests.test_capability_rows::test_row_17_required_fields_are_checked_before_the_gate` | 🟢 | **6.49** |
 | **18** | Captured values carry their declared type — container 4. Team, scope, the SIPOC map and the registry arrive structured, not as prose, on a live run | `backend.tests.test_declared_types::test_row_18_captured_values_carry_their_declared_type` | 🟢 | **6.48** + the S-C05 amendment (ARCHITECTURE.md v1.70) |
 | **19** | A complete case ASSEMBLES a gate document | `backend.tests.test_define_phase_metrics::test_row_19_a_complete_case_assembles_a_gate_document` | 🟢 | **6.20**, the scorecard half |
 | **20** | The document is WRITTEN, and safe to write twice | `backend.tests.test_gate_write::test_row_20_the_document_is_written_and_safe_to_write_twice` | 🟢 | **6.42** |
@@ -7529,9 +7530,24 @@ card is checked against when it starts.
 | **30** | The coach teaches in its own voice and never hands over a link (§43.5) | *`live-turn`* | 🔴 | **6.46** |
 | **31** | Weak answers are CHALLENGED; the coach never writes the Belt's answer for them (§43.6) | *`live-turn`* | 🔴 | **6.46** |
 | **32** | The Belt understands what their metric means, why it matters and how to read it — from the registry's `meaning`, never invented (§43.7) | *`live-turn`* | 🔴 | **6.46** |
-| **33** | A checkpoint is written after EVERY NODE of a Define turn | *pending — 6.49 writes it* | 🔴 | **6.49** |
+| **33** | A checkpoint is written after EVERY NODE of a Define turn | `backend.tests.test_capability_rows::test_row_33_a_checkpoint_is_written_after_every_node` | 🟢 | **6.49** |
 | **34** | A paused case survives a restart and resumes where it stopped | *pending — 7.3 writes it* | 🔴 | **7.3** |
-| **35** | Every Define turn leaves a LangSmith trace, with the model call, the tools and the middleware visible | *pending — 6.49 writes it* | 🔴 | **6.49** |
+| **35** | Every Define turn leaves a LangSmith trace, with the model call, the tools and the middleware visible | `backend.tests.test_capability_rows::test_row_35_every_define_turn_leaves_a_langsmith_trace` | 🟢 | **6.49** |
+> ### ⇒ STEP 6.49 — WHAT THE TWELVE CHECKS RETURNED, 2026-09-24
+>
+> **Eight green, four red. `12 of 35`.** Rows 12 and 13 are `xfail(strict=True)` with the defect as the reason, as is the plan-order check, so the suite stays usable and **goes loud the day one starts passing**. Every check reads what the system wrote
+> on `IMPR-2026-0E5` and constructs no input; the mutation proofs live beside them
+> and hand each predicate the evidence the broken behaviour would have written.
+>
+> | Row | State | Evidence |
+> |---|---|---|
+> | **2** | 🔴 | **Both live turns on 2026-09-24 failed** with 500 — the executor's 45 s run timeout, one graph run each. Trace `01a0d215-a216-75e2-ba80-1c80597f891f` (06:23): the grader failed the reply twice and was re-judging **the same text** when time ran out. Trace `01a0d28e-d4da-7901-a75e-44d86b102098` (08:36): three knowledge lookups in a row — `rag_lookup_methodology` 12.2 s, `rag_lookup_evidence` 9.8 s, `rag_lookup_case_history` 10.4 s, about 32 s. **The executor soft budget (`nodes_common.py:647`) did not end either turn before the 45 s limit.** The case is not stuck: the second turn started cleanly on top of the first. Opt-in: `CAPABILITY_LIVE_TURN=1` |
+> | **10** | 🔴 | **Skipped: no calculation turn yet on 0E5.** No turn's `artifacts` carry a `computation_results` row. Red because a row that did not run is not green |
+> | **12** | 🔴 | **10 of 10** turns on `0E5` in which layer 2a checked more than once — i.e. rejected — show **no model call after the rejection**: the loop re-checks the same reply rather than re-asking. `CoherenceMiddleware.aafter_agent` calls `self._check(belt_text, coach_text)` with an unchanged `coach_text` each iteration. Also: 2a judges the **coach's** reply, not the Belt's answer, so the row's premise and the mechanism ask different questions |
+> | **13** | 🔴 | The latest completed coaching turn's `step_log` has 6 entries and **none** with `layer: "coaching_grader"`. The grader runs (its hook is in every trace) and its verdicts are collected into `grader_log` (`nodes_common.py:996`, `:1072`), which `_build_executor` returns at `:1444` and **nothing ever reads** |
+> | **33** | 🟢 | On the failed live turn: parent steps 62→63 contiguous with 61 before it; the subgraph wrote −1, 0, 1 (recording `planner`); the executor wrote −1…9. **Every node that finished has a checkpoint**, and `define_phase`, which raised, is correctly owed none. Also green on the last completed turn |
+> | **35** | 🟢 | The failed live turn still left a trace: 44 runs, two model calls at the `model` node with their bound tools listed, eight middleware hooks, and both tools the turn called (`load_evidence_series`, `rag_lookup_methodology`) as tool runs |
+> | 1, 5, 6, 8, 11, 17 | 🟢 | Read from the case record, the registry route, the evidence index and the recorded 2b verdict of 2026-09-15 |
 
 > **ROW 18's CHECK READS THE CASE THE SYSTEM WROTE, AND BUILDS NO INPUT OF ITS
 > OWN.** That is the whole of its design. A seeded version would have been
@@ -7648,7 +7664,7 @@ both match it.
 
 | Order | Step | |
 |---|---|---|
-| 1 | **6.49** | The checks card |
+| 1 | **6.49** | The checks card — ✅ landed 2026-09-24; leaves `Order` |
 | 2 | **6.51** | The baseline card |
 | 3 | **6.46** | The coaching script reaches the model, or its absence is recorded |
 | 4 | **10.3** | The workspace reads the v2 field names |

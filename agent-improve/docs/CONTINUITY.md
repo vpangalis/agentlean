@@ -13,7 +13,7 @@
 | **Last spine commit** | `90948de` (commit 6.42) |
 | **ARCHITECTURE.md** | v1.70 |
 | **CLAUDE.md** | v2.2.41 |
-| **Block regenerated** | 2026-09-23 |
+| **Block regenerated** | 2026-09-24 |
 
 *`Last completed` and the landed count come from **git log** — the
 `refactor(arch-v2): commit X.Y` subjects. `Next` and the total come
@@ -33,6 +33,55 @@ build status (step 6.31). `Order` is the one column a human sets; to
 change what is next, edit it THERE. The hand-written list that stood
 here until 2026-09-15 named two items that had already landed.*
 <!-- END CURRENT BUILD STATUS -->
+
+## ⇒ CURRENT POSITION — 2026-09-24
+
+*Hand-written below the generated block, so regeneration does not touch it.
+Update it with every commit that moves the position.*
+
+| | |
+|---|---|
+| **Last commit** | **6.49 — the checks card** (the commit that carries this section; `git log -1`) |
+| **Register** | **12 of 35** proven (Appendix H). Green: **1, 5, 6, 8, 11, 17, 18, 19, 20, 21, 33, 35** |
+| **Red from 6.49** | **2** (turns time out) · **10** (skipped: no calculation turn yet on 0E5) · **12** (coherence re-checks, never re-asks) · **13** (grader's score never recorded). 12 and 13 are `xfail(strict=True)` |
+| **Case `IMPR-2026-0E5`** | **Not stuck** — a turn after the timed-out one started cleanly. **Its turns time out**: two traces on 2026-09-24, two causes |
+
+| Trace | Where the 45 s went |
+|---|---|
+| `01a0d215-a216-75e2-ba80-1c80597f891f` | The grader failed the reply twice and was re-judging the **same text** |
+| `01a0d28e-d4da-7901-a75e-44d86b102098` | Three knowledge lookups in a row, about 32 s (12.2 + 9.8 + 10.4) |
+
+**The executor soft budget (`nodes_common.py:647`) ended neither turn before the 45 s limit.**
+
+**Next: step 6.52 (or the next free number) — "a turn always answers inside its
+budget".** Part A is a read-only diagnosis, then STOP for review.
+
+**Rank after that:**
+
+1. **6.51** — the baseline card
+2. **6.46** — the coaching script reaches the model: the §22 guard, and remove the duplicate "Capture as:" lines
+3. **10.3** — progress counts the real field names
+4. **6.44** — the contradiction stop moves into a node
+5. **7.3 + 7.7** — the HITL gate, proven on a fresh case that carries an upload
+
+| Founder content owed | Blocks |
+|---|---|
+| The Define rubric text | **7.2** |
+| The gate screen design | **10.2** |
+
+**Deferred:** the Jira mirror (after Define is tested end to end) · login and team members.
+
+**Risks:** two Claude Code sessions on one tree (the shared git index and working
+copy) · the repo sits inside OneDrive sync.
+
+**Reviewer rules:** verify every edit before claiming it · label every claim
+VERIFIED or RELAYED · work an 8D before any fix · nothing is green without a check.
+
+**Known empty vertical:** the block above says no row carries an `Order` number.
+That is the `read_order()` bug, not an empty plan: `build_board.py` and
+`continuity_status.py:250` carry two copies of one regex, and neither allows for
+the `Zone` column 6.37 added (a bug in `stories.py`, S28). Appendix F in fact carries
+`Order` 1–6 (6.51, 6.46, 10.3, 6.44, 7.3, 7.7).
 
 ## ⇒ WHERE THE PLAN LIVES
 
