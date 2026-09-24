@@ -47,11 +47,12 @@ the rubric when this middleware was added; any rubric entry for it is stale.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Callable
 
 from langchain.agents.middleware import AgentMiddleware
 
 from backend.core.llm import get_llm
+from backend.middleware.skills import CONFIRM, script_step
 from backend.validation.schemas import CoherenceResult
 
 logger = logging.getLogger(__name__)
@@ -75,13 +76,13 @@ SKIP_GRADER_KEY = "coherence_degraded"
 _PROMPT = """\
 You are checking one coaching turn for basic coherence. This is not a quality
 review - you are answering whether the response is a real statement at all.
-
+{step}
 Three questions:
   1. Is it conclusive? Does it actually say something, or is it gibberish or a
      vague non-answer that fills space without committing to anything?
   2. Is it parroting? Repeating the Belt's own words back as though they were
      coaching is a FAILURE - the Belt learns nothing from being quoted to
-     themselves.
+     themselves. Judge this against THE SCRIPT STEP above, when there is one.
   3. Is it on topic for the {phase} phase of a DMAIC project?
 
 Set `coherent` false if any of the three fails, and say specifically which in
@@ -94,20 +95,70 @@ THE COACH REPLIED:
 {coach}
 """
 
+#: The reply's other §50.1 blocks, as the judge is shown them after `message`.
+_REPLY_BLOCKS = (
+    ("EXPLANATION", "explanation"),
+    ("EXAMPLE - an illustration, not the Belt's data", "example"),
+    ("QUESTION TO THE BELT", "prompt"),
+)
+
+_STEP_CONFIRM = """
+THE SCRIPT STEP THIS REPLY PERFORMS: {where}{field} - step 4, CONFIRM.
+The Belt has just given a value for this field, and the coaching script has the
+coach read it back and check it before moving on:
+{block}
+Judging question 2 at this step: reading the Belt's words back to confirm them
+is not parroting - it is what this step requires. Parroting is ONLY a
+restatement of the Belt's words with no confirmation question and nothing added.
+The coach's question to the Belt is in the block marked [QUESTION TO THE BELT]
+at the end of the reply - read it before answering. If that question asks the
+Belt to confirm, correct or complete the value, the reply is NOT parroting.
+"""
+
+_STEP_TEACH = """
+THE SCRIPT STEP THIS REPLY PERFORMS: {where}{field} - steps 1-3, EXPLAIN, SHOW
+and ASK. The coach teaches the field, shows a worked example and asks for the
+Belt's version:
+{block}
+Judging question 2 at this step: parroting is ONLY a restatement of the Belt's
+words with no confirmation question and nothing added.
+"""
+
+
+def _step_text(step: dict[str, Any] | None) -> str:
+    """G-96 — the step section of the judge's prompt; "" when there is none."""
+    if not step:
+        return ""
+    where = f"position {step['position']} of the script, " if step.get("position") else ""
+    field = step.get("field") or "the current field"
+    block = step.get("block") or "  (Explain -> Show -> Ask -> Confirm, on every field - §43)"
+    template = _STEP_CONFIRM if step.get("step") == CONFIRM else _STEP_TEACH
+    return template.format(where=where, field=field, block=block)
+
 
 class CoherenceMiddleware(AgentMiddleware):
     """Position 7, `after_agent`, immediately before the grader."""
 
     name = "CoherenceMiddleware"
 
-    def __init__(self, phase: str, max_retries: int = COHERENCE_MAX_RETRIES) -> None:
+    def __init__(
+        self, phase: str, max_retries: int = COHERENCE_MAX_RETRIES, *,
+        focus_field: str | None = None,
+        on_verdict: Callable[[dict[str, Any]], None] | None = None,
+    ) -> None:
         super().__init__()
         self.phase = phase
         self.max_retries = max_retries
+        #: G-96 — the planner's focus field, for a turn that captures nothing.
+        self.focus_field = focus_field
+        #: G-96 — each verdict, handed to the node that owns `step_log`; the
+        #: grader's `on_evaluation` is the same shape (S-C14 B6).
+        self.on_verdict = on_verdict
         #: Per-turn record for the audit trail. Private to the middleware.
         self.attempts = 0
         self.degraded = False
         self.last: CoherenceResult | None = None
+        self.step: dict[str, Any] | None = None
 
     async def aafter_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
         """B1-B3. Async, because §1.4 makes the agent loop async."""
@@ -118,6 +169,9 @@ class CoherenceMiddleware(AgentMiddleware):
         belt_text = self._belt_text(state)
         self.attempts = 0
         self.degraded = False
+        # G-96 — the script step this reply performs, derived from what it
+        # captured; the judge is told it before it is asked "is it parroting?".
+        self.step = script_step(self.phase, self._captured(state), self.focus_field)
 
         # 6.52 B2 — ONE CHECK PER DISTINCT REPLY. The loop that stood here
         # re-checked the SAME `coach_text` up to `max_retries + 1` times: a
@@ -130,6 +184,7 @@ class CoherenceMiddleware(AgentMiddleware):
         result = await self._check(belt_text, coach_text)
         self.last = result
         if result.coherent:
+            self._record(result)
             return None
         logger.info(
             "%s.coherence: rejected — %s", self.phase,
@@ -139,6 +194,7 @@ class CoherenceMiddleware(AgentMiddleware):
         # B3 — degrade, and tell position 8 to stand down. The grader reads
         # `self.degraded` directly; see SKIP_GRADER_KEY.
         self.degraded = True
+        self._record(result)
         logger.warning(
             "%s.coherence: reply rejected; degrading the turn and SKIPPING the "
             "grader — grading a response already known to be incoherent spends "
@@ -160,19 +216,63 @@ class CoherenceMiddleware(AgentMiddleware):
         reads as a deliberate override.
         """
         model = get_llm("coherence").with_structured_output(CoherenceResult)
-        prompt = _PROMPT.format(phase=self.phase, belt=belt[:2000],
-                                coach=coach[:4000])
+        prompt = _PROMPT.format(phase=self.phase, step=_step_text(self.step),
+                                belt=belt[:2000], coach=coach[:4000])
         return CoherenceResult.model_validate(await model.ainvoke(prompt))
+
+    def _record(self, result: CoherenceResult) -> None:
+        """G-96 — every verdict to `step_log`, a rejection with its reason.
+
+        Before this a rejection's reason reached a log line only, so a
+        degraded turn was indistinguishable in the record from one the grader
+        simply never reached (capability row 13, 2026-09-24 13:14).
+        """
+        if self.on_verdict is None:
+            return
+        step = self.step or {}
+        self.on_verdict({
+            "layer": "coherence",
+            **result.model_dump(),
+            "degraded": self.degraded,
+            # B3 — the grader stands down on exactly this flag.
+            "grader_skipped": self.degraded,
+            "attempts": self.attempts,
+            "script_step": {k: step.get(k) for k in ("position", "field", "step")},
+        })
 
     # ── reading the turn ─────────────────────────────────────────────────
 
     @staticmethod
-    def _coach_text(state: Any) -> str:
-        """The coaching prose this turn produced, or "" if there is none."""
-        response = (state or {}).get("structured_response") if isinstance(
+    def _response(state: Any) -> Any:
+        return (state or {}).get("structured_response") if isinstance(
             state, dict) else getattr(state, "structured_response", None)
+
+    @classmethod
+    def _captured(cls, state: Any) -> list[str]:
+        """The fields this reply captured — what decides its script step."""
+        response = cls._response(state)
+        return [str(c.get("field_name") or "") for c in
+                (getattr(response, "fields_captured", None) or [])
+                if isinstance(c, dict)]
+
+    @classmethod
+    def _coach_text(cls, state: Any) -> str:
+        """The coaching turn this reply shows the Belt, or "" if there is none.
+
+        **The whole reply, not `message` alone (G-96).** §50.1 splits a turn
+        into blocks and the call to action lives in `prompt`: the 13:14 reply
+        asked *"Confirm whether this business case fully captures…"* there,
+        and a judge reading `message` only saw the read-back without the
+        question — which is exactly what parroting looks like.
+        """
+        response = cls._response(state)
         if response is not None and str(getattr(response, "message", None) or ""):
-            return str(response.message)
+            parts = [str(response.message)]
+            for label, attr in _REPLY_BLOCKS:
+                text = str(getattr(response, attr, None) or "").strip()
+                if text:
+                    parts.append(f"[{label}] {text}")
+            return "\n\n".join(parts)
         messages = (state or {}).get("messages") if isinstance(state, dict) else []
         for message in reversed(list(messages or [])):
             if str(getattr(message, "type", "")) == "ai" and str(message.content).strip():

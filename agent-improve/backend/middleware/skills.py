@@ -215,6 +215,53 @@ def example_match(value: Any, phase: str) -> str | None:
     return None
 
 
+# ── G-96 — the script step a reply performs, for layer 2a ─────────────────
+
+#: One numbered field block: `**[5 · baseline_estimate · required · …]**`
+#: followed by its quoted `>` lines. All five scripts number their fields.
+_FIELD_BLOCK = re.compile(
+    r'^\*\*\[(\d+) · (\w+) · [^\]]*\]\*\*[ \t]*\n((?:>.*(?:\n|$))+)', re.M)
+
+#: §39.1.9 — the registry is captured INSIDE position 5, not at its own.
+_CAPTURED_INSIDE = {"metric_definitions": "baseline_estimate"}
+
+#: The two moves a turn can make on a field (§43, "Explain → Show → Ask →
+#: Confirm, on every field"): teach and ask for it, or read the Belt's value
+#: back and check it.
+CONFIRM, EXPLAIN_SHOW_ASK = "confirm", "explain_show_ask"
+
+
+@lru_cache(maxsize=len(PHASE_ORDER))
+def _field_blocks(phase: str) -> dict[str, tuple[int, str]]:
+    """field -> (position, its script block)."""
+    return {m.group(2): (int(m.group(1)), m.group(3).strip())
+            for m in _FIELD_BLOCK.finditer(instructions(phase))}
+
+
+def script_step(phase: str, captured: list[str],
+                focus_field: str | None) -> dict[str, Any] | None:
+    """The script step a reply performs — G-96, founder ruling Option A.
+
+    **Derived from the reply, never asked of a model.** A turn that captured a
+    value is at that field's ④ **Confirm**: the script has the coach read the
+    value back and check it. A turn that captured nothing is teaching and
+    asking for the planner's focus field (① Explain, ② Show, ③ Ask).
+
+    `position` and `block` are the field's own, from the numbered script;
+    `None` and empty for a field the script does not number — the pattern is
+    still §43's, so the step is still returned.
+    """
+    if phase not in SKILL_DIRS:
+        return None
+    field = next((f for f in captured if f), None) or focus_field
+    step = CONFIRM if captured else EXPLAIN_SHOW_ASK
+    if not field:
+        return {"position": None, "field": None, "step": step, "block": ""}
+    position, block = _field_blocks(phase).get(
+        _CAPTURED_INSIDE.get(field, field), (None, ""))
+    return {"position": position, "field": field, "step": step, "block": block}
+
+
 def level_1_catalogue() -> str:
     """All five descriptions — what the coach sees before loading anything."""
     return "\n".join(
@@ -367,4 +414,5 @@ __all__ = [
     "instructions",
     "allowed_tools",
     "level_1_catalogue",
+    "script_step",
 ]

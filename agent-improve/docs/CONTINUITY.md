@@ -9,9 +9,9 @@
 |---|---|
 | **Last completed** | step **6.41** — The symbol-anchor ratchet comes down |
 | **Next** | step **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
-| **Spine steps landed** | 53 of 97 |
-| **Last spine commit** | `427e831` (commit 6.54) |
-| **ARCHITECTURE.md** | v1.71 |
+| **Spine steps landed** | 54 of 97 |
+| **Last spine commit** | `ca057ac` (commit 6.46) |
+| **ARCHITECTURE.md** | v1.72 |
 | **CLAUDE.md** | v2.2.41 |
 | **Block regenerated** | 2026-09-24 |
 
@@ -41,9 +41,9 @@ Update it with every commit that moves the position.*
 
 | | |
 |---|---|
-| **Last commit** | **6.46 — the coaching script reaches the model every call, and is recorded** (`git log -1`); before it, the trace-flood fix `fe27cf4` (G-95) |
-| **Register** | **14 of 35** proven (Appendix H). Green: **1, 2, 3, 5, 6, 8, 11, 17, 18, 19, 20, 21, 33, 35**. Row 13 red again (G-96); row 35 green but UNPROVEN (G-95) |
-| **Red from 6.49** | **2** (turns time out) · **10** (skipped: no calculation turn yet on 0E5) · **12** (coherence re-checks, never re-asks) · **13** (grader's score never recorded). 12 and 13 are `xfail(strict=True)` |
+| **Last commit** | **G-96 — layer 2a judges a reply against the script step it performs** (`git log -1`, ARCHITECTURE v1.72); before it 6.46, the coaching script on every call |
+| **Register** | **15 of 35** proven (Appendix H). Green: **1, 2, 3, 5, 6, 8, 11, 13, 17, 18, 19, 20, 21, 33, 35**. Rows 13 and 35 proven on trace `01a0d3e5-6246-7de3-b768-2ee767a5130c` (G-96 live turn, first in process: yes) |
+| **Red from 6.49** | **10** (skipped: no calculation turn yet on 0E5) · **12** (coherence rejects and never re-asks — `xfail(strict=True)`, step 6.53) |
 | **Case `IMPR-2026-0E5`** | **Not stuck** — a turn after the timed-out one started cleanly. **Its turns time out**: two traces on 2026-09-24, two causes |
 
 | Trace | Where the 45 s went |
@@ -53,17 +53,16 @@ Update it with every commit that moves the position.*
 
 **The executor soft budget (`nodes_common.py:647`) ended neither turn before the 45 s limit.**
 
-**TRACING IS DOWN (G-95).** LangSmith refuses every trace — 429, monthly unique-traces
-quota — after the test suite and 8.0's standalone spans sent 4,897 root traces on
-2026-09-24. Fixed in `fe27cf4` (tests never trace; spans are child-only), but the
-quota is spent: **live proofs wait until tracing is restored** (a capped pay-as-you-go
-plan, or the monthly reset — founder). Row 35 is unproven until then.
+**TRACING IS BACK, ON A BUDGET.** After G-95 spent the free quota the founder added a
+card with a **$10/month** limit (2026-09-24). A probe was accepted at 14:25 UTC and the
+G-96 live turn traced at 14:50. **Every live proof is counted in traces before and
+after**; a full pytest run must still create 0 (the `fe27cf4` guard).
 
 **6.46 landed (ARCHITECTURE v1.71):** the Define script is in the system message on
 every model call and each turn records version + hash; §22's guard refuses a captured
-worked example. Row 3 green. Open: **G-96** (layer 2a rejects the script's Confirm
-step as parroting — row 13 red), **G-94** (empty case index searched; 6.55 proposed),
-G-97 / G-98 (decide at 6.43 Part A).
+worked example. Row 3 green. **G-96 closed** (v1.72): layer 2a is told the script step and
+sees the whole reply; every verdict is in `step_log`. Open: **G-94** (empty case index
+searched; 6.55 proposed), G-97 / G-98 (decide at 6.43 Part A).
 
 **Rank after that:**
 

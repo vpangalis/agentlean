@@ -66,9 +66,8 @@ class CoherenceResult(BaseModel):
     )
     is_parroting: bool = Field(
         description=(
-            "Is it repeating the Belt's own words back as though they were "
-            "coaching? True is a FAILURE — the Belt learns nothing from being "
-            "quoted to themselves."
+            "Is it parroting the Belt, as the prompt defines parroting for the "
+            "script step this reply performs? True is a FAILURE."
         ),
     )
     on_topic: bool = Field(

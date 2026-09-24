@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.71 · 2026-09-24
+Version 1.72 · 2026-09-24
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.72 (2026-09-24)** — **§56 AMENDMENT. LAYER 2a JUDGES A REPLY AGAINST THE SCRIPT STEP IT PERFORMS, AND EVERY VERDICT IS RECORDED (G-96).** Founder ruling 2026-09-24, Option A. **The ruled text:** *"Coherence gets the current script step; reading back to confirm is allowed; 'parroting' = restatement with no confirmation question and nothing added; every 2a rejection records its reason in step_log."* **(A) WHY.** §19.7 asked *"is it parroting?"* and §43's ④ Confirm asks for a read-back — opposite demands on the same reply, and the judge was told neither which step the coach was on nor shown the question: `CoachingResponse.prompt`, where the confirmation question lives (§50.1), never reached it. On 2026-09-24 13:14 (`IMPR-2026-0E5`) it rejected a Confirm reply as parroting, degraded the turn, stood the grader down, and left no record why (capability row 13). **(B) THE STEP IS DERIVED, NOT ASKED.** A reply that captured a value is at that field's ④ Confirm; one that captured nothing is at the planner's focus field's ①–③. The judge is given the step, the field's numbered block from the phase's SKILL.md (all five number their fields), and the whole reply — `message`, `explanation`, `example`, `prompt`. **(C) RECORDED.** One `step_log` entry per turn, node `coherence`: the verdict, its reason, `degraded`, `grader_skipped`, and the step judged against. Reasoning and the measurements: the G-96 commit body (§56.2).
 
 **v1.71 (2026-09-24)** — **§56 AMENDMENT. THE CURRENT PHASE'S SCRIPT IS DELIVERED ON EVERY MODEL CALL AND RECORDED — NEVER LEFT FOR THE COACH TO FETCH.** Founder-ratified 2026-09-24 (relay), applied at step 6.46 (option A). **The ratified text:** *"§19.2 / §32 / S-C12: For the phase being coached, level 2 (the phase's full SKILL.md) is placed in the system message on every model call by DMAICSkillsMiddleware, and each turn records the script's version and hash in step_log. load_skill stays registered for other phases' scripts and level-3 references, but the current phase's script is never left to the coach's choice. Rule: any content the product depends on is delivered and recorded, never left for the model to fetch. The system-prompt sentence 'load_skill IS A WHOLE TURN' is removed."* **(A) WHY.** Level 2 was reached only by the coach calling `load_skill`; it was called **zero times in the last 30 traced turns on IMPR-2026-0E5** (2026-09-15 .. 09-24), with the tool bound, offered, and the catalogue saying *"load first"* — while the system prompt called it *"a whole turn"*. A mechanism that waits for the model to choose cannot guarantee anything. **(B) THE COST.** 7,586 tokens per model call; the script sits in the system message, never in `messages[]`, so the conversation does not grow. **(C) WHAT IS RECORDED.** One `step_log` entry per turn, node `coaching_script`: script, version, sha256, `delivered`, `model_calls` — a turn coached without its method is distinguishable after the fact. **(D) §22 IS NOW ENFORCED AT CAPTURE**, because the worked examples arrive with the script: a captured value that reproduces one is refused and recorded (`fields_example_refused`). Reasoning: step 6.46's commit body (§56.2).
 
@@ -2279,6 +2281,15 @@ One LLM call — `coherence` role, temperature 0.1. Checks: is this a real,
 conclusive statement? Is it parroting the Belt's own words back? Is it on-topic
 for the current phase?
 
+**Parroting is judged against the script step the reply performs (v1.72,
+G-96).** The judge is told the step — ④ **Confirm** for a field the reply
+captured, ①–③ Explain, Show and Ask for the focus field otherwise — with that
+field's block from the phase's SKILL.md, and it reads the whole reply,
+`prompt` included. **Reading the Belt's words back to confirm them is allowed;
+parroting is a restatement with no confirmation question and nothing added.**
+Every verdict — a rejection with its reason — is recorded in `step_log`
+(node `coherence`), so a turn the grader stood down on says why.
+
 **Layer 2a fires every coaching turn**, which is why it is middleware and not
 part of the `validation_stack` node — that node runs once, at the gate. Layers
 2b–2d live there; 2a lives here. One conceptual stack, two mechanisms (§34).
@@ -3937,7 +3948,7 @@ All four run inside step 2, before the interrupt.
 
 | Layer | Checks | Mechanism | Model | Fires | Implemented by |
 |---|---|---|---|---|---|
-| **2a** Coherence | Real, meaningful, conclusive? Catches gibberish, vague non-answers, self-contradiction, off-topic, parroting the Belt | Lightweight LLM | `coherence`, 0.1 | **Every turn** | **`CoherenceMiddleware`** (§19.7) |
+| **2a** Coherence | Real, meaningful, conclusive? Catches gibberish, vague non-answers, self-contradiction, off-topic, parroting the Belt — a restatement with no confirmation question and nothing added, judged against the script step (v1.72) | Lightweight LLM | `coherence`, 0.1 | **Every turn** | **`CoherenceMiddleware`** (§19.7) |
 | **2b** Field presence | All **Tier 1** fields populated? `DMAICGateValidator` static methods | **Deterministic** | None | Gate only | `validation_stack` node |
 | **2c** Constraints | Addresses budget / timeline / risk / measurement? | Lightweight LLM | `constraint`, 0.1 | Gate + key mid-conversation decisions | `validation_stack` node |
 | **2d** Quality rubric | Does the **gate document** meet DMAIC standards per criterion? **Tier 1 fails, Tier 2 warns.** Uses `PHASE_RUBRIC` | LLM grader | `grader`, 0.1 | Gate only | `validation_stack` node |
@@ -10418,6 +10429,8 @@ Layers 2b–2d live there; 2a lives here. One conceptual stack, two mechanisms.
 | B3 | retries are exhausted | degrade the turn and **skip `DMAICGraderMiddleware`** — grading a response already known to be incoherent spends a model call for a meaningless score | §19 |
 | B4 | its retry budget is counted | count it separately from `ModelRetryMiddleware`'s two and the validation stack's three; the three caps SHALL NOT be merged | §19 |
 | B5 | a rubric is being maintained | contain no coherence criterion — coherence moved out of `COACHING_QUALITY_RUBRIC` when this middleware was added, and any such entry is stale | §36 |
+| B6 | the check is made | give the judge the script step the reply performs — ④ Confirm for a captured field, ①–③ for the focus field — with that field's SKILL.md block and the whole reply, `prompt` included; a read-back that asks the Belt to confirm is NOT parroting (v1.72, G-96) | §19.7, §43 |
+| B6a | the check returns | record the verdict in `step_log` under node `coherence` — a rejection with its reason, `degraded` and `grader_skipped` (v1.72, G-96) | §19.7 |
 
 **`AI-ACT-REVIEW: uncertain.`** Its silent retry is the one narrowly-scoped
 exception to the transparency principle (§34.2), justified because showing a

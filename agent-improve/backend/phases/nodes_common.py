@@ -970,6 +970,7 @@ def _build_executor(
     phase: str, state: PhaseState, config: Optional[RunnableConfig] = None,
     *, hop_budget: int = COACH_HOP_BUDGET, hops_spent: Optional[list[int]] = None,
     script_log: Optional[list[dict[str, Any]]] = None,
+    coherence_log: Optional[list[dict[str, Any]]] = None,
 ) -> tuple[Any, list[dict[str, Any]]]:
     """The phase coach — `create_agent`, per §18's ratified template.
 
@@ -1011,7 +1012,15 @@ def _build_executor(
     # a dict returned from one `after_agent` is NOT visible to the next hook in
     # the same pass, so S-C13 B3's skip cannot travel through state. Per turn,
     # so the reference cannot outlive the turn (B7).
-    coherence = CoherenceMiddleware(phase)
+    #
+    # G-96 — told the planner's focus field, so a reply that captures nothing
+    # is judged against the step that teaches it, and handed a sink so every
+    # verdict reaches `step_log` the way the grader's does.
+    plan = state.get("coaching_plan")
+    coherence = CoherenceMiddleware(
+        phase, focus_field=plan.focus_field if plan else None,
+        on_verdict=coherence_log.append if coherence_log is not None else None,
+    )
     agent = create_agent(
         model=get_llm("coach", max_tokens=1500),
         tools=_executor_tools(phase, hop_budget, hops_spent),
@@ -1470,9 +1479,11 @@ async def executor(
     # 6.46 — the skills middleware reports every delivery of the phase script
     # here; the node, which owns step_log, writes the turn's record below.
     script_log: list[dict[str, Any]] = []
+    # G-96 — layer 2a's verdicts, a rejection with its reason, for step_log.
+    coherence_log: list[dict[str, Any]] = []
     agent, grader_log = _build_executor(
         phase, state, config, hop_budget=hop_budget, hops_spent=hops_spent,
-        script_log=script_log,
+        script_log=script_log, coherence_log=coherence_log,
     )
     # ── the planner's named call, executed before the model runs ──────
     # §17, step 6.21, option C. `prior` is what the agent is invoked with;
@@ -1754,6 +1765,12 @@ async def executor(
                   "coaching_grader" if int(e.get("iteration") or 1) == 1
                   else f"coaching_grader:{e['iteration']}", **e)
             for e in grader_log
+        ), *(
+            # G-96 — layer 2a's verdict, whichever way it went. A rejection
+            # degrades the turn and stands the grader down (S-C13 B3); until
+            # this entry, the reason reached a log line and nothing else, so a
+            # turn with no grade could not say why it had none (row 13).
+            _step(phase, turn_count, "coherence", **e) for e in coherence_log
         ),
             # 6.46 — did this turn's model calls carry the phase script? One
             # entry per turn, `delivered` false when no call did: a turn
