@@ -47,11 +47,14 @@ STORAGE IS `FilesystemBackend` (B4)
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
+import unicodedata
+from difflib import SequenceMatcher
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Optional
 
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import SystemMessage
@@ -130,6 +133,88 @@ def allowed_tools(phase: str) -> list[str]:
     return [t.strip() for t in raw.split(",") if t.strip()]
 
 
+# ── step 6.46 — the script on every call, and the §22 guard ──────────────
+
+_VERSION = re.compile(r'^\s+version:\s*"?([^"\n]+?)"?\s*$', re.M)
+
+
+@lru_cache(maxsize=len(PHASE_ORDER))
+def script_record(phase: str) -> dict[str, Any]:
+    """What one delivery of `phase`'s script IS — name, version, content hash.
+
+    The hash is over exactly the text placed in the system message, so a
+    `step_log` entry names the script the coach had, byte for byte.
+    """
+    body = instructions(phase)
+    fm = _FRONTMATTER.match(_read(phase))
+    version = _VERSION.search(fm.group(1)) if fm else None
+    return {"script": SKILL_DIRS[phase],
+            "version": version.group(1) if version else "",
+            "sha256": hashlib.sha256(body.encode("utf-8")).hexdigest()[:16],
+            "chars": len(body)}
+
+
+_SHOW_LINE = re.compile(r'^>\s*\*\*Show[^*]*:\*\*\s*\*"(.+?)"\*', re.M)
+_SHOW_TABLE = re.compile(
+    r'^>\s*\*\*Show[^*]*table[^*]*:\*\*[ \t]*\n(?:>[ \t]*\n)?((?:>[ \t]*\|.*\n?)+)',
+    re.M | re.I)
+
+#: §22's guard — THE MATCHING RULE, stated once. Both texts are normalised
+#: (lower case; letters, digits, % and currency signs kept; everything else one
+#: space). A captured value is an example if the example is contained in it, it
+#: is contained in the example, or their WORD-sequence similarity ratio
+#: (difflib, autojunk off) is at least this.
+#: Examples shorter than EXAMPLE_MIN_CHARS are not guarded: "30 September 2026"
+#: is a date a Belt may genuinely choose, and refusing it would be wrong.
+EXAMPLE_MATCH_RATIO = 0.80
+EXAMPLE_MIN_CHARS = 25
+
+
+def _norm(text: str) -> str:
+    text = unicodedata.normalize("NFKC", text).lower()
+    return " ".join(re.sub(r"[^\w%€£$]+", " ", text).split())
+
+
+def _flatten(value: Any) -> str:
+    if isinstance(value, dict):
+        return " ".join(_flatten(v) for v in value.values())
+    if isinstance(value, (list, tuple)):
+        return " ".join(_flatten(v) for v in value)
+    return "" if value is None else str(value)
+
+
+@lru_cache(maxsize=len(PHASE_ORDER))
+def worked_examples(phase: str) -> tuple[str, ...]:
+    """Every worked example in `phase`'s script — the `**Show:**` quotations and
+    the example table — normalised, at or above EXAMPLE_MIN_CHARS."""
+    body = instructions(phase)
+    raw = [m.group(1) for m in _SHOW_LINE.finditer(body)]
+    # A table's example is its BODY rows: the header names columns, and a
+    # Belt's own table shares those names without copying anything.
+    raw += [" ".join(c for row in m.group(1).splitlines()[1:]
+                     if "---" not in row
+                     for c in row.lstrip("> ").strip("|").split("|"))
+            for m in _SHOW_TABLE.finditer(body)]
+    return tuple(n for n in (_norm(r) for r in raw) if len(n) >= EXAMPLE_MIN_CHARS)
+
+
+def example_match(value: Any, phase: str) -> str | None:
+    """The worked example `value` reproduces, or None (§22)."""
+    v = _norm(_flatten(value))
+    if len(v) < EXAMPLE_MIN_CHARS:
+        return None
+    words = v.split()
+    for ex in worked_examples(phase):
+        # Similarity over WORDS, with `autojunk` off: on strings over 200
+        # characters difflib's junk heuristic discards the commonest characters
+        # and scored a lightly edited example 0.62; over words it is 0.94, a
+        # Belt's own answer 0.04, and 0E5's real answers at most 0.62.
+        if ex in v or v in ex or SequenceMatcher(
+                None, words, ex.split(), autojunk=False).ratio() >= EXAMPLE_MATCH_RATIO:
+            return ex
+    return None
+
+
 def level_1_catalogue() -> str:
     """All five descriptions — what the coach sees before loading anything."""
     return "\n".join(
@@ -145,7 +230,11 @@ class DMAICSkillsMiddleware(AgentMiddleware):
 
     name = "DMAICSkillsMiddleware"
 
-    def __init__(self, phase: str) -> None:
+    def __init__(
+        self,
+        phase: str,
+        on_delivery: Optional[Callable[[dict[str, Any]], None]] = None,
+    ) -> None:
         super().__init__()
         if phase not in SKILL_DIRS:
             raise ValueError(
@@ -155,6 +244,9 @@ class DMAICSkillsMiddleware(AgentMiddleware):
         self.phase = phase
         self.loaded: list[str] = []
         self._catalogue: str = ""
+        #: 6.46 — each delivery of the script is handed to the node, which owns
+        #: `step_log`; the middleware writes no state itself.
+        self.on_delivery = on_delivery
         #: **The framework's own registration point.** Not
         #: `create_agent(tools=...)` — see G-33 in the module docstring.
         self.tools: list[BaseTool] = [self._make_load_skill()]
@@ -196,10 +288,10 @@ class DMAICSkillsMiddleware(AgentMiddleware):
         """
         self._catalogue = (
             "AVAILABLE COACHING SKILLS — descriptions only.\n"
-            "Call load_skill(name) to read one in full. You are coaching the "
-            f"{self.phase} phase, so that is the one to load first; the others "
-            "are listed because a Belt's question often reaches forward or "
-            "back.\n\n"
+            f"You are coaching the {self.phase} phase: its full instructions are "
+            "in this message, above. The others are listed because a Belt's "
+            "question often reaches forward or back — call load_skill(name) to "
+            "read one of them in full.\n\n"
             f"{level_1_catalogue()}"
         )
         logger.info(
@@ -246,9 +338,19 @@ class DMAICSkillsMiddleware(AgentMiddleware):
             return request
         existing = request.system_message
         blocks = list(existing.content_blocks) if existing is not None else []
+        # 6.46 (option A, founder ruling 2026-09-24) — THE CURRENT PHASE'S FULL
+        # SCRIPT, ON EVERY MODEL CALL. §19.2's level 2 waited for the coach to
+        # call `load_skill`, and it called it ZERO times in 30 traced turns. A
+        # system-message block is never a tool result, so nothing enters the
+        # conversation and the history does not grow by 7.6k tokens a turn.
+        # The catalogue stays LAST.
+        script = instructions(self.phase)
+        if self.on_delivery is not None:
+            self.on_delivery(dict(script_record(self.phase)))
         return request.override(
             system_message=SystemMessage(
                 content_blocks=[*blocks,
+                                {"type": "text", "text": script},
                                 {"type": "text", "text": self._catalogue}],
             )
         )

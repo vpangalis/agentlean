@@ -11,7 +11,7 @@
 | **Next** | step **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
 | **Spine steps landed** | 53 of 97 |
 | **Last spine commit** | `427e831` (commit 6.54) |
-| **ARCHITECTURE.md** | v1.70 |
+| **ARCHITECTURE.md** | v1.71 |
 | **CLAUDE.md** | v2.2.41 |
 | **Block regenerated** | 2026-09-24 |
 
@@ -41,8 +41,8 @@ Update it with every commit that moves the position.*
 
 | | |
 |---|---|
-| **Last commit** | **6.54 — the clients are built once, at startup** (`git log -1`); before it, 8.0's executor slice `a2067db` |
-| **Register** | **14 of 35** proven (Appendix H). Green: **1, 2, 5, 6, 8, 11, 13, 17, 18, 19, 20, 21, 33, 35** |
+| **Last commit** | **6.46 — the coaching script reaches the model every call, and is recorded** (`git log -1`); before it, the trace-flood fix `fe27cf4` (G-95) |
+| **Register** | **14 of 35** proven (Appendix H). Green: **1, 2, 3, 5, 6, 8, 11, 17, 18, 19, 20, 21, 33, 35**. Row 13 red again (G-96); row 35 green but UNPROVEN (G-95) |
 | **Red from 6.49** | **2** (turns time out) · **10** (skipped: no calculation turn yet on 0E5) · **12** (coherence re-checks, never re-asks) · **13** (grader's score never recorded). 12 and 13 are `xfail(strict=True)` |
 | **Case `IMPR-2026-0E5`** | **Not stuck** — a turn after the timed-out one started cleanly. **Its turns time out**: two traces on 2026-09-24, two causes |
 
@@ -53,16 +53,17 @@ Update it with every commit that moves the position.*
 
 **The executor soft budget (`nodes_common.py:647`) ended neither turn before the 45 s limit.**
 
-**6.52, 8.0's executor slice and 6.54 landed; G-92 and G-93 closed; row 2 green.**
-The spans found the open-question timeouts were a COLD START — clients built
-inside the first turn, six threads building each one at once. 6.54 builds them at
-startup, once: server start 8.9 s -> 22.6 s (warm-up 14.3 s), and the FIRST turn
-after a restart — an open question with two parallel lookups — was coached in
-24.1 s of executor time (`01a0d366-bf6e-7020-9d5f-1bb5a972bcdf`, first turn in
-process: yes). **Every live proof now states "first turn in process: yes/no"**
-(Appendix H). Still open: row 12 and 6.53 (a judge's FAIL asks for a rewrite),
-G-76 at 10.0 (the grader's warning reaches nobody), and the untraced `validate.py`
-layers (8.0's remainder).
+**TRACING IS DOWN (G-95).** LangSmith refuses every trace — 429, monthly unique-traces
+quota — after the test suite and 8.0's standalone spans sent 4,897 root traces on
+2026-09-24. Fixed in `fe27cf4` (tests never trace; spans are child-only), but the
+quota is spent: **live proofs wait until tracing is restored** (a capped pay-as-you-go
+plan, or the monthly reset — founder). Row 35 is unproven until then.
+
+**6.46 landed (ARCHITECTURE v1.71):** the Define script is in the system message on
+every model call and each turn records version + hash; §22's guard refuses a captured
+worked example. Row 3 green. Open: **G-96** (layer 2a rejects the script's Confirm
+step as parroting — row 13 red), **G-94** (empty case index searched; 6.55 proposed),
+G-97 / G-98 (decide at 6.43 Part A).
 
 **Rank after that:**
 

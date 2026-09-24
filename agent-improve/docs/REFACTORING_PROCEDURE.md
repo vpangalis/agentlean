@@ -4592,6 +4592,18 @@ Batching it here is the whole reason this step exists (§23.3).
 > cheap. Anything else needing a schema change before production should be
 > proposed here rather than scheduled separately.
 
+> ### ⇒ MEASURED 2026-09-24 (6.46 Part A, item 0)
+>
+> **No contextual labels exist anywhere yet.** None of the three indexes has a
+> label field, and the knowledge chunks carry no preamble in their text either —
+> they start mid-sentence (*"').
+A Mobile Computer that has 1 broken video
+> screen…"*). `improve_knowledge_index_v3` 1,184 documents, `improve_evidence_index`
+> 2 (G-97), `improve_case_index` 0 (G-94). All three vectors are 3,072-dimensional;
+> the case index's is still `embedding`. **The case index defines a semantic
+> ranker (`improve-case-semantic`) that no query uses** — every search is hybrid
+> keyword + vector, with no `query_type` set.
+
 **Normalise the HNSW profile name while the index is being recreated.**
 `improve_case_index` uses `improve-vector-profile` where the other two use
 `default` — safe by construction, but the opportunity to fix it does not recur
@@ -6881,7 +6893,7 @@ home.**
 | Layer | Order | Zone | Step | Fact — what the § specifies | State | Symbol | § |
 |---|---|---|---|---|---|---|---|
 | L1 |  | — | **10.0** | The coaching turn’s output reaches the Belt — four blocks and the grader’s warning | ☐ | `absent: backend.gateway.schemas::CoachingBlocks` | §50.1, §49, S-C05 |
-| L1 | 3 | UI | **10.3** | The workspace reads the v2 field names, and progress counts them | ☐ | — | §50, §50.1, §39.1.2, G-71 |
+| L1 | 2 | UI | **10.3** | The workspace reads the v2 field names, and progress counts them | ☐ | — | §50, §50.1, §39.1.2, G-71 |
 | L1 |  | — | **10.2** | Live gate document + conflict panel | ☐ | `absent: repo:agent-improve/ui/gate_document.js` | §50, §43.4 |
 | L1 |  | UI | **10.4** | The error contract — a failed turn is readable | ☐ | — | §4.8, §12.3, §49, G-70 |
 | L1 |  | UI | **10.1**, **7.3** | **11 routes are served; this section's table names 4 of them** — `POST /ask`, `GET /cases/{id}`, `GET /registry`, `POST /upload`. **Seven are in the tree and in no ratified table** (**G-47**), and **five table rows are unbuilt**: `/ask/stream` (step 10.1), `/gate/approve` and `/gate/reject` (step 7.3, which has no `interrupt()` to resume from), `GET /cases`, and `/gate/submit` in the three-route shape this table ratifies. **Corrected 2026-09-11:** this line read *"11 of 12 routes exist … names 8 of the 11 — six are in the tree and in no ratified table"*, and **8 + 6 = 14 against 11 built routes**, so the marker contradicted itself; neither figure was derivable and the `12` traced to nothing. `verify_built.py` now pins the route SET, not the count, so the named/unnamed split is re-derived rather than restated | ⚠️ | `repo:agent-improve/backend/gateway/routes.py` | §49 |
@@ -6952,9 +6964,9 @@ home.**
 | L3 |  | — | **6.42** | The gate document records what Define established | ☐ | — | §33, §40, §50, S-F07, S-F28 |
 | L3 |  | — | **6.43** | The coach can read an uploaded document | ☐ | — | §29.1, §32, S-F57, G-82 |
 | L3 | 1 | — | **6.51** | The baseline and the target are values Control can compare | ☐ | — | §7, §39.1.2, §63.1 |
-| L3 | 4 | — | **6.44** | The contradiction stop moves from middleware into a node | ☐ | — | §37, §19.6, S-C10, G-15, G-89 |
+| L3 | 3 | — | **6.44** | The contradiction stop moves from middleware into a node | ☐ | — | §37, §19.6, S-C10, G-15, G-89 |
 | L3 |  | — | **6.45** | The planner decides on field completeness | ☐ | — | §17, §39.1.2, S-F13 |
-| L3 | 2 | — | **6.46** | The coaching script is guaranteed to reach the model, or its absence is recorded | ☐ | — | §32, §19.2, S-C12 |
+| L3 |  | — | **6.46** | The coaching script is guaranteed to reach the model, or its absence is recorded | ✅ | `backend.tests.test_coaching_script::test_step_log_records_that_the_script_was_delivered` | §32, §19.2, S-C12 |
 | L3 |  | — | **6.47** | Durable writes inside a node, and persistence loss is never silent | ☐ | — | §10, §16, §47, S-C06 |
 | L3 |  | — | **6.48** | A captured value carries its declared type | ☐ | — | §7, §20, §41, S-C05, S-C33 |
 | L3 |  | PHASE | — | **the typing law is enforced by schema, not by convention** — all five `{Phase}Output` declare captured fields as `str` or `dict`, and `test_gate_documents.py` pins both the `dict` fields and their Tier-1 placement | ✅ | — | §7 |
@@ -7117,8 +7129,8 @@ home.**
 | Layer | Order | Zone | Step | Fact — what the § specifies | State | Symbol | § |
 |---|---|---|---|---|---|---|---|
 | L7 |  | — | **3.4** | `{Phase}Output` schemas + validators + UI | ✅ | `backend.phases.define.schema::DefineOutput` | §7, §40, §41, §53.1 |
-| L7 | 5 | — | **7.3** | Nine-step HITL gate | ☐ | `backend.phases.nodes_common::gate_review` | §33 |
-| L7 | 6 | — | **7.7** | The approve endpoint | ☐ | — | §33, §49, S-F34 |
+| L7 | 4 | — | **7.3** | Nine-step HITL gate | ☐ | `backend.phases.nodes_common::gate_review` | §33 |
+| L7 | 5 | — | **7.7** | The approve endpoint | ☐ | — | §33, §49, S-F34 |
 | L7 |  | — | **7.1** | `DMAICGateValidator` + Layer 2b | ☐ | `absent: backend.validation.gate_validator::DMAICGateValidator` | §34, §35 |
 | L7 |  | — | **7.2** | Layers 2c, 2d + `validation_stack` | ☐ | `absent: backend.validation.stack::validation_stack` | §34, §36 |
 | L7 |  | — | **7.8** | The gate steps that consume validation results | ☐ | — | §33, §34, §35, S-F27 |
@@ -7331,6 +7343,9 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | ~~**G-93**~~ | **CLOSED 2026-09-24 at step 6.54.** Every client a turn uses is built at startup, once; on a restarted server the FIRST turn — an open question with two parallel lookups — was coached in 24.1 s of executor time, zero client builds in its trace (`01a0d366-bf6e-7020-9d5f-1bb5a972bcdf`, first turn in process: yes). As registered: **OPEN QUESTIONS DO NOT FIT THE BUDGET — CAUSE: COLD START.** Since 6.52 a turn never 500s, but an open question that makes two or more knowledge lookups ended in the degraded *"I ran out of time"* answer (row 2 red). **Cause, measured at step 8.0's executor slice: the clients are built lazily inside the first turn, and 6 threads build the same client at once** — the cached `get_embeddings` (~5 s) and knowledge search client (~10.6 s) were each built SIX times in parallel on one cache miss, and first-time `get_llm` builds cost 2–3 s each. Not throttling (54 HTTP attempts, zero 429s, zero retries) and not serialised embeddings (six queries start within 0.02 s). **Traces:** `01a0d357-f9fc-7123-be14-fb5bc4229bb1` — COLD, first turn in process: executor 40.1 s, degraded. `01a0d358-c1ef-7aa0-9c81-6370593dff71` and `01a0d359-3a3d-7db0-a970-eaf830885902` — WARM: executor 23.6 s and 21.6 s, coached 200s. Every degraded live turn before this was a first turn in a fresh process | §44, §45, §51, G-83 | closed |
 | ~~**G-95**~~ | **CLOSED 2026-09-24 in the commit that registers it.** **THE TEST SUITE AND THE NEW SPANS EXHAUSTED LANGSMITH'S MONTHLY TRACE QUOTA — EVERY TRACE IS NOW REFUSED.** From 2026-09-24 ~13:10 UTC LangSmith answered every ingest with **429 `"Monthly unique traces usage limit exceeded"`**, real Belt turns included. Root traces: **19 on 09-23, 4,897 on 09-24** — 827 test graph runs and **~4,070 standalone spans** (`dispatch_routed_read` 610, `build_executor` 598, `fusion.search_query` 360, `calculate_cpk` 162, `get_llm` 156 …), the first at 12:06. **Two causes:** (1) `init_tracing()` sets `LANGCHAIN_TRACING_V2=true` for the WHOLE process, so since 6.49's row checks started the app inside pytest, every later test traced; (2) step 8.0's executor slice (`a2067db`) put `@traceable` spans on functions that also run with no turn around them — unit tests and 6.54's startup warm-up — and a span with no enclosing run is a ROOT trace. **Fixed in the commit carrying this row:** tests never trace (a session fixture, and a `pytest_sessionfinish` guard that fails the suite if any run is created — counted at the client, nothing sent); spans are `child_span` / `child_trace`, recording only inside an already-traced run (`get_current_run_tree()`, https://docs.langchain.com/langsmith/access-current-span). **Row 35 stays green in the register but is UNPROVEN** until one live turn is traced again (quota reset or a paid plan — founder). **For 6.50:** `init_tracing` sets the legacy `LANGCHAIN_TRACING_V2`; the documented name is `LANGSMITH_TRACING` (https://docs.langchain.com/langsmith/annotate-code), and the installed SDK reads `*_TRACING_V2` FIRST | §51, 6.49, 8.0 | closed |
 | **G-96** | **LAYER 2A REJECTS THE COACHING SCRIPT'S OWN CONFIRM STEP AS "PARROTING", AND NOTHING RECORDS THAT THE TURN WAS DEGRADED.** 2026-09-24 13:14, 0E5 (first turn in process: no; trace refused, G-95): the Belt gave its business case; the coach reflected it back — the script's ④ **Confirm** — and coherence answered *"The coach's response is parroting the Belt's own words back, which is a failure"*, degraded the turn and stood the grader down (S-C13 B3). The turn has no grade and no record of why, so row 13 is red on it. §19.7's "is it parroting" and §43's Confirm ask opposite things of the same reply | §19.7, §43, S-C13 | **unscheduled** |
+| **G-94** | **OPEN QUESTIONS SEARCH AN EMPTY CASE INDEX.** `improve_case_index` holds **0 documents** (read 2026-09-24), yet `rag_lookup_case_history` is bound on every Define turn and the coach calls it on almost every open question: trace `01a0d366…` (first turn in process: yes) — 6 queries, 0 hits each, *"No similar improvement cases found"*. A whole lookup (~3–5 s warm, the variant model call included) spent on a search that cannot return anything. The G-85 class: a mechanism wired to an empty source. **Proposed: step 6.55** — not built: stop offering the lookup while the index is empty (or say so to the coach), and give the index a writer, a sample case and tests (brief item 9) | §23, §29.2, G-85 | **proposed 6.55** |
+| **G-97** | **ONE EVIDENCE FILE IS IN THE INDEX TWICE.** `improve_evidence_index` holds 2 documents for 0E5, both `kind=evidence`: the same `define_baseline_weekly.csv` uploaded 22 s apart (2026-09-15 17:10:40 and 17:11:02), the SAME content digest (`bb4e2a7b34…`). The case record points at one; the other is an orphan a search can still return | §23.2, §29.1 | **decide at 6.43 Part A** |
+| **G-98** | **THE EVIDENCE UPLOAD'S INTERPRETATION IS UNAVAILABLE.** Both evidence documents for 0E5 carry *"[!] INTERPRETATION UNAVAILABLE"* as their description: the upload's interpretation step did not produce one, and the index holds that placeholder where a summary should be | §29.1 | **decide at 6.43 Part A** |
 
 ### 66.3 Group C — schemas named but never defined
 
@@ -7606,7 +7621,7 @@ has a check yet.
 
 **The project's status by clause 1 was `4 of 35`** when the seed landed, against a
 register **35/35 written**: 4 green, 31 red, 0 unwritten. **Step 6.49 (the checks
-card) moves it to `12 of 35`**, **6.52 B2 to `13 of 35`** (row 13), and **6.54 to `14 of 35`** (row 2). **Row 13 went red again on 2026-09-24 (G-96): `13 of 35`** — see the notes after the table. The count did not move,
+card) moves it to `12 of 35`**, **6.52 B2 to `13 of 35`** (row 13), and **6.54 to `14 of 35`** (row 2). **Row 13 went red again on 2026-09-24 (G-96): `13 of 35`**, and **6.46 takes it to `14 of 35`** (row 3) — see the notes after the table. The count did not move,
 and that is the honest result — the seed turned twenty unstated requirements
 into twenty visible, ordered pieces of red work. **Nothing was measured by
 writing them down.**
@@ -7635,7 +7650,7 @@ card is checked against when it starts.
 |---|---|---|---|---|
 | **1** | A case can be created and opened — the case list returns it and it opens | `backend.tests.test_capability_rows::test_row_1_a_case_can_be_created_and_opened` | 🟢 | **6.49** |
 | **2** | A turn returns a coached reply — one POST, one graph run, a message back | `backend.tests.test_capability_rows::test_row_2_a_turn_returns_a_coached_reply` | 🟢 | **6.49** · **6.54** |
-| **3** | The coach follows the Define script for the current field — the turn records that the script reached the model | *pending — 6.46 writes it* | 🔴 | **6.46** |
+| **3** | The coach follows the Define script for the current field — the turn records that the script reached the model | `backend.tests.test_capability_rows::test_row_3_the_coach_follows_the_define_script` | 🟢 | **6.46** |
 | **4** | The Belt is asked for the right next field — field two is asked only once field one is complete | *pending — 6.45 writes it* | 🔴 | **6.45** |
 | **5** | A captured field survives the next turn — turn two captures the team and the business case is still there | `backend.tests.test_capability_rows::test_row_5_a_captured_field_survives_the_next_turn` | 🟢 | built at **6.33** · proven by **6.49** |
 | **6** | Every change is kept, dated, with its prior value — a correction leaves both values readable in `field_log` | `backend.tests.test_capability_rows::test_row_6_every_change_is_kept_dated_with_its_prior_value` | 🟢 | built at **6.33** · proven by **6.49** |
@@ -7682,6 +7697,8 @@ card is checked against when it starts.
 > | **13** | 🟢 since 6.52 B2 | The latest completed coaching turn's `step_log` has 6 entries and **none** with `layer: "coaching_grader"`. The grader runs (its hook is in every trace) and its verdicts are collected into `grader_log` (`nodes_common.py:996`, `:1072`), which `_build_executor` returns at `:1444` and **nothing ever reads** **Green at 6.52 B2:** the executor now writes `grader_log` into `step_log`; the first completed coaching turn after it (trace `01a0d2cc-a58b-7ed0-83aa-cf718340f376`, 09:43) carries `coaching_grader · failed`, from ONE grader call |
 > | **33** | 🟢 | On the failed live turn: parent steps 62→63 contiguous with 61 before it; the subgraph wrote −1, 0, 1 (recording `planner`); the executor wrote −1…9. **Every node that finished has a checkpoint**, and `define_phase`, which raised, is correctly owed none. Also green on the last completed turn |
 > | **35** | 🟢 | The failed live turn still left a trace: 44 runs, two model calls at the `model` node with their bound tools listed, eight middleware hooks, and both tools the turn called (`load_evidence_series`, `rag_lookup_methodology`) as tool runs **UNPROVEN SINCE 2026-09-24 ~13:10 UTC (G-95):** LangSmith refuses every trace (429, monthly quota). The register keeps the row green by founder ruling; its check SKIPS — not a pass — for turns after the refusal began, until one live turn is traced again |
+> | **3** | 🟢 since 6.46 | The script is in the system message on every model call and each turn records it: 0E5, 2026-09-24 13:13 (**first turn in process: yes**) — `coaching_script` delivered on both model calls, version 1.2, sha256 `a5aa86347681c4fd`; 13:14 (first turn in process: no) — delivered on its one call. Row 3's check reads the latest completed coaching turn and passes. **No trace ids: LangSmith refused both (G-95)** |
+> | **26–32** | 🔴 live-turn | **Observed on the two 6.46 turns (13:13 first in process: yes; 13:14: no), from the checkpoints' STRUCTURED reply — no trace ids (G-95), so this does not meet the evidence standard and the rows stay red.** 26 §43.1: no calculation ran — not observable. 27 §43.2: an `example` WAS given before the `prompt` in both turns — but invented by the coach (*"Delivery delays occur in 15% of shipments…"*), not the script's worked example; nothing was captured from it. 28 §43.3: `progress` read *"Define · 13 of 13"* — a count over the gate's 13 fields, not *"Step n of 12"*. 29 §43.4: no missing-field list shown (`check_gate_status` does not exist). 30 §43.5: own voice, no link ✓. 31 §43.6: 13:13 critiqued the stored problem statement and named what to refine ✓; 13:14 accepted the Belt's business case and asked them to confirm its impact. 32 §43.7: the metric's meaning was not addressed |
 > | 1, 5, 6, 8, 11, 17 | 🟢 | Read from the case record, the registry route, the evidence index and the recorded 2b verdict of 2026-09-15 |
 
 > **ROW 18's CHECK READS THE CASE THE SYSTEM WROTE, AND BUILDS NO INPUT OF ITS

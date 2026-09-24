@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.70 · 2026-09-23
+Version 1.71 · 2026-09-24
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.71 (2026-09-24)** — **§56 AMENDMENT. THE CURRENT PHASE'S SCRIPT IS DELIVERED ON EVERY MODEL CALL AND RECORDED — NEVER LEFT FOR THE COACH TO FETCH.** Founder-ratified 2026-09-24 (relay), applied at step 6.46 (option A). **The ratified text:** *"§19.2 / §32 / S-C12: For the phase being coached, level 2 (the phase's full SKILL.md) is placed in the system message on every model call by DMAICSkillsMiddleware, and each turn records the script's version and hash in step_log. load_skill stays registered for other phases' scripts and level-3 references, but the current phase's script is never left to the coach's choice. Rule: any content the product depends on is delivered and recorded, never left for the model to fetch. The system-prompt sentence 'load_skill IS A WHOLE TURN' is removed."* **(A) WHY.** Level 2 was reached only by the coach calling `load_skill`; it was called **zero times in the last 30 traced turns on IMPR-2026-0E5** (2026-09-15 .. 09-24), with the tool bound, offered, and the catalogue saying *"load first"* — while the system prompt called it *"a whole turn"*. A mechanism that waits for the model to choose cannot guarantee anything. **(B) THE COST.** 7,586 tokens per model call; the script sits in the system message, never in `messages[]`, so the conversation does not grow. **(C) WHAT IS RECORDED.** One `step_log` entry per turn, node `coaching_script`: script, version, sha256, `delivered`, `model_calls` — a turn coached without its method is distinguishable after the fact. **(D) §22 IS NOW ENFORCED AT CAPTURE**, because the worked examples arrive with the script: a captured value that reproduces one is refused and recorded (`fields_example_refused`). Reasoning: step 6.46's commit body (§56.2).
 
 **v1.70 (2026-09-23)** — **§56 AMENDMENT. `CoachingResponse.fields_captured`'s DESCRIPTION CARRIES THE DECLARED SHAPE OF ALL NINE STRUCTURED COACHED FIELDS.** Founder ruling, applied as step A of the Define critical path with 6.48's enforcement half. **(A) WHAT CHANGED, AND WHAT DID NOT.** The description now names `team`, `metric_definitions`, `project_scope`, `process_map_sipoc`, `detailed_process_map`, `control_plan` and S-C32's three cross-phase reference dicts, each with its keys. **It is a DESCRIPTION, not a type change**: the ratified eight fields stay eight, `value` stays `Any`, and **a per-phase response schema stays ruled out — this is not one.** What changed is what the model is told, on the one channel it cannot miss. **(B) WHY THE CONTRACT AND NOT THE COACHING SCRIPT, MEASURED RATHER THAN ARGUED.** The shape was written into `skills/dmaic-define-phase/SKILL.md` first — correct content, right file, and **it did not reach the model.** SKILL.md loads at **level 2, on demand**, through the `load_skill` tool the coach must choose to call (§19.2, S-C12). **On four live turns, 2026-09-23, `load_skill` was called ZERO times and all four Define fields came back as prose.** **(C) A DECLARED SHAPE IS PART OF THE TYPE CONTRACT, NOT PART OF COACHING.** A contract that lives only in a document can be broken by editing that document, with nothing failing until a Belt reaches a gate — the failure class §55.2 exists for. **(D) FOUR REFERENCE KEYS, NOT THREE.** S-C32 carries `references_phase`, `references_field`, **`references_metric_name`** and `references_value`; the fourth names WHICH registry metric a link is about (F-13, closed 2026-08-26) and the shape is uniform across all three dicts. Checked against §63.6 before writing rather than recalled — the description would otherwise have taught the model a three-key shape the grader cannot resolve. **(E) ENFORCEMENT IS STILL AT CAPTURE** (step 6.48). This makes the contract REACHABLE; 6.48 makes it ENFORCED. Capability row 18 goes green on both, and neither does it alone. Reasoning: this commit body (§56.2).
 
@@ -2132,10 +2134,10 @@ add it to the history" option.
 | Level | When | What loads |
 |---|---|---|
 | 1 | Startup | Skill descriptions only — **under 2K tokens for all five combined** |
-| 2 | On demand | Full phase instructions, when the coach enters that phase |
+| 2 | **Every model call**, for the phase being coached (v1.71) | That phase's full SKILL.md, in the system message; version and hash recorded in `step_log` |
 | 3 | On demand | Reference files, when explicitly needed |
 
-Level 2 is reached by the coach calling a registered `load_skill(name)` tool.
+**For the phase being coached, level 2 is placed in the system message on every model call by `DMAICSkillsMiddleware`, and each turn records the script's version and hash in `step_log` (v1.71).** `load_skill(name)` stays registered for other phases' scripts and level-3 references, but the current phase's script is never left to the coach's choice. **Rule: any content the product depends on is delivered and recorded, never left for the model to fetch.**
 Storage backend is `FilesystemBackend` — git-versioned alongside the code, so a
 skill change is reviewable in the same PR as the code depending on it.
 
@@ -3754,10 +3756,10 @@ executor was not given produces a coach that promises something it cannot do.
 | Level | When | What loads |
 |---|---|---|
 | 1 | Startup | Skill **descriptions only** — under 2K tokens for all five combined |
-| 2 | On demand | Full phase instructions, when the coach enters that phase |
+| 2 | **Every model call**, for the phase being coached (v1.71) | That phase's full SKILL.md, in the system message; version and hash recorded in `step_log` |
 | 3 | On demand | Reference files, when explicitly needed |
 
-Level 2 is reached by the coach calling a registered `load_skill(name)` tool.
+**For the phase being coached, level 2 is placed in the system message on every model call by `DMAICSkillsMiddleware`, and each turn records the script's version and hash in `step_log` (v1.71).** `load_skill(name)` stays registered for other phases' scripts and level-3 references, but the current phase's script is never left to the coach's choice. **Rule: any content the product depends on is delivered and recorded, never left for the model to fetch.**
 
 ### Storage backend: `FilesystemBackend`
 
@@ -10366,7 +10368,7 @@ only for the phase in flight.
 | Level | When | What loads |
 |---|---|---|
 | 1 | Startup | Skill descriptions only — under 2K tokens for all five combined |
-| 2 | On demand | Full phase instructions, when the coach enters that phase |
+| 2 | **Every model call**, for the phase being coached (v1.71) | That phase's full SKILL.md, in the system message; version and hash recorded in `step_log` |
 | 3 | On demand | Reference files, when explicitly needed |
 
 **Storage backend: `FilesystemBackend`** — git-versioned alongside the code, so
@@ -10378,7 +10380,8 @@ a skill change is reviewable in the same PR as the code depending on it.
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
 |---|---|---|---|
 | B1 | the system starts | load descriptions only, under 2K tokens for all five combined | §32 |
-| B2 | the coach calls `load_skill(name)` | load that phase's full instructions | §19.2 |
+| B2 | a model call is made while coaching a phase | place that phase's full SKILL.md in the system message, and record the script's version and hash in `step_log` once per turn (v1.71) | §19.2 |
+| B2a | the coach calls `load_skill(name)` for ANOTHER phase, or a level-3 reference | return it — the current phase's script never depends on this call (v1.71) | §19.2 |
 | B3 | a skill is loaded | have its `allowed-tools` match that phase's tool subset in §30 exactly | §32 |
 | B4 | it is constructed | use `FilesystemBackend` | §32 |
 

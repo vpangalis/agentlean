@@ -90,7 +90,11 @@ from backend.knowledge.tools import (
 from backend.middleware.coherence import CoherenceMiddleware
 from backend.middleware.contradiction import ContradictionDetectionMiddleware
 from backend.middleware.grader import DMAICGraderMiddleware
-from backend.middleware.skills import DMAICSkillsMiddleware
+from backend.middleware.skills import (
+    DMAICSkillsMiddleware,
+    example_match,
+    script_record,
+)
 from backend.middleware.state_injection import BeforeModelStateInjection
 from backend.phases.gate_registry import review_rows, split_by_declared_type
 from backend.phases.mappers_common import PHASE_ORDER
@@ -965,6 +969,7 @@ def _executor_tools(
 def _build_executor(
     phase: str, state: PhaseState, config: Optional[RunnableConfig] = None,
     *, hop_budget: int = COACH_HOP_BUDGET, hops_spent: Optional[list[int]] = None,
+    script_log: Optional[list[dict[str, Any]]] = None,
 ) -> tuple[Any, list[dict[str, Any]]]:
     """The phase coach — `create_agent`, per §18's ratified template.
 
@@ -1018,7 +1023,11 @@ def _build_executor(
                 prior_documents=_prior_gate_documents(phase, config),
             ),
             # 2 — before_agent + a registered `load_skill` tool.
-            DMAICSkillsMiddleware(phase),
+            DMAICSkillsMiddleware(
+                phase,
+                # 6.46 — each delivery of the phase script, for step_log.
+                on_delivery=script_log.append if script_log is not None else None,
+            ),
             # 3 — before_model. LangChain core, used as shipped (§19.3).
             SummarizationMiddleware(
                 model=get_llm("summarizer"),
@@ -1458,8 +1467,12 @@ async def executor(
     # back below for `step_log`.
     hops_spent: list[int] = [0]
 
+    # 6.46 — the skills middleware reports every delivery of the phase script
+    # here; the node, which owns step_log, writes the turn's record below.
+    script_log: list[dict[str, Any]] = []
     agent, grader_log = _build_executor(
         phase, state, config, hop_budget=hop_budget, hops_spent=hops_spent,
+        script_log=script_log,
     )
     # ── the planner's named call, executed before the model runs ──────
     # §17, step 6.21, option C. `prior` is what the agent is invoked with;
@@ -1597,6 +1610,23 @@ async def executor(
     # EMPTY, not malformed, and reporting it as the wrong type would send a
     # reader looking for a shape problem in a field the Belt never answered.
     kept, malformed = split_by_declared_type(phase, kept)
+
+    # ── 6.46 — §22: a worked example is NEVER captured as the Belt's data ──
+    #
+    # The script now reaches the model every call, and with it every worked
+    # example — each a plausible, well-formed value for the field it shows.
+    # A capture that reproduces one (skills.example_match: containment either
+    # way, or similarity >= 0.80 after normalising) is refused and reported,
+    # exactly as a malformed one is: the field stays uncaptured, so the coach
+    # asks again, and the turn does not fail for the Belt.
+    example_refused = sorted(f for f, v in kept.items() if example_match(v, phase))
+    if example_refused:
+        kept = {f: v for f, v in kept.items() if f not in example_refused}
+        logger.warning(
+            "%s.executor: FINDING — %d capture(s) reproduced a WORKED EXAMPLE "
+            "from the coaching script and were NOT stored: %s (§22).",
+            phase, len(example_refused), ", ".join(example_refused),
+        )
     if malformed:
         logger.warning(
             "%s.executor: FINDING — %d capture(s) did not carry the type their "
@@ -1689,6 +1719,8 @@ async def executor(
             # re-run. `fields_captured` minus `fields_empty` minus this is what
             # actually reached `artifacts`.
             fields_malformed=dict(sorted(malformed.items())),
+            # 6.46 — §22's refusals, by field.
+            fields_example_refused=example_refused,
             fields_changed=sorted(e["field"] for e in log_entries),
             # Re-derived from the SAME function that built the bound list,
             # so the audit trail cannot disagree with what the coach actually
@@ -1722,7 +1754,14 @@ async def executor(
                   "coaching_grader" if int(e.get("iteration") or 1) == 1
                   else f"coaching_grader:{e['iteration']}", **e)
             for e in grader_log
-        )],
+        ),
+            # 6.46 — did this turn's model calls carry the phase script? One
+            # entry per turn, `delivered` false when no call did: a turn
+            # coached without its method is now distinguishable in the record.
+            _step(phase, turn_count, "coaching_script",
+                  **(script_log[0] if script_log else script_record(phase)),
+                  delivered=bool(script_log), model_calls=len(script_log)),
+        ],
     }
 
 

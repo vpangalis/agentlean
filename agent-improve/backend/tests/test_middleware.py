@@ -234,7 +234,8 @@ def test_skills_catalogue_also_uses_content_blocks() -> None:
 def test_the_two_middlewares_compose_without_flattening() -> None:
     """Both hooks in sequence — the shape the model actually receives.
 
-    Four blocks, in order: project state, the coach's two parts, then skills.
+    Five blocks, in order: project state, the coach's two parts, the phase's
+    full script (step 6.46, option A — every model call), then the catalogue.
     A flattening bug in EITHER site shows up here as a repr in the text.
     """
     inject = BeforeModelStateInjection("define", _state())
@@ -250,10 +251,11 @@ def test_the_two_middlewares_compose_without_flattening() -> None:
     request = skills._append_catalogue(request)
 
     texts = _texts(request.system_message)
-    assert len(texts) == 4
+    assert len(texts) == 5
     assert "PROJECT STATE" in texts[0]
     assert texts[1:3] == ["COACH PART ONE", "COACH PART TWO"]
-    assert "AVAILABLE COACHING SKILLS" in texts[3]
+    assert texts[3] == instructions("define")
+    assert "AVAILABLE COACHING SKILLS" in texts[4]
     assert not any("'type': 'text'" in t for t in texts)
 
 

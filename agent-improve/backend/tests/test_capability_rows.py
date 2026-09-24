@@ -505,6 +505,34 @@ def test_row_2_a_turn_returns_a_coached_reply(turn) -> None:
     assert not problems, "; ".join(problems)
 
 
+def _row_3(step_log: list[dict], expected_sha: str) -> list[str]:
+    entries = [e for e in step_log if e.get("node") == "coaching_script"]
+    if not entries:
+        return ["the turn left no coaching_script record — whether it had its script is unknowable"]
+    e = entries[0]
+    problems = []
+    if not e.get("delivered"):
+        problems.append(f"the turn's model calls went out WITHOUT the script ({e.get('script')})")
+    if e.get("sha256") != expected_sha:
+        problems.append(f"the delivered script hash {e.get('sha256')} is not today's SKILL.md ({expected_sha})")
+    return problems
+
+
+def test_row_3_the_coach_follows_the_define_script(turn) -> None:
+    """**Row 3.** The latest turn the coach COMPLETED records that the Define
+    script reached the model — delivered, and the hash of today's SKILL.md."""
+    from backend.middleware.skills import script_record
+    finals = [f for f in _all_subgraph_finals(_checkpointer())
+              if any(isinstance(e, dict) and e.get("node") == "executor"
+                     and e.get("status") in ("coached", "coached_no_retrieval")
+                     for e in (f["values"].get("step_log") or []))]
+    if not finals:
+        pytest.skip(f"no coaching turn on {CASE_ID} completed" + NOT_A_PASS)
+    log = [e for e in (finals[-1]["values"].get("step_log") or []) if isinstance(e, dict)]
+    problems = _row_3(log, script_record(PHASE)["sha256"])
+    assert not problems, "; ".join(problems)
+
+
 def test_row_5_a_captured_field_survives_the_next_turn() -> None:
     """**Row 5.** Read from `field_log` against `structured`."""
     case = _case_or_skip(5)
@@ -778,6 +806,14 @@ def test_mutation_row_2_two_graph_runs_or_no_reply_is_red() -> None:
     from backend.phases.nodes_common import _TIMEOUT_MESSAGE
     assert _row_2({**good, "body": {"answer": _TIMEOUT_MESSAGE}}), (
         "a 200 carrying the out-of-time message passed as a coached reply")
+
+
+def test_mutation_row_3_an_undelivered_or_stale_script_is_red() -> None:
+    good = [{"node": "coaching_script", "delivered": True, "sha256": "abc"}]
+    assert not _row_3(good, "abc")
+    assert _row_3([{**good[0], "delivered": False}], "abc")
+    assert _row_3(good, "def")
+    assert _row_3([], "abc")
 
 
 def test_mutation_row_5_the_assignment_6_33_replaced_is_red() -> None:

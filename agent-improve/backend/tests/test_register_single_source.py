@@ -128,11 +128,13 @@ def test_the_readers_still_return_what_the_dual_read_returned(board) -> None:
         78 -> 77  6.54: G-93 closed — the clients are built at startup, once
         77 -> 78  G-95 registered and closed in one commit (not counted),
                   G-96 registered open — layer 2a rejects the Confirm step
+        78 -> 81  6.46: G-94 (empty case index searched), G-97 (duplicate
+                  evidence upload), G-98 (interpretation unavailable)
     """
     markers, gaps = board.read_markers(), board.read_gaps()
     assert len(markers) == 82, f"{len(markers)} markers, not 82"
     assert sum(1 for m in markers if m["state"] != "built") == 42
-    assert len(gaps) == 78, f"{len(gaps)} gap rows, not 78"
+    assert len(gaps) == 81, f"{len(gaps)} gap rows, not 81"
 
 
 def test_the_guard_resolves_a_gap_from_the_one_register(guard) -> None:
