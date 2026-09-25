@@ -56,6 +56,23 @@ def status(features: list[dict], res: dict) -> dict[str, str]:
             for f in features}
 
 
+def product_hash(root: Path = PROJECT) -> str:
+    """The board's source hash WITHOUT `backend/tests/` — what a live run's
+    record is bound to. A new test changes no product behaviour, so it must
+    not make a run's record stale; a product change must."""
+    import hashlib
+    import progress
+    h = hashlib.sha256()
+    for pattern in progress.SOURCE_GLOBS:
+        for f in sorted(root.glob(pattern)):
+            rel = f.relative_to(root).as_posix()
+            if "__pycache__" in f.parts or ".venv" in f.parts or rel.startswith("backend/tests/"):
+                continue
+            h.update(rel.encode())
+            h.update(f.read_bytes().replace(b"\r\n", b"\n"))
+    return h.hexdigest()[:16]
+
+
 def fresh(res: dict) -> bool:
     """Was the record run on the current source? (the board's own freshness rule)"""
     try:

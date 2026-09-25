@@ -49,7 +49,7 @@
    "depends_on": [
     "DEF-001"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_one_turn_answers_inside_its_time_limit",
+   "test": "backend/tests/test_define_runthrough.py::test_run_every_turn_answers_inside_its_time_limit",
    "sources": {
     "architecture": [
      "§44 failure pipeline",
@@ -130,7 +130,7 @@
    "depends_on": [
     "DEF-002"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_the_define_run_sends_no_trace_when_tracing_is_off",
+   "test": "backend/tests/test_define_runthrough.py::test_run_sends_no_trace",
    "sources": {
     "architecture": [
      "§51 tracing and observability"
@@ -169,7 +169,7 @@
    "depends_on": [
     "DEF-002"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_an_untaught_field_is_taught_example_before_ask",
+   "test": "backend/tests/test_define_runthrough.py::test_run_an_untaught_field_is_taught_example_before_ask",
    "sources": {
     "architecture": [
      "§17 v1.75/v1.77 (the move is decided in code)",
@@ -213,7 +213,7 @@
    "depends_on": [
     "DEF-005"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_every_turn_states_step_n_of_12",
+   "test": "backend/tests/test_define_runthrough.py::test_run_every_turn_states_step_n_of_12",
    "sources": {
     "architecture": [
      "§43.3 the A→F session flow",
@@ -248,7 +248,7 @@
    "depends_on": [
     "DEF-005"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_a_sufficient_answer_is_read_back_and_not_stored",
+   "test": "backend/tests/test_define_runthrough.py::test_run_a_sufficient_answer_is_read_back_and_not_stored",
    "sources": {
     "architecture": [
      "§17 v1.77 (S-C04)",
@@ -283,7 +283,7 @@
    "depends_on": [
     "DEF-007"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_a_confirm_click_stores_and_advances",
+   "test": "backend/tests/test_define_runthrough.py::test_run_a_confirm_click_stores_and_advances",
    "sources": {
     "architecture": [
      "§17 v1.77",
@@ -346,7 +346,7 @@
    "depends_on": [
     "DEF-007"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_a_change_click_reopens_the_field_with_the_belts_words",
+   "test": "backend/tests/test_define_runthrough.py::test_run_a_change_click_reopens_the_field_with_the_belts_words",
    "sources": {
     "architecture": [
      "§17 v1.77"
@@ -377,7 +377,7 @@
    "depends_on": [
     "DEF-005"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_a_weak_answer_is_challenged_not_completed",
+   "test": "backend/tests/test_define_runthrough.py::test_run_a_weak_answer_is_challenged_not_completed",
    "sources": {
     "architecture": [
      "§43.6 what the coach must not do",
@@ -417,7 +417,7 @@
    "depends_on": [
     "DEF-005"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_a_question_is_answered_and_the_field_asked_again",
+   "test": "backend/tests/test_define_runthrough.py::test_run_a_question_is_answered_and_the_field_asked_again",
    "sources": {
     "architecture": [
      "§17 v1.77 (RESPOND)",
@@ -886,7 +886,7 @@
    "depends_on": [
     "DEF-008"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_field_01_business_case_is_captured_after_confirm",
+   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[1-business_case]",
    "sources": {
     "architecture": [
      "§39.1.2 row 1 (business_case: str)"
@@ -916,7 +916,7 @@
    "depends_on": [
     "DEF-025"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_field_02_team_is_captured_after_confirm",
+   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[2-team]",
    "sources": {
     "architecture": [
      "§39.1.2 row 2 (team: list[{name, role, function}])",
@@ -952,7 +952,7 @@
    "depends_on": [
     "DEF-026"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_field_03_voc_summary_is_captured_after_confirm",
+   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[3-voc_summary]",
    "sources": {
     "architecture": [
      "§39.1.2 row 3 (voc_summary: str)"
@@ -982,7 +982,7 @@
    "depends_on": [
     "DEF-027"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_field_04_problem_statement_is_captured_after_confirm",
+   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[4-problem_statement]",
    "sources": {
     "architecture": [
      "§39.1.2 row 4 (problem_statement: str (composed from 5W2H))",
@@ -1014,7 +1014,7 @@
    "depends_on": [
     "DEF-028"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_field_05_baseline_estimate_is_captured_after_confirm",
+   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[5-baseline_estimate]",
    "sources": {
     "architecture": [
      "§39.1.2 row 5 (baseline_estimate + metric_definitions: str + list[{name, unit, meaning}])",
@@ -1058,7 +1058,7 @@
    "depends_on": [
     "DEF-029"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_field_06_project_scope_is_captured_after_confirm",
+   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[6-project_scope]",
    "sources": {
     "architecture": [
      "§39.1.2 row 6 (project_scope: {in_scope, out_scope})"
@@ -1093,7 +1093,7 @@
    "depends_on": [
     "DEF-030"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_field_07_goal_statement_is_captured_after_confirm",
+   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[7-goal_statement]",
    "sources": {
     "architecture": [
      "§39.1.2 row 7 (goal_statement: str)"
@@ -1123,7 +1123,7 @@
    "depends_on": [
     "DEF-031"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_field_08_target_value_is_captured_after_confirm",
+   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[8-target_value]",
    "sources": {
     "architecture": [
      "§39.1.2 row 8 (target_value: str (number + unit))",
@@ -1162,7 +1162,7 @@
    "depends_on": [
     "DEF-032"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_field_09_target_date_is_captured_after_confirm",
+   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[9-target_date]",
    "sources": {
     "architecture": [
      "§39.1.2 row 9 (target_date: str (ISO date))"
@@ -1192,7 +1192,7 @@
    "depends_on": [
     "DEF-033"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_field_10_secondary_metrics_is_captured_after_confirm",
+   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[10-secondary_metrics]",
    "sources": {
     "architecture": [
      "§39.1.2 row 10 (secondary_metrics: str)"
@@ -1222,7 +1222,7 @@
    "depends_on": [
     "DEF-034"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_field_11_process_map_sipoc_is_captured_after_confirm",
+   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[11-process_map_sipoc]",
    "sources": {
     "architecture": [
      "§39.1.2 row 11 (process_map_sipoc: {suppliers, inputs, process_steps, outputs, customers, process_metrics})",
@@ -1262,7 +1262,7 @@
    "depends_on": [
     "DEF-035"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_field_12_issues_and_barriers_is_captured_after_confirm",
+   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[12-issues_and_barriers]",
    "sources": {
     "architecture": [
      "§39.1.2 row 12 (issues_and_barriers: str)"
@@ -1293,7 +1293,7 @@
     "DEF-025",
     "DEF-026"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_a_confirmed_value_survives_later_turns",
+   "test": "backend/tests/test_define_runthrough.py::test_run_a_confirmed_value_survives_later_turns",
    "sources": {
     "architecture": [
      "§6 PhaseState (artifacts accumulate)",
@@ -1442,7 +1442,7 @@
    "depends_on": [
     "DEF-036"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_a_complete_case_assembles_a_gate_document",
+   "test": "backend/tests/test_define_runthrough.py::test_run_a_complete_case_assembles_a_gate_document",
    "sources": {
     "architecture": [
      "§33.2 gate document parts",

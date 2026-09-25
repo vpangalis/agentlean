@@ -32,3 +32,4 @@ uvicorn_out.txt
 .claude/**/.cache/
 docs/CLAUDE.md
 .claude/logs/
+.claude/worktrees/

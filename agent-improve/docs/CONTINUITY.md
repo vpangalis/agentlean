@@ -11,7 +11,7 @@
 | **Working on** | step **6.59** — The coherence judge rules on the Belt's words, not the coach's |
 | **Define finishes (7.9)** | 2026-10-23 · conditional on G-23, G-40 (F1) · rescaled ×0.53 from 5 landed step(s) |
 | **Steps** | 4 proven · 4 wired · 3 tooling · 47 built, not wired · 10 waiting · 42 not built |
-| **Define features** | Define features passing: 1 of 64 — A 1/35 · B 0/15 · C 0/8 · integrator 0/6 |
+| **Define features** | Define features passing: 12 of 64 — A 10/35 · B 0/15 · C 0/8 · integrator 2/6 |
 | **ARCHITECTURE.md** | v1.78 |
 | **CLAUDE.md** | v2.2.45 |
 | **Block regenerated** | 2026-09-25 |

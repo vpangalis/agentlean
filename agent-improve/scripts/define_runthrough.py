@@ -24,7 +24,7 @@ recorded as STUCK and the walk stops there. Either way the gate steps run
 (they make no model call), so the record always says how far Define got.
 
 THE RECORD — one lean JSON line per turn, plus a summary line carrying the
-source hash it ran on, written to `docs/runthrough/` (tracked: the tests in
+source hash it ran on, written to `docs/runthrough/` as one .json array (tracked: the tests in
 `backend/tests/test_define_runthrough.py` read it, and fail when it is older
 than the source). The coach's full inputs go to `--scratch`, never the tree.
 
@@ -96,12 +96,21 @@ def _source_hash() -> str:
     return progress.source_hash()
 
 
+def _product_hash() -> str:
+    """The product source only (no tests) — what the record's tests bind to."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "control_board"))
+    import features
+    return features.product_hash()
+
+
 class Walk:
     """The scripted Belt. State: which probes have fired, answers per field."""
 
     def __init__(self) -> None:
         self.fired: set[str] = set()
         self.attempts: dict[str, int] = {}
+        self.confirms: dict[str, int] = {}
+        self.last: tuple[str, str | None] = ("", None)
 
     def once(self, probe: str) -> bool:
         if probe in self.fired:
@@ -112,11 +121,21 @@ class Walk:
     def next(self, move: str | None, field: str | None) -> tuple[str, str | None, str]:
         """(message, action, why) for the reply that carried `move` on `field`."""
         if move == "read_back":
+            key = field or ""
+            if self.last == ("confirm", field):
+                self.confirms[key] = self.confirms.get(key, 0) + 1
+                if self.confirms[key] >= 2:
+                    # A Confirm answered by the same read-back, twice: the
+                    # confirmation cannot complete the position (6.66's run
+                    # found this at position 5). Stuck, not a reason to spend.
+                    return "", None, "stuck"
+            self.last = ("confirm", field)
             if field == "voc_summary" and self.once("change"):
                 return "Change", "change", "probe: Change click"
             if field == "goal_statement" and self.once("typed-correction"):
                 return GOAL_CORRECTION, None, "probe: typed correction"
             return "Confirm", "confirm", "confirm click"
+        self.last = ("answer", field)
         if field is None:
             return "", None, "done"
         if move in ("teach", "store_and_advance"):
@@ -245,10 +264,12 @@ def main() -> int:
     _count_model_calls(args.max_calls)
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    rec = OUT_DIR / f"define_runthrough_{stamp}.jsonl"
+    # Written line by line to scratch while running (a crash keeps every turn);
+    # the tree gets one .json array at the end — rule 7 keeps .jsonl out of it.
+    rec = Path(args.scratch) / f"define_runthrough_{stamp}.jsonl"
     scratch = Path(args.scratch) / f"define_runthrough_{stamp}_inputs.jsonl"
     scratch.parent.mkdir(parents=True, exist_ok=True)
-    source = _source_hash()
+    source, product = _source_hash(), _product_hash()
     started = time.time()
     from fastapi.testclient import TestClient
     from backend.app import app
@@ -258,7 +279,7 @@ def main() -> int:
             out = run(client, rec, scratch, args.max_calls)
         except CapReached as exc:
             out["stopped"] = f"cap: {exc}"
-    summary = {"kind": "summary", "source_hash": source, "started": stamp,
+    summary = {"kind": "summary", "source_hash": source, "product_hash": product, "started": stamp,
                "minutes": round((time.time() - started) / 60, 1), "cap": args.max_calls,
                "model_calls": len(CALLS),
                "by_kind": {k: sum(c["kind"] == k for c in CALLS) for k in sorted({c["kind"] for c in CALLS})},
@@ -266,7 +287,10 @@ def main() -> int:
     _write(rec, summary)
     print(json.dumps(summary, indent=1, default=str))
     _time_it(started, len(CALLS))
-    print(f"record: {rec}")
+    tree = OUT_DIR / f"define_runthrough_{stamp}.json"
+    tree.write_text(json.dumps([json.loads(l) for l in rec.read_text(encoding="utf-8").splitlines() if l.strip()],
+                               indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"record: {tree}")
     return 0 if not SENDS else 3
 
 
