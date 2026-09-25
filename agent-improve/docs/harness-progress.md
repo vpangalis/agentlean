@@ -11,9 +11,9 @@ the current state, not a diary; git holds the history.
 | Part | What | State | Commit |
 |---|---|---|---|
 | A | Permission warm-up | DONE | — |
-| 0 | Register 6.66 + this file | DONE | (this commit) |
-| 1 | Measure first | DONE — baseline below | (this commit) |
-| 2 | Speed: pre-flight, xdist, repeat report | next | |
+| 0 | Register 6.66 + this file | DONE | 5d29baa |
+| 1 | Measure first | DONE — baseline below | 5d29baa |
+| 2 | Speed: pre-flight, xdist, repeat report | DONE — see Part 2 below | (this commit) |
 | 3 | CLAUDE.md → rules and pointers; guard rule 6 narrowed | | |
 | 4 | Slim ARCHITECTURE.md + procedure; size budget; section index | | |
 | 5 | define_features.json, status from tests, coverage test, discrepancies | | |
@@ -37,6 +37,33 @@ the current state, not a diary; git holds the history.
 | Hook parts other than the suite | board 9.5 s + rule 10 board 9.3 s + rule 3 mypy 8.6 s + continuity 3.7 s + rest < 3 s | timing log medians |
 | Area test runs | `-n auto` with 34–54 tests: **22–30 s**; serial 1–47 tests: **4–12 s** | timing log |
 
+## Part 2 — speed (what was built)
+
+- `.claude/hooks/preflight.py`: drift, built markers, mypy over the changed
+  Python AND its direct importers (rule 3's baseline), and the tests of both
+  plus every test naming a changed document or a hook/tool that reads it — all
+  four in parallel; serial (`-n 0`) at 12 test files or fewer. `--plan` shows
+  the selection. Times itself into the timing log (`kind: preflight`).
+- `.claude/hooks/preflight-on-commit.py` (PreToolUse, Bash|PowerShell): runs the
+  pre-flight before every `git commit`, blocks on failure (exit 2). Fail-soft
+  if the hook itself breaks.
+- Kept: the one full parallel run per commit in the pre-commit hook.
+- Found on its first run: `verify_built` "facts with nothing to anchor to"
+  37 → 38 — the 6.66 registration commit had not moved the pin. Fixed.
+- Found: `-p no:xdist` breaks the conftest (it defines `pytest_testnodedown`);
+  serial is `-n 0`.
+- Found: `test_turn_budget` (2 tests) fails under CPU contention and passes
+  alone (3 passed, 5.7 s) — a timing-sensitive test.
+
+Area-test repeats in the 6.61 prompts (timing log):
+
+| Prompt | Runs | Full | Area | Back-to-back same-count | xdist on < 200 tests |
+|---|---|---|---|---|---|
+| 6.65 + 6.61 part A | 12 | 3 (339 s) | 9 (134 s) | 3 | 4 (107 s) |
+| 6.61 part B | 30 | 0 | 30 (583 s) | 9 | 5 (160 s) |
+| 6.61 review + commit | 7 | 2 (207 s) | 5 (136 s) | 1 | 3 (111 s) |
+
 ## Next
 
-Part 2 — pre-flight.
+Part 3 — CLAUDE.md to rules and pointers (≤ 150 lines); guard rule 6 narrowed.
+Parts 4 and 5a are running in sub-agents (worktrees); their output lands here.

@@ -1,9 +1,9 @@
 {
- "source_hash": "71603626bbc8eb8d",
- "commit": "454a1bd",
+ "source_hash": "a96decf51f98af6b",
+ "commit": "5d29baa",
  "commit_matches_source": false,
- "full_run_hash": "71603626bbc8eb8d",
- "recorded_at": "2026-09-25T17:53:21+00:00",
+ "full_run_hash": "a96decf51f98af6b",
+ "recorded_at": "2026-09-25T18:32:55+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1113,6 +1113,15 @@
   "backend/tests/test_plan_order.py::test_mutation_the_old_regex_is_refused": "passed",
   "backend/tests/test_plan_order.py::test_the_one_reader_returns_the_real_plan": "passed",
   "backend/tests/test_plan_order.py::test_the_step_board_reads_the_same_plan": "passed",
+  "backend/tests/test_preflight.py::test_a_changed_document_reaches_the_tests_that_read_it": "passed",
+  "backend/tests/test_preflight.py::test_a_changed_module_reaches_its_importers_and_their_tests": "passed",
+  "backend/tests/test_preflight.py::test_a_short_acknowledgement_does_not_pass": "passed",
+  "backend/tests/test_preflight.py::test_an_acknowledged_failure_passes_on_the_record": "passed",
+  "backend/tests/test_preflight.py::test_relative_imports_resolve": "passed",
+  "backend/tests/test_preflight.py::test_the_conftest_reaches_everything": "passed",
+  "backend/tests/test_preflight.py::test_the_hook_blocks_a_commit_when_the_preflight_fails": "passed",
+  "backend/tests/test_preflight.py::test_the_hook_ignores_every_other_command": "passed",
+  "backend/tests/test_preflight.py::test_the_hook_lets_a_clean_commit_through": "passed",
   "backend/tests/test_register_single_source.py::test_a_reader_given_a_document_with_no_register_yields_nothing": "passed",
   "backend/tests/test_register_single_source.py::test_no_reader_names_architecture_md_as_a_register_source": "passed",
   "backend/tests/test_register_single_source.py::test_the_fallback_really_was_dead_before_it_was_deleted": "passed",
@@ -1334,8 +1343,8 @@
   "backend/tests/test_wiring.py::test_wired_6_61_the_move_is_decided_in_code": "passed"
  },
  "older": {
-  "source_hash": "993eff626d92f24f",
-  "recorded_at": "2026-09-25T17:49:55+00:00",
+  "source_hash": "71603626bbc8eb8d",
+  "recorded_at": "2026-09-25T18:26:20+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
