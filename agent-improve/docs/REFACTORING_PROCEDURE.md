@@ -6053,6 +6053,35 @@ headline, the diagram and one hover reference.
 
 ---
 
+## Step 6.66 — The long-running harness: one feature list, status only from tests
+
+| | |
+|---|---|
+| **Reference §** | CLAUDE.md §22 · founder ruling 2026-09-25 (overnight run) · Anthropic, *Effective harnesses for long-running agents* |
+| **Touches** | `CLAUDE.md` · `.claude/` · `.githooks/` · `backend/tests/` · `docs/` · `tools/` · `ARCHITECTURE.md` |
+| **Precondition** | **6.65** — speed without losing quality. Landed |
+| **NEEDS** | One parallel full run per commit, and a timing log (6.65) |
+| **GIVES** | Define's work as one JSON feature list whose pass/fail comes only from end-to-end tests; a seconds-long pre-flight; documents that stop growing; the measured distance to "Define works end to end" |
+| **Verify** | `pytest` + the Define run-through test, run once on `main` |
+| **Status** | **RULED — founder 2026-09-25** |
+
+**Founder ruling 2026-09-25 — the overnight run.** By morning: (1) prompts run
+faster, (2) the documents stop growing and stop drifting, (3) Define runs on
+Anthropic's long-running harness pattern — ONE JSON feature list whose
+passing/failing comes only from end-to-end tests — and (4) the true distance to
+"Define works end to end" is measured. No Belt-facing change (`backend/`,
+`ui/`), except test configuration and the harness's own tests. Progress:
+`docs/harness-progress.md`.
+
+**Done when:** a pre-flight runs before every commit attempt in seconds; a size
+budget refuses growth of CLAUDE.md, each rule file, ARCHITECTURE.md and the
+procedure; `docs/define_features.json` exists and the board and CONTINUITY read
+its status from `test-results.json`; a coverage test maps every open Define
+step, capability row and gap to a feature; the Define run-through has run once
+on `main` within 150 live calls.
+
+---
+
 ## Step 6.65 — Speed without losing quality
 
 | | |
@@ -6818,9 +6847,9 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **TOOLING** | 3 | **6.63**, **6.64**, **6.65** |
 | **BUILT, NOT WIRED** | 47 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.19**, **6.21**, **6.25**, **6.26**, **6.27**, **6.31**, **6.34**, **6.35**, **6.36**, **6.38**, **6.39**, **6.40**, **6.41**, **6.49**, **6.54** |
 | **WAITING** | 10 | **6.10**, **6.14**, **6.22**, **6.53**, **6.56**, **8.4**, **8.5**, **9.0**, **9.1**, **9.2** |
-| **NOT BUILT** | 41 | **6.17**, **6.20**, **6.23**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **6.37**, **6.43**, **6.44**, **6.45**, **6.47**, **6.50**, **6.51**, **6.58**, **6.59**, **6.60**, **6.62**, **7.0**, **7.1**, **7.2**, **7.3**, **7.4**, **7.5**, **7.6**, **7.7**, **7.8**, **7.9**, **8.0**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **10.2**, **10.3**, **10.4**, **11.1**, **11.2** |
+| **NOT BUILT** | 42 | **6.17**, **6.20**, **6.23**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **6.37**, **6.43**, **6.44**, **6.45**, **6.47**, **6.50**, **6.51**, **6.58**, **6.59**, **6.60**, **6.62**, **6.66**, **7.0**, **7.1**, **7.2**, **7.3**, **7.4**, **7.5**, **7.6**, **7.7**, **7.8**, **7.9**, **8.0**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **10.2**, **10.3**, **10.4**, **11.1**, **11.2** |
 
-*109 steps. PROVEN: every capability row the step owns is green and its check passed on the current source. WIRED: its Wiring-proofs test passed on the current source. BUILT: its Appendix F row is ✅. WAITING: Appendix D says BLOCKED / GATED / EXTERNAL. The same states, with each reference, are on `docs/control-board.html`. Regenerated 2026-09-25.*
+*110 steps. PROVEN: every capability row the step owns is green and its check passed on the current source. WIRED: its Wiring-proofs test passed on the current source. BUILT: its Appendix F row is ✅. WAITING: Appendix D says BLOCKED / GATED / EXTERNAL. The same states, with each reference, are on `docs/control-board.html`. Regenerated 2026-09-25.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -7155,6 +7184,7 @@ restate, which is the opposite of what the board is for.
 | 489 | **Commit 6.63** | The control board is a true picture of the tree |  | OPS | SHARED | Four progress views disagreed, a ruled step was missing from all of them, and the plan read as empty because a parser skipped a column. |
 | 491 | **Commit 6.64** | The board's grouped views are restored, derived |  | OPS | SHARED | The board shows progress only by work package, so where an open step sits in the system, and which story it serves, has to be looked up by hand. |
 | 492 | **Commit 6.65** | Speed without losing quality |  | OPS | SHARED | Every step spends its time re-running and re-reading what was already checked, and nobody can see where the time goes. |
+| 493 | **Commit 6.66** | The long-running harness: one feature list, status only from tests |  | OPS | SHARED | Nobody can say how far Define is from working end to end, because progress is read from documents that grow every step instead of from tests. |
 | 487 | **Commit 6.61** | The coaching move is decided in code |  | COACH | SHARED | The coach sometimes waits after a read-back, sometimes moves on and sometimes re-asks, and stores its own paraphrase before the Belt has confirmed it. |
 | 488 | **Commit 6.62** | The other four phase scripts carry no move-sequencing |  | COACH | PHASE | Four phase scripts still tell the coach when to move on, which is now decided in code. |
 | 483 | **Commit 6.58** | A percent convention for the computation tools |  | COACH | SHARED | A savings figure 100× too large reaches the Belt, because a tool reads 23% as 23. |
@@ -7359,6 +7389,7 @@ home.**
 | L0 |  | — | **11.2** | Governance close-out | ☐ | `absent: repo:agent-improve/docs/HANDOVER.md` | §55 |
 | L0 | 2 | — | **6.64** | The board's grouped views are restored, derived | ☐ | — | §55, App. D, App. F, App. H |
 | L0 | 3 | — | **6.65** | Speed without losing quality | ✅ | `repo:.claude/hooks/timing.py` | CLAUDE.md §22 |
+| L0 |  | — | **6.66** | The long-running harness: one feature list, status only from tests | ☐ | — | CLAUDE.md §22 |
 
 #### L1 · API surface
 
