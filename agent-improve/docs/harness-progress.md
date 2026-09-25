@@ -15,6 +15,21 @@ state; git holds the history.
    — take the first failing feature whose dependencies pass. Make its test pass
    end to end. Never edit a feature to say it passes; there is no status field.
 
+## Lanes — how to start each (created 2026-09-25; not started)
+
+Each lane is a branch and a worktree beside this checkout, with `agent-improve/.venv`
+a junction to this checkout's venv (the guard needs it) — copy `agent-improve/.env`
+in before any live run. Start a Claude Code session in the worktree and say:
+*"You are lane X. Follow docs/harness-progress.md's session-start routine; take the
+next failing feature in lane X; one feature per commit; push to lane/X."*
+
+| Lane | Branch · worktree | Features | Starts at |
+|---|---|---|---|
+| A — coaching | `lane/a-coaching` · `../AgentLean-lane-a-coaching` | 35 | DEF-005 (teach before ask) |
+| B — gate | `lane/b-gate` · `../AgentLean-lane-b-gate` | 15 | DEF-040 (contradiction stop in a node) — needs founder D1; G-23 draft is the input |
+| C — screen and inputs | `lane/c-screen-inputs` · `../AgentLean-lane-c-screen-inputs` | 8 | DEF-052 (the four blocks reach the screen) |
+| Integrator | `lane/integrator` · `../AgentLean-lane-integrator` | 6 | DEF-001; merges A/B/C into `main` in feature order, runs the run-through |
+
 ## Overnight run 2026-09-25 → 26 (founder ruling, step 6.66)
 
 | Part | What | State | Commit |
@@ -26,7 +41,7 @@ state; git holds the history.
 | 3 | Guard rule 6 narrowed; rule files slimmed; CLAUDE.md rules-only | DONE (CLAUDE.md in the commit after Part 5) | 189c672, 69e9200 |
 | 4 | Slim ARCHITECTURE.md + procedure; size budget; section index | DONE | ddb30fe, 3496e16, 22ddd0d |
 | 5 | define_features.json, status from tests, coverage test, discrepancies, routine | DONE | (this commit) |
-| 6 | Lanes A/B/C + integrator: branches, worktrees | next | |
+| 6 | Lanes A/B/C + integrator: branches, worktrees | DONE — see Lanes | (this commit) |
 | 7 | Define run-through test, once on main, ≤150 live calls | | |
 | 8 | G-23 design draft, G-40 rubric draft | | |
 | 9 | Fresh-eyes review | | |
@@ -60,4 +75,4 @@ state; git holds the history.
 
 ## Next
 
-Part 6 — lanes. Then Part 7, the run-through (≤ 150 live calls, run once).
+Part 7 — the Define run-through (≤ 150 live calls, run once on main).
