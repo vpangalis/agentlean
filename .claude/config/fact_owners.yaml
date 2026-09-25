@@ -41,7 +41,7 @@ governed_exclusions:
   # GENERATED, never hand-edited — guarding them denies an edit nobody makes
   # by hand and would block the pre-commit hook that regenerates them.
   - 'agent-improve/docs/CONTINUITY.md'
-  - 'agent-improve/docs/board.html'
+  - 'agent-improve/docs/control-board.html'
 
 owners:
   - id: dependency-versions

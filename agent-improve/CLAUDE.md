@@ -1,5 +1,5 @@
 # CLAUDE.md — Agent Improve
-# Version 2.2.42 — September 2026
+# Version 2.2.43 — September 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 DMAIC coaching agent: LangGraph phase subgraphs, LangChain `create_agent` with a
@@ -72,7 +72,7 @@ resolved versions at session start.
 | How is Agent Improve shaped, and why? | `ARCHITECTURE.md` — the design, the §56 changelog, the gap register, the BUILT markers | **Binding — and the target of every architecture citation** |
 | What do I build next, and how is it verified? | `docs/REFACTORING_PROCEDURE.md` — step specs, Appendix A traceability, Appendix D `Seq` ordering | **Binding** |
 | How is the platform shaped across all three agents? | `../AGENTIC_ARCHITECTURE_REFERENCE.md` | **A FORWARD DOCUMENT.** To be authored FROM Agent Improve once Improve is proven. **Not a source of truth today** — do not cite it, and do not treat it as owing a back-port |
-| Where did we leave off? | `docs/CONTINUITY.md`, `docs/board.html` | **Generated every commit. Never hand-edit** |
+| Where did we leave off? | `docs/control-board.html` — **the only progress view** (founder, 2026-09-25); `docs/CONTINUITY.md` carries its headline | **Generated every commit from `tools/control_board/progress.py`. Never hand-edit** |
 | Historical rulings | `docs/_archive/` | Closed. Rulings from 2026-09-10 onward live in ARCHITECTURE.md and in commit bodies |
 
 **Architecture citations resolve to `ARCHITECTURE.md`.** Rule numbers of the form

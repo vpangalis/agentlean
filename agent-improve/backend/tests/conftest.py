@@ -376,8 +376,66 @@ def _no_tracing(_count_tracing_calls):
 
 
 def pytest_sessionfinish(session, exitstatus):
+    # Step 6.63 — record the run for the control board. Not when the trace
+    # guard fired: a run that broke the quota rule is not evidence of anything.
+    if _OUTCOMES and not TRACE_CALLS:
+        _record_results()
     if TRACE_CALLS:
         print(f"\n\nG-95 GUARD: the suite asked LangSmith to create/send "
               f"{len(TRACE_CALLS)} run(s) ({sorted(set(TRACE_CALLS))}). Tests must "
               f"never trace — every trace counts against the monthly quota.")
         session.exitstatus = 1
+
+
+# ── step 6.63 — the recorded run the control board reads ─────────────────────
+#
+# A board status is green only when the test it names PASSED ON THE CURRENT
+# SOURCE. So every run records each outcome, bound to a hash of the source
+# (`tools/control_board/progress.py::source_hash`). Outcomes from a run on the
+# same source are merged — a `-k` run adds to the record rather than erasing
+# it; a run on changed source starts a new record and keeps the previous one
+# as `older`. The board shows an outcome found only in `older` as AMBER: it
+# exists, and it is older than the code.
+
+_OUTCOMES: dict[str, str] = {}
+
+
+def pytest_runtest_logreport(report):
+    if report.when == "call" or (report.when == "setup" and report.outcome != "passed"):
+        _OUTCOMES[report.nodeid.replace("\\", "/")] = report.outcome
+
+
+def _record_results() -> None:
+    import datetime as _dt
+    import json as _json
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    project = _Path(__file__).resolve().parents[2]
+    _sys.path.insert(0, str(project / "tools" / "control_board"))
+    try:
+        from progress import RESULTS, source_hash  # type: ignore[import-not-found]
+    finally:
+        _sys.path.pop(0)
+    current = source_hash(project)
+    prior = _json.loads(RESULTS.read_text(encoding="utf-8")) if RESULTS.is_file() else {}
+    if prior.get("source_hash") == current:
+        outcomes, older = dict(prior.get("outcomes") or {}), prior.get("older") or {}
+    else:
+        # A run on changed source: the previous record becomes OLDER — kept, so
+        # a test this run did not include reads amber ("passed on older code"),
+        # never as if it had not been run at all.
+        outcomes = {}
+        older_out = dict((prior.get("older") or {}).get("outcomes") or {})
+        older_out.update(prior.get("outcomes") or {})
+        older = {"source_hash": prior.get("source_hash"),
+                 "recorded_at": prior.get("recorded_at"),
+                 "outcomes": dict(sorted(older_out.items()))} if older_out else {}
+    outcomes.update(_OUTCOMES)
+    RESULTS.write_text(_json.dumps({
+        "source_hash": current,
+        "recorded_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
+        "outcomes": dict(sorted(outcomes.items())),
+        "older": older,
+    }, indent=1) + "\n", encoding="utf-8")
+

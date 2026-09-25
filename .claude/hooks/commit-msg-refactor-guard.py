@@ -1063,6 +1063,79 @@ def check_continuity(root: str, staged: list[str]) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Rule 10 — the board is a true picture of the tree (step 6.63's D7)
+# --------------------------------------------------------------------------- #
+CHECK_BOARD = os.path.join(PROJECT, "tools", "control_board", "check_board.py")
+
+
+def check_board(root: str, py: str) -> None:
+    """Every status on the staged control-board.html has a reference, and the
+    reference agrees with the tree; every diagram label agrees with the code;
+    the headline is CONTINUITY.md's. Recomputed, never trusted.
+
+    EVERY commit, ahead of the prefix gate: the page is regenerated on every
+    commit, so a docs commit can leave it as false as a refactor can. Needs
+    the venv — the diagram imports `backend`.
+    """
+    r = subprocess.run([py, os.path.join(root, CHECK_BOARD), "--staged"], cwd=root,
+                       capture_output=True, encoding="utf-8", errors="replace", timeout=180)
+    if r.returncode != 0:
+        fail("the control board disagrees with the tree (rule 10)",
+             *[ln for ln in (r.stdout + r.stderr).splitlines() if ln.strip()][-30:], "",
+             "The page is generated; regenerate rather than edit it:",
+             f"  {py} {CHECK_BOARD.replace(os.sep, '/').replace('check_board', 'build_control_board')} --staged",
+             "  git add agent-improve/docs/control-board.html agent-improve/docs/CONTINUITY.md",
+             "If pre-commit did not run: git config core.hooksPath .githooks")
+    note("rule 10 board: PASS — every status and label agrees with the tree")
+
+
+# --------------------------------------------------------------------------- #
+# Rule 11 — a step lands only WIRED, on WIRED preconditions (step 6.63)
+# --------------------------------------------------------------------------- #
+def _progress_mod(root: str):
+    ctl = os.path.join(root, PROJECT, "tools", "control_board")
+    if ctl not in sys.path:
+        sys.path.insert(0, ctl)
+    import progress
+    return progress
+
+
+def landing_refusal(p: dict, step: str) -> list[str]:
+    """Why `commit <step>` may not land, or [] when it may. DONE is WIRED, or
+    PROVEN for a step that owns a capability row — never merely built."""
+    st = p["steps"].get(step)
+    if st is None:
+        return [f"{step} is not a registered step"]
+    out = []
+    if not st["done"]:
+        out.append(f"{step} is {st['state']}, not wired — "
+                   f"{st['wired_why'] or 'no row in Appendix F Wiring proofs'}")
+    for dep in st["depends_on"]:
+        d = p["steps"].get(dep)
+        if d is None:
+            out.append(f"its precondition names {dep}, which is not a registered step")
+        elif not d["done"]:
+            out.append(f"its precondition {dep} is {d['state']}, not wired")
+    return out
+
+
+def check_landing(root: str, subject: str) -> None:
+    m = re.match(r"^refactor\(arch-v2\): commit (\d+\.\d+)\b", subject)
+    if not m:
+        return
+    progress = _progress_mod(root)
+    p = progress.progress(progress.procedure_text(staged=True))
+    why = landing_refusal(p, m.group(1))
+    if why:
+        fail(f"step {m.group(1)} cannot land yet (rule 11)", *why, "",
+             "A step is DONE when a test drives the real compiled graph through",
+             "the real API route and shows its component ran (Appendix F, Wiring",
+             "proofs), or when every capability row it owns is proven. Built —",
+             "the symbol exists — is not done: G-49, G-69 and G-76 all existed.")
+    note(f"rule 11 landing: PASS — {m.group(1)} and its preconditions are wired")
+
+
+# --------------------------------------------------------------------------- #
 # Rule 4 — tests
 # --------------------------------------------------------------------------- #
 def check_tests(root: str, py: str) -> None:
@@ -1185,6 +1258,9 @@ def main(argv: list[str]) -> int:
     # Rule 9 — the matrix referee, ahead of the prefix gate (see its docstring).
     check_build_matrix(root)
 
+    # Rule 10 — the board is true, on every commit (see its docstring).
+    check_board(root, venv_python(root))
+
     # ── Rule 6 — also ahead of the prefix gate, and for the same reason ────
     # A fix lands under any type. It is a pure message check, so it costs
     # nothing and runs before mypy and pytest can spend a minute on a commit
@@ -1232,6 +1308,9 @@ def main(argv: list[str]) -> int:
     # the prefix gate, because it binds on every commit rather than only on
     # spine commits.
     staged = all_staged
+
+    # ── Rule 11 — the step, and every step its card needs, is WIRED ───────
+    check_landing(root, subject)
 
     # ── Rule 5 — the other orientation document moved too ─────────────────
     # Before the venv rules, because it is instant and needs no subprocess:

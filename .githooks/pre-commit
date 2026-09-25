@@ -1,53 +1,54 @@
 #!/bin/sh
-# Tracked git hook — regenerates CONTINUITY.md's CURRENT BUILD STATUS block.
+# Tracked git hook — regenerates the progress view and CONTINUITY.md from the
+# ONE FUNCTION, agent-improve/tools/control_board/progress.py (step 6.63).
 #
 # Activated per clone with:
 #     git config core.hooksPath .githooks
 #
-# The logic lives in .claude/hooks/pre-commit-continuity.py, alongside the
-# project's other hooks. This file is only the entry point.
-#
 # Fail-SOFT, and deliberately the opposite of the commit-msg guard: this hook
-# WRITES, and a writing hook that breaks must never wedge a commit. If python
-# is missing or the script errors, the commit proceeds — because this is not
-# the enforcement point. The commit-msg guard's rule 5 still blocks a
-# refactor(arch-v2) commit whose status block is stale. Fail-soft writer,
-# fail-closed checker.
-
-# Two writers, both fail-soft, both under the rule above. `build_board.py`
-# (step 6.16) regenerates docs/board.html from Appendix D, ARCHITECTURE.md's
-# BUILT markers, §66 and git log, then stages it - so the board a founder
-# reads is a projection of the documents rather than a hand-drawn caption that
-# goes stale on the first commit after it is drawn.
+# WRITES, and a writing hook that breaks must never wedge a commit. The
+# commit-msg guard is the enforcement point — rule 5 (CONTINUITY's block) and
+# rule 10 (the board is a true picture of the tree) both fail CLOSED, so a
+# page this hook failed to rebuild cannot land. Fail-soft writer, fail-closed
+# checker.
 #
-# A third, AFTER the board because it reads it: the control board generator
-# (agent-improve/tools/control_board/) renders docs/control-board.html - the
-# plan, NEXT and the capability count - from board.html, stories.py,
-# Appendix H and git log. Same rule: if it fails, the previous page stays
-# and the commit proceeds - but VISIBLY (founder, 2026-09-23, G-91): the hook
-# prints a warning, and the page's BUILT FROM line keeps naming the last
-# commit it was built from, so a stale board announces itself.
+# Two writers, in this order:
+#   1. pre-commit-continuity.py — CONTINUITY.md's status block and the
+#      procedure's step board, both from progress(). Stdlib only.
+#   2. build_control_board.py --staged — docs/control-board.html, THE ONLY
+#      PROGRESS VIEW (founder, 2026-09-25). It reads the code for its diagram,
+#      so it runs on the project venv's python.
+#
+# docs/board.html IS NO LONGER WRITTEN (step 6.63). It was a second progress
+# view; the founder ruled control-board.html the only one. build_board.py
+# stays for its readers (markers, gaps, the build matrix), which the guard
+# and the tests use.
+#
+# docs/test-results.json is staged with the page: every green on the board is
+# "this test passed on this source", and the record is what says so.
 CONTINUITY=".claude/hooks/pre-commit-continuity.py"
-BOARD=".claude/hooks/build_board.py"
 CONTROL="agent-improve/tools/control_board/build_control_board.py"
+
+VENV=""
+for CAND in agent-improve/.venv/Scripts/python.exe agent-improve/.venv/bin/python; do
+    [ -x "$CAND" ] && VENV="$CAND" && break
+done
 
 for PY in python3 python py; do
     if command -v "$PY" >/dev/null 2>&1; then
         [ -f "$CONTINUITY" ] && "$PY" "$CONTINUITY"
-        if [ -f "$BOARD" ]; then
-            "$PY" "$BOARD" && git add agent-improve/docs/board.html 2>/dev/null
-        fi
-        if [ -f "$CONTROL" ]; then
-            if "$PY" "$CONTROL" agent-improve/docs/board.html \
-                     agent-improve/docs/control-board.html; then
-                git add agent-improve/docs/control-board.html 2>/dev/null
-            else
-                echo "  [control-board] WARNING: control-board.html was NOT rebuilt;" \
-                     "it is stale from this commit on - see the error above" >&2
-            fi
-        fi
-        exit 0
+        break
     fi
 done
+
+if [ -f "$CONTROL" ]; then
+    if [ -n "$VENV" ] && "$VENV" "$CONTROL" agent-improve/docs/control-board.html --staged; then
+        git add agent-improve/docs/control-board.html agent-improve/docs/test-results.json 2>/dev/null
+    else
+        echo "  [control-board] WARNING: control-board.html was NOT rebuilt" \
+             "(no project venv, or the error above). The commit-msg guard's" \
+             "rule 10 will refuse the commit while the page disagrees with the tree." >&2
+    fi
+fi
 
 exit 0

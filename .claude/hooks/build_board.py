@@ -391,32 +391,19 @@ def read_phase_subsections() -> dict[str, dict]:
 def read_order() -> list[dict]:
     """Appendix F's `Order` column - THE VERTICAL (step 6.31).
 
-    **The only hand-set column in the matrix, and the only thing on this board
-    that is not derived from a schedule.** `Seq` is the global plan and the
-    bands already render it; `Order` is the short run of work actually being
-    done, which is what `CONTINUITY.md` carried by hand until 6.31.
-
-    Sparse on purpose: a row with no number is not in the current run. Sorted
-    by the number, and a duplicate is reported rather than silently ordered -
-    two items numbered 3 is a person having edited one and not the other.
+    **Read by `progress.order_rows`, the one reader of the column** (step
+    6.63). This function kept its own regex until then, and that regex
+    expected the step straight after `Order`; since 6.37 a Zone cell sits
+    between them, so it read ZERO rows and the board rendered an empty
+    vertical for a week. `continuity_status.py` held a second copy with the
+    same fault. One reader, tested against the real Appendix F
+    (`test_plan_order.py`), is the fix and the prevention.
     """
-    text = Path(PROCEDURE).read_text(encoding="utf-8")
-    start = text.find("## Appendix F — The build matrix")
-    if start < 0:
-        return []
-    end = text.find(chr(10) + "## Appendix ", start + 10)
-    body = text[start:end if end > 0 else len(text)]
-    out = []
-    for m in re.finditer(
-            r"^\|\s*L(\d+)\s*\|(?P<order>[^|]*)\|\s*\*\*(?P<step>\d+\.\d+)"
-            r"\*\*\s*\|(?P<item>[^|]*)\|(?P<state>[^|]*)\|", body, re.M):
-        o = m.group("order").strip()
-        if o.isdigit():
-            out.append({"n": int(o), "step": m.group("step"),
-                        "item": m.group("item").strip(),
-                        "state": m.group("state").strip()})
-    out.sort(key=lambda r: r["n"])
-    return out
+    ctl = os.path.join(PROJECT, "tools", "control_board")
+    if ctl not in sys.path:
+        sys.path.insert(0, ctl)
+    import progress
+    return progress.order_rows(Path(PROCEDURE).read_text(encoding="utf-8"))
 
 
 def read_bands() -> list[dict]:

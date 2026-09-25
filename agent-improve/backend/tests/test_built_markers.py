@@ -84,7 +84,7 @@ _vb: Any = _load() if _HOOK.exists() else None
 #: (every Evidence cell evaluated against the tree). **The pin is what stops a
 #: red check being deleted rather than fixed**, which is the cheapest possible
 #: answer to a failing build.
-_EXPECTED_CHECK_COUNT = 32
+_EXPECTED_CHECK_COUNT = 33
 
 
 def test_the_hook_is_where_this_file_thinks_it_is() -> None:
@@ -120,6 +120,8 @@ def test_the_check_count_is_pinned() -> None:
     awaiting a founder ruling.
     **+2 at 6.41** — G-87: one conflated bound became three, so a backlog,
     a specification and an unassessed population each move on their own.
+    **+1 at 6.63** — `wired symbols not reachable from app.py's routes`: a
+    step is WIRED only if the symbols it claims are on a path from the API.
     """
     total = len(_vb.CHECKS) + 1          # +1: check_phase_scripts, run separately
     assert total == _EXPECTED_CHECK_COUNT, (

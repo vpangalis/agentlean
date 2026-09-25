@@ -1071,7 +1071,28 @@ def matrix_anchors() -> str:
     return out
 
 
+def wired_symbols_unreachable() -> str:
+    """Step 6.63 — every symbol a step claims as WIRED (Appendix F's Wiring
+    proofs) must be reachable from `app.py`'s routes by an AST call-graph walk
+    (`agent-improve/tools/control_board/reach.py`). A symbol that exists and is
+    reached by nothing is built, not wired — G-49, G-69 and G-76's shape."""
+    import sys as _sys
+    tools = os.path.join(PROJECT, "tools", "control_board")
+    if tools not in _sys.path:
+        _sys.path.insert(0, tools)
+    import progress as _progress  # noqa: E402
+    import reach as _reach  # noqa: E402
+    text = open(PROCEDURE, encoding="utf-8").read()
+    claimed = sorted({x for w in _progress.wiring(text).values() for x in w["symbols"]})
+    bad = _reach.unreachable(claimed)
+    return str(len(bad)) + ("" if not bad else " — " + "; ".join(bad))
+
+
 CHECKS = [
+    ("wired symbols not reachable from app.py's routes", "0",
+     wired_symbols_unreachable,
+     "6.63 — a step is WIRED only if the symbols it claims are on a path from the API"),
+
     ("API routes in routes.py", "11",
      lambda: count_lines("agent-improve/backend/gateway/routes.py",
                          r"^@router\.(get|post|delete|put)"),
@@ -1298,7 +1319,7 @@ CHECKS = [
      "fall since this bound was split**, which is what 6.41 said the number "
      "existed to make possible"),
 
-    ("facts with nothing to anchor to — ratified, unbuilt", "36",
+    ("facts with nothing to anchor to — ratified, unbuilt", "37",
      facts_with_nothing_to_anchor,
      "Appendix F · step 6.41 — G-87. ☐ means something does NOT exist, so the "
      "em dash is the honest cell. **A rise here is normal** and means the "
@@ -1318,7 +1339,8 @@ CHECKS = [
      "2026-09-25: step 6.56 registered (its commit 34e8032 did not move this "
      "pin — found at the Part 1 registration); 29 → 34 the same day: 6.58, "
      "6.59, 6.53, 6.60 and 7.9 registered, founder rulings 2026-09-25; "
-     "34 → 36 the same day: 6.61 and 6.62, the coaching move decided in code"),
+     "34 → 36 the same day: 6.61 and 6.62, the coaching move decided in code; "
+     "36 → 37 the same day: 6.63, the control board"),
 
     ("facts never assessed against the tree", "96",
      facts_unassessed,

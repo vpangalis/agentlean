@@ -176,9 +176,7 @@ def main() -> int:
         fh.write(after)
     _git(["git", "add", "--", cs.CONTINUITY], root)
 
-    t = cs.derive(root)
-    note(f"status block regenerated and staged — "
-         f"last {t['last_step']}, next {t['next_step']}")
+    note("status block regenerated and staged — from progress.progress()")
     return 0
 
 

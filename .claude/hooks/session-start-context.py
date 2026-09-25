@@ -140,115 +140,54 @@ def get_git_info() -> str:
         return "git: not a repository"
 
 
-def get_last_completed_step_from_gitlog() -> list[str] | None:
-    """EVERY refactor(arch-v2) X.Y in recent history, or None if none.
+BOARD_PATH = "agent-improve/docs/control-board.html"
+_DATA = re.compile(r'<script type="application/json" id="progress-data">(.*?)</script>', re.S)
 
-    **Returns the SET, not the maximum, since 2026-09-11.** A single "highest"
-    value only means something when the table is in execution order, and
-    Appendix D is now ordered by `Seq` with the number as a stable identifier.
-    Completion is therefore per-row: a step is done because a commit says so,
-    not because a later-numbered one landed.
-    """
-    try:
-        # **NO `-n` WINDOW, since 2026-09-11.** A watermark survived a short
-        # window: reading the last 20 spine commits still gave the right
-        # MAXIMUM. Per-row completion does not — every step outside the window
-        # reads as not-landed, and the banner proposed 2.3 as next on its
-        # first run after the change. The full log is the completion record.
-        out = _git(
-            ["log", "--oneline", "--grep=^refactor(arch-v2):"],
-            get_project_dir(),
-        )
-        if out.returncode != 0:
-            return None
-        found = [m.group(1) for ln in out.stdout.splitlines()
-                 if (m := _GITLOG_STEP_RE.search(ln))]
-        if not found:
-            return None
-        return sorted(set(found), key=_ver_key)
-    except Exception as exc:  # noqa: BLE001
-        _log(f"git-log step parse failed: {exc}")
+
+def _board_data(rev: str, project_dir: str) -> dict | None:
+    """The progress data a committed control-board.html embeds, or None."""
+    r = _git(["show", f"{rev}:{BOARD_PATH}"], project_dir)
+    if r.returncode != 0:
         return None
+    m = _DATA.search(r.stdout)
+    return json.loads(m.group(1).replace("<\\/", "</")) if m else None
 
 
-def get_next_step_from_procedure(project_dir: str, landed: list[str] | None):
-    """Lowest-`Seq` Appendix D row that is neither landed nor unavailable.
+_RANK = {"green": 0, "built": 1, "waiting": 1, "amber": 2, "red": 3}
 
-    Returns (step, None) on success, or (None, reason) so the caller can say
-    WHY it failed. A silent "undetermined" is what let the previous version of
-    this lookup rot unnoticed against ARCHITECTURE.md §15 — a parse failure and
-    "you have finished" must not render identically.
 
-    **⚑ THE WATERMARK IS GONE, AND THAT IS THE POINT (2026-09-11).** This used
-    to select the lowest row STRICTLY ABOVE the highest landed step, which is
-    why Appendix D carried a warning that a step numbered below the last
-    completed one *"does not appear late, it disappears"* — met for real on
-    2026-09-10 when 6.16 landed ahead of 6.15 and the banner jumped to 7.0.
-    **Re-sequencing alone would have moved that trap into `Seq` space rather
-    than removing it.** Completion is now per-row, so a step at ANY position is
-    reachable the moment it is unblocked — `6.10` included, with no renumber.
+def get_progress() -> str:
+    """Section 2 — THE ONE PROGRESS VIEW, as committed (step 6.63).
+
+    Until 6.63 this printed "last completed X | next Y" from its own parse of
+    Appendix D and git log: a sixth progress view, and it named 6.43 as next
+    while the plan's Order named another step. Now it reads what
+    `control-board.html` embeds — the output of `progress.progress()`, the one
+    function — at HEAD, and compares it with HEAD~1's to show what regressed.
+    Reading the committed page needs no venv and runs in milliseconds.
     """
-    try:
-        doc_path = os.path.join(project_dir, PROCEDURE_DOC_PATH)
-        with open(doc_path, encoding="utf-8") as fh:
-            lines = fh.read().splitlines()
-
-        start = next((i for i, ln in enumerate(lines)
-                      if ln.startswith("## ") and STEP_INDEX_HEADING in ln), None)
-        if start is None:
-            return None, None, f"step index heading '{STEP_INDEX_HEADING}' not found"
-
-        end = len(lines)
-        for j in range(start + 1, len(lines)):
-            if lines[j].startswith("## "):  # next level-2 header ends the index
-                end = j
-                break
-
-        rows = _STEP_ROW_RE.findall("\n".join(lines[start:end]))
-        if not rows:
-            return None, None, "step index found but no rows matched the row format"
-
-        done = set(landed or ())
-        seq_of = {step: int(seq) for seq, step, _ in rows}
-
-        # `last completed` is the landed step with the HIGHEST Seq, not the
-        # highest number. A landed step absent from the table (history carries
-        # 0.1, 1.1, 1.2, 2.1, 2.2 from before it existed) has no Seq and is
-        # not a candidate — the same population rule the landed count uses.
-        in_table = [s_ for s_ in done if s_ in seq_of]
-        last = max(in_table, key=lambda s_: seq_of[s_]) if in_table else None
-
-        available = [(int(seq), step) for seq, step, status in rows
-                     if status.lower() not in _UNAVAILABLE_STATUSES
-                     and step not in done]
-        if not available:
-            blocked = [step for seq, step, st in rows
-                       if st.lower() in _BLOCKED_STATUSES and step not in done]
-            if blocked:
-                return None, last, f"all remaining steps blocked/gated ({', '.join(blocked)})"
-            return None, last, "no steps remain — procedure complete"
-        return min(available)[1], last, None
-    except Exception as exc:  # noqa: BLE001
-        _log(f"procedure next-step parse failed: {exc}")
-        return None, None, f"parse error: {exc}"
-
-
-def get_refactor_step() -> str:
-    """Section 2 — assemble the last/next refactor-step line."""
     project_dir = get_project_dir()
-    doc_path = os.path.join(project_dir, PROCEDURE_DOC_PATH)
-    if not os.path.isfile(doc_path):
-        return f"refactor step: PROCEDURE DOC MISSING (expected {PROCEDURE_DOC_PATH})"
-
-    landed = get_last_completed_step_from_gitlog()
-    nxt, last, reason = get_next_step_from_procedure(project_dir, landed)
-    last_str = last if last else "none"
-
-    if nxt is None:
-        # Say why. "undetermined" hid a broken lookup for months.
-        return f"refactor step: last completed {last_str} | next UNAVAILABLE — {reason}"
-    return (f"refactor step: last completed {last_str} | next {nxt} "
-            f"({PROCEDURE_DOC_PATH} Appendix D)")
+    now = _board_data("HEAD", project_dir)
+    if now is None:
+        return f"progress: {BOARD_PATH} at HEAD carries no progress data"
+    wo = now.get("working_on") or {}
+    lines = [now["headline"],
+             f"current step: {wo.get('step', '—')} — {wo.get('title', '')}",
+             f"forecast finish (Define, 7.9): {now.get('forecast_define') or '—'}"
+             f" · conditional on {', '.join(now.get('conditional_on') or []) or 'nothing'}"
+             f" · {now.get('forecast_basis', '')}"]
+    before = _board_data("HEAD~1", project_dir)
+    if before is None:
+        lines.append("regressed since the last commit: (no board at HEAD~1 to compare)")
+        return "\n".join(lines)
+    worse = []
+    for key, v in sorted(now["statuses"].items()):
+        old = before.get("statuses", {}).get(key)
+        if old and _RANK.get(v["colour"], 3) > _RANK.get(old["colour"], 3):
+            worse.append(f"  {key}: {old['colour']} -> {v['colour']} ({v['ref']})")
+    lines.append(f"regressed since the last commit: {len(worse)}")
+    lines += worse[:15] + ([f"  ... and {len(worse) - 15} more"] if len(worse) > 15 else [])
+    return "\n".join(lines)
 
 
 def _pinned_python() -> str:
@@ -352,7 +291,7 @@ def main() -> int:
 
     sections = [
         ("GIT STATE", get_git_info()),
-        ("REFACTOR STEP", get_refactor_step()),
+        ("PROGRESS (control-board.html)", get_progress()),
         ("DEPENDENCY VERSIONS", get_version_info()),
         ("DRIFT WARNINGS", get_drift_warnings()),
     ]
