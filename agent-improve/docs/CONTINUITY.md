@@ -11,7 +11,7 @@
 | **Next** | step **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
 | **Spine steps landed** | 55 of 106 |
 | **Last spine commit** | `4f6e5c8` (commit 6.57) |
-| **ARCHITECTURE.md** | v1.75 |
+| **ARCHITECTURE.md** | v1.76 |
 | **CLAUDE.md** | v2.2.42 |
 | **Block regenerated** | 2026-09-25 |
 
@@ -41,7 +41,7 @@ Update it with every commit that moves the position.*
 
 | | |
 |---|---|
-| **Last commit** | **The coaching move is decided in code — ruled and registered** (ARCHITECTURE v1.75, step 6.61 first in Order; `git log -1`) · the CLAUDE.md rule §21 in its own commit · **root reference back-port OWED** (binds all three agents) · step 10.0 built and held uncommitted for review |
+| **Last commit** | **The coaching move is decided in code — ruled and registered** (ARCHITECTURE v1.75, step 6.61 first in Order; `git log -1`) · the CLAUDE.md rule §21 in its own commit · **root reference back-port OWED** (binds all three agents) · **step 10.0 landed** (ARCHITECTURE v1.76): the four blocks and the grader's warning reach the Belt; a reload redraws past turns |
 | **Register** | **15 of 35** proven (Appendix H). Green: **1, 2, 3, 5, 6, 8, 11, 13, 17, 18, 19, 20, 21, 33, 35**. Rows 13 and 35 proven on trace `01a0d3e5-6246-7de3-b768-2ee767a5130c` (G-96 live turn, first in process: yes) |
 | **Red from 6.49** | **10** (skipped: no calculation turn yet on 0E5) · **12** (coherence rejects and never re-asks — `xfail(strict=True)`, step 6.53) |
 | **Case `IMPR-2026-0E5`** | **Not stuck** — a turn after the timed-out one started cleanly. **Its turns time out**: two traces on 2026-09-24, two causes |

@@ -210,6 +210,15 @@ a{text-decoration:none;color:inherit}
 .bbl p{margin-bottom:4px}
 .bbl p:last-child{margin-bottom:0}
 .src-pill{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;background:var(--blue-bg);color:var(--blue);border-radius:var(--radius-pill);margin-top:5px;cursor:pointer}
+/* Step 10.0 — §50.1's blocks under the coach's message. The example is set apart
+   so a Belt cannot mistake an illustration for their own data (B6). */
+.blk{margin-top:8px;padding:7px 10px;border-radius:6px;font-size:13px;line-height:1.45;white-space:pre-wrap}
+.blk-h{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;opacity:.75;margin-bottom:3px}
+.blk-explanation{background:rgba(255,255,255,.55)}
+.blk-example{background:#FFF8E6;border:1px dashed #D9A93F;color:#5A4410;font-style:italic}
+.blk-prompt{background:#fff;border-left:3px solid #00305A;font-weight:600}
+.blk-warning{background:#FDECEA;border:1px solid #E0A19B;color:#7A231C}
+.blk-progress{font-size:10.5px;font-weight:600;letter-spacing:.04em;opacity:.8;margin-bottom:4px}
 .input-container{background:#fff;border-top:none;box-shadow:none;padding:10px 14px 12px;flex-shrink:0}
 .input-box{border-radius:10px;border:1px solid #A8CDE8;box-shadow:0 1px 0 0 #0070BA,0 2px 4px rgba(0,112,186,0.10),inset 0 1px 3px rgba(0,112,186,0.04);background:#FFFFFF;padding:10px 12px;display:flex;align-items:flex-start;gap:8px;min-height:90px}
 .reply-box{background:var(--surface);border:1.5px solid var(--border2);border-radius:14px;overflow:hidden;transition:border .15s,box-shadow .15s}
@@ -5748,7 +5757,9 @@ function renderChat(){
       }
     }
 
-    msgs.innerHTML = `<div class="msg"><div class="mav mai"></div>
+    // G-79 — the turns the Belt already saw, above the welcome-back recap.
+    msgs.innerHTML = renderHistoryTurns(S.case?.conversation_history, S.localChat) +
+      `<div class="msg"><div class="mav mai"></div>
       <div class="bbl bbl-ai">
         <div style="font-weight:600;margin-bottom:4px">${greeting}</div>
         ${contextHtml}
@@ -5908,11 +5919,28 @@ function renderLiveViz() {
   chatEl.scrollTop = chatEl.scrollHeight;
 }
 
+// Step 10.0 / G-79 — a page reload keeps nothing in S.localChat, so the case's
+// conversation_history is the only record of what the Belt already saw. Each
+// stored turn is drawn through renderTurn, blocks included; a turn already on
+// screen this session (a tab switch re-appends S.localChat) is not drawn twice.
+function renderHistoryTurns(history, localChat){
+  const seen=new Set((localChat||[]).map(t=>(t.role||'')+'|'+(t.text||'')));
+  return (history||[])
+    .filter(t=>(t.role==='ai'||t.role==='user')&&!seen.has((t.role||'')+'|'+(t.text||'')))
+    .map(t=>renderTurn(t)).join('');
+}
+
 function renderTurn(turn){
   if(turn.role==='ai'){
     const cites=(turn.citations||[]).map(c=>`<div class="src-pill"><i class="ti ti-link" style="font-size:11px"></i>${c.agent_origin||'Agent Improve'} · ${c.index_name||''}</div>`).join('');
+    // Step 10.0 — §50.1's blocks, in order, from the TURN, so a turn rebuilt
+    // from conversation_history renders as it did live (G-79). An empty block
+    // renders as absent, never as a gap in the layout.
+    const blk=(k,label)=>turn[k]?`<div class="blk blk-${k}"><div class="blk-h">${label}</div>${escapeHtml(turn[k])}</div>`:'';
+    const prog=turn.progress?`<div class="blk-progress">${escapeHtml(turn.progress)}</div>`:'';
+    const warn=turn.grader_warning?`<div class="blk blk-warning">${escapeHtml(turn.grader_warning)}</div>`:'';
     return `<div class="msg"><div class="mav mai">AI</div>
-      <div class="bbl bbl-ai"><p>${turn.text}</p>${cites}</div></div>`;
+      <div class="bbl bbl-ai">${prog}<p>${turn.text}</p>${blk('explanation','Why it matters')}${blk('example','Example — an illustration, not your data')}${blk('prompt','Your turn')}${warn}${cites}</div></div>`;
   }else{
     const initials=(turn.user||S.user||'U').split(' ').map(w=>w[0]).join('').substr(0,2).toUpperCase();
     return `<div class="msg user"><div class="mav mu">${initials}</div>
@@ -6081,7 +6109,11 @@ async function sendMessage(){
         // Re-render gate tab in background so it's ready when user opens it
         if (S.tab !== 'gate') renderGate();
       }
-      const aiTurn={turn:S.localChat.length+1,role:'ai',user:null,text:resp.answer,timestamp:new Date().toISOString(),citations:resp.citations||[]};
+      const aiTurn={turn:S.localChat.length+1,role:'ai',user:null,text:resp.answer,timestamp:new Date().toISOString(),citations:resp.citations||[],
+        // Step 10.0 — the blocks travel with the turn, so a tab switch
+        // (which re-renders S.localChat) keeps them.
+        explanation:resp.explanation||'',example:resp.example||'',prompt:resp.prompt||'',
+        progress:resp.progress||'',grader_warning:resp.grader_warning||null};
       S.localChat.push(aiTurn);
       appendMsgToDOM(renderTurn(aiTurn));
       renderChips();

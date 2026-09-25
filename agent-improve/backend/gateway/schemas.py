@@ -85,6 +85,14 @@ class AskResponse(BaseModel):
     visualisation: Optional[dict] = None         # inline visual payload (e.g. 5W2H mindmap)
     section_completed: Optional[str] = None      # which Gate section just completed this turn
     escalated: bool = False
+    # Step 10.0 — §50.1's render contract, beside `answer` (which stays the
+    # `message` block). Defaulted: a missing block is a finding, never a failed
+    # turn (§4.8, v1.64).
+    explanation: str = ""
+    example: str = ""                            # an illustration, never the Belt's data (B6)
+    prompt: str = ""                             # the one ask of this turn
+    progress: str = ""                           # "Define · Step n of 12" (6.57)
+    grader_warning: Optional[str] = None         # the grader's Belt-visible warning (G-76)
 
 
 class CaseCreateResponse(BaseModel):

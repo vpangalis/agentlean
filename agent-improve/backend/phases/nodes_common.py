@@ -89,7 +89,7 @@ from backend.knowledge.tools import (
 )
 from backend.middleware.coherence import CoherenceMiddleware
 from backend.middleware.contradiction import ContradictionDetectionMiddleware
-from backend.middleware.grader import DMAICGraderMiddleware
+from backend.middleware.grader import DMAICGraderMiddleware, MAX_ITERATIONS_WARNING
 from backend.middleware.skills import (
     DMAICSkillsMiddleware,
     example_match,
@@ -1265,6 +1265,32 @@ def _with_progress(messages: list, reply: CoachingResponse, label: str) -> list:
     ]
 
 
+#: §50.1's render contract — the blocks besides `message`, in render order.
+COACHING_BLOCKS: tuple[str, ...] = ("explanation", "example", "prompt", "progress")
+
+
+def _attach_blocks(messages: list, reply: CoachingResponse | None,
+                   warning: str | None) -> None:
+    """Put this turn's §50.1 blocks, and the grader's warning, on the reply.
+
+    Step 10.0. **Beside `message`, never instead of it:** the AI message's
+    content stays `message` — the transcript entry, what `messages` and
+    summarisation carry — and the blocks ride on `additional_kwargs`, the
+    channel `_attach_diagram` already uses for a turn's extras. Mutates in
+    place — the last AI message is the reply.
+    """
+    if reply is None and warning is None:
+        return
+    for msg in reversed(messages):
+        if isinstance(msg, AIMessage):
+            if reply is not None:
+                msg.additional_kwargs["coaching_blocks"] = {
+                    k: str(getattr(reply, k, "") or "") for k in COACHING_BLOCKS}
+            if warning:
+                msg.additional_kwargs["grader_warning"] = warning
+            return
+
+
 def _with_coaching_text(messages: list, reply: CoachingResponse) -> list:
     """Guarantee the Belt-facing prose is present in `messages`.
 
@@ -1727,6 +1753,15 @@ async def executor(
                  if define_step is not None else None)
     if define_step is not None and reply is not None:
         new_messages = _with_progress(new_messages, reply, define_step["label"])
+
+    # ── 10.0 — the four blocks and the grader's warning ride on the reply ──
+    # The route never holds the `CoachingResponse`, only the graph's
+    # messages, so this is the one place the blocks can be put where it reads.
+    # After 6.57's write, so `progress` is the computed step. The warning is
+    # the grader's own B5 text whenever its verdict this turn FAILED — the
+    # dict its `after_agent` returns reaches no reader (G-76, G-103).
+    failed = any(e.get("status") == "failed" for e in grader_log)
+    _attach_blocks(new_messages, reply, MAX_ITERATIONS_WARNING if failed else None)
 
     # **The count that used to disagree with the write, reconciled.** This
     # line logged `len(captured)` — the KEYS the coach named — while the write

@@ -773,6 +773,11 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
         visualisation=extra.get("visualisation"),
         section_completed=extra.get("section_completed"),
         escalated=bool(verdict.get("escalated", False)),
+        # Step 10.0 — the four blocks and the warning, projected from the
+        # reply message the executor put them on (`_attach_blocks`).
+        **{k: str((extra.get("coaching_blocks") or {}).get(k) or "")
+           for k in ("explanation", "example", "prompt", "progress")},
+        grader_warning=extra.get("grader_warning") or None,
     )
 
 

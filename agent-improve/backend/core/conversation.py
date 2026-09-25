@@ -62,6 +62,13 @@ _TRANSPORT_KEYS: tuple[str, ...] = (
 )
 
 
+#: Step 10.0 — §50.1's blocks. On the MESSAGE they ride as one dict,
+#: `coaching_blocks`; on the TURN (the case blob's `conversation_history`) as
+#: flat keys the UI renders — so a turn the Belt saw is rebuilt from history
+#: with its blocks, not only from the last send (G-79).
+COACHING_BLOCK_KEYS: tuple[str, ...] = ("explanation", "example", "prompt", "progress")
+
+
 def message_to_turn(msg: BaseMessage, index: int) -> dict[str, Any]:
     """One `BaseMessage` -> one v1 conversation turn dict.
 
@@ -83,6 +90,12 @@ def message_to_turn(msg: BaseMessage, index: int) -> dict[str, Any]:
     for key in V1_PRESENTATION_KEYS:
         if extra.get(key) is not None:
             turn[key] = extra[key]
+    blocks = extra.get("coaching_blocks") or {}
+    for key in COACHING_BLOCK_KEYS:
+        if blocks.get(key):
+            turn[key] = blocks[key]
+    if extra.get("grader_warning"):
+        turn["grader_warning"] = extra["grader_warning"]
     return turn
 
 
@@ -103,6 +116,11 @@ def turn_to_message(turn: dict[str, Any]) -> BaseMessage:
     for key in V1_PRESENTATION_KEYS:
         if turn.get(key) is not None:
             extra[key] = turn[key]
+    blocks = {k: turn[k] for k in COACHING_BLOCK_KEYS if turn.get(k)}
+    if blocks:
+        extra["coaching_blocks"] = blocks
+    if turn.get("grader_warning"):
+        extra["grader_warning"] = turn["grader_warning"]
 
     text = turn.get("text") or ""
     if turn.get("role") == "ai":

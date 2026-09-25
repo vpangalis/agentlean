@@ -61,9 +61,10 @@ GRADER_MAX_ITERATIONS = 3
 
 #: What the Belt is shown when grading could not settle (B5). Plain language
 #: (§13) — it names no rubric, no iteration count and no internal machinery.
+#: Founder's wording, 2026-09-25 (step 10.0).
 MAX_ITERATIONS_WARNING = (
-    "I was not able to fully check this response against my own coaching "
-    "standards. It may be less useful than usual — say so and I will try again."
+    "My quality check flagged this reply as weaker than it should be. "
+    "If it doesn't help, tell me and I'll try again."
 )
 
 _PROMPT = """\
