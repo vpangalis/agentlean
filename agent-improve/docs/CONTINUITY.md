@@ -13,7 +13,7 @@
 | **Steps** | 4 proven · 4 wired · 3 tooling · 47 built, not wired · 10 waiting · 42 not built |
 | **Define features** | Define features passing: 1 of 64 — A 1/35 · B 0/15 · C 0/8 · integrator 0/6 |
 | **ARCHITECTURE.md** | v1.78 |
-| **CLAUDE.md** | v2.2.44 |
+| **CLAUDE.md** | v2.2.45 |
 | **Block regenerated** | 2026-09-25 |
 
 *Every figure here comes from `tools/control_board/progress.py` — the
