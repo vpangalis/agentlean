@@ -63,6 +63,7 @@ aiofiles==23.2.1
 
 # Testing
 pytest==9.0.3
+pytest-xdist==3.8.0
 
 # Type checking — DEV ONLY, not imported by any runtime module.
 # Added 2026-08-31 with the commit-msg type-check gate

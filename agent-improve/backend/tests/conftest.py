@@ -375,11 +375,40 @@ def _no_tracing(_count_tracing_calls):
     mp.undo()
 
 
+# ── step 6.65 — pytest-xdist: the recorder and the guard, on the controller ──
+#
+# Under `-n`, each WORKER runs its own session: it sees its own tests' reports
+# and its own LangSmith calls. The controller sees every report (xdist relays
+# them) but none of the workers' calls. So a worker writes nothing and hands
+# its trace-guard count up through `workeroutput`; the controller folds it in
+# before its own `sessionfinish` decides, exactly as a serial run does.
+
+_SESSION_START: list[float] = []
+
+
+def _is_worker(config) -> bool:
+    return hasattr(config, "workerinput")
+
+
+def pytest_sessionstart(session):
+    import time as _time
+    _SESSION_START.append(_time.monotonic())
+
+
+def pytest_testnodedown(node, error):
+    """Controller only (an xdist hook): a worker's trace-guard count."""
+    TRACE_CALLS.extend((getattr(node, "workeroutput", None) or {}).get("trace_calls") or [])
+
+
 def pytest_sessionfinish(session, exitstatus):
+    if _is_worker(session.config):
+        session.config.workeroutput["trace_calls"] = list(TRACE_CALLS)
+        return
     # Step 6.63 — record the run for the control board. Not when the trace
     # guard fired: a run that broke the quota rule is not evidence of anything.
     if _OUTCOMES and not TRACE_CALLS:
         _record_results()
+    _time_the_run(session)
     if TRACE_CALLS:
         print(f"\n\nG-95 GUARD: the suite asked LangSmith to create/send "
               f"{len(TRACE_CALLS)} run(s) ({sorted(set(TRACE_CALLS))}). Tests must "
@@ -405,7 +434,33 @@ def pytest_runtest_logreport(report):
         _OUTCOMES[report.nodeid.replace("\\", "/")] = report.outcome
 
 
-def _record_results() -> None:
+def _time_the_run(session) -> None:
+    """Step 6.65 — the test recorder times itself (rule g)."""
+    import sys as _sys
+    import time as _time
+    from collections import Counter
+    from pathlib import Path as _Path
+    if not _SESSION_START:
+        return
+    hooks = _Path(__file__).resolve().parents[3] / ".claude" / "hooks"
+    _sys.path.insert(0, str(hooks))
+    try:
+        import timing  # type: ignore[import-not-found]
+    except ImportError:
+        return
+    finally:
+        _sys.path.pop(0)
+    workers = getattr(session.config.option, "numprocesses", None) or 0
+    timing.append({"kind": "tests", "seconds": round(_time.monotonic() - _SESSION_START[0], 1),
+                   "workers": workers, "tests": len(_OUTCOMES),
+                   "outcomes": dict(Counter(_OUTCOMES.values()))})
+
+
+def _record_results(outcomes_run: dict[str, str] | None = None) -> None:
+    """`outcomes_run` defaults to this session's outcomes. A test passes its
+    own (step 6.65): patching `_OUTCOMES` instead swallowed that test's own
+    report in a serial run — the report landed in the patched dict."""
+    run = _OUTCOMES if outcomes_run is None else outcomes_run
     import datetime as _dt
     import json as _json
     import sys as _sys
@@ -431,13 +486,21 @@ def _record_results() -> None:
         older = {"source_hash": prior.get("source_hash"),
                  "recorded_at": prior.get("recorded_at"),
                  "outcomes": dict(sorted(older_out.items()))} if older_out else {}
-    outcomes.update(_OUTCOMES)
+    outcomes.update(run)
+    # 6.65 — which source the last FULL run was on. The pre-commit hook runs
+    # the whole suite with AGENT_IMPROVE_FULL_RUN=1 and the commit-msg guard's
+    # rule 4 reads this instead of running the suite a second time. A targeted
+    # run on the same source keeps it; a run on changed source clears it.
+    import os as _os
+    full_hash = (current if _os.environ.get("AGENT_IMPROVE_FULL_RUN") == "1"
+                 else prior.get("full_run_hash") if prior.get("source_hash") == current else None)
     # 6.64 — NOT REWRITTEN WHEN NOTHING CHANGED. A run on the same source with
     # the same outcomes used to rewrite the file for its timestamp alone, so
     # every test run dirtied the tree. The record's truth is the source hash
     # and the outcomes; when both are unchanged, the file already says it.
     # A record from before 6.64 carries no commit and is written once more.
     if (prior.get("source_hash") == current and "commit" in prior
+            and full_hash == prior.get("full_run_hash")
             and dict(sorted(outcomes.items())) == dict(sorted((prior.get("outcomes") or {}).items()))):
         return
     # The commit the results were run against — HEAD, and whether the product
@@ -452,6 +515,7 @@ def _record_results() -> None:
         "source_hash": current,
         "commit": head,
         "commit_matches_source": clean,
+        "full_run_hash": full_hash,
         "recorded_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
         "outcomes": dict(sorted(outcomes.items())),
         "older": older,

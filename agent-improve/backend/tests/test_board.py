@@ -363,12 +363,22 @@ def test_13_no_typed_status_is_left_in_stories() -> None:
 # ── 6.64 — test-results.json: unchanged outcomes leave it untouched ──────────
 
 
+class _Recorder:
+    """The recorder, driven with this test's own outcomes — never by patching
+    the session's `_OUTCOMES`, which swallowed this test's report (6.65)."""
+
+    def __init__(self, cf, outcomes: dict[str, str]) -> None:
+        self.cf, self.outcomes = cf, dict(outcomes)
+
+    def _record_results(self) -> None:
+        self.cf._record_results(self.outcomes)
+
+
 def _recorder(monkeypatch, tmp_path, outcomes: dict[str, str]):
     from backend.tests import conftest as cf
     path = tmp_path / "test-results.json"
     monkeypatch.setattr(progress, "RESULTS", path)
-    monkeypatch.setattr(cf, "_OUTCOMES", dict(outcomes))
-    return cf, path
+    return _Recorder(cf, outcomes), path
 
 
 def test_14_a_run_with_unchanged_outcomes_does_not_rewrite_the_record(monkeypatch, tmp_path) -> None:
@@ -382,7 +392,7 @@ def test_14_a_run_with_unchanged_outcomes_does_not_rewrite_the_record(monkeypatc
     cf._record_results()                      # same source, same outcome
     assert path.read_text(encoding="utf-8") == first
     assert path.stat().st_mtime_ns == before, "the file was rewritten for nothing"
-    monkeypatch.setattr(cf, "_OUTCOMES", {"t::a": "failed"})
+    cf.outcomes = {"t::a": "failed"}
     cf._record_results()                      # an outcome changed — written
     assert __import__("json").loads(path.read_text(encoding="utf-8"))["outcomes"]["t::a"] == "failed"
 

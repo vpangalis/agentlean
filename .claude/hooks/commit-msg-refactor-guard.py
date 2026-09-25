@@ -148,6 +148,8 @@ import fnmatch
 import os
 import re
 import importlib.util
+import contextlib
+import json
 import subprocess
 import sys
 import tempfile
@@ -1138,12 +1140,42 @@ def check_landing(root: str, subject: str) -> None:
 # --------------------------------------------------------------------------- #
 # Rule 4 — tests
 # --------------------------------------------------------------------------- #
+#: Where the pre-commit hook leaves the verdict of the commit's one full run.
+FULL_RUN_MARKER = os.path.join(".claude", "logs", "full-run.json")
+
+
 def check_tests(root: str, py: str) -> None:
-    note("rule 4 tests: pytest, pinned venv…")
+    """Rule 4 — the suite is green for THIS commit. Step 6.65: the ONE full
+    run of a commit is the pre-commit hook's (it runs first, so the board and
+    the headline describe this commit's code); it leaves its verdict with the
+    index tree it was run for. This rule trusts that verdict only for the same
+    tree, and otherwise runs the suite itself — never zero runs, never two."""
     proj = os.path.join(root, PROJECT)
     env = dict(os.environ, PYTHONIOENCODING="utf-8")
+    tree = subprocess.run(["git", "write-tree"], capture_output=True, encoding="utf-8",
+                          cwd=root).stdout.strip()
+    try:
+        with open(os.path.join(root, FULL_RUN_MARKER), encoding="utf-8") as f:
+            marker = json.load(f)
+    except (OSError, ValueError):
+        marker = {}
+    if tree and marker.get("tree") == tree:
+        if marker.get("exit") != 0:
+            fail("tests failed — in the pre-commit hook's full run of this commit",
+                 f"  {marker.get('summary', '')}",
+                 *[f"  {ln}" for ln in marker.get("failed") or []], "",
+                 "Run it yourself:",
+                 f"  cd {PROJECT} && .venv/Scripts/python.exe -m pytest {TESTS_REL} -q -n auto")
+        note(f"rule 4 tests: PASS — the pre-commit hook's full run of this tree: "
+             f"{marker.get('summary', '')}")
+        return
+    note("rule 4 tests: no full run recorded for this tree — running it, pinned venv…")
+    env["AGENT_IMPROVE_FULL_RUN"] = "1"
     out = subprocess.run(
-        [py, "-m", "pytest", TESTS_REL, "-q", "--no-header", "-p", "no:cacheprovider"],
+        # 6.65 — in parallel (pytest-xdist, pinned in requirements.txt):
+        # identical outcomes to the serial run, measured 167s -> 113s.
+        [py, "-m", "pytest", TESTS_REL, "-q", "--no-header", "-p", "no:cacheprovider",
+         "-n", "auto"],
         capture_output=True, encoding="utf-8", errors="replace",
         cwd=proj, timeout=PYTEST_TIMEOUT, env=env,
     )
@@ -1208,6 +1240,25 @@ def update_baseline() -> int:
 
 
 # --------------------------------------------------------------------------- #
+@contextlib.contextmanager
+def _timer(label: str):
+    """Step 6.65 — every rule times itself into `.claude/logs/timing.jsonl`.
+    A `with` block, so each rule's call stays written exactly as it was — the
+    tree-rule tests read those calls from this file's text."""
+    import time
+    start = time.monotonic()
+    try:
+        yield
+    finally:
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            import timing
+            timing.append({"kind": "hook", "hook": f"commit-msg {label}",
+                           "seconds": round(time.monotonic() - start, 1)})
+        except Exception:  # noqa: BLE001 — timing never fails a commit
+            pass
+
+
 def main(argv: list[str]) -> int:
     if len(argv) >= 2 and argv[1] == "--update-baseline":
         return update_baseline()
@@ -1250,22 +1301,28 @@ def main(argv: list[str]) -> int:
         fail("the guard itself failed", f"{exc}",
              "Blocking rather than passing: a guard that waves a commit through",
              "when its own logic breaks is worse than no guard.")
-    check_scratch(added)
-    check_step_or_gap(root, subject, message, added)
+    with _timer("rule 7 scratch"):
+        check_scratch(added)
+    with _timer("rule 8 step-or-gap"):
+        check_step_or_gap(root, subject, message, added)
 
-    check_architecture_status(root, all_staged)
+    with _timer("rule 2b status"):
+        check_architecture_status(root, all_staged)
 
     # Rule 9 — the matrix referee, ahead of the prefix gate (see its docstring).
-    check_build_matrix(root)
+    with _timer("rule 9 matrix"):
+        check_build_matrix(root)
 
     # Rule 10 — the board is true, on every commit (see its docstring).
-    check_board(root, venv_python(root))
+    with _timer("rule 10 board"):
+        check_board(root, venv_python(root))
 
     # ── Rule 6 — also ahead of the prefix gate, and for the same reason ────
     # A fix lands under any type. It is a pure message check, so it costs
     # nothing and runs before mypy and pytest can spend a minute on a commit
     # that was going to be rejected on its body anyway.
-    check_8d(subject, message)
+    with _timer("rule 6 8d"):
+        check_8d(subject, message)
 
     if not subject.startswith(GUARDED_PREFIX):
         return 0
@@ -1310,17 +1367,21 @@ def main(argv: list[str]) -> int:
     staged = all_staged
 
     # ── Rule 11 — the step, and every step its card needs, is WIRED ───────
-    check_landing(root, subject)
+    with _timer("rule 11 landing"):
+        check_landing(root, subject)
 
     # ── Rule 5 — the other orientation document moved too ─────────────────
     # Before the venv rules, because it is instant and needs no subprocess:
     # a missing CONTINUITY update should not cost a 60s mypy run first.
-    check_continuity(root, staged)
+    with _timer("rule 5 continuity"):
+        check_continuity(root, staged)
 
     # ── Rules 3 and 4 — against the pinned venv ───────────────────────────
     py = venv_python(root)
-    check_types(root, py, staged)
-    check_tests(root, py)
+    with _timer("rule 3 mypy"):
+        check_types(root, py, staged)
+    with _timer("rule 4 tests"):
+        check_tests(root, py)
     return 0
 
 

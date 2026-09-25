@@ -34,13 +34,47 @@ for CAND in agent-improve/.venv/Scripts/python.exe agent-improve/.venv/bin/pytho
     [ -x "$CAND" ] && VENV="$CAND" && break
 done
 
+# 6.65 — each writer times itself into .claude/logs/timing.jsonl (rule g).
+TIMING=".claude/hooks/timing.py"
+SYSPY=""
 for PY in python3 python py; do
-    if command -v "$PY" >/dev/null 2>&1; then
-        [ -f "$CONTINUITY" ] && "$PY" "$CONTINUITY"
-        break
-    fi
+    command -v "$PY" >/dev/null 2>&1 && SYSPY="$PY" && break
 done
+t_log() {  # $1 = label, $2 = start seconds
+    [ -n "$SYSPY" ] && [ -f "$TIMING" ] && "$SYSPY" -c "import sys,time; sys.path.insert(0,'.claude/hooks'); import timing; timing.append({'kind':'hook','hook':'pre-commit '+sys.argv[1],'seconds':round(time.time()-float(sys.argv[2]),1)})" "$1" "$2" 2>/dev/null
+}
 
+# 6.65 — THE ONE FULL TEST RUN OF A COMMIT, and it runs FIRST: the headline
+# and the board below are built from its record, so they describe this
+# commit's code rather than the last run's. Skipped only when the commit stages
+# nothing but Markdown. Its verdict is written to .claude/logs/full-run.json
+# with the INDEX TREE it was run for (at the end of this hook, after the
+# generated files are staged); the commit-msg guard's rule 4 trusts it only
+# for that exact tree, and otherwise runs the suite itself.
+MARKER=".claude/logs/full-run.json"
+rm -f "$MARKER"
+RAN=""
+if [ -n "$VENV" ] && git diff --cached --name-only | grep -qv '\.md$'; then
+    T0=$(date +%s)
+    echo "  [tests] the full suite, in parallel — the commit's one run (rule 4 reads it)…" >&2
+    OUT=$( cd agent-improve && AGENT_IMPROVE_FULL_RUN=1 "../$VENV" -m pytest backend/tests -q --no-header         -p no:cacheprovider -n auto 2>&1 )
+    CODE=$?
+    SUMMARY=$(printf '%s
+' "$OUT" | tail -1)
+    FAILED=$(printf '%s
+' "$OUT" | grep -E '^(FAILED|ERROR) ' | head -25)
+    echo "  [tests] $SUMMARY" >&2
+    t_log "full test run" "$T0"
+    RAN=1
+fi
+
+T0=$(date +%s)
+if [ -n "$SYSPY" ] && [ -f "$CONTINUITY" ]; then
+    "$SYSPY" "$CONTINUITY"
+fi
+t_log continuity "$T0"
+
+T0=$(date +%s)
 if [ -f "$CONTROL" ]; then
     if [ -n "$VENV" ] && "$VENV" "$CONTROL" agent-improve/docs/control-board.html --staged; then
         git add agent-improve/docs/control-board.html agent-improve/docs/test-results.json 2>/dev/null
@@ -49,6 +83,13 @@ if [ -f "$CONTROL" ]; then
              "(no project venv, or the error above). The commit-msg guard's" \
              "rule 10 will refuse the commit while the page disagrees with the tree." >&2
     fi
+fi
+t_log control-board "$T0"
+
+if [ -n "$RAN" ] && [ -n "$SYSPY" ]; then
+    mkdir -p .claude/logs
+    TREE=$(git write-tree)
+    "$SYSPY" -c "import json,sys; json.dump({'tree': sys.argv[1], 'exit': int(sys.argv[2]), 'summary': sys.argv[3], 'failed': [l for l in sys.argv[4].splitlines() if l]}, open(sys.argv[5], 'w', encoding='utf-8'))"         "$TREE" "$CODE" "$SUMMARY" "$FAILED" "$MARKER"
 fi
 
 exit 0
