@@ -95,6 +95,12 @@ therefore 1, 2b, 3, 4, 5, 6, 7 and 8.
      belongs to it: the same limit rule 6 carries, and stated for the same
      reason.
 
+  12. SIZE — a staged governing document (CLAUDE.md, each rule file,
+     ARCHITECTURE.md, the procedure) stays within its bound in
+     `.claude/config/size-budget.json`: warned at 90%, refused over 100%.
+     CLAUDE.md §22 (h), REPLACE, DON'T APPEND — step 6.66, founder ruling
+     2026-09-25. Binds on every commit. Logic: `size_budget.py`.
+
 NON-refactor commits are touched by rules 2b, 6, 7 and 8 only. A docs or chore
 commit that changes no tabulated path, claims to fix nothing, and adds no file
 still passes through untouched.
@@ -1253,6 +1259,33 @@ def _timer(label: str):
             pass
 
 
+def check_size(root: str, staged: list[str]) -> None:
+    """Rule 12 — REPLACE, DON'T APPEND (step 6.66, founder ruling 2026-09-25).
+
+    A budgeted document that is staged may not exceed its bound in
+    `.claude/config/size-budget.json`; at 90% it passes with a warning. The
+    logic and the bounds' rule live in `size_budget.py`; this only reports.
+    """
+    from pathlib import Path
+    sys.path.insert(0, os.path.join(root, ".claude", "hooks"))
+    import size_budget as sb
+    bounds = sb.load(Path(root) / ".claude" / "config" / "size-budget.json")
+    results = sb.verdicts(sb.staged_sizes(Path(root), staged, bounds), bounds)
+    over = [r for r in results if r[0] == "over"]
+    for r in results:
+        if r[0] == "warn":
+            note("rule 12 size: WARNING — " + sb.message(*r))
+    if over:
+        fail("a governing document is over its size budget — CLAUDE.md §22 (h)",
+             *[sb.message(*r) for r in over], "",
+             "REPLACE, DON'T APPEND: state the current rule in place of the old one,",
+             "and move history, rationale and dated incidents to docs/_archive/.",
+             "Raising a bound is a deliberate edit of .claude/config/size-budget.json,",
+             "in its own commit, with the reason in the body.")
+    if results:
+        note(f"rule 12 size: PASS — {len(results)} budgeted file(s) within bound")
+
+
 def main(argv: list[str]) -> int:
     if len(argv) >= 2 and argv[1] == "--update-baseline":
         return update_baseline()
@@ -1310,6 +1343,10 @@ def main(argv: list[str]) -> int:
     # Rule 10 — the board is true, on every commit (see its docstring).
     with _timer("rule 10 board"):
         check_board(root, venv_python(root))
+
+    # Rule 12 — the size budget, on every commit (step 6.66, CLAUDE.md §22 h).
+    with _timer("rule 12 size"):
+        check_size(root, all_staged)
 
     # ── Rule 6 — also ahead of the prefix gate, and for the same reason ────
     # A fix lands under any type. It is a pure message check, so it costs

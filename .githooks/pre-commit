@@ -74,6 +74,14 @@ if [ -n "$SYSPY" ] && [ -f "$CONTINUITY" ]; then
 fi
 t_log continuity "$T0"
 
+# 6.66 — the section index (CLAUDE.md §22 b): every heading of ARCHITECTURE.md
+# and the procedure with its line range, regenerated so it is never stale.
+T0=$(date +%s)
+if [ -n "$SYSPY" ] && [ -f ".claude/hooks/section_index.py" ]; then
+    "$SYSPY" .claude/hooks/section_index.py && git add agent-improve/docs/section-index.md 2>/dev/null
+fi
+t_log section-index "$T0"
+
 T0=$(date +%s)
 if [ -f "$CONTROL" ]; then
     if [ -n "$VENV" ] && "$VENV" "$CONTROL" agent-improve/docs/control-board.html --staged; then

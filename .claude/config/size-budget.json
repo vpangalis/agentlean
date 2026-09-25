@@ -1,0 +1,21 @@
+{
+ "_rule": "CLAUDE.md §22 (h) — REPLACE, DON'T APPEND. Rule 12 of the commit-msg guard (.claude/hooks/size_budget.py). Bound = size after the step 6.66 slimming (2026-09-25) + 10%, in characters of the staged blob, LF line endings; warned at 90%, refused over 100%. Raising a bound is its own commit, with the reason in the body.",
+ "bounds": {
+  "agent-improve/CLAUDE.md": 10600,
+  "agent-improve/ARCHITECTURE.md": 696800,
+  "agent-improve/docs/REFACTORING_PROCEDURE.md": 472400,
+  ".claude/rules/architecture.md": 7300,
+  ".claude/rules/gates.md": 10200,
+  ".claude/rules/graph.md": 6500,
+  ".claude/rules/llm.md": 6600,
+  ".claude/rules/middleware.md": 10300,
+  ".claude/rules/module-layout.md": 4000,
+  ".claude/rules/observability.md": 2800,
+  ".claude/rules/prompts.md": 3200,
+  ".claude/rules/rag.md": 7900,
+  ".claude/rules/state.md": 15100,
+  ".claude/rules/testing.md": 1800,
+  ".claude/rules/tools.md": 5200,
+  ".claude/rules/ui.md": 1200
+ }
+}
