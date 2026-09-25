@@ -42,8 +42,8 @@ next failing feature in lane X; one feature per commit; push to lane/X."*
 | 4 | Slim ARCHITECTURE.md + procedure; size budget; section index | DONE | ddb30fe, 3496e16, 22ddd0d |
 | 5 | define_features.json, status from tests, coverage test, discrepancies, routine | DONE | (this commit) |
 | 6 | Lanes A/B/C + integrator: branches, worktrees | DONE — see Lanes | (this commit) |
-| 7 | Define run-through test, once on main, ≤150 live calls | DONE — 79 calls, see Part 7 | (this commit) |
-| 8 | G-23 design draft, G-40 rubric draft | | |
+| 7 | Define run-through test, once on main, ≤150 live calls | DONE — 79 calls, see Part 7 | d36605c |
+| 8 | G-23 design draft, G-40 rubric draft | DONE — docs/founder-inputs/ | (this commit) |
 | 9 | Fresh-eyes review | | |
 
 ## Baseline (Part 1, 669b39c) and after
@@ -99,4 +99,4 @@ screen test exists (the run drives the API); **integrator** — DEF-063, stopped
 
 ## Next
 
-Part 8 — G-23 and G-40 drafts (sub-agent running). Part 9 — fresh-eyes review.
+Part 9 — fresh-eyes review.
