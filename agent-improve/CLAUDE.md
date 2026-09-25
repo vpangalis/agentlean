@@ -1,5 +1,5 @@
 # CLAUDE.md — Agent Improve
-# Version 2.2.43 — September 2026
+# Version 2.2.44 — September 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 DMAIC coaching agent: LangGraph phase subgraphs, LangChain `create_agent` with a
@@ -292,8 +292,8 @@ instead of blocking every commit that touches one.
   never prose threaded with section numbers (§19.1)
 - Never render a bare number or a bare code in anything a human reads:
   "6.20 — the write paths", never "6.20" (§19.2)
-- Every fix is an 8D, worked **before** the fix is proposed — defects,
-  modifications and adaptations alike (§20)
+- Every real defect is an 8D, worked **before** the fix is proposed (§20; since
+  2.2.44 only a real defect — §22 (c))
 - Every occurrence cause carries an escape cause: *"why did nothing detect this"*
   is a separate answer (§20.2)
 - Every interim containment carries its removal condition (§20.2)
@@ -332,6 +332,29 @@ back-port is owed.*
 > and the worked example. It loads when you invoke it, which is when you are
 > working a defect — the rules above bind always and are seven lines; the
 > reference is thirty and was carried in every session that never opened it.
+
+## §22 — Speed without losing quality
+
+*Founder ruling 2026-09-25, built at step 6.65. **Keep every check; remove only
+repeats and waste.** Binds every prompt.*
+
+- **(a) Tests.** The full suite runs **once per commit, in one hook** — the
+  pre-commit hook, in parallel (`-n auto`); rule 4 reads its verdict for the
+  same index tree. While working, run only the tests for the area changed.
+  **Never run the full suite by hand before committing.**
+- **(b) Reading.** Never read `ARCHITECTURE.md` or `REFACTORING_PROCEDURE.md`
+  whole: search for the section, read that region, cite its version.
+- **(c) Paperwork.** An 8D only for a real defect. The step card and its
+  Done-when are the record.
+- **(d) Live model runs.** 3 per situation while building; 5 only in a step's
+  final proof.
+- **(e) Stops.** Only when the Belt's experience changes or a founder decision
+  is needed. Tooling and documentation commit without stopping.
+- **(f) Reports.** At most one table, plus the decisions needed.
+- **(g) Timing.** `.claude/logs/timing.jsonl`, append-only
+  (`.claude/hooks/timing.py`). The hooks, the test recorder and the audit
+  recorder time themselves; one `prompt` record per prompt, each category
+  VERIFIED or ASSUMED. **Every report ends with its record as one line.**
 
 ## Versions
 
