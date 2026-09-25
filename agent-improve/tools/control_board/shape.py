@@ -232,6 +232,126 @@ def tools(phase: str) -> list[str]:
             for t in _executor_tools(phase, COACH_HOP_BUDGET, None)]
 
 
+# ══ what is there, per container — step 6.64 ═════════════════════════════════
+#
+# The founder's container card has a "what is there" list. Until 6.63 it was
+# typed (`system_view.py`'s `have=` lists, marked RELAYED); here each is READ
+# from the code. The reader for each container is keyed by its Appendix F
+# layer number — that pairing is logic, the names come from the procedure's
+# headings, and a container with no reader says so rather than being filled.
+
+
+def _ls(*patterns: str) -> list[str]:
+    """Tracked paths — the tree is `git ls-files`, never a directory listing
+    (CLAUDE.md §0.32: the OneDrive mirror does not carry `.claude/`)."""
+    import subprocess
+    out = subprocess.run(["git", "ls-files", "--", *patterns], cwd=PROJECT.parent,
+                         capture_output=True, encoding="utf-8", check=True).stdout
+    return sorted(ln for ln in out.splitlines() if ln.strip())
+
+
+def _routes() -> list[str]:
+    """`METHOD /path` for every route decorator under backend/gateway and app.py."""
+    out = []
+    for path in sorted((PROJECT / "backend" / "gateway").glob("*.py")) + [PROJECT / "backend" / "app.py"]:
+        if not path.is_file():
+            continue
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                for dec in node.decorator_list:
+                    if (isinstance(dec, ast.Call) and isinstance(dec.func, ast.Attribute)
+                            and dec.func.attr in ("get", "post", "put", "patch", "delete")
+                            and dec.args and isinstance(dec.args[0], ast.Constant)
+                            and isinstance(dec.args[0].value, str)):
+                        out.append(f"{dec.func.attr.upper()} {dec.args[0].value}")
+    return out
+
+
+def _functions(path: Path, public_async_only: bool = False) -> list[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    return [n.name for n in tree.body
+            if isinstance(n, (ast.AsyncFunctionDef, ast.FunctionDef))
+            and not n.name.startswith("_")
+            and (not public_async_only or isinstance(n, ast.AsyncFunctionDef))]
+
+
+def _c(text: str, source: str) -> dict:
+    return {"text": text, "source": source}
+
+
+def components(sh: dict) -> dict[str, list[dict]]:
+    """Container id (``L<n>``) -> what is there, each item read from the code."""
+    from backend.core.state import SupervisorState
+    from backend.core.substate import CoachingPlan, CoachingResponse, PhaseState
+    from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE
+    from backend.knowledge.tools import RAG_LOOKUP_TOOLS, UNIVERSAL_TOOLS
+    from backend.middleware.skills import SKILL_DIRS
+    from backend.phases.gate_registry import GATE_SPECS
+    from backend.phases.mappers_common import PHASE_ORDER
+
+    def names(xs: Any) -> str:
+        return ", ".join(getattr(x, "name", str(x)) for x in xs)
+
+    ui = _ls("agent-improve/ui")
+    hooks = _ls(".claude/hooks/*.py", ".githooks/*")
+    board = _ls("agent-improve/tools/control_board/*.py")
+    skills = _ls("agent-improve/skills/*/SKILL.md")
+    phase_graphs = [p for p in PHASE_ORDER if (PROJECT / "backend" / "phases" / p / "graph.py").is_file()]
+    validators = [f for p in PHASE_ORDER
+                  for f in _functions(PROJECT / "backend" / "phases" / p / "validate.py")
+                  if f.startswith("validate_")]
+    gate_nodes = [n for n in sh["phase_graph"]["nodes"] if n.startswith("gate") or n.startswith("validation")]
+    return {
+        "L0": [_c(f"{len(hooks)} hook(s): " + ", ".join(Path(h).name for h in hooks), ".claude/hooks/ · .githooks/"),
+               _c(f"the control board: " + ", ".join(Path(b).name for b in board),
+                  "agent-improve/tools/control_board/")],
+        "L1": [_c(f"{len(r)} route(s): " + ", ".join(r), "backend/gateway/*.py · backend/app.py")
+               for r in [_routes()]]
+              + [_c("the Belt's screen: " + ", ".join(Path(u).name for u in ui), "agent-improve/ui/")],
+        "L2": [_c("the turn graph: " + " → ".join(sh["turn_graph"]["nodes"]),
+                  "backend/core/graph.py::get_graph"),
+               _c(f"SupervisorState — {len(SupervisorState.__annotations__)} fields: "
+                  + ", ".join(SupervisorState.__annotations__), "backend/core/state.py")],
+        "L3": [_c("the phase subgraph: " + " → ".join(sh["phase_graph"]["nodes"]),
+                  "backend/phases/subgraph_common.py::build_phase_subgraph"),
+               _c(f"{len(phase_graphs)} phase subgraph(s): " + ", ".join(phase_graphs),
+                  "backend/phases/<phase>/graph.py"),
+               _c(f"PhaseState — {len(PhaseState.__annotations__)} fields", "backend/core/substate.py"),
+               _c("CoachingPlan: " + ", ".join(CoachingPlan.model_fields), "backend/core/substate.py")],
+        "L4": [_c("the coach — create_agent, response_format CoachingResponse: "
+                  + ", ".join(CoachingResponse.model_fields),
+                  "backend/phases/nodes_common.py::_build_executor"),
+               _c(f"{len(skills)} phase script(s): " + ", ".join(Path(s).parent.name for s in skills),
+                  "agent-improve/skills/"),
+               _c("the coach's input, in order: " + " · ".join(b["block"] for b in sh["coach_inputs"]["blocks"]),
+                  "shape.coach_inputs — the real middleware wraps, run")],
+        "L5": [_c(f"{b['position']} {b['class']} — {', '.join(b['hooks'])}", b["source"])
+               for b in sh["middleware"]],
+        "L6": [_c(f"the {sh['phase']} coach's tools: " + ", ".join(sh["tools"]),
+                  "backend/phases/nodes_common.py::_executor_tools"),
+               _c(f"{len(UNIVERSAL_TOOLS)} universal tool(s): " + names(UNIVERSAL_TOOLS),
+                  "backend/knowledge/tools.py::UNIVERSAL_TOOLS"),
+               _c(f"{len(RAG_LOOKUP_TOOLS)} retrieval tool(s): " + names(RAG_LOOKUP_TOOLS),
+                  "backend/knowledge/tools.py::RAG_LOOKUP_TOOLS"),
+               _c("computation tools per phase: " + " · ".join(
+                   f"{p} {len(COMPUTATION_TOOLS_BY_PHASE.get(p, []))}" for p in PHASE_ORDER),
+                  "backend/knowledge/computation.py::COMPUTATION_TOOLS_BY_PHASE")],
+        "L7": [_c("the gate nodes: " + " → ".join(gate_nodes),
+                  "backend/phases/subgraph_common.py::build_phase_subgraph"),
+               _c(f"{len(validators)} validator(s): " + ", ".join(validators),
+                  "backend/phases/<phase>/validate.py"),
+               _c("gate fields per phase: " + " · ".join(
+                   f"{p} {len(s.tier_1)} required, {len(s.tier_2)} recommended"
+                   for p, s in GATE_SPECS.items()),
+                  "backend/phases/gate_registry.py::GATE_SPECS")],
+        "L8": [_c("the checkpointer: AzureBlobCheckpointSaver", "backend/core/checkpointer.py"),
+               _c("the store: AzureBlobStore", "backend/core/store.py"),
+               _c("the case record: " + ", ".join(_functions(PROJECT / "backend" / "storage" / "blob.py",
+                                                              public_async_only=True)),
+                  "backend/storage/blob.py")],
+    }
+
+
 def _node(n: str) -> str:
     return {"__start__": "START", "__end__": "END"}.get(n, n)
 
@@ -262,14 +382,19 @@ def labels(sh: dict) -> dict[str, str]:
         for j, s in enumerate(blk["sections"]):
             out[f"in:{i}:{j}"] = s["name"] + (" — when present" if s["when"] != "always" else "")
     out["tools"] = ", ".join(sh["tools"])
+    for cid, items in sh.get("components", {}).items():
+        for i, it in enumerate(items):
+            out[f"cmp:{cid}:{i}"] = it["text"]
     return out
 
 
 def shape(phase: str = "define") -> dict:
     _tracing_off()
-    return {"phase": phase, "turn_graph": turn_graph(phase), "phase_graph": phase_graph(phase),
-            "middleware": middleware(), "skills": skills(phase),
-            "coach_inputs": coach_inputs(phase), "tools": tools(phase)}
+    sh = {"phase": phase, "turn_graph": turn_graph(phase), "phase_graph": phase_graph(phase),
+          "middleware": middleware(), "skills": skills(phase),
+          "coach_inputs": coach_inputs(phase), "tools": tools(phase)}
+    sh["components"] = components(sh)
+    return sh
 
 
 if __name__ == "__main__":

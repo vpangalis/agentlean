@@ -10,6 +10,7 @@ label and the headline from the tree, and refuses the page if:
     a status has no reference, yet is not red    a claim with nothing behind it
     a recomputed status or label is missing      the page left something out
     a diagram label differs from the code        a label typed by hand
+    the container view omits a registered step   a grouping dropped (6.64)
     the headline differs from CONTINUITY.md's    two views of one number
     the plan has a problem                       an unregistered step in Order,
                                                  a step in Order with no
@@ -52,9 +53,16 @@ class _Page(HTMLParser):
         self._open: list[dict | None] = []
         self.scripts: dict[str, str] = {}
         self._script: str | None = None
+        #: 6.64 — the container view's rows: (step, the container it sits under).
+        self.cv_rows: list[tuple[str, str | None]] = []
+        self._ctr: str | None = None
 
     def handle_starttag(self, tag: str, attrs: list) -> None:
         a = dict(attrs)
+        if "data-ctr" in a:
+            self._ctr = a["data-ctr"]
+        if "data-cv" in a:
+            self.cv_rows.append((a["data-cv"], self._ctr))
         if tag == "script" and a.get("id"):
             self._script = a["id"]
             self.scripts[self._script] = ""
@@ -101,6 +109,25 @@ def continuity_headline(text: str) -> str | None:
     return m[1].strip() if m else None
 
 
+def container_view(cv_rows: list[tuple[str, str | None]], p: dict) -> list[str]:
+    """6.64 — the container view carries EVERY registered step, once, under the
+    container the tree gives it. Rule 10 checked that every status on the page
+    is true; a page that dropped a whole grouping passed it (the 6.64 8D)."""
+    want = {s: st["container"] for s, st in p["steps"].items() if st["registered"]}
+    got: dict[str, list[str | None]] = {}
+    for s, c in cv_rows:
+        got.setdefault(s, []).append(c)
+    bad = [f"the container view omits registered step {s}" for s in sorted(set(want) - set(got))]
+    for s, cs in sorted(got.items()):
+        if s not in want:
+            bad.append(f"the container view shows {s}, which is not a registered step")
+        elif len(cs) > 1:
+            bad.append(f"the container view shows {s} {len(cs)} times")
+        elif cs[0] != want[s]:
+            bad.append(f"the container view puts {s} under {cs[0]}; the tree gives {want[s]}")
+    return bad
+
+
 def check(page: str, m: dict, continuity: str | None) -> list[str]:
     """Every way the page disagrees with the tree, as sentences."""
     parsed = _Page()
@@ -138,6 +165,7 @@ def check(page: str, m: dict, continuity: str | None) -> list[str]:
             elif " ".join(it["text"].split()) != " ".join(w.split()):
                 bad.append(f"label {k} reads {it['text'].strip()!r}; the code gives {w!r}")
     bad += [f"status {k} is computed and not on the page" for k in sorted(set(want_st) - seen_st)]
+    bad += container_view(parsed.cv_rows, m["p"])
     bad += [f"label {k} is read from the code and not on the page" for k in sorted(set(want_lb) - seen_lb)]
     data = json.loads(parsed.scripts.get("progress-data") or "{}")
     if data.get("headline") != m["p"]["headline"]:

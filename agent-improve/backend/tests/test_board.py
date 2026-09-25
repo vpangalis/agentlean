@@ -265,3 +265,141 @@ def test_8_a_diagram_label_that_disagrees_with_the_code_is_refused(board) -> Non
     assert typed != page
     bad = _refusals(board, page=typed)
     assert any(b.startswith("label skills:label reads '2 skills — optional'") for b in bad), bad
+
+
+# ── 6.64 — the grouped views, derived (founder, 2026-09-25) ──────────────────
+
+
+def test_10_a_step_with_no_container_is_refused() -> None:
+    """A registered step with no Appendix F row has no Layer, so no container."""
+    text = _text()
+    found = re.search(r"^\| L\d+ \|[^|]*\| — \| \*\*6\.62\*\* \|.*\n", text, re.M)
+    assert found, "6.62's Appendix F row not found"
+    gone = text[:found.start()] + text[found.end():]
+    assert "6.62 has no container — it has no Appendix F row, so no Layer" in _p(gone)["problems"]
+
+
+def test_10b_a_layer_with_no_heading_is_no_container() -> None:
+    """A Layer the table does not name is not a container either."""
+    text = re.sub(r"^\| L3 (\|[^|]*\| — \| \*\*6\.62\*\* \|)", r"| L9 \1", _text(), count=1, flags=re.M)
+    problems = _p(text)["problems"]
+    assert any(x.startswith("6.62 has no container — its Appendix F Layer L9") for x in problems), problems
+
+
+def test_10c_every_registered_step_has_a_container_on_the_real_procedure() -> None:
+    p = _p(_text())
+    assert not [x for x in p["problems"] if "no container" in x], p["problems"]
+    placed = [s for c in p["containers"] for s in c["steps"]]
+    assert sorted(placed) == sorted(s for s, st in p["steps"].items() if st["registered"])
+    assert len(placed) == len(set(placed)), "a step sits in two containers"
+    # The names are the table's headings, never a list typed in the generator.
+    assert {c["id"]: c["name"] for c in p["containers"]} == {
+        f"L{n}": name for n, name in progress.layers(_text()).items()}
+
+
+def test_11_a_container_view_that_omits_a_registered_step_is_refused(board) -> None:
+    page = board[0]
+    assert page.count('data-cv="6.62"') == 1
+    dropped = page.replace('data-cv="6.62"', 'data-dropped="6.62"')
+    assert "the container view omits registered step 6.62" in _refusals(board, page=dropped)
+
+
+def test_11b_a_step_under_the_wrong_container_is_refused(board) -> None:
+    page, m = board[0], board[1]
+    home = m["p"]["steps"]["6.62"]["container"]
+    other = next(c["id"] for c in m["p"]["containers"] if c["id"] != home)
+    # Move 6.62's row out of its own container's group, to the end of another's.
+    row = re.search(r'<div class="wrow" data-cv="6\.62">.*?</div></div></div>', page)
+    assert row
+    moved = page.replace(row[0], "", 1)
+    anchor = f'data-ctr="{other}"'
+    at = moved.index("</summary>", moved.index(anchor)) + len("</summary>")
+    moved = moved[:at] + row[0] + moved[at:]
+    assert f"the container view puts 6.62 under {other}; the tree gives {home}" in _refusals(board, page=moved)
+
+
+def test_the_three_groupings_are_on_the_page(board) -> None:
+    """6.64's own proof (the tooling route): the switch, three views, the
+    container view the default; a card per container; every story in the epic
+    view; the capabilities grouped by container."""
+    import stories
+    page, m = board[0], board[1]
+    assert re.search(r'<input type="radio" name="wf" id="wf-ctr" class="vsw" checked>', page)
+    for view in ("ctr", "wp", "epic"):
+        assert f'data-view="{view}"' in page, view
+    for c in m["p"]["containers"]:
+        assert f'data-ctr="{c["id"]}"' in page
+        assert f'data-key="ctr:{c["id"]}"' in page
+        assert f'<b>{c["id"]} · {c["name"]}</b>' in page
+    view_epic = page[page.index('data-view="epic"'):]
+    for ep in stories.EPICS:
+        for sto in ep["stories"]:
+            assert f'<b>{sto["id"]}</b>' in view_epic, sto["id"]
+    for c in m["p"]["containers"]:
+        if any(c["id"] in cap["containers"] for cap in m["p"]["capabilities"]):
+            assert f'<tr class="grp"><td colspan="4">{c["id"]} · ' in page, c["id"]
+
+
+def test_12_what_is_there_is_read_from_the_code(board) -> None:
+    """A container card's components are labels the check recomputes from the
+    code — type one by hand and it is refused, like any diagram label."""
+    page, m = board[0], board[1]
+    real = m["labels"]["cmp:L5:0"]
+    assert real.startswith("1 BeforeModelStateInjection"), real
+    typed = page.replace(f'data-key="cmp:L5:0">{real}<', 'data-key="cmp:L5:0">state injection — optional<', 1)
+    assert typed != page
+    assert any(b.startswith("label cmp:L5:0 reads") for b in _refusals(board, page=typed))
+
+
+def test_13_no_typed_status_is_left_in_stories() -> None:
+    """The bugs' "done" / "todo" / "backlog" were typed; 6.64 deleted them."""
+    import stories
+    for ep in stories.EPICS:
+        for sto in ep["stories"]:
+            for bug in sto["bugs"]:
+                assert not {"done", "todo", "backlog"} & set(bug), bug
+
+
+# ── 6.64 — test-results.json: unchanged outcomes leave it untouched ──────────
+
+
+def _recorder(monkeypatch, tmp_path, outcomes: dict[str, str]):
+    from backend.tests import conftest as cf
+    path = tmp_path / "test-results.json"
+    monkeypatch.setattr(progress, "RESULTS", path)
+    monkeypatch.setattr(cf, "_OUTCOMES", dict(outcomes))
+    return cf, path
+
+
+def test_14_a_run_with_unchanged_outcomes_does_not_rewrite_the_record(monkeypatch, tmp_path) -> None:
+    cf, path = _recorder(monkeypatch, tmp_path, {"t::a": "passed"})
+    cf._record_results()
+    first = path.read_text(encoding="utf-8")
+    rec = __import__("json").loads(first)
+    assert rec["commit"] and rec["source_hash"] == progress.source_hash()
+    path.touch()
+    before = path.stat().st_mtime_ns
+    cf._record_results()                      # same source, same outcome
+    assert path.read_text(encoding="utf-8") == first
+    assert path.stat().st_mtime_ns == before, "the file was rewritten for nothing"
+    monkeypatch.setattr(cf, "_OUTCOMES", {"t::a": "failed"})
+    cf._record_results()                      # an outcome changed — written
+    assert __import__("json").loads(path.read_text(encoding="utf-8"))["outcomes"]["t::a"] == "failed"
+
+
+def test_14b_a_record_from_before_6_64_is_written_once_to_carry_its_commit(monkeypatch, tmp_path) -> None:
+    import json
+    cf, path = _recorder(monkeypatch, tmp_path, {"t::a": "passed"})
+    path.write_text(json.dumps({"source_hash": progress.source_hash(),
+                                "outcomes": {"t::a": "passed"}, "older": {}}), encoding="utf-8")
+    cf._record_results()
+    assert "commit" in json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_14c_a_record_on_older_source_reads_amber() -> None:
+    """The amber the commit field must not lose: a pass recorded on another
+    source is 'older than the code'."""
+    v = progress.verdict("backend.tests.test_board::test_x",
+                         {"source_hash": "old", "commit": "abc1234",
+                          "outcomes": {"backend/tests/test_board.py::test_x": "passed"}}, "new")
+    assert v["colour"] == "amber" and "passed on source old" in v["why"]

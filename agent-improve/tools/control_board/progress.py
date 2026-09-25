@@ -129,6 +129,24 @@ def appendix_f(text: str) -> dict[str, dict]:
     return main
 
 
+#: A container heading in Appendix F: `#### L3 · Phase subgraphs`.
+_LAYER_HEAD = re.compile(r"^#### L(?P<n>\d+) · (?P<name>.+?)\s*$", re.M)
+
+
+def layers(text: str) -> dict[int, str]:
+    """Appendix F's containers — layer number -> the name its heading gives.
+
+    Step 6.64. **The container a step belongs to is its Appendix F `Layer`**
+    ("which part of the system the step changes", the column table), named by
+    the table's own headings — never by a list typed here. Appendix F's `Zone`
+    cell reads "—" on every step's own row, so it cannot group the steps."""
+    body = _section(text, "## Appendix F — The build matrix")
+    out = {int(m["n"]): m["name"].strip() for m in _LAYER_HEAD.finditer(body)}
+    if not out:
+        raise ValueError("Appendix F has no '#### L<n> · <name>' container headings")
+    return out
+
+
 def order_rows(text: str) -> list[dict]:
     """Every Appendix F row that carries an `Order` number, sorted by it:
     {n, step, item, state (the cell's mark)}. THE ONE READER of the column —
@@ -417,6 +435,7 @@ def progress(proc_text: str | None = None, *, commits: list[dict] | None = None,
     import stories  # noqa: E402
     d, f, crd = appendix_d(text), appendix_f(text), cards(text)
     order, est, ms = read_order(text), estimates(text), milestones(text)
+    lay = layers(text)
     wired_by, reg = wiring(text), register(text)
     act = actuals(commits)
     epic_of = stories.epic_of()
@@ -483,12 +502,27 @@ def progress(proc_text: str | None = None, *, commits: list[dict] | None = None,
             "story": epic_of[s][1] if s in epic_of else "",
             "epic_proposed": s not in epic_of and bool(est.get(s, {}).get("epic")),
             "wp": est.get(s, {}).get("wp", ""),
-            "first_commit": (a.get("first") or {}).get("sha"),
+            # 6.64 — the container: the Layer of its own Appendix F row, when
+            # that layer has a heading. `None` is refused by `validate`.
+            "container": (f"L{row['layer']}" if row and row.get("layer") in lay else None),
+            "first_commit":(a.get("first") or {}).get("sha"),
             "first_date": (a.get("first") or {}).get("date"),
             "landed_commit": (a.get("landed") or {}).get("sha"),
             "landed_date": (a.get("landed") or {}).get("date"),
             "d_status": d.get(s, {}).get("status", ""),
         }
+
+    # ── 6.64 — containers: every registered step under its Layer ──
+    containers = []
+    for n, name in sorted(lay.items()):
+        cid = f"L{n}"
+        members = [s for s, st in steps.items() if st["container"] == cid and st["registered"]]
+        containers.append({"id": cid, "name": name, "steps": members,
+                           "open": [s for s in members if not steps[s]["done"]]})
+    for c in caps:
+        c["containers"] = sorted({steps[o]["container"] for o in c["owners"]
+                                  if o in steps and steps[o]["container"]},
+                                 key=lambda x: int(x[1:]))
 
     working_on = next((steps[s] for s in order if not steps[s]["done"]), None)
     plan = schedule(order, steps, ms, today)
@@ -496,9 +530,13 @@ def progress(proc_text: str | None = None, *, commits: list[dict] | None = None,
             + (f"{working_on['step']} — {working_on['title']}" if working_on else "nothing — the Order is empty"))
     return {"headline": head, "capabilities": caps, "proven": proven_n, "total_caps": len(caps),
             "working_on": working_on, "order": order, "steps": steps, "milestones": ms,
+            "containers": containers,
             "plan": plan, "source_hash": current_hash,
-            "results_hash": results.get("source_hash"), "today": today.isoformat(),
-            "problems": validate(text, d, f, crd, order, est)
+            "results_hash": results.get("source_hash"),
+            "results_commit": results.get("commit"),
+            "results_recorded_at": results.get("recorded_at"),
+            "today": today.isoformat(),
+            "problems": validate(text, d, f, crd, order, est, lay)
             + [f"{s}'s epic is {st['epic']} in stories.py and {est[s]['epic']} in the estimate table"
                for s, st in steps.items() if s in est and s in epic_of and est[s]["epic"]
                and not est[s]["epic_proposed"] and est[s]["epic"] != st["epic"]]}
@@ -548,11 +586,20 @@ def schedule(order: list[str], steps: dict, ms: dict, today: dt.date) -> dict:
             "conditional_on": sorted({m for b in bars for m in b["waiting_on"]})}
 
 
-def validate(text: str, d: dict, f: dict, crd: dict, order: list[str], est: dict) -> list[str]:
+def validate(text: str, d: dict, f: dict, crd: dict, order: list[str], est: dict,
+             lay: dict[int, str] | None = None) -> list[str]:
     """What the plan REFUSES (the brief, item 8): an unregistered step, a step
     in Order with no estimate, a card precondition naming a step that does not
-    exist. Returned as sentences; a caller that finds any fails closed."""
+    exist — and, since 6.64, a registered step with no container. Returned as
+    sentences; a caller that finds any fails closed."""
     problems = []
+    lay = lay if lay is not None else layers(text)
+    for s in d:
+        if s not in f:
+            problems.append(f"{s} has no container — it has no Appendix F row, so no Layer")
+        elif f[s].get("layer") not in lay:
+            problems.append(f"{s} has no container — its Appendix F Layer L{f[s].get('layer')} "
+                            "has no '#### L<n> · <name>' heading")
     for s in order:
         if s not in d:
             problems.append(f"{s} is in Appendix F's Order but not registered in Appendix D")
@@ -630,6 +677,40 @@ def statuses(p: dict) -> dict[str, dict]:
         else:
             pill = {"colour": "red", "ref": b["ref"], "why": "not built"}
         out[f"step:{s}:state"] = pill
+
+    # 6.64 — a container's colour is its steps' states, counted: green when
+    # every step in it is done, red while any is not built, `built` while any
+    # is built and not wired, `waiting` when all that is left is waiting.
+    for c in p.get("containers", []):
+        states = [p["steps"][s]["state"] for s in c["steps"]]
+        done = sum(p["steps"][s]["done"] for s in c["steps"])
+        n = {k: states.count(k) for k in ("built", "blocked", "unbuilt")}
+        colour = ("green" if done == len(states) else "red" if n["unbuilt"]
+                  else "built" if n["built"] else "waiting")
+        out[f"ctr:{c['id']}"] = {
+            "colour": colour,
+            "ref": (f"Appendix F {c['id']} · {len(states)} steps — {done} done, {n['built']} built, "
+                    f"{n['blocked']} waiting, {n['unbuilt']} not built"),
+            "why": {"green": "every step in it is done", "red": "a step in it is not built",
+                    "built": "every step is built; one or more is not wired",
+                    "waiting": "what is left waits on a founder input"}[colour]}
+
+    # 6.64 — a story's colour is its acceptance rows' colours (Appendix H). A
+    # story with no rows has no source and gets no colour at all.
+    import stories  # noqa: E402 — a sibling; this directory is on sys.path
+    caps = {c["row"]: c for c in p["capabilities"]}
+    for ep in stories.EPICS:
+        for sto in ep["stories"]:
+            if not sto["rows"]:
+                continue
+            cols = [out[f"cap:{r}"]["colour"] for r in sto["rows"] if r in caps]
+            colour = ("green" if cols and all(x == "green" for x in cols)
+                      else "red" if "red" in cols or not cols else "amber")
+            out[f"story:{sto['id']}"] = {
+                "colour": colour, "ref": "Appendix H rows " + ", ".join(map(str, sto["rows"])),
+                "why": {"green": "every row it is accepted by is proven",
+                        "amber": "its rows passed on older code",
+                        "red": "a row it is accepted by is not proven"}[colour]}
     return out
 
 

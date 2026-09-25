@@ -9,8 +9,8 @@
 |---|---|
 | **Headline** | 14 of 35 capabilities proven · working on: 6.61 — The coaching move is decided in code |
 | **Working on** | step **6.61** — The coaching move is decided in code |
-| **Define finishes (7.9)** | 2026-11-19 · conditional on G-23, G-40 (F1) · the plan as estimated — 1 landed step(s) with an estimate, 3 needed before rescaling |
-| **Steps** | 4 proven · 3 wired · 1 tooling · 47 built, not wired · 10 waiting · 42 not built |
+| **Define finishes (7.9)** | 2026-11-19 · conditional on G-23, G-40 (F1) · the plan as estimated — 2 landed step(s) with an estimate, 3 needed before rescaling |
+| **Steps** | 4 proven · 3 wired · 2 tooling · 47 built, not wired · 10 waiting · 42 not built |
 | **ARCHITECTURE.md** | v1.76 |
 | **CLAUDE.md** | v2.2.43 |
 | **Block regenerated** | 2026-09-25 |
@@ -26,25 +26,26 @@ graph through the real route) or PROVEN (its capability row is green).*
 | # | Step | State |
 |---|---|---|
 | **1** | **6.63** — The control board is a true picture of the tree | tooling |
-| **2** | **6.61** — The coaching move is decided in code | unbuilt |
-| **3** | **6.59** — The coherence judge rules on the Belt's words, not the coach's | unbuilt |
-| **4** | **6.58** — A percent convention for the computation tools | unbuilt |
-| **5** | **6.56** — The coaching proof: positions 1–8 of Define, one traced run | blocked |
-| **6** | **6.45** — The planner decides on field completeness | unbuilt |
-| **7** | **6.51** — The baseline and the target are values Control can compare | unbuilt |
-| **8** | **10.3** — The workspace reads the v2 field names, and progress counts them | unbuilt |
-| **9** | **10.4** — The error contract — a failed turn is readable | unbuilt |
-| **10** | **6.43** — The coach can read an uploaded document | unbuilt |
-| **11** | **6.44** — The contradiction stop moves from middleware into a node | unbuilt |
-| **12** | **7.1** — `DMAICGateValidator` and Layer 2b | unbuilt |
-| **13** | **7.2** — Layers 2c and 2d, and the `validation_stack` node | unbuilt |
-| **14** | **7.3** — The nine-step HITL gate | unbuilt |
-| **15** | **7.7** — The approve endpoint | unbuilt |
-| **16** | **7.4** — Two tiers and the `warning` verdict | unbuilt |
-| **17** | **7.5** — Escalation | unbuilt |
-| **18** | **7.8** — The gate steps that consume validation results | unbuilt |
-| **19** | **7.9** — Define end to end, on one fresh case | unbuilt |
-| **20** | **6.62** — The other four phase scripts carry no move-sequencing | unbuilt |
+| **2** | **6.64** — The board's grouped views are restored, derived | tooling |
+| **3** | **6.61** — The coaching move is decided in code | unbuilt |
+| **4** | **6.59** — The coherence judge rules on the Belt's words, not the coach's | unbuilt |
+| **5** | **6.58** — A percent convention for the computation tools | unbuilt |
+| **6** | **6.56** — The coaching proof: positions 1–8 of Define, one traced run | blocked |
+| **7** | **6.45** — The planner decides on field completeness | unbuilt |
+| **8** | **6.51** — The baseline and the target are values Control can compare | unbuilt |
+| **9** | **10.3** — The workspace reads the v2 field names, and progress counts them | unbuilt |
+| **10** | **10.4** — The error contract — a failed turn is readable | unbuilt |
+| **11** | **6.43** — The coach can read an uploaded document | unbuilt |
+| **12** | **6.44** — The contradiction stop moves from middleware into a node | unbuilt |
+| **13** | **7.1** — `DMAICGateValidator` and Layer 2b | unbuilt |
+| **14** | **7.2** — Layers 2c and 2d, and the `validation_stack` node | unbuilt |
+| **15** | **7.3** — The nine-step HITL gate | unbuilt |
+| **16** | **7.7** — The approve endpoint | unbuilt |
+| **17** | **7.4** — Two tiers and the `warning` verdict | unbuilt |
+| **18** | **7.5** — Escalation | unbuilt |
+| **19** | **7.8** — The gate steps that consume validation results | unbuilt |
+| **20** | **7.9** — Define end to end, on one fresh case | unbuilt |
+| **21** | **6.62** — The other four phase scripts carry no move-sequencing | unbuilt |
 
 *Projected from the `Order` column of **Appendix F** in
 `docs/REFACTORING_PROCEDURE.md` (founder 2026-09-25: *"Priority =

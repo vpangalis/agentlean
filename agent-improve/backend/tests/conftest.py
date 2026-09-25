@@ -414,7 +414,7 @@ def _record_results() -> None:
     project = _Path(__file__).resolve().parents[2]
     _sys.path.insert(0, str(project / "tools" / "control_board"))
     try:
-        from progress import RESULTS, source_hash  # type: ignore[import-not-found]
+        from progress import RESULTS, SOURCE_GLOBS, source_hash  # type: ignore[import-not-found]
     finally:
         _sys.path.pop(0)
     current = source_hash(project)
@@ -432,10 +432,38 @@ def _record_results() -> None:
                  "recorded_at": prior.get("recorded_at"),
                  "outcomes": dict(sorted(older_out.items()))} if older_out else {}
     outcomes.update(_OUTCOMES)
+    # 6.64 — NOT REWRITTEN WHEN NOTHING CHANGED. A run on the same source with
+    # the same outcomes used to rewrite the file for its timestamp alone, so
+    # every test run dirtied the tree. The record's truth is the source hash
+    # and the outcomes; when both are unchanged, the file already says it.
+    # A record from before 6.64 carries no commit and is written once more.
+    if (prior.get("source_hash") == current and "commit" in prior
+            and dict(sorted(outcomes.items())) == dict(sorted((prior.get("outcomes") or {}).items()))):
+        return
+    # The commit the results were run against — HEAD, and whether the product
+    # source differed from it at the time. The AMBER is still the source
+    # hash's to give (`progress.verdict`); the commit is what lets a reader
+    # `git diff` from the run to now.
+    root = project.parent
+    head = _git(root, "rev-parse", "--short", "HEAD")
+    clean = _git(root, "status", "--porcelain", "--", *(
+        f"agent-improve/{g.split('/')[0]}" for g in SOURCE_GLOBS)) == ""
     RESULTS.write_text(_json.dumps({
         "source_hash": current,
+        "commit": head,
+        "commit_matches_source": clean,
         "recorded_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
         "outcomes": dict(sorted(outcomes.items())),
         "older": older,
     }, indent=1) + "\n", encoding="utf-8")
+
+
+def _git(root, *args: str) -> str | None:
+    """One git read for the recorder; `None` when git cannot answer."""
+    import subprocess as _sp
+    try:
+        return _sp.run(["git", *args], cwd=root, capture_output=True, encoding="utf-8",
+                       check=True).stdout.strip()
+    except (OSError, _sp.CalledProcessError):
+        return None
 

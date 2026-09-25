@@ -1319,7 +1319,7 @@ CHECKS = [
      "fall since this bound was split**, which is what 6.41 said the number "
      "existed to make possible"),
 
-    ("facts with nothing to anchor to — ratified, unbuilt", "37",
+    ("facts with nothing to anchor to — ratified, unbuilt", "38",
      facts_with_nothing_to_anchor,
      "Appendix F · step 6.41 — G-87. ☐ means something does NOT exist, so the "
      "em dash is the honest cell. **A rise here is normal** and means the "
@@ -1340,7 +1340,8 @@ CHECKS = [
      "pin — found at the Part 1 registration); 29 → 34 the same day: 6.58, "
      "6.59, 6.53, 6.60 and 7.9 registered, founder rulings 2026-09-25; "
      "34 → 36 the same day: 6.61 and 6.62, the coaching move decided in code; "
-     "36 → 37 the same day: 6.63, the control board"),
+     "36 → 37 the same day: 6.63, the control board; "
+     "37 → 38 the same day: 6.64, the board's grouped views"),
 
     ("facts never assessed against the tree", "96",
      facts_unassessed,

@@ -13,14 +13,23 @@ WHAT THIS PAGE READS — and nothing else
     progress.statuses()   the status set; each is rendered with `data-key`,
                           `data-ref` and a hover title naming its reference
     stories.py            the epic and story each step belongs to
-    shape.shape()         the architecture diagram, read from the code
+    shape.shape()         the architecture diagram, and each container's
+                          "what is there", read from the code
+
+THE WATERFALL IS GROUPED THREE WAYS (step 6.64), a switch at the top:
+    Container (default)   every registered step under its Appendix F Layer,
+                          named by that table's `#### L<n> · <name>` headings
+    Work package          the estimate table's WP0–WP6
+    Epic / story          stories.py's epic -> story -> task tree
 
 WHAT THE INTEGRITY CHECK (`check_board.py`) HOLDS IT TO
     every coloured element carries a `data-key` that `statuses()` recomputes
     to the same colour and reference; every diagram label carries a
     `data-key` that `shape.labels()` recomputes to the same text; the
-    headline equals CONTINUITY.md's. A colour or label typed by hand has no
-    key, or a key that recomputes to something else, and fails the commit.
+    headline equals CONTINUITY.md's; the container view carries every
+    registered step once, under the container the tree gives it. A colour or
+    label typed by hand has no key, or a key that recomputes to something
+    else, and fails the commit.
 
     python build_control_board.py [out.html] [--staged]
 """
@@ -98,34 +107,49 @@ def _d(s: str | None) -> dt.date | None:
 # ══ the waterfall ════════════════════════════════════════════════════════════
 
 
+#: The waterfall's three groupings (6.64), the first the default.
+VIEWS: tuple[tuple[str, str], ...] = (("ctr", "Container"), ("wp", "Work package"),
+                                      ("epic", "Epic / story"))
+
+
+def _row(s: str, stp: dict, bars: dict, today: dt.date) -> dict:
+    """One step's bars: planned (from the plan, or from its estimate after it
+    started) and actual (git's first commit to its landing commit)."""
+    b = bars.get(s)
+    a0, a1 = _d(stp["first_date"]), _d(stp["landed_date"])
+    if b:
+        p0, p1 = _d(b["start"]), _d(b["end"])
+    elif a0 and stp["estimate"]:
+        p0, p1 = a0, progress.add_workdays(a0, stp["estimate"])
+    else:
+        p0 = p1 = None
+    return {"s": s, "st": stp, "p0": p0, "p1": p1, "a0": a0,
+            "a1": a1 or (today if a0 and not stp["done"] else None),
+            "open": bool(a0 and not a1), "wait": (b or {}).get("waiting_on", [])}
+
+
 def waterfall(m: dict) -> str:
+    """The waterfall, three ways — one time axis, a switch at the top (6.64).
+
+    The axis is the PLAN's: the work-package steps and the Order. The container
+    view carries every registered step, so a step that landed before the axis
+    begins shows its landing date instead of a bar."""
     p = m["p"]
     steps, plan = p["steps"], p["plan"]
     bars = {b["step"]: b for b in plan["bars"]}
     today = dt.date.fromisoformat(p["today"])
     shown = list(dict.fromkeys([s for s in steps if steps[s]["wp"]] + p["order"]))
-    rows: list[dict] = []
-    for s in shown:
-        stp = steps[s]
-        b = bars.get(s)
-        a0, a1 = _d(stp["first_date"]), _d(stp["landed_date"])
-        if b:
-            p0, p1 = _d(b["start"]), _d(b["end"])
-        elif a0 and stp["estimate"]:
-            p0, p1 = a0, progress.add_workdays(a0, stp["estimate"])
-        else:
-            p0 = p1 = None
-        rows.append({"s": s, "st": stp, "p0": p0, "p1": p1, "a0": a0,
-                     "a1": a1 or (today if a0 and not stp["done"] else None),
-                     "open": bool(a0 and not a1), "wait": (b or {}).get("waiting_on", [])})
-    dates = [d for r in rows for d in (r["p0"], r["p1"], r["a0"], r["a1"]) if d] + [today]
+    rows = {s: _row(s, steps[s], bars, today) for s in steps}
+    dates = [d for s in shown for d in (rows[s]["p0"], rows[s]["p1"], rows[s]["a0"], rows[s]["a1"]) if d] + [today]
     lo, hi = min(dates) - dt.timedelta(days=2), max(dates) + dt.timedelta(days=4)
     span = (hi - lo).days or 1
 
     def x(d: dt.date) -> float:
-        return round((d - lo).days / span * 100, 2)
+        return round((max(d, lo) - lo).days / span * 100, 2)
 
     def bar(cls: str, a: dt.date, b: dt.date, tip: str) -> str:
+        if b < lo:
+            return ""
         left, width = x(a), max(0.8, x(b + dt.timedelta(days=1)) - x(a))
         return f'<div class="bar {cls}" style="left:{left}%;width:{width}%" title="{E(tip)}"></div>'
 
@@ -141,7 +165,7 @@ def waterfall(m: dict) -> str:
                      f'title="Define forecast finish (7.9): {fd.isoformat()}"></div>')
     grid = "".join(ticks) + "".join(marks)
 
-    def row(r: dict) -> str:
+    def row(r: dict, cv: str = "") -> str:
         s, stp = r["s"], r["st"]
         tag = stp["epic"] + (" (proposed)" if stp["epic_proposed"] else "") + \
             (f" · {stp['story']}" if stp["story"] else "")
@@ -159,24 +183,90 @@ def waterfall(m: dict) -> str:
         wait = "".join(f'<span class="wt" title="a founder input — waiting, not late">waiting on {E(w)}</span>'
                        for w in r["wait"])
         est = f"{stp['estimate']:g} d" if stp["estimate"] else '<span class="miss">no estimate</span>'
-        return (f'<div class="wrow"><div class="wlab"><b>{E(s)}</b> {E(stp["title"])}'
-                f'<div class="meta"><span class="tag">{E(tag)}</span> {est} {st(m, f"step:{s}:state", stp["state"])} {wait}</div></div>'
+        early = (f' <span class="na">landed {E(stp["landed_date"])}, before this axis</span>'
+                 if r["a1"] and r["a1"] < lo else "")
+        attr = f' data-cv="{E(s)}"' if cv else ""
+        return (f'<div class="wrow"{attr}><div class="wlab"><b>{E(s)}</b> {E(stp["title"])}'
+                f'<div class="meta"><span class="tag">{E(tag)}</span> {est} {st(m, f"step:{s}:state", stp["state"])} {wait}{early}</div></div>'
                 f'<div class="wtrack">{grid}{"".join(lanes)}</div></div>')
 
+    def group(title: str, meta: str, rs: list[dict], body: str, opened: bool = True,
+              attr: str = "") -> str:
+        """A collapsible group: its own bar spans its steps' earliest start to
+        latest end. `title` and `meta` arrive escaped (meta may carry a pill)."""
+        ends = [r["p1"] or r["a1"] for r in rs if (r["p1"] or r["a1"])]
+        starts = [r["a0"] or r["p0"] for r in rs if (r["a0"] or r["p0"])]
+        wbar = bar("wp", min(starts), max(ends), f"{title}: {min(starts)} → {max(ends)}") if starts else ""
+        return (f'<details class="wp"{attr}{" open" if opened else ""}><summary><div class="wrow">'
+                f'<div class="wlab"><b>{title}</b><div class="meta">{meta}</div></div>'
+                f'<div class="wtrack">{grid}{wbar}</div></div></summary>{body}</details>')
+
+    def num(s: str) -> tuple:
+        return tuple(int(x) for x in s.split("."))
+
+    in_order = set(p["order"])
+
+    # ── Container (the default): every registered step, under its Layer ──
+    ctr_out = []
+    for c in p["containers"]:
+        rs = sorted((rows[s] for s in c["steps"]),
+                    key=lambda r: (r["st"]["order"] is None, r["st"]["order"] or 0, num(r["s"])))
+        done = sum(r["st"]["done"] for r in rs)
+        meta = f'{st(m, "ctr:" + c["id"], c["id"])} {done} of {len(rs)} done · {len(c["open"])} open'
+        ctr_out.append(group(E(f'{c["id"]} · {c["name"]}'), meta, rs,
+                             "".join(row(r, cv=c["id"]) for r in rs),
+                             opened=any(s in in_order and not steps[s]["done"] for s in c["steps"]),
+                             attr=f' data-ctr="{E(c["id"])}"'))
+
+    # ── Work package, as 6.63 drew it ──
     groups: dict[str, list[dict]] = {}
-    for r in rows:
-        groups.setdefault(r["st"]["wp"] or "No work package", []).append(r)
-    out = []
+    for s in shown:
+        groups.setdefault(steps[s]["wp"] or "No work package", []).append(rows[s])
+    wp_out = []
     for wp in sorted(groups, key=lambda w: (w == "No work package", w)):
         rs = groups[wp]
         ends = [r["p1"] or r["a1"] for r in rs if (r["p1"] or r["a1"])]
-        starts = [r["a0"] or r["p0"] for r in rs if (r["a0"] or r["p0"])]
-        wbar = bar("wp", min(starts), max(ends), f"{wp}: {min(starts)} → {max(ends)}") if starts else ""
         done = sum(r["st"]["done"] for r in rs)
-        out.append(f'<details class="wp" open><summary><div class="wrow"><div class="wlab"><b>{E(wp)}</b>'
-                   f'<div class="meta">{done} of {len(rs)} done · finishes {max(ends) if ends else "—"}</div></div>'
-                   f'<div class="wtrack">{grid}{wbar}</div></div></summary>'
-                   + "".join(row(r) for r in rs) + "</details>")
+        wp_out.append(group(E(wp), f'{done} of {len(rs)} done · finishes {max(ends) if ends else "—"}',
+                            rs, "".join(row(r) for r in rs)))
+
+    # ── Epic / story: stories.py's tree, every status derived ──
+    epic_out = []
+    storied: set[str] = set()
+    for ep in stories.EPICS:
+        body, ep_rows = [], []
+        for sto in ep["stories"]:
+            pill = (st(m, f"story:{sto['id']}", "done" if sto["status"] == "done" else "open")
+                    if sto["rows"] else '<span class="na">no acceptance rows — no source</span>')
+            body.append(f'<div class="story"><b>{E(sto["id"])}</b> {E(sto["title"])} {pill}</div>')
+            for code, title, comp, _state, _ref in sto["tasks"]:
+                if code in steps:
+                    storied.add(code)
+                    ep_rows.append(rows[code])
+                    body.append(row(rows[code]))
+                else:
+                    body.append(f'<div class="wrow"><div class="wlab"><b>task</b> {E(title)}'
+                                f'<div class="meta">{E(comp)} · <span class="na">not a procedure step — '
+                                f'its status has no source</span></div></div><div class="wtrack">{grid}</div></div>')
+            for bug in sto["bugs"]:
+                text, comp, where = bug[0], bug[1], bug[-1]
+                body.append(f'<div class="wrow"><div class="wlab"><b>bug</b> {E(text)}'
+                            f'<div class="meta">{E(comp)} · found at {E(where)} · <span class="na">'
+                            f'status: no source in the tree</span></div></div><div class="wtrack">{grid}</div></div>')
+        n_rows = sum(bool(sto["rows"]) for sto in ep["stories"])
+        n_done = sum(sto["status"] == "done" for sto in ep["stories"] if sto["rows"])
+        n_none = len(ep["stories"]) - n_rows
+        meta = (f'{n_done} of {n_rows} stories done (by their acceptance rows)'
+                + (f' · {n_none} with no rows, so no derived status' if n_none else '')
+                if n_rows else
+                f'{n_none} stories — none has acceptance rows, so none has a derived status')
+        epic_out.append(group(E(f'{ep["id"]} · {ep["title"]}'), meta, ep_rows, "".join(body),
+                              opened=any(r["s"] in in_order and not r["st"]["done"] for r in ep_rows)))
+    rest = [rows[s] for s in shown if s not in storied]
+    if rest:
+        epic_out.append(group("Not in stories.py", "planned steps no story lists yet", rest,
+                              "".join(row(r) for r in rest)))
+
     ms_rows = []
     for mid, mv in p["milestones"].items():
         needed = [bars[s]["start"] for s in mv["blocks"] if s in bars]
@@ -187,12 +277,17 @@ def waterfall(m: dict) -> str:
         ms_rows.append(f'<div class="wrow"><div class="wlab"><b>◆ {E(mid)}</b> {E(mv["what"])}'
                        f'<div class="meta">{E(where)}' + (f" · needed by {min(needed)}" if needed else "")
                        + f'</div></div><div class="wtrack">{grid}{dia}</div></div>')
-    out.append('<details class="wp" open><summary><div class="wrow"><div class="wlab"><b>Founder inputs</b>'
+    founder = ('<details class="wp" open><summary><div class="wrow"><div class="wlab"><b>Founder inputs</b>'
                '<div class="meta">milestones — a step waiting on one is waiting, not late</div></div>'
                f'<div class="wtrack">{grid}</div></div></summary>' + "".join(ms_rows) + "</details>")
     head = ('<div class="wrow whead"><div class="wlab"></div><div class="wtrack">'
             + "".join(ticks) + "".join(marks) + "</div></div>")
-    return head + "".join(out)
+    by_view = {"ctr": "".join(ctr_out), "wp": "".join(wp_out), "epic": "".join(epic_out)}
+    radios = "".join(f'<input type="radio" name="wf" id="wf-{k}" class="vsw"{" checked" if i == 0 else ""}>'
+                     for i, (k, _) in enumerate(VIEWS))
+    labels = "".join(f'<label for="wf-{k}">{E(t)}</label>' for k, t in VIEWS)
+    views = "".join(f'<div class="view view-{k}" data-view="{k}">{head}{by_view[k]}</div>' for k, _ in VIEWS)
+    return f'{radios}<div class="vbar">Group by: {labels}</div>{views}{founder}'
 
 
 # ══ the diagram ══════════════════════════════════════════════════════════════
@@ -276,12 +371,65 @@ def steps_table(m: dict) -> str:
 
 
 def caps_table(m: dict) -> str:
-    rows = "".join(
-        f'<tr><td><b>{c["row"]}</b></td><td>{E(c["capability"])}</td>'
-        f'<td>{E(", ".join(c["owners"]) or "—")}</td><td>{st(m, "cap:%d" % c["row"], "proven" if c["proven"] else c["colour"])}</td></tr>'
-        for c in m["p"]["capabilities"])
+    """Appendix H, grouped by container — through each row's owning steps'
+    Layer (6.64). A row owned by steps in two containers is listed under both;
+    a row no step owns is listed on its own, never dropped."""
+    p = m["p"]
+    names = {c["id"]: c["name"] for c in p["containers"]}
+
+    def line(c: dict) -> str:
+        return (f'<tr><td><b>{c["row"]}</b></td><td>{E(c["capability"])}</td>'
+                f'<td>{E(", ".join(c["owners"]) or "—")}</td>'
+                f'<td>{st(m, "cap:%d" % c["row"], "proven" if c["proven"] else c["colour"])}</td></tr>')
+
+    body = []
+    for cid, name in names.items():
+        rows = [c for c in p["capabilities"] if cid in c["containers"]]
+        if rows:
+            proven = sum(c["proven"] for c in rows)
+            body.append(f'<tr class="grp"><td colspan="4">{E(cid)} · {E(name)} — '
+                        f'{proven} of {len(rows)} proven</td></tr>' + "".join(line(c) for c in rows))
+    orphans = [c for c in p["capabilities"] if not c["containers"]]
+    if orphans:
+        body.append('<tr class="grp"><td colspan="4">No owning step — no container</td></tr>'
+                    + "".join(line(c) for c in orphans))
     return ('<table class="t"><thead><tr><th>Row</th><th>Capability</th><th>Given by</th><th>State</th>'
-            '</tr></thead><tbody>' + rows + "</tbody></table>")
+            '</tr></thead><tbody>' + "".join(body) + "</tbody></table>")
+
+
+#: The word a container's pill shows, per colour.
+_CTR_WORD = {"green": "all done", "red": "open work", "built": "built, not wired", "waiting": "waiting"}
+
+
+def container_cards(m: dict) -> str:
+    """One card per container (6.64): what is there, read from the code, and
+    the open steps from Appendix F, each with its derived colour and reference."""
+    p, out = m["p"], []
+    comps = (m.get("shape") or {}).get("components", {})
+    for c in p["containers"]:
+        cid = c["id"]
+        items = comps.get(cid)
+        if items is None:
+            what = '<li class="na">no reader for this container — nothing is claimed</li>'
+        else:
+            what = "".join(f'<li>{lbl(m, f"cmp:{cid}:{i}")} <span class="src">{E(it["source"])}</span></li>'
+                           for i, it in enumerate(items))
+        steps = p["steps"]
+        opened = sorted(c["open"], key=lambda s: (steps[s]["order"] is None, steps[s]["order"] or 0,
+                                                  tuple(int(x) for x in s.split("."))))
+        open_li = "".join(
+            f'<li>{st(m, f"step:{s}:state", steps[s]["state"])} <b>{E(s)}</b> {E(steps[s]["title"])}'
+            + (f' <span class="na">· Order {steps[s]["order"]}</span>' if steps[s]["order"] else "")
+            + "</li>" for s in opened) or '<li class="na">nothing open</li>'
+        done = [s for s in c["steps"] if steps[s]["done"]]
+        colour = m["statuses"][f"ctr:{cid}"]["colour"]
+        out.append(
+            f'<div class="card"><div class="cardh"><b>{E(cid)} · {E(c["name"])}</b> '
+            f'{st(m, f"ctr:{cid}", _CTR_WORD[colour])}</div>'
+            f'<div class="sub">What is there — read from the code</div><ul class="cl">{what}</ul>'
+            f'<div class="sub">Open steps — Appendix F ({len(opened)} of {len(c["steps"])})</div><ul class="cl">{open_li}</ul>'
+            f'<div class="meta">done: {", ".join(done) or "none"}</div></div>')
+    return f'<div class="cards">{"".join(out)}</div>'
 
 
 # ══ the page ═════════════════════════════════════════════════════════════════
@@ -328,6 +476,17 @@ svg.graph{width:100%;max-width:980px;height:auto}.gnode{fill:var(--bg);stroke:va
 table.t{border-collapse:collapse;width:100%;font-size:12.5px}table.t td,table.t th{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left;vertical-align:top}
 details.all>summary{cursor:pointer;font-weight:600;margin:8px 0}
 .prob{color:var(--red)}
+.vsw{position:absolute;opacity:0;pointer-events:none}.view{display:none}
+#wf-ctr:checked~.view-ctr,#wf-wp:checked~.view-wp,#wf-epic:checked~.view-epic{display:block}
+.vbar{margin:8px 0}.vbar label{display:inline-block;border:1px solid var(--line);border-radius:14px;padding:2px 12px;margin-right:6px;cursor:pointer;background:var(--card)}
+#wf-ctr:checked~.vbar label[for=wf-ctr],#wf-wp:checked~.vbar label[for=wf-wp],#wf-epic:checked~.vbar label[for=wf-epic]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.vsw:focus-visible~.vbar{outline:2px solid var(--built);outline-offset:2px}
+.story{margin:10px 0 2px;padding:3px 0 3px 8px;border-left:3px solid var(--line);font-size:13px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr));gap:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.cardh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+ul.cl{margin:2px 0 6px 16px;padding:0;font-size:12.5px}ul.cl li{margin:2px 0}
+tr.grp td{background:var(--line);font-weight:600}
 @media (max-width:700px){.wrow{grid-template-columns:1fr}.wtrack{height:30px}}
 """
 
@@ -349,16 +508,18 @@ def render(m: dict) -> str:
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Control board</title>
 <style>{CSS}</style></head><body><div class="wrap">
 <h1 data-key="headline">{E(p["headline"])}</h1>
-<div class="built">Built from <b>{E(sha)}</b> — {E(subject)} · source {E(p["source_hash"])} · tests recorded on source {E(str(p["results_hash"]))} · generated by <code>tools/control_board/build_control_board.py</code> from <code>progress.py</code>; nothing on this page is typed by hand</div>
+<div class="built">Built from <b>{E(sha)}</b> — {E(subject)} · source {E(p["source_hash"])} · tests recorded on source {E(str(p["results_hash"]))} at commit {E(str(p["results_commit"] or "—"))} · generated by <code>tools/control_board/build_control_board.py</code> from <code>progress.py</code>; nothing on this page is typed by hand</div>
 <div class="fc"><b>Define finishes (7.9): {E(plan["forecast_define"] or "—")}</b> · conditional on {E(cond)} · {E(plan["basis"])}</div>
 {"<ul>" + probs + "</ul>" if probs else ""}
 {legend}
 <h2>The waterfall — Appendix F's Order, each step's card, git log</h2>
-<div class="meta">Planned bar (top) from the estimate; actual bar (bottom) from the first commit to the landing commit; red line today; dotted line the Define forecast; ◆ a founder input, placed where it is needed.</div>
+<div class="meta">Planned bar (top) from the estimate; actual bar (bottom) from the first commit to the landing commit; red line today; dotted line the Define forecast; ◆ a founder input, placed where it is needed. Container is each step's Appendix F Layer, named by that table's headings; work package is the estimate table's; epic and story are <code>stories.py</code>'s.</div>
 {waterfall(m)}
+<h2>The containers — what is there, and what is open</h2>
+{container_cards(m)}
 <h2>The shape of it — read from the code</h2>
 {diagram(m)}
-<h2>Capabilities — Appendix H ({p["proven"]} of {p["total_caps"]} proven)</h2>
+<h2>Capabilities by container — Appendix H ({p["proven"]} of {p["total_caps"]} proven)</h2>
 {caps_table(m)}
 <details class="all"><summary>Every step — built · wired · proven ({len(p["steps"])} steps)</summary>{steps_table(m)}</details>
 <script type="application/json" id="progress-data">{data}</script>
