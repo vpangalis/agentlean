@@ -137,11 +137,12 @@ def test_the_readers_still_return_what_the_dual_read_returned(board) -> None:
         83 -> 88  G-102..G-106 registered — the coherence audit's findings
         88 -> 85  10.0: G-69, G-76, G-103 closed (G-79 partly — its visual half is 10.3's)
         85 -> 84  G-79 closed — the diagram redraws after a tab switch and a reload
+        84 -> 85  G-107 registered — the screen's next step disagrees with the coach
     """
     markers, gaps = board.read_markers(), board.read_gaps()
     assert len(markers) == 82, f"{len(markers)} markers, not 82"
     assert sum(1 for m in markers if m["state"] != "built") == 42
-    assert len(gaps) == 84, f"{len(gaps)} gap rows, not 84"
+    assert len(gaps) == 85, f"{len(gaps)} gap rows, not 85"
 
 
 def test_the_guard_resolves_a_gap_from_the_one_register(guard) -> None:
