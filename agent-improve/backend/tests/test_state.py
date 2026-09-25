@@ -505,8 +505,12 @@ def test_field_index_walks_defines_ordered_list() -> None:
 
 def test_field_index_reaches_the_last_field() -> None:
     """The Done-when's clause. It rests on the last field rather than running
-    off the end — there is no next one to point at."""
-    every = {f: "x" for f in DEFINE_FIELD_ORDER}
+    off the end — there is no next one to point at.
+
+    6.57: "every" includes `metric_definitions`, captured inside position 5
+    (§39.1.9) — without it the walk correctly waits at position 5
+    (`test_define_position.py`)."""
+    every = {f: "x" for f in (*DEFINE_FIELD_ORDER, "metric_definitions")}
     assert _nc._advance_field_index("define", every) == len(DEFINE_FIELD_ORDER) - 1
 
 

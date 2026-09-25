@@ -212,8 +212,10 @@ class CoachingResponse(BaseModel):
     progress: str = Field(
         default="",
         description=(
-            "§50.1 — the position indicator, e.g. 'Define · 4 of 12'. Always "
-            "visible. Count the phase's COACHED positions, not the gate set."
+            "§50.1 — the position indicator, e.g. 'Define · Step 4 of 12'. "
+            "Always visible. When PROJECT STATE gives the step (WHERE THE "
+            "BELT IS), copy that text exactly — never count it yourself, and "
+            "never from the gate list."
         ),
     )
     fields_captured: list[dict] = Field(

@@ -24,6 +24,8 @@ where Pydantic models are permitted.
 """
 from __future__ import annotations
 
+from typing import Any, Mapping
+
 from pydantic import BaseModel, Field
 
 # ── The 12 fields that BLOCK the gate — all of them ────────────────────
@@ -69,6 +71,52 @@ DEFINE_FIELD_ORDER: tuple[str, ...] = DEFINE_REQUIRED_FIELDS
 DEFINE_REQUIRED_FOR_GATE_FIELDS: tuple[str, ...] = DEFINE_REQUIRED_FIELDS + (
     "metric_definitions",
 )
+
+# ── Step 6.57 — the Belt's position, COMPUTED ────────────────────────────
+#
+# **"Step n of 12" is this function's answer, never the model's count.** Every
+# coached turn on 0E5 on 2026-09-24 wrote "Define · 13 of 13": the only count
+# the coach was ever given was the gate list's "n of 13", so it counted that.
+# The walk has TWELVE positions (§39.1.2); the thirteenth gate field sits
+# inside position 5 (§39.1.9), so position 5 is complete only when both
+# halves are in.
+#
+# ONE function for every reader: the state-injection block delivers it, the
+# executor records it, `field_index` is it minus one, and step 10.3's progress
+# bar must call it rather than count again.
+DEFINE_POSITIONS: int = len(DEFINE_FIELD_ORDER)
+
+#: Fields captured INSIDE a coached position rather than at their own.
+_CAPTURED_INSIDE: dict[str, tuple[str, ...]] = {
+    "baseline_estimate": ("metric_definitions",),
+}
+
+
+def _is_captured(artifacts: Mapping[str, Any], field: str) -> bool:
+    """`artifacts` carries `str` or structure (§7); blank is not an answer."""
+    return bool(str(artifacts.get(field) or "").strip())
+
+
+def define_position(artifacts: Mapping[str, Any]) -> int:
+    """The Define position being coached, 1..12: the first not yet complete.
+
+    Once every position is complete it rests on 12 rather than running off
+    the end — there is no thirteenth step to point at.
+    """
+    for position, field in enumerate(DEFINE_FIELD_ORDER, start=1):
+        if not all(_is_captured(artifacts, f)
+                   for f in (field, *_CAPTURED_INSIDE.get(field, ()))):
+            return position
+    return DEFINE_POSITIONS
+
+
+def define_progress(artifacts: Mapping[str, Any]) -> dict[str, Any]:
+    """The position, its field, and the label the Belt is shown."""
+    position = define_position(artifacts)
+    return {"position": position, "of": DEFINE_POSITIONS,
+            "field": DEFINE_FIELD_ORDER[position - 1],
+            "label": f"Define · Step {position} of {DEFINE_POSITIONS}"}
+
 
 # Keys on each `metric_definitions` entry (§63.8). `name` is the traceability
 # key — written identically in every phase, and the thing the grader matches on.

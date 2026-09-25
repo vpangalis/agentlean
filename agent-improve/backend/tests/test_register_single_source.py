@@ -131,11 +131,12 @@ def test_the_readers_still_return_what_the_dual_read_returned(board) -> None:
         78 -> 81  6.46: G-94 (empty case index searched), G-97 (duplicate
                   evidence upload), G-98 (interpretation unavailable)
         81 -> 80  G-96 closed — layer 2a judges against the script step
+        80 -> 81  6.57: G-99 registered — 2a rejects a stock-take summary
     """
     markers, gaps = board.read_markers(), board.read_gaps()
     assert len(markers) == 82, f"{len(markers)} markers, not 82"
     assert sum(1 for m in markers if m["state"] != "built") == 42
-    assert len(gaps) == 80, f"{len(gaps)} gap rows, not 80"
+    assert len(gaps) == 81, f"{len(gaps)} gap rows, not 81"
 
 
 def test_the_guard_resolves_a_gap_from_the_one_register(guard) -> None:

@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.72 · 2026-09-24
+Version 1.73 · 2026-09-25
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.73 (2026-09-25)** — **§56 AMENDMENT. DEFINE'S "STEP n OF 12" IS COMPUTED, DELIVERED AND WRITTEN — NEVER COUNTED BY THE MODEL.** Founder ruling 2026-09-24, applied at step 6.57. **The ruled text:** *"Compute the Define position from DEFINE_FIELD_ORDER (12 positions; metric_definitions sits inside position 5, §39.1.9) and deliver it every turn, as v1.71 delivers the script. Keep the gate's 'missing (… of 13)' list separate and labelled as the gate list."* **(A) WHY.** Every coaching turn on 0E5 wrote *"Define · 13 of 13"* — the gate list's count, the only one the coach was given. **(B) ONE FUNCTION.** `define_progress(artifacts)` (`phases/define/schema.py`): the first position not complete, 1..12, position 5 complete only with `metric_definitions` as well. `BeforeModelStateInjection` delivers it at the top of the block; `field_index` is it minus one; step 10.3's bar calls it. **(C) DELIVERY WAS NOT ENOUGH, MEASURED** — with the step first in its input the model still wrote *"13 of 13"*, its own earlier replies carrying `of 13` 55 times. So the executor WRITES the computed label into the reply's `progress` and re-renders the stored structured-response message; the model's own value is recorded in `step_log` (node `define_position`: `reply_progress`, `reply_matches`). **(D) THE GATE LIST** is headed *"THE GATE LIST … (n of 13 gate fields; not the step count)"*. Reasoning: step 6.57's commit body (§56.2).
 
 **v1.72 (2026-09-24)** — **§56 AMENDMENT. LAYER 2a JUDGES A REPLY AGAINST THE SCRIPT STEP IT PERFORMS, AND EVERY VERDICT IS RECORDED (G-96).** Founder ruling 2026-09-24, Option A. **The ruled text:** *"Coherence gets the current script step; reading back to confirm is allowed; 'parroting' = restatement with no confirmation question and nothing added; every 2a rejection records its reason in step_log."* **(A) WHY.** §19.7 asked *"is it parroting?"* and §43's ④ Confirm asks for a read-back — opposite demands on the same reply, and the judge was told neither which step the coach was on nor shown the question: `CoachingResponse.prompt`, where the confirmation question lives (§50.1), never reached it. On 2026-09-24 13:14 (`IMPR-2026-0E5`) it rejected a Confirm reply as parroting, degraded the turn, stood the grader down, and left no record why (capability row 13). **(B) THE STEP IS DERIVED, NOT ASKED.** A reply that captured a value is at that field's ④ Confirm; one that captured nothing is at the planner's focus field's ①–③. The judge is given the step, the field's numbered block from the phase's SKILL.md (all five number their fields), and the whole reply — `message`, `explanation`, `example`, `prompt`. **(C) RECORDED.** One `step_log` entry per turn, node `coherence`: the verdict, its reason, `degraded`, `grader_skipped`, and the step judged against. Reasoning and the measurements: the G-96 commit body (§56.2).
 
@@ -2120,6 +2122,12 @@ class rather than inherited, which is why the header names both: checked by
 **Missing fields are computed at injection time, never read from a stored
 list.** The middleware derives them the same way the gate does, so the prompt
 and `DMAICGateValidator` cannot disagree.
+
+**For Define the block opens with the Belt's step, computed (v1.73).**
+*WHERE THE BELT IS — Define · Step n of 12 — <field>*, from `define_progress`,
+above everything else; the missing-field list is headed as **the gate list**
+(*n of 13 gate fields; not the step count*). The executor writes the same
+label into the reply's `progress`; the coach never counts it.
 
 **Why the top of the prompt.** Models weight earlier content more heavily.
 Injecting project facts *after* the Belt's message lets the response drift
@@ -6094,6 +6102,11 @@ count the Belt can see at any time**:
 ```
 "We're working through the Measure phase — Step 3 of 6."
 ```
+
+**Define's count is COMPUTED (v1.73)** — `define_progress`, twelve positions,
+`metric_definitions` inside position 5 — delivered in the prompt and written
+into the reply's `progress` by the executor. The model states it; it never
+counts it.
 
 | Stage | What happens |
 |---|---|
@@ -10348,6 +10361,7 @@ the Store; the current phase's requirements; and the missing fields reported by
 | B3 | computing missing fields | derive them at injection time the same way the gate does; it SHALL NOT read a stored list | §19.1 |
 | B4 | the stack is declared | be first, so project facts reach the prompt before skills loading and summarisation shape it | §19 |
 | B5 | injecting prior-phase values | inject them from the Store, which is what makes the coach's semantic contradiction check possible at all | §37 |
+| B6 | composing for Define | open the block with the Belt's step from `define_progress` — *Step n of 12*, computed, never counted by the model — and head the missing-field list as the gate list (v1.73) | §43.3, §39.1.9 |
 
 **No AI-ACT flag.** It moves already-committed values into the prompt and
 asserts nothing of its own. Its correctness is nonetheless load-bearing for

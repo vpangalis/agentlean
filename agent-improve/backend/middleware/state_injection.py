@@ -67,6 +67,7 @@ from langchain_core.messages import SystemMessage
 from langchain_core.runnables import RunnableConfig
 
 from backend.core.substate import PhaseState
+from backend.phases.define.schema import define_progress
 from backend.phases.gate_registry import GATE_SPECS, missing_gate_fields
 from backend.phases.mappers_common import PHASE_ORDER
 
@@ -195,6 +196,16 @@ class BeforeModelStateInjection(AgentMiddleware):
                  "(established facts; these outrank anything said in "
                  "conversation that contradicts them)"]
 
+        # 6.57 — the Belt's step, COMPUTED and delivered every turn, as v1.71
+        # delivers the script. The coach used to count it and counted the
+        # gate list below ("13 of 13"). First, so it is the number read first.
+        if self.phase == "define":
+            step = define_progress(artifacts)
+            parts += ["\nWHERE THE BELT IS — computed, not yours to count",
+                      f"  {step['label']} — {step['field']}",
+                      "  Write this exact text in `progress`. Never count steps "
+                      "yourself, and never from the gate list below."]
+
         meta = (self._config.get("configurable") or {}).get("case_metadata") or {}
         if meta:
             parts.append("\nTHIS PROJECT")
@@ -254,8 +265,11 @@ class BeforeModelStateInjection(AgentMiddleware):
 
         parts += self._upload_manifest()
 
-        parts.append(f"\nSTILL MISSING FOR THE {self.phase.upper()} GATE "
-                     f"({len(missing)} of {len(spec.tier_1)})")
+        # 6.57 — labelled as the GATE's list, so its "n of 13" is not read as
+        # the Belt's step: Define gates on 13 fields and walks 12 steps.
+        parts.append(f"\nTHE GATE LIST — STILL MISSING FOR THE {self.phase.upper()} "
+                     f"GATE ({len(missing)} of {len(spec.tier_1)} gate fields; "
+                     f"not the step count)")
         parts += [f"  {f}" for f in missing] or ["  (none — the gate can open)"]
         if spec.tier_2:
             parts.append("  Recommended, not gate-blocking: "

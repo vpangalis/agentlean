@@ -9,11 +9,11 @@
 |---|---|
 | **Last completed** | step **6.41** — The symbol-anchor ratchet comes down |
 | **Next** | step **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
-| **Spine steps landed** | 54 of 97 |
+| **Spine steps landed** | 54 of 98 |
 | **Last spine commit** | `ca057ac` (commit 6.46) |
-| **ARCHITECTURE.md** | v1.72 |
+| **ARCHITECTURE.md** | v1.73 |
 | **CLAUDE.md** | v2.2.41 |
-| **Block regenerated** | 2026-09-24 |
+| **Block regenerated** | 2026-09-25 |
 
 *`Last completed` and the landed count come from **git log** — the
 `refactor(arch-v2): commit X.Y` subjects. `Next` and the total come
@@ -41,7 +41,7 @@ Update it with every commit that moves the position.*
 
 | | |
 |---|---|
-| **Last commit** | **G-96 — layer 2a judges a reply against the script step it performs** (`git log -1`, ARCHITECTURE v1.72); before it 6.46, the coaching script on every call |
+| **Last commit** | **6.57 — the Belt's step is computed, not counted by the model** (`git log -1`, ARCHITECTURE v1.73); before it G-96 (v1.72), layer 2a judged against the script step |
 | **Register** | **15 of 35** proven (Appendix H). Green: **1, 2, 3, 5, 6, 8, 11, 13, 17, 18, 19, 20, 21, 33, 35**. Rows 13 and 35 proven on trace `01a0d3e5-6246-7de3-b768-2ee767a5130c` (G-96 live turn, first in process: yes) |
 | **Red from 6.49** | **10** (skipped: no calculation turn yet on 0E5) · **12** (coherence rejects and never re-asks — `xfail(strict=True)`, step 6.53) |
 | **Case `IMPR-2026-0E5`** | **Not stuck** — a turn after the timed-out one started cleanly. **Its turns time out**: two traces on 2026-09-24, two causes |
@@ -62,7 +62,14 @@ after**; a full pytest run must still create 0 (the `fe27cf4` guard).
 every model call and each turn records version + hash; §22's guard refuses a captured
 worked example. Row 3 green. **G-96 closed** (v1.72): layer 2a is told the script step and
 sees the whole reply; every verdict is in `step_log`. Open: **G-94** (empty case index
-searched; 6.55 proposed), G-97 / G-98 (decide at 6.43 Part A).
+searched; 6.55 proposed), G-97 / G-98 (decide at 6.43 Part A), **G-99** (2a rejects a
+stock-taking summary as parroting — founder).
+
+**6.57 landed (v1.73):** *"Define · Step n of 12"* is `define_progress` — delivered in the
+prompt, written into the reply's `progress`, recorded with the model's own count
+(`define_position` in `step_log`). Step 10.3's bar must call the same function.
+**Next, held for review:** 6.56, the coaching-proof driver — built and dry-run untraced;
+its one traced run (positions 1–8, ≤ 15 turns) waits for the founder.
 
 **Rank after that:**
 

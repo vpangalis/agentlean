@@ -5890,6 +5890,51 @@ and *"first turn in process: yes"*.
 
 ---
 
+## Step 6.57 — The Belt's step is computed, not counted by the model
+
+| | |
+|---|---|
+| **Reference §** | §43.3 · §39.1.2 · §39.1.9 · §19.1 · §50.1 |
+| **Touches** | `backend/phases/define/schema.py` · `backend/middleware/state_injection.py` · `backend/phases/nodes_common.py` · `backend/core/substate.py` · `backend/tests/` |
+| **Precondition** | none — **READY** |
+| **NEEDS** | *(nothing — the field order exists; this decides who computes the count)* |
+| **GIVES** | The count behind capability row **28** — *"Step n of 12"* on every coaching turn, the same number the planner walks and step 10.3's bar shows |
+| **Verify** | `pytest` + `live-run` |
+| **Status** | **RULED — founder 2026-09-24** |
+
+**Every coaching turn on `0E5` wrote `"Define · 13 of 13"`.** Define's coached
+walk has twelve positions (§39.1.2); thirteen is the GATE's list — the twelve
+plus `metric_definitions`, captured inside position 5 (§39.1.9). The only count
+the coach was ever given was the gate block's *"STILL MISSING … (n of 13)"*, so
+it counted that.
+
+**Delivery alone did not hold — measured.** With the computed step at the very
+top of the model's input (trace `01a0d3f3-6f67-7100-b04d-214e7fe1f720`, first turn in process: yes) the
+model still wrote *"13 of 13"*: its own earlier structured replies put `of 13`
+into that input **55 times**. So the count is COMPUTED, DELIVERED and WRITTEN:
+the executor sets the reply's `progress` from the same function and re-renders
+the stored structured-response message the next turn reads; what the model
+wrote itself is kept in `step_log`.
+
+| Reader | Uses |
+|---|---|
+| The coach's prompt, every model call | `define_progress` — *WHERE THE BELT IS*, above the gate list |
+| The reply's `progress`, and the stored message | `define_progress` — written by the executor |
+| `step_log`, node `define_position` | `define_progress` — plus `reply_progress` (the model's own) and `reply_matches` |
+| `field_index` | `define_position − 1` |
+| **Step 10.3's progress bar** | **MUST call the same function** — never count again |
+
+**The gate list stays separate and says so:** *"THE GATE LIST — STILL MISSING
+FOR THE DEFINE GATE (n of 13 gate fields; not the step count)"*.
+
+**Done when:** the position is computed from `DEFINE_FIELD_ORDER` with position
+5 waiting for `metric_definitions`; it is delivered on every model call and
+recorded every turn; the gate list is labelled as the gate list; mutation —
+remove the delivered count, and the tests fail; and ONE traced turn shows
+*"n of 12"*.
+
+---
+
 ## Step 6.50 — The conformance pass — the tree against the framework's own documentation
 
 | | |
@@ -6190,7 +6235,9 @@ was invisible — nothing accumulated, so nothing was expected to move.
 > in another, with nothing that disagrees.
 
 **Done when:** the page's field list is the v2 set; the counter counts that
-set; Define's 5W2H fields have a home **or are recorded as deliberately absent
+set — **and the Define step it shows is `define_progress` (6.57), the same
+function the coach's prompt, the reply's `progress` and `field_index` use;
+the bar never counts again**; Define's 5W2H fields have a home **or are recorded as deliberately absent
 with the reason**; a `manual-UI` pass shows the bar advancing turn by turn; and
 **renaming one field back makes the count wrong** — the mutation that proves
 the test reads the list rather than a constant.
@@ -6360,9 +6407,9 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **DONE** | 54 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.20**, **6.34**, **6.33**, **6.35**, **6.42**, **6.49**, **6.46**, **6.52**, **6.54**, **6.48**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.38**, **6.41** |
 | **BUILDING NOW** | 1 | **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 34 | **6.43**, **10.3**, **6.51**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.47**, **10.4**, **6.50**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
+| **QUEUED** | 35 | **6.43**, **10.3**, **6.51**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.47**, **10.4**, **6.50**, **8.2**, **6.57**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
-*97 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-24.*
+*98 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-25.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -6693,6 +6740,7 @@ restate, which is the opposite of what the board is for.
 | 472 | **Commit 6.49** | The checks card — twelve capability rows get the check that proves them |  | OPS | SHARED | Twelve rows of the register are claims: nobody can say whether a checkpoint is written per node, or whether a Define turn leaves a readable trace. |
 | 474 | **Commit 6.52** | A turn always answers inside its budget |  | COACH | SHARED | A Belt who asks an open question gets a 500 after 45 seconds, because the node's own budget starts late and the knowledge lookups hold the event loop so no timer can fire. |
 | 476 | **Commit 6.54** | The clients are built once, at startup, before any Belt waits for them |  | COACH | SHARED | The first open question after a restart spends ~20 s building clients the app could have built before it opened, and the Belt gets the out-of-time answer. |
+| 481 | **Commit 6.57** | The Belt's step is computed, not counted by the model |  | COACH | SHARED | The Belt is told they are on step 13 of 13 of a twelve-step walk, because the only count the coach was given was the gate's. |
 | 477 | **Commit 10.4** | The error contract — a failed turn is readable |  | UI | SHARED | A failed turn reaches the Belt as a stack fragment in a three-second toast, with no way to tell a timeout from a rate limit. |
 | 470 | **Commit 8.1** | Structured errors |  | OPS | SHARED | Failures arrive as free text, so the circuit breaker and the fallback chain have nothing to read to tell retry from stop. |
 | 480 | **Commit 8.2** | Timeouts + compensating actions |  | OPS | SHARED | A node failing mid-turn leaves its partial writes in place, so the next turn resumes from a state nobody wrote deliberately. |
@@ -6969,6 +7017,7 @@ home.**
 | L3 |  | — | **6.46** | The coaching script is guaranteed to reach the model, or its absence is recorded | ✅ | `backend.tests.test_coaching_script::test_step_log_records_that_the_script_was_delivered` | §32, §19.2, S-C12 |
 | L3 |  | — | **6.47** | Durable writes inside a node, and persistence loss is never silent | ☐ | — | §10, §16, §47, S-C06 |
 | L3 |  | — | **6.48** | A captured value carries its declared type | ☐ | — | §7, §20, §41, S-C05, S-C33 |
+| L3 |  | — | **6.57** | The Belt's step is computed, not counted by the model | ✅ | `backend.tests.test_define_position::test_the_reply_carries_the_computed_step_not_the_models_count` | §43.3, §39.1.2, §39.1.9, §19.1 |
 | L3 |  | PHASE | — | **the typing law is enforced by schema, not by convention** — all five `{Phase}Output` declare captured fields as `str` or `dict`, and `test_gate_documents.py` pins both the `dict` fields and their Tier-1 placement | ✅ | — | §7 |
 | L3 |  | PHASE | **7.3** | five nodes, identical node-name sets across all five phases, re-run by `verify_built.py`'s *phase subgraph nodes* check. ⚠ `gate_review` is a pass-through until 7.3 | ✅ | — | §13 |
 | L3 |  | PHASE | — | every node is `async def` since 2.5 — all five `orchestrate_*`, all five `validate_*`, `escalate`, and all eleven route handlers | ✅ | — | §14 |
@@ -7346,6 +7395,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-94** | **OPEN QUESTIONS SEARCH AN EMPTY CASE INDEX.** `improve_case_index` holds **0 documents** (read 2026-09-24), yet `rag_lookup_case_history` is bound on every Define turn and the coach calls it on almost every open question: trace `01a0d366…` (first turn in process: yes) — 6 queries, 0 hits each, *"No similar improvement cases found"*. A whole lookup (~3–5 s warm, the variant model call included) spent on a search that cannot return anything. The G-85 class: a mechanism wired to an empty source. **Proposed: step 6.55** — not built: stop offering the lookup while the index is empty (or say so to the coach), and give the index a writer, a sample case and tests (brief item 9) | §23, §29.2, G-85 | **proposed 6.55** |
 | **G-97** | **ONE EVIDENCE FILE IS IN THE INDEX TWICE.** `improve_evidence_index` holds 2 documents for 0E5, both `kind=evidence`: the same `define_baseline_weekly.csv` uploaded 22 s apart (2026-09-15 17:10:40 and 17:11:02), the SAME content digest (`bb4e2a7b34…`). The case record points at one; the other is an orphan a search can still return | §23.2, §29.1 | **decide at 6.43 Part A** |
 | **G-98** | **THE EVIDENCE UPLOAD'S INTERPRETATION IS UNAVAILABLE.** Both evidence documents for 0E5 carry *"[!] INTERPRETATION UNAVAILABLE"* as their description: the upload's interpretation step did not produce one, and the index holds that placeholder where a summary should be | §29.1 | **decide at 6.43 Part A** |
+| **G-99** | **LAYER 2a REJECTS A STOCK-TAKING SUMMARY AS "PARROTING" AT THE TEACHING STEP.** 2026-09-24 15:05, 0E5, trace `01a0d3f3-6f67-7100-b04d-214e7fe1f720` (first turn in process: yes): the Belt asked where the charter stands; the coach summarised the charter — values the Belt gave on EARLIER turns — and named what to push on. Coherence (with G-96's step context: position 5, `metric_definitions`, explain/show/ask — the planner's focus) answered *"primarily a restatement of the Belt's words … constitutes parroting"*, degraded the turn and stood the grader down. **G-96's record worked** — the reason is in `step_log` — but row 13 is red on any such turn. The ruling's definition (a restatement with no confirmation question and nothing added) arguably fits a summary; whether a stock-take is a step of its own is a founder question | §19.7, §43.3, S-C13 | **unscheduled — founder** |
 
 ### 66.3 Group C — schemas named but never defined
 
@@ -7698,6 +7748,7 @@ card is checked against when it starts.
 > | **33** | 🟢 | On the failed live turn: parent steps 62→63 contiguous with 61 before it; the subgraph wrote −1, 0, 1 (recording `planner`); the executor wrote −1…9. **Every node that finished has a checkpoint**, and `define_phase`, which raised, is correctly owed none. Also green on the last completed turn |
 > | **35** | 🟢 | The failed live turn still left a trace: 44 runs, two model calls at the `model` node with their bound tools listed, eight middleware hooks, and both tools the turn called (`load_evidence_series`, `rag_lookup_methodology`) as tool runs **UNPROVEN SINCE 2026-09-24 ~13:10 UTC (G-95):** LangSmith refuses every trace (429, monthly quota). The register keeps the row green by founder ruling; its check SKIPS — not a pass — for turns after the refusal began, until one live turn is traced again **PROVEN AGAIN 2026-09-24 14:50 UTC** on the G-96 live turn, trace `01a0d3e5-6246-7de3-b768-2ee767a5130c` (first turn in process: yes): 39 runs, the model call with its tools, seven middleware hooks, and `load_evidence_series`, the one tool the turn called. The G-95 skip is removed from the check |
 > | **3** | 🟢 since 6.46 | The script is in the system message on every model call and each turn records it: 0E5, 2026-09-24 13:13 (**first turn in process: yes**) — `coaching_script` delivered on both model calls, version 1.2, sha256 `a5aa86347681c4fd`; 13:14 (first turn in process: no) — delivered on its one call. Row 3's check reads the latest completed coaching turn and passes. **No trace ids: LangSmith refused both (G-95)** |
+> | **28 · since 6.57** | 🔴 live-turn | The count is COMPUTED: trace `01a0d729-1b33-7591-99f9-e3391f0da1e5` (2026-09-25 06:03, first turn in process: yes) — `step_log` `define_position` 12 of 12, the stored reply's `progress` *"Define · Step 12 of 12"*; the model's own was *"Define · 13 of 13"* (`reply_matches: false`), overwritten. Whether the coach STATES it in the prose the Belt reads is the row's live-turn question — founder marks |
 > | **26–32** | 🔴 live-turn | **Observed on the two 6.46 turns (13:13 first in process: yes; 13:14: no), from the checkpoints' STRUCTURED reply — no trace ids (G-95), so this does not meet the evidence standard and the rows stay red.** 26 §43.1: no calculation ran — not observable. 27 §43.2: an `example` WAS given before the `prompt` in both turns — but invented by the coach (*"Delivery delays occur in 15% of shipments…"*), not the script's worked example; nothing was captured from it. 28 §43.3: `progress` read *"Define · 13 of 13"* — a count over the gate's 13 fields, not *"Step n of 12"*. 29 §43.4: no missing-field list shown (`check_gate_status` does not exist). 30 §43.5: own voice, no link ✓. 31 §43.6: 13:13 critiqued the stored problem statement and named what to refine ✓; 13:14 accepted the Belt's business case and asked them to confirm its impact. 32 §43.7: the metric's meaning was not addressed |
 > | 1, 5, 6, 8, 11, 17 | 🟢 | Read from the case record, the registry route, the evidence index and the recorded 2b verdict of 2026-09-15 |
 

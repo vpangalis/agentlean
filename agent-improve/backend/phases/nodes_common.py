@@ -80,7 +80,7 @@ from backend.knowledge.computation import (
     COMPUTATION_TOOLS,
     COMPUTATION_TOOLS_BY_PHASE,
 )
-from backend.phases.define.schema import DEFINE_FIELD_ORDER
+from backend.phases.define.schema import DEFINE_FIELD_ORDER, define_progress
 from backend.knowledge.tools import (
     RAG_LOOKUP_TOOLS,
     UNIVERSAL_TOOLS,
@@ -1240,6 +1240,31 @@ def _field_log_entries(
     return entries
 
 
+#: How the installed LangChain renders the structured response into the
+#: conversation (`langchain/agents/factory.py`: f"Returning structured
+#: response: {structured_response}"). Matched EXACTLY before a rewrite, so a
+#: framework that renders it differently leaves the message untouched.
+_STRUCTURED_PREFIX = "Returning structured response: "
+
+
+def _with_progress(messages: list, reply: CoachingResponse, label: str) -> list:
+    """Set `reply.progress` to the computed step, and re-render the one
+    structured-response message that carried the model's count (6.57).
+
+    A new `ToolMessage` with the same id, name and `tool_call_id`, so the
+    tool-call pairing the next model call depends on is unchanged. Plain
+    string content, which §21 allows for a message this code constructs.
+    """
+    before = f"{_STRUCTURED_PREFIX}{reply}"
+    reply.progress = label
+    after = f"{_STRUCTURED_PREFIX}{reply}"
+    return [
+        ToolMessage(content=after, tool_call_id=m.tool_call_id, name=m.name, id=m.id)
+        if isinstance(m, ToolMessage) and m.content == before else m
+        for m in messages
+    ]
+
+
 def _with_coaching_text(messages: list, reply: CoachingResponse) -> list:
     """Guarantee the Belt-facing prose is present in `messages`.
 
@@ -1348,16 +1373,16 @@ def _advance_field_index(phase: str, artifacts: dict) -> int | None:
     The index is the first field NOT yet captured, so it names what to work on
     next; once every field is in, it rests on the LAST field rather than
     running off the end, because there is no next one to point at.
+
+    **6.57 — it is `define_position` minus one**, the same computation the
+    Belt's "Step n of 12" is delivered from, so the index the planner walks
+    and the step the Belt is told cannot disagree. That moves one case:
+    position 5 now waits for `metric_definitions` as well as
+    `baseline_estimate` (§39.1.9).
     """
-    if phase != "define":
+    if phase != "define" or not DEFINE_FIELD_ORDER:
         return None
-    order = DEFINE_FIELD_ORDER
-    if not order:
-        return None
-    for i, field in enumerate(order):
-        if not str(artifacts.get(field) or "").strip():
-            return i
-    return len(order) - 1
+    return int(define_progress(artifacts)["position"]) - 1
 
 
 def _attach_diagram(messages: list) -> None:
@@ -1560,6 +1585,20 @@ async def executor(
     # `messages` reduces with `operator.add`, so returning more than the tail
     # would duplicate the exchange on every turn.
     new_messages = produced[len(state.get("messages") or []):]
+
+    # ── 6.57 — the Belt's step is the COMPUTED one, in the reply the turn keeps
+    # Delivery alone did not hold: on 0E5 at 15:05 (trace 01a0d3f3…) the step
+    # sat at the top of the model's input and the model still wrote "13 of
+    # 13" — its own earlier replies put "of 13" in that input 55 times. So the
+    # reply's `progress` is set from the same function the injection block
+    # delivered, and the structured-response message the NEXT turn reads is
+    # re-rendered with it. What the model wrote is kept, in step_log below.
+    define_step = (define_progress(dict(state.get("artifacts") or {}))
+                   if phase == "define" else None)
+    model_progress = reply.progress if reply is not None else None
+    if define_step is not None and reply is not None \
+            and reply.progress != define_step["label"]:
+        new_messages = _with_progress(new_messages, reply, define_step["label"])
 
     captured: dict[str, Any] = {}
     citations: list[dict] = list(state.get("citations") or [])
@@ -1778,6 +1817,15 @@ async def executor(
             _step(phase, turn_count, "coaching_script",
                   **(script_log[0] if script_log else script_record(phase)),
                   delivered=bool(script_log), model_calls=len(script_log)),
+            # 6.57 — the step the Belt was told this turn, from the same
+            # artifacts the injection block composed it from, beside what the
+            # model wrote in `progress`. A model that counted for itself is on
+            # the record, not only on the screen.
+            *([_step(phase, turn_count, "define_position", **define_step,
+                     reply_progress=model_progress,
+                     reply_matches=model_progress == define_step["label"],
+                     progress_written=reply.progress if reply else None)]
+              if define_step is not None else []),
         ],
     }
 
