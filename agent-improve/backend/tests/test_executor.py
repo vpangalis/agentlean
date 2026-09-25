@@ -36,6 +36,7 @@ import pytest
 from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
+from backend.tests.conftest import store_plan
 from backend.core.substate import CoachingPlan, CoachingResponse, PhaseState
 from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE
 from backend.knowledge.tools import RAG_LOOKUP_TOOLS, UNIVERSAL_TOOLS
@@ -49,11 +50,11 @@ def _state(**overrides: Any) -> PhaseState:
         "messages": [HumanMessage(content="hello")], "history": [],
         "phase_context": "",
         "coaching_plan": CoachingPlan(
-            focus_field="business_case", next_action="ask",
+            focus_field="business_case", status="untaught", move="teach",
             retrieval_strategy="single_hop", retrieval_hops=[],
         ),
         "field_index": 0, "draft": {}, "artifacts": {},
-        "step_log": [], "field_log": [],
+        "step_log": [], "field_log": [], "field_status": {},
         "belt_edits": {}, "turn_count": 0, "final": {},
         "gate_attempts": 0, "validator_feedback": [], "rejection_feedback": [],
         "citations": [], "uploads": [], "asks": [], "hop_results": [],
@@ -239,11 +240,12 @@ def test_captured_fields_land_in_artifacts_under_v2_names(
         ],
     )
     out = _run(_c.executor(phase, _state(current_phase=phase,
-                                         artifacts={"already": "here"})))
+                                         artifacts={"already": "here"},
+                                         coaching_plan=store_plan(stub_coach.reply))))
     assert out["artifacts"]["business_case"] == "£120k rework a year"
     assert out["artifacts"]["already"] == "here", "the merge dropped prior fields"
     assert out["draft"] == {"business_case": "£120k rework a year"}, (
-        "`draft` is THIS turn's extraction, `artifacts` the accumulation"
+        "`draft` is what THIS turn stored, `artifacts` the accumulation"
     )
 
 
@@ -264,7 +266,7 @@ def test_a_capture_without_a_field_name_is_dropped_not_guessed(stub_coach) -> No
                                               "function": "finance"}]},
         ],
     )
-    out = _run(_c.executor("define", _state()))
+    out = _run(_c.executor("define", _state(coaching_plan=store_plan(stub_coach.reply))))
     assert out["artifacts"] == {"team": [{"name": "Ana", "role": "lead",
                                           "function": "finance"}]}
 
@@ -285,7 +287,8 @@ def test_a_reference_dict_value_survives_as_a_dict(stub_coach) -> None:
         fields_captured=[{"field_name": "causal_hypothesis",
                           "value": hypothesis, "source": "belt"}],
     )
-    out = _run(_c.executor("analyse", _state(current_phase="analyse")))
+    out = _run(_c.executor("analyse", _state(current_phase="analyse",
+                                             coaching_plan=store_plan(stub_coach.reply))))
     assert out["artifacts"]["causal_hypothesis"] == hypothesis
 
 
@@ -334,7 +337,8 @@ def test_the_executor_returns_no_command(stub_coach) -> None:
     # `field_log` joins at 6.33 — the field change log (§56, 2026-09-21).
     assert set(out) <= {"field_index", "messages", "draft", "artifacts", "citations",
                         "uploads",
-                        "turn_count", "step_log", "field_log"}
+                        "turn_count", "step_log", "field_log",
+                        "field_status"}   # 6.61 (R5): the statuses, stored at turn end
     assert "case_id" not in out and "current_phase" not in out, (
         "S-C02 B9 — both are read-only inside the subgraph"
     )
@@ -524,12 +528,38 @@ def test_hitting_the_backstop_gives_the_belt_a_partial_answer(
     stub_coach.raise_recursion = True
     out = _run(_c.executor("define", _state()))
 
+    # 6.61 (item 1) — the backstop text is never a coaching reply: the move
+    # was decided in code, so code writes its reply (containment), and the
+    # use is marked a DEFECT on the trail and on the move record.
     reply = [m for m in out["messages"] if isinstance(m, AIMessage)][-1]
-    assert "run out of room" in str(reply.content)
-    assert "nothing you have told me is lost" in str(reply.content).lower()
+    assert "run out of room" not in str(reply.content)
+    assert "why is *your* project worth doing?" in str(reply.content), "the teach move's own ask"
+    assert out["step_log"][0]["fallback_used"] is True
+    assert reply.additional_kwargs["coaching_move"]["fallback"] is True
     assert out["turn_count"] == 1, "the turn must still close"
     assert out["step_log"][0]["status"] == "partial_cap_reached"
     assert out["artifacts"] == {}, "no capture from a turn that did not finish"
+
+
+
+def test_a_change_click_is_answered_in_code_with_the_belts_exact_words(
+        stub_coach) -> None:
+    """Founder ruling on 6.61's review: a Change click is answered IN CODE —
+    the Belt's exact current words, then "What would you like to change?".
+    Live, the model asked the question and left the words out, 3 of 3 runs;
+    so the coach is not called at all, and this is not a fallback."""
+    from backend.phases import moves
+    words = ("Late payments cost us about £62,000 last year, and three medical "
+             "suppliers put us on stop twice.")
+    plan = CoachingPlan(focus_field="business_case", status="answered", move="challenge",
+                        answer=words, messages=1, reason=moves.CHANGE_REASON)
+    out = _run(_c.executor("define", _state(
+        coaching_plan=plan, messages=[HumanMessage(content="Change")])))
+    reply = [m for m in out["messages"] if isinstance(m, AIMessage)][-1]
+    assert reply.text == words + "\n\nWhat would you like to change?"
+    assert stub_coach.invocations == [], "no model call"
+    assert out["step_log"][0]["fallback_used"] is False
+    assert out["artifacts"] == {} and out["draft"] == {}, "nothing is stored"
 
 
 def test_the_cap_message_carries_no_jargon(stub_coach) -> None:
@@ -629,7 +659,7 @@ def test_the_define_gate_opens_on_v2_captured_fields(stub_coach) -> None:
             for name in DEFINE_REQUIRED_FOR_GATE_FIELDS
         ],
     )
-    out = _run(_c.executor("define", _state()))
+    out = _run(_c.executor("define", _state(coaching_plan=store_plan(stub_coach.reply))))
 
     missing = [f for f in DEFINE_REQUIRED_FOR_GATE_FIELDS
                if f not in out["artifacts"]]
@@ -733,10 +763,8 @@ def test_the_planners_instruction_reaches_the_model(
     state = _state(
         uploads=[_unread_upload()],
         coaching_plan=CoachingPlan(
-            focus_field="business_case",
-            next_action=directive,
-            retrieval_strategy="single_hop",
-            retrieval_hops=[],
+            focus_field="business_case", status="untaught", move="teach",
+            retrieval_strategy="single_hop", retrieval_hops=[],
         ),
     )
 
@@ -918,8 +946,10 @@ def test_the_planner_and_the_executor_route_to_the_same_upload(
     state = _state(uploads=[upload])
 
     command = _run(_c.planner("define", state))
-    planned = command.update.get("coaching_plan")
-    assert "uploads/IMPR-TEST-618/complaints.csv" in planned.next_action, (
+    # 6.61 — the plan carries no free-text instruction any more; the planner
+    # routes by passing the asks it computed, and the executor dispatches.
+    routed = _c._unconsumed_for_open_ask(state, command.update.get("asks"))
+    assert routed and routed["blob_path"] == "uploads/IMPR-TEST-618/complaints.csv", (
         "the planner did not route to the unread upload — the premise of this "
         "test is gone, not the conclusion"
     )

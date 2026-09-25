@@ -31,12 +31,55 @@ from langgraph.managed import RemainingSteps
 from pydantic import BaseModel, Field, model_validator
 
 
-class CoachingPlan(BaseModel):
-    """The planner's structured output — procedure step 6.1.
+class SufficiencyJudgment(BaseModel):
+    """THE PLANNER MODEL'S ONE JUDGMENT — step 6.61 (§17 v1.75, S-C04 v1.77).
 
-    Canonical definition: **§58.4 — S-C04**, which carries a *rebuild test*, so
-    the four fields and their types below are transcribed from that entry rather
-    than designed here. Architecture §17 (the planner/executor contract), §6.
+    Founder ruling 2026-09-25: *"An LLM is used only to judge whether an answer
+    is sufficient, and to write the coach's words."* This is the whole of what
+    the planner's model returns. Everything else in `CoachingPlan` — the field,
+    its status, the move — is code's (`phases/moves.py`).
+
+    **Three verdicts, and the third is not a fourth judgment.** The question is
+    one: does the Belt's latest message make a sufficient answer to this field?
+    `not_an_answer` is its honest third value — the message asks a question or
+    talks about something else, so there is no answer to call sufficient or
+    not ("where do we stand?").
+
+    The `description=` on each field is what the model reads (§31).
+    """
+
+    verdict: Literal["sufficient", "insufficient", "not_an_answer"] = Field(
+        description=(
+            "'sufficient' — the answer so far, with the Belt's latest message, "
+            "gives everything the field needs. 'insufficient' — it answers the "
+            "field but something the field needs is missing or vague. "
+            "'not_an_answer' — the latest message does not answer or correct this "
+            "field at all: it asks a question, asks where things stand, or is "
+            "about something else."
+        ),
+    )
+    reason: str = Field(
+        description=(
+            "One sentence. For 'insufficient', name exactly what is missing. For "
+            "'sufficient', what makes it complete. For 'not_an_answer', what the "
+            "message is instead."
+        ),
+    )
+
+
+class CoachingPlan(BaseModel):
+    """The plan for one turn — procedure step 6.1, reshaped at step 6.61.
+
+    Canonical definition: **§58.4 — S-C04**, as amended at v1.77. Architecture
+    §17 (the planner/executor contract), §6.
+
+    **6.61 — BUILT BY CODE, not returned by a model.** Until 6.61 this was the
+    planner model's structured output and `next_action` was its free-text
+    choice of move. The ruling (v1.75) took the move away from every model:
+    `phases/moves.decide` derives `focus_field`, `status` and `move` from the
+    field's status, and the model contributes `judgment` alone
+    (`SufficiencyJudgment`) — and only when the Belt has answered.
+    `next_action` is RETIRED; `move` replaces it.
 
     **A Pydantic model rather than a dict, specifically so `retrieval_strategy`
     can carry a `Literal`** (S-C04): that field selects the executor's entire
@@ -51,38 +94,88 @@ class CoachingPlan(BaseModel):
     **Read by attribute, never by subscript** (S-C02 B7):
     `plan.retrieval_hops`, not `plan["retrieval_hops"]`.
 
-    The `description=` on each field is not commentary — it is what the model
-    reads when the planner calls it through structured output, the same way a
-    tool's `args_schema` descriptions are its interface (§31).
+    **No model reads these descriptions any more** — since 6.61 no model
+    returns this class. The descriptions the planner model reads are
+    `SufficiencyJudgment`'s.
     """
 
-    focus_field: str = Field(
+    focus_field: Optional[str] = Field(
         description=(
-            "The single field this turn coaches on, named exactly as it appears "
-            "in the phase's coached field order. The coach may not choose a "
-            "different one."
+            "The field this turn's reply works on — for a store-and-advance, "
+            "the NEXT field, which the same reply teaches. `None` once every "
+            "position is confirmed."
         ),
     )
-    next_action: str = Field(
+    status: Literal["not taught", "asked", "answered", "confirmed"] = Field(
+        description=("The current field's STORED status at the start of the turn "
+                     "(R5: PhaseState.field_status), before this turn's change."),
+    )
+    move: Literal["teach", "challenge", "read_back", "store_and_advance", "respond"] = Field(
+        description="THIS TURN'S MOVE, decided in code from the status (moves.decide).",
+    )
+    judgment: Optional[SufficiencyJudgment] = Field(
+        default=None,
+        description="The planner model's one judgment; `None` when none was needed.",
+    )
+    answer: str = Field(
+        default="",
+        description="The Belt's own words for the field so far, across messages.",
+    )
+    messages: int = Field(
+        default=0, description="How many Belt messages `answer` spans.",
+    )
+    pending: Optional[dict] = Field(
+        default=None,
         description=(
-            "What the coach should do with that field this turn — ask for it, "
-            "challenge what the Belt gave, show a worked example, or run a "
-            "computation. One turn's move, in a short phrase."
+            "The read-back awaiting the Belt's confirmation — `field`, `fields`, "
+            "`belt_words`, `messages`, and after the read-back `store`: what a "
+            "confirmation stores. NOTHING in it is stored until confirmed."
         ),
+    )
+    store: dict[str, Any] = Field(
+        default_factory=dict,
+        description="What the Belt confirmed THIS turn — the only values written to `artifacts`.",
+    )
+    stored_field: Optional[str] = Field(
+        default=None, description="The position the Belt confirmed this turn.",
+    )
+    statuses: dict[str, str] = Field(
+        default_factory=dict,
+        description="Every position's status AFTER this turn's change — what section 3 shows.",
+    )
+    field_status: dict[str, dict[str, Any]] = Field(
+        default_factory=dict,
+        description=("The after-change `PhaseState.field_status` the executor stores at "
+                     "turn end (R5: only code changes a status, at turn end)."),
+    )
+    reason: str = Field(
+        default="",
+        description="What the move answers — the judgment's reason, or a click's (Change).",
     )
     retrieval_strategy: Literal["single_hop", "multi_hop"] = Field(
+        default="single_hop",
         description=(
-            "Which retrieval path the executor takes. 'single_hop' is one "
-            "lookup; 'multi_hop' is a planned chain where each question depends "
-            "on the previous answer. Not restricted to Analyse."
+            "Which retrieval path the executor takes. Since 6.61 the phase's "
+            "default (§28), set in code — no model chooses it."
         ),
     )
     retrieval_hops: list[str] = Field(
+        default_factory=list,
         description=(
             "Hop question templates, in order, for a planned multi-hop turn. "
-            "Empty for single-hop."
+            "Empty since 6.61: no model writes them."
         ),
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _read_pre_r5_status(cls, data: Any) -> Any:
+        """A plan checkpointed before ruling R5 carries "untaught" — read it as
+        "not taught", or every old checkpoint fails to load (found by row 3's
+        check reading IMPR-2026-7F1)."""
+        if isinstance(data, dict) and data.get("status") == "untaught":
+            return {**data, "status": "not taught"}
+        return data
 
     @model_validator(mode="after")
     def _single_hop_carries_no_hops(self) -> CoachingPlan:
@@ -221,11 +314,13 @@ class CoachingResponse(BaseModel):
     fields_captured: list[dict] = Field(
         default_factory=list,
         description=(
-            "Values the BELT supplied this turn, as "
-            "[{field_name, value, source}]. Name each field exactly as this "
-            "phase's field list spells it. Empty when the Belt supplied "
-            "nothing new — which is the common case on a teaching turn. "
-            "Never include a value the Belt did not state.\n"
+            "The value you READ BACK this turn, as "
+            "[{field_name, value, source}] — filled ONLY when THIS TURN'S MOVE "
+            "is READ BACK, and then exactly the value your message reads back "
+            "to the Belt for confirmation. It is held as PENDING and stored "
+            "only if the Belt confirms it; on every other move leave it "
+            "empty. Name each field exactly as this phase's field list "
+            "spells it. Never include a value the Belt did not state.\n"
             "\n"
             "SHAPE OF `value`. For almost every field it is a plain string — "
             "the Belt's own words, kept as they said them. NINE FIELDS ARE "
@@ -449,8 +544,9 @@ def merge_field_log(
 
 
 class PhaseState(TypedDict):
-    """Twenty-two author-populated fields — two identity, three plumbing,
-    seventeen content — plus one engine-managed value: twenty-three declared.
+    """Twenty-three author-populated fields — two identity, three plumbing,
+    eighteen content — plus one engine-managed value: twenty-four declared.
+    (`field_status` joined at step 6.61, §56 amendment v1.77.)
 
     **Any new field requires a §56 amendment**, whatever category it is
     placed in. `test_state.py` asserts the count and the names.
@@ -531,6 +627,17 @@ class PhaseState(TypedDict):
     # on the key, so a replayed turn overwrites its own entry instead of
     # logging the same change twice.
     field_log:          Annotated[list[dict[str, Any]], merge_field_log]
+
+    # WHERE EACH FIELD STANDS — step 6.61, founder ruling R5 2026-09-25, §56
+    # amendment v1.77. Per coached position: `status` — one of the four,
+    # "not taught" -> "asked" -> "answered" -> "confirmed" — plus the Belt's
+    # words so far (`answer`, `messages`) and, while a read-back awaits the
+    # Belt, `pending` (the value in the Belt's words, and what a yes stores).
+    # **Stored, never derived from a reply.** Only code changes it, and only
+    # at turn end (the executor writes the plan's after-change map). Seeded by
+    # the input mapper from the case record, exactly as `artifacts` is, so it
+    # crosses the turn boundary — the subgraph's own state does not.
+    field_status:       dict[str, dict[str, Any]]
 
     # The Belt's corrections at gate step 5. NOT the same thing as
     # `validator_feedback` and must never be merged with it: two actors, two
@@ -639,7 +746,7 @@ PHASE_STATE_IDENTITY_FIELDS = ("case_id", "current_phase")
 PHASE_STATE_PLUMBING_FIELDS = ("messages", "history", "phase_context")
 PHASE_STATE_CONTENT_FIELDS = (
     "coaching_plan", "field_index", "draft", "artifacts", "step_log",
-    "field_log",
+    "field_log", "field_status",
     "belt_edits", "turn_count", "final", "gate_attempts",
     "validator_feedback", "rejection_feedback", "citations", "uploads",
     "asks", "hop_results", "synthesis_output",
@@ -663,6 +770,7 @@ PHASE_STATE_READ_ONLY_FIELDS = PHASE_STATE_IDENTITY_FIELDS
 
 __all__ = [
     "CoachingPlan",
+    "SufficiencyJudgment",
     "CoachingResponse",
     "CONTRADICTION_FLAG_KEYS",
     "FIELD_LOG_ENTRY_KEYS",

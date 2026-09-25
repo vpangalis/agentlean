@@ -7,11 +7,11 @@
 
 | | |
 |---|---|
-| **Headline** | 14 of 35 capabilities proven · working on: 6.61 — The coaching move is decided in code |
-| **Working on** | step **6.61** — The coaching move is decided in code |
-| **Define finishes (7.9)** | 2026-10-29 · conditional on G-23, G-40 (F1) · rescaled ×0.73 from 4 landed step(s) |
-| **Steps** | 4 proven · 3 wired · 3 tooling · 47 built, not wired · 10 waiting · 42 not built |
-| **ARCHITECTURE.md** | v1.76 |
+| **Headline** | 14 of 35 capabilities proven · working on: 6.59 — The coherence judge rules on the Belt's words, not the coach's |
+| **Working on** | step **6.59** — The coherence judge rules on the Belt's words, not the coach's |
+| **Define finishes (7.9)** | 2026-10-26 · conditional on G-23, G-40 (F1) · rescaled ×0.73 from 4 landed step(s) |
+| **Steps** | 4 proven · 4 wired · 3 tooling · 47 built, not wired · 10 waiting · 41 not built |
+| **ARCHITECTURE.md** | v1.77 |
 | **CLAUDE.md** | v2.2.44 |
 | **Block regenerated** | 2026-09-25 |
 
@@ -28,7 +28,7 @@ graph through the real route) or PROVEN (its capability row is green).*
 | **1** | **6.63** — The control board is a true picture of the tree | tooling |
 | **2** | **6.64** — The board's grouped views are restored, derived | tooling |
 | **3** | **6.65** — Speed without losing quality | tooling |
-| **4** | **6.61** — The coaching move is decided in code | unbuilt |
+| **4** | **6.61** — The coaching move is decided in code | wired |
 | **5** | **6.59** — The coherence judge rules on the Belt's words, not the coach's | unbuilt |
 | **6** | **6.58** — A percent convention for the computation tools | unbuilt |
 | **7** | **6.56** — The coaching proof: positions 1–8 of Define, one traced run | blocked |

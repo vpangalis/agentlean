@@ -60,6 +60,7 @@ from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import SystemMessage
 from langchain_core.tools import BaseTool, tool
 
+from backend.core.prompts import SECTION_SCRIPT, SECTION_STATE
 from backend.phases.mappers_common import PHASE_ORDER
 
 logger = logging.getLogger(__name__)
@@ -262,6 +263,77 @@ def script_step(phase: str, captured: list[str],
     return {"position": position, "field": field, "step": step, "block": block}
 
 
+_BLOCK_HEAD = re.compile(r"^\*\*\[(?P<head>[^\]]+)\]\*\*[ \t]*$", re.M)
+
+
+@lru_cache(maxsize=len(PHASE_ORDER))
+def _script_blocks(phase: str) -> tuple[dict[str, str], str, str]:
+    """`({field: its blocks}, opening, closing)` from the phase's coaching script.
+
+    A numbered block `[n · field · …]` is that field's. An unnumbered block
+    that names `field n` belongs to that field (METRIC LITERACY, field 5); a
+    `TOOL` block to the numbered field before it (the savings calculation
+    runs on the target). OPENING and the closing block are kept apart.
+    """
+    body = instructions(phase)
+    heads = list(_BLOCK_HEAD.finditer(body))
+    numbered: dict[int, str] = {}
+    for m in heads:
+        parts = [p.strip() for p in m["head"].split("·")]
+        if parts[0].isdigit() and len(parts) > 1:
+            numbered[int(parts[0])] = parts[1]
+    fields: dict[str, list[str]] = {}
+    opening = closing = ""
+    last: Optional[str] = None
+    for i, m in enumerate(heads):
+        end = heads[i + 1].start() if i + 1 < len(heads) else len(body)
+        block = body[m.start():end].split("\n---\n")[0].rstrip()
+        head = m["head"]
+        parts = [p.strip() for p in head.split("·")]
+        named = re.search(r"\bfield (\d+)\b", head)
+        if head.startswith("OPENING"):
+            opening = block
+        elif parts[0].isdigit():
+            last = numbered[int(parts[0])]
+            fields.setdefault(last, []).append(block)
+        elif named and int(named.group(1)) in numbered:
+            fields.setdefault(numbered[int(named.group(1))], []).insert(0, block)
+        elif head.startswith("TOOL") and last:
+            fields.setdefault(last, []).append(block)
+        else:
+            closing = block
+    return {f: "\n\n".join(b) for f, b in fields.items()}, opening, closing
+
+
+def script_section(phase: str, field: Optional[str], opening: bool) -> str:
+    """Section 2 of the coach's input — step 6.61 (founder, item 4): the
+    opening on the phase's first turn only, plus the CURRENT field's script
+    block and nothing else. With no current field (every one confirmed), the
+    closing block. A phase whose script carries no block for the field gets
+    its whole script rather than nothing."""
+    blocks, open_block, closing = _script_blocks(phase)
+    if field is None:
+        chosen = closing
+    else:
+        chosen = blocks.get(_CAPTURED_INSIDE.get(field, field), "")
+        if not chosen:
+            return instructions(phase)
+    return "\n\n".join(b for b in ((open_block if opening else ""), chosen) if b)
+
+
+def field_needs(phase: str, field: str) -> str:
+    """What the phase script says a field needs — its block without the worked
+    example (step 6.61). The planner's one judgment reads this, so "sufficient"
+    is judged against the script and never against a model's own notion; the
+    example is left out so the judge measures the Belt's answer against the
+    field's requirements, not against one illustration of them."""
+    if phase not in SKILL_DIRS:
+        return ""
+    _position, block = _field_blocks(phase).get(_CAPTURED_INSIDE.get(field, field), (None, ""))
+    return "\n".join(line for line in block.splitlines()
+                     if not line.lstrip("> ").startswith("**Show"))
+
+
 def level_1_catalogue() -> str:
     """All five descriptions — what the coach sees before loading anything."""
     return "\n".join(
@@ -281,6 +353,8 @@ class DMAICSkillsMiddleware(AgentMiddleware):
         self,
         phase: str,
         on_delivery: Optional[Callable[[dict[str, Any]], None]] = None,
+        focus_field: Optional[str] = None,
+        opening: bool = False,
     ) -> None:
         super().__init__()
         if phase not in SKILL_DIRS:
@@ -294,6 +368,10 @@ class DMAICSkillsMiddleware(AgentMiddleware):
         #: 6.46 — each delivery of the script is handed to the node, which owns
         #: `step_log`; the middleware writes no state itself.
         self.on_delivery = on_delivery
+        #: 6.61 (item 4) — section 2 carries the CURRENT field's script block
+        #: and, on the phase's first turn only, the opening.
+        self.focus_field = focus_field
+        self.opening = opening
         #: **The framework's own registration point.** Not
         #: `create_agent(tools=...)` — see G-33 in the module docstring.
         self.tools: list[BaseTool] = [self._make_load_skill()]
@@ -391,15 +469,29 @@ class DMAICSkillsMiddleware(AgentMiddleware):
         # system-message block is never a tool result, so nothing enters the
         # conversation and the history does not grow by 7.6k tokens a turn.
         # The catalogue stays LAST.
-        script = instructions(self.phase)
+        # 6.61 — SECTION 2 OF THE COACH'S INPUT (§19.1 v1.75): after section 1
+        # (the rules), before section 3 (state), which position 1 composed;
+        # appended when there is no section 3 (a stack without position 1).
+        # Item 4: the opening (first turn only) and the CURRENT field's block
+        # — high signal, not the whole 31k-character script every call.
+        script = script_section(self.phase, self.focus_field, self.opening)
+        section = [{"type": "text", "text": SECTION_SCRIPT},
+                   {"type": "text", "text": script}]
+        at = next((i for i, b in enumerate(blocks)
+                   if str(b.get("text") or "").startswith(SECTION_STATE)), len(blocks))
+        ordered = [*blocks[:at], *section, *blocks[at:]]
         if self.on_delivery is not None:
-            self.on_delivery(dict(script_record(self.phase)))
+            # The headings of the message as it goes to the model — this is the
+            # innermost of the two wraps, so what it sees is what is sent.
+            self.on_delivery({**script_record(self.phase),
+                              "delivered_part": ("opening + " if self.opening else "")
+                              + (self.focus_field or "closing"),
+                              "delivered_chars": len(script),
+                              "sections": [str(b.get("text") or "").split("\n", 1)[0]
+                                           for b in ordered
+                                           if str(b.get("text") or "").startswith("## ")]})
         return request.override(
-            system_message=SystemMessage(
-                content_blocks=[*blocks,
-                                {"type": "text", "text": script},
-                                {"type": "text", "text": self._catalogue}],
-            )
+            system_message=SystemMessage(content_blocks=ordered)
         )
 
 

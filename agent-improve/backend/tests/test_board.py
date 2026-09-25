@@ -175,12 +175,12 @@ _PASSED = {"source_hash": "h", "outcomes": {progress._nodeid(_A_TEST): "passed"}
 
 
 def test_9_a_product_step_cannot_claim_the_tooling_route() -> None:
-    """6.61 touches backend/ — its own passing test cannot make it done."""
-    text = _claim_tooling(_touches(_text(), "6.61", "`phases/nodes_common.py` · `docs/`"), "6.61", _A_TEST)
+    """6.59 touches backend/ — its own passing test cannot make it done."""
+    text = _claim_tooling(_touches(_text(), "6.59", "`phases/nodes_common.py` · `docs/`"), "6.59", _A_TEST)
     p = _p(text, results=_PASSED)
-    assert not p["steps"]["6.61"]["done"], p["steps"]["6.61"]
-    assert p["steps"]["6.61"]["state"] != "tooling"
-    assert any(x.startswith("6.61 claims the tooling route") for x in p["problems"]), p["problems"]
+    assert not p["steps"]["6.59"]["done"], p["steps"]["6.59"]
+    assert p["steps"]["6.59"]["state"] != "tooling"
+    assert any(x.startswith("6.59 claims the tooling route") for x in p["problems"]), p["problems"]
 
 
 @pytest.mark.parametrize("path", ["`backend/core/graph.py`", "`ui/index.html`", "`core/graph.py`",
@@ -202,9 +202,9 @@ def test_9d_backend_tests_is_not_product_and_nothing_else_is_exempt(touches, pro
 
 
 def test_9c_a_pure_tooling_step_is_tooling_and_not_a_capability() -> None:
-    text = _claim_tooling(_touches(_text(), "6.61", "`tools/control_board/` · `docs/`"), "6.61", _A_TEST)
+    text = _claim_tooling(_touches(_text(), "6.59", "`tools/control_board/` · `docs/`"), "6.59", _A_TEST)
     p = _p(text, results=_PASSED)
-    st = p["steps"]["6.61"]
+    st = p["steps"]["6.59"]
     assert (st["state"], st["done"], st["wired"]) == ("tooling", True, False)
     assert p["proven"] == _p(_text(), results=_PASSED)["proven"], "tooling moved the capability count"
 

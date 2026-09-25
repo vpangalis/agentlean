@@ -1178,13 +1178,13 @@ CHECKS = [
                 "print(', '.join(sorted(C.model_fields)))"),
      "S-C05 — all 8 ratified fields, since step 6.19 closed G-50"),
 
-    ("state field counts (S-C01 / S-C02)", "7 / 23",
+    ("state field counts (S-C01 / S-C02)", "7 / 24",
      lambda: py("from backend.core.state import SupervisorState as S; "
                 "from backend.core.substate import PhaseState as P; "
                 "print(f'{len(S.__annotations__)} / {len(P.__annotations__)}')"),
-     "S-C01 — seven · S-C02 — twenty-three. Step 3.1's Done-when said "
-     "7 and 19; five ratified amendments have moved it since — the latest "
-     "is `field_log` (v1.68, 2026-09-21, built at step 6.33)"),
+     "S-C01 — seven · S-C02 — twenty-four. Step 3.1's Done-when said "
+     "7 and 19; six ratified amendments have moved it since — the latest "
+     "is `field_status` (v1.77, 2026-09-25, built at step 6.61)"),
 
     ("storage models (S-C09)", "11",
      lambda: py("import backend.storage.models as M; "
@@ -1319,7 +1319,7 @@ CHECKS = [
      "fall since this bound was split**, which is what 6.41 said the number "
      "existed to make possible"),
 
-    ("facts with nothing to anchor to — ratified, unbuilt", "38",
+    ("facts with nothing to anchor to — ratified, unbuilt", "37",
      facts_with_nothing_to_anchor,
      "Appendix F · step 6.41 — G-87. ☐ means something does NOT exist, so the "
      "em dash is the honest cell. **A rise here is normal** and means the "
@@ -1341,7 +1341,8 @@ CHECKS = [
      "6.59, 6.53, 6.60 and 7.9 registered, founder rulings 2026-09-25; "
      "34 → 36 the same day: 6.61 and 6.62, the coaching move decided in code; "
      "36 → 37 the same day: 6.63, the control board; "
-     "37 → 38 the same day: 6.64, the board's grouped views"),
+     "37 → 38 the same day: 6.64, the board's grouped views; "
+     "38 → 37 the same day: 6.61 landed and anchors to moves.decide"),
 
     ("facts never assessed against the tree", "96",
      facts_unassessed,

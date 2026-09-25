@@ -31,9 +31,10 @@ from typing import Any, cast
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
+from backend.tests.conftest import store_plan
 from backend.core.prompts import PHASE_COACH_PROMPT
 from backend.core.substate import CoachingResponse, PhaseState
-from backend.middleware.skills import DMAICSkillsMiddleware, instructions
+from backend.middleware.skills import script_section, DMAICSkillsMiddleware, instructions
 from backend.phases import nodes_common as _nc
 
 SCRIPT = instructions("define")
@@ -64,9 +65,14 @@ def _texts(message: SystemMessage) -> list[str]:
     return [str(b.get("text", "")) for b in blocks if b.get("type") == "text"]
 
 
-def test_the_system_message_carries_the_full_script_on_every_call() -> None:
+def test_the_system_message_carries_the_current_fields_script_on_every_call() -> None:
+    """6.46's guarantee, narrowed by 6.61 (item 4, founder): every model call
+    carries the script — since 6.61 the opening (first turn only) and the
+    CURRENT field's block, not all 31k characters. The delivery record still
+    names the whole SKILL.md by version and hash (row 3 reads it)."""
     delivered: list[dict[str, Any]] = []
-    mw = DMAICSkillsMiddleware("define", on_delivery=delivered.append)
+    mw = DMAICSkillsMiddleware("define", on_delivery=delivered.append,
+                               focus_field="business_case", opening=True)
     mw.before_agent(None, None)
     seen: list[Any] = []
 
@@ -78,14 +84,19 @@ def test_the_system_message_carries_the_full_script_on_every_call() -> None:
     for _ in range(2):                                  # two model calls, one turn
         asyncio.run(mw.awrap_model_call(cast(Any, request), handler))
 
+    part = script_section("define", "business_case", True)
     for req in seen:
         texts = _texts(req.system_message)
-        assert SCRIPT in texts, "the model call went out without the Define script"
-        assert "AVAILABLE COACHING SKILLS" in texts[-1], "the catalogue must stay last"
+        assert part in texts, "the model call went out without its script section"
+        assert "[OPENING" in part and "[1 · business_case" in part
+        assert "[2 · team" not in part, "another field's block was delivered"
     assert req.messages == ["untouched"], "the script must never enter the conversation"
     assert len(delivered) == 2
-    assert delivered[0] == {"script": "dmaic-define-phase", "version": "1.2",
-                            "sha256": SCRIPT_HASH, "chars": len(SCRIPT)}
+    assert {k: delivered[0][k] for k in ("script", "version", "sha256", "chars")} == {
+        "script": "dmaic-define-phase", "version": "1.3",
+        "sha256": SCRIPT_HASH, "chars": len(SCRIPT)}
+    assert delivered[0]["delivered_part"] == "opening + business_case"
+    assert delivered[0]["sections"] == ["## 2 · PHASE SCRIPT — what to teach"]
 
 
 def test_the_system_prompt_no_longer_calls_load_skill_a_whole_turn() -> None:
@@ -101,7 +112,7 @@ def _state() -> PhaseState:
         "messages": [HumanMessage(content="why is my project worth doing?")],
         "history": [], "phase_context": "", "coaching_plan": None,
         "field_index": 0, "draft": {}, "artifacts": {}, "step_log": [],
-        "field_log": [], "belt_edits": {}, "turn_count": 0, "final": {},
+        "field_log": [], "field_status": {}, "belt_edits": {}, "turn_count": 0, "final": {},
         "gate_attempts": 0, "validator_feedback": [], "rejection_feedback": [],
         "citations": [], "uploads": [], "asks": [], "hop_results": [],
         "synthesis_output": None,
@@ -133,7 +144,7 @@ class _Agent:
 def _run(monkeypatch, reply: CoachingResponse, call_model: bool = True) -> dict:
     monkeypatch.setattr(_nc, "create_agent",
                         lambda **kw: _Agent(kw["middleware"], reply, call_model))
-    return asyncio.run(_nc.executor("define", _state()))
+    return asyncio.run(_nc.executor("define", {**_state(), "coaching_plan": store_plan(reply)}))
 
 
 def _reply(value: Any, field: str = "business_case") -> CoachingResponse:
@@ -148,7 +159,7 @@ def test_step_log_records_that_the_script_was_delivered(monkeypatch, stub_planne
     assert entries, f"no coaching_script entry: {[e.get('node') for e in out['step_log']]}"
     e = entries[0]
     assert (e["delivered"], e["script"], e["version"], e["sha256"]) == (
-        True, "dmaic-define-phase", "1.2", SCRIPT_HASH)
+        True, "dmaic-define-phase", "1.3", SCRIPT_HASH)
 
 
 def test_a_turn_without_the_script_is_distinguishable(monkeypatch, stub_planner) -> None:

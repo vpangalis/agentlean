@@ -29,16 +29,22 @@ from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.errors import GraphRecursionError
 
 from backend.core.llm import role_temperature
-from backend.core.substate import CoachingPlan, CoachingResponse
+from backend.core.substate import CoachingPlan, CoachingResponse, SufficiencyJudgment
 
-#: What the fake planner returns unless a test sets `stub_planner.plan`.
-#: A Define field name, since `_state()` defaults to that phase.
+#: A plan for tests that hand the executor a plan directly. Since 6.61 a plan
+#: is BUILT BY CODE (`phases/moves.decide`) — the planner model returns only a
+#: judgment — so this is what `_plan_turn` builds on an opening Define turn.
 DEFAULT_PLAN = CoachingPlan(
     focus_field="business_case",
-    next_action="ask the Belt for the business case",
+    status="untaught",
+    move="teach",
     retrieval_strategy="single_hop",
     retrieval_hops=[],
 )
+
+#: What the fake planner MODEL returns unless a test sets
+#: `stub_planner.judgment` — step 6.61: the model's one judgment.
+DEFAULT_JUDGMENT = SufficiencyJudgment(verdict="sufficient", reason="it names the cost and the pain")
 
 
 class _FakePlannerModel:
@@ -49,7 +55,7 @@ class _FakePlannerModel:
     """
 
     def __init__(self) -> None:
-        self.plan: CoachingPlan = DEFAULT_PLAN
+        self.judgment: SufficiencyJudgment = DEFAULT_JUDGMENT
         self.prompts: list[str] = []
         self.schemas: list[Any] = []
         self.roles: list[str] = []
@@ -78,9 +84,9 @@ class _FakePlannerModel:
 
 
 
-    async def ainvoke(self, prompt: Any, *args: Any, **kwargs: Any) -> CoachingPlan:
+    async def ainvoke(self, prompt: Any, *args: Any, **kwargs: Any) -> SufficiencyJudgment:
         self.prompts.append(str(prompt))
-        return self.plan
+        return self.judgment
 
     # ── what the tests read ───────────────────────────────────────────────
 
@@ -302,6 +308,36 @@ def stub_coach(monkeypatch) -> _CreateAgentRecorder:
 
 
 # ── step 6.54 — the per-index search clients are process-wide ─────────────
+def store_plan(values: Any) -> CoachingPlan:
+    """A STORE-AND-ADVANCE plan whose `store` is `values` — step 6.61.
+
+    Since 6.61 nothing a reply returns is stored: `artifacts` receives only
+    what the Belt CONFIRMED, carried on the plan (§20 v1.75). The tests of the
+    capture MECHANICS downstream of that decision — the merge, the field log,
+    the type and worked-example guards — take their values from here. `values`
+    is a dict, or a `CoachingResponse` whose `fields_captured` stands for what
+    the Belt confirmed (entries with no `field_name` are dropped, as a
+    malformed capture always was)."""
+    if isinstance(values, CoachingResponse):
+        values = {str(e.get("field_name")).strip(): e.get("value")
+                  for e in (values.fields_captured or [])
+                  if isinstance(e, dict) and str(e.get("field_name") or "").strip()}
+    values = dict(values)
+    return CoachingPlan(focus_field=None, status="confirmed", move="store_and_advance",
+                        store=values, stored_field=next(iter(values), None))
+
+
+@pytest.fixture
+def confirming_planner(monkeypatch, stub_coach):
+    """Every turn confirms what the stub coach's reply carries — the capture
+    mechanics through the real graph, with the move logic (tested on its own
+    in `test_moves.py`) held at store-and-advance."""
+    async def _plan(phase: str, state: Any, config: Any = None) -> CoachingPlan:
+        return store_plan(stub_coach.reply)
+    monkeypatch.setattr("backend.phases.nodes_common._plan_turn", _plan)
+    return stub_coach
+
+
 @pytest.fixture(autouse=True)
 def _fresh_search_clients():
     """Empty `retriever`'s per-index `SearchClient` registry around each test.

@@ -112,6 +112,11 @@ CASE_RECORD_FIELD_LOG = "field_log_by_phase"
 #: established for the same reason in the other direction.
 CASE_RECORD_ASKS = "asks_by_phase"
 
+#: Where each phase's field statuses sit inside the Store's `case` record —
+#: step 6.61 (R5). Beside the captured values and their log, for the same
+#: reason: the three must cross the turn boundary together.
+CASE_RECORD_FIELD_STATUS = "field_status_by_phase"
+
 
 def case_record_from_document(case: Any) -> dict[str, Any]:
     """The Store's `case` copy, from the blob case document (§9, S-F10).
@@ -134,6 +139,10 @@ def case_record_from_document(case: Any) -> dict[str, Any]:
     # must seed has to arrive through this record.
     record[CASE_RECORD_CAPTURED] = captured_from_document(case)
     record[CASE_RECORD_FIELD_LOG] = field_log_from_document(case)
+    record[CASE_RECORD_FIELD_STATUS] = {
+        phase: {f: dict(v) for f, v in (getattr(r, "field_status", None) or {}).items()}
+        for phase, r in (getattr(case, "phases", {}) or {}).items()
+    }
     return record
 
 
@@ -283,6 +292,15 @@ def captured_for_phase(
     return dict(inventory.get(phase) or {})
 
 
+def field_status_for_phase(
+    case_record: dict[str, Any], phase: str
+) -> dict[str, dict[str, Any]]:
+    """This phase's field statuses, from the Store's `case` copy — step 6.61.
+    `{}` means every field is "not taught"."""
+    inventory = case_record.get(CASE_RECORD_FIELD_STATUS) or {}
+    return {f: dict(v) for f, v in (inventory.get(phase) or {}).items()}
+
+
 def field_log_for_phase(
     case_record: dict[str, Any], phase: str
 ) -> list[dict[str, Any]]:
@@ -299,6 +317,7 @@ def new_phase_state(
     asks: list[dict[str, Any]] | None = None,
     artifacts: dict[str, Any] | None = None,
     field_log: list[dict[str, Any]] | None = None,
+    field_status: dict[str, dict[str, Any]] | None = None,
 ) -> PhaseState:
     """The twenty author-populated fields, initialised (S-C02 B1).
 
@@ -349,6 +368,8 @@ def new_phase_state(
         # cannot — the subgraph gets a fresh `checkpoint_ns` per parent turn,
         # so nothing in the child state survives a turn on its own.
         "field_log":          list(field_log or []),
+        # Seeded, not blanked — step 6.61 (R5): where each field stands.
+        "field_status":       {f: dict(v) for f, v in (field_status or {}).items()},
         "belt_edits":         {},
         "turn_count":         0,
         "final":              {},
@@ -466,6 +487,7 @@ __all__ = [
     "CASE_RECORD_FIELD_LOG",
     "case_record_from_document", "captured_from_document",
     "field_log_from_document", "captured_for_phase", "field_log_for_phase",
+    "field_status_for_phase", "CASE_RECORD_FIELD_STATUS",
     "write_case_record",
     "PriorGateDocumentMissing",
     "prior_phase", "read_case_record", "read_gate_document",

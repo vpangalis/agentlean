@@ -50,7 +50,7 @@ def _state() -> PhaseState:
         "messages": [HumanMessage(content="what does good look like here?")],
         "history": [], "phase_context": "", "coaching_plan": None,
         "field_index": 0, "draft": {}, "artifacts": {}, "step_log": [],
-        "field_log": [], "belt_edits": {}, "turn_count": 0, "final": {},
+        "field_log": [], "field_status": {}, "belt_edits": {}, "turn_count": 0, "final": {},
         "gate_attempts": 0, "validator_feedback": [], "rejection_feedback": [],
         "citations": [], "uploads": [], "asks": [], "hop_results": [],
         "synthesis_output": None,
@@ -136,7 +136,10 @@ def test_a_slow_turn_answers_before_the_wall(slow_turn) -> None:
     elapsed = time.monotonic() - started
 
     assert elapsed < WALL, f"the node ran {elapsed:.2f}s against a {WALL}s wall"
-    assert out["messages"][-1].content == _nc._TIMEOUT_MESSAGE
+    # 6.61 (fix 1) — the Belt gets the move's own reply, written in code,
+    # never the timeout text; the use is a DEFECT on the trail.
+    assert out["messages"][-1].content != _nc._TIMEOUT_MESSAGE
+    assert out["step_log"][0]["fallback_used"] is True
     assert any(e.get("status") == "partial_timeout" for e in out["step_log"]), (
         f"no partial_timeout in step_log: {[e.get('status') for e in out['step_log']]}")
 

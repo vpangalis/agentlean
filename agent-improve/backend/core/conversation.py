@@ -59,6 +59,9 @@ _TRANSPORT_KEYS: tuple[str, ...] = (
     # `PhaseRecord.field_log`, beside the values it is a log of, not a copy
     # inside every turn of the transcript.
     "field_log",
+    # Step 6.61 (R5) — the turn's after-change field statuses; their home is
+    # `PhaseRecord.field_status`, written by the same statement as the values.
+    "field_status",
 )
 
 
@@ -67,6 +70,14 @@ _TRANSPORT_KEYS: tuple[str, ...] = (
 #: flat keys the UI renders — so a turn the Belt saw is rebuilt from history
 #: with its blocks, not only from the last send (G-79).
 COACHING_BLOCK_KEYS: tuple[str, ...] = ("explanation", "example", "prompt", "progress")
+
+#: Step 6.61 — the move record (`phases/moves.py`) and last turn's quality
+#: feedback ride on the coach's reply, and are kept on the turn so a
+#: conversation rebuilt from the case blob carries them too: the next turn's
+#: move is derived from them.
+MOVE_RECORD_KEY = "coaching_move"
+QUALITY_FEEDBACK_KEY = "quality_feedback"
+TURN_RECORD_KEYS: tuple[str, ...] = (MOVE_RECORD_KEY, QUALITY_FEEDBACK_KEY)
 
 
 def message_to_turn(msg: BaseMessage, index: int) -> dict[str, Any]:
@@ -96,6 +107,9 @@ def message_to_turn(msg: BaseMessage, index: int) -> dict[str, Any]:
             turn[key] = blocks[key]
     if extra.get("grader_warning"):
         turn["grader_warning"] = extra["grader_warning"]
+    for key in TURN_RECORD_KEYS:
+        if extra.get(key) is not None:
+            turn[key] = extra[key]
     return turn
 
 
@@ -121,6 +135,9 @@ def turn_to_message(turn: dict[str, Any]) -> BaseMessage:
         extra["coaching_blocks"] = blocks
     if turn.get("grader_warning"):
         extra["grader_warning"] = turn["grader_warning"]
+    for key in TURN_RECORD_KEYS:
+        if turn.get(key) is not None:
+            extra[key] = turn[key]
 
     text = turn.get("text") or ""
     if turn.get("role") == "ai":
@@ -147,6 +164,9 @@ def strip_transport(turn: dict[str, Any]) -> dict[str, Any]:
 
 __all__ = [
     "V1_PRESENTATION_KEYS",
+    "MOVE_RECORD_KEY",
+    "QUALITY_FEEDBACK_KEY",
+    "TURN_RECORD_KEYS",
     "message_to_turn",
     "turn_to_message",
     "transport",

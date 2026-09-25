@@ -140,11 +140,12 @@ def test_the_readers_still_return_what_the_dual_read_returned(board) -> None:
         84 -> 85  G-107 registered — the screen's next step disagrees with the coach
         85 -> 86  G-108 registered — the executor's docstring promises two tools
         86 -> 87  G-109 registered — the amber is whole-tree; a per-test file map is later
+        87 -> 89  6.61: G-110 (no revise move once confirmed), G-111 (retrieval is the phase default)
     """
     markers, gaps = board.read_markers(), board.read_gaps()
     assert len(markers) == 82, f"{len(markers)} markers, not 82"
     assert sum(1 for m in markers if m["state"] != "built") == 42
-    assert len(gaps) == 87, f"{len(gaps)} gap rows, not 87"
+    assert len(gaps) == 89, f"{len(gaps)} gap rows, not 89"
 
 
 def test_the_guard_resolves_a_gap_from_the_one_register(guard) -> None:

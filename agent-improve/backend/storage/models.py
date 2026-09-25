@@ -181,6 +181,11 @@ class PhaseRecord(BaseModel):
     analyst_output: Optional[AnalystOutputRecord] = None
     citations: list[CitationRecord] = []
     uploads: list[UploadRecord] = []
+    #: Where each coached field stands — step 6.61 (R5): `status` (not taught
+    #: / asked / answered / confirmed), the Belt's words so far, and the
+    #: read-back awaiting a yes. Written by the same statement as `structured`
+    #: (`routes.apply_capture`), from the same turn's product.
+    field_status: dict[str, dict[str, Any]] = {}
 
     #: The field change log — one entry per change to `structured`, keyed
     #: `{phase}:{turn}:{field}` (§11). Step 6.33; entry shape and the merge

@@ -84,7 +84,7 @@ only that two of them had been touched, never that they agreed.
 | What | Defined in | Size | Holds |
 |---|---|---|---|
 | **`SupervisorState`** | **§57.2** (S-C01) | 7 fields | Orchestration. Spans the whole case, one per project |
-| **`PhaseState`** | **§58.2** (S-C02) | 23 fields | One in-flight turn inside one phase subgraph |
+| **`PhaseState`** | **§58.2** (S-C02) | 24 fields | One in-flight turn inside one phase subgraph |
 | **Per-phase usage** | **§39.x.7** (S-C03) | — | Which `PhaseState` field carries what, per phase. **Reads and writes, NOT variant classes** |
 | **Nothing else holds state** | — | — | Captured values go to `artifacts`; durable ones to the Store (§9); conversation to the checkpointer (§8) |
 
@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.76 · 2026-09-25
+Version 1.77 · 2026-09-25
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.77 (2026-09-25)** — **§56 AMENDMENT. S-C04 TAKES THE SHAPE STEP 6.61 BUILT — THE PLAN IS CODE'S, THE PLANNER'S MODEL MAKES ONE JUDGMENT.** Carried by step 6.61, as v1.75 (B) required (CLAUDE.md, amending the rules, 3b). **(A) S-C04.** `CoachingPlan` is built by `phases/moves.decide`, never returned by a model: `next_action` is RETIRED; `status` (not taught / asked / answered / confirmed), `move` (teach / challenge / read_back / store_and_advance / respond), `judgment`, `answer`, `messages`, `pending`, `store`, `stored_field` and `statuses` are added, and `focus_field` becomes optional (`None` once every position is confirmed). The planner model's structured output is the new `SufficiencyJudgment {verdict: sufficient | insufficient | not_an_answer, reason}`, asked for ONLY when the Belt has answered — the opening, a field not yet taught and a plain yes cost no model call. `respond` is the move for a message that is not an answer (*"where do we stand?"*): the field's status does not change. **(B) WHERE THE STATUS AND PENDING LIVE — `PhaseState.field_status` (ruling R5, 2026-09-25, superseding the first draft's reply-borne status).** Four explicit statuses per field, checkpointed, every one starting `not taught`: not taught → asked → answered (the Belt's words held PENDING; awaiting confirmation = answered and read back) → confirmed (stored). The current field is the first not confirmed. **Only code changes a status, and only at turn end**; nothing is derived from the previous reply's record. The map rides out on the graph payload, is written to `PhaseRecord.field_status` by the same statement as the values, and seeds the next turn through the case record — the path `field_log` takes (S-C02, §58.2). The move record (field, move, status, judgment) still rides on the reply as `additional_kwargs["coaching_move"]`, beside last turn's quality feedback (`"quality_feedback"`), for section 5 and the audit; `core/conversation.py` round-trips both. `SupervisorState` and `CoachingResponse` gain no field; `CoachingResponse.fields_captured`'s DESCRIPTION now says it carries the read-back, pending until confirmed (S-C05 B7), and `draft` carries only what the turn stored. **(C) CONFIRMATION IS A RULE, NOT A MODEL.** A plain yes (`moves.is_confirmation`) stores the pending value; anything more is a correction and returns the field to answered (the ruling's clause). **(D) WHAT A YES STORES.** A plain-string answer given in one message stores the Belt's own words, even where the read-back reworded them; a structured field, a composed one (`problem_statement`) and an answer assembled from more than one message store the version read back — the one the Belt said yes to. A yes that cannot complete the position (a structure refused) is read back again, never advanced past. **(E) CONSEQUENCE, recorded and not resolved:** `retrieval_strategy` is the phase's §28 default and `retrieval_hops` stays empty, so S-C04's *"the planner may select multi_hop in any phase"* and §26's model-PLANNED hop chain have no author until a step gives them one. **(F) S-C11 B2's ORDER** (facts at the top of the prompt) is superseded by v1.75's six sections — rules first, state third; B2's channel rule (never `messages[]`) stands. **(G) FINDING — G-110:** a CONFIRMED field has no move that revises it — the Belt correcting an earlier field in a later turn is not modelled by the moves. (E) is registered as **G-111**. **(H) CONFIRM AND CHANGE (ruling R4).** Every read-back shows two buttons; a click sends `AskRequest.action` (`confirm` | `change`) and code sets the status whatever the text says — confirm stores the pending value, change returns the field to asked with the Belt's words kept, and its reply is written IN CODE with no model call — the Belt's exact current words, then "What would you like to change?" (founder ruling on 6.61's review: live, the model left the words out 3 of 3 runs). A typed plain yes is still a confirmation (C). **(I) THE GRADER GRADES THE MOVE (fix 3).** `middleware/grader.MOVE_EXCLUDES` names, per move, the rubric lines that move does not answer (a read-back is not failed for not challenging; a challenge is not failed for not citing methodology); the grader is told the move and graded on the rest, and section 5 carries only the failures that apply to this turn's move — so section 5 never contradicts section 4. The challenge exclusion is the challenge loop's cause, measured live (step 6.61's commit body). **(J) SECTIONS 2 AND 6 (fix 4).** Section 2 is the script's opening (first turn only) plus the CURRENT field's block — not the whole script, and the skill catalogue is no longer in the message; section 6 is one entry per coach turn, its reply text — no stubs, no structured-output dumps. **(K) THE FALLBACK IS CONTAINMENT.** A timeout or the runaway backstop gives the Belt the move's script question in code, never the backstop text; every use is logged at ERROR as a DEFECT and flagged `fallback` on the move record. Reasoning: step 6.61's commit body (§56.2).
 
 **v1.76 (2026-09-25)** — **§56 RECORD. STEP 10.0 — §50.1's FOUR BLOCKS AND THE GRADER'S WARNING REACH THE BELT.** **(A) WHAT CHANGED IS THE TREE, NOT THE RULE.** §50.1 already required four blocks on screen and §19.8 a Belt-visible warning; neither left the backend (G-69, G-76, G-103). The executor now puts `explanation`, `example`, `prompt` and `progress` (`coaching_blocks`) and the grader's warning (`grader_warning`) on the reply message's `additional_kwargs` — the channel the SIPOC diagram already uses — because the route never holds the `CoachingResponse`, only the graph's messages; `AskResponse` declares them (defaulted, §4.8), the route projects them beside `answer`, `conversation_history` keeps them, and the UI draws one block per field in §50.1's order, the example set apart (B6), an empty block absent. **`message` stays the transcript entry.** **(B) THE WARNING'S WORDING** is the founder's, 2026-09-25: *"My quality check flagged this reply as weaker than it should be. If it doesn't help, tell me and I'll try again."* **(C) A PAGE RELOAD REDRAWS PAST TURNS** from `conversation_history`, blocks included (G-79, the chat half); the stored VISUAL is still drawn from the last send only — that half needs the UI's v2 field names and is 10.3's. **No schema of the three load-bearing ones changed** (`AskResponse` is the gateway envelope). Reasoning: step 10.0's commit body (§56.2).
 
@@ -784,8 +786,8 @@ structural rather than stylistic.
 **Specification:** the canonical schema and its field table are **§58.2 — S-C02**.
 This section keeps the reasoning.
 
-**Twenty-two author-populated fields** (two identity, three plumbing, seventeen
-content) **plus one engine-managed value — twenty-three declared.** The managed value
+**Twenty-three author-populated fields** (two identity, three plumbing, eighteen
+content) **plus one engine-managed value — twenty-four declared.** The managed value
 is **declared but NOT populated by the input mapper**; LangGraph's execution loop
 supplies it. **Any new field requires an amendment**,
 whatever category it is placed in (§56).
@@ -996,7 +998,7 @@ declared on `PhaseState` rather than an Analyse-only variant because
 
 ### Per-phase variants
 
-**there are no per-phase state classes** (ruling 2026-09-11, step 6.20); each phase uses the shared 23-field `PhaseState` and §39.x.7 describes its
+**there are no per-phase state classes** (ruling 2026-09-11, step 6.20); each phase uses the shared 24-field `PhaseState` and §39.x.7 describes its
 transient fields. **All use explicit `TypedDict`, not `MessagesState`
 inheritance** — their dominant content is structured fields, not conversation.
 `MessagesState` inheritance is appropriate only where the dominant content
@@ -4738,7 +4740,7 @@ failure, sharing the cap of 3 (§34).
 #### 39.1.12 State parameters — Define's use of `PhaseState`
 
 **There is no `DefineState`.** §39.x.7 describes per-phase USE of the shared
-23-field `PhaseState` — **S-C03 carries that ruling**, and G-19 was closed by it
+24-field `PhaseState` — **S-C03 carries that ruling**, and G-19 was closed by it
 on 2026-09-11. Define reads `asks`, `uploads`, `artifacts`, `coaching_plan` and
 `field_index`; it writes `artifacts` through `fields_captured` (S-C05). Field
 names, counts and types are owned by `core/substate.py` and are not restated
@@ -4958,7 +4960,7 @@ phase, §6).
 #### 39.2.7 State parameters — Measure's use of `PhaseState`
 
 
-*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `MeasureState`.** Measure uses the shared **23-field `PhaseState`**; this table is its USAGE — which Measure field each shared field carries, and who reads it:
+*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `MeasureState`.** Measure uses the shared **24-field `PhaseState`**; this table is its USAGE — which Measure field each shared field carries, and who reads it:
 
 | `PhaseState` field | In Measure |
 |---|---|
@@ -5226,7 +5228,7 @@ the 5 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
 #### 39.3.7 State parameters — Analyse's use of `PhaseState`
 
 
-*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `AnalyseState`.** Analyse uses the shared **23-field `PhaseState`**; this table is its USAGE — which Analyse field each shared field carries, and who reads it — note this is the phase where multi-hop is real:
+*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `AnalyseState`.** Analyse uses the shared **24-field `PhaseState`**; this table is its USAGE — which Analyse field each shared field carries, and who reads it — note this is the phase where multi-hop is real:
 
 | PhaseState field | In Analyse |
 |---|---|
@@ -5460,7 +5462,7 @@ the 5 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
 #### 39.4.7 State parameters — Improve's use of `PhaseState`
 
 
-*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `ImproveState`.** Improve uses the shared **23-field `PhaseState`**; this table is its USAGE — which Improve field each shared field carries, and who reads it:
+*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `ImproveState`.** Improve uses the shared **24-field `PhaseState`**; this table is its USAGE — which Improve field each shared field carries, and who reads it:
 
 | PhaseState field | In Improve |
 |---|---|
@@ -5720,7 +5722,7 @@ the 9 Tier 2 fields warn only, a skip recorded in `acknowledged_gaps` (§35).
 #### 39.5.7 State parameters — Control's use of `PhaseState`
 
 
-*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `ControlState`.** Control uses the shared **23-field `PhaseState`**; this table is its USAGE — which Control field each shared field carries, and who reads it:
+*Indexes §6 / §58.2 — **S-C02**; nothing re-defined.* **There is no `ControlState`.** Control uses the shared **24-field `PhaseState`**; this table is its USAGE — which Control field each shared field carries, and who reads it:
 
 | PhaseState field | In Control |
 |---|---|
@@ -8269,13 +8271,14 @@ class PhaseState(TypedDict):
     history:            Annotated[list[str], operator.add]
     phase_context:      str
 
-    # ── content fields (17) ─────────────────────────────────────
+    # ── content fields (18) ─────────────────────────────────────
     coaching_plan:      Optional[CoachingPlan]
     field_index:        int
     draft:              dict[str, Any]
     artifacts:          dict[str, Any]
     step_log:           Annotated[list[dict[str, Any]], operator.add]
     field_log:          Annotated[list[dict[str, Any]], merge_field_log]
+    field_status:       dict[str, dict[str, Any]]   # v1.77 — ruling R5
     belt_edits:         dict[str, Any]
     turn_count:         int
     final:              dict[str, Any]
@@ -8291,8 +8294,8 @@ class PhaseState(TypedDict):
     # ── engine-managed (1) ──────────────────────────
     remaining_steps:    RemainingSteps
 ```
-**Twenty-two author-populated fields** (two identity, three plumbing, seventeen
-content) **plus one engine-managed value — twenty-three declared.** The managed value
+**Twenty-three author-populated fields** (two identity, three plumbing, eighteen
+content) **plus one engine-managed value — twenty-four declared.** The managed value
 is **declared but NOT populated by the input mapper**; LangGraph's execution loop
 supplies it. **Any new
 field requires a §56 amendment, whatever category it is placed in.**
@@ -8312,6 +8315,7 @@ field requires a §56 amendment, whatever category it is placed in.**
 | `artifacts` | `dict[str, Any]` | Everything captured in this phase so far, keyed by field name. Values are strings, except the three cross-phase reference dicts and the three structured dicts (§7, §41). Also holds `computation_results` | none (merge by the writer) | executor, from `CoachingResponse.fields_captured`; `gate_apply`, applying Belt edits | planner, `check_gate_status()`, validation stack, gate assembly, state injection, the live gate document (§50) |
 | `step_log` | `Annotated[list[dict], operator.add]` | The audit trail — HOW each thing was captured, as opposed to WHAT (§11). Dicts only; tuples are banned. Keyed deterministically | `operator.add` | validation layers, grader `on_evaluation`, the fallback chain | audit trail; written into the gate document |
 | `field_log` | `Annotated[list[dict], merge_field_log]` | **WHEN each captured value changed, and what it was before** — §56 amendment, ratified 2026-09-21, built at step 6.33. One entry per change: `key`, `field`, `phase`, `turn`, `value`, `prior_value`, `timestamp`, `reason`. The first capture of a field is an entry, with `prior_value: None`; a re-statement of the value already held is not. **`turn` is the Belt-message count, not `turn_count`** — G-39 leaves that field's contract unstated and it is `0` on every coaching turn, so a key built on it would collide across turns | **`merge_field_log`** — upserts on `key`, so a replayed turn replaces its own entry (§11). The one channel whose reducer is not `operator.add`, and the only one where §11's deterministic key is enforced rather than merely recorded | executor node, from the same split the `artifacts` merge uses | the gate document's provenance; a reviewer asking what a value said before; `gateway/routes.py`, persisting it to `PhaseRecord.field_log` |
+| `field_status` | `dict[str, dict]` | **Where each field stands — STORED, never derived** (v1.77, ruling R5, 2026-09-25). One entry per field: `status` — `not taught` → `asked` → `answered` → `confirmed` — plus `answer` and `messages` (the Belt's words so far) and, while `answered`, `pending` (the read-back awaiting confirmation and what a yes stores). Every field starts `not taught`; a field stored before 6.61 with no entry reads as `confirmed`. **Only code changes a status, at turn end** | none — replaced whole each turn | executor node, from `phases/moves.decide`'s after-change map | the planner (the current field is the first not confirmed); state injection (section 3); `gateway/routes.py`, persisting it to `PhaseRecord.field_status`; the input mapper, seeding it from the case record |
 | `belt_edits` | `dict[str, Any]` | The Belt's corrections made at gate step 5. A different thing from `validator_feedback`, and must stay separate | none | `gate_apply`, from the interrupt resume payload | `gate_apply` |
 | `turn_count` | `int` | How many coaching turns this phase has taken. Load-bearing: it is a component of the deterministic `step_log` key (§11) | none | executor node | planner; `step_log` key construction |
 | `final` | `dict[str, Any]` | The approved gate document. A `dict` and never a `str`, so a resumed graph can read what was approved without re-reading the Store | none | `gate_apply_node` | output mapper; crash recovery |
@@ -8329,7 +8333,7 @@ field requires a §56 amendment, whatever category it is placed in.**
 
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
 |---|---|---|---|
-| B1 | a phase subgraph is entered | populate the **twenty-two author-populated fields** from the input mapper; no field SHALL be left undeclared. **`remaining_steps` is the one declared field the mapper SHALL NOT populate** — it is engine-managed, `NotRequired` in intent, and LangGraph's execution loop supplies it | §9 |
+| B1 | a phase subgraph is entered | populate the **twenty-three author-populated fields** from the input mapper; no field SHALL be left undeclared. **`remaining_steps` is the one declared field the mapper SHALL NOT populate** — it is engine-managed, `NotRequired` in intent, and LangGraph's execution loop supplies it | §9 |
 | B2 | the planner fires | replace `coaching_plan` entirely; it SHALL NOT be appended to or queued | §6 |
 | B3 | a validation layer fails | increment `gate_attempts` by one and append one entry to `validator_feedback` | §34 |
 | B4 | the gate passes | reset `gate_attempts` to `0` and `validator_feedback` to `[]`, and only `gate_apply` SHALL do so | §33.2 |
@@ -8419,7 +8423,7 @@ field requires a §56 amendment, whatever category it is placed in.**
 *Rebuild test: there is nothing to rebuild — this entry declares an absence.*
 
 **Purpose:** **To record that there are NO per-phase state classes.** All five
-phases run on the single shared **23-field `PhaseState`** (S-C02). What varies
+phases run on the single shared **24-field `PhaseState`** (S-C02). What varies
 by phase is which fields carry what, and that is §39.x.7 — usage, not
 declaration.
 
@@ -8467,27 +8471,52 @@ Pydantic model rather than a dict specifically so `retrieval_strategy` can
 carry a `Literal` constraint: that field selects the executor's entire
 retrieval path, and a typo would fall through silently to single-hop.
 
+> **v1.77 (step 6.61):** the class below is the shape 6.61 built. The plan is
+> BUILT BY CODE (`phases/moves.decide`); the planner model's only output is
+> `SufficiencyJudgment`, and only when the Belt has answered.
+
 **Definition:**
 ```python
-class CoachingPlan(BaseModel):
-    focus_field:        str
-    next_action:        str
-    retrieval_strategy: Literal["single_hop", "multi_hop"]
-    retrieval_hops:     list[str]     # template strings; empty for single_hop
+class SufficiencyJudgment(BaseModel):      # the planner MODEL's one output
+    verdict: Literal["sufficient", "insufficient", "not_an_answer"]
+    reason:  str
+
+class CoachingPlan(BaseModel):             # built in code, never by a model
+    focus_field:        Optional[str]      # None once every position is confirmed
+    status:             Literal["not taught", "asked", "answered", "confirmed"]
+    move:               Literal["teach", "challenge", "read_back",
+                                "store_and_advance", "respond"]
+    judgment:           Optional[SufficiencyJudgment] = None
+    answer:             str = ""           # the Belt's words for the field so far
+    messages:           int = 0            # how many Belt messages `answer` spans
+    pending:            Optional[dict] = None   # the read-back awaiting a yes
+    store:              dict[str, Any] = {}     # what the Belt confirmed THIS turn
+    stored_field:       Optional[str] = None
+    statuses:           dict[str, str] = {}     # every position's status, AFTER this turn
+    field_status:       dict[str, dict] = {}    # the after-change map the executor stores
+    retrieval_strategy: Literal["single_hop", "multi_hop"] = "single_hop"
+    retrieval_hops:     list[str] = []     # empty since 6.61 — no model writes them
 ```
 
-**Produced by** the builder-style structured-output call on the `planner`-role
-model at temperature 0.1 — a plain model invocation, not an agent, so
-`response_format=` does not apply (§21). The invocation form is shown in §17.
+**Produced by** `phases/nodes_common._plan_turn`, which calls
+`phases/moves.decide`; the judgment is the builder-style structured-output call
+on the `planner`-role model at temperature 0.1 — a plain model invocation, not
+an agent, so `response_format=` does not apply (§21).
 
 **Fields:**
 
 | Field | Type | Meaning | Reducer | Writer | Readers |
 |---|---|---|---|---|---|
-| `focus_field` | `str` | The single field this turn coaches on. The executor may not choose a different one | none | planner node | executor node (S-F04 B1) |
-| `next_action` | `str` | What the coach should do with that field this turn — ask, challenge, show an example, run a computation | none | planner node | executor node |
-| `retrieval_strategy` | `Literal["single_hop", "multi_hop"]` | Which retrieval path the executor takes. Not restricted to Analyse — the planner may select `multi_hop` in any phase | none | planner node | executor node; `analyse_executor_node` |
-| `retrieval_hops` | `list[str]` | Hop question templates, in order, for a planned multi-hop turn. Empty for single-hop | none | planner node | `analyse_executor_node` |
+| `focus_field` | `Optional[str]` | The field this turn's reply works on — for a store-and-advance, the NEXT field, which the same reply teaches. The executor may not choose a different one | none | planner node (code) | executor node (S-F04 B1); state injection (section 4) |
+| `status` | `Literal[...]` | The focus field's status BEFORE this turn — not taught / asked / answered / confirmed, read from `PhaseState.field_status` (R5), never from a reply | none | planner node (code) | state injection |
+| `move` | `Literal[...]` | THIS TURN'S MOVE, decided in code from the status (§17 v1.75). Replaces `next_action` | none | planner node (code) | executor node; state injection (section 4, authoritative) |
+| `judgment` | `Optional[SufficiencyJudgment]` | The planner model's one judgment, `None` when none was needed | none | planner model | state injection; `step_log` |
+| `answer` · `messages` | `str` · `int` | The Belt's own words for the field so far, and how many messages they span | none | planner node (code) | executor (the move record) |
+| `pending` | `Optional[dict]` | The read-back awaiting the Belt's confirmation — NOTHING in it is stored | none | planner node (code); executor adds what a yes stores | state injection (section 3); the next turn, via the move record |
+| `store` · `stored_field` | `dict` · `Optional[str]` | What the Belt confirmed THIS turn — the only values written to `artifacts` | none | planner node (code) | executor node |
+| `statuses` · `field_status` | `dict[str, str]` · `dict[str, dict]` | Every position's status AFTER this turn's change, and the full map the executor stores — so section 3 and section 4 always agree (fix 2) | none | planner node (code) | state injection (section 3); executor node |
+| `retrieval_strategy` | `Literal["single_hop", "multi_hop"]` | Which retrieval path the executor takes — the phase's §28 default since 6.61 (v1.77 (E)) | none | planner node (code) | executor node; `analyse_executor_node` |
+| `retrieval_hops` | `list[str]` | Hop question templates for a planned multi-hop turn — empty since 6.61: no model writes them | none | planner node | `analyse_executor_node` |
 
 **Behaviors (EARS):**
 
@@ -8496,6 +8525,8 @@ model at temperature 0.1 — a plain model invocation, not an agent, so
 | B1 | the planner produces a plan | produce it through structured output, never by parsing JSON from raw model text | §21 |
 | B2 | `retrieval_strategy` is `"single_hop"` | leave `retrieval_hops` empty | §17 |
 | B3 | a new plan is produced | overwrite the previous one entirely; plans SHALL NOT accumulate | §6 |
+| B4 | a plan is produced | derive `status` and `move` in code from the field's status; a model SHALL NOT choose the move (v1.77) | §17 v1.75 |
+| B5 | the focus field is answered and the Belt's reply is not a plain yes | ask the `planner`-role model for ONE `SufficiencyJudgment`; in every other case make no model call (v1.77) | §17 v1.75 |
 
 **Invariants:**
 - The plan is transient; its consequences are durable. Captured values land in

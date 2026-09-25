@@ -43,6 +43,7 @@ from typing import Any
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
+from backend.tests.conftest import store_plan
 from backend.core import graph as graph_mod
 from backend.core.state import SUPERVISOR_STATE_FIELDS
 from backend.core.substate import (
@@ -91,6 +92,15 @@ class MemoryStore:
 
     def put(self, namespace, key, value) -> None:  # noqa: ANN001
         self.data[(tuple(namespace), key)] = value
+
+
+@pytest.fixture(autouse=True)
+def _belt_confirms(confirming_planner):
+    """6.61 — nothing is stored until the Belt confirms it (§20 v1.75). This
+    file tests what happens to a CONFIRMED value — the merge, the field log,
+    the guards — so every turn here confirms what its reply carries. The move
+    logic that decides confirmation is `test_moves.py`'s."""
+    return confirming_planner
 
 
 def _case() -> CaseDocument:
@@ -351,13 +361,14 @@ def test_the_turn_reports_captured_kept_and_empty_together(
     )
     out = asyncio.run(_nc.executor("define", _phase_state(
         messages=[HumanMessage(content="hello")],
+        coaching_plan=store_plan(stub_coach.reply),
     )))
 
     team = [{"name": "Ana", "role": "lead", "function": "finance"}]
     assert out["artifacts"] == {"team": team}
-    assert out["draft"] == {"team": team, "goal_statement": "  "}, (
-        "`draft` is the honest record of what the coach returned, empties "
-        "included — the split is about what gets STORED"
+    assert out["draft"] == {"team": team}, (
+        "since 6.61 `draft` is what the turn STORED — the route writes it into "
+        "the case record, so an empty or unconfirmed value must not be in it"
     )
     step = out["step_log"][0]
     assert step["fields_captured"] == ["goal_statement", "team"]
@@ -642,7 +653,7 @@ def _phase_state(**overrides: Any) -> PhaseState:
         "case_id": CASE_ID, "current_phase": "define",
         "messages": [], "history": [], "phase_context": "",
         "coaching_plan": None, "field_index": 0, "draft": {}, "artifacts": {},
-        "step_log": [], "field_log": [], "belt_edits": {}, "turn_count": 0,
+        "step_log": [], "field_log": [], "field_status": {}, "belt_edits": {}, "turn_count": 0,
         "final": {}, "gate_attempts": 0, "validator_feedback": [],
         "rejection_feedback": [], "citations": [], "uploads": [], "asks": [],
         "hop_results": [], "synthesis_output": None,

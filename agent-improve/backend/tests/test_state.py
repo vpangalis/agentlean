@@ -41,12 +41,12 @@ SUPERVISOR_EXPECTED = [
     "gate_passed", "final_output",
 ]
 
-# ── S-C02, transcribed: 2 identity + 3 plumbing + 17 content ──────────────
+# ── S-C02, transcribed: 2 identity + 3 plumbing + 18 content ──────────────
 PHASE_IDENTITY = ["case_id", "current_phase"]
 PHASE_PLUMBING = ["messages", "history", "phase_context"]
 PHASE_CONTENT = [
     "coaching_plan", "field_index", "draft", "artifacts", "step_log",
-    "field_log",
+    "field_log", "field_status",
     "belt_edits", "turn_count", "final", "gate_attempts",
     "validator_feedback", "rejection_feedback", "citations", "uploads",
     "asks",
@@ -149,9 +149,13 @@ def test_artifacts_and_gate_documents_are_not_on_supervisor_state() -> None:
 
 # ── PhaseState — §6 / S-C02 ───────────────────────────────────────────────
 
-def test_phase_state_has_exactly_twenty_three_declared_fields() -> None:
-    """S-C02: twenty-two author-populated (2 identity, 3 plumbing, 17 content)
-    plus one engine-managed value — twenty-three declared.
+def test_phase_state_has_exactly_twenty_four_declared_fields() -> None:
+    """S-C02: twenty-three author-populated (2 identity, 3 plumbing, 18 content)
+    plus one engine-managed value — twenty-four declared.
+
+    **`field_status` joined at step 6.61** (ARCHITECTURE.md v1.77, ruling R5):
+    where each field stands — not taught, asked, answered, confirmed — STORED
+    and checkpointed, never derived from the previous reply.
 
     **`asks` joined at step 6.12** (§56 amendment, `DECISIONS.md` Part AR2):
     the coach's recorded requests for data. A SYSTEM record rather than a
@@ -173,9 +177,9 @@ def test_phase_state_has_exactly_twenty_three_declared_fields() -> None:
     """
     assert len(PHASE_IDENTITY) == 2
     assert len(PHASE_PLUMBING) == 3
-    assert len(PHASE_CONTENT) == 17
-    assert len(PHASE_AUTHOR_POPULATED) == 22
-    assert len(PHASE_EXPECTED) == 23
+    assert len(PHASE_CONTENT) == 18
+    assert len(PHASE_AUTHOR_POPULATED) == 23
+    assert len(PHASE_EXPECTED) == 24
     assert list(PhaseState.__annotations__) == PHASE_EXPECTED
 
 

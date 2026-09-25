@@ -372,6 +372,7 @@ a{text-decoration:none;color:inherit}
 .expl-term{font-size:12px;font-weight:600;color:#00305A;margin-bottom:4px}
 .expl-body{font-size:12px;color:var(--text2,#5C5A55);line-height:1.6}
 .expl-example{font-size:11px;color:var(--text3,#99978F);margin-top:6px;padding-top:6px;border-top:0.5px solid var(--border,#E4E2DC)}
+.rb-actions{display:flex;gap:8px;margin-top:10px}
 </style>
 </head>
 <body>
@@ -5957,8 +5958,17 @@ function renderTurn(turn){
     const blk=(k,label)=>turn[k]?`<div class="blk blk-${k}"><div class="blk-h">${label}</div>${escapeHtml(turn[k])}</div>`:'';
     const prog=turn.progress?`<div class="blk-progress">${escapeHtml(turn.progress)}</div>`:'';
     const warn=turn.grader_warning?`<div class="blk blk-warning">${escapeHtml(turn.grader_warning)}</div>`:'';
+    // Step 6.61 (R4) — Confirm / Change under a read-back, on the latest turn
+    // only. The move comes from the backend (the code decided it); a click
+    // sets the field's status in code, never through the text.
+    const mv=turn.move||((turn.coaching_move||{}).move);
+    const chat=(typeof S!=='undefined'&&S&&Array.isArray(S.localChat))?S.localChat:[];
+    const latest=chat.length>0&&chat[chat.length-1]===turn;
+    const acts=(mv==='read_back'&&latest)?`<div class="rb-actions">
+      <button id="rb-confirm" class="btn btn-primary" onclick="sendMessage('confirm')">Confirm</button>
+      <button id="rb-change" class="btn" onclick="sendMessage('change')">Change</button></div>`:'';
     return `<div class="msg"><div class="mav mai">AI</div>
-      <div class="bbl bbl-ai">${prog}<p>${turn.text}</p>${blk('explanation','Why it matters')}${blk('example','Example — an illustration, not your data')}${blk('prompt','Your turn')}${warn}${cites}</div></div>`;
+      <div class="bbl bbl-ai">${prog}<p>${turn.text}</p>${blk('explanation','Why it matters')}${blk('example','Example — an illustration, not your data')}${blk('prompt','Your turn')}${acts}${warn}${cites}</div></div>`;
   }else{
     const initials=(turn.user||S.user||'U').split(' ').map(w=>w[0]).join('').substr(0,2).toUpperCase();
     return `<div class="msg user"><div class="mav mu">${initials}</div>
@@ -6097,11 +6107,14 @@ async function loadSessionGreeting() {
   return;
 }
 
-async function sendMessage(){
+async function sendMessage(action){
   const input=document.getElementById('chat-input');
-  const text=input.value.trim();
+  // Step 6.61 (R4) — a Confirm / Change click sends the action; the Belt's
+  // side of the chat shows the button they pressed.
+  const text=action?(action==='confirm'?'Confirm':'Change'):input.value.trim();
   if(!text||!S.case)return;
-  input.value='';
+  if(!action)input.value='';
+  document.querySelectorAll('.rb-actions').forEach(el=>el.remove());
   // Add user turn
   const userTurn={turn:S.localChat.length+1,role:'user',user:S.user,text,timestamp:new Date().toISOString(),citations:[]};
   S.localChat.push(userTurn);
@@ -6109,7 +6122,7 @@ async function sendMessage(){
   document.getElementById('typing').classList.add('show');
   try{
     const resp=await apiJSON(`${API}/ask`,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({case_id:S.case.case_id,user:S.user,message:text,phase:S.phase})});
+      body:JSON.stringify({case_id:S.case.case_id,user:S.user,message:text,phase:S.phase,action:action||null})});
     document.getElementById('typing').classList.remove('show');
     if(resp.answer){
       S.lastAsk=resp;
@@ -6132,6 +6145,7 @@ async function sendMessage(){
         // (which re-renders S.localChat) keeps them.
         explanation:resp.explanation||'',example:resp.example||'',prompt:resp.prompt||'',
         progress:resp.progress||'',grader_warning:resp.grader_warning||null,
+        move:resp.move||null,
         // G-79 — the visual travels with the turn too, for the next redraw.
         visualisation:resp.visualisation||null,sipoc_diagram:resp.sipoc_diagram||null};
       S.localChat.push(aiTurn);

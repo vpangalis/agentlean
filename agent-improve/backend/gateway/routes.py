@@ -476,6 +476,10 @@ def apply_capture(case: CaseDocument, phase: str, payload: dict[str, Any]) -> No
         # twelve turns; this turn carries one or two.
         record.structured = {**(record.structured or {}), **captured}
 
+    # Step 6.61 (R5) — the field statuses, replaced whole: the executor
+    # returns the after-change map for every position it knows.
+    if payload.get("field_status"):
+        record.field_status = {f: dict(v) for f, v in payload["field_status"].items()}
     entries = list(payload.get("field_log") or [])
     if entries:
         # The SAME function the channel reduces with (`core/substate.py`), so
@@ -694,6 +698,8 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     phase = _requested_phase(case, request.phase)
     graph = get_graph(phase)
     config = _graph_config(case, phase, request.user, entry="ask")
+    # Step 6.61 (R4) — a Confirm / Change click rides beside the entry mode.
+    config["configurable"]["belt_action"] = request.action
 
     try:
         state = await _graph_input(
@@ -778,6 +784,8 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
         **{k: str((extra.get("coaching_blocks") or {}).get(k) or "")
            for k in ("explanation", "example", "prompt", "progress")},
         grader_warning=extra.get("grader_warning") or None,
+        move=(extra.get("coaching_move") or {}).get("move"),
+        move_field=(extra.get("coaching_move") or {}).get("field"),
     )
 
 

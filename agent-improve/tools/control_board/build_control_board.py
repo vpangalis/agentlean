@@ -123,8 +123,11 @@ def _row(s: str, stp: dict, bars: dict, today: dt.date) -> dict:
         p0, p1 = a0, progress.add_workdays(a0, stp["estimate"])
     else:
         p0 = p1 = None
+    # A step started and not yet landed runs to today — DONE in the tree
+    # included: the commit that lands it is the one being built (6.61's own
+    # pre-commit build, where the ✅ is staged before its landing commit exists).
     return {"s": s, "st": stp, "p0": p0, "p1": p1, "a0": a0,
-            "a1": a1 or (today if a0 and not stp["done"] else None),
+            "a1": a1 or (today if a0 else None),
             "open": bool(a0 and not a1), "wait": (b or {}).get("waiting_on", [])}
 
 

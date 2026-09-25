@@ -46,6 +46,13 @@ from urllib.parse import unquote
 import pytest
 
 CASE_ID = os.environ.get("CAPABILITY_CASE_ID", "IMPR-2026-0E5")
+
+#: Row 3 — founder ruling R2 (2026-09-25): the script row reads THE PROOF CASE
+#: OF THE STEP THAT LAST CHANGED THE DELIVERED SCRIPT, never the default case —
+#: a script change makes every older case's delivery stale by construction,
+#: and a live turn on an old case to refresh it proves nothing about the step.
+#: Now step 6.61's proof case; the step that next changes the script moves it.
+SCRIPT_PROOF_CASE = os.environ.get("CAPABILITY_SCRIPT_CASE_ID", "IMPR-2026-7F1")
 PHASE = "define"
 LIVE_TURN = os.environ.get("CAPABILITY_LIVE_TURN") == "1"
 
@@ -173,9 +180,9 @@ def _turn_step_log(turn: dict) -> list[dict]:
     return [e for e in (_turn_final(turn).get("step_log") or []) if isinstance(e, dict)]
 
 
-def _all_subgraph_finals(cp) -> list[dict]:
+def _all_subgraph_finals(cp, case_id: str = CASE_ID) -> list[dict]:
     """Every recorded define turn's final subgraph state, oldest first."""
-    prefix = f"checkpoints/{CASE_ID}/ns/"
+    prefix = f"checkpoints/{case_id}/ns/"
     finals = []
     for b in cp._container.list_blobs(name_starts_with=prefix):
         if not b.name.endswith("/latest.json"):
@@ -183,7 +190,7 @@ def _all_subgraph_finals(cp) -> list[dict]:
         ns = unquote(b.name[len(prefix):-len("/latest.json")])
         if "|" in ns or not ns.startswith(PHASE):
             continue
-        t = cp.get_tuple({"configurable": {"thread_id": CASE_ID, "checkpoint_ns": ns}})
+        t = cp.get_tuple({"configurable": {"thread_id": case_id, "checkpoint_ns": ns}})
         if t is not None:
             finals.append({"ts": t.checkpoint["ts"], "ns": ns,
                            "values": t.checkpoint.get("channel_values") or {}})
@@ -515,12 +522,12 @@ def test_row_3_the_coach_follows_the_define_script(turn) -> None:
     """**Row 3.** The latest turn the coach COMPLETED records that the Define
     script reached the model — delivered, and the hash of today's SKILL.md."""
     from backend.middleware.skills import script_record
-    finals = [f for f in _all_subgraph_finals(_checkpointer())
+    finals = [f for f in _all_subgraph_finals(_checkpointer(), SCRIPT_PROOF_CASE)
               if any(isinstance(e, dict) and e.get("node") == "executor"
                      and e.get("status") in ("coached", "coached_no_retrieval")
                      for e in (f["values"].get("step_log") or []))]
     if not finals:
-        pytest.skip(f"no coaching turn on {CASE_ID} completed" + NOT_A_PASS)
+        pytest.skip(f"no coaching turn on {SCRIPT_PROOF_CASE} completed" + NOT_A_PASS)
     log = [e for e in (finals[-1]["values"].get("step_log") or []) if isinstance(e, dict)]
     problems = _row_3(log, script_record(PHASE)["sha256"])
     assert not problems, "; ".join(problems)
@@ -657,7 +664,7 @@ def test_row_13_the_coaching_rubric_scores_the_turn(turn) -> None:
                      and e.get("status") in ("coached", "coached_no_retrieval")
                      for e in (f["values"].get("step_log") or []))]
     if not finals:
-        pytest.skip(f"no coaching turn on {CASE_ID} completed" + NOT_A_PASS)
+        pytest.skip(f"no coaching turn on {SCRIPT_PROOF_CASE} completed" + NOT_A_PASS)
     log = [e for e in (finals[-1]["values"].get("step_log") or []) if isinstance(e, dict)]
     problems = _row_13(log)
     assert not problems, "; ".join(problems)

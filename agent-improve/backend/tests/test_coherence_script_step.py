@@ -116,7 +116,9 @@ def test_a_turn_that_captures_a_field_is_at_that_fields_confirm_step() -> None:
     step = script_step("define", captured=["business_case"], focus_field="team")
     assert step is not None
     assert (step["position"], step["field"], step["step"]) == (1, "business_case", "confirm")
-    assert "**Confirm**" in step["block"], "the field's own script block, Confirm line included"
+    assert "**Read back:**" in step["block"], (
+        "the field's own script block, its read-back line included (6.61: "
+        "the script's ④ is 'Read back', no longer 'Confirm, then move on')")
     assert "In a sentence or two" in step["block"], "the block is business_case's, not another's"
 
 
@@ -211,7 +213,7 @@ def _state() -> PhaseState:
         "messages": [HumanMessage(content=BELT_1314)],
         "history": [], "phase_context": "", "coaching_plan": None,
         "field_index": 0, "draft": {}, "artifacts": {}, "step_log": [],
-        "field_log": [], "belt_edits": {}, "turn_count": 0, "final": {},
+        "field_log": [], "field_status": {}, "belt_edits": {}, "turn_count": 0, "final": {},
         "gate_attempts": 0, "validator_feedback": [], "rejection_feedback": [],
         "citations": [], "uploads": [], "asks": [], "hop_results": [],
         "synthesis_output": None,

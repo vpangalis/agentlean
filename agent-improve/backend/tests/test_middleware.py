@@ -39,10 +39,15 @@ from langchain_core.language_models.fake_chat_models import (
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain_core.tools import tool
 
+from backend.core.prompts import (
+    SECTION_CONVERSATION, SECTION_FEEDBACK, SECTION_MOVE, SECTION_RULES,
+    SECTION_SCRIPT, SECTION_STATE,
+)
 from backend.core.substate import CoachingPlan, PhaseState
 from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE
 from backend.knowledge.tools import UNIVERSAL_TOOLS
 from backend.middleware.skills import (
+    script_section,
     LEVEL_1_TOKEN_BUDGET,
     SKILL_DIRS,
     DMAICSkillsMiddleware,
@@ -77,7 +82,7 @@ def _state(**overrides: Any) -> PhaseState:
         "case_id": "IMPR-TEST-63", "current_phase": "define",
         "messages": [], "history": [], "phase_context": "",
         "coaching_plan": None, "field_index": 0, "draft": {}, "artifacts": {},
-        "step_log": [], "field_log": [], "belt_edits": {}, "turn_count": 0,
+        "step_log": [], "field_log": [], "field_status": {}, "belt_edits": {}, "turn_count": 0,
         "final": {}, "gate_attempts": 0, "validator_feedback": [],
         "rejection_feedback": [], "citations": [], "uploads": [], "asks": [],
         "hop_results": [], "synthesis_output": None,
@@ -156,10 +161,12 @@ class _FakeRequest:
 
 
 def test_facts_go_above_the_coach_instructions_never_into_messages() -> None:
-    """**S-C11 B2.** *"Injecting in `messages[]` append order is a violation."*
-
-    Models weight earlier content more heavily, and facts arriving after the
-    Belt's message let the response drift toward the Belt's framing.
+    """**S-C11 B2 — the channel half stands; the order half is v1.75's.**
+    *"Injecting in `messages[]` append order is a violation"* still holds:
+    facts go in the system message, never into the conversation. Where in the
+    system message is the founder's ruling of 2026-09-25 (§19.1 v1.75): the
+    six sections, rules first, state third — so the facts sit BELOW the rules
+    and ABOVE the conversation.
     """
     mw = BeforeModelStateInjection("define", _state())
     mw.before_agent(None, None)
@@ -168,8 +175,8 @@ def test_facts_go_above_the_coach_instructions_never_into_messages() -> None:
 
     assert out.system_message is not None
     text = str(out.system_message.content)
-    assert text.index("PROJECT STATE") < text.index("COACH INSTRUCTIONS"), (
-        "project facts must be ABOVE the coach's instructions (B2)"
+    assert text.index("COACH INSTRUCTIONS") < text.index("PROJECT STATE"), (
+        "v1.75 — section 1 (the rules) comes before section 3 (the facts)"
     )
     assert out.messages == ["untouched"], "B2 — messages[] is not the channel"
 
@@ -196,11 +203,15 @@ def test_injection_uses_content_blocks_not_string_concatenation() -> None:
 
     assert out.system_message is not None
     texts = _texts(out.system_message)
-    assert texts[1:] == ["COACH PART ONE", "COACH PART TWO"], (
+    # 6.61 — section 1's heading, the rules' own blocks INTACT, then sections
+    # 3, 4, 5 and 6's label (section 2 is position 2's to place).
+    assert texts[0] == SECTION_RULES
+    assert texts[1:3] == ["COACH PART ONE", "COACH PART TWO"], (
         "the existing blocks were not preserved intact"
     )
-    assert "PROJECT STATE" in texts[0], "B2 — facts go first"
-    assert len(texts) == 3
+    assert [t.split("\n", 1)[0] for t in texts[3:]] == [
+        SECTION_STATE, SECTION_MOVE, SECTION_FEEDBACK, SECTION_CONVERSATION]
+    assert len(texts) == 7
 
     # **The check is per BLOCK, not on `.content`.** A multi-part message's
     # `.content` is a list and reprs as one — correctly. The failure being
@@ -227,16 +238,18 @@ def test_skills_catalogue_also_uses_content_blocks() -> None:
 
     texts = _texts(out.system_message)
     assert texts[:2] == ["PROJECT STATE ...", "COACH INSTRUCTIONS"]
-    assert "AVAILABLE COACHING SKILLS" in texts[-1]
+    # 6.61 — section 2, as its own blocks: the heading, then the script part.
+    assert texts[2] == "## 2 · PHASE SCRIPT — what to teach"
+    assert texts[3] == script_section("define", None, False)
     assert not any("'type': 'text'" in t for t in texts)
 
 
 def test_the_two_middlewares_compose_without_flattening() -> None:
-    """Both hooks in sequence — the shape the model actually receives.
-
-    Five blocks, in order: project state, the coach's two parts, the phase's
-    full script (step 6.46, option A — every model call), then the catalogue.
-    A flattening bug in EITHER site shows up here as a repr in the text.
+    """Both hooks in sequence — the shape the model actually receives, since
+    6.61 the SIX SECTIONS in the ruled order (§19.1 v1.75): rules (the coach's
+    two parts) · script (heading, the full script, the catalogue) · state ·
+    move · feedback · the conversation's label. A flattening bug in EITHER
+    site shows up here as a repr in the text.
     """
     inject = BeforeModelStateInjection("define", _state())
     skills = DMAICSkillsMiddleware("define")
@@ -251,11 +264,15 @@ def test_the_two_middlewares_compose_without_flattening() -> None:
     request = skills._append_catalogue(request)
 
     texts = _texts(request.system_message)
-    assert len(texts) == 5
-    assert "PROJECT STATE" in texts[0]
+    assert len(texts) == 9
+    assert texts[0] == SECTION_RULES
     assert texts[1:3] == ["COACH PART ONE", "COACH PART TWO"]
-    assert texts[3] == instructions("define")
-    assert "AVAILABLE COACHING SKILLS" in texts[4]
+    assert texts[3] == SECTION_SCRIPT
+    # Item 4 — the section, not the whole script; no plan here, so no current
+    # field: the closing block. The catalogue is gone from the message.
+    assert texts[4] == script_section("define", None, False)
+    assert [t.split("\n", 1)[0] for t in texts[5:]] == [
+        SECTION_STATE, SECTION_MOVE, SECTION_FEEDBACK, SECTION_CONVERSATION]
     assert not any("'type': 'text'" in t for t in texts)
 
 
@@ -378,13 +395,17 @@ def test_level_1_is_actually_DELIVERED_not_just_composed() -> None:
     request = _FakeRequest(SystemMessage(content="COACH INSTRUCTIONS"))
     out = mw._append_catalogue(cast(Any, request))
 
+    # 6.61 (item 4, founder) — section 2 is the opening and the CURRENT
+    # field's block only; the five-skill catalogue left the message. Level 2
+    # is still reachable: `load_skill` is registered, and its own description
+    # names the five — so the coach is told how to reach it, by the tool.
     text = str(out.system_message.content)
+    assert "AVAILABLE COACHING SKILLS" not in text
+    tool = mw.tools[0]
+    assert tool.name == "load_skill"
     for phase in PHASE_ORDER:
-        assert SKILL_DIRS[phase] in text, f"{phase} absent from the catalogue"
-    assert "load_skill" in text, "the coach is not told how to reach level 2"
-    assert text.index("COACH INSTRUCTIONS") < text.index("AVAILABLE COACHING"), (
-        "skills must sit BELOW position 1's project state (S-C11 B4)"
-    )
+        assert phase in tool.description, f"{phase} absent from load_skill's description"
+    assert text.index("COACH INSTRUCTIONS") < text.index("## 2 · PHASE SCRIPT")
 
 
 def test_level_1_delivers_descriptions_only_never_the_full_text() -> None:
@@ -674,7 +695,7 @@ def test_the_injected_block_reflects_this_turns_state(stub_coach) -> None:
     asyncio.run(_c.executor("define", _state(
         artifacts={"business_case": "£120k of rework a year"},
         coaching_plan=CoachingPlan(
-            focus_field="team", next_action="ask",
+            focus_field="team", status="untaught", move="teach",
             retrieval_strategy="single_hop", retrieval_hops=[]),
     )))
     block = stub_coach.injected_block

@@ -349,14 +349,16 @@ def test_the_coach_sees_the_prior_conversation_on_turn_two(wired, stub_coach) ->
 
 # ── what the route reads back ─────────────────────────────────────────────
 
-def test_the_turn_product_rides_on_the_reply_message(wired, stub_coach) -> None:
+def test_the_turn_product_rides_on_the_reply_message(wired, stub_coach,
+                                                    confirming_planner) -> None:
     """`SupervisorState` is seven fields (§5), so this is the channel out.
 
     **Step 6.2 changed WHAT rides out.** The v1 orchestrator returned
     `sipoc_diagram` and `section_completed` on every turn; the v2 coach emits a
     `CoachingResponse` and calls `propose_diagram` when a picture helps. So the
     draft is what the coach captured, and the diagram is present only on a turn
-    that drew one.
+    that drew one. **Since 6.61 the draft is what the Belt CONFIRMED** — this
+    turn confirms the reply's value (`confirming_planner`).
     """
     stub_coach.reply = CoachingResponse(explanation="", example="", prompt="", progress="", 
         message="Noted.",

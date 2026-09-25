@@ -63,12 +63,24 @@ from typing import Any, Awaitable, Callable, Optional
 
 from langchain.agents.middleware import AgentMiddleware
 from langchain.agents.middleware.types import ModelRequest
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import AIMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
+from backend.core.prompts import (
+    MOVE_INSTRUCTIONS,
+    MOVE_OPENING,
+    MOVE_PREAMBLE,
+    SECTION_CONVERSATION,
+    SECTION_FEEDBACK,
+    SECTION_MOVE,
+    SECTION_RULES,
+    SECTION_STATE,
+)
 from backend.core.substate import PhaseState
+from backend.middleware.grader import applies
+from backend.phases import moves
 from backend.phases.define.schema import define_progress
-from backend.phases.gate_registry import GATE_SPECS, missing_gate_fields
+from backend.phases.gate_registry import GATE_SPECS, declared_type, missing_gate_fields
 from backend.phases.mappers_common import PHASE_ORDER
 
 logger = logging.getLogger(__name__)
@@ -123,15 +135,21 @@ class BeforeModelStateInjection(AgentMiddleware):
         #: the semantic contradiction check (§37) silently detects nothing.
         self._prior = prior_documents or {}
         self._block: str = ""
+        self._move: str = ""
+        self._feedback: str = ""
 
     # ── the hook that does the work (B1) ─────────────────────────────────
 
     def before_agent(self, state: Any, runtime: Any) -> dict[str, Any] | None:
-        """Compose the block. Once per turn — never `before_model` (B1)."""
+        """Compose sections 3, 4 and 5. Once per turn — never `before_model` (B1)."""
         self._block = self._compose()
+        self._move = self._compose_move()
+        self._feedback = self._compose_feedback()
         logger.info(
-            "%s.state_injection: composed %d chars, %d prior phase(s)",
-            self.phase, len(self._block), len(self._prior),
+            "%s.state_injection: composed state %d chars, move %d, feedback %d, "
+            "%d prior phase(s)",
+            self.phase, len(self._block), len(self._move), len(self._feedback),
+            len(self._prior),
         )
         return None
 
@@ -179,20 +197,36 @@ class BeforeModelStateInjection(AgentMiddleware):
             return request
         existing = request.system_message
         blocks = list(existing.content_blocks) if existing is not None else []
+        # 6.61 — THE SIX SECTIONS (§19.1 v1.75), in the ruled order. The rules
+        # are the agent's own system prompt, labelled here as section 1 by a
+        # heading block of their own (their blocks are never concatenated —
+        # §21). Section 2, the phase script, is placed after section 1 by
+        # position 2 (`DMAICSkillsMiddleware`), which runs inside this wrap.
         return request.override(
-            system_message=SystemMessage(
-                content_blocks=[{"type": "text", "text": self._block}, *blocks],
-            )
+            system_message=SystemMessage(content_blocks=[
+                {"type": "text", "text": SECTION_RULES}, *blocks,
+                {"type": "text", "text": self._block},
+                {"type": "text", "text": self._move},
+                {"type": "text", "text": self._feedback},
+                {"type": "text", "text": SECTION_CONVERSATION},
+            ])
         )
 
     # ── composition (G-24: shape is not ratified) ────────────────────────
 
     def _compose(self) -> str:
-        artifacts = dict(self._state.get("artifacts") or {})
+        # 6.61 (item 2) — THE STATE AFTER THIS TURN'S CHANGE, so sections 3
+        # and 4 agree: on a confirming turn the value is shown stored, the step
+        # advanced and the next field current — which is what section 4 tells
+        # the coach to say.
+        plan = self._state.get("coaching_plan")
+        artifacts = {**dict(self._state.get("artifacts") or {}),
+                     **dict(getattr(plan, "store", None) or {})}
         spec = GATE_SPECS[self.phase]
         missing = missing_gate_fields(self.phase, artifacts)
 
-        parts = [f"PROJECT STATE — {self.phase.upper()} PHASE",
+        parts = [SECTION_STATE,
+                 f"PROJECT STATE — {self.phase.upper()} PHASE",
                  "(established facts; these outrank anything said in "
                  "conversation that contradicts them)"]
 
@@ -257,11 +291,30 @@ class BeforeModelStateInjection(AgentMiddleware):
                           for k, v in doc.items()
                           if v and not k.startswith("_")]
 
-        parts.append("\nCAPTURED THIS PHASE")
+        parts.append("\nCONFIRMED BY THE BELT AND STORED THIS PHASE")
         if artifacts:
             parts += [f"  {k}: {_render_value(v)}" for k, v in artifacts.items()]
         else:
-            parts.append("  (nothing captured yet)")
+            parts.append("  (nothing stored yet)")
+
+        # 6.61 (R5) — every position's stored status, after this turn's change,
+        # the current field, and the value awaiting confirmation.
+        statuses = dict(getattr(plan, "statuses", None) or {})
+        if statuses:
+            parts.append("\nFIELD STATUS — stored, after this turn "
+                         "(not taught / asked / answered / confirmed)")
+            parts += [f"  {i}. {f} — {s}" for i, (f, s) in enumerate(statuses.items(), 1)]
+            parts.append("  CURRENT FIELD: "
+                         + (getattr(plan, "focus_field", None) or "(every field is confirmed)"))
+        pending = getattr(plan, "pending", None) if plan is not None else None
+        if pending:
+            parts.append("\nPENDING — an answer awaiting the Belt's confirmation; NOT stored")
+            parts.append(f"  field: {pending.get('field')}")
+            parts.append(f"  the Belt's words: {pending.get('belt_words')}")
+            if pending.get("store"):
+                parts.append("  what the Belt's yes stores: "
+                             + "; ".join(f"{k} = {_render_value(v, 600)}"
+                                         for k, v in pending["store"].items()))
 
         parts += self._upload_manifest()
 
@@ -276,6 +329,95 @@ class BeforeModelStateInjection(AgentMiddleware):
                          + ", ".join(spec.tier_2))
 
         return "\n".join(parts)
+
+    def _compose_move(self) -> str:
+        """Section 4 — THIS TURN'S MOVE, from the plan code built (6.61).
+
+        Authoritative, and says so (`MOVE_PREAMBLE`). The instruction per move
+        is `prompts.MOVE_INSTRUCTIONS`; which one applies, and what it names,
+        is decided here from the plan — the coach is never asked to choose.
+        """
+        plan = self._state.get("coaching_plan")
+        if plan is None:
+            return f"{SECTION_MOVE}\n(no plan was produced for this turn)"
+        field = plan.focus_field
+        judgment = getattr(plan, "judgment", None)
+        reason = plan.reason or (judgment.reason if judgment is not None else "")
+        pending = plan.pending or {}
+        words = str(pending.get("belt_words") or plan.answer or "").strip() or "(none yet)"
+        structured = False
+        if plan.move == moves.READ_BACK:
+            fields = list(pending.get("fields") or [field])
+            structured = any(declared_type(self.phase, f) not in (None, str) for f in fields)
+            composed = (structured or len(fields) > 1 or field in moves.COMPOSED_FIELDS
+                        or int(pending.get("messages") or 1) > 1)
+            key = "read_back_composed" if composed else "read_back_verbatim"
+        elif plan.move == moves.STORE_AND_ADVANCE:
+            key = "store_and_advance" if field else "store_and_finish"
+            fields = []
+        elif plan.move == moves.RESPOND:
+            key = "complete" if field is None else ("respond_pending" if pending else "respond")
+            fields = []
+        else:
+            key = plan.move
+            fields = []
+        shape = (" — in the shape the phase script's 'Capture as' gives for it"
+                 if plan.move == moves.READ_BACK and structured else "")
+        body = MOVE_INSTRUCTIONS[key].format(
+            field=field, stored=plan.stored_field, reason=reason, words=words,
+            fields=" and ".join(f"`{f}`" for f in fields), shape=shape)
+        lines = [SECTION_MOVE, MOVE_PREAMBLE, "",
+                 # Fix 2 — the status AFTER this turn, as section 3 shows it:
+                 # on a store-and-advance the field is the NEXT one, and the
+                 # before-status is the confirmed field's, not its.
+                 f"Field: {field or '(every field is confirmed)'} — status after this turn: "
+                 f"{(plan.statuses or {}).get(field or '', plan.status)}"]
+        if judgment is not None:
+            lines.append(f"The planner's judgment: {judgment.verdict} — {judgment.reason}")
+        if not any(isinstance(m, AIMessage) for m in (self._state.get("messages") or [])):
+            lines.append(MOVE_OPENING)
+        return "\n".join([*lines, "", body])
+
+    def _compose_feedback(self) -> str:
+        """Section 5 — last turn's quality feedback, for the coach (6.61).
+
+        The grader's and coherence's verdicts on the PREVIOUS reply, read off
+        that reply. **Never presented as a message from the Belt** — it is a
+        system section, and it says whose it is.
+        """
+        fb = moves.last_feedback(list(self._state.get("messages") or []))
+        lines = [SECTION_FEEDBACK]
+        if not fb:
+            lines.append("  (none — no quality check ran on your previous reply, or "
+                         "there is no previous reply)")
+            return "\n".join(lines)
+        g, c = fb.get("grader"), fb.get("coherence")
+        # 6.61 (item 3) — only what applies to THIS turn's move: section 5
+        # never contradicts section 4. A criterion the move does not answer
+        # (a read-back is not a challenge) is left out, and says so.
+        plan = self._state.get("coaching_plan")
+        move = getattr(plan, "move", None)
+        if g:
+            failed = list(g.get("failed") or [{"criterion": c_, "feedback": ""}
+                                              for c_ in g.get("criteria_failed") or []])
+            # ...and only what applied to the move the reply was GRADED as:
+            # a verdict recorded before a criterion was excluded for that
+            # move cannot leak through.
+            kept = [f for f in failed if applies(str(f.get("criterion")), move)
+                    and applies(str(f.get("criterion")), g.get("move"))]
+            if g.get("status") == "pass" or not failed:
+                lines.append("  Coaching quality: passed every criterion.")
+            elif kept:
+                lines.append("  Coaching quality: FAILED on your previous reply — apply "
+                             "only within this turn's move:")
+                lines += [f"    - {f.get('criterion')}: {f.get('feedback')}".rstrip(": ")
+                          for f in kept]
+            else:
+                lines.append("  Coaching quality: nothing that applies to this turn's move.")
+        if c:
+            lines.append("  Coherence: " + ("coherent" if c.get("coherent") else
+                                            f"NOT coherent — {c.get('reason') or ''}"))
+        return "\n".join(lines)
 
     def _upload_manifest(self) -> list[str]:
         """The uploads INVENTORY — one line per entry, never the content.

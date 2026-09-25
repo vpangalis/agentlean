@@ -153,22 +153,30 @@ def _texts(req: _Req) -> list[str]:
 
 
 def skills(phase: str) -> dict:
-    """What `DMAICSkillsMiddleware` delivers, by running it."""
+    """What `DMAICSkillsMiddleware` delivers, by running it — since 6.61 (fix
+    4), section 2: the script's opening on the first turn, then only the
+    CURRENT field's block, never the whole script or the catalogue."""
     from langchain_core.messages import SystemMessage
-    from backend.middleware.skills import DMAICSkillsMiddleware, SKILL_DIRS, instructions
+    from backend.middleware.skills import (
+        DMAICSkillsMiddleware, SKILL_DIRS, instructions, script_section)
+    from backend.phases import moves
     delivered: list[dict] = []
-    mw = DMAICSkillsMiddleware(phase, on_delivery=delivered.append)
+    field = moves.positions(phase)[0][0]
+    mw = DMAICSkillsMiddleware(phase, on_delivery=delivered.append, focus_field=field,
+                               opening=True)
     mw.before_agent({}, None)
     first = _texts(mw._append_catalogue(_Req(SystemMessage(content="P"))))
     second = _texts(mw._append_catalogue(_Req(SystemMessage(content="P"))))
-    script = instructions(phase)
-    every_call = script in first and script in second
-    label = (f"{SKILL_DIRS[phase]} SKILL.md ({len(script):,} chars) on every model call, "
-             f"then the catalogue of {len(SKILL_DIRS)} skill descriptions"
+    script, part = instructions(phase), script_section(phase, field, True)
+    every_call = part in first and part in second
+    label = (f"{SKILL_DIRS[phase]} SKILL.md, the part for the current field "
+             f"({len(part):,} of {len(script):,} chars on the opening turn, `{field}`) "
+             f"on every model call"
              if every_call else
              f"{SKILL_DIRS[phase]} SKILL.md NOT delivered by the wrap — "
              f"only on a load_skill call")
     return {"label": label, "every_call": every_call, "script_chars": len(script),
+            "part_chars": len(part),
             "deliveries_in_two_calls": len(delivered),
             "tools": [t.name for t in mw.tools],
             "source": "backend/middleware/skills.py::DMAICSkillsMiddleware._append_catalogue"}
@@ -206,23 +214,34 @@ def coach_inputs(phase: str) -> dict:
                {"configurable": {"case_metadata": {"title": "t"}}},
                {p: {"k": "v"} for p in ("define", "measure", "analyse", "improve", "control")})
     script, prompt = instructions(phase), PHASE_COACH_PROMPT[phase]
-    always = set(_sections(empty[0]))
-    blocks = []
+    always = {s for t in empty if t.startswith("## 3") for s in _sections(t.split("\n", 1)[-1])}
+
+    # 6.61 — the input is SIX LABELLED SECTIONS (§19.1 v1.75). Each `## n ·`
+    # heading opens one; the blocks under it are what fills it, named from
+    # the code that composed them. Sections 3 (state) list their own parts.
+    sources = {"## 1": "backend/core/prompts.py::PHASE_COACH_PROMPT",
+               "## 2": "backend/middleware/skills.py::DMAICSkillsMiddleware",
+               "## 3": "backend/middleware/state_injection.py::BeforeModelStateInjection._compose",
+               "## 4": "backend/middleware/state_injection.py::BeforeModelStateInjection._compose_move",
+               "## 5": "backend/middleware/state_injection.py::BeforeModelStateInjection._compose_feedback",
+               "## 6": "the conversation — create_agent's messages, after the system message"}
+    blocks: list[dict] = []
     for text in full:
-        if text == prompt:
-            blocks.append({"block": "the phase coach prompt", "chars": len(text), "sections": [],
-                           "source": "backend/core/prompts.py::PHASE_COACH_PROMPT"})
-        elif text == script:
-            blocks.append({"block": f"{SKILL_DIRS[phase]} SKILL.md", "chars": len(text), "sections": [],
-                           "source": "backend/middleware/skills.py::DMAICSkillsMiddleware"})
-        elif text.startswith("AVAILABLE COACHING SKILLS"):
-            blocks.append({"block": "the skills catalogue", "chars": len(text), "sections": [],
-                           "source": "backend/middleware/skills.py::level_1_catalogue"})
+        if text.startswith("## "):
+            heading, _, body = text.partition("\n")
+            parts = [{"name": s, "when": "always" if s in always else "when present"}
+                     for s in _sections(body)] if heading.startswith("## 3") else []
+            blocks.append({"block": heading.removeprefix("## "), "chars": len(body) or None,
+                           "sections": parts, "source": sources.get(heading[:4], "")})
+            continue
+        part = ("the phase coach prompt" if text == prompt else
+                f"{SKILL_DIRS[phase]} SKILL.md" if text == script else
+                "the skills catalogue" if text.startswith("AVAILABLE COACHING SKILLS") else
+                "a block no heading owns")
+        if blocks:
+            blocks[-1]["sections"].append({"name": f"{part} ({len(text):,} chars)", "when": "always"})
         else:
-            blocks.append({"block": "project state", "chars": None,
-                           "sections": [{"name": s, "when": "always" if s in always else "when present"}
-                                        for s in _sections(text)],
-                           "source": "backend/middleware/state_injection.py::BeforeModelStateInjection._compose"})
+            blocks.append({"block": part, "chars": len(text), "sections": [], "source": ""})
     return {"blocks": blocks}
 
 

@@ -242,6 +242,8 @@ def phase_node(phase: str) -> Callable[..., Any]:
             # `messages` and `history` only, so a `PhaseState` field the route
             # must persist has to ride out here or not at all.
             "field_log": [dict(e) for e in (result.get("field_log") or [])],
+            # Step 6.61 (R5) — where each field stands after this turn.
+            "field_status": {f: dict(v) for f, v in (result.get("field_status") or {}).items()},
         }
         if new_messages:
             _attach(new_messages[-1], payload)

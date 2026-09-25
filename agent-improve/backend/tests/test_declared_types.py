@@ -34,6 +34,8 @@ import os
 from typing import Any
 
 import pytest
+
+from backend.tests.conftest import store_plan
 from langchain_core.messages import HumanMessage
 
 from backend.core.substate import CoachingResponse, PhaseState
@@ -59,7 +61,7 @@ def _state(**overrides: Any) -> PhaseState:
         "case_id": "IMPR-TEST-648", "current_phase": "define",
         "messages": [HumanMessage(content="hello")], "history": [],
         "phase_context": "", "coaching_plan": None, "field_index": 0,
-        "draft": {}, "artifacts": {}, "step_log": [], "field_log": [],
+        "draft": {}, "artifacts": {}, "step_log": [], "field_log": [], "field_status": {},
         "belt_edits": {}, "turn_count": 0, "final": {}, "gate_attempts": 0,
         "validator_feedback": [], "rejection_feedback": [], "citations": [],
         "uploads": [], "asks": [], "hop_results": [], "synthesis_output": None,
@@ -141,7 +143,7 @@ def test_all_four_structured_fields_are_refused_as_prose(stub_planner,
                                                          stub_coach) -> None:
     """The measured defect, as a test: four fields, all prose, none stored."""
     stub_coach.reply = _prose_reply()
-    out = asyncio.run(_nc.executor("define", _state()))
+    out = asyncio.run(_nc.executor("define", _state(coaching_plan=store_plan(stub_coach.reply))))
 
     assert set(out["artifacts"]) == {"business_case"}, (
         "a structured field was stored as prose"
@@ -155,7 +157,7 @@ def test_the_str_field_in_the_same_turn_is_untouched(stub_planner,
     """**A refusal is per FIELD, not per turn** — §4.8. One malformed capture
     must not cost the Belt the four answers they gave correctly."""
     stub_coach.reply = _prose_reply()
-    out = asyncio.run(_nc.executor("define", _state()))
+    out = asyncio.run(_nc.executor("define", _state(coaching_plan=store_plan(stub_coach.reply))))
     assert out["artifacts"]["business_case"] == "Rework costs GBP 245,000 a year."
 
 
@@ -164,7 +166,7 @@ def test_the_turn_does_not_fail_for_the_belt(stub_planner, stub_coach) -> None:
     reaches them, and the field simply stays uncaptured so the coach asks
     again in its own voice, in the same conversation."""
     stub_coach.reply = _prose_reply()
-    out = asyncio.run(_nc.executor("define", _state()))
+    out = asyncio.run(_nc.executor("define", _state(coaching_plan=store_plan(stub_coach.reply))))
     assert out["messages"], "the turn produced no reply"
     assert out["step_log"][0]["status"] != "error"
 
@@ -177,7 +179,7 @@ def test_the_refusal_is_reported_by_field_and_by_type(stub_planner,
     blank on turn nine"* is answerable without re-running the turn.
     """
     stub_coach.reply = _prose_reply()
-    out = asyncio.run(_nc.executor("define", _state()))
+    out = asyncio.run(_nc.executor("define", _state(coaching_plan=store_plan(stub_coach.reply))))
     reported = out["step_log"][0]["fields_malformed"]
     assert reported == {
         "metric_definitions": "list[dict]",
@@ -197,7 +199,7 @@ def test_a_well_typed_capture_is_stored_unchanged(stub_planner,
         fields_captured=[{"field_name": "team", "value": team,
                           "source": "belt"}],
     )
-    out = asyncio.run(_nc.executor("define", _state()))
+    out = asyncio.run(_nc.executor("define", _state(coaching_plan=store_plan(stub_coach.reply))))
     assert out["artifacts"]["team"] is team
 
 

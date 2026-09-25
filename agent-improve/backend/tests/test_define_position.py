@@ -24,6 +24,7 @@ from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
+from backend.tests.conftest import store_plan
 from backend.core.substate import CoachingResponse, PhaseState
 from backend.middleware.state_injection import BeforeModelStateInjection
 from backend.phases import nodes_common as _nc
@@ -87,7 +88,7 @@ def _state(artifacts: dict) -> PhaseState:
         "messages": [HumanMessage(content="where are we?")],
         "history": [], "phase_context": "framing", "coaching_plan": None,
         "field_index": 0, "draft": {}, "artifacts": artifacts, "step_log": [],
-        "field_log": [], "belt_edits": {}, "turn_count": 0, "final": {},
+        "field_log": [], "field_status": {}, "belt_edits": {}, "turn_count": 0, "final": {},
         "gate_attempts": 0, "validator_feedback": [], "rejection_feedback": [],
         "citations": [], "uploads": [], "asks": [], "hop_results": [],
         "synthesis_output": None,
@@ -214,7 +215,11 @@ def test_a_capture_turn_writes_the_step_after_the_capture(monkeypatch, stub_plan
     with "Step 1 of 12" — the label was computed BEFORE the turn's capture.
     The written label is the position AFTER the capture, on every turn."""
     monkeypatch.setattr(_nc, "create_agent", lambda **kw: _CapturingAgent("anything"))
-    out = asyncio.run(_nc.executor("define", _state({f: "x" for f in DEFINE_FIELD_ORDER[:2]})))
+    # 6.61 — a value is stored only when the Belt confirms it: this turn
+    # confirms position 3 (`store_plan`), so the step after it is 4.
+    state: Any = {**_state({f: "x" for f in DEFINE_FIELD_ORDER[:2]}),
+             "coaching_plan": store_plan({"voc_summary": "Suppliers need paying on 30-day terms."})}
+    out = asyncio.run(_nc.executor("define", state))
     e = _record(out)
     assert e["progress_written"] == "Define · Step 4 of 12", e
     assert e["reply_progress"] == "anything", "the model's own value is kept"

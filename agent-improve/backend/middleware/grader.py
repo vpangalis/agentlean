@@ -67,9 +67,55 @@ MAX_ITERATIONS_WARNING = (
     "If it doesn't help, tell me and I'll try again."
 )
 
+#: 6.61 (item 3) — WHICH CRITERIA A MOVE IS GRADED ON. The move is decided in
+#: code; a reply is graded as the move it was asked to make, never failed for
+#: what that move does not do. Keyed by words in the rubric's own lines, so a
+#: rubric edit keeps its grading without a second list to update.
+#:
+#: **A challenge is not graded on referencing methodology** — the challenge
+#: loop's cause (6.61, fix 1, measured live on IMPR-2026-7F1): that verdict,
+#: carried into the next challenge's section 5, sent the coach looking up
+#: methodology and templates the move never asked for — 4 of 5 runs, one to
+#: the 50-step backstop; 0 of 2 without it. The move says "name what is
+#: missing and ask for it"; a criterion that asks for more contradicts it.
+#:
+#: **Nor is a challenge, a read-back or a respond graded on computation
+#: output** — none of the three runs a computation. The re-proof measured the
+#: same cause through this criterion: a read-back failed for "repeating the
+#: Belt's statement without explanation" (which IS the move), and that verdict
+#: in the next challenge's section 5 sent the coach calling `propose_template`
+#: to the backstop, 3 of 3 runs. Teach and store-and-advance keep it: both
+#: teach, and a taught tool may be run.
+_NO_COMPUTATION = "raw statistical output"
+MOVE_EXCLUDES: dict[str, tuple[str, ...]] = {
+    "teach": ("challenge weak inputs", "vague or unmeasurable"),
+    "challenge": ("concrete example", "reference methodology", _NO_COMPUTATION),
+    "read_back": ("challenge weak inputs", "vague or unmeasurable", "reference methodology",
+                  "concrete example", _NO_COMPUTATION),
+    "store_and_advance": ("challenge weak inputs", "vague or unmeasurable"),
+    "respond": ("challenge weak inputs", "vague or unmeasurable", "reference methodology",
+                "concrete example", _NO_COMPUTATION),
+}
+
+
+def applies(criterion: str, move: Optional[str]) -> bool:
+    """Does this rubric criterion apply to a reply making `move`?"""
+    text = (criterion or "").lower()
+    return not any(k in text for k in MOVE_EXCLUDES.get(move or "", ()))
+
+
+def rubric_for_move(move: Optional[str]) -> str:
+    """`COACHING_QUALITY_RUBRIC`, the lines that apply to `move` only."""
+    items = [i.strip() for i in ("\n" + COACHING_QUALITY_RUBRIC).split("\n- ") if i.strip()]
+    return "\n".join(f"- {i}" for i in items if applies(i, move))
+
+
 _PROMPT = """\
 You are grading ONE coaching turn against the standards below. You are judging
 the COACH's process, not the Belt's project and not the coach's writing style.
+
+THIS TURN'S MOVE was decided before the coach wrote, and it was: {move}.
+Grade the reply as that move. The standards below are the ones that apply to it.
 
 Return one verdict per criterion. Never an overall score - a coach handed an
 aggregate has nothing to act on. Where a criterion fails, say specifically what
@@ -97,9 +143,12 @@ class DMAICGraderMiddleware(AgentMiddleware):
         max_iterations: int = GRADER_MAX_ITERATIONS,
         on_evaluation: Optional[Callable[[dict[str, Any]], None]] = None,
         coherence: Optional["CoherenceMiddleware"] = None,
+        move: Optional[str] = None,
     ) -> None:
         super().__init__()
         self.phase = phase
+        #: 6.61 (item 3) — the move this reply was asked to make.
+        self.move = move
         #: **S-C13 B3's channel, and it is a reference rather than state.**
         #: A dict returned from one `after_agent` is not visible to the next
         #: hook in the same pass — measured, not assumed — so the skip signal
@@ -166,7 +215,8 @@ class DMAICGraderMiddleware(AgentMiddleware):
         supplies it.
         """
         model = get_llm("grader").with_structured_output(CoachingGraderVerdict)
-        prompt = _PROMPT.format(rubric=COACHING_QUALITY_RUBRIC,
+        prompt = _PROMPT.format(rubric=rubric_for_move(self.move),
+                                move=self.move or "(not given)",
                                 belt=belt[:2000], coach=coach[:4000])
         return CoachingGraderVerdict.model_validate(await model.ainvoke(prompt))
 
@@ -185,6 +235,11 @@ class DMAICGraderMiddleware(AgentMiddleware):
             "status": "pass" if verdict.passed else "failed",
             "criteria_failed": [c.criterion for c in verdict.failed],
             "feedback": [c.feedback for c in verdict.failed if c.feedback],
+            # 6.61 — each failed criterion WITH its feedback, so section 5 can
+            # keep only what applies to the next turn's move.
+            "failed": [{"criterion": c.criterion, "feedback": c.feedback or ""}
+                       for c in verdict.failed],
+            "move": self.move,
         })
 
     # ── reading the turn ─────────────────────────────────────────────────

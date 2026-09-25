@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Any, List
+from typing import Literal, Optional, Any, List
 
 from pydantic import BaseModel
 
@@ -26,6 +26,9 @@ class AskRequest(BaseModel):
     user: str                    # name of team member sending this turn
     message: str                 # what they typed
     phase: str                   # current phase — UI sends this for routing
+    # Step 6.61 (R4) — the Belt's Confirm or Change button under a read-back.
+    # A click sets the field's status in code; no model reads it.
+    action: Optional[Literal["confirm", "change"]] = None
 
 
 class UploadMetaRequest(BaseModel):
@@ -93,6 +96,10 @@ class AskResponse(BaseModel):
     prompt: str = ""                             # the one ask of this turn
     progress: str = ""                           # "Define · Step n of 12" (6.57)
     grader_warning: Optional[str] = None         # the grader's Belt-visible warning (G-76)
+    # Step 6.61 (R4) — the move this reply made and its field, so the screen
+    # shows Confirm / Change under a read-back and nothing else decides that.
+    move: Optional[str] = None
+    move_field: Optional[str] = None
 
 
 class CaseCreateResponse(BaseModel):
