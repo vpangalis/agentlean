@@ -1,5 +1,5 @@
 # CLAUDE.md — Agent Improve
-# Version 2.2.41 — September 2026
+# Version 2.2.42 — September 2026
 # 2026 LangChain/LangGraph standards. Authoritative. Never bypass.
 
 DMAIC coaching agent: LangGraph phase subgraphs, LangChain `create_agent` with a
@@ -300,6 +300,32 @@ instead of blocking every commit that touches one.
 - An empty discipline is a finding, written `NONE — <reason>` (§20.2)
 - A claim about what the code does quotes the lines it rests on, with file and
   line number; a claim of absence carries the command and its output (§20.5.1)
+
+## §21 — The coaching move is decided in code
+
+*Founder ruling 2026-09-25. Canonical: ARCHITECTURE.md v1.75 (§17, §19.1, §20,
+§22, §32, §43). **Binds ALL phases and ALL agents** — the platform reference's
+back-port is owed.*
+
+- **Code decides this turn's move from the field's status — never a model.** Not
+  yet taught → teach (explain, show, ask); answered, insufficient → challenge
+  (say what is missing); answered, sufficient → read back (the Belt's own words,
+  then *"is this right?"*); confirmed by the Belt → store and advance.
+- **A model is used only to judge whether an answer is sufficient, and to write
+  the coach's words.**
+- **A value is stored only after the Belt confirms it, in the Belt's words.** A
+  tidied version may be proposed in the read-back and is stored only if the Belt
+  confirms it.
+- **The coach's input is assembled by code each turn in labelled sections, one
+  job each:** coaching rules (how to behave) · phase script (what to teach) ·
+  state (facts) · this turn's move (authoritative) · last turn's quality
+  feedback · the conversation.
+- **Coaching rules and phase scripts contain no move-sequencing** — no *"then
+  advance"*, no *"confirm and move on"*, no *"one move, then stop"*.
+- **Feedback to the coach is never presented as a message from the Belt.**
+- **Every step that touches coaching behaviour carries a repeated-run
+  consistency test in its Done-when** — the same turn, run five times, makes the
+  same move.
 
 > **The nine disciplines and the six the gate requires are the `eight-d` skill.**
 > `.claude/skills/eight-d/` carries the D0–D8 table, the enforcement contract
