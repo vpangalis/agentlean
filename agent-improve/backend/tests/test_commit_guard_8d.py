@@ -11,7 +11,7 @@ letting commits through, which is the one failure mode a gate must not have.
 
 WHAT IS PINNED, AND WHAT DELIBERATELY IS NOT
 --------------------------------------------
-Pinned: which commits are gated (three triggers), which six labels are required,
+Pinned: which commits are gated (two triggers, REAL defects only — 6.66), which six labels are required,
 that an empty discipline needs the word NONE **and** a reason, and that the
 opt-out cannot exempt a commit that calls itself a fix.
 
@@ -94,8 +94,10 @@ def _blocked(subject: str, message: str) -> list[str]:
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# Which commits are gated — the three triggers
+# Which commits are gated — two triggers, REAL defects only (6.66)
 # ══════════════════════════════════════════════════════════════════════════
+
+GAP_BODY = "Step: 6.21\nGap: G-49\n"
 
 
 @pytest.mark.parametrize("subject", [
@@ -110,70 +112,71 @@ def test_a_fix_type_is_always_gated(subject: str) -> None:
     assert g.is_fix_commit(subject, "body with no labels\n")
 
 
-def test_a_defect_code_in_the_subject_is_gated() -> None:
-    """Trigger 2 — this project's fixes land as spine commits, not as `fix(`.
+def test_a_gap_trailer_is_gated() -> None:
+    """Trigger 2 — founder ruling 2026-09-25: a commit that closes a registered
+    defect declares it with a `Gap:` trailer, and that is a real defect."""
+    why = g.is_fix_commit("refactor(arch-v2): commit 6.21 — the transport lands", GAP_BODY)
+    assert why.startswith("the body carries a Gap: trailer")
 
-    G-49's own fix lands as `refactor(arch-v2): commit 6.21`. A type-only
-    trigger would have exempted the single most important fix commit in the
-    backlog, which is how a gate becomes decorative.
-    """
+
+def test_a_defect_code_in_the_subject_alone_is_no_longer_gated() -> None:
+    """Narrowed 2026-09-25 (6.66): naming a code is not closing a defect."""
     for subject in ("refactor(arch-v2): commit 6.21 — G-49's transport lands",
                     "refactor(arch-v2): commit 7.1 — F-15 is checked",
-                    "refactor(arch-v2): commit 6.7 — WATCH 26's hop cap"):
-        assert g.is_fix_commit(subject, "no labels here\n"), subject
+                    "docs: WATCH 26's hop cap is described"):
+        assert not g.is_fix_commit(subject, "no labels here\n"), subject
 
 
 def test_a_defect_code_in_the_BODY_alone_is_not_gated() -> None:
-    """Deliberately subject-only.
-
-    Half the commits in this log mention a G-number in passing — the board
-    commit that named every chip mentions four. A rule that fired on a mention
-    would be routed around within a week, and a routed-around gate is worse
-    than none (rule 3's ratchet argument, applied to a message check).
-    """
     assert not g.is_fix_commit(
         "governance: the board names every number",
         "The chips now read G-47, G-49, G-50 and G-51 with their names.\n")
 
 
-def test_one_label_opts_the_whole_body_in() -> None:
-    """Trigger 3 — a half-written 8D is what a presence check invites."""
-    why = g.is_fix_commit("chore: tidy the logs",
-                          "chore: tidy the logs\n\nD2 IS: the log was unreadable.\n")
-    assert why == "the body already carries an 8D label"
+def test_a_D_label_alone_no_longer_gates() -> None:
+    """Narrowed 2026-09-25 (6.66): a volunteered D-label is not a defect."""
+    assert not g.is_fix_commit("chore: tidy the logs",
+                               "chore: tidy the logs\n\nD2 IS: the log was unreadable.\n")
+
+
+def test_a_non_defect_commit_passes_rule_6_end_to_end() -> None:
+    """Both ways through check_8d itself: a tooling commit is not asked."""
+    g.check_8d("chore(tooling): 6.66 part 2 — a pre-flight", "Step: 6.66\n")
+
+
+def test_a_gap_commit_without_the_8d_is_refused() -> None:
+    with pytest.raises(SystemExit):
+        g.check_8d("refactor(arch-v2): commit 6.21 — the transport lands",
+                   "refactor(arch-v2): commit 6.21 — the transport lands\n\n" + GAP_BODY)
+
+
+def test_a_gap_commit_with_the_8d_passes() -> None:
+    body = "\n".join(f"{k}: {v}" for k, v in _ANSWERS.items())
+    g.check_8d("refactor(arch-v2): commit 6.21 — the transport lands",
+               f"refactor(arch-v2): commit 6.21 — the transport lands\n\n{body}\n\n{GAP_BODY}")
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# The opt-out, and the two things it may never exempt
+# The opt-out, and the one thing it may never exempt
 # ══════════════════════════════════════════════════════════════════════════
 
 
-def test_the_opt_out_clears_a_defect_code_subject() -> None:
-    """A register-row edit is not a fix, and says so on the record.
-
-    On the record beats `--no-verify`: the declaration is greppable and
-    auditable, where a bypass leaves nothing behind at all.
-    """
+def test_the_opt_out_clears_a_gap_trailer() -> None:
+    """A register-row edit filed under a gap is not a fix, and says so on the record."""
     assert not g.is_fix_commit(
         "docs: G-49's register row gains the cause",
-        "8D: NOT A FIX — a register row edit; no code path changes here.\n")
+        GAP_BODY + "8D: NOT A FIX — a register row edit; no code path changes here.\n")
 
 
 def test_the_opt_out_needs_a_reason() -> None:
     assert g.is_fix_commit("docs: G-49's register row gains the cause",
-                           "8D: NOT A FIX\n")
+                           GAP_BODY + "8D: NOT A FIX\n")
 
 
 def test_the_opt_out_cannot_exempt_a_fix_subject() -> None:
     """**A commit that calls itself a fix does not get to opt out of being one.**"""
     assert g.is_fix_commit("fix(executor): the plan reaches the model",
                            "8D: NOT A FIX — I would rather not write six lines.\n")
-
-
-def test_the_opt_out_cannot_exempt_a_body_that_carries_labels() -> None:
-    assert g.is_fix_commit(
-        "docs: G-49's row",
-        "8D: NOT A FIX — only a row edit, honestly\nD2 IS: it times out\n")
 
 
 # ══════════════════════════════════════════════════════════════════════════

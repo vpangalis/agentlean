@@ -61,12 +61,13 @@ therefore 1, 2b, 3, 4, 5, 6, 7 and 8.
      2026-09-11: every defect, modification or adaptation is worked as an 8D
      before a fix is proposed, and *"convention decays; a gate does not"*.
 
-     **NOT scoped to `refactor(arch-v2)`, and not scoped to `fix(` either.**
-     Three triggers: the subject's type is a fix; the subject names a registered
-     defect (`G-49`, `F-15`, `WATCH 26`); or the body already carries a
-     `D<n>` label, which is what stops a half-written 8D from passing. The
-     middle trigger — and only that one — can be declined on the record with
-     `8D: NOT A FIX — <why>`.
+     **NOT scoped to `refactor(arch-v2)`. Narrowed to REAL defects, founder
+     ruling 2026-09-25 (step 6.66)**: an 8D is asked for only when the subject's
+     type is a fix (`fix`/`hotfix` — a fix of wrong behaviour), or the body
+     carries a `Gap: G-nn` trailer (the commit closes a registered defect). The
+     Gap trigger — and only that one — can be declined on the record with
+     `8D: NOT A FIX — <why>`. A subject that merely names a code, and a body
+     that carries a `D<n>` label, no longer trigger it.
 
      **D4's two halves are the point.** An occurrence cause with no escape
      cause is the shape that lets the same CLASS of defect return through the
@@ -801,28 +802,23 @@ def check_step_or_gap(root: str, subject: str, message: str, added: list[str]) -
 # Rule 6 — the 8D body on a FIX commit (CLAUDE.md §20)
 # --------------------------------------------------------------------------- #
 
-# A commit "is a fix" on any of three triggers. Deliberately three and not one:
-# this project's real fixes land under `refactor(arch-v2)` far more often than
-# under `fix(`, so a type-only trigger would exempt exactly the commits the rule
-# is for — G-49's fix lands as `commit 6.21`, not as a `fix(`.
+# A commit "is a fix" on one of two triggers — REAL defects only (founder
+# ruling 2026-09-25, step 6.66): a fix type, or a `Gap: G-nn` trailer. The
+# earlier subject-code and D-label triggers asked for an 8D on commits that
+# only mentioned a code; a spine commit that closes a gap declares it with the
+# trailer.
 FIX_TYPE_RE = re.compile(r"^(?:fix|hotfix)(?:\([^)]*\))?!?:", re.I)
 
-# Trigger 2 — the subject names a REGISTERED defect. Subject only, never body:
-# half the commits in this log mention a G-number in passing, and a rule that
-# fired on a mention would be routed around by the end of the week.
-DEFECT_CODE_RE = re.compile(r"\b(?:[GF]-\d+|WATCH\s+\d+)\b")
-
-# The opt-out, and it exempts TRIGGER 2 ONLY. A commit whose subject carries a
-# defect code but which changes no behaviour — a register row, a board caption —
-# says so on the record instead of reaching for --no-verify. **It cannot exempt
-# a `fix(` subject and it cannot exempt a body that already carries D-labels**:
-# a commit that calls itself a fix does not get to opt out of being one.
+# The opt-out, and it exempts the GAP TRIGGER ONLY. A commit that carries a
+# `Gap:` trailer but changes no behaviour — a register row, a file filed under
+# the gap for rule 8 — says so on the record instead of reaching for
+# --no-verify. **It cannot exempt a `fix(` subject**: a commit that calls itself
+# a fix does not get to opt out of being one.
 NOT_A_FIX_RE = re.compile(
     r"^[\s*_]*8D[\s*_]*:[ \t]*NOT A FIX\b[^0-9A-Za-z]*(?P<why>.*)$", re.M)
 
-# Trigger 3 — any `D<n>` label already in the body. A half-written 8D is the
-# failure mode a presence check invites, so writing one label opts the commit
-# into all six.
+# Any `D<n>` label — no longer a trigger (6.66); it bounds each discipline's
+# content in `eightd_disciplines`.
 ANY_D_LABEL_RE = re.compile(r"^[\s*_]*D[0-8]\b", re.M)
 
 TRAILER_RE = re.compile(
@@ -885,13 +881,12 @@ def is_fix_commit(subject: str, body: str) -> str:
     """Why rule 6 applies to this commit, or an empty string if it does not."""
     if FIX_TYPE_RE.match(subject):
         return "the subject's type is a fix"
-    if ANY_D_LABEL_RE.search(body):
-        return "the body already carries an 8D label"
-    if DEFECT_CODE_RE.search(subject):
+    gap = _GAP_TRAILER_RE.search(body)
+    if gap and _GAP_TOKEN_RE.search(gap.group("v")):
         optout = NOT_A_FIX_RE.search(body)
         if optout and len((optout.group("why") or "").strip()) >= MIN_REASON:
             return ""
-        return "the subject names a registered defect"
+        return "the body carries a Gap: trailer — it closes a registered defect"
     return ""
 
 
@@ -994,11 +989,10 @@ def check_8d(subject: str, message: str) -> None:
          "`NONE — <why it is empty>` and it passes. D4 ESCAPE is the one most",
          "often missing and usually the expensive one: \"why did nothing detect",
          "this\" is a different question from \"why did it happen\".", "",
-         "If this commit changes no behaviour and only its subject names a",
-         "defect, say so on the record instead of bypassing:",
+         "If this commit carries a Gap: trailer but changes no behaviour, say",
+         "so on the record instead of bypassing:",
          "  8D: NOT A FIX — <why>",
-         "That line cannot exempt a `fix(` subject, or a body that already",
-         "carries D-labels.")
+         "That line cannot exempt a `fix(` subject.")
 
 
 # Rule 5 — CONTINUITY.md moved with the step
