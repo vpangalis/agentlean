@@ -1596,6 +1596,10 @@ function selectTab(tab){
         msgs.scrollTop = msgs.scrollHeight;
       }
     }
+    // G-79 — renderChat rebuilt the chat DOM and destroyed #viz-live, so the
+    // diagram is redrawn here, after the turns, as sendMessage draws it. A
+    // page reload reaches the chat through this same path.
+    renderLiveViz();
   }
   if(tab==='gate'){
     // Reload case to get latest extracted fields before rendering gate
@@ -5819,12 +5823,26 @@ function renderChat(){
   msgs.scrollTop = msgs.scrollHeight;
 }
 
+// G-79 — where the diagram comes from. S.lastAsk exists only after a send in
+// this session; after a reload the visual the server stored on the turn
+// (conversation_history keeps `visualisation` and `sipoc_diagram`) is the
+// source, and within a session the live turn in S.localChat carries it.
+function lastVizSource(){
+  const has=t=>t&&(t.visualisation||t.sipoc_diagram);
+  if(has(S.lastAsk))return S.lastAsk;
+  const turns=[...(S.case?.conversation_history||[]),...(S.localChat||[])];
+  for(let i=turns.length-1;i>=0;i--){
+    if(turns[i].role==='ai'&&has(turns[i]))return turns[i];
+  }
+  return S.lastAsk||{};
+}
+
 function renderLiveViz() {
   if (!S.case || S.phase !== 'define') return;
 
   const structured = getStructured();
   const workProduct = detectCurrentWorkProduct(structured);
-  const lastAsk = S.lastAsk || {};
+  const lastAsk = lastVizSource();
 
   // Find or create single viz container, placed after last AI bubble
   const chatEl = document.getElementById('chat-messages')
@@ -6113,7 +6131,9 @@ async function sendMessage(){
         // Step 10.0 — the blocks travel with the turn, so a tab switch
         // (which re-renders S.localChat) keeps them.
         explanation:resp.explanation||'',example:resp.example||'',prompt:resp.prompt||'',
-        progress:resp.progress||'',grader_warning:resp.grader_warning||null};
+        progress:resp.progress||'',grader_warning:resp.grader_warning||null,
+        // G-79 — the visual travels with the turn too, for the next redraw.
+        visualisation:resp.visualisation||null,sipoc_diagram:resp.sipoc_diagram||null};
       S.localChat.push(aiTurn);
       appendMsgToDOM(renderTurn(aiTurn));
       renderChips();

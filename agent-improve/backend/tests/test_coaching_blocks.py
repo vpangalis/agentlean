@@ -276,7 +276,7 @@ def _run_js(js: str) -> str:
 
 
 def _fn(src: str, name: str) -> str:
-    m = re.search(r"^function " + name + r"\(.*?^\}", src, re.M | re.S)
+    m = re.search(r"^(?:async )?function " + name + r"\(.*?^\}", src, re.M | re.S)
     assert m, f"{name} not found in ui/index.html"
     return m.group(0)
 
@@ -318,3 +318,60 @@ def test_the_warning_is_the_founders_text() -> None:
     assert MAX_ITERATIONS_WARNING == (
         "My quality check flagged this reply as weaker than it should be. "
         "If it doesn't help, tell me and I'll try again.")
+
+
+# ── G-79, the diagram half — founder's manual check, IMPR-2026-8D4:
+#    "the 5W2H diagram DISAPPEARS after switching tabs and back" ────────────
+
+_DOM_STUB = """
+const calls=[];
+const el=()=>({classList:{toggle(){},add(){},remove(){}},scrollTop:0,scrollHeight:0,innerHTML:''});
+const document={getElementById:(id)=>el()};
+function renderChat(){calls.push('renderChat');}
+function loadSessionGreeting(){}
+function appendMsgToDOM(h){calls.push('turn');}
+function renderTurn(t){return '';}
+function renderPhaseNav(){} function renderOverview(){} function renderHistory(){} function renderGate(){}
+function renderLiveViz(){calls.push('renderLiveViz');}
+"""
+
+
+def _select_chat(state_js: str) -> list[str]:
+    src = UI.read_text(encoding="utf-8")
+    js = (_DOM_STUB + state_js + "\n" + _fn(src, "selectTab")
+          + "\nselectTab('chat'); process.stdout.write(JSON.stringify(calls));")
+    return json.loads(_run_js(js))
+
+
+def test_switching_back_to_the_chat_tab_redraws_the_diagram() -> None:
+    """A tab switch keeps this session's turns in S.localChat; the diagram is
+    redrawn after them, not lost."""
+    calls = _select_chat("const S={localChat:[{role:'ai',text:'m'}],case:{conversation_history:[]}};")
+    assert "renderLiveViz" in calls, f"the diagram is not redrawn on a tab switch: {calls}"
+    assert calls.index("renderLiveViz") > max(i for i, c in enumerate(calls) if c == "turn"), \
+        "the diagram must follow the re-appended turns, as it does after a send"
+
+
+def test_opening_the_chat_after_a_reload_redraws_the_diagram() -> None:
+    """After a reload S.localChat is empty and S.lastAsk is gone; opening the
+    chat tab must still draw the diagram."""
+    calls = _select_chat("const S={localChat:[],case:{conversation_history:[{role:'ai',text:'m'}]}};")
+    assert "renderLiveViz" in calls, f"the diagram is not redrawn after a reload: {calls}"
+
+
+def test_after_a_reload_the_diagram_comes_from_the_stored_turn() -> None:
+    """S.lastAsk only exists after a send; after a reload the visual the
+    server stored on the turn is the source."""
+    src = UI.read_text(encoding="utf-8")
+    viz = {"type": "mindmap_5w2h", "data": {"problem_summary": "stored"}}
+    js = ("const S={lastAsk:null,localChat:[],case:{conversation_history:["
+          "{role:'ai',text:'a'},{role:'ai',text:'b',visualisation:" + json.dumps(viz) + "}]}};\n"
+          + _fn(src, "lastVizSource") + "\nprocess.stdout.write(JSON.stringify(lastVizSource()));")
+    assert json.loads(_run_js(js)).get("visualisation") == viz
+
+
+def test_a_sent_turn_keeps_its_visual_for_the_next_redraw() -> None:
+    """The live turn in S.localChat carries the visual, so a tab switch in the
+    same session redraws the same diagram."""
+    body = _fn(UI.read_text(encoding="utf-8"), "sendMessage")
+    assert "visualisation:resp.visualisation" in body and "sipoc_diagram:resp.sipoc_diagram" in body

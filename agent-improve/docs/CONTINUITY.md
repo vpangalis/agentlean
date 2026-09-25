@@ -8,9 +8,9 @@
 | | |
 |---|---|
 | **Last completed** | step **6.41** — The symbol-anchor ratchet comes down |
-| **Next** | step **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
-| **Spine steps landed** | 55 of 106 |
-| **Last spine commit** | `4f6e5c8` (commit 6.57) |
+| **Next** | step **6.43** — The coach can read an uploaded document |
+| **Spine steps landed** | 56 of 106 |
+| **Last spine commit** | `b5b6e77` (commit 10.0) |
 | **ARCHITECTURE.md** | v1.76 |
 | **CLAUDE.md** | v2.2.42 |
 | **Block regenerated** | 2026-09-25 |
