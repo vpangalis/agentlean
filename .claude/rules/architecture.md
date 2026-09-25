@@ -8,10 +8,7 @@ paths:
 ---
 # §1 — Architecture principles
 
-> **Moved verbatim from `agent-improve/CLAUDE.md` on 2026-09-13** (brief step 6).
-> Rule numbers are unchanged — `.claude/config/deprecated_patterns.yaml`
-> cites them and §0.2 makes that binding. Canonical reasoning stays in
-> `agent-improve/ARCHITECTURE.md`.
+> Never renumber — `deprecated_patterns.yaml` cites these (§0.2). History/rationale: `docs/_archive/rules_rationale_2026-09-25.md`.
 
 ## 1. ARCHITECTURE PRINCIPLES
 
@@ -33,31 +30,16 @@ paths:
 
 - **Two persistence systems, not one.** The checkpointer and the store
   are distinct LangGraph primitives serving different lifecycles
-  (§1.7, §10). Passing only a checkpointer is the most common
-  architecture mistake.
+  (§1.7, §10).
 
 *Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §5, §6, §8, §9.*
 
 ### 1.2 — Hierarchical Subgraphs, One Thread, Auto Namespacing
 
-```
-supervisor_graph                    thread_id = case_id, e.g. "IMPR-2026-FS1"
-├── define_subgraph                 checkpoint_ns auto-managed by LangGraph
-├── measure_subgraph
-├── analyse_subgraph
-├── improve_subgraph
-├── control_subgraph
-└── escalation_subgraph
-```
-
-**Binding rules:**
-
-- **One `thread_id` per project.** Never per phase, never concatenated
-  (`{case_id}-define` and similar are BANNED).
+- **One `thread_id` per project, equal to `case_id`.** Never per phase, never
+  concatenated (`{case_id}-define` and similar are BANNED).
 - **The checkpointer and store go on the parent graph ONLY.** Phase
-  subgraphs compile without either. LangGraph routes their writes
-  through the parent's saver, distinguished by an auto-managed
-  `checkpoint_ns`.
+  subgraphs compile without either; `checkpoint_ns` is auto-managed.
 - **Phase transitions use static edges**, not a routing LLM and not
   `Command`. DMAIC order is fixed:
   `define → measure → analyse → improve → control → END`.
@@ -67,9 +49,7 @@ supervisor_graph                    thread_id = case_id, e.g. "IMPR-2026-FS1"
   paths execute, silently.
 - **No subgraph imports from another subgraph's nodes.**
 - **Cross-phase data flows through the store, never through parent
-  state** (§10.2). Subgraph state updates are not guaranteed to
-  propagate to the parent immediately — this is documented LangGraph
-  behaviour, and the store is the documented fix.
+  state** (§10.2).
 
 *Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §9, §12, §13, §16.*
 
@@ -85,16 +65,13 @@ single coaching node:
   tools. Never decides strategy.
 
 The Planner and Executor are distinct nodes and are **never fused**.
-Fusing them loses the boundary that makes coaching inspectable and
-costs the ability to test either half.
 
 Extraction is structured output on the executor
 (`response_format=CoachingResponse`, §4.6), not a separate node and no
 longer a tool call.
 
 **Level 1 (supervisor) has no LLM planner.** Phase sequencing is a
-deterministic gate-check on `gate_passed` plus static edges. There
-is nothing to reason about, so nothing reasons.
+deterministic gate-check on `gate_passed` plus static edges.
 
 *Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §3 (terminology), §13, §17.*
 
@@ -107,7 +84,7 @@ is nothing to reason about, so nothing reasons.
 - All Azure SDK calls use the `aio` variants where available
 
 Synchronous code is permitted only in pure functions with no I/O
-(prompt building, state transformations, validation logic, all 20
+(prompt building, state transformations, validation logic, the
 computation tools).
 
 **Per-node timeouts require async nodes** (§3.6) — this is a hard
@@ -116,15 +93,12 @@ LangGraph constraint, not a preference.
 ### 1.5 — Streaming Responses
 
 Coach responses stream to the UI via Server-Sent Events on
-`/ask/stream`. The frontend renders tokens as they arrive. The
-non-streaming `/ask` endpoint remains for clients that cannot use
-SSE but is not used by the standard UI.
+`/ask/stream`. The non-streaming `/ask` endpoint is not used by the
+standard UI.
 
 ### 1.6 — Interrupt-Based Gates — Nine Steps, Two Nodes
 
-Gate approval is a nine-step sequence with two distinct quality
-checks in it, implemented across two nodes. The full sequence is
-§9.1; the binding structural rules are:
+The full sequence is §9.1; the binding structural rules are:
 
 - The interrupt fires in `gate_review_node`, which presents validated
   fields and stops.
@@ -145,35 +119,20 @@ checks in it, implemented across two nodes. The full sequence is
 
 **`InMemorySaver` is not used at any stage**, including development.
 
-`AzureBlobCheckpointSaver` lives at `core/checkpointer.py` and
-implements `BaseCheckpointSaver`. `AzureBlobStore` lives at
-`core/store.py` and implements `BaseStore`.
-
-**Blob layout for checkpoints:**
-```
-checkpoints/{case_id}/
-  latest.json                    — most recent checkpoint (fast resume)
-  history/{checkpoint_id}.json   — historical checkpoints for time-travel
-```
+`AzureBlobCheckpointSaver` (`core/checkpointer.py`) implements
+`BaseCheckpointSaver`; `AzureBlobStore` (`core/store.py`) implements
+`BaseStore`. Blob layout: §10.4.
 
 **Critical constraints:**
 - One blob write per checkpoint (no per-key writes)
 - Atomic via blob ETag conditional writes to handle concurrent turns
-- `gate_attempts` MUST be in the checkpointed state, never in route
-  scope — this is what fixes the v1 "attempts always reset to 0" bug.
-  It lives on `PhaseState` (§10.1), per phase, because each phase runs
-  its own validation loop with its own cap
+- `gate_attempts` in the checkpointed state (§10.1)
 
-**Migration is a constructor and connection-string change.** Both
-sides of the split are defined by LangGraph interfaces, so nothing
-above the persistence layer changes. Provision Azure Database for
-PostgreSQL (flexible server) when the trigger fires; run the existing
-unit tests against PostgreSQL before switching.
+**Migration is a constructor and connection-string change**; run the
+existing unit tests against PostgreSQL before switching.
 
-**Known limitation of the Blob implementation:** it was not tested
-for concurrent access, and Azure Blob has no row-level locking. This
-is acceptable for single-developer refactoring and is not acceptable
-for production. Do not defend it past the migration trigger.
+**The Blob implementation is not safe for concurrent access** (no row-level
+locking). Do not defend it past the migration trigger.
 
 *Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §8, §10, Appendix B item 13.*
 
@@ -191,27 +150,14 @@ Dead tracing config (the v1 state) is a CRITICAL violation.
 ### 1.9 — No MCP. Uploaded Data Is the Only External Channel
 
 **Agent Improve, Agent Resolve, and Agent Flow will never use MCP to
-connect to a live system.** This is an architectural exclusion, not a
-deferral. There is no promotion trigger.
+connect to a live system.** An architectural exclusion, not a deferral.
 
-**The runtime stack is:** FastAPI, LangGraph ≥1.2.6, LangChain 1.x,
-Azure OpenAI, Azure AI Search, Azure Blob Storage, Azure Cache for
-Redis. No MCP.
-
-**The data architecture principle this establishes:**
-
-> `improve_evidence_index` is not merely "case-specific uploaded
-> documents." It is the **only** channel through which external,
-> real-world data enters AgentLean.
-
-Three consequences that bind on implementation:
+**`improve_evidence_index` is the only channel through which external,
+real-world data enters AgentLean.** Consequences:
 
 1. Coaching content must include guidance on **what data to upload and
-   how to structure it**. Data-collection coaching is a first-class
-   part of the methodology, not a workaround.
-2. Belt data-collection discipline is what the platform's grounding
-   depends on.
-3. **There is no fallback path where the system fetches a number the
+   how to structure it**.
+2. **There is no fallback path where the system fetches a number the
    Belt failed to provide.** Do not build one.
 
 **Cross-agent tool sharing** (Agent Improve reading Agent Resolve's

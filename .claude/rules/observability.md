@@ -6,10 +6,7 @@ paths:
 ---
 # §11 — Tracing and observability
 
-> **Moved verbatim from `agent-improve/CLAUDE.md` on 2026-09-13** (brief step 6).
-> Rule numbers are unchanged — `.claude/config/deprecated_patterns.yaml`
-> cites them and §0.2 makes that binding. Canonical reasoning stays in
-> `agent-improve/ARCHITECTURE.md`.
+> Never renumber — `deprecated_patterns.yaml` cites these (§0.2). History/rationale: `docs/_archive/rules_rationale_2026-09-25.md`.
 
 ## 11. TRACING AND OBSERVABILITY
 
@@ -26,10 +23,7 @@ error (§11.4).
 
 ### 11.2 — `@traceable` on every custom function
 
-LangSmith traces LangChain runnables and LangGraph nodes
-automatically. It does **not** trace plain Python functions. Without
-`@traceable`, the logic *between* nodes is invisible and a gate failure
-surfaces as a 500 with no indication of which layer failed.
+LangSmith does **not** trace plain Python functions.
 
 `@traceable` is REQUIRED on every function that:
 - Extracts fields from LLM responses
@@ -48,11 +42,8 @@ surfaces as a 500 with no indication of which layer failed.
 - Every validation layer (§11.2)
 
 **P50/P99 latency is a coaching quality signal**, not just an ops
-metric. High P99 degrades the Belt's experience. The usual outlier is
-multi-hop retrieval combined with a grader call on the same turn; the
-fixes in order of preference are caching (§4.8 Level 3), a faster
-grader model, and reordering the validation stack cheapest-first
-(already mandated in §9.2).
+metric. Fixes in order of preference: caching (§4.8 Level 3), a faster
+grader model, cheapest-first validation (§9.2).
 
 ### 11.4 — Fail-fast environment validation
 

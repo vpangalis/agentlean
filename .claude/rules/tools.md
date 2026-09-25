@@ -6,10 +6,7 @@ paths:
 ---
 # §5 — Tools
 
-> **Moved verbatim from `agent-improve/CLAUDE.md` on 2026-09-13** (brief step 6).
-> Rule numbers are unchanged — `.claude/config/deprecated_patterns.yaml`
-> cites them and §0.2 makes that binding. Canonical reasoning stays in
-> `agent-improve/ARCHITECTURE.md`.
+> Never renumber — `deprecated_patterns.yaml` cites these (§0.2). History/rationale: `docs/_archive/rules_rationale_2026-09-25.md`.
 
 ## 5. TOOLS
 
@@ -19,60 +16,22 @@ Defined in `knowledge/tools.py` (universal) and
 
 ### 5.1 — The universal eight
 
-Passed to every phase executor via `tools=`:
-
-```
-rag_lookup_methodology(query: str, phase: str, top_k: int = 10) -> list[Document]
-  improve_knowledge_index. Multi-query + RRF. Filters phase_relevance.
-
-rag_lookup_evidence(query: str, case_id: str, top_k: int = 10) -> list[Document]
-  improve_evidence_index. Multi-query + RRF. Filters case_id.
-
-rag_lookup_case_history(query: str, top_k: int = 10,
-                        exclude_current_case: bool = True) -> list[Document]
-  improve_case_index. Multi-query + RRF. Yokoten — cross-case learning.
-
-propose_template(template_type: str, fill_data: dict) -> str
-  Fill-in template for the team. Types: problem_statement, sipoc,
-  data_collection_plan, fishbone, etc.
-
-propose_diagram(diagram_type: str, data: dict) -> dict
-  Structured diagram JSON (NOT SVG). Types and schemas in
-  core/diagrams.py. Frontend renders via SVG template library.
-
-check_gate_status() -> dict
-  Current phase gate readiness — which required fields are populated,
-  which are missing.
-
-request_human_approval(reason: str) -> str
-  Triggers an interrupt awaiting human decision, beyond standard gate
-  submission.
-
-load_evidence_series(blob_path: str, column: str) -> dict
-  A column's typed values plus n, mean, sigma, min, max — RE-PARSED from the
-  case blob with step 6.11's parser. Retrieval finds WHICH file; this loads
-  THE VALUES. Ratified 2026-09-09; built at step 6.12.
-```
-
-**`load_evidence_series` is universal rather than a computation tool, and that
-is a classification rather than an exception.** §5.2's twenty are pure functions
-with no I/O; this reads a blob. **The universal set is already where the
-I/O-performing tools live** — all three `rag_lookup_*` call Azure AI Search,
-this one calls Azure Blob. It stores no parsed values and re-parses instead,
-because a second copy of the table is the drift the single-authority rule exists
-to prevent.
+Passed to every phase executor via `tools=`; signatures are in
+`knowledge/tools.py` (`UNIVERSAL_TOOLS`):
+- `rag_lookup_methodology`, `rag_lookup_evidence`, `rag_lookup_case_history` —
+  one index each, multi-query + RRF (§7.2, §7.4)
+- `propose_template` — fill-in template for the team
+- `propose_diagram` — structured diagram JSON, **NOT SVG** (types in
+  `core/diagrams.py`)
+- `check_gate_status` — which required fields are populated / missing
+- `request_human_approval` — interrupt for a human decision beyond the gate
+- `load_evidence_series` — a column's typed values plus summary stats,
+  **re-parsed from the case blob** (it stores no parsed values). Universal,
+  not a computation tool: the universal set is where the I/O tools live.
 
 **The superseded tool names are `search_improve_knowledge`,
-`search_improve_cases` and `search_improve_evidence`** — the three `@tool`
-functions in `knowledge/tools.py` today. No v2 code may reference them.
-
-> **Corrected 2026-08-21.** This rule previously named `search_methodology`
-> and `search_evidence`. **`search_methodology` exists nowhere in the
-> codebase**, and **`search_evidence` is a live retriever function that §7.2
-> requires to keep existing** — so this rule and §7.2 contradicted each other,
-> and a grep for the retired names would have passed while every real one
-> survived. **Verification depends on the literal strings**, which is why a
-> wrong name here is not cosmetic.
+`search_improve_cases` and `search_improve_evidence`.** No v2 code may
+reference them.
 
 **Two layers, and only the upper one is retired.** `knowledge/tools.py` is the
 `@tool` layer the model calls; `knowledge/retriever.py` holds the
@@ -80,59 +39,35 @@ functions in `knowledge/tools.py` today. No v2 code may reference them.
 call. **The tool layer is replaced by `rag_lookup_*`; the retriever layer keeps
 its names** and its failure semantics (§7.2).
 
-**Four further tools in `knowledge/tools.py` are neither retired nor bound** —
-`search_resolve_cases`, `search_resolve_knowledge`, `search_resolve_evidence`,
-`search_flow_vsm`. Read-only cross-agent tools, a distinct third category,
-deliberately bound to no coach. Do not delete them and do not bind them:
-`../AGENTIC_ARCHITECTURE_REFERENCE.md` §29.4 states the three rules that bind first.
+**The cross-agent tools** (`search_resolve_*`, `search_flow_vsm`) are neither
+retired nor bound — see the Never list and
+`../AGENTIC_ARCHITECTURE_REFERENCE.md` §29.4.
 
 **`record_field` is RETIRED and may not be reintroduced.** Field capture
 happens through `response_format=CoachingResponse` on the executor
-(§4.6) — the coach emits `fields_captured` as structured output on every
-turn, and the executor node writes each entry to `artifacts`. A tool
-would make capture a decision the coach might skip; structured output
-makes it part of every response by construction.
+(§4.6).
 
 ### 5.2 — Per-phase tool binding
 
-**Tool sets are per phase, not universal.** Tool selection quality
-degrades past roughly 10–15 tools per agent; per-phase binding keeps
-every coach inside the tractable range.
+**Tool sets are per phase, not universal.** The per-phase partition is
+owned by `COMPUTATION_TOOLS_BY_PHASE` in `knowledge/computation.py`; each
+executor gets `UNIVERSAL_TOOLS + COMPUTATION_TOOLS_BY_PHASE[phase]`. Read the
+sets and totals there.
 
-| Phase | Universal | Computation tools | Total |
-|---|---|---|---|
-| Define | 8 | `calculate_expected_savings` | **9** |
-| Measure | 8 | `calculate_sigma_level`, `calculate_cpk`, `calculate_dpmo`, `calculate_yield_rty`, `calculate_ftq`, `calculate_grr`, `calculate_sample_size_proportion`, `calculate_sample_size_mean` | **16** |
-| Analyse | 8 | `t_test`, `chi_square_test`, `anova`, `pearson_correlation`, `linear_regression` | **13** |
-| Improve | 8 | `calculate_doe_main_effects` | **9** |
-| Control | 8 | `xbar_r_chart_limits`, `imr_chart_limits`, `p_chart_limits`, `c_chart_limits`, `post_improvement_cpk` | **13** |
+**No phase exceeds 16 tools.** Measure is at the ceiling with no margin; a
+new tool that would push a phase past 16 is an amendment to
+`../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56), not a routine addition —
+revisit the ceiling before a ninth universal tool, not after.
 
-**No phase exceeds 16 tools**, and **as of 2026-09-09 the maximum is 16
-(Measure) — the ceiling exactly.** If a new tool would push a phase past
-16, that is an amendment to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56), not a routine addition.
+**`imr_chart_limits` is the right chart whenever the Belt has one
+measurement per period.** Never coach a Belt into inventing subgroups to fit
+a batch chart.
 
-> **⚠ REVISIT THE CEILING BEFORE A NINTH UNIVERSAL TOOL, NOT AFTER.**
-> `load_evidence_series` took Measure from 15 to 16. **There is no margin left**,
-> and the two universal tools still unbuilt — `check_gate_status` and
-> `request_human_approval` — are already inside the eight and inside this count.
-> A per-phase total that is legal only because nothing else has been added is a
-> constraint with no margin, and **the margin is what usually gets discovered by
-> exceeding it.**
+**Each computation tool is a separate named tool.** Parameterised grouping
+(one `calculate_sample_size(type, ...)` with a mode argument) is BANNED.
 
-**`imr_chart_limits` is the individuals / moving-range chart** and is
-the right choice whenever the Belt has **one measurement per period**
-rather than batches — the common case in service and transactional work.
-Never coach a Belt into inventing subgroups to fit a batch chart;
-subgroups that were not collected as subgroups produce meaningless
-limits.
-
-**Each of the 20 computation tools is a separate named tool.**
-Parameterised grouping (one `calculate_sample_size(type, ...)` with a
-mode argument) is BANNED — it moves the selection burden into the
-argument space, and models handle distinct named tools more reliably
-than mode arguments.
-
-**All 20 are pure functions.** No LLM call, deterministic, unit-tested.
+**All computation tools are pure functions.** No LLM call, deterministic,
+unit-tested.
 
 Tool decisions are the LLM's, not the graph's.
 

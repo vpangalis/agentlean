@@ -5,10 +5,7 @@ paths:
 ---
 # §6 and §15 — Prompts, and prompt size
 
-> **Moved verbatim from `agent-improve/CLAUDE.md` on 2026-09-13** (brief step 6).
-> Rule numbers are unchanged — `.claude/config/deprecated_patterns.yaml`
-> cites them and §0.2 makes that binding. Canonical reasoning stays in
-> `agent-improve/ARCHITECTURE.md`.
+> Never renumber — `deprecated_patterns.yaml` cites these (§0.2). History/rationale: `docs/_archive/rules_rationale_2026-09-25.md`.
 
 ## 6. PROMPTS
 

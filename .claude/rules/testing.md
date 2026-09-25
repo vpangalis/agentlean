@@ -4,24 +4,16 @@ paths:
 ---
 # §12 — Evaluation and regression testing
 
-> **Moved verbatim from `agent-improve/CLAUDE.md` on 2026-09-13** (brief step 6).
-> Rule numbers are unchanged — `.claude/config/deprecated_patterns.yaml`
-> cites them and §0.2 makes that binding. Canonical reasoning stays in
-> `agent-improve/ARCHITECTURE.md`.
+> Never renumber — `deprecated_patterns.yaml` cites these (§0.2). History/rationale: `docs/_archive/rules_rationale_2026-09-25.md`.
 
 ## 12. EVALUATION AND REGRESSION TESTING
 
 ### 12.1 — The eval suite is built alongside the refactor
 
-Not before it. Establishing a baseline against the current system
-would produce a baseline of "bad." The suite becomes load-bearing when
-the coach, retrieval tools, and grader are wired — that is when output
-quality changes. Infrastructure steps (graph structure, state schemas,
-checkpointer) do not affect coaching quality.
+Not before it. The suite becomes load-bearing when the coach, retrieval
+tools, and grader are wired.
 
-**The dataset is authored jointly, not generated.** Coaching quality
-judgments are domain judgments; a generated dataset measures agreement
-with a model rather than correctness.
+**The dataset is authored jointly, not generated.**
 
 ### 12.2 — Minimum viable suite
 
@@ -34,24 +26,14 @@ with a model rather than correctness.
 | **Regression threshold** | **Block release if any metric drops >10% from baseline** |
 | Run frequency | Every commit touching system prompts, graph structure, or model config |
 
-**Rubrics and the eval dataset are complementary, not duplicative.**
-Rubrics (§8.2) define what good looks like *for the grader*, in
-production, at every gate. The eval dataset tests whether the whole
-system produces good outcomes, in CI, at every commit.
+**Rubrics and the eval dataset are complementary, not duplicative** —
+rubrics (§8.2) grade in production; the eval dataset tests the whole
+system in CI.
 
 ### 12.3 — Structured errors
 
-All external service failures use one schema, in `core/errors.py`:
-
-```python
-class AgentImproveError(BaseModel):
-    error_code: str              # "TIMEOUT", "RATE_LIMIT", "AUTH_FAILURE", …
-    severity: str                # "transient" | "permanent"
-    retry_recommendation: str    # "retry_after_backoff" | "do_not_retry" | …
-    affected_identifier: str
-    message: str
-    timestamp: datetime
-```
+All external service failures use one schema, `AgentImproveError` in
+`core/errors.py` — read its fields there.
 
 `severity` is what lets the circuit breaker distinguish "retry" from
 "stop trying"; `retry_recommendation` is what the fallback chain reads

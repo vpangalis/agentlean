@@ -9,555 +9,184 @@ paths:
 ---
 # §10 — State and storage
 
-> **Moved verbatim from `agent-improve/CLAUDE.md` on 2026-09-13** (brief step 6).
-> Rule numbers are unchanged — `.claude/config/deprecated_patterns.yaml`
-> cites them and §0.2 makes that binding. Canonical reasoning stays in
-> `agent-improve/ARCHITECTURE.md`.
+> Never renumber — `deprecated_patterns.yaml` cites these (§0.2). History/rationale: `docs/_archive/rules_rationale_2026-09-25.md`.
 
 ## 10. STATE AND STORAGE
 
 ### 10.1 — Two state schemas
 
-**`SupervisorState`** — orchestration only:
+**The schemas are the classes — `SupervisorState` in `core/state.py`,
+`PhaseState` in `core/substate.py`. Read them there; never copy fields or
+counts here.** Any new field, on either, in any category, requires an
+amendment to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56), then to this file
+(§18).
 
-```python
-class SupervisorState(TypedDict):
-    messages:        Annotated[list[BaseMessage], operator.add]
-    history:         Annotated[list[str], operator.add]
-    case_id:         str                                  # canonical id — §10.5
-    phase_index:     int                                  # 0=Define … 4=Control
-    current_phase:   str
-    gate_passed:     dict[str, bool]                      # {"define": True, …}
-    final_output:    Optional[dict]                       # set at the Control gate
-```
+**`SupervisorState` — orchestration only:**
+- **Artifacts and gate documents are NOT on it** — they live in the store (§10.2).
+- **`dmaic_plan`, `key_decisions`, `open_items`, `project_context` are NOT on
+  it** — each is derived on demand. **Context is composed at the boundary,
+  never carried on parent state.**
+- `gate_passed` is `dict[str, bool]` (the cascade, §9.5, sets a phase back to
+  `False`); `final_output` is `Optional[dict]`, never `str`.
+- **`current_phase` and `phase_index` are written in exactly one place: the
+  output mapper at gate approval** (§10.2). Rationale:
+  `../AGENTIC_ARCHITECTURE_REFERENCE.md` §5.
 
-**Seven fields. That is the entire schema.** An eighth requires an
-amendment to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56), then to this file (§18).
-
-**`gate_passed` is a `dict[str, bool]`, not a `list[str]`.**
-`gate_passed["measure"]` is a direct lookup, and the re-approval cascade
-(§9.5) sets a phase back to `False` rather than removing it from a list.
-
-**`final_output` is `Optional[dict]`, never `str`** — same rule as
-`PhaseState.final` (§10.1, §10.6).
-
-**Artifacts and gate documents are NOT on `SupervisorState`.** They live
-in the store (§10.2). Adding them back is a violation.
-
-**`dmaic_plan`, `key_decisions`, `open_items` and `project_context` are
-NOT on `SupervisorState` either.** All four were removed as redundant —
-each duplicated something an existing mechanism already carries:
-
-| Removed field | What covers it instead |
-|---|---|
-| `dmaic_plan` | DMAIC order is fixed and static (§1.2), so there is no plan to store. The project's actual plan is Define's gate document in the store plus `improve_case_index` metadata |
-| `key_decisions` | Decisions the Belt commits are captured fields, arriving via `CoachingResponse.fields_captured` and approved at a gate. A decision that is not worth a field is not worth replaying into every prompt |
-| `open_items` | Outstanding work is derived, not stored: `check_gate_status()` reports which required fields are unpopulated, and the four-layer validation stack (§9.2) is what surfaces blockers |
-| `project_context` | Composed at the boundary by each input mapper (§10.2). Define reads the case record from the store; every later phase reads the prior phase's artifacts. The substance is Define's gate document; the framing is the case record and the `improve_case_index` row (§7.3). `before_agent` injection (§8.5) already puts both in front of every coach |
-
-Deriving these on demand is what keeps them correct. A stored
-`open_items` list is a second source of truth for gate readiness that
-can disagree with `DMAICGateValidator`; a derived one cannot. Adding
-any of the four back is a violation.
-
-**`project_context` had no writer at all.** Its comment said "set once
-after Define," yet nothing set it, and its only reader —
-`define_input_mapper` — runs before Define. Every later phase already
-built `phase_context` from the store. **Context is composed at the
-boundary, never carried on parent state.**
-
-**`current_phase` and `phase_index` are derived from `gate_passed` and
-kept anyway** — a documented exemption for readability, not an
-oversight. They are read in dozens of places, and they are written in
-exactly one: the output mapper at gate approval (§10.2). **Nothing else
-may write them**, and the supervisor is responsible for keeping them
-consistent with `gate_passed`. Full rationale: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §5.
-
-**`PhaseState`** — per-phase subgraph state:
-
-```python
-from langgraph.managed import RemainingSteps
-
-class PhaseState(TypedDict):
-    # identity — copied down by the input mapper, read-only here
-    case_id:            str                # from SupervisorState — §10.2
-    current_phase:      str                # from SupervisorState — §10.2
-
-    # conversation plumbing
-    messages:           Annotated[list[BaseMessage], operator.add]
-    history:            Annotated[list[str], operator.add]
-    phase_context:      str                # composed at the boundary — §10.2
-
-    # the eighteen content fields
-    coaching_plan:      Optional[CoachingPlan]  # ONE typed plan per planner turn
-    field_index:        int                # field within the phase
-    draft:              dict[str, Any]     # this turn's extraction
-    artifacts:          dict[str, Any]     # accumulated for the phase — SEEDED
-    step_log:           Annotated[list[dict[str, Any]], operator.add]
-    field_log:          Annotated[list[dict[str, Any]], merge_field_log]
-    field_status:       dict[str, dict[str, Any]]  # where each field stands — §56 v1.77
-    belt_edits:         dict[str, Any]     # Belt corrections at the gate
-    turn_count:         int
-    final:              dict[str, Any]     # approved gate document — §9.6
-    gate_attempts:      int                # retry counter, cap 3
-    validator_feedback: list[dict]         # accumulated per-attempt feedback
-    rejection_feedback: list[dict]         # Belt reject reasons — §9.1 step 7
-    citations:          list[dict]         # sources cited this phase
-    uploads:            list[dict]         # files the Belt uploaded this phase
-    asks:               list[dict]         # the coach's data requests — §10.9
-    hop_results:        list[str]          # ordered hop answers; [] otherwise
-    synthesis_output:   Optional[dict]     # SynthesisOutput; None for single-hop
-
-    # engine-managed — declared, never populated by the mapper
-    remaining_steps:    RemainingSteps     # recursion_limit − steps taken
-```
-
-**Twenty-three author-populated fields — two identity, three plumbing, eighteen
-content — plus one engine-managed value, twenty-four declared.**
-
-**`field_status` is where each field stands, STORED** — §56 amendment v1.77,
-ruling R5 (2026-09-25), built at step 6.61. Four statuses per field, every one
-starting `not taught`: not taught → asked → answered (the Belt's words held
-pending; awaiting confirmation = answered and read back) → confirmed (stored).
-The current field is the first not confirmed. **Only code changes a status, at
-turn end** — never derived from the previous reply's record.
-
-> **Two of those three figures were already stale before `asks` was added, and
-> the block above was right the whole time.** This caption read *"Nineteen …
-> fourteen content … twenty declared"* while the field list beneath it carried
-> fifteen content fields, because **`rejection_feedback` was added at 2.2.23
-> (§0.17) and the caption was never updated with it.** §0.17's own table says
-> *"20 + 1 managed, 21 declared"*, so this file disagreed with itself four
-> hundred lines apart. Corrected here rather than separately: the count was
-> being edited anyway, and §0.18's rule is that a figure sync gets said out loud
-> rather than slipped in.
-
-**`field_log` is WHEN each captured value changed and what it was before** —
-§56 amendment, ratified 2026-09-21, built at step 6.33. One entry per change,
-keyed `{phase}:{turn}:{field}` (§10.3's rule), the first capture of a field
-included with no prior value. **A third thing, and neither of the other two can
-answer for it**: `artifacts` is WHAT is captured and holds only the current
-value, `step_log` is HOW a turn went and never held a value at all. Design:
-`../AGENTIC_ARCHITECTURE_REFERENCE.md` §6.
-
-**Its reducer is `merge_field_log`, NOT `operator.add`, and the difference is
-enforcement.** A deterministic key exists so a replayed turn overwrites its own
-entry instead of duplicating it; `operator.add` appends and cannot honour that.
-**`step_log` carries the same key and the appending reducer**, so the two
-channels must not be assumed to behave alike. **Declaring the reducer is what
-makes the log append-only**: a node that returns only this turn's entries into
-a channel with no reducer REPLACES the history, silently.
-
-**`artifacts` MUST be SEEDED at phase entry from the case record, never
-initialised to `{}`.** The input mapper is the only thing that builds
-`PhaseState`, so a constant there is not a default but a ceiling — nothing
-captured survives into a second turn. This is the defect step 6.11 fixed one
-field over, on `uploads`, and 6.33 fixed here.
-
-**An empty capture is REPORTED by field name and never silently dropped.** A
-`None`, `[]`, `{}` or blank string does not enter `artifacts`, is not written
-to the case record, and does not overwrite the prior value. The turn's log used
-to count captured KEYS while the write filtered on VALUES, so *"captured 1
-field(s)"* and *"nothing reached the gate document"* were both true of the same
-turn.
-
-**`remaining_steps` is engine-managed and the input mapper MUST NOT populate
-it.** Declaring it is what makes LangGraph supply it (`recursion_limit` − steps
-taken); undeclared, `state.get("remaining_steps", 10)` returns 10 forever and
-the five-hop cap never fires (§3.7).
-
-**Any new field requires an amendment** to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56)
-**whatever category it is placed in**, same as `SupervisorState`'s eighth.
-
-**`rejection_feedback` carries the Belt's stated reasons for rejecting at the
-gate** and is read by the planner on the re-coaching turn. **It is separate from
-`validator_feedback` and must stay separate** — the system rejecting the AI's
-output and the Belt rejecting the document are two actors at two moments, the
-same rule that keeps `validator_feedback` and `belt_edits` apart.
-
-**`case_id` and `current_phase` are COPIED DOWN by the input mapper at phase
-entry and are READ-ONLY inside the subgraph.** They are never written back up;
-`SupervisorState.current_phase` keeps its single writer, the output mapper
-(§10.2). A boundary-time copy is not a second writer. **Check: grep every node
-return dict for `case_id` or `current_phase` as a key — any hit is a
-violation.**
-
-**`hop_results` and `synthesis_output` MUST be state, not node locals.**
-LangSmith traces node inputs and outputs, not interpreter locals, so hop
-results held in a local dict are invisible in the trace and lost on
-checkpoint restore — which makes the "planned multi-hop is fully
-inspectable" claim false. Both are `[]` / `None` on single-hop turns, and
-both are declared on `PhaseState` rather than an Analyse-only variant
-because `CoachingPlan.retrieval_strategy` may select `multi_hop` in any
-phase.
-
-**`coaching_plan` is a typed `CoachingPlan`, produced via
-`with_structured_output`** — not a bare dict. `retrieval_strategy` selects
-the executor's entire retrieval path, and its `Literal` constraint is what
-stops a typo falling through silently to single-hop. `dict[str, Any]` is
-acceptable as an interim annotation; typed is preferred. Read
-`coaching_plan.retrieval_hops`, never `coaching_plan["retrieval_hops"]`.
-
-**`draft`, `belt_edits` and `final` are `dict`, never `str`.**
-String-typed handoffs force downstream nodes to parse prose, which is
-the anti-pattern this architecture exists to remove.
-
-**`coaching_plan` is a single typed plan, never `list[dict]`.** One plan per
-planner turn, overwritten each time the planner fires. There is no
-upfront queue — the planner reads `artifacts` to know what is captured
-and what is next, and a plan made at turn 1 cannot anticipate turn 4.
-
-**`gate_attempts` MUST be on `PhaseState` and in the checkpoint.** It is
-the shared counter for the four-layer stack (§9.2): incremented per
-failed attempt, reset to 0 when the gate passes, escalating at 3.
-Holding it in route scope is what produced the v1 "attempts always reset
-to 0" bug — it is per phase, because each phase runs its own loop with
-its own cap (§1.7, §3.5).
-
-**`validator_feedback` and `belt_edits` are different things and must
-stay separate.** `validator_feedback` is what the system's validation
-layers said about the AI's output at step 2; `belt_edits` is what the
-Belt corrected at step 5. Two actors, two moments (§9.1). The single
-`feedback` field they replace conflated them, which would have had the
-coach reading the Belt's corrections as validation failures.
-
-**`validator_feedback` is what makes the shared cap of 3 defensible.**
-Each entry records attempt, layer, criteria failed, and specific
-feedback; the coach reads the full list on retry. Reset to `[]` when the
-gate passes. A cap on retries that carry no memory of the previous
-failure is just a cap on repetition.
-
-**`citations` and `uploads` are the evidence trail.** Both are written
-into the gate document (§9.6) — the coach cites BB eBook sources and the
-Belt uploads files, and without these the gate document cannot show what
-the phase was grounded in.
-
-**Naming discipline:** `phase_index` (which phase) and `field_index`
-(which field within a phase) are distinct. Never reuse `step_index`.
-
-**Use explicit `TypedDict`, not `MessagesState` inheritance**, for
-phase states — their dominant content is structured fields, not
-conversation. `MessagesState` inheritance is appropriate only for the
-debate subgraph, which is not in scope.
+**`PhaseState` — per-phase subgraph state. Binding rules:**
+- **`case_id` and `current_phase` are COPIED DOWN by the input mapper and are
+  READ-ONLY inside the subgraph.** Check: grep every node return dict for
+  either key — any hit is a violation.
+- **`artifacts` MUST be SEEDED at phase entry from the case record, never
+  `{}`** — a constant there is a ceiling, not a default.
+- **An empty capture is REPORTED by field name, never silently dropped** —
+  `None`, `[]`, `{}` or blank does not enter `artifacts`, is not written to
+  the case record, and does not overwrite the prior value.
+- **`field_status` is STORED** (§56 v1.77): not taught → asked → answered →
+  confirmed; the current field is the first not confirmed. **Only code
+  changes a status, at turn end.**
+- **`field_log` is WHEN each value changed and what it was before**, keyed
+  `{phase}:{turn}:{field}` (§10.3). **Its reducer is `merge_field_log`, NOT
+  `operator.add`** — it upserts so a replayed turn is idempotent. `step_log`
+  has the same key but an appending reducer. A channel with no reducer
+  REPLACES history silently. Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §6.
+- **`remaining_steps` is engine-managed; the input mapper MUST NOT populate
+  it** — undeclared, the five-hop off-ramp never fires (§3.7).
+- **`coaching_plan` is one typed `CoachingPlan` via `with_structured_output`**,
+  overwritten each planner turn — never a bare dict or a list. Read
+  `coaching_plan.retrieval_hops`, never `coaching_plan["retrieval_hops"]`.
+- **`draft`, `belt_edits` and `final` are `dict`, never `str`.**
+- **`gate_attempts` is on `PhaseState` and in the checkpoint** — per phase,
+  +1 per failed attempt, reset to 0 on pass, escalating at 3 (§1.7, §3.5).
+- **Three feedback channels, never merged:** `validator_feedback` (system
+  validation, step 2 — attempt, layer, criteria failed, feedback; reset to
+  `[]` on pass), `belt_edits` (Belt corrections, step 5), `rejection_feedback`
+  (Belt's reasons for rejecting at the gate, read by the planner).
+- **`hop_results` and `synthesis_output` MUST be state, not node locals**
+  (`[]` / `None` on single-hop turns).
+- **`citations` and `uploads` are the evidence trail** — both go into the
+  gate document (§9.6).
+- `phase_index` (which phase) and `field_index` (which field) are distinct.
+  Never reuse `step_index`.
+- **Explicit `TypedDict`, not `MessagesState` inheritance.**
 
 ### 10.2 — The store — cross-phase artifacts
 
-**Namespace convention:**
-```
-("projects", case_id, <kind>)
-```
+**Namespace:** `("projects", case_id, <kind>)`; blob prefix
+`store/projects/{case_id}/{kind}/{key}.json`. `case_id` equals the graph's
+`thread_id` (§10.5).
 
-| Namespace | Keys | Contents |
+| Kind | Keys | Contents |
 |---|---|---|
-| `("projects", case_id, "case")` | `"record"` | Case framing — title, department, belt level, leader, target date. Written once at session start from `cases/case_{id}.json`, never mid-conversation |
-| `("projects", case_id, "artifacts")` | `"define"`, `"measure"`, … | **Each phase's approved gate document** — written by `gate_apply_node` (§9.6) |
-| `("projects", case_id, "step_log")` | timestamped | Append-only cross-phase audit trail |
+| `"case"` | `"record"` | Case framing, written once at session start from `cases/case_{id}.json` — not a second system of record |
+| `"artifacts"` | `"define"`, `"measure"`, … | **Each phase's approved gate document**, written by `gate_apply_node` (§9.6) |
+| `"step_log"` | timestamped | Append-only cross-phase audit trail |
 
-**Blob prefix:** `store/projects/{case_id}/{kind}/{key}.json`
+**The `gate_documents` namespace is retired.**
 
-`case_id` is the same value as the graph's `thread_id` (§10.5).
+**Boundary mappers in `phases/{phase}/mappers.py`:** the output mapper writes
+artifacts to the store at gate approval and returns **only
+orchestration-relevant values**; **every input mapper composes
+`phase_context` from the store** and depends only on `BaseStore` — never on
+parent state, never on a blob client.
 
-**The `gate_documents` namespace is retired.** A phase's approved
-artifacts and its gate document are the same object; two keys holding
-the same content is a question about which is authoritative with no
-answer. Reintroducing it is a violation.
+**String-interpolating a previous phase's output into the next phase's
+prompt is BANNED** — read a named field from the structured gate document.
 
-**Cross-phase handoff uses boundary mappers**, in
-`phases/{phase}/mappers.py`:
-- The output mapper writes artifacts to the store at gate approval and
-  returns **only orchestration-relevant values** to the parent
-- The input mapper reads the prior phase's artifacts from the store
-
-**Every input mapper composes `phase_context` from the store** — Define
-from the case record, later phases from the prior phase's artifacts. An
-input mapper's only dependency is `BaseStore`. Reading context off
-parent state, or handing a mapper a blob client, is a violation: the
-first creates a parent field to keep in sync, the second puts untracked
-I/O in a translation function.
-
-**The `case` namespace is not a second system of record.**
-`cases/case_{id}.json` (§10.4) stays authoritative.
-
-**String-interpolating a previous phase's output into the next
-phase's prompt is BANNED.** Measure reads Define's baseline metric as a
-named field out of a structured gate document, not out of prose. The
-field's *value* is a string (§10.6) — the prohibition is on parsing a
-value out of an interpolated prompt, not on the value's type.
-
-**The store is not the case index.** Cross-*case* retrieval for yokoten
-is `rag_lookup_case_history` (§7.2). The store carries cross-*phase*
-data within one project. Two mechanisms, two purposes.
-
-**Ordering constraint:** implement the store **after** `thread_id` is
-wired through `graph.ainvoke`. A store is meaningless without working
-checkpoint persistence.
+**The store is not the case index** — cross-*case* retrieval is
+`rag_lookup_case_history` (§7.2).
 
 ### 10.3 — `step_log` — dicts, never tuples
 
-Every audit entry is a dict with named keys. Tuples are BANNED — field
-names make the log self-documenting and queryable.
+Every audit entry is a dict with named keys, e.g.
+`{"layer": "constraint", "attempt": 2, "status": "failed", "reason": "..."}`.
+Tuples are BANNED. The validation layers (§9.2), each grader iteration
+(`on_evaluation`, §8.2) and every fallback attempt (§4.8) write here.
 
-```python
-{"layer": "constraint", "attempt": 2, "status": "failed",
- "reason": "does not address timeline", "decision_excerpt": "..."}
-
-{"service": "gpt-4o", "attempt": 2, "status": "failed",
- "reason": "timeout after 45s", "timestamp": "..."}
-```
-
-Everything requiring an audit trail writes here: the four validation
-layers (§9.2), each grader iteration via `on_evaluation` (§8.2), and
-every fallback attempt (§4.8).
-
-**`artifacts` and `step_log` are separate fields and must stay
-separate.** `artifacts` is WHAT was captured; `step_log` is HOW. For a
-DMAIC quality system the Belt must be able to show not just what the
-root cause was, but how it was determined.
+**`artifacts` (WHAT was captured) and `step_log` (HOW) stay separate.**
 
 ### 10.4 — Azure Blob — two distinct concerns
 
-**Concern 1: Checkpoints (in-flight graph state)**
-- Path: `checkpoints/{case_id}/latest.json` + `history/{id}.json`
-- Written by `AzureBlobCheckpointSaver` after every graph node
-- Owner: `core/checkpointer.py`
+| Concern | Path | Written | Owner |
+|---|---|---|---|
+| Checkpoints | `checkpoints/{case_id}/latest.json` + `history/{id}.json` | After every graph node, by `AzureBlobCheckpointSaver` | `core/checkpointer.py` |
+| Case records (system of record) | `cases/case_{id}.json`, `registry.json`, `uploads/{case_id}/{file}` | Case create, gate pass, file upload — **never mid-conversation** | `storage/blob.py` (`ImproveBlobClient`) |
 
-**Concern 2: Case records (system of record)**
-- Path: `cases/case_{id}.json`, `registry.json`, `uploads/{case_id}/{file}`
-- Written on case create, on gate pass, on file upload — **never
-  mid-conversation**
-- Owner: `storage/blob.py` via `ImproveBlobClient`
-
-Same Azure Storage account, separate concerns, separate code paths.
-
-**The case blob is NOT updated per turn.** The v1 pattern of
-overwriting `case_{id}.json` on every `/ask` is REMOVED. Conversation
-history lives in the checkpoint until gate pass.
-
-**Case-vs-registry atomicity:** gate-pass case blob write and registry
-update remain two separate writes. Both are covered by the node's
-`error_handler` (§3.6).
+The gate-pass case write and registry update are two writes, both covered by
+the node's `error_handler` (§3.6).
 
 ### 10.5 — Naming: `case_id` and `artifacts` are the only names
 
-**The project identifier is `case_id`. Everywhere.** State field, store
-namespace segment, `thread_id`, blob path, log field, index field,
-prose. **`project_id` is retired and may not be reintroduced.**
+**The project identifier is `case_id`. Everywhere** — state, store,
+`thread_id`, blob path, logs, indexes, prose. **`project_id` is retired.**
 
-This was never a design question — it was documents disagreeing with
-code. `improve_case_index.case_id`, `improve_evidence_index.case_id`
-(§7.3), `cases/case_{id}.json`, `uploads/{case_id}/{file}` and every
-storage model already said `case_id`.
-
-**A phase's captured fields are `artifacts`. Everywhere.**
-
-| Retired name | Was | Rule |
-|---|---|---|
-| `captured_fields` | Prose name in these documents | Never use in prose — say `artifacts` |
-| `phase_inputs` | v1 code field name | Never add to v2 code; replaced during the refactor |
-
-`PhaseState.artifacts` holds the fields the Belt has produced in this
-phase. Three names for one concept is how a reader ends up believing
-there are three things.
+**A phase's captured fields are `artifacts`. Everywhere** — never
+`captured_fields` in prose, never `phase_inputs` in v2 code.
 
 ### 10.6 — Every captured field is a string
 
-**All captured fields are `str`.** No phase schema declares a typed
-numeric. **Computation tools parse at the point of use** — each of the
-20 (§5.2) extracts what it needs from the string it is given and returns
-a clear reformatting request to the Belt when it cannot.
+**All captured fields are `str`**; computation tools parse at the point of
+use and ask the Belt to reformat when they cannot. **The gate document shows
+the Belt's exact words.**
 
-```python
-baseline_mean = "12.3% invoice error rate, measured over Q2 2026"
-```
+**The one exception — three cross-phase reference dicts:**
+`causal_hypothesis` (Analyse), `solution_linked_to_root_cause` (Improve),
+`post_improvement_metrics` (Control), each carrying `references_phase`,
+`references_field` and `references_value` so the grader checks the link
+deterministically against the store. Values inside are still strings
+(`../AGENTIC_ARCHITECTURE_REFERENCE.md` §42).
 
-**The gate document shows the Belt's exact words.** That is a
-requirement of a quality system: the Belt must be able to show what they
-stated, not what the system parsed out of it.
-
-> **This corrects the previous §10.2, which claimed "Measure reads
-> Define's baseline metric as a typed float."** No baseline field has
-> ever been typed as a float in any schema in this project. The prose
-> promised a guarantee the schemas did not provide.
-
-**The one exception — three cross-phase reference fields are `dict`:**
-`causal_hypothesis` (Analyse), `solution_linked_to_root_cause`
-(Improve), `post_improvement_metrics` (Control). Each carries the Belt's
-content plus `references_phase`, `references_field` and
-`references_value`, so the grader verifies the link by reading the
-referenced phase's gate document from the store — deterministic, no LLM
-judgment in the linkage check. The values inside the dict are still
-strings. Design detail: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §42.
-
-**Computation tool output goes in `artifacts["computation_results"]`**
-as a list of typed dicts, all values strings. No new top-level
-`PhaseState` field, and no per-phase typed destinations — the grader
-answers "was a hypothesis test run?" by scanning that list for
-`"tool": "t_test"`. Adding typed per-phase computation fields is a
-violation (`../AGENTIC_ARCHITECTURE_REFERENCE.md` §7).
+**Computation tool output goes in `artifacts["computation_results"]`** — a
+list of dicts, all values strings; no new `PhaseState` field, no per-phase
+typed destinations (`../AGENTIC_ARCHITECTURE_REFERENCE.md` §7).
 
 ### 10.7 — `CoachingResponse` in, `{Phase}Output` out
 
-**Two schemas, two moments. Never substitute one for the other.**
+**Two schemas, two moments — never substitute one for the other.**
+`CoachingResponse` (`core/substate.py`) is produced **every turn** by the
+executor via `response_format=`; `{Phase}Output` (`phases/{phase}/schema.py`,
+registered in `phases/gate_registry.py`) is built **once**, at `gate_apply`,
+by Pydantic construction with no LLM. Design:
+`../AGENTIC_ARCHITECTURE_REFERENCE.md` §40.
 
-| | `CoachingResponse` | `{Phase}Output` |
-|---|---|---|
-| Fires | **Every coaching turn** | **Once**, at `gate_apply` |
-| Produced by | The executor, via `response_format=` | Pydantic construction — no LLM |
-| Holds | This turn's extraction | The complete gate document |
-
-**`CoachingResponse` — the per-turn schema:**
-
-```python
-class CoachingResponse(BaseModel):
-    """Structured extraction from each coaching turn."""
-    message: str                        # coaching text the Belt sees
-    fields_captured: list[dict] = []    # [{field_name: str, value: Any, source: str}]
-    citations: list[dict] = []          # sources referenced this turn
-    contradiction_flag: Optional[dict] = None   # §9.4 — material contradiction only
-```
-
-**`contradiction_flag` carries `prior_field`, `approved_value`,
-`approved_phase`, `proposed_value`, `belt_input` when set**, and is produced by
-this same `response_format` call — no additional LLM call (§9.4, §8.8).
-**Adding any field to `CoachingResponse` requires an amendment** (§18) — it is
-load-bearing in the same way `SupervisorState` and `PhaseState` are.
-
-**`value` is `Any`, not `str`, and that is deliberate** — it must carry
-both plain string fields and the three cross-phase reference dicts
-(§10.6). Typing it `str` would make `causal_hypothesis`,
-`solution_linked_to_root_cause` and `post_improvement_metrics`
-uncapturable. This is the one place `Any` is correct; the *values inside*
-those dicts are still strings.
-
-**The executor node writes the response into state:**
-
-```python
-result = await executor.ainvoke(state)
-resp = result["structured_response"]              # CoachingResponse
-
-for f in resp.fields_captured:
-    artifacts[f["field_name"]] = f["value"]       # str or dict
-citations.extend(resp.citations)
-```
-
-**`{Phase}Output` schemas are canonical** — `DefineOutput`,
-`MeasureOutput`, `AnalyseOutput`, `ImproveOutput`, `ControlOutput`, in
-`phases/{phase}/schema.py`. Full definitions and per-phase gate assembly
-are in `../AGENTIC_ARCHITECTURE_REFERENCE.md` §40. The binding rules:
-
-- **Every field is `str`** except the three cross-phase reference dicts
-  (§10.6)
-- **Every schema carries the same four gate-metadata fields** —
-  `computation_results`, `acknowledged_gaps`, `citations`, `uploads`
-- **Tier 1 fields are assembled with `artifacts["field"]`** — a
-  `KeyError` here is correct, because Layer 2b should have blocked the
-  gate
-- **Tier 2 fields use `artifacts.get("field", "")`**, cross-phase dicts
-  `artifacts.get("field", {})` — an empty value records that the Belt
-  proceeded without it (§9.7). **Define never uses this pattern on a
-  content field** — all 12 are gate-required, so its assembly is direct
-  `artifacts["field"]` access throughout (§0.18)
-- **Gate assembly must reference every field in the schema.** A field in
-  the schema that assembly never sets is a field that silently never
-  reaches the store
-
-**Field counts, all five phases:**
-
-| Phase | Total | Gate-required | Tier 2 | `phase_metrics` | Gate metadata |
-|---|---|---|---|---|---|
-| Define | **18** | **13 — all of them, incl. `metric_definitions`** | **— (no Tier 2)** | 1 | 4 |
-| Measure | **15** | 7 | 3 | 1 | 4 |
-| Analyse | **14** | 4 | 5 | 1 | 4 |
-| Improve | **14** | 4 | 5 | 1 | 4 |
-| Control | **17** | 3 | 9 | 1 | 4 |
-
-**Every total rose by one for `phase_metrics`; Define rose by two**, because it
-alone carries `metric_definitions`, the registry (§0.20).
-
-**Define's row reads differently on purpose.** Under Option A every Define
-field is gate-required, so its count is the whole content set rather than a
-tier within it (§0.18). The other four rows are Tier 1 counts.
-
-**Three fields are on all five schemas:** `issues_and_barriers`,
-`secondary_metrics` and **`phase_metrics`** (§0.20). `issues_and_barriers`
-is gate-required everywhere; `secondary_metrics` is Tier 2 in the four
-tiered phases and **gate-required in Define**; `phase_metrics` is present
-on all five and carries `"none this phase"` rather than an empty list
-where the phase engaged no metric. Adding a field to one phase without
-considering the other four is how the cross-phase gaps in the eBook
-extraction arose in the first place.
+- **Adding any field to `CoachingResponse` requires an amendment** (§18).
+  `contradiction_flag` rides the same call — no extra LLM call (§9.4, §8.8).
+- `fields_captured[].value` is `Any` **deliberately** — it carries the
+  cross-phase dicts (§10.6).
+- **Every Output field is `str`** except the cross-phase dicts; every schema
+  carries the four gate-metadata fields (`computation_results`,
+  `acknowledged_gaps`, `citations`, `uploads`).
+- **Tier 1 assembly uses `artifacts["field"]`** (a `KeyError` is correct);
+  **Tier 2 uses `artifacts.get("field", "")`** (`{}` for dicts). Define has no
+  Tier 2 (§0.18).
+- **Gate assembly must reference every field in the schema.**
+- **Field counts per phase are owned by the schema modules
+  (`phases/*/schema.py`)** — never tabulate them here.
+- **`issues_and_barriers`, `secondary_metrics` and `phase_metrics` are on all
+  five schemas** (§0.20); `phase_metrics` carries `"none this phase"`, not an
+  empty list.
 
 ### 10.8 — Structured dict fields; FMEA is not tracked
 
-**Three Tier 1 fields are structured dicts**, distinct from the three
-cross-phase reference dicts of §10.6:
+**Three Tier 1 structured dicts:** `process_map_sipoc` (Define),
+`detailed_process_map` (Measure), `control_plan` (Control, five sub-plans).
+Sub-field keys are owned by `phases/*/schema.py` (e.g. `SIPOC_KEYS`,
+`CONTROL_PLAN_KEYS`). **The grader checks every sub-field is populated.**
 
-| Field | Phase | Sub-fields |
-|---|---|---|
-| `process_map_sipoc` | Define | `suppliers`, `inputs`, `process_steps`, `outputs`, `customers`, `process_metrics` |
-| `detailed_process_map` | Measure | `steps`, `cycle_times`, `resources`, `value_vs_waste`, `measurement_points`, `baseline_metrics` |
-| `control_plan` | Control | `documentation`, `monitoring`, `response`, `training`, `aligning_systems` |
+**One measurement thread across three phases** — Define
+`process_map_sipoc["process_metrics"]` (what is measured) → Measure
+`detailed_process_map["baseline_metrics"]` (before) → Control
+`post_improvement_metrics` (after).
 
-**The grader checks every sub-field is populated.** A `process_map_sipoc`
-with four of six keys filled is the partial-map failure the field exists
-to catch — a Belt who maps steps 3–5 of a seven-step process produces a
-project that cannot show improvement, because the baseline never covered
-the whole thing.
+**`stability_assessment` is Tier 1 and comes BEFORE capability**:
+stability → special causes if unstable → capability.
 
-**Three fields carry one measurement thread across three phases**, and
-the grader verifies the same measurement points carry different values:
+**`experiment_justification` is Tier 1 and requires a decision, not an
+experiment**: DOE conducted, simplified one-factor experiment, or none needed
+because the solution follows from root cause analysis.
 
-```
-Define   process_map_sipoc["process_metrics"]        — WHAT is measured
-Measure  detailed_process_map["baseline_metrics"]    — the BEFORE values
-Control  post_improvement_metrics                  — the AFTER values
-```
-
-**`stability_assessment` is Tier 1 and is checked BEFORE capability.** An
-unstable process has special causes, so a baseline Cpk computed across
-them is an average of two different processes, not a capability figure.
-Coaching order: stability → special causes if unstable → capability.
-
-**`experiment_justification` is Tier 1 and does not require an
-experiment.** It requires a decision, stated as one of three: DOE
-conducted, simplified one-factor experiment, or no experiment needed
-because the solution follows from root cause analysis. All three are
-valid; the failure it catches is drifting past the question, not
-skipping DOE. Design detail: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §41.
-
-**`control_plan` is `dict`, never `str`.** Five sub-plans, all required:
-
-```python
-control_plan: dict = {
-    "documentation":    str,   # updated process maps, SOPs, training manuals
-    "monitoring":       str,   # what charts, what frequency, what limits, who checks
-    "response":         str,   # what happens when monitoring signals a problem
-    "training":         str,   # who needs training, in what format, verified how
-    "aligning_systems": str,   # HR, IT, budget changes needed to sustain
-}
-```
-
-**Tier 1 — the gate requires the dict, and the grader checks all five
-sub-plans are populated.** A single string cannot show that four were
-done and one was skipped, and a Training Plan written but never delivered
-is the most common real Control failure. Design detail: `../AGENTIC_ARCHITECTURE_REFERENCE.md`
-§41.
-
-**FMEA has no field in any schema, and none may be added.** Not
-`fmea_summary`, not `updated_fmea`, not an FMEA sub-key anywhere.
-
-FMEA is heavy manufacturing methodology built around severity ×
-occurrence × detection scoring of physical failure modes. Agent Improve's
-typical case is service or transactional DMAIC, where `driver_priority_summary`
-and `vital_few_drivers` already do the prioritisation job without the RPN
-overhead. Requiring an FMEA would push every Belt through a heavy
-artefact to satisfy a field — the mechanical field-filling §9.7 exists to
-prevent.
-
-**If a Black Belt performs one, it lives in `uploads`** as an attached
-document, and the BB SKILL.md may present it as an available technique.
-The schema does not track it, the grader does not ask for it, and no gate
-blocks on it. Full rationale: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §41.
+**FMEA has no field in any schema, and none may be added.** If a Black Belt
+performs one, it lives in `uploads`; no gate blocks on it
+(`../AGENTIC_ARCHITECTURE_REFERENCE.md` §41).
 
 *Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §5, §6, §7, §9, §10, §11, §40.*
 
