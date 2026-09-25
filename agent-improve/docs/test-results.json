@@ -1,9 +1,9 @@
 {
- "source_hash": "0ab1e4dadc9f81d8",
- "commit": "69e9200",
+ "source_hash": "2c9077ec957a885f",
+ "commit": "22ddd0d",
  "commit_matches_source": false,
- "full_run_hash": "0ab1e4dadc9f81d8",
- "recorded_at": "2026-09-25T19:02:34+00:00",
+ "full_run_hash": "2c9077ec957a885f",
+ "recorded_at": "2026-09-25T19:10:59+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -446,6 +446,12 @@
   "backend/tests/test_declared_types.py::test_the_refusal_is_reported_by_field_and_by_type": "passed",
   "backend/tests/test_declared_types.py::test_the_str_field_in_the_same_turn_is_untouched": "passed",
   "backend/tests/test_declared_types.py::test_the_turn_does_not_fail_for_the_belt": "passed",
+  "backend/tests/test_define_features.py::test_dropping_one_mapping_turns_the_coverage_red": "passed",
+  "backend/tests/test_define_features.py::test_every_define_step_row_and_open_gap_maps_to_a_feature": "passed",
+  "backend/tests/test_define_features.py::test_every_feature_has_the_founders_fields_and_no_status": "passed",
+  "backend/tests/test_define_features.py::test_ids_are_unique_and_every_dependency_resolves": "passed",
+  "backend/tests/test_define_features.py::test_status_is_derived_from_the_recorded_outcome_only": "passed",
+  "backend/tests/test_define_features.py::test_the_next_feature_waits_for_its_dependencies": "passed",
   "backend/tests/test_define_phase_metrics.py::test_a_complete_define_case_assembles": "passed",
   "backend/tests/test_define_phase_metrics.py::test_a_malformed_registry_does_not_raise_here": "passed",
   "backend/tests/test_define_phase_metrics.py::test_a_multi_metric_case_still_satisfies_the_invariant": "passed",
@@ -1353,8 +1359,8 @@
   "backend/tests/test_wiring.py::test_wired_6_61_the_move_is_decided_in_code": "passed"
  },
  "older": {
-  "source_hash": "c0d7092a671cce05",
-  "recorded_at": "2026-09-25T18:58:42+00:00",
+  "source_hash": "0ab1e4dadc9f81d8",
+  "recorded_at": "2026-09-25T19:02:34+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",

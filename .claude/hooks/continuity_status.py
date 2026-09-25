@@ -81,6 +81,7 @@ Python 3.11+, standard library only.
 from __future__ import annotations
 
 import datetime as _dt
+import os
 import re
 import subprocess
 
@@ -124,6 +125,18 @@ _CLAUDE_V = re.compile(r"^#\s*Version\s+(?P<v>\S+)", re.M)
 _ARCH_V = re.compile(r"^Version\s+(?P<v>\d+(?:\.\d+)+)", re.M)
 _SPINE = re.compile(r"refactor\(arch-v2\):\s*commit\s+(?P<step>\d+\.\d+)")
 
+
+
+def _features_headline() -> str:
+    """Step 6.66 — Define's feature list, status only from test-results.json."""
+    try:
+        import sys as _sys
+        _sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..",
+                                         "agent-improve", "tools", "control_board"))
+        import features
+        return features.headline()
+    except Exception as exc:                        # noqa: BLE001 — never break the block
+        return f"— (features unreadable: {exc.__class__.__name__})"
 
 def _run(args: list[str], cwd: str) -> str:
     out = subprocess.run(
@@ -337,6 +350,7 @@ def build_block(cwd: str, today: str | None = None) -> str:
         f"{count['tooling']} tooling · "
         f"{count['built']} built, not wired · {count['blocked']} waiting · "
         f"{count['unbuilt']} not built |",
+        f"| **Define features** | {_features_headline()} |",
         f"| **ARCHITECTURE.md** | v{arch.group('v') if arch else '—'} |",
         f"| **CLAUDE.md** | v{claude.group('v') if claude else '—'} |",
         f"| **Block regenerated** | {date} |",

@@ -1,0 +1,2390 @@
+{
+ "_about": "Define's feature list — step 6.66, founder ruling 2026-09-25 (ARCHITECTURE.md v1.78). Anthropic's long-running-harness pattern: ONE list; a feature passes only when its end-to-end test passes. There is NO status field — status is derived from docs/test-results.json by tools/control_board/features.py. Derived from four sources, cited per feature: ARCHITECTURE.md, the procedure (steps, Appendix G gaps, Appendix H capability rows), the code, and Anthropic/LangChain guidance. 'covers' is what backend/tests/test_define_features.py holds the list to. Lanes: A coaching, B gate, C screen and inputs, integrator end-to-end joins. Edit a feature's description, test or sources in place; never add a status.",
+ "features": [
+  {
+   "id": "DEF-001",
+   "description": "A Belt creates a new case and it opens in Define: POST /cases returns an id, the case list shows it, and GET /cases/{id} opens it with current_phase 'define'.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_a_new_case_opens_in_define",
+   "sources": {
+    "architecture": [
+     "§49 API surface",
+     "§10 Azure Blob",
+     "§9 the Store (case record, WATCH 19)"
+    ],
+    "procedure": [
+     "Appendix H row 1",
+     "Step 6.49 (check written)",
+     "G-68 (3-hex case id, collision is a 500)",
+     "G-67 (form shows an id that is discarded)"
+    ],
+    "code": [
+     "agent-improve/backend/gateway/routes.py:203 — built (create_case; id = uuid4()[:3])",
+     "agent-improve/backend/gateway/routes.py:1540 — built (GET /cases/{case_id})",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_1_a_case_can_be_created_and_opened — reads live case, passed"
+    ],
+    "guidance": [
+     "https://fastapi.tiangolo.com/tutorial/testing/"
+    ]
+   },
+   "lane": "integrator",
+   "covers": {
+    "steps": [
+     "6.49"
+    ],
+    "capability_rows": [
+     "1"
+    ],
+    "gaps": [
+     "G-67",
+     "G-68"
+    ]
+   }
+  },
+  {
+   "id": "DEF-002",
+   "description": "One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-001"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_one_turn_answers_inside_its_time_limit",
+   "sources": {
+    "architecture": [
+     "§44 failure pipeline",
+     "§45 timeouts",
+     "§47 disconnect policy (ABANDON)",
+     "§17 planner/executor"
+    ],
+    "procedure": [
+     "Appendix H row 2",
+     "Step 6.52",
+     "Step 6.54",
+     "Step 6.49"
+    ],
+    "code": [
+     "agent-improve/backend/gateway/routes.py:643 — wired (ask)",
+     "agent-improve/backend/phases/nodes_common.py:600 — built (EXECUTOR_SOFT_BUDGET = 40.0)",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_2_a_turn_returns_a_coached_reply — SKIPPED in CI (opt-in CAPABILITY_LIVE_TURN=1)"
+    ],
+    "guidance": [
+     "https://fastapi.tiangolo.com/tutorial/testing/"
+    ]
+   },
+   "lane": "integrator",
+   "covers": {
+    "steps": [
+     "6.49",
+     "6.52",
+     "6.54"
+    ],
+    "capability_rows": [
+     "2"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-003",
+   "description": "Every node of a Define turn leaves a checkpoint, so a crash loses at most one node's work.",
+   "clause": "what they say is kept and every change is dated",
+   "depends_on": [
+    "DEF-002"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_every_node_of_a_turn_is_checkpointed",
+   "sources": {
+    "architecture": [
+     "§8 checkpointer/store split",
+     "§16 thread_id and checkpoint_ns"
+    ],
+    "procedure": [
+     "Appendix H row 33",
+     "Step 6.49",
+     "Step 6.47 (durable writes inside a node)"
+    ],
+    "code": [
+     "agent-improve/backend/core/graph.py:362 — built (_persistence)",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_33_a_checkpoint_is_written_after_every_node — passed (live case)"
+    ],
+    "guidance": [
+     "https://docs.langchain.com/oss/python/langgraph/use-subgraphs"
+    ]
+   },
+   "lane": "integrator",
+   "covers": {
+    "steps": [
+     "6.49",
+     "6.47"
+    ],
+    "capability_rows": [
+     "33"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-004",
+   "description": "Tracing is a switch: the run-through and the test suite send zero LangSmith runs when tracing is off, and a traced turn shows the model call, tools and middleware.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-002"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_the_define_run_sends_no_trace_when_tracing_is_off",
+   "sources": {
+    "architecture": [
+     "§51 tracing and observability"
+    ],
+    "procedure": [
+     "Appendix H row 35",
+     "G-95 (closed; the guard)",
+     "G-101 (init_tracing ignores LANGSMITH_TRACING=false)",
+     "Step 6.49"
+    ],
+    "code": [
+     "agent-improve/backend/tests/conftest.py:377 — built (_count_tracing_calls guard)",
+     "agent-improve/backend/tests/conftest.py:393 — built (_no_tracing switch)",
+     "agent-improve/backend/core/tracing.py:44 — built, defect G-101 (reads only the key)",
+     "agent-improve/scripts/coaching_proof_656.py:112 — built (_tracing_off outside pytest)"
+    ],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "covers": {
+    "steps": [
+     "6.49"
+    ],
+    "capability_rows": [
+     "35"
+    ],
+    "gaps": [
+     "G-101"
+    ]
+   }
+  },
+  {
+   "id": "DEF-005",
+   "description": "On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code, the planner model not called.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-002"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_an_untaught_field_is_taught_example_before_ask",
+   "sources": {
+    "architecture": [
+     "§17 v1.75/v1.77 (the move is decided in code)",
+     "§43.2 show before asking",
+     "§39.1.7 explain-show-ask-confirm",
+     "§50.1 coach response structure"
+    ],
+    "procedure": [
+     "Step 6.61 (landed)",
+     "Step 6.46 (landed)",
+     "Appendix H row 3",
+     "Appendix H row 27 (live-turn)",
+     "CLAUDE.md §21"
+    ],
+    "code": [
+     "agent-improve/backend/phases/moves.py:222 — wired (decide; NOT_TAUGHT -> TEACH)",
+     "agent-improve/backend/tests/test_wiring.py::test_wired_6_61_the_move_is_decided_in_code — passed (route+graph, fakes)",
+     "agent-improve/backend/tests/test_wiring.py::test_wired_6_46_the_script_reaches_the_model — passed"
+    ],
+    "guidance": [
+     "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents"
+    ]
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.46",
+     "6.61"
+    ],
+    "capability_rows": [
+     "3",
+     "27"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-006",
+   "description": "Every coaching turn tells the Belt where they are — 'Define · Step n of 12' — computed by define_progress, never counted by the model.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-005"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_every_turn_states_step_n_of_12",
+   "sources": {
+    "architecture": [
+     "§43.3 the A→F session flow",
+     "§39.1.9 (12 coached, 13 gate-required)",
+     "v1.73/v1.74 amendments"
+    ],
+    "procedure": [
+     "Appendix H row 28 (live-turn)",
+     "Step 6.57 (landed)"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/schema.py:113 — wired (define_progress)",
+     "agent-improve/backend/tests/test_wiring.py::test_wired_6_57_the_computed_step_is_recorded — passed"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.57"
+    ],
+    "capability_rows": [
+     "28"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-007",
+   "description": "A sufficient answer is READ BACK in the Belt's own words with 'is this right?', and held pending — nothing is stored yet.",
+   "clause": "what they say is kept and every change is dated",
+   "depends_on": [
+    "DEF-005"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_sufficient_answer_is_read_back_and_not_stored",
+   "sources": {
+    "architecture": [
+     "§17 v1.77 (S-C04)",
+     "§20 CoachingResponse",
+     "§22 anti-hallucination"
+    ],
+    "procedure": [
+     "Step 6.61",
+     "CLAUDE.md §21 ('stored only after the Belt confirms it')"
+    ],
+    "code": [
+     "agent-improve/backend/phases/moves.py:286 — wired (sufficient -> READ_BACK, pending)",
+     "agent-improve/backend/tests/test_wiring.py::test_wired_6_61_nothing_is_stored_before_confirmation — passed (route+graph, fakes)"
+    ],
+    "guidance": [
+     "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents"
+    ]
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61"
+    ],
+    "capability_rows": [],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-008",
+   "description": "Clicking Confirm under a read-back stores the pending value in the Belt's words and advances to the next field — no model reads the click.",
+   "clause": "what they say is kept and every change is dated",
+   "depends_on": [
+    "DEF-007"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_confirm_click_stores_and_advances",
+   "sources": {
+    "architecture": [
+     "§17 v1.77",
+     "§49 (AskRequest.action)"
+    ],
+    "procedure": [
+     "Step 6.61 (ruling R4)"
+    ],
+    "code": [
+     "agent-improve/backend/gateway/schemas.py:31 — wired (action: confirm|change)",
+     "agent-improve/backend/gateway/routes.py:702 — wired (belt_action into config)",
+     "agent-improve/backend/phases/moves.py:256 — wired (CONFIRM_CLICK -> STORE_AND_ADVANCE)",
+     "no route-level test drives action='confirm' (test_wiring uses a typed yes) — missing"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61"
+    ],
+    "capability_rows": [],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-009",
+   "description": "A typed plain yes confirms like the button; a yes carrying 'but/actually/change…' is treated as a correction and judged again.",
+   "clause": "what they say is kept and every change is dated",
+   "depends_on": [
+    "DEF-007"
+   ],
+   "test": "backend/tests/test_wiring.py::test_wired_6_61_the_move_is_decided_in_code",
+   "sources": {
+    "architecture": [
+     "§17 v1.77"
+    ],
+    "procedure": [
+     "Step 6.61"
+    ],
+    "code": [
+     "agent-improve/backend/phases/moves.py:174 — wired (is_confirmation)",
+     "agent-improve/backend/tests/test_wiring.py — passed; the qualified-yes half is unit-only (test_moves.py) — missing e2e"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61"
+    ],
+    "capability_rows": [],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-010",
+   "description": "Clicking Change under a read-back asks what to change and shows the Belt's current words; the field returns to 'asked'.",
+   "clause": "what they say is kept and every change is dated",
+   "depends_on": [
+    "DEF-007"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_change_click_reopens_the_field_with_the_belts_words",
+   "sources": {
+    "architecture": [
+     "§17 v1.77"
+    ],
+    "procedure": [
+     "Step 6.61 (Change proof)"
+    ],
+    "code": [
+     "agent-improve/backend/phases/moves.py:273 — wired (CHANGE_CLICK -> CHALLENGE)",
+     "agent-improve/backend/phases/nodes_common.py:1324 — wired (_change_reply, no model)",
+     "agent-improve/ui/index.html:5967 — built (Confirm/Change buttons)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61"
+    ],
+    "capability_rows": [],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-011",
+   "description": "A weak answer is CHALLENGED — the coach says what is missing and never writes the Belt's answer for them; the field stays open until the Belt supplies it.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-005"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_weak_answer_is_challenged_not_completed",
+   "sources": {
+    "architecture": [
+     "§43.6 what the coach must not do",
+     "§17 v1.77"
+    ],
+    "procedure": [
+     "Appendix H row 31 (live-turn)",
+     "Appendix H row 4",
+     "Step 6.45",
+     "G-105 (planner a turn late on weak answers)"
+    ],
+    "code": [
+     "agent-improve/backend/phases/moves.py:293 — wired (insufficient -> CHALLENGE)",
+     "agent-improve/backend/phases/nodes_common.py:426 — wired (_judge, the one model judgment)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.45",
+     "6.61"
+    ],
+    "capability_rows": [
+     "4",
+     "31"
+    ],
+    "gaps": [
+     "G-105"
+    ]
+   }
+  },
+  {
+   "id": "DEF-012",
+   "description": "A Belt message that is not an answer ('where do we stand?') is answered, the field is asked again, and its status does not change — and a stock-take reply is not rejected as parroting.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-005"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_question_is_answered_and_the_field_asked_again",
+   "sources": {
+    "architecture": [
+     "§17 v1.77 (RESPOND)",
+     "§19.7 coherence",
+     "§43.3"
+    ],
+    "procedure": [
+     "Step 6.61",
+     "G-99 (stock-take rejected as parroting — founder)"
+    ],
+    "code": [
+     "agent-improve/backend/phases/moves.py:283 — wired (not_an_answer -> RESPOND)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61"
+    ],
+    "capability_rows": [],
+    "gaps": [
+     "G-99"
+    ]
+   }
+  },
+  {
+   "id": "DEF-013",
+   "description": "The coherence judge rules on the Belt's words, not the coach's: a reply that quotes the script is not degraded, a real parrot still is.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-005"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_coherence_judges_the_belts_words",
+   "sources": {
+    "architecture": [
+     "§19.7 coherence (layer 2a)",
+     "S-C13"
+    ],
+    "procedure": [
+     "Step 6.59",
+     "G-102",
+     "G-99",
+     "Appendix H row 12"
+    ],
+    "code": [
+     "agent-improve/backend/middleware/coherence.py:170 — built (judges coach_text; defect)",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_12_vague_answers_are_caught_inside_the_turn — skipped/xfail"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.59"
+    ],
+    "capability_rows": [
+     "12"
+    ],
+    "gaps": [
+     "G-102",
+     "G-99"
+    ]
+   }
+  },
+  {
+   "id": "DEF-014",
+   "description": "When coherence rejects a reply, the coach is asked again inside the turn (a new model call), within the latency the founder rules.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-013"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_coherence_rejection_asks_the_coach_again",
+   "sources": {
+    "architecture": [
+     "§19.7",
+     "§34 shared cap"
+    ],
+    "procedure": [
+     "Step 6.53 (GATED — latency ruling)",
+     "G-104",
+     "Appendix H row 12"
+    ],
+    "code": [
+     "agent-improve/backend/middleware/coherence.py:158 — built (attempts reset; max_retries unused, G-104) — missing re-ask"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.53"
+    ],
+    "capability_rows": [
+     "12"
+    ],
+    "gaps": [
+     "G-104"
+    ]
+   }
+  },
+  {
+   "id": "DEF-015",
+   "description": "Every coaching turn is graded by the coaching rubric, the grader sees all four blocks (not only 'message'), and its verdict lands in step_log.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-002"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_every_turn_is_graded_on_all_four_blocks",
+   "sources": {
+    "architecture": [
+     "§19.8 grader",
+     "§36 two graders"
+    ],
+    "procedure": [
+     "Appendix H row 13",
+     "Step 6.52",
+     "Step 6.59 (grader gets four blocks)",
+     "G-102"
+    ],
+    "code": [
+     "agent-improve/backend/middleware/grader.py:252 — built (_coach_text reads message only, G-102)",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_13_the_coaching_rubric_scores_the_turn — passed (live case)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.52",
+     "6.59"
+    ],
+    "capability_rows": [
+     "13"
+    ],
+    "gaps": [
+     "G-102"
+    ]
+   }
+  },
+  {
+   "id": "DEF-016",
+   "description": "The savings calculation is TAUGHT before its number is given, and '23%', '23' and '0.23' give the same saving (one percent convention).",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-034"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_the_savings_calculation_is_taught_and_reads_percent_once",
+   "sources": {
+    "architecture": [
+     "§43.1 seven-step computation pattern",
+     "§69.1 conventions",
+     "§69.2 S-F37"
+    ],
+    "procedure": [
+     "Step 6.58",
+     "G-100",
+     "Appendix H row 26 (live-turn)",
+     "Step 6.56 (the calculation turn)"
+    ],
+    "code": [
+     "agent-improve/backend/knowledge/computation.py:139 — built (_num, defect G-100)",
+     "agent-improve/backend/knowledge/computation.py:213 — built (calculate_expected_savings)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.58",
+     "6.56"
+    ],
+    "capability_rows": [
+     "26"
+    ],
+    "gaps": [
+     "G-100"
+    ]
+   }
+  },
+  {
+   "id": "DEF-017",
+   "description": "A calculation the coach ran is recorded in computation_results with its five keys and appears in the gate document without the coach retyping the number.",
+   "clause": "a complete case ASSEMBLES a gate document",
+   "depends_on": [
+    "DEF-016"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_calculation_is_recorded_with_its_five_keys",
+   "sources": {
+    "architecture": [
+     "§7 (computation_results shape)",
+     "§33.2 gate document parts",
+     "§39.x.7"
+    ],
+    "procedure": [
+     "Appendix H row 10",
+     "Step 6.20 (Appendix F ☐)",
+     "G-05",
+     "G-35"
+    ],
+    "code": [
+     "agent-improve/backend/phases/nodes_common.py:1378 — built (_computation_results)",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_10_calculations_are_recorded — SKIPPED (no calculation turn on 0E5)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.20",
+     "6.49"
+    ],
+    "capability_rows": [
+     "10"
+    ],
+    "gaps": [
+     "G-05",
+     "G-35"
+    ]
+   }
+  },
+  {
+   "id": "DEF-018",
+   "description": "When the Belt's metric first comes up, the coach explains what it means, why Define cares and how to read it — from the registry's 'meaning', never invented.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-030"
+   ],
+   "test": "backend/tests/test_define_runthrough.py::test_runthrough_metric_meaning_comes_from_the_registry",
+   "sources": {
+    "architecture": [
+     "§43.7 metric literacy",
+     "§39.1.13",
+     "§63.8 S-C38"
+    ],
+    "procedure": [
+     "Appendix H row 32 (live-turn)",
+     "Step 6.46"
+    ],
+    "code": [
+     "agent-improve/skills/dmaic-define-phase/SKILL.md — built (METRIC LITERACY block; verify_built.py 5/5)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.46"
+    ],
+    "capability_rows": [
+     "32"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-019",
+   "description": "The coach teaches in its own voice and never hands the Belt a URL.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-005"
+   ],
+   "test": "backend/tests/test_define_runthrough.py::test_runthrough_no_reply_carries_a_link",
+   "sources": {
+    "architecture": [
+     "§43.5 no external URLs"
+    ],
+    "procedure": [
+     "Appendix H row 30 (live-turn)",
+     "Step 6.46"
+    ],
+    "code": [
+     "agent-improve/backend/core/prompts.py — built (coaching rules); no check — missing"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.46"
+    ],
+    "capability_rows": [
+     "30"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-020",
+   "description": "At any point the Belt can ask what is done and what is missing, and the coach shows the captured and missing fields from check_gate_status — the same answer layer 2b gives.",
+   "clause": "a complete case ASSEMBLES a gate document",
+   "depends_on": [
+    "DEF-041"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_the_belt_can_see_captured_and_missing_fields",
+   "sources": {
+    "architecture": [
+     "§43.4 live gate document preview",
+     "§29 universal tools (S-F21)",
+     "§19.1 state injection"
+    ],
+    "procedure": [
+     "Appendix H row 29 (live-turn)",
+     "Step 7.1",
+     "G-31",
+     "G-108",
+     "G-23"
+    ],
+    "code": [
+     "agent-improve/backend/knowledge/tools.py:657 — missing (check_gate_status not built)",
+     "agent-improve/backend/middleware/state_injection.py:46 — built (injects the gate's missing list instead)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "7.1"
+    ],
+    "capability_rows": [
+     "29"
+    ],
+    "gaps": [
+     "G-31",
+     "G-108",
+     "G-23"
+    ]
+   }
+  },
+  {
+   "id": "DEF-021",
+   "description": "When the Belt corrects a stored value, their stated reason is kept with the change in field_log.reason.",
+   "clause": "what they say is kept and every change is dated",
+   "depends_on": [
+    "DEF-039"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_correction_keeps_the_belts_reason",
+   "sources": {
+    "architecture": [
+     "§6 PhaseState",
+     "§20 CoachingResponse (fields_captured)",
+     "§37"
+    ],
+    "procedure": [
+     "Appendix H row 7",
+     "Step 6.44",
+     "G-89"
+    ],
+    "code": [
+     "agent-improve/backend/phases/nodes_common.py:1125 — built (_field_log_entries; reason read, never supplied, G-89)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.44"
+    ],
+    "capability_rows": [
+     "7"
+    ],
+    "gaps": [
+     "G-89"
+    ]
+   }
+  },
+  {
+   "id": "DEF-022",
+   "description": "A Belt can revise a field they already confirmed while a later field is current, and the revision is judged, read back and re-confirmed.",
+   "clause": "what they say is kept and every change is dated",
+   "depends_on": [
+    "DEF-008"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_confirmed_field_can_be_revised",
+   "sources": {
+    "architecture": [
+     "§17 v1.77",
+     "§37 mid-phase contradiction"
+    ],
+    "procedure": [
+     "G-110 (unowned — a later step)"
+    ],
+    "code": [
+     "agent-improve/backend/phases/moves.py:206 — built (current = first not confirmed; no revise move) — missing"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-110"
+    ]
+   }
+  },
+  {
+   "id": "DEF-023",
+   "description": "The coach does not fetch the Define script it already has in its system message (no load_skill call on a Define turn).",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-005"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_the_script_is_not_fetched_again",
+   "sources": {
+    "architecture": [
+     "§32 phase skills",
+     "§19.2"
+    ],
+    "procedure": [
+     "Step 6.60 (off the path)",
+     "G-106"
+    ],
+    "code": [
+     "agent-improve/backend/middleware/skills.py:26 — built (load_skill registered by the middleware)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.60"
+    ],
+    "capability_rows": [],
+    "gaps": [
+     "G-106"
+    ]
+   }
+  },
+  {
+   "id": "DEF-024",
+   "description": "The same coaching situation run five times makes the same move every time (repeated-run consistency).",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-005",
+    "DEF-007",
+    "DEF-011"
+   ],
+   "test": "backend/tests/test_define_runthrough.py::test_runthrough_the_same_turn_makes_the_same_move",
+   "sources": {
+    "architecture": [
+     "§17 v1.75"
+    ],
+    "procedure": [
+     "CLAUDE.md §21 (every coaching step carries a repeated-run consistency test)",
+     "Step 6.61 Part B"
+    ],
+    "code": [
+     "agent-improve/scripts/move_proof_661.py:271 — built (_part_b, runs per situation)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61"
+    ],
+    "capability_rows": [],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-025",
+   "description": "Field 1 of 12 — The business case is captured verbatim in the Belt's words after Confirm.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-008"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_field_01_business_case_is_captured_after_confirm",
+   "sources": {
+    "architecture": [
+     "§39.1.2 row 1 (business_case: str)"
+    ],
+    "procedure": [
+     "Five clauses: 'coached through the twelve fields' (REFACTORING_PROCEDURE.md@HEAD:369)",
+     "Step 6.61"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 1: business_case)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61"
+    ],
+    "capability_rows": [],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-026",
+   "description": "Field 2 of 12 — The team is captured as a list of people each with name, role and function — never as prose.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-025"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_field_02_team_is_captured_after_confirm",
+   "sources": {
+    "architecture": [
+     "§39.1.2 row 2 (team: list[{name, role, function}])",
+     "§39.1.4 team structure"
+    ],
+    "procedure": [
+     "Five clauses: 'coached through the twelve fields' (REFACTORING_PROCEDURE.md@HEAD:369)",
+     "Step 6.61",
+     "Appendix H row 18"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 2: team)",
+     "agent-improve/backend/tests/test_declared_types.py::test_row_18_captured_values_carry_their_declared_type — passed (live case)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61",
+     "6.48"
+    ],
+    "capability_rows": [
+     "18"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-027",
+   "description": "Field 3 of 12 — The voice-of-the-customer summary is captured after Confirm.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-026"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_field_03_voc_summary_is_captured_after_confirm",
+   "sources": {
+    "architecture": [
+     "§39.1.2 row 3 (voc_summary: str)"
+    ],
+    "procedure": [
+     "Five clauses: 'coached through the twelve fields' (REFACTORING_PROCEDURE.md@HEAD:369)",
+     "Step 6.61"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 3: voc_summary)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61"
+    ],
+    "capability_rows": [],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-028",
+   "description": "Field 4 of 12 — The problem statement is composed from the Belt's 5W2H answers, read back, and stored only as the confirmed composed version — with no fact the Belt did not give.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-027"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_field_04_problem_statement_is_captured_after_confirm",
+   "sources": {
+    "architecture": [
+     "§39.1.2 row 4 (problem_statement: str (composed from 5W2H))",
+     "§39.1.3 composed-problem-statement rule"
+    ],
+    "procedure": [
+     "Five clauses: 'coached through the twelve fields' (REFACTORING_PROCEDURE.md@HEAD:369)",
+     "Step 6.61"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 4: problem_statement)",
+     "agent-improve/backend/phases/moves.py:78 — wired (COMPOSED_FIELDS stores the read-back version)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61"
+    ],
+    "capability_rows": [],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-029",
+   "description": "Field 5 of 12 — Position 5 captures the baseline AND the metric registry in one exchange; the baseline is stored as a number with a unit Control can compare.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-028"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_field_05_baseline_estimate_is_captured_after_confirm",
+   "sources": {
+    "architecture": [
+     "§39.1.2 row 5 (baseline_estimate + metric_definitions: str + list[{name, unit, meaning}])",
+     "§39.1.9 metric registry",
+     "§63.1 S-C27 B7",
+     "§63.8 S-C38"
+    ],
+    "procedure": [
+     "Five clauses: 'coached through the twelve fields' (REFACTORING_PROCEDURE.md@HEAD:369)",
+     "Step 6.61",
+     "Appendix H row 18",
+     "Appendix H row 25",
+     "Step 6.51"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 5: baseline_estimate + metric_definitions)",
+     "agent-improve/backend/tests/test_declared_types.py::test_row_18_captured_values_carry_their_declared_type — passed (live case)",
+     "no value check at capture for baseline/target — missing (6.51)",
+     "agent-improve/backend/phases/define/schema.py:90 — wired (_CAPTURED_INSIDE: metric_definitions inside position 5)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61",
+     "6.48",
+     "6.51"
+    ],
+    "capability_rows": [
+     "25",
+     "18"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-030",
+   "description": "Field 6 of 12 — The scope is captured with both halves explicit — what is in and what is out.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-029"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_field_06_project_scope_is_captured_after_confirm",
+   "sources": {
+    "architecture": [
+     "§39.1.2 row 6 (project_scope: {in_scope, out_scope})"
+    ],
+    "procedure": [
+     "Five clauses: 'coached through the twelve fields' (REFACTORING_PROCEDURE.md@HEAD:369)",
+     "Step 6.61",
+     "Appendix H row 18"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 6: project_scope)",
+     "agent-improve/backend/tests/test_declared_types.py::test_row_18_captured_values_carry_their_declared_type — passed (live case)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61",
+     "6.48"
+    ],
+    "capability_rows": [
+     "18"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-031",
+   "description": "Field 7 of 12 — The SMART goal sentence is captured after Confirm.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-030"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_field_07_goal_statement_is_captured_after_confirm",
+   "sources": {
+    "architecture": [
+     "§39.1.2 row 7 (goal_statement: str)"
+    ],
+    "procedure": [
+     "Five clauses: 'coached through the twelve fields' (REFACTORING_PROCEDURE.md@HEAD:369)",
+     "Step 6.61"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 7: goal_statement)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61"
+    ],
+    "capability_rows": [],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-032",
+   "description": "Field 8 of 12 — The target is stored as a number with the same unit as the baseline, parseable by Control.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-031"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_field_08_target_value_is_captured_after_confirm",
+   "sources": {
+    "architecture": [
+     "§39.1.2 row 8 (target_value: str (number + unit))",
+     "§39.1.9 metric registry",
+     "§63.1 S-C27 B7",
+     "§63.8 S-C38"
+    ],
+    "procedure": [
+     "Five clauses: 'coached through the twelve fields' (REFACTORING_PROCEDURE.md@HEAD:369)",
+     "Step 6.61",
+     "Appendix H row 25",
+     "Step 6.51"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 8: target_value)",
+     "no value check at capture for baseline/target — missing (6.51)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61",
+     "6.51"
+    ],
+    "capability_rows": [
+     "25"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-033",
+   "description": "Field 9 of 12 — The planned completion date is captured as an ISO date.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-032"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_field_09_target_date_is_captured_after_confirm",
+   "sources": {
+    "architecture": [
+     "§39.1.2 row 9 (target_date: str (ISO date))"
+    ],
+    "procedure": [
+     "Five clauses: 'coached through the twelve fields' (REFACTORING_PROCEDURE.md@HEAD:369)",
+     "Step 6.61"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 9: target_date)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61"
+    ],
+    "capability_rows": [],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-034",
+   "description": "Field 10 of 12 — The secondary metrics (what could get worse) are captured after Confirm.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-033"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_field_10_secondary_metrics_is_captured_after_confirm",
+   "sources": {
+    "architecture": [
+     "§39.1.2 row 10 (secondary_metrics: str)"
+    ],
+    "procedure": [
+     "Five clauses: 'coached through the twelve fields' (REFACTORING_PROCEDURE.md@HEAD:369)",
+     "Step 6.61"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 10: secondary_metrics)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61"
+    ],
+    "capability_rows": [],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-035",
+   "description": "Field 11 of 12 — The SIPOC is built column by column after a filled example and captured with all six keys; fewer than six is refused.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-034"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_field_11_process_map_sipoc_is_captured_after_confirm",
+   "sources": {
+    "architecture": [
+     "§39.1.2 row 11 (process_map_sipoc: {suppliers, inputs, process_steps, outputs, customers, process_metrics})",
+     "§39.1.5 SIPOC handling",
+     "§41 structured dict fields"
+    ],
+    "procedure": [
+     "Five clauses: 'coached through the twelve fields' (REFACTORING_PROCEDURE.md@HEAD:369)",
+     "Step 6.61",
+     "Appendix H row 18",
+     "G-30 (propose_diagram, core/diagrams.py absent)"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 11: process_map_sipoc)",
+     "agent-improve/backend/tests/test_declared_types.py::test_row_18_captured_values_carry_their_declared_type — passed (live case)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61",
+     "6.48"
+    ],
+    "capability_rows": [
+     "18"
+    ],
+    "gaps": [
+     "G-30"
+    ]
+   }
+  },
+  {
+   "id": "DEF-036",
+   "description": "Field 12 of 12 — Issues and barriers are captured last; 'none identified at this stage' is accepted as a conscious answer.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-035"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_field_12_issues_and_barriers_is_captured_after_confirm",
+   "sources": {
+    "architecture": [
+     "§39.1.2 row 12 (issues_and_barriers: str)"
+    ],
+    "procedure": [
+     "Five clauses: 'coached through the twelve fields' (REFACTORING_PROCEDURE.md@HEAD:369)",
+     "Step 6.61"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 12: issues_and_barriers)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.61"
+    ],
+    "capability_rows": [],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-037",
+   "description": "A confirmed value survives every later turn — the business case is still there when the SIPOC is captured.",
+   "clause": "what they say is kept and every change is dated",
+   "depends_on": [
+    "DEF-025",
+    "DEF-026"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_confirmed_value_survives_later_turns",
+   "sources": {
+    "architecture": [
+     "§6 PhaseState (artifacts accumulate)",
+     "§9 Store case record"
+    ],
+    "procedure": [
+     "Appendix H row 5",
+     "Step 6.33 (landed)",
+     "G-78 (still open in Appendix G, fixed by 6.33)"
+    ],
+    "code": [
+     "agent-improve/backend/tests/test_wiring.py::test_wired_6_33_a_capture_reaches_the_artifacts — passed",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_5_a_captured_field_survives_the_next_turn — passed (live case)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.33",
+     "6.49"
+    ],
+    "capability_rows": [
+     "5"
+    ],
+    "gaps": [
+     "G-78"
+    ]
+   }
+  },
+  {
+   "id": "DEF-038",
+   "description": "Captured values keep their declared type end to end: team, scope, SIPOC and the registry are stored structured, and prose for a structured field is refused and re-asked, not stored.",
+   "clause": "what they say is kept and every change is dated",
+   "depends_on": [
+    "DEF-026",
+    "DEF-030",
+    "DEF-035"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_structured_fields_arrive_structured_or_are_refused",
+   "sources": {
+    "architecture": [
+     "§7 field typing law (and its dict exceptions)",
+     "§20 S-C05"
+    ],
+    "procedure": [
+     "Appendix H row 18",
+     "Step 6.48 (landed)"
+    ],
+    "code": [
+     "agent-improve/backend/tests/test_declared_types.py — passed (unit + live case)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.48"
+    ],
+    "capability_rows": [
+     "18"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-039",
+   "description": "Every change to a stored value is kept in field_log, dated, with the prior value readable.",
+   "clause": "what they say is kept and every change is dated",
+   "depends_on": [
+    "DEF-037"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_every_change_is_dated_with_its_prior_value",
+   "sources": {
+    "architecture": [
+     "§6",
+     "§11 step_log"
+    ],
+    "procedure": [
+     "Appendix H row 6",
+     "Step 6.33"
+    ],
+    "code": [
+     "agent-improve/backend/phases/nodes_common.py:1125 — wired (_field_log_entries)",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_6_every_change_is_kept_dated_with_its_prior_value — passed (live case)"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "covers": {
+    "steps": [
+     "6.33",
+     "6.49"
+    ],
+    "capability_rows": [
+     "6"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-040",
+   "description": "When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, and the resumed turn writes once.",
+   "clause": "what they say is kept and every change is dated",
+   "depends_on": [
+    "DEF-047"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_contradiction_stops_in_a_node_and_resumes",
+   "sources": {
+    "architecture": [
+     "§37 mid-phase contradiction",
+     "§19.6 ContradictionDetectionMiddleware",
+     "§33 graph-level interrupt()"
+    ],
+    "procedure": [
+     "Step 6.44",
+     "Step 7.3 clause 1 (disagrees with 6.44 — see discrepancies)",
+     "G-15",
+     "G-07"
+    ],
+    "code": [
+     "agent-improve/backend/middleware/contradiction.py:116 — built, GUARDED (interrupt commented out)",
+     "verify_built.py 'interrupt() call sites (§33)' = 0 — missing"
+    ],
+    "guidance": [
+     "https://docs.langchain.com/oss/python/langgraph/interrupts"
+    ]
+   },
+   "lane": "B",
+   "covers": {
+    "steps": [
+     "6.44",
+     "7.3"
+    ],
+    "capability_rows": [],
+    "gaps": [
+     "G-15",
+     "G-07"
+    ]
+   }
+  },
+  {
+   "id": "DEF-041",
+   "description": "Once all twelve positions are confirmed, GET /gate/review returns the complete 18-key Define gate document with passed=true and no missing fields.",
+   "clause": "a complete case ASSEMBLES a gate document",
+   "depends_on": [
+    "DEF-036"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_complete_case_assembles_a_gate_document",
+   "sources": {
+    "architecture": [
+     "§33.2 gate document parts",
+     "§40 {Phase}Output",
+     "§63.1 S-C27",
+     "§39.1.6"
+    ],
+    "procedure": [
+     "Appendix H row 19",
+     "Step 6.20 (scorecard half)"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/schema.py:407 — wired (assemble_define_gate_document)",
+     "agent-improve/backend/gateway/routes.py:792 — wired (gate_review route)",
+     "agent-improve/backend/tests/test_define_phase_metrics.py::test_row_19_a_complete_case_assembles_a_gate_document — passed (live case)"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "covers": {
+    "steps": [
+     "6.20"
+    ],
+    "capability_rows": [
+     "19"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-042",
+   "description": "The gate document's phase_metrics entry mirrors the confirmed baseline and target, derived at assembly with no model call.",
+   "clause": "a complete case ASSEMBLES a gate document",
+   "depends_on": [
+    "DEF-041",
+    "DEF-029",
+    "DEF-032"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_the_metric_entry_mirrors_the_confirmed_scalars",
+   "sources": {
+    "architecture": [
+     "§39.1.9",
+     "§63.9 S-C39",
+     "S-F28 single authority"
+    ],
+    "procedure": [
+     "Appendix H row 11",
+     "Step 6.20"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/schema.py:339 — wired (define_phase_metrics)",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_11_the_metric_entry_mirrors_the_primary_scalars — passed (live case)"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "covers": {
+    "steps": [
+     "6.20",
+     "6.49"
+    ],
+    "capability_rows": [
+     "11"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-043",
+   "description": "Layer 2b refuses a gate submission missing any of the thirteen gate-required fields and names what is missing; the prompt's missing list and the validator cannot disagree.",
+   "clause": "a complete case ASSEMBLES a gate document",
+   "depends_on": [
+    "DEF-041"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_submission_missing_a_field_is_refused_by_name",
+   "sources": {
+    "architecture": [
+     "§34 four-layer validation",
+     "§35",
+     "S-C26",
+     "S-F21 B2"
+    ],
+    "procedure": [
+     "Appendix H row 17",
+     "Step 7.1 (BLOCKED-ON-SPEC: G-23)",
+     "G-23",
+     "G-31",
+     "G-108",
+     "G-08"
+    ],
+    "code": [
+     "agent-improve/backend/phases/define/validate.py:97 — wired (missing_gate_fields)",
+     "agent-improve/backend/phases/nodes_common.py:2050 — wired (validation_stack, 2b only)",
+     "DMAICGateValidator — missing (validation/ holds schemas.py only)"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "covers": {
+    "steps": [
+     "7.1",
+     "6.49"
+    ],
+    "capability_rows": [
+     "17"
+    ],
+    "gaps": [
+     "G-23",
+     "G-31",
+     "G-108",
+     "G-08"
+    ]
+   }
+  },
+  {
+   "id": "DEF-044",
+   "description": "At the gate, constraints (2c) and the Define rubric (2d) grade the document and can send it back to coaching with feedback; the shared cap is 3.",
+   "clause": "a complete case ASSEMBLES a gate document",
+   "depends_on": [
+    "DEF-043"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_the_rubric_grades_the_gate_document_and_can_fail_it",
+   "sources": {
+    "architecture": [
+     "§34",
+     "§36 (Layer 2d is not DMAICGraderMiddleware)",
+     "§62.9"
+    ],
+    "procedure": [
+     "Appendix H row 22 (BLOCKED-ON-SPEC)",
+     "Step 7.2",
+     "Step 7.8",
+     "G-40",
+     "G-23",
+     "G-61"
+    ],
+    "code": [
+     "agent-improve/backend/core/prompts.py:1616 — built (only COACHING_QUALITY_RUBRIC; no DEFINE PHASE_RUBRIC text) — missing"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "covers": {
+    "steps": [
+     "7.2",
+     "7.8"
+    ],
+    "capability_rows": [
+     "22"
+    ],
+    "gaps": [
+     "G-40",
+     "G-23",
+     "G-61"
+    ]
+   }
+  },
+  {
+   "id": "DEF-045",
+   "description": "Define's gate has no Tier 2: it never issues a 'warning' verdict and acknowledged_gaps is always empty.",
+   "clause": "a complete case ASSEMBLES a gate document",
+   "depends_on": [
+    "DEF-044"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_define_gate_has_no_warning_path",
+   "sources": {
+    "architecture": [
+     "§35 two tiers and the warning verdict",
+     "§39.1.6"
+    ],
+    "procedure": [
+     "Step 7.4",
+     "G-08"
+    ],
+    "code": [
+     "agent-improve/backend/tests/test_gate_documents.py::test_define_has_no_tier_2 — passed (unit)"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "covers": {
+    "steps": [
+     "7.4"
+    ],
+    "capability_rows": [],
+    "gaps": [
+     "G-08"
+    ]
+   }
+  },
+  {
+   "id": "DEF-046",
+   "description": "After three failed gate attempts the case is escalated to a person instead of looping.",
+   "clause": "a complete case ASSEMBLES a gate document",
+   "depends_on": [
+    "DEF-044"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_three_failed_gate_attempts_escalate",
+   "sources": {
+    "architecture": [
+     "§38 escalation",
+     "§34 shared cap of 3"
+    ],
+    "procedure": [
+     "Step 7.5",
+     "G-34",
+     "G-32",
+     "G-108"
+    ],
+    "code": [
+     "agent-improve/backend/escalate.py — built v1 (rewrite owed)",
+     "gate_attempts does not survive turns (routes.py:762 comment) — missing"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "covers": {
+    "steps": [
+     "7.5"
+    ],
+    "capability_rows": [],
+    "gaps": [
+     "G-34",
+     "G-32",
+     "G-108"
+    ]
+   }
+  },
+  {
+   "id": "DEF-047",
+   "description": "Submitting the Define gate PAUSES the run at gate_review (graph-level interrupt) with the validated fields as payload; nothing is written before approval.",
+   "clause": "the Belt sees it, approves it",
+   "depends_on": [
+    "DEF-043"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_gate_submission_pauses_before_anything_is_written",
+   "sources": {
+    "architecture": [
+     "§33 nine-step HITL gate",
+     "§33.1 two-node split",
+     "§33.3 checkpoint commits only after approval",
+     "§15 (END only via gate_apply)"
+    ],
+    "procedure": [
+     "Step 7.3 (clause 2)",
+     "G-61",
+     "G-15",
+     "G-32",
+     "G-20"
+    ],
+    "code": [
+     "agent-improve/backend/phases/nodes_common.py:2139 — built pass-through (no interrupt) — missing",
+     "agent-improve/backend/gateway/routes.py:1389 — built (POST /gate writes on pass, no pause)"
+    ],
+    "guidance": [
+     "https://docs.langchain.com/oss/python/langgraph/interrupts",
+     "https://docs.langchain.com/oss/python/langgraph/use-subgraphs",
+     "https://docs.langchain.com/oss/python/langchain/human-in-the-loop"
+    ]
+   },
+   "lane": "B",
+   "covers": {
+    "steps": [
+     "7.3"
+    ],
+    "capability_rows": [],
+    "gaps": [
+     "G-61",
+     "G-15",
+     "G-32",
+     "G-20"
+    ]
+   }
+  },
+  {
+   "id": "DEF-048",
+   "description": "A case paused at the gate survives a server restart and resumes where it stopped.",
+   "clause": "the Belt sees it, approves it",
+   "depends_on": [
+    "DEF-047"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_paused_gate_survives_a_restart",
+   "sources": {
+    "architecture": [
+     "§33.1 (resume may be days later, another process)",
+     "§16",
+     "§47 requirement 4 (reconciliation sweep, WATCH 13)"
+    ],
+    "procedure": [
+     "Appendix H row 34",
+     "Step 7.3"
+    ],
+    "code": [
+     "agent-improve/backend/core/checkpointer.py — built (durable saver)",
+     "no interrupt to resume — missing"
+    ],
+    "guidance": [
+     "https://docs.langchain.com/oss/python/langgraph/interrupts"
+    ]
+   },
+   "lane": "B",
+   "covers": {
+    "steps": [
+     "7.3"
+    ],
+    "capability_rows": [
+     "34"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-049",
+   "description": "The Belt approves the reviewed gate document (POST /gate/approve); the approval reaches the paused graph and is recorded with its actor.",
+   "clause": "the Belt sees it, approves it",
+   "depends_on": [
+    "DEF-047"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_an_approval_resumes_the_paused_gate",
+   "sources": {
+    "architecture": [
+     "§33 steps 4 and 7",
+     "§49 API surface (/gate/approve)"
+    ],
+    "procedure": [
+     "Appendix H row 23",
+     "Step 7.7",
+     "G-47",
+     "G-18"
+    ],
+    "code": [
+     "verify_built.py route set has no /gate/approve (11 routes) — missing",
+     "agent-improve/ui/index.html:3307 — built (gate-approve-btn calls submitGateReview -> POST /gate)"
+    ],
+    "guidance": [
+     "https://docs.langchain.com/oss/python/langgraph/interrupts"
+    ]
+   },
+   "lane": "B",
+   "covers": {
+    "steps": [
+     "7.7",
+     "7.3"
+    ],
+    "capability_rows": [
+     "23"
+    ],
+    "gaps": [
+     "G-47",
+     "G-18"
+    ]
+   }
+  },
+  {
+   "id": "DEF-050",
+   "description": "The Belt can reject the gate with a mandatory reason; the run returns to coaching carrying that reason.",
+   "clause": "the Belt sees it, approves it",
+   "depends_on": [
+    "DEF-047"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_rejection_with_a_reason_returns_to_coaching",
+   "sources": {
+    "architecture": [
+     "§33.1 (/gate/reject, reason mandatory)",
+     "S-F13 DP3"
+    ],
+    "procedure": [
+     "Step 7.3",
+     "Step 7.7",
+     "G-18",
+     "G-47"
+    ],
+    "code": [
+     "no /gate/reject route; rejection_feedback has no writer (verify_built: rejection_feedback:R) — missing"
+    ],
+    "guidance": [
+     "https://docs.langchain.com/oss/python/langgraph/interrupts"
+    ]
+   },
+   "lane": "B",
+   "covers": {
+    "steps": [
+     "7.3",
+     "7.7"
+    ],
+    "capability_rows": [],
+    "gaps": [
+     "G-18",
+     "G-47"
+    ]
+   }
+  },
+  {
+   "id": "DEF-051",
+   "description": "At the paused gate the Belt may edit a field; a non-blocking policy advisory checks the edit, and the edited value is what is written.",
+   "clause": "the Belt sees it, approves it",
+   "depends_on": [
+    "DEF-047"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_belt_edit_at_the_gate_is_advised_not_blocked",
+   "sources": {
+    "architecture": [
+     "§33 steps 5–6 (policy advisory)",
+     "§33.1"
+    ],
+    "procedure": [
+     "Step 7.8",
+     "Step 7.3 clause 2 ('an edit is accepted')",
+     "G-13"
+    ],
+    "code": [
+     "agent-improve/backend/phases/nodes_common.py:2164 — built pass-through (gate_apply applies nothing) — missing",
+     "verify_built: belt_edits:R (declared, no writer)"
+    ],
+    "guidance": [
+     "https://docs.langchain.com/oss/python/langgraph/interrupts"
+    ]
+   },
+   "lane": "B",
+   "covers": {
+    "steps": [
+     "7.8",
+     "7.3"
+    ],
+    "capability_rows": [],
+    "gaps": [
+     "G-13"
+    ]
+   }
+  },
+  {
+   "id": "DEF-052",
+   "description": "The workspace shows the coach's four blocks — explanation, example, prompt, and progress — plus the grader's warning when there is one.",
+   "clause": "the Belt sees it, approves it",
+   "depends_on": [
+    "DEF-005"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_the_four_blocks_reach_the_screen",
+   "sources": {
+    "architecture": [
+     "§50.1 coach response structure",
+     "§19.8"
+    ],
+    "procedure": [
+     "Appendix H row 15",
+     "Step 10.0 (wired)"
+    ],
+    "code": [
+     "agent-improve/backend/tests/test_wiring.py::test_wired_10_0_the_blocks_reach_the_response — passed (response half)",
+     "agent-improve/ui/index.html — built (render); no screen-level check — missing"
+    ],
+    "guidance": []
+   },
+   "lane": "C",
+   "covers": {
+    "steps": [
+     "10.0"
+    ],
+    "capability_rows": [
+     "15"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-053",
+   "description": "The progress bar reads 'n of 12' from define_progress and moves turn by turn; the suggested next step always names the field the coach is on.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-006"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_the_progress_bar_and_next_step_follow_the_coach",
+   "sources": {
+    "architecture": [
+     "§50",
+     "§43.3",
+     "§39.1.6 (one bar for Define)"
+    ],
+    "procedure": [
+     "Appendix H row 14",
+     "Step 10.3",
+     "G-107",
+     "G-71"
+    ],
+    "code": [
+     "agent-improve/ui/index.html:700 — built on v1 names (DEFINE_GATE_FIELDS what/where/how_goal/primary_metric…) — missing v2"
+    ],
+    "guidance": []
+   },
+   "lane": "C",
+   "covers": {
+    "steps": [
+     "10.3"
+    ],
+    "capability_rows": [
+     "14"
+    ],
+    "gaps": [
+     "G-107",
+     "G-71"
+    ]
+   }
+  },
+  {
+   "id": "DEF-054",
+   "description": "Under a read-back the screen shows Confirm and Change; a click sends action=confirm|change on /ask and the Belt's side shows the button pressed.",
+   "clause": "what they say is kept and every change is dated",
+   "depends_on": [
+    "DEF-008",
+    "DEF-010"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_the_read_back_buttons_send_the_action",
+   "sources": {
+    "architecture": [
+     "§50.1",
+     "§49"
+    ],
+    "procedure": [
+     "Step 6.61 (R4)"
+    ],
+    "code": [
+     "agent-improve/ui/index.html:5967 — built (rb-confirm / rb-change)",
+     "agent-improve/ui/index.html:6110 — built (sendMessage(action))"
+    ],
+    "guidance": []
+   },
+   "lane": "C",
+   "covers": {
+    "steps": [
+     "6.61"
+    ],
+    "capability_rows": [],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-055",
+   "description": "A failed turn tells the Belt what happened in words, stays on screen, and never renders an error as an empty state.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-002"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_a_failed_turn_is_readable_and_stays",
+   "sources": {
+    "architecture": [
+     "§48 structured errors",
+     "§50",
+     "§44"
+    ],
+    "procedure": [
+     "Appendix H row 16",
+     "Step 10.4",
+     "Step 8.1 (its precondition)",
+     "G-70",
+     "G-66",
+     "G-90"
+    ],
+    "code": [
+     "agent-improve/backend/gateway/routes.py:722 — built (bare except -> 500 'Graph error: …')",
+     "agent-improve/ui/index.html — built (toast, 3 s) — missing readable error"
+    ],
+    "guidance": []
+   },
+   "lane": "C",
+   "covers": {
+    "steps": [
+     "10.4"
+    ],
+    "capability_rows": [
+     "16"
+    ],
+    "gaps": [
+     "G-70",
+     "G-66",
+     "G-90"
+    ]
+   }
+  },
+  {
+   "id": "DEF-056",
+   "description": "The Belt can upload evidence to a Define case; the file lands, is indexed once, and carries an interpretation — and files picked on the create screen are really uploaded.",
+   "clause": "what they say is kept and every change is dated",
+   "depends_on": [
+    "DEF-001"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_an_upload_lands_once_and_is_indexed",
+   "sources": {
+    "architecture": [
+     "§29.1 the data channel",
+     "§23.2 evidence index"
+    ],
+    "procedure": [
+     "Appendix H row 8",
+     "Step 6.43 Part A (G-97, G-98)",
+     "G-73",
+     "G-97",
+     "G-98"
+    ],
+    "code": [
+     "agent-improve/backend/gateway/routes.py:915 — wired (POST /upload)",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_8_the_belt_can_upload_evidence — passed (live case)"
+    ],
+    "guidance": []
+   },
+   "lane": "C",
+   "covers": {
+    "steps": [
+     "6.43",
+     "6.49"
+    ],
+    "capability_rows": [
+     "8"
+    ],
+    "gaps": [
+     "G-73",
+     "G-97",
+     "G-98"
+    ]
+   }
+  },
+  {
+   "id": "DEF-057",
+   "description": "The coach can read a document the Belt uploaded and quote a line from it (e.g. from an uploaded process map).",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-056"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_the_coach_quotes_an_uploaded_document",
+   "sources": {
+    "architecture": [
+     "§29.1",
+     "§24 rag_lookup tools",
+     "§29.2"
+    ],
+    "procedure": [
+     "Appendix H row 9",
+     "Step 6.43",
+     "G-82",
+     "G-49 (executor ignored the planner-named read; since 6.61 the executor dispatches the routed read itself)",
+     "G-63 (node-issued read names no column, owner 8.0)"
+    ],
+    "code": [
+     "no tool returns an upload's text (G-82: 160-char summary only) — missing"
+    ],
+    "guidance": []
+   },
+   "lane": "C",
+   "covers": {
+    "steps": [
+     "6.43"
+    ],
+    "capability_rows": [
+     "9"
+    ],
+    "gaps": [
+     "G-82",
+     "G-49",
+     "G-63"
+    ]
+   }
+  },
+  {
+   "id": "DEF-058",
+   "description": "The gate screen shows the live gate document (one progress bar for Define), and the approve/reject controls act on the paused gate.",
+   "clause": "the Belt sees it, approves it",
+   "depends_on": [
+    "DEF-049"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_the_gate_screen_shows_the_document_and_acts_on_the_pause",
+   "sources": {
+    "architecture": [
+     "§50",
+     "§39.1.6",
+     "§43.4"
+    ],
+    "procedure": [
+     "Step 10.2 (off the path; F2 gate screen design)",
+     "G-71",
+     "G-72"
+    ],
+    "code": [
+     "agent-improve/ui/index.html:3242 — built (fetches GET /gate/review)"
+    ],
+    "guidance": []
+   },
+   "lane": "C",
+   "covers": {
+    "steps": [
+     "10.2"
+    ],
+    "capability_rows": [],
+    "gaps": [
+     "G-71",
+     "G-72"
+    ]
+   }
+  },
+  {
+   "id": "DEF-059",
+   "description": "The coach's reply appears as it is written (server-sent events), and a dropped client abandons the turn.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-002"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_the_reply_streams_and_a_drop_abandons",
+   "sources": {
+    "architecture": [
+     "§49 (/ask/stream)",
+     "§47"
+    ],
+    "procedure": [
+     "Step 10.1 (off the path)"
+    ],
+    "code": [
+     "/ask/stream — missing (verify_built route set)"
+    ],
+    "guidance": []
+   },
+   "lane": "C",
+   "covers": {
+    "steps": [
+     "10.1"
+    ],
+    "capability_rows": [],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-060",
+   "description": "On approval the Define record is written once: the store (projects/{case}/artifacts/define.json), PhaseState.final and the case record agree, and writing twice changes nothing.",
+   "clause": "the record is written once and correctly",
+   "depends_on": [
+    "DEF-049"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_an_approval_writes_the_record_once",
+   "sources": {
+    "architecture": [
+     "§33.2 gate_apply writes TWICE",
+     "§39.1.6",
+     "§10"
+    ],
+    "procedure": [
+     "Appendix H row 20",
+     "Step 6.42 (landed via POST /gate)",
+     "Step 7.3 clause 3 (one writer or ETag)"
+    ],
+    "code": [
+     "agent-improve/backend/gateway/routes.py:1482 — wired (write_phase_gate on POST /gate, no approval pause)",
+     "agent-improve/backend/storage/blob.py:232 — built (write_phase_gate)",
+     "agent-improve/backend/tests/test_gate_write.py::test_row_20_the_document_is_written_and_safe_to_write_twice — passed (live case 1FF)"
+    ],
+    "guidance": [
+     "https://docs.langchain.com/oss/python/langgraph/interrupts"
+    ]
+   },
+   "lane": "B",
+   "covers": {
+    "steps": [
+     "6.42",
+     "7.3"
+    ],
+    "capability_rows": [
+     "20"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-061",
+   "description": "The gate write keeps the Belt's change log, citations and uploads.",
+   "clause": "the record is written once and correctly",
+   "depends_on": [
+    "DEF-060"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_the_gate_write_keeps_the_change_log_and_uploads",
+   "sources": {
+    "architecture": [
+     "§33.2 (nothing may be omitted)"
+    ],
+    "procedure": [
+     "Appendix H row 21",
+     "Step 6.42"
+    ],
+    "code": [
+     "agent-improve/backend/tests/test_gate_write.py::test_row_21_the_gate_write_preserves_the_change_log_and_the_uploads — passed (live + fixture)"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "covers": {
+    "steps": [
+     "6.42"
+    ],
+    "capability_rows": [
+     "21"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-062",
+   "description": "After approval the case advances to Measure, and Measure starts from the approved Define record without PriorGateDocumentMissing.",
+   "clause": "the record is written once and correctly",
+   "depends_on": [
+    "DEF-060"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_measure_starts_from_the_approved_define_record",
+   "sources": {
+    "architecture": [
+     "§9 cross-phase reads via the Store",
+     "§39.1.14",
+     "§15 static edge"
+    ],
+    "procedure": [
+     "Appendix H row 24 (no owning step)"
+    ],
+    "code": [
+     "agent-improve/backend/tests/test_mappers.py::test_output_mapper_writes_the_gate_document_to_the_store[define] — passed (unit); output mapper not called at runtime (nodes_common.py:2164 docstring) — missing"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "covers": {
+    "steps": [],
+    "capability_rows": [
+     "24"
+    ],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-063",
+   "description": "A scripted Belt goes through all twelve fields on a fresh case — good, weak and corrected answers, Confirm clicks — then submits the gate and approves it as far as the gate exists, through the real /ask route, tracing off, audit recorder on, within 150 live model calls.",
+   "clause": "A Belt is coached through the twelve fields",
+   "depends_on": [
+    "DEF-036",
+    "DEF-041",
+    "DEF-047",
+    "DEF-049"
+   ],
+   "test": "backend/tests/test_define_runthrough.py::test_define_run_through",
+   "sources": {
+    "architecture": [
+     "§39.1",
+     "§33",
+     "§51"
+    ],
+    "procedure": [
+     "Step 6.66 (Done-when: the run-through once on main, ≤150 calls)",
+     "Step 6.56 (probes reused)",
+     "Five clauses (REFACTORING_PROCEDURE.md@HEAD:369-373)"
+    ],
+    "code": [
+     "agent-improve/scripts/coaching_proof_656.py — built (driver, positions 1–8)",
+     "agent-improve/scripts/move_proof_661.py:117 — built (part_a: /cases then /ask through TestClient)"
+    ],
+    "guidance": [
+     "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents",
+     "https://fastapi.tiangolo.com/tutorial/testing/"
+    ]
+   },
+   "lane": "integrator",
+   "covers": {
+    "steps": [
+     "6.66",
+     "6.56"
+    ],
+    "capability_rows": [],
+    "gaps": []
+   }
+  },
+  {
+   "id": "DEF-064",
+   "description": "Define end to end: on ONE fresh case carrying an upload, every Define capability row's own check is green after one run.",
+   "clause": "the record is written once and correctly",
+   "depends_on": [
+    "DEF-063",
+    "DEF-056",
+    "DEF-060",
+    "DEF-062"
+   ],
+   "test": "backend/tests/test_define_runthrough.py::test_every_define_row_is_green_on_the_run_through_case",
+   "sources": {
+    "architecture": [
+     "§39.1",
+     "Appendix H contract"
+    ],
+    "procedure": [
+     "Step 7.9",
+     "Appendix H rows 1–35"
+    ],
+    "code": [
+     "agent-improve/backend/tests/test_capability_rows.py:48 — built (CAPABILITY_CASE_ID env var selects the case the checks read)"
+    ],
+    "guidance": [
+     "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents"
+    ]
+   },
+   "lane": "integrator",
+   "covers": {
+    "steps": [
+     "7.9"
+    ],
+    "capability_rows": [
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6",
+     "7",
+     "8",
+     "9",
+     "10",
+     "11",
+     "12",
+     "13",
+     "14",
+     "15",
+     "16",
+     "17",
+     "18",
+     "19",
+     "20",
+     "21",
+     "22",
+     "23",
+     "24",
+     "25",
+     "26",
+     "27",
+     "28",
+     "29",
+     "30",
+     "31",
+     "32",
+     "33",
+     "34",
+     "35"
+    ],
+    "gaps": []
+   }
+  }
+ ]
+}

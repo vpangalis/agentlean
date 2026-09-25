@@ -1,10 +1,19 @@
 # Harness progress — step 6.66
 
 The long-running-harness progress file (Anthropic, *Effective harnesses for
-long-running agents*): a session reads this, `git log`, and
-`docs/define_features.json` first, then runs the smoke test, then takes the
-next failing feature in its lane. **Replace, don't append** — this file holds
-the current state, not a diary; git holds the history.
+long-running agents*). **Replace, don't append** — this file holds the current
+state; git holds the history.
+
+## Session-start routine (every session, every lane)
+
+1. `git log --oneline -5`; read this file.
+2. `python agent-improve/tools/control_board/features.py` — Define features
+   passing, and the next failing feature per lane. The SessionStart hook prints
+   the same. Status comes ONLY from `docs/test-results.json`.
+3. Smoke test: `cd agent-improve; pytest backend/tests/test_define_features.py -n 0`.
+4. `python agent-improve/tools/control_board/features.py --lane <A|B|C|integrator>`
+   — take the first failing feature whose dependencies pass. Make its test pass
+   end to end. Never edit a feature to say it passes; there is no status field.
 
 ## Overnight run 2026-09-25 → 26 (founder ruling, step 6.66)
 
@@ -13,57 +22,42 @@ the current state, not a diary; git holds the history.
 | A | Permission warm-up | DONE | — |
 | 0 | Register 6.66 + this file | DONE | 5d29baa |
 | 1 | Measure first | DONE — baseline below | 5d29baa |
-| 2 | Speed: pre-flight, xdist, repeat report | DONE — see Part 2 below | (this commit) |
-| 3 | CLAUDE.md → rules and pointers; guard rule 6 narrowed | | |
-| 4 | Slim ARCHITECTURE.md + procedure; size budget; section index | | |
-| 5 | define_features.json, status from tests, coverage test, discrepancies | | |
-| 6 | Lanes A/B/C + integrator: branches, worktrees | | |
+| 2 | Speed: pre-flight, xdist, repeat report | DONE | d00c4cf |
+| 3 | Guard rule 6 narrowed; rule files slimmed; CLAUDE.md rules-only | DONE (CLAUDE.md in the commit after Part 5) | 189c672, 69e9200 |
+| 4 | Slim ARCHITECTURE.md + procedure; size budget; section index | DONE | ddb30fe, 3496e16, 22ddd0d |
+| 5 | define_features.json, status from tests, coverage test, discrepancies, routine | DONE | (this commit) |
+| 6 | Lanes A/B/C + integrator: branches, worktrees | next | |
 | 7 | Define run-through test, once on main, ≤150 live calls | | |
 | 8 | G-23 design draft, G-40 rubric draft | | |
 | 9 | Fresh-eyes review | | |
 
-## Baseline (Part 1, measured 2026-09-25 at 669b39c)
+## Baseline (Part 1, 669b39c) and after
 
-| Measure | Value | How |
-|---|---|---|
-| Always-loaded context | CLAUDE.md 24,413 chars / 6,370 tok + MEMORY.md 200 tok + session-start ≈ 250 tok ≈ **6.8k tok** | `tiktoken` cl100k as a proxy (not Claude's tokenizer) |
-| + typical `backend/phases` edit | graph + llm + middleware + module-layout + state rule files ≈ **+20.8k tok** | same |
-| ARCHITECTURE.md | 12,928 lines · 912k chars · 237k tok | `wc`, tiktoken |
-| REFACTORING_PROCEDURE.md | 8,437 lines · 625k chars · 174k tok | same |
-| CONTINUITY.md | 1,552 lines · 107k chars · 30k tok | same |
-| Rule files (13) | 3,019 lines · 132k chars · 34.2k tok; largest state.md 8.3k, middleware.md 6.5k, gates.md 4.5k | same |
-| Full suite (hook, `-n auto`) | median **114 s** (n=6), 1,327 tests | `.claude/logs/timing.jsonl` |
-| Whole commit hook, non-md commit | **138 s** wall (warm-up commit) | `time git commit` |
-| Hook parts other than the suite | board 9.5 s + rule 10 board 9.3 s + rule 3 mypy 8.6 s + continuity 3.7 s + rest < 3 s | timing log medians |
-| Area test runs | `-n auto` with 34–54 tests: **22–30 s**; serial 1–47 tests: **4–12 s** | timing log |
+| Measure | Before | After | How |
+|---|---|---|---|
+| CLAUDE.md | 418 lines · 6,370 tok | 150 lines · ~2,540 tok | tiktoken cl100k (proxy) |
+| Rule files (13) | 3,019 lines · 36.2k tok | 1,687 lines · 19.6k tok | same |
+| ARCHITECTURE.md | 12,928 lines · 237k tok | 11,655 lines · 165k tok | same |
+| REFACTORING_PROCEDURE.md | 8,468 lines · 175k tok | 5,242 lines · 123k tok | same |
+| Full suite (hook, `-n auto`) | median 114 s, 1,327 tests | 96–116 s, 1,339 tests | timing log |
+| Area runs | `-n auto` 34–54 tests: 22–30 s | pre-flight serial ≤ 12 files | timing log |
 
-## Part 2 — speed (what was built)
+## Night decisions and findings — FOR FOUNDER (one line each)
 
-- `.claude/hooks/preflight.py`: drift, built markers, mypy over the changed
-  Python AND its direct importers (rule 3's baseline), and the tests of both
-  plus every test naming a changed document or a hook/tool that reads it — all
-  four in parallel; serial (`-n 0`) at 12 test files or fewer. `--plan` shows
-  the selection. Times itself into the timing log (`kind: preflight`).
-- `.claude/hooks/preflight-on-commit.py` (PreToolUse, Bash|PowerShell): runs the
-  pre-flight before every `git commit`, blocks on failure (exit 2). Fail-soft
-  if the hook itself breaks.
-- Kept: the one full parallel run per commit in the pre-commit hook.
-- Found on its first run: `verify_built` "facts with nothing to anchor to"
-  37 → 38 — the 6.66 registration commit had not moved the pin. Fixed.
-- Found: `-p no:xdist` breaks the conftest (it defines `pytest_testnodedown`);
-  serial is `-n 0`.
-- Found: `test_turn_budget` (2 tests) fails under CPU contention and passes
-  alone (3 passed, 5.7 s) — a timing-sensitive test.
-
-Area-test repeats in the 6.61 prompts (timing log):
-
-| Prompt | Runs | Full | Area | Back-to-back same-count | xdist on < 200 tests |
-|---|---|---|---|---|---|
-| 6.65 + 6.61 part A | 12 | 3 (339 s) | 9 (134 s) | 3 | 4 (107 s) |
-| 6.61 part B | 30 | 0 | 30 (583 s) | 9 | 5 (160 s) |
-| 6.61 review + commit | 7 | 2 (207 s) | 5 (136 s) | 1 | 3 (111 s) |
+- **Pre-flight escape**: `# preflight: acknowledged — <why>` passes a pre-flight failure that fails identically at HEAD; the commit hook still gates. Undo: delete `ACK_RE` in `preflight-on-commit.py`.
+- **Rule 6's D-label trigger removed** with the subject-code trigger, reading the ruling's two triggers literally; a volunteered half-written 8D on a non-defect commit is no longer refused. Undo: restore `ANY_D_LABEL_RE` in `is_fix_commit`.
+- **Size budget warns from day one**: bound = size + 10%, warn at 90% of bound = 99% of today's size. If "90%" meant 90% of the headroom, change `WARN_AT` in `size_budget.py`.
+- **Coverage test's gap set** uses two mechanical legs (the register's Step cell; founder milestones blocking a Define step) — 14 gaps — not G-numbers mentioned in card prose (28), because prose moves.
+- **ARCHITECTURE.md slimmed only 30%**: what remains is current spec; going further means moving "why" paragraphs out of the spec — needs a ruling on which reasoning is load-bearing.
+- **Change log lost text before tonight** (procedure v1.4 tail, v1.3): the pre-commit splice starts at the first BEGIN marker, and v1.4 quoted it (ed9aa1b). v1.3 recovered to the archive; `splice()` stays fragile.
+- **Board's short Done-when reader** reads a fixed 900 chars and can run into the next card (6.14).
+- **`test_turn_budget`** fails under CPU load (seen twice tonight) and passes alone — a timing-sensitive test.
+- **Non-spine commits are never blocked by a red suite** (rule 4 gates `refactor(arch-v2)` only); the pre-flight now catches it earlier.
+- **`§19.x`/`§20.x` citations** in CLAUDE.md resolve to no heading (pre-existing).
+- **Kept though stale** in the rule files' Never lists: rag.md's "ratified-but-unapplied index fields" (both live), state.md's "seven fields" and the "N of 95" captions.
+- **G-53** (premium deployment 429) was mentioned only in archived changelog entries; its register row stands.
+- The 24 source discrepancies with their decisions: `docs/define_discrepancies.md` (D1, D2, D3, D7, D8, D9, D15, D21 are FOR FOUNDER).
 
 ## Next
 
-Part 3 — CLAUDE.md to rules and pointers (≤ 150 lines); guard rule 6 narrowed.
-Parts 4 and 5a are running in sub-agents (worktrees); their output lands here.
+Part 6 — lanes. Then Part 7, the run-through (≤ 150 live calls, run once).

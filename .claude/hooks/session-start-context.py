@@ -270,6 +270,26 @@ def get_drift_warnings() -> str:
             "future reads)")
 
 
+def get_harness() -> str:
+    """Step 6.66 — the long-running-harness routine (Anthropic, "Effective
+    harnesses for long-running agents"): read git log, the progress file and
+    the feature list; run the smoke test; take the next failing feature in
+    this session's lane. Status comes only from test-results.json."""
+    try:
+        here = os.path.dirname(os.path.abspath(__file__))
+        sys.path.insert(0, os.path.join(here, "..", "..", "agent-improve", "tools", "control_board"))
+        import features
+        s = features.summary()
+        nxt = " · ".join(f"{k}: {v['next'] or '—'}" for k, v in s["lanes"].items())
+        return (f"{features.headline(s)}\n"
+                f"next failing per lane — {nxt}\n"
+                "routine: git log -5 · read agent-improve/docs/harness-progress.md · "
+                "python agent-improve/tools/control_board/features.py --lane <A|B|C|integrator> · "
+                "smoke: pytest backend/tests/test_define_features.py -n 0 · take the lane's next failing feature")
+    except Exception as exc:  # noqa: BLE001 - hook must never propagate
+        return f"(feature list unreadable: {exc.__class__.__name__})"
+
+
 def assemble_output(sections: list[tuple[str, str]]) -> str:
     """Join titled sections; enforce the character cap as a safety net."""
     blocks = [f"── {title} ──\n{body}" for title, body in sections]
@@ -292,6 +312,7 @@ def main() -> int:
     sections = [
         ("GIT STATE", get_git_info()),
         ("PROGRESS (control-board.html)", get_progress()),
+        ("DEFINE FEATURES (docs/define_features.json)", get_harness()),
         ("DEPENDENCY VERSIONS", get_version_info()),
         ("DRIFT WARNINGS", get_drift_warnings()),
     ]
