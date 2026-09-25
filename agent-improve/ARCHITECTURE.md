@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.74 · 2026-09-25
+Version 1.75 · 2026-09-25
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.75 (2026-09-25)** — **§56 AMENDMENT. THE COACHING MOVE IS DECIDED IN CODE — ALL PHASES, ALL AGENTS.** Founder ruling 2026-09-25. **The ruled text, verbatim:** *"The coaching move is decided in code, never by the model. For every field in every phase and every agent, code determines this turn's move from the field's status: not yet taught -> teach (explain, show, ask); answered, judged insufficient -> challenge (say what is missing); answered, judged sufficient -> read back (the Belt's own words, then ask 'is this right?'); confirmed by the Belt -> store and advance. An LLM is used only to judge whether an answer is sufficient, and to write the coach's words. A value is stored only after the Belt confirms it, in the Belt's words; a tidied version may be proposed in the read-back and is stored only if the Belt confirms it. The coach's input is assembled by code each turn in labelled sections, each with one job: coaching rules (how to behave), phase script (what to teach), state (facts), this turn's move (authoritative), last turn's quality feedback, and the conversation. The rules and scripts contain no move-sequencing instructions. Feedback to the coach is never presented as a message from the Belt. Basis: Anthropic, 'Effective context engineering for AI agents' (distinct sections, high-signal context, no brittle logic in prompts) and 'Building effective agents' (workflows for well-defined tasks; evaluator-optimizer)."* **(A) WHY — measured.** The coherence audits (`IMPR-2026-AD5`, `IMPR-2026-4E5`, the 10.0 proof `IMPR-2026-8D4`, 0 traces) found the move decided nowhere reliable: the Define script says *"Confirm, then move on"*, the coach rules say *"A coaching turn does ONE thing and then stops"*, and the planner's `next_action` reaches no channel the coach reads; the coach sometimes waited after a read-back, sometimes moved on, occasionally re-asked a field, and stored its own paraphrase before the Belt confirmed. **(B) SECTIONS AMENDED:** §17, S-C04 (§58.4), §19.1 and S-C11 (§61.2, B7), §20 and S-C05 (§58.5, B7), §22, §32, §43 — each carries a v1.75 note. **Schemas are NOT changed here**: `CoachingPlan` and `CoachingResponse` keep their fields until step **6.61** builds the change, and that step carries its own amendment for any field it adds (CLAUDE.md, amending the rules, 3b). **(C) OWNER:** step 6.61, first in Appendix F's `Order`; the four other phase scripts' move-sequencing text is step 6.62. **(D) BACK-PORT OWED:** the ruling binds all three agents, so `AgentLean/AGENTIC_ARCHITECTURE_REFERENCE.md` (the platform reference — its Planner/Executor levels and coaching method) owes the same amendment; it is NOT made here, and is recorded as owed. Reasoning: this commit's body (§56.2).
 
 **v1.74 (2026-09-25)** — **§56 AMENDMENT. v1.73 (C)'s WRITTEN STEP IS THE POSITION AFTER THE TURN'S CAPTURE, WRITTEN ON EVERY TURN.** Founder ruling 2026-09-25. **(A) THE DEFECT.** v1.73 computed the written label from the turn-START artifacts, so on every capture turn it lagged one step — dry run 2 (IMPR-2026-134, turn 2): the Belt answered position 1, the model wrote *"Step 2 of 12"*, the executor overwrote it with *"Step 1 of 12"*. **(B) THE RULE.** The executor writes `define_progress` of the artifacts AFTER the capture merge into the reply's `progress` and the stored structured-response message, unconditionally; the turn-start label the coach was delivered is recorded beside it (`delivered_label`) with the model's own (`reply_progress`). No condition on the conversation's history. Reasoning: the fix's commit body (§56.2).
 
@@ -1845,6 +1847,16 @@ coach close out gracefully.
 *Supersedes: REFACTORING §5, §11, §20; ARCHITECTURE.md §3.5; CLAUDE.md §1.3.*
 **Status: RATIFIED.**
 
+> **v1.75 — THE COACHING MOVE IS DECIDED IN CODE (founder, 2026-09-25; all
+> phases, all agents).** The move for this turn is no longer the planner
+> model's choice and never the coach's: **code** derives it from the field's
+> status — not yet taught → **teach** (explain, show, ask); answered and judged
+> insufficient → **challenge** (say what is missing); answered and judged
+> sufficient → **read back** (the Belt's own words, then *"is this right?"*);
+> confirmed by the Belt → **store and advance**. **The planner's LLM call is
+> reduced to ONE judgment — is this answer sufficient, with a reason**; the coach
+> model writes the words for the move code chose. Built at step 6.61.
+
 > planner owns outright** (G-49 closed) · **closed by:** `[6.21]`
 >
 > Both nodes exist, the planner emits a structured plan, and a LangSmith trace
@@ -2103,6 +2115,14 @@ and must not consume the same budget.
 
 ### 19.1 `BeforeModelStateInjection` — injection timing
 
+
+> **v1.75 — THE COACH'S INPUT IS LABELLED SECTIONS, ONE JOB EACH (founder,
+> 2026-09-25).** Assembled by code every turn, in this order: **coaching rules**
+> (how to behave) · **phase script** (what to teach) · **state** (facts) · **this
+> turn's move** (authoritative — the section says so) · **last turn's quality
+> feedback** · **the conversation**. Delivered through this middleware's existing
+> `wrap_model_call` — no new model call. **Feedback to the coach is never
+> presented as a message from the Belt.** Built at step 6.61.
 
 **Custom · `before_agent` + `wrap_model_call` · position 1.** Prepends structured project state at
 the **top** of the prompt, ahead of the conversation: this phase's `artifacts`,
@@ -2367,6 +2387,13 @@ Full treatment, including the rubric text and the two-grader distinction, is
 *Supersedes: REFACTORING §82; ARCHITECTURE.md §4.10; CLAUDE.md §10.7; DECISIONS §B4.*
 **Status: RATIFIED.**
 
+> **v1.75 — A VALUE IS STORED ONLY AFTER THE BELT CONFIRMS IT (founder,
+> 2026-09-25).** What the coach returns in `fields_captured` is **pending** until
+> the Belt confirms the read-back; the stored value is **the Belt's own words**,
+> or a tidied version proposed in the read-back **and confirmed by the Belt**.
+> The capture contract (`CAPTURE_CONTRACT`, S-C05's `fields_captured`, the Define
+> script's *"Capture each confirmed value"*) moves under this rule at step 6.61.
+
 **Two schemas, two moments. Never substitute one for the other.**
 
 | | `CoachingResponse` | `{Phase}Output` |
@@ -2548,6 +2575,11 @@ multi-part response.
 
 **All prompts live as constants in `core/prompts.py`.** Prompt strings are
 never inline in node files.
+
+> **v1.75 (founder, 2026-09-25):** the coaching rules say **how to behave** and
+> contain **no move-sequencing** — no *"one move, then stop"*, no *"confirm and
+> advance"*. The move is decided in code (§17) and delivered as its own section
+> (§19.1).
 
 | Constant | Purpose |
 |---|---|
@@ -3755,6 +3787,12 @@ someone editing the tool will read (Appendix B item 1).
 
 *Supersedes: REFACTORING §83, §84; ARCHITECTURE.md §8.4; CLAUDE.md §8.3.*
 **Status: RATIFIED.** Loaded by `DMAICSkillsMiddleware` (§19.2).
+
+> **v1.75 (founder, 2026-09-25):** a SKILL.md says **what to teach** — the
+> explanation, the worked example, the question, the read-back wording, per field
+> — and contains **no move-sequencing** (*"then advance"*, *"confirm and move
+> on"*). Which of those a turn uses is decided in code (§17). Define at step 6.61;
+> the other four at step 6.62.
 
 Five phase skills under `agent-improve/skills/`, following the agentskills.io
 SKILL.md standard:
@@ -6025,6 +6063,13 @@ name its metric fails the lookup rather than falling back (S-C32 B5).
 
 *Supersedes: REFACTORING §42; ARCHITECTURE.md §3.4.2; CLAUDE.md §0.8, §8.2; DECISIONS §D1–§D5.*
 **Status: RATIFIED.** Enforced by `COACHING_QUALITY_RUBRIC` every turn (§36).
+
+> **v1.75 — ① Explain → ② Show → ③ Ask → ④ Confirm ARE MOVES CHOSEN BY CODE
+> (founder, 2026-09-25).** Not yet taught → teach (①–③); answered, insufficient →
+> challenge; answered, sufficient → read back and ask *"is this right?"* (④);
+> confirmed → store and advance. **The model writes the words for the move; it
+> does not choose the move.** Every step touching coaching behaviour carries a
+> repeated-run consistency test in its Done-when (6.61's D7).
 
 **This is where the system's teaching behaviour is specified.** It is
 enforcement, not aspiration: every rule below is a rubric criterion checked on
@@ -8403,6 +8448,12 @@ field. It is not licence to reintroduce a variant class.
 **Architecture:** §6, §17 · **File:** `core/substate.py` · **Procedure:** step 6.1
 *Rebuild test: reconstructable from this entry alone.*
 
+> **v1.75 (founder, 2026-09-25):** `next_action` as free text chosen by a model
+> is superseded — the move is decided in code from the field's status (§17), and
+> the planner's model judges only whether an answer is sufficient. **The class
+> below is unchanged until step 6.61 builds it**, and 6.61 carries its own
+> amendment for the shape it lands (CLAUDE.md, amending the rules, 3b).
+
 **Purpose:** The planner's structured output — one plan per planner turn,
 carried on `PhaseState.coaching_plan` and consumed by the executor. It is a
 Pydantic model rather than a dict specifically so `retrieval_strategy` can
@@ -8532,6 +8583,7 @@ would leave the conversation history with nothing to append.
 | B3 | the Belt rephrases prose, or refines a not-yet-committed current-phase value | leave `contradiction_flag` as `None` | §37 |
 | B4 | a captured value is one of the three cross-phase reference fields | carry it as a `dict` in `value`, not a string | §7 |
 | B5 | every coaching turn | populate `explanation`, `example`, `prompt` and `progress` as discrete fields — never one prose blob split by the UI | §50.1 |
+| B7 | a value is returned in `fields_captured` | hold it as PENDING until the Belt confirms the read-back; store only the Belt's words or the tidied version the Belt confirmed (v1.75; built at 6.61) | §20 |
 | B6 | a field has no meaningful worked example | still return `example`, saying so plainly, rather than folding the absence into `explanation` — the UI renders a block per field and an empty one is a layout break | §50.1 |
 
 **Invariants:**
@@ -10364,6 +10416,7 @@ the Store; the current phase's requirements; and the missing fields reported by
 | B4 | the stack is declared | be first, so project facts reach the prompt before skills loading and summarisation shape it | §19 |
 | B5 | injecting prior-phase values | inject them from the Store, which is what makes the coach's semantic contradiction check possible at all | §37 |
 | B6 | composing for Define | open the block with the Belt's step from `define_progress` — *Step n of 12*, computed, never counted by the model — and head the missing-field list as the gate list (v1.73) | §43.3, §39.1.9 |
+| B7 | composing any turn | deliver labelled sections, one job each — coaching rules, phase script, state, **this turn's move (authoritative)**, last turn's quality feedback, the conversation — and never present feedback as a message from the Belt (v1.75; built at 6.61) | §17, §19.1 |
 
 **No AI-ACT flag.** It moves already-committed values into the prompt and
 asserts nothing of its own. Its correctness is nonetheless load-bearing for

@@ -9,9 +9,9 @@
 |---|---|
 | **Last completed** | step **6.41** — The symbol-anchor ratchet comes down |
 | **Next** | step **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
-| **Spine steps landed** | 55 of 104 |
+| **Spine steps landed** | 55 of 106 |
 | **Last spine commit** | `4f6e5c8` (commit 6.57) |
-| **ARCHITECTURE.md** | v1.74 |
+| **ARCHITECTURE.md** | v1.75 |
 | **CLAUDE.md** | v2.2.41 |
 | **Block regenerated** | 2026-09-25 |
 
@@ -41,7 +41,7 @@ Update it with every commit that moves the position.*
 
 | | |
 |---|---|
-| **Last commit** | **Part 1 — the Define path registered and ordered** (founder rulings 2026-09-25; `git log -1`); before it 6.56's card, G-100, G-101 and 6.57's lag fix (v1.74) |
+| **Last commit** | **The coaching move is decided in code — ruled and registered** (ARCHITECTURE v1.75, step 6.61 first in Order; `git log -1`) · the CLAUDE.md rule §21 in its own commit · **root reference back-port OWED** (binds all three agents) · step 10.0 built and held uncommitted for review |
 | **Register** | **15 of 35** proven (Appendix H). Green: **1, 2, 3, 5, 6, 8, 11, 13, 17, 18, 19, 20, 21, 33, 35**. Rows 13 and 35 proven on trace `01a0d3e5-6246-7de3-b768-2ee767a5130c` (G-96 live turn, first in process: yes) |
 | **Red from 6.49** | **10** (skipped: no calculation turn yet on 0E5) · **12** (coherence rejects and never re-asks — `xfail(strict=True)`, step 6.53) |
 | **Case `IMPR-2026-0E5`** | **Not stuck** — a turn after the timed-out one started cleanly. **Its turns time out**: two traces on 2026-09-24, two causes |
@@ -74,7 +74,7 @@ Registered 2026-09-25: **G-100** (expected savings reads "23%" as 23 — 100× t
 proposed owner step 6.58) and **G-101** (`init_tracing()` ignores `LANGSMITH_TRACING=false`).
 
 **THE DEFINE PATH, ruled 2026-09-25 — Appendix F's `Order` column is the only
-copy:** 10.0 → 6.59 → 6.58 → 6.56 → 6.45 → 6.51 → 10.3 → 10.4 → 6.43 → 6.44 →
+copy:** 6.61 → 6.62 → 10.0 → 6.59 → 6.58 → 6.56 → 6.45 → 6.51 → 10.3 → 10.4 → 6.43 → 6.44 →
 7.1 → 7.2 → 7.3 → 7.7 → 7.4 → 7.5 → 7.8 → 7.9 (end to end). Depends-on is each
 step's own card. Estimates and epics: Appendix F, *"The Define path — estimate
 and epic"*. Founder milestones: G-23 (7.1), G-40 (7.2), the latency ruling (6.53),

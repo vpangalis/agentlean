@@ -4258,7 +4258,7 @@ validation results are built, against a rubric that exists.
 |---|---|
 | **Reference §** | §39.1 · Appendix H |
 | **Touches** | *(none — a proof)* |
-| **Precondition** | every other step on the Define path (Appendix F's `Order` 1–17) |
+| **Precondition** | every other step on the Define path (Appendix F's `Order` 1–19) |
 | **NEEDS** | Every Define capability row's owning step landed |
 | **GIVES** | The vertical — a Belt completes Define and closes its gate |
 | **Verify** | `live-run` |
@@ -5547,6 +5547,10 @@ re-asked once complete**; and the placeholder's self-disclaiming comment is
 gone — because a comment describing code that no longer exists is the drift
 this document's §55 rules are written against.
 
+> **2026-09-25 (founder):** the completeness predicate reads **6.61's field
+> status** — a field is complete when its status is *confirmed by the Belt*. 6.61
+> runs first (Appendix F `Order`).
+
 ---
 
 ## Step 6.46 — The coaching script is guaranteed to reach the model, or its absence is recorded
@@ -5991,6 +5995,85 @@ FOR THE DEFINE GATE (n of 13 gate fields; not the step count)"*.
 recorded every turn; the gate list is labelled as the gate list; mutation —
 remove the delivered count, and the tests fail; and ONE traced turn shows
 *"n of 12"*.
+
+---
+
+## Step 6.61 — The coaching move is decided in code
+
+| | |
+|---|---|
+| **Reference §** | §17 · S-C04 · §19.1 · S-C11 B7 · §20 · S-C05 B7 · §22 · §32 · §43 |
+| **Touches** | `backend/phases/nodes_common.py` · `backend/middleware/state_injection.py` · `backend/core/prompts.py` · `backend/core/substate.py` · `skills/dmaic-define-phase/` · `backend/tests/` |
+| **Precondition** | none — **READY** (ruled 2026-09-25) |
+| **NEEDS** | *(nothing)* |
+| **GIVES** | The same move for the same situation, every run — the premise of rows 26–32 — and a stored value that is the Belt's confirmed words |
+| **Verify** | `pytest` + a repeated-run consistency proof (tracing off, audit recorder attached) |
+| **Status** | **RULED — founder 2026-09-25 (ARCHITECTURE.md v1.75)** |
+
+**The ruling, verbatim:** *"The coaching move is decided in code, never by the model. For every field in every phase and every agent, code determines this turn's move from the field's status: not yet taught -> teach (explain, show, ask); answered, judged insufficient -> challenge (say what is missing); answered, judged sufficient -> read back (the Belt's own words, then ask 'is this right?'); confirmed by the Belt -> store and advance. An LLM is used only to judge whether an answer is sufficient, and to write the coach's words. A value is stored only after the Belt confirms it, in the Belt's words; a tidied version may be proposed in the read-back and is stored only if the Belt confirms it. The coach's input is assembled by code each turn in labelled sections, each with one job: coaching rules (how to behave), phase script (what to teach), state (facts), this turn's move (authoritative), last turn's quality feedback, and the conversation. The rules and scripts contain no move-sequencing instructions. Feedback to the coach is never presented as a message from the Belt. Basis: Anthropic, 'Effective context engineering for AI agents' (distinct sections, high-signal context, no brittle logic in prompts) and 'Building effective agents' (workflows for well-defined tasks; evaluator-optimizer)."*
+
+**Scope: ALL phases and ALL agents.** This step builds it for Define; the other
+four phase scripts' move-sequencing text is **6.62**; the platform reference
+(`AgentLean/AGENTIC_ARCHITECTURE_REFERENCE.md`) owes the back-port — recorded,
+not made. **6.45 reads this step's field status** for its completeness predicate
+(confirmed = complete). **The capture contract moves under the ruling here**:
+`CAPTURE_CONTRACT`, S-C05's `fields_captured`, and the Define script's
+*"Capture each confirmed value"* (SKILL.md:163).
+
+**8D (Desktop), verbatim:**
+
+> D0 Reproduced: Audit 3 (IMPR-2026-4E5), 10.0 proof (IMPR-2026-8D4).
+> D1 Founder, Desktop, Claude Code.
+> D2 IS: the coach sometimes waits after a read-back, sometimes moves on,
+>    occasionally re-asks a field; stores its own paraphrase, not the Belt's
+>    words, before the Belt confirms; does not challenge weak answers.
+>    IS NOT: a storage fault (answers are stored); not a timing fault
+>    (recomputing the instructions changed nothing, 0/9). Blast radius: every
+>    phase and every agent built on this pattern.
+> D3 None exists.
+> D4 Occurrence: the move is decided nowhere reliable — the script says
+>    "confirm and advance", the rules say "one move, then stop", the
+>    planner's decision never reaches the coach. Escape: each part was
+>    specified and tested alone; nothing measured the coach's behaviour
+>    across repeated runs until the audits.
+> D5 Code decides the move from field status; an LLM judges only "sufficient?";
+>    every layer of the coach's input has one job.
+> D6 Same turn, 5 runs, same move, per situation; the Belt's words preserved;
+>    audit recorder attached, tracing off.
+> D7 The ruling binds all phases and agents; every step touching coaching
+>    behaviour carries a repeated-run consistency test in its Done-when.
+>    Owner: 6.61.
+> D8 Closed when the consistency test passes for every Define situation and
+>    the rules and all five phase scripts carry no move-sequencing text.
+
+**Done when:** for each Define situation — opening, good answer, weak answer,
+read-back awaiting confirmation, Belt confirms, Belt corrects the read-back,
+*"where do we stand?"* — the same turn run **5 times gives the same move 5/5**;
+the stored value is the Belt's confirmed words (AD5's business case keeps the
+suppliers and the stops); nothing is stored before confirmation; the planner's
+model makes one judgment (sufficient, with a reason); the coach's input is the
+six labelled sections, the move section authoritative, feedback never as a
+Belt message; the coaching rules and the Define script carry no move-sequencing
+text; tests red before and green after. **D8 closes with 6.62.**
+
+---
+
+## Step 6.62 — The other four phase scripts carry no move-sequencing
+
+| | |
+|---|---|
+| **Reference §** | §32 · §43 · v1.75 |
+| **Touches** | `skills/dmaic-measure-phase/` · `skills/dmaic-analyse-phase/` · `skills/dmaic-improve-phase/` · `skills/dmaic-control-phase/` (SKILL.md **and** coaching_script.md, §56.1's atomic unit) · `backend/tests/` |
+| **Precondition** | **6.61** — the move is decided in code, so the scripts can stop sequencing it |
+| **NEEDS** | The coaching move is decided in code (6.61) |
+| **GIVES** | 6.61's D8 — all five phase scripts free of move-sequencing |
+| **Verify** | `pytest` |
+| **Status** | **RULED — founder 2026-09-25** |
+
+**Counted 2026-09-25** (lines carrying confirm / advance / move-on wording):
+measure 13, analyse 8, improve 10, control 14. **Done when:** none of the four
+carries a move-sequencing instruction, and a test that scans all five SKILL.md
+files for it is red before and green after.
 
 ---
 
@@ -6584,9 +6667,9 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 | **DONE** | 55 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.20**, **6.34**, **6.33**, **6.35**, **6.42**, **6.49**, **6.46**, **6.52**, **6.54**, **6.48**, **6.57**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.38**, **6.41** |
 | **BUILDING NOW** | 1 | **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
 | **BLOCKED** | 10 | **6.14** (BLOCKED), **6.10** (BLOCKED), **6.56** (GATED), **6.53** (GATED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 38 | **6.43**, **10.3**, **6.51**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.9**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.47**, **10.4**, **6.50**, **8.2**, **6.58**, **6.59**, **6.60**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
+| **QUEUED** | 40 | **6.43**, **10.3**, **6.51**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.9**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.47**, **10.4**, **6.50**, **8.2**, **6.58**, **6.59**, **6.60**, **6.61**, **6.62**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
-*104 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-25.*
+*106 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-25.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -6918,6 +7001,8 @@ restate, which is the opposite of what the board is for.
 | 472 | **Commit 6.49** | The checks card — twelve capability rows get the check that proves them |  | OPS | SHARED | Twelve rows of the register are claims: nobody can say whether a checkpoint is written per node, or whether a Define turn leaves a readable trace. |
 | 474 | **Commit 6.52** | A turn always answers inside its budget |  | COACH | SHARED | A Belt who asks an open question gets a 500 after 45 seconds, because the node's own budget starts late and the knowledge lookups hold the event loop so no timer can fire. |
 | 476 | **Commit 6.54** | The clients are built once, at startup, before any Belt waits for them |  | COACH | SHARED | The first open question after a restart spends ~20 s building clients the app could have built before it opened, and the Belt gets the out-of-time answer. |
+| 487 | **Commit 6.61** | The coaching move is decided in code |  | COACH | SHARED | The coach sometimes waits after a read-back, sometimes moves on and sometimes re-asks, and stores its own paraphrase before the Belt has confirmed it. |
+| 488 | **Commit 6.62** | The other four phase scripts carry no move-sequencing |  | COACH | PHASE | Four phase scripts still tell the coach when to move on, which is now decided in code. |
 | 483 | **Commit 6.58** | A percent convention for the computation tools |  | COACH | SHARED | A savings figure 100× too large reaches the Belt, because a tool reads 23% as 23. |
 | 484 | **Commit 6.59** | The coherence judge rules on the Belt's words, not the coach's |  | COACH | SHARED | Four turns in six are marked as parroting and go ungraded, though none repeats the Belt. |
 | 485 | **Commit 6.53** | A coherence rejection asks the coach again | GATED | COACH | SHARED | A rejected reply goes to the Belt unchanged, and the judge is told the coach will retry when it will not. |
@@ -7123,10 +7208,10 @@ home.**
 
 | Layer | Order | Zone | Step | Fact — what the § specifies | State | Symbol | § |
 |---|---|---|---|---|---|---|---|
-| L1 | 1 | — | **10.0** | The coaching turn’s output reaches the Belt — four blocks and the grader’s warning | ☐ | `absent: backend.gateway.schemas::CoachingBlocks` | §50.1, §49, S-C05 |
-| L1 | 7 | UI | **10.3** | The workspace reads the v2 field names, and progress counts them | ☐ | — | §50, §50.1, §39.1.2, G-71 |
+| L1 | 3 | — | **10.0** | The coaching turn’s output reaches the Belt — four blocks and the grader’s warning | ☐ | `absent: backend.gateway.schemas::CoachingBlocks` | §50.1, §49, S-C05 |
+| L1 | 9 | UI | **10.3** | The workspace reads the v2 field names, and progress counts them | ☐ | — | §50, §50.1, §39.1.2, G-71 |
 | L1 |  | — | **10.2** | Live gate document + conflict panel | ☐ | `absent: repo:agent-improve/ui/gate_document.js` | §50, §43.4 |
-| L1 | 8 | UI | **10.4** | The error contract — a failed turn is readable | ☐ | — | §4.8, §12.3, §49, G-70 |
+| L1 | 10 | UI | **10.4** | The error contract — a failed turn is readable | ☐ | — | §4.8, §12.3, §49, G-70 |
 | L1 |  | UI | **10.1**, **7.3** | **11 routes are served; this section's table names 4 of them** — `POST /ask`, `GET /cases/{id}`, `GET /registry`, `POST /upload`. **Seven are in the tree and in no ratified table** (**G-47**), and **five table rows are unbuilt**: `/ask/stream` (step 10.1), `/gate/approve` and `/gate/reject` (step 7.3, which has no `interrupt()` to resume from), `GET /cases`, and `/gate/submit` in the three-route shape this table ratifies. **Corrected 2026-09-11:** this line read *"11 of 12 routes exist … names 8 of the 11 — six are in the tree and in no ratified table"*, and **8 + 6 = 14 against 11 built routes**, so the marker contradicted itself; neither figure was derivable and the `12` traced to nothing. `verify_built.py` now pins the route SET, not the count, so the named/unnamed split is re-derived rather than restated | ⚠️ | `repo:agent-improve/backend/gateway/routes.py` | §49 |
 | L1 |  | UI | **6.19** | **these four fields do not exist** (**G-50**) | ☐ | — | §50.1 |
 | L1 |  | UI | — | **S-C36** · `CitationRecord` and `CitationBundle` | — | — | §65.1 |
@@ -7193,18 +7278,20 @@ home.**
 | L3 |  | — | **6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ | `backend.phases.nodes_common::_advance_field_index` | §7, §39.x.7, S-C02, S-C03 |
 | L3 |  | — | **6.33** | The capture path accumulates — a field survives the next turn, and the field change log records what it said before | ✅ | `backend.phases.mappers_common::captured_for_phase` | §6, §7, §11, §20, S-F04 |
 | L3 |  | — | **6.42** | The gate document records what Define established | ☐ | — | §33, §40, §50, S-F07, S-F28 |
-| L3 | 9 | — | **6.43** | The coach can read an uploaded document | ☐ | — | §29.1, §32, S-F57, G-82 |
-| L3 | 6 | — | **6.51** | The baseline and the target are values Control can compare | ☐ | — | §7, §39.1.2, §63.1 |
-| L3 | 10 | — | **6.44** | The contradiction stop moves from middleware into a node | ☐ | — | §37, §19.6, S-C10, G-15, G-89 |
-| L3 | 5 | — | **6.45** | The planner decides on field completeness | ☐ | — | §17, §39.1.2, S-F13 |
+| L3 | 11 | — | **6.43** | The coach can read an uploaded document | ☐ | — | §29.1, §32, S-F57, G-82 |
+| L3 | 8 | — | **6.51** | The baseline and the target are values Control can compare | ☐ | — | §7, §39.1.2, §63.1 |
+| L3 | 12 | — | **6.44** | The contradiction stop moves from middleware into a node | ☐ | — | §37, §19.6, S-C10, G-15, G-89 |
+| L3 | 7 | — | **6.45** | The planner decides on field completeness | ☐ | — | §17, §39.1.2, S-F13 |
 | L3 |  | — | **6.46** | The coaching script is guaranteed to reach the model, or its absence is recorded | ✅ | `backend.tests.test_coaching_script::test_step_log_records_that_the_script_was_delivered` | §32, §19.2, S-C12 |
 | L3 |  | — | **6.47** | Durable writes inside a node, and persistence loss is never silent | ☐ | — | §10, §16, §47, S-C06 |
 | L3 |  | — | **6.48** | A captured value carries its declared type | ☐ | — | §7, §20, §41, S-C05, S-C33 |
-| L3 | 3 | — | **6.58** | A percent convention for the computation tools | ☐ | — | §69.1, §69.2, §60.6 |
-| L3 | 2 | — | **6.59** | The coherence judge rules on the Belt's words, not the coach's | ☐ | — | §19.7, §19.8, S-C13 |
+| L3 | 1 | — | **6.61** | The coaching move is decided in code | ☐ | — | §17, §19.1, §20, §22, §32, §43 |
+| L3 | 2 | — | **6.62** | The other four phase scripts carry no move-sequencing | ☐ | — | §32, §43 |
+| L3 | 5 | — | **6.58** | A percent convention for the computation tools | ☐ | — | §69.1, §69.2, §60.6 |
+| L3 | 4 | — | **6.59** | The coherence judge rules on the Belt's words, not the coach's | ☐ | — | §19.7, §19.8, S-C13 |
 | L3 |  | — | **6.53** | A coherence rejection asks the coach again | ☐ | — | §19.7, §34.2, S-C13 |
 | L3 |  | — | **6.60** | The script already delivered is not fetched again | ☐ | — | §19.2, §32, S-C12 |
-| L3 | 4 | — | **6.56** | The coaching proof: positions 1–8 of Define, one traced run | ☐ | — | §43.1–§43.7, §22, §51 |
+| L3 | 6 | — | **6.56** | The coaching proof: positions 1–8 of Define, one traced run | ☐ | — | §43.1–§43.7, §22, §51 |
 | L3 |  | — | **6.57** | The Belt's step is computed, not counted by the model | ✅ | `backend.tests.test_define_position::test_the_reply_carries_the_computed_step_not_the_models_count` | §43.3, §39.1.2, §39.1.9, §19.1 |
 | L3 |  | PHASE | — | **the typing law is enforced by schema, not by convention** — all five `{Phase}Output` declare captured fields as `str` or `dict`, and `test_gate_documents.py` pins both the `dict` fields and their Tier-1 placement | ✅ | — | §7 |
 | L3 |  | PHASE | **7.3** | five nodes, identical node-name sets across all five phases, re-run by `verify_built.py`'s *phase subgraph nodes* check. ⚠ `gate_review` is a pass-through until 7.3 | ✅ | — | §13 |
@@ -7366,15 +7453,15 @@ home.**
 | Layer | Order | Zone | Step | Fact — what the § specifies | State | Symbol | § |
 |---|---|---|---|---|---|---|---|
 | L7 |  | — | **3.4** | `{Phase}Output` schemas + validators + UI | ✅ | `backend.phases.define.schema::DefineOutput` | §7, §40, §41, §53.1 |
-| L7 | 13 | — | **7.3** | Nine-step HITL gate | ☐ | `backend.phases.nodes_common::gate_review` | §33 |
-| L7 | 14 | — | **7.7** | The approve endpoint | ☐ | — | §33, §49, S-F34 |
-| L7 | 11 | — | **7.1** | `DMAICGateValidator` + Layer 2b | ☐ | `absent: backend.validation.gate_validator::DMAICGateValidator` | §34, §35 |
-| L7 | 12 | — | **7.2** | Layers 2c, 2d + `validation_stack` | ☐ | `absent: backend.validation.stack::validation_stack` | §34, §36 |
-| L7 | 18 | — | **7.9** | Define end to end, on one fresh case | ☐ | — | §39.1, App. H |
-| L7 | 17 | — | **7.8** | The gate steps that consume validation results | ☐ | — | §33, §34, §35, S-F27 |
-| L7 | 15 | — | **7.4** | Two tiers + `warning` verdict | ☐ | `absent: backend.validation.tiers::WARNING` | §35 |
+| L7 | 15 | — | **7.3** | Nine-step HITL gate | ☐ | `backend.phases.nodes_common::gate_review` | §33 |
+| L7 | 16 | — | **7.7** | The approve endpoint | ☐ | — | §33, §49, S-F34 |
+| L7 | 13 | — | **7.1** | `DMAICGateValidator` + Layer 2b | ☐ | `absent: backend.validation.gate_validator::DMAICGateValidator` | §34, §35 |
+| L7 | 14 | — | **7.2** | Layers 2c, 2d + `validation_stack` | ☐ | `absent: backend.validation.stack::validation_stack` | §34, §36 |
+| L7 | 20 | — | **7.9** | Define end to end, on one fresh case | ☐ | — | §39.1, App. H |
+| L7 | 19 | — | **7.8** | The gate steps that consume validation results | ☐ | — | §33, §34, §35, S-F27 |
+| L7 | 17 | — | **7.4** | Two tiers + `warning` verdict | ☐ | `absent: backend.validation.tiers::WARNING` | §35 |
 | L7 |  | — | **7.0** | The evaluation suite | ☐ | `absent: backend.evals` | §52 |
-| L7 | 16 | — | **7.5** | Escalation | ☐ | `absent: backend.phases.escalate_v2::escalate` | §38 |
+| L7 | 18 | — | **7.5** | Escalation | ☐ | `absent: backend.phases.escalate_v2::escalate` | §38 |
 | L7 |  | — | **7.6** | The re-approval cascade | ☐ | `absent: backend.validation.cascade::reopen_field` | §37, §9.5 |
 | L7 |  | GATE | **7.3** | **nothing pauses for a human — and since 2026-09-11 that is a RULING, not an oversight** · **the GATE interrupt is not built** — the `gate_review` node exists and passes through, and raises `interrupt()` at step 7.3. That is why `gate_attempts` cannot accumulate (WATCH 18), the supervisor graph is not yet the runtime (WATCH 23) and §47's reconciliation sweep cannot be written (WATCH 13). | ☐ | — | §33 |
 | L7 |  | GATE | **7.2** | Layer 2a is live as `CoherenceMiddleware` and Layer 2b delegates to the v1 `validate_{phase}`; Layers 2c and 2d are step 7.2. **`GATE_MAX_ATTEMPTS=3` cannot fire**: with no `interrupt()` the subgraph reruns from the mapper each turn, so every submission reports attempt 1 (WATCH 18) | ⚠️ | — | §34 |
@@ -7467,6 +7554,8 @@ list the step). **Off the path:** 10.1, 10.2 (the gate screen), 6.53 (gated),
 
 | Step | Estimate (days) | Epic |
 |---|---|---|
+| **6.61** | *not yet estimated — founder* | E2 *(proposed)* |
+| **6.62** | *not yet estimated — founder* | E2 *(proposed)* |
 | **10.0** | 3 | E4 |
 | **6.59** | 2 | E2 *(proposed)* |
 | **6.58** | 1 | E2 *(proposed)* |
@@ -8103,8 +8192,8 @@ tree audit at `208e4a7`.
 ### The run of work — superseded 2026-09-25
 
 **The 2026-09-23 transcription that stood here is withdrawn.** The run of
-work is Appendix F's `Order` column (founder ruling 2026-09-25: 10.0, 6.59,
-6.58, 6.56, 6.45, 6.51, 10.3, 10.4, 6.43, 6.44, 7.1, 7.2, 7.3, 7.7, 7.4, 7.5,
+work is Appendix F's `Order` column (founder rulings 2026-09-25: 6.61, 6.62,
+10.0, 6.59, 6.58, 6.56, 6.45, 6.51, 10.3, 10.4, 6.43, 6.44, 7.1, 7.2, 7.3, 7.7, 7.4, 7.5,
 7.8, 7.9). A second copy here is what the 8D of 2026-09-25 found drifting.
 
 **6.42 and everything before it has landed**, which is why the run starts here.
