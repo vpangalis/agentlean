@@ -74,8 +74,8 @@ Registered 2026-09-25: **G-100** (expected savings reads "23%" as 23 — 100× t
 proposed owner step 6.58) and **G-101** (`init_tracing()` ignores `LANGSMITH_TRACING=false`).
 
 **THE DEFINE PATH, ruled 2026-09-25 — Appendix F's `Order` column is the only
-copy:** 6.61 → 6.62 → 10.0 → 6.59 → 6.58 → 6.56 → 6.45 → 6.51 → 10.3 → 10.4 → 6.43 → 6.44 →
-7.1 → 7.2 → 7.3 → 7.7 → 7.4 → 7.5 → 7.8 → 7.9 (end to end). Depends-on is each
+copy:** 6.61 → 6.59 → 6.58 → 6.56 → 6.45 → 6.51 → 10.3 → 10.4 → 6.43 → 6.44 →
+7.1 → 7.2 → 7.3 → 7.7 → 7.4 → 7.5 → 7.8 → 7.9 (end to end) → 6.62 (the other four phase scripts; Define does not wait on it). Depends-on is each
 step's own card. Estimates and epics: Appendix F, *"The Define path — estimate
 and epic"*. Founder milestones: G-23 (7.1), G-40 (7.2), the latency ruling (6.53),
 F2 (10.2, off the path). The coherence audit is DONE (`IMPR-2026-AD5`, 0 traces);
