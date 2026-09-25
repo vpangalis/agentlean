@@ -9,9 +9,9 @@
 |---|---|
 | **Last completed** | step **6.41** — The symbol-anchor ratchet comes down |
 | **Next** | step **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
-| **Spine steps landed** | 54 of 98 |
-| **Last spine commit** | `ca057ac` (commit 6.46) |
-| **ARCHITECTURE.md** | v1.73 |
+| **Spine steps landed** | 55 of 98 |
+| **Last spine commit** | `4f6e5c8` (commit 6.57) |
+| **ARCHITECTURE.md** | v1.74 |
 | **CLAUDE.md** | v2.2.41 |
 | **Block regenerated** | 2026-09-25 |
 
@@ -41,7 +41,7 @@ Update it with every commit that moves the position.*
 
 | | |
 |---|---|
-| **Last commit** | **6.57 — the Belt's step is computed, not counted by the model** (`git log -1`, ARCHITECTURE v1.73); before it G-96 (v1.72), layer 2a judged against the script step |
+| **Last commit** | **6.57's lag fixed — the written step is the position AFTER the turn's capture** (`git log -1`, ARCHITECTURE v1.74); before it 6.57 (v1.73) and G-96 (v1.72) |
 | **Register** | **15 of 35** proven (Appendix H). Green: **1, 2, 3, 5, 6, 8, 11, 13, 17, 18, 19, 20, 21, 33, 35**. Rows 13 and 35 proven on trace `01a0d3e5-6246-7de3-b768-2ee767a5130c` (G-96 live turn, first in process: yes) |
 | **Red from 6.49** | **10** (skipped: no calculation turn yet on 0E5) · **12** (coherence rejects and never re-asks — `xfail(strict=True)`, step 6.53) |
 | **Case `IMPR-2026-0E5`** | **Not stuck** — a turn after the timed-out one started cleanly. **Its turns time out**: two traces on 2026-09-24, two causes |

@@ -1586,19 +1586,9 @@ async def executor(
     # would duplicate the exchange on every turn.
     new_messages = produced[len(state.get("messages") or []):]
 
-    # ── 6.57 — the Belt's step is the COMPUTED one, in the reply the turn keeps
-    # Delivery alone did not hold: on 0E5 at 15:05 (trace 01a0d3f3…) the step
-    # sat at the top of the model's input and the model still wrote "13 of
-    # 13" — its own earlier replies put "of 13" in that input 55 times. So the
-    # reply's `progress` is set from the same function the injection block
-    # delivered, and the structured-response message the NEXT turn reads is
-    # re-rendered with it. What the model wrote is kept, in step_log below.
-    define_step = (define_progress(dict(state.get("artifacts") or {}))
-                   if phase == "define" else None)
+    # 6.57 — what the model wrote in `progress`, kept before the executor
+    # writes the computed step over it (below, after the capture merge).
     model_progress = reply.progress if reply is not None else None
-    if define_step is not None and reply is not None \
-            and reply.progress != define_step["label"]:
-        new_messages = _with_progress(new_messages, reply, define_step["label"])
 
     captured: dict[str, Any] = {}
     citations: list[dict] = list(state.get("citations") or [])
@@ -1718,6 +1708,26 @@ async def executor(
         ]
     next_field = _advance_field_index(phase, artifacts)
 
+    # ── 6.57 — the Belt's step is the COMPUTED one, in the reply the turn keeps
+    # Delivery alone did not hold: on 0E5 at 15:05 (trace 01a0d3f3…) the step
+    # sat at the top of the model's input and the model still wrote "13 of
+    # 13" — its own earlier replies put "of 13" in that input 55 times. So the
+    # reply's `progress` is WRITTEN, on every turn, from the same function the
+    # injection block delivered, and the structured-response message the NEXT
+    # turn reads is re-rendered with it. What the model wrote is kept in
+    # step_log below.
+    #
+    # **From the artifacts AFTER this turn's capture**, not the turn-start
+    # ones the block was composed from: the reply is read after the turn, and
+    # a Belt who just completed position 1 is on step 2. Computed before the
+    # capture, the label lagged one step on every capture turn (dry run 2,
+    # IMPR-2026-134, turn 2: the model wrote "Step 2", the executor "Step 1").
+    define_step = define_progress(artifacts) if phase == "define" else None
+    delivered = (define_progress(prior_artifacts)["label"]
+                 if define_step is not None else None)
+    if define_step is not None and reply is not None:
+        new_messages = _with_progress(new_messages, reply, define_step["label"])
+
     # **The count that used to disagree with the write, reconciled.** This
     # line logged `len(captured)` — the KEYS the coach named — while the write
     # filtered on VALUES, so "captured 1 field(s)" and "nothing reached the
@@ -1817,11 +1827,12 @@ async def executor(
             _step(phase, turn_count, "coaching_script",
                   **(script_log[0] if script_log else script_record(phase)),
                   delivered=bool(script_log), model_calls=len(script_log)),
-            # 6.57 — the step the Belt was told this turn, from the same
-            # artifacts the injection block composed it from, beside what the
-            # model wrote in `progress`. A model that counted for itself is on
-            # the record, not only on the screen.
+            # 6.57 — the step the reply carries (after the capture), the one
+            # the coach was DELIVERED (turn start), and what the model wrote
+            # in `progress`. A model that counted for itself is on the record,
+            # not only on the screen.
             *([_step(phase, turn_count, "define_position", **define_step,
+                     delivered_label=delivered,
                      reply_progress=model_progress,
                      reply_matches=model_progress == define_step["label"],
                      progress_written=reply.progress if reply else None)]

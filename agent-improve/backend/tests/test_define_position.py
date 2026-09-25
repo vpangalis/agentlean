@@ -192,3 +192,31 @@ def test_the_reply_carries_the_computed_step_not_the_models_count(
     assert "13 of 13" not in str(stored[0].content)
     assert stored[0].tool_call_id == "call_1", "the tool-call pairing survives the rewrite"
     assert _record(out)["progress_written"] == "Define · Step 3 of 12"
+
+
+class _CapturingAgent(_Agent):
+    """A capture turn: the Belt answered position 3, and the coach captured it."""
+
+    async def ainvoke(self, payload: dict, *_: Any, **__: Any) -> dict:
+        reply = CoachingResponse(
+            explanation="e", example="x", prompt="p", progress=self.progress, message="m",
+            fields_captured=[{"field_name": "voc_summary", "source": "belt",
+                              "value": "Suppliers need paying on the agreed 30-day terms."}])
+        return {"messages": [*payload["messages"], AIMessage(content="m"),
+                             ToolMessage(content=f"Returning structured response: {reply}",
+                                         tool_call_id="call_1", name="CoachingResponse")],
+                "structured_response": reply}
+
+
+def test_a_capture_turn_writes_the_step_after_the_capture(monkeypatch, stub_planner) -> None:
+    """**Dry run 2, 2026-09-25 (IMPR-2026-134, turn 2):** the Belt answered
+    position 1, the model wrote "Step 2 of 12", and the executor overwrote it
+    with "Step 1 of 12" — the label was computed BEFORE the turn's capture.
+    The written label is the position AFTER the capture, on every turn."""
+    monkeypatch.setattr(_nc, "create_agent", lambda **kw: _CapturingAgent("anything"))
+    out = asyncio.run(_nc.executor("define", _state({f: "x" for f in DEFINE_FIELD_ORDER[:2]})))
+    e = _record(out)
+    assert e["progress_written"] == "Define · Step 4 of 12", e
+    assert e["reply_progress"] == "anything", "the model's own value is kept"
+    stored = [m for m in out["messages"] if isinstance(m, ToolMessage)]
+    assert "progress='Define · Step 4 of 12'" in str(stored[0].content)

@@ -5914,7 +5914,9 @@ model still wrote *"13 of 13"*: its own earlier structured replies put `of 13`
 into that input **55 times**. So the count is COMPUTED, DELIVERED and WRITTEN:
 the executor sets the reply's `progress` from the same function and re-renders
 the stored structured-response message the next turn reads; what the model
-wrote itself is kept in `step_log`.
+wrote itself is kept in `step_log`. **The written step is the position AFTER
+the turn's capture, on every turn (v1.74)** — computed before it, the label
+lagged one step on every capture turn (dry run 2, `IMPR-2026-134`, turn 2).
 
 | Reader | Uses |
 |---|---|
@@ -6404,10 +6406,10 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 
 | State | Count | Steps |
 |---|---|---|
-| **DONE** | 54 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.20**, **6.34**, **6.33**, **6.35**, **6.42**, **6.49**, **6.46**, **6.52**, **6.54**, **6.48**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.38**, **6.41** |
+| **DONE** | 55 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.20**, **6.34**, **6.33**, **6.35**, **6.42**, **6.49**, **6.46**, **6.52**, **6.54**, **6.48**, **6.57**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.38**, **6.41** |
 | **BUILDING NOW** | 1 | **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
 | **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 35 | **6.43**, **10.3**, **6.51**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.47**, **10.4**, **6.50**, **8.2**, **6.57**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
+| **QUEUED** | 34 | **6.43**, **10.3**, **6.51**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.47**, **10.4**, **6.50**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
 *98 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-25.*
 <!-- END STEP BOARD -->

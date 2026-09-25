@@ -105,9 +105,11 @@ its only reader ran before the point it was supposed to be set.
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.73 · 2026-09-25
+Version 1.74 · 2026-09-25
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
+
+**v1.74 (2026-09-25)** — **§56 AMENDMENT. v1.73 (C)'s WRITTEN STEP IS THE POSITION AFTER THE TURN'S CAPTURE, WRITTEN ON EVERY TURN.** Founder ruling 2026-09-25. **(A) THE DEFECT.** v1.73 computed the written label from the turn-START artifacts, so on every capture turn it lagged one step — dry run 2 (IMPR-2026-134, turn 2): the Belt answered position 1, the model wrote *"Step 2 of 12"*, the executor overwrote it with *"Step 1 of 12"*. **(B) THE RULE.** The executor writes `define_progress` of the artifacts AFTER the capture merge into the reply's `progress` and the stored structured-response message, unconditionally; the turn-start label the coach was delivered is recorded beside it (`delivered_label`) with the model's own (`reply_progress`). No condition on the conversation's history. Reasoning: the fix's commit body (§56.2).
 
 **v1.73 (2026-09-25)** — **§56 AMENDMENT. DEFINE'S "STEP n OF 12" IS COMPUTED, DELIVERED AND WRITTEN — NEVER COUNTED BY THE MODEL.** Founder ruling 2026-09-24, applied at step 6.57. **The ruled text:** *"Compute the Define position from DEFINE_FIELD_ORDER (12 positions; metric_definitions sits inside position 5, §39.1.9) and deliver it every turn, as v1.71 delivers the script. Keep the gate's 'missing (… of 13)' list separate and labelled as the gate list."* **(A) WHY.** Every coaching turn on 0E5 wrote *"Define · 13 of 13"* — the gate list's count, the only one the coach was given. **(B) ONE FUNCTION.** `define_progress(artifacts)` (`phases/define/schema.py`): the first position not complete, 1..12, position 5 complete only with `metric_definitions` as well. `BeforeModelStateInjection` delivers it at the top of the block; `field_index` is it minus one; step 10.3's bar calls it. **(C) DELIVERY WAS NOT ENOUGH, MEASURED** — with the step first in its input the model still wrote *"13 of 13"*, its own earlier replies carrying `of 13` 55 times. So the executor WRITES the computed label into the reply's `progress` and re-renders the stored structured-response message; the model's own value is recorded in `step_log` (node `define_position`: `reply_progress`, `reply_matches`). **(D) THE GATE LIST** is headed *"THE GATE LIST … (n of 13 gate fields; not the step count)"*. Reasoning: step 6.57's commit body (§56.2).
 
@@ -6105,8 +6107,8 @@ count the Belt can see at any time**:
 
 **Define's count is COMPUTED (v1.73)** — `define_progress`, twelve positions,
 `metric_definitions` inside position 5 — delivered in the prompt and written
-into the reply's `progress` by the executor. The model states it; it never
-counts it.
+into the reply's `progress` by the executor — the position AFTER the turn's
+capture, on every turn (v1.74). The model states it; it never counts it.
 
 | Stage | What happens |
 |---|---|
