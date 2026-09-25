@@ -44,7 +44,8 @@ next failing feature in lane X; one feature per commit; push to lane/X."*
 | 6 | Lanes A/B/C + integrator: branches, worktrees | DONE — see Lanes | (this commit) |
 | 7 | Define run-through test, once on main, ≤150 live calls | DONE — 79 calls, see Part 7 | d36605c |
 | 8 | G-23 design draft, G-40 rubric draft | DONE — docs/founder-inputs/ | c641efb |
-| 9 | Fresh-eyes review | DONE — see Part 9 | (this commit) |
+| 9 | Fresh-eyes review | DONE — see Part 9 | 5bafd51, 7ff2e03 |
+| — | 6.66 landed (spine commit) | DONE | (this commit) |
 
 ## Baseline (Part 1, 669b39c) and after
 
@@ -128,4 +129,4 @@ for production"). **A sentence-level review of the rule-file slimming (69e9200) 
 
 ## Next
 
-Land 6.66 (spine commit), then the morning report. Lanes start from the table above.
+The lanes start from the table above; lane A first: the Confirm at field 5 (DEF-008, DEF-029).

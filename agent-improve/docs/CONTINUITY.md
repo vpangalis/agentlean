@@ -10,7 +10,7 @@
 | **Headline** | 14 of 35 capabilities proven · working on: 6.59 — The coherence judge rules on the Belt's words, not the coach's |
 | **Working on** | step **6.59** — The coherence judge rules on the Belt's words, not the coach's |
 | **Define finishes (7.9)** | 2026-10-23 · conditional on G-23, G-40 (F1) · rescaled ×0.53 from 5 landed step(s) |
-| **Steps** | 4 proven · 4 wired · 3 tooling · 47 built, not wired · 10 waiting · 42 not built |
+| **Steps** | 4 proven · 4 wired · 4 tooling · 47 built, not wired · 10 waiting · 41 not built |
 | **Define features** | Define features passing: 9 of 64 — A 8/35 · B 0/15 · C 0/8 · integrator 1/6 |
 | **ARCHITECTURE.md** | v1.78 |
 | **CLAUDE.md** | v2.2.46 |

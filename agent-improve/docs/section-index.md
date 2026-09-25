@@ -591,7 +591,7 @@ document below (step 6.66). Find the section here, then read only its lines
 | 11645–11655 |   F.2 Change Log — the former §18 |
 | 11649–11655 |    F.2.1 Amendment procedure — the former §18.1 |
 
-## `agent-improve/docs/REFACTORING_PROCEDURE.md` — 5243 lines
+## `agent-improve/docs/REFACTORING_PROCEDURE.md` — 5244 lines
 
 | Lines | Heading |
 |---|---|
@@ -787,7 +787,7 @@ document below (step 6.66). Find the section here, then read only its lines
 | 3767–3825 | Part 10 — Stage 11: Cleanup and governance |
 | 3771–3793 |  Step 11.1 — Delete v1 |
 | 3794–3825 |  Step 11.2 — Governance close-out |
-| 3826–5009 | Appendices |
+| 3826–5010 | Appendices |
 | 3832–3847 |  Change log |
 | 3848–3862 |  Step board |
 | 3863–3955 |  Appendix A — Traceability matrix |
@@ -796,7 +796,7 @@ document below (step 6.66). Find the section here, then read only its lines
 | 3978–3993 |  Appendix C — The two parallel workstreams |
 | 3994–4219 |  Appendix D — Step index |
 | 4073–4219 |   The bands — what the Seq ranges mean |
-| 4220–4761 |  Appendix F — The build matrix |
+| 4220–4762 |  Appendix F — The build matrix |
 | 4241–4263 |   The columns |
 | 4264–4304 |   The anchor grammar — never a line number |
 | 4305–4681 |   Layers — nine, not eight |
@@ -810,23 +810,23 @@ document below (step 6.66). Find the section here, then read only its lines
 | 4588–4636 |    L7 · Validation, gates, escalation |
 | 4637–4681 |    L8 · Persistence and cross-cutting |
 | 4682–4727 |   The Define path — estimate and epic (founder, 2026-09-25) |
-| 4728–4761 |   Wiring proofs |
-| 4762–5009 |  Appendix G — The SPEC-GAP register |
-| 4815–4824 |   66.1 Group A — founder ruling required |
-| 4825–4904 |   66.2 Group B — cross-check defects |
-| 4905–4920 |   66.3 Group C — schemas named but never defined |
-| 4921–4942 |   66.4 Group D — described in prose, no interface |
-| 4943–4949 |   66.5 Group E — content the build sequence defers |
-| 4950–4968 |   66.6 Closed |
-| 4969–4999 |   66.7 Findings — recorded, not gaps |
-| 5000–5009 |   66.8 The Supplier/Customer cross-check — first run, 2026-08-23 |
-| 5010–5243 | Part XIII — Compliance and Risk |
-| 5020–5174 |  Appendix H — The capability register |
-| 5027–5088 |   The contract |
-| 5089–5101 |   How it differs from Appendix F, which it does not replace |
-| 5102–5174 |   ✅ THE SEED HAS LANDED — all 35 of Define's rows are written |
-| 5175–5232 |  Appendix I — The plan: epics, stories and rank |
-| 5183–5195 |   The rule |
-| 5196–5226 |   ✅ THE FILE IS IN THE TREE, AND THE PRE-COMMIT HOOK READS IT — 2026-09-23 |
-| 5227–5232 |   The run of work — superseded 2026-09-25 |
-| 5233–5243 |  Appendix E — Questions raised by this procedure · BOTH RESOLVED |
+| 4728–4762 |   Wiring proofs |
+| 4763–5010 |  Appendix G — The SPEC-GAP register |
+| 4816–4825 |   66.1 Group A — founder ruling required |
+| 4826–4905 |   66.2 Group B — cross-check defects |
+| 4906–4921 |   66.3 Group C — schemas named but never defined |
+| 4922–4943 |   66.4 Group D — described in prose, no interface |
+| 4944–4950 |   66.5 Group E — content the build sequence defers |
+| 4951–4969 |   66.6 Closed |
+| 4970–5000 |   66.7 Findings — recorded, not gaps |
+| 5001–5010 |   66.8 The Supplier/Customer cross-check — first run, 2026-08-23 |
+| 5011–5244 | Part XIII — Compliance and Risk |
+| 5021–5175 |  Appendix H — The capability register |
+| 5028–5089 |   The contract |
+| 5090–5102 |   How it differs from Appendix F, which it does not replace |
+| 5103–5175 |   ✅ THE SEED HAS LANDED — all 35 of Define's rows are written |
+| 5176–5233 |  Appendix I — The plan: epics, stories and rank |
+| 5184–5196 |   The rule |
+| 5197–5227 |   ✅ THE FILE IS IN THE TREE, AND THE PRE-COMMIT HOOK READS IT — 2026-09-23 |
+| 5228–5233 |   The run of work — superseded 2026-09-25 |
+| 5234–5244 |  Appendix E — Questions raised by this procedure · BOTH RESOLVED |

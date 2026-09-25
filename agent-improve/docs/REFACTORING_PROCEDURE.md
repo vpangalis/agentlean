@@ -3852,10 +3852,10 @@ what was ruled. The full text of every entry is in the archive, `docs/_archive/R
 | **WORKING ON** | 1 | **6.59** — The coherence judge rules on the Belt's words, not the coach's |
 | **PROVEN** | 4 | **6.33**, **6.42**, **6.48**, **6.52** |
 | **WIRED** | 4 | **6.46**, **6.57**, **6.61**, **10.0** |
-| **TOOLING** | 3 | **6.63**, **6.64**, **6.65** |
+| **TOOLING** | 4 | **6.63**, **6.64**, **6.65**, **6.66** |
 | **BUILT, NOT WIRED** | 47 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.19**, **6.21**, **6.25**, **6.26**, **6.27**, **6.31**, **6.34**, **6.35**, **6.36**, **6.38**, **6.39**, **6.40**, **6.41**, **6.49**, **6.54** |
 | **WAITING** | 10 | **6.10**, **6.14**, **6.22**, **6.53**, **6.56**, **8.4**, **8.5**, **9.0**, **9.1**, **9.2** |
-| **NOT BUILT** | 42 | **6.17**, **6.20**, **6.23**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **6.37**, **6.43**, **6.44**, **6.45**, **6.47**, **6.50**, **6.51**, **6.58**, **6.59**, **6.60**, **6.62**, **6.66**, **7.0**, **7.1**, **7.2**, **7.3**, **7.4**, **7.5**, **7.6**, **7.7**, **7.8**, **7.9**, **8.0**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **10.2**, **10.3**, **10.4**, **11.1**, **11.2** |
+| **NOT BUILT** | 41 | **6.17**, **6.20**, **6.23**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **6.37**, **6.43**, **6.44**, **6.45**, **6.47**, **6.50**, **6.51**, **6.58**, **6.59**, **6.60**, **6.62**, **7.0**, **7.1**, **7.2**, **7.3**, **7.4**, **7.5**, **7.6**, **7.7**, **7.8**, **7.9**, **8.0**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **10.2**, **10.3**, **10.4**, **11.1**, **11.2** |
 
 *110 steps. PROVEN: every capability row the step owns is green and its check passed on the current source. WIRED: its Wiring-proofs test passed on the current source. BUILT: its Appendix F row is ✅. WAITING: Appendix D says BLOCKED / GATED / EXTERNAL. The same states, with each reference, are on `docs/control-board.html`. Regenerated 2026-09-25.*
 <!-- END STEP BOARD -->
@@ -4338,7 +4338,7 @@ home.**
 | L0 |  | — | **11.2** | Governance close-out | ☐ | `absent: repo:agent-improve/docs/HANDOVER.md` | §55 |
 | L0 | 2 | — | **6.64** | The board's grouped views are restored, derived | ☐ | — | §55, App. D, App. F, App. H |
 | L0 | 3 | — | **6.65** | Speed without losing quality | ✅ | `repo:.claude/hooks/timing.py` | CLAUDE.md §22 |
-| L0 |  | — | **6.66** | The long-running harness: one feature list, status only from tests | ☐ | — | CLAUDE.md §22 |
+| L0 |  | — | **6.66** | The long-running harness: one feature list, status only from tests | ✅ | `repo:agent-improve/tools/control_board/features.py` | CLAUDE.md §22 |
 
 #### L1 · API surface
 
@@ -4755,6 +4755,7 @@ Touches names a path under `backend/` or `ui/`
 | **6.63** | `backend.tests.test_board::test_the_generated_page_is_true` *(tooling)* | — |
 | **6.64** | `backend.tests.test_board::test_the_three_groupings_are_on_the_page` *(tooling)* | — |
 | **6.65** | `backend.tests.test_timing::test_the_commits_one_full_run_is_parallel` *(tooling)* | — |
+| **6.66** | `backend.tests.test_define_features::test_every_define_step_row_and_open_gap_maps_to_a_feature` *(tooling)* | — |
 
 **Done, off the step list:** the coherence audit — `IMPR-2026-AD5`, six turns,
 0 traces, 2026-09-25. Its findings are G-102 to G-106.
