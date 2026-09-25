@@ -5890,6 +5890,46 @@ and *"first turn in process: yes"*.
 
 ---
 
+## Step 6.56 — The coaching proof: positions 1–8 of Define, one traced run
+
+| | |
+|---|---|
+| **Reference §** | §43.1–§43.7 · §22 · §39.1.2 · §51 |
+| **Touches** | `scripts/coaching_proof_656.py` (new) |
+| **Precondition** | **G-96** and **6.57** committed — landed (`8ceb91b`, `4f6e5c8`, lag fix `d624ff4`) |
+| **NEEDS** | A turn's coherence verdict, grade, script step and computed position recorded in `step_log` (G-96, 6.57) |
+| **GIVES** | The live-turn evidence the founder marks rows **26–32** from, and the calculation turn row **10**'s check reads |
+| **Verify** | `live-run` — ONE traced run |
+| **Status** | **RULED — founder 2026-09-24, accepted as proposed and extended to position 8. Traced run HELD (founder, 2026-09-25)** |
+
+**Rows 26–32 are live-turn rows** (§43.1–§43.7): no fixture can show whether a
+coach teaches a calculation before running it, shows an example before asking,
+or challenges a weak answer. This step is the one traced run they are marked
+from.
+
+| | The run |
+|---|---|
+| **Driver** | `scripts/coaching_proof_656.py` — outside pytest; the app IN-PROCESS; a NEW case titled *"COACHING PROOF — step 6.56, do not use for other proofs"* |
+| **Belt** | Scripted, a fictional project whose values differ from every worked example (§22); the answer each turn is chosen by `define_position`, not by a turn counter |
+| **Probes** | **Weak answer** at position 4 (row 31) · **example differs** on every capture — the record says whether any captured value matches a worked example (row 27) · the **savings** turn after position 8 (rows 26 and 10) |
+| **Never** | submits a gate · retries a turn on an error or a 429 |
+| **Limits** | positions 1–8, **hard cap 15 turns**, stop on the first error; in traced mode it stops if a turn made more than one trace |
+| **Record** | one JSON line per turn: position before/after, the Belt's message, status, seconds, trace id, fields captured, example refused/matched, tools, calculation rows, coherence (verdict, reason, step), grade, progress written vs the model's |
+| **Tracing** | OFF unless `--traced` — `init_tracing()` ignores `LANGSMITH_TRACING=false` (G-101), so the driver uses the test suite's switch and a send counter; a dry run that sends anything aborts |
+
+**Dry runs, 2026-09-25, untraced — 0 LangSmith sends each:** `IMPR-2026-206`
+and `IMPR-2026-134` (titled *"COACHING PROOF DRY RUN"*), 11 turns each,
+positions 1 → 9, one `computation_results` row each; row 10's check passes on
+the second. **They found:** 6.57's lag (fixed, `d624ff4`), G-99's breadth (9
+coherence rejections in 22 turns) and G-100 (the savings figure 100× too
+large).
+
+**Done when:** ONE traced run, positions 1–8, ≤ 15 turns, delivers the per-turn
+evidence table with trace ids; rows 26–32 are left for the founder to mark;
+row 10's check runs on the proof case.
+
+---
+
 ## Step 6.57 — The Belt's step is computed, not counted by the model
 
 | | |
@@ -6408,10 +6448,10 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 |---|---|---|
 | **DONE** | 55 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.20**, **6.34**, **6.33**, **6.35**, **6.42**, **6.49**, **6.46**, **6.52**, **6.54**, **6.48**, **6.57**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.38**, **6.41** |
 | **BUILDING NOW** | 1 | **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
-| **BLOCKED** | 8 | **6.14** (BLOCKED), **6.10** (BLOCKED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
+| **BLOCKED** | 9 | **6.14** (BLOCKED), **6.10** (BLOCKED), **6.56** (GATED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
 | **QUEUED** | 34 | **6.43**, **10.3**, **6.51**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.47**, **10.4**, **6.50**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
-*98 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-25.*
+*99 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-25.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -6742,6 +6782,7 @@ restate, which is the opposite of what the board is for.
 | 472 | **Commit 6.49** | The checks card — twelve capability rows get the check that proves them |  | OPS | SHARED | Twelve rows of the register are claims: nobody can say whether a checkpoint is written per node, or whether a Define turn leaves a readable trace. |
 | 474 | **Commit 6.52** | A turn always answers inside its budget |  | COACH | SHARED | A Belt who asks an open question gets a 500 after 45 seconds, because the node's own budget starts late and the knowledge lookups hold the event loop so no timer can fire. |
 | 476 | **Commit 6.54** | The clients are built once, at startup, before any Belt waits for them |  | COACH | SHARED | The first open question after a restart spends ~20 s building clients the app could have built before it opened, and the Belt gets the out-of-time answer. |
+| 482 | **Commit 6.56** | The coaching proof: positions 1–8 of Define, one traced run | GATED | OPS | SHARED | Seven capability rows describe how the coach teaches, and none can be marked, because no traced run has walked a case through the positions they describe. |
 | 481 | **Commit 6.57** | The Belt's step is computed, not counted by the model |  | COACH | SHARED | The Belt is told they are on step 13 of 13 of a twelve-step walk, because the only count the coach was given was the gate's. |
 | 477 | **Commit 10.4** | The error contract — a failed turn is readable |  | UI | SHARED | A failed turn reaches the Belt as a stack fragment in a three-second toast, with no way to tell a timeout from a rate limit. |
 | 470 | **Commit 8.1** | Structured errors |  | OPS | SHARED | Failures arrive as free text, so the circuit breaker and the fallback chain have nothing to read to tell retry from stop. |
@@ -7019,6 +7060,7 @@ home.**
 | L3 |  | — | **6.46** | The coaching script is guaranteed to reach the model, or its absence is recorded | ✅ | `backend.tests.test_coaching_script::test_step_log_records_that_the_script_was_delivered` | §32, §19.2, S-C12 |
 | L3 |  | — | **6.47** | Durable writes inside a node, and persistence loss is never silent | ☐ | — | §10, §16, §47, S-C06 |
 | L3 |  | — | **6.48** | A captured value carries its declared type | ☐ | — | §7, §20, §41, S-C05, S-C33 |
+| L3 |  | — | **6.56** | The coaching proof: positions 1–8 of Define, one traced run | ☐ | — | §43.1–§43.7, §22, §51 |
 | L3 |  | — | **6.57** | The Belt's step is computed, not counted by the model | ✅ | `backend.tests.test_define_position::test_the_reply_carries_the_computed_step_not_the_models_count` | §43.3, §39.1.2, §39.1.9, §19.1 |
 | L3 |  | PHASE | — | **the typing law is enforced by schema, not by convention** — all five `{Phase}Output` declare captured fields as `str` or `dict`, and `test_gate_documents.py` pins both the `dict` fields and their Tier-1 placement | ✅ | — | §7 |
 | L3 |  | PHASE | **7.3** | five nodes, identical node-name sets across all five phases, re-run by `verify_built.py`'s *phase subgraph nodes* check. ⚠ `gate_review` is a pass-through until 7.3 | ✅ | — | §13 |

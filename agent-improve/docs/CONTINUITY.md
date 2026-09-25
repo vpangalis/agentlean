@@ -9,7 +9,7 @@
 |---|---|
 | **Last completed** | step **6.41** — The symbol-anchor ratchet comes down |
 | **Next** | step **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
-| **Spine steps landed** | 55 of 98 |
+| **Spine steps landed** | 55 of 99 |
 | **Last spine commit** | `4f6e5c8` (commit 6.57) |
 | **ARCHITECTURE.md** | v1.74 |
 | **CLAUDE.md** | v2.2.41 |
@@ -68,8 +68,10 @@ stock-taking summary as parroting — founder).
 **6.57 landed (v1.73):** *"Define · Step n of 12"* is `define_progress` — delivered in the
 prompt, written into the reply's `progress`, recorded with the model's own count
 (`define_position` in `step_log`). Step 10.3's bar must call the same function.
-**Next, held for review:** 6.56, the coaching-proof driver — built and dry-run untraced;
-its one traced run (positions 1–8, ≤ 15 turns) waits for the founder.
+**6.56 registered (GATED)** with its driver, `scripts/coaching_proof_656.py` — two untraced
+dry runs, 0 sends. **Its one traced run (positions 1–8, ≤ 15 turns) is HELD by the founder.**
+Registered 2026-09-25: **G-100** (expected savings reads "23%" as 23 — 100× too large;
+proposed owner step 6.58) and **G-101** (`init_tracing()` ignores `LANGSMITH_TRACING=false`).
 
 **Rank after that:**
 
