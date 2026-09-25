@@ -1,16 +1,17 @@
 # CLAUDE.md — Agent Improve
-# Version 2.2.45 — September 2026
+# Version 2.2.46 — September 2026
 # Rules and pointers only. The why and the history: docs/_archive/CLAUDE_md_v2.2.44_2026-09-25.md
 
 DMAIC coaching agent (LangGraph phase subgraphs, `create_agent` with a middleware coach
 stack, Azure OpenAI / AI Search / Blob), mid-refactor v1 → v2.2. **These rules are the
-constitution.** Quote the rule numbers you work under; if a rule is wrong, amend it
-first, in its own commit — never violate it silently.
+constitution.** Quote the rule numbers you work under. If a rule blocks the request, the
+rule wins; if a rule is wrong, amend it first, in its own commit — never violate it silently.
 
 ## Where and how to run
 
 - `.claude/` sits one level up, so every `paths:` glob is `agent-improve/...` (§0.2). The
-  OneDrive mirror does not carry `.claude/` — resolve through git (§0.32).
+  OneDrive mirror does not carry `.claude/` — resolve through git (§0.32). `skills/` is
+  Agent Improve's own DMAIC content, not Claude Code skills — never move it into `.claude/`.
 - **Use `agent-improve/.venv` only** (the repo-root venv is stale). `mypy .` is a
   measurement; the gate is rule 3's ratchet against `.claude/config/mypy-baseline.txt`.
 - **`./start.ps1` HARD-RESETS TO `origin/main`, discarding uncommitted work — never run it.**
@@ -122,14 +123,13 @@ Record a framework gap via `/verify-current-version`, never memory.
 ## §22 — Speed without losing quality (founder 2026-09-25, 6.65/6.66: keep every check; remove only repeats)
 
 - **(a) Tests.** The full suite runs **once per commit**, in the pre-commit hook, in
-  parallel. **The pre-flight runs before every commit attempt** (`.claude/hooks/preflight.py`,
-  fired by a PreToolUse hook on `git commit`). While working, run area tests serial
-  (`-n 0`). Never run the full suite by hand.
-- **(b) Reading.** Never read `ARCHITECTURE.md` or the procedure whole. **(c) Paperwork.**
-  An 8D only for a real defect; the step card and its Done-when are the record.
-- **(d) Live model runs.** 3 per situation while building; 5 only in a final proof;
-  diagnosis calls count toward any cap. **(e) Stops.** Only when the Belt's experience
-  changes or a founder decision is needed. **(f) Reports.** One table plus decisions.
+  parallel. **A pre-flight before every commit attempt** (`.claude/hooks/preflight.py`,
+  fired on `git commit`). While working run only the area's tests. Never the full suite by hand.
+- **(b) Reading.** Never read `ARCHITECTURE.md` or the procedure whole: find the section,
+  read that region, cite its version. **(c) Paperwork.** An 8D only for a real defect.
+- **(d) Live model runs.** 3 per situation while building; 5 only in a final proof.
+  **(e) Stops.** Only when the Belt's experience changes or a founder decision is needed;
+  tooling and documentation commit without stopping. **(f) Reports.** One table plus decisions.
 - **(g) Timing.** `.claude/logs/timing.jsonl`; one `prompt` record per prompt, each
   category VERIFIED or ASSUMED; every report ends with it as one line.
 - **(h) REPLACE, DON'T APPEND.** A governing document holds the current state: change a
@@ -141,10 +141,10 @@ Record a framework gap via `/verify-current-version`, never memory.
 - `requirements.txt` owns the pins; **the floor is the rule**: `langgraph >= 1.2.6`,
   `langchain-core >= 1.6.0`. Presence of `langchain-classic` / `langgraph-prebuilt` is
   not permission to import them. `/verify-current-version` against the **installed** version.
-- No v1-style code may be added; a file is migrated when rewritten under v2.2 rules and
-  committed as `refactor(arch-v2):`.
+- No v1-style code may be added; migrated = rewritten under v2.2 rules, committed `refactor(arch-v2):`.
 - To amend a rule: the ruling goes to `ARCHITECTURE.md` (owning section, a §56 line, a
-  version bump); the rule change to the file that holds it, alone, `docs(rules):`; bump
-  this file's version; update the registry if the number is cited (§0.2). A new field on
-  `SupervisorState`, `PhaseState` or `CoachingResponse` requires an amendment. An owned
-  value goes nowhere — cite the owner. Never amend in passing.
+  version bump) — never to an archived document; the rule change to the file that holds
+  it, alone, `docs(rules):`; bump this file's version; update the registry if the number
+  is cited (§0.2); state the occurrence and escape causes in the commit body (§20). A new
+  field on `SupervisorState`, `PhaseState` or `CoachingResponse` requires an amendment.
+  An owned value goes nowhere — cite the owner. Never amend in passing.

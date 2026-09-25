@@ -126,13 +126,16 @@ The full sequence is §9.1; the binding structural rules are:
 **Critical constraints:**
 - One blob write per checkpoint (no per-key writes)
 - Atomic via blob ETag conditional writes to handle concurrent turns
-- `gate_attempts` in the checkpointed state (§10.1)
+- `gate_attempts` MUST be in the checkpointed state, never in route
+  scope. It lives on `PhaseState` (§10.1), per phase, because each phase
+  runs its own validation loop with its own cap
 
 **Migration is a constructor and connection-string change**; run the
 existing unit tests against PostgreSQL before switching.
 
-**The Blob implementation is not safe for concurrent access** (no row-level
-locking). Do not defend it past the migration trigger.
+**The Blob implementation** was not tested for concurrent access and Azure
+Blob has no row-level locking: acceptable for single-developer refactoring,
+**not acceptable for production**. Do not defend it past the migration trigger.
 
 *Design: `../AGENTIC_ARCHITECTURE_REFERENCE.md` §8, §10, Appendix B item 13.*
 
@@ -153,11 +156,13 @@ Dead tracing config (the v1 state) is a CRITICAL violation.
 connect to a live system.** An architectural exclusion, not a deferral.
 
 **`improve_evidence_index` is the only channel through which external,
-real-world data enters AgentLean.** Consequences:
+real-world data enters AgentLean.** Three consequences that bind on implementation:
 
 1. Coaching content must include guidance on **what data to upload and
-   how to structure it**.
-2. **There is no fallback path where the system fetches a number the
+   how to structure it** — a first-class part of the methodology.
+2. Belt data-collection discipline is what the platform's grounding
+   depends on.
+3. **There is no fallback path where the system fetches a number the
    Belt failed to provide.** Do not build one.
 
 **Cross-agent tool sharing** (Agent Improve reading Agent Resolve's
