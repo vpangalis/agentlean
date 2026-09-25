@@ -83,9 +83,11 @@ def test_define_run_through(run) -> None:
 
 
 def test_run_every_turn_answers_inside_its_time_limit(run) -> None:
-    """DEF-002 — every turn a 200, inside the 45 s wall."""
-    bad = [(t["n"], t["http"], t.get("seconds")) for t in run["turns"]
-           if t["http"] != 200 or (t.get("seconds") or 0) > 45]
+    """DEF-002 — every turn a 200 and a COACHED reply, inside the 45 s wall: a
+    fallback (the executor's backstop or timeout containment) is not coaching."""
+    bad = [(t["n"], t["http"], t.get("seconds"), "fallback" if t.get("fallback") else "")
+           for t in run["turns"]
+           if t["http"] != 200 or (t.get("seconds") or 0) > 45 or t.get("fallback")]
     assert not bad, bad
 
 
@@ -191,8 +193,11 @@ def test_run_field_is_captured_after_confirm(run, n: int, field: str) -> None:
 
 
 def test_run_a_confirmed_value_survives_later_turns(run) -> None:
-    """DEF-037 — the business case confirmed first is still there at the end."""
-    assert _structured(run).get("business_case"), "the first confirmed field is gone"
+    """DEF-037 — the business case confirmed first is still there once the
+    SIPOC (field 11) has been captured, many turns later."""
+    s = _structured(run)
+    assert s.get("process_map_sipoc"), "the SIPOC was never captured, so survival to it is unproven"
+    assert s.get("business_case"), "the first confirmed field is gone"
 
 
 # ── lane B — the gate ───────────────────────────────────────────────────────

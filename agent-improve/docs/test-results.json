@@ -1,9 +1,9 @@
 {
- "source_hash": "11e578478e37a6e7",
- "commit": "44d111a",
+ "source_hash": "cafc763be2931c1f",
+ "commit": "c641efb",
  "commit_matches_source": false,
- "full_run_hash": "11e578478e37a6e7",
- "recorded_at": "2026-09-25T19:44:16+00:00",
+ "full_run_hash": "cafc763be2931c1f",
+ "recorded_at": "2026-09-25T20:08:56+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -490,12 +490,12 @@
   "backend/tests/test_define_runthrough.py::test_run_a_change_click_reopens_the_field_with_the_belts_words": "passed",
   "backend/tests/test_define_runthrough.py::test_run_a_complete_case_assembles_a_gate_document": "skipped",
   "backend/tests/test_define_runthrough.py::test_run_a_confirm_click_stores_and_advances": "skipped",
-  "backend/tests/test_define_runthrough.py::test_run_a_confirmed_value_survives_later_turns": "passed",
+  "backend/tests/test_define_runthrough.py::test_run_a_confirmed_value_survives_later_turns": "skipped",
   "backend/tests/test_define_runthrough.py::test_run_a_question_is_answered_and_the_field_asked_again": "skipped",
   "backend/tests/test_define_runthrough.py::test_run_a_sufficient_answer_is_read_back_and_not_stored": "passed",
   "backend/tests/test_define_runthrough.py::test_run_a_weak_answer_is_challenged_not_completed": "passed",
   "backend/tests/test_define_runthrough.py::test_run_an_untaught_field_is_taught_example_before_ask": "skipped",
-  "backend/tests/test_define_runthrough.py::test_run_every_turn_answers_inside_its_time_limit": "passed",
+  "backend/tests/test_define_runthrough.py::test_run_every_turn_answers_inside_its_time_limit": "skipped",
   "backend/tests/test_define_runthrough.py::test_run_every_turn_states_step_n_of_12": "passed",
   "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[1-business_case]": "passed",
   "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[10-secondary_metrics]": "skipped",
@@ -1383,8 +1383,8 @@
   "backend/tests/test_wiring.py::test_wired_6_61_the_move_is_decided_in_code": "passed"
  },
  "older": {
-  "source_hash": "48c2dc238717626c",
-  "recorded_at": "2026-09-25T19:41:27+00:00",
+  "source_hash": "11e578478e37a6e7",
+  "recorded_at": "2026-09-25T19:44:16+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",

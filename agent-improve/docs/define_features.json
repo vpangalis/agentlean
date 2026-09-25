@@ -125,7 +125,7 @@
   },
   {
    "id": "DEF-004",
-   "description": "Tracing is a switch: the run-through and the test suite send zero LangSmith runs when tracing is off, and a traced turn shows the model call, tools and middleware.",
+   "description": "Tracing is a switch: with tracing off, a Define run sends zero LangSmith runs. (The traced half — a traced turn shows the model call, tools and middleware — is rows 26-32, which the founder marks from a traced run: define_discrepancies.md D3.)",
    "clause": "A Belt is coached through the twelve fields",
    "depends_on": [
     "DEF-002"
@@ -316,7 +316,7 @@
    "depends_on": [
     "DEF-007"
    ],
-   "test": "backend/tests/test_wiring.py::test_wired_6_61_the_move_is_decided_in_code",
+   "test": "backend/tests/test_define_e2e.py::test_a_qualified_yes_is_treated_as_a_correction",
    "sources": {
     "architecture": [
      "§17 v1.77"

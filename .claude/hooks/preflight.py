@@ -47,6 +47,10 @@ GRAPH_DIRS = ("backend", "tools", "scripts")
 SERIAL_MAX = 12
 #: Changing one of these changes every test's fixture — run the whole suite.
 EVERYTHING = {"agent-improve/backend/tests/conftest.py"}
+#: Test files that read a LIVE case over the network (~21 s per setup): the
+#: commit hook's full run still runs them every commit; the pre-flight picks
+#: them only when the file itself changed.
+LIVE_READ = {"agent-improve/backend/tests/test_capability_rows.py"}
 
 sys.path.insert(0, str(HOOKS))
 
@@ -153,6 +157,8 @@ def plan(changed: list[str], graph: dict[str, set[str]] | None = None) -> dict:
     everything = any(c in EVERYTHING for c in changed)
     for p in sorted(TESTS.glob("test_*.py")):
         rel = p.relative_to(ROOT).as_posix()
+        if rel in LIVE_READ and rel not in changed:
+            continue
         m = module_name(rel)
         if rel in changed or (m and graph.get(m, set()) & scope):
             tests.add(rel)

@@ -260,7 +260,7 @@ No founder ruling is invented here. Where a decision needs one, the item says so
 
 - **G-78** (PROC:7916) is open and **unscheduled**: "every coached field capture destroys the ones
   before it". 6.33 fixed accumulation, and `test_wired_6_33…` and row 5 prove it.
-  - Decision: a) Fixed. Close the row at 6.33. DEF-037 keeps it covered.
+  - Decision: a) the code says fixed at 6.33. **The row was NOT closed** — closing a register row is not done here; recommended, FOR FOUNDER. DEF-037 keeps it covered.
 - **G-89** (PROC:7932): Step reads "the procedure amendment". 6.44's Done-when (PROC:5516) says
   "closing G-89".
   - Decision: b) 6.44 owns it.
