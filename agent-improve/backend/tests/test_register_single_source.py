@@ -134,11 +134,12 @@ def test_the_readers_still_return_what_the_dual_read_returned(board) -> None:
         80 -> 81  6.57: G-99 registered — 2a rejects a stock-take summary
         81 -> 82  G-100 registered — expected savings reads 23% as 23
         82 -> 83  G-101 registered — init_tracing ignores an explicit off
+        83 -> 88  G-102..G-106 registered — the coherence audit's findings
     """
     markers, gaps = board.read_markers(), board.read_gaps()
     assert len(markers) == 82, f"{len(markers)} markers, not 82"
     assert sum(1 for m in markers if m["state"] != "built") == 42
-    assert len(gaps) == 83, f"{len(gaps)} gap rows, not 83"
+    assert len(gaps) == 88, f"{len(gaps)} gap rows, not 88"
 
 
 def test_the_guard_resolves_a_gap_from_the_one_register(guard) -> None:

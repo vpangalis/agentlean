@@ -4252,6 +4252,23 @@ validation results are built, against a rubric that exists.
 
 ---
 
+## Step 7.9 — Define end to end, on one fresh case
+
+| | |
+|---|---|
+| **Reference §** | §39.1 · Appendix H |
+| **Touches** | *(none — a proof)* |
+| **Precondition** | every other step on the Define path (Appendix F's `Order` 1–17) |
+| **NEEDS** | Every Define capability row's owning step landed |
+| **GIVES** | The vertical — a Belt completes Define and closes its gate |
+| **Verify** | `live-run` |
+| **Status** | **RULED — founder 2026-09-25** |
+
+**Done when:** every Define capability row in Appendix H is green **on one
+fresh case that carries an upload**, from its own check, in one run.
+
+---
+
 ## Step 7.6 — The re-approval cascade (§37)
 
 | | |
@@ -5977,6 +5994,124 @@ remove the delivered count, and the tests fail; and ONE traced turn shows
 
 ---
 
+## Step 6.58 — A percent convention for the computation tools
+
+| | |
+|---|---|
+| **Reference §** | §69.1 · §69.2 S-F37 · §60.6 B2, B3 · G-100 |
+| **Touches** | `backend/knowledge/computation.py` (`_num`) · `ARCHITECTURE.md` §69.1 · `backend/tests/` |
+| **Precondition** | none — **READY** (ruled 2026-09-25) |
+| **NEEDS** | *(nothing)* |
+| **GIVES** | A calculation that cannot be 100× wrong on a percentage — the number row **26**'s teaching turn is about |
+| **Verify** | `pytest` |
+| **Status** | **RULED — founder 2026-09-25** |
+
+**G-100.** `calculate_expected_savings` read *"23%"* as 23 and returned
+£6,804,000 where the answer is £68,040 — `_num` drops a `%` without rescaling,
+by design. **The ruled convention, for every tool that reads a rate:**
+*"23%"* → **0.23**; a bare *"23"* where a rate is expected → a **reformatting
+request** (§60.6 B3), never a guess. §69.1 is amended to state it once for all
+twenty.
+
+**Done when:** the D0 inputs of G-100 — *"23%"*/*"5%"*, *"23"*/*"5"*,
+*"0.23"*/*"0.05"* — give 68040, a reformatting request, and 68040; §69.1 states
+the convention; a mutation that restores the old `_num` fails the test.
+
+---
+
+## Step 6.59 — The coherence judge rules on the Belt's words, not the coach's
+
+| | |
+|---|---|
+| **Reference §** | §19.7 · S-C13 · §19.8 · G-99 · G-102 |
+| **Touches** | `backend/middleware/coherence.py` · `backend/middleware/grader.py` · `backend/validation/schemas.py` · `ARCHITECTURE.md` §19.7 · `backend/tests/` |
+| **Precondition** | none — **READY** (ruled 2026-09-25) |
+| **NEEDS** | A reply's script step is derived and every verdict is recorded (G-96, landed) |
+| **GIVES** | Rows **13** and **12**'s premise: a turn is graded unless its reply really is a restatement |
+| **Verify** | `pytest` + a replay of `IMPR-2026-AD5` (tracing off) |
+| **Status** | **RULED — founder 2026-09-25** |
+
+**G-99.** The coherence audit (`IMPR-2026-AD5`, 6 turns, 0 traces) recorded
+4 rejections as *"parroting"* where the reply quoted the SCRIPT (turns 1, 3),
+summarised values captured on EARLIER turns (5), or read back with no question
+(4) — 9 of 22 turns in the two dry runs before it. **The ruling:** the judge's
+input separates three things — the **script text** for the step, the **values
+already captured**, and the **Belt's words THIS turn**; a parroting verdict must
+**quote** the Belt's words this turn, and code checks that quote is in them —
+**otherwise the verdict is void**, recorded as void, and does not degrade the
+turn.
+
+**Also owned here — G-102:** the grader reads `CoachingResponse.message` only
+(`grader.py`, `_coach_text`), so it fails *"show a concrete example"* on turns
+whose `example` block carries one. Every judge reads the reply the Belt sees.
+
+**Done when:** replaying AD5's six turns (tracing off), no verdict without a
+verbatim quote from the Belt's words this turn degrades a turn; a real parrot
+is still rejected; the grader is given all four blocks; mutations: remove the
+quote check → a script-quoting reply degrades again.
+
+---
+
+## Step 6.53 — A coherence rejection asks the coach again
+
+| | |
+|---|---|
+| **Reference §** | §19.7 · §34.2 · S-C13 B2 · §44 · G-104 |
+| **Touches** | `backend/middleware/coherence.py` · `backend/middleware/grader.py` · `backend/tests/` |
+| **Precondition** | **the latency ruling (founder)** — see below |
+| **NEEDS** | The judge's verdicts are trustworthy (6.59) |
+| **GIVES** | Row **12** — layer 2a rejects AND re-asks |
+| **Verify** | `pytest` + `live-run` |
+| **Status** | **GATED — founder: the latency ruling** |
+
+**Today a rejection re-asks nothing.** `coherence.py` makes one check
+(`self.attempts = 1`); `max_retries` is stored and never used. **G-104:** the
+judge's own prompt says *"the coach retries on that feedback"* — untrue until
+this step.
+
+> ### ⛑ THE LATENCY RULING — the question, written down for the first time
+>
+> **"G-83's latency ruling" is cited by 6.52's card, `grader.py`,
+> `stories.py` and G-92, and no document states it.** G-83 itself is CLOSED
+> (the hop cap, 6.35). The question, as the record implies it: **can a turn
+> afford one more coach call plus one more judgement, inside the executor's
+> 40 s soft budget?** Measured: a regeneration is one coach model call
+> (~5–10 s at today's prompt size, ASSUMED from the audit's 9.4–14.5 s turns)
+> plus one coherence call (~1–2 s); open questions already reach 24 s of
+> executor time (6.54, trace `01a0d366…`).
+>
+> | Option | What happens on a rejection | Cost |
+> |---|---|---|
+> | **A** | Re-ask once if the remaining budget exceeds a threshold, else pass the reply through | Up to ~12 s on rejected turns |
+> | **B** | Never re-ask in the turn; the rejection reason is given to the coach at the START of the next turn | 0 s; the Belt sees the rejected reply once |
+> | **C** | Re-ask once, always; the budget is raised to hold it | Up to ~12 s on every rejected turn, and a wall change |
+> | **D** | Keep today's behaviour; retire the retry from §19.7 | 0 s; row 12 is re-scoped |
+
+**Done when:** the ruled option is built; a rejected reply is followed by a new
+model call (row 12's own check); G-104's prompt line is true.
+
+---
+
+## Step 6.60 — The script already delivered is not fetched again
+
+| | |
+|---|---|
+| **Reference §** | §19.2 · §32 · S-C12 · G-106 |
+| **Touches** | `backend/middleware/skills.py` · `backend/tests/` |
+| **Precondition** | **6.46** — the script is in the system message on every call. Landed |
+| **NEEDS** | *(nothing)* |
+| **GIVES** | One model call fewer on a phase's first turn |
+| **Verify** | `pytest` |
+| **Status** | **PROPOSED — Claude Code, 2026-09-25 (G-106's owner); founder to rule** |
+
+**G-106.** On the audit's turn 1 the coach called `load_skill("dmaic-define-phase")`
+— the phase whose script v1.71 already places in the system message — a whole
+model call for text it had. **Done when:** `load_skill` for the phase being
+coached returns at once, naming the delivered script's version and hash,
+without a second copy entering the conversation.
+
+---
+
 ## Step 6.50 — The conformance pass — the tree against the framework's own documentation
 
 | | |
@@ -6448,10 +6583,10 @@ contradiction middleware quoted as deleted. **(C) A GENERATED STEP BOARD**, in
 |---|---|---|
 | **DONE** | 55 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.21**, **6.19**, **6.20**, **6.34**, **6.33**, **6.35**, **6.42**, **6.49**, **6.46**, **6.52**, **6.54**, **6.48**, **6.57**, **6.25**, **6.26**, **6.27**, **6.31**, **6.36**, **6.37**, **6.39**, **6.40**, **6.38**, **6.41** |
 | **BUILDING NOW** | 1 | **10.0** — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
-| **BLOCKED** | 9 | **6.14** (BLOCKED), **6.10** (BLOCKED), **6.56** (GATED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
-| **QUEUED** | 34 | **6.43**, **10.3**, **6.51**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.47**, **10.4**, **6.50**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
+| **BLOCKED** | 10 | **6.14** (BLOCKED), **6.10** (BLOCKED), **6.56** (GATED), **6.53** (GATED), **8.4** (BLOCKED), **8.5** (GATED), **9.0** (EXTERNAL), **9.1** (EXTERNAL), **9.2** (EXTERNAL), **6.22** (EXTERNAL) |
+| **QUEUED** | 38 | **6.43**, **10.3**, **6.51**, **8.0**, **6.44**, **7.3**, **7.7**, **10.2**, **7.1**, **7.2**, **7.8**, **7.9**, **7.4**, **7.0**, **7.5**, **7.6**, **8.1**, **6.45**, **6.47**, **10.4**, **6.50**, **8.2**, **6.58**, **6.59**, **6.60**, **8.3**, **8.6**, **8.7**, **10.1**, **6.17**, **6.23**, **11.1**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **11.2** |
 
-*99 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-25.*
+*104 rows. DONE is git history — the `refactor(arch-v2): commit X.Y` subjects, intersected with this table, so a step that landed under another subject is not counted. BLOCKED is Appendix D's status column, the only thing git cannot say. Regenerated 2026-09-25.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -6767,6 +6902,7 @@ restate, which is the opposite of what the board is for.
 | 380 | **Commit 10.2** | Live gate document + conflict panel |  | UI | SHARED | A Belt cannot see the document being built, so the gate is the first time anyone looks at it whole. |
 | 390 | **Commit 7.1** | `DMAICGateValidator` + Layer 2b |  | GATE | SHARED | Nothing checks a gate document against its phase's rules, so a gate passes on presence rather than on correctness. |
 | 400 | **Commit 7.2** | Layers 2c, 2d + `validation_stack` |  | GATE | SHARED | Cross-phase consistency and statistical validity go unchecked, so Measure can contradict Define and both pass. |
+| 406 | **Commit 7.9** | Define end to end, on one fresh case |  | GATE | SHARED | No run has ever taken one case through Define and closed its gate, so every green row is proven on a different case. |
 | 405 | **Commit 7.8** | The gate steps that consume validation results |  | GATE | SHARED | The nine-step gate stops at the pause: nothing presents the advisory, the rubric verdict or the tier split to the Belt. |
 | 410 | **Commit 7.4** | Two tiers + `warning` verdict |  | GATE | SHARED | Every finding blocks equally, so a missing nice-to-have stops a project exactly as a missing baseline does. |
 | 420 | **Commit 7.0** | The evaluation suite |  | GATE | SHARED | Coaching quality has no baseline, so no later change can be shown to have improved or regressed it. |
@@ -6782,6 +6918,10 @@ restate, which is the opposite of what the board is for.
 | 472 | **Commit 6.49** | The checks card — twelve capability rows get the check that proves them |  | OPS | SHARED | Twelve rows of the register are claims: nobody can say whether a checkpoint is written per node, or whether a Define turn leaves a readable trace. |
 | 474 | **Commit 6.52** | A turn always answers inside its budget |  | COACH | SHARED | A Belt who asks an open question gets a 500 after 45 seconds, because the node's own budget starts late and the knowledge lookups hold the event loop so no timer can fire. |
 | 476 | **Commit 6.54** | The clients are built once, at startup, before any Belt waits for them |  | COACH | SHARED | The first open question after a restart spends ~20 s building clients the app could have built before it opened, and the Belt gets the out-of-time answer. |
+| 483 | **Commit 6.58** | A percent convention for the computation tools |  | COACH | SHARED | A savings figure 100× too large reaches the Belt, because a tool reads 23% as 23. |
+| 484 | **Commit 6.59** | The coherence judge rules on the Belt's words, not the coach's |  | COACH | SHARED | Four turns in six are marked as parroting and go ungraded, though none repeats the Belt. |
+| 485 | **Commit 6.53** | A coherence rejection asks the coach again | GATED | COACH | SHARED | A rejected reply goes to the Belt unchanged, and the judge is told the coach will retry when it will not. |
+| 486 | **Commit 6.60** | The script already delivered is not fetched again |  | COACH | SHARED | The first turn of a phase spends a model call fetching a script the coach already has. |
 | 482 | **Commit 6.56** | The coaching proof: positions 1–8 of Define, one traced run | GATED | OPS | SHARED | Seven capability rows describe how the coach teaches, and none can be marked, because no traced run has walked a case through the positions they describe. |
 | 481 | **Commit 6.57** | The Belt's step is computed, not counted by the model |  | COACH | SHARED | The Belt is told they are on step 13 of 13 of a twelve-step walk, because the only count the coach was given was the gate's. |
 | 477 | **Commit 10.4** | The error contract — a failed turn is readable |  | UI | SHARED | A failed turn reaches the Belt as a stack fragment in a three-second toast, with no way to tell a timeout from a rate limit. |
@@ -6983,10 +7123,10 @@ home.**
 
 | Layer | Order | Zone | Step | Fact — what the § specifies | State | Symbol | § |
 |---|---|---|---|---|---|---|---|
-| L1 |  | — | **10.0** | The coaching turn’s output reaches the Belt — four blocks and the grader’s warning | ☐ | `absent: backend.gateway.schemas::CoachingBlocks` | §50.1, §49, S-C05 |
-| L1 | 2 | UI | **10.3** | The workspace reads the v2 field names, and progress counts them | ☐ | — | §50, §50.1, §39.1.2, G-71 |
+| L1 | 1 | — | **10.0** | The coaching turn’s output reaches the Belt — four blocks and the grader’s warning | ☐ | `absent: backend.gateway.schemas::CoachingBlocks` | §50.1, §49, S-C05 |
+| L1 | 7 | UI | **10.3** | The workspace reads the v2 field names, and progress counts them | ☐ | — | §50, §50.1, §39.1.2, G-71 |
 | L1 |  | — | **10.2** | Live gate document + conflict panel | ☐ | `absent: repo:agent-improve/ui/gate_document.js` | §50, §43.4 |
-| L1 |  | UI | **10.4** | The error contract — a failed turn is readable | ☐ | — | §4.8, §12.3, §49, G-70 |
+| L1 | 8 | UI | **10.4** | The error contract — a failed turn is readable | ☐ | — | §4.8, §12.3, §49, G-70 |
 | L1 |  | UI | **10.1**, **7.3** | **11 routes are served; this section's table names 4 of them** — `POST /ask`, `GET /cases/{id}`, `GET /registry`, `POST /upload`. **Seven are in the tree and in no ratified table** (**G-47**), and **five table rows are unbuilt**: `/ask/stream` (step 10.1), `/gate/approve` and `/gate/reject` (step 7.3, which has no `interrupt()` to resume from), `GET /cases`, and `/gate/submit` in the three-route shape this table ratifies. **Corrected 2026-09-11:** this line read *"11 of 12 routes exist … names 8 of the 11 — six are in the tree and in no ratified table"*, and **8 + 6 = 14 against 11 built routes**, so the marker contradicted itself; neither figure was derivable and the `12` traced to nothing. `verify_built.py` now pins the route SET, not the count, so the named/unnamed split is re-derived rather than restated | ⚠️ | `repo:agent-improve/backend/gateway/routes.py` | §49 |
 | L1 |  | UI | **6.19** | **these four fields do not exist** (**G-50**) | ☐ | — | §50.1 |
 | L1 |  | UI | — | **S-C36** · `CitationRecord` and `CitationBundle` | — | — | §65.1 |
@@ -7053,14 +7193,18 @@ home.**
 | L3 |  | — | **6.20** | The write paths — `computation_results`, `phase_metrics`, `field_index` | ☐ | `backend.phases.nodes_common::_advance_field_index` | §7, §39.x.7, S-C02, S-C03 |
 | L3 |  | — | **6.33** | The capture path accumulates — a field survives the next turn, and the field change log records what it said before | ✅ | `backend.phases.mappers_common::captured_for_phase` | §6, §7, §11, §20, S-F04 |
 | L3 |  | — | **6.42** | The gate document records what Define established | ☐ | — | §33, §40, §50, S-F07, S-F28 |
-| L3 |  | — | **6.43** | The coach can read an uploaded document | ☐ | — | §29.1, §32, S-F57, G-82 |
-| L3 | 1 | — | **6.51** | The baseline and the target are values Control can compare | ☐ | — | §7, §39.1.2, §63.1 |
-| L3 | 3 | — | **6.44** | The contradiction stop moves from middleware into a node | ☐ | — | §37, §19.6, S-C10, G-15, G-89 |
-| L3 |  | — | **6.45** | The planner decides on field completeness | ☐ | — | §17, §39.1.2, S-F13 |
+| L3 | 9 | — | **6.43** | The coach can read an uploaded document | ☐ | — | §29.1, §32, S-F57, G-82 |
+| L3 | 6 | — | **6.51** | The baseline and the target are values Control can compare | ☐ | — | §7, §39.1.2, §63.1 |
+| L3 | 10 | — | **6.44** | The contradiction stop moves from middleware into a node | ☐ | — | §37, §19.6, S-C10, G-15, G-89 |
+| L3 | 5 | — | **6.45** | The planner decides on field completeness | ☐ | — | §17, §39.1.2, S-F13 |
 | L3 |  | — | **6.46** | The coaching script is guaranteed to reach the model, or its absence is recorded | ✅ | `backend.tests.test_coaching_script::test_step_log_records_that_the_script_was_delivered` | §32, §19.2, S-C12 |
 | L3 |  | — | **6.47** | Durable writes inside a node, and persistence loss is never silent | ☐ | — | §10, §16, §47, S-C06 |
 | L3 |  | — | **6.48** | A captured value carries its declared type | ☐ | — | §7, §20, §41, S-C05, S-C33 |
-| L3 |  | — | **6.56** | The coaching proof: positions 1–8 of Define, one traced run | ☐ | — | §43.1–§43.7, §22, §51 |
+| L3 | 3 | — | **6.58** | A percent convention for the computation tools | ☐ | — | §69.1, §69.2, §60.6 |
+| L3 | 2 | — | **6.59** | The coherence judge rules on the Belt's words, not the coach's | ☐ | — | §19.7, §19.8, S-C13 |
+| L3 |  | — | **6.53** | A coherence rejection asks the coach again | ☐ | — | §19.7, §34.2, S-C13 |
+| L3 |  | — | **6.60** | The script already delivered is not fetched again | ☐ | — | §19.2, §32, S-C12 |
+| L3 | 4 | — | **6.56** | The coaching proof: positions 1–8 of Define, one traced run | ☐ | — | §43.1–§43.7, §22, §51 |
 | L3 |  | — | **6.57** | The Belt's step is computed, not counted by the model | ✅ | `backend.tests.test_define_position::test_the_reply_carries_the_computed_step_not_the_models_count` | §43.3, §39.1.2, §39.1.9, §19.1 |
 | L3 |  | PHASE | — | **the typing law is enforced by schema, not by convention** — all five `{Phase}Output` declare captured fields as `str` or `dict`, and `test_gate_documents.py` pins both the `dict` fields and their Tier-1 placement | ✅ | — | §7 |
 | L3 |  | PHASE | **7.3** | five nodes, identical node-name sets across all five phases, re-run by `verify_built.py`'s *phase subgraph nodes* check. ⚠ `gate_review` is a pass-through until 7.3 | ✅ | — | §13 |
@@ -7222,14 +7366,15 @@ home.**
 | Layer | Order | Zone | Step | Fact — what the § specifies | State | Symbol | § |
 |---|---|---|---|---|---|---|---|
 | L7 |  | — | **3.4** | `{Phase}Output` schemas + validators + UI | ✅ | `backend.phases.define.schema::DefineOutput` | §7, §40, §41, §53.1 |
-| L7 | 4 | — | **7.3** | Nine-step HITL gate | ☐ | `backend.phases.nodes_common::gate_review` | §33 |
-| L7 | 5 | — | **7.7** | The approve endpoint | ☐ | — | §33, §49, S-F34 |
-| L7 |  | — | **7.1** | `DMAICGateValidator` + Layer 2b | ☐ | `absent: backend.validation.gate_validator::DMAICGateValidator` | §34, §35 |
-| L7 |  | — | **7.2** | Layers 2c, 2d + `validation_stack` | ☐ | `absent: backend.validation.stack::validation_stack` | §34, §36 |
-| L7 |  | — | **7.8** | The gate steps that consume validation results | ☐ | — | §33, §34, §35, S-F27 |
-| L7 |  | — | **7.4** | Two tiers + `warning` verdict | ☐ | `absent: backend.validation.tiers::WARNING` | §35 |
+| L7 | 13 | — | **7.3** | Nine-step HITL gate | ☐ | `backend.phases.nodes_common::gate_review` | §33 |
+| L7 | 14 | — | **7.7** | The approve endpoint | ☐ | — | §33, §49, S-F34 |
+| L7 | 11 | — | **7.1** | `DMAICGateValidator` + Layer 2b | ☐ | `absent: backend.validation.gate_validator::DMAICGateValidator` | §34, §35 |
+| L7 | 12 | — | **7.2** | Layers 2c, 2d + `validation_stack` | ☐ | `absent: backend.validation.stack::validation_stack` | §34, §36 |
+| L7 | 18 | — | **7.9** | Define end to end, on one fresh case | ☐ | — | §39.1, App. H |
+| L7 | 17 | — | **7.8** | The gate steps that consume validation results | ☐ | — | §33, §34, §35, S-F27 |
+| L7 | 15 | — | **7.4** | Two tiers + `warning` verdict | ☐ | `absent: backend.validation.tiers::WARNING` | §35 |
 | L7 |  | — | **7.0** | The evaluation suite | ☐ | `absent: backend.evals` | §52 |
-| L7 |  | — | **7.5** | Escalation | ☐ | `absent: backend.phases.escalate_v2::escalate` | §38 |
+| L7 | 16 | — | **7.5** | Escalation | ☐ | `absent: backend.phases.escalate_v2::escalate` | §38 |
 | L7 |  | — | **7.6** | The re-approval cascade | ☐ | `absent: backend.validation.cascade::reopen_field` | §37, §9.5 |
 | L7 |  | GATE | **7.3** | **nothing pauses for a human — and since 2026-09-11 that is a RULING, not an oversight** · **the GATE interrupt is not built** — the `gate_review` node exists and passes through, and raises `interrupt()` at step 7.3. That is why `gate_attempts` cannot accumulate (WATCH 18), the supervisor graph is not yet the runtime (WATCH 23) and §47's reconciliation sweep cannot be written (WATCH 13). | ☐ | — | §33 |
 | L7 |  | GATE | **7.2** | Layer 2a is live as `CoherenceMiddleware` and Layer 2b delegates to the v1 `validate_{phase}`; Layers 2c and 2d are step 7.2. **`GATE_MAX_ATTEMPTS=3` cannot fire**: with no `interrupt()` the subgraph reruns from the mapper each turn, so every submission reports attempt 1 (WATCH 18) | ⚠️ | — | §34 |
@@ -7309,6 +7454,50 @@ home.**
 | L8 |  | OPS | — | **S-F32** · `delete_or_flag_stale_in_case_index` | — | — | §64.6 |
 | L8 |  | OPS | — | **S-F33** · `degraded_coaching_response` node | — | — | §64.7 |
 ---
+
+### The Define path — estimate and epic (founder, 2026-09-25)
+
+**Priority is the `Order` column above; dependency is each step's own card.**
+Founder ruling 2026-09-25: *"Card wins on every Depends-on … Depends-on = card
+only. Priority = Appendix F Order column."* So this table carries only what
+neither place holds — the estimate, in working days, and the epic from
+`tools/control_board/stories.py` (*proposed* where `stories.py` does not yet
+list the step). **Off the path:** 10.1, 10.2 (the gate screen), 6.53 (gated),
+6.60.
+
+| Step | Estimate (days) | Epic |
+|---|---|---|
+| **10.0** | 3 | E4 |
+| **6.59** | 2 | E2 *(proposed)* |
+| **6.58** | 1 | E2 *(proposed)* |
+| **6.56** | 1 | E2 *(proposed)* |
+| **6.45** | 2 | E4 |
+| **6.51** | 3 | E1 |
+| **10.3** | 2 | E1 |
+| **10.4** | 2 | E4 |
+| **6.43** | 2 | E4 |
+| **6.44** | 2 | E1 |
+| **7.1** | 3 | E4 |
+| **7.2** | 3 | E4 |
+| **7.3** | 4 | E1 |
+| **7.7** | 1 | E1 |
+| **7.4** | 2 | E5 |
+| **7.5** | 2 | E4 |
+| **7.8** | 2 | E4 |
+| **7.9** | 2 | E1 *(proposed)* |
+
+**Founder inputs — milestones, not slips.** A step waiting on one shows as
+waiting, never as late.
+
+| Milestone | What | Blocks |
+|---|---|---|
+| **G-23** | The gate validator's return shape | 7.1 |
+| **G-40 (F1)** | The Define rubric text | 7.2 |
+| **Latency** | The latency ruling — question and options on 6.53's card | 6.53 |
+| **F2** | The gate screen design | 10.2 (off the path) |
+
+**Done, off the step list:** the coherence audit — `IMPR-2026-AD5`, six turns,
+0 traces, 2026-09-25. Its findings are G-102 to G-106.
 
 ## Appendix G — The SPEC-GAP register
 
@@ -7442,6 +7631,11 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-99** | **LAYER 2a REJECTS A STOCK-TAKING SUMMARY AS "PARROTING" AT THE TEACHING STEP.** 2026-09-24 15:05, 0E5, trace `01a0d3f3-6f67-7100-b04d-214e7fe1f720` (first turn in process: yes): the Belt asked where the charter stands; the coach summarised the charter — values the Belt gave on EARLIER turns — and named what to push on. Coherence (with G-96's step context: position 5, `metric_definitions`, explain/show/ask — the planner's focus) answered *"primarily a restatement of the Belt's words … constitutes parroting"*, degraded the turn and stood the grader down. **G-96's record worked** — the reason is in `step_log` — but row 13 is red on any such turn. The ruling's definition (a restatement with no confirmation question and nothing added) arguably fits a summary; whether a stock-take is a step of its own is a founder question | §19.7, §43.3, S-C13 | **unscheduled — founder** |
 | **G-100** | **`calculate_expected_savings` READS "23%" AS 23 AND RETURNS A SAVING 100× TOO LARGE.** Dry runs of the 6.56 driver, 2026-09-25 (untraced): baseline 23%, target 5%, £9 per late invoice, 42,000 invoices a year — both runs recorded **£6,804,000**; the right figure is 18% × 42,000 × £9 = **£68,040**. The coach passed `"23"`/`"5"` (IMPR-2026-206) and `"23%"`/`"5%"` (IMPR-2026-134). **D0, the tool called directly, no model:** `"23%"`/`"5%"` → 6804000; `"23"`/`"5"` → 6804000; `"0.23"`/`"0.05"` → 68040. **The layer is the TOOL:** `_num` (`knowledge/computation.py`) drops a `%` without rescaling, by design — *"a bare `%` does not change the value, because whether the Belt is working in percent or in fractions is their unit choice and the tool must not silently rescale it"* — and then multiplies a percentage-point gap by a unit count, which is a guess about units that §60.6 B3 forbids: *"unable to parse its input — return a clear reformatting request to the Belt rather than raising or guessing"*. §69.1 binds all twenty: *"each tool parses what it needs at the point of use and — per §60.6 B3 — returns a clear reformatting request rather than raising or guessing when it cannot"*. §69.2 S-F37 states the inputs and *"states the multiplication used"* but no percent convention, so the gap is in the SPEC as well as the code. **Secondary:** the coach passed bare numbers on one run (the % already gone), and relayed £6.8M for a £62,000-a-year problem without comment — and ran it without teaching the concept first (§43.1 step 1; row 26). **Also seen:** every `computation_results` row carries `"turn": 0` | §69.1, §69.2 S-F37, §60.6 B3, §43.1 | **proposed: step 6.58 — a percent convention for the computation tools (§69.1 amendment, `_num`, S-F37), founder** |
 | **G-101** | **`init_tracing()` IGNORES `LANGSMITH_TRACING=false` — AN OPERATOR CANNOT START THE APP UNTRACED.** `core/tracing.py:44` reads only whether a key exists (`api_key = (settings.LANGCHAIN_API_KEY or "").strip()`); with one, `:61` sets `os.environ["LANGCHAIN_TRACING_V2"] = "true"` for the whole process, and `app.py:74` calls it at startup. No tracing switch the operator sets — `LANGSMITH_TRACING`, `LANGCHAIN_TRACING_V2`, `LANGSMITH_TRACING_V2` — is read first, so `LANGSMITH_TRACING=false uvicorn …` still traces every turn. **Found 2026-09-25 building the 6.56 driver** (read in the code, not by a traced run — no trace was spent proving it): the driver's dry runs had to run the app IN-PROCESS with `conftest._no_tracing`'s switch to be untraced. **Why it matters now:** tracing is on a capped budget (founder, 2026-09-24: $10/month) and the only way to run the server untraced is to remove the API key. G-95's row already flagged the legacy name for 6.50 (*"`init_tracing` sets the legacy `LANGCHAIN_TRACING_V2`; the documented name is `LANGSMITH_TRACING`"*); this is the other half — it OVERRIDES an explicit off | §51, G-95 | **unscheduled — founder** |
+| **G-102** | **THE GRADER READS ONLY `message`.** `grader.py` `_coach_text` returns `CoachingResponse.message` alone, so the judge of the coach's process never sees `explanation`, `example` or `prompt`. Coherence audit, `IMPR-2026-AD5` (0 traces): turns 2 and 6 failed *"show a concrete example"* with an example in the `example` block | §19.8, S-C14 | **6.59** |
+| **G-103** | **`grader_warning` IS READ BY NOTHING.** `DMAICGraderMiddleware` returns `{"grader_warning": MAX_ITERATIONS_WARNING}` on a FAIL (`grader.py`); no route, node or UI reads the key — the *"Belt-visible warning"* of §19.8 is invisible | §19.8, §50.1 | **10.0** |
+| **G-104** | **THE COHERENCE PROMPT CLAIMS A RETRY THAT DOES NOT EXIST.** `_PROMPT` tells the judge *"the coach retries on that feedback"*; `coherence.py` checks once (`self.attempts = 1`) and `max_retries` is never used. Row 12 records the same absence | §19.7, S-C13 B2 | **6.53** |
+| **G-105** | **THE PLANNER IS A TURN LATE ON WEAK ANSWERS.** Audit turn 3: the Belt answered *"A few people from finance will help out."* and the plan said `next_action: ask for it`; turn 4 — the full answer — was planned as *"challenge a weak answer"*. The coach did not challenge the weak answer (row 31) | §17, S-F13 | **6.45** |
+| **G-106** | **THE COACH FETCHES THE SCRIPT IT ALREADY HAS.** Audit turn 1: a model call to `load_skill("dmaic-define-phase")` although v1.71 places that script in the system message on every call | §19.2, §32, S-C12 | **6.60 (proposed)** |
 
 ### 66.3 Group C — schemas named but never defined
 
@@ -7906,20 +8100,12 @@ tree audit at `208e4a7`.
 > the two boards disagreeing. It closes when `Order` is computed from rank, or
 > checked against it at the commit gate.
 
-### The run of work, as ruled 2026-09-23
+### The run of work — superseded 2026-09-25
 
-Transcribed from the ruling. `Order` in Appendix F and rank in `stories.py`
-both match it.
-
-| Order | Step | |
-|---|---|---|
-| 1 | **6.49** | The checks card — ✅ landed 2026-09-24; leaves `Order` |
-| 2 | **6.51** | The baseline card |
-| 3 | **6.46** | The coaching script reaches the model, or its absence is recorded |
-| 4 | **10.3** | The workspace reads the v2 field names |
-| 5 | **6.44** | The contradiction stop moves into a node |
-| 6 | **7.3** | The gate pauses, and the pause is resumable |
-| 7 | **7.7** | The approve endpoint |
+**The 2026-09-23 transcription that stood here is withdrawn.** The run of
+work is Appendix F's `Order` column (founder ruling 2026-09-25: 10.0, 6.59,
+6.58, 6.56, 6.45, 6.51, 10.3, 10.4, 6.43, 6.44, 7.1, 7.2, 7.3, 7.7, 7.4, 7.5,
+7.8, 7.9). A second copy here is what the 8D of 2026-09-25 found drifting.
 
 **6.42 and everything before it has landed**, which is why the run starts here.
 

@@ -1298,7 +1298,7 @@ CHECKS = [
      "fall since this bound was split**, which is what 6.41 said the number "
      "existed to make possible"),
 
-    ("facts with nothing to anchor to — ratified, unbuilt", "28",
+    ("facts with nothing to anchor to — ratified, unbuilt", "34",
      facts_with_nothing_to_anchor,
      "Appendix F · step 6.41 — G-87. ☐ means something does NOT exist, so the "
      "em dash is the honest cell. **A rise here is normal** and means the "
@@ -1314,7 +1314,10 @@ CHECKS = [
      "landed and anchors to its row-33 check; 29 → 30 the same day: "
      "step 6.52, a turn always answers inside its budget (G-92); 30 → 29 "
      "when 6.52 landed and anchored to its step_log check; 29 → 28 when "
-     "6.46 landed, anchored to its coaching_script check"),
+     "6.46 landed, anchored to its coaching_script check; 28 → 29 on "
+     "2026-09-25: step 6.56 registered (its commit 34e8032 did not move this "
+     "pin — found at the Part 1 registration); 29 → 34 the same day: 6.58, "
+     "6.59, 6.53, 6.60 and 7.9 registered, founder rulings 2026-09-25"),
 
     ("facts never assessed against the tree", "96",
      facts_unassessed,
