@@ -9,7 +9,7 @@
 |---|---|
 | **Headline** | 14 of 35 capabilities proven · working on: 6.59 — The coherence judge rules on the Belt's words, not the coach's |
 | **Working on** | step **6.59** — The coherence judge rules on the Belt's words, not the coach's |
-| **Define finishes (7.9)** | 2026-10-26 · conditional on G-23, G-40 (F1) · rescaled ×0.73 from 4 landed step(s) |
+| **Define finishes (7.9)** | 2026-10-23 · conditional on G-23, G-40 (F1) · rescaled ×0.53 from 5 landed step(s) |
 | **Steps** | 4 proven · 4 wired · 3 tooling · 47 built, not wired · 10 waiting · 41 not built |
 | **ARCHITECTURE.md** | v1.77 |
 | **CLAUDE.md** | v2.2.44 |

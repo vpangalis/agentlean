@@ -88,13 +88,14 @@ class PhaseState(TypedDict):
     history:            Annotated[list[str], operator.add]
     phase_context:      str                # composed at the boundary — §10.2
 
-    # the seventeen content fields
+    # the eighteen content fields
     coaching_plan:      Optional[CoachingPlan]  # ONE typed plan per planner turn
     field_index:        int                # field within the phase
     draft:              dict[str, Any]     # this turn's extraction
     artifacts:          dict[str, Any]     # accumulated for the phase — SEEDED
     step_log:           Annotated[list[dict[str, Any]], operator.add]
     field_log:          Annotated[list[dict[str, Any]], merge_field_log]
+    field_status:       dict[str, dict[str, Any]]  # where each field stands — §56 v1.77
     belt_edits:         dict[str, Any]     # Belt corrections at the gate
     turn_count:         int
     final:              dict[str, Any]     # approved gate document — §9.6
@@ -111,8 +112,15 @@ class PhaseState(TypedDict):
     remaining_steps:    RemainingSteps     # recursion_limit − steps taken
 ```
 
-**Twenty-two author-populated fields — two identity, three plumbing, seventeen
-content — plus one engine-managed value, twenty-three declared.**
+**Twenty-three author-populated fields — two identity, three plumbing, eighteen
+content — plus one engine-managed value, twenty-four declared.**
+
+**`field_status` is where each field stands, STORED** — §56 amendment v1.77,
+ruling R5 (2026-09-25), built at step 6.61. Four statuses per field, every one
+starting `not taught`: not taught → asked → answered (the Belt's words held
+pending; awaiting confirmation = answered and read back) → confirmed (stored).
+The current field is the first not confirmed. **Only code changes a status, at
+turn end** — never derived from the previous reply's record.
 
 > **Two of those three figures were already stale before `asks` was added, and
 > the block above was right the whole time.** This caption read *"Nineteen …
