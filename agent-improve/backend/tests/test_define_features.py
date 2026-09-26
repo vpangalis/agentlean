@@ -2,8 +2,8 @@
 
 The list (`docs/define_features.json`) is what must be true; its status comes
 ONLY from test results. Pinned here:
-  - the shape: ids unique, depends_on resolve, every test named, the five
-    clauses, NO status field;
+  - the shape: ids unique, depends_on resolve, every test exists, the five
+    clauses, NO status field; code citations are path::symbol and resolve;
   - STATUS: derived from test-results.json and nothing else, both ways;
   - LANDING (the commit guard's rule 11): a commit naming DEF-xxx lands only
     when that feature's test and every depends_on feature's test pass — refused
@@ -29,7 +29,7 @@ sys.path.insert(0, str(_TOOLS))
 
 import features as F  # noqa: E402
 
-FIELDS = {"id", "description", "clause", "depends_on", "test", "sources", "lane", "covers"}
+FIELDS = {"id", "description", "clause", "depends_on", "test", "sources", "lane", "provenance"}
 CLAUSES = {"A Belt is coached through the twelve fields",
            "what they say is kept and every change is dated",
            "a complete case ASSEMBLES a gate document",
@@ -59,6 +59,22 @@ def test_ids_are_unique_and_every_dependency_resolves(feats) -> None:
 
 def test_the_clauses_are_the_five_of_define_complete(feats) -> None:
     assert {f["clause"] for f in feats} == CLAUSES
+
+
+def test_every_features_test_exists(feats) -> None:
+    """Part C: every named test node id exists (a stub that fails counts — it exists)."""
+    import citations
+    tracked = citations._tracked()
+    bad = [(f["id"], f["test"]) for f in feats
+           if citations.resolves("agent-improve/" + F.node_id(f["test"]), tracked)]
+    assert not bad, bad
+
+
+def test_every_code_citation_is_path_symbol_and_resolves_at_HEAD(feats) -> None:
+    """Part C: no line numbers, no status words; every path and symbol exists."""
+    import citations
+    bad = [b for b in citations.check(feats) if not b[2].startswith("test ")]
+    assert not bad, bad
 
 
 # ── status ──────────────────────────────────────────────────────────────────
@@ -138,7 +154,7 @@ def _repo(tmp_path: Path, outcome: str, ratchet: list[str] | None = None) -> Pat
     docs.mkdir(parents=True)
     shutil.copy(_TOOLS / "features.py", tools / "features.py")
     feat = {"id": "DEF-900", "description": "d", "clause": "c", "depends_on": [], "lane": "A",
-            "test": "backend/tests/test_x.py::test_x", "sources": {}, "covers": {}}
+            "test": "backend/tests/test_x.py::test_x", "sources": {}, "provenance": {}}
     (docs / "define_features.json").write_text(json.dumps({"features": [feat]}), encoding="utf-8")
     (docs / "test-results.json").write_text(json.dumps(
         {"outcomes": {"backend/tests/test_x.py::test_x": outcome}}), encoding="utf-8")

@@ -1,5 +1,5 @@
 {
- "_about": "Define's feature list — step 6.66, founder ruling 2026-09-25 (ARCHITECTURE.md v1.78). Anthropic's long-running-harness pattern: ONE list; a feature passes only when its end-to-end test passes. There is NO status field — status is derived from docs/test-results.json by tools/control_board/features.py. Derived from four sources, cited per feature: ARCHITECTURE.md, the procedure (steps, Appendix G gaps, Appendix H capability rows), the code, and Anthropic/LangChain guidance. 'covers' is what backend/tests/test_define_features.py holds the list to. Lanes: A coaching, B gate, C screen and inputs, integrator end-to-end joins. Edit a feature's description, test or sources in place; never add a status.",
+ "_about": "Define's feature list — step 6.66, founder ruling 2026-09-25 (ARCHITECTURE.md v1.78). Anthropic's long-running-harness pattern: ONE list; a feature passes only when its end-to-end test passes. There is NO status field — status is derived from docs/test-results.json by tools/control_board/features.py. Derived from four sources, cited per feature: ARCHITECTURE.md, the procedure (steps, Appendix G gaps, Appendix H capability rows), the code, and Anthropic/LangChain guidance. 'provenance' records the procedure steps, capability rows and gaps each feature was derived from (6.66), and as notes_6_66 the prose absence-claims the draft carried as code citations; code citations are path::symbol, checked by tools/control_board/citations.py. Lanes: A coaching, B gate, C screen and inputs, integrator end-to-end joins. Edit a feature's description, test or sources in place; never add a status.",
  "features": [
   {
    "id": "DEF-001",
@@ -20,16 +20,15 @@
      "G-67 (form shows an id that is discarded)"
     ],
     "code": [
-     "agent-improve/backend/gateway/routes.py:203 — built (create_case; id = uuid4()[:3])",
-     "agent-improve/backend/gateway/routes.py:1540 — built (GET /cases/{case_id})",
-     "agent-improve/backend/tests/test_capability_rows.py::test_row_1_a_case_can_be_created_and_opened — reads live case, passed"
+     "agent-improve/backend/gateway/routes.py",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_1_a_case_can_be_created_and_opened"
     ],
     "guidance": [
      "https://fastapi.tiangolo.com/tutorial/testing/"
     ]
    },
    "lane": "integrator",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.49"
     ],
@@ -64,16 +63,16 @@
      "Step 6.49"
     ],
     "code": [
-     "agent-improve/backend/gateway/routes.py:643 — wired (ask)",
-     "agent-improve/backend/phases/nodes_common.py:600 — built (EXECUTOR_SOFT_BUDGET = 40.0)",
-     "agent-improve/backend/tests/test_capability_rows.py::test_row_2_a_turn_returns_a_coached_reply — SKIPPED in CI (opt-in CAPABILITY_LIVE_TURN=1)"
+     "agent-improve/backend/gateway/routes.py",
+     "agent-improve/backend/phases/nodes_common.py::EXECUTOR_SOFT_BUDGET",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_2_a_turn_returns_a_coached_reply"
     ],
     "guidance": [
      "https://fastapi.tiangolo.com/tutorial/testing/"
     ]
    },
    "lane": "integrator",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.49",
      "6.52",
@@ -104,15 +103,15 @@
      "Step 6.47 (durable writes inside a node)"
     ],
     "code": [
-     "agent-improve/backend/core/graph.py:362 — built (_persistence)",
-     "agent-improve/backend/tests/test_capability_rows.py::test_row_33_a_checkpoint_is_written_after_every_node — passed (live case)"
+     "agent-improve/backend/core/graph.py::_persistence",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_33_a_checkpoint_is_written_after_every_node"
     ],
     "guidance": [
      "https://docs.langchain.com/oss/python/langgraph/use-subgraphs"
     ]
    },
    "lane": "integrator",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.49",
      "6.47"
@@ -142,15 +141,15 @@
      "Step 6.49"
     ],
     "code": [
-     "agent-improve/backend/tests/conftest.py:377 — built (_count_tracing_calls guard)",
-     "agent-improve/backend/tests/conftest.py:393 — built (_no_tracing switch)",
-     "agent-improve/backend/core/tracing.py:44 — built, defect G-101 (reads only the key)",
-     "agent-improve/scripts/coaching_proof_656.py:112 — built (_tracing_off outside pytest)"
+     "agent-improve/backend/tests/conftest.py",
+     "agent-improve/backend/tests/conftest.py::_no_tracing",
+     "agent-improve/backend/core/tracing.py::init_tracing",
+     "agent-improve/scripts/coaching_proof_656.py::_tracing_off"
     ],
     "guidance": []
    },
    "lane": "integrator",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.49"
     ],
@@ -185,16 +184,16 @@
      "CLAUDE.md §21"
     ],
     "code": [
-     "agent-improve/backend/phases/moves.py:222 — wired (decide; NOT_TAUGHT -> TEACH)",
-     "agent-improve/backend/tests/test_wiring.py::test_wired_6_61_the_move_is_decided_in_code — passed (route+graph, fakes)",
-     "agent-improve/backend/tests/test_wiring.py::test_wired_6_46_the_script_reaches_the_model — passed"
+     "agent-improve/backend/phases/moves.py::decide",
+     "agent-improve/backend/tests/test_wiring.py::test_wired_6_61_the_move_is_decided_in_code",
+     "agent-improve/backend/tests/test_wiring.py::test_wired_6_46_the_script_reaches_the_model"
     ],
     "guidance": [
      "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents"
     ]
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.46",
      "6.61"
@@ -225,13 +224,13 @@
      "Step 6.57 (landed)"
     ],
     "code": [
-     "agent-improve/backend/phases/define/schema.py:113 — wired (define_progress)",
-     "agent-improve/backend/tests/test_wiring.py::test_wired_6_57_the_computed_step_is_recorded — passed"
+     "agent-improve/backend/phases/define/schema.py::define_progress",
+     "agent-improve/backend/tests/test_wiring.py::test_wired_6_57_the_computed_step_is_recorded"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.57"
     ],
@@ -260,15 +259,15 @@
      "CLAUDE.md §21 ('stored only after the Belt confirms it')"
     ],
     "code": [
-     "agent-improve/backend/phases/moves.py:286 — wired (sufficient -> READ_BACK, pending)",
-     "agent-improve/backend/tests/test_wiring.py::test_wired_6_61_nothing_is_stored_before_confirmation — passed (route+graph, fakes)"
+     "agent-improve/backend/phases/moves.py::decide",
+     "agent-improve/backend/tests/test_wiring.py::test_wired_6_61_nothing_is_stored_before_confirmation"
     ],
     "guidance": [
      "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents"
     ]
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61"
     ],
@@ -293,20 +292,22 @@
      "Step 6.61 (ruling R4)"
     ],
     "code": [
-     "agent-improve/backend/gateway/schemas.py:31 — wired (action: confirm|change)",
-     "agent-improve/backend/gateway/routes.py:702 — wired (belt_action into config)",
-     "agent-improve/backend/phases/moves.py:256 — wired (CONFIRM_CLICK -> STORE_AND_ADVANCE)",
-     "no route-level test drives action='confirm' (test_wiring uses a typed yes) — missing"
+     "agent-improve/backend/gateway/schemas.py::AskRequest",
+     "agent-improve/backend/gateway/routes.py::ask",
+     "agent-improve/backend/phases/moves.py::decide"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61"
     ],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [],
+    "notes_6_66": [
+     "no route-level test drives action='confirm' (test_wiring uses a typed yes) — missing"
+    ]
    }
   },
   {
@@ -325,13 +326,13 @@
      "Step 6.61"
     ],
     "code": [
-     "agent-improve/backend/phases/moves.py:174 — wired (is_confirmation)",
-     "agent-improve/backend/tests/test_wiring.py — passed; the qualified-yes half is unit-only (test_moves.py) — missing e2e"
+     "agent-improve/backend/phases/moves.py::is_confirmation",
+     "agent-improve/backend/tests/test_wiring.py"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61"
     ],
@@ -355,14 +356,14 @@
      "Step 6.61 (Change proof)"
     ],
     "code": [
-     "agent-improve/backend/phases/moves.py:273 — wired (CHANGE_CLICK -> CHALLENGE)",
-     "agent-improve/backend/phases/nodes_common.py:1324 — wired (_change_reply, no model)",
-     "agent-improve/ui/index.html:5967 — built (Confirm/Change buttons)"
+     "agent-improve/backend/phases/moves.py::decide",
+     "agent-improve/backend/phases/nodes_common.py::_change_reply",
+     "agent-improve/ui/index.html::Confirm"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61"
     ],
@@ -390,13 +391,13 @@
      "G-105 (planner a turn late on weak answers)"
     ],
     "code": [
-     "agent-improve/backend/phases/moves.py:293 — wired (insufficient -> CHALLENGE)",
-     "agent-improve/backend/phases/nodes_common.py:426 — wired (_judge, the one model judgment)"
+     "agent-improve/backend/phases/moves.py::decide",
+     "agent-improve/backend/phases/nodes_common.py::_judge"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.45",
      "6.61"
@@ -429,12 +430,12 @@
      "G-99 (stock-take rejected as parroting — founder)"
     ],
     "code": [
-     "agent-improve/backend/phases/moves.py:283 — wired (not_an_answer -> RESPOND)"
+     "agent-improve/backend/phases/moves.py::decide"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61"
     ],
@@ -464,13 +465,13 @@
      "Appendix H row 12"
     ],
     "code": [
-     "agent-improve/backend/middleware/coherence.py:170 — built (judges coach_text; defect)",
-     "agent-improve/backend/tests/test_capability_rows.py::test_row_12_vague_answers_are_caught_inside_the_turn — skipped/xfail"
+     "agent-improve/backend/middleware/coherence.py::CoherenceMiddleware.aafter_agent",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_12_vague_answers_are_caught_inside_the_turn"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.59"
     ],
@@ -502,12 +503,12 @@
      "Appendix H row 12"
     ],
     "code": [
-     "agent-improve/backend/middleware/coherence.py:158 — built (attempts reset; max_retries unused, G-104) — missing re-ask"
+     "agent-improve/backend/middleware/coherence.py::CoherenceMiddleware.__init__"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.53"
     ],
@@ -539,13 +540,13 @@
      "G-102"
     ],
     "code": [
-     "agent-improve/backend/middleware/grader.py:252 — built (_coach_text reads message only, G-102)",
-     "agent-improve/backend/tests/test_capability_rows.py::test_row_13_the_coaching_rubric_scores_the_turn — passed (live case)"
+     "agent-improve/backend/middleware/grader.py::DMAICGraderMiddleware._coach_text",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_13_the_coaching_rubric_scores_the_turn"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.52",
      "6.59"
@@ -579,13 +580,13 @@
      "Step 6.56 (the calculation turn)"
     ],
     "code": [
-     "agent-improve/backend/knowledge/computation.py:139 — built (_num, defect G-100)",
-     "agent-improve/backend/knowledge/computation.py:213 — built (calculate_expected_savings)"
+     "agent-improve/backend/knowledge/computation.py::_num",
+     "agent-improve/backend/knowledge/computation.py::calculate_expected_savings"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.58",
      "6.56"
@@ -619,13 +620,13 @@
      "G-35"
     ],
     "code": [
-     "agent-improve/backend/phases/nodes_common.py:1378 — built (_computation_results)",
-     "agent-improve/backend/tests/test_capability_rows.py::test_row_10_calculations_are_recorded — SKIPPED (no calculation turn on 0E5)"
+     "agent-improve/backend/phases/nodes_common.py::_computation_results",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_10_calculations_are_recorded"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.20",
      "6.49"
@@ -658,12 +659,12 @@
      "Step 6.46"
     ],
     "code": [
-     "agent-improve/skills/dmaic-define-phase/SKILL.md — built (METRIC LITERACY block; verify_built.py 5/5)"
+     "agent-improve/skills/dmaic-define-phase/SKILL.md::METRIC"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.46"
     ],
@@ -690,12 +691,12 @@
      "Step 6.46"
     ],
     "code": [
-     "agent-improve/backend/core/prompts.py — built (coaching rules); no check — missing"
+     "agent-improve/backend/core/prompts.py"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.46"
     ],
@@ -727,13 +728,13 @@
      "G-23"
     ],
     "code": [
-     "agent-improve/backend/knowledge/tools.py:657 — missing (check_gate_status not built)",
-     "agent-improve/backend/middleware/state_injection.py:46 — built (injects the gate's missing list instead)"
+     "agent-improve/backend/knowledge/tools.py",
+     "agent-improve/backend/middleware/state_injection.py"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "7.1"
     ],
@@ -767,12 +768,12 @@
      "G-89"
     ],
     "code": [
-     "agent-improve/backend/phases/nodes_common.py:1125 — built (_field_log_entries; reason read, never supplied, G-89)"
+     "agent-improve/backend/phases/nodes_common.py::_field_log_entries"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.44"
     ],
@@ -801,12 +802,12 @@
      "G-110 (unowned — a later step)"
     ],
     "code": [
-     "agent-improve/backend/phases/moves.py:206 — built (current = first not confirmed; no revise move) — missing"
+     "agent-improve/backend/phases/moves.py::current"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [],
     "capability_rows": [],
     "gaps": [
@@ -832,12 +833,12 @@
      "G-106"
     ],
     "code": [
-     "agent-improve/backend/middleware/skills.py:26 — built (load_skill registered by the middleware)"
+     "agent-improve/backend/middleware/skills.py"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.60"
     ],
@@ -866,12 +867,12 @@
      "Step 6.61 Part B"
     ],
     "code": [
-     "agent-improve/scripts/move_proof_661.py:271 — built (_part_b, runs per situation)"
+     "agent-improve/scripts/move_proof_661.py::_part_b"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61"
     ],
@@ -896,12 +897,12 @@
      "Step 6.61"
     ],
     "code": [
-     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 1: business_case)"
+     "agent-improve/backend/phases/define/schema.py::DEFINE_REQUIRED_FIELDS"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61"
     ],
@@ -928,13 +929,13 @@
      "Appendix H row 18"
     ],
     "code": [
-     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 2: team)",
-     "agent-improve/backend/tests/test_declared_types.py::test_row_18_captured_values_carry_their_declared_type — passed (live case)"
+     "agent-improve/backend/phases/define/schema.py::DEFINE_REQUIRED_FIELDS",
+     "agent-improve/backend/tests/test_declared_types.py::test_row_18_captured_values_carry_their_declared_type"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61",
      "6.48"
@@ -962,12 +963,12 @@
      "Step 6.61"
     ],
     "code": [
-     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 3: voc_summary)"
+     "agent-improve/backend/phases/define/schema.py::DEFINE_REQUIRED_FIELDS"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61"
     ],
@@ -993,13 +994,13 @@
      "Step 6.61"
     ],
     "code": [
-     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 4: problem_statement)",
-     "agent-improve/backend/phases/moves.py:78 — wired (COMPOSED_FIELDS stores the read-back version)"
+     "agent-improve/backend/phases/define/schema.py::DEFINE_REQUIRED_FIELDS",
+     "agent-improve/backend/phases/moves.py::COMPOSED_FIELDS"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61"
     ],
@@ -1030,15 +1031,14 @@
      "Step 6.51"
     ],
     "code": [
-     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 5: baseline_estimate + metric_definitions)",
-     "agent-improve/backend/tests/test_declared_types.py::test_row_18_captured_values_carry_their_declared_type — passed (live case)",
-     "no value check at capture for baseline/target — missing (6.51)",
-     "agent-improve/backend/phases/define/schema.py:90 — wired (_CAPTURED_INSIDE: metric_definitions inside position 5)"
+     "agent-improve/backend/phases/define/schema.py::DEFINE_REQUIRED_FIELDS",
+     "agent-improve/backend/tests/test_declared_types.py::test_row_18_captured_values_carry_their_declared_type",
+     "agent-improve/backend/phases/define/schema.py::_CAPTURED_INSIDE"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61",
      "6.48",
@@ -1048,7 +1048,10 @@
      "25",
      "18"
     ],
-    "gaps": []
+    "gaps": [],
+    "notes_6_66": [
+     "no value check at capture for baseline/target — missing (6.51)"
+    ]
    }
   },
   {
@@ -1069,13 +1072,13 @@
      "Appendix H row 18"
     ],
     "code": [
-     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 6: project_scope)",
-     "agent-improve/backend/tests/test_declared_types.py::test_row_18_captured_values_carry_their_declared_type — passed (live case)"
+     "agent-improve/backend/phases/define/schema.py::DEFINE_REQUIRED_FIELDS",
+     "agent-improve/backend/tests/test_declared_types.py::test_row_18_captured_values_carry_their_declared_type"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61",
      "6.48"
@@ -1103,12 +1106,12 @@
      "Step 6.61"
     ],
     "code": [
-     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 7: goal_statement)"
+     "agent-improve/backend/phases/define/schema.py::DEFINE_REQUIRED_FIELDS"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61"
     ],
@@ -1138,13 +1141,12 @@
      "Step 6.51"
     ],
     "code": [
-     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 8: target_value)",
-     "no value check at capture for baseline/target — missing (6.51)"
+     "agent-improve/backend/phases/define/schema.py::DEFINE_REQUIRED_FIELDS"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61",
      "6.51"
@@ -1152,7 +1154,10 @@
     "capability_rows": [
      "25"
     ],
-    "gaps": []
+    "gaps": [],
+    "notes_6_66": [
+     "no value check at capture for baseline/target — missing (6.51)"
+    ]
    }
   },
   {
@@ -1172,12 +1177,12 @@
      "Step 6.61"
     ],
     "code": [
-     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 9: target_date)"
+     "agent-improve/backend/phases/define/schema.py::DEFINE_REQUIRED_FIELDS"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61"
     ],
@@ -1202,12 +1207,12 @@
      "Step 6.61"
     ],
     "code": [
-     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 10: secondary_metrics)"
+     "agent-improve/backend/phases/define/schema.py::DEFINE_REQUIRED_FIELDS"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61"
     ],
@@ -1236,13 +1241,13 @@
      "G-30 (propose_diagram, core/diagrams.py absent)"
     ],
     "code": [
-     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 11: process_map_sipoc)",
-     "agent-improve/backend/tests/test_declared_types.py::test_row_18_captured_values_carry_their_declared_type — passed (live case)"
+     "agent-improve/backend/phases/define/schema.py::DEFINE_REQUIRED_FIELDS",
+     "agent-improve/backend/tests/test_declared_types.py::test_row_18_captured_values_carry_their_declared_type"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61",
      "6.48"
@@ -1272,12 +1277,12 @@
      "Step 6.61"
     ],
     "code": [
-     "agent-improve/backend/phases/define/schema.py:37 — built (DEFINE_REQUIRED_FIELDS position 12: issues_and_barriers)"
+     "agent-improve/backend/phases/define/schema.py::DEFINE_REQUIRED_FIELDS"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61"
     ],
@@ -1305,13 +1310,13 @@
      "G-78 (still open in Appendix G, fixed by 6.33)"
     ],
     "code": [
-     "agent-improve/backend/tests/test_wiring.py::test_wired_6_33_a_capture_reaches_the_artifacts — passed",
-     "agent-improve/backend/tests/test_capability_rows.py::test_row_5_a_captured_field_survives_the_next_turn — passed (live case)"
+     "agent-improve/backend/tests/test_wiring.py::test_wired_6_33_a_capture_reaches_the_artifacts",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_5_a_captured_field_survives_the_next_turn"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.33",
      "6.49"
@@ -1344,12 +1349,12 @@
      "Step 6.48 (landed)"
     ],
     "code": [
-     "agent-improve/backend/tests/test_declared_types.py — passed (unit + live case)"
+     "agent-improve/backend/tests/test_declared_types.py"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.48"
     ],
@@ -1377,13 +1382,13 @@
      "Step 6.33"
     ],
     "code": [
-     "agent-improve/backend/phases/nodes_common.py:1125 — wired (_field_log_entries)",
-     "agent-improve/backend/tests/test_capability_rows.py::test_row_6_every_change_is_kept_dated_with_its_prior_value — passed (live case)"
+     "agent-improve/backend/phases/nodes_common.py::_field_log_entries",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_6_every_change_is_kept_dated_with_its_prior_value"
     ],
     "guidance": []
    },
    "lane": "A",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.33",
      "6.49"
@@ -1415,15 +1420,14 @@
      "G-07"
     ],
     "code": [
-     "agent-improve/backend/middleware/contradiction.py:116 — built, GUARDED (interrupt commented out)",
-     "verify_built.py 'interrupt() call sites (§33)' = 0 — missing"
+     "agent-improve/backend/middleware/contradiction.py::ContradictionDetectionMiddleware.after_agent"
     ],
     "guidance": [
      "https://docs.langchain.com/oss/python/langgraph/interrupts"
     ]
    },
    "lane": "B",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.44",
      "7.3"
@@ -1432,6 +1436,9 @@
     "gaps": [
      "G-15",
      "G-07"
+    ],
+    "notes_6_66": [
+     "verify_built.py 'interrupt() call sites (§33)' = 0 — missing"
     ]
    }
   },
@@ -1455,14 +1462,14 @@
      "Step 6.20 (scorecard half)"
     ],
     "code": [
-     "agent-improve/backend/phases/define/schema.py:407 — wired (assemble_define_gate_document)",
-     "agent-improve/backend/gateway/routes.py:792 — wired (gate_review route)",
-     "agent-improve/backend/tests/test_define_phase_metrics.py::test_row_19_a_complete_case_assembles_a_gate_document — passed (live case)"
+     "agent-improve/backend/phases/define/schema.py::assemble_define_gate_document",
+     "agent-improve/backend/gateway/routes.py",
+     "agent-improve/backend/tests/test_define_phase_metrics.py::test_row_19_a_complete_case_assembles_a_gate_document"
     ],
     "guidance": []
    },
    "lane": "B",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.20"
     ],
@@ -1493,13 +1500,13 @@
      "Step 6.20"
     ],
     "code": [
-     "agent-improve/backend/phases/define/schema.py:339 — wired (define_phase_metrics)",
-     "agent-improve/backend/tests/test_capability_rows.py::test_row_11_the_metric_entry_mirrors_the_primary_scalars — passed (live case)"
+     "agent-improve/backend/phases/define/schema.py::define_phase_metrics",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_11_the_metric_entry_mirrors_the_primary_scalars"
     ],
     "guidance": []
    },
    "lane": "B",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.20",
      "6.49"
@@ -1534,14 +1541,13 @@
      "G-08"
     ],
     "code": [
-     "agent-improve/backend/phases/define/validate.py:97 — wired (missing_gate_fields)",
-     "agent-improve/backend/phases/nodes_common.py:2050 — wired (validation_stack, 2b only)",
-     "DMAICGateValidator — missing (validation/ holds schemas.py only)"
+     "agent-improve/backend/phases/define/validate.py::validate_define",
+     "agent-improve/backend/phases/nodes_common.py::validation_stack"
     ],
     "guidance": []
    },
    "lane": "B",
-   "covers": {
+   "provenance": {
     "steps": [
      "7.1",
      "6.49"
@@ -1554,6 +1560,9 @@
      "G-31",
      "G-108",
      "G-08"
+    ],
+    "notes_6_66": [
+     "DMAICGateValidator — missing (validation/ holds schemas.py only)"
     ]
    }
   },
@@ -1580,12 +1589,12 @@
      "G-61"
     ],
     "code": [
-     "agent-improve/backend/core/prompts.py:1616 — built (only COACHING_QUALITY_RUBRIC; no DEFINE PHASE_RUBRIC text) — missing"
+     "agent-improve/backend/core/prompts.py"
     ],
     "guidance": []
    },
    "lane": "B",
-   "covers": {
+   "provenance": {
     "steps": [
      "7.2",
      "7.8"
@@ -1618,12 +1627,12 @@
      "G-08"
     ],
     "code": [
-     "agent-improve/backend/tests/test_gate_documents.py::test_define_has_no_tier_2 — passed (unit)"
+     "agent-improve/backend/tests/test_gate_documents.py::test_define_has_no_tier_2"
     ],
     "guidance": []
    },
    "lane": "B",
-   "covers": {
+   "provenance": {
     "steps": [
      "7.4"
     ],
@@ -1653,13 +1662,12 @@
      "G-108"
     ],
     "code": [
-     "agent-improve/backend/escalate.py — built v1 (rewrite owed)",
-     "gate_attempts does not survive turns (routes.py:762 comment) — missing"
+     "agent-improve/backend/escalate.py"
     ],
     "guidance": []
    },
    "lane": "B",
-   "covers": {
+   "provenance": {
     "steps": [
      "7.5"
     ],
@@ -1668,6 +1676,9 @@
      "G-34",
      "G-32",
      "G-108"
+    ],
+    "notes_6_66": [
+     "gate_attempts does not survive turns (routes.py:762 comment) — missing"
     ]
    }
   },
@@ -1694,8 +1705,8 @@
      "G-20"
     ],
     "code": [
-     "agent-improve/backend/phases/nodes_common.py:2139 — built pass-through (no interrupt) — missing",
-     "agent-improve/backend/gateway/routes.py:1389 — built (POST /gate writes on pass, no pause)"
+     "agent-improve/backend/phases/nodes_common.py::gate_review",
+     "agent-improve/backend/gateway/routes.py"
     ],
     "guidance": [
      "https://docs.langchain.com/oss/python/langgraph/interrupts",
@@ -1704,7 +1715,7 @@
     ]
    },
    "lane": "B",
-   "covers": {
+   "provenance": {
     "steps": [
      "7.3"
     ],
@@ -1736,22 +1747,24 @@
      "Step 7.3"
     ],
     "code": [
-     "agent-improve/backend/core/checkpointer.py — built (durable saver)",
-     "no interrupt to resume — missing"
+     "agent-improve/backend/core/checkpointer.py"
     ],
     "guidance": [
      "https://docs.langchain.com/oss/python/langgraph/interrupts"
     ]
    },
    "lane": "B",
-   "covers": {
+   "provenance": {
     "steps": [
      "7.3"
     ],
     "capability_rows": [
      "34"
     ],
-    "gaps": []
+    "gaps": [],
+    "notes_6_66": [
+     "no interrupt to resume — missing"
+    ]
    }
   },
   {
@@ -1774,15 +1787,14 @@
      "G-18"
     ],
     "code": [
-     "verify_built.py route set has no /gate/approve (11 routes) — missing",
-     "agent-improve/ui/index.html:3307 — built (gate-approve-btn calls submitGateReview -> POST /gate)"
+     "agent-improve/ui/index.html::gate"
     ],
     "guidance": [
      "https://docs.langchain.com/oss/python/langgraph/interrupts"
     ]
    },
    "lane": "B",
-   "covers": {
+   "provenance": {
     "steps": [
      "7.7",
      "7.3"
@@ -1793,6 +1805,9 @@
     "gaps": [
      "G-47",
      "G-18"
+    ],
+    "notes_6_66": [
+     "verify_built.py route set has no /gate/approve (11 routes) — missing"
     ]
    }
   },
@@ -1815,15 +1830,13 @@
      "G-18",
      "G-47"
     ],
-    "code": [
-     "no /gate/reject route; rejection_feedback has no writer (verify_built: rejection_feedback:R) — missing"
-    ],
+    "code": [],
     "guidance": [
      "https://docs.langchain.com/oss/python/langgraph/interrupts"
     ]
    },
    "lane": "B",
-   "covers": {
+   "provenance": {
     "steps": [
      "7.3",
      "7.7"
@@ -1832,6 +1845,9 @@
     "gaps": [
      "G-18",
      "G-47"
+    ],
+    "notes_6_66": [
+     "no /gate/reject route; rejection_feedback has no writer (verify_built: rejection_feedback:R) — missing"
     ]
    }
   },
@@ -1854,15 +1870,14 @@
      "G-13"
     ],
     "code": [
-     "agent-improve/backend/phases/nodes_common.py:2164 — built pass-through (gate_apply applies nothing) — missing",
-     "verify_built: belt_edits:R (declared, no writer)"
+     "agent-improve/backend/phases/nodes_common.py::gate_apply"
     ],
     "guidance": [
      "https://docs.langchain.com/oss/python/langgraph/interrupts"
     ]
    },
    "lane": "B",
-   "covers": {
+   "provenance": {
     "steps": [
      "7.8",
      "7.3"
@@ -1870,6 +1885,9 @@
     "capability_rows": [],
     "gaps": [
      "G-13"
+    ],
+    "notes_6_66": [
+     "verify_built: belt_edits:R (declared, no writer)"
     ]
    }
   },
@@ -1891,13 +1909,13 @@
      "Step 10.0 (wired)"
     ],
     "code": [
-     "agent-improve/backend/tests/test_wiring.py::test_wired_10_0_the_blocks_reach_the_response — passed (response half)",
-     "agent-improve/ui/index.html — built (render); no screen-level check — missing"
+     "agent-improve/backend/tests/test_wiring.py::test_wired_10_0_the_blocks_reach_the_response",
+     "agent-improve/ui/index.html::render"
     ],
     "guidance": []
    },
    "lane": "C",
-   "covers": {
+   "provenance": {
     "steps": [
      "10.0"
     ],
@@ -1928,12 +1946,12 @@
      "G-71"
     ],
     "code": [
-     "agent-improve/ui/index.html:700 — built on v1 names (DEFINE_GATE_FIELDS what/where/how_goal/primary_metric…) — missing v2"
+     "agent-improve/ui/index.html::names"
     ],
     "guidance": []
    },
    "lane": "C",
-   "covers": {
+   "provenance": {
     "steps": [
      "10.3"
     ],
@@ -1964,13 +1982,13 @@
      "Step 6.61 (R4)"
     ],
     "code": [
-     "agent-improve/ui/index.html:5967 — built (rb-confirm / rb-change)",
-     "agent-improve/ui/index.html:6110 — built (sendMessage(action))"
+     "agent-improve/ui/index.html::confirm",
+     "agent-improve/ui/index.html::sendMessage"
     ],
     "guidance": []
    },
    "lane": "C",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.61"
     ],
@@ -2001,13 +2019,13 @@
      "G-90"
     ],
     "code": [
-     "agent-improve/backend/gateway/routes.py:722 — built (bare except -> 500 'Graph error: …')",
-     "agent-improve/ui/index.html — built (toast, 3 s) — missing readable error"
+     "agent-improve/backend/gateway/routes.py::ask",
+     "agent-improve/ui/index.html::toast"
     ],
     "guidance": []
    },
    "lane": "C",
-   "covers": {
+   "provenance": {
     "steps": [
      "10.4"
     ],
@@ -2042,13 +2060,13 @@
      "G-98"
     ],
     "code": [
-     "agent-improve/backend/gateway/routes.py:915 — wired (POST /upload)",
-     "agent-improve/backend/tests/test_capability_rows.py::test_row_8_the_belt_can_upload_evidence — passed (live case)"
+     "agent-improve/backend/gateway/routes.py",
+     "agent-improve/backend/tests/test_capability_rows.py::test_row_8_the_belt_can_upload_evidence"
     ],
     "guidance": []
    },
    "lane": "C",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.43",
      "6.49"
@@ -2084,13 +2102,11 @@
      "G-49 (executor ignored the planner-named read; since 6.61 the executor dispatches the routed read itself)",
      "G-63 (node-issued read names no column, owner 8.0)"
     ],
-    "code": [
-     "no tool returns an upload's text (G-82: 160-char summary only) — missing"
-    ],
+    "code": [],
     "guidance": []
    },
    "lane": "C",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.43"
     ],
@@ -2101,6 +2117,9 @@
      "G-82",
      "G-49",
      "G-63"
+    ],
+    "notes_6_66": [
+     "no tool returns an upload's text (G-82: 160-char summary only) — missing"
     ]
    }
   },
@@ -2124,12 +2143,12 @@
      "G-72"
     ],
     "code": [
-     "agent-improve/ui/index.html:3242 — built (fetches GET /gate/review)"
+     "agent-improve/ui/index.html::gate"
     ],
     "guidance": []
    },
    "lane": "C",
-   "covers": {
+   "provenance": {
     "steps": [
      "10.2"
     ],
@@ -2156,18 +2175,19 @@
     "procedure": [
      "Step 10.1 (off the path)"
     ],
-    "code": [
-     "/ask/stream — missing (verify_built route set)"
-    ],
+    "code": [],
     "guidance": []
    },
    "lane": "C",
-   "covers": {
+   "provenance": {
     "steps": [
      "10.1"
     ],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [],
+    "notes_6_66": [
+     "/ask/stream — missing (verify_built route set)"
+    ]
    }
   },
   {
@@ -2190,16 +2210,16 @@
      "Step 7.3 clause 3 (one writer or ETag)"
     ],
     "code": [
-     "agent-improve/backend/gateway/routes.py:1482 — wired (write_phase_gate on POST /gate, no approval pause)",
-     "agent-improve/backend/storage/blob.py:232 — built (write_phase_gate)",
-     "agent-improve/backend/tests/test_gate_write.py::test_row_20_the_document_is_written_and_safe_to_write_twice — passed (live case 1FF)"
+     "agent-improve/backend/gateway/routes.py::submit_gate",
+     "agent-improve/backend/storage/blob.py::write_phase_gate",
+     "agent-improve/backend/tests/test_gate_write.py::test_row_20_the_document_is_written_and_safe_to_write_twice"
     ],
     "guidance": [
      "https://docs.langchain.com/oss/python/langgraph/interrupts"
     ]
    },
    "lane": "B",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.42",
      "7.3"
@@ -2227,12 +2247,12 @@
      "Step 6.42"
     ],
     "code": [
-     "agent-improve/backend/tests/test_gate_write.py::test_row_21_the_gate_write_preserves_the_change_log_and_the_uploads — passed (live + fixture)"
+     "agent-improve/backend/tests/test_gate_write.py::test_row_21_the_gate_write_preserves_the_change_log_and_the_uploads"
     ],
     "guidance": []
    },
    "lane": "B",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.42"
     ],
@@ -2260,12 +2280,12 @@
      "Appendix H row 24 (no owning step)"
     ],
     "code": [
-     "agent-improve/backend/tests/test_mappers.py::test_output_mapper_writes_the_gate_document_to_the_store[define] — passed (unit); output mapper not called at runtime (nodes_common.py:2164 docstring) — missing"
+     "agent-improve/backend/tests/test_mappers.py::test_output_mapper_writes_the_gate_document_to_the_store[define]"
     ],
     "guidance": []
    },
    "lane": "B",
-   "covers": {
+   "provenance": {
     "steps": [],
     "capability_rows": [
      "24"
@@ -2296,8 +2316,8 @@
      "Five clauses (REFACTORING_PROCEDURE.md@HEAD:369-373)"
     ],
     "code": [
-     "agent-improve/scripts/coaching_proof_656.py — built (driver, positions 1–8)",
-     "agent-improve/scripts/move_proof_661.py:117 — built (part_a: /cases then /ask through TestClient)"
+     "agent-improve/scripts/coaching_proof_656.py",
+     "agent-improve/scripts/move_proof_661.py::part_a"
     ],
     "guidance": [
      "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents",
@@ -2305,7 +2325,7 @@
     ]
    },
    "lane": "integrator",
-   "covers": {
+   "provenance": {
     "steps": [
      "6.66",
      "6.56"
@@ -2335,14 +2355,14 @@
      "Appendix H rows 1–35"
     ],
     "code": [
-     "agent-improve/backend/tests/test_capability_rows.py:48 — built (CAPABILITY_CASE_ID env var selects the case the checks read)"
+     "agent-improve/backend/tests/test_capability_rows.py::CASE_ID"
     ],
     "guidance": [
      "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents"
     ]
    },
    "lane": "integrator",
-   "covers": {
+   "provenance": {
     "steps": [
      "7.9"
     ],

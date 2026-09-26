@@ -210,3 +210,25 @@ def test_run_a_complete_case_assembles_a_gate_document(run) -> None:
     body = review.get("body") or {}
     assert body.get("passed") is True, body.get("missing_fields")
     assert body.get("document"), "the review returned no document"
+
+
+# ── stubs: named by a feature, not written yet (6.67) ──────────────────────
+
+def test_runthrough_metric_meaning_comes_from_the_registry() -> None:
+    """DEF-018 — not written yet (a stub, step 6.67): When the Belt's metric first comes up, the coach explains what it means, why Define cares and how to read it — from the """
+    pytest.fail("DEF-018: not written yet")
+
+
+def test_runthrough_no_reply_carries_a_link() -> None:
+    """DEF-019 — not written yet (a stub, step 6.67): The coach teaches in its own voice and never hands the Belt a URL."""
+    pytest.fail("DEF-019: not written yet")
+
+
+def test_runthrough_the_same_turn_makes_the_same_move() -> None:
+    """DEF-024 — not written yet (a stub, step 6.67): The same coaching situation run five times makes the same move every time (repeated-run consistency)."""
+    pytest.fail("DEF-024: not written yet")
+
+
+def test_every_define_row_is_green_on_the_run_through_case() -> None:
+    """DEF-064 — not written yet (a stub, step 6.67): Define end to end: on ONE fresh case carrying an upload, every Define capability row's own check is green after one run."""
+    pytest.fail("DEF-064: not written yet")
