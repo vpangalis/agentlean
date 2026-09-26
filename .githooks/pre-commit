@@ -49,7 +49,13 @@ rm -f "$MARKER"
 # into the commit's `Timing:` trailer, which the board reads from git log.
 mkdir -p .claude/logs && date +%s > .claude/logs/pre-commit-start
 RAN=""
-if [ -n "$VENV" ] && git diff --cached --name-only | grep -qv '\.md$'; then
+# 6.67 — path-based (founder addendum, speed item 1): code, config, hooks,
+# .json/.html/.yaml run the suite; documentation only runs the fast checks
+# (rules 12 and 13). The generated outputs a previous attempt left staged do
+# not count as code.
+if [ -n "$VENV" ] && git diff --cached --name-only \
+    | grep -vE 'agent-improve/docs/(control-board\.html|test-results\.json|features-ratchet\.json)$' \
+    | grep -qv '\.md$'; then
     T0=$(date +%s)
     echo "  [tests] the full suite, in parallel — the commit's one run (rule 4 reads it)…" >&2
     OUT=$( cd agent-improve && AGENT_IMPROVE_FULL_RUN=1 "../$VENV" -m pytest backend/tests -q --no-header         -p no:cacheprovider -n auto 2>&1 )

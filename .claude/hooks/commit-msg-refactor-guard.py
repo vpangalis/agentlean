@@ -1308,6 +1308,33 @@ def check_size(root: str, staged: list[str]) -> None:
         note(f"rule 12 size: PASS — {len(results)} budgeted file(s) within bound")
 
 
+def check_docs(root: str, staged: list[str]) -> None:
+    """Rule 13 — the docs checks, on every commit (step 6.67, founder addendum
+    2026-09-26, speed item 1). A docs-only commit runs these and never the
+    suite: every relative link in a staged `.md` resolves (`check_links.py`),
+    and the rule-number citations resolve whenever CLAUDE.md, a rule file or
+    the registry is staged (`verify_rule_citations.py`). Rule 12, the size
+    budget, is the third fast check and runs above."""
+    hooks = os.path.join(root, ".claude", "hooks")
+    md = [p for p in staged if p.endswith(".md")]
+    if md:
+        r = subprocess.run([sys.executable, os.path.join(hooks, "check_links.py"), *md], cwd=root,
+                           capture_output=True, encoding="utf-8", errors="replace", timeout=60)
+        if r.returncode != 0:
+            fail("a staged document links to a file that does not exist (rule 13)",
+                 *[ln for ln in r.stdout.splitlines() if ln.strip()][-20:])
+    rules_touched = [p for p in staged if p == f"{PROJECT}/CLAUDE.md" or p.startswith(".claude/rules/")
+                     or p == ".claude/config/deprecated_patterns.yaml"]
+    if rules_touched:
+        r = subprocess.run([sys.executable, os.path.join(hooks, "verify_rule_citations.py")], cwd=root,
+                           capture_output=True, encoding="utf-8", errors="replace", timeout=60)
+        if r.returncode != 0:
+            fail("a rule number the registry cites no longer resolves (rule 13, §0.2)",
+                 *[ln for ln in (r.stdout + r.stderr).splitlines() if ln.strip()][-20:])
+    note(f"rule 13 docs: PASS — {len(md)} document(s) linked"
+         + (", citations resolve" if rules_touched else ""))
+
+
 def main(argv: list[str]) -> int:
     if len(argv) >= 2 and argv[1] == "--update-baseline":
         return update_baseline()
@@ -1372,6 +1399,10 @@ def main(argv: list[str]) -> int:
     # Rule 12 — the size budget, on every commit (step 6.66, CLAUDE.md §22 h).
     with _timer("rule 12 size"):
         check_size(root, all_staged)
+
+    # Rule 13 — the docs checks (links, citations), on every commit (6.67).
+    with _timer("rule 13 docs"):
+        check_docs(root, all_staged)
 
     # ── Rule 6 — also ahead of the prefix gate, and for the same reason ────
     # A fix lands under any type. It is a pure message check, so it costs

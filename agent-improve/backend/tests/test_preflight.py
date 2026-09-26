@@ -31,19 +31,37 @@ def _hook():
     return _load("preflight_on_commit", "preflight-on-commit.py")
 
 
-def test_a_changed_module_reaches_its_importers_and_their_tests() -> None:
+def test_a_changed_module_type_checks_its_importers_and_runs_its_own_tests() -> None:
+    """6.67 (addendum, speed item 2): changed files and their importers ONLY —
+    the importers are type-checked; the tests run are the changed module's own.
+    The commit hook's full run covers everything else."""
     pf = _pf()
     graph = {
         "backend.a": set(),
-        "backend.b": {"backend.a"},                 # imports a
+        "backend.b": {"backend.a"},                  # imports a — type-checked
         "backend.c": set(),
-        "backend.tests.test_moves": {"backend.b"},  # tests b, the importer — REACHED
-        "backend.tests.test_state": {"backend.c"},  # unrelated — NOT reached
+        "backend.tests.test_a": {"backend.a"},       # tests a directly — RUN
+        "backend.tests.test_moves": {"backend.b"},   # tests b, the importer — left to the hook
+        "backend.tests.test_state": {"backend.c"},   # unrelated — NOT run
     }
     p = pf.plan(["agent-improve/backend/a.py"], graph)
-    assert p["importers"] == ["backend.b"]
-    assert "agent-improve/backend/tests/test_moves.py" in p["tests"]
+    assert p["importers"] == ["backend.b", "backend.tests.test_a"]   # both type-checked
+    assert "agent-improve/backend/tests/test_moves.py" not in p["tests"]
     assert "agent-improve/backend/tests/test_state.py" not in p["tests"]
+
+
+def test_a_slow_test_is_left_to_the_hook(monkeypatch) -> None:
+    pf = _pf()
+    monkeypatch.setattr(pf, "slow_tests", lambda: ["backend/tests/test_x.py::test_slow"])
+    seen = {}
+
+    def fake_run(cmd, cwd):
+        seen["cmd"] = cmd
+        return 0, "1 passed"
+    monkeypatch.setattr(pf, "_run", fake_run)
+    ok, msg = pf.check_tests("py", {"tests": ["agent-improve/backend/tests/test_x.py"]})
+    assert ok and "--deselect" in seen["cmd"] and "backend/tests/test_x.py::test_slow" in seen["cmd"]
+    assert "1 slow test(s) left to the hook" in msg
 
 
 def test_a_changed_document_reaches_the_tests_that_read_it() -> None:

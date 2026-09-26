@@ -100,3 +100,28 @@ def test_the_section_index_gives_each_heading_its_range_and_skips_code() -> None
     text = "# A\nx\n## A.1\ny\n```\n# not a heading\n```\n## A.2\nz\n# B\n"
     got = [(lvl, a, b, t) for lvl, a, b, t in si.sections(text)]
     assert got == [(1, 1, 9, "A"), (2, 3, 7, "A.1"), (2, 8, 9, "A.2"), (1, 10, 10, "B")]
+
+
+# ── rule 13 — the docs checks a docs-only commit runs instead of the suite (6.67) ──
+
+
+def _docs_root(tmp_path, link: str) -> Path:
+    root = tmp_path / "d"
+    (root / ".claude" / "hooks").mkdir(parents=True)
+    (root / ".claude" / "hooks" / "check_links.py").write_text(
+        (_HOOKS / "check_links.py").read_text(encoding="utf-8"), encoding="utf-8")
+    (root / "docs").mkdir()
+    (root / "docs" / "there.md").write_text("x", encoding="utf-8")
+    (root / "docs" / "note.md").write_text(f"see [it]({link})\n", encoding="utf-8")
+    return root
+
+
+def test_rule_13_refuses_a_staged_document_with_a_broken_link(tmp_path) -> None:
+    guard = _load("guard_rule13", "commit-msg-refactor-guard.py")
+    with pytest.raises(SystemExit):
+        guard.check_docs(str(_docs_root(tmp_path, "gone.md")), ["docs/note.md"])
+
+
+def test_rule_13_passes_a_staged_document_whose_links_resolve(tmp_path) -> None:
+    guard = _load("guard_rule13b", "commit-msg-refactor-guard.py")
+    guard.check_docs(str(_docs_root(tmp_path, "there.md#a-section")), ["docs/note.md"])

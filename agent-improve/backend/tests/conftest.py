@@ -444,6 +444,7 @@ def pytest_sessionfinish(session, exitstatus):
     # guard fired: a run that broke the quota rule is not evidence of anything.
     if _OUTCOMES and not TRACE_CALLS:
         _record_results()
+    _record_slow()
     _time_the_run(session)
     if TRACE_CALLS:
         print(f"\n\nG-95 GUARD: the suite asked LangSmith to create/send "
@@ -465,9 +466,38 @@ def pytest_sessionfinish(session, exitstatus):
 _OUTCOMES: dict[str, str] = {}
 
 
+_DURATIONS: dict[str, float] = {}
+#: A test at or above this many seconds is SLOW: the pre-flight skips it (the
+#: commit hook's full run never does). Step 6.67, the addendum's speed item 2.
+SLOW_SECONDS = 1.0
+
+
 def pytest_runtest_logreport(report):
     if report.when == "call" or (report.when == "setup" and report.outcome != "passed"):
         _OUTCOMES[report.nodeid.replace("\\", "/")] = report.outcome
+    if report.when in ("setup", "call"):
+        key = report.nodeid.replace("\\", "/")
+        _DURATIONS[key] = _DURATIONS.get(key, 0.0) + float(report.duration or 0.0)
+
+
+def _record_slow() -> None:
+    """Step 6.67 — `.claude/logs/slow-tests.json` (local, untracked): every test
+    this run measured at SLOW_SECONDS or more; a test measured faster leaves it.
+    A measurement for the pre-flight, never evidence of anything."""
+    import json as _json
+    from pathlib import Path as _Path
+    path = _Path(__file__).resolve().parents[3] / ".claude" / "logs" / "slow-tests.json"
+    try:
+        slow = _json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+        for nodeid, seconds in _DURATIONS.items():
+            if seconds >= SLOW_SECONDS:
+                slow[nodeid] = round(seconds, 1)
+            else:
+                slow.pop(nodeid, None)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(_json.dumps(dict(sorted(slow.items())), indent=1) + "\n", encoding="utf-8")
+    except (OSError, ValueError):
+        pass
 
 
 def _time_the_run(session) -> None:

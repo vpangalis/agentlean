@@ -140,17 +140,10 @@ def plan(changed: list[str], graph: dict[str, set[str]] | None = None) -> dict:
     mods = {m for m in (module_name(c) for c in changed) if m and m in graph}
     # Graph modules are reached through imports; everything else by name.
     named = {_token(c) for c in changed if module_name(c) not in graph}
-    # A hook or tool that READS a changed document is itself reached: a test
-    # reads the procedure through verify_built.PROCEDURE, never by name.
-    for reader in _readers():
-        if named and reader.name not in named:
-            text = reader.read_text(encoding="utf-8", errors="replace")
-            if any(n in text for n in named):
-                m = module_name(reader.relative_to(ROOT).as_posix())
-                if m and m in graph:
-                    mods.add(m)
-                else:
-                    named.add(_token(reader.relative_to(ROOT).as_posix()))
+    # 6.67 (the addendum's speed item 2): changed files and their importers
+    # ONLY — the importers are type-checked; the tests run are those of the
+    # changed modules themselves. The one-level "a hook reads this document"
+    # reach retired with verify_built.py; the hook's full run covers the rest.
     importers = {m for m, deps in graph.items() if deps & mods}
     scope = mods | importers
     tests: set[str] = set()
@@ -160,7 +153,7 @@ def plan(changed: list[str], graph: dict[str, set[str]] | None = None) -> dict:
         if rel in LIVE_READ and rel not in changed:
             continue
         m = module_name(rel)
-        if rel in changed or (m and graph.get(m, set()) & scope):
+        if rel in changed or (m and graph.get(m, set()) & mods):
             tests.add(rel)
             continue
         if named:
@@ -215,6 +208,18 @@ def check_types(py: str, p: dict) -> tuple[bool, str]:
     return True, f"{len(files)} file(s) ({len(p['importers'])} importer(s)), no new errors"
 
 
+def slow_tests() -> list[str]:
+    """Tests the last runs measured at >= 1 s (`.claude/logs/slow-tests.json`,
+    written by the test recorder). The pre-flight leaves them to the commit
+    hook's full run, which never skips anything (6.67, speed item 2)."""
+    import json
+    path = ROOT / ".claude" / "logs" / "slow-tests.json"
+    try:
+        return sorted(json.loads(path.read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        return []
+
+
 def check_tests(py: str, p: dict) -> tuple[bool, str]:
     tests = p["tests"]
     if tests == "ALL":
@@ -224,7 +229,9 @@ def check_tests(py: str, p: dict) -> tuple[bool, str]:
     else:
         rel = [t[len("agent-improve/"):] for t in tests]
         args = rel + (["-n", "auto"] if len(rel) > SERIAL_MAX else ["-n", "0"])
-        n = f"{len(rel)} test file(s)"
+        skip = [s for s in slow_tests() if s.split("::")[0] in rel and s not in rel]
+        args += [a for s in skip for a in ("--deselect", s)]
+        n = f"{len(rel)} test file(s), {len(skip)} slow test(s) left to the hook"
     code, out = _run([py, "-m", "pytest", "-q", "--no-header", "-p", "no:cacheprovider", *args], PROJECT)
     lines = out.strip().splitlines()
     summary = lines[-1] if lines else "(no output)"
