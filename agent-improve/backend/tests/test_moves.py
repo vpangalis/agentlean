@@ -57,11 +57,16 @@ def _decide(field_status: dict | None, belt: str, judge: Judge,
 # ── the walk and the status — STORED (ruling R5) ─────────────────────────
 
 
-def test_define_walks_twelve_positions_with_the_registry_inside_five() -> None:
+def test_define_walks_thirteen_positions_with_three_fields_inside() -> None:
+    """R4 (2026-09-26): thirteen elements; the CTQs inside 3, the 5W2H inside
+    4, the registry inside 5."""
     walk = moves.positions("define")
-    assert len(walk) == 12
+    assert len(walk) == 13
     assert walk[0] == ("business_case", ("business_case",))
+    assert walk[2] == ("voc_summary", ("voc_summary", "critical_to_quality"))
+    assert walk[3] == ("problem_statement", ("problem_statement", "problem_5w2h"))
     assert walk[4] == ("baseline_estimate", ("baseline_estimate", "metric_definitions"))
+    assert walk[9] == ("benefits_analysis", ("benefits_analysis",))
 
 
 def test_the_status_is_stored_never_derived_from_a_reply() -> None:
@@ -191,7 +196,7 @@ def test_the_other_phases_walk_their_gate_list() -> None:
 
 def test_sections_3_and_4_agree_on_the_confirming_turn() -> None:
     """Item 2 — section 3 is the state AFTER this turn's change: business_case
-    confirmed and stored, Step 2 of 12, team current — what section 4 says."""
+    confirmed and stored, Step 2 of 13, team current — what section 4 says."""
     from langchain_core.messages import HumanMessage as H
     from backend.core.substate import CoachingPlan
     from backend.middleware.state_injection import BeforeModelStateInjection
@@ -204,7 +209,7 @@ def test_sections_3_and_4_agree_on_the_confirming_turn() -> None:
         "messages": [H(content="Yes, that's right.")]}))
     mw.before_agent(None, None)
     state, move = mw._block, mw._move
-    assert "Define · Step 2 of 12" in state
+    assert "Define · Step 2 of 13" in state
     assert "1. business_case — confirmed" in state and "CURRENT FIELD: team" in state
     assert f"business_case: {AD5[:60]}" in state, "shown stored"
     assert "RECORD `business_case`, THEN TEACH `team`" in move

@@ -40,9 +40,9 @@ from backend.phases import nodes_common as _nc
 SCRIPT = instructions("define")
 SCRIPT_HASH = hashlib.sha256(SCRIPT.encode("utf-8")).hexdigest()[:16]
 #: SKILL.md's own worked example for `business_case`, verbatim.
-EXAMPLE = ("Invoice errors cost ~€35k/month in rework and delayed payments, and "
-           "billing complaints rose 40% this year. Fixing this protects revenue "
-           "and frees two staff currently spending half their week on corrections.")
+EXAMPLE = ("During January to June 2026, 12% of invoices produced by UK billing were "
+           "returned for correction, against 3% for the rest of the group. The rework "
+           "and delayed payments cost about €35k a month.")
 BELT_OWN = ("Pricing mistakes on our supplier invoices take the AP team about "
             "ninety hours a month to fix, and two key clients have escalated.")
 
@@ -93,7 +93,7 @@ def test_the_system_message_carries_the_current_fields_script_on_every_call() ->
     assert req.messages == ["untouched"], "the script must never enter the conversation"
     assert len(delivered) == 2
     assert {k: delivered[0][k] for k in ("script", "version", "sha256", "chars")} == {
-        "script": "dmaic-define-phase", "version": "1.3",
+        "script": "dmaic-define-phase", "version": "2.0",
         "sha256": SCRIPT_HASH, "chars": len(SCRIPT)}
     assert delivered[0]["delivered_part"] == "opening + business_case"
     assert delivered[0]["sections"] == ["## 2 · PHASE SCRIPT — what to teach"]
@@ -159,7 +159,7 @@ def test_step_log_records_that_the_script_was_delivered(monkeypatch, stub_planne
     assert entries, f"no coaching_script entry: {[e.get('node') for e in out['step_log']]}"
     e = entries[0]
     assert (e["delivered"], e["script"], e["version"], e["sha256"]) == (
-        True, "dmaic-define-phase", "1.3", SCRIPT_HASH)
+        True, "dmaic-define-phase", "2.0", SCRIPT_HASH)
 
 
 def test_a_turn_without_the_script_is_distinguishable(monkeypatch, stub_planner) -> None:
@@ -186,6 +186,6 @@ def test_the_belts_own_answer_is_kept(monkeypatch, stub_planner) -> None:
 def test_a_lightly_edited_example_is_still_refused(monkeypatch, stub_planner) -> None:
     """The rule is not exact-match: the example with its numbers kept and a
     word changed is still the example."""
-    edited = EXAMPLE.replace("~€35k/month", "about €35k a month").replace("Fixing", "Solving")
+    edited = EXAMPLE.replace("about €35k a month", "roughly €35k monthly").replace("returned", "sent back")
     out = _run(monkeypatch, _reply(edited))
     assert "business_case" not in out["artifacts"]

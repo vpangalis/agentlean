@@ -456,8 +456,8 @@ def test_the_judgment_prompt_carries_what_the_field_needs(stub_planner) -> None:
         **_answered("define", "Late payments cost us £62,000 last year."))))
     prompt = stub_planner.prompts[0]
     assert "THE FIELD: business_case" in prompt
-    assert "why is *your* project worth doing?" in prompt, "the script's question is missing"
-    assert "Invoice errors cost ~€35k/month" not in prompt, "the worked example leaked in"
+    assert "Why is your project worth doing?" in prompt, "the script's question is missing"
+    assert "12% of invoices produced by UK billing" not in prompt, "the worked example leaked in"
     assert "Late payments cost us £62,000 last year." in prompt
 
 

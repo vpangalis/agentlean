@@ -223,8 +223,12 @@ def example_match(value: Any, phase: str) -> str | None:
 _FIELD_BLOCK = re.compile(
     r'^\*\*\[(\d+) · (\w+) · [^\]]*\]\*\*[ \t]*\n((?:>.*(?:\n|$))+)', re.M)
 
-#: §39.1.9 — the registry is captured INSIDE position 5, not at its own.
-_CAPTURED_INSIDE = {"metric_definitions": "baseline_estimate"}
+#: Fields captured INSIDE a coached position -> that position's field —
+#: derived from the schema's own map (`phases/define/schema._CAPTURED_INSIDE`),
+#: never restated: the registry inside 5, the CTQs inside 3, the 5W2H inside 4.
+from backend.phases.define.schema import _CAPTURED_INSIDE as _DEFINE_INSIDE  # noqa: E402
+_CAPTURED_INSIDE = {inner: position for position, inners in _DEFINE_INSIDE.items()
+                    for inner in inners}
 
 #: The two moves a turn can make on a field (§43, "Explain → Show → Ask →
 #: Confirm, on every field"): teach and ask for it, or read the Belt's value

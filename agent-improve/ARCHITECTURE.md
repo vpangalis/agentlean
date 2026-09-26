@@ -49,7 +49,7 @@ that reads it.**
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.78 · 2026-09-25
+Version 1.79 · 2026-09-26
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
 
@@ -57,6 +57,7 @@ Task 3B verification pass completed 2026-08-21.
 The full text of every entry through v1.77 is verbatim in
 [`docs/_archive/ARCHITECTURE_slimmed_2026-09-25.md#L112`](docs/_archive/ARCHITECTURE_slimmed_2026-09-25.md#L112).
 
+- v1.79 · 2026-09-26 · Founder's Define requirements v2 (`docs/requirements/define.md`, R1–R7 — domain requirements live there, never here): Define has THIRTEEN elements — the benefits analysis at position 10 (R4); `critical_to_quality` captured inside position 3 and `problem_5w2h` inside position 4, as the registry is inside 5; `DefineOutput` 21 fields, 16 gate-required; every element's acceptance criteria are in its SKILL.md block · `phases/define/schema.py`, §39.1.9, §63.1
 - v1.78 · 2026-09-25 · Founder ruling, the overnight run (step 6.66): documents hold current binding text only (REPLACE, DON'T APPEND; history to `docs/_archive/`; a size budget refuses growth); CLAUDE.md is rules and pointers; the 8D is asked only for a real defect (a fix, or a `Gap:` trailer); Define's plan is `docs/define_features.json`, status only from tests; the procedure is reference-only · CLAUDE.md §22 (a, h), rule 6 of the commit-msg guard
 - v1.77 · 2026-09-25 · S-C04 takes step 6.61's shape: code builds `CoachingPlan` via `phases/moves.decide`; the planner's model makes one judgment · §58 (S-C04)
 - v1.76 · 2026-09-25 · Record, step 10.0: §50.1's four coaching blocks and the grader's warning reach the Belt · §50.1, §19.8
@@ -1923,9 +1924,9 @@ list.** The middleware derives them the same way the gate does, so the prompt
 and `DMAICGateValidator` cannot disagree.
 
 **For Define the block opens with the Belt's step, computed (v1.73).**
-*WHERE THE BELT IS — Define · Step n of 12 — <field>*, from `define_progress`,
+*WHERE THE BELT IS — Define · Step n of 13 — <field>*, from `define_progress`,
 above everything else; the missing-field list is headed as **the gate list**
-(*n of 13 gate fields; not the step count*). The executor writes the same
+(*n of 16 gate fields; not the step count*). The executor writes the same
 label into the reply's `progress`; the coach never counts it.
 
 **Why the top of the prompt.** Models weight earlier content more heavily.
@@ -4291,13 +4292,14 @@ Measure, Analyse, Improve and Control follow **this exact section shape**, at
 is the project's canonical metric set — **§63.8, S-C38 owns its shape**, and this
 subsection does not restate it.
 
-**It is gate-required and it is NOT a thirteenth coached position**, which is the
+**It is gate-required and it is NOT a coached position of its own**, which is the
 distinction this subsection exists to record. The Belt names their metrics inside
 **position 5's** conversation (`baseline_estimate`), because *"what are we
 measuring, in what units"* and *"what is it at today"* are one exchange, not two.
-`DEFINE_FIELD_ORDER` stays at twelve and `field_index` still indexes it; only the
-gate list grows. The owner is `phases/define/schema.py` — `DEFINE_REQUIRED_FIELDS`
-(12) and `DEFINE_REQUIRED_FOR_GATE_FIELDS` (13).
+The CTQs (inside position 3) and the 5W2H answers (inside position 4) are captured
+the same way (v1.79). `field_index` indexes `DEFINE_FIELD_ORDER`; only the gate list
+is longer. The owner of both lists and their lengths is `phases/define/schema.py`
+(`DEFINE_REQUIRED_FIELDS`, `DEFINE_REQUIRED_FOR_GATE_FIELDS`, `_CAPTURED_INSIDE`).
 
 **Define writes one `phase_metrics` entry per registry metric it engaged**,
 assembled deterministically in `gate_apply` immediately before the
@@ -5304,9 +5306,10 @@ fields.**
 gate-metadata sourcing and cross-schema rules below stay here.
 
 **A schema is not the same list as the coaching order.** §39.1.2 gives Define's
-**coached** sequence — the twelve fields the planner walks by `field_index`.
-`DefineOutput` is those twelve **plus** the four gate-metadata fields, which are
-assembled rather than coached. Sixteen in total. **Reading a phase's coached
+**coached** sequence — the thirteen elements the planner walks by `field_index`.
+`DefineOutput` is those **plus** the fields captured inside a position, the
+registry's `phase_metrics` and the four gate-metadata fields, which are assembled
+rather than coached (count: `DefineOutput.model_fields`). **Reading a phase's coached
 list as its schema drops the cross-schema invariants**, which is exactly what
 the two-fields-on-all-five rule exists to prevent — and it is why Define now
 coaches `secondary_metrics` explicitly (position 10) rather than assembling it
@@ -5594,8 +5597,8 @@ count the Belt can see at any time**:
 "We're working through the Measure phase — Step 3 of 6."
 ```
 
-**Define's count is COMPUTED (v1.73)** — `define_progress`, twelve positions,
-`metric_definitions` inside position 5 — delivered in the prompt and written
+**Define's count is COMPUTED (v1.73)** — `define_progress`, thirteen positions
+(v1.79), three fields captured inside positions 3, 4 and 5 — delivered in the prompt and written
 into the reply's `progress` by the executor — the position AFTER the turn's
 capture, on every turn (v1.74). The model states it; it never counts it.
 
@@ -5615,7 +5618,7 @@ capture, on every turn (v1.74). The model states it; it never counts it.
 final document will look like:
 
 ```
-📋 Your Define Gate Document (5 of 12 required fields complete)
+📋 Your Define Report (5 of 13 elements complete)
 
 ✅ Business Case: "Invoice errors cost ~€35k/month in rework..."
 ✅ Team: [4 members — Leader, Sponsor, Process Owner, 2 SMEs]
@@ -5630,10 +5633,10 @@ final document will look like:
 ⬜ Process Map (SIPOC): [not yet captured]
 ⬜ Issues & Barriers: [not yet captured]
 
-We're on Step 6 of 12. Let's capture Project Scope next.
+We're on Step 6 of 13. Let's capture Project Scope next.
 ```
 
-**Define shows one list, not two.** All 12 of its fields are gate-required
+**Define shows one list, not two.** All 13 of its elements are gate-required
 (§39.1.2), so there is no "optional" section to render and nothing the Belt can
 consciously skip. The four tiered phases render their Tier 2 fields separately.
 
@@ -9514,7 +9517,7 @@ the Store; the current phase's requirements; and the missing fields reported by
 | B3 | computing missing fields | derive them at injection time the same way the gate does; it SHALL NOT read a stored list | §19.1 |
 | B4 | the stack is declared | be first, so project facts reach the prompt before skills loading and summarisation shape it | §19 |
 | B5 | injecting prior-phase values | inject them from the Store, which is what makes the coach's semantic contradiction check possible at all | §37 |
-| B6 | composing for Define | open the block with the Belt's step from `define_progress` — *Step n of 12*, computed, never counted by the model — and head the missing-field list as the gate list (v1.73) | §43.3, §39.1.9 |
+| B6 | composing for Define | open the block with the Belt's step from `define_progress` — *Step n of 13*, computed, never counted by the model — and head the missing-field list as the gate list (v1.73) | §43.3, §39.1.9 |
 | B7 | composing any turn | deliver labelled sections, one job each — coaching rules, phase script, state, **this turn's move (authoritative)**, last turn's quality feedback, the conversation — and never present feedback as a message from the Belt (v1.75; built at 6.61) | §17, §19.1 |
 
 **No AI-ACT flag.** It moves already-committed values into the prompt and
@@ -10024,9 +10027,9 @@ gate_document = DefineOutput(
 | Cross-phase dicts | `artifacts.get("field", {})` | Same, with the right empty type |
 
 > **The Tier 2 row does not apply to Define.** It has no Tier 2 fields, which is
-> why the worked example above shows **thirteen** direct accesses — the twelve
-> coached fields plus `metric_definitions`, which is gate-required and therefore
-> read the same way (§63.8). **`phase_metrics` is the one `.get()` in Define's
+> why the worked example above reads every gate-required field directly — the
+> coached elements plus the fields captured inside a position, which are
+> gate-required and therefore read the same way (§63.8). **`phase_metrics` is the one `.get()` in Define's
 > assembly**, and it is not a Tier 2 access: it defaults to `[]` because a phase
 > may legitimately engage no metric, in which case §63.9 B2 requires
 > `"none this phase"` to be written into it rather than the field being absent. The row governs the other four phases, whose assemblies are
@@ -10095,16 +10098,15 @@ three structured dicts (S-C33).
 **Architecture:** §40 · **File:** `phases/define/schema.py` · **Procedure:** step 3.4
 *Rebuild test: met.*
 
-**Purpose:** Define's gate document. **18 fields — 13 required, `phase_metrics`,
-4 gate metadata.** (Was 16: `metric_definitions` and `phase_metrics` are added
-by the metric-registry ruling of 2026-08-26.) No Tier 1 / Tier 2 split: Define uses **Option A**, every field
-blocks the gate (§39.1.2, ratified 2026-08-26). **The declaration order below is
+**Purpose:** Define's gate document, rendered as the Define report (R5). **21 fields
+— 16 required, `phase_metrics`, 4 gate metadata** (v1.79; the owner is
+`DefineOutput.model_fields`). No Tier 1 / Tier 2 split: every field blocks the gate. **The declaration order below is
 the coached order** of §39.1.2 — with no tiers to group by, the two lists are
 one.
 
 ```python
 class DefineOutput(BaseModel):
-    """Gate document for the Define phase. All 12 fields gate-required (Option A)."""
+    """Gate document for the Define phase. All 16 content fields gate-required."""
     business_case:        str         # strategic rationale / quantified impact (COPQ)
     team:                 list[dict]  # [{name, role, function}] — §39.1.4
     voc_summary:          str         # who the customers are, what they need
@@ -10114,10 +10116,14 @@ class DefineOutput(BaseModel):
     goal_statement:       str         # the SMART sentence, human-readable prose
     target_value:        str         # DISCRETE target value — Control compares
     target_date:          str         # ISO; the PLANNED completion date (PM parameter)
+    benefits_analysis:    dict        # {cost_of_gap, impact_type, realisation_schedule, finance_contact} — R4
     secondary_metrics:    str         # what could get worse — on all five (§40)
     process_map_sipoc:    dict        # SIPOC + KPIs, 6 sub-fields (§41)
     issues_and_barriers:  str         # Belt-stated blockers
-    # The metric registry — Define owns it (§63.8, S-C38)
+    # Captured inside positions 3 and 4 (R4, R5)
+    critical_to_quality:  list[dict]  # [{customer, need, requirement}] — the CTQs
+    problem_5w2h:         dict        # {what, where, when, who, why, how, how_much}
+    # The metric registry — Define owns it (§63.8, S-C38); the FIRST entry is the primary
     metric_definitions:   list[dict]  # [{name, unit, meaning}] — the traceability keys
     # On all five schemas (§40, §63.9, S-C39)
     phase_metrics:        list[dict]  # [{name, unit, baseline_estimate, target_value, source}]
@@ -10147,7 +10153,7 @@ Define** — no field is skippable, so nothing can be acknowledged as skipped.
 
 | # | WHEN (trigger) | THE SYSTEM SHALL (behavior) | Ref |
 |---|---|---|---|
-| B1 | the gate is evaluated | block on **all 12 required fields** — Define has no Tier 2 and no `acknowledged_gaps` path, so a missing field can never be waived (Option A) | §35, §39.1.2 |
+| B1 | the gate is evaluated | block on **every required field** — Define has no Tier 2 and no `acknowledged_gaps` path, so a missing field can never be waived (Option A) | §35, §39.1.2 |
 | B2 | `process_map_sipoc` is graded | require all six sub-fields, `process_metrics` among them | §41 |
 | B3 | `process_metrics` is set | carry WHAT is measured — the first link of the three-phase measurement thread | §39 |
 | B4 | `project_scope` is graded | require **both** `in_scope` and `out_scope` — what the project is *not* doing is what protects it from ballooning | §39.1.2 |

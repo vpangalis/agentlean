@@ -94,7 +94,7 @@ class AskResponse(BaseModel):
     explanation: str = ""
     example: str = ""                            # an illustration, never the Belt's data (B6)
     prompt: str = ""                             # the one ask of this turn
-    progress: str = ""                           # "Define · Step n of 12" (6.57)
+    progress: str = ""                           # "Define · Step n of 13" (6.57; 13 since R4)
     grader_warning: Optional[str] = None         # the grader's Belt-visible warning (G-76)
     # Step 6.61 (R4) — the move this reply made and its field, so the screen
     # shows Confirm / Change under a read-back and nothing else decides that.

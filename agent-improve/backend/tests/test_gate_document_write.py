@@ -32,6 +32,11 @@ COMPLETE = {
                           "outputs": "o", "customers": "c",
                           "process_metrics": "m"},
     "issues_and_barriers": "none identified at this stage",
+    "benefits_analysis": {"cost_of_gap": "GBP 245,000 a year", "impact_type": "sustainable",
+                          "realisation_schedule": "from Q1 2027", "finance_contact": "Sam"},
+    "critical_to_quality": [{"customer": "suppliers", "need": "right first time",
+                             "requirement": "under 3% returned"}],
+    "problem_5w2h": {k: k for k in ("what", "where", "when", "who", "why", "how", "how_much")},
     "metric_definitions": [{"name": "invoice_error_rate", "unit": "%",
                             "meaning": "returned for correction"}],
 }

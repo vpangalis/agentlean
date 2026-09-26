@@ -56,7 +56,7 @@ REPLY = CoachingResponse(
     explanation="Define is the first phase of DMAIC, where we clarify the problem, scope, and goals.",
     example="Phases: Define, Measure, Analyse, Improve, Control — a structured approach to problem-solving.",
     prompt="Let's start with the business case. Why is this project worth doing, and what does it cost the business?",
-    progress="Define · Step 1 of 12",
+    progress="Define · Step 1 of 13",
 )
 BLOCKS = ("explanation", "example", "prompt", "progress")
 
@@ -94,7 +94,7 @@ def _state() -> PhaseState:
         "messages": [HumanMessage(content="Hi — I'm ready to start Define on our project.")],
         "history": [], "phase_context": "", "coaching_plan": None,
         "field_index": 0, "draft": {}, "artifacts": {}, "step_log": [],
-        "field_log": [], "belt_edits": {}, "turn_count": 0, "final": {},
+        "field_log": [], "field_status": {}, "belt_edits": {}, "turn_count": 0, "final": {},
         "gate_attempts": 0, "validator_feedback": [], "rejection_feedback": [],
         "citations": [], "uploads": [], "asks": [], "hop_results": [],
         "synthesis_output": None,

@@ -5,7 +5,7 @@ counter and cap it reuses) and `coaching_proof_656.py` (whose tracing switch and
 LangSmith send-counter it reuses): real model calls, real storage, the real
 `POST /ask` route, a NEW case. Tracing is OFF and every send is counted.
 
-A scripted Belt walks all twelve Define fields. Each message is chosen from the
+A scripted Belt walks all thirteen Define elements. Each message is chosen from the
 MOVE RECORD the last reply carried (founder ruling R5: the move is decided in
 code), never from a turn counter:
 
@@ -13,8 +13,8 @@ code), never from a turn counter:
     read_back                                         ->  click Confirm
 Probes, each once: a WEAK first answer at the problem statement (4); a CHANGE
 click at the voice of the customer (3); a TYPED correction at the goal (7);
-"where do we stand?" before the scope (6); the savings figures before the
-target date (9); an evidence upload before the SIPOC (11). Then the gate:
+"where do we stand?" before the scope (6); the savings figures at the
+benefits analysis (10); an evidence upload before the SIPOC (12). Then the gate:
 `GET /gate/review`, and `POST /gate` — as far as the gate exists today.
 
 THE CAP — `--max-calls` (default 150, founder ruling 2026-09-25, diagnosis
@@ -50,12 +50,28 @@ WHERE = "Where do we stand?"
 OUT_DIR = Path(__file__).resolve().parents[1] / "docs" / "runthrough"
 MAX_ATTEMPTS = 3            # answers to one field before it is recorded STUCK
 
-#: The good answer per field. Positions 1-8 are 6.56's scripted Belt; 9-12 are new.
+#: The good answer per element — each meets its acceptance criteria in
+#: skills/dmaic-define-phase/SKILL.md (R2, R3; 2026-09-26). Positions 1-8 start
+#: from 6.56's scripted Belt, with what the criteria added: where/when/baseline
+#: in the business case, training, the CTQs, the 5W2H "how", the KPI link.
 GOOD: dict[str, str] = {
-    "business_case": ANSWERS[1], "team": ANSWERS[2], "voc_summary": ANSWERS[3],
-    "problem_statement": ANSWERS[4], "baseline_estimate": ANSWERS[5],
+    "business_case": ("Across our three hospital sites, 23% of supplier invoices were paid "
+                      "after their 30-day terms from January to June 2026. " + ANSWERS[1]),
+    "team": ANSWERS[2] + (" Training: Dev and Amira need a half-day on data collection "
+                          "before Measure; nobody else needs any."),
+    "voc_summary": ANSWERS[3] + (" CTQs: suppliers — paid within 30 days of the invoice "
+                                 "date on every invoice; ward managers — no supplier puts "
+                                 "us on stop in a quarter."),
+    "problem_statement": ANSWERS[4] + (" How it shows: suppliers chase us by phone and "
+                                       "email, and some put us on stop."),
+    "baseline_estimate": ANSWERS[5] + " It feeds our finance KPI, creditor days.",
     "project_scope": ANSWERS[6], "goal_statement": ANSWERS[7], "target_value": ANSWERS[8],
     "target_date": "We plan to finish the project by 31 March 2027 (2027-03-31).",
+    "benefits_analysis": ("Cost of the gap: about £68,000 a year in interest and lost "
+                          "discounts, from the savings calculation. It is sustainable — "
+                          "every year, not one-off. It would start in Q2 2027 at about "
+                          "£17,000 a quarter. Our finance contact is Sam Reid, management "
+                          "accountant, who will validate it."),
     "secondary_metrics": ("Two things must not get worse: the number of supplier payment "
                           "queries the AP team handles each month, and AP staff overtime "
                           "hours. Both should stay at or below today's levels."),
@@ -141,7 +157,7 @@ class Walk:
         if move in ("teach", "store_and_advance"):
             if field == "project_scope" and self.once("where"):
                 return WHERE, None, "probe: where do we stand"
-            if field == "target_date" and self.once("savings"):
+            if field == "benefits_analysis" and self.once("savings"):
                 return SAVINGS, None, "probe: savings figures"
         n = self.attempts.get(field, 0)
         self.attempts[field] = n + 1
@@ -250,7 +266,8 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
     final = client.get(f"/cases/{case_id}").json()
     _write(rec, {"kind": "final_case", "current_phase": final.get("current_phase"),
                  "define_structured": ((final.get("phases") or {}).get("define") or {}).get("structured"),
-                 "field_log_keys": sorted(((final.get("phases") or {}).get("define") or {}).get("field_log") or {})[:200]})
+                 "field_log_keys": sorted(str(e.get("key")) for e in (((final.get("phases") or {})
+                                   .get("define") or {}).get("field_log") or []))[:200]})
     print(f"gate review {rv.status_code} · submit {sb.status_code} · phase now {final.get('current_phase')}")
     return out
 

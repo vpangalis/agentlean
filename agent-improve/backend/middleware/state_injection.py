@@ -316,10 +316,23 @@ class BeforeModelStateInjection(AgentMiddleware):
                              + "; ".join(f"{k} = {_render_value(v, 600)}"
                                          for k, v in pending["store"].items()))
 
+        # R4 — the savings calculation FEEDS the benefits analysis: while that
+        # element is current, the figure is a fact the coach proposes as its
+        # `cost_of_gap`. Proposed, never stored — the Belt confirms it (§21).
+        if self.phase == "define" and getattr(plan, "focus_field", None) == "benefits_analysis":
+            savings = [r for r in (artifacts.get("computation_results") or [])
+                       if isinstance(r, dict) and r.get("tool") == "calculate_expected_savings"]
+            parts.append("\nEXPECTED SAVINGS — calculated this phase; propose the latest as "
+                         "benefits_analysis.cost_of_gap, with its assumptions")
+            parts += [f"  {_render_value(r.get('result'), 400)} — inputs "
+                      f"{_render_value(r.get('inputs'), 200)}" for r in savings[-1:]] \
+                or ["  (not calculated yet — the calculation needs the baseline, the target, "
+                    "the cost of one defect and the yearly volume)"]
+
         parts += self._upload_manifest()
 
-        # 6.57 — labelled as the GATE's list, so its "n of 13" is not read as
-        # the Belt's step: Define gates on 13 fields and walks 12 steps.
+        # 6.57 — labelled as the GATE's list, so its "n of 16" is not read as
+        # the Belt's step: Define gates on 16 fields and walks 13 steps.
         parts.append(f"\nTHE GATE LIST — STILL MISSING FOR THE {self.phase.upper()} "
                      f"GATE ({len(missing)} of {len(spec.tier_1)} gate fields; "
                      f"not the step count)")

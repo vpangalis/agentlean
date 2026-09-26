@@ -1462,7 +1462,7 @@ def _advance_field_index(phase: str, artifacts: dict) -> int | None:
     running off the end, because there is no next one to point at.
 
     **6.57 — it is `define_position` minus one**, the same computation the
-    Belt's "Step n of 12" is delivered from, so the index the planner walks
+    Belt's "Step n of 13" is delivered from, so the index the planner walks
     and the step the Belt is told cannot disagree. That moves one case:
     position 5 now waits for `metric_definitions` as well as
     `baseline_estimate` (§39.1.9).

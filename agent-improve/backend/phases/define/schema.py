@@ -9,12 +9,13 @@ order. **They are rebuilt together or not at all.** A mismatch does not fail
 loudly — capture writes `artifacts["x"]`, `DefineOutput(**artifacts)` has no
 `x`, and the gate raises on a Belt who has done nothing wrong, one phase later.
 
-**Define uses Option A — all 12 fields are gate-required, with no Tier 1 /
-Tier 2 split** (ratified 2026-08-26; §39.1.2). This supersedes the 8/3 split of
-2026-08-25 **for Define only** — the other four phases keep their tiers, each
-settled at its own phase review. Two consequences follow and both are load-
-bearing: `DEFINE_REQUIRED_FOR_GATE` is the whole coached list, and **there is no
-`acknowledged_gaps` path out of Define** because no field is skippable.
+**Define has THIRTEEN elements, all gate-required, with no Tier 1 / Tier 2
+split** — the founder's requirement R4 (`docs/requirements/define.md`,
+2026-09-26) added the benefits analysis to the twelve of Option A (ratified
+2026-08-26). Two consequences follow and both are load-bearing:
+`DEFINE_REQUIRED_FOR_GATE` is the whole coached list plus the fields captured
+inside a position, and **there is no `acknowledged_gaps` path out of Define**
+because no field is skippable.
 
 **Declaration order IS the coached order** (§39.1.2). With no tiers to group by,
 the schema order and the `field_index` sequence are one list rather than two.
@@ -28,58 +29,59 @@ from typing import Any, Mapping
 
 from pydantic import BaseModel, Field
 
-# ── The 12 fields that BLOCK the gate — all of them ────────────────────
-# §35, §39.1.2. Option A: every Define field is gate-required, so this list is
-# also `DEFINE_FIELD_ORDER` below. Layer 2b checks presence deterministically —
-# no LLM. `validate.py` imports this list; it is not duplicated there.
+# ── The 13 elements that BLOCK the gate — all of them ──────────────────
+# R4 (founder, 2026-09-26): the twelve of Option A plus the benefits analysis.
+# Every Define element is gate-required, so this list is also
+# `DEFINE_FIELD_ORDER` below. Layer 2b checks presence deterministically — no
+# LLM. `validate.py` imports this list; it is not duplicated there.
 #
 # Ordered as coached. A field's position here is its `field_index`.
 DEFINE_REQUIRED_FIELDS: tuple[str, ...] = (
     "business_case",        # 1
     "team",                 # 2
-    "voc_summary",          # 3
-    "problem_statement",    # 4  composed from 5W2H (§39.1.3)
-    "baseline_estimate",      # 5  discrete — Control compares against it
+    "voc_summary",          # 3  with the CTQs (critical_to_quality) inside
+    "problem_statement",    # 4  composed from 5W2H (problem_5w2h inside)
+    "baseline_estimate",    # 5  the ONE primary metric's value (registry inside)
     "project_scope",        # 6
-    "goal_statement",       # 7  the human-readable SMART sentence
-    "target_value",        # 8  discrete — Control compares achieved-vs-target
+    "goal_statement",       # 7  the objective statement
+    "target_value",         # 8  discrete — Control compares achieved-vs-target
     "target_date",          # 9  the PLANNED completion date
-    "secondary_metrics",    # 10 what could get worse
-    "process_map_sipoc",    # 11
-    "issues_and_barriers",  # 12 always last
+    "benefits_analysis",    # 10 R4 — the savings calculation feeds it
+    "secondary_metrics",    # 11 what could get worse
+    "process_map_sipoc",    # 12 as-is
+    "issues_and_barriers",  # 13 always last
 )
 
 # The order the coach walks and the planner indexes with `field_index`
-# (§39.1.2 — this list closed G-38). Under Option A it is the same list as
+# (§39.1.2 — this list closed G-38). It is the same list as
 # DEFINE_REQUIRED_FIELDS: nothing is coached that does not block the gate, and
-# nothing blocks the gate that is not coached. `secondary_metrics` is coached
-# at position 10 rather than assembled silently — the earlier build left it out
-# of the walk while §40 still required it on all five schemas.
+# nothing blocks the gate that is not coached.
 #
 # The four gate-metadata fields are assembled at `gate_apply`, never coached,
 # so they are absent here by design.
 DEFINE_FIELD_ORDER: tuple[str, ...] = DEFINE_REQUIRED_FIELDS
 
-# `metric_definitions` is the project's METRIC REGISTRY (§63.8, S-C38) — the
-# canonical set of metrics the whole project is traced by. It is gate-required
-# but it is NOT a thirteenth coached position: the Belt names their metrics
-# inside position 5's conversation (`baseline_estimate`), because "what are we
-# measuring, in what units" and "what is it at today" are one exchange, not two.
-#
-# **The 12-position coached walk of the Option A finalization is unchanged.**
-# `field_index` still indexes DEFINE_FIELD_ORDER above; only the gate list grows.
+# Three gate-required fields are captured INSIDE a coached position rather than
+# at their own, because the Belt answers both halves in one exchange:
+#   metric_definitions   the METRIC REGISTRY (§63.8, S-C38), inside position 5 —
+#                        "what are we measuring, in what units" and "what is it
+#                        at today" are one exchange. The PRIMARY metric is the
+#                        first entry (R7: exactly one primary).
+#   critical_to_quality  the CTQs, inside position 3 — R4: "VOC includes the CTQs"
+#   problem_5w2h         the seven 5W2H answers, inside position 4 — the problem
+#                        statement is composed from them, and the Define report
+#                        draws them as a diagram (R5)
 DEFINE_REQUIRED_FOR_GATE_FIELDS: tuple[str, ...] = DEFINE_REQUIRED_FIELDS + (
-    "metric_definitions",
+    "metric_definitions", "critical_to_quality", "problem_5w2h",
 )
 
 # ── Step 6.57 — the Belt's position, COMPUTED ────────────────────────────
 #
-# **"Step n of 12" is this function's answer, never the model's count.** Every
-# coached turn on 0E5 on 2026-09-24 wrote "Define · 13 of 13": the only count
-# the coach was ever given was the gate list's "n of 13", so it counted that.
-# The walk has TWELVE positions (§39.1.2); the thirteenth gate field sits
-# inside position 5 (§39.1.9), so position 5 is complete only when both
-# halves are in.
+# **"Step n of 13" is this function's answer, never the model's count.** On
+# 2026-09-24 every coached turn on 0E5 wrote a count off the gate list, the only
+# count the coach was ever given. The walk has THIRTEEN positions (R4); the
+# three fields captured inside a position (above) make positions 3, 4 and 5
+# complete only when both halves are in.
 #
 # ONE function for every reader: the state-injection block delivers it, the
 # executor records it, `field_index` is it minus one, and step 10.3's progress
@@ -88,6 +90,8 @@ DEFINE_POSITIONS: int = len(DEFINE_FIELD_ORDER)
 
 #: Fields captured INSIDE a coached position rather than at their own.
 _CAPTURED_INSIDE: dict[str, tuple[str, ...]] = {
+    "voc_summary": ("critical_to_quality",),
+    "problem_statement": ("problem_5w2h",),
     "baseline_estimate": ("metric_definitions",),
 }
 
@@ -98,7 +102,7 @@ def _is_captured(artifacts: Mapping[str, Any], field: str) -> bool:
 
 
 def define_position(artifacts: Mapping[str, Any]) -> int:
-    """The Define position being coached, 1..12: the first not yet complete.
+    """The Define position being coached, 1..13: the first not yet complete.
 
     Once every position is complete it rests on 12 rather than running off
     the end — there is no thirteenth step to point at.
@@ -142,19 +146,30 @@ PROJECT_SCOPE_KEYS: tuple[str, ...] = ("in_scope", "out_scope")
 # Each team entry carries all three (§39.1.4).
 TEAM_MEMBER_KEYS: tuple[str, ...] = ("name", "role", "function")
 
+# R4 — each CTQ turns a customer need into a measurable requirement (p. 31, 82).
+CTQ_KEYS: tuple[str, ...] = ("customer", "need", "requirement")
+
+# R5 — the 5W2H answers the problem statement is composed from, drawn as a
+# diagram in the Define report. Each in the Belt's words.
+FIVE_W_TWO_H_KEYS: tuple[str, ...] = (
+    "what", "where", "when", "who", "why", "how", "how_much",
+)
+
+# R4 — the benefits analysis: the cost of the gap (COPQ), sustainable or
+# one-off, when the money lands, and who in finance validates it (p. 60-63).
+BENEFITS_ANALYSIS_KEYS: tuple[str, ...] = (
+    "cost_of_gap", "impact_type", "realisation_schedule", "finance_contact",
+)
+
 
 class DefineOutput(BaseModel):
-    """Gate document for the Define phase — 18 fields.
+    """Gate document for the Define phase — 21 fields.
 
-    **12 content fields, all gate-required (Option A) · `metric_definitions`,
-    the registry, also gate-required · `phase_metrics` · 4 gate metadata**
-    (§40, §63.1). Thirteen block the gate; twelve are coached. No tier split —
-    see the module docstring.
-
-    *(This read "16 fields" until 2026-08-28 — the count from before the metric
-    registry landed at ARCHITECTURE.md v1.15, which added `metric_definitions`
-    and `phase_metrics`. §40 and §63.1 have said 18 since. Corrected against
-    `DefineOutput.model_fields`, which is 18.)*
+    **13 coached elements, all gate-required · three fields captured inside a
+    position (`metric_definitions`, `critical_to_quality`, `problem_5w2h`), also
+    gate-required · `phase_metrics` · 4 gate metadata.** Sixteen block the gate;
+    thirteen are coached. No tier split — see the module docstring. The count
+    is `DefineOutput.model_fields`'s; this docstring does not own it.
 
     Assembled ONCE, at `gate_apply`, by Pydantic construction over values
     already captured — **there is no LLM call in this path** (§20, §33). Every
@@ -173,7 +188,7 @@ class DefineOutput(BaseModel):
     `detailed_process_map["baseline_metrics"]` -> `post_improvement_metrics` (§39).
     """
 
-    # ── The 12 gate-required fields, in coached order (§39.1.2) ───────
+    # ── The 13 gate-required elements, in coached order (R4) ──────────
     business_case: str = Field(
         ...,
         description=(
@@ -194,7 +209,8 @@ class DefineOutput(BaseModel):
         ...,
         description=(
             "Voice of the Customer — who the process serves and what they "
-            "need, including what they complain about most."
+            "need, including what they complain about most. Its CTQs are "
+            "`critical_to_quality`, captured in the same exchange."
         ),
     )
     problem_statement: str = Field(
@@ -247,6 +263,16 @@ class DefineOutput(BaseModel):
             "specified (F-12)."
         ),
     )
+    benefits_analysis: dict = Field(
+        ...,
+        description=(
+            "R4 — {cost_of_gap, impact_type, realisation_schedule, "
+            "finance_contact}: what the gap costs (COPQ), sustainable or "
+            "one-off, when the money lands, and who in finance validates it. "
+            "The expected-savings calculation is proposed as `cost_of_gap`; "
+            "the Belt confirms it in their own words."
+        ),
+    )
     secondary_metrics: str = Field(
         ...,
         description=(
@@ -271,6 +297,24 @@ class DefineOutput(BaseModel):
         ),
     )
 
+    # ── Captured inside positions 3 and 4 (R4, R5) ────────────────────
+    critical_to_quality: list[dict] = Field(
+        ...,
+        description=(
+            "The CTQs — one entry per requirement, {customer, need, "
+            "requirement}, where `requirement` is the measurable form of the "
+            "need. Captured inside position 3 with `voc_summary`."
+        ),
+    )
+    problem_5w2h: dict = Field(
+        ...,
+        description=(
+            "{what, where, when, who, why, how, how_much} — the Belt's own "
+            "answers the problem statement is composed from, drawn as the "
+            "5W2H diagram in the Define report. Captured inside position 4."
+        ),
+    )
+
     # ── The metric registry — Define owns it (§63.8, S-C38) ──────────
     metric_definitions: list[dict] = Field(
         ...,
@@ -279,8 +323,8 @@ class DefineOutput(BaseModel):
             "tracks: {name, unit, meaning}. `name` is the stable traceability "
             "key — written identically in every phase, and what the grader "
             "matches on to follow a metric across the five gate documents. "
-            "Gate-required, but captured inside position 5's conversation "
-            "rather than at a thirteenth coached position (§39.1.2)."
+            "The FIRST entry is the ONE primary metric (R7). Gate-required, "
+            "captured inside position 5's conversation."
         ),
     )
 
@@ -414,9 +458,9 @@ def assemble_define_gate_document(
 
     **Define is the one phase with no Tier 2** (Option A, §39.1.2), so every
     content field is a direct `artifacts[...]` access and the
-    `.get(..., "")` pattern never appears here. Thirteen direct accesses: the
-    twelve coached fields plus `metric_definitions`, which is gate-required
-    and therefore read the same way (§63.8).
+    `.get(..., "")` pattern never appears here. Sixteen direct accesses: the
+    thirteen coached elements plus the three fields captured inside a
+    position, which are gate-required and therefore read the same way.
 
     `phase_metrics` is the ONE `.get()` in this assembly and it is **not** a
     Tier 2 access — it defaults to `[]` because a phase may legitimately engage
@@ -436,7 +480,7 @@ def assemble_define_gate_document(
     artifacts = {**artifacts, "phase_metrics": phase_metrics}
 
     values = {
-        # The 12 gate-required fields, in coached order (§39.1.2)
+        # The 13 gate-required elements, in coached order (R4)
         "business_case": tier_1(artifacts, "business_case"),
         "team": tier_1(artifacts, "team"),
         "voc_summary": tier_1(artifacts, "voc_summary"),
@@ -446,10 +490,13 @@ def assemble_define_gate_document(
         "goal_statement": tier_1(artifacts, "goal_statement"),
         "target_value": tier_1(artifacts, "target_value"),
         "target_date": tier_1(artifacts, "target_date"),
+        "benefits_analysis": tier_1(artifacts, "benefits_analysis"),
         "secondary_metrics": tier_1(artifacts, "secondary_metrics"),
         "process_map_sipoc": tier_1(artifacts, "process_map_sipoc"),
         "issues_and_barriers": tier_1(artifacts, "issues_and_barriers"),
-        # The metric registry — gate-required, captured inside position 5
+        # Captured inside positions 3, 4 and 5 — gate-required
+        "critical_to_quality": tier_1(artifacts, "critical_to_quality"),
+        "problem_5w2h": tier_1(artifacts, "problem_5w2h"),
         "metric_definitions": tier_1(artifacts, "metric_definitions"),
         # On all five schemas (§63.9). DERIVED, never read back out of
         # `artifacts`: §39.1.9 makes this assembly the single author, so a

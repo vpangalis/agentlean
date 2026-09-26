@@ -503,7 +503,10 @@ def test_field_index_walks_defines_ordered_list() -> None:
     """§39.x.7: *"walks the §39.x.2 list"*. It was set to 0 by the input mapper
     and advanced by nothing, so it indexed the first field all phase."""
     assert _nc._advance_field_index("define", {}) == 0
-    three = {f: "x" for f in DEFINE_FIELD_ORDER[:3]}
+    two = {f: "x" for f in DEFINE_FIELD_ORDER[:2]}
+    assert _nc._advance_field_index("define", two) == 2
+    # R4 — position 3 is complete only with its CTQs inside it.
+    three = {**{f: "x" for f in DEFINE_FIELD_ORDER[:3]}, "critical_to_quality": "x"}
     assert _nc._advance_field_index("define", three) == 3
 
 
@@ -514,7 +517,8 @@ def test_field_index_reaches_the_last_field() -> None:
     6.57: "every" includes `metric_definitions`, captured inside position 5
     (§39.1.9) — without it the walk correctly waits at position 5
     (`test_define_position.py`)."""
-    every = {f: "x" for f in (*DEFINE_FIELD_ORDER, "metric_definitions")}
+    every = {f: "x" for f in (*DEFINE_FIELD_ORDER, "metric_definitions",
+                              "critical_to_quality", "problem_5w2h")}
     assert _nc._advance_field_index("define", every) == len(DEFINE_FIELD_ORDER) - 1
 
 

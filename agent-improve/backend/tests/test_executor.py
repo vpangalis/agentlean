@@ -533,7 +533,7 @@ def test_hitting_the_backstop_gives_the_belt_a_partial_answer(
     # use is marked a DEFECT on the trail and on the move record.
     reply = [m for m in out["messages"] if isinstance(m, AIMessage)][-1]
     assert "run out of room" not in str(reply.content)
-    assert "why is *your* project worth doing?" in str(reply.content), "the teach move's own ask"
+    assert "Why is your project worth doing?" in str(reply.content), "the teach move's own ask"
     assert out["step_log"][0]["fallback_used"] is True
     assert reply.additional_kwargs["coaching_move"]["fallback"] is True
     assert out["turn_count"] == 1, "the turn must still close"
@@ -614,7 +614,7 @@ def test_a_turn_that_drew_nothing_attaches_nothing(stub_coach) -> None:
 def _typed_value(field: str):
     """A value carrying the type `DefineOutput` declares for `field`.
 
-    Step 6.48. Four of Define's thirteen gate-required fields are structured;
+    Step 6.48. Seven of Define's gate-required fields are structured;
     a fixture that hands them prose is testing a capture the gate can never
     assemble from, which is what made this defect invisible for months.
     """
@@ -628,6 +628,14 @@ def _typed_value(field: str):
                               "customers": "c", "process_metrics": "m"},
         "metric_definitions": [{"name": "invoice_error_rate", "unit": "%",
                                 "meaning": "returned for correction"}],
+        # R4/R5 (2026-09-26) — the three structured fields added with the
+        # benefits analysis, the CTQs and the 5W2H.
+        "benefits_analysis": {"cost_of_gap": "GBP 11k", "impact_type": "sustainable",
+                              "realisation_schedule": "Q4", "finance_contact": "Sam"},
+        "critical_to_quality": [{"customer": "client", "need": "accurate",
+                                 "requirement": "100% of lines priced right"}],
+        "problem_5w2h": {k: f"{k} answer" for k in
+                         ("what", "where", "when", "who", "why", "how", "how_much")},
     }
     if field in shapes:
         return shapes[field]

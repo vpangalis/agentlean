@@ -156,7 +156,7 @@ def _state() -> PhaseState:
         "messages": [HumanMessage(content="what does good look like?")],
         "history": [], "phase_context": "", "coaching_plan": None,
         "field_index": 0, "draft": {}, "artifacts": {}, "step_log": [],
-        "field_log": [], "belt_edits": {}, "turn_count": 0, "final": {},
+        "field_log": [], "field_status": {}, "belt_edits": {}, "turn_count": 0, "final": {},
         "gate_attempts": 0, "validator_feedback": [], "rejection_feedback": [],
         "citations": [], "uploads": [], "asks": [], "hop_results": [],
         "synthesis_output": None,

@@ -10,8 +10,8 @@ retyped here — **two hand-maintained copies of one list is precisely how the
 three drift apart.**
 
 **Define is the one phase with no Tier 2** (Option A, ratified 2026-08-26;
-§39.1.2). **All 12 coached fields block, plus the metric registry — 13 in
-total** (§63.8). The "Tier 2 warns only" path of §35 has no
+§39.1.2). **All 13 coached elements block (R4), plus the three fields
+captured inside a position** (§63.8). The "Tier 2 warns only" path of §35 has no
 Define members, and `acknowledged_gaps` is therefore always empty for this
 phase — nothing is skippable, so nothing can be acknowledged as skipped. The
 other four phases keep both tiers, each settled at its own phase review.
@@ -63,10 +63,9 @@ from backend.phases.gate_registry import missing_gate_fields
 
 logger = logging.getLogger(__name__)
 
-# All 12 coached Define fields BLOCK the gate (§35, §39.1.2 — Option A),
-# PLUS `metric_definitions`, the metric registry (§63.8). Thirteen in total.
-# The coached walk is still 12 positions — the registry is captured inside
-# position 5 rather than at its own — so `field_index` is unaffected.
+# All 13 coached Define elements BLOCK the gate (R4, 2026-09-26), PLUS the
+# three fields captured inside a position — the CTQs, the 5W2H and the metric
+# registry (§63.8). The count is the schema's; `field_index` walks only the 13.
 # Sourced from schema.py: the single declaration.
 DEFINE_REQUIRED_FOR_GATE = list(DEFINE_REQUIRED_FOR_GATE_FIELDS)
 
@@ -75,7 +74,7 @@ async def validate_define(state: ImproveGraphState) -> dict:
     """Validator node for the Define phase.
 
     Gate enforcement is a **completeness check against
-    `DEFINE_REQUIRED_FOR_GATE`** — all 13 fields — not a Pydantic
+    `DEFINE_REQUIRED_FOR_GATE`** — every gate-required field — not a Pydantic
     required-field check, matching the other four phases. `DefineOutput` is the
     gate *document*, assembled once at `gate_apply` after Belt approval (§33);
     it is not the mechanism that decides whether the gate opens.
@@ -88,7 +87,7 @@ async def validate_define(state: ImproveGraphState) -> dict:
     data = dict(phase_inputs.get("define") or {})
     attempts = state.get("gate_attempts") or 0
 
-    # ── Layer 2b: presence of all 13 required fields ──────────────────
+    # ── Layer 2b: presence of every required field ────────────────────
     # **ONE computation, shared with the prompt** (step 6.3). `gate_registry.
     # missing_gate_fields` is what `BeforeModelStateInjection` also calls, so
     # the coach cannot ask for a field this gate does not want, or stay silent

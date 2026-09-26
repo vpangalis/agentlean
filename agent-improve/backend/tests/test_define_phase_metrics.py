@@ -49,7 +49,7 @@ REGISTRY = [
 def _captured(**overrides: object) -> dict:
     """A COMPLETE Define case, built the way turns build one.
 
-    Thirteen gate-required fields and **no `phase_metrics`** — because nothing
+    Every gate-required field and **no `phase_metrics`** — because nothing
     a Belt does produces one. Asserted against the registry rather than typed,
     so a field added to the gate set breaks this helper first.
     """
@@ -70,6 +70,12 @@ def _captured(**overrides: object) -> dict:
                                 "process_steps": "p", "outputs": "o",
                                 "customers": "c", "process_metrics": "m"},
         "issues_and_barriers": "none identified at this stage",
+        "benefits_analysis":   {"cost_of_gap": "GBP 245,000 a year", "impact_type": "sustainable",
+                                "realisation_schedule": "from Q1 2027", "finance_contact": "Sam"},
+        "critical_to_quality": [{"customer": "suppliers", "need": "right first time",
+                                 "requirement": "under 3% returned"}],
+        "problem_5w2h":        {k: k for k in ("what", "where", "when", "who", "why",
+                                                "how", "how_much")},
         "metric_definitions":  [dict(m) for m in REGISTRY],
     }
     assert set(GATE_SPECS["define"].tier_1) <= set(art), (

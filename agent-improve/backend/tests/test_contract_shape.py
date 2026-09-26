@@ -65,17 +65,21 @@ def test_the_contract_names_every_structured_coached_field() -> None:
     )
 
 
-def test_the_count_is_nine_and_is_derived() -> None:
+def test_the_count_is_twelve_and_is_derived() -> None:
     """Pinned so that a field LEAVING the structured set is noticed too.
 
     A drop is as much a drift as an addition: it would mean a schema was
     retyped and the contract still teaches the old shape.
     """
-    assert len(_structured_coached_fields()) == 9
+    assert len(_structured_coached_fields()) == 12   # nine + R4/R5's three (2026-09-26)
 
 
 @pytest.mark.parametrize("field,keys", [
     ("team", ("name", "role", "function")),
+    ("critical_to_quality", ("customer", "need", "requirement")),
+    ("problem_5w2h", ("what", "where", "when", "who", "why", "how", "how_much")),
+    ("benefits_analysis", ("cost_of_gap", "impact_type", "realisation_schedule",
+                           "finance_contact")),
     ("metric_definitions", ("name", "unit", "meaning")),
     ("project_scope", ("in_scope", "out_scope")),
     ("process_map_sipoc", ("suppliers", "inputs", "process_steps",

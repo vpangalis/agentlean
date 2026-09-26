@@ -34,6 +34,9 @@ from pydantic import TypeAdapter, ValidationError
 
 from backend.phases.define.schema import (
     DEFINE_REQUIRED_FOR_GATE_FIELDS,
+    BENEFITS_ANALYSIS_KEYS,
+    CTQ_KEYS,
+    FIVE_W_TWO_H_KEYS,
     METRIC_DEFINITION_KEYS,
     PROJECT_SCOPE_KEYS,
     SIPOC_KEYS,
@@ -67,7 +70,7 @@ class GateSpec(NamedTuple):
 
 #: **Define carries no Tier 2** — Option A (§39.1.2): every field blocks the
 #: gate, so there is no `acknowledged_gaps` path out of Define. Its Tier-1 set
-#: is therefore the whole 13-field gate-required list, and its Tier-2 set is
+#: is therefore the whole gate-required list, and its Tier-2 set is
 #: deliberately empty rather than omitted, so callers can treat all five
 #: phases uniformly.
 GATE_SPECS: dict[str, GateSpec] = {
@@ -267,16 +270,21 @@ def missing_structured(phase: str, data: dict[str, Any]) -> list[str]:
             absent = _absent_keys(sipoc, SIPOC_KEYS)
             if absent:
                 missing.append(f"process_map_sipoc.{'/'.join(absent)}")
-        scope = data.get("project_scope")
-        if isinstance(scope, dict):
-            absent = _absent_keys(scope, PROJECT_SCOPE_KEYS)
-            if absent:
-                missing.append(f"project_scope.{'/'.join(absent)}")
+        for field, keys in (("project_scope", PROJECT_SCOPE_KEYS),
+                            ("problem_5w2h", FIVE_W_TWO_H_KEYS),
+                            ("benefits_analysis", BENEFITS_ANALYSIS_KEYS)):
+            value = data.get(field)
+            if isinstance(value, dict):
+                absent = _absent_keys(value, keys)
+                if absent:
+                    missing.append(f"{field}.{'/'.join(absent)}")
         missing.extend(_missing_entries(
             data.get("metric_definitions"), METRIC_DEFINITION_KEYS,
             "metric_definitions"))
         missing.extend(_missing_entries(
             data.get("team"), TEAM_MEMBER_KEYS, "team"))
+        missing.extend(_missing_entries(
+            data.get("critical_to_quality"), CTQ_KEYS, "critical_to_quality"))
 
     elif phase == "measure":
         process_map = data.get("detailed_process_map")

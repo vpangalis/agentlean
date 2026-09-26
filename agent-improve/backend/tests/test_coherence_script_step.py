@@ -119,7 +119,7 @@ def test_a_turn_that_captures_a_field_is_at_that_fields_confirm_step() -> None:
     assert "**Read back:**" in step["block"], (
         "the field's own script block, its read-back line included (6.61: "
         "the script's ④ is 'Read back', no longer 'Confirm, then move on')")
-    assert "In a sentence or two" in step["block"], "the block is business_case's, not another's"
+    assert "Why is your project worth doing?" in step["block"], "the block is business_case's, not another's"
 
 
 def test_metric_definitions_confirms_inside_position_5() -> None:
@@ -127,7 +127,7 @@ def test_metric_definitions_confirms_inside_position_5() -> None:
     step = script_step("define", captured=["metric_definitions"], focus_field=None)
     assert step is not None
     assert (step["position"], step["field"]) == (5, "metric_definitions")
-    assert "What are we measuring" in step["block"], "position 5's block, baseline_estimate's"
+    assert "What is the one measure of the defect" in step["block"], "position 5's block, baseline_estimate's"
 
 
 def test_a_turn_that_captures_nothing_is_at_its_focus_fields_teaching_steps() -> None:
@@ -169,7 +169,7 @@ def test_the_judge_is_told_the_script_step_the_reply_performs(monkeypatch) -> No
     prompt = _judge_prompt(monkeypatch)
     assert "SCRIPT STEP" in prompt
     assert "business_case" in prompt and "Confirm" in prompt
-    assert "In a sentence or two" in prompt, "the field's script block is in the prompt"
+    assert "Why is your project worth doing?" in prompt, "the field's script block is in the prompt"
 
 
 def test_the_judge_sees_the_coachs_confirmation_question(monkeypatch) -> None:

@@ -7,13 +7,13 @@
 
 | | |
 |---|---|
-| **Headline** | 9 of 64 Define features pass (core 7 of 55) — A 8/35 · B 0/15 · C 0/8 · integrator 1/6 |
+| **Headline** | 0 of 64 Define features pass (core 0 of 55) — A 0/35 · B 0/15 · C 0/8 · integrator 0/6 |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
 | **Next — lane C** | DEF-052 — The workspace shows the coach's four blocks — explanation, example, prompt, and progress — plus the grader's warning when there is one. |
 | **Next — lane integrator** | DEF-001 — A Belt creates a new case and it opens in Define: POST /cases returns an id, the case list shows it, and GET /cases/{id} opens it with curre |
-| **Run-through record** | current |
-| **ARCHITECTURE.md** | v1.78 |
+| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
+| **ARCHITECTURE.md** | v1.79 |
 | **CLAUDE.md** | v2.3.1 |
 | **Block regenerated** | 2026-09-26 |
 

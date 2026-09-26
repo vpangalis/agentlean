@@ -1,4 +1,8 @@
-"""Step 6.57 — "Step n of 12" is computed, not counted by the model.
+"""Step 6.57 — "Step n of 13" is computed, not counted by the model.
+
+(Twelve until the founder's R4, 2026-09-26, added the benefits analysis; the
+CTQs and the 5W2H are captured inside positions 3 and 4, as the registry is
+inside 5. The measured defect below is the 12-step walk's.)
 
 THE DEFECT, MEASURED
 --------------------
@@ -30,12 +34,26 @@ from backend.middleware.state_injection import BeforeModelStateInjection
 from backend.phases import nodes_common as _nc
 from backend.phases.define.schema import (
     DEFINE_FIELD_ORDER,
+    _CAPTURED_INSIDE,
     define_position,
     define_progress,
 )
 
-EVERY_12 = {f: "x" for f in DEFINE_FIELD_ORDER}
-EVERY_13 = {**EVERY_12, "metric_definitions": [{"name": "m", "unit": "%", "meaning": "m"}]}
+#: A value for each field captured inside a position (3, 4 and 5).
+INSIDE = {"critical_to_quality": [{"customer": "c", "need": "n", "requirement": "r"}],
+          "problem_5w2h": {"what": "w"},
+          "metric_definitions": [{"name": "m", "unit": "%", "meaning": "m"}]}
+EVERY_POSITION = {f: "x" for f in DEFINE_FIELD_ORDER}          # the 13, no inside fields
+EVERY_FIELD = {**EVERY_POSITION, **INSIDE}                        # the whole gate list
+
+
+def _upto(n: int) -> dict:
+    """The first `n` positions complete — each with its inside field."""
+    out: dict = {}
+    for f in DEFINE_FIELD_ORDER[:n]:
+        out[f] = "x"
+        out.update({i: INSIDE[i] for i in _CAPTURED_INSIDE.get(f, ())})
+    return out
 
 
 # ── the function ─────────────────────────────────────────────────────────────
@@ -46,36 +64,36 @@ def test_an_empty_case_is_at_step_1() -> None:
 
 
 def test_the_position_is_the_first_field_not_yet_captured() -> None:
-    three = {f: "x" for f in DEFINE_FIELD_ORDER[:3]}
-    assert define_position(three) == 4
+    assert define_position(_upto(3)) == 4
 
 
-def test_position_5_waits_for_metric_definitions() -> None:
-    """§39.1.9: the registry is captured INSIDE position 5, so position 5 is
-    not done until both halves are in — whatever comes after it."""
-    assert define_position(EVERY_12) == 5
-    assert define_position({**EVERY_12, "metric_definitions": []}) == 5
+def test_positions_3_4_and_5_wait_for_the_field_captured_inside_them() -> None:
+    """The CTQs inside 3, the 5W2H inside 4, the registry inside 5: a position
+    is not done until both halves are in — whatever comes after it."""
+    assert define_position(EVERY_POSITION) == 3
+    assert define_position({**EVERY_FIELD, "problem_5w2h": {}}) == 4
+    assert define_position({**EVERY_FIELD, "metric_definitions": []}) == 5
 
 
-def test_a_complete_walk_rests_on_12_never_13() -> None:
-    assert define_position(EVERY_13) == 12
-    assert define_progress(EVERY_13)["of"] == 12
+def test_a_complete_walk_rests_on_13_never_past_it() -> None:
+    assert define_position(EVERY_FIELD) == 13
+    assert define_progress(EVERY_FIELD)["of"] == 13
 
 
 def test_a_blank_value_is_not_captured() -> None:
     assert define_position({DEFINE_FIELD_ORDER[0]: "   "}) == 1
 
 
-def test_the_label_names_the_step_and_the_twelve() -> None:
-    p = define_progress({f: "x" for f in DEFINE_FIELD_ORDER[:4]})
-    assert p == {"position": 5, "of": 12, "field": "baseline_estimate",
-                 "label": "Define · Step 5 of 12"}
+def test_the_label_names_the_step_and_the_thirteen() -> None:
+    p = define_progress(_upto(4))
+    assert p == {"position": 5, "of": 13, "field": "baseline_estimate",
+                 "label": "Define · Step 5 of 13"}
 
 
 def test_field_index_is_the_same_function() -> None:
     """One computation for the step the Belt is told and the index the planner
     walks — two would be free to disagree."""
-    for artifacts in ({}, {DEFINE_FIELD_ORDER[0]: "x"}, EVERY_12, EVERY_13):
+    for artifacts in ({}, {DEFINE_FIELD_ORDER[0]: "x"}, EVERY_POSITION, EVERY_FIELD):
         assert _nc._advance_field_index("define", artifacts) == define_position(artifacts) - 1
 
 
@@ -103,27 +121,27 @@ def _block(artifacts: dict, phase: str = "define") -> str:
 
 
 def test_the_block_delivers_the_computed_step() -> None:
-    block = _block({f: "x" for f in DEFINE_FIELD_ORDER[:4]})
-    assert "Define · Step 5 of 12" in block
-    assert "baseline_estimate" in block.split("Step 5 of 12")[1].splitlines()[0]
+    block = _block(_upto(4))
+    assert "Define · Step 5 of 13" in block
+    assert "baseline_estimate" in block.split("Step 5 of 13")[1].splitlines()[0]
 
 
 def test_the_step_comes_before_the_gate_list() -> None:
     """Models weight earlier content (§19.1 B2); the count the Belt is told
     must not be the second number the coach reads."""
     block = _block({})
-    assert block.index("Step 1 of 12") < block.index("GATE LIST")
+    assert block.index("Step 1 of 13") < block.index("GATE LIST")
 
 
-def test_the_gate_list_is_labelled_as_the_gate_list_and_keeps_its_13() -> None:
+def test_the_gate_list_is_labelled_as_the_gate_list_and_keeps_its_16() -> None:
     block = _block({})
     header = next(line for line in block.splitlines() if "GATE LIST" in line)
-    assert "of 13" in header, header
+    assert "of 16" in header, header
     assert "not the step" in header.lower(), header
 
 
 def test_the_other_phases_are_given_no_define_step() -> None:
-    assert "of 12" not in _block({}, phase="measure")
+    assert "of 13" not in _block({}, phase="measure")
 
 
 def test_the_progress_field_tells_the_model_to_copy_never_count() -> None:
@@ -165,15 +183,15 @@ def _record(out: dict) -> dict:
 
 def test_step_log_records_the_delivered_step_and_what_the_model_wrote(
         monkeypatch, stub_planner) -> None:
-    e = _record(_run(monkeypatch, "Define · 13 of 13", {f: "x" for f in DEFINE_FIELD_ORDER[:2]}))
-    assert (e["position"], e["of"], e["label"]) == (3, 12, "Define · Step 3 of 12")
+    e = _record(_run(monkeypatch, "Define · 13 of 13", _upto(2)))
+    assert (e["position"], e["of"], e["label"]) == (3, 13, "Define · Step 3 of 13")
     assert e["reply_progress"] == "Define · 13 of 13"
     assert e["reply_matches"] is False, "a model that counted for itself is on the record"
 
 
 def test_a_reply_that_copies_the_step_is_recorded_as_matching(
         monkeypatch, stub_planner) -> None:
-    e = _record(_run(monkeypatch, "Define · Step 1 of 12", {}))
+    e = _record(_run(monkeypatch, "Define · Step 1 of 13", {}))
     assert e["reply_matches"] is True
 
 
@@ -185,14 +203,14 @@ def test_the_reply_carries_the_computed_step_not_the_models_count(
     that input 55 times. So the reply the turn RECORDS carries the computed
     step: the structured-response message the next turn reads, and nothing of
     the model's count in it."""
-    out = _run(monkeypatch, "Define · 13 of 13", {f: "x" for f in DEFINE_FIELD_ORDER[:2]})
+    out = _run(monkeypatch, "Define · 13 of 13", _upto(2))
     stored = [m for m in out["messages"] if isinstance(m, ToolMessage)
               and str(m.content).startswith("Returning structured response:")]
     assert len(stored) == 1
-    assert "progress='Define · Step 3 of 12'" in str(stored[0].content)
+    assert "progress='Define · Step 3 of 13'" in str(stored[0].content)
     assert "13 of 13" not in str(stored[0].content)
     assert stored[0].tool_call_id == "call_1", "the tool-call pairing survives the rewrite"
-    assert _record(out)["progress_written"] == "Define · Step 3 of 12"
+    assert _record(out)["progress_written"] == "Define · Step 3 of 13"
 
 
 class _CapturingAgent(_Agent):
@@ -217,11 +235,12 @@ def test_a_capture_turn_writes_the_step_after_the_capture(monkeypatch, stub_plan
     monkeypatch.setattr(_nc, "create_agent", lambda **kw: _CapturingAgent("anything"))
     # 6.61 — a value is stored only when the Belt confirms it: this turn
     # confirms position 3 (`store_plan`), so the step after it is 4.
-    state: Any = {**_state({f: "x" for f in DEFINE_FIELD_ORDER[:2]}),
-             "coaching_plan": store_plan({"voc_summary": "Suppliers need paying on 30-day terms."})}
+    state: Any = {**_state(_upto(2)),
+             "coaching_plan": store_plan({"voc_summary": "Suppliers need paying on 30-day terms.",
+                                          "critical_to_quality": INSIDE["critical_to_quality"]})}
     out = asyncio.run(_nc.executor("define", state))
     e = _record(out)
-    assert e["progress_written"] == "Define · Step 4 of 12", e
+    assert e["progress_written"] == "Define · Step 4 of 13", e
     assert e["reply_progress"] == "anything", "the model's own value is kept"
     stored = [m for m in out["messages"] if isinstance(m, ToolMessage)]
-    assert "progress='Define · Step 4 of 12'" in str(stored[0].content)
+    assert "progress='Define · Step 4 of 13'" in str(stored[0].content)

@@ -223,8 +223,11 @@ def plan(changed: list[str], graph: dict[str, set[str]] | None = None) -> dict:
 def _run(cmd: list[str], cwd: Path) -> tuple[int, str]:
     env = dict(os.environ, PYTHONIOENCODING="utf-8")
     env.pop("AGENT_IMPROVE_FULL_RUN", None)
+    # stdin CLOSED: drift-check.py is also the Stop hook and reads stdin, so
+    # run by hand (an open stdin) it waited forever — 6.68, found when a
+    # pre-flight run from the shell hung for ten minutes.
     r = subprocess.run(cmd, cwd=cwd, capture_output=True, encoding="utf-8",
-                       errors="replace", timeout=900, env=env)
+                       errors="replace", timeout=900, env=env, stdin=subprocess.DEVNULL)
     return r.returncode, (r.stdout or "") + (r.stderr or "")
 
 
@@ -294,7 +297,8 @@ def check_tests(py: str, p: dict) -> tuple[bool, str]:
         # 6.68 — the only pass for a failure: the last commit's record has it.
         return True, (f"{n}: {summary} — all {len(ids)} failure(s) are recorded as failing in "
                       "HEAD's docs/test-results.json (pre-existing)")
-    new = [i for i in ids if i not in known] or ["(a failure pytest did not name)"]
+    raw = [ln for ln in lines if ln.startswith(("FAILED", "ERROR"))][:10]
+    new = [i for i in ids if i not in known] or raw or lines[-15:]
     return False, (f"{n}: {summary}\n  NEW failures (not in HEAD's record):\n  "
                    + "\n  ".join(new[:20]))
 

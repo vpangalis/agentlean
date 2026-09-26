@@ -75,6 +75,10 @@ def _live_record():
     return case, record
 
 
+#: The Define fields R4 and R5 added on 2026-09-26 (the benefits analysis, the CTQs, the 5W2H).
+ADDED_2026_09_26 = ("benefits_analysis", "critical_to_quality", "problem_5w2h")
+
+
 def test_row_20_the_document_is_written_and_safe_to_write_twice() -> None:
     """**Capability row 20**, read from `IMPR-2026-1FF` — the gate-proof case.
 
@@ -90,6 +94,11 @@ def test_row_20_the_document_is_written_and_safe_to_write_twice() -> None:
     case, record = _live_record()
     written = dict(record.structured or {})
     declared = set(GATE_SPECS[PHASE].model.model_fields)
+    # R4/R5 (founder, 2026-09-26) added three fields. A document WRITTEN before
+    # that date was complete under the schema of its day, and is read as such;
+    # one written after it must carry them. Named, never a blanket allowance.
+    if str(record.submitted_at or "") < "2026-09-26":
+        declared -= set(ADDED_2026_09_26)
 
     assert set(written) == declared, (
         "what was written is not a complete gate document: missing "
@@ -101,6 +110,14 @@ def test_row_20_the_document_is_written_and_safe_to_write_twice() -> None:
     # makes a repeated write harmless.
     artifacts = {k: v for k, v in written.items()
                  if k in set(GATE_SPECS[PHASE].tier_1)}
+    # A pre-R4 document has no value for the three added fields; determinism is
+    # a property of assembly, so named stand-ins serve both runs equally.
+    stand_in = {"benefits_analysis": {"cost_of_gap": "-", "impact_type": "-",
+                                      "realisation_schedule": "-", "finance_contact": "-"},
+                "critical_to_quality": [{"customer": "-", "need": "-", "requirement": "-"}],
+                "problem_5w2h": {k: "-" for k in ("what", "where", "when", "who", "why",
+                                                  "how", "how_much")}}
+    artifacts = {**{f: stand_in[f] for f in ADDED_2026_09_26 if f not in artifacts}, **artifacts}
     once = GATE_SPECS[PHASE].assemble(artifacts, [], [], []).model_dump()
     twice = GATE_SPECS[PHASE].assemble(artifacts, [], [], []).model_dump()
     assert once == twice, "assembly is not deterministic"

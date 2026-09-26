@@ -11,7 +11,7 @@ sufficient, and to write the coach's words. A value is stored only after the
 Belt confirms it, in the Belt's words."*
 
 WHAT THIS MODULE OWNS
-    positions()        the coached walk, per phase: Define's twelve positions
+    positions()        the coached walk, per phase: Define's thirteen positions
                        (metric_definitions inside position 5); the other four
                        phases walk their gate list in `review_rows` order
     field_statuses()   untaught / answered / confirmed for every position

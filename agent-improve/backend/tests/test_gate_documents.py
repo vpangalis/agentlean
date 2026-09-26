@@ -20,7 +20,7 @@ PHASES = ("define", "measure", "analyse", "improve", "control")
 
 # §63.1–63.5, transcribed: (total fields, Tier 1, Tier 2)
 SPEC_COUNTS = {
-    "define":  (18, 13, 0),   # Option A — no Tier 2 (§39.1.2)
+    "define":  (21, 16, 0),   # no Tier 2; 13 elements + 3 captured inside (R4, R5)
     "measure": (15, 7, 3),
     "analyse": (14, 4, 5),
     "improve": (14, 4, 5),
