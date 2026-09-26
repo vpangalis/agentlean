@@ -53,6 +53,7 @@ from backend.core.substate import (
     is_empty_capture,
     merge_field_log,
     split_captures,
+    value_history,
 )
 from backend.gateway.routes import _ensure_case_record, apply_capture
 from backend.phases import nodes_common as _nc
@@ -660,3 +661,53 @@ def _phase_state(**overrides: Any) -> PhaseState:
     }
     base.update(overrides)  # type: ignore[typeddict-item]
     return base
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# R6 — every change kept in phase state with its date: the FIRST value and
+# the CURRENT value (docs/requirements/define.md, 2026-09-26). `field_log`
+# already holds it (proved above: one entry per confirmed change, dated, with
+# the value it replaced); `value_history` reads it.
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def test_r6_the_first_and_the_current_confirmed_value_each_with_its_date(
+        monkeypatch, stub_planner, stub_coach) -> None:
+    """Through the real graph and the route's write: confirmed twice, the
+    history names the first value and the current one, each dated — and it is
+    in the PHASE STATE the next turn starts from (seeded from the case record)."""
+    session = Session(monkeypatch)
+    session.turn(stub_coach, _reply("baseline_estimate", "about 12%"))
+    session.turn(stub_coach, _reply("baseline_estimate", "12.4%, from the Q2 extract"))
+
+    history = value_history(session.field_log, "define")["baseline_estimate"]
+    assert history["first"]["value"] == "about 12%"
+    assert history["current"]["value"] == "12.4%, from the Q2 extract"
+    assert history["first"]["at"] and history["current"]["at"]
+    assert history["first"]["at"] <= history["current"]["at"]
+    assert (history["first"]["turn"], history["current"]["turn"], history["changes"]) == (1, 2, 2)
+
+    _ensure_case_record(session.case)
+    child = define_input_mapper(_seed_state(), session.store)   # type: ignore[arg-type]
+    assert value_history(child["field_log"], "define")["baseline_estimate"] == history, (
+        "the history is in the phase state the next turn starts from")
+
+
+def test_r6_a_field_confirmed_once_has_the_same_first_and_current_value() -> None:
+    log = [{"field": "team", "phase": "define", "turn": 3, "value": ["Ana"],
+            "prior_value": None, "timestamp": "2026-09-26T10:00:00+00:00"}]
+    h = value_history(log)["team"]
+    assert h["first"] == h["current"] and h["changes"] == 1
+
+
+def test_r6_order_is_by_date_and_other_phases_are_left_out() -> None:
+    log = [
+        {"field": "goal_statement", "phase": "define", "turn": 7, "value": "B",
+         "timestamp": "2026-09-27T09:00:00+00:00"},
+        {"field": "goal_statement", "phase": "define", "turn": 4, "value": "A",
+         "timestamp": "2026-09-26T09:00:00+00:00"},
+        {"field": "goal_statement", "phase": "measure", "turn": 1, "value": "M",
+         "timestamp": "2026-09-28T09:00:00+00:00"},
+    ]
+    h = value_history(log, "define")["goal_statement"]
+    assert (h["first"]["value"], h["current"]["value"], h["changes"]) == ("A", "B", 2)

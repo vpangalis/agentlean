@@ -556,6 +556,36 @@ def merge_field_log(
     return list(merged.values())
 
 
+def value_history(field_log: list[dict[str, Any]] | None,
+                  phase: str | None = None) -> dict[str, dict[str, Any]]:
+    """R6 (docs/requirements/define.md) — per field, the FIRST confirmed value
+    with its date and the CURRENT value with its date, read from `field_log`.
+
+    `field_log` already holds this; nothing new is stored. Since 6.61 an entry
+    is written only when the Belt CONFIRMS a value (the executor builds the log
+    from what the plan stores), each with its ISO `timestamp` and the value it
+    replaced, and the log crosses turns through the case record. So the first
+    entry for a field is its first confirmed value and the last is its current
+    one. Entries are ordered by timestamp (the reducer keeps first-appearance
+    order, which is the same; the sort makes it independent of that).
+
+        {field: {"first":   {"value", "at", "turn"},
+                 "current": {"value", "at", "turn"},
+                 "changes": <entries for the field>}}
+    """
+    rows = [e for e in (field_log or [])
+            if isinstance(e, dict) and e.get("field")
+            and (phase is None or e.get("phase") == phase)]
+    rows.sort(key=lambda e: (str(e.get("timestamp") or ""), int(e.get("turn") or 0)))
+    out: dict[str, dict[str, Any]] = {}
+    for e in rows:
+        stamp = {"value": e.get("value"), "at": e.get("timestamp"), "turn": e.get("turn")}
+        entry = out.setdefault(str(e["field"]), {"first": stamp, "changes": 0})
+        entry["current"] = stamp
+        entry["changes"] += 1
+    return out
+
+
 class PhaseState(TypedDict):
     """Twenty-three author-populated fields — two identity, three plumbing,
     eighteen content — plus one engine-managed value: twenty-four declared.
@@ -790,6 +820,7 @@ __all__ = [
     "field_log_key",
     "is_empty_capture",
     "merge_field_log",
+    "value_history",
     "split_captures",
     "PhaseState",
     "PHASE_STATE_IDENTITY_FIELDS",
