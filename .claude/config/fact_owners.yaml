@@ -96,13 +96,13 @@ owners:
     owner_path: 'agent-improve/backend/phases/nodes_common.py'
     owner_test: test_the_declared_middleware_list_is_the_ratified_layering
     derive: middleware_list       # AST of create_agent(middleware=[...])
-    enforced_by: verify_built.py 'middleware mounted' + the ordering test
+    enforced_by: the ordering test (verify_built.py retired with the procedure at 6.67)
     # NO PROSE COUNT CHECK, and the reason is measured. "middleware" appears
     # 164 times in two governed documents as an ordinary English word, and a
     # `N middleware` matcher fired on `### 19.9 Middleware deliberately NOT
     # used` (a heading number) and on "step 6.3 shipped two middlewares"
     # (a true statement about two specific ones). The count is ALREADY
-    # enforced against the tree by verify_built.py and the order by
+    # enforced against the tree by the ordering test (verify_built.py retired at 6.67), and by
     # `test_the_declared_middleware_list_is_the_ratified_layering`. A second,
     # noisier check would not add cover — it would add false positives to a
     # check that already passes, which is how a check gets switched off.

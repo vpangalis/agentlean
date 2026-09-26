@@ -92,8 +92,8 @@ def _write(path: Path, record: dict) -> None:
 
 def _source_hash() -> str:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "control_board"))
-    import progress
-    return progress.source_hash()
+    import features
+    return features.source_hash()
 
 
 def _product_hash() -> str:

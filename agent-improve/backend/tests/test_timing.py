@@ -84,7 +84,7 @@ def test_the_record_says_which_source_the_last_full_run_was_on(monkeypatch, tmp_
     import sys
     from backend.tests import conftest as cf
     sys.path.insert(0, str(_REPO / "agent-improve" / "tools" / "control_board"))
-    import progress
+    import features as progress  # 6.67: the recorder's source hash moved from progress.py
     path = tmp_path / "test-results.json"
     monkeypatch.setattr(progress, "RESULTS", path)
     monkeypatch.setenv("AGENT_IMPROVE_FULL_RUN", "1")

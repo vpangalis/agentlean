@@ -505,7 +505,7 @@ def _record_results(outcomes_run: dict[str, str] | None = None) -> None:
     project = _Path(__file__).resolve().parents[2]
     _sys.path.insert(0, str(project / "tools" / "control_board"))
     try:
-        from progress import RESULTS, SOURCE_GLOBS, source_hash  # type: ignore[import-not-found]
+        from features import RESULTS, SOURCE_GLOBS, source_hash  # type: ignore[import-not-found]  # 6.67: moved from progress.py
     finally:
         _sys.path.pop(0)
     current = source_hash(project)

@@ -3,11 +3,11 @@
 
 CLAUDE.md §22 (b): never read ARCHITECTURE.md or the procedure whole — find the
 section, read that region. This writes `agent-improve/docs/section-index.md`:
-every heading of both documents with its line range, so a session reads
+every heading of ARCHITECTURE.md with its line range, so a session reads
 `offset`/`limit` straight from a table instead of grepping first.
 
 GENERATED — the pre-commit hook rewrites and stages it on every commit that
-touches either document; never hand-edit it. Headings inside fenced code are
+touches it; never hand-edit it. Headings inside fenced code are
 not headings. A section's range runs to the line before the next heading of
 the same or a higher level.
 
@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-DOCS = ("agent-improve/ARCHITECTURE.md", "agent-improve/docs/REFACTORING_PROCEDURE.md")
+DOCS = ("agent-improve/ARCHITECTURE.md",)  # 6.67: the procedure is archived
 OUT = ROOT / "agent-improve" / "docs" / "section-index.md"
 _HEADING = re.compile(r"^(#{1,4})\s+(.*\S)\s*$")
 _FENCE = re.compile(r"^\s*(```|~~~)")

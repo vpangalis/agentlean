@@ -46,8 +46,7 @@ def test_line_endings_do_not_count() -> None:
 
 def test_every_governing_document_has_a_bound() -> None:
     bounds = sb.load()
-    must = {"agent-improve/CLAUDE.md", "agent-improve/ARCHITECTURE.md",
-            "agent-improve/docs/REFACTORING_PROCEDURE.md"}
+    must = {"agent-improve/CLAUDE.md", "agent-improve/ARCHITECTURE.md"}   # the procedure is archived (6.67)
     must |= {p.relative_to(_REPO).as_posix() for p in (_REPO / ".claude" / "rules").glob("*.md")}
     assert must <= set(bounds), sorted(must - set(bounds))
 

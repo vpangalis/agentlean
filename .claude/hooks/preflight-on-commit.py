@@ -26,6 +26,21 @@ COMMIT_RE = re.compile(r"(?:^|[;&|(\s])git(?:\s+-C\s+\S+|\s+-c\s+\S+)*\s+commit\
 ACK_RE = re.compile(r"#\s*preflight:\s*acknowledged\s*[—-]\s*(?P<why>.{12,})")
 
 
+def unstaged_tracked() -> list[str]:
+    """Tracked files whose working copy differs from the index, ignoring line endings."""
+    import subprocess
+    root = Path(__file__).resolve().parents[2]
+    out = subprocess.run(["git", "diff", "--name-only", "--ignore-cr-at-eol"], cwd=root,
+                         capture_output=True, encoding="utf-8", errors="replace", timeout=30)
+    names = [n.strip() for n in out.stdout.splitlines() if n.strip()]
+    if not names:
+        return []
+    real = subprocess.run(["git", "diff", "--ignore-cr-at-eol", "--numstat", "--", *names], cwd=root,
+                          capture_output=True, encoding="utf-8", errors="replace", timeout=30)
+    return [ln.split("\t")[-1] for ln in real.stdout.splitlines()
+            if ln.strip() and not ln.startswith("0\t0\t")]
+
+
 def is_commit(command: str) -> bool:
     return bool(COMMIT_RE.search(command)) and "--dry-run" not in command
 
@@ -39,6 +54,13 @@ def decide(payload: dict, run) -> tuple[int, str]:
         return 0, ""
     lines: list[str] = []
     code = run(echo=lines.append)
+    unstaged = unstaged_tracked()
+    if unstaged and not re.search(r"\s(-a|--all|--only|-o)\b", command):
+        # 6.67 — the hooks test the WORKING TREE, so a commit that leaves
+        # edits unstaged passes them while committing a different tree.
+        lines.append(f"[preflight] WARNING: {len(unstaged)} tracked file(s) are modified but NOT "
+                     "staged — the hooks test them, the commit will not contain them: "
+                     + ", ".join(unstaged[:8]) + (" …" if len(unstaged) > 8 else ""))
     report = "\n".join(lines)
     if code == 0:
         return 0, report

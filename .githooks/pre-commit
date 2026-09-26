@@ -1,30 +1,22 @@
 #!/bin/sh
-# Tracked git hook — regenerates the progress view and CONTINUITY.md from the
-# ONE FUNCTION, agent-improve/tools/control_board/progress.py (step 6.63).
+# Tracked git hook — regenerates CONTINUITY.md's status block, the feature
+# ratchet and the one board page from the Define feature list and the recorded
+# test run: agent-improve/tools/control_board/features.py (step 6.67).
 #
 # Activated per clone with:
 #     git config core.hooksPath .githooks
 #
 # Fail-SOFT, and deliberately the opposite of the commit-msg guard: this hook
 # WRITES, and a writing hook that breaks must never wedge a commit. The
-# commit-msg guard is the enforcement point — rule 5 (CONTINUITY's block) and
-# rule 10 (the board is a true picture of the tree) both fail CLOSED, so a
-# page this hook failed to rebuild cannot land. Fail-soft writer, fail-closed
-# checker.
+# commit-msg guard is the enforcement point — rules 5 (CONTINUITY), 10 (the
+# board) and 11 (landing and the ratchet) fail CLOSED.
 #
-# Two writers, in this order:
-#   1. pre-commit-continuity.py — CONTINUITY.md's status block and the
-#      procedure's step board, both from progress(). Stdlib only.
-#   2. build_control_board.py --staged — docs/control-board.html, THE ONLY
-#      PROGRESS VIEW (founder, 2026-09-25). It reads the code for its diagram,
-#      so it runs on the project venv's python.
+# In this order: the commit's ONE full test run (skipped when only Markdown is
+# staged); pre-commit-continuity.py (CONTINUITY's block and the ratchet);
+# the section index; build_control_board.py (the board). The procedure and
+# its step board are archived (6.67).
 #
-# docs/board.html IS NO LONGER WRITTEN (step 6.63). It was a second progress
-# view; the founder ruled control-board.html the only one. build_board.py
-# stays for its readers (markers, gaps, the build matrix), which the guard
-# and the tests use.
-#
-# docs/test-results.json is staged with the page: every green on the board is
+# docs/test-results.json is staged with the page: every pass on the board is
 # "this test passed on this source", and the record is what says so.
 CONTINUITY=".claude/hooks/pre-commit-continuity.py"
 CONTROL="agent-improve/tools/control_board/build_control_board.py"
@@ -53,6 +45,9 @@ t_log() {  # $1 = label, $2 = start seconds
 # for that exact tree, and otherwise runs the suite itself.
 MARKER=".claude/logs/full-run.json"
 rm -f "$MARKER"
+# 6.67 — where this commit's timing starts; prepare-commit-msg sums from here
+# into the commit's `Timing:` trailer, which the board reads from git log.
+mkdir -p .claude/logs && date +%s > .claude/logs/pre-commit-start
 RAN=""
 if [ -n "$VENV" ] && git diff --cached --name-only | grep -qv '\.md$'; then
     T0=$(date +%s)

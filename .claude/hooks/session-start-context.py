@@ -153,99 +153,24 @@ def _board_data(rev: str, project_dir: str) -> dict | None:
     return json.loads(m.group(1).replace("<\\/", "</")) if m else None
 
 
-_RANK = {"green": 0, "built": 1, "waiting": 1, "amber": 2, "red": 3}
-
-
 def get_progress() -> str:
-    """Section 2 — THE ONE PROGRESS VIEW, as committed (step 6.63).
+    """Section 2 — the board as committed (step 6.67: features + test results).
 
-    Until 6.63 this printed "last completed X | next Y" from its own parse of
-    Appendix D and git log: a sixth progress view, and it named 6.43 as next
-    while the plan's Order named another step. Now it reads what
-    `control-board.html` embeds — the output of `progress.progress()`, the one
-    function — at HEAD, and compares it with HEAD~1's to show what regressed.
-    Reading the committed page needs no venv and runs in milliseconds.
+    Reads the progress data `control-board.html` embeds at HEAD — the headline
+    and every Define feature's status — and names any feature that passed at
+    HEAD~1 and fails at HEAD. Reading the committed page needs no venv.
     """
     project_dir = get_project_dir()
     now = _board_data("HEAD", project_dir)
-    if now is None:
+    if now is None or "statuses" not in now:
         return f"progress: {BOARD_PATH} at HEAD carries no progress data"
-    wo = now.get("working_on") or {}
-    lines = [now["headline"],
-             f"current step: {wo.get('step', '—')} — {wo.get('title', '')}",
-             f"forecast finish (Define, 7.9): {now.get('forecast_define') or '—'}"
-             f" · conditional on {', '.join(now.get('conditional_on') or []) or 'nothing'}"
-             f" · {now.get('forecast_basis', '')}"]
-    before = _board_data("HEAD~1", project_dir)
-    if before is None:
-        lines.append("regressed since the last commit: (no board at HEAD~1 to compare)")
-        return "\n".join(lines)
-    worse = []
-    for key, v in sorted(now["statuses"].items()):
-        old = before.get("statuses", {}).get(key)
-        if old and _RANK.get(v["colour"], 3) > _RANK.get(old["colour"], 3):
-            worse.append(f"  {key}: {old['colour']} -> {v['colour']} ({v['ref']})")
-    lines.append(f"regressed since the last commit: {len(worse)}")
-    lines += worse[:15] + ([f"  ... and {len(worse) - 15} more"] if len(worse) > 15 else [])
+    lines = [now.get("headline", "")]
+    before = _board_data("HEAD~1", project_dir) or {}
+    worse = [fid for fid, st in sorted(now["statuses"].items())
+             if st == "failing" and (before.get("statuses") or {}).get(fid) == "passing"]
+    lines.append(f"features that passed at HEAD~1 and fail now: {len(worse)}"
+                 + (f" — {', '.join(worse[:15])}" if worse else ""))
     return "\n".join(lines)
-
-
-def _pinned_python() -> str:
-    """`agent-improve/.venv`'s interpreter — NEVER `sys.executable`.
-
-    **WATCH 2, and this hook was the live instance of it until 2026-09-11.**
-    The repo root carries a second, older virtualenv. This function used
-    `sys.executable`, which is whatever interpreter Claude Code launched the
-    hook with — the ROOT venv — so every session opened with a dependency
-    report for the wrong tree: `langgraph 1.1.10` against a project running
-    **1.2.11**, flagged `⚠` as behind when it is current.
-
-    **The report contradicted step 2.3's Done-when** (*"reports ≥1.2.6"*) at
-    the top of every session, which is the worst possible place for a false
-    negative: it is the first thing read and the last thing anyone re-derives.
-    `verify_built.py` has pinned the venv since it was written and says so in
-    its own docstring; this hook was never given the same rule.
-    """
-    root = get_project_dir()
-    for rel in (("agent-improve", ".venv", "Scripts", "python.exe"),
-                ("agent-improve", ".venv", "bin", "python")):
-        cand = os.path.join(root, *rel)
-        if os.path.exists(cand):
-            return cand
-    return sys.executable                       # fail-soft, as the hook must
-
-
-def get_installed_version(pkg: str) -> str | None:
-    """Installed version via the PINNED venv's `pip show`, or None if absent."""
-    try:
-        out = subprocess.run(
-            [_pinned_python(), "-m", "pip", "show", pkg],
-            capture_output=True, encoding="utf-8", errors="replace", timeout=10,
-        )
-        if out.returncode != 0:
-            return None
-        for line in out.stdout.splitlines():
-            if line.lower().startswith("version:"):
-                return line.split(":", 1)[1].strip()
-        return None
-    except Exception as exc:  # noqa: BLE001
-        _log(f"pip show {pkg} failed: {exc}")
-        return None
-
-
-def get_latest_version(pkg: str) -> str | None:
-    """Latest version from PyPI JSON, or None on any network/parse failure."""
-    try:
-        url = PYPI_URL.format(pkg=pkg)
-        req = urllib.request.Request(url, headers={"Accept": "application/json"})
-        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as resp:
-            if resp.status != 200:
-                return None
-            data = json.loads(resp.read().decode("utf-8"))
-        return data.get("info", {}).get("version") or None
-    except Exception as exc:  # noqa: BLE001
-        _log(f"pypi {pkg} lookup failed: {exc}")
-        return None
 
 
 def get_version_info() -> str:

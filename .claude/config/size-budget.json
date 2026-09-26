@@ -3,7 +3,6 @@
  "bounds": {
   "agent-improve/CLAUDE.md": 10600,
   "agent-improve/ARCHITECTURE.md": 696800,
-  "agent-improve/docs/REFACTORING_PROCEDURE.md": 472400,
   ".claude/rules/architecture.md": 7300,
   ".claude/rules/gates.md": 10200,
   ".claude/rules/graph.md": 6500,

@@ -48,8 +48,8 @@ def test_a_changed_module_reaches_its_importers_and_their_tests() -> None:
 
 def test_a_changed_document_reaches_the_tests_that_read_it() -> None:
     """6.61's first commit was refused for a stale count in a document."""
-    p = _pf().plan(["agent-improve/docs/REFACTORING_PROCEDURE.md"], graph={})
-    assert "agent-improve/backend/tests/test_build_matrix.py" in p["tests"]
+    p = _pf().plan(["agent-improve/ARCHITECTURE.md"], graph={})
+    assert "agent-improve/backend/tests/test_state.py" in p["tests"]  # it reads ARCHITECTURE.md by name
 
 
 def test_the_conftest_reaches_everything() -> None:

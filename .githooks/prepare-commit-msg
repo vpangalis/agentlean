@@ -1,0 +1,12 @@
+#!/bin/sh
+# Tracked git hook — appends this commit's pre-commit timing as a `Timing:`
+# trailer (step 6.67), so the board can show each commit's timing from git log.
+# Fail-soft: a measurement never stops a commit.
+TRAILER=".claude/hooks/timing_trailer.py"
+for PY in python3 python py; do
+    if command -v "$PY" >/dev/null 2>&1; then
+        [ -f "$TRAILER" ] && "$PY" "$TRAILER" "$@" 2>/dev/null
+        exit 0
+    fi
+done
+exit 0
