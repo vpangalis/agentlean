@@ -31,61 +31,9 @@ import urllib.request
 DEPENDENCIES = ["langgraph", "langchain", "langsmith", "deepagents"]
 PYPI_URL = "https://pypi.org/pypi/{pkg}/json"
 HTTP_TIMEOUT = 3
-# The step sequence lives in the Refactoring Procedure, Appendix D.
-# It was ARCHITECTURE.md §15 until 2026-08-21. That document was absorbed into
-# the platform reference (and its path later reused for a copy of it), and its
-# §15 used "### Step N —" headings the old regex never matched,
-# so this lookup had been failing silently as "next undetermined".
-PROCEDURE_DOC_PATH = "agent-improve/docs/REFACTORING_PROCEDURE.md"
-STEP_INDEX_HEADING = "Appendix D"
 MAX_OUTPUT_CHARS = 10000
-
-# Governance convention: refactor commits are subjects like
-#   "refactor(arch-v2): commit 2.2 — ..."  (this repo's convention)
-# also tolerate "step 2.2" and a bare "2.2". The index carries no ✅/[x],
-# so the authoritative record of what has landed is git history.
-_GITLOG_STEP_RE = re.compile(r"refactor\(arch-v2\):\s*(?:step\s+|commit\s+)?(\d+\.\d+)")
-
-# Appendix D row format, fixed by contract with the document:
-#   | **Commit 4.2** | thread_id + disconnect policy |  |
-#   | **Commit 8.5** | Graceful shutdown | GATED |
-#
-# **THE STATUS CELL IS EMPTY FOR EVERY SCHEDULABLE STEP** (2026-09-10). It
-# carries only what git cannot say, so `[A-Za-z]*` — with a star, not a plus —
-# is load-bearing: an empty cell must MATCH and read as available. With `+` the
-# row would not match at all, drop out of `rows`, and every remaining step
-# would become invisible rather than merely unstatused.
-# **`Seq` is column 1 and ORDERING READS IT; the step number is identity only.**
-# Ratified 2026-09-11. Appendix D's rows are no longer in execution order -
-# they are in identifier order, and `Seq` says what to build next. The number
-# stays stable so every commit subject, every §-citation and every register
-# entry that names a step keeps resolving.
-_STEP_ROW_RE = re.compile(
-    r"\|\s*(\d+)\s*\|\s*\*\*Commit (\d+\.\d+)\*\*\s*\|[^|]*\|\s*(?:\*\*)?([A-Za-z]*)"
-)
-
-# Statuses that must never be proposed as the next step — the three things git
-# history cannot tell you about a step that has not landed.
-#
-# `done` LEFT this set on 2026-09-10, when the column stopped carrying it.
-# Completion now comes from `_GITLOG_STEP_RE` alone, so a "done" status was a
-# second source of truth for a fact git already owns — and the one that drifts,
-# because it is hand-maintained.
-#
-# THE 9.0 WRINKLE IS RESOLVED, NOT CARRIED. Step 9.0 landed out of band as
-# `feat(knowledge): …` (`871637f`), so the git-log scan cannot see it and `last`
-# can never advance past it. While `done` was a status this was papered over by
-# 9.0's row saying "done"; removing that word would have re-armed the trap —
-# once 8.3 lands, 8.4 is BLOCKED and 8.5 is GATED, leaving 9.0 the lowest
-# remaining row and the pointer stuck there forever. **9.0 is now EXTERNAL**,
-# which is both true (it is an Azure-side knowledge-index rebuild, exactly what
-# the procedure's reading conventions define EXTERNAL to mean) and permanent:
-# it stays unavailable on its own merits rather than on a completion claim.
-_UNAVAILABLE_STATUSES = {"blocked", "gated", "external"}
-
-# All three now mean "cannot be worked on as a code step". The distinction this
-# set used to draw — blocked-vs-finished — disappeared with `done`.
-_BLOCKED_STATUSES = {"blocked", "gated", "external"}
+# 6.67: the procedure-reading constants (Appendix D, step rows) retired with the
+# procedure; the pre-6.67 file is at git a3364ae.
 
 
 # --------------------------------------------------------------------------- #
@@ -173,6 +121,64 @@ def get_progress() -> str:
     return "\n".join(lines)
 
 
+def _pinned_python() -> str:
+    """`agent-improve/.venv`'s interpreter — NEVER `sys.executable`.
+
+    **WATCH 2, and this hook was the live instance of it until 2026-09-11.**
+    The repo root carries a second, older virtualenv. This function used
+    `sys.executable`, which is whatever interpreter Claude Code launched the
+    hook with — the ROOT venv — so every session opened with a dependency
+    report for the wrong tree: `langgraph 1.1.10` against a project running
+    **1.2.11**, flagged `⚠` as behind when it is current.
+
+    **The report contradicted step 2.3's Done-when** (*"reports ≥1.2.6"*) at
+    the top of every session, which is the worst possible place for a false
+    negative: it is the first thing read and the last thing anyone re-derives.
+    `verify_built.py` has pinned the venv since it was written and says so in
+    its own docstring; this hook was never given the same rule.
+    """
+    root = get_project_dir()
+    for rel in (("agent-improve", ".venv", "Scripts", "python.exe"),
+                ("agent-improve", ".venv", "bin", "python")):
+        cand = os.path.join(root, *rel)
+        if os.path.exists(cand):
+            return cand
+    return sys.executable                       # fail-soft, as the hook must
+
+
+def get_installed_version(pkg: str) -> str | None:
+    """Installed version via the PINNED venv's `pip show`, or None if absent."""
+    try:
+        out = subprocess.run(
+            [_pinned_python(), "-m", "pip", "show", pkg],
+            capture_output=True, encoding="utf-8", errors="replace", timeout=10,
+        )
+        if out.returncode != 0:
+            return None
+        for line in out.stdout.splitlines():
+            if line.lower().startswith("version:"):
+                return line.split(":", 1)[1].strip()
+        return None
+    except Exception as exc:  # noqa: BLE001
+        _log(f"pip show {pkg} failed: {exc}")
+        return None
+
+
+def get_latest_version(pkg: str) -> str | None:
+    """Latest version from PyPI JSON, or None on any network/parse failure."""
+    try:
+        url = PYPI_URL.format(pkg=pkg)
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as resp:
+            if resp.status != 200:
+                return None
+            data = json.loads(resp.read().decode("utf-8"))
+        return data.get("info", {}).get("version") or None
+    except Exception as exc:  # noqa: BLE001
+        _log(f"pypi {pkg} lookup failed: {exc}")
+        return None
+
+
 def get_version_info() -> str:
     """Section 3 — one line per dependency, installed vs latest."""
     lines = []
@@ -206,11 +212,8 @@ def get_harness() -> str:
         import features
         s = features.summary()
         nxt = " · ".join(f"{k}: {v['next'] or '—'}" for k, v in s["lanes"].items())
-        return (f"{features.headline(s)}\n"
-                f"next failing per lane — {nxt}\n"
-                "routine: git log -5 · read agent-improve/docs/harness-progress.md · "
-                "python agent-improve/tools/control_board/features.py --lane <A|B|C|integrator> · "
-                "smoke: pytest backend/tests/test_define_features.py -n 0 · take the lane's next failing feature")
+        return (f"next failing per lane — {nxt}\n"
+                "routine: CLAUDE.md, Session start")
     except Exception as exc:  # noqa: BLE001 - hook must never propagate
         return f"(feature list unreadable: {exc.__class__.__name__})"
 
