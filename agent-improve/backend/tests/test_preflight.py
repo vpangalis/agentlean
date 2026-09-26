@@ -115,3 +115,12 @@ def test_an_acknowledged_failure_passes_on_the_record() -> None:
 def test_a_short_acknowledgement_does_not_pass() -> None:
     cmd = "git commit -F m.txt   # preflight: acknowledged — ok"
     assert _hook().decide({"tool_name": "Bash", "tool_input": {"command": cmd}}, lambda echo: 1)[0] == 2
+
+
+def test_the_whole_suite_is_left_to_the_hook(monkeypatch) -> None:
+    """6.67: when a change reaches everything (conftest), the hook's one full
+    run is that check — the pre-flight runs nothing rather than a second suite."""
+    pf = _pf()
+    monkeypatch.setattr(pf, "_run", lambda cmd, cwd: (_ for _ in ()).throw(AssertionError("ran")))
+    ok, msg = pf.check_tests("py", {"tests": "ALL"})
+    assert ok and "left to the commit hook" in msg

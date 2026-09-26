@@ -223,7 +223,9 @@ def slow_tests() -> list[str]:
 def check_tests(py: str, p: dict) -> tuple[bool, str]:
     tests = p["tests"]
     if tests == "ALL":
-        args, n = ["backend/tests", "-n", "auto"], "the whole suite"
+        # 6.67: the commit hook runs the whole suite anyway — running it here
+        # too was a repeat (measured: 107 s + 105 s on 7c99b2f's commit).
+        return True, "the whole suite is reached — left to the commit hook's one full run"
     elif not tests:
         return True, "no test reached"
     else:
