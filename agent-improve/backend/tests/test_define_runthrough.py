@@ -112,8 +112,8 @@ def test_run_an_untaught_field_is_taught_example_before_ask(run) -> None:
     assert not bad, f"teaching replies missing a block: {bad}"
 
 
-def test_run_every_turn_states_step_n_of_12(run) -> None:
-    """DEF-006 — 'Step n of 12', n the current field's position."""
+def test_run_every_turn_states_its_step(run) -> None:
+    """DEF-006 — 'Step n of 13', n the current element's position."""
     bad = []
     for t in run["turns"]:
         if t["http"] != 200 or not t.get("field"):
@@ -222,11 +222,6 @@ def test_runthrough_metric_meaning_comes_from_the_registry() -> None:
 def test_runthrough_no_reply_carries_a_link() -> None:
     """DEF-019 — not written yet (a stub, step 6.67): The coach teaches in its own voice and never hands the Belt a URL."""
     pytest.fail("DEF-019: not written yet")
-
-
-def test_runthrough_the_same_turn_makes_the_same_move() -> None:
-    """DEF-024 — not written yet (a stub, step 6.67): The same coaching situation run five times makes the same move every time (repeated-run consistency)."""
-    pytest.fail("DEF-024: not written yet")
 
 
 def test_every_define_row_is_green_on_the_run_through_case() -> None:

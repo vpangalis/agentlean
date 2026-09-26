@@ -29,8 +29,9 @@ sys.path.insert(0, str(_TOOLS))
 
 import features as F  # noqa: E402
 
-FIELDS = {"id", "description", "clause", "depends_on", "test", "sources", "lane", "provenance"}
-CLAUSES = {"A Belt is coached through the twelve fields",
+FIELDS = {"id", "description", "clause", "depends_on", "test", "sources", "lane", "provenance",
+          "requirement"}
+CLAUSES = {"A Belt is coached through the thirteen elements",
            "what they say is kept and every change is dated",
            "a complete case ASSEMBLES a gate document",
            "the Belt sees it, approves it",
@@ -47,6 +48,21 @@ def test_every_feature_has_the_founders_fields_and_no_status(feats) -> None:
         assert set(f) == FIELDS, (f["id"], set(f) ^ FIELDS)
         assert f["lane"] in F.LANES, f["id"]
         assert f["test"].startswith("backend/tests/test_") and "::test_" in f["test"], f["id"]
+
+
+def test_every_feature_cites_a_define_requirement_and_every_requirement_has_features(feats) -> None:
+    """Define requirements v2, part 8 (founder, 2026-09-26): every feature cites
+    the requirement it serves, by an id that is in docs/requirements/define.md;
+    R2-R7 each have features; R8 and R9 (platform, not the 1 October scope)
+    are never Define features."""
+    text = (Path(__file__).resolve().parents[2] / "docs" / "requirements" / "define.md").read_text(
+        encoding="utf-8")
+    ratified = {f"R{n}" for n in range(1, 8)}
+    import re
+    assert all(re.search(rf"^{r} ", text, re.M) for r in ratified), "an R1-R7 id is not in define.md"
+    cited = [f["requirement"] for f in feats]
+    assert set(cited) <= ratified, set(cited) - ratified
+    assert ratified - {"R1"} <= set(cited), ratified - set(cited)
 
 
 def test_ids_are_unique_and_every_dependency_resolves(feats) -> None:

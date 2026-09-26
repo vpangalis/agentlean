@@ -197,3 +197,21 @@ def test_in_the_graph_the_answer_is_judged_before_the_coach_model(order, status,
     config = {"configurable": {"thread_id": "r3", "belt_action": action}}
     asyncio.run(graph.ainvoke(_state(status, belt), config=config))  # type: ignore[arg-type]
     assert order == expected, order
+
+
+def test_r3_an_answer_is_judged_before_the_coach_and_the_challenge_names_the_criterion(
+        order, monkeypatch) -> None:
+    """R3, end to end in the compiled Define subgraph: the Belt answers the
+    business case with a solution in it; the planner's judgment (against the
+    element's acceptance criteria) runs BEFORE the coach model, and the move
+    the coach is given is a challenge naming the failed criterion."""
+    async def judge_with_criterion(*a: Any, **k: Any) -> SufficiencyJudgment:
+        order.append("judgment")
+        return SufficiencyJudgment(verdict="insufficient", reason="it proposes a fix",
+                                   failed_criterion="no-cause-no-fix")
+    monkeypatch.setattr(_nc, "_judge", judge_with_criterion)
+    graph = build_phase_subgraph("define", llm=None)
+    out = asyncio.run(graph.ainvoke(_state(ASKED, ANSWER), config={"configurable": {"thread_id": "r3e"}}))  # type: ignore[arg-type]
+    assert order == ["judgment", "coach"], order
+    plan = out["coaching_plan"]
+    assert plan.move == moves.CHALLENGE and "`no-cause-no-fix`" in plan.reason, plan.reason

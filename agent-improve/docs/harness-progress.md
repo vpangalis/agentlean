@@ -9,6 +9,14 @@ be true — `docs/define_features.json` + `docs/test-results.json` (the board,
 `ARCHITECTURE.md`, read only by the cited section via `docs/section-index.md`. The
 session-start routine is in CLAUDE.md.
 
+## Requirements (founder-owned, 2026-09-26)
+
+`docs/requirements/define.md` R1–R7 — every Define feature cites one in `requirement`; `platform.md`
+R8–R9 are not Define features; `workspace.md`, `measure.md` and define.md's R10 are DRAFTS no feature
+cites. Parts 0–8 landed 2026-09-26 (`a006cea` … the part 8 commit): 13 elements with acceptance
+criteria, R3's judgment before the coach, the Define report, acceptance through a graph-level pause,
+the R7 rubric. New features DEF-065–072 (R2–R7).
+
 ## Lanes (branches and worktrees beside this checkout; `.venv` is a junction)
 
 | Lane | Branch · worktree | Starts at |

@@ -2,8 +2,8 @@
  "kind": "validation_repeat",
  "requirement": "R3",
  "runs_per_case": 5,
- "product_hash": "689a27b48d9ab5dd",
- "at": "2026-09-26T14:48:09+00:00",
+ "product_hash": "7fb0892282ef6e92",
+ "at": "2026-09-26T17:10:02+00:00",
  "runs": [
   {
    "case": "proposes-a-solution",
@@ -43,7 +43,7 @@
    "verdict": "insufficient",
    "move": "challenge",
    "failed_criterion": "no-cause-no-fix",
-   "reason": "The answer includes a proposed solution, which violates the 'no-cause-no-fix' criterion."
+   "reason": "The response includes a proposed solution, which violates the 'no-cause-no-fix' criterion."
   },
   {
    "case": "all-five-elements",
@@ -59,7 +59,7 @@
    "verdict": "sufficient",
    "move": "read_back",
    "failed_criterion": null,
-   "reason": "The answer provides all required elements: it identifies the issue, location, timeframe, baseline, and cost, without suggesting causes or solutions."
+   "reason": "The response addresses all required criteria for the business case field."
   },
   {
    "case": "all-five-elements",
@@ -67,7 +67,7 @@
    "verdict": "sufficient",
    "move": "read_back",
    "failed_criterion": null,
-   "reason": "The response addresses all required criteria: it specifies the issue, location, timeframe, magnitude, and cost, without suggesting causes or solutions."
+   "reason": "The response addresses all required criteria: it identifies the issue, specifies the location and time frame, provides a baseline, and estimates the cost, without suggesting causes or solutions."
   },
   {
    "case": "all-five-elements",
@@ -75,7 +75,7 @@
    "verdict": "sufficient",
    "move": "read_back",
    "failed_criterion": null,
-   "reason": "The answer addresses all required criteria: it specifies the issue, location, timeframe, magnitude, and cost, without suggesting causes or solutions."
+   "reason": "The response addresses all required criteria: it identifies the issue, specifies the location and timeframe, provides a baseline, and states the cost, without suggesting causes or solutions."
   },
   {
    "case": "all-five-elements",
@@ -83,7 +83,7 @@
    "verdict": "sufficient",
    "move": "read_back",
    "failed_criterion": null,
-   "reason": "The answer provides all required elements: what is wrong, where and when it occurs, its baseline, and its cost, without suggesting causes or solutions."
+   "reason": "The response addresses all required criteria: it identifies the issue, specifies the location and timeframe, provides a baseline, and quantifies the cost, without suggesting causes or solutions."
   }
  ]
 }

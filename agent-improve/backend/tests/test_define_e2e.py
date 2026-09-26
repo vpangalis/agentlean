@@ -84,11 +84,6 @@ def test_structured_fields_arrive_structured_or_are_refused() -> None:
     _not_written('DEF-038')
 
 
-def test_every_change_is_dated_with_its_prior_value() -> None:
-    """DEF-039 — Every change to a stored value is kept in field_log, dated, with the prior value readable."""
-    _not_written('DEF-039')
-
-
 def test_a_contradiction_stops_in_a_node_and_resumes() -> None:
     """DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, and the res"""
     _not_written('DEF-040')
@@ -117,26 +112,6 @@ def test_define_gate_has_no_warning_path() -> None:
 def test_three_failed_gate_attempts_escalate() -> None:
     """DEF-046 — After three failed gate attempts the case is escalated to a person instead of looping."""
     _not_written('DEF-046')
-
-
-def test_a_gate_submission_pauses_before_anything_is_written() -> None:
-    """DEF-047 — Submitting the Define gate PAUSES the run at gate_review (graph-level interrupt) with the validated fields as payload; nothing is written before appro"""
-    _not_written('DEF-047')
-
-
-def test_a_paused_gate_survives_a_restart() -> None:
-    """DEF-048 — A case paused at the gate survives a server restart and resumes where it stopped."""
-    _not_written('DEF-048')
-
-
-def test_an_approval_resumes_the_paused_gate() -> None:
-    """DEF-049 — The Belt approves the reviewed gate document (POST /gate/approve); the approval reaches the paused graph and is recorded with its actor."""
-    _not_written('DEF-049')
-
-
-def test_a_rejection_with_a_reason_returns_to_coaching() -> None:
-    """DEF-050 — The Belt can reject the gate with a mandatory reason; the run returns to coaching carrying that reason."""
-    _not_written('DEF-050')
 
 
 def test_a_belt_edit_at_the_gate_is_advised_not_blocked() -> None:

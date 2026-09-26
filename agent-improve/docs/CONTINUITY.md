@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| **Headline** | 0 of 64 Define features pass (core 0 of 55) — A 0/35 · B 0/15 · C 0/8 · integrator 0/6 |
+| **Headline** | 14 of 72 Define features pass (core 14 of 63) — A 6/39 · B 6/17 · C 2/10 · integrator 0/6 |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
 | **Next — lane C** | DEF-052 — The workspace shows the coach's four blocks — explanation, example, prompt, and progress — plus the grader's warning when there is one. |

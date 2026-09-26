@@ -1,10 +1,10 @@
 {
- "_about": "Define's feature list — step 6.66, founder ruling 2026-09-25 (ARCHITECTURE.md v1.78). Anthropic's long-running-harness pattern: ONE list; a feature passes only when its end-to-end test passes. There is NO status field — status is derived from docs/test-results.json by tools/control_board/features.py. Derived from four sources, cited per feature: ARCHITECTURE.md, the procedure (steps, Appendix G gaps, Appendix H capability rows), the code, and Anthropic/LangChain guidance. 'provenance' records the procedure steps, capability rows and gaps each feature was derived from (6.66), and as notes_6_66 the prose absence-claims the draft carried as code citations; code citations are path::symbol, checked by tools/control_board/citations.py. Lanes: A coaching, B gate, C screen and inputs, integrator end-to-end joins. Edit a feature's description, test or sources in place; never add a status.",
+ "_about": "Define's feature list — step 6.66, founder ruling 2026-09-25 (ARCHITECTURE.md v1.78). Anthropic's long-running-harness pattern: ONE list; a feature passes only when its end-to-end test passes. There is NO status field — status is derived from docs/test-results.json by tools/control_board/features.py. Derived from four sources, cited per feature: ARCHITECTURE.md, the procedure (steps, Appendix G gaps, Appendix H capability rows), the code, and Anthropic/LangChain guidance. 'provenance' records the procedure steps, capability rows and gaps each feature was derived from (6.66), and as notes_6_66 the prose absence-claims the draft carried as code citations; code citations are path::symbol, checked by tools/control_board/citations.py. Lanes: A coaching, B gate, C screen and inputs, integrator end-to-end joins. Every feature cites the founder requirement it serves in 'requirement' (R1-R7, docs/requirements/define.md; R8 and R9 are platform requirements and are not Define features). Edit a feature's description, test or sources in place; never add a status.",
  "features": [
   {
    "id": "DEF-001",
    "description": "A Belt creates a new case and it opens in Define: POST /cases returns an id, the case list shows it, and GET /cases/{id} opens it with current_phase 'define'.",
-   "clause": "A Belt is coached through the twelve fields",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [],
    "test": "backend/tests/test_define_e2e.py::test_a_new_case_opens_in_define",
    "sources": {
@@ -39,12 +39,13 @@
      "G-67",
      "G-68"
     ]
-   }
+   },
+   "requirement": "R1"
   },
   {
    "id": "DEF-002",
    "description": "One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout.",
-   "clause": "A Belt is coached through the twelve fields",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-001"
    ],
@@ -82,7 +83,8 @@
      "2"
     ],
     "gaps": []
-   }
+   },
+   "requirement": "R1"
   },
   {
    "id": "DEF-003",
@@ -120,12 +122,13 @@
      "33"
     ],
     "gaps": []
-   }
+   },
+   "requirement": "R1"
   },
   {
    "id": "DEF-004",
    "description": "Tracing is a switch: with tracing off, a Define run sends zero LangSmith runs. (The traced half — a traced turn shows the model call, tools and middleware — is rows 26-32: structural tests now; the founder marks those rows from one traced run on 30 September. Founder ruling 2026-09-26, D3.)",
-   "clause": "A Belt is coached through the twelve fields",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-002"
    ],
@@ -159,12 +162,13 @@
     "gaps": [
      "G-101"
     ]
-   }
+   },
+   "requirement": "R1"
   },
   {
    "id": "DEF-005",
    "description": "On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code, the planner model not called.",
-   "clause": "A Belt is coached through the twelve fields",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-002"
    ],
@@ -203,16 +207,17 @@
      "27"
     ],
     "gaps": []
-   }
+   },
+   "requirement": "R2"
   },
   {
    "id": "DEF-006",
-   "description": "Every coaching turn tells the Belt where they are — 'Define · Step n of 12' — computed by define_progress, never counted by the model.",
-   "clause": "A Belt is coached through the twelve fields",
+   "description": "Every coaching turn tells the Belt where they are — 'Define · Step n of 13' — computed by define_progress, never counted by the model.",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-005"
    ],
-   "test": "backend/tests/test_define_runthrough.py::test_run_every_turn_states_step_n_of_12",
+   "test": "backend/tests/test_define_runthrough.py::test_run_every_turn_states_its_step",
    "sources": {
     "architecture": [
      "§43.3 the A→F session flow",
@@ -238,7 +243,8 @@
      "28"
     ],
     "gaps": []
-   }
+   },
+   "requirement": "R1"
   },
   {
    "id": "DEF-007",
@@ -273,7 +279,8 @@
     ],
     "capability_rows": [],
     "gaps": []
-   }
+   },
+   "requirement": "R3"
   },
   {
    "id": "DEF-008",
@@ -308,7 +315,8 @@
     "notes_6_66": [
      "no route-level test drives action='confirm' (test_wiring uses a typed yes) — missing"
     ]
-   }
+   },
+   "requirement": "R6"
   },
   {
    "id": "DEF-009",
@@ -338,7 +346,8 @@
     ],
     "capability_rows": [],
     "gaps": []
-   }
+   },
+   "requirement": "R3"
   },
   {
    "id": "DEF-010",
@@ -369,12 +378,13 @@
     ],
     "capability_rows": [],
     "gaps": []
-   }
+   },
+   "requirement": "R6"
   },
   {
    "id": "DEF-011",
    "description": "A weak answer is CHALLENGED — the coach says what is missing and never writes the Belt's answer for them; the field stays open until the Belt supplies it.",
-   "clause": "A Belt is coached through the twelve fields",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-005"
    ],
@@ -409,12 +419,13 @@
     "gaps": [
      "G-105"
     ]
-   }
+   },
+   "requirement": "R3"
   },
   {
    "id": "DEF-012",
    "description": "A Belt message that is not an answer ('where do we stand?') is answered, the field is asked again, and its status does not change — and a stock-take reply is not rejected as parroting.",
-   "clause": "A Belt is coached through the twelve fields",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-005"
    ],
@@ -443,12 +454,13 @@
     "gaps": [
      "G-99"
     ]
-   }
+   },
+   "requirement": "R1"
   },
   {
    "id": "DEF-013",
    "description": "The coherence judge rules on the Belt's words, not the coach's: a reply that quotes the script is not degraded, a real parrot still is.",
-   "clause": "A Belt is coached through the twelve fields",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-005"
    ],
@@ -482,12 +494,13 @@
      "G-102",
      "G-99"
     ]
-   }
+   },
+   "requirement": "R1"
   },
   {
    "id": "DEF-014",
    "description": "When coherence rejects a reply, the coach is asked again inside the turn (a new model call), within the latency the founder rules.",
-   "clause": "A Belt is coached through the twelve fields",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-013"
    ],
@@ -518,12 +531,13 @@
     "gaps": [
      "G-104"
     ]
-   }
+   },
+   "requirement": "R1"
   },
   {
    "id": "DEF-015",
    "description": "Every coaching turn is graded by the coaching rubric, the grader sees all four blocks (not only 'message'), and its verdict lands in step_log.",
-   "clause": "A Belt is coached through the twelve fields",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-002"
    ],
@@ -557,12 +571,13 @@
     "gaps": [
      "G-102"
     ]
-   }
+   },
+   "requirement": "R1"
   },
   {
    "id": "DEF-016",
    "description": "The savings calculation is TAUGHT before its number is given, and '23%', '23' and '0.23' give the same saving (one percent convention).",
-   "clause": "A Belt is coached through the twelve fields",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-034"
    ],
@@ -597,7 +612,8 @@
     "gaps": [
      "G-100"
     ]
-   }
+   },
+   "requirement": "R4"
   },
   {
    "id": "DEF-017",
@@ -638,12 +654,13 @@
      "G-05",
      "G-35"
     ]
-   }
+   },
+   "requirement": "R4"
   },
   {
    "id": "DEF-018",
    "description": "When the Belt's metric first comes up, the coach explains what it means, why Define cares and how to read it — from the registry's 'meaning', never invented.",
-   "clause": "A Belt is coached through the twelve fields",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-030"
    ],
@@ -672,12 +689,13 @@
      "32"
     ],
     "gaps": []
-   }
+   },
+   "requirement": "R2"
   },
   {
    "id": "DEF-019",
    "description": "The coach teaches in its own voice and never hands the Belt a URL.",
-   "clause": "A Belt is coached through the twelve fields",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-005"
    ],
@@ -704,7 +722,8 @@
      "30"
     ],
     "gaps": []
-   }
+   },
+   "requirement": "R2"
   },
   {
    "id": "DEF-020",
@@ -746,7 +765,8 @@
      "G-108",
      "G-23"
     ]
-   }
+   },
+   "requirement": "R1"
   },
   {
    "id": "DEF-021",
@@ -783,7 +803,8 @@
     "gaps": [
      "G-89"
     ]
-   }
+   },
+   "requirement": "R6"
   },
   {
    "id": "DEF-022",
@@ -813,12 +834,13 @@
     "gaps": [
      "G-110"
     ]
-   }
+   },
+   "requirement": "R6"
   },
   {
    "id": "DEF-023",
    "description": "The coach does not fetch the Define script it already has in its system message (no load_skill call on a Define turn).",
-   "clause": "A Belt is coached through the twelve fields",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-005"
    ],
@@ -846,18 +868,19 @@
     "gaps": [
      "G-106"
     ]
-   }
+   },
+   "requirement": "R2"
   },
   {
    "id": "DEF-024",
-   "description": "The same coaching situation run five times makes the same move every time (repeated-run consistency).",
-   "clause": "A Belt is coached through the twelve fields",
+   "description": "The same coaching situation run five times makes the same move every time (repeated-run consistency). Measured on R3's judgment, on the live model: a business case that proposes a solution is challenged naming `no-cause-no-fix`, and one with all five elements is read back — five runs each.",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-005",
     "DEF-007",
     "DEF-011"
    ],
-   "test": "backend/tests/test_define_runthrough.py::test_runthrough_the_same_turn_makes_the_same_move",
+   "test": "backend/tests/test_define_runthrough.py::test_run_the_validation_layer_is_consistent_over_five_runs",
    "sources": {
     "architecture": [
      "§17 v1.75"
@@ -878,12 +901,13 @@
     ],
     "capability_rows": [],
     "gaps": []
-   }
+   },
+   "requirement": "R3"
   },
   {
    "id": "DEF-025",
-   "description": "Field 1 of 12 — The business case is captured verbatim in the Belt's words after Confirm.",
-   "clause": "A Belt is coached through the twelve fields",
+   "description": "Field 1 of 13 — The business case is captured verbatim in the Belt's words after Confirm.",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-008"
    ],
@@ -908,12 +932,13 @@
     ],
     "capability_rows": [],
     "gaps": []
-   }
+   },
+   "requirement": "R4"
   },
   {
    "id": "DEF-026",
-   "description": "Field 2 of 12 — The team is captured as a list of people each with name, role and function — never as prose.",
-   "clause": "A Belt is coached through the twelve fields",
+   "description": "Field 2 of 13 — The team is captured as a list of people each with name, role and function — never as prose.",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-025"
    ],
@@ -944,12 +969,13 @@
      "18"
     ],
     "gaps": []
-   }
+   },
+   "requirement": "R4"
   },
   {
    "id": "DEF-027",
-   "description": "Field 3 of 12 — The voice-of-the-customer summary is captured after Confirm.",
-   "clause": "A Belt is coached through the twelve fields",
+   "description": "Field 3 of 13 — The voice-of-the-customer summary is captured after Confirm.",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-026"
    ],
@@ -974,12 +1000,13 @@
     ],
     "capability_rows": [],
     "gaps": []
-   }
+   },
+   "requirement": "R4"
   },
   {
    "id": "DEF-028",
-   "description": "Field 4 of 12 — The problem statement is composed from the Belt's 5W2H answers, read back, and stored only as the confirmed composed version — with no fact the Belt did not give.",
-   "clause": "A Belt is coached through the twelve fields",
+   "description": "Field 4 of 13 — The problem statement is composed from the Belt's 5W2H answers, read back, and stored only as the confirmed composed version — with no fact the Belt did not give.",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-027"
    ],
@@ -1006,12 +1033,13 @@
     ],
     "capability_rows": [],
     "gaps": []
-   }
+   },
+   "requirement": "R4"
   },
   {
    "id": "DEF-029",
-   "description": "Field 5 of 12 — Position 5 captures the baseline AND the metric registry in one exchange; the baseline is stored as a number with a unit Control can compare.",
-   "clause": "A Belt is coached through the twelve fields",
+   "description": "Field 5 of 13 — Position 5 captures the baseline AND the metric registry in one exchange; the baseline is stored as a number with a unit Control can compare.",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-028"
    ],
@@ -1052,12 +1080,13 @@
     "notes_6_66": [
      "no value check at capture for baseline/target — missing (6.51)"
     ]
-   }
+   },
+   "requirement": "R4"
   },
   {
    "id": "DEF-030",
-   "description": "Field 6 of 12 — The scope is captured with both halves explicit — what is in and what is out.",
-   "clause": "A Belt is coached through the twelve fields",
+   "description": "Field 6 of 13 — The scope is captured with both halves explicit — what is in and what is out.",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-029"
    ],
@@ -1087,12 +1116,13 @@
      "18"
     ],
     "gaps": []
-   }
+   },
+   "requirement": "R4"
   },
   {
    "id": "DEF-031",
-   "description": "Field 7 of 12 — The SMART goal sentence is captured after Confirm.",
-   "clause": "A Belt is coached through the twelve fields",
+   "description": "Field 7 of 13 — The SMART goal sentence is captured after Confirm.",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-030"
    ],
@@ -1117,12 +1147,13 @@
     ],
     "capability_rows": [],
     "gaps": []
-   }
+   },
+   "requirement": "R4"
   },
   {
    "id": "DEF-032",
-   "description": "Field 8 of 12 — The target is stored as a number with the same unit as the baseline, parseable by Control.",
-   "clause": "A Belt is coached through the twelve fields",
+   "description": "Field 8 of 13 — The target is stored as a number with the same unit as the baseline, parseable by Control.",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-031"
    ],
@@ -1158,12 +1189,13 @@
     "notes_6_66": [
      "no value check at capture for baseline/target — missing (6.51)"
     ]
-   }
+   },
+   "requirement": "R4"
   },
   {
    "id": "DEF-033",
-   "description": "Field 9 of 12 — The planned completion date is captured as an ISO date.",
-   "clause": "A Belt is coached through the twelve fields",
+   "description": "Field 9 of 13 — The planned completion date is captured as an ISO date.",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-032"
    ],
@@ -1188,16 +1220,17 @@
     ],
     "capability_rows": [],
     "gaps": []
-   }
+   },
+   "requirement": "R4"
   },
   {
    "id": "DEF-034",
-   "description": "Field 10 of 12 — The secondary metrics (what could get worse) are captured after Confirm.",
-   "clause": "A Belt is coached through the twelve fields",
+   "description": "Field 11 of 13 — The secondary metrics (what could get worse) are captured after Confirm.",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-033"
    ],
-   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[10-secondary_metrics]",
+   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[11-secondary_metrics]",
    "sources": {
     "architecture": [
      "§39.1.2 row 10 (secondary_metrics: str)"
@@ -1218,16 +1251,17 @@
     ],
     "capability_rows": [],
     "gaps": []
-   }
+   },
+   "requirement": "R4"
   },
   {
    "id": "DEF-035",
-   "description": "Field 11 of 12 — The SIPOC is built column by column after a filled example and captured with all six keys; fewer than six is refused.",
-   "clause": "A Belt is coached through the twelve fields",
+   "description": "Field 12 of 13 — The SIPOC is built column by column after a filled example and captured with all six keys; fewer than six is refused.",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-034"
    ],
-   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[11-process_map_sipoc]",
+   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[12-process_map_sipoc]",
    "sources": {
     "architecture": [
      "§39.1.2 row 11 (process_map_sipoc: {suppliers, inputs, process_steps, outputs, customers, process_metrics})",
@@ -1258,16 +1292,17 @@
     "gaps": [
      "G-30"
     ]
-   }
+   },
+   "requirement": "R4"
   },
   {
    "id": "DEF-036",
-   "description": "Field 12 of 12 — Issues and barriers are captured last; 'none identified at this stage' is accepted as a conscious answer.",
-   "clause": "A Belt is coached through the twelve fields",
+   "description": "Field 13 of 13 — Issues and barriers are captured last; 'none identified at this stage' is accepted as a conscious answer.",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-035"
    ],
-   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[12-issues_and_barriers]",
+   "test": "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[13-issues_and_barriers]",
    "sources": {
     "architecture": [
      "§39.1.2 row 12 (issues_and_barriers: str)"
@@ -1288,7 +1323,8 @@
     ],
     "capability_rows": [],
     "gaps": []
-   }
+   },
+   "requirement": "R4"
   },
   {
    "id": "DEF-037",
@@ -1327,7 +1363,8 @@
     "gaps": [
      "G-78"
     ]
-   }
+   },
+   "requirement": "R6"
   },
   {
    "id": "DEF-038",
@@ -1362,7 +1399,8 @@
      "18"
     ],
     "gaps": []
-   }
+   },
+   "requirement": "R6"
   },
   {
    "id": "DEF-039",
@@ -1371,7 +1409,7 @@
    "depends_on": [
     "DEF-037"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_every_change_is_dated_with_its_prior_value",
+   "test": "backend/tests/test_capture_accumulates.py::test_a_change_records_both_values_with_their_turns",
    "sources": {
     "architecture": [
      "§6",
@@ -1397,7 +1435,8 @@
      "6"
     ],
     "gaps": []
-   }
+   },
+   "requirement": "R6"
   },
   {
    "id": "DEF-040",
@@ -1440,11 +1479,12 @@
     "notes_6_66": [
      "verify_built.py 'interrupt() call sites (§33)' = 0 — missing"
     ]
-   }
+   },
+   "requirement": "R6"
   },
   {
    "id": "DEF-041",
-   "description": "Once all twelve positions are confirmed, GET /gate/review returns the complete 18-key Define gate document with passed=true and no missing fields.",
+   "description": "Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=true and no missing fields.",
    "clause": "a complete case ASSEMBLES a gate document",
    "depends_on": [
     "DEF-036"
@@ -1477,7 +1517,8 @@
      "19"
     ],
     "gaps": []
-   }
+   },
+   "requirement": "R5"
   },
   {
    "id": "DEF-042",
@@ -1515,11 +1556,12 @@
      "11"
     ],
     "gaps": []
-   }
+   },
+   "requirement": "R5"
   },
   {
    "id": "DEF-043",
-   "description": "Layer 2b refuses a gate submission missing any of the thirteen gate-required fields and names what is missing; the prompt's missing list and the validator cannot disagree.",
+   "description": "Layer 2b refuses a gate submission missing any of the sixteen gate-required fields and names what is missing; the prompt's missing list and the validator cannot disagree.",
    "clause": "a complete case ASSEMBLES a gate document",
    "depends_on": [
     "DEF-041"
@@ -1564,7 +1606,8 @@
     "notes_6_66": [
      "DMAICGateValidator — missing (validation/ holds schemas.py only)"
     ]
-   }
+   },
+   "requirement": "R5"
   },
   {
    "id": "DEF-044",
@@ -1607,7 +1650,8 @@
      "G-23",
      "G-61"
     ]
-   }
+   },
+   "requirement": "R7"
   },
   {
    "id": "DEF-045",
@@ -1640,7 +1684,8 @@
     "gaps": [
      "G-08"
     ]
-   }
+   },
+   "requirement": "R7"
   },
   {
    "id": "DEF-046",
@@ -1680,16 +1725,17 @@
     "notes_6_66": [
      "gate_attempts does not survive turns (routes.py:762 comment) — missing"
     ]
-   }
+   },
+   "requirement": "R7"
   },
   {
    "id": "DEF-047",
-   "description": "Submitting the Define gate PAUSES the run at gate_review (graph-level interrupt) with the validated fields as payload; nothing is written before approval.",
+   "description": "Submitting the Define gate PAUSES the run at gate_review (graph-level interrupt) once it has passed validation; GET /gate/review shows the report awaiting the team's decision; nothing is written before approval.",
    "clause": "the Belt sees it, approves it",
    "depends_on": [
     "DEF-043"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_a_gate_submission_pauses_before_anything_is_written",
+   "test": "backend/tests/test_gate_acceptance.py::test_a_validated_define_report_pauses_and_nothing_is_written",
    "sources": {
     "architecture": [
      "§33 nine-step HITL gate",
@@ -1726,7 +1772,8 @@
      "G-32",
      "G-20"
     ]
-   }
+   },
+   "requirement": "R6"
   },
   {
    "id": "DEF-048",
@@ -1735,7 +1782,7 @@
    "depends_on": [
     "DEF-047"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_a_paused_gate_survives_a_restart",
+   "test": "backend/tests/test_gate_acceptance.py::test_the_pause_survives_a_restart_and_an_approval_writes_once",
    "sources": {
     "architecture": [
      "§33.1 (resume may be days later, another process)",
@@ -1765,16 +1812,17 @@
     "notes_6_66": [
      "no interrupt to resume — missing"
     ]
-   }
+   },
+   "requirement": "R6"
   },
   {
    "id": "DEF-049",
-   "description": "The Belt approves the reviewed gate document (POST /gate/approve); the approval reaches the paused graph and is recorded with its actor.",
+   "description": "The Belt approves the reviewed Define report (POST /gate/decision, decision=approve); the approval reaches the paused graph, the gate document is written once, and the actor is recorded.",
    "clause": "the Belt sees it, approves it",
    "depends_on": [
     "DEF-047"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_an_approval_resumes_the_paused_gate",
+   "test": "backend/tests/test_gate_acceptance.py::test_the_pause_survives_a_restart_and_an_approval_writes_once",
    "sources": {
     "architecture": [
      "§33 steps 4 and 7",
@@ -1809,16 +1857,17 @@
     "notes_6_66": [
      "verify_built.py route set has no /gate/approve (11 routes) — missing"
     ]
-   }
+   },
+   "requirement": "R6"
   },
   {
    "id": "DEF-050",
-   "description": "The Belt can reject the gate with a mandatory reason; the run returns to coaching carrying that reason.",
+   "description": "The Belt can reject the Define report naming the element(s) to change and a mandatory reason; those elements re-open and the run returns to coaching on the first of them, carrying the reason.",
    "clause": "the Belt sees it, approves it",
    "depends_on": [
     "DEF-047"
    ],
-   "test": "backend/tests/test_define_e2e.py::test_a_rejection_with_a_reason_returns_to_coaching",
+   "test": "backend/tests/test_gate_acceptance.py::test_a_rejection_reopens_the_named_elements_and_the_coach_guides_back",
    "sources": {
     "architecture": [
      "§33.1 (/gate/reject, reason mandatory)",
@@ -1849,7 +1898,8 @@
     "notes_6_66": [
      "no /gate/reject route; rejection_feedback has no writer (verify_built: rejection_feedback:R) — missing"
     ]
-   }
+   },
+   "requirement": "R6"
   },
   {
    "id": "DEF-051",
@@ -1889,7 +1939,8 @@
     "notes_6_66": [
      "verify_built: belt_edits:R (declared, no writer)"
     ]
-   }
+   },
+   "requirement": "R6"
   },
   {
    "id": "DEF-052",
@@ -1923,12 +1974,13 @@
      "15"
     ],
     "gaps": []
-   }
+   },
+   "requirement": "R2"
   },
   {
    "id": "DEF-053",
-   "description": "The progress bar reads 'n of 12' from define_progress and moves turn by turn; the suggested next step always names the field the coach is on.",
-   "clause": "A Belt is coached through the twelve fields",
+   "description": "The progress bar reads 'n of 13' from define_progress and moves turn by turn; the suggested next step always names the field the coach is on.",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-006"
    ],
@@ -1962,7 +2014,8 @@
      "G-107",
      "G-71"
     ]
-   }
+   },
+   "requirement": "R1"
   },
   {
    "id": "DEF-054",
@@ -1994,12 +2047,13 @@
     ],
     "capability_rows": [],
     "gaps": []
-   }
+   },
+   "requirement": "R6"
   },
   {
    "id": "DEF-055",
    "description": "A failed turn tells the Belt what happened in words, stays on screen, and never renders an error as an empty state.",
-   "clause": "A Belt is coached through the twelve fields",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-002"
    ],
@@ -2037,7 +2091,8 @@
      "G-66",
      "G-90"
     ]
-   }
+   },
+   "requirement": "R1"
   },
   {
    "id": "DEF-056",
@@ -2079,12 +2134,13 @@
      "G-97",
      "G-98"
     ]
-   }
+   },
+   "requirement": "R1"
   },
   {
    "id": "DEF-057",
    "description": "The coach can read a document the Belt uploaded and quote a line from it (e.g. from an uploaded process map).",
-   "clause": "A Belt is coached through the twelve fields",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-056"
    ],
@@ -2121,7 +2177,8 @@
     "notes_6_66": [
      "no tool returns an upload's text (G-82: 160-char summary only) — missing"
     ]
-   }
+   },
+   "requirement": "R1"
   },
   {
    "id": "DEF-058",
@@ -2157,12 +2214,13 @@
      "G-71",
      "G-72"
     ]
-   }
+   },
+   "requirement": "R5"
   },
   {
    "id": "DEF-059",
    "description": "The coach's reply appears as it is written (server-sent events), and a dropped client abandons the turn.",
-   "clause": "A Belt is coached through the twelve fields",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-002"
    ],
@@ -2188,7 +2246,8 @@
     "notes_6_66": [
      "/ask/stream — missing (verify_built route set)"
     ]
-   }
+   },
+   "requirement": "R1"
   },
   {
    "id": "DEF-060",
@@ -2228,7 +2287,8 @@
      "20"
     ],
     "gaps": []
-   }
+   },
+   "requirement": "R6"
   },
   {
    "id": "DEF-061",
@@ -2260,7 +2320,8 @@
      "21"
     ],
     "gaps": []
-   }
+   },
+   "requirement": "R6"
   },
   {
    "id": "DEF-062",
@@ -2291,12 +2352,13 @@
      "24"
     ],
     "gaps": []
-   }
+   },
+   "requirement": "R6"
   },
   {
    "id": "DEF-063",
-   "description": "A scripted Belt goes through all twelve fields on a fresh case — good, weak and corrected answers, Confirm clicks — then submits the gate and approves it as far as the gate exists, through the real /ask route, tracing off, audit recorder on, within 150 live model calls.",
-   "clause": "A Belt is coached through the twelve fields",
+   "description": "A scripted Belt goes through all thirteen elements on a fresh case — good, weak and corrected answers, Confirm clicks — then submits the gate and approves it as far as the gate exists, through the real /ask route, tracing off, audit recorder on, within 150 live model calls.",
+   "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-036",
     "DEF-041",
@@ -2332,7 +2394,8 @@
     ],
     "capability_rows": [],
     "gaps": []
-   }
+   },
+   "requirement": "R1"
   },
   {
    "id": "DEF-064",
@@ -2404,7 +2467,218 @@
      "35"
     ],
     "gaps": []
-   }
+   },
+   "requirement": "R1"
+  },
+  {
+   "id": "DEF-065",
+   "description": "For every Define element the coach's script explains what it is and why it matters, shows a worked example marked as an illustration, asks, and lists the element's acceptance criteria with the manual's page; the 5W2H and the SIPOC show the completed diagram.",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_skill.py::test_r2_every_element_explains_shows_asks_and_lists_its_criteria",
+   "sources": {
+    "architecture": [
+     "§39.1"
+    ],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/middleware/skills.py::acceptance_criteria",
+     "agent-improve/skills/dmaic-define-phase/SKILL.md"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R2"
+  },
+  {
+   "id": "DEF-066",
+   "description": "Every Belt answer is judged against the element's acceptance criteria BEFORE the coach model is called; an insufficient answer is challenged, naming the failed criterion.",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-065"
+   ],
+   "test": "backend/tests/test_validation_layer.py::test_r3_an_answer_is_judged_before_the_coach_and_the_challenge_names_the_criterion",
+   "sources": {
+    "architecture": [
+     "§58 (S-C04)"
+    ],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/phases/moves.py::decide",
+     "agent-improve/backend/phases/nodes_common.py::_checked_criterion"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R3"
+  },
+  {
+   "id": "DEF-067",
+   "description": "Define has thirteen elements: the benefits analysis (cost of the gap, sustainable or one-off, realisation schedule, finance contact) and the CTQs inside the voice of the customer are gate-required, and the savings calculation is offered as the cost of the gap.",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-065"
+   ],
+   "test": "backend/tests/test_define_skill.py::test_r4_thirteen_elements_with_the_benefits_analysis_and_the_ctqs",
+   "sources": {
+    "architecture": [
+     "§63.1"
+    ],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/phases/define/schema.py::DEFINE_REQUIRED_FIELDS",
+     "agent-improve/backend/phases/define/schema.py::BENEFITS_ANALYSIS_KEYS"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R4"
+  },
+  {
+   "id": "DEF-068",
+   "description": "The Define gate is a seven-section report assembled from confirmed values only: a value appears in it after the Belt confirms it, never while a read-back is pending.",
+   "clause": "a complete case ASSEMBLES a gate document",
+   "depends_on": [
+    "DEF-067"
+   ],
+   "test": "backend/tests/test_define_report.py::test_the_report_shows_a_value_only_after_the_belt_confirms_it",
+   "sources": {
+    "architecture": [
+     "§49",
+     "§50"
+    ],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/phases/define/report.py::define_report"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R5"
+  },
+  {
+   "id": "DEF-069",
+   "description": "The gate screen draws the Define report: the seven sections, the 5W2H and SIPOC diagrams, one primary metric from baseline to target, the Belt's text escaped.",
+   "clause": "the Belt sees it, approves it",
+   "depends_on": [
+    "DEF-068"
+   ],
+   "test": "backend/tests/test_define_report.py::test_the_gate_screen_draws_the_seven_sections_and_both_diagrams",
+   "sources": {
+    "architecture": [
+     "§50"
+    ],
+    "procedure": [],
+    "code": [
+     "agent-improve/ui/index.html"
+    ],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R5"
+  },
+  {
+   "id": "DEF-070",
+   "description": "Per element, phase state keeps the first confirmed value and the current value, each with its date; the history reaches the next turn and the Define report.",
+   "clause": "what they say is kept and every change is dated",
+   "depends_on": [],
+   "test": "backend/tests/test_capture_accumulates.py::test_r6_the_first_and_the_current_confirmed_value_each_with_its_date",
+   "sources": {
+    "architecture": [
+     "§10.1"
+    ],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/core/substate.py::value_history"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R6"
+  },
+  {
+   "id": "DEF-071",
+   "description": "Under a paused Define report the screen offers Approve, or Reject naming the elements and a reason; before the pause, Submit; once the gate has passed, nothing.",
+   "clause": "the Belt sees it, approves it",
+   "depends_on": [
+    "DEF-069"
+   ],
+   "test": "backend/tests/test_gate_acceptance.py::test_the_screen_offers_approve_and_reject_only_while_paused",
+   "sources": {
+    "architecture": [
+     "§49"
+    ],
+    "procedure": [],
+    "code": [
+     "agent-improve/ui/index.html"
+    ],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R6"
+  },
+  {
+   "id": "DEF-072",
+   "description": "At the gate the Define rubric grades the report, one criterion per element from the manual, pass or fail with a reason; a failing report is not paused and the failed criterion is named.",
+   "clause": "a complete case ASSEMBLES a gate document",
+   "depends_on": [
+    "DEF-068"
+   ],
+   "test": "backend/tests/test_define_rubric.py::test_a_report_failing_a_criterion_is_not_paused_and_the_criterion_is_named",
+   "sources": {
+    "architecture": [
+     "§9.2",
+     "§9.7"
+    ],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/validation/rubric.py::grade_define",
+     "agent-improve/backend/core/prompts.py::DEFINE_RUBRIC"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R7"
   }
  ]
 }
