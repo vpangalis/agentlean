@@ -34,9 +34,9 @@ import features  # noqa: E402
 pytestmark = pytest.mark.xfail(strict=False, reason="a Define feature test — its outcome is the measurement")
 
 RECORDS = _PROJECT / "docs" / "runthrough"
-ORDER = ("business_case", "team", "voc_summary", "problem_statement", "baseline_estimate",
-         "project_scope", "goal_statement", "target_value", "target_date",
-         "secondary_metrics", "process_map_sipoc", "issues_and_barriers")
+from backend.phases.define.schema import DEFINE_FIELD_ORDER, DEFINE_POSITIONS  # noqa: E402
+
+ORDER = DEFINE_FIELD_ORDER
 
 
 def _load() -> dict[str, Any]:
@@ -120,7 +120,7 @@ def test_run_every_turn_states_step_n_of_12(run) -> None:
             continue
         n = ORDER.index(t["field"]) + 1 if t["field"] in ORDER else None
         progress_text = (t["reply"] or {}).get("progress") or ""
-        if not re.search(rf"\b{n}\s+of\s+12\b", progress_text):
+        if not re.search(rf"\b{n}\s+of\s+{DEFINE_POSITIONS}\b", progress_text):
             bad.append((t["n"], t["field"], progress_text))
     assert not bad, bad
 
@@ -232,3 +232,27 @@ def test_runthrough_the_same_turn_makes_the_same_move() -> None:
 def test_every_define_row_is_green_on_the_run_through_case() -> None:
     """DEF-064 — not written yet (a stub, step 6.67): Define end to end: on ONE fresh case carrying an upload, every Define capability row's own check is green after one run."""
     pytest.fail("DEF-064: not written yet")
+
+
+# ── R3 — the validation layer, repeated on the live model ───────────────────
+
+
+def test_run_the_validation_layer_is_consistent_over_five_runs() -> None:
+    """R3's repeated-run test, on the LIVE planner model, five runs each: a
+    business case that proposes a solution is challenged naming
+    `no-cause-no-fix` every time; one with all five elements is read back every
+    time. Read from the newest `validation_repeat_*.json`
+    (`scripts/validation_repeat.py`, which the run-through runs first), bound to
+    the current product source like the run-through's own record."""
+    files = sorted(RECORDS.glob("validation_repeat_*.json"))
+    if not files:
+        pytest.fail("no validation_repeat record — run scripts/validation_repeat.py")
+    rec = json.loads(files[-1].read_text(encoding="utf-8"))
+    if rec["product_hash"] != features.product_hash():
+        pytest.fail(f"{files[-1].name} is older than the product source — re-run it")
+    solution = [r for r in rec["runs"] if r["case"] == "proposes-a-solution"]
+    complete = [r for r in rec["runs"] if r["case"] == "all-five-elements"]
+    assert len(solution) == len(complete) == 5
+    assert all(r["move"] == "challenge" and r["failed_criterion"] == "no-cause-no-fix"
+               for r in solution), solution
+    assert all(r["move"] == "read_back" for r in complete), complete

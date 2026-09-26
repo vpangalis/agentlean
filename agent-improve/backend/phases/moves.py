@@ -291,8 +291,11 @@ async def decide(phase: str, artifacts: dict[str, Any],
         return done(field, fields, status, READ_BACK, judgment=judgment, answer=answer,
                     messages=so_far + 1, pending=new_pending)
     after[field] = {"status": ASKED, "answer": answer, "messages": so_far + 1}
+    # R3 — the challenge NAMES the failed acceptance criterion.
+    crit = getattr(judgment, "failed_criterion", None)
+    reason = f"criterion `{crit}` — {judgment.reason}" if crit else judgment.reason
     return done(field, fields, status, CHALLENGE, judgment=judgment, answer=answer,
-                messages=so_far + 1, reason=judgment.reason)
+                messages=so_far + 1, reason=reason)
 
 
 def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any]) -> dict[str, Any]:

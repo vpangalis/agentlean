@@ -13,7 +13,7 @@
 | **Next — lane C** | DEF-052 — The workspace shows the coach's four blocks — explanation, example, prompt, and progress — plus the grader's warning when there is one. |
 | **Next — lane integrator** | DEF-001 — A Belt creates a new case and it opens in Define: POST /cases returns an id, the case list shows it, and GET /cases/{id} opens it with curre |
 | **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
-| **ARCHITECTURE.md** | v1.79 |
+| **ARCHITECTURE.md** | v1.80 |
 | **CLAUDE.md** | v2.3.1 |
 | **Block regenerated** | 2026-09-26 |
 

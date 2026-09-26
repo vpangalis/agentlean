@@ -1504,7 +1504,8 @@ MOVE_INSTRUCTIONS: dict[str, str] = {
     "challenge": (
         "MOVE: CHALLENGE the Belt's answer on `{field}`.\n"
         "What is missing: {reason}\n"
-        "Say specifically what is missing and ask for exactly that. Do not read the "
+        "Name the acceptance criterion it does not yet meet, in plain words, say "
+        "specifically what is missing and ask for exactly that. Do not read the "
         "answer back, and do not write a better answer for them. Leave "
         "`fields_captured` empty.\n"
         "The Belt's words so far:\n{words}"
@@ -1574,7 +1575,8 @@ not talk to the Belt, and you do not choose what happens next.
 
 THE FIELD: {field}
 
-WHAT THE FIELD NEEDS — from the phase's coaching script:
+WHAT THE ELEMENT IS AND ITS ACCEPTANCE CRITERIA — from the phase's coaching
+script (R3: every answer is checked against these before the coach sees it):
 {needs}
 
 THIS PROJECT:
@@ -1590,8 +1592,10 @@ Return one verdict, with a one-sentence reason:
   sufficient     the answer so far, with the latest message, gives what the field
                  needs. Rough figures are acceptable where the script says so;
                  wording, grammar and formality do not matter.
-  insufficient   it answers the field, but something the field needs is missing
-                 or too vague to check — name exactly what.
+  insufficient   it answers the field, but it does not meet an acceptance
+                 criterion, or is not reasonable for this project — put the id of
+                 the FIRST criterion it fails in failed_criterion, exactly as
+                 listed, and say in the reason what is missing.
   not_an_answer  the latest message does not answer or correct this field: it
                  asks a question, asks where things stand, or is about something
                  else.

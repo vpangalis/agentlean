@@ -325,17 +325,57 @@ def script_section(phase: str, field: Optional[str], opening: bool) -> str:
     return "\n\n".join(b for b in ((open_block if opening else ""), chosen) if b)
 
 
+#: A block's labelled sections: `> **What it is:** …`, `> **Show (…):** …`.
+_LABEL = re.compile(r"^\*\*(?P<label>[^*:(]+?)\s*(?:\([^)]*\))?\s*(?::\*\*|\*\*)")
+#: One acceptance criterion: `- `id` — what it checks (p. n)`.
+_CRITERION = re.compile(r"^-\s*`(?P<id>[a-z0-9-]+)`\s*[—-]+\s*(?P<text>.+)$")
+#: The sections the judge reads (R3): what the element is, the question, and
+#: the criteria. Never a Show — neither an example nor a demo table — so the
+#: answer is measured against the criteria, not against one illustration.
+_JUDGE_SECTIONS = ("What it is", "Ask", "Acceptance criteria", "Explain")
+
+
+def _sections(block: str) -> dict[str, list[str]]:
+    """label -> its lines, for a field block's `> **Label:**` sections."""
+    out: dict[str, list[str]] = {}
+    current = ""
+    for raw in block.splitlines():
+        line = raw.lstrip(">").strip()
+        m = _LABEL.match(line)
+        if m:
+            current = m["label"].strip()
+            out.setdefault(current, [])
+        out.setdefault(current, []).append(raw)
+    return out
+
+
+def acceptance_criteria(phase: str, field: str) -> list[tuple[str, str]]:
+    """`(id, what it checks)` for the element `field` belongs to — the R3
+    validation layer's yardstick, parsed from the element's SKILL.md block."""
+    if phase not in SKILL_DIRS:
+        return []
+    _position, block = _field_blocks(phase).get(_CAPTURED_INSIDE.get(field, field), (None, ""))
+    lines = _sections(block).get("Acceptance criteria", [])
+    return [(m["id"], m["text"].strip()) for m in
+            (_CRITERION.match(ln.lstrip(">").strip()) for ln in lines) if m]
+
+
 def field_needs(phase: str, field: str) -> str:
-    """What the phase script says a field needs — its block without the worked
-    example (step 6.61). The planner's one judgment reads this, so "sufficient"
-    is judged against the script and never against a model's own notion; the
-    example is left out so the judge measures the Belt's answer against the
-    field's requirements, not against one illustration of them."""
+    """What the phase script says an element needs — what it is, its question
+    and its ACCEPTANCE CRITERIA (R3, 2026-09-26). The planner's one judgment
+    reads this, so "sufficient" is judged against the element's criteria and
+    never against a model's own notion. No Show section reaches it: neither a
+    worked example nor a demo table (until R3 the SIPOC and 5W2H tables did)."""
     if phase not in SKILL_DIRS:
         return ""
     _position, block = _field_blocks(phase).get(_CAPTURED_INSIDE.get(field, field), (None, ""))
-    return "\n".join(line for line in block.splitlines()
-                     if not line.lstrip("> ").startswith("**Show"))
+    sections = _sections(block)
+    if "Acceptance criteria" not in sections:
+        # A script not yet written to R2/R3 (the other four phases): the
+        # block without its worked example, as before (step 6.61).
+        return "\n".join(line for line in block.splitlines()
+                         if not line.lstrip("> ").startswith("**Show"))
+    return "\n".join(line for label in _JUDGE_SECTIONS for line in sections.get(label, []))
 
 
 def level_1_catalogue() -> str:

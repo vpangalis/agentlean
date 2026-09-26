@@ -49,7 +49,7 @@ that reads it.**
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.79 · 2026-09-26
+Version 1.80 · 2026-09-26
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
 
@@ -57,6 +57,7 @@ Task 3B verification pass completed 2026-08-21.
 The full text of every entry through v1.77 is verbatim in
 [`docs/_archive/ARCHITECTURE_slimmed_2026-09-25.md#L112`](docs/_archive/ARCHITECTURE_slimmed_2026-09-25.md#L112).
 
+- v1.80 · 2026-09-26 · R3 (docs/requirements/define.md): the validation layer every Belt answer passes before the coach model is the planner's one judgment, made against the element's ACCEPTANCE CRITERIA (`skills.acceptance_criteria`, from its SKILL.md block); `SufficiencyJudgment.failed_criterion` names the first one an insufficient answer fails, checked in code, and the challenge names it · §58 (S-C04)
 - v1.79 · 2026-09-26 · Founder's Define requirements v2 (`docs/requirements/define.md`, R1–R7 — domain requirements live there, never here): Define has THIRTEEN elements — the benefits analysis at position 10 (R4); `critical_to_quality` captured inside position 3 and `problem_5w2h` inside position 4, as the registry is inside 5; `DefineOutput` 21 fields, 16 gate-required; every element's acceptance criteria are in its SKILL.md block · `phases/define/schema.py`, §39.1.9, §63.1
 - v1.78 · 2026-09-25 · Founder ruling, the overnight run (step 6.66): documents hold current binding text only (REPLACE, DON'T APPEND; history to `docs/_archive/`; a size budget refuses growth); CLAUDE.md is rules and pointers; the 8D is asked only for a real defect (a fix, or a `Gap:` trailer); Define's plan is `docs/define_features.json`, status only from tests; the procedure is reference-only · CLAUDE.md §22 (a, h), rule 6 of the commit-msg guard
 - v1.77 · 2026-09-25 · S-C04 takes step 6.61's shape: code builds `CoachingPlan` via `phases/moves.decide`; the planner's model makes one judgment · §58 (S-C04)
@@ -7635,6 +7636,7 @@ retrieval path, and a typo would fall through silently to single-hop.
 class SufficiencyJudgment(BaseModel):      # the planner MODEL's one output
     verdict: Literal["sufficient", "insufficient", "not_an_answer"]
     reason:  str
+    failed_criterion: Optional[str] = None   # R3 (v1.80): the element's criterion id an insufficient answer fails
 
 class CoachingPlan(BaseModel):             # built in code, never by a model
     focus_field:        Optional[str]      # None once every position is confirmed

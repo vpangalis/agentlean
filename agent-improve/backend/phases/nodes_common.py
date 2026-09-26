@@ -46,6 +46,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from typing import Any, Awaitable, Callable, Literal, Optional, cast
 
 from langchain.agents import create_agent
@@ -98,6 +99,7 @@ from backend.middleware.grader import DMAICGraderMiddleware, MAX_ITERATIONS_WARN
 from backend.middleware.skills import (
     DMAICSkillsMiddleware,
     example_match,
+    acceptance_criteria,
     field_needs,
     script_record,
 )
@@ -435,7 +437,26 @@ async def _judge(phase: str, state: PhaseState, field: str, previous: str,
     judge = get_llm("planner").with_structured_output(SufficiencyJudgment)
     verdict = await judge.ainvoke(_judgment_prompt(
         phase, state, field, previous, latest, reading_back == "yes"))
-    return SufficiencyJudgment.model_validate(verdict)
+    return _checked_criterion(phase, field, SufficiencyJudgment.model_validate(verdict))
+
+
+def _checked_criterion(phase: str, field: str, j: SufficiencyJudgment) -> SufficiencyJudgment:
+    """R3 — an 'insufficient' names one of THIS element's criteria, checked in
+    code: an id the element does not list is replaced by the first listed id
+    the reason QUOTES (`id`, 'id' or "id" — a bare word would match ordinary
+    prose, "what is missing"), else cleared (and logged) rather than trusted.
+    Only 'insufficient' carries one."""
+    ids = [cid for cid, _ in acceptance_criteria(phase, field)]
+    if j.verdict != "insufficient":
+        return j.model_copy(update={"failed_criterion": None})
+    crit = (j.failed_criterion or "").strip().strip("`").lower()
+    if ids and crit not in ids:
+        quoted = {q.lower() for q in re.findall(r"[`'\"]([a-z0-9-]+)[`'\"]", j.reason or "", re.I)}
+        named = next((cid for cid in ids if cid in quoted), None)
+        logger.info("%s.planner: the judgment named %r, not one of %s's criteria %s -> %r",
+                    phase, j.failed_criterion, field, ids, named)
+        crit = named or ""
+    return j.model_copy(update={"failed_criterion": crit or None})
 
 
 async def _plan_turn(phase: str, state: PhaseState,

@@ -65,6 +65,14 @@ class SufficiencyJudgment(BaseModel):
             "message is instead."
         ),
     )
+    failed_criterion: Optional[str] = Field(
+        default=None,
+        description=(
+            "R3 — for 'insufficient', the id of the FIRST acceptance criterion "
+            "the answer does not meet, exactly as listed (e.g. 'no-cause-no-fix'). "
+            "Empty for 'sufficient' and 'not_an_answer'."
+        ),
+    )
 
 
 class CoachingPlan(BaseModel):

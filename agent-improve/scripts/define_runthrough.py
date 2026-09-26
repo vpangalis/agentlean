@@ -279,6 +279,10 @@ def main() -> int:
     args = ap.parse_args()
     _tracing_off()
     _count_model_calls(args.max_calls)
+    # R3's repeated-run record first (10 calls, inside the same cap), so one
+    # re-run by the integrator refreshes both records it binds to the source.
+    from scripts.validation_repeat import run as validation_repeat
+    validation_repeat()
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     # Written line by line to scratch while running (a crash keeps every turn);
