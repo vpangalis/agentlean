@@ -42,7 +42,8 @@ CASE_ID = "IMPR-TEST-REPORT"
 COMPLETE: dict[str, Any] = {
     "business_case": "During H1 2026, 23% of invoices were paid late; about £62k a year.",
     "team": [{"name": "Priya", "role": "Belt", "function": "lead"},
-             {"name": "Tom", "role": "Champion", "function": "<b>sponsor</b>"}],
+             {"name": "Tom", "role": "Champion", "function": "<b>sponsor</b>"},
+             {"name": "Lena", "role": "Process owner", "function": "AP manager; no training needed"}],
     "voc_summary": "Suppliers need paying on terms.",
     "critical_to_quality": [{"customer": "suppliers", "need": "on time",
                              "requirement": "paid within 30 days"}],

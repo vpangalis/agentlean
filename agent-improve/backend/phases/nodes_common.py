@@ -62,6 +62,7 @@ from langgraph.errors import GraphRecursionError
 from langgraph.graph import END
 from langgraph.types import Command, interrupt
 
+from backend.core.config import settings
 from backend.core.conversation import message_to_turn
 from backend.core.llm import get_llm
 from backend.core.prompts import (
@@ -106,6 +107,7 @@ from backend.middleware.skills import (
 from backend.phases import moves
 from backend.middleware.state_injection import BeforeModelStateInjection
 from backend.phases.gate_registry import GATE_SPECS, review_rows, split_by_declared_type
+from backend.validation.rubric import grade_define
 from backend.phases.mappers_common import PHASE_ORDER
 
 logger = logging.getLogger(__name__)
@@ -2131,21 +2133,42 @@ async def validation_stack(
         "%s.validation_stack: layer 2b %s (missing=%d, attempts=%d)",
         phase, "PASSED" if passed else "FAILED", len(missing), attempts,
     )
+    feedback = [{
+        "key": step_key(phase, turn_count, "validation_stack"),
+        "layer": "2b",
+        "impl": f"validate_{phase}",
+        "passed": passed,
+        "missing": missing,
+        "attempts": attempts,
+        "escalated": escalated,
+    }]
+    # ── Layer 2d — the R7 rubric, Define only, and only on a 2b pass ──────
+    # (cheapest first, §9.2). One verdict per element, pass/fail with the
+    # reason; a failure never reaches `gate_review`'s pause — the report goes
+    # back to coaching with the failed criteria named. Shares the cap of 3.
+    if passed and phase == "define":
+        verdict = await grade_define(dict(state.get("artifacts") or {}))
+        failed = [{"criterion": v.criterion, "feedback": v.feedback} for v in verdict.failed]
+        if failed:
+            attempts = int(state.get("gate_attempts") or 0) + 1
+            escalated = attempts >= settings.GATE_MAX_ATTEMPTS
+        passed = not failed
+        feedback.append({
+            "key": step_key(phase, turn_count, "validation_stack") + ":2d",
+            "layer": "2d", "impl": "DEFINE_RUBRIC", "passed": passed,
+            "missing": [f"{f['criterion']} — {f['feedback']}" for f in failed],
+            "verdicts": [v.model_dump() for v in verdict.verdicts],
+            "attempts": attempts, "escalated": escalated,
+        })
+        logger.info("%s.validation_stack: layer 2d %s (%d of %d criteria failed)", phase,
+                    "PASSED" if passed else "FAILED", len(failed), len(verdict.verdicts))
     return Command(
         goto="gate_review",
         update={
             "gate_attempts": attempts,
             # Accumulation is the point (§6): the shared cap of 3 is defensible
             # only because each attempt is better informed than the last.
-            "validator_feedback": [{
-                "key": step_key(phase, turn_count, "validation_stack"),
-                "layer": "2b",
-                "impl": f"validate_{phase}",
-                "passed": passed,
-                "missing": missing,
-                "attempts": attempts,
-                "escalated": escalated,
-            }],
+            "validator_feedback": feedback,
             "step_log": [_step(
                 phase, turn_count, "validation_stack",
                 status="validated_v1", layer="2b",
@@ -2294,7 +2317,7 @@ async def gate_apply(
             "status": moves.ASKED, "answer": _words(artifacts.get(element)), "messages": 1,
             "rejected": {k: decision[k] for k in ("reason", "actor", "at")}}
     return Command(
-        goto=cast(Literal["planner", "__end__"], "planner"),
+        goto="planner",
         update={"field_status": field_status, "validator_feedback": [], "turn_count": 0,
                 "rejection_feedback": [*(state.get("rejection_feedback") or []),
                                        {**decision, "elements": elements}],

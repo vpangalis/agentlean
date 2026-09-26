@@ -151,4 +151,4 @@ idempotent; approve/reject routes by `Command(goto=…)`.
 ## 9. Not decided here
 
 G-18 interrupt/resume envelopes · G-34 escalation target · G-13 `PolicyAdvisoryResult` · G-40 rubric
-and `DEFINE_CONSTRAINTS` **text** (see `G40_define_rubric_DRAFT.md`) · D1/D6 contradiction stop.
+and `DEFINE_CONSTRAINTS` **text** (superseded by R7: `DEFINE_RUBRIC`; the draft is `docs/_archive/G40_define_rubric_DRAFT_superseded_2026-09-26.md`) · D1/D6 contradiction stop.

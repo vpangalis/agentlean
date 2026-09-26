@@ -26,9 +26,9 @@ a property of *gate fields* — Tier 1 blocks the gate, Tier 2 warns — and
 Adding one would answer G-12 by invention, in the direction the gap explicitly
 flags as undecided.
 
-**The other four schemas §2 lists for this file are stage 7's** —
-`CriterionVerdict`, `GraderVerdict`, `ConstraintVerdict` and
-`ConstraintCheckResult` land with layers 2b-2d at steps 7.1 and 7.2.
+`CriterionVerdict` and `GraderVerdict` — Layer 2d's — landed with Define's
+rubric (R7, 2026-09-26). `ConstraintVerdict` and `ConstraintCheckResult`
+(Layer 2c) are still to come.
 """
 from __future__ import annotations
 
@@ -137,4 +137,36 @@ class CoachingGraderVerdict(BaseModel):
         return not self.failed
 
 
-__all__ = ["CoherenceResult", "CriterionResult", "CoachingGraderVerdict"]
+class CriterionVerdict(BaseModel):
+    """One `{PHASE}_RUBRIC` criterion's verdict on the GATE DOCUMENT — Layer 2d
+    (§9.7, S-C20). Per criterion, with specific feedback. Define is Tier 1
+    throughout (R7, 2026-09-26): its criteria `pass` or `fail`, never `warning`."""
+
+    criterion: str = Field(description="The rubric criterion id, e.g. 'DEF-R01'.")
+    tier: int = Field(default=1, description="1 blocks the gate; 2 may only warn.")
+    status: Literal["pass", "warning", "fail"] = Field(
+        description="Whether the document meets the criterion.")
+    feedback: str = Field(
+        default="",
+        description="The reason — what the document lacks and the one fix. Empty on a pass.")
+
+
+class GraderVerdict(BaseModel):
+    """Layer 2d's structured output: one verdict per rubric criterion (§9.7).
+    Never an overall score; `passed` is derived."""
+
+    verdicts: list[CriterionVerdict] = Field(
+        default_factory=list,
+        description="One entry per criterion judged. Never an overall score.")
+
+    @property
+    def failed(self) -> list[CriterionVerdict]:
+        return [v for v in self.verdicts if v.status == "fail"]
+
+    @property
+    def passed(self) -> bool:
+        return not self.failed
+
+
+__all__ = ["CoherenceResult", "CriterionResult", "CoachingGraderVerdict",
+           "CriterionVerdict", "GraderVerdict"]

@@ -90,8 +90,9 @@ def test_pending_writes_round_trip_and_the_special_channels_overwrite() -> None:
     first value; `get_tuple` returns them."""
     from langgraph.checkpoint.base import empty_checkpoint
     saver = AzureBlobCheckpointSaver(container_client=_Container())  # type: ignore[arg-type]
+    metadata: Any = {"source": "input", "step": -1, "parents": {}}
     cfg = saver.put({"configurable": {"thread_id": "T", "checkpoint_ns": ""}},
-                    empty_checkpoint(), {"source": "input", "step": -1, "parents": {}}, {})
+                    empty_checkpoint(), metadata, {})
     saver.put_writes(cfg, [("__interrupt__", {"kind": "a"}), ("x", 1)], "task-1")
     saver.put_writes(cfg, [("__interrupt__", {"kind": "b"}), ("x", 2)], "task-1")
     tup = saver.get_tuple({"configurable": {"thread_id": "T", "checkpoint_ns": ""}})
@@ -154,6 +155,14 @@ def env(monkeypatch, stub_planner):
 
     monkeypatch.setattr(CoherenceMiddleware, "_check", coherent)
     monkeypatch.setattr(DMAICGraderMiddleware, "_grade", passing)
+    # Layer 2d's judgment half (R7), faked to pass: this file is about the
+    # pause; the rubric's own proofs are test_define_rubric.py.
+    from backend.validation import rubric
+
+    async def all_pass(criteria, document):
+        return rubric.GraderVerdict(verdicts=[
+            rubric.CriterionVerdict(criterion=c, status="pass") for c, _, _ in criteria])
+    monkeypatch.setattr(rubric, "_llm_verdicts", all_pass)
 
     def restart() -> None:
         graph_mod.get_graph.cache_clear()
@@ -249,7 +258,7 @@ def test_there_is_nothing_to_decide_before_a_submission(env) -> None:
 def test_the_rejected_move_carries_the_teams_reason() -> None:
     """The move a rejection makes, in code: a challenge on the first re-opened
     element, showing the Belt's words, with the team's reason — no judgment."""
-    status = {f: {"status": moves.CONFIRMED} for f, _ in moves.positions("define")}
+    status: dict[str, dict[str, Any]] = {f: {"status": moves.CONFIRMED} for f, _ in moves.positions("define")}
     status["goal_statement"] = {"status": moves.ASKED, "answer": "to 8%", "messages": 1,
                                 "rejected": {"reason": "too timid"}}
 

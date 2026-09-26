@@ -74,7 +74,13 @@ def normalize_path(file_path: str, project_dir: str) -> str:
     """Project-relative, forward-slashed path for glob matching."""
     p = file_path.replace("\\", "/")
     pd = project_dir.replace("\\", "/").rstrip("/")
-    if pd and p.startswith(pd + "/"):
+    # Windows paths are case-insensitive, and the two arrive spelled
+    # differently ("c:/Users/…" from CLAUDE_PROJECT_DIR, "C:/Users/…" from the
+    # tool): compared case-sensitively the prefix never matched, the path
+    # stayed absolute, and NO path exclusion could apply (6.68, found when the
+    # validator exclusion for §4.6's builder-style call did not).
+    if pd and (p.lower() if os.name == "nt" else p).startswith(
+            (pd.lower() if os.name == "nt" else pd) + "/"):
         p = p[len(pd) + 1:]
     return p.lstrip("./")
 

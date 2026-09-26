@@ -1612,6 +1612,54 @@ not_an_answer.
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# DEFINE_RUBRIC — Layer 2d for Define (founder requirement R7, 2026-09-26)
+#
+# Replaces the G-40 draft (docs/_archive/G40_define_rubric_DRAFT_superseded_
+# 2026-09-26.md). ONE criterion per element, from R7's acceptance criteria and
+# the founder's BB manual pages; every one Tier 1 (Define has no Tier 2), so
+# each is `pass` or `fail` with a reason — never `warning`. Grades the gate
+# DOCUMENT once, at the gate — not the coach's process (that is
+# COACHING_QUALITY_RUBRIC below; the two graders are never confused, §36).
+#
+# `validation/rubric.py` parses the ids from this text and runs the
+# deterministic half of each criterion first; only what needs judgment reaches
+# the model. Metric charts over time are Measure's (p. 51), not graded here.
+# ══════════════════════════════════════════════════════════════════════════
+
+DEFINE_RUBRIC = """\
+- DEF-R01 business_case: states what is wrong, where and when, the baseline size and what it costs, and speculates about no cause and no solution (p. 49)
+- DEF-R02 team: names a champion and a process owner, and states any training a member needs (or that none is needed) (p. 82)
+- DEF-R03 voc_summary: names the customers and their needs, with at least one CTQ stated as a measurable requirement (p. 29, 31, 82)
+- DEF-R04 problem_statement: describes the defect from the 5W2H answers with its size, and names no cause, no solution and no one to blame (p. 49, 51)
+- DEF-R05 baseline_estimate: exactly ONE primary metric (the first registered), quantified, linked to a KPI, from real data rather than a best guess (p. 58, 80)
+- DEF-R06 project_scope: states what is in and what is out, and is not too broad — one process or area where the problem sits (p. 80)
+- DEF-R07 goal_statement: states the improvement on the primary metric, from the baseline to a target, by a date (p. 52)
+- DEF-R08 target_value: a number in the baseline's unit that differs from the baseline (p. 58)
+- DEF-R09 target_date: a calendar date, after the date of the gate (p. 52)
+- DEF-R10 benefits_analysis: quantifies the cost of the gap (COPQ), says sustainable or one-off, gives a realisation schedule and names the finance contact (p. 60-63)
+- DEF-R11 secondary_metrics: names at least one measure of a side effect of the change, not the primary metric restated (p. 58)
+- DEF-R12 process_map_sipoc: maps the process AS-IS, not the ideal, with suppliers, inputs, steps, outputs, customers and the measures all filled (p. 80, 112)
+- DEF-R13 issues_and_barriers: names specific roadblocks for this project, or says "none identified at this stage" as a conscious answer (p. 80, 82)
+"""
+
+GATE_GRADER_PROMPT = """\
+You grade ONE {phase} gate document against its rubric, criterion by criterion.
+You do not coach and you do not rewrite anything. Judge only what the document
+says — never what it might mean, and never from anything outside it.
+
+THE CRITERIA TO JUDGE (each is Tier 1: it passes or it fails, never "warning"):
+{criteria}
+
+THE DOCUMENT — the values the Belt confirmed:
+{document}
+
+Return one verdict per criterion above, with its id as `criterion`. For a
+`fail`, the feedback names what the document lacks and the one fix, in plain
+words; for a `pass`, leave it empty.
+"""
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # COACHING_QUALITY_RUBRIC — procedure step 6.5
 #
 # **One rubric, shared across all five phases** (§36). Read every turn by

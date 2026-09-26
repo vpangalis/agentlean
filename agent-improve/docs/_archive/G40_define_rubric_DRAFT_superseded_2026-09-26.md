@@ -1,3 +1,5 @@
+> **SUPERSEDED 2026-09-26 by the founder's R7** (`docs/requirements/define.md`): the Define rubric is `DEFINE_RUBRIC` in `backend/core/prompts.py`, graded by `backend/validation/rubric.py` — one criterion per element, pass/fail with a reason. Historical from here; never cite it as current.
+
 # G-40 (F1) — a draft `DEFINE_RUBRIC` for Layer 2d
 
 > **DRAFT — for founder ruling, not ratified.** This is an implementer's proposal of domain
