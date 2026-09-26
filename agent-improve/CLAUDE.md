@@ -13,11 +13,12 @@ a request;** a wrong rule is amended first, in its own commit (the `amend-rules`
 | What must be true | `docs/requirements/` (founder's) → `docs/define_features.json` + `docs/test-results.json` | every session |
 | Why — design rationale | `ARCHITECTURE.md` | only the cited section, found in `docs/section-index.md` |
 
-History and retired documents (the procedure included): `docs/_archive/`. Never cite them as current.
+History and retired documents (the procedure too): `docs/_archive/`. Never cite them as current.
 
 ## Environment and gotchas
 
 - Use `agent-improve/.venv` only — the repo-root venv is stale.
+- Live model calls: at most 150 per prompt, diagnosis included, unless it says otherwise; ask first.
 - **Never run `./start.ps1`**: it hard-resets to `origin/main` and discards uncommitted work.
 - `.claude/` sits one level up, so every `paths:` glob is `agent-improve/...`; the OneDrive
   mirror does not carry `.claude/` — resolve files through git, never a directory listing.
@@ -49,7 +50,8 @@ your lane and make its end-to-end test pass. Never edit a feature to say it pass
 
 ## The rules a hook enforces (one line each)
 
-- Rule 11: a `DEF-xxx` commit lands only if its test and its dependencies' tests pass; a feature that passed once must keep passing.
+- Rules 3, 4, 11 bind every code or config commit, any prefix: types, tests, and a `DEF-xxx` subject
+  lands only if it and its dependencies pass. A feature that passed once must keep passing.
 - Rule 12: a governing document may not grow past `.claude/config/size-budget.json` — REPLACE, DON'T APPEND.
 - Rule 6: an 8D (the `eight-d` skill) only for a real defect — a `fix` commit or a `Gap:` trailer.
 - Rule 14: no must / never / always sentence of this file, a rule file or a skill is dropped or weakened.

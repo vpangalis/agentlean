@@ -22,7 +22,7 @@ the R7 rubric. New features DEF-065–072 (R2–R7).
 | Lane | Branch · worktree | Starts at |
 |---|---|---|
 | A — coaching | `lane/a-coaching` · `../AgentLean-lane-a-coaching` | DEF-005 first (strict dependencies), then the Confirm at field 5 (DEF-008, DEF-029) |
-| B — gate | `lane/b-gate` · `../AgentLean-lane-b-gate` | DEF-040 — the stop is a node (D1, ruled); row 24 (DEF-062) |
+| B — gate | `lane/b-gate` · `../AgentLean-lane-b-gate` | D22 first (ruled 2026-09-26): the gate write moves into `gate_apply`; then DEF-040 (the stop is a node) and DEF-062 |
 | C — screen and inputs | `lane/c-screen-inputs` · `../AgentLean-lane-c-screen-inputs` | DEF-052 |
 | Integrator | `lane/integrator` · `../AgentLean-lane-integrator` | merges A/B/C; re-runs `scripts/define_runthrough.py` |
 
@@ -84,3 +84,4 @@ commits with their `Timing:` lines. Its projection appears once two days of runs
 | Rule sentences the slimming weakened | An automatic check: rule 14 (`normative_check.py`); against the pre-slimming corpus 71 candidates → 8 rule sentences restored, 63 classified (41 kept in other words, 21 rationale, 1 obsolete) in `.claude/config/normative-retired.json`, open to review | guard rule 14 |
 | Discrepancies D1, D2, D3, D7, D8, D9, D15, D21 | D1 the stop is a node · D2/D21 "works end to end" = all features, the five-clause core a second number, row 24 to the gate lane · D3 structural tests now, traced rows marked from one traced run on 30 Sep · D15 row 10 proven by the savings calculation turn · D7–D9 obsolete | the features' descriptions; the file is archived: `docs/_archive/define_discrepancies_2026-09-26.md` |
 | Speed | At most ONE code commit per part; docs commits are cheap | — |
+| Review of Define requirements v2 (2026-09-26) | One resume route `POST /gate/decision` — accepted · types, tests and landing bind every code or config commit, any prefix · D22 to lane B next · rule 14's 63 classified sentences — accepted · live model calls: 150 per prompt unless stated, ask first | guard `gated_rules`; CLAUDE.md |

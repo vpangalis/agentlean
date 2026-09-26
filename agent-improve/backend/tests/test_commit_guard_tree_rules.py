@@ -369,12 +369,12 @@ def test_the_rules_run_ahead_of_the_prefix_gate() -> None:
 
     Scoping these to the spine prefix would exempt exactly the commits nobody
     reviews against it — the argument that put rule 2b ahead of the gate, and
-    the reason both calls sit above `startswith(GUARDED_PREFIX)` in `main`.
+    the reason both calls sit above the prefix gate (`gated_rules`) in `main`.
     """
     src = _HOOK.read_text(encoding="utf-8")
     scratch_at = src.index("check_scratch(added)")
     number_at = src.index("check_step_or_gap(root, subject, message, added)")
-    gate_at = src.index("if not subject.startswith(GUARDED_PREFIX)")
+    gate_at = src.index("rules = gated_rules(subject, all_staged)")
     assert scratch_at < gate_at and number_at < gate_at
 
 
@@ -507,3 +507,40 @@ def test_the_watch_list_and_ss552_state_the_same_paths() -> None:
 
 # Rule 9 (the build matrix) retired with the procedure at step 6.67; its tests are in
 # docs/_archive/retired-tooling/tests/test_commit_guard_rule9.py.
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Types, tests and landing bind on EVERY code commit (founder ruling 2026-09-26)
+# ══════════════════════════════════════════════════════════════════════════
+
+CODE = ["agent-improve/backend/phases/define/report.py"]
+DOCS = ["agent-improve/docs/harness-progress.md", "agent-improve/docs/control-board.html",
+        "agent-improve/docs/test-results.json"]
+
+
+@pytest.mark.parametrize("subject,staged,expected", [
+    ("feat(define): a report section", CODE, ("11", "3", "4")),
+    ("fix(ui): a label", ["agent-improve/ui/index.html"], ("11", "3", "4")),
+    ("chore(tooling): a hook", [".claude/hooks/timing.py"], ("11", "3", "4")),
+    ("chore(tooling): the budget", [".claude/config/size-budget.json"], ("11", "3", "4")),
+    ("docs(requirements): a note", DOCS, ()),
+    ("refactor(arch-v2): DEF-065 — x", DOCS, ("1", "11", "5", "3", "4")),
+    ("refactor(arch-v2): DEF-065 — x", CODE, ("1", "11", "5", "3", "4")),
+])
+def test_types_tests_and_landing_apply_to_every_code_commit(subject, staged, expected) -> None:
+    """A `feat(` commit carried two type errors to main (b940725) because rules
+    3, 4 and 11 ran only under `refactor(arch-v2)`. Code or config, whatever the
+    prefix, now gets all three; the spine keeps rules 1 and 5 besides."""
+    assert g.gated_rules(subject, staged) == expected
+
+
+def test_the_generated_outputs_alone_are_not_a_code_change() -> None:
+    assert not g.changes_code(DOCS)
+    assert g.changes_code(DOCS + [".githooks/pre-commit"])
+
+
+def test_a_def_subject_lands_under_any_prefix() -> None:
+    for subject in ("refactor(arch-v2): DEF-065 — x", "feat(define): DEF-065 — x", "fix: DEF-065 — x"):
+        m = g._DEF_SUBJECT_RE.match(subject)
+        assert m and m.group(1) == "DEF-065", subject
+    assert not g._DEF_SUBJECT_RE.match("feat(define): requirements v2 part 8 — DEF-065")

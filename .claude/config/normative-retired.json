@@ -1,5 +1,5 @@
 {
- "_about": "Rule 14 (normative_check.py). Normative sentences of the pre-slimming corpus (rules before 69e9200, CLAUDE.md before e0e4d79) that the current corpus does not carry word for word. Classified 2026-09-26 (step 6.68) by the session and open to founder review: 'rationale' is the why or history, not a rule; 'equivalent' names where the same rule stands in other words; 'obsolete' is retired with the procedure. Eight dropped RULE sentences were restored instead. A new entry is a founder ruling, landed in the commit that removes the sentence.",
+ "_about": "Rule 14 (normative_check.py). Normative sentences of the pre-slimming corpus (rules before 69e9200, CLAUDE.md before e0e4d79) that the current corpus does not carry word for word. Classified 2026-09-26 (step 6.68) by the session and ACCEPTED by the founder 2026-09-26: 'rationale' is the why or history, not a rule; 'equivalent' names where the same rule stands in other words; 'obsolete' is retired with the procedure. Eight dropped RULE sentences were restored instead. A new entry is a founder ruling, landed in the commit that removes the sentence.",
  "retired": [
   {
    "sentence": "- gate attempts MUST be in the checkpointed state, never in route scope — this is what fixes the v1 \"attempts always reset to 0\" bug.",
@@ -378,6 +378,12 @@
    "from": "agent-improve/CLAUDE.md",
    "class": "equivalent",
    "reason": "kept in other words, same strength: agent-improve/CLAUDE.md — a wrong rule is amended first, in its own commit"
+  },
+  {
+   "sentence": "- Rule 11: a DEF-xxx commit lands only if its test and its dependencies' tests pass; a feature that passed once must keep passing.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "kept in other words and widened, founder ruling 2026-09-26 (review of Define requirements v2, item 2): agent-improve/CLAUDE.md — Rules 3, 4, 11 bind every code or config commit, any prefix: … a DEF-xxx subject lands only if it and its dependencies pass. A feature that passed once must keep passing."
   }
  ]
 }

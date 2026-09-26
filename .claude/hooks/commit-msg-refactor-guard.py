@@ -109,9 +109,13 @@ therefore 1, 2b, 3, 4, 5, 6, 7 and 8.
 Rules 3 and 4 test the STAGED tree, in the second worktree `staged_tree.py`
 sets to the index (founder ruling 2026-09-26).
 
-NON-refactor commits are touched by rules 2b, 6, 7 and 8 only. A docs or chore
-commit that changes no tabulated path, claims to fix nothing, and adds no file
-still passes through untouched.
+TYPES, TESTS AND LANDING BIND ON EVERY COMMIT THAT CHANGES CODE OR CONFIG,
+whatever its subject prefix (founder ruling 2026-09-26): rules 3, 4 and 11 run
+for a `feat(`, `fix(` or `chore(` commit exactly as for a spine one
+(`gated_rules`). Until then they ran only under `refactor(arch-v2)`, and a
+`feat(` commit carried two type errors to main (b940725). Rules 1 and 5 — the
+spine's subject format and CONTINUITY — stay the spine's. A documentation-only
+commit (Markdown and the generated outputs) is touched by 2b, 6, 7, 8, 10-14.
 
 USAGE
     commit-msg hook:   <guard> <path-to-commit-message-file>
@@ -1120,7 +1124,35 @@ def _this_commits_run(root: str) -> dict | None:
         return None
 
 
-_DEF_SUBJECT_RE = re.compile(r"^refactor\(arch-v2\): (DEF-\d{3})\b")
+#: A subject that LANDS a feature — any type prefix (founder ruling 2026-09-26).
+_DEF_SUBJECT_RE = re.compile(r"^[a-z]+(?:\([^)]*\))?!?: (DEF-\d{3})\b")
+
+#: What the pre-commit hook writes and stages itself — not a change of code.
+GENERATED_OUTPUTS = frozenset({
+    f"{PROJECT}/docs/control-board.html", f"{PROJECT}/docs/test-results.json",
+    f"{PROJECT}/docs/features-ratchet.json", f"{PROJECT}/docs/CONTINUITY.md",
+    f"{PROJECT}/docs/section-index.md",
+})
+
+
+def changes_code(staged: list[str]) -> bool:
+    """Code or config: any staged path but Markdown and the generated outputs —
+    the same test the pre-commit hook uses to decide the suite runs."""
+    return any(not p.endswith(".md") and p not in GENERATED_OUTPUTS for p in staged)
+
+
+def gated_rules(subject: str, staged: list[str]) -> tuple[str, ...]:
+    """The rules past the prefix gate, in the order `main` runs them.
+
+    Founder ruling 2026-09-26: types (3), tests (4) and the feature-landing
+    rule (11) apply to EVERY commit that changes code or config, whatever its
+    subject prefix. The spine keeps its own two (1, subject format; 5,
+    CONTINUITY), and a spine commit keeps all five even when docs-only."""
+    spine = subject.startswith(GUARDED_PREFIX)
+    code = changes_code(staged)
+    order = (("1", spine), ("11", spine or code), ("5", spine),
+             ("3", spine or code), ("4", spine or code))
+    return tuple(rule for rule, on in order if on)
 
 
 def check_landing(root: str, subject: str) -> None:
@@ -1134,7 +1166,7 @@ def check_landing(root: str, subject: str) -> None:
     """
     m = _DEF_SUBJECT_RE.match(subject)
     if not m:
-        note("rule 11 landing: a step subject — no feature to land (the procedure is archived)")
+        note("rule 11 landing: the subject names no DEF-xxx — no feature to land")
         return
     fid = m.group(1)
     res = _this_commits_run(root)
@@ -1448,11 +1480,12 @@ def main(argv: list[str]) -> int:
     with _timer("rule 6 8d"):
         check_8d(subject, message)
 
-    if not subject.startswith(GUARDED_PREFIX):
+    rules = gated_rules(subject, all_staged)
+    if not rules:
         return 0
 
-    # ── Rule 1 — subject format ───────────────────────────────────────────
-    if not SUBJECT_RE.match(subject):
+    # ── Rule 1 — subject format (the spine only) ──────────────────────────
+    if "1" in rules and not SUBJECT_RE.match(subject):
         if re.match(r"^refactor\(arch-v2\): commit \d+\.\d+ [-–] ", subject):
             hint = ["The separator is a HYPHEN or EN DASH. It must be an EM DASH (—, U+2014).",
                     "This is the most common slip and the easiest to miss on review."]
@@ -1490,22 +1523,26 @@ def main(argv: list[str]) -> int:
     # spine commits.
     staged = all_staged
 
-    # ── Rule 11 — the step, and every step its card needs, is WIRED ───────
-    with _timer("rule 11 landing"):
-        check_landing(root, subject)
+    # ── Rule 11 — a subject naming DEF-xxx lands only on passing tests ─────
+    if "11" in rules:
+        with _timer("rule 11 landing"):
+            check_landing(root, subject)
 
-    # ── Rule 5 — the other orientation document moved too ─────────────────
+    # ── Rule 5 — the other orientation document moved too (the spine) ─────
     # Before the venv rules, because it is instant and needs no subprocess:
     # a missing CONTINUITY update should not cost a 60s mypy run first.
-    with _timer("rule 5 continuity"):
-        check_continuity(root, staged)
+    if "5" in rules:
+        with _timer("rule 5 continuity"):
+            check_continuity(root, staged)
 
-    # ── Rules 3 and 4 — against the pinned venv ───────────────────────────
+    # ── Rules 3 and 4 — against the pinned venv, every code commit ────────
     py = venv_python(root)
-    with _timer("rule 3 mypy"):
-        check_types(root, py, staged)
-    with _timer("rule 4 tests"):
-        check_tests(root, py)
+    if "3" in rules:
+        with _timer("rule 3 mypy"):
+            check_types(root, py, staged)
+    if "4" in rules:
+        with _timer("rule 4 tests"):
+            check_tests(root, py)
     return 0
 
 
