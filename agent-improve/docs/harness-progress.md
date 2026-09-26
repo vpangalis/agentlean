@@ -30,6 +30,21 @@ Record `docs/runthrough/define_runthrough_20260925T192526.json`: 18 turns, 79 ca
 `baseline_estimate` + `metric_definitions`); the executor's backstop fired twice at
 field 4. 9 of 64 features pass.
 
+## Proven at 6.67 (Part E)
+
+| Check | Result |
+|---|---|
+| A fresh session's always-loaded context | 3,279 → **1,565 tokens** (CLAUDE.md 2,631 → 1,070 · MEMORY 200 · session start 448 → 295; tiktoken proxy) |
+| Full suite in the hook | green on every 6.67 commit (1,213 passed; feature tests xfail/xpass by design) |
+| Board and CONTINUITY | regenerate from the features on every commit; rule 10 passes |
+| A DEF commit whose test fails | **refused** — `DEF-001 cannot land yet (rule 11)` |
+| A DEF commit whose test and dependencies pass | **landed** — `256ffd4` on branch `proof/6.67-landing` |
+| The four lanes | rebased onto `1ee1540` and pushed |
+
+The proof found two defects in Part A before any lane did — the session start
+printed nothing (`0ae5302`) and rule 5 refused an unchanged, current CONTINUITY
+block (`1ee1540`) — both fixed with a test each.
+
 ## Open decisions — FOR FOUNDER (one line each)
 
 - Run-through features are exempt from the ratchet while the record is stale — any product change stales all of them and only a live run refreshes them.
