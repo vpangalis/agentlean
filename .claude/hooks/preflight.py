@@ -19,9 +19,19 @@ All three run at once. Area runs are serial below SERIAL_MAX test files: the
 6.65 timing log shows xdist start-up costs ~20 s (34-54 tests: 22-30 s under
 `-n auto`, 1-47 tests: 4-12 s serial).
 
+6.68 (founder rulings 2026-09-26 on the 6.67 report):
+  - WHAT IS STAGED is checked, in the second worktree `staged_tree.py` sets to
+    the index — never the working tree, whose unstaged edits the commit will
+    not carry. (`--working` keeps the old reach, for `commit -a` / `--only`.)
+  - NO HAND-WRITTEN OVERRIDE. A failure passes only when the LAST COMMIT
+    already had it: a failing test recorded as failed in HEAD's committed
+    `docs/test-results.json`, a drift finding the drift check also reports on
+    HEAD's tree. Anything else blocks.
+
 Usage (repo root):
-    python .claude/hooks/preflight.py          # changed = staged + unstaged + untracked, vs HEAD
-    python .claude/hooks/preflight.py --plan   # print what would run, run nothing
+    python .claude/hooks/preflight.py            # changed = the index vs HEAD, checked on the index
+    python .claude/hooks/preflight.py --working  # changed = staged + unstaged + untracked, on disk
+    python .claude/hooks/preflight.py --plan     # print what would run, run nothing
 
 Exit 0 clear, 1 a check failed. It is an accelerator, not a gate: the commit
 hook still runs the full suite and every guard rule.
@@ -31,7 +41,9 @@ from __future__ import annotations
 import ast
 import concurrent.futures as cf
 import importlib.util
+import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -69,11 +81,46 @@ def _git(*args: str) -> list[str]:
     return [ln.strip().replace("\\", "/") for ln in out.splitlines() if ln.strip()]
 
 
-def changed_files() -> list[str]:
-    """Staged, unstaged and untracked paths that exist — what the next commit could carry."""
+def changed_files(working: bool = False) -> list[str]:
+    """What the next commit carries: the index against HEAD (6.68). With
+    `working`, staged + unstaged + untracked paths — a `commit -a` / `--only`."""
+    if not working:
+        return sorted(_git("diff", "--cached", "--name-only", "--diff-filter=ACMR"))
     paths = set(_git("diff", "--name-only", "--diff-filter=ACMR", "HEAD"))
     paths |= set(_git("ls-files", "--others", "--exclude-standard"))
     return sorted(p for p in paths if (ROOT / p).is_file())
+
+
+def _staged_tree():
+    import staged_tree
+    return staged_tree
+
+
+# ── the last commit's recorded failures (6.68: the only thing that passes a failure) ──
+_FAILED_RE = re.compile(r"^(?:FAILED|ERROR) (\S+?)(?: - .*)?$")
+
+
+def failed_ids(output: str) -> list[str]:
+    """Test node ids pytest reported FAILED or ERROR, relative to agent-improve/."""
+    return [m.group(1).replace("\\", "/") for ln in output.splitlines()
+            if (m := _FAILED_RE.match(ln.strip()))]
+
+
+def recorded_failures_at_head() -> set[str]:
+    """Tests HEAD's committed `docs/test-results.json` records as failed."""
+    out = subprocess.run(["git", "show", "HEAD:agent-improve/docs/test-results.json"], cwd=ROOT,
+                         capture_output=True, encoding="utf-8", errors="replace", timeout=30)
+    try:
+        outcomes = json.loads(out.stdout).get("outcomes") or {}
+    except ValueError:
+        return set()
+    return {k for k, v in outcomes.items() if v not in ("passed", "skipped")}
+
+
+def drift_findings(text: str) -> set[str]:
+    """The finding lines of a drift-check run (its summary line excluded)."""
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    return set(lines[:-1])
 
 
 # ── the import graph ────────────────────────────────────────────────────────
@@ -181,8 +228,10 @@ def _run(cmd: list[str], cwd: Path) -> tuple[int, str]:
     return r.returncode, (r.stdout or "") + (r.stderr or "")
 
 
-def check_drift(py: str, _p: dict) -> tuple[bool, str]:
-    code, out = _run([py, str(HOOKS / "drift-check.py")], ROOT)
+def check_drift(py: str, p: dict) -> tuple[bool, str]:
+    base = Path(p.get("tree_root") or ROOT)
+    code, out = _run([py, str(base / ".claude" / "hooks" / "drift-check.py")], base)
+    p["_drift_out"] = out
     return code == 0, out.strip().splitlines()[-1] if code == 0 and out.strip() else out.strip()
 
 
@@ -199,7 +248,7 @@ def check_types(py: str, p: dict) -> tuple[bool, str]:
     if not files:
         return True, "no Python reached"
     g = _guard()
-    found = g.run_mypy(str(ROOT), py, files)
+    found = g.run_mypy(str(p.get("tree_root") or ROOT), py, files)
     base = g.load_baseline(str(ROOT))
     new = [f"{k.replace(chr(9), '  ')} (x{n - base.get(k, 0)})"
            for k, n in sorted(found.items()) if n > base.get(k, 0)]
@@ -212,7 +261,6 @@ def slow_tests() -> list[str]:
     """Tests the last runs measured at >= 1 s (`.claude/logs/slow-tests.json`,
     written by the test recorder). The pre-flight leaves them to the commit
     hook's full run, which never skips anything (6.67, speed item 2)."""
-    import json
     path = ROOT / ".claude" / "logs" / "slow-tests.json"
     try:
         return sorted(json.loads(path.read_text(encoding="utf-8")))
@@ -234,24 +282,35 @@ def check_tests(py: str, p: dict) -> tuple[bool, str]:
         skip = [s for s in slow_tests() if s.split("::")[0] in rel and s not in rel]
         args += [a for s in skip for a in ("--deselect", s)]
         n = f"{len(rel)} test file(s), {len(skip)} slow test(s) left to the hook"
-    code, out = _run([py, "-m", "pytest", "-q", "--no-header", "-p", "no:cacheprovider", *args], PROJECT)
+    base = Path(p["tree_root"]) / "agent-improve" if p.get("tree_root") else PROJECT
+    code, out = _run([py, "-m", "pytest", "-q", "--no-header", "-p", "no:cacheprovider", *args], base)
     lines = out.strip().splitlines()
     summary = lines[-1] if lines else "(no output)"
     if code in (0, 5):          # 5 = nothing collected
         return True, f"{n}: {summary}"
-    failed = [l for l in lines if l.startswith(("FAILED", "ERROR"))][:20]
-    return False, f"{n}: {summary}\n  " + "\n  ".join(failed)
+    ids = failed_ids(out)
+    known = recorded_failures_at_head()
+    if ids and set(ids) <= known:
+        # 6.68 — the only pass for a failure: the last commit's record has it.
+        return True, (f"{n}: {summary} — all {len(ids)} failure(s) are recorded as failing in "
+                      "HEAD's docs/test-results.json (pre-existing)")
+    new = [i for i in ids if i not in known] or ["(a failure pytest did not name)"]
+    return False, (f"{n}: {summary}\n  NEW failures (not in HEAD's record):\n  "
+                   + "\n  ".join(new[:20]))
 
 
 CHECKS = {"drift": check_drift, "types": check_types, "tests": check_tests}
 
 
-def run(changed: list[str] | None = None, echo=print) -> int:
+def run(changed: list[str] | None = None, echo=print, working: bool = False) -> int:
     t0 = time.time()
-    changed = changed_files() if changed is None else changed
+    changed = changed_files(working) if changed is None else changed
     p = plan(changed)
     py = _venv()
-    echo(f"[preflight] {len(changed)} changed file(s) -> {len(p['types'])} to type-check, "
+    if not working:
+        p["tree_root"] = str(_staged_tree().sync(ROOT))
+    echo(f"[preflight] {len(changed)} {'changed' if working else 'staged'} file(s) -> "
+         f"{len(p['types'])} to type-check, "
          f"{'ALL' if p['tests'] == 'ALL' else len(p['tests'])} test file(s)")
     results: dict[str, tuple[bool, str, float]] = {}
 
@@ -268,6 +327,15 @@ def run(changed: list[str] | None = None, echo=print) -> int:
     with cf.ThreadPoolExecutor(max_workers=len(CHECKS)) as ex:
         for name, ok, msg, sec in ex.map(timed, CHECKS):
             results[name] = (ok, msg, sec)
+    if not results["drift"][0] and "_drift_out" in p:
+        # 6.68 — pre-existing only if HEAD's own tree reports the same finding.
+        # Run after the other checks: this re-syncs the worktree they read.
+        s = time.time()
+        head_root = _staged_tree().sync(ROOT, tree="HEAD^{tree}")
+        _code, head_out = _run([py, str(head_root / ".claude" / "hooks" / "drift-check.py")], head_root)
+        if not drift_findings(p["_drift_out"]) - drift_findings(head_out):
+            results["drift"] = (True, "every finding is also reported on HEAD's tree (pre-existing)",
+                                round(results["drift"][2] + time.time() - s, 1))
     for name, (ok, msg, sec) in results.items():
         echo(f"  {'ok' if ok else '!!'} {name:<6} {sec:>5.1f}s  {msg}")
     total = round(time.time() - t0, 1)
@@ -285,8 +353,8 @@ def run(changed: list[str] | None = None, echo=print) -> int:
 
 
 if __name__ == "__main__":
+    working = "--working" in sys.argv
     if "--plan" in sys.argv:
-        import json
-        print(json.dumps(plan(changed_files()), indent=1))
+        print(json.dumps(plan(changed_files(working)), indent=1))
         sys.exit(0)
-    sys.exit(run())
+    sys.exit(run(working=working))

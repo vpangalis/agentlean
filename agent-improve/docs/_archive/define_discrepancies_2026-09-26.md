@@ -1,3 +1,5 @@
+> **ARCHIVED 2026-09-26 (step 6.68).** The founder ruled every FOR-FOUNDER item on the 6.67 report (D1, D2, D3, D7, D8, D9, D15, D21 — the Decision column says how); the rulings live on the features in `docs/define_features.json`. Historical from here: never cite it as current.
+>
 > **Step 6.66, Part 5d** — where the four sources (ARCHITECTURE.md, the procedure, the code, Anthropic/LangChain guidance) disagree on Define, each decided by the ladder: a) what IS (code and a test run at HEAD), b) what SHOULD BE (the latest founder ruling), c) HOW (official docs, checked against the installed version), d) the smaller reversible option, marked **FOR FOUNDER**. Written 2026-09-25 by reading at HEAD `189c672`: procedure line numbers below are from BEFORE that night's slimming — the text moved verbatim to `docs/_archive/REFACTORING_PROCEDURE_slimmed_2026-09-25.md`; find current lines through `docs/section-index.md`. Replace an entry when it is decided; do not append history.
 
 # Where the four sources disagree, and how each disagreement is decided
@@ -18,27 +20,27 @@ No founder ruling is invented here. Where a decision needs one, the item says so
 
 | # | Disagreement | Decided by | Decision |
 |---|---|---|---|
-| D1 | The contradiction stop: restore the middleware `interrupt()` (7.3 clause 1), or move the stop into a node (6.44) | d | **FOR FOUNDER.** Smaller option: the node (6.44). The LangGraph docs support it |
-| D2 | What "Define works end to end" means: the five clauses (quality does not gate), or 7.9 (every one of the 35 rows green) | d | **FOR FOUNDER.** Measure both. Report the five-clause subset as the headline distance |
-| D3 | Rows 26–32 need a person watching a traced turn; 6.66 wants pass/fail only from automated tests, with tracing off | d | **FOR FOUNDER.** Tests prove the structural half from the audit record. The rows stay founder-marked |
+| D1 | The contradiction stop: restore the middleware `interrupt()` (7.3 clause 1), or move the stop into a node (6.44) | d | **RULED 2026-09-26:** the contradiction stop is a node (DEF-040) |
+| D2 | What "Define works end to end" means: the five clauses (quality does not gate), or 7.9 (every one of the 35 rows green) | d | **RULED 2026-09-26:** "Define works end to end" = all Define features; the five-clause core is reported as a second number (rows 22 and 26–32 left out) |
+| D3 | Rows 26–32 need a person watching a traced turn; 6.66 wants pass/fail only from automated tests, with tracing off | d | **RULED 2026-09-26:** structural tests now; the founder marks the traced rows from one traced run on 30 Sep (DEF-004) |
 | D4 | The approval gate: §33 has three routes plus an interrupt; the tree has one `POST /gate` that writes at once, and the UI's "approve" button calls it | a/b | IS is the direct write. SHOULD is §33 plus 7.3/7.7. Features encode §33 |
 | D5 | ARCH §33 says position 6 pauses today; the code has 0 `interrupt()` call sites | a | Code wins. The ARCH note is stale |
 | D6 | An interrupt inside a subgraph that is called from a wrapper node: on resume, what re-runs? | c | The docs say a node re-runs from the start. 7.3 must prove this with a fake-model test on 1.2.11 |
-| D7 | 6.45 (planner decides on field completeness, row 4) against 6.61 (code picks the first unconfirmed field) | b, then d | 6.61 is later and delivers row 4's behaviour. **FOR FOUNDER:** re-scope 6.45 to gate routing |
-| D8 | 7.9's precondition says "Order 1–19"; 7.9 now sits at Order 21 and 7.8 at 20 | d | **FOR FOUNDER.** Reword it as "every Order position before 7.9" |
-| D9 | 10.4 is Order 11, but its precondition is 8.1, which is in no Order and not started | d | **FOR FOUNDER.** Narrow the precondition, or add 8.1 to the Order |
+| D7 | 6.45 (planner decides on field completeness, row 4) against 6.61 (code picks the first unconfirmed field) | b, then d | **RULED 2026-09-26: obsolete** — the procedure is archived |
+| D8 | 7.9's precondition says "Order 1–19"; 7.9 now sits at Order 21 and 7.8 at 20 | d | **RULED 2026-09-26: obsolete** — the procedure is archived |
+| D9 | 10.4 is Order 11, but its precondition is 8.1, which is in no Order and not started | d | **RULED 2026-09-26: obsolete** — the procedure is archived |
 | D10 | 7.8's card says "off the Define critical path"; Order 20 and the Define path table include it | b | Order (2026-09-25) wins. The card text is stale |
 | D11 | Appendix I says "Order is DERIVED from story rank"; the 2026-09-25 ruling says "Priority = Appendix F Order column" | b | The later ruling wins. Appendix I lines 8377–8417 are stale |
 | D12 | Row 2 is 🟢 in the register and CONTINUITY says 15 proven; the generated board says 14, because row 2's check is skipped in CI | a/b | The derived count (14) is right. The hand-written line is stale |
 | D13 | Steps counted DONE while rows they own have no check (10.0 → row 15; 6.46 → rows 26–32) | a | This follows `progress.py` (done = wired or proven). Rows stay red. Features give the missing checks |
 | D14 | Appendix F shows ☐ for 6.42 and 6.48 (and 6.20); their rows are proven and the code is landed | a | The code and tests win. This is G-86 (the State column is hand-kept) |
-| D15 | 6.20 was #2 on the 2026-09-23 critical path; it is absent from the 2026-09-25 Order; row 10 is still red | b, then d | The Order wins on priority. **FOR FOUNDER:** where 6.20's last clause (row 10) lands |
+| D15 | 6.20 was #2 on the 2026-09-23 critical path; it is absent from the 2026-09-25 Order; row 10 is still red | b, then d | **RULED 2026-09-26:** the calculation record (row 10) is proven by the savings calculation turn (DEF-016, DEF-017) |
 | D16 | WATCH 7 and code docstrings say "the Define gate is inert / artifacts stays empty"; the gate has passed on real case 1FF | a | The code wins. The comments are stale; record only, since no `backend/` edits are allowed tonight |
 | D17 | ARCH §39.1.2 says "16 fields in total"; the schema and §40/§63.1 say 18 | a | 18 (`DefineOutput.model_fields`) |
 | D18 | Open gaps whose Step cell disagrees with where they are actually owned or closed (G-78, G-89, G-23, G-40) | a/b | Update the gap rows. The features cover them either way |
 | D19 | `build_board.read_gaps` docstring against its behaviour, and the guard's register against the brief's wording | a | Code behaviour is recorded. Use a new `progress.gaps()` reader |
 | D20 | The Anthropic article (agent flips a `passes` field; browser testing) against the founder ruling (no status field, status from `test-results.json`) and this environment (no Playwright) | b, then d | The founder ruling wins. Lane C uses headless node checks for now. **FOR FOUNDER:** browser automation later |
-| D21 | Row 24 has no owning step, but 7.9 needs every row green | d | **FOR FOUNDER** (part of D2) |
+| D21 | Row 24 has no owning step, but 7.9 needs every row green | d | **RULED 2026-09-26:** row 24 goes to the gate lane (DEF-062) |
 | D22 | The gate write is the route's (`POST /gate`); §33.2 puts it in `gate_apply`, with the output mapper | a/b | IS is the route. SHOULD is §33.2 at 7.3 (clause 3: one writer or an ETag) |
 | D23 | The memory note says the UI's v1 names go at 10.2; G-107 (2026-09-25) gives them to 10.3 | b | 10.3 |
 | D24 | The recorded test run is volatile: a concurrent session's source change turns every status amber | a | The coverage test must not read status (see coverage_map.md) |

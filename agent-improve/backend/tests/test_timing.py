@@ -68,11 +68,14 @@ def test_the_commits_one_full_run_is_parallel() -> None:
     first, so the board describes the commit's code; rule 4 reads its record
     and runs the suite itself only when no full run on this source exists."""
     pre = (_REPO / ".githooks" / "pre-commit").read_text(encoding="utf-8")
-    assert "AGENT_IMPROVE_FULL_RUN=1" in pre and "-n auto" in pre
-    assert pre.index("-m pytest") < pre.index('"$CONTINUITY"'), "the run precedes the headline"
+    # 6.68 — the run is on the STAGED tree: staged_tree.py owns the command.
+    staged = (_HOOKS / "staged_tree.py").read_text(encoding="utf-8")
+    assert 'AGENT_IMPROVE_FULL_RUN="1"' in staged and '"-n", "auto"' in staged
+    assert "staged_tree.py --suite" in pre
+    assert pre.index("staged_tree.py --suite") < pre.index('"$CONTINUITY"'), "the run precedes the headline"
     guard = (_HOOKS / "commit-msg-refactor-guard.py").read_text(encoding="utf-8")
-    assert guard.count('"-m", "pytest"') == 1, "the guard's only run is the fallback"
-    assert '"-n", "auto"' in guard
+    assert '"-m", "pytest"' not in guard, "the guard's fallback is staged_tree.run_suite"
+    assert guard.count("run_suite(") == 1
     # The verdict is trusted only for the exact index tree it was run for.
     assert "full-run.json" in guard and '["git", "write-tree"]' in guard
     assert "git write-tree" in pre and "full-run.json" in pre

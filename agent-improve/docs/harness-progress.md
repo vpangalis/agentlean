@@ -13,8 +13,8 @@ session-start routine is in CLAUDE.md.
 
 | Lane | Branch · worktree | Starts at |
 |---|---|---|
-| A — coaching | `lane/a-coaching` · `../AgentLean-lane-a-coaching` | the Confirm at field 5 (DEF-008, DEF-029) |
-| B — gate | `lane/b-gate` · `../AgentLean-lane-b-gate` | DEF-040 — needs founder D1; `docs/founder-inputs/` drafts |
+| A — coaching | `lane/a-coaching` · `../AgentLean-lane-a-coaching` | DEF-005 first (strict dependencies), then the Confirm at field 5 (DEF-008, DEF-029) |
+| B — gate | `lane/b-gate` · `../AgentLean-lane-b-gate` | DEF-040 — the stop is a node (D1, ruled); row 24 (DEF-062) |
 | C — screen and inputs | `lane/c-screen-inputs` · `../AgentLean-lane-c-screen-inputs` | DEF-052 |
 | Integrator | `lane/integrator` · `../AgentLean-lane-integrator` | merges A/B/C; re-runs `scripts/define_runthrough.py` |
 
@@ -61,10 +61,18 @@ The board is one page from the features, the test record and git log (Part A): N
 clause and lane, the next failing feature per lane, a burn-up to 1 October, the last
 commits with their `Timing:` lines. Its projection appears once two days of runs differ.
 
-## Open decisions — FOR FOUNDER (one line each)
+## Founder rulings on the 6.67 report (2026-09-26) — applied at 6.68
 
-- Run-through features are exempt from the ratchet while the record is stale — any product change stales all of them and only a live run refreshes them.
-- The 40 missing feature tests exist as failing stubs (so every node id exists), rather than failing the coverage test until written.
-- The hooks test the WORKING TREE, not the index: the pre-flight now warns on unstaged edits (6.67's own Part A shipped half-staged once — `796ced5`); running the suite on the index is the deeper fix.
-- Old step and gap numbers resolve only in the frozen, archived procedure; new work is named by DEF ids. A new tooling step has no register now.
-- From 6.66, still open: the pre-flight escape (`# preflight: acknowledged`); feature tests xfail so a regression shows on the board (and now in rule 11b), not as a red suite; size-budget warn at 90% of size + 10%; the rule-file slimming's sentence-level review; the 24 discrepancies in `docs/define_discrepancies.md` (D1, D2, D3, D7, D8, D9, D15, D21 need you).
+| Question | Ruling | Where it is now |
+|---|---|---|
+| Run-through features and the ratchet while the record is stale | Exempt — accepted; the integrator re-runs `scripts/define_runthrough.py` after each merge | `features.ratchet_refusal` |
+| Feature tests not written yet | Stubs that fail "not written yet" — accepted | `backend/tests/test_define_*.py` |
+| What the hooks test | What is STAGED: a second worktree set to the index (`.claude/hooks/staged_tree.py`) runs the suite, mypy and the pre-flight | `.githooks/pre-commit`, guard rules 3 and 4, `preflight.py` |
+| Registering tooling work | None: `chore(tooling):` names no DEF id and passes on the checks alone | guard rule 8 (`TOOLING_RE`) |
+| Dependency blocking | Strict, transitively; lane A fixes DEF-005 first | `features.blockers` — the next feature and rule 11 |
+| agent-resolve broken links | Ignored until Resolve is refactored | — |
+| Pre-flight override | No hand-written "acknowledged"; a failure passes only if HEAD's record has it (`test-results.json` at HEAD; the drift check on HEAD's tree) | `preflight.py`, `preflight-on-commit.py` |
+| Size budget | Warn above base + 5%, refuse above base + 10% (the bound) | `size_budget.py`, rule 12 |
+| Rule sentences the slimming weakened | An automatic check: rule 14 (`normative_check.py`); against the pre-slimming corpus 71 candidates → 8 rule sentences restored, 63 classified (41 kept in other words, 21 rationale, 1 obsolete) in `.claude/config/normative-retired.json`, open to review | guard rule 14 |
+| Discrepancies D1, D2, D3, D7, D8, D9, D15, D21 | D1 the stop is a node · D2/D21 "works end to end" = all features, the five-clause core a second number, row 24 to the gate lane · D3 structural tests now, traced rows marked from one traced run on 30 Sep · D15 row 10 proven by the savings calculation turn · D7–D9 obsolete | the features' descriptions; the file is archived: `docs/_archive/define_discrepancies_2026-09-26.md` |
+| Speed | At most ONE code commit per part; docs commits are cheap | — |

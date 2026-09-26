@@ -7,9 +7,12 @@ history to `docs/_archive/`, and this keeps them from growing back. Each
 budgeted file has a bound in `.claude/config/size-budget.json` — its size after
 slimming plus 10%, in characters of the STAGED blob (LF line endings):
 
-    below 90% of the bound   pass
-    90% to 100%              pass, with a warning naming the headroom left
-    over 100%                REFUSED — replace text, or move history to the archive
+    up to base + 5%          pass
+    base + 5% to base + 10%  pass, with a warning naming the headroom left
+    over base + 10%          REFUSED — replace text, or move history to the archive
+
+The bound IS base + 10%; the warning starts at base + 5% (founder ruling
+2026-09-26 on the 6.67 report — it was 90% of the bound).
 
 Only files STAGED in the commit are measured. Raising a bound is a deliberate
 act in the budget file, in its own commit, with the reason in the body.
@@ -25,7 +28,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 BUDGET = ROOT / ".claude" / "config" / "size-budget.json"
-WARN_AT = 0.90
+#: base + 5% as a share of the bound (base + 10%).
+WARN_AT = 1.05 / 1.10
 
 
 def load(path: Path = BUDGET) -> dict[str, int]:

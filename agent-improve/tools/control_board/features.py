@@ -40,6 +40,11 @@ LANES = {"A": "coaching", "B": "gate", "C": "screen and inputs", "integrator": "
 SOURCE_GLOBS = ("backend/**/*.py", "ui/*.html", "skills/**/*.md")
 #: The feature tests that read the live run-through's record.
 RUNTHROUGH_TESTS = "backend/tests/test_define_runthrough.py::"
+#: The five-clause CORE (founder ruling 2026-09-26, D2/D21): "Define works end
+#: to end" is ALL the features; the second number leaves out the features that
+#: cover quality rows — 22 (the gate rubric) and 26-32 (founder-marked from a
+#: traced run). Row 24 has an owner now (the gate lane), so it counts.
+CORE_EXCLUDED_ROWS = frozenset({"22", *(str(r) for r in range(26, 33))})
 
 
 def load(path: Path = FEATURES) -> list[dict]:
@@ -86,6 +91,29 @@ def status(features: list[dict], res: dict) -> dict[str, str]:
             for f in features}
 
 
+def in_core(feature: dict) -> bool:
+    rows = set((feature.get("provenance") or {}).get("capability_rows") or [])
+    return not rows & CORE_EXCLUDED_ROWS
+
+
+def blockers(fid: str, features: list[dict], st: dict[str, str]) -> list[str]:
+    """Every feature `fid` depends on, TRANSITIVELY, that does not pass —
+    dependency blocking is strict (founder ruling 2026-09-26)."""
+    by_id = {f["id"]: f for f in features}
+    seen: set[str] = set()
+    stack = list(by_id[fid]["depends_on"]) if fid in by_id else []
+    out: list[str] = []
+    while stack:
+        d = stack.pop(0)
+        if d in seen:
+            continue
+        seen.add(d)
+        if st.get(d) != "passing":
+            out.append(d)
+        stack.extend(by_id[d]["depends_on"] if d in by_id else [])
+    return out
+
+
 def fresh(res: dict) -> bool:
     """Was the record run on the current source?"""
     return res.get("source_hash") == source_hash()
@@ -106,15 +134,17 @@ def summary(features: list[dict] | None = None, res: dict | None = None) -> dict
         c = clauses.setdefault(f["clause"], {"total": 0, "passing": 0})
         c["total"] += 1
         c["passing"] += st[f["id"]] == "passing"
+    core = [f["id"] for f in features if in_core(f)]
     return {"total": len(features), "passing": sum(v == "passing" for v in st.values()),
+            "core": {"total": len(core), "passing": sum(st[i] == "passing" for i in core)},
             "fresh": fresh(res), "lanes": lanes, "clauses": clauses, "status": st}
 
 
 def _next(failing: list[str], features: list[dict], st: dict[str, str]) -> str | None:
-    """The first failing feature whose dependencies all pass — else the first failing one."""
-    by_id = {f["id"]: f for f in features}
+    """The first failing feature whose dependencies ALL pass, transitively —
+    else the first failing one."""
     for fid in failing:
-        if all(st.get(d) == "passing" for d in by_id[fid]["depends_on"]):
+        if not blockers(fid, features, st):
             return fid
     return failing[0] if failing else None
 
@@ -123,7 +153,9 @@ def headline(s: dict | None = None) -> str:
     s = summary() if s is None else s
     lanes = " · ".join(f"{k} {v['passing']}/{v['total']}" for k, v in s["lanes"].items())
     stale = "" if s["fresh"] else " (record older than the source)"
-    return f"{s['passing']} of {s['total']} Define features pass — {lanes}{stale}"
+    core = s.get("core") or {"passing": 0, "total": 0}
+    return (f"{s['passing']} of {s['total']} Define features pass (core {core['passing']} of "
+            f"{core['total']}) — {lanes}{stale}")
 
 
 # ── the landing rule and the ratchet (the commit guard's rule 11) ───────────
@@ -154,7 +186,7 @@ def landing_refusal(fid: str, features: list[dict], res: dict) -> list[str]:
     if st[fid] != "passing":
         out.append(f"{fid}'s test does not pass: {by_id[fid]['test']}")
     out += [f"it depends on {d}, whose test does not pass: {by_id[d]['test']}"
-            for d in by_id[fid]["depends_on"] if st.get(d) != "passing"]
+            for d in blockers(fid, features, st)]
     return out
 
 
@@ -162,7 +194,8 @@ def ratchet_refusal(required: list[str], features: list[dict], res: dict) -> tup
     """(refusals, exempted) — every ratcheted feature must still pass. A
     run-through feature is EXEMPT while the run's record is stale: a product
     change stales it for every such feature at once, and only a new live run
-    can refresh it (FOR FOUNDER — 6.67)."""
+    can refresh it. Ruled 2026-09-26: accepted; the integrator re-runs the
+    run-through after each merge."""
     by_id = {f["id"]: f for f in features}
     st = status(features, res)
     stale = not runthrough_fresh()

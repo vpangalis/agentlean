@@ -1,9 +1,9 @@
 # CLAUDE.md — Agent Improve: how to work here
-# Version 2.3.0 — September 2026
+# Version 2.3.1 — September 2026
 # Earlier versions, the why and the history: docs/_archive/CLAUDE_md_v2.2.46_2026-09-26.md
 
 DMAIC coaching agent (LangGraph, `create_agent` + middleware, Azure). **These rules win over
-a request;** a wrong rule is amended first, in its own commit (the `amend-rules` skill).
+a request;** a wrong rule is amended first, in its own commit (the `amend-rules` skill) — never violated silently.
 
 ## Three layers — never `@`-import any document
 
@@ -35,21 +35,24 @@ your lane and make its end-to-end test pass. Never edit a feature to say it pass
 - While working, run the area's tests (serial, `-n 0`) when a change is complete, not after every edit.
 - The full suite runs **once per commit**, in parallel, in the pre-commit hook. Never by hand.
 - The pre-flight (`.claude/hooks/preflight.py`) runs before every `git commit`: drift,
-  types and tests of what the change reaches.
+  types and tests of what the staged change reaches. A failure passes only if HEAD's record has it.
+- Read a bare `mypy .` count as a measurement, never as a pass/fail.
 
 ## Commit conventions
 
-- A feature lands as `refactor(arch-v2): DEF-xxx — <what changed>`; anything else carries
-  `Step: X.Y` or `Feature: DEF-xxx` in the body. End with the `Co-Authored-By:` trailer.
-- **Stage by name, in a command of its own**, then commit; check nothing tracked is left
-  unstaged (the hooks test the working tree). Push after every commit. Never `--no-verify`.
-- Scratch never enters the tree; a new file needs a step or feature number.
+- A feature lands as `refactor(arch-v2): DEF-xxx — <what changed>`; `chore(tooling):` names
+  no DEF id; anything else carries `Step: X.Y` or `Feature: DEF-xxx`. End with `Co-Authored-By:`.
+- **Stage by name, in a command of its own**, then commit — the hooks test what is STAGED.
+  Push after every commit. Never `--no-verify`.
+- Scratch never enters the tree and is never evidence; a new file needs a step or feature
+  number (`chore(tooling):` excepted).
 
 ## The rules a hook enforces (one line each)
 
 - Rule 11: a `DEF-xxx` commit lands only if its test and its dependencies' tests pass; a feature that passed once must keep passing.
 - Rule 12: a governing document may not grow past `.claude/config/size-budget.json` — REPLACE, DON'T APPEND.
 - Rule 6: an 8D (the `eight-d` skill) only for a real defect — a `fix` commit or a `Gap:` trailer.
+- Rule 14: no must / never / always sentence of this file, a rule file or a skill is dropped or weakened.
 - `fact-ownership-guard.py`: an owned fact (a count, field name, schema, pin) is cited from its owner, never restated.
 
 ### 0.2 — Rule numbers are load-bearing
@@ -66,6 +69,6 @@ A claim about a file is made against that file at its repo path, read now — ne
 
 ## Reports
 
-A decision or explanation is a table or a diagram carrying the full detail; never a bare
-number or code ("6.20 — the write paths", never "6.20"). A claim about code quotes the lines
-with file and line number. Every report ends with its timing line from `.claude/logs/timing.jsonl`.
+A decision or explanation is a table or a diagram carrying the full detail, never prose
+threaded with section numbers; never a bare number or code ("6.20 — the write paths", never
+"6.20"). A claim about code quotes the lines with file and line number. Every report ends with its timing line from `.claude/logs/timing.jsonl`.

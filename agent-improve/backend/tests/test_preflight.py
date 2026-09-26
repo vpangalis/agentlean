@@ -106,15 +106,48 @@ def test_the_hook_ignores_every_other_command() -> None:
     assert h.decide({"tool_name": "Edit", "tool_input": {}}, never)[0] == 0
 
 
-def test_an_acknowledged_failure_passes_on_the_record() -> None:
+def test_a_hand_written_acknowledgement_no_longer_passes_a_failure() -> None:
+    """6.68 (founder ruling 2026-09-26): no hand-written override."""
     cmd = "git commit -F m.txt   # preflight: acknowledged — fails identically at HEAD 669b39c"
     code, msg = _hook().decide({"tool_name": "PowerShell", "tool_input": {"command": cmd}}, lambda echo: 1)
-    assert code == 0 and "ACKNOWLEDGED" in msg
+    assert code == 2 and "ACKNOWLEDGED" not in msg
 
 
-def test_a_short_acknowledgement_does_not_pass() -> None:
-    cmd = "git commit -F m.txt   # preflight: acknowledged — ok"
-    assert _hook().decide({"tool_name": "Bash", "tool_input": {"command": cmd}}, lambda echo: 1)[0] == 2
+def test_the_staged_tree_is_checked_unless_the_commit_takes_the_working_copy() -> None:
+    """6.68: the pre-flight checks the INDEX; `commit -a` / `--only` carry the
+    working copy, so those are checked on disk."""
+    seen = []
+
+    def run(echo, **kw):
+        seen.append(kw.get("working", False))
+        return 0
+    h = _hook()
+    for cmd, working in (("git commit -F m.txt", False), ("git commit -am 'x'", True),
+                         ("git commit --only a.py -F m.txt", True), ("git commit -a -F m", True)):
+        seen.clear()
+        assert h.decide({"tool_name": "Bash", "tool_input": {"command": cmd}}, run)[0] == 0
+        assert seen == [working], cmd
+
+
+def test_a_failure_recorded_at_HEAD_passes_and_a_new_one_blocks(monkeypatch) -> None:
+    """6.68: a failure passes only when the last commit's record has it."""
+    pf = _pf()
+    monkeypatch.setattr(pf, "slow_tests", lambda: [])
+    out = "\n".join(["F", "FAILED backend/tests/test_x.py::test_old - assert 0",
+                     "1 failed, 3 passed in 0.1s"])
+    monkeypatch.setattr(pf, "_run", lambda cmd, cwd: (1, out))
+    monkeypatch.setattr(pf, "recorded_failures_at_head", lambda: {"backend/tests/test_x.py::test_old"})
+    ok, msg = pf.check_tests("py", {"tests": ["agent-improve/backend/tests/test_x.py"]})
+    assert ok and "pre-existing" in msg
+    monkeypatch.setattr(pf, "recorded_failures_at_head", lambda: set())
+    ok, msg = pf.check_tests("py", {"tests": ["agent-improve/backend/tests/test_x.py"]})
+    assert not ok and "test_old" in msg and "NEW failures" in msg
+
+
+def test_failed_ids_reads_pytests_summary_lines() -> None:
+    out = "\n".join(["FAILED backend/tests/t.py::test_a - boom",
+                     "ERROR backend/tests/t.py::test_b", "1 failed"])
+    assert _pf().failed_ids(out) == ["backend/tests/t.py::test_a", "backend/tests/t.py::test_b"]
 
 
 def test_the_whole_suite_is_left_to_the_hook(monkeypatch) -> None:

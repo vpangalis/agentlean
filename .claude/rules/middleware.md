@@ -59,8 +59,9 @@ point Layer 2d at `COACHING_QUALITY_RUBRIC`.** All rubric constants live in
 concept, (2) why now, (3) guide data preparation (check uploads via
 `rag_lookup_evidence`), (4) run the tool, (5) interpret in plain language
 (§13), (6) visualise with `propose_diagram` where applicable, (7) coach the
-next move. **Step 1 is mandatory and most often skipped. A p-value with no
-concept and no interpretation is a rubric failure.** Every SKILL.md carries
+next move. **Step 1 is mandatory and most often skipped** — never assume the
+Belt knows what a Cpk, a p-value or a control limit is. **A p-value with no
+concept and no interpretation is a rubric failure.** Every SKILL.md must carry
 the sequence for each tool in its `allowed-tools` (§8.3; §43.1).
 
 **Show before asking is a rubric criterion** — a concrete completed example

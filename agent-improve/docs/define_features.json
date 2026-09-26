@@ -124,7 +124,7 @@
   },
   {
    "id": "DEF-004",
-   "description": "Tracing is a switch: with tracing off, a Define run sends zero LangSmith runs. (The traced half — a traced turn shows the model call, tools and middleware — is rows 26-32, which the founder marks from a traced run: define_discrepancies.md D3.)",
+   "description": "Tracing is a switch: with tracing off, a Define run sends zero LangSmith runs. (The traced half — a traced turn shows the model call, tools and middleware — is rows 26-32: structural tests now; the founder marks those rows from one traced run on 30 September. Founder ruling 2026-09-26, D3.)",
    "clause": "A Belt is coached through the twelve fields",
    "depends_on": [
     "DEF-002"
@@ -601,7 +601,7 @@
   },
   {
    "id": "DEF-017",
-   "description": "A calculation the coach ran is recorded in computation_results with its five keys and appears in the gate document without the coach retyping the number.",
+   "description": "A calculation the coach ran is recorded in computation_results with its five keys and appears in the gate document without the coach retyping the number. Row 10 (the calculation record) is proven by the savings calculation turn — founder ruling 2026-09-26, D15.",
    "clause": "a complete case ASSEMBLES a gate document",
    "depends_on": [
     "DEF-016"
@@ -1401,7 +1401,7 @@
   },
   {
    "id": "DEF-040",
-   "description": "When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, and the resumed turn writes once.",
+   "description": "When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, and the resumed turn writes once. The stop is a node — founder ruling 2026-09-26, D1.",
    "clause": "what they say is kept and every change is dated",
    "depends_on": [
     "DEF-047"
@@ -2264,7 +2264,7 @@
   },
   {
    "id": "DEF-062",
-   "description": "After approval the case advances to Measure, and Measure starts from the approved Define record without PriorGateDocumentMissing.",
+   "description": "After approval the case advances to Measure, and Measure starts from the approved Define record without PriorGateDocumentMissing. Row 24 belongs to the gate lane — founder ruling 2026-09-26, D21.",
    "clause": "the record is written once and correctly",
    "depends_on": [
     "DEF-060"

@@ -103,7 +103,10 @@ or `improve_evidence_index` gets an `error_handler=` that undoes the
 external write and routes to a degraded response. The re-approval cascade
 (§9.5) and time-travel debugging both depend on it.
 
-**Graceful shutdown is REQUIRED; its named mechanism is UNCONFIRMED.**
+**Graceful shutdown is REQUIRED; its named mechanism is UNCONFIRMED.** A
+deployment rollout must not kill mid-coaching sessions — they save their
+checkpoint and resume. If `request_drain()` does not exist, a real fallback
+drain must be designed, never a replacement API name cited.
 **No work may be scheduled against `RunControl.request_drain()` until it is
 confirmed against a real release or the LangGraph source**
 (`../AGENTIC_ARCHITECTURE_REFERENCE.md` §45).

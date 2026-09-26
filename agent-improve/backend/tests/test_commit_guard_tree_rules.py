@@ -229,6 +229,17 @@ def test_no_new_paths_means_the_rule_does_not_fire() -> None:
     g.check_step_or_gap(_ROOT, "docs: an edit to a tracked file", "", [])
 
 
+def test_tooling_work_needs_no_registration() -> None:
+    """Founder ruling 2026-09-26: a `chore(tooling):` commit names no DEF id
+    and passes on the checks alone — its new files need no number. Any other
+    `chore(` still does."""
+    g.check_step_or_gap(_ROOT, "chore(tooling): a new hook", "no trailer\n",
+                        [".claude/hooks/new_hook.py"])
+    with pytest.raises(SystemExit):
+        g.check_step_or_gap(_ROOT, "chore(deps): a new file", "no trailer\n",
+                            ["agent-improve/docs/NEW.md"])
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # The two registers — the assertions that go red on a REFORMAT
 # ══════════════════════════════════════════════════════════════════════════

@@ -10,10 +10,11 @@ FAIL-SOFT, the opposite of the commit-msg guard: the pre-flight is an
 accelerator, the commit hook is the gate. If this hook itself breaks it lets
 the call through and says so — it never wedges a commit.
 
-A failure you have judged to be pre-existing (it fails identically at HEAD) is
-passed on the record by a comment in the command:
-    git commit -F msg.txt   # preflight: acknowledged — <reason, 12+ chars>
-The commit hook still runs the full suite and every guard rule after it.
+6.68 (founder rulings 2026-09-26): it checks what is STAGED (a `commit -a` or
+`--only` carries the working copy, so those are checked on disk), and there is
+NO hand-written override — the `# preflight: acknowledged` comment is retired.
+A failure passes only when the last commit's record already had it; that
+comparison is `preflight.run`'s.
 """
 from __future__ import annotations
 
@@ -23,22 +24,8 @@ import sys
 from pathlib import Path
 
 COMMIT_RE = re.compile(r"(?:^|[;&|(\s])git(?:\s+-C\s+\S+|\s+-c\s+\S+)*\s+commit\b")
-ACK_RE = re.compile(r"#\s*preflight:\s*acknowledged\s*[—-]\s*(?P<why>.{12,})")
-
-
-def unstaged_tracked() -> list[str]:
-    """Tracked files whose working copy differs from the index, ignoring line endings."""
-    import subprocess
-    root = Path(__file__).resolve().parents[2]
-    out = subprocess.run(["git", "diff", "--name-only", "--ignore-cr-at-eol"], cwd=root,
-                         capture_output=True, encoding="utf-8", errors="replace", timeout=30)
-    names = [n.strip() for n in out.stdout.splitlines() if n.strip()]
-    if not names:
-        return []
-    real = subprocess.run(["git", "diff", "--ignore-cr-at-eol", "--numstat", "--", *names], cwd=root,
-                          capture_output=True, encoding="utf-8", errors="replace", timeout=30)
-    return [ln.split("\t")[-1] for ln in real.stdout.splitlines()
-            if ln.strip() and not ln.startswith("0\t0\t")]
+#: A commit that takes the working copy, not only the index.
+WORKING_RE = re.compile(r"\scommit\b[^;&|]*\s(-a|--all|--only|-o|-[a-zA-Z]*a[a-zA-Z]*)\b")
 
 
 def is_commit(command: str) -> bool:
@@ -53,23 +40,14 @@ def decide(payload: dict, run) -> tuple[int, str]:
     if not is_commit(command):
         return 0, ""
     lines: list[str] = []
-    code = run(echo=lines.append)
-    unstaged = unstaged_tracked()
-    if unstaged and not re.search(r"\s(-a|--all|--only|-o)\b", command):
-        # 6.67 — the hooks test the WORKING TREE, so a commit that leaves
-        # edits unstaged passes them while committing a different tree.
-        lines.append(f"[preflight] WARNING: {len(unstaged)} tracked file(s) are modified but NOT "
-                     "staged — the hooks test them, the commit will not contain them: "
-                     + ", ".join(unstaged[:8]) + (" …" if len(unstaged) > 8 else ""))
+    working = bool(WORKING_RE.search(command))
+    code = run(echo=lines.append, **({"working": True} if working else {}))
     report = "\n".join(lines)
     if code == 0:
         return 0, report
-    ack = ACK_RE.search(command)
-    if ack:
-        return 0, report + f"\n[preflight] failure ACKNOWLEDGED: {ack.group('why').strip()}"
-    return 2, (report + "\n\nPRE-FLIGHT FAILED — the commit was not attempted. Fix the "
-               "knock-on above, or, if it fails identically at HEAD, re-run the commit "
-               "with `# preflight: acknowledged — <why>` on the command.")
+    return 2, (report + "\n\nPRE-FLIGHT FAILED — the commit was not attempted. Fix what "
+               "is named above. A failure passes only when HEAD's own record has it "
+               "(docs/test-results.json at HEAD; the drift check on HEAD's tree).")
 
 
 def main() -> int:

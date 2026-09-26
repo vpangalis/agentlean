@@ -29,7 +29,9 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
-LOG = ROOT / ".claude" / "logs" / "timing.jsonl"
+#: 6.68 — a run inside the staged worktree (staged_tree.py) logs to the
+#: checkout's own log directory, named by AGENTLEAN_LOGS.
+LOG = Path(os.environ.get("AGENTLEAN_LOGS") or ROOT / ".claude" / "logs") / "timing.jsonl"
 
 #: The categories of a prompt record, in the founder's order (rule g).
 CATEGORIES: tuple[str, ...] = (

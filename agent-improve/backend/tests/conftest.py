@@ -486,7 +486,9 @@ def _record_slow() -> None:
     A measurement for the pre-flight, never evidence of anything."""
     import json as _json
     from pathlib import Path as _Path
-    path = _Path(__file__).resolve().parents[3] / ".claude" / "logs" / "slow-tests.json"
+    import os as _os
+    logs = _os.environ.get("AGENTLEAN_LOGS")  # 6.68: a run in the staged worktree
+    path = (_Path(logs) if logs else _Path(__file__).resolve().parents[3] / ".claude" / "logs") / "slow-tests.json"
     try:
         slow = _json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
         for nodeid, seconds in _DURATIONS.items():

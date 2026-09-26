@@ -2,8 +2,8 @@
 
 Rule 12 of the commit-msg guard (CLAUDE.md §22 h, REPLACE, DON'T APPEND) and
 the generated section index (§22 b). The budget is proven both ways: a staged
-document over its bound is REFUSED, one inside it passes, one at 90% passes
-with a warning, an unbudgeted file is never measured.
+document over its bound is REFUSED, one inside it passes, one above base + 5%
+passes with a warning, an unbudgeted file is never measured.
 """
 from __future__ import annotations
 
@@ -30,10 +30,13 @@ def _load(name: str, file: str):
 sb = _load("size_budget", "size_budget.py")
 
 
-def test_over_the_bound_is_refused_inside_it_passes_at_90_it_warns() -> None:
-    bounds = {"a.md": 1000, "b.md": 1000, "c.md": 1000}
-    got = {p: lvl for lvl, p, _, _ in sb.verdicts({"a.md": 1001, "b.md": 500, "c.md": 900}, bounds)}
-    assert got == {"a.md": "over", "b.md": "ok", "c.md": "warn"}
+def test_over_base_plus_10_is_refused_above_base_plus_5_it_warns() -> None:
+    """Founder ruling 2026-09-26: the bound is base + 10% (refused above it);
+    the warning starts above base + 5%. Base 1000 -> bound 1100."""
+    bounds = {"a.md": 1100, "b.md": 1100, "c.md": 1100, "d.md": 1100}
+    got = {p: lvl for lvl, p, _, _ in sb.verdicts(
+        {"a.md": 1101, "b.md": 1040, "c.md": 1060, "d.md": 1100}, bounds)}
+    assert got == {"a.md": "over", "b.md": "ok", "c.md": "warn", "d.md": "warn"}
 
 
 def test_an_unbudgeted_file_is_never_measured() -> None:

@@ -43,7 +43,7 @@ amendment to `../AGENTIC_ARCHITECTURE_REFERENCE.md` (§56), then to this file
   the case record, and does not overwrite the prior value.
 - **`field_status` is STORED** (§56 v1.77): not taught → asked → answered →
   confirmed; the current field is the first not confirmed. **Only code
-  changes a status, at turn end.**
+  changes a status, at turn end** — never derived from the previous reply's record.
 - **`field_log` is WHEN each value changed and what it was before**, keyed
   `{phase}:{turn}:{field}` (§10.3). **Its reducer is `merge_field_log`, NOT
   `operator.add`** — it upserts so a replayed turn is idempotent. `step_log`

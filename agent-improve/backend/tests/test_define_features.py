@@ -99,6 +99,29 @@ def test_the_next_feature_waits_for_its_dependencies() -> None:
 # ── landing and the ratchet, as functions ───────────────────────────────────
 
 
+def test_dependency_blocking_is_strict_through_the_whole_chain() -> None:
+    """Founder ruling 2026-09-26: a feature whose dependency passes but whose
+    dependency's dependency fails is blocked — lane A fixes DEF-005 first."""
+    st = {"X-1": "failing", "X-2": "passing", "X-3": "failing"}
+    assert F.blockers("X-3", THREE, st) == ["X-1"]
+    assert F._next(["X-1", "X-3"][::-1], THREE, st) == "X-1"
+    ok = {"outcomes": {"backend/tests/test_a.py::test_bad": "passed",
+                       "backend/tests/test_a.py::test_unwritten": "passed"}}
+    assert any("depends on X-1" in w for w in F.landing_refusal("X-3", THREE, ok))
+
+
+def test_the_core_is_a_second_number_that_leaves_out_the_quality_rows() -> None:
+    """D2/D21, ruled 2026-09-26: all features is the headline; the five-clause
+    core leaves out rows 22 and 26-32 — row 24 has an owner and counts."""
+    def feat(fid, rows):
+        return {"id": fid, "clause": "c", "lane": "A", "depends_on": [],
+                "test": f"backend/tests/test_a.py::{fid}", "provenance": {"capability_rows": rows}}
+    feats = [feat("a", ["24"]), feat("b", ["22"]), feat("c", ["30"]), feat("d", [])]
+    s = F.summary(feats, {"outcomes": {"backend/tests/test_a.py::a": "passed"}})
+    assert s["core"] == {"total": 2, "passing": 1} and s["total"] == 4
+    assert "(core 1 of 2)" in F.headline(s)
+
+
 def test_a_feature_lands_only_when_it_and_its_dependencies_pass() -> None:
     assert F.landing_refusal("X-1", THREE, RES) == []
     assert F.landing_refusal("X-2", THREE, RES)            # its own test fails

@@ -11,8 +11,8 @@
 # commit-msg guard is the enforcement point — rules 5 (CONTINUITY), 10 (the
 # board) and 11 (landing and the ratchet) fail CLOSED.
 #
-# In this order: the commit's ONE full test run (skipped when only Markdown is
-# staged); pre-commit-continuity.py (CONTINUITY's block and the ratchet);
+# In this order: the commit's ONE full test run, on the STAGED tree (skipped
+# when only Markdown is staged); pre-commit-continuity.py (CONTINUITY's block and the ratchet);
 # the section index; build_control_board.py (the board). The procedure and
 # its step board are archived (6.67).
 #
@@ -53,12 +53,15 @@ RAN=""
 # .json/.html/.yaml run the suite; documentation only runs the fast checks
 # (rules 12 and 13). The generated outputs a previous attempt left staged do
 # not count as code.
-if [ -n "$VENV" ] && git diff --cached --name-only \
+if [ -n "$VENV" ] && [ -n "$SYSPY" ] && git diff --cached --name-only \
     | grep -vE 'agent-improve/docs/(control-board\.html|test-results\.json|features-ratchet\.json)$' \
     | grep -qv '\.md$'; then
     T0=$(date +%s)
-    echo "  [tests] the full suite, in parallel — the commit's one run (rule 4 reads it)…" >&2
-    OUT=$( cd agent-improve && AGENT_IMPROVE_FULL_RUN=1 "../$VENV" -m pytest backend/tests -q --no-header         -p no:cacheprovider -n auto 2>&1 )
+    echo "  [tests] the full suite on the STAGED tree, in parallel — the commit's one run (rule 4 reads it)…" >&2
+    # 6.68 (founder ruling 2026-09-26) — the hooks test what is STAGED: the
+    # suite runs in a second worktree set to the index tree (staged_tree.py),
+    # never in this working tree, whose unstaged edits the commit will not carry.
+    OUT=$( "$SYSPY" .claude/hooks/staged_tree.py --suite 2>&1 )
     CODE=$?
     SUMMARY=$(printf '%s
 ' "$OUT" | tail -1)

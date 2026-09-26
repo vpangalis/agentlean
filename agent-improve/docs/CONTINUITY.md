@@ -7,14 +7,14 @@
 
 | | |
 |---|---|
-| **Headline** | 9 of 64 Define features pass — A 8/35 · B 0/15 · C 0/8 · integrator 1/6 |
-| **Next — lane A** | DEF-008 — Clicking Confirm under a read-back stores the pending value in the Belt's words and advances to the next field — no model reads the click. |
+| **Headline** | 9 of 64 Define features pass (core 7 of 55) — A 8/35 · B 0/15 · C 0/8 · integrator 1/6 |
+| **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
-| **Next — lane C** | DEF-053 — The progress bar reads 'n of 12' from define_progress and moves turn by turn; the suggested next step always names the field the coach is on |
+| **Next — lane C** | DEF-052 — The workspace shows the coach's four blocks — explanation, example, prompt, and progress — plus the grader's warning when there is one. |
 | **Next — lane integrator** | DEF-001 — A Belt creates a new case and it opens in Define: POST /cases returns an id, the case list shows it, and GET /cases/{id} opens it with curre |
 | **Run-through record** | current |
 | **ARCHITECTURE.md** | v1.78 |
-| **CLAUDE.md** | v2.3.0 |
+| **CLAUDE.md** | v2.3.1 |
 | **Block regenerated** | 2026-09-26 |
 
 *Every figure comes from `docs/define_features.json` and

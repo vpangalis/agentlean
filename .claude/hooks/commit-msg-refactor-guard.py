@@ -93,13 +93,21 @@ therefore 1, 2b, 3, 4, 5, 6, 7 and 8.
      both read from the INDEX so a gap registered in the same commit counts.
      It checks that a number is declared and exists, never that the file
      belongs to it: the same limit rule 6 carries, and stated for the same
-     reason.
+     reason. A `chore(tooling):` commit is exempt (founder ruling 2026-09-26).
 
   12. SIZE — a staged governing document (CLAUDE.md, each rule file,
-     ARCHITECTURE.md, the procedure) stays within its bound in
-     `.claude/config/size-budget.json`: warned at 90%, refused over 100%.
-     CLAUDE.md §22 (h), REPLACE, DON'T APPEND — step 6.66, founder ruling
-     2026-09-25. Binds on every commit. Logic: `size_budget.py`.
+     ARCHITECTURE.md) stays within its bound (base + 10%) in
+     `.claude/config/size-budget.json`: warned above base + 5%, refused above
+     the bound (founder ruling 2026-09-26). REPLACE, DON'T APPEND. Binds on
+     every commit. Logic: `size_budget.py`.
+
+  14. NORMATIVE — no must / never / always sentence of CLAUDE.md, a rule file
+     or a skill is dropped or weakened (founder ruling 2026-09-26). Logic:
+     `normative_check.py`; founder-retired sentences in
+     `.claude/config/normative-retired.json`.
+
+Rules 3 and 4 test the STAGED tree, in the second worktree `staged_tree.py`
+sets to the index (founder ruling 2026-09-26).
 
 NON-refactor commits are touched by rules 2b, 6, 7 and 8 only. A docs or chore
 commit that changes no tabulated path, claims to fix nothing, and adds no file
@@ -410,30 +418,32 @@ def run_mypy(root: str, py: str, files: list[str]) -> collections.Counter:
     return counter
 
 
+def _staged_tree(root: str):
+    """`.claude/hooks/staged_tree.py` — the second worktree set to the index (6.68)."""
+    sys.path.insert(0, os.path.join(root, ".claude", "hooks"))
+    import staged_tree
+    return staged_tree
+
+
 def check_types(root: str, py: str, staged: list[str]) -> None:
+    # 6.68 (founder ruling 2026-09-26) — mypy reads the STAGED tree, in the
+    # second worktree `staged_tree.py` sets to the index, never this checkout.
+    from pathlib import Path
+    wt = str(_staged_tree(root).sync(Path(root)))
     changed = [f for f in staged
                if f.endswith(".py")
                and f.startswith(f"{PROJECT}/")
                # 6.67 — archived code is not live code (a retired module
                # beside its successor makes mypy refuse to run at all)
                and not f.startswith(f"{PROJECT}/docs/")
-               and os.path.isfile(os.path.join(root, f))]
+               and os.path.isfile(os.path.join(wt, f))]
     if not changed:
         note("rule 3 type-check: no Python changed — skipped")
         return
 
-    # The checks read the WORKING TREE, not the staged index. If Python is
-    # modified-but-unstaged, what is checked is not what is committed. Warning
-    # rather than blocking, and definitely not stashing: a hook that moves the
-    # developer's uncommitted work is how people lose it.
-    dirty = [f for f in unstaged_python(root) if f in changed]
-    if dirty:
-        note(f"WARNING: {len(dirty)} changed .py file(s) have unstaged edits — "
-             "mypy/pytest see the working tree, not the index")
-
-    note(f"rule 3 type-check: mypy over {len(changed)} changed file(s), "
+    note(f"rule 3 type-check: mypy over {len(changed)} changed file(s) of the STAGED tree, "
          f"pinned venv (first run after a library change can take ~1 min)…")
-    found = run_mypy(root, py, changed)
+    found = run_mypy(wt, py, changed)
     base = load_baseline(root)
 
     new = []
@@ -653,6 +663,10 @@ def check_scratch(added: list[str]) -> None:
          "adding now and never about anything already tracked.")
 
 
+#: 6.68 — the tooling prefix: no registration, the checks alone.
+TOOLING_RE = re.compile(r"^chore\(tooling\)!?:")
+
+
 def _declared_numbers(subject: str, message: str) -> tuple:
     """The step and gap numbers this commit CLAIMS, before any of them resolve."""
     steps = set(_SPINE_STEP_RE.findall(subject))
@@ -737,6 +751,11 @@ def check_step_or_gap(root: str, subject: str, message: str, added: list[str]) -
     than an undeclared file leaves behind.
     """
     if not added:
+        return
+    if TOOLING_RE.match(subject):
+        # 6.68 (founder ruling 2026-09-26): tooling work needs no registration —
+        # a `chore(tooling):` commit names no DEF id and passes on the checks alone.
+        note(f"rule 8 step-or-gap: a chore(tooling) commit — {len(added)} new file(s) need no number")
         return
     steps, gaps = _declared_numbers(subject, message)
     feats = _declared_features(subject, message)
@@ -1136,7 +1155,7 @@ def check_ratchet(root: str) -> None:
     """Rule 11b — THE RATCHET, on every commit whose full run was for this tree:
     a feature that has passed once (the COMMITTED `docs/features-ratchet.json`,
     HEAD's) must still pass. Run-through features are exempt while the
-    run-through record is stale (FOR FOUNDER, 6.67)."""
+    run-through record is stale (ruled 2026-09-26: the integrator re-runs it after each merge)."""
     res = _this_commits_run(root)
     if res is None:
         note("rule 11b ratchet: no full run for this tree (a docs-only commit) — skipped")
@@ -1172,8 +1191,6 @@ def check_tests(root: str, py: str) -> None:
     the headline describe this commit's code); it leaves its verdict with the
     index tree it was run for. This rule trusts that verdict only for the same
     tree, and otherwise runs the suite itself — never zero runs, never two."""
-    proj = os.path.join(root, PROJECT)
-    env = dict(os.environ, PYTHONIOENCODING="utf-8")
     tree = subprocess.run(["git", "write-tree"], capture_output=True, encoding="utf-8",
                           cwd=root).stdout.strip()
     try:
@@ -1191,24 +1208,19 @@ def check_tests(root: str, py: str) -> None:
         note(f"rule 4 tests: PASS — the pre-commit hook's full run of this tree: "
              f"{marker.get('summary', '')}")
         return
-    note("rule 4 tests: no full run recorded for this tree — running it, pinned venv…")
-    env["AGENT_IMPROVE_FULL_RUN"] = "1"
-    out = subprocess.run(
-        # 6.65 — in parallel (pytest-xdist, pinned in requirements.txt):
-        # identical outcomes to the serial run, measured 167s -> 113s.
-        [py, "-m", "pytest", TESTS_REL, "-q", "--no-header", "-p", "no:cacheprovider",
-         "-n", "auto"],
-        capture_output=True, encoding="utf-8", errors="replace",
-        cwd=proj, timeout=PYTEST_TIMEOUT, env=env,
-    )
-    if out.returncode != 0:
-        body = ((out.stdout or "") + (out.stderr or "")).strip().splitlines()
+    note("rule 4 tests: no full run recorded for this tree — running it on the STAGED tree…")
+    # 6.68 — in the second worktree set to the index (staged_tree.py), in
+    # parallel (6.65: identical outcomes to the serial run, 167s -> 113s).
+    from pathlib import Path
+    code, text = _staged_tree(root).run_suite(Path(root))
+    if code != 0:
+        body = text.strip().splitlines()
         fail("tests failed",
              *[f"  {ln}" for ln in body[-25:]],
              "",
              "Run it yourself:",
              f"  cd {PROJECT} && .venv/Scripts/python.exe -m pytest {TESTS_REL} -q")
-    summary = next((ln for ln in reversed((out.stdout or "").splitlines()) if ln.strip()), "")
+    summary = next((ln for ln in reversed(text.splitlines()) if ln.strip()), "")
     note(f"rule 4 tests: PASS — {summary.strip()}")
 
 
@@ -1284,9 +1296,10 @@ def _timer(label: str):
 def check_size(root: str, staged: list[str]) -> None:
     """Rule 12 — REPLACE, DON'T APPEND (step 6.66, founder ruling 2026-09-25).
 
-    A budgeted document that is staged may not exceed its bound in
-    `.claude/config/size-budget.json`; at 90% it passes with a warning. The
-    logic and the bounds' rule live in `size_budget.py`; this only reports.
+    A budgeted document that is staged may not exceed its bound (base + 10%)
+    in `.claude/config/size-budget.json`; above base + 5% it passes with a
+    warning (founder ruling 2026-09-26). The logic lives in `size_budget.py`;
+    this only reports.
     """
     from pathlib import Path
     sys.path.insert(0, os.path.join(root, ".claude", "hooks"))
@@ -1333,6 +1346,26 @@ def check_docs(root: str, staged: list[str]) -> None:
                  *[ln for ln in (r.stdout + r.stderr).splitlines() if ln.strip()][-20:])
     note(f"rule 13 docs: PASS — {len(md)} document(s) linked"
          + (", citations resolve" if rules_touched else ""))
+
+
+def check_normative(root: str, staged: list[str]) -> None:
+    """Rule 14 — no MUST / NEVER / ALWAYS sentence weakens (founder ruling
+    2026-09-26 on the 6.67 report). When CLAUDE.md, a rule file or a skill is
+    staged, every normative sentence at HEAD must still be in the staged corpus
+    with its modal (`normative_check.py`). A sentence the founder ruled out is
+    listed in `.claude/config/normative-retired.json`, staged with the change."""
+    sys.path.insert(0, os.path.join(root, ".claude", "hooks"))
+    import normative_check as nc
+    found = nc.staged_check(staged)
+    if found:
+        fail("a MUST / NEVER / ALWAYS sentence was dropped or weakened (rule 14)",
+             *[f"  {f['verdict']} ({'/'.join(f['modal'])}) {f['path']}: {f['sentence'][:160]}"
+               for f in found[:15]], "",
+             "Keep the sentence, with its must / never / always, anywhere in CLAUDE.md,",
+             "a rule file or a skill. Removing one is a founder ruling: list it in",
+             ".claude/config/normative-retired.json with the ruling, in the same commit.")
+    if any(nc.is_corpus(p) for p in staged):
+        note("rule 14 normative: PASS — every must / never / always sentence kept")
 
 
 def main(argv: list[str]) -> int:
@@ -1403,6 +1436,10 @@ def main(argv: list[str]) -> int:
     # Rule 13 — the docs checks (links, citations), on every commit (6.67).
     with _timer("rule 13 docs"):
         check_docs(root, all_staged)
+
+    # Rule 14 — no must / never / always sentence weakens (6.68).
+    with _timer("rule 14 normative"):
+        check_normative(root, all_staged)
 
     # ── Rule 6 — also ahead of the prefix gate, and for the same reason ────
     # A fix lands under any type. It is a pure message check, so it costs

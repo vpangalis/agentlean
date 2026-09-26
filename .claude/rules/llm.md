@@ -123,7 +123,8 @@ jittered for shared resources (the cache).
 **Circuit breakers — three-state, two instances:** LLM (on OPEN: fall to
 Level 2, then degraded) and Search (on OPEN: coaching **continues** without
 RAG grounding). 3 failures in 30s trips open; 60s reset; one probe in
-HALF-OPEN. **Two-state (CLOSED/OPEN) breakers are not permitted.**
+HALF-OPEN. **Two-state (CLOSED/OPEN) breakers are not permitted** — a long-running
+service must recover without a restart.
 
 **Degraded mode uses actual state, never a generic error** — name the phase
 and how many fields are captured, say progress is saved.

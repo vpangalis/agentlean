@@ -1,5 +1,5 @@
 {
- "_rule": "CLAUDE.md §22 (h) — REPLACE, DON'T APPEND. Rule 12 of the commit-msg guard (.claude/hooks/size_budget.py). Bound = size after the step 6.66 slimming (2026-09-25) + 10%; CLAUDE.md and rules/coaching-move.md re-based at 6.67 (2026-09-26), in characters of the staged blob, LF line endings; warned at 90%, refused over 100%. Raising a bound is its own commit, with the reason in the body.",
+ "_rule": "CLAUDE.md §22 (h) — REPLACE, DON'T APPEND. Rule 12 of the commit-msg guard (.claude/hooks/size_budget.py). Bound = size after the step 6.66 slimming (2026-09-25) + 10%; CLAUDE.md and rules/coaching-move.md re-based at 6.67 (2026-09-26), in characters of the staged blob, LF line endings; warned above base + 5%, refused above base + 10% (the bound) — founder ruling 2026-09-26. Raising a bound is its own commit, with the reason in the body.",
  "bounds": {
   "agent-improve/CLAUDE.md": 4500,
   "agent-improve/ARCHITECTURE.md": 696800,

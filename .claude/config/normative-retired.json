@@ -1,0 +1,383 @@
+{
+ "_about": "Rule 14 (normative_check.py). Normative sentences of the pre-slimming corpus (rules before 69e9200, CLAUDE.md before e0e4d79) that the current corpus does not carry word for word. Classified 2026-09-26 (step 6.68) by the session and open to founder review: 'rationale' is the why or history, not a rule; 'equivalent' names where the same rule stands in other words; 'obsolete' is retired with the procedure. Eight dropped RULE sentences were restored instead. A new entry is a founder ruling, landed in the commit that removes the sentence.",
+ "retired": [
+  {
+   "sentence": "- gate attempts MUST be in the checkpointed state, never in route scope — this is what fixes the v1 \"attempts always reset to 0\" bug.",
+   "from": ".claude/rules/architecture.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/architecture.md — `gate_attempts` MUST be in the checkpointed state, never in route scope"
+  },
+  {
+   "sentence": "\"your previous answer did not address timeline or risk mitigation\" , never \"try again.\"",
+   "from": ".claude/rules/gates.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/gates.md — Feedback is specific, never \"try again.\""
+  },
+  {
+   "sentence": "Before this rule, the gate blocked on a required-field list while the grader graded against a rubric covering a different set — so a phase could pass the gate and then be failed by the grader on a criterion the gate never asked for.",
+   "from": ".claude/rules/gates.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "A Tier 2 gap the Belt proceeds past MUST be recorded , never silently dropped:",
+   "from": ".claude/rules/gates.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/gates.md — A Tier 2 gap the Belt proceeds past MUST be recorded; Never drop a Tier 2 gap"
+  },
+  {
+   "sentence": "The phase subgraph builder takes the phase as a parameter, because it must select that phase's computation-tool subset (§5.2):",
+   "from": ".claude/rules/graph.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/graph.md §3 — the builder selects the phase's computation-tool subset"
+  },
+  {
+   "sentence": "- Gate reopening (§9.5) — when the re-approval cascade fires, the affected phase's handler must run, or state and index disagree silently.",
+   "from": ".claude/rules/graph.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/graph.md §3.6 — node-level error handlers are required; the re-approval cascade depends on them"
+  },
+  {
+   "sentence": "It is now belt-and-braces against a bug, not the primary guard — a Belt mid-session never sees a stack trace because the coach explored too broadly.",
+   "from": ".claude/rules/graph.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "Grader (§8.2) 0.1 Same gate document must get the same verdict across runs",
+   "from": ".claude/rules/llm.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/llm.md §4.7 — the grader's temperature (0.1) is a hard requirement"
+  },
+  {
+   "sentence": "Three independent retry caps, and they must not be merged:",
+   "from": ".claude/rules/middleware.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/middleware.md — Three independent retry caps, never merged"
+  },
+  {
+   "sentence": "- Feedback injected back to the coach is per criterion and specific — never \"try again.\"",
+   "from": ".claude/rules/middleware.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/middleware.md — feedback per criterion and specific, never \"try again\""
+  },
+  {
+   "sentence": "Grader internals — iteration count, accumulated evaluations, attempt tracking — stay private to the middleware and never reach PhaseState or SupervisorState .",
+   "from": ".claude/rules/middleware.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/middleware.md — Grader internals stay private to the middleware, never on PhaseState or SupervisorState"
+  },
+  {
+   "sentence": "Skill and tool binding must not drift apart.",
+   "from": ".claude/rules/middleware.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/middleware.md — Each skill's allowed-tools MUST match that phase's tool subset"
+  },
+  {
+   "sentence": "Two distinct kinds of skill exist in this repository and must not be confused:",
+   "from": ".claude/rules/middleware.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/middleware.md — Never confuse development-workflow skills with runtime coaching skills"
+  },
+  {
+   "sentence": "Its tier is distinct from the fallback chain (§4.8), and the two must not be conflated:",
+   "from": ".claude/rules/middleware.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/middleware.md §8.7 — Distinct from the fallback chain"
+  },
+  {
+   "sentence": "Visible Never Degraded mode is visible to the Belt",
+   "from": ".claude/rules/middleware.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/llm.md — Degraded mode, never a hard failure to the Belt (a table cell)"
+  },
+  {
+   "sentence": "This is the invisible-retry tier named in §9.3's self-healing hierarchy: mechanical, never a coaching event.",
+   "from": ".claude/rules/middleware.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/middleware.md §8.7 — the invisible-retry tier"
+  },
+  {
+   "sentence": "The Belt never sees a failed coherence response.",
+   "from": ".claude/rules/middleware.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/middleware.md — On failure: silent retry, max 2"
+  },
+  {
+   "sentence": "This makes RAG accountable in the trace, lets the model control when to retrieve, and removes the always-on retrieval cost.",
+   "from": ".claude/rules/rag.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "LangChain's AzureSearch promotes a metadata key to a top-level field only when the key matches a name in self.fields — and self.fields defaults to [id, content, content vector, metadata] , never the live schema.",
+   "from": ".claude/rules/rag.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "Never wrap a retrieval call in a bare except Exception that returns [] — that is what hid the phase filter bug, by reporting a broken index as a silent corpus.",
+   "from": ".claude/rules/rag.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/rag.md — Never catch bare Exception around a retrieval call and return []"
+  },
+  {
+   "sentence": "Never re-sort the returned top k client-side and present it as recency ordering: that reorders only what was already retrieved, which is a different result — and it stays wrong after the reindex too.",
+   "from": ".claude/rules/rag.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/rag.md — Never re-sort the returned top k"
+  },
+  {
+   "sentence": "The per-tool local knowledge of vector field names (§7.2) is what makes the asymmetry safe in the meantime — that was the reason not to rush it, never a reason to keep it.",
+   "from": ".claude/rules/rag.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "final output is Optional[dict] , never str — same rule as PhaseState.final (§10.1, §10.6).",
+   "from": ".claude/rules/state.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/state.md — final_output is Optional[dict], never str"
+  },
+  {
+   "sentence": "This caption read \"Nineteen … fourteen content … twenty declared\" while the field list beneath it carried fifteen content fields, because rejection feedback was added at 2.2.23 (§0.17) and the caption was never updated with it. §0.17's own table says \"20 + 1 managed, 21 declared\" , so this file disagreed with itself four hundred lines apart.",
+   "from": ".claude/rules/state.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "A third thing, and neither of the other two can answer for it : artifacts is WHAT is captured and holds only the current value, step log is HOW a turn went and never held a value at all.",
+   "from": ".claude/rules/state.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "A deterministic key exists so a replayed turn overwrites its own entry instead of duplicating it; operator.add appends and cannot honour that. step log carries the same key and the appending reducer , so the two channels must not be assumed to behave alike.",
+   "from": ".claude/rules/state.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/state.md — field_log upserts; step_log has the same key but an appending reducer"
+  },
+  {
+   "sentence": "Declaring it is what makes LangGraph supply it ( recursion limit − steps taken); undeclared, state.get(\"remaining steps\", 10) returns 10 forever and the five-hop cap never fires (§3.7).",
+   "from": ".claude/rules/state.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "It is separate from validator feedback and must stay separate — the system rejecting the AI's output and the Belt rejecting the document are two actors at two moments, the same rule that keeps validator feedback and belt edits apart.",
+   "from": ".claude/rules/state.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/state.md — Three feedback channels, never merged"
+  },
+  {
+   "sentence": "gate attempts MUST be on PhaseState and in the checkpoint.",
+   "from": ".claude/rules/state.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/state.md — Never hold gate_attempts in route scope — it is on PhaseState"
+  },
+  {
+   "sentence": "Holding it in route scope is what produced the v1 \"attempts always reset to 0\" bug — it is per phase, because each phase runs its own loop with its own cap (§1.7, §3.5).",
+   "from": ".claude/rules/state.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "validator feedback and belt edits are different things and must stay separate. validator feedback is what the system's validation layers said about the AI's output at step 2; belt edits is what the Belt corrected at step 5.",
+   "from": ".claude/rules/state.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/state.md — Never merge validator_feedback and belt_edits"
+  },
+  {
+   "sentence": "Written once at session start from cases/case {id}.json , never mid-conversation",
+   "from": ".claude/rules/state.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/state.md — the case record is written once at session start"
+  },
+  {
+   "sentence": "artifacts and step log are separate fields and must stay separate. artifacts is WHAT was captured; step log is HOW.",
+   "from": ".claude/rules/state.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/state.md §10.3 — artifacts (WHAT) and step_log (HOW) stay separate"
+  },
+  {
+   "sentence": "For a DMAIC quality system the Belt must be able to show not just what the root cause was, but how it was determined.",
+   "from": ".claude/rules/state.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "This was never a design question — it was documents disagreeing with code. improve case index.case id , improve evidence index.case id (§7.3), cases/case {id}.json , uploads/{case id}/{file} and every storage model already said case id .",
+   "from": ".claude/rules/state.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "phase inputs v1 code field name Never add to v2 code; replaced during the refactor",
+   "from": ".claude/rules/state.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/state.md — Never write phase_inputs in v2 code"
+  },
+  {
+   "sentence": "That is a requirement of a quality system: the Belt must be able to show what they stated, not what the system parsed out of it.",
+   "from": ".claude/rules/state.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "value is Any , not str , and that is deliberate — it must carry both plain string fields and the three cross-phase reference dicts (§10.6).",
+   "from": ".claude/rules/state.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/state.md — fields_captured[].value is Any deliberately"
+  },
+  {
+   "sentence": "Define never uses this pattern on a content field — all 12 are gate-required, so its assembly is direct artifacts[\"field\"] access throughout (§0.18)",
+   "from": ".claude/rules/state.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: .claude/rules/state.md — Define has no Tier 2"
+  },
+  {
+   "sentence": "A field in the schema that assembly never sets is a field that silently never reaches the store",
+   "from": ".claude/rules/state.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "A process map sipoc with four of six keys filled is the partial-map failure the field exists to catch — a Belt who maps steps 3–5 of a seven-step process produces a project that cannot show improvement, because the baseline never covered the whole thing.",
+   "from": ".claude/rules/state.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "A single string cannot show that four were done and one was skipped, and a Training Plan written but never delivered is the most common real Control failure.",
+   "from": ".claude/rules/state.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "Read a bare mypy . count as a measurement, never as a pass/fail — a first run showing dozens of errors is the expected state, not a broken checkout.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: agent-improve/CLAUDE.md — Read a bare `mypy .` count as a measurement, never as a pass/fail"
+  },
+  {
+   "sentence": "Never auto-loaded — read targeted",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: agent-improve/CLAUDE.md — ARCHITECTURE.md: only the cited section"
+  },
+  {
+   "sentence": "Never @ -import any document in this table — imports load at launch and would put the whole set in every session.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: agent-improve/CLAUDE.md — Three layers — never @-import any document"
+  },
+  {
+   "sentence": "Paths are repo-root-relative — .claude/ sits above agent-improve/ , so a glob of backend/ matches nothing and fails silently: the rule simply never loads.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: agent-improve/CLAUDE.md — every paths: glob is agent-improve/..."
+  },
+  {
+   "sentence": "Each rule file ends with its own Never list — the §14 bans that belong to that domain, each landing in exactly one file.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "Those citations must resolve.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: agent-improve/CLAUDE.md 0.2 and rule 13 — citations resolve (verify_rule_citations.py)"
+  },
+  {
+   "sentence": "- Never renumber a rule cited in deprecated patterns.yaml without updating the registry in the same commit (§0.2)",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: agent-improve/CLAUDE.md 0.2 — renumber only with the registry, same commit"
+  },
+  {
+   "sentence": "- Never restate an owned fact in prose — cite its owner",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: agent-improve/CLAUDE.md — an owned fact is cited from its owner, never restated"
+  },
+  {
+   "sentence": "A claim about a file's content is made against that file at its repo path, read at the time of the claim — never a cached copy, a snapshot, a draft, a scratchpad, or a synced mirror (§0.32)",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: agent-improve/CLAUDE.md 0.32 — never a copy"
+  },
+  {
+   "sentence": "- Scratch lives outside the tree, is never committed, and is never evidence.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: agent-improve/CLAUDE.md — Scratch never enters the tree and is never evidence"
+  },
+  {
+   "sentence": "Three of the costliest corrections in this file are the same mistake: code written against a remembered idea of a library rather than the library. §0.10's retries= vs max retries= sat inside the canonical middleware block — the one an implementer copies verbatim — from adoption until 2026-08-21. §0.13's ContradictionDetectionMiddleware was adopted as a named pattern and could not do its job in three independent ways. §0.16's remaining steps was read off a schema that never declared it, so a five-hop cap returned 10 forever and never fired.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "They match a SHAPE rather than a name, because the drift here is code that should never have been written at all and so has no deprecated identifier to grep for.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "The rule is \"confirm\", not \"never build\".",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "The test is a git command and never a directory listing: a file is in the tree, or git ls-files does not name it.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: agent-improve/CLAUDE.md — resolve files through git, never a directory listing"
+  },
+  {
+   "sentence": "A gate sees the index; it never sees a sentence.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "- Never render a bare number or a bare code in anything a human reads:",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: agent-improve/CLAUDE.md Reports — never a bare number or code"
+  },
+  {
+   "sentence": "It loads when you invoke it, which is when you are working a defect — the rules above bind always and are seven lines; the reference is thirty and was carried in every session that never opened it.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "rationale",
+   "reason": "rationale — the why or the history, not a rule; kept in docs/_archive/rules_rationale_2026-09-25.md or the CLAUDE.md archive"
+  },
+  {
+   "sentence": "Never run the full suite by hand before committing.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: agent-improve/CLAUDE.md — The full suite runs once per commit … Never by hand"
+  },
+  {
+   "sentence": "Never read ARCHITECTURE.md or REFACTORING PROCEDURE.md whole: search for the section, read that region, cite its version.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: agent-improve/CLAUDE.md — ARCHITECTURE.md: only the cited section, found in docs/section-index.md"
+  },
+  {
+   "sentence": "docs/REFACTORING PROCEDURE.md is the ordered route and carries each step's prompt, Verify method and Done-when. docs/CONTINUITY.md says which step is current and is generated, never hand-edited.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "obsolete",
+   "reason": "obsolete — the procedure it names is archived (6.67)"
+  },
+  {
+   "sentence": "Never amend a rule \"in passing\" while making a feature change.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "kept in other words, same strength: agent-improve/CLAUDE.md — a wrong rule is amended first, in its own commit"
+  }
+ ]
+}
