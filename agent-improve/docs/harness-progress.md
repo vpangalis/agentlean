@@ -1,132 +1,39 @@
-# Harness progress — step 6.66
+# Harness progress — Define on the long-running-harness pattern
 
-The long-running-harness progress file (Anthropic, *Effective harnesses for
-long-running agents*). **Replace, don't append** — this file holds the current
-state; git holds the history.
+**Replace, don't append** — the current state only; git holds the history, and the
+overnight run's full record (6.66) is in commit `a3364ae`'s version of this file.
 
-## Session-start routine (every session, every lane)
+The three layers (step 6.67): how to work — `CLAUDE.md` and `.claude/`; what must
+be true — `docs/define_features.json` + `docs/test-results.json` (the board,
+`docs/control-board.html`, and CONTINUITY's block are generated from them); why —
+`ARCHITECTURE.md`, read only by the cited section via `docs/section-index.md`. The
+session-start routine is in CLAUDE.md.
 
-1. `git log --oneline -5`; read this file.
-2. `python agent-improve/tools/control_board/features.py` — Define features
-   passing, and the next failing feature per lane. The SessionStart hook prints
-   the same. Status comes ONLY from `docs/test-results.json`.
-3. Smoke test: `cd agent-improve; pytest backend/tests/test_define_features.py -n 0`.
-4. `python agent-improve/tools/control_board/features.py --lane <A|B|C|integrator>`
-   — take the first failing feature whose dependencies pass. Make its test pass
-   end to end. Never edit a feature to say it passes; there is no status field.
+## Lanes (branches and worktrees beside this checkout; `.venv` is a junction)
 
-## Lanes — how to start each (created 2026-09-25; not started)
-
-Each lane is a branch and a worktree beside this checkout, with `agent-improve/.venv`
-a junction to this checkout's venv (the guard needs it) — copy `agent-improve/.env`
-in before any live run. Start a Claude Code session in the worktree and say:
-*"You are lane X. Follow docs/harness-progress.md's session-start routine; take the
-next failing feature in lane X; one feature per commit; push to lane/X."*
-
-| Lane | Branch · worktree | Features | Starts at |
-|---|---|---|---|
-| A — coaching | `lane/a-coaching` · `../AgentLean-lane-a-coaching` | 35 | DEF-005 (teach before ask) |
-| B — gate | `lane/b-gate` · `../AgentLean-lane-b-gate` | 15 | DEF-040 (contradiction stop in a node) — needs founder D1; G-23 draft is the input |
-| C — screen and inputs | `lane/c-screen-inputs` · `../AgentLean-lane-c-screen-inputs` | 8 | DEF-052 (the four blocks reach the screen) |
-| Integrator | `lane/integrator` · `../AgentLean-lane-integrator` | 6 | DEF-001; merges A/B/C into `main` in feature order, runs the run-through |
-
-## Overnight run 2026-09-25 → 26 (founder ruling, step 6.66)
-
-| Part | What | State | Commit |
-|---|---|---|---|
-| A | Permission warm-up | DONE | — |
-| 0 | Register 6.66 + this file | DONE | 5d29baa |
-| 1 | Measure first | DONE — baseline below | 5d29baa |
-| 2 | Speed: pre-flight, xdist, repeat report | DONE | d00c4cf |
-| 3 | Guard rule 6 narrowed; rule files slimmed; CLAUDE.md rules-only | DONE (CLAUDE.md in the commit after Part 5) | 189c672, 69e9200 |
-| 4 | Slim ARCHITECTURE.md + procedure; size budget; section index | DONE | ddb30fe, 3496e16, 22ddd0d |
-| 5 | define_features.json, status from tests, coverage test, discrepancies, routine | DONE | (this commit) |
-| 6 | Lanes A/B/C + integrator: branches, worktrees | DONE — see Lanes | (this commit) |
-| 7 | Define run-through test, once on main, ≤150 live calls | DONE — 79 calls, see Part 7 | d36605c |
-| 8 | G-23 design draft, G-40 rubric draft | DONE — docs/founder-inputs/ | c641efb |
-| 9 | Fresh-eyes review | DONE — see Part 9 | 5bafd51, 7ff2e03 |
-| — | 6.66 landed (spine commit) | DONE | (this commit) |
-
-## Baseline (Part 1, 669b39c) and after
-
-| Measure | Before | After | How |
-|---|---|---|---|
-| CLAUDE.md | 418 lines · 6,370 tok | 150 lines · ~2,540 tok | tiktoken cl100k (proxy) |
-| Rule files (13) | 3,019 lines · 36.2k tok | 1,687 lines · 19.6k tok | same |
-| ARCHITECTURE.md | 12,928 lines · 237k tok | 11,655 lines · 165k tok | same |
-| REFACTORING_PROCEDURE.md | 8,468 lines · 175k tok | 5,242 lines · 123k tok | same |
-| Full suite (hook, `-n auto`) | median 114 s, 1,327 tests | 96–116 s, 1,339 tests | timing log |
-| Area runs | `-n auto` 34–54 tests: 22–30 s | pre-flight serial ≤ 12 files | timing log |
-| Pre-flight (quiet machine) | — | a rule file 12 s · the procedure 40 s · a core module (`moves.py`) 53 s | timing log |
-
-## Part 7 — the Define run-through (measured 2026-09-25, case IMPR-2026-B99, on 44d111a)
-
-Record: `docs/runthrough/define_runthrough_20260925T192526.json` · 18 turns · **79 chat-model
-calls** (coach 46, coherence 15, planner 7, grader 5, other 6) of the 150 cap · **0 LangSmith sends**
-· every turn HTTP 200. Read by `backend/tests/test_define_runthrough.py` (11 pass, 13 fail).
-
-| Where | What happened | Features |
+| Lane | Branch · worktree | Starts at |
 |---|---|---|
-| Fields 1–3 | taught, read back, confirmed and stored in the Belt's words; team stored as a typed list | DEF-025, 026, 027 pass |
-| Field 3 | Change click reopened the field with the Belt's words, **0 model calls** (reply written in code) | DEF-010 passes |
-| Field 4 | weak answer challenged, better answer read back — but **turns 9 and 10 each spent 19 calls and 42–45 s**: the executor hit its 50-step BACKSTOP (a runaway loop) and fell back; the Confirm at 9 stored the problem statement, the teaching of field 4 lost its explanation/example | DEF-011, 028 pass · DEF-005 fails (turn 9) |
-| **Field 5 — FIRST FAILURE** | every Confirm re-reads back: position 5 is `baseline_estimate` + `metric_definitions` (`moves.py:94`), the confirmation's store (`moves.pending_store`, `moves.py:311-319`) only holds `metric_definitions` if the coach proposed it, the coach never did, so `moves.decide` returns READ_BACK forever. **A Belt is stuck at step 5 of 12.** Stopped by hand after 5 identical turns (deterministic; the rest of the budget would have measured nothing) | DEF-008, 029–036, 063 fail |
-| Fields 6–12 | **not reached** | DEF-012, 030–036 fail as unreached |
-| Gate | review and submit both refuse, naming the 9 missing fields (correct for an incomplete case); no pause, approve or reject exists | DEF-041 fails (incomplete case) |
+| A — coaching | `lane/a-coaching` · `../AgentLean-lane-a-coaching` | the Confirm at field 5 (DEF-008, DEF-029) |
+| B — gate | `lane/b-gate` · `../AgentLean-lane-b-gate` | DEF-040 — needs founder D1; `docs/founder-inputs/` drafts |
+| C — screen and inputs | `lane/c-screen-inputs` · `../AgentLean-lane-c-screen-inputs` | DEF-052 |
+| Integrator | `lane/integrator` · `../AgentLean-lane-integrator` | merges A/B/C; re-runs `scripts/define_runthrough.py` |
 
-First failure per lane: **A** — field 5, the Confirm that cannot complete the position (DEF-008 /
-DEF-029); **B** — unreached (needs a complete case; the pause/approve design is G-23); **C** — no
-screen test exists (the run drives the API); **integrator** — DEF-063, stopped at field 5.
+A feature lands as `refactor(arch-v2): DEF-xxx — …` only when its test and its
+dependencies' tests pass (rule 11); once passed it is required on every commit
+(rule 11b, `docs/features-ratchet.json`). 40 feature tests are stubs that fail
+"not written yet" — a lane replaces the stub with the real test.
 
-## Part 9 — fresh-eyes review (clean-context sub-agent, 669b39c..c641efb)
+## The measured distance (the 6.66 run-through, product unchanged since)
 
-| Limit | Verdict |
-|---|---|
-| L1 no Belt-facing change | PASS — `git diff 669b39c..HEAD -- backend ui ':!backend/tests'` empty |
-| L2 no invented ruling | CONCERN → fixed: §22 no longer states "-n 0" or the diagnosis cap as founder rules; D18 no longer reads as done |
-| L3 no hook bypass | PASS — no `--no-verify`; the pre-flight escape is a concern (below) |
-| L4 nothing deleted | PASS — removed lines vs archives: CLAUDE.md 0 missing of 297, rules 0 of 1,635, ARCH 1 of 1,492 (its old Version line), procedure 2 of 2,987 (generated board counts) |
-| L5 numbers and citations | PASS — citations resolve, 33 built checks agree, board check passes, every numbered heading survives |
-| L6 0 traces, ≤150 calls | PASS — 79 calls, 0 sends; the missing timing line is now appended (marked as after the run) |
-| L7 one step | PASS — every commit carries Step: 6.66 |
+Record `docs/runthrough/define_runthrough_20260925T192526.json`: 18 turns, 79 calls,
+0 traces. A Belt is stuck at field 5 of 12 (the Confirm cannot complete
+`baseline_estimate` + `metric_definitions`); the executor's backstop fired twice at
+field 4. 9 of 64 features pass.
 
-Clear violations, fixed in the commit after this table: CLAUDE.md had lost rule sentences it
-was to keep (§22 e "tooling and documentation commit without stopping"; "if a rule blocks the
-request, the rule wins"; the amendment steps; §22 b "cite its version"; the `skills/` rule) —
-restored, v2.2.46, still 150 lines. Three features read passing without proving their
-description (DEF-037, DEF-009, DEF-004) — DEF-037's test now needs the SIPOC reached, DEF-009
-points at a qualified-yes e2e test to be written, DEF-004's description is narrowed to what it
-proves (its traced half is D3); DEF-002 now also fails on a fallback turn. Three binding
-sentences in `rules/architecture.md` weakened by the slimming are restored verbatim-in-substance
-(`gate_attempts` MUST be checkpointed per phase; the three data consequences; "not acceptable
-for production"). **A sentence-level review of the rule-file slimming (69e9200) is still owed.**
+## Open decisions — FOR FOUNDER (one line each)
 
-## Night decisions and findings — FOR FOUNDER (one line each)
-
-- **Pre-flight escape**: `# preflight: acknowledged — <why>` passes a pre-flight failure that fails identically at HEAD; the commit hook still gates. Undo: delete `ACK_RE` in `preflight-on-commit.py`.
-- **Rule 6's D-label trigger removed** with the subject-code trigger, reading the ruling's two triggers literally; a volunteered half-written 8D on a non-defect commit is no longer refused. Undo: restore `ANY_D_LABEL_RE` in `is_fix_commit`.
-- **Size budget warns from day one**: bound = size + 10%, warn at 90% of bound = 99% of today's size. If "90%" meant 90% of the headroom, change `WARN_AT` in `size_budget.py`.
-- **Coverage test's gap set** uses two mechanical legs (the register's Step cell; founder milestones blocking a Define step) — 14 gaps — not G-numbers mentioned in card prose (28), because prose moves.
-- **ARCHITECTURE.md slimmed only 30%**: what remains is current spec; going further means moving "why" paragraphs out of the spec — needs a ruling on which reasoning is load-bearing.
-- **Change log lost text before tonight** (procedure v1.4 tail, v1.3): the pre-commit splice starts at the first BEGIN marker, and v1.4 quoted it (ed9aa1b). v1.3 recovered to the archive; `splice()` stays fragile.
-- **Board's short Done-when reader** reads a fixed 900 chars and can run into the next card (6.14).
-- **`test_turn_budget`** fails under CPU load (seen twice tonight) and passes alone — a timing-sensitive test.
-- **Non-spine commits are never blocked by a red suite** (rule 4 gates `refactor(arch-v2)` only); the pre-flight now catches it earlier.
-- **`§19.x`/`§20.x` citations** in CLAUDE.md resolve to no heading (pre-existing).
-- **Kept though stale** in the rule files' Never lists: rag.md's "ratified-but-unapplied index fields" (both live), state.md's "seven fields" and the "N of 95" captions.
-- **G-53** (premium deployment 429) was mentioned only in archived changelog entries; its register row stands.
-- **24 features point at the run-through's record tests** (`test_define_runthrough.py`: DEF-002, 004–008, 010–012, 025–037, 041, 063) instead of the proposed fake-model e2e tests — a live run on the real route is the stronger proof, and the record goes stale (every one of those tests fails) the moment the source changes. The fake-model tests remain the lanes' fast loop; add them beside, not instead.
-- **Chat-model calls only are counted** against the 150 cap (the 6.61 counter); embedding calls for retrieval are not model calls in that sense.
-- **Run-through stopped by hand at turn 18** (79 of 150 calls): a deterministic Confirm loop at field 5. The gate steps (0 model calls) ran afterwards on the same case with the call counter armed at 0. The walk now stops itself after two identical read-backs to a Confirm.
-- **Feature tests are `xfail(strict=False)`**: a failing feature records `skipped`, a passing one `passed`, so the measurement never blocks a commit (rule 4 would otherwise refuse the landing commit). A regression of a passing feature shows on the board, not in the gate.
-- **The record binds to a product hash** (`features.product_hash`: the board's hash minus `backend/tests/`), not the board's source hash, which changes with every new test.
-- **The pre-flight skips `test_capability_rows.py`** (three ~21 s live-case reads over the network) unless that file changed; the commit hook's full run still runs it every commit. A core-module pre-flight went 93 s → 53 s.
-- **One pre-flight run hung** (no child process, >10 min) while the reviewer was running checks; it did not reproduce. The pre-flight has per-check subprocess timeouts but no overall one.
-- **Rule-file slimming needs a sentence-level review** (reviewer): three weakened binding sentences were found and restored; others may exist.
-- **Two progress sources coexist**: feature status from tests; step status on the board still from the procedure's tables.
-- **Coverage mutation proof covers steps only**, not rows or gaps.
-- The 24 source discrepancies with their decisions: `docs/define_discrepancies.md` (D1, D2, D3, D7, D8, D9, D15, D21 are FOR FOUNDER).
-
-## Next
-
-The lanes start from the table above; lane A first: the Confirm at field 5 (DEF-008, DEF-029).
+- Run-through features are exempt from the ratchet while the record is stale — any product change stales all of them and only a live run refreshes them.
+- The 40 missing feature tests exist as failing stubs (so every node id exists), rather than failing the coverage test until written.
+- The hooks test the WORKING TREE, not the index: the pre-flight now warns on unstaged edits (6.67's own Part A shipped half-staged once — `796ced5`); running the suite on the index is the deeper fix.
+- Old step and gap numbers resolve only in the frozen, archived procedure; new work is named by DEF ids. A new tooling step has no register now.
+- From 6.66, still open: the pre-flight escape (`# preflight: acknowledged`); feature tests xfail so a regression shows on the board (and now in rule 11b), not as a red suite; size-budget warn at 90% of size + 10%; the rule-file slimming's sentence-level review; the 24 discrepancies in `docs/define_discrepancies.md` (D1, D2, D3, D7, D8, D9, D15, D21 need you).
