@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
@@ -25,6 +26,7 @@ from backend.gateway.schemas import (
     UploadMetaRequest,
 )
 from backend.gateway.schemas import GateReviewField, GateReviewResponse
+from backend.gateway.schemas import GateDecisionRequest, GateDecisionResponse
 from backend.gateway.schemas import SummariseRequest, SummariseResponse
 from backend.gateway.schemas import ContextRequest, ContextResponse
 from backend.core.store import get_store
@@ -34,7 +36,8 @@ from backend.phases.gate_registry import (
     review_rows,
     split_by_declared_type,
 )
-from backend.phases.define.report import define_report
+from backend.phases.define.report import define_report, element_of
+from backend.phases.define.schema import DEFINE_FIELD_ORDER
 from backend.phases.mappers_common import PHASE_ORDER, asks_for_phase, read_case_record
 from backend.storage import blob
 from backend.storage.models import CaseDocument, UploadRecord
@@ -858,6 +861,7 @@ async def gate_review(case_id: str, phase: str) -> GateReviewResponse:
         acknowledged_gaps=gaps,
         document=document,
         report=report,
+        awaiting_decision=(phase == "define" and await _awaiting_decision(case, phase)),
         field_counts={
             "total": len(rows),
             "tier_1": len(spec.tier_1),
@@ -1399,6 +1403,109 @@ def assemble_gate_document(
     return document, evidence
 
 
+async def _pending_interrupts(case: CaseDocument, phase: str, user: str = "") -> tuple[Any, dict, list]:
+    """(graph, config, the interrupts the case's graph holds) — R6's pause."""
+    from backend.core.graph import get_graph
+    graph = get_graph(phase)
+    config = _graph_config(case, phase, user, entry="decision")
+    snapshot = await graph.aget_state(config)
+    pending = [i for task in (snapshot.tasks or ()) for i in (getattr(task, "interrupts", ()) or ())]
+    return graph, config, pending
+
+
+async def _awaiting_decision(case: CaseDocument, phase: str) -> bool:
+    """Is the Define report paused for the team's decision? Never raises — the
+    review screen must render even when the checkpoint cannot be read."""
+    try:
+        _graph, _config, pending = await _pending_interrupts(case, phase)
+    except Exception as exc:                        # noqa: BLE001
+        logger.warning("gate review: could not read the pause for %s: %s", case.case_id, exc)
+        return False
+    return any((getattr(i, "value", None) or {}).get("kind") == "accept_define_report"
+               for i in pending)
+
+
+@router.post("/gate/decision", response_model=GateDecisionResponse)
+async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisionResponse:
+    """R6 — approve or reject the Define report, RESUMING the paused graph.
+
+    `POST /gate` validated the report and the graph paused in `gate_review`
+    (`interrupt()`); this resumes it with `Command(resume=...)`. APPROVE: the
+    graph assembles `final` and ends, and this route writes the gate document
+    and advances the phase — the write that `POST /gate` made before R6, now
+    only after the team's approval, with the actor recorded. REJECT: the graph
+    re-opens the named element(s) and runs one coaching turn that guides the
+    Belt back to the first of them; this route persists it as `/ask` does.
+    Until R8 the Belt is the actor.
+    """
+    from langgraph.types import Command
+
+    if request.phase != "define":
+        raise HTTPException(400, "Only Define has a report to accept (R6).")
+    if not blob.storage_configured():
+        raise HTTPException(503, "Storage not configured")
+    case = await blob.load_case(request.case_id)
+    if case is None:
+        raise HTTPException(404, f"Case {request.case_id} not found")
+    _ensure_case_record(case)
+    graph, config, pending = await _pending_interrupts(case, request.phase, request.actor)
+    if not any((getattr(i, "value", None) or {}).get("kind") == "accept_define_report"
+               for i in pending):
+        raise HTTPException(409, "The Define report is not awaiting a decision — "
+                                 "submit it for acceptance first (POST /gate).")
+    elements = sorted({element_of(e) for e in request.elements})
+    if request.decision == "reject":
+        unknown = [e for e in elements if e not in DEFINE_FIELD_ORDER]
+        if not elements or unknown or not request.reason.strip():
+            raise HTTPException(422, "A rejection names at least one Define element "
+                                     f"and a reason{'; unknown: ' + ', '.join(unknown) if unknown else ''}.")
+        config["configurable"]["belt_action"] = "rejected"
+    resume = {"decision": request.decision, "elements": elements, "reason": request.reason,
+              "actor": request.actor,
+              "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    try:
+        result = await _run_turn(graph, Command(resume=resume), config, http)
+    except ClientGone:
+        raise HTTPException(499, "Client disconnected; decision abandoned (§47).")
+    except Exception as e:
+        logger.error("decide_gate() error: %s", e)
+        raise HTTPException(500, f"Graph error: {str(e)}")
+
+    if request.decision == "approve":
+        document, evidence = assemble_gate_document(case, request.phase)
+        await blob.write_phase_gate(
+            case_id=request.case_id, phase=request.phase, structured=document,
+            submitted_by=request.actor,
+            summary=f"Define report approved by {request.actor} (R6)",
+            citations=evidence["citations"], uploads=evidence["uploads"],
+        )
+        idx = PHASE_ORDER.index(request.phase)
+        next_phase = PHASE_ORDER[idx + 1] if idx < len(PHASE_ORDER) - 1 else None
+        return GateDecisionResponse(
+            decision="approve", phase=request.phase, next_phase=next_phase,
+            message=f"The Define report is approved. {'Moving to ' + next_phase if next_phase else ''}".strip())
+
+    reply = _last_ai(result)
+    payload = conversation.transport(reply) if reply is not None else {}
+    extra = dict(getattr(reply, "additional_kwargs", None) or {}) if reply else {}
+    case.conversation_history.append({
+        "role": "user", "user": request.actor,
+        "text": (f"Rejected the Define report — change {', '.join(elements)}: "
+                 f"{request.reason.strip()}"),
+        "timestamp": datetime.now(timezone.utc).isoformat()})
+    if reply is not None:
+        case.conversation_history.append(conversation.strip_transport(
+            conversation.message_to_turn(reply, len(case.conversation_history))))
+    apply_capture(case, request.phase, payload)
+    await blob.save_case(case)
+    blocks = extra.get("coaching_blocks") or {}
+    return GateDecisionResponse(
+        decision="reject", phase=request.phase, reopened=elements,
+        message=f"Back to coaching on {', '.join(e.replace('_', ' ') for e in elements)}.",
+        answer=str(reply.content) if reply is not None else "",
+        **{k: str(blocks.get(k) or "") for k in ("explanation", "example", "prompt", "progress")})
+
+
 @router.post("/gate", response_model=GateSubmitResponse)
 async def submit_gate(request: GateSubmitRequest,
                       http: Request) -> GateSubmitResponse:
@@ -1411,27 +1518,11 @@ async def submit_gate(request: GateSubmitRequest,
     imports are gone, and the validator now runs where §34 puts it — inside
     `validation_stack`, in the subgraph.
 
-    ═══════════════════════════════════════════════════════════════════════
-    WHAT THIS ROUTE IS NOT, AT 4.2
-    ═══════════════════════════════════════════════════════════════════════
-    §49 splits this endpoint three ways — `/gate/submit` triggers the stack and
-    the interrupt, `/gate/approve` and `/gate/reject` resume from it. **All
-    three are stage 7**, because all three are the `interrupt()` this step
-    deliberately does not build (§47 requirement 4, ruled OUT). So the gate
-    still *applies* here rather than inside `gate_apply`: the graph returns the
-    verdict, and this route writes the gate document and the registry entry as
-    it did before.
-
-    That is the honest shape and the safe one. Moving the write into
-    `gate_apply` without the interrupt in front of it would commit a gate the
-    Belt never approved on every coaching turn — the failure §47's ABANDON
-    policy exists to prevent. **The write moves at stage 7, with the interrupt,
-    in one change.**
-
-    **The Define gate remains inert** (WATCH 7): `validate_define` requires the
-    §39.1.2 v2 names and the v1 writer emits the v1 ones, so every required
-    field reads as missing. The verdict below is the one this endpoint returned
-    before, on the same inputs, computed in a different place.
+    R6 (2026-09-26): FOR DEFINE THIS PAUSES. A validated Define report stops
+    in `gate_review`'s `interrupt()` and this returns `awaiting_acceptance`
+    with NOTHING written; `POST /gate/decision` resumes it, and only an
+    approval writes the gate document and advances the phase. The other four
+    phases, which have no report to accept yet, still write here when they pass.
     """
     if not blob.storage_configured():
         raise HTTPException(503, "Storage not configured")
@@ -1468,6 +1559,15 @@ async def submit_gate(request: GateSubmitRequest,
     except Exception as e:
         logger.error("submit_gate() error: %s", e)
         raise HTTPException(500, f"Graph error: {str(e)}")
+
+    if result.get("__interrupt__"):
+        # R6 — the Define report passed validation and the graph PAUSED in
+        # `gate_review` for the team's decision. Nothing is written until
+        # POST /gate/decision resumes it with an approval.
+        return GateSubmitResponse(
+            passed=True, phase=request.phase, awaiting_acceptance=True,
+            message=("The Define report is ready for your team's review. Approve it, "
+                     "or reject it naming what needs to change."))
 
     reply = _last_ai(result)
     payload = conversation.transport(reply) if reply is not None else {}

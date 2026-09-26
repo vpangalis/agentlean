@@ -9,329 +9,329 @@ document below (step 6.66). Find the section here, then read only its lines
 | Lines | Heading |
 |---|---|
 | 27–49 |  🗺 Where state lives — a MAP, not a definition |
-| 50–255 | Agentic Architecture Reference |
-| 150–255 |  About this document |
-| 156–213 |   Scope — three agents, one architecture |
-| 214–228 |   The two-document division |
-| 229–243 |   Section numbering and provenance |
-| 244–255 |   Reading conventions |
-| 256–547 | Part I — Orientation |
-| 260–336 |  1. What Agent Improve is |
-| 280–306 |   What makes it architecturally distinctive |
-| 307–336 |   The runtime stack |
-| 337–388 |  2. How to read this document |
-| 343–359 |   By what you are trying to do |
-| 360–388 |   Canonical ownership |
-| 389–487 |  3. Terminology |
-| 400–416 |   Structural primitives |
-| 417–428 |   Role labels |
-| 429–446 |   The recursion is two levels, not infinite |
-| 447–461 |   "Harness" — two senses, do not conflate |
-| 462–472 |   "Agent" — used carefully |
-| 473–487 |   Things that are deliberately not levels |
-| 488–547 |  4. Architecture at a glance |
-| 531–547 |   The five things that shape everything else |
-| 548–1275 | Part II — State and Persistence |
-| 555–613 |  5. `SupervisorState` — orchestration only |
-| 567–573 |   `gate_passed` is a dict, not a list |
-| 574–585 |   `current_phase` and `phase_index` are derived, and kept anyway |
-| 586–605 |   Four fields were removed as redundant, and may not return |
-| 606–613 |   Artifacts are not here |
-| 614–849 |  6. `PhaseState` — per-phase subgraph state |
-| 629–660 |   `asks` — §56 AMENDMENT, ratified 2026-09-09 |
-| 661–730 |   `field_log` — §56 AMENDMENT, ratified 2026-09-21 |
-| 731–736 |   `draft`, `belt_edits` and `final` are `dict`, never `str` |
-| 737–759 |   `coaching_plan` is one typed plan, not a queue |
-| 760–775 |   `gate_attempts` — the field whose absence recreated a production bug |
-| 776–796 |   `validator_feedback` and `belt_edits` are different, and must stay separate |
-| 797–814 |   `citations` and `uploads` — the evidence trail |
-| 815–832 |   `hop_results` and `synthesis_output` must be state, not node locals |
-| 833–841 |   Per-phase variants |
-| 842–849 |   Naming discipline |
-| 850–926 |  7. Field typing law — every captured field is a string |
-| 866–878 |   Why strings |
-| 879–898 |   The one exception — three cross-phase reference dicts |
-| 899–926 |   Computation results |
-| 927–1019 |  8. The checkpointer / store split |
-| 951–970 |   Phased backend |
-| 971–982 |   Concurrency and atomicity |
-| 983–998 |   Why Blob, and not Cosmos / Tables / SQLite |
-| 999–1019 |   On-blob checkpoint format |
-| 1020–1156 |  9. The Store — cross-phase artifacts and boundary mappers |
-| 1061–1084 |   Namespace convention |
-| 1085–1114 |   Why cross-phase data cannot travel on parent state |
-| 1115–1135 |   Boundary mappers |
-| 1136–1148 |   Two prohibitions that follow |
-| 1149–1156 |   Ordering constraint |
-| 1157–1214 |  10. Azure Blob — two distinct concerns |
-| 1176–1201 |   Complete physical layout |
-| 1202–1214 |   The case blob is not updated per turn |
-| 1215–1275 |  11. `step_log` — the audit trail |
-| 1236–1245 |   `artifacts` and `step_log` are separate fields and stay separate |
-| 1246–1275 |   Entries carry deterministic keys, never a raw timestamp as identity |
-| 1276–1646 | Part III — The Graph |
-| 1282–1322 |  12. Topology |
-| 1312–1322 |   The subgraph builder takes the phase as a parameter |
-| 1323–1462 |  13. The phase subgraph — five nodes |
-| 1400–1430 |   The subgraph is a cycle, not a pipeline |
-| 1431–1443 |   Two node names are BANNED |
-| 1444–1449 |   Leaf tools are NOT subgraph nodes |
-| 1450–1462 |   The validation stack and the policy advisory are NOT tools |
-| 1463–1498 |  14. Node contract |
-| 1486–1498 |   Reflection is a node, not a private function |
-| 1499–1563 |  15. Routing — static edges and `Command` |
-| 1505–1522 |   The decision test |
-| 1523–1528 |   Never mix static edges and `Command` from the same node |
-| 1529–1556 |   Level 1 does not route — it advances |
-| 1557–1563 |   No subgraph imports another subgraph's nodes |
-| 1564–1646 |  16. `thread_id`, `checkpoint_ns`, and where persistence attaches |
-| 1570–1585 |   One `thread_id` per project |
-| 1586–1599 |   The checkpointer and store go on the parent graph ONLY |
-| 1600–1626 |   The wrapper node must invoke the subgraph directly (G-44) |
-| 1627–1646 |   `recursion_limit` is a backstop, not the hop cap |
-| 1647–2388 | Part IV — The Coaching Agent |
-| 1653–1767 |  17. The Planner / Executor contract |
-| 1729–1759 |   `CoachingPlan` |
-| 1760–1767 |   Extraction is structured output, not a node and not a tool |
-| 1768–1815 |  18. Building the executor — `create_agent` |
-| 1780–1787 |   Binding tools directly onto a bare model is a violation |
-| 1788–1793 |   `create_react_agent` is superseded |
-| 1794–1806 |   deepagents is not a dependency |
-| 1807–1815 |   The structured response and the coaching text coexist |
-| 1816–2137 |  19. The middleware stack — eight, in order |
-| 1838–1884 |   Ordering rules that bind |
-| 1885–1896 |   Three independent retry caps |
-| 1897–1940 |   19.1 `BeforeModelStateInjection` — injection timing |
-| 1941–1956 |   19.2 `DMAICSkillsMiddleware` — progressive disclosure |
-| 1957–1996 |   19.3 `SummarizationMiddleware` — context compression |
-| 1997–2023 |   19.4 `ModelRetryMiddleware` — API-level retry |
-| 2024–2036 |   19.5 `ToolRetryMiddleware` — tool-level retry |
-| 2037–2059 |   19.6 `ContradictionDetectionMiddleware` — the mid-phase check |
-| 2060–2094 |   19.7 `CoherenceMiddleware` — validation Layer 2a |
-| 2095–2125 |   19.8 `DMAICGraderMiddleware` — coaching process quality |
-| 2126–2137 |   19.9 Middleware deliberately NOT used |
-| 2138–2212 |  20. `CoachingResponse` — the per-turn schema |
-| 2192–2195 |   The executor node writes the response into state |
-| 2196–2202 |   The executor's `response_format` is `CoachingResponse`, never a phase Output |
-| 2203–2212 |   What structured output does NOT give you |
-| 2213–2324 |  21. LLM roles, temperature, and the factory |
-| 2233–2241 |   Factory only |
-| 2242–2262 |   Roles |
-| 2263–2279 |   Temperature |
-| 2280–2324 |   Structured output — scoped by call type |
-| 2325–2388 |  22. Prompts |
-| 2351–2371 |   The memory hierarchy paragraph is mandatory |
-| 2372–2388 |   Anti-hallucination guards are mandatory |
-| 2389–3167 | Part V — Knowledge and Retrieval |
-| 2393–2748 |  23. The three indexes |
-| 2405–2455 |   23.1 `improve_knowledge_index` — methodology |
-| 2456–2581 |   23.2 `improve_evidence_index` — Belt-uploaded evidence |
-| 2501–2525 |    Supersession deletes; it does not flag |
-| 2526–2581 |    Two Azure behaviours govern the migration |
-| 2582–2654 |   23.2.1 The `role` vocabulary — ratified, not invented per phase |
-| 2621–2654 |    `unclassified (pre-ask-binding)` is a MIGRATION SENTINEL, not a thirteenth role |
-| 2655–2703 |   23.3 `improve_case_index` — case records (cross-case memory) |
-| 2704–2714 |   The internal phase key is `analyse`, never `analyse_phase` |
-| 2715–2739 |   23.4 The write-path trap that made `phase_relevance` unfilterable |
-| 2740–2748 |   23.5 Schema change procedure |
-| 2749–2877 |  24. The three `rag_lookup_*` tools |
-| 2767–2824 |   `rag_lookup_evidence` returns a structured record, not rendered text |
-| 2825–2837 |   RAG via tool, never via prepended system message |
-| 2838–2862 |   The retrieval mechanism |
-| 2863–2870 |   `belt_level` filtering is OFF by default |
-| 2871–2877 |   `source_file` and `page_number` are returned, never filtered |
-| 2878–2943 |  25. Multi-query and Reciprocal Rank Fusion |
-| 2887–2903 |   Why it is mandatory |
-| 2904–2910 |   The implementation |
-| 2911–2932 |   `MultiQueryRetriever` and `EnsembleRetriever` are BANNED |
-| 2933–2943 |   Encapsulation |
-| 2944–3077 |  26. Multi-hop retrieval |
-| 2959–2995 |   The hop cap is `RemainingSteps` |
-| 2996–3014 |   Per-phase policy |
-| 3015–3059 |   Planned multi-hop — the Analyse pipeline |
-| 3060–3077 |   **UNVERIFIED** — planned multi-hop is Analyse-only |
-| 3078–3124 |  27. Retrieval failure semantics |
-| 3089–3097 |   Never wrap a retrieval call in a bare `except Exception` returning `[]` |
-| 3098–3107 |   Three rules that each have already bitten |
-| 3108–3124 |   The coach-facing message must not read as absence |
-| 3125–3167 |  28. Memory taxonomy |
-| 3143–3167 |   The static/dynamic split is the part that matters |
-| 3168–3514 | Part VI — Tools |
-| 3172–3329 |  29. The data channel and the universal eight |
-| 3178–3213 |   29.1 There is no MCP — the data-channel decision |
-| 3214–3256 |   29.2 The universal eight |
-| 3222–3256 |    `load_evidence_series` joins the set — RATIFIED 2026-09-09 |
-| 3257–3266 |   29.3 `record_field` is RETIRED and may not be reintroduced |
-| 3267–3329 |   29.4 Cross-agent tools — a third category, present but NOT BOUND |
-| 3330–3404 |  30. Computation tools and per-phase binding |
-| 3335–3372 |   Tool sets are per phase, not universal |
-| 3373–3378 |   Each of the 20 is a separate named tool |
-| 3379–3387 |   All 20 are pure functions |
-| 3388–3397 |   `imr_chart_limits` — the choice that is usually wrong by default |
-| 3398–3404 |   Tool decisions are the model's, not the graph's |
-| 3405–3437 |  31. Tool arg schemas and docstrings |
-| 3411–3416 |   Every `@tool` uses `args_schema=` |
-| 3417–3437 |   Docstrings are interface, not commentary |
-| 3438–3514 |  32. Phase skills — SKILL.md |
-| 3461–3465 |   Each skill's `allowed-tools` MUST match that phase's subset in §30 |
-| 3466–3475 |   Progressive disclosure — three levels |
-| 3476–3481 |   Storage backend: `FilesystemBackend` |
-| 3482–3503 |   Each SKILL.md must carry |
-| 3504–3514 |   Two distinct kinds of skill exist in this repository |
-| 3515–4095 | Part VII — Validation and Gates |
-| 3522–3642 |  33. The nine-step HITL gate |
-| 3543–3556 |   Two quality checks, two actors, two moments |
-| 3557–3568 |   Gates are one-way doors, with exactly one defined exception |
-| 3569–3573 |   Implementation: graph-level `interrupt()` |
-| 3574–3604 |   33.1 The two-node split |
-| 3605–3634 |   33.2 `gate_apply_node` writes the gate document TWICE |
-| 3635–3642 |   33.3 The checkpoint commits only after Belt approval |
-| 3643–3746 |  34. The four-layer validation stack |
-| 3658–3665 |   Layer 2a is middleware; layers 2b–2d are the node |
-| 3666–3672 |   Layer 2d is NOT `DMAICGraderMiddleware` |
-| 3673–3678 |   Run cheapest first |
-| 3679–3688 |   The counter and the feedback |
-| 3689–3698 |   Layer 2b is the only deterministic layer, deliberately |
-| 3699–3710 |   Per-phase constraint sets |
-| 3711–3720 |   34.1 Where each check fires |
-| 3721–3746 |   34.2 The self-healing hierarchy and the transparency principle |
-| 3747–3882 |  35. Two tiers of field, and the `warning` verdict |
-| 3753–3767 |   The problem this solves |
-| 3768–3784 |   Three distinct things check these fields, and conflating them is a design error |
-| 3785–3833 |   Gate-required fields by phase |
-| 3834–3850 |   The grader's verdict has three statuses |
-| 3851–3858 |   Why two tiers |
-| 3859–3882 |   The grader is belt-level aware |
-| 3883–3976 |  36. Two graders — and why they are not redundant |
-| 3902–3915 |   Why both exist |
-| 3916–3939 |   `COACHING_QUALITY_RUBRIC` |
-| 3940–3949 |   Mechanism, both graders |
-| 3950–3959 |   Three criteria are verified deterministically, not by judgment |
-| 3960–3976 |   The ratified rubric coverage |
-| 3977–4073 |  37. Mid-phase contradiction and the re-approval cascade |
-| 3983–4004 |   The check runs every turn, not only at gates |
-| 4005–4038 |   §37 governs a GATE-COMMITTED value only |
-| 4039–4052 |   There is NO tolerance threshold, and none may be added |
-| 4053–4060 |   The re-approval cascade |
-| 4061–4073 |   The cascade has a hard dependency on compensating actions |
-| 4074–4095 |  38. Escalation |
-| 4096–5676 | Part VIII — The DMAIC Domain |
-| 4103–5297 |  39. The five phases |
-| 4121–4135 |   The measurement thread that runs across three phases |
-| 4136–4370 |   39.1 Define phase, complete specification |
-| 4143–4150 |    39.1.1 Purpose |
-| 4151–4213 |    39.1.2 The ordered field list — the `field_index` sequence (closes G-38) |
-| 4214–4228 |    39.1.3 The composed-problem-statement rule (binding) |
-| 4229–4243 |    39.1.4 The `team` structure |
-| 4244–4253 |    39.1.5 SIPOC handling |
-| 4254–4265 |    39.1.6 Gate, storage, progress view |
-| 4266–4284 |    39.1.7 The SKILL.md content (AUTHORITATIVE during the refactor) |
-| 4285–4291 |    39.1.8 The other four phases |
-| 4292–4324 |    39.1.9 The metric registry and Define's placeholder |
-| 4325–4332 |    39.1.10 Tools bound to Define |
-| 4333–4340 |    39.1.11 Conditions — routing and the gate |
-| 4341–4348 |    39.1.12 State parameters — Define's use of `PhaseState` |
-| 4349–4356 |    39.1.13 Metric literacy — what each metric means |
-| 4357–4370 |    39.1.14 Cross-phase reads and writes |
-| 4371–4626 |   39.2 Measure phase, complete specification |
-| 4381–4389 |    39.2.1 Purpose |
-| 4390–4412 |    39.2.2 The ordered field list — the `field_index` sequence |
-| 4413–4473 |    39.2.3 The metric registry and Measure's placeholder |
-| 4474–4493 |    39.2.4 SIPOC → the detailed process map |
-| 4494–4515 |    39.2.5 Tools bound to Measure |
-| 4516–4545 |    39.2.6 Conditions — sequence locks, routing, and the gate |
-| 4546–4563 |    39.2.7 State parameters — Measure's use of `PhaseState` |
-| 4564–4580 |    39.2.8 Metric literacy — what each metric means |
-| 4581–4594 |    39.2.9 Gate, storage, progress view |
-| 4595–4603 |    39.2.10 The SKILL.md content (AUTHORITATIVE during the refactor) |
-| 4604–4620 |    39.2.11 Cross-phase reads and writes |
-| 4621–4626 |    39.2.12 The other two phases |
-| 4627–4856 |   39.3 Analyse phase, complete specification |
-| 4637–4646 |    39.3.1 Purpose |
-| 4647–4672 |    39.3.2 The ordered field list — the `field_index` sequence |
-| 4673–4709 |    39.3.3 The metric registry and Analyse's placeholder (linkage form — closes F-13) |
-| 4710–4729 |    39.3.4 Two movements — generate, then validate |
-| 4730–4752 |    39.3.5 Tools bound to Analyse |
-| 4753–4781 |    39.3.6 Conditions — methodology guards, routing, and the gate |
-| 4782–4795 |    39.3.7 State parameters — Analyse's use of `PhaseState` |
-| 4796–4811 |    39.3.8 Metric literacy — what each metric and statistic means |
-| 4812–4823 |    39.3.9 Gate, storage, progress view |
-| 4824–4832 |    39.3.10 The SKILL.md content (AUTHORITATIVE during the refactor) |
-| 4833–4850 |    39.3.11 Cross-phase reads and writes |
-| 4851–4856 |    39.3.12 The other phase |
-| 4857–5059 |   39.4 Improve phase, complete specification |
-| 4867–4875 |    39.4.1 Purpose |
-| 4876–4896 |    39.4.2 The ordered field list — the `field_index` sequence |
-| 4897–4915 |    39.4.3 The metric registry and Improve's placeholder (linkage form) |
-| 4916–4933 |    39.4.4 Two movements — generate-and-select, then pilot-and-prove |
-| 4934–4952 |    39.4.5 Tools bound to Improve |
-| 4953–4984 |    39.4.6 Conditions — methodology guards, DOE belt-gating, routing, gate |
-| 4985–4998 |    39.4.7 State parameters — Improve's use of `PhaseState` |
-| 4999–5012 |    39.4.8 Metric literacy — what each metric and statistic means |
-| 5013–5024 |    39.4.9 Gate, storage, progress view |
-| 5025–5034 |    39.4.10 The SKILL.md content (AUTHORITATIVE during the refactor) |
-| 5035–5051 |    39.4.11 Cross-phase reads and writes |
-| 5052–5059 |    39.4.12 The last phase |
-| 5060–5297 |   39.5 Control phase, complete specification |
-| 5070–5078 |    39.5.1 Purpose |
-| 5079–5107 |    39.5.2 The ordered field list — the `field_index` sequence |
-| 5108–5137 |    39.5.3 The metric registry, the comparison, and single authority (closes F-14) |
-| 5138–5154 |    39.5.4 Two movements — confirm it held, then lock it in |
-| 5155–5174 |    39.5.5 Tools bound to Control |
-| 5175–5207 |    39.5.6 Conditions — guards, routing, gate |
-| 5208–5221 |    39.5.7 State parameters — Control's use of `PhaseState` |
-| 5222–5236 |    39.5.8 Metric literacy — what each metric and statistic means |
-| 5237–5250 |    39.5.9 Gate, storage, progress view |
-| 5251–5261 |    39.5.10 The SKILL.md content (AUTHORITATIVE during the refactor) |
-| 5262–5277 |    39.5.11 Cross-phase reads and writes — the thread closes here |
-| 5278–5297 |    39.5.12 The measurement thread, closed |
-| 5298–5393 |  40. The five `{Phase}Output` schemas |
-| 5321–5339 |   Field counts |
-| 5340–5351 |   The four gate-metadata fields |
-| 5352–5365 |   Three fields are on all five schemas |
-| 5366–5393 |   40.1 Gate assembly |
-| 5394–5477 |  41. Structured dict fields, and FMEA |
-| 5416–5427 |   The grader checks every sub-field is populated |
-| 5428–5436 |   `control_plan` is `dict`, never `str` |
-| 5437–5445 |   `stability_assessment` is checked BEFORE capability |
-| 5446–5457 |   `experiment_justification` is Tier 1 and does not require an experiment |
-| 5458–5477 |   FMEA has no field in any schema, and none may be added |
-| 5478–5509 |  42. Cross-phase reference fields in practice |
-| 5510–5676 |  43. The coaching method |
-| 5528–5555 |   43.1 The seven-step computation pattern |
-| 5556–5593 |   43.2 Show before asking |
-| 5594–5616 |   43.3 The A→F session flow |
-| 5617–5648 |   43.4 The live gate document preview |
-| 5649–5658 |   43.5 No external URLs |
-| 5659–5676 |   43.6 What the coach must not do |
-| 5677–6033 | Part IX — Reliability |
-| 5681–5709 |   43.7 Metric literacy — the metric, and the statistic |
-| 5710–5738 |  44. The failure pipeline |
-| 5739–5851 |  45. Timeouts and compensating actions |
-| 5746–5777 |   Per-node timeouts — required on every phase executor node |
-| 5778–5787 |   Composition order — retries run BEFORE the handler |
-| 5788–5797 |   Node-level error handlers — required on every node with external writes |
-| 5798–5803 |   Hand-written Saga orchestrators are BANNED |
-| 5804–5812 |   Two dependencies on this rule, both correctness-critical |
-| 5813–5844 |   Graceful shutdown — **UNCONFIRMED — MAY NOT EXIST** |
-| 5845–5851 |   `DeltaChannel` is NOT used |
-| 5852–5967 |  46. The fallback chain and circuit breakers |
-| 5858–5870 |   The v2.1 four-level chain |
-| 5871–5877 |   Backoff strategy is chosen per level, not globally |
-| 5878–5896 |   Level 3 cache |
-| 5897–5912 |   Circuit breakers — three-state, two instances |
-| 5913–5919 |   Degraded mode uses actual state, never a generic error |
-| 5920–5927 |   HTTP 400 is NOT a fallback case |
-| 5928–5967 |   46.1 Geographic redundancy — **DEFERRED** |
-| 5968–6008 |  47. Disconnect policy — what a dropped client commits |
-| 5985–5991 |   Ratified policy: ABANDON, not COMPLETE |
-| 5992–6008 |   Five requirements |
-| 6009–6033 |  48. Structured errors |
-| 6034–6522 | Part X — Operations |
-| 6038–6092 |  49. API surface |
-| 6044–6053 |   One runtime |
-| 6054–6061 |   Async by default |
-| 6062–6086 |   Endpoints |
+| 50–256 | Agentic Architecture Reference |
+| 151–256 |  About this document |
+| 157–214 |   Scope — three agents, one architecture |
+| 215–229 |   The two-document division |
+| 230–244 |   Section numbering and provenance |
+| 245–256 |   Reading conventions |
+| 257–548 | Part I — Orientation |
+| 261–337 |  1. What Agent Improve is |
+| 281–307 |   What makes it architecturally distinctive |
+| 308–337 |   The runtime stack |
+| 338–389 |  2. How to read this document |
+| 344–360 |   By what you are trying to do |
+| 361–389 |   Canonical ownership |
+| 390–488 |  3. Terminology |
+| 401–417 |   Structural primitives |
+| 418–429 |   Role labels |
+| 430–447 |   The recursion is two levels, not infinite |
+| 448–462 |   "Harness" — two senses, do not conflate |
+| 463–473 |   "Agent" — used carefully |
+| 474–488 |   Things that are deliberately not levels |
+| 489–548 |  4. Architecture at a glance |
+| 532–548 |   The five things that shape everything else |
+| 549–1276 | Part II — State and Persistence |
+| 556–614 |  5. `SupervisorState` — orchestration only |
+| 568–574 |   `gate_passed` is a dict, not a list |
+| 575–586 |   `current_phase` and `phase_index` are derived, and kept anyway |
+| 587–606 |   Four fields were removed as redundant, and may not return |
+| 607–614 |   Artifacts are not here |
+| 615–850 |  6. `PhaseState` — per-phase subgraph state |
+| 630–661 |   `asks` — §56 AMENDMENT, ratified 2026-09-09 |
+| 662–731 |   `field_log` — §56 AMENDMENT, ratified 2026-09-21 |
+| 732–737 |   `draft`, `belt_edits` and `final` are `dict`, never `str` |
+| 738–760 |   `coaching_plan` is one typed plan, not a queue |
+| 761–776 |   `gate_attempts` — the field whose absence recreated a production bug |
+| 777–797 |   `validator_feedback` and `belt_edits` are different, and must stay separate |
+| 798–815 |   `citations` and `uploads` — the evidence trail |
+| 816–833 |   `hop_results` and `synthesis_output` must be state, not node locals |
+| 834–842 |   Per-phase variants |
+| 843–850 |   Naming discipline |
+| 851–927 |  7. Field typing law — every captured field is a string |
+| 867–879 |   Why strings |
+| 880–899 |   The one exception — three cross-phase reference dicts |
+| 900–927 |   Computation results |
+| 928–1020 |  8. The checkpointer / store split |
+| 952–971 |   Phased backend |
+| 972–983 |   Concurrency and atomicity |
+| 984–999 |   Why Blob, and not Cosmos / Tables / SQLite |
+| 1000–1020 |   On-blob checkpoint format |
+| 1021–1157 |  9. The Store — cross-phase artifacts and boundary mappers |
+| 1062–1085 |   Namespace convention |
+| 1086–1115 |   Why cross-phase data cannot travel on parent state |
+| 1116–1136 |   Boundary mappers |
+| 1137–1149 |   Two prohibitions that follow |
+| 1150–1157 |   Ordering constraint |
+| 1158–1215 |  10. Azure Blob — two distinct concerns |
+| 1177–1202 |   Complete physical layout |
+| 1203–1215 |   The case blob is not updated per turn |
+| 1216–1276 |  11. `step_log` — the audit trail |
+| 1237–1246 |   `artifacts` and `step_log` are separate fields and stay separate |
+| 1247–1276 |   Entries carry deterministic keys, never a raw timestamp as identity |
+| 1277–1647 | Part III — The Graph |
+| 1283–1323 |  12. Topology |
+| 1313–1323 |   The subgraph builder takes the phase as a parameter |
+| 1324–1463 |  13. The phase subgraph — five nodes |
+| 1401–1431 |   The subgraph is a cycle, not a pipeline |
+| 1432–1444 |   Two node names are BANNED |
+| 1445–1450 |   Leaf tools are NOT subgraph nodes |
+| 1451–1463 |   The validation stack and the policy advisory are NOT tools |
+| 1464–1499 |  14. Node contract |
+| 1487–1499 |   Reflection is a node, not a private function |
+| 1500–1564 |  15. Routing — static edges and `Command` |
+| 1506–1523 |   The decision test |
+| 1524–1529 |   Never mix static edges and `Command` from the same node |
+| 1530–1557 |   Level 1 does not route — it advances |
+| 1558–1564 |   No subgraph imports another subgraph's nodes |
+| 1565–1647 |  16. `thread_id`, `checkpoint_ns`, and where persistence attaches |
+| 1571–1586 |   One `thread_id` per project |
+| 1587–1600 |   The checkpointer and store go on the parent graph ONLY |
+| 1601–1627 |   The wrapper node must invoke the subgraph directly (G-44) |
+| 1628–1647 |   `recursion_limit` is a backstop, not the hop cap |
+| 1648–2389 | Part IV — The Coaching Agent |
+| 1654–1768 |  17. The Planner / Executor contract |
+| 1730–1760 |   `CoachingPlan` |
+| 1761–1768 |   Extraction is structured output, not a node and not a tool |
+| 1769–1816 |  18. Building the executor — `create_agent` |
+| 1781–1788 |   Binding tools directly onto a bare model is a violation |
+| 1789–1794 |   `create_react_agent` is superseded |
+| 1795–1807 |   deepagents is not a dependency |
+| 1808–1816 |   The structured response and the coaching text coexist |
+| 1817–2138 |  19. The middleware stack — eight, in order |
+| 1839–1885 |   Ordering rules that bind |
+| 1886–1897 |   Three independent retry caps |
+| 1898–1941 |   19.1 `BeforeModelStateInjection` — injection timing |
+| 1942–1957 |   19.2 `DMAICSkillsMiddleware` — progressive disclosure |
+| 1958–1997 |   19.3 `SummarizationMiddleware` — context compression |
+| 1998–2024 |   19.4 `ModelRetryMiddleware` — API-level retry |
+| 2025–2037 |   19.5 `ToolRetryMiddleware` — tool-level retry |
+| 2038–2060 |   19.6 `ContradictionDetectionMiddleware` — the mid-phase check |
+| 2061–2095 |   19.7 `CoherenceMiddleware` — validation Layer 2a |
+| 2096–2126 |   19.8 `DMAICGraderMiddleware` — coaching process quality |
+| 2127–2138 |   19.9 Middleware deliberately NOT used |
+| 2139–2213 |  20. `CoachingResponse` — the per-turn schema |
+| 2193–2196 |   The executor node writes the response into state |
+| 2197–2203 |   The executor's `response_format` is `CoachingResponse`, never a phase Output |
+| 2204–2213 |   What structured output does NOT give you |
+| 2214–2325 |  21. LLM roles, temperature, and the factory |
+| 2234–2242 |   Factory only |
+| 2243–2263 |   Roles |
+| 2264–2280 |   Temperature |
+| 2281–2325 |   Structured output — scoped by call type |
+| 2326–2389 |  22. Prompts |
+| 2352–2372 |   The memory hierarchy paragraph is mandatory |
+| 2373–2389 |   Anti-hallucination guards are mandatory |
+| 2390–3168 | Part V — Knowledge and Retrieval |
+| 2394–2749 |  23. The three indexes |
+| 2406–2456 |   23.1 `improve_knowledge_index` — methodology |
+| 2457–2582 |   23.2 `improve_evidence_index` — Belt-uploaded evidence |
+| 2502–2526 |    Supersession deletes; it does not flag |
+| 2527–2582 |    Two Azure behaviours govern the migration |
+| 2583–2655 |   23.2.1 The `role` vocabulary — ratified, not invented per phase |
+| 2622–2655 |    `unclassified (pre-ask-binding)` is a MIGRATION SENTINEL, not a thirteenth role |
+| 2656–2704 |   23.3 `improve_case_index` — case records (cross-case memory) |
+| 2705–2715 |   The internal phase key is `analyse`, never `analyse_phase` |
+| 2716–2740 |   23.4 The write-path trap that made `phase_relevance` unfilterable |
+| 2741–2749 |   23.5 Schema change procedure |
+| 2750–2878 |  24. The three `rag_lookup_*` tools |
+| 2768–2825 |   `rag_lookup_evidence` returns a structured record, not rendered text |
+| 2826–2838 |   RAG via tool, never via prepended system message |
+| 2839–2863 |   The retrieval mechanism |
+| 2864–2871 |   `belt_level` filtering is OFF by default |
+| 2872–2878 |   `source_file` and `page_number` are returned, never filtered |
+| 2879–2944 |  25. Multi-query and Reciprocal Rank Fusion |
+| 2888–2904 |   Why it is mandatory |
+| 2905–2911 |   The implementation |
+| 2912–2933 |   `MultiQueryRetriever` and `EnsembleRetriever` are BANNED |
+| 2934–2944 |   Encapsulation |
+| 2945–3078 |  26. Multi-hop retrieval |
+| 2960–2996 |   The hop cap is `RemainingSteps` |
+| 2997–3015 |   Per-phase policy |
+| 3016–3060 |   Planned multi-hop — the Analyse pipeline |
+| 3061–3078 |   **UNVERIFIED** — planned multi-hop is Analyse-only |
+| 3079–3125 |  27. Retrieval failure semantics |
+| 3090–3098 |   Never wrap a retrieval call in a bare `except Exception` returning `[]` |
+| 3099–3108 |   Three rules that each have already bitten |
+| 3109–3125 |   The coach-facing message must not read as absence |
+| 3126–3168 |  28. Memory taxonomy |
+| 3144–3168 |   The static/dynamic split is the part that matters |
+| 3169–3515 | Part VI — Tools |
+| 3173–3330 |  29. The data channel and the universal eight |
+| 3179–3214 |   29.1 There is no MCP — the data-channel decision |
+| 3215–3257 |   29.2 The universal eight |
+| 3223–3257 |    `load_evidence_series` joins the set — RATIFIED 2026-09-09 |
+| 3258–3267 |   29.3 `record_field` is RETIRED and may not be reintroduced |
+| 3268–3330 |   29.4 Cross-agent tools — a third category, present but NOT BOUND |
+| 3331–3405 |  30. Computation tools and per-phase binding |
+| 3336–3373 |   Tool sets are per phase, not universal |
+| 3374–3379 |   Each of the 20 is a separate named tool |
+| 3380–3388 |   All 20 are pure functions |
+| 3389–3398 |   `imr_chart_limits` — the choice that is usually wrong by default |
+| 3399–3405 |   Tool decisions are the model's, not the graph's |
+| 3406–3438 |  31. Tool arg schemas and docstrings |
+| 3412–3417 |   Every `@tool` uses `args_schema=` |
+| 3418–3438 |   Docstrings are interface, not commentary |
+| 3439–3515 |  32. Phase skills — SKILL.md |
+| 3462–3466 |   Each skill's `allowed-tools` MUST match that phase's subset in §30 |
+| 3467–3476 |   Progressive disclosure — three levels |
+| 3477–3482 |   Storage backend: `FilesystemBackend` |
+| 3483–3504 |   Each SKILL.md must carry |
+| 3505–3515 |   Two distinct kinds of skill exist in this repository |
+| 3516–4096 | Part VII — Validation and Gates |
+| 3523–3643 |  33. The nine-step HITL gate |
+| 3544–3557 |   Two quality checks, two actors, two moments |
+| 3558–3569 |   Gates are one-way doors, with exactly one defined exception |
+| 3570–3574 |   Implementation: graph-level `interrupt()` |
+| 3575–3605 |   33.1 The two-node split |
+| 3606–3635 |   33.2 `gate_apply_node` writes the gate document TWICE |
+| 3636–3643 |   33.3 The checkpoint commits only after Belt approval |
+| 3644–3747 |  34. The four-layer validation stack |
+| 3659–3666 |   Layer 2a is middleware; layers 2b–2d are the node |
+| 3667–3673 |   Layer 2d is NOT `DMAICGraderMiddleware` |
+| 3674–3679 |   Run cheapest first |
+| 3680–3689 |   The counter and the feedback |
+| 3690–3699 |   Layer 2b is the only deterministic layer, deliberately |
+| 3700–3711 |   Per-phase constraint sets |
+| 3712–3721 |   34.1 Where each check fires |
+| 3722–3747 |   34.2 The self-healing hierarchy and the transparency principle |
+| 3748–3883 |  35. Two tiers of field, and the `warning` verdict |
+| 3754–3768 |   The problem this solves |
+| 3769–3785 |   Three distinct things check these fields, and conflating them is a design error |
+| 3786–3834 |   Gate-required fields by phase |
+| 3835–3851 |   The grader's verdict has three statuses |
+| 3852–3859 |   Why two tiers |
+| 3860–3883 |   The grader is belt-level aware |
+| 3884–3977 |  36. Two graders — and why they are not redundant |
+| 3903–3916 |   Why both exist |
+| 3917–3940 |   `COACHING_QUALITY_RUBRIC` |
+| 3941–3950 |   Mechanism, both graders |
+| 3951–3960 |   Three criteria are verified deterministically, not by judgment |
+| 3961–3977 |   The ratified rubric coverage |
+| 3978–4074 |  37. Mid-phase contradiction and the re-approval cascade |
+| 3984–4005 |   The check runs every turn, not only at gates |
+| 4006–4039 |   §37 governs a GATE-COMMITTED value only |
+| 4040–4053 |   There is NO tolerance threshold, and none may be added |
+| 4054–4061 |   The re-approval cascade |
+| 4062–4074 |   The cascade has a hard dependency on compensating actions |
+| 4075–4096 |  38. Escalation |
+| 4097–5677 | Part VIII — The DMAIC Domain |
+| 4104–5298 |  39. The five phases |
+| 4122–4136 |   The measurement thread that runs across three phases |
+| 4137–4371 |   39.1 Define phase, complete specification |
+| 4144–4151 |    39.1.1 Purpose |
+| 4152–4214 |    39.1.2 The ordered field list — the `field_index` sequence (closes G-38) |
+| 4215–4229 |    39.1.3 The composed-problem-statement rule (binding) |
+| 4230–4244 |    39.1.4 The `team` structure |
+| 4245–4254 |    39.1.5 SIPOC handling |
+| 4255–4266 |    39.1.6 Gate, storage, progress view |
+| 4267–4285 |    39.1.7 The SKILL.md content (AUTHORITATIVE during the refactor) |
+| 4286–4292 |    39.1.8 The other four phases |
+| 4293–4325 |    39.1.9 The metric registry and Define's placeholder |
+| 4326–4333 |    39.1.10 Tools bound to Define |
+| 4334–4341 |    39.1.11 Conditions — routing and the gate |
+| 4342–4349 |    39.1.12 State parameters — Define's use of `PhaseState` |
+| 4350–4357 |    39.1.13 Metric literacy — what each metric means |
+| 4358–4371 |    39.1.14 Cross-phase reads and writes |
+| 4372–4627 |   39.2 Measure phase, complete specification |
+| 4382–4390 |    39.2.1 Purpose |
+| 4391–4413 |    39.2.2 The ordered field list — the `field_index` sequence |
+| 4414–4474 |    39.2.3 The metric registry and Measure's placeholder |
+| 4475–4494 |    39.2.4 SIPOC → the detailed process map |
+| 4495–4516 |    39.2.5 Tools bound to Measure |
+| 4517–4546 |    39.2.6 Conditions — sequence locks, routing, and the gate |
+| 4547–4564 |    39.2.7 State parameters — Measure's use of `PhaseState` |
+| 4565–4581 |    39.2.8 Metric literacy — what each metric means |
+| 4582–4595 |    39.2.9 Gate, storage, progress view |
+| 4596–4604 |    39.2.10 The SKILL.md content (AUTHORITATIVE during the refactor) |
+| 4605–4621 |    39.2.11 Cross-phase reads and writes |
+| 4622–4627 |    39.2.12 The other two phases |
+| 4628–4857 |   39.3 Analyse phase, complete specification |
+| 4638–4647 |    39.3.1 Purpose |
+| 4648–4673 |    39.3.2 The ordered field list — the `field_index` sequence |
+| 4674–4710 |    39.3.3 The metric registry and Analyse's placeholder (linkage form — closes F-13) |
+| 4711–4730 |    39.3.4 Two movements — generate, then validate |
+| 4731–4753 |    39.3.5 Tools bound to Analyse |
+| 4754–4782 |    39.3.6 Conditions — methodology guards, routing, and the gate |
+| 4783–4796 |    39.3.7 State parameters — Analyse's use of `PhaseState` |
+| 4797–4812 |    39.3.8 Metric literacy — what each metric and statistic means |
+| 4813–4824 |    39.3.9 Gate, storage, progress view |
+| 4825–4833 |    39.3.10 The SKILL.md content (AUTHORITATIVE during the refactor) |
+| 4834–4851 |    39.3.11 Cross-phase reads and writes |
+| 4852–4857 |    39.3.12 The other phase |
+| 4858–5060 |   39.4 Improve phase, complete specification |
+| 4868–4876 |    39.4.1 Purpose |
+| 4877–4897 |    39.4.2 The ordered field list — the `field_index` sequence |
+| 4898–4916 |    39.4.3 The metric registry and Improve's placeholder (linkage form) |
+| 4917–4934 |    39.4.4 Two movements — generate-and-select, then pilot-and-prove |
+| 4935–4953 |    39.4.5 Tools bound to Improve |
+| 4954–4985 |    39.4.6 Conditions — methodology guards, DOE belt-gating, routing, gate |
+| 4986–4999 |    39.4.7 State parameters — Improve's use of `PhaseState` |
+| 5000–5013 |    39.4.8 Metric literacy — what each metric and statistic means |
+| 5014–5025 |    39.4.9 Gate, storage, progress view |
+| 5026–5035 |    39.4.10 The SKILL.md content (AUTHORITATIVE during the refactor) |
+| 5036–5052 |    39.4.11 Cross-phase reads and writes |
+| 5053–5060 |    39.4.12 The last phase |
+| 5061–5298 |   39.5 Control phase, complete specification |
+| 5071–5079 |    39.5.1 Purpose |
+| 5080–5108 |    39.5.2 The ordered field list — the `field_index` sequence |
+| 5109–5138 |    39.5.3 The metric registry, the comparison, and single authority (closes F-14) |
+| 5139–5155 |    39.5.4 Two movements — confirm it held, then lock it in |
+| 5156–5175 |    39.5.5 Tools bound to Control |
+| 5176–5208 |    39.5.6 Conditions — guards, routing, gate |
+| 5209–5222 |    39.5.7 State parameters — Control's use of `PhaseState` |
+| 5223–5237 |    39.5.8 Metric literacy — what each metric and statistic means |
+| 5238–5251 |    39.5.9 Gate, storage, progress view |
+| 5252–5262 |    39.5.10 The SKILL.md content (AUTHORITATIVE during the refactor) |
+| 5263–5278 |    39.5.11 Cross-phase reads and writes — the thread closes here |
+| 5279–5298 |    39.5.12 The measurement thread, closed |
+| 5299–5394 |  40. The five `{Phase}Output` schemas |
+| 5322–5340 |   Field counts |
+| 5341–5352 |   The four gate-metadata fields |
+| 5353–5366 |   Three fields are on all five schemas |
+| 5367–5394 |   40.1 Gate assembly |
+| 5395–5478 |  41. Structured dict fields, and FMEA |
+| 5417–5428 |   The grader checks every sub-field is populated |
+| 5429–5437 |   `control_plan` is `dict`, never `str` |
+| 5438–5446 |   `stability_assessment` is checked BEFORE capability |
+| 5447–5458 |   `experiment_justification` is Tier 1 and does not require an experiment |
+| 5459–5478 |   FMEA has no field in any schema, and none may be added |
+| 5479–5510 |  42. Cross-phase reference fields in practice |
+| 5511–5677 |  43. The coaching method |
+| 5529–5556 |   43.1 The seven-step computation pattern |
+| 5557–5594 |   43.2 Show before asking |
+| 5595–5617 |   43.3 The A→F session flow |
+| 5618–5649 |   43.4 The live gate document preview |
+| 5650–5659 |   43.5 No external URLs |
+| 5660–5677 |   43.6 What the coach must not do |
+| 5678–6034 | Part IX — Reliability |
+| 5682–5710 |   43.7 Metric literacy — the metric, and the statistic |
+| 5711–5739 |  44. The failure pipeline |
+| 5740–5852 |  45. Timeouts and compensating actions |
+| 5747–5778 |   Per-node timeouts — required on every phase executor node |
+| 5779–5788 |   Composition order — retries run BEFORE the handler |
+| 5789–5798 |   Node-level error handlers — required on every node with external writes |
+| 5799–5804 |   Hand-written Saga orchestrators are BANNED |
+| 5805–5813 |   Two dependencies on this rule, both correctness-critical |
+| 5814–5845 |   Graceful shutdown — **UNCONFIRMED — MAY NOT EXIST** |
+| 5846–5852 |   `DeltaChannel` is NOT used |
+| 5853–5968 |  46. The fallback chain and circuit breakers |
+| 5859–5871 |   The v2.1 four-level chain |
+| 5872–5878 |   Backoff strategy is chosen per level, not globally |
+| 5879–5897 |   Level 3 cache |
+| 5898–5913 |   Circuit breakers — three-state, two instances |
+| 5914–5920 |   Degraded mode uses actual state, never a generic error |
+| 5921–5928 |   HTTP 400 is NOT a fallback case |
+| 5929–5968 |   46.1 Geographic redundancy — **DEFERRED** |
+| 5969–6009 |  47. Disconnect policy — what a dropped client commits |
+| 5986–5992 |   Ratified policy: ABANDON, not COMPLETE |
+| 5993–6009 |   Five requirements |
+| 6010–6034 |  48. Structured errors |
+| 6035–6522 | Part X — Operations |
+| 6039–6092 |  49. API surface |
+| 6045–6054 |   One runtime |
+| 6055–6062 |   Async by default |
+| 6063–6086 |   Endpoints |
 | 6087–6092 |   Envelopes are Pydantic v2 |
 | 6093–6249 |  50. UI and language rules |
 | 6100–6138 |   50.1 Coach response structure |

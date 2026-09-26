@@ -49,7 +49,7 @@ that reads it.**
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.82 · 2026-09-26
+Version 1.83 · 2026-09-26
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
 
@@ -57,6 +57,7 @@ Task 3B verification pass completed 2026-08-21.
 The full text of every entry through v1.77 is verbatim in
 [`docs/_archive/ARCHITECTURE_slimmed_2026-09-25.md#L112`](docs/_archive/ARCHITECTURE_slimmed_2026-09-25.md#L112).
 
+- v1.83 · 2026-09-26 · R6: the Define report is accepted through a graph-level pause — `gate_review` calls `interrupt()` once the gate has passed validation; `POST /gate` returns awaiting-acceptance and writes nothing; `POST /gate/decision` resumes with `Command(resume=...)` (approve: `gate_apply` assembles `final`, the route writes and advances, the Belt recorded as actor until R8; reject: the named elements re-open and the coach guides the Belt back in the same run). `AzureBlobCheckpointSaver.put_writes` persists pending writes — it was a no-op, which dropped the interrupt · §33, §49
 - v1.82 · 2026-09-26 · R5: Define's gate is the DEFINE REPORT — seven sections assembled deterministically from confirmed values (`phases/define/report.define_report`), served as `GateReviewResponse.report` on `GET /gate/review` (Define only), drawn on the gate screen with the 5W2H and SIPOC diagrams; the v1-key Define gate document is retired from the screen · §49, §50
 - v1.81 · 2026-09-26 · R6: every Define change is kept in phase state with its date — `field_log` already holds it (one entry per CONFIRMED change, timestamped, with the value it replaced, carried across turns by the case record); `substate.value_history` reads the first and the current confirmed value per field. No new state field · §10.1, §56 (2026-09-21)
 - v1.80 · 2026-09-26 · R3 (docs/requirements/define.md): the validation layer every Belt answer passes before the coach model is the planner's one judgment, made against the element's ACCEPTANCE CRITERIA (`skills.acceptance_criteria`, from its SKILL.md block); `SufficiencyJudgment.failed_criterion` names the first one an insufficient answer fails, checked in code, and the challenge names it · §58 (S-C04)
@@ -6065,19 +6066,18 @@ wired at Step 2.1 does not yet take effect (§53).
 |---|---|
 | `POST /ask` | Non-streaming coaching turn — retained for clients that cannot use SSE |
 | `POST /ask/stream` | **The standard path.** Server-Sent Events; the frontend renders tokens as they arrive |
-| `POST /gate/submit` | Triggers the validation stack and the gate interrupt (§33.1) |
-| `POST /gate/approve` | Resumes from the interrupt with approval |
-| `POST /gate/reject` | Resumes from the interrupt with rejection |
+| `POST /gate` | Triggers the validation stack; for Define, the gate interrupt (§33.1, v1.83) |
+| `POST /gate/decision` | Resumes from the interrupt — `decision: approve \| reject`, the element(s) and reason of a rejection (R6, v1.83) |
 | `GET /cases`, `GET /cases/{id}` | Case records |
 | `GET /registry` | Case registry |
 | `POST /upload` | Belt evidence and artefacts — the only channel through which external data enters the system (§29.1). **Ratified 2026-09-08 (`DECISIONS.md` Part AP5): the route already existed and this table did not name it.** Parse, evidence/artefact routing and refusal behaviour are step 6.11 |
 
 > **SPEC-GAP (G-47): this table is not what the tree serves.** Seven routes
 > exist in `gateway/routes.py` and in neither this table nor S-F34's copy of it
-> — `/health`, `/summarise`, `/context`, `POST /cases`, `POST /gate`,
-> `/gate/review/{case}/{phase}` and `/files/{case}/{file}`. **`POST /gate` is a
-> shape disagreement, not an omission**: this table ratifies `/gate/submit`,
-> `/gate/approve` and `/gate/reject`, and the tree serves one route. `/ask/stream`
+> — `/health`, `/summarise`, `/context`, `POST /cases`,
+> `/gate/review/{case}/{phase}` and `/files/{case}/{file}`. **v1.83 settles the gate's
+> shape**: submission stays `POST /gate`, and ONE resume route carries the decision
+> rather than two (`/gate/approve`, `/gate/reject` retired from this table). `/ask/stream`
 > is NOT part of this gap — ratified, unbuilt, owned by step 10.1. Which of the
 > seven are ratified, which are v1 residue due to die at 11.1, and whether `/gate`
 > becomes three routes are founder questions.

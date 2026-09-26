@@ -60,7 +60,7 @@ from langchain_core.runnables import RunnableConfig
 from backend.core.tracing import child_span
 from langgraph.errors import GraphRecursionError
 from langgraph.graph import END
-from langgraph.types import Command
+from langgraph.types import Command, interrupt
 
 from backend.core.conversation import message_to_turn
 from backend.core.llm import get_llm
@@ -105,7 +105,7 @@ from backend.middleware.skills import (
 )
 from backend.phases import moves
 from backend.middleware.state_injection import BeforeModelStateInjection
-from backend.phases.gate_registry import review_rows, split_by_declared_type
+from backend.phases.gate_registry import GATE_SPECS, review_rows, split_by_declared_type
 from backend.phases.mappers_common import PHASE_ORDER
 
 logger = logging.getLogger(__name__)
@@ -2157,70 +2157,150 @@ async def validation_stack(
 
 # ── gate_review ───────────────────────────────────────────────────────────
 
+#: R6 (docs/requirements/define.md, 2026-09-26) — the Belt's decision on the
+#: Define report, delivered by `Command(resume=...)` to the pause below.
+APPROVE, REJECT = "approve", "reject"
+
+
+def _gate_passage(phase: str, state: PhaseState) -> Optional[dict[str, Any]]:
+    """The gate submission this run is on — the validation stack's latest
+    entry, when it PASSED — for the one phase with a report to accept (R6).
+    `validator_feedback` carries no reducer, so `gate_apply` closes a passage by
+    clearing it, and a later pass through `gate_review` in the same run (the
+    coaching turn after a rejection) finds none and does not pause again."""
+    if phase != "define":
+        return None
+    feedback = [f for f in (state.get("validator_feedback") or []) if isinstance(f, dict)]
+    return feedback[-1] if feedback and feedback[-1].get("passed") else None
+
+
+def _decision(value: Any) -> dict[str, Any]:
+    """The resume value, normalised: approve or reject, the element(s) to
+    change, the reason, the actor (until R8 the Belt), when."""
+    v = dict(value or {}) if isinstance(value, dict) else {"decision": str(value or "")}
+    decision = str(v.get("decision") or "").strip().lower()
+    return {"decision": decision if decision in (APPROVE, REJECT) else REJECT,
+            "elements": [str(e) for e in (v.get("elements") or [])],
+            "reason": str(v.get("reason") or "").strip(),
+            "actor": str(v.get("actor") or ""),
+            "at": str(v.get("at") or datetime.now(timezone.utc).isoformat())}
+
+
 async def gate_review(phase: str, state: PhaseState) -> dict[str, Any]:
-    """Present validated fields to the Belt and stop. **Logs only.**
+    """Present the validated Define report and STOP — the graph-level pause.
 
-    §33: this is where the graph-level `interrupt()` fires — never
-    `HumanInTheLoopMiddleware`, which has two confirmed bugs on exactly this use
-    case (§19). **No `interrupt()` is raised here yet**: §47 requirement 4 is
-    ruled OUT until stage 7, and an `interrupt()` with no `/gate/approve` and
-    `/gate/reject` resume routes (§49) would halt every turn with nothing able
-    to resume it. Both land together.
+    **R6: formal acceptance, human in the loop.** When the Define gate has
+    passed validation this calls `interrupt()` — a graph-level pause, never
+    `HumanInTheLoopMiddleware` (two confirmed bugs on this use case, §19). The
+    parent graph carries the checkpointer, so the pause is persisted (the
+    interrupt and the resume are PENDING WRITES, `AzureBlobCheckpointSaver.
+    put_writes`) and survives between the two requests: `POST /gate` pauses
+    here; `POST /gate/decision` resumes with `Command(resume=...)`.
 
-    Returns plainly. The static edge carries control to `gate_apply`: presenting
-    and applying are two moments of one gate, and the branch belongs to
-    `gate_apply` (approve -> END, reject -> planner).
+    **On resume this node re-runs from its start** (LangGraph: a resumed node
+    restarts; verified against 1.2.11 for a subgraph invoked inside the parent
+    node — the subgraph resumes HERE, its earlier nodes do not re-run), so
+    nothing before the `interrupt()` has a side effect. The decision is written
+    to `step_log`, where `gate_apply` reads it.
+
+    Every other turn, and every other phase until its report exists, passes
+    through as before.
     """
-    logger.info(
-        "%s.gate_review: pass-through (interrupt() lands at stage 7)", phase
-    )
-    return {"step_log": [_step(
-        phase, state.get("turn_count") or 0, "gate_review",
-        status="passthrough", reason="step 4.4 — interrupt() lands at stage 7",
-    )]}
+    turn = state.get("turn_count") or 0
+    passage = _gate_passage(phase, state)
+    if passage is None:
+        return {"step_log": [_step(
+            phase, turn, "gate_review", status="passthrough",
+            reason="no validated gate submission to review")]}
+    value = interrupt({"kind": "accept_define_report", "phase": phase,
+                       "passage": passage.get("key"),
+                       "ask": "Approve the Define report, or reject it naming the "
+                              "element(s) to change and why."})
+    decision = _decision(value)
+    logger.info("%s.gate_review: the Define report was %sd by %s",
+                phase, decision["decision"], decision["actor"] or "the Belt")
+    return {"step_log": [_step(phase, turn, "gate_review", status="decided",
+                               passage=passage.get("key"), **decision)]}
 
 
 # ── gate_apply ────────────────────────────────────────────────────────────
 
+def _decided(state: PhaseState) -> Optional[dict[str, Any]]:
+    """The decision `gate_review` recorded on this run, if any."""
+    for entry in reversed(state.get("step_log") or []):
+        if isinstance(entry, dict) and entry.get("node") == "gate_review":
+            return entry if entry.get("status") == "decided" else None
+    return None
+
+
+def _words(value: Any) -> str:
+    """A stored value as the Belt's current words, for the coach to show."""
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False)
+    return str(value or "")
+
+
 async def gate_apply(
     phase: str, state: PhaseState
 ) -> Command[Literal["planner", "__end__"]]:
-    """Apply Belt edits, run the policy advisory, write the gate document, route on.
+    """Apply the Belt's decision on the Define report, and route on (R6).
 
-    **`policy_advisory` is logic here, not a node** — it is a BANNED node name
-    (§13), because it runs after the Belt edits, when the coach is no longer in
-    the loop. Likewise `revise`: revision is an *edge*, the one the validation
-    stack takes back to the planner.
+    **`policy_advisory` is logic here, not a node** — a BANNED node name (§13).
 
-    **IT APPLIES NOTHING YET, AND THAT IS THE POINT.** Without the `interrupt()`
-    at `gate_review`, reaching this node does not mean the Belt approved — it
-    means the graph ran. §15's rule that "arriving at END means the gate passed"
-    is a statement about the FINISHED subgraph and becomes true when stage 7
-    lands the interrupt. Writing the gate document here now would commit a gate
-    approval the Belt never saw, which is precisely the failure §47's ABANDON
-    policy and §33's nine-step gate exist to prevent — so the parent's phase
-    node does not call the output mapper either, and the two omissions are one
-    decision (DECISIONS Z2).
+    APPROVE -> `final` = the gate document, assembled deterministically from
+    the confirmed values (§33, no model call); `gate_attempts` and
+    `validator_feedback` reset here and only here; END. The case blob write and
+    the phase advance stay the route's, after the resumed graph returns (the
+    write moved nowhere — discrepancy D22, recorded for §33.2).
 
-    Stage 7 adds the two writes §33 requires — `store.put(("projects", case_id,
-    "artifacts"), phase, doc)` **and** `final = doc` — which must both happen,
-    because a crash between them would leave state and store disagreeing about
-    whether the gate applied.
+    REJECT -> the element(s) the team named are RE-OPENED: status back to
+    `asked`, the Belt's current words kept as the answer so far, and the
+    reason on the entry; the reason goes to `rejection_feedback`; the passage
+    closes; and control goes to the PLANNER, whose move on the first re-opened
+    element is a challenge naming the team's reason — the coach guides the Belt
+    back in the same run. Every value keeps its dated history (`field_log`):
+    the re-confirmation writes a new entry with the value it replaces.
 
-    **`gate_attempts` and `validator_feedback` reset here and only here** — the
-    retry budget is per gate passage (§33). Not yet: the reset belongs with the
-    approval, and there is no approval here to reset against.
+    Anything else — a coaching turn, another phase — passes through to END.
     """
-    logger.info(
-        "%s.gate_apply: pass-through -> END (assembly lands at stage 7)", phase
-    )
+    turn = state.get("turn_count") or 0
+    decision = _decided(state) if _gate_passage(phase, state) is not None else None
+    if decision is None:
+        return Command(
+            goto=cast(Literal["planner", "__end__"], END),
+            update={"step_log": [_step(phase, turn, "gate_apply", status="passthrough",
+                                       reason="no decision on a gate submission")]},
+        )
+    artifacts = dict(state.get("artifacts") or {})
+    if decision["decision"] == APPROVE:
+        final: dict[str, Any] = {}
+        try:
+            final = GATE_SPECS[phase].assemble(
+                artifacts, list(state.get("citations") or []),
+                list(state.get("uploads") or []), []).model_dump()
+        except Exception as exc:                    # noqa: BLE001 — the route re-assembles
+            logger.error("%s.gate_apply: assembly failed after approval: %s", phase, exc)
+        return Command(
+            goto=cast(Literal["planner", "__end__"], END),
+            update={"final": {**final, "_approved": {k: decision[k] for k in ("actor", "at")}},
+                    "gate_attempts": 0, "validator_feedback": [],
+                    "step_log": [_step(phase, turn, "gate_apply", status="approved",
+                                       actor=decision["actor"], at=decision["at"])]},
+        )
+    elements = [e for e in decision["elements"] if e in DEFINE_FIELD_ORDER]
+    field_status = {f: dict(v) for f, v in (state.get("field_status") or {}).items()}
+    for element in elements:
+        field_status[element] = {
+            "status": moves.ASKED, "answer": _words(artifacts.get(element)), "messages": 1,
+            "rejected": {k: decision[k] for k in ("reason", "actor", "at")}}
     return Command(
-        goto=cast(Literal["planner", "__end__"], END),   # END == "__end__"
-        update={"step_log": [_step(
-            phase, state.get("turn_count") or 0, "gate_apply",
-            status="passthrough",
-            reason="step 4.4 — advisory, assembly and store write land at stage 7",
-        )]},
+        goto=cast(Literal["planner", "__end__"], "planner"),
+        update={"field_status": field_status, "validator_feedback": [], "turn_count": 0,
+                "rejection_feedback": [*(state.get("rejection_feedback") or []),
+                                       {**decision, "elements": elements}],
+                "step_log": [_step(phase, turn, "gate_apply", status="rejected",
+                                   reopened=elements, reason=decision["reason"],
+                                   actor=decision["actor"])]},
     )
 
 

@@ -67,6 +67,12 @@ STATUSES: tuple[str, ...] = (NOT_TAUGHT, ASKED, ANSWERED, CONFIRMED)
 CONFIRM_CLICK, CHANGE_CLICK = "confirm", "change"
 CHANGE_REASON = ("The Belt clicked Change: ask what they want to change in the "
                  "read-back, and show their current words.")
+#: R6 — the team REJECTED the Define report naming this element; the resumed
+#: run carries this action. Like Change, but from the gate, with its reason.
+REJECTED = "rejected"
+REJECT_REASON = ("The team rejected the Define report and named this element to "
+                 "change — their reason: {reason}. Show the Belt their current "
+                 "words and ask what should change.")
 
 #: Where the move record rides on the coach's reply, and where last turn's
 #: quality feedback rides (step 6.61, §19.1's fifth section) — owned by
@@ -248,6 +254,15 @@ async def decide(phase: str, artifacts: dict[str, Any],
     status = status_of(phase, field, artifacts, after)
     entry = dict(after.get(field) or {})
 
+    if action == REJECTED:
+        # R6 — back from a rejected report: the coach guides the Belt to the
+        # element the team named, showing their current words. No judgment:
+        # the Belt has not answered anything yet.
+        reason = str((entry.get("rejected") or {}).get("reason") or "none given")
+        return done(field, fields, status, CHALLENGE, answer=str(entry.get("answer") or ""),
+                    messages=int(entry.get("messages") or 1),
+                    reason=REJECT_REASON.format(reason=reason))
+
     if status == NOT_TAUGHT:
         after[field] = {"status": ASKED}
         return done(field, fields, status, TEACH)
@@ -325,7 +340,7 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any])
 
 __all__ = [
     "MOVES", "STATUSES", "TEACH", "CHALLENGE", "READ_BACK", "STORE_AND_ADVANCE", "RESPOND",
-    "NOT_TAUGHT", "ASKED", "ANSWERED", "CONFIRMED", "CONFIRM_CLICK", "CHANGE_CLICK",
+    "NOT_TAUGHT", "ASKED", "ANSWERED", "CONFIRMED", "CONFIRM_CLICK", "CHANGE_CLICK", "REJECTED",
     "MOVE_RECORD_KEY", "QUALITY_FEEDBACK_KEY", "COMPOSED_FIELDS", "positions", "focus",
     "current", "status_of", "last_record", "last_feedback", "belt_message",
     "is_confirmation", "field_statuses", "decide", "pending_store",

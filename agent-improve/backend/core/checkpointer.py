@@ -60,6 +60,7 @@ from azure.storage.blob.aio import (
     ContainerClient as AsyncContainerClient,
 )
 from langgraph.checkpoint.base import (
+    WRITES_IDX_MAP,
     BaseCheckpointSaver,
     Checkpoint,
     CheckpointMetadata,
@@ -181,6 +182,12 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
             f"{cls._prefix(thread_id, checkpoint_ns)}"
             f"/history/{checkpoint_id}.json"
         )
+
+    @classmethod
+    def _writes_prefix(cls, thread_id: str, checkpoint_id: str,
+                       checkpoint_ns: str = "") -> str:
+        """Where one checkpoint's PENDING WRITES live — one blob per task."""
+        return f"{cls._prefix(thread_id, checkpoint_ns)}/writes/{checkpoint_id}/"
 
     def _blob(self, path: str) -> BlobClient:
         return self._container.get_blob_client(path)
@@ -331,6 +338,7 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
 
         envelope = json.loads(data.decode("utf-8"))
         checkpoint, metadata, parent_id = self._restore(envelope)
+        pending = self._pending_writes(thread_id, checkpoint["id"], checkpoint_ns)
 
         return CheckpointTuple(
             config={
@@ -342,6 +350,7 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
             },
             checkpoint=checkpoint,
             metadata=metadata,
+            pending_writes=pending,
             parent_config=(
                 {
                     "configurable": {
@@ -426,10 +435,63 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
         task_id: str,
         task_path: str = "",
     ) -> None:
-        # Intermediate node writes — Agent Improve treats checkpoint
-        # saves as the only durable boundary, so we no-op here.
-        # (LangGraph still calls this; it's required by the interface.)
+        """PENDING WRITES — what an `interrupt()` and its resume value ARE.
+
+        **This was a no-op until the Define report's acceptance (R6,
+        2026-09-26) put the first `interrupt()` in the graph.** LangGraph
+        persists an interrupt as an `__interrupt__` pending write, and the
+        value `Command(resume=...)` delivers as a `__resume__` one; a saver
+        that drops them leaves a pause that cannot survive between two
+        requests. With no interrupt in the graph the no-op was harmless — the
+        checkpoint (`put`) carried everything a finished step produced.
+
+        Semantics are the reference saver's (`InMemorySaver.put_writes`,
+        langgraph-checkpoint 4.1.0): a write is keyed (task, index); the
+        special channels (`WRITES_IDX_MAP`: error, scheduled, interrupt,
+        resume) take a fixed negative index and OVERWRITE, any other write
+        keeps the first value stored at its index. One blob per task, under
+        `{prefix}/writes/{checkpoint_id}/`.
+        """
+        checkpoint_id = (config.get("configurable") or {}).get("checkpoint_id")
+        if not checkpoint_id:
+            return None
+        thread_id = self._thread_id(config)
+        checkpoint_ns = self._checkpoint_ns(config)
+        path = (self._writes_prefix(thread_id, checkpoint_id, checkpoint_ns)
+                + quote(task_id, safe="") + ".json")
+        blob = self._blob(path)
+        with self._lock:
+            try:
+                envelope = json.loads(blob.download_blob().readall().decode("utf-8"))
+            except ResourceNotFoundError:
+                envelope = {"task_id": task_id, "task_path": task_path, "writes": {}}
+            stored = envelope.setdefault("writes", {})
+            for idx, (channel, value) in enumerate(writes):
+                inner = WRITES_IDX_MAP.get(channel, idx)
+                if inner >= 0 and str(inner) in stored:
+                    continue
+                kind, data = self.serde.dumps_typed(value)
+                stored[str(inner)] = {"channel": channel, "type": kind,
+                                      "data": base64.b64encode(data).decode("ascii")}
+            blob.upload_blob(json.dumps(envelope).encode("utf-8"), overwrite=True)
         return None
+
+    def _pending_writes(self, thread_id: str, checkpoint_id: str,
+                        checkpoint_ns: str = "") -> list[Tuple[str, str, Any]]:
+        """`(task_id, channel, value)` for every write pending on a checkpoint."""
+        prefix = self._writes_prefix(thread_id, checkpoint_id, checkpoint_ns)
+        out: list[Tuple[str, str, Any]] = []
+        for item in self._container.list_blobs(name_starts_with=prefix):
+            try:
+                raw = self._blob(item.name).download_blob().readall()
+            except ResourceNotFoundError:
+                continue
+            envelope = json.loads(raw.decode("utf-8"))
+            for write in (envelope.get("writes") or {}).values():
+                out.append((envelope.get("task_id", ""), write["channel"],
+                            self.serde.loads_typed(
+                                (write["type"], base64.b64decode(write["data"])))))
+        return out
 
     # ───────────────── Async variants (thin wrappers) ─────────────────
 
@@ -466,7 +528,7 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
         task_id: str,
         task_path: str = "",
     ) -> None:
-        return None
+        return self.put_writes(config, writes, task_id, task_path)
 
 
 # ─────────────────── Module-level factory ───────────────────

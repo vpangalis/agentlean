@@ -4517,6 +4517,72 @@ async function renderDefineReport(isPassed) {
   if (typeof renderDefineReportActions === 'function') renderDefineReportActions(d, rep, isPassed);
 }
 
+// ─── R6 — ACCEPT OR REJECT THE DEFINE REPORT ──────────────────────
+// Pure: what the controls under the report are, from the review response.
+// Complete and not yet submitted -> Submit for acceptance (POST /gate, which
+// PAUSES the graph); paused -> Approve, or Reject naming the element(s) to
+// change and why (POST /gate/decision resumes it). Until R8 the Belt is the actor.
+function defineReportActionsHtml(d, rep, isPassed) {
+  if (isPassed) return '';
+  const btn = (label, onclick, primary, disabled) => `<button ${disabled ? 'disabled' : ''}
+    onclick="${onclick}" style="padding:9px 14px;border-radius:6px;font-size:12px;font-weight:600;
+    cursor:${disabled ? 'not-allowed' : 'pointer'};border:${primary ? 'none' : '0.5px solid #E4E2DC'};
+    background:${disabled ? '#E4E2DC' : primary ? '#0070BA' : '#fff'};
+    color:${disabled ? '#9A9689' : primary ? '#fff' : '#2C3E50'}">${label}</button>`;
+  if (!d.awaiting_decision) {
+    return `<div style="background:#fff;border:0.5px solid #E4E2DC;border-radius:8px;padding:12px 14px">
+      <div style="font-size:11px;color:#5C5A55;margin-bottom:8px;line-height:1.5">
+        ${rep.complete ? 'Every element is confirmed. Submit the report so your team can review and approve it.'
+                       : 'Confirm every element with your coach before the report can be submitted.'}</div>
+      ${btn('Submit the Define report for acceptance', 'submitGateReview()', true, !rep.complete)}</div>`;
+  }
+  const label = f => escapeHtml(String(f).replace(/_/g, ' '));
+  const boxes = (rep.elements || []).map(e => `<label style="display:inline-flex;align-items:center;
+      gap:4px;font-size:11px;margin:2px 10px 2px 0"><input type="checkbox" class="reject-element"
+      value="${escapeHtml(e.field)}"> ${label(e.field)}</label>`).join('');
+  return `<div style="background:#fff;border:0.5px solid #0070BA;border-radius:8px;padding:12px 14px">
+    <div style="font-size:12px;font-weight:600;color:#2C3E50;margin-bottom:4px">Your team's decision</div>
+    <div style="font-size:11px;color:#5C5A55;margin-bottom:10px;line-height:1.5">Read the report with
+      your team. Approve it to close Define, or reject it naming what needs to change — your coach
+      takes you back to those parts, and every change is kept with its date.</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">${btn('Approve the Define report', "decideDefineReport('approve')", true, false)}</div>
+    <div style="font-size:11px;font-weight:600;color:#2C3E50;margin-bottom:4px">Or reject — what needs to change?</div>
+    <div>${boxes}</div>
+    <textarea id="reject-reason" rows="2" placeholder="Why — what should change?" style="width:100%;
+      margin:6px 0;font-size:11px;padding:6px;border:0.5px solid #E4E2DC;border-radius:4px;
+      font-family:inherit"></textarea>
+    ${btn('Reject and go back to these parts', "decideDefineReport('reject')", false, false)}</div>`;
+}
+
+function renderDefineReportActions(d, rep, isPassed) {
+  const host = document.getElementById('define-report-actions');
+  if (host) host.innerHTML = defineReportActionsHtml(d, rep, isPassed);
+}
+
+async function decideDefineReport(decision) {
+  if (!S.case) return;
+  const elements = [...document.querySelectorAll('.reject-element:checked')].map(b => b.value);
+  const reason = (document.getElementById('reject-reason') || {}).value || '';
+  if (decision === 'reject' && (!elements.length || !reason.trim())) {
+    toast('To reject, tick what needs to change and say why.', 5000);
+    return;
+  }
+  try {
+    const resp = await apiJSON(`${API}/gate/decision`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({case_id: S.case.case_id, phase: 'define', decision,
+                            actor: S.user, elements, reason}),
+    });
+    toast(resp.message || 'Decision recorded.', 5000);
+    const caseId = S.case.case_id;
+    await openWorkspace(caseId);                    // the case as the decision left it
+    selectTab(decision === 'reject' ? 'chat' : 'gate');
+  } catch (e) {
+    toast('The decision could not be recorded: ' + (e.message || e) + ' — nothing changed.', 6000);
+    renderGate();
+  }
+}
+
 // Switch the Gate view to another phase without changing S.phase
 // (the active phase). gateViewPhase is read by renderGate() to
 // determine which phase's gate document to display.
@@ -6092,6 +6158,13 @@ async function submitGateReview() {
       })
     });
 
+    if (resp.awaiting_acceptance) {
+      // R6 — the Define report is paused for the team's decision: back to the
+      // report, which now shows Approve / Reject.
+      toast(resp.message, 6000);
+      renderGate();
+      return;
+    }
     renderGateResult(resp);
 
   } catch (e) {

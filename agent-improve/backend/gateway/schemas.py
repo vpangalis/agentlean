@@ -115,6 +115,37 @@ class GateSubmitResponse(BaseModel):
     missing_fields: list[str] = []          # plain language — shown to team
     message: str                            # Orchestrator plain language feedback
     next_phase: Optional[str] = None        # set when gate passes
+    #: R6 — the Define report passed validation and the graph is PAUSED for the
+    #: team's decision (POST /gate/decision); nothing has been written yet.
+    awaiting_acceptance: bool = False
+
+
+class GateDecisionRequest(BaseModel):
+    """R6 — the Belt (with the team) approves or rejects the Define report.
+
+    Until R8 (docs/requirements/platform.md) the Belt approves and is recorded
+    as `actor`. A rejection names the element(s) to change and why."""
+
+    case_id: str
+    phase: str
+    decision: Literal["approve", "reject"]
+    actor: str
+    elements: list[str] = []
+    reason: str = ""
+
+
+class GateDecisionResponse(BaseModel):
+    decision: str
+    phase: str
+    message: str
+    next_phase: Optional[str] = None        # set on approval
+    reopened: list[str] = []                # set on rejection: the elements back in coaching
+    #: On rejection, the coach's guidance back to the first re-opened element.
+    answer: str = ""
+    explanation: str = ""
+    example: str = ""
+    prompt: str = ""
+    progress: str = ""
 
 
 class RegistryEntryOut(BaseModel):
@@ -227,3 +258,6 @@ class GateReviewResponse(BaseModel):
     #: R5 — Define only: the seven-section Define report, from confirmed values
     #: (`phases/define/report.define_report`); None for the other phases.
     report: dict | None = None
+    #: R6 — a Define report is paused for the team's decision (the graph holds
+    #: an interrupt); the screen shows Approve / Reject rather than Submit.
+    awaiting_decision: bool = False
