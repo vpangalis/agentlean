@@ -197,3 +197,5 @@ def test_the_gate_write_keeps_the_change_log_and_uploads() -> None:
 def test_measure_starts_from_the_approved_define_record() -> None:
     """DEF-062 — After approval the case advances to Measure, and Measure starts from the approved Define record without PriorGateDocumentMissing."""
     _not_written('DEF-062')
+
+# Part E proof (6.67): a trivial change that a DEF-named commit carries.
