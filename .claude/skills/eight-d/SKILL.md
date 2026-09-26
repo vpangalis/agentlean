@@ -14,7 +14,7 @@ version: "1.0"
 
 # eight-d
 
-**Founder ruling 2026-09-11, CLAUDE.md §20.** Every defect, modification or
+**Founder ruling 2026-09-11, CLAUDE.md §20** (since 6.67 CLAUDE.md carries it as one line — rule 6, an 8D only for a real defect; the full text is archived at `docs/_archive/CLAUDE_md_v2.2.46_2026-09-26.md`). Every defect, modification or
 adaptation is worked as an 8D **before a fix is proposed**. The 8D is the work,
 not the write-up: it is what you do first, and the commit body is its record.
 

@@ -2,7 +2,7 @@
 
 Written by `.claude/hooks/section_index.py` on every commit that touches a
 document below (step 6.66). Find the section here, then read only its lines
-(CLAUDE.md §22 b). A range runs to the next heading of the same or higher level.
+(CLAUDE.md, Three layers). A range runs to the next heading of the same or higher level.
 
 ## `agent-improve/ARCHITECTURE.md` — 11655 lines
 

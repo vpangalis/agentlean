@@ -50,7 +50,7 @@ placement.
 
 ```bash
 python .claude/hooks/drift-check.py
-python .claude/hooks/verify_built.py
+python .claude/hooks/preflight.py            # drift, types, tests of what changed (verify_built.py retired at 6.67)
 cd agent-improve && .venv/Scripts/python.exe -m pytest backend/tests -q
 ```
 

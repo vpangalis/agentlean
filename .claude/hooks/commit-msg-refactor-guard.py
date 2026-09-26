@@ -956,7 +956,7 @@ def check_8d(subject: str, message: str) -> None:
 
     answered = ["  %-15s %s" % (n, (found[n] or "")[:60])
                 for n in names if not eightd_verdict(found[n])]
-    fail("the 8D body is incomplete — CLAUDE.md §20",
+    fail("the 8D body is incomplete — rule 6 (CLAUDE.md, the rules a hook enforces; the eight-d skill)",
          "Rule 6 applies because %s." % why, "",
          "NOT ANSWERED",
          *["  %-15s %s" % (n, v) for n, v in problems], "",
@@ -1298,7 +1298,7 @@ def check_size(root: str, staged: list[str]) -> None:
         if r[0] == "warn":
             note("rule 12 size: WARNING — " + sb.message(*r))
     if over:
-        fail("a governing document is over its size budget — CLAUDE.md §22 (h)",
+        fail("a governing document is over its size budget — rule 12, REPLACE, DON'T APPEND",
              *[sb.message(*r) for r in over], "",
              "REPLACE, DON'T APPEND: state the current rule in place of the old one,",
              "and move history, rationale and dated incidents to docs/_archive/.",

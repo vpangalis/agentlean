@@ -17,7 +17,7 @@ version: "1.0"
 
 ```bash
 python .claude/hooks/drift-check.py            # owned facts vs the documents
-python .claude/hooks/verify_built.py           # BUILT markers vs the tree
+python .claude/hooks/preflight.py            # drift, types, tests of what changed (verify_built.py retired at 6.67)
 python .claude/hooks/verify_rule_triggers.py   # paths: globs that match nothing
 cd agent-improve && .venv/Scripts/python.exe -m pytest backend/tests -q
 ```

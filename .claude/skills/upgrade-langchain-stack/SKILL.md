@@ -79,7 +79,7 @@ statement.
 ```bash
 cd agent-improve && .venv/Scripts/python.exe -m pytest backend/tests -q
 .venv/Scripts/python.exe -m mypy .
-python .claude/hooks/verify_built.py
+python .claude/hooks/preflight.py            # drift, types, tests of what changed (verify_built.py retired at 6.67)
 ```
 
 **mypy earns its place here above all.** langgraph, langchain, langchain-core,

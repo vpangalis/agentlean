@@ -13,7 +13,7 @@ paths:
 
 **Canonical: ARCHITECTURE.md §19.** The stack's members and order are owned by
 `_build_executor()` in `backend/phases/nodes_common.py`, enforced by
-`verify_built.py` and `test_the_declared_middleware_list_is_the_ratified_layering`.
+`test_the_declared_middleware_list_is_the_ratified_layering` (verify_built.py retired at 6.67).
 **Read the list there; do not restate it.**
 
 **The list is NESTING order; for `after_*` hooks execution is the reverse.**

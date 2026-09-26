@@ -32,14 +32,14 @@ grep -nE '^#+ (0\.)?[0-9]+' agent-improve/CLAUDE.md .claude/rules/*.md
 Then the registry, which is the one that bites:
 
 ```bash
-python .claude/hooks/verify_built.py          # 24 markers against the tree
+python .claude/hooks/preflight.py            # drift, types, tests of what changed (verify_built.py retired at 6.67)
 python .claude/hooks/verify_rule_triggers.py  # every paths: glob matches something
 python .claude/hooks/drift-check.py           # owned facts vs the documents
 ```
 
 ## 2 — Does a claim about code carry the code?
 
-CLAUDE.md §20.5 — a claim about what the code does quotes the lines it rests on,
+CLAUDE.md, "Reports" (§20.5 until 6.67) — a claim about what the code does quotes the lines it rests on,
 with file and line number; **a claim of ABSENCE carries the command and its
 output.** A report saying "no test asserts this" without the grep is not a
 finding, it is a belief.

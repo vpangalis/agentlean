@@ -20,7 +20,7 @@ computation tools, plus `load_skill`, must fit — and Measure sits nearest the
 edge. Count before you design:
 
 ```bash
-python .claude/hooks/verify_built.py | grep -iE "tool bind|computation"
+grep -n "COMPUTATION_TOOLS_BY_PHASE" -A 40 agent-improve/backend/knowledge/tools.py   # the per-phase bind (verify_built.py retired at 6.67)
 ```
 
 If the addition breaches the cap, **the answer is a placement, not a higher
@@ -63,9 +63,9 @@ ask the Belt what they conclude.
 
 ```bash
 cd agent-improve && .venv/Scripts/python.exe -m pytest backend/tests -q
-python .claude/hooks/verify_built.py
+python .claude/hooks/preflight.py            # drift, types, tests of what changed (verify_built.py retired at 6.67)
 ```
 
-Both counts are BUILT markers. If a marker disagrees with the tree, the tree
+The BUILT-marker check retired with the procedure at 6.67; the tests are the check now. If a marker disagrees with the tree, the tree
 moved and the document is now a claim — resolve which, and never just
 re-baseline.
