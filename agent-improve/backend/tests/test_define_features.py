@@ -188,5 +188,36 @@ def test_the_guard_refuses_a_regression_of_a_ratcheted_feature(tmp_path, no_git_
         _guard().check_ratchet(str(repo))
 
 
+def _continuity_repo(tmp_path: Path, block: str) -> Path:
+    repo = tmp_path / "c"
+    (repo / "agent-improve" / "docs").mkdir(parents=True)
+    (repo / "agent-improve" / "docs" / "CONTINUITY.md").write_text(f"# C\n\n{block}\n", encoding="utf-8")
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "t@t")
+    _git(repo, "config", "user.name", "t")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "seed")
+    return repo
+
+
+def test_rule_5_passes_a_current_block_that_did_not_change(tmp_path, no_git_env, monkeypatch) -> None:
+    """Found by 6.67's Part E proof: the features-derived block is often
+    unchanged between commits, and an unchanged file is never staged — rule 5
+    refused a correct commit for it."""
+    g = _guard()
+    block = f"{g.cs.BEGIN}\n| **Headline** | 9 of 64 |\n{g.cs.END}"
+    repo = _continuity_repo(tmp_path, block)
+    monkeypatch.setattr(g.cs, "build_block", lambda root: block)
+    g.check_continuity(str(repo), [])                       # not staged, current: passes
+
+
+def test_rule_5_still_refuses_a_stale_block(tmp_path, no_git_env, monkeypatch) -> None:
+    g = _guard()
+    repo = _continuity_repo(tmp_path, f"{g.cs.BEGIN}\n| **Headline** | 8 of 64 |\n{g.cs.END}")
+    monkeypatch.setattr(g.cs, "build_block", lambda root: f"{g.cs.BEGIN}\n| **Headline** | 9 of 64 |\n{g.cs.END}")
+    with pytest.raises(SystemExit):
+        g.check_continuity(str(repo), [])
+
+
 def test_the_guard_passes_a_ratcheted_feature_that_still_passes(tmp_path, no_git_env) -> None:
     _guard().check_ratchet(str(_repo(tmp_path, "passed", ratchet=["DEF-900"])))

@@ -984,7 +984,12 @@ def check_continuity(root: str, staged: list[str]) -> None:
     be blocked over a value that carries no build meaning.
     """
     want = cs.CONTINUITY.lower()
-    if not any(p.lower() == want for p in staged):
+    # 6.67: the block is derived from the features, so between two commits it
+    # is often UNCHANGED — and an unchanged file is never "staged". What this
+    # rule defends is a CURRENT block; an unchanged one read from the index
+    # (== HEAD's) passes when it is what regeneration gives.
+    if not any(p.lower() == want for p in staged) and \
+            cs.extract_block(cs.staged_text(cs.CONTINUITY, root)) is None:
         fail("CONTINUITY.md was not updated in this commit",
              f"Required: {cs.CONTINUITY}", "",
              f"Staged in this commit ({len(staged)} path(s)):",

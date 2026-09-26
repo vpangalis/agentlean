@@ -1,9 +1,9 @@
 {
- "source_hash": "af2920081001524d",
- "commit": "efb447d",
+ "source_hash": "c80ca64bd3b78ca2",
+ "commit": "0ae5302",
  "commit_matches_source": false,
- "full_run_hash": "af2920081001524d",
- "recorded_at": "2026-09-26T12:36:59+00:00",
+ "full_run_hash": "c80ca64bd3b78ca2",
+ "recorded_at": "2026-09-26T12:46:46+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -368,6 +368,8 @@
   "backend/tests/test_define_features.py::test_every_feature_has_the_founders_fields_and_no_status": "passed",
   "backend/tests/test_define_features.py::test_every_features_test_exists": "passed",
   "backend/tests/test_define_features.py::test_ids_are_unique_and_every_dependency_resolves": "passed",
+  "backend/tests/test_define_features.py::test_rule_5_passes_a_current_block_that_did_not_change": "passed",
+  "backend/tests/test_define_features.py::test_rule_5_still_refuses_a_stale_block": "passed",
   "backend/tests/test_define_features.py::test_status_is_derived_from_the_recorded_outcome_only": "passed",
   "backend/tests/test_define_features.py::test_the_clauses_are_the_five_of_define_complete": "passed",
   "backend/tests/test_define_features.py::test_the_guard_allows_a_DEF_commit_whose_test_passes": "passed",
@@ -1288,8 +1290,8 @@
   "backend/tests/test_wiring.py::test_wired_6_61_the_move_is_decided_in_code": "passed"
  },
  "older": {
-  "source_hash": "f3eb1db9d75138e9",
-  "recorded_at": "2026-09-26T12:27:56+00:00",
+  "source_hash": "41de23636b2ff141",
+  "recorded_at": "2026-09-26T12:40:08+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2534,6 +2536,7 @@
    "backend/tests/test_retriever.py::test_the_failure_block_carries_no_response_scaffolding": "passed",
    "backend/tests/test_retriever.py::test_the_raw_client_paths_return_empty_on_a_genuine_no_match[<lambda>0]": "passed",
    "backend/tests/test_retriever.py::test_the_raw_client_paths_return_empty_on_a_genuine_no_match[<lambda>1]": "passed",
+   "backend/tests/test_session_start.py::test_the_session_start_hook_prints_every_section": "passed",
    "backend/tests/test_size_budget.py::test_an_unbudgeted_file_is_never_measured": "passed",
    "backend/tests/test_size_budget.py::test_every_governing_document_has_a_bound": "passed",
    "backend/tests/test_size_budget.py::test_line_endings_do_not_count": "passed",
