@@ -1,4 +1,4 @@
-"""Define's feature list — status ONLY from test results. Step 6.66.
+"""Define's feature list — status ONLY from test results. Steps 6.66, 6.67.
 
 Anthropic, *Effective harnesses for long-running agents*
 (https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents):
@@ -9,19 +9,23 @@ status field; this module derives it from `docs/test-results.json`:
     passing   the feature's test is recorded `passed`
     failing   recorded anything else, or never recorded (the test is not written yet)
 
-and says whether that record is FRESH (run on the current source). The board,
-CONTINUITY and the session-start routine read this, and nothing else.
+Since 6.67 it is the ONLY progress source: the board, CONTINUITY, the session
+start and the commit guard's landing rule all read it. It owns what the retired
+`progress.py` owned for the test recorder (`RESULTS`, `SOURCE_GLOBS`,
+`source_hash`) and adds:
 
-It also names the sets the coverage test holds the list to — every Define
-step, every capability row (Appendix H), every open Define gap:
+    the landing rule    a commit naming DEF-xxx lands only if that feature's
+                        test passes and every depends_on feature passes
+    the ratchet         once a feature has passed (`docs/features-ratchet.json`),
+                        its test is required on every later commit
 
-    python tools/control_board/features.py              # summary, first failing per lane
+    python tools/control_board/features.py              # summary, next failing per lane
     python tools/control_board/features.py --lane A     # the lane's failing features, in order
 """
 from __future__ import annotations
 
+import hashlib
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -29,12 +33,13 @@ _HERE = Path(__file__).resolve().parent
 PROJECT = _HERE.parents[1]
 FEATURES = PROJECT / "docs" / "define_features.json"
 RESULTS = PROJECT / "docs" / "test-results.json"
+RATCHET = PROJECT / "docs" / "features-ratchet.json"
+RUNTHROUGH = PROJECT / "docs" / "runthrough"
 LANES = {"A": "coaching", "B": "gate", "C": "screen and inputs", "integrator": "end-to-end joins"}
-#: Work packages on the Define path that are NOT Define behaviour: WP0 the
-#: board and tooling, WP6 the other four phases.
-NOT_DEFINE_WP = ("WP0", "WP6")
-
-sys.path.insert(0, str(_HERE))
+#: The product source a test run is bound to (moved here from progress.py at 6.67).
+SOURCE_GLOBS = ("backend/**/*.py", "ui/*.html", "skills/**/*.md")
+#: The feature tests that read the live run-through's record.
+RUNTHROUGH_TESTS = "backend/tests/test_define_runthrough.py::"
 
 
 def load(path: Path = FEATURES) -> list[dict]:
@@ -43,6 +48,31 @@ def load(path: Path = FEATURES) -> list[dict]:
 
 def results(path: Path = RESULTS) -> dict:
     return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {"outcomes": {}}
+
+
+def _hash(root: Path, skip_tests: bool) -> str:
+    h = hashlib.sha256()
+    for pattern in SOURCE_GLOBS:
+        for f in sorted(root.glob(pattern)):
+            rel = f.relative_to(root).as_posix()
+            if "__pycache__" in f.parts or ".venv" in f.parts:
+                continue
+            if skip_tests and rel.startswith("backend/tests/"):
+                continue
+            h.update(rel.encode())
+            h.update(f.read_bytes().replace(b"\r\n", b"\n"))
+    return h.hexdigest()[:16]
+
+
+def source_hash(root: Path = PROJECT) -> str:
+    """The source a test outcome is bound to — product AND tests."""
+    return _hash(root, skip_tests=False)
+
+
+def product_hash(root: Path = PROJECT) -> str:
+    """The product source only — what a live run's record is bound to. A new
+    test changes no product behaviour, so it must not stale a run's record."""
+    return _hash(root, skip_tests=True)
 
 
 def node_id(test: str) -> str:
@@ -56,44 +86,28 @@ def status(features: list[dict], res: dict) -> dict[str, str]:
             for f in features}
 
 
-def product_hash(root: Path = PROJECT) -> str:
-    """The board's source hash WITHOUT `backend/tests/` — what a live run's
-    record is bound to. A new test changes no product behaviour, so it must
-    not make a run's record stale; a product change must."""
-    import hashlib
-    import progress
-    h = hashlib.sha256()
-    for pattern in progress.SOURCE_GLOBS:
-        for f in sorted(root.glob(pattern)):
-            rel = f.relative_to(root).as_posix()
-            if "__pycache__" in f.parts or ".venv" in f.parts or rel.startswith("backend/tests/"):
-                continue
-            h.update(rel.encode())
-            h.update(f.read_bytes().replace(b"\r\n", b"\n"))
-    return h.hexdigest()[:16]
-
-
 def fresh(res: dict) -> bool:
-    """Was the record run on the current source? (the board's own freshness rule)"""
-    try:
-        import progress
-        return res.get("source_hash") == progress.source_hash()
-    except Exception:                                   # noqa: BLE001
-        return False
+    """Was the record run on the current source?"""
+    return res.get("source_hash") == source_hash()
 
 
 def summary(features: list[dict] | None = None, res: dict | None = None) -> dict:
     features = load() if features is None else features
     res = results() if res is None else res
     st = status(features, res)
-    lanes = {}
+    lanes: dict[str, dict] = {}
+    clauses: dict[str, dict] = {}
     for lane in LANES:
         mine = [f for f in features if f["lane"] == lane]
         failing = [f["id"] for f in mine if st[f["id"]] == "failing"]
         lanes[lane] = {"total": len(mine), "passing": len(mine) - len(failing),
                        "next": _next(failing, features, st)}
+    for f in features:
+        c = clauses.setdefault(f["clause"], {"total": 0, "passing": 0})
+        c["total"] += 1
+        c["passing"] += st[f["id"]] == "passing"
     return {"total": len(features), "passing": sum(v == "passing" for v in st.values()),
-            "fresh": fresh(res), "lanes": lanes, "status": st}
+            "fresh": fresh(res), "lanes": lanes, "clauses": clauses, "status": st}
 
 
 def _next(failing: list[str], features: list[dict], st: dict[str, str]) -> str | None:
@@ -109,64 +123,75 @@ def headline(s: dict | None = None) -> str:
     s = summary() if s is None else s
     lanes = " · ".join(f"{k} {v['passing']}/{v['total']}" for k, v in s["lanes"].items())
     stale = "" if s["fresh"] else " (record older than the source)"
-    return f"Define features passing: {s['passing']} of {s['total']} — {lanes}{stale}"
+    return f"{s['passing']} of {s['total']} Define features pass — {lanes}{stale}"
 
 
-# ── the sets the coverage test holds the list to ────────────────────────────
-def define_steps(text: str) -> set[str]:
-    """Every Define step, open or not: the Define path table (minus WP0/WP6),
-    the owners of a capability row, epic E1, and the table's 'Off the path'."""
-    import progress
-    import stories
-    est = progress.estimates(text)
-    owners = {o for r in progress.register(text).values() for o in r["owners"]}
-    e1 = {s for s, (e, _) in stories.epic_of().items() if e == "E1"}
-    m = re.search(r"\*\*Off the path:\*\*([^\n]*\n[^\n]*)", text)
-    off = set(progress._STEP_REF.findall(m.group(1))) if m else set()
-    excluded = {s for s, e in est.items() if e["wp"].startswith(NOT_DEFINE_WP)}
-    return ((set(est) | owners | e1 | off) - excluded) & set(progress.appendix_d(text))
+# ── the landing rule and the ratchet (the commit guard's rule 11) ───────────
 
 
-def capability_rows(text: str) -> set[str]:
-    import progress
-    return {str(r) for r in progress.register(text)}
+def ratchet(path: Path = RATCHET) -> list[str]:
+    """Features that have passed once and so must keep passing."""
+    return sorted(json.loads(path.read_text(encoding="utf-8"))["passing"]) if path.is_file() else []
 
 
-def open_gaps(text: str) -> dict[str, set[str]]:
-    """Appendix G's open gaps -> the steps their Step cell names. Struck rows
-    and §66.6 (closed) are not open."""
-    import progress
-    lines = text.splitlines()
-    start = next(i for i, l in enumerate(lines) if l.startswith("## Appendix G"))
-    end = next(i for i, l in enumerate(lines) if l.startswith("## Appendix H"))
-    sub, out = "", {}
-    for line in lines[start:end]:
-        h = re.match(r"^### (66\.\d+)", line)
-        if h:
-            sub = h.group(1)
-        m = re.match(r"^\|\s*(~~)?\*\*(G-\d+)\*\*", line)
-        if not m or m.group(1) or sub == "66.6":
-            continue
-        cells = line.split("|")
-        cell = cells[-2]
-        if "closed" in cell.lower():
-            continue
-        out[m.group(2)] = set(progress._STEP_REF.findall(cell))
+def runthrough_fresh() -> bool:
+    """Is the newest run-through record bound to the current product source?"""
+    files = sorted(RUNTHROUGH.glob("define_runthrough_*.json"))
+    if not files:
+        return False
+    summary_line: dict = next((r for r in json.loads(files[-1].read_text(encoding="utf-8"))
+                               if r.get("kind") == "summary"), {})
+    return summary_line.get("product_hash") == product_hash()
+
+
+def landing_refusal(fid: str, features: list[dict], res: dict) -> list[str]:
+    """Why a commit naming `fid` may not land, or [] when it may."""
+    by_id = {f["id"]: f for f in features}
+    if fid not in by_id:
+        return [f"{fid} is not in docs/define_features.json"]
+    st = status(features, res)
+    out = []
+    if st[fid] != "passing":
+        out.append(f"{fid}'s test does not pass: {by_id[fid]['test']}")
+    out += [f"it depends on {d}, whose test does not pass: {by_id[d]['test']}"
+            for d in by_id[fid]["depends_on"] if st.get(d) != "passing"]
     return out
 
 
-def define_gaps(text: str) -> set[str]:
-    """Open gaps whose Step cell names a Define step, or that a founder
-    milestone lists as blocking one. (A G-number mentioned in a card's prose
-    is not counted: prose moves, and the set must not move with it.)"""
-    import progress
-    steps = define_steps(text)
-    gaps = {g for g, s in open_gaps(text).items() if s & steps}
-    for key, ms in progress.milestones(text).items():
-        g = re.match(r"G-\d+", key)
-        if g and set(ms.get("blocks") or []) & steps and g.group(0) in open_gaps(text):
-            gaps.add(g.group(0))
-    return gaps
+def ratchet_refusal(required: list[str], features: list[dict], res: dict) -> tuple[list[str], list[str]]:
+    """(refusals, exempted) — every ratcheted feature must still pass. A
+    run-through feature is EXEMPT while the run's record is stale: a product
+    change stales it for every such feature at once, and only a new live run
+    can refresh it (FOR FOUNDER — 6.67)."""
+    by_id = {f["id"]: f for f in features}
+    st = status(features, res)
+    stale = not runthrough_fresh()
+    refused: list[str] = []
+    exempt: list[str] = []
+    for fid in required:
+        if fid not in by_id or st.get(fid) == "passing":
+            continue
+        if stale and by_id[fid]["test"].startswith(RUNTHROUGH_TESTS):
+            exempt.append(fid)
+        else:
+            refused.append(f"{fid} passed before and its test no longer passes: {by_id[fid]['test']}")
+    return refused, exempt
+
+
+def update_ratchet(features: list[dict] | None = None, res: dict | None = None,
+                   path: Path = RATCHET) -> list[str]:
+    """Add every feature passing now; never remove one. Returns the new ids."""
+    features = load() if features is None else features
+    res = results() if res is None else res
+    have = set(ratchet(path))
+    now = {fid for fid, s in status(features, res).items() if s == "passing"}
+    new = sorted(now - have)
+    if new or not path.is_file():
+        path.write_text(json.dumps({"_about": "Generated by .githooks/pre-commit (step 6.67): every "
+                                    "Define feature that has passed once. The commit guard's rule 11 "
+                                    "requires each to keep passing. Never hand-edit; never remove an id.",
+                                    "passing": sorted(have | now)}, indent=1) + "\n", encoding="utf-8")
+    return new
 
 
 def main(argv: list[str]) -> int:

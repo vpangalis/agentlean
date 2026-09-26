@@ -9,13 +9,13 @@ errors in files the change reached through an import. This finds those first,
 in seconds, by checking what the change REACHES — not only what it touches:
 
   drift   drift-check.py — every owned fact the documents restate, against its owner
-  built   verify_built.py — the BUILT markers and the build matrix against the tree
+  (built   verify_built.py retired with the procedure at 6.67)
   types   mypy over the changed Python AND its direct importers, judged against
           rule 3's baseline (the guard's own ratchet — importers' old debt passes)
   tests   the tests of the changed modules and of their importers, plus every
           test that names a changed non-Python file (a document, a hook)
 
-All four run at once. Area runs are serial below SERIAL_MAX test files: the
+All three run at once. Area runs are serial below SERIAL_MAX test files: the
 6.65 timing log shows xdist start-up costs ~20 s (34-54 tests: 22-30 s under
 `-n auto`, 1-47 tests: 4-12 s serial).
 
@@ -169,6 +169,7 @@ def plan(changed: list[str], graph: dict[str, set[str]] | None = None) -> dict:
                 tests.add(rel)
     type_files = sorted(
         c for c in changed if c.endswith(".py") and c.startswith("agent-improve/")
+        and not c.startswith("agent-improve/docs/")      # archived code is not live (6.67)
     )
     type_files += sorted(
         {f"agent-improve/{m.replace('.', '/')}.py" for m in importers} - set(type_files)
@@ -190,12 +191,6 @@ def _run(cmd: list[str], cwd: Path) -> tuple[int, str]:
 def check_drift(py: str, _p: dict) -> tuple[bool, str]:
     code, out = _run([py, str(HOOKS / "drift-check.py")], ROOT)
     return code == 0, out.strip().splitlines()[-1] if code == 0 and out.strip() else out.strip()
-
-
-def check_built(py: str, _p: dict) -> tuple[bool, str]:
-    code, out = _run([py, str(HOOKS / "verify_built.py")], ROOT)
-    lines = out.strip().splitlines()
-    return code == 0, lines[-1] if code == 0 and lines else "\n".join(l for l in lines if l.startswith("!!") or "DISAGREE" in l)
 
 
 def _guard():
@@ -239,7 +234,7 @@ def check_tests(py: str, p: dict) -> tuple[bool, str]:
     return False, f"{n}: {summary}\n  " + "\n  ".join(failed)
 
 
-CHECKS = {"drift": check_drift, "built": check_built, "types": check_types, "tests": check_tests}
+CHECKS = {"drift": check_drift, "types": check_types, "tests": check_tests}
 
 
 def run(changed: list[str] | None = None, echo=print) -> int:

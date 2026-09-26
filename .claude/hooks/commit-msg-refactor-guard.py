@@ -180,7 +180,7 @@ GUARDED_PREFIX = "refactor(arch-v2)"
 # The em dash is written as an escape on purpose: a literal one here is
 # invisibly easy to replace with a hyphen by the same editor slip this rule
 # exists to catch.
-SUBJECT_RE = re.compile(r"^refactor\(arch-v2\): commit \d+\.\d+ — \S.*$")
+SUBJECT_RE = re.compile(r"^refactor\(arch-v2\): (?:commit \d+\.\d+|DEF-\d{3}) — \S.*$")
 
 # `TRACKER_PATH` and `PROCEDURE_PATH` were rule 2's, and went with it.
 # Appendix D's location is `continuity_status.PROCEDURE`, which rule 5 reaches
@@ -414,6 +414,9 @@ def check_types(root: str, py: str, staged: list[str]) -> None:
     changed = [f for f in staged
                if f.endswith(".py")
                and f.startswith(f"{PROJECT}/")
+               # 6.67 — archived code is not live code (a retired module
+               # beside its successor makes mypy refuse to run at all)
+               and not f.startswith(f"{PROJECT}/docs/")
                and os.path.isfile(os.path.join(root, f))]
     if not changed:
         note("rule 3 type-check: no Python changed — skipped")
@@ -661,6 +664,24 @@ def _declared_numbers(subject: str, message: str) -> tuple:
     return steps, gaps
 
 
+_FEATURE_TRAILER_RE = re.compile(r"^[\s*_]*Features?[\s*_]*:[ \t]*(?P<v>.+)$", re.M | re.I)
+_DEF_TOKEN_RE = re.compile(r"\bDEF-\d{3}\b")
+
+
+def _declared_features(subject: str, message: str) -> set:
+    """DEF ids this commit names — in a DEF subject or a `Feature:` trailer (6.67)."""
+    feats = set(re.findall(r"^refactor\(arch-v2\): (DEF-\d{3})\b", subject))
+    for m in _FEATURE_TRAILER_RE.finditer(message):
+        feats.update(_DEF_TOKEN_RE.findall(m.group("v")))
+    return feats
+
+
+def _known_features(root: str) -> set:
+    """Every id in the STAGED docs/define_features.json — the plan since 6.67."""
+    data = json.loads(_staged_text(root, f"{PROJECT}/docs/define_features.json"))
+    return {f["id"] for f in data["features"]}
+
+
 def _staged_text(root: str, rel: str) -> str:
     """A tracked document AS THIS COMMIT WILL CONTAIN IT — the index, not the disk.
 
@@ -697,58 +718,6 @@ def _known_gaps(root: str, text: str | None = None) -> set:
     return {g.upper() for g in _GAP_ROW_RE.findall(text)}
 
 
-def check_build_matrix(root: str) -> None:
-    """Rule 9 — Appendix F covers Appendix D, on EVERY commit.
-
-    **THE REFEREE WAS FAIL-CLOSED AND UNREACHABLE.** `verify_built.py` is the
-    matrix's referee and it exits non-zero on a disagreement, but the only path
-    from it to a commit's exit code ran through rule 4's `pytest` — and rule 4
-    sits BEHIND the `GUARDED_PREFIX` gate. Measured 2026-09-18 by deleting
-    Appendix F's row for 6.16: `verify_built.py` reported the mismatch, `pytest`
-    went red on it, and the guard handed a `docs(ops):` subject **exit 0**.
-
-    **`docs(` is the subject that edits an appendix.** Two commits in the
-    session that found this — `170d003` (`fix(ops):`) and `01e10b4`
-    (`docs(ops):`) — never ran the referee at all, and the first of them changed
-    `build_board.py` and added four tests.
-
-    **So it binds ahead of the prefix gate**, on rules 7, 8, 2b and 6's own
-    argument, already written one screen below: *a draft lands under a `docs(`
-    subject as easily as under a `refactor(`*.
-
-    **Set equality only — `matrix_anchors` stays on the spine path.** Measured:
-    this check is **0.01 s** against **8.20 s** for the anchors, which is above
-    the 2.52 s G-59's ruling accepted for once-per-commit work. Set equality is
-    what catches a dropped or invented row, which is the failure a large matrix
-    actually produces; a stale anchor moves slowly and the spine still catches it.
-
-    **Read from the INDEX, never the disk** (§0.32 clause 1) — the version being
-    committed, not the one being edited.
-    """
-    try:
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        spec = importlib.util.spec_from_file_location(
-            "verify_built", os.path.join(
-                os.path.dirname(os.path.abspath(__file__)), "verify_built.py"))
-        vb = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(vb)
-        verdict = vb.matrix_covers_appendix_d(_staged_text(root, cs.PROCEDURE))
-    except Exception as exc:                          # noqa: BLE001 — fail CLOSED
-        fail("the build-matrix check could not run", f"{exc}",
-             "Blocking rather than passing. A referee that disappears when its",
-             "own machinery breaks is the advisory check 6.31 was built to end.")
-    if vb.MATRIX_CLEAN_RE.match(verdict.strip()):
-        note(f"rule 9 build matrix: PASS — {verdict.strip()}")
-        return
-    fail("Appendix F and Appendix D disagree",
-         verdict, "",
-         "Every step in Appendix D needs a row in Appendix F and every row",
-         "needs a step. This is read from the INDEX, so it is the matrix THIS",
-         "commit makes — stage both edits together.", "",
-         "Run the full referee for the anchors too:",
-         "  python .claude/hooks/verify_built.py")
-
-
 def check_step_or_gap(root: str, subject: str, message: str, added: list[str]) -> None:
     """Rule 8 — a new file in the tree needs a step number or a gap number (§0.32).
 
@@ -770,7 +739,8 @@ def check_step_or_gap(root: str, subject: str, message: str, added: list[str]) -
     if not added:
         return
     steps, gaps = _declared_numbers(subject, message)
-    if not steps and not gaps:
+    feats = _declared_features(subject, message)
+    if not steps and not gaps and not feats:
         fail("a new file is entering the tree with no step number and no gap number",
              "CLAUDE.md §0.32: a new file in the tree needs a step number or a",
              "gap number.", "",
@@ -781,12 +751,15 @@ def check_step_or_gap(root: str, subject: str, message: str, added: list[str]) -
              "  refactor(arch-v2): commit 6.22 — <what changed>  # the spine says it",
              "  Step: 6.22                                       # any other type",
              "  Gap: G-57                                        # or the register",
+             "  Feature: DEF-029                                 # a Define feature (6.67)",
              "",
              "The number must RESOLVE — Appendix D of docs/REFACTORING_PROCEDURE.md",
              "for a step, Appendix G's register for a gap. If neither",
              "exists yet then nothing is scheduling this file: register the gap",
              "first, in its own commit, per §56.")
 
+    if feats and feats & _known_features(root):
+        return
     known_steps = set(_APPENDIX_D_STEP_RE.findall(_staged_text(root, cs.PROCEDURE)))
     known_gaps = _known_gaps(root)
     if (steps & known_steps) or (gaps & known_gaps):
@@ -1094,47 +1067,91 @@ def check_board(root: str, py: str) -> None:
 # --------------------------------------------------------------------------- #
 # Rule 11 — a step lands only WIRED, on WIRED preconditions (step 6.63)
 # --------------------------------------------------------------------------- #
-def _progress_mod(root: str):
-    ctl = os.path.join(root, PROJECT, "tools", "control_board")
-    if ctl not in sys.path:
-        sys.path.insert(0, ctl)
-    import progress
-    return progress
+def _features_mod(root: str):
+    """`tools/control_board/features.py` — stdlib only, so the system python loads it."""
+    path = os.path.join(root, PROJECT, "tools", "control_board", "features.py")
+    spec = importlib.util.spec_from_file_location("features_for_guard", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
-def landing_refusal(p: dict, step: str) -> list[str]:
-    """Why `commit <step>` may not land, or [] when it may. DONE is WIRED, or
-    PROVEN for a step that owns a capability row — never merely built."""
-    st = p["steps"].get(step)
-    if st is None:
-        return [f"{step} is not a registered step"]
-    out = []
-    if not st["done"]:
-        out.append(f"{step} is {st['state']}, not wired — "
-                   f"{st['wired_why'] or 'no row in Appendix F Wiring proofs'}")
-    for dep in st["depends_on"]:
-        d = p["steps"].get(dep)
-        if d is None:
-            out.append(f"its precondition names {dep}, which is not a registered step")
-        elif not d["done"]:
-            out.append(f"its precondition {dep} is {d['state']}, not wired")
-    return out
+def _this_commits_run(root: str) -> dict | None:
+    """The test record, but only when the pre-commit hook's full run was for
+    THIS index tree (the marker rule 4 trusts); otherwise None."""
+    tree = subprocess.run(["git", "write-tree"], capture_output=True, encoding="utf-8",
+                          cwd=root).stdout.strip()
+    try:
+        with open(os.path.join(root, FULL_RUN_MARKER), encoding="utf-8") as f:
+            marker = json.load(f)
+    except (OSError, ValueError):
+        return None
+    if not tree or marker.get("tree") != tree:
+        return None
+    path = os.path.join(root, PROJECT, "docs", "test-results.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+
+_DEF_SUBJECT_RE = re.compile(r"^refactor\(arch-v2\): (DEF-\d{3})\b")
 
 
 def check_landing(root: str, subject: str) -> None:
-    m = re.match(r"^refactor\(arch-v2\): commit (\d+\.\d+)\b", subject)
+    """Rule 11 — a commit naming DEF-xxx lands only if that feature's test
+    passes and every depends_on feature's test passes (step 6.67, founder
+    ruling 2026-09-26). The status is read from THIS commit's full run.
+
+    A legacy `commit X.Y` subject still parses (rule 1) and its step must be in
+    the archived procedure's Appendix D — rule 8's frozen register; the step
+    wiring check retired with the procedure.
+    """
+    m = _DEF_SUBJECT_RE.match(subject)
     if not m:
+        note("rule 11 landing: a step subject — no feature to land (the procedure is archived)")
         return
-    progress = _progress_mod(root)
-    p = progress.progress(progress.procedure_text(staged=True))
-    why = landing_refusal(p, m.group(1))
+    fid = m.group(1)
+    res = _this_commits_run(root)
+    if res is None:
+        fail(f"{fid} cannot land: no full test run was recorded for THIS commit (rule 11)",
+             "The landing rule reads the pre-commit hook's full run of this tree.",
+             "Commit again with .githooks active (git config core.hooksPath .githooks).")
+    f = _features_mod(root)
+    why = f.landing_refusal(fid, f.load(), res)
     if why:
-        fail(f"step {m.group(1)} cannot land yet (rule 11)", *why, "",
-             "A step is DONE when a test drives the real compiled graph through",
-             "the real API route and shows its component ran (Appendix F, Wiring",
-             "proofs), or when every capability row it owns is proven. Built —",
-             "the symbol exists — is not done: G-49, G-69 and G-76 all existed.")
-    note(f"rule 11 landing: PASS — {m.group(1)} and its preconditions are wired")
+        fail(f"{fid} cannot land yet (rule 11)", *why, "",
+             "A feature lands when its end-to-end test passes, and every feature it",
+             "depends on passes — read from this commit's run, never from a claim.")
+    note(f"rule 11 landing: PASS — {fid} and its dependencies pass")
+
+
+def check_ratchet(root: str) -> None:
+    """Rule 11b — THE RATCHET, on every commit whose full run was for this tree:
+    a feature that has passed once (the COMMITTED `docs/features-ratchet.json`,
+    HEAD's) must still pass. Run-through features are exempt while the
+    run-through record is stale (FOR FOUNDER, 6.67)."""
+    res = _this_commits_run(root)
+    if res is None:
+        note("rule 11b ratchet: no full run for this tree (a docs-only commit) — skipped")
+        return
+    head = subprocess.run(["git", "show", f"HEAD:{PROJECT}/docs/features-ratchet.json"],
+                          capture_output=True, encoding="utf-8", errors="replace", cwd=root)
+    if head.returncode != 0:
+        note("rule 11b ratchet: no ratchet at HEAD yet — nothing required")
+        return
+    required = json.loads(head.stdout).get("passing") or []
+    f = _features_mod(root)
+    refused, exempt = f.ratchet_refusal(required, f.load(), res)
+    if exempt:
+        note(f"rule 11b ratchet: {len(exempt)} run-through feature(s) exempt — the record is stale; "
+             "re-run scripts/define_runthrough.py")
+    if refused:
+        fail("a feature that passed before no longer passes (rule 11b, the ratchet)",
+             *refused, "",
+             "Once a feature's end-to-end test passes, it is required on every commit.")
+    note(f"rule 11b ratchet: PASS — {len(required) - len(exempt)} required feature(s) pass")
 
 
 # --------------------------------------------------------------------------- #
@@ -1336,9 +1353,12 @@ def main(argv: list[str]) -> int:
     with _timer("rule 2b status"):
         check_architecture_status(root, all_staged)
 
-    # Rule 9 — the matrix referee, ahead of the prefix gate (see its docstring).
-    with _timer("rule 9 matrix"):
-        check_build_matrix(root)
+    # Rule 9 (the build matrix, Appendix F covers Appendix D) RETIRED at 6.67
+    # with the procedure; its referee is docs/_archive/retired-tooling/hooks/verify_built.py.
+
+    # Rule 11b — the ratchet, on every commit whose full run was for this tree.
+    with _timer("rule 11b ratchet"):
+        check_ratchet(root)
 
     # Rule 10 — the board is true, on every commit (see its docstring).
     with _timer("rule 10 board"):
@@ -1371,7 +1391,7 @@ def main(argv: list[str]) -> int:
             hint = ["The description after the em dash is empty."]
         fail("refactor subject does not match the spine format",
              f"Got:      {subject}",
-             "Expected: refactor(arch-v2): commit X.Y — <what changed>",
+             "Expected: refactor(arch-v2): DEF-xxx — <what changed>   (or the legacy commit X.Y)",
              "", *hint, "",
              "Why it matters: the session-start hook parses this subject to report",
              "\"last completed\". A malformed one drops the step out of the only",
