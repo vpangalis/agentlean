@@ -14,7 +14,7 @@
 | **Next — lane integrator** | DEF-001 — A Belt creates a new case and it opens in Define: POST /cases returns an id, the case list shows it, and GET /cases/{id} opens it with curre |
 | **Run-through record** | current |
 | **ARCHITECTURE.md** | v1.78 |
-| **CLAUDE.md** | v2.2.46 |
+| **CLAUDE.md** | v2.3.0 |
 | **Block regenerated** | 2026-09-26 |
 
 *Every figure comes from `docs/define_features.json` and
