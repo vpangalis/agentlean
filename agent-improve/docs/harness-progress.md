@@ -45,6 +45,22 @@ The proof found two defects in Part A before any lane did — the session start
 printed nothing (`0ae5302`) and rule 5 refused an unchanged, current CONTINUITY
 block (`1ee1540`) — both fixed with a test each.
 
+## Speed (6.67 addendum) — before → after, measured
+
+| Measure | Before | After | Source |
+|---|---|---|---|
+| Hook, a code commit | 138 s wall (669b39c) · 125–128 s pre-commit today | 109–119 s (the suite is the check: 97–114 s of it) | `Timing:` trailers |
+| Hook, a docs-only commit | 21.7 s (5d29baa, board 9.5 s + rule 10 9.3 s) | **4.4 s** (312e892), no suite | `time git commit` |
+| Pre-flight, a rule file | 12 s | **3.9 s** | timing log |
+| Pre-flight, ARCHITECTURE.md | — | 15.5 s | timing log |
+| Pre-flight, a leaf module | — | 20.0 s | timing log |
+| Pre-flight, a core module (`moves.py`) | 93 s → 53 s | **25.7 s** (27 slow tests left to the hook) | timing log |
+| Pre-flight, a change reaching everything | 107 s (a second full suite) | **0 s of tests** — left to the hook | timing log |
+
+The board is one page from the features, the test record and git log (Part A): N of 64 by
+clause and lane, the next failing feature per lane, a burn-up to 1 October, the last
+commits with their `Timing:` lines. Its projection appears once two days of runs differ.
+
 ## Open decisions — FOR FOUNDER (one line each)
 
 - Run-through features are exempt from the ratchet while the record is stale — any product change stales all of them and only a live run refreshes them.
