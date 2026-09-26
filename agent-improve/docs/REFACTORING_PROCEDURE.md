@@ -3258,6 +3258,25 @@ headline, the diagram and one hover reference.
 
 ---
 
+## Step 6.67 — Three layers: how to work, what must be true, why
+
+| | |
+|---|---|
+| **Reference §** | founder ruling 2026-09-26 · code.claude.com/docs/en/best-practices · Anthropic, *Effective harnesses for long-running agents* |
+| **Touches** | `CLAUDE.md` · `.claude/` · `.githooks/` · `backend/tests/` · `docs/` · `tools/` · `scripts/` |
+| **Precondition** | **6.66** — the long-running harness. Landed |
+| **NEEDS** | One feature list, status only from tests (6.66) |
+| **GIVES** | CLAUDE.md is how to work here (≤ 80 lines); `define_features.json` + test results are what must be true; ARCHITECTURE.md is why, read only by citation. This procedure is archived; every reader is retired or re-based on the features |
+| **Verify** | `pytest` + one commit naming a DEF id refused when its test fails and allowed when it passes |
+| **Status** | **RULED — founder 2026-09-26** |
+
+**Done when:** the procedure is in `docs/_archive/` and nothing reads it at its old path;
+the landing rule is DEF-based with a ratchet; CLAUDE.md ≤ 80 lines, §21 in a path-scoped
+rule file, the amendment procedure a skill; feature code citations are `path::symbol` and
+checked; a fresh session's loaded context is measured before and after.
+
+---
+
 ## Step 6.66 — The long-running harness: one feature list, status only from tests
 
 | | |
@@ -3855,9 +3874,9 @@ what was ruled. The full text of every entry is in the archive, `docs/_archive/R
 | **TOOLING** | 4 | **6.63**, **6.64**, **6.65**, **6.66** |
 | **BUILT, NOT WIRED** | 47 | **2.3**, **2.4**, **2.5**, **2.6**, **2.7**, **3.1**, **3.2**, **3.3**, **3.4**, **3.5**, **4.1**, **4.2**, **4.3**, **4.4**, **5.1**, **5.2**, **5.3**, **5.4**, **6.1**, **6.2**, **6.3**, **6.4**, **6.5**, **6.6**, **6.7**, **6.8**, **6.9**, **6.11**, **6.12**, **6.13**, **6.16**, **6.18**, **6.19**, **6.21**, **6.25**, **6.26**, **6.27**, **6.31**, **6.34**, **6.35**, **6.36**, **6.38**, **6.39**, **6.40**, **6.41**, **6.49**, **6.54** |
 | **WAITING** | 10 | **6.10**, **6.14**, **6.22**, **6.53**, **6.56**, **8.4**, **8.5**, **9.0**, **9.1**, **9.2** |
-| **NOT BUILT** | 41 | **6.17**, **6.20**, **6.23**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **6.37**, **6.43**, **6.44**, **6.45**, **6.47**, **6.50**, **6.51**, **6.58**, **6.59**, **6.60**, **6.62**, **7.0**, **7.1**, **7.2**, **7.3**, **7.4**, **7.5**, **7.6**, **7.7**, **7.8**, **7.9**, **8.0**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **10.2**, **10.3**, **10.4**, **11.1**, **11.2** |
+| **NOT BUILT** | 42 | **6.17**, **6.20**, **6.23**, **6.24**, **6.28**, **6.29**, **6.30**, **6.32**, **6.37**, **6.43**, **6.44**, **6.45**, **6.47**, **6.50**, **6.51**, **6.58**, **6.59**, **6.60**, **6.62**, **6.67**, **7.0**, **7.1**, **7.2**, **7.3**, **7.4**, **7.5**, **7.6**, **7.7**, **7.8**, **7.9**, **8.0**, **8.1**, **8.2**, **8.3**, **8.6**, **8.7**, **10.1**, **10.2**, **10.3**, **10.4**, **11.1**, **11.2** |
 
-*110 steps. PROVEN: every capability row the step owns is green and its check passed on the current source. WIRED: its Wiring-proofs test passed on the current source. BUILT: its Appendix F row is ✅. WAITING: Appendix D says BLOCKED / GATED / EXTERNAL. The same states, with each reference, are on `docs/control-board.html`. Regenerated 2026-09-25.*
+*111 steps. PROVEN: every capability row the step owns is green and its check passed on the current source. WIRED: its Wiring-proofs test passed on the current source. BUILT: its Appendix F row is ✅. WAITING: Appendix D says BLOCKED / GATED / EXTERNAL. The same states, with each reference, are on `docs/control-board.html`. Regenerated 2026-09-26.*
 <!-- END STEP BOARD -->
 
 ## Appendix A — Traceability matrix
@@ -4156,6 +4175,7 @@ restate, which is the opposite of what the board is for.
 | 491 | **Commit 6.64** | The board's grouped views are restored, derived |  | OPS | SHARED | The board shows progress only by work package, so where an open step sits in the system, and which story it serves, has to be looked up by hand. |
 | 492 | **Commit 6.65** | Speed without losing quality |  | OPS | SHARED | Every step spends its time re-running and re-reading what was already checked, and nobody can see where the time goes. |
 | 493 | **Commit 6.66** | The long-running harness: one feature list, status only from tests |  | OPS | SHARED | Nobody can say how far Define is from working end to end, because progress is read from documents that grow every step instead of from tests. |
+| 494 | **Commit 6.67** | Three layers: how to work, what must be true, why |  | OPS | SHARED | Every session loads rules, plans and history it does not need, and the plan is read from a document nobody can keep true. |
 | 487 | **Commit 6.61** | The coaching move is decided in code |  | COACH | SHARED | The coach sometimes waits after a read-back, sometimes moves on and sometimes re-asks, and stores its own paraphrase before the Belt has confirmed it. |
 | 488 | **Commit 6.62** | The other four phase scripts carry no move-sequencing |  | COACH | PHASE | Four phase scripts still tell the coach when to move on, which is now decided in code. |
 | 483 | **Commit 6.58** | A percent convention for the computation tools |  | COACH | SHARED | A savings figure 100× too large reaches the Belt, because a tool reads 23% as 23. |
@@ -4339,6 +4359,7 @@ home.**
 | L0 | 2 | — | **6.64** | The board's grouped views are restored, derived | ☐ | — | §55, App. D, App. F, App. H |
 | L0 | 3 | — | **6.65** | Speed without losing quality | ✅ | `repo:.claude/hooks/timing.py` | CLAUDE.md §22 |
 | L0 |  | — | **6.66** | The long-running harness: one feature list, status only from tests | ✅ | `repo:agent-improve/tools/control_board/features.py` | CLAUDE.md §22 |
+| L0 |  | — | **6.67** | Three layers: how to work, what must be true, why | ☐ | — | CLAUDE.md §22 |
 
 #### L1 · API surface
 

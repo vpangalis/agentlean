@@ -591,7 +591,7 @@ document below (step 6.66). Find the section here, then read only its lines
 | 11645–11655 |   F.2 Change Log — the former §18 |
 | 11649–11655 |    F.2.1 Amendment procedure — the former §18.1 |
 
-## `agent-improve/docs/REFACTORING_PROCEDURE.md` — 5244 lines
+## `agent-improve/docs/REFACTORING_PROCEDURE.md` — 5265 lines
 
 | Lines | Heading |
 |---|---|
@@ -733,7 +733,7 @@ document below (step 6.66). Find the section here, then read only its lines
 | 2430–2458 |  Step 8.7 — `delete_blob`, and the upload lifecycle (WATCH 10) |
 | 2459–2510 |  Step 9.0 — Knowledge-index rebuild |
 | 2511–2573 |  Step 9.1 — The Azure batched reindex, case index only |
-| 2574–3766 | Part 9 — Stage 10: API and UI |
+| 2574–3785 | Part 9 — Stage 10: API and UI |
 | 2578–2618 |  Step 9.2 — The premium deployment's quota, on the coach's own model call (G-53) |
 | 2587–2599 |   The condition this clears |
 | 2600–2612 |   Why it is registered rather than tolerated |
@@ -767,66 +767,67 @@ document below (step 6.66). Find the section here, then read only its lines
 | 3177–3216 |  Step 6.56 — The coaching proof: positions 1–8 of Define, one traced run |
 | 3217–3238 |  Step 6.57 — The Belt's step is computed, not counted by the model |
 | 3239–3260 |  Step 6.63 — The control board is a true picture of the tree |
-| 3261–3289 |  Step 6.66 — The long-running harness: one feature list, status only from tests |
-| 3290–3309 |  Step 6.65 — Speed without losing quality |
-| 3310–3334 |  Step 6.64 — The board's grouped views are restored, derived |
-| 3335–3360 |  Step 6.61 — The coaching move is decided in code |
-| 3361–3379 |  Step 6.62 — The other four phase scripts carry no move-sequencing |
-| 3380–3404 |  Step 6.58 — A percent convention for the computation tools |
-| 3405–3437 |  Step 6.59 — The coherence judge rules on the Belt's words, not the coach's |
-| 3438–3477 |  Step 6.53 — A coherence rejection asks the coach again |
-| 3478–3497 |  Step 6.60 — The script already delivered is not fetched again |
-| 3498–3604 |  Step 6.50 — The conformance pass — the tree against the framework's own documentation |
-| 3544–3581 |   The five mechanisms the first run must cover |
-| 3582–3604 |   It runs at a cadence, and it reports |
-| 3605–3632 |  Step 10.0 — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
-| 3633–3645 |  Step 10.1 — `/ask/stream` SSE |
-| 3646–3689 |  Step 10.2 — The live gate document, conflict panel, and tier bars |
-| 3690–3739 |  Step 10.3 — The workspace reads the v2 field names, and progress counts them |
-| 3740–3766 |  Step 10.4 — The error contract — a failed turn is readable |
-| 3767–3825 | Part 10 — Stage 11: Cleanup and governance |
-| 3771–3793 |  Step 11.1 — Delete v1 |
-| 3794–3825 |  Step 11.2 — Governance close-out |
-| 3826–5010 | Appendices |
-| 3832–3847 |  Change log |
-| 3848–3862 |  Step board |
-| 3863–3955 |  Appendix A — Traceability matrix |
-| 3934–3955 |   Coverage check against Reference §53.1 |
-| 3956–3977 |  Appendix B — Disposition of the 55 backend files |
-| 3978–3993 |  Appendix C — The two parallel workstreams |
-| 3994–4219 |  Appendix D — Step index |
-| 4073–4219 |   The bands — what the Seq ranges mean |
-| 4220–4762 |  Appendix F — The build matrix |
-| 4241–4263 |   The columns |
-| 4264–4304 |   The anchor grammar — never a line number |
-| 4305–4681 |   Layers — nine, not eight |
-| 4313–4342 |    L0 · Governance and build tooling |
-| 4343–4373 |    L1 · API surface |
-| 4374–4405 |    L2 · Supervisor graph |
-| 4406–4456 |    L3 · Phase subgraphs |
-| 4457–4509 |    L4 · Coaching agent |
-| 4510–4531 |    L5 · Middleware |
-| 4532–4587 |    L6 · Tools and knowledge |
-| 4588–4636 |    L7 · Validation, gates, escalation |
-| 4637–4681 |    L8 · Persistence and cross-cutting |
-| 4682–4727 |   The Define path — estimate and epic (founder, 2026-09-25) |
-| 4728–4762 |   Wiring proofs |
-| 4763–5010 |  Appendix G — The SPEC-GAP register |
-| 4816–4825 |   66.1 Group A — founder ruling required |
-| 4826–4905 |   66.2 Group B — cross-check defects |
-| 4906–4921 |   66.3 Group C — schemas named but never defined |
-| 4922–4943 |   66.4 Group D — described in prose, no interface |
-| 4944–4950 |   66.5 Group E — content the build sequence defers |
-| 4951–4969 |   66.6 Closed |
-| 4970–5000 |   66.7 Findings — recorded, not gaps |
-| 5001–5010 |   66.8 The Supplier/Customer cross-check — first run, 2026-08-23 |
-| 5011–5244 | Part XIII — Compliance and Risk |
-| 5021–5175 |  Appendix H — The capability register |
-| 5028–5089 |   The contract |
-| 5090–5102 |   How it differs from Appendix F, which it does not replace |
-| 5103–5175 |   ✅ THE SEED HAS LANDED — all 35 of Define's rows are written |
-| 5176–5233 |  Appendix I — The plan: epics, stories and rank |
-| 5184–5196 |   The rule |
-| 5197–5227 |   ✅ THE FILE IS IN THE TREE, AND THE PRE-COMMIT HOOK READS IT — 2026-09-23 |
-| 5228–5233 |   The run of work — superseded 2026-09-25 |
-| 5234–5244 |  Appendix E — Questions raised by this procedure · BOTH RESOLVED |
+| 3261–3279 |  Step 6.67 — Three layers: how to work, what must be true, why |
+| 3280–3308 |  Step 6.66 — The long-running harness: one feature list, status only from tests |
+| 3309–3328 |  Step 6.65 — Speed without losing quality |
+| 3329–3353 |  Step 6.64 — The board's grouped views are restored, derived |
+| 3354–3379 |  Step 6.61 — The coaching move is decided in code |
+| 3380–3398 |  Step 6.62 — The other four phase scripts carry no move-sequencing |
+| 3399–3423 |  Step 6.58 — A percent convention for the computation tools |
+| 3424–3456 |  Step 6.59 — The coherence judge rules on the Belt's words, not the coach's |
+| 3457–3496 |  Step 6.53 — A coherence rejection asks the coach again |
+| 3497–3516 |  Step 6.60 — The script already delivered is not fetched again |
+| 3517–3623 |  Step 6.50 — The conformance pass — the tree against the framework's own documentation |
+| 3563–3600 |   The five mechanisms the first run must cover |
+| 3601–3623 |   It runs at a cadence, and it reports |
+| 3624–3651 |  Step 10.0 — The coaching turn’s output reaches the Belt — four blocks and the grader’s warning |
+| 3652–3664 |  Step 10.1 — `/ask/stream` SSE |
+| 3665–3708 |  Step 10.2 — The live gate document, conflict panel, and tier bars |
+| 3709–3758 |  Step 10.3 — The workspace reads the v2 field names, and progress counts them |
+| 3759–3785 |  Step 10.4 — The error contract — a failed turn is readable |
+| 3786–3844 | Part 10 — Stage 11: Cleanup and governance |
+| 3790–3812 |  Step 11.1 — Delete v1 |
+| 3813–3844 |  Step 11.2 — Governance close-out |
+| 3845–5031 | Appendices |
+| 3851–3866 |  Change log |
+| 3867–3881 |  Step board |
+| 3882–3974 |  Appendix A — Traceability matrix |
+| 3953–3974 |   Coverage check against Reference §53.1 |
+| 3975–3996 |  Appendix B — Disposition of the 55 backend files |
+| 3997–4012 |  Appendix C — The two parallel workstreams |
+| 4013–4239 |  Appendix D — Step index |
+| 4092–4239 |   The bands — what the Seq ranges mean |
+| 4240–4783 |  Appendix F — The build matrix |
+| 4261–4283 |   The columns |
+| 4284–4324 |   The anchor grammar — never a line number |
+| 4325–4702 |   Layers — nine, not eight |
+| 4333–4363 |    L0 · Governance and build tooling |
+| 4364–4394 |    L1 · API surface |
+| 4395–4426 |    L2 · Supervisor graph |
+| 4427–4477 |    L3 · Phase subgraphs |
+| 4478–4530 |    L4 · Coaching agent |
+| 4531–4552 |    L5 · Middleware |
+| 4553–4608 |    L6 · Tools and knowledge |
+| 4609–4657 |    L7 · Validation, gates, escalation |
+| 4658–4702 |    L8 · Persistence and cross-cutting |
+| 4703–4748 |   The Define path — estimate and epic (founder, 2026-09-25) |
+| 4749–4783 |   Wiring proofs |
+| 4784–5031 |  Appendix G — The SPEC-GAP register |
+| 4837–4846 |   66.1 Group A — founder ruling required |
+| 4847–4926 |   66.2 Group B — cross-check defects |
+| 4927–4942 |   66.3 Group C — schemas named but never defined |
+| 4943–4964 |   66.4 Group D — described in prose, no interface |
+| 4965–4971 |   66.5 Group E — content the build sequence defers |
+| 4972–4990 |   66.6 Closed |
+| 4991–5021 |   66.7 Findings — recorded, not gaps |
+| 5022–5031 |   66.8 The Supplier/Customer cross-check — first run, 2026-08-23 |
+| 5032–5265 | Part XIII — Compliance and Risk |
+| 5042–5196 |  Appendix H — The capability register |
+| 5049–5110 |   The contract |
+| 5111–5123 |   How it differs from Appendix F, which it does not replace |
+| 5124–5196 |   ✅ THE SEED HAS LANDED — all 35 of Define's rows are written |
+| 5197–5254 |  Appendix I — The plan: epics, stories and rank |
+| 5205–5217 |   The rule |
+| 5218–5248 |   ✅ THE FILE IS IN THE TREE, AND THE PRE-COMMIT HOOK READS IT — 2026-09-23 |
+| 5249–5254 |   The run of work — superseded 2026-09-25 |
+| 5255–5265 |  Appendix E — Questions raised by this procedure · BOTH RESOLVED |

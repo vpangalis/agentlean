@@ -1319,7 +1319,7 @@ CHECKS = [
      "fall since this bound was split**, which is what 6.41 said the number "
      "existed to make possible"),
 
-    ("facts with nothing to anchor to — ratified, unbuilt", "37",
+    ("facts with nothing to anchor to — ratified, unbuilt", "38",
      facts_with_nothing_to_anchor,
      "Appendix F · step 6.41 — G-87. ☐ means something does NOT exist, so the "
      "em dash is the honest cell. **A rise here is normal** and means the "
@@ -1345,7 +1345,8 @@ CHECKS = [
      "38 → 37 the same day: 6.61 landed and anchors to moves.decide; "
      "37 → 38 the same day: 6.66, the long-running harness — its registration "
      "commit 5d29baa did not move this pin; the 6.66 pre-flight caught it on its first run; "
-     "38 → 37 the same day: 6.66 landed and anchors to tools/control_board/features.py"),
+     "38 → 37 the same day: 6.66 landed and anchors to tools/control_board/features.py; "
+     "37 → 38 on 2026-09-26: 6.67 registered"),
 
     ("facts never assessed against the tree", "96",
      facts_unassessed,
