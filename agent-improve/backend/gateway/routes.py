@@ -34,6 +34,7 @@ from backend.phases.gate_registry import (
     review_rows,
     split_by_declared_type,
 )
+from backend.phases.define.report import define_report
 from backend.phases.mappers_common import PHASE_ORDER, asks_for_phase, read_case_record
 from backend.storage import blob
 from backend.storage.models import CaseDocument, UploadRecord
@@ -838,6 +839,17 @@ async def gate_review(case_id: str, phase: str) -> GateReviewResponse:
             logger.error("gate assembly failed for %s/%s: %s", case_id, phase, e)
             raise HTTPException(500, f"Gate assembly failed: {e}")
 
+    report = None
+    if phase == "define":
+        # R5 — the gate is a readable report, not a field checklist: the seven
+        # sections, from confirmed values only, with R6's dated history.
+        report = define_report(
+            artifacts,
+            case={"case_id": case.case_id, "title": case.title, "leader": case.leader,
+                  "belt_level": case.belt_level, "department": case.department,
+                  "target_date": case.target_date},
+            field_log=list(getattr(record, "field_log", []) or []))
+
     return GateReviewResponse(
         phase=phase,
         passed=not missing,
@@ -845,6 +857,7 @@ async def gate_review(case_id: str, phase: str) -> GateReviewResponse:
         fields=[GateReviewField(**r) for r in rows],
         acknowledged_gaps=gaps,
         document=document,
+        report=report,
         field_counts={
             "total": len(rows),
             "tier_1": len(spec.tier_1),

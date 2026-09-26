@@ -224,3 +224,6 @@ class GateReviewResponse(BaseModel):
     acknowledged_gaps: list[str] = []    # Tier 2 the Belt is proceeding past
     document: dict | None = None
     field_counts: dict = {}              # {total, tier_1, tier_2, captured}
+    #: R5 — Define only: the seven-section Define report, from confirmed values
+    #: (`phases/define/report.define_report`); None for the other phases.
+    report: dict | None = None

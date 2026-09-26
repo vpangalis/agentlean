@@ -4395,251 +4395,126 @@ function renderGate() {
     return;
   }
 
-  // ── Define viewing (active or passed): full gate document ──
-  const structured = getStructured(viewingPhase);
-  const phase = viewingPhase;
-
-  // Count captured fields
-  const captured = DEFINE_GATE_FIELDS.filter(
-    f => fieldHasValue(structured[f.key])
-  ).length;
-  const total = DEFINE_GATE_FIELDS.length;
-  const pct = Math.round(captured / total * 100);
-  const allDone = captured === total;
-
-  // Helpers (sectionStatus / statusPill / fieldRow / sectionCard)
-  // are defined near the top of renderGate for reuse by both
-  // Define and Measure branches.
-
-  // ── SECTION 1: BUSINESS CASE ────────────────────────────
-  const bc = sectionCard(1, 'Business Case',
-    ['business_case_rationale','current_cost','expected_saving',
-     'hard_benefits','soft_benefits'],
-    fieldRow('Strategic rationale', structured.business_case_rationale) +
-    fieldRow('Current cost', structured.current_cost) +
-    fieldRow('Expected saving', structured.expected_saving) +
-    fieldRow('Hard benefits', structured.hard_benefits) +
-    fieldRow('Soft benefits', structured.soft_benefits)
-  );
-
-  // ── SECTION 2: PROJECT CHARTER ──────────────────────────
-  // Assemble problem statement from 5W2H fields
-  const what = structured.what || '';
-  const where_ = structured.where || '';
-  const when_ = structured.when || '';
-  const problemSummary = what && where_ && when_
-    ? `${what} at ${where_} since ${when_}`
-    : what || null;
-
-  const charter = sectionCard(2, 'Project Charter',
-    ['goal_statement','scope_in','scope_out','process_owner',
-     'sponsor','team_members','belt_level','target_date',
-     'primary_metric','estimated_completion_date','project_milestones'],
-    fieldRow('Problem statement', problemSummary) +
-    fieldRow('Goal statement', structured.goal_statement) +
-    fieldRow('In scope', structured.scope_in) +
-    fieldRow('Out of scope', structured.scope_out) +
-    fieldRow('Primary metric', structured.primary_metric
-      ? structured.primary_metric +
-        (structured.primary_metric_unit
-          ? ' ('+structured.primary_metric_unit+')' : '')
-      : null) +
-    fieldRow('Secondary metric', structured.secondary_metric) +
-    fieldRow('Process owner', structured.process_owner) +
-    fieldRow('Sponsor', structured.sponsor) +
-    fieldRow('Team', structured.team_members) +
-    fieldRow('Belt level', structured.belt_level) +
-    fieldRow('Target date', structured.target_date) +
-    fieldRow('Est. completion', structured.estimated_completion_date) +
-    fieldRow('Milestones', structured.project_milestones)
-  );
-
-  // ── SECTION 3: BENEFITS ANALYSIS ───────────────────────
-  const benefits = sectionCard(3, 'Benefits Analysis',
-    ['hard_benefits','soft_benefits'],
-    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div>
-        <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
-          color:var(--text3,#99978F);text-transform:uppercase;
-          margin-bottom:6px">Hard benefits</div>
-        <div style="font-size:11px;color:${fieldHasValue(structured.hard_benefits)
-          ? 'var(--text,#1A1917)':'var(--text3,#99978F)'};
-          font-style:${fieldHasValue(structured.hard_benefits)?'normal':'italic'};
-          line-height:1.5">
-          ${structured.hard_benefits || 'not yet captured'}
-        </div>
-      </div>
-      <div>
-        <div style="font-size:9px;font-weight:700;letter-spacing:.06em;
-          color:var(--text3,#99978F);text-transform:uppercase;
-          margin-bottom:6px">Soft benefits</div>
-        <div style="font-size:11px;color:${fieldHasValue(structured.soft_benefits)
-          ? 'var(--text,#1A1917)':'var(--text3,#99978F)'};
-          font-style:${fieldHasValue(structured.soft_benefits)?'normal':'italic'};
-          line-height:1.5">
-          ${structured.soft_benefits || 'not yet captured'}
-        </div>
-      </div>
-    </div>`
-  );
-
-  // ── SECTION 4: SIPOC ────────────────────────────────────
-  const sipocData = structured.sipoc;
-  const sipocBody = sipocData
-    ? `<div id="gate-sipoc-container"></div>`
-    : `<div style="font-size:11px;color:var(--text3,#99978F);
-        font-style:italic;padding:4px 0">
-        Complete the SIPOC through the AI guide to see it here.
-      </div>`;
-  const sipoc = sectionCard(4, 'SIPOC Diagram',
-    ['sipoc'], sipocBody
-  );
-
-  // ── SECTION 5: BASELINE & MEASUREMENT ──────────────────
-  const baseline = sectionCard(5, 'Baseline & Measurement',
-    ['how_much_baseline','how_goal','primary_metric','secondary_metric'],
-    fieldRow('What', structured.what) +
-    fieldRow('Where', structured.where) +
-    fieldRow('When', structured.when) +
-    fieldRow('Who affected', structured.who_affected) +
-    fieldRow('Why it matters', structured.why_it_matters) +
-    fieldRow('Baseline', structured.how_much_baseline) +
-    fieldRow('Target', structured.how_goal)
-  );
-
-  // ── SCORE BAR ───────────────────────────────────────────
-  const scoreBar = `
-    <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
-      border-radius:8px;padding:14px;margin-bottom:16px;
-      box-sizing:border-box;width:100%">
-      <div style="display:flex;align-items:flex-start;
-        justify-content:space-between;margin-bottom:8px">
-        <div>
-          <span style="font-size:24px;font-weight:500;
-            color:#0070BA">${captured}</span>
-          <span style="font-size:14px;color:var(--text3,#99978F)"> / ${total}</span>
-          <div style="font-size:10px;color:var(--text3,#99978F);margin-top:1px">
-            fields captured</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:11px;font-weight:500;
-            color:${isPassed?'#0F6E56':(allDone?'#0070BA':'#C55A00')}">
-            ${isPassed?'Gate passed':(allDone?'Ready for gate':'In progress')}</div>
-          <div style="font-size:10px;color:var(--text3,#99978F)">
-            ${isPassed?'Phase complete':(allDone?'All sections complete':(total-captured)+' fields remaining')}</div>
-        </div>
-      </div>
-      <div style="height:5px;background:var(--surface2,#F8F7F4);
-        border-radius:3px;overflow:hidden;border:0.5px solid var(--border,#E4E2DC)">
-        <div style="height:100%;background:${isPassed?'#0F6E56':'#0070BA'};
-          border-radius:3px;width:${pct}%"></div>
-      </div>
-      <div style="font-size:10px;color:var(--text3,#99978F);margin-top:6px">
-        ${pct}% complete · ${isPassed?'This gate was approved':'Continue the AI guide to fill remaining fields'}
-      </div>
-    </div>`;
-
-  // ── DOCUMENT HEADER ─────────────────────────────────────
-  const caseTitle = S.case?.title || S.case?.case_metadata?.title || 'Improvement Project';
-  const docHeader = `
-    <div style="margin-bottom:16px">
-      <div style="font-size:9px;font-weight:700;letter-spacing:.08em;
-        color:var(--text3,#99978F);text-transform:uppercase;
-        margin-bottom:4px">Define Gate Document</div>
-      <div style="font-size:15px;font-weight:600;
-        color:var(--text,#1A1917);line-height:1.3">${caseTitle}</div>
-      <div style="font-size:11px;color:var(--text3,#99978F);margin-top:3px">
-        ${(S.case?.belt_level || S.case?.case_metadata?.belt_level || '')} ·
-        ${(S.case?.leader || S.case?.case_metadata?.leader || '')} ·
-        ${(S.case?.department || S.case?.case_metadata?.department || '')}
-      </div>
-    </div>`;
-
-  // ── SUBMIT AREA ─────────────────────────────────────────
-  const missingFields = DEFINE_GATE_FIELDS
-    .filter(f => !fieldHasValue(structured[f.key]))
-    .slice(0, 5);
-
-  const submitArea = `
-    <div style="background:#fff;border:0.5px solid var(--border,#E4E2DC);
-      border-radius:8px;padding:14px;margin-top:4px">
-      ${!allDone ? `
-        <div style="font-size:11px;color:var(--text2,#5C5A55);
-          margin-bottom:8px;line-height:1.5">
-          Continue the AI guide conversation to complete all sections
-          before submitting for gate review.
-        </div>
-        ${missingFields.map(f => `
-          <div style="display:flex;align-items:center;gap:6px;
-            padding:3px 0;font-size:11px;color:#A32D2D">
-            <i class="ti ti-circle-x" style="font-size:12px"></i>
-            ${f.label}
-          </div>`).join('')}
-        ${(total - captured) > 5
-          ? `<div style="font-size:10px;color:var(--text3,#99978F);
-              margin-top:4px">…and ${total-captured-5} more</div>`
-          : ''}
-        <button disabled style="width:100%;margin-top:12px;padding:10px;
-          background:var(--surface2,#F8F7F4);color:var(--text3,#99978F);
-          border:0.5px solid var(--border,#E4E2DC);border-radius:6px;
-          font-size:11px;cursor:not-allowed;display:flex;
-          align-items:center;justify-content:center;gap:6px">
-          <i class="ti ti-lock" style="font-size:12px"></i>
-          Gate not ready — ${total-captured} field${total-captured!==1?'s':''} missing
-        </button>` : `
-        <div style="font-size:11px;color:#085041;margin-bottom:10px;
-          line-height:1.5">
-          All sections complete. Review the document above and submit
-          for gate review when your team is satisfied.
-          <strong>You can copy any section above to use in reports.</strong>
-        </div>
-        <button onclick="submitGateReview()" style="width:100%;padding:10px;
-          background:#0070BA;color:#fff;border:none;border-radius:6px;
-          font-size:12px;font-weight:500;cursor:pointer;display:flex;
-          align-items:center;justify-content:center;gap:6px">
-          <i class="ti ti-checkbox" style="font-size:13px"></i>
-          Submit for gate review →
-        </button>`}
-    </div>`;
-
-  // ── RENDER ──────────────────────────────────────────────
-  // `el` was already resolved at the top of the function for early returns
-  const passedBanner = isPassed
-    ? `<div style="background:#E1F5EE;border:0.5px solid #5DCAA5;
-        border-radius:8px;padding:12px 14px;margin-bottom:12px;
-        display:flex;align-items:center;gap:8px">
-        <i class="ti ti-circle-check-filled"
-          style="font-size:16px;color:#0F6E56"></i>
-        <span style="font-size:12px;font-weight:600;color:#04342C">
-          Gate passed ✓
-        </span>
-        <span style="font-size:11px;color:#085041;margin-left:auto">
-          This phase is complete — document shown read-only.
-        </span>
-      </div>` : '';
-  const finalSubmitArea = isPassed ? '' : submitArea;
+  // ── Define: THE DEFINE REPORT (requirement R5, 2026-09-26) ──
+  // The gate is a readable report, not a field checklist. The backend
+  // assembles it from CONFIRMED values only (GET /gate/review -> report,
+  // phases/define/report.py); this draws it, the 5W2H and the SIPOC as
+  // diagrams. It replaces the v1-key gate document that stood here.
   el.innerHTML = `<div style="max-width:860px;margin:0 auto;padding:16px">` +
-    phaseSelector + passedBanner + docHeader + scoreBar + bc + charter +
-    benefits + sipoc + baseline + finalSubmitArea +
-    `</div>`;
+    phaseSelector +
+    `<div id="define-report-panel"><div style="font-size:11px;color:#6B7A8D;
+      padding:12px">Loading the Define report…</div></div></div>`;
+  renderDefineReport(isPassed);
+}
 
-  // Render SIPOC diagram if data exists
-  {
-    const sipocData = structured.sipoc;
-    if (sipocData) {
-      const gateContainer = document.getElementById(
-        'gate-sipoc-container');
-      if (gateContainer) {
-        renderSipocDiagram(
-          {...sipocData, draft: false, confirmed: true},
-          'gate-sipoc-container'
-        );
-        const strip = gateContainer.querySelector(
-          '[class*="confirm"], .sipoc-confirm');
-        if (strip) strip.remove();
-      }
-    }
+// ─── THE DEFINE REPORT (R5) ───────────────────────────────────────
+// Pure: the report JSON in, HTML out — so a headless check can drive it.
+function defineReportHtml(rep, isPassed) {
+  const t = v => (v === null || v === undefined || String(v).trim() === '')
+    ? `<span style="color:#B3261E;font-style:italic">not confirmed yet</span>`
+    : escapeHtml(typeof v === 'object' ? JSON.stringify(v) : String(v));
+  const table = (rows, cols) => (rows && rows.length)
+    ? `<table style="width:100%;border-collapse:collapse;font-size:11px;margin:4px 0">
+        <tr>${cols.map(c => `<th style="text-align:left;padding:4px 6px;
+          border-bottom:1px solid #E4E2DC;color:#5B6B7C;font-weight:600">${c[1]}</th>`).join('')}</tr>
+        ${rows.map(r => `<tr>${cols.map(c => `<td style="padding:4px 6px;
+          border-bottom:0.5px solid #F0EEE8;vertical-align:top">${t(r[c[0]])}</td>`).join('')}</tr>`).join('')}
+      </table>`
+    : t(null);
+  const line = (label, v) => `<div style="font-size:11px;line-height:1.6;margin:2px 0">
+      <span style="color:#5B6B7C;font-weight:600">${label}:</span> ${t(v)}</div>`;
+  const hist = rep.history || {};
+  const changed = fields => fields.filter(f => hist[f]).map(f => {
+    const h = hist[f];
+    return `<div style="font-size:10px;color:#7A6E52;margin-top:4px">
+      ${escapeHtml(f.replace(/_/g, ' '))} changed ${h.changes - 1}×: first confirmed
+      ${escapeHtml(String(h.first.at || '').slice(0, 10))} as "${t(h.first.value)}"; current since
+      ${escapeHtml(String(h.current.at || '').slice(0, 10))}</div>`;
+  }).join('');
+  const sec = n => (rep.sections || []).find(s => s.n === n) || {};
+  const card = (s, body) => `
+    <div style="background:#fff;border:0.5px solid #E4E2DC;border-radius:8px;
+      padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:12px;font-weight:600;color:#2C3E50">${s.n} · ${escapeHtml(s.title || '')}</span>
+        <span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:8px;
+          background:${s.complete ? '#E8F4EC' : '#FDECEC'};color:${s.complete ? '#1E6B3A' : '#B3261E'}">
+          ${s.complete ? 'confirmed' : 'incomplete'}</span>
+      </div>${body}${changed(s.fields || [])}</div>`;
+
+  const s1 = sec(1), p = s1.project || {};
+  const s2 = sec(2), b = s2.benefits || {}, sv = s2.savings;
+  const s3 = sec(3), scope = s3.scope || {};
+  const s4 = sec(4), s5 = sec(5), s6 = sec(6), s7 = sec(7);
+  const prim = s5.primary || {};
+  const sipoc = s6.sipoc || {};
+
+  const html = [
+    `<div style="font-size:15px;font-weight:600;color:#2C3E50;margin:4px 0 2px">
+       Define report${p.title ? ' — ' + escapeHtml(p.title) : ''}</div>
+     <div style="font-size:10px;color:#6B7A8D;margin-bottom:12px">Phase 1 of 5 ·
+       assembled from the values you confirmed — nothing here is proposed by the coach</div>`,
+    card(s1, line('Project', p.title) + line('Belt', p.leader) + line('Belt level', p.belt_level) +
+      line('Department', p.department) +
+      table(s1.team, [['name', 'Name'], ['role', 'Role'], ['function', 'Function']])),
+    card(s2, `<div style="font-size:11px;line-height:1.6;margin-bottom:6px">${t(s2.business_case)}</div>` +
+      line('Cost of the gap', b.cost_of_gap) + line('Impact', b.impact_type) +
+      line('Realisation schedule', b.realisation_schedule) + line('Finance contact', b.finance_contact) +
+      (sv ? line('Expected-savings calculation', ((sv.result || {}).calculation_note) ||
+                                                  ((sv.result || {}).annual_savings)) : '')),
+    card(s3, `<div style="font-size:10px;font-weight:600;color:#5B6B7C;margin:2px 0">5W2H</div>` +
+      table(s3.five_w_two_h, [['question', 'Question'], ['answer', 'Answer']]) +
+      `<div style="font-size:11px;line-height:1.6;background:#F4F8FC;border-left:3px solid #0070BA;
+        padding:6px 8px;margin:6px 0"><strong>Problem.</strong> ${t(s3.problem_statement)}</div>` +
+      line('Objective', s3.objective) +
+      `<div style="display:flex;gap:10px;margin-top:4px">
+        <div style="flex:1">${line('In scope', scope.in_scope)}</div>
+        <div style="flex:1">${line('Out of scope', scope.out_scope)}</div></div>`),
+    card(s4, `<div style="font-size:11px;line-height:1.6;margin-bottom:6px">${t(s4.voc_summary)}</div>` +
+      `<div style="font-size:10px;font-weight:600;color:#5B6B7C">Critical to quality (CTQs)</div>` +
+      table(s4.ctqs, [['customer', 'Customer'], ['need', 'Need'], ['requirement', 'Requirement (measurable)']])),
+    card(s5, line('Primary metric', prim.name ? `${prim.name} (${prim.unit || ''}) — ${prim.meaning || ''}` : null) +
+      line('Baseline → target', (s5.baseline || s5.target) ? `${s5.baseline || '—'} → ${s5.target || '—'}` : null) +
+      line('By', s5.target_date) + line('Secondary metrics', s5.secondary_metrics) +
+      ((s5.other_registered || []).length
+        ? line('Also registered', s5.other_registered.map(m => m.name).join(', ')) : '')),
+    card(s6, `<div id="report-sipoc"></div>` + line('Measured on the outputs', sipoc.process_metrics)),
+    card(s7, `<div style="font-size:11px;line-height:1.6">${t(s7.issues_and_barriers)}</div>`),
+  ];
+  const missing = rep.missing || [];
+  if (missing.length && !isPassed) {
+    html.push(`<div style="font-size:11px;color:#B3261E;padding:8px 0">Still to confirm:
+      ${missing.map(m => escapeHtml(m.replace(/_/g, ' '))).join(', ')}</div>`);
   }
+  html.push(`<div id="define-report-actions"></div>`);
+  return html.join('');
+}
+
+async function renderDefineReport(isPassed) {
+  const host = document.getElementById('define-report-panel');
+  if (!host) return;
+  const caseId = S.case?.case_id || S.caseId;
+  if (!caseId) {
+    host.innerHTML = `<div style="font-size:11px;color:#6B7A8D;padding:12px">Open a case to see its Define report.</div>`;
+    return;
+  }
+  let d;
+  try {
+    const r = await fetch(`${API}/gate/review/${caseId}/define`);
+    if (!r.ok) throw new Error(`the server answered ${r.status}`);
+    d = await r.json();
+  } catch (e) {
+    host.innerHTML = `<div style="font-size:11px;color:#B3261E;padding:12px">The Define report
+      could not be loaded — ${escapeHtml(String(e.message || e))}. Your answers are saved.</div>`;
+    return;
+  }
+  const rep = d.report || {sections: [], missing: [], elements: [], history: {}};
+  host.innerHTML = defineReportHtml(rep, isPassed);
+  const sipoc = ((rep.sections || []).find(s => s.n === 6) || {}).sipoc || {};
+  if (document.getElementById('report-sipoc')) {
+    renderSipocDiagram({...sipoc, draft: false, confirmed: true}, 'report-sipoc');
+  }
+  if (typeof renderDefineReportActions === 'function') renderDefineReportActions(d, rep, isPassed);
 }
 
 // Switch the Gate view to another phase without changing S.phase

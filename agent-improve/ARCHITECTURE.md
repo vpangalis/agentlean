@@ -49,7 +49,7 @@ that reads it.**
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.81 · 2026-09-26
+Version 1.82 · 2026-09-26
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
 
@@ -57,6 +57,7 @@ Task 3B verification pass completed 2026-08-21.
 The full text of every entry through v1.77 is verbatim in
 [`docs/_archive/ARCHITECTURE_slimmed_2026-09-25.md#L112`](docs/_archive/ARCHITECTURE_slimmed_2026-09-25.md#L112).
 
+- v1.82 · 2026-09-26 · R5: Define's gate is the DEFINE REPORT — seven sections assembled deterministically from confirmed values (`phases/define/report.define_report`), served as `GateReviewResponse.report` on `GET /gate/review` (Define only), drawn on the gate screen with the 5W2H and SIPOC diagrams; the v1-key Define gate document is retired from the screen · §49, §50
 - v1.81 · 2026-09-26 · R6: every Define change is kept in phase state with its date — `field_log` already holds it (one entry per CONFIRMED change, timestamped, with the value it replaced, carried across turns by the case record); `substate.value_history` reads the first and the current confirmed value per field. No new state field · §10.1, §56 (2026-09-21)
 - v1.80 · 2026-09-26 · R3 (docs/requirements/define.md): the validation layer every Belt answer passes before the coach model is the planner's one judgment, made against the element's ACCEPTANCE CRITERIA (`skills.acceptance_criteria`, from its SKILL.md block); `SufficiencyJudgment.failed_criterion` names the first one an insufficient answer fails, checked in code, and the challenge names it · §58 (S-C04)
 - v1.79 · 2026-09-26 · Founder's Define requirements v2 (`docs/requirements/define.md`, R1–R7 — domain requirements live there, never here): Define has THIRTEEN elements — the benefits analysis at position 10 (R4); `critical_to_quality` captured inside position 3 and `problem_5w2h` inside position 4, as the registry is inside 5; `DefineOutput` 21 fields, 16 gate-required; every element's acceptance criteria are in its SKILL.md block · `phases/define/schema.py`, §39.1.9, §63.1
