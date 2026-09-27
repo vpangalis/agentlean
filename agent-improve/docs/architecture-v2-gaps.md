@@ -212,3 +212,43 @@ Items 13 and 16 gate a production launch (T68 covers 16).
 | Links to the deleted `requirements/define.md` | ADRs 0004, 0007, 0008, 0010 | ADRs are never edited |
 | `docs/requirements/define.md` cited in `skills/dmaic-define-phase/SKILL.md` | 3 lines | Any edit stales row 3's recorded live run (Part A) |
 | T55's proof test | `platform.md` | It proves `BeforeModelStateInjection`, not the contradiction check; the contradiction hook is `after_agent`. platform.md is founder-owned |
+
+## 6. §4.2 — the first regeneration against the transcribed draft (brief Part D)
+
+**Where it landed.** The pre-commit hook regenerates §4.2 on every commit that carries the
+markers (Part G). So the first regeneration landed in Part C's own commit, `2bcc1af`, and rule
+16 checked it there ("the block equals a fresh generation"). The corrected draft had already
+moved the hand-written content to §4.1 and left §4.2 as a placeholder, so against that draft the
+diff is placeholder → generated.
+
+**Against the TRANSCRIBED draft** (v2.0 as first delivered, §4 transcribed from the v1.88 spec
+entries), field by field: 34 differences in the declarations, none in the index field names (the
+first regeneration, recorded in `3f8fb4e`).
+
+| Class | Field | Transcribed | Code (generated) |
+|---|---|---|---|
+| `PhaseState` | `remaining_steps` | `RemainingSteps` | `NotRequired[RemainingSteps]` |
+| `CoachingPlan` | `field_status` | `dict[str, dict]` | `dict[str, dict[str, Any]]` |
+| `CoachingPlan` | `reason` | absent | `str = ''` |
+| `CoachingResponse` | `explanation`, `example`, `prompt`, `progress` | required | `str = ''` each |
+| all five `{Phase}Output` | `phase_metrics` | required | `list[dict] = []` |
+| `MeasureOutput` | `baseline_sigma`, `measurement_system_validated`, `secondary_metrics` | required | `str = ''` |
+| `AnalyseOutput` | `causal_hypothesis` | required | `dict = {}` |
+| `AnalyseOutput` | `ruled_out_causes`, `statistical_problem_statement`, `process_owner_buyin`, `secondary_metrics` | required | `str = ''` |
+| `ImproveOutput` | `solution_linked_to_root_cause` | required | `dict = {}` |
+| `ImproveOutput` | `implementation_plan`, `explanatory_power`, `process_owner_buyin`, `secondary_metrics` | required | `str = ''` |
+| `ControlOutput` | `improvement_delta`, `financial_impact_verified`, `sustainability_check`, `handover_documented`, `lessons_learned`, `transferability`, `project_signoff`, `secondary_metrics`, `actual_close_date` | required | `str = ''` |
+
+The corrected draft's §4.1 already covers the Tier 2 rows ("Fields with a default in §4.2 are the
+recommended (Tier 2) fields"), and it removed the three statements the code contradicted. Still
+open for Desktop:
+- `PhaseState.remaining_steps` is `NotRequired`.
+- `CoachingPlan.field_status` is typed more narrowly than the transcription.
+- `CoachingPlan.reason` exists in the code and was never transcribed.
+- `CoachingResponse`'s four blocks default to `''`, so they are not required.
+
+**The refusal (D3), on the real tree after Part C.** One line inside §4.2 was hand-edited
+(`case_id: str  # hand-edited`) and staged, and `.githooks/commit-msg` was run as git runs it.
+Rules 10, 12 and 13 passed, then: "COMMIT BLOCKED — ARCHITECTURE.md's generated data-models block
+differs from the code (rule 16)" (exit 1). The file was restored; `generate_models.py --check`
+reports "current".
