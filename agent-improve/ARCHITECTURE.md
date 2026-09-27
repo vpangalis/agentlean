@@ -49,7 +49,7 @@ that reads it.**
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.85 · 2026-09-27
+Version 1.86 · 2026-09-27
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
 
@@ -57,6 +57,7 @@ Task 3B verification pass completed 2026-08-21.
 The full text of every entry through v1.77 is verbatim in
 [`docs/_archive/ARCHITECTURE_slimmed_2026-09-25.md#L112`](docs/_archive/ARCHITECTURE_slimmed_2026-09-25.md#L112).
 
+- v1.86 · 2026-09-27 · The retired methodology index `improve_knowledge_index` (contaminated, retained in Azure) joins D.1's retired names and `deprecated_patterns.yaml` (pattern-12) as a quoted literal; the current index is `improve_knowledge_index_v3`, reached through the setting whose default is `KNOWLEDGE_INDEX_DEFAULT` · §23.1, Appendix D.1
 - v1.85 · 2026-09-27 · No rule changed — type annotations only in `core/checkpointer.py` (`_pending_writes` returns `List[...]`: inside the saver `list` is its own method) and `gateway/routes.py` (`_run_turn` takes a state dict or `Command(resume=...)`); nothing this document states about either file changed · §8, §49
 - v1.84 · 2026-09-26 · R7: Layer 2d for Define — `DEFINE_RUBRIC` (core/prompts.py), ONE criterion per element, Tier 1, pass/fail with a reason (the G-40 draft is archived); graded by `validation/rubric.grade_define`, deterministic half first, one `grader` call at 0.1 for judgment, a missing verdict failing closed; run by `validation_stack` after 2b, so a failing report never reaches the R6 pause. `CriterionVerdict` and `GraderVerdict` land in `validation/schemas.py` · §9.2, §9.7, §36
 - v1.83 · 2026-09-26 · R6: the Define report is accepted through a graph-level pause — `gate_review` calls `interrupt()` once the gate has passed validation; `POST /gate` returns awaiting-acceptance and writes nothing; `POST /gate/decision` resumes with `Command(resume=...)` (approve: `gate_apply` assembles `final`, the route writes and advances, the Belt recorded as actor until R8; reject: the named elements re-open and the coach guides the Belt back in the same run). `AzureBlobCheckpointSaver.put_writes` persists pending writes — it was a no-op, which dropped the interrupt · §33, §49
@@ -11577,6 +11578,7 @@ Stack Overflow, Reddit, Medium, Dev.to — unless linking directly to Tier 1.
 | `RetryMiddleware` | `ModelRetryMiddleware` / `ToolRetryMiddleware` | §19.5 |
 | `phase_router` node | Static edges | §15 |
 | `ORCHESTRATOR_{PHASE}_CONTEXT`, `EXTRACTION_{PHASE}`, `KNOWLEDGE_INJECTION_TEMPLATE` | — | §22 |
+| `improve_knowledge_index` as an index NAME in code or config — the contaminated corpus, retained in Azure but retired (2026-09-27). §23's prose still calls the methodology index by this role name | `improve_knowledge_index_v3`, through `settings.AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX` (default `KNOWLEDGE_INDEX_DEFAULT`, `core/config.py`) | §23.1 |
 
 ### D.2 Banned patterns
 

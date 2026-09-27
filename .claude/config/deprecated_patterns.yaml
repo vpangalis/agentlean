@@ -238,3 +238,21 @@ patterns:
       # prescribes, not a hand-rolled replacement for it. Its test likewise.
       - 'agent-improve/backend/core/checkpointer.py'
       - 'agent-improve/backend/tests/test_checkpointer.py'
+
+  # ── The retired methodology index (founder, 2026-09-27) ──────────────────
+  # `improve_knowledge_index` holds the contaminated corpus the v3 rebuild
+  # (871637f) removed; it is retained in Azure and must never be named as an
+  # index again. Matched only as a QUOTED literal, so `_v3`, prose and the
+  # §23 role name pass. config.py names it once, as RETIRED_KNOWLEDGE_INDEX,
+  # so a test can say "never"; test_fusion.py uses it as an error's
+  # affected_identifier, not as an index to read.
+  - id: pattern-12-retired-knowledge-index
+    regex: '["'']improve_knowledge_index["'']'
+    message: "improve_knowledge_index is the retired, contaminated methodology index (Reference §23, and its Appendix D.1). Read the index name from settings.AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX; its default is KNOWLEDGE_INDEX_DEFAULT in backend/core/config.py (improve_knowledge_index_v3)."
+    severity: block
+    path_exclusions:
+      # Governance documentation — see header.
+      - 'agent-improve/*.md'
+      - 'agent-improve/**/*.md'
+      - 'agent-improve/backend/core/config.py'
+      - 'agent-improve/backend/tests/test_fusion.py'

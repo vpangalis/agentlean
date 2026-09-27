@@ -13,7 +13,7 @@
 | **Next — lane C** | DEF-074 — G-113: the create form shows no case id until the server has assigned one; the number a Belt sees is always the one the case is saved under. |
 | **Next — lane integrator** | DEF-001 — A Belt creates a new case and it opens in Define: POST /cases returns an id, the case list shows it, and GET /cases/{id} opens it with curre |
 | **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
-| **ARCHITECTURE.md** | v1.85 |
+| **ARCHITECTURE.md** | v1.86 |
 | **CLAUDE.md** | v2.3.1 |
 | **Block regenerated** | 2026-09-27 |
 
