@@ -90,6 +90,17 @@ def test_the_generator_never_imports_a_backend_module() -> None:
     assert "importlib" not in src
 
 
+def test_the_git_pipes_carry_bytes_so_nothing_is_staged_with_crlf() -> None:
+    """The --stage bug of 2026-09-27: a text-mode stdin on Windows turned every
+    newline into CRLF, so the index received a CRLF copy of the whole document.
+    `hash-object --stdin` must hash exactly the LF text it is given."""
+    import hashlib
+    text = "line one\nline two\n"
+    expected = hashlib.sha1(b"blob %d\x00" % len(text.encode()) + text.encode()).hexdigest()
+    assert gm._git(["hash-object", "--stdin"], text).strip() == expected
+    assert "\r" not in gm._git(["show", "HEAD:agent-improve/ARCHITECTURE.md"])[:5000]
+
+
 def test_the_hooks_run_and_check_it() -> None:
     hook = (_REPO / ".githooks" / "pre-commit").read_text(encoding="utf-8")
     assert "generate_models.py --stage" in hook

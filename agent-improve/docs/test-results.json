@@ -1,9 +1,9 @@
 {
- "source_hash": "dee1b4b943dfaecd",
- "commit": "b8f66a0",
+ "source_hash": "36a562946b75f064",
+ "commit": "3f8fb4e",
  "commit_matches_source": false,
- "full_run_hash": "dee1b4b943dfaecd",
- "recorded_at": "2026-09-27T08:39:37+00:00",
+ "full_run_hash": "36a562946b75f064",
+ "recorded_at": "2026-09-27T08:49:12+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -729,6 +729,7 @@
   "backend/tests/test_generate_models.py::test_rule_12_does_not_measure_the_block_and_rule_2b_does_not_count_it": "passed",
   "backend/tests/test_generate_models.py::test_the_block_declares_every_class_and_every_table": "passed",
   "backend/tests/test_generate_models.py::test_the_generator_never_imports_a_backend_module": "passed",
+  "backend/tests/test_generate_models.py::test_the_git_pipes_carry_bytes_so_nothing_is_staged_with_crlf": "passed",
   "backend/tests/test_generate_models.py::test_the_hooks_run_and_check_it": "passed",
   "backend/tests/test_hop_cap.py::test_one_more_hop_would_not_fit": "passed",
   "backend/tests/test_hop_cap.py::test_the_cap_can_actually_fire_inside_the_node_budget": "passed",
@@ -1435,8 +1436,8 @@
   "backend/tests/test_wiring.py::test_wired_6_61_the_move_is_decided_in_code": "passed"
  },
  "older": {
-  "source_hash": "012d375209f80d8f",
-  "recorded_at": "2026-09-27T08:36:08+00:00",
+  "source_hash": "dee1b4b943dfaecd",
+  "recorded_at": "2026-09-27T08:39:37+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2301,6 +2302,14 @@
    "backend/tests/test_gate_write.py::test_the_registry_is_updated_in_place_not_appended": "passed",
    "backend/tests/test_gate_write.py::test_the_uploads_survive_a_call_that_does_not_mention_them": "passed",
    "backend/tests/test_gate_write.py::test_writing_twice_leaves_one_document_and_one_stamp": "passed",
+   "backend/tests/test_generate_models.py::test_a_changed_field_changes_the_block": "passed",
+   "backend/tests/test_generate_models.py::test_a_document_without_markers_is_left_alone": "passed",
+   "backend/tests/test_generate_models.py::test_a_missing_class_fails_the_run_naming_it": "passed",
+   "backend/tests/test_generate_models.py::test_only_the_text_between_the_markers_is_replaced": "passed",
+   "backend/tests/test_generate_models.py::test_rule_12_does_not_measure_the_block_and_rule_2b_does_not_count_it": "passed",
+   "backend/tests/test_generate_models.py::test_the_block_declares_every_class_and_every_table": "passed",
+   "backend/tests/test_generate_models.py::test_the_generator_never_imports_a_backend_module": "passed",
+   "backend/tests/test_generate_models.py::test_the_hooks_run_and_check_it": "passed",
    "backend/tests/test_hop_cap.py::test_one_more_hop_would_not_fit": "passed",
    "backend/tests/test_hop_cap.py::test_the_cap_can_actually_fire_inside_the_node_budget": "passed",
    "backend/tests/test_hop_cap.py::test_the_cap_is_three": "passed",
