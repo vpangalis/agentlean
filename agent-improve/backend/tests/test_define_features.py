@@ -64,6 +64,19 @@ def test_every_feature_cites_a_citable_requirement_and_every_one_has_a_feature(f
     assert business | unproven <= cited, sorted((business | unproven) - cited)
 
 
+def test_every_requirement_carries_moscow_and_design_and_the_checker_refuses_one_without() -> None:
+    """Brief Part F2 (founder, 2026-09-27): every entry of business.md and platform.md has
+    `MoSCoW:` (`?` allowed until ratified) and `Design: ADR-nnnn | none` on its heading line."""
+    assert F.field_problems(F.requirements()) == []
+    texts = {n: (F.REQUIREMENTS / n).read_text(encoding="utf-8") for n in ("business.md", "platform.md")}
+    texts["business.md"] = texts["business.md"].replace(
+        "**R1 Team copilot** · RATIFIED 2026-09-26 · MoSCoW: ? · Design: ADR-0001",
+        "**R1 Team copilot** · RATIFIED 2026-09-26 · Design: ADR-0001")
+    texts["platform.md"] = texts["platform.md"].replace("| ? | ADR-0015 | `test_state.py", "| ? | | `test_state.py", 1)
+    assert F.field_problems(F.requirements(texts=texts)) == [
+        "R1 (business.md) has no MoSCoW: field", "T1 (platform.md) has no Design: field"]
+
+
 def test_every_feature_has_a_priority_and_the_lanes_take_it_first(feats) -> None:
     """Brief Part A4: `priority` is 1 (now), 2 (next) or 3 (later); the next failing
     feature of a lane is taken by priority, then list order."""

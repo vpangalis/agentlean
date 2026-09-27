@@ -146,20 +146,32 @@ def summary(features: list[dict] | None = None, res: dict | None = None) -> dict
 
 
 REQUIREMENTS = PROJECT / "docs" / "requirements"
-_BUSINESS_ID = re.compile(r"^\*\*([RCWM]\d+[a-z]?) [^*]*\*\* · (RATIFIED|ACCEPTED|PROPOSED|DRAFT|RETIRED)", re.M)
+_BUSINESS_ID = re.compile(r"^\*\*([RCWM]\d+[a-z]?) [^*]*\*\* · (RATIFIED|ACCEPTED|PROPOSED|DRAFT|RETIRED)(.*)$", re.M)
 _T_ROW = re.compile(r"^\| (T\d+) \| (.+) \|\s*$", re.M)
 _T_RANGE = re.compile(r"T(\d+)–T(\d+) (ACCEPTED|PROPOSED)")
+#: Brief Part F2 (founder, 2026-09-27): every entry carries both, on its heading line.
+MOSCOW = ("Must", "Should", "Could", "Won't-now", "?")
+_MOSCOW = re.compile(r"MoSCoW: (Must|Should|Could|Won't-now|\?)(?=\s|$)")
+_DESIGN = re.compile(r"Design: (ADR-\d{4}|none)(?=\s|$)")
 
 
-def requirements(folder: Path = REQUIREMENTS) -> dict[str, dict]:
-    """Every requirement id with its status (and, for a T id, whether its proof is `none`),
-    read from business.md and platform.md (brief Part A, 2026-09-27). A business id's status
-    is the first on its heading line ("RATIFIED …, amended ACCEPTED …" is RATIFIED)."""
+def _fields(text: str) -> dict:
+    m, d = _MOSCOW.search(text), _DESIGN.search(text)
+    return {"moscow": m.group(1) if m else None, "design": d.group(1) if d else None}
+
+
+def requirements(folder: Path = REQUIREMENTS, texts: dict[str, str] | None = None) -> dict[str, dict]:
+    """Every requirement id with its status, MoSCoW, Design (brief Part F2) and, for a T id,
+    whether its proof is `none` — read from business.md and platform.md (brief Part A,
+    2026-09-27), or from `texts` ({"business.md": …, "platform.md": …}, the guard's staged
+    copies). A business id's status is the first on its heading line ("RATIFIED …, amended
+    ACCEPTED …" is RATIFIED). A missing field reads as None: `field_problems` names it."""
+    texts = texts or {n: (folder / n).read_text(encoding="utf-8") for n in ("business.md", "platform.md")}
     out: dict[str, dict] = {}
-    business = (folder / "business.md").read_text(encoding="utf-8")
-    for m in _BUSINESS_ID.finditer(business):
-        out[m.group(1)] = {"status": m.group(2), "proof_none": False}
-    platform = (folder / "platform.md").read_text(encoding="utf-8")
+    for m in _BUSINESS_ID.finditer(texts["business.md"]):
+        out[m.group(1)] = {"status": m.group(2), "proof_none": False, **_fields(m.group(3)),
+                           "file": "business.md"}
+    platform = texts["platform.md"]
     header = platform[platform.index("## Technical requirements"):platform.index("### State model")]
     status: dict[int, str] = {}
     for a, b, s in _T_RANGE.findall(header):
@@ -168,8 +180,19 @@ def requirements(folder: Path = REQUIREMENTS) -> dict[str, dict]:
     for m in _T_ROW.finditer(platform):
         tid, cells = m.group(1), m.group(2)
         st = "RETIRED" if "RETIRED" in cells else status.get(int(tid[1:]), "PROPOSED")
-        out[tid] = {"status": st, "proof_none": cells.rstrip().endswith("| none")}
+        cols = [c.strip() for c in cells.split("|")]
+        moscow = cols[-3] if len(cols) >= 4 and cols[-3] in MOSCOW else None
+        design = cols[-2] if len(cols) >= 4 and re.fullmatch(r"ADR-\d{4}|none", cols[-2]) else None
+        out[tid] = {"status": st, "proof_none": cells.rstrip().endswith("| none"),
+                    "moscow": moscow, "design": design, "file": "platform.md"}
     return out
+
+
+def field_problems(reqs: dict[str, dict]) -> list[str]:
+    """Entries missing `MoSCoW:` or `Design:` (brief Part F2) — the checker refuses them.
+    A `?` MoSCoW is allowed until the founder ratifies it."""
+    return [f"{i} ({r['file']}) has no {name}" for i, r in reqs.items()
+            for name, key in (("MoSCoW: field", "moscow"), ("Design: field", "design")) if not r[key]]
 
 
 def citable(reqs: dict[str, dict]) -> set[str]:
