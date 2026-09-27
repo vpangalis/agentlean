@@ -38,6 +38,7 @@ from openai import (
 from openai import AuthenticationError as OpenAIAuthenticationError
 
 from backend.core.config import settings
+from backend.storage import layout
 from backend.core.errors import AgentImproveError, KnowledgeSearchError
 
 logger = logging.getLogger(__name__)
@@ -331,45 +332,13 @@ def get_knowledge_vectorstore() -> AzureSearch:
 # > (recorded at DECISIONS Part AT). It is declared correctly anyway, because a
 # > dead function that is revived without this list fails silently, and the
 # > silence is the whole failure mode §23.4 exists to describe.
-EVIDENCE_INDEX_FIELDS = [
-    SimpleField(name="id", type=SearchFieldDataType.String,
-                key=True, filterable=True),
-    SearchableField(name="content", type=SearchFieldDataType.String),
-    SearchField(
-        name="content_vector",
-        type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
-        searchable=True,
-        vector_search_dimensions=3072,          # text-embedding-3-large
-        vector_search_profile_name="default",
-    ),
-    SearchableField(name="metadata", type=SearchFieldDataType.String),
-    SimpleField(name="case_id", type=SearchFieldDataType.String,
-                filterable=True),
-    # The seven applied at 6.13. Attributes are §23.2's, field for field.
-    SimpleField(name="phase", type=SearchFieldDataType.String,
-                filterable=True),
-    SimpleField(name="uploaded_at", type=SearchFieldDataType.String,
-                filterable=True, sortable=True),
-    SearchableField(name="role", type=SearchFieldDataType.String,
-                    filterable=True),
-    SimpleField(name="kind", type=SearchFieldDataType.String,
-                filterable=True),
-    SearchableField(name="description", type=SearchFieldDataType.String),
-    SimpleField(name="content_digest", type=SearchFieldDataType.String,
-                filterable=True),
-    SimpleField(name="shape_match", type=SearchFieldDataType.String,
-                filterable=True),
-]
+EVIDENCE_INDEX_FIELDS = layout.search_fields(layout.EVIDENCE_INDEX)
 
 # What `search_evidence` asks the index to return. `select` is not `fields`:
 # this is the projection on a raw SearchClient read, and a field missing here
 # comes back absent rather than empty — which is why the structured record
 # (§24) reads every one of the seven from this list.
-EVIDENCE_SELECT = [
-    "id", "content", "metadata", "case_id",
-    "phase", "uploaded_at", "role", "kind",
-    "description", "content_digest", "shape_match",
-]
+EVIDENCE_SELECT = list(layout.EVIDENCE_SELECT)
 
 # §23.2: retrieval filters to evidence by default. An artefact is what the team
 # DESIGNED, and one bucket would let a proposed future be retrieved later as a
@@ -512,8 +481,7 @@ def search_cases(query: str, k: int = 3) -> list[dict]:
                 vector_queries=[vector_query],
                 # `id` is selected for RRF dedup (S-F17) — a `select` that
                 # omits it makes every document unique to fusion, silently.
-                select=["id", "content_text", "case_id", "title",
-                        "current_phase", "rag_status"],
+                select=list(layout.CASE_SELECT),
                 top=k,
             ))
             span.end(outputs={"hits": len(results), **_http_summary(ev),

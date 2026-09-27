@@ -155,7 +155,10 @@ def test_owned_paths_are_the_three_in_the_spec() -> None:
     assert blob.case_path("X") == "cases/case_X.json"
     assert blob.REGISTRY_BLOB_PATH == "registry.json"
     src = BLOB_SRC.read_text(encoding="utf-8")
-    assert 'f"uploads/{case_id}/{filename}"' in src
+    # Part G (2026-09-27): the template is owned by storage/layout.py; blob.py uses it.
+    from backend.storage import layout
+    assert "layout.UPLOAD_BLOB.format(case_id=case_id, filename=filename)" in src
+    assert layout.UPLOAD_BLOB == "uploads/{case_id}/{filename}"
 
 
 # ── the cached-client lifecycle ───────────────────────────────────────────

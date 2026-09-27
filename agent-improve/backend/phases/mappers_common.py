@@ -34,6 +34,8 @@ from typing import Any
 
 from langgraph.store.base import BaseStore
 
+from backend.storage import layout
+
 from backend.core.state import SupervisorState
 from backend.core.substate import (
     PHASE_STATE_AUTHOR_POPULATED_FIELDS,
@@ -47,8 +49,8 @@ PHASE_ORDER: tuple[str, ...] = (
 )
 
 #: Store namespace kinds (§9). `gate_documents` is RETIRED and must not return.
-KIND_CASE = "case"
-KIND_ARTIFACTS = "artifacts"
+KIND_CASE = layout.KIND_CASE
+KIND_ARTIFACTS = layout.KIND_ARTIFACTS
 
 
 def prior_phase(phase: str) -> str | None:
@@ -63,7 +65,7 @@ def read_case_record(store: BaseStore, case_id: str) -> dict[str, Any]:
     §9: the `case` namespace is a session-start COPY so that mappers depend on
     `BaseStore` alone; `cases/case_{id}.json` stays the system of record.
     """
-    item = store.get((("projects"), case_id, KIND_CASE), "record")
+    item = store.get((layout.STORE_ROOT, case_id, KIND_CASE), layout.CASE_RECORD_KEY)
     return dict(item.value) if item is not None else {}
 
 
@@ -219,7 +221,7 @@ def write_case_record(store: BaseStore, case_id: str, record: dict[str, Any]) ->
     6.8 when this landed. Idempotent by key, which is what makes the lazy
     backfill safe to run on every turn.
     """
-    store.put(("projects", case_id, KIND_CASE), "record", record)
+    store.put((layout.STORE_ROOT, case_id, KIND_CASE), layout.CASE_RECORD_KEY, record)
 
 
 def read_gate_document(store: BaseStore, case_id: str, phase: str) -> dict[str, Any]:
@@ -231,7 +233,7 @@ def read_gate_document(store: BaseStore, case_id: str, phase: str) -> dict[str, 
     `{}` only for the caller to detect — callers MUST NOT treat `{}` as an
     acceptable framing; `compose_phase_context` raises on it.
     """
-    item = store.get(("projects", case_id, KIND_ARTIFACTS), phase)
+    item = store.get((layout.STORE_ROOT, case_id, KIND_ARTIFACTS), phase)
     return dict(item.value) if item is not None else {}
 
 
@@ -256,12 +258,12 @@ def write_asks(
     to `PhaseState`; this puts them where a route can see them. Idempotent by
     key, like every other write to this record.
     """
-    item = store.get(("projects", case_id, KIND_CASE), "record")
+    item = store.get((layout.STORE_ROOT, case_id, KIND_CASE), layout.CASE_RECORD_KEY)
     record = dict(item.value) if item is not None else {}
     inventory = dict(record.get(CASE_RECORD_ASKS) or {})
     inventory[phase] = [dict(a) for a in asks or []]
     record[CASE_RECORD_ASKS] = inventory
-    store.put(("projects", case_id, KIND_CASE), "record", record)
+    store.put((layout.STORE_ROOT, case_id, KIND_CASE), layout.CASE_RECORD_KEY, record)
 
 
 def uploads_for_phase(
@@ -442,7 +444,7 @@ def write_gate_document(
     key. **Which of the two is the authoritative writer is not stated in either
     section** — recorded as a finding in §66 and not resolved here.
     """
-    store.put(("projects", parent["case_id"], KIND_ARTIFACTS), phase, child["final"])
+    store.put((layout.STORE_ROOT, parent["case_id"], KIND_ARTIFACTS), phase, child["final"])
 
 
 def compose_phase_context(

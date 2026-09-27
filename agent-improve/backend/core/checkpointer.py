@@ -69,6 +69,7 @@ from langgraph.checkpoint.base import (
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
 from backend.core.config import settings
+from backend.storage import layout
 
 logger = logging.getLogger(__name__)
 
@@ -168,26 +169,26 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
         unreadable and unsafe to split on.
         """
         if not checkpoint_ns:
-            return f"checkpoints/{thread_id}"
-        return f"checkpoints/{thread_id}/ns/{quote(checkpoint_ns, safe='')}"
+            return layout.CHECKPOINT_THREAD.format(thread_id=thread_id)
+        return layout.CHECKPOINT_NAMESPACED.format(thread_id=thread_id,
+                                                   checkpoint_ns=quote(checkpoint_ns, safe=""))
 
     @classmethod
     def _latest_path(cls, thread_id: str, checkpoint_ns: str = "") -> str:
-        return f"{cls._prefix(thread_id, checkpoint_ns)}/latest.json"
+        return layout.CHECKPOINT_LATEST.format(prefix=cls._prefix(thread_id, checkpoint_ns))
 
     @classmethod
     def _history_path(cls, thread_id: str, checkpoint_id: str,
                       checkpoint_ns: str = "") -> str:
-        return (
-            f"{cls._prefix(thread_id, checkpoint_ns)}"
-            f"/history/{checkpoint_id}.json"
-        )
+        return layout.CHECKPOINT_HISTORY.format(prefix=cls._prefix(thread_id, checkpoint_ns),
+                                                checkpoint_id=checkpoint_id)
 
     @classmethod
     def _writes_prefix(cls, thread_id: str, checkpoint_id: str,
                        checkpoint_ns: str = "") -> str:
         """Where one checkpoint's PENDING WRITES live — one blob per task."""
-        return f"{cls._prefix(thread_id, checkpoint_ns)}/writes/{checkpoint_id}/"
+        return layout.CHECKPOINT_WRITES.format(prefix=cls._prefix(thread_id, checkpoint_ns),
+                                               checkpoint_id=checkpoint_id)
 
     def _blob(self, path: str) -> BlobClient:
         return self._container.get_blob_client(path)

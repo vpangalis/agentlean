@@ -69,11 +69,12 @@ from langgraph.store.base import (
 )
 
 from backend.core.config import settings
+from backend.storage import layout
 
 logger = logging.getLogger(__name__)
 
 #: Every blob this class owns lives under this prefix and nothing else does.
-STORE_PREFIX = "store"
+STORE_PREFIX = layout.STORE_PREFIX
 
 
 def blob_path(namespace: tuple[str, ...], key: str) -> str:
@@ -88,7 +89,7 @@ def blob_path(namespace: tuple[str, ...], key: str) -> str:
     if not namespace:
         raise ValueError("namespace must have at least one segment")
     segments = "/".join(namespace)
-    return f"{STORE_PREFIX}/{segments}/{key}.json"
+    return layout.STORE_BLOB.format(namespace=segments, key=key)
 
 
 class AzureBlobStore(BaseStore):

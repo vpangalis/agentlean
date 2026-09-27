@@ -7,13 +7,13 @@
 
 | | |
 |---|---|
-| **Headline** | 13 of 74 Define features pass (core 13 of 65) — A 5/39 · B 6/18 · C 2/11 · integrator 0/6 |
+| **Headline** | 13 of 74 Define features pass (core 13 of 65) — A 5/39 · B 6/18 · C 2/11 · integrator 0/6 (record older than the source) |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-073 — G-112: approving the Define report writes the gate document to BOTH the case record and the Store (projects/{case}/artifacts/define), so the |
 | **Next — lane C** | DEF-074 — G-113: the create form shows no case id until the server has assigned one; the number a Belt sees is always the one the case is saved under. |
 | **Next — lane integrator** | DEF-001 — A Belt creates a new case and it opens in Define: POST /cases returns an id, the case list shows it, and GET /cases/{id} opens it with curre |
 | **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
-| **ARCHITECTURE.md** | v1.86 |
+| **ARCHITECTURE.md** | v1.87 |
 | **CLAUDE.md** | v2.3.1 |
 | **Block regenerated** | 2026-09-27 |
 

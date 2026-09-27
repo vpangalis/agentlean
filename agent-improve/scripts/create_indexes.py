@@ -29,6 +29,7 @@ from azure.search.documents.indexes.models import (
 )
 
 from backend.core.config import settings
+from backend.storage import layout
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -62,53 +63,8 @@ def create_improve_case_index() -> None:
     One document per case â written on every phase gate pass.
     Used by: management dashboard, Orchestrator context loading.
     """
-    fields = [
-        SimpleField(name="id", type=SearchFieldDataType.String,
-                    key=True, filterable=True),
-        SimpleField(name="case_id", type=SearchFieldDataType.String,
-                    filterable=True, sortable=True),
-        SearchableField(name="title", type=SearchFieldDataType.String),
-        SimpleField(name="belt_level", type=SearchFieldDataType.String,
-                    filterable=True, facetable=True),
-        SimpleField(name="leader", type=SearchFieldDataType.String,
-                    filterable=True),
-        SearchableField(name="department", type=SearchFieldDataType.String,
-                        filterable=True),
-        SimpleField(name="current_phase", type=SearchFieldDataType.String,
-                    filterable=True, facetable=True),
-        SimpleField(name="rag_status", type=SearchFieldDataType.String,
-                    filterable=True, facetable=True),
-        SimpleField(name="status", type=SearchFieldDataType.String,
-                    filterable=True, facetable=True),
-        SimpleField(name="created_at", type=SearchFieldDataType.String,
-                    filterable=True, sortable=True),
-        SimpleField(name="target_date", type=SearchFieldDataType.String,
-                    filterable=True, sortable=True),
-        SimpleField(name="days_in_phase", type=SearchFieldDataType.Int32,
-                    filterable=True, sortable=True),
-        # Phase summaries â one per DMAIC phase
-        SearchableField(name="phase_summary_define",
-                        type=SearchFieldDataType.String),
-        SearchableField(name="phase_summary_measure",
-                        type=SearchFieldDataType.String),
-        SearchableField(name="phase_summary_analyse",
-                        type=SearchFieldDataType.String),
-        SearchableField(name="phase_summary_improve",
-                        type=SearchFieldDataType.String),
-        SearchableField(name="phase_summary_control",
-                        type=SearchFieldDataType.String),
-        # Searchable summary for semantic/vector search
-        SearchableField(name="content_text",
-                        type=SearchFieldDataType.String),
-        # Vector field
-        SearchField(
-            name="embedding",
-            type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
-            searchable=True,
-            vector_search_dimensions=VECTOR_DIMENSIONS,
-            vector_search_profile_name=VECTOR_PROFILE,
-        ),
-    ]
+    # The fields are storage/layout.py's CASE_INDEX (founder, 2026-09-27, Part G).
+    fields = layout.search_fields(layout.CASE_INDEX)
 
     vector_search = VectorSearch(
         algorithms=[HnswAlgorithmConfiguration(name=HNSW_CONFIG_NAME)],

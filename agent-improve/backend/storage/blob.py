@@ -53,6 +53,7 @@ from azure.storage.blob.aio import (
 
 from backend.core.config import settings
 from backend.core.citations import CitationRecord
+from backend.storage import layout
 from backend.storage.models import (
     AnalystOutputRecord,
     CaseDocument,
@@ -64,7 +65,7 @@ from backend.storage.models import (
 
 logger = logging.getLogger(__name__)
 
-REGISTRY_BLOB_PATH = "registry.json"
+REGISTRY_BLOB_PATH = layout.REGISTRY_BLOB
 
 
 # ── the aio session lifecycle ─────────────────────────────────────────────
@@ -196,7 +197,7 @@ async def _exists(path: str) -> bool:
 
 def case_path(case_id: str) -> str:
     """Pure path construction — no I/O, so it stays synchronous."""
-    return f"cases/case_{case_id}.json"
+    return layout.CASE_BLOB.format(case_id=case_id)
 
 
 async def load_case(case_id: str) -> Optional[CaseDocument]:
@@ -427,7 +428,7 @@ async def upload_file(
     content_type: str = "application/octet-stream",
 ) -> str:
     """Upload a file to blob and return its blob path."""
-    blob_path = f"uploads/{case_id}/{filename}"
+    blob_path = layout.UPLOAD_BLOB.format(case_id=case_id, filename=filename)
     blob = _container().get_blob_client(blob_path)
     await blob.upload_blob(
         data,
