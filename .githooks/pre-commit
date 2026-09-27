@@ -52,10 +52,11 @@ RAN=""
 # 6.67 — path-based (founder addendum, speed item 1): code, config, hooks,
 # .json/.html/.yaml run the suite; documentation only runs the fast checks
 # (rules 12 and 13). The generated outputs a previous attempt left staged do
-# not count as code.
+# not count as code. A skill file (agent-improve/skills/) is product source the
+# coach reads, so it runs the suite although it is Markdown (fix, 2026-09-27).
 if [ -n "$VENV" ] && [ -n "$SYSPY" ] && git diff --cached --name-only \
     | grep -vE 'agent-improve/docs/(control-board\.html|test-results\.json|features-ratchet\.json)$' \
-    | grep -qv '\.md$'; then
+    | grep -qE '^agent-improve/skills/|[^.]..$|[^m].$|[^d]$'; then
     T0=$(date +%s)
     echo "  [tests] the full suite on the STAGED tree, in parallel — the commit's one run (rule 4 reads it)…" >&2
     # 6.68 (founder ruling 2026-09-26) — the hooks test what is STAGED: the

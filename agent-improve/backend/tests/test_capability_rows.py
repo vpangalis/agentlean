@@ -53,6 +53,14 @@ CASE_ID = os.environ.get("CAPABILITY_CASE_ID", "IMPR-2026-0E5")
 #: and a live turn on an old case to refresh it proves nothing about the step.
 #: Now step 6.61's proof case; the step that next changes the script moves it.
 SCRIPT_PROOF_CASE = os.environ.get("CAPABILITY_SCRIPT_CASE_ID", "IMPR-2026-7F1")
+#: Rows whose recorded live proof a founder-ruled change has staled, owed a re-proof in the
+#: next planned traced run. CONTAINMENT: while listed, a stale-hash mismatch is an expected
+#: failure, never a pass. REMOVE the entry when the traced run records a turn with the
+#: current SKILL.md — the test then passes on its own.
+REPROOF_OWED = {
+    "3": "founder ruling 4 (2026-09-27): the Define SKILL.md changed outside its script "
+         "section; row 3 is re-proved in the next planned traced run (docs/harness-progress.md, Plan)",
+}
 PHASE = "define"
 LIVE_TURN = os.environ.get("CAPABILITY_LIVE_TURN") == "1"
 
@@ -530,6 +538,8 @@ def test_row_3_the_coach_follows_the_define_script(turn) -> None:
         pytest.skip(f"no coaching turn on {SCRIPT_PROOF_CASE} completed" + NOT_A_PASS)
     log = [e for e in (finals[-1]["values"].get("step_log") or []) if isinstance(e, dict)]
     problems = _row_3(log, script_record(PHASE)["sha256"])
+    if problems and "3" in REPROOF_OWED and all("is not today's SKILL.md" in p for p in problems):
+        pytest.xfail("re-proof owed — " + REPROOF_OWED["3"] + " · " + "; ".join(problems))
     assert not problems, "; ".join(problems)
 
 

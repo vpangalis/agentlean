@@ -1411,8 +1411,10 @@ GENERATED_OUTPUTS = frozenset({
 
 def changes_code(staged: list[str]) -> bool:
     """Code or config: any staged path but Markdown and the generated outputs —
-    the same test the pre-commit hook uses to decide the suite runs."""
-    return any(not p.endswith(".md") and p not in GENERATED_OUTPUTS for p in staged)
+    the same test the pre-commit hook uses to decide the suite runs. A skill file
+    (agent-improve/skills/) is product source the coach reads: it counts as code."""
+    return any((not p.endswith(".md") or p.startswith(f"{PROJECT}/skills/"))
+               and p not in GENERATED_OUTPUTS for p in staged)
 
 
 def gated_rules(subject: str, staged: list[str]) -> tuple[str, ...]:
