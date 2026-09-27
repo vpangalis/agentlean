@@ -100,7 +100,7 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 | T52 | No phase binds more than 16 tools | §30 | ? | ADR-0035 | `test_computation.py::test_no_phase_exceeds_the_sixteen_tool_ceiling` |
 | T53 | Evidence search is filtered by case, safe against a quote in either argument | §23 | ? | ADR-0030 | `test_evidence_index.py::test_the_case_filter_survives_an_odata_quote_in_either_argument` |
 | T54 | Each metric has one computing authority; a mismatched scalar is a defect | §69 | ? | ADR-0035 | `test_metric_single_authority.py::test_mismatched_scalar_is_a_defect` |
-| T55 | The contradiction check runs before the agent and interrupts only on a flag | §19.6 | ? | ADR-0042 | `test_middleware.py::test_the_hook_is_before_agent_not_before_model`, `::test_no_flag_means_no_interrupt` |
+| T55 | The contradiction check runs after the agent (on the reply's flag) and stops the turn only on a flag | §19.6 | ? | ADR-0042 | `test_middleware_execution_order.py::test_after_agent_executes_contradiction_then_coherence_then_grader`, `test_middleware.py::test_no_flag_means_no_interrupt` |
 | T56 | Gate validation makes no retrieval calls | §34 | ? | ADR-0039 | none |
 | T57 | A capability tool refuses until a stability check has passed | §69 | ? | ADR-0035 | none |
 | T58 | Knowledge lookups always include the `general` methodology | §24 | ? | ADR-0030 | none |
