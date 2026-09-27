@@ -4,7 +4,7 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 
 ## Technical requirements
 
-> **Status:** T1–T68 ACCEPTED 2026-09-27 (except T41, RETIRED); T69–T70 ACCEPTED;
+> **Status:** T1–T68 ACCEPTED 2026-09-27 (except T41, RETIRED); T69–T70 ACCEPTED; T85–T87 ACCEPTED 2026-09-27;
 > T71–T84 PROPOSED — awaiting founder. Each is a measurable quality or constraint, with `MoSCoW` (`?` until the founder
 > ratifies it) and `Design` (its ADR, or `none`). **Proof**
 > names the test in `backend/tests/` that proves it today, or `none`. The decisions behind
@@ -67,7 +67,7 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 | T31 | No computation tool raises on unparseable input | §30 | ? | ADR-0035 | `test_computation.py::test_no_tool_raises_on_unparseable_input` |
 | T32 | A timed-out turn tells the Belt what happened | §45 | ? | ADR-0047 | `test_executor_timeout.py::test_the_belt_facing_message_says_what_happened` |
 | T33 | A client disconnect cancels the run and commits nothing from that turn | §47 | ? | ADR-0046 | `test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone` |
-| T34 | A model failure falls through levels 1–4; degraded mode names the phase and the captured count and says progress is saved | §46 | ? | ADR-0044 | none |
+| T34 | A model failure falls through levels 1–4; degraded mode names the phase and the captured count and says progress is saved; model fallback with `ModelFallbackMiddleware`; the degraded answer after the last model stays in code | §46 | ? | ADR-0059 | none |
 | T35 | Two three-state circuit breakers: 3 failures in 30 s open, 60 s reset, one half-open probe | §46 | ? | ADR-0044 | none |
 | T36 | A token-limit 400 is never retried on a smaller model | §46 | ? | ADR-0044 | none |
 | T37 | A deployment rollout ends no coaching session: in-flight turns checkpoint and resume | §45 | ? | ADR-0043 | none |
@@ -126,7 +126,7 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 
 | Id | Requirement | MoSCoW | Design | Proof |
 |---|---|---|---|---|
-| T69 | An ordinary coaching turn makes at most 4 model calls, retries included; the count is recorded per turn in `step_log` | ? | none | none |
+| T69 | An ordinary coaching turn makes at most 4 model calls, retries included; the count is recorded per turn in `step_log`; enforced with `ModelCallLimitMiddleware`; calls outside the agent are counted in `step_log` against the same budget | ? | ADR-0059 | none |
 | T70 | Node time limits, retries and compensation use LangGraph's per-node `timeout=`, `retry_policy=` and `error_handler=`; no hand-written budget or retry loop | ? | ADR-0043 | none |
 | T71 | The Belt's message is screened before any model reads it — fixed rules, then Azure Prompt Shields — in a node at the front of the parent graph; a blocked turn answers with guidance, stores nothing, and records the verdict in `step_log` | ? | ADR-0057 | none |
 | T72 | Upload text is screened for hidden instructions before any model reads it, and is always passed to a model as labelled data, never as instruction | ? | ADR-0057 | none |
@@ -142,3 +142,6 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 | T82 | Turn progress is streamed with LangGraph's `custom` stream mode | ? | none | none |
 | T83 | Reply feedback is stored against the turn's trace (T84 record in production) | ? | none | none |
 | T84 | `step_log` and the field log form the decision trail: append-only, kept for the life of the case, served read-only by a route, never leaving the intranet | ? | ADR-0020 | none |
+| T85 | Contextual retrieval: chunks carry a short context before embedding and keyword indexing, and a semantic reranker orders the fused candidates; a new index goes live only when the eval set shows it retrieves better at top-10 or top-20 | ? | ADR-0060 | none |
+| T86 | Offline eval set: 20–50 Define tasks from real failures, graded by code, then the rubric model, with a human sample; pass^3 reported; run before a release and on changes to prompts, skills, graph or model settings | ? | ADR-0061 | none |
+| T87 | Personal data: e-mail, phone, account and card numbers in uploads and tool results are masked before a model sees them; person names are kept; each masking is logged by type and count | ? | ADR-0062 | none |

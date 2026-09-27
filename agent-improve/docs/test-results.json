@@ -1,9 +1,9 @@
 {
- "source_hash": "87848553351d040d",
- "commit": "1b9767e",
+ "source_hash": "3274e44a2321b9fb",
+ "commit": "57d9d97",
  "commit_matches_source": false,
- "full_run_hash": "87848553351d040d",
- "recorded_at": "2026-09-27T11:11:16+00:00",
+ "full_run_hash": "3274e44a2321b9fb",
+ "recorded_at": "2026-09-27T11:17:11+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -438,6 +438,9 @@
   "backend/tests/test_define_e2e.py::test_t66_a_tier_2_criterion_can_never_fail_a_gate": "skipped",
   "backend/tests/test_define_e2e.py::test_t67_start_up_exits_with_status_1_when_a_required_credential_is_missing": "skipped",
   "backend/tests/test_define_e2e.py::test_t68_a_second_region_fallback_exists_before_launch_deferred": "skipped",
+  "backend/tests/test_define_e2e.py::test_t85_contextual_chunks_and_a_reranker_go_live_only_on_eval_evidence": "skipped",
+  "backend/tests/test_define_e2e.py::test_t86_the_offline_eval_set_grades_define_tasks_and_reports_pass_3": "skipped",
+  "backend/tests/test_define_e2e.py::test_t87_personal_data_is_masked_before_a_model_sees_it": "skipped",
   "backend/tests/test_define_e2e.py::test_the_as_is_process_captures_step_performance_structured": "skipped",
   "backend/tests/test_define_e2e.py::test_the_belt_can_pick_any_available_element_or_take_the_recommended_one": "skipped",
   "backend/tests/test_define_e2e.py::test_the_belt_can_see_captured_and_missing_fields": "skipped",
@@ -1517,8 +1520,8 @@
   "backend/tests/test_wiring_check.py::test_it_reads_what_section_3_names": "passed"
  },
  "older": {
-  "source_hash": "508a1466b119ea24",
-  "recorded_at": "2026-09-27T10:56:44+00:00",
+  "source_hash": "87848553351d040d",
+  "recorded_at": "2026-09-27T11:11:16+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2127,6 +2130,7 @@
    "backend/tests/test_define_e2e.py::test_values_for_other_elements_in_one_answer_are_read_back": "skipped",
    "backend/tests/test_define_e2e.py::test_without_sign_on_only_registered_team_members_enter": "skipped",
    "backend/tests/test_define_features.py::test_a_feature_lands_only_when_it_and_its_dependencies_pass": "passed",
+   "backend/tests/test_define_features.py::test_a_work_package_takes_same_area_features_in_rank_order_up_to_five_points": "passed",
    "backend/tests/test_define_features.py::test_dependency_blocking_is_strict_through_the_whole_chain": "passed",
    "backend/tests/test_define_features.py::test_dropping_one_mapping_turns_the_coverage_red": "passed",
    "backend/tests/test_define_features.py::test_each_lane_takes_its_top_ranked_failing_feature": "passed",
@@ -2949,6 +2953,8 @@
    "backend/tests/test_procedure_guards.py::test_rule_21_passes_superseding_an_accepted_adr_and_a_link_only_change": "passed",
    "backend/tests/test_procedure_guards.py::test_rule_21_refuses_an_edit_to_an_accepted_adr": "passed",
    "backend/tests/test_procedure_guards.py::test_rule_21_refuses_deleting_a_record": "passed",
+   "backend/tests/test_prompt_record.py::test_hook_lines_group_into_commit_attempts": "passed",
+   "backend/tests/test_prompt_record.py::test_the_timing_line_summarises_the_record_and_flags_the_time_box": "passed",
    "backend/tests/test_register_single_source.py::test_a_reader_given_a_document_with_no_register_yields_nothing": "passed",
    "backend/tests/test_register_single_source.py::test_no_reader_names_architecture_md_as_a_register_source": "passed",
    "backend/tests/test_register_single_source.py::test_the_fallback_really_was_dead_before_it_was_deleted": "passed",

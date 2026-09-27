@@ -3483,7 +3483,7 @@
   },
   {
    "id": "DEF-094",
-   "description": "An ordinary coaching turn makes at most 4 model calls, retries included; the count is recorded per turn in step_log.",
+   "description": "An ordinary coaching turn makes at most 4 model calls, retries included; the count is recorded per turn in step_log; enforced with ModelCallLimitMiddleware; calls outside the agent are counted in step_log against the same budget.",
    "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [
     "DEF-002"
@@ -4199,7 +4199,7 @@
   },
   {
    "id": "DEF-123",
-   "description": "A model failure falls through levels 1–4; degraded mode names the phase and the captured count and says progress is saved",
+   "description": "A model failure falls through levels 1–4; degraded mode names the phase and the captured count and says progress is saved; the fallback is ModelFallbackMiddleware; the degraded answer after the last model stays in code.",
    "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [],
    "test": "backend/tests/test_define_e2e.py::test_t34_a_model_failure_falls_through_levels_1_4_degraded_mode_names_the_p",
@@ -4655,6 +4655,85 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
+   "priority_override": null
+  },
+  {
+   "id": "DEF-142",
+   "description": "T86: an offline eval set of 20–50 Define tasks from real failures lives in evals/define/, is graded by code, then the rubric model, with a human sample, and reports pass^3.",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_t86_the_offline_eval_set_grades_define_tasks_and_reports_pass_3",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T86",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "L",
+   "priority_override": null
+  },
+  {
+   "id": "DEF-143",
+   "description": "T85: knowledge chunks carry a short context before embedding and keyword indexing, a semantic reranker orders the fused candidates, and the new index goes live only when the eval set shows better retrieval at top-10 or top-20.",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-142"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_t85_contextual_chunks_and_a_reranker_go_live_only_on_eval_evidence",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/knowledge/retriever.py",
+     "agent-improve/scripts/ingest_knowledge.py"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T85",
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "L",
+   "priority_override": null
+  },
+  {
+   "id": "DEF-144",
+   "description": "T87: e-mail, phone, account and card numbers in uploads and tool results are masked before a model sees them; person names are kept; each masking is logged in step_log by type and count.",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_t87_personal_data_is_masked_before_a_model_sees_it",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/upload/agent.py"
+    ],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T87",
+   "belt_impact": "none",
+   "rework_risk": "high",
+   "effort": "M",
    "priority_override": null
   }
  ]

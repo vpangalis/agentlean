@@ -550,3 +550,18 @@ def test_the_ui_loads_nothing_from_outside_the_product() -> None:
     found = [f"{p.name}:{n}: {line.strip()[:120]}" for p in sorted(ui.glob("*.html"))
              for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1) if external.search(line)]
     assert not found, "C5: the UI loads from outside the product:\n" + "\n".join(found)
+
+
+def test_t86_the_offline_eval_set_grades_define_tasks_and_reports_pass_3() -> None:
+    """DEF-142 — T86 (ADR-0061, PROPOSED): lands only when ADR-0061 is ACCEPTED (rule 19)."""
+    _not_written("DEF-142")
+
+
+def test_t85_contextual_chunks_and_a_reranker_go_live_only_on_eval_evidence() -> None:
+    """DEF-143 — T85 (ADR-0060, PROPOSED): depends on DEF-142, the eval set."""
+    _not_written("DEF-143")
+
+
+def test_t87_personal_data_is_masked_before_a_model_sees_it() -> None:
+    """DEF-144 — T87 (ADR-0062, PROPOSED)."""
+    _not_written("DEF-144")
