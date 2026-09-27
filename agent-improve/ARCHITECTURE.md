@@ -49,7 +49,7 @@ that reads it.**
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.87 · 2026-09-27
+Version 1.88 · 2026-09-27
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
 
@@ -57,6 +57,7 @@ Task 3B verification pass completed 2026-08-21.
 The full text of every entry through v1.77 is verbatim in
 [`docs/_archive/ARCHITECTURE_slimmed_2026-09-25.md#L112`](docs/_archive/ARCHITECTURE_slimmed_2026-09-25.md#L112).
 
+- v1.88 · 2026-09-27 · No rule changed — the requirement citations in docstrings name `docs/requirements/business.md`, which replaces `define.md` (brief Part A); the R ids are unchanged · §58
 - v1.87 · 2026-09-27 · The storage layout has one owner, `storage/layout.py` (Part G): the Blob paths, the Store namespaces and the evidence and case index fields; `storage/blob.py`, `core/store.py`, `core/checkpointer.py`, `phases/mappers_common.py`, `knowledge/retriever.py` and `scripts/create_indexes.py` take them from it, values unchanged. The knowledge index keeps its owner, `KNOWLEDGE_INDEX_FIELDS` · §8, §9, §10, §23
 - v1.86 · 2026-09-27 · The retired methodology index `improve_knowledge_index` (contaminated, retained in Azure) joins D.1's retired names and `deprecated_patterns.yaml` (pattern-12) as a quoted literal; the current index is `improve_knowledge_index_v3`, reached through the setting whose default is `KNOWLEDGE_INDEX_DEFAULT` · §23.1, Appendix D.1
 - v1.85 · 2026-09-27 · No rule changed — type annotations only in `core/checkpointer.py` (`_pending_writes` returns `List[...]`: inside the saver `list` is its own method) and `gateway/routes.py` (`_run_turn` takes a state dict or `Command(resume=...)`); nothing this document states about either file changed · §8, §49

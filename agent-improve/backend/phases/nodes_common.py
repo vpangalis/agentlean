@@ -2180,7 +2180,7 @@ async def validation_stack(
 
 # ── gate_review ───────────────────────────────────────────────────────────
 
-#: R6 (docs/requirements/define.md, 2026-09-26) — the Belt's decision on the
+#: R6 (docs/requirements/business.md, 2026-09-26) — the Belt's decision on the
 #: Define report, delivered by `Command(resume=...)` to the pause below.
 APPROVE, REJECT = "approve", "reject"
 

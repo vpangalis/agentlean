@@ -558,7 +558,7 @@ def merge_field_log(
 
 def value_history(field_log: list[dict[str, Any]] | None,
                   phase: str | None = None) -> dict[str, dict[str, Any]]:
-    """R6 (docs/requirements/define.md) — per field, the FIRST confirmed value
+    """R6 (docs/requirements/business.md) — per field, the FIRST confirmed value
     with its date and the CURRENT value with its date, read from `field_log`.
 
     `field_log` already holds this; nothing new is stored. Since 6.61 an entry

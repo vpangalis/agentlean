@@ -9,13 +9,12 @@ be true — `docs/define_features.json` + `docs/test-results.json` (the board,
 `ARCHITECTURE.md`, read only by the cited section via `docs/section-index.md`. The
 session-start routine is in CLAUDE.md.
 
-## Requirements (founder-owned, 2026-09-26)
+## Requirements (founder-owned)
 
-`docs/requirements/define.md` R1–R7 — every Define feature cites one in `requirement`; `platform.md`
-R8–R9 are not Define features; `workspace.md`, `measure.md` and define.md's R10 are DRAFTS no feature
-cites. Parts 0–8 landed 2026-09-26 (`a006cea` … the part 8 commit): 13 elements with acceptance
-criteria, R3's judgment before the coach, the Define report, acceptance through a graph-level pause,
-the R7 rubric. New features DEF-065–072 (R2–R7).
+`docs/requirements/business.md` (R, C, W, M ids) and `platform.md` (T ids, each with its proof test)
+— brief Part A, 2026-09-27; `define.md`, `workspace.md` and `measure.md` are replaced (git keeps
+them). Every feature cites ONE RATIFIED or ACCEPTED id, and carries a `priority` (1 now, 2 next,
+3 later) that orders its lane's work; `tools/control_board/features.py::requirements` is the checker.
 
 ## Lanes (branches and worktrees beside this checkout; `.venv` is a junction)
 

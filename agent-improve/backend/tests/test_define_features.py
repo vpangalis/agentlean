@@ -30,7 +30,7 @@ sys.path.insert(0, str(_TOOLS))
 import features as F  # noqa: E402
 
 FIELDS = {"id", "description", "clause", "depends_on", "test", "sources", "lane", "provenance",
-          "requirement"}
+          "requirement", "priority"}
 CLAUSES = {"A Belt is coached through the thirteen elements",
            "what they say is kept and every change is dated",
            "a complete case ASSEMBLES a gate document",
@@ -50,24 +50,48 @@ def test_every_feature_has_the_founders_fields_and_no_status(feats) -> None:
         assert f["test"].startswith("backend/tests/test_") and "::test_" in f["test"], f["id"]
 
 
-def test_every_feature_cites_a_define_requirement_and_every_requirement_has_features(feats) -> None:
-    """Define requirements v2, part 8 (founder, 2026-09-26): every feature cites
-    the requirement it serves, by an id that is in docs/requirements/define.md;
-    R2-R7 each have features; R8 and R9 (platform, not the 1 October scope)
-    are never Define features."""
-    text = (Path(__file__).resolve().parents[2] / "docs" / "requirements" / "define.md").read_text(
-        encoding="utf-8")
-    ratified = {f"R{n}" for n in range(1, 8)}
-    import re
-    assert all(re.search(rf"^{r} ", text, re.M) for r in ratified), "an R1-R7 id is not in define.md"
-    cited = [f["requirement"] for f in feats]
-    # A defect's feature (docs/defects.json, founder 2026-09-27) may cite the
-    # platform T id or the workspace W id it breaks — one that the file defines.
-    req = Path(__file__).resolve().parents[2] / "docs" / "requirements"
-    defined = set(re.findall(r"^\| (T\d+) \|", (req / "platform.md").read_text(encoding="utf-8"), re.M))
-    defined |= set(re.findall(r"^(W\d+) ", (req / "workspace.md").read_text(encoding="utf-8"), re.M))
-    assert set(cited) <= ratified | defined, set(cited) - ratified - defined
-    assert ratified - {"R1"} <= set(cited), ratified - set(cited)
+def test_every_feature_cites_a_citable_requirement_and_every_one_has_a_feature(feats) -> None:
+    """Brief Part A (founder, 2026-09-27). A feature cites ONE id that is RATIFIED or
+    ACCEPTED in docs/requirements/business.md, or ACCEPTED in platform.md — never a
+    PROPOSED, DRAFT or RETIRED one. Every RATIFIED or ACCEPTED business id, and every
+    ACCEPTED T id whose proof is `none`, has at least one feature."""
+    reqs = F.requirements()
+    ok = F.citable(reqs)
+    cited = {f["requirement"] for f in feats}
+    assert cited <= ok, sorted(cited - ok)
+    business = {i for i in ok if not i.startswith("T")}
+    unproven = {i for i in ok if i.startswith("T") and reqs[i]["proof_none"]}
+    assert business | unproven <= cited, sorted((business | unproven) - cited)
+
+
+def test_every_feature_has_a_priority_and_the_lanes_take_it_first(feats) -> None:
+    """Brief Part A4: `priority` is 1 (now), 2 (next) or 3 (later); the next failing
+    feature of a lane is taken by priority, then list order."""
+    assert all(f["priority"] in (1, 2, 3) for f in feats), [f["id"] for f in feats if f.get("priority") not in (1, 2, 3)]
+    st = {f["id"]: "failing" for f in feats}
+    nxt = F.summary(feats, {"outcomes": {}})["lanes"]
+    for lane, v in nxt.items():
+        eff = F.effective_priority(feats)
+        mine = sorted((f for f in feats if f["lane"] == lane), key=lambda f: eff[f["id"]])
+        if mine:
+            top = mine[0]["id"]
+            assert v["next"] in [top, *F.blockers(top, feats, st)], (lane, v["next"], top)
+    # A blocked priority-1 feature sends the lane to its unblocked blocker in the SAME lane,
+    # and stays next itself when the blocker is another lane's — never to a priority 3.
+    fs: list[dict] = [{"id": "P1", "depends_on": ["D"], "lane": "A"},
+                      {"id": "P3", "depends_on": [], "lane": "A"},
+                      {"id": "D", "depends_on": [], "lane": "A"}]
+    st3 = {"P1": "failing", "P3": "failing", "D": "failing"}
+    assert F._next(["P1", "P3"], fs, st3) == "D"
+    fs[2]["lane"] = "B"
+    assert F._next(["P1", "P3"], fs, st3) == "P1"
+    # …and D, blocking priority-1 work, is itself priority 1 for its own lane.
+    fs[0]["priority"], fs[1]["priority"], fs[2]["priority"] = 1, 3, 3
+    assert F.effective_priority(fs) == {"P1": 1, "P3": 3, "D": 1}
+
+
+def by_id(feats: list[dict]) -> dict[str, dict]:
+    return {f["id"]: f for f in feats}
 
 
 def test_ids_are_unique_and_every_dependency_resolves(feats) -> None:

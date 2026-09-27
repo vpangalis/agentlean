@@ -1,6 +1,6 @@
 """R2 and R4 — what the coach teaches for each Define element, and the thirteen.
 
-Founder requirements (`docs/requirements/define.md`, 2026-09-26):
+Founder requirements (`docs/requirements/business.md`, 2026-09-26):
 
   R2  for every Define element the coach explains what it is and why it
       matters, and shows a worked example of the finished result; for SIPOC

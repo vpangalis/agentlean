@@ -61,7 +61,8 @@ def test_the_feature_links_agree_with_the_feature_list_both_ways(defects, featur
 def test_a_new_defect_carries_one_failing_feature_and_one_lane(defects) -> None:
     """From 2026-09-27 a defect is registered with its feature and owner in the same commit."""
     new = {d["id"]: d for d in defects if int(d["id"][2:]) >= 112}
-    assert new["G-112"]["feature"] == ["DEF-073"] and new["G-112"]["lane"] == ["B"]
+    # Brief Part A4 (2026-09-27): DEF-073 folded into DEF-060, which now cites T23.
+    assert new["G-112"]["feature"] == ["DEF-060"] and new["G-112"]["lane"] == ["B"]
     assert new["G-112"]["requirement"] == ["T23"]
     assert new["G-113"]["feature"] == ["DEF-074"] and new["G-113"]["lane"] == ["C"]
     assert new["G-113"]["requirement"] == ["W6"]

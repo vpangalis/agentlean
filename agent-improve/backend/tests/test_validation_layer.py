@@ -1,6 +1,6 @@
 """R3 — every Belt answer passes a validation layer BEFORE the coach model.
 
-Founder requirement R3 (`docs/requirements/define.md`, 2026-09-26): *"Every
+Founder requirement R3 (`docs/requirements/business.md`, 2026-09-26): *"Every
 Belt answer passes a validation layer BEFORE it reaches the coach model,
 checking it is reasonable against the element's acceptance criteria;
 insufficient -> challenge, naming the failed criterion."*

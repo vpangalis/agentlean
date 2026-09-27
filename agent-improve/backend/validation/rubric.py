@@ -1,6 +1,6 @@
 """Layer 2d for Define — the R7 rubric, graded at the gate.
 
-Founder requirement R7 (`docs/requirements/define.md`, 2026-09-26): the gate
+Founder requirement R7 (`docs/requirements/business.md`, 2026-09-26): the gate
 rubric comes from the manual, ONE criterion per element, pass/fail with a
 reason. The criteria are `core.prompts.DEFINE_RUBRIC` (their one home); this
 module grades a Define gate document against them:

@@ -1,6 +1,6 @@
 """R7 — the Define gate rubric: one criterion per element, pass/fail with a reason.
 
-Founder requirement R7 (`docs/requirements/define.md`, 2026-09-26) replaces
+Founder requirement R7 (`docs/requirements/business.md`, 2026-09-26) replaces
 the G-40 draft. `core.prompts.DEFINE_RUBRIC` holds the thirteen criteria;
 `validation/rubric.grade_define` grades the confirmed values against them —
 the deterministic half first, one `grader` call for what needs judgment — and

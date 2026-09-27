@@ -1,22 +1,13 @@
-# Platform — product requirements
+# Platform — technical requirements
 
-> **Founder-owned**, ratified 2026-09-26 (DEFINE REQUIREMENTS v2). Changed only by founder ruling.
-> **NOT in the 1 October scope — recorded only.** No Define feature cites these.
+R8 moved to business.md; R9 is retired into T71 and T72.
 
-R8 Authentication and project-level access: only signed-in Belts; a
-   case is visible only to its team; roles Belt, team member, champion.
-   Until R8, the Belt approves the gate and is recorded as the actor.
+## Technical requirements
 
-R9 Protection against malicious prompts: Belt input screened before the
-   coach, in the R3 validation layer. After the refactor.
-
-## Technical requirements (PROPOSED)
-
-> **PROPOSED — not ratified** (architecture sort, founder 2026-09-26). Drafted from
-> [ARCHITECTURE.md](../../ARCHITECTURE.md), which is unchanged. Architecturally significant
-> requirements only: each is a measurable quality or constraint. **Proof** names the test in
-> `backend/tests/` that proves it today, or `none`. The decisions behind them are in
-> [docs/adr](../adr/README.md). Counts are owned by the code cited, never copied here.
+> **Status:** T1–T68 ACCEPTED 2026-09-27 (except T41, RETIRED); T69–T70 ACCEPTED;
+> T71–T84 PROPOSED — awaiting founder. Each is a measurable quality or constraint. **Proof**
+> names the test in `backend/tests/` that proves it today, or `none`. The decisions behind
+> them are in [docs/adr](../adr/README.md). Counts are owned by the code cited, never copied here.
 
 ### State model
 
@@ -91,8 +82,8 @@ R9 Protection against malicious prompts: Belt input screened before the
 | Id | Requirement | § | Proof |
 |---|---|---|---|
 | T39 | With tracing off, no trace is created | §51 | `test_no_tracing.py::test_a_span_outside_a_run_creates_no_trace` |
-| T40 | Every Define turn leaves a LangSmith trace (live) | §51 | `test_capability_rows.py::test_row_35_every_define_turn_leaves_a_langsmith_trace` |
-| T41 | A production start without LangSmith configured refuses to run | §51, §53 | none |
+| T40 | Every Define turn leaves a LangSmith trace **in development and test** (live) | §51 | `test_capability_rows.py::test_row_35_every_define_turn_leaves_a_langsmith_trace` |
+| T41 | ~~A production start without LangSmith configured refuses to run~~ **RETIRED 2026-09-27, replaced by T77** — production sends no traces outside the intranet | §51, §53 | none |
 | T42 | Validation and extraction steps are traced spans | §51 | none |
 | T43 | Every log line carries `request_id`, case id and phase | §51 | none |
 | T44 | Every grader verdict and every rejection reason reaches `step_log` | §11, §34 | `test_judges_once.py::test_the_graders_verdict_reaches_step_log`, `test_coherence_script_step.py::test_every_rejection_records_its_reason_in_step_log` |
@@ -141,37 +132,23 @@ R9 Protection against malicious prompts: Belt input screened before the
 | T67 | Start-up exits with status 1 when a required credential is missing | §53 | none |
 | T68 | A second-region fallback exists before launch (deferred) | §46.1, §68 | none |
 
-### Proposed features for the requirements with no proof
+### Added 2026-09-27
 
-> PROPOSED only — **not** added to `define_features.json`.
-
-| T | Proposed feature — what its test would show |
-|---|---|
-| T11 | Two writers on one case: the second cannot take the lease and gets a clear retry, never a merged checkpoint |
-| T12 | With R8 on, a request naming a case outside the session's team is refused before the graph runs |
-| T13 | A whole Define conversation up to the gate leaves the case blob untouched; approval writes it once |
-| T17 | The sweep over a paused thread older than the retention window keeps it and its pending writes |
-| T21 | A step replayed after a crash leaves one `step_log` entry per key (needs a keyed reducer — a ruling) |
-| T22 | Ingesting the same file twice leaves the index document count unchanged |
-| T23 | A failure between the two gate writes leaves neither (the error handler undoes the first) |
-| T28 | A turn's timing record carries phase and duration; P50 and P99 are computed from them |
-| T29 | Each node with an external write is registered with an `error_handler`; a forced write failure is undone |
-| T34 | A model outage stubbed at each level: the Belt always gets an answer; the degraded text names phase and count |
-| T35 | The breaker opens after 3 failures in 30 s, half-opens at 60 s with one probe, closes on success |
-| T36 | A stubbed token-limit 400 is not retried on the smaller model |
-| T37 | A drain during a turn: the turn checkpoints and resumes in the next process |
-| T38 | A failing write is retried to its cap before the error handler is called |
-| T41 | Production settings without LangSmith: start-up refuses |
-| T42 | The validation and extraction functions each appear as a span in a recorded trace |
-| T43 | Every log line of a turn carries `request_id`, case id and phase |
-| T50 | The eval runner fails when a metric falls more than 10% below its baseline |
-| T56 | A gate submission with the retriever stubbed to fail passes untouched (no retrieval call) |
-| T57 | A capability tool called on an unstable series returns the precondition message, not a Cpk |
-| T58 | A knowledge lookup's filter always includes `general` |
-| T59 | An upload naming its own `phase` or `uploaded_at` is stored with the server's values |
-| T60 | After a computation over evidence, no series is present in the checkpoint |
-| T61 | Every SKILL.md description is under 2,000 tokens |
-| T65 | Three failed gate attempts route to the escalation subgraph (DEF-046, a stub today) |
-| T66 | A Tier 2 criterion stubbed to fail yields a warning, never a failed gate |
-| T67 | Start-up with a missing credential exits 1 naming the setting |
-| T68 | Deferred until before launch; no feature proposed |
+| Id | Requirement | Proof |
+|---|---|---|
+| T69 | An ordinary coaching turn makes at most 4 model calls, retries included; the count is recorded per turn in `step_log` | none |
+| T70 | Node time limits, retries and compensation use LangGraph's per-node `timeout=`, `retry_policy=` and `error_handler=`; no hand-written budget or retry loop | none |
+| T71 | The Belt's message is screened before any model reads it — fixed rules, then Azure Prompt Shields — in a node at the front of the parent graph; a blocked turn answers with guidance, stores nothing, and records the verdict in `step_log` | none |
+| T72 | Upload text is screened for hidden instructions before any model reads it, and is always passed to a model as labelled data, never as instruction | none |
+| T73 | A coach reply never contains the system prompt, another case's data or an external link | none |
+| T74 | Every tool is classified read-only, internal write or external effect; an external-effect tool needs human approval; credentials stay in code | none |
+| T75 | The evaluation set contains prompt-attack cases; a regression blocks release | none |
+| T76 | In production nothing connects to the public internet; every service is reached over a private endpoint; start-up verifies it | none |
+| T77 | In production, traces and feedback stay inside the intranet (the decision trail, T84, replaces LangSmith there) | none |
+| T78 | The UI loads no font, script or style from outside the product | none |
+| T79 | Every request is authorised against the case team before the graph runs | none |
+| T80 | Each field-log entry carries value, time, person, reason and source, and the log is append-only | none |
+| T81 | The as-is process and its performance are stored structured in Define's record and read by later phases through the Store | none |
+| T82 | Turn progress is streamed with LangGraph's `custom` stream mode | none |
+| T83 | Reply feedback is stored against the turn's trace (T84 record in production) | none |
+| T84 | `step_log` and the field log form the decision trail: append-only, kept for the life of the case, served read-only by a route, never leaving the intranet | none |

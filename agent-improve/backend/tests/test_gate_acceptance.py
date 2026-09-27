@@ -1,6 +1,6 @@
 """R6 — formal acceptance of the Define report, through a graph-level pause.
 
-Founder requirement R6 (`docs/requirements/define.md`, 2026-09-26): *"the Belt
+Founder requirement R6 (`docs/requirements/business.md`, 2026-09-26): *"the Belt
 (with the team) reviews the report and approves or rejects it through a
 graph-level pause. On rejection the coach guides the Belt back to the
 element(s) to change. Every change is kept in phase state with its date."*

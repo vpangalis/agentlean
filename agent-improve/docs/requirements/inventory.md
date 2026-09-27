@@ -1,4 +1,4 @@
-# As-is capability inventory (DRAFT — founder, 2026-09-26)
+# As-is audit (2026-09-26) — not a requirement
 
 > **DRAFT — a read-only inventory, not a requirement.** No product change, no live model call, no
 > build. Every row describes what exists at `8a670e1`. **State** is proven by the test named, or by

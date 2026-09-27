@@ -1,6 +1,6 @@
 """R5 — the Define gate is a readable DEFINE REPORT, not a field checklist.
 
-Founder requirement R5 (`docs/requirements/define.md`, 2026-09-26): seven
+Founder requirement R5 (`docs/requirements/business.md`, 2026-09-26): seven
 sections — 1 project and team, 2 business case and benefits, 3 problem,
 objective, scope with a 5W2H diagram, 4 VOC and CTQs, 5 metrics (one primary,
 baseline to target, secondaries), 6 high-level process with a SIPOC diagram

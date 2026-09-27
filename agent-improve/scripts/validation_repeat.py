@@ -1,6 +1,6 @@
 """R3's repeated-run test, on the LIVE planner model — Define requirements v2, part 2.
 
-Founder requirement R3 (`docs/requirements/define.md`): every Belt answer passes
+Founder requirement R3 (`docs/requirements/business.md`): every Belt answer passes
 a validation layer BEFORE the coach model — the planner's one judgment
 (`nodes_common._judge`) against the element's acceptance criteria. This runs
 that judgment, unchanged, FIVE times on each of two business cases:

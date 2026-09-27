@@ -1,4 +1,4 @@
-"""The DEFINE REPORT — requirement R5 (`docs/requirements/define.md`, 2026-09-26).
+"""The DEFINE REPORT — requirement R5 (`docs/requirements/business.md`, 2026-09-26).
 
 *"The gate is a readable DEFINE REPORT, not a field checklist: 1 project and
 team, 2 business case and benefits, 3 problem, objective, scope with a 5W2H

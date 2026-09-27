@@ -665,7 +665,7 @@ def _phase_state(**overrides: Any) -> PhaseState:
 
 # ══════════════════════════════════════════════════════════════════════════
 # R6 — every change kept in phase state with its date: the FIRST value and
-# the CURRENT value (docs/requirements/define.md, 2026-09-26). `field_log`
+# the CURRENT value (docs/requirements/business.md, 2026-09-26). `field_log`
 # already holds it (proved above: one entry per confirmed change, dated, with
 # the value it replaced); `value_history` reads it.
 # ══════════════════════════════════════════════════════════════════════════

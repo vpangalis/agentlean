@@ -10,7 +10,7 @@ loudly — capture writes `artifacts["x"]`, `DefineOutput(**artifacts)` has no
 `x`, and the gate raises on a Belt who has done nothing wrong, one phase later.
 
 **Define has THIRTEEN elements, all gate-required, with no Tier 1 / Tier 2
-split** — the founder's requirement R4 (`docs/requirements/define.md`,
+split** — the founder's requirement R4 (`docs/requirements/business.md`,
 2026-09-26) added the benefits analysis to the twelve of Option A (ratified
 2026-08-26). Two consequences follow and both are load-bearing:
 `DEFINE_REQUIRED_FOR_GATE` is the whole coached list plus the fields captured

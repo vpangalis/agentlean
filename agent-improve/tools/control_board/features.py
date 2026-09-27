@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -126,7 +127,11 @@ def summary(features: list[dict] | None = None, res: dict | None = None) -> dict
     lanes: dict[str, dict] = {}
     clauses: dict[str, dict] = {}
     for lane in LANES:
-        mine = [f for f in features if f["lane"] == lane]
+        # Priority first (1 now, 2 next, 3 later — brief Part A4), then list order. The
+        # EFFECTIVE priority: a feature another depends on takes that one's priority when
+        # higher, so a lane is never sent past the blocker of another lane's priority-1 work.
+        eff = effective_priority(features)
+        mine = sorted((f for f in features if f["lane"] == lane), key=lambda f: eff[f["id"]])
         failing = [f["id"] for f in mine if st[f["id"]] == "failing"]
         lanes[lane] = {"total": len(mine), "passing": len(mine) - len(failing),
                        "next": _next(failing, features, st)}
@@ -140,13 +145,68 @@ def summary(features: list[dict] | None = None, res: dict | None = None) -> dict
             "fresh": fresh(res), "lanes": lanes, "clauses": clauses, "status": st}
 
 
+REQUIREMENTS = PROJECT / "docs" / "requirements"
+_BUSINESS_ID = re.compile(r"^\*\*([RCWM]\d+[a-z]?) [^*]*\*\* · (RATIFIED|ACCEPTED|PROPOSED|DRAFT|RETIRED)", re.M)
+_T_ROW = re.compile(r"^\| (T\d+) \| (.+) \|\s*$", re.M)
+_T_RANGE = re.compile(r"T(\d+)–T(\d+) (ACCEPTED|PROPOSED)")
+
+
+def requirements(folder: Path = REQUIREMENTS) -> dict[str, dict]:
+    """Every requirement id with its status (and, for a T id, whether its proof is `none`),
+    read from business.md and platform.md (brief Part A, 2026-09-27). A business id's status
+    is the first on its heading line ("RATIFIED …, amended ACCEPTED …" is RATIFIED)."""
+    out: dict[str, dict] = {}
+    business = (folder / "business.md").read_text(encoding="utf-8")
+    for m in _BUSINESS_ID.finditer(business):
+        out[m.group(1)] = {"status": m.group(2), "proof_none": False}
+    platform = (folder / "platform.md").read_text(encoding="utf-8")
+    header = platform[platform.index("## Technical requirements"):platform.index("### State model")]
+    status: dict[int, str] = {}
+    for a, b, s in _T_RANGE.findall(header):
+        for n in range(int(a), int(b) + 1):
+            status[n] = s
+    for m in _T_ROW.finditer(platform):
+        tid, cells = m.group(1), m.group(2)
+        st = "RETIRED" if "RETIRED" in cells else status.get(int(tid[1:]), "PROPOSED")
+        out[tid] = {"status": st, "proof_none": cells.rstrip().endswith("| none")}
+    return out
+
+
+def citable(reqs: dict[str, dict]) -> set[str]:
+    """Ids a feature may cite: RATIFIED or ACCEPTED, never PROPOSED, DRAFT or RETIRED."""
+    return {i for i, r in reqs.items() if r["status"] in ("RATIFIED", "ACCEPTED")}
+
+
+def effective_priority(features: list[dict]) -> dict[str, int]:
+    """Each feature's own priority, lowered to the priority of any feature that
+    depends on it, transitively (a dependency of priority-1 work is priority 1)."""
+    eff = {f["id"]: f.get("priority", 3) for f in features}
+    changed = True
+    while changed:
+        changed = False
+        for f in features:
+            for d in f["depends_on"]:
+                if d in eff and eff[f["id"]] < eff[d]:
+                    eff[d] = eff[f["id"]]
+                    changed = True
+    return eff
+
+
 def _next(failing: list[str], features: list[dict], st: dict[str, str]) -> str | None:
-    """The first failing feature whose dependencies ALL pass, transitively —
-    else the first failing one."""
+    """The lane's next feature. `failing` comes in priority order, then list order.
+    The first one is next when nothing blocks it; when it is blocked, its first
+    unblocked blocker IN THE SAME LANE is next; when every blocker is another lane's,
+    it stays next itself (the 2026-09-26 ruling: lane A takes DEF-005 first although
+    the integrator's DEF-001 blocks it). Priority 1 work is never skipped for a
+    priority 3 feature because its dependency is unfinished."""
+    lane = {f["id"]: f.get("lane") for f in features}
     for fid in failing:
-        if not blockers(fid, features, st):
+        chain = blockers(fid, features, st)
+        if not chain:
             return fid
-    return failing[0] if failing else None
+        own = [b for b in chain if lane.get(b) == lane.get(fid) and not blockers(b, features, st)]
+        return own[0] if own else fid
+    return None
 
 
 def headline(s: dict | None = None) -> str:
