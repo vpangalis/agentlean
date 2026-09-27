@@ -39,6 +39,21 @@ therefore 1, 2b, 3, 4, 5, 6, 7 and 8.
      annotation-only change passes (the 2026-09-27 ruling carried over). Runs
      ahead of the prefix gate, on every commit, as 2b did.
 
+  18. REQUIREMENTS — on a commit staging business.md, platform.md or the feature list:
+     every entry carries `MoSCoW:` and `Design:`, every feature cites a RATIFIED or
+     ACCEPTED id, and no RATIFIED or ACCEPTED requirement is left without a feature
+     (brief Part F4: the coverage gap is a refusal — founder ruling 1, 2026-09-27).
+
+  19. DESIGN GATE — a commit landing DEF-xxx is refused while its requirement says
+     `Design: ADR-nnnn` and that ADR (0057 or later) is not ACCEPTED.
+
+  20. FOUNDER OWNERSHIP — business.md and platform.md change only with a trailer
+     `Ruling: <date> <what the founder ruled>`.
+
+  21. ADR IMMUTABILITY — an ACCEPTED ADR changes only by its status line becoming
+     `SUPERSEDED by NNNN`; a link-target-only change is allowed on any record; none
+     is deleted. Rules 17-21 run ahead of the prefix gate, on every commit.
+
   3. TYPE-CHECK — mypy over the changed Python, against the PINNED venv, so an
      invented LangGraph/LangChain/LangSmith method or a wrong signature fails
      against the real installed library's types. Ratcheted (see below).
@@ -631,6 +646,152 @@ def check_design(root: str, message: str, staged: list[str]) -> None:
          "  Design: unchanged",
          "",
          "Rule 17 replaces rule 2b (founder ruling 2026-09-27): v2 has no changelog.")
+
+
+# --------------------------------------------------------------------------- #
+# Rules 18-21 — the procedure (brief Part F4, founder 2026-09-27)
+# --------------------------------------------------------------------------- #
+
+REQ_FILES = (f"{PROJECT}/docs/requirements/business.md", f"{PROJECT}/docs/requirements/platform.md")
+FEATURES_PATH = f"{PROJECT}/docs/define_features.json"
+ADR_DIR_REL = f"{PROJECT}/docs/adr/"
+_ADR_FILE_RE = re.compile(r"^" + re.escape(ADR_DIR_REL) + r"(\d{4})-[\w-]+\.md$")
+#: `Ruling: <date> <what the founder ruled>` — rule 20.
+RULING_TRAILER_RE = re.compile(r"^[\s*_]*Ruling[\s*_]*:[ \t]*(\d{4}-\d{2}-\d{2})[ \t]+\S.{9,}$", re.M)
+
+
+def _tool_mod(root: str, name: str):
+    """A stdlib-only module of tools/control_board, loaded for the system python."""
+    path = os.path.join(root, PROJECT, "tools", "control_board", f"{name}.py")
+    spec = importlib.util.spec_from_file_location(f"{name}_for_guard", path)
+    mod = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, os.path.dirname(path))
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _head_text(root: str, rel: str) -> str | None:
+    out = subprocess.run(["git", "show", f"HEAD:{rel}"], capture_output=True, encoding="utf-8",
+                         errors="replace", cwd=root, timeout=20)
+    return out.stdout if out.returncode == 0 else None
+
+
+def _git_ls_index(root: str, prefix: str) -> list[str]:
+    out = subprocess.run(["git", "ls-files", "--", prefix], capture_output=True, encoding="utf-8",
+                         cwd=root, timeout=20)
+    return out.stdout.splitlines()
+
+
+def _staged_requirements(root: str) -> dict:
+    f = _features_mod(root)
+    texts = {os.path.basename(p): _staged_text(root, p) for p in REQ_FILES}
+    return f.requirements(texts=texts)
+
+
+def check_requirements(root: str, staged: list[str]) -> None:
+    """Rule 18 — the requirements are well formed and covered (brief Parts F2 and F4;
+    Part E's warning becomes a refusal, founder ruling 1, 2026-09-27). On a commit that
+    stages business.md, platform.md or the feature list: every entry carries `MoSCoW:`
+    and `Design:`; every feature cites a RATIFIED or ACCEPTED id; no RATIFIED or ACCEPTED
+    requirement (for a T id: one whose proof is `none`) is left with no feature citing it.
+    Read from the INDEX, so a requirement and its features land together — and must."""
+    if not any(p in staged for p in (*REQ_FILES, FEATURES_PATH)):
+        return
+    f = _features_mod(root)
+    reqs = _staged_requirements(root)
+    feats = json.loads(_staged_text(root, FEATURES_PATH))["features"]
+    bad = list(f.field_problems(reqs))
+    ok = f.citable(reqs)
+    cited = {x["requirement"] for x in feats}
+    bad += [f"{x['id']} cites {x['requirement']}, which is not RATIFIED or ACCEPTED"
+            for x in feats if x["requirement"] not in ok]
+    need = {i for i in ok if not i.startswith("T") or reqs[i]["proof_none"]}
+    bad += [f"{i} is {reqs[i]['status']} and no feature cites it" for i in sorted(need - cited)]
+    if bad:
+        fail("a requirement is malformed or uncovered (rule 18)", *[f"  - {b}" for b in bad], "",
+             "Every entry carries `MoSCoW: Must | Should | Could | Won't-now | ?` and",
+             "`Design: ADR-nnnn | none` on its heading line (Part F2). Every RATIFIED or",
+             "ACCEPTED requirement has a feature in docs/define_features.json, added in the",
+             "same commit (the new-requirement skill, step 3).")
+    note(f"rule 18 requirements: PASS — {len(reqs)} entries well formed, {len(need)} covered")
+
+
+def check_design_gate(root: str, subject: str) -> None:
+    """Rule 19 — THE DESIGN GATE (brief Part F4): a commit landing DEF-xxx is refused while
+    its requirement says `Design: ADR-nnnn` and that ADR is not ACCEPTED. Binds ADRs 0057
+    and later (founder, 2026-09-27; 0001-0056 are the architecture sort's draft)."""
+    m = _DEF_SUBJECT_RE.match(subject)
+    if not m:
+        return
+    fid = m.group(1)
+    feats = {x["id"]: x for x in json.loads(_staged_text(root, FEATURES_PATH))["features"]}
+    if fid not in feats:
+        return                                   # rule 11 names it
+    req = feats[fid]["requirement"]
+    design = (_staged_requirements(root).get(req) or {}).get("design") or "none"
+    if design == "none":
+        note(f"rule 19 design gate: {fid} cites {req}, Design: none — nothing to gate")
+        return
+    adrs = _tool_mod(root, "adrs")
+    number = design[4:]
+    if not adrs.gated(number):
+        note(f"rule 19 design gate: {fid} → {req} → {design} (before ADR 0057, not gated)")
+        return
+    status = None
+    for p in _git_ls_index(root, ADR_DIR_REL):
+        mm = _ADR_FILE_RE.match(p)
+        if mm and mm.group(1) == number:
+            status = adrs.parse(_staged_text(root, p))["status"]
+    if status != "ACCEPTED":
+        fail(f"{fid} cannot land: its design is not accepted (rule 19)",
+             f"{fid} proves {req}, whose design is {design} — status {status or 'MISSING'}.", "",
+             "A feature lands only when the ADR its requirement names is ACCEPTED by the",
+             "founder. Report it to Desktop; the founder rules; the ADR's status line changes.")
+    note(f"rule 19 design gate: PASS — {fid} → {req} → {design} ACCEPTED")
+
+
+def check_founder_ownership(root: str, message: str, staged: list[str]) -> None:
+    """Rule 20 — FOUNDER OWNERSHIP (brief Part F4): business.md and platform.md change only
+    by founder ruling, recorded in the commit as `Ruling: <date> <what the founder ruled>`."""
+    touched = [p for p in staged if p in REQ_FILES]
+    if not touched:
+        return
+    m = RULING_TRAILER_RE.search(message)
+    if not m:
+        fail("a founder-owned requirement file changed with no ruling (rule 20)",
+             *[f"  - {p}" for p in touched], "",
+             "business.md and platform.md change only by founder ruling. Add the trailer:", "",
+             "  Ruling: 2026-09-27 <what the founder ruled>", "",
+             "Claude Code never edits a requirement on its own finding: it reports the",
+             "proposed change to Desktop (.claude/rules/planning.md).")
+    note(f"rule 20 founder ownership: PASS — Ruling: {m.group(1)}")
+
+
+def check_adr_immutability(root: str, staged: list[str]) -> None:
+    """Rule 21 — ADR IMMUTABILITY (brief Part F4): an ACCEPTED ADR is never edited, only
+    superseded — its status line may become `SUPERSEDED by NNNN`; a change to link targets
+    only is allowed on any record (ruling 5, 2026-09-27); no record is deleted."""
+    changed = [p for p in staged if _ADR_FILE_RE.match(p)]
+    if not changed:
+        return
+    adrs = _tool_mod(root, "adrs")
+    in_index = set(_git_ls_index(root, ADR_DIR_REL))
+    bad = []
+    for p in changed:
+        old = _head_text(root, p)
+        if old is None:
+            continue                              # a new record
+        if p not in in_index:
+            bad.append(f"{p}: deleted — a record is never deleted, only superseded")
+            continue
+        why = adrs.change_refusal(old, _staged_text(root, p))
+        if why:
+            bad.append(f"{p}: {why}")
+    if bad:
+        fail("an ADR was edited (rule 21)", *[f"  - {b}" for b in bad], "",
+             "A changed decision is a NEW ADR; the old one's status line becomes",
+             "`Status: SUPERSEDED by NNNN` in the same commit (docs/adr/README.md).")
+    note(f"rule 21 ADR immutability: PASS — {len(changed)} record(s) staged")
 
 
 # --------------------------------------------------------------------------- #
@@ -1562,6 +1723,16 @@ def main(argv: list[str]) -> int:
 
     with _timer("rule 17 design"):
         check_design(root, message, all_staged)
+
+    # Rules 18-21 — the procedure (brief Part F4, founder 2026-09-27), ahead of the gate.
+    with _timer("rule 20 founder ownership"):
+        check_founder_ownership(root, message, all_staged)
+    with _timer("rule 21 ADR immutability"):
+        check_adr_immutability(root, all_staged)
+    with _timer("rule 18 requirements"):
+        check_requirements(root, all_staged)
+    with _timer("rule 19 design gate"):
+        check_design_gate(root, subject)
 
     # Rule 9 (the build matrix, Appendix F covers Appendix D) RETIRED at 6.67
     # with the procedure; its referee is docs/_archive/retired-tooling/hooks/verify_built.py.
