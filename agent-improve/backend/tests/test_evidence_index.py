@@ -221,8 +221,10 @@ def test_the_sentinel_row_exists_in_the_ratified_vocabulary():
 
     from backend.upload.asks import SENTINEL_KIND, SENTINEL_ROLE
 
-    arch = (Path(__file__).resolve().parents[2] / "ARCHITECTURE.md").read_text(
-        encoding="utf-8")
+    # The vocabulary was ratified in ARCHITECTURE.md v1.88 §23.2.1; v2 (brief Part C,
+    # 2026-09-27) says the code owns it (upload/asks.py) and archives the ratifying text.
+    arch = (Path(__file__).resolve().parents[2] / "docs" / "_archive"
+            / "ARCHITECTURE_v1.88_2026-09-27.md").read_text(encoding="utf-8")
     row = f"| `{SENTINEL_ROLE}` | {SENTINEL_KIND} | any |"
     assert row in arch, f"§23.2.1 has no row reading {row!r}"
 

@@ -11,7 +11,7 @@ paths:
 
 ### 8.1 — Eight middlewares, all on `create_agent`
 
-**Canonical: ARCHITECTURE.md §19.** The stack's members and order are owned by
+**Canonical: ARCHITECTURE.md §3.3.** The stack's members and order are owned by
 `_build_executor()` in `backend/phases/nodes_common.py`, enforced by
 `test_the_declared_middleware_list_is_the_ratified_layering` (verify_built.py retired at 6.67).
 **Read the list there; do not restate it.**
@@ -32,7 +32,7 @@ first declared outermost. Re-derive from the installed
   `before_model`, `after_model`, `after_agent`, `wrap_model_call`,
   `wrap_tool_call`, plus `a`-prefixed async twins. `dynamic_prompt()`,
   `hook_config()`, `configure_trace_policy()` are module-level names, not
-  hooks (ARCHITECTURE.md §19).
+  hooks (ARCHITECTURE.md §3.3).
 - **Three independent retry caps, never merged:** `ModelRetryMiddleware` 2,
   `CoherenceMiddleware` 2, the validation stack's shared gate cap 3 (§9.2).
 - **Prefer built-in middleware**; custom only for domain-specific logic.
@@ -113,7 +113,7 @@ fields (§10.1).
 
 ### 8.5 — state injection — injection timing
 
-*Canonical: ARCHITECTURE.md §19.1.*
+*Canonical: ARCHITECTURE.md §3.3, middleware 1.*
 
 **Custom · `before_agent` + `wrap_model_call` · position 1.** Prepends
 project state at the **top** of the prompt: this phase's `artifacts`, prior

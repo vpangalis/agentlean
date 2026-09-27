@@ -17,9 +17,9 @@ their own headers because of the readers that came before, and a regex that
 stops resolving after a reformat would let every new file through while
 reporting success.
 
-IT ALSO CARRIES RULE 2b's WATCH-LIST INVARIANT
+IT ALSO CARRIES RULE 17's NAMED-FILE INVARIANT (rule 2b's, carried over)
 ----------------------------------------------
-**This is the guard's PATH-LIST test file**, and `STATUS_WATCHED` is one of its
+**This is the guard's PATH-LIST test file**, and rule 17's named files are one of its
 path lists. The invariant added 2026-09-14: **a watched path must be a source of
 truth, never the output of a generator.** `docs/board.html` was on that list and
 is regenerated from git log every commit, so rule 2b fired on every commit
@@ -376,130 +376,56 @@ def test_the_rules_run_ahead_of_the_prefix_gate() -> None:
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# Rule 2b's watch list — a source of truth, never a generator's output
+# Rule 17 — design stays true (replaces rule 2b, founder ruling 2026-09-27)
 # ══════════════════════════════════════════════════════════════════════════
 
-#: Every path a generator in this repository writes, and what writes it. A
-#: watched path may not appear here. Kept as data rather than inferred, because
-#: inferring "is this generated" from file content is what missed the board:
-#: `board.html` carries no DO-NOT-EDIT banner, and `routes.py` contains the word
-#: "generated" in a user-facing error string and is hand-written.
+#: Paths a generator rewrites on every commit. A file ARCHITECTURE.md §3 names
+#: must be a source of truth, never one of these (the invariant rule 2b's watch
+#: list was held to, carried over).
 GENERATED_PATHS = {
-    "agent-improve/docs/board.html": "build_board.py rewrites the whole file",
-    "agent-improve/docs/CONTINUITY.md": "pre-commit-continuity.py splices its status block",
-    "agent-improve/docs/REFACTORING_PROCEDURE.md": "pre-commit-continuity.py splices its step board",
+    "agent-improve/docs/control-board.html": "build_control_board.py",
+    "agent-improve/docs/CONTINUITY.md": "pre-commit-continuity.py",
+    "agent-improve/docs/test-results.json": "the pre-commit full run",
+    "agent-improve/docs/section-index.md": "section_index.py",
 }
 
 
-def test_no_watched_path_is_a_generators_output() -> None:
-    """**The rule the list is held to, and the one the board broke.**
-
-    A derived file changes when its INPUTS change, and `build_board.py` takes
-    git log as an input — which moves on every commit. So a watch on it asks
-    "did the generator run", never "did an architectural fact change", and the
-    two are indistinguishable from inside the hook.
-
-    **A gate that always fires is a gate that gets bypassed.** That is rule 3's
-    argument for being a ratchet and rule 2b's own argument for being narrow,
-    and it applies to 2b itself. Cost on the record: `ef59aa8`.
-    """
-    offenders = {p: GENERATED_PATHS[p] for p in g.STATUS_WATCHED
-                 if p in GENERATED_PATHS}
-    assert not offenders, (
-        "rule 2b watches a DERIVED path, so it will fire on commits that change "
-        f"no architectural fact: {offenders}. Verify a projection by "
-        "REGENERATING it and comparing (verify_built.py), never by requiring a "
-        "different file to be touched in the same commit."
-    )
+def _named() -> set:
+    return g.design_files((Path(_ROOT) / "agent-improve" / "ARCHITECTURE.md").read_text(encoding="utf-8"))
 
 
-def test_every_watched_path_still_exists() -> None:
-    """The opposite failure, and it is silent in the other direction.
-
-    A watched path that has been renamed or deleted matches nothing and the rule
-    simply never fires — no error, no warning. That is the class recorded twice
-    already: a `paths:` glob rooted at `backend/**` when `.claude/` sits above
-    it, and `.gitignore` carrying `ARTIFACTS/` against a directory named
-    `_Artifacts/`.
-    """
-    missing = [w for w in g.STATUS_WATCHED
-               if not (Path(_ROOT) / w.rstrip("/")).exists()]
-    assert not missing, f"rule 2b watches paths that do not exist: {missing}"
+def test_the_named_files_are_sources_of_truth_that_exist_and_have_teeth() -> None:
+    named = _named()
+    assert len(named) >= 20, f"ARCHITECTURE.md §3 names only {len(named)} files — rule 17 lost its teeth"
+    missing = sorted(p for p in named if not (Path(_ROOT) / p).exists())
+    assert not missing, f"ARCHITECTURE.md §3 names files that do not exist: {missing}"
+    assert not named & set(GENERATED_PATHS), named & set(GENERATED_PATHS)
+    for p in ("agent-improve/backend/phases/nodes_common.py", "agent-improve/backend/gateway/routes.py",
+              "agent-improve/backend/core/checkpointer.py", "agent-improve/ui/index.html",
+              "agent-improve/backend/phases/analyse/validate.py", "agent-improve/scripts/ingest_knowledge.py"):
+        assert p in named, p
 
 
-def test_the_watch_list_still_has_teeth() -> None:
-    """Removing an entry must not empty the rule. Guards the over-correction."""
-    assert len(g.STATUS_WATCHED) >= 10, (
-        f"STATUS_WATCHED is down to {len(g.STATUS_WATCHED)} entries — rule 2b "
-        "was narrowed into irrelevance rather than corrected")
+def test_design_files_reads_section_3_only_joins_folders_and_expands_phases() -> None:
+    doc = NEWLINE.join([
+        "## 2. Architecture", "`core/graph.py` is outside §3", "",
+        "## 3. Components and interfaces", "",
+        "| Folder | File | Holds |", "|---|---|---|",
+        "| `core/` | `state.py` C | x |", "| | `llm.py` | y |",
+        "| `phases/` | `{phase}/validate.py` | z |", "| — | `escalate.py` | e |", "",
+        "Built in `phases/nodes_common.py::_build_executor`; the UI is `ui/index.html`.", "",
+        "## 4. Data models", "`core/store.py` is outside §3"])
+    named = g.design_files(doc)
+    assert "agent-improve/backend/core/state.py" in named and "agent-improve/backend/core/llm.py" in named
+    assert "agent-improve/backend/phases/control/validate.py" in named
+    assert "agent-improve/backend/escalate.py" in named
+    assert "agent-improve/backend/phases/nodes_common.py" in named and "agent-improve/ui/index.html" in named
+    assert "agent-improve/backend/core/graph.py" not in named and "agent-improve/backend/core/store.py" not in named
 
 
-# ══════════════════════════════════════════════════════════════════════════
-# Step 6.27 / G-58 — §55.2 and STATUS_WATCHED are ONE fact
-# ══════════════════════════════════════════════════════════════════════════
-
-#: §55.2 tabulates the watched paths for a human reader; the guard hardcodes
-#: them for the gate. CLAUDE.md's *Facts have one owner* rule says a set is
-#: stated once and cited everywhere else, and this is two copies of one set.
-#:
-#: **An equality test rather than a runtime read, deliberately.** Parsing a
-#: prose section inside the hook would put a document on the critical path of
-#: every commit and fail closed on a reformat — §55.2's block is authored for a
-#: reader, not a data file. The assertion gets the ownership benefit without the
-#: coupling: either copy may move, and the suite says so before the gate and the
-#: document can disagree in production.
-_ARCH_552_HEADING = "### 55.2"
-
-
-def _watched_paths_from_arch() -> set:
-    """The paths §55.2 tabulates, read from its fenced block ONLY.
-
-    Anchored to the fence rather than to the whole section, because the removal
-    note below the block names `board.html` twice and a section-wide scan would
-    read those mentions as rows.
-    """
-    import re
-    text = (Path(_ROOT) / "agent-improve" / "ARCHITECTURE.md").read_text(encoding="utf-8")
-    section = text[text.index(_ARCH_552_HEADING):]
-    end = section.find("\n## ")
-    if end != -1:
-        section = section[:end]
-    fence = re.search(r"```[a-z]*\n(.*?)```", section, re.S)
-    assert fence, "section 55.2 no longer carries a fenced path block"
-    return {
-        line.split()[0] for line in fence.group(1).splitlines()
-        if line.strip().startswith("agent-improve/")
-    }
-
-
-def _norm(path: str) -> str:
-    """`middleware/**` and `middleware/` are one entry in two notations.
-
-    §55.2 writes a package as a glob because that is how it reads; the guard
-    writes a trailing slash because `check_architecture_status` prefix-matches
-    on it. Normalising is honest — asserting the raw strings match would not be.
-    """
-    return path.rstrip("*").rstrip("/")
-
-
-def test_the_watch_list_and_ss552_state_the_same_paths() -> None:
-    """**One fact, two owners — and it has already drifted twice.**
-
-    The board was added to both on 2026-09-11 and removed from only the guard
-    on 2026-09-14, so between `258d0dd` and step 6.27 the document said
-    thirteen paths and the gate enforced twelve. The first drift cost
-    `ef59aa8`; the second was created by the commit that fixed the first.
-    """
-    doc = {_norm(x) for x in _watched_paths_from_arch()}
-    gate = {_norm(x) for x in g.STATUS_WATCHED}
-    assert doc == gate, (
-        "section 55.2 and STATUS_WATCHED disagree about which paths oblige an "
-        "ARCHITECTURE.md re-check. "
-        f"In 55.2 only: {sorted(doc - gate)}. "
-        f"In the guard only: {sorted(gate - doc)}. "
-        "One moved without the other; per CLAUDE.md's fact-ownership rule they "
-        "are one fact, so fix whichever is wrong in the same commit."
-    )
+def test_the_design_trailer_is_a_whole_line() -> None:
+    assert g.DESIGN_TRAILER_RE.search("body" + NEWLINE + NEWLINE + "Design: unchanged" + NEWLINE)
+    assert not g.DESIGN_TRAILER_RE.search("the Design: unchanged? no" + NEWLINE)
 
 
 # Rule 9 (the build matrix) retired with the procedure at step 6.67; its tests are in
@@ -673,14 +599,20 @@ def test_rule_15_passes_a_chore_that_only_annotates(monkeypatch) -> None:
     g.check_chore_scope(_ROOT, "chore(types): x", "", ["agent-improve/backend/core/checkpointer.py"])
 
 
-def test_rule_2b_skips_an_annotation_only_change_and_fires_on_behaviour(monkeypatch) -> None:
+def test_rule_17_passes_annotations_the_trailer_or_a_design_change_and_fires_otherwise(monkeypatch) -> None:
     ao = _ao()
-    watched = next(w for w in g.STATUS_WATCHED if not w.endswith("/"))
+    named = "agent-improve/backend/phases/nodes_common.py"
+    monkeypatch.setattr(g, "_staged_text", lambda root, rel: (Path(_ROOT) / rel).read_text(encoding="utf-8"))
+    monkeypatch.setattr(g, "_status_changed_by_hand", lambda root: False)
     monkeypatch.setattr(ao, "staged_is_annotation_only", lambda root, p: True)
-    g.check_architecture_status(_ROOT, [watched])
+    g.check_design(_ROOT, "", [named])                                       # annotations only
     monkeypatch.setattr(ao, "staged_is_annotation_only", lambda root, p: False)
+    g.check_design(_ROOT, "x" + NEWLINE + NEWLINE + "Design: unchanged" + NEWLINE, [named])
     with pytest.raises(SystemExit):
-        g.check_architecture_status(_ROOT, [watched])
+        g.check_design(_ROOT, "", [named])                                   # behaviour, no word
+    monkeypatch.setattr(g, "_status_changed_by_hand", lambda root: True)
+    g.check_design(_ROOT, "", [named, "agent-improve/ARCHITECTURE.md"])       # the design moved with it
+    g.check_design(_ROOT, "", ["agent-improve/backend/core/metrics.py"])      # not named in §3
 
 
 def test_the_suite_runs_serial_tests_alone_after_the_parallel_pass() -> None:

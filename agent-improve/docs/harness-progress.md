@@ -5,8 +5,10 @@ overnight run's full record (6.66) is in commit `a3364ae`'s version of this file
 
 The three layers (step 6.67): how to work — `CLAUDE.md` and `.claude/`; what must
 be true — `docs/define_features.json` + `docs/test-results.json` (the board,
-`docs/control-board.html`, and CONTINUITY's block are generated from them); why —
-`ARCHITECTURE.md`, read only by the cited section via `docs/section-index.md`. The
+`docs/control-board.html`, and CONTINUITY's block are generated from them); how it is built —
+`ARCHITECTURE.md` (v2, design only; its data models generated from the code); why —
+`docs/adr/`; read by the cited section via `docs/section-index.md`. The v1.88 document is
+archived at `docs/_archive/ARCHITECTURE_v1.88_2026-09-27.md` (brief Part C). The
 session-start routine is in CLAUDE.md.
 
 ## Requirements (founder-owned)

@@ -206,7 +206,7 @@ patterns:
 
   - id: pattern-9-hand-rolled-llm-retry
     regex: '(?is)(?:for\s+\w*(?:attempt|retry|retries|tries)\w*\s+in\s+range\s*\([^)\n]{0,40}\)\s*:(?:[^\n]*\n){0,12}?[^\n]*\.a?invoke\s*\(|while\s+[^\n:]{0,60}(?:attempt|retr|tries)[^\n:]{0,60}:(?:[^\n]*\n){0,12}?[^\n]*\.a?invoke\s*\(|for\s+\w+\s+in\s+range\s*\([^)\n]{0,40}\)\s*:(?:[^\n]*\n){0,15}?[^\n]*\.a?invoke\s*\((?:[^\n]*\n){0,15}?[^\n]*(?:time|asyncio)\.sleep\s*\()'
-    message: "Hand-rolled retry loop around an LLM call. The framework ships this: ModelRetryMiddleware(max_retries=2) for model calls, ToolRetryMiddleware for tool calls, both on create_agent. Reference §19.4; CLAUDE.md §8.7 (hand-writing retry plumbing is BANNED) and §0.24. The keyword is max_retries, NOT retries."
+    message: "Hand-rolled retry loop around an LLM call. The framework ships this: ModelRetryMiddleware(max_retries=2) for model calls, ToolRetryMiddleware for tool calls, both on create_agent. ADR-0027; CLAUDE.md §8.7 (hand-writing retry plumbing is BANNED) and §0.24. The keyword is max_retries, NOT retries."
     severity: block
     path_exclusions:
       # Governance documentation — see header.
@@ -215,7 +215,7 @@ patterns:
 
   - id: pattern-10-custom-llm-tracing
     regex: '(?i)(?:class\s+\w*(?:Callback|Tracer|Tracing|Telemetry|Instrument)\w*\s*\([^)\n]*\)|def\s+(?:log|track|record|emit|measure|count)_(?:llm|model|token|tokens|prompt|completion|inference)\w*\s*\(|class\s+\w*(?:LLM|Model|Token|Prompt|Completion)\w*(?:Metrics|Stats|Tracker|Monitor|Recorder)\w*\s*[(:])'
-    message: "Custom tracing/metrics/callback layer for LLM calls. LangSmith already does this: set LANGCHAIN_TRACING_V2 and put @traceable on the function. Reference §51; CLAUDE.md §11.2 and §0.24. LangChain runnables and LangGraph nodes are traced automatically — @traceable is only for the plain Python functions between them."
+    message: "Custom tracing/metrics/callback layer for LLM calls. LangSmith already does this: set LANGCHAIN_TRACING_V2 and put @traceable on the function. ADR-0048; CLAUDE.md §11.2 and §0.24. LangChain runnables and LangGraph nodes are traced automatically — @traceable is only for the plain Python functions between them."
     severity: block
     path_exclusions:
       # Governance documentation — see header.
@@ -227,7 +227,7 @@ patterns:
 
   - id: pattern-11-manual-state-persistence
     regex: '(?im)(?:def\s+(?:save|load|persist|restore|dump|write|read)_(?:state|checkpoint|checkpoints|graph_state|phase_state|session_state|conversation_state)\w*\s*\(|(?:json|pickle)\.dumps?\s*\(\s*(?:state|graph_state|phase_state)[,)\s]|^\s*(?:CHECKPOINTS|STATE_STORE|_checkpoints|_state_store)\s*(?::[^=\n]+)?=\s*\{)'
-    message: "Manual checkpoint / state-persistence code. LangGraph owns this: the checkpointer persists graph state per thread_id, the store holds cross-phase artifacts. Reference §16; CLAUDE.md §1.7, §10.2 and §0.24. Attach both to the PARENT graph only — phase subgraphs compile with neither."
+    message: "Manual checkpoint / state-persistence code. LangGraph owns this: the checkpointer persists graph state per thread_id, the store holds cross-phase artifacts. ADR-0017; CLAUDE.md §1.7, §10.2 and §0.24. Attach both to the PARENT graph only — phase subgraphs compile with neither."
     severity: block
     path_exclusions:
       # Governance documentation — see header.
@@ -248,7 +248,7 @@ patterns:
   # affected_identifier, not as an index to read.
   - id: pattern-12-retired-knowledge-index
     regex: '["'']improve_knowledge_index["'']'
-    message: "improve_knowledge_index is the retired, contaminated methodology index (Reference §23, and its Appendix D.1). Read the index name from settings.AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX; its default is KNOWLEDGE_INDEX_DEFAULT in backend/core/config.py (improve_knowledge_index_v3)."
+    message: "improve_knowledge_index is the retired, contaminated methodology index (ADR-0030; retired names: archived ARCHITECTURE v1.88, Appendix D.1). Read the index name from settings.AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX; its default is KNOWLEDGE_INDEX_DEFAULT in backend/core/config.py (improve_knowledge_index_v3)."
     severity: block
     path_exclusions:
       # Governance documentation — see header.

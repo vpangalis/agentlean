@@ -1,9 +1,9 @@
 # Architecture sort — PROPOSAL (founder, 2026-09-26)
 
-> **PROPOSED — nothing here is ratified, and [ARCHITECTURE.md](../ARCHITECTURE.md) is unchanged.**
+> **PROPOSED — nothing here is ratified, and [ARCHITECTURE.md](../../ARCHITECTURE.md) is unchanged.**
 > Its output: the technical requirements T1–T68 in
-> [platform.md](requirements/platform.md#technical-requirements-proposed), the decision records in
-> [docs/adr](adr/README.md), and this file (the map, the drift, and the completeness check).
+> [platform.md](../requirements/platform.md#technical-requirements-proposed), the decision records in
+> [docs/adr](../adr/README.md), and this file (the map, the drift, and the completeness check).
 > DESIGN stays in ARCHITECTURE.md (founder, 2026-09-26).
 
 Classes: **T** a measurable technical requirement → platform.md · **ADR** a decision → docs/adr ·
@@ -20,58 +20,58 @@ state → tests and features · **OBSOLETE** superseded or a pointer to an archi
 | §2 How to read this document | OBSOLETE | Reading guide; `docs/section-index.md` replaces it |
 | §3 Terminology | DESIGN | Glossary |
 | §4 Architecture at a glance | DESIGN | Overview diagram (its field count has drifted — see §2 below) |
-| §5 `SupervisorState` | ADR + T | [0015](adr/0015-two-level-state.md); T1, T3 |
+| §5 `SupervisorState` | ADR + T | [0015](../adr/0015-two-level-state.md); T1, T3 |
 | §6 `PhaseState` | ADR + T | 0015; T2, T4, T10 |
-| §7 Field typing law | ADR | [0016](adr/0016-captured-fields-are-strings.md); T5 |
-| §8 Checkpointer / store split | ADR + T | [0017](adr/0017-checkpointer-on-the-parent-only.md); T7, T17 |
-| §9 The Store | ADR + T | [0019](adr/0019-store-for-cross-phase-artifacts.md); T19 |
-| §10 Azure Blob | ADR + T | [0018](adr/0018-azure-blob-checkpointer.md); T9, T11, T13 |
-| §11 `step_log` | T | T18, T21, T44; [0020](adr/0020-step-log-audit-trail.md) |
-| §12 Topology | DESIGN | Graph shape; [0021](adr/0021-one-compiled-graph.md) |
-| §13 The phase subgraph | DESIGN | The five nodes; [0022](adr/0022-five-node-phase-cycle.md) |
+| §7 Field typing law | ADR | [0016](../adr/0016-captured-fields-are-strings.md); T5 |
+| §8 Checkpointer / store split | ADR + T | [0017](../adr/0017-checkpointer-on-the-parent-only.md); T7, T17 |
+| §9 The Store | ADR + T | [0019](../adr/0019-store-for-cross-phase-artifacts.md); T19 |
+| §10 Azure Blob | ADR + T | [0018](../adr/0018-azure-blob-checkpointer.md); T9, T11, T13 |
+| §11 `step_log` | T | T18, T21, T44; [0020](../adr/0020-step-log-audit-trail.md) |
+| §12 Topology | DESIGN | Graph shape; [0021](../adr/0021-one-compiled-graph.md) |
+| §13 The phase subgraph | DESIGN | The five nodes; [0022](../adr/0022-five-node-phase-cycle.md) |
 | §14 Node contract | T | Return and async contract of every node |
-| §15 Routing | ADR | [0023](adr/0023-routing-static-or-command.md) |
-| §16 `thread_id`, `checkpoint_ns` | ADR + T | [0024](adr/0024-thread-id-is-the-case.md); T8, T12 |
-| §17 Planner / Executor | ADR + STATUS | [0001](adr/0001-coaching-move-decided-in-code.md), [0025](adr/0025-planner-executor-split.md); T47; long build-status notes |
-| §18 `create_agent` | ADR | [0026](adr/0026-create-agent-with-middleware.md) |
-| §19 Middleware stack | ADR + T | [0027](adr/0027-middleware-stack.md); T46, T49, T55 |
-| §20 `CoachingResponse` | ADR | [0028](adr/0028-coaching-response-schema.md), [0002](adr/0002-value-stored-only-after-confirmation.md); T6 |
-| §21 LLM roles | T | T45; [0029](adr/0029-model-roles-and-tiers.md) |
-| §22 Prompts | ADR | [0003](adr/0003-coach-input-in-labelled-sections.md) |
-| §23 The three indexes | ADR + T | [0030](adr/0030-three-indexes.md); T22, T53 |
+| §15 Routing | ADR | [0023](../adr/0023-routing-static-or-command.md) |
+| §16 `thread_id`, `checkpoint_ns` | ADR + T | [0024](../adr/0024-thread-id-is-the-case.md); T8, T12 |
+| §17 Planner / Executor | ADR + STATUS | [0001](../adr/0001-coaching-move-decided-in-code.md), [0025](../adr/0025-planner-executor-split.md); T47; long build-status notes |
+| §18 `create_agent` | ADR | [0026](../adr/0026-create-agent-with-middleware.md) |
+| §19 Middleware stack | ADR + T | [0027](../adr/0027-middleware-stack.md); T46, T49, T55 |
+| §20 `CoachingResponse` | ADR | [0028](../adr/0028-coaching-response-schema.md), [0002](../adr/0002-value-stored-only-after-confirmation.md); T6 |
+| §21 LLM roles | T | T45; [0029](../adr/0029-model-roles-and-tiers.md) |
+| §22 Prompts | ADR | [0003](../adr/0003-coach-input-in-labelled-sections.md) |
+| §23 The three indexes | ADR + T | [0030](../adr/0030-three-indexes.md); T22, T53 |
 | §24 `rag_lookup_*` tools | T | T25, T58 |
-| §25 Multi-query and RRF | ADR + T | [0031](adr/0031-multi-query-rrf.md); T51 |
-| §26 Multi-hop | ADR + T | [0032](adr/0032-hop-cap-counted-in-executor.md); T26, T27 |
-| §27 Retrieval failure | ADR + T | [0033](adr/0033-retrieval-failure-semantics.md); T30 |
+| §25 Multi-query and RRF | ADR + T | [0031](../adr/0031-multi-query-rrf.md); T51 |
+| §26 Multi-hop | ADR + T | [0032](../adr/0032-hop-cap-counted-in-executor.md); T26, T27 |
+| §27 Retrieval failure | ADR + T | [0033](../adr/0033-retrieval-failure-semantics.md); T30 |
 | §28 Memory taxonomy | DESIGN | Conceptual map of memory kinds |
-| §29 Data channel, universal tools | ADR | [0034](adr/0034-no-mcp-data-channel.md) |
-| §30 Computation tools | ADR + T | [0035](adr/0035-computation-tools-per-phase.md); T31, T52 |
+| §29 Data channel, universal tools | ADR | [0034](../adr/0034-no-mcp-data-channel.md) |
+| §30 Computation tools | ADR + T | [0035](../adr/0035-computation-tools-per-phase.md); T31, T52 |
 | §31 Tool arg schemas | T | Argument and docstring rules |
-| §32 SKILL.md | ADR + T | [0036](adr/0036-phase-skills.md); T61 |
-| §33 The HITL gate | ADR + T | [0008](adr/0008-define-gate-is-a-report.md), [0037](adr/0037-gate-review-and-apply.md), [0038](adr/0038-checkpoint-commits-after-approval.md); T14–T16, T20, T23 |
-| §34 Four-layer validation | ADR + T | [0039](adr/0039-four-layer-validation.md), [0010](adr/0010-define-rubric-layer-2d.md); T48, T56, T63 |
-| §35 Two tiers and `warning` | ADR + T | [0040](adr/0040-two-tiers-and-warning.md); T66 |
-| §36 Two graders | ADR + T | [0041](adr/0041-two-graders.md); T64 |
-| §37 Contradiction cascade | ADR | [0042](adr/0042-contradiction-and-reapproval.md) |
+| §32 SKILL.md | ADR + T | [0036](../adr/0036-phase-skills.md); T61 |
+| §33 The HITL gate | ADR + T | [0008](../adr/0008-define-gate-is-a-report.md), [0037](../adr/0037-gate-review-and-apply.md), [0038](../adr/0038-checkpoint-commits-after-approval.md); T14–T16, T20, T23 |
+| §34 Four-layer validation | ADR + T | [0039](../adr/0039-four-layer-validation.md), [0010](../adr/0010-define-rubric-layer-2d.md); T48, T56, T63 |
+| §35 Two tiers and `warning` | ADR + T | [0040](../adr/0040-two-tiers-and-warning.md); T66 |
+| §36 Two graders | ADR + T | [0041](../adr/0041-two-graders.md); T64 |
+| §37 Contradiction cascade | ADR | [0042](../adr/0042-contradiction-and-reapproval.md) |
 | §38 Escalation | ADR + T | 0039; T65 |
 | §39 The five phases | DOMAIN | Method content → skills. OBSOLETE: 39.1.7, 39.2.10, 39.3.10, 39.4.10, 39.5.10 (defer to the files). T/ADR: 39.x.3, 39.1.9, 39.2.3. STATUS: 39.4.12, 39.5.12 |
 | §40 Output schemas | T | Schemas are owned by code; the prose count is stale |
 | §41 Structured dict fields, FMEA | DOMAIN + T | Dict shapes are T; the FMEA method goes to skills |
 | §42 Cross-phase references | ADR | 0019 |
 | §43 The coaching method | ADR + DOMAIN | The intro is 0001; the subsections are method → skills |
-| §44 Failure pipeline | ADR + T | [0043](adr/0043-native-reliability-primitives.md); T38 |
-| §45 Timeouts, compensation | ADR + T | 0043, [0011](adr/0011-gate-write-in-final-node.md); T24, T29, T32, T37 |
-| §46 Fallback, breakers | ADR + T | [0044](adr/0044-fallback-chain-and-breakers.md), [0045](adr/0045-geo-redundancy-deferred.md); T34–T36, T68 |
-| §47 Disconnect policy | ADR + T | [0046](adr/0046-disconnect-abandons.md); T33 |
-| §48 Structured errors | ADR | [0047](adr/0047-one-error-schema.md); T30 |
+| §44 Failure pipeline | ADR + T | [0043](../adr/0043-native-reliability-primitives.md); T38 |
+| §45 Timeouts, compensation | ADR + T | 0043, [0011](../adr/0011-gate-write-in-final-node.md); T24, T29, T32, T37 |
+| §46 Fallback, breakers | ADR + T | [0044](../adr/0044-fallback-chain-and-breakers.md), [0045](../adr/0045-geo-redundancy-deferred.md); T34–T36, T68 |
+| §47 Disconnect policy | ADR + T | [0046](../adr/0046-disconnect-abandons.md); T33 |
+| §48 Structured errors | ADR | [0047](../adr/0047-one-error-schema.md); T30 |
 | §49 API surface | T | T16; the route list is stale |
 | §50 UI and language | DESIGN + ADR | Screen and wording rules |
-| §51 Tracing | T | T28, T39–T43; [0048](adr/0048-tracing-is-a-switch.md) |
-| §52 Evaluation | T | T50; [0049](adr/0049-eval-gates-release.md), [0014](adr/0014-live-call-budget.md) |
-| §53 Configuration, deployment | T | T67; [0050](adr/0050-config-fails-fast.md). 53.1 is STATUS/OBSOLETE (a migration sequence) |
+| §51 Tracing | T | T28, T39–T43; [0048](../adr/0048-tracing-is-a-switch.md) |
+| §52 Evaluation | T | T50; [0049](../adr/0049-eval-gates-release.md), [0014](../adr/0014-live-call-budget.md) |
+| §53 Configuration, deployment | T | T67; [0050](../adr/0050-config-fails-fast.md). 53.1 is STATUS/OBSOLETE (a migration sequence) |
 | §54 Where code lives | DESIGN | Module layout |
-| §55 Anti-drift | OBSOLETE + ADR | Points to archived procedures. 55.2 and 55.3 are STATUS; 55.4 and 55.5 are [0051](adr/0051-facts-have-one-owner.md) and [0052](adr/0052-commit-gates-govern.md) |
-| §56 Amendment procedure | OBSOLETE + ADR | 56 and 56.0 are OBSOLETE; 56.0.1, 56.1, 56.2 and 56.3 are ADRs ([0053](adr/0053-phase-is-atomic.md), [0054](adr/0054-head-is-truth.md)) |
+| §55 Anti-drift | OBSOLETE + ADR | Points to archived procedures. 55.2 and 55.3 are STATUS; 55.4 and 55.5 are [0051](../adr/0051-facts-have-one-owner.md) and [0052](../adr/0052-commit-gates-govern.md) |
+| §56 Amendment procedure | OBSOLETE + ADR | 56 and 56.0 are OBSOLETE; 56.0.1, 56.1, 56.2 and 56.3 are ADRs ([0053](../adr/0053-phase-is-atomic.md), [0054](../adr/0054-head-is-truth.md)) |
 | §57 How to write a spec entry | OBSOLETE | Features plus requirements replace the spec format |
 | §58 Spec — graph management | T + STATUS | Behaviour clauses → T and features; BUILT markers → tests |
 | §59 Spec — retrieval | T + STATUS | Same |
@@ -82,8 +82,8 @@ state → tests and features · **OBSOLETE** superseded or a pointer to an archi
 | §64 Spec — reliability | T + STATUS | T11 |
 | §65 Spec — API, UI, evidence | T + STATUS | T59 |
 | §66 SPEC-GAP register | OBSOLETE | A pointer only |
-| §67 EU AI Act posture | ADR | [0055](adr/0055-eu-ai-act-posture.md) |
-| §68 DORA risk register | ADR + STATUS | [0056](adr/0056-dora-risk-register.md) |
+| §67 EU AI Act posture | ADR | [0055](../adr/0055-eu-ai-act-posture.md) |
+| §68 DORA risk register | ADR + STATUS | [0056](../adr/0056-dora-risk-register.md) |
 | §69 Spec — computation tools | T + DOMAIN | T54, T57 |
 | Appendix A — Provenance | OBSOLETE | Points to archived documents |
 | Appendix B — Deferred backlog | STATUS | Belongs with features |
@@ -109,7 +109,7 @@ state → tests and features · **OBSOLETE** superseded or a pointer to an archi
 | Supersession sweep | keyed on `(case_id, role)` | keyed on `blob_path` |
 | §11 | a replayed step leaves one `step_log` entry | `step_log` uses `operator.add`, so a replay appends (T21) |
 | §19 | positions 4 and 5 are independent | since 6.3 position 1 wraps the model call and encloses the retry (`nodes_common.py`, comment in the executor's middleware list) |
-| §33.2 | `gate_apply` writes the gate document | the route writes it after the graph returns (D22, [0011](adr/0011-gate-write-in-final-node.md)) |
+| §33.2 | `gate_apply` writes the gate document | the route writes it after the graph returns (D22, [0011](../adr/0011-gate-write-in-final-node.md)) |
 | §49 | lists `/ask/stream` and `GET /cases` | neither exists; `/health`, `/summarise`, `/context`, `GET /gate/review/{case_id}/{phase}` and `DELETE /files/{case_id}/{file_id}` exist and are missing |
 | §53.1, §55, §55.1, §55.2, §56, §57, §66, Appendix A | point to REFACTORING_PROCEDURE and DECISIONS as current | both are archived |
 | Part IX / Part XII | §43.7 sits under the Part IX heading; §56.2 and §56.3 sit after Part XII | misplaced headings |

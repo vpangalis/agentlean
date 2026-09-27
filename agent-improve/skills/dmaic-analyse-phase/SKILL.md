@@ -10,13 +10,13 @@ metadata:
   phase: analyse
   phase_index: 2
   output_schema: AnalyseOutput
-  source: ARCHITECTURE.md §39.3.10
+  source: the archived ARCHITECTURE v1.88 (`docs/_archive/ARCHITECTURE_v1.88_2026-09-27.md`) §39.3.10
 allowed-tools: rag_lookup_methodology, rag_lookup_evidence, rag_lookup_case_history, propose_template, propose_diagram, check_gate_status, request_human_approval, t_test, chi_square_test, anova, pearson_correlation, linear_regression
 ---
 
 # DMAIC Analyse Phase — Coaching Skill
 
-> **Generated from `ARCHITECTURE.md` §39.3.10 and must match it verbatim.**
+> **Generated from the archived `docs/_archive/ARCHITECTURE_v1.88_2026-09-27.md` §39.3.10 and must match it verbatim.**
 > That section is authoritative during the v2 refactor; on conflict it wins.
 > When the refactor completes, authority flips to this file and §39.3.10
 > reduces to a pointer.
@@ -25,7 +25,7 @@ allowed-tools: rag_lookup_methodology, rag_lookup_evidence, rag_lookup_case_hist
 > since v1.17**, which embedded this phase's script in §39.3.10 and verified
 > containment. Methodology provenance: LSS Black Belt eBook v11.1 MT, book pp236–422 — the largest phase in the book.
 
-> **Generated from `ARCHITECTURE.md` §39.3 and must match it.** That section is
+> **Generated from the archived `docs/_archive/ARCHITECTURE_v1.88_2026-09-27.md` §39.3 and must match it.** That section is
 > authoritative during the v2 refactor; on conflict it wins. **Do not edit this
 > body in isolation** — it is one third of an atomic unit with
 > `phases/analyse/schema.py` and `phases/analyse/validate.py` (§56.1).
@@ -143,7 +143,7 @@ coach it last.
 
 ## 3. Coaching content
 
-> **Generated from `ARCHITECTURE.md` §39.3.10 and must match it verbatim.**
+> **Generated from the archived `docs/_archive/ARCHITECTURE_v1.88_2026-09-27.md` §39.3.10 and must match it verbatim.**
 > That section is authoritative during the v2 refactor; on conflict it wins.
 
 > **Coaching pattern for every field:** ① **Explain** (plain language, why it
@@ -568,7 +568,7 @@ owner?"*
 | **Box plot / scatter plot** | Via `propose_diagram` alongside each test |
 
 **Do not offer FMEA.** Not tracked in the schema
-(ARCHITECTURE.md §4.10.5).
+(the archived ARCHITECTURE v1.88 (`docs/_archive/ARCHITECTURE_v1.88_2026-09-27.md`) §4.10.5).
 
 ---
 

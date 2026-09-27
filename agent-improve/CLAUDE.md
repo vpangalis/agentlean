@@ -10,10 +10,10 @@ a request;** a wrong rule is amended first, in its own commit (the `amend-rules`
 | Layer | Where | Read it |
 |---|---|---|
 | How to work here | this file · `.claude/rules/*.md` (load by `paths:`) · `.claude/skills/` | always / on demand |
-| What must be true | `docs/requirements/` (founder's) → `docs/define_features.json` + `docs/test-results.json` | every session |
-| Why — design rationale | `ARCHITECTURE.md` | only the cited section, found in `docs/section-index.md` |
+| What must be true | `docs/requirements/{business,platform}.md` (founder's) → `docs/define_features.json` + `docs/test-results.json` | every session |
+| How built · why | `ARCHITECTURE.md` · `docs/adr/` | the cited section (`docs/section-index.md`) |
 
-History and retired documents (the procedure too): `docs/_archive/`. Never cite them as current.
+History and retired documents: `docs/_archive/`. Never cite them as current.
 
 ## Environment and gotchas
 

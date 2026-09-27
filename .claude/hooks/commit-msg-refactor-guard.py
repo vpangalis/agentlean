@@ -29,12 +29,15 @@ therefore 1, 2b, 3, 4, 5, 6, 7 and 8.
      shipped with the two disagreeing about the next step while this rule
      passed. The real defence was to stop storing the same fact twice.
 
-  2b. STATUS — `agent-improve/ARCHITECTURE.md` is staged whenever
-     the commit touches a path that file tabulates (STATUS_WATCHED). **This one
-     is NOT scoped to `refactor(arch-v2)`** and runs before the prefix gate:
-     a middleware swap lands as a `fix(` as easily as a `refactor(`, and
-     scoping it would exempt exactly the commits nobody reviews against the
-     spine. Added 2026-09-08 with the file itself.
+  2b. RETIRED 2026-09-27 (founder ruling, brief Part C7) — it required a
+     changelog line in ARCHITECTURE.md when a path it watched changed; v2 has no
+     changelog. Replaced by rule 17.
+
+  17. DESIGN — a commit that changes a file NAMED in ARCHITECTURE.md §3
+     (Components and interfaces) either changes ARCHITECTURE.md outside its
+     generated block, or carries the trailer `Design: unchanged`. An
+     annotation-only change passes (the 2026-09-27 ruling carried over). Runs
+     ahead of the prefix gate, on every commit, as 2b did.
 
   3. TYPE-CHECK — mypy over the changed Python, against the PINNED venv, so an
      invented LangGraph/LangChain/LangSmith method or a wrong signature fails
@@ -48,7 +51,7 @@ therefore 1, 2b, 3, 4, 5, 6, 7 and 8.
   16. DATA MODELS — ARCHITECTURE.md's generated block (between the
      `data models` markers) equals a fresh generation from the STAGED code
      (`tools/architecture/generate_models.py`); the pre-commit hook regenerates
-     it. The block is exempt from rule 2b and from rule 12's measure (Part G).
+     it. The block is exempt from rule 17 and from rule 12's measure (Part G).
 
   15. CHORE SCOPE — a `chore(...)` subject may change `agent-improve/backend/`
      (tests excluded) only by type annotations; a defect fix carries `fix` or a
@@ -222,54 +225,14 @@ SUBJECT_RE = re.compile(r"^refactor\(arch-v2\): (?:commit \d+\.\d+|DEF-\d{3}) �
 # (ARCHITECTURE.md §55.2). Same rule, one file.
 STATUS_PATH = "agent-improve/ARCHITECTURE.md"
 
-# Deliberately narrow: the twelve paths whose contents are literally tabulated
-# in that file. A rule that fired on every backend file gets routed around with
-# --no-verify within a week, and a guard people route around is worse than none
-# (the same argument that makes rule 3 a ratchet rather than a wall).
-STATUS_WATCHED = (
-    "agent-improve/backend/core/graph.py",
-    "agent-improve/backend/core/state.py",
-    "agent-improve/backend/core/substate.py",
-    "agent-improve/backend/core/checkpointer.py",
-    "agent-improve/backend/core/store.py",
-    "agent-improve/backend/middleware/",          # prefix — the whole package
-    "agent-improve/backend/phases/subgraph_common.py",
-    "agent-improve/backend/phases/nodes_common.py",
-    "agent-improve/backend/knowledge/tools.py",
-    "agent-improve/backend/knowledge/computation.py",
-    "agent-improve/backend/gateway/routes.py",
-    "agent-improve/backend/storage/blob.py",
-)
-
-# ── `docs/board.html` WAS HERE AND IS REMOVED, 2026-09-14 ─────────────────
-#
-# **A WATCHED PATH MUST BE A SOURCE OF TRUTH, NEVER THE OUTPUT OF A
-# GENERATOR.** That is the rule this list is now held to, and the board broke
-# it: `build_board.py` regenerates it from Appendix D, the BUILT markers, §66
-# and **git log** during pre-commit.
-#
-# **Git log moves on every commit, so the board changes on every commit** —
-# and because the hook runs BEFORE the commit it is part of exists, the board
-# permanently lags one commit and spends every commit catching up with the
-# previous one. Rule 2b therefore demanded an `ARCHITECTURE.md` edit on every
-# commit, whether or not any architectural fact had changed.
-#
-# **The entry's own comment argued the opposite and was wrong when written**:
-# *"It carries NO wall-clock date precisely so that it changes when, and only
-# when, one of those four sources does."* True, and it defeats the point —
-# git log IS one of those four sources, and it is the one that moves
-# unconditionally. Removing the date removed a clock and left a counter.
-#
-# **What it cost is on the record**: `ef59aa8`, a `fix(ops)` commit touching
-# only `start.ps1`, was blocked and carries an `ARCHITECTURE.md` §56 entry
-# written only to satisfy this rule. **A gate that always fires is a gate that
-# gets bypassed** — the argument rule 3 is a ratchet for, and rule 2b is
-# deliberately narrow for, applied to itself.
-#
-# **The board is not left unguarded.** `verify_built.py` re-runs the counts
-# behind it, which is the check appropriate to a projection: a derived file is
-# verified by REGENERATING it and comparing, never by asking whether someone
-# remembered to touch a different file in the same commit.
+# Rule 17 reads the files ARCHITECTURE.md §3 names (design_files); the watch
+# list rule 2b kept by hand retired with it (founder, 2026-09-27).
+DESIGN_TRAILER_RE = re.compile(r"^[\s*_]*Design[\s*_]*:[ \t]*unchanged[ \t]*$", re.M | re.I)
+_DESIGN_PATH_RE = re.compile(r"^[\w./{}-]+\.(?:py|html|md)$")
+_PHASES = ("define", "measure", "analyse", "improve", "control")
+_ROOTED = ("ui/", "skills/", "scripts/", "tools/", "docs/")
+_BACKEND_PACKAGES = ("core/", "phases/", "middleware/", "validation/", "knowledge/",
+                     "upload/", "storage/", "gateway/")
 
 # Everything type-checked and tested lives under this project.
 PROJECT = "agent-improve"
@@ -598,55 +561,76 @@ def check_type_ratchet(root: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-def check_architecture_status(root: str, staged: list[str]) -> None:
-    """Rule 2b — ARCHITECTURE_STATUS.md moved with the thing it describes.
+def design_files(text: str) -> set[str]:
+    """Every file ARCHITECTURE.md §3 names, as repo paths (rule 17).
 
-    **The one rule here that is not scoped to `refactor(arch-v2)`.**
-    ARCHITECTURE.md carries a `> **BUILT:**` marker on every item whose built
-    state is claimed — §19's eight positions, §49's route count, §44's Step 0,
-    §51's zero `@traceable` (§55.2). A commit that changes a watched path and
-    leaves the document alone makes one of those markers quietly false, which
-    is the exact failure the coverage audit was run to find: `phase_context`
-    was declared, written, read by nothing, and no document said so for six
-    steps.
-
-    **Renamed target, unchanged rule (2026-09-10).** This pointed at
-    `docs/ARCHITECTURE_STATUS.md`, which held the same claims in a parallel
-    table. That file is archived; the markers moved onto the specified items.
-    `.claude/hooks/verify_built.py` re-runs the counts behind them, because a
-    marker nothing re-runs is a claim.
-
-    Fires on the union of staged paths and STATUS_WATCHED. Prefix entries match
-    a whole package.
+    Read from §3 "Components and interfaces" only: backticked paths, a
+    `path::symbol` taken as its path, and in §3.1's table a bare file name joined
+    to the folder in its row's first cell (a cell that is not backticked, such
+    as "—", means backend/ itself). Paths are relative to agent-improve/backend/
+    unless they start with ui/, skills/, scripts/, tools/ or docs/ (the
+    document's own convention). `{phase}` expands to the five phases.
     """
-    hits = sorted({
-        w for w in STATUS_WATCHED
-        for p in staged
-        if (p.lower().startswith(w.lower()) if w.endswith("/")
-            else p.lower() == w.lower())
-    })
-    if not hits:
+    s = text.find("\n## 3.")
+    if s < 0:
+        return set()
+    e = text.find("\n## 4.", s)
+    section = text[s:e if e > 0 else None]
+    out: set[str] = set()
+    folder = None
+    for line in section.splitlines():
+        cells = line.strip().strip("|").split("|") if line.lstrip().startswith("|") else []
+        if cells and not set(cells[0].strip()) <= set("-: "):
+            first = cells[0].strip()
+            if first:
+                m = re.fullmatch(r"`([^`]+/)`", first)
+                folder = m.group(1) if m else ""
+        elif not line.lstrip().startswith("|"):
+            folder = None
+        for tok in re.findall(r"`([^`]+)`", line):
+            tok = tok.split("::", 1)[0].strip()
+            if not _DESIGN_PATH_RE.match(tok):
+                continue
+            if not tok.startswith(_ROOTED + _BACKEND_PACKAGES):
+                if folder is None:
+                    if "/" not in tok:
+                        continue
+                else:
+                    tok = folder + tok
+            base = tok if tok.startswith(_ROOTED) else "backend/" + tok
+            for p in ([base.replace("{phase}", ph) for ph in _PHASES] if "{phase}" in base else [base]):
+                out.add(f"{PROJECT}/{p}")
+    return out
+
+
+def check_design(root: str, message: str, staged: list[str]) -> None:
+    """Rule 17 — design stays true (founder ruling 2026-09-27, brief Part C7;
+    it replaces rule 2b). A commit that changes a file ARCHITECTURE.md §3 names
+    must change ARCHITECTURE.md outside its generated block, or say
+    `Design: unchanged` in a trailer. An annotation-only change passes."""
+    doc = _staged_text(root, STATUS_PATH)
+    named = design_files(doc)
+    touched = sorted(p for p in staged if p in named and os.path.isfile(os.path.join(root, p)))
+    if not touched:
+        return
+    if DESIGN_TRAILER_RE.search(message):
+        note(f"rule 17 design: {len(touched)} file(s) ARCHITECTURE.md §3 names — `Design: unchanged` declared")
         return
     if any(p.lower() == STATUS_PATH.lower() for p in staged) and _status_changed_by_hand(root):
+        note(f"rule 17 design: PASS — ARCHITECTURE.md changed with {len(touched)} file(s) it names")
         return
-    # Founder 2026-09-27: an ANNOTATION-ONLY change states nothing new about
-    # what the document tabulates, so it needs no ARCHITECTURE.md touch.
-    touched = [p for p in staged for w in hits
-               if (p.lower().startswith(w.lower()) if w.endswith("/") else p.lower() == w.lower())]
-    if touched and all(_annotation_only(root).staged_is_annotation_only(root, p) for p in touched):
-        note(f"rule 2b status: {len(touched)} watched path(s) changed only in annotations — skipped")
+    if all(_annotation_only(root).staged_is_annotation_only(root, p) for p in touched):
+        note(f"rule 17 design: {len(touched)} file(s) changed only in annotations — passes")
         return
-    fail("the architecture status document was not updated in this commit",
-         f"Required: {STATUS_PATH}", "",
-         "This commit touches path(s) that document tabulates:",
-         *[f"  - {h}" for h in hits], "",
-         "That file states built/total counts, every middleware and its hook,",
-         "and every cap and its value. Changing one of these paths without it",
-         "leaves a row silently false — which is how `phase_context` stayed",
-         "declared-but-unread for six steps.",
+    fail("a file ARCHITECTURE.md §3 names changed, and the design says nothing (rule 17)",
+         "Changed, and named in ARCHITECTURE.md §3 (Components and interfaces):",
+         *[f"  - {p}" for p in touched], "",
+         "Either update ARCHITECTURE.md where it describes them, or, when the design",
+         "is untouched, add the trailer:",
          "",
-         "Update it (or confirm nothing it states changed, and touch it so the",
-         "check of that is on the record), `git add` it, and commit again.")
+         "  Design: unchanged",
+         "",
+         "Rule 17 replaces rule 2b (founder ruling 2026-09-27): v2 has no changelog.")
 
 
 # --------------------------------------------------------------------------- #
@@ -1576,8 +1560,8 @@ def main(argv: list[str]) -> int:
     with _timer("rule 8 step-or-gap"):
         check_step_or_gap(root, subject, message, added)
 
-    with _timer("rule 2b status"):
-        check_architecture_status(root, all_staged)
+    with _timer("rule 17 design"):
+        check_design(root, message, all_staged)
 
     # Rule 9 (the build matrix, Appendix F covers Appendix D) RETIRED at 6.67
     # with the procedure; its referee is docs/_archive/retired-tooling/hooks/verify_built.py.
