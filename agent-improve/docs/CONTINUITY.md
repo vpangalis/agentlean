@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| **Headline** | 14 of 139 Define features pass (core 14 of 130) — A 6/58 · B 6/27 · C 2/34 · integrator 0/20 |
+| **Headline** | 14 of 140 Define features pass (core 14 of 131) — A 6/58 · B 6/27 · C 2/35 · integrator 0/20 |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
 | **Next — lane C** | DEF-074 — G-113: the create form shows no case id until the server has assigned one; the number a Belt sees is always the one the case is saved under. |

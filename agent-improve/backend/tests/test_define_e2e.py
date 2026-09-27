@@ -537,3 +537,16 @@ def test_t67_start_up_exits_with_status_1_when_a_required_credential_is_missing(
 def test_t68_a_second_region_fallback_exists_before_launch_deferred() -> None:
     """DEF-140 — A second-region fallback exists before launch (deferred)"""
     _not_written('DEF-140')
+
+
+def test_the_ui_loads_nothing_from_outside_the_product() -> None:
+    """DEF-141 — G-114: C5 (runs inside the intranet) — every font, script and style the screens
+    load ships with the product. `ui/index.html` loads the Tabler icon font from a public CDN."""
+    import re
+    from pathlib import Path
+
+    ui = Path(__file__).resolve().parents[2] / "ui"
+    external = re.compile(r"""(?:<link[^>]+href|<script[^>]+src)\s*=\s*["']https?://|@import\s+(?:url\()?["']?https?://|url\(\s*["']?https?://""", re.I)
+    found = [f"{p.name}:{n}: {line.strip()[:120]}" for p in sorted(ui.glob("*.html"))
+             for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1) if external.search(line)]
+    assert not found, "C5: the UI loads from outside the product:\n" + "\n".join(found)

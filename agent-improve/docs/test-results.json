@@ -1,9 +1,9 @@
 {
- "source_hash": "82ea4e900ef5f12f",
- "commit": "237fb0d",
+ "source_hash": "5bbba0ad408f07b6",
+ "commit": "25973a0",
  "commit_matches_source": false,
- "full_run_hash": "82ea4e900ef5f12f",
- "recorded_at": "2026-09-27T10:27:23+00:00",
+ "full_run_hash": "5bbba0ad408f07b6",
+ "recorded_at": "2026-09-27T10:34:14+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -463,6 +463,7 @@
   "backend/tests/test_define_e2e.py::test_the_screen_shows_the_service_is_ready_before_the_first_message": "skipped",
   "backend/tests/test_define_e2e.py::test_the_script_is_not_fetched_again": "skipped",
   "backend/tests/test_define_e2e.py::test_the_sign_in_window_explains_itself_and_names_the_lead": "skipped",
+  "backend/tests/test_define_e2e.py::test_the_ui_loads_nothing_from_outside_the_product": "skipped",
   "backend/tests/test_define_e2e.py::test_the_user_comes_from_single_sign_on": "skipped",
   "backend/tests/test_define_e2e.py::test_the_welcome_summary_is_built_in_code_from_confirmed_values": "skipped",
   "backend/tests/test_define_e2e.py::test_three_failed_gate_attempts_escalate": "skipped",
@@ -1510,8 +1511,8 @@
   "backend/tests/test_wiring.py::test_wired_6_61_the_move_is_decided_in_code": "passed"
  },
  "older": {
-  "source_hash": "f2023cf65e00f3ef",
-  "recorded_at": "2026-09-27T10:15:48+00:00",
+  "source_hash": "82ea4e900ef5f12f",
+  "recorded_at": "2026-09-27T10:27:23+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2933,6 +2934,14 @@
    "backend/tests/test_preflight.py::test_the_hook_lets_a_clean_commit_through": "passed",
    "backend/tests/test_preflight.py::test_the_staged_tree_is_checked_unless_the_commit_takes_the_working_copy": "passed",
    "backend/tests/test_preflight.py::test_the_whole_suite_is_left_to_the_hook": "passed",
+   "backend/tests/test_procedure_guards.py::test_rule_18_refuses_a_requirement_without_its_fields_and_passes_the_real_files": "passed",
+   "backend/tests/test_procedure_guards.py::test_rule_18_refuses_an_accepted_requirement_left_without_a_feature": "passed",
+   "backend/tests/test_procedure_guards.py::test_rule_19_passes_an_accepted_adr_and_an_ungated_one": "passed",
+   "backend/tests/test_procedure_guards.py::test_rule_19_refuses_landing_a_feature_whose_adr_is_proposed": "passed",
+   "backend/tests/test_procedure_guards.py::test_rule_20_refuses_a_requirement_change_without_a_ruling_and_passes_with_one": "passed",
+   "backend/tests/test_procedure_guards.py::test_rule_21_passes_superseding_an_accepted_adr_and_a_link_only_change": "passed",
+   "backend/tests/test_procedure_guards.py::test_rule_21_refuses_an_edit_to_an_accepted_adr": "passed",
+   "backend/tests/test_procedure_guards.py::test_rule_21_refuses_deleting_a_record": "passed",
    "backend/tests/test_register_single_source.py::test_a_reader_given_a_document_with_no_register_yields_nothing": "passed",
    "backend/tests/test_register_single_source.py::test_no_reader_names_architecture_md_as_a_register_source": "passed",
    "backend/tests/test_register_single_source.py::test_the_fallback_really_was_dead_before_it_was_deleted": "passed",

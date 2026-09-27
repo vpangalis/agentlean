@@ -4628,6 +4628,34 @@
    "rework_risk": "low",
    "effort": "L",
    "priority_override": null
+  },
+  {
+   "id": "DEF-141",
+   "description": "G-114: the screens load no font, script or style from outside the product — the Tabler icon font ships with it instead of coming from a public CDN (C5).",
+   "clause": "the Belt sees it, approves it",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_the_ui_loads_nothing_from_outside_the_product",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/ui/index.html"
+    ],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-114"
+    ]
+   },
+   "requirement": "C5",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   }
  ]
 }

@@ -1075,6 +1075,19 @@
    "lane": [
     "C"
    ]
+  },
+  {
+   "id": "G-114",
+   "symptom": "THE UI LOADS AN ICON FONT FROM A PUBLIC CDN. `ui/index.html` line 7: `<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css\">` — a stylesheet and its font files fetched from the public internet, unpinned (`@latest`). Inside the customer's intranet it does not load (every icon is missing), and outside it the product calls a third party on every page view. Breaks C5 (runs inside the intranet: fonts ship with the product). Found by brief Part B item 8 (a92dbc1); founder ruling 3 on the Parts A–D report, 2026-09-27: registered against C5 with a failing feature, no fix yet. Owner: lane C.",
+   "requirement": [
+    "C5"
+   ],
+   "feature": [
+    "DEF-141"
+   ],
+   "lane": [
+    "C"
+   ]
   }
  ]
 }
