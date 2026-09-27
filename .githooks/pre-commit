@@ -104,6 +104,14 @@ if [ -n "$SYSPY" ] && [ -f "agent-improve/tools/architecture/generate_models.py"
 fi
 t_log data-models "$T0"
 
+# Part F1 (founder, 2026-09-27) — the ADR index in docs/adr/README.md is generated
+# from each record's status line (tools/control_board/adrs.py). Fail-soft.
+T0=$(date +%s)
+if [ -n "$VENV" ] && git diff --cached --name-only | grep -q '^agent-improve/docs/adr/'; then
+    "$VENV" agent-improve/tools/control_board/adrs.py --write >/dev/null && git add agent-improve/docs/adr/README.md 2>/dev/null
+fi
+t_log adr-index "$T0"
+
 T0=$(date +%s)
 if [ -f "$CONTROL" ]; then
     if [ -n "$VENV" ] && "$VENV" "$CONTROL" agent-improve/docs/control-board.html --staged; then

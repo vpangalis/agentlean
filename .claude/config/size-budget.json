@@ -17,6 +17,7 @@
   ".claude/rules/tools.md": 5200,
   ".claude/rules/ui.md": 1200,
   ".claude/rules/coaching-move.md": 1900,
-  ".claude/rules/trusted-sources.md": 5635
+  ".claude/rules/trusted-sources.md": 5635,
+  ".claude/rules/adr.md": 1500
  }
 }

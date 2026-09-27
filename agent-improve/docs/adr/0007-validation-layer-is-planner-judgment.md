@@ -2,7 +2,7 @@
 
 **Status:** PROPOSED (architecture sort, 2026-09-26)
 
-**Source:** [ARCHITECTURE.md](../../ARCHITECTURE.md) §17 B5 (v1.77); [define.md R3](../requirements/define.md)
+**Source:** [ARCHITECTURE.md](../../ARCHITECTURE.md) §17 B5 (v1.77); [business.md R3](../requirements/business.md)
 
 ## Context
 
