@@ -689,4 +689,5 @@ def test_the_suite_runs_serial_tests_alone_after_the_parallel_pass() -> None:
     budget = (Path(_ROOT) / "agent-improve" / "backend" / "tests" / "test_turn_budget.py").read_text(
         encoding="utf-8")
     assert "@pytest.mark.serial" + NEWLINE + "def test_no_knowledge_tool_blocks_the_loop" in budget
+    assert "@pytest.mark.serial" + NEWLINE + "def test_a_slow_turn_answers_before_the_wall" in budget
 

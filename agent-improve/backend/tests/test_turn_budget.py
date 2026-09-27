@@ -126,6 +126,10 @@ def _graph():
     return b.compile()
 
 
+# SERIAL (2026-09-27, as the loop-lag test below): it asserts elapsed wall-clock time
+# against WALL, and under the parallel suite's CPU load it failed once (Part A's first
+# commit attempt) on a tree where it passes alone. It runs in the serial pass.
+@pytest.mark.serial
 def test_a_slow_turn_answers_before_the_wall(slow_turn) -> None:
     """**The G-92 check.** Setup eats most of the budget and the coach's
     lookup blocks; the node must still finish FIRST — a degraded answer and a
