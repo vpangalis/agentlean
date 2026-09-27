@@ -11,7 +11,7 @@ Each record: start, end, subject (the part or features), commits (from git log i
 and minutes by category, each VERIFIED (summed from the self-timed lines of `timing.jsonl`, or
 read from git) or ASSUMED (given by the caller):
 
-    tests       the pre-commit hook's full runs, pre-flight test runs, recorded test runs
+    tests       every recorded test run (the hook's full runs included) and pre-flight test time
     hooks       every other hook and pre-flight second
     waiting     time waiting for the founder (questions asked)                  ASSUMED
     rework      commit attempts that did not land, and failed pre-flights
@@ -73,8 +73,10 @@ def measure(start: str, end: str, commits: list[dict[str, str]]) -> dict[str, An
     lo, hi = _t(start), _t(end)
     inside = [r for r in timing.read() if lo <= _t(r["at"]) <= hi]
     hooks = [r for r in inside if r.get("kind") == "hook"]
-    tests_s = sum(float(r.get("seconds") or 0) for r in hooks if r["hook"] == "pre-commit full test run")
-    tests_s += sum(float(r.get("seconds") or 0) for r in inside if r.get("kind") == "tests")
+    # The test recorder writes a `tests` line for every pytest run, the hook's full run
+    # included; the hook's own "pre-commit full test run" line times the same run, so it
+    # counts in neither tests (already there) nor hooks.
+    tests_s = sum(float(r.get("seconds") or 0) for r in inside if r.get("kind") == "tests")
     pre = [r for r in inside if r.get("kind") == "preflight"]
     tests_s += sum(float((r.get("checks") or {}).get("tests") or 0) for r in pre)
     hooks_s = sum(float(r.get("seconds") or 0) for r in hooks if r["hook"] != "pre-commit full test run")
