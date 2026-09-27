@@ -35,6 +35,10 @@ Tiers come from MoSCoW, which is `?` until the founder ratifies it; until then `
 (founder, 2026-09-27), so M3 is empty. Could (tier 4) belongs to no milestone. A milestone is
 accepted on run-through evidence.
 
+**The next planned traced run** re-proves capability row 3 (the coach follows the Define script,
+`test_capability_rows.py::test_row_3_the_coach_follows_the_define_script`): the Define SKILL.md
+changed outside its script section on 2026-09-27 (founder ruling 4).
+
 ## Lanes (branches and worktrees beside this checkout; `.venv` is a junction)
 
 | Lane | Branch · worktree | Starts at |

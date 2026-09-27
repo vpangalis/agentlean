@@ -1,23 +1,23 @@
 ---
 name: dmaic-define-phase
-description: Coach a Lean Six Sigma Belt and their team through the DMAIC Define phase — the business case, the team, the voice of the customer and its CTQs, the problem statement from 5W2H, the one primary metric and its baseline, the scope, the goal, the target and date, the benefits analysis, the secondary metrics, the as-is SIPOC and the issues and barriers, ending in the Define report the team approves. Use for problem statement, project charter, project scope, in scope out of scope, goal statement, objective statement, SMART goal, VOC, voice of the customer, customer requirements, CTQ, critical to quality, 5W2H, SIPOC, high level process map, suppliers inputs process outputs customers, business case, COPQ, cost of poor quality, benefits analysis, expected savings, financial evaluation, baseline, primary metric, KPI, secondary metrics, target date, project team, champion, sponsor, process owner, training needs, issues and barriers, Define report, Define gate, Define tollgate.
+description: Coach a Lean Six Sigma Belt and their team through the DMAIC Define phase — the business case, the team, the voice of the customer and its CTQs, the problem statement from 5W2H, the one primary metric and its baseline, the scope, the goal, the target and date, the benefits analysis, the secondary metrics, the as-is SIPOC and the issues and barriers, ending in the Define report the project lead approves on behalf of the team. Use for problem statement, project charter, project scope, in scope out of scope, goal statement, objective statement, SMART goal, VOC, voice of the customer, customer requirements, CTQ, critical to quality, 5W2H, SIPOC, high level process map, suppliers inputs process outputs customers, business case, COPQ, cost of poor quality, benefits analysis, expected savings, financial evaluation, baseline, primary metric, KPI, secondary metrics, target date, project team, champion, sponsor, process owner, training needs, issues and barriers, Define report, Define gate, Define tollgate.
 license: MIT
 compatibility: Requires Azure AI Search access for improve_knowledge_index, improve_evidence_index and improve_case_index
 metadata:
   author: valuesims/agentlean
   version: "2.0"
-  version_tracks: the founder's Define requirements (docs/requirements/define.md, R1–R7). 2.x = thirteen elements, each with what it is, why it matters, an illustration, the question and its acceptance criteria.
+  version_tracks: the founder's Define requirements (docs/requirements/business.md, R1–R7). 2.x = thirteen elements, each with what it is, why it matters, an illustration, the question and its acceptance criteria.
   phase: define
   phase_index: 0
   output_schema: DefineOutput
-  source: docs/requirements/define.md (R1–R7); BB eBook v11.1, Define phase, paraphrased
+  source: docs/requirements/business.md (R1–R7); BB eBook v11.1, Define phase, paraphrased
 allowed-tools: rag_lookup_methodology, rag_lookup_evidence, rag_lookup_case_history, propose_template, propose_diagram, check_gate_status, request_human_approval, calculate_expected_savings
 ---
 
 # DMAIC Define Phase — Coaching Skill
 
 > **Authority: this file, `coaching_script.md` beside it (section 3 here, byte for byte), and the
-> founder's requirements in `docs/requirements/define.md`.** ARCHITECTURE.md carries no domain
+> founder's requirements in `docs/requirements/business.md`.** ARCHITECTURE.md carries no domain
 > requirements. **Do not edit this body in isolation** — it is one third of an atomic unit with
 > `phases/define/schema.py` and `phases/define/validate.py`, and the three share one field
 > vocabulary. The acceptance criteria paraphrase the founder's Black Belt manual (Open Source Six
@@ -91,7 +91,8 @@ the Belt to discount it.
 ### F — The Define report
 
 With all thirteen agreed, the Define report is assembled from the confirmed
-values only (section 6) and the Belt, with the team, approves or rejects it.
+values only (section 6). It names the project lead and the Champion; the Belt and the team
+review it, and the project lead approves or rejects it on behalf of the team (requirement R6).
 **A rejection names the element(s) to change**, and coaching returns to those
 elements; every change is kept with its date (requirement R6).
 
