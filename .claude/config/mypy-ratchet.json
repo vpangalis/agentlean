@@ -1,0 +1,4 @@
+{
+ "_rule": "The whole-tree type-error count (founder, 2026-09-27): mypy over agent-improve's backend and scripts of the STAGED tree, with agent-improve/mypy.ini and the pinned venv. It may fall, never rise. The pre-commit hook lowers `count` when it falls (.claude/hooks/mypy_ratchet.py --lower); commit-msg rule 3b refuses a count above the record, a record raised above HEAD's, and a fall the record did not follow. Never edit `count` upward.",
+ "count": 67
+}

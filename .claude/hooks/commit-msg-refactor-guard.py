@@ -40,6 +40,9 @@ therefore 1, 2b, 3, 4, 5, 6, 7 and 8.
      invented LangGraph/LangChain/LangSmith method or a wrong signature fails
      against the real installed library's types. Ratcheted (see below).
 
+  3b. TYPE RATCHET — the whole-tree mypy count (backend and scripts of the
+     STAGED tree) may fall, never rise: `.claude/config/mypy-ratchet.json`,
+     lowered by the pre-commit hook, refused on a rise (founder, 2026-09-27).
   4. TESTS — pytest green.
 
   5. CONTINUITY — `agent-improve/docs/CONTINUITY.md` is staged AND its CURRENT
@@ -475,6 +478,26 @@ def check_types(root: str, py: str, staged: list[str]) -> None:
             f"To re-record the baseline deliberately:  python {BASELINE_REL and '.claude/hooks/commit-msg-refactor-guard.py'} --update-baseline",
         )
     note(f"rule 3 type-check: PASS ({sum(found.values())} baselined error(s) in scope)")
+
+
+def check_type_ratchet(root: str) -> None:
+    """Rule 3b — the whole-tree type-error count may fall, never rise (founder,
+    2026-09-27). Rule 3 checks the CHANGED files against a per-error baseline;
+    five errors sat unseen in untouched files until 82b9251. This counts every
+    error over `backend` and `scripts` of the STAGED tree — `mypy_ratchet.py`,
+    which the pre-commit hook also runs to lower the record when it falls."""
+    from pathlib import Path
+    sys.path.insert(0, os.path.join(root, ".claude", "hooks"))
+    import mypy_ratchet as mr
+    staged = mr.staged_record(Path(root))
+    if staged is None:
+        fail("rule 3b: the type-error ratchet record is missing from the index",
+             f"Restore {mr.RATCHET} — the count may fall, never rise.")
+    n = mr.staged_count(Path(root))
+    why = mr.refusal(n, staged, mr.head_record(Path(root)))
+    if why:
+        fail("the whole-tree type-error ratchet refuses this commit (rule 3b)", *why)
+    note(f"rule 3b mypy ratchet: PASS — {n} error(s) over the whole tree, record {staged}")
 
 
 # --------------------------------------------------------------------------- #
@@ -1153,7 +1176,7 @@ def gated_rules(subject: str, staged: list[str]) -> tuple[str, ...]:
     spine = subject.startswith(GUARDED_PREFIX)
     code = changes_code(staged)
     order = (("1", spine), ("11", spine or code), ("5", spine),
-             ("3", spine or code), ("4", spine or code))
+             ("3", spine or code), ("3b", spine or code), ("4", spine or code))
     return tuple(rule for rule, on in order if on)
 
 
@@ -1542,6 +1565,9 @@ def main(argv: list[str]) -> int:
     if "3" in rules:
         with _timer("rule 3 mypy"):
             check_types(root, py, staged)
+    if "3b" in rules:
+        with _timer("rule 3b mypy ratchet"):
+            check_type_ratchet(root)
     if "4" in rules:
         with _timer("rule 4 tests"):
             check_tests(root, py)

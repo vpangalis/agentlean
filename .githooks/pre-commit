@@ -72,6 +72,15 @@ if [ -n "$VENV" ] && [ -n "$SYSPY" ] && git diff --cached --name-only \
     RAN=1
 fi
 
+# Founder 2026-09-27 — the whole-tree type-error count may fall, never rise.
+# When code is staged, lower the record if the staged tree's count fell, and
+# stage it; commit-msg rule 3b refuses a rise. Fail-soft, like this hook.
+if [ -n "$RAN" ] && [ -f ".claude/hooks/mypy_ratchet.py" ]; then
+    T0=$(date +%s)
+    "$SYSPY" .claude/hooks/mypy_ratchet.py --lower </dev/null ||         echo "  [mypy ratchet] WARNING: not measured — rule 3b will measure" >&2
+    t_log "mypy ratchet" "$T0"
+fi
+
 T0=$(date +%s)
 if [ -n "$SYSPY" ] && [ -f "$CONTINUITY" ]; then
     "$SYSPY" "$CONTINUITY"

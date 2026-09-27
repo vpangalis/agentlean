@@ -516,13 +516,13 @@ DOCS = ["agent-improve/docs/harness-progress.md", "agent-improve/docs/control-bo
 
 
 @pytest.mark.parametrize("subject,staged,expected", [
-    ("feat(define): a report section", CODE, ("11", "3", "4")),
-    ("fix(ui): a label", ["agent-improve/ui/index.html"], ("11", "3", "4")),
-    ("chore(tooling): a hook", [".claude/hooks/timing.py"], ("11", "3", "4")),
-    ("chore(tooling): the budget", [".claude/config/size-budget.json"], ("11", "3", "4")),
+    ("feat(define): a report section", CODE, ("11", "3", "3b", "4")),
+    ("fix(ui): a label", ["agent-improve/ui/index.html"], ("11", "3", "3b", "4")),
+    ("chore(tooling): a hook", [".claude/hooks/timing.py"], ("11", "3", "3b", "4")),
+    ("chore(tooling): the budget", [".claude/config/size-budget.json"], ("11", "3", "3b", "4")),
     ("docs(requirements): a note", DOCS, ()),
-    ("refactor(arch-v2): DEF-065 — x", DOCS, ("1", "11", "5", "3", "4")),
-    ("refactor(arch-v2): DEF-065 — x", CODE, ("1", "11", "5", "3", "4")),
+    ("refactor(arch-v2): DEF-065 — x", DOCS, ("1", "11", "5", "3", "3b", "4")),
+    ("refactor(arch-v2): DEF-065 — x", CODE, ("1", "11", "5", "3", "3b", "4")),
 ])
 def test_types_tests_and_landing_apply_to_every_code_commit(subject, staged, expected) -> None:
     """A `feat(` commit carried two type errors to main (b940725) because rules
@@ -541,3 +541,44 @@ def test_a_def_subject_lands_under_any_prefix() -> None:
         m = g._DEF_SUBJECT_RE.match(subject)
         assert m and m.group(1) == "DEF-065", subject
     assert not g._DEF_SUBJECT_RE.match("feat(define): requirements v2 part 8 — DEF-065")
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Rule 3b — the whole-tree type-error count may fall, never rise (2026-09-27)
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _ratchet():
+    import sys
+    sys.path.insert(0, str(Path(_ROOT) / ".claude" / "hooks"))
+    import mypy_ratchet
+    return mypy_ratchet
+
+
+def test_the_ratchet_refuses_a_rise_a_raised_record_and_an_unfollowed_fall() -> None:
+    mr = _ratchet()
+    assert mr.refusal(67, 67, 67) == []
+    assert mr.refusal(66, 66, 67) == [], "a record lowered with the count passes"
+    assert "ROSE" in " ".join(mr.refusal(68, 67, 67))
+    assert "RAISED" in " ".join(mr.refusal(68, 68, 67)), "raising the record by hand is refused"
+    assert "FELL" in " ".join(mr.refusal(65, 67, 67)), "a fall the record did not follow is refused"
+    assert mr.refusal(10, 10, None) == [], "the first commit of the record has no HEAD to compare"
+
+
+def test_the_ratchet_counts_errors_and_nothing_else() -> None:
+    mr = _ratchet()
+    text = NEWLINE.join(["backend/a.py:3: error: Bad  [x]", "backend/a.py:4: note: see",
+                         "scripts/b.py:9: error: Worse  [y]", ""])
+    assert len(mr._ERROR.findall(text)) == 2
+
+
+def test_the_record_is_committed_and_the_hooks_run_it() -> None:
+    import json
+    mr = _ratchet()
+    data = json.loads((Path(_ROOT) / mr.RATCHET).read_text(encoding="utf-8"))
+    assert isinstance(data["count"], int) and data["count"] >= 0
+    assert "never rise" in data["_rule"]
+    hook = (Path(_ROOT) / ".githooks" / "pre-commit").read_text(encoding="utf-8")
+    assert "mypy_ratchet.py --lower" in hook
+    assert '("3b", spine or code)' in _HOOK.read_text(encoding="utf-8")
+
