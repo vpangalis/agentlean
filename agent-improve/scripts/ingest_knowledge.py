@@ -781,7 +781,7 @@ def audit_extraction(filepath: Path) -> None:
     import pdfplumber
 
     def census(t: str) -> Counter:
-        c = Counter()
+        c: Counter[str] = Counter()
         c["chars"] = len(t)
         c["cid"] = len(CID_RE.findall(t))
         c["space_glyph"] = len(SPACE_GLYPH_RE.findall(t))
@@ -790,7 +790,8 @@ def audit_extraction(filepath: Path) -> None:
         c["replacement_char"] = t.count("�")
         return c
 
-    before, after = Counter(), Counter()
+    before: Counter[str] = Counter()
+    after: Counter[str] = Counter()
     with pdfplumber.open(str(filepath)) as pdf:
         for page in pdf.pages:
             raw = page.extract_text() or ""

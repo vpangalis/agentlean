@@ -49,7 +49,7 @@ that reads it.**
 
 # Agentic Architecture Reference
 **AgentLean Platform · the shared architecture for all three agents**
-Version 1.84 · 2026-09-26
+Version 1.85 · 2026-09-27
 Status: **COMPLETE AND CROSS-CHECKED.** Parts I–XI and Appendices A–F written;
 Task 3B verification pass completed 2026-08-21.
 
@@ -57,6 +57,7 @@ Task 3B verification pass completed 2026-08-21.
 The full text of every entry through v1.77 is verbatim in
 [`docs/_archive/ARCHITECTURE_slimmed_2026-09-25.md#L112`](docs/_archive/ARCHITECTURE_slimmed_2026-09-25.md#L112).
 
+- v1.85 · 2026-09-27 · No rule changed — type annotations only in `core/checkpointer.py` (`_pending_writes` returns `List[...]`: inside the saver `list` is its own method) and `gateway/routes.py` (`_run_turn` takes a state dict or `Command(resume=...)`); nothing this document states about either file changed · §8, §49
 - v1.84 · 2026-09-26 · R7: Layer 2d for Define — `DEFINE_RUBRIC` (core/prompts.py), ONE criterion per element, Tier 1, pass/fail with a reason (the G-40 draft is archived); graded by `validation/rubric.grade_define`, deterministic half first, one `grader` call at 0.1 for judgment, a missing verdict failing closed; run by `validation_stack` after 2b, so a failing report never reaches the R6 pause. `CriterionVerdict` and `GraderVerdict` land in `validation/schemas.py` · §9.2, §9.7, §36
 - v1.83 · 2026-09-26 · R6: the Define report is accepted through a graph-level pause — `gate_review` calls `interrupt()` once the gate has passed validation; `POST /gate` returns awaiting-acceptance and writes nothing; `POST /gate/decision` resumes with `Command(resume=...)` (approve: `gate_apply` assembles `final`, the route writes and advances, the Belt recorded as actor until R8; reject: the named elements re-open and the coach guides the Belt back in the same run). `AzureBlobCheckpointSaver.put_writes` persists pending writes — it was a no-op, which dropped the interrupt · §33, §49
 - v1.82 · 2026-09-26 · R5: Define's gate is the DEFINE REPORT — seven sections assembled deterministically from confirmed values (`phases/define/report.define_report`), served as `GateReviewResponse.report` on `GET /gate/review` (Define only), drawn on the gate screen with the 5W2H and SIPOC diagrams; the v1-key Define gate document is retired from the screen · §49, §50

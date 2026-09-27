@@ -47,7 +47,7 @@ import json
 import logging
 import threading
 from urllib.parse import quote
-from typing import Any, AsyncIterator, Iterator, Optional, Sequence, Tuple
+from typing import Any, AsyncIterator, Iterator, List, Optional, Sequence, Tuple
 
 from azure.core.exceptions import (
     ResourceExistsError,
@@ -477,10 +477,10 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
         return None
 
     def _pending_writes(self, thread_id: str, checkpoint_id: str,
-                        checkpoint_ns: str = "") -> list[Tuple[str, str, Any]]:
+                        checkpoint_ns: str = "") -> List[Tuple[str, str, Any]]:
         """`(task_id, channel, value)` for every write pending on a checkpoint."""
         prefix = self._writes_prefix(thread_id, checkpoint_id, checkpoint_ns)
-        out: list[Tuple[str, str, Any]] = []
+        out: List[Tuple[str, str, Any]] = []
         for item in self._container.list_blobs(name_starts_with=prefix):
             try:
                 raw = self._blob(item.name).download_blob().readall()

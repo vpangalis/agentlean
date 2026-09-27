@@ -303,7 +303,9 @@ async def _until_disconnect(http: Request) -> None:
             return
 
 
-async def _run_turn(graph, state: dict, config: dict, http: Request):
+# `state` is the graph input: a state dict for a turn, or `Command(resume=...)`
+# when `decide_gate` resumes the Define pause — hence `Any`, not `dict`.
+async def _run_turn(graph, state: Any, config: dict, http: Request):
     """Run one turn, ABANDONING it if the client goes first (§47 req 1).
 
     ═══════════════════════════════════════════════════════════════════════
