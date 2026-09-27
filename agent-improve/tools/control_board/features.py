@@ -20,7 +20,8 @@ start and the commit guard's landing rule all read it. It owns what the retired
                         its test is required on every later commit
 
     python tools/control_board/features.py              # summary, next failing per lane
-    python tools/control_board/features.py --lane A     # the lane's failing features, in order
+    python tools/control_board/features.py --lane A     # the lane's failing features
+    python tools/control_board/rank.py                  # the ranked queue per lane (ADR-0058)
 """
 from __future__ import annotations
 
@@ -126,15 +127,12 @@ def summary(features: list[dict] | None = None, res: dict | None = None) -> dict
     st = status(features, res)
     lanes: dict[str, dict] = {}
     clauses: dict[str, dict] = {}
+    import rank  # the computed order (ADR-0058, brief Part F3); imported here: rank imports this module
+    nxt = rank.next_per_lane(rank.rank(features, res))
     for lane in LANES:
-        # Priority first (1 now, 2 next, 3 later — brief Part A4), then list order. The
-        # EFFECTIVE priority: a feature another depends on takes that one's priority when
-        # higher, so a lane is never sent past the blocker of another lane's priority-1 work.
-        eff = effective_priority(features)
-        mine = sorted((f for f in features if f["lane"] == lane), key=lambda f: eff[f["id"]])
+        mine = [f for f in features if f["lane"] == lane]
         failing = [f["id"] for f in mine if st[f["id"]] == "failing"]
-        lanes[lane] = {"total": len(mine), "passing": len(mine) - len(failing),
-                       "next": _next(failing, features, st)}
+        lanes[lane] = {"total": len(mine), "passing": len(mine) - len(failing), "next": nxt.get(lane)}
     for f in features:
         c = clauses.setdefault(f["clause"], {"total": 0, "passing": 0})
         c["total"] += 1
@@ -198,38 +196,6 @@ def field_problems(reqs: dict[str, dict]) -> list[str]:
 def citable(reqs: dict[str, dict]) -> set[str]:
     """Ids a feature may cite: RATIFIED or ACCEPTED, never PROPOSED, DRAFT or RETIRED."""
     return {i for i, r in reqs.items() if r["status"] in ("RATIFIED", "ACCEPTED")}
-
-
-def effective_priority(features: list[dict]) -> dict[str, int]:
-    """Each feature's own priority, lowered to the priority of any feature that
-    depends on it, transitively (a dependency of priority-1 work is priority 1)."""
-    eff = {f["id"]: f.get("priority", 3) for f in features}
-    changed = True
-    while changed:
-        changed = False
-        for f in features:
-            for d in f["depends_on"]:
-                if d in eff and eff[f["id"]] < eff[d]:
-                    eff[d] = eff[f["id"]]
-                    changed = True
-    return eff
-
-
-def _next(failing: list[str], features: list[dict], st: dict[str, str]) -> str | None:
-    """The lane's next feature. `failing` comes in priority order, then list order.
-    The first one is next when nothing blocks it; when it is blocked, its first
-    unblocked blocker IN THE SAME LANE is next; when every blocker is another lane's,
-    it stays next itself (the 2026-09-26 ruling: lane A takes DEF-005 first although
-    the integrator's DEF-001 blocks it). Priority 1 work is never skipped for a
-    priority 3 feature because its dependency is unfinished."""
-    lane = {f["id"]: f.get("lane") for f in features}
-    for fid in failing:
-        chain = blockers(fid, features, st)
-        if not chain:
-            return fid
-        own = [b for b in chain if lane.get(b) == lane.get(fid) and not blockers(b, features, st)]
-        return own[0] if own else fid
-    return None
 
 
 def headline(s: dict | None = None) -> str:
@@ -314,9 +280,12 @@ def main(argv: list[str]) -> int:
     s = summary()
     if "--lane" in argv:
         lane = argv[argv.index("--lane") + 1]
-        for f in load():
-            if f["lane"] == lane and s["status"][f["id"]] == "failing":
-                print(f"{f['id']}  {f['test']}\n    {f['description']}")
+        import rank
+        by_id = {f["id"]: f for f in load()}
+        for r in rank.rank():
+            if r["lane"] == lane:
+                f = by_id[r["id"]]
+                print(f"#{r['rank']} {f['id']}  {f['test']}\n    {f['description']}\n    rank: {r['reason']}")
         return 0
     print(headline(s))
     for lane, v in s["lanes"].items():

@@ -204,8 +204,8 @@ def get_drift_warnings() -> str:
 def get_harness() -> str:
     """Step 6.66 — the long-running-harness routine (Anthropic, "Effective
     harnesses for long-running agents"): read git log, the progress file and
-    the feature list; run the smoke test; take the next failing feature in
-    this session's lane. Status comes only from test-results.json."""
+    the feature list; run the smoke test; take the top-ranked failing feature in
+    this session's lane (tools/control_board/rank.py, ADR-0058). Status comes only from test-results.json."""
     try:
         here = os.path.dirname(os.path.abspath(__file__))
         sys.path.insert(0, os.path.join(here, "..", "..", "agent-improve", "tools", "control_board"))

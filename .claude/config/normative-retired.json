@@ -384,6 +384,24 @@
    "from": "agent-improve/CLAUDE.md",
    "class": "equivalent",
    "reason": "kept in other words and widened, founder ruling 2026-09-26 (review of Define requirements v2, item 2): agent-improve/CLAUDE.md — Rules 3, 4, 11 bind every code or config commit, any prefix: … a DEF-xxx subject lands only if it and its dependencies pass. A feature that passed once must keep passing."
+  },
+  {
+   "sentence": "A feature that passed once must keep passing.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "founder ruling 6 on the Parts A–D report (2026-09-27): CLAUDE.md replaces its list of guard rules with one line pointing to the guard and its refusal messages; the rule stands, enforced, in .claude/hooks/commit-msg-refactor-guard.py rule 11b (the ratchet, tools/control_board/features.py::ratchet_refusal)"
+  },
+  {
+   "sentence": "- Rule 14: no must / never / always sentence of this file, a rule file or a skill is dropped or weakened.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "founder ruling 6 on the Parts A–D report (2026-09-27): CLAUDE.md replaces its list of guard rules with one line pointing to the guard and its refusal messages; the rule stands, enforced, in .claude/hooks/commit-msg-refactor-guard.py rule 14 (normative_check.py)"
+  },
+  {
+   "sentence": "- fact-ownership-guard.py : an owned fact (a count, field name, schema, pin) is cited from its owner, never restated.",
+   "from": "agent-improve/CLAUDE.md",
+   "class": "equivalent",
+   "reason": "founder ruling 6 on the Parts A–D report (2026-09-27): CLAUDE.md replaces its list of guard rules with one line pointing to the guard and its refusal messages; the rule stands, enforced, in .claude/hooks/fact-ownership-guard.py (the pre-tool-use guard) and .claude/config/fact_owners.yaml"
   }
  ]
 }

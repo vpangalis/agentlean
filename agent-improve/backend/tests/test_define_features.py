@@ -30,7 +30,7 @@ sys.path.insert(0, str(_TOOLS))
 import features as F  # noqa: E402
 
 FIELDS = {"id", "description", "clause", "depends_on", "test", "sources", "lane", "provenance",
-          "requirement", "priority"}
+          "requirement", "belt_impact", "rework_risk", "effort", "priority_override"}
 CLAUSES = {"A Belt is coached through the thirteen elements",
            "what they say is kept and every change is dated",
            "a complete case ASSEMBLES a gate document",
@@ -77,30 +77,55 @@ def test_every_requirement_carries_moscow_and_design_and_the_checker_refuses_one
         "R1 (business.md) has no MoSCoW: field", "T1 (platform.md) has no Design: field"]
 
 
-def test_every_feature_has_a_priority_and_the_lanes_take_it_first(feats) -> None:
-    """Brief Part A4: `priority` is 1 (now), 2 (next) or 3 (later); the next failing
-    feature of a lane is taken by priority, then list order."""
-    assert all(f["priority"] in (1, 2, 3) for f in feats), [f["id"] for f in feats if f.get("priority") not in (1, 2, 3)]
-    st = {f["id"]: "failing" for f in feats}
+def test_every_feature_carries_the_rank_inputs_and_no_priority(feats) -> None:
+    """Brief Part F3 (ADR-0058): belt_impact, rework_risk, effort, priority_override on every
+    feature; the typed `priority` of Part A is gone — the order is computed, never stored."""
+    import rank
+    assert rank.problems(feats) == []
+    assert not any("priority" in f or "rank" in f for f in feats)
+
+
+def _rf(fid, req, impact="degraded", rework="low", effort="M", deps=(), lane="A", override=None):
+    return {"id": fid, "requirement": req, "belt_impact": impact, "rework_risk": rework,
+            "effort": effort, "depends_on": list(deps), "lane": lane, "priority_override": override,
+            "test": f"backend/tests/test_x.py::test_{fid}"}
+
+
+def _reqs(**moscow):
+    return {k: {"status": "ACCEPTED", "moscow": v, "design": "none"} for k, v in moscow.items()}
+
+
+def test_the_rank_tiers_scores_and_never_places_a_feature_above_its_dependency() -> None:
+    """ADR-0058's rule, on a fixture: tier 1 = Belt-blocking and Must; else MoSCoW tiers;
+    score = (impact + rework + unblocks) ÷ effort; a dependency takes its dependent's tier
+    and ranks above it; an override wins; `?` ranks as Must, marked provisional;
+    Won't-now is not ranked."""
+    import rank
+    fs = [_rf("A", "R1", impact="dead_end", effort="L"),          # tier 1, score 3/3 = 1
+          _rf("B", "R2", impact="degraded", effort="S"),          # tier 3 (Should), score 1
+          _rf("C", "R3", impact="wrong_data", deps=["D"]),        # tier 1 (? = Must), 1.5
+          _rf("D", "R2", impact="none", effort="S"),              # raised to tier 1 by C
+          _rf("E", "R4"),                                         # Won't-now: not ranked
+          _rf("F", "R2", override={"rank_tier": 1, "reason": "founder: demo on Monday"})]
+    r = rank.rank(fs, {"outcomes": {}}, _reqs(R1="Must", R2="Should", R3="?", R4="Won't-now"))
+    order = [x["id"] for x in r]
+    assert "E" not in order
+    assert order.index("D") < order.index("C")
+    assert {x["id"]: x["tier"] for x in r} == {"A": 1, "C": 1, "D": 1, "F": 1, "B": 3}
+    why = {x["id"]: x["reason"] for x in r}
+    assert "raised to tier 1: C depends on it" in why["D"]
+    assert "provisional" in why["C"] and "founder override to tier 1: founder: demo on Monday" in why["F"]
+    assert {x["id"]: x["score"] for x in r}["D"] == 1.0          # (0 + 0 + 1 unblocked) ÷ 1
+    assert rank.next_per_lane(r)["A"] == order[0]
+
+
+def test_each_lane_takes_its_top_ranked_failing_feature(feats) -> None:
+    import rank
+    r = rank.rank(feats, {"outcomes": {}})
     nxt = F.summary(feats, {"outcomes": {}})["lanes"]
-    for lane, v in nxt.items():
-        eff = F.effective_priority(feats)
-        mine = sorted((f for f in feats if f["lane"] == lane), key=lambda f: eff[f["id"]])
-        if mine:
-            top = mine[0]["id"]
-            assert v["next"] in [top, *F.blockers(top, feats, st)], (lane, v["next"], top)
-    # A blocked priority-1 feature sends the lane to its unblocked blocker in the SAME lane,
-    # and stays next itself when the blocker is another lane's — never to a priority 3.
-    fs: list[dict] = [{"id": "P1", "depends_on": ["D"], "lane": "A"},
-                      {"id": "P3", "depends_on": [], "lane": "A"},
-                      {"id": "D", "depends_on": [], "lane": "A"}]
-    st3 = {"P1": "failing", "P3": "failing", "D": "failing"}
-    assert F._next(["P1", "P3"], fs, st3) == "D"
-    fs[2]["lane"] = "B"
-    assert F._next(["P1", "P3"], fs, st3) == "P1"
-    # …and D, blocking priority-1 work, is itself priority 1 for its own lane.
-    fs[0]["priority"], fs[1]["priority"], fs[2]["priority"] = 1, 3, 3
-    assert F.effective_priority(fs) == {"P1": 1, "P3": 3, "D": 1}
+    for lane in F.LANES:
+        mine = [x["id"] for x in r if x["lane"] == lane]
+        assert nxt[lane]["next"] == (mine[0] if mine else None), lane
 
 
 def by_id(feats: list[dict]) -> dict[str, dict]:
@@ -149,9 +174,12 @@ def test_status_is_derived_from_the_recorded_outcome_only() -> None:
 
 
 def test_the_next_feature_waits_for_its_dependencies() -> None:
-    feats = [{"id": "X-1", "depends_on": [], "lane": "A"}, {"id": "X-2", "depends_on": ["X-1"], "lane": "A"}]
-    assert F._next(["X-1", "X-2"], feats, {"X-1": "failing", "X-2": "failing"}) == "X-1"
-    assert F._next(["X-2"], feats, {"X-1": "passing", "X-2": "failing"}) == "X-2"
+    import rank
+    feats = [_rf("X-2", "R1", impact="dead_end", deps=["X-1"]), _rf("X-1", "R1", impact="none")]
+    top = rank.next_per_lane(rank.rank(feats, {"outcomes": {}}, _reqs(R1="Must")))["A"]
+    assert top == "X-1"                                  # the dependency first, whatever its score
+    passed = {"outcomes": {"backend/tests/test_x.py::test_X-1": "passed"}}
+    assert rank.next_per_lane(rank.rank(feats, passed, _reqs(R1="Must")))["A"] == "X-2"
 
 
 # ── landing and the ratchet, as functions ───────────────────────────────────
@@ -162,7 +190,9 @@ def test_dependency_blocking_is_strict_through_the_whole_chain() -> None:
     dependency's dependency fails is blocked — lane A fixes DEF-005 first."""
     st = {"X-1": "failing", "X-2": "passing", "X-3": "failing"}
     assert F.blockers("X-3", THREE, st) == ["X-1"]
-    assert F._next(["X-1", "X-3"][::-1], THREE, st) == "X-1"
+    import rank
+    ranked = rank.rank(THREE, {"outcomes": {"backend/tests/test_a.py::test_bad": "passed"}}, {})
+    assert rank.next_per_lane(ranked)["A"] == "X-1"
     ok = {"outcomes": {"backend/tests/test_a.py::test_bad": "passed",
                        "backend/tests/test_a.py::test_unwritten": "passed"}}
     assert any("depends on X-1" in w for w in F.landing_refusal("X-3", THREE, ok))

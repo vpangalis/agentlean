@@ -1,9 +1,9 @@
 {
- "source_hash": "b9774a80f340b718",
- "commit": "17eb661",
+ "source_hash": "f2023cf65e00f3ef",
+ "commit": "7c23e69",
  "commit_matches_source": false,
- "full_run_hash": "b9774a80f340b718",
- "recorded_at": "2026-09-27T10:05:51+00:00",
+ "full_run_hash": "f2023cf65e00f3ef",
+ "recorded_at": "2026-09-27T10:15:48+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -471,9 +471,10 @@
   "backend/tests/test_define_e2e.py::test_without_sign_on_only_registered_team_members_enter": "skipped",
   "backend/tests/test_define_features.py::test_a_feature_lands_only_when_it_and_its_dependencies_pass": "passed",
   "backend/tests/test_define_features.py::test_dependency_blocking_is_strict_through_the_whole_chain": "passed",
+  "backend/tests/test_define_features.py::test_each_lane_takes_its_top_ranked_failing_feature": "passed",
   "backend/tests/test_define_features.py::test_every_code_citation_is_path_symbol_and_resolves_at_HEAD": "passed",
+  "backend/tests/test_define_features.py::test_every_feature_carries_the_rank_inputs_and_no_priority": "passed",
   "backend/tests/test_define_features.py::test_every_feature_cites_a_citable_requirement_and_every_one_has_a_feature": "passed",
-  "backend/tests/test_define_features.py::test_every_feature_has_a_priority_and_the_lanes_take_it_first": "passed",
   "backend/tests/test_define_features.py::test_every_feature_has_the_founders_fields_and_no_status": "passed",
   "backend/tests/test_define_features.py::test_every_features_test_exists": "passed",
   "backend/tests/test_define_features.py::test_every_requirement_carries_moscow_and_design_and_the_checker_refuses_one_without": "passed",
@@ -488,6 +489,7 @@
   "backend/tests/test_define_features.py::test_the_guard_refuses_a_DEF_commit_whose_test_fails": "passed",
   "backend/tests/test_define_features.py::test_the_guard_refuses_a_regression_of_a_ratcheted_feature": "passed",
   "backend/tests/test_define_features.py::test_the_next_feature_waits_for_its_dependencies": "passed",
+  "backend/tests/test_define_features.py::test_the_rank_tiers_scores_and_never_places_a_feature_above_its_dependency": "passed",
   "backend/tests/test_define_features.py::test_the_ratchet_refuses_a_regression_and_never_forgets": "passed",
   "backend/tests/test_define_phase_metrics.py::test_a_complete_define_case_assembles": "passed",
   "backend/tests/test_define_phase_metrics.py::test_a_malformed_registry_does_not_raise_here": "passed",
@@ -1500,8 +1502,8 @@
   "backend/tests/test_wiring.py::test_wired_6_61_the_move_is_decided_in_code": "passed"
  },
  "older": {
-  "source_hash": "27b4c6ac79f50029",
-  "recorded_at": "2026-09-27T09:42:26+00:00",
+  "source_hash": "b9774a80f340b718",
+  "recorded_at": "2026-09-27T10:05:51+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2118,6 +2120,7 @@
    "backend/tests/test_define_features.py::test_every_feature_has_a_priority_and_the_lanes_take_it_first": "passed",
    "backend/tests/test_define_features.py::test_every_feature_has_the_founders_fields_and_no_status": "passed",
    "backend/tests/test_define_features.py::test_every_features_test_exists": "passed",
+   "backend/tests/test_define_features.py::test_every_requirement_carries_moscow_and_design_and_the_checker_refuses_one_without": "passed",
    "backend/tests/test_define_features.py::test_ids_are_unique_and_every_dependency_resolves": "passed",
    "backend/tests/test_define_features.py::test_rule_5_passes_a_current_block_that_did_not_change": "passed",
    "backend/tests/test_define_features.py::test_rule_5_still_refuses_a_stale_block": "passed",

@@ -104,6 +104,16 @@ if [ -n "$SYSPY" ] && [ -f "agent-improve/tools/architecture/generate_models.py"
 fi
 t_log data-models "$T0"
 
+# Part F3 (ADR-0058) — the order of work is computed by rank.py from the feature list and
+# the requirements; here it checks every feature's rank inputs (the board and CONTINUITY
+# read the rank itself). Fail-soft: a bad field is printed; the full suite's
+# test_define_features refuses it.
+T0=$(date +%s)
+if [ -n "$VENV" ]; then
+    "$VENV" agent-improve/tools/control_board/rank.py --check </dev/null | tail -1 >&2
+fi
+t_log rank "$T0"
+
 # Part F1 (founder, 2026-09-27) — the ADR index in docs/adr/README.md is generated
 # from each record's status line (tools/control_board/adrs.py). Fail-soft.
 T0=$(date +%s)

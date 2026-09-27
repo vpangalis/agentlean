@@ -1,5 +1,5 @@
 {
- "_about": "Define's feature list — step 6.66, founder ruling 2026-09-25 (ARCHITECTURE.md v1.78). Anthropic's long-running-harness pattern: ONE list; a feature passes only when its end-to-end test passes. There is NO status field — status is derived from docs/test-results.json by tools/control_board/features.py. Derived from four sources, cited per feature: ARCHITECTURE.md, the procedure (steps, Appendix G gaps, Appendix H capability rows), the code, and Anthropic/LangChain guidance. 'provenance' records the procedure steps, capability rows and gaps each feature was derived from (6.66), and as notes_6_66 the prose absence-claims the draft carried as code citations; code citations are path::symbol, checked by tools/control_board/citations.py. Lanes: A coaching, B gate, C screen and inputs, integrator end-to-end joins. Every feature cites ONE requirement id in 'requirement': a RATIFIED or ACCEPTED id of docs/requirements/business.md, or an ACCEPTED T id of docs/requirements/platform.md (never a PROPOSED, DRAFT or RETIRED one). 'priority' orders the work: 1 now, 2 next, 3 later (brief Part A4, 2026-09-27); tools/control_board/features.py takes the next failing feature by priority, then list order. Edit a feature's description, test or sources in place; never add a status.",
+ "_about": "Define's feature list — step 6.66, founder ruling 2026-09-25 (ARCHITECTURE.md v1.78). Anthropic's long-running-harness pattern: ONE list; a feature passes only when its end-to-end test passes. There is NO status field — status is derived from docs/test-results.json by tools/control_board/features.py. Derived from four sources, cited per feature: ARCHITECTURE.md, the procedure (steps, Appendix G gaps, Appendix H capability rows), the code, and Anthropic/LangChain guidance. 'provenance' records the procedure steps, capability rows and gaps each feature was derived from (6.66), and as notes_6_66 the prose absence-claims the draft carried as code citations; code citations are path::symbol, checked by tools/control_board/citations.py. Lanes: A coaching, B gate, C screen and inputs, integrator end-to-end joins. Every feature cites ONE requirement id in 'requirement': a RATIFIED or ACCEPTED id of docs/requirements/business.md, or an ACCEPTED T id of docs/requirements/platform.md (never a PROPOSED, DRAFT or RETIRED one). The order of work is COMPUTED, never stored (ADR-0058, brief Part F3): tools/control_board/rank.py ranks every failing feature from its requirement's MoSCoW and the feature's belt_impact (dead_end | wrong_data | data_loss | degraded | none), rework_risk (high | low), effort (S | M | L), depends_on and priority_override (null, or {rank_tier, reason} — founder only). Edit a feature's description, test or sources in place; never add a status.",
  "features": [
   {
    "id": "DEF-001",
@@ -41,7 +41,10 @@
     ]
    },
    "requirement": "R1",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-002",
@@ -86,7 +89,10 @@
     "gaps": []
    },
    "requirement": "R1",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-003",
@@ -126,7 +132,10 @@
     "gaps": []
    },
    "requirement": "R1",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-004",
@@ -167,7 +176,10 @@
     ]
    },
    "requirement": "R1",
-   "priority": 3
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-005",
@@ -213,7 +225,10 @@
     "gaps": []
    },
    "requirement": "R2",
-   "priority": 1
+   "belt_impact": "dead_end",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-006",
@@ -250,7 +265,10 @@
     "gaps": []
    },
    "requirement": "R1",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-007",
@@ -287,7 +305,10 @@
     "gaps": []
    },
    "requirement": "R3",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-008",
@@ -324,7 +345,10 @@
     ]
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-009",
@@ -356,7 +380,10 @@
     "gaps": []
    },
    "requirement": "R3",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-010",
@@ -389,7 +416,10 @@
     "gaps": []
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-011",
@@ -431,7 +461,10 @@
     ]
    },
    "requirement": "R3",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-012",
@@ -467,7 +500,10 @@
     ]
    },
    "requirement": "R1",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-013",
@@ -508,7 +544,10 @@
     ]
    },
    "requirement": "R1",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-014",
@@ -546,7 +585,10 @@
     ]
    },
    "requirement": "R1",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-015",
@@ -587,7 +629,10 @@
     ]
    },
    "requirement": "R1",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-016",
@@ -629,7 +674,10 @@
     ]
    },
    "requirement": "R4",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-017",
@@ -672,7 +720,10 @@
     ]
    },
    "requirement": "R4",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-018",
@@ -708,7 +759,10 @@
     "gaps": []
    },
    "requirement": "R2",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-019",
@@ -742,7 +796,10 @@
     "gaps": []
    },
    "requirement": "R2",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-020",
@@ -786,7 +843,10 @@
     ]
    },
    "requirement": "R1",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-021",
@@ -825,7 +885,10 @@
     ]
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-022",
@@ -857,7 +920,10 @@
     ]
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-023",
@@ -892,7 +958,10 @@
     ]
    },
    "requirement": "R2",
-   "priority": 3
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-024",
@@ -926,7 +995,10 @@
     "gaps": []
    },
    "requirement": "R3",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-025",
@@ -958,7 +1030,10 @@
     "gaps": []
    },
    "requirement": "R4",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-026",
@@ -996,7 +1071,10 @@
     "gaps": []
    },
    "requirement": "R4",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-027",
@@ -1028,7 +1106,10 @@
     "gaps": []
    },
    "requirement": "R4",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-028",
@@ -1062,7 +1143,10 @@
     "gaps": []
    },
    "requirement": "R4",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-029",
@@ -1110,7 +1194,10 @@
     ]
    },
    "requirement": "R4",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-030",
@@ -1147,7 +1234,10 @@
     "gaps": []
    },
    "requirement": "R4",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-031",
@@ -1179,7 +1269,10 @@
     "gaps": []
    },
    "requirement": "R4",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-032",
@@ -1222,7 +1315,10 @@
     ]
    },
    "requirement": "R4",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-033",
@@ -1254,7 +1350,10 @@
     "gaps": []
    },
    "requirement": "R4",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-034",
@@ -1286,7 +1385,10 @@
     "gaps": []
    },
    "requirement": "R4",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-035",
@@ -1328,7 +1430,10 @@
     ]
    },
    "requirement": "R4",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-036",
@@ -1360,7 +1465,10 @@
     "gaps": []
    },
    "requirement": "R4",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-037",
@@ -1401,7 +1509,10 @@
     ]
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-038",
@@ -1438,7 +1549,10 @@
     "gaps": []
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-039",
@@ -1475,7 +1589,10 @@
     "gaps": []
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-040",
@@ -1520,7 +1637,10 @@
     ]
    },
    "requirement": "R6",
-   "priority": 1
+   "belt_impact": "wrong_data",
+   "rework_risk": "high",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-041",
@@ -1559,7 +1679,10 @@
     "gaps": []
    },
    "requirement": "R5",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-042",
@@ -1599,7 +1722,10 @@
     "gaps": []
    },
    "requirement": "R5",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-043",
@@ -1650,7 +1776,10 @@
     ]
    },
    "requirement": "R5",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-044",
@@ -1695,7 +1824,10 @@
     ]
    },
    "requirement": "R7",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-045",
@@ -1730,7 +1862,10 @@
     ]
    },
    "requirement": "R7",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-046",
@@ -1772,7 +1907,10 @@
     ]
    },
    "requirement": "R7",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-047",
@@ -1820,7 +1958,10 @@
     ]
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-048",
@@ -1861,7 +2002,10 @@
     ]
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-049",
@@ -1907,7 +2051,10 @@
     ]
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-050",
@@ -1949,7 +2096,10 @@
     ]
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-051",
@@ -1991,7 +2141,10 @@
     ]
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-052",
@@ -2027,7 +2180,10 @@
     "gaps": []
    },
    "requirement": "R2",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-053",
@@ -2068,7 +2224,10 @@
     ]
    },
    "requirement": "R1",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-054",
@@ -2102,7 +2261,10 @@
     "gaps": []
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-055",
@@ -2147,7 +2309,10 @@
     ]
    },
    "requirement": "R1",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-056",
@@ -2191,7 +2356,10 @@
     ]
    },
    "requirement": "R1",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-057",
@@ -2235,7 +2403,10 @@
     ]
    },
    "requirement": "R1",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-058",
@@ -2273,7 +2444,10 @@
     ]
    },
    "requirement": "R5",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-059",
@@ -2306,7 +2480,10 @@
     ]
    },
    "requirement": "R1",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-060",
@@ -2352,7 +2529,10 @@
     ]
    },
    "requirement": "T23",
-   "priority": 1
+   "belt_impact": "data_loss",
+   "rework_risk": "high",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-061",
@@ -2386,7 +2566,10 @@
     "gaps": []
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-062",
@@ -2419,7 +2602,10 @@
     "gaps": []
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-063",
@@ -2462,7 +2648,10 @@
     "gaps": []
    },
    "requirement": "R1",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-064",
@@ -2536,7 +2725,10 @@
     "gaps": []
    },
    "requirement": "R1",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-065",
@@ -2562,7 +2754,10 @@
     "gaps": []
    },
    "requirement": "R2",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-066",
@@ -2590,7 +2785,10 @@
     "gaps": []
    },
    "requirement": "R3",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-067",
@@ -2618,7 +2816,10 @@
     "gaps": []
    },
    "requirement": "R4",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-068",
@@ -2646,7 +2847,10 @@
     "gaps": []
    },
    "requirement": "R5",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-069",
@@ -2673,7 +2877,10 @@
     "gaps": []
    },
    "requirement": "R5",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-070",
@@ -2698,7 +2905,10 @@
     "gaps": []
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-071",
@@ -2725,7 +2935,10 @@
     "gaps": []
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-072",
@@ -2754,7 +2967,10 @@
     "gaps": []
    },
    "requirement": "R7",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-074",
@@ -2783,13 +2999,18 @@
     ]
    },
    "requirement": "W6",
-   "priority": 1
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-075",
    "description": "No dead end: after three failed attempts at an element the coach offers to park it; a parked element stays open and blocks approval only if it is Tier 1; every turn ends with an action the Belt can take.",
    "clause": "A Belt is coached through the thirteen elements",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-011"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_an_element_that_fails_three_times_can_be_parked",
    "sources": {
     "architecture": [],
@@ -2804,13 +3025,18 @@
     "gaps": []
    },
    "requirement": "R14",
-   "priority": 1
+   "belt_impact": "dead_end",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-076",
    "description": "R7 amendment: baseline and target are stored as a number with a unit; an unparseable value is asked again.",
    "clause": "what they say is kept and every change is dated",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-029"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_baseline_and_target_are_stored_as_a_number_with_a_unit",
    "sources": {
     "architecture": [],
@@ -2825,7 +3051,10 @@
     "gaps": []
    },
    "requirement": "R7",
-   "priority": 1
+   "belt_impact": "wrong_data",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-077",
@@ -2846,7 +3075,10 @@
     "gaps": []
    },
    "requirement": "R13",
-   "priority": 1
+   "belt_impact": "dead_end",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-078",
@@ -2867,13 +3099,18 @@
     "gaps": []
    },
    "requirement": "T70",
-   "priority": 1
+   "belt_impact": "dead_end",
+   "rework_risk": "high",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-079",
    "description": "Every confirmed element has a change action in the progress view that starts coaching on it; the Confirm and Change buttons under a read-back survive a reload.",
    "clause": "the Belt sees it, approves it",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-054"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_every_confirmed_element_can_be_changed_and_the_buttons_survive_a_reload",
    "sources": {
     "architecture": [],
@@ -2888,7 +3125,10 @@
     "gaps": []
    },
    "requirement": "W9",
-   "priority": 1
+   "belt_impact": "dead_end",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-080",
@@ -2909,13 +3149,18 @@
     "gaps": []
    },
    "requirement": "W8",
-   "priority": 1
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-081",
    "description": "A failed or timed-out turn stays on screen, says what happened and what was saved, offers a retry and shows a reference id.",
    "clause": "the Belt sees it, approves it",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-055"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_a_failed_turn_stays_readable_with_a_reference_id",
    "sources": {
     "architecture": [],
@@ -2930,13 +3175,18 @@
     "gaps": []
    },
    "requirement": "W10",
-   "priority": 1
+   "belt_impact": "dead_end",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-082",
    "description": "Every element value keeps its full history: value, when, who, the reason for a change, and its source (typed, upload, or coach-proposed and confirmed); nothing is overwritten; history viewable per element.",
    "clause": "what they say is kept and every change is dated",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-039"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_every_element_version_records_who_when_why_and_source",
    "sources": {
     "architecture": [],
@@ -2951,7 +3201,10 @@
     "gaps": []
    },
    "requirement": "R16",
-   "priority": 2
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-083",
@@ -2972,13 +3225,18 @@
     "gaps": []
    },
    "requirement": "C3",
-   "priority": 2
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-084",
    "description": "The high-level process element captures per-step duration (avg/min/max with unit), frequency and problem notes with who said them, and end-to-end lead time and runs per period — stored structured.",
    "clause": "A Belt is coached through the thirteen elements",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-035"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_the_as_is_process_captures_step_performance_structured",
    "sources": {
     "architecture": [],
@@ -2993,13 +3251,19 @@
     "gaps": []
    },
    "requirement": "R17",
-   "priority": 2
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-085",
    "description": "The problem statement names the step(s) where the problem shows; the coach checks the link both ways before either element is confirmed.",
    "clause": "A Belt is coached through the thirteen elements",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-028",
+    "DEF-084"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_the_problem_statement_and_the_process_steps_are_linked_both_ways",
    "sources": {
     "architecture": [],
@@ -3014,13 +3278,18 @@
     "gaps": []
    },
    "requirement": "R18",
-   "priority": 2
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-086",
    "description": "Each phase report is laid out in visual sections, each with a heading, a plain-language summary and key fields with a one-line explanation; built only from confirmed values.",
    "clause": "a complete case ASSEMBLES a gate document",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-069"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_every_phase_report_reads_as_a_business_document",
    "sources": {
     "architecture": [],
@@ -3035,13 +3304,18 @@
     "gaps": []
    },
    "requirement": "C1",
-   "priority": 2
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-087",
    "description": "Where a section's data allows, the report shows a labelled diagram or chart with a sentence on how to read it, beside the table carrying the same values.",
    "clause": "a complete case ASSEMBLES a gate document",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-086"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_report_sections_show_a_labelled_picture_where_the_data_allows",
    "sources": {
     "architecture": [],
@@ -3056,7 +3330,10 @@
     "gaps": []
    },
    "requirement": "C2",
-   "priority": 2
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-088",
@@ -3077,7 +3354,10 @@
     "gaps": []
    },
    "requirement": "R5",
-   "priority": 2
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-089",
@@ -3098,7 +3378,10 @@
     "gaps": []
    },
    "requirement": "W2",
-   "priority": 2
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-090",
@@ -3119,7 +3402,10 @@
     "gaps": []
    },
    "requirement": "W3",
-   "priority": 2
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-091",
@@ -3140,7 +3426,10 @@
     "gaps": []
    },
    "requirement": "W11",
-   "priority": 2
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-092",
@@ -3161,13 +3450,18 @@
     "gaps": []
    },
    "requirement": "W12",
-   "priority": 2
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-093",
    "description": "A fresh case with the scripted persona reaches an approved Define report in at most 40 Belt turns, no turn over 45 s, no element unreachable; the run-through records turns, calls, time and cost.",
    "clause": "the Belt sees it, approves it",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-064"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_define_is_done_within_forty_turns_none_over_45_seconds",
    "sources": {
     "architecture": [],
@@ -3182,13 +3476,18 @@
     "gaps": []
    },
    "requirement": "R12",
-   "priority": 2
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-094",
    "description": "An ordinary coaching turn makes at most 4 model calls, retries included; the count is recorded per turn in step_log.",
    "clause": "A Belt is coached through the thirteen elements",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-002"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_an_ordinary_turn_makes_at_most_four_model_calls",
    "sources": {
     "architecture": [],
@@ -3203,7 +3502,10 @@
     "gaps": []
    },
    "requirement": "T69",
-   "priority": 2
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-095",
@@ -3224,7 +3526,10 @@
     "gaps": []
    },
    "requirement": "C4",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-096",
@@ -3245,7 +3550,10 @@
     "gaps": []
    },
    "requirement": "C5",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-097",
@@ -3266,13 +3574,18 @@
     "gaps": []
    },
    "requirement": "C6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-098",
    "description": "When an answer carries values for other unconfirmed elements, the coach reads them back for confirmation; nothing is stored before confirmation.",
    "clause": "A Belt is coached through the thirteen elements",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-007"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_values_for_other_elements_in_one_answer_are_read_back",
    "sources": {
     "architecture": [],
@@ -3287,7 +3600,10 @@
     "gaps": []
    },
    "requirement": "R15",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-099",
@@ -3308,13 +3624,18 @@
     "gaps": []
    },
    "requirement": "R2",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-100",
    "description": "R6 amendment: the report names the project lead and the Champion; approval is recorded against the signed-in lead; changes are made through coaching, never by editing the report.",
    "clause": "the Belt sees it, approves it",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-049"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_the_report_names_the_lead_and_champion_and_changes_go_through_coaching",
    "sources": {
     "architecture": [],
@@ -3329,13 +3650,18 @@
     "gaps": []
    },
    "requirement": "R6",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-101",
    "description": "An approved phase report can be printed from the browser, headed with case number, phase, approval date and 'Copy — the record is in Agent Improve'; nothing printed before approval.",
    "clause": "the Belt sees it, approves it",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-060"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_an_approved_report_prints_with_the_record_heading",
    "sources": {
     "architecture": [],
@@ -3350,7 +3676,10 @@
     "gaps": []
    },
    "requirement": "R11",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-102",
@@ -3371,7 +3700,10 @@
     "gaps": []
    },
    "requirement": "R8",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-103",
@@ -3392,7 +3724,10 @@
     "gaps": []
    },
    "requirement": "R8a",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-104",
@@ -3413,13 +3748,18 @@
     "gaps": []
    },
    "requirement": "R8b",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-105",
    "description": "The project lead can hand the role to another team member; the handover is recorded in the audit trail.",
    "clause": "what they say is kept and every change is dated",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-104"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_the_lead_role_can_be_handed_over_and_is_recorded",
    "sources": {
     "architecture": [],
@@ -3434,7 +3774,10 @@
     "gaps": []
    },
    "requirement": "R8c",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-106",
@@ -3455,13 +3798,18 @@
     "gaps": []
    },
    "requirement": "W1",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-107",
    "description": "The Belt picks any unconfirmed element whose prerequisites are confirmed, or accepts the recommended one the planner will work on; progress reads 'n of N confirmed'.",
    "clause": "A Belt is coached through the thirteen elements",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-006"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_the_belt_can_pick_any_available_element_or_take_the_recommended_one",
    "sources": {
     "architecture": [],
@@ -3476,13 +3824,18 @@
     "gaps": []
    },
    "requirement": "W4",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-108",
    "description": "A file attached in chat or the files panel appears in the case files; the coach reads it against the current element's criteria and asks for what is missing, naming file and page.",
    "clause": "A Belt is coached through the thirteen elements",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-056"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_an_upload_strengthens_the_current_answer",
    "sources": {
     "architecture": [],
@@ -3497,13 +3850,18 @@
     "gaps": []
    },
    "requirement": "W5",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-109",
    "description": "Deleting an uploaded file removes it from storage and the search index; the audit log keeps its name, digest, date and who removed it.",
    "clause": "what they say is kept and every change is dated",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-056"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_removing_a_file_removes_it_from_storage_and_index",
    "sources": {
     "architecture": [],
@@ -3518,13 +3876,18 @@
     "gaps": []
    },
    "requirement": "W7",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-110",
    "description": "A reply that draws on the manual or an upload shows the file and page it used.",
    "clause": "the Belt sees it, approves it",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-057"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_a_reply_shows_the_file_and_page_it_used",
    "sources": {
     "architecture": [],
@@ -3539,7 +3902,10 @@
     "gaps": []
    },
    "requirement": "W13",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-111",
@@ -3560,7 +3926,10 @@
     "gaps": []
    },
    "requirement": "W14",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-112",
@@ -3581,7 +3950,10 @@
     "gaps": []
    },
    "requirement": "W15",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-113",
@@ -3602,7 +3974,10 @@
     "gaps": []
    },
    "requirement": "W16",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-114",
@@ -3623,7 +3998,10 @@
     "gaps": []
    },
    "requirement": "W17",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-115",
@@ -3644,13 +4022,18 @@
     "gaps": []
    },
    "requirement": "T11",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-116",
    "description": "`thread_id` comes from an authenticated session, never from the request body (with R8)",
    "clause": "A Belt is coached through the thirteen elements",
-   "depends_on": [],
+   "depends_on": [
+    "DEF-102"
+   ],
    "test": "backend/tests/test_define_e2e.py::test_t12_thread_id_comes_from_an_authenticated_session_never_from_the_reque",
    "sources": {
     "architecture": [],
@@ -3665,7 +4048,10 @@
     "gaps": []
    },
    "requirement": "T12",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-117",
@@ -3686,7 +4072,10 @@
     "gaps": []
    },
    "requirement": "T13",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-118",
@@ -3707,7 +4096,10 @@
     "gaps": []
    },
    "requirement": "T17",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-119",
@@ -3728,7 +4120,10 @@
     "gaps": []
    },
    "requirement": "T21",
-   "priority": 3
+   "belt_impact": "none",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-120",
@@ -3749,7 +4144,10 @@
     "gaps": []
    },
    "requirement": "T22",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-121",
@@ -3770,7 +4168,10 @@
     "gaps": []
    },
    "requirement": "T28",
-   "priority": 3
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-122",
@@ -3791,7 +4192,10 @@
     "gaps": []
    },
    "requirement": "T29",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-123",
@@ -3812,7 +4216,10 @@
     "gaps": []
    },
    "requirement": "T34",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-124",
@@ -3833,7 +4240,10 @@
     "gaps": []
    },
    "requirement": "T35",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "L",
+   "priority_override": null
   },
   {
    "id": "DEF-125",
@@ -3854,7 +4264,10 @@
     "gaps": []
    },
    "requirement": "T36",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-126",
@@ -3875,7 +4288,10 @@
     "gaps": []
    },
    "requirement": "T37",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-127",
@@ -3896,7 +4312,10 @@
     "gaps": []
    },
    "requirement": "T38",
-   "priority": 3
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-128",
@@ -3917,7 +4336,10 @@
     "gaps": []
    },
    "requirement": "T42",
-   "priority": 3
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-129",
@@ -3938,7 +4360,10 @@
     "gaps": []
    },
    "requirement": "T43",
-   "priority": 3
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-130",
@@ -3959,7 +4384,10 @@
     "gaps": []
    },
    "requirement": "T50",
-   "priority": 3
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-131",
@@ -3980,7 +4408,10 @@
     "gaps": []
    },
    "requirement": "T56",
-   "priority": 3
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-132",
@@ -4001,7 +4432,10 @@
     "gaps": []
    },
    "requirement": "T57",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-133",
@@ -4022,7 +4456,10 @@
     "gaps": []
    },
    "requirement": "T58",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-134",
@@ -4043,7 +4480,10 @@
     "gaps": []
    },
    "requirement": "T59",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-135",
@@ -4064,7 +4504,10 @@
     "gaps": []
    },
    "requirement": "T60",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-136",
@@ -4085,7 +4528,10 @@
     "gaps": []
    },
    "requirement": "T61",
-   "priority": 3
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-137",
@@ -4106,7 +4552,10 @@
     "gaps": []
    },
    "requirement": "T65",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-138",
@@ -4127,7 +4576,10 @@
     "gaps": []
    },
    "requirement": "T66",
-   "priority": 3
+   "belt_impact": "degraded",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": null
   },
   {
    "id": "DEF-139",
@@ -4148,7 +4600,10 @@
     "gaps": []
    },
    "requirement": "T67",
-   "priority": 3
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null
   },
   {
    "id": "DEF-140",
@@ -4169,7 +4624,10 @@
     "gaps": []
    },
    "requirement": "T68",
-   "priority": 3
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "L",
+   "priority_override": null
   }
  ]
 }

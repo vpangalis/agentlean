@@ -28,7 +28,7 @@ History and retired documents: `docs/_archive/`. Never cite them as current.
 
 Read `docs/CONTINUITY.md`'s status block and `git log --oneline -5`; run
 `python tools/control_board/features.py` (or `--lane <A|B|C|integrator>`); run the smoke
-test `pytest backend/tests/test_define_features.py -n 0`; take the next failing feature in
+test `pytest backend/tests/test_define_features.py -n 0`; take the top-ranked failing feature in
 your lane and make its end-to-end test pass. Never edit a feature to say it passes.
 
 ## How to test
@@ -48,14 +48,10 @@ your lane and make its end-to-end test pass. Never edit a feature to say it pass
 - Scratch never enters the tree and is never evidence; a new file needs a step or feature
   number (`chore(tooling):` excepted).
 
-## The rules a hook enforces (one line each)
+## The rules a hook enforces
 
-- Rules 3, 4, 11 bind every code or config commit, any prefix: types, tests, and a `DEF-xxx` subject
-  lands only if it and its dependencies pass. A feature that passed once must keep passing.
-- Rule 12: a governing document may not grow past `.claude/config/size-budget.json` — REPLACE, DON'T APPEND.
-- Rule 6: an 8D (the `eight-d` skill) only for a real defect — a `fix` commit or a `Gap:` trailer.
-- Rule 14: no must / never / always sentence of this file, a rule file or a skill is dropped or weakened.
-- `fact-ownership-guard.py`: an owned fact (a count, field name, schema, pin) is cited from its owner, never restated.
+The commit guard, `.claude/hooks/commit-msg-refactor-guard.py`: its docstring lists every rule, and
+each refusal names its rule and what to do.
 
 ### 0.2 — Rule numbers are load-bearing
 `deprecated_patterns.yaml` cites them; renumber only with the registry, same commit (`verify_rule_citations.py`).

@@ -29,6 +29,7 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))
 
 import features  # noqa: E402
+import rank  # noqa: E402
 
 OUT = features.PROJECT / "docs" / "control-board.html"
 REPO = features.PROJECT.parent
@@ -46,13 +47,15 @@ def model() -> dict:
     feats = features.load()
     s = features.summary(feats)
     by_id = {f["id"]: f for f in feats}
+    why = {r["id"]: r["reason"] for r in rank.rank(feats)}
     nxt = {lane: ({"id": v["next"], "description": by_id[v["next"]]["description"],
-                   "test": by_id[v["next"]]["test"]} if v["next"] else None)
+                   "test": by_id[v["next"]]["test"], "reason": why.get(v["next"], "")} if v["next"] else None)
            for lane, v in s["lanes"].items()}
     return {"headline": features.headline(s), "passing": s["passing"], "total": s["total"],
             "fresh": s["fresh"], "lanes": {k: {"passing": v["passing"], "total": v["total"]}
                                            for k, v in s["lanes"].items()},
-            "clauses": s["clauses"], "next": nxt, "statuses": s["status"]}
+            "clauses": s["clauses"], "next": nxt, "statuses": s["status"],
+            "milestones": rank.milestones(feats)}
 
 
 def burnup(feats: list[dict]) -> list[tuple[str, int]]:
@@ -166,8 +169,11 @@ def render(m: dict, points: list[tuple[str, int]], proj: str | None, log: list[d
                     for k, v in m["lanes"].items())
     nxt = "".join(
         f"<tr><td>{E(k)}</td><td>" + (f"<b>{E(v['id'])}</b> — {E(v['description'])}<br><code>{E(v['test'])}</code>"
+                                      f"<br><span class='meta'>rank: {E(v.get('reason', ''))}</span>"
                                       if v else "every feature passes") + "</td></tr>"
         for k, v in m["next"].items())
+    miles = "".join(f"<tr><td>{E(k)} — tier {v['tier']}</td><td class='num'>{frac(v)}</td></tr>"
+                    for k, v in m["milestones"].items())
     logrows = "".join(f"<tr><td><code>{E(c['sha'])}</code></td><td>{E(c['day'])}</td><td>{E(c['subject'])}</td>"
                       f"<td class='meta'>{E(c['timing']) or '—'}</td></tr>" for c in log)
     proj_txt = (f"At the rate so far, all {m['total']} pass on <b>{E(proj)}</b>." if proj
@@ -184,8 +190,10 @@ def render(m: dict, points: list[tuple[str, int]], proj: str | None, log: list[d
 <h2>1 · By clause and by lane</h2>
 <div class="card"><table><tr><th>Clause of "Define works end to end"</th><th class="num">Passing</th></tr>{clauses}</table></div>
 <div class="card" style="margin-top:12px"><table><tr><th>Lane</th><th class="num">Passing</th></tr>{lanes}</table></div>
-<h2>2 · Next failing feature per lane</h2>
+<h2>2 · Top-ranked failing feature per lane (ADR-0058, <code>rank.py</code>)</h2>
 <div class="card"><table>{nxt}</table></div>
+<h2>By milestone (tier)</h2>
+<div class="card"><table><tr><th>Milestone</th><th class="num">Passing</th></tr>{miles}</table></div>
 <h2>3 · Burn-up</h2>
 <div class="card">{_svg(points, m['total'], proj)}<p class="meta">{proj_txt} Dashed red: 1 October.</p></div>
 <h2>4 · Last commits and their timing</h2>

@@ -15,8 +15,25 @@ session-start routine is in CLAUDE.md.
 
 `docs/requirements/business.md` (R, C, W, M ids) and `platform.md` (T ids, each with its proof test)
 — brief Part A, 2026-09-27; `define.md`, `workspace.md` and `measure.md` are replaced (git keeps
-them). Every feature cites ONE RATIFIED or ACCEPTED id, and carries a `priority` (1 now, 2 next,
-3 later) that orders its lane's work; `tools/control_board/features.py::requirements` is the checker.
+them). Every entry carries `MoSCoW:` and `Design:` (Part F2). Every feature cites ONE RATIFIED or
+ACCEPTED id; `tools/control_board/features.py::requirements` is the checker.
+
+## Plan
+
+The order of work is computed, never written (ADR-0058, `tools/control_board/rank.py`): each lane
+takes its top-ranked failing feature; the rank and its reason are on the board. This section holds
+only what the feature list cannot — the milestones (founder ruling 1 on the Parts A–D report,
+2026-09-27: the milestones of the superseded Part E, mapped to tiers).
+
+| Milestone | Tier | Done when |
+|---|---|---|
+| M1 — Define without dead ends | 1 — Belt-blocking and Must | every tier-1 feature passes, and a run-through reaches an approved Define report |
+| M2 — Define complete and readable | 2 — Must | every tier-2 feature passes, and R12 (at most 40 turns, no turn over 45 s) passes on the run-through |
+| M3 — Define hardened | 3 — Should | every tier-3 feature passes |
+
+Tiers come from MoSCoW, which is `?` until the founder ratifies it; until then `?` ranks as Must
+(founder, 2026-09-27), so M3 is empty. Could (tier 4) belongs to no milestone. A milestone is
+accepted on run-through evidence.
 
 ## Lanes (branches and worktrees beside this checkout; `.venv` is a junction)
 
