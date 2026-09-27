@@ -107,8 +107,9 @@ flowchart LR
   end
 ```
 
-- **Parent graph** (`core/graph.py`): phases joined by static edges in fixed order, entered with
-  `add_edge(START, …)`. A phase reaches END only through `gate_apply` after approval.
+- **Parent graph** (`core/graph.py`): the supervisor (`build_supervisor`) joins the phases by static
+  edges; it is built and tested but **not on the runtime path**. The routes run a one-phase turn
+  graph, `get_graph(phase)`: `START → {phase}_phase → END` over `SupervisorState` (§2.7).
 - **Wrapper node per phase**: input mapper → `await subgraph.ainvoke(child_state)` with the
   inherited config → output mapper. Never a fresh config; never from inside a tool.
 - **Phase subgraph** (`phases/{phase}/graph.py`; nodes in `phases/nodes_common.py`): exactly five
@@ -152,6 +153,16 @@ sequenceDiagram
    by `core/conversation.py`, never as messages. Define's progress label comes from
    `define_progress`.
 
+**Route → graph** (`gateway/routes.py`). Every graph run goes through `_run_turn`: `graph.ainvoke`
+as a task raced against `_until_disconnect`; a client gone first cancels it (499).
+
+| Route | Graph input | Config (`_graph_config`) | After the run |
+|---|---|---|---|
+| `POST /ask` | `_graph_input`: no checkpoint yet → the seven `SupervisorState` fields plus the case's prior conversation; else `{"messages": [new]}`; a checkpoint phase ≠ case phase is 409 | `thread_id` = case id, `entry`, `current_user`, `case_metadata`, `v1_phase_inputs` (every phase's `structured`), `belt_action`; `recursion_limit` 50 | `_mirror_asks` (Store), `apply_capture`, `blob.save_case` — the case blob is written on every turn (T13 open) |
+| `POST /gate` | the same, `entry="gate"` | same | non-Define phases: `write_phase_gate` on a pass |
+| `POST /gate/decision` | `Command(resume={decision, elements, reason, actor, at})` after `_pending_interrupts` finds `accept_define_report` | same, `entry="decision"`; reject sets `belt_action="rejected"` | approve: `assemble_gate_document`, `write_phase_gate` |
+| `GET /gate/review/{case_id}/{phase}` | none — `graph.aget_state(config)` reads the pause | same | — |
+
 ### 2.5 Checkpoints and persistence
 
 Three stores, three jobs. They are never used for each other's job.
@@ -172,7 +183,7 @@ flowchart LR
 |---|---|---|---|
 | Holds | The whole graph state of the case: `SupervisorState` and each subgraph's `PhaseState` under its `checkpoint_ns` | Approved phase records, the case record, cross-phase audit | Case, phase records, upload records, registry |
 | Scope | One thread per case (`thread_id` = case id) | Across phases and threads | The case |
-| Written | Automatically after every node | Explicitly by key; a put overwrites, so a replay leaves one value | At case creation, approval and upload |
+| Written | Automatically after every node | Explicitly by key; a put overwrites, so a replay leaves one value | At case creation, after every `/ask` turn, at approval and upload |
 | Read by | LangGraph on the next invoke or resume | Input mappers; the state-injection middleware; the grader's reference lookups | Routes, the registry, the UI |
 | Code | `core/checkpointer.py::AzureBlobCheckpointSaver` | `core/store.py::AzureBlobStore` | `storage/blob.py` (module functions: `create_case`, `load_case`, `save_case`, `write_phase_gate`, `upload_file`) |
 | Attached | `graph.compile(checkpointer=…)` on the parent graph only | `graph.compile(store=…)` on the parent graph only; nodes receive it as a parameter | Called by routes, never by the graph |
@@ -234,7 +245,6 @@ sequenceDiagram
 | Step | Detail |
 |---|---|
 | Pause payload | Define: `{kind: "accept_define_report", phase, passage, ask}` — `passage` keys the passing submission; the report itself (`phases/define/report.py::define_report`, each section's status and the value history) is served by `GET /gate/review/{case_id}/{phase}`. Other phases do not pause: `gate_review` passes through (`_gate_passage` is Define only) and `POST /gate` writes on a pass |
-| Tracking | The route records the paused run in `_pending_interrupts`; `GET /gate/review/{case_id}/{phase}` returns the report and whether a decision is awaited |
 | Decision | `POST /gate/decision` with `approve` or `reject`; a rejection must name at least one element and a reason; a decision with nothing pending answers 409 |
 | Approve | `gate_apply` assembles `{Phase}Output` by Pydantic construction (no model call), resets `gate_attempts` and `validator_feedback`; the route then writes the case blob and the registry (`storage/blob.py::write_phase_gate`, which advances `current_phase`). The Store record `("projects", case_id, "artifacts")` / phase and the output mapper are not wired yet — G-112, DEF-060 |
 | Reject | `gate_apply` sets the named elements back to open in `field_status`, stores `rejection_feedback`, and routes to the planner; the coach takes the Belt back to those elements in the same run |
@@ -248,6 +258,58 @@ not with `interrupt()`: the coach reads the value back, the Belt sends `action: 
 **Mid-phase contradiction.** When the Belt contradicts a value an earlier gate approved, the coach
 sets `CoachingResponse.contradiction_flag` in its normal reply (no extra model call) and
 `ContradictionDetectionMiddleware` detects it (§3.3); stopping the turn is guarded off today.
+
+### 2.7 Start-up and deployment, as built
+
+```mermaid
+flowchart TB
+  u["uvicorn backend.app:app · 127.0.0.1:8020"] --> i["import: settings (core/config.py) · logging · router · ui/ mounted at /"]
+  i --> st["startup: init_tracing · warm_turn_llms · retriever.warm_clients — a failure is logged, the app still starts"]
+  st --> g["per graph request: get_graph(phase)"]
+  g --> sg["_subgraph(phase): build_phase_subgraph — cached per process"]
+  g --> pe["_persistence(): get_checkpointer(), get_store() — process singletons; None offline, logged critical"]
+  sg --> c["compile(checkpointer, store) — on every call"]
+  pe --> c
+```
+
+| Concern | As built | Where |
+|---|---|---|
+| Process | One process serves the API and the UI (`StaticFiles`); the UI calls `http://127.0.0.1:8020` | `app.py`, `ui/index.html` |
+| Access | No sign-in: `case_id` and `user` come from the request body (T12, R8 open); CORS allows every origin | `routes.py::_graph_config`, `app.py` |
+| Correlation | `RequestIdMiddleware` sets `x-request-id` in and out | `app.py` |
+| Outbound | Azure OpenAI, AI Search and Blob by key or connection string from settings; LangSmith when tracing is on; one public CDN font (G-114) | `core/config.py` |
+
+### 2.8 The upload pipeline
+
+```mermaid
+sequenceDiagram
+  participant UI
+  participant API as POST /upload
+  participant P as upload/agent.py::process_upload
+  participant B as Blob
+  participant IX as improve_evidence_index
+  UI->>API: file, case_id, phase, purpose
+  API->>B: load_case
+  API->>API: open asks for the phase (Store case record) → the matched ask
+  API->>P: bytes, purpose, ask
+  P->>P: classify_content_type · classify_kind
+  alt image
+    P->>P: _extract_from_image (vision role)
+  else document or data
+    P->>P: parse_upload — deterministic (upload/parsers.py)
+  end
+  alt not parsed
+    API-->>UI: 422 refusal — nothing written
+  else parsed
+    P->>P: _interpret (extraction role)
+    P-->>API: upload record with interpretation
+    API->>B: upload_file (bytes)
+    opt kind is evidence
+      API->>IX: _index_upload — embed, upload_documents
+    end
+    API->>B: save_case (upload record)
+  end
+```
 
 ## 3. Components and interfaces
 
@@ -301,6 +363,16 @@ Classes are allowed only in files marked **C**; elsewhere module-level functions
 | `validation_stack` | `artifacts` | Layer 2b, then 2d for Define (2c not built); cap three via `gate_attempts` | `gate_attempts`, `validator_feedback`, `step_log` |
 | `gate_review` | validated report | `interrupt()` | nothing |
 | `gate_apply` | decision, `belt_edits` | Approve: assemble `final`; reject: back to planner with `rejection_feedback` | `final`, `gate_attempts`, `validator_feedback` |
+
+**Mappers and the Store** (namespace `("projects", case_id, kind)`, `storage/layout.py`):
+
+| Code | Reads | Writes | Called by |
+|---|---|---|---|
+| `define_input_mapper` | `case` / `record` | — | `core/graph.py::phase_node` (`INPUT_MAPPERS`) |
+| `{measure…control}_input_mapper` | `artifacts` / prior phase; absent → `PriorGateDocumentMissing` | — | the same |
+| `{phase}_output_mapper` | — | `artifacts` / phase ← `final` | nothing in production (G-112) |
+| `routes._ensure_case_record` | — | `case` / `record` | `/cases`, `/ask`, `/upload`, `/gate`, `/gate/decision` |
+| `routes._mirror_asks` → `write_asks` | — | the asks on `case` / `record` | `/ask` |
 
 ### 3.3 Executor and middleware
 
@@ -435,6 +507,12 @@ construction.
 | Computation | `knowledge/computation.py` | The owning phase |
 | Cross-agent | `knowledge/tools.py` | Nothing |
 
+- Binding: `phases/nodes_common.py::_executor_tools(phase, hop_budget, hops_spent)` returns
+  `UNIVERSAL_TOOLS` (the three `rag_lookup_*`, `propose_template`, `propose_diagram`,
+  `load_evidence_series`) plus `COMPUTATION_TOOLS_BY_PHASE[phase]`. At `hop_budget` ≤ 0 the lookups
+  are left out; otherwise each is a per-turn counted copy (`_budgeted_rag_tools`). `_build_executor`
+  passes the list to `create_agent(tools=…)`. `check_gate_status` and `request_human_approval`,
+  in the Define SKILL.md's `allowed-tools`, are not built.
 - Every tool has an `args_schema` from `knowledge/tool_args.py`.
 - `propose_diagram(diagram_type, data) -> dict` returns JSON the UI renders;
   `propose_template(template_type, fill_data) -> str` returns a scaffold for the coach's message.
