@@ -1,9 +1,9 @@
 {
- "source_hash": "ee2c4bb798ac2324",
- "commit": "24d56a4",
+ "source_hash": "508a1466b119ea24",
+ "commit": "42cff92",
  "commit_matches_source": false,
- "full_run_hash": "ee2c4bb798ac2324",
- "recorded_at": "2026-09-27T10:47:45+00:00",
+ "full_run_hash": "508a1466b119ea24",
+ "recorded_at": "2026-09-27T10:56:44+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1508,11 +1508,14 @@
   "backend/tests/test_wiring.py::test_wired_6_57_the_computed_step_is_recorded": "passed",
   "backend/tests/test_wiring.py::test_wired_6_61_nothing_is_stored_before_confirmation": "passed",
   "backend/tests/test_wiring.py::test_wired_6_61_the_coach_input_is_six_labelled_sections": "passed",
-  "backend/tests/test_wiring.py::test_wired_6_61_the_move_is_decided_in_code": "passed"
+  "backend/tests/test_wiring.py::test_wired_6_61_the_move_is_decided_in_code": "passed",
+  "backend/tests/test_wiring_check.py::test_a_feature_test_calling_a_mapper_directly_is_seen": "passed",
+  "backend/tests/test_wiring_check.py::test_it_finds_a_component_with_no_production_caller_and_passes_a_wired_one": "passed",
+  "backend/tests/test_wiring_check.py::test_it_reads_what_section_3_names": "passed"
  },
  "older": {
-  "source_hash": "5bbba0ad408f07b6",
-  "recorded_at": "2026-09-27T10:34:14+00:00",
+  "source_hash": "ee2c4bb798ac2324",
+  "recorded_at": "2026-09-27T10:47:45+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1679,7 +1682,7 @@
    "backend/tests/test_capability_rows.py::test_row_2_a_turn_returns_a_coached_reply": "skipped",
    "backend/tests/test_capability_rows.py::test_row_33_a_checkpoint_is_written_after_every_node": "passed",
    "backend/tests/test_capability_rows.py::test_row_35_every_define_turn_leaves_a_langsmith_trace": "passed",
-   "backend/tests/test_capability_rows.py::test_row_3_the_coach_follows_the_define_script": "passed",
+   "backend/tests/test_capability_rows.py::test_row_3_the_coach_follows_the_define_script": "skipped",
    "backend/tests/test_capability_rows.py::test_row_5_a_captured_field_survives_the_next_turn": "passed",
    "backend/tests/test_capability_rows.py::test_row_6_every_change_is_kept_dated_with_its_prior_value": "passed",
    "backend/tests/test_capability_rows.py::test_row_8_the_belt_can_upload_evidence": "passed",

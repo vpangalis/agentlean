@@ -115,6 +115,15 @@ if [ -n "$VENV" ]; then
 fi
 t_log rank "$T0"
 
+# Part F6 (founder, 2026-09-27) — the wiring check: every component ARCHITECTURE.md §3
+# names has a production caller; state-changing routes reach the graph or storage; feature
+# tests drive the graph. WARNS only until the founder reviews the first findings.
+T0=$(date +%s)
+if [ -n "$VENV" ]; then
+    "$VENV" agent-improve/tools/architecture/wiring.py </dev/null | tail -1 >&2
+fi
+t_log wiring "$T0"
+
 # Part F1 (founder, 2026-09-27) — the ADR index in docs/adr/README.md is generated
 # from each record's status line (tools/control_board/adrs.py). Fail-soft.
 T0=$(date +%s)
