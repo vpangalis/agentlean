@@ -22,6 +22,7 @@ act in the budget file, in its own commit, with the reason in the body.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -37,8 +38,14 @@ def load(path: Path = BUDGET) -> dict[str, int]:
     return {k: int(v) for k, v in data["bounds"].items()}
 
 
+#: A generated block (`<!-- BEGIN GENERATED: … -->` … `<!-- END GENERATED: … -->`) is
+#: rewritten from the code, never by hand, so it is not text the budget governs
+#: (founder, 2026-09-27, Part G): it is left out of the measure.
+_GENERATED = re.compile(r"<!-- BEGIN GENERATED:.*?<!-- END GENERATED:[^>]*-->", re.S)
+
+
 def measure(text: str) -> int:
-    return len(text.replace("\r\n", "\n"))
+    return len(_GENERATED.sub("", text.replace("\r\n", "\n")))
 
 
 def verdicts(sizes: dict[str, int], bounds: dict[str, int]) -> list[tuple[str, str, int, int]]:

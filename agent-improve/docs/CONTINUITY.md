@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| **Headline** | 13 of 74 Define features pass (core 13 of 65) — A 5/39 · B 6/18 · C 2/11 · integrator 0/6 (record older than the source) |
+| **Headline** | 13 of 74 Define features pass (core 13 of 65) — A 5/39 · B 6/18 · C 2/11 · integrator 0/6 |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-073 — G-112: approving the Define report writes the gate document to BOTH the case record and the Store (projects/{case}/artifacts/define), so the |
 | **Next — lane C** | DEF-074 — G-113: the create form shows no case id until the server has assigned one; the number a Belt sees is always the one the case is saved under. |

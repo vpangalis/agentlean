@@ -95,6 +95,15 @@ if [ -n "$SYSPY" ] && [ -f ".claude/hooks/section_index.py" ]; then
 fi
 t_log section-index "$T0"
 
+# Part G (founder, 2026-09-27) — ARCHITECTURE.md's data-models block, regenerated
+# from the STAGED source into the index copy (commit-msg rule 16 checks it). A
+# document without the markers is left alone. Fail-soft, like this hook.
+T0=$(date +%s)
+if [ -n "$SYSPY" ] && [ -f "agent-improve/tools/architecture/generate_models.py" ]; then
+    "$SYSPY" agent-improve/tools/architecture/generate_models.py --stage </dev/null || echo "  [data models] WARNING: not regenerated; rule 16 will check the block" >&2
+fi
+t_log data-models "$T0"
+
 T0=$(date +%s)
 if [ -f "$CONTROL" ]; then
     if [ -n "$VENV" ] && "$VENV" "$CONTROL" agent-improve/docs/control-board.html --staged; then

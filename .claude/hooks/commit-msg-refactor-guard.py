@@ -45,6 +45,11 @@ therefore 1, 2b, 3, 4, 5, 6, 7 and 8.
      lowered by the pre-commit hook, refused on a rise (founder, 2026-09-27).
   4. TESTS — pytest green.
 
+  16. DATA MODELS — ARCHITECTURE.md's generated block (between the
+     `data models` markers) equals a fresh generation from the STAGED code
+     (`tools/architecture/generate_models.py`); the pre-commit hook regenerates
+     it. The block is exempt from rule 2b and from rule 12's measure (Part G).
+
   15. CHORE SCOPE — a `chore(...)` subject may change `agent-improve/backend/`
      (tests excluded) only by type annotations; a defect fix carries `fix` or a
      `Gap:` trailer (founder, 2026-09-27). Rule 2b skips an annotation-only
@@ -430,6 +435,53 @@ def run_mypy(root: str, py: str, files: list[str]) -> collections.Counter:
     return counter
 
 
+def _models_generator(root: str):
+    """`agent-improve/tools/architecture/generate_models.py` (Part G, 2026-09-27)."""
+    sys.path.insert(0, os.path.join(root, PROJECT, "tools", "architecture"))
+    import generate_models
+    return generate_models
+
+
+def _status_changed_by_hand(root: str) -> bool:
+    """Rule 2b's exemption: did ARCHITECTURE.md change OUTSIDE its generated block?
+    The data-models block is regenerated from the code on every commit, so a
+    change there records nothing a person checked (founder, 2026-09-27)."""
+    gm = _models_generator(root)
+    head = subprocess.run(["git", "show", f"HEAD:{STATUS_PATH}"], cwd=root, capture_output=True,
+                          encoding="utf-8", errors="replace").stdout
+    staged = _staged_text(root, STATUS_PATH)
+    return gm.replace_block(head, "") != gm.replace_block(staged, "")
+
+
+def check_generated_models(root: str, staged: list[str]) -> None:
+    """Rule 16 — ARCHITECTURE.md's data-models block is exactly what the code
+    generates (founder, 2026-09-27, Part G). The pre-commit hook regenerates it
+    from the STAGED tree; this refuses a commit whose staged block differs from
+    a fresh generation: a hand edit, or a commit made without the hooks. It
+    runs when the document or anything the generator reads is staged."""
+    reads = (f"{PROJECT}/backend/", f"{PROJECT}/tools/architecture/", STATUS_PATH)
+    if not any(p == r or p.startswith(r) for p in staged for r in reads):
+        return
+    gm = _models_generator(root)
+    doc = _staged_text(root, STATUS_PATH)
+    if gm.block_of(doc) is None:
+        note("rule 16 data models: no generated block in ARCHITECTURE.md — skipped")
+        return
+    from pathlib import Path
+    project = _staged_tree(root).sync(Path(root)) / PROJECT
+    try:
+        body = gm.generate(project)
+    except gm.GenerationError as exc:
+        fail("the data-models generator failed on the staged tree (rule 16)", str(exc))
+    if not gm.is_current(doc, body):
+        fail("ARCHITECTURE.md's generated data-models block differs from the code (rule 16)",
+             "The block between the `BEGIN GENERATED: data models` and END markers is",
+             "rewritten from the code on every commit and is never edited by hand.",
+             "Regenerate it:  python agent-improve/tools/architecture/generate_models.py --stage",
+             "(the pre-commit hook runs exactly this); change the CODE to change the block.")
+    note("rule 16 data models: PASS — the block equals a fresh generation")
+
+
 def _annotation_only(root: str):
     """`.claude/hooks/annotation_only.py` — is a staged change annotation-only (2026-09-27)."""
     sys.path.insert(0, os.path.join(root, ".claude", "hooks"))
@@ -575,7 +627,7 @@ def check_architecture_status(root: str, staged: list[str]) -> None:
     })
     if not hits:
         return
-    if any(p.lower() == STATUS_PATH.lower() for p in staged):
+    if any(p.lower() == STATUS_PATH.lower() for p in staged) and _status_changed_by_hand(root):
         return
     # Founder 2026-09-27: an ANNOTATION-ONLY change states nothing new about
     # what the document tabulates, so it needs no ARCHITECTURE.md touch.
@@ -1549,6 +1601,10 @@ def main(argv: list[str]) -> int:
     # Rule 14 — no must / never / always sentence weakens (6.68).
     with _timer("rule 14 normative"):
         check_normative(root, all_staged)
+
+    # Rule 16 — the generated data-models block equals the code (Part G, 2026-09-27).
+    with _timer("rule 16 data models"):
+        check_generated_models(root, all_staged)
 
     # ── Rule 6 — also ahead of the prefix gate, and for the same reason ────
     # A fix lands under any type. It is a pure message check, so it costs
