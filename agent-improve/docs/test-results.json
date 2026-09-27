@@ -1,9 +1,9 @@
 {
- "source_hash": "3274e44a2321b9fb",
- "commit": "57d9d97",
+ "source_hash": "dc66799feda86121",
+ "commit": "a838149",
  "commit_matches_source": false,
- "full_run_hash": "3274e44a2321b9fb",
- "recorded_at": "2026-09-27T11:17:11+00:00",
+ "full_run_hash": "dc66799feda86121",
+ "recorded_at": "2026-09-27T11:34:21+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -33,6 +33,10 @@
   "backend/tests/test_blob.py::test_no_unawaited_async_sdk_call[blob]": "passed",
   "backend/tests/test_blob.py::test_no_unawaited_async_sdk_call[routes]": "passed",
   "backend/tests/test_blob.py::test_owned_paths_are_the_three_in_the_spec": "passed",
+  "backend/tests/test_board_value_stream.py::test_a_status_is_derived_green_amber_grey": "passed",
+  "backend/tests/test_board_value_stream.py::test_every_feature_is_one_tile_in_its_cell": "passed",
+  "backend/tests/test_board_value_stream.py::test_rule_10_reads_the_rendered_page_back_as_true": "passed",
+  "backend/tests/test_board_value_stream.py::test_the_page_has_the_mockups_blocks_and_not_the_retired_tables": "passed",
   "backend/tests/test_capability_rows.py::test_mutation_row_10_a_row_short_a_key_is_red": "passed",
   "backend/tests/test_capability_rows.py::test_mutation_row_11_a_metric_entry_that_does_not_mirror_is_red": "passed",
   "backend/tests/test_capability_rows.py::test_mutation_row_12_a_rejection_with_no_reask_is_red": "passed",
@@ -1520,8 +1524,8 @@
   "backend/tests/test_wiring_check.py::test_it_reads_what_section_3_names": "passed"
  },
  "older": {
-  "source_hash": "87848553351d040d",
-  "recorded_at": "2026-09-27T11:11:16+00:00",
+  "source_hash": "3274e44a2321b9fb",
+  "recorded_at": "2026-09-27T11:17:11+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2097,6 +2101,9 @@
    "backend/tests/test_define_e2e.py::test_t66_a_tier_2_criterion_can_never_fail_a_gate": "skipped",
    "backend/tests/test_define_e2e.py::test_t67_start_up_exits_with_status_1_when_a_required_credential_is_missing": "skipped",
    "backend/tests/test_define_e2e.py::test_t68_a_second_region_fallback_exists_before_launch_deferred": "skipped",
+   "backend/tests/test_define_e2e.py::test_t85_contextual_chunks_and_a_reranker_go_live_only_on_eval_evidence": "skipped",
+   "backend/tests/test_define_e2e.py::test_t86_the_offline_eval_set_grades_define_tasks_and_reports_pass_3": "skipped",
+   "backend/tests/test_define_e2e.py::test_t87_personal_data_is_masked_before_a_model_sees_it": "skipped",
    "backend/tests/test_define_e2e.py::test_the_as_is_process_captures_step_performance_structured": "skipped",
    "backend/tests/test_define_e2e.py::test_the_belt_can_pick_any_available_element_or_take_the_recommended_one": "skipped",
    "backend/tests/test_define_e2e.py::test_the_belt_can_see_captured_and_missing_fields": "skipped",

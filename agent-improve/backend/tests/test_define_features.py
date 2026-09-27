@@ -30,7 +30,8 @@ sys.path.insert(0, str(_TOOLS))
 import features as F  # noqa: E402
 
 FIELDS = {"id", "description", "clause", "depends_on", "test", "sources", "lane", "provenance",
-          "requirement", "belt_impact", "rework_risk", "effort", "priority_override"}
+          "requirement", "belt_impact", "rework_risk", "effort", "priority_override",
+          "phase", "stage", "layer"}
 CLAUSES = {"A Belt is coached through the thirteen elements",
            "what they say is kept and every change is dated",
            "a complete case ASSEMBLES a gate document",

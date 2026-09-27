@@ -1,5 +1,5 @@
 {
- "_about": "Define's feature list — step 6.66, founder ruling 2026-09-25 (ARCHITECTURE.md v1.78). Anthropic's long-running-harness pattern: ONE list; a feature passes only when its end-to-end test passes. There is NO status field — status is derived from docs/test-results.json by tools/control_board/features.py. Derived from four sources, cited per feature: ARCHITECTURE.md, the procedure (steps, Appendix G gaps, Appendix H capability rows), the code, and Anthropic/LangChain guidance. 'provenance' records the procedure steps, capability rows and gaps each feature was derived from (6.66), and as notes_6_66 the prose absence-claims the draft carried as code citations; code citations are path::symbol, checked by tools/control_board/citations.py. Lanes: A coaching, B gate, C screen and inputs, integrator end-to-end joins. Every feature cites ONE requirement id in 'requirement': a RATIFIED or ACCEPTED id of docs/requirements/business.md, or an ACCEPTED T id of docs/requirements/platform.md (never a PROPOSED, DRAFT or RETIRED one). The order of work is COMPUTED, never stored (ADR-0058, brief Part F3): tools/control_board/rank.py ranks every failing feature from its requirement's MoSCoW and the feature's belt_impact (dead_end | wrong_data | data_loss | degraded | none), rework_risk (high | low), effort (S | M | L), depends_on and priority_override (null, or {rank_tier, reason} — founder only). Edit a feature's description, test or sources in place; never add a status.",
+ "_about": "Define's feature list — step 6.66, founder ruling 2026-09-25 (ARCHITECTURE.md v1.78). Anthropic's long-running-harness pattern: ONE list; a feature passes only when its end-to-end test passes. There is NO status field — status is derived from docs/test-results.json by tools/control_board/features.py. Derived from four sources, cited per feature: ARCHITECTURE.md, the procedure (steps, Appendix G gaps, Appendix H capability rows), the code, and Anthropic/LangChain guidance. 'provenance' records the procedure steps, capability rows and gaps each feature was derived from (6.66), and as notes_6_66 the prose absence-claims the draft carried as code citations; code citations are path::symbol, checked by tools/control_board/citations.py. Lanes: A coaching, B gate, C screen and inputs, integrator end-to-end joins. Every feature cites ONE requirement id in 'requirement': a RATIFIED or ACCEPTED id of docs/requirements/business.md, or an ACCEPTED T id of docs/requirements/platform.md (never a PROPOSED, DRAFT or RETIRED one). The order of work is COMPUTED, never stored (ADR-0058, brief Part F3): tools/control_board/rank.py ranks every failing feature from its requirement's MoSCoW and the feature's belt_impact (dead_end | wrong_data | data_loss | degraded | none), rework_risk (high | low), effort (S | M | L), depends_on and priority_override (null, or {rank_tier, reason} — founder only). Edit a feature's description, test or sources in place; never add a status. phase (define | measure | …), stage (open_case | coached | report | approve | record_written | next_phase — where in the Belt's journey) and layer (screen | api | coaching | gate | persistence | platform) place each feature on the board's value stream (brief Part F7).",
  "features": [
   {
    "id": "DEF-001",
@@ -44,7 +44,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "api"
   },
   {
    "id": "DEF-002",
@@ -92,7 +95,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "api"
   },
   {
    "id": "DEF-003",
@@ -135,7 +141,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "persistence"
   },
   {
    "id": "DEF-004",
@@ -179,7 +188,10 @@
    "belt_impact": "none",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
   },
   {
    "id": "DEF-005",
@@ -228,7 +240,10 @@
    "belt_impact": "dead_end",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-006",
@@ -268,7 +283,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-007",
@@ -308,7 +326,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-008",
@@ -348,7 +369,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-009",
@@ -383,7 +407,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-010",
@@ -419,7 +446,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-011",
@@ -464,7 +494,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-012",
@@ -503,7 +536,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-013",
@@ -547,7 +583,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-014",
@@ -588,7 +627,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-015",
@@ -632,7 +674,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-016",
@@ -677,7 +722,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-017",
@@ -723,7 +771,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-018",
@@ -762,7 +813,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-019",
@@ -799,7 +853,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-020",
@@ -846,7 +903,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-021",
@@ -888,7 +948,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "persistence"
   },
   {
    "id": "DEF-022",
@@ -923,7 +986,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "persistence"
   },
   {
    "id": "DEF-023",
@@ -961,7 +1027,10 @@
    "belt_impact": "none",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-024",
@@ -998,7 +1067,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-025",
@@ -1033,7 +1105,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-026",
@@ -1074,7 +1149,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-027",
@@ -1109,7 +1187,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-028",
@@ -1146,7 +1227,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-029",
@@ -1197,7 +1281,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-030",
@@ -1237,7 +1324,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-031",
@@ -1272,7 +1362,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-032",
@@ -1318,7 +1411,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-033",
@@ -1353,7 +1449,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-034",
@@ -1388,7 +1487,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-035",
@@ -1433,7 +1535,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-036",
@@ -1468,7 +1573,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-037",
@@ -1512,7 +1620,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "persistence"
   },
   {
    "id": "DEF-038",
@@ -1552,7 +1663,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "persistence"
   },
   {
    "id": "DEF-039",
@@ -1592,7 +1706,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "persistence"
   },
   {
    "id": "DEF-040",
@@ -1640,7 +1757,10 @@
    "belt_impact": "wrong_data",
    "rework_risk": "high",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "gate"
   },
   {
    "id": "DEF-041",
@@ -1682,7 +1802,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "gate"
   },
   {
    "id": "DEF-042",
@@ -1725,7 +1848,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "gate"
   },
   {
    "id": "DEF-043",
@@ -1779,7 +1905,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "gate"
   },
   {
    "id": "DEF-044",
@@ -1827,7 +1956,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "gate"
   },
   {
    "id": "DEF-045",
@@ -1865,7 +1997,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "gate"
   },
   {
    "id": "DEF-046",
@@ -1910,7 +2045,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "gate"
   },
   {
    "id": "DEF-047",
@@ -1961,7 +2099,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "approve",
+   "layer": "gate"
   },
   {
    "id": "DEF-048",
@@ -2005,7 +2146,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "approve",
+   "layer": "gate"
   },
   {
    "id": "DEF-049",
@@ -2054,7 +2198,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "approve",
+   "layer": "gate"
   },
   {
    "id": "DEF-050",
@@ -2099,7 +2246,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "approve",
+   "layer": "gate"
   },
   {
    "id": "DEF-051",
@@ -2144,7 +2294,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "approve",
+   "layer": "gate"
   },
   {
    "id": "DEF-052",
@@ -2183,7 +2336,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen"
   },
   {
    "id": "DEF-053",
@@ -2227,7 +2383,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen"
   },
   {
    "id": "DEF-054",
@@ -2264,7 +2423,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen"
   },
   {
    "id": "DEF-055",
@@ -2312,7 +2474,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen"
   },
   {
    "id": "DEF-056",
@@ -2359,7 +2524,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "api"
   },
   {
    "id": "DEF-057",
@@ -2406,7 +2574,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-058",
@@ -2447,7 +2618,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "screen"
   },
   {
    "id": "DEF-059",
@@ -2483,7 +2657,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen"
   },
   {
    "id": "DEF-060",
@@ -2532,7 +2709,10 @@
    "belt_impact": "data_loss",
    "rework_risk": "high",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "record_written",
+   "layer": "persistence"
   },
   {
    "id": "DEF-061",
@@ -2569,7 +2749,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "record_written",
+   "layer": "persistence"
   },
   {
    "id": "DEF-062",
@@ -2605,7 +2788,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "next_phase",
+   "layer": "gate"
   },
   {
    "id": "DEF-063",
@@ -2651,7 +2837,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "approve",
+   "layer": "api"
   },
   {
    "id": "DEF-064",
@@ -2728,7 +2917,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "next_phase",
+   "layer": "api"
   },
   {
    "id": "DEF-065",
@@ -2757,7 +2949,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-066",
@@ -2788,7 +2983,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-067",
@@ -2819,7 +3017,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-068",
@@ -2850,7 +3051,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "gate"
   },
   {
    "id": "DEF-069",
@@ -2880,7 +3084,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "screen"
   },
   {
    "id": "DEF-070",
@@ -2908,7 +3115,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "persistence"
   },
   {
    "id": "DEF-071",
@@ -2938,7 +3148,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "approve",
+   "layer": "screen"
   },
   {
    "id": "DEF-072",
@@ -2970,7 +3183,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "gate"
   },
   {
    "id": "DEF-074",
@@ -3002,7 +3218,10 @@
    "belt_impact": "wrong_data",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "screen"
   },
   {
    "id": "DEF-075",
@@ -3028,7 +3247,10 @@
    "belt_impact": "dead_end",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-076",
@@ -3054,7 +3276,10 @@
    "belt_impact": "wrong_data",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-077",
@@ -3078,7 +3303,10 @@
    "belt_impact": "dead_end",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
   },
   {
    "id": "DEF-078",
@@ -3102,7 +3330,10 @@
    "belt_impact": "dead_end",
    "rework_risk": "high",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
   },
   {
    "id": "DEF-079",
@@ -3128,7 +3359,10 @@
    "belt_impact": "dead_end",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen"
   },
   {
    "id": "DEF-080",
@@ -3152,7 +3386,10 @@
    "belt_impact": "wrong_data",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "screen"
   },
   {
    "id": "DEF-081",
@@ -3178,7 +3415,10 @@
    "belt_impact": "dead_end",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen"
   },
   {
    "id": "DEF-082",
@@ -3204,7 +3444,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "persistence"
   },
   {
    "id": "DEF-083",
@@ -3228,7 +3471,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-084",
@@ -3254,7 +3500,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-085",
@@ -3281,7 +3530,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-086",
@@ -3307,7 +3559,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "screen"
   },
   {
    "id": "DEF-087",
@@ -3333,7 +3588,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "screen"
   },
   {
    "id": "DEF-088",
@@ -3357,7 +3615,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "screen"
   },
   {
    "id": "DEF-089",
@@ -3381,7 +3642,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen"
   },
   {
    "id": "DEF-090",
@@ -3405,7 +3669,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen"
   },
   {
    "id": "DEF-091",
@@ -3429,7 +3696,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen"
   },
   {
    "id": "DEF-092",
@@ -3453,7 +3723,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen"
   },
   {
    "id": "DEF-093",
@@ -3479,7 +3752,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "approve",
+   "layer": "api"
   },
   {
    "id": "DEF-094",
@@ -3505,7 +3781,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
   },
   {
    "id": "DEF-095",
@@ -3529,7 +3808,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen"
   },
   {
    "id": "DEF-096",
@@ -3553,7 +3835,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "platform"
   },
   {
    "id": "DEF-097",
@@ -3577,7 +3862,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "next_phase",
+   "layer": "persistence"
   },
   {
    "id": "DEF-098",
@@ -3603,7 +3891,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-099",
@@ -3627,7 +3918,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen"
   },
   {
    "id": "DEF-100",
@@ -3653,7 +3947,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "approve",
+   "layer": "gate"
   },
   {
    "id": "DEF-101",
@@ -3679,7 +3976,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "record_written",
+   "layer": "screen"
   },
   {
    "id": "DEF-102",
@@ -3703,7 +4003,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "api"
   },
   {
    "id": "DEF-103",
@@ -3727,7 +4030,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "api"
   },
   {
    "id": "DEF-104",
@@ -3751,7 +4057,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "api"
   },
   {
    "id": "DEF-105",
@@ -3777,7 +4086,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "api"
   },
   {
    "id": "DEF-106",
@@ -3801,7 +4113,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "screen"
   },
   {
    "id": "DEF-107",
@@ -3827,7 +4142,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-108",
@@ -3853,7 +4171,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "api"
   },
   {
    "id": "DEF-109",
@@ -3879,7 +4200,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "api"
   },
   {
    "id": "DEF-110",
@@ -3905,7 +4229,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen"
   },
   {
    "id": "DEF-111",
@@ -3929,7 +4256,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen"
   },
   {
    "id": "DEF-112",
@@ -3953,7 +4283,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "screen"
   },
   {
    "id": "DEF-113",
@@ -3977,7 +4310,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "screen"
   },
   {
    "id": "DEF-114",
@@ -4001,7 +4337,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "screen"
   },
   {
    "id": "DEF-115",
@@ -4025,7 +4364,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "persistence"
   },
   {
    "id": "DEF-116",
@@ -4051,7 +4393,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "api"
   },
   {
    "id": "DEF-117",
@@ -4075,7 +4420,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "record_written",
+   "layer": "persistence"
   },
   {
    "id": "DEF-118",
@@ -4099,7 +4447,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "approve",
+   "layer": "persistence"
   },
   {
    "id": "DEF-119",
@@ -4123,7 +4474,10 @@
    "belt_impact": "none",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "persistence"
   },
   {
    "id": "DEF-120",
@@ -4147,7 +4501,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "persistence"
   },
   {
    "id": "DEF-121",
@@ -4171,7 +4528,10 @@
    "belt_impact": "none",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
   },
   {
    "id": "DEF-122",
@@ -4195,7 +4555,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
   },
   {
    "id": "DEF-123",
@@ -4219,7 +4582,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
   },
   {
    "id": "DEF-124",
@@ -4243,7 +4609,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
   },
   {
    "id": "DEF-125",
@@ -4267,7 +4636,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
   },
   {
    "id": "DEF-126",
@@ -4291,7 +4663,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "persistence"
   },
   {
    "id": "DEF-127",
@@ -4315,7 +4690,10 @@
    "belt_impact": "none",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
   },
   {
    "id": "DEF-128",
@@ -4339,7 +4717,10 @@
    "belt_impact": "none",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
   },
   {
    "id": "DEF-129",
@@ -4363,7 +4744,10 @@
    "belt_impact": "none",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
   },
   {
    "id": "DEF-130",
@@ -4387,7 +4771,10 @@
    "belt_impact": "none",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
   },
   {
    "id": "DEF-131",
@@ -4411,7 +4798,10 @@
    "belt_impact": "none",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "gate"
   },
   {
    "id": "DEF-132",
@@ -4435,7 +4825,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-133",
@@ -4459,7 +4852,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-134",
@@ -4483,7 +4879,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "api"
   },
   {
    "id": "DEF-135",
@@ -4507,7 +4906,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "persistence"
   },
   {
    "id": "DEF-136",
@@ -4531,7 +4933,10 @@
    "belt_impact": "none",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
   },
   {
    "id": "DEF-137",
@@ -4555,7 +4960,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "gate"
   },
   {
    "id": "DEF-138",
@@ -4579,7 +4987,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "gate"
   },
   {
    "id": "DEF-139",
@@ -4603,7 +5014,10 @@
    "belt_impact": "none",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "platform"
   },
   {
    "id": "DEF-140",
@@ -4627,7 +5041,10 @@
    "belt_impact": "none",
    "rework_risk": "low",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
   },
   {
    "id": "DEF-141",
@@ -4655,7 +5072,10 @@
    "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "S",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "screen"
   },
   {
    "id": "DEF-142",
@@ -4679,7 +5099,10 @@
    "belt_impact": "none",
    "rework_risk": "low",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
   },
   {
    "id": "DEF-143",
@@ -4708,7 +5131,10 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "L",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   },
   {
    "id": "DEF-144",
@@ -4734,7 +5160,10 @@
    "belt_impact": "none",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
   }
  ]
 }

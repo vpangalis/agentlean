@@ -36,6 +36,10 @@ EFFORT = {"S": 1, "M": 2, "L": 3}
 MOSCOW_TIER = {"Must": 2, "?": 2, "Should": 3, "Could": 4}
 #: Milestones M1–M3 are tiers 1–3 (founder ruling 1 on the Parts A–D report, 2026-09-27).
 MILESTONES = {"M1": 1, "M2": 2, "M3": 3}
+#: Where a feature sits on the board's value stream (brief Part F7).
+PHASES = ("define", "measure", "analyse", "improve", "control")
+STAGES = ("open_case", "coached", "report", "approve", "record_written", "next_phase")
+LAYERS = ("screen", "api", "coaching", "gate", "persistence", "platform")
 
 
 def problems(features: list[dict]) -> list[str]:
@@ -49,6 +53,9 @@ def problems(features: list[dict]) -> list[str]:
             out.append(f"{fid}: rework_risk {f.get('rework_risk')!r} is not high or low")
         if f.get("effort") not in EFFORT:
             out.append(f"{fid}: effort {f.get('effort')!r} is not S, M or L")
+        for key, allowed in (("phase", PHASES), ("stage", STAGES), ("layer", LAYERS)):
+            if f.get(key) not in allowed:
+                out.append(f"{fid}: {key} {f.get(key)!r} is not one of {list(allowed)}")
         o = f.get("priority_override", "missing")
         if o == "missing":
             out.append(f"{fid}: no priority_override field (null, or {{rank_tier, reason}})")
