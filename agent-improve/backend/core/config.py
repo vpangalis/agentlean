@@ -5,6 +5,14 @@ from typing import Optional
 
 from pydantic.v1 import BaseSettings, Field
 
+#: The methodology index the coach reads when `AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX`
+#: is unset — the CURRENT one: the BB-eBook-only rebuild (`871637f`, 1,184 docs).
+#: **Never `RETIRED_KNOWLEDGE_INDEX`**: that index is retained in Azure but carries
+#: the contaminated corpus the rebuild removed, and until 2026-09-27 it was this
+#: default, so a missing variable silently coached from it (inventory Z05).
+KNOWLEDGE_INDEX_DEFAULT = "improve_knowledge_index_v3"
+RETIRED_KNOWLEDGE_INDEX = "improve_knowledge_index"
+
 
 class Settings(BaseSettings):
     AZURE_OPENAI_ENDPOINT: str = Field(
@@ -61,7 +69,7 @@ class Settings(BaseSettings):
         description="Azure AI Search index for Agent Improve cases.",
     )
     AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX: str = Field(
-        "improve_knowledge_index",
+        KNOWLEDGE_INDEX_DEFAULT,
         env="AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX",
         description="Azure AI Search index for Agent Improve knowledge.",
     )
@@ -178,7 +186,7 @@ settings = Settings(
     AZURE_SEARCH_ENDPOINT=os.getenv("AZURE_SEARCH_ENDPOINT", ""),
     AZURE_SEARCH_API_KEY=os.getenv("AZURE_SEARCH_API_KEY", ""),
     AZURE_SEARCH_IMPROVE_CASE_INDEX=os.getenv("AZURE_SEARCH_IMPROVE_CASE_INDEX", "improve_case_index"),
-    AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX=os.getenv("AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX", "improve_knowledge_index"),
+    AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX=os.getenv("AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX", KNOWLEDGE_INDEX_DEFAULT),
     AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX=os.getenv("AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX", "improve_evidence_index"),
     AZURE_SEARCH_RESOLVE_CASE_INDEX=os.getenv("AZURE_SEARCH_RESOLVE_CASE_INDEX", "case_index_v3"),
     AZURE_SEARCH_RESOLVE_KNOWLEDGE_INDEX=os.getenv("AZURE_SEARCH_RESOLVE_KNOWLEDGE_INDEX", "knowledge_index_v2"),

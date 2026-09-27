@@ -1,9 +1,9 @@
 {
- "source_hash": "0e345f4dcb0d5bdf",
- "commit": "01f3767",
+ "source_hash": "57e5844e644d121f",
+ "commit": "82b9251",
  "commit_matches_source": false,
- "full_run_hash": "0e345f4dcb0d5bdf",
- "recorded_at": "2026-09-27T06:16:56+00:00",
+ "full_run_hash": "57e5844e644d121f",
+ "recorded_at": "2026-09-27T06:23:51+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1158,7 +1158,9 @@
   "backend/tests/test_retriever.py::test_status_codes_classify_as_ratified[500-SERVICE_ERROR-transient-retry_after_backoff]": "passed",
   "backend/tests/test_retriever.py::test_status_codes_classify_as_ratified[503-SERVICE_ERROR-transient-retry_after_backoff]": "passed",
   "backend/tests/test_retriever.py::test_the_embedding_call_is_inside_the_same_try": "passed",
+  "backend/tests/test_retriever.py::test_the_example_env_names_the_same_knowledge_index_as_the_default": "passed",
   "backend/tests/test_retriever.py::test_the_failure_block_carries_no_response_scaffolding": "passed",
+  "backend/tests/test_retriever.py::test_the_knowledge_index_default_is_the_current_index_never_the_retired_one": "passed",
   "backend/tests/test_retriever.py::test_the_raw_client_paths_return_empty_on_a_genuine_no_match[<lambda>0]": "passed",
   "backend/tests/test_retriever.py::test_the_raw_client_paths_return_empty_on_a_genuine_no_match[<lambda>1]": "passed",
   "backend/tests/test_session_start.py::test_the_session_start_hook_prints_every_section": "passed",
@@ -1385,8 +1387,8 @@
   "backend/tests/test_wiring.py::test_wired_6_61_the_move_is_decided_in_code": "passed"
  },
  "older": {
-  "source_hash": "fdb29e8b964f8bc5",
-  "recorded_at": "2026-09-26T17:26:07+00:00",
+  "source_hash": "0e345f4dcb0d5bdf",
+  "recorded_at": "2026-09-27T06:16:56+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2010,7 +2012,7 @@
    "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[8-target_value]": "skipped",
    "backend/tests/test_define_runthrough.py::test_run_field_is_captured_after_confirm[9-target_date]": "skipped",
    "backend/tests/test_define_runthrough.py::test_run_sends_no_trace": "skipped",
-   "backend/tests/test_define_runthrough.py::test_run_the_validation_layer_is_consistent_over_five_runs": "passed",
+   "backend/tests/test_define_runthrough.py::test_run_the_validation_layer_is_consistent_over_five_runs": "skipped",
    "backend/tests/test_define_runthrough.py::test_runthrough_metric_meaning_comes_from_the_registry": "skipped",
    "backend/tests/test_define_runthrough.py::test_runthrough_no_reply_carries_a_link": "skipped",
    "backend/tests/test_define_runthrough.py::test_runthrough_the_same_turn_makes_the_same_move": "skipped",

@@ -409,3 +409,44 @@ def test_every_retrieval_function_documents_the_empty_list_contract() -> None:
         doc = (fn.__doc__ or "").lower()
         assert "only when the search ran and matched nothing" in doc, fn.__name__
         assert "knowledgesearcherror" in doc, fn.__name__
+
+
+# ── The knowledge-index default (founder, 2026-09-27; inventory Z05) ──────
+#
+# Until 2026-09-27 an unset AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX fell back to
+# `improve_knowledge_index` — the retained, contaminated corpus — and only the
+# local `.env` pointed the coach at the rebuilt one. Both default paths in
+# `config.py` (the Field default and the module's `os.getenv` fallback) are
+# pinned here, with the variable ABSENT, so neither can drift back.
+
+
+def test_the_knowledge_index_default_is_the_current_index_never_the_retired_one(
+        monkeypatch) -> None:
+    import runpy
+
+    import dotenv
+
+    from backend.core import config
+
+    assert config.KNOWLEDGE_INDEX_DEFAULT == "improve_knowledge_index_v3"
+    assert config.KNOWLEDGE_INDEX_DEFAULT != config.RETIRED_KNOWLEDGE_INDEX
+    field = config.Settings.__fields__["AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX"]
+    assert field.default == config.KNOWLEDGE_INDEX_DEFAULT
+
+    # The module-level `settings` with the variable unset and no `.env` read.
+    monkeypatch.delenv("AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX", raising=False)
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda *a, **k: False)
+    fresh = runpy.run_path(config.__file__)["settings"]
+    assert fresh.AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX == "improve_knowledge_index_v3"
+
+
+def test_the_example_env_names_the_same_knowledge_index_as_the_default() -> None:
+    import pathlib
+
+    from backend.core import config
+
+    example = pathlib.Path(config.__file__).resolve().parents[2] / ".env.example"
+    lines = example.read_text(encoding="utf-8").splitlines()
+    named = [ln.split("=", 1)[1].strip() for ln in lines
+             if ln.startswith("AZURE_SEARCH_IMPROVE_KNOWLEDGE_INDEX=")]
+    assert named == [config.KNOWLEDGE_INDEX_DEFAULT]
