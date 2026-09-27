@@ -32,7 +32,8 @@ def test_the_block_declares_every_class_and_every_table() -> None:
     body = gm.generate(_PROJECT)
     for name in CLASSES:
         assert f"class {name}(" in body, name
-    for heading in ("### 4.5 Search indexes", "### 4.6 Store namespaces", "### 4.7 Blob layout"):
+    assert body.startswith("### 4.2 Declarations"), "v2: the block is §4.2"
+    for heading in ("#### Search indexes", "#### Store namespaces", "#### Blob layout"):
         assert heading in body
     assert "`content_digest`" in body and "`embedding`" in body and "`page_number`" in body
     assert gm.generate(_PROJECT) == body, "generation is deterministic"

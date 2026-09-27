@@ -53,6 +53,8 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("4.3", ("SufficiencyJudgment", "CoachingPlan", "CoachingResponse")),
     ("4.4", ("DefineOutput", "MeasureOutput", "AnalyseOutput", "ImproveOutput", "ControlOutput")),
 )
+#: v2 (ARCHITECTURE.md 2.0): the block is §4.2 "Declarations", one #### per group;
+#: the hand-written §4.1 sits above it, outside the markers.
 TITLES = {"4.3": "Planner and coach schemas", "4.4": "Phase records"}
 _TYPE = {"SearchFieldDataType.String": "Edm.String", "SearchFieldDataType.Int32": "Edm.Int32",
          "SearchFieldDataType.Collection(SearchFieldDataType.Single)": "Collection(Edm.Single)"}
@@ -208,7 +210,7 @@ def generate(project: Path = PROJECT) -> str:
         title = TITLES.get(num) or f"`{group[0]}`"
         where = ", ".join(f"`{p}`" for p in paths) if len(paths) <= 2 else "`phases/{phase}/schema.py`"
         body = "\n\n".join(render_class(n, *classes[n]) for n in group)
-        parts.append(f"### {num} {title} — {where}\n\n```python\n{body}\n```")
+        parts.append(f"#### {title} — {where}\n\n```python\n{body}\n```")
 
     config, _ = _parse(project / "backend" / "core" / "config.py")
     retriever, _ = _parse(project / "backend" / "knowledge" / "retriever.py")
@@ -223,7 +225,7 @@ def generate(project: Path = PROJECT) -> str:
         ("AZURE_SEARCH_IMPROVE_EVIDENCE_INDEX", "`storage/layout.py::EVIDENCE_INDEX`", list(lit("EVIDENCE_INDEX"))),
         ("AZURE_SEARCH_IMPROVE_CASE_INDEX", "`storage/layout.py::CASE_INDEX`", list(lit("CASE_INDEX"))),
     ]
-    sec = ["### 4.5 Search indexes — Azure AI Search"]
+    sec = ["#### Search indexes — Azure AI Search"]
     for setting, owner, spec in idx:
         sec.append(f"**`{_setting_default(config, setting)}`** — the default of `settings.{setting}`; "
                    f"fields owned by {owner}\n\n{render_index(spec)}")
@@ -231,15 +233,15 @@ def generate(project: Path = PROJECT) -> str:
 
     ns = ["| Namespace | Key | Holds |", "|---|---|---|"]
     ns += [f"| `{a}` | `{b}` | {c} |" for a, b, c in lit("STORE_NAMESPACES")]
-    parts.append("### 4.6 Store namespaces — `storage/layout.py::STORE_NAMESPACES`\n\n" + "\n".join(ns))
+    parts.append("#### Store namespaces — `storage/layout.py::STORE_NAMESPACES`\n\n" + "\n".join(ns))
 
     container = _setting_default(config, "AZURE_BLOB_CONTAINER_IMPROVE")
     bl = ["| Path | Owner | Holds |", "|---|---|---|"]
     bl += [f"| `{p}` | `{o}` | {h} |" for p, o, h in lit("BLOB_PATHS")]
-    parts.append(f"### 4.7 Blob layout — container `{container}` (the default of "
+    parts.append(f"#### Blob layout — container `{container}` (the default of "
                  "`settings.AZURE_BLOB_CONTAINER_IMPROVE`); `storage/layout.py::BLOB_PATHS`\n\n"
                  + "\n".join(bl))
-    return "\n\n".join(parts) + "\n"
+    return "### 4.2 Declarations\n\n" + "\n\n".join(parts) + "\n"
 
 
 def _span(doc: str) -> tuple[int, int] | None:

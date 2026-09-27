@@ -1,9 +1,9 @@
 {
- "source_hash": "3cbffb95dd44727e",
- "commit": "9bff8eb",
+ "source_hash": "5cb23f2a2789a37e",
+ "commit": "a92dbc1",
  "commit_matches_source": false,
- "full_run_hash": "3cbffb95dd44727e",
- "recorded_at": "2026-09-27T09:10:29+00:00",
+ "full_run_hash": "5cb23f2a2789a37e",
+ "recorded_at": "2026-09-27T09:31:01+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1500,8 +1500,8 @@
   "backend/tests/test_wiring.py::test_wired_6_61_the_move_is_decided_in_code": "passed"
  },
  "older": {
-  "source_hash": "22821dc3ff43e7d5",
-  "recorded_at": "2026-09-27T09:07:14+00:00",
+  "source_hash": "3cbffb95dd44727e",
+  "recorded_at": "2026-09-27T09:10:29+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
