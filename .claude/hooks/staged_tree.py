@@ -124,12 +124,25 @@ def run_suite(root: Path = ROOT) -> tuple[int, str]:
     record inside the staged worktree; it is copied back to the checkout,
     where the board, the ratchet and rule 11 read it and the hook stages it."""
     wt = sync(root)
-    r = run([venv_python(root), "-m", "pytest", "backend/tests", "-q", "--no-header",
-             "-p", "no:cacheprovider", "-n", "auto"], wt, root, AGENT_IMPROVE_FULL_RUN="1")
+    base = [venv_python(root), "-m", "pytest", "backend/tests", "-q", "--no-header",
+            "-p", "no:cacheprovider"]
+    # Two passes (founder, 2026-09-27): everything but `serial` in parallel, then
+    # the `serial` tests alone — a test timing the event loop cannot share the
+    # machine. Both runs are on the same source, so the recorder MERGES them into
+    # one record. Exit 5 is "no test selected", not a failure.
+    par = run([*base, "-n", "auto", "-m", "not serial"], wt, root, AGENT_IMPROVE_FULL_RUN="1")
+    ser = run([*base, "-n", "0", "-m", "serial"], wt, root, AGENT_IMPROVE_FULL_RUN="1")
     record = wt / PROJECT / "docs" / "test-results.json"
     if record.is_file():
         shutil.copyfile(record, root / PROJECT / "docs" / "test-results.json")
-    return r.returncode, (r.stdout or "") + (r.stderr or "")
+    codes = [c for c in (par.returncode, ser.returncode) if c not in (0, 5)]
+
+    def last(r: subprocess.CompletedProcess) -> str:
+        return next((ln for ln in reversed(((r.stdout or "") + (r.stderr or "")).splitlines())
+                     if ln.strip()), "").strip()
+    out = ((par.stdout or "") + (par.stderr or "") + (ser.stdout or "") + (ser.stderr or "")
+           + "\n" + f"parallel: {last(par)} | serial: {last(ser)}" + "\n")
+    return (codes[0] if codes else 0), out
 
 
 if __name__ == "__main__":

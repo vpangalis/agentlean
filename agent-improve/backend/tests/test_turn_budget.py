@@ -144,6 +144,11 @@ def test_a_slow_turn_answers_before_the_wall(slow_turn) -> None:
         f"no partial_timeout in step_log: {[e.get('status') for e in out['step_log']]}")
 
 
+# SERIAL (founder, 2026-09-27): it measures wall-clock loop stalls against a
+# fixed 100 ms, and under the parallel suite's CPU load it failed once on a
+# tree where it passes alone (3 of 3). It runs in the suite's serial pass, with
+# nothing else running, until it measures loop LAG load-tolerantly.
+@pytest.mark.serial
 def test_no_knowledge_tool_blocks_the_loop(blocking_lookups) -> None:
     """**The watchdog.** While each lookup runs against a search that blocks,
     a heartbeat ticking every 10 ms must never stall for more than 100 ms. A

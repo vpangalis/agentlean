@@ -426,6 +426,13 @@ def _is_worker(config) -> bool:
     return hasattr(config, "workerinput")
 
 
+def pytest_configure(config):
+    """The `serial` marker (founder, 2026-09-27): a test that measures wall-clock
+    time and cannot share the machine. The commit's full run takes the rest in
+    parallel, then these alone (`staged_tree.run_suite`)."""
+    config.addinivalue_line("markers", "serial: runs in the suite's serial pass, alone")
+
+
 def pytest_sessionstart(session):
     import time as _time
     _SESSION_START.append(_time.monotonic())

@@ -45,6 +45,11 @@ therefore 1, 2b, 3, 4, 5, 6, 7 and 8.
      lowered by the pre-commit hook, refused on a rise (founder, 2026-09-27).
   4. TESTS — pytest green.
 
+  15. CHORE SCOPE — a `chore(...)` subject may change `agent-improve/backend/`
+     (tests excluded) only by type annotations; a defect fix carries `fix` or a
+     `Gap:` trailer (founder, 2026-09-27). Rule 2b skips an annotation-only
+     change to the paths it watches.
+
   5. CONTINUITY — `agent-improve/docs/CONTINUITY.md` is staged AND its CURRENT
      BUILD STATUS block matches what regeneration from the staged inputs
      produces. CONTINUITY.md is what a new session reads first, and a
@@ -425,6 +430,46 @@ def run_mypy(root: str, py: str, files: list[str]) -> collections.Counter:
     return counter
 
 
+def _annotation_only(root: str):
+    """`.claude/hooks/annotation_only.py` — is a staged change annotation-only (2026-09-27)."""
+    sys.path.insert(0, os.path.join(root, ".claude", "hooks"))
+    import annotation_only
+    return annotation_only
+
+
+CHORE_RE = re.compile(r"^chore(\([^)]*\))?!?:")
+BACKEND_CODE = f"{PROJECT}/backend/"
+BACKEND_TESTS = f"{PROJECT}/backend/tests/"
+
+
+def check_chore_scope(root: str, subject: str, message: str, staged: list[str]) -> None:
+    """Rule 15 — a `chore(...)` commit changes backend code only in annotations
+    (founder, 2026-09-27). A defect fix says so: a `fix(...)` subject, or a
+    `Gap: G-nn` trailer naming its entry in docs/defects.json — and then rule 6
+    asks for its 8D. 8f26a04 changed config.py's behaviour under `chore(config)`.
+
+    Scope: `agent-improve/backend/`, tests excluded — a test is not the product.
+    Annotation-only is `annotation_only.py`'s definition: syntax trees equal
+    once annotations are removed (a model's fields and a decorated function's
+    annotations are behaviour, and are kept).
+    """
+    if not CHORE_RE.match(subject) or _GAP_TRAILER_RE.search(message):
+        return
+    backend = [p for p in staged if p.startswith(BACKEND_CODE) and not p.startswith(BACKEND_TESTS)]
+    if not backend:
+        return
+    ao = _annotation_only(root)
+    code = [p for p in backend if not ao.staged_is_annotation_only(root, p)]
+    if code:
+        fail("a chore(...) commit changes backend code beyond annotations (rule 15)",
+             "Changed in behaviour, not only in type annotations:",
+             *[f"  - {p}" for p in code], "",
+             "A defect fix carries `fix(...)` or a `Gap: G-nn` trailer (docs/defects.json),",
+             "and rule 6 then asks for its 8D; new behaviour is `feat(...)` or `refactor(...)`.",
+             "A `chore(...)` commit may change backend/ only by annotations (founder, 2026-09-27).")
+    note(f"rule 15 chore scope: PASS — {len(backend)} backend file(s), annotations only")
+
+
 def _staged_tree(root: str):
     """`.claude/hooks/staged_tree.py` — the second worktree set to the index (6.68)."""
     sys.path.insert(0, os.path.join(root, ".claude", "hooks"))
@@ -531,6 +576,13 @@ def check_architecture_status(root: str, staged: list[str]) -> None:
     if not hits:
         return
     if any(p.lower() == STATUS_PATH.lower() for p in staged):
+        return
+    # Founder 2026-09-27: an ANNOTATION-ONLY change states nothing new about
+    # what the document tabulates, so it needs no ARCHITECTURE.md touch.
+    touched = [p for p in staged for w in hits
+               if (p.lower().startswith(w.lower()) if w.endswith("/") else p.lower() == w.lower())]
+    if touched and all(_annotation_only(root).staged_is_annotation_only(root, p) for p in touched):
+        note(f"rule 2b status: {len(touched)} watched path(s) changed only in annotations — skipped")
         return
     fail("the architecture status document was not updated in this commit",
          f"Required: {STATUS_PATH}", "",
@@ -1504,6 +1556,10 @@ def main(argv: list[str]) -> int:
     # that was going to be rejected on its body anyway.
     with _timer("rule 6 8d"):
         check_8d(subject, message)
+
+    # Rule 15 — a chore commit changes backend code only in annotations (2026-09-27).
+    with _timer("rule 15 chore scope"):
+        check_chore_scope(root, subject, message, all_staged)
 
     rules = gated_rules(subject, all_staged)
     if not rules:

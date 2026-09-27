@@ -582,3 +582,111 @@ def test_the_record_is_committed_and_the_hooks_run_it() -> None:
     assert "mypy_ratchet.py --lower" in hook
     assert '("3b", spine or code)' in _HOOK.read_text(encoding="utf-8")
 
+
+# ══════════════════════════════════════════════════════════════════════════
+# Rule 15 and rule 2b's skip — what counts as ANNOTATION-ONLY (2026-09-27)
+# ══════════════════════════════════════════════════════════════════════════
+
+
+def _ao():
+    import sys
+    sys.path.insert(0, str(Path(_ROOT) / ".claude" / "hooks"))
+    import annotation_only
+    return annotation_only
+
+
+BASE = NEWLINE.join([
+    "from typing import Any",
+    "def run(graph, state: dict, n: int = 1) -> dict:",
+    "    out: list = []  # a note",
+    "    return {'s': state, 'n': n}",
+    "class Model:",
+    "    field: int",
+    ""])
+
+
+@pytest.mark.parametrize("new", [
+    BASE.replace("state: dict", "state: Any"),                                  # a parameter
+    BASE.replace(") -> dict:", ") -> dict[str, Any]:"),                        # a return
+    BASE.replace("out: list = []", "out: list[int] = []"),                      # a local
+    BASE.replace("from typing import Any", "from typing import Any, List"),     # a typing import
+    BASE.replace("  # a note", "  # another note"),                             # a comment
+    BASE.replace("def run(", "# why the state is Any" + NEWLINE + "def run("),  # a comment line
+])
+def test_these_changes_are_annotation_only(new: str) -> None:
+    assert _ao().is_annotation_only(BASE, new)
+
+
+@pytest.mark.parametrize("new", [
+    BASE.replace("'n': n", "'n': n + 1"),                                       # behaviour
+    BASE.replace("field: int", "field: str"),                                   # a model field
+    BASE.replace("def run(", "@tool" + NEWLINE + "def run(").replace("state: dict", "state: Any"),
+    BASE.replace("    out:", "    '''doc'''" + NEWLINE + "    out:"),           # a docstring
+])
+def test_these_changes_are_not(new: str) -> None:
+    assert not _ao().is_annotation_only(BASE, new)
+
+
+def test_added_deleted_and_unparseable_files_are_not_annotation_only() -> None:
+    ao = _ao()
+    assert not ao.is_annotation_only(None, BASE)
+    assert not ao.is_annotation_only(BASE, None)
+    assert not ao.is_annotation_only(BASE, "def (")
+
+
+def test_the_two_commits_that_prompted_the_rule_classify_as_ruled() -> None:
+    """82b9251's backend changes were annotations only (2b need not have fired);
+    8f26a04's config.py change was behaviour under `chore(config)` (rule 15 refuses)."""
+    ao = _ao()
+
+    def show(spec: str) -> str:
+        return subprocess.run(["git", "show", spec], cwd=_ROOT, capture_output=True,
+                              encoding="utf-8", errors="replace").stdout
+    for f in ("agent-improve/backend/core/checkpointer.py", "agent-improve/backend/gateway/routes.py"):
+        assert ao.is_annotation_only(show(f"82b9251~1:{f}"), show(f"82b9251:{f}")), f
+    f = "agent-improve/backend/core/config.py"
+    assert not ao.is_annotation_only(show(f"8f26a04~1:{f}"), show(f"8f26a04:{f}"))
+
+
+@pytest.mark.parametrize("subject,message,staged,refused", [
+    ("chore(config): x", "", ["agent-improve/backend/core/config.py"], True),
+    ("chore: x", "", ["agent-improve/backend/core/config.py"], True),
+    ("chore(config): x", "body\n\nGap: G-112\n", ["agent-improve/backend/core/config.py"], False),
+    ("fix(config): x", "", ["agent-improve/backend/core/config.py"], False),
+    ("chore(tooling): x", "", [".claude/hooks/timing.py"], False),
+    ("chore(tooling): x", "", ["agent-improve/backend/tests/test_turn_budget.py"], False),
+])
+def test_rule_15_refuses_a_chore_that_changes_backend_behaviour(
+        monkeypatch, subject, message, staged, refused) -> None:
+    ao = _ao()
+    monkeypatch.setattr(ao, "staged_is_annotation_only", lambda root, p: False)
+    if refused:
+        with pytest.raises(SystemExit):
+            g.check_chore_scope(_ROOT, subject, message, staged)
+    else:
+        g.check_chore_scope(_ROOT, subject, message, staged)
+
+
+def test_rule_15_passes_a_chore_that_only_annotates(monkeypatch) -> None:
+    ao = _ao()
+    monkeypatch.setattr(ao, "staged_is_annotation_only", lambda root, p: True)
+    g.check_chore_scope(_ROOT, "chore(types): x", "", ["agent-improve/backend/core/checkpointer.py"])
+
+
+def test_rule_2b_skips_an_annotation_only_change_and_fires_on_behaviour(monkeypatch) -> None:
+    ao = _ao()
+    watched = next(w for w in g.STATUS_WATCHED if not w.endswith("/"))
+    monkeypatch.setattr(ao, "staged_is_annotation_only", lambda root, p: True)
+    g.check_architecture_status(_ROOT, [watched])
+    monkeypatch.setattr(ao, "staged_is_annotation_only", lambda root, p: False)
+    with pytest.raises(SystemExit):
+        g.check_architecture_status(_ROOT, [watched])
+
+
+def test_the_suite_runs_serial_tests_alone_after_the_parallel_pass() -> None:
+    src = (Path(_ROOT) / ".claude" / "hooks" / "staged_tree.py").read_text(encoding="utf-8")
+    assert '"-n", "auto", "-m", "not serial"' in src and '"-n", "0", "-m", "serial"' in src
+    budget = (Path(_ROOT) / "agent-improve" / "backend" / "tests" / "test_turn_budget.py").read_text(
+        encoding="utf-8")
+    assert "@pytest.mark.serial" + NEWLINE + "def test_no_knowledge_tool_blocks_the_loop" in budget
+
