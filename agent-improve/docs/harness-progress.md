@@ -22,7 +22,7 @@ the R7 rubric. New features DEF-065–072 (R2–R7).
 | Lane | Branch · worktree | Starts at |
 |---|---|---|
 | A — coaching | `lane/a-coaching` · `../AgentLean-lane-a-coaching` | DEF-005 first (strict dependencies), then the Confirm at field 5 (DEF-008, DEF-029) |
-| B — gate | `lane/b-gate` · `../AgentLean-lane-b-gate` | D22 first (ruled 2026-09-26): the gate write moves into `gate_apply`; then DEF-040 (the stop is a node) and DEF-062 |
+| B — gate | `lane/b-gate` · `../AgentLean-lane-b-gate` | D22 first (ruled 2026-09-26): the gate write moves into `gate_apply`, and with it G-112 (founder 2026-09-27: Measure never receives the Define result — `gate_apply` must also call the output mapper); then DEF-040 (the stop is a node) and DEF-062 |
 | C — screen and inputs | `lane/c-screen-inputs` · `../AgentLean-lane-c-screen-inputs` | DEF-052 |
 | Integrator | `lane/integrator` · `../AgentLean-lane-integrator` | merges A/B/C; re-runs `scripts/define_runthrough.py` |
 

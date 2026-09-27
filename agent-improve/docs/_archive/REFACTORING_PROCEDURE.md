@@ -400,7 +400,7 @@ reports ≥1.2.6, `pytest backend/tests/` is green, and the app starts.
 | | |
 |---|---|
 | **Reference §** | §12 · CLAUDE.md §3.1, §14 no-go list |
-| **Touches** | [`core/graph.py:73`](../backend/core/graph.py#L73) |
+| **Touches** | [`core/graph.py:73`](../../backend/core/graph.py#L73) |
 | **Precondition** | 2.3 |
 | **Verify** | `grep-absence` |
 
@@ -448,7 +448,7 @@ zero hits, and a `/ask` turn still returns coaching text.
 | | |
 |---|---|
 | **Reference §** | §21 (roles, temperature, factory) · §54 (where classes live) |
-| **Touches** | [`core/llm.py`](../backend/core/llm.py) · every `get_llm(...)` call site |
+| **Touches** | [`core/llm.py`](../../backend/core/llm.py) · every `get_llm(...)` call site |
 | **Precondition** | 2.6 |
 | **Verify** | `pytest` |
 
@@ -4923,6 +4923,7 @@ resolved out of this group** (§66.6); G-05, G-06, G-07 and G-08 remain.
 | **G-109** | **THE AMBER IS WHOLE-TREE, NOT PER ROW.** `progress.source_hash` hashes every file under `backend/`, `ui/` and `skills/`, and a recorded test outcome is green only on the hash it was run against. So a change to ANY product file turns EVERY test-based status amber, not only the rows whose tests exercise that file. Measured at 6.64: one comment line appended to `backend/phases/define/nodes.py`, no re-run: the headline fell from 14 of 35 to 0 of 35, all 14 proven rows amber, 10 wiring references amber. **Correct, and coarse.** The improvement: record, per test, the files it depends on (a per-test file map) and turn amber only the rows whose tests touch a changed file. **Accepted by the founder as a limit for now, 2026-09-25 — a later improvement, not part of 6.64** | §55, App. H | **unowned — a later improvement** (founder, 2026-09-25) |
 | **G-110** | **A CONFIRMED FIELD HAS NO REVISE MOVE.** Step 6.61 decides the move in code from four stored statuses per field (not taught → asked → answered → confirmed, ruling R5), and the current field is the first not confirmed. **Nothing moves a status BACK from confirmed**: a Belt who wants to change `business_case` after confirming it, while `team` is current, gets `team`'s move — their words about the old field are answered as a reply to the current one. Found while building R5; a finding, no fix in 6.61 (founder, 2026-09-25) | §19.1 v1.77, S-C04 | **unowned — a later step** |
 | **G-111** | **THE RETRIEVAL STRATEGY IS NOW THE PHASE DEFAULT, NOT A PLANNED CHOICE.** 6.61 reduced the planner to ONE judgment (is the answer sufficient), so `CoachingPlan.retrieval_strategy` is set by `nodes_common._retrieval_strategy(phase)` — Analyse's default is `multi_hop`, every other phase `single_hop` — and `retrieval_hops` stays empty. **No turn plans its hops any more**; the coach's discretionary `rag_lookup_*` calls (§24) are the only retrieval. Recorded so the field's description and §3.7's planned multi-hop path are revisited, not assumed live. A finding, no fix in 6.61 (founder, 2026-09-25) | §3.7, §24, S-C04 | **unowned — a later step** |
+| **G-112** | **MEASURE NEVER RECEIVES THE DEFINE RESULT.** Approving the Define report (`POST /gate/decision`, `gateway/routes.py::decide_gate`, line 1478) writes the gate into the CASE BLOB only (`blob.write_phase_gate`). Nothing writes it to the STORE: the output mappers (`phases/*/mappers.py::*_output_mapper` → `mappers_common.write_gate_document`) have no production caller — `grep` finds only their definitions and tests. `measure_input_mapper` reads the prior gate document from the Store (`read_gate_document`, measure/mappers.py:95) and `compose_phase_context` raises `PriorGateDocumentMissing` when it is absent (mappers_common.py:466), so the first Measure turn after an approved Define fails. Unit tests pass because they seed the Store by hand (`test_mappers.py::test_later_phases_frame_from_the_prior_gate_document`); the end-to-end `test_define_e2e.py::test_measure_starts_from_the_approved_define_record` is a skipped live test. Found by the as-is inventory (rows B38, B39, B111; `01f3767`), founder 2026-09-27: registered, no fix yet | §9, §33.2, S-F11, S-C06 | **owner: lane B — with D22**, the same site: when the gate write moves into `gate_apply`, the node also calls the phase's output mapper |
 
 ### 66.3 Group C — schemas named but never defined
 
