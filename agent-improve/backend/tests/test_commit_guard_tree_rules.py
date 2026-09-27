@@ -261,15 +261,12 @@ def test_appendix_D_still_parses_into_step_numbers() -> None:
 def test_the_gap_register_still_parses_into_gap_numbers() -> None:
     """Same assertion for the register, which rule 8 is one of two hooks to parse.
 
-    The row shape is `| **G-nn** |` for an open gap and `| ~~**G-nn**~~ |` for a
-    closed one, and BOTH must parse: a closed gap is still a number that
-    resolves, because a file added under a gap does not stop being scheduled
-    when the gap closes.
-
-    **Reads through `_known_gaps` since 6.37**, not through `STATUS_PATH`
-    directly. The register moved to the procedure's Appendix G and
-    `ARCHITECTURE.md` now parses to ZERO gap rows, so a test pinned to that one
-    path asserted the register had been emptied rather than moved.
+    **The register is `docs/defects.json` since 2026-09-27** (founder), moved
+    from the archived procedure's Appendix G. A closed gap is still an entry
+    and must still resolve (G-52 was struck through in the old register),
+    because a file added under a gap does not stop being scheduled when the
+    gap closes. Read through `_known_gaps`, so a test pinned to one path does
+    not assert the register emptied when it moves.
     """
     gaps = g._known_gaps(_ROOT)
     assert len(gaps) > 50, f"the register parsed to {len(gaps)} gaps"

@@ -1,5 +1,5 @@
 {
- "_about": "Define's feature list — step 6.66, founder ruling 2026-09-25 (ARCHITECTURE.md v1.78). Anthropic's long-running-harness pattern: ONE list; a feature passes only when its end-to-end test passes. There is NO status field — status is derived from docs/test-results.json by tools/control_board/features.py. Derived from four sources, cited per feature: ARCHITECTURE.md, the procedure (steps, Appendix G gaps, Appendix H capability rows), the code, and Anthropic/LangChain guidance. 'provenance' records the procedure steps, capability rows and gaps each feature was derived from (6.66), and as notes_6_66 the prose absence-claims the draft carried as code citations; code citations are path::symbol, checked by tools/control_board/citations.py. Lanes: A coaching, B gate, C screen and inputs, integrator end-to-end joins. Every feature cites the founder requirement it serves in 'requirement' (R1-R7, docs/requirements/define.md; R8 and R9 are platform requirements and are not Define features). Edit a feature's description, test or sources in place; never add a status.",
+ "_about": "Define's feature list — step 6.66, founder ruling 2026-09-25 (ARCHITECTURE.md v1.78). Anthropic's long-running-harness pattern: ONE list; a feature passes only when its end-to-end test passes. There is NO status field — status is derived from docs/test-results.json by tools/control_board/features.py. Derived from four sources, cited per feature: ARCHITECTURE.md, the procedure (steps, Appendix G gaps, Appendix H capability rows), the code, and Anthropic/LangChain guidance. 'provenance' records the procedure steps, capability rows and gaps each feature was derived from (6.66), and as notes_6_66 the prose absence-claims the draft carried as code citations; code citations are path::symbol, checked by tools/control_board/citations.py. Lanes: A coaching, B gate, C screen and inputs, integrator end-to-end joins. Every feature cites the founder requirement it serves in 'requirement': R1-R7 (docs/requirements/define.md), or — for a defect's feature (docs/defects.json, founder 2026-09-27) — a T id of docs/requirements/platform.md or a W id of workspace.md. R8 and R9 are not Define features. Edit a feature's description, test or sources in place; never add a status.",
  "features": [
   {
    "id": "DEF-001",
@@ -2679,6 +2679,62 @@
     "gaps": []
    },
    "requirement": "R7"
+  },
+  {
+   "id": "DEF-073",
+   "description": "G-112: approving the Define report writes the gate document to BOTH the case record and the Store (projects/{case}/artifacts/define), so the next phase's input mapper can open Measure. The cause under DEF-060 and DEF-062.",
+   "clause": "the record is written once and correctly",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_an_approved_define_gate_is_written_to_the_store_as_well_as_the_case",
+   "sources": {
+    "architecture": [
+     "§9",
+     "§33.2"
+    ],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/gateway/routes.py::decide_gate",
+     "agent-improve/backend/phases/mappers_common.py::write_gate_document"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-112"
+    ]
+   },
+   "requirement": "T23"
+  },
+  {
+   "id": "DEF-074",
+   "description": "G-113: the create form shows no case id until the server has assigned one; the number a Belt sees is always the one the case is saved under.",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_the_create_form_shows_no_case_id_the_server_did_not_assign",
+   "sources": {
+    "architecture": [
+     "§49",
+     "§50"
+    ],
+    "procedure": [],
+    "code": [
+     "agent-improve/ui/index.html::initCreate",
+     "agent-improve/backend/gateway/routes.py::create_case"
+    ],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-113"
+    ]
+   },
+   "requirement": "W6"
   }
  ]
 }

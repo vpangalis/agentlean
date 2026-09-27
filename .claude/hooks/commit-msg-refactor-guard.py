@@ -89,7 +89,7 @@ therefore 1, 2b, 3, 4, 5, 6, 7 and 8.
   8. STEP OR GAP — every path NEW to the tree has a number behind it.
      **CLAUDE.md §0.32, clause 3.** A spine subject declares its own step;
      any other type carries `Step: 6.22` or `Gap: G-57` in the body, and the
-     number must RESOLVE — Appendix D for a step, §66's register for a gap,
+     number must RESOLVE — Appendix D for a step, docs/defects.json for a gap,
      both read from the INDEX so a gap registered in the same commit counts.
      It checks that a number is declared and exists, never that the file
      belongs to it: the same limit rule 6 carries, and stated for the same
@@ -582,10 +582,11 @@ SCRATCH_GLOBS = (
 )
 
 # Rule 8 — where a declared number has to RESOLVE. Steps live in Appendix D of
-# the procedure (`cs.PROCEDURE` owns that path); gaps live in §66's register in
-# ARCHITECTURE.md, which `STATUS_PATH` already names for rule 2b.
+# the procedure (`cs.PROCEDURE` owns that path); gaps live in the defect
+# register, `docs/defects.json` (founder, 2026-09-27 — moved there from the
+# archived procedure's Appendix G, one entry per defect, no status field).
 _APPENDIX_D_STEP_RE = re.compile(r"\*\*Commit (\d+\.\d+)\*\*")
-_GAP_ROW_RE = re.compile(r"\|\s*~{0,2}\*\*(G-\d+)\*\*")
+DEFECTS = "agent-improve/docs/defects.json"
 
 # Rule 8 — where a number may be DECLARED. A spine subject already carries one
 # and is not made to repeat it; every other commit type declares a trailer.
@@ -720,20 +721,21 @@ def _staged_text(root: str, rel: str) -> str:
 
 
 def _known_gaps(root: str, text: str | None = None) -> set:
-    """Every gap number registered in the procedure's Appendix G.
+    """Every gap number in the defect register, `docs/defects.json`.
 
-    **ONE source since 6.38.** Rule 8 unioned two documents while the register
-    was moving, so that a gap registered in whichever half the migration had
-    reached would still resolve. With the move complete that union was two
-    sources of truth, which is the condition the repartition ended.
+    **ONE source.** The register moved from the archived procedure's Appendix G
+    to `docs/defects.json` on 2026-09-27 (founder): an archived document is
+    never current, so it could not stay the register a live rule reads. A
+    closed procedure-era gap is still an entry, and still resolves: a file
+    added under a gap does not stop being scheduled when the gap closes.
 
-    Read from the INDEX, unchanged: a gap registered in THIS commit still
-    counts, which is what lets a commit register a gap and add the file that
-    gap schedules in one go.
+    Read from the INDEX: a gap registered in THIS commit still counts, which is
+    what lets a commit register a gap and add the file that gap schedules in
+    one go.
     """
     if text is None:
-        text = _staged_text(root, cs.PROCEDURE)
-    return {g.upper() for g in _GAP_ROW_RE.findall(text)}
+        text = _staged_text(root, DEFECTS)
+    return {d["id"].upper() for d in json.loads(text)["defects"]}
 
 
 def check_step_or_gap(root: str, subject: str, message: str, added: list[str]) -> None:
@@ -747,8 +749,8 @@ def check_step_or_gap(root: str, subject: str, message: str, added: list[str]) -
 
     THE NUMBER IS DECLARED AND RESOLVED; IT IS NOT VERIFIED TO FIT. A spine
     subject declares its own step; any other type carries `Step: 6.22` or
-    `Gap: G-57` in the body. The number must exist — in Appendix D, or in §66's
-    register — and that is ALL this checks. Declaring `Step: 2.3` for a file
+    `Gap: G-57` in the body. The number must exist — in Appendix D, or in the
+    defect register (docs/defects.json) — and that is ALL this checks. Declaring `Step: 2.3` for a file
     with nothing to do with the dependency upgrade passes. Like rule 6, it makes
     the discipline cheap and auditable rather than impossible to evade: the
     trailer is greppable, so a wrong one is findable afterwards, which is more
@@ -777,7 +779,7 @@ def check_step_or_gap(root: str, subject: str, message: str, added: list[str]) -
              "  Feature: DEF-029                                 # a Define feature (6.67)",
              "",
              "The number must RESOLVE — Appendix D of docs/REFACTORING_PROCEDURE.md",
-             "for a step, Appendix G's register for a gap. If neither",
+             "for a step, docs/defects.json for a gap. If neither",
              "exists yet then nothing is scheduling this file: register the gap",
              "first, in its own commit, per §56.")
 
@@ -791,9 +793,9 @@ def check_step_or_gap(root: str, subject: str, message: str, added: list[str]) -
          "Declared, and found in no register:",
          *[f"  - {d}" for d in sorted(steps) + sorted(gaps)], "",
          f"Steps resolve against Appendix D of {cs.PROCEDURE}.",
-         f"Gaps resolve against Appendix G's register in {cs.PROCEDURE}.",
+         f"Gaps resolve against the defect register, {DEFECTS}.",
          "Both are read from the INDEX, so a number registered in THIS commit",
-         "counts — stage the register row alongside the file.", "",
+         "counts — stage the register entry alongside the file.", "",
          "A number that resolves nowhere schedules nothing, which leaves the",
          "file in the state rule 8 exists to prevent. §66's own words: a gap",
          "without a number does not render on the board, and so is not",

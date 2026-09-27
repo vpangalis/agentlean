@@ -61,7 +61,12 @@ def test_every_feature_cites_a_define_requirement_and_every_requirement_has_feat
     import re
     assert all(re.search(rf"^{r} ", text, re.M) for r in ratified), "an R1-R7 id is not in define.md"
     cited = [f["requirement"] for f in feats]
-    assert set(cited) <= ratified, set(cited) - ratified
+    # A defect's feature (docs/defects.json, founder 2026-09-27) may cite the
+    # platform T id or the workspace W id it breaks — one that the file defines.
+    req = Path(__file__).resolve().parents[2] / "docs" / "requirements"
+    defined = set(re.findall(r"^\| (T\d+) \|", (req / "platform.md").read_text(encoding="utf-8"), re.M))
+    defined |= set(re.findall(r"^(W\d+) ", (req / "workspace.md").read_text(encoding="utf-8"), re.M))
+    assert set(cited) <= ratified | defined, set(cited) - ratified - defined
     assert ratified - {"R1"} <= set(cited), ratified - set(cited)
 
 

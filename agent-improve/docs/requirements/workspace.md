@@ -1,6 +1,8 @@
 # Workspace — product requirements (DRAFT — founder, 2026-09-26)
 
 > **Draft, not ratified.** Recorded verbatim; no feature cites it until the founder ratifies it.
+> One exception, by founder ruling 2026-09-27: DEF-074 (defect G-113) cites W6 ahead of its
+> ratification; W6 below is a draft written for that ruling, not the founder's words.
 
 Applies to all phases. Depends on R8 (login) wherever a "logged-in
 person" is named; until R8, the case's Belt name is used.
@@ -52,3 +54,11 @@ W5 UPLOADS STRENGTHEN ANSWERS
    from an upload is stored until the Belt confirms it (§21).
    Today: upload exists; the coach cannot yet read an upload's content
    (G-82).
+
+W6 THE CASE NUMBER IS THE CASE'S NUMBER (draft for ratification — G-113)
+   As a Belt, I want the case number I am shown to be the one the case is
+   saved under, so that I can find the case again by it.
+   Acceptance: the create form shows no number until the server has
+   assigned one; the number in the workspace, the case list and search is
+   the saved one.
+   Today: broken — the form shows a number the browser invented (G-113).

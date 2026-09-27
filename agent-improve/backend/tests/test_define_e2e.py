@@ -172,3 +172,48 @@ def test_the_gate_write_keeps_the_change_log_and_uploads() -> None:
 def test_measure_starts_from_the_approved_define_record() -> None:
     """DEF-062 — After approval the case advances to Measure, and Measure starts from the approved Define record without PriorGateDocumentMissing."""
     _not_written('DEF-062')
+
+
+# ── Defect features (founder, 2026-09-27; docs/defects.json) ────────────────
+# Real tests, not stubs: each fails today because the defect is live.
+
+from backend.tests.test_gate_acceptance import CASE_ID, _decide, _submit, env  # noqa: E402,F401
+
+
+def test_an_approved_define_gate_is_written_to_the_store_as_well_as_the_case(env) -> None:
+    """DEF-073 — G-112: approving the Define report writes the gate document to BOTH the case
+    record and the Store, so the next phase's input mapper can open Measure (T23)."""
+    from backend.core import store as store_mod
+    from backend.phases.mappers_common import read_gate_document
+
+    _submit(env)
+    r = _decide(env, decision="approve")
+    assert r.status_code == 200, r.text
+    assert len(env.written) == 1, "the case record's gate write is the other half of T23"
+    document = read_gate_document(store_mod.get_store(), CASE_ID, "define")
+    assert document, ("G-112: the approved Define gate document is not in the Store — "
+                      "measure_input_mapper will raise PriorGateDocumentMissing")
+
+
+def test_the_create_form_shows_no_case_id_the_server_did_not_assign() -> None:
+    """DEF-074 — G-113: before the server assigns a case id, the create form shows none; the
+    number a Belt sees is always the one the case is saved under (W6)."""
+    import re
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed — the create form cannot be run; this is NOT a pass")
+    src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
+    m = re.search(r"^function initCreate\(\)\{.*?^\}", src, re.M | re.S)
+    assert m, "initCreate not found in ui/index.html"
+    js = ("const els={};const S={};function renderTeamList(){}\n"
+          "const document={getElementById:id=>(els[id]=els[id]||{id,textContent:'IMPR-2026-...',value:''})};\n"
+          + m.group(0) + "\ninitCreate();process.stdout.write(els['new-case-id'].textContent);")
+    out = subprocess.run([node, "-e", js], capture_output=True, text=True, encoding="utf-8")
+    assert out.returncode == 0, out.stderr
+    shown = out.stdout.strip()
+    assert not re.fullmatch(r"IMPR-\d{4}-[A-Z0-9]{3}", shown), (
+        f"G-113: the form shows {shown!r}, an id the browser invented — the server assigns its own")
