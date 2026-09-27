@@ -175,6 +175,52 @@ def next_per_lane(ranked: list[dict]) -> dict[str, str | None]:
     return out
 
 
+#: A work package's size (brief Part F9.2): effort points, S = 1, M = 2, L = 3.
+PACKAGE_POINTS = 5
+
+
+def _modules(f: dict) -> set[str]:
+    return {c.split("::", 1)[0] for c in ((f.get("sources") or {}).get("code") or [])
+            if "/tests/" not in c}
+
+
+def _same_area(f: dict, g: dict) -> bool:
+    """Same layer AND stage (both set), or a shared product module in their sources."""
+    if f.get("layer") and f.get("stage") and (f["layer"], f["stage"]) == (g.get("layer"), g.get("stage")):
+        return True
+    return bool(_modules(f) & _modules(g))
+
+
+def packages(features: list[dict] | None = None, ranked: list[dict] | None = None,
+             res: dict | None = None) -> dict[str, dict]:
+    """Each lane's next work package (brief Part F9.2): its top-ranked failing feature, then the
+    next-ranked features of the lane, in rank order, that share its area (same layer and stage,
+    or the same module) or depend on a feature already in the package — until 5 effort points.
+    A feature of another area is never pulled ahead of its rank: it ends the package (and
+    starts the next one); so does one that would push the package past 5 points."""
+    features = F.load() if features is None else features
+    ranked = rank(features, res) if ranked is None else ranked
+    by_id = {f["id"]: f for f in features}
+    out: dict[str, dict] = {}
+    for lane in F.LANES:
+        queue = [r["id"] for r in ranked if r["lane"] == lane]
+        if not queue:
+            out[lane] = {"features": [], "points": 0}
+            continue
+        pkg = [queue[0]]
+        points = EFFORT.get(by_id[queue[0]].get("effort", "M"), 2)
+        for fid in queue[1:]:
+            f = by_id[fid]
+            e = EFFORT.get(f.get("effort", "M"), 2)
+            related = any(_same_area(by_id[p], f) for p in pkg) or bool(set(f["depends_on"]) & set(pkg))
+            if not related or points + e > PACKAGE_POINTS:
+                break
+            pkg.append(fid)
+            points += e
+        out[lane] = {"features": pkg, "points": points}
+    return out
+
+
 def main(argv: list[str]) -> int:
     feats = F.load()
     if "--check" in argv:
@@ -184,9 +230,11 @@ def main(argv: list[str]) -> int:
         print(f"  [rank] {len(feats)} features, {len(bad)} field problem(s)")
         return 1 if bad else 0
     ranked = rank(feats)
+    pk = packages(feats, ranked)
     for lane in F.LANES:
         mine = [r for r in ranked if r["lane"] == lane]
-        print(f"lane {lane} ({F.LANES[lane]}): {len(mine)} failing, ranked")
+        print(f"lane {lane} ({F.LANES[lane]}): {len(mine)} failing, ranked · next package "
+              f"{', '.join(pk[lane]['features']) or '—'} ({pk[lane]['points']} points)")
         for r in mine[: int(argv[argv.index('--top') + 1]) if "--top" in argv else 5]:
             print(f"  #{r['rank']:>3} {r['id']}  {r['reason']}")
     return 0

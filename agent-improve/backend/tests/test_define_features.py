@@ -332,3 +332,22 @@ def test_rule_5_still_refuses_a_stale_block(tmp_path, no_git_env, monkeypatch) -
 
 def test_the_guard_passes_a_ratcheted_feature_that_still_passes(tmp_path, no_git_env) -> None:
     _guard().check_ratchet(str(_repo(tmp_path, "passed", ratchet=["DEF-900"])))
+
+
+def test_a_work_package_takes_same_area_features_in_rank_order_up_to_five_points() -> None:
+    """Brief Part F9.2: the lane's top feature, then same-area (layer and stage, or module) or
+    dependent features in rank order, to 5 effort points; another area ends the package."""
+    import rank
+    fs = [_rf("A1", "R1", impact="dead_end", effort="M"),         # top: 2 points
+          _rf("A2", "R1", effort="M", deps=["A1"]),                   # ranks 4th (score 0.5)
+          _rf("A3", "R1", effort="S"),                               # same module: joins (3)
+          _rf("A4", "R1", effort="S")]                               # same module: joins (4)
+    for f in fs:
+        f["sources"] = {"code": ["agent-improve/backend/x.py::f"]}
+    ranked = rank.rank(fs, {"outcomes": {}}, _reqs(R1="Must"))
+    assert [r["id"] for r in ranked] == ["A1", "A3", "A4", "A2"]
+    got = rank.packages(fs, ranked)["A"]
+    assert got == {"features": ["A1", "A3", "A4"], "points": 4}      # A2 would pass 5 points
+    fs[2]["sources"] = {"code": ["agent-improve/ui/index.html"]}      # A3 another area now
+    got = rank.packages(fs, rank.rank(fs, {"outcomes": {}}, _reqs(R1="Must")))["A"]
+    assert got["features"] == ["A1"]                                  # it ends the package
