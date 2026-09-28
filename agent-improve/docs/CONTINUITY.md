@@ -7,9 +7,9 @@
 
 | | |
 |---|---|
-| **Headline** | 53 of 161 Define features pass (core 50 of 152) — A 29/67 · B 18/36 · C 1/36 · integrator 5/22 |
+| **Headline** | 54 of 161 Define features pass (core 51 of 152) — A 29/67 · B 19/36 · C 1/36 · integrator 5/22 |
 | **Next — lane A** | DEF-076 — R7 amendment: baseline and target are stored as a number with a unit; an unparseable value is asked again. |
-| **Next — lane B** | DEF-043 — Layer 2b refuses a gate submission missing any of the sixteen gate-required fields and names what is missing; the prompt's missing list and  |
+| **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
 | **Next — lane C** | DEF-074 — G-113: the create form shows no case id until the server has assigned one; the number a Belt sees is always the one the case is saved under. |
 | **Next — lane integrator** | DEF-003 — Every node of a Define turn leaves a checkpoint, so a crash loses at most one node's work. |
 | **Run-through record** | current |

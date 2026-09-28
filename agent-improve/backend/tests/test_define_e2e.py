@@ -149,9 +149,31 @@ def test_the_metric_entry_mirrors_the_confirmed_scalars() -> None:
     _not_written('DEF-042')
 
 
-def test_a_submission_missing_a_field_is_refused_by_name() -> None:
-    """DEF-043 — Layer 2b refuses a gate submission missing any of the thirteen gate-required fields and names what is missing; the prompt's missing list and the valid"""
-    _not_written('DEF-043')
+def test_a_submission_missing_a_field_is_refused_by_name(env) -> None:
+    """DEF-043 — Layer 2b refuses a gate submission missing any gate-required field and names what
+    is missing; the prompt's missing list and the validator cannot disagree — both come from
+    `gate_registry.missing_gate_fields`. Through POST /gate on the one graph."""
+    from backend.phases import moves
+    from backend.phases.define.schema import DEFINE_REQUIRED_FOR_GATE_FIELDS
+    from backend.phases.gate_registry import missing_gate_fields
+    from backend.tests.test_define_report import COMPLETE
+
+    # Every gate-required field, missing alone, is named by the one computation.
+    for field in DEFINE_REQUIRED_FOR_GATE_FIELDS:
+        assert field in missing_gate_fields("define", {k: v for k, v in COMPLETE.items() if k != field}), field
+    assert missing_gate_fields("define", dict(COMPLETE)) == []
+
+    gone = ("project_scope", "issues_and_barriers")
+    record = env.case.phases["define"]
+    record.structured = {k: v for k, v in COMPLETE.items() if k not in gone}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in record.structured}
+    r = env.client.post("/gate", json={"case_id": CASE_ID, "submitted_by": ACTOR, "phase": "define"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["passed"] is False and body.get("awaiting_acceptance") is not True, body
+    named = {m.replace(" ", "_") for m in body["missing_fields"]}
+    assert named == set(gone), body["missing_fields"]
+    assert named == set(missing_gate_fields("define", record.structured)), "the validator and the prompt disagree"
 
 
 def test_the_rubric_grades_the_gate_document_and_can_fail_it() -> None:
@@ -236,7 +258,7 @@ def test_measure_starts_from_the_approved_define_record(env) -> None:
 # ── Defect features (founder, 2026-09-27; docs/defects.json) ────────────────
 # Real tests, not stubs: each fails today because the defect is live.
 
-from backend.tests.test_gate_acceptance import CASE_ID, _decide, _submit, env  # noqa: E402,F401
+from backend.tests.test_gate_acceptance import ACTOR, CASE_ID, _decide, _submit, env  # noqa: E402,F401
 
 
 def test_an_approved_define_gate_is_written_to_the_store_as_well_as_the_case(env) -> None:

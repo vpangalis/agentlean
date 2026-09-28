@@ -1,9 +1,9 @@
 {
- "source_hash": "2643265cef26b969",
- "commit": "289e419",
- "commit_matches_source": true,
- "full_run_hash": "2643265cef26b969",
- "recorded_at": "2026-09-28T23:35:02+00:00",
+ "source_hash": "63eeb9bbe81a394e",
+ "commit": "7ee4f0b",
+ "commit_matches_source": false,
+ "full_run_hash": "63eeb9bbe81a394e",
+ "recorded_at": "2026-09-28T23:40:53+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -402,7 +402,7 @@
   "backend/tests/test_define_e2e.py::test_a_qualified_yes_is_treated_as_a_correction": "skipped",
   "backend/tests/test_define_e2e.py::test_a_reply_shows_the_file_and_page_it_used": "skipped",
   "backend/tests/test_define_e2e.py::test_a_reply_takes_thumbs_and_a_comment_stored_against_its_trace": "skipped",
-  "backend/tests/test_define_e2e.py::test_a_submission_missing_a_field_is_refused_by_name": "skipped",
+  "backend/tests/test_define_e2e.py::test_a_submission_missing_a_field_is_refused_by_name": "passed",
   "backend/tests/test_define_e2e.py::test_an_approved_define_gate_is_written_to_the_store_as_well_as_the_case": "passed",
   "backend/tests/test_define_e2e.py::test_an_approved_report_prints_with_the_record_heading": "skipped",
   "backend/tests/test_define_e2e.py::test_an_element_that_fails_three_times_can_be_parked": "skipped",
@@ -1581,8 +1581,8 @@
   "backend/tests/test_wiring_check.py::test_it_reads_what_section_3_names": "passed"
  },
  "older": {
-  "source_hash": "2257e3c505d59056",
-  "recorded_at": "2026-09-28T23:11:48+00:00",
+  "source_hash": "2643265cef26b969",
+  "recorded_at": "2026-09-28T23:35:02+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2318,6 +2318,7 @@
    "backend/tests/test_define_rubric.py::test_code_fails_a_criterion_with_its_reason_and_the_model_is_not_asked[change7-DEF-R05-no number]": "passed",
    "backend/tests/test_define_rubric.py::test_define_never_warns_and_an_unjudged_criterion_fails_closed": "passed",
    "backend/tests/test_define_rubric.py::test_g129_the_grader_sees_each_elements_acceptance_criteria": "passed",
+   "backend/tests/test_define_rubric.py::test_g133_training_in_other_words_goes_to_the_grader_not_a_word_check": "passed",
    "backend/tests/test_define_rubric.py::test_one_criterion_per_element_each_citing_the_manual": "passed",
    "backend/tests/test_define_rubric.py::test_r7s_criteria_are_the_ones_graded": "passed",
    "backend/tests/test_define_rubric.py::test_the_drift_hook_matches_paths_across_the_drive_letters_case": "passed",
@@ -2327,7 +2328,7 @@
    "backend/tests/test_define_runthrough.py::test_every_define_row_is_green_on_the_run_through_case": "skipped",
    "backend/tests/test_define_runthrough.py::test_run_a_change_click_reopens_the_field_with_the_belts_words": "passed",
    "backend/tests/test_define_runthrough.py::test_run_a_complete_case_assembles_a_gate_document": "passed",
-   "backend/tests/test_define_runthrough.py::test_run_a_complete_define_passes_the_gate_rubric": "skipped",
+   "backend/tests/test_define_runthrough.py::test_run_a_complete_define_passes_the_gate_rubric": "passed",
    "backend/tests/test_define_runthrough.py::test_run_a_confirm_click_stores_and_advances": "passed",
    "backend/tests/test_define_runthrough.py::test_run_a_confirmed_value_survives_later_turns": "passed",
    "backend/tests/test_define_runthrough.py::test_run_a_question_is_answered_and_the_field_asked_again": "passed",
