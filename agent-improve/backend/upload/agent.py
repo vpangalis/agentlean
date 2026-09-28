@@ -40,7 +40,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from backend.core import content_safety, guard_messages
+from backend.core import content_safety, guard_messages, pii
 from backend.upload import parsers
 from backend.core.llm import get_llm, block_text
 from backend.core.prompts import UPLOAD_INTERPRET_PROMPT, VISION_EXTRACT_PROMPT
@@ -152,6 +152,10 @@ async def process_upload(
                 "row_count": parsed.get("row_count"), "extracted_text": "", "summary": "",
                 "interpretation": None}
 
+    # T87 / ADR-0062 (DEF-144): e-mail, phone, IBAN and card numbers are redacted in the text a
+    # model interprets and the index embeds; the file itself stays in Blob for the Belt. Names stay.
+    masked_text, pii_masked = pii.mask(parsed.get("text") or "")
+    parsed = {**parsed, "text": masked_text}
     interpretation = await _interpret(filename, parsed, case_meta, phase)
 
     return {
@@ -172,6 +176,8 @@ async def process_upload(
         # ── the one model call (ruling 4), with its citation (ruling 6)
         "summary": interpretation.summary,
         "interpretation": interpretation.model_dump(),
+        # T87 — the count per type, never the value; the route writes it to step_log.
+        "pii_masked": pii_masked,
     }
 
 

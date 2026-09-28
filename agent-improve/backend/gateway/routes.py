@@ -1067,6 +1067,16 @@ async def upload_file(
         # problem. The reason is written for the Belt, not for a log.
         raise HTTPException(422, upload_record.get("refusal_reason")
                             or "We could not read this file.")
+    # T87 / ADR-0062 point 4 (DEF-144): every masking in step_log, by type and count, never the value.
+    if upload_record.get("pii_masked"):
+        try:
+            from backend.core.store import get_store as _store   # read at call time
+            _store().put(("projects", case_id, "step_log"),
+                            f"pii:{phase}:{upload_record['timestamp']}",
+                            {"layer": "pii", "where": "upload", "filename": filename,
+                             "masked": dict(upload_record["pii_masked"]), "at": upload_record["timestamp"]})
+        except Exception as exc:  # noqa: BLE001 — the audit write must not refuse the upload
+            logger.error("upload: the personal-data masking could not be recorded: %s", exc)
 
     # ── Supersession, resolved on (case_id, role) by digest (§23.2) ────
     #

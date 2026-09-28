@@ -687,8 +687,9 @@ def test_the_declared_middleware_list_is_the_ratified_layering(
         "contradiction -> coherence -> grader is produced by layering the "
         "grader outermost and contradiction innermost"
     )
-    # ADR-0059 (T69, G-119): the model-call limit joins, declared just outside the retry.
-    assert len(declared) == 9
+    # ADR-0059 (T69, G-119): the model-call limit joins, declared just outside the retry;
+    # ADR-0062 (T87, DEF-144): one PIIMiddleware over the four types, on tool results.
+    assert len(declared) == 10 and declared.count("PIIMiddleware") == 1
     assert declared.index("ModelCallLimitMiddleware") == declared.index("ModelRetryMiddleware") - 1
 
 

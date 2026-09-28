@@ -644,9 +644,58 @@ def test_t85_contextual_chunks_and_a_reranker_go_live_only_on_eval_evidence() ->
     _not_written("DEF-143")
 
 
-def test_t87_personal_data_is_masked_before_a_model_sees_it() -> None:
-    """DEF-144 — T87 (ADR-0062, PROPOSED)."""
-    _not_written("DEF-144")
+def test_t87_personal_data_is_masked_before_a_model_sees_it(env, monkeypatch) -> None:
+    """DEF-144 — T87 (ADR-0062): e-mail, phone, account (IBAN) and card numbers in an upload are
+    masked before a model interprets it and before the index embeds it; person names are kept;
+    the masking is in step_log by type and count, never the value. The executor carries one
+    PIIMiddleware per type on tool results, never on the Belt's own messages."""
+    from backend.core import pii
+    from backend.core import store as store_mod
+    from backend.gateway import routes
+    from backend.phases import nodes_common
+    from backend.storage.models import UploadInterpretation
+    from backend.upload import agent as upload_agent
+
+    seen: list = []
+
+    async def interpret(filename, parsed, *a, **k):
+        seen.append(parsed.get("text") or "")
+        return UploadInterpretation(summary="the AP contacts")
+
+    indexed: list = []
+
+    async def index(*a, **k):
+        indexed.append(k.get("extracted_text") or next((x for x in a if isinstance(x, str) and "," in x), ""))
+        return "idx"
+
+    async def upload_file(*a, **k):
+        return "uploads/x"
+    monkeypatch.setattr(upload_agent, "_interpret", interpret)
+    monkeypatch.setattr(routes, "_index_upload", index)
+    monkeypatch.setattr(routes.blob, "upload_file", upload_file)
+    _shields(monkeypatch)
+    csv = chr(10).join([
+        "name,role,email,phone,iban,card",
+        "Dev Patel,AP clerk,dev.patel@example.com,+44 20 7946 0958,GB82 WEST 1234 5698 7654 32,4111 1111 1111 1111",
+        ""])
+    r = env.client.post("/upload", data={"case_id": CASE_ID, "uploaded_by": "ana", "phase": "define"},
+                        files={"file": ("contacts.csv", csv.encode(), "text/csv")})
+    assert r.status_code == 200, r.text
+    assert seen, "the upload was not interpreted"
+    for value in ("dev.patel@example.com", "7946 0958", "GB82 WEST", "4111 1111"):
+        assert value not in seen[0], f"{value!r} reached the interpreting model"
+    assert "Dev Patel" in seen[0], "a person name was masked"
+    trail = [i.value for i in store_mod.get_store().search(("projects", CASE_ID, "step_log"))
+             if i.value.get("layer") == "pii"]
+    assert trail and trail[-1]["masked"] == {"email": 1, "credit_card": 1, "phone": 1, "iban": 1}, trail
+    assert "dev.patel" not in str(trail)
+    import inspect
+    assert "*pii.executor_middleware()" in inspect.getsource(nodes_common._build_executor),         "the executor carries no PIIMiddleware"
+    mws = pii.executor_middleware()
+    assert [m.name for m in mws] == ["PIIMiddleware[personal_data]"]
+    assert all(m.apply_to_tool_results and not m.apply_to_input for m in mws)
+    masked, _ = pii.mask("dev.patel@example.com, +44 20 7946 0958")
+    assert masked == "[REDACTED_EMAIL], [REDACTED_PHONE]", masked
 
 
 def test_every_tool_the_define_skill_offers_is_bound() -> None:

@@ -309,7 +309,8 @@ sequenceDiagram
   else flagged
     API->>B: upload_file; the record marked not used by the coach — never interpreted or indexed
   else parsed
-    P->>P: _interpret (extraction role)
+    P->>P: pii.mask — e-mail, phone, IBAN, card redacted; names kept; counts to step_log (T87)
+  P->>P: _interpret (extraction role)
     P-->>API: upload record with interpretation
     API->>B: upload_file (bytes)
     opt kind is evidence
@@ -332,6 +333,7 @@ Classes are allowed only in files marked **C**; elsewhere module-level functions
 | | `graph.py` | The main graph (`graph_builder`, `get_graph`, `route_to_phase`), wrapper nodes |
 | | `guard.py` | `input_guard` — fixed rules, then Prompt Shields (ADR-0057) |
 | | `content_safety.py` | `shield` — Azure AI Content Safety Prompt Shields client |
+| | `pii.py` | `mask`, `detect`, `executor_middleware` — personal data redacted before a model (ADR-0062) |
 | | `llm.py` | `get_llm(role)`, `ROLE_DEPLOYMENTS`, `ROLE_TEMPERATURES` |
 | | `prompts.py` | Prompt constants and rubrics |
 | | `checkpointer.py` C | `AzureBlobCheckpointSaver` |
@@ -446,6 +448,10 @@ flowchart TB
 outside the retry. `run_limit` is the coach's share of four model calls a turn, after the planner's
 judgment and the two after-agent checks; a run it ends gets the move's reply from code. The
 turn's count is `step_log`'s `call_budget`.
+
+**Personal data · `PIIMiddleware`** — LangChain, as shipped (ADR-0062, T87): one instance, a
+combined detector for e-mail, card, phone and IBAN (`core/pii.py`), `redact`, on tool results only
+— never the Belt's own messages; the turn's counts are `step_log`'s `pii_masked`.
 
 **5 · `ToolRetryMiddleware`** — LangChain, as shipped.
 - `wrap_tool_call`: retries a failing tool with backoff; after the last attempt the failure is

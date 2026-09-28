@@ -63,7 +63,7 @@ from langgraph.errors import GraphRecursionError
 from langgraph.graph import END
 from langgraph.types import Command, interrupt
 
-from backend.core import content_safety, guard, guard_messages
+from backend.core import content_safety, guard, guard_messages, pii
 from backend.core.config import settings
 from backend.core.conversation import message_to_turn
 from backend.core.llm import get_llm
@@ -1051,6 +1051,9 @@ def _build_executor(
                 max_retries=RETRY_MAX, on_failure=TOOL_RETRY_ON_FAILURE,
                 retry_on=content_safety.retry_on,                    # T92
             ),
+            # T87 / ADR-0062 point 2 (DEF-144) — personal data in TOOL RESULTS is redacted before
+            # the model reads it (`before_model`); never the Belt's own messages. One per type.
+            *pii.executor_middleware(),
             # ══════════════════════════════════════════════════════════════
             # THIS LIST IS NESTING ORDER. POSITIONS 6/7/8 ARE EXECUTION ORDER.
             #
@@ -2132,6 +2135,8 @@ async def executor(
             impl="create_agent",
             # T69 / G-119 — the turn's model calls against its budget (after-agent calls: one
             # coherence verdict and one grader pass each).
+            # T87 — personal data redacted in this turn's tool results, by type and count.
+            pii_masked=pii.counted([str(m.content) for m in produced[len(history):] if isinstance(m, ToolMessage)]),
             call_budget={"budget": TURN_MODEL_CALLS, "planner": calls_before, "coach": coach_calls,
                          "coach_limit": coach_limit, "after": len(coherence_log) + min(len(grader_log), 1),
                          "turn": calls_before + coach_calls + len(coherence_log) + min(len(grader_log), 1),

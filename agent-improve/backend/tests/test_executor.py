@@ -113,6 +113,7 @@ def test_the_executor_builds_the_agent_per_the_ratified_template(
         "ModelCallLimitMiddleware",          # ADR-0059 (T69): encloses the retry
         "ModelRetryMiddleware",              # 4
         "ToolRetryMiddleware",               # 5
+        "PIIMiddleware",                     # ADR-0062 (T87): tool results only
         # 6-8 fire after_agent, which executes in REVERSE — so they are
         # declared backwards to EXECUTE as 6, 7, 8. See
         # `test_the_declared_middleware_list_is_the_ratified_layering`.
