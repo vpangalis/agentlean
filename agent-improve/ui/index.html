@@ -429,7 +429,7 @@ a{text-decoration:none;color:inherit}
         <div class="card-title"><i class="ti ti-hash"></i> Case reference</div>
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
           <span style="font-size:11px;color:var(--text2)">Case number</span>
-          <span class="case-pill" id="new-case-id">IMPR-2026-...</span>
+          <span class="case-pill" id="new-case-id">Assigned when the case is created</span>
         </div>
         <div class="field-row full">
           <div class="field">
@@ -995,9 +995,8 @@ async function quickOpenCase(caseId){
 
 // ─── CREATE ───────────────────────────────────────────────────────
 function initCreate(){
-  const year=new Date().getFullYear();
-  const rand=Math.random().toString(36).substr(2,3).toUpperCase();
-  document.getElementById('new-case-id').textContent=`IMPR-${year}-${rand}`;
+  // G-113 (DEF-074): no id until the server assigns one; the id shown is the one the case is saved under.
+  document.getElementById('new-case-id').textContent='Assigned when the case is created';
   S.teamMembers=[];
   renderTeamList();
   const d=new Date();d.setMonth(d.getMonth()+6);
@@ -1048,13 +1047,12 @@ async function submitCreateCase(){
   const date=document.getElementById('create-date').value;
   if(!title){toast('Please enter a project title');return;}
   if(!S.user){S.user=prompt('Enter your name (you are the project leader):')||'Leader';}
-  const caseId=document.getElementById('new-case-id').textContent;
   const team=[...S.teamMembers];
   try{
     const data=await apiJSON(`${API}/cases`,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({title,belt_level:S.beltLevel,leader:S.user,department:dept||'General',
         target_date:date||new Date().toISOString().split('T')[0],team})});
-    if(data&&data.case_id){await openWorkspace(data.case_id);}
+    if(data&&data.case_id){document.getElementById('new-case-id').textContent=data.case_id;await openWorkspace(data.case_id);}
     else{toast('The server created no case id — nothing was saved.',5000);}
   }catch(e){toast('Could not create case: '+(e.message||e),5000);}
 }
