@@ -53,6 +53,15 @@ FIXED_RULES: tuple[tuple[str, str], ...] = (
     ("reveal the prompt", r"\b(reveal|print|show|repeat|output|leak)\b.{0,30}\b(system|hidden|initial)\s+(prompt|instructions?|message)\b"),
     ("fake system or assistant turn", r"(^|\n)\s*#{1,3}\s*(system|assistant|developer)\s*:|<\|?(im_start|im_end)\|?>|\[/?(INST|SYS)\]|<\s*/?\s*system\s*>"),
     ("persona role-play", r"\byou are now (an? )?(unrestricted|jailbroken|different|new|evil)\b|\bdeveloper mode\b|\bjailbreak|\bpretend (to be|you are)\b.{0,40}\b(ai|assistant|model|system|coach)\b"),
+    # Role takeover (BRIEF_m1_loop.md, founder 2026-09-28): a new persona WITHOUT the rules, or the
+    # coach told to be the grader, validator or system. Narrow on purpose — "Dan will act as
+    # champion" and "pretend to be the customer" must pass; Prompt Shields remains the main defence.
+    ("role takeover", r"\byou are now\b.{0,60}\b(without|with no|free (of|from)|no longer bound by)\b.{0,20}"
+                      r"\b(rules|limits|limitations|restrictions|guidelines|filters|instructions)\b"
+                      r"|\bdo anything now\b"
+                      r"|\b(pretend|role-?play)\b.{0,20}\b(to be|as|you are|you're)\s+(the |a |an )?(grader|validator|system|reviewer|approver)\b"
+                      r"|\bas the (grader|validator)\b"
+                      r"|\b(note|message|instructions?)\s+(to|for)\s+the\s+(grader|validator)\b"),
     ("encoded instructions", r"\b(decode|base64|rot13)\b.{0,40}\b(and|then)\b.{0,20}\b(follow|execute|run|obey)\b"),
 )
 #: Zero-width and bidirectional control characters — text hidden from a human reader.
