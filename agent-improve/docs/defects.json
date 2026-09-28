@@ -1257,6 +1257,32 @@
    "lane": [
     "A"
    ]
+  },
+  {
+   "id": "G-128",
+   "symptom": "THE CALL LIMIT ENDS THE COACH ON 7 OF 34 TURNS, AND THE BELT GETS A REPLY WRITTEN IN CODE. Evidence: M1 loop package 4's run-through, IMPR-2026-C8A (2026-09-28): turns 3, 12, 30, 32 (teaching, 2-call share) and 10, 26, 31 (answer turns, 1-call share) — 'the coach reached its n-call share of the turn's 4 model calls' then the move's code-written reply. ADR-0068's verification ('no answer turn ends in a code-written reply because of the limit') is not met. Registered from the run-through (BRIEF_m1_loop.md rule 1). Owner: lane A; proved fixed by DEF-160. — 8D. D2 IS: the coach's first (or second) model call is a tool call, and the ModelCallLimitMiddleware run limit ends the loop before the structured reply. D2 IS-NOT: not the lookups on answer turns (ADR-0068 removed them, 229dfde's cause); not timeouts (none); not the other 27 turns. D4 OCCURRENCE: ADR-0068 removes only the retrieval tools on answer turns; propose_template, propose_diagram, load_evidence_series, the computation tools and load_skill stay bound, and any call to one costs the coach's only model call; on teaching turns a lookup plus one more tool spends the two. D4 ESCAPE: DEF-094's test proves the limit ends a looping coach with a code reply — the containment, measured as correct; no test asserts how often it fires; the live run is the only place, and ADR-0068's verification names it. D5 FIX (direction, a design question): which tools an answer turn binds, or how the coach's share is counted — outside ADR-0068's text, so the founder's: bind no tools on answer turns, or let a structured reply follow one tool call. D7 PREVENT: DEF-160's run-through test.",
+   "requirement": [
+    "T69"
+   ],
+   "feature": [
+    "DEF-160"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-129",
+   "symptom": "THE GATE RUBRIC FAILS AN ELEMENT THE COACHING ACCEPTED, FOR ITS WORDING. Evidence: M1 loop package 4's run-through, IMPR-2026-C8A (2026-09-28): all 13 elements confirmed, gate review passed with the document; POST /gate refused: 'DEF-R13 — The document does not clearly name specific roadblocks for this project; it lists barriers instead.' The Belt's answer: 'Two barriers: the three sites use different approval routes, and an ERP change freeze until January limits system changes. One risk: AP staff turnover over the winter.' — two specific roadblocks, accepted by the element's own criteria at turn 33. Registered from the run-through. Owner: lane B; proved fixed by DEF-159. — 8D. D2 IS: layer 2d's grader fails DEF-R13 on the word 'barriers'. D2 IS-NOT: the other 12 rubric criteria (passed); the element's coaching (accepted); the document (assembled). D4 OCCURRENCE: the rubric line (core/prompts.py, DEF-R13) says 'roadblocks', the element's script says 'issues and barriers'; the grader model reads the two words as different things, and nothing tells it the element's accepted answer or that the terms are the same. D4 ESCAPE: the rubric's offline tests stub the grader's verdicts; no run-through had reached the gate complete before this one. D5 FIX (direction): the rubric line names the element's own term ('issues and barriers — roadblocks'), or the grader is given the element's acceptance criteria; the rubric text is founder content. D7 PREVENT: DEF-159's run-through test (a complete run's submission passes).",
+   "requirement": [
+    "R7"
+   ],
+   "feature": [
+    "DEF-159"
+   ],
+   "lane": [
+    "B"
+   ]
   }
  ]
 }

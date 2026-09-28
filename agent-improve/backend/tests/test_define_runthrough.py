@@ -203,6 +203,25 @@ def test_run_a_confirmed_value_survives_later_turns(run) -> None:
 # ── lane B — the gate ───────────────────────────────────────────────────────
 
 
+def test_run_no_answer_turn_ends_in_a_code_written_reply(run) -> None:
+    """DEF-160 — G-128, ADR-0068's verification: in the live run-through no answer turn (the Belt
+    answered: challenge, read back, respond) ends in a reply written in code because the call
+    limit ended the coach. Found on IMPR-2026-C8A: turns 10, 26 and 31."""
+    bad = [(t["n"], t.get("move")) for t in run["turns"]
+           if t.get("fallback") and t.get("move") in ("challenge", "read_back", "respond")]
+    assert not bad, f"answer turns ended in a code-written reply: {bad}"
+
+
+def test_run_a_complete_define_passes_the_gate_rubric(run) -> None:
+    """DEF-159 — G-129 (R7): once all thirteen elements are confirmed, the submission passes the
+    Define rubric — an answer the element's own criteria accepted is not failed at the gate for
+    its wording ("barriers" for "roadblocks", DEF-R13). Found on IMPR-2026-C8A."""
+    review = (run.get("gate_review") or {}).get("body") or {}
+    assert review.get("passed") is True, "the run did not complete Define; this proof needs a complete run"
+    submit = (run.get("gate_submit") or {}).get("body") or {}
+    assert submit.get("passed") is True, submit.get("missing_fields")
+
+
 def test_run_a_complete_case_assembles_a_gate_document(run) -> None:
     """DEF-041 — once all twelve are confirmed, the gate review returns a document."""
     review = run.get("gate_review") or {}

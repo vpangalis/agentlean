@@ -5652,6 +5652,68 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching"
+  },
+  {
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/validation/rubric.py::grade_define"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "priority_override": null,
+   "phase": "define",
+   "id": "DEF-159",
+   "description": "G-129: a complete Define passes the gate rubric — an answer the element's own acceptance criteria accepted is not failed at the gate for its wording (DEF-R13: 'barriers' for 'roadblocks').",
+   "test": "backend/tests/test_define_runthrough.py::test_run_a_complete_define_passes_the_gate_rubric",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-129"
+    ]
+   },
+   "requirement": "R7",
+   "belt_impact": "dead_end",
+   "rework_risk": "low",
+   "effort": "M",
+   "stage": "report",
+   "layer": "gate"
+  },
+  {
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/phases/nodes_common.py::_build_executor"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "priority_override": null,
+   "phase": "define",
+   "id": "DEF-160",
+   "description": "G-128 (ADR-0068's verification): no answer turn ends in a reply written in code because the call limit ended the coach; a teaching turn neither, within T69's four calls.",
+   "test": "backend/tests/test_define_runthrough.py::test_run_no_answer_turn_ends_in_a_code_written_reply",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-128"
+    ]
+   },
+   "requirement": "T69",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "stage": "coached",
+   "layer": "coaching"
   }
  ]
 }
