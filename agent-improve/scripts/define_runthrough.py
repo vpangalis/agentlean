@@ -283,7 +283,12 @@ def main() -> int:
     # re-run by the integrator refreshes both records it binds to the source.
     from scripts.validation_repeat import run as validation_repeat
     validation_repeat()
-    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S")
+    # Its `asyncio.run` loop is closed now; a model instance cached inside it holds an async
+    # client bound to that loop, and the run-through's first judgment would reuse it and fail
+    # with "Connection error." (M1 loop, 2026-09-28: two runs stopped at turn 2). Rebuild them.
+    from backend.core.llm import _build_llm
+    _build_llm.cache_clear()
+    stamp =dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%S")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     # Written line by line to scratch while running (a crash keeps every turn);
     # the tree gets one .json array at the end — rule 7 keeps .jsonl out of it.
