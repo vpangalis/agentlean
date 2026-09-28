@@ -78,7 +78,8 @@ def test_a_complete_report_passes_and_only_judgment_reaches_the_model() -> None:
     assert all(v.status == "pass" for v in got.values()), {c: v.feedback for c, v in got.items()}
     assert len(got) == 13
     assert not set(judge.asked) & CODE_ONLY, "a criterion code settles never reaches the model"
-    assert set(judge.asked) == {c for c, _, _ in DEFINE_CRITERIA} - CODE_ONLY
+    # G-133: DEF-R02 is settled in code here (the team writes "no training needed").
+    assert set(judge.asked) == {c for c, _, _ in DEFINE_CRITERIA} - CODE_ONLY - {"DEF-R02"}
 
 
 @pytest.mark.parametrize("change,cid,words", [
@@ -172,3 +173,28 @@ def test_g129_the_grader_sees_each_elements_acceptance_criteria(monkeypatch) -> 
         assert f"element criterion `{aid}`" in seen[0]
     assert "never fail it for wording alone" in seen[0]
     assert "issues and barriers (roadblocks)" in DEFINE_RUBRIC
+
+
+def test_g133_training_in_other_words_goes_to_the_grader_not_a_word_check() -> None:
+    """G-133 (DEF-159): a team whose training is written in other words ("needs a half-day on data
+    collection") is not failed by a word check; DEF-R02 then goes to the grader, which sees the
+    element's own criteria (G-129). A missing champion still fails in code."""
+    import asyncio
+
+    from backend.validation import rubric
+
+    team = [{"name": "Tom", "role": "Champion", "function": "Finance Director"},
+            {"name": "Lena", "role": "Process Owner", "function": "AP Manager"},
+            {"name": "Dev", "role": "Team Member", "function": "AP clerk; needs a half-day on data collection"}]
+    assert rubric._code_half("DEF-R02", {"team": team}, __import__("datetime").date(2026, 9, 29)) is None
+    asked: list = []
+
+    async def judge(criteria, document):
+        asked.extend(c for c, _, _ in criteria)
+        return rubric.GraderVerdict(verdicts=[rubric.CriterionVerdict(criterion=c, status="pass")
+                                              for c, _, _ in criteria])
+    got = asyncio.run(rubric.grade_define({**COMPLETE, "team": team}, judge))
+    assert "DEF-R02" in asked and {v.criterion: v.status for v in got.verdicts}["DEF-R02"] == "pass"
+    no_champion = [e for e in team if e["role"] != "Champion"]
+    verdict = rubric._code_half("DEF-R02", {"team": no_champion}, __import__("datetime").date(2026, 9, 29))
+    assert verdict is not None and verdict.status == "fail"

@@ -43,7 +43,10 @@ DEFINE_CRITERIA: tuple[tuple[str, str, str], ...] = tuple(
 
 #: The criteria decided entirely in code; the rest reach the model when their
 #: code half (if any) passes.
-CODE_ONLY: frozenset[str] = frozenset({"DEF-R02", "DEF-R08", "DEF-R09", "DEF-R10"})
+#: G-133 (2026-09-29): DEF-R02 is no longer code-only — code settles the champion and the process
+#: owner, and the training when it is written in so many words; otherwise the grader judges it with
+#: the element's own criteria (founder ruling 2: the element check and the gate cannot disagree).
+CODE_ONLY: frozenset[str] = frozenset({"DEF-R08", "DEF-R09", "DEF-R10"})
 
 Judge = Callable[[list[tuple[str, str, str]], str], Awaitable[GraderVerdict]]
 
@@ -96,9 +99,11 @@ def _code_half(cid: str, a: dict[str, Any], today: dt.date) -> Optional[Criterio
         missing = [name for name, pat in (("a champion", r"champion|sponsor"),
                                           ("a process owner", r"process owner|owner of the process"))
                    if not re.search(pat, roles)]
-        if not any("train" in _text(e).lower() for e in team):
-            missing.append("the training members need (or that none is needed)")
-        return _fail(cid, "The team does not name " + "; ".join(missing) + ".") if missing else _pass(cid)
+        if missing:
+            return _fail(cid, "The team does not name " + "; ".join(missing) + ".")
+        # Training written as "train…" settles it; said in other words ("needs a half-day on data
+        # collection"), it is the grader's to judge against the element's criteria (G-133).
+        return _pass(cid) if any("train" in _text(e).lower() for e in team) else None
     if cid == "DEF-R03":
         ctqs = [c for c in (a.get("critical_to_quality") or []) if isinstance(c, dict)]
         if not ctqs or any(not _text(c.get("requirement")) for c in ctqs):
