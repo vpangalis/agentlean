@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| **Headline** | 27 of 161 Define features pass (core 27 of 152) — A 7/67 · B 17/36 · C 1/36 · integrator 2/22 |
+| **Headline** | 28 of 161 Define features pass (core 28 of 152) — A 7/67 · B 17/36 · C 1/36 · integrator 3/22 |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
 | **Next — lane C** | DEF-054 — Under a read-back the screen shows Confirm and Change; a click sends action=confirm|change on /ask and the Belt's side shows the button pres |

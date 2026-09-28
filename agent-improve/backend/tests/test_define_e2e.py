@@ -79,9 +79,57 @@ def test_a_new_case_opens_in_define(monkeypatch) -> None:
         graph_mod.get_graph.cache_clear()
 
 
-def test_every_node_of_a_turn_is_checkpointed() -> None:
-    """DEF-003 — Every node of a Define turn leaves a checkpoint, so a crash loses at most one node's work."""
-    _not_written('DEF-003')
+def test_every_node_of_a_turn_is_checkpointed(monkeypatch, stub_planner, stub_coach) -> None:
+    """DEF-003 — Every node of a Define turn leaves a checkpoint, so a crash loses at most one
+    node's work: after one POST /ask, the thread's checkpoint history holds a step for each node
+    that ran — the parent's input_guard and define_phase, and in the phase subgraph's namespace
+    the planner and the executor."""
+    from fastapi.testclient import TestClient
+    from langgraph.checkpoint.memory import InMemorySaver
+    from langgraph.store.memory import InMemoryStore
+
+    from backend.app import app
+    from backend.core import graph as graph_mod
+    from backend.gateway import routes
+    from backend.storage.models import CaseDocument
+
+    saver, store = InMemorySaver(), InMemoryStore()
+    monkeypatch.setattr(graph_mod, "_persistence", lambda: (saver, store))
+    monkeypatch.setattr(graph_mod, "get_store", lambda: store)
+    monkeypatch.setattr("backend.core.store.get_store", lambda: store)
+    case = CaseDocument.new(case_id="IMPR-TEST-CKPT", title="checkpoints", belt_level="green",
+                            leader="Priya Shah", department="Finance", target_date="2027-03-31", team=[])
+
+    async def load(_cid):
+        return case
+
+    async def save(_c):
+        return None
+    monkeypatch.setattr(routes.blob, "storage_configured", lambda: True)
+    monkeypatch.setattr(routes.blob, "load_case", load)
+    monkeypatch.setattr(routes.blob, "save_case", save)
+    monkeypatch.setattr(routes, "_mirror_asks", lambda *a, **k: None)
+    graph_mod.get_graph.cache_clear()
+    try:
+        r = TestClient(app).post("/ask", json={"case_id": "IMPR-TEST-CKPT", "phase": "define", "user": "ana",
+                                              "message": "Hi — ready to start."})
+        assert r.status_code == 200, r.text
+        ran: set[str] = set()          # `versions_seen` names exactly the nodes that executed
+        steps: dict[str, int] = {}
+        for ns in list(saver.storage.get("IMPR-TEST-CKPT", {})):
+            history = list(saver.list({"configurable": {"thread_id": "IMPR-TEST-CKPT", "checkpoint_ns": ns}}))
+            steps[ns] = len(history)
+            for t in history:
+                ran |= set((t.checkpoint.get("versions_seen") or {}).keys())
+        for node in ("input_guard", "define_phase", "planner", "executor"):
+            assert node in ran, f"no checkpoint after {node}: {sorted(ran)}"
+        # One checkpoint per step: the parent's input, after input_guard, after define_phase; the
+        # subgraph's input, after the planner, after the executor (measured: 4 and 8).
+        parent = steps.get("", 0)
+        sub = sum(n for ns, n in steps.items() if ns.startswith("define_phase:"))
+        assert parent >= 3 and sub >= 3, steps
+    finally:
+        graph_mod.get_graph.cache_clear()
 
 
 def test_a_qualified_yes_is_treated_as_a_correction() -> None:
