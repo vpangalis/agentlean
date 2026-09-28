@@ -247,6 +247,8 @@ confirm before any calculation; results name the columns they came from.
 
 Headings a–g: TO WRITE in the Measure review. Known inputs: the Define baseline and as-is performance
 (C6); the measurement-system-before-baseline and stability-before-capability rules (inventory Q74).
+Measure turns need calculations: they run in code before the coach (T54), and T69's call budget is
+reviewed per turn type in the Measure review.
 
 ## 2.3 Analyse · TO WRITE
 ## 2.4 Improve · TO WRITE
