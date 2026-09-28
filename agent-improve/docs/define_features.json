@@ -5167,7 +5167,7 @@
   },
   {
    "id": "DEF-144",
-   "description": "T87: e-mail, phone, account and card numbers in uploads and tool results are masked before a model sees them; person names are kept; each masking is logged in step_log by type and count.",
+   "description": "T87: e-mail addresses, phone numbers, bank account numbers in IBAN form and card numbers in uploads and tool results are masked before a model sees them; person names are kept; each masking is logged in step_log by type and count.",
    "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [],
    "test": "backend/tests/test_define_e2e.py::test_t87_personal_data_is_masked_before_a_model_sees_it",
