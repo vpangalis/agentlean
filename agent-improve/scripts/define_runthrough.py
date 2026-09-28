@@ -140,10 +140,11 @@ class Walk:
             key = field or ""
             if self.last == ("confirm", field):
                 self.confirms[key] = self.confirms.get(key, 0) + 1
-                if self.confirms[key] >= 2:
-                    # A Confirm answered by the same read-back, twice: the
-                    # confirmation cannot complete the position (6.66's run
-                    # found this at position 5). Stuck, not a reason to spend.
+                if self.confirms[key] >= MAX_ATTEMPTS:
+                    # A Confirm answered by a read-back again, three times (R14's three
+                    # attempts, founder ruling 2, 2026-09-28 — it was twice): the
+                    # confirmation cannot complete the position (6.66's run found this
+                    # at position 5). Stuck, not a reason to spend.
                     return "", None, "stuck"
             self.last = ("confirm", field)
             if field == "voc_summary" and self.once("change"):
