@@ -1474,7 +1474,16 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
         raise HTTPException(500, f"Graph error: {str(e)}")
 
     if request.decision == "approve":
-        document, evidence = assemble_gate_document(case, request.phase)
+        # ADR-0063: the approved record is the graph's — the output mapper wrote it to the
+        # Store in this run. The case blob gets that same document, written once, here.
+        from backend.core.store import get_store
+        from backend.phases.mappers_common import read_gate_document
+        _, evidence = assemble_gate_document(case, request.phase)
+        approved = dict(read_gate_document(get_store(), request.case_id, request.phase) or {})
+        if not approved:
+            raise HTTPException(500, "The approval ran but the graph wrote no record to the Store (ADR-0063).")
+        approved.pop("_approved", None)
+        document = approved
         await blob.write_phase_gate(
             case_id=request.case_id, phase=request.phase, structured=document,
             submitted_by=request.actor,

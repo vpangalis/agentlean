@@ -168,9 +168,16 @@ def test_the_gate_write_keeps_the_change_log_and_uploads() -> None:
     _not_written('DEF-061')
 
 
-def test_measure_starts_from_the_approved_define_record() -> None:
-    """DEF-062 — After approval the case advances to Measure, and Measure starts from the approved Define record without PriorGateDocumentMissing."""
-    _not_written('DEF-062')
+def test_measure_starts_from_the_approved_define_record(env) -> None:
+    """DEF-062 — After approval the case advances to Measure, and Measure starts from the
+    approved Define record without PriorGateDocumentMissing: the first Measure turn through
+    the API reaches Measure's input mapper, which reads artifacts/define from the Store."""
+    assert _decide_after_submit(env).status_code == 200
+    assert env.case.current_phase == "measure"
+    r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "measure", "user": "belt",
+                                      "message": "What do we measure first?"})
+    assert r.status_code == 200, r.text                  # PriorGateDocumentMissing would be a 500
+    assert r.json()["phase"] == "measure"
 
 
 # ── Defect features (founder, 2026-09-27; docs/defects.json) ────────────────
@@ -637,6 +644,11 @@ def test_t90_a_turn_enters_at_the_current_phase_and_approval_advances_it(env) ->
     nodes = {n for h in history for n in (h.next or ())}      # the node each step ran next
     assert {"define_phase", "measure_phase"} <= nodes, nodes
     assert nodes <= set(graph_mod.graph_builder().nodes) | {"__start__"}, nodes   # one graph only
+
+
+def _decide_after_submit(env):
+    _submit(env)
+    return _decide(env, decision="approve")
 
 
 async def _history(compiled, config) -> list:

@@ -42,3 +42,14 @@ def test_a_feature_test_calling_a_mapper_directly_is_seen(tmp_path) -> None:
     assert direct is not None and "define_input_mapper" in direct[0] and not direct[1]
     api = wiring._test_calls(t, "test_api")
     assert api is not None and api[0] & wiring.DRIVES
+
+
+def test_every_mapper_and_graph_builder_has_a_production_caller() -> None:
+    """G-116's D7 (founder, 2026-09-28): for graph builders and mappers the wiring check is a
+    REFUSAL — this test fails, and with it the commit (rule 4), when one has no production
+    caller. The other kinds stay warnings until the founder rules on them."""
+    names = wiring.named()
+    names = {**names, "node": [], "middleware": [], "tool": [], "route": [],
+             "mapper": names["mapper"] + ["graph_builder", "build_phase_subgraph"]}
+    unwired = [f["finding"] for f in wiring.check_callers(wiring._Index(), names)]
+    assert not unwired, unwired

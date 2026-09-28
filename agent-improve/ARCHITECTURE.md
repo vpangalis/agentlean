@@ -238,7 +238,8 @@ sequenceDiagram
     API->>A: Command(resume=decision)
     alt approve
       A-->>API: final assembled; gate counters reset
-      API->>API: case blob and registry (write_phase_gate advances the phase); Store record not written yet (G-112)
+      A-->>API: output mapper — Store record written, phase advanced in the graph
+      API->>API: the same record to the case blob and registry (write_phase_gate), once
     else reject
       A-->>API: named elements reopened; rejection_feedback; back to the planner
     end
@@ -249,7 +250,7 @@ sequenceDiagram
 |---|---|
 | Pause payload | Define: `{kind: "accept_define_report", phase, passage, ask}` — `passage` keys the passing submission; the report itself (`phases/define/report.py::define_report`, each section's status and the value history) is served by `GET /gate/review/{case_id}/{phase}`. Other phases do not pause: `gate_review` passes through (`_gate_passage` is Define only) and `POST /gate` writes on a pass |
 | Decision | `POST /gate/decision` with `approve` or `reject`; a rejection must name at least one element and a reason; a decision with nothing pending answers 409 |
-| Approve | `gate_apply` assembles `{Phase}Output` by Pydantic construction (no model call), resets `gate_attempts` and `validator_feedback`; the route then writes the case blob and the registry (`storage/blob.py::write_phase_gate`, which advances `current_phase`). The Store record `("projects", case_id, "artifacts")` / phase and the output mapper are not wired yet — G-112, DEF-060 |
+| Approve | `gate_apply` assembles `{Phase}Output` by Pydantic construction (no model call) as `final` and resets `gate_attempts` and `validator_feedback`; the wrapper node's output mapper writes it to the Store (`("projects", case_id, "artifacts")` / phase) and advances `current_phase`, `phase_index`, `gate_passed`; the route then writes that same record to the case blob and the registry, once (`storage/blob.py::write_phase_gate`) |
 | Reject | `gate_apply` sets the named elements back to open in `field_status`, stores `rejection_feedback`, and routes to the planner; the coach takes the Belt back to those elements in the same run |
 | Durability | A pause survives a restart; an approval after a restart writes once |
 | Edits | The report is not edited on screen. Every change goes through coaching, so it passes the validation layer |
@@ -371,7 +372,7 @@ Classes are allowed only in files marked **C**; elsewhere module-level functions
 |---|---|---|---|
 | `define_input_mapper` | `case` / `record` | — | `core/graph.py::phase_node` (`INPUT_MAPPERS`) |
 | `{measure…control}_input_mapper` | `artifacts` / prior phase; absent → `PriorGateDocumentMissing` | — | the same |
-| `{phase}_output_mapper` | — | `artifacts` / phase ← `final` | nothing in production (G-112) |
+| `{phase}_output_mapper` | — | `artifacts` / phase ← `final`; returns the three routing fields | `core/graph.py::phase_node` on approval (`OUTPUT_MAPPERS`) |
 | `routes._ensure_case_record` | — | `case` / `record` | `/cases`, `/ask`, `/upload`, `/gate`, `/gate/decision` |
 | `routes._mirror_asks` → `write_asks` | — | the asks on `case` / `record` | `/ask` |
 
