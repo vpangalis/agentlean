@@ -48,11 +48,14 @@ SKILL = features.PROJECT / "skills" / "dmaic-define-phase" / "SKILL.md"
 PROMPTS = REPO / ".claude" / "logs" / "prompts.jsonl"
 MYPY = REPO / ".claude" / "config" / "mypy-ratchet.json"
 PHASES = ("define", "measure", "analyse", "improve", "control")
-STAGES = (("open_case", "Open case"), ("coached", "Coached through the elements"), ("report", "Report"),
+STAGES = (("open_case", "Open case"), ("coached", "Works through the 13 elements"), ("report", "Report"),
           ("approve", "Approve"), ("record_written", "Record written"), ("next_phase", "Next phase opens"))
 LAYERS = (("screen", "Screen"), ("api", "API"), ("coaching", "Coaching"), ("gate", "Gate"),
           ("persistence", "Persistence"), ("platform", "Platform"))
 E = html.escape
+#: The milestone names the founder ruled (BRIEF_m1_loop.md Part 1b, 2026-09-28).
+MILESTONE_LABELS = {"M1": "M1 — must work for one Belt to finish Define", "M2": "M2 — the other must-haves",
+                    "M3": "M3 — should- and could-haves"}
 
 
 def _git(*args: str) -> str:
@@ -123,9 +126,10 @@ def journey() -> dict:
                   "report": "done" if passed else "open", "approve": "done" if moved else "open",
                   "record_written": "done" if moved else "open", "next_phase": "done" if moved else "open"}
         longest = max((float(t.get("seconds") or 0) for t in turns), default=0)
-        at = f"stuck at element {k + 1} of {len(elements)} ({elements[k][0]})" if k is not None else \
-            f"{sum(done)} of {len(elements)} elements confirmed"
-        latest = {"stages": stages, "elements": els, "file": path.name,
+        reached = k + 1 if k is not None else sum(done)
+        at = (f"element {reached} of {len(elements)} reached"
+              + (f" (stuck at {elements[k][0]})" if k is not None else f" · {sum(done)} confirmed"))
+        latest = {"stages": stages, "elements": els, "file": path.name, "reached": reached,
                   "note": f"{at} · {len(turns)} turns · {summ.get('model_calls', '?')} model calls · "
                           f"longest turn {longest:.0f} s · {'approved' if moved else 'not approved'}",
                   "stale": summ.get("product_hash") != features.product_hash()}
@@ -287,7 +291,7 @@ def data() -> dict:
     miles = []
     for m, t in rank.MILESTONES.items():
         mine = [x for x in rows if x["tier"] == t]
-        miles.append({"m": m, "tier": t, "total": len(mine), "green": sum(x["status"] == "green" for x in mine),
+        miles.append({"m": m, "label": MILESTONE_LABELS[m], "tier": t, "total": len(mine), "green": sum(x["status"] == "green" for x in mine),
                       "amber": sum(x["status"] == "amber" for x in mine)})
     lanes = []
     for lane in features.LANES:
@@ -321,7 +325,7 @@ h1,h2{font-family:var(--cond);font-weight:600;margin:0}h1{font-size:24px}h2{font
 .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .top{display:grid;grid-template-columns:260px 1fr;gap:18px}@media (max-width:800px){.top{grid-template-columns:1fr}}
 .pct{font:600 56px/1 var(--cond);font-variant-numeric:tabular-nums}.pct small{font-size:18px;color:var(--muted);font-weight:500}
-.bar{display:grid;grid-template-columns:44px 1fr 56px;gap:8px;align-items:center;font-size:12.5px;cursor:pointer}
+.bar{display:grid;grid-template-columns:minmax(0,15em) 1fr 56px;gap:8px;align-items:center;font-size:12.5px;cursor:pointer}
 .track{height:10px;background:var(--open);border-radius:5px;overflow:hidden;display:flex}.track i{display:block;height:100%}
 .num{font:600 12px var(--mono);text-align:right;font-variant-numeric:tabular-nums}
 .journey{display:grid;grid-template-columns:1fr 3.2fr 1fr 1fr 1fr 1fr;gap:6px}
@@ -448,7 +452,7 @@ def _svg_burnup(points: list[dict], miles: list[dict]) -> str:
         out.append(f"<line x1='{L}' y1='{y(m['total']):.1f}' x2='{W - 10}' y2='{y(m['total']):.1f}' stroke='{colour}' stroke-dasharray='2 3'/>")
     out.append(f"<text x='{L}' y='{H - 8}' class='lbl'>{E(points[0]['day'])}</text>"
                f"<text x='{W - 10}' y='{H - 8}' class='lbl' text-anchor='end'>{E(points[-1]['day'])}</text>")
-    legend = "".join(f"<span><i class='t' style='background:{c}'></i>{m['m']} — tier {m['tier']} ({m['total']})</span>"
+    legend = "".join(f"<span><i class='t' style='background:{c}'></i>{E(m['label'])} ({m['total']})</span>"
                      for m, c in zip(miles, ("var(--t1)", "var(--wip)", "var(--accent)")))
     return f"<svg viewBox='0 0 {W} {H}' role='img' aria-label='Burn-up per milestone'>{''.join(out)}</svg><div class='legend'>{legend}</div>"
 
@@ -473,7 +477,7 @@ def render(d: dict) -> str:
     c = d["complete"]
     bars = "".join(
         f"<div class='bar' data-list='milestones:{i}' data-tip='{E(x['m'])}: tier {x['tier']} — {x['green']} pass, "
-        f"{x['amber']} in progress, of {x['total']}'><span>{x['m']}</span><div class='track'>"
+        f"{x['amber']} in progress, of {x['total']}'><span>{E(x['label'])}</span><div class='track'>"
         f"<i style='width:{_pct(x['green'], x['total']):.1f}%;background:var(--done)'></i>"
         f"<i style='width:{_pct(x['amber'], x['total']):.1f}%;background:var(--wip)'></i></div>"
         f"<span class='num'>{x['green']}/{x['total']}</span></div>" for i, x in enumerate(d["milestones"]))
@@ -495,7 +499,10 @@ def render(d: dict) -> str:
                 for f in fs if f["stage"] == sk and f["layer"] == lk)
             cells.append(f"<td><div class='tiles'>{tiles}</div></td>")
         body_rows.append(f"<tr><td class='l'>{E(ll)}</td>{''.join(cells)}</tr>")
-    foot = "".join(f"<td>{_pct(sum(f['status'] == 'green' for f in fs if f['stage'] == sk), sum(1 for f in fs if f['stage'] == sk)):.0f}%</td>"
+    foot = "".join(f"<td>{_pct(sum(f['status'] == 'green' for f in fs if f['stage'] == sk), sum(1 for f in fs if f['stage'] == sk)):.0f}%"
+                   f"<br><span data-tip='M1 features of this stage that pass, of all of them'>M1 "
+                   f"{sum(f['status'] == 'green' for f in fs if f['stage'] == sk and f['tier'] == 1)} of "
+                   f"{sum(1 for f in fs if f['stage'] == sk and f['tier'] == 1)}</span></td>"
                    for sk, _ in STAGES)
     lanes = "".join(
         f"<div class='row' data-f='{x['now']}'><span class='lane'>{E(x['lane'][:5])}</span><span>"
