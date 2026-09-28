@@ -1,6 +1,6 @@
 # ADR-0057 — The input guard is a node at the front of the parent graph
 
-Status: PROPOSED (founder) · 2026-09-27 · Requirements: T71, T72 · Supersedes: business R9
+Status: ACCEPTED (founder, 2026-09-28 — fail closed) · Requirements: T71, T72 · Supersedes: business R9
 
 ## Context
 

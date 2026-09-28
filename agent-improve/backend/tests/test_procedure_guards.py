@@ -138,7 +138,7 @@ def test_rule_18_refuses_a_requirement_without_its_fields_and_passes_the_real_fi
     rel = "agent-improve/docs/requirements/business.md"
     staged = _stage(repo, rel, _read(repo, rel))
     g.check_requirements(str(repo), staged + [rel])            # the real files pass
-    staged = _stage(repo, rel, _read(repo, rel).replace(" · MoSCoW: ? · Design: ADR-0001", "", 1))
+    staged = _stage(repo, rel, _read(repo, rel).replace(" · MoSCoW: Must · Design: ADR-0001", "", 1))
     with pytest.raises(SystemExit):
         g.check_requirements(str(repo), staged)
 
@@ -149,8 +149,8 @@ def test_rule_18_refuses_a_requirement_without_its_fields_and_passes_the_real_fi
 def _cite(repo: Path, design: str) -> None:
     """R1's Design becomes `design`, staged."""
     rel = "agent-improve/docs/requirements/business.md"
-    _stage(repo, rel, _read(repo, rel).replace("**R1 Team copilot** · RATIFIED 2026-09-26 · MoSCoW: ? · Design: ADR-0001",
-                                               f"**R1 Team copilot** · RATIFIED 2026-09-26 · MoSCoW: ? · Design: {design}"))
+    _stage(repo, rel, _read(repo, rel).replace("**R1 Team copilot** · RATIFIED 2026-09-26 · MoSCoW: Must · Design: ADR-0001",
+                                               f"**R1 Team copilot** · RATIFIED 2026-09-26 · MoSCoW: Must · Design: {design}"))
 
 
 def test_rule_19_refuses_landing_a_feature_whose_adr_is_proposed(repo) -> None:

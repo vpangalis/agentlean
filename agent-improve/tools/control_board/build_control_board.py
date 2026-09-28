@@ -291,7 +291,7 @@ def data() -> dict:
                       "amber": sum(x["status"] == "amber" for x in mine)})
     lanes = []
     for lane in features.LANES:
-        q = [r["id"] for r in ranked if r["lane"] == lane]
+        q = [r["id"] for r in ranked if r["lane"] == lane and not r.get("held")]
         lanes.append({"lane": lane, "name": features.LANES[lane], "now": q[0] if q else None,
                       "next": q[1] if len(q) > 1 else None, "package": pk[lane]})
     phases = [p for p in PHASES if (features.PROJECT / "docs" / f"{p}_features.json").is_file()]

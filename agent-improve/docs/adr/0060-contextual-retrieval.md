@@ -1,6 +1,6 @@
 # ADR-0060 — Contextual retrieval and reranking, adopted only on eval evidence
 
-Status: PROPOSED (founder) · 2026-09-27 · Requirement: T85 · Depends on: T86 (eval set)
+Status: ACCEPTED (founder, 2026-09-28 — adoption stays conditional on the eval result) · Requirement: T85 · Depends on: T86 (eval set)
 
 ## Context
 Anthropic's Contextual Retrieval work reports fewer failed retrievals when each chunk carries a

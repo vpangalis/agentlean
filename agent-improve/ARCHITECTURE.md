@@ -519,7 +519,8 @@ construction.
   `load_evidence_series`) plus `COMPUTATION_TOOLS_BY_PHASE[phase]`. At `hop_budget` ≤ 0 the lookups
   are left out; otherwise each is a per-turn counted copy (`_budgeted_rag_tools`). `_build_executor`
   passes the list to `create_agent(tools=…)`. `check_gate_status` and `request_human_approval` are
-  not built; the other four phase SKILL.md files still list them in `allowed-tools` (G-115).
+  not coach tools (G-115): readiness is in the coach's project-state section and escalation is the
+  graph's.
 - Every tool has an `args_schema` from `knowledge/tool_args.py`.
 - `propose_diagram(diagram_type, data) -> dict` returns JSON the UI renders;
   `propose_template(template_type, fill_data) -> str` returns a scaffold for the coach's message.

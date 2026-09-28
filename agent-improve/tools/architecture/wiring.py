@@ -268,8 +268,8 @@ def _test_calls(path: Path, func: str) -> tuple[set[str], bool] | None:
     return calls, "_not_written" in calls
 
 
-def check_feature_tests(names: dict[str, list[str]]) -> list[dict]:
-    feats = json.loads(FEATURES.read_text(encoding="utf-8"))["features"]
+def check_feature_tests(names: dict[str, list[str]], feats: list[dict] | None = None) -> list[dict]:
+    feats = json.loads(FEATURES.read_text(encoding="utf-8"))["features"] if feats is None else feats
     direct = set(names["node"]) | {n for n in names["mapper"]}
     out = []
     for f in feats:

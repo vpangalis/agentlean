@@ -11,7 +11,7 @@ metadata:
   phase_index: 1
   output_schema: MeasureOutput
   source: ARCHITECTURE.md §39.2.10
-allowed-tools: rag_lookup_methodology, rag_lookup_evidence, rag_lookup_case_history, propose_template, propose_diagram, check_gate_status, request_human_approval, calculate_sigma_level, calculate_cpk, calculate_dpmo, calculate_yield_rty, calculate_ftq, calculate_grr, calculate_sample_size_proportion, calculate_sample_size_mean
+allowed-tools: rag_lookup_methodology, rag_lookup_evidence, rag_lookup_case_history, propose_template, propose_diagram, calculate_sigma_level, calculate_cpk, calculate_dpmo, calculate_yield_rty, calculate_ftq, calculate_grr, calculate_sample_size_proportion, calculate_sample_size_mean
 ---
 
 # DMAIC Measure Phase — Coaching Skill

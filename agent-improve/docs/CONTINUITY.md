@@ -7,9 +7,9 @@
 
 | | |
 |---|---|
-| **Headline** | 15 of 144 Define features pass (core 15 of 135) — A 7/60 · B 6/27 · C 2/36 · integrator 0/21 |
+| **Headline** | 9 of 149 Define features pass (core 9 of 140) — A 3/60 · B 6/33 · C 0/35 · integrator 0/21 |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
-| **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
+| **Next — lane B** | DEF-060 — On approval the Define record is written once: the store (projects/{case}/artifacts/define.json), PhaseState.final and the case record agree |
 | **Next — lane C** | DEF-074 — G-113: the create form shows no case id until the server has assigned one; the number a Belt sees is always the one the case is saved under. |
 | **Next — lane integrator** | DEF-001 — A Belt creates a new case and it opens in Define: POST /cases returns an id, the case list shows it, and GET /cases/{id} opens it with curre |
 | **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |

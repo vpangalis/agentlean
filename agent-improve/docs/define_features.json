@@ -41,7 +41,7 @@
     ]
    },
    "requirement": "R1",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "low",
    "effort": "M",
    "priority_override": null,
@@ -92,8 +92,8 @@
     "gaps": []
    },
    "requirement": "R1",
-   "belt_impact": "degraded",
-   "rework_risk": "low",
+   "belt_impact": "dead_end",
+   "rework_risk": "high",
    "effort": "M",
    "priority_override": null,
    "phase": "define",
@@ -138,7 +138,7 @@
     "gaps": []
    },
    "requirement": "R1",
-   "belt_impact": "degraded",
+   "belt_impact": "data_loss",
    "rework_risk": "high",
    "effort": "M",
    "priority_override": null,
@@ -323,7 +323,7 @@
     "gaps": []
    },
    "requirement": "R3",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "low",
    "effort": "M",
    "priority_override": null,
@@ -366,7 +366,7 @@
     ]
    },
    "requirement": "R6",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "high",
    "effort": "M",
    "priority_override": null,
@@ -1102,7 +1102,7 @@
     "gaps": []
    },
    "requirement": "R4",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "low",
    "effort": "S",
    "priority_override": null,
@@ -1146,7 +1146,7 @@
     "gaps": []
    },
    "requirement": "R4",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "high",
    "effort": "M",
    "priority_override": null,
@@ -1184,7 +1184,7 @@
     "gaps": []
    },
    "requirement": "R4",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "low",
    "effort": "S",
    "priority_override": null,
@@ -1224,7 +1224,7 @@
     "gaps": []
    },
    "requirement": "R4",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "high",
    "effort": "M",
    "priority_override": null,
@@ -1278,7 +1278,7 @@
     ]
    },
    "requirement": "R4",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "high",
    "effort": "M",
    "priority_override": null,
@@ -1321,7 +1321,7 @@
     "gaps": []
    },
    "requirement": "R4",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "low",
    "effort": "M",
    "priority_override": null,
@@ -1359,7 +1359,7 @@
     "gaps": []
    },
    "requirement": "R4",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "low",
    "effort": "S",
    "priority_override": null,
@@ -1408,7 +1408,7 @@
     ]
    },
    "requirement": "R4",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "high",
    "effort": "M",
    "priority_override": null,
@@ -1446,7 +1446,7 @@
     "gaps": []
    },
    "requirement": "R4",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "low",
    "effort": "S",
    "priority_override": null,
@@ -1484,7 +1484,7 @@
     "gaps": []
    },
    "requirement": "R4",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "low",
    "effort": "S",
    "priority_override": null,
@@ -1532,7 +1532,7 @@
     ]
    },
    "requirement": "R4",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "high",
    "effort": "M",
    "priority_override": null,
@@ -1570,7 +1570,7 @@
     "gaps": []
    },
    "requirement": "R4",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "low",
    "effort": "S",
    "priority_override": null,
@@ -1799,7 +1799,7 @@
     "gaps": []
    },
    "requirement": "R5",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "high",
    "effort": "M",
    "priority_override": null,
@@ -1902,7 +1902,7 @@
     ]
    },
    "requirement": "R5",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "high",
    "effort": "M",
    "priority_override": null,
@@ -2096,7 +2096,7 @@
     ]
    },
    "requirement": "R6",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "high",
    "effort": "M",
    "priority_override": null,
@@ -2195,7 +2195,7 @@
     ]
    },
    "requirement": "R6",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "high",
    "effort": "M",
    "priority_override": null,
@@ -2709,7 +2709,12 @@
    "belt_impact": "data_loss",
    "rework_risk": "high",
    "effort": "L",
-   "priority_override": null,
+   "priority_override": {
+    "rank_tier": 1,
+    "reason": "founder 2026-09-28 (BRIEF_topology_and_security): the topology package — one graph, ADR-0063",
+    "package": "topology",
+    "sequence": 1
+   },
    "phase": "define",
    "stage": "record_written",
    "layer": "persistence"
@@ -2785,10 +2790,15 @@
     "gaps": []
    },
    "requirement": "R6",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null,
+   "priority_override": {
+    "rank_tier": 1,
+    "reason": "founder 2026-09-28 (BRIEF_topology_and_security): the topology package — one graph, ADR-0063",
+    "package": "topology",
+    "sequence": 1
+   },
    "phase": "define",
    "stage": "next_phase",
    "layer": "gate"
@@ -2834,7 +2844,7 @@
     "gaps": []
    },
    "requirement": "R1",
-   "belt_impact": "degraded",
+   "belt_impact": "dead_end",
    "rework_risk": "low",
    "effort": "L",
    "priority_override": null,
@@ -3383,7 +3393,7 @@
     "gaps": []
    },
    "requirement": "W8",
-   "belt_impact": "wrong_data",
+   "belt_impact": "none",
    "rework_risk": "low",
    "effort": "S",
    "priority_override": null,
@@ -3412,7 +3422,7 @@
     "gaps": []
    },
    "requirement": "W10",
-   "belt_impact": "dead_end",
+   "belt_impact": "degraded",
    "rework_risk": "low",
    "effort": "M",
    "priority_override": null,
@@ -4420,7 +4430,12 @@
    "belt_impact": "degraded",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null,
+   "priority_override": {
+    "rank_tier": 1,
+    "reason": "founder 2026-09-28 (BRIEF_topology_and_security): the topology package — one graph, ADR-0063",
+    "package": "topology",
+    "sequence": 1
+   },
    "phase": "define",
    "stage": "record_written",
    "layer": "persistence"
@@ -5150,7 +5165,7 @@
     ],
     "guidance": []
    },
-   "lane": "C",
+   "lane": "B",
    "provenance": {
     "steps": [],
     "capability_rows": [],
@@ -5160,7 +5175,12 @@
    "belt_impact": "none",
    "rework_risk": "high",
    "effort": "M",
-   "priority_override": null,
+   "priority_override": {
+    "rank_tier": 1,
+    "reason": "founder 2026-09-28 (BRIEF_topology_and_security): the security package, after the topology — ADR-0057",
+    "package": "security",
+    "sequence": 2
+   },
    "phase": "define",
    "stage": "coached",
    "layer": "platform"
@@ -5198,6 +5218,177 @@
    "phase": "define",
    "stage": "coached",
    "layer": "coaching"
+  },
+  {
+   "id": "DEF-146",
+   "description": "T88: every checkpoint and Store record carries STATE_SCHEMA_VERSION; each state change ships a migration tested against a saved fixture; a newer version refuses to load with a readable error.",
+   "clause": "the record is written once and correctly",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_t88_state_carries_a_schema_version_and_migrates",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/core/checkpointer.py",
+     "agent-improve/backend/core/store.py"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T88",
+   "belt_impact": "data_loss",
+   "rework_risk": "high",
+   "effort": "L",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "persistence"
+  },
+  {
+   "id": "DEF-147",
+   "description": "T89: production and the tests compile the same graph builder — there is one builder, and every route invokes the graph it compiles.",
+   "clause": "the record is written once and correctly",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_t89_production_and_tests_compile_one_builder",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/core/graph.py"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T89",
+   "belt_impact": "none",
+   "rework_risk": "high",
+   "effort": "S",
+   "priority_override": {
+    "rank_tier": 1,
+    "reason": "founder 2026-09-28 (BRIEF_topology_and_security): the topology package — one graph, ADR-0063",
+    "package": "topology",
+    "sequence": 1
+   },
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
+  },
+  {
+   "id": "DEF-148",
+   "description": "T90: a turn enters the one graph at the case's current phase through a deterministic router; approving Define's gate writes its record to the Store and the next /ask enters Measure through the same compiled graph.",
+   "clause": "the record is written once and correctly",
+   "depends_on": [
+    "DEF-147"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_t90_a_turn_enters_at_the_current_phase_and_approval_advances_it",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/core/graph.py",
+     "agent-improve/backend/gateway/routes.py"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T90",
+   "belt_impact": "dead_end",
+   "rework_risk": "high",
+   "effort": "L",
+   "priority_override": {
+    "rank_tier": 1,
+    "reason": "founder 2026-09-28 (BRIEF_topology_and_security): the topology package — one graph, ADR-0063",
+    "package": "topology",
+    "sequence": 1
+   },
+   "phase": "define",
+   "stage": "next_phase",
+   "layer": "gate"
+  },
+  {
+   "id": "DEF-149",
+   "description": "T71: the Belt's message passes input_guard — fixed rules, then Prompt Shields — at the front of the main graph; a blocked or unscreenable turn answers with guidance, stores nothing and records the verdict in step_log.",
+   "clause": "the record is written once and correctly",
+   "depends_on": [
+    "DEF-147"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_t71_the_input_guard_screens_every_belt_message",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/core/graph.py"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T71",
+   "belt_impact": "wrong_data",
+   "rework_risk": "high",
+   "effort": "M",
+   "priority_override": {
+    "rank_tier": 1,
+    "reason": "founder 2026-09-28 (BRIEF_topology_and_security): the security package, after the topology — ADR-0057",
+    "package": "security",
+    "sequence": 2
+   },
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
+  },
+  {
+   "id": "DEF-150",
+   "description": "T72: upload text passes the Prompt Shields document check before interpretation, and reaches a model only as labelled data.",
+   "clause": "the record is written once and correctly",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_t72_upload_text_is_screened_before_interpretation",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/upload/agent.py"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T72",
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": {
+    "rank_tier": 1,
+    "reason": "founder 2026-09-28 (BRIEF_topology_and_security): the security package, after the topology — ADR-0057",
+    "package": "security",
+    "sequence": 2
+   },
+   "phase": "define",
+   "stage": "coached",
+   "layer": "api"
   }
  ]
 }

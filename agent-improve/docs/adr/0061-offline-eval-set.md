@@ -1,6 +1,6 @@
 # ADR-0061 — An offline evaluation set built from real failures
 
-Status: PROPOSED (founder) · 2026-09-27 · Requirement: T86 · Serves: T50, T75, T85
+Status: ACCEPTED (founder, 2026-09-28) · Requirement: T86 · Serves: T50, T75, T85
 
 ## Context
 T50 blocks a release on a regression, but there is nothing to measure a regression against.

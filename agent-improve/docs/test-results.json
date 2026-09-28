@@ -1,9 +1,9 @@
 {
- "source_hash": "e81f676c054f9f20",
- "commit": "00ee39e",
+ "source_hash": "a54b2fd42146afd7",
+ "commit": "cebf408",
  "commit_matches_source": false,
- "full_run_hash": "e81f676c054f9f20",
- "recorded_at": "2026-09-28T07:15:13+00:00",
+ "full_run_hash": "a54b2fd42146afd7",
+ "recorded_at": "2026-09-28T08:09:12+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -444,9 +444,14 @@
   "backend/tests/test_define_e2e.py::test_t66_a_tier_2_criterion_can_never_fail_a_gate": "skipped",
   "backend/tests/test_define_e2e.py::test_t67_start_up_exits_with_status_1_when_a_required_credential_is_missing": "skipped",
   "backend/tests/test_define_e2e.py::test_t68_a_second_region_fallback_exists_before_launch_deferred": "skipped",
+  "backend/tests/test_define_e2e.py::test_t71_the_input_guard_screens_every_belt_message": "skipped",
+  "backend/tests/test_define_e2e.py::test_t72_upload_text_is_screened_before_interpretation": "skipped",
   "backend/tests/test_define_e2e.py::test_t85_contextual_chunks_and_a_reranker_go_live_only_on_eval_evidence": "skipped",
   "backend/tests/test_define_e2e.py::test_t86_the_offline_eval_set_grades_define_tasks_and_reports_pass_3": "skipped",
   "backend/tests/test_define_e2e.py::test_t87_personal_data_is_masked_before_a_model_sees_it": "skipped",
+  "backend/tests/test_define_e2e.py::test_t88_state_carries_a_schema_version_and_migrates": "skipped",
+  "backend/tests/test_define_e2e.py::test_t89_production_and_tests_compile_one_builder": "skipped",
+  "backend/tests/test_define_e2e.py::test_t90_a_turn_enters_at_the_current_phase_and_approval_advances_it": "skipped",
   "backend/tests/test_define_e2e.py::test_the_as_is_process_captures_step_performance_structured": "skipped",
   "backend/tests/test_define_e2e.py::test_the_belt_can_pick_any_available_element_or_take_the_recommended_one": "skipped",
   "backend/tests/test_define_e2e.py::test_the_belt_can_see_captured_and_missing_fields": "skipped",
@@ -1526,8 +1531,8 @@
   "backend/tests/test_wiring_check.py::test_it_reads_what_section_3_names": "passed"
  },
  "older": {
-  "source_hash": "075cc33562fef1d9",
-  "recorded_at": "2026-09-28T07:07:06+00:00",
+  "source_hash": "e81f676c054f9f20",
+  "recorded_at": "2026-09-28T07:15:13+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2073,6 +2078,7 @@
    "backend/tests/test_define_e2e.py::test_every_node_of_a_turn_is_checkpointed": "skipped",
    "backend/tests/test_define_e2e.py::test_every_phase_report_reads_as_a_business_document": "skipped",
    "backend/tests/test_define_e2e.py::test_every_request_is_explained_with_a_marked_sample": "skipped",
+   "backend/tests/test_define_e2e.py::test_every_tool_the_define_skill_offers_is_bound": "passed",
    "backend/tests/test_define_e2e.py::test_every_turn_is_graded_on_all_four_blocks": "skipped",
    "backend/tests/test_define_e2e.py::test_measure_starts_from_the_approved_define_record": "skipped",
    "backend/tests/test_define_e2e.py::test_messages_show_their_author_and_a_second_person_is_told": "skipped",

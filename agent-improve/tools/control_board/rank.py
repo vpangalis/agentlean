@@ -62,7 +62,7 @@ def problems(features: list[dict]) -> list[str]:
             out.append(f"{fid}: no priority_override field (null, or {{rank_tier, reason}})")
         elif o is not None and not (isinstance(o, dict) and o.get("rank_tier") in (1, 2, 3, 4)
                                     and str(o.get("reason") or "").strip()):
-            out.append(f"{fid}: priority_override must be null or {{rank_tier: 1-4, reason}}")
+            out.append(f"{fid}: priority_override must be null or {{rank_tier: 1-4, reason[, package, sequence]}}")
     return out
 
 
@@ -152,13 +152,17 @@ def rank(features: list[dict] | None = None, res: dict | None = None,
                 why[fid].insert(0, f"raised to tier {best}: {who} depends on it")
 
     ranked = sorted((i for i in failing if tier[i] is not None),
-                    key=lambda i: (tier[i], -score[i], i))
+                    key=lambda i: (tier[i], _sequence(by_id[i]), -score[i], i))
     # Never above a failing dependency: take the best-sorted feature whose deps are placed.
     placed: list[str] = []
     pending = list(ranked)
     while pending:
         for k, fid in enumerate(pending):
             deps = [d for d in F.blockers(fid, features, st) if d in pending and d != fid]
+            if by_id[fid].get("priority_override"):
+                # The override wins (ADR-0058 rule 5): an overridden feature waits only for
+                # the overridden features it depends on. Landing (rule 11) stays strict.
+                deps = [d for d in deps if by_id[d].get("priority_override")]
             if not deps:
                 placed.append(pending.pop(k))
                 break
@@ -189,6 +193,13 @@ def milestones(features: list[dict] | None = None, res: dict | None = None,
     return {m: {"tier": n, "total": sum(1 for v in t.values() if v == n),
                 "passing": sum(1 for i, v in t.items() if v == n and st[i] == "passing")}
             for m, n in MILESTONES.items()}
+
+
+def _sequence(f: dict) -> int:
+    """An overridden feature ranks ahead of the rest of its tier, in its override's `sequence`
+    (a founder-ruled package order); every other feature after them."""
+    o = f.get("priority_override")
+    return int(o.get("sequence", 0)) if o else 1_000_000
 
 
 def next_per_lane(ranked: list[dict]) -> dict[str, str | None]:
@@ -232,6 +243,14 @@ def packages(features: list[dict] | None = None, ranked: list[dict] | None = Non
         queue = [r["id"] for r in ranked if r["lane"] == lane and not r.get("held")]
         if not queue:
             out[lane] = {"features": [], "points": 0}
+            continue
+        top = by_id[queue[0]].get("priority_override") or {}
+        if top.get("package"):
+            # A founder-ruled package (priority_override.package): its features, in rank order,
+            # whatever their points — the founder set its size.
+            pkg = [i for i in queue if (by_id[i].get("priority_override") or {}).get("package") == top["package"]]
+            out[lane] = {"features": pkg, "points": sum(EFFORT.get(by_id[i].get("effort", "M"), 2) for i in pkg),
+                         "package": top["package"]}
             continue
         pkg = [queue[0]]
         points = EFFORT.get(by_id[queue[0]].get("effort", "M"), 2)

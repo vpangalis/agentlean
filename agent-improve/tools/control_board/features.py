@@ -121,10 +121,27 @@ def fresh(res: dict) -> bool:
     return res.get("source_hash") == source_hash()
 
 
+def shallow(features: list[dict]) -> set[str]:
+    """Features whose test the wiring check flags as driving neither the graph nor the API.
+    Founder 2026-09-28 (RULINGS §4): one passing count everywhere — such a feature is not
+    passing on the board, in CONTINUITY or for rule 10 until its test is end to end."""
+    import sys as _sys
+    _sys.path.insert(0, str(_HERE.parent / "architecture"))
+    try:
+        import wiring
+        flagged = wiring.check_feature_tests(wiring.named(), features)
+    except Exception:  # noqa: BLE001 — a broken check must not change the count silently
+        return set()
+    return {w["name"] for w in flagged if "drives neither" in w["finding"]}
+
+
 def summary(features: list[dict] | None = None, res: dict | None = None) -> dict:
     features = load() if features is None else features
     res = results() if res is None else res
     st = status(features, res)
+    for fid in shallow(features):
+        if st.get(fid) == "passing":
+            st[fid] = "failing"
     lanes: dict[str, dict] = {}
     clauses: dict[str, dict] = {}
     import rank  # the computed order (ADR-0058, brief Part F3); imported here: rank imports this module

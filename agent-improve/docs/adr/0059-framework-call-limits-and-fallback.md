@@ -1,6 +1,6 @@
 # ADR-0059 — Call budget and model fallback use LangChain's built-in middleware; the hop budget stays custom
 
-Status: PROPOSED (founder) · 2026-09-27 · Requirements: T69, T34 · CLAUDE.md rule 0.24
+Status: ACCEPTED (founder, 2026-09-28) · Requirements: T69, T34 · CLAUDE.md rule 0.24
 
 ## Context
 T69 caps model calls per ordinary turn; T34 asks for a model fallback when the primary fails. Both

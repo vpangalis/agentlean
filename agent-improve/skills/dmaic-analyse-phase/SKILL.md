@@ -11,7 +11,7 @@ metadata:
   phase_index: 2
   output_schema: AnalyseOutput
   source: the archived ARCHITECTURE v1.88 (`docs/_archive/ARCHITECTURE_v1.88_2026-09-27.md`) §39.3.10
-allowed-tools: rag_lookup_methodology, rag_lookup_evidence, rag_lookup_case_history, propose_template, propose_diagram, check_gate_status, request_human_approval, t_test, chi_square_test, anova, pearson_correlation, linear_regression
+allowed-tools: rag_lookup_methodology, rag_lookup_evidence, rag_lookup_case_history, propose_template, propose_diagram, t_test, chi_square_test, anova, pearson_correlation, linear_regression
 ---
 
 # DMAIC Analyse Phase — Coaching Skill

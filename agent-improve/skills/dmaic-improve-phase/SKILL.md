@@ -11,7 +11,7 @@ metadata:
   phase_index: 3
   output_schema: ImproveOutput
   source: ARCHITECTURE.md §39.4.10
-allowed-tools: rag_lookup_methodology, rag_lookup_evidence, rag_lookup_case_history, propose_template, propose_diagram, check_gate_status, request_human_approval, calculate_doe_main_effects
+allowed-tools: rag_lookup_methodology, rag_lookup_evidence, rag_lookup_case_history, propose_template, propose_diagram, calculate_doe_main_effects
 ---
 
 # DMAIC Improve Phase — Coaching Skill

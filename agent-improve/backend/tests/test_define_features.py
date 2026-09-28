@@ -71,9 +71,9 @@ def test_every_requirement_carries_moscow_and_design_and_the_checker_refuses_one
     assert F.field_problems(F.requirements()) == []
     texts = {n: (F.REQUIREMENTS / n).read_text(encoding="utf-8") for n in ("business.md", "platform.md")}
     texts["business.md"] = texts["business.md"].replace(
-        "**R1 Team copilot** · RATIFIED 2026-09-26 · MoSCoW: ? · Design: ADR-0001",
+        "**R1 Team copilot** · RATIFIED 2026-09-26 · MoSCoW: Must · Design: ADR-0001",
         "**R1 Team copilot** · RATIFIED 2026-09-26 · Design: ADR-0001")
-    texts["platform.md"] = texts["platform.md"].replace("| ? | ADR-0015 | `test_state.py", "| ? | | `test_state.py", 1)
+    texts["platform.md"] = texts["platform.md"].replace("| Must | ADR-0015 | `test_state.py", "| Must | | `test_state.py", 1)
     assert F.field_problems(F.requirements(texts=texts)) == [
         "R1 (business.md) has no MoSCoW: field", "T1 (platform.md) has no Design: field"]
 
@@ -125,7 +125,7 @@ def test_each_lane_takes_its_top_ranked_failing_feature(feats) -> None:
     r = rank.rank(feats, {"outcomes": {}})
     nxt = F.summary(feats, {"outcomes": {}})["lanes"]
     for lane in F.LANES:
-        mine = [x["id"] for x in r if x["lane"] == lane]
+        mine = [x["id"] for x in r if x["lane"] == lane and not x["held"]]   # never a held one
         assert nxt[lane]["next"] == (mine[0] if mine else None), lane
 
 

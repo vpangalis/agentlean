@@ -97,10 +97,13 @@ Generated from each file's status line; never typed.
 | [0054](0054-head-is-truth.md) | The tree at HEAD is the only source of truth | PROPOSED |
 | [0055](0055-eu-ai-act-posture.md) | EU AI Act posture: a limited-risk assistant with a human decision | PROPOSED |
 | [0056](0056-dora-risk-register.md) | Operational risks are kept in a DORA-structured register | PROPOSED |
-| [0057](0057-input-guard-node.md) | The input guard is a node at the front of the parent graph | PROPOSED |
+| [0057](0057-input-guard-node.md) | The input guard is a node at the front of the parent graph | ACCEPTED |
 | [0058](0058-refactoring-order-is-computed.md) | The order of work is computed from evidence, not written as a list | ACCEPTED |
-| [0059](0059-framework-call-limits-and-fallback.md) | Call budget and model fallback use LangChain's built-in middleware; the hop budget stays custom | PROPOSED |
-| [0060](0060-contextual-retrieval.md) | Contextual retrieval and reranking, adopted only on eval evidence | PROPOSED |
-| [0061](0061-offline-eval-set.md) | An offline evaluation set built from real failures | PROPOSED |
-| [0062](0062-pii-handling.md) | Personal data in uploads and messages is detected and handled before a model sees it | PROPOSED |
+| [0059](0059-framework-call-limits-and-fallback.md) | Call budget and model fallback use LangChain's built-in middleware; the hop budget stays custom | ACCEPTED |
+| [0060](0060-contextual-retrieval.md) | Contextual retrieval and reranking, adopted only on eval evidence | ACCEPTED |
+| [0061](0061-offline-eval-set.md) | An offline evaluation set built from real failures | ACCEPTED |
+| [0062](0062-pii-handling.md) | Personal data in uploads and messages is detected and handled before a model sees it | ACCEPTED |
+| [0063](0063-one-runtime-graph-with-phase-entry.md) | One compiled runtime graph that enters at the current phase | PROPOSED |
+| [0064](0064-process-performance-data.md) | The as-is process carries its performance, and the problem points at its steps | ACCEPTED |
+| [0065](0065-state-schema-versioning.md) | Checkpoints carry a state schema version; every state change ships a migration | PROPOSED |
 <!-- END ADR INDEX -->

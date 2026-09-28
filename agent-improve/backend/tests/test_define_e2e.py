@@ -582,3 +582,28 @@ def test_every_tool_the_define_skill_offers_is_bound() -> None:
     offered = {t.strip() for t in m.group(1).split(",") if t.strip()}
     bound = {t.name for t in [*UNIVERSAL_TOOLS, *COMPUTATION_TOOLS_BY_PHASE["define"]]} | {"load_skill"}
     assert offered <= bound, f"offered and not bound: {sorted(offered - bound)}"
+
+
+def test_t88_state_carries_a_schema_version_and_migrates() -> None:
+    """DEF-146 — T88."""
+    _not_written("DEF-146")
+
+
+def test_t89_production_and_tests_compile_one_builder() -> None:
+    """DEF-147 — T89."""
+    _not_written("DEF-147")
+
+
+def test_t90_a_turn_enters_at_the_current_phase_and_approval_advances_it() -> None:
+    """DEF-148 — T90."""
+    _not_written("DEF-148")
+
+
+def test_t71_the_input_guard_screens_every_belt_message() -> None:
+    """DEF-149 — T71."""
+    _not_written("DEF-149")
+
+
+def test_t72_upload_text_is_screened_before_interpretation() -> None:
+    """DEF-150 — T72."""
+    _not_written("DEF-150")

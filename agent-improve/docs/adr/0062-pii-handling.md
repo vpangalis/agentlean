@@ -1,6 +1,6 @@
 # ADR-0062 — Personal data in uploads and messages is detected and handled before a model sees it
 
-Status: PROPOSED (founder) · 2026-09-27 · Requirement: T87
+Status: ACCEPTED (founder, 2026-09-28) · Requirement: T87
 
 ## Context
 Belts upload process documents and data files that can contain e-mail addresses, phone numbers,

@@ -11,7 +11,7 @@ metadata:
   phase_index: 4
   output_schema: ControlOutput
   source: ARCHITECTURE.md §39.5.10
-allowed-tools: rag_lookup_methodology, rag_lookup_evidence, rag_lookup_case_history, propose_template, propose_diagram, check_gate_status, request_human_approval, xbar_r_chart_limits, imr_chart_limits, p_chart_limits, c_chart_limits, post_improvement_cpk
+allowed-tools: rag_lookup_methodology, rag_lookup_evidence, rag_lookup_case_history, propose_template, propose_diagram, xbar_r_chart_limits, imr_chart_limits, p_chart_limits, c_chart_limits, post_improvement_cpk
 ---
 
 # DMAIC Control Phase — Coaching Skill
