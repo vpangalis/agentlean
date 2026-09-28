@@ -74,9 +74,6 @@ leaves the reasons out.
 | §13 | validation is not a tool; policy advisory lives in `gate_apply` | 0022 | superseding 0022 |
 | §14 | nodes are async because per-node timeouts need it | 0043 | superseding 0043 |
 | §14 | reflection is a node; invisible retry belongs in middleware | 0022 | superseding 0022 |
-| §15 | static phase transitions (`phase_router` deleted) | 0023 | superseding 0023 |
-| §15 | mixing edges and `Command` fails silently | 0023 | superseding 0023 |
-| §15 | the supervisor owns no retry or escalation; no cross-subgraph imports | 0023 | superseding 0023 |
 | §16 | one id doubles as thread, namespace, blob path and filter | 0024 | superseding 0024 |
 | §16 | `subgraph.ainvoke` directly with the inherited config; inside a tool, persistence breaks | none | new ADR |
 | §16 | `recursion_limit` fails as a hop cap both ways | 0032 | superseding 0032 |
@@ -157,7 +154,7 @@ leaves the reasons out.
 
 ## 3. Method statements in old §39 and §43 against the skills
 
-139 statements were checked: 124 are present, 10 missing, 4 partial and 1 changed. Measure and
+139 statements were checked: 124 are present, 10 missing, 3 partial and 1 changed (one partial retired 2026-09-28: `check_gate_status` is not a coach tool). Measure and
 Control are complete.
 
 | Old § | Statement | State |
@@ -174,7 +171,6 @@ Control are complete.
 | 43.6 | Do not stray off the current phase's topic | **missing** (all) |
 | 39.1.5 | SIPOC is built column by column | partial (Define: one Ask, steps first) |
 | 43.3 | The A→F session flow | partial: stages redefined in every SKILL.md |
-| 43.4 | The live preview from `check_gate_status` | partial: the tool is not built |
 | 43.7 | Metric literacy includes how to read a good or poor value | partial: Define and Measure only |
 | 39.1.3 | The 5W2H are prompts, never stored | **changed**: `problem_5w2h` is stored (R4) |
 | 43.5 | No external URLs | present in four phases, **absent from Define** |
