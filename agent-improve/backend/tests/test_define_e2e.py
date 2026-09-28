@@ -21,9 +21,62 @@ def _not_written(fid: str) -> None:
     pytest.fail(f"{fid}: not written yet — the lane that takes this feature writes it")
 
 
-def test_a_new_case_opens_in_define() -> None:
-    """DEF-001 — A Belt creates a new case and it opens in Define: POST /cases returns an id, the case list shows it, and GET /cases/{id} opens it with current_phase '"""
-    _not_written('DEF-001')
+def test_a_new_case_opens_in_define(monkeypatch) -> None:
+    """DEF-001 — A Belt creates a new case and it opens in Define: POST /cases returns an id, the
+    case list shows it, and GET /cases/{id} opens it with current_phase 'define'. The real routes,
+    the real blob functions (create, register, list, load) over an in-memory container, the one
+    compiled graph over an in-memory saver and store."""
+    import re
+
+    from azure.core.exceptions import ResourceNotFoundError
+    from fastapi.testclient import TestClient
+    from langgraph.checkpoint.memory import InMemorySaver
+    from langgraph.store.memory import InMemoryStore
+
+    from backend.app import app
+    from backend.core import graph as graph_mod
+    from backend.storage import blob
+
+    blobs: dict[str, str] = {}
+
+    async def upload(path, data, overwrite=True):
+        if not overwrite and path in blobs:
+            raise ValueError(f"{path} exists")
+        blobs[path] = data.decode() if isinstance(data, bytes) else data
+
+    async def download(path):
+        if path not in blobs:
+            raise ResourceNotFoundError("missing")
+        return blobs[path]
+
+    async def exists(path):
+        return path in blobs
+
+    monkeypatch.setattr(blob, "storage_configured", lambda: True)
+    monkeypatch.setattr(blob, "_upload", upload)
+    monkeypatch.setattr(blob, "_download", download)
+    monkeypatch.setattr(blob, "_exists", exists)
+    saver, store = InMemorySaver(), InMemoryStore()
+    monkeypatch.setattr(graph_mod, "_persistence", lambda: (saver, store))
+    monkeypatch.setattr(graph_mod, "get_store", lambda: store)
+    monkeypatch.setattr("backend.core.store.get_store", lambda: store)
+    graph_mod.get_graph.cache_clear()
+    try:
+        client = TestClient(app)
+        r = client.post("/cases", json={"title": "Late supplier payments", "belt_level": "green",
+                                        "leader": "Priya Shah", "department": "Finance",
+                                        "target_date": "2027-03-31", "team": []})
+        assert r.status_code == 200, r.text
+        case_id = r.json()["case_id"]
+        assert re.fullmatch(r"IMPR-\d{4}-[0-9A-F]{3}", case_id), case_id
+        listed = client.get("/registry")
+        assert listed.status_code == 200, listed.text
+        assert [e for e in listed.json() if e["case_id"] == case_id and e["current_phase"] == "define"]
+        opened = client.get(f"/cases/{case_id}")
+        assert opened.status_code == 200, opened.text
+        assert opened.json()["current_phase"] == "define" and opened.json()["title"] == "Late supplier payments"
+    finally:
+        graph_mod.get_graph.cache_clear()
 
 
 def test_every_node_of_a_turn_is_checkpointed() -> None:
