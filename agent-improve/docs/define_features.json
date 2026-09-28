@@ -89,7 +89,9 @@
     "capability_rows": [
      "2"
     ],
-    "gaps": []
+    "gaps": [
+     "G-131"
+    ]
    },
    "requirement": "R1",
    "belt_impact": "dead_end",
@@ -5713,6 +5715,37 @@
    "rework_risk": "low",
    "effort": "S",
    "stage": "coached",
+   "layer": "coaching"
+  },
+  {
+   "id": "DEF-161",
+   "description": "G-130: a reply written in code never shows the Belt a script placeholder ({baseline_estimate}); it is filled from the stored values or left out.",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_executor.py::test_g130_a_code_written_reply_never_shows_a_script_placeholder",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/phases/nodes_common.py::_fallback_reply"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-130"
+    ]
+   },
+   "requirement": "R2",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "next_phase",
    "layer": "coaching"
   }
  ]

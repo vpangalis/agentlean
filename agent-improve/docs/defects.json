@@ -1283,6 +1283,32 @@
    "lane": [
     "B"
    ]
+  },
+  {
+   "id": "G-130",
+   "symptom": "A REPLY WRITTEN IN CODE SHOWS THE BELT A RAW SCRIPT PLACEHOLDER. Evidence: M1 loop package 6's run-through, IMPR-2026-3A4 (2026-09-29), the first Measure turn after approval: the coach reached its 2-call share, and the code-written reply read 'How many measures are we baselining — just the one, or more than one? Define named {baseline_estimate}; we give each of those its own number, sample and period.' Registered from the run-through. Owner: lane A; proved fixed by DEF-161. — 8D. D2 IS: _fallback_reply copies the script's Ask line verbatim, and Measure's Ask lines carry placeholders meant for the model to fill from Define's record. D2 IS-NOT: Define's Ask lines (no placeholders; no Define fallback showed one); the coach's own replies (it fills them). D4 OCCURRENCE: phases/nodes_common.py::_script_ask returns the text after '**Ask:**' as is. D4 ESCAPE: the fallback's tests use Define fields; Measure had never been reached live before this run. D5 FIX (direction): fill a placeholder from the stored values (this phase and the approved earlier phases) or drop the clause that carries it. D7 PREVENT: DEF-161's test over Measure's placeholder lines.",
+   "requirement": [
+    "R2"
+   ],
+   "feature": [
+    "DEF-161"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-131",
+   "symptom": "A TEACHING TURN SPENDS BOTH ITS CALLS ON TOOLS AND ENDS IN A REPLY WRITTEN IN CODE. Evidence: M1 loop package 6's run-through, IMPR-2026-3A4, turn 29 (store and advance to the SIPOC): 'the coach reached its 2-call share of the turn's 4 model calls', fallback; DEF-002 fails on it (every turn a coached reply). After ADR-0069 no answer turn fell back (DEF-160 passes); this is the teaching-turn half. Registered from the run-through. Owner: integrator; proved fixed by DEF-002. — 8D. D2 IS: on a teaching turn the coach's two calls both return tool calls (a lookup, then another tool), so no structured reply is made before the limit ends the loop. D2 IS-NOT: answer turns (no tools offered); timeouts. D4 OCCURRENCE: the turn-tools middleware offers the teaching tools on every call of the turn, including the last one the limit allows. D4 ESCAPE: DEF-094's test proves the containment; nothing forces the final allowed call to be the reply. D5 FIX (direction, within ADR-0069/ADR-0070's dynamic tool selection): offer no tools on the coach's last allowed call, so it must return the structured reply. D7 PREVENT: DEF-002's run-through test; an offline test of the last-call selection.",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-002"
+   ],
+   "lane": [
+    "integrator"
+   ]
   }
  ]
 }

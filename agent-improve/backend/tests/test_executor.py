@@ -1260,3 +1260,16 @@ def test_adr_0069_a_confirmed_sipoc_is_drawn_in_code(stub_coach) -> None:
     reply = [m for m in out["messages"] if isinstance(m, AIMessage)][-1]
     diagram = reply.additional_kwargs.get("sipoc_diagram")
     assert diagram and diagram["draft"] is False and diagram["customers"], reply.additional_kwargs
+
+
+@pytest.mark.xfail(strict=False, reason="a Define feature test — its outcome is the measurement")
+def test_g130_a_code_written_reply_never_shows_a_script_placeholder() -> None:
+    """DEF-161 — G-130: the reply written in code (the fallback) takes the script's Ask line; a
+    placeholder in it (`{baseline_estimate}`) is filled from the stored values or left out — never
+    shown to the Belt raw. Found live on IMPR-2026-3A4's first Measure turn."""
+    import re
+    for phase, field in (("measure", "baseline_mean"), ("measure", "detailed_process_map")):
+        plan = CoachingPlan(focus_field=field, status="untaught", move="teach",
+                            retrieval_strategy="single_hop", retrieval_hops=[])
+        reply = _c._fallback_reply(phase, plan)
+        assert not re.search(r"\{[a-z_]+(\[[^\]]*\])?\}", reply.message), reply.message

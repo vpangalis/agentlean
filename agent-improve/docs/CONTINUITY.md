@@ -7,15 +7,15 @@
 
 | | |
 |---|---|
-| **Headline** | 26 of 159 Define features pass (core 26 of 150) — A 7/65 · B 16/36 · C 1/36 · integrator 2/22 |
+| **Headline** | 51 of 160 Define features pass (core 49 of 151) — A 28/66 · B 18/36 · C 1/36 · integrator 4/22 |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
-| **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
+| **Next — lane B** | DEF-043 — Layer 2b refuses a gate submission missing any of the sixteen gate-required fields and names what is missing; the prompt's missing list and  |
 | **Next — lane C** | DEF-074 — G-113: the create form shows no case id until the server has assigned one; the number a Belt sees is always the one the case is saved under. |
 | **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
-| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
+| **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.1 |
-| **Block regenerated** | 2026-09-28 |
+| **Block regenerated** | 2026-09-29 |
 
 *Every figure comes from `docs/define_features.json` and
 `docs/test-results.json` (step 6.67); the headline is the board's.
