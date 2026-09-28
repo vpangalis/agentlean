@@ -1166,6 +1166,45 @@
    "lane": [
     "A"
    ]
+  },
+  {
+   "id": "G-121",
+   "symptom": "A STRUCTURED ELEMENT IS CONFIRMED AS PROSE, THE WALK MOVES ON, AND NOTHING IS STORED. Evidence: M1 loop package 2's run-through, IMPR-2026-439 (2026-09-28), turns 32-33: the read-back of the SIPOC held the Belt's own words as its pending value (a string; the SIPOC is declared dict, six keys); Confirm advanced to element 13; the executor's declared-type guard refused the string, so process_map_sipoc was never stored; the Belt was told nothing, and the gate review found the SIPOC missing. Registered from the run-through (BRIEF_m1_loop.md rule 1). Owner: lane A; proved fixed by DEF-158. — 8D. D2 IS: a structured field answered in one message, read back without a structured proposal, is confirmed and skipped. D2 IS-NOT: not elements with a structured proposal (team, scope, benefits stored); not the type guard (it refuses correctly); not G-117's line (it speaks from what was stored, which was nothing). D4 OCCURRENCE: phases/moves.py::pending_store stores the Belt's words verbatim for the position's own field when the proposal is missing or a string — right for a string field, wrong for a structured one; moves.decide then counts the non-empty string as stored and advances; the type is checked only after the move is decided. D4 ESCAPE: every capture test hands the executor a store already in the declared type (store_plan); no test confirms a structured element whose read-back lacks the structure; the run-through never reached element 12 before this run. D5 FIX (direction): the pending store keeps only values in the declared type, so a Confirm of a read-back without the structure is refused like G-117's incomplete element — nothing stored, the Belt told, the element current, the next read-back asked for the structure. D7 PREVENT: DEF-158's end-to-end test.",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-158"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-122",
+   "symptom": "A CONFIRM CLICK ADVANCED WITHOUT STORING (DEF-008 REGRESSED). Evidence: record 20260928T161731, turn 33: move store_and_advance with stored_field process_map_sipoc, and process_map_sipoc absent from the stored values. D2 IS: the click moved the walk on and nothing was stored. D4 OCCURRENCE: moves.decide counted the pending prose as stored; the executor's type guard refused it after. Registered under founder ruling 5 (2026-09-28): the run-through record 20260928T161731 (IMPR-2026-439) regresses a ratcheted feature; the regression is registered, not refused. Cause: G-121's occurrence (turn 33: the SIPOC confirmed as prose, advanced, not stored). — 8D. D2 IS-NOT: every other turn of the run; elements 1-11 and 13. D4 ESCAPE: as G-121 (no test confirms a structured element whose read-back lacks the structure). D5 FIX: G-121's (DEF-158). D7 PREVENT: DEF-158's test; the feature's own test on the next run-through.",
+   "requirement": [
+    "R6"
+   ],
+   "feature": [
+    "DEF-008"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-123",
+   "symptom": "THE STEP LABEL LAGGED AT ELEMENT 13 (DEF-006 REGRESSED). Evidence: record 20260928T161731, turns 33-34: field issues_and_barriers (element 13) with progress 'Define · Step 12 of 13'. D2 IS: the label counts stored elements, and element 12 was not stored while the walk had moved on. D4 OCCURRENCE: define_progress derives the step from the stored values; G-121 left the SIPOC unstored behind the current element. Registered under founder ruling 5 (2026-09-28): the run-through record 20260928T161731 (IMPR-2026-439) regresses a ratcheted feature; the regression is registered, not refused. Cause: G-121's occurrence (turn 33: the SIPOC confirmed as prose, advanced, not stored). — 8D. D2 IS-NOT: every other turn of the run; elements 1-11 and 13. D4 ESCAPE: as G-121 (no test confirms a structured element whose read-back lacks the structure). D5 FIX: G-121's (DEF-158). D7 PREVENT: DEF-158's test; the feature's own test on the next run-through.",
+   "requirement": [
+    "R1"
+   ],
+   "feature": [
+    "DEF-006"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }

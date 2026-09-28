@@ -277,7 +277,9 @@
     "capability_rows": [
      "28"
     ],
-    "gaps": []
+    "gaps": [
+     "G-123"
+    ]
    },
    "requirement": "R1",
    "belt_impact": "degraded",
@@ -360,7 +362,9 @@
      "6.61"
     ],
     "capability_rows": [],
-    "gaps": [],
+    "gaps": [
+     "G-122"
+    ],
     "notes_6_66": [
      "no route-level test drives action='confirm' (test_wiring uses a typed yes) — missing"
     ]
@@ -5598,6 +5602,38 @@
     "capability_rows": [],
     "gaps": [
      "G-118"
+    ]
+   },
+   "requirement": "R4",
+   "belt_impact": "dead_end",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
+  },
+  {
+   "id": "DEF-158",
+   "description": "G-121: a structured element whose read-back carries no value in its declared type (the SIPOC's six keys) is never confirmed as prose: Confirm stores nothing, the Belt is told so, and the element stays current.",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_g121_a_structured_element_is_never_confirmed_as_prose",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/phases/moves.py::pending_store",
+     "agent-improve/backend/phases/moves.py::decide"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-121"
     ]
    },
    "requirement": "R4",

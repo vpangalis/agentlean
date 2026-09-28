@@ -1165,3 +1165,38 @@ def test_g118_a_read_back_after_change_keeps_every_part_of_the_element(env, monk
     assert stored.get("voc_summary"), f"the element was not stored after Confirm: {sorted(stored)}"
     assert stored.get("critical_to_quality"), "the CTQs captured before Change were dropped by the read-back"
 
+
+
+def test_g121_a_structured_element_is_never_confirmed_as_prose(env, monkeypatch) -> None:
+    """DEF-158 — G-121 (R4): when a structured element's read-back carries no value in its declared
+    type (the SIPOC is six keys), the Belt's Confirm does not move on as if it were stored: nothing
+    is stored, the Belt is told so, and the element stays current. Found live on IMPR-2026-439,
+    turns 32-33: the read-back offered the Belt's prose as the SIPOC, Confirm advanced to element
+    13, the type guard refused the prose, and the gate then found the SIPOC missing."""
+    import re
+
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    record = env.case.phases["define"]
+    record.structured = {k: v for k, v in COMPLETE.items() if k not in ("process_map_sipoc", "issues_and_barriers")}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in record.structured}
+    record.field_status["process_map_sipoc"] = {"status": moves.ASKED}
+    prose = ("Suppliers: our suppliers. Inputs: invoices. Process: receive, match, approve, pay. "
+             "Outputs: paid invoices. Customers: the suppliers. Process metrics: days to pay.")
+    _coach_saying(monkeypatch, f'Here is your SIPOC as you gave it: "{prose}" Is this right?',
+                  captured=[{"field_name": "process_map_sipoc", "value": prose, "source": "belt"}])
+
+    def ask(**body):
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    ask(message=prose)
+    body = ask(message="Confirm", action="confirm")
+    stored = (env.client.get(f"/cases/{CASE_ID}").json().get("phases") or {}).get("define", {}).get("structured") or {}
+    if isinstance(stored.get("process_map_sipoc"), dict):
+        return                                           # stored in its declared type: fixed that way
+    assert "process_map_sipoc" not in stored, "prose was stored for a structured element"
+    assert body.get("move_field") == "process_map_sipoc", f"moved on without the SIPOC: {body.get('move_field')}"
+    assert re.search(r"nothing (was|is) stored", body["answer"], re.I), body["answer"]
