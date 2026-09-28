@@ -4410,7 +4410,7 @@
   },
   {
    "id": "DEF-117",
-   "description": "The case blob is never written mid-conversation, only at gate approval",
+   "description": "T13 (ADR-0066): the case blob is never written mid-conversation — only at creation, upload and approval; unfinished work lives in the checkpoint, and a reload reads it through the compiled graph.",
    "clause": "the record is written once and correctly",
    "depends_on": [],
    "test": "backend/tests/test_define_e2e.py::test_t13_the_case_blob_is_never_written_mid_conversation_only_at_gate_appro",
@@ -4442,7 +4442,7 @@
   },
   {
    "id": "DEF-118",
-   "description": "The retention sweep never removes a paused thread",
+   "description": "T17 (ADR-0066): no checkpoint of an open case is deleted by retention; a paused thread is one of them.",
    "clause": "the record is written once and correctly",
    "depends_on": [],
    "test": "backend/tests/test_define_e2e.py::test_t17_the_retention_sweep_never_removes_a_paused_thread",
@@ -5324,7 +5324,7 @@
   },
   {
    "id": "DEF-149",
-   "description": "T71: the Belt's message passes input_guard — fixed rules, then Prompt Shields — at the front of the main graph; a blocked or unscreenable turn answers with guidance, stores nothing and records the verdict in step_log.",
+   "description": "T71 (amended): before any model call every Belt message is checked for attempts to change the coach's rules and against T93's limits; a blocked turn answers with the guard's fixed guidance plus the current element and its sample, stores nothing, and records threat, rule and person in step_log — no model builds the reply.",
    "clause": "the record is written once and correctly",
    "depends_on": [
     "DEF-147"
@@ -5360,7 +5360,7 @@
   },
   {
    "id": "DEF-150",
-   "description": "T72: upload text passes the Prompt Shields document check before interpretation, and reaches a model only as labelled data.",
+   "description": "T72 (amended): an upload's whole text is checked in chunks of at most 10,000 characters before indexing or any model; a flagged file stays in the case marked not used and the Belt is told which file and why; upload text and Belt answers reach every model inside a labelled data block.",
    "clause": "the record is written once and correctly",
    "depends_on": [],
    "test": "backend/tests/test_define_e2e.py::test_t72_upload_text_is_screened_before_interpretation",
@@ -5391,6 +5391,155 @@
    "phase": "define",
    "stage": "coached",
    "layer": "api"
+  },
+  {
+   "id": "DEF-151",
+   "description": "R20: a message or file that tries to turn the coach against its rules is not processed; the sender is told why and how to phrase it, with the element they are on and its sample; the block is in the decision trail with who and when.",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-149"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_r20_a_blocked_message_is_explained_with_the_element_and_its_sample",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/core/guard.py"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "R20",
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
+  },
+  {
+   "id": "DEF-152",
+   "description": "T91: at least 50 benign Belt messages (Lean vocabulary, German, names, pasted tables, questions about other projects) pass the guard; none is blocked.",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [
+    "DEF-149"
+   ],
+   "test": "backend/tests/test_define_e2e.py::test_t91_fifty_benign_messages_pass_the_guard",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/core/guard.py"
+    ],
+    "guidance": []
+   },
+   "lane": "B",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T91",
+   "belt_impact": "dead_end",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
+  },
+  {
+   "id": "DEF-153",
+   "description": "T92: a model call refused with content_filter is never retried nor sent to the fallback; the Belt gets a guidance reply and the refusal is in step_log.",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_t92_a_content_filter_refusal_is_not_retried_and_answers_with_guidance",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/phases/nodes_common.py::_build_executor"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T92",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "platform"
+  },
+  {
+   "id": "DEF-154",
+   "description": "T93: over a limit (10,000 characters, 25 MB upload, 10 turns a minute) the Belt is told the limit and the typed text stays; above 5 MB an upload is accepted with a notice.",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_t93_limits_answer_with_the_limit_and_keep_the_text",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/gateway/routes.py"
+    ],
+    "guidance": []
+   },
+   "lane": "C",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T93",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "M",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "api"
+  },
+  {
+   "id": "DEF-155",
+   "description": "T94: the guard runs strict unless development mode is set explicitly; a production start without Content Safety refuses to run; a skipped Prompt Shields check is recorded as skipped.",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_t94_strict_by_default_and_production_needs_content_safety",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/app.py"
+    ],
+    "guidance": []
+   },
+   "lane": "integrator",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": []
+   },
+   "requirement": "T94",
+   "belt_impact": "none",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "open_case",
+   "layer": "platform"
   }
  ]
 }

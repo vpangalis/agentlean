@@ -728,3 +728,28 @@ def test_t72_upload_text_is_screened_before_interpretation(env, monkeypatch) -> 
         assert r.status_code == 422, (kw, r.status_code, r.text)
         assert calls and calls[0]["documents"], "the document check was not asked"
     assert written == [], "a refused upload was written"
+
+
+def test_r20_a_blocked_message_is_explained_with_the_element_and_its_sample() -> None:
+    """DEF-151 — R20."""
+    _not_written("DEF-151")
+
+
+def test_t91_fifty_benign_messages_pass_the_guard() -> None:
+    """DEF-152 — T91."""
+    _not_written("DEF-152")
+
+
+def test_t92_a_content_filter_refusal_is_not_retried_and_answers_with_guidance() -> None:
+    """DEF-153 — T92."""
+    _not_written("DEF-153")
+
+
+def test_t93_limits_answer_with_the_limit_and_keep_the_text() -> None:
+    """DEF-154 — T93."""
+    _not_written("DEF-154")
+
+
+def test_t94_strict_by_default_and_production_needs_content_safety() -> None:
+    """DEF-155 — T94."""
+    _not_written("DEF-155")

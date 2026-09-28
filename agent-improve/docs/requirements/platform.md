@@ -5,7 +5,7 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 ## Technical requirements
 
 > **Status:** T1–T68 ACCEPTED 2026-09-27 (except T41, RETIRED); T69–T70 ACCEPTED; T85–T87 ACCEPTED 2026-09-27;
-> T71–T72 ACCEPTED 2026-09-28 (with ADR-0057); T88–T90 ACCEPTED 2026-09-28; T73–T84 PROPOSED — awaiting founder. Each is a measurable quality or constraint, with `MoSCoW` (`?` until the founder
+> T71–T72 ACCEPTED 2026-09-28 as amended, and T91–T94 ACCEPTED 2026-09-28 (ADR-0067); T88–T90 ACCEPTED 2026-09-28; T73–T84 PROPOSED — awaiting founder. Each is a measurable quality or constraint, with `MoSCoW` (`?` until the founder
 > ratifies it) and `Design` (its ADR, or `none`). **Proof**
 > names the test in `backend/tests/` that proves it today, or `none`. The decisions behind
 > them are in [docs/adr](../adr/README.md). Counts are owned by the code cited, never copied here.
@@ -30,7 +30,7 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 | T10 | The field log survives the turn boundary through the case record | §6 | Must | ADR-0019 | `test_capture_accumulates.py::test_the_log_crosses_the_turn_boundary_through_the_case_record` |
 | T11 | Exactly one writer per `thread_id` at a time (a Blob lease) | §10, §64 | Must | ADR-0018 | none |
 | T12 | `thread_id` comes from an authenticated session, never from the request body (with R8) | §16 | Must | ADR-0024 | none |
-| T13 | The case blob is never written mid-conversation, only at gate approval | §10, §33.3 | Must | ADR-0038 | none |
+| T13 | The case blob is never written mid-conversation, only at gate approval | §10, §33.3 | Must | ADR-0066 | none |
 ### Pause and resume
 
 | Id | Requirement | § | MoSCoW | Design | Proof |
@@ -38,7 +38,7 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 | T14 | A validated Define report pauses the graph and writes nothing before a decision | §33.3 | Must | ADR-0037 | `test_gate_acceptance.py::test_a_validated_define_report_pauses_and_nothing_is_written` |
 | T15 | A pause survives a process restart; one approval writes exactly once; pending writes round-trip | §33 | Must | ADR-0037 | `test_gate_acceptance.py::test_the_pause_survives_a_restart_and_an_approval_writes_once`, `::test_pending_writes_round_trip_and_the_special_channels_overwrite` |
 | T16 | A decision with nothing pending answers 409; a rejection must name an element and a reason | §49 | Must | ADR-0009 | `test_gate_acceptance.py::test_there_is_nothing_to_decide_before_a_submission`, `::test_a_rejection_names_an_element_and_a_reason` |
-| T17 | The retention sweep never removes a paused thread | §8, §58 | Must | none | none |
+| T17 | No checkpoint of an open case is deleted by retention; a paused thread is one of them | §8, §58 | Must | ADR-0066 | none |
 ### Idempotent writes
 
 | Id | Requirement | § | MoSCoW | Design | Proof |
@@ -128,8 +128,8 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 |---|---|---|---|---|
 | T69 | An ordinary coaching turn makes at most 4 model calls, retries included; the count is recorded per turn in `step_log`; enforced with `ModelCallLimitMiddleware`; calls outside the agent are counted in `step_log` against the same budget | Must | ADR-0059 | none |
 | T70 | Node time limits, retries and compensation use LangGraph's per-node `timeout=`, `retry_policy=` and `error_handler=`; no hand-written budget or retry loop | Must | ADR-0043 | none |
-| T71 | The Belt's message is screened before any model reads it — fixed rules, then Azure Prompt Shields — in a node at the front of the parent graph; a blocked turn answers with guidance, stores nothing, and records the verdict in `step_log` | Must | ADR-0057 | none |
-| T72 | Upload text is screened for hidden instructions before any model reads it, and is always passed to a model as labelled data, never as instruction | Must | ADR-0057 | none |
+| T71 | Before any model call, every Belt message is checked for attempts to change the coach's rules (overriding instructions, fake system or assistant turns, persona role-play, encoded instructions) and against the limits of T93. A blocked turn answers with the guard's fixed guidance plus the current element and its sample, stores nothing, and records the threat, rule and signed-in person in `step_log`. No model is used to build the reply | Must | ADR-0067 | none |
+| T72 | Before an upload is indexed or read by any model, its whole text is checked, in chunks of at most 10,000 characters, for instructions addressed to the AI, including text hidden by formatting, comments, hidden cells or sheets, or metadata. A flagged file stays in the case, marked as not used by the coach, and the Belt is told which file and why. All upload text and Belt answers reach every model (coach, planner, validator, grader) inside a labelled data block, never as instruction | Must | ADR-0067 | none |
 | T73 | A coach reply never contains the system prompt, another case's data or an external link | Should | none | none |
 | T74 | Every tool is classified read-only, internal write or external effect; an external-effect tool needs human approval; credentials stay in code | Should | ADR-0057 | none |
 | T75 | The evaluation set contains prompt-attack cases; a regression blocks release | Should | ADR-0049 | none |
@@ -148,3 +148,7 @@ R8 moved to business.md; R9 is retired into T71 and T72.
 | T88 | Every checkpoint and Store record carries a state schema version; every state change ships a tested migration; a newer version refuses to load readably | Must | ADR-0065 | none |
 | T89 | Production and tests compile the same graph builder; there is one builder | Must | ADR-0063 | none |
 | T90 | Each turn enters the graph at the case's current phase through a deterministic router (no model call); approval of a phase's gate writes its record to the Store and advances the phase inside the graph | Must | ADR-0063 | none |
+| T91 | The guard refuses no ordinary project language: the evaluation set holds at least 50 benign Belt messages (Lean vocabulary, German, names, pasted tables, questions about other projects); none may be blocked, and a regression blocks release (with T75) | Must | ADR-0067 | none |
+| T92 | A model call refused by Azure's content filter (`content_filter`) is never retried and never sent to the fallback model; the Belt gets a guidance reply, not an error; the refusal is recorded in `step_log`. Prompt Shields is enabled in block mode in the Azure OpenAI deployment's filter | Must | ADR-0067 | none |
+| T93 | Limits: a message at most 10,000 characters; an upload above 5 MB is accepted with a notice to remove content the coach doesn't need; an upload above 25 MB is refused with the same advice; at most 10 turns per minute per person. Over a limit the Belt is told the limit and the typed text stays in the box | Should | ADR-0067 | none |
+| T94 | The guard runs strict unless development mode is set explicitly; a production start without Content Safety configured refuses to run; in development a skipped Prompt Shields check is recorded as skipped in `step_log` | Must | ADR-0067 | none |

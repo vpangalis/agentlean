@@ -32,12 +32,17 @@ _TITLE = re.compile(r"^#\s+(?:ADR-)?\d+\.?\s*(?:—\s*)?(.*)$", re.M)
 _LINK = re.compile(r"\[[^\]]*\]\([^)]*\)")
 
 
+_REFINES = re.compile(r"^\**Refines\**:?\**\s*(.*)$", re.M)
+
+
 def parse(text: str) -> dict:
-    """{title, status, superseded_by} of one record's text."""
+    """{title, status, superseded_by, refines} of one record's text."""
     t = _TITLE.search(text)
     s = _STATUS.search(text)
+    r = _REFINES.search(text)
     return {"title": t.group(1).strip() if t else "", "status": s.group(1) if s else "PROPOSED",
-            "superseded_by": s.group(2) if s and s.group(2) else None}
+            "superseded_by": s.group(2) if s and s.group(2) else None,
+            "refines": sorted(set(re.findall(r"ADR-(\d{4})", r.group(1)))) if r else []}
 
 
 def load(folder: Path = ADR_DIR) -> dict[str, dict]:
@@ -56,10 +61,22 @@ def gated(number: str) -> bool:
 
 
 def index(records: dict[str, dict]) -> str:
+    """The index table. A refinement is linked both ways here — `Refines:` read from the refining
+    record, "refined by" computed — because an ACCEPTED record is never edited."""
+    refined_by: dict[str, list[str]] = {}
+    for n, r in records.items():
+        for target in r.get("refines", []):
+            refined_by.setdefault(target, []).append(n)
+
+    def links(n: str, r: dict) -> str:
+        out = [f"refines {', '.join(r['refines'])}"] if r.get("refines") else []
+        out += [f"refined by {', '.join(refined_by[n])}"] if n in refined_by else []
+        return "; ".join(out) or "—"
+
     rows = [f"| [{n}]({r['file']}) | {r['title']} | {r['status']}"
-            + (f" by {r['superseded_by']}" if r["superseded_by"] else "") + " |"
+            + (f" by {r['superseded_by']}" if r["superseded_by"] else "") + f" | {links(n, r)} |"
             for n, r in records.items()]
-    return "\n".join([BEGIN, "| # | Decision | Status |", "|---|---|---|", *rows, END])
+    return "\n".join([BEGIN, "| # | Decision | Status | Refines |", "|---|---|---|---|", *rows, END])
 
 
 def with_index(readme: str, records: dict[str, dict]) -> str:

@@ -131,6 +131,13 @@ the verdict per criterion, and the approval or rejection with who and when. The 
 decisions and their stated reasons, not the model's internal reasoning. It stays inside the
 intranet (C5), is never edited, and is kept for the life of the case.
 
+**R20 The coach can't be turned against its rules** · ACCEPTED 2026-09-28 · MoSCoW: Must · Design: ADR-0067
+Nothing a team member types and nothing in an uploaded file can change how the coach behaves,
+what it stores or how a gate is judged. A message or file that tries is not processed: whoever
+sent it is told in plain words why it was blocked and how to phrase it instead, using the element
+they are working on and its sample answer. Every block is recorded in the decision trail with who
+and when (R19), where the project lead can see it. Ordinary project language is never refused.
+
 ---
 
 # Part 2 — The phases
