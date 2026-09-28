@@ -1114,6 +1114,19 @@
    "lane": [
     "B"
    ]
+  },
+  {
+   "id": "G-117",
+   "symptom": "THE COACH TELLS THE BELT A VALUE IS RECORDED WHEN NOTHING WAS STORED. Evidence: the IMPR-2026-83B run (guard-scope brief Part E), turns 12-13 — the Belt confirmed the baseline; phases/moves.py::decide returned read_back because the Confirm could not complete position 5 (metric_definitions was never proposed), so nothing was stored; the coach model's reply said the value was recorded. The words are the model's and nothing checks a store claim against the store. Belt impact wrong_data, tier 1. Registered by founder, BRIEF_m1_loop.md Part 1e (2026-09-28). Fix direction: any sentence telling the Belt a value was stored is produced in code from the storage result, like the read-back, never by the coach model. Owner: lane A; proved fixed by DEF-156.",
+   "requirement": [
+    "R16"
+   ],
+   "feature": [
+    "DEF-156"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }

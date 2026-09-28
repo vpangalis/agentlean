@@ -5540,6 +5540,38 @@
    "phase": "define",
    "stage": "open_case",
    "layer": "platform"
+  },
+  {
+   "id": "DEF-156",
+   "description": "G-117: a sentence telling the Belt a value was stored is produced in code from the storage result, like the read-back — the coach model never says a value was recorded; a Confirm that stores nothing says so.",
+   "clause": "what they say is kept and every change is dated",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_g117_a_value_is_said_to_be_stored_only_by_code_from_the_store_result",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/phases/moves.py::decide",
+     "agent-improve/backend/phases/nodes_common.py::executor"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-117"
+    ]
+   },
+   "requirement": "R16",
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   }
  ]
 }

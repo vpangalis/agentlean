@@ -1,9 +1,9 @@
 {
- "source_hash": "bd399946059355a9",
- "commit": "2b95144",
+ "source_hash": "0c7e633486cfc012",
+ "commit": "f08d73a",
  "commit_matches_source": false,
- "full_run_hash": "bd399946059355a9",
- "recorded_at": "2026-09-28T14:01:00+00:00",
+ "full_run_hash": "0c7e633486cfc012",
+ "recorded_at": "2026-09-28T14:11:45+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -410,6 +410,7 @@
   "backend/tests/test_define_e2e.py::test_every_request_is_explained_with_a_marked_sample": "skipped",
   "backend/tests/test_define_e2e.py::test_every_tool_the_define_skill_offers_is_bound": "passed",
   "backend/tests/test_define_e2e.py::test_every_turn_is_graded_on_all_four_blocks": "skipped",
+  "backend/tests/test_define_e2e.py::test_g117_a_value_is_said_to_be_stored_only_by_code_from_the_store_result": "skipped",
   "backend/tests/test_define_e2e.py::test_measure_starts_from_the_approved_define_record": "passed",
   "backend/tests/test_define_e2e.py::test_messages_show_their_author_and_a_second_person_is_told": "skipped",
   "backend/tests/test_define_e2e.py::test_node_limits_retries_and_compensation_use_langgraph_primitives": "skipped",
@@ -1549,8 +1550,8 @@
   "backend/tests/test_wiring_check.py::test_it_reads_what_section_3_names": "passed"
  },
  "older": {
-  "source_hash": "4335c5381f52e849",
-  "recorded_at": "2026-09-28T12:26:00+00:00",
+  "source_hash": "bd399946059355a9",
+  "recorded_at": "2026-09-28T14:01:00+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2529,6 +2530,7 @@
    "backend/tests/test_input_guard.py::test_a_blocked_turn_is_dropped_from_what_models_and_the_reload_read": "passed",
    "backend/tests/test_input_guard.py::test_a_content_filter_refusal_is_recognised_and_not_retried": "passed",
    "backend/tests/test_input_guard.py::test_a_production_start_without_content_safety_refuses": "passed",
+   "backend/tests/test_input_guard.py::test_a_role_takeover_is_caught_and_a_teammate_called_dan_passes": "passed",
    "backend/tests/test_input_guard.py::test_development_without_the_service_keeps_the_fixed_rules": "passed",
    "backend/tests/test_input_guard.py::test_every_fixed_rule_attack_is_caught": "passed",
    "backend/tests/test_input_guard.py::test_explicit_development_mode_records_the_skipped_check": "passed",

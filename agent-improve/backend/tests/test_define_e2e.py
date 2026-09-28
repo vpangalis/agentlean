@@ -1017,3 +1017,71 @@ def test_t94_strict_by_default_and_production_needs_content_safety(env, monkeypa
         content_safety.check_startup()
 
 
+
+
+def _coach_saying(monkeypatch, message: str) -> None:
+    """The coach model, faked to write `message` — the words are the model's; the facts must not be."""
+    from langchain_core.messages import AIMessage
+
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    reply = {**REPLY, "message": message, "fields_captured": []}
+    planner = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=iter([
+        AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": reply, "id": "call_g117"}])]))
+        if role == "coach" else planner(role, **kw))
+
+
+def _at_position_5(env, store: dict) -> None:
+    """The case at element 5 (the baseline), a read-back pending whose Confirm stores `store`."""
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    record = env.case.phases["define"]
+    record.structured = {k: v for k, v in COMPLETE.items()
+                         if k not in ("baseline_estimate", "metric_definitions", "target_value", "target_date",
+                                      "project_scope", "goal_statement", "benefits_analysis", "secondary_metrics",
+                                      "process_map_sipoc", "issues_and_barriers")}
+    words = "About 23% of invoices were paid late from January to June 2026."
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in record.structured}
+    record.field_status["baseline_estimate"] = {
+        "status": moves.ANSWERED, "answer": words, "messages": 1,
+        "pending": {"field": "baseline_estimate", "fields": ["baseline_estimate", "metric_definitions"],
+                    "belt_words": words, "messages": 1, "store": store}}
+
+
+def test_g117_a_value_is_said_to_be_stored_only_by_code_from_the_store_result(env, monkeypatch) -> None:
+    """DEF-156 — G-117 (R16): a sentence telling the Belt a value was stored is produced in code from
+    the storage result, like the read-back — never by the coach model. Found live on IMPR-2026-83B,
+    turns 12-13: the Belt confirmed the baseline, nothing was stored (the metric definitions were
+    missing), and the coach said it was recorded."""
+    import re
+
+    from backend.core import guard_messages
+    from backend.tests.test_define_report import COMPLETE
+
+    claim = re.compile(r"\b(recorded|stored|saved|captured|logged)\b", re.I)
+    baseline = guard_messages.element_name("define", "baseline_estimate")
+
+    # 1 — a Confirm that stores nothing: the model's "recorded" is gone, and code says nothing was stored.
+    _at_position_5(env, {"baseline_estimate": "23%"})
+    _coach_saying(monkeypatch, "Great — I've recorded your baseline of 23%. Next, the scope.")
+    r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                      "message": "Confirm", "action": "confirm"})
+    assert r.status_code == 200, r.text
+    answer = r.json()["answer"]
+    assert "baseline_estimate" not in (env.case.phases["define"].structured or {}), "the premise: nothing stored"
+    assert "recorded your baseline" not in answer, f"the model's store claim reached the Belt: {answer!r}"
+    assert baseline in answer and re.search(r"not (been )?stored|nothing (was|is) stored", answer, re.I), answer
+
+    # 2 — a Confirm that stores: code names what was stored; a model claim about another field is gone.
+    _at_position_5(env, {"baseline_estimate": "23%", "metric_definitions": COMPLETE["metric_definitions"]})
+    _coach_saying(monkeypatch, "Thanks — I've recorded your process map too. Now the scope.")
+    r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                      "message": "Confirm", "action": "confirm"})
+    assert r.status_code == 200, r.text
+    answer = r.json()["answer"]
+    assert "recorded your process map" not in answer, answer
+    stated = [s for s in re.split(r"(?<=[.!?])\s+", answer) if claim.search(s)]
+    assert stated and all(baseline in s for s in stated), f"a store claim not built from the result: {stated}"
