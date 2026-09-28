@@ -5,20 +5,14 @@ Version 2.0 (draft for ratification) · 2026-09-27
 How Agent Improve is built: its parts, their interfaces, its data models, how errors are handled
 and how it is tested. Nothing else lives here.
 
-| Not here | Where it lives |
-|---|---|
-| What the product must do | `docs/requirements/business.md` |
-| Technical qualities and their proof tests | `docs/requirements/platform.md` |
-| What is built, what is next | `docs/define_features.json`, `docs/test-results.json` |
-| Defects | `docs/defects.json` |
-| Why a decision was taken | `docs/adr/` (cited as ADR-nnnn) |
-| DMAIC method content | `skills/dmaic-{phase}-phase/SKILL.md` |
-| Rules for working in the repo | `CLAUDE.md`, `.claude/` |
-| History | git, `docs/_archive/` |
+Elsewhere: requirements `docs/requirements/{business,platform}.md`; what is built and next
+`docs/define_features.json`, `docs/test-results.json`; defects `docs/defects.json`; why
+`docs/adr/` (ADR-nnnn); method `skills/`; repo rules `CLAUDE.md`, `.claude/`; history git,
+`docs/_archive/`.
 
 **Conventions.** Paths are relative to `agent-improve/backend/` unless they start with `ui/`,
-`skills/`, `docs/`, `scripts/` or `tools/`. A symbol is written `path::symbol`. §4 (Data models)
-is a generated block: it is rewritten from the code on every commit and never edited by hand.
+`skills/`, `docs/`, `scripts/` or `tools/`. A symbol is written `path::symbol`. §4.2 is
+generated from the code on every commit, never edited by hand.
 This file changes in the same commit as the code it describes.
 
 ---
@@ -117,19 +111,16 @@ flowchart TB
     A -- "Command: reject" --> P
   end
   W -- "input mapper → subgraph.ainvoke → on approval: output mapper" --> phase
-  V -. "third failure: Command.PARENT (routing not built, T65)" .-> X
+  V -. "third failure: Command.PARENT (T65)" .-> X
 ```
 
-- **Main graph** (`core/graph.py::graph_builder`, the one builder, ADR-0063): `START` → `input_guard`
-  (ADR-0057) → `route_to_phase` → `{phase}_phase` → `END`; `escalate` → `END`. `route_to_phase` is
-  deterministic and makes no model call: a turn the guard blocked goes to `END`, any other enters
-  the node of `current_phase`. There are no phase-to-phase edges; a turn ends after its one phase.
+- **Main graph** (`core/graph.py::graph_builder`, the one builder, ADR-0063), edges as drawn;
+  `input_guard` is ADR-0057. `route_to_phase` makes no model call. There are no phase-to-phase edges; a turn ends after its one phase.
   `get_graph()` compiles the builder once per process with the checkpointer and store; every route
   and test uses it.
-- **Wrapper node** (`phase_node`): input mapper (in a worker thread) → `await subgraph.ainvoke(child)`,
-  the config inherited through the run context → when the subgraph returns `final` (approval), the
-  output mapper writes the record to the Store and sets `current_phase`, `phase_index` and
-  `gate_passed`; the next turn enters the next phase. Never from inside a tool.
+- **Wrapper node** (`phase_node`): input mapper (worker thread) → `await subgraph.ainvoke(child)`,
+  config inherited through the run context → on `final` (approval) the output mapper (§3.2); the
+  next turn enters the next phase. Never from inside a tool.
 - **Phase subgraph** (`phases/{phase}/graph.py`; nodes in `phases/nodes_common.py`): exactly five
   nodes; all runtime routing is `Command`; a node never mixes `Command` with a static edge.
 - Subgraphs compile with neither checkpointer nor store and write through the parent's saver
@@ -211,10 +202,8 @@ flowchart LR
 **How a checkpoint is written.**
 - One blob per checkpoint: `checkpoints/{case_id}/latest.json` plus `history/{checkpoint_id}.json`;
   the body's fields are `core/checkpointer.py`'s.
-- Writes are conditional on the blob's ETag. A second writer on the same case gets a conflict,
-  retries, then raises; it never overwrites silently.
-- `put_writes` persists **pending writes**, the partial results of a step that paused. That is
-  what lets a paused run resume in a different process, hours later, and write exactly once.
+- Writes are conditional on the blob's ETag (§5); never a silent overwrite.
+- `put_writes` persists pending writes, so a paused run resumes in another process and writes once.
 - A subgraph's state is saved under its own `checkpoint_ns` inside the case's thread (§2.3), so an
   `interrupt()` inside a subgraph is saved and resumed like any other.
 - History blobs are kept, so earlier checkpoints can be read (time travel). Rolling back a
@@ -224,8 +213,7 @@ flowchart LR
 
 There are two points where the graph waits for a person. Both use LangGraph's graph-level
 `interrupt()` and resume with `Command(resume=…)` on the same `thread_id`.
-`HumanInTheLoopMiddleware` is not used: it approves tool calls, and neither pause is a tool call
-(ADR-0037).
+`HumanInTheLoopMiddleware` is not used (ADR-0037).
 
 **1 — The gate.**
 
@@ -262,18 +250,17 @@ sequenceDiagram
 |---|---|
 | Pause payload | Define: `{kind: "accept_define_report", phase, passage, ask}` — `passage` keys the passing submission; the report itself (`phases/define/report.py::define_report`, each section's status and the value history) is served by `GET /gate/review/{case_id}/{phase}`. Other phases do not pause: `gate_review` passes through (`_gate_passage` is Define only) and `POST /gate` writes on a pass |
 | Decision | `POST /gate/decision` with `approve` or `reject`; a rejection must name at least one element and a reason; a decision with nothing pending answers 409 |
-| Approve | `gate_apply` assembles `{Phase}Output` by Pydantic construction (no model call) as `final` and resets `gate_attempts` and `validator_feedback`; the wrapper node's output mapper writes it to the Store (`("projects", case_id, "artifacts")` / phase) and advances `current_phase`, `phase_index`, `gate_passed`; the route then writes that same record to the case blob and the registry, once (`storage/blob.py::write_phase_gate`) |
+| Approve | `gate_apply` assembles `{Phase}Output` by Pydantic construction (no model call) as `final` and resets `gate_attempts` and `validator_feedback`; the output mapper writes it to the Store and advances the phase (§3.2); the route writes the same record to the case blob and registry once (`write_phase_gate`) |
 | Reject | `gate_apply` sets the named elements back to open in `field_status`, stores `rejection_feedback`, and routes to the planner; the coach takes the Belt back to those elements in the same run |
 | Durability | A pause survives a restart; an approval after a restart writes once |
-| Edits | The report is not edited on screen. Every change goes through coaching, so it passes the validation layer |
+| Edits | The report is not edited on screen; every change goes through coaching |
 
-**2 — The per-field read-back.** A lighter confirmation on every captured value, done in code,
-not with `interrupt()`: the coach reads the value back, the Belt sends `action: "confirm"` or
-`"change"` with `POST /ask`. Only a confirm stores the value (ADR-0002).
+**2 — The per-field read-back**, in code, not `interrupt()`: `POST /ask` with `action` confirm or
+change (§2.4, item 4); only a confirm stores (ADR-0002).
 
 **Mid-phase contradiction.** When the Belt contradicts a value an earlier gate approved, the coach
 sets `CoachingResponse.contradiction_flag` in its normal reply (no extra model call) and
-`ContradictionDetectionMiddleware` detects it (§3.3); stopping the turn is guarded off today.
+`ContradictionDetectionMiddleware` detects it (§3.3).
 
 ### 2.7 Start-up and deployment, as built
 
@@ -291,7 +278,7 @@ flowchart TB
 | Process | One process serves the API and the UI (`StaticFiles`); the UI calls `http://127.0.0.1:8020` | `app.py`, `ui/index.html` |
 | Access | No sign-in: `case_id` and `user` come from the request body (T12, R8 open); CORS allows every origin | `routes.py::_graph_config`, `app.py` |
 | Correlation | `RequestIdMiddleware` sets `x-request-id` in and out | `app.py` |
-| Model filter | Azure OpenAI's content filter, with Prompt Shields in block mode (T92): set on the deployment, not from code | Azure portal (founder action) |
+| Model filter | Azure OpenAI's content filter, with Prompt Shields in block mode (T92): set on the deployment, not from code | Azure portal |
 | Guard mode | Strict unless `GUARD_MODE=development`; a production start without Content Safety refuses to run (T94) | `core/content_safety.py` |
 | Outbound | Azure OpenAI, AI Search and Blob by key or connection string from settings; LangSmith when tracing is on; one public CDN font (G-114) | `core/config.py` |
 
@@ -350,7 +337,7 @@ Classes are allowed only in files marked **C**; elsewhere module-level functions
 | | `errors.py` C | `AgentImproveError` |
 | | `conversation.py` | Reply metadata round-trip |
 | | `tracing.py` | `child_span`, `child_trace` |
-| | `citations.py` C | `CitationRecord` (`CitationBundle` is declared and unused) |
+| | `citations.py` C | `CitationRecord` |
 | | `diagrams.py` | `build_sipoc`, `build_mindmap_5w2h`, `BUILDERS` — diagram JSON for the UI |
 | `phases/` | `nodes_common.py` | `planner`, `executor`, `validation_stack`, `gate_review`, `gate_apply`, `_build_executor`, `COACH_HOP_BUDGET` |
 | | `moves.py` | `decide`, `is_confirmation` |
@@ -405,13 +392,8 @@ in `phases/nodes_common.py::_build_executor`. Tools are passed to `create_agent`
 bare model. The final structured reply is in `result["structured_response"]`; the coaching text is
 also in `messages`.
 
-**Order rules.** The declared list is nesting order, outermost first:
-
-| Hook kind | Fires | Relative to the declared list |
-|---|---|---|
-| `before_agent`, `before_model` | on the way in | declared order |
-| `after_model`, `after_agent` | on the way out | reverse order |
-| `wrap_model_call`, `wrap_tool_call` | around the call | an earlier declaration encloses a later one |
+**Order.** The declared list is nesting order, outermost first: `before_*` hooks fire in declared
+order, `after_*` in reverse, and an earlier `wrap_*` encloses a later one.
 
 ```mermaid
 flowchart TB
@@ -444,36 +426,27 @@ flowchart TB
 - Quality feedback is never presented as a Belt message; nothing is appended to `messages`.
 
 **2 · `DMAICSkillsMiddleware`** — `middleware/skills.py`, custom.
-- At start-up: the five skill descriptions only.
 - Every model call: the current phase's full SKILL.md in the system message; its version and hash
   are recorded in `step_log` each turn. The phase script is never left for the model to fetch.
 - Registers the tool `load_skill(name)` for other phases' scripts and level-3 reference files.
-- Reads the files in git with a small local reader (LangChain ships no skills backend).
 
 **3 · `SummarizationMiddleware`** — LangChain, as shipped.
 - `before_model`: when the conversation passes the token trigger, older messages are replaced by
   a summary made with the operational model; the most recent messages are kept. Trigger and keep
   values are set in `_build_executor`.
-- Safe because facts never live only in `messages`: confirmed values are in `artifacts`,
-  approved records in the Store, routing in `SupervisorState`.
 
 **4 · `ModelRetryMiddleware`** — LangChain, as shipped.
 - `wrap_model_call`: retries transient model failures with exponential backoff and jitter;
   `on_failure="continue"`. Settings in `_build_executor`. A `content_filter` refusal is not retried
   (`content_safety.retry_on`); the executor answers with guidance instead (T92).
-- `get_llm` sets the client's own retries to 0, so this is the only model retry.
 
 **5 · `ToolRetryMiddleware`** — LangChain, as shipped.
 - `wrap_tool_call`: retries a failing tool with backoff; after the last attempt the failure is
   returned to the coach as the tool result (`on_failure="continue"`), not raised.
-- Separate from the model retry: a failed search is not a failed model call.
 
 **6 · `DMAICGraderMiddleware`** — `middleware/grader.py`, custom. Executes last.
 - `after_agent`, every turn: one `grader`-role call grades the coach's reply against
-  `COACHING_QUALITY_RUBRIC` (`core/prompts.py`), per criterion: no vague captures, no invented
-  data, not doing the Belt's work, staying on phase, challenging weak input, referencing the
-  method, showing a sample before asking, no external links, no raw statistics without the
-  concept.
+  `COACHING_QUALITY_RUBRIC` (`core/prompts.py`, which owns the criteria), per criterion.
 - Rubric lines that do not apply to this turn's move are excluded (`MOVE_EXCLUDES`).
 - On FAIL the reply still goes out with a warning the Belt sees (`grader_warning`); the verdict
   goes to `step_log` with `layer: "coaching_grader"` and becomes next turn's quality feedback.
@@ -485,16 +458,13 @@ flowchart TB
 - Parroting is judged against the script step the move called for: a read-back for a captured
   field, explain-show-ask otherwise, using that field's SKILL.md block.
 - On rejection the turn is degraded; the verdict goes to `step_log` under node `coherence`.
-- Not part of the grader's rubric: it asks a different question, and more cheaply.
 
 **8 · `ContradictionDetectionMiddleware`** — `middleware/contradiction.py`, custom. Executes first
 of the `after_agent` group.
 - Reads `CoachingResponse.contradiction_flag` (`prior_field`, `approved_value`,
   `approved_phase`, `proposed_value`, `belt_input`), which the coach sets only when the Belt
   materially contradicts a gate-approved value shown to it in the project-state section.
-- Hook: `after_agent` / `aafter_agent`.
-- A flag is detected and logged; stopping the turn is guarded off until the re-approval cascade
-  is built (step 7.3), so today a flag does not interrupt. No flag, no action.
+- A flag is detected and logged; it does not stop the turn. No flag, no action.
 - No Store read, no model call, no tolerance threshold. When to flag is instructed in each
   SKILL.md.
 
@@ -535,8 +505,7 @@ construction.
   `load_evidence_series`) plus `COMPUTATION_TOOLS_BY_PHASE[phase]`. At `hop_budget` ≤ 0 the lookups
   are left out; otherwise each is a per-turn counted copy (`_budgeted_rag_tools`). `_build_executor`
   passes the list to `create_agent(tools=…)`. `check_gate_status` and `request_human_approval` are
-  not coach tools (G-115): readiness is in the coach's project-state section and escalation is the
-  graph's.
+  not coach tools (G-115).
 - Every tool has an `args_schema` from `knowledge/tool_args.py`.
 - `propose_diagram(diagram_type, data) -> dict` returns JSON the UI renders;
   `propose_template(template_type, fill_data) -> str` returns a scaffold for the coach's message.
@@ -559,7 +528,7 @@ call, level 3 references on demand. Move sequencing is never in a skill.
 |---|---|---|---|
 | 2a | Real, on topic, not parroting | `coherence` model call | `CoherenceMiddleware`, every turn |
 | 2b | Required fields present | `phases/{phase}/validate.py::validate_{phase}` | `validation_stack` |
-| 2c | Constraints addressed | **Not built** — the `constraint` model role exists; no call is made and no `{PHASE}_CONSTRAINTS` exist | — |
+| 2c | Constraints addressed | **Not built** | — |
 | 2d | Rubric, per criterion pass / warning / fail | Deterministic half, then one `grader` call — `validation/rubric.py::grade_define`, **Define only** | `validation_stack` |
 
 Tier 1 fields can fail a gate; Tier 2 can only warn and become an acknowledged gap. Cross-phase
@@ -590,15 +559,13 @@ text); an upload over 25 MB is a 413, over 5 MB accepted with a notice.
 marked as illustration, `prompt`, `progress`) and the grader warning (`renderTurn`); the UI never
 parses prose. The Define report screen is `renderDefineReport` / `decideDefineReport`. The 5W2H
 mind map (`render5W2HMindmap`) and SIPOC views (`renderSipocDiagram`) render `propose_diagram`
-JSON. The page loads one resource from outside the product: the Tabler icon font from
-`cdn.jsdelivr.net` (`@latest`, `ui/index.html` line 7) — a finding against T78 and C5.
+JSON.
 
 ---
 
 ## 4. Data models
 
-§4.1 is written by hand: what the code's declarations do not carry. §4.2 is generated from the
-code on every commit; the guard refuses a hand edit.
+§4.1 is written by hand: what the declarations do not carry. §4.2 is generated (Conventions).
 
 ### 4.1 Shapes and notes
 
@@ -637,9 +604,6 @@ code on every commit; the guard refuses a hand edit.
 | Reference dicts (`causal_hypothesis`, `solution_linked_to_root_cause`, `post_improvement_metrics`) | Belt content plus `references_phase`, `references_field`, `references_metric_name`, `references_value`; resolved against the referenced phase's `phase_metrics` entry |
 | `CoachingResponse.fields_captured` | list of `field_name`, `value`, `source` |
 | `CoachingResponse.contradiction_flag` | `prior_field`, `approved_value`, `approved_phase`, `proposed_value`, `belt_input` |
-
-These shapes are not yet declared in code; declaring them (typed dicts or field descriptions) moves
-them into the generated block and removes this table.
 
 **Tiers.** Which record fields can fail a gate is owned by `phases/gate_registry.py::GATE_SPECS`.
 Fields with a default in §4.2 are the recommended (Tier 2) fields.
@@ -942,7 +906,7 @@ class ControlOutput(BaseModel):
 | Structured errors | `core/errors.py::AgentImproveError` — `error_code`, `severity`, `retry_recommendation`, `affected_identifier`, `message`, `timestamp` |
 | Concurrent writes | Checkpoint writes use the blob ETag; a conflict is retried, then raised |
 | Client disconnect | The run is cancelled and nothing from that turn is committed (ADR-0046) |
-| Gate | A failed criterion is named and loops to the planner; the third failure is counted, routing to escalation is not built (T65, DEF-046) |
+| Gate | A failed criterion is named and loops to the planner; the third failure is counted; escalation is T65 (DEF-046) |
 
 ## 6. Testing strategy
 
@@ -962,8 +926,5 @@ Tests use an in-memory saver and create no traces.
 |---|---|
 | Belt | The project lead being coached |
 | Element | One item the coach works through in a phase |
-| Move | What the coach does this turn: teach, challenge, read back, store |
-| Gate | End of a phase: validation, human pause, approval |
 | Phase record | An approved `{Phase}Output` |
 | Acknowledged gap | A Tier 2 shortfall accepted at the gate |
-| Wrapper node | Parent-graph node that maps state into and out of one subgraph |

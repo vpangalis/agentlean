@@ -248,3 +248,30 @@ open for Desktop:
 Rules 10, 12 and 13 passed, then: "COMMIT BLOCKED — ARCHITECTURE.md's generated data-models block
 differs from the code (rule 16)" (exit 1). The file was restored; `generate_models.py --check`
 reports "current".
+
+## 7. Moved out of ARCHITECTURE.md v2.0 to make room (BRIEF_m1_loop.md Part 1c, 2026-09-28)
+
+ARCHITECTURE.md was at 41,629 of its 42,024-character bound. The sentences below are status or
+rationale, not design, and were moved here word for word in substance; the rest of the room came
+from tightening duplicates (the "Not here" table, the main-graph and wrapper bullets, the
+read-back paragraph, the middleware order table, three glossary rows). A rationale here that no
+ADR states is a gap of the kind §2 lists: it needs a new ADR, never an edit.
+
+| From | Kind | Text |
+|---|---|---|
+| §2.6 | rationale | HumanInTheLoopMiddleware approves tool calls, and neither pause is a tool call. |
+| §2.6 | status | Stopping the turn on a contradiction flag is guarded off today. |
+| §2.5 | rationale | Pending writes are the partial results of a step that paused; persisting them is what lets a paused run resume in a different process, hours later, and write exactly once. |
+| §2.7 | status | Setting the model filter and Prompt Shields block mode on the deployment is a founder action in the Azure portal. |
+| §3.1 | status | `core/citations.py::CitationBundle` is declared and unused. |
+| §3.3 | rationale | The skills middleware reads the files with a small local reader because LangChain ships no skills backend (the reader itself is in §3.7). |
+| §3.3 | rationale | Summarization is safe because facts never live only in `messages`: confirmed values are in `artifacts`, approved records in the Store, routing in `SupervisorState`. |
+| §3.3 | rationale | The tool retry is separate from the model retry: a failed search is not a failed model call. |
+| §3.3 | rationale | Coherence is not part of the grader's rubric: it asks a different question, and more cheaply. |
+| §3.3 | status | Stopping the turn on a contradiction flag is guarded off until the re-approval cascade is built (step 7.3). |
+| §3.6 | rationale | check_gate_status and request_human_approval are not coach tools because readiness is in the coach's project-state section and escalation is the graph's. |
+| §3.8 | status | Layer 2c: the `constraint` model role exists; no call is made and no `{PHASE}_CONSTRAINTS` exist. |
+| §3.10 | status | The page loads one resource from outside the product: the Tabler icon font from `cdn.jsdelivr.net` (`@latest`, `ui/index.html` line 7) — a finding against T78 and C5 (G-114; §2.7 keeps the outbound line). |
+| §4.1 | status | The structured-value shapes in §4.1 are not yet declared in code; declaring them (typed dicts or field descriptions) moves them into the generated block and removes that table. |
+| §2.6 | rationale | Every change to the report goes through coaching so that it passes the validation layer. |
+| §2.3 | status | The third-failure route from validation to escalation (Command.PARENT) is not built (T65). |
