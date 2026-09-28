@@ -1309,6 +1309,19 @@
    "lane": [
     "integrator"
    ]
+  },
+  {
+   "id": "G-132",
+   "symptom": "THE BASELINE-TO-TARGET CHART SHOWS THE WRONG BASELINE. Evidence: M1 loop package 7's run-through, IMPR-2026-A15 (2026-09-29): the chart on the read-backs and in the gate document read baseline 30 (%), target 5; the Belt's baseline was 'One metric: late payment rate, in %, meaning the share of supplier invoices paid more than 30 days after the invoice date. It is about 23% today …'. The target date showed the Belt's whole sentence. Registered from the run-through. Owner: lane A; proved fixed by DEF-162. — 8D. D2 IS: the chart takes the FIRST figure in the baseline's words, '30 days', as the baseline. D2 IS-NOT: the stored value (the Belt's words, correct); the target (5, parsed from 'under 5%'); the SIPOC and 5W2H visuals. D4 OCCURRENCE: phases/define/visuals.py read the baseline with parse.parse_limit, which returns the first number in the text whatever its unit; the same read fed nodes_common._judged_in_code's baseline comparison (G-120). D4 ESCAPE: the visuals' tests used the report fixture's bare '23%'; the scripted Belt's longer baseline first reached the chart on this run. D5 FIX: parse.number_in(text, unit) — the first figure in the metric's unit; used by the chart and by the in-code target judgment; the chart's date is the ISO date when the words carry one. D7 PREVENT: DEF-162's test with the scripted Belt's own baseline words.",
+   "requirement": [
+    "C2"
+   ],
+   "feature": [
+    "DEF-162"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }

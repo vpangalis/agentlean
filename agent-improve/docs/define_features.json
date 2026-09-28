@@ -5747,6 +5747,38 @@
    "phase": "define",
    "stage": "next_phase",
    "layer": "coaching"
+  },
+  {
+   "id": "DEF-162",
+   "description": "G-132: the baseline-to-target chart reads the baseline figure written in the primary metric's unit, and the target date as its ISO date.",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_g132_the_baseline_to_target_chart_reads_the_baseline_in_the_metrics_unit",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/phases/define/visuals.py::draw",
+     "agent-improve/backend/phases/define/parse.py::number_in"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-132"
+    ]
+   },
+   "requirement": "C2",
+   "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "report",
+   "layer": "coaching"
   }
  ]
 }

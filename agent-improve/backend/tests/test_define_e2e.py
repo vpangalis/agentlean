@@ -1340,3 +1340,20 @@ def test_g120_a_target_written_as_a_limit_is_judged_in_code(env, monkeypatch, st
         assert r.status_code == 200, r.text
         assert r.json().get("move") == "read_back", (answer, r.json().get("move"))
         assert stub_planner.prompts == [], "the planner model judged a target the code could read"
+
+
+def test_g132_the_baseline_to_target_chart_reads_the_baseline_in_the_metrics_unit() -> None:
+    """DEF-162 — G-132 (C2): the baseline-to-target chart takes the baseline figure written in the
+    primary metric's unit — "paid more than 30 days after … about 23% today" is 23 %, not 30 — and
+    the target date as its ISO date. Found on IMPR-2026-A15's gate document."""
+    from backend.phases.define import visuals
+    from scripts.coaching_proof_656 import ANSWERS
+
+    values = {"baseline_estimate": ANSWERS[5], "target_value": "under 5% of supplier invoices",
+              "metric_definitions": [{"name": "late_payment_rate", "unit": "%", "meaning": "paid late"}],
+              "target_date": "We plan to finish the project by 31 March 2027 (2027-03-31)."}
+    drawn = visuals.for_field("target_value", values, confirmed=True)
+    assert drawn is not None
+    chart = drawn[1]
+    assert (chart["baseline"], chart["target"], chart["unit"]) == (23.0, 5.0, "%"), chart
+    assert chart["target_date"] == "2027-03-31", chart

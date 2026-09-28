@@ -295,8 +295,11 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
              "target_value": "baseline_target", "process_map_sipoc": "sipoc"}
     confirmed = out.get("confirmed_visuals") or {}
     last = {kinds[f]: v for f, v in confirmed.items() if f in ("target_value", "process_map_sipoc")}
+    # target_date is element 9's, confirmed after element 8: compared without it.
+    def _core(v: Any) -> Any:
+        return {k: x for k, x in (v or {}).items() if k != "target_date"} if isinstance(v, dict) else v
     out["gate_visuals"] = {"kinds": sorted(report_vis),
-                           "same_as_reply": {k: report_vis.get(k) == v for k, v in last.items()}}
+                           "same_as_reply": {k: _core(report_vis.get(k)) == _core(v) for k, v in last.items()}}
     _write(rec, {"kind": "gate_review", "http": rv.status_code, "body": review})
     sb = client.post("/gate", json={"case_id": case_id, "submitted_by": USER, "phase": "define"})
     submit = sb.json() if sb.headers.get("content-type", "").startswith("application/json") else {"text": sb.text[:400]}

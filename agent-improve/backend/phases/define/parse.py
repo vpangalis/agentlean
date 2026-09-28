@@ -47,6 +47,23 @@ def parse_limit(text: str) -> Optional[dict[str, Any]]:
             "direction": direction}
 
 
+def number_in(text: str, unit: str) -> Optional[dict[str, Any]]:
+    """The first figure in `text` written in `unit` (as `parse_limit` reads it), else the first
+    figure at all. G-132: "paid more than 30 days after … about 23% today" is 23 %, not 30."""
+    t = (text or "").lower()
+    first = None
+    for m in re.finditer(_NUMBER + _UNIT, t):
+        # The figure itself, with the words before it (digits removed) for its direction.
+        prefix = re.sub(r"\d", "", t[max(0, m.start() - 24):m.start()])
+        found = parse_limit(prefix + t[m.start():m.end()])
+        if found is None:
+            continue
+        first = first or found
+        if found["unit"] == unit:
+            return found
+    return first
+
+
 #: The SIPOC labels a Belt writes, English and German, per column.
 _SIPOC_LABELS: dict[str, tuple[str, ...]] = {
     "suppliers": ("suppliers", "supplier", "lieferanten", "lieferant"),
@@ -80,4 +97,4 @@ def missing_columns(value: Any) -> list[str]:
     return [k for k in SIPOC_KEYS if not str(value.get(k) or "").strip()]
 
 
-__all__ = ["unit_of", "parse_limit", "parse_sipoc", "missing_columns"]
+__all__ = ["unit_of", "parse_limit", "number_in", "parse_sipoc", "missing_columns"]

@@ -459,12 +459,12 @@ def _judged_in_code(phase: str, state: PhaseState, field: str, previous: str,
     `number-and-unit` — sufficient, no model call. Anything else goes to the model as before."""
     if phase != "define" or field != "target_value":
         return None
-    from backend.phases.define.parse import parse_limit, unit_of
+    from backend.phases.define.parse import number_in, parse_limit, unit_of
     target = parse_limit(latest) or parse_limit(previous)
     artifacts = dict(state.get("artifacts") or {})
     metrics = artifacts.get("metric_definitions") or []
     base_unit = unit_of(str(metrics[0].get("unit") or "")) if metrics and isinstance(metrics[0], dict) else ""
-    baseline = parse_limit(str(artifacts.get("baseline_estimate") or ""))
+    baseline = number_in(str(artifacts.get("baseline_estimate") or ""), base_unit)   # G-132
     base_unit = base_unit or (baseline or {}).get("unit", "")
     if not target or not target["unit"] or target["unit"] != base_unit:
         return None

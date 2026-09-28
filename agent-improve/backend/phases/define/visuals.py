@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from backend.core import diagrams
-from backend.phases.define.parse import parse_limit, unit_of
+from backend.phases.define.parse import number_in, parse_limit, unit_of
 
 #: The visual of each read-back field.
 VISUAL_OF: dict[str, str] = {
@@ -35,8 +35,9 @@ _5W2H_SLOTS = {"what": "what", "where": "where", "when": "when", "who": "who_aff
 def _baseline_target(values: dict[str, Any], field: Optional[str]) -> dict[str, Any]:
     metrics = values.get("metric_definitions") or []
     primary = metrics[0] if metrics and isinstance(metrics[0], dict) else {}
-    base = parse_limit(str(values.get("baseline_estimate") or ""))
-    unit = unit_of(str(primary.get("unit") or "")) or (base or {}).get("unit", "")
+    unit = unit_of(str(primary.get("unit") or ""))
+    base = number_in(str(values.get("baseline_estimate") or ""), unit)       # G-132: in the metric's unit
+    unit = unit or (base or {}).get("unit", "")
     target = parse_limit(str(values.get("target_value") or "")) if values.get("target_value") else None
     if target is None and field == "goal_statement":
         # The goal's words carry the target: the last figure in the baseline's unit, other than it.
@@ -48,7 +49,15 @@ def _baseline_target(values: dict[str, Any], field: Optional[str]) -> dict[str, 
     return diagrams.build_baseline_target(
         metric=str(primary.get("name") or "primary metric"), unit=unit,
         baseline=(base or {}).get("number"), target=(target or {}).get("number"),
-        direction=(target or {}).get("direction", "equal"), target_date=values.get("target_date") or None)
+        direction=(target or {}).get("direction", "equal"), target_date=_date(values.get("target_date")))
+
+
+def _date(value: Any) -> Optional[str]:
+    """The ISO date in the Belt's words when there is one (G-132), else the words."""
+    import re
+    text = str(value or "").strip()
+    m = re.search(r"\d{4}-\d{2}-\d{2}", text)
+    return m.group(0) if m else (text or None)
 
 
 def draw(kind: str, values: dict[str, Any], *, confirmed: bool,
