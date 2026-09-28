@@ -7,12 +7,12 @@
 
 | | |
 |---|---|
-| **Headline** | 26 of 160 Define features pass (core 26 of 151) — A 7/66 · B 16/36 · C 1/36 · integrator 2/22 |
-| **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
-| **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
+| **Headline** | 52 of 160 Define features pass (core 49 of 151) — A 28/66 · B 18/36 · C 1/36 · integrator 5/22 |
+| **Next — lane A** | DEF-008 — Clicking Confirm under a read-back stores the pending value in the Belt's words and advances to the next field — no model reads the click. |
+| **Next — lane B** | DEF-043 — Layer 2b refuses a gate submission missing any of the sixteen gate-required fields and names what is missing; the prompt's missing list and  |
 | **Next — lane C** | DEF-074 — G-113: the create form shows no case id until the server has assigned one; the number a Belt sees is always the one the case is saved under. |
-| **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
-| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
+| **Next — lane integrator** | DEF-003 — Every node of a Define turn leaves a checkpoint, so a crash loses at most one node's work. |
+| **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.1 |
 | **Block regenerated** | 2026-09-29 |
