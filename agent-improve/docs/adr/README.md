@@ -99,7 +99,7 @@ Generated from each file's status line; never typed.
 | [0056](0056-dora-risk-register.md) | Operational risks are kept in a DORA-structured register | PROPOSED | — |
 | [0057](0057-input-guard-node.md) | The input guard is a node at the front of the parent graph | ACCEPTED | refined by 0067 |
 | [0058](0058-refactoring-order-is-computed.md) | The order of work is computed from evidence, not written as a list | ACCEPTED | — |
-| [0059](0059-framework-call-limits-and-fallback.md) | Call budget and model fallback use LangChain's built-in middleware; the hop budget stays custom | ACCEPTED | — |
+| [0059](0059-framework-call-limits-and-fallback.md) | Call budget and model fallback use LangChain's built-in middleware; the hop budget stays custom | ACCEPTED | refined by 0068 |
 | [0060](0060-contextual-retrieval.md) | Contextual retrieval and reranking, adopted only on eval evidence | ACCEPTED | — |
 | [0061](0061-offline-eval-set.md) | An offline evaluation set built from real failures | ACCEPTED | — |
 | [0062](0062-pii-handling.md) | Personal data in uploads and messages is detected and handled before a model sees it | ACCEPTED | — |
@@ -108,4 +108,5 @@ Generated from each file's status line; never typed.
 | [0065](0065-state-schema-versioning.md) | Checkpoints carry a state schema version; every state change ships a migration | PROPOSED | — |
 | [0066](0066-unfinished-work-lives-in-the-checkpoint.md) | Unfinished phase work lives in the checkpoint only | ACCEPTED | refines 0038, 0063 |
 | [0067](0067-input-guard-scope-and-modes.md) | What the input guard screens for, how it answers, and how it runs without Content Safety | ACCEPTED | refines 0057 |
+| [0068](0068-no-lookups-on-answer-turns.md) | The coach looks up the method on teaching turns only | ACCEPTED | refines 0059 |
 <!-- END ADR INDEX -->
