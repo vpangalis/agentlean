@@ -1205,6 +1205,45 @@
    "lane": [
     "A"
    ]
+  },
+  {
+   "id": "G-124",
+   "symptom": "ELEMENT 9 (target_date) NOT REACHED ON THE RUN-THROUGH (DEF-033 REGRESSED). Evidence: record 20260928T165805 (IMPR-2026-CCB, M1 loop package 3): the walk stopped stuck at element 8 — the target value challenged three times (G-120) — so element 9 was never coached; it had been stored on record 20260928T161731. Registered under founder ruling 5 (2026-09-28): a regression on a committed record is registered, not refused. — 8D. D2 IS: target_date absent from the stored values because the walk ended before it. D2 IS-NOT: not a defect of element 9 itself (stored on the previous record); not package 3's change (personal-data masking touches uploads and tool results, not the judgment). D4 OCCURRENCE: G-120 — the planner's judgment rejects 'under 5%' as not a number in the baseline's unit, nondeterministically (read back on the third answer on 161731, never on 165805). D4 ESCAPE: as G-120 (no offline test of target phrasings; R14's park offer, DEF-075, not built). D5 FIX: G-120's (DEF-032). D7 PREVENT: DEF-032 and this feature on the next run-through.",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-033"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-125",
+   "symptom": "ELEMENT 11 (secondary_metrics) NOT REACHED ON THE RUN-THROUGH (DEF-034 REGRESSED). Evidence: record 20260928T165805 (IMPR-2026-CCB, M1 loop package 3): the walk stopped stuck at element 8 — the target value challenged three times (G-120) — so element 11 was never coached; it had been stored on record 20260928T161731. Registered under founder ruling 5 (2026-09-28): a regression on a committed record is registered, not refused. — 8D. D2 IS: secondary_metrics absent from the stored values because the walk ended before it. D2 IS-NOT: not a defect of element 11 itself (stored on the previous record); not package 3's change (personal-data masking touches uploads and tool results, not the judgment). D4 OCCURRENCE: G-120 — the planner's judgment rejects 'under 5%' as not a number in the baseline's unit, nondeterministically (read back on the third answer on 161731, never on 165805). D4 ESCAPE: as G-120 (no offline test of target phrasings; R14's park offer, DEF-075, not built). D5 FIX: G-120's (DEF-032). D7 PREVENT: DEF-032 and this feature on the next run-through.",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-034"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-126",
+   "symptom": "ELEMENT 13 (issues_and_barriers) NOT REACHED ON THE RUN-THROUGH (DEF-036 REGRESSED). Evidence: record 20260928T165805 (IMPR-2026-CCB, M1 loop package 3): the walk stopped stuck at element 8 — the target value challenged three times (G-120) — so element 13 was never coached; it had been stored on record 20260928T161731. Registered under founder ruling 5 (2026-09-28): a regression on a committed record is registered, not refused. — 8D. D2 IS: issues_and_barriers absent from the stored values because the walk ended before it. D2 IS-NOT: not a defect of element 13 itself (stored on the previous record); not package 3's change (personal-data masking touches uploads and tool results, not the judgment). D4 OCCURRENCE: G-120 — the planner's judgment rejects 'under 5%' as not a number in the baseline's unit, nondeterministically (read back on the third answer on 161731, never on 165805). D4 ESCAPE: as G-120 (no offline test of target phrasings; R14's park offer, DEF-075, not built). D5 FIX: G-120's (DEF-032). D7 PREVENT: DEF-032 and this feature on the next run-through.",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-036"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }

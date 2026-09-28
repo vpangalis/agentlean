@@ -1449,7 +1449,9 @@
      "6.61"
     ],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-124"
+    ]
    },
    "requirement": "R4",
    "belt_impact": "dead_end",
@@ -1487,7 +1489,9 @@
      "6.61"
     ],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-125"
+    ]
    },
    "requirement": "R4",
    "belt_impact": "dead_end",
@@ -1573,7 +1577,9 @@
      "6.61"
     ],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-126"
+    ]
    },
    "requirement": "R4",
    "belt_impact": "dead_end",
