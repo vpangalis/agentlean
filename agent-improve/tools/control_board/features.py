@@ -87,8 +87,30 @@ def node_id(test: str) -> str:
     return test[len("agent-improve/"):] if test.startswith("agent-improve/") else test
 
 
+#: Founder ruling 4, 2026-09-28 (G-127): wall-clock tests run in the run-through stage, which
+#: records them in docs/runthrough/wallclock_*.json; the commit hook's run excludes them.
+WALLCLOCK_TESTS = frozenset({
+    "backend/tests/test_turn_budget.py::test_a_slow_turn_answers_before_the_wall",
+    "backend/tests/test_turn_budget.py::test_a_lookup_runs_its_queries_concurrently"})
+
+
+def wallclock_outcomes() -> tuple[dict[str, str], bool]:
+    """The latest wall-clock record's outcomes, and whether it is bound to the current product
+    source (only a fresh record's outcomes count)."""
+    files = sorted(RUNTHROUGH.glob("wallclock_*.json"))
+    if not files:
+        return {}, False
+    rec = json.loads(files[-1].read_text(encoding="utf-8"))
+    return dict(rec.get("outcomes") or {}), rec.get("product_hash") == product_hash()
+
+
 def status(features: list[dict], res: dict) -> dict[str, str]:
-    outcomes = res.get("outcomes") or {}
+    outcomes = dict(res.get("outcomes") or {})
+    if WALLCLOCK_TESTS & {node_id(f["test"]) for f in features}:
+        wall, fresh = wallclock_outcomes()
+        for t in WALLCLOCK_TESTS:
+            if t not in outcomes and fresh and t in wall:
+                outcomes[t] = wall[t]
     return {f["id"]: "passing" if outcomes.get(node_id(f["test"])) == "passed" else "failing"
             for f in features}
 
@@ -287,7 +309,10 @@ def ratchet_refusal(required: list[str], features: list[dict], res: dict,
     for fid in required:
         if fid not in by_id or st.get(fid) == "passing":
             continue
-        if (stale or fid in defects) and by_id[fid]["test"].startswith(RUNTHROUGH_TESTS):
+        wallclock = node_id(by_id[fid]["test"]) in WALLCLOCK_TESTS
+        if wallclock and (not wallclock_outcomes()[1] or fid in defects):
+            exempt.append(fid)
+        elif (stale or fid in defects) and by_id[fid]["test"].startswith(RUNTHROUGH_TESTS):
             exempt.append(fid)
         else:
             refused.append(f"{fid} passed before and its test no longer passes: {by_id[fid]['test']}")

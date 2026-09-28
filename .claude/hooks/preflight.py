@@ -282,6 +282,7 @@ def check_tests(py: str, p: dict) -> tuple[bool, str]:
     else:
         rel = [t[len("agent-improve/"):] for t in tests]
         args = rel + (["-n", "auto"] if len(rel) > SERIAL_MAX else ["-n", "0"])
+        args += ["-m", "not wallclock"]      # the run-through stage's (founder ruling 4; G-127)
         skip = [s for s in slow_tests() if s.split("::")[0] in rel and s not in rel]
         args += [a for s in skip for a in ("--deselect", s)]
         n = f"{len(rel)} test file(s), {len(skip)} slow test(s) left to the hook"

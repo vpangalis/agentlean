@@ -296,6 +296,7 @@ def main() -> int:
     rec = Path(args.scratch) / f"define_runthrough_{stamp}.jsonl"
     scratch = Path(args.scratch) / f"define_runthrough_{stamp}_inputs.jsonl"
     scratch.parent.mkdir(parents=True, exist_ok=True)
+    _wallclock(stamp, Path(args.scratch))
     source, product = _source_hash(), _product_hash()
     started = time.time()
     from fastapi.testclient import TestClient
@@ -319,6 +320,39 @@ def main() -> int:
                                indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"record: {tree}")
     return 0 if not SENDS else 3
+
+
+def _wallclock(stamp: str, scratch: Path) -> dict[str, Any]:
+    """Founder ruling 4, 2026-09-28 (G-127): the tests that assert on wall-clock time run HERE,
+    alone, not in the commit hook. Their outcomes go to docs/runthrough/wallclock_<stamp>.json,
+    bound to the product source, which `features.status` reads. The run's own pytest session
+    would rewrite docs/test-results.json (the recorder), so the file is restored after it."""
+    import subprocess
+    import xml.etree.ElementTree as ET
+    project = Path(__file__).resolve().parents[1]
+    results = project / "docs" / "test-results.json"
+    saved = results.read_bytes() if results.is_file() else None
+    junit = scratch / f"wallclock_{stamp}.xml"
+    try:
+        proc = subprocess.run([sys.executable, "-m", "pytest", "backend/tests", "-m", "wallclock", "-n", "0",
+                               "-q", "-p", "no:cacheprovider", f"--junitxml={junit}"],
+                              cwd=project, capture_output=True, encoding="utf-8", errors="replace", timeout=900)
+    finally:
+        if saved is not None:
+            results.write_bytes(saved)
+    outcomes: dict[str, str] = {}
+    if junit.is_file():
+        for case in ET.parse(junit).getroot().iter("testcase"):
+            node = case.get("classname", "").replace(".", "/") + ".py::" + case.get("name", "")
+            state = ("failed" if case.find("failure") is not None or case.find("error") is not None
+                     else "skipped" if case.find("skipped") is not None else "passed")
+            outcomes[node] = state
+    rec = {"kind": "wallclock", "product_hash": _product_hash(), "recorded_at": stamp,
+           "exit": proc.returncode, "outcomes": dict(sorted(outcomes.items()))}
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    (OUT_DIR / f"wallclock_{stamp}.json").write_text(json.dumps(rec, indent=1) + chr(10), encoding="utf-8")
+    print(f"wall-clock tests: {rec['outcomes']}")
+    return rec
 
 
 def _time_it(started: float, calls: int) -> None:

@@ -431,6 +431,9 @@ def pytest_configure(config):
     time and cannot share the machine. The commit's full run takes the rest in
     parallel, then these alone (`staged_tree.run_suite`)."""
     config.addinivalue_line("markers", "serial: runs in the suite's serial pass, alone")
+    # Founder ruling 4, 2026-09-28 (G-127): a test that asserts on wall-clock time runs in the
+    # run-through stage, not the commit hook, which excludes it (`staged_tree.run_suite`).
+    config.addinivalue_line("markers", "wallclock: run by the run-through stage, never the commit hook")
 
 
 def pytest_sessionstart(session):

@@ -129,7 +129,10 @@ def _graph():
 # SERIAL (2026-09-27, as the loop-lag test below): it asserts elapsed wall-clock time
 # against WALL, and under the parallel suite's CPU load it failed once (Part A's first
 # commit attempt) on a tree where it passes alone. It runs in the serial pass.
-@pytest.mark.serial
+# WALLCLOCK (founder ruling 4, 2026-09-28; G-127): out of the commit hook — it refused 2 of 4
+# commits on a tree where it passes alone. Run by the run-through stage (`define_runthrough.py`),
+# its outcome in docs/runthrough/wallclock_*.json.
+@pytest.mark.wallclock
 def test_a_slow_turn_answers_before_the_wall(slow_turn) -> None:
     """**The G-92 check.** Setup eats most of the budget and the coach's
     lookup blocks; the node must still finish FIRST — a degraded answer and a
@@ -183,6 +186,7 @@ def test_no_knowledge_tool_blocks_the_loop(blocking_lookups) -> None:
     assert not blocked, f"these tools held the event loop (seconds): {blocked}"
 
 
+@pytest.mark.wallclock    # founder ruling 4 (G-127): the run-through stage runs it, not the commit hook
 def test_a_lookup_runs_its_queries_concurrently(blocking_lookups) -> None:
     """Original + variants run together, not one after another: four blocking
     round trips take about one round trip, not four."""

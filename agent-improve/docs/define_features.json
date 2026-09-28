@@ -3319,7 +3319,9 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-127"
+    ]
    },
    "requirement": "R13",
    "belt_impact": "dead_end",

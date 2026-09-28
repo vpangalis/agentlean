@@ -364,3 +364,17 @@ def test_a_work_package_takes_same_area_features_in_rank_order_up_to_five_points
     fs[2]["sources"] = {"code": ["agent-improve/ui/index.html"]}      # A3 another area now
     got = rank.packages(fs, rank.rank(fs, {"outcomes": {}}, _reqs(R1="Must")))["A"]
     assert got["features"] == ["A1"]                                  # it ends the package
+
+
+def test_a_wallclock_test_is_read_from_the_run_through_stage(monkeypatch) -> None:
+    """Founder ruling 4, 2026-09-28 (G-127): the commit hook no longer runs the wall-clock tests;
+    their outcome comes from the run-through stage's record while it is fresh, and the ratchet
+    exempts them while it is not."""
+    t = sorted(F.WALLCLOCK_TESTS)[0]
+    feats = [{"id": "W-1", "test": t, "depends_on": []}]
+    monkeypatch.setattr(F, "wallclock_outcomes", lambda: ({t: "passed"}, True))
+    assert F.status(feats, {"outcomes": {}}) == {"W-1": "passing"}
+    monkeypatch.setattr(F, "wallclock_outcomes", lambda: ({t: "passed"}, False))
+    assert F.status(feats, {"outcomes": {}}) == {"W-1": "failing"}
+    assert F.ratchet_refusal(["W-1"], feats, {"outcomes": {}}, defects=set()) == ([], ["W-1"])
+

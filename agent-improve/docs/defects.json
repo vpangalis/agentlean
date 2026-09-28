@@ -1244,6 +1244,19 @@
    "lane": [
     "A"
    ]
+  },
+  {
+   "id": "G-127",
+   "symptom": "TWO WALL-CLOCK TESTS REFUSED COMMITS ON A TREE WHERE THEY PASS. Evidence: 2026-09-28, the ruling-5 commit (cff403f) took five attempts: backend/tests/test_turn_budget.py::test_a_slow_turn_answers_before_the_wall (DEF-077's feature test) failed twice in the hook's serial pass (19 s), test_a_lookup_runs_its_queries_concurrently once in the parallel pass, and one attempt ended with the test process crashing (exit 127); each passed alone, in the checkout and in the staged tree, with the hook's environment. About 15 minutes lost. Registered by founder ruling 4 (2026-09-28), which covers the 8D owed for DEF-077. Owner: lane A; DEF-077's test is the one moved. — 8D. D2 IS: tests that assert on elapsed wall-clock time fail intermittently inside the commit hook, straight after the ~2.5-minute parallel pass on a Windows machine with OneDrive syncing. D2 IS-NOT: not the code under test (the same tree passes alone, 3 of 3); not the staged tree (passes there alone); not one test (two tests, both timing). D4 OCCURRENCE: a fixed time bound (the node's wall, concurrency within a margin) measured on a shared machine: load from the parallel pass, OneDrive and other processes stretches the elapsed time past the bound. The serial pass (founder 2026-09-27) removed the suite's own load, not the machine's. D4 ESCAPE: nothing measures the flake rate — a refusal reads as a failure and is retried by hand; the timing log records refusals, not their cause; the serial marker was taken to have solved it after one flake. D5 FIX: founder ruling 4 — both tests are marked `wallclock`, excluded from the commit hook (staged_tree.run_suite, preflight) and run by the run-through stage (scripts/define_runthrough.py::_wallclock), which writes docs/runthrough/wallclock_<stamp>.json bound to the product source; tools/control_board/features.py::status reads a fresh record's outcome, and the ratchet exempts the tests while the record is stale. D3 CONTAINMENT: NONE — the retries were the containment. D7 PREVENT: test_define_features.py::test_a_wallclock_test_is_read_from_the_run_through_stage; a new wall-clock test is marked wallclock (conftest registers the marker with its rule).",
+   "requirement": [
+    "R13"
+   ],
+   "feature": [
+    "DEF-077"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }

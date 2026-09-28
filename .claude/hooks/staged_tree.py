@@ -130,8 +130,9 @@ def run_suite(root: Path = ROOT) -> tuple[int, str]:
     # the `serial` tests alone — a test timing the event loop cannot share the
     # machine. Both runs are on the same source, so the recorder MERGES them into
     # one record. Exit 5 is "no test selected", not a failure.
-    par = run([*base, "-n", "auto", "-m", "not serial"], wt, root, AGENT_IMPROVE_FULL_RUN="1")
-    ser = run([*base, "-n", "0", "-m", "serial"], wt, root, AGENT_IMPROVE_FULL_RUN="1")
+    # `wallclock` tests are the run-through stage's (founder ruling 4, 2026-09-28; G-127).
+    par = run([*base, "-n", "auto", "-m", "not serial and not wallclock"], wt, root, AGENT_IMPROVE_FULL_RUN="1")
+    ser = run([*base, "-n", "0", "-m", "serial and not wallclock"], wt, root, AGENT_IMPROVE_FULL_RUN="1")
     record = wt / PROJECT / "docs" / "test-results.json"
     if record.is_file():
         shutil.copyfile(record, root / PROJECT / "docs" / "test-results.json")
