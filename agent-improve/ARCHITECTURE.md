@@ -530,7 +530,9 @@ construction.
   | upload | a new upload, or an unread one the Belt refers to | `rag_lookup_evidence`, `load_evidence_series` |
   | answer | anything else | none — a structured reply only |
 
-  Diagrams and templates after a Confirm are drawn in code from stored values. Each lookup is a
+  Visuals (ADR-0070): each read-back's visual is drawn in code from the coach's structured values,
+  marked not yet confirmed; after Confirm the same function draws it from the stored values into
+  the gate document. No model call draws. Each lookup is a
   per-turn counted copy (`_budgeted_rag_tools`); at `hop_budget` ≤ 0 they are left out. `_build_executor`
   passes the list to `create_agent(tools=…)`. `check_gate_status` and `request_human_approval` are
   not coach tools (G-115).
