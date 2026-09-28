@@ -238,7 +238,7 @@ def test_the_runtime_is_one_graph_with_a_node_per_phase(wired) -> None:
     namespace."""
     graph, _ = wired
     names = {n for n in graph.get_graph().nodes if n not in ("__start__", "__end__")}
-    assert names == {f"{p}_phase" for p in PHASE_ORDER} | {graph_mod.ESCALATE_NODE}
+    assert names == {f"{p}_phase" for p in PHASE_ORDER} | {graph_mod.ESCALATE_NODE, "input_guard"}
     assert graph_mod.WIRED_PHASES == PHASE_ORDER, "step 4.4 closed WATCH 17"
 
 

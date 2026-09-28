@@ -107,8 +107,9 @@ flowchart LR
   end
 ```
 
-- **Main graph** (`core/graph.py::graph_builder`, the one builder, ADR-0063): `START` →
-  `route_to_phase` (a pure function of `current_phase`, no model call) → `{phase}_phase` → `END`;
+- **Main graph** (`core/graph.py::graph_builder`, the one builder, ADR-0063): `START` → `input_guard`
+  (ADR-0057) → `route_to_phase` (deterministic, no model call: a blocked turn → `END`, else
+  `current_phase`) → `{phase}_phase` → `END`;
   `escalate` → `END`. `get_graph()` compiles it once per process with the checkpointer and store;
   every route and test uses it.
 - **Wrapper node** (`phase_node`): input mapper (in a worker thread) → `await subgraph.ainvoke(child)`,
@@ -323,7 +324,9 @@ Classes are allowed only in files marked **C**; elsewhere module-level functions
 |---|---|---|
 | `core/` | `state.py` C | `SupervisorState` |
 | | `substate.py` C | `PhaseState`, `merge_field_log`, `CoachingPlan`, `SufficiencyJudgment`, `CoachingResponse` |
-| | `graph.py` | Supervisor graph, wrapper nodes |
+| | `graph.py` | The main graph (`graph_builder`, `get_graph`, `route_to_phase`), wrapper nodes |
+| | `guard.py` | `input_guard` — fixed rules, then Prompt Shields (ADR-0057) |
+| | `content_safety.py` | `shield` — Azure AI Content Safety Prompt Shields client |
 | | `llm.py` | `get_llm(role)`, `ROLE_DEPLOYMENTS`, `ROLE_TEMPERATURES` |
 | | `prompts.py` | Prompt constants and rubrics |
 | | `checkpointer.py` C | `AzureBlobCheckpointSaver` |

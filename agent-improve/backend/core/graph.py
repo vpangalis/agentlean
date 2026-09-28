@@ -7,7 +7,8 @@ T90 (deterministic entry; approval advances the phase inside the graph), T3.
 
 THE SHAPE
 ---------
-    START → route_to_phase ─(current_phase)→ {phase}_phase → END
+    START → input_guard → route_to_phase ─(current_phase)→ {phase}_phase → END
+                                        └─(blocked)→ END
                                              escalate → END   (reached by Command.PARENT)
 
 `graph_builder()` is the ONLY builder. `get_graph()` compiles it once per process with the
@@ -49,6 +50,7 @@ from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 
+from backend.core import guard
 from backend.core.checkpointer import get_checkpointer
 from backend.core.state import SupervisorState
 from backend.core.store import get_store
@@ -367,8 +369,11 @@ def _persistence():
 # ── the main graph (ADR-0063) ──────────────────────────────────────────────
 
 def route_to_phase(state: SupervisorState) -> str:
-    """The phase entry — the "traffic light". A pure function of `current_phase`: no model
-    call, no other input. A case whose phase has no subgraph (`"complete"`) raises."""
+    """The phase entry — the "traffic light". Deterministic, no model call: a turn the input
+    guard blocked ends here; otherwise the entry is `current_phase`'s node. A case whose phase
+    has no subgraph (`"complete"`) raises."""
+    if guard.blocked(state):
+        return END
     current = state.get("current_phase")
     if current not in WIRED_PHASES:
         raise PhaseNotWired(
@@ -387,7 +392,9 @@ def graph_builder() -> StateGraph:
         builder.add_edge(f"{phase}_phase", END)
     builder.add_node(ESCALATE_NODE, escalate_node)
     builder.add_edge(ESCALATE_NODE, END)
-    builder.add_conditional_edges(START, route_to_phase, [f"{p}_phase" for p in PHASE_ORDER])
+    builder.add_node(guard.NODE, guard.input_guard)
+    builder.add_edge(START, guard.NODE)
+    builder.add_conditional_edges(guard.NODE, route_to_phase, [*(f"{p}_phase" for p in PHASE_ORDER), END])
     return builder
 
 

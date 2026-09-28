@@ -40,6 +40,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from backend.core import content_safety
 from backend.core.llm import get_llm, block_text
 from backend.core.prompts import UPLOAD_INTERPRET_PROMPT, VISION_EXTRACT_PROMPT
 from backend.storage.models import UploadInterpretation
@@ -133,6 +134,14 @@ async def process_upload(
             "refusal_reason": parsed.get("refusal_reason"),
         }
 
+    # T72 (ADR-0057, fail closed): the text is screened for hidden instructions BEFORE any model
+    # reads it. A detected attack, or a configured service that cannot be reached, refuses the
+    # upload here — before the route writes anything.
+    refusal = await _screen(parsed.get("text") or "")
+    if refusal:
+        logger.warning("Upload REFUSED by the document check: %s — %s", filename, refusal)
+        return {**base, "parsed": False, "refusal_reason": refusal}
+
     interpretation = await _interpret(filename, parsed, case_meta, phase)
 
     return {
@@ -154,6 +163,31 @@ async def process_upload(
         "summary": interpretation.summary,
         "interpretation": interpretation.model_dump(),
     }
+
+
+#: Prompt Shields' document input, chunked; at most this many chunks are screened per upload.
+_SCREEN_CHUNKS = 20
+
+
+async def _screen(text: str) -> str:
+    """Prompt Shields' document-attack check over the upload's text (T72). Returns a Belt-readable
+    refusal, or "" when the text may be read. Not configured: refused in production, passed
+    elsewhere (the fixed-rules-only rule of the input guard, ADR-0057)."""
+    if not text.strip():
+        return ""
+    step = content_safety.MAX_CHARS
+    chunks = [text[i:i + step] for i in range(0, min(len(text), step * _SCREEN_CHUNKS), step)]
+    verdict = await content_safety.shield(documents=chunks)
+    if not verdict["configured"]:
+        return ("The safety check for uploads is not available, so this file was not read. "
+                "Please try again later.") if content_safety.required() else ""
+    if not verdict["reachable"]:
+        return ("The safety check for uploads is unavailable right now, so this file was not read "
+                "and nothing was saved. Please upload it again in a minute.")
+    if any(verdict["document_attacks"]):
+        return ("This file contains text that tries to give the coach instructions, so it was not "
+                "read. If it is a genuine document, remove those passages and upload it again.")
+    return ""
 
 
 async def _interpret(

@@ -151,6 +151,16 @@ class Settings(BaseSettings):
         env="ENVIRONMENT",
         description="Deployment environment; 'production' makes tracing mandatory.",
     )
+    CONTENT_SAFETY_ENDPOINT: Optional[str] = Field(
+        None,
+        env="CONTENT_SAFETY_ENDPOINT",
+        description="Azure AI Content Safety endpoint (private endpoint) for Prompt Shields — ADR-0057.",
+    )
+    CONTENT_SAFETY_KEY: Optional[str] = Field(
+        None,
+        env="CONTENT_SAFETY_KEY",
+        description="Azure AI Content Safety key — ADR-0057.",
+    )
     LANGFUSE_PUBLIC_KEY: Optional[str] = Field(
         None,
         env="LANGFUSE_PUBLIC_KEY",
@@ -202,6 +212,8 @@ settings = Settings(
     LANGCHAIN_PROJECT=os.getenv("LANGCHAIN_PROJECT") or os.getenv("LANGSMITH_PROJECT") or "agentlean-improve",
     LANGCHAIN_ENDPOINT=os.getenv("LANGCHAIN_ENDPOINT"),
     ENVIRONMENT=os.getenv("ENVIRONMENT", "development"),
+    CONTENT_SAFETY_ENDPOINT=os.getenv("CONTENT_SAFETY_ENDPOINT"),
+    CONTENT_SAFETY_KEY=os.getenv("CONTENT_SAFETY_KEY"),
     LANGFUSE_PUBLIC_KEY=os.getenv("LANGFUSE_PUBLIC_KEY"),
     LANGFUSE_SECRET_KEY=os.getenv("LANGFUSE_SECRET_KEY"),
     LANGFUSE_HOST=os.getenv("LANGFUSE_HOST"),

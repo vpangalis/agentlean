@@ -30,7 +30,7 @@ PHASE_NODES = {f"{p}_phase" for p in PHASE_ORDER}
 
 
 def test_exactly_the_five_phase_nodes_plus_escalation() -> None:
-    assert set(graph_builder().nodes) == PHASE_NODES | {ESCALATE_NODE}
+    assert set(graph_builder().nodes) == PHASE_NODES | {ESCALATE_NODE, "input_guard"}
 
 
 def test_the_one_graph_carries_both_persistence_primitives(monkeypatch) -> None:
@@ -69,8 +69,8 @@ def test_an_unwired_phase_has_no_subgraph_until_4_4() -> None:
 
 def test_start_enters_every_phase_node_through_the_router_and_every_phase_ends() -> None:
     b = graph_builder()
-    assert set(b.edges) == {(p, END) for p in PHASE_NODES} | {(ESCALATE_NODE, END)}, b.edges
-    branches = b.branches[START]
+    assert set(b.edges) == {(p, END) for p in PHASE_NODES} | {(ESCALATE_NODE, END), (START, "input_guard")}, b.edges
+    branches = b.branches["input_guard"]            # ADR-0057: the guard sits before the router
     assert list(branches) == ["route_to_phase"]
     assert not {(a, z) for a, z in b.edges if a in PHASE_NODES and z in PHASE_NODES}
 
@@ -78,6 +78,12 @@ def test_start_enters_every_phase_node_through_the_router_and_every_phase_ends()
 @pytest.mark.parametrize("phase", PHASE_ORDER)
 def test_the_router_reads_current_phase_alone(phase: str) -> None:
     assert route_to_phase({"current_phase": phase}) == f"{phase}_phase"  # type: ignore[typeddict-item]
+
+
+def test_a_turn_the_guard_blocked_ends_at_the_router() -> None:
+    from langchain_core.messages import AIMessage
+    blocked = AIMessage(content="no", additional_kwargs={"input_guard": {"status": "blocked"}})
+    assert route_to_phase({"current_phase": "define", "messages": [blocked]}) == END  # type: ignore[typeddict-item]
 
 
 def test_a_finished_case_has_no_phase_to_enter() -> None:
