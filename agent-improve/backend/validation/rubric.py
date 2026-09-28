@@ -153,7 +153,13 @@ def _document(a: dict[str, Any]) -> str:
 async def _llm_verdicts(criteria: list[tuple[str, str, str]], document: str) -> GraderVerdict:
     """One `grader` call for the criteria that need judgment."""
     grader = get_llm("grader").with_structured_output(GraderVerdict)
-    lines = "\n".join(f"- {cid} ({field}): {text}" for cid, field, text in criteria)
+    # G-129 (founder ruling 2, 2026-09-28): each rubric line carries its element's own acceptance
+    # criteria, so the element check and the gate cannot disagree on the same answer.
+    from backend.middleware.skills import acceptance_criteria
+    lines = "\n".join(
+        f"- {cid} ({field}): {text}" + "".join(
+            f"\n    element criterion `{aid}`: {atext}" for aid, atext in acceptance_criteria("define", field))
+        for cid, field, text in criteria)
     out = await grader.ainvoke(GATE_GRADER_PROMPT.format(phase="Define", criteria=lines,
                                                          document=document))
     return GraderVerdict.model_validate(out)

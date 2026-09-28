@@ -8,8 +8,9 @@ part of it reaches a model.
 Two places use it, both LangChain's own mechanism (rule 0.24):
   uploads      `mask(text)` over the parsed text before it is interpreted or indexed
                (`upload/agent.py::process_upload`); the file itself stays in Blob for the Belt
-  coach input  `executor_middleware()` — one `PIIMiddleware` per type on the executor, applied to
-               tool results only, never to the Belt's own messages (ADR-0062 point 2)
+  coach input  `executor_middleware()` — one `PIIMiddleware` over all four types (a combined
+               detector) on the executor, tool results only, never the Belt's own messages
+               (ADR-0062 point 2)
 
 Every masking is counted by type — never the value — for `step_log` (point 4).
 """

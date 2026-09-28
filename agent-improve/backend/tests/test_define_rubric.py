@@ -144,3 +144,31 @@ def test_the_drift_hook_matches_paths_across_the_drive_letters_case() -> None:
     if os.name == "nt":
         assert rel == "agent-improve/backend/validation/rubric.py"
     assert mod.normalize_path("C:/X/a.py", "C:/X") == "a.py"
+
+
+def test_g129_the_grader_sees_each_elements_acceptance_criteria(monkeypatch) -> None:
+    """DEF-159 — G-129 (founder ruling 2, 2026-09-28): the gate grader receives each element's
+    acceptance criteria next to its rubric line, and is told an answer that meets them meets the
+    line in other words; DEF-R13 names "issues and barriers (roadblocks)"."""
+    import asyncio
+
+    from backend.core.prompts import DEFINE_RUBRIC
+    from backend.middleware.skills import acceptance_criteria
+    from backend.validation import rubric
+
+    seen: list = []
+
+    class Grader:
+        def with_structured_output(self, schema):
+            return self
+
+        async def ainvoke(self, prompt):
+            seen.append(prompt)
+            return rubric.GraderVerdict(verdicts=[])
+    monkeypatch.setattr(rubric, "get_llm", lambda role, **kw: Grader())
+    asyncio.run(rubric._llm_verdicts([("DEF-R13", "issues_and_barriers", "names the key issues")], "doc"))
+    assert seen, "no grader call"
+    for aid, _ in acceptance_criteria("define", "issues_and_barriers"):
+        assert f"element criterion `{aid}`" in seen[0]
+    assert "never fail it for wording alone" in seen[0]
+    assert "issues and barriers (roadblocks)" in DEFINE_RUBRIC

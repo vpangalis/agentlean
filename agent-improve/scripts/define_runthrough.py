@@ -276,6 +276,27 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
     sb = client.post("/gate", json={"case_id": case_id, "submitted_by": USER, "phase": "define"})
     submit = sb.json() if sb.headers.get("content-type", "").startswith("application/json") else {"text": sb.text[:400]}
     _write(rec, {"kind": "gate_submit", "http": sb.status_code, "body": submit})
+    # Founder ruling 3, 2026-09-28 — the last two steps (stop condition 7's evidence): approve the
+    # Define report, then one turn that enters Measure. Only after a submission that passed.
+    if sb.status_code == 200 and isinstance(submit, dict) and (submit.get("awaiting_acceptance") or submit.get("passed")):
+        c0, t0 = len(CALLS), time.time()
+        dc = client.post("/gate/decision", json={"case_id": case_id, "phase": "define", "decision": "approve",
+                                                 "actor": "Priya Shah"})
+        decided = dc.json() if dc.headers.get("content-type", "").startswith("application/json") else {"text": dc.text[:400]}
+        _write(rec, {"kind": "gate_decision", "http": dc.status_code, "seconds": round(time.time() - t0, 1),
+                     "model_calls": [c["kind"] for c in CALLS[c0:]], "body": decided})
+        print(f"gate decision {dc.status_code}")
+        if dc.status_code == 200:
+            c0, t0 = len(CALLS), time.time()
+            ms = client.post("/ask", json={"case_id": case_id, "phase": "measure", "user": USER,
+                                           "message": "We're ready for Measure. Where do we start?"})
+            mb = ms.json() if ms.status_code == 200 else {"error": ms.text[:400]}
+            after = client.get(f"/cases/{case_id}").json()
+            _write(rec, {"kind": "measure_turn", "http": ms.status_code, "seconds": round(time.time() - t0, 1),
+                         "model_calls": [c["kind"] for c in CALLS[c0:]], "phase": mb.get("phase"),
+                         "current_phase": after.get("current_phase"),
+                         "reply": {k: mb.get(k) for k in ("answer", "prompt", "progress", "move", "move_field")}})
+            print(f"measure turn {ms.status_code} · phase now {after.get('current_phase')}")
     final = client.get(f"/cases/{case_id}").json()
     _write(rec, {"kind": "final_case", "current_phase": final.get("current_phase"),
                  "define_structured": ((final.get("phases") or {}).get("define") or {}).get("structured"),

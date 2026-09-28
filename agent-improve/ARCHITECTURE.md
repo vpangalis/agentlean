@@ -353,6 +353,7 @@ Classes are allowed only in files marked **C**; elsewhere module-level functions
 | | `define/report.py` | `define_report` |
 | | `define/parse.py` | `parse_limit`, `parse_sipoc` — targets and the SIPOC read in code (G-120, G-121) |
 | `middleware/` | `state_injection.py`, `skills.py`, `grader.py`, `coherence.py`, `contradiction.py` C | Custom middleware |
+| | `turn_tools.py` | `turn_tools_middleware` — the turn type's tools (ADR-0069) |
 | `validation/` | `rubric.py` | `grade_define` |
 | | `schemas.py` C | `CriterionVerdict`, `GraderVerdict` |
 | `knowledge/` | `tools.py` | Universal tools, `rag_lookup_*`, cross-agent tools (unbound) |
@@ -445,6 +446,9 @@ flowchart TB
 - `wrap_model_call`: retries transient model failures with exponential backoff and jitter;
   `on_failure="continue"`. Settings in `_build_executor`. A `content_filter` refusal is not retried
   (`content_safety.retry_on`); the executor answers with guidance instead (T92).
+
+**Turn tools · `@wrap_model_call`** (ADR-0069) — LangChain's dynamic tool selection: offers the
+model only the turn type's tools (`request.override(tools=…)`, §3.6); every tool stays registered.
 
 **Call limit · `ModelCallLimitMiddleware`** — LangChain, as shipped (ADR-0059, T69), declared just
 outside the retry. `run_limit` is the coach's share of four model calls a turn, after the planner's

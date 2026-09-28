@@ -64,6 +64,7 @@ from langgraph.graph import END
 from langgraph.types import Command, interrupt
 
 from backend.core import content_safety, guard, guard_messages, pii
+from backend.middleware import turn_tools
 from backend.core.config import settings
 from backend.core.conversation import message_to_turn
 from backend.core.llm import get_llm
@@ -971,6 +972,7 @@ def _build_executor(
     script_log: Optional[list[dict[str, Any]]] = None,
     coherence_log: Optional[list[dict[str, Any]]] = None,
     coach_limit: int = TURN_MODEL_CALLS - AFTER_AGENT_CALLS,
+    turn_type: str = turn_tools.TEACHING,
 ) -> tuple[Any, list[dict[str, Any]]]:
     """The phase coach — `create_agent`, per §18's ratified template.
 
@@ -1052,6 +1054,10 @@ def _build_executor(
             # fallback chain, which swaps the model. `max_retries` is
             # "attempts after the initial call", so 2 means three attempts.
             # T92 (ADR-0067): a content-filter refusal is never retried.
+            # ADR-0069 (founder rulings 1 and 6, 2026-09-28) — LangChain's dynamic tool selection:
+            # every tool stays registered; this wrap_model_call offers the model only the turn
+            # type's tools (`request.override(tools=…)`) — none on an answer turn.
+            turn_tools.turn_tools_middleware(turn_type),
             # T69 / G-119 (ADR-0059) — the coach's share of the turn's model calls. Declared
             # before the retry, so it encloses it: a retried call is one call of the budget.
             # Its state schema (ModelCallLimitState) is its own; the list is typed on AgentState.
@@ -1476,6 +1482,43 @@ def _with_carried(messages: list, reply: CoachingResponse | None, phase: str,
     return messages
 
 
+def turn_type_of(plan: Optional[CoachingPlan], state: PhaseState) -> str:
+    """ADR-0069's turn type, in code: an unread upload bound to an open ask makes an upload turn;
+    teaching a field (teach, or store and advance to the next) a teaching turn; anything else — the
+    Belt answered — an answer turn."""
+    if _unconsumed_for_open_ask(state) is not None:
+        return turn_tools.UPLOAD
+    if plan is None or plan.move in (moves.TEACH, moves.STORE_AND_ADVANCE):
+        return turn_tools.TEACHING
+    return turn_tools.ANSWER
+
+
+#: The 5W2H mind map's slots, from the stored `problem_5w2h` keys.
+_5W2H_SLOTS = {"what": "what", "where": "where", "when": "when", "who": "who_affected", "why": "why",
+               "how_much": "how_much", "how": "how_often"}
+
+
+def _diagrams_from_store(messages: list, stored: dict[str, Any]) -> None:
+    """ADR-0069 point 2: after a Confirm, the diagram of what was stored is drawn in CODE from the
+    stored values (`core/diagrams.py`), not by a coach tool call. Mutates the reply in place."""
+    from backend.core import diagrams
+    out: dict[str, Any] = {}
+    try:
+        if isinstance(stored.get("process_map_sipoc"), dict):
+            out[_DIAGRAM_TO_UI_KEY["sipoc"]] = diagrams.build_sipoc(stored["process_map_sipoc"], draft=False)
+        if isinstance(stored.get("problem_5w2h"), dict):
+            out[_DIAGRAM_TO_UI_KEY["mindmap_5w2h"]] = diagrams.build_mindmap_5w2h(
+                {slot: stored["problem_5w2h"].get(k) for k, slot in _5W2H_SLOTS.items()})
+    except diagrams.DiagramError as exc:
+        logger.info("executor: no diagram drawn from the stored values: %s", exc)
+    if not out:
+        return
+    for msg in reversed(messages):
+        if isinstance(msg, AIMessage):
+            msg.additional_kwargs.update(out)
+            return
+
+
 #: The text `ModelCallLimitMiddleware` ends a run with (langchain 1.3.16), matched to replace it.
 _LIMIT_NOTICE = "Model call limits exceeded"
 
@@ -1751,11 +1794,9 @@ async def executor(
     # back below for `step_log`.
     hops_spent: list[int] = [0]
 
-    # ADR-0068 — the lookups on TEACHING turns only; an answer turn (the Belt answered: challenge,
-    # read back, respond) gets none. Decided in code from the move, recorded in step_log.
-    turn_type = "teaching" if plan is None or plan.move in (moves.TEACH, moves.STORE_AND_ADVANCE) else "answer"
-    if turn_type == "answer":
-        hop_budget = 0
+    # ADR-0068 / ADR-0069 — the turn type, decided in code from the move and the phase state,
+    # recorded in step_log; the tools it offers are the turn_tools middleware's.
+    turn_type = turn_type_of(plan, state)
 
     # T69 / G-119 — the turn's model-call budget, and the coach's share of it.
     calls_before = 1 if plan is not None and getattr(plan, "judgment", None) is not None else 0
@@ -1769,6 +1810,7 @@ async def executor(
     agent, grader_log = _build_executor(
         phase, state, config, hop_budget=hop_budget, hops_spent=hops_spent,
         script_log=script_log, coherence_log=coherence_log, coach_limit=coach_limit,
+        turn_type=turn_type,
     )
     # ── the planner's named call, executed before the model runs ──────
     # §17, step 6.21, option C. `prior` is what the agent is invoked with;
@@ -2101,6 +2143,8 @@ async def executor(
     # G-117 (DEF-156) — what was stored is said by code, from `kept`, never by the model.
     new_messages = _store_truth(new_messages, reply, phase, plan, kept if move == moves.STORE_AND_ADVANCE else {})
     new_messages = _with_carried(new_messages, reply, phase, carried)
+    if move == moves.STORE_AND_ADVANCE:
+        _diagrams_from_store(new_messages, kept)
 
     # ── 10.0 — the four blocks and the grader's warning ride on the reply ──
     # The route never holds the `CoachingResponse`, only the graph's

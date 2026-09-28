@@ -110,6 +110,7 @@ def test_the_executor_builds_the_agent_per_the_ratified_template(
         "BeforeModelStateInjection",         # 1
         "DMAICSkillsMiddleware",             # 2
         "SummarizationMiddleware",           # 3
+        "TurnTools[teaching]",               # ADR-0069: the turn type's tools (no plan: teaching)
         "ModelCallLimitMiddleware",          # ADR-0059 (T69): encloses the retry
         "ModelRetryMiddleware",              # 4
         "ToolRetryMiddleware",               # 5
@@ -1212,8 +1213,11 @@ def test_adr_0068_an_answer_turn_binds_no_lookup(move: str, stub_coach) -> None:
     plan = CoachingPlan(focus_field="team", status="answered", move=move,
                         retrieval_strategy="single_hop", retrieval_hops=[])
     out = _run(_c.executor("define", _state(coaching_plan=plan)))
-    names = [t.name for t in stub_coach.calls[-1]["tools"]]
-    assert not set(names) & {t.name for t in RAG_LOOKUP_TOOLS}, names
+    # ADR-0069 (rulings 1 and 6): every tool stays registered; the dynamic tool selection offers none.
+    from backend.middleware import turn_tools
+    declared = [type(m).__name__ for m in stub_coach.calls[-1]["middleware"]]
+    assert "TurnTools[answer]" in declared, declared
+    assert turn_tools.offered("answer", list(stub_coach.calls[-1]["tools"])) == []
     entry = next(e for e in out["step_log"] if e.get("turn_type"))
     assert entry["turn_type"] == "answer"
 
@@ -1224,7 +1228,35 @@ def test_adr_0068_a_teaching_turn_keeps_its_lookups_within_four_calls(move: str,
     plan = CoachingPlan(focus_field="team", status="untaught", move=move,
                         retrieval_strategy="single_hop", retrieval_hops=[])
     out = _run(_c.executor("define", _state(coaching_plan=plan)))
-    names = [t.name for t in stub_coach.calls[-1]["tools"]]
-    assert {t.name for t in RAG_LOOKUP_TOOLS} <= set(names), names
+    from backend.middleware import turn_tools
+    assert "TurnTools[teaching]" in [type(m).__name__ for m in stub_coach.calls[-1]["middleware"]]
+    names = [t.name for t in turn_tools.offered("teaching", list(stub_coach.calls[-1]["tools"]))]
+    assert {t.name for t in RAG_LOOKUP_TOOLS} <= set(names) and "propose_template" in names, names
+    assert "propose_diagram" not in names and "load_evidence_series" not in names, names
     entry = next(e for e in out["step_log"] if e.get("turn_type"))
     assert entry["turn_type"] == "teaching" and entry["call_budget"]["turn"] <= 4, entry["call_budget"]
+
+
+def test_adr_0069_an_upload_turn_offers_the_evidence_tools(monkeypatch, stub_coach) -> None:
+    """ADR-0069: an unread upload bound to an open ask makes an upload turn, which offers the
+    evidence tools (and nothing else); recorded in step_log."""
+    from backend.middleware import turn_tools
+    monkeypatch.setattr(_c, "_unconsumed_for_open_ask", lambda state, asks=None: {"blob_path": "u/x.csv"})
+    plan = CoachingPlan(focus_field="team", status="answered", move="read_back",
+                        retrieval_strategy="single_hop", retrieval_hops=[])
+    out = _run(_c.executor("define", _state(coaching_plan=plan)))
+    assert "TurnTools[upload]" in [type(m).__name__ for m in stub_coach.calls[-1]["middleware"]]
+    names = sorted(t.name for t in turn_tools.offered("upload", list(stub_coach.calls[-1]["tools"])))
+    assert names == ["load_evidence_series", "rag_lookup_evidence"], names
+    assert next(e for e in out["step_log"] if e.get("turn_type"))["turn_type"] == "upload"
+
+
+def test_adr_0069_a_confirmed_sipoc_is_drawn_in_code(stub_coach) -> None:
+    """ADR-0069 point 2: after a Confirm, the SIPOC diagram comes from the stored values, drawn in
+    code — no coach tool call."""
+    from backend.phases.define.schema import SIPOC_KEYS
+    sipoc = {k: f"{k} text" for k in SIPOC_KEYS}
+    out = _run(_c.executor("define", _state(coaching_plan=store_plan({"process_map_sipoc": sipoc}))))
+    reply = [m for m in out["messages"] if isinstance(m, AIMessage)][-1]
+    diagram = reply.additional_kwargs.get("sipoc_diagram")
+    assert diagram and diagram["draft"] is False and diagram["customers"], reply.additional_kwargs

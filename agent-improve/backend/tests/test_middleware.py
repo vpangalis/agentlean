@@ -689,7 +689,9 @@ def test_the_declared_middleware_list_is_the_ratified_layering(
     )
     # ADR-0059 (T69, G-119): the model-call limit joins, declared just outside the retry;
     # ADR-0062 (T87, DEF-144): one PIIMiddleware over the four types, on tool results.
-    assert len(declared) == 10 and declared.count("PIIMiddleware") == 1
+    # ADR-0069: the turn-type tool selection (a wrap_model_call), one per executor.
+    assert len(declared) == 11 and declared.count("PIIMiddleware") == 1
+    assert [n for n in declared if n.startswith("TurnTools[")] == ["TurnTools[teaching]"]
     assert declared.index("ModelCallLimitMiddleware") == declared.index("ModelRetryMiddleware") - 1
 
 
