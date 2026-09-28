@@ -192,7 +192,7 @@ for it is stale.
 - Never hand-roll a retry loop around an LLM call — no try/except/sleep/counter
   around `.invoke()`. The middleware provides the wrap, the backoff and the
   counter (§0.24, §8.7)
-- Never hand-roll the agent loop — `create_agent`, with the eight middlewares
+- Never hand-roll the agent loop — `create_agent`, with the declared middleware stack
   (§0.24, §4.4, §8.1)
 - Never set `BeforeModelStateInjection` to the `before_model` hook — it is
   `before_agent`, once per turn, not once per model call (§8.1, §8.5)
