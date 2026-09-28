@@ -110,6 +110,7 @@ def test_the_executor_builds_the_agent_per_the_ratified_template(
         "BeforeModelStateInjection",         # 1
         "DMAICSkillsMiddleware",             # 2
         "SummarizationMiddleware",           # 3
+        "ModelCallLimitMiddleware",          # ADR-0059 (T69): encloses the retry
         "ModelRetryMiddleware",              # 4
         "ToolRetryMiddleware",               # 5
         # 6-8 fire after_agent, which executes in REVERSE — so they are

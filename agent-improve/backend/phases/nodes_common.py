@@ -51,6 +51,7 @@ from typing import Any, Awaitable, Callable, Literal, Optional, cast
 
 from langchain.agents import create_agent
 from langchain.agents.middleware import (
+    ModelCallLimitMiddleware,
     ModelRetryMiddleware,
     SummarizationMiddleware,
     ToolRetryMiddleware,
@@ -70,6 +71,7 @@ from backend.core.prompts import (
     PHASE_COACH_PROMPT,
     PLANNER_JUDGMENT_PROMPT,
     PLANNER_JUDGMENT_READING_BACK,
+    READ_BACK_CARRIED,
     STORE_NOTE_NOT_STORED,
     STORE_NOTE_STORED,
 )
@@ -597,6 +599,13 @@ HOP_BUDGET_COMPOSE_RESERVE = 10.0
 #: An unreachable cap is unfalsifiable, which is exactly how five survived
 #: eleven steps.
 COACH_HOP_BUDGET = 3
+#: T69 / G-119 (ADR-0059) — an ordinary coaching turn makes at most this many model calls,
+#: retries included: the planner's judgment (when the Belt answered), the coach, and the two
+#: after-agent checks (coherence, the grader). The coach's share is what is left, enforced by
+#: `ModelCallLimitMiddleware(run_limit=…)`. The tools stay bound as §3.6 designs; a coach that
+#: calls one past its share is stopped and the move's reply is written in code.
+TURN_MODEL_CALLS = 4
+AFTER_AGENT_CALLS = 2
 
 #: §26 / S-F09 B1 — the graceful off-ramp, and a DIFFERENT guard from the hop
 #: budget above. `remaining_steps` is `recursion_limit` minus graph-node
@@ -932,6 +941,7 @@ def _build_executor(
     *, hop_budget: int = COACH_HOP_BUDGET, hops_spent: Optional[list[int]] = None,
     script_log: Optional[list[dict[str, Any]]] = None,
     coherence_log: Optional[list[dict[str, Any]]] = None,
+    coach_limit: int = TURN_MODEL_CALLS - AFTER_AGENT_CALLS,
 ) -> tuple[Any, list[dict[str, Any]]]:
     """The phase coach — `create_agent`, per §18's ratified template.
 
@@ -1013,6 +1023,10 @@ def _build_executor(
             # fallback chain, which swaps the model. `max_retries` is
             # "attempts after the initial call", so 2 means three attempts.
             # T92 (ADR-0067): a content-filter refusal is never retried.
+            # T69 / G-119 (ADR-0059) — the coach's share of the turn's model calls. Declared
+            # before the retry, so it encloses it: a retried call is one call of the budget.
+            # Its state schema (ModelCallLimitState) is its own; the list is typed on AgentState.
+            cast(Any, ModelCallLimitMiddleware(run_limit=coach_limit, exit_behavior="end")),
             ModelRetryMiddleware(max_retries=RETRY_MAX, retry_on=content_safety.retry_on),
             # **The same nesting rule, one layer out.** Position 1 is declared
             # first, so it is the OUTERMOST layer — and since 6.3 it also wraps
@@ -1400,6 +1414,40 @@ def _store_truth(messages: list, reply: CoachingResponse | None, phase: str,
     return messages
 
 
+def _render_value(value: Any) -> str:
+    """A captured value as plain text for the Belt — a list of entries, one per line."""
+    if isinstance(value, list):
+        return "; ".join(_render_value(v) for v in value)
+    if isinstance(value, dict):
+        return ", ".join(str(v) for v in value.values() if v not in (None, ""))
+    return str(value)
+
+
+def _with_carried(messages: list, reply: CoachingResponse | None, phase: str,
+                  carried: dict[str, Any]) -> list:
+    """G-118 (DEF-157): the parts of the element carried from an earlier read-back are shown to
+    the Belt under this one, in code, so what a Confirm stores is what the Belt saw."""
+    if not carried:
+        return messages
+    lines = chr(10).join(READ_BACK_CARRIED.format(name=f.replace("_", " "), value=_render_value(v))
+                         for f, v in carried.items())
+    for i in range(len(messages) - 1, -1, -1):
+        msg = messages[i]
+        if isinstance(msg, AIMessage) and msg.text.strip():
+            text = f"{msg.text.rstrip()}{chr(10) * 2}{lines}"
+            if reply is not None:
+                reply.message = text
+            out = list(messages)
+            out[i] = AIMessage(content=text, additional_kwargs=dict(msg.additional_kwargs or {}),
+                               id=msg.id, name=msg.name)
+            return out
+    return messages
+
+
+#: The text `ModelCallLimitMiddleware` ends a run with (langchain 1.3.16), matched to replace it.
+_LIMIT_NOTICE = "Model call limits exceeded"
+
+
 #: The question a Change click is answered with (ruling on 6.61's review).
 CHANGE_QUESTION = "What would you like to change?"
 
@@ -1671,6 +1719,10 @@ async def executor(
     # back below for `step_log`.
     hops_spent: list[int] = [0]
 
+    # T69 / G-119 — the turn's model-call budget, and the coach's share of it.
+    calls_before = 1 if plan is not None and getattr(plan, "judgment", None) is not None else 0
+    coach_limit = max(1, TURN_MODEL_CALLS - calls_before - AFTER_AGENT_CALLS)
+
     # 6.46 — the skills middleware reports every delivery of the phase script
     # here; the node, which owns step_log, writes the turn's record below.
     script_log: list[dict[str, Any]] = []
@@ -1678,7 +1730,7 @@ async def executor(
     coherence_log: list[dict[str, Any]] = []
     agent, grader_log = _build_executor(
         phase, state, config, hop_budget=hop_budget, hops_spent=hops_spent,
-        script_log=script_log, coherence_log=coherence_log,
+        script_log=script_log, coherence_log=coherence_log, coach_limit=coach_limit,
     )
     # ── the planner's named call, executed before the model runs ──────
     # §17, step 6.21, option C. `prior` is what the agent is invoked with;
@@ -1792,8 +1844,20 @@ async def executor(
             guard.NODE: {"status": "blocked", "threat": "azure", "rule": "content_filter"}})
         result = {"messages": [*prior, refused], "structured_response": fallback}
 
-    reply: CoachingResponse | None = result.get("structured_response")
     produced = list(result.get("messages") or [])
+    # T69 / G-119 — the call limit ended the agent loop: its notice is never the Belt's reply;
+    # the move's own reply is written in code, as on a timeout.
+    limited = (result.get("structured_response") is None and bool(produced)
+               and isinstance(produced[-1], AIMessage) and _LIMIT_NOTICE in str(produced[-1].content))
+    if limited:
+        fallback = _fallback_reply(phase, plan)
+        fell_back = True
+        logger.warning("%s.executor: the coach reached its %d-call share of the turn's %d model calls "
+                       "(T69, G-119) — the move's reply is written in code.", phase, coach_limit, TURN_MODEL_CALLS)
+        produced = [*produced[:-1], AIMessage(content=fallback.message)]
+        result = {**result, "messages": produced, "structured_response": fallback}
+    coach_calls = sum(1 for m in produced[len(history):] if isinstance(m, AIMessage)) - (1 if limited else 0)
+    reply: CoachingResponse | None = result.get("structured_response")
     # The agent echoes the conversation it was given and appends its own turn.
     # `messages` reduces with `operator.add`, so returning more than the tail
     # would duplicate the exchange on every turn.
@@ -1934,7 +1998,15 @@ async def executor(
 
     # 6.61 — a read-back's value is PENDING: it goes on the move record with
     # what a confirmation will store, and nothing reaches `artifacts` now.
+    carried: dict[str, Any] = {}
     if move == moves.READ_BACK and pending is not None:
+        # G-118 (DEF-157) — a part of the element this read-back lacks but an earlier read-back of
+        # it carried (the CTQs, after a Change) is carried into it, shown to the Belt below, and
+        # stored only if the Belt confirms.
+        earlier = dict(pending.get("earlier") or {})
+        carried = {f: earlier[f] for f in (pending.get("fields") or [])
+                   if f != pending.get("field") and f not in kept and f in earlier}
+        kept = {**kept, **carried}
         pending = {**pending, "proposed": dict(kept),
                    "store": moves.pending_store(phase, pending, kept)}
         kept = {}
@@ -1990,6 +2062,7 @@ async def executor(
 
     # G-117 (DEF-156) — what was stored is said by code, from `kept`, never by the model.
     new_messages = _store_truth(new_messages, reply, phase, plan, kept if move == moves.STORE_AND_ADVANCE else {})
+    new_messages = _with_carried(new_messages, reply, phase, carried)
 
     # ── 10.0 — the four blocks and the grader's warning ride on the reply ──
     # The route never holds the `CoachingResponse`, only the graph's
@@ -2057,6 +2130,12 @@ async def executor(
             status=_executor_status(hit_cap, off_ramp, timed_out, filtered),
             fallback_used=fell_back,
             impl="create_agent",
+            # T69 / G-119 — the turn's model calls against its budget (after-agent calls: one
+            # coherence verdict and one grader pass each).
+            call_budget={"budget": TURN_MODEL_CALLS, "planner": calls_before, "coach": coach_calls,
+                         "coach_limit": coach_limit, "after": len(coherence_log) + min(len(grader_log), 1),
+                         "turn": calls_before + coach_calls + len(coherence_log) + min(len(grader_log), 1),
+                         "limited": limited},
             focus_field=plan.focus_field if plan else None,
             # 6.61 — the move code chose, the field's status, and what this
             # turn stored or holds as pending.

@@ -227,6 +227,23 @@ def current(phase: str, artifacts: dict[str, Any],
 Judge = Callable[[str, str, str, str], Awaitable[SufficiencyJudgment]]
 
 
+def _earlier(entry: dict[str, Any], pending: Optional[dict[str, Any]]) -> dict[str, Any]:
+    """G-118 (DEF-157) — what was proposed for this element before, kept so a later read-back of
+    the same element is not left without a part the Belt already gave (the CTQs after a Change).
+    Oldest first, so the latest proposal wins."""
+    out = dict(entry.get("earlier") or {})
+    if pending:
+        out.update(pending.get("earlier") or {})
+        out.update(pending.get("proposed") or pending.get("store") or {})
+    return {f: v for f, v in out.items() if not is_empty_capture(v)}
+
+
+def _earlier_kw(entry: dict[str, Any], pending: Optional[dict[str, Any]]) -> dict[str, Any]:
+    """`{"earlier": …}` when there is anything to carry, else nothing."""
+    e = _earlier(entry, pending)
+    return {"earlier": e} if e else {}
+
+
 def _join(*parts: str) -> str:
     return chr(10).join(p for p in (s.strip() for s in parts) if p)
 
@@ -286,7 +303,8 @@ async def decide(phase: str, artifacts: dict[str, Any],
             return done(field, fields, status, READ_BACK,
                         answer=str(pending.get("belt_words") or ""),
                         messages=int(pending.get("messages") or 1),
-                        pending={k: v for k, v in pending.items() if k not in ("store", "proposed")},
+                        pending={**{k: v for k, v in pending.items() if k not in ("store", "proposed")},
+                                 **_earlier_kw(entry, pending)},
                         reason=CONFIRM_INCOMPLETE.format(missing=", ".join(f"`{f}`" for f in missing)))
         after[field] = {"status": CONFIRMED}
         nxt = current(phase, merged, after)
@@ -297,7 +315,8 @@ async def decide(phase: str, artifacts: dict[str, Any],
 
     if pending and action == CHANGE_CLICK:
         words = str(pending.get("belt_words") or "")
-        after[field] = {"status": ASKED, "answer": words, "messages": int(pending.get("messages") or 1)}
+        after[field] = {"status": ASKED, "answer": words, "messages": int(pending.get("messages") or 1),
+                        **_earlier_kw(entry, pending)}
         return done(field, fields, status, CHALLENGE, answer=words,
                     messages=int(pending.get("messages") or 1), reason=CHANGE_REASON)
 
@@ -310,12 +329,13 @@ async def decide(phase: str, artifacts: dict[str, Any],
                     messages=so_far, pending=pending, reason=judgment.reason)
     if judgment.verdict == "sufficient":
         new_pending = {"field": field, "fields": list(fields), "belt_words": answer,
-                       "messages": so_far + 1}
+                       "messages": so_far + 1, **_earlier_kw(entry, pending)}
         after[field] = {"status": ANSWERED, "answer": answer, "messages": so_far + 1,
                         "pending": new_pending}
         return done(field, fields, status, READ_BACK, judgment=judgment, answer=answer,
                     messages=so_far + 1, pending=new_pending)
-    after[field] = {"status": ASKED, "answer": answer, "messages": so_far + 1}
+    after[field] = {"status": ASKED, "answer": answer, "messages": so_far + 1,
+                    **_earlier_kw(entry, pending)}
     # R3 — the challenge NAMES the failed acceptance criterion.
     crit = getattr(judgment, "failed_criterion", None)
     reason = f"criterion `{crit}` — {judgment.reason}" if crit else judgment.reason

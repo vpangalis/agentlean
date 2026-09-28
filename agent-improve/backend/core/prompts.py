@@ -1577,6 +1577,9 @@ MOVE_OPENING = ("This is the first turn of the phase: begin with the phase scrip
 #: G-117 (DEF-156) — the only sentences that tell the Belt what was stored, written by
 #: `phases/nodes_common._store_truth` from the storage result, never by the coach model.
 STORE_NOTE_STORED = "Stored: {elements}."
+#: G-118 (DEF-157) — a part of the element carried from an earlier read-back, shown under this one
+#: so the Belt confirms it too (written by `phases/nodes_common._with_carried`).
+READ_BACK_CARRIED = "Also kept from your earlier answer — {name}: {value}"
 STORE_NOTE_NOT_STORED = ("Nothing was stored for {element} yet: the read-back did not include "
                          "{missing}. Please check the version below.")
 

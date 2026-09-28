@@ -157,7 +157,8 @@ sequenceDiagram
 3. The planner's model returns one `SufficiencyJudgment` against the element's acceptance
    criteria, read from its SKILL.md block.
 4. `AskRequest.action` = `confirm` stores the pending value; `change` returns the field to asked
-   and answers in code without a model call.
+   and answers in code without a model call. A later read-back of the element keeps the parts it
+   carried before; any the new one lacks are shown under it, in code, and stored only on confirm.
 5. For an unread upload the executor node calls `load_evidence_series` before the model runs.
 6. The executor counts `rag_lookup_*` calls and answers instead of searching at
    `COACH_HOP_BUDGET` (`phases/nodes_common.py`).
@@ -441,6 +442,11 @@ flowchart TB
   `on_failure="continue"`. Settings in `_build_executor`. A `content_filter` refusal is not retried
   (`content_safety.retry_on`); the executor answers with guidance instead (T92).
 
+**Call limit · `ModelCallLimitMiddleware`** — LangChain, as shipped (ADR-0059, T69), declared just
+outside the retry. `run_limit` is the coach's share of four model calls a turn, after the planner's
+judgment and the two after-agent checks; a run it ends gets the move's reply from code. The
+turn's count is `step_log`'s `call_budget`.
+
 **5 · `ToolRetryMiddleware`** — LangChain, as shipped.
 - `wrap_tool_call`: retries a failing tool with backoff; after the last attempt the failure is
   returned to the coach as the tool result (`on_failure="continue"`), not raised.
@@ -469,7 +475,7 @@ of the `after_agent` group.
 - No Store read, no model call, no tolerance threshold. When to flag is instructed in each
   SKILL.md.
 
-**Three separate caps**, never merged: model retry (API failures), coherence (reply quality),
+**Four separate caps**, never merged: model calls per turn (T69), model retry (API failures), coherence (reply quality),
 validation (gate attempts, three, in `gate_attempts`).
 
 ### 3.4 Models

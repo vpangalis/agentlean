@@ -318,9 +318,50 @@ def test_define_is_done_within_forty_turns_none_over_45_seconds() -> None:
     _not_written('DEF-093')
 
 
-def test_an_ordinary_turn_makes_at_most_four_model_calls() -> None:
-    """DEF-094 — An ordinary coaching turn makes at most 4 model calls, retries included; the count is recorded per turn in step_log."""
-    _not_written('DEF-094')
+def test_an_ordinary_turn_makes_at_most_four_model_calls(env, monkeypatch) -> None:
+    """DEF-094 — T69, G-119: an ordinary coaching turn makes at most 4 model calls, retries
+    included; the count is recorded per turn in step_log; enforced with ModelCallLimitMiddleware
+    (ADR-0059). A coach that keeps calling tools is stopped at its share of the budget, and the
+    Belt still gets the move's reply — never the limit notice. Found live on IMPR-2026-3B5 turn 8:
+    15 calls, 45.8 s."""
+    from langchain_core.messages import AIMessage
+
+    from backend.phases import moves, nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    coach_calls: list = []
+
+    class LoopingCoach(_FakeCoach):
+        def _generate(self, *a, **k):
+            coach_calls.append(1)
+            return super()._generate(*a, **k)
+
+    loop = [AIMessage(content="", tool_calls=[{"name": "propose_template", "id": f"t{i}",
+                                               "args": {"template_type": "sipoc", "fill_data": {}}}])
+            for i in range(20)]
+    planner = nodes_common.get_llm
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: LoopingCoach(messages=iter(loop))
+                        if role == "coach" else planner(role, **kw))
+    steps: list = []
+    step = nodes_common._step
+
+    def spy(*a, **k):
+        out = step(*a, **k)
+        steps.append(out)
+        return out
+    monkeypatch.setattr(nodes_common, "_step", spy)
+    env.case.phases["define"].structured = {}
+    env.case.phases["define"].field_status = {"business_case": {"status": moves.ASKED}}
+    r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                      "message": "Late payments cost us about 62k a year across three sites."})
+    assert r.status_code == 200, r.text
+    answer = r.json()["answer"]
+    assert answer and "limit" not in answer.lower(), answer
+    executor = [e for e in steps if isinstance(e, dict) and isinstance(e.get("call_budget"), dict)]
+    assert executor, "step_log records no model-call count for the turn"
+    count = executor[-1]["call_budget"]
+    assert count["turn"] <= 4 and count["budget"] == 4, count
+    assert len(coach_calls) == count["coach"] <= count["coach_limit"], (coach_calls, count)
 
 
 def test_two_or_three_next_steps_are_suggested_from_the_phase_state() -> None:
