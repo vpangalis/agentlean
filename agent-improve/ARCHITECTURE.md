@@ -33,6 +33,8 @@ entering from outside is what the Belt uploads. The system runs inside the custo
 | Idea | Decision |
 |---|---|
 | One compiled graph is the only runtime path; routes never dispatch nodes | ADR-0021 |
+| Each turn enters that graph at the case's current phase through a deterministic router; approval advances the phase inside the graph | ADR-0063 |
+| Every Belt message and every upload is screened before a model reads it: fixed rules, then Prompt Shields, fail closed | ADR-0057 |
 | Two levels of state: case routing, and one turn in one phase | ADR-0015 |
 | Cross-phase data goes through the Store, never through parent state | ADR-0019 |
 | Checkpointer and store attach to the parent graph only; one thread per case | ADR-0017, ADR-0024 |
@@ -55,11 +57,13 @@ flowchart LR
     aoai["Azure OpenAI"]
     srch["Azure AI Search"]
     blob["Azure Blob Storage"]
+    cs["Azure AI Content Safety · Prompt Shields"]
   end
   belt -- "coaching, uploads, approvals" --> ai
   ai --> aoai
   ai --> srch
   ai --> blob
+  ai --> cs
 ```
 
 ### 2.2 Containers
@@ -92,30 +96,40 @@ flowchart TB
 ### 2.3 The graph
 
 ```mermaid
-flowchart LR
-  START --> W["{phase}_phase — the case's current phase"] --> END
-  subgraph phase["the wrapper node → the phase subgraph"]
+flowchart TB
+  subgraph main["Main graph — supervisor: an orchestrator, no model (core/graph.py)"]
     direction LR
-    P[planner] -- "Command" --> E[executor]
+    S((START)) --> G["input_guard<br/>fixed rules → Prompt Shields"]
+    G --> RT{"route_to_phase<br/>current_phase"}
+    RT -- "blocked" --> EN((END))
+    RT -- "define … control" --> W["{phase}_phase<br/>wrapper node"]
+    W --> EN
+    X[escalate] --> EN
+  end
+  subgraph phase["Phase subgraph — one DMAIC phase, PhaseState"]
+    direction LR
+    P["planner<br/>one model call, not an agent"] -- "Command" --> E["executor<br/>THE agent: create_agent + tools + middleware"]
     E --> P
     P -- "Command: submitted" --> V[validation_stack]
     V -- "Command: fail" --> P
     V -- "Command: pass" --> R["gate_review · interrupt()"]
-    V -. "third failure: counted, routing not built (T65)" .-> X[escalation]
     R -- "Command(resume)" --> A[gate_apply]
     A -- "Command: reject" --> P
   end
+  W -- "input mapper → subgraph.ainvoke → on approval: output mapper" --> phase
+  V -. "third failure: Command.PARENT (routing not built, T65)" .-> X
 ```
 
 - **Main graph** (`core/graph.py::graph_builder`, the one builder, ADR-0063): `START` → `input_guard`
-  (ADR-0057) → `route_to_phase` (deterministic, no model call: a blocked turn → `END`, else
-  `current_phase`) → `{phase}_phase` → `END`;
-  `escalate` → `END`. `get_graph()` compiles it once per process with the checkpointer and store;
-  every route and test uses it.
+  (ADR-0057) → `route_to_phase` → `{phase}_phase` → `END`; `escalate` → `END`. `route_to_phase` is
+  deterministic and makes no model call: a turn the guard blocked goes to `END`, any other enters
+  the node of `current_phase`. There are no phase-to-phase edges; a turn ends after its one phase.
+  `get_graph()` compiles the builder once per process with the checkpointer and store; every route
+  and test uses it.
 - **Wrapper node** (`phase_node`): input mapper (in a worker thread) → `await subgraph.ainvoke(child)`,
   the config inherited through the run context → when the subgraph returns `final` (approval), the
   output mapper writes the record to the Store and sets `current_phase`, `phase_index` and
-  `gate_passed`. Never from inside a tool.
+  `gate_passed`; the next turn enters the next phase. Never from inside a tool.
 - **Phase subgraph** (`phases/{phase}/graph.py`; nodes in `phases/nodes_common.py`): exactly five
   nodes; all runtime routing is `Command`; a node never mixes `Command` with a static edge.
 - Subgraphs compile with neither checkpointer nor store and write through the parent's saver
@@ -133,7 +147,9 @@ sequenceDiagram
   participant PL as planner
   participant EX as executor
   UI->>API: message, or action confirm / change
-  API->>PL: graph.ainvoke(state, thread_id = case id)
+  API->>API: get_graph().ainvoke(state, thread_id = case id)
+  Note over API: input_guard screens the message; route_to_phase enters current_phase's wrapper node
+  API->>PL: the wrapper node's input mapper → subgraph
   PL->>PL: one sufficiency judgment (planner role)
   PL->>PL: moves.decide → teach · challenge · read back · store and advance
   PL->>EX: Command(goto="executor")
@@ -226,7 +242,7 @@ sequenceDiagram
   participant R as gate_review
   participant A as gate_apply
   UI->>API: POST /gate
-  API->>V: graph.ainvoke(submission)
+  API->>V: get_graph().ainvoke(submission) → route_to_phase → the phase subgraph
   V->>V: 2b presence → 2d rubric (Define; 2c not built)
   alt a criterion fails
     V-->>UI: criterion named; back to the planner; nothing paused
@@ -363,6 +379,9 @@ Classes are allowed only in files marked **C**; elsewhere module-level functions
 
 | Node | Reads | Does | Writes |
 |---|---|---|---|
+| `input_guard` (main graph) | the Belt's newest message | Fixed rules, then Prompt Shields; fail closed; skipped for gate and resume entries | on a block: one guidance reply; its verdict to the Store's `step_log` namespace |
+| `route_to_phase` (main graph, conditional edge) | `current_phase`, the guard's verdict | Picks `{phase}_phase`, or `END` for a blocked turn | nothing |
+| `{phase}_phase` (main graph, wrapper) | `SupervisorState`, the Store | Input mapper → subgraph → on approval the output mapper | `messages`, `history`; on approval `current_phase`, `phase_index`, `gate_passed` |
 | `planner` | `field_status`, `artifacts`, acceptance criteria | One judgment; builds `CoachingPlan` with `moves.decide` | `coaching_plan`, `field_status`, `step_log` |
 | `executor` | plan, messages, state | `create_agent` with phase tools and middleware; reads `CoachingResponse` | `messages`, `artifacts` (confirmed only), `citations`, `step_log` |
 | `validation_stack` | `artifacts` | Layer 2b, then 2d for Define (2c not built); cap three via `gate_attempts` | `gate_attempts`, `validator_feedback`, `step_log` |
@@ -560,7 +579,9 @@ grader reads `belt_level` from the case record.
 | `POST /gate/decision` | Approve or reject; resumes the pause |
 | `GET /health`, `POST /summarise`, `POST /context` | Health, session summary, re-entry greeting |
 
-Routes are `async`, invoke the compiled graph and marshal the models in `gateway/schemas.py`.
+Routes are `async`, invoke the one compiled graph (`get_graph()`) and marshal the models in
+`gateway/schemas.py`. `POST /upload` screens the file's text with Prompt Shields' document check
+before any model interprets it; a refusal is a 422 with nothing written.
 
 ### 3.10 UI
 

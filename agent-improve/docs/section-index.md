@@ -4,42 +4,42 @@ Written by `.claude/hooks/section_index.py` on every commit that touches a
 document below (step 6.66). Find the section here, then read only its lines
 (CLAUDE.md, Three layers). A range runs to the next heading of the same or higher level.
 
-## `agent-improve/ARCHITECTURE.md` — 947 lines
+## `agent-improve/ARCHITECTURE.md` — 968 lines
 
 | Lines | Heading |
 |---|---|
-| 1–947 | Agent Improve — Architecture |
-| 26–45 |  1. Overview |
-| 46–316 |  2. Architecture |
-| 48–64 |   2.1 Context |
-| 65–91 |   2.2 Containers |
-| 92–126 |   2.3 The graph |
-| 127–169 |   2.4 One coaching turn |
-| 170–211 |   2.5 Checkpoints and persistence |
-| 212–266 |   2.6 Human in the loop |
-| 267–284 |   2.7 Start-up and deployment, as built |
-| 285–316 |   2.8 The upload pipeline |
-| 317–575 |  3. Components and interfaces |
-| 319–361 |   3.1 Code layout |
-| 362–381 |   3.2 Phase nodes |
-| 382–485 |   3.3 Executor and middleware |
-| 486–492 |   3.4 Models |
-| 493–506 |   3.5 Retrieval |
-| 507–530 |   3.6 Tools |
-| 531–537 |   3.7 Skills |
-| 538–550 |   3.8 Validation |
-| 551–564 |   3.9 API |
-| 565–575 |   3.10 UI |
-| 576–909 |  4. Data models |
-| 581–654 |   4.1 Shapes and notes |
-| 655–909 |   4.2 Declarations |
-| 657–669 |    `SupervisorState` — `core/state.py` |
-| 670–699 |    `PhaseState` — `core/substate.py` |
-| 700–734 |    Planner and coach schemas — `core/substate.py` |
-| 735–829 |    Phase records — `phases/{phase}/schema.py` |
-| 830–884 |    Search indexes — Azure AI Search |
-| 885–892 |    Store namespaces — `storage/layout.py::STORE_NAMESPACES` |
-| 893–909 |    Blob layout — container `agent-improve-cases` (the default of `settings.AZURE_BLOB_CONTAINER_IMPROVE`); `storage/layout.py::BLOB_PATHS` |
-| 910–924 |  5. Error handling |
-| 925–936 |  6. Testing strategy |
-| 937–947 |  7. Glossary |
+| 1–968 | Agent Improve — Architecture |
+| 26–47 |  1. Overview |
+| 48–332 |  2. Architecture |
+| 50–68 |   2.1 Context |
+| 69–95 |   2.2 Containers |
+| 96–140 |   2.3 The graph |
+| 141–185 |   2.4 One coaching turn |
+| 186–227 |   2.5 Checkpoints and persistence |
+| 228–282 |   2.6 Human in the loop |
+| 283–300 |   2.7 Start-up and deployment, as built |
+| 301–332 |   2.8 The upload pipeline |
+| 333–596 |  3. Components and interfaces |
+| 335–377 |   3.1 Code layout |
+| 378–400 |   3.2 Phase nodes |
+| 401–504 |   3.3 Executor and middleware |
+| 505–511 |   3.4 Models |
+| 512–525 |   3.5 Retrieval |
+| 526–549 |   3.6 Tools |
+| 550–556 |   3.7 Skills |
+| 557–569 |   3.8 Validation |
+| 570–585 |   3.9 API |
+| 586–596 |   3.10 UI |
+| 597–930 |  4. Data models |
+| 602–675 |   4.1 Shapes and notes |
+| 676–930 |   4.2 Declarations |
+| 678–690 |    `SupervisorState` — `core/state.py` |
+| 691–720 |    `PhaseState` — `core/substate.py` |
+| 721–755 |    Planner and coach schemas — `core/substate.py` |
+| 756–850 |    Phase records — `phases/{phase}/schema.py` |
+| 851–905 |    Search indexes — Azure AI Search |
+| 906–913 |    Store namespaces — `storage/layout.py::STORE_NAMESPACES` |
+| 914–930 |    Blob layout — container `agent-improve-cases` (the default of `settings.AZURE_BLOB_CONTAINER_IMPROVE`); `storage/layout.py::BLOB_PATHS` |
+| 931–945 |  5. Error handling |
+| 946–957 |  6. Testing strategy |
+| 958–968 |  7. Glossary |
