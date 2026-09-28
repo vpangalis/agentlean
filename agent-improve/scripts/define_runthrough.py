@@ -244,11 +244,23 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
             "fallback": bool(mrec.get("fallback")),
             "error": None if resp.status_code == 200 else resp.text[:400],
         }
+        # Founder ruling 3, 2026-09-28: the stored state is checked after EVERY Confirm — a Confirm
+        # that moved on must have stored its element; one that did not must say so (G-117, G-121).
+        if action == "confirm":
+            asked = getattr(walk, "_field", None)
+            advanced = line["move"] == "store_and_advance"
+            line["confirm_check"] = {"field": asked, "advanced": advanced,
+                                     "stored": bool(asked and asked in structured),
+                                     "lost": bool(advanced and asked and asked not in structured)}
+            out["confirms"] = out.get("confirms", 0) + 1
+            out["confirms_lost"] = out.get("confirms_lost", 0) + int(line["confirm_check"]["lost"])
         _write(rec, line)
         _write(scratch, {"n": n, "coach_inputs": COACH_INPUTS[i0:], "move_record": mrec})
         out["turns"] = n
+        check = line.get("confirm_check")
         print(f"{n:>2} [{why}] http={resp.status_code} move={line['move']} field={line['field']} "
-              f"verdict={line['verdict']} calls={len(CALLS) - c0} total={len(CALLS)} {seconds}s")
+              f"verdict={line['verdict']} calls={len(CALLS) - c0} total={len(CALLS)} {seconds}s"
+              + (f" confirm: {check['field']} stored={check['stored']}{' LOST' if check['lost'] else ''}" if check else ""))
         if resp.status_code != 200:
             out["stopped"] = f"http {resp.status_code}"
             break

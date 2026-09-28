@@ -1217,11 +1217,11 @@ def test_g118_a_read_back_after_change_keeps_every_part_of_the_element(env, monk
 
 
 def test_g121_a_structured_element_is_never_confirmed_as_prose(env, monkeypatch) -> None:
-    """DEF-158 — G-121 (R4): when a structured element's read-back carries no value in its declared
-    type (the SIPOC is six keys), the Belt's Confirm does not move on as if it were stored: nothing
-    is stored, the Belt is told so, and the element stays current. Found live on IMPR-2026-439,
-    turns 32-33: the read-back offered the Belt's prose as the SIPOC, Confirm advanced to element
-    13, the type guard refused the prose, and the gate then found the SIPOC missing."""
+    """DEF-158 — G-121 (R4), founder ruling 3, 2026-09-28: a Confirm stores the SIPOC only when it
+    parses into all six columns; otherwise the missing columns are asked for, nothing is stored,
+    the Belt is told so, and the element stays current. Found live on IMPR-2026-439, turns 32-33:
+    the read-back offered the Belt's prose as the SIPOC, Confirm advanced to element 13, the type
+    guard refused the prose, and the gate then found the SIPOC missing."""
     import re
 
     from backend.phases import moves
@@ -1231,21 +1231,59 @@ def test_g121_a_structured_element_is_never_confirmed_as_prose(env, monkeypatch)
     record.structured = {k: v for k, v in COMPLETE.items() if k not in ("process_map_sipoc", "issues_and_barriers")}
     record.field_status = {f: {"status": moves.CONFIRMED} for f in record.structured}
     record.field_status["process_map_sipoc"] = {"status": moves.ASKED}
-    prose = ("Suppliers: our suppliers. Inputs: invoices. Process: receive, match, approve, pay. "
-             "Outputs: paid invoices. Customers: the suppliers. Process metrics: days to pay.")
-    _coach_saying(monkeypatch, f'Here is your SIPOC as you gave it: "{prose}" Is this right?',
-                  captured=[{"field_name": "process_map_sipoc", "value": prose, "source": "belt"}])
 
     def ask(**body):
         r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
         assert r.status_code == 200, r.text
         return r.json()
 
-    ask(message=prose)
+    def stored():
+        return (env.client.get(f"/cases/{CASE_ID}").json().get("phases") or {}).get("define", {}).get("structured") or {}
+
+    # 1 — four columns: the read-back offers prose; Confirm stores nothing and asks for the two missing.
+    partial = "Suppliers: our suppliers. Inputs: invoices. Process: receive, match, approve, pay. Outputs: paid invoices."
+    _coach_saying(monkeypatch, f'Here is your SIPOC as you gave it: "{partial}" Is this right?',
+                  captured=[{"field_name": "process_map_sipoc", "value": partial, "source": "belt"}])
+    ask(message=partial)
     body = ask(message="Confirm", action="confirm")
-    stored = (env.client.get(f"/cases/{CASE_ID}").json().get("phases") or {}).get("define", {}).get("structured") or {}
-    if isinstance(stored.get("process_map_sipoc"), dict):
-        return                                           # stored in its declared type: fixed that way
-    assert "process_map_sipoc" not in stored, "prose was stored for a structured element"
+    assert "process_map_sipoc" not in stored(), "an incomplete SIPOC was stored"
     assert body.get("move_field") == "process_map_sipoc", f"moved on without the SIPOC: {body.get('move_field')}"
+    assert body.get("move") == "challenge", body.get("move")
     assert re.search(r"nothing (was|is) stored", body["answer"], re.I), body["answer"]
+    assert "customers" in body["answer"] and "process metrics" in body["answer"], body["answer"]
+
+    # 2 — the two missing columns given: the six parse, Confirm stores the SIPOC as six columns.
+    rest = "Customers: the suppliers and ward managers. Process metrics: days to pay."
+    _coach_saying(monkeypatch, f'Here is your SIPOC: "{partial} {rest}" Is this right?',
+                  captured=[{"field_name": "process_map_sipoc", "value": f"{partial} {rest}", "source": "belt"}])
+    ask(message=rest)
+    ask(message="Confirm", action="confirm")
+    sipoc = stored().get("process_map_sipoc")
+    assert isinstance(sipoc, dict) and sorted(sipoc) == sorted(
+        ["suppliers", "inputs", "process_steps", "outputs", "customers", "process_metrics"]), sipoc
+
+
+def test_g120_a_target_written_as_a_limit_is_judged_in_code(env, monkeypatch, stub_planner) -> None:
+    """DEF-032 — G-120 (R4), founder ruling 3, 2026-09-28: a target written as a limit ("under 5%",
+    "höchstens 5 %") is parsed in code into number, unit and direction before any model judgment;
+    in the baseline's unit it meets `number-and-unit` with no planner call, in English and German.
+    Found live on both baselines: "under 5% of supplier invoices" challenged three times."""
+    from backend.phases import moves
+    from backend.phases.define.parse import parse_limit
+    from backend.tests.test_define_report import COMPLETE
+
+    assert parse_limit("under 5% of supplier invoices") == {"number": 5.0, "unit": "%", "direction": "below"}
+    assert parse_limit("höchstens 4,5 Prozent") == {"number": 4.5, "unit": "%", "direction": "below"}
+    assert parse_limit("at least 95 %") == {"number": 95.0, "unit": "%", "direction": "above"}
+    for answer in ("Late payment rate: under 5% of supplier invoices.", "Verspätete Zahlungen: unter 5 %."):
+        record = env.case.phases["define"]
+        order = [f for f, _ in moves.positions("define")]
+        record.structured = {k: v for k, v in COMPLETE.items()
+                             if k not in order[order.index("target_value"):]}
+        record.field_status = {f: {"status": moves.CONFIRMED} for f in record.structured}
+        record.field_status["target_value"] = {"status": moves.ASKED}
+        stub_planner.prompts.clear()
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": answer})
+        assert r.status_code == 200, r.text
+        assert r.json().get("move") == "read_back", (answer, r.json().get("move"))
+        assert stub_planner.prompts == [], "the planner model judged a target the code could read"

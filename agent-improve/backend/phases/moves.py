@@ -46,7 +46,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from backend.core.conversation import MOVE_RECORD_KEY, QUALITY_FEEDBACK_KEY
 from backend.core.substate import SufficiencyJudgment, is_empty_capture
 from backend.phases.define.schema import DEFINE_FIELD_ORDER, _CAPTURED_INSIDE
-from backend.phases.gate_registry import review_rows
+from backend.phases.gate_registry import declared_type, review_rows
 
 #: The four moves of the ruling, plus `respond`: the Belt's latest message is
 #: not an answer to the field (a question — "where do we stand?"), so the coach
@@ -73,6 +73,11 @@ CHANGE_REASON = ("The Belt clicked Change: ask what they want to change in the "
 CONFIRM_INCOMPLETE = ("The Belt confirmed, but NOTHING WAS STORED: the read-back did not carry "
                       "{missing}. Read back again with every field of this position filled "
                       "from the Belt's words, each in its declared shape.")
+#: G-121 (DEF-158) — the SIPOC is stored only with all six columns; a Confirm without them is
+#: answered by asking for exactly the missing ones. Same opening as CONFIRM_INCOMPLETE, so the
+#: executor tells the Belt, in code, that nothing was stored.
+COLUMNS_MISSING = ("The Belt confirmed, but NOTHING WAS STORED: the SIPOC needs all six columns "
+                   "and lacks {missing}. Ask for exactly those columns, naming each.")
 #: R6 — the team REJECTED the Define report naming this element; the resumed
 #: run carries this action. Like Change, but from the gate, with its reason.
 REJECTED = "rejected"
@@ -108,6 +113,9 @@ def positions(phase: str) -> list[tuple[str, tuple[str, ...]]]:
 
 
 def _stored(artifacts: dict[str, Any], field: str) -> bool:
+    if field == "process_map_sipoc":            # G-121: all six columns, or not stored
+        from backend.phases.define.parse import missing_columns
+        return not missing_columns(artifacts.get(field))
     return not is_empty_capture(artifacts.get(field))
 
 
@@ -300,6 +308,15 @@ async def decide(phase: str, artifacts: dict[str, Any],
             # DEF-029 / G-117: the reason names what was missing, so the coach's next read-back
             # carries it and the executor tells the Belt, in code, that nothing was stored.
             missing = [f for f in fields if not _stored(merged, f)]
+            if missing == ["process_map_sipoc"] and isinstance(merged.get("process_map_sipoc"), dict):
+                from backend.phases.define.parse import missing_columns
+                words = str(pending.get("belt_words") or "")
+                after[field] = {"status": ASKED, "answer": words, "messages": int(pending.get("messages") or 1),
+                                **_earlier_kw(entry, pending)}
+                return done(field, fields, status, CHALLENGE, answer=words,
+                            messages=int(pending.get("messages") or 1),
+                            reason=COLUMNS_MISSING.format(missing=", ".join(
+                                f"`{c}`" for c in missing_columns(merged.get("process_map_sipoc")))))
             return done(field, fields, status, READ_BACK,
                         answer=str(pending.get("belt_words") or ""),
                         messages=int(pending.get("messages") or 1),
@@ -359,17 +376,22 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any])
     store: dict[str, Any] = {}
     for f in pending.get("fields") or [field]:
         value = proposed.get(f)
-        verbatim = (f == field and one_message and f not in COMPOSED_FIELDS
+        structured = declared_type(phase, f) not in (None, str)
+        if f == "process_map_sipoc" and not isinstance(value, dict):
+            # G-121 (DEF-158): the SIPOC from its labels, parsed in code — never the prose itself.
+            from backend.phases.define.parse import parse_sipoc
+            value = parse_sipoc(str(value or words)) or None
+        verbatim = (f == field and one_message and f not in COMPOSED_FIELDS and not structured
                     and (value is None or isinstance(value, str)))
         if verbatim:
             store[f] = words
-        elif value is not None and not is_empty_capture(value):
+        elif value is not None and not is_empty_capture(value) and not (structured and isinstance(value, str)):
             store[f] = value
     return store
 
 
 __all__ = [
-    "MOVES", "STATUSES", "CONFIRM_INCOMPLETE", "TEACH", "CHALLENGE", "READ_BACK", "STORE_AND_ADVANCE", "RESPOND",
+    "MOVES", "STATUSES", "CONFIRM_INCOMPLETE", "COLUMNS_MISSING", "TEACH", "CHALLENGE", "READ_BACK", "STORE_AND_ADVANCE", "RESPOND",
     "NOT_TAUGHT", "ASKED", "ANSWERED", "CONFIRMED", "CONFIRM_CLICK", "CHANGE_CLICK", "REJECTED",
     "MOVE_RECORD_KEY", "QUALITY_FEEDBACK_KEY", "COMPOSED_FIELDS", "positions", "focus",
     "current", "status_of", "last_record", "last_feedback", "belt_message",

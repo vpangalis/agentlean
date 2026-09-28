@@ -184,7 +184,10 @@ def test_a_yes_that_cannot_complete_the_position_is_read_back_again() -> None:
 
 
 def test_every_field_confirmed_is_a_response_not_a_move_on_a_field() -> None:
-    done = {f: "x" for _, fs in moves.positions("define") for f in fs}
+    done: dict[str, object] = {f: "x" for _, fs in moves.positions("define") for f in fs}
+    # G-121 (DEF-158): the SIPOC is stored only with its six columns.
+    from backend.phases.define.schema import SIPOC_KEYS
+    done["process_map_sipoc"] = {k: "x" for k in SIPOC_KEYS}
     d = _decide(None, "Anything else?", Judge(), artifacts=done)
     assert (d["field"], d["move"]) == (None, "respond")
 

@@ -441,10 +441,39 @@ async def _judge(phase: str, state: PhaseState, field: str, previous: str,
     B1): a plain model call takes the builder-style form (§4.6). It dispatches
     to no tools.
     """
+    in_code = _judged_in_code(phase, state, field, previous, latest)
+    if in_code is not None:
+        return in_code
     judge = get_llm("planner").with_structured_output(SufficiencyJudgment)
     verdict = await judge.ainvoke(_judgment_prompt(
         phase, state, field, previous, latest, reading_back == "yes"))
     return _checked_criterion(phase, field, SufficiencyJudgment.model_validate(verdict))
+
+
+def _judged_in_code(phase: str, state: PhaseState, field: str, previous: str,
+                    latest: str) -> Optional[SufficiencyJudgment]:
+    """G-120 (DEF-032), founder ruling 3, 2026-09-28: a target written as a number or a limit
+    ("under 5%", "höchstens 5 %") is parsed in code into number, unit and direction BEFORE any
+    model judgment. In the baseline's unit and different from the baseline, it meets
+    `number-and-unit` — sufficient, no model call. Anything else goes to the model as before."""
+    if phase != "define" or field != "target_value":
+        return None
+    from backend.phases.define.parse import parse_limit, unit_of
+    target = parse_limit(latest) or parse_limit(previous)
+    artifacts = dict(state.get("artifacts") or {})
+    metrics = artifacts.get("metric_definitions") or []
+    base_unit = unit_of(str(metrics[0].get("unit") or "")) if metrics and isinstance(metrics[0], dict) else ""
+    baseline = parse_limit(str(artifacts.get("baseline_estimate") or ""))
+    base_unit = base_unit or (baseline or {}).get("unit", "")
+    if not target or not target["unit"] or target["unit"] != base_unit:
+        return None
+    if baseline and baseline["unit"] == base_unit and baseline["number"] == target["number"]:
+        return None
+    logger.info("%s.planner: target judged in code (G-120): %s %s%s, the baseline's unit",
+                phase, target["direction"], target["number"], target["unit"])
+    return SufficiencyJudgment(verdict="sufficient", reason=(
+        f"parsed in code: {target['direction']} {target['number']:g}{target['unit']} — a number in "
+        f"the baseline's unit ({base_unit}), different from the baseline"))
 
 
 def _checked_criterion(phase: str, field: str, j: SufficiencyJudgment) -> SufficiencyJudgment:
@@ -1394,7 +1423,7 @@ def _store_truth(messages: list, reply: CoachingResponse | None, phase: str,
     note = ""
     if stored and plan.stored_field:
         note = STORE_NOTE_STORED.format(elements=guard_messages.element_name(phase, plan.stored_field))
-    elif plan.move == moves.READ_BACK and (plan.reason or "").startswith(moves.CONFIRM_INCOMPLETE[:40]):
+    elif plan.move in (moves.READ_BACK, moves.CHALLENGE) and (plan.reason or "").startswith(moves.CONFIRM_INCOMPLETE[:40]):
         missing = re.findall(r"`(\w+)`", plan.reason.split(".")[0] + ".")
         note = STORE_NOTE_NOT_STORED.format(
             element=guard_messages.element_name(phase, plan.focus_field or ""),
@@ -1721,6 +1750,12 @@ async def executor(
     # transitions. The list is the sink `_budgeted_rag_tools` mutates, read
     # back below for `step_log`.
     hops_spent: list[int] = [0]
+
+    # ADR-0068 — the lookups on TEACHING turns only; an answer turn (the Belt answered: challenge,
+    # read back, respond) gets none. Decided in code from the move, recorded in step_log.
+    turn_type = "teaching" if plan is None or plan.move in (moves.TEACH, moves.STORE_AND_ADVANCE) else "answer"
+    if turn_type == "answer":
+        hop_budget = 0
 
     # T69 / G-119 — the turn's model-call budget, and the coach's share of it.
     calls_before = 1 if plan is not None and getattr(plan, "judgment", None) is not None else 0
@@ -2135,6 +2170,7 @@ async def executor(
             impl="create_agent",
             # T69 / G-119 — the turn's model calls against its budget (after-agent calls: one
             # coherence verdict and one grader pass each).
+            turn_type=turn_type,                                   # ADR-0068
             # T87 — personal data redacted in this turn's tool results, by type and count.
             pii_masked=pii.counted([str(m.content) for m in produced[len(history):] if isinstance(m, ToolMessage)]),
             call_budget={"budget": TURN_MODEL_CALLS, "planner": calls_before, "coach": coach_calls,

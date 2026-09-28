@@ -155,7 +155,8 @@ sequenceDiagram
    criterion), read back ("is this right?"), store and advance. What was stored, or that a
    Confirm stored nothing, is said by code from the store result (`_store_truth`), never the model.
 3. The planner's model returns one `SufficiencyJudgment` against the element's acceptance
-   criteria, read from its SKILL.md block.
+   criteria, read from its SKILL.md block — except a target in the baseline's unit, judged in code
+   (`define/parse.py::parse_limit`). The SIPOC is stored only with its six columns.
 4. `AskRequest.action` = `confirm` stores the pending value; `change` returns the field to asked
    and answers in code without a model call. A later read-back of the element keeps the parts it
    carried before; any the new one lacks are shown under it, in code, and stored only on confirm.
@@ -350,6 +351,7 @@ Classes are allowed only in files marked **C**; elsewhere module-level functions
 | | `{phase}/schema.py` C | `{Phase}Output` |
 | | `{phase}/validate.py` | `validate_{phase}` — layer 2b |
 | | `define/report.py` | `define_report` |
+| | `define/parse.py` | `parse_limit`, `parse_sipoc` — targets and the SIPOC read in code (G-120, G-121) |
 | `middleware/` | `state_injection.py`, `skills.py`, `grader.py`, `coherence.py`, `contradiction.py` C | Custom middleware |
 | `validation/` | `rubric.py` | `grade_define` |
 | | `schemas.py` C | `CriterionVerdict`, `GraderVerdict` |

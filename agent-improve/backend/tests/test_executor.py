@@ -1203,3 +1203,28 @@ def test_first_numeric_column_returns_None_when_the_blob_cannot_be_read(
     monkeypatch.setattr("backend.storage.blob.download_bytes", _boom)
 
     assert _run(first_numeric_column("uploads/X/missing.csv")) is None
+
+
+@pytest.mark.parametrize("move", ["read_back", "challenge", "respond"])
+def test_adr_0068_an_answer_turn_binds_no_lookup(move: str, stub_coach) -> None:
+    """ADR-0068 (founder, 2026-09-28): on an answer turn — the Belt answered — the coach gets no
+    retrieval tools; the turn type is decided in code from the move and recorded in step_log."""
+    plan = CoachingPlan(focus_field="team", status="answered", move=move,
+                        retrieval_strategy="single_hop", retrieval_hops=[])
+    out = _run(_c.executor("define", _state(coaching_plan=plan)))
+    names = [t.name for t in stub_coach.calls[-1]["tools"]]
+    assert not set(names) & {t.name for t in RAG_LOOKUP_TOOLS}, names
+    entry = next(e for e in out["step_log"] if e.get("turn_type"))
+    assert entry["turn_type"] == "answer"
+
+
+@pytest.mark.parametrize("move", ["teach", "store_and_advance"])
+def test_adr_0068_a_teaching_turn_keeps_its_lookups_within_four_calls(move: str, stub_coach) -> None:
+    """ADR-0068: a teaching turn keeps its methodology lookups, within T69's four calls."""
+    plan = CoachingPlan(focus_field="team", status="untaught", move=move,
+                        retrieval_strategy="single_hop", retrieval_hops=[])
+    out = _run(_c.executor("define", _state(coaching_plan=plan)))
+    names = [t.name for t in stub_coach.calls[-1]["tools"]]
+    assert {t.name for t in RAG_LOOKUP_TOOLS} <= set(names), names
+    entry = next(e for e in out["step_log"] if e.get("turn_type"))
+    assert entry["turn_type"] == "teaching" and entry["call_budget"]["turn"] <= 4, entry["call_budget"]
