@@ -230,6 +230,18 @@ def test_the_ratchet_refuses_a_regression_and_never_forgets(tmp_path) -> None:
     assert F.ratchet_refusal(["X-1"], THREE, RES) == ([], [])
 
 
+def test_a_regressed_run_through_feature_is_exempt_only_with_a_registered_defect(monkeypatch) -> None:
+    """Founder ruling 5, 2026-09-28: a fresh run-through record that shows a regression is
+    committed; the regressed feature is exempt from the ratchet when a registered defect names
+    it, and refused when none does."""
+    rt = [{"id": "R-1", "test": F.RUNTHROUGH_TESTS + "test_run_x", "depends_on": []}]
+    monkeypatch.setattr(F, "runthrough_fresh", lambda: True)
+    failing = {"outcomes": {F.RUNTHROUGH_TESTS + "test_run_x": "failed"}}
+    refused, exempt = F.ratchet_refusal(["R-1"], rt, failing, defects=set())
+    assert refused and not exempt
+    assert F.ratchet_refusal(["R-1"], rt, failing, defects={"R-1"}) == ([], ["R-1"])
+
+
 # ── landing and the ratchet, through the commit guard itself ───────────────
 
 

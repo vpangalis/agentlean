@@ -1466,7 +1466,9 @@ def check_ratchet(root: str) -> None:
     """Rule 11b — THE RATCHET, on every commit whose full run was for this tree:
     a feature that has passed once (the COMMITTED `docs/features-ratchet.json`,
     HEAD's) must still pass. Run-through features are exempt while the
-    run-through record is stale (ruled 2026-09-26: the integrator re-runs it after each merge)."""
+    run-through record is stale (ruled 2026-09-26: the integrator re-runs it after each merge),
+    or, on a fresh record, when a registered defect names the regressed feature (founder
+    ruling 5, 2026-09-28: records are always committed; a regression is registered)."""
     res = _this_commits_run(root)
     if res is None:
         note("rule 11b ratchet: no full run for this tree (a docs-only commit) — skipped")
@@ -1480,8 +1482,9 @@ def check_ratchet(root: str) -> None:
     f = _features_mod(root)
     refused, exempt = f.ratchet_refusal(required, f.load(), res)
     if exempt:
-        note(f"rule 11b ratchet: {len(exempt)} run-through feature(s) exempt — the record is stale; "
-             "re-run scripts/define_runthrough.py")
+        note(f"rule 11b ratchet: {len(exempt)} run-through feature(s) exempt — the record is stale "
+             "(re-run scripts/define_runthrough.py), or a registered defect names the regression "
+             f"(founder ruling 5, 2026-09-28): {', '.join(exempt)}")
     if refused:
         fail("a feature that passed before no longer passes (rule 11b, the ratchet)",
              *refused, "",

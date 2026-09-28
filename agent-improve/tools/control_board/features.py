@@ -256,21 +256,38 @@ def landing_refusal(fid: str, features: list[dict], res: dict) -> list[str]:
     return out
 
 
-def ratchet_refusal(required: list[str], features: list[dict], res: dict) -> tuple[list[str], list[str]]:
+def defect_features(path: Path | None = None) -> set[str]:
+    """Every feature a registered defect in `docs/defects.json` names."""
+    path = path or PROJECT / "docs" / "defects.json"
+    try:
+        return {f for d in json.loads(path.read_text(encoding="utf-8"))["defects"] for f in d.get("feature") or []}
+    except (OSError, ValueError, KeyError):
+        return set()
+
+
+def ratchet_refusal(required: list[str], features: list[dict], res: dict,
+                    defects: set[str] | None = None) -> tuple[list[str], list[str]]:
     """(refusals, exempted) — every ratcheted feature must still pass. A
     run-through feature is EXEMPT while the run's record is stale: a product
     change stales it for every such feature at once, and only a new live run
     can refresh it. Ruled 2026-09-26: accepted; the integrator re-runs the
-    run-through after each merge."""
+    run-through after each merge.
+
+    Founder ruling 5, 2026-09-28: run-through records are always committed. A
+    run-through feature a FRESH record shows regressed is exempt too when a
+    registered defect names it (`docs/defects.json`, read from the tree the
+    commit stages) — the regression is registered, not refused. Without a
+    defect it is still refused."""
     by_id = {f["id"]: f for f in features}
     st = status(features, res)
     stale = not runthrough_fresh()
+    defects = defect_features() if defects is None else defects
     refused: list[str] = []
     exempt: list[str] = []
     for fid in required:
         if fid not in by_id or st.get(fid) == "passing":
             continue
-        if stale and by_id[fid]["test"].startswith(RUNTHROUGH_TESTS):
+        if (stale or fid in defects) and by_id[fid]["test"].startswith(RUNTHROUGH_TESTS):
             exempt.append(fid)
         else:
             refused.append(f"{fid} passed before and its test no longer passes: {by_id[fid]['test']}")
