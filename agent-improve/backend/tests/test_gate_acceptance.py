@@ -23,6 +23,8 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+
+from backend.phases.mappers_common import PHASE_ORDER
 from azure.core.exceptions import ResourceExistsError, ResourceModifiedError, ResourceNotFoundError
 from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage
@@ -133,7 +135,12 @@ def env(monkeypatch, stub_planner):
         return None
 
     async def write_phase_gate(**kw: Any):
+        # As storage/blob.py::write_phase_gate does: the record passes and the case moves on.
         written.append(kw)
+        case.phases[kw["phase"]].gate_passed = True
+        order = list(PHASE_ORDER)
+        i = order.index(kw["phase"])
+        case.current_phase = order[i + 1] if i + 1 < len(order) else "complete"
 
     monkeypatch.setattr(routes.blob, "storage_configured", lambda: True)
     monkeypatch.setattr(routes.blob, "load_case", load)

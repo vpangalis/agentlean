@@ -209,7 +209,7 @@ def wired(monkeypatch, stub_planner):
     graph_mod.get_graph.cache_clear()
     graph_mod._subgraph.cache_clear()
     try:
-        yield graph_mod.get_graph("define"), saver
+        yield graph_mod.get_graph(), saver
     finally:
         graph_mod.get_graph.cache_clear()
         graph_mod._subgraph.cache_clear()
@@ -231,26 +231,15 @@ def test_subgraph_carries_neither(wired) -> None:
     assert subgraph.store is None
 
 
-def test_the_runtime_is_one_phase_node_per_phase(wired) -> None:
-    """One invoke is one Belt turn, and the node name carries the phase.
-
-    4.2's parent was a single node hardwired to Define, because Define was the
-    only built subgraph. Since **4.4 all five are built**, so the runtime is one
-    trivial graph per phase — not one graph with five nodes and a branch from
-    `START`, which would be a Level 1 conditional edge and the shape §15 and
-    S-F01 forbid. The `{phase}_phase` name is load-bearing: S-F10 derives the
-    subgraph's `checkpoint_ns` from it, so a shared name would put every phase's
-    state in one namespace.
-    """
+def test_the_runtime_is_one_graph_with_a_node_per_phase(wired) -> None:
+    """ADR-0063: one compiled graph; each Belt turn enters it at the case's current phase.
+    The `{phase}_phase` names are load-bearing: S-F10 derives each subgraph's
+    `checkpoint_ns` from them, so a shared name would put every phase's state in one
+    namespace."""
     graph, _ = wired
-    names = {n for n in graph.get_graph().nodes
-             if n not in ("__start__", "__end__")}
-    assert names == {"define_phase"}
+    names = {n for n in graph.get_graph().nodes if n not in ("__start__", "__end__")}
+    assert names == {f"{p}_phase" for p in PHASE_ORDER} | {graph_mod.ESCALATE_NODE}
     assert graph_mod.WIRED_PHASES == PHASE_ORDER, "step 4.4 closed WATCH 17"
-    for phase in PHASE_ORDER:
-        other = {n for n in graph_mod.get_graph(phase).get_graph().nodes
-                 if n not in ("__start__", "__end__")}
-        assert other == {f"{phase}_phase"}, phase
 
 
 # ── the step's Done-when, at the layer a unit test can reach ──────────────

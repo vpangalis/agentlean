@@ -702,7 +702,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     }
 
     phase = _requested_phase(case, request.phase)
-    graph = get_graph(phase)
+    graph = get_graph()
     config = _graph_config(case, phase, request.user, entry="ask")
     # Step 6.61 (R4) — a Confirm / Change click rides beside the entry mode.
     config["configurable"]["belt_action"] = request.action
@@ -1408,7 +1408,7 @@ def assemble_gate_document(
 async def _pending_interrupts(case: CaseDocument, phase: str, user: str = "") -> tuple[Any, dict, list]:
     """(graph, config, the interrupts the case's graph holds) — R6's pause."""
     from backend.core.graph import get_graph
-    graph = get_graph(phase)
+    graph = get_graph()
     config = _graph_config(case, phase, user, entry="decision")
     snapshot = await graph.aget_state(config)
     pending = [i for task in (snapshot.tasks or ()) for i in (getattr(task, "interrupts", ()) or ())]
@@ -1538,7 +1538,7 @@ async def submit_gate(request: GateSubmitRequest,
     from backend.core.graph import PhaseNotWired, get_graph
 
     phase = _requested_phase(case, request.phase)
-    graph = get_graph(phase)
+    graph = get_graph()
     config = _graph_config(case, phase, request.submitted_by, entry="gate")
 
     try:

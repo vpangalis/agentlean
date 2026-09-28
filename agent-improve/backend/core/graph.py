@@ -1,81 +1,42 @@
-"""Level 1 — the supervisor graph, and where persistence attaches.
+"""The main graph — ONE compiled graph, entered at the case's current phase. ADR-0063.
 
-Canonical: reference **§58.10 — S-F01** (*rebuild test: this file's supervisor
-wiring must be reconstructable from that entry alone*) · **§12** (topology) ·
-**§15** (routing) · **§16** (`thread_id`, checkpointer and store) · **§38**
-(escalation). CLAUDE.md §1.1, §1.2, §1.7, §3.5. Procedure steps **4.2** and
-**4.3**.
+Canonical: ADR-0063 (one runtime graph with phase entry; supersedes ADR-0023's "no router at
+the parent"), ADR-0021 (one compiled graph), ADR-0017 (checkpointer and store on the parent
+only), ADR-0024 (`thread_id` is the case). Requirements T89 (one builder, production and tests),
+T90 (deterministic entry; approval advances the phase inside the graph), T3.
 
-THE SUPERVISOR MAKES NO ROUTING DECISION
-----------------------------------------
-Seven `add_edge` calls are the complete Level 1 wiring. **There is no
-conditional edge, no router function, and nothing for the supervisor to branch
-on** (§15, S-F01 invariants). DMAIC order is fixed, so an LLM call to choose the
-next phase would be cost and latency purchasing no decision, and a
-deterministic router would be a second source of truth for what the edges
-already state.
+THE SHAPE
+---------
+    START → route_to_phase ─(current_phase)→ {phase}_phase → END
+                                             escalate → END   (reached by Command.PARENT)
 
-**`route_after_phase` was deleted on 2026-08-22 and MUST NOT be reinstated**
-(§15, CLAUDE.md §0.14, DECISIONS §R2). It returned `"next"` / `"escalate"` /
-`"retry"` — labels wired to nothing — and read `state["gate_attempts"]` off
-`SupervisorState`, where that field does not exist, so it would have raised
-`KeyError` on the gate-failure path specifically.
+`graph_builder()` is the ONLY builder. `get_graph()` compiles it once per process with the
+checkpointer and store; every route and every test that needs the runtime graph uses it.
 
-> **Step 4.3's prompt asks to "route to escalation on the conditional edge §3.5
-> describes", and that conditional edge is NOT at this level.** §3.5 names the
-> trigger — the validation stack exhausting its shared cap of 3 — without
-> saying where the edge lives; §15 and §38 both say, and they agree: *"a
-> conditional edge **from inside the phase** to the escalation subgraph, which
-> defers to the Belt and never returns to the supervisor."* Reading §3.5 as a
-> Level 1 conditional edge reconstructs `route_after_phase` exactly, down to
-> reading a counter this state does not carry. So escalation is a **node** here
-> and an **edge** one level down.
+`route_to_phase` is a pure function of `state["current_phase"]` — no model call. Every Belt turn
+is a new invocation, so the entry is the case's CURRENT phase, never a fixed start; there are
+no phase-to-phase edges, and a turn ends at `END` after its one phase node.
 
-WHY THE STATIC CHAIN IS SAFE — AND THE PRECONDITION THAT IS NOT YET TRUE
-------------------------------------------------------------------------
-§15's justification for static edges is precise: **a phase subgraph reaches
-`END` only through `gate_apply`, and `gate_apply` runs only after Belt
-approval, so reaching `END` MEANS the gate passed.** A failing gate never
-arrives at the supervisor — it loops back to the planner inside the subgraph or
-exits sideways to escalation.
+THE WRAPPER NODE (`phase_node`)
+-------------------------------
+input mapper → `await subgraph.ainvoke(child)` → on approval, the output mapper. The subgraph
+is invoked INSIDE the node function (S-F10), so its checkpoint namespace is derived from the
+node name — `{phase}_phase`, kept from the per-phase graphs so a paused run resumes where it
+paused. The config reaches the subgraph through LangGraph's run context.
 
-**That precondition is FALSE today.** `gate_review` does not yet raise
-`interrupt()` (§33, stage 7), so the Define subgraph runs straight through to
-`END` on every invoke and `END` means only "the graph ran" (DECISIONS Z2). Wire
-live traffic to this chain now and one `/ask` turn would run Define, then
-Measure, then Analyse — the entire DMAIC sequence in a single turn, which is
-the exact defect the procedure's Part 3 ordering note records against the v1
-graph.
+A phase subgraph returns `final` only from `gate_apply` after the Belt's approval. When it
+does, the output mapper writes the approved record to the Store at
+`("projects", case_id, "artifacts")` / phase, and sets `current_phase`, `phase_index` and
+`gate_passed` together (`mappers_common.advance`, their single writer). The next turn enters
+the next phase through `route_to_phase`.
 
-**So this supervisor is built and tested and is NOT yet the runtime**, exactly
-as step 4.1 built the Define subgraph and routed no traffic to it. `get_graph()`
-— what `gateway/routes.py` calls — still returns the one-turn parent that step
-4.2 shipped and verified against the live container. **The swap is a two-line
-change and its trigger is precise: when `gate_review` raises `interrupt()`,
-`END` starts meaning what §15 says it means, and `get_graph` returns
-`build_supervisor()`.** Both live in this file so the swap cannot be missed.
-
-ESCALATION IS REACHED BY `Command.PARENT`, AND THAT IS VERIFIED
----------------------------------------------------------------
-§0.17 makes the escalation hop **the only use of `Command.PARENT` in this
-architecture**. There was a real question whether it survives S-F10's execution
-site: the mappers require each phase subgraph to be invoked **inside** the
-parent's node function, not added as a node, and `Command.PARENT` is documented
-against the added-as-a-node shape.
-
-**Tested against the pinned langgraph 1.2.11 rather than assumed — it works.**
-A `Command(graph=Command.PARENT, goto="escalate")` raised inside a subgraph
-invoked via `await subgraph.ainvoke(...)` propagates as a `ParentCommand`
-exception out of the call, through the parent's node function, and is caught by
-the parent's task runner, which rewrites its namespace and dispatches to
-`escalate`. Both shapes reached the node.
-
-**One consequence is load-bearing and is why this is recorded here rather than
-in a commit body: the parent node function's code after the invoke DOES NOT
-RUN** on an escalation — the exception passes straight through it. So the
-output mapper is skipped, which is correct (an escalated phase did not pass its
-gate and must not write a gate document) and must stay correct when stage 7
-fills `gate_apply` in.
+ESCALATION IS REACHED BY `Command.PARENT`
+-----------------------------------------
+A `Command(graph=Command.PARENT, goto="escalate")` raised inside the subgraph propagates as a
+`ParentCommand` out of `subgraph.ainvoke`, through the wrapper node, to the parent's task
+runner, which dispatches to `escalate` (verified on langgraph 1.2.11). The wrapper's code after
+the invoke does not run on an escalation, so the output mapper is skipped — correct: an
+escalated phase did not pass its gate.
 """
 from __future__ import annotations
 
@@ -91,12 +52,12 @@ from langgraph.graph import END, START, StateGraph
 from backend.core.checkpointer import get_checkpointer
 from backend.core.state import SupervisorState
 from backend.core.store import get_store
-from backend.phases.analyse.mappers import analyse_input_mapper
-from backend.phases.control.mappers import control_input_mapper
-from backend.phases.define.mappers import define_input_mapper
-from backend.phases.improve.mappers import improve_input_mapper
+from backend.phases.analyse.mappers import analyse_input_mapper, analyse_output_mapper
+from backend.phases.control.mappers import control_input_mapper, control_output_mapper
+from backend.phases.define.mappers import define_input_mapper, define_output_mapper
+from backend.phases.improve.mappers import improve_input_mapper, improve_output_mapper
 from backend.phases.mappers_common import PHASE_ORDER
-from backend.phases.measure.mappers import measure_input_mapper
+from backend.phases.measure.mappers import measure_input_mapper, measure_output_mapper
 from backend.phases.subgraph_common import build_phase_subgraph
 
 logger = logging.getLogger(__name__)
@@ -124,6 +85,16 @@ INPUT_MAPPERS: dict[str, Callable[..., Any]] = {
     "analyse": analyse_input_mapper,
     "improve": improve_input_mapper,
     "control": control_input_mapper,
+}
+
+
+#: S-F11 / S-F12 — one output mapper per phase; run by the wrapper node on approval (ADR-0063).
+OUTPUT_MAPPERS: dict[str, Callable[..., Any]] = {
+    "define": define_output_mapper,
+    "measure": measure_output_mapper,
+    "analyse": analyse_output_mapper,
+    "improve": improve_output_mapper,
+    "control": control_output_mapper,
 }
 
 
@@ -262,13 +233,21 @@ def phase_node(phase: str) -> Callable[..., Any]:
         )
         # `history` reuses the subgraph's own deterministic `step_log` keys
         # (§47 requirement 2) rather than minting a second identity.
-        return {
+        update: dict[str, Any] = {
             "messages": new_messages,
             "history": [
                 s.get("key", f"{phase}:{turn_count}:?")
                 for s in (result.get("step_log") or [])
             ],
         }
+        # ADR-0063 — the subgraph returns `final` only from gate_apply after approval: the
+        # output mapper writes the approved record to the Store and advances the phase.
+        if result.get("final"):
+            advanced = await asyncio.to_thread(OUTPUT_MAPPERS[phase], result, state, store)
+            update.update(advanced)
+            logger.info("%s: approved — record in the Store, current_phase -> %s",
+                        phase, advanced.get("current_phase"))
+        return update
 
     node.__name__ = phase
     return node
@@ -385,58 +364,42 @@ def _persistence():
     return checkpointer, store
 
 
-# ── Level 1 — the supervisor (S-F01) ──────────────────────────────────────
+# ── the main graph (ADR-0063) ──────────────────────────────────────────────
 
-def supervisor_builder() -> StateGraph:
-    """The uncompiled Level 1 wiring — the seven `add_edge` calls of S-F01.
+def route_to_phase(state: SupervisorState) -> str:
+    """The phase entry — the "traffic light". A pure function of `current_phase`: no model
+    call, no other input. A case whose phase has no subgraph (`"complete"`) raises."""
+    current = state.get("current_phase")
+    if current not in WIRED_PHASES:
+        raise PhaseNotWired(
+            f"Case is in phase {current!r}, which has no subgraph — `\"complete\"` on a "
+            f"finished project is the ordinary way to reach here."
+        )
+    return f"{current}_phase"
 
-    Separate from `build_supervisor()` so the topology can be asserted on the
-    BUILDER rather than on the drawing. `CompiledStateGraph.get_graph()` omits
-    edges out of nodes not reachable from `START`, and `escalate` is exactly
-    that until stage 7 raises the `Command` that reaches it — so a test reading
-    the drawing would report `escalate -> END` as missing when it is present.
-    """
+
+def graph_builder() -> StateGraph:
+    """THE builder (T89): production and tests compile this one. Uncompiled, so the
+    topology can be asserted on the builder itself."""
     builder = StateGraph(SupervisorState)
-
     for phase in PHASE_ORDER:
-        builder.add_node(phase, phase_node(phase))
+        builder.add_node(f"{phase}_phase", phase_node(phase))
+        builder.add_edge(f"{phase}_phase", END)
     builder.add_node(ESCALATE_NODE, escalate_node)
-
-    # ── the complete Level 1 wiring (S-F01) ───────────────────────────
-    builder.add_edge(START, PHASE_ORDER[0])                  # B1
-    for current, following in zip(PHASE_ORDER, PHASE_ORDER[1:]):
-        builder.add_edge(current, following)                 # B2 — no condition
-    builder.add_edge(PHASE_ORDER[-1], END)
-    # §38 — escalation defers to the Belt and never returns to the supervisor.
     builder.add_edge(ESCALATE_NODE, END)
-
+    builder.add_conditional_edges(START, route_to_phase, [f"{p}_phase" for p in PHASE_ORDER])
     return builder
 
 
 @lru_cache(maxsize=1)
-def build_supervisor():
-    """The ratified Level 1 graph. Cached — compiled once per process.
-
-    **Seven `add_edge` calls and nothing else.** S-F01's own definition block,
-    plus `escalate -> END`, which that block omits because it does not draw the
-    escalation node. B1: entry is `add_edge(START, ...)`; `set_entry_point` is
-    superseded and must not be used.
-
-    **The checkpointer and store attach HERE and only here** (§16, B3). Every
-    phase subgraph compiles with neither and reaches these through the
-    auto-managed `checkpoint_ns`.
-
-    ⚠ **NOT YET THE RUNTIME.** See the module docstring: the static chain is
-    safe only once reaching `END` means the gate passed, and that becomes true
-    when `gate_review` raises `interrupt()` at stage 7. Until then `get_graph()`
-    returns the one-turn parent.
-    """
-    builder = supervisor_builder()
+def get_graph():
+    """The ONE compiled graph every route invokes — compiled once per process with the
+    checkpointer and store (ADR-0063, T89). `get_graph.cache_clear()` rebuilds it."""
     checkpointer, store = _persistence()
-    graph = builder.compile(checkpointer=checkpointer, store=store)
+    graph = graph_builder().compile(checkpointer=checkpointer, store=store)
     logger.info(
-        "Agent Improve SUPERVISOR compiled — %d phase nodes + %s, "
-        "checkpointer=%s store=%s (not yet the runtime)",
+        "Agent Improve graph compiled — %d phase nodes + %s, entry by current_phase; "
+        "checkpointer=%s store=%s",
         len(PHASE_ORDER), ESCALATE_NODE,
         type(checkpointer).__name__ if checkpointer else None,
         type(store).__name__ if store else None,
@@ -444,83 +407,9 @@ def build_supervisor():
     return graph
 
 
-# ── the runtime, until the gate interrupt lands ───────────────────────────
-
-@lru_cache(maxsize=len(PHASE_ORDER))
-def get_graph(phase: str = PHASE_ORDER[0]):
-    """The compiled graph the routes invoke, for one phase (§12, §49).
-
-    **This is the one-turn parent step 4.2 shipped**, `START -> {phase}_phase ->
-    END`, and it stays the runtime until `gate_review` raises `interrupt()`.
-    The reason is §15's own precondition, stated in the module docstring: the
-    supervisor's static DMAIC chain advances on `END`, and until the interrupt
-    exists `END` means "the graph ran", so one `/ask` turn on the supervisor
-    would run every phase in sequence.
-
-    ═══════════════════════════════════════════════════════════════════════
-    WHY THIS TAKES A PHASE, AS OF STEP 4.4
-    ═══════════════════════════════════════════════════════════════════════
-    Until 4.4 only Define had a subgraph, so a single-node turn graph hardwired
-    to Define was the whole runtime. Now all five are built, and a one-node
-    graph would run **Define's** subgraph for a Measure case — caught by the
-    input mapper's identity assertion (S-C02 B8) as a 500, but only after the
-    wrong phase had been entered.
-
-    **One graph per phase, rather than one graph with five nodes and a branch
-    from `START`.** A branch would be a conditional edge at Level 1, which is
-    the shape §15 and S-F01 forbid and which `route_after_phase` was deleted
-    for; building one here — even in scaffolding — is how it comes back. Five
-    trivial graphs cost nothing and forbid nothing.
-
-    **The node name carries the phase** (`measure_phase`, `analyse_phase`, …)
-    because S-F10 makes it load-bearing: checkpoint namespaces for subgraphs
-    invoked inside node functions are derived from the node name, so a shared
-    name would put every phase's subgraph state in one namespace.
-
-    **The `thread_id` is still one per project** (§16) — these five graphs share
-    a thread and therefore a parent checkpoint, which is correct: the parent
-    state is the project's, not the phase's, and `messages` accumulating across
-    phases is what §16's one-thread rule means.
-
-    **The swap, when stage 7 lands the interrupt:** `return build_supervisor()`,
-    delete this function's body, and rename the nodes from `{phase}_phase` to
-    `{phase}`. Nothing in `gateway/routes.py` changes beyond dropping the
-    argument — it calls `get_graph(...)` and marshals the envelope, which is all
-    §49 permits it to do.
-
-    **The `_phase` suffix is kept deliberately.** Renaming to the supervisor's
-    bare `define` / `measure` now would change every subgraph's `checkpoint_ns`
-    and orphan the checkpoints written since 4.2. It costs nothing today — the
-    input mapper rebuilds child state on every invoke — but it is a rename to
-    make once, with the swap, rather than twice.
-    """
-    if phase not in WIRED_PHASES:
-        raise PhaseNotWired(
-            f"No compiled subgraph for phase {phase!r}; expected one of "
-            f"{', '.join(WIRED_PHASES)}."
-        )
-
-    node_name = f"{phase}_phase"
-    builder = StateGraph(SupervisorState)
-    builder.add_node(node_name, phase_node(phase))
-    builder.add_edge(START, node_name)
-    builder.add_edge(node_name, END)
-
-    checkpointer, store = _persistence()
-    graph = builder.compile(checkpointer=checkpointer, store=store)
-    logger.info(
-        "Agent Improve turn graph compiled (runtime) — phase=%s "
-        "checkpointer=%s store=%s",
-        phase,
-        type(checkpointer).__name__ if checkpointer else None,
-        type(store).__name__ if store else None,
-    )
-    return graph
-
-
 __all__ = [
-    "build_supervisor",
-    "supervisor_builder",
+    "graph_builder",
+    "route_to_phase",
     "get_graph",
     "phase_node",
     "escalate_node",
@@ -530,4 +419,5 @@ __all__ = [
     "ESCALATE_NODE",
     "WIRED_PHASES",
     "INPUT_MAPPERS",
+    "OUTPUT_MAPPERS",
 ]

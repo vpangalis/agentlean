@@ -1,6 +1,6 @@
 # 0023. A node routes by static edges or by `Command`, never both
 
-**Status:** PROPOSED (architecture sort, 2026-09-26)
+**Status:** SUPERSEDED by 0063 (architecture sort, 2026-09-26)
 
 **Source:** [ARCHITECTURE.md](../../ARCHITECTURE.md) §15
 

@@ -172,7 +172,7 @@ def _ask(monkeypatch, messages: list) -> dict:
     monkeypatch.setattr(routes, "_graph_input", graph_input)
     monkeypatch.setattr(routes, "_run_turn", run_turn)
     monkeypatch.setattr(routes, "_mirror_asks", lambda *a, **k: None)
-    monkeypatch.setattr("backend.core.graph.get_graph", lambda phase: object())
+    monkeypatch.setattr("backend.core.graph.get_graph", lambda: object())
     resp = TestClient(app).post("/ask", json={"case_id": "IMPR-TEST-100", "user": "b",
                                               "message": "hi", "phase": "define"})
     assert resp.status_code == 200, resp.text

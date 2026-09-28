@@ -107,18 +107,14 @@ flowchart LR
   end
 ```
 
-- **Runtime graph, as built** (`core/graph.py::get_graph(phase)`): one node, `START → {phase}_phase
-  → END` over `SupervisorState`, compiled with the checkpointer and store once per phase per
-  process (`@lru_cache`) on the first request for that phase. The supervisor
-  (`build_supervisor`, the five phases by static edges) is compiled only by
-  `tests/test_supervisor_graph.py`; no route reaches it.
-- **Call path**: route (`ask`, `submit_gate`, `decide_gate` via `_pending_interrupts`) →
-  `get_graph(phase)` → `StateGraph(SupervisorState)` + `add_node(f"{phase}_phase", phase_node(phase))`
-  → `builder.compile(checkpointer, store)` → `_run_turn` → `graph.ainvoke(state | Command(resume=…),
-  config)` → `phase_node`'s `node` → `_subgraph(phase)` (`build_phase_subgraph(phase).compile()`,
-  cached) → the input mapper in a worker thread → `await compiled.ainvoke(child)`.
-- **Wrapper node**: the config reaches the subgraph through LangGraph's run context, not an
-  argument; no output mapper runs (G-112). Never from inside a tool.
+- **Main graph** (`core/graph.py::graph_builder`, the one builder, ADR-0063): `START` →
+  `route_to_phase` (a pure function of `current_phase`, no model call) → `{phase}_phase` → `END`;
+  `escalate` → `END`. `get_graph()` compiles it once per process with the checkpointer and store;
+  every route and test uses it.
+- **Wrapper node** (`phase_node`): input mapper (in a worker thread) → `await subgraph.ainvoke(child)`,
+  the config inherited through the run context → when the subgraph returns `final` (approval), the
+  output mapper writes the record to the Store and sets `current_phase`, `phase_index` and
+  `gate_passed`. Never from inside a tool.
 - **Phase subgraph** (`phases/{phase}/graph.py`; nodes in `phases/nodes_common.py`): exactly five
   nodes; all runtime routing is `Command`; a node never mixes `Command` with a static edge.
 - Subgraphs compile with neither checkpointer nor store and write through the parent's saver
@@ -272,11 +268,9 @@ sets `CoachingResponse.contradiction_flag` in its normal reply (no extra model c
 flowchart TB
   u["uvicorn backend.app:app · 127.0.0.1:8020"] --> i["import: settings (core/config.py) · logging · router · ui/ mounted at /"]
   i --> st["startup: init_tracing · warm_turn_llms · retriever.warm_clients — a failure is logged, the app still starts"]
-  st --> g["per graph request: get_graph(phase)"]
-  g --> sg["_subgraph(phase): build_phase_subgraph — cached per process"]
+  st --> g["first graph request: get_graph() — graph_builder().compile(checkpointer, store), once per process"]
   g --> pe["_persistence(): get_checkpointer(), get_store() — process singletons; None offline, logged critical"]
-  sg --> c["compile(checkpointer, store) — once per phase per process (lru_cache)"]
-  pe --> c
+  g --> sg["each phase node's first run: _subgraph(phase) — build_phase_subgraph, cached per process"]
 ```
 
 | Concern | As built | Where |

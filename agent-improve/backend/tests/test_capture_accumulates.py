@@ -173,7 +173,7 @@ class Session:
                             lambda: self.store)
         graph_mod.get_graph.cache_clear()
         graph_mod._subgraph.cache_clear()
-        self.graph = graph_mod.get_graph(phase)
+        self.graph = graph_mod.get_graph()          # one graph; it enters at the case's phase
 
     def turn(self, stub_coach, reply: CoachingResponse,
              text: str | None = None) -> dict[str, Any]:

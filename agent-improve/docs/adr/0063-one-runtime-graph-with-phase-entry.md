@@ -1,6 +1,6 @@
 # ADR-0063 — One compiled runtime graph that enters at the current phase
 
-Status: PROPOSED (founder pre-ratified 2026-09-28: ACCEPTED when its Verification passes) · 2026-09-28 · Supersedes in part: ADR-0023 (no router at the parent) ·
+Status: ACCEPTED (founder, 2026-09-28 — its Verification passed) · 2026-09-28 · Supersedes in part: ADR-0023 (no router at the parent) ·
 Restores: ADR-0021 (one compiled graph) · Requirements: T23, C6, R6 · Defects: G-112
 
 ## Context (as built, from the code, reported 2026-09-28)

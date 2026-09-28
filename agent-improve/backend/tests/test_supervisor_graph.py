@@ -1,31 +1,12 @@
-"""The supervisor graph — what procedure step 4.3 established.
+"""The main graph — ADR-0063 (one compiled graph, entered at the current phase), T89, T90.
 
-Step 4.3's *Done when* is three assertions: the parent has the five phase
-subgraph nodes plus escalation, it compiles **with** checkpointer and store, and
-each subgraph compiles with **neither**. Those are
-`test_exactly_the_five_phases_plus_escalation`,
-`test_the_parent_carries_both_persistence_primitives` and
-`test_every_subgraph_compiles_with_neither`.
-
-The rest pin what a later step could quietly undo, and each has a specific
-failure it is guarding against:
-
-  * **No conditional edge anywhere at Level 1.** `route_after_phase` was deleted
-    on 2026-08-22 as a defect — it read `gate_attempts` off `SupervisorState`,
-    where that field does not exist, so it would have raised `KeyError` on the
-    gate-failure path specifically. §15 and S-F01 both say it MUST NOT be
-    reinstated, and step 4.3's own prompt asks for "the conditional edge §3.5
-    describes", which is the shape that would reinstate it. That makes this the
-    most likely thing to come back.
-  * **The escalation edge exists even though the drawing omits it.**
-    `CompiledStateGraph.get_graph()` drops edges out of nodes unreachable from
-    `START`, and `escalate` is unreachable until stage 7 raises the `Command`
-    that reaches it — so a test reading the drawing would report the edge as
-    missing when it is present. These read the BUILDER.
-  * **`get_graph()` is still the one-turn parent**, deliberately. The static
-    DMAIC chain is safe only once reaching `END` means the gate passed, and that
-    is false until `gate_review` raises `interrupt()`. Swapping early would run
-    the whole DMAIC sequence in one `/ask` turn.
+Pinned:
+  * one builder, `graph_builder()`: five `{phase}_phase` wrapper nodes and `escalate`;
+    `START` → `route_to_phase` (conditional) → the phase node → `END`; no phase-to-phase edge;
+  * the compiled graph carries the checkpointer and store, and every subgraph neither;
+  * `route_to_phase` is a pure function of `current_phase` — no model call, no other key;
+  * `get_graph()` is that one graph, compiled once per process;
+  * escalation is a node reached by `Command.PARENT`, never by an edge from a phase.
 """
 from __future__ import annotations
 
@@ -41,44 +22,30 @@ from backend.core.graph import (
     ESCALATE_NODE,
     PHASE_ORDER,
     RECURSION_LIMIT,
-    build_supervisor,
-    supervisor_builder,
+    graph_builder,
+    route_to_phase,
 )
 
-#: §12 — five phases plus escalation. A seventh needs a §56 amendment.
-EXPECTED_NODES = {"define", "measure", "analyse", "improve", "control", "escalate"}
-
-#: S-F01's definition block, plus `escalate -> END` which that block omits
-#: because it does not draw the escalation node (§38: escalation never returns
-#: to the supervisor).
-EXPECTED_EDGES = {
-    (START, "define"),
-    ("define", "measure"),
-    ("measure", "analyse"),
-    ("analyse", "improve"),
-    ("improve", "control"),
-    ("control", END),
-    (ESCALATE_NODE, END),
-}
+PHASE_NODES = {f"{p}_phase" for p in PHASE_ORDER}
 
 
-def _nodes(builder) -> set[str]:
-    return {n for n in builder.nodes if n not in (START, END)}
+def test_exactly_the_five_phase_nodes_plus_escalation() -> None:
+    assert set(graph_builder().nodes) == PHASE_NODES | {ESCALATE_NODE}
 
 
-# ── the step's Done-when ──────────────────────────────────────────────────
+def test_the_one_graph_carries_both_persistence_primitives(monkeypatch) -> None:
+    from langgraph.checkpoint.memory import InMemorySaver
+    from langgraph.store.memory import InMemoryStore
 
-def test_exactly_the_five_phases_plus_escalation() -> None:
-    """Step 4.3's *Done when*, first clause."""
-    assert _nodes(supervisor_builder()) == EXPECTED_NODES
-
-
-def test_the_parent_carries_both_persistence_primitives() -> None:
-    """§16 B3 — and §1.1: "passing only a checkpointer is the most common
-    architecture mistake"."""
-    sup = build_supervisor()
-    assert sup.checkpointer is not None, "no checkpointer on the parent"
-    assert sup.store is not None, "no store on the parent — §1.1's named mistake"
+    saver, store = InMemorySaver(), InMemoryStore()
+    monkeypatch.setattr(graph_mod, "_persistence", lambda: (saver, store))
+    graph_mod.get_graph.cache_clear()
+    try:
+        g = graph_mod.get_graph()
+        assert g.checkpointer is saver and g.store is store
+        assert graph_mod.get_graph() is g, "get_graph compiled a second graph"
+    finally:
+        graph_mod.get_graph.cache_clear()
 
 
 @pytest.mark.parametrize("phase", graph_mod.WIRED_PHASES)
@@ -98,52 +65,42 @@ def test_an_unwired_phase_has_no_subgraph_until_4_4() -> None:
             graph_mod._subgraph(phase)
 
 
-# ── §15: the supervisor advances, it does not route ───────────────────────
+# ── ADR-0063: the entry is the case's current phase ───────────────────────
 
-def test_the_seven_static_edges_and_nothing_else() -> None:
-    """S-F01's complete Level 1 wiring, edge for edge."""
-    assert set(supervisor_builder().edges) == EXPECTED_EDGES
-
-
-def test_the_phases_are_chained_in_dmaic_order() -> None:
-    """§39: "Phase order is fixed and enforced by static edges. There is no
-    skipping and no reordering"."""
-    edges = set(supervisor_builder().edges)
-    assert (START, PHASE_ORDER[0]) in edges
-    for current, following in zip(PHASE_ORDER, PHASE_ORDER[1:]):
-        assert (current, following) in edges, f"{current} -> {following} missing"
-    assert (PHASE_ORDER[-1], END) in edges
+def test_start_enters_every_phase_node_through_the_router_and_every_phase_ends() -> None:
+    b = graph_builder()
+    assert set(b.edges) == {(p, END) for p in PHASE_NODES} | {(ESCALATE_NODE, END)}, b.edges
+    branches = b.branches[START]
+    assert list(branches) == ["route_to_phase"]
+    assert not {(a, z) for a, z in b.edges if a in PHASE_NODES and z in PHASE_NODES}
 
 
-def test_level_1_has_no_conditional_edge() -> None:
-    """§15 and S-F01's invariants — `route_after_phase` MUST NOT return.
-
-    A conditional edge here is not a style choice: the deleted router read
-    `gate_attempts` off `SupervisorState`, which has seven fields and not that
-    one, so it raised `KeyError` on the gate-failure path — the one path where a
-    supervisor-level branch would matter.
-    """
-    builder = supervisor_builder()
-    branches = getattr(builder, "branches", {}) or {}
-    assert not branches, (
-        f"Level 1 has conditional branches {sorted(branches)} — §15: "
-        f"'there is no conditional edge, no router function, and nothing for "
-        f"the supervisor to branch on'"
-    )
+@pytest.mark.parametrize("phase", PHASE_ORDER)
+def test_the_router_reads_current_phase_alone(phase: str) -> None:
+    assert route_to_phase({"current_phase": phase}) == f"{phase}_phase"  # type: ignore[typeddict-item]
 
 
-def test_no_router_function_is_defined_in_the_module() -> None:
-    """The deleted function, pinned out by name (DECISIONS §R2)."""
-    assert not hasattr(graph_mod, "route_after_phase"), (
-        "route_after_phase was deleted on 2026-08-22 and MUST NOT be reinstated"
-    )
-    assert not hasattr(graph_mod, "_gate_router"), (
-        "the v1 per-phase gate router belongs to the deleted v1 graph"
-    )
+def test_a_finished_case_has_no_phase_to_enter() -> None:
+    with pytest.raises(graph_mod.PhaseNotWired):
+        route_to_phase({"current_phase": "complete"})  # type: ignore[typeddict-item]
+
+
+def test_there_is_one_builder() -> None:
+    """T89 — `core/graph.py` constructs `StateGraph` once, in `graph_builder`; the routes call
+    `get_graph()` and nothing else builds a parent graph."""
+    import ast
+    import pathlib
+
+    tree = ast.parse(pathlib.Path(graph_mod.__file__).read_text(encoding="utf-8"))
+    sites = [f.name for f in tree.body if isinstance(f, ast.FunctionDef)
+             for n in ast.walk(f) if isinstance(n, ast.Call) and getattr(n.func, "id", "") == "StateGraph"]
+    assert sites == ["graph_builder"], sites
+    assert not hasattr(graph_mod, "build_supervisor") and not hasattr(graph_mod, "supervisor_builder")
 
 
 def test_gate_attempts_is_not_read_at_level_1() -> None:
-    """§15 — it is read only inside a phase and is not on `SupervisorState`.
+    """It is read only inside a phase and is not on `SupervisorState` (the router reads
+    `current_phase` alone).
 
     AST rather than text, because this module's own docstring QUOTES the banned
     expression in order to forbid it — a substring check fails on the very prose
@@ -178,83 +135,12 @@ def test_gate_attempts_is_not_read_at_level_1() -> None:
     )
 
 
-# ── §38: escalation is a node here and an edge one level down ─────────────
+# ── escalation is a node, reached by Command.PARENT ───────────────────────
 
-def test_escalation_is_a_node_that_never_returns_to_the_supervisor() -> None:
-    """§38 — it defers to the Belt; its only edge is to END."""
-    edges = set(supervisor_builder().edges)
-    out = {t for s, t in edges if s == ESCALATE_NODE}
-    assert out == {END}, f"escalate routes to {out}, not just END"
-
-
-def test_the_escalation_edge_is_absent_from_the_drawing_and_present_in_the_wiring() -> None:
-    """Guards a plausible misreading, not a defect.
-
-    `get_graph()` omits edges out of nodes unreachable from START, and nothing
-    reaches `escalate` until stage 7. A future reader checking the drawing will
-    find the edge "missing"; this records why, and fails if the drawing ever
-    starts including it — which would mean something now reaches escalation and
-    this test should be replaced by a behavioural one.
-    """
-    drawn = {(e.source, e.target) for e in build_supervisor().get_graph().edges}
-    assert (ESCALATE_NODE, END) not in drawn, (
-        "escalate is now reachable from START — replace this test with one "
-        "that exercises the path"
-    )
-    assert (ESCALATE_NODE, END) in set(supervisor_builder().edges)
-
-
-def test_nothing_reaches_escalation_yet() -> None:
-    """`validation_stack` is a pass-through until stage 7 and raises no Command.
-
-    Pinned so that when stage 7 wires the escalation hop, this test fails and
-    forces a real behavioural test in its place.
-    """
-    from backend.phases.define import nodes as define_nodes
-
-    src = inspect.getsource(define_nodes.validation_stack)
-    assert "Command.PARENT" not in src, (
-        "validation_stack now escalates — replace this with a test that "
-        "asserts the Command reaches the parent's escalate node"
-    )
-
-
-def test_escalate_node_reads_no_counter_off_parent_state() -> None:
-    """The `route_after_phase` mistake, guarded at its most likely return site.
-
-    `escalate.py`'s v1 report wants `gate_attempts` and `_missing_fields`;
-    neither is on `SupervisorState`, and reaching for them here is how a
-    `KeyError` on the escalation path gets written.
-    """
-    src = inspect.getsource(graph_mod.escalate_node)
-    for banned in ("gate_attempts", "_missing_fields", "phase_inputs"):
-        assert banned not in src.split('"""')[-1], (
-            f"escalate_node reads {banned!r} off parent state"
-        )
-
-
-# ── the runtime is deliberately not the supervisor yet ────────────────────
-
-def test_get_graph_is_still_the_one_turn_parent() -> None:
-    """One `ainvoke` must remain one Belt turn until the gate interrupt lands.
-
-    §15's static chain advances on `END`, and until `gate_review` raises
-    `interrupt()` reaching `END` means only "the graph ran" — so the supervisor
-    would run Define, Measure and Analyse in a single `/ask` turn. This is the
-    guard on that swap happening early.
-    """
-    runtime = {n for n in graph_mod.get_graph().nodes if n not in (START, END)}
-    assert runtime == {"define_phase"}, (
-        "get_graph() is no longer the one-turn parent. If gate_review now "
-        "raises interrupt(), this test should be deleted along with the "
-        "get_graph body — see its docstring."
-    )
-    assert runtime != EXPECTED_NODES
-
-
-def test_the_supervisor_and_the_runtime_are_different_graphs() -> None:
-    """Stated so the two cannot be confused while both exist."""
-    assert build_supervisor() is not graph_mod.get_graph()
+def test_escalation_ends_and_no_phase_edge_reaches_it() -> None:
+    edges = set(graph_builder().edges)
+    assert (ESCALATE_NODE, END) in edges
+    assert not {a for a, z in edges if z == ESCALATE_NODE}
 
 
 def test_recursion_limit_is_the_backstop_not_the_hop_cap() -> None:
@@ -270,6 +156,11 @@ def test_every_phase_node_is_async_and_uniquely_named(phase: str) -> None:
     node = graph_mod.phase_node(phase)
     assert inspect.iscoroutinefunction(node), f"{phase} node must be async"
     assert node.__name__ == phase
+
+
+def test_every_phase_has_an_output_mapper() -> None:
+    """ADR-0063 — the wrapper node runs it on approval."""
+    assert set(graph_mod.OUTPUT_MAPPERS) == set(PHASE_ORDER)
 
 
 def test_every_phase_has_an_input_mapper() -> None:

@@ -10,6 +10,8 @@ Feature tests record the measurement, never block a commit: non-strict xfail.
 """
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 pytestmark = pytest.mark.xfail(strict=False, reason="a Define feature test — its outcome is the measurement")
@@ -589,14 +591,56 @@ def test_t88_state_carries_a_schema_version_and_migrates() -> None:
     _not_written("DEF-146")
 
 
-def test_t89_production_and_tests_compile_one_builder() -> None:
-    """DEF-147 — T89."""
-    _not_written("DEF-147")
+def test_t89_production_and_tests_compile_one_builder(env) -> None:
+    """DEF-147 — T89 (ADR-0063): one builder. `core/graph.py` constructs `StateGraph` only in
+    `graph_builder`; every route calls `get_graph()`; the graph a route runs — here through
+    the API — is the graph `graph_builder()` describes, compiled once."""
+    import ast
+    import pathlib
+
+    from backend.core import graph as graph_mod
+    from backend.gateway import routes
+
+    tree = ast.parse(pathlib.Path(graph_mod.__file__).read_text(encoding="utf-8"))
+    builders = {f.name for f in tree.body if isinstance(f, ast.FunctionDef)
+                for n in ast.walk(f) if isinstance(n, ast.Call) and getattr(n.func, "id", "") == "StateGraph"}
+    assert builders == {"graph_builder"}, builders
+    calls = [n for n in ast.walk(ast.parse(pathlib.Path(routes.__file__).read_text(encoding="utf-8")))
+             if isinstance(n, ast.Call) and getattr(n.func, "id", "") == "get_graph"]
+    assert calls and all(not c.args and not c.keywords for c in calls), "a route asks for a per-phase graph"
+    _submit(env)                                         # drives the route; the graph it compiled:
+    compiled = graph_mod.get_graph()
+    assert set(compiled.get_graph().nodes) - {"__start__", "__end__"} == set(graph_mod.graph_builder().nodes)
 
 
-def test_t90_a_turn_enters_at_the_current_phase_and_approval_advances_it() -> None:
-    """DEF-148 — T90."""
-    _not_written("DEF-148")
+def test_t90_a_turn_enters_at_the_current_phase_and_approval_advances_it(env) -> None:
+    """DEF-148 — T90, G-116 (ADR-0063's verification): on one fresh case, Define is approved
+    through the API; the approved record is in the Store at artifacts/define; the next /ask
+    enters Measure through the SAME compiled graph; the thread's checkpoints are one graph's."""
+    from backend.core import graph as graph_mod
+    from backend.core import store as store_mod
+    from backend.phases.mappers_common import read_gate_document
+
+    _submit(env)
+    compiled = graph_mod.get_graph()
+    assert _decide(env, decision="approve").status_code == 200
+    assert read_gate_document(store_mod.get_store(), CASE_ID, "define"), "no artifacts/define in the Store"
+    r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "measure", "user": "belt",
+                                      "message": "Where do we start in Measure?"})
+    assert r.status_code == 200, r.text
+    assert graph_mod.get_graph() is compiled, "a second graph was compiled"
+    config = {"configurable": {"thread_id": CASE_ID}}
+    state = asyncio.run(compiled.aget_state(config))
+    assert state.values["current_phase"] == "measure"
+    assert state.values["gate_passed"].get("define") is True
+    history = asyncio.run(_history(compiled, config))
+    nodes = {n for h in history for n in (h.next or ())}      # the node each step ran next
+    assert {"define_phase", "measure_phase"} <= nodes, nodes
+    assert nodes <= set(graph_mod.graph_builder().nodes) | {"__start__"}, nodes   # one graph only
+
+
+async def _history(compiled, config) -> list:
+    return [h async for h in compiled.aget_state_history(config)]
 
 
 def test_t71_the_input_guard_screens_every_belt_message() -> None:
