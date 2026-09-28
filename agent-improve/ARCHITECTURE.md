@@ -517,10 +517,17 @@ construction.
 
 - Binding: `phases/nodes_common.py::_executor_tools(phase, hop_budget, hops_spent)` returns
   `UNIVERSAL_TOOLS` (the three `rag_lookup_*`, `propose_template`, `propose_diagram`,
-  `load_evidence_series`) plus `COMPUTATION_TOOLS_BY_PHASE[phase]`. The lookups are bound on
-  teaching turns only (ADR-0068): on an answer turn (challenge, read back, respond) the coach gets
-  none; the turn type is decided in code from the move and recorded in `step_log`. At `hop_budget`
-  ≤ 0 they are left out too; otherwise each is a per-turn counted copy (`_budgeted_rag_tools`). `_build_executor`
+  `load_evidence_series`) plus `COMPUTATION_TOOLS_BY_PHASE[phase]`, filtered by the turn type,
+  decided in code from the move and the request and recorded in `step_log` (ADR-0068, ADR-0069):
+
+  | Turn type | When | Coach tools |
+  |---|---|---|
+  | teaching | teach, or store and advance | lookups, `propose_template`, `load_skill` |
+  | upload | a new upload, or an unread one the Belt refers to | `rag_lookup_evidence`, `load_evidence_series` |
+  | answer | anything else | none — a structured reply only |
+
+  Diagrams and templates after a Confirm are drawn in code from stored values. Each lookup is a
+  per-turn counted copy (`_budgeted_rag_tools`); at `hop_budget` ≤ 0 they are left out. `_build_executor`
   passes the list to `create_agent(tools=…)`. `check_gate_status` and `request_human_approval` are
   not coach tools (G-115).
 - Every tool has an `args_schema` from `knowledge/tool_args.py`.

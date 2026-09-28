@@ -108,5 +108,6 @@ Generated from each file's status line; never typed.
 | [0065](0065-state-schema-versioning.md) | Checkpoints carry a state schema version; every state change ships a migration | PROPOSED | — |
 | [0066](0066-unfinished-work-lives-in-the-checkpoint.md) | Unfinished phase work lives in the checkpoint only | ACCEPTED | refines 0038, 0063 |
 | [0067](0067-input-guard-scope-and-modes.md) | What the input guard screens for, how it answers, and how it runs without Content Safety | ACCEPTED | refines 0057 |
-| [0068](0068-no-lookups-on-answer-turns.md) | The coach looks up the method on teaching turns only | ACCEPTED | refines 0059 |
+| [0068](0068-no-lookups-on-answer-turns.md) | The coach looks up the method on teaching turns only | ACCEPTED | refines 0059; refined by 0069 |
+| [0069](0069-answer-turns-bind-no-tools.md) | Answer turns bind no tools; upload turns count as teaching turns | ACCEPTED | refines 0068 |
 <!-- END ADR INDEX -->
