@@ -14,7 +14,8 @@ click opens the side panel with everything behind a tile, bar or counter.
 
 A feature's status is derived, never stored: green = its test passes; amber = its test is
 written and fails, or it is its lane's current top-ranked feature; grey = open (a stub).
-A red outline marks tier 1.
+In each cell the squares stand in the order of work (rank). A tier-1 (M1) square carries a
+thick outline and its position in the order of work (tooling, founder 2026-09-28).
 
 The page embeds `progress-data` (headline, statuses, next per lane) for `check_board.py`
 (the commit guard's rule 10) and the session start.
@@ -311,9 +312,9 @@ def data() -> dict:
 CSS = """
 :root{--ground:#F3F5F4;--panel:#FFFFFF;--ink:#17201D;--muted:#5B6763;--line:#CBD4D0;--sub:#EEF2F1;
 --done:#2F8A55;--wip:#E0962A;--open:#C3CAC7;--t1:#B23A30;--accent:#1D5E73;--blue:#3A6FB0;
---sans:"IBM Plex Sans",system-ui,sans-serif;--cond:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;--ground:#121716;--panel:#1A2120;--ink:#E4EAE7;--muted:#9AA7A2;--line:#2E3936;--sub:#202927;--done:#5CC08A;--wip:#F0B04E;--open:#4A5552;--t1:#F07A6E;--accent:#6FB3C7;--blue:#7FA8E0}}
-:root[data-theme="dark"]{color-scheme:dark;--ground:#121716;--panel:#1A2120;--ink:#E4EAE7;--muted:#9AA7A2;--line:#2E3936;--sub:#202927;--done:#5CC08A;--wip:#F0B04E;--open:#4A5552;--t1:#F07A6E;--accent:#6FB3C7;--blue:#7FA8E0}
+--on-done:#FFFFFF;--sans:"IBM Plex Sans",system-ui,sans-serif;--cond:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;--ground:#121716;--panel:#1A2120;--ink:#E4EAE7;--muted:#9AA7A2;--line:#2E3936;--sub:#202927;--done:#5CC08A;--wip:#F0B04E;--open:#4A5552;--t1:#F07A6E;--accent:#6FB3C7;--blue:#7FA8E0;--on-done:#121716}}
+:root[data-theme="dark"]{color-scheme:dark;--ground:#121716;--panel:#1A2120;--ink:#E4EAE7;--muted:#9AA7A2;--line:#2E3936;--sub:#202927;--done:#5CC08A;--wip:#F0B04E;--open:#4A5552;--t1:#F07A6E;--accent:#6FB3C7;--blue:#7FA8E0;--on-done:#121716}
 *{box-sizing:border-box}
 body{background:var(--ground);color:var(--ink);font:14px/1.5 var(--sans);margin:0;padding:20px 16px 48px}
 .wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
@@ -344,7 +345,9 @@ table.vs{border-collapse:separate;border-spacing:6px;min-width:860px;width:100%}
 .tiles{display:flex;flex-wrap:wrap;gap:4px}
 .t{width:16px;height:16px;border-radius:3px;cursor:pointer;display:inline-block;border:0;padding:0}
 .t.green{background:var(--done)}.t.amber{background:var(--wip)}.t.grey{background:var(--open)}
-.t.x{outline:2px solid var(--t1);outline-offset:1px}.t.held{background-image:repeating-linear-gradient(45deg,transparent 0 3px,var(--panel) 3px 5px)}
+.t.m1{outline:3px solid var(--ink);outline-offset:1px;width:auto;min-width:16px;padding:0 3px;font:600 10px/16px var(--mono);font-variant-numeric:tabular-nums;color:var(--ink)}
+.t.m1.green{color:var(--on-done)}.t.m1.amber{color:#17201D}
+.t.hl{box-shadow:0 0 0 3px var(--panel),0 0 0 6px var(--accent);position:relative;z-index:1}.t.held{background-image:repeating-linear-gradient(45deg,transparent 0 3px,var(--panel) 3px 5px)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted);align-items:center}
 .legend span{display:inline-flex;gap:6px;align-items:center}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}@media (max-width:800px){.two{grid-template-columns:1fr}}
@@ -375,8 +378,10 @@ document.addEventListener('mousemove',e=>{tip.style.left=Math.min(e.clientX+12,i
 function dl(pairs){return '<dl>'+pairs.map(([k,v])=>'<dt>'+esc(k)+'</dt><dd>'+v+'</dd>').join('')+'</dl>'}
 function feature(id){const f=F[id];if(!f)return '';return '<h2>'+esc(f.id)+'</h2>'+dl([
  ['Description',esc(f.description)],['Requirement',esc(f.requirement)+' · MoSCoW '+esc(f.moscow)+' · Design '+esc(f.design)],
- ['Lane · stage · layer',esc(f.lane+' · '+f.stage+' · '+f.layer)],['Status',esc(f.status)],
- ['Rank',f.rank?('#'+f.rank+' · tier '+f.tier):'—'],['Held',esc(f.held||'—')],['Reason',esc(f.reason)],
+ ['Stage · Layer · Tier · Order of work',esc((D.stages[f.stage]||f.stage)+' · '+(D.layers[f.layer]||f.layer)+' · '
+  +(f.tier?'tier '+f.tier+(f.tier===1?' (M1)':''):'not ranked')+' · '
+  +(f.rank?'#'+f.rank+' of '+D.ranked:(f.status==='green'?'passes — out of the order':'not in the order')))],
+ ['Lane',esc(f.lane)],['Status',esc(f.status)],['Held',esc(f.held||'—')],['Reason',esc(f.reason)],
  ['Belt impact · rework risk · effort',esc(f.belt_impact+' · '+f.rework_risk+' · '+f.effort)],
  ['Depends on',f.depends_on.map(d=>'<a href="#" data-f="'+d+'">'+d+'</a>').join(', ')||'—'],
  ['Unblocks',f.unblocks.map(d=>'<a href="#" data-f="'+d+'">'+d+'</a>').join(', ')||'—'],
@@ -385,10 +390,12 @@ function feature(id){const f=F[id];if(!f)return '';return '<h2>'+esc(f.id)+'</h2
 function list(title,items){return '<h2>'+esc(title)+'</h2><ul>'+items.map(i=>{const m=String(i).match(/^DEF-\\d{3}$/);
  return '<li>'+(m?'<a href="#" data-f="'+i+'">'+i+'</a> '+esc(F[i]?F[i].description:''):esc(i))+'</li>'}).join('')+'</ul>'}
 function open(h){body.innerHTML=h;panel.classList.add('open')}
-document.addEventListener('click',e=>{const a=e.target.closest('[data-f]');if(a){e.preventDefault();open(feature(a.dataset.f));return}
+function mark(id){document.querySelectorAll('.vs .t.hl').forEach(t=>t.classList.remove('hl'));if(!id)return;
+ const t=document.querySelector('.vs .t[data-f="'+id+'"]');if(t){t.classList.add('hl');t.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'})}}
+document.addEventListener('click',e=>{const a=e.target.closest('[data-f]');if(a){e.preventDefault();mark(a.dataset.f);open(feature(a.dataset.f));return}
  const l=e.target.closest('[data-list]');if(l){const [k,i]=l.dataset.list.split(':');const src=D[k][+i];
   open(list(src.label||src.text||src.m||src.stage||'',src.items||[]));return}
- if(e.target.closest('#close'))panel.classList.remove('open')});
+ if(e.target.closest('#close')){panel.classList.remove('open');mark(null)}});
 """
 
 
@@ -489,14 +496,21 @@ def render(d: dict) -> str:
                      + (f"<div class='els'>{els}</div>" if k == "coached" else "") + "</div>" for k, label in STAGES)
     stale = " · <b>the record is older than the product source</b>" if j.get("stale") else ""
     head = "".join(f"<th>{E(label)}</th>" for _, label in STAGES)
+
+    def in_order(sk: str, lk: str) -> list[dict]:
+        """A cell's squares in the order of work; the unranked (passing, Won't-now) after them."""
+        return sorted((f for f in fs if f["stage"] == sk and f["layer"] == lk),
+                      key=lambda f: (f["rank"] is None, f["rank"] or 0, f["id"]))
+
     body_rows = []
     for lk, ll in LAYERS:
         cells = []
         for sk, _ in STAGES:
             tiles = "".join(
-                f"<button class='t {f['status']}{' x' if f['tier'] == 1 else ''}{' held' if f['held'] else ''}' data-f='{f['id']}' "
-                f"data-tip='{E(f['id'])}{' — held: ' + E(f['held']) if f['held'] else ''} — {E(f['description'][:140])} · {E(f['reason'])}'></button>"
-                for f in fs if f["stage"] == sk and f["layer"] == lk)
+                f"<button class='t {f['status']}{' m1' if f['tier'] == 1 else ''}{' held' if f['held'] else ''}' data-f='{f['id']}' "
+                f"data-tip='{E(f['id'])}{' · #' + str(f['rank']) if f['rank'] else ''}{' — held: ' + E(f['held']) if f['held'] else ''} — "
+                f"{E(f['description'][:140])} · {E(f['reason'])}'>{(f['rank'] or '') if f['tier'] == 1 else ''}</button>"
+                for f in in_order(sk, lk))
             cells.append(f"<td><div class='tiles'>{tiles}</div></td>")
         body_rows.append(f"<tr><td class='l'>{E(ll)}</td>{''.join(cells)}</tr>")
     foot = "".join(f"<td>{_pct(sum(f['status'] == 'green' for f in fs if f['stage'] == sk), sum(1 for f in fs if f['stage'] == sk)):.0f}%"
@@ -518,7 +532,8 @@ def render(d: dict) -> str:
                   f"<td class='note'>{E(x['timing']) or '—'}</td></tr>" for x in d["commits"])
     progress = json.dumps({k: m[k] for k in ("headline", "passing", "total", "statuses", "next")},
                           ensure_ascii=False, sort_keys=True).replace("</", "<\\/")
-    board = json.dumps({k: d[k] for k in ("features", "milestones", "waiting", "health")},
+    board = json.dumps({**{k: d[k] for k in ("features", "milestones", "waiting", "health")},
+                        "stages": dict(STAGES), "layers": dict(LAYERS), "ranked": sum(1 for f in fs if f["rank"])},
                        ensure_ascii=False).replace("</", "<\\/")
     stale_run = "" if m["fresh"] else " <b>The recorded test run is older than the source.</b>"
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -534,7 +549,7 @@ def render(d: dict) -> str:
 <div class="note">{E(j['note'])}{stale} · <code>{E(j['file'] or '—')}</code></div><div>{_spark(j['spark'], len(j['names']))}</div></div>
 </div>
 <div class="card"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:baseline"><h2>Value stream</h2>
-<div class="legend"><span><i class="t green"></i>passing</span><span><i class="t amber"></i>in progress</span><span><i class="t grey"></i>open</span><span><i class="t grey x"></i>tier 1</span><span><i class="t grey held"></i>held by an ADR</span><span><i class="t amber"></i>also: passes, not end to end</span></div></div>
+<div class="legend" data-key="legend">colour = status · outline = M1 · number = order of work</div></div>
 <div class="grid"><table class="vs"><thead><tr><th></th>{head}</tr></thead><tbody>{''.join(body_rows)}</tbody><tfoot><tr><td></td>{foot}</tr></tfoot></table></div></div>
 <div class="two"><div class="card"><h2>Now per lane</h2>{lanes}</div>
 <div class="card"><h2>Waiting for you</h2>{waiting}</div></div>
