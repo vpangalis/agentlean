@@ -6065,6 +6065,8 @@ async function sendMessage(action){
     const resp=await apiJSON(`${API}/ask`,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({case_id:S.case.case_id,user:S.user,message:text,phase:S.phase,action:action||null})});
     document.getElementById('typing').classList.remove('show');
+    // ADR-0067 (R20, T93): a blocked or limited turn keeps the typed text in the box.
+    if(resp.blocked&&!action)input.value=text;
     if(resp.answer){
       S.lastAsk=resp;
       // Sync fresh phase_inputs from response into S.case

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+from collections import deque
+import time
 import json
 import logging
 from datetime import datetime, timezone
@@ -62,6 +64,27 @@ _PURPOSE_TO_ROLE = {
     "Improvement plan": "improvement proposal",
     "Project document": "other artefact",
 }
+
+
+#: T93 (ADR-0067) — upload limits, in MB.
+UPLOAD_NOTICE_MB = 5
+UPLOAD_MAX_MB = 25
+#: T93 — at most this many turns a minute from one person.
+TURNS_PER_MINUTE = 10
+#: T93 — each person's turn times in the last minute (this process).
+_TURNS: dict[str, deque] = {}
+
+
+def _over_turn_rate(person: str) -> bool:
+    """T93: the 11th turn inside a minute from one person is refused; the turn is not counted."""
+    now = time.monotonic()
+    turns = _TURNS.setdefault(person or "", deque())
+    while turns and now - turns[0] > 60:
+        turns.popleft()
+    if len(turns) >= TURNS_PER_MINUTE:
+        return True
+    turns.append(now)
+    return False
 
 
 def _role_from_purpose(purpose: str) -> str:
@@ -687,6 +710,16 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
 
     from datetime import datetime, timezone
     from backend.core.graph import PhaseNotWired, get_graph
+    if _over_turn_rate(request.user):
+        # T93 (ADR-0067, threat D): refused before the graph runs, so nothing is stored; the
+        # verdict joins the decision trail; the screen keeps the typed text.
+        from backend.core import guard, guard_messages
+        guard.record(get_store(), request.case_id, request.phase, int(time.time() * 1000),
+                     {"status": "blocked", "threat": "D", "rule": "turn rate", "person": request.user,
+                      "at": datetime.now(timezone.utc).isoformat(timespec="seconds")})
+        return AskResponse(answer=guard_messages.D_RATE.format(limit=TURNS_PER_MINUTE), phase=request.phase,
+                           gate_status=GateStatus(phase=request.phase, passed=False, attempts=0, missing_fields=[]),
+                           blocked="D")
 
     now = datetime.now(timezone.utc).isoformat()
     user_turn = {
@@ -776,6 +809,8 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
         grader_warning=extra.get("grader_warning") or None,
         move=(extra.get("coaching_move") or {}).get("move"),
         move_field=(extra.get("coaching_move") or {}).get("field"),
+        blocked=((extra.get("input_guard") or {}).get("threat")
+                 if (extra.get("input_guard") or {}).get("status") == "blocked" else None),
     )
 
 
@@ -948,6 +983,12 @@ async def upload_file(
         raise HTTPException(503, "Storage not configured")
 
     file_bytes = await file.read()
+    # T93 (ADR-0067): above 25 MB refused with advice; above 5 MB accepted with a notice.
+    from backend.core import guard_messages
+    size_mb = len(file_bytes) / (1024 * 1024)
+    if size_mb > UPLOAD_MAX_MB:
+        raise HTTPException(413, guard_messages.D_UPLOAD_MAX.format(limit_mb=UPLOAD_MAX_MB))
+    notice = guard_messages.D_UPLOAD_NOTICE.format(size_mb=size_mb) if size_mb > UPLOAD_NOTICE_MB else None
     mime_type = file.content_type or "application/octet-stream"
     # `UploadFile.filename` is `str | None`. Resolved ONCE here rather than
     # at each of the four use sites — those four were carried as mypy DEBT
@@ -1094,7 +1135,10 @@ async def upload_file(
     # as a fact about the present.
     upload_kind = upload_record.get("kind", CLASSIFIER_EVIDENCE)
     evidence_index_id = None
-    if upload_kind == CLASSIFIER_EVIDENCE:
+    used_by_coach = upload_record.get("used_by_coach", True) is not False
+    if not used_by_coach:
+        logger.info("Upload %s kept, not used by the coach (T72) — not indexed.", filename)
+    elif upload_kind == CLASSIFIER_EVIDENCE:
         try:
             evidence_index_id = await _index_upload(
                 case_id, upload_record,
@@ -1133,6 +1177,8 @@ async def upload_file(
             evidence_index_id=evidence_index_id,
             summary=upload_record.get("summary") or "",
             interpretation=upload_record.get("interpretation"),
+            used_by_coach=used_by_coach,
+            not_used_reason=upload_record.get("not_used_reason"),
         ))
         await blob.save_case(case)
         # The Store's `case` copy is what the input mappers read (§9), so it
@@ -1176,6 +1222,8 @@ async def upload_file(
         "column_types": upload_record.get("column_types") or {},
         "column_ranges": upload_record.get("column_ranges") or {},
         "interpretation": upload_record.get("interpretation"),
+        "used_by_coach": used_by_coach,
+        "message": upload_record.get("not_used_reason") or notice,
     }
 
 

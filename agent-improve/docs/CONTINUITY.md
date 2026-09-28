@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| **Headline** | 16 of 154 Define features pass (core 16 of 145) — A 3/61 · B 13/35 · C 0/36 · integrator 0/22 |
+| **Headline** | 21 of 154 Define features pass (core 21 of 145) — A 4/61 · B 15/35 · C 1/36 · integrator 1/22 |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-144 — T87: e-mail, phone, account and card numbers in uploads and tool results are masked before a model sees them; person names are kept; each ma |
 | **Next — lane C** | DEF-074 — G-113: the create form shows no case id until the server has assigned one; the number a Belt sees is always the one the case is saved under. |

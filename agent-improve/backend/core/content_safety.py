@@ -44,9 +44,41 @@ def configured() -> bool:
     return bool(settings.CONTENT_SAFETY_ENDPOINT and settings.CONTENT_SAFETY_KEY)
 
 
+def development_mode() -> bool:
+    """ADR-0067 point 5 (T94): development mode only when it is set explicitly (GUARD_MODE)."""
+    return (settings.GUARD_MODE or "").strip().lower() == "development"
+
+
 def required() -> bool:
-    """Production refuses to screen without the service (fail closed); elsewhere it may be absent."""
-    return (settings.ENVIRONMENT or "").lower() == "production"
+    """Strict (the default): screening without the service fails closed. Only explicit
+    development mode lets the fixed rules run alone."""
+    return not development_mode()
+
+
+def is_content_filter(exc: BaseException) -> bool:
+    """Did the Azure OpenAI deployment's content filter refuse the call? (HTTP 400, code
+    `content_filter` — T92.) Such a call is never retried and never sent to a fallback model."""
+    if getattr(exc, "code", None) == "content_filter":
+        return True
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict) and (body.get("code") == "content_filter"
+                                   or (body.get("error") or {}).get("code") == "content_filter"):
+        return True
+    return "content_filter" in str(exc) and "400" in str(exc)
+
+
+def retry_on(exc: Exception) -> bool:
+    """The retry middlewares' predicate (T92): the framework's default, except that a content
+    filter refusal is never retried."""
+    from langchain.agents.middleware._retry import default_retry_on
+    return not is_content_filter(exc) and default_retry_on(exc)
+
+
+def check_startup() -> None:
+    """T94: a production start without Content Safety configured refuses to run."""
+    if (settings.ENVIRONMENT or "").lower() == "production" and not configured():
+        raise RuntimeError("Content Safety (CONTENT_SAFETY_ENDPOINT, CONTENT_SAFETY_KEY) is not configured: "
+                           "a production start refuses to run without it (ADR-0067, T94).")
 
 
 async def shield(user_prompt: str | None = None, documents: list[str] | None = None) -> dict[str, Any]:
@@ -71,4 +103,5 @@ async def shield(user_prompt: str | None = None, documents: list[str] | None = N
     return verdict
 
 
-__all__ = ["shield", "configured", "required", "API_VERSION", "MAX_CHARS"]
+__all__ = ["shield", "configured", "required", "development_mode", "check_startup", "is_content_filter",
+           "retry_on", "API_VERSION", "MAX_CHARS"]

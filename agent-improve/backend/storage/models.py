@@ -114,6 +114,10 @@ class UploadRecord(BaseModel):
     summary: str = ""
 
     interpretation: Optional[UploadInterpretation] = None
+    #: T72 (ADR-0067): False when the document check flagged the file — it stays in the case,
+    #: is never interpreted or indexed, and never reaches the coach. The reason says which and why.
+    used_by_coach: bool = True
+    not_used_reason: Optional[str] = None
 
     #: Set when the deterministic parse could not read the file. **An upload
     #: that reaches the case record with this set was reported, not silently

@@ -34,7 +34,7 @@ entering from outside is what the Belt uploads. The system runs inside the custo
 |---|---|
 | One compiled graph is the only runtime path; routes never dispatch nodes | ADR-0021 |
 | Each turn enters that graph at the case's current phase through a deterministic router; approval advances the phase inside the graph | ADR-0063 |
-| Every Belt message and every upload is screened before a model reads it: fixed rules, then Prompt Shields, fail closed | ADR-0057 |
+| Every Belt message and every upload is screened before a model reads it: fixed rules, then Prompt Shields, fail closed; a block is answered in code | ADR-0057, ADR-0067 |
 | Two levels of state: case routing, and one turn in one phase | ADR-0015 |
 | Cross-phase data goes through the Store, never through parent state | ADR-0019 |
 | Checkpointer and store attach to the parent graph only; one thread per case | ADR-0017, ADR-0024 |
@@ -209,19 +209,14 @@ flowchart LR
 | Attached | `graph.compile(checkpointer=…)` on the parent graph only | `graph.compile(store=…)` on the parent graph only; nodes receive it as a parameter | Called by routes, never by the graph |
 
 **How a checkpoint is written.**
-- One blob per checkpoint: `checkpoints/{case_id}/latest.json` plus
-  `history/{checkpoint_id}.json`. The body holds `checkpoint_type`, `checkpoint_data` (base64
-  msgpack from `JsonPlusSerializer.dumps_typed`), `metadata_type`, `metadata_data`,
-  `checkpoint_id`, `parent_checkpoint_id`.
+- One blob per checkpoint: `checkpoints/{case_id}/latest.json` plus `history/{checkpoint_id}.json`;
+  the body's fields are `core/checkpointer.py`'s.
 - Writes are conditional on the blob's ETag. A second writer on the same case gets a conflict,
   retries, then raises; it never overwrites silently.
 - `put_writes` persists **pending writes**, the partial results of a step that paused. That is
   what lets a paused run resume in a different process, hours later, and write exactly once.
-- Subgraphs compile with neither checkpointer nor store. Their state is saved through the
-  parent's saver under an automatic `checkpoint_ns`, one per subgraph, inside the case's thread.
-  An `interrupt()` inside a subgraph is therefore saved and resumed like any other.
-- The wrapper node passes the inherited config to `subgraph.ainvoke`; a fresh config would lose
-  `thread_id` and `checkpoint_ns`.
+- A subgraph's state is saved under its own `checkpoint_ns` inside the case's thread (§2.3), so an
+  `interrupt()` inside a subgraph is saved and resumed like any other.
 - History blobs are kept, so earlier checkpoints can be read (time travel). Rolling back a
   checkpoint does not roll back Store, Blob or index writes.
 
@@ -296,6 +291,8 @@ flowchart TB
 | Process | One process serves the API and the UI (`StaticFiles`); the UI calls `http://127.0.0.1:8020` | `app.py`, `ui/index.html` |
 | Access | No sign-in: `case_id` and `user` come from the request body (T12, R8 open); CORS allows every origin | `routes.py::_graph_config`, `app.py` |
 | Correlation | `RequestIdMiddleware` sets `x-request-id` in and out | `app.py` |
+| Model filter | Azure OpenAI's content filter, with Prompt Shields in block mode (T92): set on the deployment, not from code | Azure portal (founder action) |
+| Guard mode | Strict unless `GUARD_MODE=development`; a production start without Content Safety refuses to run (T94) | `core/content_safety.py` |
 | Outbound | Azure OpenAI, AI Search and Blob by key or connection string from settings; LangSmith when tracing is on; one public CDN font (G-114) | `core/config.py` |
 
 ### 2.8 The upload pipeline
@@ -317,8 +314,11 @@ sequenceDiagram
   else document or data
     P->>P: parse_upload — deterministic (upload/parsers.py)
   end
-  alt not parsed
+  P->>P: Prompt Shields document check — visible and hidden text, ≤ 10,000 characters a call
+  alt not parsed, or the check unreachable
     API-->>UI: 422 refusal — nothing written
+  else flagged
+    API->>B: upload_file; the record marked not used by the coach — never interpreted or indexed
   else parsed
     P->>P: _interpret (extraction role)
     P-->>API: upload record with interpretation
@@ -379,7 +379,7 @@ Classes are allowed only in files marked **C**; elsewhere module-level functions
 
 | Node | Reads | Does | Writes |
 |---|---|---|---|
-| `input_guard` (main graph) | the Belt's newest message | Fixed rules, then Prompt Shields; fail closed; skipped for gate and resume entries | on a block: one guidance reply; its verdict to the Store's `step_log` namespace |
+| `input_guard` (main graph) | the Belt's newest message | Threat A (rewriting the rules: fixed rules, then Prompt Shields) and D (over 10,000 characters); strict unless `GUARD_MODE=development`; fail closed; skips gate and resume entries | on a block: a reply built in code (`core/guard_messages.py`: the threat's text, the element, its sample); the verdict — threat, rule, person, time, shield — to the Store's `step_log` namespace |
 | `route_to_phase` (main graph, conditional edge) | `current_phase`, the guard's verdict | Picks `{phase}_phase`, or `END` for a blocked turn | nothing |
 | `{phase}_phase` (main graph, wrapper) | `SupervisorState`, the Store | Input mapper → subgraph → on approval the output mapper | `messages`, `history`; on approval `current_phase`, `phase_index`, `gate_passed` |
 | `planner` | `field_status`, `artifacts`, acceptance criteria | One judgment; builds `CoachingPlan` with `moves.decide` | `coaching_plan`, `field_status`, `step_log` |
@@ -437,7 +437,7 @@ flowchart TB
   turn's quality feedback · conversation (ADR-0003).
 - The project-state section holds this phase's confirmed `artifacts`, earlier phases' approved
   records read from the Store, the phase's required fields, and what is still missing (computed
-  at injection by `phases/gate_registry.py::missing_gate_fields`; the `check_gate_status` tool is not built). For Define it opens with "WHERE THE BELT IS — Define ·
+  at injection by `phases/gate_registry.py::missing_gate_fields`). For Define it opens with "WHERE THE BELT IS — Define ·
   Step n of N — field", from `define_progress`.
 - `wrap_model_call`: prepends the composed block to every model request without recomputing it.
   Declared first, so its wrap encloses the model retry and a retry re-sends the same request.
@@ -459,7 +459,8 @@ flowchart TB
 
 **4 · `ModelRetryMiddleware`** — LangChain, as shipped.
 - `wrap_model_call`: retries transient model failures with exponential backoff and jitter;
-  `on_failure="continue"`. Settings in `_build_executor`.
+  `on_failure="continue"`. Settings in `_build_executor`. A `content_filter` refusal is not retried
+  (`content_safety.retry_on`); the executor answers with guidance instead (T92).
 - `get_llm` sets the client's own retries to 0, so this is the only model retry.
 
 **5 · `ToolRetryMiddleware`** — LangChain, as shipped.
@@ -491,9 +492,7 @@ of the `after_agent` group.
 - Reads `CoachingResponse.contradiction_flag` (`prior_field`, `approved_value`,
   `approved_phase`, `proposed_value`, `belt_input`), which the coach sets only when the Belt
   materially contradicts a gate-approved value shown to it in the project-state section.
-- Hook: `after_agent` / `aafter_agent`. (T55's cited proof,
-  `test_middleware.py::test_the_hook_is_before_agent_not_before_model`, checks
-  `BeforeModelStateInjection`, not this class.)
+- Hook: `after_agent` / `aafter_agent`.
 - A flag is detected and logged; stopping the turn is guarded off until the re-approval cascade
   is built (step 7.3), so today a flag does not interrupt. No flag, no action.
 - No Store read, no model call, no tolerance threshold. When to flag is instructed in each
@@ -581,7 +580,9 @@ grader reads `belt_level` from the case record.
 
 Routes are `async`, invoke the one compiled graph (`get_graph()`) and marshal the models in
 `gateway/schemas.py`. `POST /upload` screens the file's text with Prompt Shields' document check
-before any model interprets it; a refusal is a 422 with nothing written.
+before any model interprets it; a refusal is a 422 with nothing written. Limits (T93): `/ask` over
+10,000 characters or an 11th turn in a minute answers with `blocked` set (the screen keeps the typed
+text); an upload over 25 MB is a 413, over 5 MB accepted with a notice.
 
 ### 3.10 UI
 

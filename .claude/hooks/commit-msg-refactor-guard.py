@@ -838,6 +838,9 @@ SCRATCH_SEGMENTS = frozenset({
 # standing beside the one the repository already has, which is the shape §0.32
 # names: a second copy that can disagree with the tracked file, with no history
 # to settle which of the two is the file.
+#: ADR-0061 (ACCEPTED): the evaluation set lives in the repo as `evals/define/*.jsonl` — the one
+#: place a `.jsonl` file is content, not a log.
+EVAL_SET_DIR = "agent-improve/evals/"
 SCRATCH_SUFFIXES = (
     ".bak", ".orig", ".rej", ".tmp", ".temp", ".swp", ".swo",
     ".save", ".new", ".old", ".draft", ".log", ".jsonl",
@@ -900,7 +903,7 @@ def scratch_reason(path: str) -> str:
         if seg in SCRATCH_SEGMENTS:
             return f"a `{seg}/` directory"
     for suffix in SCRATCH_SUFFIXES:
-        if name.endswith(suffix):
+        if name.endswith(suffix) and not (suffix == ".jsonl" and path.lower().startswith(EVAL_SET_DIR)):
             return f"a `{suffix}` suffix"
     for glob in SCRATCH_GLOBS:
         if fnmatch.fnmatch(name, glob):

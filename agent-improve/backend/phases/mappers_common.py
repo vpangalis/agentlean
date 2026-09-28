@@ -203,6 +203,9 @@ def uploads_from_document(case: Any) -> dict[str, list[dict[str, Any]]]:
     for phase, record in (getattr(case, "phases", {}) or {}).items():
         entries = []
         for upload in (getattr(record, "uploads", []) or []):
+            if getattr(upload, "used_by_coach", True) is False or (
+                    isinstance(upload, dict) and upload.get("used_by_coach") is False):
+                continue                     # T72: a flagged file never reaches the coach
             if hasattr(upload, "to_phase_state_entry"):
                 entries.append(upload.to_phase_state_entry(phase))
             elif isinstance(upload, dict):

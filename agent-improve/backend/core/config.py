@@ -151,6 +151,11 @@ class Settings(BaseSettings):
         env="ENVIRONMENT",
         description="Deployment environment; 'production' makes tracing mandatory.",
     )
+    GUARD_MODE: str = Field(
+        "strict",
+        env="GUARD_MODE",
+        description="The input guard's mode (ADR-0067, T94): 'strict' unless 'development' is set explicitly.",
+    )
     CONTENT_SAFETY_ENDPOINT: Optional[str] = Field(
         None,
         env="CONTENT_SAFETY_ENDPOINT",
@@ -212,6 +217,7 @@ settings = Settings(
     LANGCHAIN_PROJECT=os.getenv("LANGCHAIN_PROJECT") or os.getenv("LANGSMITH_PROJECT") or "agentlean-improve",
     LANGCHAIN_ENDPOINT=os.getenv("LANGCHAIN_ENDPOINT"),
     ENVIRONMENT=os.getenv("ENVIRONMENT", "development"),
+    GUARD_MODE=os.getenv("GUARD_MODE", "strict"),
     CONTENT_SAFETY_ENDPOINT=os.getenv("CONTENT_SAFETY_ENDPOINT"),
     CONTENT_SAFETY_KEY=os.getenv("CONTENT_SAFETY_KEY"),
     LANGFUSE_PUBLIC_KEY=os.getenv("LANGFUSE_PUBLIC_KEY"),

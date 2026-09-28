@@ -40,7 +40,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from backend.core import content_safety
+from backend.core import content_safety, guard_messages
+from backend.upload import parsers
 from backend.core.llm import get_llm, block_text
 from backend.core.prompts import UPLOAD_INTERPRET_PROMPT, VISION_EXTRACT_PROMPT
 from backend.storage.models import UploadInterpretation
@@ -134,13 +135,22 @@ async def process_upload(
             "refusal_reason": parsed.get("refusal_reason"),
         }
 
-    # T72 (ADR-0057, fail closed): the text is screened for hidden instructions BEFORE any model
-    # reads it. A detected attack, or a configured service that cannot be reached, refuses the
-    # upload here — before the route writes anything.
-    refusal = await _screen(parsed.get("text") or "")
-    if refusal:
-        logger.warning("Upload REFUSED by the document check: %s — %s", filename, refusal)
-        return {**base, "parsed": False, "refusal_reason": refusal}
+    # T72 (ADR-0067): the WHOLE text — what a reader sees and what formatting, comments, hidden
+    # cells or sheets and the file's properties hide — is screened BEFORE any model reads it.
+    # Unreachable (or not configured in strict mode): refused, nothing written (fail closed).
+    # An attack: the file is kept in the case, marked not used, and never interpreted.
+    screened = (parsed.get("text") or "") + "\n" + parsers.hidden_text(filename, file_bytes, content_type)
+    outcome = await _screen(screened)
+    if outcome == "unavailable":
+        logger.warning("Upload REFUSED: the document check is unavailable — %s", filename)
+        return {**base, "parsed": False, "refusal_reason": guard_messages.UPLOAD_UNAVAILABLE}
+    if outcome == "attack":
+        logger.warning("Upload FLAGGED by the document check: %s — kept, not used by the coach", filename)
+        return {**base, "parsed": True, "used_by_coach": False,
+                "not_used_reason": guard_messages.B.format(filename=filename),
+                "structure": parsed.get("structure"), "columns": parsed.get("columns") or [],
+                "row_count": parsed.get("row_count"), "extracted_text": "", "summary": "",
+                "interpretation": None}
 
     interpretation = await _interpret(filename, parsed, case_meta, phase)
 
@@ -165,28 +175,21 @@ async def process_upload(
     }
 
 
-#: Prompt Shields' document input, chunked; at most this many chunks are screened per upload.
-_SCREEN_CHUNKS = 20
-
-
 async def _screen(text: str) -> str:
-    """Prompt Shields' document-attack check over the upload's text (T72). Returns a Belt-readable
-    refusal, or "" when the text may be read. Not configured: refused in production, passed
-    elsewhere (the fixed-rules-only rule of the input guard, ADR-0057)."""
+    """Prompt Shields' document check over the WHOLE text, one call per 10,000 characters (its
+    limit per call, ADR-0067). Returns "attack", "unavailable" or "" (clean, or skipped in
+    explicit development mode without the service — T94)."""
     if not text.strip():
         return ""
     step = content_safety.MAX_CHARS
-    chunks = [text[i:i + step] for i in range(0, min(len(text), step * _SCREEN_CHUNKS), step)]
-    verdict = await content_safety.shield(documents=chunks)
-    if not verdict["configured"]:
-        return ("The safety check for uploads is not available, so this file was not read. "
-                "Please try again later.") if content_safety.required() else ""
-    if not verdict["reachable"]:
-        return ("The safety check for uploads is unavailable right now, so this file was not read "
-                "and nothing was saved. Please upload it again in a minute.")
-    if any(verdict["document_attacks"]):
-        return ("This file contains text that tries to give the coach instructions, so it was not "
-                "read. If it is a genuine document, remove those passages and upload it again.")
+    for i in range(0, len(text), step):
+        verdict = await content_safety.shield(documents=[text[i:i + step]])
+        if not verdict["configured"]:
+            return "" if content_safety.development_mode() else "unavailable"
+        if not verdict["reachable"]:
+            return "unavailable"
+        if any(verdict["document_attacks"]):
+            return "attack"
     return ""
 
 

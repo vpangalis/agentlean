@@ -100,6 +100,9 @@ class AskResponse(BaseModel):
     # shows Confirm / Change under a read-back and nothing else decides that.
     move: Optional[str] = None
     move_field: Optional[str] = None
+    # ADR-0067 (R20, T93): the threat when the guard or a limit refused the turn — the screen then
+    # keeps the typed text in the box. None on an ordinary turn.
+    blocked: Optional[str] = None
 
 
 class CaseCreateResponse(BaseModel):

@@ -13,6 +13,8 @@ Thumbs.db
 # LLM evaluation logs
 logs/
 *.jsonl
+# ADR-0061: the evaluation set lives in the repo (evals/define/*.jsonl).
+!agent-improve/evals/**/*.jsonl
 
 # Local working files � not part of the repo
 # Each line must match the directory that ACTUALLY EXISTS. `ARTIFACTS/`

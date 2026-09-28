@@ -606,3 +606,17 @@ def _git(root, *args: str) -> str | None:
     except (OSError, _sp.CalledProcessError):
         return None
 
+
+
+# ── the input guard in tests (ADR-0067, T94) ──────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def _guard_in_explicit_development_mode(monkeypatch):
+    """The guard is strict unless development mode is set EXPLICITLY (T94). No Content Safety
+    resource exists for tests, so the suite sets development mode explicitly; a test of strict
+    mode sets `GUARD_MODE` back itself. The turn-rate window (T93) starts empty per test."""
+    from backend.core.config import settings
+    from backend.gateway import routes
+    monkeypatch.setattr(settings, "GUARD_MODE", "development")
+    routes._TURNS.clear()

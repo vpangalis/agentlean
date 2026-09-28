@@ -62,6 +62,7 @@ from langgraph.errors import GraphRecursionError
 from langgraph.graph import END
 from langgraph.types import Command, interrupt
 
+from backend.core import content_safety, guard_messages
 from backend.core.config import settings
 from backend.core.conversation import message_to_turn
 from backend.core.llm import get_llm
@@ -830,7 +831,7 @@ async def _dispatch_routed_read(state: PhaseState) -> list:
 
 
 def _executor_status(hit_cap: bool, off_ramp: bool,
-                     timed_out: bool = False) -> str:
+                     timed_out: bool = False, filtered: bool = False) -> str:
     """The `step_log` status for one coaching turn — §10.3, dicts not tuples.
 
     Four outcomes, deliberately distinguished. **`"coached_no_retrieval"` is
@@ -847,6 +848,8 @@ def _executor_status(hit_cap: bool, off_ramp: bool,
     (`core/graph.py`), so it is checkpointed with the turn rather than living
     only in a log line.
     """
+    if filtered:
+        return "content_filter"                  # T92: refused by the Azure filter, not retried
     if timed_out:
         return "partial_timeout"
     if hit_cap:
@@ -1007,7 +1010,8 @@ def _build_executor(
             # network flaked, so retry the same call. Distinct from §4.8's
             # fallback chain, which swaps the model. `max_retries` is
             # "attempts after the initial call", so 2 means three attempts.
-            ModelRetryMiddleware(max_retries=RETRY_MAX),
+            # T92 (ADR-0067): a content-filter refusal is never retried.
+            ModelRetryMiddleware(max_retries=RETRY_MAX, retry_on=content_safety.retry_on),
             # **The same nesting rule, one layer out.** Position 1 is declared
             # first, so it is the OUTERMOST layer — and since 6.3 it also wraps
             # the model call. Its wrap therefore encloses this retry, which is
@@ -1029,6 +1033,7 @@ def _build_executor(
             # the graph dying mid-session.
             ToolRetryMiddleware(
                 max_retries=RETRY_MAX, on_failure=TOOL_RETRY_ON_FAILURE,
+                retry_on=content_safety.retry_on,                    # T92
             ),
             # ══════════════════════════════════════════════════════════════
             # THIS LIST IS NESTING ORDER. POSITIONS 6/7/8 ARE EXECUTION ORDER.
@@ -1635,6 +1640,7 @@ async def executor(
     prior = [*history, *dispatched]
     hit_cap = False
     timed_out = False
+    filtered = False
     # 6.61 — containment, founder 2026-09-25: every use of the code-written
     # fallback is a DEFECT (the coach did not finish its move) and is logged
     # as one; the target is zero.
@@ -1713,6 +1719,19 @@ async def executor(
         fell_back = True
         result = {"messages": [*prior, AIMessage(content=fallback.message)],
                   "structured_response": fallback}
+    except Exception as exc:
+        # T92 (ADR-0067): the Azure deployment's content filter refused the coach's call. It was
+        # not retried and goes to no fallback model; the Belt gets a guidance reply written in
+        # code — the fixed text, the element and its sample — and step_log says so.
+        if not content_safety.is_content_filter(exc):
+            raise
+        filtered = True
+        logger.warning("%s.executor: the model call was refused by the content filter — guidance "
+                       "reply, not retried (T92)", phase)
+        text = guard_messages.reply(guard_messages.AZURE, phase, plan.focus_field if plan else None)
+        fallback = CoachingResponse(message=text, prompt="")
+        fell_back = True
+        result = {"messages": [*prior, AIMessage(content=text)], "structured_response": fallback}
 
     reply: CoachingResponse | None = result.get("structured_response")
     produced = list(result.get("messages") or [])
@@ -1973,7 +1992,7 @@ async def executor(
         **({"field_index": next_field} if next_field is not None else {}),
         "step_log": [_step(
             phase, turn_count, "executor",
-            status=_executor_status(hit_cap, off_ramp, timed_out),
+            status=_executor_status(hit_cap, off_ramp, timed_out, filtered),
             fallback_used=fell_back,
             impl="create_agent",
             focus_field=plan.focus_field if plan else None,

@@ -71,6 +71,9 @@ app.mount("/", StaticFiles(directory="ui", html=True), name="ui")
 
 @app.on_event("startup")
 async def startup():
+    # T94 (ADR-0067): a production start without Content Safety refuses to run.
+    from backend.core import content_safety
+    content_safety.check_startup()
     init_tracing()
     # Step 6.54 (G-93) — every client a Define turn uses is built HERE, before
     # the app accepts a request, rather than inside the first Belt's turn. On

@@ -461,3 +461,47 @@ def parse_upload(
             "PDFs, Word documents, plain text and images are supported."
         )
     return parser(file_bytes)
+
+
+
+def hidden_text(filename: str, file_bytes: bytes, content_type: str) -> str:
+    """Text a reader of the file does not see — for the document check only (T72, ADR-0067):
+    hidden sheets and cell comments (xlsx), comments, hidden runs and properties (docx), and the
+    document properties (pdf). Never used for interpretation or indexing. Best effort: a part
+    that cannot be read contributes nothing."""
+    out: list[str] = []
+    name = filename.lower()
+    try:
+        if name.endswith((".xlsx", ".xlsm")):
+            from openpyxl import load_workbook
+            wb = load_workbook(io.BytesIO(file_bytes), read_only=False, data_only=True)
+            for ws in wb.worksheets:
+                hidden_sheet = ws.sheet_state != "visible"
+                for row in ws.iter_rows():
+                    for cell in row:
+                        if cell.comment is not None:
+                            out.append(str(cell.comment.text))
+                        if hidden_sheet and cell.value not in (None, ""):
+                            out.append(str(cell.value))
+            props = wb.properties
+            out += [str(v) for v in (props.title, props.subject, props.description, props.keywords) if v]
+        elif name.endswith(".docx"):
+            import docx
+            d = docx.Document(io.BytesIO(file_bytes))
+            for p in d.paragraphs:
+                for r in p.runs:
+                    if r.font.hidden:
+                        out.append(r.text)
+            cp = d.core_properties
+            out += [str(v) for v in (cp.title, cp.subject, cp.comments, cp.keywords) if v]
+            part = d.part.package
+            for rel in part.parts:
+                if str(rel.partname).endswith("/comments.xml"):
+                    out.append(re.sub(r"<[^>]+>", " ", rel.blob.decode("utf-8", "ignore")))
+        elif name.endswith(".pdf"):
+            import pdfplumber
+            with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+                out += [str(v) for v in (pdf.metadata or {}).values() if isinstance(v, (str, bytes))]
+    except Exception as exc:  # noqa: BLE001
+        logger.info("hidden_text: %s could not be read fully: %s", filename, exc)
+    return "\n".join(t for t in out if t and t.strip())
