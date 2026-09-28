@@ -9,7 +9,7 @@ paths:
 
 ## 8. MIDDLEWARE STACK
 
-### 8.1 — Eight middlewares, all on `create_agent`
+### 8.1 — The middleware stack, all on `create_agent`
 
 **Canonical: ARCHITECTURE.md §3.3.** The stack's members and order are owned by
 `_build_executor()` in `backend/phases/nodes_common.py`, enforced by
@@ -25,6 +25,8 @@ first declared outermost. Re-derive from the installed
   turn), never `before_model`.
 - **If `CoherenceMiddleware` exhausts its retries, `DMAICGraderMiddleware` is
   skipped** — this works only because coherence sits **inside** the grader.
+- **`ModelCallLimitMiddleware` (ADR-0059, T69) sits just outside `ModelRetryMiddleware`**, so a
+  retried call counts once; **one `PIIMiddleware` (ADR-0062, T87)** acts on tool results only.
 - **Position 1's `wrap_model_call` encloses `ModelRetryMiddleware`** — a retry
   re-sends the built request, never rebuilds it
   (`test_position_1_wrap_encloses_position_4_retry`).
