@@ -152,7 +152,8 @@ sequenceDiagram
 1. A field's status runs not taught → asked → answered → confirmed; only code changes it, at the
    end of a turn. The current field is the first one not confirmed.
 2. The move follows the status: teach (explain, sample, ask), challenge (name the failed
-   criterion), read back ("is this right?"), store and advance.
+   criterion), read back ("is this right?"), store and advance. What was stored, or that a
+   Confirm stored nothing, is said by code from the store result (`_store_truth`), never the model.
 3. The planner's model returns one `SufficiencyJudgment` against the element's acceptance
    criteria, read from its SKILL.md block.
 4. `AskRequest.action` = `confirm` stores the pending value; `change` returns the field to asked

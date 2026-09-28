@@ -1527,21 +1527,25 @@ MOVE_INSTRUCTIONS: dict[str, str] = {
         "Read back ONE version of {fields} built only from the Belt's words below"
         "{shape} — invent nothing, drop nothing they said — show it in full, then "
         "ask \"Is this right?\". Put exactly the version you read back in "
-        "`fields_captured`. It is stored only if the Belt confirms it.\n"
+        "`fields_captured` — ONE ENTRY PER FIELD, every one of them, or nothing can "
+        "be stored:\n{entries}\n"
+        "It is stored only if the Belt confirms it.\n"
         "The Belt's words:\n{words}"
     ),
     "store_and_advance": (
         "MOVE: RECORD `{stored}`, THEN TEACH `{field}`.\n"
-        "The Belt confirmed `{stored}`; it is stored, as shown in section 3. Say in "
-        "one short line that it is recorded. Then teach `{field}`: explain what it "
+        "The Belt confirmed `{stored}`; it is stored, as shown in section 3. Do not "
+        "say that it is recorded or stored: the product states that itself, from the "
+        "store (G-117). Then teach `{field}`: explain what it "
         "is and why it matters, show the phase script's worked example for it "
         "(marked as an illustration), and ask the script's question. Leave "
         "`fields_captured` empty."
     ),
     "store_and_finish": (
         "MOVE: RECORD `{stored}`.\n"
-        "The Belt confirmed `{stored}`; it is stored, as shown in section 3. Say it "
-        "is recorded, and that every field of this phase is now confirmed and the "
+        "The Belt confirmed `{stored}`; it is stored, as shown in section 3. Do not "
+        "say that it is recorded or stored: the product states that itself (G-117). "
+        "Say that every field of this phase is now confirmed and the "
         "gate document is ready for their review. Leave `fields_captured` empty."
     ),
     "respond": (
@@ -1569,6 +1573,12 @@ MOVE_INSTRUCTIONS: dict[str, str] = {
 #: shown when the conversation holds no coach reply yet.
 MOVE_OPENING = ("This is the first turn of the phase: begin with the phase script's "
                 "[OPENING] welcome, then make the move.")
+
+#: G-117 (DEF-156) — the only sentences that tell the Belt what was stored, written by
+#: `phases/nodes_common._store_truth` from the storage result, never by the coach model.
+STORE_NOTE_STORED = "Stored: {elements}."
+STORE_NOTE_NOT_STORED = ("Nothing was stored for {element} yet: the read-back did not include "
+                         "{missing}. Please check the version below.")
 
 #: The planner model's ONE judgment (§17 v1.75, S-C04 v1.77) — step 6.61.
 #: Called by `phases/nodes_common._judge` only when the Belt has answered.

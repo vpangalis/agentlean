@@ -376,9 +376,18 @@ class BeforeModelStateInjection(AgentMiddleware):
             fields = []
         shape = (" — in the shape the phase script's 'Capture as' gives for it"
                  if plan.move == moves.READ_BACK and structured else "")
+        # DEF-029 — every field of the position named, with its declared type: 6.66's run read
+        # back position 5's baseline alone, so the Belt's Confirm could never store the position.
+        entries = "\n".join(
+            f"  - `{f}`: " + ("a string, in the Belt's words" if declared_type(self.phase, f) in (None, str)
+                              else f"{declared_type(self.phase, f)} — real structure, the keys the phase "
+                                   f"script's 'Capture as' line gives, never prose")
+            for f in fields)
         body = MOVE_INSTRUCTIONS[key].format(
             field=field, stored=plan.stored_field, reason=reason, words=words,
-            fields=" and ".join(f"`{f}`" for f in fields), shape=shape)
+            fields=" and ".join(f"`{f}`" for f in fields), shape=shape, entries=entries)
+        if plan.move == moves.READ_BACK and plan.reason.startswith(moves.CONFIRM_INCOMPLETE[:40]):
+            body = f"{plan.reason}\n\n{body}"
         lines = [SECTION_MOVE, MOVE_PREAMBLE, "",
                  # Fix 2 — the status AFTER this turn, as section 3 shows it:
                  # on a store-and-advance the field is the NEXT one, and the

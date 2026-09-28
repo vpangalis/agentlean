@@ -70,6 +70,8 @@ from backend.core.prompts import (
     PHASE_COACH_PROMPT,
     PLANNER_JUDGMENT_PROMPT,
     PLANNER_JUDGMENT_READING_BACK,
+    STORE_NOTE_NOT_STORED,
+    STORE_NOTE_STORED,
 )
 from backend.core.state import ImproveGraphState
 from backend.core.substate import (
@@ -1345,6 +1347,59 @@ def _fallback_reply(phase: str, plan: Optional[CoachingPlan]) -> CoachingRespons
     return CoachingResponse(message=text + chr(10) * 2 + prompt, prompt=prompt)
 
 
+#: G-117 — a sentence that says a value was stored. A negated or conditional one ("nothing is
+#: stored until you confirm") is not a claim and stays.
+_STORE_CLAIM = re.compile(r"(?<![A-Za-z])(recorded|stored|saved|logged)(?![A-Za-z])", re.I)
+_NOT_A_CLAIM = re.compile(r"(?<![A-Za-z])(not|nothing|until|only if|unless|once you|when you|before)(?![A-Za-z])", re.I)
+_SENTENCE_END = re.compile(r"(?<=[.!?])[ \t]+")
+
+
+def _without_store_claims(text: str) -> str:
+    """The text with every sentence that claims a store removed, line by line."""
+    lines = []
+    for line in text.split(chr(10)):
+        kept = [x for x in _SENTENCE_END.split(line)
+                if not (_STORE_CLAIM.search(x) and not _NOT_A_CLAIM.search(x))]
+        lines.append(" ".join(kept))
+    return chr(10).join(lines).strip()
+
+
+def _store_truth(messages: list, reply: CoachingResponse | None, phase: str,
+                 plan: Optional[CoachingPlan], stored: dict[str, Any]) -> list:
+    """G-117 (DEF-156): the only sentence telling the Belt what was stored is written HERE, from
+    the storage result, like the read-back. The coach model's own store claims are removed from
+    the reply (message and explanation); then, when this turn stored a value, one line names the
+    element; when the Belt confirmed a read-back that could not be stored (`moves.CONFIRM_INCOMPLETE`),
+    one line says nothing was stored and what was missing. The Belt's text reads `messages`'
+    last AI message, so that message is rebuilt with plain-string content (a NEW message)."""
+    if plan is None:
+        return messages
+    note = ""
+    if stored and plan.stored_field:
+        note = STORE_NOTE_STORED.format(elements=guard_messages.element_name(phase, plan.stored_field))
+    elif plan.move == moves.READ_BACK and (plan.reason or "").startswith(moves.CONFIRM_INCOMPLETE[:40]):
+        missing = re.findall(r"`(\w+)`", plan.reason.split(".")[0] + ".")
+        note = STORE_NOTE_NOT_STORED.format(
+            element=guard_messages.element_name(phase, plan.focus_field or ""),
+            missing=" and ".join("the " + f.replace("_", " ") for f in missing) or "every field")
+    if reply is not None:
+        reply.explanation = _without_store_claims(str(reply.explanation or ""))
+    for i in range(len(messages) - 1, -1, -1):
+        msg = messages[i]
+        if isinstance(msg, AIMessage) and msg.text.strip():
+            body = _without_store_claims(msg.text)
+            text = f"{note}{chr(10) * 2}{body}".strip() if note else body
+            if text == msg.text:
+                return messages
+            if reply is not None:
+                reply.message = text
+            out = list(messages)
+            out[i] = AIMessage(content=text, additional_kwargs=dict(msg.additional_kwargs or {}),
+                               id=msg.id, name=msg.name)
+            return out
+    return messages
+
+
 #: The question a Change click is answered with (ruling on 6.61's review).
 CHANGE_QUESTION = "What would you like to change?"
 
@@ -1932,6 +1987,9 @@ async def executor(
                  if define_step is not None else None)
     if define_step is not None and reply is not None:
         new_messages = _with_progress(new_messages, reply, define_step["label"])
+
+    # G-117 (DEF-156) — what was stored is said by code, from `kept`, never by the model.
+    new_messages = _store_truth(new_messages, reply, phase, plan, kept if move == moves.STORE_AND_ADVANCE else {})
 
     # ── 10.0 — the four blocks and the grader's warning ride on the reply ──
     # The route never holds the `CoachingResponse`, only the graph's

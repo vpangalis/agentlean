@@ -67,6 +67,12 @@ STATUSES: tuple[str, ...] = (NOT_TAUGHT, ASKED, ANSWERED, CONFIRMED)
 CONFIRM_CLICK, CHANGE_CLICK = "confirm", "change"
 CHANGE_REASON = ("The Belt clicked Change: ask what they want to change in the "
                  "read-back, and show their current words.")
+#: DEF-029 / G-117 — the Belt confirmed a read-back that cannot complete the position: nothing
+#: is stored, and the read-back is made again with what it lacked. Read by the executor
+#: (`nodes_common._store_truth`) to tell the Belt, in code, that nothing was stored.
+CONFIRM_INCOMPLETE = ("The Belt confirmed, but NOTHING WAS STORED: the read-back did not carry "
+                      "{missing}. Read back again with every field of this position filled "
+                      "from the Belt's words, each in its declared shape.")
 #: R6 — the team REJECTED the Define report naming this element; the resumed
 #: run carries this action. Like Change, but from the gate, with its reason.
 REJECTED = "rejected"
@@ -274,10 +280,14 @@ async def decide(phase: str, artifacts: dict[str, Any],
         if not all(_stored(merged, f) for f in fields):
             # A yes to a read-back that cannot complete the position (a
             # structure refused): nothing is stored, the read-back is made again.
+            # DEF-029 / G-117: the reason names what was missing, so the coach's next read-back
+            # carries it and the executor tells the Belt, in code, that nothing was stored.
+            missing = [f for f in fields if not _stored(merged, f)]
             return done(field, fields, status, READ_BACK,
                         answer=str(pending.get("belt_words") or ""),
                         messages=int(pending.get("messages") or 1),
-                        pending={k: v for k, v in pending.items() if k not in ("store", "proposed")})
+                        pending={k: v for k, v in pending.items() if k not in ("store", "proposed")},
+                        reason=CONFIRM_INCOMPLETE.format(missing=", ".join(f"`{f}`" for f in missing)))
         after[field] = {"status": CONFIRMED}
         nxt = current(phase, merged, after)
         if nxt is not None:
@@ -339,7 +349,7 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any])
 
 
 __all__ = [
-    "MOVES", "STATUSES", "TEACH", "CHALLENGE", "READ_BACK", "STORE_AND_ADVANCE", "RESPOND",
+    "MOVES", "STATUSES", "CONFIRM_INCOMPLETE", "TEACH", "CHALLENGE", "READ_BACK", "STORE_AND_ADVANCE", "RESPOND",
     "NOT_TAUGHT", "ASKED", "ANSWERED", "CONFIRMED", "CONFIRM_CLICK", "CHANGE_CLICK", "REJECTED",
     "MOVE_RECORD_KEY", "QUALITY_FEEDBACK_KEY", "COMPOSED_FIELDS", "positions", "focus",
     "current", "status_of", "last_record", "last_feedback", "belt_message",
