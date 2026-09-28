@@ -38,11 +38,18 @@ def offered(turn_type: str, tools: list[Any]) -> list[Any]:
     return [t for t in tools if _name(t) in keep]
 
 
-def turn_tools_middleware(turn_type: str) -> Any:
-    """The `wrap_model_call` middleware that offers only this turn type's tools."""
+def turn_tools_middleware(turn_type: str, coach_limit: int | None = None) -> Any:
+    """The `wrap_model_call` middleware that offers only this turn type's tools — and none on the
+    coach's LAST allowed call (G-131), so that call must be the structured reply, never a tool
+    call the call limit then ends with a reply written in code. The count is the call limit's own
+    (`ModelCallLimitMiddleware`'s `run_model_call_count` in the agent state)."""
     async def select_tools(request: ModelRequest,
                            handler: Callable[[ModelRequest], Awaitable[ModelResponse]]) -> ModelResponse:
-        return await handler(request.override(tools=offered(turn_type, list(request.tools or []))))
+        state: dict[str, Any] = dict(request.state or {})
+        made = int(state.get("run_model_call_count") or 0)
+        last = coach_limit is not None and made >= coach_limit - 1
+        tools = [] if last else offered(turn_type, list(request.tools or []))
+        return await handler(request.override(tools=tools))
 
     return wrap_model_call(name=f"TurnTools[{turn_type}]")(select_tools)
 

@@ -125,8 +125,10 @@ def define_report(artifacts: dict[str, Any], case: dict[str, Any] | None = None,
     history = {f: h for f, h in value_history(field_log, "define").items() if h["changes"] > 1}
     elements = [{"field": f, "confirmed": not any(element_of(m) == f for m in missing)}
                 for f in DEFINE_FIELD_ORDER]
+    # ADR-0070: the report's visuals, drawn from the stored values by the reply's own function.
+    from backend.phases.define.visuals import report_visuals
     return {"sections": sections, "complete": not missing, "missing": missing,
-            "elements": elements, "history": history}
+            "elements": elements, "history": history, "visuals": report_visuals(a)}
 
 
 __all__ = ["FIVE_W_TWO_H_QUESTIONS", "REPORT_SECTIONS", "define_report", "element_of"]

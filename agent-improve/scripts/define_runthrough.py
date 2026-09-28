@@ -49,6 +49,9 @@ OPENING = "Hi — I'm ready to start Define on our project."
 WHERE = "Where do we stand?"
 OUT_DIR = Path(__file__).resolve().parents[1] / "docs" / "runthrough"
 MAX_ATTEMPTS = 3            # answers to one field before it is recorded STUCK
+#: ADR-0070: the elements whose read-back must carry a visual, and where the reply carries it.
+VISUAL_FIELDS = {"baseline_estimate": "visualisation", "goal_statement": "visualisation",
+                 "target_value": "visualisation", "process_map_sipoc": "sipoc_diagram"}
 
 #: The good answer per element — each meets its acceptance criteria in
 #: skills/dmaic-define-phase/SKILL.md (R2, R3; 2026-09-26). Positions 1-8 start
@@ -239,13 +242,27 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
             "stored_keys": sorted(structured),
             "stored_types": {k: type(v).__name__ for k, v in structured.items()},
             "reply": {k: rb.get(k) for k in ("answer", "explanation", "example", "prompt",
-                                             "progress", "move", "move_field", "grader_warning")},
+                                             "progress", "move", "move_field", "grader_warning",
+                                             "sipoc_diagram", "visualisation")},
             "gate_status": rb.get("gate_status"),
             "fallback": bool(mrec.get("fallback")),
             "error": None if resp.status_code == 200 else resp.text[:400],
         }
         # Founder ruling 3, 2026-09-28: the stored state is checked after EVERY Confirm — a Confirm
         # that moved on must have stored its element; one that did not must say so (G-117, G-121).
+        # ADR-0070 (founder, 2026-09-28): the read-backs of elements 5, 7, 8 and 12 carry their
+        # visual, drawn by the program and marked not yet confirmed; a Confirm carries it confirmed.
+        if line["field"] in VISUAL_FIELDS and line["move"] == "read_back":
+            vis = rb.get(VISUAL_FIELDS[line["field"]])
+            line["visual_check"] = {"field": line["field"], "present": bool(vis),
+                                    "not_yet_confirmed": isinstance(vis, dict) and vis.get("confirmed") is False}
+            out.setdefault("visuals_missing", [])
+            if not line["visual_check"]["not_yet_confirmed"]:
+                out["visuals_missing"].append(line["field"])
+        if action == "confirm" and getattr(walk, "_field", None) in VISUAL_FIELDS:
+            vis = rb.get(VISUAL_FIELDS[getattr(walk, "_field")])
+            if vis and vis.get("confirmed"):
+                out.setdefault("confirmed_visuals", {})[getattr(walk, "_field")] = vis
         if action == "confirm":
             asked = getattr(walk, "_field", None)
             advanced = line["move"] == "store_and_advance"
@@ -272,6 +289,14 @@ def run(client: Any, rec: Path, scratch: Path, cap: int) -> dict[str, Any]:
     # ── the gate, as far as it exists: review, then submit (no model call) ──
     rv = client.get(f"/gate/review/{case_id}/define")
     review = rv.json() if rv.status_code == 200 else {"error": rv.text[:400]}
+    # ADR-0070: the gate document shows the same visuals the Confirms drew (the last Confirm of each).
+    report_vis = ((review.get("report") or {}).get("visuals") or {}) if isinstance(review, dict) else {}
+    kinds = {"baseline_estimate": "baseline_target", "goal_statement": "baseline_target",
+             "target_value": "baseline_target", "process_map_sipoc": "sipoc"}
+    confirmed = out.get("confirmed_visuals") or {}
+    last = {kinds[f]: v for f, v in confirmed.items() if f in ("target_value", "process_map_sipoc")}
+    out["gate_visuals"] = {"kinds": sorted(report_vis),
+                           "same_as_reply": {k: report_vis.get(k) == v for k, v in last.items()}}
     _write(rec, {"kind": "gate_review", "http": rv.status_code, "body": review})
     sb = client.post("/gate", json={"case_id": case_id, "submitted_by": USER, "phase": "define"})
     submit = sb.json() if sb.headers.get("content-type", "").startswith("application/json") else {"text": sb.text[:400]}

@@ -244,3 +244,17 @@ def test_the_v1_gate_document_is_gone_from_the_define_path() -> None:
     src = _fn(UI.read_text(encoding="utf-8"), "renderGate")
     assert "renderDefineReport(" in src
     assert "business_case_rationale" not in src and "structured.sipoc" not in src
+
+
+def test_adr_0070_the_report_draws_its_visuals_with_the_replys_function() -> None:
+    """ADR-0070 (C1, C2): the gate document's visuals come from the stored values by the same
+    drawing function the coach's reply uses after Confirm — the two pictures cannot differ."""
+    from backend.phases.define import visuals
+    report = define_report(COMPLETE)
+    assert sorted(report["visuals"]) == ["baseline_target", "mindmap_5w2h", "sipoc"]
+    for field, kind in (("target_value", "baseline_target"), ("process_map_sipoc", "sipoc"),
+                        ("problem_statement", "mindmap_5w2h")):
+        drawn = visuals.for_field(field, COMPLETE, confirmed=True)
+        assert drawn is not None, field
+        reply_visual = drawn[1]
+        assert report["visuals"][kind] == reply_visual, kind

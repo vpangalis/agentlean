@@ -351,6 +351,7 @@ Classes are allowed only in files marked **C**; elsewhere module-level functions
 | | `{phase}/schema.py` C | `{Phase}Output` |
 | | `{phase}/validate.py` | `validate_{phase}` — layer 2b |
 | | `define/report.py` | `define_report` |
+| | `define/visuals.py` | `draw` — one drawing function per visual, reply and report (ADR-0070) |
 | | `define/parse.py` | `parse_limit`, `parse_sipoc` — targets and the SIPOC read in code (G-120, G-121) |
 | `middleware/` | `state_injection.py`, `skills.py`, `grader.py`, `coherence.py`, `contradiction.py` C | Custom middleware |
 | | `turn_tools.py` | `turn_tools_middleware` — the turn type's tools (ADR-0069) |

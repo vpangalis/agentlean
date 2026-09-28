@@ -54,7 +54,7 @@ the other.
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 #: The two types the frontend can draw today. **Not the catalogue G-30 asks
 #: for** — the list of renderers that exist, which is a different claim.
@@ -149,6 +149,17 @@ def build_mindmap_5w2h(data: dict[str, Any]) -> dict[str, Any]:
             "filled_count": len(filled), "total_count": len(slots)}
 
 
+def build_baseline_target(metric: str, unit: str, baseline: Optional[float],
+                          target: Optional[float] = None, direction: str = "equal",
+                          target_date: Optional[str] = None) -> dict[str, Any]:
+    """A `baseline_target` payload — the primary metric from its baseline to its target (ADR-0070).
+    Drawn by the program from values, never by a model; the target may still be open (element 5)."""
+    if baseline is None and target is None:
+        raise DiagramError("a baseline-to-target chart needs a baseline or a target")
+    return {"type": "baseline_target", "metric": metric, "unit": unit, "baseline": baseline,
+            "target": target, "direction": direction, "target_date": target_date}
+
+
 #: Builders by type. `propose_diagram` dispatches through this, so an
 #: unrecognised type fails at the tool with a list of what IS renderable
 #: rather than producing JSON the frontend silently drops.
@@ -160,6 +171,7 @@ BUILDERS = {
 
 __all__ = [
     "DIAGRAM_TYPES",
+    "build_baseline_target",
     "SIPOC_COLUMNS",
     "SIPOC_SOURCES",
     "DiagramError",

@@ -1057,7 +1057,7 @@ def _build_executor(
             # ADR-0069 (founder rulings 1 and 6, 2026-09-28) — LangChain's dynamic tool selection:
             # every tool stays registered; this wrap_model_call offers the model only the turn
             # type's tools (`request.override(tools=…)`) — none on an answer turn.
-            turn_tools.turn_tools_middleware(turn_type),
+            turn_tools.turn_tools_middleware(turn_type, coach_limit),
             # T69 / G-119 (ADR-0059) — the coach's share of the turn's model calls. Declared
             # before the retry, so it encloses it: a retried call is one call of the budget.
             # Its state schema (ModelCallLimitState) is its own; the list is typed on AgentState.
@@ -1370,7 +1370,11 @@ def _script_ask(phase: str, field: Optional[str]) -> str:
     for line in field_needs(phase, field or "").splitlines():
         text = line.lstrip("> ").strip()
         if text.startswith("**Ask"):
-            return text.split(":**", 1)[-1].strip()
+            ask = text.split(":**", 1)[-1].strip()
+            # G-130 (DEF-161): a sentence carrying a script placeholder ({baseline_estimate}) is the
+            # model's to fill; a reply written in code leaves it out rather than show it raw.
+            kept_sentences = [x for x in re.split(r"(?<=[.?!])\s+", ask) if not re.search(r"\{[^{}]*\}", x)]
+            return " ".join(kept_sentences).strip() or f"Could you tell me about your {(field or 'next step').replace('_', ' ')}?"
     return f"Could you tell me about your {(field or 'next step').replace('_', ' ')}?"
 
 
@@ -1491,32 +1495,6 @@ def turn_type_of(plan: Optional[CoachingPlan], state: PhaseState) -> str:
     if plan is None or plan.move in (moves.TEACH, moves.STORE_AND_ADVANCE):
         return turn_tools.TEACHING
     return turn_tools.ANSWER
-
-
-#: The 5W2H mind map's slots, from the stored `problem_5w2h` keys.
-_5W2H_SLOTS = {"what": "what", "where": "where", "when": "when", "who": "who_affected", "why": "why",
-               "how_much": "how_much", "how": "how_often"}
-
-
-def _diagrams_from_store(messages: list, stored: dict[str, Any]) -> None:
-    """ADR-0069 point 2: after a Confirm, the diagram of what was stored is drawn in CODE from the
-    stored values (`core/diagrams.py`), not by a coach tool call. Mutates the reply in place."""
-    from backend.core import diagrams
-    out: dict[str, Any] = {}
-    try:
-        if isinstance(stored.get("process_map_sipoc"), dict):
-            out[_DIAGRAM_TO_UI_KEY["sipoc"]] = diagrams.build_sipoc(stored["process_map_sipoc"], draft=False)
-        if isinstance(stored.get("problem_5w2h"), dict):
-            out[_DIAGRAM_TO_UI_KEY["mindmap_5w2h"]] = diagrams.build_mindmap_5w2h(
-                {slot: stored["problem_5w2h"].get(k) for k, slot in _5W2H_SLOTS.items()})
-    except diagrams.DiagramError as exc:
-        logger.info("executor: no diagram drawn from the stored values: %s", exc)
-    if not out:
-        return
-    for msg in reversed(messages):
-        if isinstance(msg, AIMessage):
-            msg.additional_kwargs.update(out)
-            return
 
 
 #: The text `ModelCallLimitMiddleware` ends a run with (langchain 1.3.16), matched to replace it.
@@ -2143,8 +2121,21 @@ async def executor(
     # G-117 (DEF-156) — what was stored is said by code, from `kept`, never by the model.
     new_messages = _store_truth(new_messages, reply, phase, plan, kept if move == moves.STORE_AND_ADVANCE else {})
     new_messages = _with_carried(new_messages, reply, phase, carried)
-    if move == moves.STORE_AND_ADVANCE:
-        _diagrams_from_store(new_messages, kept)
+    # ADR-0070 — the element's visual, drawn by the program with the gate document's own function:
+    # on a read-back from the coach's structured values ("not yet confirmed"), after Confirm from
+    # the stored values. No model call draws.
+    if phase == "define":
+        from backend.phases.define import visuals
+        drawn = (visuals.for_field(plan.focus_field, {**prior_artifacts, **dict((pending or {}).get("proposed") or {})},
+                                   confirmed=False)
+                 if move == moves.READ_BACK and plan is not None and pending is not None else
+                 visuals.for_field(plan.stored_field, {**prior_artifacts, **kept}, confirmed=True)
+                 if move == moves.STORE_AND_ADVANCE and plan is not None else None)
+        if drawn:
+            for msg in reversed(new_messages):
+                if isinstance(msg, AIMessage):
+                    msg.additional_kwargs[drawn[0]] = drawn[1]
+                    break
 
     # ── 10.0 — the four blocks and the grader's warning ride on the reply ──
     # The route never holds the `CoachingResponse`, only the graph's

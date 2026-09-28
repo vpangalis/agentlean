@@ -1273,3 +1273,49 @@ def test_g130_a_code_written_reply_never_shows_a_script_placeholder() -> None:
                             retrieval_strategy="single_hop", retrieval_hops=[])
         reply = _c._fallback_reply(phase, plan)
         assert not re.search(r"\{[a-z_]+(\[[^\]]*\])?\}", reply.message), reply.message
+
+
+def test_g131_the_coachs_last_allowed_call_is_offered_no_tools() -> None:
+    """G-131 (DEF-002): on a teaching turn with a 2-call share, the first call is offered the
+    teaching tools and the LAST allowed call none — so it must be the structured reply, never a
+    tool call the limit ends with a code-written reply. The real create_agent, the real limit."""
+    from langchain.agents.middleware import ModelCallLimitMiddleware
+    from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
+
+    from backend.middleware import turn_tools
+
+    offered_per_call: list = []
+
+    class Fake(GenericFakeChatModel):
+        def bind_tools(self, tools, **kw):
+            offered_per_call.append(sorted(getattr(t, "name", None) or t.get("name", "") for t in tools
+                                           if (getattr(t, "name", None) or t.get("name")) != "CoachingResponse"))
+            return self
+    reply = {"message": "ok", "explanation": "", "example": "", "prompt": "", "progress": "", "fields_captured": []}
+    model = Fake(messages=iter([
+        AIMessage(content="", tool_calls=[{"name": "propose_template", "id": "t1",
+                                           "args": {"template_type": "sipoc", "fill_data": {}}}]),
+        AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": reply, "id": "c1"}])]))
+    agent = create_agent(model=model, tools=list(UNIVERSAL_TOOLS), response_format=CoachingResponse,
+                         middleware=[turn_tools.turn_tools_middleware("teaching", 2),
+                                     cast(Any, ModelCallLimitMiddleware(run_limit=2, exit_behavior="end"))])
+    out = asyncio.run(agent.ainvoke({"messages": [HumanMessage(content="hi")]}))
+    assert len(offered_per_call) == 2 and offered_per_call[0] and offered_per_call[1] == [], offered_per_call
+    assert isinstance(out.get("structured_response"), CoachingResponse)
+
+
+def test_adr_0070_a_read_back_carries_its_visual_not_yet_confirmed(stub_coach) -> None:
+    """ADR-0070: the read-back of the target carries the baseline-to-target chart, drawn by the
+    program from the coach's structured values and marked not yet confirmed."""
+    from backend.tests.test_define_report import COMPLETE
+    stub_coach.reply = CoachingResponse(message="Your target: 5%. Is this right?", prompt="Is this right?",
+                                        fields_captured=[{"field_name": "target_value", "value": "5%", "source": "belt"}])
+    plan = CoachingPlan(focus_field="target_value", status="answered", move="read_back",
+                        retrieval_strategy="single_hop", retrieval_hops=[],
+                        pending={"field": "target_value", "fields": ["target_value"], "belt_words": "5%", "messages": 1})
+    arts = {k: COMPLETE[k] for k in ("baseline_estimate", "metric_definitions", "target_date")}
+    out = _run(_c.executor("define", _state(coaching_plan=plan, artifacts=arts, current_phase="define")))
+    reply = [m for m in out["messages"] if isinstance(m, AIMessage)][-1]
+    vis = reply.additional_kwargs.get("visualisation")
+    assert vis and vis["type"] == "baseline_target" and vis["baseline"] == 23.0 and vis["target"] == 5.0, vis
+    assert vis["confirmed"] is False and vis["label"] == "not yet confirmed"
