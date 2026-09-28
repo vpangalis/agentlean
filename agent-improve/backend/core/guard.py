@@ -89,6 +89,22 @@ def blocked(state: SupervisorState) -> bool:
         (last.additional_kwargs or {}).get(NODE, {}).get("status") == "blocked"
 
 
+def without_blocked(messages: list) -> list:
+    """The messages without each blocked turn: the Belt's message and the guard's reply to it.
+
+    `SupervisorState.messages` appends (`operator.add`), so a blocked message stays in the
+    checkpoint; this is how no model and no reload ever reads it (ADR-0067 point 2, T71). Read
+    at the phase's input mapper, the one way into the coach, planner, grader and coherence."""
+    out: list = []
+    for m in messages or []:
+        if isinstance(m, AIMessage) and (m.additional_kwargs or {}).get(NODE, {}).get("status") == "blocked":
+            if out and isinstance(out[-1], HumanMessage):
+                out.pop()
+            continue
+        out.append(m)
+    return out
+
+
 def current_field(state: SupervisorState, store: Optional[BaseStore]) -> Optional[str]:
     """The element the Belt is working on: the first position not confirmed, from the phase's
     record in the checkpoint (ADR-0066), else from the Store's case copy."""
@@ -162,4 +178,4 @@ async def input_guard(state: SupervisorState, config: Optional[RunnableConfig] =
     return {"messages": [AIMessage(content=message, additional_kwargs={NODE: verdict})]}
 
 
-__all__ = ["input_guard", "blocked", "fixed_rules", "current_field", "record", "NODE", "MAX_CHARS"]
+__all__ = ["input_guard", "blocked", "without_blocked", "fixed_rules", "current_field", "record", "NODE", "MAX_CHARS"]

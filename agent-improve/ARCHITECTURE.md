@@ -379,7 +379,7 @@ Classes are allowed only in files marked **C**; elsewhere module-level functions
 
 | Node | Reads | Does | Writes |
 |---|---|---|---|
-| `input_guard` (main graph) | the Belt's newest message | Threat A (rewriting the rules: fixed rules, then Prompt Shields) and D (over 10,000 characters); strict unless `GUARD_MODE=development`; fail closed; skips gate and resume entries | on a block: a reply built in code (`core/guard_messages.py`: the threat's text, the element, its sample); the verdict — threat, rule, person, time, shield — to the Store's `step_log` namespace |
+| `input_guard` (main graph) | the Belt's newest message | Threat A (rewriting the rules: fixed rules, then Prompt Shields) and D (over 10,000 characters); strict unless `GUARD_MODE=development`; fail closed; skips gate and resume entries | on a block: a reply built in code (`core/guard_messages.py`: the threat's text, the element, its sample); the verdict — threat, rule, person, time, shield — to the Store's `step_log` namespace; that turn, like a `content_filter` refusal, kept from later model calls and the reload (`guard.without_blocked`) |
 | `route_to_phase` (main graph, conditional edge) | `current_phase`, the guard's verdict | Picks `{phase}_phase`, or `END` for a blocked turn | nothing |
 | `{phase}_phase` (main graph, wrapper) | `SupervisorState`, the Store | Input mapper → subgraph → on approval the output mapper | `messages`, `history`; on approval `current_phase`, `phase_index`, `gate_passed` |
 | `planner` | `field_status`, `artifacts`, acceptance criteria | One judgment; builds `CoachingPlan` with `moves.decide` | `coaching_plan`, `field_status`, `step_log` |

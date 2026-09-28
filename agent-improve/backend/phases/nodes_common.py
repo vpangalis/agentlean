@@ -62,7 +62,7 @@ from langgraph.errors import GraphRecursionError
 from langgraph.graph import END
 from langgraph.types import Command, interrupt
 
-from backend.core import content_safety, guard_messages
+from backend.core import content_safety, guard, guard_messages
 from backend.core.config import settings
 from backend.core.conversation import message_to_turn
 from backend.core.llm import get_llm
@@ -1731,7 +1731,11 @@ async def executor(
         text = guard_messages.reply(guard_messages.AZURE, phase, plan.focus_field if plan else None)
         fallback = CoachingResponse(message=text, prompt="")
         fell_back = True
-        result = {"messages": [*prior, AIMessage(content=text)], "structured_response": fallback}
+        # Marked as the guard marks a block, so `guard.without_blocked` keeps the refused
+        # message from every later model call and from the reload ("Nothing was stored").
+        refused = AIMessage(content=text, additional_kwargs={
+            guard.NODE: {"status": "blocked", "threat": "azure", "rule": "content_filter"}})
+        result = {"messages": [*prior, refused], "structured_response": fallback}
 
     reply: CoachingResponse | None = result.get("structured_response")
     produced = list(result.get("messages") or [])

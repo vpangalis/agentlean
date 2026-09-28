@@ -459,7 +459,9 @@ async def _with_unfinished_work(case: CaseDocument) -> CaseDocument:
         return out
     # What the Belt saw: their messages and the coach's replies — not the agent's tool calls
     # and tool results, which the checkpoint also holds.
-    shown = [m for m in messages if isinstance(m, HumanMessage)
+    # ...and not a blocked turn: the guard's verdict is in step_log (ADR-0067).
+    from backend.core.guard import without_blocked
+    shown = [m for m in without_blocked(messages) if isinstance(m, HumanMessage)
              or (isinstance(m, AIMessage) and not getattr(m, "tool_calls", None) and str(m.content).strip()
                  and not (m.additional_kwargs or {}).get("gate_submission"))]
     out.conversation_history = [conversation.strip_transport(conversation.message_to_turn(m, i))

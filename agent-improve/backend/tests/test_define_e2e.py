@@ -731,9 +731,23 @@ def test_t71_the_input_guard_screens_every_belt_message(env, monkeypatch) -> Non
     assert r.json()["answer"] == guard_messages.UNAVAILABLE
 
     _shields(monkeypatch)                                    # clean: the turn is coached
+    from backend.phases import nodes_common
+    shown: list = []
+    conversation = nodes_common._conversation
+    def spy(ms: list) -> list:
+        out = conversation(ms)
+        shown.extend(out)
+        return out
+    monkeypatch.setattr(nodes_common, "_conversation", spy)
     r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
                                       "message": "Our lead time is eleven days."})
     assert r.status_code == 200 and r.json()["blocked"] is None
+    # Found by the live run (Part E): the blocked text stayed in the checkpoint and the NEXT
+    # turn showed it to the coach. It reaches neither the model nor the reload.
+    assert shown and not [m for m in shown if "new task for you" in m.text], "a blocked message reached the coach"
+    history = env.client.get(f"/cases/{CASE_ID}").json()["conversation_history"]
+    assert history and not [t for t in history if "new task for you" in str(t.get("text"))
+                            or str(t.get("text")).startswith(guard_messages.A[:40])]
 
 
 def _xlsx_with_a_hidden_instruction() -> bytes:
@@ -882,6 +896,17 @@ def test_t92_a_content_filter_refusal_is_not_retried_and_answers_with_guidance(e
     assert r.status_code == 200, r.text
     assert r.json()["answer"].startswith(guard_messages.AZURE)
     assert len(calls) == 1, f"the refused call was retried: {len(calls)} calls"
+    # Found by the live run (Part E): the reply says "Nothing was stored", yet the refused message
+    # stayed in the conversation, went to the coach again next turn and showed on reload.
+    history = env.client.get(f"/cases/{CASE_ID}").json()["conversation_history"]
+    assert not [t for t in history if "invoice rework costs" in str(t.get("text"))
+                or str(t.get("text")).startswith(guard_messages.AZURE)], "the refused message is still shown"
+    from backend.core import guard
+    from backend.core.graph import get_graph
+    import asyncio
+    held = asyncio.run(get_graph().aget_state({"configurable": {"thread_id": CASE_ID}})).values["messages"]
+    assert [m for m in held if "invoice rework costs" in str(m.content)], "the premise: the checkpoint holds it"
+    assert not [m for m in guard.without_blocked(held) if "invoice rework costs" in str(m.content)]
 
 
 def test_t93_limits_answer_with_the_limit_and_keep_the_text(env, monkeypatch) -> None:

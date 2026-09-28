@@ -36,6 +36,7 @@ from langgraph.store.base import BaseStore
 
 from backend.storage import layout
 
+from backend.core.guard import without_blocked
 from backend.core.state import SupervisorState
 from backend.core.substate import (
     PHASE_STATE_AUTHOR_POPULATED_FIELDS,
@@ -350,7 +351,8 @@ def new_phase_state(
         "case_id":            parent["case_id"],
         "current_phase":      phase,
         # plumbing
-        "messages":           list(parent["messages"]),
+        # ADR-0067 — a blocked turn never reaches a model: dropped here, the one way in.
+        "messages":           without_blocked(list(parent["messages"])),
         "history":            [],
         "phase_context":      phase_context,
         # content
