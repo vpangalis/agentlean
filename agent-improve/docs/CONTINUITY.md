@@ -7,9 +7,9 @@
 
 | | |
 |---|---|
-| **Headline** | 15 of 154 Define features pass (core 15 of 145) — A 3/61 · B 12/35 · C 0/36 · integrator 0/22 |
+| **Headline** | 16 of 154 Define features pass (core 16 of 145) — A 3/61 · B 13/35 · C 0/36 · integrator 0/22 |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
-| **Next — lane B** | DEF-117 — T13 (ADR-0066): the case blob is never written mid-conversation — only at creation, upload and approval; unfinished work lives in the checkp |
+| **Next — lane B** | DEF-144 — T87: e-mail, phone, account and card numbers in uploads and tool results are masked before a model sees them; person names are kept; each ma |
 | **Next — lane C** | DEF-074 — G-113: the create form shows no case id until the server has assigned one; the number a Belt sees is always the one the case is saved under. |
 | **Next — lane integrator** | DEF-001 — A Belt creates a new case and it opens in Define: POST /cases returns an id, the case list shows it, and GET /cases/{id} opens it with curre |
 | **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |

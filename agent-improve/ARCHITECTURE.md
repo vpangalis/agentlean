@@ -178,7 +178,7 @@ as a task raced against `_until_disconnect`; a client gone first cancels it (499
 
 | Route | Graph input | Config (`_graph_config`) | After the run |
 |---|---|---|---|
-| `POST /ask` | `_graph_input`: no checkpoint yet → the seven `SupervisorState` fields plus the case's prior conversation; else `{"messages": [new]}`; a checkpoint phase ≠ case phase is 409 | `thread_id` = case id, `entry`, `current_user`, `case_metadata`, `v1_phase_inputs` (every phase's `structured`), `belt_action`; `recursion_limit` 50 | `_mirror_asks` (Store), `apply_capture`, `blob.save_case` — the case blob is written on every turn (T13 open) |
+| `POST /ask` | `_graph_input`: no checkpoint yet → the seven `SupervisorState` fields plus the case's prior conversation; else `{"messages": [new]}`; a checkpoint phase ≠ case phase is 409 | `thread_id` = case id, `entry`, `current_user`, `case_metadata`, `v1_phase_inputs` (every phase's `structured`), `belt_action`; `recursion_limit` 50 | `_mirror_asks` (Store); no blob write — the reply carries the phase's merged record into the checkpoint (ADR-0066) |
 | `POST /gate` | the same, `entry="gate"` | same | non-Define phases: `write_phase_gate` on a pass |
 | `POST /gate/decision` | `Command(resume={decision, elements, reason, actor, at})` after `_pending_interrupts` finds `accept_define_report` | same, `entry="decision"`; reject sets `belt_action="rejected"` | approve: `assemble_gate_document`, `write_phase_gate` |
 | `GET /gate/review/{case_id}/{phase}` | none — `graph.aget_state(config)` reads the pause | same | — |
@@ -203,8 +203,8 @@ flowchart LR
 |---|---|---|---|
 | Holds | The whole graph state of the case: `SupervisorState` and each subgraph's `PhaseState` under its `checkpoint_ns` | Approved phase records, the case record, cross-phase audit | Case, phase records, upload records, registry |
 | Scope | One thread per case (`thread_id` = case id) | Across phases and threads | The case |
-| Written | Automatically after every node | Explicitly by key; a put overwrites, so a replay leaves one value | At case creation, after every `/ask` turn, at approval and upload |
-| Read by | LangGraph on the next invoke or resume | Input mappers; the state-injection middleware; the grader's reference lookups | Routes, the registry, the UI |
+| Written | Automatically after every node | Explicitly by key; a put overwrites, so a replay leaves one value | At case creation, upload and approval (once) — never mid-conversation (ADR-0066) |
+| Read by | LangGraph; the input mappers and a reload (`routes._with_unfinished_work`), for unfinished work | Input mappers; the state-injection middleware; the grader's reference lookups | Routes (metadata, uploads, approved records), the registry |
 | Code | `core/checkpointer.py::AzureBlobCheckpointSaver` | `core/store.py::AzureBlobStore` | `storage/blob.py` (module functions: `create_case`, `load_case`, `save_case`, `write_phase_gate`, `upload_file`) |
 | Attached | `graph.compile(checkpointer=…)` on the parent graph only | `graph.compile(store=…)` on the parent graph only; nodes receive it as a parameter | Called by routes, never by the graph |
 

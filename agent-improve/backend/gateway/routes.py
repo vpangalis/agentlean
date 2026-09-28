@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
 from backend.core import conversation
 from backend.core.graph import RECURSION_LIMIT
@@ -125,6 +125,7 @@ async def get_session_context(request: ContextRequest) -> ContextResponse:
     case = await blob.load_case(request.case_id)
     if case is None:
         raise HTTPException(404, f"Case {request.case_id} not found")
+    case = await _with_unfinished_work(case)   # ADR-0066: read through the graph
 
     # Get structured inputs for the phase.
     # case.phases is dict[str, PhaseRecord]; structured lives on the record.
@@ -416,6 +417,40 @@ def _mirror_asks(case_id: str, phase: str, result: Any) -> None:
         )
 
 
+async def _with_unfinished_work(case: CaseDocument) -> CaseDocument:
+    """The case as the Belt sees it — ADR-0066. The blob holds what is decided (framing,
+    uploads, approved records); the checkpoint holds the unfinished work. This returns a COPY
+    of the blob's case with, read through the compiled graph, the conversation and every open
+    phase's record (captured values, statuses, log) from the checkpoint. The copy is for reading:
+    no route writes it back, so the blob never holds unfinished work."""
+    from backend.core.graph import get_graph
+    from backend.phases import record as phase_record
+    out = case.model_copy(deep=True)
+    try:
+        snapshot = await get_graph().aget_state({"configurable": {"thread_id": case.case_id}})
+    except Exception as exc:  # noqa: BLE001 — a reload must render; the blob copy is the floor
+        logger.warning("case %s: the checkpoint could not be read (%s); showing the blob", case.case_id, exc)
+        return out
+    messages = list((snapshot.values or {}).get("messages") or [])
+    if not messages:
+        return out
+    # What the Belt saw: their messages and the coach's replies — not the agent's tool calls
+    # and tool results, which the checkpoint also holds.
+    shown = [m for m in messages if isinstance(m, HumanMessage)
+             or (isinstance(m, AIMessage) and not getattr(m, "tool_calls", None) and str(m.content).strip()
+                 and not (m.additional_kwargs or {}).get("gate_submission"))]
+    out.conversation_history = [conversation.strip_transport(conversation.message_to_turn(m, i))
+                                for i, m in enumerate(shown)]
+    for phase, rec in phase_record.latest_by_phase(messages).items():
+        held = out.phases.get(phase)
+        if held is None or held.gate_passed:
+            continue
+        held.structured = dict(rec.get("structured") or {})
+        held.field_status = {f: dict(v) for f, v in (rec.get("field_status") or {}).items()}
+        held.field_log = [dict(e) for e in (rec.get("field_log") or [])]
+    return out
+
+
 def apply_capture(case: CaseDocument, phase: str, payload: dict[str, Any]) -> None:
     """Fold one turn's product into the case record — **MERGE, never replace**.
 
@@ -447,52 +482,12 @@ def apply_capture(case: CaseDocument, phase: str, payload: dict[str, Any]) -> No
     record = case.phases.get(phase)
     if record is None:
         return
-
-    captured, empty = split_captures(payload.get("v1_draft") or {})
-
-    # 6.48 — THE SAME REFUSAL AT THIS END, and it is not belt-and-braces.
-    # `structured` seeds the next turn's `artifacts` through
-    # `captured_from_document`, so prose stored here is prose the accumulator
-    # inherits tomorrow — and the two records of one field would disagree,
-    # which is exactly the condition step 6.33 closed one field over.
-    captured, malformed = split_by_declared_type(phase, captured)
-    if malformed:
-        logger.warning(
-            "%s: FINDING — %d capture(s) did not carry the type their schema "
-            "declares and did NOT reach the case record: %s. The field stays "
-            "uncaptured and the coach asks again; the gate document cannot be "
-            "assembled from prose (step 6.48).",
-            phase, len(malformed),
-            ", ".join(f"{f} (needs {t})" for f, t in sorted(malformed.items())),
-        )
-
-    if empty:
-        logger.warning(
-            "%s: FINDING — %d capture(s) arrived with no value and did NOT "
-            "reach the case record: %s. The turn's own log counts them as "
-            "captured because the coach NAMED the field; nothing downstream "
-            "can see them. Reported rather than silently dropped (step 6.33) "
-            "— and the prior value, if there was one, is kept rather than "
-            "overwritten with nothing.",
-            phase, len(empty), ", ".join(empty),
-        )
-
-    if captured:
-        # **MERGED, never assigned.** The prior values are the phase's other
-        # twelve turns; this turn carries one or two.
-        record.structured = {**(record.structured or {}), **captured}
-
-    # Step 6.61 (R5) — the field statuses, replaced whole: the executor
-    # returns the after-change map for every position it knows.
-    if payload.get("field_status"):
-        record.field_status = {f: dict(v) for f, v in payload["field_status"].items()}
-    entries = list(payload.get("field_log") or [])
-    if entries:
-        # The SAME function the channel reduces with (`core/substate.py`), so
-        # the log merges identically in the checkpoint and in the blob. Two
-        # merge rules for one log is how the two copies come to disagree, and
-        # a disagreement here is indistinguishable from a lost change.
-        record.field_log = merge_field_log(record.field_log, entries)
+    from backend.phases import record as phase_record
+    merged = phase_record.merge({"structured": record.structured, "field_status": record.field_status,
+                                 "field_log": record.field_log}, payload, phase)
+    record.structured = merged["structured"]
+    record.field_status = merged["field_status"]
+    record.field_log = merged["field_log"]
 
 
 def _requested_phase(case: CaseDocument, requested: str) -> str:
@@ -685,8 +680,10 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     case = await blob.load_case(request.case_id)
     if case is None:
         raise HTTPException(404, f"Case {request.case_id} not found")
-    # WATCH 19's lazy half — every case in the registry predates the writer.
+    # WATCH 19's lazy half — every case in the registry predates the writer. From the blob
+    # only: the Store's case copy never carries unfinished work (ADR-0066).
     _ensure_case_record(case)
+    case = await _with_unfinished_work(case)
 
     from datetime import datetime, timezone
     from backend.core.graph import PhaseNotWired, get_graph
@@ -736,21 +733,8 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     extra = dict(getattr(reply, "additional_kwargs", None) or {}) if reply else {}
 
     # ── envelope marshalling from here down ───────────────────────────
-    #
-    # The case blob is still written per turn, which §10 says it should not be.
-    # That is unchanged v1 behaviour and is NOT this step's to fix: the
-    # conversation moves into the checkpoint only once the checkpoint is where
-    # the UI reads it from, which is the UI rebuild (step 10.2). What 4.2
-    # changes is that the checkpoint now exists alongside it.
-    case.conversation_history.append(user_turn)
-    if reply is not None:
-        case.conversation_history.append(
-            conversation.strip_transport(
-                conversation.message_to_turn(reply, len(case.conversation_history))
-            )
-        )
-    apply_capture(case, request.phase, payload)
-    await blob.save_case(case)
+    # ADR-0066 / T13: no case-blob write. The turn — the Belt's message, the reply and the
+    # phase's merged record on it — is in the checkpoint, which is its only home.
 
     return AskResponse(
         answer=(reply.content if reply is not None else "Processing..."),
@@ -817,6 +801,7 @@ async def gate_review(case_id: str, phase: str) -> GateReviewResponse:
     case = await blob.load_case(case_id)
     if case is None:
         raise HTTPException(404, f"Case {case_id} not found")
+    case = await _with_unfinished_work(case)   # ADR-0066: read through the graph
 
     record = case.phases.get(phase)
     artifacts = dict((record.structured or {}) if record else {})
@@ -974,7 +959,9 @@ async def upload_file(
     if case is None:
         raise HTTPException(404, f"Case {case_id} not found")
 
-    define_phase = case.phases.get("define")
+    # ADR-0066: the upload is saved to the blob below, so the blob's case stays as loaded; the
+    # current Define values are READ from the checkpoint through a copy.
+    define_phase = (await _with_unfinished_work(case)).phases.get("define")
     define_structured = (define_phase.structured or {}) if define_phase else {}
     case_meta = {
         "title": case.title,
@@ -1450,6 +1437,7 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
     if case is None:
         raise HTTPException(404, f"Case {request.case_id} not found")
     _ensure_case_record(case)
+    case = await _with_unfinished_work(case)   # ADR-0066
     graph, config, pending = await _pending_interrupts(case, request.phase, request.actor)
     if not any((getattr(i, "value", None) or {}).get("kind") == "accept_define_report"
                for i in pending):
@@ -1499,16 +1487,7 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
     reply = _last_ai(result)
     payload = conversation.transport(reply) if reply is not None else {}
     extra = dict(getattr(reply, "additional_kwargs", None) or {}) if reply else {}
-    case.conversation_history.append({
-        "role": "user", "user": request.actor,
-        "text": (f"Rejected the Define report — change {', '.join(elements)}: "
-                 f"{request.reason.strip()}"),
-        "timestamp": datetime.now(timezone.utc).isoformat()})
-    if reply is not None:
-        case.conversation_history.append(conversation.strip_transport(
-            conversation.message_to_turn(reply, len(case.conversation_history))))
-    apply_capture(case, request.phase, payload)
-    await blob.save_case(case)
+    # ADR-0066: the rejection's coaching turn is in the checkpoint; the blob is not written.
     blocks = extra.get("coaching_blocks") or {}
     return GateDecisionResponse(
         decision="reject", phase=request.phase, reopened=elements,
@@ -1543,6 +1522,7 @@ async def submit_gate(request: GateSubmitRequest,
     # WATCH 19's lazy half — /gate enters a phase subgraph too, so the input
     # mapper runs here as well and needs the same record.
     _ensure_case_record(case)
+    case = await _with_unfinished_work(case)   # ADR-0066
 
     from backend.core.graph import PhaseNotWired, get_graph
 
@@ -1671,6 +1651,7 @@ async def get_case(case_id: str):
     case = await blob.load_case(case_id)
     if case is None:
         raise HTTPException(404, f"Case {case_id} not found")
+    case = await _with_unfinished_work(case)   # ADR-0066: read through the graph
 
     payload = case.model_dump()
     files: list[dict] = []

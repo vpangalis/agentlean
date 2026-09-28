@@ -392,6 +392,16 @@ def new_phase_state(
         "synthesis_output":   None,
     }
 
+    # ADR-0066 — unfinished work lives in the checkpoint: when the parent's messages carry
+    # this phase's record (attached by the wrapper node to each reply), it is the seed. The
+    # Store copy seeds only a phase's first turn and cases older than the record.
+    from backend.phases import record as _record
+    carried = _record.latest(parent.get("messages") or [], phase)
+    if carried is not None:
+        state["artifacts"] = dict(carried.get("structured") or {})
+        state["field_log"] = [dict(e) for e in (carried.get("field_log") or [])]
+        state["field_status"] = {f: dict(v) for f, v in (carried.get("field_status") or {}).items()}
+
     # The skeleton and the schema cannot drift: a field added to
     # PhaseState without a value here fails loudly, at the boundary, rather
     # than surfacing as a KeyError deep inside a coaching turn.

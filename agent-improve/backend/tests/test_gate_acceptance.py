@@ -127,12 +127,13 @@ def env(monkeypatch, stub_planner):
     record.structured = {k: v for k, v in COMPLETE.items()}
     record.field_status = {f: {"status": moves.CONFIRMED} for f, _ in moves.positions("define")}
     written: list[dict] = []
+    saved: list = []                                 # every case-blob write (ADR-0066)
 
     async def load(_cid: str):
         return case
 
-    async def save(_c):
-        return None
+    async def save(c):
+        saved.append(c)
 
     async def write_phase_gate(**kw: Any):
         # As storage/blob.py::write_phase_gate does: the record passes and the case moves on.
@@ -177,7 +178,7 @@ def env(monkeypatch, stub_planner):
 
     client = TestClient(app)
     yield SimpleNamespace(client=client, case=case, written=written, restart=restart,
-                          holder=holder)
+                          holder=holder, saved=saved)
     graph_mod.get_graph.cache_clear()
 
 
@@ -232,7 +233,9 @@ def test_a_rejection_reopens_the_named_elements_and_the_coach_guides_back(env) -
     body = r.json()
     assert body["reopened"] == ["goal_statement", "problem_statement"], "an inside field maps to its element"
     assert env.written == [], "a rejected report was written"
-    status = env.case.phases["define"].field_status
+    # ADR-0066: the re-opened statuses are unfinished work — in the checkpoint, read back
+    # through the API's reload, never written to the case blob.
+    status = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]["field_status"]
     for element in ("goal_statement", "problem_statement"):
         assert status[element]["status"] == moves.ASKED
         assert "too timid" in status[element]["rejected"]["reason"]

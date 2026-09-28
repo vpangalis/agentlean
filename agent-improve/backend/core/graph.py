@@ -60,6 +60,7 @@ from backend.phases.define.mappers import define_input_mapper, define_output_map
 from backend.phases.improve.mappers import improve_input_mapper, improve_output_mapper
 from backend.phases.mappers_common import PHASE_ORDER
 from backend.phases.measure.mappers import measure_input_mapper, measure_output_mapper
+from backend.phases import record as phase_record
 from backend.phases.subgraph_common import build_phase_subgraph
 
 logger = logging.getLogger(__name__)
@@ -172,6 +173,11 @@ def phase_node(phase: str) -> Callable[..., Any]:
         store = get_store()
         child = await asyncio.to_thread(mapper, state, store)
         sent_messages = list(child["messages"])
+        # ADR-0066: the record this turn merges into — what the input mapper seeded from.
+        prior = {"structured": dict(child.get("artifacts") or {}),
+                 "field_status": {f: dict(v) for f, v in (child.get("field_status") or {}).items()},
+                 "field_log": [dict(e) for e in (child.get("field_log") or [])]}
+        carried = phase_record.latest(state.get("messages") or [], phase)
 
         # ── the WATCH 7 seam, seeded at the boundary ──────────────────
         # `draft` is the v1 accumulator (see `phases/nodes_common.py`). The
@@ -181,7 +187,8 @@ def phase_node(phase: str) -> Callable[..., Any]:
         # against nothing. The OTHER phases' inputs ride on `config` and are
         # read by `to_v1_state` — every phase but Define builds a cross-phase
         # brief from them.
-        seeded = (configurable.get("v1_phase_inputs") or {}).get(phase)
+        seeded = (dict(carried.get("structured") or {}) if carried is not None
+                  else (configurable.get("v1_phase_inputs") or {}).get(phase))
         if seeded:
             child["draft"] = dict(seeded)
 
@@ -218,6 +225,8 @@ def phase_node(phase: str) -> Callable[..., Any]:
             # Step 6.61 (R5) — where each field stands after this turn.
             "field_status": {f: dict(v) for f, v in (result.get("field_status") or {}).items()},
         }
+        # ADR-0066: the merged record travels on the reply, so the checkpoint is its home.
+        payload[phase_record.KEY] = phase_record.merge(prior, payload, phase)
         if new_messages:
             _attach(new_messages[-1], payload)
         else:

@@ -203,9 +203,13 @@ def test_the_schema_declares_them_defaulted() -> None:
 # ── the history keeps them (G-79) ───────────────────────────────────────────
 
 
-def test_the_saved_history_keeps_the_blocks(monkeypatch, stub_planner) -> None:
-    body = _ask(monkeypatch, _executor_messages(monkeypatch, _failing()))
-    ai = [t for t in body["_saved_history"] if t.get("role") == "ai"][-1]
+def test_the_reloaded_history_keeps_the_blocks(monkeypatch, stub_planner) -> None:
+    """ADR-0066: /ask writes no case blob; the reply — in the checkpoint — is what a reload
+    turns back into a history turn, blocks and warning included."""
+    messages = _executor_messages(monkeypatch, _failing())
+    body = _ask(monkeypatch, messages)
+    assert body["_saved_history"] == [], "/ask wrote the case blob"
+    ai = conversation.message_to_turn([m for m in messages if isinstance(m, AIMessage)][-1], 0)
     for k in BLOCKS:
         assert ai.get(k) == getattr(REPLY, k), k
     assert ai.get("grader_warning") == MAX_ITERATIONS_WARNING

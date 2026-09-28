@@ -433,14 +433,46 @@ def test_t12_thread_id_comes_from_an_authenticated_session_never_from_the_reque(
     _not_written('DEF-116')
 
 
-def test_t13_the_case_blob_is_never_written_mid_conversation_only_at_gate_appro() -> None:
-    """DEF-117 — The case blob is never written mid-conversation, only at gate approval"""
-    _not_written('DEF-117')
+def test_t13_the_case_blob_is_never_written_mid_conversation_only_at_gate_appro(env) -> None:
+    """DEF-117 — T13, ADR-0066's verification, through the API: /ask writes no case blob; a
+    reload (GET /cases/{id}) shows every confirmed value and the conversation — read from the
+    checkpoint through the compiled graph, not from the blob; an approval writes the blob once."""
+    for text in ("Our lead time is eleven days.", "The target is five days by March."):
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "belt", "message": text})
+        assert r.status_code == 200, r.text
+    assert env.saved == [], f"/ask wrote the case blob {len(env.saved)} time(s)"
+    confirmed = dict(env.case.phases["define"].structured)
+    env.case.phases["define"].structured = {}                 # the blob forgets: the reload must not
+    env.case.conversation_history = []
+    reload = env.client.get(f"/cases/{CASE_ID}").json()
+    assert reload["phases"]["define"]["structured"] == confirmed, "a confirmed value was read from the blob"
+    texts = [t.get("text") for t in reload["conversation_history"]]
+    assert "Our lead time is eleven days." in texts and "The target is five days by March." in texts
+    assert sum(1 for t in reload["conversation_history"] if t.get("role") == "ai") >= 2
+    env.case.phases["define"].structured = confirmed
+    _submit(env)
+    assert _decide(env, decision="approve").status_code == 200
+    assert len(env.written) == 1 and env.saved == [], (len(env.written), len(env.saved))
 
 
 def test_t17_the_retention_sweep_never_removes_a_paused_thread() -> None:
-    """DEF-118 — The retention sweep never removes a paused thread"""
-    _not_written('DEF-118')
+    """DEF-118 — T17 widened by ADR-0066: no checkpoint of an open case is deleted. No production
+    code deletes a thread or a checkpoint blob; a retention sweep that ever does must make this
+    fail, and carry its own proof that it spares open cases."""
+    import ast
+    from pathlib import Path
+
+    backend = Path(__file__).resolve().parents[1]
+    hits = []
+    for f in backend.rglob("*.py"):
+        if "tests" in f.parts:
+            continue
+        for n in ast.walk(ast.parse(f.read_text(encoding="utf-8"))):
+            name = n.func.attr if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) else None
+            if name in ("delete_thread", "adelete_thread", "delete_blobs") or (
+                    name in ("delete_blob", "adelete_blob") and "checkpoint" in ast.unparse(n).lower()):
+                hits.append(f"{f.relative_to(backend)}:{getattr(n, 'lineno', 0)} {ast.unparse(n)[:80]}")
+    assert not hits, hits
 
 
 def test_t21_a_replayed_step_leaves_one_step_log_entry_today_the_channel_append() -> None:
