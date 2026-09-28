@@ -59,7 +59,8 @@ SCRIPT_PROOF_CASE = os.environ.get("CAPABILITY_SCRIPT_CASE_ID", "IMPR-2026-7F1")
 #: current SKILL.md — the test then passes on its own.
 REPROOF_OWED = {
     "3": "founder ruling 4 (2026-09-27): the Define SKILL.md changed outside its script "
-         "section; row 3 is re-proved in the next planned traced run (docs/harness-progress.md, Plan)",
+         "section, and again on 2026-09-28 (G-115: two unbuilt tools left its allowed-tools); row 3 is "
+         "re-proved in the next planned traced run (docs/harness-progress.md, Plan)",
 }
 PHASE = "define"
 LIVE_TURN = os.environ.get("CAPABILITY_LIVE_TURN") == "1"

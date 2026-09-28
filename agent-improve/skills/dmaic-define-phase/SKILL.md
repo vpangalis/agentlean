@@ -11,7 +11,7 @@ metadata:
   phase_index: 0
   output_schema: DefineOutput
   source: docs/requirements/business.md (R1–R7); BB eBook v11.1, Define phase, paraphrased
-allowed-tools: rag_lookup_methodology, rag_lookup_evidence, rag_lookup_case_history, propose_template, propose_diagram, check_gate_status, request_human_approval, calculate_expected_savings
+allowed-tools: rag_lookup_methodology, rag_lookup_evidence, rag_lookup_case_history, propose_template, propose_diagram, calculate_expected_savings
 ---
 
 # DMAIC Define Phase — Coaching Skill

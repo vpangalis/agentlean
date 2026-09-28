@@ -565,3 +565,20 @@ def test_t85_contextual_chunks_and_a_reranker_go_live_only_on_eval_evidence() ->
 def test_t87_personal_data_is_masked_before_a_model_sees_it() -> None:
     """DEF-144 — T87 (ADR-0062, PROPOSED)."""
     _not_written("DEF-144")
+
+
+def test_every_tool_the_define_skill_offers_is_bound() -> None:
+    """DEF-145 — G-115: the Define SKILL.md's `allowed-tools` names only tools the Define executor
+    has — bound by `_executor_tools` or registered by the skills middleware (`load_skill`)."""
+    import re
+    from pathlib import Path
+
+    from backend.knowledge.computation import COMPUTATION_TOOLS_BY_PHASE
+    from backend.knowledge.tools import UNIVERSAL_TOOLS
+
+    skill = (Path(__file__).resolve().parents[2] / "skills" / "dmaic-define-phase" / "SKILL.md").read_text(encoding="utf-8")
+    m = re.search(r"^allowed-tools:(.*)$", skill, re.M)
+    assert m, "the Define SKILL.md has no allowed-tools line"
+    offered = {t.strip() for t in m.group(1).split(",") if t.strip()}
+    bound = {t.name for t in [*UNIVERSAL_TOOLS, *COMPUTATION_TOOLS_BY_PHASE["define"]]} | {"load_skill"}
+    assert offered <= bound, f"offered and not bound: {sorted(offered - bound)}"

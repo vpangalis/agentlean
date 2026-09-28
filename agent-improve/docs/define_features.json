@@ -5164,6 +5164,40 @@
    "phase": "define",
    "stage": "coached",
    "layer": "platform"
+  },
+  {
+   "id": "DEF-145",
+   "description": "G-115: every tool the Define SKILL.md's allowed-tools offers the coach is bound to the Define executor or registered by its middleware — the script never offers a tool that does not exist.",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_every_tool_the_define_skill_offers_is_bound",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/skills/dmaic-define-phase/SKILL.md",
+     "agent-improve/backend/phases/nodes_common.py::_executor_tools"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [
+     "3"
+    ],
+    "gaps": [
+     "G-115"
+    ]
+   },
+   "requirement": "R2",
+   "belt_impact": "degraded",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
   }
  ]
 }

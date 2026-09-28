@@ -1,9 +1,9 @@
 {
- "source_hash": "075cc33562fef1d9",
- "commit": "bda6e45",
+ "source_hash": "e81f676c054f9f20",
+ "commit": "00ee39e",
  "commit_matches_source": false,
- "full_run_hash": "075cc33562fef1d9",
- "recorded_at": "2026-09-28T07:07:06+00:00",
+ "full_run_hash": "e81f676c054f9f20",
+ "recorded_at": "2026-09-28T07:15:13+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -408,6 +408,7 @@
   "backend/tests/test_define_e2e.py::test_every_node_of_a_turn_is_checkpointed": "skipped",
   "backend/tests/test_define_e2e.py::test_every_phase_report_reads_as_a_business_document": "skipped",
   "backend/tests/test_define_e2e.py::test_every_request_is_explained_with_a_marked_sample": "skipped",
+  "backend/tests/test_define_e2e.py::test_every_tool_the_define_skill_offers_is_bound": "passed",
   "backend/tests/test_define_e2e.py::test_every_turn_is_graded_on_all_four_blocks": "skipped",
   "backend/tests/test_define_e2e.py::test_measure_starts_from_the_approved_define_record": "skipped",
   "backend/tests/test_define_e2e.py::test_messages_show_their_author_and_a_second_person_is_told": "skipped",
@@ -1525,8 +1526,8 @@
   "backend/tests/test_wiring_check.py::test_it_reads_what_section_3_names": "passed"
  },
  "older": {
-  "source_hash": "dc66799feda86121",
-  "recorded_at": "2026-09-27T11:34:21+00:00",
+  "source_hash": "075cc33562fef1d9",
+  "recorded_at": "2026-09-28T07:07:06+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1595,6 +1596,7 @@
    "backend/tests/test_board.py::test_9d_backend_tests_is_not_product_and_nothing_else_is_exempt[`backend/tests/test_x.py` /xb7 `backend/core/graph.py`-True]": "passed",
    "backend/tests/test_board.py::test_the_generated_page_is_true": "passed",
    "backend/tests/test_board.py::test_the_three_groupings_are_on_the_page": "passed",
+   "backend/tests/test_board_value_stream.py::test_a_feature_held_by_its_adr_is_never_a_lanes_top_and_waiting_counts_it": "passed",
    "backend/tests/test_board_value_stream.py::test_a_status_is_derived_green_amber_grey": "passed",
    "backend/tests/test_board_value_stream.py::test_every_feature_is_one_tile_in_its_cell": "passed",
    "backend/tests/test_board_value_stream.py::test_rule_10_reads_the_rendered_page_back_as_true": "passed",

@@ -461,11 +461,14 @@ def test_allowed_tools_match_the_phases_ratified_subset(phase: str) -> None:
     listed = allowed_tools(phase)
     computation = [t.name for t in COMPUTATION_TOOLS_BY_PHASE[phase]]
     assert listed[-len(computation):] == computation, phase
-    assert listed[:7] == [
-        "rag_lookup_methodology", "rag_lookup_evidence",
-        "rag_lookup_case_history", "propose_template", "propose_diagram",
-        "check_gate_status", "request_human_approval",
-    ], f"{phase}'s allowed-tools is not §29.2's universal seven"
+    universal = ["rag_lookup_methodology", "rag_lookup_evidence",
+                 "rag_lookup_case_history", "propose_template", "propose_diagram"]
+    if phase == "define":
+        # Founder 2026-09-28, G-115 / DEF-145: the Define skill offers only tools that are
+        # built — check_gate_status and request_human_approval left its allowed-tools.
+        assert listed[:5] == universal and len(listed) == 5 + len(computation), listed
+        return
+    assert listed[:7] == [*universal, "check_gate_status", "request_human_approval"],         f"{phase}'s allowed-tools is not §29.2's universal seven"
 
 
 @pytest.mark.parametrize("phase", PHASE_ORDER)

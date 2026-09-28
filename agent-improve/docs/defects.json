@@ -1088,6 +1088,19 @@
    "lane": [
     "C"
    ]
+  },
+  {
+   "id": "G-115",
+   "symptom": "THE DEFINE SKILL OFFERS TOOLS THAT DO NOT EXIST. `skills/dmaic-define-phase/SKILL.md` line 14, `allowed-tools`, named `check_gate_status` and `request_human_approval`; neither is defined in `backend/knowledge/` nor bound by `phases/nodes_common.py::_executor_tools` (UNIVERSAL_TOOLS is the three `rag_lookup_*`, `propose_template`, `propose_diagram`, `load_evidence_series`). A coach reading its script is told it can call a tool it does not have. The Measure, Analyse, Improve and Control SKILL.md files list the same two. Found by founder ruling 7's tool-binding view (1b9767e); registered by founder, housekeeping 2026-09-28 item 3a, with the Define skill fixed in the same commit. Owner: lane A.",
+   "requirement": [
+    "R2"
+   ],
+   "feature": [
+    "DEF-145"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }
