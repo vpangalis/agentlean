@@ -1322,6 +1322,19 @@
    "lane": [
     "A"
    ]
+  },
+  {
+   "id": "G-133",
+   "symptom": "THE GATE'S CODE CHECK OF DEF-R02 FAILS A TEAM THAT STATES ITS TRAINING IN OTHER WORDS. Evidence: the run-through of 2026-09-29 on 84d5f26 (record 20260928T225622, IMPR-2026-819): all 13 confirmed, the gate review passed, the submission refused: 'DEF-R02 — The team does not name the training members need (or that none is needed).' The stored team read 'Dev Patel … needs a half-day on data collection before Measure' (and Amira Khan the same); on the two earlier records the coach's structure happened to say 'training' and the submission passed. Registered from the run-through; the regression is DEF-159's (named by G-129 too). Owner: lane B; proved fixed by DEF-159. — 8D. D2 IS: validation/rubric.py::_code_half settles DEF-R02 in code and fails when no team entry contains the letters 'train'. D2 IS-NOT: the champion and process-owner halves (found); the element's own check (accepted the answer at turn 4); G-129's model half (DEF-R02 is code-only, the grader never sees it). D4 OCCURRENCE: a keyword check on the coach's structured paraphrase — 'needs a half-day on data collection' is training in other words. D4 ESCAPE: the rubric's tests use COMPLETE's 'no training needed'; G-129's fix gave the grader the element criteria but DEF-R02 never reaches the grader. D5 FIX (direction, founder ruling 2's intent): code settles what it can (champion, process owner, and 'train' when written); when training is not written in so many words, the criterion goes to the grader with the element's own criteria instead of failing. D7 PREVENT: a rubric test with a team whose training is paraphrased; DEF-159 on the next run-through.",
+   "requirement": [
+    "R7"
+   ],
+   "feature": [
+    "DEF-159"
+   ],
+   "lane": [
+    "B"
+   ]
   }
  ]
 }
