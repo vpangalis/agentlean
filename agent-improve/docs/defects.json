@@ -1127,6 +1127,45 @@
    "lane": [
     "A"
    ]
+  },
+  {
+   "id": "G-118",
+   "symptom": "A READ-BACK AFTER CHANGE DROPS PARTS OF THE ELEMENT THAT WERE ALREADY CAPTURED. Evidence: M1 loop package 1's run-through, IMPR-2026-3B5 (2026-09-28): turn 6's read-back of the voice of the customer proposed both voc_summary and critical_to_quality; the Belt clicked Change (turn 7) and answered again adding one need (turns 8-9); turn 9's read-back proposed voc_summary alone, so the Confirms of turns 10 and 11 stored nothing and the walk stopped stuck at element 3 of 13. Registered by founder ruling 3, 2026-09-28. Owner: lane A; proved fixed by DEF-157. — 8D. D2 IS: the read-back that follows a Change and a revised answer carries only the field the revised words speak about; an element captured with an inner field (position 3's CTQs, position 5's metric definitions) loses the inner field. D2 IS-NOT: not the first read-back of the element (turn 6 proposed both); not the Change click (answered in code, correct); not the store (it refuses an incomplete position as designed). D4 OCCURRENCE: phases/moves.py::decide on Change sets the field back to asked with the Belt's words and drops the pending proposal (`proposed`, `store`); the next read-back is rebuilt only from what the coach model proposes that turn, and the model proposed only the part the revised answer changed. D4 ESCAPE: no test runs Change followed by a revised answer and a Confirm on an element with an inner field; test_moves covers the Change branch on a single-field position; the run-through's Change probe sits at position 3 and was the first to reach it since the CTQs were added to that position (2026-09-26). D5 FIX (direction): the proposal made before Change is kept, and a later read-back of the same element takes from it every part the new proposal lacks, shown to the Belt for confirmation — nothing is stored before Confirm. D7 PREVENT: DEF-157's end-to-end test (Change, revised answer, Confirm, the whole element stored).",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-157"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-119",
+   "symptom": "ONE COACHING TURN MADE 15 MODEL CALLS AND TOOK 45.8 S. Evidence: M1 loop package 1's run-through, IMPR-2026-3B5, turn 8 (the revised answer after Change, a challenge): model calls planner-judgment 1, coach 10, other 4 — 15 calls, 45.8 s; T69 allows 4 calls per ordinary turn and R13 45 s. Registered by founder ruling 3, 2026-09-28: fixed via T69/T70 (ModelCallLimitMiddleware, at most 4 calls per turn; the executor's node timeout ends the loop). Owner: lane A; proved fixed by DEF-094 (T69); DEF-078 (T70, the node timeout) is built in the same package. — 8D. D2 IS: the coach's agent loop re-called its model ten times inside one executor run, between tool results, and the turn passed the 45 s limit. D2 IS-NOT: not the other turns of the run (2-5 calls, 9-19 s); not a retry storm (no 429 or error in the log); not the planner (one judgment call). D4 OCCURRENCE: the executor built by phases/nodes_common.py::_build_executor has no model-call limit — T69's ModelCallLimitMiddleware is not in its middleware list — so nothing bounds the model/tool loop but the hop budget on lookups and the node's 45 s run_timeout, which fired only after the budget was spent. D4 ESCAPE: DEF-094's and DEF-078's end-to-end tests are stubs (`not written yet`); the fake coach in every test answers in one call, so no offline test can see a loop; only the live run-through measures it, and it had not run since 2026-09-25. D5 FIX (direction): ModelCallLimitMiddleware on the executor (run limit 4, retries included), and the node's timeout ends the loop with the move's code-written reply. D7 PREVENT: DEF-094's and DEF-078's tests written, with a fake coach that keeps calling tools.",
+   "requirement": [
+    "T69"
+   ],
+   "feature": [
+    "DEF-094"
+   ],
+   "lane": [
+    "A"
+   ]
+  },
+  {
+   "id": "G-120",
+   "symptom": "THE TARGET VALUE 'UNDER 5% OF SUPPLIER INVOICES' IS CHALLENGED THREE TIMES AS NOT A NUMBER IN THE BASELINE'S UNIT, AND THE WALK STOPS AT ELEMENT 8 OF 13. Evidence: both baseline run-throughs of 2026-09-28 (founder ruling 4), IMPR-2026-04B turns 23-25 and IMPR-2026-6C4 turns 21-23: the planner judged the answer insufficient on the criterion 'a number in the same unit as the baseline' although it carries 5 and %, and the coach asked for '4.9%' or 'exactly 5%'. Registered from the run-through (BRIEF_m1_loop.md rule 1). Owner: lane A; proved fixed by DEF-032 (element 8 stored after Confirm). — 8D. D2 IS: a target stated with a comparator ('under 5%') is judged insufficient three times in a row, on both runs. D2 IS-NOT: not the baseline (element 5 stored on both runs, 23%); not the unit (the coach names % itself); not the walk (the Belt's answer is the scripted one, repeated with detail). D4 OCCURRENCE: the planner's sufficiency judgment reads the criterion as 'one exact number'; a bound with a comparator fails it, and nothing in code checks the number and unit before the model judges. D4 ESCAPE: DEF-032's proof is the live run-through, which had not reached element 8 since the criteria were written (2026-09-26); no offline test judges a target phrased as a bound; R14's park offer (DEF-075) is not built, so three failures are a dead end. D5 FIX (direction): the number and unit of a target are checked in code against the baseline's unit before the judgment, and a bound ('under', 'at most', '<') counts as its number; or the criterion text says so. D7 PREVENT: a judged-offline test of target phrasings, and DEF-032 on the next run-through.",
+   "requirement": [
+    "R4"
+   ],
+   "feature": [
+    "DEF-032"
+   ],
+   "lane": [
+    "A"
+   ]
   }
  ]
 }

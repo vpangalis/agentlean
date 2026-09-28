@@ -7,12 +7,12 @@
 
 | | |
 |---|---|
-| **Headline** | 22 of 155 Define features pass (core 22 of 146) — A 5/62 · B 15/35 · C 1/36 · integrator 1/22 |
+| **Headline** | 36 of 156 Define features pass (core 34 of 147) — A 18/63 · B 15/35 · C 1/36 · integrator 2/22 |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-144 — T87: e-mail, phone, account and card numbers in uploads and tool results are masked before a model sees them; person names are kept; each ma |
 | **Next — lane C** | DEF-074 — G-113: the create form shows no case id until the server has assigned one; the number a Belt sees is always the one the case is saved under. |
 | **Next — lane integrator** | DEF-001 — A Belt creates a new case and it opens in Define: POST /cases returns an id, the case list shows it, and GET /cases/{id} opens it with curre |
-| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
+| **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.1 |
 | **Block regenerated** | 2026-09-28 |

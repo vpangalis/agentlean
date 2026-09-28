@@ -1019,14 +1019,15 @@ def test_t94_strict_by_default_and_production_needs_content_safety(env, monkeypa
 
 
 
-def _coach_saying(monkeypatch, message: str) -> None:
-    """The coach model, faked to write `message` — the words are the model's; the facts must not be."""
+def _coach_saying(monkeypatch, message: str, captured: list | None = None) -> None:
+    """The coach model, faked to write `message` (and to propose `captured`) — the words are the
+    model's; the facts must not be."""
     from langchain_core.messages import AIMessage
 
     from backend.phases import nodes_common
     from backend.tests.test_wiring import REPLY, _FakeCoach
 
-    reply = {**REPLY, "message": message, "fields_captured": []}
+    reply = {**REPLY, "message": message, "fields_captured": captured or []}
     planner = nodes_common.get_llm
     monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(messages=iter([
         AIMessage(content="", tool_calls=[{"name": "CoachingResponse", "args": reply, "id": "call_g117"}])]))
@@ -1085,3 +1086,41 @@ def test_g117_a_value_is_said_to_be_stored_only_by_code_from_the_store_result(en
     assert "recorded your process map" not in answer, answer
     stated = [s for s in re.split(r"(?<=[.!?])\s+", answer) if claim.search(s)]
     assert stated and all(baseline in s for s in stated), f"a store claim not built from the result: {stated}"
+
+
+def test_g118_a_read_back_after_change_keeps_every_part_of_the_element(env, monkeypatch) -> None:
+    """DEF-157 — G-118 (R4): after the Belt clicks Change and answers again, the next read-back
+    still carries every part of the element that was captured before — the CTQs of the voice of
+    the customer are not dropped because the revised answer only added a need — so a Confirm
+    stores the whole element. Found live on IMPR-2026-3B5, turns 9-11: the read-back after Change
+    proposed the summary alone, and every Confirm stored nothing."""
+    from backend.phases import moves
+    from backend.tests.test_define_report import COMPLETE
+
+    record = env.case.phases["define"]
+    record.structured = {k: COMPLETE[k] for k in ("business_case", "team")}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in record.structured}
+    words = "Suppliers need paying on the 30-day terms; ward managers need stock to keep arriving."
+    ctq = COMPLETE["critical_to_quality"]
+    record.field_status["voc_summary"] = {
+        "status": moves.ANSWERED, "answer": words, "messages": 1,
+        "pending": {"field": "voc_summary", "fields": ["voc_summary", "critical_to_quality"],
+                    "belt_words": words, "messages": 1,
+                    "proposed": {"voc_summary": words, "critical_to_quality": ctq},
+                    "store": {"voc_summary": words, "critical_to_quality": ctq}}}
+
+    def ask(**body):
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    ask(message="Change", action="change")
+    revised = words + " One more thing: suppliers cannot see the status of an invoice once it is submitted."
+    _coach_saying(monkeypatch, f'Here is your voice of the customer: "{revised}" Is this right?',
+                  captured=[{"field_name": "voc_summary", "value": revised, "source": "belt"}])
+    ask(message=revised)
+    ask(message="Confirm", action="confirm")
+    stored = (env.client.get(f"/cases/{CASE_ID}").json().get("phases") or {}).get("define", {}).get("structured") or {}
+    assert stored.get("voc_summary"), f"the element was not stored after Confirm: {sorted(stored)}"
+    assert stored.get("critical_to_quality"), "the CTQs captured before Change were dropped by the read-back"
+

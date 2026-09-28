@@ -1402,7 +1402,9 @@
     "capability_rows": [
      "25"
     ],
-    "gaps": [],
+    "gaps": [
+     "G-120"
+    ],
     "notes_6_66": [
      "no value check at capture for baseline/target — missing (6.51)"
     ]
@@ -3785,7 +3787,9 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-119"
+    ]
    },
    "requirement": "T69",
    "belt_impact": "degraded",
@@ -5566,6 +5570,38 @@
    },
    "requirement": "R16",
    "belt_impact": "wrong_data",
+   "rework_risk": "low",
+   "effort": "S",
+   "priority_override": null,
+   "phase": "define",
+   "stage": "coached",
+   "layer": "coaching"
+  },
+  {
+   "id": "DEF-157",
+   "description": "G-118: after a Change click and a revised answer, the read-back still carries every part of the element captured before (e.g. the CTQs of the voice of the customer), so a Confirm stores the whole element.",
+   "clause": "A Belt is coached through the thirteen elements",
+   "depends_on": [],
+   "test": "backend/tests/test_define_e2e.py::test_g118_a_read_back_after_change_keeps_every_part_of_the_element",
+   "sources": {
+    "architecture": [],
+    "procedure": [],
+    "code": [
+     "agent-improve/backend/phases/moves.py::decide",
+     "agent-improve/backend/phases/moves.py::pending_store"
+    ],
+    "guidance": []
+   },
+   "lane": "A",
+   "provenance": {
+    "steps": [],
+    "capability_rows": [],
+    "gaps": [
+     "G-118"
+    ]
+   },
+   "requirement": "R4",
+   "belt_impact": "dead_end",
    "rework_risk": "low",
    "effort": "S",
    "priority_override": null,
