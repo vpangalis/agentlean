@@ -22,6 +22,18 @@
 A feature passes only when its end-to-end test passes.*
 <!-- END CURRENT BUILD STATUS -->
 
+## ⇒ M1 LOOP STOPPED — 2026-09-28, condition 2
+
+*Hand-written. BRIEF_m1_loop.md; the loop log is `.claude/logs/prompts.jsonl` (`kind: loop`).*
+
+| | |
+|---|---|
+| **Stopped on** | condition 2 — the top package's DEF-002 needs G-128 fixed, and G-128's fix is a design question outside ADR-0068 (which tools an answer turn binds, or how the coach's share of T69's four calls is counted) |
+| **Also waiting** | G-129 — the gate rubric's DEF-R13 fails "barriers" for "roadblocks"; the rubric text is founder content (condition 1) |
+| **Best run** | `define_runthrough_20260928T184917` (IMPR-2026-C8A): 13 of 13 confirmed, 14 Confirms, 0 lost; gate review passed; submit refused by DEF-R13 |
+| **M1** | 33 of 47 |
+| **Owed for condition 7** | the run-through submits but does not yet approve (POST /gate/decision) or take the next turn in Measure |
+
 ## ⇒ CURRENT POSITION — 2026-09-24
 
 *Hand-written below the generated block, so regeneration does not touch it.
