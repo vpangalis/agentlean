@@ -1101,6 +1101,19 @@
    "lane": [
     "A"
    ]
+  },
+  {
+   "id": "G-116",
+   "symptom": "Production runs one small graph per phase (`get_graph(phase)`); the designed supervisor graph (`build_supervisor()`) is compiled only by tests; no output mapper runs. Evidence — the call path reported 2026-09-28 (cebf408): routes.py:705 `ask`, :1541 `submit_gate`, :1411 `_pending_interrupts` call `get_graph(phase)`; graph.py:449-510 builds `StateGraph(SupervisorState)` + `add_node(f\"{phase}_phase\", phase_node(phase))` and compiles it with checkpointer and store, once per phase per process (`@lru_cache`); graph.py:196-225 runs the input mapper and `compiled.ainvoke(child)` and returns — no output mapper; `build_supervisor()` (graph.py:416-436) is called only by backend/tests/test_supervisor_graph.py. Five graphs write one thread_id; the approved record never reaches the Store (G-112); phase transitions live in route code. Owner: lane B; proved fixed by DEF-148 (T90). — 8D. D2 IS: Every route builds or reuses a one-phase turn graph; the phase is chosen by the route from the case record, not by the graph; no node writes the approved record or advances current_phase. D2 IS-NOT: Not a subgraph defect: the five-node phase subgraph, its interrupt and resume work (DEF-047-050 pass). Not a persistence defect: checkpoints write and resume per thread. D4 OCCURRENCE: The designed parent was a static chain START → define → measure → … → END. Every Belt turn is a new invocation that must start at the case's CURRENT phase, and a static chain cannot start a turn anywhere but define; the per-phase graphs were the workaround, and the output mapper had nowhere to run. D4 ESCAPE: Tests exercised the unused builder (test_supervisor_graph.py compiles build_supervisor() and asserts its topology), so the design looked covered; nothing checked that a mapper or builder had a PRODUCTION caller until the F6 wiring check (7336040); ARCHITECTURE.md described the intended graph, not the built one, until 1b9767e. D5 FIX: ADR-0063: one compiled graph — START → route_to_phase (a pure function of current_phase) → {phase}_phase wrapper → END; the wrapper runs input mapper → subgraph → output mapper, which on approval writes the Store record and sets current_phase, phase_index, gate_passed. D7 PREVENT: T89 (one builder for production and tests) with its test, and the F6 wiring check turned into a REFUSAL for graph builders and mappers: a builder or mapper with no production caller cannot land.",
+   "requirement": [
+    "T90"
+   ],
+   "feature": [
+    "DEF-148"
+   ],
+   "lane": [
+    "B"
+   ]
   }
  ]
 }

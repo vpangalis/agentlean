@@ -5304,7 +5304,9 @@
    "provenance": {
     "steps": [],
     "capability_rows": [],
-    "gaps": []
+    "gaps": [
+     "G-116"
+    ]
    },
    "requirement": "T90",
    "belt_impact": "dead_end",
