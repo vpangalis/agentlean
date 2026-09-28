@@ -12,6 +12,11 @@ feature) · now per lane (with the next work package) · prompt flow · waiting 
 health strip · burn-up per milestone · last commits (collapsed). Hover shows a tooltip; a
 click opens the side panel with everything behind a tile, bar or counter.
 
+The Belt journey: each element square opens what the Belt provides, why it matters and its
+acceptance criteria (the Define skill), what happened to it in the run (the run record) and the
+features behind it; each stage square opens what happens there (the skill or business.md, per
+`STAGE_SOURCES`), what happened in the run and the stage's features. White = not reached.
+
 A feature's status is derived, never stored: green = its test passes; amber = its test is
 written and fails, or it is its lane's current top-ranked feature; grey = open (a stub).
 In each cell the squares stand in the order of work (rank). A tier-1 (M1) square carries a
@@ -97,30 +102,117 @@ def _elements() -> list[tuple[str, list[str]]]:
     return [(name.strip(), re.findall(r"`(\w+)`", fields)) for n, name, fields in rows if 1 <= int(n) <= 13]
 
 
+def _plain(s: str) -> str:
+    """Markdown emphasis and code marks off, for a panel that shows text, not markup."""
+    return re.sub(r"\*\*|(?<!\w)\*|\*(?!\w)|`", "", s).strip()
+
+
+_BLOCK = re.compile(r"^\*\*\[(\d+) · \w+[^\]]*\]\*\*\n((?:>.*\n?)+)", re.M)
+_CRITERION = re.compile(r"^- `([\w-]+)` — (.+)$")
+
+
+def _element_content() -> dict[int, dict]:
+    """Per element number, from the Define skill's coaching content (its owner): what it is,
+    why it matters, and its acceptance criteria (the skill's paraphrase of R7)."""
+    out: dict[int, dict] = {}
+    for m in _BLOCK.finditer(SKILL.read_text(encoding="utf-8")):
+        lines = [ln[1:].strip() for ln in m.group(2).splitlines()]
+        lead = {k: next((_plain(ln[len(k):]) for ln in lines if ln.startswith(k)), "")
+                for k in ("**What it is:**", "**Why it matters:**")}
+        crit = [(c.group(1), _plain(c.group(2))) for c in map(_CRITERION.match, lines) if c]
+        out[int(m.group(1))] = {"what": lead["**What it is:**"], "why": lead["**Why it matters:**"], "criteria": crit}
+    return out
+
+
+#: Where each stage's "what happens here" is read from: the file and the line that opens it.
+STAGE_SOURCES = {"open_case": (SKILL, "### A — Phase opening"), "coached": (SKILL, "### C — Per-element coaching"),
+                 "report": (SKILL, "### F — The Define report"), "approve": (features.REQUIREMENTS / "business.md", "**R6 "),
+                 "record_written": (features.REQUIREMENTS / "business.md", "**R11 "),
+                 "next_phase": (features.REQUIREMENTS / "business.md", "**f Carried forward.**")}
+
+
+def _stage_text(path: Path, lead: str) -> tuple[str, str]:
+    """The paragraph a stage's source opens with, and where it came from. A heading line (a
+    markdown heading, or a requirement's id line) is skipped; a bold lead-in is kept inline."""
+    text = path.read_text(encoding="utf-8")
+    at = text.find(f"\n{lead}")
+    if at < 0:
+        return "", ""
+    lines = text[at + 1:].splitlines()
+    head = lines[0]
+    heading = lead.startswith("#") or lead.startswith("**R")
+    body = lines[1:] if heading else [head[len(lead):], *lines[1:]]
+    while body and not body[0].strip():
+        body = body[1:]
+    para = []
+    for ln in body:
+        if not ln.strip() or ln.startswith("#") or ln.startswith("|"):
+            break
+        para.append(ln.strip())
+    source = _plain((head if heading else lead).lstrip("#").split(" · ")[0]).rstrip(".")
+    return _plain(" ".join(para)), f"{path.name} — {source}"
+
+
+def _element_run(fields: list[str], turns: list[dict], stored: set[str], stuck: bool,
+                 reached: bool, stopped: str) -> tuple[str, list[str]]:
+    """What happened to one element in the run: its state and the facts the record holds."""
+    on = [t for t in turns if t.get("field") in fields]
+    stored_at = {t["stored_field"]: t.get("n") for t in turns if t.get("stored_field")}
+    facts = [f"{f}: stored at turn {stored_at.get(f, '?')}" if f in stored
+             else f"{f}: not stored" + ("" if any(t.get("field") == f for t in turns) else " — no turn of this run was on it")
+             for f in fields]
+    if on:
+        moves: dict[str, int] = {}
+        for t in on:
+            moves[str(t.get("move"))] = moves.get(str(t.get("move")), 0) + 1
+        facts.append(f"{len(on)} turn(s) on it, turns {on[0].get('n')}–{on[-1].get('n')}: "
+                     + ", ".join(f"{k} ×{v}" for k, v in moves.items()))
+        weak = [t.get("n") for t in on if t.get("verdict") == "insufficient"]
+        if weak:
+            facts.append(f"answer judged insufficient at turn(s) {', '.join(map(str, weak))}")
+    if all(f in stored for f in fields):
+        return "stored", facts
+    if stuck:
+        return "stuck", [*facts, f"the run record: {stopped}" if stopped else "the run record gives no reason"]
+    if not reached:
+        return "not reached", ["no turn of this run reached it"]
+    return "not stored", [*facts, "the run record gives no reason beyond these turns"]
+
+
 def journey() -> dict:
-    """The latest run-through as the six stages, and a sparkline of all of them."""
+    """The latest run-through as the six stages, and a sparkline of all of them. Per element and
+    per stage it carries what the panel shows: the skill's and the requirements' text, and what
+    the run record says happened."""
     runs = sorted(features.RUNTHROUGH.glob("define_runthrough_*.json"))
     elements = _elements()
+    content = _element_content()
     spark = []
     latest: dict = {"stages": {k: "open" for k, _ in STAGES}, "elements": ["open"] * len(elements),
-                    "note": "No run-through recorded yet.", "file": None}
+                    "note": "No run-through recorded yet.", "file": None, "reached": 0,
+                    "element_run": [("not reached", ["no run-through recorded"])] * len(elements),
+                    "stage_run": {k: ["no run-through recorded"] for k, _ in STAGES}}
     for path in runs:
         recs = json.loads(path.read_text(encoding="utf-8"))
         empty: dict = {}
         summ: dict = next((r for r in recs if r.get("kind") == "summary"), empty)
         turns = [r for r in recs if r.get("kind") == "turn"]
         final: dict = next((r for r in recs if r.get("kind") == "final_case"), empty)
-        stored = set(re.findall(r"'(\w+)':", str(final.get("define_structured") or "")))
+        structured = final.get("define_structured") or {}
+        stored = set(structured) if isinstance(structured, dict) else set(re.findall(r"'(\w+)':", str(structured)))
         done = [all(f in stored for f in fs) for _, fs in elements]
         spark.append({"run": path.stem[-15:], "elements": sum(done), "turns": len(turns)})
         stuck = summ.get("stuck_at")
-        els = ["done" if ok else "open" for ok in done]
         k = next((i for i, (_, fs) in enumerate(elements) if stuck in fs), None)
-        if k is not None:
-            els[k] = "wip"
+        touched = [i for i, (_, fs) in enumerate(elements)
+                   if any(t.get("field") in fs for t in turns) or any(f in stored for f in fs)]
+        last = k if k is not None else max(touched, default=-1)
+        element_run = [_element_run(fs, turns, stored, i == k, i <= last, str(summ.get("stopped") or ""))
+                       for i, (_, fs) in enumerate(elements)]
+        # white = not reached in this run; grey = reached and not stored; amber = stuck
+        els = [{"stored": "done", "stuck": "wip", "not stored": "miss"}.get(s, "open") for s, _ in element_run]
         sub: dict = next((r for r in recs if r.get("kind") == "gate_submit"), empty)
-        submit = str(sub.get("body") or "")
-        passed = "'passed': True" in submit
+        body: dict = sub["body"] if isinstance(sub.get("body"), dict) else {}
+        passed = body.get("passed") is True or "'passed': True" in str(sub.get("body") or "")
         moved = final.get("current_phase") not in (None, "define")
         stages = {"open_case": "done" if turns else "open",
                   "coached": "done" if all(done) else ("wip" if turns else "open"),
@@ -128,15 +220,65 @@ def journey() -> dict:
                   "record_written": "done" if moved else "open", "next_phase": "done" if moved else "open"}
         longest = max((float(t.get("seconds") or 0) for t in turns), default=0)
         reached = k + 1 if k is not None else sum(done)
+        at_el = last if last >= 0 else 0
+        stop_at = f"not reached: the run stopped at element {at_el + 1} ({elements[at_el][0]})"
+        after = ([f"recorded after the stop — gate submit: {body.get('message', '')} "
+                  f"Missing: {', '.join(body.get('missing_fields') or []) or '—'}"] if body and not all(done) else [])
+        stage_run = {
+            "open_case": [f"case {summ.get('case_id', '?')} opened; {len(turns)} turns recorded"] if turns else [stop_at],
+            "coached": [f"{sum(done)} of {len(elements)} elements stored"]
+                       + ([f"stuck at element {k + 1} ({elements[k][0]}): {summ.get('stopped', '')}"] if k is not None else []),
+            "report": ["gate submit passed"] if passed else ([stop_at, *after] if not all(done)
+                                                              else [f"gate submit: {body.get('message', 'not recorded')}"]),
+            "approve": [f"approved — the case is now in {final.get('current_phase')}"] if moved else [stop_at if not all(done) else "not approved"],
+            "record_written": [f"the record was written; the case is in {final.get('current_phase')}"] if moved
+                              else [stop_at if not all(done) else "no record written"],
+            "next_phase": [f"{final.get('current_phase')} opened"] if moved else [stop_at if not all(done) else "the next phase did not open"],
+        }
         at = (f"element {reached} of {len(elements)} reached"
               + (f" (stuck at {elements[k][0]})" if k is not None else f" · {sum(done)} confirmed"))
         latest = {"stages": stages, "elements": els, "file": path.name, "reached": reached,
+                  "element_run": element_run, "stage_run": stage_run,
                   "note": f"{at} · {len(turns)} turns · {summ.get('model_calls', '?')} model calls · "
                           f"longest turn {longest:.0f} s · {'approved' if moved else 'not approved'}",
                   "stale": summ.get("product_hash") != features.product_hash()}
     latest["names"] = [n for n, _ in elements]
+    latest["element_detail"] = [{"n": i + 1, "name": n, "fields": fs, **content.get(i + 1, {"what": "", "why": "", "criteria": []}),
+                                 "state": latest["element_run"][i][0], "happened": latest["element_run"][i][1]}
+                                for i, (n, fs) in enumerate(elements)]
+    latest["stage_detail"] = {k: {"label": label, "state": latest["stages"][k], "happened": latest["stage_run"][k],
+                                  **dict(zip(("what", "source"), _stage_text(*STAGE_SOURCES[k])))}
+                              for k, label in STAGES}
     latest["spark"] = spark
     return latest
+
+
+def _behind_element(f: dict, n: int, name: str, fields: list[str]) -> bool:
+    """A coaching-stage feature is behind element n when it names it: 'Field n of 13', its test's
+    [n-field] parameter, one of its field names, a two-word-or-longer part of its name, or its
+    acronym (5W2H, SIPOC, CTQ)."""
+    if f.get("stage") != "coached":
+        return False
+    desc, test = f["description"], f["test"]
+    if re.search(rf"(?<!\w)Field {n} of \d+", desc) or f"[{n}-" in test:
+        return True
+    if any(re.search(rf"(?<!\w){re.escape(x)}(?!\w)", f"{desc} {test}") for x in fields if "_" in x):
+        return True
+    base = re.sub(r"\s*\(.*?\)", "", name)
+    parts = {base, *re.split(r" from | and ", base)}
+    if any(len(p.split()) >= 2 and p.lower() in desc.lower() for p in parts):
+        return True
+    return any(re.search(rf"(?<!\w){a}s?(?!\w)", desc) for a in re.findall(r"(?<!\w)([0-9A-Z]{3,})s?(?!\w)", name))
+
+
+def _journey_features(j: dict, rows: list[dict]) -> None:
+    """The features behind each element and each stage, in the order of work."""
+    def order(fs: list[dict]) -> list[str]:
+        return [f["id"] for f in sorted(fs, key=lambda f: (f["rank"] is None, f["rank"] or 0, f["id"]))]
+    for e in j["element_detail"]:
+        e["features"] = order([f for f in rows if _behind_element(f, e["n"], e["name"], e["fields"])])
+    for k, s in j["stage_detail"].items():
+        s["features"] = order([f for f in rows if f["stage"] == k])
 
 
 def _waiting(reqs: dict[str, dict], records: dict[str, dict], hold: dict[str, str]) -> list[dict]:
@@ -300,9 +442,11 @@ def data() -> dict:
         lanes.append({"lane": lane, "name": features.LANES[lane], "now": q[0] if q else None,
                       "next": q[1] if len(q) > 1 else None, "package": pk[lane]})
     phases = [p for p in PHASES if (features.PROJECT / "docs" / f"{p}_features.json").is_file()]
+    j = journey()
+    _journey_features(j, rows)
     return {"model": model(), "features": rows, "complete": {
                 "passing": sum(x["status"] == "green" for x in ranked_feats), "total": len(ranked_feats)},
-            "milestones": miles, "journey": journey(), "lanes": lanes, "prompts": _prompts(),
+            "milestones": miles, "journey": j, "lanes": lanes, "prompts": _prompts(),
             "waiting": _waiting(reqs, adrs.load(), hold), "health": _health(feats, st, reqs, wires),
             "burnup": burnup(feats, tiers), "commits": commits(), "phases": phases}
 
@@ -335,7 +479,7 @@ h1,h2{font-family:var(--cond);font-weight:600;margin:0}h1{font-size:24px}h2{font
 .stage.done{background:color-mix(in srgb,var(--done) 18%,var(--panel));border-color:var(--done)}
 .stage.wip{background:color-mix(in srgb,var(--wip) 22%,var(--panel));border-color:var(--wip)}
 .els{display:grid;grid-template-columns:repeat(13,1fr);gap:3px}
-.el{aspect-ratio:1;border-radius:3px;background:var(--open)}.el.done{background:var(--done)}.el.wip{background:var(--wip)}
+.el{aspect-ratio:1;border-radius:3px;background:var(--panel);border:1px solid var(--line);cursor:pointer}.el.miss{background:var(--open);border-color:var(--open)}.el.done{background:var(--done);border-color:var(--done)}.el.wip{background:var(--wip);border-color:var(--wip)}
 .grid{overflow-x:auto}
 table.vs{border-collapse:separate;border-spacing:6px;min-width:860px;width:100%}
 .vs th{font:600 11.5px var(--sans);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;padding:0 4px}
@@ -390,9 +534,22 @@ function feature(id){const f=F[id];if(!f)return '';return '<h2>'+esc(f.id)+'</h2
 function list(title,items){return '<h2>'+esc(title)+'</h2><ul>'+items.map(i=>{const m=String(i).match(/^DEF-\\d{3}$/);
  return '<li>'+(m?'<a href="#" data-f="'+i+'">'+i+'</a> '+esc(F[i]?F[i].description:''):esc(i))+'</li>'}).join('')+'</ul>'}
 function open(h){body.innerHTML=h;panel.classList.add('open')}
+function behind(ids){return ids.length?'<ul>'+ids.map(i=>{const f=F[i]||{};return '<li><a href="#" data-f="'+i+'">'+esc(i)+'</a> · '
+ +esc(f.status)+' · '+(f.rank?'#'+f.rank:(f.status==='green'?'passes':'not in the order'))+' — '+esc(String(f.description||'').slice(0,110))+'</li>'}).join('')+'</ul>':'—'}
+function lines(xs){return xs.map(esc).join('<br>')}
+function element(i){const e=D.journey.elements[i];return '<h2>'+esc(e.n+' · '+e.name)+'</h2>'+dl([
+ ['What the Belt provides',esc(e.what)],['Why it matters',esc(e.why)],
+ ['Acceptance criteria (the Define skill, from R7)','<ul>'+e.criteria.map(([k,t])=>'<li><code>'+esc(k)+'</code> — '+esc(t)+'</li>').join('')+'</ul>'],
+ ['In this run: '+e.state,lines(e.happened)+'<br><span class="note">'+esc(D.journey.file||'')+'</span>'],
+ ['Fields',e.fields.map(x=>'<code>'+esc(x)+'</code>').join(', ')],['Features behind it',behind(e.features)]])}
+function stage(k){const s=D.journey.stages[k];return '<h2>'+esc(s.label)+'</h2>'+dl([
+ ['What happens at this stage',esc(s.what)+'<br><span class="note">'+esc(s.source)+'</span>'],
+ ['In this run',lines(s.happened)+'<br><span class="note">'+esc(D.journey.file||'')+'</span>'],['Features behind it',behind(s.features)]])}
 function mark(id){document.querySelectorAll('.vs .t.hl').forEach(t=>t.classList.remove('hl'));if(!id)return;
  const t=document.querySelector('.vs .t[data-f="'+id+'"]');if(t){t.classList.add('hl');t.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'})}}
-document.addEventListener('click',e=>{const a=e.target.closest('[data-f]');if(a){e.preventDefault();mark(a.dataset.f);open(feature(a.dataset.f));return}
+document.addEventListener('click',e=>{const el=e.target.closest('[data-el]');if(el){mark(null);open(element(+el.dataset.el));return}
+ const sg=e.target.closest('[data-stage]');if(sg){mark(null);open(stage(sg.dataset.stage));return}
+ const a=e.target.closest('[data-f]');if(a){e.preventDefault();mark(a.dataset.f);open(feature(a.dataset.f));return}
  const l=e.target.closest('[data-list]');if(l){const [k,i]=l.dataset.list.split(':');const src=D[k][+i];
   open(list(src.label||src.text||src.m||src.stage||'',src.items||[]));return}
  if(e.target.closest('#close')){panel.classList.remove('open');mark(null)}});
@@ -491,8 +648,9 @@ def render(d: dict) -> str:
     for x in d["milestones"]:
         x["items"] = [f["id"] for f in fs if f["tier"] == x["tier"]]
     j = d["journey"]
-    els = "".join(f"<i class='el {s}' data-tip='{i + 1} · {E(n)}: {s}'></i>" for i, (s, n) in enumerate(zip(j["elements"], j["names"])))
-    stages = "".join(f"<div class='stage {j['stages'][k]}' data-tip='{E(label)}: {j['stages'][k]}'>{E(label)}"
+    els = "".join(f"<i class='el {s}' data-el='{i}' data-tip='{i + 1} · {E(e['name'])} — {E(e['state'])}'></i>"
+                  for i, (s, e) in enumerate(zip(j["elements"], j["element_detail"])))
+    stages = "".join(f"<div class='stage {j['stages'][k]}' data-stage='{k}' data-tip='{E(label)}: {j['stages'][k]}'>{E(label)}"
                      + (f"<div class='els'>{els}</div>" if k == "coached" else "") + "</div>" for k, label in STAGES)
     stale = " · <b>the record is older than the product source</b>" if j.get("stale") else ""
     head = "".join(f"<th>{E(label)}</th>" for _, label in STAGES)
@@ -532,7 +690,8 @@ def render(d: dict) -> str:
                   f"<td class='note'>{E(x['timing']) or '—'}</td></tr>" for x in d["commits"])
     progress = json.dumps({k: m[k] for k in ("headline", "passing", "total", "statuses", "next")},
                           ensure_ascii=False, sort_keys=True).replace("</", "<\\/")
-    board = json.dumps({**{k: d[k] for k in ("features", "milestones", "waiting", "health")},
+    journey = {"elements": j["element_detail"], "stages": j["stage_detail"], "file": j["file"]}
+    board = json.dumps({**{k: d[k] for k in ("features", "milestones", "waiting", "health")}, "journey": journey,
                         "stages": dict(STAGES), "layers": dict(LAYERS), "ranked": sum(1 for f in fs if f["rank"])},
                        ensure_ascii=False).replace("</", "<\\/")
     stale_run = "" if m["fresh"] else " <b>The recorded test run is older than the source.</b>"
@@ -545,7 +704,8 @@ def render(d: dict) -> str:
 <div class="top">
 <div class="card"><h2>Define complete</h2><div class="pct">{_pct(c['passing'], c['total']):.0f}<small>%</small></div>
 <div class="note">{c['passing']} of {c['total']} ranked features pass</div>{bars}</div>
-<div class="card"><h2>Belt journey — latest run-through</h2><div class="journey">{stages}</div>
+<div class="card"><div><h2>Belt journey — latest run-through</h2>
+<p class="note" data-key="journey-subtitle">One real Belt run through the product · white = not reached in this run</p></div><div class="journey">{stages}</div>
 <div class="note">{E(j['note'])}{stale} · <code>{E(j['file'] or '—')}</code></div><div>{_spark(j['spark'], len(j['names']))}</div></div>
 </div>
 <div class="card"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:baseline"><h2>Value stream</h2>
