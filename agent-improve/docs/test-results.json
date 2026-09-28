@@ -1,9 +1,9 @@
 {
- "source_hash": "dc66799feda86121",
- "commit": "a838149",
+ "source_hash": "075cc33562fef1d9",
+ "commit": "bda6e45",
  "commit_matches_source": false,
- "full_run_hash": "dc66799feda86121",
- "recorded_at": "2026-09-27T11:34:21+00:00",
+ "full_run_hash": "075cc33562fef1d9",
+ "recorded_at": "2026-09-28T07:07:06+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -33,6 +33,7 @@
   "backend/tests/test_blob.py::test_no_unawaited_async_sdk_call[blob]": "passed",
   "backend/tests/test_blob.py::test_no_unawaited_async_sdk_call[routes]": "passed",
   "backend/tests/test_blob.py::test_owned_paths_are_the_three_in_the_spec": "passed",
+  "backend/tests/test_board_value_stream.py::test_a_feature_held_by_its_adr_is_never_a_lanes_top_and_waiting_counts_it": "passed",
   "backend/tests/test_board_value_stream.py::test_a_status_is_derived_green_amber_grey": "passed",
   "backend/tests/test_board_value_stream.py::test_every_feature_is_one_tile_in_its_cell": "passed",
   "backend/tests/test_board_value_stream.py::test_rule_10_reads_the_rendered_page_back_as_true": "passed",
@@ -1524,8 +1525,8 @@
   "backend/tests/test_wiring_check.py::test_it_reads_what_section_3_names": "passed"
  },
  "older": {
-  "source_hash": "3274e44a2321b9fb",
-  "recorded_at": "2026-09-27T11:17:11+00:00",
+  "source_hash": "dc66799feda86121",
+  "recorded_at": "2026-09-27T11:34:21+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1594,6 +1595,10 @@
    "backend/tests/test_board.py::test_9d_backend_tests_is_not_product_and_nothing_else_is_exempt[`backend/tests/test_x.py` /xb7 `backend/core/graph.py`-True]": "passed",
    "backend/tests/test_board.py::test_the_generated_page_is_true": "passed",
    "backend/tests/test_board.py::test_the_three_groupings_are_on_the_page": "passed",
+   "backend/tests/test_board_value_stream.py::test_a_status_is_derived_green_amber_grey": "passed",
+   "backend/tests/test_board_value_stream.py::test_every_feature_is_one_tile_in_its_cell": "passed",
+   "backend/tests/test_board_value_stream.py::test_rule_10_reads_the_rendered_page_back_as_true": "passed",
+   "backend/tests/test_board_value_stream.py::test_the_page_has_the_mockups_blocks_and_not_the_retired_tables": "passed",
    "backend/tests/test_build_matrix.py::test_a_bare_path_without_the_repo_prefix_is_malformed": "passed",
    "backend/tests/test_build_matrix.py::test_a_complete_response_reports_no_finding": "passed",
    "backend/tests/test_build_matrix.py::test_a_positive_path_anchor_is_not_subject_to_the_parent_rule": "passed",

@@ -134,7 +134,7 @@ def journey() -> dict:
     return latest
 
 
-def _waiting(reqs: dict[str, dict], records: dict[str, dict]) -> list[dict]:
+def _waiting(reqs: dict[str, dict], records: dict[str, dict], hold: dict[str, str]) -> list[dict]:
     proposed = sorted((i for i, r in reqs.items() if r["status"] in ("PROPOSED", "DRAFT")),
                       key=lambda i: (i[0], int(re.sub(r"\D", "", i) or 0)))
     gated = [n for n, r in records.items() if r["status"] == "PROPOSED" and adrs.gated(n)]
@@ -143,9 +143,10 @@ def _waiting(reqs: dict[str, dict], records: dict[str, dict]) -> list[dict]:
     business = (features.REQUIREMENTS / "business.md").read_text(encoding="utf-8")
     block = business[business.find("## Open decisions"):business.find("# Part 1")]
     decisions = re.findall(r"^\| (\d+) \| ([^|]+) \|", block, re.M)
+    held_by = {n: sorted(f for f, a in hold.items() if a == f"ADR-{n}") for n in gated}
     return [
-        {"tag": "ADR", "text": f"ADR {', '.join(gated)} PROPOSED — each gates its features (rule 19)" if gated else "",
-         "items": [f"ADR-{n} {records[n]['title']}" for n in gated]},
+        *[{"tag": "ADR", "text": f"ADR-{n} PROPOSED — holds {len(held_by[n])} feature(s)",
+           "items": [f"ADR-{n} {records[n]['title']}", *held_by[n]]} for n in gated],
         {"tag": "ADR", "text": f"ADR 0001–0056: {len(draft)} of the architecture sort's drafts PROPOSED",
          "items": [f"ADR-{n} {records[n]['title']}" for n in draft]},
         {"tag": "Req", "text": f"{len(proposed)} requirements PROPOSED or DRAFT", "items": proposed},
@@ -155,13 +156,9 @@ def _waiting(reqs: dict[str, dict], records: dict[str, dict]) -> list[dict]:
     ]
 
 
-def _health(feats: list[dict], st: dict[str, str], reqs: dict[str, dict]) -> list[dict]:
+def _health(feats: list[dict], st: dict[str, str], reqs: dict[str, dict], wires: list[dict]) -> list[dict]:
     defects = json.loads(DEFECTS.read_text(encoding="utf-8"))["defects"]
     open_defects = [d for d in defects if d["feature"] and any(st.get(f) != "passing" for f in d["feature"])]
-    try:
-        wires = wiring.findings()
-    except Exception as exc:  # noqa: BLE001 — the board must render
-        wires = [{"finding": f"wiring check failed: {exc!r}"}]
     ok = features.citable(reqs)
     cited = {f["requirement"] for f in feats}
     uncovered = sorted(i for i in ok if (not i.startswith("T") or reqs[i]["proof_none"]) and i not in cited)
@@ -258,19 +255,30 @@ def data() -> dict:
     for d in json.loads(DEFECTS.read_text(encoding="utf-8"))["defects"]:
         for f in d["feature"]:
             defect_of.setdefault(f, []).append(d["id"])
+    hold = rank.held(feats, reqs)
+    try:
+        wires = wiring.findings()
+    except Exception:  # noqa: BLE001 — the board must render
+        wires = []
+    structural = {w["name"] for w in wires if w.get("check") == 3 and "drives neither" in w.get("finding", "")}
     rows = []
     for f in feats:
         file, _, func = f["test"].partition("::")
         calls = wiring._test_calls(features.PROJECT / file, func)
         stub = bool(calls and calls[1])
         tops = f["id"] == nxt.get(f["lane"])
-        status = "green" if st[f["id"]] == "passing" else ("amber" if (not stub or tops) else "grey")
+        # Founder 2026-09-28: a passing test the wiring check flags as not end to end (it drives
+        # neither the graph nor the API) is amber, not green, until it is end to end.
+        not_e2e = f["id"] in structural
+        status = ("green" if not not_e2e else "amber") if st[f["id"]] == "passing" else             ("amber" if (not stub or tops) else "grey")
         req = reqs.get(f["requirement"]) or {}
         r = by_rank.get(f["id"]) or {}
         rows.append({"id": f["id"], "description": f["description"], "lane": f["lane"],
                      "stage": f.get("stage"), "layer": f.get("layer"), "phase": f.get("phase", "define"),
                      "status": status, "tier": tiers.get(f["id"]), "rank": r.get("rank"),
-                     "reason": r.get("reason", "passes — not ranked"), "requirement": f["requirement"],
+                     "reason": r.get("reason") or ("passes, but its test is not end to end (wiring check 3)"
+                                                   if not_e2e else "passes — not ranked"),
+                     "held": hold.get(f["id"]), "not_e2e": not_e2e, "requirement": f["requirement"],
                      "moscow": req.get("moscow"), "design": req.get("design"), "test": f["test"],
                      "depends_on": f["depends_on"], "unblocks": sorted(dependents.get(f["id"], ())),
                      "last_commit": last.get(f"agent-improve/{file}", "—"), "defects": defect_of.get(f["id"], []),
@@ -290,7 +298,7 @@ def data() -> dict:
     return {"model": model(), "features": rows, "complete": {
                 "passing": sum(x["status"] == "green" for x in ranked_feats), "total": len(ranked_feats)},
             "milestones": miles, "journey": journey(), "lanes": lanes, "prompts": _prompts(),
-            "waiting": _waiting(reqs, adrs.load()), "health": _health(feats, st, reqs),
+            "waiting": _waiting(reqs, adrs.load(), hold), "health": _health(feats, st, reqs, wires),
             "burnup": burnup(feats, tiers), "commits": commits(), "phases": phases}
 
 
@@ -332,7 +340,7 @@ table.vs{border-collapse:separate;border-spacing:6px;min-width:860px;width:100%}
 .tiles{display:flex;flex-wrap:wrap;gap:4px}
 .t{width:16px;height:16px;border-radius:3px;cursor:pointer;display:inline-block;border:0;padding:0}
 .t.green{background:var(--done)}.t.amber{background:var(--wip)}.t.grey{background:var(--open)}
-.t.x{outline:2px solid var(--t1);outline-offset:1px}
+.t.x{outline:2px solid var(--t1);outline-offset:1px}.t.held{background-image:repeating-linear-gradient(45deg,transparent 0 3px,var(--panel) 3px 5px)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted);align-items:center}
 .legend span{display:inline-flex;gap:6px;align-items:center}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}@media (max-width:800px){.two{grid-template-columns:1fr}}
@@ -364,7 +372,7 @@ function dl(pairs){return '<dl>'+pairs.map(([k,v])=>'<dt>'+esc(k)+'</dt><dd>'+v+
 function feature(id){const f=F[id];if(!f)return '';return '<h2>'+esc(f.id)+'</h2>'+dl([
  ['Description',esc(f.description)],['Requirement',esc(f.requirement)+' · MoSCoW '+esc(f.moscow)+' · Design '+esc(f.design)],
  ['Lane · stage · layer',esc(f.lane+' · '+f.stage+' · '+f.layer)],['Status',esc(f.status)],
- ['Rank',f.rank?('#'+f.rank+' · tier '+f.tier):'—'],['Reason',esc(f.reason)],
+ ['Rank',f.rank?('#'+f.rank+' · tier '+f.tier):'—'],['Held',esc(f.held||'—')],['Reason',esc(f.reason)],
  ['Belt impact · rework risk · effort',esc(f.belt_impact+' · '+f.rework_risk+' · '+f.effort)],
  ['Depends on',f.depends_on.map(d=>'<a href="#" data-f="'+d+'">'+d+'</a>').join(', ')||'—'],
  ['Unblocks',f.unblocks.map(d=>'<a href="#" data-f="'+d+'">'+d+'</a>').join(', ')||'—'],
@@ -482,8 +490,8 @@ def render(d: dict) -> str:
         cells = []
         for sk, _ in STAGES:
             tiles = "".join(
-                f"<button class='t {f['status']}{' x' if f['tier'] == 1 else ''}' data-f='{f['id']}' "
-                f"data-tip='{E(f['id'])} — {E(f['description'][:140])} · {E(f['reason'])}'></button>"
+                f"<button class='t {f['status']}{' x' if f['tier'] == 1 else ''}{' held' if f['held'] else ''}' data-f='{f['id']}' "
+                f"data-tip='{E(f['id'])}{' — held: ' + E(f['held']) if f['held'] else ''} — {E(f['description'][:140])} · {E(f['reason'])}'></button>"
                 for f in fs if f["stage"] == sk and f["layer"] == lk)
             cells.append(f"<td><div class='tiles'>{tiles}</div></td>")
         body_rows.append(f"<tr><td class='l'>{E(ll)}</td>{''.join(cells)}</tr>")
@@ -519,7 +527,7 @@ def render(d: dict) -> str:
 <div class="note">{E(j['note'])}{stale} · <code>{E(j['file'] or '—')}</code></div><div>{_spark(j['spark'], len(j['names']))}</div></div>
 </div>
 <div class="card"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:baseline"><h2>Value stream</h2>
-<div class="legend"><span><i class="t green"></i>passing</span><span><i class="t amber"></i>in progress</span><span><i class="t grey"></i>open</span><span><i class="t grey x"></i>tier 1</span></div></div>
+<div class="legend"><span><i class="t green"></i>passing</span><span><i class="t amber"></i>in progress</span><span><i class="t grey"></i>open</span><span><i class="t grey x"></i>tier 1</span><span><i class="t grey held"></i>held by an ADR</span><span><i class="t amber"></i>also: passes, not end to end</span></div></div>
 <div class="grid"><table class="vs"><thead><tr><th></th>{head}</tr></thead><tbody>{''.join(body_rows)}</tbody><tfoot><tr><td></td>{foot}</tr></tfoot></table></div></div>
 <div class="two"><div class="card"><h2>Now per lane</h2>{lanes}</div>
 <div class="card"><h2>Waiting for you</h2>{waiting}</div></div>

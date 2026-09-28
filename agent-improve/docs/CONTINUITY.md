@@ -15,7 +15,7 @@
 | **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.1 |
-| **Block regenerated** | 2026-09-27 |
+| **Block regenerated** | 2026-09-28 |
 
 *Every figure comes from `docs/define_features.json` and
 `docs/test-results.json` (step 6.67); the headline is the board's.

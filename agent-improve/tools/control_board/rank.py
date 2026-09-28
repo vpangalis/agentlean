@@ -26,6 +26,7 @@ from pathlib import Path
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))
 
+import adrs  # noqa: E402
 import features as F  # noqa: E402
 
 #: The scales (brief Part F3.3) — tunable only by a founder ruling.
@@ -65,6 +66,21 @@ def problems(features: list[dict]) -> list[str]:
     return out
 
 
+def held(features: list[dict], reqs: dict[str, dict],
+         records: dict[str, dict] | None = None) -> dict[str, str]:
+    """{feature id: "ADR-nnnn"} for every feature the design gate holds (guard rule 19): its
+    requirement names an ADR from 0057 on that is not ACCEPTED. Held features stay ranked and
+    on the board, but no lane takes one as its top feature or into a package (founder,
+    2026-09-28)."""
+    records = adrs.load() if records is None else records
+    out = {}
+    for f in features:
+        design = (reqs.get(f.get("requirement", "")) or {}).get("design") or "none"
+        if design.startswith("ADR-") and adrs.gated(design[4:])                 and (records.get(design[4:]) or {}).get("status") != "ACCEPTED":
+            out[f["id"]] = design
+    return out
+
+
 def _dependents(features: list[dict], failing: set[str]) -> dict[str, set[str]]:
     """For each feature, the failing features that depend on it, transitively."""
     direct: dict[str, set[str]] = {f["id"]: set() for f in features}
@@ -95,6 +111,7 @@ def rank(features: list[dict] | None = None, res: dict | None = None,
     failing = {i for i, s in st.items() if s == "failing"}
     by_id = {f["id"]: f for f in features}
     dependents = _dependents(features, failing)
+    hold = held(features, reqs)
 
     own: dict[str, int | None] = {}
     why: dict[str, list[str]] = {}
@@ -149,7 +166,8 @@ def rank(features: list[dict] | None = None, res: dict | None = None,
             placed.extend(pending)
             break
     return [{"id": fid, "lane": by_id[fid]["lane"], "rank": n + 1, "tier": tier[fid],
-             "score": round(score[fid], 2), "reason": " · ".join(why[fid])}
+             "score": round(score[fid], 2), "held": hold.get(fid),
+             "reason": (f"held: {hold[fid]} not accepted (rule 19) · " if fid in hold else "") + " · ".join(why[fid])}
             for n, fid in enumerate(placed)]
 
 
@@ -174,10 +192,10 @@ def milestones(features: list[dict] | None = None, res: dict | None = None,
 
 
 def next_per_lane(ranked: list[dict]) -> dict[str, str | None]:
-    """Each lane takes its top-ranked failing feature."""
+    """Each lane takes its top-ranked failing feature — never one the design gate holds."""
     out: dict[str, str | None] = {lane: None for lane in F.LANES}
     for r in ranked:
-        if out.get(r["lane"]) is None:
+        if out.get(r["lane"]) is None and not r.get("held"):
             out[r["lane"]] = r["id"]
     return out
 
@@ -204,13 +222,14 @@ def packages(features: list[dict] | None = None, ranked: list[dict] | None = Non
     next-ranked features of the lane, in rank order, that share its area (same layer and stage,
     or the same module) or depend on a feature already in the package — until 5 effort points.
     A feature of another area is never pulled ahead of its rank: it ends the package (and
-    starts the next one); so does one that would push the package past 5 points."""
+    starts the next one); so does one that would push the package past 5 points. A feature
+    the design gate holds is skipped (founder, 2026-09-28)."""
     features = F.load() if features is None else features
     ranked = rank(features, res) if ranked is None else ranked
     by_id = {f["id"]: f for f in features}
     out: dict[str, dict] = {}
     for lane in F.LANES:
-        queue = [r["id"] for r in ranked if r["lane"] == lane]
+        queue = [r["id"] for r in ranked if r["lane"] == lane and not r.get("held")]
         if not queue:
             out[lane] = {"features": [], "points": 0}
             continue

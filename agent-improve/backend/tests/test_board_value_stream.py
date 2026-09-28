@@ -38,7 +38,8 @@ def test_a_status_is_derived_green_amber_grey(board) -> None:
     st = F.status(F.load(), F.results())
     tops = {x["now"] for x in d["lanes"]}
     for f in d["features"]:
-        assert (f["status"] == "green") == (st[f["id"]] == "passing"), f["id"]
+        # founder 2026-09-28: a passing test that is not end to end is amber, not green
+        assert (f["status"] == "green") == (st[f["id"]] == "passing" and not f["not_e2e"]), f["id"]
         if f["id"] in tops:
             assert f["status"] == "amber", f["id"]
 
@@ -56,3 +57,14 @@ def test_the_page_has_the_mockups_blocks_and_not_the_retired_tables(board) -> No
 def test_rule_10_reads_the_rendered_page_back_as_true(board) -> None:
     _, page = board
     assert check_board.check(page, None) == []
+
+
+def test_a_feature_held_by_its_adr_is_never_a_lanes_top_and_waiting_counts_it(board) -> None:
+    """Founder 2026-09-28: held features stay on the board, marked, but no lane takes one."""
+    d, page = board
+    held = {f["id"]: f["held"] for f in d["features"] if f["held"]}
+    tops = {x["now"] for x in d["lanes"]} | {i for x in d["lanes"] for i in x["package"]["features"]}
+    assert held and not held.keys() & tops
+    for adr in set(held.values()):
+        n = sum(1 for a in held.values() if a == adr)
+        assert f"{adr} PROPOSED — holds {n} feature(s)" in page
