@@ -224,4 +224,4 @@ def test_g134_def_r13_is_settled_in_code_first_and_the_model_judges_only_specifi
     got = _grade({**COMPLETE, "issues_and_barriers": live}, j3 := Recorder())
     assert "DEF-R13" in j3.asked and got["DEF-R13"].status == "pass"
     assert j3.texts["DEF-R13"] == MODEL_ASKS["DEF-R13"], "the model is asked specificity only"
-    assert "ONLY whether each one named is specific" in j3.texts["DEF-R13"]
+    assert "FAIL only when they are generic labels" in j3.texts["DEF-R13"]

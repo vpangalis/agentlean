@@ -181,10 +181,15 @@ def _names_a_roadblock(text: str) -> bool:
 
 #: G-134 — what the grader is asked when code has settled part of a criterion: the rest only.
 MODEL_ASKS: dict[str, str] = {
-    "DEF-R13": ("code has already checked that at least one issue or barrier is named; judge ONLY "
-                "whether each one named is specific to this project — a concrete roadblock (a named "
-                "system, team, rule, date or dependency), not a generic word such as 'resources', "
-                "'time' or 'change' on its own"),
+    # G-134, second attempt (2026-09-29): the first narrowed question ("each one named is specific
+    # ... a named system, team, rule, date or dependency") still failed an answer naming three sites'
+    # approval routes and an ERP change freeze until January (record 20260929T103652). The question
+    # now says what passes and what fails, in the project's terms.
+    "DEF-R13": ("code has already checked that at least one issue or barrier is named. Judge ONLY "
+                "whether they belong to THIS project: PASS when the roadblocks named mention something "
+                "concrete from it — a site, process, system, team, rule, supplier, date or event; FAIL "
+                "only when they are generic labels that would fit any project ('resources', 'time', "
+                "'stakeholder buy-in', 'resistance to change') with nothing concrete from this project"),
 }
 
 
