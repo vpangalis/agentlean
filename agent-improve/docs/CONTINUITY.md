@@ -22,18 +22,18 @@
 A feature passes only when its end-to-end test passes.*
 <!-- END CURRENT BUILD STATUS -->
 
-## ⇒ M1 LOOP STOPPED — 2026-09-29 (third run), condition 6 (the live-call cap)
+## ⇒ M1 LOOP STOPPED — 2026-09-29 (fourth run), condition 1 (a founder decision: the run allotment)
 
-*Hand-written. BRIEF_m1_loop.md + founder rulings 2026-09-29 (second set, items 1-10); the loop log is `.claude/logs/prompts.jsonl` (`kind: loop`).*
+*Hand-written. Founder rulings 2026-09-29 (third set, items 1-5); the loop log is `.claude/logs/prompts.jsonl` (`kind: loop`).*
 
 | | |
 |---|---|
-| **Stopped on** | item 8's cap: 321 of 400 live calls used; condition 7 needs two consecutive fresh approved runs on the final source (~220 calls) — more than the 79 left |
-| **Landed on main** | DEF-040 -> M2 (756e55f) · data models in docs/data-models.md (a3b3c2f) · DEF-054, DEF-074 end to end (ff7b600) · G-134 (7522307, 67bc629) · fast tests per commit (234c0a3) · G-135, G-136 (cd8a0a9) |
-| **Not landed** | DEF-079 — built, its test passes, full suite green, on branch **m1/def-079-pending** (2b73695). Rule 11 waits for DEF-008 on a live record of that source |
-| **Run-throughs** | 103652: DEF-R13 refused (G-134 first fix) · 111219 and 113121 (main + DEF-079): 13/13, approved, next turn in Measure — each with one Confirm at element 5 that stored nothing (G-137) and, on 113121, a teaching reply without blocks (G-138) |
-| **M1** | on the runs' source (main + DEF-079): 44 of 46 — open DEF-008 (G-137), DEF-005 (G-138). On main alone the record is stale, so every run-through feature reads open until a run on main's source |
-| **Next** | fix G-137 (element 5's read-back must carry the metric definitions) and G-138 (empty teaching blocks filled from the skill); then two runs on the merged source for condition 7 |
+| **Stopped on** | Item 5 allowed two confirmation runs; both ran on main's own source and both were approved with the next turn in Measure, but run 2 failed three run-through features, two of them M1 (DEF-008, DEF-002), so condition 7's "all M1 features pass on main" is not met. A third run, or a G-139 fix with two new runs (~220 calls, 129 left of 350), is the founder's call |
+| **Landed on main** | Board: "proven on earlier code, awaiting a fresh run" (c65900c) · the two timing labels (db2b283) · pre-push check: a push needs a passing full run on its source (96cd0eb) · G-137 (160f0e9) · G-138 (3c7c517) · DEF-079 merged (25b91f7) · run 2 and G-139/G-140/G-141 (f387d40) |
+| **Run-throughs** | 172658 (run 1, main's source): 13/13, 33 turns, 109 calls, longest 22.9 s, no Confirm refused, approved, Measure, M1 46/46 · 174434 (run 2, same source): 13/13, 34 turns, 112 calls, longest 23.2 s, approved, Measure. At element 10, turns 25-26 were written in code (call limit on an answer turn), so the Confirm at 27 stored nothing |
+| **M1** | 44 proven · 0 awaiting fresh run · 2 open (DEF-008 via G-140, DEF-002 via G-141) |
+| **Found** | The commit guard skips merge commits (`commit-msg-refactor-guard.py:1702`): 25b91f7 was not checked by rules 6/10/11. Checked by hand after the push: DEF-079 lands, the ratchet refuses nothing, the board agrees |
+| **Next** | G-139: first log the coach's produced messages when the call limit fires (no live call needed), so one run names the occurrence; then fix it, and two runs for condition 7 |
 
 ## ⇒ CURRENT POSITION — 2026-09-24
 
