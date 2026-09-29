@@ -378,6 +378,37 @@ def field_needs(phase: str, field: str) -> str:
     return "\n".join(line for label in _JUDGE_SECTIONS for line in sections.get(label, []))
 
 
+def _section_text(lines: list[str]) -> str:
+    """A `> **Label:** text` section as plain text — the label and the italics dropped, its line
+    breaks kept (a Show can be a table: the SIPOC's, the 5W2H's)."""
+    text = "\n".join(ln.lstrip(">").strip() for ln in lines).strip()
+    text = text.split(":**", 1)[-1] if ":**" in text else text
+    return text.strip().strip("*").strip()
+
+
+def teaching_blocks(phase: str, field: str) -> dict[str, str]:
+    """G-138 — what the script says to teach `field`, as the reply's three teaching blocks:
+    `explanation` (What it is + Why it matters), `example` (the Show, marked as an illustration)
+    and `prompt` (the Ask). The same source the coach is given; {} for a field with no block.
+    A sentence carrying a script placeholder ({baseline_estimate}) is the model's to fill and is
+    left out, as `_script_ask` does (G-130)."""
+    if phase not in SKILL_DIRS:
+        return {}
+    _position, block = _field_blocks(phase).get(_CAPTURED_INSIDE.get(field, field), (None, ""))
+    sections = _sections(block)
+
+    def plain(label: str) -> str:
+        text = _section_text(sections.get(label, []))
+        if not re.search(r"\{[^{}]*\}", text):
+            return text
+        return " ".join(s for s in re.split(r"(?<=[.?!])\s+", text) if not re.search(r"\{[^{}]*\}", s))
+    what, why, show, ask = plain("What it is"), plain("Why it matters"), plain("Show"), plain("Ask")
+    out = {"explanation": " ".join(x for x in (what, why) if x),
+           "example": f"Illustration — not your data:{chr(10) if chr(10) in show else ' '}{show}" if show else "",
+           "prompt": ask}
+    return {k: v for k, v in out.items() if v}
+
+
 def level_1_catalogue() -> str:
     """All five descriptions — what the coach sees before loading anything."""
     return "\n".join(

@@ -1434,6 +1434,30 @@ def _fallback_reply(phase: str, plan: Optional[CoachingPlan]) -> CoachingRespons
     return CoachingResponse(message=text + chr(10) * 2 + prompt, prompt=prompt)
 
 
+#: G-138 — the moves that teach a field: its first reply carries all three teaching blocks.
+TEACHING_MOVES = (moves.TEACH, moves.STORE_AND_ADVANCE)
+
+
+def _with_teaching_blocks(phase: str, plan: Optional[CoachingPlan], reply: CoachingResponse,
+                          gaps: list[str]) -> CoachingResponse:
+    """G-138 (DEF-005): on a teaching move, a block the coach returned empty is written in code
+    from the field's script (`skills.teaching_blocks`) — what it is and why, the marked
+    illustration, the question — the same source the coach is given. A block the coach wrote is
+    never replaced. Returns a COPY with the blocks filled (the reply itself is not changed), or
+    `reply` when nothing is filled."""
+    if plan is None or plan.move not in TEACHING_MOVES or not plan.focus_field:
+        return reply
+    from backend.middleware.skills import teaching_blocks
+    script = teaching_blocks(phase, plan.focus_field)
+    filled: dict[str, Any] = {k: script[k] for k in ("explanation", "example", "prompt")
+                              if k in gaps and script.get(k)}
+    if not filled:
+        return reply
+    logger.info("%s.executor: G-138 — teaching block(s) %s of `%s` written from the script",
+                phase, ", ".join(filled), plan.focus_field)
+    return reply.model_copy(update=filled)
+
+
 #: G-117 — a sentence that says a value was stored. A negated or conditional one ("nothing is
 #: stored until you confirm") is not a claim and stays.
 _STORE_CLAIM = re.compile(r"(?<![A-Za-z])(recorded|stored|saved|logged)(?![A-Za-z])"
@@ -1978,6 +2002,7 @@ async def executor(
                 "schema one.",
                 phase, ", ".join(gaps),
             )
+            reply = _with_teaching_blocks(phase, plan, reply, gaps)
 
     # R4 — `consumed_at` is written HERE, not inside the tool. A `@tool`
     # receives only its arguments and cannot reach `PhaseState`; the node
