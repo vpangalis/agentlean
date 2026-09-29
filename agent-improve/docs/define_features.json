@@ -91,7 +91,8 @@
      "2"
     ],
     "gaps": [
-     "G-131"
+     "G-131",
+     "G-141"
     ]
    },
    "requirement": "R1",
@@ -369,7 +370,8 @@
     "capability_rows": [],
     "gaps": [
      "G-122",
-     "G-137"
+     "G-137",
+     "G-140"
     ],
     "notes_6_66": [
      "no route-level test drives action='confirm' (test_wiring uses a typed yes) — missing"
@@ -5719,7 +5721,8 @@
     "steps": [],
     "capability_rows": [],
     "gaps": [
-     "G-128"
+     "G-128",
+     "G-139"
     ]
    },
    "requirement": "T69",
