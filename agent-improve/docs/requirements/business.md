@@ -107,7 +107,7 @@ Hard limit: no turn exceeds 45 s; a turn that would, answers with what it has an
 Goals: 15 s at P50 and 30 s at P95 — measured and reported on every run-through, not blocking
 until production launch.
 
-**R14 No dead end** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: none
+**R14 No dead end** · ACCEPTED 2026-09-27 · MoSCoW: Must · Design: ADR-0072
 If an element cannot be completed after three attempts, the coach offers to park it and move on.
 A parked element stays open in the progress view and blocks approval only if it is required
 (Tier 1). Every turn ends with an action the Belt can take.
@@ -154,14 +154,16 @@ The current 12 + BENEFITS ANALYSIS (cost of the gap / COPQ, sustainable vs one-o
 realisation schedule, finance contact; manual p. 60–63). VOC includes the CTQs (p. 82).
 The element list and field names are owned by `backend/phases/define/schema.py` — never restated.
 
-**R7 Acceptance criteria and gate rubric** · RATIFIED 2026-09-26, amended ACCEPTED 2026-09-27 · MoSCoW: Must · Design: ADR-0010
+**R7 Acceptance criteria and gate rubric** · RATIFIED 2026-09-26, amended ACCEPTED 2026-09-27 and 2026-09-29 · MoSCoW: Must · Design: ADR-0071
 From the manual: business case = what, where, when, baseline size, cost, no cause or solution
 speculation (p. 49); exactly ONE primary metric, quantified, linked to a KPI (p. 58); secondary
 metrics capture side effects (p. 58); scope not too broad, map as-is not ideal (p. 80); team names
 champion and process owner, and training needs (p. 82); real data, not best guesses (p. 80).
 Metric charts over time belong to Measure (p. 51). *Amendments:* baseline and target are stored as a
-number with a unit, and an unparseable value is asked again; the problem statement names the
-process step(s) where the problem shows (R18).
+number with a unit, and an unparseable value is asked again (ADR-0071; the rubric's design is ADR-0010);
+the problem statement names the process step(s) where the problem shows (R18). Rubric DEF-R13
+(amended 2026-09-29): the issues and barriers name the key issues and barriers (roadblocks) that
+could stop the project, each specific — or state "none identified at this stage" as a conscious answer.
 
 **R17 The as-is process with its performance** · ACCEPTED 2026-09-27 · open decision 6 · MoSCoW: Must · Design: none
 The high-level process element captures not only the SIPOC and its steps but how the process

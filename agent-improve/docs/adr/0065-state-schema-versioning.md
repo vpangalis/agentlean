@@ -1,6 +1,6 @@
 # ADR-0065 — Checkpoints carry a state schema version; every state change ships a migration
 
-Status: PROPOSED (founder) · 2026-09-28 · Requirement: T88
+Status: ACCEPTED (founder, 2026-09-29) · proposed 2026-09-28 · Requirement: T88
 
 ## Context
 A DMAIC case runs for weeks or months. Its checkpoints and Store records are written by the release

@@ -60,12 +60,26 @@ def test_rule_10_reads_the_rendered_page_back_as_true(board) -> None:
     assert check_board.check(page, None) == []
 
 
-def test_a_feature_held_by_its_adr_is_never_a_lanes_top_and_waiting_counts_it(board) -> None:
+def test_a_feature_held_by_its_adr_is_never_a_lanes_top_and_waiting_counts_it(board, monkeypatch) -> None:
     """Founder 2026-09-28: held features stay on the board, marked, but no lane takes one."""
     d, page = board
     held = {f["id"]: f["held"] for f in d["features"] if f["held"]}
     tops = {x["now"] for x in d["lanes"]} | {i for x in d["lanes"] for i in x["package"]["features"]}
-    assert held and not held.keys() & tops
+    assert not held.keys() & tops
+    # Independent of today's records (2026-09-29: accepting ADR-0065 released the last held
+    # feature): with ADR-0071 read as PROPOSED, R7's features are held and no lane takes one.
+    import adrs
+    import rank as R
+    records = {n: dict(r) for n, r in adrs.load().items()}
+    records["0071"]["status"] = "PROPOSED"
+    feats, reqs = F.load(), F.requirements()
+    hold = R.held(feats, reqs, records)
+    assert hold and set(hold.values()) == {"ADR-0071"}
+    monkeypatch.setattr(R, "held", lambda fs, rq, rec=None: hold)
+    ranked = R.rank(feats, F.results(), reqs)
+    nxt = R.next_per_lane(ranked)
+    pk = R.packages(feats, ranked, F.results())
+    assert not hold.keys() & ({i for i in nxt.values() if i} | {i for p in pk.values() for i in p["features"]})
     for adr in set(held.values()):
         n = sum(1 for a in held.values() if a == adr)
         assert f"{adr} PROPOSED — holds {n} feature(s)" in page

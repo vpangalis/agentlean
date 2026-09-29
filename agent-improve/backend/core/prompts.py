@@ -1659,7 +1659,7 @@ DEFINE_RUBRIC = """\
 - DEF-R10 benefits_analysis: quantifies the cost of the gap (COPQ), says sustainable or one-off, gives a realisation schedule and names the finance contact (p. 60-63)
 - DEF-R11 secondary_metrics: names at least one measure of a side effect of the change, not the primary metric restated (p. 58)
 - DEF-R12 process_map_sipoc: maps the process AS-IS, not the ideal, with suppliers, inputs, steps, outputs, customers and the measures all filled (p. 80, 112)
-- DEF-R13 issues_and_barriers: names the key issues and barriers (roadblocks) that could stop the project, each specific (p. 80, 82)
+- DEF-R13 issues_and_barriers: names the key issues and barriers (roadblocks) that could stop the project, each specific — or states "none identified at this stage" as a conscious answer (p. 80, 82)
 """
 
 GATE_GRADER_PROMPT = """\

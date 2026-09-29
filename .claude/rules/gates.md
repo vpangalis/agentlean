@@ -138,8 +138,10 @@ rubric criterion is in one tier:
 tabulate them here. **Define has no Tier 2** (Option A, §0.18); every Define
 field is gate-required.
 
-**`issues_and_barriers` is gate-required in every phase** ("none identified
-at this stage" is a valid answer). **It is NOT `acknowledged_gaps`** —
+**`issues_and_barriers` is gate-required in every phase** — it names the key
+issues and barriers (roadblocks) that could stop the project, each specific, or
+states "none identified at this stage" as a conscious answer (rubric DEF-R13,
+founder 2026-09-29). **It is NOT `acknowledged_gaps`** —
 Belt-stated blockers vs system-recorded skipped Tier 2 fields.
 
 **`CriterionVerdict` (designated for `validation/schemas.py`, §2; not yet
