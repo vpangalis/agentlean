@@ -31,9 +31,79 @@ UNVERSIONED = 1
 
 Migration = Callable[[Mapping[str, Any]], dict[str, Any]]
 
+def _define_metrics(artifacts: Mapping[str, Any],
+                    field_status: Mapping[str, Any] | None) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """Define's captured values with the baseline and the target as MetricValues, through the one
+    parser (ADR-0071 point 2). A value it reads no number from keeps `raw`, gets `value` None and
+    its element is marked for re-confirmation — back to "not taught", so the coach asks for it
+    again on the next visit. Nothing is deleted."""
+    from backend.phases.define import parse
+    out = dict(artifacts)
+    status = dict(field_status) if field_status is not None else None
+    unit = parse.primary_unit(out)
+    for field in parse.METRIC_FIELDS:
+        value = out.get(field)
+        if not isinstance(value, str) or not value.strip():
+            continue
+        target = field == "target_value"
+        hint = unit
+        if target and isinstance(out.get("baseline_estimate"), dict):
+            hint = out["baseline_estimate"].get("unit") or unit
+        mv = parse.metric_value(value, target=target, unit=hint)
+        out[field] = mv
+        if mv["value"] is None and status is not None:
+            status[field] = {"status": "not taught", "reconfirm": True, "answer": value}
+    return out, status
+
+
+def _metric_entries(entries: Any, artifacts: Mapping[str, Any]) -> Any:
+    """`phase_metrics`' primary entry mirrors the scalars (§63.9): the same MetricValues."""
+    if not isinstance(entries, list) or not entries or not isinstance(entries[0], dict):
+        return entries
+    first = dict(entries[0])
+    for field in ("baseline_estimate", "target_value"):
+        if isinstance(first.get(field), str) and isinstance(artifacts.get(field), dict)                 and first[field] == artifacts[field].get("raw"):
+            first[field] = artifacts[field]
+    return [first, *entries[1:]]
+
+
+def migrate_v1_to_v2(values: Mapping[str, Any]) -> dict[str, Any]:
+    """ADR-0071 (DEF-076): Define's `baseline_estimate` and `target_value`, text in version 1,
+    become MetricValues — wherever version-1 state held them: a checkpoint's `artifacts` (with
+    its `field_status`), a Define document (`final`, `draft`, or a Store `artifacts/define`
+    record, flat), and the Store's case record (`captured_by_phase` / `field_status_by_phase`).
+    Only Define holds these two fields; every other key is left as it was."""
+    out = dict(values)
+    if isinstance(out.get("artifacts"), dict):
+        fs = out.get("field_status") if isinstance(out.get("field_status"), dict) else None
+        arts, fs2 = _define_metrics(out["artifacts"], fs)
+        out["artifacts"] = arts
+        if fs2 is not None:
+            out["field_status"] = fs2
+    for key in ("final", "draft"):
+        if isinstance(out.get(key), dict) and any(isinstance(out[key].get(f), str)
+                                                   for f in ("baseline_estimate", "target_value")):
+            doc, _ = _define_metrics(out[key], None)
+            doc["phase_metrics"] = _metric_entries(doc.get("phase_metrics"), doc)
+            out[key] = doc
+    captured = out.get("captured_by_phase")
+    if isinstance(captured, dict) and isinstance(captured.get("define"), dict):
+        statuses = dict(out.get("field_status_by_phase") or {})
+        fs = statuses.get("define") if isinstance(statuses.get("define"), dict) else None
+        arts, fs2 = _define_metrics(captured["define"], fs)
+        out["captured_by_phase"] = {**captured, "define": arts}
+        if fs2 is not None:
+            out["field_status_by_phase"] = {**statuses, "define": fs2}
+    if any(isinstance(out.get(f), str) for f in ("baseline_estimate", "target_value"))             and "metric_definitions" in out:
+        flat, _ = _define_metrics(out, None)
+        flat["phase_metrics"] = _metric_entries(flat.get("phase_metrics"), flat)
+        out = flat
+    return out
+
+
 #: {N: migrate_vN_to_vN+1}. Adding a state change raises STATE_SCHEMA_VERSION by one and adds
 #: its function here, with its fixture test.
-MIGRATIONS: dict[int, Migration] = {}
+MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2}
 
 
 def current() -> int:
@@ -114,5 +184,5 @@ def migrate_case(data: Mapping[str, Any], found: int) -> dict[str, Any]:
     return out
 
 
-__all__ = ["current", "migrate_case", "VERSION_KEY", "UNVERSIONED", "MIGRATIONS", "version_of", "check_loadable", "migrate",
+__all__ = ["current", "migrate_case", "migrate_v1_to_v2", "VERSION_KEY", "UNVERSIONED", "MIGRATIONS", "version_of", "check_loadable", "migrate",
            "stamp_metadata", "stamp_record", "read_record"]

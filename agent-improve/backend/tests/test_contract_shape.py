@@ -71,7 +71,9 @@ def test_the_count_is_twelve_and_is_derived() -> None:
     A drop is as much a drift as an addition: it would mean a schema was
     retyped and the contract still teaches the old shape.
     """
-    assert len(_structured_coached_fields()) == 12   # nine + R4/R5's three (2026-09-26)
+    # nine + R4/R5's three (2026-09-26) + ADR-0071's two MetricValues (2026-09-29), which the
+    # contract names as the Belt's words that code reads the number from.
+    assert len(_structured_coached_fields()) == 14
 
 
 @pytest.mark.parametrize("field,keys", [

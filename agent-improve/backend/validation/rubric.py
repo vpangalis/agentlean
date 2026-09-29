@@ -116,14 +116,21 @@ def _code_half(cid: str, a: dict[str, Any], today: dt.date) -> Optional[Criterio
         registry = [m for m in (a.get("metric_definitions") or []) if isinstance(m, dict)]
         if not registry:
             return _fail(cid, "No primary metric is registered.")
-        if not _has_number(a.get("baseline_estimate")):
+        from backend.phases.define.parse import as_metric, primary_unit
+        if as_metric(a.get("baseline_estimate"), unit=primary_unit(a))["value"] is None:
             return _fail(cid, "The baseline has no number — quantify the primary metric today.")
         return None
     if cid == "DEF-R08":
-        target, baseline = _text(a.get("target_value")), _text(a.get("baseline_estimate"))
-        if not _has_number(target):
+        # ADR-0071: both read as MetricValues — by the one parser when a value is still text.
+        from backend.phases.define.parse import as_metric, primary_unit
+        baseline = as_metric(a.get("baseline_estimate"), unit=primary_unit(a))
+        target = as_metric(a.get("target_value"), target=True, unit=baseline["unit"] or primary_unit(a))
+        if target["value"] is None:
             return _fail(cid, "The target has no number.")
-        if target == baseline:
+        if baseline["unit"] and target["unit"] and target["unit"] != baseline["unit"]:
+            return _fail(cid, f"The target is in {target['unit']}, the baseline in {baseline['unit']} — "
+                              "state the target in the baseline's unit.")
+        if target["value"] == baseline["value"]:
             return _fail(cid, "The target equals the baseline — it sets no improvement.")
         return _pass(cid)
     if cid == "DEF-R09":

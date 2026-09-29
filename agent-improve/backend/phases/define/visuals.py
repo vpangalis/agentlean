@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from backend.core import diagrams
-from backend.phases.define.parse import number_in, parse_limit, unit_of
+from backend.phases.define.parse import as_metric, parse_limit, primary_unit
 
 #: The visual of each read-back field.
 VISUAL_OF: dict[str, str] = {
@@ -32,13 +32,21 @@ _5W2H_SLOTS = {"what": "what", "where": "where", "when": "when", "who": "who_aff
                "how_much": "how_much", "how": "how_often"}
 
 
+#: A MetricValue's direction as the chart names it.
+_CHART_DIRECTION = {"<=": "below", ">=": "above", "=": "equal", None: "equal"}
+
+
 def _baseline_target(values: dict[str, Any], field: Optional[str]) -> dict[str, Any]:
+    """ADR-0071 (DEF-076): drawn from the MetricValues, never from the raw text."""
     metrics = values.get("metric_definitions") or []
     primary = metrics[0] if metrics and isinstance(metrics[0], dict) else {}
-    unit = unit_of(str(primary.get("unit") or ""))
-    base = number_in(str(values.get("baseline_estimate") or ""), unit)       # G-132: in the metric's unit
+    unit = primary_unit(values)
+    b = as_metric(values["baseline_estimate"], unit=unit) if values.get("baseline_estimate") else None
+    base = {"number": b["value"], "unit": b["unit"]} if b and b["value"] is not None else None   # G-132
     unit = unit or (base or {}).get("unit", "")
-    target = parse_limit(str(values.get("target_value") or "")) if values.get("target_value") else None
+    t = as_metric(values["target_value"], target=True, unit=unit) if values.get("target_value") else None
+    target = ({"number": t["value"], "unit": t["unit"], "direction": _CHART_DIRECTION[t["direction"]]}
+              if t and t["value"] is not None else None)
     if target is None and field == "goal_statement":
         # The goal's words carry the target: the last figure in the baseline's unit, other than it.
         words = str(values.get("goal_statement") or "")

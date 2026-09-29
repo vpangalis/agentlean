@@ -25,9 +25,9 @@ where Pydantic models are permitted.
 """
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any, Literal, Mapping, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 # ── The 13 elements that BLOCK the gate — all of them ──────────────────
 # R4 (founder, 2026-09-26): the twelve of Option A plus the benefits analysis.
@@ -94,6 +94,21 @@ _CAPTURED_INSIDE: dict[str, tuple[str, ...]] = {
     "problem_statement": ("problem_5w2h",),
     "baseline_estimate": ("metric_definitions",),
 }
+
+
+class MetricValue(BaseModel):
+    """ADR-0071 (DEF-076): the baseline and the target as a number with a unit — what Measure and
+    Control compute with (C6). Built ONLY by `parse.metric_value` from the Belt's words; strict, so
+    text never passes for one (a proposal in prose is not a MetricValue — step 6.48)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    value: Optional[float] = Field(description="The number; None when the words hold none — asked again.")
+    unit: str = Field(description="The normalised unit (%, days, EUR, …), owned by the parser.")
+    direction: Optional[Literal["<=", ">=", "="]] = Field(
+        default=None, description="Target only: at most / at least / exactly.")
+    is_estimate: bool = Field(default=False, description="R17: the Belt gave an estimate.")
+    raw: str = Field(description="The Belt's own words — the read-back's and the audit trail's (R16).")
 
 
 def _is_captured(artifacts: Mapping[str, Any], field: str) -> bool:
@@ -221,12 +236,14 @@ class DefineOutput(BaseModel):
             "The 5W2H are coaching prompts, never stored fields."
         ),
     )
-    baseline_estimate: str = Field(
+    baseline_estimate: MetricValue = Field(
         ...,
         description=(
             "DISCRETE current-state value — Control compares against it. "
             "Rough as the Belt states it here; the rigorous baseline is "
-            "Measure's job. This one anchors the goal."
+            "Measure's job. This one anchors the goal. A MetricValue "
+            "(ADR-0071): the number, its unit, whether it is an estimate, "
+            "and the Belt's words."
         ),
     )
     project_scope: dict = Field(
@@ -244,13 +261,14 @@ class DefineOutput(BaseModel):
             "`target_value`, not in here."
         ),
     )
-    target_value: str = Field(
+    target_value: MetricValue = Field(
         ...,
         description=(
             "DISCRETE target value, in the same metric and units as "
-            "`baseline_estimate`. Control compares the achieved value against "
-            "it. NOT redundant with `goal_statement`: that is prose, this is the "
-            "comparable value (§39.1.2, the measurement thread)."
+            "`baseline_estimate`, with its direction (at most / at least / "
+            "exactly) — a MetricValue (ADR-0071). Control compares the achieved "
+            "value against it. NOT redundant with `goal_statement`: that is "
+            "prose, this is the comparable value (§39.1.2, the measurement thread)."
         ),
     )
     target_date: str = Field(
@@ -380,6 +398,12 @@ DEFINE_METRIC_SOURCE = "stated"
 NOT_ADDRESSED = "not addressed this phase"
 
 
+def _mirror(value: Any) -> Any:
+    """The scalar as the primary entry mirrors it: a MetricValue dict as it is (ADR-0071), else
+    its text (§63.9 B5)."""
+    return dict(value) if isinstance(value, dict) else str(value or "")
+
+
 def define_phase_metrics(artifacts: dict) -> list[dict]:
     """Define's `phase_metrics`, DERIVED from what the Belt already stated.
 
@@ -420,7 +444,9 @@ def define_phase_metrics(artifacts: dict) -> list[dict]:
     registry metric*. That is the correct outcome, not a gap.
 
     Scalars are coerced with `str` per §63.9 B5 — the dict is §7's exception,
-    its values are not.
+    its values are not. **ADR-0071 (DEF-076): the primary's `baseline_estimate`
+    and `target_value` are the MetricValue dicts themselves**, the same objects
+    the scalars hold, so the mirror stays equal by construction.
     """
     registry = artifacts.get("metric_definitions") or []
     if not isinstance(registry, list):
@@ -438,10 +464,10 @@ def define_phase_metrics(artifacts: dict) -> list[dict]:
             "name": name,
             "unit": str(metric.get("unit") or ""),
             "baseline_estimate": (
-                str(artifacts.get("baseline_estimate") or "") if primary
+                _mirror(artifacts.get("baseline_estimate")) if primary
                 else NOT_ADDRESSED),
             "target_value": (
-                str(artifacts.get("target_value") or "") if primary
+                _mirror(artifacts.get("target_value")) if primary
                 else NOT_ADDRESSED),
             "source": DEFINE_METRIC_SOURCE,
         })

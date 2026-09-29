@@ -297,6 +297,11 @@ def _latest(entries: list[dict]) -> dict[str, dict]:
 
 
 def _same(a: Any, b: Any) -> bool:
+    """Equal values. ADR-0071 (DEF-076): a MetricValue migrated from text (state schema version 2)
+    holds that text as `raw`, and a field-log entry written before it holds the text itself —
+    the same captured value."""
+    if isinstance(a, dict) and "raw" in a and "value" in a and isinstance(b, str):
+        return a["raw"] == b
     return json.dumps(a, sort_keys=True, default=str) == json.dumps(b, sort_keys=True, default=str)
 
 

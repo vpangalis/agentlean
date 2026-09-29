@@ -155,8 +155,9 @@ sequenceDiagram
    criterion), read back ("is this right?"), store and advance. What was stored, or that a
    Confirm stored nothing, is said by code from the store result (`_store_truth`), never the model.
 3. The planner's model returns one `SufficiencyJudgment` against the element's acceptance
-   criteria, read from its SKILL.md block — except a target in the baseline's unit, judged in code
-   (`define/parse.py::parse_limit`). The SIPOC is stored only with its six columns.
+   criteria, read from its SKILL.md block. The baseline and the target are MetricValues read by one
+   parser, `define/parse.py::metric_value` (ADR-0071): no number, or a target in another unit than
+   the baseline's, is asked again, decided in code. The SIPOC is stored only with its six columns.
 4. `AskRequest.action` = `confirm` stores the pending value; `change` returns the field to asked
    and answers in code without a model call. A later read-back of the element keeps the parts it
    carried before; any the new one lacks are shown under it, in code, and stored only on confirm.
@@ -631,6 +632,7 @@ JSON.
 | `critical_to_quality` | list of `customer`, `need`, `requirement` |
 | `problem_5w2h` | `what`, `where`, `when`, `who`, `why`, `how`, `how_much` |
 | `metric_definitions` | list of `name`, `unit`, `meaning`; the first entry is the primary metric |
+| `baseline_estimate`, `target_value` (MetricValue, ADR-0071) | `value`, `unit`, `direction` (target), `is_estimate`, `raw` (the Belt's words) |
 | `phase_metrics` | list, one entry per registry metric, keyed by `name`; other keys per phase |
 | `detailed_process_map` | `steps`, `cycle_times`, `resources`, `value_vs_waste`, `measurement_points`, `baseline_metrics` |
 | `control_plan` | `documentation`, `monitoring`, `response`, `training`, `aligning_systems` |
@@ -673,7 +675,7 @@ record per phase key.
 
 ### 4.2 Declarations
 
-**State schema version 1** (`core/state.py::STATE_SCHEMA_VERSION`, ADR-0065): written into every checkpoint's metadata, every Store record and every case blob; an older one is migrated on load by `core/migrations.py`, a newer one is refused.
+**State schema version 2** (`core/state.py::STATE_SCHEMA_VERSION`, ADR-0065): written into every checkpoint's metadata, every Store record and every case blob; an older one is migrated on load by `core/migrations.py`, a newer one is refused.
 
 #### `SupervisorState` — `core/state.py`
 
@@ -761,10 +763,10 @@ class DefineOutput(BaseModel):
     team:                list[dict]
     voc_summary:         str
     problem_statement:   str
-    baseline_estimate:   str
+    baseline_estimate:   MetricValue
     project_scope:       dict
     goal_statement:      str
-    target_value:        str
+    target_value:        MetricValue
     target_date:         str
     benefits_analysis:   dict
     secondary_metrics:   str

@@ -115,7 +115,8 @@ def test_define_never_warns_and_an_unjudged_criterion_fails_closed() -> None:
 
 
 def test_a_report_failing_a_criterion_is_not_paused_and_the_criterion_is_named(env) -> None:  # noqa: F811
-    env.case.phases["define"].structured = {**COMPLETE, "target_value": "23%"}
+    from backend.phases.define.parse import metric_value
+    env.case.phases["define"].structured = {**COMPLETE, "target_value": metric_value("23%", target=True, unit="%")}
     body = _submit(env)
     assert body["passed"] is False and body["awaiting_acceptance"] is False
     assert any(m.startswith("DEF-R08") for m in body["missing_fields"]), body["missing_fields"]

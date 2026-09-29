@@ -39,6 +39,8 @@ from backend.validation.schemas import CoachingGraderVerdict, CoherenceResult
 UI = Path(__file__).resolve().parents[2] / "ui" / "index.html"
 CASE_ID = "IMPR-TEST-REPORT"
 
+from backend.phases.define.parse import metric_value  # noqa: E402 — ADR-0071: the one parser builds the MetricValues
+
 COMPLETE: dict[str, Any] = {
     "business_case": "During H1 2026, 23% of invoices were paid late; about £62k a year.",
     "team": [{"name": "Priya", "role": "Belt", "function": "lead"},
@@ -52,7 +54,8 @@ COMPLETE: dict[str, Any] = {
     "problem_statement": "23% of invoices paid late, H1 2026.",
     "metric_definitions": [{"name": "late_payment_rate", "unit": "%", "meaning": "paid after 30 days"},
                            {"name": "cycle_days", "unit": "days", "meaning": "invoice to payment"}],
-    "baseline_estimate": "23%", "target_value": "5%", "target_date": "2027-03-31",
+    "baseline_estimate": metric_value("23%", unit="%"), "target_value": metric_value("5%", target=True, unit="%"),
+    "target_date": "2027-03-31",
     "project_scope": {"in_scope": "PO invoices", "out_scope": "payroll"},
     "goal_statement": "23% to 5% by March 2027",
     "benefits_analysis": {"cost_of_gap": "£68k", "impact_type": "sustainable",

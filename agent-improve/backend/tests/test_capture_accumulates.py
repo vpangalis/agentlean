@@ -386,17 +386,17 @@ def test_the_first_capture_of_a_field_is_an_entry_with_no_prior_value(
         monkeypatch, stub_planner, stub_coach) -> None:
     """A field appearing for the first time IS a change, and says what it is."""
     session = Session(monkeypatch)
-    session.turn(stub_coach, _reply("baseline_estimate", "12% of invoices"))
+    session.turn(stub_coach, _reply("secondary_metrics", "12% of invoices"))
 
     assert len(session.field_log) == 1
     entry = session.field_log[0]
-    assert entry["field"] == "baseline_estimate"
+    assert entry["field"] == "secondary_metrics"
     assert entry["value"] == "12% of invoices"
     assert entry["prior_value"] is None
     assert entry["turn"] == 1
     assert entry["phase"] == "define"
     assert entry["timestamp"]
-    assert entry["key"] == field_log_key("define", 1, "baseline_estimate")
+    assert entry["key"] == field_log_key("define", 1, "secondary_metrics")
 
 
 def test_a_change_records_both_values_with_their_turns(
@@ -407,10 +407,10 @@ def test_a_change_records_both_values_with_their_turns(
     overwritten the first value and `step_log` never held it.
     """
     session = Session(monkeypatch)
-    session.turn(stub_coach, _reply("baseline_estimate", "about 12%"))
-    session.turn(stub_coach, _reply("baseline_estimate", "12.4%, from the Q2 extract"))
+    session.turn(stub_coach, _reply("secondary_metrics", "about 12%"))
+    session.turn(stub_coach, _reply("secondary_metrics", "12.4%, from the Q2 extract"))
 
-    assert session.structured["baseline_estimate"] == "12.4%, from the Q2 extract"
+    assert session.structured["secondary_metrics"] == "12.4%, from the Q2 extract"
     assert [e["value"] for e in session.field_log] == [
         "about 12%", "12.4%, from the Q2 extract",
     ]
@@ -447,9 +447,9 @@ def test_the_belts_stated_reason_is_carried_where_it_is_given(
     says "nobody was asked"; a column that does not exist says nothing.
     """
     session = Session(monkeypatch)
-    session.turn(stub_coach, _reply("baseline_estimate", "about 12%"))
+    session.turn(stub_coach, _reply("secondary_metrics", "about 12%"))
     session.turn(stub_coach, _reply(
-        "baseline_estimate", "12.4%",
+        "secondary_metrics", "12.4%",
         reason="the Q2 extract contradicted my estimate",
     ))
 
@@ -677,10 +677,10 @@ def test_r6_the_first_and_the_current_confirmed_value_each_with_its_date(
     history names the first value and the current one, each dated — and it is
     in the PHASE STATE the next turn starts from (seeded from the case record)."""
     session = Session(monkeypatch)
-    session.turn(stub_coach, _reply("baseline_estimate", "about 12%"))
-    session.turn(stub_coach, _reply("baseline_estimate", "12.4%, from the Q2 extract"))
+    session.turn(stub_coach, _reply("secondary_metrics", "about 12%"))
+    session.turn(stub_coach, _reply("secondary_metrics", "12.4%, from the Q2 extract"))
 
-    history = value_history(session.field_log, "define")["baseline_estimate"]
+    history = value_history(session.field_log, "define")["secondary_metrics"]
     assert history["first"]["value"] == "about 12%"
     assert history["current"]["value"] == "12.4%, from the Q2 extract"
     assert history["first"]["at"] and history["current"]["at"]
@@ -689,7 +689,7 @@ def test_r6_the_first_and_the_current_confirmed_value_each_with_its_date(
 
     _ensure_case_record(session.case)
     child = define_input_mapper(_seed_state(), session.store)   # type: ignore[arg-type]
-    assert value_history(child["field_log"], "define")["baseline_estimate"] == history, (
+    assert value_history(child["field_log"], "define")["secondary_metrics"] == history, (
         "the history is in the phase state the next turn starts from")
 
 

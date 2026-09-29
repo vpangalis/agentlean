@@ -3393,6 +3393,16 @@ function renderGate() {
         border:0.5px dashed var(--border,#E4E2DC)">○ Not started</span>`;
   }
 
+  // ADR-0071 (DEF-076): a baseline or target arrives as a MetricValue {value, unit, direction,
+  // is_estimate, raw}; shown as the report shows it, never as JSON. null for anything else.
+  function metricText(v) {
+    if (!v || typeof v !== 'object' || !('raw' in v) || !('value' in v)) return null;
+    if (v.value === null || v.value === undefined) return 'not a number yet — ' + v.raw;
+    const words = {'<=': 'at most ', '>=': 'at least '}[v.direction] || '';
+    const unit = (v.unit === '%' || !v.unit) ? (v.unit || '') : ' ' + v.unit;
+    return words + v.value + unit + (v.is_estimate ? ' (an estimate)' : '');
+  }
+
   function fieldRow(label, value, multiline=false) {
     const hasVal = fieldHasValue(value);
     const displayVal = hasVal
@@ -3401,7 +3411,7 @@ function renderGate() {
               ? `${v.name}${v.role ? ' ('+v.role+')' : ''}`
               : v).join(', ')
           : (typeof value === 'object'
-              ? JSON.stringify(value)
+              ? metricText(value) ?? JSON.stringify(value)
               : String(value)))
       : null;
     return `<div style="display:grid;grid-template-columns:140px 1fr;

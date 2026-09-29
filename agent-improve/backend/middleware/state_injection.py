@@ -378,8 +378,12 @@ class BeforeModelStateInjection(AgentMiddleware):
                  if plan.move == moves.READ_BACK and structured else "")
         # DEF-029 — every field of the position named, with its declared type: 6.66's run read
         # back position 5's baseline alone, so the Belt's Confirm could never store the position.
+        from backend.phases.define.parse import METRIC_FIELDS
         entries = "\n".join(
-            f"  - `{f}`: " + ("a string, in the Belt's words" if declared_type(self.phase, f) in (None, str)
+            f"  - `{f}`: " + ("the Belt's words — the number, its unit and its direction are read from "
+                              "them in code (ADR-0071); read them back as the Belt wrote them"
+                              if self.phase == "define" and f in METRIC_FIELDS else
+                              "a string, in the Belt's words" if declared_type(self.phase, f) in (None, str)
                               else f"{declared_type(self.phase, f)} — real structure, the keys the phase "
                                    f"script's 'Capture as' line gives, never prose")
             for f in fields)

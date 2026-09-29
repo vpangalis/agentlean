@@ -135,6 +135,12 @@ the Belt's exact words.**
 deterministically against the store. Values inside are still strings
 (`../AGENTIC_ARCHITECTURE_REFERENCE.md` §42).
 
+**The exception ADR-0071 made (founder 2026-09-29):** Define's
+`baseline_estimate` and `target_value` are `MetricValue`s — `value`, `unit`,
+`direction`, `is_estimate`, `raw` (the Belt's words) — built only by
+`phases/define/parse.py::metric_value`, the one parser. Measure and Control
+compute with the number; the report shows it with the Belt's words kept.
+
 **Computation tool output goes in `artifacts["computation_results"]`** — a
 list of dicts, all values strings; no new `PhaseState` field, no per-phase
 typed destinations (`../AGENTIC_ARCHITECTURE_REFERENCE.md` §7).
@@ -207,7 +213,8 @@ performs one, it lives in `uploads`; no gate blocks on it
 - Never reintroduce the `gate_documents` store namespace — the gate
   document lives under `artifacts` (§10.2)
 - Never type a captured field as a numeric — all captured fields are
-  `str`, and the computation tools parse at the point of use (§10.6)
+  `str`, and the computation tools parse at the point of use (§10.6);
+  the one exception is ADR-0071's `MetricValue`, built by its one parser
 - Never add typed per-phase destinations for computation results — they
   go in `artifacts["computation_results"]` (§10.6)
 - Never hold `gate_attempts` in route scope — it is on `PhaseState` and

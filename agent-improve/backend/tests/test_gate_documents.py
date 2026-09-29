@@ -9,6 +9,7 @@ its expectation out of the code under test asserts nothing.
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 import importlib
 
 import pytest
@@ -144,8 +145,10 @@ def test_post_improvement_metrics_is_the_only_tier_1_cross_phase_ref() -> None:
 #: The mirrored scalars per phase (§39.2.3, `core/metrics.py`). Define and
 #: Measure mirror plain strings; Control mirrors through a dict; Analyse and
 #: Improve mirror nothing and satisfy the invariant vacuously.
-MIRRORED = {
-    "define":  {"baseline_estimate": "12.3%", "target_value": "<3%"},
+MIRRORED: dict[str, dict[str, Any]] = {
+    "define":  {"baseline_estimate": {"value": 12.3, "unit": "%", "direction": None, "is_estimate": False,
+                                      "raw": "12.3%"},
+                "target_value": {"value": 3.0, "unit": "%", "direction": "<=", "is_estimate": False, "raw": "<3%"}},
     "measure": {"baseline_mean": "12.3%", "baseline_sigma": "2.6 sigma"},
     "analyse": {},
     "improve": {},

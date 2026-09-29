@@ -268,7 +268,9 @@ def test_position_five_stores_both_of_its_fields() -> None:
     registry = [{"name": "invoice_error_rate", "unit": "%", "meaning": "returned invoices"}]
     store = moves.pending_store("define", pending, {"baseline_estimate": "about 12%",
                                                     "metric_definitions": registry})
-    assert store == {"baseline_estimate": "error rate 12%", "metric_definitions": registry}
+    # ADR-0071 (DEF-076): the baseline is parsed in code from the Belt's words — never the proposal.
+    assert store == {"baseline_estimate": {"value": 12.0, "unit": "%", "direction": None, "is_estimate": False,
+                                           "raw": "error rate 12%"}, "metric_definitions": registry}
 
 
 # ── D7: no move-sequencing in the rules or the Define script ─────────────

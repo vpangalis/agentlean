@@ -639,6 +639,11 @@ def _typed_value(field: str):
                                  "requirement": "100% of lines priced right"}],
         "problem_5w2h": {k: f"{k} answer" for k in
                          ("what", "where", "when", "who", "why", "how", "how_much")},
+        # ADR-0071 (DEF-076): the baseline and the target are MetricValues.
+        "baseline_estimate": {"value": 12.0, "unit": "%", "direction": None, "is_estimate": False,
+                              "raw": "12% of invoices"},
+        "target_value": {"value": 3.0, "unit": "%", "direction": "<=", "is_estimate": False,
+                         "raw": "under 3%"},
     }
     if field in shapes:
         return shapes[field]

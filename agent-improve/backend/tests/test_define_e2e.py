@@ -396,9 +396,135 @@ def test_an_element_that_fails_three_times_can_be_parked() -> None:
     _not_written('DEF-075')
 
 
-def test_baseline_and_target_are_stored_as_a_number_with_a_unit() -> None:
-    """DEF-076 — R7 amendment: baseline and target are stored as a number with a unit; an unparseable value is asked again."""
-    _not_written('DEF-076')
+def test_baseline_and_target_are_stored_as_a_number_with_a_unit(env, monkeypatch) -> None:
+    """DEF-076 — R7 amendment, ADR-0071: on the real routes and graph, the baseline and the target
+    are stored as MetricValues {value, unit, direction, is_estimate, raw}, parsed in code by the one
+    parser from the Belt's words. An answer with no number is asked again (decided in code); the
+    read-back shows, in code, the number a Confirm will store; a target in another unit than the
+    baseline's is asked again naming both units; "unter 5 %" and "under 5% of supplier invoices"
+    are both {5, %, <=}. The saved version-1 fixtures migrate (state schema 2): parseable text
+    becomes a MetricValue, an unparseable value keeps its words, gets no number and its element
+    returns to "not taught" for re-confirmation — nothing is deleted."""
+    import json
+    from pathlib import Path
+
+    from backend.core import migrations
+    from backend.core.checkpointer import AzureBlobCheckpointSaver
+    from backend.core.store import AzureBlobStore
+    from backend.phases import moves, nodes_common
+    from backend.phases.define import parse
+    from backend.phases.define.schema import MetricValue
+    from backend.storage.models import CaseDocument
+    from backend.tests.test_define_report import COMPLETE
+
+    judged: list = []
+    judge = nodes_common._judge
+
+    async def spy(*a, **k):
+        j = await judge(*a, **k)
+        judged.append(j)
+        return j
+    monkeypatch.setattr(nodes_common, "_judge", spy)
+
+    def ask(case_id: str, **body) -> dict:
+        r = env.client.post("/ask", json={"case_id": case_id, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    def stored(case_id: str) -> dict:
+        return ((env.client.get(f"/cases/{case_id}").json().get("phases") or {}).get("define", {})
+                .get("structured") or {})
+
+    record = env.case.phases["define"]
+    order = [f for f, _ in moves.positions("define")]
+
+    # ── 1. The baseline (element 5) ─────────────────────────────────────────────
+    record.structured = {f: COMPLETE[f] for f in ("business_case", "team", "voc_summary", "critical_to_quality",
+                                                  "problem_statement", "problem_5w2h")}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in order[:4]}
+    record.field_status["baseline_estimate"] = {"status": moves.ASKED}
+    _coach_saying(monkeypatch, "Could you give me the figure, with its unit?")
+    ask(CASE_ID, message="Around a quarter of the invoices, the team thinks.")
+    assert judged[-1].verdict == "insufficient" and "no number" in judged[-1].reason, judged[-1]
+
+    words = ("Late payment rate, in %: the share of supplier invoices paid more than 30 days after the invoice "
+             "date. About 23% today, from the AP ledger for January to June 2026.")
+    registry = [{"name": "late_payment_rate", "unit": "%", "meaning": "paid more than 30 days late"}]
+    _coach_saying(monkeypatch, f'Here is your baseline: "{words}" Is this right?', captured=[
+        {"field_name": "metric_definitions", "value": registry, "source": "belt"},
+        {"field_name": "baseline_estimate", "value": "roughly twenty-three percent", "source": "belt"}])
+    answer = ask(CASE_ID, message=words)["answer"]
+    assert "Read as a number" in answer and "23%" in answer and "(an estimate)" not in answer, answer
+    _coach_saying(monkeypatch, "Thank you. Next, the scope.")
+    ask(CASE_ID, message="Confirm", action="confirm")
+    base = stored(CASE_ID).get("baseline_estimate")
+    assert isinstance(base, dict), f"the baseline was not stored as a MetricValue: {base!r}"
+    assert (base["value"], base["unit"], base["direction"], base["is_estimate"]) == (23.0, "%", None, False), base
+    # R17: an estimate is what the Belt marks as one — "about 23% … from the AP ledger" is rounding.
+    assert parse.metric_value("Roughly 20% — an estimate from the AP team.", unit="%")["is_estimate"] is True
+    assert base["raw"].endswith(words), "the Belt's words are kept, never the model's"
+    MetricValue.model_validate(base)
+
+    # ── 2. The target (element 8), on a fresh thread seeded from the case record ─────
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    case_2 = CASE_ID
+    record.structured = {**{k: v for k, v in COMPLETE.items() if k != "target_value"},
+                         "metric_definitions": registry, "baseline_estimate": base}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in order if f != "target_value"}
+    record.field_status["target_value"] = {"status": moves.ASKED}
+    _coach_saying(monkeypatch, "What is the target?")
+    ask(case_2, message="Under 10 days.")
+    assert judged[-1].verdict == "insufficient", judged[-1]
+    assert "days" in judged[-1].reason and "%" in judged[-1].reason, judged[-1].reason
+    _coach_saying(monkeypatch, 'Your target: "unter 5 %". Is this right?')
+    answer = ask(case_2, message="unter 5 %")["answer"]
+    assert "at most 5%" in answer, answer
+    _coach_saying(monkeypatch, "Thank you. Next, the date.")
+    ask(case_2, message="Confirm", action="confirm")
+    target = stored(case_2).get("target_value")
+    assert isinstance(target, dict), f"the target was not stored as a MetricValue: {target!r}"
+    assert (target["value"], target["unit"], target["direction"]) == (5.0, "%", "<="), target
+    english = parse.metric_value("under 5% of supplier invoices", target=True, unit="%")
+    assert (english["value"], english["unit"], english["direction"]) == (5.0, "%", "<=")
+
+    # ── 3. Version-1 state migrates (ADR-0071 point 5), from the saved fixtures ──
+    assert migrations.current() >= 2 and 1 in migrations.MIGRATIONS
+    fixtures = Path(__file__).parent / "fixtures" / "state_schema"
+    box = _AzContainer()
+    for kind in ("parseable", "unparseable", "estimate"):
+        box.blobs[f"checkpoints/V1-{kind}/latest.json"] = (
+            (fixtures / f"v1_checkpoint_{kind}.json").read_bytes(), '"1"')
+        box.blobs[f"store/projects/V1-{kind}/case/record.json"] = (
+            (fixtures / f"v1_store_case_{kind}.json").read_bytes(), '"2"')
+        box.blobs[f"store/projects/V1-{kind}/artifacts/define.json"] = (
+            (fixtures / f"v1_store_define_{kind}.json").read_bytes(), '"3"')
+    saver = AzureBlobCheckpointSaver(container_client=box)  # type: ignore[arg-type]
+    store = AzureBlobStore(box, "conn", "c")  # type: ignore[arg-type]
+    for kind, base_v, target_v in (("parseable", 23.0, 5.0), ("unparseable", None, None), ("estimate", 20.0, 5.0)):
+        tup = saver.get_tuple({"configurable": {"thread_id": f"V1-{kind}", "checkpoint_ns": ""}})
+        assert tup is not None
+        arts, status = tup.checkpoint["channel_values"]["artifacts"], tup.checkpoint["channel_values"]["field_status"]
+        case_rec = store.get(("projects", f"V1-{kind}", "case"), "record")
+        gate_doc = store.get(("projects", f"V1-{kind}", "artifacts"), "define")
+        doc = json.loads((fixtures / f"v1_case_{kind}.json").read_text(encoding="utf-8"))
+        moved = CaseDocument.model_validate(migrations.migrate_case(doc, migrations.version_of(doc)))
+        assert case_rec is not None and gate_doc is not None
+        for where in (arts, case_rec.value["captured_by_phase"]["define"], gate_doc.value,
+                      moved.phases["define"].structured or {}):
+            b, t = where["baseline_estimate"], where["target_value"]
+            MetricValue.model_validate(b)
+            MetricValue.model_validate(t)
+            assert (b["value"], t["value"]) == (base_v, target_v), (kind, b, t)
+            assert b["raw"] and t["raw"], "nothing is deleted: the Belt's words are kept"
+        if kind == "estimate":
+            assert arts["baseline_estimate"]["is_estimate"] is True and arts["target_value"]["direction"] == "<="
+        for statuses in (status, case_rec.value["field_status_by_phase"]["define"],
+                         moved.phases["define"].field_status):
+            reconfirm = {f for f, e in statuses.items() if e.get("reconfirm")}
+            assert reconfirm == ({"baseline_estimate", "target_value"} if base_v is None else set()), (kind, statuses)
+            if base_v is None:
+                assert statuses["baseline_estimate"]["status"] == moves.NOT_TAUGHT
 
 
 def test_node_limits_retries_and_compensation_use_langgraph_primitives() -> None:

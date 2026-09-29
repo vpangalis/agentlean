@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import pytest
 
+from backend.phases.define.parse import metric_value
 from backend.core.metrics import NONE_THIS_PHASE, check_single_authority
 from backend.phases.define.schema import (
     DEFINE_METRIC_SOURCE,
@@ -59,11 +60,11 @@ def _captured(**overrides: object) -> dict:
                                  "function": "finance"}],
         "voc_summary":         "Suppliers want invoices right first time.",
         "problem_statement":   "UK invoices are wrong 12% of the time.",
-        "baseline_estimate":   "12%",
+        "baseline_estimate":   metric_value("12%", unit="%"),
         "project_scope":       {"in_scope": "UK billing",
                                 "out_scope": "credit notes"},
         "goal_statement":      "Cut invoice errors to 3% by December 2026.",
-        "target_value":        "3%",
+        "target_value":        metric_value("3%", target=True, unit="%"),
         "target_date":         "2026-12-01",
         "secondary_metrics":   "Invoice cycle time must not rise.",
         "process_map_sipoc":   {"suppliers": "s", "inputs": "i",
@@ -188,10 +189,11 @@ def test_name_and_unit_are_verbatim_from_the_registry() -> None:
 
 
 def test_the_scalars_are_the_captured_fields_of_the_same_names() -> None:
-    art = _captured(baseline_estimate="14.2%", target_value="4%")
+    art = _captured(baseline_estimate=metric_value("14.2%", unit="%"),
+                    target_value=metric_value("4%", target=True, unit="%"))
     entry = define_phase_metrics(art)[0]
-    assert entry["baseline_estimate"] == "14.2%"
-    assert entry["target_value"] == "4%"
+    assert entry["baseline_estimate"] == art["baseline_estimate"]      # ADR-0071: the MetricValue itself
+    assert entry["target_value"] == art["target_value"]
 
 
 def test_source_is_stated_because_define_states_rather_than_measures() -> None:
@@ -202,9 +204,13 @@ def test_source_is_stated_because_define_states_rather_than_measures() -> None:
 
 
 def test_every_scalar_inside_the_entry_is_a_string() -> None:
-    """§63.9 B5 — the dict is §7's exception; its values are not."""
+    """§63.9 B5 — the dict is §7's exception; its values are not. ADR-0071 (DEF-076): the primary's
+    baseline and target are the MetricValues the scalars hold; every other value is a string."""
     for entry in define_phase_metrics(_captured()):
         for key, value in entry.items():
+            if key in ("baseline_estimate", "target_value") and isinstance(value, dict):
+                assert set(value) == {"value", "unit", "direction", "is_estimate", "raw"}, key
+                continue
             assert isinstance(value, str), f"{key} is {type(value).__name__}"
 
 
@@ -222,7 +228,7 @@ def test_the_mirror_holds_by_construction_not_by_luck() -> None:
     """
     for baseline, target in [("12%", "3%"), ("0.4 defects/unit", "0.1"),
                              ("2.6 days", "1.5 days")]:
-        art = _captured(baseline_estimate=baseline, target_value=target)
+        art = _captured(baseline_estimate=metric_value(baseline), target_value=metric_value(target, target=True))
         art["phase_metrics"] = define_phase_metrics(art)
         assert check_single_authority("define", art) == []
 
@@ -240,7 +246,7 @@ def test_an_entry_that_arrived_another_way_is_overridden() -> None:
                              "source": "hallucinated"}]
     doc = assemble_define_gate_document(art, citations=[], uploads=[])
     assert [e["name"] for e in doc.phase_metrics] == ["invoice_error_rate"]
-    assert doc.phase_metrics[0]["baseline_estimate"] == "12%"
+    assert doc.phase_metrics[0]["baseline_estimate"] == art["baseline_estimate"]
     assert doc.phase_metrics[0]["source"] == "stated"
 
 
@@ -275,7 +281,7 @@ def test_only_the_first_entry_carries_the_scalars() -> None:
         {"name": "invoice_cycle_time", "unit": "days", "meaning": "m2"},
     ])
     first, second = define_phase_metrics(art)
-    assert (first["baseline_estimate"], first["target_value"]) == ("12%", "3%")
+    assert (first["baseline_estimate"], first["target_value"]) == (art["baseline_estimate"], art["target_value"])
     assert (second["baseline_estimate"], second["target_value"]) == (
         NOT_ADDRESSED, NOT_ADDRESSED)
     assert second["name"] and second["unit"], (
@@ -322,7 +328,7 @@ def test_an_unnamed_registry_metric_is_skipped() -> None:
     ])
     entries = define_phase_metrics(art)
     assert [e["name"] for e in entries] == ["invoice_error_rate"]
-    assert entries[0]["baseline_estimate"] == "12%", (
+    assert entries[0]["baseline_estimate"] == art["baseline_estimate"], (
         "the first EMITTED entry is the primary, not the first registry row"
     )
 

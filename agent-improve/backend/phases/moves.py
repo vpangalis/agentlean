@@ -360,7 +360,8 @@ async def decide(phase: str, artifacts: dict[str, Any],
                 messages=so_far + 1, reason=reason)
 
 
-def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any]) -> dict[str, Any]:
+def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
+                  artifacts: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """What a confirmation of this read-back will store — brief item 4.
 
     **The Belt's own words**, for a plain-string field answered in one message.
@@ -369,12 +370,32 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any])
     be stored as either), a composed field (the problem statement is composed
     from the 5W2H answers) and an answer assembled from more than one message
     (a correction, or the piece a challenge asked for).
+
+    **ADR-0071 (DEF-076): the baseline and the target are MetricValues parsed IN CODE from the
+    Belt's words** (`parse.metric_value`, the one parser) — never the model's proposal. A reading
+    with no number stores nothing, so a Confirm is refused and the value is asked again. The unit
+    hint: the primary metric's (proposed in the same read-back, or registered), for a target the
+    baseline's.
     """
     field = pending["field"]
+    from backend.phases.define import parse
+    known = {**dict(artifacts or {}), **{k: v for k, v in proposed.items() if k == "metric_definitions"}}
     words = str(pending.get("belt_words") or "")
     one_message = int(pending.get("messages") or 1) <= 1
     store: dict[str, Any] = {}
     for f in pending.get("fields") or [field]:
+        if phase == "define" and f in parse.METRIC_FIELDS:
+            unit = parse.primary_unit(known)
+            if f == "target_value" and known.get("baseline_estimate"):
+                unit = parse.as_metric(known["baseline_estimate"], unit=unit)["unit"] or unit
+            # The figure of the Belt's LATEST message that holds one (a correction wins over the
+            # answer it corrects); `raw` keeps all of the Belt's words for this element.
+            for line in reversed([x for x in words.split(chr(10)) if x.strip()]):
+                mv = parse.metric_value(line, target=f == "target_value", unit=unit)
+                if mv["value"] is not None:
+                    store[f] = {**mv, "raw": words}
+                    break
+            continue
         value = proposed.get(f)
         structured = declared_type(phase, f) not in (None, str)
         if f == "process_map_sipoc" and not isinstance(value, dict):

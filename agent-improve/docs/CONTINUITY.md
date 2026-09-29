@@ -7,12 +7,12 @@
 
 | | |
 |---|---|
-| **Headline** | 29 of 161 Define features pass (core 29 of 152) — A 7/67 · B 18/36 · C 1/36 · integrator 3/22 |
-| **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
-| **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
+| **Headline** | 57 of 161 Define features pass (core 54 of 152) — A 30/67 · B 20/36 · C 1/36 · integrator 6/22 |
+| **Next — lane A** | DEF-078 — Node time limits, retries and compensation use LangGraph's per-node timeout=, retry_policy= and error_handler=; no hand-written budget or re |
+| **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
 | **Next — lane C** | DEF-079 — Every confirmed element has a change action in the progress view that starts coaching on it; the Confirm and Change buttons under a read-bac |
-| **Next — lane integrator** | DEF-002 — One Belt message to POST /ask runs the compiled graph once and returns a coached reply inside the 45 s wall — never a 500 after a timeout. |
-| **Run-through record** | older than the product source — re-run scripts/define_runthrough.py |
+| **Next — lane integrator** | DEF-120 — Re-ingesting a document leaves one copy per chunk (ids passed on add) |
+| **Run-through record** | current |
 | **ARCHITECTURE.md** | v2.0 |
 | **CLAUDE.md** | v2.3.1 |
 | **Block regenerated** | 2026-09-29 |

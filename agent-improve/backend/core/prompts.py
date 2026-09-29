@@ -1580,6 +1580,9 @@ STORE_NOTE_STORED = "Stored: {elements}."
 #: G-118 (DEF-157) — a part of the element carried from an earlier read-back, shown under this one
 #: so the Belt confirms it too (written by `phases/nodes_common._with_carried`).
 READ_BACK_CARRIED = "Also kept from your earlier answer — {name}: {value}"
+#: ADR-0071 (DEF-076): under a read-back of the baseline or the target, what a Confirm stores —
+#: written by code from the MetricValue.
+READ_BACK_METRIC = "Read as a number — {name}: {value}"
 STORE_NOTE_NOT_STORED = ("Nothing was stored for {element} yet: the read-back did not include "
                          "{missing}. Please check the version below.")
 

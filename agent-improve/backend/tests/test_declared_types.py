@@ -257,4 +257,5 @@ def test_the_declared_type_comes_from_the_schema_not_a_list() -> None:
     assert declared_type("define", "business_case") is str
     assert set(STRUCTURED_DEFINE_FIELDS) == {
         "team", "project_scope", "process_map_sipoc", "metric_definitions",
-        "critical_to_quality", "problem_5w2h", "benefits_analysis"}
+        "critical_to_quality", "problem_5w2h", "benefits_analysis",
+        "baseline_estimate", "target_value"}          # ADR-0071 (DEF-076): MetricValue

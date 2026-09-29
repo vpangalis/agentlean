@@ -73,6 +73,7 @@ from backend.core.prompts import (
     PLANNER_JUDGMENT_PROMPT,
     PLANNER_JUDGMENT_READING_BACK,
     READ_BACK_CARRIED,
+    READ_BACK_METRIC,
     STORE_NOTE_NOT_STORED,
     STORE_NOTE_STORED,
 )
@@ -448,7 +449,26 @@ async def _judge(phase: str, state: PhaseState, field: str, previous: str,
     judge = get_llm("planner").with_structured_output(SufficiencyJudgment)
     verdict = await judge.ainvoke(_judgment_prompt(
         phase, state, field, previous, latest, reading_back == "yes"))
-    return _checked_criterion(phase, field, SufficiencyJudgment.model_validate(verdict))
+    return _number_required(phase, field, previous, latest,
+                            _checked_criterion(phase, field, SufficiencyJudgment.model_validate(verdict)))
+
+
+def _number_required(phase: str, field: str, previous: str, latest: str,
+                     j: SufficiencyJudgment) -> SufficiencyJudgment:
+    """ADR-0071 (DEF-076): a baseline or a target with no number is never sufficient — whatever
+    the model judged, an answer the one parser reads no figure from is asked again, in code."""
+    from backend.phases.define import parse
+    if phase != "define" or field not in parse.METRIC_FIELDS or j.verdict != "sufficient":
+        return j
+    words = chr(10).join(x for x in (previous, latest) if x)
+    if parse.metric_value(words, target=field == "target_value")["value"] is not None:
+        return j
+    crit = "quantified" if field == "baseline_estimate" else "number-and-unit"
+    return _checked_criterion(phase, field, SufficiencyJudgment(
+        verdict="insufficient", failed_criterion=crit, reason=(
+            "decided in code (ADR-0071): the answer holds no number — the "
+            + ("baseline" if field == "baseline_estimate" else "target")
+            + " is stored as a number with its unit; ask for the figure again")))
 
 
 def _judged_in_code(phase: str, state: PhaseState, field: str, previous: str,
@@ -456,25 +476,37 @@ def _judged_in_code(phase: str, state: PhaseState, field: str, previous: str,
     """G-120 (DEF-032), founder ruling 3, 2026-09-28: a target written as a number or a limit
     ("under 5%", "höchstens 5 %") is parsed in code into number, unit and direction BEFORE any
     model judgment. In the baseline's unit and different from the baseline, it meets
-    `number-and-unit` — sufficient, no model call. Anything else goes to the model as before."""
+    `number-and-unit` — sufficient, no model call. ADR-0071 (DEF-076): in ANOTHER unit than the
+    baseline's, it is insufficient, decided here, and the reason names both units so the coach
+    asks for it again in the baseline's. Anything else goes to the model as before. The one
+    parser reads both values (`parse.metric_value` / `as_metric`)."""
     if phase != "define" or field != "target_value":
         return None
-    from backend.phases.define.parse import number_in, parse_limit, unit_of
-    target = parse_limit(latest) or parse_limit(previous)
+    from backend.phases.define import parse
     artifacts = dict(state.get("artifacts") or {})
-    metrics = artifacts.get("metric_definitions") or []
-    base_unit = unit_of(str(metrics[0].get("unit") or "")) if metrics and isinstance(metrics[0], dict) else ""
-    baseline = number_in(str(artifacts.get("baseline_estimate") or ""), base_unit)   # G-132
-    base_unit = base_unit or (baseline or {}).get("unit", "")
-    if not target or not target["unit"] or target["unit"] != base_unit:
+    unit = parse.primary_unit(artifacts)
+    baseline = (parse.as_metric(artifacts["baseline_estimate"], unit=unit)
+                if artifacts.get("baseline_estimate") else None)                    # G-132
+    base_unit = unit or (baseline or {}).get("unit", "")
+    target = parse.metric_value(latest, target=True)
+    if target["value"] is None:
+        target = parse.metric_value(previous, target=True)
+    if target["value"] is None or not target["unit"]:
         return None
-    if baseline and baseline["unit"] == base_unit and baseline["number"] == target["number"]:
+    if base_unit and target["unit"] != base_unit:
+        logger.info("%s.planner: target in %s, the baseline in %s — asked again (ADR-0071)",
+                    phase, target["unit"], base_unit)
+        return _checked_criterion(phase, field, SufficiencyJudgment(
+            verdict="insufficient", failed_criterion="number-and-unit", reason=(
+                f"decided in code (ADR-0071): the target is in {target['unit']} but the baseline is "
+                f"in {base_unit} — ask for the target in {base_unit}, naming both units")))
+    if baseline and baseline["value"] is not None and baseline["value"] == target["value"]:
         return None
     logger.info("%s.planner: target judged in code (G-120): %s %s%s, the baseline's unit",
-                phase, target["direction"], target["number"], target["unit"])
+                phase, target["direction"], target["value"], target["unit"])
     return SufficiencyJudgment(verdict="sufficient", reason=(
-        f"parsed in code: {target['direction']} {target['number']:g}{target['unit']} — a number in "
-        f"the baseline's unit ({base_unit}), different from the baseline"))
+        f"parsed in code: {parse.metric_text(target)} — a number in the baseline's unit "
+        f"({base_unit or target['unit']}), different from the baseline"))
 
 
 def _checked_criterion(phase: str, field: str, j: SufficiencyJudgment) -> SufficiencyJudgment:
@@ -1486,6 +1518,29 @@ def _with_carried(messages: list, reply: CoachingResponse | None, phase: str,
     return messages
 
 
+def _with_metric_reading(messages: list, reply: CoachingResponse | None, store: dict[str, Any]) -> list:
+    """ADR-0071 (DEF-076): under a read-back of the baseline or the target, the number, unit and
+    direction a Confirm will store — written HERE from the MetricValue, never by the model, so the
+    Belt confirms what is stored."""
+    from backend.phases.define.parse import METRIC_FIELDS, metric_text
+    lines = chr(10).join(READ_BACK_METRIC.format(name=guard_messages.element_name("define", f),
+                                                 value=metric_text(store[f]))
+                         for f in METRIC_FIELDS if isinstance(store.get(f), dict))
+    if not lines:
+        return messages
+    for i in range(len(messages) - 1, -1, -1):
+        msg = messages[i]
+        if isinstance(msg, AIMessage) and msg.text.strip():
+            text = f"{msg.text.rstrip()}{chr(10) * 2}{lines}"
+            if reply is not None:
+                reply.message = text
+            out = list(messages)
+            out[i] = AIMessage(content=text, additional_kwargs=dict(msg.additional_kwargs or {}),
+                               id=msg.id, name=msg.name)
+            return out
+    return messages
+
+
 def turn_type_of(plan: Optional[CoachingPlan], state: PhaseState) -> str:
     """ADR-0069's turn type, in code: an unread upload bound to an open ask makes an upload turn;
     teaching a field (teach, or store and advance to the next) a teaching turn; anything else — the
@@ -1990,7 +2045,11 @@ async def executor(
     if move == moves.STORE_AND_ADVANCE and plan is not None:
         candidate = dict(plan.store)
     elif move == moves.READ_BACK and pending:
-        candidate = {f: v for f, v in captured.items() if f in (pending.get("fields") or [])}
+        # ADR-0071 (DEF-076): the baseline and the target are parsed in code from the Belt's
+        # words by `moves.pending_store`; the coach's own rendering of them is not a candidate.
+        from backend.phases.define.parse import METRIC_FIELDS
+        candidate = {f: v for f, v in captured.items() if f in (pending.get("fields") or [])
+                     and not (phase == "define" and f in METRIC_FIELDS)}
     else:
         candidate = {}
     not_stored = sorted(f for f in captured if not (move == moves.READ_BACK and f in candidate))
@@ -2065,8 +2124,11 @@ async def executor(
         carried = {f: earlier[f] for f in (pending.get("fields") or [])
                    if f != pending.get("field") and f not in kept and f in earlier}
         kept = {**kept, **carried}
-        pending = {**pending, "proposed": dict(kept),
-                   "store": moves.pending_store(phase, pending, kept)}
+        store = moves.pending_store(phase, pending, kept, prior_artifacts)
+        # ADR-0071: the read-back's MetricValues are what the Belt sees (below) and the chart draws.
+        from backend.phases.define.parse import METRIC_FIELDS
+        read = {f: v for f, v in store.items() if phase == "define" and f in METRIC_FIELDS}
+        pending = {**pending, "proposed": {**kept, **read}, "store": store}
         kept = {}
     artifacts = {**prior_artifacts, **kept}
 
@@ -2121,6 +2183,8 @@ async def executor(
     # G-117 (DEF-156) — what was stored is said by code, from `kept`, never by the model.
     new_messages = _store_truth(new_messages, reply, phase, plan, kept if move == moves.STORE_AND_ADVANCE else {})
     new_messages = _with_carried(new_messages, reply, phase, carried)
+    if move == moves.READ_BACK and phase == "define" and pending is not None:
+        new_messages = _with_metric_reading(new_messages, reply, dict(pending.get("store") or {}))
     # ADR-0070 — the element's visual, drawn by the program with the gate document's own function:
     # on a read-back from the coach's structured values ("not yet confirmed"), after Confirm from
     # the stored values. No model call draws.

@@ -355,7 +355,10 @@ class CoachingResponse(BaseModel):
             "post_improvement_metrics → the Belt's content PLUS "
             "references_phase, references_field, references_metric_name, "
             "references_value\n"
-            "Values INSIDE those objects are still strings."
+            "Values INSIDE those objects are still strings.\n"
+            "  baseline_estimate, target_value → NOT an object you build: "
+            "the Belt's own words, as a string; the number, the unit and the "
+            "direction are read from them in code (ADR-0071)."
         ),
     )
     citations: list[dict] = Field(

@@ -73,6 +73,13 @@ def _value(artifacts: dict[str, Any], field: str) -> Any:
     return None if is_empty_capture(v) else v
 
 
+def _metric(artifacts: dict[str, Any], field: str) -> str | None:
+    """A baseline or target as the report shows it — "at most 5 %" — from its MetricValue."""
+    from backend.phases.define.parse import metric_text
+    v = _value(artifacts, field)
+    return None if v is None else metric_text(v)
+
+
 def _savings(artifacts: dict[str, Any]) -> dict[str, Any] | None:
     rows = [r for r in (artifacts.get("computation_results") or [])
             if isinstance(r, dict) and r.get("tool") == "calculate_expected_savings"]
@@ -110,8 +117,11 @@ def define_report(artifacts: dict[str, Any], case: dict[str, Any] | None = None,
         4: {"voc_summary": _value(a, "voc_summary"),
             "ctqs": _value(a, "critical_to_quality") or []},
         5: {"primary": registry[0] if registry else None,
-            "baseline": _value(a, "baseline_estimate"),
-            "target": _value(a, "target_value"),
+            # ADR-0071 (DEF-076): shown as text built from the MetricValue, which is kept beside it.
+            "baseline": _metric(a, "baseline_estimate"),
+            "target": _metric(a, "target_value"),
+            "baseline_value": _value(a, "baseline_estimate"),
+            "target_value": _value(a, "target_value"),
             "target_date": _value(a, "target_date"),
             "secondary_metrics": _value(a, "secondary_metrics"),
             "other_registered": registry[1:]},
