@@ -94,8 +94,10 @@ conditional edge when the validation stack exhausts its shared cap of
 frameworks are BANNED.** LangGraph provides the mechanism.
 
 **Per-node timeouts — required on every phase executor node:**
-`builder.add_node(..., timeout=TimeoutPolicy(run_timeout=45),
-error_handler=...)`. `NodeTimeoutError` triggers the fallback chain (§4.8).
+`builder.add_node(..., timeout=TimeoutPolicy(run_timeout=40),
+error_handler=...)` — 40 s so the planner and the composed answer fit R13's
+45 s turn; the handler answers on `NodeTimeoutError` (T70; no hand-written
+budget or retry loop).
 
 **Node-level error handlers — required on every node with external
 writes.** Every node that writes to Azure Blob, `improve_case_index`,

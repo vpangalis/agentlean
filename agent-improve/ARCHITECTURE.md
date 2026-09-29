@@ -935,7 +935,7 @@ class ControlOutput(BaseModel):
 
 | Where | Design |
 |---|---|
-| Executor node | `TimeoutPolicy(run_timeout=45)`; the executor's own soft budget (`EXECUTOR_SOFT_BUDGET`) ends its loop earlier; on timeout the move's scripted question is returned with a fallback flag |
+| Executor node | `TimeoutPolicy(run_timeout=40)` and `error_handler=` (T70): on timeout the handler returns the move's scripted question with a fallback flag; the planner node has a `RetryPolicy` |
 | Model calls | `ModelRetryMiddleware` (backoff with jitter); client retries 0 |
 | Tool calls | `ToolRetryMiddleware`; the failure is returned to the coach, not raised |
 | Retrieval | Empty list only for a real no-match; otherwise `KnowledgeSearchError`, classified by `_fail()`: 4xx permanent, connection transient; the coach says the lookup failed |

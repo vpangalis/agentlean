@@ -100,7 +100,10 @@ def _state(**overrides: object) -> PhaseState:
 
 
 def _node_names(graph) -> set[str]:
-    return {n for n in graph.get_graph().nodes if n not in ("__start__", "__end__")}
+    """The phase's own nodes. The engine's are left out: `__start__`, `__end__`, and since T70
+    (DEF-078) `__error_handler__executor` — LangGraph's node for the executor's `error_handler=`."""
+    return {n for n in graph.get_graph().nodes if not (n.startswith("__") and n.endswith("__"))
+            and not n.startswith("__error_handler__")}
 
 
 def _run(coro):

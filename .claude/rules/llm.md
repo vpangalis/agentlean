@@ -110,7 +110,7 @@ validators 0.0–0.2.
 **Four levels, always terminating in success:**
 
 ```
-Level 0: TimeoutPolicy(run_timeout=45)         — fires first (§3.6)
+Level 0: TimeoutPolicy(run_timeout=40)         — fires first (§3.6)
 Level 1: gpt-4o    (operational-premium)       exponential backoff
 Level 2: gpt-4o-mini (operational-model)       exponential backoff
 Level 3: Azure Cache for Redis, session-scoped jittered backoff

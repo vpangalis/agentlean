@@ -686,22 +686,14 @@ AFTER_AGENT_CALLS = 2
 #: composes from what is in hand rather than starting a chain it cannot finish.
 REMAINING_STEPS_FLOOR = 2
 
-#: §44 — the node's OWN wall, deliberately BELOW `EXECUTOR_RUN_TIMEOUT`.
-#:
-#: **The engine's `TimeoutPolicy` cancels this node FROM ABOVE ITS OWN BODY**
-#: (`subgraph_common.py`), so none of the graceful paths below run and the
-#: `NodeTimeoutError` reaches the route's bare `except Exception` as a 500 —
-#: G-84, observed on rid `ca6ba417` at 52.219s against a 45s wall.
-#:
-#: **The fix is to finish FIRST.** The node budgets its own model loop at this
-#: value and composes a degraded answer in the headroom that remains, so the
-#: engine's wall is never reached and stays what it should be: a backstop for
-#: a node that has stopped cooperating, not the ordinary failure path.
-#:
-#: **The headroom is for composing, which makes no model call** — marking
-#: uploads consumed, attaching a diagram, building the step_log entry. Five
-#: seconds is generous for that and cheap to hold back.
-EXECUTOR_SOFT_BUDGET = 40.0
+#: T70 (DEF-078) — the executor's time limit, ENFORCED BY LANGGRAPH: the subgraph registers the
+#: node with `timeout=TimeoutPolicy(run_timeout=EXECUTOR_RUN_TIMEOUT)` and
+#: `error_handler=executor_timeout_handler(phase)` (`subgraph_common.py`). When the wall fires, the
+#: engine cancels the node and runs the handler, which composes the move's own reply in code —
+#: never a 500 (G-84), never a hand-written `asyncio.wait_for` budget (what this replaced).
+#: 40 s, not 45: the planner's judgment and the composition sit inside the same turn, and R13
+#: holds the whole turn to 45 s.
+EXECUTOR_RUN_TIMEOUT = 40.0
 
 #: What the Belt reads when the coach ran out of time. **§4.8: never a hard
 #: failure.** Addressed to the BELT, unlike `_HOP_BUDGET_SPENT` — it is the
@@ -1747,6 +1739,9 @@ async def executor(
     phase: str,
     state: PhaseState,
     config: Optional[RunnableConfig] = None,
+    *,
+    written: Optional[CoachingResponse] = None,
+    engine_timeout: bool = False,
 ) -> dict[str, Any]:
     """Run one coaching turn. **Returns plainly — emits no routing `Command`.**
 
@@ -1795,13 +1790,6 @@ async def executor(
     already reads — `sipoc_diagram` for a SIPOC, `visualisation` for the 5W2H
     mind map (`gateway/routes.py` reads exactly those).
     """
-    # §44 / G-92 — THE BUDGET'S CLOCK STARTS HERE, at node entry, because the
-    # engine's `TimeoutPolicy` wall starts here too. Anchored at
-    # `agent.ainvoke` instead, the ~5 s this node spends building the agent and
-    # dispatching the planner's read came off the WALL but not off the budget,
-    # so the soft deadline fell after the wall and the engine cancelled the
-    # node first (trace 01a0d215…: soft at 54.7 s, wall at 54.2 s).
-    _node_entered = asyncio.get_running_loop().time()
     turn_count = state.get("turn_count") or 0
     plan = state.get("coaching_plan")
 
@@ -1857,7 +1845,9 @@ async def executor(
     # `state["messages"]` is what the tail slice below measures against, so the
     # dispatched exchange is returned as new messages and checkpointed with the
     # turn — which is what stops the next turn re-reading the same file.
-    dispatched = await _dispatch_routed_read(state)
+    # T70 — composing after the engine's wall (`engine_timeout`) makes no call: the read, if any,
+    # was the timed-out node's to make.
+    dispatched = [] if engine_timeout else await _dispatch_routed_read(state)
     # 6.61 (item 4) — SECTION 6 IS ONE ENTRY PER TURN: the Belt's words and the
     # coach's reply text — no tool-call stubs, no "Returning structured
     # response" dumps. The stored conversation keeps its full shape (the
@@ -1866,31 +1856,24 @@ async def executor(
     history = _conversation(list(state.get("messages") or []))
     prior = [*history, *dispatched]
     hit_cap = False
-    timed_out = False
+    # T70 (DEF-078) — a turn the engine's wall ended arrives here from `executor_timeout_handler`
+    # with the move's code-written reply; it composes like any other turn and is recorded as
+    # `partial_timeout`, the fallback marked as the defect it is (6.61).
+    timed_out = engine_timeout
     filtered = False
     # 6.61 — containment, founder 2026-09-25: every use of the code-written
     # fallback is a DEFECT (the coach did not finish its move) and is logged
     # as one; the target is zero.
-    fell_back = False
-    # What is LEFT of the node's budget, not a fresh one: time already spent
-    # above is time the wall has already counted. Floored at zero, so a setup
-    # that overran the budget times the agent out at once and still composes.
-    remaining_budget = max(
-        0.0,
-        EXECUTOR_SOFT_BUDGET - (asyncio.get_running_loop().time() - _node_entered),
-    )
+    fell_back = engine_timeout
     # A Change click is answered in code and the coach is not called
     # (`_change_reply`); every other move is the model's to write.
-    written = _change_reply(plan)
+    written = written if written is not None else _change_reply(plan)
     try:
-        # §44 / G-84, G-92 — the node's OWN budget, so the ENGINE's wall is
-        # never the thing that ends this turn. `asyncio.wait_for` cancels the
-        # agent loop and raises HERE, inside the node, where the composition
-        # below can still run. `EXECUTOR_SOFT_BUDGET` is read from the module
-        # global at call time so a test can inject a small budget.
+        # No time limit here (T70): the node's limit is the engine's `TimeoutPolicy`, and its
+        # handler composes the answer when it fires.
         result: dict[str, Any] = {"messages": [*prior, AIMessage(content=written.message)],
                   "structured_response": written} if written is not None else \
-            await asyncio.wait_for(agent.ainvoke(
+            await agent.ainvoke(
             {"messages": prior},
             # §16 — the infinite-loop backstop, NOT the hop cap. Passed
             # explicitly so it does not depend on what the caller happened to
@@ -1899,29 +1882,7 @@ async def executor(
             # route sets 50 and silently wrong when a test or a script invokes
             # this node directly.
             config={"recursion_limit": COACH_RECURSION_BACKSTOP},
-        ), timeout=remaining_budget)
-    except asyncio.TimeoutError:
-        # §4.8 — NEVER A HARD FAILURE TO THE BELT, and this is the path that
-        # was missing. Before G-84 the engine's `TimeoutPolicy` fired instead,
-        # cancelling the node from above and delivering a 500 carrying a stack
-        # trace. The turn now completes: 200, a partial and honest answer, and
-        # a `step_log` entry that says it was partial.
-        timed_out = True
-        logger.warning(
-            "%s.executor: TIMED OUT at %.1fs (from node entry) of a %.1fs budget after %d "
-            "hop(s) — composing a degraded answer (§4.8, G-84). The engine's "
-            "%.0fs wall was NOT reached, which is the point: it stays a "
-            "backstop rather than the ordinary failure path.",
-            phase, asyncio.get_running_loop().time() - _node_entered,
-            EXECUTOR_SOFT_BUDGET, hops_spent[0], 45.0,
         )
-        # 6.61 (item 1) — never the backstop text as a coaching reply: the
-        # move was decided in code, so code writes its reply (_TIMEOUT_MESSAGE is kept
-        # for the log). The step_log status still records the degrade.
-        fallback = _fallback_reply(phase, plan)
-        fell_back = True
-        result = {"messages": [*prior, AIMessage(content=fallback.message)],
-                  "structured_response": fallback}
     except GraphRecursionError:
         # §3.7 — MUST be caught here and turned into a partial answer. A Belt
         # mid-session never sees a stack trace because the coach explored too
@@ -2376,6 +2337,29 @@ async def executor(
 
 
 # ── validation_stack ──────────────────────────────────────────────────────
+
+def executor_timeout_handler(phase: str, goto: str = "planner") -> Any:
+    """T70 (DEF-078): the executor node's `error_handler=`. LangGraph runs it when the node fails;
+    on the engine's `TimeoutPolicy` (`NodeTimeoutError`) it composes the turn with the move's own
+    reply, written in code (`_fallback_reply`), through the executor itself — so a timed-out turn
+    stores, records and answers exactly as a finished one, marked `partial_timeout` — and routes on
+    to the planner. Any other failure is raised as before. (A closure, not a class: §2.)"""
+    from langgraph.errors import NodeError, NodeTimeoutError
+
+    async def executor_timed_out(state: PhaseState, error: NodeError,
+                                 config: RunnableConfig) -> Command:
+        if not isinstance(error.error, NodeTimeoutError):
+            raise error.error
+        logger.warning(
+            "%s.executor: the engine's %.0fs wall ended the node (T70, G-84) — composing the "
+            "move's own reply in code; recorded as partial_timeout", phase, EXECUTOR_RUN_TIMEOUT)
+        update = await executor(phase, state, config,
+                                written=_fallback_reply(phase, state.get("coaching_plan")),
+                                engine_timeout=True)
+        return Command(update=update, goto=goto)
+
+    return executor_timed_out
+
 
 async def validation_stack(
     phase: str,

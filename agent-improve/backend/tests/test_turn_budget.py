@@ -36,7 +36,9 @@ from backend.phases.subgraph_common import phase_nodes
 #: 40 s sits below 45 s; the setup delay eats most of it before the agent
 #: starts, as ~5 s did on the live turns.
 WALL = 1.0
-SOFT = 0.6
+#: T70: what the error handler's composition may take after the engine's wall fires — no model
+#: call, only the executor's bookkeeping (in production: inside R13's 5 s beyond the 40 s wall).
+COMPOSE_HEADROOM = 0.8
 SETUP_DELAY = 0.5
 #: One blocking round trip of a lookup's search — embed + search, simulated.
 BLOCK = 0.3
@@ -105,7 +107,6 @@ class _LookupThenStallAgent:
 @pytest.fixture
 def slow_turn(monkeypatch, stub_planner, blocking_lookups):
     """The real executor, a setup delay before its agent, a blocking tool."""
-    monkeypatch.setattr(_nc, "EXECUTOR_SOFT_BUDGET", SOFT)
 
     async def delayed_dispatch(state: Any) -> list:
         await asyncio.sleep(SETUP_DELAY)
@@ -120,7 +121,8 @@ def _graph():
     """The executor node exactly as the subgraph registers it, under a real wall."""
     b = StateGraph(PhaseState)
     b.add_node("executor", phase_nodes("define").executor,
-               timeout=TimeoutPolicy(run_timeout=WALL))
+               timeout=TimeoutPolicy(run_timeout=WALL),
+               error_handler=_nc.executor_timeout_handler("define", goto=END))   # T70
     b.add_edge(START, "executor")
     b.add_edge("executor", END)
     return b.compile()
@@ -134,15 +136,16 @@ def _graph():
 # its outcome in docs/runthrough/wallclock_*.json.
 @pytest.mark.wallclock
 def test_a_slow_turn_answers_before_the_wall(slow_turn) -> None:
-    """**The G-92 check.** Setup eats most of the budget and the coach's
-    lookup blocks; the node must still finish FIRST — a degraded answer and a
-    `partial_timeout` entry, never the engine's `NodeTimeoutError` (a 500).
+    """**The G-92 check, on LangGraph's own wall (T70, DEF-078).** Setup eats most of the wall and
+    the coach's lookup blocks; the engine's `TimeoutPolicy` ends the node and its error handler
+    answers — a degraded answer and a `partial_timeout` entry, never a `NodeTimeoutError` (a
+    500) — within the wall plus the composing headroom.
     """
     started = time.monotonic()
     out = asyncio.run(_graph().ainvoke(_state()))
     elapsed = time.monotonic() - started
 
-    assert elapsed < WALL, f"the node ran {elapsed:.2f}s against a {WALL}s wall"
+    assert elapsed < WALL + COMPOSE_HEADROOM, f"the turn ran {elapsed:.2f}s against a {WALL}s wall"
     # 6.61 (fix 1) — the Belt gets the move's own reply, written in code,
     # never the timeout text; the use is a DEFECT on the trail.
     assert out["messages"][-1].content != _nc._TIMEOUT_MESSAGE

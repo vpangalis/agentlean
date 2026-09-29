@@ -72,7 +72,8 @@
     ],
     "code": [
      "agent-improve/backend/gateway/routes.py",
-     "agent-improve/backend/phases/nodes_common.py::EXECUTOR_SOFT_BUDGET",
+     "agent-improve/backend/phases/nodes_common.py::EXECUTOR_RUN_TIMEOUT",
+     "agent-improve/backend/phases/nodes_common.py::executor_timeout_handler",
      "agent-improve/backend/tests/test_capability_rows.py::test_row_2_a_turn_returns_a_coached_reply"
     ],
     "guidance": [
@@ -3339,7 +3340,7 @@
    "description": "Node time limits, retries and compensation use LangGraph's per-node timeout=, retry_policy= and error_handler=; no hand-written budget or retry loop.",
    "clause": "A Belt is coached through the thirteen elements",
    "depends_on": [],
-   "test": "backend/tests/test_define_e2e.py::test_node_limits_retries_and_compensation_use_langgraph_primitives",
+   "test": "backend/tests/test_define_e2e.py::test_t70_node_limits_retries_and_recovery_use_langgraph_primitives",
    "sources": {
     "architecture": [],
     "procedure": [],

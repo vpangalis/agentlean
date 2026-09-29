@@ -18,7 +18,7 @@ from __future__ import annotations
 import backend.phases.nodes_common as nc
 from backend.phases.nodes_common import (
     COACH_HOP_BUDGET,
-    EXECUTOR_SOFT_BUDGET,
+    EXECUTOR_RUN_TIMEOUT,
     HOP_BUDGET_COMPOSE_RESERVE,
     MEASURED_HOP_SECONDS,
 )
@@ -33,16 +33,16 @@ def test_the_cap_can_actually_fire_inside_the_node_budget() -> None:
     """**THE POINT OF THE CHANGE, AND THE TEST THAT WAS MISSING.**
 
     A coach that spends every hop must still reach `_HOP_BUDGET_SPENT` and
-    compose, INSIDE `EXECUTOR_SOFT_BUDGET`. If the arithmetic does not fit, the
+    compose, INSIDE `EXECUTOR_RUN_TIMEOUT`. If the arithmetic does not fit, the
     node's own timeout fires first (6.34), the Belt gets the degraded answer,
     and the cap is decoration.
     """
     worst = _worst_case_seconds(COACH_HOP_BUDGET)
-    assert worst <= EXECUTOR_SOFT_BUDGET, (
+    assert worst <= EXECUTOR_RUN_TIMEOUT, (
         f"a full-budget turn needs ~{worst:.1f}s "
         f"({COACH_HOP_BUDGET} hops x {MEASURED_HOP_SECONDS}s + "
         f"{HOP_BUDGET_COMPOSE_RESERVE}s to compose) against a "
-        f"{EXECUTOR_SOFT_BUDGET}s node budget — the cap cannot fire, so it is "
+        f"{EXECUTOR_RUN_TIMEOUT}s node budget — the cap cannot fire, so it is "
         f"dead configuration exactly as COACH_HOP_BUDGET = 5 was (G-83)")
 
 
@@ -53,7 +53,7 @@ def test_the_old_cap_of_five_would_fail_this_test() -> None:
     would not catch its return. Asserted on the arithmetic rather than by
     re-importing, so it holds whatever the constant currently is.
     """
-    assert _worst_case_seconds(5) > EXECUTOR_SOFT_BUDGET, (
+    assert _worst_case_seconds(5) > EXECUTOR_RUN_TIMEOUT, (
         "five hops now fit the budget — either the node budget was raised or "
         "per-hop cost fell. Re-measure MEASURED_HOP_SECONDS and revisit the "
         "cap deliberately; do not let this test quietly start allowing five")
@@ -72,7 +72,7 @@ def test_one_more_hop_would_not_fit() -> None:
     turn could afford. This pins that 3 is the ceiling rather than a guess
     under it.
     """
-    assert _worst_case_seconds(COACH_HOP_BUDGET + 1) > EXECUTOR_SOFT_BUDGET, (
+    assert _worst_case_seconds(COACH_HOP_BUDGET + 1) > EXECUTOR_RUN_TIMEOUT, (
         f"{COACH_HOP_BUDGET + 1} hops also fit — the cap is lower than it "
         f"needs to be and is discarding retrieval the turn could afford")
 

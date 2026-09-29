@@ -607,9 +607,75 @@ def test_baseline_and_target_are_stored_as_a_number_with_a_unit(env, monkeypatch
                 assert statuses["baseline_estimate"]["status"] == moves.NOT_TAUGHT
 
 
-def test_node_limits_retries_and_compensation_use_langgraph_primitives() -> None:
-    """DEF-078 — Node time limits, retries and compensation use LangGraph's per-node timeout=, retry_policy= and error_handler=; no hand-written budget or retry loop."""
-    _not_written('DEF-078')
+def test_t70_node_limits_retries_and_recovery_use_langgraph_primitives(env, monkeypatch, stub_planner) -> None:
+    """DEF-078 — T70: on the real routes and graph, the executor's time limit is LangGraph's own
+    `TimeoutPolicy` and its recovery the node's `error_handler=`: a coach that stalls past the wall
+    is ended by the engine and the turn still answers — 200, the move's reply written in code,
+    `partial_timeout` in step_log, no `NodeTimeoutError` reaching the Belt. The planner's retries
+    are the node's `retry_policy=`: a transient failure of its model call is retried by the engine
+    and the turn completes. No hand-written budget or retry loop (the executor's source holds no
+    `asyncio.wait_for`: test_executor_timeout.py). Renamed from `…_and_compensation_use_…`, whose
+    name the drift registry's pattern-4 (a `def …compensat…` is a hand-written Saga) refuses."""
+    import time
+
+    from backend.core import graph as graph_mod
+    from backend.phases import moves, nodes_common, subgraph_common
+
+    # A one-second wall, the graph rebuilt under it.
+    monkeypatch.setattr(subgraph_common, "EXECUTOR_RUN_TIMEOUT", 1.0)
+    monkeypatch.setattr(subgraph_common, "PLANNER_RETRY",
+                        subgraph_common.RetryPolicy(max_attempts=3, initial_interval=0.01, jitter=False))
+    graph_mod._subgraph.cache_clear()
+    graph_mod.get_graph.cache_clear()
+
+    class Stalling:
+        async def ainvoke(self, *a, **k):
+            await asyncio.sleep(10)
+            raise AssertionError("the wall did not end the node")
+    monkeypatch.setattr(nodes_common, "create_agent", lambda **kw: Stalling())
+
+    # The planner's model fails once with a transient error, then answers.
+    calls = {"n": 0}
+    judge = stub_planner.ainvoke
+
+    async def flaky(*a, **k):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise ConnectionError("transient: connection reset")
+        return await judge(*a, **k)
+    monkeypatch.setattr(stub_planner, "ainvoke", flaky)
+
+    steps: list = []
+    step = nodes_common._step
+
+    def spy(*a, **k):
+        out = step(*a, **k)
+        steps.append(out)
+        return out
+    monkeypatch.setattr(nodes_common, "_step", spy)
+
+    try:
+        record = env.case.phases["define"]
+        record.structured = {}
+        record.field_status = {"business_case": {"status": moves.ASKED}}
+        started = time.monotonic()
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana",
+                                          "message": "Late payments cost us about 62k a year across three sites."})
+        elapsed = time.monotonic() - started
+        assert r.status_code == 200, r.text
+        assert calls["n"] == 2, f"the planner's transient failure was not retried by the engine: {calls}"
+        answer = r.json()["answer"]
+        assert answer and "NodeTimeoutError" not in answer and "Traceback" not in answer, answer
+        executor = [s for s in steps if s.get("node") == "executor"]
+        assert executor and executor[-1]["status"] == "partial_timeout", [s.get("status") for s in executor]
+        assert executor[-1]["fallback_used"] is True
+        assert elapsed < 8, f"the turn took {elapsed:.1f}s — the 1 s wall did not end the stalled coach"
+        nodes = graph_mod._subgraph("define").builder.nodes
+        assert nodes["executor"].error_handler_node is not None
+        assert nodes["planner"].retry_policy is not None
+    finally:
+        graph_mod._subgraph.cache_clear()
+        graph_mod.get_graph.cache_clear()
 
 
 def test_every_confirmed_element_can_be_changed_and_the_buttons_survive_a_reload() -> None:

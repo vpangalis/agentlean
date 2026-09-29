@@ -7,11 +7,12 @@ shipped a 500 carrying a stack trace against §4.8's *never a hard failure to
 the Belt*, and the same module that promises *"a Belt mid-session never sees a
 stack trace"* carries the policy that guaranteed they would.
 
-**THE WALL IS INJECTED, NOT WAITED FOR.** `EXECUTOR_SOFT_BUDGET` is read from
-the module global at call time, so a test sets it to milliseconds and makes the
-agent take slightly longer. **No `sleep(40)` anywhere** — a suite that takes
-forty seconds to prove one branch is a suite people stop running, which is the
-condition that let this through in the first place.
+**T70 (DEF-078, 2026-09-29): the limit is LangGraph's own** — the executor node's
+`TimeoutPolicy` and its `error_handler=` (`nodes_common.executor_timeout_handler`),
+which composes the move's reply in code when the wall fires. The hand-written
+`asyncio.wait_for` budget this file used to pin is gone, and the tests below pin
+its absence. The wall is still injected, never waited for: the timed turn is
+`test_turn_budget.py::test_a_slow_turn_answers_before_the_wall`, under a one-second wall.
 """
 from __future__ import annotations
 
@@ -22,36 +23,32 @@ import pytest
 
 from backend.phases import nodes_common
 from backend.phases.nodes_common import (
-    EXECUTOR_SOFT_BUDGET,
     _TIMEOUT_MESSAGE,
     _executor_status,
 )
-from backend.phases.subgraph_common import EXECUTOR_RUN_TIMEOUT
+from backend.phases.subgraph_common import EXECUTOR_RUN_TIMEOUT, PLANNER_RETRY
 
 
 # ── the relationship the whole fix rests on ─────────────────────────────────
 
-def test_the_node_budget_sits_below_the_engine_wall() -> None:
-    """**Two numbers in two modules whose ORDER is the entire guarantee.**
-
-    Invert them and the engine cancels the node before it can compose, the
-    degraded path never runs, and the Belt gets a 500 again — with no symptom
-    until a slow turn. `subgraph_common` also asserts this at import; this
-    pins the HEADROOM, which the assert deliberately does not.
-    """
-    assert EXECUTOR_SOFT_BUDGET < EXECUTOR_RUN_TIMEOUT
-    headroom = EXECUTOR_RUN_TIMEOUT - EXECUTOR_SOFT_BUDGET
-    assert headroom >= 3, (
-        f"only {headroom}s to mark uploads consumed, attach a diagram, build "
-        f"the step_log entry and return — too thin to compose in")
+def test_the_executor_wall_leaves_the_turn_inside_r13() -> None:
+    """T70: the engine's wall on the executor, 40 s, so the planner's judgment and the composed
+    answer fit R13's 45 s turn."""
+    assert EXECUTOR_RUN_TIMEOUT <= 40
 
 
-def test_the_import_time_assert_catches_an_inversion() -> None:
-    """The assert must FIRE, not merely exist. Proven by evaluating its own
-    condition against an inverted pair rather than by reading the source."""
-    soft, wall = 60.0, 45
-    with pytest.raises(AssertionError):
-        assert soft < wall, "inverted"
+def test_the_limit_the_handler_and_the_retry_are_langgraphs_on_the_compiled_graph() -> None:
+    """T70: read off the COMPILED subgraph, never the source — the executor carries the engine's
+    `TimeoutPolicy` and an `error_handler`, the planner a `RetryPolicy`."""
+    from langgraph.types import TimeoutPolicy
+
+    from backend.phases.subgraph_common import build_phase_subgraph
+    for phase in ("define", "measure"):
+        nodes = build_phase_subgraph(phase).builder.nodes
+        ex = nodes["executor"]
+        assert isinstance(ex.timeout, TimeoutPolicy) and ex.timeout.run_timeout == EXECUTOR_RUN_TIMEOUT, phase
+        assert ex.error_handler_node is not None, f"{phase}: the executor has no error_handler"
+        assert nodes["planner"].retry_policy == PLANNER_RETRY, phase
 
 
 # ── the degraded turn ───────────────────────────────────────────────────────
@@ -111,101 +108,18 @@ def test_the_undegraded_outcomes_are_unchanged() -> None:
     assert _executor_status(True, False) == "partial_cap_reached"
 
 
-def test_the_executor_guards_its_own_invoke() -> None:
-    """The guard is AT the agent call — parsed with `ast`, never grepped.
-
-    **THIS TEST FAILED ITS OWN MUTATION PROOF FIRST TIME AND IS RECORDED
-    RATHER THAN QUIETLY REWRITTEN.** It began as
-    `assert "asyncio.wait_for" in inspect.getsource(executor)`. Removing the
-    guard left the phrase behind **in the comment that explains it**, so the
-    test passed against an unguarded executor — a check satisfied by PROSE
-    ABOUT the mechanism rather than by the mechanism. Same class as G-63's
-    escape cause and `test_max_iterations_passes_through_with_a_belt_visible_
-    warning` (G-76): asserting on the source rather than on the contract.
-
-    `ast` cannot read a comment. It walks for an `await asyncio.wait_for(...)`
-    whose FIRST ARGUMENT is a call to `agent.ainvoke` and whose `timeout=` is
-    the module's budget — all three, because a `wait_for` around the wrong
-    await, or with a hardcoded number, would pass every behavioural test in
-    this file while leaving the real path unguarded.
-    """
+def test_the_executor_has_no_hand_written_budget() -> None:
+    """T70: no `asyncio.wait_for` and no `except asyncio.TimeoutError` in `executor` — parsed with
+    `ast`, so a comment about either cannot satisfy or fail it."""
     import ast
     import inspect
     import textwrap
 
-    tree = ast.parse(textwrap.dedent(inspect.getsource(nodes_common.executor)))
-
-    def names_in(node: ast.AST) -> set[str]:
-        return {n.id for n in ast.walk(node) if isinstance(n, ast.Name)}
-
-    anchored_names = {
-        t.id for n in ast.walk(tree) if isinstance(n, ast.Assign)
-        for t in n.targets if isinstance(t, ast.Name)
-        if {"EXECUTOR_SOFT_BUDGET", "_node_entered"} <= names_in(n.value)
-    }
-
-    guarded = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Await):
-            continue
-        call = node.value
-        if not isinstance(call, ast.Call):
-            continue
-        fn = call.func
-        if not (isinstance(fn, ast.Attribute) and fn.attr == "wait_for"
-                and isinstance(fn.value, ast.Name) and fn.value.id == "asyncio"):
-            continue
-        inner = call.args[0] if call.args else None
-        wraps_agent = (
-            isinstance(inner, ast.Call)
-            and isinstance(inner.func, ast.Attribute)
-            and inner.func.attr == "ainvoke"
-            and isinstance(inner.func.value, ast.Name)
-            and inner.func.value.id == "agent"
-        )
-        budget = next((k.value for k in call.keywords if k.arg == "timeout"),
-                      None)
-        # 6.52 (G-92): the timeout is what REMAINS of the node's budget, and
-        # that name must be computed from BOTH the module's budget and the
-        # node-entry anchor — read off the assignment, never off a comment.
-        from_module = (isinstance(budget, ast.Name)
-                       and budget.id in anchored_names)
-        guarded.append((wraps_agent, from_module))
-
-    assert guarded, (
-        "no `await asyncio.wait_for(...)` in executor() — the agent call is "
-        "unbudgeted and the engine's wall will cancel the node from above it "
-        "again (G-84). A COMMENT mentioning wait_for does not count.")
-    assert any(w for w, _ in guarded), (
-        "`asyncio.wait_for` is present but does not wrap `agent.ainvoke` — "
-        "the guarded await is the wrong one")
-    assert any(b for _, b in guarded), (
-        "the timeout is not what remains of `EXECUTOR_SOFT_BUDGET` since node "
-        "entry — a literal cannot be injected by a test, and a budget started at "
-        "the agent call lands after the engine wall (G-92)")
-
-
-def test_the_timeout_is_caught_where_it_is_raised() -> None:
-    """`except asyncio.TimeoutError` must sit in `executor`, parsed not grepped.
-
-    Catching it anywhere else — or not at all — puts the composition below
-    out of reach, which is the whole defect.
-    """
-    import ast
-    import inspect
-    import textwrap
-
-    tree = ast.parse(textwrap.dedent(inspect.getsource(nodes_common.executor)))
-    handlers = [h for n in ast.walk(tree) if isinstance(n, ast.Try)
-                for h in n.handlers]
-
-    def catches_timeout(h: ast.ExceptHandler) -> bool:
-        t = h.type
-        types = t.elts if isinstance(t, ast.Tuple) else [t]
-        return any(isinstance(x, ast.Attribute) and x.attr == "TimeoutError"
-                   and isinstance(x.value, ast.Name) and x.value.id == "asyncio"
-                   for x in types if x is not None)
-
-    assert any(catches_timeout(h) for h in handlers), (
-        "executor() does not catch `asyncio.TimeoutError`, so a budget that "
-        "fires still ends the turn as an exception (G-84)")
+    from backend.phases import nodes_common as nc
+    tree = ast.parse(textwrap.dedent(inspect.getsource(nc.executor)))
+    waits = [n for n in ast.walk(tree) if isinstance(n, ast.Attribute) and n.attr == "wait_for"]
+    catches = [h for n in ast.walk(tree) if isinstance(n, ast.Try) for h in n.handlers
+               if isinstance(h.type, ast.Attribute) and h.type.attr == "TimeoutError"]
+    assert not waits, "executor() still budgets its own agent call with asyncio.wait_for (T70)"
+    assert not catches, "executor() still catches asyncio.TimeoutError itself (T70)"
+    assert not hasattr(nc, "EXECUTOR_SOFT_BUDGET"), "the hand-written budget's constant is still defined"
