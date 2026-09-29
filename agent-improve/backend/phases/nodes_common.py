@@ -553,9 +553,10 @@ async def _plan_turn(phase: str, state: PhaseState,
     # R4 — a Confirm or Change click arrives on the request, not in the text;
     # the route puts it on `config` beside the entry mode.
     action = ((config or {}).get("configurable") or {}).get("belt_action")
+    element = ((config or {}).get("configurable") or {}).get("belt_element")     # W9 (DEF-079)
     d = await moves.decide(phase, dict(state.get("artifacts") or {}),
                            dict(state.get("field_status") or {}),
-                           moves.belt_message(messages), judge, action=action)
+                           moves.belt_message(messages), judge, action=action, element=element)
     return CoachingPlan(
         focus_field=d["field"], status=d["status"], move=d["move"],
         judgment=d["judgment"], answer=d["answer"], messages=d["messages"],

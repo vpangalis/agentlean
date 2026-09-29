@@ -783,9 +783,118 @@ def test_t70_node_limits_retries_and_recovery_use_langgraph_primitives(env, monk
         graph_mod.get_graph.cache_clear()
 
 
-def test_every_confirmed_element_can_be_changed_and_the_buttons_survive_a_reload() -> None:
-    """DEF-079 — Every confirmed element has a change action in the progress view that starts coaching on it; the Confirm and Change buttons under a read-back survive """
-    _not_written('DEF-079')
+def test_every_confirmed_element_can_be_changed_and_the_buttons_survive_a_reload(env, monkeypatch, stub_planner) -> None:
+    """DEF-079 — W9, ADR-0072 point 4: on the real routes and graph, the progress view (GET
+    /cases's `define_elements`, drawn by the page's own buildNavDefineElements in node) shows every
+    confirmed element with a Change action and a parked element with its marker and Resume; the
+    Change request the page sends, replayed on the real /ask, starts coaching on that element with
+    the Belt's current words; Resume returns to the parked element (step_log records the return);
+    and the Confirm/Change buttons under a read-back are drawn again by a page rebuilt from the
+    reloaded case history."""
+    import json
+
+    from langchain_core.messages import AIMessage
+
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves, nodes_common
+    from backend.tests.test_define_report import COMPLETE
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+
+    real_llm = nodes_common.get_llm
+
+    def coach_says(message: str, captured: list | None = None) -> None:
+        call = {"name": "CoachingResponse", "id": "call_def079",
+                "args": {**REPLY, "message": message, "fields_captured": captured or []}}
+        monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(
+            messages=iter([AIMessage(content="", tool_calls=[call])])) if role == "coach" else real_llm(role, **kw))
+
+    steps: list = []
+    step = nodes_common._step
+
+    def spy(*a, **k):
+        out = step(*a, **k)
+        steps.append(out)
+        return out
+    monkeypatch.setattr(nodes_common, "_step", spy)
+
+    order = [f for f, _ in moves.positions("define")]
+    record = env.case.phases["define"]
+    record.structured = {k: COMPLETE[k] for k in ("business_case", "team", "voc_summary", "critical_to_quality",
+                                                  "problem_statement", "problem_5w2h", "project_scope")}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in order[:4]}
+    record.field_status["baseline_estimate"] = {"status": moves.PARKED, "answer": "Not sure yet."}
+    record.field_status["project_scope"] = {"status": moves.CONFIRMED}
+    record.field_status["goal_statement"] = {"status": moves.ASKED}
+
+    # 1. The progress view, from the real API, drawn by the page.
+    case = env.client.get(f"/cases/{CASE_ID}").json()
+    rows = {e["field"]: e for e in case["define_elements"]}
+    assert len(rows) == 13
+    assert rows["business_case"]["status"] == "confirmed" and rows["project_scope"]["status"] == "confirmed"
+    assert rows["baseline_estimate"]["status"] == "parked"
+    assert rows["goal_statement"]["status"] == "current" and rows["target_value"]["status"] == "open"
+    page = _run_page(("function buildNavDefineElements", "async function reviseElement", "async function sendMessage"),
+                     _PAGE_STUBS + f"""
+const S={{case:{{case_id:'C1',define_elements:{json.dumps(case['define_elements'])}}},user:'Ana',phase:'define',localChat:[]}};
+function buildNavDefineStatus(){{return 'LEGACY'}}
+function renderTurn(t){{return '<div>'+t.text+'</div>'}}
+async function apiJSON(url,opts){{if(opts&&opts.body)posted.push(JSON.parse(opts.body));return {{answer:'ok'}}}}
+function renderChips(){{}}function renderPhaseNav(){{}}function renderDiagram(){{}}function renderSteps(){{}}function renderLiveViz(){{}}
+const nav=buildNavDefineElements();
+(async()=>{{await reviseElement('business_case');await reviseElement('baseline_estimate');
+ process.stdout.write(JSON.stringify({{nav,posted,belt:dom}}))}})();
+""")
+    nav = page["nav"]
+    for field in ("business_case", "team", "voc_summary", "problem_statement", "project_scope"):
+        assert f"reviseElement('{field}')\">Change</button>" in nav, field
+    assert "parked-marker" in nav and "reviseElement('baseline_estimate')\">Resume</button>" in nav
+    assert "reviseElement('goal_statement')" not in nav, "no Change on an element not confirmed"
+    change, resume = page["posted"]
+    assert (change["action"], change["element"]) == ("revise", "business_case"), change
+    assert (resume["action"], resume["element"]) == ("revise", "baseline_estimate"), resume
+    assert any("Change: " in h for h in page["belt"]) and any("Resume: " in h for h in page["belt"]), page["belt"]
+
+    # 2. Change on a confirmed element, as the page sends it: coaching starts on it, its words shown.
+    coach_says("What would you like to change in the business case?")
+    r = env.client.post("/ask", json={**change, "case_id": CASE_ID})
+    assert r.status_code == 200, r.text
+    planned = [s for s in steps if s.get("node") == "planner" and "move" in s]
+    assert (planned[-1]["focus_field"], planned[-1]["move"]) == ("business_case", moves.CHALLENGE), planned[-1]
+    status = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]["field_status"]["business_case"]
+    assert status["status"] == moves.ASKED and status["answer"] == COMPLETE["business_case"], status
+
+    # 3. A new answer is read back — and a page rebuilt from the RELOADED history draws the buttons.
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="names the cost")
+    revised = COMPLETE["business_case"] + " It is now closer to £70,000 a year."
+    coach_says(f'Your business case: "{revised}" Is this right?',
+               captured=[{"field_name": "business_case", "value": revised, "source": "belt"}])
+    ask = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", "message": revised})
+    assert ask.status_code == 200 and ask.json().get("move") == moves.READ_BACK, ask.text
+    reloaded = env.client.get(f"/cases/{CASE_ID}").json()
+    hist = reloaded["conversation_history"]
+    assert hist and hist[-1].get("role") == "ai", [h.get("role") for h in hist[-3:]]
+    again = _run_page(("function renderHistoryTurns", "function renderTurn"), _PAGE_STUBS + f"""
+const S={{case:{{case_id:'C1',conversation_history:{json.dumps(hist)}}},user:'Ana',phase:'define',localChat:[]}};
+const html=renderHistoryTurns(S.case.conversation_history,S.localChat);
+process.stdout.write(JSON.stringify({{html}}));
+""")
+    assert "sendMessage('confirm')" in again["html"] and "sendMessage('change')" in again["html"], (
+        "the Confirm/Change buttons did not survive the reload")
+
+    # 4. Resume on the parked element, as the page sends it: the planner returns to it; step_log has it.
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in order[:4]}
+    record.field_status["baseline_estimate"] = {"status": moves.PARKED, "answer": "Not sure yet."}
+    record.field_status["goal_statement"] = {"status": moves.ASKED}
+    steps.clear()
+    coach_says("Let us come back to the baseline you parked.")
+    r = env.client.post("/ask", json={**resume, "case_id": CASE_ID})
+    assert r.status_code == 200, r.text
+    planned = [s for s in steps if s.get("node") == "planner" and "move" in s]
+    assert (planned[-1]["focus_field"], planned[-1]["move"]) == ("baseline_estimate", moves.TEACH), planned[-1]
+    events = [e for s in steps for e in (s.get("field_events") or [])]
+    assert [(e["event"], e["field"]) for e in events] == [("return", "baseline_estimate")], events
 
 
 def test_every_coaching_screen_says_it_is_an_ai_coach() -> None:

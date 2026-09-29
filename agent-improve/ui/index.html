@@ -1209,7 +1209,7 @@ function renderPhaseNav(){
         // Active phase — subtitle + dynamic capture progress when wired
         if (ph === 'define') {
           psub.innerHTML =
-            PHASE_NAV_SUBTITLES.define + buildNavDefineStatus();
+            PHASE_NAV_SUBTITLES.define + buildNavDefineElements();
         } else if (ph === 'measure') {
           psub.innerHTML = buildNavMeasureStatus();
         } else {
@@ -1226,6 +1226,23 @@ function renderPhaseNav(){
   const filesMount = document.getElementById('case-files-nav');
   if (filesMount) filesMount.innerHTML = buildCaseFilesNav();
 }
+
+// W9 (DEF-079) — the thirteen elements with their statuses, as the server computed them: a Change
+// action on every confirmed element, ADR-0072's marker and Resume on a parked one.
+function buildNavDefineElements(){
+  const els=(S.case&&S.case.define_elements)||[];
+  if(!els.length)return buildNavDefineStatus();
+  const icon={confirmed:'✓',parked:'⏸',current:'●',open:'○'};
+  return '<div class="def-els">'+els.map(e=>`<div class="def-el def-el-${e.status}" data-field="${e.field}" `
+    +`style="display:flex;align-items:center;gap:4px;padding:2px 0;font-size:10px">`
+    +`<span>${icon[e.status]||'○'}</span><span style="flex:1">${e.n}. ${escapeHtml(e.name)}</span>`
+    +(e.status==='parked'?`<span class="parked-marker" style="color:#A04800">Parked</span>`
+      +`<button class="el-act" onclick="reviseElement('${e.field}')">Resume</button>`:'')
+    +(e.status==='confirmed'?`<button class="el-act" onclick="reviseElement('${e.field}')">Change</button>`:'')
+    +'</div>').join('')+'</div>';
+}
+
+async function reviseElement(field){await sendMessage('revise',field);}
 
 function buildNavDefineStatus() {
   if (!S.case || S.phase !== 'define') return '';
@@ -5912,7 +5929,10 @@ function renderTurn(turn){
     // sets the field's status in code, never through the text.
     const mv=turn.move||((turn.coaching_move||{}).move);
     const chat=(typeof S!=='undefined'&&S&&Array.isArray(S.localChat))?S.localChat:[];
-    const latest=chat.length>0&&chat[chat.length-1]===turn;
+    // W9 (DEF-079) — after a reload the chat is rebuilt from the case's history: its last turn is
+    // the latest, so the buttons under a read-back survive the reload.
+    const hist=(typeof S!=='undefined'&&S&&S.case&&Array.isArray(S.case.conversation_history))?S.case.conversation_history:[];
+    const latest=chat.length>0?chat[chat.length-1]===turn:(hist.length>0&&hist[hist.length-1]===turn);
     // ADR-0072 — under an offer to park, Park and move on / Try again.
     const acts=(mv==='read_back'&&latest)?`<div class="rb-actions">
       <button id="rb-confirm" class="btn btn-primary" onclick="sendMessage('confirm')">Confirm</button>
@@ -6060,11 +6080,13 @@ async function loadSessionGreeting() {
   return;
 }
 
-async function sendMessage(action){
+async function sendMessage(action, element){
   const input=document.getElementById('chat-input');
   // Step 6.61 (R4) — a Confirm / Change click sends the action; the Belt's
   // side of the chat shows the button they pressed.
-  const text=action?({confirm:'Confirm',change:'Change',park:'Park and move on',try_again:'Try again'}[action]||action):input.value.trim();
+  const picked=(action==='revise'&&S.case&&(S.case.define_elements||[]).find(e=>e.field===element))||null;
+  const text=action?({confirm:'Confirm',change:'Change',park:'Park and move on',try_again:'Try again',
+    revise:(picked&&picked.status==='parked'?'Resume: ':'Change: ')+(picked?picked.name:element)}[action]||action):input.value.trim();
   if(!text||!S.case)return;
   if(!action)input.value='';
   document.querySelectorAll('.rb-actions').forEach(el=>el.remove());
@@ -6075,7 +6097,7 @@ async function sendMessage(action){
   document.getElementById('typing').classList.add('show');
   try{
     const resp=await apiJSON(`${API}/ask`,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({case_id:S.case.case_id,user:S.user,message:text,phase:S.phase,action:action||null})});
+      body:JSON.stringify({case_id:S.case.case_id,user:S.user,message:text,phase:S.phase,action:action||null,element:element||null})});
     document.getElementById('typing').classList.remove('show');
     // ADR-0067 (R20, T93): a blocked or limited turn keeps the typed text in the box.
     if(resp.blocked&&!action)input.value=text;
@@ -6106,6 +6128,8 @@ async function sendMessage(action){
       S.localChat.push(aiTurn);
       appendMsgToDOM(renderTurn(aiTurn));
       renderChips();
+      // W9 (DEF-079) — the progress view's element statuses, recomputed by the server after the turn.
+      try{const c=await apiJSON(`${API}/cases/${S.case.case_id}`);if(c&&c.define_elements)S.case.define_elements=c.define_elements;}catch(e){}
       renderPhaseNav();
       renderDiagram();
       renderSteps();

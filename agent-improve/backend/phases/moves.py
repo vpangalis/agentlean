@@ -75,6 +75,11 @@ STATUSES: tuple[str, ...] = (NOT_TAUGHT, ASKED, ANSWERED, CONFIRMED, PARKED)
 CONFIRM_CLICK, CHANGE_CLICK = "confirm", "change"
 #: ADR-0072 — the two buttons under an offer to park.
 PARK_CLICK, TRY_AGAIN_CLICK = "park", "try_again"
+#: W9 (DEF-079) — the Belt picked an element in the progress view: Change on a confirmed one,
+#: Resume on a parked one. It rides with `element` and starts coaching on that element, in code.
+REVISE_CLICK = "revise"
+REVISE_REASON = ("The Belt chose to change `{field}`, confirmed earlier: show their current words "
+                 "and ask what they want to change.")
 OFFER_PARK_REASON = ("The Belt has tried `{field}` {n} times without it meeting its criteria. Explain "
                      "briefly why this element matters, and say they can park it and come back to it "
                      "later, or try again now — the screen shows the two buttons.")
@@ -242,9 +247,14 @@ def field_statuses(phase: str, artifacts: dict[str, Any],
 
 def current(phase: str, artifacts: dict[str, Any],
             field_status: dict[str, dict[str, Any]]) -> Optional[tuple[str, tuple[str, ...]]]:
-    """The current field: the first position not confirmed (R5) — skipping a parked one while any
-    other is open, and returning to the parked ones first once every other is confirmed
-    (ADR-0072 point 4)."""
+    """The current field: an element the Belt picked in the progress view while it is not
+    confirmed (W9, DEF-079); else the first position not confirmed (R5) — skipping a parked one
+    while any other is open, and returning to the parked ones first once every other is
+    confirmed (ADR-0072 point 4)."""
+    for field, fields in positions(phase):
+        entry = field_status.get(field) or {}
+        if entry.get("picked") and status_of(phase, field, artifacts, field_status) not in (CONFIRMED, PARKED):
+            return field, fields
     parked = None
     for field, fields in positions(phase):
         status = status_of(phase, field, artifacts, field_status)
@@ -297,6 +307,32 @@ def _earlier_kw(entry: dict[str, Any], pending: Optional[dict[str, Any]]) -> dic
     return {"earlier": e} if e else {}
 
 
+def _words(value: Any) -> str:
+    """A stored value as the Belt's words to show again: text as it is, a MetricValue's `raw`,
+    structure as compact JSON."""
+    import json
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict) and "raw" in value and "value" in value:
+        return str(value["raw"])
+    return json.dumps(value, ensure_ascii=False)
+
+
+def element_rows(phase: str, artifacts: dict[str, Any],
+                 field_status: dict[str, dict[str, Any]], name: Callable[[str], str]) -> list[dict[str, Any]]:
+    """The progress view's elements (W9, DEF-079), from the same statuses the moves read: each
+    position's number, field, name and status — confirmed, parked (ADR-0072's marker), current,
+    or open. The screen draws a Change action on a confirmed one and Resume on a parked one."""
+    at = current(phase, artifacts, field_status)
+    rows = []
+    for n, (field, _fields) in enumerate(positions(phase), start=1):
+        status = status_of(phase, field, artifacts, field_status)
+        shown = ("confirmed" if status == CONFIRMED else "parked" if status == PARKED
+                 else "current" if at and at[0] == field else "open")
+        rows.append({"n": n, "field": field, "name": name(field), "status": shown})
+    return rows
+
+
 def _attempts(entry: dict[str, Any]) -> dict[str, Any]:
     """The failed-attempt count an element's entry carries forward (ADR-0072)."""
     n = int(entry.get("attempts") or 0)
@@ -309,7 +345,8 @@ def _join(*parts: str) -> str:
 
 async def decide(phase: str, artifacts: dict[str, Any],
                  field_status: dict[str, dict[str, Any]], belt: str,
-                 judge: Judge, action: Optional[str] = None) -> dict[str, Any]:
+                 judge: Judge, action: Optional[str] = None,
+                 element: Optional[str] = None) -> dict[str, Any]:
     """THE MOVE, from the STORED status (brief item 2, rulings R4 and R5), and
     the statuses AFTER this turn — which the executor stores at turn end.
 
@@ -328,6 +365,25 @@ async def decide(phase: str, artifacts: dict[str, Any],
         out["field_status"] = after
         out["statuses"] = field_statuses(phase, merged, after)
         return out
+
+    # W9 (DEF-079) — an element picked in the progress view: coaching starts on it, in code.
+    known = dict(positions(phase))
+    if action == REVISE_CLICK and element in known:
+        fields = known[element]
+        status = status_of(phase, element, artifacts, after)
+        entry = dict(after.get(element) or {})
+        if status == CONFIRMED:
+            words = _words(artifacts.get(element))
+            after[element] = {"status": ASKED, "answer": words, "messages": 1, "picked": True}
+            return done(element, fields, status, CHALLENGE, answer=words, messages=1,
+                        reason=REVISE_REASON.format(field=element))
+        if status == PARKED:
+            after[element] = {"status": ASKED, "answer": str(entry.get("answer") or ""), "returned": True,
+                              "picked": True}
+            return done(element, fields, status, TEACH, reason=RETURN_REASON.format(field=element))
+        after[element] = {**entry, "status": entry.get("status") if entry.get("status") in (ASKED, ANSWERED)
+                          else ASKED, "picked": True}
+        return done(element, fields, status, TEACH)
 
     at = current(phase, artifacts, after)
     if at is None:
@@ -504,7 +560,7 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
 
 __all__ = [
     "MOVES", "STATUSES", "OFFER_PARK", "PARKED", "PARK_CLICK", "TRY_AGAIN_CLICK", "PARK_AFTER",
-    "parked", "park_events", "CONFIRM_INCOMPLETE", "COLUMNS_MISSING", "TEACH", "CHALLENGE", "READ_BACK", "STORE_AND_ADVANCE", "RESPOND",
+    "parked", "park_events", "element_rows", "REVISE_CLICK", "CONFIRM_INCOMPLETE", "COLUMNS_MISSING", "TEACH", "CHALLENGE", "READ_BACK", "STORE_AND_ADVANCE", "RESPOND",
     "NOT_TAUGHT", "ASKED", "ANSWERED", "CONFIRMED", "CONFIRM_CLICK", "CHANGE_CLICK", "REJECTED",
     "MOVE_RECORD_KEY", "QUALITY_FEEDBACK_KEY", "COMPOSED_FIELDS", "positions", "focus",
     "current", "status_of", "last_record", "last_feedback", "belt_message",

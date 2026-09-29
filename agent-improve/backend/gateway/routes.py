@@ -739,6 +739,7 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
     config = _graph_config(case, phase, request.user, entry="ask")
     # Step 6.61 (R4) — a Confirm / Change click rides beside the entry mode.
     config["configurable"]["belt_action"] = request.action
+    config["configurable"]["belt_element"] = request.element      # W9 (DEF-079)
 
     try:
         state = await _graph_input(
@@ -1727,6 +1728,15 @@ async def get_case(case_id: str):
     case = await _with_unfinished_work(case)   # ADR-0066: read through the graph
 
     payload = case.model_dump()
+    # W9 (DEF-079) — the progress view's elements, computed here once from the statuses the
+    # coaching moves read: confirmed (a Change action), parked (ADR-0072's marker), current, open.
+    from backend.core import guard_messages
+    from backend.phases import moves
+    define = case.phases.get("define")
+    payload["define_elements"] = moves.element_rows(
+        "define", dict((define.structured if define else None) or {}),
+        dict((define.field_status if define else None) or {}),
+        lambda f: guard_messages.element_name("define", f))
     files: list[dict] = []
     for phase_name, phase_record in (payload.get("phases") or {}).items():
         for upload in (phase_record or {}).get("uploads") or []:
