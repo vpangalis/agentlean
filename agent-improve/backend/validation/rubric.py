@@ -149,11 +149,43 @@ def _code_half(cid: str, a: dict[str, Any], today: dt.date) -> Optional[Criterio
         if not re.search(r"sustain|one[- ]?off|recurr|annual|every year", impact):
             return _fail(cid, "Say whether the impact is sustainable or one-off.")
         return _pass(cid)
+    if cid == "DEF-R13":
+        # G-134 (founder ruling 4, 2026-09-29): code settles what can be read — the conscious
+        # "none identified at this stage", or nothing named at all; the model judges only
+        # whether what is named is specific (MODEL_ASKS).
+        text = _text(a.get("issues_and_barriers")).strip()
+        if _NONE_IDENTIFIED.search(text):
+            return _pass(cid)
+        if not _names_a_roadblock(text):
+            return _fail(cid, "Name at least one specific issue or barrier that could stop the project, "
+                              "or state 'none identified at this stage'.")
+        return None
     if cid == "DEF-R12":
         blank = _blank_keys(a.get("process_map_sipoc"), ("suppliers", "inputs", "process_steps",
                                                           "outputs", "customers", "process_metrics"))
         return _fail(cid, "The SIPOC leaves out: " + ", ".join(blank) + ".") if blank else None
     return None
+
+
+#: G-134 — the conscious answer DEF-R13 accepts, and the words that name no roadblock at all.
+_NONE_IDENTIFIED = re.compile(r"(?<![a-z])none identified at this stage(?![a-z])", re.I)
+_NO_ROADBLOCK = re.compile(r"^(none|no|nothing|n/?a|tbd|tbc|unknown|not sure|don'?t know|-+)(?![a-z])[\s.!]*$", re.I)
+
+
+def _names_a_roadblock(text: str) -> bool:
+    """At least one issue or barrier is named: words beyond a bare "none" / "n/a" / "tbd",
+    three or more of them. Whether it is SPECIFIC is the grader's judgment."""
+    t = text.strip()
+    return bool(t) and not _NO_ROADBLOCK.match(t) and len(re.findall(r"[A-Za-zÄÖÜäöüß]+", t)) >= 3
+
+
+#: G-134 — what the grader is asked when code has settled part of a criterion: the rest only.
+MODEL_ASKS: dict[str, str] = {
+    "DEF-R13": ("code has already checked that at least one issue or barrier is named; judge ONLY "
+                "whether each one named is specific to this project — a concrete roadblock (a named "
+                "system, team, rule, date or dependency), not a generic word such as 'resources', "
+                "'time' or 'change' on its own"),
+}
 
 
 def _document(a: dict[str, Any]) -> str:
@@ -192,7 +224,7 @@ async def grade_define(artifacts: dict[str, Any], judge: Optional[Judge] = None,
         elif cid in CODE_ONLY:                      # unreachable: code-only criteria always settle
             verdicts[cid] = _fail(cid, "the deterministic check did not settle")
         else:
-            to_judge.append((cid, field, text))
+            to_judge.append((cid, field, MODEL_ASKS.get(cid, text)))
     if to_judge:
         model = await (judge or _llm_verdicts)(to_judge, _document(a))
         given = {v.criterion.strip(): v for v in model.verdicts}
@@ -208,4 +240,4 @@ async def grade_define(artifacts: dict[str, Any], judge: Optional[Judge] = None,
     return GraderVerdict(verdicts=[verdicts[cid] for cid, _, _ in DEFINE_CRITERIA])
 
 
-__all__ = ["CODE_ONLY", "DEFINE_CRITERIA", "grade_define"]
+__all__ = ["CODE_ONLY", "DEFINE_CRITERIA", "MODEL_ASKS", "grade_define"]

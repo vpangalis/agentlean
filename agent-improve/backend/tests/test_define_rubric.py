@@ -199,3 +199,29 @@ def test_g133_training_in_other_words_goes_to_the_grader_not_a_word_check() -> N
     no_champion = [e for e in team if e["role"] != "Champion"]
     verdict = rubric._code_half("DEF-R02", {"team": no_champion}, __import__("datetime").date(2026, 9, 29))
     assert verdict is not None and verdict.status == "fail"
+
+
+def test_g134_def_r13_is_settled_in_code_first_and_the_model_judges_only_specificity() -> None:
+    """G-134 (founder ruling 4, 2026-09-29): the gate grader failed DEF-R13 once in four runs on
+    the SAME specific answer. Code now settles what it can read — the conscious 'none identified
+    at this stage' passes, an answer that names nothing fails with the reason — and only the
+    specificity of what is named reaches the model, asked that and nothing else."""
+    from backend.validation.rubric import MODEL_ASKS
+
+    class Recorder(Judge):
+        async def __call__(self, criteria, document):
+            self.texts = {c: t for c, _, t in criteria}
+            return await super().__call__(criteria, document)
+
+    none = _grade({**COMPLETE, "issues_and_barriers": "None identified at this stage."}, j1 := Recorder())
+    assert none["DEF-R13"].status == "pass" and "DEF-R13" not in j1.asked, "settled in code, the model not asked"
+    for blank in ("N/A", "tbd", "none"):
+        got = _grade({**COMPLETE, "issues_and_barriers": blank}, j2 := Recorder())
+        assert got["DEF-R13"].status == "fail" and "none identified at this stage" in got["DEF-R13"].feedback, blank
+        assert "DEF-R13" not in j2.asked, blank
+    live = ("Two barriers: the three sites use different approval routes, and an ERP change freeze until "
+            "January limits system changes. One risk: AP staff turnover over the winter.")
+    got = _grade({**COMPLETE, "issues_and_barriers": live}, j3 := Recorder())
+    assert "DEF-R13" in j3.asked and got["DEF-R13"].status == "pass"
+    assert j3.texts["DEF-R13"] == MODEL_ASKS["DEF-R13"], "the model is asked specificity only"
+    assert "ONLY whether each one named is specific" in j3.texts["DEF-R13"]
