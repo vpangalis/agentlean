@@ -1,0 +1,15 @@
+#!/bin/sh
+# Tracked git hook — founder ruling 4.3, 2026-09-29: a push requires a passing full-suite run
+# on the exact source being pushed. The logic lives in .claude/hooks/pre_push.py; the ledger it
+# reads is written by every full run (.claude/hooks/staged_tree.py).
+#
+# Fail-CLOSED, like the commit guard: no python, no push.
+#     python .claude/hooks/staged_tree.py --suite-at <sha>   # the run a refused push asks for
+HOOK=".claude/hooks/pre_push.py"
+for PY in python3 python py; do
+    if command -v "$PY" >/dev/null 2>&1; then
+        exec "$PY" "$HOOK" "$@"
+    fi
+done
+echo "  PUSH BLOCKED — no python to run $HOOK" >&2
+exit 1

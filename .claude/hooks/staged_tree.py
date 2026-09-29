@@ -21,6 +21,7 @@ inside a hook, GIT_INDEX_FILE names the index being committed, and a
 
     python .claude/hooks/staged_tree.py          # sync, print the synced agent-improve path
     python .claude/hooks/staged_tree.py --suite  # sync, run the full suite there (the hook's run)
+    python .claude/hooks/staged_tree.py --suite-at <rev>  # the full suite on a commit's tree (pre-push)
 """
 from __future__ import annotations
 
@@ -119,11 +120,17 @@ def run(cmd: list[str], wt: Path, root: Path = ROOT, timeout: int = 900,
                           errors="replace", timeout=timeout, env=env)
 
 
-def run_suite(root: Path = ROOT) -> tuple[int, str]:
+def run_suite(root: Path = ROOT, tree: str | None = None) -> tuple[int, str]:
     """THE commit's one full run, on the staged tree. The recorder writes its
     record inside the staged worktree; it is copied back to the checkout,
-    where the board, the ratchet and rule 11 read it and the hook stages it."""
-    wt = sync(root)
+    where the board, the ratchet and rule 11 read it and the hook stages it.
+
+    Founder ruling 4.3, 2026-09-29: the verdict also goes to the pre-push ledger
+    (`pre_push.record`). `tree` is `--suite-at`'s: a commit's tree, whose record is
+    not copied back — the checkout's record belongs to its own index."""
+    copy_back = tree is None
+    tree = tree or index_tree(root)
+    wt = sync(root, tree)
     base = [venv_python(root), "-m", "pytest", "backend/tests", "-q", "--no-header",
             "-p", "no:cacheprovider"]
     # Two passes (founder, 2026-09-27): everything but `serial` in parallel, then
@@ -134,7 +141,7 @@ def run_suite(root: Path = ROOT) -> tuple[int, str]:
     par = run([*base, "-n", "auto", "-m", "not serial and not wallclock"], wt, root, AGENT_IMPROVE_FULL_RUN="1")
     ser = run([*base, "-n", "0", "-m", "serial and not wallclock"], wt, root, AGENT_IMPROVE_FULL_RUN="1")
     record = wt / PROJECT / "docs" / "test-results.json"
-    if record.is_file():
+    if copy_back and record.is_file():
         shutil.copyfile(record, root / PROJECT / "docs" / "test-results.json")
     codes = [c for c in (par.returncode, ser.returncode) if c not in (0, 5)]
 
@@ -143,6 +150,9 @@ def run_suite(root: Path = ROOT) -> tuple[int, str]:
                      if ln.strip()), "").strip()
     out = ((par.stdout or "") + (par.stderr or "") + (ser.stdout or "") + (ser.stderr or "")
            + "\n" + f"parallel: {last(par)} | serial: {last(ser)}" + "\n")
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import pre_push
+    pre_push.record(tree, codes[0] if codes else 0, f"parallel: {last(par)} | serial: {last(ser)}", root)
     return (codes[0] if codes else 0), out
 
 
@@ -190,6 +200,12 @@ def run_fast(root: Path = ROOT) -> tuple[int, str]:
 if __name__ == "__main__":
     if "--fast" in sys.argv:
         code, out = run_fast()
+        sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
+        print(out)
+        sys.exit(code)
+    if "--suite-at" in sys.argv:
+        rev = sys.argv[sys.argv.index("--suite-at") + 1]
+        code, out = run_suite(tree=_git(["rev-parse", f"{rev}^{{tree}}"], ROOT, clean_env()))
         sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
         print(out)
         sys.exit(code)
