@@ -72,7 +72,7 @@ def test_a_feature_held_by_its_adr_is_never_a_lanes_top_and_waiting_counts_it(bo
 
 
 _CELL = re.compile(r"<td><div class='tiles'>(.*?)</div></td>", re.S)
-_TILE = re.compile(r"<button class='t ([^']*)' data-f='(DEF-\d{3})' data-tip='[^']*'>([^<]*)</button>")
+_TILE = re.compile(r"<button class='t ([^']*)' data-f='(DEF-\d{3})' data-tip='[^']*' data-m='[^']*'>([^<]*)</button>")
 
 
 def test_each_cell_stands_in_the_order_of_work(board) -> None:
@@ -96,7 +96,9 @@ def test_an_m1_square_is_outlined_and_numbered_with_its_rank(board) -> None:
         classes = cls.split()
         assert "x" not in classes                          # the small x is retired
         assert ("m1" in classes) == (f["tier"] == 1), fid
-        assert text == (str(f["rank"]) if f["tier"] == 1 and f["rank"] else ""), fid
+        assert text == bcb.tile_label(f), fid
+        if f["tier"] == 1 and f["status"] != "green":
+            assert text, f"{fid}: an open M1 square carries its order number or 'e2e'"
 
 
 def test_the_legend_is_one_line(board) -> None:
@@ -119,3 +121,52 @@ def test_now_per_lane_highlights_the_square_and_the_panel_names_its_place(board)
     blob = json.loads(m.group(1).replace("<\/", "</"))
     assert blob["stages"] == dict(bcb.STAGES) and blob["layers"] == dict(bcb.LAYERS)
     assert blob["ranked"] == sum(1 for f in d["features"] if f["rank"])
+
+
+_M_TILE = re.compile(r"<button class='t (\w+)[^']*' data-f='(DEF-\d{3})' data-tip='[^']*' data-m='(M\d|)'>")
+
+
+def test_one_milestone_count_everywhere(board) -> None:
+    """Control board item 0a (founder 2026-09-29): the box said M1 39/47 while only 6 M1 squares
+    were numbered. The box, the squares, the stage footers, "What's left", the milestone panel and
+    today's burn-up point are all read from `milestone_counts`; done = a green square."""
+    d, page = board
+    counts = bcb.milestone_counts(d["features"])
+    tiles = _M_TILE.findall(page)
+    assert len(tiles) == len(d["features"])
+    for x in d["milestones"]:
+        m = x["m"]
+        mine = [(cls, fid) for cls, fid, mm in tiles if mm == m]
+        assert x == counts[m]
+        assert f"<span class='num'>{x['green']}/{x['total']}</span>" in page, m
+        assert len(mine) == x["total"] and sum(cls == "green" for cls, _ in mine) == x["green"], m
+        assert sorted(fid for cls, fid in mine if cls != "green") == sorted(x["open"]), m
+        assert f"{m} — {len(x['open'])} open of {x['total']}</h3>" in page, m
+        assert d["burnup"][-1][m] == x["green"], m
+    footer = sum(int(a) for a, _ in re.findall(r"M1 (\d+) of (\d+)</span>", page))
+    assert footer == counts["M1"]["green"]
+
+
+def test_a_milestone_click_dims_the_others_and_lists_done_and_open_by_step(board) -> None:
+    """Item 0b: M1, M2 and M3 are clickable; the panel groups by journey step, Done and Open,
+    each open one with its order number and what blocks it."""
+    d, page = board
+    for x in d["milestones"]:
+        assert f"<div class='bar' data-milestone='{x['m']}'" in page
+    assert "open(milestone(ms.dataset.milestone))" in page and ".vs .t.dim{" in page
+    assert "blocked by: '+esc(f.blocker)" in page and "'Open ('" in page and "'Done ('" in page
+    for f in d["features"]:
+        assert bool(f["blocker"]) == (f["status"] != "green"), f["id"]
+        if f["held"]:
+            assert f["held"] in f["blocker"]
+
+
+def test_the_value_stream_explains_itself_and_names_its_rows(board) -> None:
+    """Item 0d: the explanation box and the founder's row names."""
+    _, page = board
+    assert ("Each square = one feature (something that must work). Columns = the step of the Belt&#x27;s "
+            "journey. Rows = the part of the software. Number = order of work (#1 = next).") in page
+    for label in ("What the Belt sees (Screen)", "Screen ↔ coach connection (API)", "What the coach does (Coaching)",
+                  "Checks and approval (Gate)", "What is saved (Persistence)", "Security, speed, operations (Platform)"):
+        assert f"<td class='l'>{bcb.E(label)}</td>" in page, label
+    assert ">What's left</h2>" in page

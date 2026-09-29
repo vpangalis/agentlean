@@ -30,7 +30,7 @@ A feature passes only when its end-to-end test passes.*
 |---|---|
 | **Stopped on** | condition 2 — the top package, DEF-076 (baseline and target stored as a number with a unit), changes the Define schema (both fields are declared `str`): an ADR |
 | **Run-through** | complete on current main: `define_runthrough_20260929T000707` (IMPR-2026-2CC) — 13 of 13 confirmed, no Confirm lost, no code-written reply, rubric passed, Define **approved**, the next turn in **Measure** |
-| **M1** | 41 of 47. Open: DEF-076 (schema: ADR), DEF-075 (R14 park: a new move), DEF-146 (held: ADR-0065 PROPOSED), DEF-040 and DEF-078 (effort L), DEF-079 (after DEF-054) |
+| **M1** | 39 of 47 done (the board's one count: a green square; DEF-054 and DEF-074 pass tests that are not end to end). Open: DEF-076 (schema: ADR), DEF-075 (R14 park: a new move), DEF-146 (held: ADR-0065 PROPOSED), DEF-040 and DEF-078 (effort L), DEF-079 (after DEF-054) |
 
 ## ⇒ CURRENT POSITION — 2026-09-24
 

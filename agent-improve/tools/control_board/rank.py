@@ -183,18 +183,6 @@ def tiers(features: list[dict] | None = None, reqs: dict[str, dict] | None = Non
     return {f["id"]: got.get(f["id"]) for f in features}
 
 
-def milestones(features: list[dict] | None = None, res: dict | None = None,
-               reqs: dict[str, dict] | None = None) -> dict[str, dict]:
-    """{M1: {tier, passing, total}, …} — passing features of the milestone's tier ÷ all of them."""
-    features = F.load() if features is None else features
-    res = F.results() if res is None else res
-    st = F.status(features, res)
-    t = tiers(features, reqs)
-    return {m: {"tier": n, "total": sum(1 for v in t.values() if v == n),
-                "passing": sum(1 for i, v in t.items() if v == n and st[i] == "passing")}
-            for m, n in MILESTONES.items()}
-
-
 def _sequence(f: dict) -> int:
     """An overridden feature ranks ahead of the rest of its tier, in its override's `sequence`
     (a founder-ruled package order); every other feature after them."""

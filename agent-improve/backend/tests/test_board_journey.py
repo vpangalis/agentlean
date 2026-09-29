@@ -36,9 +36,14 @@ def _blob(page: str) -> dict:
     return json.loads(m.group(1).replace("<\\/", "</"))
 
 
-def test_the_strip_carries_its_subtitle(board) -> None:
-    _, page = board
-    assert ">One real Belt run through the product · white = not reached in this run</p>" in page
+def test_the_strip_carries_its_heading_and_the_runs_date(board) -> None:
+    """Control board item 0c (founder 2026-09-29): the plain heading and the run's date."""
+    d, page = board
+    assert (">Latest live test: a scripted Belt goes through Define on the real system · green = got through · "
+            "amber = stuck · grey = reached, not saved · white = not reached</p>") in page
+    date = d["journey"].get("date")
+    assert f'data-key="journey-date">Run of {date or "no run recorded"}</p>' in page
+    assert bcb.run_date("define_runthrough_20260929T000707.json") == "2026-09-29 00:07 UTC"
 
 
 def test_each_element_square_names_its_element_on_hover_and_opens_its_panel(board) -> None:
