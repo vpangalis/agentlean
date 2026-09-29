@@ -22,15 +22,18 @@
 A feature passes only when its end-to-end test passes.*
 <!-- END CURRENT BUILD STATUS -->
 
-## ⇒ M1 LOOP STOPPED — 2026-09-29, condition 2
+## ⇒ M1 LOOP STOPPED — 2026-09-29 (second run), condition 2
 
-*Hand-written. BRIEF_m1_loop.md; the loop log is `.claude/logs/prompts.jsonl` (`kind: loop`).*
+*Hand-written. BRIEF_m1_loop.md + founder rulings 2026-09-29; the loop log is `.claude/logs/prompts.jsonl` (`kind: loop`).*
 
 | | |
 |---|---|
-| **Stopped on** | condition 2 — the top package, DEF-076 (baseline and target stored as a number with a unit), changes the Define schema (both fields are declared `str`): an ADR |
-| **Run-through** | complete on current main: `define_runthrough_20260929T000707` (IMPR-2026-2CC) — 13 of 13 confirmed, no Confirm lost, no code-written reply, rubric passed, Define **approved**, the next turn in **Measure** |
-| **M1** | 39 of 47 done (the board's one count: a green square; DEF-054 and DEF-074 pass tests that are not end to end). Open: DEF-076 (schema: ADR), DEF-075 (R14 park: a new move), DEF-146 (held: ADR-0065 PROPOSED), DEF-040 and DEF-078 (effort L), DEF-079 (after DEF-054) |
+| **Stopped on** | condition 2 — the top package, DEF-040 (a contradiction stops the turn in a node; the Belt chooses update or keep), is a graph change: a sixth subgraph node with `interrupt()` and a resume path, where ARCHITECTURE.md says the flag "does not stop the turn" and ADR-0042 (the contradiction cascade) is still PROPOSED. It needs an ADR |
+| **Built this run** | control board item 0 (545952f) · rulings placed (dfb66ed) · DEF-146 schema versioning (c839f98) · DEF-076 MetricValue, schema v2 (4c7cd30) · DEF-075 park, schema v3 (ab82ddf) · DEF-078 LangGraph timeout/handler/retry (4c77b2b) |
+| **Run-through** | on DEF-078's source: `define_runthrough_20260929T090446` (IMPR-2026-6CB) — 13 of 13 confirmed, rubric passed, Define **approved**, the next turn in **Measure** |
+| **M1** | 43 of 47 (the board's count: a green square). Open: DEF-040 (ADR), DEF-079 (waits for DEF-054), DEF-054 and DEF-074 (they pass tests that are not end to end) |
+| **Defect registered** | G-134 — the gate grader's DEF-R13 is not stable on one answer (failed once in four runs on the same text); lane B, DEF-159 |
+| **Live calls** | 548 of 3,000 (five run-throughs: 104, 114, 111, 111, 108) |
 
 ## ⇒ CURRENT POSITION — 2026-09-24
 
