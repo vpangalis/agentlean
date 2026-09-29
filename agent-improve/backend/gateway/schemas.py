@@ -28,7 +28,7 @@ class AskRequest(BaseModel):
     phase: str                   # current phase — UI sends this for routing
     # Step 6.61 (R4) — the Belt's Confirm or Change button under a read-back.
     # A click sets the field's status in code; no model reads it.
-    action: Optional[Literal["confirm", "change"]] = None
+    action: Optional[Literal["confirm", "change", "park", "try_again"]] = None
 
 
 class UploadMetaRequest(BaseModel):

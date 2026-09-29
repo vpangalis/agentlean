@@ -5913,9 +5913,13 @@ function renderTurn(turn){
     const mv=turn.move||((turn.coaching_move||{}).move);
     const chat=(typeof S!=='undefined'&&S&&Array.isArray(S.localChat))?S.localChat:[];
     const latest=chat.length>0&&chat[chat.length-1]===turn;
+    // ADR-0072 — under an offer to park, Park and move on / Try again.
     const acts=(mv==='read_back'&&latest)?`<div class="rb-actions">
       <button id="rb-confirm" class="btn btn-primary" onclick="sendMessage('confirm')">Confirm</button>
-      <button id="rb-change" class="btn" onclick="sendMessage('change')">Change</button></div>`:'';
+      <button id="rb-change" class="btn" onclick="sendMessage('change')">Change</button></div>`
+      :(mv==='offer_park'&&latest)?`<div class="rb-actions">
+      <button id="rb-park" class="btn btn-primary" onclick="sendMessage('park')">Park and move on</button>
+      <button id="rb-try" class="btn" onclick="sendMessage('try_again')">Try again</button></div>`:'';
     return `<div class="msg"><div class="mav mai">AI</div>
       <div class="bbl bbl-ai">${prog}<p>${turn.text}</p>${blk('explanation','Why it matters')}${blk('example','Example — an illustration, not your data')}${blk('prompt','Your turn')}${acts}${warn}${cites}</div></div>`;
   }else{
@@ -6060,7 +6064,7 @@ async function sendMessage(action){
   const input=document.getElementById('chat-input');
   // Step 6.61 (R4) — a Confirm / Change click sends the action; the Belt's
   // side of the chat shows the button they pressed.
-  const text=action?(action==='confirm'?'Confirm':'Change'):input.value.trim();
+  const text=action?({confirm:'Confirm',change:'Change',park:'Park and move on',try_again:'Try again'}[action]||action):input.value.trim();
   if(!text||!S.case)return;
   if(!action)input.value='';
   document.querySelectorAll('.rb-actions').forEach(el=>el.remove());

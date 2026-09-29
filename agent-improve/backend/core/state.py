@@ -22,9 +22,10 @@ from langchain_core.messages import BaseMessage
 #: each checkpoint's metadata, each Store record and each case blob. Raised by one with EVERY change
 #: to `SupervisorState`, `PhaseState`, a `{Phase}Output` or a phase record, together with its
 #: migration in `core/migrations.py` and that migration's fixture test. Never lowered.
-STATE_SCHEMA_VERSION = 2
+STATE_SCHEMA_VERSION = 3
 #: History — 1: everything before versioning (ADR-0065). 2: Define's `baseline_estimate` and
-#: `target_value` are MetricValues (ADR-0071, DEF-076).
+#: `target_value` are MetricValues (ADR-0071, DEF-076). 3: `field_status` may hold "parked" and
+#: the move may be "offer_park" (ADR-0072, DEF-075).
 
 
 class SupervisorState(TypedDict):

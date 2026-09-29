@@ -114,11 +114,11 @@ class CoachingPlan(BaseModel):
             "position is confirmed."
         ),
     )
-    status: Literal["not taught", "asked", "answered", "confirmed"] = Field(
+    status: Literal["not taught", "asked", "answered", "confirmed", "parked"] = Field(
         description=("The current field's STORED status at the start of the turn "
                      "(R5: PhaseState.field_status), before this turn's change."),
     )
-    move: Literal["teach", "challenge", "read_back", "store_and_advance", "respond"] = Field(
+    move: Literal["teach", "challenge", "read_back", "store_and_advance", "respond", "offer_park"] = Field(
         description="THIS TURN'S MOVE, decided in code from the status (moves.decide).",
     )
     judgment: Optional[SufficiencyJudgment] = Field(

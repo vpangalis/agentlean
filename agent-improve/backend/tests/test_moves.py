@@ -106,7 +106,28 @@ def test_a_weak_answer_is_challenged() -> None:
     assert (d["move"], d["store"]) == ("challenge", {})
     assert d["reason"] == "no cost figure"
     assert d["field_status"]["business_case"] == {"status": "asked", "answer": "It's a bit slow.",
-                                                  "messages": 1}
+                                                  "messages": 1, "attempts": 1}   # ADR-0072: counted
+
+
+def test_the_third_failed_attempt_offers_to_park_and_park_moves_on() -> None:
+    """ADR-0072 (DEF-075): two challenges, then — on the third failure — the offer, decided in
+    code; Park marks the element parked and the next element is taught; Try again resets."""
+    judge = Judge("insufficient", "no cost figure")
+    fs: dict = {"business_case": {"status": "asked"}}
+    moves_made = []
+    for n in range(3):
+        d = _decide(fs, f"Still vague {n}.", judge)
+        moves_made.append(d["move"])
+        fs = d["field_status"]
+    assert moves_made == ["challenge", "challenge", "offer_park"]
+    assert fs["business_case"]["offer_park"] is True and fs["business_case"]["attempts"] == 3
+    again = _decide(fs, "Try again", judge, action="try_again")
+    assert again["move"] == "teach" and again["field_status"]["business_case"].get("attempts") is None
+    parked = _decide(fs, "Park and move on", judge, action="park")
+    assert parked["move"] == "teach" and parked["field"] == "team"
+    assert parked["field_status"]["business_case"]["status"] == "parked"
+    assert moves.park_events(fs, parked["field_status"], "ana", "t") == [
+        {"event": "park", "field": "business_case", "person": "ana", "at": "t"}]
 
 
 def test_the_piece_a_challenge_asked_for_joins_the_answer() -> None:

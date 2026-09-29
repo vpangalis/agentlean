@@ -95,6 +95,8 @@ MOVE_EXCLUDES: dict[str, tuple[str, ...]] = {
     "store_and_advance": ("challenge weak inputs", "vague or unmeasurable"),
     "respond": ("challenge weak inputs", "vague or unmeasurable", "reference methodology",
                 "concrete example", _NO_COMPUTATION),
+    # ADR-0072 — the offer to park explains why the element matters; it challenges nothing.
+    "offer_park": ("challenge weak inputs", "vague or unmeasurable", "concrete example", _NO_COMPUTATION),
 }
 
 

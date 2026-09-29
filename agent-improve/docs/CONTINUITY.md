@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| **Headline** | 57 of 161 Define features pass (core 54 of 152) — A 30/67 · B 20/36 · C 1/36 · integrator 6/22 |
+| **Headline** | 57 of 161 Define features pass (core 54 of 152) — A 31/67 · B 19/36 · C 1/36 · integrator 6/22 |
 | **Next — lane A** | DEF-078 — Node time limits, retries and compensation use LangGraph's per-node timeout=, retry_policy= and error_handler=; no hand-written budget or re |
 | **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
 | **Next — lane C** | DEF-079 — Every confirmed element has a change action in the progress view that starts coaching on it; the Confirm and Change buttons under a read-bac |

@@ -1675,11 +1675,19 @@ async def submit_gate(request: GateSubmitRequest,
             next_phase=next_phase,
         )
 
+    # ADR-0072 point 5 — a parked element blocks submission (every Define element is Tier 1),
+    # and the refusal names it.
+    from backend.core import guard_messages
+    from backend.phases import moves
+    record = case.phases.get(request.phase)
+    held = moves.parked(request.phase, dict(getattr(record, "field_status", None) or {}))
+    names = ", ".join(guard_messages.element_name(request.phase, f) for f in held)
     return GateSubmitResponse(
         passed=False,
         phase=request.phase,
         missing_fields=[f.replace("_", " ") for f in missing],
-        message=f"Not quite ready yet. {len(missing)} item(s) still needed.",
+        message=((f"Parked: {names}. Complete {'it' if len(held) == 1 else 'them'} to submit. " if held else "")
+                 + f"Not quite ready yet. {len(missing)} item(s) still needed."),
     )
 
 

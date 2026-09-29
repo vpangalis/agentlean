@@ -374,7 +374,14 @@ async def planner(
                 phase, pending_upload.get("role"), pending_upload.get("blob_path"),
             )
 
+        events = moves.park_events(
+            dict(state.get("field_status") or {}), dict(plan.field_status or {}),
+            person=((config or {}).get("configurable") or {}).get("current_user"),
+            at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
+        if events:
+            logger.info("%s.planner: %s", phase, "; ".join(f"{e['event']} {e['field']}" for e in events))
         entry_fields = {
+            "field_events": events,
             "focus_field": plan.focus_field,
             "field_status": plan.status,
             "move": plan.move,

@@ -1561,6 +1561,14 @@ MOVE_INSTRUCTIONS: dict[str, str] = {
         "value awaiting their confirmation (in section 3) and ask \"Is this "
         "right?\". Leave `fields_captured` empty."
     ),
+    "offer_park": (
+        "MOVE: OFFER TO PARK `{field}`.\n"
+        "{reason}\n"
+        "Say, warmly and briefly, why this element matters for the project; then say plainly that "
+        "they can park it and move on — it stays open and must be completed before the Define "
+        "report can be submitted — or try again now. Do not ask the element's question again, do "
+        "not read anything back. Leave `fields_captured` empty."
+    ),
     "complete": (
         "MOVE: RESPOND.\n"
         "Every field of this phase is confirmed. Answer the Belt's message from "

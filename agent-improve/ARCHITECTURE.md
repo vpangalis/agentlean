@@ -142,18 +142,19 @@ sequenceDiagram
   Note over API: input_guard screens the message; route_to_phase enters current_phase's wrapper node
   API->>PL: the wrapper node's input mapper → subgraph
   PL->>PL: one sufficiency judgment (planner role)
-  PL->>PL: moves.decide → teach · challenge · read back · store and advance
+  PL->>PL: moves.decide → teach · challenge · read back · store and advance · offer to park
   PL->>EX: Command(goto="executor")
   EX->>EX: middleware in → model → tools (≤ hop budget) → middleware out
   EX-->>API: CoachingResponse
   API-->>UI: AskResponse (reply, four blocks, progress, warning)
 ```
 
-1. A field's status runs not taught → asked → answered → confirmed; only code changes it, at the
-   end of a turn. The current field is the first one not confirmed.
+1. A field's status runs not taught → asked → answered → confirmed, or parked; only code changes
+   it, at the end of a turn. The current field is the first one not confirmed, parked ones last.
 2. The move follows the status: teach (explain, sample, ask), challenge (name the failed
    criterion), read back ("is this right?"), store and advance. What was stored, or that a
    Confirm stored nothing, is said by code from the store result (`_store_truth`), never the model.
+   A third failed attempt brings offer to park (ADR-0072); a parked element blocks the gate.
 3. The planner's model returns one `SufficiencyJudgment` against the element's acceptance
    criteria, read from its SKILL.md block. The baseline and the target are MetricValues read by one
    parser, `define/parse.py::metric_value` (ADR-0071): no number, or a target in another unit than
@@ -675,7 +676,7 @@ record per phase key.
 
 ### 4.2 Declarations
 
-**State schema version 2** (`core/state.py::STATE_SCHEMA_VERSION`, ADR-0065): written into every checkpoint's metadata, every Store record and every case blob; an older one is migrated on load by `core/migrations.py`, a newer one is refused.
+**State schema version 3** (`core/state.py::STATE_SCHEMA_VERSION`, ADR-0065): written into every checkpoint's metadata, every Store record and every case blob; an older one is migrated on load by `core/migrations.py`, a newer one is refused.
 
 #### `SupervisorState` — `core/state.py`
 
@@ -730,8 +731,8 @@ class SufficiencyJudgment(BaseModel):
 
 class CoachingPlan(BaseModel):
     focus_field:        Optional[str]
-    status:             Literal['not taught', 'asked', 'answered', 'confirmed']
-    move:               Literal['teach', 'challenge', 'read_back', 'store_and_advance', 'respond']
+    status:             Literal['not taught', 'asked', 'answered', 'confirmed', 'parked']
+    move:               Literal['teach', 'challenge', 'read_back', 'store_and_advance', 'respond', 'offer_park']
     judgment:           Optional[SufficiencyJudgment] = None
     answer:             str = ''
     messages:           int = 0

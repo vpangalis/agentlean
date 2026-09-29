@@ -391,9 +391,89 @@ def test_the_create_form_shows_no_case_id_the_server_did_not_assign() -> None:
 # ── Features for the accepted requirements not yet covered (brief Part A4, 2026-09-27) ──
 
 
-def test_an_element_that_fails_three_times_can_be_parked() -> None:
-    """DEF-075 — No dead end: after three failed attempts at an element the coach offers to park it; a parked element stays open and blocks approval only if it is Tier"""
-    _not_written('DEF-075')
+def test_an_element_that_fails_three_times_can_be_parked(env, monkeypatch, stub_planner) -> None:
+    """DEF-075 — R14, ADR-0072: on the real routes and graph, the third failed attempt on one element
+    brings the move `offer_park`, decided in code, with Park and move on / Try again; Park marks the
+    element parked, stores nothing for it, and the coach teaches the next element; the gate names
+    the parked element and refuses; once every other element is confirmed the planner returns to
+    the parked one first, and completing it lets the submission through. `step_log` records the
+    park and the return, with the person and the time."""
+    from backend.core import guard_messages
+    from backend.core.substate import SufficiencyJudgment
+    from backend.phases import moves, nodes_common
+    from backend.tests.test_define_report import COMPLETE
+
+    steps: list = []
+    step = nodes_common._step
+
+    def spy(*a, **k):
+        out = step(*a, **k)
+        steps.append(out)
+        return out
+    monkeypatch.setattr(nodes_common, "_step", spy)
+
+    def ask(**body) -> dict:
+        r = env.client.post("/ask", json={"case_id": CASE_ID, "phase": "define", "user": "ana", **body})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    def plan_move() -> tuple:
+        planned = [s for s in steps if s.get("node") == "planner" and "move" in s]
+        return planned[-1]["focus_field"], planned[-1]["move"]
+
+    order = [f for f, _ in moves.positions("define")]
+    record = env.case.phases["define"]
+    late = ("secondary_metrics", "process_map_sipoc", "issues_and_barriers")
+    record.structured = {k: v for k, v in COMPLETE.items() if k not in late}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in order if f not in late}
+    record.field_status["secondary_metrics"] = {"status": moves.ASKED}
+
+    # 1. Three insufficient answers: two challenges, then the offer — decided in code.
+    stub_planner.judgment = SufficiencyJudgment(verdict="insufficient", reason="names no side effect",
+                                                failed_criterion=None)
+    _coach_saying(monkeypatch, "What could get worse?")
+    for n in range(1, 4):
+        ask(message=f"Not sure, attempt {n}.")
+        assert plan_move() == ("secondary_metrics", moves.CHALLENGE if n < 3 else moves.OFFER_PARK), (n, plan_move())
+
+    # 2. Park and move on: parked, nothing stored, the next element taught; step_log has the park.
+    _coach_saying(monkeypatch, "Parked. Next, the process map.")
+    ask(message="Park and move on", action="park")
+    assert plan_move() == ("process_map_sipoc", moves.TEACH), plan_move()
+    events = [e for s in steps for e in (s.get("field_events") or [])]
+    assert [(e["event"], e["field"]) for e in events] == [("park", "secondary_metrics")], events
+    assert events[0]["person"] and events[0]["at"], "the park names the person and the time"
+    got = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]
+    assert got["field_status"]["secondary_metrics"]["status"] == moves.PARKED
+    assert "secondary_metrics" not in (got.get("structured") or {}), "nothing is stored for a parked element"
+
+    # 3. The gate names the parked element and refuses.
+    body = _submit(env)
+    name = guard_messages.element_name("define", "secondary_metrics")
+    assert body["passed"] is False and f"Parked: {name}. Complete it to submit." in body["message"], body
+
+    # 4. Every other element confirmed (a fresh thread from the record): the planner returns to the
+    #    parked element first, step_log has the return, and completing it lets the submission through.
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    record.structured = {k: v for k, v in COMPLETE.items() if k != "secondary_metrics"}
+    record.field_status = {f: {"status": moves.CONFIRMED} for f in order}
+    record.field_status["secondary_metrics"] = {"status": moves.PARKED, "answer": "Not sure."}
+    steps.clear()
+    _coach_saying(monkeypatch, "You parked the side-effect measures — let us finish them.")
+    ask(message="Hello again.")
+    assert plan_move() == ("secondary_metrics", moves.TEACH), plan_move()
+    events = [e for s in steps for e in (s.get("field_events") or [])]
+    assert [(e["event"], e["field"]) for e in events] == [("return", "secondary_metrics")], events
+    stub_planner.judgment = SufficiencyJudgment(verdict="sufficient", reason="names a side effect")
+    words = COMPLETE["secondary_metrics"]
+    _coach_saying(monkeypatch, f'Your side-effect measures: "{words}" Is this right?',
+                  captured=[{"field_name": "secondary_metrics", "value": words, "source": "belt"}])
+    ask(message=words)
+    _coach_saying(monkeypatch, "Every element is confirmed.")
+    ask(message="Confirm", action="confirm")
+    body = _submit(env)
+    assert body["awaiting_acceptance"] is True and body["passed"] is True, body
 
 
 def test_baseline_and_target_are_stored_as_a_number_with_a_unit(env, monkeypatch) -> None:

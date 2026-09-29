@@ -53,18 +53,35 @@ from backend.phases.gate_registry import declared_type, review_rows
 #: answers it and asks again. The field's status does not change.
 TEACH, CHALLENGE, READ_BACK, STORE_AND_ADVANCE, RESPOND = (
     "teach", "challenge", "read_back", "store_and_advance", "respond")
-MOVES: tuple[str, ...] = (TEACH, CHALLENGE, READ_BACK, STORE_AND_ADVANCE, RESPOND)
+#: ADR-0072 (DEF-075, R14): after the THIRD failed attempt on one element — a challenge, or a
+#: Confirm that could not be stored — code offers to park it; the Belt decides with a button.
+OFFER_PARK = "offer_park"
+MOVES: tuple[str, ...] = (TEACH, CHALLENGE, READ_BACK, STORE_AND_ADVANCE, RESPOND, OFFER_PARK)
+#: Failed attempts on one element before the offer (ADR-0072 point 2).
+PARK_AFTER = 3
 
 #: The four statuses of founder ruling R5 (2026-09-25), in order. STORED in
 #: `PhaseState.field_status`, never derived from a reply; only code changes
 #: one, at turn end. "Awaiting confirmation" is ANSWERED with a read-back
 #: pending, not a fifth status.
 NOT_TAUGHT, ASKED, ANSWERED, CONFIRMED = "not taught", "asked", "answered", "confirmed"
-STATUSES: tuple[str, ...] = (NOT_TAUGHT, ASKED, ANSWERED, CONFIRMED)
+#: ADR-0072: a parked element — open, nothing stored, skipped until every other available element
+#: is confirmed, then returned to first; a Define element parked blocks the gate (all are Tier 1).
+PARKED = "parked"
+STATUSES: tuple[str, ...] = (NOT_TAUGHT, ASKED, ANSWERED, CONFIRMED, PARKED)
 
 #: The Belt's two buttons under a read-back (R4). A click sets the status in
 #: code; no model reads it.
 CONFIRM_CLICK, CHANGE_CLICK = "confirm", "change"
+#: ADR-0072 — the two buttons under an offer to park.
+PARK_CLICK, TRY_AGAIN_CLICK = "park", "try_again"
+OFFER_PARK_REASON = ("The Belt has tried `{field}` {n} times without it meeting its criteria. Explain "
+                     "briefly why this element matters, and say they can park it and come back to it "
+                     "later, or try again now — the screen shows the two buttons.")
+PARKED_REASON = ("The Belt parked `{parked}` to come back to later. Teach `{field}` now.")
+TRY_AGAIN_REASON = ("The Belt chose to try `{field}` again: explain it once more, simply, and ask for it.")
+RETURN_REASON = ("Every other element is confirmed: back to the parked element `{field}`. Say it was "
+                 "parked, explain it again and ask for it.")
 CHANGE_REASON = ("The Belt clicked Change: ask what they want to change in the "
                  "read-back, and show their current words.")
 #: DEF-029 / G-117 — the Belt confirmed a read-back that cannot complete the position: nothing
@@ -225,11 +242,39 @@ def field_statuses(phase: str, artifacts: dict[str, Any],
 
 def current(phase: str, artifacts: dict[str, Any],
             field_status: dict[str, dict[str, Any]]) -> Optional[tuple[str, tuple[str, ...]]]:
-    """The current field: the first position not confirmed (R5)."""
+    """The current field: the first position not confirmed (R5) — skipping a parked one while any
+    other is open, and returning to the parked ones first once every other is confirmed
+    (ADR-0072 point 4)."""
+    parked = None
     for field, fields in positions(phase):
-        if status_of(phase, field, artifacts, field_status) != CONFIRMED:
-            return field, fields
-    return None
+        status = status_of(phase, field, artifacts, field_status)
+        if status == CONFIRMED:
+            continue
+        if status == PARKED:
+            parked = parked or (field, fields)
+            continue
+        return field, fields
+    return parked
+
+
+def parked(phase: str, field_status: dict[str, dict[str, Any]]) -> list[str]:
+    """The parked positions, in coached order."""
+    return [f for f, _ in positions(phase) if (field_status.get(f) or {}).get("status") == PARKED]
+
+
+def park_events(before: dict[str, dict[str, Any]], after: dict[str, dict[str, Any]],
+                person: Optional[str], at: str) -> list[dict[str, Any]]:
+    """ADR-0072 point 6: every park and every return, with the person and the time — for
+    `step_log`. A return is a parked element's status leaving PARKED."""
+    out = []
+    for field in sorted(set(before) | set(after)):
+        was = (before.get(field) or {}).get("status")
+        now = (after.get(field) or {}).get("status")
+        if now == PARKED and was != PARKED:
+            out.append({"event": "park", "field": field, "person": person, "at": at})
+        elif was == PARKED and now != PARKED:
+            out.append({"event": "return", "field": field, "person": person, "at": at})
+    return out
 
 
 Judge = Callable[[str, str, str, str], Awaitable[SufficiencyJudgment]]
@@ -250,6 +295,12 @@ def _earlier_kw(entry: dict[str, Any], pending: Optional[dict[str, Any]]) -> dic
     """`{"earlier": …}` when there is anything to carry, else nothing."""
     e = _earlier(entry, pending)
     return {"earlier": e} if e else {}
+
+
+def _attempts(entry: dict[str, Any]) -> dict[str, Any]:
+    """The failed-attempt count an element's entry carries forward (ADR-0072)."""
+    n = int(entry.get("attempts") or 0)
+    return {"attempts": n} if n else {}
 
 
 def _join(*parts: str) -> str:
@@ -285,6 +336,27 @@ async def decide(phase: str, artifacts: dict[str, Any],
     status = status_of(phase, field, artifacts, after)
     entry = dict(after.get(field) or {})
 
+    # ADR-0072 — the Belt's answer to an offer to park, decided in code.
+    if entry.get("offer_park") and action == PARK_CLICK:
+        after[field] = {"status": PARKED, "answer": str(entry.get("answer") or ""), **_attempts(entry)}
+        nxt = current(phase, artifacts, after)
+        if nxt is None or nxt[0] == field:
+            # Nothing else is open: the parked element is the one left, taught again.
+            after[field] = {"status": ASKED, "answer": str(entry.get("answer") or "")}
+            return done(field, fields, status, TEACH, reason=RETURN_REASON.format(field=field))
+        nxt_status = status_of(phase, nxt[0], artifacts, after)
+        if nxt_status in (NOT_TAUGHT, PARKED):
+            after[nxt[0]] = {"status": ASKED}
+        return done(nxt[0], nxt[1], nxt_status, TEACH, reason=PARKED_REASON.format(parked=field, field=nxt[0]))
+    if entry.get("offer_park") and action == TRY_AGAIN_CLICK:
+        after[field] = {"status": ASKED, "answer": str(entry.get("answer") or ""),
+                        "messages": int(entry.get("messages") or 0), **_earlier_kw(entry, None)}
+        return done(field, fields, status, TEACH, reason=TRY_AGAIN_REASON.format(field=field))
+    if status == PARKED:
+        # ADR-0072 point 4 — back to a parked element (every other one is confirmed).
+        after[field] = {"status": ASKED, "answer": str(entry.get("answer") or ""), "returned": True}
+        return done(field, fields, status, TEACH, reason=RETURN_REASON.format(field=field))
+
     if action == REJECTED:
         # R6 — back from a rejected report: the coach guides the Belt to the
         # element the team named, showing their current words. No judgment:
@@ -308,15 +380,24 @@ async def decide(phase: str, artifacts: dict[str, Any],
             # DEF-029 / G-117: the reason names what was missing, so the coach's next read-back
             # carries it and the executor tells the Belt, in code, that nothing was stored.
             missing = [f for f in fields if not _stored(merged, f)]
+            # ADR-0072 — a refused Confirm is a failed attempt; the third brings the offer.
+            tries = int(entry.get("attempts") or 0) + 1
+            if tries >= PARK_AFTER:
+                words = str(pending.get("belt_words") or "")
+                after[field] = {"status": ASKED, "answer": words, "messages": int(pending.get("messages") or 1),
+                                "attempts": tries, "offer_park": True, **_earlier_kw(entry, pending)}
+                return done(field, fields, status, OFFER_PARK, answer=words,
+                            reason=OFFER_PARK_REASON.format(field=field, n=tries))
             if missing == ["process_map_sipoc"] and isinstance(merged.get("process_map_sipoc"), dict):
                 from backend.phases.define.parse import missing_columns
                 words = str(pending.get("belt_words") or "")
                 after[field] = {"status": ASKED, "answer": words, "messages": int(pending.get("messages") or 1),
-                                **_earlier_kw(entry, pending)}
+                                "attempts": tries, **_earlier_kw(entry, pending)}
                 return done(field, fields, status, CHALLENGE, answer=words,
                             messages=int(pending.get("messages") or 1),
                             reason=COLUMNS_MISSING.format(missing=", ".join(
                                 f"`{c}`" for c in missing_columns(merged.get("process_map_sipoc")))))
+            after[field] = {**entry, "attempts": tries}
             return done(field, fields, status, READ_BACK,
                         answer=str(pending.get("belt_words") or ""),
                         messages=int(pending.get("messages") or 1),
@@ -333,7 +414,7 @@ async def decide(phase: str, artifacts: dict[str, Any],
     if pending and action == CHANGE_CLICK:
         words = str(pending.get("belt_words") or "")
         after[field] = {"status": ASKED, "answer": words, "messages": int(pending.get("messages") or 1),
-                        **_earlier_kw(entry, pending)}
+                        **_attempts(entry), **_earlier_kw(entry, pending)}
         return done(field, fields, status, CHALLENGE, answer=words,
                     messages=int(pending.get("messages") or 1), reason=CHANGE_REASON)
 
@@ -348,11 +429,17 @@ async def decide(phase: str, artifacts: dict[str, Any],
         new_pending = {"field": field, "fields": list(fields), "belt_words": answer,
                        "messages": so_far + 1, **_earlier_kw(entry, pending)}
         after[field] = {"status": ANSWERED, "answer": answer, "messages": so_far + 1,
-                        "pending": new_pending}
+                        "pending": new_pending, **_attempts(entry)}
         return done(field, fields, status, READ_BACK, judgment=judgment, answer=answer,
                     messages=so_far + 1, pending=new_pending)
-    after[field] = {"status": ASKED, "answer": answer, "messages": so_far + 1,
+    # ADR-0072 — an insufficient answer is a failed attempt; the third brings the offer to park.
+    tries = int(entry.get("attempts") or 0) + 1
+    after[field] = {"status": ASKED, "answer": answer, "messages": so_far + 1, "attempts": tries,
                     **_earlier_kw(entry, pending)}
+    if tries >= PARK_AFTER:
+        after[field]["offer_park"] = True
+        return done(field, fields, status, OFFER_PARK, judgment=judgment, answer=answer,
+                    messages=so_far + 1, reason=OFFER_PARK_REASON.format(field=field, n=tries))
     # R3 — the challenge NAMES the failed acceptance criterion.
     crit = getattr(judgment, "failed_criterion", None)
     reason = f"criterion `{crit}` — {judgment.reason}" if crit else judgment.reason
@@ -412,7 +499,8 @@ def pending_store(phase: str, pending: dict[str, Any], proposed: dict[str, Any],
 
 
 __all__ = [
-    "MOVES", "STATUSES", "CONFIRM_INCOMPLETE", "COLUMNS_MISSING", "TEACH", "CHALLENGE", "READ_BACK", "STORE_AND_ADVANCE", "RESPOND",
+    "MOVES", "STATUSES", "OFFER_PARK", "PARKED", "PARK_CLICK", "TRY_AGAIN_CLICK", "PARK_AFTER",
+    "parked", "park_events", "CONFIRM_INCOMPLETE", "COLUMNS_MISSING", "TEACH", "CHALLENGE", "READ_BACK", "STORE_AND_ADVANCE", "RESPOND",
     "NOT_TAUGHT", "ASKED", "ANSWERED", "CONFIRMED", "CONFIRM_CLICK", "CHANGE_CLICK", "REJECTED",
     "MOVE_RECORD_KEY", "QUALITY_FEEDBACK_KEY", "COMPOSED_FIELDS", "positions", "focus",
     "current", "status_of", "last_record", "last_feedback", "belt_message",

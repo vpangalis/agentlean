@@ -101,9 +101,15 @@ def migrate_v1_to_v2(values: Mapping[str, Any]) -> dict[str, Any]:
     return out
 
 
+def migrate_v2_to_v3(values: Mapping[str, Any]) -> dict[str, Any]:
+    """ADR-0072 (DEF-075): `field_status` gains the value "parked" and the move "offer_park".
+    A no-op: no value written under version 2 changes meaning (ADR-0072 point 1)."""
+    return dict(values)
+
+
 #: {N: migrate_vN_to_vN+1}. Adding a state change raises STATE_SCHEMA_VERSION by one and adds
 #: its function here, with its fixture test.
-MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2}
+MIGRATIONS: dict[int, Migration] = {1: migrate_v1_to_v2, 2: migrate_v2_to_v3}
 
 
 def current() -> int:
@@ -184,5 +190,5 @@ def migrate_case(data: Mapping[str, Any], found: int) -> dict[str, Any]:
     return out
 
 
-__all__ = ["current", "migrate_case", "migrate_v1_to_v2", "VERSION_KEY", "UNVERSIONED", "MIGRATIONS", "version_of", "check_loadable", "migrate",
+__all__ = ["current", "migrate_case", "migrate_v1_to_v2", "migrate_v2_to_v3", "VERSION_KEY", "UNVERSIONED", "MIGRATIONS", "version_of", "check_loadable", "migrate",
            "stamp_metadata", "stamp_record", "read_record"]
