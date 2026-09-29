@@ -1,9 +1,9 @@
 {
- "source_hash": "2f21f95c27e77fac",
- "commit": "db2b283",
+ "source_hash": "35d49a1b5b1c62ff",
+ "commit": "96cd0eb",
  "commit_matches_source": false,
  "full_run_hash": "2f21f95c27e77fac",
- "recorded_at": "2026-09-29T16:51:15+00:00",
+ "recorded_at": "2026-09-29T17:05:31+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -750,6 +750,10 @@
   "backend/tests/test_fusion.py::test_the_variant_count_is_bounded_at_three_to_five": "passed",
   "backend/tests/test_fusion.py::test_ties_resolve_toward_the_earliest_list": "passed",
   "backend/tests/test_fusion.py::test_top_k_slices_after_fusion_not_before": "passed",
+  "backend/tests/test_g137_first_confirm_stores.py::test_g137_element_5s_first_read_back_names_the_registry_first_with_its_keys": "passed",
+  "backend/tests/test_g137_first_confirm_stores.py::test_g137_every_two_field_read_back_lists_every_entry_the_structured_one_first[baseline_estimate]": "passed",
+  "backend/tests/test_g137_first_confirm_stores.py::test_g137_every_two_field_read_back_lists_every_entry_the_structured_one_first[problem_statement]": "passed",
+  "backend/tests/test_g137_first_confirm_stores.py::test_g137_every_two_field_read_back_lists_every_entry_the_structured_one_first[voc_summary]": "passed",
   "backend/tests/test_gate_acceptance.py::test_a_rejection_names_an_element_and_a_reason": "passed",
   "backend/tests/test_gate_acceptance.py::test_a_rejection_reopens_the_named_elements_and_the_coach_guides_back": "passed",
   "backend/tests/test_gate_acceptance.py::test_a_validated_define_report_pauses_and_nothing_is_written": "passed",

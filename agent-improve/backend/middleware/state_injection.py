@@ -360,7 +360,14 @@ class BeforeModelStateInjection(AgentMiddleware):
         words = str(pending.get("belt_words") or plan.answer or "").strip() or "(none yet)"
         structured = False
         if plan.move == moves.READ_BACK:
-            fields = list(pending.get("fields") or [field])
+            # G-137 — the structured fields first: two runs read back position 5's baseline and
+            # left out `metric_definitions`, named second, so the first Confirm stored nothing.
+            # The baseline and the target count as words: the coach gives the Belt's words and
+            # code reads the MetricValue from them (ADR-0071).
+            from backend.phases.define.parse import METRIC_FIELDS as _WORDS
+            fields = sorted(pending.get("fields") or [field],
+                            key=lambda f: declared_type(self.phase, f) in (None, str)
+                            or (self.phase == "define" and f in _WORDS))
             structured = any(declared_type(self.phase, f) not in (None, str) for f in fields)
             composed = (structured or len(fields) > 1 or field in moves.COMPOSED_FIELDS
                         or int(pending.get("messages") or 1) > 1)
@@ -379,14 +386,24 @@ class BeforeModelStateInjection(AgentMiddleware):
         # DEF-029 — every field of the position named, with its declared type: 6.66's run read
         # back position 5's baseline alone, so the Belt's Confirm could never store the position.
         from backend.phases.define.parse import METRIC_FIELDS
-        entries = "\n".join(
-            f"  - `{f}`: " + ("the Belt's words — the number, its unit and its direction are read from "
-                              "them in code (ADR-0071); read them back as the Belt wrote them"
-                              if self.phase == "define" and f in METRIC_FIELDS else
-                              "a string, in the Belt's words" if declared_type(self.phase, f) in (None, str)
-                              else f"{declared_type(self.phase, f)} — real structure, the keys the phase "
-                                   f"script's 'Capture as' line gives, never prose")
-            for f in fields)
+        from backend.phases.define.schema import METRIC_DEFINITION_KEYS
+        registry = ("{" + ", ".join(METRIC_DEFINITION_KEYS) + "}")
+
+        def entry(f: str) -> str:
+            if self.phase == "define" and f == "metric_definitions":
+                # G-137 — the keys named here, and why the entry cannot be left out.
+                return (f"list[dict] — a LIST, the primary metric FIRST, each {registry} from the Belt's "
+                        f"words; the baseline's number is read by this `unit`, so without this entry "
+                        f"nothing of the position can be stored")
+            if self.phase == "define" and f in METRIC_FIELDS:
+                return ("the Belt's words — the number, its unit and its direction are read from them "
+                        "in code (ADR-0071), by the unit `metric_definitions` gives; read them back as "
+                        "the Belt wrote them")
+            if declared_type(self.phase, f) in (None, str):
+                return "a string, in the Belt's words"
+            return (f"{declared_type(self.phase, f)} — real structure, the keys the phase script's "
+                    f"'Capture as' line gives, never prose")
+        entries = "\n".join(f"  - `{f}`: {entry(f)}" for f in fields)
         body = MOVE_INSTRUCTIONS[key].format(
             field=field, stored=plan.stored_field, reason=reason, words=words,
             fields=" and ".join(f"`{f}`" for f in fields), shape=shape, entries=entries)

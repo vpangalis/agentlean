@@ -1522,13 +1522,16 @@ MOVE_INSTRUCTIONS: dict[str, str] = {
         "`{field}`. Nothing is stored until the Belt confirms.\n"
         "The Belt's words:\n{words}"
     ),
+    # G-137 — the entries come FIRST, with what a missing one costs: the same words as the
+    # refused Confirm's reason (moves.CONFIRM_INCOMPLETE), which two runs showed the coach follows.
     "read_back_composed": (
         "MOVE: READ BACK `{field}`.\n"
+        "`fields_captured` must carry EVERY ONE of these entries — a read-back that "
+        "leaves one out stores NOTHING when the Belt confirms:\n{entries}\n"
         "Read back ONE version of {fields} built only from the Belt's words below"
         "{shape} — invent nothing, drop nothing they said — show it in full, then "
         "ask \"Is this right?\". Put exactly the version you read back in "
-        "`fields_captured` — ONE ENTRY PER FIELD, every one of them, or nothing can "
-        "be stored:\n{entries}\n"
+        "`fields_captured`, ONE ENTRY PER FIELD.\n"
         "It is stored only if the Belt confirms it.\n"
         "The Belt's words:\n{words}"
     ),
