@@ -14,6 +14,7 @@ a new test never stales it). Re-run the script, commit the new record.
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -56,7 +57,9 @@ def run() -> dict[str, Any]:
     r = _load()
     summary = r.get("summary") or {}
     now = features.product_hash()
-    if summary.get("product_hash") != now:
+    # Founder ruling 1, 2026-09-29: the board asks what the latest record proves about the code it
+    # ran on (`features.earlier_proof`). That run sets AWAIT_ENV, and the recorder never records it.
+    if summary.get("product_hash") != now and os.environ.get(features.AWAIT_ENV) != "1":
         pytest.fail(f"{r['file']} ran on product source {summary.get('product_hash')}; it is now "
                     f"{now} — the record is stale, re-run the run-through")
     return r

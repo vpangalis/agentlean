@@ -177,9 +177,14 @@ def summary(features: list[dict] | None = None, res: dict | None = None) -> dict
         c["total"] += 1
         c["passing"] += st[f["id"]] == "passing"
     core = [f["id"] for f in features if in_core(f)]
+    waits = awaiting(features, st)
+    tier = rank.tiers(features)
+    miles = {m: milestone_split([f["id"] for f in features if tier.get(f["id"]) == t], st, waits)
+             for m, t in rank.MILESTONES.items()}
     return {"total": len(features), "passing": sum(v == "passing" for v in st.values()),
             "core": {"total": len(core), "passing": sum(st[i] == "passing" for i in core)},
-            "fresh": fresh(res), "lanes": lanes, "clauses": clauses, "status": st}
+            "fresh": fresh(res), "lanes": lanes, "clauses": clauses, "status": st,
+            "awaiting": sorted(waits), "milestones": miles}
 
 
 REQUIREMENTS = PROJECT / "docs" / "requirements"
@@ -242,8 +247,13 @@ def headline(s: dict | None = None) -> str:
     lanes = " · ".join(f"{k} {v['passing']}/{v['total']}" for k, v in s["lanes"].items())
     stale = "" if s["fresh"] else " (record older than the source)"
     core = s.get("core") or {"passing": 0, "total": 0}
-    return (f"{s['passing']} of {s['total']} Define features pass (core {core['passing']} of "
-            f"{core['total']}) — {lanes}{stale}")
+    waits = len(s.get("awaiting") or [])
+    more = f", {waits} more proven on earlier code" if waits else ""
+    m1 = (s.get("milestones") or {}).get("M1")
+    m1_text = (f" · M1: {m1['proven']} proven · {m1['awaiting']} awaiting fresh run · {m1['open']} open"
+               if m1 else "")
+    return (f"{s['passing']} of {s['total']} Define features pass{more} (core {core['passing']} of "
+            f"{core['total']}) — {lanes}{stale}{m1_text}")
 
 
 # ── the landing rule and the ratchet (the commit guard's rule 11) ───────────
@@ -262,6 +272,88 @@ def runthrough_fresh() -> bool:
     summary_line: dict = next((r for r in json.loads(files[-1].read_text(encoding="utf-8"))
                                if r.get("kind") == "summary"), {})
     return summary_line.get("product_hash") == product_hash()
+
+
+# ── proven on earlier code (founder ruling 1, 2026-09-29) — DISPLAY ONLY ────
+#
+# A feature proven only by a live run-through whose record is older than the source is not
+# shown as open: it is "proven on earlier code, awaiting a fresh run". Nothing that decides
+# reads this — `status`, the landing rule, the ratchet and stop condition 7 stay strict.
+
+#: Set only by `earlier_proof`'s own pytest run: the run-through tests judge the latest record
+#: with its source hash ignored, and the recorder (conftest.py) records nothing of that run.
+AWAIT_ENV = "AGENT_IMPROVE_RUNTHROUGH_ANY_SOURCE"
+_XRESULT = re.compile(r"^(XPASS|PASSED|XFAIL|FAILED|ERROR|SKIPPED)\s+(\S+::\S+)", re.M)
+
+
+def _venv_python() -> str:
+    """The pinned venv's python — the hooks build CONTINUITY with the system python, which has
+    no pytest, and the page and CONTINUITY must count alike (rule 10)."""
+    for cand in (PROJECT / ".venv" / "Scripts" / "python.exe", PROJECT / ".venv" / "bin" / "python"):
+        if cand.exists():
+            return str(cand)
+    return sys.executable
+
+
+def earlier_proof() -> dict[str, str]:
+    """{node id: "passed" | "failed"} — the run-through tests judged on the LATEST record, its
+    source hash ignored: what that record proves about the code it ran on. Cached per record
+    and test file in the local log directory (a run takes ~20 s); {} when it cannot be judged."""
+    import os
+    import subprocess
+    files = sorted(RUNTHROUGH.glob("define_runthrough_*.json"))
+    test = PROJECT / RUNTHROUGH_TESTS.split("::")[0]
+    if not files or not test.is_file():
+        return {}
+    key = hashlib.sha256(files[-1].read_bytes() + test.read_bytes()).hexdigest()[:16]
+    cache = Path(os.environ.get("AGENTLEAN_LOGS") or PROJECT.parent / ".claude" / "logs") / "runthrough-proof.json"
+    try:
+        got = json.loads(cache.read_text(encoding="utf-8"))
+        if got.get("key") == key:
+            return dict(got["outcomes"])
+    except (OSError, ValueError, KeyError):
+        pass
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "PYTEST_"))}
+    try:
+        r = subprocess.run([_venv_python(), "-m", "pytest", RUNTHROUGH_TESTS.split("::")[0], "-q", "-rA",
+                            "--no-header", "-p", "no:cacheprovider", "-p", "no:randomly"],
+                           cwd=PROJECT, capture_output=True, encoding="utf-8", errors="replace",
+                           timeout=300, env={**env, AWAIT_ENV: "1", "PYTHONIOENCODING": "utf-8"})
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    out = {n.replace("\\", "/"): "passed" if w in ("XPASS", "PASSED") else "failed"
+           for w, n in _XRESULT.findall(r.stdout or "")}
+    if out:
+        try:
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            cache.write_text(json.dumps({"key": key, "record": files[-1].name, "outcomes": out}, indent=1),
+                             encoding="utf-8")
+        except OSError:
+            pass
+    return out
+
+
+def awaiting(features: list[dict], st: dict[str, str]) -> set[str]:
+    """Features not passing now whose only proof is a live run on earlier code: a run-through
+    test the latest (stale) record passes, or a wall-clock test the latest (stale) wall-clock
+    record passes. `st` is the strict status."""
+    ids = {f["id"]: node_id(f["test"]) for f in features if st.get(f["id"]) != "passing"}
+    out: set[str] = set()
+    if any(t.startswith(RUNTHROUGH_TESTS) for t in ids.values()) and not runthrough_fresh():
+        proof = earlier_proof()
+        out |= {fid for fid, t in ids.items() if t.startswith(RUNTHROUGH_TESTS) and proof.get(t) == "passed"}
+    if WALLCLOCK_TESTS & set(ids.values()):
+        wall, wall_fresh = wallclock_outcomes()
+        if not wall_fresh:
+            out |= {fid for fid, t in ids.items() if t in WALLCLOCK_TESTS and wall.get(t) == "passed"}
+    return out
+
+
+def milestone_split(ids: list[str], st: dict[str, str], waits: set[str]) -> dict[str, int]:
+    """The three counts of a milestone — they add up to its total (founder ruling 1)."""
+    proven = sum(st.get(i) == "passing" for i in ids)
+    wait = sum(st.get(i) != "passing" and i in waits for i in ids)
+    return {"total": len(ids), "proven": proven, "awaiting": wait, "open": len(ids) - proven - wait}
 
 
 def landing_refusal(fid: str, features: list[dict], res: dict) -> list[str]:

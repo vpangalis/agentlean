@@ -41,7 +41,7 @@ def test_a_status_is_derived_green_amber_grey(board) -> None:
     for f in d["features"]:
         # founder 2026-09-28: a passing test that is not end to end is amber, not green
         assert (f["status"] == "green") == (st[f["id"]] == "passing" and not f["not_e2e"]), f["id"]
-        if f["id"] in tops:
+        if f["id"] in tops and f["status"] != "awaiting":
             assert f["status"] == "amber", f["id"]
 
 
@@ -117,7 +117,8 @@ def test_an_m1_square_is_outlined_and_numbered_with_its_rank(board) -> None:
 
 def test_the_legend_is_one_line(board) -> None:
     _, page = board
-    assert '<div class="legend" data-key="legend">colour = status · outline = M1 · number = order of work</div>' in page
+    assert ('<div class="legend" data-key="legend">colour = status · outline = M1 · number = order of work · '
+            '◷ = proven on earlier code, awaiting a fresh run</div>') in page
 
 
 def test_now_per_lane_highlights_the_square_and_the_panel_names_its_place(board) -> None:
@@ -127,7 +128,7 @@ def test_now_per_lane_highlights_the_square_and_the_panel_names_its_place(board)
     for x in d["lanes"]:
         if x["now"]:
             assert f"<div class='row' data-f='{x['now']}'>" in page
-            assert f"class='t amber" in page and f"data-f='{x['now']}' data-tip" in page
+            assert f"data-f='{x['now']}' data-tip" in page
     assert "mark(a.dataset.f)" in page and ".vs .t[data-f=" in page and ".t.hl{" in page
     assert "'Stage · Layer · Tier · Order of work'" in page
     m = re.search(r'<script type="application/json" id="board-data">(.*?)</script>', page, re.S)
@@ -154,7 +155,8 @@ def test_one_milestone_count_everywhere(board) -> None:
         assert x == counts[m]
         assert f"<span class='num'>{x['green']}/{x['total']}</span>" in page, m
         assert len(mine) == x["total"] and sum(cls == "green" for cls, _ in mine) == x["green"], m
-        assert sorted(fid for cls, fid in mine if cls != "green") == sorted(x["open"]), m
+        assert sorted(fid for cls, fid in mine if cls not in ("green", "awaiting")) == sorted(x["open"]), m
+        assert sorted(fid for cls, fid in mine if cls == "awaiting") == sorted(x["waiting"]), m
         assert f"{m} — {len(x['open'])} open of {x['total']}</h3>" in page, m
         assert d["burnup"][-1][m] == x["green"], m
     footer = sum(int(a) for a, _ in re.findall(r"M1 (\d+) of (\d+)</span>", page))
@@ -184,3 +186,56 @@ def test_the_value_stream_explains_itself_and_names_its_rows(board) -> None:
                   "Checks and approval (Gate)", "What is saved (Persistence)", "Security, speed, operations (Platform)"):
         assert f"<td class='l'>{bcb.E(label)}</td>" in page, label
     assert ">What's left</h2>" in page
+
+
+# ── founder ruling 1, 2026-09-29 — proven on earlier code, awaiting a fresh run ─────────────
+
+
+def test_the_three_milestone_counts_add_up_to_the_milestone_total(board) -> None:
+    """Every milestone box, the headline and "What's left" count proven · awaiting fresh run ·
+    open, and the three add up to the milestone's total — one count, read from one function."""
+    d, page = board
+    s = F.summary()
+    for x in d["milestones"]:
+        m = x["m"]
+        assert x["green"] + x["awaiting"] + len(x["open"]) == x["total"], m
+        assert len(x["done"]) + len(x["waiting"]) + len(x["open"]) == x["total"], m
+        assert not set(x["waiting"]) & (set(x["open"]) | set(x["done"])), m
+        h = s["milestones"][m]
+        assert (h["proven"], h["awaiting"], h["open"], h["total"]) ==             (x["green"], x["awaiting"], len(x["open"]), x["total"]), m
+        assert h["proven"] + h["awaiting"] + h["open"] == h["total"], m
+        assert f"{m}: {bcb.triple(x)}</div>" in page, m
+        assert f"<p class='note'>{bcb.E(bcb.triple(x))}</p>" in page, m
+    m1 = s["milestones"]["M1"]
+    assert (f"M1: {m1['proven']} proven · {m1['awaiting']} awaiting fresh run · {m1['open']} open"
+            in F.headline(s))
+
+
+def test_an_awaiting_square_is_a_run_through_feature_the_latest_record_proved(board) -> None:
+    """Awaiting is never a failing test elsewhere, never a passing one, and never a fresh record's."""
+    d, _ = board
+    st = F.status(F.load(), F.results())
+    for f in d["features"]:
+        if f["status"] != "awaiting":
+            continue
+        t = F.node_id(f["test"])
+        assert st[f["id"]] != "passing", f["id"]
+        assert t.startswith(F.RUNTHROUGH_TESTS) or t in F.WALLCLOCK_TESTS, f["id"]
+        assert f["tier"] != 1 or bcb.tile_label(f) == "◷", f["id"]
+        assert f["blocker"].startswith("a fresh run-through"), f["id"]
+
+
+def test_awaiting_is_display_only_the_landing_rule_stays_strict(monkeypatch) -> None:
+    """The rule for landing (guard rule 11) and stop condition 7 read `status` — never awaiting."""
+    rt = F.RUNTHROUGH_TESTS + "test_run_x"
+    feats = [{"id": "R-1", "test": rt, "depends_on": []}, {"id": "R-2", "test": "backend/tests/t.py::t", "depends_on": []},
+             {"id": "R-3", "test": F.RUNTHROUGH_TESTS + "test_run_y", "depends_on": []}]
+    res = {"outcomes": {rt: "skipped", "backend/tests/t.py::t": "failed"}}
+    monkeypatch.setattr(F, "runthrough_fresh", lambda: False)
+    monkeypatch.setattr(F, "earlier_proof", lambda: {rt: "passed", F.RUNTHROUGH_TESTS + "test_run_y": "failed"})
+    st = F.status(feats, res)
+    assert F.awaiting(feats, st) == {"R-1"}
+    assert F.landing_refusal("R-1", feats, res)                       # still refused
+    assert F.milestone_split(["R-1", "R-2", "R-3"], st, {"R-1"}) == {"total": 3, "proven": 0, "awaiting": 1, "open": 2}
+    monkeypatch.setattr(F, "runthrough_fresh", lambda: True)           # a fresh record: its own verdict
+    assert F.awaiting(feats, st) == set()

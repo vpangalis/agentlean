@@ -18,7 +18,9 @@ features behind it; each stage square opens what happens there (the skill or bus
 `STAGE_SOURCES`), what happened in the run and the stage's features. White = not reached.
 
 A feature's status is derived, never stored: green = its test passes; amber = its test is
-written and fails, or it is its lane's current top-ranked feature; grey = open (a stub).
+written and fails, or it is its lane's current top-ranked feature; grey = open (a stub);
+awaiting (green with a clock) = proven only by a live run-through whose record is older than the
+source — not open, counted apart (founder ruling 1, 2026-09-29; `features.awaiting`).
 In each cell the squares stand in the order of work (rank). A tier-1 (M1) square carries a
 thick outline and its position in the order of work (tooling, founder 2026-09-28).
 
@@ -300,22 +302,34 @@ def milestone_counts(rows: list[dict]) -> dict[str, dict]:
     2026-09-29). Done = the square is green; every other square of the milestone is open, in
     the order of work. It used to be counted three ways — green squares (the box), numbered
     squares (the grid) and passing tests (the hand-written M1 line) — and they disagreed
-    whenever a feature passed a test that is not end to end."""
+    whenever a feature passed a test that is not end to end.
+
+    Founder ruling 1, 2026-09-29: a square proven only on earlier code (status "awaiting") is
+    neither done nor open — green + awaiting + open = total."""
     out: dict[str, dict] = {}
     for m, t in rank.MILESTONES.items():
         mine = [r for r in rows if r["tier"] == t]
         done = sorted((r for r in mine if r["status"] == "green"), key=_order)
-        left = sorted((r for r in mine if r["status"] != "green"), key=_order)
+        wait = sorted((r for r in mine if r["status"] == "awaiting"), key=_order)
+        left = sorted((r for r in mine if r["status"] not in ("green", "awaiting")), key=_order)
         out[m] = {"m": m, "label": MILESTONE_LABELS[m], "tier": t, "total": len(mine), "green": len(done),
-                  "amber": sum(r["status"] == "amber" for r in left), "done": [r["id"] for r in done],
+                  "awaiting": len(wait), "amber": sum(r["status"] == "amber" for r in left),
+                  "done": [r["id"] for r in done], "waiting": [r["id"] for r in wait],
                   "open": [r["id"] for r in left]}
     return out
+
+
+def triple(x: dict) -> str:
+    """A milestone's three counts, as the founder worded them (ruling 1, 2026-09-29)."""
+    return f"{x['green']} proven · {x['awaiting']} awaiting fresh run · {len(x['open'])} open"
 
 
 def _blocker(f: dict, open_ids: set[str]) -> str:
     """What stands between an open feature and done, in the Belt-free words the panel shows."""
     if f["status"] == "green":
         return ""
+    if f["status"] == "awaiting":
+        return "a fresh run-through on the current source (it passed on the latest record, run on earlier code)"
     if f["held"]:
         return f"the design gate: {f['held']} is not ACCEPTED"
     deps = [d for d in f["depends_on"] if d in open_ids]
@@ -455,6 +469,7 @@ def data() -> dict:
     except Exception:  # noqa: BLE001 — the board must render
         wires = []
     structural = {w["name"] for w in wires if w.get("check") == 3 and "drives neither" in w.get("finding", "")}
+    waits = features.awaiting(feats, st)
     rows = []
     for f in feats:
         file, _, func = f["test"].partition("::")
@@ -464,14 +479,16 @@ def data() -> dict:
         # Founder 2026-09-28: a passing test the wiring check flags as not end to end (it drives
         # neither the graph nor the API) is amber, not green, until it is end to end.
         not_e2e = f["id"] in structural
-        status = ("green" if not not_e2e else "amber") if st[f["id"]] == "passing" else             ("amber" if (not stub or tops) else "grey")
+        status = (("green" if not not_e2e else "amber") if st[f["id"]] == "passing" else
+                  "awaiting" if f["id"] in waits else ("amber" if (not stub or tops) else "grey"))
         req = reqs.get(f["requirement"]) or {}
         r = by_rank.get(f["id"]) or {}
         rows.append({"id": f["id"], "description": f["description"], "lane": f["lane"],
                      "stage": f.get("stage"), "layer": f.get("layer"), "phase": f.get("phase", "define"),
                      "status": status, "tier": tiers.get(f["id"]), "rank": r.get("rank"),
-                     "reason": r.get("reason") or ("passes, but its test is not end to end (wiring check 3)"
-                                                   if not_e2e else "passes — not ranked"),
+                     "reason": ("proven on earlier code — awaiting a fresh run-through" if status == "awaiting"
+                                else r.get("reason") or ("passes, but its test is not end to end (wiring check 3)"
+                                                         if not_e2e else "passes — not ranked")),
                      "held": hold.get(f["id"]), "not_e2e": not_e2e, "stub": stub, "requirement": f["requirement"],
                      "moscow": req.get("moscow"), "design": req.get("design"), "test": f["test"],
                      "depends_on": f["depends_on"], "unblocks": sorted(dependents.get(f["id"], ())),
@@ -522,6 +539,8 @@ h1,h2{font-family:var(--cond);font-weight:600;margin:0}h1{font-size:24px}h2{font
 .pct{font:600 56px/1 var(--cond);font-variant-numeric:tabular-nums}.pct small{font-size:18px;color:var(--muted);font-weight:500}
 .bar{display:grid;grid-template-columns:minmax(0,15em) 1fr 56px;gap:8px;align-items:center;font-size:12.5px;cursor:pointer}
 .track{height:10px;background:var(--open);border-radius:5px;overflow:hidden;display:flex}.track i{display:block;height:100%}
+.track i.await{background:repeating-linear-gradient(135deg,var(--done) 0 3px,color-mix(in srgb,var(--done) 45%,var(--panel)) 3px 6px)}
+.split{margin:-6px 0 2px;font-variant-numeric:tabular-nums}
 .num{font:600 12px var(--mono);text-align:right;font-variant-numeric:tabular-nums}
 .journey{display:grid;grid-template-columns:1fr 3.2fr 1fr 1fr 1fr 1fr;gap:6px}
 @media (max-width:700px){.journey{grid-template-columns:1fr 1fr}}
@@ -539,8 +558,10 @@ table.vs{border-collapse:separate;border-spacing:6px;min-width:860px;width:100%}
 .tiles{display:flex;flex-wrap:wrap;gap:4px}
 .t{width:16px;height:16px;border-radius:3px;cursor:pointer;display:inline-block;border:0;padding:0}
 .t.green{background:var(--done)}.t.amber{background:var(--wip)}.t.grey{background:var(--open)}
+.t.awaiting{background:color-mix(in srgb,var(--done) 55%,var(--panel));color:var(--ink);font:600 10px/16px var(--mono);text-align:center}
+.clock{display:inline-block;width:1.1em;text-align:center;font-weight:600}
 .t.m1{outline:3px solid var(--ink);outline-offset:1px;width:auto;min-width:16px;padding:0 3px;font:600 10px/16px var(--mono);font-variant-numeric:tabular-nums;color:var(--ink)}
-.t.m1.green{color:var(--on-done)}.t.m1.amber{color:#17201D}
+.t.m1.green{color:var(--on-done)}.t.m1.amber{color:#17201D}.t.m1.awaiting{color:var(--ink)}
 .vs .t.dim{opacity:.15}.bar.on span:first-child{font-weight:700;color:var(--accent)}
 .jhead{margin:4px 0 0;font-size:13px;font-weight:500}
 .explain{margin:0;padding:8px 10px;border-radius:6px;background:var(--sub);font-size:12.5px}
@@ -604,11 +625,12 @@ function stage(k){const s=D.journey.stages[k];return '<h2>'+esc(s.label)+'</h2>'
 function dim(k){document.querySelectorAll('.vs .t').forEach(t=>t.classList.toggle('dim',!!k&&t.dataset.m!==k));
  document.querySelectorAll('.bar[data-milestone]').forEach(b=>b.classList.toggle('on',b.dataset.milestone===k))}
 function milestone(k){const x=D.milestones.find(m=>m.m===k);dim(k);const by={};
- for(const id of [...x.open,...x.done]){const f=F[id];const g=by[f.stage]=by[f.stage]||{done:[],open:[]};(f.status==='green'?g.done:g.open).push(f)}
- let h='<h2>'+esc(x.label)+'</h2><p class="note">'+x.green+' of '+x.total+' done · '+x.open.length+' open · its squares are highlighted in the value stream</p>';
+ for(const id of [...x.open,...x.waiting,...x.done]){const f=F[id];const g=by[f.stage]=by[f.stage]||{done:[],wait:[],open:[]};(f.status==='green'?g.done:f.status==='awaiting'?g.wait:g.open).push(f)}
+ let h='<h2>'+esc(x.label)+'</h2><p class="note">'+x.green+' proven · '+x.awaiting+' awaiting fresh run · '+x.open.length+' open, of '+x.total+' · its squares are highlighted in the value stream</p>';
  for(const [sk,label] of Object.entries(D.stages)){const g=by[sk];if(!g)continue;
   h+='<h3>'+esc(label)+'</h3>'+dl([['Open ('+g.open.length+')',g.open.length?'<ul>'+g.open.map(f=>'<li>'+(f.rank?'#'+f.rank:'—')
    +' <a href="#" data-f="'+f.id+'">'+f.id+'</a> '+esc(String(f.description).slice(0,90))+'<br><span class="note">blocked by: '+esc(f.blocker)+'</span></li>').join('')+'</ul>':'—'],
+   ['Proven on earlier code, awaiting a fresh run ('+g.wait.length+')',g.wait.map(f=>'<a href="#" data-f="'+f.id+'">'+f.id+'</a>').join(', ')||'—'],
    ['Done ('+g.done.length+')',g.done.map(f=>'<a href="#" data-f="'+f.id+'">'+f.id+'</a>').join(', ')||'—']])}
  return h}
 function mark(id){document.querySelectorAll('.vs .t.hl').forEach(t=>t.classList.remove('hl'));if(!id)return;
@@ -712,6 +734,8 @@ def tile_label(f: dict) -> str:
     """What an M1 square shows: its place in the order of work; an open M1 feature out of the
     order (it passes a test that is not end to end) shows "e2e", so every open M1 square is
     marked and the grid counts what the milestone box counts (item 0a)."""
+    if f["status"] == "awaiting":
+        return "◷"
     if f["tier"] != 1:
         return ""
     if f["rank"]:
@@ -726,11 +750,13 @@ def render(d: dict) -> str:
                    for p in PHASES)
     c = d["complete"]
     bars = "".join(
-        f"<div class='bar' data-milestone='{x['m']}' role='button' tabindex='0' data-tip='{E(x['m'])}: {x['green']} done, "
-        f"{x['total'] - x['green']} open, of {x['total']} — click to see them'><span>{E(x['label'])}</span><div class='track'>"
+        f"<div class='bar' data-milestone='{x['m']}' role='button' tabindex='0' data-tip='{E(x['m'])}: {E(triple(x))}, "
+        f"of {x['total']} — click to see them'><span>{E(x['label'])}</span><div class='track'>"
         f"<i style='width:{_pct(x['green'], x['total']):.1f}%;background:var(--done)'></i>"
+        f"<i class='await' style='width:{_pct(x['awaiting'], x['total']):.1f}%'></i>"
         f"<i style='width:{_pct(x['amber'], x['total']):.1f}%;background:var(--wip)'></i></div>"
-        f"<span class='num'>{x['green']}/{x['total']}</span></div>" for i, x in enumerate(d["milestones"]))
+        f"<span class='num'>{x['green']}/{x['total']}</span></div>"
+        f"<div class='note split' data-key='split-{x['m']}'>{E(x['m'])}: {E(triple(x))}</div>" for i, x in enumerate(d["milestones"]))
     j = d["journey"]
     els = "".join(f"<i class='el {s}' data-el='{i}' data-tip='{i + 1} · {E(e['name'])} — {E(e['state'])}'></i>"
                   for i, (s, e) in enumerate(zip(j["elements"], j["element_detail"])))
@@ -758,10 +784,14 @@ def render(d: dict) -> str:
     stage_m1 = {sk: milestone_counts([f for f in fs if f["stage"] == sk])["M1"] for sk, _ in STAGES}
     foot = "".join(f"<td>{_pct(sum(f['status'] == 'green' for f in fs if f['stage'] == sk), sum(1 for f in fs if f['stage'] == sk)):.0f}%"
                    f"<br><span data-tip='M1 features of this stage that are done (green), of all of them'>M1 "
-                   f"{stage_m1[sk]['green']} of {stage_m1[sk]['total']}</span></td>"
+                   f"{stage_m1[sk]['green']} of {stage_m1[sk]['total']}</span>"
+                   + (f"<br><span data-tip='M1 features of this stage proven on earlier code, awaiting a fresh run'>"
+                      f"<span class='clock'>◷</span>{stage_m1[sk]['awaiting']} awaiting</span>" if stage_m1[sk]["awaiting"] else "")
+                   + "</td>"
                    for sk, _ in STAGES)
     left = "".join(
         f"<div class='left'><h3 data-milestone='{x['m']}' role='button' tabindex='0'>{E(x['m'])} — {len(x['open'])} open of {x['total']}</h3>"
+        f"<p class='note'>{E(triple(x))}</p>"
         + ("<ol>" + "".join(f"<li><a href='#' data-f='{i}'>{'#' + str(by_id[i]['rank']) if by_id[i]['rank'] else '—'} {E(i)}</a> "
                             f"{E(by_id[i]['description'][:70])}<br><span class='note'>blocked by: {E(by_id[i]['blocker'])}</span></li>"
                             for i in x["open"]) + "</ol>" if x["open"] else "<p class='note'>nothing left</p>")
@@ -799,7 +829,7 @@ def render(d: dict) -> str:
 <div class="note">{E(j['note'])}{stale} · <code>{E(j['file'] or '—')}</code></div><div>{_spark(j['spark'], len(j['names']))}</div></div>
 </div>
 <div class="card"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:baseline"><h2>Value stream</h2>
-<div class="legend" data-key="legend">colour = status · outline = M1 · number = order of work</div></div>
+<div class="legend" data-key="legend">colour = status · outline = M1 · number = order of work · ◷ = proven on earlier code, awaiting a fresh run</div></div>
 <p class="explain" data-key="explain">{E(VALUE_STREAM_EXPLAIN)}</p>
 <div class="grid"><table class="vs"><thead><tr><th></th>{head}</tr></thead><tbody>{''.join(body_rows)}</tbody><tfoot><tr><td></td>{foot}</tr></tfoot></table></div></div>
 <div class="card"><h2>What's left</h2><div class="lefts">{left}</div></div>

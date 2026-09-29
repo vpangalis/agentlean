@@ -450,6 +450,11 @@ def pytest_sessionfinish(session, exitstatus):
     if _is_worker(session.config):
         session.config.workeroutput["trace_calls"] = list(TRACE_CALLS)
         return
+    import os as _os
+    # Founder ruling 1, 2026-09-29: the board's judgement of a stale run-through record
+    # (`features.earlier_proof`) is display only — never evidence, never timed as a test run.
+    if _os.environ.get("AGENT_IMPROVE_RUNTHROUGH_ANY_SOURCE") == "1":
+        return
     # Step 6.63 — record the run for the control board. Not when the trace
     # guard fired: a run that broke the quota rule is not evidence of anything.
     if _OUTCOMES and not TRACE_CALLS:

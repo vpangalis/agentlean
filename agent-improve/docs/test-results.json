@@ -1,9 +1,9 @@
 {
- "source_hash": "85030d755d1725a6",
- "commit": "67bc629",
+ "source_hash": "9bb53b2eea6df149",
+ "commit": "afcd469",
  "commit_matches_source": false,
- "full_run_hash": "85030d755d1725a6",
- "recorded_at": "2026-09-29T11:50:28+00:00",
+ "full_run_hash": "9bb53b2eea6df149",
+ "recorded_at": "2026-09-29T16:43:17+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -44,7 +44,9 @@
   "backend/tests/test_board_value_stream.py::test_a_feature_held_by_its_adr_is_never_a_lanes_top_and_waiting_counts_it": "passed",
   "backend/tests/test_board_value_stream.py::test_a_milestone_click_dims_the_others_and_lists_done_and_open_by_step": "passed",
   "backend/tests/test_board_value_stream.py::test_a_status_is_derived_green_amber_grey": "passed",
+  "backend/tests/test_board_value_stream.py::test_an_awaiting_square_is_a_run_through_feature_the_latest_record_proved": "passed",
   "backend/tests/test_board_value_stream.py::test_an_m1_square_is_outlined_and_numbered_with_its_rank": "passed",
+  "backend/tests/test_board_value_stream.py::test_awaiting_is_display_only_the_landing_rule_stays_strict": "passed",
   "backend/tests/test_board_value_stream.py::test_each_cell_stands_in_the_order_of_work": "passed",
   "backend/tests/test_board_value_stream.py::test_every_feature_is_one_tile_in_its_cell": "passed",
   "backend/tests/test_board_value_stream.py::test_now_per_lane_highlights_the_square_and_the_panel_names_its_place": "passed",
@@ -52,6 +54,7 @@
   "backend/tests/test_board_value_stream.py::test_rule_10_reads_the_rendered_page_back_as_true": "passed",
   "backend/tests/test_board_value_stream.py::test_the_legend_is_one_line": "passed",
   "backend/tests/test_board_value_stream.py::test_the_page_has_the_mockups_blocks_and_not_the_retired_tables": "passed",
+  "backend/tests/test_board_value_stream.py::test_the_three_milestone_counts_add_up_to_the_milestone_total": "passed",
   "backend/tests/test_board_value_stream.py::test_the_value_stream_explains_itself_and_names_its_rows": "passed",
   "backend/tests/test_capability_rows.py::test_mutation_row_10_a_row_short_a_key_is_red": "passed",
   "backend/tests/test_capability_rows.py::test_mutation_row_11_a_metric_entry_that_does_not_mirror_is_red": "passed",
@@ -1592,8 +1595,8 @@
   "backend/tests/test_wiring_check.py::test_it_reads_what_section_3_names": "passed"
  },
  "older": {
-  "source_hash": "43cbf3973d738126",
-  "recorded_at": "2026-09-29T11:10:15+00:00",
+  "source_hash": "85030d755d1725a6",
+  "recorded_at": "2026-09-29T11:50:28+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -2888,6 +2891,8 @@
    "backend/tests/test_moves.py::test_define_walks_twelve_positions_with_the_registry_inside_five": "passed",
    "backend/tests/test_moves.py::test_each_move_is_graded_only_on_what_it_does": "passed",
    "backend/tests/test_moves.py::test_every_field_confirmed_is_a_response_not_a_move_on_a_field": "passed",
+   "backend/tests/test_moves.py::test_g135_a_year_is_never_the_baseline_and_no_unit_stores_no_baseline": "passed",
+   "backend/tests/test_moves.py::test_g136_a_passive_captured_claim_is_removed_and_a_read_back_intro_kept": "passed",
    "backend/tests/test_moves.py::test_only_the_previous_reply_is_read": "passed",
    "backend/tests/test_moves.py::test_opening_teaches_the_first_field_and_asks_the_model_nothing": "passed",
    "backend/tests/test_moves.py::test_position_five_stores_both_of_its_fields": "passed",

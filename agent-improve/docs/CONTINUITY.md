@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| **Headline** | 34 of 161 Define features pass (core 34 of 152) — A 10/67 · B 18/36 · C 3/36 · integrator 3/22 |
+| **Headline** | 34 of 161 Define features pass, 25 more proven on earlier code (core 34 of 152) — A 10/67 · B 18/36 · C 3/36 · integrator 3/22 (record older than the source) · M1: 24 proven · 20 awaiting fresh run · 3 open |
 | **Next — lane A** | DEF-005 — On a field not yet taught, the coach TEACHES: an explanation, a worked example shown before the question, and the question — decided in code |
 | **Next — lane B** | DEF-041 — Once all thirteen elements are confirmed, GET /gate/review returns the complete Define gate document (DefineOutput's 21 keys) with passed=tr |
 | **Next — lane C** | DEF-079 — Every confirmed element has a change action in the progress view that starts coaching on it; the Confirm and Change buttons under a read-bac |
