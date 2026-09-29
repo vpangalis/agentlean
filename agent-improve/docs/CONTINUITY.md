@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| **Headline** | 59 of 161 Define features pass (core 56 of 152) — A 32/67 · B 20/36 · C 1/36 · integrator 6/22 |
+| **Headline** | 61 of 161 Define features pass (core 58 of 152) — A 32/67 · B 20/36 · C 3/36 · integrator 6/22 |
 | **Next — lane A** | DEF-021 — When the Belt corrects a stored value, their stated reason is kept with the change in field_log.reason. |
 | **Next — lane B** | DEF-040 — When the Belt contradicts a value an earlier gate approved, the turn stops in a node that writes nothing, the Belt chooses update or keep, a |
 | **Next — lane C** | DEF-079 — Every confirmed element has a change action in the progress view that starts coaching on it; the Confirm and Change buttons under a read-bac |

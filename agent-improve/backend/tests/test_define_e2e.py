@@ -254,10 +254,10 @@ def test_the_progress_bar_and_next_step_follow_the_coach() -> None:
     _not_written('DEF-053')
 
 
-def test_the_read_back_buttons_send_the_action() -> None:
-    """DEF-054 — Under a read-back the screen shows Confirm and Change; a click sends
-    action=confirm|change on /ask and the Belt's side shows the button pressed. The page's own
-    renderTurn and sendMessage, run in node against stubs of the DOM and the API."""
+def _run_page(functions: tuple[str, ...], script: str) -> dict:
+    """The page's own functions (ui/index.html), run in node against stubs of the DOM, with
+    `script` driving them; returns what the script writes to stdout as JSON. Skips (never
+    passes) when node is not installed."""
     import json
     import re
     import shutil
@@ -269,34 +269,80 @@ def test_the_read_back_buttons_send_the_action() -> None:
         pytest.skip("node is not installed — the screen cannot be run; this is NOT a pass")
     src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
     funcs = []
-    for name in ("function renderTurn", "async function sendMessage"):
+    for name in functions:
         m = re.search(r"^" + re.escape(name) + r"\(.*?^\}", src, re.M | re.S)
         assert m, f"{name} not found in ui/index.html"
         funcs.append(m.group(0))
-    js = """
-const posted=[];const dom=[];
-const els={};const document={getElementById:id=>(els[id]=els[id]||{id,value:'',classList:{add(){},remove(){}}}),
+    out = subprocess.run([node, "-e", chr(10).join(funcs) + chr(10) + script],
+                         capture_output=True, text=True, encoding="utf-8")
+    assert out.returncode == 0, out.stderr
+    return json.loads(out.stdout)
+
+
+_PAGE_STUBS = """
+const posted=[];const dom=[];const toasts=[];const opened=[];
+const els={};const document={getElementById:id=>(els[id]=els[id]||{id,value:'',textContent:'',classList:{add(){},remove(){}}}),
   querySelectorAll:()=>[]};
 const escapeHtml=s=>String(s);const API='';
-const S={case:{case_id:'C1'},user:'Ana',phase:'define',localChat:[]};
 function appendMsgToDOM(h){dom.push(h)}
-const toasts=[];function toast(m){toasts.push(String(m))}
-async function apiJSON(url,opts){posted.push(JSON.parse(opts.body));return {answer:'Stored: Primary metric and baseline.',move:'teach'}}
-""" + chr(10).join(funcs) + """
+function toast(m){toasts.push(String(m))}
+function renderTeamList(){}
+async function openWorkspace(id){opened.push(id)}
+"""
+
+
+def test_the_read_back_buttons_send_the_action(env, monkeypatch) -> None:
+    """DEF-054 — Under a read-back the screen shows Confirm and Change; a click sends
+    action=confirm|change on /ask and the Belt's side shows the button pressed — and that request,
+    exactly as the page builds it, does what the button says on the real routes and graph: Change
+    reopens the element with the Belt's words, Confirm stores it. The page's own renderTurn and
+    sendMessage run in node; their captured POST bodies are sent to the real /ask."""
+    from backend.phases import moves
+    from backend.phases.define.parse import metric_value
+    from backend.tests.test_define_report import COMPLETE
+
+    got = _run_page(("function renderTurn", "async function sendMessage"), _PAGE_STUBS + """
+const S={case:{case_id:'C1'},user:'Ana',phase:'define',localChat:[]};
+async function apiJSON(url,opts){posted.push({url,body:JSON.parse(opts.body)});return {answer:'ok',move:'teach'}}
 const turn={role:'ai',text:'Here is your baseline. Is this right?',move:'read_back'};
 S.localChat.push(turn);
 const html=renderTurn(turn);
-(async()=>{await sendMessage('confirm');await sendMessage('change');
+(async()=>{await sendMessage('change');await sendMessage('confirm');
  process.stdout.write(JSON.stringify({html,posted,belt:dom,toasts}))})();
-"""
-    out = subprocess.run([node, "-e", js], capture_output=True, text=True, encoding="utf-8")
-    assert out.returncode == 0, out.stderr
-    got = json.loads(out.stdout)
-    # What follows the POST (rendering the reply) needs the rest of the page; the claims here —
-    # the buttons, the action posted, the Belt's side showing the click — all come before it.
+""")
     assert "sendMessage('confirm')" in got["html"] and "sendMessage('change')" in got["html"], got["html"]
-    assert [p["action"] for p in got["posted"]] == ["confirm", "change"], got["posted"]
+    assert [p["body"]["action"] for p in got["posted"]] == ["change", "confirm"], got["posted"]
+    assert all(p["url"] == "/ask" for p in got["posted"]), got["posted"]
     assert any(">Confirm<" in h for h in got["belt"]) and any(">Change<" in h for h in got["belt"]), got["belt"]
+    change, confirm = ({**p["body"], "case_id": CASE_ID} for p in got["posted"])
+
+    store = {"baseline_estimate": metric_value("About 23% of invoices were paid late.", unit="%"),
+             "metric_definitions": COMPLETE["metric_definitions"]}
+
+    # Change, as the page sends it: back to "asked", the Belt's words kept, nothing stored.
+    _at_position_5(env, store)
+    r = env.client.post("/ask", json=change)
+    assert r.status_code == 200, r.text
+    define = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]
+    assert define["field_status"]["baseline_estimate"]["status"] == moves.ASKED, define["field_status"]
+    assert "baseline_estimate" not in (define.get("structured") or {})
+
+    # Confirm, as the page sends it, on a fresh read-back: stored.
+    env.holder["saver"]._container.blobs.clear()
+    env.restart()
+    _at_position_5(env, store)
+    from langchain_core.messages import AIMessage
+
+    from backend.phases import nodes_common
+    from backend.tests.test_wiring import REPLY, _FakeCoach
+    real_llm = nodes_common.get_llm
+    call = {"name": "CoachingResponse", "args": {**REPLY, "message": "Next, the scope."}, "id": "call_def054"}
+    monkeypatch.setattr(nodes_common, "get_llm", lambda role, **kw: _FakeCoach(
+        messages=iter([AIMessage(content="", tool_calls=[call])])) if role == "coach" else real_llm(role, **kw))
+    r = env.client.post("/ask", json=confirm)
+    assert r.status_code == 200, r.text
+    define = env.client.get(f"/cases/{CASE_ID}").json()["phases"]["define"]
+    assert (define.get("structured") or {}).get("baseline_estimate", {}).get("value") == 23.0, define.get("structured")
 
 
 def test_a_failed_turn_is_readable_and_stays() -> None:
@@ -364,31 +410,90 @@ def test_an_approved_define_gate_is_written_to_the_store_as_well_as_the_case(env
                       "measure_input_mapper will raise PriorGateDocumentMissing")
 
 
-def test_the_create_form_shows_no_case_id_the_server_did_not_assign() -> None:
+def test_the_create_form_shows_no_case_id_the_server_did_not_assign(monkeypatch) -> None:
     """DEF-074 — G-113: before the server assigns a case id, the create form shows none; the
-    number a Belt sees is always the one the case is saved under (W6)."""
+    number a Belt sees is always the one the case is saved under (W6). The page's own initCreate
+    and submitCreateCase run in node: the form shows no invented id; the POST /cases it builds is
+    sent to the real route (the real blob functions over an in-memory container); the server's
+    answer, fed back to the page, is the id the form shows and the workspace opens — and it is
+    the id the case is saved and listed under."""
     import re
-    import shutil
-    import subprocess
-    from pathlib import Path
 
-    node = shutil.which("node")
-    if node is None:
-        pytest.skip("node is not installed — the create form cannot be run; this is NOT a pass")
-    src = (Path(__file__).resolve().parents[2] / "ui" / "index.html").read_text(encoding="utf-8")
-    m = re.search(r"^function initCreate\(\)\{.*?^\}", src, re.M | re.S)
-    assert m, "initCreate not found in ui/index.html"
-    js = ("const els={};const S={};function renderTeamList(){}\n"
-          "const document={getElementById:id=>(els[id]=els[id]||{id,textContent:'IMPR-2026-...',value:''})};\n"
-          + m.group(0) + "\ninitCreate();process.stdout.write(els['new-case-id'].textContent);")
-    out = subprocess.run([node, "-e", js], capture_output=True, text=True, encoding="utf-8")
-    assert out.returncode == 0, out.stderr
-    shown = out.stdout.strip()
-    assert not re.fullmatch(r"IMPR-\d{4}-[A-Z0-9]{3}", shown), (
-        f"G-113: the form shows {shown!r}, an id the browser invented — the server assigns its own")
+    from azure.core.exceptions import ResourceNotFoundError
+    from fastapi.testclient import TestClient
+    from langgraph.checkpoint.memory import InMemorySaver
+    from langgraph.store.memory import InMemoryStore
 
+    from backend.app import app
+    from backend.core import graph as graph_mod
+    from backend.storage import blob
 
-# ── Features for the accepted requirements not yet covered (brief Part A4, 2026-09-27) ──
+    create = ("function initCreate", "async function submitCreateCase")
+    form = """
+const S={user:'Priya Shah',beltLevel:'green',teamMembers:[]};
+els['create-title']={value:'Late supplier payments'};els['create-dept']={value:'Finance'};
+els['create-date']={value:'2027-03-31'};
+"""
+    # 1. The form before the server answers, and the request the page builds.
+    first = _run_page(create, _PAGE_STUBS + form + """
+async function apiJSON(url,opts){posted.push({url,body:JSON.parse(opts.body)});return null}
+initCreate();const before=document.getElementById('new-case-id').textContent;
+(async()=>{await submitCreateCase();
+ process.stdout.write(JSON.stringify({before,posted,toasts,after:document.getElementById('new-case-id').textContent}))})();
+""")
+    assert not re.search(r"IMPR-\d{4}-[A-Z0-9]{3}", first["before"]), (
+        f"G-113: the form shows {first['before']!r} before the server assigned anything")
+    assert not re.search(r"IMPR-\d{4}-[A-Z0-9]{3}", first["after"]), "no id is shown without the server's answer"
+    [req] = first["posted"]
+    assert req["url"] == "/cases", req
+
+    # 2. That request on the real route.
+    blobs: dict[str, str] = {}
+
+    async def upload(path, data, overwrite=True):
+        if not overwrite and path in blobs:
+            raise ValueError(f"{path} exists")
+        blobs[path] = data.decode() if isinstance(data, bytes) else data
+
+    async def download(path):
+        if path not in blobs:
+            raise ResourceNotFoundError("missing")
+        return blobs[path]
+
+    async def exists(path):
+        return path in blobs
+
+    monkeypatch.setattr(blob, "storage_configured", lambda: True)
+    monkeypatch.setattr(blob, "_upload", upload)
+    monkeypatch.setattr(blob, "_download", download)
+    monkeypatch.setattr(blob, "_exists", exists)
+    saver, store = InMemorySaver(), InMemoryStore()
+    monkeypatch.setattr(graph_mod, "_persistence", lambda: (saver, store))
+    monkeypatch.setattr(graph_mod, "get_store", lambda: store)
+    monkeypatch.setattr("backend.core.store.get_store", lambda: store)
+    graph_mod.get_graph.cache_clear()
+    try:
+        client = TestClient(app)
+        r = client.post("/cases", json=req["body"])
+        assert r.status_code == 200, r.text
+        answer = r.json()
+        case_id = answer["case_id"]
+        assert re.fullmatch(r"IMPR-\d{4}-[0-9A-F]{3}", case_id), case_id
+
+        # 3. The server's answer, back in the page: the id shown is the server's.
+        import json
+        second = _run_page(create, _PAGE_STUBS + form + f"""
+async function apiJSON(url,opts){{posted.push({{url,body:JSON.parse(opts.body)}});return {json.dumps(answer)}}}
+initCreate();
+(async()=>{{await submitCreateCase();
+ process.stdout.write(JSON.stringify({{shown:document.getElementById('new-case-id').textContent,opened,toasts}}))}})();
+""")
+        assert second["shown"] == case_id and second["opened"] == [case_id], second
+        listed = client.get("/registry").json()
+        assert [e for e in listed if e["case_id"] == case_id], "the id shown is not the one the case is listed under"
+        assert client.get(f"/cases/{case_id}").status_code == 200
+    finally:
+        graph_mod.get_graph.cache_clear()
 
 
 def test_an_element_that_fails_three_times_can_be_parked(env, monkeypatch, stub_planner) -> None:
