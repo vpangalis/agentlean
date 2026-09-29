@@ -22,18 +22,18 @@
 A feature passes only when its end-to-end test passes.*
 <!-- END CURRENT BUILD STATUS -->
 
-## ⇒ M1 LOOP STOPPED — 2026-09-29 (second run), condition 2
+## ⇒ M1 LOOP STOPPED — 2026-09-29 (third run), condition 6 (the live-call cap)
 
-*Hand-written. BRIEF_m1_loop.md + founder rulings 2026-09-29; the loop log is `.claude/logs/prompts.jsonl` (`kind: loop`).*
+*Hand-written. BRIEF_m1_loop.md + founder rulings 2026-09-29 (second set, items 1-10); the loop log is `.claude/logs/prompts.jsonl` (`kind: loop`).*
 
 | | |
 |---|---|
-| **Stopped on** | condition 2 — the top package, DEF-040 (a contradiction stops the turn in a node; the Belt chooses update or keep), is a graph change: a sixth subgraph node with `interrupt()` and a resume path, where ARCHITECTURE.md says the flag "does not stop the turn" and ADR-0042 (the contradiction cascade) is still PROPOSED. It needs an ADR |
-| **Built this run** | control board item 0 (545952f) · rulings placed (dfb66ed) · DEF-146 schema versioning (c839f98) · DEF-076 MetricValue, schema v2 (4c7cd30) · DEF-075 park, schema v3 (ab82ddf) · DEF-078 LangGraph timeout/handler/retry (4c77b2b) |
-| **Run-through** | on DEF-078's source: `define_runthrough_20260929T090446` (IMPR-2026-6CB) — 13 of 13 confirmed, rubric passed, Define **approved**, the next turn in **Measure** |
-| **M1** | 43 of 47 (the board's count: a green square). Open: DEF-040 (ADR), DEF-079 (waits for DEF-054), DEF-054 and DEF-074 (they pass tests that are not end to end) |
-| **Defect registered** | G-134 — the gate grader's DEF-R13 is not stable on one answer (failed once in four runs on the same text); lane B, DEF-159 |
-| **Live calls** | 548 of 3,000 (five run-throughs: 104, 114, 111, 111, 108) |
+| **Stopped on** | item 8's cap: 321 of 400 live calls used; condition 7 needs two consecutive fresh approved runs on the final source (~220 calls) — more than the 79 left |
+| **Landed on main** | DEF-040 -> M2 (756e55f) · data models in docs/data-models.md (a3b3c2f) · DEF-054, DEF-074 end to end (ff7b600) · G-134 (7522307, 67bc629) · fast tests per commit (234c0a3) · G-135, G-136 (cd8a0a9) |
+| **Not landed** | DEF-079 — built, its test passes, full suite green, on branch **m1/def-079-pending** (2b73695). Rule 11 waits for DEF-008 on a live record of that source |
+| **Run-throughs** | 103652: DEF-R13 refused (G-134 first fix) · 111219 and 113121 (main + DEF-079): 13/13, approved, next turn in Measure — each with one Confirm at element 5 that stored nothing (G-137) and, on 113121, a teaching reply without blocks (G-138) |
+| **M1** | on the runs' source (main + DEF-079): 44 of 46 — open DEF-008 (G-137), DEF-005 (G-138). On main alone the record is stale, so every run-through feature reads open until a run on main's source |
+| **Next** | fix G-137 (element 5's read-back must carry the metric definitions) and G-138 (empty teaching blocks filled from the skill); then two runs on the merged source for condition 7 |
 
 ## ⇒ CURRENT POSITION — 2026-09-24
 
