@@ -69,17 +69,22 @@ def _attempts(lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+#: The hook lines that time a test run the recorder's `tests` line already counts.
+HOOK_TEST_RUNS = frozenset({"pre-commit full test run", "pre-commit fast test run"})
+
+
 def measure(start: str, end: str, commits: list[dict[str, str]]) -> dict[str, Any]:
     lo, hi = _t(start), _t(end)
     inside = [r for r in timing.read() if lo <= _t(r["at"]) <= hi]
     hooks = [r for r in inside if r.get("kind") == "hook"]
-    # The test recorder writes a `tests` line for every pytest run, the hook's full run
-    # included; the hook's own "pre-commit full test run" line times the same run, so it
-    # counts in neither tests (already there) nor hooks.
+    # The test recorder writes a `tests` line for every pytest run, the hook's own run
+    # included; the hook's "pre-commit full test run" / "pre-commit fast test run" line times
+    # the same run, so it counts in neither tests (already there) nor hooks. Founder ruling 4.4,
+    # 2026-09-29: the fast run (founder item 9) was counted twice — as tests and as hooks.
     tests_s = sum(float(r.get("seconds") or 0) for r in inside if r.get("kind") == "tests")
     pre = [r for r in inside if r.get("kind") == "preflight"]
     tests_s += sum(float((r.get("checks") or {}).get("tests") or 0) for r in pre)
-    hooks_s = sum(float(r.get("seconds") or 0) for r in hooks if r["hook"] != "pre-commit full test run")
+    hooks_s = sum(float(r.get("seconds") or 0) for r in hooks if r["hook"] not in HOOK_TEST_RUNS)
     hooks_s += sum(float(r.get("seconds") or 0) - float((r.get("checks") or {}).get("tests") or 0) for r in pre)
     landed = [_t(c["at"]) for c in commits]
     rework_s = 0.0

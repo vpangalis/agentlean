@@ -38,7 +38,10 @@ def line(start: float, rows: list[dict]) -> str | None:
         return None
     total = round(sum(parts.values()))
     detail = " · ".join(f"{k} {round(v)} s" for k, v in parts.items())
-    suite = "" if "full test run" in parts else " (docs only: no suite)"
+    # Founder ruling 4.4, 2026-09-29: a FAST run (founder item 9) is a test run, not "docs only"
+    # — 234c0a3 and 67bc629 carried "(docs only: no suite)" over their fast runs' 210 s and 47 s.
+    suite = ("" if "full test run" in parts else " (fast run: the tests the change reaches)"
+             if "fast test run" in parts else " (docs only: no suite)")
     return f"Timing: pre-commit {total} s{suite} — {detail}"
 
 
