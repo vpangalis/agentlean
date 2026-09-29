@@ -241,7 +241,12 @@ def generate(project: Path = PROJECT) -> str:
     parts.append(f"#### Blob layout — container `{container}` (the default of "
                  "`settings.AZURE_BLOB_CONTAINER_IMPROVE`); `storage/layout.py::BLOB_PATHS`\n\n"
                  + "\n".join(bl))
-    return "### 4.2 Declarations\n\n" + "\n\n".join(parts) + "\n"
+    state, _ = _parse(project / "backend" / "core" / "state.py")
+    version = (f"**State schema version {ast.literal_eval(_module_constant(state, 'STATE_SCHEMA_VERSION'))}** "
+               "(`core/state.py::STATE_SCHEMA_VERSION`, ADR-0065): written into every checkpoint's metadata, "
+               "every Store record and every case blob; an older one is migrated on load by "
+               "`core/migrations.py`, a newer one is refused.")
+    return "### 4.2 Declarations\n\n" + version + "\n\n" + "\n\n".join(parts) + "\n"
 
 
 def _span(doc: str) -> tuple[int, int] | None:

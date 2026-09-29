@@ -1,0 +1,91 @@
+{
+  "case_id": "IMPR-FIXTURE-V1",
+  "title": "fixture",
+  "belt_level": "green",
+  "leader": "Priya Shah",
+  "department": "Finance",
+  "team": [],
+  "created_at": "2026-09-29T00:00:00+00:00",
+  "target_date": "2027-03-31",
+  "current_phase": "define",
+  "status": "active",
+  "phases": {
+    "define": {
+      "gate_passed": false,
+      "submitted_by": null,
+      "submitted_at": null,
+      "structured": {
+        "business_case": "Late supplier payments cost us discounts and goodwill.",
+        "metric_definitions": [
+          {
+            "name": "late_payment_rate",
+            "unit": "%",
+            "meaning": "the share of supplier invoices paid more than 30 days after the invoice date"
+          }
+        ],
+        "baseline_estimate": "Around a quarter of the invoices, the team thinks — nobody has counted yet.",
+        "target_value": "Much better than today."
+      },
+      "analyst_output": null,
+      "citations": [],
+      "uploads": [],
+      "field_status": {
+        "business_case": {
+          "status": "confirmed"
+        },
+        "baseline_estimate": {
+          "status": "confirmed"
+        },
+        "target_value": {
+          "status": "confirmed"
+        }
+      },
+      "field_log": []
+    },
+    "measure": {
+      "gate_passed": false,
+      "submitted_by": null,
+      "submitted_at": null,
+      "structured": null,
+      "analyst_output": null,
+      "citations": [],
+      "uploads": [],
+      "field_status": {},
+      "field_log": []
+    },
+    "analyse": {
+      "gate_passed": false,
+      "submitted_by": null,
+      "submitted_at": null,
+      "structured": null,
+      "analyst_output": null,
+      "citations": [],
+      "uploads": [],
+      "field_status": {},
+      "field_log": []
+    },
+    "improve": {
+      "gate_passed": false,
+      "submitted_by": null,
+      "submitted_at": null,
+      "structured": null,
+      "analyst_output": null,
+      "citations": [],
+      "uploads": [],
+      "field_status": {},
+      "field_log": []
+    },
+    "control": {
+      "gate_passed": false,
+      "submitted_by": null,
+      "submitted_at": null,
+      "structured": null,
+      "analyst_output": null,
+      "citations": [],
+      "uploads": [],
+      "field_status": {},
+      "field_log": []
+    }
+  },
+  "conversation_history": []
+}

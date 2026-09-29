@@ -57,6 +57,7 @@ from azure.storage.blob.aio import (
     BlobServiceClient as AsyncBlobServiceClient,
     ContainerClient as AsyncContainerClient,
 )
+from backend.core import migrations
 from langgraph.store.base import (
     BaseStore,
     GetOp,
@@ -162,13 +163,16 @@ class AzureBlobStore(BaseStore):
             yield service.get_container_client(self._container_name)
 
     # ── serialisation ─────────────────────────────────────────────────
+    # ADR-0065 (T88): every record carries the state schema version beside its own keys — still
+    # the value itself, not an envelope, so the blob stays directly readable. A read refuses a
+    # record a newer release wrote, migrates an older one, and returns the value exactly as put.
     @staticmethod
     def _encode(value: dict[str, Any]) -> bytes:
-        return json.dumps(value, indent=2, ensure_ascii=False).encode("utf-8")
+        return json.dumps(migrations.stamp_record(value), indent=2, ensure_ascii=False).encode("utf-8")
 
     @staticmethod
     def _decode(raw: bytes) -> dict[str, Any]:
-        return json.loads(raw.decode("utf-8"))
+        return migrations.read_record(json.loads(raw.decode("utf-8")))
 
     @staticmethod
     def _item(

@@ -12,6 +12,7 @@ from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from langchain_core.messages import AIMessage, HumanMessage
 
 from backend.core import conversation
+from backend.core.errors import StateSchemaVersionError
 from backend.core.graph import RECURSION_LIMIT
 from backend.gateway.schemas import (
     CaseCreateRequest,
@@ -757,6 +758,8 @@ async def ask(request: AskRequest, http: Request) -> AskResponse:
         raise HTTPException(501, str(e))
     except HTTPException:
         raise
+    except StateSchemaVersionError as e:            # ADR-0065 (T88): readable, never "Graph error"
+        raise HTTPException(409, str(e))
     except Exception as e:
         logger.error("ask() error: %s", e)
         raise HTTPException(500, f"Graph error: {str(e)}")
@@ -1517,6 +1520,8 @@ async def decide_gate(request: GateDecisionRequest, http: Request) -> GateDecisi
         result = await _run_turn(graph, Command(resume=resume), config, http)
     except ClientGone:
         raise HTTPException(499, "Client disconnected; decision abandoned (§47).")
+    except StateSchemaVersionError as e:            # ADR-0065 (T88)
+        raise HTTPException(409, str(e))
     except Exception as e:
         logger.error("decide_gate() error: %s", e)
         raise HTTPException(500, f"Graph error: {str(e)}")

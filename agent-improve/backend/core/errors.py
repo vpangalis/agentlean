@@ -58,3 +58,14 @@ class KnowledgeSearchError(Exception):
     def __init__(self, error: AgentImproveError) -> None:
         super().__init__(error.message)
         self.error = error
+
+
+class StateSchemaVersionError(Exception):
+    """ADR-0065 point 4 (T88): saved state this release cannot load — written by a NEWER release,
+    or with no migration path. Its message is written for the person opening the case; the
+    route answers 409 with it. Nothing was loaded and nothing was changed."""
+
+    def __init__(self, message: str, *, found: int | None, supported: int) -> None:
+        super().__init__(message)
+        self.found = found
+        self.supported = supported

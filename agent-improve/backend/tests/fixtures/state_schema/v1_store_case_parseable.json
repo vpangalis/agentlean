@@ -1,0 +1,30 @@
+{
+  "case_id": "IMPR-FIXTURE-V1",
+  "captured_by_phase": {
+    "define": {
+      "business_case": "Late supplier payments cost us discounts and goodwill.",
+      "metric_definitions": [
+        {
+          "name": "late_payment_rate",
+          "unit": "%",
+          "meaning": "the share of supplier invoices paid more than 30 days after the invoice date"
+        }
+      ],
+      "baseline_estimate": "One metric: late payment rate, in %, meaning the share of supplier invoices paid more than 30 days after the invoice date. It is about 23% today, from the AP ledger for January to June 2026. It feeds our finance KPI, creditor days.",
+      "target_value": "Late payment rate: under 5% of supplier invoices."
+    }
+  },
+  "field_status_by_phase": {
+    "define": {
+      "business_case": {
+        "status": "confirmed"
+      },
+      "baseline_estimate": {
+        "status": "confirmed"
+      },
+      "target_value": {
+        "status": "confirmed"
+      }
+    }
+  }
+}

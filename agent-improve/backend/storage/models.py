@@ -250,6 +250,10 @@ class CaseDocument(BaseModel):
 
     conversation_history: list[dict[str, Any]] = []
 
+    #: ADR-0065 (T88): the state schema version this case blob was written in. Absent from a
+    #: blob written before versioning, which is version 1; `storage/blob.py` stamps and migrates.
+    state_schema_version: int = 1
+
     @classmethod
     def new(
         cls,
@@ -264,7 +268,9 @@ class CaseDocument(BaseModel):
         """Factory for creating a new case."""
         from datetime import datetime, timezone
 
+        from backend.core.state import STATE_SCHEMA_VERSION
         return cls(
+            state_schema_version=STATE_SCHEMA_VERSION,
             case_id=case_id,
             title=title,
             belt_level=belt_level,

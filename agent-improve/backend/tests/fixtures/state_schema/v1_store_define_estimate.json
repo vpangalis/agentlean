@@ -1,0 +1,13 @@
+{
+  "phase": "define",
+  "business_case": "Late supplier payments cost us discounts and goodwill.",
+  "metric_definitions": [
+    {
+      "name": "late_payment_rate",
+      "unit": "%",
+      "meaning": "the share of supplier invoices paid more than 30 days after the invoice date"
+    }
+  ],
+  "baseline_estimate": "Roughly 20% of invoices are paid late — an estimate from the AP team, not measured.",
+  "target_value": "unter 5 %"
+}

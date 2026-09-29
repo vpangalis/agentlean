@@ -12,6 +12,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from backend.core.config import settings
+from backend.core.errors import StateSchemaVersionError
 from backend.core.tracing import init_tracing
 from backend.core.logging_setup import configure_logging
 from backend.core.request_context import (
@@ -65,6 +66,13 @@ app.add_middleware(
 app.add_middleware(RequestIdMiddleware)
 
 app.include_router(router)
+
+
+@app.exception_handler(StateSchemaVersionError)
+async def _state_schema_version(_request: Request, exc: StateSchemaVersionError) -> Response:
+    """ADR-0065 (T88): a case saved by a newer release is refused readably on every route."""
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=409, content={"detail": str(exc)})
 from fastapi.staticfiles import StaticFiles
 app.mount("/", StaticFiles(directory="ui", html=True), name="ui")
 

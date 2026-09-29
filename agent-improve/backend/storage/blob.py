@@ -40,6 +40,7 @@ the cached client below, which is module state and needs no object around it.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from datetime import date, datetime, timezone
 from typing import Optional
@@ -201,19 +202,31 @@ def case_path(case_id: str) -> str:
 
 
 async def load_case(case_id: str) -> Optional[CaseDocument]:
-    """Load case from blob. Returns None if not found."""
+    """Load case from blob. Returns None if not found. ADR-0065 (T88): a case written by an
+    older release is migrated in memory (the blob is rewritten at the next save); one written by
+    a newer release raises `StateSchemaVersionError` — never "not found"."""
+    from backend.core import migrations
+    from backend.core.errors import StateSchemaVersionError
     try:
         raw = await _download(case_path(case_id))
-        return CaseDocument.model_validate_json(raw)
+        data = json.loads(raw)
+        found = migrations.version_of(data)
+        if found != migrations.current():
+            data = migrations.migrate_case(data, found)
+        return CaseDocument.model_validate(data)
     except ResourceNotFoundError:
         return None
+    except StateSchemaVersionError:
+        raise
     except Exception as e:
         logger.error("load_case %s failed: %s", case_id, e)
         return None
 
 
 async def save_case(case: CaseDocument) -> None:
-    """Save full case document to blob."""
+    """Save full case document to blob, in this release's state schema version (ADR-0065)."""
+    from backend.core import migrations
+    case.state_schema_version = migrations.current()
     await _upload(
         case_path(case.case_id),
         case.model_dump_json(indent=2),

@@ -1,9 +1,9 @@
 {
- "source_hash": "6fab5b3735a9426b",
- "commit": "545952f",
+ "source_hash": "d28d1cebb3c32851",
+ "commit": "dfb66ed",
  "commit_matches_source": false,
- "full_run_hash": "6fab5b3735a9426b",
- "recorded_at": "2026-09-29T06:52:27+00:00",
+ "full_run_hash": "d28d1cebb3c32851",
+ "recorded_at": "2026-09-29T07:02:12+00:00",
  "outcomes": {
   "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
   "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -470,7 +470,7 @@
   "backend/tests/test_define_e2e.py::test_t85_contextual_chunks_and_a_reranker_go_live_only_on_eval_evidence": "skipped",
   "backend/tests/test_define_e2e.py::test_t86_the_offline_eval_set_grades_define_tasks_and_reports_pass_3": "skipped",
   "backend/tests/test_define_e2e.py::test_t87_personal_data_is_masked_before_a_model_sees_it": "passed",
-  "backend/tests/test_define_e2e.py::test_t88_state_carries_a_schema_version_and_migrates": "skipped",
+  "backend/tests/test_define_e2e.py::test_t88_state_carries_a_schema_version_and_migrates": "passed",
   "backend/tests/test_define_e2e.py::test_t89_production_and_tests_compile_one_builder": "passed",
   "backend/tests/test_define_e2e.py::test_t90_a_turn_enters_at_the_current_phase_and_approval_advances_it": "passed",
   "backend/tests/test_define_e2e.py::test_t91_fifty_benign_messages_pass_the_guard": "passed",
@@ -1584,8 +1584,8 @@
   "backend/tests/test_wiring_check.py::test_it_reads_what_section_3_names": "passed"
  },
  "older": {
-  "source_hash": "7b4786921c8832a2",
-  "recorded_at": "2026-09-29T06:44:38+00:00",
+  "source_hash": "6fab5b3735a9426b",
+  "recorded_at": "2026-09-29T06:52:27+00:00",
   "outcomes": {
    "backend/tests/test_abandon.py::test_a_completed_turn_returns_its_result": "passed",
    "backend/tests/test_abandon.py::test_a_disconnect_cancels_the_run_and_raises_client_gone": "passed",
@@ -1663,7 +1663,7 @@
    "backend/tests/test_board_journey.py::test_the_strip_carries_its_heading_and_the_runs_date": "passed",
    "backend/tests/test_board_journey.py::test_the_strip_carries_its_subtitle": "passed",
    "backend/tests/test_board_journey.py::test_what_happened_to_each_element_is_read_from_the_run_record": "passed",
-   "backend/tests/test_board_value_stream.py::test_a_feature_held_by_its_adr_is_never_a_lanes_top_and_waiting_counts_it": "failed",
+   "backend/tests/test_board_value_stream.py::test_a_feature_held_by_its_adr_is_never_a_lanes_top_and_waiting_counts_it": "passed",
    "backend/tests/test_board_value_stream.py::test_a_milestone_click_dims_the_others_and_lists_done_and_open_by_step": "passed",
    "backend/tests/test_board_value_stream.py::test_a_status_is_derived_green_amber_grey": "passed",
    "backend/tests/test_board_value_stream.py::test_an_m1_square_is_outlined_and_numbered_with_its_rank": "passed",

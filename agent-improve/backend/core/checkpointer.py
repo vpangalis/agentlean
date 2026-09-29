@@ -47,7 +47,7 @@ import json
 import logging
 import threading
 from urllib.parse import quote
-from typing import Any, AsyncIterator, Iterator, List, Optional, Sequence, Tuple
+from typing import Any, AsyncIterator, Iterator, List, Optional, Sequence, Tuple, cast
 
 from azure.core.exceptions import (
     ResourceExistsError,
@@ -68,6 +68,7 @@ from langgraph.checkpoint.base import (
 )
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
+from backend.core import migrations
 from backend.core.config import settings
 from backend.storage import layout
 
@@ -237,6 +238,12 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
             )
         )
         parent_id = envelope.get("parent_checkpoint_id")
+        # ADR-0065 (T88): refused if a newer release wrote it; an older one is migrated, in
+        # order, before the graph sees it. The stored blob is not rewritten.
+        found = migrations.version_of(metadata)
+        if found != migrations.current():
+            checkpoint = {**checkpoint, "channel_values": migrations.migrate(
+                checkpoint.get("channel_values") or {}, found, "checkpoint")}
         return checkpoint, metadata, parent_id
 
     # ──────────────────────── put (sync) ────────────────────────
@@ -253,7 +260,9 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
         parent_id = (
             config.get("configurable", {}).get("checkpoint_id")
         )
-        envelope = self._envelope(checkpoint, metadata, parent_id)
+        # ADR-0065 (T88): every checkpoint carries the state schema version it was written in.
+        envelope = self._envelope(checkpoint, cast(CheckpointMetadata, migrations.stamp_metadata(metadata)),
+                                  parent_id)
         body = json.dumps(envelope).encode("utf-8")
 
         with self._lock:
@@ -466,6 +475,7 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
                 envelope = json.loads(blob.download_blob().readall().decode("utf-8"))
             except ResourceNotFoundError:
                 envelope = {"task_id": task_id, "task_path": task_path, "writes": {}}
+            envelope[migrations.VERSION_KEY] = migrations.current()      # ADR-0065 (T88)
             stored = envelope.setdefault("writes", {})
             for idx, (channel, value) in enumerate(writes):
                 inner = WRITES_IDX_MAP.get(channel, idx)
@@ -488,10 +498,13 @@ class AzureBlobCheckpointSaver(BaseCheckpointSaver):
             except ResourceNotFoundError:
                 continue
             envelope = json.loads(raw.decode("utf-8"))
+            found = migrations.version_of(envelope)        # ADR-0065 (T88)
             for write in (envelope.get("writes") or {}).values():
-                out.append((envelope.get("task_id", ""), write["channel"],
-                            self.serde.loads_typed(
-                                (write["type"], base64.b64decode(write["data"])))))
+                value = self.serde.loads_typed((write["type"], base64.b64decode(write["data"])))
+                if found != migrations.current():
+                    value = migrations.migrate({write["channel"]: value}, found,
+                                               "pending write").get(write["channel"], value)
+                out.append((envelope.get("task_id", ""), write["channel"], value))
         return out
 
     # ───────────────── Async variants (thin wrappers) ─────────────────

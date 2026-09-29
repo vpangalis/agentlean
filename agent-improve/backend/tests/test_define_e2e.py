@@ -878,9 +878,184 @@ def test_every_tool_the_define_skill_offers_is_bound() -> None:
     assert offered <= bound, f"offered and not bound: {sorted(offered - bound)}"
 
 
-def test_t88_state_carries_a_schema_version_and_migrates() -> None:
-    """DEF-146 — T88."""
-    _not_written("DEF-146")
+class _AzBlob:
+    """One blob of `_AzContainer` — the calls the production saver and Store make."""
+
+    def __init__(self, box: "_AzContainer", path: str) -> None:
+        self._box, self._path = box, path
+
+    def upload_blob(self, body, overwrite: bool = False, if_match=None, **_kw) -> None:
+        from azure.core.exceptions import ResourceExistsError, ResourceModifiedError
+        held = self._box.blobs.get(self._path)
+        if held is not None and not overwrite:
+            raise ResourceExistsError("exists")
+        if if_match is not None and (held is None or held[1] != if_match):
+            raise ResourceModifiedError("etag")
+        self._box.n += 1
+        self._box.blobs[self._path] = (bytes(body), f'"{self._box.n}"')
+
+    def download_blob(self):
+        from types import SimpleNamespace
+
+        from azure.core.exceptions import ResourceNotFoundError
+        held = self._box.blobs.get(self._path)
+        if held is None:
+            raise ResourceNotFoundError("missing")
+        return SimpleNamespace(readall=lambda: held[0], properties={"creation_time": None, "last_modified": None})
+
+    def get_blob_properties(self):
+        from types import SimpleNamespace
+
+        from azure.core.exceptions import ResourceNotFoundError
+        held = self._box.blobs.get(self._path)
+        if held is None:
+            raise ResourceNotFoundError("missing")
+        return SimpleNamespace(etag=held[1])
+
+    def delete_blob(self) -> None:
+        self._box.blobs.pop(self._path, None)
+
+
+class _AzContainer:
+    """An Azure Blob container in memory, with ETags — for the production saver and Store."""
+
+    def __init__(self) -> None:
+        self.blobs: dict[str, tuple[bytes, str]] = {}
+        self.n = 0
+
+    def get_blob_client(self, path: str) -> _AzBlob:
+        return _AzBlob(self, path)
+
+    def list_blobs(self, name_starts_with: str = ""):
+        from types import SimpleNamespace
+        return [SimpleNamespace(name=p, get=lambda _k, _d=None: None)
+                for p in sorted(self.blobs) if p.startswith(name_starts_with)]
+
+
+def test_t88_state_carries_a_schema_version_and_migrates(monkeypatch, stub_planner, stub_coach) -> None:
+    """DEF-146 — T88, ADR-0065: a real /ask turn through the one compiled graph, persisted by the
+    PRODUCTION saver and Store over an in-memory container, writes STATE_SCHEMA_VERSION into every
+    checkpoint's metadata, every pending write and every Store record, and the case blob carries it.
+    A checkpoint, a Store record and a case record written by an OLDER release are migrated on load
+    (the migrations run in order); one written by a NEWER release is refused with a readable error
+    — the route answers 409 with it, and nothing is changed."""
+    import json
+    from pathlib import Path
+
+    from fastapi.testclient import TestClient
+
+    from backend.app import app
+    from backend.core import graph as graph_mod
+    from backend.core import migrations
+    from backend.core.checkpointer import AzureBlobCheckpointSaver
+    from backend.core.errors import StateSchemaVersionError
+    from backend.core.state import STATE_SCHEMA_VERSION
+    from backend.core.store import AzureBlobStore
+    from backend.gateway import routes
+    from backend.storage import blob
+    from backend.storage.models import CaseDocument
+
+    box = _AzContainer()
+    saver = AzureBlobCheckpointSaver(container_client=box)  # type: ignore[arg-type]
+    store = AzureBlobStore(box, "conn", "container")  # type: ignore[arg-type]
+    monkeypatch.setattr(graph_mod, "_persistence", lambda: (saver, store))
+    monkeypatch.setattr(graph_mod, "get_store", lambda: store)
+    monkeypatch.setattr("backend.core.store.get_store", lambda: store)
+    cases: dict[str, str] = {}
+
+    async def upload(path, data, overwrite=True):
+        cases[path] = data.decode() if isinstance(data, bytes) else data
+
+    async def download(path):
+        from azure.core.exceptions import ResourceNotFoundError
+        if path not in cases:
+            raise ResourceNotFoundError("missing")
+        return cases[path]
+
+    monkeypatch.setattr(blob, "storage_configured", lambda: True)
+    monkeypatch.setattr(blob, "_upload", upload)
+    monkeypatch.setattr(blob, "_download", download)
+    monkeypatch.setattr(routes, "_mirror_asks", lambda *a, **k: None)
+    cid = "IMPR-TEST-T88"
+    case = CaseDocument.new(case_id=cid, title="versions", belt_level="green", leader="Priya Shah",
+                            department="Finance", target_date="2027-03-31", team=[])
+    import asyncio as _a
+    _a.run(blob.save_case(case))
+    graph_mod.get_graph.cache_clear()
+    try:
+        client = TestClient(app)
+        r = client.post("/ask", json={"case_id": cid, "phase": "define", "user": "ana", "message": "Hi — ready."})
+        assert r.status_code == 200, r.text
+
+        # 1. Written: every checkpoint's metadata, every Store record, the case blob.
+        cfg = {"configurable": {"thread_id": cid, "checkpoint_ns": ""}}
+        history = list(saver.list(cfg))
+        assert history, "the turn left no checkpoint"
+        assert all(t.metadata.get(migrations.VERSION_KEY) == STATE_SCHEMA_VERSION for t in history)
+        records = {p: json.loads(b.decode()) for p, (b, _) in box.blobs.items() if p.startswith("store/")}
+        assert records, "the turn wrote no Store record"
+        assert all(v.get(migrations.VERSION_KEY) == STATE_SCHEMA_VERSION for v in records.values()), records
+        item = store.get(("projects", cid, "case"), "record")
+        assert item is not None and migrations.VERSION_KEY not in item.value      # readers see the value as put
+        assert json.loads(cases[blob.case_path(cid)])[migrations.VERSION_KEY] == STATE_SCHEMA_VERSION
+
+        # 2. Older: the saved version-1 fixtures (written by the release before versioning) load;
+        #    and a release one version ahead migrates what this one wrote, in order, on load.
+        fixtures = Path(__file__).parent / "fixtures" / "state_schema"
+        old = _AzContainer()
+        old.blobs["checkpoints/IMPR-FIXTURE-V1/latest.json"] = (
+            (fixtures / "v1_checkpoint_parseable.json").read_bytes(), '"1"')
+        old_saver = AzureBlobCheckpointSaver(container_client=old)  # type: ignore[arg-type]
+        got = old_saver.get_tuple({"configurable": {"thread_id": "IMPR-FIXTURE-V1", "checkpoint_ns": ""}})
+        assert got is not None and migrations.version_of(got.metadata) == 1
+        assert got.checkpoint["channel_values"]["artifacts"]["target_value"]
+        old.blobs["store/projects/IMPR-FIXTURE-V1/case/record.json"] = (
+            (fixtures / "v1_store_case_parseable.json").read_bytes(), '"2"')
+        rec = AzureBlobStore(old, "conn", "c").get(("projects", "IMPR-FIXTURE-V1", "case"), "record")  # type: ignore[arg-type]
+        assert rec is not None and "define" in rec.value["captured_by_phase"]
+        cases[blob.case_path("IMPR-FIXTURE-V1")] = (fixtures / "v1_case_parseable.json").read_text(encoding="utf-8")
+        loaded = _a.run(blob.load_case("IMPR-FIXTURE-V1"))
+        assert loaded is not None and loaded.phases["define"].structured
+
+        ran: list[str] = []
+
+        def to_next(values):
+            ran.append(",".join(sorted(values)))
+            return {**values, "migrated_marker": True}
+        with monkeypatch.context() as later:
+            later.setattr(migrations, "STATE_SCHEMA_VERSION", STATE_SCHEMA_VERSION + 1)
+            later.setitem(migrations.MIGRATIONS, STATE_SCHEMA_VERSION, to_next)
+            latest = saver.get_tuple(cfg)
+            assert latest is not None and latest.checkpoint["channel_values"].get("migrated_marker") is True
+            item = store.get(("projects", cid, "case"), "record")
+            assert item is not None and item.value.get("migrated_marker") is True
+            moved = _a.run(blob.load_case(cid))
+            assert moved is not None and moved.state_schema_version == STATE_SCHEMA_VERSION + 1
+        assert ran
+
+        # 3. Newer: refused readably, by the saver, the Store, the case blob — and the route.
+        future = STATE_SCHEMA_VERSION + 5
+        for path, (body, _) in list(box.blobs.items()):
+            env = json.loads(body.decode())
+            if path.endswith("latest.json"):
+                meta = saver.serde.loads_typed((env["metadata_type"], __import__("base64").b64decode(env["metadata_data"])))
+                kind, data = saver.serde.dumps_typed({**meta, migrations.VERSION_KEY: future})
+                env["metadata_type"], env["metadata_data"] = kind, __import__("base64").b64encode(data).decode()
+                box.blobs[path] = (json.dumps(env).encode(), f'"{path}"')
+        with pytest.raises(StateSchemaVersionError) as refused:
+            saver.get_tuple(cfg)
+        assert f"version {future}" in str(refused.value) and f"up to version {STATE_SCHEMA_VERSION}" in str(refused.value)
+        store.put(("projects", cid, "step_log"), "future", {"x": 1})
+        path = f"store/projects/{cid}/step_log/future.json"
+        box.blobs[path] = (json.dumps({"x": 1, migrations.VERSION_KEY: future}).encode(), '"f"')
+        with pytest.raises(StateSchemaVersionError):
+            store.get(("projects", cid, "step_log"), "future")
+        graph_mod.get_graph.cache_clear()
+        again = client.post("/ask", json={"case_id": cid, "phase": "define", "user": "ana", "message": "Next."})
+        assert again.status_code == 409, again.text
+        assert "newer release" in again.json()["detail"]
+    finally:
+        graph_mod.get_graph.cache_clear()
 
 
 def test_t89_production_and_tests_compile_one_builder(env) -> None:

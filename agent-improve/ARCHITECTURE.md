@@ -201,6 +201,7 @@ flowchart LR
 | Read by | LangGraph; the input mappers and a reload (`routes._with_unfinished_work`), for unfinished work | Input mappers; the state-injection middleware; the grader's reference lookups | Routes (metadata, uploads, approved records), the registry |
 | Code | `core/checkpointer.py::AzureBlobCheckpointSaver` | `core/store.py::AzureBlobStore` | `storage/blob.py` (module functions: `create_case`, `load_case`, `save_case`, `write_phase_gate`, `upload_file`) |
 | Attached | `graph.compile(checkpointer=…)` on the parent graph only | `graph.compile(store=…)` on the parent graph only; nodes receive it as a parameter | Called by routes, never by the graph |
+| Versioned (ADR-0065) | `state_schema_version` in each checkpoint's metadata and pending-write blob | The same key beside each record's own keys, removed on read | The same key on the case document |
 
 **How a checkpoint is written.**
 - One blob per checkpoint: `checkpoints/{case_id}/latest.json` plus `history/{checkpoint_id}.json`;
@@ -339,7 +340,8 @@ Classes are allowed only in files marked **C**; elsewhere module-level functions
 | | `prompts.py` | Prompt constants and rubrics |
 | | `checkpointer.py` C | `AzureBlobCheckpointSaver` |
 | | `store.py` C | `AzureBlobStore` |
-| | `errors.py` C | `AgentImproveError` |
+| | `errors.py` C | `AgentImproveError`, `StateSchemaVersionError` |
+| | `migrations.py` | `migrate`, `MIGRATIONS` — an older state schema version migrated on load, a newer one refused (ADR-0065) |
 | | `conversation.py` | Reply metadata round-trip |
 | | `tracing.py` | `child_span`, `child_trace` |
 | | `citations.py` C | `CitationRecord` |
@@ -670,6 +672,8 @@ record per phase key.
 <!-- BEGIN GENERATED: data models — rewritten from the code on every commit; never edit by hand. -->
 
 ### 4.2 Declarations
+
+**State schema version 1** (`core/state.py::STATE_SCHEMA_VERSION`, ADR-0065): written into every checkpoint's metadata, every Store record and every case blob; an older one is migrated on load by `core/migrations.py`, a newer one is refused.
 
 #### `SupervisorState` — `core/state.py`
 

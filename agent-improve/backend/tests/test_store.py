@@ -156,11 +156,17 @@ def test_put_then_get_round_trips() -> None:
 
 def test_blob_body_is_the_value_itself_not_an_envelope() -> None:
     """§10: each `artifacts/{phase}.json` HOLDS the gate document, so the
-    blob stays directly readable rather than wrapping it in metadata."""
+    blob stays directly readable rather than wrapping it in metadata. ADR-0065
+    (T88): the one key added beside the value's own is the state schema
+    version; a read returns the value exactly as put."""
+    from backend.core import migrations
     store, blobs = make_store()
     value = {"phase": "define", "baseline_metric": "38 per week"}
     store.put(NS, "define", value)
-    assert json.loads(blobs[blob_path(NS, "define")].decode("utf-8")) == value
+    body = json.loads(blobs[blob_path(NS, "define")].decode("utf-8"))
+    assert body == {**value, migrations.VERSION_KEY: migrations.current()}
+    item = store.get(NS, "define")
+    assert item is not None and item.value == value
 
 
 def test_get_returns_none_for_an_unwritten_key() -> None:

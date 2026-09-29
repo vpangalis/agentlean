@@ -18,6 +18,12 @@ from typing import Annotated, TypedDict, Optional
 
 from langchain_core.messages import BaseMessage
 
+#: ADR-0065 (T88): the version of every state class and phase record this release writes — into
+#: each checkpoint's metadata, each Store record and each case blob. Raised by one with EVERY change
+#: to `SupervisorState`, `PhaseState`, a `{Phase}Output` or a phase record, together with its
+#: migration in `core/migrations.py` and that migration's fixture test. Never lowered.
+STATE_SCHEMA_VERSION = 1
+
 
 class SupervisorState(TypedDict):
     """The Level 1 orchestration state — orchestration ONLY.
