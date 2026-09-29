@@ -4,11 +4,11 @@ Written by `.claude/hooks/section_index.py` on every commit that touches a
 document below (step 6.66). Find the section here, then read only its lines
 (CLAUDE.md, Three layers). A range runs to the next heading of the same or higher level.
 
-## `agent-improve/ARCHITECTURE.md` — 968 lines
+## `agent-improve/ARCHITECTURE.md` — 715 lines
 
 | Lines | Heading |
 |---|---|
-| 1–968 | Agent Improve — Architecture |
+| 1–715 | Agent Improve — Architecture |
 | 20–41 |  1. Overview |
 | 42–326 |  2. Architecture |
 | 44–62 |   2.1 Context |
@@ -30,16 +30,9 @@ document below (step 6.66). Find the section here, then read only its lines
 | 560–572 |   3.8 Validation |
 | 573–590 |   3.9 API |
 | 591–600 |   3.10 UI |
-| 601–933 |  4. Data models |
-| 605–676 |   4.1 Shapes and notes |
-| 677–933 |   4.2 Declarations |
-| 681–693 |    `SupervisorState` — `core/state.py` |
-| 694–723 |    `PhaseState` — `core/substate.py` |
-| 724–758 |    Planner and coach schemas — `core/substate.py` |
-| 759–853 |    Phase records — `phases/{phase}/schema.py` |
-| 854–908 |    Search indexes — Azure AI Search |
-| 909–916 |    Store namespaces — `storage/layout.py::STORE_NAMESPACES` |
-| 917–933 |    Blob layout — container `agent-improve-cases` (the default of `settings.AZURE_BLOB_CONTAINER_IMPROVE`); `storage/layout.py::BLOB_PATHS` |
-| 934–948 |  5. Error handling |
-| 949–960 |  6. Testing strategy |
-| 961–968 |  7. Glossary |
+| 601–680 |  4. Data models |
+| 605–674 |   4.1 Shapes and notes |
+| 675–680 |   4.2 Declarations |
+| 681–695 |  5. Error handling |
+| 696–707 |  6. Testing strategy |
+| 708–715 |  7. Glossary |

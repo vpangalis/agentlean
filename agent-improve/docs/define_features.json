@@ -1772,7 +1772,10 @@
    "belt_impact": "wrong_data",
    "rework_risk": "high",
    "effort": "L",
-   "priority_override": null,
+   "priority_override": {
+    "rank_tier": 2,
+    "reason": "Founder ruling 1, 2026-09-29: M1 -> M2. A contradiction with a value approved at an EARLIER gate can only occur from Measure on; within Define, corrections go through Change (W9, R15). The design (a sixth node with interrupt, or a coached choice) is decided in the Measure review with ADR-0042. Not built now."
+   },
    "phase": "define",
    "stage": "coached",
    "layer": "gate"
